@@ -25,11 +25,12 @@
 #include "transaction.h"
 #include "print-tree.h"
 
-#define __MAX_CSUM_ITEMS(r, size) ((((BTRFS_LEAF_DATA_SIZE(r) - \
+#define __MAX_CSUM_ITEMS(r, size) ((unsigned long)(((BTRFS_LEAF_DATA_SIZE(r) - \
 				   sizeof(struct btrfs_item) * 2) / \
 				  size) - 1))
 
-#define MAX_CSUM_ITEMS(r, size) (min(__MAX_CSUM_ITEMS(r, size), PAGE_CACHE_SIZE))
+#define MAX_CSUM_ITEMS(r, size) (min_t(u32, __MAX_CSUM_ITEMS(r, size), \
+				       PAGE_CACHE_SIZE))
 
 #define MAX_ORDERED_SUM_BYTES(r) ((PAGE_SIZE - \
 				   sizeof(struct btrfs_ordered_sum)) / \
@@ -132,7 +133,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
@@ -150,6 +150,26 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+u64 btrfs_file_extent_length(struct btrfs_path *path)
+{
+	int extent_type;
+	struct btrfs_file_extent_item *fi;
+	u64 len;
+
+	fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
+			    struct btrfs_file_extent_item);
+	extent_type = btrfs_file_extent_type(path->nodes[0], fi);
+
+	if (extent_type == BTRFS_FILE_EXTENT_REG ||
+	    extent_type == BTRFS_FILE_EXTENT_PREALLOC)
+		len = btrfs_file_extent_num_bytes(path->nodes[0], fi);
+	else if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+		len = btrfs_file_extent_inline_len(path->nodes[0], fi);
+	else
+		BUG();
+
+	return len;
+}
 
 static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				   struct inode *inode, struct bio *bio,

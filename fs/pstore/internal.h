@@ -39,12 +39,18 @@ pstore_ftrace_decode_cpu(struct pstore_ftrace_record *rec)
 #endif
 }
 
+#ifdef CONFIG_PSTORE_FTRACE
+extern void pstore_register_ftrace(void);
+#else
+static inline void pstore_register_ftrace(void) {}
+#endif
+
 extern struct pstore_info *psinfo;
 
 extern void	pstore_set_kmsg_bytes(int);
 extern void	pstore_get_records(int);
 extern int	pstore_mkfile(enum pstore_type_id, char *psname, u64 id,
-			      char *data, size_t size,
+			      int count, char *data, size_t size,
 			      struct timespec time, struct pstore_info *psi);
 extern int	pstore_is_mounted(void);
 

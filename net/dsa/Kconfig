@@ -1,26 +1,24 @@
-config NET_DSA
-	tristate "Distributed Switch Architecture support"
-	default n
-	depends on EXPERIMENTAL && NETDEVICES && !S390
-	select PHYLIB
-	---help---
-	  This allows you to use hardware switch chips that use
-	  the Distributed Switch Architecture.
+config HAVE_NET_DSA
+	def_bool y
+	depends on NETDEVICES && !S390
 
+# Drivers must select NET_DSA and the appropriate tagging format
+
+config NET_DSA
+	tristate
+	depends on HAVE_NET_DSA
+	select PHYLIB
 
 if NET_DSA
 
 # tagging formats
 config NET_DSA_TAG_DSA
 	bool
-	default n
 
 config NET_DSA_TAG_EDSA
 	bool
-	default n
 
 config NET_DSA_TAG_TRAILER
 	bool
-	default n
 
 endif

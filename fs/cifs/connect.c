@@ -67,6 +67,7 @@ enum {
 	/* Mount options that take no arguments */
 	Opt_user_xattr, Opt_nouser_xattr,
 	Opt_forceuid, Opt_noforceuid,
+	Opt_forcegid, Opt_noforcegid,
 	Opt_noblocksend, Opt_noautotune,
 	Opt_hard, Opt_soft, Opt_perm, Opt_noperm,
 	Opt_mapchars, Opt_nomapchars, Opt_sfu,
@@ -82,8 +83,7 @@ enum {
 	Opt_serverino, Opt_noserverino,
 	Opt_rwpidforward, Opt_cifsacl, Opt_nocifsacl,
 	Opt_acl, Opt_noacl, Opt_locallease,
-	Opt_sign, Opt_seal, Opt_direct,
-	Opt_strictcache, Opt_noac,
+	Opt_sign, Opt_seal, Opt_noac,
 	Opt_fsc, Opt_mfsymlinks,
 	Opt_multiuser, Opt_sloppy,
 
@@ -118,6 +118,8 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_nouser_xattr, "nouser_xattr" },
 	{ Opt_forceuid, "forceuid" },
 	{ Opt_noforceuid, "noforceuid" },
+	{ Opt_forcegid, "forcegid" },
+	{ Opt_noforcegid, "noforcegid" },
 	{ Opt_noblocksend, "noblocksend" },
 	{ Opt_noautotune, "noautotune" },
 	{ Opt_hard, "hard" },
@@ -160,10 +162,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_locallease, "locallease" },
 	{ Opt_sign, "sign" },
 	{ Opt_seal, "seal" },
-	{ Opt_direct, "direct" },
-	{ Opt_direct, "directio" },
-	{ Opt_direct, "forcedirectio" },
-	{ Opt_strictcache, "strictcache" },
 	{ Opt_noac, "noac" },
 	{ Opt_fsc, "fsc" },
 	{ Opt_mfsymlinks, "mfsymlinks" },
@@ -188,6 +186,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_user, "user=%s" },
 	{ Opt_user, "username=%s" },
 	{ Opt_blank_pass, "pass=" },
+	{ Opt_blank_pass, "password=" },
 	{ Opt_pass, "pass=%s" },
 	{ Opt_pass, "password=%s" },
 	{ Opt_blank_ip, "ip=" },
@@ -276,7 +275,9 @@ static const match_table_t cifs_cacheflavor_tokens = {
 
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
+	{ Smb_20, SMB20_VERSION_STRING},
 	{ Smb_21, SMB21_VERSION_STRING },
+	{ Smb_30, SMB30_VERSION_STRING },
 };
 
 static int ip_connect(struct TCP_Server_Info *server);
@@ -819,6 +820,10 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
 
+	if (server->ops->is_status_pending &&
+	    server->ops->is_status_pending(buf, server, length))
+		return -1;
+
 	if (!mid)
 		return length;
 
@@ -1071,15 +1076,69 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		vol->vals = &smb1_values;
 		break;
 #ifdef CONFIG_CIFS_SMB2
+	case Smb_20:
+		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->vals = &smb20_values;
+		break;
 	case Smb_21:
 		vol->ops = &smb21_operations;
 		vol->vals = &smb21_values;
+		break;
+	case Smb_30:
+		vol->ops = &smb30_operations;
+		vol->vals = &smb30_values;
 		break;
 #endif
 	default:
 		cERROR(1, "Unknown vers= option specified: %s", value);
 		return 1;
 	}
+	return 0;
+}
+
+/*
+ * Parse a devname into substrings and populate the vol->UNC and vol->prepath
+ * fields with the result. Returns 0 on success and an error otherwise.
+ */
+static int
+cifs_parse_devname(const char *devname, struct smb_vol *vol)
+{
+	char *pos;
+	const char *delims = "/\\";
+	size_t len;
+
+	/* make sure we have a valid UNC double delimiter prefix */
+	len = strspn(devname, delims);
+	if (len != 2)
+		return -EINVAL;
+
+	/* find delimiter between host and sharename */
+	pos = strpbrk(devname + 2, delims);
+	if (!pos)
+		return -EINVAL;
+
+	/* skip past delimiter */
+	++pos;
+
+	/* now go until next delimiter or end of string */
+	len = strcspn(pos, delims);
+
+	/* move "pos" up to delimiter or NULL */
+	pos += len;
+	vol->UNC = kstrndup(devname, pos - devname, GFP_KERNEL);
+	if (!vol->UNC)
+		return -ENOMEM;
+
+	convert_delimiter(vol->UNC, '\\');
+
+	/* If pos is NULL, or is a bogus trailing delimiter then no prepath */
+	if (!*pos++ || !*pos)
+		return 0;
+
+	vol->prepath = kstrdup(pos, GFP_KERNEL);
+	if (!vol->prepath)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -1101,12 +1160,16 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	char *string = NULL;
 	char *tmp_end, *value;
 	char delim;
-	bool cache_specified = false;
-	static bool cache_warned = false;
+	bool got_ip = false;
+	unsigned short port = 0;
+	struct sockaddr *dstaddr = (struct sockaddr *)&vol->dstaddr;
 
 	separator[0] = ',';
 	separator[1] = 0;
 	delim = separator[0];
+
+	/* ensure we always start with zeroed-out smb_vol */
+	memset(vol, 0, sizeof(*vol));
 
 	/*
 	 * does not have to be perfect mapping since field is
@@ -1134,6 +1197,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
 
+	/* default is to use strict cifs caching semantics */
+	vol->strict_io = true;
+
 	vol->actimeo = CIFS_DEF_ACTIMEO;
 
 	/* FIXME: add autonegotiation -- for now, SMB1 is default */
@@ -1160,6 +1226,16 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	}
 	vol->backupuid_specified = false; /* no backup intent for a user */
 	vol->backupgid_specified = false; /* no backup intent for a group */
+
+	/*
+	 * For now, we ignore -EINVAL errors under the assumption that the
+	 * unc= and prefixpath= options will be usable.
+	 */
+	if (cifs_parse_devname(devname, vol) == -ENOMEM) {
+		printk(KERN_ERR "CIFS: Unable to allocate memory to parse "
+				"device string.\n");
+		goto out_nomem;
+	}
 
 	while ((data = strsep(&options, separator)) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -1189,6 +1265,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_noforceuid:
 			override_uid = 0;
+			break;
+		case Opt_forcegid:
+			override_gid = 1;
+			break;
+		case Opt_noforcegid:
+			override_gid = 0;
 			break;
 		case Opt_noblocksend:
 			vol->noblocksnd = 1;
@@ -1317,22 +1399,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 */
 			vol->seal = 1;
 			break;
-		case Opt_direct:
-			cache_specified = true;
-			vol->direct_io = true;
-			vol->strict_io = false;
-			cERROR(1, "The \"directio\" option will be removed in "
-				  "3.7. Please switch to the \"cache=none\" "
-				  "option.");
-			break;
-		case Opt_strictcache:
-			cache_specified = true;
-			vol->direct_io = false;
-			vol->strict_io = true;
-			cERROR(1, "The \"strictcache\" option will be removed "
-				"in 3.7. Please switch to the \"cache=strict\" "
-				"option.");
-			break;
 		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
@@ -1418,12 +1484,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->dir_mode = option;
 			break;
 		case Opt_port:
-			if (get_option_ul(args, &option)) {
-				cERROR(1, "%s: Invalid port value",
-					__func__);
+			if (get_option_ul(args, &option) ||
+			    option > USHRT_MAX) {
+				cERROR(1, "%s: Invalid port value", __func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->port = option;
+			port = (unsigned short)option;
 			break;
 		case Opt_rsize:
 			if (get_option_ul(args, &option)) {
@@ -1539,53 +1605,45 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->password[j] = '\0';
 			break;
 		case Opt_blank_ip:
-			vol->UNCip = NULL;
+			/* FIXME: should this be an error instead? */
+			got_ip = false;
 			break;
 		case Opt_ip:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnlen(string, INET6_ADDRSTRLEN) >
-						INET6_ADDRSTRLEN) {
-				printk(KERN_WARNING "CIFS: ip address "
-						    "too long\n");
+			if (!cifs_convert_address(dstaddr, string,
+					strlen(string))) {
+				printk(KERN_ERR "CIFS: bad ip= option (%s).\n",
+					string);
 				goto cifs_parse_mount_err;
 			}
-			vol->UNCip = kstrdup(string, GFP_KERNEL);
-			if (!vol->UNCip) {
-				printk(KERN_WARNING "CIFS: no memory "
-						    "for UNC IP\n");
-				goto cifs_parse_mount_err;
-			}
+			got_ip = true;
 			break;
 		case Opt_unc:
-			string = match_strdup(args);
-			if (string == NULL)
+			string = vol->UNC;
+			vol->UNC = match_strdup(args);
+			if (vol->UNC == NULL)
 				goto out_nomem;
 
-			temp_len = strnlen(string, 300);
-			if (temp_len  == 300) {
-				printk(KERN_WARNING "CIFS: UNC name too long\n");
+			convert_delimiter(vol->UNC, '\\');
+			if (vol->UNC[0] != '\\' || vol->UNC[1] != '\\') {
+				printk(KERN_ERR "CIFS: UNC Path does not "
+						"begin with // or \\\\\n");
 				goto cifs_parse_mount_err;
 			}
 
-			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->UNC == NULL) {
-				printk(KERN_WARNING "CIFS: no memory for UNC\n");
-				goto cifs_parse_mount_err;
-			}
-			strcpy(vol->UNC, string);
-
-			if (strncmp(string, "//", 2) == 0) {
-				vol->UNC[0] = '\\';
-				vol->UNC[1] = '\\';
-			} else if (strncmp(string, "\\\\", 2) != 0) {
-				printk(KERN_WARNING "CIFS: UNC Path does not "
-						    "begin with // or \\\\\n");
-				goto cifs_parse_mount_err;
-			}
-
+			/* Compare old unc= option to new one */
+			if (!string || strcmp(string, vol->UNC))
+				printk(KERN_WARNING "CIFS: the value of the "
+					"unc= mount option does not match the "
+					"device string. Using the unc= option "
+					"for now. In 3.10, that option will "
+					"be ignored and the contents of the "
+					"device string will be used "
+					"instead. (%s != %s)\n", string,
+					vol->UNC);
 			break;
 		case Opt_domain:
 			string = match_strdup(args);
@@ -1620,31 +1678,24 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 			break;
 		case Opt_prefixpath:
-			string = match_strdup(args);
-			if (string == NULL)
+			/* skip over any leading delimiter */
+			if (*args[0].from == '/' || *args[0].from == '\\')
+				args[0].from++;
+
+			string = vol->prepath;
+			vol->prepath = match_strdup(args);
+			if (vol->prepath == NULL)
 				goto out_nomem;
-
-			temp_len = strnlen(string, 1024);
-			if (string[0] != '/')
-				temp_len++; /* missing leading slash */
-			if (temp_len > 1024) {
-				printk(KERN_WARNING "CIFS: prefix too long\n");
-				goto cifs_parse_mount_err;
-			}
-
-			vol->prepath = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->prepath == NULL) {
-				printk(KERN_WARNING "CIFS: no memory "
-						    "for path prefix\n");
-				goto cifs_parse_mount_err;
-			}
-
-			if (string[0] != '/') {
-				vol->prepath[0] = '/';
-				strcpy(vol->prepath+1, string);
-			} else
-				strcpy(vol->prepath, string);
-
+			/* Compare old prefixpath= option to new one */
+			if (!string || strcmp(string, vol->prepath))
+				printk(KERN_WARNING "CIFS: the value of the "
+					"prefixpath= mount option does not "
+					"match the device string. Using the "
+					"prefixpath= option for now. In 3.10, "
+					"that option will be ignored and the "
+					"contents of the device string will be "
+					"used instead.(%s != %s)\n", string,
+					vol->prepath);
 			break;
 		case Opt_iocharset:
 			string = match_strdup(args);
@@ -1676,8 +1727,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnicmp(string, "TCP_NODELAY", 11) == 0)
+			if (strnicmp(string, "TCP_NODELAY", 11) == 0) {
+				printk(KERN_WARNING "CIFS: the "
+					"sockopt=TCP_NODELAY option has been "
+					"deprecated and will be removed "
+					"in 3.9\n");
 				vol->sockopt_tcp_nodelay = 1;
+			}
 			break;
 		case Opt_netbiosname:
 			string = match_strdup(args);
@@ -1762,7 +1818,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			break;
 		case Opt_cache:
-			cache_specified = true;
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
@@ -1797,9 +1852,30 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		goto cifs_parse_mount_err;
 	}
 #endif
+	if (!vol->UNC) {
+		cERROR(1, "CIFS mount error: No usable UNC path provided in "
+			  "device string or in unc= option!");
+		goto cifs_parse_mount_err;
+	}
 
-	if (vol->UNCip == NULL)
-		vol->UNCip = &vol->UNC[2];
+	/* make sure UNC has a share name */
+	if (!strchr(vol->UNC + 3, '\\')) {
+		cERROR(1, "Malformed UNC. Unable to find share name.");
+		goto cifs_parse_mount_err;
+	}
+
+	if (!got_ip) {
+		/* No ip= option specified? Try to get it from UNC */
+		if (!cifs_convert_address(dstaddr, &vol->UNC[2],
+						strlen(&vol->UNC[2]))) {
+			printk(KERN_ERR "Unable to determine destination "
+					"address.\n");
+			goto cifs_parse_mount_err;
+		}
+	}
+
+	/* set the port that we got earlier */
+	cifs_set_port(dstaddr, port);
 
 	if (uid_specified)
 		vol->override_uid = override_uid;
@@ -1812,14 +1888,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	else if (override_gid == 1)
 		printk(KERN_NOTICE "CIFS: ignoring forcegid mount option "
 				   "specified with no gid= option.\n");
-
-	/* FIXME: remove this block in 3.7 */
-	if (!cache_specified && !cache_warned) {
-		cache_warned = true;
-		printk(KERN_NOTICE "CIFS: no cache= option specified, using "
-				   "\"cache=loose\". This default will change "
-				   "to \"cache=strict\" in 3.7.\n");
-	}
 
 	kfree(mountdata_copy);
 	return 0;
@@ -1978,9 +2046,10 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 	return true;
 }
 
-static int match_server(struct TCP_Server_Info *server, struct sockaddr *addr,
-			 struct smb_vol *vol)
+static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 {
+	struct sockaddr *addr = (struct sockaddr *)&vol->dstaddr;
+
 	if ((server->vals != vol->vals) || (server->ops != vol->ops))
 		return 0;
 
@@ -2001,13 +2070,13 @@ static int match_server(struct TCP_Server_Info *server, struct sockaddr *addr,
 }
 
 static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
+cifs_find_tcp_session(struct smb_vol *vol)
 {
 	struct TCP_Server_Info *server;
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		if (!match_server(server, addr, vol))
+		if (!match_server(server, vol))
 			continue;
 
 		++server->srv_count;
@@ -2057,40 +2126,12 @@ static struct TCP_Server_Info *
 cifs_get_tcp_session(struct smb_vol *volume_info)
 {
 	struct TCP_Server_Info *tcp_ses = NULL;
-	struct sockaddr_storage addr;
-	struct sockaddr_in *sin_server = (struct sockaddr_in *) &addr;
-	struct sockaddr_in6 *sin_server6 = (struct sockaddr_in6 *) &addr;
 	int rc;
 
-	memset(&addr, 0, sizeof(struct sockaddr_storage));
-
-	cFYI(1, "UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip);
-
-	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
-					volume_info->UNCip,
-					strlen(volume_info->UNCip),
-					volume_info->port);
-		if (!rc) {
-			/* we failed translating address */
-			rc = -EINVAL;
-			goto out_err;
-		}
-	} else if (volume_info->UNCip) {
-		/* BB using ip addr as tcp_ses name to connect to the
-		   DFS root below */
-		cERROR(1, "Connecting to DFS root not implemented yet");
-		rc = -EINVAL;
-		goto out_err;
-	} else /* which tcp_sess DFS root would we conect to */ {
-		cERROR(1, "CIFS mount error: No UNC path (e.g. -o "
-			"unc=//192.168.1.100/public) specified");
-		rc = -EINVAL;
-		goto out_err;
-	}
+	cFYI(1, "UNC: %s", volume_info->UNC);
 
 	/* see if we already have a matching tcp_ses */
-	tcp_ses = cifs_find_tcp_session((struct sockaddr *)&addr, volume_info);
+	tcp_ses = cifs_find_tcp_session(volume_info);
 	if (tcp_ses)
 		return tcp_ses;
 
@@ -2135,26 +2176,17 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
-
+	memcpy(&tcp_ses->srcaddr, &volume_info->srcaddr,
+	       sizeof(tcp_ses->srcaddr));
+	memcpy(&tcp_ses->dstaddr, &volume_info->dstaddr,
+		sizeof(tcp_ses->dstaddr));
 	/*
 	 * at this point we are the only ones with the pointer
 	 * to the struct since the kernel thread not created yet
 	 * no need to spinlock this init of tcpStatus or srv_count
 	 */
 	tcp_ses->tcpStatus = CifsNew;
-	memcpy(&tcp_ses->srcaddr, &volume_info->srcaddr,
-	       sizeof(tcp_ses->srcaddr));
 	++tcp_ses->srv_count;
-
-	if (addr.ss_family == AF_INET6) {
-		cFYI(1, "attempting ipv6 connect");
-		/* BB should we allow ipv6 on port 139? */
-		/* other OS never observed in Wild doing 139 with v6 */
-		memcpy(&tcp_ses->dstaddr, sin_server6,
-		       sizeof(struct sockaddr_in6));
-	} else
-		memcpy(&tcp_ses->dstaddr, sin_server,
-		       sizeof(struct sockaddr_in));
 
 	rc = ip_connect(tcp_ses);
 	if (rc < 0) {
@@ -2403,8 +2435,6 @@ cifs_set_cifscreds(struct smb_vol *vol __attribute__((unused)),
 }
 #endif /* CONFIG_KEYS */
 
-static bool warned_on_ntlm;  /* globals init to false automatically */
-
 static struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 {
@@ -2481,14 +2511,6 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
 
-	/* ntlmv2 is much stronger than ntlm security, and has been broadly
-	supported for many years, time to update default security mechanism */
-	if ((volume_info->secFlg == 0) && warned_on_ntlm == false) {
-		warned_on_ntlm = true;
-		cERROR(1, "default security mechanism requested.  The default "
-			"security mechanism will be upgraded from ntlm to "
-			"ntlmv2 in kernel release 3.3");
-	}
 	ses->overrideSecFlg = volume_info->secFlg;
 
 	mutex_lock(&ses->session_mutex);
@@ -2604,13 +2626,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
-	if (strchr(volume_info->UNC + 3, '\\') == NULL
-	    && strchr(volume_info->UNC + 3, '/') == NULL) {
-		cERROR(1, "Missing share name");
-		rc = -ENODEV;
-		goto out_fail;
-	}
-
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
@@ -2636,6 +2651,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
 	tcon->local_lease = volume_info->local_lease;
+	INIT_LIST_HEAD(&tcon->pending_opens);
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
@@ -2723,10 +2739,7 @@ cifs_match_super(struct super_block *sb, void *data)
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	struct sockaddr_storage addr;
 	int rc = 0;
-
-	memset(&addr, 0, sizeof(struct sockaddr_storage));
 
 	spin_lock(&cifs_tcp_ses_lock);
 	cifs_sb = CIFS_SB(sb);
@@ -2741,17 +2754,7 @@ cifs_match_super(struct super_block *sb, void *data)
 
 	volume_info = mnt_data->vol;
 
-	if (!volume_info->UNCip || !volume_info->UNC)
-		goto out;
-
-	rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
-				volume_info->UNCip,
-				strlen(volume_info->UNCip),
-				volume_info->port);
-	if (!rc)
-		goto out;
-
-	if (!match_server(tcp_srv, (struct sockaddr *)&addr, volume_info) ||
+	if (!match_server(tcp_srv, volume_info) ||
 	    !match_session(ses, volume_info) ||
 	    !match_tcon(tcon, volume_info->UNC)) {
 		rc = 0;
@@ -3261,153 +3264,11 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			   "mount option supported");
 }
 
-/*
- * When the server supports very large reads and writes via POSIX extensions,
- * we can allow up to 2^24-1, minus the size of a READ/WRITE_AND_X header, not
- * including the RFC1001 length.
- *
- * Note that this might make for "interesting" allocation problems during
- * writeback however as we have to allocate an array of pointers for the
- * pages. A 16M write means ~32kb page array with PAGE_CACHE_SIZE == 4096.
- *
- * For reads, there is a similar problem as we need to allocate an array
- * of kvecs to handle the receive, though that should only need to be done
- * once.
- */
-#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP) + 4)
-
-/*
- * When the server doesn't allow large posix writes, only allow a rsize/wsize
- * of 2^17-1 minus the size of the call header. That allows for a read or
- * write up to the maximum size described by RFC1002.
- */
-#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
-
-/*
- * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_CACHE_SIZE == 4k, this means we can fill
- * a single wsize request with a single call.
- */
-#define CIFS_DEFAULT_IOSIZE (1024 * 1024)
-
-/*
- * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
- * those values when posix extensions aren't in force. In actuality here, we
- * use 65536 to allow for a write that is a multiple of 4k. Most servers seem
- * to be ok with the extra byte even though Windows doesn't send writes that
- * are that large.
- *
- * Citation:
- *
- * http://blogs.msdn.com/b/openspecification/archive/2009/04/10/smb-maximum-transmit-buffer-size-and-performance-tuning.aspx
- */
-#define CIFS_DEFAULT_NON_POSIX_RSIZE (60 * 1024)
-#define CIFS_DEFAULT_NON_POSIX_WSIZE (65536)
-
-/*
- * On hosts with high memory, we can't currently support wsize/rsize that are
- * larger than we can kmap at once. Cap the rsize/wsize at
- * LAST_PKMAP * PAGE_SIZE. We'll never be able to fill a read or write request
- * larger than that anyway.
- */
-#ifdef CONFIG_HIGHMEM
-#define CIFS_KMAP_SIZE_LIMIT	(LAST_PKMAP * PAGE_CACHE_SIZE)
-#else /* CONFIG_HIGHMEM */
-#define CIFS_KMAP_SIZE_LIMIT	(1<<24)
-#endif /* CONFIG_HIGHMEM */
-
-static unsigned int
-cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
-{
-	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	struct TCP_Server_Info *server = tcon->ses->server;
-	unsigned int wsize;
-
-	/* start with specified wsize, or default */
-	if (pvolume_info->wsize)
-		wsize = pvolume_info->wsize;
-	else if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
-		wsize = CIFS_DEFAULT_IOSIZE;
-	else
-		wsize = CIFS_DEFAULT_NON_POSIX_WSIZE;
-
-	/* can server support 24-bit write sizes? (via UNIX extensions) */
-	if (!tcon->unix_ext || !(unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
-		wsize = min_t(unsigned int, wsize, CIFS_MAX_RFC1002_WSIZE);
-
-	/*
-	 * no CAP_LARGE_WRITE_X or is signing enabled without CAP_UNIX set?
-	 * Limit it to max buffer offered by the server, minus the size of the
-	 * WRITEX header, not including the 4 byte RFC1001 length.
-	 */
-	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
-	    (!(server->capabilities & CAP_UNIX) &&
-	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
-		wsize = min_t(unsigned int, wsize,
-				server->maxBuf - sizeof(WRITE_REQ) + 4);
-
-	/* limit to the amount that we can kmap at once */
-	wsize = min_t(unsigned int, wsize, CIFS_KMAP_SIZE_LIMIT);
-
-	/* hard limit of CIFS_MAX_WSIZE */
-	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
-
-	return wsize;
-}
-
-static unsigned int
-cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
-{
-	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	struct TCP_Server_Info *server = tcon->ses->server;
-	unsigned int rsize, defsize;
-
-	/*
-	 * Set default value...
-	 *
-	 * HACK alert! Ancient servers have very small buffers. Even though
-	 * MS-CIFS indicates that servers are only limited by the client's
-	 * bufsize for reads, testing against win98se shows that it throws
-	 * INVALID_PARAMETER errors if you try to request too large a read.
-	 * OS/2 just sends back short reads.
-	 *
-	 * If the server doesn't advertise CAP_LARGE_READ_X, then assume that
-	 * it can't handle a read request larger than its MaxBufferSize either.
-	 */
-	if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_READ_CAP))
-		defsize = CIFS_DEFAULT_IOSIZE;
-	else if (server->capabilities & CAP_LARGE_READ_X)
-		defsize = CIFS_DEFAULT_NON_POSIX_RSIZE;
-	else
-		defsize = server->maxBuf - sizeof(READ_RSP);
-
-	rsize = pvolume_info->rsize ? pvolume_info->rsize : defsize;
-
-	/*
-	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
-	 * the client's MaxBufferSize.
-	 */
-	if (!(server->capabilities & CAP_LARGE_READ_X))
-		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
-
-	/* limit to the amount that we can kmap at once */
-	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
-
-	/* hard limit of CIFS_MAX_RSIZE */
-	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
-
-	return rsize;
-}
-
 static void
 cleanup_volume_info_contents(struct smb_vol *volume_info)
 {
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
-	if (volume_info->UNCip != volume_info->UNC + 2)
-		kfree(volume_info->UNCip);
 	kfree(volume_info->UNC);
 	kfree(volume_info->domainname);
 	kfree(volume_info->iocharset);
@@ -3425,14 +3286,16 @@ cifs_cleanup_volume_info(struct smb_vol *volume_info)
 
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-/* build_path_to_root returns full path to root when
- * we do not have an exiting connection (tcon) */
+/*
+ * cifs_build_path_to_root returns full path to root when we do not have an
+ * exiting connection (tcon)
+ */
 static char *
 build_unc_path_to_root(const struct smb_vol *vol,
 		const struct cifs_sb_info *cifs_sb)
 {
 	char *full_path, *pos;
-	unsigned int pplen = vol->prepath ? strlen(vol->prepath) : 0;
+	unsigned int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
 	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
@@ -3443,6 +3306,7 @@ build_unc_path_to_root(const struct smb_vol *vol,
 	pos = full_path + unc_len;
 
 	if (pplen) {
+		*pos++ = CIFS_DIR_SEP(cifs_sb);
 		strncpy(pos, vol->prepath, pplen);
 		pos += pplen;
 	}
@@ -3498,7 +3362,6 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 			mdata = NULL;
 		} else {
 			cleanup_volume_info_contents(volume_info);
-			memset(volume_info, '\0', sizeof(*volume_info));
 			rc = cifs_setup_volume_info(volume_info, mdata,
 							fake_devname);
 		}
@@ -3519,7 +3382,6 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 
 	if (cifs_parse_mount_options(mount_data, devname, volume_info))
 		return -EINVAL;
-
 
 	if (volume_info->nullauth) {
 		cFYI(1, "Anonymous login");
@@ -3557,7 +3419,7 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	int rc;
 	struct smb_vol *volume_info;
 
-	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
+	volume_info = kmalloc(sizeof(struct smb_vol), GFP_KERNEL);
 	if (!volume_info)
 		return ERR_PTR(-ENOMEM);
 
@@ -3651,8 +3513,8 @@ try_mount_again:
 	if (!tcon->ipc && server->ops->qfs_tcon)
 		server->ops->qfs_tcon(xid, tcon);
 
-	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
-	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
+	cifs_sb->wsize = server->ops->negotiate_wsize(tcon, volume_info);
+	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, volume_info);
 
 	/* tune readahead according to rsize */
 	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
@@ -3682,8 +3544,10 @@ remote_path_check:
 			rc = -ENOSYS;
 			goto mount_fail_check;
 		}
-		/* build_path_to_root works only when we have a valid tcon */
-		full_path = build_path_to_root(volume_info, cifs_sb, tcon);
+		/*
+		 * cifs_build_path_to_root works only when we have a valid tcon
+		 */
+		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;

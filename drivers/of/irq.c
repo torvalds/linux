@@ -192,11 +192,13 @@ int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
 			/* Compare specifiers */
 			match = 1;
 			for (i = 0; i < addrsize && match; ++i) {
-				u32 mask = imask ? imask[i] : 0xffffffffu;
+				__be32 mask = imask ? imask[i]
+						    : cpu_to_be32(0xffffffffu);
 				match = ((addr[i] ^ imap[i]) & mask) == 0;
 			}
 			for (; i < (addrsize + intsize) && match; ++i) {
-				u32 mask = imask ? imask[i] : 0xffffffffu;
+				__be32 mask = imask ? imask[i]
+						    : cpu_to_be32(0xffffffffu);
 				match =
 				   ((intspec[i-addrsize] ^ imap[i]) & mask) == 0;
 			}
@@ -392,6 +394,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 
 	return i;
 }
+EXPORT_SYMBOL_GPL(of_irq_to_resource_table);
 
 struct intc_desc {
 	struct list_head	list;
@@ -464,7 +467,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 			pr_debug("of_irq_init: init %s @ %p, parent %p\n",
 				 match->compatible,
 				 desc->dev, desc->interrupt_parent);
-			irq_init_cb = match->data;
+			irq_init_cb = (of_irq_init_cb_t)match->data;
 			ret = irq_init_cb(desc->dev, desc->interrupt_parent);
 			if (ret) {
 				kfree(desc);

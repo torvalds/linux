@@ -10,9 +10,8 @@
  *          Matt Turner
  *          Dave Airlie
  */
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include "mgag200_drv.h"
 
 static void mga_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -134,6 +133,8 @@ static int mga_vram_init(struct mga_device *mdev)
 {
 	void __iomem *mem;
 	struct apertures_struct *aper = alloc_apertures(1);
+	if (!aper)
+		return -ENOMEM;
 
 	/* BAR 0 is VRAM */
 	mdev->mc.vram_base = pci_resource_start(mdev->dev->pdev, 0);
@@ -141,9 +142,9 @@ static int mga_vram_init(struct mga_device *mdev)
 
 	aper->ranges[0].base = mdev->mc.vram_base;
 	aper->ranges[0].size = mdev->mc.vram_window;
-	aper->count = 1;
 
 	remove_conflicting_framebuffers(aper, "mgafb", true);
+	kfree(aper);
 
 	if (!request_mem_region(mdev->mc.vram_base, mdev->mc.vram_window,
 				"mgadrmfb_vram")) {

@@ -32,6 +32,8 @@
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/musb.h>
+#include <linux/usb/nop-usb-xceiv.h>
 #include <linux/smsc911x.h>
 
 #include <linux/wl12xx.h>
@@ -40,23 +42,24 @@
 #include <linux/mmc/host.h>
 #include <linux/export.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
-#include <plat/usb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include "common.h"
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "board-flash.h"
+
+#define	NAND_CS			0
 
 #define OMAP3_EVM_TS_GPIO	175
 #define OMAP3_EVM_EHCI_VBUS	22
@@ -75,13 +78,24 @@
 #define OMAP3EVM_GEN1_ETHR_GPIO_RST	64
 #define OMAP3EVM_GEN2_ETHR_GPIO_RST	7
 
+/*
+ * OMAP35x EVM revision
+ * Run time detection of EVM revision is done by reading Ethernet
+ * PHY ID -
+ *	GEN_1	= 0x01150000
+ *	GEN_2	= 0x92200000
+ */
+enum {
+	OMAP3EVM_BOARD_GEN_1 = 0,	/* EVM Rev between  A - D */
+	OMAP3EVM_BOARD_GEN_2,		/* EVM Rev >= Rev E */
+};
+
 static u8 omap3_evm_version;
 
-u8 get_omap3_evm_rev(void)
+static u8 get_omap3_evm_rev(void)
 {
 	return omap3_evm_version;
 }
-EXPORT_SYMBOL(get_omap3_evm_rev);
 
 static void __init omap3_evm_get_revision(void)
 {
@@ -108,7 +122,7 @@ static void __init omap3_evm_get_revision(void)
 }
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = OMAP3EVM_SMSC911X_CS,
@@ -226,6 +240,7 @@ static struct omap_dss_device omap3_evm_tv_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= OMAP3EVM_DVI_PANEL_EN_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device omap3_evm_dvi_device = {
@@ -377,9 +392,6 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3evm_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3evm_twl_gpio_setup,
 };
@@ -525,9 +537,6 @@ static int __init omap3_evm_i2c_init(void)
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
-
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-};
 
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 
@@ -688,9 +697,6 @@ static void __init omap3_evm_init(void)
 	obm = (cpu_is_omap3630()) ? omap36x_board_mux : omap35x_board_mux;
 	omap3_mux_init(obm, OMAP_PACKAGE_CBB);
 
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
-
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);
 
@@ -730,13 +736,15 @@ static void __init omap3_evm_init(void)
 	}
 	usb_musb_init(&musb_board_data);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3evm_nand_partitions,
-			     ARRAY_SIZE(omap3evm_nand_partitions));
+	board_nand_init(omap3evm_nand_partitions,
+			ARRAY_SIZE(omap3evm_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 
 	omap_ads7846_init(1, OMAP3_EVM_TS_GPIO, 310, NULL);
 	omap3evm_init_smsc911x();
 	omap3_evm_display_init();
 	omap3_evm_wl12xx_init();
+	omap_twl4030_audio_init("omap3evm");
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
@@ -750,5 +758,5 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.init_machine	= omap3_evm_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

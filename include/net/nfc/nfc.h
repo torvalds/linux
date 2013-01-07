@@ -72,6 +72,7 @@ struct nfc_ops {
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
+#define NFC_ATR_RES_GT_OFFSET 15
 
 struct nfc_target {
 	u32 idx;
@@ -89,12 +90,12 @@ struct nfc_target {
 };
 
 struct nfc_genl_data {
-	u32 poll_req_pid;
+	u32 poll_req_portid;
 	struct mutex genl_data_mutex;
 };
 
 struct nfc_dev {
-	unsigned int idx;
+	int idx;
 	u32 target_next_idx;
 	struct nfc_target *targets;
 	int n_targets;
@@ -112,7 +113,6 @@ struct nfc_dev {
 	int tx_tailroom;
 
 	struct timer_list check_pres_timer;
-	struct workqueue_struct *check_pres_wq;
 	struct work_struct check_pres_work;
 
 	struct nfc_ops *ops;

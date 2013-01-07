@@ -1,6 +1,9 @@
 #ifndef LINUX_BCMA_DRIVER_CC_H_
 #define LINUX_BCMA_DRIVER_CC_H_
 
+#include <linux/platform_device.h>
+#include <linux/gpio.h>
+
 /** ChipCommon core registers. **/
 #define BCMA_CC_ID			0x0000
 #define  BCMA_CC_ID_ID			0x0000FFFF
@@ -100,6 +103,7 @@
 #define  BCMA_CC_CHIPST_4706_SFLASH_TYPE	BIT(2) /* 0: 8b-p/ST-s flash, 1: 16b-p/Atmal-s flash */
 #define  BCMA_CC_CHIPST_4706_MIPS_BENDIAN	BIT(3) /* 0: little, 1: big endian */
 #define  BCMA_CC_CHIPST_4706_PCIE1_DISABLE	BIT(5) /* PCIE1 enable strap pin */
+#define  BCMA_CC_CHIPST_5357_NAND_BOOT		BIT(4) /* NAND boot, valid for CC rev 38 and/or BCM5357 */
 #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
 #define  BCMA_CC_JCMD_START		0x80000000
 #define  BCMA_CC_JCMD_BUSY		0x80000000
@@ -266,6 +270,29 @@
 #define  BCMA_CC_SROM_CONTROL_SIZE_16K	0x00000004
 #define  BCMA_CC_SROM_CONTROL_SIZE_SHIFT	1
 #define  BCMA_CC_SROM_CONTROL_PRESENT	0x00000001
+/* Block 0x140 - 0x190 registers are chipset specific */
+#define BCMA_CC_4706_FLASHSCFG		0x18C		/* Flash struct configuration */
+#define  BCMA_CC_4706_FLASHSCFG_MASK	0x000000ff
+#define  BCMA_CC_4706_FLASHSCFG_SF1	0x00000001	/* 2nd serial flash present */
+#define  BCMA_CC_4706_FLASHSCFG_PF1	0x00000002	/* 2nd parallel flash present */
+#define  BCMA_CC_4706_FLASHSCFG_SF1_TYPE	0x00000004	/* 2nd serial flash type : 0 : ST, 1 : Atmel */
+#define  BCMA_CC_4706_FLASHSCFG_NF1	0x00000008	/* 2nd NAND flash present */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_MASK	0x000000f0
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_4MB	0x00000010	/* 4MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_8MB	0x00000020	/* 8MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_16MB	0x00000030	/* 16MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_32MB	0x00000040	/* 32MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_64MB	0x00000050	/* 64MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_128MB	0x00000060	/* 128MB */
+#define  BCMA_CC_4706_FLASHSCFG_1ST_MADDR_SEG_256MB	0x00000070	/* 256MB */
+/* NAND flash registers for BCM4706 (corerev = 31) */
+#define BCMA_CC_NFLASH_CTL		0x01A0
+#define  BCMA_CC_NFLASH_CTL_ERR		0x08000000
+#define BCMA_CC_NFLASH_CONF		0x01A4
+#define BCMA_CC_NFLASH_COL_ADDR		0x01A8
+#define BCMA_CC_NFLASH_ROW_ADDR		0x01AC
+#define BCMA_CC_NFLASH_DATA		0x01B0
+#define BCMA_CC_NFLASH_WAITCNT0		0x01B4
 /* 0x1E0 is defined as shared BCMA_CLKCTLST */
 #define BCMA_CC_HW_WORKAROUND		0x01E4 /* Hardware workaround (rev >= 20) */
 #define BCMA_CC_UART0_DATA		0x0300
@@ -325,6 +352,60 @@
 #define BCMA_CC_PLLCTL_ADDR		0x0660
 #define BCMA_CC_PLLCTL_DATA		0x0664
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
+/* NAND flash MLC controller registers (corerev >= 38) */
+#define BCMA_CC_NAND_REVISION		0x0C00
+#define BCMA_CC_NAND_CMD_START		0x0C04
+#define BCMA_CC_NAND_CMD_ADDR_X		0x0C08
+#define BCMA_CC_NAND_CMD_ADDR		0x0C0C
+#define BCMA_CC_NAND_CMD_END_ADDR	0x0C10
+#define BCMA_CC_NAND_CS_NAND_SELECT	0x0C14
+#define BCMA_CC_NAND_CS_NAND_XOR	0x0C18
+#define BCMA_CC_NAND_SPARE_RD0		0x0C20
+#define BCMA_CC_NAND_SPARE_RD4		0x0C24
+#define BCMA_CC_NAND_SPARE_RD8		0x0C28
+#define BCMA_CC_NAND_SPARE_RD12		0x0C2C
+#define BCMA_CC_NAND_SPARE_WR0		0x0C30
+#define BCMA_CC_NAND_SPARE_WR4		0x0C34
+#define BCMA_CC_NAND_SPARE_WR8		0x0C38
+#define BCMA_CC_NAND_SPARE_WR12		0x0C3C
+#define BCMA_CC_NAND_ACC_CONTROL	0x0C40
+#define BCMA_CC_NAND_CONFIG		0x0C48
+#define BCMA_CC_NAND_TIMING_1		0x0C50
+#define BCMA_CC_NAND_TIMING_2		0x0C54
+#define BCMA_CC_NAND_SEMAPHORE		0x0C58
+#define BCMA_CC_NAND_DEVID		0x0C60
+#define BCMA_CC_NAND_DEVID_X		0x0C64
+#define BCMA_CC_NAND_BLOCK_LOCK_STATUS	0x0C68
+#define BCMA_CC_NAND_INTFC_STATUS	0x0C6C
+#define BCMA_CC_NAND_ECC_CORR_ADDR_X	0x0C70
+#define BCMA_CC_NAND_ECC_CORR_ADDR	0x0C74
+#define BCMA_CC_NAND_ECC_UNC_ADDR_X	0x0C78
+#define BCMA_CC_NAND_ECC_UNC_ADDR	0x0C7C
+#define BCMA_CC_NAND_READ_ERROR_COUNT	0x0C80
+#define BCMA_CC_NAND_CORR_STAT_THRESHOLD	0x0C84
+#define BCMA_CC_NAND_READ_ADDR_X	0x0C90
+#define BCMA_CC_NAND_READ_ADDR		0x0C94
+#define BCMA_CC_NAND_PAGE_PROGRAM_ADDR_X	0x0C98
+#define BCMA_CC_NAND_PAGE_PROGRAM_ADDR	0x0C9C
+#define BCMA_CC_NAND_COPY_BACK_ADDR_X	0x0CA0
+#define BCMA_CC_NAND_COPY_BACK_ADDR	0x0CA4
+#define BCMA_CC_NAND_BLOCK_ERASE_ADDR_X	0x0CA8
+#define BCMA_CC_NAND_BLOCK_ERASE_ADDR	0x0CAC
+#define BCMA_CC_NAND_INV_READ_ADDR_X	0x0CB0
+#define BCMA_CC_NAND_INV_READ_ADDR	0x0CB4
+#define BCMA_CC_NAND_BLK_WR_PROTECT	0x0CC0
+#define BCMA_CC_NAND_ACC_CONTROL_CS1	0x0CD0
+#define BCMA_CC_NAND_CONFIG_CS1		0x0CD4
+#define BCMA_CC_NAND_TIMING_1_CS1	0x0CD8
+#define BCMA_CC_NAND_TIMING_2_CS1	0x0CDC
+#define BCMA_CC_NAND_SPARE_RD16		0x0D30
+#define BCMA_CC_NAND_SPARE_RD20		0x0D34
+#define BCMA_CC_NAND_SPARE_RD24		0x0D38
+#define BCMA_CC_NAND_SPARE_RD28		0x0D3C
+#define BCMA_CC_NAND_CACHE_ADDR		0x0D40
+#define BCMA_CC_NAND_CACHE_DATA		0x0D44
+#define BCMA_CC_NAND_CTRL_CONFIG	0x0D48
+#define BCMA_CC_NAND_CTRL_STATUS	0x0D4C
 
 /* Divider allocation in 4716/47162/5356 */
 #define BCMA_CC_PMU5_MAINPLL_CPU	1
@@ -415,6 +496,13 @@
 /* 4313 Chip specific ChipControl register bits */
 #define BCMA_CCTRL_4313_12MA_LED_DRIVE		0x00000007	/* 12 mA drive strengh for later 4313 */
 
+/* BCM5357 ChipControl register bits */
+#define BCMA_CHIPCTL_5357_EXTPA			BIT(14)
+#define BCMA_CHIPCTL_5357_ANT_MUX_2O3		BIT(15)
+#define BCMA_CHIPCTL_5357_NFLASH		BIT(16)
+#define BCMA_CHIPCTL_5357_I2S_PINS_ENABLE	BIT(18)
+#define BCMA_CHIPCTL_5357_I2CSPI_PINS_ENABLE	BIT(19)
+
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
  */
@@ -425,10 +513,34 @@ struct bcma_chipcommon_pmu {
 
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 struct bcma_pflash {
+	bool present;
 	u8 buswidth;
 	u32 window;
 	u32 window_size;
 };
+
+#ifdef CONFIG_BCMA_SFLASH
+struct bcma_sflash {
+	bool present;
+	u32 window;
+	u32 blocksize;
+	u16 numblocks;
+	u32 size;
+
+	struct mtd_info *mtd;
+};
+#endif
+
+#ifdef CONFIG_BCMA_NFLASH
+struct mtd_info;
+
+struct bcma_nflash {
+	bool present;
+	bool boot;		/* This is the flash the SoC boots from */
+
+	struct mtd_info *mtd;
+};
+#endif
 
 struct bcma_serial_port {
 	void *regs;
@@ -445,15 +557,30 @@ struct bcma_drv_cc {
 	u32 capabilities;
 	u32 capabilities_ext;
 	u8 setup_done:1;
+	u8 early_setup_done:1;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 	struct bcma_pflash pflash;
+#ifdef CONFIG_BCMA_SFLASH
+	struct bcma_sflash sflash;
+#endif
+#ifdef CONFIG_BCMA_NFLASH
+	struct bcma_nflash nflash;
+#endif
 
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
+	u32 ticks_per_ms;
+	struct platform_device *watchdog;
+
+	/* Lock for GPIO register access. */
+	spinlock_t gpio_lock;
+#ifdef CONFIG_BCMA_DRIVER_GPIO
+	struct gpio_chip gpio;
+#endif
 };
 
 /* Register access */
@@ -470,14 +597,14 @@ struct bcma_drv_cc {
 	bcma_cc_write32(cc, offset, (bcma_cc_read32(cc, offset) & (mask)) | (set))
 
 extern void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
+extern void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc);
 
 extern void bcma_chipco_suspend(struct bcma_drv_cc *cc);
 extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
-extern void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc,
-					  u32 ticks);
+extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
@@ -490,9 +617,12 @@ u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_intmask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_polarity(struct bcma_drv_cc *cc, u32 mask, u32 value);
+u32 bcma_chipco_gpio_pullup(struct bcma_drv_cc *cc, u32 mask, u32 value);
+u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
 /* PMU support */
 extern void bcma_pmu_init(struct bcma_drv_cc *cc);
+extern void bcma_pmu_early_init(struct bcma_drv_cc *cc);
 
 extern void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset,
 				  u32 value);

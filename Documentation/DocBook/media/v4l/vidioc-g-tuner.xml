@@ -354,6 +354,12 @@ radio tuners.</entry>
 	<entry>The &VIDIOC-ENUM-FREQ-BANDS; ioctl can be used to enumerate
 	the available frequency bands.</entry>
 	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_HWSEEK_PROG_LIM</constant></entry>
+	<entry>0x0800</entry>
+	<entry>The range to search when using the hardware seek functionality
+	is programmable, see &VIDIOC-S-HW-FREQ-SEEK; for details.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

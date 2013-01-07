@@ -504,7 +504,9 @@
 #define SSB_CHIPCO_FLASHCTL_ST_SE	0x02D8		/* Sector Erase */
 #define SSB_CHIPCO_FLASHCTL_ST_BE	0x00C7		/* Bulk Erase */
 #define SSB_CHIPCO_FLASHCTL_ST_DP	0x00B9		/* Deep Power-down */
-#define SSB_CHIPCO_FLASHCTL_ST_RSIG	0x03AB		/* Read Electronic Signature */
+#define SSB_CHIPCO_FLASHCTL_ST_RES	0x03AB		/* Read Electronic Signature */
+#define SSB_CHIPCO_FLASHCTL_ST_CSA	0x1000		/* Keep chip select asserted */
+#define SSB_CHIPCO_FLASHCTL_ST_SSE	0x0220		/* Sub-sector Erase */
 
 /* Status register bits for ST flashes */
 #define SSB_CHIPCO_FLASHSTA_ST_WIP	0x01		/* Write In Progress */
@@ -588,7 +590,10 @@ struct ssb_chipcommon {
 	u32 status;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
+	spinlock_t gpio_lock;
 	struct ssb_chipcommon_pmu pmu;
+	u32 ticks_per_ms;
+	u32 max_timer_ms;
 };
 
 static inline bool ssb_chipco_available(struct ssb_chipcommon *cc)
@@ -628,8 +633,7 @@ enum ssb_clkmode {
 extern void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 				     enum ssb_clkmode mode);
 
-extern void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc,
-					  u32 ticks);
+extern u32 ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks);
 
 void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value);
 
@@ -642,6 +646,8 @@ u32 ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value);
 u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value);
 u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value);
 u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_pullup(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_pulldown(struct ssb_chipcommon *cc, u32 mask, u32 value);
 
 #ifdef CONFIG_SSB_SERIAL
 extern int ssb_chipco_serial_init(struct ssb_chipcommon *cc,

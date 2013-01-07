@@ -42,12 +42,6 @@
 #include <plat/gpio-fns.h>
 #include <plat/pm.h>
 
-#ifndef DEBUG_GPIO
-#define gpio_dbg(x...) do { } while (0)
-#else
-#define gpio_dbg(x...) printk(KERN_DEBUG x)
-#endif
-
 int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,
 				unsigned int off, samsung_gpio_pull_t pull)
 {
@@ -596,10 +590,13 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 	unsigned long con;
 
 	con = __raw_readl(base + GPIOCON_OFF);
-	con &= ~(0xf << con_4bit_shift(offset));
+	if (ourchip->bitmap_gpio_int & BIT(offset))
+		con |= 0xf << con_4bit_shift(offset);
+	else
+		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
-	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -627,7 +624,7 @@ static int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
 	__raw_writel(con, base + GPIOCON_OFF);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -671,7 +668,7 @@ static int samsung_gpiolib_4bit2_input(struct gpio_chip *chip,
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, regcon);
 
-	gpio_dbg("%s: %p: CON %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -706,7 +703,7 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	__raw_writel(con, regcon);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -926,10 +923,10 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 #ifdef CONFIG_PM
 	if (chip->pm != NULL) {
 		if (!chip->pm->save || !chip->pm->resume)
-			printk(KERN_ERR "gpio: %s has missing PM functions\n",
+			pr_err("gpio: %s has missing PM functions\n",
 			       gc->label);
 	} else
-		printk(KERN_ERR "gpio: %s has no PM function\n", gc->label);
+		pr_err("gpio: %s has no PM function\n", gc->label);
 #endif
 
 	/* gpiochip_add() prints own failure message on error. */
@@ -937,6 +934,67 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 	if (ret >= 0)
 		s3c_gpiolib_track(chip);
 }
+
+#if defined(CONFIG_PLAT_S3C24XX) && defined(CONFIG_OF)
+static int s3c24xx_gpio_xlate(struct gpio_chip *gc,
+			const struct of_phandle_args *gpiospec, u32 *flags)
+{
+	unsigned int pin;
+
+	if (WARN_ON(gc->of_gpio_n_cells < 3))
+		return -EINVAL;
+
+	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
+		return -EINVAL;
+
+	if (gpiospec->args[0] > gc->ngpio)
+		return -EINVAL;
+
+	pin = gc->base + gpiospec->args[0];
+
+	if (s3c_gpio_cfgpin(pin, S3C_GPIO_SFN(gpiospec->args[1])))
+		pr_warn("gpio_xlate: failed to set pin function\n");
+	if (s3c_gpio_setpull(pin, gpiospec->args[2] & 0xffff))
+		pr_warn("gpio_xlate: failed to set pin pull up/down\n");
+
+	if (flags)
+		*flags = gpiospec->args[2] >> 16;
+
+	return gpiospec->args[0];
+}
+
+static const struct of_device_id s3c24xx_gpio_dt_match[] __initdata = {
+	{ .compatible = "samsung,s3c24xx-gpio", },
+	{}
+};
+
+static __init void s3c24xx_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
+						 u64 base, u64 offset)
+{
+	struct gpio_chip *gc =  &chip->chip;
+	u64 address;
+
+	if (!of_have_populated_dt())
+		return;
+
+	address = chip->base ? base + ((u32)chip->base & 0xfff) : base + offset;
+	gc->of_node = of_find_matching_node_by_address(NULL,
+			s3c24xx_gpio_dt_match, address);
+	if (!gc->of_node) {
+		pr_info("gpio: device tree node not found for gpio controller"
+			" with base address %08llx\n", address);
+		return;
+	}
+	gc->of_gpio_n_cells = 3;
+	gc->of_xlate = s3c24xx_gpio_xlate;
+}
+#else
+static __init void s3c24xx_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
+						 u64 base, u64 offset)
+{
+	return;
+}
+#endif /* defined(CONFIG_PLAT_S3C24XX) && defined(CONFIG_OF) */
 
 static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 					     int nr_chips, void __iomem *base)
@@ -962,6 +1020,8 @@ static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 			gc->direction_output = samsung_gpiolib_2bit_output;
 
 		samsung_gpiolib_add(chip);
+
+		s3c24xx_gpiolib_attach_ofnode(chip, S3C24XX_PA_GPIO, i * 0x10);
 	}
 }
 
@@ -1017,6 +1077,8 @@ static void __init samsung_gpiolib_add_4bit_chips(struct samsung_gpio_chip *chip
 			chip->pm = __gpio_pm(&samsung_gpio_pm_4bit);
 		if ((base != NULL) && (chip->base == NULL))
 			chip->base = base + ((i) * 0x20);
+
+		chip->bitmap_gpio_int = 0;
 
 		samsung_gpiolib_add(chip);
 	}
@@ -2948,6 +3010,28 @@ static __init int samsung_gpiolib_init(void)
 	int i, nr_chips;
 	int group = 0;
 
+#ifdef CONFIG_PINCTRL_SAMSUNG
+	/*
+	* This gpio driver includes support for device tree support and there
+	* are platforms using it. In order to maintain compatibility with those
+	* platforms, and to allow non-dt Exynos4210 platforms to use this
+	* gpiolib support, a check is added to find out if there is a active
+	* pin-controller driver support available. If it is available, this
+	* gpiolib support is ignored and the gpiolib support available in
+	* pin-controller driver is used. This is a temporary check and will go
+	* away when all of the Exynos4210 platforms have switched to using
+	* device tree and the pin-ctrl driver.
+	*/
+	struct device_node *pctrl_np;
+	static const struct of_device_id exynos_pinctrl_ids[] = {
+		{ .compatible = "samsung,pinctrl-exynos4210", },
+		{ .compatible = "samsung,pinctrl-exynos4x12", },
+	};
+	for_each_matching_node(pctrl_np, exynos_pinctrl_ids)
+		if (pctrl_np && of_device_is_available(pctrl_np))
+			return -ENODEV;
+#endif
+
 	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
 
 	if (soc_is_s3c24xx()) {
@@ -3130,46 +3214,6 @@ samsung_gpio_pull_t s3c_gpio_getpull(unsigned int pin)
 	return (__force samsung_gpio_pull_t)pup;
 }
 EXPORT_SYMBOL(s3c_gpio_getpull);
-
-/* gpiolib wrappers until these are totally eliminated */
-
-void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
-{
-	int ret;
-
-	WARN_ON(to);	/* should be none of these left */
-
-	if (!to) {
-		/* if pull is enabled, try first with up, and if that
-		 * fails, try using down */
-
-		ret = s3c_gpio_setpull(pin, S3C_GPIO_PULL_UP);
-		if (ret)
-			s3c_gpio_setpull(pin, S3C_GPIO_PULL_DOWN);
-	} else {
-		s3c_gpio_setpull(pin, S3C_GPIO_PULL_NONE);
-	}
-}
-EXPORT_SYMBOL(s3c2410_gpio_pullup);
-
-void s3c2410_gpio_setpin(unsigned int pin, unsigned int to)
-{
-	/* do this via gpiolib until all users removed */
-
-	gpio_request(pin, "temporary");
-	gpio_set_value(pin, to);
-	gpio_free(pin);
-}
-EXPORT_SYMBOL(s3c2410_gpio_setpin);
-
-unsigned int s3c2410_gpio_getpin(unsigned int pin)
-{
-	struct samsung_gpio_chip *chip = samsung_gpiolib_getchip(pin);
-	unsigned long offs = pin - chip->chip.base;
-
-	return __raw_readl(chip->base + 0x04) & (1 << offs);
-}
-EXPORT_SYMBOL(s3c2410_gpio_getpin);
 
 #ifdef CONFIG_S5P_GPIO_DRVSTR
 s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin)

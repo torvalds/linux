@@ -210,6 +210,8 @@ static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd,
 
 	err  = get_user(palp, &up->palette);
 	err |= get_user(length, &up->length);
+	if (err)
+		return -EFAULT;
 
 	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
 	err  = put_user(compat_ptr(palp), &up_native->palette);
@@ -842,6 +844,9 @@ COMPATIBLE_IOCTL(TIOCGDEV)
 COMPATIBLE_IOCTL(TIOCCBRK)
 COMPATIBLE_IOCTL(TIOCGSID)
 COMPATIBLE_IOCTL(TIOCGICOUNT)
+COMPATIBLE_IOCTL(TIOCGPKT)
+COMPATIBLE_IOCTL(TIOCGPTLCK)
+COMPATIBLE_IOCTL(TIOCGEXCL)
 /* Little t */
 COMPATIBLE_IOCTL(TIOCGETD)
 COMPATIBLE_IOCTL(TIOCSETD)
@@ -866,6 +871,12 @@ COMPATIBLE_IOCTL(TIOCGPTN)
 COMPATIBLE_IOCTL(TIOCSPTLCK)
 COMPATIBLE_IOCTL(TIOCSERGETLSR)
 COMPATIBLE_IOCTL(TIOCSIG)
+#ifdef TIOCSRS485
+COMPATIBLE_IOCTL(TIOCSRS485)
+#endif
+#ifdef TIOCGRS485
+COMPATIBLE_IOCTL(TIOCGRS485)
+#endif
 #ifdef TCGETS2
 COMPATIBLE_IOCTL(TCGETS2)
 COMPATIBLE_IOCTL(TCSETS2)
@@ -897,6 +908,8 @@ COMPATIBLE_IOCTL(KDGKBSENT)
 COMPATIBLE_IOCTL(KDSKBSENT)
 COMPATIBLE_IOCTL(KDGKBDIACR)
 COMPATIBLE_IOCTL(KDSKBDIACR)
+COMPATIBLE_IOCTL(KDGKBDIACRUC)
+COMPATIBLE_IOCTL(KDSKBDIACRUC)
 COMPATIBLE_IOCTL(KDKBDREP)
 COMPATIBLE_IOCTL(KDGKBLED)
 COMPATIBLE_IOCTL(KDGETLED)
@@ -1531,16 +1544,13 @@ static int compat_ioctl_check_table(unsigned int xcmd)
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				unsigned long arg)
 {
-	struct file *filp;
+	struct fd f = fdget(fd);
 	int error = -EBADF;
-	int fput_needed;
-
-	filp = fget_light(fd, &fput_needed);
-	if (!filp)
+	if (!f.file)
 		goto out;
 
 	/* RED-PEN how should LSM module know it's handling 32bit? */
-	error = security_file_ioctl(filp, cmd, arg);
+	error = security_file_ioctl(f.file, cmd, arg);
 	if (error)
 		goto out_fput;
 
@@ -1560,30 +1570,30 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 #if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
 	case FS_IOC_RESVSP_32:
 	case FS_IOC_RESVSP64_32:
-		error = compat_ioctl_preallocate(filp, compat_ptr(arg));
+		error = compat_ioctl_preallocate(f.file, compat_ptr(arg));
 		goto out_fput;
 #else
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
-		error = ioctl_preallocate(filp, compat_ptr(arg));
+		error = ioctl_preallocate(f.file, compat_ptr(arg));
 		goto out_fput;
 #endif
 
 	case FIBMAP:
 	case FIGETBSZ:
 	case FIONREAD:
-		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
+		if (S_ISREG(f.file->f_path.dentry->d_inode->i_mode))
 			break;
 		/*FALL THROUGH*/
 
 	default:
-		if (filp->f_op && filp->f_op->compat_ioctl) {
-			error = filp->f_op->compat_ioctl(filp, cmd, arg);
+		if (f.file->f_op && f.file->f_op->compat_ioctl) {
+			error = f.file->f_op->compat_ioctl(f.file, cmd, arg);
 			if (error != -ENOIOCTLCMD)
 				goto out_fput;
 		}
 
-		if (!filp->f_op || !filp->f_op->unlocked_ioctl)
+		if (!f.file->f_op || !f.file->f_op->unlocked_ioctl)
 			goto do_ioctl;
 		break;
 	}
@@ -1591,7 +1601,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 	if (compat_ioctl_check_table(XFORM(cmd)))
 		goto found_handler;
 
-	error = do_ioctl_trans(fd, cmd, arg, filp);
+	error = do_ioctl_trans(fd, cmd, arg, f.file);
 	if (error == -ENOIOCTLCMD)
 		error = -ENOTTY;
 
@@ -1600,9 +1610,9 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
  found_handler:
 	arg = (unsigned long)compat_ptr(arg);
  do_ioctl:
-	error = do_vfs_ioctl(filp, fd, cmd, arg);
+	error = do_vfs_ioctl(f.file, fd, cmd, arg);
  out_fput:
-	fput_light(filp, fput_needed);
+	fdput(f);
  out:
 	return error;
 }

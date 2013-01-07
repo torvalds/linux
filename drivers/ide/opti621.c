@@ -131,7 +131,7 @@ static const struct ide_port_ops opti621_port_ops = {
 	.set_pio_mode		= opti621_set_pio_mode,
 };
 
-static const struct ide_port_info opti621_chipset __devinitdata = {
+static const struct ide_port_info opti621_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 	.port_ops	= &opti621_port_ops,

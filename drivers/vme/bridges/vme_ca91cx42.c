@@ -34,10 +34,8 @@
 #include "../vme_bridge.h"
 #include "vme_ca91cx42.h"
 
-static int __init ca91cx42_init(void);
 static int ca91cx42_probe(struct pci_dev *, const struct pci_device_id *);
 static void ca91cx42_remove(struct pci_dev *);
-static void __exit ca91cx42_exit(void);
 
 /* Module parameters */
 static int geoid;
@@ -1523,11 +1521,6 @@ static void ca91cx42_free_consistent(struct device *parent, size_t size,
 	pci_free_consistent(pdev, size, vaddr, dma);
 }
 
-static int __init ca91cx42_init(void)
-{
-	return pci_register_driver(&ca91cx42_driver);
-}
-
 /*
  * Configure CR/CSR space
  *
@@ -1603,7 +1596,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int retval, i;
 	u32 data;
-	struct list_head *pos = NULL;
+	struct list_head *pos = NULL, *n;
 	struct vme_bridge *ca91cx42_bridge;
 	struct ca91cx42_driver *ca91cx42_device;
 	struct vme_master_resource *master_image;
@@ -1821,28 +1814,28 @@ err_reg:
 	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
 err_lm:
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->lm_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->lm_resources) {
 		lm = list_entry(pos, struct vme_lm_resource, list);
 		list_del(pos);
 		kfree(lm);
 	}
 err_dma:
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->dma_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->dma_resources) {
 		dma_ctrlr = list_entry(pos, struct vme_dma_resource, list);
 		list_del(pos);
 		kfree(dma_ctrlr);
 	}
 err_slave:
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->slave_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->slave_resources) {
 		slave_image = list_entry(pos, struct vme_slave_resource, list);
 		list_del(pos);
 		kfree(slave_image);
 	}
 err_master:
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->master_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->master_resources) {
 		master_image = list_entry(pos, struct vme_master_resource,
 			list);
 		list_del(pos);
@@ -1868,7 +1861,7 @@ err_struct:
 
 static void ca91cx42_remove(struct pci_dev *pdev)
 {
-	struct list_head *pos = NULL;
+	struct list_head *pos = NULL, *n;
 	struct vme_master_resource *master_image;
 	struct vme_slave_resource *slave_image;
 	struct vme_dma_resource *dma_ctrlr;
@@ -1905,28 +1898,28 @@ static void ca91cx42_remove(struct pci_dev *pdev)
 	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
 
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->lm_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->lm_resources) {
 		lm = list_entry(pos, struct vme_lm_resource, list);
 		list_del(pos);
 		kfree(lm);
 	}
 
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->dma_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->dma_resources) {
 		dma_ctrlr = list_entry(pos, struct vme_dma_resource, list);
 		list_del(pos);
 		kfree(dma_ctrlr);
 	}
 
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->slave_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->slave_resources) {
 		slave_image = list_entry(pos, struct vme_slave_resource, list);
 		list_del(pos);
 		kfree(slave_image);
 	}
 
 	/* resources are stored in link list */
-	list_for_each(pos, &ca91cx42_bridge->master_resources) {
+	list_for_each_safe(pos, n, &ca91cx42_bridge->master_resources) {
 		master_image = list_entry(pos, struct vme_master_resource,
 			list);
 		list_del(pos);
@@ -1944,16 +1937,10 @@ static void ca91cx42_remove(struct pci_dev *pdev)
 	kfree(ca91cx42_bridge);
 }
 
-static void __exit ca91cx42_exit(void)
-{
-	pci_unregister_driver(&ca91cx42_driver);
-}
+module_pci_driver(ca91cx42_driver);
 
 MODULE_PARM_DESC(geoid, "Override geographical addressing");
 module_param(geoid, int, 0);
 
 MODULE_DESCRIPTION("VME driver for the Tundra Universe II VME bridge");
 MODULE_LICENSE("GPL");
-
-module_init(ca91cx42_init);
-module_exit(ca91cx42_exit);

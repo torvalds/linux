@@ -33,13 +33,13 @@
 	REG32(_gic_base + segment##_##SECTION_OFS + offset)
 
 #define GIC_ABS_REG(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
+	(_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
 #define GIC_REG_ABS_ADDR(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset)
+	(_gic_base + segment##_##SECTION_OFS + offset)
 
 #ifdef GICISBYTELITTLEENDIAN
-#define GICREAD(reg, data)	(data) = (reg), (data) = le32_to_cpu(data)
-#define GICWRITE(reg, data)	(reg) = cpu_to_le32(data)
+#define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
+#define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
 #define GICBIS(reg, bits)			\
 	({unsigned int data;			\
 		GICREAD(reg, data);		\
@@ -48,9 +48,9 @@
 	})
 
 #else
-#define GICREAD(reg, data)	(data) = (reg)
-#define GICWRITE(reg, data)	(reg) = (data)
-#define GICBIS(reg, bits)	(reg) |= (bits)
+#define GICREAD(reg, data)	((data) = (reg))
+#define GICWRITE(reg, data)	((reg) = (data))
+#define GICBIS(reg, bits)	((reg) |= (bits))
 #endif
 
 
@@ -304,15 +304,15 @@
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
 struct gic_pcpu_mask {
-       DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
 };
 
 struct gic_pending_regs {
-       DECLARE_BITMAP(pending, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
 };
 
 struct gic_intrmask_regs {
-       DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
 };
 
 /*
@@ -341,15 +341,44 @@ struct gic_shared_intr_map {
 	unsigned int local_intr_mask;
 };
 
+/* GIC nomenclature for Core Interrupt Pins. */
+#define GIC_CPU_INT0		0 /* Core Interrupt 2 */
+#define GIC_CPU_INT1		1 /* .                */
+#define GIC_CPU_INT2		2 /* .                */
+#define GIC_CPU_INT3		3 /* .                */
+#define GIC_CPU_INT4		4 /* .                */
+#define GIC_CPU_INT5		5 /* Core Interrupt 5 */
+
+/* Local GIC interrupts. */
+#define GIC_INT_TMR		(GIC_CPU_INT5)
+#define GIC_INT_PERFCTR		(GIC_CPU_INT5)
+
+/* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */
+#define GIC_CPU_TO_VEC_OFFSET	(2)
+
+/* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
+#define GIC_PIN_TO_VEC_OFFSET	(1)
+
+extern unsigned long _gic_base;
+extern unsigned int gic_irq_base;
+extern unsigned int gic_irq_flags[];
+extern struct gic_shared_intr_map gic_shared_intr_map[];
+
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, struct gic_intr_map *intrmap,
 	unsigned int intrmap_size, unsigned int irqbase);
 
+extern void gic_clocksource_init(unsigned int);
 extern unsigned int gic_get_int(void);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
 extern void gic_bind_eic_interrupt(int irq, int set);
 extern unsigned int gic_get_timer_pending(void);
+extern void gic_enable_interrupt(int irq_vec);
+extern void gic_disable_interrupt(int irq_vec);
+extern void gic_irq_ack(struct irq_data *d);
+extern void gic_finish_irq(struct irq_data *d);
+extern void gic_platform_init(int irqs, struct irq_chip *irq_controller);
 
 #endif /* _ASM_GICREGS_H */

@@ -18,9 +18,64 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <linux/bitops.h>
+#include <asm-generic/bitops/count_zeros.h>
 #include "mpi-internal.h"
 
 #define MAX_EXTERN_MPI_BITS 16384
+
+/**
+ * mpi_read_raw_data - Read a raw byte stream as a positive integer
+ * @xbuffer: The data to read
+ * @nbytes: The amount of data to read
+ */
+MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes)
+{
+	const uint8_t *buffer = xbuffer;
+	int i, j;
+	unsigned nbits, nlimbs;
+	mpi_limb_t a;
+	MPI val = NULL;
+
+	while (nbytes >= 0 && buffer[0] == 0) {
+		buffer++;
+		nbytes--;
+	}
+
+	nbits = nbytes * 8;
+	if (nbits > MAX_EXTERN_MPI_BITS) {
+		pr_info("MPI: mpi too large (%u bits)\n", nbits);
+		return NULL;
+	}
+	if (nbytes > 0)
+		nbits -= count_leading_zeros(buffer[0]);
+	else
+		nbits = 0;
+
+	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	val = mpi_alloc(nlimbs);
+	if (!val)
+		return NULL;
+	val->nbits = nbits;
+	val->sign = 0;
+	val->nlimbs = nlimbs;
+
+	if (nbytes > 0) {
+		i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
+		i %= BYTES_PER_MPI_LIMB;
+		for (j = nlimbs; j > 0; j--) {
+			a = 0;
+			for (; i < BYTES_PER_MPI_LIMB; i++) {
+				a <<= 8;
+				a |= *buffer++;
+			}
+			i = 0;
+			val->d[j - 1] = a;
+		}
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(mpi_read_raw_data);
 
 MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 {

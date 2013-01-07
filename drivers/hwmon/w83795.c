@@ -34,7 +34,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
+#include <linux/jiffies.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {

@@ -7,16 +7,12 @@
 #include <acpi/acpi.h>
 #include <linux/mxm-wmi.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_sarea.h"
-#include "drm_crtc_helper.h"
-#include "nouveau_drv.h"
-#include "nouveau_drm.h"
-#include "nv50_display.h"
-#include "nouveau_connector.h"
-
 #include <linux/vga_switcheroo.h>
+
+#include <drm/drm_edid.h>
+
+#include "nouveau_drm.h"
+#include "nouveau_acpi.h"
 
 #define NOUVEAU_DSM_LED 0x02
 #define NOUVEAU_DSM_LED_STATE 0x00
@@ -38,6 +34,14 @@ static struct nouveau_dsm_priv {
 	acpi_handle dhandle;
 	acpi_handle rom_handle;
 } nouveau_dsm_priv;
+
+bool nouveau_is_optimus(void) {
+	return nouveau_dsm_priv.optimus_detected;
+}
+
+bool nouveau_is_v1_dsm(void) {
+	return nouveau_dsm_priv.dsm_detected;
+}
 
 #define NOUVEAU_DSM_HAS_MUX 0x1
 #define NOUVEAU_DSM_HAS_OPT 0x2
@@ -187,9 +191,7 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 
 static int nouveau_dsm_switchto(enum vga_switcheroo_client_id id)
 {
-	/* perhaps the _DSM functions are mutually exclusive, but prepare for
-	 * the future */
-	if (!nouveau_dsm_priv.dsm_detected && nouveau_dsm_priv.optimus_detected)
+	if (!nouveau_dsm_priv.dsm_detected)
 		return 0;
 	if (id == VGA_SWITCHEROO_IGD)
 		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_STAMINA);
@@ -205,7 +207,7 @@ static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
 
 	/* Optimus laptops have the card already disabled in
 	 * nouveau_switcheroo_set_state */
-	if (!nouveau_dsm_priv.dsm_detected && nouveau_dsm_priv.optimus_detected)
+	if (!nouveau_dsm_priv.dsm_detected)
 		return 0;
 
 	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dhandle, state);
@@ -287,7 +289,15 @@ static bool nouveau_dsm_detect(void)
 			has_optimus = 1;
 	}
 
-	if (vga_count == 2 && has_dsm && guid_valid) {
+	/* find the optimus DSM or the old v1 DSM */
+	if (has_optimus == 1) {
+		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
+			&buffer);
+		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
+			acpi_method_name);
+		nouveau_dsm_priv.optimus_detected = true;
+		ret = true;
+	} else if (vga_count == 2 && has_dsm && guid_valid) {
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
 		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
@@ -296,14 +306,6 @@ static bool nouveau_dsm_detect(void)
 		ret = true;
 	}
 
-	if (has_optimus == 1) {
-		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
-			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
-			acpi_method_name);
-		nouveau_dsm_priv.optimus_detected = true;
-		ret = true;
-	}
 
 	return ret;
 }
@@ -390,10 +392,9 @@ int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
 	return nouveau_rom_call(nouveau_dsm_priv.rom_handle, bios, offset, len);
 }
 
-int
+void *
 nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct acpi_device *acpidev;
 	acpi_handle handle;
 	int type, ret;
@@ -405,21 +406,20 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 		type = ACPI_VIDEO_DISPLAY_LCD;
 		break;
 	default:
-		return -EINVAL;
+		return NULL;
 	}
 
 	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
 	if (!handle)
-		return -ENODEV;
+		return NULL;
 
 	ret = acpi_bus_get_device(handle, &acpidev);
 	if (ret)
-		return -ENODEV;
+		return NULL;
 
 	ret = acpi_video_get_edid(acpidev, type, -1, &edid);
 	if (ret < 0)
-		return ret;
+		return NULL;
 
-	nv_connector->edid = kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
-	return 0;
+	return kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
 }

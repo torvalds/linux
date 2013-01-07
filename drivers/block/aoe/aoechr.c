@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2012 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoechr.c
  * AoE character device driver
@@ -39,6 +39,11 @@ struct ErrMsg {
 };
 
 static DEFINE_MUTEX(aoechr_mutex);
+
+/* A ring buffer of error messages, to be read through
+ * "/dev/etherd/err".  When no messages are present,
+ * readers will block waiting for messages to appear.
+ */
 static struct ErrMsg emsgs[NMSG];
 static int emsgs_head_idx, emsgs_tail_idx;
 static struct completion emsgs_comp;
@@ -86,34 +91,34 @@ revalidate(const char __user *str, size_t size)
 	if (copy_from_user(buf, str, size))
 		return -EFAULT;
 
-	/* should be e%d.%d format */
 	n = sscanf(buf, "e%d.%d", &major, &minor);
 	if (n != 2) {
-		printk(KERN_ERR "aoe: invalid device specification\n");
+		pr_err("aoe: invalid device specification %s\n", buf);
 		return -EINVAL;
 	}
-	d = aoedev_by_aoeaddr(major, minor);
+	d = aoedev_by_aoeaddr(major, minor, 0);
 	if (!d)
 		return -EINVAL;
 	spin_lock_irqsave(&d->lock, flags);
 	aoecmd_cleanslate(d);
+	aoecmd_cfg(major, minor);
 loop:
 	skb = aoecmd_ata_id(d);
 	spin_unlock_irqrestore(&d->lock, flags);
 	/* try again if we are able to sleep a bit,
 	 * otherwise give up this revalidation
 	 */
-	if (!skb && !msleep_interruptible(200)) {
+	if (!skb && !msleep_interruptible(250)) {
 		spin_lock_irqsave(&d->lock, flags);
 		goto loop;
 	}
+	aoedev_put(d);
 	if (skb) {
 		struct sk_buff_head queue;
 		__skb_queue_head_init(&queue);
 		__skb_queue_tail(&queue, skb);
 		aoenet_xmit(&queue);
 	}
-	aoecmd_cfg(major, minor);
 	return 0;
 }
 
@@ -174,6 +179,7 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 		break;
 	case MINOR_FLUSH:
 		ret = aoedev_flush(buf, cnt);
+		break;
 	}
 	if (ret == 0)
 		ret = cnt;
@@ -281,7 +287,7 @@ aoechr_init(void)
 	int n, i;
 
 	n = register_chrdev(AOE_MAJOR, "aoechr", &aoe_fops);
-	if (n < 0) { 
+	if (n < 0) {
 		printk(KERN_ERR "aoe: can't register char device\n");
 		return n;
 	}

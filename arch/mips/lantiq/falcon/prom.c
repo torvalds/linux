@@ -8,6 +8,8 @@
  */
 
 #include <linux/kernel.h>
+#include <asm/cacheflush.h>
+#include <asm/traps.h>
 #include <asm/io.h>
 
 #include <lantiq_soc.h>
@@ -84,4 +86,7 @@ void __init ltq_soc_detect(struct ltq_soc_info *i)
 		unreachable();
 		break;
 	}
+
+	board_nmi_handler_setup = ltq_soc_nmi_setup;
+	board_ejtag_handler_setup = ltq_soc_ejtag_setup;
 }

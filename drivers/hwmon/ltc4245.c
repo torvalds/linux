@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/jiffies.h>
 #include <linux/i2c/ltc4245.h>
 
 /* Here are names of the chip's registers (a.k.a. commands) */
@@ -519,11 +520,9 @@ static int ltc4245_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto out_kzalloc;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -536,7 +535,7 @@ static int ltc4245_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	ret = ltc4245_sysfs_create_groups(client);
 	if (ret)
-		goto out_sysfs_create_groups;
+		return ret;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -548,9 +547,6 @@ static int ltc4245_probe(struct i2c_client *client,
 
 out_hwmon_device_register:
 	ltc4245_sysfs_remove_groups(client);
-out_sysfs_create_groups:
-	kfree(data);
-out_kzalloc:
 	return ret;
 }
 
@@ -560,7 +556,6 @@ static int ltc4245_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	ltc4245_sysfs_remove_groups(client);
-	kfree(data);
 
 	return 0;
 }

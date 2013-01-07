@@ -3,7 +3,8 @@
 
 #include <linux/spinlock.h>
 #include <linux/clk-provider.h>
-#include <mach/clock.h>
+
+extern spinlock_t imx_ccm_lock;
 
 struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		void __iomem *base);
@@ -21,8 +22,7 @@ enum imx_pllv3_type {
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
-		const char *parent_name, void __iomem *base, u32 gate_mask,
-		u32 div_mask);
+		const char *parent_name, void __iomem *base, u32 div_mask);
 
 struct clk *clk_register_gate2(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,

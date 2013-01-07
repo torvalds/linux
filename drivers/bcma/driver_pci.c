@@ -51,7 +51,7 @@ static void bcma_pcie_mdio_set_phy(struct bcma_drv_pci *pc, u8 phy)
 		v = pcicore_read32(pc, BCMA_CORE_PCI_MDIO_CONTROL);
 		if (v & BCMA_CORE_PCI_MDIOCTL_ACCESS_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 }
 
@@ -92,7 +92,7 @@ static u16 bcma_pcie_mdio_read(struct bcma_drv_pci *pc, u8 device, u8 address)
 			ret = pcicore_read32(pc, BCMA_CORE_PCI_MDIO_DATA);
 			break;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	pcicore_write32(pc, BCMA_CORE_PCI_MDIO_CONTROL, 0);
 	return ret;
@@ -132,7 +132,7 @@ static void bcma_pcie_mdio_write(struct bcma_drv_pci *pc, u8 device,
 		v = pcicore_read32(pc, BCMA_CORE_PCI_MDIO_CONTROL);
 		if (v & BCMA_CORE_PCI_MDIOCTL_ACCESS_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	pcicore_write32(pc, BCMA_CORE_PCI_MDIO_CONTROL, 0);
 }

@@ -34,19 +34,19 @@ struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
-					   unsigned long va,
+					   unsigned long vpn,
 					   int psize, int ssize,
 					   int local);
 	long		(*hpte_updatepp)(unsigned long slot, 
 					 unsigned long newpp, 
-					 unsigned long va,
+					 unsigned long vpn,
 					 int psize, int ssize,
 					 int local);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
 	long		(*hpte_insert)(unsigned long hpte_group,
-				       unsigned long va,
+				       unsigned long vpn,
 				       unsigned long prpn,
 				       unsigned long rflags,
 				       unsigned long vflags,
@@ -166,9 +166,6 @@ struct machdep_calls {
 						unsigned long size,
 						pgprot_t vma_prot);
 
-	/* Idle loop for this platform, leave empty for default idle loop */
-	void		(*idle_loop)(void);
-
 	/*
 	 * Function for waiting for work with reduced power in idle loop;
 	 * called with interrupts disabled.
@@ -180,7 +177,8 @@ struct machdep_calls {
 	void		(*enable_pmcs)(void);
 
 	/* Set DABR for this platform, leave empty for default implemenation */
-	int		(*set_dabr)(unsigned long dabr);
+	int		(*set_dabr)(unsigned long dabr,
+				    unsigned long dabrx);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.
@@ -213,6 +211,9 @@ struct machdep_calls {
 
 	/* Called after scan and before resource survey */
 	void (*pcibios_fixup_phb)(struct pci_controller *hose);
+
+	/* Called during PCI resource reassignment */
+	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
@@ -316,28 +317,28 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 		ppc_md.log_error(buf, err_type, fatal);
 }
 
-#define __define_machine_initcall(mach,level,fn,id) \
+#define __define_machine_initcall(mach, fn, id) \
 	static int __init __machine_initcall_##mach##_##fn(void) { \
 		if (machine_is(mach)) return fn(); \
 		return 0; \
 	} \
-	__define_initcall(level,__machine_initcall_##mach##_##fn,id);
+	__define_initcall(__machine_initcall_##mach##_##fn, id);
 
-#define machine_core_initcall(mach,fn)		__define_machine_initcall(mach,"1",fn,1)
-#define machine_core_initcall_sync(mach,fn)	__define_machine_initcall(mach,"1s",fn,1s)
-#define machine_postcore_initcall(mach,fn)	__define_machine_initcall(mach,"2",fn,2)
-#define machine_postcore_initcall_sync(mach,fn)	__define_machine_initcall(mach,"2s",fn,2s)
-#define machine_arch_initcall(mach,fn)		__define_machine_initcall(mach,"3",fn,3)
-#define machine_arch_initcall_sync(mach,fn)	__define_machine_initcall(mach,"3s",fn,3s)
-#define machine_subsys_initcall(mach,fn)	__define_machine_initcall(mach,"4",fn,4)
-#define machine_subsys_initcall_sync(mach,fn)	__define_machine_initcall(mach,"4s",fn,4s)
-#define machine_fs_initcall(mach,fn)		__define_machine_initcall(mach,"5",fn,5)
-#define machine_fs_initcall_sync(mach,fn)	__define_machine_initcall(mach,"5s",fn,5s)
-#define machine_rootfs_initcall(mach,fn)	__define_machine_initcall(mach,"rootfs",fn,rootfs)
-#define machine_device_initcall(mach,fn)	__define_machine_initcall(mach,"6",fn,6)
-#define machine_device_initcall_sync(mach,fn)	__define_machine_initcall(mach,"6s",fn,6s)
-#define machine_late_initcall(mach,fn)		__define_machine_initcall(mach,"7",fn,7)
-#define machine_late_initcall_sync(mach,fn)	__define_machine_initcall(mach,"7s",fn,7s)
+#define machine_core_initcall(mach, fn)		__define_machine_initcall(mach, fn, 1)
+#define machine_core_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 1s)
+#define machine_postcore_initcall(mach, fn)	__define_machine_initcall(mach, fn, 2)
+#define machine_postcore_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 2s)
+#define machine_arch_initcall(mach, fn)		__define_machine_initcall(mach, fn, 3)
+#define machine_arch_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 3s)
+#define machine_subsys_initcall(mach, fn)	__define_machine_initcall(mach, fn, 4)
+#define machine_subsys_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 4s)
+#define machine_fs_initcall(mach, fn)		__define_machine_initcall(mach, fn, 5)
+#define machine_fs_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 5s)
+#define machine_rootfs_initcall(mach, fn)	__define_machine_initcall(mach, fn, rootfs)
+#define machine_device_initcall(mach, fn)	__define_machine_initcall(mach, fn, 6)
+#define machine_device_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 6s)
+#define machine_late_initcall(mach, fn)		__define_machine_initcall(mach, fn, 7)
+#define machine_late_initcall_sync(mach, fn)	__define_machine_initcall(mach, fn, 7s)
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MACHDEP_H */

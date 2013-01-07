@@ -17,11 +17,9 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include <plat/board.h>
-#include <plat/gpmc-smc91x.h>
-#include <plat/usb.h>
+#include "gpmc-smc91x.h"
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "board-flash.h"
 #include "mux.h"
@@ -65,9 +63,6 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.reset_gpio_port[0]  = 126,
 	.reset_gpio_port[1]  = 61,
 	.reset_gpio_port[2]  = -EINVAL
-};
-
-static struct omap_board_config_kernel sdp_config[] __initdata = {
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -197,8 +192,6 @@ static struct flash_partitions sdp_flash_partitions[] = {
 static void __init omap_sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
-	omap_board_config = sdp_config;
-	omap_board_config_size = ARRAY_SIZE(sdp_config);
 	zoom_peripherals_init();
 	omap_sdrc_init(h8mbx00u0mer0em_sdrc_params,
 				  h8mbx00u0mer0em_sdrc_params);
@@ -219,5 +212,5 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.init_machine	= omap_sdp_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

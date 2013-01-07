@@ -25,7 +25,7 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      ETHbyGetHashIndexByCrc32 - Caculate multicast hash value by CRC32
+ *      ETHbyGetHashIndexByCrc32 - Calculate multicast hash value by CRC32
  *      ETHbIsBufferCrc32Ok - Check CRC value of the buffer if Ok or not
  *
  * Revision History:
@@ -50,7 +50,7 @@
 
 
 /*
- * Description: Caculate multicast hash value by CRC32
+ * Description: Calculate multicast hash value by CRC32
  *
  * Parameters:
  *  In:

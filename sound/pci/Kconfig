@@ -2,8 +2,8 @@
 
 config SND_TEA575X
 	tristate
-	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2 || RADIO_MAXIRADIO
-	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2 || RADIO_MAXIRADIO
+	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2 || RADIO_MAXIRADIO || RADIO_SHARK
+	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2 || RADIO_MAXIRADIO || RADIO_SHARK
 
 menuconfig SND_PCI
 	bool "PCI sound devices"
@@ -572,6 +572,7 @@ source "sound/pci/hda/Kconfig"
 
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
@@ -630,7 +631,7 @@ config SND_ICE1724
 	  AudioTrak Prodigy 192, 7.1 (HIFI/LT/XT), HD2; Hercules
 	  Fortissimo IV; ESI Juli@; Pontis MS300; EGO-SYS WaveTerminal
 	  192M; Albatron K8X800 Pro II; Chaintech ZNF3-150/250, 9CJS,
-	  AV-710; Shuttle SN25P.
+	  AV-710; Shuttle SN25P; Philips PSC724 Ultimate Edge.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ice1724.
@@ -707,6 +708,7 @@ config SND_MAESTRO3_INPUT
 
 config SND_MIXART
 	tristate "Digigram miXart"
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_PCM
 	help
@@ -727,6 +729,7 @@ config SND_NM256
 
 config SND_PCXHR
 	tristate "Digigram PCXHR"
+	select FW_LOADER
 	select SND_PCM
 	select SND_HWDEP
 	help

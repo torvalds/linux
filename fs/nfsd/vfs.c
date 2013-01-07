@@ -480,7 +480,7 @@ set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 	if (buf == NULL)
 		goto out;
 
-	len = posix_acl_to_xattr(pacl, buf, buflen);
+	len = posix_acl_to_xattr(&init_user_ns, pacl, buf, buflen);
 	if (len < 0) {
 		error = len;
 		goto out;
@@ -549,7 +549,7 @@ _get_posix_acl(struct dentry *dentry, char *key)
 	if (buflen <= 0)
 		return ERR_PTR(buflen);
 
-	pacl = posix_acl_from_xattr(buf, buflen);
+	pacl = posix_acl_from_xattr(&init_user_ns, buf, buflen);
 	kfree(buf);
 	return pacl;
 }
@@ -886,7 +886,7 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		  struct splice_desc *sd)
 {
 	struct svc_rqst *rqstp = sd->u.data;
-	struct page **pp = rqstp->rq_respages + rqstp->rq_resused;
+	struct page **pp = rqstp->rq_next_page;
 	struct page *page = buf->page;
 	size_t size;
 
@@ -894,17 +894,15 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 
 	if (rqstp->rq_res.page_len == 0) {
 		get_page(page);
-		put_page(*pp);
-		*pp = page;
-		rqstp->rq_resused++;
+		put_page(*rqstp->rq_next_page);
+		*(rqstp->rq_next_page++) = page;
 		rqstp->rq_res.page_base = buf->offset;
 		rqstp->rq_res.page_len = size;
 	} else if (page != pp[-1]) {
 		get_page(page);
-		if (*pp)
-			put_page(*pp);
-		*pp = page;
-		rqstp->rq_resused++;
+		if (*rqstp->rq_next_page)
+			put_page(*rqstp->rq_next_page);
+		*(rqstp->rq_next_page++) = page;
 		rqstp->rq_res.page_len += size;
 	} else
 		rqstp->rq_res.page_len += size;
@@ -936,7 +934,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 			.u.data		= rqstp,
 		};
 
-		rqstp->rq_resused = 1;
+		rqstp->rq_next_page = rqstp->rq_respages + 1;
 		host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
 	} else {
 		oldfs = get_fs();
@@ -1020,28 +1018,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
 
-	/*
-	 * Request sync writes if
-	 *  -	the sync export option has been set, or
-	 *  -	the client requested O_SYNC behavior (NFSv3 feature).
-	 *  -   The file system doesn't support fsync().
-	 * When NFSv2 gathered writes have been configured for this volume,
-	 * flushing the data to disk is handled separately below.
-	 */
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
-
-	if (!file->f_op->fsync) {/* COMMIT3 cannot work */
-	       stable = 2;
-	       *stablep = 2; /* FILE_SYNC */
-	}
 
 	if (!EX_ISSYNC(exp))
 		stable = 0;
-	if (stable && !use_wgather) {
-		spin_lock(&file->f_lock);
-		file->f_flags |= O_SYNC;
-		spin_unlock(&file->f_lock);
-	}
 
 	/* Write the data. */
 	oldfs = get_fs(); set_fs(KERNEL_DS);
@@ -1057,8 +1037,12 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (inode->i_mode & (S_ISUID | S_ISGID))
 		kill_suid(dentry);
 
-	if (stable && use_wgather)
-		host_err = wait_for_concurrent_writes(file);
+	if (stable) {
+		if (use_wgather)
+			host_err = wait_for_concurrent_writes(file);
+		else
+			host_err = vfs_fsync_range(file, offset, offset+*cnt, 0);
+	}
 
 out_nfserr:
 	dprintk("nfsd: write complete host_err=%d\n", host_err);
@@ -1485,13 +1469,19 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		case NFS3_CREATE_EXCLUSIVE:
 			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
-			    && dchild->d_inode->i_size  == 0 )
+			    && dchild->d_inode->i_size  == 0 ) {
+				if (created)
+					*created = 1;
 				break;
+			}
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
-			    && dchild->d_inode->i_size  == 0 )
+			    && dchild->d_inode->i_size  == 0 ) {
+				if (created)
+					*created = 1;
 				goto set_attr;
+			}
 			 /* fallthru */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
@@ -1581,7 +1571,7 @@ nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 	 */
 
 	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = inode->i_op->readlink(path.dentry, buf, *lenp);
+	host_err = inode->i_op->readlink(path.dentry, (char __user *)buf, *lenp);
 	set_fs(oldfs);
 
 	if (host_err < 0)
@@ -2264,7 +2254,7 @@ nfsd_get_posix_acl(struct svc_fh *fhp, int type)
 	if (size < 0)
 		return ERR_PTR(size);
 
-	acl = posix_acl_from_xattr(value, size);
+	acl = posix_acl_from_xattr(&init_user_ns, value, size);
 	kfree(value);
 	return acl;
 }
@@ -2297,7 +2287,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;
-		error = posix_acl_to_xattr(acl, value, size);
+		error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (error < 0)
 			goto getout;
 		size = error;

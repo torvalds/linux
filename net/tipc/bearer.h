@@ -120,7 +120,6 @@ struct tipc_media {
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
- * @cong_links: list of congested links associated with bearer
  * @active: non-zero if bearer structure is represents a bearer
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
@@ -143,7 +142,6 @@ struct tipc_bearer {
 	u32 identity;
 	struct tipc_link_req *link_req;
 	struct list_head links;
-	struct list_head cong_links;
 	int active;
 	char net_plane;
 	struct tipc_node_map nodes;
@@ -185,39 +183,23 @@ struct sk_buff *tipc_media_get_names(void);
 struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
 struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
 struct tipc_media *tipc_media_find(const char *name);
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
-				   struct tipc_link *l_ptr);
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
+int tipc_bearer_blocked(struct tipc_bearer *b_ptr);
 void tipc_bearer_stop(void);
-void tipc_bearer_lock_push(struct tipc_bearer *b_ptr);
-
 
 /**
  * tipc_bearer_send- sends buffer to destination over bearer
  *
- * Returns true (1) if successful, or false (0) if unable to send
- *
  * IMPORTANT:
  * The media send routine must not alter the buffer being passed in
  * as it may be needed for later retransmission!
- *
- * If the media send routine returns a non-zero value (indicating that
- * it was unable to send the buffer), it must:
- *   1) mark the bearer as blocked,
- *   2) call tipc_continue() once the bearer is able to send again.
- * Media types that are unable to meet these two critera must ensure their
- * send routine always returns success -- even if the buffer was not sent --
- * and let TIPC's link code deal with the undelivered message.
  */
-static inline int tipc_bearer_send(struct tipc_bearer *b_ptr,
-				   struct sk_buff *buf,
+static inline void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
 				   struct tipc_media_addr *dest)
 {
-	return !b_ptr->media->send_msg(buf, b_ptr, dest);
+	b->media->send_msg(buf, b, dest);
 }
 
 #endif	/* _TIPC_BEARER_H */

@@ -15,8 +15,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_rule.h>
-#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_l4proto.h>
 
 static bool
 icmp_in_range(const struct nf_conntrack_tuple *tuple,
@@ -29,8 +28,9 @@ icmp_in_range(const struct nf_conntrack_tuple *tuple,
 }
 
 static void
-icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
-		  const struct nf_nat_ipv4_range *range,
+icmp_unique_tuple(const struct nf_nat_l3proto *l3proto,
+		  struct nf_conntrack_tuple *tuple,
+		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
 		  const struct nf_conn *ct)
 {
@@ -38,13 +38,14 @@ icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 	unsigned int range_size;
 	unsigned int i;
 
-	range_size = ntohs(range->max.icmp.id) - ntohs(range->min.icmp.id) + 1;
+	range_size = ntohs(range->max_proto.icmp.id) -
+		     ntohs(range->min_proto.icmp.id) + 1;
 	/* If no range specified... */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED))
 		range_size = 0xFFFF;
 
 	for (i = 0; ; ++id) {
-		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
+		tuple->src.u.icmp.id = htons(ntohs(range->min_proto.icmp.id) +
 					     (id % range_size));
 		if (++i == range_size || !nf_nat_used_tuple(tuple, ct))
 			return;
@@ -54,13 +55,12 @@ icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 static bool
 icmp_manip_pkt(struct sk_buff *skb,
-	       unsigned int iphdroff,
+	       const struct nf_nat_l3proto *l3proto,
+	       unsigned int iphdroff, unsigned int hdroff,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct icmphdr *hdr;
-	unsigned int hdroff = iphdroff + iph->ihl*4;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
@@ -72,12 +72,12 @@ icmp_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 
-const struct nf_nat_protocol nf_nat_protocol_icmp = {
-	.protonum		= IPPROTO_ICMP,
+const struct nf_nat_l4proto nf_nat_l4proto_icmp = {
+	.l4proto		= IPPROTO_ICMP,
 	.manip_pkt		= icmp_manip_pkt,
 	.in_range		= icmp_in_range,
 	.unique_tuple		= icmp_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
+	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };

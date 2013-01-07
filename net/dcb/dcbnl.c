@@ -1319,7 +1319,7 @@ nla_put_failure:
 }
 
 static int dcbnl_notify(struct net_device *dev, int event, int cmd,
-			u32 seq, u32 pid, int dcbx_ver)
+			u32 seq, u32 portid, int dcbx_ver)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
@@ -1330,7 +1330,7 @@ static int dcbnl_notify(struct net_device *dev, int event, int cmd,
 	if (!ops)
 		return -EOPNOTSUPP;
 
-	skb = dcbnl_newmsg(event, cmd, pid, seq, 0, &nlh);
+	skb = dcbnl_newmsg(event, cmd, portid, seq, 0, &nlh);
 	if (!skb)
 		return -ENOBUFS;
 
@@ -1353,16 +1353,16 @@ static int dcbnl_notify(struct net_device *dev, int event, int cmd,
 }
 
 int dcbnl_ieee_notify(struct net_device *dev, int event, int cmd,
-		      u32 seq, u32 pid)
+		      u32 seq, u32 portid)
 {
-	return dcbnl_notify(dev, event, cmd, seq, pid, DCB_CAP_DCBX_VER_IEEE);
+	return dcbnl_notify(dev, event, cmd, seq, portid, DCB_CAP_DCBX_VER_IEEE);
 }
 EXPORT_SYMBOL(dcbnl_ieee_notify);
 
 int dcbnl_cee_notify(struct net_device *dev, int event, int cmd,
-		     u32 seq, u32 pid)
+		     u32 seq, u32 portid)
 {
-	return dcbnl_notify(dev, event, cmd, seq, pid, DCB_CAP_DCBX_VER_CEE);
+	return dcbnl_notify(dev, event, cmd, seq, portid, DCB_CAP_DCBX_VER_CEE);
 }
 EXPORT_SYMBOL(dcbnl_cee_notify);
 
@@ -1656,14 +1656,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *netdev;
 	struct dcbmsg *dcb = nlmsg_data(nlh);
 	struct nlattr *tb[DCB_ATTR_MAX + 1];
-	u32 pid = skb ? NETLINK_CB(skb).pid : 0;
+	u32 portid = skb ? NETLINK_CB(skb).portid : 0;
 	int ret = -EINVAL;
 	struct sk_buff *reply_skb;
 	struct nlmsghdr *reply_nlh = NULL;
 	const struct reply_func *fn;
 
-	if (!net_eq(net, &init_net))
-		return -EINVAL;
+	if ((nlh->nlmsg_type == RTM_SETDCB) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	ret = nlmsg_parse(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
 			  dcbnl_rtnl_policy);
@@ -1681,7 +1681,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;
 
-	netdev = dev_get_by_name(&init_net, nla_data(tb[DCB_ATTR_IFNAME]));
+	netdev = dev_get_by_name(net, nla_data(tb[DCB_ATTR_IFNAME]));
 	if (!netdev)
 		return -ENODEV;
 
@@ -1690,7 +1690,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		goto out;
 	}
 
-	reply_skb = dcbnl_newmsg(fn->type, dcb->cmd, pid, nlh->nlmsg_seq,
+	reply_skb = dcbnl_newmsg(fn->type, dcb->cmd, portid, nlh->nlmsg_seq,
 				 nlh->nlmsg_flags, &reply_nlh);
 	if (!reply_skb) {
 		ret = -ENOBUFS;
@@ -1705,7 +1705,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	nlmsg_end(reply_skb, reply_nlh);
 
-	ret = rtnl_unicast(reply_skb, &init_net, pid);
+	ret = rtnl_unicast(reply_skb, net, portid);
 out:
 	dev_put(netdev);
 	return ret;

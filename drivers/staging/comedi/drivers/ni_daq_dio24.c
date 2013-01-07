@@ -96,8 +96,6 @@ struct dio24_private {
 	int data;		/* number of data points left to be taken */
 };
 
-#define devpriv ((struct dio24_private *)dev->private)
-
 static struct comedi_driver driver_dio24 = {
 	.driver_name = "ni_daq_dio24",
 	.module = THIS_MODULE,
@@ -110,6 +108,7 @@ static struct comedi_driver driver_dio24 = {
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
@@ -118,9 +117,10 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmcia_device *link;
 	int ret;
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
@@ -164,7 +164,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* 8255 dio */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	subdev_8255_init(dev, s, NULL, dev->iobase);
 
 	return 0;
@@ -172,8 +172,12 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 0);
+	struct comedi_subdevice *s;
+
+	if (dev->subdevices) {
+		s = &dev->subdevices[0];
+		subdev_8255_cleanup(dev, s);
+	}
 	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
 		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
@@ -198,7 +202,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 {
 	struct local_info_t *local;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
 	dev_dbg(&link->dev, "dio24_cs_attach()\n");
 
@@ -238,7 +242,7 @@ static void dio24_config(struct pcmcia_device *link)
 {
 	int ret;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO! - config\n");
 
 	dev_dbg(&link->dev, "dio24_config\n");
 
@@ -261,7 +265,7 @@ static void dio24_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	printk(KERN_INFO "Fallo");
+	dev_info(&link->dev, "Fallo");
 	dio24_release(link);
 
 }				/* dio24_config */
@@ -304,7 +308,7 @@ MODULE_DESCRIPTION("Comedi driver for National Instruments "
 		   "PCMCIA DAQ-Card DIO-24");
 MODULE_LICENSE("GPL");
 
-struct pcmcia_driver dio24_cs_driver = {
+static struct pcmcia_driver dio24_cs_driver = {
 	.probe = dio24_cs_attach,
 	.remove = dio24_cs_detach,
 	.suspend = dio24_cs_suspend,

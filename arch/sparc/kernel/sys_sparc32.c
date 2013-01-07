@@ -211,20 +211,6 @@ asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
 	return sys_sysfs(option, arg1, arg2);
 }
 
-asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid, struct compat_timespec __user *interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs ();
-	
-	set_fs (KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *) &t);
-	set_fs (old_fs);
-	if (put_compat_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
-
 asmlinkage long compat_sys_rt_sigprocmask(int how,
 					  compat_sigset_t __user *set,
 					  compat_sigset_t __user *oset,
@@ -396,42 +382,6 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
         return ret;
 }
 
-/*
- * sparc32_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage long sparc32_execve(struct pt_regs *regs)
-{
-	int error, base = 0;
-	char *filename;
-
-	/* User register window flush is done by entry.S */
-
-	/* Check for indirect call. */
-	if ((u32)regs->u_regs[UREG_G1] == 0)
-		base = 1;
-
-	filename = getname(compat_ptr(regs->u_regs[base + UREG_I0]));
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = compat_do_execve(filename,
-				 compat_ptr(regs->u_regs[base + UREG_I1]),
-				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
-
-	putname(filename);
-
-	if (!error) {
-		fprs_write(0);
-		current_thread_info()->xfsr[0] = 0;
-		current_thread_info()->fpsaved[0] = 0;
-		regs->tstate &= ~TSTATE_PEF;
-	}
-out:
-	return error;
-}
-
 #ifdef CONFIG_MODULES
 
 asmlinkage long sys32_init_module(void __user *umod, u32 len,
@@ -504,52 +454,6 @@ long compat_sys_fadvise64_64(int fd,
 				(offhi << 32) | offlo,
 				(lenhi << 32) | lenlo,
 				advice);
-}
-
-asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
-				    compat_off_t __user *offset,
-				    compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd,
-			   offset ? (off_t __user *) &of : NULL,
-			   count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
-				      compat_loff_t __user *offset,
-				      compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd,
-			     offset ? (loff_t __user *) &lof : NULL,
-			     count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
 }
 
 /* This is just a version for 32-bit applications which does

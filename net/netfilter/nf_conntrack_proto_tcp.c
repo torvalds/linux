@@ -502,10 +502,10 @@ static inline s16 nat_offset(const struct nf_conn *ct,
 
 	return get_offset != NULL ? get_offset(ct, dir, seq) : 0;
 }
-#define NAT_OFFSET(pf, ct, dir, seq) \
-	(pf == NFPROTO_IPV4 ? nat_offset(ct, dir, seq) : 0)
+#define NAT_OFFSET(ct, dir, seq) \
+	(nat_offset(ct, dir, seq))
 #else
-#define NAT_OFFSET(pf, ct, dir, seq)	0
+#define NAT_OFFSET(ct, dir, seq)	0
 #endif
 
 static bool tcp_in_window(const struct nf_conn *ct,
@@ -538,7 +538,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		tcp_sack(skb, dataoff, tcph, &sack);
 
 	/* Take into account NAT sequence number mangling */
-	receiver_offset = NAT_OFFSET(pf, ct, !dir, ack - 1);
+	receiver_offset = NAT_OFFSET(ct, !dir, ack - 1);
 	ack -= receiver_offset;
 	sack -= receiver_offset;
 
@@ -1353,6 +1353,8 @@ static const struct nla_policy tcp_timeout_nla_policy[CTA_TIMEOUT_TCP_MAX+1] = {
 	[CTA_TIMEOUT_TCP_TIME_WAIT]	= { .type = NLA_U32 },
 	[CTA_TIMEOUT_TCP_CLOSE]		= { .type = NLA_U32 },
 	[CTA_TIMEOUT_TCP_SYN_SENT2]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_TCP_RETRANS]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_TCP_UNACK]		= { .type = NLA_U32 },
 };
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 

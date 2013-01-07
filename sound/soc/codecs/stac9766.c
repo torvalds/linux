@@ -340,7 +340,6 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 
 	printk(KERN_INFO "STAC9766 SoC Audio Codec %s\n", STAC9766_VERSION);
 
-	codec->control_data = codec;	/* we don't use regmap! */
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
@@ -386,13 +385,13 @@ static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
 	.reg_cache_default = stac9766_reg,
 };
 
-static __devinit int stac9766_probe(struct platform_device *pdev)
+static int stac9766_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_stac9766, stac9766_dai, ARRAY_SIZE(stac9766_dai));
 }
 
-static int __devexit stac9766_remove(struct platform_device *pdev)
+static int stac9766_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -405,7 +404,7 @@ static struct platform_driver stac9766_codec_driver = {
 	},
 
 	.probe = stac9766_probe,
-	.remove = __devexit_p(stac9766_remove),
+	.remove = stac9766_remove,
 };
 
 module_platform_driver(stac9766_codec_driver);

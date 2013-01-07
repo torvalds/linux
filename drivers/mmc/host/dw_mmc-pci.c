@@ -37,7 +37,7 @@ static struct dw_mci_board pci_board_data = {
 	.fifo_depth			= 32,
 };
 
-static int __devinit dw_mci_pci_probe(struct pci_dev *pdev,
+static int dw_mci_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *entries)
 {
 	struct dw_mci *host;
@@ -59,7 +59,7 @@ static int __devinit dw_mci_pci_probe(struct pci_dev *pdev,
 
 	host->irq = pdev->irq;
 	host->irq_flags = IRQF_SHARED;
-	host->dev = pdev->dev;
+	host->dev = &pdev->dev;
 	host->pdata = &pci_board_data;
 
 	host->regs = pci_iomap(pdev, PCI_BAR_NO, COMPLETE_BAR);
@@ -85,7 +85,7 @@ err_disable_dev:
 	return ret;
 }
 
-static void __devexit dw_mci_pci_remove(struct pci_dev *pdev)
+static void dw_mci_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
@@ -134,24 +134,13 @@ static struct pci_driver dw_mci_pci_driver = {
 	.name		= "dw_mmc_pci",
 	.id_table	= dw_mci_pci_id,
 	.probe		= dw_mci_pci_probe,
-	.remove		= dw_mci_pci_remove,
+	.remove		= __devexit_p(dw_mci_pci_remove),
 	.driver		=	{
 		.pm =   &dw_mci_pci_pmops
 	},
 };
 
-static int __init dw_mci_init(void)
-{
-	return pci_register_driver(&dw_mci_pci_driver);
-}
-
-static void __exit dw_mci_exit(void)
-{
-	pci_unregister_driver(&dw_mci_pci_driver);
-}
-
-module_init(dw_mci_init);
-module_exit(dw_mci_exit);
+module_pci_driver(dw_mci_pci_driver);
 
 MODULE_DESCRIPTION("DW Multimedia Card PCI Interface driver");
 MODULE_AUTHOR("Shashidhar Hiremath <shashidharh@vayavyalabs.com>");

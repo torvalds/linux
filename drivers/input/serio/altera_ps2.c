@@ -81,7 +81,7 @@ static void altera_ps2_close(struct serio *io)
 /*
  * Add one device to this driver.
  */
-static int __devinit altera_ps2_probe(struct platform_device *pdev)
+static int altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
 	struct serio *serio;
@@ -159,7 +159,7 @@ static int __devinit altera_ps2_probe(struct platform_device *pdev)
 /*
  * Remove one device from this driver.
  */
-static int __devexit altera_ps2_remove(struct platform_device *pdev)
+static int altera_ps2_remove(struct platform_device *pdev)
 {
 	struct ps2if *ps2if = platform_get_drvdata(pdev);
 
@@ -187,7 +187,7 @@ MODULE_DEVICE_TABLE(of, altera_ps2_match);
  */
 static struct platform_driver altera_ps2_driver = {
 	.probe		= altera_ps2_probe,
-	.remove		= __devexit_p(altera_ps2_remove),
+	.remove		= altera_ps2_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

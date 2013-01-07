@@ -10,6 +10,8 @@
  * option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -40,8 +42,8 @@ static int variant_num;
 static bool loopback;
 
 static int pio2_match(struct vme_dev *);
-static int __devinit pio2_probe(struct vme_dev *);
-static int __devexit pio2_remove(struct vme_dev *);
+static int pio2_probe(struct vme_dev *);
+static int pio2_remove(struct vme_dev *);
 
 static int pio2_get_led(struct pio2_card *card)
 {
@@ -154,7 +156,7 @@ static struct vme_driver pio2_driver = {
 	.name = driver_name,
 	.match = pio2_match,
 	.probe = pio2_probe,
-	.remove = __devexit_p(pio2_remove),
+	.remove = pio2_remove,
 };
 
 
@@ -163,15 +165,13 @@ static int __init pio2_init(void)
 	int retval = 0;
 
 	if (bus_num == 0) {
-		printk(KERN_ERR "%s: No cards, skipping registration\n",
-			driver_name);
+		pr_err("No cards, skipping registration\n");
 		goto err_nocard;
 	}
 
 	if (bus_num > PIO2_CARDS_MAX) {
-		printk(KERN_ERR
-			"%s: Driver only able to handle %d PIO2 Cards\n",
-			driver_name, PIO2_CARDS_MAX);
+		pr_err("Driver only able to handle %d PIO2 Cards\n",
+		       PIO2_CARDS_MAX);
 		bus_num = PIO2_CARDS_MAX;
 	}
 
@@ -222,7 +222,7 @@ static int pio2_match(struct vme_dev *vdev)
 	return 1;
 }
 
-static int __devinit pio2_probe(struct vme_dev *vdev)
+static int pio2_probe(struct vme_dev *vdev)
 {
 	struct pio2_card *card;
 	int retval;
@@ -455,7 +455,7 @@ err_struct:
 	return retval;
 }
 
-static int __devexit pio2_remove(struct vme_dev *vdev)
+static int pio2_remove(struct vme_dev *vdev)
 {
 	int vec;
 	int i;

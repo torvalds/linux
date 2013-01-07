@@ -7,13 +7,12 @@
  * Based on code from the latency_tracer, that is:
  *
  *  Copyright (C) 2004-2006 Ingo Molnar
- *  Copyright (C) 2004 William Lee Irwin III
+ *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/ring_buffer.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
-#include <linux/pstore.h>
 #include <linux/fs.h>
 
 #include "trace.h"
@@ -49,7 +48,8 @@ static void function_trace_start(struct trace_array *tr)
 }
 
 static void
-function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
+function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip,
+				 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct trace_array *tr = func_trace;
 	struct trace_array_cpu *data;
@@ -75,16 +75,17 @@ function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 	preempt_enable_notrace();
 }
 
-/* Our two options */
+/* Our option */
 enum {
 	TRACE_FUNC_OPT_STACK	= 0x1,
-	TRACE_FUNC_OPT_PSTORE	= 0x2,
 };
 
 static struct tracer_flags func_flags;
 
 static void
-function_trace_call(unsigned long ip, unsigned long parent_ip)
+function_trace_call(unsigned long ip, unsigned long parent_ip,
+		    struct ftrace_ops *op, struct pt_regs *pt_regs)
+
 {
 	struct trace_array *tr = func_trace;
 	struct trace_array_cpu *data;
@@ -106,12 +107,6 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1)) {
-		/*
-		 * So far tracing doesn't support multiple buffers, so
-		 * we make an explicit call for now.
-		 */
-		if (unlikely(func_flags.val & TRACE_FUNC_OPT_PSTORE))
-			pstore_ftrace_call(ip, parent_ip);
 		pc = preempt_count();
 		trace_function(tr, ip, parent_ip, flags, pc);
 	}
@@ -121,7 +116,8 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 }
 
 static void
-function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
+function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
+			  struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct trace_array *tr = func_trace;
 	struct trace_array_cpu *data;
@@ -164,21 +160,18 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = function_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL,
+	.flags = FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static struct ftrace_ops trace_stack_ops __read_mostly =
 {
 	.func = function_stack_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL,
+	.flags = FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static struct tracer_opt func_opts[] = {
 #ifdef CONFIG_STACKTRACE
 	{ TRACER_OPT(func_stack_trace, TRACE_FUNC_OPT_STACK) },
-#endif
-#ifdef CONFIG_PSTORE_FTRACE
-	{ TRACER_OPT(func_pstore, TRACE_FUNC_OPT_PSTORE) },
 #endif
 	{ } /* Always set a last empty entry */
 };
@@ -231,8 +224,6 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 			register_ftrace_function(&trace_ops);
 		}
 
-		break;
-	case TRACE_FUNC_OPT_PSTORE:
 		break;
 	default:
 		return -EINVAL;
@@ -375,7 +366,7 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	 * We use the callback data field (which is a pointer)
 	 * as our counter.
 	 */
-	ret = strict_strtoul(number, 0, (unsigned long *)&count);
+	ret = kstrtoul(number, 0, (unsigned long *)&count);
 	if (ret)
 		return ret;
 
@@ -420,5 +411,4 @@ static __init int init_function_trace(void)
 	init_func_cmd_traceon();
 	return register_tracer(&function_trace);
 }
-device_initcall(init_function_trace);
-
+core_initcall(init_function_trace);

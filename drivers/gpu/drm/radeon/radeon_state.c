@@ -27,11 +27,9 @@
  *    Kevin E. Martin <martin@valinux.com>
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_buffer.h"
-#include "drm_sarea.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/drm_buffer.h>
+#include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 
 /* ================================================================

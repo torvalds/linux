@@ -33,7 +33,7 @@
 #ifndef _SB1250_UART_H
 #define _SB1250_UART_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /* **********************************************************************
    * DUART Registers

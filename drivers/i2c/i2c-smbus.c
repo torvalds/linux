@@ -142,7 +142,8 @@ static int smbalert_probe(struct i2c_client *ara,
 	struct i2c_adapter *adapter = ara->adapter;
 	int res;
 
-	alert = kzalloc(sizeof(struct i2c_smbus_alert), GFP_KERNEL);
+	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
+			     GFP_KERNEL);
 	if (!alert)
 		return -ENOMEM;
 
@@ -154,10 +155,8 @@ static int smbalert_probe(struct i2c_client *ara,
 	if (setup->irq > 0) {
 		res = devm_request_irq(&ara->dev, setup->irq, smbalert_irq,
 				       0, "smbus_alert", alert);
-		if (res) {
-			kfree(alert);
+		if (res)
 			return res;
-		}
 	}
 
 	i2c_set_clientdata(ara, alert);
@@ -167,14 +166,12 @@ static int smbalert_probe(struct i2c_client *ara,
 	return 0;
 }
 
-/* IRQ resource is managed so it is freed automatically */
+/* IRQ and memory resources are managed so they are freed automatically */
 static int smbalert_remove(struct i2c_client *ara)
 {
 	struct i2c_smbus_alert *alert = i2c_get_clientdata(ara);
 
 	cancel_work_sync(&alert->alert);
-
-	kfree(alert);
 	return 0;
 }
 

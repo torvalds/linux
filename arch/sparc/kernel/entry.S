@@ -806,23 +806,10 @@ sys_nis_syscall:
 	call	c_sys_nis_syscall
 	 mov	%l5, %o7
 
-	.align	4
-	.globl	sys_execve
-sys_execve:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	sparc_execve
-	 mov	%l5, %o7
-
-	.globl	sunos_execv
 sunos_execv:
-	st	%g0, [%sp + STACKFRAME_SZ + PT_I2]
-
-	call	sparc_execve
-	 add	%sp, STACKFRAME_SZ, %o0
-
-	b	ret_sys_call
-	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
+	.globl	sunos_execv
+	b	sys_execve
+	 clr	%i2
 
 	.align	4
 	.globl	sys_sparc_pipe
@@ -959,16 +946,8 @@ flush_patch_four:
         .align  4
 linux_sparc_ni_syscall:
 	sethi   %hi(sys_ni_syscall), %l7
-	b       syscall_is_too_hard
+	b       do_syscall
 	 or     %l7, %lo(sys_ni_syscall), %l7
-
-linux_fast_syscall:
-	andn	%l7, 3, %l7
-	mov	%i0, %o0
-	mov	%i1, %o1
-	mov 	%i2, %o2
-	jmpl	%l7 + %g0, %g0
-	 mov	%i3, %o3
 
 linux_syscall_trace:
 	add	%sp, STACKFRAME_SZ, %o0
@@ -991,6 +970,23 @@ ret_from_fork:
 	b	ret_sys_call
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	call	schedule_tail
+	 ld	[%g3 + TI_TASK], %o0
+	ld	[%sp + STACKFRAME_SZ + PT_G1], %l0
+	call	%l0
+	 ld	[%sp + STACKFRAME_SZ + PT_G2], %o0
+	rd	%psr, %l1
+	ld	[%sp + STACKFRAME_SZ + PT_PSR], %l0
+	andn	%l0, PSR_CWP, %l0
+	nop
+	and	%l1, PSR_CWP, %l1
+	or	%l0, %l1, %l0
+	st	%l0, [%sp + STACKFRAME_SZ + PT_PSR]
+	b	ret_sys_call
+	 mov	0, %o0
+
 	/* Linux native system calls enter here... */
 	.align	4
 	.globl	linux_sparc_syscall
@@ -1002,11 +998,8 @@ linux_sparc_syscall:
 	bgeu	linux_sparc_ni_syscall
 	 sll	%g1, 2, %l4
 	ld	[%l7 + %l4], %l7
-	andcc	%l7, 1, %g0
-	bne	linux_fast_syscall
-	 /* Just do first insn from SAVE_ALL in the delay slot */
 
-syscall_is_too_hard:
+do_syscall:
 	SAVE_ALL_HEAD
 	 rd	%wim, %l3
 

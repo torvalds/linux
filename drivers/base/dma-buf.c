@@ -298,6 +298,8 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 				struct sg_table *sg_table,
 				enum dma_data_direction direction)
 {
+	might_sleep();
+
 	if (WARN_ON(!attach || !attach->dmabuf || !sg_table))
 		return;
 
@@ -460,8 +462,7 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 	if (vma->vm_file)
 		fput(vma->vm_file);
 
-	vma->vm_file = dmabuf->file;
-	get_file(vma->vm_file);
+	vma->vm_file = get_file(dmabuf->file);
 
 	vma->vm_pgoff = pgoff;
 

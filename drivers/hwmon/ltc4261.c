@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/jiffies.h>
 
 /* chip registers */
 #define LTC4261_STATUS	0x00	/* readonly */

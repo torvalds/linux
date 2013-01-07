@@ -767,9 +767,8 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 		      psmouse->packet[5]) & 0x80) ||
 		    (!alps_is_valid_first_byte(priv->i, psmouse->packet[6]))) {
 			psmouse_dbg(psmouse,
-				    "refusing packet %x %x %x %x (suspected interleaved ps/2)\n",
-				    psmouse->packet[3], psmouse->packet[4],
-				    psmouse->packet[5], psmouse->packet[6]);
+				    "refusing packet %4ph (suspected interleaved ps/2)\n",
+				    psmouse->packet + 3);
 			return PSMOUSE_BAD_DATA;
 		}
 
@@ -831,9 +830,8 @@ static void alps_flush_packet(unsigned long data)
 		     psmouse->packet[4] |
 		     psmouse->packet[5]) & 0x80) {
 			psmouse_dbg(psmouse,
-				    "refusing packet %x %x %x (suspected interleaved ps/2)\n",
-				    psmouse->packet[3], psmouse->packet[4],
-				    psmouse->packet[5]);
+				    "refusing packet %3ph (suspected interleaved ps/2)\n",
+				    psmouse->packet + 3);
 		} else {
 			alps_process_packet(psmouse);
 		}
@@ -1620,7 +1618,7 @@ int alps_init(struct psmouse *psmouse)
 	case ALPS_PROTO_V3:
 	case ALPS_PROTO_V4:
 		set_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
-		input_mt_init_slots(dev1, 2);
+		input_mt_init_slots(dev1, 2, 0);
 		input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, ALPS_V3_X_MAX, 0, 0);
 		input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, ALPS_V3_Y_MAX, 0, 0);
 

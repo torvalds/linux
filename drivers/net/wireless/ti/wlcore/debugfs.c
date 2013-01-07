@@ -62,11 +62,14 @@ void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 	mutex_lock(&wl->mutex);
 
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	if (wl->state == WL1271_STATE_ON && !wl->plt &&
+	if (!wl->plt &&
 	    time_after(jiffies, wl->stats.fw_stats_update +
 		       msecs_to_jiffies(WL1271_DEBUGFS_STATS_LIFETIME))) {
 		wl1271_acx_statistics(wl, wl->stats.fw_stats);
@@ -286,7 +289,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 
 	wl->conf.conn.dynamic_ps_timeout = value;
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -353,7 +356,7 @@ static ssize_t forced_ps_write(struct file *file,
 
 	wl->conf.conn.forced_ps = value;
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -486,6 +489,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_HEX(platform_quirks);
 	DRIVER_STATE_PRINT_HEX(chip.id);
 	DRIVER_STATE_PRINT_STR(chip.fw_ver_str);
+	DRIVER_STATE_PRINT_STR(chip.phy_fw_ver_str);
 	DRIVER_STATE_PRINT_INT(sched_scanning);
 
 #undef DRIVER_STATE_PRINT_INT
@@ -999,7 +1003,7 @@ static ssize_t sleep_auth_write(struct file *file,
 
 	wl->conf.conn.sta_sleep_auth = value;
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		/* this will show up on "read" in case we are off */
 		wl->sleep_auth = value;
 		goto out;
@@ -1060,14 +1064,16 @@ static ssize_t dev_mem_read(struct file *file,
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_read;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_read;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
@@ -1145,14 +1151,16 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_write;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_write;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));

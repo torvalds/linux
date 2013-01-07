@@ -1104,7 +1104,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				pr_err("fill_trace bad get_inode "
 				       "%llx.%llx\n", vino.ino, vino.snap);
 				err = PTR_ERR(in);
-				d_delete(dn);
+				d_drop(dn);
 				goto done;
 			}
 			dn = splice_dentry(dn, in, &have_lease, true);
@@ -1277,7 +1277,7 @@ retry_lookup:
 			in = ceph_get_inode(parent->d_sb, vino);
 			if (IS_ERR(in)) {
 				dout("new_inode badness\n");
-				d_delete(dn);
+				d_drop(dn);
 				dput(dn);
 				err = PTR_ERR(in);
 				goto out;
@@ -1466,7 +1466,7 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
-	int wrbuffer_refs, wake = 0;
+	int wrbuffer_refs, finish = 0;
 
 retry:
 	spin_lock(&ci->i_ceph_lock);
@@ -1498,15 +1498,18 @@ retry:
 	truncate_inode_pages(inode->i_mapping, to);
 
 	spin_lock(&ci->i_ceph_lock);
-	ci->i_truncate_pending--;
-	if (ci->i_truncate_pending == 0)
-		wake = 1;
+	if (to == ci->i_truncate_size) {
+		ci->i_truncate_pending = 0;
+		finish = 1;
+	}
 	spin_unlock(&ci->i_ceph_lock);
+	if (!finish)
+		goto retry;
 
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
-	if (wake)
-		wake_up_all(&ci->i_cap_wq);
+
+	wake_up_all(&ci->i_cap_wq);
 }
 
 

@@ -71,7 +71,7 @@ MODULE_LICENSE("GPL");
 #define TSCAN1_SJA1000_XTAL 16000000
 
 /* SJA1000 IO base addresses */
-static const unsigned short tscan1_sja1000_addresses[] __devinitconst = {
+static const unsigned short tscan1_sja1000_addresses[] = {
 	0x100, 0x120, 0x180, 0x1a0, 0x200, 0x240, 0x280, 0x320
 };
 
@@ -88,7 +88,7 @@ static void tscan1_write(const struct sja1000_priv *priv, int reg, u8 val)
 }
 
 /* Probe for a TS-CAN1 board with JP2:JP1 jumper setting ID */
-static int __devinit tscan1_probe(struct device *dev, unsigned id)
+static int tscan1_probe(struct device *dev, unsigned id)
 {
 	struct net_device *netdev;
 	struct sja1000_priv *priv;
@@ -171,7 +171,7 @@ static int __devinit tscan1_probe(struct device *dev, unsigned id)
 	return -ENXIO;
 }
 
-static int __devexit tscan1_remove(struct device *dev, unsigned id /*unused*/)
+static int tscan1_remove(struct device *dev, unsigned id /*unused*/)
 {
 	struct net_device *netdev;
 	struct sja1000_priv *priv;
@@ -197,7 +197,7 @@ static int __devexit tscan1_remove(struct device *dev, unsigned id /*unused*/)
 
 static struct isa_driver tscan1_isa_driver = {
 	.probe = tscan1_probe,
-	.remove = __devexit_p(tscan1_remove),
+	.remove = tscan1_remove,
 	.driver = {
 		.name = "tscan1",
 	},

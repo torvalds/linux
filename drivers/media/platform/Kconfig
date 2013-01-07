@@ -1,0 +1,235 @@
+#
+# Platform drivers
+#	All drivers here are currently for webcam support
+
+menuconfig V4L_PLATFORM_DRIVERS
+	bool "V4L platform devices"
+	depends on MEDIA_CAMERA_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific V4L drivers.
+
+if V4L_PLATFORM_DRIVERS
+
+source "drivers/media/platform/marvell-ccic/Kconfig"
+
+config VIDEO_VIA_CAMERA
+	tristate "VIAFB camera controller support"
+	depends on FB_VIA
+	select VIDEOBUF_DMA_SG
+	select VIDEO_OV7670
+	help
+	   Driver support for the integrated camera controller in VIA
+	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
+	   with ov7670 sensors.
+
+#
+# Platform multimedia device configuration
+#
+
+source "drivers/media/platform/davinci/Kconfig"
+
+source "drivers/media/platform/omap/Kconfig"
+
+source "drivers/media/platform/blackfin/Kconfig"
+
+config VIDEO_SH_VOU
+	tristate "SuperH VOU video output driver"
+	depends on MEDIA_CAMERA_SUPPORT
+	depends on VIDEO_DEV && ARCH_SHMOBILE
+	select VIDEOBUF_DMA_CONTIG
+	help
+	  Support for the Video Output Unit (VOU) on SuperH SoCs.
+
+config VIDEO_VIU
+	tristate "Freescale VIU Video Driver"
+	depends on VIDEO_V4L2 && PPC_MPC512x
+	select VIDEOBUF_DMA_CONTIG
+	default y
+	---help---
+	  Support for Freescale VIU video driver. This device captures
+	  video data, or overlays video on DIU frame buffer.
+
+	  Say Y here if you want to enable VIU device on MPC5121e Rev2+.
+	  In doubt, say N.
+
+config VIDEO_TIMBERDALE
+	tristate "Support for timberdale Video In/LogiWIN"
+	depends on VIDEO_V4L2 && I2C && DMADEVICES
+	select DMA_ENGINE
+	select TIMB_DMA
+	select VIDEO_ADV7180
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  Add support for the Video In peripherial of the timberdale FPGA.
+
+config VIDEO_VINO
+	tristate "SGI Vino Video For Linux"
+	depends on I2C && SGI_IP22 && VIDEO_V4L2
+	select VIDEO_SAA7191 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to build in support for the Vino video input system found
+	  on SGI Indy machines.
+
+config VIDEO_M32R_AR
+	tristate "AR devices"
+	depends on M32R && VIDEO_V4L2
+	---help---
+	  This is a video4linux driver for the Renesas AR (Artificial Retina)
+	  camera module.
+
+config VIDEO_M32R_AR_M64278
+	tristate "AR device with color module M64278(VGA)"
+	depends on PLAT_M32700UT
+	select VIDEO_M32R_AR
+	---help---
+	  This is a video4linux driver for the Renesas AR (Artificial
+	  Retina) with M64278E-800 camera module.
+	  This module supports VGA(640x480 pixels) resolutions.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called arv.
+
+config VIDEO_OMAP2
+	tristate "OMAP2 Camera Capture Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP2
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP2 camera capture interface
+
+config VIDEO_OMAP3
+	tristate "OMAP 3 Camera support (EXPERIMENTAL)"
+	depends on OMAP_IOVMM && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3 && EXPERIMENTAL
+	---help---
+	  Driver for an OMAP 3 camera controller.
+
+config VIDEO_OMAP3_DEBUG
+	bool "OMAP 3 Camera debug messages"
+	depends on VIDEO_OMAP3
+	---help---
+	  Enable debug messages on OMAP 3 camera controller driver.
+
+config VIDEO_S3C_CAMIF
+	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on (PLAT_S3C64XX || PLAT_S3C24XX) && PM_RUNTIME
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for s3c24xx and s3c64xx SoC series camera
+	  host interface (CAMIF).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called s3c-camif.
+
+source "drivers/media/platform/soc_camera/Kconfig"
+source "drivers/media/platform/s5p-fimc/Kconfig"
+source "drivers/media/platform/s5p-tv/Kconfig"
+
+endif # V4L_PLATFORM_DRIVERS
+
+menuconfig V4L_MEM2MEM_DRIVERS
+	bool "Memory-to-memory multimedia devices"
+	depends on VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable selecting drivers for V4L devices that
+	  use system memory for both source and destination buffers, as opposed
+	  to capture and output drivers, which use memory buffers for just
+	  one of those.
+
+if V4L_MEM2MEM_DRIVERS
+
+config VIDEO_CODA
+	tristate "Chips&Media Coda multi-standard codec IP"
+	depends on VIDEO_DEV && VIDEO_V4L2 && ARCH_MXC
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	select IRAM_ALLOC if SOC_IMX53
+	---help---
+	   Coda is a range of video codec IPs that supports
+	   H.264, MPEG-4, and other video formats.
+
+config VIDEO_MEM2MEM_DEINTERLACE
+	tristate "Deinterlace support"
+	depends on VIDEO_DEV && VIDEO_V4L2 && DMA_ENGINE
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    Generic deinterlacing V4L2 driver.
+
+config VIDEO_SAMSUNG_S5P_G2D
+	tristate "Samsung S5P and EXYNOS4 G2D 2d graphics accelerator driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a v4l2 driver for Samsung S5P and EXYNOS4 G2D
+	  2d graphics accelerator.
+
+config VIDEO_SAMSUNG_S5P_JPEG
+	tristate "Samsung S5P/Exynos4 JPEG codec driver (EXPERIMENTAL)"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P && EXPERIMENTAL
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  This is a v4l2 driver for Samsung S5P and EXYNOS4 JPEG codec
+
+config VIDEO_SAMSUNG_S5P_MFC
+	tristate "Samsung S5P MFC Video Codec"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF2_DMA_CONTIG
+	default n
+	help
+	    MFC 5.1 and 6.x driver for V4L2
+
+config VIDEO_MX2_EMMAPRP
+	tristate "MX2 eMMa-PrP support"
+	depends on VIDEO_DEV && VIDEO_V4L2 && SOC_IMX27
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    MX2X chips have a PrP that can be used to process buffers from
+	    memory to memory. Operations include resizing and format
+	    conversion.
+
+config VIDEO_SAMSUNG_EXYNOS_GSC
+	tristate "Samsung Exynos G-Scaler driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && ARCH_EXYNOS5
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  This is a v4l2 driver for Samsung EXYNOS5 SoC G-Scaler.
+
+endif # V4L_MEM2MEM_DRIVERS
+
+menuconfig V4L_TEST_DRIVERS
+	bool "Media test drivers"
+	depends on MEDIA_CAMERA_SUPPORT
+
+if V4L_TEST_DRIVERS
+config VIDEO_VIVI
+	tristate "Virtual Video Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	select FONT_8x16
+	select VIDEOBUF2_VMALLOC
+	default n
+	---help---
+	  Enables a virtual video driver. This device shows a color bar
+	  and a timestamp, as a real device would generate by using V4L2
+	  api.
+	  Say Y here if you want to test video apps or debug V4L devices.
+	  In doubt, say N.
+
+config VIDEO_MEM2MEM_TESTDEV
+	tristate "Virtual test device for mem2mem framework"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a virtual test device for the memory-to-memory driver
+	  framework.
+endif #V4L_TEST_DRIVERS

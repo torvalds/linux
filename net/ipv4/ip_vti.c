@@ -66,20 +66,6 @@ static void vti_tunnel_setup(struct net_device *dev);
 static void vti_dev_free(struct net_device *dev);
 static int vti_tunnel_bind_dev(struct net_device *dev);
 
-/* Locking : hash tables are protected by RCU and RTNL */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
-
-/* often modified stats are per cpu, other are shared (netdev->stats) */
-struct pcpu_tstats {
-	u64	rx_packets;
-	u64	rx_bytes;
-	u64	tx_packets;
-	u64	tx_bytes;
-	struct	u64_stats_sync	syncp;
-};
-
 #define VTI_XMIT(stats1, stats2) do {				\
 	int err;						\
 	int pkt_len = skb->len;					\
@@ -142,19 +128,19 @@ static struct ip_tunnel *vti_tunnel_lookup(struct net *net,
 	struct ip_tunnel *t;
 	struct vti_net *ipn = net_generic(net, vti_net_id);
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r_l[h0 ^ h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r_l[h0 ^ h1])
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
-	for_each_ip_tunnel_rcu(ipn->tunnels_r[h0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r[h0])
 		if (remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_l[h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_l[h1])
 		if (local == t->parms.iph.saddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_wc[0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_wc[0])
 		if (t && (t->dev->flags&IFF_UP))
 			return t;
 	return NULL;
@@ -304,7 +290,6 @@ static int vti_err(struct sk_buff *skb, u32 info)
 
 	err = -ENOENT;
 
-	rcu_read_lock();
 	t = vti_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL)
 		goto out;
@@ -326,7 +311,6 @@ static int vti_err(struct sk_buff *skb, u32 info)
 		t->err_count = 1;
 	t->err_time = jiffies;
 out:
-	rcu_read_unlock();
 	return err;
 }
 
@@ -336,10 +320,12 @@ static int vti_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph = ip_hdr(skb);
 
-	rcu_read_lock();
 	tunnel = vti_tunnel_lookup(dev_net(skb->dev), iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
+
+		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			return -1;
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		u64_stats_update_begin(&tstats->syncp);
@@ -347,11 +333,11 @@ static int vti_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
+		skb->mark = 0;
+		secpath_reset(skb);
 		skb->dev = tunnel->dev;
-		rcu_read_unlock();
 		return 1;
 	}
-	rcu_read_unlock();
 
 	return -1;
 }
@@ -379,7 +365,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl4, 0, sizeof(fl4));
 	flowi4_init_output(&fl4, tunnel->parms.link,
-			   htonl(tunnel->parms.i_key), RT_TOS(tos),
+			   be32_to_cpu(tunnel->parms.i_key), RT_TOS(tos),
 			   RT_SCOPE_UNIVERSE,
 			   IPPROTO_IPIP, 0,
 			   dst, tiph->saddr, 0, 0);
@@ -446,7 +432,7 @@ static int vti_tunnel_bind_dev(struct net_device *dev)
 		struct flowi4 fl4;
 		memset(&fl4, 0, sizeof(fl4));
 		flowi4_init_output(&fl4, tunnel->parms.link,
-				   htonl(tunnel->parms.i_key),
+				   be32_to_cpu(tunnel->parms.i_key),
 				   RT_TOS(iph->tos), RT_SCOPE_UNIVERSE,
 				   IPPROTO_IPIP, 0,
 				   iph->daddr, iph->saddr, 0, 0);
@@ -502,7 +488,7 @@ vti_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 
 		err = -EFAULT;
@@ -567,7 +553,7 @@ vti_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case SIOCDELTUNNEL:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 
 		if (dev == ipn->fb_tunnel_dev) {

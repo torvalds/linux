@@ -384,6 +384,13 @@ enum usb_device_removable {
 	USB_DEVICE_FIXED,
 };
 
+enum usb_port_connect_type {
+	USB_PORT_CONNECT_TYPE_UNKNOWN = 0,
+	USB_PORT_CONNECT_TYPE_HOT_PLUG,
+	USB_PORT_CONNECT_TYPE_HARD_WIRED,
+	USB_PORT_NOT_USED,
+};
+
 /*
  * USB 3.0 Link Power Management (LPM) parameters.
  *
@@ -469,13 +476,13 @@ struct usb3_lpm_parameters {
  *	access from userspace
  * @usbfs_dentry: usbfs dentry entry for the device
  * @maxchild: number of ports if hub
- * @children: child devices - USB devices that are attached to this hub
  * @quirks: quirks of the whole device
  * @urbnum: number of URBs submitted for the whole device
  * @active_duration: total time device is not suspended
  * @connect_time: time device was first connected
  * @do_remote_wakeup:  remote wakeup should be enabled
  * @reset_resume: needs reset instead of resume
+ * @port_is_suspended: the upstream port is suspended (L2 or U3)
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
@@ -543,7 +550,6 @@ struct usb_device {
 	struct list_head filelist;
 
 	int maxchild;
-	struct usb_device **children;
 
 	u32 quirks;
 	atomic_t urbnum;
@@ -555,6 +561,7 @@ struct usb_device {
 
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
+	unsigned port_is_suspended:1;
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
@@ -572,6 +579,20 @@ static inline struct usb_device *interface_to_usbdev(struct usb_interface *intf)
 
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
+extern struct usb_device *usb_hub_find_child(struct usb_device *hdev,
+	int port1);
+
+/**
+ * usb_hub_for_each_child - iterate over all child devices on the hub
+ * @hdev:  USB device belonging to the usb hub
+ * @port1: portnum associated with child device
+ * @child: child device pointer
+ */
+#define usb_hub_for_each_child(hdev, port1, child) \
+	for (port1 = 1,	child =	usb_hub_find_child(hdev, port1); \
+			port1 <= hdev->maxchild; \
+			child = usb_hub_find_child(hdev, ++port1)) \
+		if (!child) continue; else
 
 /* USB device locking */
 #define usb_lock_device(udev)		device_lock(&(udev)->dev)
@@ -584,6 +605,16 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 extern int usb_reset_device(struct usb_device *dev);
 extern void usb_queue_reset_device(struct usb_interface *dev);
 
+#ifdef CONFIG_ACPI
+extern int usb_acpi_set_power_state(struct usb_device *hdev, int index,
+	bool enable);
+extern bool usb_acpi_power_manageable(struct usb_device *hdev, int index);
+#else
+static inline int usb_acpi_set_power_state(struct usb_device *hdev, int index,
+	bool enable) { return 0; }
+static inline bool usb_acpi_power_manageable(struct usb_device *hdev, int index)
+	{ return true; }
+#endif
 
 /* USB autosuspend and autoresume */
 #ifdef CONFIG_USB_SUSPEND
@@ -775,6 +806,22 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 	.idProduct = (prod), \
 	.bcdDevice_lo = (lo), \
 	.bcdDevice_hi = (hi)
+
+/**
+ * USB_DEVICE_INTERFACE_CLASS - describe a usb device with a specific interface class
+ * @vend: the 16 bit USB Vendor ID
+ * @prod: the 16 bit USB Product ID
+ * @cl: bInterfaceClass value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific interface class of devices.
+ */
+#define USB_DEVICE_INTERFACE_CLASS(vend, prod, cl) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_CLASS, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceClass = (cl)
 
 /**
  * USB_DEVICE_INTERFACE_PROTOCOL - describe a usb device with a specific interface protocol
@@ -1101,8 +1148,8 @@ extern int usb_disabled(void);
  * Note: URB_DIR_IN/OUT is automatically set in usb_submit_urb().
  */
 #define URB_SHORT_NOT_OK	0x0001	/* report short reads as errors */
-#define URB_ISO_ASAP		0x0002	/* iso-only, urb->start_frame
-					 * ignored */
+#define URB_ISO_ASAP		0x0002	/* iso-only; use the first unexpired
+					 * slot in the schedule */
 #define URB_NO_TRANSFER_DMA_MAP	0x0004	/* urb->transfer_dma valid on submit */
 #define URB_NO_FSBR		0x0020	/* UHCI-specific */
 #define URB_ZERO_PACKET		0x0040	/* Finish bulk OUT with short packet */
@@ -1281,15 +1328,20 @@ typedef void (*usb_complete_t)(struct urb *);
  * the transfer interval in the endpoint descriptor is logarithmic.
  * Device drivers must convert that value to linear units themselves.)
  *
- * Isochronous URBs normally use the URB_ISO_ASAP transfer flag, telling
- * the host controller to schedule the transfer as soon as bandwidth
- * utilization allows, and then set start_frame to reflect the actual frame
- * selected during submission.  Otherwise drivers must specify the start_frame
- * and handle the case where the transfer can't begin then.  However, drivers
- * won't know how bandwidth is currently allocated, and while they can
- * find the current frame using usb_get_current_frame_number () they can't
- * know the range for that frame number.  (Ranges for frame counter values
- * are HC-specific, and can go from 256 to 65536 frames from "now".)
+ * If an isochronous endpoint queue isn't already running, the host
+ * controller will schedule a new URB to start as soon as bandwidth
+ * utilization allows.  If the queue is running then a new URB will be
+ * scheduled to start in the first transfer slot following the end of the
+ * preceding URB, if that slot has not already expired.  If the slot has
+ * expired (which can happen when IRQ delivery is delayed for a long time),
+ * the scheduling behavior depends on the URB_ISO_ASAP flag.  If the flag
+ * is clear then the URB will be scheduled to start in the expired slot,
+ * implying that some of its packets will not be transferred; if the flag
+ * is set then the URB will be scheduled in the first unexpired slot,
+ * breaking the queue's synchronization.  Upon URB completion, the
+ * start_frame field will be set to the (micro)frame number in which the
+ * transfer was scheduled.  Ranges for frame counter values are HC-specific
+ * and can go from as low as 256 to as high as 65536 frames.
  *
  * Isochronous URBs have a different data transfer model, in part because
  * the quality of service is only "best effort".  Callers provide specially
@@ -1749,17 +1801,6 @@ static inline int usb_translate_errors(int error_code)
 #define USB_BUS_REMOVE		0x0004
 extern void usb_register_notify(struct notifier_block *nb);
 extern void usb_unregister_notify(struct notifier_block *nb);
-
-#ifdef DEBUG
-#define dbg(format, arg...)						\
-	printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg)
-#else
-#define dbg(format, arg...)						\
-do {									\
-	if (0)								\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg); \
-} while (0)
-#endif
 
 /* debugfs stuff */
 extern struct dentry *usb_debug_root;

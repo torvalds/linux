@@ -22,8 +22,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "drmP.h"
-#include "savage_drm.h"
+#include <drm/drmP.h>
+#include <drm/savage_drm.h>
 #include "savage_drv.h"
 
 /* Need a long timeout for shadow status updates can take a while
@@ -546,6 +546,8 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = (void *)dev_priv;
 
 	dev_priv->chipset = (enum savage_family)chipset;
+
+	pci_set_master(dev->pdev);
 
 	return 0;
 }

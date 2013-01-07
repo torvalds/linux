@@ -1,9 +1,10 @@
-config VIDEO_SAA7146
-	tristate
-	depends on I2C && PCI
+# Used by common drivers, when they need to ask questions
+config MEDIA_COMMON_OPTIONS
+	bool
 
-config VIDEO_SAA7146_VV
-	tristate
-	depends on VIDEO_V4L2
-	select VIDEOBUF_DMA_SG
-	select VIDEO_SAA7146
+comment "common driver options"
+	depends on MEDIA_COMMON_OPTIONS
+
+source "drivers/media/common/b2c2/Kconfig"
+source "drivers/media/common/saa7146/Kconfig"
+source "drivers/media/common/siano/Kconfig"

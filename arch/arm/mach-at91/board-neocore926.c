@@ -44,10 +44,10 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -129,7 +129,7 @@ static struct spi_board_info neocore926_spi_devices[] = {
 		.max_speed_hz	= 125000 * 16,
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
-		.irq		= AT91SAM9263_ID_IRQ1,
+		.irq		= NR_IRQS_LEGACY + AT91SAM9263_ID_IRQ1,
 	},
 #endif
 };
@@ -138,11 +138,12 @@ static struct spi_board_info neocore926_spi_devices[] = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata neocore926_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PE18,
-	.wp_pin		= AT91_PIN_PE19,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata neocore926_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PE18,
+		.wp_pin		= AT91_PIN_PE19,
+	},
 };
 
 
@@ -354,7 +355,7 @@ static void __init neocore926_board_init(void)
 	neocore926_add_device_ts();
 
 	/* MMC */
-	at91_add_device_mmc(1, &neocore926_mmc_data);
+	at91_add_device_mci(0, &neocore926_mci0_data);
 
 	/* Ethernet */
 	at91_add_device_eth(&neocore926_macb_data);

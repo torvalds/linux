@@ -164,6 +164,10 @@ struct wm8994_pdata {
 	int num_micd_rates;
 	struct wm8958_micd_rate *micd_rates;
 
+	/* Power up delays to add after microphone bias power up (ms) */
+	int micb1_delay;
+	int micb2_delay;
+
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;
         unsigned int lineout2_diff:1;
@@ -171,6 +175,11 @@ struct wm8994_pdata {
         /* Common mode feedback */
         unsigned int lineout1fb:1;
         unsigned int lineout2fb:1;
+
+	/* Delay between detecting a jack and starting microphone
+	 * detect (specified in ms)
+	 */
+	int micdet_delay;
 
 	/* IRQ for microphone detection if brought out directly as a
 	 * signal.

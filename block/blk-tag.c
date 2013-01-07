@@ -186,7 +186,8 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 		tags = __blk_queue_init_tags(q, depth);
 
 		if (!tags)
-			goto fail;
+			return -ENOMEM;
+
 	} else if (q->queue_tags) {
 		rc = blk_queue_resize_tags(q, depth);
 		if (rc)
@@ -203,9 +204,6 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 	queue_flag_set_unlocked(QUEUE_FLAG_QUEUED, q);
 	INIT_LIST_HEAD(&q->tag_busy_list);
 	return 0;
-fail:
-	kfree(tags);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(blk_queue_init_tags);
 

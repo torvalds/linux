@@ -239,7 +239,7 @@ static void mmc_select_card_type(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	u8 card_type = card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_MASK;
-	unsigned int caps = host->caps, caps2 = host->caps2;
+	u32 caps = host->caps, caps2 = host->caps2;
 	unsigned int hs_max_dtr = 0;
 
 	if (card_type & EXT_CSD_CARD_TYPE_26)
@@ -463,6 +463,17 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	}
 
 	if (card->ext_csd.rev >= 5) {
+		/* check whether the eMMC card supports BKOPS */
+		if (ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) {
+			card->ext_csd.bkops = 1;
+			card->ext_csd.bkops_en = ext_csd[EXT_CSD_BKOPS_EN];
+			card->ext_csd.raw_bkops_status =
+				ext_csd[EXT_CSD_BKOPS_STATUS];
+			if (!card->ext_csd.bkops_en)
+				pr_info("%s: BKOPS_EN bit is not set\n",
+					mmc_hostname(card->host));
+		}
+
 		/* check whether the eMMC card supports HPI */
 		if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) {
 			card->ext_csd.hpi = 1;
@@ -480,6 +491,17 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 		card->ext_csd.rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
 		card->ext_csd.rst_n_function = ext_csd[EXT_CSD_RST_N_FUNCTION];
+
+		/*
+		 * RPMB regions are defined in multiples of 128K.
+		 */
+		card->ext_csd.raw_rpmb_size_mult = ext_csd[EXT_CSD_RPMB_MULT];
+		if (ext_csd[EXT_CSD_RPMB_MULT]) {
+			mmc_part_add(card, ext_csd[EXT_CSD_RPMB_MULT] << 17,
+				EXT_CSD_PART_CONFIG_ACC_RPMB,
+				"rpmb", 0, false,
+				MMC_BLK_DATA_AREA_RPMB);
+		}
 	}
 
 	card->ext_csd.raw_erased_mem_count = ext_csd[EXT_CSD_ERASED_MEM_CONT];
@@ -604,6 +626,8 @@ MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
 MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 		card->ext_csd.enhanced_area_offset);
 MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
+MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
+MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
 
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -619,6 +643,8 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_serial.attr,
 	&dev_attr_enhanced_area_offset.attr,
 	&dev_attr_enhanced_area_size.attr,
+	&dev_attr_raw_rpmb_size_mult.attr,
+	&dev_attr_rel_sectors.attr,
 	NULL,
 };
 
@@ -996,7 +1022,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * so check for success and update the flag
 		 */
 		if (!err)
-			card->poweroff_notify_state = MMC_POWERED_ON;
+			card->ext_csd.power_off_notification = EXT_CSD_POWER_ON;
 	}
 
 	/*
@@ -1040,6 +1066,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (mmc_card_highspeed(card) || mmc_card_hs200(card)) {
 		if (max_dtr > card->ext_csd.hs_max_dtr)
 			max_dtr = card->ext_csd.hs_max_dtr;
+		if (mmc_card_highspeed(card) && (max_dtr > 52000000))
+			max_dtr = 52000000;
 	} else if (max_dtr > card->csd.max_dtr) {
 		max_dtr = card->csd.max_dtr;
 	}
@@ -1262,6 +1290,35 @@ err:
 	return err;
 }
 
+static int mmc_can_poweroff_notify(const struct mmc_card *card)
+{
+	return card &&
+		mmc_card_mmc(card) &&
+		(card->ext_csd.power_off_notification == EXT_CSD_POWER_ON);
+}
+
+static int mmc_poweroff_notify(struct mmc_card *card, unsigned int notify_type)
+{
+	unsigned int timeout = card->ext_csd.generic_cmd6_time;
+	int err;
+
+	/* Use EXT_CSD_POWER_OFF_SHORT as default notification type. */
+	if (notify_type == EXT_CSD_POWER_OFF_LONG)
+		timeout = card->ext_csd.power_off_longtime;
+
+	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			 EXT_CSD_POWER_OFF_NOTIFICATION,
+			 notify_type, timeout);
+	if (err)
+		pr_err("%s: Power Off Notification timed out, %u\n",
+		       mmc_hostname(card->host), timeout);
+
+	/* Disable the power off notification after the switch operation. */
+	card->ext_csd.power_off_notification = EXT_CSD_NO_POWER_NOTIFICATION;
+
+	return err;
+}
+
 /*
  * Host is being removed. Free up the current card.
  */
@@ -1322,11 +1379,11 @@ static int mmc_suspend(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	if (mmc_card_can_sleep(host)) {
+	if (mmc_can_poweroff_notify(host->card))
+		err = mmc_poweroff_notify(host->card, EXT_CSD_POWER_OFF_SHORT);
+	else if (mmc_card_can_sleep(host))
 		err = mmc_card_sleep(host);
-		if (!err)
-			mmc_card_set_sleep(host->card);
-	} else if (!mmc_host_is_spi(host))
+	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
 	mmc_release_host(host);
@@ -1348,11 +1405,7 @@ static int mmc_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	if (mmc_card_is_sleep(host->card)) {
-		err = mmc_card_awake(host);
-		mmc_card_clr_sleep(host->card);
-	} else
-		err = mmc_init_card(host, host->ocr, host->card);
+	err = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
 
 	return err;
@@ -1363,7 +1416,6 @@ static int mmc_power_restore(struct mmc_host *host)
 	int ret;
 
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
-	mmc_card_clr_sleep(host->card);
 	mmc_claim_host(host);
 	ret = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);

@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>	/* for show_stack */
 #include <linux/string.h>
@@ -35,14 +36,13 @@
 #include <linux/dma-mapping.h>
 #include <linux/crash_dump.h>
 #include <linux/memory.h>
+#include <linux/of.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
-#include <asm/pSeries_reconfig.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
@@ -99,7 +99,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 
 	while (npages--) {
 		/* can't move this out since we might cross MEMBLOCK boundary */
-		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+		rpn = __pa(uaddr) >> TCE_SHIFT;
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
 		uaddr += TCE_PAGE_SIZE;
@@ -148,7 +148,7 @@ static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	int ret = 0;
 	long tcenum_start = tcenum, npages_start = npages;
 
-	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+	rpn = __pa(uaddr) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
@@ -217,7 +217,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		__get_cpu_var(tce_page) = tcep;
 	}
 
-	rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
+	rpn = __pa(uaddr) >> TCE_SHIFT;
 	proto_tce = TCE_PCI_READ;
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
@@ -237,7 +237,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 
 		rc = plpar_tce_put_indirect((u64)tbl->it_index,
 					    (u64)tcenum << 12,
-					    (u64)virt_to_abs(tcep),
+					    (u64)__pa(tcep),
 					    limit);
 
 		npages -= limit;
@@ -441,7 +441,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
 
 		rc = plpar_tce_put_indirect(liobn,
 					    dma_offset,
-					    (u64)virt_to_abs(tcep),
+					    (u64)__pa(tcep),
 					    limit);
 
 		num_tce -= limit;
@@ -760,7 +760,7 @@ static void remove_ddw(struct device_node *np)
 	__remove_ddw(np, ddw_avail, liobn);
 
 delprop:
-	ret = prom_remove_property(np, win64);
+	ret = of_remove_property(np, win64);
 	if (ret)
 		pr_warning("%s: failed to remove direct window property: %d\n",
 			np->full_name, ret);
@@ -1070,7 +1070,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		goto out_free_window;
 	}
 
-	ret = prom_add_property(pdn, win64);
+	ret = of_add_property(pdn, win64);
 	if (ret) {
 		dev_err(&dev->dev, "unable to add dma window property for %s: %d",
 			 pdn->full_name, ret);
@@ -1294,7 +1294,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 	struct direct_window *window;
 
 	switch (action) {
-	case PSERIES_RECONFIG_REMOVE:
+	case OF_RECONFIG_DETACH_NODE:
 		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 
@@ -1357,7 +1357,7 @@ void iommu_init_early_pSeries(void)
 	}
 
 
-	pSeries_reconfig_notifier_register(&iommu_reconfig_nb);
+	of_reconfig_notifier_register(&iommu_reconfig_nb);
 	register_memory_notifier(&iommu_mem_nb);
 
 	set_pci_dma_ops(&dma_iommu_ops);

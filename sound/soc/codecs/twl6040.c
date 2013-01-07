@@ -727,10 +727,8 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_MICRCTL, 1, 0, NULL, 0),
 
 	/* ADCs */
-	SND_SOC_DAPM_ADC("ADC Left", "Left Front Capture",
-			TWL6040_REG_MICLCTL, 2, 0),
-	SND_SOC_DAPM_ADC("ADC Right", "Right Front Capture",
-			TWL6040_REG_MICRCTL, 2, 0),
+	SND_SOC_DAPM_ADC("ADC Left", NULL, TWL6040_REG_MICLCTL, 2, 0),
+	SND_SOC_DAPM_ADC("ADC Right", NULL, TWL6040_REG_MICRCTL, 2, 0),
 
 	/* Microphone bias */
 	SND_SOC_DAPM_SUPPLY("Headset Mic Bias",
@@ -743,15 +741,12 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			    TWL6040_REG_DMICBCTL, 4, 0, NULL, 0),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HSDAC Right", "Headset Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HFDAC Left", "Handsfree Playback",
-			 TWL6040_REG_HFLCTL, 0, 0),
-	SND_SOC_DAPM_DAC("HFDAC Right", "Handsfree Playback",
-			 TWL6040_REG_HFRCTL, 0, 0),
+	SND_SOC_DAPM_DAC("HSDAC Left", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HSDAC Right", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HFDAC Left", NULL, TWL6040_REG_HFLCTL, 0, 0),
+	SND_SOC_DAPM_DAC("HFDAC Right", NULL, TWL6040_REG_HFRCTL, 0, 0),
 	/* Virtual DAC for vibra path (DL4 channel) */
-	SND_SOC_DAPM_DAC("VIBRA DAC", "Vibra Playback",
-			SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("VIBRA DAC", NULL, SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("Handsfree Left Playback",
 			SND_SOC_NOPM, 0, 0, &hfl_mux_controls),
@@ -810,6 +805,26 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
+	/* Stream -> DAC mapping */
+	{"HSDAC Left", NULL, "Legacy Playback"},
+	{"HSDAC Left", NULL, "Headset Playback"},
+	{"HSDAC Right", NULL, "Legacy Playback"},
+	{"HSDAC Right", NULL, "Headset Playback"},
+
+	{"HFDAC Left", NULL, "Legacy Playback"},
+	{"HFDAC Left", NULL, "Handsfree Playback"},
+	{"HFDAC Right", NULL, "Legacy Playback"},
+	{"HFDAC Right", NULL, "Handsfree Playback"},
+
+	{"VIBRA DAC", NULL, "Legacy Playback"},
+	{"VIBRA DAC", NULL, "Vibra Playback"},
+
+	/* ADC -> Stream mapping */
+	{"Legacy Capture" , NULL, "ADC Left"},
+	{"Capture", NULL, "ADC Left"},
+	{"Legacy Capture", NULL, "ADC Right"},
+	{"Capture" , NULL, "ADC Right"},
+
 	/* Capture path */
 	{"Analog Left Capture Route", "Headset Mic", "HSMIC"},
 	{"Analog Left Capture Route", "Main Mic", "MAINMIC"},
@@ -1028,14 +1043,14 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 {
 	.name = "twl6040-legacy",
 	.playback = {
-		.stream_name = "Playback",
+		.stream_name = "Legacy Playback",
 		.channels_min = 1,
 		.channels_max = 5,
 		.rates = TWL6040_RATES,
 		.formats = TWL6040_FORMATS,
 	},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "Legacy Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = TWL6040_RATES,
@@ -1214,13 +1229,13 @@ static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.num_dapm_routes = ARRAY_SIZE(intercon),
 };
 
-static int __devinit twl6040_codec_probe(struct platform_device *pdev)
+static int twl6040_codec_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_twl6040,
 				      twl6040_dai, ARRAY_SIZE(twl6040_dai));
 }
 
-static int __devexit twl6040_codec_remove(struct platform_device *pdev)
+static int twl6040_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1232,7 +1247,7 @@ static struct platform_driver twl6040_codec_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_codec_probe,
-	.remove = __devexit_p(twl6040_codec_remove),
+	.remove = twl6040_codec_remove,
 };
 
 module_platform_driver(twl6040_codec_driver);

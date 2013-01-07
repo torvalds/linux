@@ -1101,9 +1101,9 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
 				PHY_INTERFACE_MODE_SGMII);
 
-	if (IS_ERR(phydev)) {
+	if (!phydev) {
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
-		return PTR_ERR(phydev);
+		return -ENODEV;
 	}
 
 	mac->phydev = phydev;
@@ -1727,7 +1727,7 @@ static const struct net_device_ops pasemi_netdev_ops = {
 #endif
 };
 
-static int __devinit
+static int
 pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -1849,7 +1849,7 @@ out_disable_device:
 
 }
 
-static void __devexit pasemi_mac_remove(struct pci_dev *pdev)
+static void pasemi_mac_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct pasemi_mac *mac;
@@ -1884,7 +1884,7 @@ static struct pci_driver pasemi_mac_driver = {
 	.name		= "pasemi_mac",
 	.id_table	= pasemi_mac_pci_tbl,
 	.probe		= pasemi_mac_probe,
-	.remove		= __devexit_p(pasemi_mac_remove),
+	.remove		= pasemi_mac_remove,
 };
 
 static void __exit pasemi_mac_cleanup_module(void)

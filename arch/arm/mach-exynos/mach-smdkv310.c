@@ -18,32 +18,33 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
-#include <plat/iic.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
-#include <plat/ehci.h>
 #include <plat/clock.h>
 #include <plat/hdmi.h>
 
 #include <mach/map.h>
-#include <mach/ohci.h>
 
 #include <drm/exynos_drm.h>
 #include "common.h"
@@ -158,7 +159,7 @@ static struct platform_device smdkv310_lcd_lte480wv = {
 	.dev.platform_data	= &smdkv310_lcd_lte480wv_data,
 };
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
 	.panel	= {
 		.timing	= {
@@ -299,9 +300,6 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_fimc_md,
 	&s5p_device_g2d,
 	&s5p_device_jpeg,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
 	&exynos4_device_ohci,
@@ -310,7 +308,6 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&exynos4_device_spdif,
-	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&s5p_device_fimd0,
 	&smdkv310_device_audio,
@@ -360,6 +357,10 @@ static struct i2c_board_info hdmiphy_info = {
 	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
 };
 
+static struct pwm_lookup smdkv310_pwm_lookup[] = {
+	PWM_LOOKUP("s3c24xx-pwm.1", 0, "pwm-backlight.0", NULL),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
@@ -399,7 +400,9 @@ static void __init smdkv310_machine_init(void)
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
 	samsung_bl_set(&smdkv310_bl_gpio_info, &smdkv310_bl_data);
-#ifdef CONFIG_DRM_EXYNOS
+	pwm_add_table(smdkv310_pwm_lookup, ARRAY_SIZE(smdkv310_pwm_lookup));
+
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
 #else
@@ -417,6 +420,7 @@ MACHINE_START(SMDKV310, "SMDKV310")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	/* Maintainer: Changhwan Youn <chaos.youn@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
 	.handle_irq	= gic_handle_irq,
@@ -429,6 +433,7 @@ MACHINE_END
 MACHINE_START(SMDKC210, "SMDKC210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
 	.handle_irq	= gic_handle_irq,

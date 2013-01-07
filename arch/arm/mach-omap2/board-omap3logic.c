@@ -30,23 +30,17 @@
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "common.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"
-
-#include <plat/mux.h>
-#include <plat/board.h>
-#include "common.h"
-#include <plat/gpmc-smsc911x.h>
-#include <plat/gpmc.h>
-#include <plat/sdrc.h>
-#include <plat/usb.h>
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
 #define OMAP3LOGIC_SMSC911X_CS			1
 
@@ -78,9 +72,6 @@ static struct regulator_init_data omap3logic_vmmc1 = {
 };
 
 static struct twl4030_gpio_platform_data omap3logic_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.pullups	= BIT(1),
 	.pulldowns	= BIT(2)  | BIT(6)  | BIT(7)  | BIT(8)
@@ -241,7 +232,7 @@ MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.init_machine	= omap3logic_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
@@ -254,5 +245,5 @@ MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.init_machine	= omap3logic_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

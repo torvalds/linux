@@ -48,12 +48,12 @@ static int __if_print(bool *first, const char *field, u64 value)
 
 #define if_print(field) __if_print(&first, #field, pos->attr.field)
 
-static int __cmd_evlist(const char *input_name, struct perf_attr_details *details)
+static int __cmd_evlist(const char *file_name, struct perf_attr_details *details)
 {
 	struct perf_session *session;
 	struct perf_evsel *pos;
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, NULL);
+	session = perf_session__new(file_name, O_RDONLY, 0, false, NULL);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -108,23 +108,19 @@ static int __cmd_evlist(const char *input_name, struct perf_attr_details *detail
 	return 0;
 }
 
-static const char * const evlist_usage[] = {
-	"perf evlist [<options>]",
-	NULL
-};
-
-int cmd_evlist(int argc, const char **argv, const char *prefix __used)
+int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_attr_details details = { .verbose = false, };
-	const char *input_name = NULL;
 	const struct option options[] = {
-		OPT_STRING('i', "input", &input_name, "file",
-			    "Input file name"),
-		OPT_BOOLEAN('F', "freq", &details.freq,
-			    "Show the sample frequency"),
-		OPT_BOOLEAN('v', "verbose", &details.verbose,
-			    "Show all event attr details"),
-		OPT_END()
+	OPT_STRING('i', "input", &input_name, "file", "Input file name"),
+	OPT_BOOLEAN('F', "freq", &details.freq, "Show the sample frequency"),
+	OPT_BOOLEAN('v', "verbose", &details.verbose,
+		    "Show all event attr details"),
+	OPT_END()
+	};
+	const char * const evlist_usage[] = {
+		"perf evlist [<options>]",
+		NULL
 	};
 
 	argc = parse_options(argc, argv, options, evlist_usage, 0);

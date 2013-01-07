@@ -48,13 +48,14 @@ find_arch_sources()
 	for i in $archincludedir; do
 		prune="$prune -wholename $i -prune -o"
 	done
-	find ${tree}arch/$1 $ignore $prune -name "$2" -print;
+	find ${tree}arch/$1 $ignore $subarchprune $prune -name "$2" -print;
 }
 
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	include=$(find ${tree}arch/$1/ -name include -type d);
+	include=$(find ${tree}arch/$1/ $subarchprune \
+					-name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
 		find $include $ignore -name "$2" -print;
@@ -95,6 +96,32 @@ all_sources()
 	find_other_sources '*.[chS]'
 }
 
+all_compiled_sources()
+{
+	for i in $(all_sources); do
+		case "$i" in
+			*.[cS])
+				j=${i/\.[cS]/\.o}
+				if [ -e $j ]; then
+					echo $i
+				fi
+				;;
+			*)
+				echo $i
+				;;
+		esac
+	done
+}
+
+all_target_sources()
+{
+	if [ -n "$COMPILED_SOURCE" ]; then
+		all_compiled_sources
+	else
+		all_sources
+	fi
+}
+
 all_kconfigs()
 {
 	for arch in $ALLSOURCE_ARCHS; do
@@ -110,18 +137,18 @@ all_defconfigs()
 
 docscope()
 {
-	(echo \-k; echo \-q; all_sources) > cscope.files
+	(echo \-k; echo \-q; all_target_sources) > cscope.files
 	cscope -b -f cscope.out
 }
 
 dogtags()
 {
-	all_sources | gtags -i -f -
+	all_target_sources | gtags -i -f -
 }
 
 exuberant()
 {
-	all_sources | xargs $1 -a                               \
+	all_target_sources | xargs $1 -a                        \
 	-I __initdata,__exitdata,__acquires,__releases          \
 	-I __read_mostly,____cacheline_aligned                  \
 	-I ____cacheline_aligned_in_smp                         \
@@ -154,7 +181,9 @@ exuberant()
 	--regex-c++='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/'	\
 	--regex-c++='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
 	--regex-c++='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/' \
-	--regex-c++='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'
+	--regex-c++='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'		\
+	--regex-c='/PCI_OP_READ\(([a-z]*[a-z]).*[1-4]\)/pci_bus_read_config_\1/' \
+	--regex-c='/PCI_OP_WRITE\(([a-z]*[a-z]).*[1-4]\)/pci_bus_write_config_\1/'
 
 	all_kconfigs | xargs $1 -a                              \
 	--langdef=kconfig --language-force=kconfig              \
@@ -171,7 +200,7 @@ exuberant()
 
 emacs()
 {
-	all_sources | xargs $1 -a                               \
+	all_target_sources | xargs $1 -a                        \
 	--regex='/^(ENTRY|_GLOBAL)(\([^)]*\)).*/\2/'            \
 	--regex='/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
 	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
@@ -197,7 +226,9 @@ emacs()
 	--regex='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/' \
 	--regex='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
 	--regex='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/' \
-	--regex='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'
+	--regex='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'		\
+	--regex='/PCI_OP_READ\(([a-z]*[a-z]).*[1-4]\)/pci_bus_read_config_\1/' \
+	--regex='/PCI_OP_WRITE\(([a-z]*[a-z]).*[1-4]\)/pci_bus_write_config_\1/'
 
 	all_kconfigs | xargs $1 -a                              \
 	--regex='/^[ \t]*\(\(menu\)*config\)[ \t]+\([a-zA-Z0-9_]+\)/\3/'
@@ -216,10 +247,9 @@ xtags()
 	elif $1 --version 2>&1 | grep -iq emacs; then
 		emacs $1
 	else
-		all_sources | xargs $1 -a
+		all_target_sources | xargs $1 -a
         fi
 }
-
 
 # Support um (which uses SUBARCH)
 if [ "${ARCH}" = "um" ]; then
@@ -230,6 +260,21 @@ if [ "${ARCH}" = "um" ]; then
 	else
 		archinclude=${SUBARCH}
 	fi
+elif [ "${SRCARCH}" = "arm" -a "${SUBARCH}" != "" ]; then
+	subarchdir=$(find ${tree}arch/$SRCARCH/ -name "mach-*" -type d -o \
+							-name "plat-*" -type d);
+	for i in $subarchdir; do
+		case "$i" in
+			*"mach-"${SUBARCH})
+				;;
+			*"plat-"${SUBARCH})
+				;;
+			*)
+				subarchprune="$subarchprune \
+						-wholename $i -prune -o"
+				;;
+		esac
+	done
 fi
 
 remove_structs=

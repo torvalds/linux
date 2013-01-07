@@ -52,14 +52,13 @@
 #include "nonstdio.h"
 #include "dis-asm.h"
 
-#define scanhex	xmon_scanhex
-#define skipbl	xmon_skipbl
-
 #ifdef CONFIG_SMP
 static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
 static int xmon_owner;
 static int xmon_gate;
+#else
+#define xmon_owner 0
 #endif /* CONFIG_SMP */
 
 static unsigned long in_xmon __read_mostly = 0;
@@ -167,12 +166,8 @@ extern void xmon_leave(void);
 
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
-#define REGS_PER_LINE	4
-#define LAST_VOLATILE	13
 #else
 #define REG		"%.8lx"
-#define REGS_PER_LINE	8
-#define LAST_VOLATILE	12
 #endif
 
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
@@ -202,7 +197,13 @@ Commands:\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
-  dl    dump the kernel log buffer\n\
+  dl    dump the kernel log buffer\n"
+#ifdef CONFIG_PPC64
+  "\
+  dp[#]	dump paca for current cpu, or cpu #\n\
+  dpa	dump paca for all possible cpus\n"
+#endif
+  "\
   dr	dump stream of raw bytes\n\
   e	print exception information\n\
   f	flush cache\n\
@@ -740,7 +741,7 @@ static void insert_bpts(void)
 static void insert_cpu_bpts(void)
 {
 	if (dabr.enabled)
-		set_dabr(dabr.address | (dabr.enabled & 7));
+		set_dabr(dabr.address | (dabr.enabled & 7), DABRX_ALL);
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
@@ -768,7 +769,7 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_dabr(0);
+	set_dabr(0, 0);
 	if (cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, 0);
 }
@@ -1280,27 +1281,19 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 	catch_memory_errors = 0;
 }
 
-static int xmon_depth_to_print = 64;
-
 #define LRSAVE_OFFSET		(STACK_FRAME_LR_SAVE * sizeof(unsigned long))
 #define MARKER_OFFSET		(STACK_FRAME_MARKER * sizeof(unsigned long))
-
-#ifdef __powerpc64__
-#define REGS_OFFSET		0x70
-#else
-#define REGS_OFFSET		16
-#endif
 
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			    unsigned long pc)
 {
+	int max_to_print = 64;
 	unsigned long ip;
 	unsigned long newsp;
 	unsigned long marker;
-	int count = 0;
 	struct pt_regs regs;
 
-	do {
+	while (max_to_print--) {
 		if (sp < PAGE_OFFSET) {
 			if (sp != 0)
 				printf("SP (%lx) is in userspace\n", sp);
@@ -1354,10 +1347,10 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 		   an exception frame. */
 		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
 		    && marker == STACK_FRAME_REGS_MARKER) {
-			if (mread(sp + REGS_OFFSET, &regs, sizeof(regs))
+			if (mread(sp + STACK_FRAME_OVERHEAD, &regs, sizeof(regs))
 			    != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",
-				       sp + REGS_OFFSET);
+				       sp + STACK_FRAME_OVERHEAD);
 				break;
 			}
 			printf("--- Exception: %lx %s at ", regs.trap,
@@ -1371,7 +1364,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			break;
 
 		sp = newsp;
-	} while (count++ < xmon_depth_to_print);
+	}
 }
 
 static void backtrace(struct pt_regs *excp)
@@ -2009,6 +2002,95 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 	printf("\n");
 }
 
+#ifdef CONFIG_PPC64
+static void dump_one_paca(int cpu)
+{
+	struct paca_struct *p;
+
+	if (setjmp(bus_error_jmp) != 0) {
+		printf("*** Error dumping paca for cpu 0x%x!\n", cpu);
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+
+	p = &paca[cpu];
+
+	printf("paca for cpu 0x%x @ %p:\n", cpu, p);
+
+	printf(" %-*s = %s\n", 16, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 16, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 16, "online", cpu_online(cpu) ? "yes" : "no");
+
+#define DUMP(paca, name, format) \
+	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 16, #name, 18, paca->name, \
+		offsetof(struct paca_struct, name));
+
+	DUMP(p, lock_token, "x");
+	DUMP(p, paca_index, "x");
+	DUMP(p, kernel_toc, "lx");
+	DUMP(p, kernelbase, "lx");
+	DUMP(p, kernel_msr, "lx");
+#ifdef CONFIG_PPC_STD_MMU_64
+	DUMP(p, stab_real, "lx");
+	DUMP(p, stab_addr, "lx");
+#endif
+	DUMP(p, emergency_sp, "p");
+	DUMP(p, data_offset, "lx");
+	DUMP(p, hw_cpu_id, "x");
+	DUMP(p, cpu_start, "x");
+	DUMP(p, kexec_state, "x");
+	DUMP(p, __current, "p");
+	DUMP(p, kstack, "lx");
+	DUMP(p, stab_rr, "lx");
+	DUMP(p, saved_r1, "lx");
+	DUMP(p, trap_save, "x");
+	DUMP(p, soft_enabled, "x");
+	DUMP(p, irq_happened, "x");
+	DUMP(p, io_sync, "x");
+	DUMP(p, irq_work_pending, "x");
+	DUMP(p, nap_state_lost, "x");
+
+#undef DUMP
+
+	catch_memory_errors = 0;
+	sync();
+}
+
+static void dump_all_pacas(void)
+{
+	int cpu;
+
+	if (num_possible_cpus() == 0) {
+		printf("No possible cpus, use 'dp #' to dump individual cpus\n");
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		dump_one_paca(cpu);
+}
+
+static void dump_pacas(void)
+{
+	unsigned long num;
+	int c;
+
+	c = inchar();
+	if (c == 'a') {
+		dump_all_pacas();
+		return;
+	}
+
+	termch = c;	/* Put c back, it wasn't 'a' */
+
+	if (scanhex(&num))
+		dump_one_paca(num);
+	else
+		dump_one_paca(xmon_owner);
+}
+#endif
+
 #define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
 			 || ('a' <= (c) && (c) <= 'f') \
 			 || ('A' <= (c) && (c) <= 'F'))
@@ -2018,6 +2100,14 @@ dump(void)
 	int c;
 
 	c = inchar();
+
+#ifdef CONFIG_PPC64
+	if (c == 'p') {
+		dump_pacas();
+		return;
+	}
+#endif
+
 	if ((isxdigit(c) && c != 'f' && c != 'd') || c == '\n')
 		termch = c;
 	scanhex((void *)&adrs);
@@ -2838,7 +2928,6 @@ static void xmon_init(int enable)
 		__debugger_dabr_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
-	xmon_map_scc();
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ

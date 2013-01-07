@@ -62,7 +62,7 @@
 
 int init_bootmem_done;
 int mem_init_done;
-phys_addr_t memory_limit;
+unsigned long long memory_limit;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -300,8 +300,7 @@ void __init mem_init(void)
 	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
 #ifdef CONFIG_SWIOTLB
-	if (ppc_swiotlb_enable)
-		swiotlb_init(1);
+	swiotlb_init(0);
 #endif
 
 	num_physpages = memblock_phys_mem_size() >> PAGE_SHIFT;

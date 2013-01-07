@@ -7,6 +7,9 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
+#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p(typeof(0?(t)0:0ULL), u64))
+#define __SC_DELOUSE(t,v) (t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v))
+
 #define PSW32_MASK_PER		0x40000000UL
 #define PSW32_MASK_DAT		0x04000000UL
 #define PSW32_MASK_IO		0x02000000UL
@@ -20,7 +23,7 @@
 #define PSW32_MASK_CC		0x00003000UL
 #define PSW32_MASK_PM		0x00000f00UL
 
-#define PSW32_MASK_USER		0x00003F00UL
+#define PSW32_MASK_USER		0x0000FF00UL
 
 #define PSW32_ADDR_AMODE	0x80000000UL
 #define PSW32_ADDR_INSN		0x7FFFFFFFUL
@@ -65,6 +68,7 @@ typedef s64		compat_s64;
 typedef u32		compat_uint_t;
 typedef u32		compat_ulong_t;
 typedef u64		compat_u64;
+typedef u32		compat_uptr_t;
 
 struct compat_timespec {
 	compat_time_t	tv_sec;
@@ -144,6 +148,79 @@ typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 
 typedef u32		compat_sigset_word;
 
+typedef union compat_sigval {
+	compat_int_t	sival_int;
+	compat_uptr_t	sival_ptr;
+} compat_sigval_t;
+
+typedef struct compat_siginfo {
+	int	si_signo;
+	int	si_errno;
+	int	si_code;
+
+	union {
+		int _pad[128/sizeof(int) - 3];
+
+		/* kill() */
+		struct {
+			pid_t	_pid;	/* sender's pid */
+			uid_t	_uid;	/* sender's uid */
+		} _kill;
+
+		/* POSIX.1b timers */
+		struct {
+			compat_timer_t _tid;		/* timer id */
+			int _overrun;			/* overrun count */
+			compat_sigval_t _sigval;	/* same as below */
+			int _sys_private;	/* not to be passed to user */
+		} _timer;
+
+		/* POSIX.1b signals */
+		struct {
+			pid_t			_pid;	/* sender's pid */
+			uid_t			_uid;	/* sender's uid */
+			compat_sigval_t		_sigval;
+		} _rt;
+
+		/* SIGCHLD */
+		struct {
+			pid_t			_pid;	/* which child */
+			uid_t			_uid;	/* sender's uid */
+			int			_status;/* exit code */
+			compat_clock_t		_utime;
+			compat_clock_t		_stime;
+		} _sigchld;
+
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
+		struct {
+			__u32	_addr;	/* faulting insn/memory ref. - pointer */
+		} _sigfault;
+
+		/* SIGPOLL */
+		struct {
+			int	_band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			int	_fd;
+		} _sigpoll;
+	} _sifields;
+} compat_siginfo_t;
+
+/*
+ * How these fields are to be accessed.
+ */
+#define si_pid		_sifields._kill._pid
+#define si_uid		_sifields._kill._uid
+#define si_status	_sifields._sigchld._status
+#define si_utime	_sifields._sigchld._utime
+#define si_stime	_sifields._sigchld._stime
+#define si_value	_sifields._rt._sigval
+#define si_int		_sifields._rt._sigval.sival_int
+#define si_ptr		_sifields._rt._sigval.sival_ptr
+#define si_addr		_sifields._sigfault._addr
+#define si_band		_sifields._sigpoll._band
+#define si_fd		_sifields._sigpoll._fd
+#define si_tid		_sifields._timer._tid
+#define si_overrun	_sifields._timer._overrun
+
 #define COMPAT_OFF_T_MAX	0x7fffffff
 #define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
@@ -153,7 +230,6 @@ typedef u32		compat_sigset_word;
  * as pointers because the syscall entry code will have
  * appropriately converted them already.
  */
-typedef	u32		compat_uptr_t;
 
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {

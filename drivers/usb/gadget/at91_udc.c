@@ -31,6 +31,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/platform_data/atmel.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -38,7 +39,6 @@
 #include <asm/irq.h>
 #include <asm/gpio.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91sam9261_matrix.h>
 #include <mach/at91_matrix.h>
@@ -51,7 +51,7 @@
  * full speed USB controllers, including the at91rm9200 (arm920T, with MMU),
  * at91sam926x (arm926ejs, with MMU), and several no-mmu versions.
  *
- * This driver expects the board has been wired with two GPIOs suppporting
+ * This driver expects the board has been wired with two GPIOs supporting
  * a VBUS sensing IRQ, and a D+ pullup.  (They may be omitted, but the
  * testing hasn't covered such cases.)
  *
@@ -469,7 +469,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 				const struct usb_endpoint_descriptor *desc)
 {
 	struct at91_ep	*ep = container_of(_ep, struct at91_ep, ep);
-	struct at91_udc	*udc = ep->udc;
+	struct at91_udc *udc;
 	u16		maxpacket;
 	u32		tmp;
 	unsigned long	flags;
@@ -483,6 +483,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
+	udc = ep->udc;
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
 		DBG("bogus device state\n");
 		return -ESHUTDOWN;
@@ -1672,7 +1673,7 @@ static void at91udc_shutdown(struct platform_device *dev)
 	spin_unlock_irqrestore(&udc->lock, flags);
 }
 
-static void __devinit at91udc_of_init(struct at91_udc *udc,
+static void at91udc_of_init(struct at91_udc *udc,
 				     struct device_node *np)
 {
 	struct at91_udc_data *board = &udc->board;
@@ -1692,14 +1693,14 @@ static void __devinit at91udc_of_init(struct at91_udc *udc,
 	board->pullup_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
 }
 
-static int __devinit at91udc_probe(struct platform_device *pdev)
+static int at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
 	int		retval;
 	struct resource	*res;
 
-	if (!dev->platform_data) {
+	if (!dev->platform_data && !pdev->dev.of_node) {
 		/* small (so we copy it) but critical! */
 		DBG("missing platform_data\n");
 		return -ENODEV;

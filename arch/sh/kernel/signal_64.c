@@ -18,7 +18,6 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/personality.h>
-#include <linux/freezer.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
@@ -348,7 +347,6 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 {
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *) (long) REF_REG_SP;
 	sigset_t set;
-	stack_t __user st;
 	long long ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -366,11 +364,10 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 		goto badframe;
 	regs->pc -= 4;
 
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
-		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, REF_REG_SP);
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, REF_REG_SP) == -EFAULT)
+		goto badframe;
 
 	return (int) ret;
 

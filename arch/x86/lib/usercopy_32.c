@@ -42,10 +42,11 @@ do {									\
 	int __d0;							\
 	might_fault();							\
 	__asm__ __volatile__(						\
+		ASM_STAC "\n"						\
 		"0:	rep; stosl\n"					\
 		"	movl %2,%0\n"					\
 		"1:	rep; stosb\n"					\
-		"2:\n"							\
+		"2: " ASM_CLAC "\n"					\
 		".section .fixup,\"ax\"\n"				\
 		"3:	lea 0(%2,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
@@ -569,67 +570,12 @@ do {									\
 unsigned long __copy_to_user_ll(void __user *to, const void *from,
 				unsigned long n)
 {
-#ifndef CONFIG_X86_WP_WORKS_OK
-	if (unlikely(boot_cpu_data.wp_works_ok == 0) &&
-			((unsigned long)to) < TASK_SIZE) {
-		/*
-		 * When we are in an atomic section (see
-		 * mm/filemap.c:file_read_actor), return the full
-		 * length to take the slow path.
-		 */
-		if (in_atomic())
-			return n;
-
-		/*
-		 * CPU does not honor the WP bit when writing
-		 * from supervisory mode, and due to preemption or SMP,
-		 * the page tables can change at any time.
-		 * Do it manually.	Manfred <manfred@colorfullife.com>
-		 */
-		while (n) {
-			unsigned long offset = ((unsigned long)to)%PAGE_SIZE;
-			unsigned long len = PAGE_SIZE - offset;
-			int retval;
-			struct page *pg;
-			void *maddr;
-
-			if (len > n)
-				len = n;
-
-survive:
-			down_read(&current->mm->mmap_sem);
-			retval = get_user_pages(current, current->mm,
-					(unsigned long)to, 1, 1, 0, &pg, NULL);
-
-			if (retval == -ENOMEM && is_global_init(current)) {
-				up_read(&current->mm->mmap_sem);
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
-				goto survive;
-			}
-
-			if (retval != 1) {
-				up_read(&current->mm->mmap_sem);
-				break;
-			}
-
-			maddr = kmap_atomic(pg);
-			memcpy(maddr + offset, from, len);
-			kunmap_atomic(maddr);
-			set_page_dirty_lock(pg);
-			put_page(pg);
-			up_read(&current->mm->mmap_sem);
-
-			from += len;
-			to += len;
-			n -= len;
-		}
-		return n;
-	}
-#endif
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);
 	else
 		n = __copy_user_intel(to, from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_to_user_ll);
@@ -637,10 +583,12 @@ EXPORT_SYMBOL(__copy_to_user_ll);
 unsigned long __copy_from_user_ll(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user_zeroing(to, from, n);
 	else
 		n = __copy_user_zeroing_intel(to, from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll);
@@ -648,11 +596,13 @@ EXPORT_SYMBOL(__copy_from_user_ll);
 unsigned long __copy_from_user_ll_nozero(void *to, const void __user *from,
 					 unsigned long n)
 {
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);
 	else
 		n = __copy_user_intel((void __user *)to,
 				      (const void *)from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nozero);
@@ -660,6 +610,7 @@ EXPORT_SYMBOL(__copy_from_user_ll_nozero);
 unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 #ifdef CONFIG_X86_INTEL_USERCOPY
 	if (n > 64 && cpu_has_xmm2)
 		n = __copy_user_zeroing_intel_nocache(to, from, n);
@@ -668,6 +619,7 @@ unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 #else
 	__copy_user_zeroing(to, from, n);
 #endif
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nocache);
@@ -675,6 +627,7 @@ EXPORT_SYMBOL(__copy_from_user_ll_nocache);
 unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 #ifdef CONFIG_X86_INTEL_USERCOPY
 	if (n > 64 && cpu_has_xmm2)
 		n = __copy_user_intel_nocache(to, from, n);
@@ -683,6 +636,7 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 #else
 	__copy_user(to, from, n);
 #endif
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);

@@ -35,7 +35,7 @@
 #ifndef __CVMX_SPINLOCK_H__
 #define __CVMX_SPINLOCK_H__
 
-#include "cvmx-asm.h"
+#include <asm/octeon/cvmx-asm.h>
 
 /* Spinlocks for Octeon */
 

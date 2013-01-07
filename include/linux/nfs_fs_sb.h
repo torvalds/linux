@@ -39,6 +39,7 @@ struct nfs_client {
 	unsigned long		cl_flags;	/* behavior switches */
 #define NFS_CS_NORESVPORT	0		/* - use ephemeral src port */
 #define NFS_CS_DISCRTRY		1		/* - disconnect on RPC retry */
+#define NFS_CS_MIGRATION	2		/* - transparent state migr */
 	struct sockaddr_storage	cl_addr;	/* server identifier */
 	size_t			cl_addrlen;
 	char *			cl_hostname;	/* hostname of server */
@@ -81,6 +82,7 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session;	/* shared session */
+	bool			cl_preserve_clid;
 	struct nfs41_server_owner *cl_serverowner;
 	struct nfs41_server_scope *cl_serverscope;
 	struct nfs41_impl_id	*cl_implid;
@@ -125,6 +127,7 @@ struct nfs_server {
 	unsigned int		namelen;
 	unsigned int		options;	/* extra options enabled by mount */
 #define NFS_OPTION_FSCACHE	0x00000001	/* - local caching enabled */
+#define NFS_OPTION_MIGRATION	0x00000002	/* - NFSv4 migration enabled */
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
@@ -195,51 +198,4 @@ struct nfs_server {
 #define NFS_CAP_POSIX_LOCK	(1U << 14)
 #define NFS_CAP_UIDGID_NOMAP	(1U << 15)
 
-
-/* maximum number of slots to use */
-#define NFS4_DEF_SLOT_TABLE_SIZE (16U)
-#define NFS4_MAX_SLOT_TABLE (256U)
-#define NFS4_NO_SLOT ((u32)-1)
-
-#if IS_ENABLED(CONFIG_NFS_V4)
-
-/* Sessions */
-#define SLOT_TABLE_SZ DIV_ROUND_UP(NFS4_MAX_SLOT_TABLE, 8*sizeof(long))
-struct nfs4_slot_table {
-	struct nfs4_slot *slots;		/* seqid per slot */
-	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
-	spinlock_t	slot_tbl_lock;
-	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
-	u32		max_slots;		/* # slots in table */
-	u32		highest_used_slotid;	/* sent to server on each SEQ.
-						 * op for dynamic resizing */
-	u32		target_max_slots;	/* Set by CB_RECALL_SLOT as
-						 * the new max_slots */
-	struct completion complete;
-};
-
-static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
-{
-	return sp - tbl->slots;
-}
-
-/*
- * Session related parameters
- */
-struct nfs4_session {
-	struct nfs4_sessionid		sess_id;
-	u32				flags;
-	unsigned long			session_state;
-	u32				hash_alg;
-	u32				ssv_len;
-
-	/* The fore and back channel */
-	struct nfs4_channel_attrs	fc_attrs;
-	struct nfs4_slot_table		fc_slot_table;
-	struct nfs4_channel_attrs	bc_attrs;
-	struct nfs4_slot_table		bc_slot_table;
-	struct nfs_client		*clp;
-};
-
-#endif /* CONFIG_NFS_V4 */
 #endif

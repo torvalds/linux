@@ -38,7 +38,7 @@
 /*****************************************************************************
  * PCIe controller
  ****************************************************************************/
-#define PCIE_BASE	((void __iomem *)ORION5X_PCIE_VIRT_BASE)
+#define PCIE_BASE	(ORION5X_PCIE_VIRT_BASE)
 
 void __init orion5x_pcie_id(u32 *dev, u32 *rev)
 {
@@ -111,7 +111,7 @@ static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	ret = orion_pcie_rd_conf_wa((void __iomem *)ORION5X_PCIE_WA_VIRT_BASE,
+	ret = orion_pcie_rd_conf_wa(ORION5X_PCIE_WA_VIRT_BASE,
 				    bus, devfn, where, size, val);
 
 	return ret;
@@ -162,35 +162,25 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
 
+	pci_ioremap_io(sys->busnr * SZ_64K, ORION5X_PCIE_IO_PHYS_BASE);
+
 	/*
 	 * Request resources.
 	 */
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("pcie_setup unable to alloc resources");
 
 	/*
-	 * IORESOURCE_IO
-	 */
-	sys->io_offset = 0;
-	res[0].name = "PCIe I/O Space";
-	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION5X_PCIE_IO_BUS_BASE;
-	res[0].end = res[0].start + ORION5X_PCIE_IO_SIZE - 1;
-	if (request_resource(&ioport_resource, &res[0]))
-		panic("Request PCIe IO resource failed\n");
-	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
-
-	/*
 	 * IORESOURCE_MEM
 	 */
-	res[1].name = "PCIe Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION5X_PCIE_MEM_PHYS_BASE;
-	res[1].end = res[1].start + ORION5X_PCIE_MEM_SIZE - 1;
-	if (request_resource(&iomem_resource, &res[1]))
+	res->name = "PCIe Memory Space";
+	res->flags = IORESOURCE_MEM;
+	res->start = ORION5X_PCIE_MEM_PHYS_BASE;
+	res->end = res->start + ORION5X_PCIE_MEM_SIZE - 1;
+	if (request_resource(&iomem_resource, res))
 		panic("Request PCIe Memory resource failed\n");
-	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }
@@ -198,7 +188,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * PCI controller
  ****************************************************************************/
-#define ORION5X_PCI_REG(x)	(ORION5X_PCI_VIRT_BASE | (x))
+#define ORION5X_PCI_REG(x)	(ORION5X_PCI_VIRT_BASE + (x))
 #define PCI_MODE		ORION5X_PCI_REG(0xd00)
 #define PCI_CMD			ORION5X_PCI_REG(0xc00)
 #define PCI_P2P_CONF		ORION5X_PCI_REG(0x1d14)
@@ -489,35 +479,25 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	 */
 	orion5x_setbits(PCI_CMD, PCI_CMD_HOST_REORDER);
 
+	pci_ioremap_io(sys->busnr * SZ_64K, ORION5X_PCI_IO_PHYS_BASE);
+
 	/*
 	 * Request resources
 	 */
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("pci_setup unable to alloc resources");
 
 	/*
-	 * IORESOURCE_IO
-	 */
-	sys->io_offset = 0;
-	res[0].name = "PCI I/O Space";
-	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION5X_PCI_IO_BUS_BASE;
-	res[0].end = res[0].start + ORION5X_PCI_IO_SIZE - 1;
-	if (request_resource(&ioport_resource, &res[0]))
-		panic("Request PCI IO resource failed\n");
-	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
-
-	/*
 	 * IORESOURCE_MEM
 	 */
-	res[1].name = "PCI Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION5X_PCI_MEM_PHYS_BASE;
-	res[1].end = res[1].start + ORION5X_PCI_MEM_SIZE - 1;
-	if (request_resource(&iomem_resource, &res[1]))
+	res->name = "PCI Memory Space";
+	res->flags = IORESOURCE_MEM;
+	res->start = ORION5X_PCI_MEM_PHYS_BASE;
+	res->end = res->start + ORION5X_PCI_MEM_SIZE - 1;
+	if (request_resource(&iomem_resource, res))
 		panic("Request PCI Memory resource failed\n");
-	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }

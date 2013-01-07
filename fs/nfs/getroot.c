@@ -32,6 +32,8 @@
 
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 /*

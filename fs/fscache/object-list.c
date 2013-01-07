@@ -245,7 +245,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		   obj->n_in_progress,
 		   obj->n_exclusive,
 		   atomic_read(&obj->n_reads),
-		   obj->event_mask & FSCACHE_OBJECT_EVENTS_MASK,
+		   obj->event_mask,
 		   obj->events,
 		   obj->flags,
 		   work_busy(&obj->work));

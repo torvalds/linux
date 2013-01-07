@@ -136,10 +136,24 @@ Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 def, const s64 *qmenu_int);
 
+Standard menu controls with a driver specific menu are added by calling
+v4l2_ctrl_new_std_menu_items:
+
+	struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
+		struct v4l2_ctrl_handler *hdl,
+		const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
+		s32 skip_mask, s32 def, const char * const *qmenu);
+
 These functions are typically called right after the v4l2_ctrl_handler_init:
 
 	static const s64 exp_bias_qmenu[] = {
 	       -2, -1, 0, 1, 2
+	};
+	static const char * const test_pattern[] = {
+		"Disabled",
+		"Vertical Bars",
+		"Solid Black",
+		"Solid White",
 	};
 
 	v4l2_ctrl_handler_init(&foo->ctrl_handler, nr_of_controls);
@@ -156,6 +170,9 @@ These functions are typically called right after the v4l2_ctrl_handler_init:
 			ARRAY_SIZE(exp_bias_qmenu) - 1,
 			ARRAY_SIZE(exp_bias_qmenu) / 2 - 1,
 			exp_bias_qmenu);
+	v4l2_ctrl_new_std_menu_items(&foo->ctrl_handler, &foo_ctrl_ops,
+			V4L2_CID_TEST_PATTERN, ARRAY_SIZE(test_pattern) - 1, 0,
+			0, test_pattern);
 	...
 	if (foo->ctrl_handler.error) {
 		int err = foo->ctrl_handler.error;
@@ -184,6 +201,13 @@ control with driver-specific items in the menu. It differs from
 v4l2_ctrl_new_std_menu in that it doesn't have the mask argument and takes
 as the last argument an array of signed 64-bit integers that form an exact
 menu item list.
+
+The v4l2_ctrl_new_std_menu_items function is very similar to
+v4l2_ctrl_new_std_menu but takes an extra parameter qmenu, which is the driver
+specific menu for an otherwise standard menu control. A good example for this
+control is the test pattern control for capture/display/sensors devices that
+have the capability to generate test patterns. These test patterns are hardware
+specific, so the contents of the menu will vary from device to device.
 
 Note that if something fails, the function will return NULL or an error and
 set ctrl_handler->error to the error code. If ctrl_handler->error was already
@@ -594,7 +618,11 @@ handler and finally add the first handler to the second. For example:
 	v4l2_ctrl_new_std(&radio_ctrl_handler, &radio_ops, V4L2_CID_AUDIO_MUTE, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_CONTRAST, ...);
-	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler);
+	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler, NULL);
+
+The last argument to v4l2_ctrl_add_handler() is a filter function that allows
+you to filter which controls will be added. Set it to NULL if you want to add
+all controls.
 
 Or you can add specific controls to a handler:
 

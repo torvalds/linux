@@ -91,6 +91,14 @@ enum {
 	PCI_ID_PCX924E,
 	PCI_ID_PCX924HRMIC,
 	PCI_ID_PCX924E_MIC,
+	PCI_ID_VX442HR,
+	PCI_ID_PCX442HR,
+	PCI_ID_VX442E,
+	PCI_ID_PCX442E,
+	PCI_ID_VX822HR,
+	PCI_ID_PCX822HR,
+	PCI_ID_VX822E,
+	PCI_ID_PCX822E,
 	PCI_ID_LAST
 };
 
@@ -121,6 +129,14 @@ static DEFINE_PCI_DEVICE_TABLE(pcxhr_ids) = {
 	{ 0x10b5, 0x9056, 0x1369, 0xbb21, 0, 0, PCI_ID_PCX924E, },
 	{ 0x10b5, 0x9056, 0x1369, 0xbf01, 0, 0, PCI_ID_PCX924HRMIC, },
 	{ 0x10b5, 0x9056, 0x1369, 0xbf21, 0, 0, PCI_ID_PCX924E_MIC, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd001, 0, 0, PCI_ID_VX442HR, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd101, 0, 0, PCI_ID_PCX442HR, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd021, 0, 0, PCI_ID_VX442E, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd121, 0, 0, PCI_ID_PCX442E, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd201, 0, 0, PCI_ID_VX822HR, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd301, 0, 0, PCI_ID_PCX822HR, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd221, 0, 0, PCI_ID_VX822E, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd321, 0, 0, PCI_ID_PCX822E, },
 	{ 0, }
 };
 
@@ -160,6 +176,14 @@ static struct board_parameters pcxhr_board_params[] = {
 [PCI_ID_PCX924E] =      { "PCX924e",      1, 1, 5, 44 },
 [PCI_ID_PCX924HRMIC] =  { "PCX924HR-Mic", 1, 1, 5, 44 },
 [PCI_ID_PCX924E_MIC] =  { "PCX924e-Mic",  1, 1, 5, 44 },
+[PCI_ID_VX442HR] =      { "VX442HR",      2, 2, 0, 41 },
+[PCI_ID_PCX442HR] =     { "PCX442HR",     2, 2, 0, 41 },
+[PCI_ID_VX442E] =       { "VX442e",       2, 2, 1, 41 },
+[PCI_ID_PCX442E] =      { "PCX442e",      2, 2, 1, 41 },
+[PCI_ID_VX822HR] =      { "VX822HR",      4, 1, 2, 42 },
+[PCI_ID_PCX822HR] =     { "PCX822HR",     4, 1, 2, 42 },
+[PCI_ID_VX822E] =       { "VX822e",       4, 1, 3, 42 },
+[PCI_ID_PCX822E] =      { "PCX822e",      4, 1, 3, 42 },
 };
 
 /* boards without hw AES1 and SRC onboard are all using fw_file_set==4 */
@@ -1179,8 +1203,8 @@ static int pcxhr_chip_dev_free(struct snd_device *device)
 
 /*
  */
-static int __devinit pcxhr_create(struct pcxhr_mgr *mgr,
-				  struct snd_card *card, int idx)
+static int pcxhr_create(struct pcxhr_mgr *mgr,
+			struct snd_card *card, int idx)
 {
 	int err;
 	struct snd_pcxhr *chip;
@@ -1429,7 +1453,7 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
+static void pcxhr_proc_init(struct snd_pcxhr *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1489,8 +1513,8 @@ static int pcxhr_free(struct pcxhr_mgr *mgr)
 /*
  *    probe function - creates the card manager
  */
-static int __devinit pcxhr_probe(struct pci_dev *pci,
-				 const struct pci_device_id *pci_id)
+static int pcxhr_probe(struct pci_dev *pci,
+		       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct pcxhr_mgr *mgr;
@@ -1664,7 +1688,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit pcxhr_remove(struct pci_dev *pci)
+static void pcxhr_remove(struct pci_dev *pci)
 {
 	pcxhr_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1674,7 +1698,7 @@ static struct pci_driver pcxhr_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
-	.remove = __devexit_p(pcxhr_remove),
+	.remove = pcxhr_remove,
 };
 
 module_pci_driver(pcxhr_driver);

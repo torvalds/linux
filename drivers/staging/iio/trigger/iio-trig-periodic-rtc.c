@@ -197,6 +197,6 @@ static struct platform_driver iio_trig_periodic_rtc_driver = {
 
 module_platform_driver(iio_trig_periodic_rtc_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Periodic realtime clock  trigger for the iio subsystem");
 MODULE_LICENSE("GPL v2");

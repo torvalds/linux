@@ -1143,19 +1143,21 @@ static int ioc3_is_menet(struct pci_dev *pdev)
  * Can't use UPF_IOREMAP as the whole of IOC3 resources have already been
  * registered.
  */
-static void __devinit ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
+static void ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 {
 #define COSMISC_CONSTANT 6
 
-	struct uart_port port = {
-		.irq		= 0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 0,
-		.uartclk	= (22000000 << 1) / COSMISC_CONSTANT,
+	struct uart_8250_port port = {
+	        .port = {
+			.irq		= 0,
+			.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+			.iotype		= UPIO_MEM,
+			.regshift	= 0,
+			.uartclk	= (22000000 << 1) / COSMISC_CONSTANT,
 
-		.membase	= (unsigned char __iomem *) uart,
-		.mapbase	= (unsigned long) uart,
+			.membase	= (unsigned char __iomem *) uart,
+			.mapbase	= (unsigned long) uart,
+                }
 	};
 	unsigned char lcr;
 
@@ -1164,10 +1166,10 @@ static void __devinit ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 	uart->iu_scr = COSMISC_CONSTANT,
 	uart->iu_lcr = lcr;
 	uart->iu_lcr;
-	serial8250_register_port(&port);
+	serial8250_register_8250_port(&port);
 }
 
-static void __devinit ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
+static void ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 {
 	/*
 	 * We need to recognice and treat the fourth MENET serial as it
@@ -1227,8 +1229,7 @@ static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit ioc3_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned int sw_physid1, sw_physid2;
 	struct net_device *dev = NULL;
@@ -1366,7 +1367,7 @@ out:
 	return err;
 }
 
-static void __devexit ioc3_remove_one (struct pci_dev *pdev)
+static void ioc3_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ioc3_private *ip = netdev_priv(dev);
@@ -1394,7 +1395,7 @@ static struct pci_driver ioc3_driver = {
 	.name		= "ioc3-eth",
 	.id_table	= ioc3_pci_tbl,
 	.probe		= ioc3_probe,
-	.remove		= __devexit_p(ioc3_remove_one),
+	.remove		= ioc3_remove_one,
 };
 
 static int __init ioc3_init_module(void)

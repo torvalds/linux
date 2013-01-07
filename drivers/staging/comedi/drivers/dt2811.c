@@ -226,8 +226,6 @@ struct dt2811_private {
 	unsigned int ao_readback[2];
 };
 
-#define devpriv ((struct dt2811_private *)dev->private)
-
 static const struct comedi_lrange *dac_range_types[] = {
 	&range_bipolar5,
 	&range_bipolar2_5,
@@ -242,6 +240,7 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
 	int lo, hi;
 	int data;
 	struct comedi_device *dev = d;
+	struct dt2811_private *devpriv = dev->private;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -318,6 +317,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2811_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -337,6 +337,7 @@ static int dt2811_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2811_private *devpriv = dev->private;
 	int i;
 	int chan;
 
@@ -397,6 +398,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* long flags; */
 
 	const struct dt2811_board *board = comedi_board(dev);
+	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -463,9 +465,10 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct dt2811_private));
-	if (ret < 0)
-		return ret;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	switch (it->options[2]) {
 	case 0:
@@ -510,7 +513,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -530,7 +533,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -542,7 +545,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -551,7 +554,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;

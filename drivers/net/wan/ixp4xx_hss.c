@@ -969,10 +969,12 @@ static int init_hdlc_queues(struct port *port)
 {
 	int i;
 
-	if (!ports_open)
-		if (!(dma_pool = dma_pool_create(DRV_NAME, NULL,
-						 POOL_ALLOC_SIZE, 32, 0)))
+	if (!ports_open) {
+		dma_pool = dma_pool_create(DRV_NAME, &port->netdev->dev,
+					   POOL_ALLOC_SIZE, 32, 0);
+		if (!dma_pool)
 			return -ENOMEM;
+	}
 
 	if (!(port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
 					      &port->desc_tab_phys)))
@@ -1324,7 +1326,7 @@ static const struct net_device_ops hss_hdlc_ops = {
 	.ndo_do_ioctl   = hss_hdlc_ioctl,
 };
 
-static int __devinit hss_init_one(struct platform_device *pdev)
+static int hss_init_one(struct platform_device *pdev)
 {
 	struct port *port;
 	struct net_device *dev;
@@ -1363,7 +1365,7 @@ static int __devinit hss_init_one(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, port);
 
-	netdev_info(dev, "HSS-%i\n", port->id);
+	netdev_info(dev, "initialized\n");
 	return 0;
 
 err_free_netdev:
@@ -1375,7 +1377,7 @@ err_free:
 	return err;
 }
 
-static int __devexit hss_remove_one(struct platform_device *pdev)
+static int hss_remove_one(struct platform_device *pdev)
 {
 	struct port *port = platform_get_drvdata(pdev);
 

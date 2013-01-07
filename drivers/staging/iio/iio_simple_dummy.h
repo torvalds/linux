@@ -95,10 +95,12 @@ enum iio_simple_dummy_scan_elements {
 };
 
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_BUFFER
-int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev);
+int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *channels, unsigned int num_channels);
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev);
 #else
-static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
+static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *channels, unsigned int num_channels)
 {
 	return 0;
 };

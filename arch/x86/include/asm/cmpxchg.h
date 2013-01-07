@@ -138,9 +138,9 @@ extern void __add_wrong_size(void)
 	__raw_cmpxchg((ptr), (old), (new), (size), "")
 
 #ifdef CONFIG_X86_32
-# include "cmpxchg_32.h"
+# include <asm/cmpxchg_32.h>
 #else
-# include "cmpxchg_64.h"
+# include <asm/cmpxchg_64.h>
 #endif
 
 #ifdef __HAVE_ARCH_CMPXCHG

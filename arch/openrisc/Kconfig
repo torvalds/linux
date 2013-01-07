@@ -21,6 +21,7 @@ config OPENRISC
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select MODULES_USE_ELF_RELA
 
 config MMU
 	def_bool y
@@ -143,7 +144,7 @@ config DEBUG_STACKOVERFLOW
 	help
 	  Make extra checks for space available on stack in some
           critical functions. This will cause kernel to run a bit slower,
-	  but will catch most of kernel stack overruns and exit gracefuly.
+	  but will catch most of kernel stack overruns and exit gracefully.
 
 	  Say Y if you are unsure.
 

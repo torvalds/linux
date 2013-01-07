@@ -292,8 +292,8 @@ static int pcan_usb_pro_wait_rsp(struct peak_usb_device *dev,
 			if (!rec_len) {
 				netdev_err(dev->netdev,
 					   "got unprocessed record in msg\n");
-				dump_mem("rcvd rsp msg", pum->u.rec_buffer,
-					 actual_length);
+				pcan_dump_mem("rcvd rsp msg", pum->u.rec_buffer,
+					      actual_length);
 				break;
 			}
 
@@ -532,6 +532,7 @@ static int pcan_usb_pro_handle_canmsg(struct pcan_usb_pro_interface *usb_if,
 	struct can_frame *can_frame;
 	struct sk_buff *skb;
 	struct timeval tv;
+	struct skb_shared_hwtstamps *hwts;
 
 	skb = alloc_can_skb(netdev, &can_frame);
 	if (!skb)
@@ -549,7 +550,8 @@ static int pcan_usb_pro_handle_canmsg(struct pcan_usb_pro_interface *usb_if,
 		memcpy(can_frame->data, rx->data, can_frame->can_dlc);
 
 	peak_usb_get_ts_tv(&usb_if->time_ref, le32_to_cpu(rx->ts32), &tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	hwts = skb_hwtstamps(skb);
+	hwts->hwtstamp = timeval_to_ktime(tv);
 
 	netif_rx(skb);
 	netdev->stats.rx_packets++;
@@ -570,6 +572,7 @@ static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 	u8 err_mask = 0;
 	struct sk_buff *skb;
 	struct timeval tv;
+	struct skb_shared_hwtstamps *hwts;
 
 	/* nothing should be sent while in BUS_OFF state */
 	if (dev->can.state == CAN_STATE_BUS_OFF)
@@ -664,7 +667,8 @@ static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 	dev->can.state = new_state;
 
 	peak_usb_get_ts_tv(&usb_if->time_ref, le32_to_cpu(er->ts32), &tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	hwts = skb_hwtstamps(skb);
+	hwts->hwtstamp = timeval_to_ktime(tv);
 	netif_rx(skb);
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += can_frame->can_dlc;
@@ -756,8 +760,8 @@ static int pcan_usb_pro_decode_buf(struct peak_usb_device *dev, struct urb *urb)
 
 fail:
 	if (err)
-		dump_mem("received msg",
-			 urb->transfer_buffer, urb->actual_length);
+		pcan_dump_mem("received msg",
+			      urb->transfer_buffer, urb->actual_length);
 
 	return err;
 }

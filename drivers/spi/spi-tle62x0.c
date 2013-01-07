@@ -240,7 +240,7 @@ static int to_gpio_num(struct device_attribute *attr)
 	return -1;
 }
 
-static int __devinit tle62x0_probe(struct spi_device *spi)
+static int tle62x0_probe(struct spi_device *spi)
 {
 	struct tle62x0_state *st;
 	struct tle62x0_pdata *pdata;
@@ -294,7 +294,7 @@ static int __devinit tle62x0_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit tle62x0_remove(struct spi_device *spi)
+static int tle62x0_remove(struct spi_device *spi)
 {
 	struct tle62x0_state *st = spi_get_drvdata(spi);
 	int ptr;
@@ -313,21 +313,10 @@ static struct spi_driver tle62x0_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tle62x0_probe,
-	.remove		= __devexit_p(tle62x0_remove),
+	.remove		= tle62x0_remove,
 };
 
-static __init int tle62x0_init(void)
-{
-	return spi_register_driver(&tle62x0_driver);
-}
-
-static __exit void tle62x0_exit(void)
-{
-	spi_unregister_driver(&tle62x0_driver);
-}
-
-module_init(tle62x0_init);
-module_exit(tle62x0_exit);
+module_spi_driver(tle62x0_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("TLE62x0 SPI driver");

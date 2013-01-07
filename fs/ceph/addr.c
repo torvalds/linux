@@ -205,7 +205,7 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	dout("readpage inode %p file %p page %p index %lu\n",
 	     inode, filp, page, page->index);
 	err = ceph_osdc_readpages(osdc, ceph_vino(inode), &ci->i_layout,
-				  page->index << PAGE_CACHE_SHIFT, &len,
+				  (u64) page_offset(page), &len,
 				  ci->i_truncate_seq, ci->i_truncate_size,
 				  &page, 1, 0);
 	if (err == -ENOENT)
@@ -267,6 +267,14 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 	kfree(req->r_pages);
 }
 
+static void ceph_unlock_page_vector(struct page **pages, int num_pages)
+{
+	int i;
+
+	for (i = 0; i < num_pages; i++)
+		unlock_page(pages[i]);
+}
+
 /*
  * start an async read(ahead) operation.  return nr_pages we submitted
  * a read for on success, or negative error code.
@@ -286,7 +294,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	int nr_pages = 0;
 	int ret;
 
-	off = page->index << PAGE_CACHE_SHIFT;
+	off = (u64) page_offset(page);
 
 	/* count pages */
 	next_index = page->index;
@@ -308,8 +316,8 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 				    NULL, 0,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    NULL, false, 1, 0);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	/* build page vector */
 	nr_pages = len >> PAGE_CACHE_SHIFT;
@@ -347,6 +355,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	return nr_pages;
 
 out_pages:
+	ceph_unlock_page_vector(pages, nr_pages);
 	ceph_release_page_vector(pages, nr_pages);
 out:
 	ceph_osdc_put_request(req);
@@ -426,7 +435,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	struct ceph_inode_info *ci;
 	struct ceph_fs_client *fsc;
 	struct ceph_osd_client *osdc;
-	loff_t page_off = page->index << PAGE_CACHE_SHIFT;
+	loff_t page_off = page_offset(page);
 	int len = PAGE_CACHE_SIZE;
 	loff_t i_size;
 	int err = 0;
@@ -817,8 +826,7 @@ get_more_pages:
 			/* ok */
 			if (locked_pages == 0) {
 				/* prepare async write request */
-				offset = (unsigned long long)page->index
-					<< PAGE_CACHE_SHIFT;
+				offset = (u64) page_offset(page);
 				len = wsize;
 				req = ceph_osdc_new_request(&fsc->client->osdc,
 					    &ci->i_layout,
@@ -832,8 +840,8 @@ get_more_pages:
 					    ci->i_truncate_size,
 					    &inode->i_mtime, true, 1, 0);
 
-				if (!req) {
-					rc = -ENOMEM;
+				if (IS_ERR(req)) {
+					rc = PTR_ERR(req);
 					unlock_page(page);
 					break;
 				}
@@ -1079,23 +1087,51 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 			    struct page **pagep, void **fsdata)
 {
 	struct inode *inode = file->f_dentry->d_inode;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_file_info *fi = file->private_data;
 	struct page *page;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	int r;
+	int r, want, got = 0;
+
+	if (fi->fmode & CEPH_FILE_MODE_LAZY)
+		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
+	else
+		want = CEPH_CAP_FILE_BUFFER;
+
+	dout("write_begin %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
+	     inode, ceph_vinop(inode), pos, len, inode->i_size);
+	r = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, pos+len);
+	if (r < 0)
+		return r;
+	dout("write_begin %p %llx.%llx %llu~%u  got cap refs on %s\n",
+	     inode, ceph_vinop(inode), pos, len, ceph_cap_string(got));
+	if (!(got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO))) {
+		ceph_put_cap_refs(ci, got);
+		return -EAGAIN;
+	}
 
 	do {
 		/* get a page */
 		page = grab_cache_page_write_begin(mapping, index, 0);
-		if (!page)
-			return -ENOMEM;
-		*pagep = page;
+		if (!page) {
+			r = -ENOMEM;
+			break;
+		}
 
 		dout("write_begin file %p inode %p page %p %d~%d\n", file,
 		     inode, page, (int)pos, (int)len);
 
 		r = ceph_update_writeable_page(file, pos, len, page);
+		if (r)
+			page_cache_release(page);
 	} while (r == -EAGAIN);
 
+	if (r) {
+		ceph_put_cap_refs(ci, got);
+	} else {
+		*pagep = page;
+		*(int *)fsdata = got;
+	}
 	return r;
 }
 
@@ -1109,10 +1145,12 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  struct page *page, void *fsdata)
 {
 	struct inode *inode = file->f_dentry->d_inode;
+	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	int check_cap = 0;
+	int got = (unsigned long)fsdata;
 
 	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
 	     inode, page, (int)pos, (int)copied, (int)len);
@@ -1134,6 +1172,19 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	up_read(&mdsc->snap_rwsem);
 	page_cache_release(page);
+
+	if (copied > 0) {
+		int dirty;
+		spin_lock(&ci->i_ceph_lock);
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
+		spin_unlock(&ci->i_ceph_lock);
+		if (dirty)
+			__mark_inode_dirty(inode, dirty);
+	}
+
+	dout("write_end %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
+	     inode, ceph_vinop(inode), pos, len, ceph_cap_string(got));
+	ceph_put_cap_refs(ci, got);
 
 	if (check_cap)
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
@@ -1180,7 +1231,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct inode *inode = vma->vm_file->f_dentry->d_inode;
 	struct page *page = vmf->page;
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
-	loff_t off = page->index << PAGE_CACHE_SHIFT;
+	loff_t off = page_offset(page);
 	loff_t size, len;
 	int ret;
 
@@ -1225,6 +1276,7 @@ out:
 static struct vm_operations_struct ceph_vmops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= ceph_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 int ceph_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1235,6 +1287,5 @@ int ceph_mmap(struct file *file, struct vm_area_struct *vma)
 		return -ENOEXEC;
 	file_accessed(file);
 	vma->vm_ops = &ceph_vmops;
-	vma->vm_flags |= VM_CAN_NONLINEAR;
 	return 0;
 }

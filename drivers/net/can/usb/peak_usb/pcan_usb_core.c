@@ -53,7 +53,7 @@ static struct peak_usb_adapter *peak_usb_adapters_list[] = {
  * dump memory
  */
 #define DUMP_WIDTH	16
-void dump_mem(char *prompt, void *p, int l)
+void pcan_dump_mem(char *prompt, void *p, int l)
 {
 	pr_info("%s dumping %s (%d bytes):\n",
 		PCAN_USB_DRIVER_NAME, prompt ? prompt : "memory", l);
@@ -203,9 +203,9 @@ static void peak_usb_read_bulk_callback(struct urb *urb)
 		if (dev->state & PCAN_USB_STATE_STARTED) {
 			err = dev->adapter->dev_decode_buf(dev, urb);
 			if (err)
-				dump_mem("received usb message",
-					urb->transfer_buffer,
-					urb->transfer_buffer_length);
+				pcan_dump_mem("received usb message",
+					      urb->transfer_buffer,
+					      urb->transfer_buffer_length);
 		}
 	}
 
@@ -520,7 +520,6 @@ static int peak_usb_ndo_open(struct net_device *netdev)
 		return err;
 	}
 
-	dev->open_time = jiffies;
 	netif_start_queue(netdev);
 
 	return 0;
@@ -576,7 +575,6 @@ static int peak_usb_ndo_stop(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	dev->open_time = 0;
 	dev->can.state = CAN_STATE_STOPPED;
 
 	/* can set bus off now */
@@ -660,9 +658,6 @@ static int peak_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 {
 	struct peak_usb_device *dev = netdev_priv(netdev);
 	int err = 0;
-
-	if (!dev->open_time)
-		return -EINVAL;
 
 	switch (mode) {
 	case CAN_MODE_START:

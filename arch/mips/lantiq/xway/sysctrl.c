@@ -145,7 +145,8 @@ static int pci_enable(struct clk *clk)
 {
 	unsigned int val = ltq_cgu_r32(ifccr);
 	/* set bus clock speed */
-	if (of_machine_is_compatible("lantiq,ar9")) {
+	if (of_machine_is_compatible("lantiq,ar9") ||
+			of_machine_is_compatible("lantiq,vr9")) {
 		val &= ~0x1f00000;
 		if (clk->rate == CLOCK_33M)
 			val |= 0xe00000;
@@ -187,10 +188,12 @@ static int clkout_enable(struct clk *clk)
 	for (i = 0; i < 4; i++) {
 		if (clk->rates[i] == clk->rate) {
 			int shift = 14 - (2 * clk->module);
+			int enable = 7 - clk->module;
 			unsigned int val = ltq_cgu_r32(ifccr);
 
 			val &= ~(3 << shift);
 			val |= i << shift;
+			val |= enable;
 			ltq_cgu_w32(val, ifccr);
 			return 0;
 		}
@@ -367,6 +370,10 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1d900000.pcie", "pdi", 1, PMU1_PCIE_PDI);
 		clkdev_add_pmu("1d900000.pcie", "ctl", 1, PMU1_PCIE_CTL);
 		clkdev_add_pmu("1d900000.pcie", "ahb", 0, PMU_AHBM | PMU_AHBS);
+		clkdev_add_pmu("1e108000.eth", NULL, 0,
+				PMU_SWITCH | PMU_PPE_DPLUS | PMU_PPE_DPLUM |
+				PMU_PPE_EMA | PMU_PPE_TC | PMU_PPE_SLL01 |
+				PMU_PPE_QSB | PMU_PPE_TOP);
 	} else if (of_machine_is_compatible("lantiq,ar9")) {
 		clkdev_add_static(ltq_ar9_cpu_hz(), ltq_ar9_fpi_hz(),
 				ltq_ar9_fpi_hz());

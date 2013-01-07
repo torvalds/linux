@@ -280,7 +280,7 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 	return 0;
 }
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 static void mip6_addr_swap(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);

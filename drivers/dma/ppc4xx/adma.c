@@ -4361,7 +4361,7 @@ static void ppc440spe_adma_release_irqs(struct ppc440spe_adma_device *adev,
 /**
  * ppc440spe_adma_probe - probe the asynch device
  */
-static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev)
+static int ppc440spe_adma_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
@@ -4446,7 +4446,7 @@ static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev)
 		ret = -ENOMEM;
 		goto err_dma_alloc;
 	}
-	dev_dbg(&ofdev->dev, "allocted descriptor pool virt 0x%p phys 0x%llx\n",
+	dev_dbg(&ofdev->dev, "allocated descriptor pool virt 0x%p phys 0x%llx\n",
 		adev->dma_desc_pool_virt, (u64)adev->dma_desc_pool);
 
 	regs = ioremap(res.start, resource_size(&res));
@@ -4914,7 +4914,7 @@ MODULE_DEVICE_TABLE(of, ppc440spe_adma_of_match);
 
 static struct platform_driver ppc440spe_adma_driver = {
 	.probe = ppc440spe_adma_probe,
-	.remove = __devexit_p(ppc440spe_adma_remove),
+	.remove = ppc440spe_adma_remove,
 	.driver = {
 		.name = "PPC440SP(E)-ADMA",
 		.owner = THIS_MODULE,

@@ -75,7 +75,6 @@
 /* Reserved table signatures */
 
 #define ACPI_SIG_CSRT           "CSRT"	/* Core System Resources Table */
-#define ACPI_SIG_DBG2           "DBG2"	/* Debug Port table 2 */
 #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
@@ -87,9 +86,15 @@
 #pragma pack(1)
 
 /*
- * Note about bitfields: The u8 type is used for bitfields in ACPI tables.
- * This is the only type that is even remotely portable. Anything else is not
- * portable, so do not use any other bitfield types.
+ * Note: C bitfields are not used for this reason:
+ *
+ * "Bitfields are great and easy to read, but unfortunately the C language
+ * does not specify the layout of bitfields in memory, which means they are
+ * essentially useless for dealing with packed data in on-disk formats or
+ * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
+ * this decision was a design error in C. Ritchie could have picked an order
+ * and stuck with it." Norman Ramsey.
+ * See http://stackoverflow.com/a/1053662/41661
  */
 
 /*******************************************************************************
@@ -272,10 +277,10 @@ struct acpi_table_gtdt {
  ******************************************************************************/
 
 #define ACPI_MPST_CHANNEL_INFO \
-	u16                             reserved1; \
 	u8                              channel_id; \
-	u8                              reserved2; \
-	u16                             power_node_count;
+	u8                              reserved1[3]; \
+	u16                             power_node_count; \
+	u16                             reserved2;
 
 /* Main table */
 
@@ -299,9 +304,8 @@ struct acpi_mpst_power_node {
 	u32 length;
 	u64 range_address;
 	u64 range_length;
-	u8 num_power_states;
-	u8 num_physical_components;
-	u16 reserved2;
+	u32 num_power_states;
+	u32 num_physical_components;
 };
 
 /* Values for Flags field above */
@@ -327,10 +331,11 @@ struct acpi_mpst_component {
 
 struct acpi_mpst_data_hdr {
 	u16 characteristics_count;
+	u16 reserved;
 };
 
 struct acpi_mpst_power_data {
-	u8 revision;
+	u8 structure_id;
 	u8 flags;
 	u16 reserved1;
 	u32 average_power;
@@ -351,10 +356,10 @@ struct acpi_mpst_shared {
 	u32 signature;
 	u16 pcc_command;
 	u16 pcc_status;
-	u16 command_register;
-	u16 status_register;
-	u16 power_state_id;
-	u16 power_node_id;
+	u32 command_register;
+	u32 status_register;
+	u32 power_state_id;
+	u32 power_node_id;
 	u64 energy_consumed;
 	u64 average_power;
 };

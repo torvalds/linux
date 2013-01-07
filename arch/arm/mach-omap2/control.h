@@ -16,12 +16,12 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CONTROL_H
 #define __ARCH_ARM_MACH_OMAP2_CONTROL_H
 
-#include <mach/ctrl_module_core_44xx.h>
-#include <mach/ctrl_module_wkup_44xx.h>
-#include <mach/ctrl_module_pad_core_44xx.h>
-#include <mach/ctrl_module_pad_wkup_44xx.h>
+#include "ctrl_module_core_44xx.h"
+#include "ctrl_module_wkup_44xx.h"
+#include "ctrl_module_pad_core_44xx.h"
+#include "ctrl_module_pad_wkup_44xx.h"
 
-#include <plat/am33xx.h>
+#include "am33xx.h"
 
 #ifndef __ASSEMBLY__
 #define OMAP242X_CTRL_REGADDR(reg)					\
@@ -201,6 +201,7 @@
 #define OMAP44XX_CONTROL_FUSE_MPU_OPPNITRO	0x249
 #define OMAP44XX_CONTROL_FUSE_CORE_OPP50	0x254
 #define OMAP44XX_CONTROL_FUSE_CORE_OPP100	0x257
+#define OMAP44XX_CONTROL_FUSE_CORE_OPP100OV	0x25A
 
 /* AM35XX only CONTROL_GENERAL register offsets */
 #define AM35XX_CONTROL_MSUSPENDMUX_6    (OMAP2_CONTROL_GENERAL + 0x0038)
@@ -233,7 +234,7 @@
 #define OMAP343X_PADCONF_ETK_D14	OMAP343X_PADCONF_ETK(16)
 #define OMAP343X_PADCONF_ETK_D15	OMAP343X_PADCONF_ETK(17)
 
-/* 34xx GENERAL_WKUP regist offsets */
+/* 34xx GENERAL_WKUP register offsets */
 #define OMAP343X_CONTROL_WKUP_DEBOBSMUX(i) (OMAP343X_CONTROL_GENERAL_WKUP + \
 						0x008 + (i))
 #define OMAP343X_CONTROL_WKUP_DEBOBS0 (OMAP343X_CONTROL_GENERAL_WKUP + 0x008)
@@ -354,6 +355,7 @@
 
 /* AM33XX CONTROL_STATUS bitfields (partial) */
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_SHIFT		22
+#define AM33XX_CONTROL_STATUS_SYSBOOT1_WIDTH		0x2
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_MASK		(0x3 << 22)
 
 /* CONTROL OMAP STATUS register to identify OMAP3 features */
@@ -413,6 +415,8 @@ extern void omap_ctrl_write_dsp_boot_addr(u32 bootaddr);
 extern void omap_ctrl_write_dsp_boot_mode(u8 bootmode);
 extern void omap3630_ctrl_disable_rta(void);
 extern int omap3_ctrl_save_padconf(void);
+extern void omap2_set_globals_control(void __iomem *ctrl,
+				      void __iomem *ctrl_pad);
 #else
 #define omap_ctrl_base_get()		0
 #define omap_ctrl_readb(x)		0

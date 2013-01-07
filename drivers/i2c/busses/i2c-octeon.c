@@ -446,7 +446,7 @@ static struct i2c_adapter octeon_i2c_ops = {
 /**
  * octeon_i2c_setclock - Calculate and set clock divisors.
  */
-static int __devinit octeon_i2c_setclock(struct octeon_i2c *i2c)
+static int octeon_i2c_setclock(struct octeon_i2c *i2c)
 {
 	int tclk, thp_base, inc, thp_idx, mdiv_idx, ndiv_idx, foscl, diff;
 	int thp = 0x18, mdiv = 2, ndiv = 0, delta_hz = 1000000;
@@ -489,7 +489,7 @@ static int __devinit octeon_i2c_setclock(struct octeon_i2c *i2c)
 	return 0;
 }
 
-static int __devinit octeon_i2c_initlowlevel(struct octeon_i2c *i2c)
+static int octeon_i2c_initlowlevel(struct octeon_i2c *i2c)
 {
 	u8 status;
 	int tries;
@@ -510,7 +510,7 @@ static int __devinit octeon_i2c_initlowlevel(struct octeon_i2c *i2c)
 	return -EIO;
 }
 
-static int __devinit octeon_i2c_probe(struct platform_device *pdev)
+static int octeon_i2c_probe(struct platform_device *pdev)
 {
 	int irq, result = 0;
 	struct octeon_i2c *i2c;
@@ -609,7 +609,7 @@ out:
 	return result;
 };
 
-static int __devexit octeon_i2c_remove(struct platform_device *pdev)
+static int octeon_i2c_remove(struct platform_device *pdev)
 {
 	struct octeon_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -628,7 +628,7 @@ MODULE_DEVICE_TABLE(of, octeon_i2c_match);
 
 static struct platform_driver octeon_i2c_driver = {
 	.probe		= octeon_i2c_probe,
-	.remove		= __devexit_p(octeon_i2c_remove),
+	.remove		= octeon_i2c_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,

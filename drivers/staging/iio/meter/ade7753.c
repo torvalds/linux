@@ -512,7 +512,7 @@ static const struct iio_info ade7753_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ade7753_probe(struct spi_device *spi)
+static int ade7753_probe(struct spi_device *spi)
 {
 	int ret;
 	struct ade7753_state *st;
@@ -557,18 +557,13 @@ error_ret:
 /* fixme, confirm ordering in this function */
 static int ade7753_remove(struct spi_device *spi)
 {
-	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-
-	ret = ade7753_stop_device(&(indio_dev->dev));
-	if (ret)
-		goto err_ret;
-
+	ade7753_stop_device(&indio_dev->dev);
 	iio_device_free(indio_dev);
-err_ret:
-	return ret;
+
+	return 0;
 }
 
 static struct spi_driver ade7753_driver = {
@@ -577,7 +572,7 @@ static struct spi_driver ade7753_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ade7753_probe,
-	.remove = __devexit_p(ade7753_remove),
+	.remove = ade7753_remove,
 };
 module_spi_driver(ade7753_driver);
 

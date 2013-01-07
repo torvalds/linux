@@ -27,6 +27,7 @@
 #include "volumes.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "dev-replace.h"
 
 #undef DEBUG
 
@@ -68,7 +69,7 @@ struct reada_extent {
 	u32			blocksize;
 	int			err;
 	struct list_head	extctl;
-	struct kref		refcnt;
+	int 			refcnt;
 	spinlock_t		lock;
 	struct reada_zone	*zones[BTRFS_MAX_MIRRORS];
 	int			nzones;
@@ -126,7 +127,7 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree, index);
 	if (re)
-		kref_get(&re->refcnt);
+		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);
 
 	if (!re)
@@ -323,7 +324,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct reada_extent *re = NULL;
 	struct reada_extent *re_exist = NULL;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_device *dev;
 	struct btrfs_device *prev_dev;
@@ -332,11 +332,12 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	int nzones = 0;
 	int i;
 	unsigned long index = logical >> PAGE_CACHE_SHIFT;
+	int dev_replace_is_ongoing;
 
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree, index);
 	if (re)
-		kref_get(&re->refcnt);
+		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);
 
 	if (re)
@@ -352,13 +353,14 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	re->top = *top;
 	INIT_LIST_HEAD(&re->extctl);
 	spin_lock_init(&re->lock);
-	kref_init(&re->refcnt);
+	re->refcnt = 1;
 
 	/*
 	 * map block
 	 */
 	length = blocksize;
-	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length, &bbio, 0);
+	ret = btrfs_map_block(fs_info, REQ_GET_READ_MIRRORS, logical, &length,
+			      &bbio, 0);
 	if (ret || !bbio || length < blocksize)
 		goto error;
 
@@ -393,20 +395,25 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	}
 
 	/* insert extent in reada_tree + all per-device trees, all or nothing */
+	btrfs_dev_replace_lock(&fs_info->dev_replace);
 	spin_lock(&fs_info->reada_lock);
 	ret = radix_tree_insert(&fs_info->reada_tree, index, re);
 	if (ret == -EEXIST) {
 		re_exist = radix_tree_lookup(&fs_info->reada_tree, index);
 		BUG_ON(!re_exist);
-		kref_get(&re_exist->refcnt);
+		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
+		btrfs_dev_replace_unlock(&fs_info->dev_replace);
 		goto error;
 	}
 	if (ret) {
 		spin_unlock(&fs_info->reada_lock);
+		btrfs_dev_replace_unlock(&fs_info->dev_replace);
 		goto error;
 	}
 	prev_dev = NULL;
+	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(
+			&fs_info->dev_replace);
 	for (i = 0; i < nzones; ++i) {
 		dev = bbio->stripes[i].dev;
 		if (dev == prev_dev) {
@@ -419,21 +426,36 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 			 */
 			continue;
 		}
+		if (!dev->bdev) {
+			/* cannot read ahead on missing device */
+			continue;
+		}
+		if (dev_replace_is_ongoing &&
+		    dev == fs_info->dev_replace.tgtdev) {
+			/*
+			 * as this device is selected for reading only as
+			 * a last resort, skip it for read ahead.
+			 */
+			continue;
+		}
 		prev_dev = dev;
 		ret = radix_tree_insert(&dev->reada_extents, index, re);
 		if (ret) {
 			while (--i >= 0) {
 				dev = bbio->stripes[i].dev;
 				BUG_ON(dev == NULL);
+				/* ignore whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
 			}
 			BUG_ON(fs_info == NULL);
 			radix_tree_delete(&fs_info->reada_tree, index);
 			spin_unlock(&fs_info->reada_lock);
+			btrfs_dev_replace_unlock(&fs_info->dev_replace);
 			goto error;
 		}
 	}
 	spin_unlock(&fs_info->reada_lock);
+	btrfs_dev_replace_unlock(&fs_info->dev_replace);
 
 	kfree(bbio);
 	return re;
@@ -465,10 +487,6 @@ error:
 	return re_exist;
 }
 
-static void reada_kref_dummy(struct kref *kr)
-{
-}
-
 static void reada_extent_put(struct btrfs_fs_info *fs_info,
 			     struct reada_extent *re)
 {
@@ -476,7 +494,7 @@ static void reada_extent_put(struct btrfs_fs_info *fs_info,
 	unsigned long index = re->logical >> PAGE_CACHE_SHIFT;
 
 	spin_lock(&fs_info->reada_lock);
-	if (!kref_put(&re->refcnt, reada_kref_dummy)) {
+	if (--re->refcnt) {
 		spin_unlock(&fs_info->reada_lock);
 		return;
 	}
@@ -671,7 +689,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 		return 0;
 	}
 	dev->reada_next = re->logical + re->blocksize;
-	kref_get(&re->refcnt);
+	re->refcnt++;
 
 	spin_unlock(&fs_info->reada_lock);
 
@@ -919,7 +937,10 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	generation = btrfs_header_generation(node);
 	free_extent_buffer(node);
 
-	reada_add_block(rc, start, &max_key, level, generation);
+	if (reada_add_block(rc, start, &max_key, level, generation)) {
+		kfree(rc);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	reada_start_machine(root->fs_info);
 

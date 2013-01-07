@@ -1348,6 +1348,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 					ret = -EFAULT;
 					goto error;
 				}
+				uurb->buffer += u;
 			}
 			totlen -= u;
 		}
@@ -1928,6 +1929,38 @@ static int proc_get_capabilities(struct dev_state *ps, void __user *arg)
 	return 0;
 }
 
+static int proc_disconnect_claim(struct dev_state *ps, void __user *arg)
+{
+	struct usbdevfs_disconnect_claim dc;
+	struct usb_interface *intf;
+
+	if (copy_from_user(&dc, arg, sizeof(dc)))
+		return -EFAULT;
+
+	intf = usb_ifnum_to_if(ps->dev, dc.interface);
+	if (!intf)
+		return -EINVAL;
+
+	if (intf->dev.driver) {
+		struct usb_driver *driver = to_usb_driver(intf->dev.driver);
+
+		if ((dc.flags & USBDEVFS_DISCONNECT_CLAIM_IF_DRIVER) &&
+				strncmp(dc.driver, intf->dev.driver->name,
+					sizeof(dc.driver)) != 0)
+			return -EBUSY;
+
+		if ((dc.flags & USBDEVFS_DISCONNECT_CLAIM_EXCEPT_DRIVER) &&
+				strncmp(dc.driver, intf->dev.driver->name,
+					sizeof(dc.driver)) == 0)
+			return -EBUSY;
+
+		dev_dbg(&intf->dev, "disconnect by usbfs\n");
+		usb_driver_release_interface(driver, intf);
+	}
+
+	return claimintf(ps, dc.interface);
+}
+
 /*
  * NOTE:  All requests here that have interface numbers as parameters
  * are assuming that somehow the configuration has been prevented from
@@ -2100,6 +2133,9 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case USBDEVFS_GET_CAPABILITIES:
 		ret = proc_get_capabilities(ps, p);
+		break;
+	case USBDEVFS_DISCONNECT_CLAIM:
+		ret = proc_disconnect_claim(ps, p);
 		break;
 	}
 	usb_unlock_device(dev);

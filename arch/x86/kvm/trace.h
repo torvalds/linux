@@ -4,6 +4,7 @@
 #include <linux/tracepoint.h>
 #include <asm/vmx.h>
 #include <asm/svm.h>
+#include <asm/clocksource.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
@@ -182,95 +183,6 @@ TRACE_EVENT(kvm_apic,
 
 #define KVM_ISA_VMX   1
 #define KVM_ISA_SVM   2
-
-#define VMX_EXIT_REASONS \
-	{ EXIT_REASON_EXCEPTION_NMI,		"EXCEPTION_NMI" }, \
-	{ EXIT_REASON_EXTERNAL_INTERRUPT,	"EXTERNAL_INTERRUPT" }, \
-	{ EXIT_REASON_TRIPLE_FAULT,		"TRIPLE_FAULT" }, \
-	{ EXIT_REASON_PENDING_INTERRUPT,	"PENDING_INTERRUPT" }, \
-	{ EXIT_REASON_NMI_WINDOW,		"NMI_WINDOW" }, \
-	{ EXIT_REASON_TASK_SWITCH,		"TASK_SWITCH" }, \
-	{ EXIT_REASON_CPUID,			"CPUID" }, \
-	{ EXIT_REASON_HLT,			"HLT" }, \
-	{ EXIT_REASON_INVLPG,			"INVLPG" }, \
-	{ EXIT_REASON_RDPMC,			"RDPMC" }, \
-	{ EXIT_REASON_RDTSC,			"RDTSC" }, \
-	{ EXIT_REASON_VMCALL,			"VMCALL" }, \
-	{ EXIT_REASON_VMCLEAR,			"VMCLEAR" }, \
-	{ EXIT_REASON_VMLAUNCH,			"VMLAUNCH" }, \
-	{ EXIT_REASON_VMPTRLD,			"VMPTRLD" }, \
-	{ EXIT_REASON_VMPTRST,			"VMPTRST" }, \
-	{ EXIT_REASON_VMREAD,			"VMREAD" }, \
-	{ EXIT_REASON_VMRESUME,			"VMRESUME" }, \
-	{ EXIT_REASON_VMWRITE,			"VMWRITE" }, \
-	{ EXIT_REASON_VMOFF,			"VMOFF" }, \
-	{ EXIT_REASON_VMON,			"VMON" }, \
-	{ EXIT_REASON_CR_ACCESS,		"CR_ACCESS" }, \
-	{ EXIT_REASON_DR_ACCESS,		"DR_ACCESS" }, \
-	{ EXIT_REASON_IO_INSTRUCTION,		"IO_INSTRUCTION" }, \
-	{ EXIT_REASON_MSR_READ,			"MSR_READ" }, \
-	{ EXIT_REASON_MSR_WRITE,		"MSR_WRITE" }, \
-	{ EXIT_REASON_MWAIT_INSTRUCTION,	"MWAIT_INSTRUCTION" }, \
-	{ EXIT_REASON_MONITOR_INSTRUCTION,	"MONITOR_INSTRUCTION" }, \
-	{ EXIT_REASON_PAUSE_INSTRUCTION,	"PAUSE_INSTRUCTION" }, \
-	{ EXIT_REASON_MCE_DURING_VMENTRY,	"MCE_DURING_VMENTRY" }, \
-	{ EXIT_REASON_TPR_BELOW_THRESHOLD,	"TPR_BELOW_THRESHOLD" },	\
-	{ EXIT_REASON_APIC_ACCESS,		"APIC_ACCESS" }, \
-	{ EXIT_REASON_EPT_VIOLATION,		"EPT_VIOLATION" }, \
-	{ EXIT_REASON_EPT_MISCONFIG,		"EPT_MISCONFIG" }, \
-	{ EXIT_REASON_WBINVD,			"WBINVD" }
-
-#define SVM_EXIT_REASONS \
-	{ SVM_EXIT_READ_CR0,			"read_cr0" }, \
-	{ SVM_EXIT_READ_CR3,			"read_cr3" }, \
-	{ SVM_EXIT_READ_CR4,			"read_cr4" }, \
-	{ SVM_EXIT_READ_CR8,			"read_cr8" }, \
-	{ SVM_EXIT_WRITE_CR0,			"write_cr0" }, \
-	{ SVM_EXIT_WRITE_CR3,			"write_cr3" }, \
-	{ SVM_EXIT_WRITE_CR4,			"write_cr4" }, \
-	{ SVM_EXIT_WRITE_CR8,			"write_cr8" }, \
-	{ SVM_EXIT_READ_DR0,			"read_dr0" }, \
-	{ SVM_EXIT_READ_DR1,			"read_dr1" }, \
-	{ SVM_EXIT_READ_DR2,			"read_dr2" }, \
-	{ SVM_EXIT_READ_DR3,			"read_dr3" }, \
-	{ SVM_EXIT_WRITE_DR0,			"write_dr0" }, \
-	{ SVM_EXIT_WRITE_DR1,			"write_dr1" }, \
-	{ SVM_EXIT_WRITE_DR2,			"write_dr2" }, \
-	{ SVM_EXIT_WRITE_DR3,			"write_dr3" }, \
-	{ SVM_EXIT_WRITE_DR5,			"write_dr5" }, \
-	{ SVM_EXIT_WRITE_DR7,			"write_dr7" }, \
-	{ SVM_EXIT_EXCP_BASE + DB_VECTOR,	"DB excp" }, \
-	{ SVM_EXIT_EXCP_BASE + BP_VECTOR,	"BP excp" }, \
-	{ SVM_EXIT_EXCP_BASE + UD_VECTOR,	"UD excp" }, \
-	{ SVM_EXIT_EXCP_BASE + PF_VECTOR,	"PF excp" }, \
-	{ SVM_EXIT_EXCP_BASE + NM_VECTOR,	"NM excp" }, \
-	{ SVM_EXIT_EXCP_BASE + MC_VECTOR,	"MC excp" }, \
-	{ SVM_EXIT_INTR,			"interrupt" }, \
-	{ SVM_EXIT_NMI,				"nmi" }, \
-	{ SVM_EXIT_SMI,				"smi" }, \
-	{ SVM_EXIT_INIT,			"init" }, \
-	{ SVM_EXIT_VINTR,			"vintr" }, \
-	{ SVM_EXIT_CPUID,			"cpuid" }, \
-	{ SVM_EXIT_INVD,			"invd" }, \
-	{ SVM_EXIT_HLT,				"hlt" }, \
-	{ SVM_EXIT_INVLPG,			"invlpg" }, \
-	{ SVM_EXIT_INVLPGA,			"invlpga" }, \
-	{ SVM_EXIT_IOIO,			"io" }, \
-	{ SVM_EXIT_MSR,				"msr" }, \
-	{ SVM_EXIT_TASK_SWITCH,			"task_switch" }, \
-	{ SVM_EXIT_SHUTDOWN,			"shutdown" }, \
-	{ SVM_EXIT_VMRUN,			"vmrun" }, \
-	{ SVM_EXIT_VMMCALL,			"hypercall" }, \
-	{ SVM_EXIT_VMLOAD,			"vmload" }, \
-	{ SVM_EXIT_VMSAVE,			"vmsave" }, \
-	{ SVM_EXIT_STGI,			"stgi" }, \
-	{ SVM_EXIT_CLGI,			"clgi" }, \
-	{ SVM_EXIT_SKINIT,			"skinit" }, \
-	{ SVM_EXIT_WBINVD,			"wbinvd" }, \
-	{ SVM_EXIT_MONITOR,			"monitor" }, \
-	{ SVM_EXIT_MWAIT,			"mwait" }, \
-	{ SVM_EXIT_XSETBV,			"xsetbv" }, \
-	{ SVM_EXIT_NPF,				"npf" }
 
 /*
  * Tracepoint for kvm guest exit:
@@ -843,6 +755,68 @@ TRACE_EVENT(
 		  __entry->write ? "Write" : "Read",
 		  __entry->gpa_match ? "GPA" : "GVA")
 );
+
+#ifdef CONFIG_X86_64
+
+#define host_clocks					\
+	{VCLOCK_NONE, "none"},				\
+	{VCLOCK_TSC,  "tsc"},				\
+	{VCLOCK_HPET, "hpet"}				\
+
+TRACE_EVENT(kvm_update_master_clock,
+	TP_PROTO(bool use_master_clock, unsigned int host_clock, bool offset_matched),
+	TP_ARGS(use_master_clock, host_clock, offset_matched),
+
+	TP_STRUCT__entry(
+		__field(		bool,	use_master_clock	)
+		__field(	unsigned int,	host_clock		)
+		__field(		bool,	offset_matched		)
+	),
+
+	TP_fast_assign(
+		__entry->use_master_clock	= use_master_clock;
+		__entry->host_clock		= host_clock;
+		__entry->offset_matched		= offset_matched;
+	),
+
+	TP_printk("masterclock %d hostclock %s offsetmatched %u",
+		  __entry->use_master_clock,
+		  __print_symbolic(__entry->host_clock, host_clocks),
+		  __entry->offset_matched)
+);
+
+TRACE_EVENT(kvm_track_tsc,
+	TP_PROTO(unsigned int vcpu_id, unsigned int nr_matched,
+		 unsigned int online_vcpus, bool use_master_clock,
+		 unsigned int host_clock),
+	TP_ARGS(vcpu_id, nr_matched, online_vcpus, use_master_clock,
+		host_clock),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id			)
+		__field(	unsigned int,	nr_vcpus_matched_tsc	)
+		__field(	unsigned int,	online_vcpus		)
+		__field(	bool,		use_master_clock	)
+		__field(	unsigned int,	host_clock		)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id		= vcpu_id;
+		__entry->nr_vcpus_matched_tsc	= nr_matched;
+		__entry->online_vcpus		= online_vcpus;
+		__entry->use_master_clock	= use_master_clock;
+		__entry->host_clock		= host_clock;
+	),
+
+	TP_printk("vcpu_id %u masterclock %u offsetmatched %u nr_online %u"
+		  " hostclock %s",
+		  __entry->vcpu_id, __entry->use_master_clock,
+		  __entry->nr_vcpus_matched_tsc, __entry->online_vcpus,
+		  __print_symbolic(__entry->host_clock, host_clocks))
+);
+
+#endif /* CONFIG_X86_64 */
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

@@ -50,8 +50,8 @@ static void devres_log(struct device *dev, struct devres_node *node,
 		       const char *op)
 {
 	if (unlikely(log_devres))
-		dev_printk(KERN_ERR, dev, "DEVRES %3s %p %s (%lu bytes)\n",
-			   op, node, node->name, (unsigned long)node->size);
+		dev_err(dev, "DEVRES %3s %p %s (%lu bytes)\n",
+			op, node, node->name, (unsigned long)node->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
 #define set_node_dbginfo(node, n, s)	do {} while (0)
@@ -142,6 +142,48 @@ void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(devres_alloc);
 #endif
+
+/**
+ * devres_for_each_res - Resource iterator
+ * @dev: Device to iterate resource from
+ * @release: Look for resources associated with this release function
+ * @match: Match function (optional)
+ * @match_data: Data for the match function
+ * @fn: Function to be called for each matched resource.
+ * @data: Data for @fn, the 3rd parameter of @fn
+ *
+ * Call @fn for each devres of @dev which is associated with @release
+ * and for which @match returns 1.
+ *
+ * RETURNS:
+ * 	void
+ */
+void devres_for_each_res(struct device *dev, dr_release_t release,
+			dr_match_t match, void *match_data,
+			void (*fn)(struct device *, void *, void *),
+			void *data)
+{
+	struct devres_node *node;
+	struct devres_node *tmp;
+	unsigned long flags;
+
+	if (!fn)
+		return;
+
+	spin_lock_irqsave(&dev->devres_lock, flags);
+	list_for_each_entry_safe_reverse(node, tmp,
+			&dev->devres_head, entry) {
+		struct devres *dr = container_of(node, struct devres, node);
+
+		if (node->release != release)
+			continue;
+		if (match && !match(dev, dr->data, match_data))
+			continue;
+		fn(dev, dr->data, data);
+	}
+	spin_unlock_irqrestore(&dev->devres_lock, flags);
+}
+EXPORT_SYMBOL_GPL(devres_for_each_res);
 
 /**
  * devres_free - Free device resource data

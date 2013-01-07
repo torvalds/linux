@@ -93,8 +93,6 @@ struct vring_virtqueue
 	/* Host publishes avail event idx */
 	bool event;
 
-	/* Number of free buffers */
-	unsigned int num_free;
 	/* Head of free buffer list. */
 	unsigned int free_head;
 	/* Number we've added since last sync. */
@@ -132,6 +130,13 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 	unsigned head;
 	int i;
 
+	/*
+	 * We require lowmem mappings for the descriptors because
+	 * otherwise virt_to_phys will give us bogus addresses in the
+	 * virtqueue.
+	 */
+	gfp &= ~(__GFP_HIGHMEM | __GFP_HIGH);
+
 	desc = kmalloc((out + in) * sizeof(struct vring_desc), gfp);
 	if (!desc)
 		return -ENOMEM;
@@ -157,7 +162,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 	desc[i-1].next = 0;
 
 	/* We're about to use a buffer */
-	vq->num_free--;
+	vq->vq.num_free--;
 
 	/* Use a single buffer which doesn't continue */
 	head = vq->free_head;
@@ -183,10 +188,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
  * Caller must ensure we don't call this with other virtqueue operations
  * at the same time (except where noted).
  *
- * Returns remaining capacity of queue or a negative error
- * (ie. ENOSPC).  Note that it only really makes sense to treat all
- * positive return values as "available": indirect buffers mean that
- * we can put an entire sg[] array inside a single queue entry.
+ * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
  */
 int virtqueue_add_buf(struct virtqueue *_vq,
 		      struct scatterlist sg[],
@@ -218,7 +220,7 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 
 	/* If the host supports indirect descriptor tables, and we have multiple
 	 * buffers, then go indirect. FIXME: tune this threshold */
-	if (vq->indirect && (out + in) > 1 && vq->num_free) {
+	if (vq->indirect && (out + in) > 1 && vq->vq.num_free) {
 		head = vring_add_indirect(vq, sg, out, in, gfp);
 		if (likely(head >= 0))
 			goto add_head;
@@ -227,9 +229,9 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 	BUG_ON(out + in > vq->vring.num);
 	BUG_ON(out + in == 0);
 
-	if (vq->num_free < out + in) {
+	if (vq->vq.num_free < out + in) {
 		pr_debug("Can't add buf len %i - avail = %i\n",
-			 out + in, vq->num_free);
+			 out + in, vq->vq.num_free);
 		/* FIXME: for historical reasons, we force a notify here if
 		 * there are outgoing parts to the buffer.  Presumably the
 		 * host should service the ring ASAP. */
@@ -240,7 +242,7 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 	}
 
 	/* We're about to use some buffers from the free list. */
-	vq->num_free -= out + in;
+	vq->vq.num_free -= out + in;
 
 	head = vq->free_head;
 	for (i = vq->free_head; out; i = vq->vring.desc[i].next, out--) {
@@ -286,7 +288,7 @@ add_head:
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
-	return vq->num_free;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(virtqueue_add_buf);
 
@@ -383,13 +385,13 @@ static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 
 	while (vq->vring.desc[i].flags & VRING_DESC_F_NEXT) {
 		i = vq->vring.desc[i].next;
-		vq->num_free++;
+		vq->vq.num_free++;
 	}
 
 	vq->vring.desc[i].next = vq->free_head;
 	vq->free_head = head;
 	/* Plus final descriptor */
-	vq->num_free++;
+	vq->vq.num_free++;
 }
 
 static inline bool more_used(const struct vring_virtqueue *vq)
@@ -589,7 +591,7 @@ void *virtqueue_detach_unused_buf(struct virtqueue *_vq)
 		return buf;
 	}
 	/* That should have freed everything. */
-	BUG_ON(vq->num_free != vq->vring.num);
+	BUG_ON(vq->vq.num_free != vq->vring.num);
 
 	END_USE(vq);
 	return NULL;
@@ -616,7 +618,8 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 }
 EXPORT_SYMBOL_GPL(vring_interrupt);
 
-struct virtqueue *vring_new_virtqueue(unsigned int num,
+struct virtqueue *vring_new_virtqueue(unsigned int index,
+				      unsigned int num,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
@@ -642,6 +645,8 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	vq->vq.callback = callback;
 	vq->vq.vdev = vdev;
 	vq->vq.name = name;
+	vq->vq.num_free = num;
+	vq->vq.index = index;
 	vq->notify = notify;
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
@@ -661,7 +666,6 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 		vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
 
 	/* Put everything in free lists. */
-	vq->num_free = num;
 	vq->free_head = 0;
 	for (i = 0; i < num-1; i++) {
 		vq->vring.desc[i].next = i+1;

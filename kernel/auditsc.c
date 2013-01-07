@@ -81,9 +81,6 @@
  * a name dynamically and also add those to the list anchored by names_list. */
 #define AUDIT_NAMES	5
 
-/* Indicates that audit should log the full pathname. */
-#define AUDIT_NAME_FULL -1
-
 /* no execve audit message should be longer than this (userspace limits) */
 #define MAX_EXECVE_AUDIT_LEN 7500
 
@@ -106,27 +103,29 @@ struct audit_cap_data {
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
  *
- * Further, in fs/namei.c:path_lookup() we store the inode and device. */
+ * Further, in fs/namei.c:path_lookup() we store the inode and device.
+ */
 struct audit_names {
-	struct list_head list;		/* audit_context->names_list */
-	const char	*name;
-	unsigned long	ino;
-	dev_t		dev;
-	umode_t		mode;
-	uid_t		uid;
-	gid_t		gid;
-	dev_t		rdev;
-	u32		osid;
-	struct audit_cap_data fcap;
-	unsigned int	fcap_ver;
-	int		name_len;	/* number of name's characters to log */
-	bool		name_put;	/* call __putname() for this name */
+	struct list_head	list;		/* audit_context->names_list */
+	struct filename	*name;
+	unsigned long		ino;
+	dev_t			dev;
+	umode_t			mode;
+	kuid_t			uid;
+	kgid_t			gid;
+	dev_t			rdev;
+	u32			osid;
+	struct audit_cap_data	 fcap;
+	unsigned int		fcap_ver;
+	int			name_len;	/* number of name's characters to log */
+	unsigned char		type;		/* record type */
+	bool			name_put;	/* call __putname() for this name */
 	/*
 	 * This was an allocated audit_names and not from the array of
 	 * names allocated in the task audit context.  Thus this name
 	 * should be freed on syscall exit
 	 */
-	bool		should_free;
+	bool			should_free;
 };
 
 struct audit_aux_data {
@@ -149,8 +148,8 @@ struct audit_aux_data_execve {
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
-	uid_t			target_auid[AUDIT_AUX_PIDS];
-	uid_t			target_uid[AUDIT_AUX_PIDS];
+	kuid_t			target_auid[AUDIT_AUX_PIDS];
+	kuid_t			target_uid[AUDIT_AUX_PIDS];
 	unsigned int		target_sessionid[AUDIT_AUX_PIDS];
 	u32			target_sid[AUDIT_AUX_PIDS];
 	char 			target_comm[AUDIT_AUX_PIDS][TASK_COMM_LEN];
@@ -201,21 +200,20 @@ struct audit_context {
 	struct list_head    names_list;	/* anchor for struct audit_names->list */
 	char *		    filterkey;	/* key for rule that triggered record */
 	struct path	    pwd;
-	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 	struct audit_aux_data *aux_pids;
 	struct sockaddr_storage *sockaddr;
 	size_t sockaddr_len;
 				/* Save things to print about task_struct */
 	pid_t		    pid, ppid;
-	uid_t		    uid, euid, suid, fsuid;
-	gid_t		    gid, egid, sgid, fsgid;
+	kuid_t		    uid, euid, suid, fsuid;
+	kgid_t		    gid, egid, sgid, fsgid;
 	unsigned long	    personality;
 	int		    arch;
 
 	pid_t		    target_pid;
-	uid_t		    target_auid;
-	uid_t		    target_uid;
+	kuid_t		    target_auid;
+	kuid_t		    target_uid;
 	unsigned int	    target_sessionid;
 	u32		    target_sid;
 	char		    target_comm[TASK_COMM_LEN];
@@ -231,8 +229,8 @@ struct audit_context {
 			long args[6];
 		} socketcall;
 		struct {
-			uid_t			uid;
-			gid_t			gid;
+			kuid_t			uid;
+			kgid_t			gid;
 			umode_t			mode;
 			u32			osid;
 			int			has_perm;
@@ -464,37 +462,47 @@ static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
 	return 0;
 }
 
-static int audit_compare_id(uid_t uid1,
-			    struct audit_names *name,
-			    unsigned long name_offset,
-			    struct audit_field *f,
-			    struct audit_context *ctx)
+static int audit_compare_uid(kuid_t uid,
+			     struct audit_names *name,
+			     struct audit_field *f,
+			     struct audit_context *ctx)
 {
 	struct audit_names *n;
-	unsigned long addr;
-	uid_t uid2;
 	int rc;
-
-	BUILD_BUG_ON(sizeof(uid_t) != sizeof(gid_t));
-
+ 
 	if (name) {
-		addr = (unsigned long)name;
-		addr += name_offset;
-
-		uid2 = *(uid_t *)addr;
-		rc = audit_comparator(uid1, f->op, uid2);
+		rc = audit_uid_comparator(uid, f->op, name->uid);
 		if (rc)
 			return rc;
 	}
-
+ 
 	if (ctx) {
 		list_for_each_entry(n, &ctx->names_list, list) {
-			addr = (unsigned long)n;
-			addr += name_offset;
+			rc = audit_uid_comparator(uid, f->op, n->uid);
+			if (rc)
+				return rc;
+		}
+	}
+	return 0;
+}
 
-			uid2 = *(uid_t *)addr;
-
-			rc = audit_comparator(uid1, f->op, uid2);
+static int audit_compare_gid(kgid_t gid,
+			     struct audit_names *name,
+			     struct audit_field *f,
+			     struct audit_context *ctx)
+{
+	struct audit_names *n;
+	int rc;
+ 
+	if (name) {
+		rc = audit_gid_comparator(gid, f->op, name->gid);
+		if (rc)
+			return rc;
+	}
+ 
+	if (ctx) {
+		list_for_each_entry(n, &ctx->names_list, list) {
+			rc = audit_gid_comparator(gid, f->op, n->gid);
 			if (rc)
 				return rc;
 		}
@@ -511,80 +519,62 @@ static int audit_field_compare(struct task_struct *tsk,
 	switch (f->val) {
 	/* process to file object comparisons */
 	case AUDIT_COMPARE_UID_TO_OBJ_UID:
-		return audit_compare_id(cred->uid,
-					name, offsetof(struct audit_names, uid),
-					f, ctx);
+		return audit_compare_uid(cred->uid, name, f, ctx);
 	case AUDIT_COMPARE_GID_TO_OBJ_GID:
-		return audit_compare_id(cred->gid,
-					name, offsetof(struct audit_names, gid),
-					f, ctx);
+		return audit_compare_gid(cred->gid, name, f, ctx);
 	case AUDIT_COMPARE_EUID_TO_OBJ_UID:
-		return audit_compare_id(cred->euid,
-					name, offsetof(struct audit_names, uid),
-					f, ctx);
+		return audit_compare_uid(cred->euid, name, f, ctx);
 	case AUDIT_COMPARE_EGID_TO_OBJ_GID:
-		return audit_compare_id(cred->egid,
-					name, offsetof(struct audit_names, gid),
-					f, ctx);
+		return audit_compare_gid(cred->egid, name, f, ctx);
 	case AUDIT_COMPARE_AUID_TO_OBJ_UID:
-		return audit_compare_id(tsk->loginuid,
-					name, offsetof(struct audit_names, uid),
-					f, ctx);
+		return audit_compare_uid(tsk->loginuid, name, f, ctx);
 	case AUDIT_COMPARE_SUID_TO_OBJ_UID:
-		return audit_compare_id(cred->suid,
-					name, offsetof(struct audit_names, uid),
-					f, ctx);
+		return audit_compare_uid(cred->suid, name, f, ctx);
 	case AUDIT_COMPARE_SGID_TO_OBJ_GID:
-		return audit_compare_id(cred->sgid,
-					name, offsetof(struct audit_names, gid),
-					f, ctx);
+		return audit_compare_gid(cred->sgid, name, f, ctx);
 	case AUDIT_COMPARE_FSUID_TO_OBJ_UID:
-		return audit_compare_id(cred->fsuid,
-					name, offsetof(struct audit_names, uid),
-					f, ctx);
+		return audit_compare_uid(cred->fsuid, name, f, ctx);
 	case AUDIT_COMPARE_FSGID_TO_OBJ_GID:
-		return audit_compare_id(cred->fsgid,
-					name, offsetof(struct audit_names, gid),
-					f, ctx);
+		return audit_compare_gid(cred->fsgid, name, f, ctx);
 	/* uid comparisons */
 	case AUDIT_COMPARE_UID_TO_AUID:
-		return audit_comparator(cred->uid, f->op, tsk->loginuid);
+		return audit_uid_comparator(cred->uid, f->op, tsk->loginuid);
 	case AUDIT_COMPARE_UID_TO_EUID:
-		return audit_comparator(cred->uid, f->op, cred->euid);
+		return audit_uid_comparator(cred->uid, f->op, cred->euid);
 	case AUDIT_COMPARE_UID_TO_SUID:
-		return audit_comparator(cred->uid, f->op, cred->suid);
+		return audit_uid_comparator(cred->uid, f->op, cred->suid);
 	case AUDIT_COMPARE_UID_TO_FSUID:
-		return audit_comparator(cred->uid, f->op, cred->fsuid);
+		return audit_uid_comparator(cred->uid, f->op, cred->fsuid);
 	/* auid comparisons */
 	case AUDIT_COMPARE_AUID_TO_EUID:
-		return audit_comparator(tsk->loginuid, f->op, cred->euid);
+		return audit_uid_comparator(tsk->loginuid, f->op, cred->euid);
 	case AUDIT_COMPARE_AUID_TO_SUID:
-		return audit_comparator(tsk->loginuid, f->op, cred->suid);
+		return audit_uid_comparator(tsk->loginuid, f->op, cred->suid);
 	case AUDIT_COMPARE_AUID_TO_FSUID:
-		return audit_comparator(tsk->loginuid, f->op, cred->fsuid);
+		return audit_uid_comparator(tsk->loginuid, f->op, cred->fsuid);
 	/* euid comparisons */
 	case AUDIT_COMPARE_EUID_TO_SUID:
-		return audit_comparator(cred->euid, f->op, cred->suid);
+		return audit_uid_comparator(cred->euid, f->op, cred->suid);
 	case AUDIT_COMPARE_EUID_TO_FSUID:
-		return audit_comparator(cred->euid, f->op, cred->fsuid);
+		return audit_uid_comparator(cred->euid, f->op, cred->fsuid);
 	/* suid comparisons */
 	case AUDIT_COMPARE_SUID_TO_FSUID:
-		return audit_comparator(cred->suid, f->op, cred->fsuid);
+		return audit_uid_comparator(cred->suid, f->op, cred->fsuid);
 	/* gid comparisons */
 	case AUDIT_COMPARE_GID_TO_EGID:
-		return audit_comparator(cred->gid, f->op, cred->egid);
+		return audit_gid_comparator(cred->gid, f->op, cred->egid);
 	case AUDIT_COMPARE_GID_TO_SGID:
-		return audit_comparator(cred->gid, f->op, cred->sgid);
+		return audit_gid_comparator(cred->gid, f->op, cred->sgid);
 	case AUDIT_COMPARE_GID_TO_FSGID:
-		return audit_comparator(cred->gid, f->op, cred->fsgid);
+		return audit_gid_comparator(cred->gid, f->op, cred->fsgid);
 	/* egid comparisons */
 	case AUDIT_COMPARE_EGID_TO_SGID:
-		return audit_comparator(cred->egid, f->op, cred->sgid);
+		return audit_gid_comparator(cred->egid, f->op, cred->sgid);
 	case AUDIT_COMPARE_EGID_TO_FSGID:
-		return audit_comparator(cred->egid, f->op, cred->fsgid);
+		return audit_gid_comparator(cred->egid, f->op, cred->fsgid);
 	/* sgid comparison */
 	case AUDIT_COMPARE_SGID_TO_FSGID:
-		return audit_comparator(cred->sgid, f->op, cred->fsgid);
+		return audit_gid_comparator(cred->sgid, f->op, cred->fsgid);
 	default:
 		WARN(1, "Missing AUDIT_COMPARE define.  Report as a bug\n");
 		return 0;
@@ -630,28 +620,28 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_UID:
-			result = audit_comparator(cred->uid, f->op, f->val);
+			result = audit_uid_comparator(cred->uid, f->op, f->uid);
 			break;
 		case AUDIT_EUID:
-			result = audit_comparator(cred->euid, f->op, f->val);
+			result = audit_uid_comparator(cred->euid, f->op, f->uid);
 			break;
 		case AUDIT_SUID:
-			result = audit_comparator(cred->suid, f->op, f->val);
+			result = audit_uid_comparator(cred->suid, f->op, f->uid);
 			break;
 		case AUDIT_FSUID:
-			result = audit_comparator(cred->fsuid, f->op, f->val);
+			result = audit_uid_comparator(cred->fsuid, f->op, f->uid);
 			break;
 		case AUDIT_GID:
-			result = audit_comparator(cred->gid, f->op, f->val);
+			result = audit_gid_comparator(cred->gid, f->op, f->gid);
 			break;
 		case AUDIT_EGID:
-			result = audit_comparator(cred->egid, f->op, f->val);
+			result = audit_gid_comparator(cred->egid, f->op, f->gid);
 			break;
 		case AUDIT_SGID:
-			result = audit_comparator(cred->sgid, f->op, f->val);
+			result = audit_gid_comparator(cred->sgid, f->op, f->gid);
 			break;
 		case AUDIT_FSGID:
-			result = audit_comparator(cred->fsgid, f->op, f->val);
+			result = audit_gid_comparator(cred->fsgid, f->op, f->gid);
 			break;
 		case AUDIT_PERS:
 			result = audit_comparator(tsk->personality, f->op, f->val);
@@ -717,10 +707,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_OBJ_UID:
 			if (name) {
-				result = audit_comparator(name->uid, f->op, f->val);
+				result = audit_uid_comparator(name->uid, f->op, f->uid);
 			} else if (ctx) {
 				list_for_each_entry(n, &ctx->names_list, list) {
-					if (audit_comparator(n->uid, f->op, f->val)) {
+					if (audit_uid_comparator(n->uid, f->op, f->uid)) {
 						++result;
 						break;
 					}
@@ -729,10 +719,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_OBJ_GID:
 			if (name) {
-				result = audit_comparator(name->gid, f->op, f->val);
+				result = audit_gid_comparator(name->gid, f->op, f->gid);
 			} else if (ctx) {
 				list_for_each_entry(n, &ctx->names_list, list) {
-					if (audit_comparator(n->gid, f->op, f->val)) {
+					if (audit_gid_comparator(n->gid, f->op, f->gid)) {
 						++result;
 						break;
 					}
@@ -750,7 +740,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID:
 			result = 0;
 			if (ctx)
-				result = audit_comparator(tsk->loginuid, f->op, f->val);
+				result = audit_uid_comparator(tsk->loginuid, f->op, f->uid);
 			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
@@ -1006,7 +996,7 @@ static inline void audit_free_names(struct audit_context *context)
 		       context->ino_count);
 		list_for_each_entry(n, &context->names_list, list) {
 			printk(KERN_ERR "names[%d] = %p = %s\n", i,
-			       n->name, n->name ?: "(null)");
+			       n->name, n->name->name ?: "(null)");
 		}
 		dump_stack();
 		return;
@@ -1100,29 +1090,13 @@ int audit_alloc(struct task_struct *tsk)
 
 static inline void audit_free_context(struct audit_context *context)
 {
-	struct audit_context *previous;
-	int		     count = 0;
-
-	do {
-		previous = context->previous;
-		if (previous || (count &&  count < 10)) {
-			++count;
-			printk(KERN_ERR "audit(:%d): major=%d name_count=%d:"
-			       " freeing multiple contexts (%d)\n",
-			       context->serial, context->major,
-			       context->name_count, count);
-		}
-		audit_free_names(context);
-		unroll_tree_refs(context, NULL, 0);
-		free_tree_refs(context);
-		audit_free_aux(context);
-		kfree(context->filterkey);
-		kfree(context->sockaddr);
-		kfree(context);
-		context  = previous;
-	} while (context);
-	if (count >= 10)
-		printk(KERN_ERR "audit: freed %d contexts\n", count);
+	audit_free_names(context);
+	unroll_tree_refs(context, NULL, 0);
+	free_tree_refs(context);
+	audit_free_aux(context);
+	kfree(context->filterkey);
+	kfree(context->sockaddr);
+	kfree(context);
 }
 
 void audit_log_task_context(struct audit_buffer *ab)
@@ -1159,7 +1133,6 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	const struct cred *cred;
 	char name[sizeof(tsk->comm)];
 	struct mm_struct *mm = tsk->mm;
-	struct vm_area_struct *vma;
 	char *tty;
 
 	if (!ab)
@@ -1169,7 +1142,7 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	cred = current_cred();
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+	if (tsk->signal && tsk->signal->tty)
 		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";
@@ -1182,9 +1155,15 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 " egid=%u sgid=%u fsgid=%u ses=%u tty=%s",
 			 sys_getppid(),
 			 tsk->pid,
-			 tsk->loginuid, cred->uid, cred->gid,
-			 cred->euid, cred->suid, cred->fsuid,
-			 cred->egid, cred->sgid, cred->fsgid,
+			 from_kuid(&init_user_ns, tsk->loginuid),
+			 from_kuid(&init_user_ns, cred->uid),
+			 from_kgid(&init_user_ns, cred->gid),
+			 from_kuid(&init_user_ns, cred->euid),
+			 from_kuid(&init_user_ns, cred->suid),
+			 from_kuid(&init_user_ns, cred->fsuid),
+			 from_kgid(&init_user_ns, cred->egid),
+			 from_kgid(&init_user_ns, cred->sgid),
+			 from_kgid(&init_user_ns, cred->fsgid),
 			 tsk->sessionid, tty);
 
 	get_task_comm(name, tsk);
@@ -1193,16 +1172,8 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 
 	if (mm) {
 		down_read(&mm->mmap_sem);
-		vma = mm->mmap;
-		while (vma) {
-			if ((vma->vm_flags & VM_EXECUTABLE) &&
-			    vma->vm_file) {
-				audit_log_d_path(ab, " exe=",
-						 &vma->vm_file->f_path);
-				break;
-			}
-			vma = vma->vm_next;
-		}
+		if (mm->exe_file)
+			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
 		up_read(&mm->mmap_sem);
 	}
 	audit_log_task_context(ab);
@@ -1211,7 +1182,7 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 EXPORT_SYMBOL(audit_log_task_info);
 
 static int audit_log_pid_context(struct audit_context *context, pid_t pid,
-				 uid_t auid, uid_t uid, unsigned int sessionid,
+				 kuid_t auid, kuid_t uid, unsigned int sessionid,
 				 u32 sid, char *comm)
 {
 	struct audit_buffer *ab;
@@ -1223,8 +1194,9 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	if (!ab)
 		return rc;
 
-	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid, auid,
-			 uid, sessionid);
+	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid,
+			 from_kuid(&init_user_ns, auid),
+			 from_kuid(&init_user_ns, uid), sessionid);
 	if (security_secid_to_secctx(sid, &ctx, &len)) {
 		audit_log_format(ab, " obj=(none)");
 		rc = 1;
@@ -1474,7 +1446,9 @@ static void show_special(struct audit_context *context, int *call_panic)
 		u32 osid = context->ipc.osid;
 
 		audit_log_format(ab, "ouid=%u ogid=%u mode=%#ho",
-			 context->ipc.uid, context->ipc.gid, context->ipc.mode);
+				 from_kuid(&init_user_ns, context->ipc.uid),
+				 from_kgid(&init_user_ns, context->ipc.gid),
+				 context->ipc.mode);
 		if (osid) {
 			char *ctx = NULL;
 			u32 len;
@@ -1563,7 +1537,7 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 		case AUDIT_NAME_FULL:
 			/* log the full path */
 			audit_log_format(ab, " name=");
-			audit_log_untrustedstring(ab, n->name);
+			audit_log_untrustedstring(ab, n->name->name);
 			break;
 		case 0:
 			/* name was specified as a relative path and the
@@ -1573,7 +1547,7 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 		default:
 			/* log the name's directory component */
 			audit_log_format(ab, " name=");
-			audit_log_n_untrustedstring(ab, n->name,
+			audit_log_n_untrustedstring(ab, n->name->name,
 						    n->name_len);
 		}
 	} else
@@ -1587,8 +1561,8 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 				 MAJOR(n->dev),
 				 MINOR(n->dev),
 				 n->mode,
-				 n->uid,
-				 n->gid,
+				 from_kuid(&init_user_ns, n->uid),
+				 from_kgid(&init_user_ns, n->gid),
 				 MAJOR(n->rdev),
 				 MINOR(n->rdev));
 	}
@@ -1792,42 +1766,6 @@ void __audit_syscall_entry(int arch, int major,
 	if (!context)
 		return;
 
-	/*
-	 * This happens only on certain architectures that make system
-	 * calls in kernel_thread via the entry.S interface, instead of
-	 * with direct calls.  (If you are porting to a new
-	 * architecture, hitting this condition can indicate that you
-	 * got the _exit/_leave calls backward in entry.S.)
-	 *
-	 * i386     no
-	 * x86_64   no
-	 * ppc64    yes (see arch/powerpc/platforms/iseries/misc.S)
-	 *
-	 * This also happens with vm86 emulation in a non-nested manner
-	 * (entries without exits), so this case must be caught.
-	 */
-	if (context->in_syscall) {
-		struct audit_context *newctx;
-
-#if AUDIT_DEBUG
-		printk(KERN_ERR
-		       "audit(:%d) pid=%d in syscall=%d;"
-		       " entering syscall=%d\n",
-		       context->serial, tsk->pid, context->major, major);
-#endif
-		newctx = audit_alloc_context(context->state);
-		if (newctx) {
-			newctx->previous   = context;
-			context		   = newctx;
-			tsk->audit_context = newctx;
-		} else	{
-			/* If we can't alloc a new context, the best we
-			 * can do is to leak memory (any pending putname
-			 * will be lost).  The only other alternative is
-			 * to abandon auditing. */
-			audit_zero_context(context, context->state);
-		}
-	}
 	BUG_ON(context->in_syscall || context->name_count);
 
 	if (!audit_enabled)
@@ -1890,28 +1828,21 @@ void __audit_syscall_exit(int success, long return_code)
 	if (!list_empty(&context->killed_trees))
 		audit_kill_trees(&context->killed_trees);
 
-	if (context->previous) {
-		struct audit_context *new_context = context->previous;
-		context->previous  = NULL;
-		audit_free_context(context);
-		tsk->audit_context = new_context;
-	} else {
-		audit_free_names(context);
-		unroll_tree_refs(context, NULL, 0);
-		audit_free_aux(context);
-		context->aux = NULL;
-		context->aux_pids = NULL;
-		context->target_pid = 0;
-		context->target_sid = 0;
-		context->sockaddr_len = 0;
-		context->type = 0;
-		context->fds[0] = -1;
-		if (context->state != AUDIT_RECORD_CONTEXT) {
-			kfree(context->filterkey);
-			context->filterkey = NULL;
-		}
-		tsk->audit_context = context;
+	audit_free_names(context);
+	unroll_tree_refs(context, NULL, 0);
+	audit_free_aux(context);
+	context->aux = NULL;
+	context->aux_pids = NULL;
+	context->target_pid = 0;
+	context->target_sid = 0;
+	context->sockaddr_len = 0;
+	context->type = 0;
+	context->fds[0] = -1;
+	if (context->state != AUDIT_RECORD_CONTEXT) {
+		kfree(context->filterkey);
+		context->filterkey = NULL;
 	}
+	tsk->audit_context = context;
 }
 
 static inline void handle_one(const struct inode *inode)
@@ -2003,7 +1934,8 @@ retry:
 #endif
 }
 
-static struct audit_names *audit_alloc_name(struct audit_context *context)
+static struct audit_names *audit_alloc_name(struct audit_context *context,
+						unsigned char type)
 {
 	struct audit_names *aname;
 
@@ -2018,6 +1950,7 @@ static struct audit_names *audit_alloc_name(struct audit_context *context)
 	}
 
 	aname->ino = (unsigned long)-1;
+	aname->type = type;
 	list_add_tail(&aname->list, &context->names_list);
 
 	context->name_count++;
@@ -2028,13 +1961,36 @@ static struct audit_names *audit_alloc_name(struct audit_context *context)
 }
 
 /**
+ * audit_reusename - fill out filename with info from existing entry
+ * @uptr: userland ptr to pathname
+ *
+ * Search the audit_names list for the current audit context. If there is an
+ * existing entry with a matching "uptr" then return the filename
+ * associated with that audit_name. If not, return NULL.
+ */
+struct filename *
+__audit_reusename(const __user char *uptr)
+{
+	struct audit_context *context = current->audit_context;
+	struct audit_names *n;
+
+	list_for_each_entry(n, &context->names_list, list) {
+		if (!n->name)
+			continue;
+		if (n->name->uptr == uptr)
+			return n->name;
+	}
+	return NULL;
+}
+
+/**
  * audit_getname - add a name to the list
  * @name: name to add
  *
  * Add a name to the list of audit names for this context.
  * Called from fs/namei.c:getname().
  */
-void __audit_getname(const char *name)
+void __audit_getname(struct filename *name)
 {
 	struct audit_context *context = current->audit_context;
 	struct audit_names *n;
@@ -2048,13 +2004,19 @@ void __audit_getname(const char *name)
 		return;
 	}
 
-	n = audit_alloc_name(context);
+#if AUDIT_DEBUG
+	/* The filename _must_ have a populated ->name */
+	BUG_ON(!name->name);
+#endif
+
+	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
 		return;
 
 	n->name = name;
 	n->name_len = AUDIT_NAME_FULL;
 	n->name_put = true;
+	name->aname = n;
 
 	if (!context->pwd.dentry)
 		get_fs_pwd(current->fs, &context->pwd);
@@ -2067,7 +2029,7 @@ void __audit_getname(const char *name)
  * then we delay the putname until syscall exit.
  * Called from include/linux/fs.h:putname().
  */
-void audit_putname(const char *name)
+void audit_putname(struct filename *name)
 {
 	struct audit_context *context = current->audit_context;
 
@@ -2082,7 +2044,7 @@ void audit_putname(const char *name)
 
 			list_for_each_entry(n, &context->names_list, list)
 				printk(KERN_ERR "name[%d] = %p = %s\n", i,
-				       n->name, n->name ?: "(null)");
+				       n->name, n->name->name ?: "(null)");
 			}
 #endif
 		__putname(name);
@@ -2096,8 +2058,8 @@ void audit_putname(const char *name)
 			       " put_count=%d\n",
 			       __FILE__, __LINE__,
 			       context->serial, context->major,
-			       context->in_syscall, name, context->name_count,
-			       context->put_count);
+			       context->in_syscall, name->name,
+			       context->name_count, context->put_count);
 			dump_stack();
 		}
 	}
@@ -2140,13 +2102,13 @@ static void audit_copy_inode(struct audit_names *name, const struct dentry *dent
 }
 
 /**
- * audit_inode - store the inode and device from a lookup
+ * __audit_inode - store the inode and device from a lookup
  * @name: name being audited
  * @dentry: dentry being audited
- *
- * Called from fs/namei.c:path_lookup().
+ * @parent: does this dentry represent the parent?
  */
-void __audit_inode(const char *name, const struct dentry *dentry)
+void __audit_inode(struct filename *name, const struct dentry *dentry,
+		   unsigned int parent)
 {
 	struct audit_context *context = current->audit_context;
 	const struct inode *inode = dentry->d_inode;
@@ -2155,24 +2117,69 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 	if (!context->in_syscall)
 		return;
 
-	list_for_each_entry_reverse(n, &context->names_list, list) {
-		if (n->name && (n->name == name))
-			goto out;
+	if (!name)
+		goto out_alloc;
+
+#if AUDIT_DEBUG
+	/* The struct filename _must_ have a populated ->name */
+	BUG_ON(!name->name);
+#endif
+	/*
+	 * If we have a pointer to an audit_names entry already, then we can
+	 * just use it directly if the type is correct.
+	 */
+	n = name->aname;
+	if (n) {
+		if (parent) {
+			if (n->type == AUDIT_TYPE_PARENT ||
+			    n->type == AUDIT_TYPE_UNKNOWN)
+				goto out;
+		} else {
+			if (n->type != AUDIT_TYPE_PARENT)
+				goto out;
+		}
 	}
 
-	/* unable to find the name from a previous getname() */
-	n = audit_alloc_name(context);
+	list_for_each_entry_reverse(n, &context->names_list, list) {
+		/* does the name pointer match? */
+		if (!n->name || n->name->name != name->name)
+			continue;
+
+		/* match the correct record type */
+		if (parent) {
+			if (n->type == AUDIT_TYPE_PARENT ||
+			    n->type == AUDIT_TYPE_UNKNOWN)
+				goto out;
+		} else {
+			if (n->type != AUDIT_TYPE_PARENT)
+				goto out;
+		}
+	}
+
+out_alloc:
+	/* unable to find the name from a previous getname(). Allocate a new
+	 * anonymous entry.
+	 */
+	n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
 	if (!n)
 		return;
 out:
+	if (parent) {
+		n->name_len = n->name ? parent_len(n->name->name) : AUDIT_NAME_FULL;
+		n->type = AUDIT_TYPE_PARENT;
+	} else {
+		n->name_len = AUDIT_NAME_FULL;
+		n->type = AUDIT_TYPE_NORMAL;
+	}
 	handle_path(dentry);
 	audit_copy_inode(n, dentry, inode);
 }
 
 /**
- * audit_inode_child - collect inode info for created/removed objects
- * @dentry: dentry being audited
+ * __audit_inode_child - collect inode info for created/removed objects
  * @parent: inode of dentry parent
+ * @dentry: dentry being audited
+ * @type:   AUDIT_TYPE_* value that we're looking for
  *
  * For syscalls that create or remove filesystem objects, audit_inode
  * can only collect information for the filesystem object's parent.
@@ -2182,15 +2189,14 @@ out:
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const struct dentry *dentry,
-			 const struct inode *parent)
+void __audit_inode_child(const struct inode *parent,
+			 const struct dentry *dentry,
+			 const unsigned char type)
 {
 	struct audit_context *context = current->audit_context;
-	const char *found_parent = NULL, *found_child = NULL;
 	const struct inode *inode = dentry->d_inode;
 	const char *dname = dentry->d_name.name;
-	struct audit_names *n;
-	int dirlen = 0;
+	struct audit_names *n, *found_parent = NULL, *found_child = NULL;
 
 	if (!context->in_syscall)
 		return;
@@ -2198,62 +2204,65 @@ void __audit_inode_child(const struct dentry *dentry,
 	if (inode)
 		handle_one(inode);
 
-	/* parent is more likely, look for it first */
+	/* look for a parent entry first */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name)
+		if (!n->name || n->type != AUDIT_TYPE_PARENT)
 			continue;
 
 		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name, &dirlen)) {
-			n->name_len = dirlen; /* update parent data in place */
-			found_parent = n->name;
-			goto add_names;
+		    !audit_compare_dname_path(dname, n->name->name, n->name_len)) {
+			found_parent = n;
+			break;
 		}
 	}
 
-	/* no matching parent, look for matching child */
+	/* is there a matching child entry? */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name)
+		/* can only match entries that have a name */
+		if (!n->name || n->type != type)
 			continue;
 
-		/* strcmp() is the more likely scenario */
-		if (!strcmp(dname, n->name) ||
-		     !audit_compare_dname_path(dname, n->name, &dirlen)) {
-			if (inode)
-				audit_copy_inode(n, NULL, inode);
-			else
-				n->ino = (unsigned long)-1;
-			found_child = n->name;
-			goto add_names;
+		/* if we found a parent, make sure this one is a child of it */
+		if (found_parent && (n->name != found_parent->name))
+			continue;
+
+		if (!strcmp(dname, n->name->name) ||
+		    !audit_compare_dname_path(dname, n->name->name,
+						found_parent ?
+						found_parent->name_len :
+						AUDIT_NAME_FULL)) {
+			found_child = n;
+			break;
 		}
 	}
 
-add_names:
 	if (!found_parent) {
-		n = audit_alloc_name(context);
+		/* create a new, "anonymous" parent record */
+		n = audit_alloc_name(context, AUDIT_TYPE_PARENT);
 		if (!n)
 			return;
 		audit_copy_inode(n, NULL, parent);
 	}
 
 	if (!found_child) {
-		n = audit_alloc_name(context);
-		if (!n)
+		found_child = audit_alloc_name(context, type);
+		if (!found_child)
 			return;
 
 		/* Re-use the name belonging to the slot for a matching parent
 		 * directory. All names for this context are relinquished in
 		 * audit_free_names() */
 		if (found_parent) {
-			n->name = found_parent;
-			n->name_len = AUDIT_NAME_FULL;
+			found_child->name = found_parent->name;
+			found_child->name_len = AUDIT_NAME_FULL;
 			/* don't call __putname() */
-			n->name_put = false;
+			found_child->name_put = false;
 		}
-
-		if (inode)
-			audit_copy_inode(n, NULL, inode);
 	}
+	if (inode)
+		audit_copy_inode(found_child, dentry, inode);
+	else
+		found_child->ino = (unsigned long)-1;
 }
 EXPORT_SYMBOL_GPL(__audit_inode_child);
 
@@ -2293,14 +2302,14 @@ static atomic_t session_id = ATOMIC_INIT(0);
  *
  * Called (set) from fs/proc/base.c::proc_loginuid_write().
  */
-int audit_set_loginuid(uid_t loginuid)
+int audit_set_loginuid(kuid_t loginuid)
 {
 	struct task_struct *task = current;
 	struct audit_context *context = task->audit_context;
 	unsigned int sessionid;
 
 #ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
-	if (task->loginuid != -1)
+	if (uid_valid(task->loginuid))
 		return -EPERM;
 #else /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
 	if (!capable(CAP_AUDIT_CONTROL))
@@ -2316,8 +2325,10 @@ int audit_set_loginuid(uid_t loginuid)
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old auid=%u new auid=%u"
 				" old ses=%u new ses=%u",
-				task->pid, task_uid(task),
-				task->loginuid, loginuid,
+				task->pid,
+				from_kuid(&init_user_ns, task_uid(task)),
+				from_kuid(&init_user_ns, task->loginuid),
+				from_kuid(&init_user_ns, loginuid),
 				task->sessionid, sessionid);
 			audit_log_end(ab);
 		}
@@ -2540,12 +2551,12 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
-	uid_t uid = current_uid(), t_uid = task_uid(t);
+	kuid_t uid = current_uid(), t_uid = task_uid(t);
 
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
 			audit_sig_pid = tsk->pid;
-			if (tsk->loginuid != -1)
+			if (uid_valid(tsk->loginuid))
 				audit_sig_uid = tsk->loginuid;
 			else
 				audit_sig_uid = uid;
@@ -2666,8 +2677,8 @@ void __audit_mmap_fd(int fd, int flags)
 
 static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
 {
-	uid_t auid, uid;
-	gid_t gid;
+	kuid_t auid, uid;
+	kgid_t gid;
 	unsigned int sessionid;
 
 	auid = audit_get_loginuid(current);
@@ -2675,7 +2686,10 @@ static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
 	current_uid_gid(&uid, &gid);
 
 	audit_log_format(ab, "auid=%u uid=%u gid=%u ses=%u",
-			 auid, uid, gid, sessionid);
+			 from_kuid(&init_user_ns, auid),
+			 from_kuid(&init_user_ns, uid),
+			 from_kgid(&init_user_ns, gid),
+			 sessionid);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " pid=%d comm=", current->pid);
 	audit_log_untrustedstring(ab, current->comm);

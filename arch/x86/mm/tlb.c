@@ -98,11 +98,13 @@ static void flush_tlb_func(void *info)
 {
 	struct flush_tlb_info *f = info;
 
+	inc_irq_stat(irq_tlb_count);
+
 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
 		return;
 
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-		if (f->flush_end == TLB_FLUSH_ALL || !cpu_has_invlpg)
+		if (f->flush_end == TLB_FLUSH_ALL)
 			local_flush_tlb();
 		else if (!f->flush_end)
 			__flush_tlb_single(f->flush_start);
@@ -195,7 +197,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	}
 
 	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
-					|| vmflag == VM_HUGETLB) {
+					|| vmflag & VM_HUGETLB) {
 		local_flush_tlb();
 		goto flush_all;
 	}
@@ -320,7 +322,7 @@ static ssize_t tlbflush_write_file(struct file *file,
 	if (kstrtos8(buf, 0, &shift))
 		return -EINVAL;
 
-	if (shift > 64)
+	if (shift < -1 || shift >= BITS_PER_LONG)
 		return -EINVAL;
 
 	tlb_flushall_shift = shift;
@@ -335,10 +337,8 @@ static const struct file_operations fops_tlbflush = {
 
 static int __cpuinit create_tlb_flushall_shift(void)
 {
-	if (cpu_has_invlpg) {
-		debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
-			arch_debugfs_dir, NULL, &fops_tlbflush);
-	}
+	debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
+			    arch_debugfs_dir, NULL, &fops_tlbflush);
 	return 0;
 }
 late_initcall(create_tlb_flushall_shift);

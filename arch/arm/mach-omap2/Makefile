@@ -3,8 +3,9 @@
 #
 
 # Common support
-obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer.o pm.o \
-	 common.o gpio.o dma.o wd_timer.o display.o i2c.o hdq1w.o
+obj-y := id.o io.o control.o mux.o devices.o fb.o serial.o gpmc.o timer.o pm.o \
+	 common.o gpio.o dma.o wd_timer.o display.o i2c.o hdq1w.o omap_hwmod.o \
+	 omap_device.o sram.o
 
 omap-2-3-common				= irq.o
 hwmod-common				= omap_hwmod.o \
@@ -49,6 +50,11 @@ AFLAGS_sram242x.o			:=-Wa,-march=armv6
 AFLAGS_sram243x.o			:=-Wa,-march=armv6
 AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
 
+# Restart code (OMAP4/5 currently in omap4-common.c)
+obj-$(CONFIG_SOC_OMAP2420)		+= omap2-restart.o
+obj-$(CONFIG_SOC_OMAP2430)		+= omap2-restart.o
+obj-$(CONFIG_ARCH_OMAP3)		+= omap3-restart.o
+
 # Pin multiplexing
 obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
 obj-$(CONFIG_SOC_OMAP2430)		+= mux2430.o
@@ -67,6 +73,8 @@ obj-$(CONFIG_ARCH_OMAP4)		+= opp4xxx_data.o
 endif
 
 # Power Management
+obj-$(CONFIG_OMAP_PM_NOOP)		+= omap-pm-noop.o
+
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o
@@ -93,15 +101,15 @@ obj-$(CONFIG_ARCH_OMAP4)                += cpuidle44xx.o
 endif
 
 # PRCM
-omap-prcm-4-5-common			=  prcm.o cminst44xx.o cm44xx.o \
+obj-y					+= prm_common.o cm_common.o
+obj-$(CONFIG_ARCH_OMAP2)		+= prm2xxx_3xxx.o prm2xxx.o cm2xxx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= prm2xxx_3xxx.o prm3xxx.o cm3xxx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= vc3xxx_data.o vp3xxx_data.o
+obj-$(CONFIG_SOC_AM33XX)		+= prm33xx.o cm33xx.o
+omap-prcm-4-5-common			=  cminst44xx.o cm44xx.o prm44xx.o \
 					   prcm_mpu44xx.o prminst44xx.o \
 					   vc44xx_data.o vp44xx_data.o
-obj-y					+= prm_common.o
-obj-$(CONFIG_ARCH_OMAP2)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= vc3xxx_data.o vp3xxx_data.o
-obj-$(CONFIG_SOC_AM33XX)		+= prcm.o prm33xx.o cm33xx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-prcm-4-5-common) prm44xx.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(omap-prcm-4-5-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(omap-prcm-4-5-common)
 
 # OMAP voltage domains
@@ -120,40 +128,30 @@ obj-$(CONFIG_SOC_OMAP5)			+= $(voltagedomain-common)
 powerdomain-common			+= powerdomain.o powerdomain-common.o
 obj-$(CONFIG_ARCH_OMAP2)		+= $(powerdomain-common)
 obj-$(CONFIG_ARCH_OMAP2)		+= powerdomains2xxx_data.o
-obj-$(CONFIG_ARCH_OMAP2)		+= powerdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= powerdomains2xxx_3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(powerdomain-common)
-obj-$(CONFIG_ARCH_OMAP3)		+= powerdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= powerdomains3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= powerdomains2xxx_3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common)
-obj-$(CONFIG_ARCH_OMAP4)		+= powerdomain44xx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= powerdomains44xx_data.o
 obj-$(CONFIG_SOC_AM33XX)		+= $(powerdomain-common)
-obj-$(CONFIG_SOC_AM33XX)		+= powerdomain33xx.o
 obj-$(CONFIG_SOC_AM33XX)		+= powerdomains33xx_data.o
 obj-$(CONFIG_SOC_OMAP5)			+= $(powerdomain-common)
-obj-$(CONFIG_SOC_OMAP5)			+= powerdomain44xx.o
 
 # PRCM clockdomain control
 clockdomain-common			+= clockdomain.o
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clockdomain-common)
-obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clockdomains2xxx_3xxx_data.o
 obj-$(CONFIG_SOC_OMAP2420)		+= clockdomains2420_data.o
 obj-$(CONFIG_SOC_OMAP2430)		+= clockdomains2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clockdomain-common)
-obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clockdomains2xxx_3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clockdomains3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clockdomain-common)
-obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain44xx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= clockdomains44xx_data.o
 obj-$(CONFIG_SOC_AM33XX)		+= $(clockdomain-common)
-obj-$(CONFIG_SOC_AM33XX)		+= clockdomain33xx.o
 obj-$(CONFIG_SOC_AM33XX)		+= clockdomains33xx_data.o
 obj-$(CONFIG_SOC_OMAP5)			+= $(clockdomain-common)
-obj-$(CONFIG_SOC_OMAP5)			+= clockdomain44xx.o
 
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o
@@ -162,17 +160,17 @@ obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpllcore.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_virt_prcm_set.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_apll.o clkt2xxx_osc.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpll.o clkt_iclk.o
-obj-$(CONFIG_SOC_OMAP2420)		+= clock2420_data.o
-obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o clock2430_data.o
+obj-$(CONFIG_SOC_OMAP2420)		+= cclock2420_data.o
+obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o cclock2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clkt34xx_dpll3m2.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clock3517.o clock36xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= dpll3xxx.o clock3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= dpll3xxx.o cclock3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clkt_iclk.o
-obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) cclock44xx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= dpll3xxx.o dpll44xx.o
 obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common) dpll3xxx.o
-obj-$(CONFIG_SOC_AM33XX)		+= clock33xx_data.o
+obj-$(CONFIG_SOC_AM33XX)		+= cclock33xx_data.o
 obj-$(CONFIG_SOC_OMAP5)			+= $(clock-common)
 obj-$(CONFIG_SOC_OMAP5)			+= dpll3xxx.o dpll44xx.o
 
@@ -194,20 +192,15 @@ obj-$(CONFIG_SOC_OMAP2430)		+= omap_hwmod_2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_2xxx_3xxx_ipblock_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_2xxx_3xxx_interconnect_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
+obj-$(CONFIG_SOC_AM33XX)		+= omap_hwmod_33xx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
-
-# L3 interconnect
-obj-$(CONFIG_ARCH_OMAP3)		+= omap_l3_smx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= omap_l3_noc.o
-obj-$(CONFIG_SOC_OMAP5)			+= omap_l3_noc.o
+obj-$(CONFIG_HW_PERF_EVENTS)		+= pmu.o
 
 obj-$(CONFIG_OMAP_MBOX_FWK)		+= mailbox_mach.o
 mailbox_mach-objs			:= mailbox.o
-
-obj-$(CONFIG_OMAP_IOMMU)		+= iommu2.o
 
 iommu-$(CONFIG_OMAP_IOMMU)		:= omap-iommu.o
 obj-y					+= $(iommu-m) $(iommu-y)
@@ -302,4 +295,4 @@ endif
 emac-$(CONFIG_TI_DAVINCI_EMAC)		:= am35xx-emac.o
 obj-y					+= $(emac-m) $(emac-y)
 
-obj-y					+= common-board-devices.o twl-common.o
+obj-y					+= common-board-devices.o twl-common.o dss-common.o

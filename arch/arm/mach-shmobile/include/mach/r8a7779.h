@@ -71,7 +71,7 @@ enum {
 	GPIO_FN_A19,
 
 	/* IPSR0 */
-	GPIO_FN_PENC2, GPIO_FN_SCK0, GPIO_FN_PWM1, GPIO_FN_PWMFSW0,
+	GPIO_FN_USB_PENC2, GPIO_FN_SCK0, GPIO_FN_PWM1, GPIO_FN_PWMFSW0,
 	GPIO_FN_SCIF_CLK, GPIO_FN_TCLK0_C, GPIO_FN_BS, GPIO_FN_SD1_DAT2,
 	GPIO_FN_MMC0_D2, GPIO_FN_FD2, GPIO_FN_ATADIR0, GPIO_FN_SDSELF,
 	GPIO_FN_HCTS1, GPIO_FN_TX4_C, GPIO_FN_A0, GPIO_FN_SD1_DAT3,
@@ -347,17 +347,11 @@ extern int r8a7779_sysc_power_down(struct r8a7779_pm_ch *r8a7779_ch);
 extern int r8a7779_sysc_power_up(struct r8a7779_pm_ch *r8a7779_ch);
 
 #ifdef CONFIG_PM
-extern struct r8a7779_pm_domain r8a7779_sh4a;
-extern struct r8a7779_pm_domain r8a7779_sgx;
-extern struct r8a7779_pm_domain r8a7779_vdp1;
-extern struct r8a7779_pm_domain r8a7779_impx3;
-
-extern void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd);
-extern void r8a7779_add_device_to_domain(struct r8a7779_pm_domain *r8a7779_pd,
-					struct platform_device *pdev);
+extern void __init r8a7779_init_pm_domains(void);
 #else
-#define r8a7779_init_pm_domain(pd) do { } while (0)
-#define r8a7779_add_device_to_domain(pd, pdev) do { } while (0)
+static inline void r8a7779_init_pm_domains(void) {}
 #endif /* CONFIG_PM */
+
+extern struct smp_operations r8a7779_smp_ops;
 
 #endif /* __ASM_R8A7779_H__ */

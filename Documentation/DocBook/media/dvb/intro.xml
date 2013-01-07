@@ -205,7 +205,7 @@ a partial path like:</para>
 additional include file <emphasis
 role="tt">linux/dvb/version.h</emphasis> exists, which defines the
 constant <emphasis role="tt">DVB_API_VERSION</emphasis>. This document
-describes <emphasis role="tt">DVB_API_VERSION 5.4</emphasis>.
+describes <emphasis role="tt">DVB_API_VERSION 5.8</emphasis>.
 </para>
 
 </section>

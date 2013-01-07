@@ -47,6 +47,8 @@ Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
@@ -55,6 +57,8 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <pcmcia/ds.h>
 
 #include <linux/completion.h>
+
+#include "comedi_fc.h"
 
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
@@ -193,8 +197,8 @@ static struct comedi_driver driver_daqp = {
 
 static void daqp_dump(struct comedi_device *dev)
 {
-	printk(KERN_INFO "DAQP: status %02x; aux status %02x\n",
-	       inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
+	dev_info(dev->class_dev, "status %02x; aux status %02x\n",
+		 inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
 }
 
 static void hex_dump(char *str, void *ptr, int len)
@@ -253,33 +257,29 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	int status;
 
 	if (local == NULL) {
-		printk(KERN_WARNING
-		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
+		pr_warn("irq %d for unknown device.\n", irq);
 		return IRQ_NONE;
 	}
 
 	dev = local->dev;
 	if (dev == NULL) {
-		printk(KERN_WARNING "daqp_interrupt(): NULL comedi_device.\n");
+		pr_warn("NULL comedi_device.\n");
 		return IRQ_NONE;
 	}
 
 	if (!dev->attached) {
-		printk(KERN_WARNING
-		       "daqp_interrupt(): struct comedi_device not yet attached.\n");
+		pr_warn("struct comedi_device not yet attached.\n");
 		return IRQ_NONE;
 	}
 
 	s = local->s;
 	if (s == NULL) {
-		printk(KERN_WARNING
-		       "daqp_interrupt(): NULL comedi_subdevice.\n");
+		pr_warn("NULL comedi_subdevice.\n");
 		return IRQ_NONE;
 	}
 
 	if ((struct local_info_t *)s->private != local) {
-		printk(KERN_WARNING
-		       "daqp_interrupt(): invalid comedi_subdevice.\n");
+		pr_warn("invalid comedi_subdevice.\n");
 		return IRQ_NONE;
 	}
 
@@ -300,7 +300,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
 				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
-				printk("daqp: data lost\n");
+				dev_warn(dev->class_dev, "data lost\n");
 				daqp_ai_cancel(dev, s);
 				break;
 			}
@@ -329,8 +329,8 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		}
 
 		if (loop_limit <= 0) {
-			printk(KERN_WARNING
-			       "loop_limit reached in daqp_interrupt()\n");
+			dev_warn(dev->class_dev,
+				 "loop_limit reached in daqp_interrupt()\n");
 			daqp_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		}
@@ -395,9 +395,11 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	 */
 
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
+		;
 	if (!counter) {
-		printk("daqp: couldn't clear interrupts in status register\n");
+		dev_err(dev->class_dev,
+			"couldn't clear interrupts in status register\n");
 		return -1;
 	}
 
@@ -456,68 +458,39 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources
-	 * are unique and mutually compatible
-	 */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
-		err++;
-	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
 
-	if (cmd->scan_begin_src == TRIG_TIMER
-	    && cmd->scan_begin_arg < MAX_SPEED) {
-		cmd->scan_begin_arg = MAX_SPEED;
-		err++;
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SPEED);
 
 	/* If both scan_begin and convert are both timer values, the only
 	 * way that can make sense is if the scan time is the number of
@@ -526,30 +499,18 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER
 	    && cmd->scan_begin_arg != cmd->convert_arg * cmd->scan_end_arg) {
-		err++;
+		err |= -EINVAL;
 	}
 
-	if (cmd->convert_src == TRIG_TIMER && cmd->convert_arg < MAX_SPEED) {
-		cmd->convert_arg = MAX_SPEED;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, MAX_SPEED);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -757,10 +718,11 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 	counter = 100;
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
+		;
 	if (!counter) {
-		printk(KERN_ERR
-		       "daqp: couldn't clear interrupts in status register\n");
+		dev_err(dev->class_dev,
+			"couldn't clear interrupts in status register\n");
 		return -1;
 	}
 
@@ -847,8 +809,8 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
-		printk("comedi%d: No such daqp device %d\n",
-		       dev->minor, it->options[0]);
+		dev_err(dev->class_dev, "No such daqp device %d\n",
+			it->options[0]);
 		return -EIO;
 	}
 
@@ -875,10 +837,10 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO "comedi%d: attaching daqp%d (io 0x%04lx)\n",
-	       dev->minor, it->options[0], dev->iobase);
+	dev_info(dev->class_dev, "attaching daqp%d (io 0x%04lx)\n",
+		 it->options[0], dev->iobase);
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AI;
@@ -892,7 +854,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmd = daqp_ai_cmd;
 	s->cancel = daqp_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	dev->write_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AO;
@@ -903,7 +865,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_daqp_ao;
 	s->insn_write = daqp_ao_insn_write;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->private = local;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -911,7 +873,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->insn_read = daqp_di_insn_read;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->private = local;
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
@@ -981,7 +943,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 		if (dev_table[i] == NULL)
 			break;
 	if (i == MAX_DEV) {
-		printk(KERN_NOTICE "daqp_cs: no devices available\n");
+		dev_notice(&link->dev, "no devices available\n");
 		return -ENODEV;
 	}
 

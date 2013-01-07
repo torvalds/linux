@@ -29,8 +29,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
 
-#include <plat/cpu.h>
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 
 /* OMAP TRM gives bitfields as start:end, where start is the higher bit
    number. For example 7:0 */
@@ -876,7 +875,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
 		pr_debug("i: %d\n", i);
-		INIT_LIST_HEAD(&algs[i].cra_list);
 		err = crypto_register_alg(&algs[i]);
 		if (err)
 			goto err_algs;
@@ -941,11 +939,6 @@ static struct platform_driver omap_aes_driver = {
 static int __init omap_aes_mod_init(void)
 {
 	pr_info("loading %s driver\n", "omap-aes");
-
-	if (!cpu_class_is_omap2() || omap_type() != OMAP2_DEVICE_TYPE_SEC) {
-		pr_err("Unsupported cpu\n");
-		return -ENODEV;
-	}
 
 	return  platform_driver_register(&omap_aes_driver);
 }

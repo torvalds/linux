@@ -17,25 +17,26 @@
 #include <linux/mfd/max8997.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/machine.h>
 #include <linux/serial_core.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <plat/backlight.h>
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
-#include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/mfc.h>
-#include <plat/regs-fb.h>
 #include <plat/regs-serial.h>
 #include <plat/sdhci.h>
 
@@ -222,6 +223,10 @@ static struct platform_pwm_backlight_data smdk4x12_bl_data = {
 	.pwm_period_ns  = 1000,
 };
 
+static struct pwm_lookup smdk4x12_pwm_lookup[] = {
+	PWM_LOOKUP("s3c24xx-pwm.1", 0, "pwm-backlight.0", NULL),
+};
+
 static uint32_t smdk4x12_keymap[] __initdata = {
 	/* KEY(row, col, keycode) */
 	KEY(1, 3, KEY_1), KEY(1, 4, KEY_2), KEY(1, 5, KEY_3),
@@ -241,7 +246,7 @@ static struct samsung_keypad_platdata smdk4x12_keypad_data __initdata = {
 	.cols		= 8,
 };
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
 	.panel	= {
 		.timing	= {
@@ -312,9 +317,6 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&samsung_device_keypad,
 };
 
@@ -349,6 +351,7 @@ static void __init smdk4x12_machine_init(void)
 				ARRAY_SIZE(smdk4x12_i2c_devs7));
 
 	samsung_bl_set(&smdk4x12_bl_gpio_info, &smdk4x12_bl_data);
+	pwm_add_table(smdk4x12_pwm_lookup, ARRAY_SIZE(smdk4x12_pwm_lookup));
 
 	samsung_keypad_set_platdata(&smdk4x12_keypad_data);
 
@@ -357,7 +360,7 @@ static void __init smdk4x12_machine_init(void)
 
 	s3c_hsotg_set_platdata(&smdk4x12_hsotg_pdata);
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
 #else
@@ -370,6 +373,7 @@ static void __init smdk4x12_machine_init(void)
 MACHINE_START(SMDK4212, "SMDK4212")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdk4x12_map_io,
 	.handle_irq	= gic_handle_irq,
@@ -383,6 +387,7 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	/* Maintainer: Changhwan Youn <chaos.youn@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdk4x12_map_io,
 	.handle_irq	= gic_handle_irq,

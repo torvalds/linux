@@ -5,6 +5,7 @@
  */
 #include <linux/nfs_fs.h>
 #include "internal.h"
+#include "fscache.h"
 #include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
@@ -20,7 +21,6 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	struct iattr attr;
 	int err;
 
-	BUG_ON(inode != dentry->d_inode);
 	/*
 	 * If no cached dentry exists or if it's negative, NFSv4 handled the
 	 * opens in ->lookup() or ->create().
@@ -75,6 +75,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	nfs_file_set_open_context(filp, ctx);
+	nfs_fscache_set_inode_cookie(inode, filp);
 	err = 0;
 
 out_put_ctx:
@@ -95,16 +96,25 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (ret != 0)
-		goto out;
-	mutex_lock(&inode->i_mutex);
-	ret = nfs_file_fsync_commit(file, start, end, datasync);
-	if (!ret && !datasync)
-		/* application has asked for meta-data sync */
-		ret = pnfs_layoutcommit_inode(inode, true);
-	mutex_unlock(&inode->i_mutex);
-out:
+	do {
+		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+		if (ret != 0)
+			break;
+		mutex_lock(&inode->i_mutex);
+		ret = nfs_file_fsync_commit(file, start, end, datasync);
+		if (!ret && !datasync)
+			/* application has asked for meta-data sync */
+			ret = pnfs_layoutcommit_inode(inode, true);
+		mutex_unlock(&inode->i_mutex);
+		/*
+		 * If nfs_file_fsync_commit detected a server reboot, then
+		 * resend all dirty pages that might have been covered by
+		 * the NFS_CONTEXT_RESEND_WRITES flag
+		 */
+		start = 0;
+		end = LLONG_MAX;
+	} while (ret == -EAGAIN);
+
 	return ret;
 }
 

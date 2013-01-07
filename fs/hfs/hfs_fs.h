@@ -134,8 +134,8 @@ struct hfs_sb_info {
 						   permissions on all files */
 	umode_t s_dir_umask;			/* The umask applied to the
 						   permissions on all dirs */
-	uid_t s_uid;				/* The uid of all files */
-	gid_t s_gid;				/* The gid of all files */
+	kuid_t s_uid;				/* The uid of all files */
+	kgid_t s_gid;				/* The gid of all files */
 
 	int session, part;
 	struct nls_table *nls_io, *nls_disk;

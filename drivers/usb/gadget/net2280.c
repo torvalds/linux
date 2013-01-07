@@ -9,7 +9,7 @@
  * CODE STATUS HIGHLIGHTS
  *
  * This driver should work well with most "gadget" drivers, including
- * the File Storage, Serial, and Ethernet/RNDIS gadget drivers
+ * the Mass Storage, Serial, and Ethernet/RNDIS gadget drivers
  * as well as Gadget Zero and Gadgetfs.
  *
  * DMA is enabled by default.  Drivers using transfer queues might use

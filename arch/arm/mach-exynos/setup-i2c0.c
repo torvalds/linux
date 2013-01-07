@@ -14,13 +14,13 @@
 struct platform_device; /* don't need the contents */
 
 #include <linux/gpio.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
 #include <plat/cpu.h>
 
 void s3c_i2c0_cfg_gpio(struct platform_device *dev)
 {
-	if (soc_is_exynos5250())
+	if (soc_is_exynos5250() || soc_is_exynos5440())
 		/* will be implemented with gpio function */
 		return;
 

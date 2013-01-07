@@ -765,7 +765,7 @@ static void hvsi_flush_output(struct hvsi_struct *hp)
 
 	/* 'writer' could still be pending if it didn't see n_outbuf = 0 yet */
 	cancel_delayed_work_sync(&hp->writer);
-	flush_work_sync(&hp->handshaker);
+	flush_work(&hp->handshaker);
 
 	/*
 	 * it's also possible that our timeout expired and hvsi_write_worker
@@ -1080,6 +1080,8 @@ static int __init hvsi_init(void)
 		struct hvsi_struct *hp = &hvsi_ports[i];
 		int ret = 1;
 
+		tty_port_link_device(&hp->port, hvsi_driver, i);
+
 		ret = request_irq(hp->virq, hvsi_interrupt, 0, "hvsi", hp);
 		if (ret)
 			printk(KERN_ERR "HVSI: couldn't reserve irq 0x%x (error %i)\n",
@@ -1216,6 +1218,7 @@ static int __init hvsi_console_init(void)
 		if (hp->virq == 0) {
 			printk(KERN_ERR "%s: couldn't create irq mapping for 0x%x\n",
 				__func__, irq[0]);
+			tty_port_destroy(&hp->port);
 			continue;
 		}
 

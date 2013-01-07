@@ -223,7 +223,7 @@ static int wm831x_buckv_map_voltage(struct regulator_dev *rdev,
 	if (min_uV < 600000)
 		vsel = 0;
 	else if (min_uV <= 1800000)
-		vsel = ((min_uV - 600000) / 12500) + 8;
+		vsel = DIV_ROUND_UP(min_uV - 600000, 12500) + 8;
 	else
 		return -EINVAL;
 
@@ -290,7 +290,7 @@ static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
 	if (vsel > dcdc->dvs_vsel) {
 		ret = wm831x_set_bits(wm831x, dvs_reg,
 				      WM831X_DC1_DVS_VSEL_MASK,
-				      dcdc->dvs_vsel);
+				      vsel);
 		if (ret == 0)
 			dcdc->dvs_vsel = vsel;
 		else
@@ -339,16 +339,15 @@ static int wm831x_buckv_set_current_limit(struct regulator_dev *rdev,
 	u16 reg = dcdc->base + WM831X_DCDC_CONTROL_2;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(wm831x_dcdc_ilim); i++) {
+	for (i = ARRAY_SIZE(wm831x_dcdc_ilim) - 1; i >= 0; i--) {
 		if ((min_uA <= wm831x_dcdc_ilim[i]) &&
 		    (wm831x_dcdc_ilim[i] <= max_uA))
-			break;
+			return wm831x_set_bits(wm831x, reg,
+					       WM831X_DC1_HC_THR_MASK,
+						i << WM831X_DC1_HC_THR_SHIFT);
 	}
-	if (i == ARRAY_SIZE(wm831x_dcdc_ilim))
-		return -EINVAL;
 
-	return wm831x_set_bits(wm831x, reg, WM831X_DC1_HC_THR_MASK,
-			       i << WM831X_DC1_HC_THR_SHIFT);
+	return -EINVAL;
 }
 
 static int wm831x_buckv_get_current_limit(struct regulator_dev *rdev)
@@ -388,7 +387,7 @@ static struct regulator_ops wm831x_buckv_ops = {
  * Set up DVS control.  We just log errors since we can still run
  * (with reduced performance) if we fail.
  */
-static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
+static void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 					    struct wm831x_buckv_pdata *pdata)
 {
 	struct wm831x *wm831x = dcdc->wm831x;
@@ -449,7 +448,7 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	}
 }
 
-static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
+static int wm831x_buckv_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -476,9 +475,9 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -563,7 +562,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
+static int wm831x_buckv_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = dcdc->wm831x;
@@ -583,7 +582,7 @@ static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
-	.remove = __devexit_p(wm831x_buckv_remove),
+	.remove = wm831x_buckv_remove,
 	.driver		= {
 		.name	= "wm831x-buckv",
 		.owner	= THIS_MODULE,
@@ -624,7 +623,7 @@ static struct regulator_ops wm831x_buckp_ops = {
 	.set_suspend_mode = wm831x_dcdc_set_suspend_mode,
 };
 
-static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
+static int wm831x_buckp_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -651,9 +650,9 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -711,7 +710,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
+static int wm831x_buckp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
@@ -726,7 +725,7 @@ static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
-	.remove = __devexit_p(wm831x_buckp_remove),
+	.remove = wm831x_buckp_remove,
 	.driver		= {
 		.name	= "wm831x-buckp",
 		.owner	= THIS_MODULE,
@@ -772,7 +771,7 @@ static struct regulator_ops wm831x_boostp_ops = {
 	.disable = regulator_disable_regmap,
 };
 
-static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
+static int wm831x_boostp_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -795,9 +794,9 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -846,7 +845,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
+static int wm831x_boostp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
@@ -861,7 +860,7 @@ static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
-	.remove = __devexit_p(wm831x_boostp_remove),
+	.remove = wm831x_boostp_remove,
 	.driver		= {
 		.name	= "wm831x-boostp",
 		.owner	= THIS_MODULE,
@@ -884,7 +883,7 @@ static struct regulator_ops wm831x_epe_ops = {
 	.get_status = wm831x_dcdc_get_status,
 };
 
-static __devinit int wm831x_epe_probe(struct platform_device *pdev)
+static int wm831x_epe_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -937,7 +936,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_epe_remove(struct platform_device *pdev)
+static int wm831x_epe_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
@@ -949,7 +948,7 @@ static __devexit int wm831x_epe_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
-	.remove = __devexit_p(wm831x_epe_remove),
+	.remove = wm831x_epe_remove,
 	.driver		= {
 		.name	= "wm831x-epe",
 		.owner	= THIS_MODULE,
@@ -994,4 +993,5 @@ MODULE_DESCRIPTION("WM831x DC-DC convertor driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wm831x-buckv");
 MODULE_ALIAS("platform:wm831x-buckp");
+MODULE_ALIAS("platform:wm831x-boostp");
 MODULE_ALIAS("platform:wm831x-epe");

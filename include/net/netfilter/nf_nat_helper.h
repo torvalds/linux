@@ -10,6 +10,7 @@ struct sk_buff;
 extern int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 				      struct nf_conn *ct,
 				      enum ip_conntrack_info ctinfo,
+				      unsigned int protoff,
 				      unsigned int match_offset,
 				      unsigned int match_len,
 				      const char *rep_buffer,
@@ -18,12 +19,13 @@ extern int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 static inline int nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 					   struct nf_conn *ct,
 					   enum ip_conntrack_info ctinfo,
+					   unsigned int protoff,
 					   unsigned int match_offset,
 					   unsigned int match_len,
 					   const char *rep_buffer,
 					   unsigned int rep_len)
 {
-	return __nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
+	return __nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
 					  match_offset, match_len,
 					  rep_buffer, rep_len, true);
 }
@@ -31,6 +33,7 @@ static inline int nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 extern int nf_nat_mangle_udp_packet(struct sk_buff *skb,
 				    struct nf_conn *ct,
 				    enum ip_conntrack_info ctinfo,
+				    unsigned int protoff,
 				    unsigned int match_offset,
 				    unsigned int match_len,
 				    const char *rep_buffer,
@@ -41,10 +44,12 @@ extern void nf_nat_set_seq_adjust(struct nf_conn *ct,
 				  __be32 seq, s16 off);
 extern int nf_nat_seq_adjust(struct sk_buff *skb,
 			     struct nf_conn *ct,
-			     enum ip_conntrack_info ctinfo);
+			     enum ip_conntrack_info ctinfo,
+			     unsigned int protoff);
 extern int (*nf_nat_seq_adjust_hook)(struct sk_buff *skb,
 				     struct nf_conn *ct,
-				     enum ip_conntrack_info ctinfo);
+				     enum ip_conntrack_info ctinfo,
+				     unsigned int protoff);
 
 /* Setup NAT on this expected conntrack so it follows master, but goes
  * to port ct->master->saved_proto. */

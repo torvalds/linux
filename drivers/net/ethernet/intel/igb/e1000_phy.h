@@ -111,8 +111,9 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define I82580_PHY_STATUS2_SPEED_100MBPS  0x0100
 
 /* I82580 PHY Control 2 */
-#define I82580_PHY_CTRL2_AUTO_MDIX        0x0400
-#define I82580_PHY_CTRL2_FORCE_MDI_MDIX   0x0200
+#define I82580_PHY_CTRL2_MANUAL_MDIX      0x0200
+#define I82580_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
+#define I82580_PHY_CTRL2_MDIX_CFG_MASK    0x0600
 
 /* I82580 PHY Diagnostics Status */
 #define I82580_DSTATUS_CABLE_LENGTH       0x03FC
@@ -123,6 +124,7 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
 #define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
 #define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
+#define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
 
 /* Enable flexible speed on link-up */
 #define IGP02E1000_PM_D0_LPLU             0x0002 /* For D0a states */

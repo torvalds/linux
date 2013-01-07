@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* LDO registers and some handy masking definitions for AB3100 */
@@ -347,17 +348,11 @@ static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 	return abreg->plfdata->external_voltage;
 }
 
-static int ab3100_get_fixed_voltage_regulator(struct regulator_dev *reg)
-{
-	return reg->desc->min_uV;
-}
-
 static struct regulator_ops regulator_ops_fixed = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
-	.get_voltage = ab3100_get_fixed_voltage_regulator,
 };
 
 static struct regulator_ops regulator_ops_variable = {
@@ -499,7 +494,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
  * for all the different regulators.
  */
 
-static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
+static int ab3100_regulators_probe(struct platform_device *pdev)
 {
 	struct ab3100_platform_data *plfdata = pdev->dev.platform_data;
 	struct regulator_config config = { };
@@ -576,7 +571,7 @@ static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ab3100_regulators_remove(struct platform_device *pdev)
+static int ab3100_regulators_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -594,7 +589,7 @@ static struct platform_driver ab3100_regulators_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab3100_regulators_probe,
-	.remove = __devexit_p(ab3100_regulators_remove),
+	.remove = ab3100_regulators_remove,
 };
 
 static __init int ab3100_regulators_init(void)

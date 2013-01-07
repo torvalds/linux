@@ -675,7 +675,7 @@ static struct sbs_platform_data *sbs_of_populate_pdata(
 }
 #endif
 
-static int __devinit sbs_probe(struct i2c_client *client,
+static int sbs_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sbs_info *chip;
@@ -759,6 +759,16 @@ static int __devinit sbs_probe(struct i2c_client *client,
 	chip->irq = irq;
 
 skip_gpio:
+	/*
+	 * Before we register, we need to make sure we can actually talk
+	 * to the battery.
+	 */
+	rc = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+	if (rc < 0) {
+		dev_err(&client->dev, "%s: Failed to get device status\n",
+			__func__);
+		goto exit_psupply;
+	}
 
 	rc = power_supply_register(&client->dev, &chip->power_supply);
 	if (rc) {
@@ -790,7 +800,7 @@ exit_free_name:
 	return rc;
 }
 
-static int __devexit sbs_remove(struct i2c_client *client)
+static int sbs_remove(struct i2c_client *client)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 
@@ -843,7 +853,7 @@ MODULE_DEVICE_TABLE(i2c, sbs_id);
 
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
-	.remove		= __devexit_p(sbs_remove),
+	.remove		= sbs_remove,
 	.suspend	= sbs_suspend,
 	.resume		= sbs_resume,
 	.id_table	= sbs_id,

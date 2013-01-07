@@ -66,6 +66,8 @@
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
 
+#include "sh-gpio.h"
+
 /*
  * Address	Interface		BusWidth	note
  * ------------------------------------------------------------------
@@ -432,7 +434,7 @@ static void usb1_host_port_power(int port, int power)
 		return;
 
 	/* set VBOUT/PWEN and EXTLP1 in DVSTCTR */
-	__raw_writew(__raw_readw(0xE68B0008) | 0x600, 0xE68B0008);
+	__raw_writew(__raw_readw(IOMEM(0xE68B0008)) | 0x600, IOMEM(0xE68B0008));
 }
 
 static struct r8a66597_platdata usb1_host_data = {
@@ -550,11 +552,9 @@ static struct resource mipidsi0_resources[] = {
 	},
 };
 
-static struct sh_mobile_lcdc_info lcdc_info;
-
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
-	.lcd_chan	= &lcdc_info.ch[0],
+	.channel	= LCDC_CHAN_MAINLCD,
 	.lane		= 2,
 	.vsynw_offset	= 17,
 	.phyctrl	= 0x6 << 8,
@@ -656,133 +656,16 @@ static struct platform_device lcdc_device = {
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
-static int __fsi_set_rate(struct clk *clk, long rate, int enable)
-{
-	int ret = 0;
-
-	if (rate <= 0)
-		return ret;
-
-	if (enable) {
-		ret = clk_set_rate(clk, rate);
-		if (0 == ret)
-			ret = clk_enable(clk);
-	} else {
-		clk_disable(clk);
-	}
-
-	return ret;
-}
-
-static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
-{
-	return __fsi_set_rate(clk, clk_round_rate(clk, rate), enable);
-}
-
-static int fsi_ak4642_set_rate(struct device *dev, int rate, int enable)
-{
-	struct clk *fsia_ick;
-	struct clk *fsiack;
-	int ret = -EIO;
-
-	fsia_ick = clk_get(dev, "icka");
-	if (IS_ERR(fsia_ick))
-		return PTR_ERR(fsia_ick);
-
-	/*
-	 * FSIACK is connected to AK4642,
-	 * and use external clock pin from it.
-	 * it is parent of fsia_ick now.
-	 */
-	fsiack = clk_get_parent(fsia_ick);
-	if (!fsiack)
-		goto fsia_ick_out;
-
-	/*
-	 * we get 1/1 divided clock by setting same rate to fsiack and fsia_ick
-	 *
-	 ** FIXME **
-	 * Because the freq_table of external clk (fsiack) are all 0,
-	 * the return value of clk_round_rate became 0.
-	 * So, it use __fsi_set_rate here.
-	 */
-	ret = __fsi_set_rate(fsiack, rate, enable);
-	if (ret < 0)
-		goto fsiack_out;
-
-	ret = __fsi_set_round_rate(fsia_ick, rate, enable);
-	if ((ret < 0) && enable)
-		__fsi_set_round_rate(fsiack, rate, 0); /* disable FSI ACK */
-
-fsiack_out:
-	clk_put(fsiack);
-
-fsia_ick_out:
-	clk_put(fsia_ick);
-
-	return 0;
-}
-
-static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
-{
-	struct clk *fsib_clk;
-	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
-	long fsib_rate = 0;
-	long fdiv_rate = 0;
-	int ackmd_bpfmd;
-	int ret;
-
-	switch (rate) {
-	case 44100:
-		fsib_rate	= rate * 256;
-		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
-		break;
-	case 48000:
-		fsib_rate	= 85428000; /* around 48kHz x 256 x 7 */
-		fdiv_rate	= rate * 256;
-		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
-		break;
-	default:
-		pr_err("unsupported rate in FSI2 port B\n");
-		return -EINVAL;
-	}
-
-	/* FSI B setting */
-	fsib_clk = clk_get(dev, "ickb");
-	if (IS_ERR(fsib_clk))
-		return -EIO;
-
-	ret = __fsi_set_round_rate(fsib_clk, fsib_rate, enable);
-	if (ret < 0)
-		goto fsi_set_rate_end;
-
-	/* FSI DIV setting */
-	ret = __fsi_set_round_rate(fdiv_clk, fdiv_rate, enable);
-	if (ret < 0) {
-		/* disable FSI B */
-		if (enable)
-			__fsi_set_round_rate(fsib_clk, fsib_rate, 0);
-		goto fsi_set_rate_end;
-	}
-
-	ret = ackmd_bpfmd;
-
-fsi_set_rate_end:
-	clk_put(fsib_clk);
-	return ret;
-}
-
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
 		.flags		= SH_FSI_BRS_INV,
-		.set_rate	= fsi_ak4642_set_rate,
 	},
 	.port_b = {
 		.flags		= SH_FSI_BRS_INV |
 				  SH_FSI_BRM_INV |
 				  SH_FSI_LRS_INV |
+				  SH_FSI_CLK_CPG |
 				  SH_FSI_FMT_SPDIF,
-		.set_rate	= fsi_hdmi_set_rate,
 	},
 };
 
@@ -1142,25 +1025,6 @@ out:
 		clk_put(hdmi_ick);
 }
 
-static void __init fsi_init_pm_clock(void)
-{
-	struct clk *fsia_ick;
-	int ret;
-
-	fsia_ick = clk_get(&fsi_device.dev, "icka");
-	if (IS_ERR(fsia_ick)) {
-		ret = PTR_ERR(fsia_ick);
-		pr_err("Cannot get FSI ICK: %d\n", ret);
-		return;
-	}
-
-	ret = clk_set_parent(fsia_ick, &sh7372_fsiack_clk);
-	if (ret < 0)
-		pr_err("Cannot set FSI-A parent: %d\n", ret);
-
-	clk_put(fsia_ick);
-}
-
 /* TouchScreen */
 #ifdef CONFIG_AP4EVB_QHD
 # define GPIO_TSC_IRQ	GPIO_FN_IRQ28_123
@@ -1224,11 +1088,20 @@ static struct i2c_board_info i2c1_devices[] = {
 };
 
 
-#define GPIO_PORT9CR	0xE6051009
-#define GPIO_PORT10CR	0xE605100A
-#define USCCR1		0xE6058144
+#define GPIO_PORT9CR	IOMEM(0xE6051009)
+#define GPIO_PORT10CR	IOMEM(0xE605100A)
+#define USCCR1		IOMEM(0xE6058144)
 static void __init ap4evb_init(void)
 {
+	struct pm_domain_device domain_devices[] = {
+		{ "A4LC", &lcdc1_device, },
+		{ "A4LC", &lcdc_device, },
+		{ "A4MP", &fsi_device, },
+		{ "A3SP", &sh_mmcif_device, },
+		{ "A3SP", &sdhi0_device, },
+		{ "A3SP", &sdhi1_device, },
+		{ "A4R", &ceu_device, },
+	};
 	u32 srcr4;
 	struct clk *clk;
 
@@ -1304,7 +1177,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR4 */
+	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
 
 	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
@@ -1453,7 +1326,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
-#define SRCR4 0xe61580bc
+#define SRCR4 IOMEM(0xe61580bc)
 	srcr4 = __raw_readl(SRCR4);
 	__raw_writel(srcr4 | (1 << 13), SRCR4);
 	udelay(50);
@@ -1461,17 +1334,10 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
-
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 
 	hdmi_init_pm_clock();
-	fsi_init_pm_clock();
 	sh7372_pm_init();
 	pm_clk_add(&fsi_device.dev, "spu2");
 	pm_clk_add(&lcdc1_device.dev, "hdmi");
@@ -1483,6 +1349,6 @@ MACHINE_START(AP4EVB, "ap4evb")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
-	.init_late	= shmobile_init_late,
+	.init_late	= sh7372_pm_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

@@ -141,8 +141,10 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		return -ENOMEM;
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
-	if (ret < 0)
-		goto out_abort;
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto out;
+	}
 
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
@@ -166,16 +168,23 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_release_path(path);
 		ret = btrfs_search_slot(trans, root, key, path,
 				-1, 1);
-		if (ret < 0)
-			goto out_abort;
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out;
+		}
+
 		ret = btrfs_del_item(trans, root, path);
-		if (ret < 0)
-			goto out_abort;
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out;
+		}
 		btrfs_release_path(path);
 		ret = btrfs_insert_empty_item(trans, root, path,
 				key, sizeof(*item));
-		if (ret < 0)
-			goto out_abort;
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto out;
+		}
 		l = path->nodes[0];
 		slot = path->slots[0];
 		ptr = btrfs_item_ptr_offset(l, slot);
@@ -192,10 +201,6 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 out:
 	btrfs_free_path(path);
 	return ret;
-
-out_abort:
-	btrfs_abort_transaction(trans, root, ret);
-	goto out;
 }
 
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -543,9 +548,9 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 	struct btrfs_root_item *item = &root->root_item;
 	struct timespec ct = CURRENT_TIME;
 
-	spin_lock(&root->root_times_lock);
+	spin_lock(&root->root_item_lock);
 	item->ctransid = cpu_to_le64(trans->transid);
 	item->ctime.sec = cpu_to_le64(ct.tv_sec);
 	item->ctime.nsec = cpu_to_le32(ct.tv_nsec);
-	spin_unlock(&root->root_times_lock);
+	spin_unlock(&root->root_item_lock);
 }

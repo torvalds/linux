@@ -19,7 +19,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
-#include <plat/mvsdio.h>
+#include <linux/platform_data/mmc-mvsdio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -117,7 +117,7 @@ static void __init sheevaplug_init(void)
 
 	if (gpio_request(29, "USB Power Enable") != 0 ||
 	    gpio_direction_output(29, 1) != 0)
-		printk(KERN_ERR "can't set up GPIO 29 (USB Power Enable)\n");
+		pr_err("can't set up GPIO 29 (USB Power Enable)\n");
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&sheevaplug_ge00_data);

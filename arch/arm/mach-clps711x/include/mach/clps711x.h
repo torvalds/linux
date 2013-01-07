@@ -31,8 +31,8 @@
 #define PBDDR		(0x0041)
 #define PCDDR		(0x0042)
 #define PDDDR		(0x0043)
-#define PEDR		(0x0080)
-#define PEDDR		(0x00c0)
+#define PEDR		(0x0083)
+#define PEDDR		(0x00c3)
 #define SYSCON1		(0x0100)
 #define SYSFLG1		(0x0140)
 #define MEMCFG1		(0x0180)
@@ -77,7 +77,7 @@
 #define KBDEOI		(0x1700)
 
 #define DAIR		(0x2000)
-#define DAIR0		(0x2040)
+#define DAIDR0		(0x2040)
 #define DAIDR1		(0x2080)
 #define DAIDR2		(0x20c0)
 #define DAISR		(0x2100)
@@ -191,8 +191,7 @@
 #define UBRLCR_WRDLEN8		(3 << 17)
 #define UBRLCR_WRDLEN_MASK	(3 << 17)
 
-#define SYNCIO_FRMLEN(x)	(((x) & 0x3f) << 7)
-#define SYNCIO_CFGLEN(x)	((x) & 0x7f)
+#define SYNCIO_FRMLEN(x)	(((x) & 0x1f) << 8)
 #define SYNCIO_SMCKEN		(1 << 13)
 #define SYNCIO_TXFRMEN		(1 << 14)
 
@@ -258,6 +257,9 @@
 #define MEMCFG_BUS_WIDTH_16	(0)
 #define MEMCFG_BUS_WIDTH_8	(3)
 
+#define MEMCFG_SQAEN		(1 << 6)
+#define MEMCFG_CLKENB		(1 << 7)
+
 #define MEMCFG_WAITSTATE_8_3	(0 << 2)
 #define MEMCFG_WAITSTATE_7_3	(1 << 2)
 #define MEMCFG_WAITSTATE_6_3	(2 << 2)
@@ -274,5 +276,29 @@
 #define MEMCFG_WAITSTATE_3_0	(13 << 2)
 #define MEMCFG_WAITSTATE_2_0	(14 << 2)
 #define MEMCFG_WAITSTATE_1_0	(15 << 2)
+
+/* INTSR1 Interrupts */
+#define IRQ_CSINT		(4)
+#define IRQ_EINT1		(5)
+#define IRQ_EINT2		(6)
+#define IRQ_EINT3		(7)
+#define IRQ_TC1OI		(8)
+#define IRQ_TC2OI		(9)
+#define IRQ_RTCMI		(10)
+#define IRQ_TINT		(11)
+#define IRQ_UTXINT1		(12)
+#define IRQ_URXINT1		(13)
+#define IRQ_UMSINT		(14)
+#define IRQ_SSEOTI		(15)
+
+/* INTSR2 Interrupts */
+#define IRQ_KBDINT		(16 + 0)
+#define IRQ_SS2RX		(16 + 1)
+#define IRQ_SS2TX		(16 + 2)
+#define IRQ_UTXINT2		(16 + 12)
+#define IRQ_URXINT2		(16 + 13)
+
+/* INTSR3 Interrupts */
+#define IRQ_DAIINT		(32 + 0)
 
 #endif /* __MACH_CLPS711X_H */

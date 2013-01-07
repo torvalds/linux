@@ -55,6 +55,7 @@
 #include "export.h"
 #include "compression.h"
 #include "rcu-string.h"
+#include "dev-replace.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
@@ -116,7 +117,16 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
 		sb->s_flags |= MS_RDONLY;
 		printk(KERN_INFO "btrfs is forced readonly\n");
-		__btrfs_scrub_cancel(fs_info);
+		/*
+		 * Note that a running device replace operation is not
+		 * canceled here although there is no way to update
+		 * the progress. It would add the risk of a deadlock,
+		 * therefore the canceling is ommited. The only penalty
+		 * is that some I/O remains active until the procedure
+		 * completes. The next time when the filesystem is
+		 * mounted writeable again, the device replace
+		 * operation continues.
+		 */
 //		WARN_ON(1);
 	}
 }
@@ -243,12 +253,18 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, const char *function,
 			       unsigned int line, int errno)
 {
-	WARN_ONCE(1, KERN_DEBUG "btrfs: Transaction aborted");
+	WARN_ONCE(1, KERN_DEBUG "btrfs: Transaction aborted\n");
 	trans->aborted = errno;
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
 	if (!trans->blocks_used) {
-		btrfs_printk(root->fs_info, "Aborting unused transaction.\n");
+		char nbuf[16];
+		const char *errstr;
+
+		errstr = btrfs_decode_error(root->fs_info, errno, nbuf);
+		btrfs_printk(root->fs_info,
+			     "%s:%d: Aborting unused transaction(%s).\n",
+			     function, line, errstr);
 		return;
 	}
 	trans->transaction->aborted = errno;
@@ -407,7 +423,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
 		case Opt_nodatacow:
-			printk(KERN_INFO "btrfs: setting nodatacow\n");
+			if (!btrfs_test_opt(root, COMPRESS) ||
+				!btrfs_test_opt(root, FORCE_COMPRESS)) {
+					printk(KERN_INFO "btrfs: setting nodatacow, compression disabled\n");
+			} else {
+				printk(KERN_INFO "btrfs: setting nodatacow\n");
+			}
+			info->compress_type = BTRFS_COMPRESS_NONE;
+			btrfs_clear_opt(info->mount_opt, COMPRESS);
+			btrfs_clear_opt(info->mount_opt, FORCE_COMPRESS);
 			btrfs_set_opt(info->mount_opt, NODATACOW);
 			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
@@ -422,10 +446,14 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				compress_type = "zlib";
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
 				btrfs_set_opt(info->mount_opt, COMPRESS);
+				btrfs_clear_opt(info->mount_opt, NODATACOW);
+				btrfs_clear_opt(info->mount_opt, NODATASUM);
 			} else if (strcmp(args[0].from, "lzo") == 0) {
 				compress_type = "lzo";
 				info->compress_type = BTRFS_COMPRESS_LZO;
 				btrfs_set_opt(info->mount_opt, COMPRESS);
+				btrfs_clear_opt(info->mount_opt, NODATACOW);
+				btrfs_clear_opt(info->mount_opt, NODATASUM);
 				btrfs_set_fs_incompat(info, COMPRESS_LZO);
 			} else if (strncmp(args[0].from, "no", 2) == 0) {
 				compress_type = "no";
@@ -543,11 +571,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, ENOSPC_DEBUG);
 			break;
 		case Opt_defrag:
-			printk(KERN_INFO "btrfs: enabling auto defrag");
+			printk(KERN_INFO "btrfs: enabling auto defrag\n");
 			btrfs_set_opt(info->mount_opt, AUTO_DEFRAG);
 			break;
 		case Opt_recovery:
-			printk(KERN_INFO "btrfs: enabling auto recovery");
+			printk(KERN_INFO "btrfs: enabling auto recovery\n");
 			btrfs_set_opt(info->mount_opt, RECOVERY);
 			break;
 		case Opt_skip_balance:
@@ -846,18 +874,15 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 
-	btrfs_wait_ordered_extents(root, 0, 0);
+	btrfs_wait_ordered_extents(root, 0);
 
-	spin_lock(&fs_info->trans_lock);
-	if (!fs_info->running_transaction) {
-		spin_unlock(&fs_info->trans_lock);
-		return 0;
-	}
-	spin_unlock(&fs_info->trans_lock);
-
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
+	trans = btrfs_attach_transaction(root);
+	if (IS_ERR(trans)) {
+		/* no transaction, don't bother */
+		if (PTR_ERR(trans) == -ENOENT)
+			return 0;
 		return PTR_ERR(trans);
+	}
 	return btrfs_commit_transaction(trans, root);
 }
 
@@ -1171,7 +1196,8 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 	btrfs_set_max_workers(&fs_info->endio_freespace_worker, new_pool_size);
 	btrfs_set_max_workers(&fs_info->delayed_workers, new_pool_size);
 	btrfs_set_max_workers(&fs_info->readahead_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->scrub_workers, new_pool_size);
+	btrfs_set_max_workers(&fs_info->scrub_wr_completion_workers,
+			      new_pool_size);
 }
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data)
@@ -1200,13 +1226,29 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 
 	if (*flags & MS_RDONLY) {
+		/*
+		 * this also happens on 'umount -rf' or on shutdown, when
+		 * the filesystem is busy.
+		 */
 		sb->s_flags |= MS_RDONLY;
+
+		btrfs_dev_replace_suspend_for_unmount(fs_info);
+		btrfs_scrub_cancel(fs_info);
 
 		ret = btrfs_commit_super(root);
 		if (ret)
 			goto restore;
 	} else {
 		if (fs_info->fs_devices->rw_devices == 0) {
+			ret = -EACCES;
+			goto restore;
+		}
+
+		if (fs_info->fs_devices->missing_devices >
+		     fs_info->num_tolerated_disk_barrier_failures &&
+		    !(*flags & MS_RDONLY)) {
+			printk(KERN_WARNING
+			       "Btrfs: too many missing devices, writeable remount is not allowed\n");
 			ret = -EACCES;
 			goto restore;
 		}
@@ -1229,6 +1271,11 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (ret)
 			goto restore;
 
+		ret = btrfs_resume_dev_replace_async(fs_info);
+		if (ret) {
+			pr_warn("btrfs: failed to resume dev_replace\n");
+			goto restore;
+		}
 		sb->s_flags &= ~MS_RDONLY;
 	}
 
@@ -1321,7 +1368,8 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-		if (!device->in_fs_metadata || !device->bdev)
+		if (!device->in_fs_metadata || !device->bdev ||
+		    device->is_tgtdev_for_dev_replace)
 			continue;
 
 		avail_space = device->total_bytes - device->bytes_used;
@@ -1508,17 +1556,21 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 
 static int btrfs_freeze(struct super_block *sb)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	mutex_lock(&fs_info->transaction_kthread_mutex);
-	mutex_lock(&fs_info->cleaner_mutex);
-	return 0;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = btrfs_sb(sb)->tree_root;
+
+	trans = btrfs_attach_transaction(root);
+	if (IS_ERR(trans)) {
+		/* no transaction, don't bother */
+		if (PTR_ERR(trans) == -ENOENT)
+			return 0;
+		return PTR_ERR(trans);
+	}
+	return btrfs_commit_transaction(trans, root);
 }
 
 static int btrfs_unfreeze(struct super_block *sb)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	mutex_unlock(&fs_info->cleaner_mutex);
-	mutex_unlock(&fs_info->transaction_kthread_mutex);
 	return 0;
 }
 
@@ -1595,7 +1647,7 @@ static int btrfs_interface_init(void)
 static void btrfs_interface_exit(void)
 {
 	if (misc_deregister(&btrfs_misc) < 0)
-		printk(KERN_INFO "misc_deregister failed for control device");
+		printk(KERN_INFO "btrfs: misc_deregister failed for control device\n");
 }
 
 static int __init init_btrfs_fs(void)
@@ -1620,13 +1672,21 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_extent_io;
 
-	err = btrfs_delayed_inode_init();
+	err = ordered_data_init();
 	if (err)
 		goto free_extent_map;
 
-	err = btrfs_interface_init();
+	err = btrfs_delayed_inode_init();
+	if (err)
+		goto free_ordered_data;
+
+	err = btrfs_auto_defrag_init();
 	if (err)
 		goto free_delayed_inode;
+
+	err = btrfs_interface_init();
+	if (err)
+		goto free_auto_defrag;
 
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
@@ -1639,8 +1699,12 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
+free_auto_defrag:
+	btrfs_auto_defrag_exit();
 free_delayed_inode:
 	btrfs_delayed_inode_exit();
+free_ordered_data:
+	ordered_data_exit();
 free_extent_map:
 	extent_map_exit();
 free_extent_io:
@@ -1656,7 +1720,9 @@ free_compress:
 static void __exit exit_btrfs_fs(void)
 {
 	btrfs_destroy_cachep();
+	btrfs_auto_defrag_exit();
 	btrfs_delayed_inode_exit();
+	ordered_data_exit();
 	extent_map_exit();
 	extent_io_exit();
 	btrfs_interface_exit();

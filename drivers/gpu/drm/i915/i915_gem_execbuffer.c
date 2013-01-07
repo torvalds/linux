@@ -26,187 +26,12 @@
  *
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include <linux/dma_remapping.h>
-
-struct change_domains {
-	uint32_t invalidate_domains;
-	uint32_t flush_domains;
-	uint32_t flush_rings;
-	uint32_t flips;
-};
-
-/*
- * Set the next domain for the specified object. This
- * may not actually perform the necessary flushing/invaliding though,
- * as that may want to be batched with other set_domain operations
- *
- * This is (we hope) the only really tricky part of gem. The goal
- * is fairly simple -- track which caches hold bits of the object
- * and make sure they remain coherent. A few concrete examples may
- * help to explain how it works. For shorthand, we use the notation
- * (read_domains, write_domain), e.g. (CPU, CPU) to indicate the
- * a pair of read and write domain masks.
- *
- * Case 1: the batch buffer
- *
- *	1. Allocated
- *	2. Written by CPU
- *	3. Mapped to GTT
- *	4. Read by GPU
- *	5. Unmapped from GTT
- *	6. Freed
- *
- *	Let's take these a step at a time
- *
- *	1. Allocated
- *		Pages allocated from the kernel may still have
- *		cache contents, so we set them to (CPU, CPU) always.
- *	2. Written by CPU (using pwrite)
- *		The pwrite function calls set_domain (CPU, CPU) and
- *		this function does nothing (as nothing changes)
- *	3. Mapped by GTT
- *		This function asserts that the object is not
- *		currently in any GPU-based read or write domains
- *	4. Read by GPU
- *		i915_gem_execbuffer calls set_domain (COMMAND, 0).
- *		As write_domain is zero, this function adds in the
- *		current read domains (CPU+COMMAND, 0).
- *		flush_domains is set to CPU.
- *		invalidate_domains is set to COMMAND
- *		clflush is run to get data out of the CPU caches
- *		then i915_dev_set_domain calls i915_gem_flush to
- *		emit an MI_FLUSH and drm_agp_chipset_flush
- *	5. Unmapped from GTT
- *		i915_gem_object_unbind calls set_domain (CPU, CPU)
- *		flush_domains and invalidate_domains end up both zero
- *		so no flushing/invalidating happens
- *	6. Freed
- *		yay, done
- *
- * Case 2: The shared render buffer
- *
- *	1. Allocated
- *	2. Mapped to GTT
- *	3. Read/written by GPU
- *	4. set_domain to (CPU,CPU)
- *	5. Read/written by CPU
- *	6. Read/written by GPU
- *
- *	1. Allocated
- *		Same as last example, (CPU, CPU)
- *	2. Mapped to GTT
- *		Nothing changes (assertions find that it is not in the GPU)
- *	3. Read/written by GPU
- *		execbuffer calls set_domain (RENDER, RENDER)
- *		flush_domains gets CPU
- *		invalidate_domains gets GPU
- *		clflush (obj)
- *		MI_FLUSH and drm_agp_chipset_flush
- *	4. set_domain (CPU, CPU)
- *		flush_domains gets GPU
- *		invalidate_domains gets CPU
- *		wait_rendering (obj) to make sure all drawing is complete.
- *		This will include an MI_FLUSH to get the data from GPU
- *		to memory
- *		clflush (obj) to invalidate the CPU cache
- *		Another MI_FLUSH in i915_gem_flush (eliminate this somehow?)
- *	5. Read/written by CPU
- *		cache lines are loaded and dirtied
- *	6. Read written by GPU
- *		Same as last GPU access
- *
- * Case 3: The constant buffer
- *
- *	1. Allocated
- *	2. Written by CPU
- *	3. Read by GPU
- *	4. Updated (written) by CPU again
- *	5. Read by GPU
- *
- *	1. Allocated
- *		(CPU, CPU)
- *	2. Written by CPU
- *		(CPU, CPU)
- *	3. Read by GPU
- *		(CPU+RENDER, 0)
- *		flush_domains = CPU
- *		invalidate_domains = RENDER
- *		clflush (obj)
- *		MI_FLUSH
- *		drm_agp_chipset_flush
- *	4. Updated (written) by CPU again
- *		(CPU, CPU)
- *		flush_domains = 0 (no previous write domain)
- *		invalidate_domains = 0 (no new read domains)
- *	5. Read by GPU
- *		(CPU+RENDER, 0)
- *		flush_domains = CPU
- *		invalidate_domains = RENDER
- *		clflush (obj)
- *		MI_FLUSH
- *		drm_agp_chipset_flush
- */
-static void
-i915_gem_object_set_to_gpu_domain(struct drm_i915_gem_object *obj,
-				  struct intel_ring_buffer *ring,
-				  struct change_domains *cd)
-{
-	uint32_t invalidate_domains = 0, flush_domains = 0;
-
-	/*
-	 * If the object isn't moving to a new write domain,
-	 * let the object stay in multiple read domains
-	 */
-	if (obj->base.pending_write_domain == 0)
-		obj->base.pending_read_domains |= obj->base.read_domains;
-
-	/*
-	 * Flush the current write domain if
-	 * the new read domains don't match. Invalidate
-	 * any read domains which differ from the old
-	 * write domain
-	 */
-	if (obj->base.write_domain &&
-	    (((obj->base.write_domain != obj->base.pending_read_domains ||
-	       obj->ring != ring)) ||
-	     (obj->fenced_gpu_access && !obj->pending_fenced_gpu_access))) {
-		flush_domains |= obj->base.write_domain;
-		invalidate_domains |=
-			obj->base.pending_read_domains & ~obj->base.write_domain;
-	}
-	/*
-	 * Invalidate any read caches which may have
-	 * stale data. That is, any new read domains.
-	 */
-	invalidate_domains |= obj->base.pending_read_domains & ~obj->base.read_domains;
-	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU)
-		i915_gem_clflush_object(obj);
-
-	if (obj->base.pending_write_domain)
-		cd->flips |= atomic_read(&obj->pending_flip);
-
-	/* The actual obj->write_domain will be updated with
-	 * pending_write_domain after we emit the accumulated flush for all
-	 * of our domain changes in execbuffers (which clears objects'
-	 * write_domains).  So if we have a current write domain that we
-	 * aren't changing, set pending_write_domain to that.
-	 */
-	if (flush_domains == 0 && obj->base.pending_write_domain == 0)
-		obj->base.pending_write_domain = obj->base.write_domain;
-
-	cd->invalidate_domains |= invalidate_domains;
-	cd->flush_domains |= flush_domains;
-	if (flush_domains & I915_GEM_GPU_DOMAINS)
-		cd->flush_rings |= intel_ring_flag(obj->ring);
-	if (invalidate_domains & I915_GEM_GPU_DOMAINS)
-		cd->flush_rings |= intel_ring_flag(ring);
-}
 
 struct eb_objects {
 	int and;
@@ -218,6 +43,7 @@ eb_create(int size)
 {
 	struct eb_objects *eb;
 	int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
+	BUILD_BUG_ON(!is_power_of_2(PAGE_SIZE / sizeof(struct hlist_head)));
 	while (count > size)
 		count >>= 1;
 	eb = kzalloc(count*sizeof(struct hlist_head) +
@@ -269,6 +95,7 @@ eb_destroy(struct eb_objects *eb)
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
 	return (obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
+		!obj->map_and_fenceable ||
 		obj->cache_level != I915_CACHE_NONE);
 }
 
@@ -299,15 +126,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	    !target_i915_obj->has_global_gtt_mapping)) {
 		i915_gem_gtt_bind_object(target_i915_obj,
 					 target_i915_obj->cache_level);
-	}
-
-	/* The target buffer should have appeared before us in the
-	 * exec_object list, so it should have a GTT space bound by now.
-	 */
-	if (unlikely(target_offset == 0)) {
-		DRM_DEBUG("No GTT space found for object %d\n",
-			  reloc->target_handle);
-		return ret;
 	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
@@ -383,7 +201,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		vaddr = kmap_atomic(obj->pages[reloc->offset >> PAGE_SHIFT]);
+		vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+							     reloc->offset >> PAGE_SHIFT));
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
 		kunmap_atomic(vaddr);
 	} else {
@@ -504,7 +323,8 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	return ret;
 }
 
-#define  __EXEC_OBJECT_HAS_FENCE (1<<31)
+#define  __EXEC_OBJECT_HAS_PIN (1<<31)
+#define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 
 static int
 need_reloc_mappable(struct drm_i915_gem_object *obj)
@@ -514,9 +334,10 @@ need_reloc_mappable(struct drm_i915_gem_object *obj)
 }
 
 static int
-pin_and_fence_object(struct drm_i915_gem_object *obj,
-		     struct intel_ring_buffer *ring)
+i915_gem_execbuffer_reserve_object(struct drm_i915_gem_object *obj,
+				   struct intel_ring_buffer *ring)
 {
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	bool need_fence, need_mappable;
@@ -528,15 +349,17 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 		obj->tiling_mode != I915_TILING_NONE;
 	need_mappable = need_fence || need_reloc_mappable(obj);
 
-	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable);
+	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable, false);
 	if (ret)
 		return ret;
+
+	entry->flags |= __EXEC_OBJECT_HAS_PIN;
 
 	if (has_fenced_gpu_access) {
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
 			ret = i915_gem_object_get_fence(obj);
 			if (ret)
-				goto err_unpin;
+				return ret;
 
 			if (i915_gem_object_pin_fence(obj))
 				entry->flags |= __EXEC_OBJECT_HAS_FENCE;
@@ -545,12 +368,35 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 		}
 	}
 
+	/* Ensure ppgtt mapping exists if needed */
+	if (dev_priv->mm.aliasing_ppgtt && !obj->has_aliasing_ppgtt_mapping) {
+		i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
+				       obj, obj->cache_level);
+
+		obj->has_aliasing_ppgtt_mapping = 1;
+	}
+
 	entry->offset = obj->gtt_offset;
 	return 0;
+}
 
-err_unpin:
-	i915_gem_object_unpin(obj);
-	return ret;
+static void
+i915_gem_execbuffer_unreserve_object(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_gem_exec_object2 *entry;
+
+	if (!obj->gtt_space)
+		return;
+
+	entry = obj->exec_entry;
+
+	if (entry->flags & __EXEC_OBJECT_HAS_FENCE)
+		i915_gem_object_unpin_fence(obj);
+
+	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
+		i915_gem_object_unpin(obj);
+
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
 }
 
 static int
@@ -558,11 +404,10 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    struct drm_file *file,
 			    struct list_head *objects)
 {
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	int ret, retry;
-	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	struct list_head ordered_objects;
+	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
+	int retry;
 
 	INIT_LIST_HEAD(&ordered_objects);
 	while (!list_empty(objects)) {
@@ -587,6 +432,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 		obj->base.pending_read_domains = 0;
 		obj->base.pending_write_domain = 0;
+		obj->pending_fenced_gpu_access = false;
 	}
 	list_splice(&ordered_objects, objects);
 
@@ -599,12 +445,12 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	 * 2.  Bind new objects.
 	 * 3.  Decrement pin count.
 	 *
-	 * This avoid unnecessary unbinding of later objects in order to makr
+	 * This avoid unnecessary unbinding of later objects in order to make
 	 * room for the earlier objects *unless* we need to defragment.
 	 */
 	retry = 0;
 	do {
-		ret = 0;
+		int ret = 0;
 
 		/* Unbind any ill-fitting objects or pin. */
 		list_for_each_entry(obj, objects, exec_list) {
@@ -624,7 +470,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    (need_mappable && !obj->map_and_fenceable))
 				ret = i915_gem_object_unbind(obj);
 			else
-				ret = pin_and_fence_object(obj, ring);
+				ret = i915_gem_execbuffer_reserve_object(obj, ring);
 			if (ret)
 				goto err;
 		}
@@ -634,77 +480,22 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			if (obj->gtt_space)
 				continue;
 
-			ret = pin_and_fence_object(obj, ring);
-			if (ret) {
-				int ret_ignore;
-
-				/* This can potentially raise a harmless
-				 * -EINVAL if we failed to bind in the above
-				 * call. It cannot raise -EINTR since we know
-				 * that the bo is freshly bound and so will
-				 * not need to be flushed or waited upon.
-				 */
-				ret_ignore = i915_gem_object_unbind(obj);
-				(void)ret_ignore;
-				WARN_ON(obj->gtt_space);
-				break;
-			}
+			ret = i915_gem_execbuffer_reserve_object(obj, ring);
+			if (ret)
+				goto err;
 		}
 
-		/* Decrement pin count for bound objects */
-		list_for_each_entry(obj, objects, exec_list) {
-			struct drm_i915_gem_exec_object2 *entry;
+err:		/* Decrement pin count for bound objects */
+		list_for_each_entry(obj, objects, exec_list)
+			i915_gem_execbuffer_unreserve_object(obj);
 
-			if (!obj->gtt_space)
-				continue;
-
-			entry = obj->exec_entry;
-			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
-				i915_gem_object_unpin_fence(obj);
-				entry->flags &= ~__EXEC_OBJECT_HAS_FENCE;
-			}
-
-			i915_gem_object_unpin(obj);
-
-			/* ... and ensure ppgtt mapping exist if needed. */
-			if (dev_priv->mm.aliasing_ppgtt && !obj->has_aliasing_ppgtt_mapping) {
-				i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
-						       obj, obj->cache_level);
-
-				obj->has_aliasing_ppgtt_mapping = 1;
-			}
-		}
-
-		if (ret != -ENOSPC || retry > 1)
+		if (ret != -ENOSPC || retry++)
 			return ret;
 
-		/* First attempt, just clear anything that is purgeable.
-		 * Second attempt, clear the entire GTT.
-		 */
-		ret = i915_gem_evict_everything(ring->dev, retry == 0);
+		ret = i915_gem_evict_everything(ring->dev);
 		if (ret)
 			return ret;
-
-		retry++;
 	} while (1);
-
-err:
-	list_for_each_entry_continue_reverse(obj, objects, exec_list) {
-		struct drm_i915_gem_exec_object2 *entry;
-
-		if (!obj->gtt_space)
-			continue;
-
-		entry = obj->exec_entry;
-		if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
-			i915_gem_object_unpin_fence(obj);
-			entry->flags &= ~__EXEC_OBJECT_HAS_FENCE;
-		}
-
-		i915_gem_object_unpin(obj);
-	}
-
-	return ret;
 }
 
 static int
@@ -810,18 +601,6 @@ err:
 	return ret;
 }
 
-static void
-i915_gem_execbuffer_flush(struct drm_device *dev,
-			  uint32_t invalidate_domains,
-			  uint32_t flush_domains)
-{
-	if (flush_domains & I915_GEM_DOMAIN_CPU)
-		intel_gtt_chipset_flush();
-
-	if (flush_domains & I915_GEM_DOMAIN_GTT)
-		wmb();
-}
-
 static int
 i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
 {
@@ -854,48 +633,45 @@ i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
 	return 0;
 }
 
-
 static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 				struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
-	struct change_domains cd;
+	uint32_t flush_domains = 0;
+	uint32_t flips = 0;
 	int ret;
-
-	memset(&cd, 0, sizeof(cd));
-	list_for_each_entry(obj, objects, exec_list)
-		i915_gem_object_set_to_gpu_domain(obj, ring, &cd);
-
-	if (cd.invalidate_domains | cd.flush_domains) {
-		i915_gem_execbuffer_flush(ring->dev,
-					  cd.invalidate_domains,
-					  cd.flush_domains);
-	}
-
-	if (cd.flips) {
-		ret = i915_gem_execbuffer_wait_for_flips(ring, cd.flips);
-		if (ret)
-			return ret;
-	}
 
 	list_for_each_entry(obj, objects, exec_list) {
 		ret = i915_gem_object_sync(obj, ring);
 		if (ret)
 			return ret;
+
+		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
+			i915_gem_clflush_object(obj);
+
+		if (obj->base.pending_write_domain)
+			flips |= atomic_read(&obj->pending_flip);
+
+		flush_domains |= obj->base.write_domain;
 	}
+
+	if (flips) {
+		ret = i915_gem_execbuffer_wait_for_flips(ring, flips);
+		if (ret)
+			return ret;
+	}
+
+	if (flush_domains & I915_GEM_DOMAIN_CPU)
+		i915_gem_chipset_flush(ring->dev);
+
+	if (flush_domains & I915_GEM_DOMAIN_GTT)
+		wmb();
 
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	ret = i915_gem_flush_ring(ring,
-				  I915_GEM_GPU_DOMAINS,
-				  ring->gpu_caches_dirty ? I915_GEM_GPU_DOMAINS : 0);
-	if (ret)
-		return ret;
-
-	ring->gpu_caches_dirty = false;
-	return 0;
+	return intel_ring_invalidate_all_caches(ring);
 }
 
 static bool
@@ -937,34 +713,28 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *objects,
-				   struct intel_ring_buffer *ring,
-				   u32 seqno)
+				   struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_object *obj;
 
 	list_for_each_entry(obj, objects, exec_list) {
-		  u32 old_read = obj->base.read_domains;
-		  u32 old_write = obj->base.write_domain;
-
+		u32 old_read = obj->base.read_domains;
+		u32 old_write = obj->base.write_domain;
 
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->base.write_domain = obj->base.pending_write_domain;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
-		i915_gem_object_move_to_active(obj, ring, seqno);
+		i915_gem_object_move_to_active(obj, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->pending_gpu_write = true;
-			list_move_tail(&obj->gpu_write_list,
-				       &ring->gpu_write_list);
+			obj->last_write_seqno = intel_ring_get_seqno(ring);
 			if (obj->pin_count) /* check for potential scanout */
-				intel_mark_busy(ring->dev, obj);
+				intel_mark_fb_busy(obj);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
-
-	intel_mark_busy(ring->dev, NULL);
 }
 
 static void
@@ -972,16 +742,11 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
 				    struct intel_ring_buffer *ring)
 {
-	struct drm_i915_gem_request *request;
-
 	/* Unconditionally force add_request to emit a full flush. */
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL || i915_add_request(ring, file, request)) {
-		kfree(request);
-	}
+	(void)i915_add_request(ring, file, NULL);
 }
 
 static int
@@ -1023,8 +788,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct intel_ring_buffer *ring;
 	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
-	u32 seqno;
 	u32 mask;
+	u32 flags;
 	int ret, mode, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -1035,6 +800,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = validate_exec_list(exec, args->buffer_count);
 	if (ret)
 		return ret;
+
+	flags = 0;
+	if (args->flags & I915_EXEC_SECURE) {
+		if (!file->is_master || !capable(CAP_SYS_ADMIN))
+		    return -EPERM;
+
+		flags |= I915_DISPATCH_SECURE;
+	}
+	if (args->flags & I915_EXEC_IS_PINNED)
+		flags |= I915_DISPATCH_PINNED;
 
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:
@@ -1208,25 +983,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
+	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
+	 * batch" bit. Hence we need to pin secure batches into the global gtt.
+	 * hsw should have this fixed, but let's be paranoid and do it
+	 * unconditionally for now. */
+	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
+		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
+
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects);
 	if (ret)
 		goto err;
-
-	seqno = i915_gem_next_request_seqno(ring);
-	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++) {
-		if (seqno < ring->sync_seqno[i]) {
-			/* The GPU can not handle its semaphore value wrapping,
-			 * so every billion or so execbuffers, we need to stall
-			 * the GPU in order to reset the counters.
-			 */
-			ret = i915_gpu_idle(dev);
-			if (ret)
-				goto err;
-			i915_gem_retire_requests(dev);
-
-			BUG_ON(ring->sync_seqno[i]);
-		}
-	}
 
 	ret = i915_switch_context(ring, file, ctx_id);
 	if (ret)
@@ -1253,8 +1019,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	trace_i915_gem_ring_dispatch(ring, seqno);
-
 	exec_start = batch_obj->gtt_offset + args->batch_start_offset;
 	exec_len = args->batch_len;
 	if (cliprects) {
@@ -1265,17 +1029,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				goto err;
 
 			ret = ring->dispatch_execbuffer(ring,
-							exec_start, exec_len);
+							exec_start, exec_len,
+							flags);
 			if (ret)
 				goto err;
 		}
 	} else {
-		ret = ring->dispatch_execbuffer(ring, exec_start, exec_len);
+		ret = ring->dispatch_execbuffer(ring,
+						exec_start, exec_len,
+						flags);
 		if (ret)
 			goto err;
 	}
 
-	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
+	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
+
+	i915_gem_execbuffer_move_to_active(&objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
 
 err:
@@ -1327,8 +1096,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 	ret = copy_from_user(exec_list,
-			     (struct drm_i915_relocation_entry __user *)
-			     (uintptr_t) args->buffers_ptr,
+			     (void __user *)(uintptr_t)args->buffers_ptr,
 			     sizeof(*exec_list) * args->buffer_count);
 	if (ret != 0) {
 		DRM_DEBUG("copy %d exec entries failed %d\n",
@@ -1367,8 +1135,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		for (i = 0; i < args->buffer_count; i++)
 			exec_list[i].offset = exec2_list[i].offset;
 		/* ... and back out to userspace */
-		ret = copy_to_user((struct drm_i915_relocation_entry __user *)
-				   (uintptr_t) args->buffers_ptr,
+		ret = copy_to_user((void __user *)(uintptr_t)args->buffers_ptr,
 				   exec_list,
 				   sizeof(*exec_list) * args->buffer_count);
 		if (ret) {
@@ -1422,8 +1189,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	ret = i915_gem_do_execbuffer(dev, data, file, args, exec2_list);
 	if (!ret) {
 		/* Copy the new buffer offsets back to the user's exec list. */
-		ret = copy_to_user((struct drm_i915_relocation_entry __user *)
-				   (uintptr_t) args->buffers_ptr,
+		ret = copy_to_user((void __user *)(uintptr_t)args->buffers_ptr,
 				   exec2_list,
 				   sizeof(*exec2_list) * args->buffer_count);
 		if (ret) {

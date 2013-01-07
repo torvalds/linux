@@ -986,8 +986,7 @@ struct iwl_rem_sta_cmd {
 
 #define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
 
-#define IWL_DROP_SINGLE		0
-#define IWL_DROP_ALL		(BIT(IWL_RXON_CTX_BSS) | BIT(IWL_RXON_CTX_PAN))
+#define IWL_DROP_ALL			BIT(1)
 
 /*
  * REPLY_TXFIFO_FLUSH = 0x1e(command and response)
@@ -1004,14 +1003,14 @@ struct iwl_rem_sta_cmd {
  * the flush operation ends when both the scheduler DMA done and TXFIFO empty
  * are set.
  *
- * @fifo_control: bit mask for which queues to flush
+ * @queue_control: bit mask for which queues to flush
  * @flush_control: flush controls
  *	0: Dump single MSDU
  *	1: Dump multiple MSDU according to PS, INVALID STA, TTL, TID disable.
  *	2: Dump all FIFO
  */
 struct iwl_txfifo_flush_cmd {
-	__le32 fifo_control;
+	__le32 queue_control;
 	__le16 flush_control;
 	__le16 reserved;
 } __packed;
@@ -1055,8 +1054,9 @@ struct iwl_wep_cmd {
 #define RX_RES_PHY_FLAGS_MOD_CCK_MSK		cpu_to_le16(1 << 1)
 #define RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK	cpu_to_le16(1 << 2)
 #define RX_RES_PHY_FLAGS_NARROW_BAND_MSK	cpu_to_le16(1 << 3)
-#define RX_RES_PHY_FLAGS_ANTENNA_MSK		0xf0
+#define RX_RES_PHY_FLAGS_ANTENNA_MSK		0x70
 #define RX_RES_PHY_FLAGS_ANTENNA_POS		4
+#define RX_RES_PHY_FLAGS_AGG_MSK		cpu_to_le16(1 << 7)
 
 #define RX_RES_STATUS_SEC_TYPE_MSK	(0x7 << 8)
 #define RX_RES_STATUS_SEC_TYPE_NONE	(0x0 << 8)

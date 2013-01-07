@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -149,6 +149,7 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 int
 qla24xx_disable_vp(scsi_qla_host_t *vha)
 {
+	unsigned long flags;
 	int ret;
 
 	ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
@@ -156,7 +157,9 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 
 	/* Remove port id from vp target map */
+	spin_lock_irqsave(&vha->hw->vport_slock, flags);
 	qlt_update_vp_map(vha, RESET_AL_PA);
+	spin_unlock_irqrestore(&vha->hw->vport_slock, flags);
 
 	qla2x00_mark_vp_devices_dead(vha);
 	atomic_set(&vha->vp_state, VP_FAILED);
@@ -476,7 +479,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	vha->req = base_vha->req;
 	host->can_queue = base_vha->req->length + 128;
-	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif)
 		host->max_cmd_len = 32;
@@ -643,7 +645,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 			&req->dma, GFP_KERNEL);
 	if (req->ring == NULL) {
 		ql_log(ql_log_fatal, base_vha, 0x00da,
-		    "Failed to allocte memory for request_ring.\n");
+		    "Failed to allocate memory for request_ring.\n");
 		goto que_failed;
 	}
 

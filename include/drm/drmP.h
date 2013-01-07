@@ -72,7 +72,8 @@
 #include <linux/workqueue.h>
 #include <linux/poll.h>
 #include <asm/pgalloc.h>
-#include "drm.h"
+#include <drm/drm.h>
+#include <drm/drm_sarea.h>
 
 #include <linux/idr.h>
 
@@ -84,9 +85,9 @@ struct module;
 struct drm_file;
 struct drm_device;
 
-#include "drm_os_linux.h"
-#include "drm_hashtab.h"
-#include "drm_mm.h"
+#include <drm/drm_os_linux.h>
+#include <drm/drm_hashtab.h>
+#include <drm/drm_mm.h>
 
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
@@ -426,8 +427,8 @@ struct drm_prime_file_private {
 /** File private data */
 struct drm_file {
 	int authenticated;
-	pid_t pid;
-	uid_t uid;
+	struct pid *pid;
+	kuid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;
@@ -675,7 +676,7 @@ struct drm_gem_object {
 	struct dma_buf_attachment *import_attach;
 };
 
-#include "drm_crtc.h"
+#include <drm/drm_crtc.h>
 
 /* per-master structure */
 struct drm_master {
@@ -1303,7 +1304,7 @@ extern void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *v
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
-#include "drm_memory.h"
+#include <drm/drm_memory.h>
 extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
@@ -1367,6 +1368,7 @@ extern int drm_remove_magic(struct drm_master *master, drm_magic_t magic);
 
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
+void drm_clflush_sg(struct sg_table *st);
 void drm_clflush_virt_range(char *addr, unsigned long length);
 
 				/* Locking IOCTL support (drm_lock.h) */
@@ -1429,6 +1431,8 @@ extern int drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
 extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
 extern u32 drm_vblank_count_and_time(struct drm_device *dev, int crtc,
 				     struct timeval *vblanktime);
+extern void drm_send_vblank_event(struct drm_device *dev, int crtc,
+				     struct drm_pending_vblank_event *e);
 extern bool drm_handle_vblank(struct drm_device *dev, int crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
@@ -1501,6 +1505,7 @@ extern unsigned int drm_debug;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
+extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;
@@ -1612,7 +1617,7 @@ void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
-#include "drm_global.h"
+#include <drm/drm_global.h>
 
 static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
@@ -1721,7 +1726,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
-#include "drm_mem_util.h"
+#include <drm/drm_mem_util.h>
 
 extern int drm_fill_in_dev(struct drm_device *dev,
 			   const struct pci_device_id *ent,

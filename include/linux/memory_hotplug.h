@@ -10,6 +10,7 @@ struct page;
 struct zone;
 struct pglist_data;
 struct mem_section;
+struct memory_block;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 
@@ -23,6 +24,13 @@ enum {
 	MIX_SECTION_INFO,
 	NODE_INFO,
 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
+};
+
+/* Types for control the zone type of onlined memory */
+enum {
+	ONLINE_KEEP,
+	ONLINE_KERNEL,
+	ONLINE_MOVABLE,
 };
 
 /*
@@ -45,6 +53,10 @@ void pgdat_resize_init(struct pglist_data *pgdat)
 }
 /*
  * Zone resizing functions
+ *
+ * Note: any attempt to resize a zone should has pgdat_resize_lock()
+ * zone_span_writelock() both held. This ensure the size of a zone
+ * can't be changed while pgdat_resize_lock() held.
  */
 static inline unsigned zone_span_seqbegin(struct zone *zone)
 {
@@ -70,7 +82,7 @@ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
 extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
 extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
 /* VM interface that may be used by firmware interface */
-extern int online_pages(unsigned long, unsigned long);
+extern int online_pages(unsigned long, unsigned long, int);
 extern void __offline_isolated_pages(unsigned long, unsigned long);
 
 typedef void (*online_page_callback_t)(struct page *page);
@@ -233,6 +245,8 @@ static inline int is_mem_section_removable(unsigned long pfn,
 extern int mem_online_node(int nid);
 extern int add_memory(int nid, u64 start, u64 size);
 extern int arch_add_memory(int nid, u64 start, u64 size);
+extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+extern int offline_memory_block(struct memory_block *mem);
 extern int remove_memory(u64 start, u64 size);
 extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 								int nr_pages);

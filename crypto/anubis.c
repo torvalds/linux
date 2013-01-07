@@ -678,7 +678,6 @@ static struct crypto_alg anubis_alg = {
 	.cra_ctxsize		=	sizeof (struct anubis_ctx),
 	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(anubis_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	ANUBIS_MIN_KEY_SIZE,
 	.cia_max_keysize	=	ANUBIS_MAX_KEY_SIZE,

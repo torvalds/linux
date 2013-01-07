@@ -28,16 +28,15 @@
  */
 
 #include <linux/device.h>
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 
 #include <linux/console.h>
 #include <linux/module.h>
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 
 static int i915_modeset __read_mostly = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
@@ -48,11 +47,11 @@ MODULE_PARM_DESC(modeset,
 unsigned int i915_fbpercrtc __always_unused = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
-int i915_panel_ignore_lid __read_mostly = 0;
+int i915_panel_ignore_lid __read_mostly = 1;
 module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
 MODULE_PARM_DESC(panel_ignore_lid,
-		"Override lid status (0=autodetect [default], 1=lid open, "
-		"-1=lid closed)");
+		"Override lid status (0=autodetect, 1=autodetect disabled [default], "
+		"-1=force lid closed, -2=force lid open)");
 
 unsigned int i915_powersave __read_mostly = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
@@ -118,6 +117,13 @@ int i915_enable_ppgtt __read_mostly = -1;
 module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0600);
 MODULE_PARM_DESC(i915_enable_ppgtt,
 		"Enable PPGTT (default: true)");
+
+unsigned int i915_preliminary_hw_support __read_mostly = 0;
+module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
+MODULE_PARM_DESC(preliminary_hw_support,
+		"Enable preliminary hardware support. "
+		"Enable Haswell and ValleyView Support. "
+		"(default: false)");
 
 static struct drm_driver driver;
 extern int intel_agp_enabled;
@@ -390,12 +396,6 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-#define INTEL_PCH_DEVICE_ID_MASK	0xff00
-#define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
-#define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
-#define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
-#define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
-
 void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -410,26 +410,36 @@ void intel_detect_pch(struct drm_device *dev)
 	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
 	if (pch) {
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
-			int id;
+			unsigned short id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+				WARN_ON(!IS_GEN5(dev));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
+				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+				WARN_ON(!IS_HASWELL(dev));
+			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_LPT;
+				dev_priv->num_pch_pll = 0;
+				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
+				WARN_ON(!IS_HASWELL(dev));
 			}
 			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
 		}
@@ -470,6 +480,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 				"GEM idle failed, resume might fail\n");
 			return error;
 		}
+
+		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
+
+		intel_modeset_disable(dev);
+
 		drm_irq_uninstall(dev);
 	}
 
@@ -517,24 +532,29 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int i915_drm_thaw(struct drm_device *dev)
+void intel_console_resume(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private,
+			     console_resume_work);
+	struct drm_device *dev = dev_priv->dev;
+
+	console_lock();
+	intel_fbdev_set_suspend(dev, 0);
+	console_unlock();
+}
+
+static int __i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-			ironlake_init_pch_refclk(dev);
+		intel_init_pch_refclk(dev);
 
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
@@ -543,27 +563,49 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 
 		intel_modeset_init_hw(dev);
-		drm_mode_config_reset(dev);
+		intel_modeset_setup_hw_state(dev, false);
 		drm_irq_install(dev);
-
-		/* Resume the modeset for every activated CRTC */
-		mutex_lock(&dev->mode_config.mutex);
-		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
 	}
 
 	intel_opregion_init(dev);
 
 	dev_priv->modeset_on_lid = 0;
 
-	console_lock();
-	intel_fbdev_set_suspend(dev, 0);
-	console_unlock();
+	/*
+	 * The console lock can be pretty contented on resume due
+	 * to all the printk activity.  Try to keep it out of the hot
+	 * path of resume if possible.
+	 */
+	if (console_trylock()) {
+		intel_fbdev_set_suspend(dev, 0);
+		console_unlock();
+	} else {
+		schedule_work(&dev_priv->console_resume_work);
+	}
+
+	return error;
+}
+
+static int i915_drm_thaw(struct drm_device *dev)
+{
+	int error = 0;
+
+	intel_gt_reset(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	__i915_drm_thaw(dev);
+
 	return error;
 }
 
 int i915_resume(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -574,7 +616,20 @@ int i915_resume(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	ret = i915_drm_thaw(dev);
+	intel_gt_reset(dev);
+
+	/*
+	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
+	 * earlier) need this since the BIOS might clear all our scratch PTEs.
+	 */
+	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
+	    !dev_priv->opregion.header) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	ret = __i915_drm_thaw(dev);
 	if (ret)
 		return ret;
 
@@ -828,6 +883,12 @@ i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
+	if (intel_info->is_valleyview)
+		if(!i915_preliminary_hw_support) {
+			DRM_ERROR("Preliminary hardware support disabled\n");
+			return -ENODEV;
+		}
+
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes
 	 * us confusion instead, especially on the systems where both
@@ -1060,7 +1121,7 @@ static bool IS_DISPLAYREG(u32 reg)
 	 * This should make it easier to transition modules over to the
 	 * new register block scheme, since we can do it incrementally.
 	 */
-	if (reg >= 0x180000)
+	if (reg >= VLV_DISPLAY_BASE)
 		return false;
 
 	if (reg >= RENDER_RING_BASE &&
@@ -1129,12 +1190,40 @@ static bool IS_DISPLAYREG(u32 reg)
 	if (reg == GEN6_GDRST)
 		return false;
 
+	switch (reg) {
+	case _3D_CHICKEN3:
+	case IVB_CHICKEN3:
+	case GEN7_COMMON_SLICE_CHICKEN1:
+	case GEN7_L3CNTLREG1:
+	case GEN7_L3_CHICKEN_MODE_REGISTER:
+	case GEN7_ROW_CHICKEN2:
+	case GEN7_L3SQCREG4:
+	case GEN7_SQ_CHICKEN_MBCUNIT_CONFIG:
+	case GEN7_HALF_SLICE_CHICKEN1:
+	case GEN6_MBCTL:
+	case GEN6_UCGCTL2:
+		return false;
+	default:
+		break;
+	}
+
 	return true;
+}
+
+static void
+ilk_dummy_write(struct drm_i915_private *dev_priv)
+{
+	/* WaIssueDummyWriteToWakeupFromRC6: Issue a dummy write to wake up the
+	 * chip from rc6 before touching it for real. MI_MODE is masked, hence
+	 * harmless to write 0 into. */
+	I915_WRITE_NOTRACE(MI_MODE, 0);
 }
 
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
+	if (IS_GEN5(dev_priv->dev)) \
+		ilk_dummy_write(dev_priv); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		unsigned long irqflags; \
 		spin_lock_irqsave(&dev_priv->gt_lock, irqflags); \
@@ -1166,6 +1255,12 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
+	if (IS_GEN5(dev_priv->dev)) \
+		ilk_dummy_write(dev_priv); \
+	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
+		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
+		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
+	} \
 	if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
 		write##y(val, dev_priv->regs + reg + 0x180000);		\
 	} else {							\
@@ -1174,9 +1269,59 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
+	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
+		DRM_ERROR("Unclaimed write to %x\n", reg); \
+		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
+	} \
 }
 __i915_write(8, b)
 __i915_write(16, w)
 __i915_write(32, l)
 __i915_write(64, q)
 #undef __i915_write
+
+static const struct register_whitelist {
+	uint64_t offset;
+	uint32_t size;
+	uint32_t gen_bitmask; /* support gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+} whitelist[] = {
+	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0xF0 },
+};
+
+int i915_reg_read_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_reg_read *reg = data;
+	struct register_whitelist const *entry = whitelist;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
+		if (entry->offset == reg->offset &&
+		    (1 << INTEL_INFO(dev)->gen & entry->gen_bitmask))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(whitelist))
+		return -EINVAL;
+
+	switch (entry->size) {
+	case 8:
+		reg->val = I915_READ64(reg->offset);
+		break;
+	case 4:
+		reg->val = I915_READ(reg->offset);
+		break;
+	case 2:
+		reg->val = I915_READ16(reg->offset);
+		break;
+	case 1:
+		reg->val = I915_READ8(reg->offset);
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}

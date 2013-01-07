@@ -25,9 +25,12 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <plat/dma.h>
-#include <plat/tc.h>
-#include <plat/irqs.h>
+#include <linux/omap-dma.h>
+#include <mach/tc.h>
+
+#include <mach/irqs.h>
+
+#include "dma.h"
 
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
@@ -318,6 +321,9 @@ static int __init omap1_system_dma_init(void)
 		d->dev_caps = ENABLE_1510_MODE;
 	enable_1510_mode = d->dev_caps & ENABLE_1510_MODE;
 
+	if (cpu_is_omap16xx())
+		d->dev_caps = ENABLE_16XX_MODE;
+
 	d->dev_caps		|= SRC_PORT;
 	d->dev_caps		|= DST_PORT;
 	d->dev_caps		|= SRC_INDEX;
@@ -330,8 +336,9 @@ static int __init omap1_system_dma_init(void)
 	d->chan = kzalloc(sizeof(struct omap_dma_lch) *
 					(d->lch_count), GFP_KERNEL);
 	if (!d->chan) {
-		dev_err(&pdev->dev, "%s: Memory allocation failed"
-					"for d->chan!!!\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: Memory allocation failed for d->chan!\n",
+			__func__);
 		goto exit_release_d;
 	}
 

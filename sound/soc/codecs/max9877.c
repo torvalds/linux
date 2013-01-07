@@ -258,8 +258,8 @@ int max9877_add_controls(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(max9877_add_controls);
 
-static int __devinit max9877_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int max9877_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	i2c = client;
 
@@ -268,7 +268,7 @@ static int __devinit max9877_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static __devexit int max9877_i2c_remove(struct i2c_client *client)
+static int max9877_i2c_remove(struct i2c_client *client)
 {
 	i2c = NULL;
 
@@ -287,21 +287,11 @@ static struct i2c_driver max9877_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max9877_i2c_probe,
-	.remove = __devexit_p(max9877_i2c_remove),
+	.remove = max9877_i2c_remove,
 	.id_table = max9877_i2c_id,
 };
 
-static int __init max9877_init(void)
-{
-	return i2c_add_driver(&max9877_i2c_driver);
-}
-module_init(max9877_init);
-
-static void __exit max9877_exit(void)
-{
-	i2c_del_driver(&max9877_i2c_driver);
-}
-module_exit(max9877_exit);
+module_i2c_driver(max9877_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC MAX9877 amp driver");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

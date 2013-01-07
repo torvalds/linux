@@ -35,6 +35,7 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 
@@ -43,13 +44,12 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
 #include <plat/s5p-time.h>
 #include <plat/mfc.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/camport.h>
 
 #include <media/v4l2-mediabus.h>
@@ -774,7 +774,6 @@ static void __init goni_pmic_init(void)
 /* MoviNAND */
 static struct s3c_sdhci_platdata goni_hsmmc0_data __initdata = {
 	.max_width		= 4,
-	.host_caps2		= MMC_CAP2_BROKEN_VOLTAGE,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 

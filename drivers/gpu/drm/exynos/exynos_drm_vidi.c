@@ -10,7 +10,7 @@
  * option) any later version.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -18,8 +18,8 @@
 
 #include <drm/exynos_drm.h>
 
-#include "drm_edid.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_edid.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
@@ -39,7 +39,6 @@ struct vidi_win_data {
 	unsigned int		fb_height;
 	unsigned int		bpp;
 	dma_addr_t		dma_addr;
-	void __iomem		*vaddr;
 	unsigned int		buf_offsize;
 	unsigned int		line_size;	/* bytes */
 	bool			enabled;
@@ -56,6 +55,7 @@ struct vidi_context {
 	unsigned int			connected;
 	bool				vblank_on;
 	bool				suspended;
+	bool				direct_vblank;
 	struct work_struct		work;
 	struct mutex			lock;
 };
@@ -102,7 +102,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 				u8 *edid, int len)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
-	struct edid *raw_edid;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -114,18 +113,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 		DRM_DEBUG_KMS("raw_edid is null.\n");
 		return -EFAULT;
 	}
-
-	raw_edid = kzalloc(len, GFP_KERNEL);
-	if (!raw_edid) {
-		DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
-		return -ENOMEM;
-	}
-
-	memcpy(raw_edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
-						* EDID_LENGTH, len));
-
-	/* attach the edid data to connector. */
-	connector->display_info.raw_edid = (char *)raw_edid;
 
 	memcpy(edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
 					* EDID_LENGTH, len));
@@ -237,6 +224,15 @@ static int vidi_enable_vblank(struct device *dev)
 	if (!test_and_set_bit(0, &ctx->irq_flags))
 		ctx->vblank_on = true;
 
+	ctx->direct_vblank = true;
+
+	/*
+	 * in case of page flip request, vidi_finish_pageflip function
+	 * will not be called because direct_vblank is true and then
+	 * that function will be called by overlay_ops->commit callback
+	 */
+	schedule_work(&ctx->work);
+
 	return 0;
 }
 
@@ -297,7 +293,6 @@ static void vidi_win_mode_set(struct device *dev,
 	win_data->fb_width = overlay->fb_width;
 	win_data->fb_height = overlay->fb_height;
 	win_data->dma_addr = overlay->dma_addr[0] + offset;
-	win_data->vaddr = overlay->vaddr[0] + offset;
 	win_data->bpp = overlay->bpp;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
 				(overlay->bpp >> 3);
@@ -312,9 +307,7 @@ static void vidi_win_mode_set(struct device *dev,
 			win_data->offset_x, win_data->offset_y);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			win_data->ovl_width, win_data->ovl_height);
-	DRM_DEBUG_KMS("paddr = 0x%lx, vaddr = 0x%lx\n",
-			(unsigned long)win_data->dma_addr,
-			(unsigned long)win_data->vaddr);
+	DRM_DEBUG_KMS("paddr = 0x%lx\n", (unsigned long)win_data->dma_addr);
 	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
 			overlay->fb_width, overlay->crtc_width);
 }
@@ -385,7 +378,6 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	struct drm_pending_vblank_event *e, *t;
 	struct timeval now;
 	unsigned long flags;
-	bool is_checked = false;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 
@@ -395,8 +387,6 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 		if (crtc != e->pipe)
 			continue;
 
-		is_checked = true;
-
 		do_gettimeofday(&now);
 		e->event.sequence = 0;
 		e->event.tv_sec = now.tv_sec;
@@ -404,22 +394,7 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
-	}
-
-	if (is_checked) {
-		/*
-		 * call drm_vblank_put only in case that drm_vblank_get was
-		 * called.
-		 */
-		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
-			drm_vblank_put(drm_dev, crtc);
-
-		/*
-		 * don't off vblank if vblank_disable_allowed is 1,
-		 * because vblank would be off by timer handler.
-		 */
-		if (!drm_dev->vblank_disable_allowed)
-			drm_vblank_off(drm_dev, crtc);
+		drm_vblank_put(drm_dev, crtc);
 	}
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
@@ -438,7 +413,17 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	/* refresh rate is about 50Hz. */
 	usleep_range(16000, 20000);
 
-	drm_handle_vblank(subdrv->drm_dev, manager->pipe);
+	mutex_lock(&ctx->lock);
+
+	if (ctx->direct_vblank) {
+		drm_handle_vblank(subdrv->drm_dev, manager->pipe);
+		ctx->direct_vblank = false;
+		mutex_unlock(&ctx->lock);
+		return;
+	}
+
+	mutex_unlock(&ctx->lock);
+
 	vidi_finish_pageflip(subdrv->drm_dev, manager->pipe);
 }
 
@@ -466,7 +451,7 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	return 0;
 }
 
-static void vidi_subdrv_remove(struct drm_device *drm_dev)
+static void vidi_subdrv_remove(struct drm_device *drm_dev, struct device *dev)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 

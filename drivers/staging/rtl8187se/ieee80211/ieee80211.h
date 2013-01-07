@@ -1094,7 +1094,7 @@ struct ieee80211_device {
 
 	int (*reset_port)(struct net_device *dev);
 
-	/* Softmac-generated frames (mamagement) are TXed via this
+	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
 	 * not set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
@@ -1221,7 +1221,7 @@ static inline void *ieee80211_priv(struct net_device *dev)
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
 }
 
-extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
 	if (essid_len == 1 && essid[0] == ' ')
@@ -1237,7 +1237,7 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
+static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -1263,7 +1263,7 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mod
 	return 0;
 }
 
-extern inline int ieee80211_get_hdrlen(u16 fc)
+static inline int ieee80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = 24;
 

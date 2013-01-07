@@ -316,10 +316,12 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	}
 	case 7: {
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		/* Mask ebx against host capbability word 9 */
+		/* Mask ebx against host capability word 9 */
 		if (index == 0) {
 			entry->ebx &= kvm_supported_word9_x86_features;
 			cpuid_mask(&entry->ebx, 9);
+			// TSC_ADJUST is emulated
+			entry->ebx |= F(TSC_ADJUST);
 		} else
 			entry->ebx = 0;
 		entry->eax = 0;
@@ -397,8 +399,8 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	}
 	case KVM_CPUID_SIGNATURE: {
-		char signature[12] = "KVMKVMKVM\0\0";
-		u32 *sigptr = (u32 *)signature;
+		static const char signature[12] = "KVMKVMKVM\0\0";
+		const u32 *sigptr = (const u32 *)signature;
 		entry->eax = KVM_CPUID_FEATURES;
 		entry->ebx = sigptr[0];
 		entry->ecx = sigptr[1];
@@ -484,10 +486,10 @@ struct kvm_cpuid_param {
 	u32 func;
 	u32 idx;
 	bool has_leaf_count;
-	bool (*qualifier)(struct kvm_cpuid_param *param);
+	bool (*qualifier)(const struct kvm_cpuid_param *param);
 };
 
-static bool is_centaur_cpu(struct kvm_cpuid_param *param)
+static bool is_centaur_cpu(const struct kvm_cpuid_param *param)
 {
 	return boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR;
 }
@@ -498,7 +500,7 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 	struct kvm_cpuid_entry2 *cpuid_entries;
 	int limit, nent = 0, r = -E2BIG, i;
 	u32 func;
-	static struct kvm_cpuid_param param[] = {
+	static const struct kvm_cpuid_param param[] = {
 		{ .func = 0, .has_leaf_count = true },
 		{ .func = 0x80000000, .has_leaf_count = true },
 		{ .func = 0xC0000000, .qualifier = is_centaur_cpu, .has_leaf_count = true },
@@ -517,7 +519,7 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 
 	r = 0;
 	for (i = 0; i < ARRAY_SIZE(param); i++) {
-		struct kvm_cpuid_param *ent = &param[i];
+		const struct kvm_cpuid_param *ent = &param[i];
 
 		if (ent->qualifier && !ent->qualifier(ent))
 			continue;
@@ -659,6 +661,7 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 	} else
 		*eax = *ebx = *ecx = *edx = 0;
 }
+EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {

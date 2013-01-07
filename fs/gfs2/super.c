@@ -810,7 +810,8 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 			return;
 		}
 		need_unlock = 1;
-	}
+	} else if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE))
+		return;
 
 	if (current->journal_info == NULL) {
 		ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
@@ -1366,6 +1367,8 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	val = sdp->sd_tune.gt_statfs_quantum;
 	if (val != 30)
 		seq_printf(s, ",statfs_quantum=%d", val);
+	else if (sdp->sd_tune.gt_statfs_slow)
+		seq_puts(s, ",statfs_quantum=0");
 	val = sdp->sd_tune.gt_quota_quantum;
 	if (val != 60)
 		seq_printf(s, ",quota_quantum=%d", val);
@@ -1543,6 +1546,11 @@ static void gfs2_evict_inode(struct inode *inode)
 
 out_truncate:
 	gfs2_log_flush(sdp, ip->i_gl);
+	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
+		struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
+		filemap_fdatawrite(metamapping);
+		filemap_fdatawait(metamapping);
+	}
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
@@ -1557,7 +1565,7 @@ out_truncate:
 out_unlock:
 	/* Error path for case 1 */
 	if (gfs2_rs_active(ip->i_res))
-		gfs2_rs_deltree(ip->i_res);
+		gfs2_rs_deltree(ip, ip->i_res);
 
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
 		gfs2_glock_dq(&ip->i_iopen_gh);
@@ -1572,7 +1580,7 @@ out:
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
 	ip->i_gl->gl_object = NULL;
-	flush_delayed_work_sync(&ip->i_gl->gl_work);
+	flush_delayed_work(&ip->i_gl->gl_work);
 	gfs2_glock_add_to_lru(ip->i_gl);
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;

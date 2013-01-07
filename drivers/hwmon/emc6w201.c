@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -188,7 +187,7 @@ static struct emc6w201_data *emc6w201_update_device(struct device *dev)
  * Sysfs callback functions
  */
 
-static const u16 nominal_mv[6] = { 2500, 1500, 3300, 5000, 1500, 1500 };
+static const s16 nominal_mv[6] = { 2500, 1500, 3300, 5000, 1500, 1500 };
 
 static ssize_t show_in(struct device *dev, struct device_attribute *devattr,
 	char *buf)

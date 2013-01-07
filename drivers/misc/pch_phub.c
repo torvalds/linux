@@ -666,7 +666,7 @@ static struct bin_attribute pch_bin_attr = {
 	.write = pch_phub_bin_write,
 };
 
-static int __devinit pch_phub_probe(struct pci_dev *pdev,
+static int pch_phub_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	int retval;
@@ -699,7 +699,7 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 	chip->pch_phub_base_address = pci_iomap(pdev, 1, 0);
 
 
-	if (chip->pch_phub_base_address == 0) {
+	if (chip->pch_phub_base_address == NULL) {
 		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
 		ret = -ENOMEM;
 		goto err_pci_iomap;
@@ -819,7 +819,7 @@ err_pci_enable_dev:
 	return ret;
 }
 
-static void __devexit pch_phub_remove(struct pci_dev *pdev)
+static void pch_phub_remove(struct pci_dev *pdev)
 {
 	struct pch_phub_reg *chip = pci_get_drvdata(pdev);
 
@@ -888,23 +888,12 @@ static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",
 	.id_table = pch_phub_pcidev_id,
 	.probe = pch_phub_probe,
-	.remove = __devexit_p(pch_phub_remove),
+	.remove = pch_phub_remove,
 	.suspend = pch_phub_suspend,
 	.resume = pch_phub_resume
 };
 
-static int __init pch_phub_pci_init(void)
-{
-	return pci_register_driver(&pch_phub_driver);
-}
-
-static void __exit pch_phub_pci_exit(void)
-{
-	pci_unregister_driver(&pch_phub_driver);
-}
-
-module_init(pch_phub_pci_init);
-module_exit(pch_phub_pci_exit);
+module_pci_driver(pch_phub_driver);
 
 MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7223) PHUB");
 MODULE_LICENSE("GPL");

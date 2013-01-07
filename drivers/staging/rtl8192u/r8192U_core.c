@@ -144,9 +144,9 @@ MODULE_PARM_DESC(ifname," Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep," Try to use hardware security support. ");
 MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 
-static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
+static int rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
-static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
+static void rtl8192_usb_disconnect(struct usb_interface *intf);
 
 
 static struct usb_driver rtl8192_usb_driver = {
@@ -2232,24 +2232,15 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 	memset(priv->rx_urb, 0, sizeof(struct urb*) * MAX_RX_URB);
 	priv->pp_rxskb = kcalloc(MAX_RX_URB, sizeof(struct sk_buff *),
 				 GFP_KERNEL);
-	if (priv->pp_rxskb == NULL)
-		goto destroy;
+	if (!priv->pp_rxskb) {
+		kfree(priv->rx_urb);
 
-	goto _middle;
+		priv->pp_rxskb = NULL;
+		priv->rx_urb = NULL;
 
-
-destroy:
-	kfree(priv->pp_rxskb);
-	kfree(priv->rx_urb);
-
-	priv->pp_rxskb = NULL;
-	priv->rx_urb = NULL;
-
-	DMESGE("Endpoint Alloc Failure");
-	return -ENOMEM;
-
-
-_middle:
+		DMESGE("Endpoint Alloc Failure");
+		return -ENOMEM;
+	}
 
 	printk("End of initendpoints\n");
 	return 0;
@@ -2808,9 +2799,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		(priv->EarlyRxThreshold == 7 ? RCR_ONLYERLPKT:0);
 
 	priv->AcmControl = 0;
-	priv->pFirmware = kmalloc(sizeof(rt_firmware), GFP_KERNEL);
-	if (priv->pFirmware)
-	memset(priv->pFirmware, 0, sizeof(rt_firmware));
+	priv->pFirmware = kzalloc(sizeof(rt_firmware), GFP_KERNEL);
 
 	/* rx related queue */
 	skb_queue_head_init(&priv->rx_queue);
@@ -5750,7 +5739,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
      ---------------------------- USB_STUFF---------------------------
 *****************************************************************************/
 
-static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
+static int rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 //	unsigned long ioaddr = 0;
@@ -5837,7 +5826,7 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 }
 
 
-static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf)
+static void rtl8192_usb_disconnect(struct usb_interface *intf)
 {
 	struct net_device *dev = usb_get_intfdata(intf);
 

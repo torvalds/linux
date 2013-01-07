@@ -39,7 +39,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 
-#include <mach/spi.h>
+#include <linux/platform_data/spi-imx.h>
 
 #define DRIVER_NAME "spi_imx"
 
@@ -97,7 +97,7 @@ struct spi_imx_data {
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 
-	struct spi_imx_devtype_data *devtype_data;
+	const struct spi_imx_devtype_data *devtype_data;
 	int chipselect[0];
 };
 
@@ -197,6 +197,7 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 #define MX51_ECSPI_CONFIG_SCLKPOL(cs)	(1 << ((cs) +  4))
 #define MX51_ECSPI_CONFIG_SBBCTRL(cs)	(1 << ((cs) +  8))
 #define MX51_ECSPI_CONFIG_SSBPOL(cs)	(1 << ((cs) + 12))
+#define MX51_ECSPI_CONFIG_SCLKCTL(cs)	(1 << ((cs) + 20))
 
 #define MX51_ECSPI_INT		0x10
 #define MX51_ECSPI_INT_TEEN		(1 <<  0)
@@ -287,9 +288,10 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	if (config->mode & SPI_CPHA)
 		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(config->cs);
 
-	if (config->mode & SPI_CPOL)
+	if (config->mode & SPI_CPOL) {
 		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(config->cs);
-
+		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(config->cs);
+	}
 	if (config->mode & SPI_CS_HIGH)
 		cfg |= MX51_ECSPI_CONFIG_SSBPOL(config->cs);
 
@@ -748,7 +750,7 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
-static int __devinit spi_imx_probe(struct platform_device *pdev)
+static int spi_imx_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
@@ -904,7 +906,7 @@ out_gpio_free:
 	return ret;
 }
 
-static int __devexit spi_imx_remove(struct platform_device *pdev)
+static int spi_imx_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -940,7 +942,7 @@ static struct platform_driver spi_imx_driver = {
 		   },
 	.id_table = spi_imx_devtype,
 	.probe = spi_imx_probe,
-	.remove = __devexit_p(spi_imx_remove),
+	.remove = spi_imx_remove,
 };
 module_platform_driver(spi_imx_driver);
 

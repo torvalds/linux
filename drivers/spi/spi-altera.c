@@ -215,7 +215,7 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int __devinit altera_spi_probe(struct platform_device *pdev)
+static int altera_spi_probe(struct platform_device *pdev)
 {
 	struct altera_spi_platform_data *platp = pdev->dev.platform_data;
 	struct altera_spi *hw;
@@ -290,7 +290,7 @@ exit:
 	return err;
 }
 
-static int __devexit altera_spi_remove(struct platform_device *dev)
+static int altera_spi_remove(struct platform_device *dev)
 {
 	struct altera_spi *hw = platform_get_drvdata(dev);
 	struct spi_master *master = hw->bitbang.master;
@@ -307,18 +307,16 @@ static const struct of_device_id altera_spi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_spi_match);
-#else /* CONFIG_OF */
-#define altera_spi_match NULL
 #endif /* CONFIG_OF */
 
 static struct platform_driver altera_spi_driver = {
 	.probe = altera_spi_probe,
-	.remove = __devexit_p(altera_spi_remove),
+	.remove = altera_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = NULL,
-		.of_match_table = altera_spi_match,
+		.of_match_table = of_match_ptr(altera_spi_match),
 	},
 };
 module_platform_driver(altera_spi_driver);

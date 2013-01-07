@@ -92,9 +92,7 @@ struct pch_gpio_reg_data {
  * @lock:			Used for register access protection
  * @irq_base:		Save base of IRQ number for interrupt
  * @ioh:		IOH ID
- * @spinlock:		Used for register access protection in
- *				interrupt context pch_irq_mask,
- *				pch_irq_unmask and pch_irq_type;
+ * @spinlock:		Used for register access protection
  */
 struct pch_gpio {
 	void __iomem *base;
@@ -102,7 +100,6 @@ struct pch_gpio {
 	struct device *dev;
 	struct gpio_chip gpio;
 	struct pch_gpio_reg_data pch_gpio_reg;
-	struct mutex lock;
 	int irq_base;
 	enum pch_type_t ioh;
 	spinlock_t spinlock;
@@ -112,8 +109,9 @@ static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	u32 reg_val;
 	struct pch_gpio *chip =	container_of(gpio, struct pch_gpio, gpio);
+	unsigned long flags;
 
-	mutex_lock(&chip->lock);
+	spin_lock_irqsave(&chip->spinlock, flags);
 	reg_val = ioread32(&chip->reg->po);
 	if (val)
 		reg_val |= (1 << nr);
@@ -121,7 +119,7 @@ static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 		reg_val &= ~(1 << nr);
 
 	iowrite32(reg_val, &chip->reg->po);
-	mutex_unlock(&chip->lock);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 }
 
 static int pch_gpio_get(struct gpio_chip *gpio, unsigned nr)
@@ -137,8 +135,9 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	struct pch_gpio *chip =	container_of(gpio, struct pch_gpio, gpio);
 	u32 pm;
 	u32 reg_val;
+	unsigned long flags;
 
-	mutex_lock(&chip->lock);
+	spin_lock_irqsave(&chip->spinlock, flags);
 	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
 	pm |= (1 << nr);
 	iowrite32(pm, &chip->reg->pm);
@@ -149,8 +148,7 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	else
 		reg_val &= ~(1 << nr);
 	iowrite32(reg_val, &chip->reg->po);
-
-	mutex_unlock(&chip->lock);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	return 0;
 }
@@ -159,12 +157,13 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	struct pch_gpio *chip =	container_of(gpio, struct pch_gpio, gpio);
 	u32 pm;
+	unsigned long flags;
 
-	mutex_lock(&chip->lock);
+	spin_lock_irqsave(&chip->spinlock, flags);
 	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
 	pm &= ~(1 << nr);
 	iowrite32(pm, &chip->reg->pm);
-	mutex_unlock(&chip->lock);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	return 0;
 }
@@ -216,6 +215,7 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 	struct gpio_chip *gpio = &chip->gpio;
 
 	gpio->label = dev_name(chip->dev);
+	gpio->dev = chip->dev;
 	gpio->owner = THIS_MODULE;
 	gpio->direction_input = pch_gpio_direction_input;
 	gpio->get = pch_gpio_get;
@@ -326,7 +326,7 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
+static void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 				unsigned int irq_start, unsigned int num)
 {
 	struct irq_chip_generic *gc;
@@ -346,7 +346,7 @@ static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int __devinit pch_gpio_probe(struct pci_dev *pdev,
+static int pch_gpio_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	s32 ret;
@@ -387,7 +387,6 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 
 	chip->reg = chip->base;
 	pci_set_drvdata(pdev, chip);
-	mutex_init(&chip->lock);
 	spin_lock_init(&chip->spinlock);
 	pch_gpio_setup(chip);
 	ret = gpiochip_add(&chip->gpio);
@@ -444,7 +443,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit pch_gpio_remove(struct pci_dev *pdev)
+static void pch_gpio_remove(struct pci_dev *pdev)
 {
 	int err;
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
@@ -533,7 +532,7 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.remove = __devexit_p(pch_gpio_remove),
+	.remove = pch_gpio_remove,
 	.suspend = pch_gpio_suspend,
 	.resume = pch_gpio_resume
 };

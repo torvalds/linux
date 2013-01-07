@@ -54,7 +54,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		"VmPTE:\t%8lu kB\n"
 		"VmSwap:\t%8lu kB\n",
 		hiwater_vm << (PAGE_SHIFT-10),
-		(total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
+		total_vm << (PAGE_SHIFT-10),
 		mm->locked_vm << (PAGE_SHIFT-10),
 		mm->pinned_vm << (PAGE_SHIFT-10),
 		hiwater_rss << (PAGE_SHIFT-10),
@@ -90,10 +90,55 @@ static void pad_len_spaces(struct seq_file *m, int len)
 	seq_printf(m, "%*c", len, ' ');
 }
 
+#ifdef CONFIG_NUMA
+/*
+ * These functions are for numa_maps but called in generic **maps seq_file
+ * ->start(), ->stop() ops.
+ *
+ * numa_maps scans all vmas under mmap_sem and checks their mempolicy.
+ * Each mempolicy object is controlled by reference counting. The problem here
+ * is how to avoid accessing dead mempolicy object.
+ *
+ * Because we're holding mmap_sem while reading seq_file, it's safe to access
+ * each vma's mempolicy, no vma objects will never drop refs to mempolicy.
+ *
+ * A task's mempolicy (task->mempolicy) has different behavior. task->mempolicy
+ * is set and replaced under mmap_sem but unrefed and cleared under task_lock().
+ * So, without task_lock(), we cannot trust get_vma_policy() because we cannot
+ * gurantee the task never exits under us. But taking task_lock() around
+ * get_vma_plicy() causes lock order problem.
+ *
+ * To access task->mempolicy without lock, we hold a reference count of an
+ * object pointed by task->mempolicy and remember it. This will guarantee
+ * that task->mempolicy points to an alive object or NULL in numa_maps accesses.
+ */
+static void hold_task_mempolicy(struct proc_maps_private *priv)
+{
+	struct task_struct *task = priv->task;
+
+	task_lock(task);
+	priv->task_mempolicy = task->mempolicy;
+	mpol_get(priv->task_mempolicy);
+	task_unlock(task);
+}
+static void release_task_mempolicy(struct proc_maps_private *priv)
+{
+	mpol_put(priv->task_mempolicy);
+}
+#else
+static void hold_task_mempolicy(struct proc_maps_private *priv)
+{
+}
+static void release_task_mempolicy(struct proc_maps_private *priv)
+{
+}
+#endif
+
 static void vma_stop(struct proc_maps_private *priv, struct vm_area_struct *vma)
 {
 	if (vma && vma != priv->tail_vma) {
 		struct mm_struct *mm = vma->vm_mm;
+		release_task_mempolicy(priv);
 		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
@@ -132,7 +177,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 	tail_vma = get_gate_vma(priv->task->mm);
 	priv->tail_vma = tail_vma;
-
+	hold_task_mempolicy(priv);
 	/* Start with last addr hint */
 	vma = find_vma(mm, last_addr);
 	if (last_addr && vma) {
@@ -159,6 +204,7 @@ out:
 	if (vma)
 		return vma;
 
+	release_task_mempolicy(priv);
 	/* End of vmas has been reached */
 	m->version = (tail_vma != NULL)? 0: -1UL;
 	up_read(&mm->mmap_sem);
@@ -480,6 +526,57 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return 0;
 }
 
+static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+{
+	/*
+	 * Don't forget to update Documentation/ on changes.
+	 */
+	static const char mnemonics[BITS_PER_LONG][2] = {
+		/*
+		 * In case if we meet a flag we don't know about.
+		 */
+		[0 ... (BITS_PER_LONG-1)] = "??",
+
+		[ilog2(VM_READ)]	= "rd",
+		[ilog2(VM_WRITE)]	= "wr",
+		[ilog2(VM_EXEC)]	= "ex",
+		[ilog2(VM_SHARED)]	= "sh",
+		[ilog2(VM_MAYREAD)]	= "mr",
+		[ilog2(VM_MAYWRITE)]	= "mw",
+		[ilog2(VM_MAYEXEC)]	= "me",
+		[ilog2(VM_MAYSHARE)]	= "ms",
+		[ilog2(VM_GROWSDOWN)]	= "gd",
+		[ilog2(VM_PFNMAP)]	= "pf",
+		[ilog2(VM_DENYWRITE)]	= "dw",
+		[ilog2(VM_LOCKED)]	= "lo",
+		[ilog2(VM_IO)]		= "io",
+		[ilog2(VM_SEQ_READ)]	= "sr",
+		[ilog2(VM_RAND_READ)]	= "rr",
+		[ilog2(VM_DONTCOPY)]	= "dc",
+		[ilog2(VM_DONTEXPAND)]	= "de",
+		[ilog2(VM_ACCOUNT)]	= "ac",
+		[ilog2(VM_NORESERVE)]	= "nr",
+		[ilog2(VM_HUGETLB)]	= "ht",
+		[ilog2(VM_NONLINEAR)]	= "nl",
+		[ilog2(VM_ARCH_1)]	= "ar",
+		[ilog2(VM_DONTDUMP)]	= "dd",
+		[ilog2(VM_MIXEDMAP)]	= "mm",
+		[ilog2(VM_HUGEPAGE)]	= "hg",
+		[ilog2(VM_NOHUGEPAGE)]	= "nh",
+		[ilog2(VM_MERGEABLE)]	= "mg",
+	};
+	size_t i;
+
+	seq_puts(m, "VmFlags: ");
+	for (i = 0; i < BITS_PER_LONG; i++) {
+		if (vma->vm_flags & (1UL << i)) {
+			seq_printf(m, "%c%c ",
+				   mnemonics[i][0], mnemonics[i][1]);
+		}
+	}
+	seq_putc(m, '\n');
+}
+
 static int show_smap(struct seq_file *m, void *v, int is_pid)
 {
 	struct proc_maps_private *priv = m->private;
@@ -534,6 +631,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
 	if (vma->vm_flags & VM_NONLINEAR)
 		seq_printf(m, "Nonlinear:      %8lu kB\n",
 				mss.nonlinear >> 10);
+
+	show_smap_vma_flags(m, vma);
 
 	if (m->count < m->size)  /* vma is copied successfully */
 		m->version = (vma != get_gate_vma(task->mm))
@@ -597,7 +696,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	spinlock_t *ptl;
 	struct page *page;
 
-	split_huge_page_pmd(walk->mm, pmd);
+	split_huge_page_pmd(vma, addr, pmd);
 	if (pmd_trans_unstable(pmd))
 		return 0;
 
@@ -1080,7 +1179,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
 		return NULL;
 
 	nid = page_to_nid(page);
-	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
+	if (!node_isset(nid, node_states[N_MEMORY]))
 		return NULL;
 
 	return page;
@@ -1158,6 +1257,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	struct vm_area_struct *vma = v;
 	struct numa_maps *md = &numa_priv->md;
 	struct file *file = vma->vm_file;
+	struct task_struct *task = proc_priv->task;
 	struct mm_struct *mm = vma->vm_mm;
 	struct mm_walk walk = {};
 	struct mempolicy *pol;
@@ -1177,8 +1277,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	walk.private = md;
 	walk.mm = mm;
 
-	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
-	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+	pol = get_vma_policy(task, vma, vma->vm_start);
+	mpol_to_str(buffer, sizeof(buffer), pol);
 	mpol_cond_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
@@ -1189,7 +1289,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
 		seq_printf(m, " heap");
 	} else {
-		pid_t tid = vm_is_stack(proc_priv->task, vma, is_pid);
+		pid_t tid = vm_is_stack(task, vma, is_pid);
 		if (tid != 0) {
 			/*
 			 * Thread stack in /proc/PID/task/TID/maps or
@@ -1232,7 +1332,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	if (md->writeback)
 		seq_printf(m, " writeback=%lu", md->writeback);
 
-	for_each_node_state(n, N_HIGH_MEMORY)
+	for_each_node_state(n, N_MEMORY)
 		if (md->node[n])
 			seq_printf(m, " N%d=%lu", n, md->node[n]);
 out:

@@ -102,6 +102,7 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 
 /* Channels */
 extern int efx_channel_dummy_op_int(struct efx_channel *channel);
+extern void efx_channel_dummy_op_void(struct efx_channel *channel);
 extern void efx_process_channel_now(struct efx_channel *channel);
 extern int
 efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
@@ -161,5 +162,18 @@ static inline void efx_schedule_channel_irq(struct efx_channel *channel)
 extern void efx_link_status_changed(struct efx_nic *efx);
 extern void efx_link_set_advertising(struct efx_nic *efx, u32);
 extern void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
+
+static inline void efx_device_detach_sync(struct efx_nic *efx)
+{
+	struct net_device *dev = efx->net_dev;
+
+	/* Lock/freeze all TX queues so that we can be sure the
+	 * TX scheduler is stopped when we're done and before
+	 * netif_device_present() becomes false.
+	 */
+	netif_tx_lock(dev);
+	netif_device_detach(dev);
+	netif_tx_unlock(dev);
+}
 
 #endif /* EFX_EFX_H */

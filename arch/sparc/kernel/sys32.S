@@ -47,7 +47,7 @@ STUB:	sra	REG1, 0, REG1; \
 	sra	REG4, 0, REG4
 
 SIGN1(sys32_exit, sparc_exit, %o0)
-SIGN1(sys32_exit_group, sys_exit_group, %o0)
+SIGN1(sys32_exit_group, sparc_exit_group, %o0)
 SIGN1(sys32_wait4, compat_sys_wait4, %o2)
 SIGN1(sys32_creat, sys_creat, %o1)
 SIGN1(sys32_mknod, sys_mknod, %o1)
@@ -90,7 +90,7 @@ SIGN1(sys32_mkdir, sys_mkdir, %o1)
 SIGN3(sys32_futex, compat_sys_futex, %o1, %o2, %o5)
 SIGN1(sys32_sysfs, compat_sys_sysfs, %o0)
 SIGN2(sys32_sendfile, compat_sys_sendfile, %o0, %o1)
-SIGN2(sys32_sendfile64, compat_sys_sendfile64, %o0, %o1)
+SIGN2(sys32_sendfile64, sys_sendfile, %o0, %o1)
 SIGN1(sys32_prctl, sys_prctl, %o0)
 SIGN1(sys32_sched_rr_get_interval, compat_sys_sched_rr_get_interval, %o0)
 SIGN2(sys32_waitpid, sys_waitpid, %o0, %o2)

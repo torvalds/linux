@@ -59,7 +59,7 @@
 
 
 static struct svc_sock *svc_setup_socket(struct svc_serv *, struct socket *,
-					 int *errp, int flags);
+					 int flags);
 static void		svc_udp_data_ready(struct sock *, int);
 static int		svc_udp_recvfrom(struct svc_rqst *);
 static int		svc_udp_sendto(struct svc_rqst *);
@@ -84,7 +84,11 @@ static struct lock_class_key svc_slock_key[2];
 static void svc_reclassify_socket(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(sock_owned_by_user(sk));
+
+	WARN_ON_ONCE(sock_owned_by_user(sk));
+	if (sock_owned_by_user(sk))
+		return;
+
 	switch (sk->sk_family) {
 	case AF_INET:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFSD",
@@ -304,57 +308,6 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 	}
 	return len;
 }
-
-/**
- * svc_sock_names - construct a list of listener names in a string
- * @serv: pointer to RPC service
- * @buf: pointer to a buffer to fill in with socket names
- * @buflen: size of the buffer to be filled
- * @toclose: pointer to '\0'-terminated C string containing the name
- *		of a listener to be closed
- *
- * Fills in @buf with a '\n'-separated list of names of listener
- * sockets.  If @toclose is not NULL, the socket named by @toclose
- * is closed, and is not included in the output list.
- *
- * Returns positive length of the socket name string, or a negative
- * errno value on error.
- */
-int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
-		   const char *toclose)
-{
-	struct svc_sock *svsk, *closesk = NULL;
-	int len = 0;
-
-	if (!serv)
-		return 0;
-
-	spin_lock_bh(&serv->sv_lock);
-	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list) {
-		int onelen = svc_one_sock_name(svsk, buf + len, buflen - len);
-		if (onelen < 0) {
-			len = onelen;
-			break;
-		}
-		if (toclose && strcmp(toclose, buf + len) == 0) {
-			closesk = svsk;
-			svc_xprt_get(&closesk->sk_xprt);
-		} else
-			len += onelen;
-	}
-	spin_unlock_bh(&serv->sv_lock);
-
-	if (closesk) {
-		/* Should unregister with portmap, but you cannot
-		 * unregister just one protocol...
-		 */
-		svc_close_xprt(&closesk->sk_xprt);
-		svc_xprt_put(&closesk->sk_xprt);
-	} else if (toclose)
-		return -ENOENT;
-	return len;
-}
-EXPORT_SYMBOL_GPL(svc_sock_names);
 
 /*
  * Check input queue length
@@ -598,11 +551,9 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 			dprintk("svc: recvfrom returned error %d\n", -err);
 			set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		}
-		return -EAGAIN;
+		return 0;
 	}
 	len = svc_addr_len(svc_addr(rqstp));
-	if (len == 0)
-		return -EAFNOSUPPORT;
 	rqstp->rq_addrlen = len;
 	if (skb->tstamp.tv64 == 0) {
 		skb->tstamp = ktime_get_real();
@@ -620,10 +571,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (!svc_udp_get_dest_address(rqstp, cmh)) {
 		net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
 				     cmh->cmsg_level, cmh->cmsg_type);
-out_free:
-		trace_kfree_skb(skb, svc_udp_recvfrom);
-		skb_free_datagram_locked(svsk->sk_sk, skb);
-		return 0;
+		goto out_free;
 	}
 	rqstp->rq_daddrlen = svc_addr_len(svc_daddr(rqstp));
 
@@ -657,11 +605,16 @@ out_free:
 		rqstp->rq_respages = rqstp->rq_pages + 1 +
 			DIV_ROUND_UP(rqstp->rq_arg.page_len, PAGE_SIZE);
 	}
+	rqstp->rq_next_page = rqstp->rq_respages+1;
 
 	if (serv->sv_stats)
 		serv->sv_stats->netudpcnt++;
 
 	return len;
+out_free:
+	trace_kfree_skb(skb, svc_udp_recvfrom);
+	skb_free_datagram_locked(svsk->sk_sk, skb);
+	return 0;
 }
 
 static int
@@ -900,8 +853,9 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	 */
 	newsock->sk->sk_sndtimeo = HZ*30;
 
-	if (!(newsvsk = svc_setup_socket(serv, newsock, &err,
-				 (SVC_SOCK_ANONYMOUS | SVC_SOCK_TEMPORARY))))
+	newsvsk = svc_setup_socket(serv, newsock,
+				 (SVC_SOCK_ANONYMOUS | SVC_SOCK_TEMPORARY));
+	if (IS_ERR(newsvsk))
 		goto failed;
 	svc_xprt_set_remote(&newsvsk->sk_xprt, sin, slen);
 	err = kernel_getsockname(newsock, sin, &slen);
@@ -925,9 +879,9 @@ static unsigned int svc_tcp_restore_pages(struct svc_sock *svsk, struct svc_rqst
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		return 0;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		if (rqstp->rq_pages[i] != NULL)
@@ -944,9 +898,9 @@ static void svc_tcp_save_pages(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		return;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		svsk->sk_pages[i] = rqstp->rq_pages[i];
@@ -958,9 +912,9 @@ static void svc_tcp_clear_pages(struct svc_sock *svsk)
 {
 	unsigned int i, len, npages;
 
-	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+	if (svsk->sk_datalen == 0)
 		goto out;
-	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	len = svsk->sk_datalen;
 	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		BUG_ON(svsk->sk_pages[i] == NULL);
@@ -969,13 +923,12 @@ static void svc_tcp_clear_pages(struct svc_sock *svsk)
 	}
 out:
 	svsk->sk_tcplen = 0;
+	svsk->sk_datalen = 0;
 }
 
 /*
- * Receive data.
+ * Receive fragment record header.
  * If we haven't gotten the record length yet, get the next four bytes.
- * Otherwise try to gobble up as much as possible up to the complete
- * record length.
  */
 static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
@@ -1001,32 +954,16 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 			return -EAGAIN;
 		}
 
-		svsk->sk_reclen = ntohl(svsk->sk_reclen);
-		if (!(svsk->sk_reclen & RPC_LAST_STREAM_FRAGMENT)) {
-			/* FIXME: technically, a record can be fragmented,
-			 *  and non-terminal fragments will not have the top
-			 *  bit set in the fragment length header.
-			 *  But apparently no known nfs clients send fragmented
-			 *  records. */
-			net_notice_ratelimited("RPC: multiple fragments per record not supported\n");
-			goto err_delete;
-		}
-
-		svsk->sk_reclen &= RPC_FRAGMENT_SIZE_MASK;
-		dprintk("svc: TCP record, %d bytes\n", svsk->sk_reclen);
-		if (svsk->sk_reclen > serv->sv_max_mesg) {
-			net_notice_ratelimited("RPC: fragment too large: 0x%08lx\n",
-					       (unsigned long)svsk->sk_reclen);
+		dprintk("svc: TCP record, %d bytes\n", svc_sock_reclen(svsk));
+		if (svc_sock_reclen(svsk) + svsk->sk_datalen >
+							serv->sv_max_mesg) {
+			net_notice_ratelimited("RPC: fragment too large: %d\n",
+					svc_sock_reclen(svsk));
 			goto err_delete;
 		}
 	}
 
-	if (svsk->sk_reclen < 8)
-		goto err_delete; /* client is nuts. */
-
-	len = svsk->sk_reclen;
-
-	return len;
+	return svc_sock_reclen(svsk);
 error:
 	dprintk("RPC: TCP recv_record got %d\n", len);
 	return len;
@@ -1070,7 +1007,7 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	if (dst->iov_len < src->iov_len)
 		return -EAGAIN; /* whatever; just giving up. */
 	memcpy(dst->iov_base, src->iov_base, src->iov_len);
-	xprt_complete_rqst(req->rq_task, svsk->sk_reclen);
+	xprt_complete_rqst(req->rq_task, rqstp->rq_arg.len);
 	rqstp->rq_arg.len = 0;
 	return 0;
 }
@@ -1089,6 +1026,17 @@ static int copy_pages_to_kvecs(struct kvec *vec, struct page **pages, int len)
 	return i;
 }
 
+static void svc_tcp_fragment_received(struct svc_sock *svsk)
+{
+	/* If we have more data, signal svc_xprt_enqueue() to try again */
+	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
+		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
+	dprintk("svc: TCP %s record (%d bytes)\n",
+		svc_sock_final_rec(svsk) ? "final" : "nonfinal",
+		svc_sock_reclen(svsk));
+	svsk->sk_tcplen = 0;
+	svsk->sk_reclen = 0;
+}
 
 /*
  * Receive data from a TCP socket.
@@ -1115,29 +1063,39 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		goto error;
 
 	base = svc_tcp_restore_pages(svsk, rqstp);
-	want = svsk->sk_reclen - base;
+	want = svc_sock_reclen(svsk) - (svsk->sk_tcplen - sizeof(rpc_fraghdr));
 
 	vec = rqstp->rq_vec;
 
 	pnum = copy_pages_to_kvecs(&vec[0], &rqstp->rq_pages[0],
-						svsk->sk_reclen);
+						svsk->sk_datalen + want);
 
 	rqstp->rq_respages = &rqstp->rq_pages[pnum];
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Now receive data */
 	len = svc_partial_recvfrom(rqstp, vec, pnum, want, base);
-	if (len >= 0)
+	if (len >= 0) {
 		svsk->sk_tcplen += len;
-	if (len != want) {
+		svsk->sk_datalen += len;
+	}
+	if (len != want || !svc_sock_final_rec(svsk)) {
 		svc_tcp_save_pages(svsk, rqstp);
 		if (len < 0 && len != -EAGAIN)
-			goto err_other;
-		dprintk("svc: incomplete TCP record (%d of %d)\n",
-			svsk->sk_tcplen, svsk->sk_reclen);
+			goto err_delete;
+		if (len == want)
+			svc_tcp_fragment_received(svsk);
+		else
+			dprintk("svc: incomplete TCP record (%d of %d)\n",
+				(int)(svsk->sk_tcplen - sizeof(rpc_fraghdr)),
+				svc_sock_reclen(svsk));
 		goto err_noclose;
 	}
 
-	rqstp->rq_arg.len = svsk->sk_reclen;
+	if (svc_sock_reclen(svsk) < 8)
+		goto err_delete; /* client is nuts. */
+
+	rqstp->rq_arg.len = svsk->sk_datalen;
 	rqstp->rq_arg.page_base = 0;
 	if (rqstp->rq_arg.len <= rqstp->rq_arg.head[0].iov_len) {
 		rqstp->rq_arg.head[0].iov_len = rqstp->rq_arg.len;
@@ -1154,11 +1112,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		len = receive_cb_reply(svsk, rqstp);
 
 	/* Reset TCP read info */
-	svsk->sk_reclen = 0;
-	svsk->sk_tcplen = 0;
-	/* If we have more data, signal svc_xprt_enqueue() to try again */
-	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
-		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
+	svsk->sk_datalen = 0;
+	svc_tcp_fragment_received(svsk);
 
 	if (len < 0)
 		goto error;
@@ -1167,20 +1122,19 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
 
-	dprintk("svc: TCP complete record (%d bytes)\n", rqstp->rq_arg.len);
 	return rqstp->rq_arg.len;
 
 error:
 	if (len != -EAGAIN)
-		goto err_other;
+		goto err_delete;
 	dprintk("RPC: TCP recvfrom got EAGAIN\n");
-	return -EAGAIN;
-err_other:
+	return 0;
+err_delete:
 	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
 	       svsk->sk_xprt.xpt_server->sv_name, -len);
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 err_noclose:
-	return -EAGAIN;	/* record not complete */
+	return 0;	/* record not complete */
 }
 
 /*
@@ -1352,6 +1306,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
+		svsk->sk_datalen = 0;
 		memset(&svsk->sk_pages[0], 0, sizeof(svsk->sk_pages));
 
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
@@ -1383,29 +1338,29 @@ EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
  */
 static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 						struct socket *sock,
-						int *errp, int flags)
+						int flags)
 {
 	struct svc_sock	*svsk;
 	struct sock	*inet;
 	int		pmap_register = !(flags & SVC_SOCK_ANONYMOUS);
+	int		err = 0;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
-	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
-		*errp = -ENOMEM;
-		return NULL;
-	}
+	svsk = kzalloc(sizeof(*svsk), GFP_KERNEL);
+	if (!svsk)
+		return ERR_PTR(-ENOMEM);
 
 	inet = sock->sk;
 
 	/* Register socket with portmapper */
-	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, sock_net(sock->sk), inet->sk_family,
+	if (pmap_register)
+		err = svc_register(serv, sock_net(sock->sk), inet->sk_family,
 				     inet->sk_protocol,
 				     ntohs(inet_sk(inet)->inet_sport));
 
-	if (*errp < 0) {
+	if (err < 0) {
 		kfree(svsk);
-		return NULL;
+		return ERR_PTR(err);
 	}
 
 	inet->sk_user_data = svsk;
@@ -1450,42 +1405,38 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 	int err = 0;
 	struct socket *so = sockfd_lookup(fd, &err);
 	struct svc_sock *svsk = NULL;
+	struct sockaddr_storage addr;
+	struct sockaddr *sin = (struct sockaddr *)&addr;
+	int salen;
 
 	if (!so)
 		return err;
+	err = -EAFNOSUPPORT;
 	if ((so->sk->sk_family != PF_INET) && (so->sk->sk_family != PF_INET6))
-		err =  -EAFNOSUPPORT;
-	else if (so->sk->sk_protocol != IPPROTO_TCP &&
+		goto out;
+	err =  -EPROTONOSUPPORT;
+	if (so->sk->sk_protocol != IPPROTO_TCP &&
 	    so->sk->sk_protocol != IPPROTO_UDP)
-		err =  -EPROTONOSUPPORT;
-	else if (so->state > SS_UNCONNECTED)
-		err = -EISCONN;
-	else {
-		if (!try_module_get(THIS_MODULE))
-			err = -ENOENT;
-		else
-			svsk = svc_setup_socket(serv, so, &err,
-						SVC_SOCK_DEFAULTS);
-		if (svsk) {
-			struct sockaddr_storage addr;
-			struct sockaddr *sin = (struct sockaddr *)&addr;
-			int salen;
-			if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
-				svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
-			clear_bit(XPT_TEMP, &svsk->sk_xprt.xpt_flags);
-			spin_lock_bh(&serv->sv_lock);
-			list_add(&svsk->sk_xprt.xpt_list, &serv->sv_permsocks);
-			spin_unlock_bh(&serv->sv_lock);
-			svc_xprt_received(&svsk->sk_xprt);
-			err = 0;
-		} else
-			module_put(THIS_MODULE);
+		goto out;
+	err = -EISCONN;
+	if (so->state > SS_UNCONNECTED)
+		goto out;
+	err = -ENOENT;
+	if (!try_module_get(THIS_MODULE))
+		goto out;
+	svsk = svc_setup_socket(serv, so, SVC_SOCK_DEFAULTS);
+	if (IS_ERR(svsk)) {
+		module_put(THIS_MODULE);
+		err = PTR_ERR(svsk);
+		goto out;
 	}
-	if (err) {
-		sockfd_put(so);
-		return err;
-	}
+	if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
+		svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
+	svc_add_new_perm_xprt(serv, &svsk->sk_xprt);
 	return svc_one_sock_name(svsk, name_return, len);
+out:
+	sockfd_put(so);
+	return err;
 }
 EXPORT_SYMBOL_GPL(svc_addsock);
 
@@ -1563,11 +1514,13 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 			goto bummer;
 	}
 
-	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL) {
-		svc_xprt_set_local(&svsk->sk_xprt, newsin, newlen);
-		return (struct svc_xprt *)svsk;
+	svsk = svc_setup_socket(serv, sock, flags);
+	if (IS_ERR(svsk)) {
+		error = PTR_ERR(svsk);
+		goto bummer;
 	}
-
+	svc_xprt_set_local(&svsk->sk_xprt, newsin, newlen);
+	return (struct svc_xprt *)svsk;
 bummer:
 	dprintk("svc: svc_create_socket error = %d\n", -error);
 	sock_release(sock);

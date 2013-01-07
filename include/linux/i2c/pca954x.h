@@ -36,6 +36,7 @@
 struct pca954x_platform_mode {
 	int		adap_id;
 	unsigned int	deselect_on_exit:1;
+	unsigned int	class;
 };
 
 /* Per mux/switch data, used with i2c_register_board_info */

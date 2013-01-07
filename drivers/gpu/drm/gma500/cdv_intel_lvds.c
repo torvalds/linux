@@ -479,7 +479,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 			return -1;
 		}
 
-		if (drm_connector_property_get_value(connector,
+		if (drm_object_property_get_value(&connector->base,
 						     property,
 						     &curValue))
 			return -1;
@@ -487,7 +487,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 		if (curValue == value)
 			return 0;
 
-		if (drm_connector_property_set_value(connector,
+		if (drm_object_property_set_value(&connector->base,
 							property,
 							value))
 			return -1;
@@ -502,20 +502,12 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 				return -1;
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {
-		if (drm_connector_property_set_value(connector,
+		if (drm_object_property_set_value(&connector->base,
 							property,
 							value))
 			return -1;
-		else {
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct drm_psb_private *dev_priv =
-						encoder->dev->dev_private;
-			struct backlight_device *bd =
-						dev_priv->backlight_device;
-			bd->props.brightness = value;
-			backlight_update_status(bd);
-#endif
-		}
+		else
+                        gma_backlight_set(encoder->dev, value);
 	} else if (!strcmp(property->name, "DPMS") && encoder) {
 		struct drm_encoder_helper_funcs *helpers =
 					encoder->helper_private;
@@ -679,10 +671,10 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	connector->doublescan_allowed = false;
 
 	/*Attach connector properties*/
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_FULLSCREEN);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				      dev_priv->backlight_property,
 				      BRIGHTNESS_MAX_LEVEL);
 

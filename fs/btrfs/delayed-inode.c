@@ -29,7 +29,7 @@ static struct kmem_cache *delayed_node_cache;
 
 int __init btrfs_delayed_inode_init(void)
 {
-	delayed_node_cache = kmem_cache_create("delayed_node",
+	delayed_node_cache = kmem_cache_create("btrfs_delayed_node",
 					sizeof(struct btrfs_delayed_node),
 					0,
 					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
@@ -650,8 +650,9 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 * we're accounted for.
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
-	    src_rsv != &root->fs_info->delalloc_block_rsv)) {
-		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
+		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
+					  BTRFS_RESERVE_NO_FLUSH);
 		/*
 		 * Since we're under a transaction reserve_metadata_bytes could
 		 * try to commit the transaction which will make it return
@@ -668,7 +669,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      num_bytes, 1);
 		}
 		return ret;
-	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
+	} else if (src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
 		spin_lock(&BTRFS_I(inode)->lock);
 		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
 				       &BTRFS_I(inode)->runtime_flags)) {
@@ -686,7 +687,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 		 * reserve something strictly for us.  If not be a pain and try
 		 * to steal from the delalloc block rsv.
 		 */
-		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
+					  BTRFS_RESERVE_NO_FLUSH);
 		if (!ret)
 			goto out;
 
@@ -1255,7 +1257,6 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	struct btrfs_delayed_node *delayed_node = NULL;
 	struct btrfs_root *root;
 	struct btrfs_block_rsv *block_rsv;
-	unsigned long nr = 0;
 	int need_requeue = 0;
 	int ret;
 
@@ -1316,11 +1317,9 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 					   delayed_node);
 	mutex_unlock(&delayed_node->mutex);
 
-	nr = trans->blocks_used;
-
 	trans->block_rsv = block_rsv;
 	btrfs_end_transaction_dmeta(trans, root);
-	__btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty_nodelay(root);
 free_path:
 	btrfs_free_path(path);
 out:
@@ -1715,8 +1714,8 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode_item *inode_item,
 				  struct inode *inode)
 {
-	btrfs_set_stack_inode_uid(inode_item, inode->i_uid);
-	btrfs_set_stack_inode_gid(inode_item, inode->i_gid);
+	btrfs_set_stack_inode_uid(inode_item, i_uid_read(inode));
+	btrfs_set_stack_inode_gid(inode_item, i_gid_read(inode));
 	btrfs_set_stack_inode_size(inode_item, BTRFS_I(inode)->disk_i_size);
 	btrfs_set_stack_inode_mode(inode_item, inode->i_mode);
 	btrfs_set_stack_inode_nlink(inode_item, inode->i_nlink);
@@ -1764,8 +1763,8 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 
 	inode_item = &delayed_node->inode_item;
 
-	inode->i_uid = btrfs_stack_inode_uid(inode_item);
-	inode->i_gid = btrfs_stack_inode_gid(inode_item);
+	i_uid_write(inode, btrfs_stack_inode_uid(inode_item));
+	i_gid_write(inode, btrfs_stack_inode_gid(inode_item));
 	btrfs_i_size_write(inode, btrfs_stack_inode_size(inode_item));
 	inode->i_mode = btrfs_stack_inode_mode(inode_item);
 	set_nlink(inode, btrfs_stack_inode_nlink(inode_item));

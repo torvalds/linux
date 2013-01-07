@@ -444,18 +444,20 @@ static struct attribute *ppi_attrs[] = {
 	&dev_attr_vs_operations.attr, NULL,
 };
 static struct attribute_group ppi_attr_grp = {
+	.name = "ppi",
 	.attrs = ppi_attrs
 };
 
-ssize_t sys_add_ppi(struct kobject *parent)
+int tpm_add_ppi(struct kobject *parent)
 {
-	struct kobject *ppi;
-	ppi = kobject_create_and_add("ppi", parent);
-	if (sysfs_create_group(ppi, &ppi_attr_grp))
-		return -EFAULT;
-	else
-		return 0;
+	return sysfs_create_group(parent, &ppi_attr_grp);
 }
-EXPORT_SYMBOL_GPL(sys_add_ppi);
+EXPORT_SYMBOL_GPL(tpm_add_ppi);
+
+void tpm_remove_ppi(struct kobject *parent)
+{
+	sysfs_remove_group(parent, &ppi_attr_grp);
+}
+EXPORT_SYMBOL_GPL(tpm_remove_ppi);
 
 MODULE_LICENSE("GPL");

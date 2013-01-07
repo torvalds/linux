@@ -1,0 +1,52 @@
+/*
+ * O2D300 Device Tree Source
+ *
+ * Copyright (C) 2012 DENX Software Engineering
+ * Anatolij Gustschin <agust@denx.de>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "o2d.dtsi"
+
+/ {
+	model = "ifm,o2d300";
+	compatible = "ifm,o2d";
+
+	localbus {
+		ranges = <0 0 0xfc000000 0x02000000
+			  3 0 0xe3000000 0x00100000>;
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x02000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			partition@40000 {
+				label = "env_1";
+				reg = <0x00040000 0x00020000>;
+				read-only;
+			};
+			partition@60000 {
+				label = "env_2";
+				reg = <0x00060000 0x00020000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "kernel";
+				reg = <0x00080000 0x00260000>;
+				read-only;
+			};
+			/* o2d300 specific partitions */
+			partition@2e0000 {
+				label = "o2d300 user defined";
+				reg = <0x002e0000 0x01d20000>;
+			};
+		};
+	};
+};

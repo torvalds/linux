@@ -34,7 +34,7 @@
 #ifndef __CVMX_HELPER_BOARD_H__
 #define __CVMX_HELPER_BOARD_H__
 
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-helper.h>
 
 typedef enum {
 	set_phy_link_flags_autoneg = 0x1,

@@ -258,6 +258,7 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 {
 	siginfo_t info;
 
+	current->thread.trap_nr = signal_code;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -275,6 +276,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 {
 	siginfo_t info;
 
+	current->thread.trap_nr = TRAP_HWBKPT;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -283,7 +285,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 		return;
 
 	/* Clear the DABR */
-	set_dabr(0);
+	set_dabr(0, 0);
 
 	/* Deliver the signal to userspace */
 	info.si_signo = SIGTRAP;
@@ -364,18 +366,19 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	if (thread->dabr) {
 		thread->dabr = 0;
-		set_dabr(0);
+		thread->dabrx = 0;
+		set_dabr(0, 0);
 	}
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
-int set_dabr(unsigned long dabr)
+int set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	__get_cpu_var(current_dabr) = dabr;
 
 	if (ppc_md.set_dabr)
-		return ppc_md.set_dabr(dabr);
+		return ppc_md.set_dabr(dabr, dabrx);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -385,9 +388,8 @@ int set_dabr(unsigned long dabr)
 #endif
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
+	mtspr(SPRN_DABRX, dabrx);
 #endif
-
-
 	return 0;
 }
 
@@ -480,7 +482,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
+		set_dabr(new->thread.dabr, new->thread.dabrx);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
@@ -513,9 +515,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	local_irq_save(flags);
-
-	account_system_vtime(current);
-	account_process_vtime(current);
 
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
@@ -734,30 +733,38 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused, struct task_struct *p,
-		struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
+	extern void ret_from_kernel_thread(void);
+	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
-	CHECK_FULL_REGS(regs);
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
-	*childregs = *regs;
-	if ((childregs->msr & MSR_PR) == 0) {
-		/* for kernel thread, set `current' and stackptr in new task */
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		struct thread_info *ti = (void *)task_stack_page(p);
+		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
-#ifdef CONFIG_PPC32
-		childregs->gpr[2] = (unsigned long) p;
-#else
+		childregs->gpr[14] = usp;	/* function */
+#ifdef CONFIG_PPC64
 		clear_tsk_thread_flag(p, TIF_32BIT);
+		childregs->softe = 1;
 #endif
+		childregs->gpr[15] = arg;
 		p->thread.regs = NULL;	/* no user register state */
+		ti->flags |= _TIF_RESTOREALL;
+		f = ret_from_kernel_thread;
 	} else {
-		childregs->gpr[1] = usp;
+		struct pt_regs *regs = current_pt_regs();
+		CHECK_FULL_REGS(regs);
+		*childregs = *regs;
+		if (usp)
+			childregs->gpr[1] = usp;
 		p->thread.regs = childregs;
+		childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
 			if (!is_32bit_task())
@@ -766,8 +773,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 				childregs->gpr[2] = childregs->gpr[6];
 		}
+
+		f = ret_from_fork;
 	}
-	childregs->gpr[3] = 0;  /* Result from fork() */
 	sp -= STACK_FRAME_OVERHEAD;
 
 	/*
@@ -806,19 +814,17 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.dscr = current->thread.dscr;
 	}
 #endif
-
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
 	 * pointers.  The function (ret_from_except) is actually a pointer
 	 * to the TOC entry.  The first entry is a pointer to the actual
 	 * function.
- 	 */
+	 */
 #ifdef CONFIG_PPC64
-	kregs->nip = *((unsigned long *)ret_from_fork);
+	kregs->nip = *((unsigned long *)f);
 #else
-	kregs->nip = (unsigned long)ret_from_fork;
+	kregs->nip = (unsigned long)f;
 #endif
-
 	return 0;
 }
 
@@ -1018,64 +1024,6 @@ int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
 int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 {
 	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
-}
-
-#define TRUNC_PTR(x)	((typeof(x))(((unsigned long)(x)) & 0xffffffff))
-
-int sys_clone(unsigned long clone_flags, unsigned long usp,
-	      int __user *parent_tidp, void __user *child_threadptr,
-	      int __user *child_tidp, int p6,
-	      struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	if (usp == 0)
-		usp = regs->gpr[1];	/* stack pointer for child */
-#ifdef CONFIG_PPC64
-	if (is_32bit_task()) {
-		parent_tidp = TRUNC_PTR(parent_tidp);
-		child_tidp = TRUNC_PTR(child_tidp);
-	}
-#endif
- 	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
-}
-
-int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
-	     unsigned long p4, unsigned long p5, unsigned long p6,
-	     struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	return do_fork(SIGCHLD, regs->gpr[1], regs, 0, NULL, NULL);
-}
-
-int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
-	      unsigned long p4, unsigned long p5, unsigned long p6,
-	      struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gpr[1],
-			regs, 0, NULL, NULL);
-}
-
-int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
-	       unsigned long a3, unsigned long a4, unsigned long a5,
-	       struct pt_regs *regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname((const char __user *) a0);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-	flush_spe_to_thread(current);
-	error = do_execve(filename,
-			  (const char __user *const __user *) a1,
-			  (const char __user *const __user *) a2, regs);
-	putname(filename);
-out:
-	return error;
 }
 
 static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,

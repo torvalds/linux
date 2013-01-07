@@ -156,8 +156,7 @@ static irqreturn_t qt2160_irq(int irq, void *_qt2160)
 
 	spin_lock_irqsave(&qt2160->lock, flags);
 
-	__cancel_delayed_work(&qt2160->dwork);
-	schedule_delayed_work(&qt2160->dwork, 0);
+	mod_delayed_work(system_wq, &qt2160->dwork, 0);
 
 	spin_unlock_irqrestore(&qt2160->lock, flags);
 
@@ -184,7 +183,7 @@ static void qt2160_worker(struct work_struct *work)
 	qt2160_schedule_read(qt2160);
 }
 
-static int __devinit qt2160_read(struct i2c_client *client, u8 reg)
+static int qt2160_read(struct i2c_client *client, u8 reg)
 {
 	int ret;
 
@@ -205,29 +204,20 @@ static int __devinit qt2160_read(struct i2c_client *client, u8 reg)
 	return ret;
 }
 
-static int __devinit qt2160_write(struct i2c_client *client, u8 reg, u8 data)
+static int qt2160_write(struct i2c_client *client, u8 reg, u8 data)
 {
-	int error;
+	int ret;
 
-	error = i2c_smbus_write_byte(client, reg);
-	if (error) {
+	ret = i2c_smbus_write_byte_data(client, reg, data);
+	if (ret < 0)
 		dev_err(&client->dev,
-			"couldn't send request. Returned %d\n", error);
-		return error;
-	}
+			"couldn't write data. Returned %d\n", ret);
 
-	error = i2c_smbus_write_byte(client, data);
-	if (error) {
-		dev_err(&client->dev,
-			"couldn't write data. Returned %d\n", error);
-		return error;
-	}
-
-	return error;
+	return ret;
 }
 
 
-static bool __devinit qt2160_identify(struct i2c_client *client)
+static bool qt2160_identify(struct i2c_client *client)
 {
 	int id, ver, rev;
 
@@ -258,7 +248,7 @@ static bool __devinit qt2160_identify(struct i2c_client *client)
 	return true;
 }
 
-static int __devinit qt2160_probe(struct i2c_client *client,
+static int qt2160_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct qt2160_data *qt2160;
@@ -345,7 +335,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit qt2160_remove(struct i2c_client *client)
+static int qt2160_remove(struct i2c_client *client)
 {
 	struct qt2160_data *qt2160 = i2c_get_clientdata(client);
 
@@ -376,7 +366,7 @@ static struct i2c_driver qt2160_driver = {
 
 	.id_table	= qt2160_idtable,
 	.probe		= qt2160_probe,
-	.remove		= __devexit_p(qt2160_remove),
+	.remove		= qt2160_remove,
 };
 
 module_i2c_driver(qt2160_driver);

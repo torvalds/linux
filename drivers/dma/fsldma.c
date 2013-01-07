@@ -1015,7 +1015,7 @@ static irqreturn_t fsldma_chan_irq(int irq, void *data)
 	/*
 	 * Programming Error
 	 * The DMA_INTERRUPT async_tx is a NULL transfer, which will
-	 * triger a PE interrupt.
+	 * trigger a PE interrupt.
 	 */
 	if (stat & FSL_DMA_SR_PE) {
 		chan_dbg(chan, "irq: Programming Error INT\n");
@@ -1221,7 +1221,7 @@ out_unwind:
 /* OpenFirmware Subsystem                                                     */
 /*----------------------------------------------------------------------------*/
 
-static int __devinit fsl_dma_chan_probe(struct fsldma_device *fdev,
+static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	struct device_node *node, u32 feature, const char *compatible)
 {
 	struct fsldma_chan *chan;
@@ -1324,7 +1324,7 @@ static void fsl_dma_chan_remove(struct fsldma_chan *chan)
 	kfree(chan);
 }
 
-static int __devinit fsldma_of_probe(struct platform_device *op)
+static int fsldma_of_probe(struct platform_device *op)
 {
 	struct fsldma_device *fdev;
 	struct device_node *child;

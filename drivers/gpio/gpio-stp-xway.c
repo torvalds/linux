@@ -82,7 +82,7 @@ struct xway_stp {
 	struct gpio_chip gc;
 	void __iomem *virt;
 	u32 edge;	/* rising or falling edge triggered shift register */
-	u16 shadow;	/* shadow the shift registers state */
+	u32 shadow;	/* shadow the shift registers state */
 	u8 groups;	/* we can drive 1-3 groups of 8bit each */
 	u8 dsl;		/* the 2 LSBs can be driven by the dsl core */
 	u8 phy1;	/* 3 bits can be driven by phy1 */
@@ -197,7 +197,7 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 	return 0;
 }
 
-static int __devinit xway_stp_probe(struct platform_device *pdev)
+static int xway_stp_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	const __be32 *shadow, *groups, *dsl, *phy;

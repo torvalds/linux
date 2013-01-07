@@ -460,7 +460,10 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
-	ret = mwifiex_process_sta_event(priv);
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		ret = mwifiex_process_uap_event(priv);
+	else
+		ret = mwifiex_process_sta_event(priv);
 
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;
@@ -887,9 +890,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 		return;
 	}
 	cmd_node = adapter->curr_cmd;
-	if (cmd_node->wait_q_enabled)
-		adapter->cmd_wait_q.status = -ETIMEDOUT;
-
 	if (cmd_node) {
 		adapter->dbg.timeout_cmd_id =
 			adapter->dbg.last_cmd_id[adapter->dbg.last_cmd_index];
@@ -914,30 +914,44 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		dev_err(adapter->dev, "last_cmd_index = %d\n",
 			adapter->dbg.last_cmd_index);
-		print_hex_dump_bytes("last_cmd_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_id, DBG_CMD_NUM);
-		print_hex_dump_bytes("last_cmd_act: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_act, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_id),
+			adapter->dbg.last_cmd_id);
+		dev_err(adapter->dev, "last_cmd_act: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_act),
+			adapter->dbg.last_cmd_act);
 
 		dev_err(adapter->dev, "last_cmd_resp_index = %d\n",
 			adapter->dbg.last_cmd_resp_index);
-		print_hex_dump_bytes("last_cmd_resp_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_resp_id,
-				     DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_resp_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_resp_id),
+			adapter->dbg.last_cmd_resp_id);
 
 		dev_err(adapter->dev, "last_event_index = %d\n",
 			adapter->dbg.last_event_index);
-		print_hex_dump_bytes("last_event: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_event, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_event: %*ph\n",
+			(int)sizeof(adapter->dbg.last_event),
+			adapter->dbg.last_event);
 
 		dev_err(adapter->dev, "data_sent=%d cmd_sent=%d\n",
 			adapter->data_sent, adapter->cmd_sent);
 
 		dev_err(adapter->dev, "ps_mode=%d ps_state=%d\n",
 			adapter->ps_mode, adapter->ps_state);
+
+		if (cmd_node->wait_q_enabled) {
+			adapter->cmd_wait_q.status = -ETIMEDOUT;
+			wake_up_interruptible(&adapter->cmd_wait_q.wait);
+			mwifiex_cancel_pending_ioctl(adapter);
+			/* reset cmd_sent flag to unblock new commands */
+			adapter->cmd_sent = false;
+		}
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
 		mwifiex_init_fw_complete(adapter);
+
+	if (adapter->if_ops.card_reset)
+		adapter->if_ops.card_reset(adapter);
 }
 
 /*
@@ -1085,6 +1099,8 @@ mwifiex_hs_activated_event(struct mwifiex_private *priv, u8 activated)
 	if (activated) {
 		if (priv->adapter->is_hs_configured) {
 			priv->adapter->hs_activated = true;
+			mwifiex_update_rxreor_flags(priv->adapter,
+						    RXREOR_FORCE_NO_DROP);
 			dev_dbg(priv->adapter->dev, "event: hs_activated\n");
 			priv->adapter->hs_activate_wait_q_woken = true;
 			wake_up_interruptible(

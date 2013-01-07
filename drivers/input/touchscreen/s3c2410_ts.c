@@ -37,7 +37,7 @@
 
 #include <plat/adc.h>
 #include <plat/regs-adc.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 
 #define TSC_SLEEP  (S3C2410_ADCTSC_PULL_UP_DISABLE | S3C2410_ADCTSC_XY_PST(0))
 
@@ -238,7 +238,7 @@ static void s3c24xx_ts_select(struct s3c_adc_client *client, unsigned select)
  * Initialise, find and allocate any resources we need to run and then
  * register with the ADC and input systems.
  */
-static int __devinit s3c2410ts_probe(struct platform_device *pdev)
+static int s3c2410ts_probe(struct platform_device *pdev)
 {
 	struct s3c2410_ts_mach_info *info;
 	struct device *dev = &pdev->dev;
@@ -365,7 +365,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
  *
  * Free up our state ready to be removed.
  */
-static int __devexit s3c2410ts_remove(struct platform_device *pdev)
+static int s3c2410ts_remove(struct platform_device *pdev)
 {
 	free_irq(ts.irq_tc, ts.input);
 	del_timer_sync(&touch_timer);
@@ -406,7 +406,7 @@ static int s3c2410ts_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops s3c_ts_pmops = {
+static const struct dev_pm_ops s3c_ts_pmops = {
 	.suspend	= s3c2410ts_suspend,
 	.resume		= s3c2410ts_resume,
 };
@@ -430,7 +430,7 @@ static struct platform_driver s3c_ts_driver = {
 	},
 	.id_table	= s3cts_driver_ids,
 	.probe		= s3c2410ts_probe,
-	.remove		= __devexit_p(s3c2410ts_remove),
+	.remove		= s3c2410ts_remove,
 };
 module_platform_driver(s3c_ts_driver);
 

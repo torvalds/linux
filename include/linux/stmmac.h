@@ -61,7 +61,7 @@
 #define STMMAC_CSR_I_16		0xE	/* clk_csr_i/16 */
 #define STMMAC_CSR_I_18		0xF	/* clk_csr_i/18 */
 
-/* AXI DMA Burst length suported */
+/* AXI DMA Burst length supported */
 #define DMA_AXI_BLEN_4		(1 << 1)
 #define DMA_AXI_BLEN_8		(1 << 2)
 #define DMA_AXI_BLEN_16		(1 << 3)
@@ -76,7 +76,6 @@
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
-	int bus_id;
 	int (*phy_reset)(void *priv);
 	unsigned int phy_mask;
 	int *irqs;
@@ -105,6 +104,7 @@ struct plat_stmmacenet_data {
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
+	int riwt_off;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
 	int (*init)(struct platform_device *pdev);

@@ -81,11 +81,11 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
+loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	mutex_lock(&dentry->d_inode->i_mutex);
-	switch (origin) {
+	switch (whence) {
 		case 1:
 			offset += file->f_pos;
 		case 0:
@@ -368,8 +368,6 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
-
-	WARN_ON_ONCE(inode->i_op->truncate);
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
@@ -874,7 +872,7 @@ struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
 EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
 
 /**
- * generic_fh_to_dentry - generic helper for the fh_to_parent export operation
+ * generic_fh_to_parent - generic helper for the fh_to_parent export operation
  * @sb:		filesystem to do the file handle conversion on
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes

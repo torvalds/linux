@@ -1830,12 +1830,14 @@ static inline void mwl8k_tx_count_packet(struct ieee80211_sta *sta, u8 tid)
 }
 
 static void
-mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
+mwl8k_txq_xmit(struct ieee80211_hw *hw,
+	       int index,
+	       struct ieee80211_sta *sta,
+	       struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct ieee80211_tx_info *tx_info;
 	struct mwl8k_vif *mwl8k_vif;
-	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *wh;
 	struct mwl8k_tx_queue *txq;
 	struct mwl8k_tx_desc *tx;
@@ -1849,12 +1851,16 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	bool start_ba_session = false;
 	bool mgmtframe = false;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	bool eapol_frame = false;
 
 	wh = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_data_qos(wh->frame_control))
 		qos = le16_to_cpu(*((__le16 *)ieee80211_get_qos_ctl(wh)));
 	else
 		qos = 0;
+
+	if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+		eapol_frame = true;
 
 	if (ieee80211_is_mgmt(wh->frame_control))
 		mgmtframe = true;
@@ -1867,7 +1873,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 	tx_info = IEEE80211_SKB_CB(skb);
-	sta = tx_info->control.sta;
 	mwl8k_vif = MWL8K_VIF(tx_info->control.vif);
 
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -1915,9 +1920,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txpriority = index;
 
-	if (priv->ap_fw && sta && sta->ht_cap.ht_supported
-			&& skb->protocol != cpu_to_be16(ETH_P_PAE)
-			&& ieee80211_is_data_qos(wh->frame_control)) {
+	if (priv->ap_fw && sta && sta->ht_cap.ht_supported && !eapol_frame &&
+	    ieee80211_is_data_qos(wh->frame_control)) {
 		tid = qos & 0xf;
 		mwl8k_tx_count_packet(sta, tid);
 		spin_lock(&priv->stream_lock);
@@ -2004,6 +2008,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 				spin_unlock(&priv->stream_lock);
 			}
 			spin_unlock_bh(&priv->tx_lock);
+			pci_unmap_single(priv->pdev, dma, skb->len,
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb(skb);
 			return;
 		}
@@ -2019,14 +2025,16 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	tx->pkt_phys_addr = cpu_to_le32(dma);
 	tx->pkt_len = cpu_to_le16(skb->len);
 	tx->rate_info = 0;
-	if (!priv->ap_fw && tx_info->control.sta != NULL)
-		tx->peer_id = MWL8K_STA(tx_info->control.sta)->peer_id;
+	if (!priv->ap_fw && sta != NULL)
+		tx->peer_id = MWL8K_STA(sta)->peer_id;
 	else
 		tx->peer_id = 0;
 
-	if (priv->ap_fw)
+	if (priv->ap_fw && ieee80211_is_data(wh->frame_control) && !eapol_frame)
 		tx->timestamp = cpu_to_le32(ioread32(priv->regs +
 						MWL8K_HW_TIMER_REGISTER));
+	else
+		tx->timestamp = 0;
 
 	wmb();
 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
@@ -3678,7 +3686,8 @@ struct mwl8k_cmd_bastream {
 } __packed;
 
 static int
-mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
+mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
+	       struct ieee80211_vif *vif)
 {
 	struct mwl8k_cmd_bastream *cmd;
 	int rc;
@@ -3701,7 +3710,7 @@ mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 		cpu_to_le32(BASTREAM_FLAG_IMMEDIATE_TYPE) |
 		cpu_to_le32(BASTREAM_FLAG_DIRECTION_UPSTREAM);
 
-	rc = mwl8k_post_cmd(hw, &cmd->header);
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 
 	kfree(cmd);
 
@@ -3710,7 +3719,7 @@ mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 
 static int
 mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
-		u8 buf_size)
+		u8 buf_size, struct ieee80211_vif *vif)
 {
 	struct mwl8k_cmd_bastream *cmd;
 	int rc;
@@ -3744,7 +3753,7 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 		cpu_to_le32(BASTREAM_FLAG_IMMEDIATE_TYPE |
 					BASTREAM_FLAG_DIRECTION_UPSTREAM);
 
-	rc = mwl8k_post_cmd(hw, &cmd->header);
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 
 	wiphy_debug(hw->wiphy, "Created a BA stream for %pM : tid %d\n",
 		stream->sta->addr, stream->tid);
@@ -4364,7 +4373,9 @@ static void mwl8k_rx_poll(unsigned long data)
 /*
  * Core driver operations.
  */
-static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void mwl8k_tx(struct ieee80211_hw *hw,
+		     struct ieee80211_tx_control *control,
+		     struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int index = skb_get_queue_mapping(skb);
@@ -4376,7 +4387,7 @@ static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 	}
 
-	mwl8k_txq_xmit(hw, index, skb);
+	mwl8k_txq_xmit(hw, index, control->sta, skb);
 }
 
 static int mwl8k_start(struct ieee80211_hw *hw)
@@ -5082,6 +5093,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_ampdu_stream *stream;
 	u8 *addr = sta->addr;
+	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 
 	if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
 		return -ENOTSUPP;
@@ -5124,7 +5136,16 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		/* Release the lock before we do the time consuming stuff */
 		spin_unlock(&priv->stream_lock);
 		for (i = 0; i < MAX_AMPDU_ATTEMPTS; i++) {
-			rc = mwl8k_check_ba(hw, stream);
+
+			/* Check if link is still valid */
+			if (!sta_info->is_ampdu_allowed) {
+				spin_lock(&priv->stream_lock);
+				mwl8k_remove_stream(hw, stream);
+				spin_unlock(&priv->stream_lock);
+				return -EBUSY;
+			}
+
+			rc = mwl8k_check_ba(hw, stream, vif);
 
 			/* If HW restart is in progress mwl8k_post_cmd will
 			 * return -EBUSY. Avoid retrying mwl8k_check_ba in
@@ -5164,7 +5185,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		BUG_ON(stream == NULL);
 		BUG_ON(stream->state != AMPDU_STREAM_IN_PROGRESS);
 		spin_unlock(&priv->stream_lock);
-		rc = mwl8k_create_ba(hw, stream, buf_size);
+		rc = mwl8k_create_ba(hw, stream, buf_size, vif);
 		spin_lock(&priv->stream_lock);
 		if (!rc)
 			stream->state = AMPDU_STREAM_ACTIVE;
@@ -5237,7 +5258,7 @@ enum {
 #define _MWL8K_8366_AP_FW(api) "mwl8k/fmimage_8366_ap-" #api ".fw"
 #define MWL8K_8366_AP_FW(api) _MWL8K_8366_AP_FW(api)
 
-static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
+static struct mwl8k_device_info mwl8k_info_tbl[] = {
 	[MWL8363] = {
 		.part_name	= "88w8363",
 		.helper_image	= "mwl8k/helper_8363.fw",
@@ -5614,6 +5635,18 @@ fail:
 	return rc;
 }
 
+static const struct ieee80211_iface_limit ap_if_limits[] = {
+	{ .max = 8,	.types = BIT(NL80211_IFTYPE_AP) },
+};
+
+static const struct ieee80211_iface_combination ap_if_comb = {
+	.limits = ap_if_limits,
+	.n_limits = ARRAY_SIZE(ap_if_limits),
+	.max_interfaces = 8,
+	.num_different_channels = 1,
+};
+
+
 static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 {
 	struct ieee80211_hw *hw = priv->hw;
@@ -5693,8 +5726,13 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 		goto err_free_cookie;
 
 	hw->wiphy->interface_modes = 0;
-	if (priv->ap_macids_supported || priv->device_info->fw_image_ap)
+
+	if (priv->ap_macids_supported || priv->device_info->fw_image_ap) {
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
+		hw->wiphy->iface_combinations = &ap_if_comb;
+		hw->wiphy->n_iface_combinations = 1;
+	}
+
 	if (priv->sta_macids_supported || priv->device_info->fw_image_sta)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
 
@@ -5718,7 +5756,7 @@ err_free_cookie:
 
 	return rc;
 }
-static int __devinit mwl8k_probe(struct pci_dev *pdev,
+static int mwl8k_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
 	static int printed_version;
@@ -5835,12 +5873,7 @@ err_disable_device:
 	return rc;
 }
 
-static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
-{
-	printk(KERN_ERR "===>%s(%u)\n", __func__, __LINE__);
-}
-
-static void __devexit mwl8k_remove(struct pci_dev *pdev)
+static void mwl8k_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct mwl8k_priv *priv;
@@ -5892,8 +5925,7 @@ static struct pci_driver mwl8k_driver = {
 	.name		= MWL8K_NAME,
 	.id_table	= mwl8k_pci_id_table,
 	.probe		= mwl8k_probe,
-	.remove		= __devexit_p(mwl8k_remove),
-	.shutdown	= __devexit_p(mwl8k_shutdown),
+	.remove		= mwl8k_remove,
 };
 
 module_pci_driver(mwl8k_driver);

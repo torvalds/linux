@@ -48,8 +48,10 @@ The state of the outputs can be read.
 
 #define PC263_DRIVER_NAME	"amplc_pc263"
 
+#define DO_ISA	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
+#define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+
 /* PCI263 PCI configuration register information */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
 #define PCI_DEVICE_ID_INVALID 0xffff
 
@@ -70,14 +72,14 @@ struct pc263_board {
 	enum pc263_model model;
 };
 static const struct pc263_board pc263_boards[] = {
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
+#if DO_ISA
 	{
 		.name = "pc263",
 		.bustype = isa_bustype,
 		.model = pc263_model,
 	},
 #endif
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+#if DO_PCI
 	{
 		.name = "pci263",
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI263,
@@ -93,6 +95,18 @@ static const struct pc263_board pc263_boards[] = {
 #endif
 };
 
+/* test if ISA supported and this is an ISA board */
+static inline bool is_isa_board(const struct pc263_board *board)
+{
+	return DO_ISA && board->bustype == isa_bustype;
+}
+
+/* test if PCI supported and this is a PCI board */
+static inline bool is_pci_board(const struct pc263_board *board)
+{
+	return DO_PCI && board->bustype == pci_bustype;
+}
+
 /*
  * This function looks for a board matching the supplied PCI device.
  */
@@ -101,7 +115,7 @@ static const struct pc263_board *pc263_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pc263_boards); i++)
-		if (pc263_boards[i].bustype == pci_bustype &&
+		if (is_pci_board(&pc263_boards[i]) &&
 		    pci_dev->device == pc263_boards[i].devid)
 			return &pc263_boards[i];
 	return NULL;
@@ -187,11 +201,9 @@ static void pc263_report_attach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[40];
 
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
-	    thisboard->bustype == isa_bustype)
+	if (is_isa_board(thisboard))
 		snprintf(tmpbuf, sizeof(tmpbuf), "(base %#lx) ", dev->iobase);
-	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
-		 thisboard->bustype == pci_bustype)
+	else if (is_pci_board(thisboard))
 		snprintf(tmpbuf, sizeof(tmpbuf), "(pci %s) ",
 			 pci_name(pcidev));
 	else
@@ -212,7 +224,7 @@ static int pc263_common_attach(struct comedi_device *dev, unsigned long iobase)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -259,15 +271,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach\n");
 
 	/* Process options and reserve resources according to bus type. */
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
-	    thisboard->bustype == isa_bustype) {
+	if (is_isa_board(thisboard)) {
 		unsigned long iobase = it->options[0];
 		ret = pc263_request_region(dev, iobase, PC263_IO_SIZE);
 		if (ret < 0)
 			return ret;
 		return pc263_common_attach(dev, iobase);
-	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
-		   thisboard->bustype == pci_bustype) {
+	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
 		pci_dev = pc263_find_pci_dev(dev, it);
@@ -280,17 +290,21 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 	}
 }
+
 /*
- * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
- * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
- * be a board entry matching the supplied PCI device.
+ * The auto_attach hook is called at PCI probe time via
+ * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
+ * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit pc263_attach_pci(struct comedi_device *dev,
-				      struct pci_dev *pci_dev)
+static int pc263_auto_attach(struct comedi_device *dev,
+				       unsigned long context_unused)
 {
-	if (!IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI))
+	struct pci_dev *pci_dev;
+
+	if (!DO_PCI)
 		return -EINVAL;
 
+	pci_dev = comedi_to_pci_dev(dev);
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 	dev->board_ptr = pc263_find_pci_board(pci_dev);
@@ -310,15 +324,20 @@ static int __devinit pc263_attach_pci(struct comedi_device *dev,
 
 static void pc263_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct pc263_board *thisboard = comedi_board(dev);
 
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
-	} else {
+	if (!thisboard)
+		return;
+	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, PC263_IO_SIZE);
+	} else if (is_pci_board(thisboard)) {
+		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+		if (pcidev) {
+			if (dev->iobase)
+				comedi_pci_disable(pcidev);
+			pci_dev_put(pcidev);
+		}
 	}
 }
 
@@ -332,28 +351,28 @@ static struct comedi_driver amplc_pc263_driver = {
 	.driver_name = PC263_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = pc263_attach,
-	.attach_pci = pc263_attach_pci,
+	.auto_attach = pc263_auto_attach,
 	.detach = pc263_detach,
 	.board_name = &pc263_boards[0].name,
 	.offset = sizeof(struct pc263_board),
 	.num_names = ARRAY_SIZE(pc263_boards),
 };
 
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+#if DO_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 
-static int __devinit amplc_pc263_pci_probe(struct pci_dev *dev,
+static int amplc_pc263_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
 						  *ent)
 {
 	return comedi_pci_auto_config(dev, &amplc_pc263_driver);
 }
 
-static void __devexit amplc_pc263_pci_remove(struct pci_dev *dev)
+static void amplc_pc263_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -362,7 +381,7 @@ static struct pci_driver amplc_pc263_pci_driver = {
 	.name = PC263_DRIVER_NAME,
 	.id_table = pc263_pci_table,
 	.probe = &amplc_pc263_pci_probe,
-	.remove = __devexit_p(&amplc_pc263_pci_remove)
+	.remove = &amplc_pc263_pci_remove
 };
 module_comedi_pci_driver(amplc_pc263_driver, amplc_pc263_pci_driver);
 #else

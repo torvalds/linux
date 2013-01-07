@@ -20,32 +20,6 @@
 #include <linux/compiler.h>
 #include <asm/i387.h>
 
-#define ALIGN32 __aligned(32)
-
-#define YMM_SAVED_REGS 4
-
-#define YMMS_SAVE \
-do { \
-	preempt_disable(); \
-	cr0 = read_cr0(); \
-	clts(); \
-	asm volatile("vmovaps %%ymm0, %0" : "=m" (ymm_save[0]) : : "memory"); \
-	asm volatile("vmovaps %%ymm1, %0" : "=m" (ymm_save[32]) : : "memory"); \
-	asm volatile("vmovaps %%ymm2, %0" : "=m" (ymm_save[64]) : : "memory"); \
-	asm volatile("vmovaps %%ymm3, %0" : "=m" (ymm_save[96]) : : "memory"); \
-} while (0);
-
-#define YMMS_RESTORE \
-do { \
-	asm volatile("sfence" : : : "memory"); \
-	asm volatile("vmovaps %0, %%ymm3" : : "m" (ymm_save[96])); \
-	asm volatile("vmovaps %0, %%ymm2" : : "m" (ymm_save[64])); \
-	asm volatile("vmovaps %0, %%ymm1" : : "m" (ymm_save[32])); \
-	asm volatile("vmovaps %0, %%ymm0" : : "m" (ymm_save[0])); \
-	write_cr0(cr0); \
-	preempt_enable(); \
-} while (0);
-
 #define BLOCK4(i) \
 		BLOCK(32 * i, 0) \
 		BLOCK(32 * (i + 1), 1) \
@@ -60,10 +34,9 @@ do { \
 
 static void xor_avx_2(unsigned long bytes, unsigned long *p0, unsigned long *p1)
 {
-	unsigned long cr0, lines = bytes >> 9;
-	char ymm_save[32 * YMM_SAVED_REGS] ALIGN32;
+	unsigned long lines = bytes >> 9;
 
-	YMMS_SAVE
+	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -82,16 +55,15 @@ do { \
 		p1 = (unsigned long *)((uintptr_t)p1 + 512);
 	}
 
-	YMMS_RESTORE
+	kernel_fpu_end();
 }
 
 static void xor_avx_3(unsigned long bytes, unsigned long *p0, unsigned long *p1,
 	unsigned long *p2)
 {
-	unsigned long cr0, lines = bytes >> 9;
-	char ymm_save[32 * YMM_SAVED_REGS] ALIGN32;
+	unsigned long lines = bytes >> 9;
 
-	YMMS_SAVE
+	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -113,16 +85,15 @@ do { \
 		p2 = (unsigned long *)((uintptr_t)p2 + 512);
 	}
 
-	YMMS_RESTORE
+	kernel_fpu_end();
 }
 
 static void xor_avx_4(unsigned long bytes, unsigned long *p0, unsigned long *p1,
 	unsigned long *p2, unsigned long *p3)
 {
-	unsigned long cr0, lines = bytes >> 9;
-	char ymm_save[32 * YMM_SAVED_REGS] ALIGN32;
+	unsigned long lines = bytes >> 9;
 
-	YMMS_SAVE
+	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -147,16 +118,15 @@ do { \
 		p3 = (unsigned long *)((uintptr_t)p3 + 512);
 	}
 
-	YMMS_RESTORE
+	kernel_fpu_end();
 }
 
 static void xor_avx_5(unsigned long bytes, unsigned long *p0, unsigned long *p1,
 	unsigned long *p2, unsigned long *p3, unsigned long *p4)
 {
-	unsigned long cr0, lines = bytes >> 9;
-	char ymm_save[32 * YMM_SAVED_REGS] ALIGN32;
+	unsigned long lines = bytes >> 9;
 
-	YMMS_SAVE
+	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -184,7 +154,7 @@ do { \
 		p4 = (unsigned long *)((uintptr_t)p4 + 512);
 	}
 
-	YMMS_RESTORE
+	kernel_fpu_end();
 }
 
 static struct xor_block_template xor_block_avx = {

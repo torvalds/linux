@@ -25,7 +25,7 @@
 
 #include <asm/mach-types.h>
 #include <mach/audio.h>
-#include <mach/palmasoc.h>
+#include <linux/platform_data/asoc-palm27x.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-ac97.h"
@@ -187,7 +187,7 @@ put_device:
 	return ret;
 }
 
-static int __devexit palm27x_asoc_remove(struct platform_device *pdev)
+static int palm27x_asoc_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(palm27x_snd_device);
 	return 0;
@@ -195,7 +195,7 @@ static int __devexit palm27x_asoc_remove(struct platform_device *pdev)
 
 static struct platform_driver palm27x_wm9712_driver = {
 	.probe		= palm27x_asoc_probe,
-	.remove		= __devexit_p(palm27x_asoc_remove),
+	.remove		= palm27x_asoc_remove,
 	.driver		= {
 		.name		= "palm27x-asoc",
 		.owner		= THIS_MODULE,

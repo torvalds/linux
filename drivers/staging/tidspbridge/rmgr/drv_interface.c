@@ -16,7 +16,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 
 #include <linux/types.h>
 #include <linux/platform_device.h>
@@ -261,7 +261,7 @@ static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	u32 status;
 
-	vma->vm_flags |= VM_RESERVED | VM_IO;
+	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	dev_dbg(bridge, "%s: vm filp %p start %lx end %lx page_prot %ulx "
@@ -471,7 +471,7 @@ err1:
 	return err;
 }
 
-static int __devinit omap34_xx_bridge_probe(struct platform_device *pdev)
+static int omap34_xx_bridge_probe(struct platform_device *pdev)
 {
 	int err;
 	dev_t dev = 0;
@@ -527,7 +527,7 @@ err1:
 	return err;
 }
 
-static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
+static int omap34_xx_bridge_remove(struct platform_device *pdev)
 {
 	dev_t devno;
 	int status = 0;
@@ -606,22 +606,12 @@ static struct platform_driver bridge_driver = {
 		   .name = "omap-dsp",
 		   },
 	.probe = omap34_xx_bridge_probe,
-	.remove = __devexit_p(omap34_xx_bridge_remove),
+	.remove = omap34_xx_bridge_remove,
 #ifdef CONFIG_PM
 	.suspend = bridge_suspend,
 	.resume = bridge_resume,
 #endif
 };
-
-static int __init bridge_init(void)
-{
-	return platform_driver_register(&bridge_driver);
-}
-
-static void __exit bridge_exit(void)
-{
-	platform_driver_unregister(&bridge_driver);
-}
 
 /* To remove all process resources before removing the process from the
  * process context list */
@@ -636,6 +626,4 @@ int drv_remove_all_resources(void *process_ctxt)
 	return status;
 }
 
-/* Bridge driver initialization and de-initialization functions */
-module_init(bridge_init);
-module_exit(bridge_exit);
+module_platform_driver(bridge_driver);

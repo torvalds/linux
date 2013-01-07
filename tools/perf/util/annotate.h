@@ -5,8 +5,10 @@
 #include <stdint.h>
 #include "types.h"
 #include "symbol.h"
+#include "hist.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <pthread.h>
 
 struct ins;
 
@@ -74,6 +76,7 @@ struct sym_hist {
 struct source_line {
 	struct rb_node	node;
 	double		percent;
+	double		percent_sum;
 	char		*path;
 };
 
@@ -125,7 +128,7 @@ int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
-int symbol__annotate_init(struct map *map __used, struct symbol *sym);
+int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			    bool full_paths, int min_pcnt, int max_lines,
 			    int context);
@@ -137,18 +140,18 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 			 bool print_lines, bool full_paths, int min_pcnt,
 			 int max_lines);
 
-#ifdef NO_NEWT_SUPPORT
-static inline int symbol__tui_annotate(struct symbol *sym __used,
-				       struct map *map __used,
-				       int evidx __used,
-				       void(*timer)(void *arg) __used,
-				       void *arg __used, int delay_secs __used)
+#ifdef NEWT_SUPPORT
+int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
+			 struct hist_browser_timer *hbt);
+#else
+static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
+				       struct map *map __maybe_unused,
+				       int evidx __maybe_unused,
+				       struct hist_browser_timer *hbt
+				       __maybe_unused)
 {
 	return 0;
 }
-#else
-int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			 void(*timer)(void *arg), void *arg, int delay_secs);
 #endif
 
 extern const char	*disassembler_style;

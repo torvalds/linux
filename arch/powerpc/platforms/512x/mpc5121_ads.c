@@ -42,7 +42,10 @@ static void __init mpc5121_ads_setup_arch(void)
 	for_each_compatible_node(np, "pci", "fsl,mpc5121-pci")
 		mpc83xx_add_bridge(np);
 #endif
+
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 	mpc512x_setup_diu();
+#endif
 }
 
 static void __init mpc5121_ads_init_IRQ(void)

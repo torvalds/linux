@@ -60,7 +60,6 @@ EXPORT_SYMBOL(jbd2_journal_get_create_access);
 EXPORT_SYMBOL(jbd2_journal_get_undo_access);
 EXPORT_SYMBOL(jbd2_journal_set_triggers);
 EXPORT_SYMBOL(jbd2_journal_dirty_metadata);
-EXPORT_SYMBOL(jbd2_journal_release_buffer);
 EXPORT_SYMBOL(jbd2_journal_forget);
 #if 0
 EXPORT_SYMBOL(journal_sync_buffer);
@@ -1354,6 +1353,11 @@ static void jbd2_mark_journal_empty(journal_t *journal)
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	read_lock(&journal->j_state_lock);
+	/* Is it already empty? */
+	if (sb->s_start == 0) {
+		read_unlock(&journal->j_state_lock);
+		return;
+	}
 	jbd_debug(1, "JBD2: Marking journal as empty (seq %d)\n",
 		  journal->j_tail_sequence);
 

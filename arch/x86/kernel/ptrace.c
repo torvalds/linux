@@ -21,6 +21,9 @@
 #include <linux/signal.h>
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/rcupdate.h>
+#include <linux/module.h>
+#include <linux/context_tracking.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -164,6 +167,35 @@ static inline bool invalid_selector(u16 value)
 #ifdef CONFIG_X86_32
 
 #define FLAG_MASK		FLAG_MASK_32
+
+/*
+ * X86_32 CPUs don't save ss and esp if the CPU is already in kernel mode
+ * when it traps.  The previous stack will be directly underneath the saved
+ * registers, and 'sp/ss' won't even have been saved. Thus the '&regs->sp'.
+ *
+ * Now, if the stack is empty, '&regs->sp' is out of range. In this
+ * case we try to take the previous stack. To always return a non-null
+ * stack pointer we fall back to regs as stack if no previous stack
+ * exists.
+ *
+ * This is valid only for kernel mode traps.
+ */
+unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	unsigned long context = (unsigned long)regs & ~(THREAD_SIZE - 1);
+	unsigned long sp = (unsigned long)&regs->sp;
+	struct thread_info *tinfo;
+
+	if (context == (sp & ~(THREAD_SIZE - 1)))
+		return sp;
+
+	tinfo = (struct thread_info *)context;
+	if (tinfo->previous_esp)
+		return tinfo->previous_esp;
+
+	return (unsigned long)regs;
+}
+EXPORT_SYMBOL_GPL(kernel_stack_pointer);
 
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
@@ -1332,9 +1364,6 @@ static const struct user_regset_view user_x86_64_view = {
 #define genregs32_get		genregs_get
 #define genregs32_set		genregs_set
 
-#define user_i387_ia32_struct	user_i387_struct
-#define user32_fxsr_struct	user_fxsr_struct
-
 #endif	/* CONFIG_X86_64 */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
@@ -1463,6 +1492,8 @@ long syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
 
+	user_exit();
+
 	/*
 	 * If we stepped into a sysenter/syscall insn, it trapped in
 	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
@@ -1511,6 +1542,13 @@ void syscall_trace_leave(struct pt_regs *regs)
 {
 	bool step;
 
+	/*
+	 * We may come here right after calling schedule_user()
+	 * or do_notify_resume(), in which case we can be in RCU
+	 * user mode.
+	 */
+	user_exit();
+
 	audit_syscall_exit(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
@@ -1526,4 +1564,6 @@ void syscall_trace_leave(struct pt_regs *regs)
 			!test_thread_flag(TIF_SYSCALL_EMU);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, step);
+
+	user_enter();
 }

@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "Iomega Iconnect";
@@ -12,12 +13,62 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 earlyprintk mtdparts=orion_nand:0xc0000@0x0(uboot),0x20000@0xa0000(env),0x300000@0x100000(zImage),0x300000@0x540000(initrd),0x1f400000@0x980000(boot)";
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
 		linux,initrd-start = <0x4500040>;
 		linux,initrd-end   = <0x4800000>;
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_gpio_12 &pmx_gpio_35
+				      &pmx_gpio_41 &pmx_gpio_42
+				      &pmx_gpio_43 &pmx_gpio_44
+				      &pmx_gpio_45 &pmx_gpio_46
+				      &pmx_gpio_47 &pmx_gpio_48 >;
+			pinctrl-names = "default";
+
+			pmx_gpio_12: pmx-gpio-12 {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_35: pmx-gpio-35 {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_41: pmx-gpio-41 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_42: pmx-gpio-42 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_43: pmx-gpio-43 {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_44: pmx-gpio-44 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_45: pmx-gpio-45 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_46: pmx-gpio-46 {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_47: pmx-gpio-47 {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+			pmx_gpio_48: pmx-gpio-48 {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+		};
 		i2c@11000 {
 			status = "okay";
 
@@ -30,7 +81,37 @@
 			clock-frequency = <200000000>;
 			status = "ok";
 		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0xc0000>;
+			};
+
+			partition@a0000 {
+				label = "env";
+				reg = <0xa0000 0x20000>;
+			};
+
+			partition@100000 {
+				label = "zImage";
+				reg = <0x100000 0x300000>;
+			};
+
+			partition@540000 {
+				label = "initrd";
+				reg = <0x540000 0x300000>;
+			};
+
+			partition@980000 {
+				label = "boot";
+				reg = <0x980000 0x1f400000>;
+			};
+		};
 	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 
@@ -67,6 +148,24 @@
 		otb {
 			label = "otb:blue";
 			gpios = <&gpio1 16 0>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "OTB Button";
+			linux,code = <133>;
+			gpios = <&gpio1 3 1>;
+			debounce-interval = <100>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 12 1>;
+			debounce-interval = <100>;
 		};
 	};
 };

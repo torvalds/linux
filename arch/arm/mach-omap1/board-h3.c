@@ -31,6 +31,8 @@
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/gpio-omap.h>
+#include <linux/leds.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -38,11 +40,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
-#include <plat/tc.h>
-#include <plat/keypad.h>
-#include <plat/dma.h>
-#include <plat/flash.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <linux/omap-dma.h>
+#include <mach/flash.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -324,6 +326,32 @@ static struct spi_board_info h3_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpio_led h3_gpio_led_pins[] = {
+	{
+		.name		= "h3:red",
+		.default_trigger = "heartbeat",
+		.gpio		= 3,
+	},
+	{
+		.name		= "h3:green",
+		.default_trigger = "cpu0",
+		.gpio		= OMAP_MPUIO(4),
+	},
+};
+
+static struct gpio_led_platform_data h3_gpio_led_data = {
+	.leds		= h3_gpio_led_pins,
+	.num_leds	= ARRAY_SIZE(h3_gpio_led_pins),
+};
+
+static struct platform_device h3_gpio_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &h3_gpio_led_data,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
@@ -331,6 +359,7 @@ static struct platform_device *devices[] __initdata = {
 	&intlat_device,
 	&h3_kp_device,
 	&h3_lcd_device,
+	&h3_gpio_leds,
 };
 
 static struct omap_usb_config h3_usb_config __initdata = {
@@ -377,8 +406,7 @@ static void __init h3_init(void)
 
 	nand_resource.end = nand_resource.start = OMAP_CS2B_PHYS;
 	nand_resource.end += SZ_4K - 1;
-	if (gpio_request(H3_NAND_RB_GPIO_PIN, "NAND ready") < 0)
-		BUG();
+	BUG_ON(gpio_request(H3_NAND_RB_GPIO_PIN, "NAND ready") < 0);
 	gpio_direction_input(H3_NAND_RB_GPIO_PIN);
 
 	/* GPIO10 Func_MUX_CTRL reg bit 29:27, Configure V2 to mode1 as GPIO */
@@ -397,6 +425,10 @@ static void __init h3_init(void)
 	omap_cfg_reg(E20_1610_KBR3);
 	omap_cfg_reg(E19_1610_KBR4);
 	omap_cfg_reg(N19_1610_KBR5);
+
+	/* GPIO based LEDs */
+	omap_cfg_reg(P18_1610_GPIO3);
+	omap_cfg_reg(MPUIO4);
 
 	smc91x_resources[1].start = gpio_to_irq(40);
 	smc91x_resources[1].end = gpio_to_irq(40);
@@ -419,7 +451,6 @@ MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h3_init,
 	.init_late	= omap1_init_late,

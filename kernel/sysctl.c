@@ -97,10 +97,12 @@
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern int max_threads;
-extern int core_uses_pid;
 extern int suid_dumpable;
+#ifdef CONFIG_COREDUMP
+extern int core_uses_pid;
 extern char core_pattern[];
 extern unsigned int core_pipe_limit;
+#endif
 extern int pid_max;
 extern int min_free_kbytes;
 extern int pid_max_min, pid_max_max;
@@ -177,8 +179,10 @@ static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
 
 static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
+#ifdef CONFIG_COREDUMP
 static int proc_dostring_coredump(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
+#endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses it's own private copy */
@@ -252,9 +256,11 @@ static int min_sched_granularity_ns = 100000;		/* 100 usecs */
 static int max_sched_granularity_ns = NSEC_PER_SEC;	/* 1 second */
 static int min_wakeup_granularity_ns;			/* 0 usecs */
 static int max_wakeup_granularity_ns = NSEC_PER_SEC;	/* 1 second */
+#ifdef CONFIG_SMP
 static int min_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
 static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END-1;
-#endif
+#endif /* CONFIG_SMP */
+#endif /* CONFIG_SCHED_DEBUG */
 
 #ifdef CONFIG_COMPACTION
 static int min_extfrag_threshold;
@@ -297,6 +303,7 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &min_wakeup_granularity_ns,
 		.extra2		= &max_wakeup_granularity_ns,
 	},
+#ifdef CONFIG_SMP
 	{
 		.procname	= "sched_tunable_scaling",
 		.data		= &sysctl_sched_tunable_scaling,
@@ -307,7 +314,7 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &max_sched_tunable_scaling,
 	},
 	{
-		.procname	= "sched_migration_cost",
+		.procname	= "sched_migration_cost_ns",
 		.data		= &sysctl_sched_migration_cost,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
@@ -321,14 +328,14 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "sched_time_avg",
+		.procname	= "sched_time_avg_ms",
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "sched_shares_window",
+		.procname	= "sched_shares_window_ns",
 		.data		= &sysctl_sched_shares_window,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
@@ -343,7 +350,45 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
-#endif
+#endif /* CONFIG_SMP */
+#ifdef CONFIG_NUMA_BALANCING
+	{
+		.procname	= "numa_balancing_scan_delay_ms",
+		.data		= &sysctl_numa_balancing_scan_delay,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "numa_balancing_scan_period_min_ms",
+		.data		= &sysctl_numa_balancing_scan_period_min,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "numa_balancing_scan_period_reset",
+		.data		= &sysctl_numa_balancing_scan_period_reset,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "numa_balancing_scan_period_max_ms",
+		.data		= &sysctl_numa_balancing_scan_period_max,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "numa_balancing_scan_size_mb",
+		.data		= &sysctl_numa_balancing_scan_size,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif /* CONFIG_NUMA_BALANCING */
+#endif /* CONFIG_SCHED_DEBUG */
 	{
 		.procname	= "sched_rt_period_us",
 		.data		= &sysctl_sched_rt_period,
@@ -404,6 +449,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef CONFIG_COREDUMP
 	{
 		.procname	= "core_uses_pid",
 		.data		= &core_uses_pid,
@@ -425,6 +471,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#endif
 #ifdef CONFIG_PROC_SYSCTL
 	{
 		.procname	= "tainted",
@@ -559,7 +606,7 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one,
 	},
 #endif
-#ifdef CONFIG_HOTPLUG
+
 	{
 		.procname	= "hotplug",
 		.data		= &uevent_helper,
@@ -567,7 +614,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dostring,
 	},
-#endif
+
 #ifdef CONFIG_CHR_DEV_SG
 	{
 		.procname	= "sg-big-buff",
@@ -1543,8 +1590,7 @@ static struct ctl_table fs_table[] = {
 };
 
 static struct ctl_table debug_table[] = {
-#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || \
-    defined(CONFIG_S390) || defined(CONFIG_TILE)
+#ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,
@@ -2036,12 +2082,14 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 
 static void validate_coredump_safety(void)
 {
+#ifdef CONFIG_COREDUMP
 	if (suid_dumpable == SUID_DUMPABLE_SAFE &&
 	    core_pattern[0] != '/' && core_pattern[0] != '|') {
 		printk(KERN_WARNING "Unsafe core_pattern used with "\
 			"suid_dumpable=2. Pipe handler or fully qualified "\
 			"core dump path required.\n");
 	}
+#endif
 }
 
 static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
@@ -2053,6 +2101,7 @@ static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
 	return error;
 }
 
+#ifdef CONFIG_COREDUMP
 static int proc_dostring_coredump(struct ctl_table *table, int write,
 		  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -2061,6 +2110,7 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 		validate_coredump_safety();
 	return error;
 }
+#endif
 
 static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int write,
 				     void __user *buffer,

@@ -2,6 +2,7 @@ if LANTIQ
 
 config SOC_TYPE_XWAY
 	bool
+	select PINCTRL_XWAY
 	default n
 
 choice
@@ -19,6 +20,7 @@ config SOC_XWAY
 
 config SOC_FALCON
 	bool "FALCON"
+	select PINCTRL_FALCON
 
 endchoice
 
@@ -33,5 +35,9 @@ endchoice
 config PCI_LANTIQ
 	bool "PCI Support"
 	depends on SOC_XWAY && PCI
+
+config XRX200_PHY_FW
+	bool "XRX200 PHY firmware loader"
+	depends on SOC_XWAY
 
 endif

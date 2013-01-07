@@ -532,7 +532,7 @@ static int altera_uart_get_of_uartclk(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
-static int __devinit altera_uart_probe(struct platform_device *pdev)
+static int altera_uart_probe(struct platform_device *pdev)
 {
 	struct altera_uart_platform_uart *platp = pdev->dev.platform_data;
 	struct uart_port *port;
@@ -591,20 +591,20 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	port->ops = &altera_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
 
-	dev_set_drvdata(&pdev->dev, port);
+	platform_set_drvdata(pdev, port);
 
 	uart_add_one_port(&altera_uart_driver, port);
 
 	return 0;
 }
 
-static int __devexit altera_uart_remove(struct platform_device *pdev)
+static int altera_uart_remove(struct platform_device *pdev)
 {
-	struct uart_port *port = dev_get_drvdata(&pdev->dev);
+	struct uart_port *port = platform_get_drvdata(pdev);
 
 	if (port) {
 		uart_remove_one_port(&altera_uart_driver, port);
-		dev_set_drvdata(&pdev->dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 		port->mapbase = 0;
 	}
 
@@ -621,7 +621,7 @@ MODULE_DEVICE_TABLE(of, altera_uart_match);
 
 static struct platform_driver altera_uart_platform_driver = {
 	.probe	= altera_uart_probe,
-	.remove	= __devexit_p(altera_uart_remove),
+	.remove	= altera_uart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,

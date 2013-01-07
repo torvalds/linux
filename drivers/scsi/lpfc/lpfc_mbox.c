@@ -92,7 +92,7 @@ lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	memset(mp->virt, 0, LPFC_BPL_SIZE);
 	INIT_LIST_HEAD(&mp->list);
 	/* save address for completion */
-	pmb->context2 = (uint8_t *) mp;
+	pmb->context1 = (uint8_t *)mp;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
 	mb->un.varDmp.sli4_length = sizeof(struct static_vport_info);
@@ -950,44 +950,47 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 
-		pring->sizeCiocb = phba->sli_rev == 3 ? SLI3_IOCB_CMD_SIZE:
+		pring->sli.sli3.sizeCiocb =
+			phba->sli_rev == 3 ? SLI3_IOCB_CMD_SIZE :
 							SLI2_IOCB_CMD_SIZE;
-		pring->sizeRiocb = phba->sli_rev == 3 ? SLI3_IOCB_RSP_SIZE:
+		pring->sli.sli3.sizeRiocb =
+			phba->sli_rev == 3 ? SLI3_IOCB_RSP_SIZE :
 							SLI2_IOCB_RSP_SIZE;
 		/* A ring MUST have both cmd and rsp entries defined to be
 		   valid */
-		if ((pring->numCiocb == 0) || (pring->numRiocb == 0)) {
+		if ((pring->sli.sli3.numCiocb == 0) ||
+			(pring->sli.sli3.numRiocb == 0)) {
 			pcbp->rdsc[i].cmdEntries = 0;
 			pcbp->rdsc[i].rspEntries = 0;
 			pcbp->rdsc[i].cmdAddrHigh = 0;
 			pcbp->rdsc[i].rspAddrHigh = 0;
 			pcbp->rdsc[i].cmdAddrLow = 0;
 			pcbp->rdsc[i].rspAddrLow = 0;
-			pring->cmdringaddr = NULL;
-			pring->rspringaddr = NULL;
+			pring->sli.sli3.cmdringaddr = NULL;
+			pring->sli.sli3.rspringaddr = NULL;
 			continue;
 		}
 		/* Command ring setup for ring */
-		pring->cmdringaddr = (void *)&phba->IOCBs[iocbCnt];
-		pcbp->rdsc[i].cmdEntries = pring->numCiocb;
+		pring->sli.sli3.cmdringaddr = (void *)&phba->IOCBs[iocbCnt];
+		pcbp->rdsc[i].cmdEntries = pring->sli.sli3.numCiocb;
 
 		offset = (uint8_t *) &phba->IOCBs[iocbCnt] -
 			 (uint8_t *) phba->slim2p.virt;
 		pdma_addr = phba->slim2p.phys + offset;
 		pcbp->rdsc[i].cmdAddrHigh = putPaddrHigh(pdma_addr);
 		pcbp->rdsc[i].cmdAddrLow = putPaddrLow(pdma_addr);
-		iocbCnt += pring->numCiocb;
+		iocbCnt += pring->sli.sli3.numCiocb;
 
 		/* Response ring setup for ring */
-		pring->rspringaddr = (void *) &phba->IOCBs[iocbCnt];
+		pring->sli.sli3.rspringaddr = (void *) &phba->IOCBs[iocbCnt];
 
-		pcbp->rdsc[i].rspEntries = pring->numRiocb;
+		pcbp->rdsc[i].rspEntries = pring->sli.sli3.numRiocb;
 		offset = (uint8_t *)&phba->IOCBs[iocbCnt] -
 			 (uint8_t *)phba->slim2p.virt;
 		pdma_addr = phba->slim2p.phys + offset;
 		pcbp->rdsc[i].rspAddrHigh = putPaddrHigh(pdma_addr);
 		pcbp->rdsc[i].rspAddrLow = putPaddrLow(pdma_addr);
-		iocbCnt += pring->numRiocb;
+		iocbCnt += pring->sli.sli3.numRiocb;
 	}
 }
 
@@ -1609,12 +1612,15 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	switch (mbox->mbxCommand) {
 	case MBX_WRITE_NV:	/* 0x03 */
+	case MBX_DUMP_MEMORY:	/* 0x17 */
 	case MBX_UPDATE_CFG:	/* 0x1B */
 	case MBX_DOWN_LOAD:	/* 0x1C */
 	case MBX_DEL_LD_ENTRY:	/* 0x1D */
+	case MBX_WRITE_VPARMS:	/* 0x32 */
 	case MBX_LOAD_AREA:	/* 0x81 */
 	case MBX_WRITE_WWN:     /* 0x98 */
 	case MBX_LOAD_EXP_ROM:	/* 0x9C */
+	case MBX_ACCESS_VDATA:	/* 0xA5 */
 		return LPFC_MBOX_TMO_FLASH_CMD;
 	case MBX_SLI4_CONFIG:	/* 0x9b */
 		subsys = lpfc_sli_config_mbox_subsys_get(phba, mboxq);
@@ -1625,11 +1631,17 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			case LPFC_MBOX_OPCODE_WRITE_OBJECT:
 			case LPFC_MBOX_OPCODE_READ_OBJECT_LIST:
 			case LPFC_MBOX_OPCODE_DELETE_OBJECT:
-			case LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG:
 			case LPFC_MBOX_OPCODE_GET_PROFILE_LIST:
 			case LPFC_MBOX_OPCODE_SET_ACT_PROFILE:
+			case LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG:
 			case LPFC_MBOX_OPCODE_SET_PROFILE_CONFIG:
 			case LPFC_MBOX_OPCODE_GET_FACTORY_PROFILE_CONFIG:
+			case LPFC_MBOX_OPCODE_GET_PROFILE_CAPACITIES:
+			case LPFC_MBOX_OPCODE_SEND_ACTIVATION:
+			case LPFC_MBOX_OPCODE_RESET_LICENSES:
+			case LPFC_MBOX_OPCODE_SET_BOOT_CONFIG:
+			case LPFC_MBOX_OPCODE_GET_VPD_DATA:
+			case LPFC_MBOX_OPCODE_SET_PHYSICAL_LINK_CONFIG:
 				return LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO;
 			}
 		}

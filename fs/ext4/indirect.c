@@ -22,6 +22,7 @@
 
 #include "ext4_jbd2.h"
 #include "truncate.h"
+#include "ext4_extents.h"	/* Needed for EXT_MAX_BLOCKS */
 
 #include <trace/events/ext4.h>
 
@@ -755,8 +756,7 @@ cleanup:
 		partial--;
 	}
 out:
-	trace_ext4_ind_map_blocks_exit(inode, map->m_lblk,
-				map->m_pblk, map->m_len, err);
+	trace_ext4_ind_map_blocks_exit(inode, map, err);
 	return err;
 }
 
@@ -807,16 +807,30 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 
 retry:
 	if (rw == READ && ext4_should_dioread_nolock(inode)) {
-		if (unlikely(!list_empty(&ei->i_completed_io_list))) {
+		if (unlikely(atomic_read(&EXT4_I(inode)->i_unwritten))) {
 			mutex_lock(&inode->i_mutex);
-			ext4_flush_completed_IO(inode);
+			ext4_flush_unwritten_io(inode);
 			mutex_unlock(&inode->i_mutex);
+		}
+		/*
+		 * Nolock dioread optimization may be dynamically disabled
+		 * via ext4_inode_block_unlocked_dio(). Check inode's state
+		 * while holding extra i_dio_count ref.
+		 */
+		atomic_inc(&inode->i_dio_count);
+		smp_mb();
+		if (unlikely(ext4_test_inode_state(inode,
+						    EXT4_STATE_DIOREAD_LOCK))) {
+			inode_dio_done(inode);
+			goto locked;
 		}
 		ret = __blockdev_direct_IO(rw, iocb, inode,
 				 inode->i_sb->s_bdev, iov,
 				 offset, nr_segs,
 				 ext4_get_block, NULL, NULL, 0);
+		inode_dio_done(inode);
 	} else {
+locked:
 		ret = blockdev_direct_IO(rw, iocb, inode, iov,
 				 offset, nr_segs, ext4_get_block);
 
@@ -1398,6 +1412,7 @@ void ext4_ind_truncate(struct inode *inode)
 	down_write(&ei->i_data_sem);
 
 	ext4_discard_preallocations(inode);
+	ext4_es_remove_extent(inode, last_block, EXT_MAX_BLOCKS - last_block);
 
 	/*
 	 * The orphan list entry will now protect us from any crash which

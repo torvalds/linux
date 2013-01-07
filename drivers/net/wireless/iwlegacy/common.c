@@ -1183,9 +1183,10 @@ EXPORT_SYMBOL(il_power_update_mode);
 void
 il_power_initialize(struct il_priv *il)
 {
-	u16 lctl = il_pcie_link_ctl(il);
+	u16 lctl;
 
-	il->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &lctl);
+	il->power_data.pci_pm = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 
 	il->power_data.debug_sleep_level_override = -1;
 
@@ -1586,9 +1587,9 @@ il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,
 		return 0;
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, il_bcast_addr, ETH_ALEN);
+	eth_broadcast_addr(frame->da);
 	memcpy(frame->sa, ta, ETH_ALEN);
-	memcpy(frame->bssid, il_bcast_addr, ETH_ALEN);
+	eth_broadcast_addr(frame->bssid);
 	frame->seq_ctrl = 0;
 
 	len += 24;
@@ -4233,9 +4234,8 @@ il_apm_init(struct il_priv *il)
 	 *    power savings, even without L1.
 	 */
 	if (il->cfg->set_l0s) {
-		lctl = il_pcie_link_ctl(il);
-		if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-		    PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+		pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &lctl);
+		if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
 			/* L1-ASPM enabled; disable(!) L0S  */
 			il_set_bit(il, CSR_GIO_REG,
 				   CSR_GIO_REG_VAL_L0S_ENABLED);
@@ -4860,7 +4860,7 @@ EXPORT_SYMBOL(il_add_beacon_time);
 
 #ifdef CONFIG_PM
 
-int
+static int
 il_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -4877,9 +4877,8 @@ il_pci_suspend(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(il_pci_suspend);
 
-int
+static int
 il_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -4906,16 +4905,8 @@ il_pci_resume(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(il_pci_resume);
 
-const struct dev_pm_ops il_pm_ops = {
-	.suspend = il_pci_suspend,
-	.resume = il_pci_resume,
-	.freeze = il_pci_suspend,
-	.thaw = il_pci_resume,
-	.poweroff = il_pci_suspend,
-	.restore = il_pci_resume,
-};
+SIMPLE_DEV_PM_OPS(il_pm_ops, il_pci_suspend, il_pci_resume);
 EXPORT_SYMBOL(il_pm_ops);
 
 #endif /* CONFIG_PM */

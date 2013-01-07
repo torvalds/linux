@@ -33,6 +33,7 @@ my %ignore_type = ();
 my @ignore = ();
 my $help = 0;
 my $configuration_file = ".checkpatch.conf";
+my $max_line_length = 80;
 
 sub help {
 	my ($exitcode) = @_;
@@ -51,6 +52,7 @@ Options:
   -f, --file                 treat FILE as regular source file
   --subjective, --strict     enable more subjective tests
   --ignore TYPE(,TYPE2...)   ignore various comma separated message types
+  --max-line-length=n        set the maximum line length, if exceeded, warn
   --show-types               show the message "types" in the output
   --root=PATH                PATH to the kernel tree root
   --no-summary               suppress the per-file summary
@@ -107,6 +109,7 @@ GetOptions(
 	'strict!'	=> \$check,
 	'ignore=s'	=> \@ignore,
 	'show-types!'	=> \$show_types,
+	'max-line-length=i' => \$max_line_length,
 	'root=s'	=> \$root,
 	'summary!'	=> \$summary,
 	'mailback!'	=> \$mailback,
@@ -227,7 +230,11 @@ our $Inline	= qr{inline|__always_inline|noinline};
 our $Member	= qr{->$Ident|\.$Ident|\[[^]]*\]};
 our $Lval	= qr{$Ident(?:$Member)*};
 
-our $Constant	= qr{(?i:(?:[0-9]+|0x[0-9a-f]+)[ul]*)};
+our $Float_hex	= qr{(?i:0x[0-9a-f]+p-?[0-9]+[fl]?)};
+our $Float_dec	= qr{(?i:((?:[0-9]+\.[0-9]*|[0-9]*\.[0-9]+)(?:e-?[0-9]+)?[fl]?))};
+our $Float_int	= qr{(?i:[0-9]+e-?[0-9]+[fl]?)};
+our $Float	= qr{$Float_hex|$Float_dec|$Float_int};
+our $Constant	= qr{(?:$Float|(?i:(?:0x[0-9a-f]+|[0-9]+)[ul]*))};
 our $Assignment	= qr{(?:\*\=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|=)};
 our $Compare    = qr{<=|>=|==|!=|<|>};
 our $Operators	= qr{
@@ -352,27 +359,6 @@ sub deparenthesize {
 
 $chk_signoff = 0 if ($file);
 
-my @dep_includes = ();
-my @dep_functions = ();
-my $removal = "Documentation/feature-removal-schedule.txt";
-if ($tree && -f "$root/$removal") {
-	open(my $REMOVE, '<', "$root/$removal") ||
-				die "$P: $removal: open failed - $!\n";
-	while (<$REMOVE>) {
-		if (/^Check:\s+(.*\S)/) {
-			for my $entry (split(/[, ]+/, $1)) {
-				if ($entry =~ m@include/(.*)@) {
-					push(@dep_includes, $1);
-
-				} elsif ($entry !~ m@/@) {
-					push(@dep_functions, $entry);
-				}
-			}
-		}
-	}
-	close($REMOVE);
-}
-
 my @rawlines = ();
 my @lines = ();
 my $vname;
@@ -421,7 +407,7 @@ sub top_of_kernel_tree {
 		}
 	}
 	return 1;
-    }
+}
 
 sub parse_email {
 	my ($formatted_email) = @_;
@@ -1386,6 +1372,8 @@ sub process {
 	my $in_header_lines = 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
 
+	my $non_utf8_charset = 0;
+
 	our @report = ();
 	our $cnt_lines = 0;
 	our $cnt_error = 0;
@@ -1409,6 +1397,8 @@ sub process {
 	my %suppress_whiletrailers;
 	my %suppress_export;
 	my $suppress_statement = 0;
+
+	my %camelcase = ();
 
 	# Pre-scan the patch sanitizing the lines.
 	# Pre-scan the patch looking for any __setup documentation.
@@ -1686,10 +1676,17 @@ sub process {
 			$in_commit_log = 1;
 		}
 
-# Still not yet in a patch, check for any UTF-8
-		if ($in_commit_log && $realfile =~ /^$/ &&
+# Check if there is UTF-8 in a commit log when a mail header has explicitly
+# declined it, i.e defined some charset where it is missing.
+		if ($in_header_lines &&
+		    $rawline =~ /^Content-Type:.+charset="(.+)".*$/ &&
+		    $1 !~ /utf-8/i) {
+			$non_utf8_charset = 1;
+		}
+
+		if ($in_commit_log && $non_utf8_charset && $realfile =~ /^$/ &&
 		    $rawline =~ /$NON_ASCII_UTF8/) {
-			CHK("UTF8_BEFORE_PATCH",
+			WARN("UTF8_BEFORE_PATCH",
 			    "8-bit UTF-8 used in possible commit log\n" . $herecurr);
 		}
 
@@ -1748,6 +1745,13 @@ sub process {
 			#print "is_start<$is_start> is_end<$is_end> length<$length>\n";
 		}
 
+# discourage the addition of CONFIG_EXPERIMENTAL in Kconfig.
+		if ($realfile =~ /Kconfig/ &&
+		    $line =~ /.\s*depends on\s+.*\bEXPERIMENTAL\b/) {
+			WARN("CONFIG_EXPERIMENTAL",
+			     "Use of CONFIG_EXPERIMENTAL is deprecated. For alternatives, see https://lkml.org/lkml/2012/10/23/580\n");
+		}
+
 		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
 		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
 			my $flag = $1;
@@ -1765,15 +1769,15 @@ sub process {
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|pl|sh)$/);
 
-#80 column limit
+#line length limit
 		if ($line =~ /^\+/ && $prevrawline !~ /\/\*\*/ &&
 		    $rawline !~ /^.\s*\*\s*\@$Ident\s/ &&
 		    !($line =~ /^\+\s*$logFunctions\s*\(\s*(?:(KERN_\S+\s*|[^"]*))?"[X\t]*"\s*(?:|,|\)\s*;)\s*$/ ||
 		    $line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
-		    $length > 80)
+		    $length > $max_line_length)
 		{
 			WARN("LONG_LINE",
-			     "line over 80 characters\n" . $herecurr);
+			     "line over $max_line_length characters\n" . $herecurr);
 		}
 
 # Check for user-visible strings broken across lines, which breaks the ability
@@ -1873,6 +1877,22 @@ sub process {
 			    "No space is necessary after a cast\n" . $hereprev);
 		}
 
+		if ($realfile =~ m@^(drivers/net/|net/)@ &&
+		    $rawline =~ /^\+[ \t]*\/\*[ \t]*$/ &&
+		    $prevrawline =~ /^\+[ \t]*$/) {
+			WARN("NETWORKING_BLOCK_COMMENT_STYLE",
+			     "networking block comments don't use an empty /* line, use /* Comment...\n" . $hereprev);
+		}
+
+		if ($realfile =~ m@^(drivers/net/|net/)@ &&
+		    $rawline !~ m@^\+[ \t]*\*/[ \t]*$@ &&	#trailing */
+		    $rawline !~ m@^\+.*/\*.*\*/[ \t]*$@ &&	#inline /*...*/
+		    $rawline !~ m@^\+.*\*{2,}/[ \t]*$@ &&	#trailing **/
+		    $rawline =~ m@^\+[ \t]*.+\*\/[ \t]*$@) {	#non blank */
+			WARN("NETWORKING_BLOCK_COMMENT_STYLE",
+			     "networking block comments put the trailing */ on a separate line\n" . $herecurr);
+		}
+
 # check for spaces at the beginning of a line.
 # Exceptions:
 #  1) within comments
@@ -1886,6 +1906,12 @@ sub process {
 
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c)$/);
+
+# discourage the addition of CONFIG_EXPERIMENTAL in #if(def).
+		if ($line =~ /^\+\s*\#\s*if.*\bCONFIG_EXPERIMENTAL\b/) {
+			WARN("CONFIG_EXPERIMENTAL",
+			     "Use of CONFIG_EXPERIMENTAL is deprecated. For alternatives, see https://lkml.org/lkml/2012/10/23/580\n");
+		}
 
 # check for RCS/CVS revision markers
 		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|)/) {
@@ -2200,8 +2226,11 @@ sub process {
 			my $path = $1;
 			if ($path =~ m{//}) {
 				ERROR("MALFORMED_INCLUDE",
-				      "malformed #include filename\n" .
-					$herecurr);
+				      "malformed #include filename\n" . $herecurr);
+			}
+			if ($path =~ "^uapi/" && $realfile =~ m@\binclude/uapi/@) {
+				ERROR("UAPI_INCLUDE",
+				      "No #include in ...include/uapi/... should use a uapi/ path prefix\n" . $herecurr);
 			}
 		}
 
@@ -2390,8 +2419,10 @@ sub process {
 			my $orig = $1;
 			my $level = lc($orig);
 			$level = "warn" if ($level eq "warning");
+			my $level2 = $level;
+			$level2 = "dbg" if ($level eq "debug");
 			WARN("PREFER_PR_LEVEL",
-			     "Prefer pr_$level(... to printk(KERN_$1, ...\n" . $herecurr);
+			     "Prefer netdev_$level2(netdev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
 		}
 
 		if ($line =~ /\bpr_warning\s*\(/) {
@@ -2879,12 +2910,17 @@ sub process {
 			}
 		}
 
-#studly caps, commented out until figure out how to distinguish between use of existing and adding new
-#		if (($line=~/[\w_][a-z\d]+[A-Z]/) and !($line=~/print/)) {
-#		    print "No studly caps, use _\n";
-#		    print "$herecurr";
-#		    $clean = 0;
-#		}
+#CamelCase
+		while ($line =~ m{($Constant|$Lval)}g) {
+			my $var = $1;
+			if ($var !~ /$Constant/ &&
+			    $var =~ /[A-Z]\w*[a-z]|[a-z]\w*[A-Z]/ &&
+			    !defined $camelcase{$var}) {
+				$camelcase{$var} = 1;
+				WARN("CAMELCASE",
+				     "Avoid CamelCase: <$var>\n" . $herecurr);
+			}
+		}
 
 #no spaces allowed after \ in define
 		if ($line=~/\#\s*define.*\\\s$/) {
@@ -2947,7 +2983,7 @@ sub process {
 			my $exceptions = qr{
 				$Declare|
 				module_param_named|
-				MODULE_PARAM_DESC|
+				MODULE_PARM_DESC|
 				DECLARE_PER_CPU|
 				DEFINE_PER_CPU|
 				__typeof__\(|
@@ -2985,6 +3021,17 @@ sub process {
 					ERROR("COMPLEX_MACRO",
 					      "Macros with complex values should be enclosed in parenthesis\n" . "$herectx");
 				}
+			}
+
+# check for line continuations outside of #defines, preprocessor #, and asm
+
+		} else {
+			if ($prevline !~ /^..*\\$/ &&
+			    $line !~ /^\+\s*\#.*\\$/ &&		# preprocessor
+			    $line !~ /^\+.*\b(__asm__|asm)\b.*\\$/ &&	# asm
+			    $line =~ /^\+.*\\$/) {
+				WARN("LINE_CONTINUATIONS",
+				     "Avoid unnecessary line continuations\n" . $herecurr);
 			}
 		}
 
@@ -3156,20 +3203,14 @@ sub process {
 			}
 		}
 
-# don't include deprecated include files (uses RAW line)
-		for my $inc (@dep_includes) {
-			if ($rawline =~ m@^.\s*\#\s*include\s*\<$inc>@) {
-				ERROR("DEPRECATED_INCLUDE",
-				      "Don't use <$inc>: see Documentation/feature-removal-schedule.txt\n" . $herecurr);
-			}
+# check for unnecessary blank lines around braces
+		if (($line =~ /^..*}\s*$/ && $prevline =~ /^.\s*$/)) {
+			CHK("BRACES",
+			    "Blank lines aren't necessary before a close brace '}'\n" . $hereprev);
 		}
-
-# don't use deprecated functions
-		for my $func (@dep_functions) {
-			if ($line =~ /\b$func\b/) {
-				ERROR("DEPRECATED_FUNCTION",
-				      "Don't use $func(): see Documentation/feature-removal-schedule.txt\n" . $herecurr);
-			}
+		if (($line =~ /^.\s*$/ && $prevline =~ /^..*{\s*$/)) {
+			CHK("BRACES",
+			    "Blank lines aren't necessary after an open brace '{'\n" . $hereprev);
 		}
 
 # no volatiles please
@@ -3186,20 +3227,12 @@ sub process {
 				$herecurr);
 		}
 
-# check for needless kfree() checks
-		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
-			my $expr = $1;
-			if ($line =~ /\bkfree\(\Q$expr\E\);/) {
-				WARN("NEEDLESS_KFREE",
-				     "kfree(NULL) is safe this check is probably not required\n" . $hereprev);
-			}
-		}
-# check for needless usb_free_urb() checks
-		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
-			my $expr = $1;
-			if ($line =~ /\busb_free_urb\(\Q$expr\E\);/) {
-				WARN("NEEDLESS_USB_FREE_URB",
-				     "usb_free_urb(NULL) is safe this check is probably not required\n" . $hereprev);
+# check for needless "if (<foo>) fn(<foo>)" uses
+		if ($prevline =~ /\bif\s*\(\s*($Lval)\s*\)/) {
+			my $expr = '\s*\(\s*' . quotemeta($1) . '\s*\)\s*;';
+			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?)$expr/) {
+				WARN('NEEDLESS_IF',
+				     "$1(NULL) is safe this check is probably not required\n" . $hereprev);
 			}
 		}
 
@@ -3317,6 +3350,12 @@ sub process {
 			     "Avoid line continuations in quoted strings\n" . $herecurr);
 		}
 
+# check for struct spinlock declarations
+		if ($line =~ /^.\s*\bstruct\s+spinlock\s+\w+\s*;/) {
+			WARN("USE_SPINLOCK_T",
+			     "struct spinlock should be spinlock_t\n" . $herecurr);
+		}
+
 # Check for misused memsets
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
@@ -3423,8 +3462,22 @@ sub process {
 
 # check for multiple semicolons
 		if ($line =~ /;\s*;\s*$/) {
-		    WARN("ONE_SEMICOLON",
-			 "Statements terminations use 1 semicolon\n" . $herecurr);
+			WARN("ONE_SEMICOLON",
+			     "Statements terminations use 1 semicolon\n" . $herecurr);
+		}
+
+# check for switch/default statements without a break;
+		if ($^V && $^V ge 5.10.0 &&
+		    defined $stat &&
+		    $stat =~ /^\+[$;\s]*(?:case[$;\s]+\w+[$;\s]*:[$;\s]*|)*[$;\s]*\bdefault[$;\s]*:[$;\s]*;/g) {
+			my $ctx = '';
+			my $herectx = $here . "\n";
+			my $cnt = statement_rawlines($stat);
+			for (my $n = 0; $n < $cnt; $n++) {
+				$herectx .= raw_line($linenr, $n) . "\n";
+			}
+			WARN("DEFAULT_NO_BREAK",
+			     "switch default: should use break\n" . $herectx);
 		}
 
 # check for gcc specific __FUNCTION__

@@ -22,196 +22,26 @@
  * Authors: Ben Skeggs
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
+#include <drm/drm_dp_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_i2c.h"
+#include "nouveau_drm.h"
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
-#include "nouveau_gpio.h"
 
-/******************************************************************************
- * aux channel util functions
- *****************************************************************************/
-#define AUX_DBG(fmt, args...) do {                                             \
-	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_AUXCH) {                     \
-		NV_PRINTK(KERN_DEBUG, dev, "AUXCH(%d): " fmt, ch, ##args);     \
-	}                                                                      \
-} while (0)
-#define AUX_ERR(fmt, args...) NV_ERROR(dev, "AUXCH(%d): " fmt, ch, ##args)
+#include <core/class.h>
 
-static void
-auxch_fini(struct drm_device *dev, int ch)
-{
-	nv_mask(dev, 0x00e4e4 + (ch * 0x50), 0x00310000, 0x00000000);
-}
-
-static int
-auxch_init(struct drm_device *dev, int ch)
-{
-	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
-	const u32 ureq = unksel ? 0x00100000 : 0x00200000;
-	const u32 urep = unksel ? 0x01000000 : 0x02000000;
-	u32 ctrl, timeout;
-
-	/* wait up to 1ms for any previous transaction to be done... */
-	timeout = 1000;
-	do {
-		ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
-		udelay(1);
-		if (!timeout--) {
-			AUX_ERR("begin idle timeout 0x%08x", ctrl);
-			return -EBUSY;
-		}
-	} while (ctrl & 0x03010000);
-
-	/* set some magic, and wait up to 1ms for it to appear */
-	nv_mask(dev, 0x00e4e4 + (ch * 0x50), 0x00300000, ureq);
-	timeout = 1000;
-	do {
-		ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
-		udelay(1);
-		if (!timeout--) {
-			AUX_ERR("magic wait 0x%08x\n", ctrl);
-			auxch_fini(dev, ch);
-			return -EBUSY;
-		}
-	} while ((ctrl & 0x03000000) != urep);
-
-	return 0;
-}
-
-static int
-auxch_tx(struct drm_device *dev, int ch, u8 type, u32 addr, u8 *data, u8 size)
-{
-	u32 ctrl, stat, timeout, retries;
-	u32 xbuf[4] = {};
-	int ret, i;
-
-	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
-
-	ret = auxch_init(dev, ch);
-	if (ret)
-		goto out;
-
-	stat = nv_rd32(dev, 0x00e4e8 + (ch * 0x50));
-	if (!(stat & 0x10000000)) {
-		AUX_DBG("sink not detected\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!(type & 1)) {
-		memcpy(xbuf, data, size);
-		for (i = 0; i < 16; i += 4) {
-			AUX_DBG("wr 0x%08x\n", xbuf[i / 4]);
-			nv_wr32(dev, 0x00e4c0 + (ch * 0x50) + i, xbuf[i / 4]);
-		}
-	}
-
-	ctrl  = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
-	ctrl &= ~0x0001f0ff;
-	ctrl |= type << 12;
-	ctrl |= size - 1;
-	nv_wr32(dev, 0x00e4e0 + (ch * 0x50), addr);
-
-	/* retry transaction a number of times on failure... */
-	ret = -EREMOTEIO;
-	for (retries = 0; retries < 32; retries++) {
-		/* reset, and delay a while if this is a retry */
-		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x80000000 | ctrl);
-		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x00000000 | ctrl);
-		if (retries)
-			udelay(400);
-
-		/* transaction request, wait up to 1ms for it to complete */
-		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x00010000 | ctrl);
-
-		timeout = 1000;
-		do {
-			ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
-			udelay(1);
-			if (!timeout--) {
-				AUX_ERR("tx req timeout 0x%08x\n", ctrl);
-				goto out;
-			}
-		} while (ctrl & 0x00010000);
-
-		/* read status, and check if transaction completed ok */
-		stat = nv_mask(dev, 0x00e4e8 + (ch * 0x50), 0, 0);
-		if (!(stat & 0x000f0f00)) {
-			ret = 0;
-			break;
-		}
-
-		AUX_DBG("%02d 0x%08x 0x%08x\n", retries, ctrl, stat);
-	}
-
-	if (type & 1) {
-		for (i = 0; i < 16; i += 4) {
-			xbuf[i / 4] = nv_rd32(dev, 0x00e4d0 + (ch * 0x50) + i);
-			AUX_DBG("rd 0x%08x\n", xbuf[i / 4]);
-		}
-		memcpy(data, xbuf, size);
-	}
-
-out:
-	auxch_fini(dev, ch);
-	return ret;
-}
-
-u8 *
-nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
-{
-	struct bit_entry d;
-	u8 *table;
-	int i;
-
-	if (bit_table(dev, 'd', &d)) {
-		NV_ERROR(dev, "BIT 'd' table not found\n");
-		return NULL;
-	}
-
-	if (d.version != 1) {
-		NV_ERROR(dev, "BIT 'd' table version %d unknown\n", d.version);
-		return NULL;
-	}
-
-	table = ROMPTR(dev, d.data[0]);
-	if (!table) {
-		NV_ERROR(dev, "displayport table pointer invalid\n");
-		return NULL;
-	}
-
-	switch (table[0]) {
-	case 0x20:
-	case 0x21:
-	case 0x30:
-	case 0x40:
-		break;
-	default:
-		NV_ERROR(dev, "displayport table 0x%02x unknown\n", table[0]);
-		return NULL;
-	}
-
-	for (i = 0; i < table[3]; i++) {
-		*entry = ROMPTR(dev, table[table[1] + (i * table[2])]);
-		if (*entry && bios_encoder_match(dcb, ROM32((*entry)[0])))
-			return table;
-	}
-
-	NV_ERROR(dev, "displayport encoder table not found\n");
-	return NULL;
-}
+#include <subdev/gpio.h>
+#include <subdev/i2c.h>
 
 /******************************************************************************
  * link training
  *****************************************************************************/
 struct dp_state {
-	struct dp_train_func *func;
-	struct dcb_entry *dcb;
-	int auxch;
+	struct nouveau_i2c_port *auxch;
+	struct nouveau_object *core;
+	struct dcb_output *dcb;
 	int crtc;
 	u8 *dpcd;
 	int link_nr;
@@ -223,13 +53,21 @@ struct dp_state {
 static void
 dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	u8 sink[2];
+	u32 data;
 
-	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
+	NV_DEBUG(drm, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
 	/* set desired link configuration on the source */
-	dp->func->link_set(dev, dp->dcb, dp->crtc, dp->link_nr, dp->link_bw,
-			   dp->dpcd[2] & DP_ENHANCED_FRAME_CAP);
+	data = ((dp->link_bw / 27000) << 8) | dp->link_nr;
+	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)
+		data |= NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH;
+
+	nv_call(dp->core, NV94_DISP_SOR_DP_LNKCTL + moff, data);
 
 	/* inform the sink of the new configuration */
 	sink[0] = dp->link_bw / 27000;
@@ -237,27 +75,35 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)
 		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
-	auxch_tx(dev, dp->auxch, 8, DP_LINK_BW_SET, sink, 2);
+	nv_wraux(dp->auxch, DP_LINK_BW_SET, sink, 2);
 }
 
 static void
 dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 pattern)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	u8 sink_tp;
 
-	NV_DEBUG_KMS(dev, "training pattern %d\n", pattern);
+	NV_DEBUG(drm, "training pattern %d\n", pattern);
 
-	dp->func->train_set(dev, dp->dcb, pattern);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff, pattern);
 
-	auxch_tx(dev, dp->auxch, 9, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
+	nv_rdaux(dp->auxch, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 	sink_tp &= ~DP_TRAINING_PATTERN_MASK;
 	sink_tp |= pattern;
-	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
+	nv_wraux(dp->auxch, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 }
 
 static int
 dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 	int i;
 
 	for (i = 0; i < dp->link_nr; i++) {
@@ -271,27 +117,27 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 		if ((lpre << 3) == DP_TRAIN_PRE_EMPHASIS_9_5)
 			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-		NV_DEBUG_KMS(dev, "config lane %d %02x\n", i, dp->conf[i]);
-		dp->func->train_adj(dev, dp->dcb, i, lvsw, lpre);
+		NV_DEBUG(drm, "config lane %d %02x\n", i, dp->conf[i]);
+
+		nv_call(dp->core, NV94_DISP_SOR_DP_DRVCTL(i) + moff, (lvsw << 8) | lpre);
 	}
 
-	return auxch_tx(dev, dp->auxch, 8, DP_TRAINING_LANE0_SET, dp->conf, 4);
+	return nv_wraux(dp->auxch, DP_TRAINING_LANE0_SET, dp->conf, 4);
 }
 
 static int
 dp_link_train_update(struct drm_device *dev, struct dp_state *dp, u32 delay)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	int ret;
 
 	udelay(delay);
 
-	ret = auxch_tx(dev, dp->auxch, 9, DP_LANE0_1_STATUS, dp->stat, 6);
+	ret = nv_rdaux(dp->auxch, DP_LANE0_1_STATUS, dp->stat, 6);
 	if (ret)
 		return ret;
 
-	NV_DEBUG_KMS(dev, "status %02x %02x %02x %02x %02x %02x\n",
-		     dp->stat[0], dp->stat[1], dp->stat[2], dp->stat[3],
-		     dp->stat[4], dp->stat[5]);
+	NV_DEBUG(drm, "status %*ph\n", 6, dp->stat);
 	return 0;
 }
 
@@ -359,78 +205,52 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 }
 
 static void
-dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
+dp_link_train_init(struct drm_device *dev, struct dp_state *dp, bool spread)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30) {
-			if (enable) script = ROM16(entry[12]);
-			else        script = ROM16(entry[14]);
-		} else
-		if (table[0] == 0x40) {
-			if (enable) script = ROM16(entry[11]);
-			else        script = ROM16(entry[13]);
-		}
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
-}
-
-static void
-dp_link_train_init(struct drm_device *dev, struct dp_state *dp)
-{
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[6]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[5]);
-	}
-
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff, (spread ?
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON :
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF) |
+			  NV94_DISP_SOR_DP_TRAIN_OP_INIT);
 }
 
 static void
 dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[8]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[7]);
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff,
+			  NV94_DISP_SOR_DP_TRAIN_OP_FINI);
 }
 
-bool
+static bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
-		      struct dp_train_func *func)
+		      struct nouveau_object *core)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector =
 		nouveau_encoder_connector_get(nv_encoder);
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_i2c_chan *auxch;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	const u32 bw_list[] = { 270000, 162000, 0 };
 	const u32 *link_bw = bw_list;
 	struct dp_state dp;
 
-	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-	if (!auxch)
+	dp.auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+	if (!dp.auxch)
 		return false;
 
-	dp.func = func;
+	dp.core = core;
 	dp.dcb = nv_encoder->dcb;
 	dp.crtc = nv_crtc->index;
-	dp.auxch = auxch->drive;
 	dp.dpcd = nv_encoder->dp.dpcd;
 
 	/* adjust required bandwidth for 8B/10B coding overhead */
@@ -440,13 +260,10 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	 * we take during link training (DP_SET_POWER is one), we need
 	 * to ignore them for the moment to avoid races.
 	 */
-	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, false);
+	gpio->irq(gpio, 0, nv_connector->hpd, 0xff, false);
 
-	/* enable down-spreading, if possible */
-	dp_set_downspread(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
-
-	/* execute pre-train script from vbios */
-	dp_link_train_init(dev, &dp);
+	/* enable down-spreading and execute pre-train script from vbios */
+	dp_link_train_init(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)
@@ -483,19 +300,21 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	dp_link_train_fini(dev, &dp);
 
 	/* re-enable hotplug detect */
-	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, true);
+	gpio->irq(gpio, 0, nv_connector->hpd, 0xff, true);
 	return true;
 }
 
 void
 nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
-		struct dp_train_func *func)
+		struct nouveau_object *core)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_i2c_chan *auxch;
+	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c_port *auxch;
 	u8 status;
 
-	auxch = nouveau_i2c_find(encoder->dev, nv_encoder->dcb->i2c_index);
+	auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
 	if (!auxch)
 		return;
 
@@ -504,27 +323,28 @@ nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
 	else
 		status = DP_SET_POWER_D3;
 
-	nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
+	nv_wraux(auxch, DP_SET_POWER, &status, 1);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		nouveau_dp_link_train(encoder, datarate, func);
+		nouveau_dp_link_train(encoder, datarate, core);
 }
 
 static void
-nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_chan *auxch,
+nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
 		     u8 *dpcd)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	u8 buf[3];
 
 	if (!(dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	if (!auxch_tx(dev, auxch->drive, 9, DP_SINK_OUI, buf, 3))
-		NV_DEBUG_KMS(dev, "Sink OUI: %02hx%02hx%02hx\n",
+	if (!nv_rdaux(auxch, DP_SINK_OUI, buf, 3))
+		NV_DEBUG(drm, "Sink OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
-	if (!auxch_tx(dev, auxch->drive, 9, DP_BRANCH_OUI, buf, 3))
-		NV_DEBUG_KMS(dev, "Branch OUI: %02hx%02hx%02hx\n",
+	if (!nv_rdaux(auxch, DP_BRANCH_OUI, buf, 3))
+		NV_DEBUG(drm, "Branch OUI: %02hx%02hx%02hx\n",
 			     buf[0], buf[1], buf[2]);
 
 }
@@ -534,24 +354,26 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_i2c_chan *auxch;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c_port *auxch;
 	u8 *dpcd = nv_encoder->dp.dpcd;
 	int ret;
 
-	auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+	auxch = i2c->find(i2c, nv_encoder->dcb->i2c_index);
 	if (!auxch)
 		return false;
 
-	ret = auxch_tx(dev, auxch->drive, 9, DP_DPCD_REV, dpcd, 8);
+	ret = nv_rdaux(auxch, DP_DPCD_REV, dpcd, 8);
 	if (ret)
 		return false;
 
 	nv_encoder->dp.link_bw = 27000 * dpcd[1];
 	nv_encoder->dp.link_nr = dpcd[2] & DP_MAX_LANE_COUNT_MASK;
 
-	NV_DEBUG_KMS(dev, "display: %dx%d dpcd 0x%02x\n",
+	NV_DEBUG(drm, "display: %dx%d dpcd 0x%02x\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw, dpcd[0]);
-	NV_DEBUG_KMS(dev, "encoder: %dx%d\n",
+	NV_DEBUG(drm, "encoder: %dx%d\n",
 		     nv_encoder->dcb->dpconf.link_nr,
 		     nv_encoder->dcb->dpconf.link_bw);
 
@@ -560,65 +382,10 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	if (nv_encoder->dcb->dpconf.link_bw < nv_encoder->dp.link_bw)
 		nv_encoder->dp.link_bw = nv_encoder->dcb->dpconf.link_bw;
 
-	NV_DEBUG_KMS(dev, "maximum: %dx%d\n",
+	NV_DEBUG(drm, "maximum: %dx%d\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	nouveau_dp_probe_oui(dev, auxch, dpcd);
 
 	return true;
 }
-
-int
-nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
-		 uint8_t *data, int data_nr)
-{
-	return auxch_tx(auxch->dev, auxch->drive, cmd, addr, data, data_nr);
-}
-
-static int
-nouveau_dp_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
-{
-	struct nouveau_i2c_chan *auxch = (struct nouveau_i2c_chan *)adap;
-	struct i2c_msg *msg = msgs;
-	int ret, mcnt = num;
-
-	while (mcnt--) {
-		u8 remaining = msg->len;
-		u8 *ptr = msg->buf;
-
-		while (remaining) {
-			u8 cnt = (remaining > 16) ? 16 : remaining;
-			u8 cmd;
-
-			if (msg->flags & I2C_M_RD)
-				cmd = AUX_I2C_READ;
-			else
-				cmd = AUX_I2C_WRITE;
-
-			if (mcnt || remaining > 16)
-				cmd |= AUX_I2C_MOT;
-
-			ret = nouveau_dp_auxch(auxch, cmd, msg->addr, ptr, cnt);
-			if (ret < 0)
-				return ret;
-
-			ptr += cnt;
-			remaining -= cnt;
-		}
-
-		msg++;
-	}
-
-	return num;
-}
-
-static u32
-nouveau_dp_i2c_func(struct i2c_adapter *adap)
-{
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
-}
-
-const struct i2c_algorithm nouveau_dp_i2c_algo = {
-	.master_xfer = nouveau_dp_i2c_xfer,
-	.functionality = nouveau_dp_i2c_func
-};

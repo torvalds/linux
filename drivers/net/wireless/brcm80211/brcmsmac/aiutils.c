@@ -535,9 +535,6 @@ void ai_detach(struct si_pub *sih)
 {
 	struct si_info *sii;
 
-	struct si_pub *si_local = NULL;
-	memcpy(&si_local, &sih, sizeof(struct si_pub **));
-
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii == NULL)
@@ -695,7 +692,7 @@ void ai_pci_up(struct si_pub *sih)
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], true);
 }
 
 /* Unconfigure and/or apply various WARs when going down */
@@ -706,7 +703,7 @@ void ai_pci_down(struct si_pub *sih)
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], false);
 }
 
 /* Enable BT-COEX & Ex-PA for 4313 */
@@ -724,7 +721,7 @@ void ai_epa_4313war(struct si_pub *sih)
 /* check if the device is removed */
 bool ai_deviceremoved(struct si_pub *sih)
 {
-	u32 w;
+	u32 w = 0;
 	struct si_info *sii;
 
 	sii = container_of(sih, struct si_info, pub);

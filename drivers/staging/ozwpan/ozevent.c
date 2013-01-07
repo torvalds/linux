@@ -14,7 +14,7 @@
 #include "ozappif.h"
 /*------------------------------------------------------------------------------
  * Although the event mask is logically part of the oz_evtdev structure, it is
- * needed outside of this file so define it seperately to avoid the need to
+ * needed outside of this file so define it separately to avoid the need to
  * export definition of struct oz_evtdev.
  */
 u32 g_evt_mask;
@@ -39,8 +39,8 @@ static struct oz_evtdev g_evtdev;
  */
 void oz_event_init(void)
 {
-	/* Because g_evtdev is static external all fields initally zero so no
-	 * need to reinitialised those.
+	/* Because g_evtdev is static external all fields initially zero so no
+	 * need to reinitialized those.
 	 */
 	oz_trace("Event tracing initialized\n");
 	spin_lock_init(&g_evtdev.lock);
@@ -79,6 +79,7 @@ void oz_event_log2(u8 evt, u8 ctx1, u16 ctx2, void *ctx3, unsigned ctx4)
 /*------------------------------------------------------------------------------
  * Context: process
  */
+#ifdef CONFIG_DEBUG_FS
 static void oz_events_clear(struct oz_evtdev *dev)
 {
 	unsigned long irqstate;
@@ -88,7 +89,6 @@ static void oz_events_clear(struct oz_evtdev *dev)
 	dev->missed_events = 0;
 	spin_unlock_irqrestore(&dev->lock, irqstate);
 }
-#ifdef CONFIG_DEBUG_FS
 /*------------------------------------------------------------------------------
  * Context: process
  */

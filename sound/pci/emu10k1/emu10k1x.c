@@ -830,9 +830,22 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct snd_pcm **rpcm)
+static const struct snd_pcm_chmap_elem surround_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ }
+};
+
+static const struct snd_pcm_chmap_elem clfe_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ }
+};
+
+static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
+	const struct snd_pcm_chmap_elem *map = NULL;
 	int err;
 	int capture = 0;
   
@@ -861,12 +874,15 @@ static int __devinit snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct s
 	switch(device) {
 	case 0:
 		strcpy(pcm->name, "EMU10K1X Front");
+		map = snd_pcm_std_chmaps;
 		break;
 	case 1:
 		strcpy(pcm->name, "EMU10K1X Rear");
+		map = surround_map;
 		break;
 	case 2:
 		strcpy(pcm->name, "EMU10K1X Center/LFE");
+		map = clfe_map;
 		break;
 	}
 	emu->pcm = pcm;
@@ -875,15 +891,20 @@ static int __devinit snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct s
 					      snd_dma_pci_data(emu->pci), 
 					      32*1024, 32*1024);
   
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
+				     1 << 2, NULL);
+	if (err < 0)
+		return err;
+
 	if (rpcm)
 		*rpcm = pcm;
   
 	return 0;
 }
 
-static int __devinit snd_emu10k1x_create(struct snd_card *card,
-					 struct pci_dev *pci,
-					 struct emu10k1x **rchip)
+static int snd_emu10k1x_create(struct snd_card *card,
+			       struct pci_dev *pci,
+			       struct emu10k1x **rchip)
 {
 	struct emu10k1x *chip;
 	int err;
@@ -1045,7 +1066,7 @@ static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry,
 	}
 }
 
-static int __devinit snd_emu10k1x_proc_init(struct emu10k1x * emu)
+static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 {
 	struct snd_info_entry *entry;
 	
@@ -1094,7 +1115,7 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_shared_spdif __devinitdata =
+static struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Analog/Digital Output Jack",
@@ -1173,7 +1194,7 @@ static struct snd_kcontrol_new snd_emu10k1x_spdif_control =
 	.put =          snd_emu10k1x_spdif_put
 };
 
-static int __devinit snd_emu10k1x_mixer(struct emu10k1x *emu)
+static int snd_emu10k1x_mixer(struct emu10k1x *emu)
 {
 	int err;
 	struct snd_kcontrol *kctl;
@@ -1486,8 +1507,9 @@ static void snd_emu10k1x_midi_free(struct snd_rawmidi *rmidi)
 	midi->rmidi = NULL;
 }
 
-static int __devinit emu10k1x_midi_init(struct emu10k1x *emu,
-					struct emu10k1x_midi *midi, int device, char *name)
+static int emu10k1x_midi_init(struct emu10k1x *emu,
+			      struct emu10k1x_midi *midi, int device,
+			      char *name)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
@@ -1510,7 +1532,7 @@ static int __devinit emu10k1x_midi_init(struct emu10k1x *emu,
 	return 0;
 }
 
-static int __devinit snd_emu10k1x_midi(struct emu10k1x *emu)
+static int snd_emu10k1x_midi(struct emu10k1x *emu)
 {
 	struct emu10k1x_midi *midi = &emu->midi;
 	int err;
@@ -1527,8 +1549,8 @@ static int __devinit snd_emu10k1x_midi(struct emu10k1x *emu)
 	return 0;
 }
 
-static int __devinit snd_emu10k1x_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+static int snd_emu10k1x_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1598,7 +1620,7 @@ static int __devinit snd_emu10k1x_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_emu10k1x_remove(struct pci_dev *pci)
+static void snd_emu10k1x_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1616,7 +1638,7 @@ static struct pci_driver emu10k1x_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_emu10k1x_ids,
 	.probe = snd_emu10k1x_probe,
-	.remove = __devexit_p(snd_emu10k1x_remove),
+	.remove = snd_emu10k1x_remove,
 };
 
 module_pci_driver(emu10k1x_driver);

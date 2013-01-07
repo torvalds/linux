@@ -24,9 +24,19 @@ struct mce_bank {
 int mce_severity(struct mce *a, int tolerant, char **msg);
 struct dentry *mce_get_debugfs_dir(void);
 
-extern int mce_ser;
-
 extern struct mce_bank *mce_banks;
+
+#ifdef CONFIG_X86_MCE_INTEL
+unsigned long mce_intel_adjust_timer(unsigned long interval);
+void mce_intel_cmci_poll(void);
+void mce_intel_hcpu_update(unsigned long cpu);
+#else
+# define mce_intel_adjust_timer mce_adjust_timer_default
+static inline void mce_intel_cmci_poll(void) { }
+static inline void mce_intel_hcpu_update(unsigned long cpu) { }
+#endif
+
+void mce_timer_kick(unsigned long interval);
 
 #ifdef CONFIG_ACPI_APEI
 int apei_write_mce(struct mce *m);

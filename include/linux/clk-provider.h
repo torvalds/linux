@@ -26,6 +26,7 @@
 #define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
 #define CLK_IS_ROOT		BIT(4) /* root clk, has no parent */
 #define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
+#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 
 struct clk_hw;
 
@@ -52,9 +53,18 @@ struct clk_hw;
  * @disable:	Disable the clock atomically. Called with enable_lock held.
  * 		This function must not sleep.
  *
- * @recalc_rate	Recalculate the rate of this clock, by quering hardware.  The
+ * @is_enabled:	Queries the hardware to determine if the clock is enabled.
+ * 		This function must not sleep. Optional, if this op is not
+ * 		set then the enable count will be used.
+ *
+ * @disable_unused: Disable the clock atomically.  Only called from
+ *		clk_disable_unused for gate clocks with special needs.
+ *		Called with enable_lock held.  This function must not
+ *		sleep.
+ *
+ * @recalc_rate	Recalculate the rate of this clock, by querying hardware. The
  * 		parent rate is an input parameter.  It is up to the caller to
- * 		insure that the prepare_mutex is held across this call.
+ * 		ensure that the prepare_mutex is held across this call.
  * 		Returns the calculated rate.  Optional, but recommended - if
  * 		this op is not set then clock rate will be initialized to 0.
  *
@@ -88,7 +98,7 @@ struct clk_hw;
  * implementations to split any work between atomic (enable) and sleepable
  * (prepare) contexts.  If enabling a clock requires code that might sleep,
  * this must be done in clk_prepare.  Clock enable code that will never be
- * called in a sleepable context may be implement in clk_enable.
+ * called in a sleepable context may be implemented in clk_enable.
  *
  * Typically, drivers will call clk_prepare when a clock may be needed later
  * (eg. when a device is opened), and clk_enable when the clock is actually
@@ -101,6 +111,7 @@ struct clk_ops {
 	int		(*enable)(struct clk_hw *hw);
 	void		(*disable)(struct clk_hw *hw);
 	int		(*is_enabled)(struct clk_hw *hw);
+	void		(*disable_unused)(struct clk_hw *hw);
 	unsigned long	(*recalc_rate)(struct clk_hw *hw,
 					unsigned long parent_rate);
 	long		(*round_rate)(struct clk_hw *hw, unsigned long,
@@ -326,19 +337,21 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
  * error code; drivers must test for an error code after calling clk_register.
  */
 struct clk *clk_register(struct device *dev, struct clk_hw *hw);
+struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw);
 
 void clk_unregister(struct clk *clk);
+void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
 struct clk_hw *__clk_get_hw(struct clk *clk);
 u8 __clk_get_num_parents(struct clk *clk);
 struct clk *__clk_get_parent(struct clk *clk);
-inline int __clk_get_enable_count(struct clk *clk);
-inline int __clk_get_prepare_count(struct clk *clk);
+unsigned int __clk_get_enable_count(struct clk *clk);
+unsigned int __clk_get_prepare_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
 unsigned long __clk_get_flags(struct clk *clk);
-int __clk_is_enabled(struct clk *clk);
+bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 
 /*
@@ -360,6 +373,11 @@ int of_clk_add_provider(struct device_node *np,
 void of_clk_del_provider(struct device_node *np);
 struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 				  void *data);
+struct clk_onecell_data {
+	struct clk **clks;
+	unsigned int clk_num;
+};
+struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
 const char *of_clk_get_parent_name(struct device_node *np, int index);
 void of_clk_init(const struct of_device_id *matches);
 

@@ -721,8 +721,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 
 	if (!netif_carrier_ok(priv->netdev))
 		netif_carrier_on(priv->netdev);
-	if (netif_queue_stopped(priv->netdev))
-		netif_wake_queue(priv->netdev);
+	mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 
 	if (priv->sec_info.wpa_enabled || priv->sec_info.wpa2_enabled)
 		priv->scan_block = true;
@@ -1180,16 +1179,18 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_ad_hoc_result *adhoc_result;
 	struct mwifiex_bssdescriptor *bss_desc;
+	u16 reason_code;
 
 	adhoc_result = &resp->params.adhoc_result;
 
 	bss_desc = priv->attempted_bss_desc;
 
 	/* Join result code 0 --> SUCCESS */
-	if (le16_to_cpu(resp->result)) {
+	reason_code = le16_to_cpu(resp->result);
+	if (reason_code) {
 		dev_err(priv->adapter->dev, "ADHOC_RESP: failed\n");
 		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv);
+			mwifiex_reset_connect_state(priv, reason_code);
 
 		memset(&priv->curr_bss_params.bss_descriptor,
 		       0x00, sizeof(struct mwifiex_bssdescriptor));
@@ -1236,8 +1237,7 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 
 	if (!netif_carrier_ok(priv->netdev))
 		netif_carrier_on(priv->netdev);
-	if (netif_queue_stopped(priv->netdev))
-		netif_wake_queue(priv->netdev);
+	mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 
 	mwifiex_save_curr_bcn(priv);
 

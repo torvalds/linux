@@ -43,14 +43,16 @@ struct nf_conn_nat {
 	struct nf_conn *ct;
 	union nf_conntrack_nat_help help;
 #if defined(CONFIG_IP_NF_TARGET_MASQUERADE) || \
-    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE)
+    defined(CONFIG_IP_NF_TARGET_MASQUERADE_MODULE) || \
+    defined(CONFIG_IP6_NF_TARGET_MASQUERADE) || \
+    defined(CONFIG_IP6_NF_TARGET_MASQUERADE_MODULE)
 	int masq_index;
 #endif
 };
 
 /* Set up the info structure to map into this range. */
 extern unsigned int nf_nat_setup_info(struct nf_conn *ct,
-				      const struct nf_nat_ipv4_range *range,
+				      const struct nf_nat_range *range,
 				      enum nf_nat_manip_type maniptype);
 
 /* Is this tuple already taken? (not by us)*/
@@ -63,6 +65,21 @@ static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
 #else
 	return NULL;
+#endif
+}
+
+static inline bool nf_nat_oif_changed(unsigned int hooknum,
+				      enum ip_conntrack_info ctinfo,
+				      struct nf_conn_nat *nat,
+				      const struct net_device *out)
+{
+#if IS_ENABLED(CONFIG_IP_NF_TARGET_MASQUERADE) || \
+    IS_ENABLED(CONFIG_IP6_NF_TARGET_MASQUERADE)
+	return nat->masq_index && hooknum == NF_INET_POST_ROUTING &&
+	       CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL &&
+	       nat->masq_index != out->ifindex;
+#else
+	return false;
 #endif
 }
 

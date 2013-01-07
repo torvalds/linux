@@ -2,7 +2,7 @@
 #define _FS_CEPH_MDSMAP_H
 
 #include <linux/bug.h>
-#include "types.h"
+#include <linux/ceph/types.h>
 
 /*
  * mds map - describe servers in the mds cluster.

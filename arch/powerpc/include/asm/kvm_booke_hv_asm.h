@@ -17,6 +17,7 @@
  * there are no exceptions for which we fall through directly to
  * the normal host handler.
  *
+ * 32-bit host
  * Expected inputs (normal exceptions):
  *   SCRATCH0 = saved r10
  *   r10 = thread struct
@@ -33,14 +34,38 @@
  *   *(r8 + GPR9) = saved r9
  *   *(r8 + GPR10) = saved r10 (r10 not yet clobbered)
  *   *(r8 + GPR11) = saved r11
+ *
+ * 64-bit host
+ * Expected inputs (GEN/GDBELL/DBG/MC exception types):
+ *  r10 = saved CR
+ *  r13 = PACA_POINTER
+ *  *(r13 + PACA_EX##type + EX_R10) = saved r10
+ *  *(r13 + PACA_EX##type + EX_R11) = saved r11
+ *  SPRN_SPRG_##type##_SCRATCH = saved r13
+ *
+  * Expected inputs (CRIT exception type):
+ *  r10 = saved CR
+ *  r13 = PACA_POINTER
+ *  *(r13 + PACA_EX##type + EX_R10) = saved r10
+ *  *(r13 + PACA_EX##type + EX_R11) = saved r11
+ *  *(r13 + PACA_EX##type + EX_R13) = saved r13
+ *
+ * Expected inputs (TLB exception type):
+ *  r10 = saved CR
+ *  r13 = PACA_POINTER
+ *  *(r13 + PACA_EX##type + EX_TLB_R10) = saved r10
+ *  *(r13 + PACA_EX##type + EX_TLB_R11) = saved r11
+ *  SPRN_SPRG_GEN_SCRATCH = saved r13
+ *
+ * Only the bolted version of TLB miss exception handlers is supported now.
  */
 .macro DO_KVM intno srr1
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
-	bf	3, kvmppc_resume_\intno\()_\srr1
+	bf	3, 1975f
 	b	kvmppc_handler_\intno\()_\srr1
-kvmppc_resume_\intno\()_\srr1:
+1975:
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
 .endm

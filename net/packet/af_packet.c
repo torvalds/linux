@@ -93,6 +93,8 @@
 #include <net/inet_common.h>
 #endif
 
+#include "internal.h"
+
 /*
    Assumptions:
    - if device has no dev->hard_header routine, it adds and removes ll header
@@ -146,14 +148,6 @@ dev->hard_header == NULL (ll header is added by device, we cannot control it)
 
 /* Private packet socket structures. */
 
-struct packet_mclist {
-	struct packet_mclist	*next;
-	int			ifindex;
-	int			count;
-	unsigned short		type;
-	unsigned short		alen;
-	unsigned char		addr[MAX_ADDR_LEN];
-};
 /* identical to struct packet_mreq except it has
  * a longer address field.
  */
@@ -175,63 +169,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 #define BLK_PLUS_PRIV(sz_of_priv) \
 	(BLK_HDR_LEN + ALIGN((sz_of_priv), V3_ALIGNMENT))
 
-/* kbdq - kernel block descriptor queue */
-struct tpacket_kbdq_core {
-	struct pgv	*pkbdq;
-	unsigned int	feature_req_word;
-	unsigned int	hdrlen;
-	unsigned char	reset_pending_on_curr_blk;
-	unsigned char   delete_blk_timer;
-	unsigned short	kactive_blk_num;
-	unsigned short	blk_sizeof_priv;
-
-	/* last_kactive_blk_num:
-	 * trick to see if user-space has caught up
-	 * in order to avoid refreshing timer when every single pkt arrives.
-	 */
-	unsigned short	last_kactive_blk_num;
-
-	char		*pkblk_start;
-	char		*pkblk_end;
-	int		kblk_size;
-	unsigned int	knum_blocks;
-	uint64_t	knxt_seq_num;
-	char		*prev;
-	char		*nxt_offset;
-	struct sk_buff	*skb;
-
-	atomic_t	blk_fill_in_prog;
-
-	/* Default is set to 8ms */
-#define DEFAULT_PRB_RETIRE_TOV	(8)
-
-	unsigned short  retire_blk_tov;
-	unsigned short  version;
-	unsigned long	tov_in_jiffies;
-
-	/* timer to retire an outstanding block */
-	struct timer_list retire_blk_timer;
-};
-
 #define PGV_FROM_VMALLOC 1
-struct pgv {
-	char *buffer;
-};
-
-struct packet_ring_buffer {
-	struct pgv		*pg_vec;
-	unsigned int		head;
-	unsigned int		frames_per_block;
-	unsigned int		frame_size;
-	unsigned int		frame_max;
-
-	unsigned int		pg_vec_order;
-	unsigned int		pg_vec_pages;
-	unsigned int		pg_vec_len;
-
-	struct tpacket_kbdq_core	prb_bdqc;
-	atomic_t		pending;
-};
 
 #define BLOCK_STATUS(x)	((x)->hdr.bh1.block_status)
 #define BLOCK_NUM_PKTS(x)	((x)->hdr.bh1.num_pkts)
@@ -269,52 +207,6 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *,
 		struct tpacket3_hdr *);
 static void packet_flush_mclist(struct sock *sk);
 
-struct packet_fanout;
-struct packet_sock {
-	/* struct sock has to be the first member of packet_sock */
-	struct sock		sk;
-	struct packet_fanout	*fanout;
-	struct tpacket_stats	stats;
-	union  tpacket_stats_u	stats_u;
-	struct packet_ring_buffer	rx_ring;
-	struct packet_ring_buffer	tx_ring;
-	int			copy_thresh;
-	spinlock_t		bind_lock;
-	struct mutex		pg_vec_lock;
-	unsigned int		running:1,	/* prot_hook is attached*/
-				auxdata:1,
-				origdev:1,
-				has_vnet_hdr:1;
-	int			ifindex;	/* bound device		*/
-	__be16			num;
-	struct packet_mclist	*mclist;
-	atomic_t		mapped;
-	enum tpacket_versions	tp_version;
-	unsigned int		tp_hdrlen;
-	unsigned int		tp_reserve;
-	unsigned int		tp_loss:1;
-	unsigned int		tp_tstamp;
-	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
-};
-
-#define PACKET_FANOUT_MAX	256
-
-struct packet_fanout {
-#ifdef CONFIG_NET_NS
-	struct net		*net;
-#endif
-	unsigned int		num_members;
-	u16			id;
-	u8			type;
-	u8			defrag;
-	atomic_t		rr_cur;
-	struct list_head	list;
-	struct sock		*arr[PACKET_FANOUT_MAX];
-	spinlock_t		lock;
-	atomic_t		sk_ref;
-	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
-};
-
 struct packet_skb_cb {
 	unsigned int origlen;
 	union {
@@ -333,11 +225,6 @@ struct packet_skb_cb {
 #define GET_NEXT_PRB_BLK_NUM(x) \
 	(((x)->kactive_blk_num < ((x)->knum_blocks-1)) ? \
 	((x)->kactive_blk_num+1) : 0)
-
-static struct packet_sock *pkt_sk(struct sock *sk)
-{
-	return (struct packet_sock *)sk;
-}
 
 static void __fanout_unlink(struct sock *sk, struct packet_sock *po);
 static void __fanout_link(struct sock *sk, struct packet_sock *po);
@@ -968,7 +855,8 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *pkc,
 		ppd->hv1.tp_vlan_tci = vlan_tx_tag_get(pkc->skb);
 		ppd->tp_status = TP_STATUS_VLAN_VALID;
 	} else {
-		ppd->hv1.tp_vlan_tci = ppd->tp_status = 0;
+		ppd->hv1.tp_vlan_tci = 0;
+		ppd->tp_status = TP_STATUS_AVAILABLE;
 	}
 }
 
@@ -1243,7 +1131,8 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
 }
 
-static DEFINE_MUTEX(fanout_mutex);
+DEFINE_MUTEX(fanout_mutex);
+EXPORT_SYMBOL_GPL(fanout_mutex);
 static LIST_HEAD(fanout_list);
 
 static void __fanout_link(struct sock *sk, struct packet_sock *po)
@@ -1364,9 +1253,9 @@ static void fanout_release(struct sock *sk)
 	if (!f)
 		return;
 
+	mutex_lock(&fanout_mutex);
 	po->fanout = NULL;
 
-	mutex_lock(&fanout_mutex);
 	if (atomic_dec_and_test(&f->sk_ref)) {
 		list_del(&f->list);
 		dev_remove_pack(&f->prot_hook);
@@ -1992,7 +1881,35 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
 
-	data = ph.raw + po->tp_hdrlen - sizeof(struct sockaddr_ll);
+	if (po->tp_tx_has_off) {
+		int off_min, off_max, off;
+		off_min = po->tp_hdrlen - sizeof(struct sockaddr_ll);
+		off_max = po->tx_ring.frame_size - tp_len;
+		if (sock->type == SOCK_DGRAM) {
+			switch (po->tp_version) {
+			case TPACKET_V2:
+				off = ph.h2->tp_net;
+				break;
+			default:
+				off = ph.h1->tp_net;
+				break;
+			}
+		} else {
+			switch (po->tp_version) {
+			case TPACKET_V2:
+				off = ph.h2->tp_mac;
+				break;
+			default:
+				off = ph.h1->tp_mac;
+				break;
+			}
+		}
+		if (unlikely((off < off_min) || (off_max < off)))
+			return -EINVAL;
+		data = ph.raw + off;
+	} else {
+		data = ph.raw + po->tp_hdrlen - sizeof(struct sockaddr_ll);
+	}
 	to_write = tp_len;
 
 	if (sock->type == SOCK_DGRAM) {
@@ -2018,7 +1935,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		to_write -= dev->hard_header_len;
 	}
 
-	err = -EFAULT;
 	offset = offset_in_page(data);
 	len_max = PAGE_SIZE - offset;
 	len = ((to_write > len_max) ? len_max : to_write);
@@ -2063,12 +1979,11 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	int tp_len, size_max;
 	unsigned char *addr;
 	int len_sum = 0;
-	int status = 0;
+	int status = TP_STATUS_AVAILABLE;
 	int hlen, tlen;
 
 	mutex_lock(&po->pg_vec_lock);
 
-	err = -EBUSY;
 	if (saddr == NULL) {
 		dev = po->prot_hook.dev;
 		proto	= po->num;
@@ -2428,10 +2343,13 @@ static int packet_release(struct socket *sock)
 	net = sock_net(sk);
 	po = pkt_sk(sk);
 
-	spin_lock_bh(&net->packet.sklist_lock);
+	mutex_lock(&net->packet.sklist_lock);
 	sk_del_node_init_rcu(sk);
+	mutex_unlock(&net->packet.sklist_lock);
+
+	preempt_disable();
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
-	spin_unlock_bh(&net->packet.sklist_lock);
+	preempt_enable();
 
 	spin_lock(&po->bind_lock);
 	unregister_prot_hook(sk, false);
@@ -2586,7 +2504,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	__be16 proto = (__force __be16)protocol; /* weird, but documented */
 	int err;
 
-	if (!capable(CAP_NET_RAW))
+	if (!ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;
 	if (sock->type != SOCK_DGRAM && sock->type != SOCK_RAW &&
 	    sock->type != SOCK_PACKET)
@@ -2630,10 +2548,13 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 		register_prot_hook(sk);
 	}
 
-	spin_lock_bh(&net->packet.sklist_lock);
+	mutex_lock(&net->packet.sklist_lock);
 	sk_add_node_rcu(sk, &net->packet.sklist);
+	mutex_unlock(&net->packet.sklist_lock);
+
+	preempt_disable();
 	sock_prot_inuse_add(net, &packet_proto, 1);
-	spin_unlock_bh(&net->packet.sklist_lock);
+	preempt_enable();
 
 	return 0;
 out:
@@ -3216,6 +3137,19 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 		return fanout_add(sk, val & 0xffff, val >> 16);
 	}
+	case PACKET_TX_HAS_OFF:
+	{
+		unsigned int val;
+
+		if (optlen != sizeof(val))
+			return -EINVAL;
+		if (po->rx_ring.pg_vec || po->tx_ring.pg_vec)
+			return -EBUSY;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+		po->tp_tx_has_off = !!val;
+		return 0;
+	}
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -3306,6 +3240,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		       ((u32)po->fanout->id |
 			((u32)po->fanout->type << 16)) :
 		       0);
+		break;
+	case PACKET_TX_HAS_OFF:
+		val = po->tp_tx_has_off;
 		break;
 	default:
 		return -ENOPROTOOPT;
@@ -3854,7 +3791,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 			   po->ifindex,
 			   po->running,
 			   atomic_read(&s->sk_rmem_alloc),
-			   sock_i_uid(s),
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(s)),
 			   sock_i_ino(s));
 	}
 
@@ -3886,7 +3823,7 @@ static const struct file_operations packet_seq_fops = {
 
 static int __net_init packet_net_init(struct net *net)
 {
-	spin_lock_init(&net->packet.sklist_lock);
+	mutex_init(&net->packet.sklist_lock);
 	INIT_HLIST_HEAD(&net->packet.sklist);
 
 	if (!proc_net_fops_create(net, "packet", 0, &packet_seq_fops))

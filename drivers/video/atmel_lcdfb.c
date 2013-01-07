@@ -19,8 +19,8 @@
 #include <linux/backlight.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
+#include <linux/platform_data/atmel.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
 #include <asm/gpio.h>
 
@@ -931,8 +931,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		}
 
 		info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
-		if (!info->screen_base)
+		if (!info->screen_base) {
+			ret = -ENOMEM;
 			goto release_intmem;
+		}
 
 		/*
 		 * Don't clear the framebuffer -- someone may have set
@@ -960,6 +962,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	sinfo->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!sinfo->mmio) {
 		dev_err(dev, "cannot map LCDC registers\n");
+		ret = -ENOMEM;
 		goto release_mem;
 	}
 

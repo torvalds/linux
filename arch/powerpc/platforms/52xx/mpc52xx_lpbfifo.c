@@ -170,7 +170,8 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 	out_be32(lpbfifo.regs + LPBFIFO_REG_CONTROL, bit_fields);
 
 	/* Kick it off */
-	out_8(lpbfifo.regs + LPBFIFO_REG_PACKET_SIZE, 0x01);
+	if (!lpbfifo.req->defer_xfer_start)
+		out_8(lpbfifo.regs + LPBFIFO_REG_PACKET_SIZE, 0x01);
 	if (dma)
 		bcom_enable(lpbfifo.bcom_cur_task);
 }
@@ -421,6 +422,38 @@ int mpc52xx_lpbfifo_submit(struct mpc52xx_lpbfifo_request *req)
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_submit);
 
+int mpc52xx_lpbfifo_start_xfer(struct mpc52xx_lpbfifo_request *req)
+{
+	unsigned long flags;
+
+	if (!lpbfifo.regs)
+		return -ENODEV;
+
+	spin_lock_irqsave(&lpbfifo.lock, flags);
+
+	/*
+	 * If the req pointer is already set and a transfer was
+	 * started on submit, then this transfer is in progress
+	 */
+	if (lpbfifo.req && !lpbfifo.req->defer_xfer_start) {
+		spin_unlock_irqrestore(&lpbfifo.lock, flags);
+		return -EBUSY;
+	}
+
+	/*
+	 * If the req was previously submitted but not
+	 * started, start it now
+	 */
+	if (lpbfifo.req && lpbfifo.req == req &&
+	    lpbfifo.req->defer_xfer_start) {
+		out_8(lpbfifo.regs + LPBFIFO_REG_PACKET_SIZE, 0x01);
+	}
+
+	spin_unlock_irqrestore(&lpbfifo.lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL(mpc52xx_lpbfifo_start_xfer);
+
 void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
 {
 	unsigned long flags;
@@ -545,18 +578,4 @@ static struct platform_driver mpc52xx_lpbfifo_driver = {
 	.probe = mpc52xx_lpbfifo_probe,
 	.remove = __devexit_p(mpc52xx_lpbfifo_remove),
 };
-
-/***********************************************************************
- * Module init/exit
- */
-static int __init mpc52xx_lpbfifo_init(void)
-{
-	return platform_driver_register(&mpc52xx_lpbfifo_driver);
-}
-module_init(mpc52xx_lpbfifo_init);
-
-static void __exit mpc52xx_lpbfifo_exit(void)
-{
-	platform_driver_unregister(&mpc52xx_lpbfifo_driver);
-}
-module_exit(mpc52xx_lpbfifo_exit);
+module_platform_driver(mpc52xx_lpbfifo_driver);

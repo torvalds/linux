@@ -17,20 +17,22 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 
+#include <linux/platform_data/omap-wd-timer.h>
+
 #include <asm/mach/map.h>
 
-#include <plat/tc.h>
-#include <plat/board.h>
-#include <plat/mux.h>
-#include <plat/dma.h>
-#include <plat/mmc.h>
-#include <plat/omap7xx.h>
+#include <mach/tc.h>
+#include <mach/mux.h>
 
+#include <mach/omap7xx.h>
 #include <mach/camera.h>
 #include <mach/hardware.h>
 
 #include "common.h"
 #include "clock.h"
+#include "dma.h"
+#include "mmc.h"
+#include "sram.h"
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 
@@ -176,6 +178,13 @@ static int __init omap_mmc_add(const char *name, int id, unsigned long base,
 	res[3].name = "tx";
 	res[3].flags = IORESOURCE_DMA;
 
+	if (cpu_is_omap7xx())
+		data->slots[0].features = MMC_OMAP7XX;
+	if (cpu_is_omap15xx())
+		data->slots[0].features = MMC_OMAP15XX;
+	if (cpu_is_omap16xx())
+		data->slots[0].features = MMC_OMAP16XX;
+
 	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
 	if (ret == 0)
 		ret = platform_device_add_data(pdev, data, sizeof(*data));
@@ -232,7 +241,7 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 
 		omap_mmc_add("mmci-omap", i, base, size, irq,
 				rx_req, tx_req, mmc_data[i]);
-	};
+	}
 }
 
 #endif
@@ -358,6 +367,33 @@ static inline void omap_init_uwire(void) {}
 #endif
 
 
+#define OMAP1_RNG_BASE		0xfffe5000
+
+static struct resource omap1_rng_resources[] = {
+	{
+		.start		= OMAP1_RNG_BASE,
+		.end		= OMAP1_RNG_BASE + 0x4f,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap1_rng_device = {
+	.name		= "omap_rng",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(omap1_rng_resources),
+	.resource	= omap1_rng_resources,
+};
+
+static void omap1_init_rng(void)
+{
+	if (!cpu_is_omap16xx())
+		return;
+
+	(void) platform_device_register(&omap1_rng_device);
+}
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
@@ -396,6 +432,7 @@ static int __init omap1_init_devices(void)
 	omap_init_spi100k();
 	omap_init_sti();
 	omap_init_uwire();
+	omap1_init_rng();
 
 	return 0;
 }
@@ -412,18 +449,31 @@ static struct resource wdt_resources[] = {
 };
 
 static struct platform_device omap_wdt_device = {
-	.name	   = "omap_wdt",
-	.id	     = -1,
+	.name		= "omap_wdt",
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
 
 static int __init omap_init_wdt(void)
 {
+	struct omap_wd_timer_platform_data pdata;
+	int ret;
+
 	if (!cpu_is_omap16xx())
 		return -ENODEV;
 
-	return platform_device_register(&omap_wdt_device);
+	pdata.read_reset_sources = omap1_get_reset_sources;
+
+	ret = platform_device_register(&omap_wdt_device);
+	if (!ret) {
+		ret = platform_device_add_data(&omap_wdt_device, &pdata,
+					       sizeof(pdata));
+		if (ret)
+			platform_device_del(&omap_wdt_device);
+	}
+
+	return ret;
 }
 subsys_initcall(omap_init_wdt);
 #endif

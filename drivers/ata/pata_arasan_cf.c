@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/libata.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pata_arasan_cf_data.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -310,9 +311,15 @@ static int cf_init(struct arasan_cf_dev *acdev)
 	unsigned long flags;
 	int ret = 0;
 
-	ret = clk_enable(acdev->clk);
+	ret = clk_prepare_enable(acdev->clk);
 	if (ret) {
 		dev_dbg(acdev->host->dev, "clock enable failed");
+		return ret;
+	}
+
+	ret = clk_set_rate(acdev->clk, 166000000);
+	if (ret) {
+		dev_warn(acdev->host->dev, "clock set rate failed");
 		return ret;
 	}
 
@@ -340,7 +347,7 @@ static void cf_exit(struct arasan_cf_dev *acdev)
 	writel(readl(acdev->vbase + OP_MODE) & ~CFHOST_ENB,
 			acdev->vbase + OP_MODE);
 	spin_unlock_irqrestore(&acdev->host->lock, flags);
-	clk_disable(acdev->clk);
+	clk_disable_unprepare(acdev->clk);
 }
 
 static void dma_callback(void *dev)
@@ -667,13 +674,16 @@ void arasan_cf_error_handler(struct ata_port *ap)
 
 static void arasan_cf_dma_start(struct arasan_cf_dev *acdev)
 {
+	struct ata_queued_cmd *qc = acdev->qc;
+	struct ata_port *ap = qc->ap;
+	struct ata_taskfile *tf = &qc->tf;
 	u32 xfer_ctr = readl(acdev->vbase + XFER_CTR) & ~XFER_DIR_MASK;
-	u32 write = acdev->qc->tf.flags & ATA_TFLAG_WRITE;
+	u32 write = tf->flags & ATA_TFLAG_WRITE;
 
 	xfer_ctr |= write ? XFER_WRITE : XFER_READ;
 	writel(xfer_ctr, acdev->vbase + XFER_CTR);
 
-	acdev->qc->ap->ops->sff_exec_command(acdev->qc->ap, &acdev->qc->tf);
+	ap->ops->sff_exec_command(ap, tf);
 	ata_sff_queue_work(&acdev->work);
 }
 
@@ -907,7 +917,7 @@ static int __devexit arasan_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int arasan_cf_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -935,6 +945,14 @@ static int arasan_cf_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(arasan_cf_pm_ops, arasan_cf_suspend, arasan_cf_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id arasan_cf_id_table[] = {
+	{ .compatible = "arasan,cf-spear1340" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, arasan_cf_id_table);
+#endif
+
 static struct platform_driver arasan_cf_driver = {
 	.probe		= arasan_cf_probe,
 	.remove		= __devexit_p(arasan_cf_remove),
@@ -942,6 +960,7 @@ static struct platform_driver arasan_cf_driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.pm	= &arasan_cf_pm_ops,
+		.of_match_table = of_match_ptr(arasan_cf_id_table),
 	},
 };
 

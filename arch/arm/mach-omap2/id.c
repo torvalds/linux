@@ -22,11 +22,14 @@
 #include <asm/cputype.h>
 
 #include "common.h"
-#include <plat/cpu.h>
 
-#include <mach/id.h>
+#include "id.h"
 
+#include "soc.h"
 #include "control.h"
+
+#define OMAP4_SILICON_TYPE_STANDARD		0x01
+#define OMAP4_SILICON_TYPE_PERFORMANCE		0x02
 
 static unsigned int omap_revision;
 static const char *cpu_rev;
@@ -161,9 +164,8 @@ void __init omap2xxx_check_revision(void)
 	}
 
 	if (j == ARRAY_SIZE(omap_ids)) {
-		printk(KERN_ERR "Unknown OMAP device type. "
-				"Handling it as OMAP%04x\n",
-				omap_ids[i].type >> 16);
+		pr_err("Unknown OMAP device type. Handling it as OMAP%04x\n",
+		       omap_ids[i].type >> 16);
 		j = i;
 	}
 
@@ -274,25 +276,11 @@ void __init omap4xxx_check_features(void)
 {
 	u32 si_type;
 
-	if (cpu_is_omap443x())
-		omap_features |= OMAP4_HAS_MPU_1GHZ;
+	si_type =
+	(read_tap_reg(OMAP4_CTRL_MODULE_CORE_STD_FUSE_PROD_ID_1) >> 16) & 0x03;
 
-
-	if (cpu_is_omap446x()) {
-		si_type =
-			read_tap_reg(OMAP4_CTRL_MODULE_CORE_STD_FUSE_PROD_ID_1);
-		switch ((si_type & (3 << 16)) >> 16) {
-		case 2:
-			/* High performance device */
-			omap_features |= OMAP4_HAS_MPU_1_5GHZ;
-			break;
-		case 1:
-		default:
-			/* Standard device */
-			omap_features |= OMAP4_HAS_MPU_1_2GHZ;
-			break;
-		}
-	}
+	if (si_type == OMAP4_SILICON_TYPE_PERFORMANCE)
+		omap_features = OMAP4_HAS_PERF_SILICON;
 }
 
 void __init ti81xx_check_features(void)
@@ -560,11 +548,12 @@ void __init omap5xxx_check_revision(void)
  * detect the exact revision later on in omap2_detect_revision() once map_io
  * is done.
  */
-void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_tap(u32 class, void __iomem *tap)
 {
-	omap_revision = omap2_globals->class;
-	tap_base = omap2_globals->tap;
+	omap_revision = class;
+	tap_base = tap;
 
+	/* XXX What is this intended to do? */
 	if (cpu_is_omap34xx())
 		tap_prod_id = 0x0210;
 	else

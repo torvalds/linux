@@ -176,7 +176,7 @@ struct vt8231_data {
 
 static struct pci_dev *s_bridge;
 static int vt8231_probe(struct platform_device *pdev);
-static int __devexit vt8231_remove(struct platform_device *pdev);
+static int vt8231_remove(struct platform_device *pdev);
 static struct vt8231_data *vt8231_update_device(struct device *dev);
 static void vt8231_init_device(struct vt8231_data *data);
 
@@ -762,7 +762,7 @@ static struct platform_driver vt8231_driver = {
 		.name	= "vt8231",
 	},
 	.probe	= vt8231_probe,
-	.remove	= __devexit_p(vt8231_remove),
+	.remove	= vt8231_remove,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {
@@ -772,7 +772,7 @@ static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {
 
 MODULE_DEVICE_TABLE(pci, vt8231_pci_ids);
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id);
 
 static struct pci_driver vt8231_pci_driver = {
@@ -789,18 +789,16 @@ static int vt8231_probe(struct platform_device *pdev)
 
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, VT8231_EXTENT,
-			    vt8231_driver.driver.name)) {
+	if (!devm_request_region(&pdev->dev, res->start, VT8231_EXTENT,
+				 vt8231_driver.driver.name)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
 		return -ENODEV;
 	}
 
-	data = kzalloc(sizeof(struct vt8231_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit_release;
-	}
+	data = devm_kzalloc(&pdev->dev, sizeof(struct vt8231_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
@@ -812,7 +810,7 @@ static int vt8231_probe(struct platform_device *pdev)
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&pdev->dev.kobj, &vt8231_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	/* Must update device information to find out the config field */
 	data->uch_config = vt8231_read_value(data, VT8231_REG_UCH_CONFIG);
@@ -850,17 +848,10 @@ exit_remove_files:
 		sysfs_remove_group(&pdev->dev.kobj, &vt8231_group_temps[i]);
 
 	sysfs_remove_group(&pdev->dev.kobj, &vt8231_group);
-
-exit_free:
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-
-exit_release:
-	release_region(res->start, VT8231_EXTENT);
 	return err;
 }
 
-static int __devexit vt8231_remove(struct platform_device *pdev)
+static int vt8231_remove(struct platform_device *pdev)
 {
 	struct vt8231_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -875,9 +866,6 @@ static int __devexit vt8231_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &vt8231_group);
 
-	release_region(data->addr, VT8231_EXTENT);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 	return 0;
 }
 
@@ -955,7 +943,7 @@ static struct vt8231_data *vt8231_update_device(struct device *dev)
 	return data;
 }
 
-static int __devinit vt8231_device_add(unsigned short address)
+static int vt8231_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -996,7 +984,7 @@ exit:
 	return err;
 }
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u16 address, val;

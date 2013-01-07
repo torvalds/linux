@@ -116,7 +116,6 @@ Caveats:
 /*
  * PCI IDs.
  */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI224 0x0007
 #define PCI_DEVICE_ID_AMPLICON_PCI234 0x0008
 #define PCI_DEVICE_ID_INVALID 0xffff
@@ -720,53 +719,31 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	int err = 0;
 	unsigned int tmp;
 
-	/* Step 1: make sure trigger sources are trivially valid. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_EXT | TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually
-	 * compatible. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/* There's only one external trigger signal (which makes these
-	 * tests easier).  Only one thing can use it. */
+	/* Step 2b : and mutually compatible */
+
+	/*
+	 * There's only one external trigger signal (which makes these
+	 * tests easier).  Only one thing can use it.
+	 */
 	tmp = 0;
 	if (cmd->start_src & TRIG_EXT)
 		tmp++;
@@ -775,81 +752,63 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->stop_src & TRIG_EXT)
 		tmp++;
 	if (tmp > 1)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
 
-	/* Step 3: make sure arguments are trivially compatible. */
+	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
 	case TRIG_INT:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->start_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
 		if ((cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 CR_FLAGS_MASK & ~CR_EDGE);
-			err++;
+			err |= -EINVAL;
 		}
 		break;
 	}
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		if (cmd->scan_begin_arg > MAX_SCAN_PERIOD) {
-			cmd->scan_begin_arg = MAX_SCAN_PERIOD;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MAX_SCAN_PERIOD);
+
 		tmp = cmd->chanlist_len * CONVERT_PERIOD;
 		if (tmp < MIN_SCAN_PERIOD)
 			tmp = MIN_SCAN_PERIOD;
-
-		if (cmd->scan_begin_arg < tmp) {
-			cmd->scan_begin_arg = tmp;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, tmp);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* Only allow flags CR_EDGE and CR_INVERT.  Ignore CR_EDGE. */
 		if ((cmd->scan_begin_arg & CR_FLAGS_MASK &
 		     ~(CR_EDGE | CR_INVERT)) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
-						      CR_FLAGS_MASK & ~(CR_EDGE
-									|
-									CR_INVERT));
-			err++;
+						      CR_FLAGS_MASK &
+						      ~(CR_EDGE | CR_INVERT));
+			err |= -EINVAL;
 		}
 		break;
 	}
 
-	/* cmd->convert_src == TRIG_NOW */
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-
-	/* cmd->scan_end_arg == TRIG_COUNT */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
@@ -860,7 +819,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		if ((cmd->stop_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->stop_arg = COMBINE(cmd->stop_arg, 0,
 						~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
 		if ((cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
@@ -869,10 +828,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 		break;
 	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	}
 
@@ -1309,7 +1265,7 @@ static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 }
 
 /*
- * Common part of attach and attach_pci.
+ * Common part of attach and auto_attach.
  */
 static int pci224_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev, int *options)
@@ -1375,7 +1331,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
@@ -1465,16 +1421,15 @@ static int pci224_attach_common(struct comedi_device *dev,
 
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct pci224_private *devpriv;
 	struct pci_dev *pci_dev;
-	int ret;
 
 	dev_info(dev->class_dev, DRIVER_NAME ": attach\n");
 
-	ret = alloc_private(dev, sizeof(struct pci224_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return ret;
-	}
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	pci_dev = pci224_find_pci_dev(dev, it);
 	if (!pci_dev)
@@ -1483,19 +1438,19 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pci224_attach_common(dev, pci_dev, it->options);
 }
 
-static int __devinit
-pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
+static int
+pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 {
-	int ret;
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	struct pci224_private *devpriv;
 
-	dev_info(dev->class_dev, DRIVER_NAME ": attach_pci %s\n",
+	dev_info(dev->class_dev, DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
-	ret = alloc_private(dev, sizeof(struct pci224_private));
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return ret;
-	}
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_ptr = pci224_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
@@ -1523,7 +1478,7 @@ static void pci224_detach(struct comedi_device *dev)
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;
 
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		/* AO subdevice */
 		kfree(s->range_table_list);
 	}
@@ -1544,20 +1499,20 @@ static struct comedi_driver amplc_pci224_driver = {
 	.module		= THIS_MODULE,
 	.attach		= pci224_attach,
 	.detach		= pci224_detach,
-	.attach_pci	= pci224_attach_pci,
+	.auto_attach	= pci224_auto_attach,
 	.board_name	= &pci224_boards[0].name,
 	.offset		= sizeof(struct pci224_board),
 	.num_names	= ARRAY_SIZE(pci224_boards),
 };
 
-static int __devinit amplc_pci224_pci_probe(struct pci_dev *dev,
+static int amplc_pci224_pci_probe(struct pci_dev *dev,
 						   const struct pci_device_id
 						   *ent)
 {
 	return comedi_pci_auto_config(dev, &amplc_pci224_driver);
 }
 
-static void __devexit amplc_pci224_pci_remove(struct pci_dev *dev)
+static void amplc_pci224_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -1573,7 +1528,7 @@ static struct pci_driver amplc_pci224_pci_driver = {
 	.name		= "amplc_pci224",
 	.id_table	= amplc_pci224_pci_table,
 	.probe		= amplc_pci224_pci_probe,
-	.remove		= __devexit_p(amplc_pci224_pci_remove),
+	.remove		= amplc_pci224_pci_remove,
 };
 module_comedi_pci_driver(amplc_pci224_driver, amplc_pci224_pci_driver);
 

@@ -71,10 +71,6 @@ struct musb_ep;
 #include <linux/usb/hcd.h>
 #include "musb_host.h"
 
-#define	is_peripheral_enabled(musb)	((musb)->board_mode != MUSB_HOST)
-#define	is_host_enabled(musb)		((musb)->board_mode != MUSB_PERIPHERAL)
-#define	is_otg_enabled(musb)		((musb)->board_mode == MUSB_OTG)
-
 /* NOTE:  otg and peripheral-only state machines start at B_IDLE.
  * OTG or host-only go to A_IDLE when ID is sensed.
  */
@@ -88,8 +84,6 @@ struct musb_ep;
 
 /****************************** PERIPHERAL ROLE *****************************/
 
-#define	is_peripheral_capable()	(1)
-
 extern irqreturn_t musb_g_ep0_irq(struct musb *);
 extern void musb_g_tx(struct musb *, u8);
 extern void musb_g_rx(struct musb *, u8);
@@ -100,8 +94,6 @@ extern void musb_g_wakeup(struct musb *);
 extern void musb_g_disconnect(struct musb *);
 
 /****************************** HOST ROLE ***********************************/
-
-#define	is_host_capable()	(1)
 
 extern irqreturn_t musb_h_ep0_irq(struct musb *);
 extern void musb_host_tx(struct musb *, u8);
@@ -296,7 +288,6 @@ struct musb_csr_regs {
 struct musb_context_registers {
 
 	u8 power;
-	u16 intrtxe, intrrxe;
 	u8 intrusbe;
 	u16 frame;
 	u8 index, testmode;
@@ -321,6 +312,8 @@ struct musb {
 	struct work_struct	irq_work;
 	u16			hwvers;
 
+	u16			intrrxe;
+	u16			intrtxe;
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
 #define MUSB_PORT_STAT_RESUME	(1 << 31)
 
@@ -376,7 +369,6 @@ struct musb {
 	u16 epmask;
 	u8 nr_endpoints;
 
-	u8 board_mode;		/* enum musb_mode */
 	int			(*board_set_power)(int state);
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
@@ -446,6 +438,10 @@ struct musb {
 #ifdef MUSB_CONFIG_PROC_FS
 	struct proc_dir_entry *proc_entry;
 #endif
+	int			xceiv_old_state;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*debugfs_root;
+#endif
 };
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
@@ -484,7 +480,7 @@ static inline void musb_configure_ep0(struct musb *musb)
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
 {
-	void *mbase = musb->mregs;
+	void __iomem *mbase = musb->mregs;
 	u8 reg = 0;
 
 	/* read from core using indexed model */

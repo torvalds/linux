@@ -21,8 +21,7 @@
 #include <linux/err.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
@@ -195,7 +194,7 @@ no_res:
 	return ret;
 }
 
-static int __devexit orion_nand_remove(struct platform_device *pdev)
+static int orion_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nc = mtd->priv;
@@ -224,7 +223,7 @@ static struct of_device_id orion_nand_of_match_table[] = {
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove		= __devexit_p(orion_nand_remove),
+	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.owner	= THIS_MODULE,

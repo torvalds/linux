@@ -44,7 +44,7 @@ enum sis_family {
 	SIS_CHIP_315 = 1,
 };
 
-#include "drm_mm.h"
+#include <drm/drm_mm.h>
 
 
 #define SIS_BASE (dev_priv->mmio)

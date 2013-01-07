@@ -1,5 +1,5 @@
 #ifdef __uClinux__
-#include "uaccess_no.h"
+#include <asm/uaccess_no.h>
 #else
-#include "uaccess_mm.h"
+#include <asm/uaccess_mm.h>
 #endif

@@ -25,9 +25,12 @@
 #include <linux/netfilter/ipset/ip_set_getport.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
+#define REVISION_MIN	0
+#define REVISION_MAX	1 /* SCTP and UDPLITE support added */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("hash:ip,port type of IP sets");
+IP_SET_MODULE_DESC("hash:ip,port", REVISION_MIN, REVISION_MAX);
 MODULE_ALIAS("ip_set_hash:ip,port");
 
 /* Type specific function prefix */
@@ -130,8 +133,8 @@ static inline void
 hash_ipport4_data_next(struct ip_set_hash *h,
 		       const struct hash_ipport4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
-	h->next.port = ntohs(d->port);
+	h->next.ip = d->ip;
+	h->next.port = d->port;
 }
 
 static int
@@ -159,7 +162,7 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipport4_elem data = { };
-	u32 ip, ip_to = 0, p = 0, port, port_to;
+	u32 ip, ip_to, p = 0, port, port_to;
 	u32 timeout = h->timeout;
 	bool with_ports = false;
 	int ret;
@@ -207,7 +210,7 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
-	ip = ntohl(data.ip);
+	ip_to = ip = ntohl(data.ip);
 	if (tb[IPSET_ATTR_IP_TO]) {
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &ip_to);
 		if (ret)
@@ -217,11 +220,10 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
-		if (cidr > 32)
+		if (!cidr || cidr > 32)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
-	} else
-		ip_to = ip;
+	}
 
 	port_to = port = ntohs(data.port);
 	if (with_ports && tb[IPSET_ATTR_PORT_TO]) {
@@ -231,9 +233,10 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	for (; !before(ip_to, ip); ip++) {
-		p = retried && ip == h->next.ip ? h->next.port : port;
+		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
+						       : port;
 		for (; p <= port_to; p++) {
 			data.ip = htonl(ip);
 			data.port = htons(p);
@@ -349,7 +352,7 @@ static inline void
 hash_ipport6_data_next(struct ip_set_hash *h,
 		       const struct hash_ipport6_elem *d)
 {
-	h->next.port = ntohs(d->port);
+	h->next.port = d->port;
 }
 
 static int
@@ -431,7 +434,7 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		swap(port, port_to);
 
 	if (retried)
-		port = h->next.port;
+		port = ntohs(h->next.port);
 	for (; port <= port_to; port++) {
 		data.port = htons(port);
 		ret = adtfn(set, &data, timeout, flags);
@@ -522,8 +525,8 @@ static struct ip_set_type hash_ipport_type __read_mostly = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= 0,
-	.revision_max	= 1,	/* SCTP and UDPLITE support added */
+	.revision_min	= REVISION_MIN,
+	.revision_max	= REVISION_MAX,
 	.create		= hash_ipport_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },

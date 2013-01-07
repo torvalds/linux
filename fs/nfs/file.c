@@ -119,18 +119,18 @@ force_reval:
 	return __nfs_revalidate_inode(server, inode);
 }
 
-loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
+loff_t nfs_file_llseek(struct file *filp, loff_t offset, int whence)
 {
 	dprintk("NFS: llseek file(%s/%s, %lld, %d)\n",
 			filp->f_path.dentry->d_parent->d_name.name,
 			filp->f_path.dentry->d_name.name,
-			offset, origin);
+			offset, whence);
 
 	/*
-	 * origin == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
+	 * whence == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
 	 * the cached file length
 	 */
-	if (origin != SEEK_SET && origin != SEEK_CUR) {
+	if (whence != SEEK_SET && whence != SEEK_CUR) {
 		struct inode *inode = filp->f_mapping->host;
 
 		int retval = nfs_revalidate_file_size(inode, filp);
@@ -138,7 +138,7 @@ loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 			return (loff_t)retval;
 	}
 
-	return generic_file_llseek(filp, offset, origin);
+	return generic_file_llseek(filp, offset, whence);
 }
 EXPORT_SYMBOL_GPL(nfs_file_llseek);
 
@@ -259,7 +259,7 @@ nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 	struct dentry *dentry = file->f_path.dentry;
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
-	int have_error, status;
+	int have_error, do_resend, status;
 	int ret = 0;
 
 	dprintk("NFS: fsync file(%s/%s) datasync %d\n",
@@ -267,15 +267,23 @@ nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 			datasync);
 
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
+	do_resend = test_and_clear_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
 	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
 	status = nfs_commit_inode(inode, FLUSH_SYNC);
-	if (status >= 0 && ret < 0)
-		status = ret;
 	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-	if (have_error)
+	if (have_error) {
 		ret = xchg(&ctx->error, 0);
-	if (!ret && status < 0)
+		if (ret)
+			goto out;
+	}
+	if (status < 0) {
 		ret = status;
+		goto out;
+	}
+	do_resend |= test_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
+	if (do_resend)
+		ret = -EAGAIN;
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_file_fsync_commit);
@@ -286,13 +294,22 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (ret != 0)
-		goto out;
-	mutex_lock(&inode->i_mutex);
-	ret = nfs_file_fsync_commit(file, start, end, datasync);
-	mutex_unlock(&inode->i_mutex);
-out:
+	do {
+		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+		if (ret != 0)
+			break;
+		mutex_lock(&inode->i_mutex);
+		ret = nfs_file_fsync_commit(file, start, end, datasync);
+		mutex_unlock(&inode->i_mutex);
+		/*
+		 * If nfs_file_fsync_commit detected a server reboot, then
+		 * resend all dirty pages that might have been covered by
+		 * the NFS_CONTEXT_RESEND_WRITES flag
+		 */
+		start = 0;
+		end = LLONG_MAX;
+	} while (ret == -EAGAIN);
+
 	return ret;
 }
 
@@ -578,6 +595,7 @@ out:
 static const struct vm_operations_struct nfs_file_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = nfs_vm_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
 };
 
 static int nfs_need_sync_write(struct file *filp, struct inode *inode)

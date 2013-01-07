@@ -37,6 +37,7 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
+#include <linux/ptrace.h>
 #include <asm/uaccess.h>
 
 #include <trace/events/module.h>
@@ -218,14 +219,16 @@ static int ____call_usermodehelper(void *data)
 
 	commit_creds(new);
 
-	retval = kernel_execve(sub_info->path,
-			       (const char *const *)sub_info->argv,
-			       (const char *const *)sub_info->envp);
+	retval = do_execve(sub_info->path,
+			   (const char __user *const __user *)sub_info->argv,
+			   (const char __user *const __user *)sub_info->envp);
+	if (!retval)
+		return 0;
 
 	/* Exec failed? */
 fail:
 	sub_info->retval = retval;
-	return 0;
+	do_exit(0);
 }
 
 static int call_helper(void *data)
@@ -292,7 +295,7 @@ static int wait_for_helper(void *data)
 	}
 
 	umh_complete(sub_info);
-	return 0;
+	do_exit(0);
 }
 
 /* This is run by khelper thread  */

@@ -7,24 +7,14 @@
  * under the terms of version 2 of the GNU General Public License
  * as published by the Free Software Foundation.
  */
-
 #ifndef __HDLC_H
 #define __HDLC_H
 
 
-#define HDLC_MAX_MTU 1500	/* Ethernet 1500 bytes */
-#if 0
-#define HDLC_MAX_MRU (HDLC_MAX_MTU + 10 + 14 + 4) /* for ETH+VLAN over FR */
-#else
-#define HDLC_MAX_MRU 1600 /* as required for FR network */
-#endif
-
-
-#ifdef __KERNEL__
-
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/hdlc/ioctl.h>
+#include <uapi/linux/hdlc.h>
 
 /* This structure is a private property of HDLC protocols.
    Hardware drivers have no interest here */
@@ -127,5 +117,4 @@ static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 		return htons(ETH_P_HDLC);
 }
 
-#endif /* __KERNEL */
 #endif /* __HDLC_H */

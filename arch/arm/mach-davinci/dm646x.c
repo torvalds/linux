@@ -24,12 +24,12 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
-#include <mach/asp.h>
 #include <mach/gpio-davinci.h>
 
 #include "davinci.h"
 #include "clock.h"
 #include "mux.h"
+#include "asp.h"
 
 #define DAVINCI_VPIF_BASE       (0x01C12000)
 
@@ -755,12 +755,6 @@ static struct map_desc dm646x_io_desc[] = {
 		.pfn		= __phys_to_pfn(IO_PHYS),
 		.length		= IO_SIZE,
 		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= SRAM_VIRT,
-		.pfn		= __phys_to_pfn(0x00010000),
-		.length		= SZ_32K,
-		.type		= MT_MEMORY_NONCACHED,
 	},
 };
 

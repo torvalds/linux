@@ -15,6 +15,7 @@
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -23,10 +24,11 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
+#include <linux/amba/bus.h>
 
+#include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-#include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
@@ -40,16 +42,7 @@
 #include "sysregs.h"
 
 void __iomem *sregs_base;
-
-#define HB_SCU_VIRT_BASE	0xfee00000
-void __iomem *scu_base_addr = ((void __iomem *)(HB_SCU_VIRT_BASE));
-
-static struct map_desc scu_io_desc __initdata = {
-	.virtual	= HB_SCU_VIRT_BASE,
-	.pfn		= 0, /* run-time */
-	.length		= SZ_4K,
-	.type		= MT_DEVICE,
-};
+void __iomem *scu_base_addr;
 
 static void __init highbank_scu_map_io(void)
 {
@@ -58,14 +51,7 @@ static void __init highbank_scu_map_io(void)
 	/* Get SCU base */
 	asm("mrc p15, 4, %0, c15, c0, 0" : "=r" (base));
 
-	scu_io_desc.pfn = __phys_to_pfn(base);
-	iotable_init(&scu_io_desc, 1);
-}
-
-static void __init highbank_map_io(void)
-{
-	highbank_scu_map_io();
-	highbank_lluart_map_io();
+	scu_base_addr = ioremap(base, SZ_4K);
 }
 
 #define HB_JUMP_TABLE_PHYS(cpu)		(0x40 + (0x10 * (cpu)))
@@ -81,6 +67,7 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 }
 
 const static struct of_device_id irq_match[] = {
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
 	{}
 };
@@ -96,6 +83,9 @@ static void highbank_l2x0_disable(void)
 static void __init highbank_init_irq(void)
 {
 	of_irq_init(irq_match);
+
+	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
+		highbank_scu_map_io();
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Enable PL310 L2 Cache controller */
@@ -134,6 +124,9 @@ static void __init highbank_timer_init(void)
 	sp804_clockevents_init(timer_base, irq, "timer0");
 
 	twd_local_timer_of_register();
+
+	arch_timer_of_register();
+	arch_timer_sched_clock_init();
 }
 
 static struct sys_timer highbank_timer = {
@@ -143,26 +136,78 @@ static struct sys_timer highbank_timer = {
 static void highbank_power_off(void)
 {
 	hignbank_set_pwr_shutdown();
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
 
 	while (1)
 		cpu_do_idle();
 }
 
+static int highbank_platform_notifier(struct notifier_block *nb,
+				  unsigned long event, void *__dev)
+{
+	struct resource *res;
+	int reg = -1;
+	struct device *dev = __dev;
+
+	if (event != BUS_NOTIFY_ADD_DEVICE)
+		return NOTIFY_DONE;
+
+	if (of_device_is_compatible(dev->of_node, "calxeda,hb-ahci"))
+		reg = 0xc;
+	else if (of_device_is_compatible(dev->of_node, "calxeda,hb-sdhci"))
+		reg = 0x18;
+	else if (of_device_is_compatible(dev->of_node, "arm,pl330"))
+		reg = 0x20;
+	else if (of_device_is_compatible(dev->of_node, "calxeda,hb-xgmac")) {
+		res = platform_get_resource(to_platform_device(dev),
+					    IORESOURCE_MEM, 0);
+		if (res) {
+			if (res->start == 0xfff50000)
+				reg = 0;
+			else if (res->start == 0xfff51000)
+				reg = 4;
+		}
+	}
+
+	if (reg < 0)
+		return NOTIFY_DONE;
+
+	if (of_property_read_bool(dev->of_node, "dma-coherent")) {
+		writel(0xff31, sregs_base + reg);
+		set_dma_ops(dev, &arm_coherent_dma_ops);
+	} else
+		writel(0, sregs_base + reg);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block highbank_amba_nb = {
+	.notifier_call = highbank_platform_notifier,
+};
+
+static struct notifier_block highbank_platform_nb = {
+	.notifier_call = highbank_platform_notifier,
+};
+
 static void __init highbank_init(void)
 {
 	pm_power_off = highbank_power_off;
+	highbank_pm_init();
+
+	bus_register_notifier(&platform_bus_type, &highbank_platform_nb);
+	bus_register_notifier(&amba_bustype, &highbank_amba_nb);
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *highbank_match[] __initconst = {
 	"calxeda,highbank",
+	"calxeda,ecx-2000",
 	NULL,
 };
 
 DT_MACHINE_START(HIGHBANK, "Highbank")
-	.map_io		= highbank_map_io,
+	.smp		= smp_ops(highbank_smp_ops),
+	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
 	.timer		= &highbank_timer,
 	.handle_irq	= gic_handle_irq,

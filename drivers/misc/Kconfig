@@ -60,16 +60,6 @@ config ATMEL_PWM
 	  purposes including software controlled power-efficient backlights
 	  on LCD displays, motor control, and waveform generation.
 
-config AB8500_PWM
-	bool "AB8500 PWM support"
-	depends on AB8500_CORE && ARCH_U8500
-	select HAVE_PWM
-	depends on !PWM
-	help
-	  This driver exports functions to enable/disble/config/free Pulse
-	  Width Modulation in the Analog Baseband Chip AB8500.
-	  It is used by led and backlight driver to control the intensity.
-
 config ATMEL_TCLIB
 	bool "Atmel AT32/AT91 Timer/Counter Library"
 	depends on (AVR32 || ARCH_AT91)
@@ -105,7 +95,7 @@ config ATMEL_TCB_CLKSRC_BLOCK
 
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
-	depends on X86 && PCI && INPUT && EXPERIMENTAL
+	depends on X86 && PCI && INPUT
 	---help---
 	  This option enables device driver support for in-band access to the
 	  IBM RSA (Condor) service processor in eServer xSeries systems.
@@ -162,8 +152,8 @@ config SGI_IOC4
 	  Otherwise say N.
 
 config TIFM_CORE
-	tristate "TI Flash Media interface support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "TI Flash Media interface support"
+	depends on PCI
 	help
 	  If you want support for Texas Instruments(R) Flash Media adapters
 	  you should select this option and then also choose an appropriate
@@ -178,8 +168,8 @@ config TIFM_CORE
 	  be called tifm_core.
 
 config TIFM_7XX1
-	tristate "TI Flash Media PCI74xx/PCI76xx host adapter support (EXPERIMENTAL)"
-	depends on PCI && TIFM_CORE && EXPERIMENTAL
+	tristate "TI Flash Media PCI74xx/PCI76xx host adapter support"
+	depends on PCI && TIFM_CORE
 	default TIFM_CORE
 	help
 	  This option enables support for Texas Instruments(R) PCI74xx and
@@ -192,7 +182,7 @@ config TIFM_7XX1
 
 config ICS932S401
 	tristate "Integrated Circuits ICS932S401"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get support for the Integrated Circuits
 	  ICS932S401 clock control chips.
@@ -398,7 +388,7 @@ config EP93XX_PWM
 
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
 	  DS1682 Total Elapsed Time Recorder.

@@ -67,7 +67,7 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-static char version[] __devinitdata = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
+static char version[] = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
 
 #include "ether3.h"
 
@@ -99,13 +99,13 @@ typedef enum {
  * The SEEQ8005 doesn't like us writing to its registers
  * too quickly.
  */
-static inline void ether3_outb(int v, const void __iomem *r)
+static inline void ether3_outb(int v, void __iomem *r)
 {
 	writeb(v, r);
 	udelay(1);
 }
 
-static inline void ether3_outw(int v, const void __iomem *r)
+static inline void ether3_outw(int v, void __iomem *r)
 {
 	writew(v, r);
 	udelay(1);
@@ -194,7 +194,7 @@ static inline void ether3_ledon(struct net_device *dev)
  * Read the ethernet address string from the on board rom.
  * This is an ascii string!!!
  */
-static int __devinit
+static int
 ether3_addr(char *addr, struct expansion_card *ec)
 {
 	struct in_chunk_dir cd;
@@ -219,7 +219,7 @@ ether3_addr(char *addr, struct expansion_card *ec)
 
 /* --------------------------------------------------------------------------- */
 
-static int __devinit
+static int
 ether3_ramtest(struct net_device *dev, unsigned char byte)
 {
 	unsigned char *buffer = kmalloc(RX_END, GFP_KERNEL);
@@ -268,7 +268,7 @@ ether3_ramtest(struct net_device *dev, unsigned char byte)
 
 /* ------------------------------------------------------------------------------- */
 
-static int __devinit ether3_init_2(struct net_device *dev)
+static int ether3_init_2(struct net_device *dev)
 {
 	int i;
 
@@ -399,12 +399,6 @@ ether3_probe_bus_16(struct net_device *dev, int val)
 static int
 ether3_open(struct net_device *dev)
 {
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		printk(KERN_WARNING "%s: invalid ethernet MAC address\n",
-			dev->name);
-		return -EINVAL;
-	}
-
 	if (request_irq(dev->irq, ether3_interrupt, 0, "ether3", dev))
 		return -EAGAIN;
 
@@ -748,7 +742,7 @@ static void ether3_tx(struct net_device *dev)
 	}
 }
 
-static void __devinit ether3_banner(void)
+static void ether3_banner(void)
 {
 	static unsigned version_printed = 0;
 
@@ -767,7 +761,7 @@ static const struct net_device_ops ether3_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __devinit
+static int
 ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	const struct ether3_data *data = id->data;
@@ -864,7 +858,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return ret;
 }
 
-static void __devexit ether3_remove(struct expansion_card *ec)
+static void ether3_remove(struct expansion_card *ec)
 {
 	struct net_device *dev = ecard_get_drvdata(ec);
 
@@ -894,7 +888,7 @@ static const struct ecard_id ether3_ids[] = {
 
 static struct ecard_driver ether3_driver = {
 	.probe		= ether3_probe,
-	.remove		= __devexit_p(ether3_remove),
+	.remove		= ether3_remove,
 	.id_table	= ether3_ids,
 	.drv = {
 		.name	= "ether3",

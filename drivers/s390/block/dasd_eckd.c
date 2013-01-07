@@ -20,6 +20,7 @@
 #include <linux/compat.h>
 #include <linux/init.h>
 
+#include <asm/css_chars.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
@@ -31,8 +32,6 @@
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
-#include "../cio/chsc.h"
-
 
 #ifdef PRINTK_HEADER
 #undef PRINTK_HEADER
@@ -140,6 +139,10 @@ dasd_eckd_set_online(struct ccw_device *cdev)
 static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
 
+/* head and record addresses of count_area read in analysis ccw */
+static const int count_area_head[] = { 0, 0, 0, 0, 2 };
+static const int count_area_rec[] = { 1, 2, 3, 4, 1 };
+
 static inline unsigned int
 round_up_multiple(unsigned int no, unsigned int mult)
 {
@@ -212,7 +215,7 @@ check_XRC (struct ccw1         *de_ccw,
 
 	rc = get_sync_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 
 	de_ccw->count = sizeof(struct DE_eckd_data);
@@ -323,7 +326,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 
 	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 	return rc;
 }
@@ -1023,7 +1026,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 {
 	void *conf_data;
 	int conf_len, conf_data_saved;
-	int rc;
+	int rc, path_err;
 	__u8 lpm, opm;
 	struct dasd_eckd_private *private, path_private;
 	struct dasd_path *path_data;
@@ -1034,6 +1037,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 	path_data = &device->path_data;
 	opm = ccw_device_get_path_mask(device->cdev);
 	conf_data_saved = 0;
+	path_err = 0;
 	/* get configuration data per operational path */
 	for (lpm = 0x80; lpm; lpm>>= 1) {
 		if (!(lpm & opm))
@@ -1119,7 +1123,8 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 					"the same device, path %02X leads to "
 					"device %s instead of %s\n", lpm,
 					print_path_uid, print_device_uid);
-				return -EINVAL;
+				path_err = -EINVAL;
+				continue;
 			}
 
 			path_private.conf_data = NULL;
@@ -1139,7 +1144,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			kfree(conf_data);
 	}
 
-	return 0;
+	return path_err;
 }
 
 static int verify_fcx_max_data(struct dasd_device *device, __u8 lpm)
@@ -1940,7 +1945,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 	count_area = NULL;
 	for (i = 0; i < 3; i++) {
 		if (private->count_area[i].kl != 4 ||
-		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4) {
+		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4 ||
+		    private->count_area[i].cyl != 0 ||
+		    private->count_area[i].head != count_area_head[i] ||
+		    private->count_area[i].record != count_area_rec[i]) {
 			private->uses_cdl = 0;
 			break;
 		}
@@ -1952,7 +1960,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		for (i = 0; i < 5; i++) {
 			if ((private->count_area[i].kl != 0) ||
 			    (private->count_area[i].dl !=
-			     private->count_area[0].dl))
+			     private->count_area[0].dl) ||
+			    private->count_area[i].cyl !=  0 ||
+			    private->count_area[i].head != count_area_head[i] ||
+			    private->count_area[i].record != count_area_rec[i])
 				break;
 		}
 		if (i == 5)
@@ -3838,7 +3849,7 @@ dasd_eckd_dump_ccw_range(struct ccw1 *from, struct ccw1 *to, char *page)
 
 	len = 0;
 	while (from <= to) {
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " CCW %p: %08X %08X DAT:",
 			       from, ((int *) from)[0], ((int *) from)[1]);
 
@@ -3899,23 +3910,23 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		return;
 	}
 	/* dump the sense data */
-	len = sprintf(page,  KERN_ERR PRINTK_HEADER
+	len = sprintf(page, PRINTK_HEADER
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " in req: %p CC:%02X FC:%02X AC:%02X SC:%02X DS:%02X "
 		       "CS:%02X RC:%d\n",
 		       req, scsw_cc(&irb->scsw), scsw_fctl(&irb->scsw),
 		       scsw_actl(&irb->scsw), scsw_stctl(&irb->scsw),
 		       scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw),
 		       req ? req->intrc : 0);
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
 		       (void *) (addr_t) irb->scsw.cmd.cpa);
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 				       " Sense(hex) %2d-%2d:",
 				       (8 * sl), ((8 * sl) + 7));
 
@@ -3928,23 +3939,23 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 
 		if (irb->ecw[27] & DASD_SENSE_BIT_0) {
 			/* 24 Byte Sense Data */
-			sprintf(page + len, KERN_ERR PRINTK_HEADER
+			sprintf(page + len, PRINTK_HEADER
 				" 24 Byte: %x MSG %x, "
 				"%s MSGb to SYSOP\n",
 				irb->ecw[7] >> 4, irb->ecw[7] & 0x0f,
 				irb->ecw[1] & 0x10 ? "" : "no");
 		} else {
 			/* 32 Byte Sense Data */
-			sprintf(page + len, KERN_ERR PRINTK_HEADER
+			sprintf(page + len, PRINTK_HEADER
 				" 32 Byte: Format: %x "
 				"Exception class %x\n",
 				irb->ecw[6] & 0x0f, irb->ecw[22] >> 4);
 		}
 	} else {
-		sprintf(page + len, KERN_ERR PRINTK_HEADER
+		sprintf(page + len, PRINTK_HEADER
 			" SORRY - NO VALID SENSE AVAILABLE\n");
 	}
-	printk("%s", page);
+	printk(KERN_ERR "%s", page);
 
 	if (req) {
 		/* req == NULL for unsolicited interrupts */
@@ -3953,10 +3964,10 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		first = req->cpaddr;
 		for (last = first; last->flags & (CCW_FLAG_CC | CCW_FLAG_DC); last++);
 		to = min(first + 6, last);
-		len = sprintf(page,  KERN_ERR PRINTK_HEADER
+		len = sprintf(page, PRINTK_HEADER
 			      " Related CP in req: %p\n", req);
 		dasd_eckd_dump_ccw_range(first, to, page + len);
-		printk("%s", page);
+		printk(KERN_ERR "%s", page);
 
 		/* print failing CCW area (maximum 4) */
 		/* scsw->cda is either valid or zero  */
@@ -3966,7 +3977,7 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 				irb->scsw.cmd.cpa; /* failing CCW */
 		if (from <  fail - 2) {
 			from = fail - 2;     /* there is a gap - print header */
-			len += sprintf(page, KERN_ERR PRINTK_HEADER "......\n");
+			len += sprintf(page, PRINTK_HEADER "......\n");
 		}
 		to = min(fail + 1, last);
 		len += dasd_eckd_dump_ccw_range(from, to, page + len);
@@ -3975,11 +3986,11 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		from = max(from, ++to);
 		if (from < last - 1) {
 			from = last - 1;     /* there is a gap - print header */
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER "......\n");
+			len += sprintf(page + len, PRINTK_HEADER "......\n");
 		}
 		len += dasd_eckd_dump_ccw_range(from, last, page + len);
 		if (len > 0)
-			printk("%s", page);
+			printk(KERN_ERR "%s", page);
 	}
 	free_page((unsigned long) page);
 }
@@ -4003,10 +4014,10 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		return;
 	}
 	/* dump the sense data */
-	len = sprintf(page,  KERN_ERR PRINTK_HEADER
+	len = sprintf(page, PRINTK_HEADER
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " in req: %p CC:%02X FC:%02X AC:%02X SC:%02X DS:%02X "
 		       "CS:%02X fcxs:%02X schxs:%02X RC:%d\n",
 		       req, scsw_cc(&irb->scsw), scsw_fctl(&irb->scsw),
@@ -4014,7 +4025,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		       scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw),
 		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs,
 		       req ? req->intrc : 0);
-	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+	len += sprintf(page + len, PRINTK_HEADER
 		       " device %s: Failing TCW: %p\n",
 		       dev_name(&device->cdev->dev),
 		       (void *) (addr_t) irb->scsw.tm.tcw);
@@ -4026,43 +4037,42 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 			(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
 
 	if (tsb) {
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->length %d\n", tsb->length);
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->flags %x\n", tsb->flags);
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->dcw_offset %d\n", tsb->dcw_offset);
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->count %d\n", tsb->count);
 		residual = tsb->count - 28;
-		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+		len += sprintf(page + len, PRINTK_HEADER
 			       " residual %d\n", residual);
 
 		switch (tsb->flags & 0x07) {
 		case 1:	/* tsa_iostat */
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.iostat.dev_time %d\n",
 				       tsb->tsa.iostat.dev_time);
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.iostat.def_time %d\n",
 				       tsb->tsa.iostat.def_time);
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.iostat.queue_time %d\n",
 				       tsb->tsa.iostat.queue_time);
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.iostat.dev_busy_time %d\n",
 				       tsb->tsa.iostat.dev_busy_time);
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.iostat.dev_act_time %d\n",
 				       tsb->tsa.iostat.dev_act_time);
 			sense = tsb->tsa.iostat.sense;
 			break;
 		case 2: /* ts_ddpc */
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
+			len += sprintf(page + len, PRINTK_HEADER
 			       " tsb->tsa.ddpc.rc %d\n", tsb->tsa.ddpc.rc);
 			for (sl = 0; sl < 2; sl++) {
-				len += sprintf(page + len,
-					       KERN_ERR PRINTK_HEADER
+				len += sprintf(page + len, PRINTK_HEADER
 					       " tsb->tsa.ddpc.rcq %2d-%2d: ",
 					       (8 * sl), ((8 * sl) + 7));
 				rcq = tsb->tsa.ddpc.rcq;
@@ -4075,15 +4085,14 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 			sense = tsb->tsa.ddpc.sense;
 			break;
 		case 3: /* tsa_intrg */
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-				      " tsb->tsa.intrg.: not supportet yet \n");
+			len += sprintf(page + len, PRINTK_HEADER
+				      " tsb->tsa.intrg.: not supportet yet\n");
 			break;
 		}
 
 		if (sense) {
 			for (sl = 0; sl < 4; sl++) {
-				len += sprintf(page + len,
-					       KERN_ERR PRINTK_HEADER
+				len += sprintf(page + len, PRINTK_HEADER
 					       " Sense(hex) %2d-%2d:",
 					       (8 * sl), ((8 * sl) + 7));
 				for (sct = 0; sct < 8; sct++) {
@@ -4095,27 +4104,27 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 
 			if (sense[27] & DASD_SENSE_BIT_0) {
 				/* 24 Byte Sense Data */
-				sprintf(page + len, KERN_ERR PRINTK_HEADER
+				sprintf(page + len, PRINTK_HEADER
 					" 24 Byte: %x MSG %x, "
 					"%s MSGb to SYSOP\n",
 					sense[7] >> 4, sense[7] & 0x0f,
 					sense[1] & 0x10 ? "" : "no");
 			} else {
 				/* 32 Byte Sense Data */
-				sprintf(page + len, KERN_ERR PRINTK_HEADER
+				sprintf(page + len, PRINTK_HEADER
 					" 32 Byte: Format: %x "
 					"Exception class %x\n",
 					sense[6] & 0x0f, sense[22] >> 4);
 			}
 		} else {
-			sprintf(page + len, KERN_ERR PRINTK_HEADER
+			sprintf(page + len, PRINTK_HEADER
 				" SORRY - NO VALID SENSE AVAILABLE\n");
 		}
 	} else {
-		sprintf(page + len, KERN_ERR PRINTK_HEADER
+		sprintf(page + len, PRINTK_HEADER
 			" SORRY - NO TSB DATA AVAILABLE\n");
 	}
-	printk("%s", page);
+	printk(KERN_ERR "%s", page);
 	free_page((unsigned long) page);
 }
 
@@ -4152,9 +4161,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	private = (struct dasd_eckd_private *) device->private;
 
 	/* Read Configuration Data */
-	rc = dasd_eckd_read_conf(device);
-	if (rc)
-		goto out_err;
+	dasd_eckd_read_conf(device);
 
 	dasd_eckd_get_uid(device, &temp_uid);
 	/* Generate device unique id */
@@ -4174,9 +4181,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST);
 
 	/* RE-Read Configuration Data */
-	rc = dasd_eckd_read_conf(device);
-	if (rc)
-		goto out_err;
+	dasd_eckd_read_conf(device);
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);

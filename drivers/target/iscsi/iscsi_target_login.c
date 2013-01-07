@@ -39,12 +39,9 @@
 #include "iscsi_target.h"
 #include "iscsi_target_parameters.h"
 
-extern struct idr sess_idr;
-extern struct mutex auth_id_lock;
-extern spinlock_t sess_idr_lock;
-
 static int iscsi_login_init_conn(struct iscsi_conn *conn)
 {
+	init_waitqueue_head(&conn->queues_wq);
 	INIT_LIST_HEAD(&conn->conn_list);
 	INIT_LIST_HEAD(&conn->conn_cmd_list);
 	INIT_LIST_HEAD(&conn->immed_queue_list);
@@ -130,13 +127,13 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 
 	initiatorname_param = iscsi_find_param_from_key(
 			INITIATORNAME, conn->param_list);
-	if (!initiatorname_param)
-		return -1;
-
 	sessiontype_param = iscsi_find_param_from_key(
 			SESSIONTYPE, conn->param_list);
-	if (!sessiontype_param)
+	if (!initiatorname_param || !sessiontype_param) {
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
+			ISCSI_LOGIN_STATUS_MISSING_FIELDS);
 		return -1;
+	}
 
 	sessiontype = (strncmp(sessiontype_param->value, NORMAL, 6)) ? 1 : 0;
 
@@ -196,10 +193,10 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 static void iscsi_login_set_conn_values(
 	struct iscsi_session *sess,
 	struct iscsi_conn *conn,
-	u16 cid)
+	__be16 cid)
 {
 	conn->sess		= sess;
-	conn->cid		= cid;
+	conn->cid		= be16_to_cpu(cid);
 	/*
 	 * Generate a random Status sequence number (statsn) for the new
 	 * iSCSI connection.
@@ -234,7 +231,7 @@ static int iscsi_login_zero_tsih_s1(
 	iscsi_login_set_conn_values(sess, conn, pdu->cid);
 	sess->init_task_tag	= pdu->itt;
 	memcpy(&sess->isid, pdu->isid, 6);
-	sess->exp_cmd_sn	= pdu->cmdsn;
+	sess->exp_cmd_sn	= be32_to_cpu(pdu->cmdsn);
 	INIT_LIST_HEAD(&sess->sess_conn_list);
 	INIT_LIST_HEAD(&sess->sess_ooo_cmdsn_list);
 	INIT_LIST_HEAD(&sess->cr_active_list);
@@ -257,9 +254,9 @@ static int iscsi_login_zero_tsih_s1(
 		kfree(sess);
 		return -ENOMEM;
 	}
-	spin_lock(&sess_idr_lock);
+	spin_lock_bh(&sess_idr_lock);
 	ret = idr_get_new(&sess_idr, NULL, &sess->session_index);
-	spin_unlock(&sess_idr_lock);
+	spin_unlock_bh(&sess_idr_lock);
 
 	if (ret < 0) {
 		pr_err("idr_get_new() for sess_idr failed\n");
@@ -275,7 +272,7 @@ static int iscsi_login_zero_tsih_s1(
 	 * The FFP CmdSN window values will be allocated from the TPG's
 	 * Initiator Node's ACL once the login has been successfully completed.
 	 */
-	sess->max_cmd_sn	= pdu->cmdsn;
+	sess->max_cmd_sn	= be32_to_cpu(pdu->cmdsn);
 
 	sess->sess_ops = kzalloc(sizeof(struct iscsi_sess_ops), GFP_KERNEL);
 	if (!sess->sess_ops) {
@@ -453,7 +450,7 @@ static int iscsi_login_non_zero_tsih_s2(
 		   (sess_p->time2retain_timer_flags & ISCSI_TF_EXPIRED))
 			continue;
 		if (!memcmp(sess_p->isid, pdu->isid, 6) &&
-		     (sess_p->tsih == pdu->tsih)) {
+		     (sess_p->tsih == be16_to_cpu(pdu->tsih))) {
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
 			sess = sess_p;
@@ -955,11 +952,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	}
 
 	pdu			= (struct iscsi_login_req *) buffer;
-	pdu->cid		= be16_to_cpu(pdu->cid);
-	pdu->tsih		= be16_to_cpu(pdu->tsih);
-	pdu->itt		= be32_to_cpu(pdu->itt);
-	pdu->cmdsn		= be32_to_cpu(pdu->cmdsn);
-	pdu->exp_statsn		= be32_to_cpu(pdu->exp_statsn);
+
 	/*
 	 * Used by iscsit_tx_login_rsp() for Login Resonses PDUs
 	 * when Status-Class != 0.
@@ -1125,10 +1118,8 @@ new_sess_out:
 		idr_remove(&sess_idr, conn->sess->session_index);
 		spin_unlock_bh(&sess_idr_lock);
 	}
-	if (conn->sess->sess_ops)
-		kfree(conn->sess->sess_ops);
-	if (conn->sess)
-		kfree(conn->sess);
+	kfree(conn->sess->sess_ops);
+	kfree(conn->sess);
 old_sess_out:
 	iscsi_stop_login_thread_timer(np);
 	/*

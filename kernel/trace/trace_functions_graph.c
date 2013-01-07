@@ -143,7 +143,7 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 		return;
 	}
 
-#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+#if defined(CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST) && !defined(CC_USING_FENTRY)
 	/*
 	 * The arch may choose to record the frame pointer used
 	 * and check it here to make sure that it is what we expect it
@@ -154,6 +154,9 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	 *
 	 * Currently, x86_32 with optimize for size (-Os) makes the latest
 	 * gcc do the above.
+	 *
+	 * Note, -mfentry does not use frame pointers, and this test
+	 *  is not needed if CC_USING_FENTRY is set.
 	 */
 	if (unlikely(current->ret_stack[index].fp != frame_pointer)) {
 		ftrace_graph_stop();
@@ -220,7 +223,7 @@ int __trace_graph_entry(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
 	if (!filter_current_check_discard(buffer, call, entry, event))
-		ring_buffer_unlock_commit(buffer, event);
+		__buffer_unlock_commit(buffer, event);
 
 	return 1;
 }
@@ -324,7 +327,7 @@ void __trace_graph_return(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->ret				= *trace;
 	if (!filter_current_check_discard(buffer, call, entry, event))
-		ring_buffer_unlock_commit(buffer, event);
+		__buffer_unlock_commit(buffer, event);
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace)
@@ -1471,4 +1474,4 @@ static __init int init_graph_trace(void)
 	return register_tracer(&graph_trace);
 }
 
-device_initcall(init_graph_trace);
+core_initcall(init_graph_trace);

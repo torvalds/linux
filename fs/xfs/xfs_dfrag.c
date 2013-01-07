@@ -48,44 +48,44 @@ xfs_swapext(
 	xfs_swapext_t	*sxp)
 {
 	xfs_inode_t     *ip, *tip;
-	struct file	*file, *tmp_file;
+	struct fd	f, tmp;
 	int		error = 0;
 
 	/* Pull information for the target fd */
-	file = fget((int)sxp->sx_fdtarget);
-	if (!file) {
+	f = fdget((int)sxp->sx_fdtarget);
+	if (!f.file) {
 		error = XFS_ERROR(EINVAL);
 		goto out;
 	}
 
-	if (!(file->f_mode & FMODE_WRITE) ||
-	    !(file->f_mode & FMODE_READ) ||
-	    (file->f_flags & O_APPEND)) {
+	if (!(f.file->f_mode & FMODE_WRITE) ||
+	    !(f.file->f_mode & FMODE_READ) ||
+	    (f.file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_file;
 	}
 
-	tmp_file = fget((int)sxp->sx_fdtmp);
-	if (!tmp_file) {
+	tmp = fdget((int)sxp->sx_fdtmp);
+	if (!tmp.file) {
 		error = XFS_ERROR(EINVAL);
 		goto out_put_file;
 	}
 
-	if (!(tmp_file->f_mode & FMODE_WRITE) ||
-	    !(tmp_file->f_mode & FMODE_READ) ||
-	    (tmp_file->f_flags & O_APPEND)) {
+	if (!(tmp.file->f_mode & FMODE_WRITE) ||
+	    !(tmp.file->f_mode & FMODE_READ) ||
+	    (tmp.file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_tmp_file;
 	}
 
-	if (IS_SWAPFILE(file->f_path.dentry->d_inode) ||
-	    IS_SWAPFILE(tmp_file->f_path.dentry->d_inode)) {
+	if (IS_SWAPFILE(f.file->f_path.dentry->d_inode) ||
+	    IS_SWAPFILE(tmp.file->f_path.dentry->d_inode)) {
 		error = XFS_ERROR(EINVAL);
 		goto out_put_tmp_file;
 	}
 
-	ip = XFS_I(file->f_path.dentry->d_inode);
-	tip = XFS_I(tmp_file->f_path.dentry->d_inode);
+	ip = XFS_I(f.file->f_path.dentry->d_inode);
+	tip = XFS_I(tmp.file->f_path.dentry->d_inode);
 
 	if (ip->i_mount != tip->i_mount) {
 		error = XFS_ERROR(EINVAL);
@@ -105,9 +105,9 @@ xfs_swapext(
 	error = xfs_swap_extents(ip, tip, sxp);
 
  out_put_tmp_file:
-	fput(tmp_file);
+	fdput(tmp);
  out_put_file:
-	fput(file);
+	fdput(f);
  out:
 	return error;
 }
@@ -246,12 +246,10 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
-	if (VN_CACHED(VFS_I(tip)) != 0) {
-		error = xfs_flushinval_pages(tip, 0, -1,
-				FI_REMAPF_LOCKED);
-		if (error)
-			goto out_unlock;
-	}
+	error = -filemap_write_and_wait(VFS_I(ip)->i_mapping);
+	if (error)
+		goto out_unlock;
+	truncate_pagecache_range(VFS_I(ip), 0, -1);
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(VFS_I(tip)) != 0) {
@@ -315,8 +313,7 @@ xfs_swap_extents(
 	 * are safe.  We don't really care if non-io related
 	 * fields change.
 	 */
-
-	xfs_tosspages(ip, 0, -1, FI_REMAPF);
+	truncate_pagecache_range(VFS_I(ip), 0, -1);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
 	if ((error = xfs_trans_reserve(tp, 0,

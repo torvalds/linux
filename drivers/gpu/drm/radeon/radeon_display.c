@@ -23,15 +23,15 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 
 #include "atom.h"
 #include <asm/div64.h>
 
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
@@ -378,8 +378,12 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	work->old_rbo = rbo;
 	obj = new_radeon_fb->obj;
 	rbo = gem_to_radeon_bo(obj);
+
+	spin_lock(&rbo->tbo.bdev->fence_lock);
 	if (rbo->tbo.sync_obj)
 		work->fence = radeon_fence_ref(rbo->tbo.sync_obj);
+	spin_unlock(&rbo->tbo.bdev->fence_lock);
+
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
 	/* We borrow the event spin lock for protecting unpin_work */

@@ -544,9 +544,13 @@ int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
  */
 static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct fsl_otg *otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	struct fsl_otg *otg_dev;
 
-	if (!otg || otg_dev != fsl_otg_dev)
+	if (!otg)
+		return -ENODEV;
+
+	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
 	otg->host = host;
@@ -590,12 +594,15 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int fsl_otg_set_peripheral(struct usb_otg *otg,
 					struct usb_gadget *gadget)
 {
-	struct fsl_otg *otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	struct fsl_otg *otg_dev;
 
+	if (!otg)
+		return -ENODEV;
+
+	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
 	VDBG("otg_dev 0x%x\n", (int)otg_dev);
 	VDBG("fsl_otg_dev 0x%x\n", (int)fsl_otg_dev);
-
-	if (!otg || otg_dev != fsl_otg_dev)
+	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
 	if (!gadget) {
@@ -660,10 +667,13 @@ static void fsl_otg_event(struct work_struct *work)
 /* B-device start SRP */
 static int fsl_otg_start_srp(struct usb_otg *otg)
 {
-	struct fsl_otg *otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	struct fsl_otg *otg_dev;
 
-	if (!otg || otg_dev != fsl_otg_dev
-	    || otg->phy->state != OTG_STATE_B_IDLE)
+	if (!otg || otg->phy->state != OTG_STATE_B_IDLE)
+		return -ENODEV;
+
+	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
 	otg_dev->fsm.b_bus_req = 1;
@@ -675,9 +685,13 @@ static int fsl_otg_start_srp(struct usb_otg *otg)
 /* A_host suspend will call this function to start hnp */
 static int fsl_otg_start_hnp(struct usb_otg *otg)
 {
-	struct fsl_otg *otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	struct fsl_otg *otg_dev;
 
-	if (!otg || otg_dev != fsl_otg_dev)
+	if (!otg)
+		return -ENODEV;
+
+	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
 	DBG("start_hnp...n");
@@ -1096,7 +1110,7 @@ static const struct file_operations otg_fops = {
 	.release = fsl_otg_release,
 };
 
-static int __devinit fsl_otg_probe(struct platform_device *pdev)
+static int fsl_otg_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -1130,7 +1144,7 @@ static int __devinit fsl_otg_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit fsl_otg_remove(struct platform_device *pdev)
+static int fsl_otg_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
 
@@ -1155,7 +1169,7 @@ static int __devexit fsl_otg_remove(struct platform_device *pdev)
 
 struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
-	.remove = __devexit_p(fsl_otg_remove),
+	.remove = fsl_otg_remove,
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,

@@ -40,6 +40,8 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/cpuidle.h>
+#include <linux/of.h>
+#include <linux/kexec.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -63,7 +65,6 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <asm/eeh.h>
-#include <asm/pSeries_reconfig.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -258,7 +259,7 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 	int err = NOTIFY_OK;
 
 	switch (action) {
-	case PSERIES_RECONFIG_ADD:
+	case OF_RECONFIG_ATTACH_NODE:
 		pci = np->parent->data;
 		if (pci) {
 			update_dn_pci_info(np, pci->phb);
@@ -367,6 +368,65 @@ static void pSeries_idle(void)
 	}
 }
 
+/*
+ * Enable relocation on during exceptions. This has partition wide scope and
+ * may take a while to complete, if it takes longer than one second we will
+ * just give up rather than wasting any more time on this - if that turns out
+ * to ever be a problem in practice we can move this into a kernel thread to
+ * finish off the process later in boot.
+ */
+static int __init pSeries_enable_reloc_on_exc(void)
+{
+	long rc;
+	unsigned int delay, total_delay = 0;
+
+	while (1) {
+		rc = enable_reloc_on_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+
+		delay = get_longbusy_msecs(rc);
+		total_delay += delay;
+		if (total_delay > 1000) {
+			pr_warn("Warning: Giving up waiting to enable "
+				"relocation on exceptions (%u msec)!\n",
+				total_delay);
+			return rc;
+		}
+
+		mdelay(delay);
+	}
+}
+
+#ifdef CONFIG_KEXEC
+static long pSeries_disable_reloc_on_exc(void)
+{
+	long rc;
+
+	while (1) {
+		rc = disable_reloc_on_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+
+static void pSeries_machine_kexec(struct kimage *image)
+{
+	long rc;
+
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) &&
+	    (image->type != KEXEC_TYPE_CRASH)) {
+		rc = pSeries_disable_reloc_on_exc();
+		if (rc != H_SUCCESS)
+			pr_warning("Warning: Failed to disable relocation on "
+				   "exceptions: %ld\n", rc);
+	}
+
+	default_machine_kexec(image);
+}
+#endif
+
 static void __init pSeries_setup_arch(void)
 {
 	panic_timeout = 10;
@@ -388,10 +448,8 @@ static void __init pSeries_setup_arch(void)
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
-	eeh_pseries_init();
 	find_and_init_phbs();
-	pSeries_reconfig_notifier_register(&pci_dn_reconfig_nb);
-	eeh_init();
+	of_reconfig_notifier_register(&pci_dn_reconfig_nb);
 
 	pSeries_nvram_init();
 
@@ -404,6 +462,14 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
+
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		long rc;
+		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
+			pr_warn("Unable to enable relocation on exceptions: "
+				"%ld\n", rc);
+		}
+	}
 }
 
 static int __init pSeries_init_panel(void)
@@ -416,16 +482,20 @@ static int __init pSeries_init_panel(void)
 }
 machine_arch_initcall(pseries, pSeries_init_panel);
 
-static int pseries_set_dabr(unsigned long dabr)
+static int pseries_set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	return plpar_hcall_norets(H_SET_DABR, dabr);
 }
 
-static int pseries_set_xdabr(unsigned long dabr)
+static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 {
-	/* We want to catch accesses from kernel and userspace */
-	return plpar_hcall_norets(H_SET_XDABR, dabr,
-			H_DABRX_KERNEL | H_DABRX_USER);
+	/* Have to set at least one bit in the DABRX according to PAPR */
+	if (dabrx == 0 && dabr == 0)
+		dabrx = DABRX_USER;
+	/* PAPR says we can only set kernel and user bits */
+	dabrx &= DABRX_KERNEL | DABRX_USER;
+
+	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44
@@ -529,10 +599,10 @@ static void __init pSeries_init_early(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hvc_vio_init_early();
 #endif
-	if (firmware_has_feature(FW_FEATURE_DABR))
-		ppc_md.set_dabr = pseries_set_dabr;
-	else if (firmware_has_feature(FW_FEATURE_XDABR))
+	if (firmware_has_feature(FW_FEATURE_XDABR))
 		ppc_md.set_dabr = pseries_set_xdabr;
+	else if (firmware_has_feature(FW_FEATURE_DABR))
+		ppc_md.set_dabr = pseries_set_dabr;
 
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
@@ -657,4 +727,7 @@ define_machine(pseries) {
 	.progress		= rtas_progress,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
+#ifdef CONFIG_KEXEC
+	.machine_kexec          = pSeries_machine_kexec,
+#endif
 };

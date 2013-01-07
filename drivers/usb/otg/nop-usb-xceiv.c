@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
 #include <linux/slab.h>
 
 struct nop_usb_xceiv {
@@ -92,9 +93,11 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
+static int nop_usb_xceiv_probe(struct platform_device *pdev)
 {
+	struct nop_usb_xceiv_platform_data *pdata = pdev->dev.platform_data;
 	struct nop_usb_xceiv	*nop;
+	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
 	int err;
 
 	nop = kzalloc(sizeof *nop, GFP_KERNEL);
@@ -107,6 +110,9 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	if (pdata)
+		type = pdata->type;
+
 	nop->dev		= &pdev->dev;
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
@@ -117,7 +123,7 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 
-	err = usb_add_phy(&nop->phy, USB_PHY_TYPE_USB2);
+	err = usb_add_phy(&nop->phy, type);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
@@ -135,7 +141,7 @@ exit:
 	return err;
 }
 
-static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
+static int nop_usb_xceiv_remove(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv *nop = platform_get_drvdata(pdev);
 
@@ -150,7 +156,7 @@ static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
 
 static struct platform_driver nop_usb_xceiv_driver = {
 	.probe		= nop_usb_xceiv_probe,
-	.remove		= __devexit_p(nop_usb_xceiv_remove),
+	.remove		= nop_usb_xceiv_remove,
 	.driver		= {
 		.name	= "nop_usb_xceiv",
 		.owner	= THIS_MODULE,

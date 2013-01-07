@@ -104,7 +104,7 @@ static Node *check_file(struct linux_binprm *bprm)
 /*
  * the loader itself
  */
-static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file * interp_file = NULL;
@@ -115,10 +115,6 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	retval = -ENOEXEC;
 	if (!enabled)
-		goto _ret;
-
-	retval = -ENOEXEC;
-	if (bprm->recursion_depth > BINPRM_MAX_RECURSION)
 		goto _ret;
 
 	/* to keep locking time low, we copy the interpreter string */
@@ -176,7 +172,10 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto _error;
 	bprm->argc ++;
 
-	bprm->interp = iname;	/* for binfmt_script */
+	/* Update interp in case binfmt_script needs it. */
+	retval = bprm_change_interp(iname, bprm);
+	if (retval < 0)
+		goto _error;
 
 	interp_file = open_exec (iname);
 	retval = PTR_ERR (interp_file);
@@ -197,9 +196,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if (retval < 0)
 		goto _error;
 
-	bprm->recursion_depth++;
-
-	retval = search_binary_handler (bprm, regs);
+	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto _error;
 

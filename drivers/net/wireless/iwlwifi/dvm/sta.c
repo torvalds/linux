@@ -128,10 +128,11 @@ int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			       struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_addsta_cmd *addsta =
-		(struct iwl_addsta_cmd *) cmd->payload;
 
-	return iwl_process_add_sta_resp(priv, addsta, pkt);
+	if (!cmd)
+		return 0;
+
+	return iwl_process_add_sta_resp(priv, (void *)cmd->payload, pkt);
 }
 
 int iwl_send_add_sta(struct iwl_priv *priv,
@@ -150,7 +151,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
 
 	if (!(flags & CMD_ASYNC)) {
-		cmd.flags |= CMD_WANT_SKB;
+		cmd.flags |= CMD_WANT_SKB | CMD_WANT_HCMD;
 		might_sleep();
 	}
 
@@ -633,23 +634,23 @@ static void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;
 
-	rate_flags |= first_antenna(priv->eeprom_data->valid_tx_ant) <<
+	rate_flags |= first_antenna(priv->nvm_data->valid_tx_ant) <<
 				RATE_MCS_ANT_POS;
 	rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
 
 	link_cmd->general_params.single_stream_ant_msk =
-			first_antenna(priv->eeprom_data->valid_tx_ant);
+			first_antenna(priv->nvm_data->valid_tx_ant);
 
 	link_cmd->general_params.dual_stream_ant_msk =
-		priv->eeprom_data->valid_tx_ant &
-		~first_antenna(priv->eeprom_data->valid_tx_ant);
+		priv->nvm_data->valid_tx_ant &
+		~first_antenna(priv->nvm_data->valid_tx_ant);
 	if (!link_cmd->general_params.dual_stream_ant_msk) {
 		link_cmd->general_params.dual_stream_ant_msk = ANT_AB;
-	} else if (num_of_ant(priv->eeprom_data->valid_tx_ant) == 2) {
+	} else if (num_of_ant(priv->nvm_data->valid_tx_ant) == 2) {
 		link_cmd->general_params.dual_stream_ant_msk =
-			priv->eeprom_data->valid_tx_ant;
+			priv->nvm_data->valid_tx_ant;
 	}
 
 	link_cmd->agg_params.agg_dis_start_th =

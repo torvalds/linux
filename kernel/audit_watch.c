@@ -241,7 +241,7 @@ static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watc
 		struct audit_buffer *ab;
 		ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
 		audit_log_format(ab, "auid=%u ses=%u op=",
-				 audit_get_loginuid(current),
+				 from_kuid(&init_user_ns, audit_get_loginuid(current)),
 				 audit_get_sessionid(current));
 		audit_log_string(ab, op);
 		audit_log_format(ab, " path=");
@@ -265,7 +265,8 @@ static void audit_update_watch(struct audit_parent *parent,
 	/* Run all of the watches on this parent looking for the one that
 	 * matches the given dname */
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(dname, owatch->path, NULL))
+		if (audit_compare_dname_path(dname, owatch->path,
+					     AUDIT_NAME_FULL))
 			continue;
 
 		/* If the update involves invalidating rules, do the inode-based
@@ -349,7 +350,7 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	}
 	mutex_unlock(&audit_filter_mutex);
 
-	fsnotify_destroy_mark(&parent->mark);
+	fsnotify_destroy_mark(&parent->mark, audit_watch_group);
 }
 
 /* Get path information necessary for adding watches. */
@@ -456,7 +457,7 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 
 		if (list_empty(&parent->watches)) {
 			audit_get_parent(parent);
-			fsnotify_destroy_mark(&parent->mark);
+			fsnotify_destroy_mark(&parent->mark, audit_watch_group);
 			audit_put_parent(parent);
 		}
 	}

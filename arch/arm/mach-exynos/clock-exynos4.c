@@ -501,6 +501,10 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_cam_ctrl,
 		.ctrlbit	= (1 << 3),
 	}, {
+		.name		= "tsi",
+		.enable		= exynos4_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
 		.name		= "hsmmc",
 		.devname	= "exynos4-sdhci.0",
 		.parent		= &exynos4_clk_aclk_133.clk,
@@ -525,10 +529,18 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 8),
 	}, {
-		.name		= "dwmmc",
+		.name		= "biu",
 		.parent		= &exynos4_clk_aclk_133.clk,
 		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 9),
+	}, {
+		.name		= "onenand",
+		.enable		= exynos4_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 15),
+	}, {
+		.name		= "nfcon",
+		.enable		= exynos4_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 16),
 	}, {
 		.name		= "dac",
 		.devname	= "s5p-sdo",
@@ -563,6 +575,10 @@ static struct clk exynos4_init_clocks_off[] = {
 		.name		= "adc",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 15),
+	}, {
+		.name		= "tmu_apbif",
+		.enable		= exynos4_clk_ip_perir_ctrl,
+		.ctrlbit	= (1 << 17),
 	}, {
 		.name		= "keypad",
 		.enable		= exynos4_clk_ip_perir_ctrl,
@@ -601,11 +617,6 @@ static struct clk exynos4_init_clocks_off[] = {
 		.ctrlbit	= (1 << 18),
 	}, {
 		.name		= "iis",
-		.devname	= "samsung-i2s.0",
-		.enable		= exynos4_clk_ip_peril_ctrl,
-		.ctrlbit	= (1 << 19),
-	}, {
-		.name		= "iis",
 		.devname	= "samsung-i2s.1",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 20),
@@ -614,6 +625,25 @@ static struct clk exynos4_init_clocks_off[] = {
 		.devname	= "samsung-i2s.2",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 21),
+	}, {
+		.name		= "pcm",
+		.devname	= "samsung-pcm.1",
+		.enable		= exynos4_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 22),
+	}, {
+		.name		= "pcm",
+		.devname	= "samsung-pcm.2",
+		.enable		= exynos4_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 23),
+	}, {
+		.name		= "slimbus",
+		.enable		= exynos4_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 25),
+	}, {
+		.name		= "spdif",
+		.devname	= "samsung-spdif",
+		.enable		= exynos4_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 26),
 	}, {
 		.name		= "ac97",
 		.devname	= "samsung-ac97",
@@ -1104,7 +1134,7 @@ static struct clksrc_clk exynos4_clksrcs[] = {
 		.reg_div = { .reg = EXYNOS4_CLKDIV_MFC, .shift = 0, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "sclk_dwmmc",
+			.name		= "ciu",
 			.parent		= &exynos4_clk_dout_mmc4.clk,
 			.enable		= exynos4_clksrc_mask_fsys_ctrl,
 			.ctrlbit	= (1 << 16),

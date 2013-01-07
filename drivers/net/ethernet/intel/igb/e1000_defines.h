@@ -322,6 +322,9 @@
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
+/* Timestamp in Rx buffer */
+#define E1000_RXPBS_CFG_TS_EN           0x80000000
+
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
 
@@ -360,6 +363,7 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_VMMB          0x00000100 /* VM MB event */
+#define E1000_ICR_TS            0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA         0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED  0x80000000
@@ -399,6 +403,7 @@
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
 #define E1000_IMS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_IMS_VMMB      E1000_ICR_VMMB      /* Mail box activity */
+#define E1000_IMS_TS        E1000_ICR_TS        /* Time Sync Interrupt */
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
@@ -425,6 +430,10 @@
 #define FLOW_CONTROL_ADDRESS_LOW  0x00C28001
 #define FLOW_CONTROL_ADDRESS_HIGH 0x00000100
 #define FLOW_CONTROL_TYPE         0x8808
+
+/* Transmit Config Word */
+#define E1000_TXCW_ASM_DIR	0x00000100 /* TXCW astm pause direction */
+#define E1000_TXCW_PAUSE	0x00000080 /* TXCW sym pause request */
 
 /* 802.1q VLAN Packet Size */
 #define VLAN_TAG_SIZE              4    /* 802.3ac tag (not DMA'd) */
@@ -510,6 +519,9 @@
 
 #define E1000_TIMINCA_16NS_SHIFT 24
 
+#define E1000_TSICR_TXTS 0x00000002
+#define E1000_TSIM_TXTS 0x00000002
+
 #define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
 #define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
 #define E1000_MDICNFG_PHY_MASK    0x03E00000
@@ -530,6 +542,9 @@
 #define E1000_MPHY_PCS_CLK_REG_OFFSET  0x0004 /* mPHY PCS CLK AFE CSR Offset */
 /* mPHY Near End Digital Loopback Override Bit */
 #define E1000_MPHY_PCS_CLK_REG_DIGINELBEN 0x10
+
+#define E1000_PCS_LCTL_FORCE_FCTRL	0x80
+#define E1000_PCS_LSTS_AN_COMPLETE	0x10000
 
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
@@ -628,6 +643,7 @@
 /* NVM Word Offsets */
 #define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004 /* SERDES output amplitude */
+#define NVM_VERSION                0x0005
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
@@ -645,6 +661,19 @@
 #define NVM_LED_1_CFG              0x001C
 #define NVM_LED_0_2_CFG            0x001F
 
+/* NVM version defines */
+#define NVM_ETRACK_WORD            0x0042
+#define NVM_COMB_VER_OFF           0x0083
+#define NVM_COMB_VER_PTR           0x003d
+#define NVM_MAJOR_MASK             0xF000
+#define NVM_MINOR_MASK             0x0FF0
+#define NVM_BUILD_MASK             0x000F
+#define NVM_COMB_VER_MASK          0x00FF
+#define NVM_MAJOR_SHIFT                12
+#define NVM_MINOR_SHIFT                 4
+#define NVM_COMB_VER_SHFT               8
+#define NVM_VER_INVALID            0xFFFF
+#define NVM_ETRACK_SHIFT               16
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
@@ -849,8 +878,10 @@
 #define E1000_IPCNFG_EEE_100M_AN     0x00000004  /* EEE Enable 100M AN */
 #define E1000_EEER_TX_LPI_EN         0x00010000  /* EEE Tx LPI Enable */
 #define E1000_EEER_RX_LPI_EN         0x00020000  /* EEE Rx LPI Enable */
-#define E1000_EEER_FRC_AN            0x10000000 /* Enable EEE in loopback */
+#define E1000_EEER_FRC_AN            0x10000000  /* Enable EEE in loopback */
 #define E1000_EEER_LPI_FC            0x00040000  /* EEE Enable on FC */
+#define E1000_EEE_SU_LPI_CLK_STP     0X00800000  /* EEE LPI Clock Stop */
+#define E1000_EEER_EEE_NEG           0x20000000  /* EEE capability nego */
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000

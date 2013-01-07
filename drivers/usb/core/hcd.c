@@ -22,6 +22,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/bcd.h>
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -123,9 +124,8 @@ static inline int is_root_hub(struct usb_device *udev)
  */
 
 /*-------------------------------------------------------------------------*/
-
-#define KERNEL_REL	((LINUX_VERSION_CODE >> 16) & 0x0ff)
-#define KERNEL_VER	((LINUX_VERSION_CODE >> 8) & 0x0ff)
+#define KERNEL_REL	bin2bcd(((LINUX_VERSION_CODE >> 16) & 0x0ff))
+#define KERNEL_VER	bin2bcd(((LINUX_VERSION_CODE >> 8) & 0x0ff))
 
 /* usb 3.0 root hub device descriptor */
 static const u8 usb3_rh_dev_descriptor[18] = {
@@ -1011,10 +1011,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 	if (retval) {
 		dev_err (parent_dev, "can't register root hub for %s, %d\n",
 				dev_name(&usb_dev->dev), retval);
-	}
-	mutex_unlock(&usb_bus_list_lock);
-
-	if (retval == 0) {
+	} else {
 		spin_lock_irq (&hcd_root_hub_lock);
 		hcd->rh_registered = 1;
 		spin_unlock_irq (&hcd_root_hub_lock);
@@ -1023,6 +1020,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
 	}
+	mutex_unlock(&usb_bus_list_lock);
 
 	return retval;
 }
@@ -2041,8 +2039,9 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	status = hcd->driver->bus_resume(hcd);
 	clear_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 	if (status == 0) {
-		/* TRSMRCY = 10 msec */
-		msleep(10);
+		struct usb_device *udev;
+		int port1;
+
 		spin_lock_irq(&hcd_root_hub_lock);
 		if (!HCD_DEAD(hcd)) {
 			usb_set_device_state(rhdev, rhdev->actconfig
@@ -2052,6 +2051,20 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 			hcd->state = HC_STATE_RUNNING;
 		}
 		spin_unlock_irq(&hcd_root_hub_lock);
+
+		/*
+		 * Check whether any of the enabled ports on the root hub are
+		 * unsuspended.  If they are then a TRSMRCY delay is needed
+		 * (this is what the USB-2 spec calls a "global resume").
+		 * Otherwise we can skip the delay.
+		 */
+		usb_hub_for_each_child(rhdev, port1, udev) {
+			if (udev->state != USB_STATE_NOTATTACHED &&
+					!udev->port_is_suspended) {
+				usleep_range(10000, 11000);	/* TRSMRCY */
+				break;
+			}
+		}
 	} else {
 		hcd->state = old_state;
 		dev_dbg(&rhdev->dev, "bus %s fail, err %d\n",

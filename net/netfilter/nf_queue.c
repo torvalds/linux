@@ -14,83 +14,31 @@
 #include "nf_internals.h"
 
 /*
- * A queue handler may be registered for each protocol.  Each is protected by
- * long term mutex.  The handler must provide an an outfn() to accept packets
- * for queueing and must reinject all packets it receives, no matter what.
+ * Hook for nfnetlink_queue to register its queue handler.
+ * We do this so that most of the NFQUEUE code can be modular.
+ *
+ * Once the queue is registered it must reinject all packets it
+ * receives, no matter what.
  */
-static const struct nf_queue_handler __rcu *queue_handler[NFPROTO_NUMPROTO] __read_mostly;
-
-static DEFINE_MUTEX(queue_handler_mutex);
+static const struct nf_queue_handler __rcu *queue_handler __read_mostly;
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
-int nf_register_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
+void nf_register_queue_handler(const struct nf_queue_handler *qh)
 {
-	int ret;
-	const struct nf_queue_handler *old;
-
-	if (pf >= ARRAY_SIZE(queue_handler))
-		return -EINVAL;
-
-	mutex_lock(&queue_handler_mutex);
-	old = rcu_dereference_protected(queue_handler[pf],
-					lockdep_is_held(&queue_handler_mutex));
-	if (old == qh)
-		ret = -EEXIST;
-	else if (old)
-		ret = -EBUSY;
-	else {
-		rcu_assign_pointer(queue_handler[pf], qh);
-		ret = 0;
-	}
-	mutex_unlock(&queue_handler_mutex);
-
-	return ret;
+	/* should never happen, we only have one queueing backend in kernel */
+	WARN_ON(rcu_access_pointer(queue_handler));
+	rcu_assign_pointer(queue_handler, qh);
 }
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
+void nf_unregister_queue_handler(void)
 {
-	const struct nf_queue_handler *old;
-
-	if (pf >= ARRAY_SIZE(queue_handler))
-		return -EINVAL;
-
-	mutex_lock(&queue_handler_mutex);
-	old = rcu_dereference_protected(queue_handler[pf],
-					lockdep_is_held(&queue_handler_mutex));
-	if (old && old != qh) {
-		mutex_unlock(&queue_handler_mutex);
-		return -EINVAL;
-	}
-
-	RCU_INIT_POINTER(queue_handler[pf], NULL);
-	mutex_unlock(&queue_handler_mutex);
-
+	RCU_INIT_POINTER(queue_handler, NULL);
 	synchronize_rcu();
-
-	return 0;
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
-
-void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
-{
-	u_int8_t pf;
-
-	mutex_lock(&queue_handler_mutex);
-	for (pf = 0; pf < ARRAY_SIZE(queue_handler); pf++)  {
-		if (rcu_dereference_protected(
-				queue_handler[pf],
-				lockdep_is_held(&queue_handler_mutex)
-				) == qh)
-			RCU_INIT_POINTER(queue_handler[pf], NULL);
-	}
-	mutex_unlock(&queue_handler_mutex);
-
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
 
 static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 {
@@ -118,7 +66,7 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
  * through nf_reinject().
  */
 static int __nf_queue(struct sk_buff *skb,
-		      struct list_head *elem,
+		      struct nf_hook_ops *elem,
 		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
 		      struct net_device *outdev,
@@ -137,7 +85,7 @@ static int __nf_queue(struct sk_buff *skb,
 	/* QUEUE == DROP if no one is waiting, to be safe. */
 	rcu_read_lock();
 
-	qh = rcu_dereference(queue_handler[pf]);
+	qh = rcu_dereference(queue_handler);
 	if (!qh) {
 		status = -ESRCH;
 		goto err_unlock;
@@ -155,7 +103,7 @@ static int __nf_queue(struct sk_buff *skb,
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
-		.elem	= list_entry(elem, struct nf_hook_ops, list),
+		.elem	= elem,
 		.pf	= pf,
 		.hook	= hook,
 		.indev	= indev,
@@ -225,7 +173,7 @@ static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
 #endif
 
 int nf_queue(struct sk_buff *skb,
-	     struct list_head *elem,
+	     struct nf_hook_ops *elem,
 	     u_int8_t pf, unsigned int hook,
 	     struct net_device *indev,
 	     struct net_device *outdev,
@@ -287,7 +235,7 @@ int nf_queue(struct sk_buff *skb,
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	struct sk_buff *skb = entry->skb;
-	struct list_head *elem = &entry->elem->list;
+	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
 	int err;
 
@@ -297,7 +245,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT) {
-		elem = elem->prev;
+		elem = list_entry(elem->list.prev, struct nf_hook_ops, list);
 		verdict = NF_ACCEPT;
 	}
 
@@ -344,77 +292,3 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	kfree(entry);
 }
 EXPORT_SYMBOL(nf_reinject);
-
-#ifdef CONFIG_PROC_FS
-static void *seq_start(struct seq_file *seq, loff_t *pos)
-{
-	if (*pos >= ARRAY_SIZE(queue_handler))
-		return NULL;
-
-	return pos;
-}
-
-static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
-{
-	(*pos)++;
-
-	if (*pos >= ARRAY_SIZE(queue_handler))
-		return NULL;
-
-	return pos;
-}
-
-static void seq_stop(struct seq_file *s, void *v)
-{
-
-}
-
-static int seq_show(struct seq_file *s, void *v)
-{
-	int ret;
-	loff_t *pos = v;
-	const struct nf_queue_handler *qh;
-
-	rcu_read_lock();
-	qh = rcu_dereference(queue_handler[*pos]);
-	if (!qh)
-		ret = seq_printf(s, "%2lld NONE\n", *pos);
-	else
-		ret = seq_printf(s, "%2lld %s\n", *pos, qh->name);
-	rcu_read_unlock();
-
-	return ret;
-}
-
-static const struct seq_operations nfqueue_seq_ops = {
-	.start	= seq_start,
-	.next	= seq_next,
-	.stop	= seq_stop,
-	.show	= seq_show,
-};
-
-static int nfqueue_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &nfqueue_seq_ops);
-}
-
-static const struct file_operations nfqueue_file_ops = {
-	.owner	 = THIS_MODULE,
-	.open	 = nfqueue_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-#endif /* PROC_FS */
-
-
-int __init netfilter_queue_init(void)
-{
-#ifdef CONFIG_PROC_FS
-	if (!proc_create("nf_queue", S_IRUGO,
-			 proc_net_netfilter, &nfqueue_file_ops))
-		return -1;
-#endif
-	return 0;
-}
-

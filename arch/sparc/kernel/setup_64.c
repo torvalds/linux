@@ -316,6 +316,25 @@ static void __init popc_patch(void)
 	}
 }
 
+static void __init pause_patch(void)
+{
+	struct pause_patch_entry *p;
+
+	p = &__pause_3insn_patch;
+	while (p < &__pause_3insn_patch_end) {
+		unsigned long i, addr = p->addr;
+
+		for (i = 0; i < 3; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p++;
+	}
+}
+
 #ifdef CONFIG_SMP
 void __init boot_cpu_id_too_large(int cpu)
 {
@@ -340,7 +359,12 @@ static const char *hwcaps[] = {
 	 */
 	"mul32", "div32", "fsmuld", "v8plus", "popc", "vis", "vis2",
 	"ASIBlkInit", "fmaf", "vis3", "hpc", "random", "trans", "fjfmau",
-	"ima", "cspare",
+	"ima", "cspare", "pause", "cbcond",
+};
+
+static const char *crypto_hwcaps[] = {
+	"aes", "des", "kasumi", "camellia", "md5", "sha1", "sha256",
+	"sha512", "mpmul", "montmul", "montsqr", "crc32c",
 };
 
 void cpucap_info(struct seq_file *m)
@@ -357,27 +381,61 @@ void cpucap_info(struct seq_file *m)
 			printed++;
 		}
 	}
+	if (caps & HWCAP_SPARC_CRYPTO) {
+		unsigned long cfr;
+
+		__asm__ __volatile__("rd %%asr26, %0" : "=r" (cfr));
+		for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+			unsigned long bit = 1UL << i;
+			if (cfr & bit) {
+				seq_printf(m, "%s%s",
+					   printed ? "," : "", crypto_hwcaps[i]);
+				printed++;
+			}
+		}
+	}
 	seq_putc(m, '\n');
+}
+
+static void __init report_one_hwcap(int *printed, const char *name)
+{
+	if ((*printed) == 0)
+		printk(KERN_INFO "CPU CAPS: [");
+	printk(KERN_CONT "%s%s",
+	       (*printed) ? "," : "", name);
+	if (++(*printed) == 8) {
+		printk(KERN_CONT "]\n");
+		*printed = 0;
+	}
+}
+
+static void __init report_crypto_hwcaps(int *printed)
+{
+	unsigned long cfr;
+	int i;
+
+	__asm__ __volatile__("rd %%asr26, %0" : "=r" (cfr));
+
+	for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+		unsigned long bit = 1UL << i;
+		if (cfr & bit)
+			report_one_hwcap(printed, crypto_hwcaps[i]);
+	}
 }
 
 static void __init report_hwcaps(unsigned long caps)
 {
 	int i, printed = 0;
 
-	printk(KERN_INFO "CPU CAPS: [");
 	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
 		unsigned long bit = 1UL << i;
-		if (caps & bit) {
-			printk(KERN_CONT "%s%s",
-			       printed ? "," : "", hwcaps[i]);
-			if (++printed == 8) {
-				printk(KERN_CONT "]\n");
-				printk(KERN_INFO "CPU CAPS: [");
-				printed = 0;
-			}
-		}
+		if (caps & bit)
+			report_one_hwcap(&printed, hwcaps[i]);
 	}
-	printk(KERN_CONT "]\n");
+	if (caps & HWCAP_SPARC_CRYPTO)
+		report_crypto_hwcaps(&printed);
+	if (printed != 0)
+		printk(KERN_CONT "]\n");
 }
 
 static unsigned long __init mdesc_cpu_hwcap_list(void)
@@ -410,6 +468,10 @@ static unsigned long __init mdesc_cpu_hwcap_list(void)
 				caps |= bit;
 				break;
 			}
+		}
+		for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+			if (!strcmp(prop, crypto_hwcaps[i]))
+				caps |= HWCAP_SPARC_CRYPTO;
 		}
 
 		plen = strlen(prop) + 1;
@@ -485,6 +547,8 @@ static void __init init_sparc64_elf_hwcap(void)
 
 	if (sparc64_elf_hwcap & AV_SPARC_POPC)
 		popc_patch();
+	if (sparc64_elf_hwcap & AV_SPARC_PAUSE)
+		pause_patch();
 }
 
 void __init setup_arch(char **cmdline_p)

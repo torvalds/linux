@@ -24,23 +24,21 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mcspi.h>
-#include <plat/board.h>
-#include <plat/usb.h>
 #include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
+#include <linux/omap-dma.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
-#include <plat/gpmc-smc91x.h>
+#include "gpmc.h"
+#include "gpmc-smc91x.h"
 
+#include "soc.h"
 #include "board-flash.h"
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"
@@ -159,6 +157,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device sdp3430_dvi_device = {
@@ -189,9 +188,6 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 	.num_devices	= ARRAY_SIZE(sdp3430_dss_devices),
 	.devices	= sdp3430_dss_devices,
 	.default_device	= &sdp3430_lcd_device,
-};
-
-static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -233,9 +229,6 @@ static int sdp3430_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data sdp3430_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.pulldowns	= BIT(2) | BIT(6) | BIT(8) | BIT(13)
 				| BIT(16) | BIT(17),
 	.setup		= sdp3430_twl_gpio_setup,
@@ -576,8 +569,6 @@ static void __init omap_3430sdp_init(void)
 	int gpio_pendown;
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_board_config = sdp3430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	omap_hsmmc_init(mmc);
 	omap3430_i2c_init();
 	omap_display_init(&sdp3430_dss_data);
@@ -607,5 +598,5 @@ MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	.init_machine	= omap_3430sdp_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

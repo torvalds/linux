@@ -233,7 +233,6 @@ static void usb_release_dev(struct device *dev)
 	kfree(udev);
 }
 
-#ifdef	CONFIG_HOTPLUG
 static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
@@ -248,14 +247,6 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-
-#else
-
-static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-#endif	/* CONFIG_HOTPLUG */
 
 #ifdef	CONFIG_PM
 
@@ -370,14 +361,14 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 				 struct usb_bus *bus, unsigned port1)
 {
 	struct usb_device *dev;
-	struct usb_hcd *usb_hcd = container_of(bus, struct usb_hcd, self);
+	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
 	unsigned root_hub = 0;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
-	if (!usb_get_hcd(bus_to_hcd(bus))) {
+	if (!usb_get_hcd(usb_hcd)) {
 		kfree(dev);
 		return NULL;
 	}

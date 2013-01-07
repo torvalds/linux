@@ -30,8 +30,6 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
 
-struct drm_device *drm_device;
-
 static int num_crtc = CONFIG_DRM_OMAP_NUM_CRTCS;
 
 MODULE_PARM_DESC(num_crtc, "Number of overlays to use as CRTCs");
@@ -53,9 +51,8 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	DBG("dev=%p", dev);
-	if (priv->fbdev) {
+	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
-	}
 }
 
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
@@ -87,9 +84,9 @@ static int omap_drm_notifier(struct notifier_block *nb,
 	case OMAP_DSS_HOTPLUG_DISCONNECT: {
 		struct drm_device *dev = drm_device;
 		DBG("hotplug event: evt=%d, dev=%p", evt, dev);
-		if (dev) {
+		if (dev)
 			drm_sysfs_hotplug_event(dev);
-		}
+
 		return NOTIFY_OK;
 	}
 	default:  /* don't care about other events for now */
@@ -106,7 +103,8 @@ static void dump_video_chains(void)
 	for (i = 0; i < omap_dss_get_num_overlays(); i++) {
 		struct omap_overlay *ovl = omap_dss_get_overlay(i);
 		struct omap_overlay_manager *mgr = ovl->manager;
-		struct omap_dss_device *dssdev = mgr ? mgr->device : NULL;
+		struct omap_dss_device *dssdev = mgr ?
+					mgr->get_device(mgr) : NULL;
 		if (dssdev) {
 			DBG("%d: %s -> %s -> %s", i, ovl->name, mgr->name,
 						dssdev->name);
@@ -185,7 +183,7 @@ static int create_connector(struct drm_device *dev,
 	for (j = 0; j < priv->num_encoders; j++) {
 		struct omap_overlay_manager *mgr =
 			omap_encoder_get_manager(priv->encoders[j]);
-		if (mgr->device == dssdev) {
+		if (mgr->get_device(mgr) == dssdev) {
 			drm_mode_connector_attach_encoder(connector,
 					priv->encoders[j]);
 		}
@@ -212,9 +210,9 @@ static int create_crtc(struct drm_device *dev, struct omap_overlay *ovl,
 			struct drm_encoder *encoder =
 				omap_connector_attached_encoder(
 						priv->connectors[*j]);
-			if (encoder) {
+			if (encoder)
 				mgr = omap_encoder_get_manager(encoder);
-			}
+
 		}
 		(*j)++;
 	}
@@ -233,9 +231,9 @@ static int create_crtc(struct drm_device *dev, struct omap_overlay *ovl,
 			struct drm_encoder *encoder =
 				omap_connector_attached_encoder(
 						priv->connectors[idx]);
-			if (encoder) {
+			if (encoder)
 				mgr = omap_encoder_get_manager(encoder);
-			}
+
 		}
 		(*j)++;
 	}
@@ -354,9 +352,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		 */
 		int max_overlays = min(omap_dss_get_num_overlays(), num_crtc);
 
-		for (i = 0; i < omap_dss_get_num_overlay_managers(); i++) {
+		for (i = 0; i < omap_dss_get_num_overlay_managers(); i++)
 			create_encoder(dev, omap_dss_get_overlay_manager(i));
-		}
 
 		for_each_dss_dev(dssdev) {
 			create_connector(dev, dssdev);
@@ -418,13 +415,14 @@ static void omap_modeset_free(struct drm_device *dev)
 static int ioctl_get_param(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_omap_param *args = data;
 
 	DBG("%p: param=%llu", dev, args->param);
 
 	switch (args->param) {
 	case OMAP_PARAM_CHIPSET_ID:
-		args->value = GET_OMAP_TYPE;
+		args->value = priv->omaprev;
 		break;
 	default:
 		DBG("unknown parameter %lld", args->param);
@@ -468,15 +466,13 @@ static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	VERB("%p:%p: handle=%d, op=%x", dev, file_priv, args->handle, args->op);
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (!obj) {
+	if (!obj)
 		return -ENOENT;
-	}
 
 	ret = omap_gem_op_sync(obj, args->op);
 
-	if (!ret) {
+	if (!ret)
 		ret = omap_gem_op_start(obj, args->op);
-	}
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -493,16 +489,14 @@ static int ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (!obj) {
+	if (!obj)
 		return -ENOENT;
-	}
 
 	/* XXX flushy, flushy */
 	ret = 0;
 
-	if (!ret) {
+	if (!ret)
 		ret = omap_gem_op_finish(obj, args->op);
-	}
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -519,9 +513,8 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	DBG("%p:%p: handle=%d", dev, file_priv, args->handle);
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
-	if (!obj) {
+	if (!obj)
 		return -ENOENT;
-	}
 
 	args->size = omap_gem_mmap_size(obj);
 	args->offset = omap_gem_mmap_offset(obj);
@@ -556,12 +549,11 @@ struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
  */
 static int dev_load(struct drm_device *dev, unsigned long flags)
 {
+	struct omap_drm_platform_data *pdata = dev->dev->platform_data;
 	struct omap_drm_private *priv;
 	int ret;
 
 	DBG("load: dev=%p", dev);
-
-	drm_device = dev;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -569,10 +561,19 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 	}
 
+	priv->omaprev = pdata->omaprev;
+
 	dev->dev_private = priv;
 
-	priv->wq = alloc_workqueue("omapdrm",
-			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+	ret = omapdss_compat_init();
+	if (ret) {
+		dev_err(dev->dev, "coult not init omapdss\n");
+		dev->dev_private = NULL;
+		kfree(priv);
+		return ret;
+	}
+
+	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	INIT_LIST_HEAD(&priv->obj_list);
 
@@ -583,6 +584,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "omap_modeset_init failed: ret=%d\n", ret);
 		dev->dev_private = NULL;
 		kfree(priv);
+		omapdss_compat_uninit();
 		return ret;
 	}
 
@@ -595,9 +597,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	drm_kms_helper_poll_init(dev);
 
 	ret = drm_vblank_init(dev, priv->num_crtcs);
-	if (ret) {
+	if (ret)
 		dev_warn(dev->dev, "could not init vblank\n");
-	}
 
 	return 0;
 }
@@ -617,6 +618,8 @@ static int dev_unload(struct drm_device *dev)
 
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
+
+	omapdss_compat_uninit();
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
@@ -649,6 +652,8 @@ static int dev_firstopen(struct drm_device *dev)
  */
 static void dev_lastclose(struct drm_device *dev)
 {
+	int i;
+
 	/* we don't support vga-switcheroo.. so just make sure the fbdev
 	 * mode is active
 	 */
@@ -656,6 +661,24 @@ static void dev_lastclose(struct drm_device *dev)
 	int ret;
 
 	DBG("lastclose: dev=%p", dev);
+
+	if (priv->rotation_prop) {
+		/* need to restore default rotation state.. not sure
+		 * if there is a cleaner way to restore properties to
+		 * default state?  Maybe a flag that properties should
+		 * automatically be restored to default state on
+		 * lastclose?
+		 */
+		for (i = 0; i < priv->num_crtcs; i++) {
+			drm_object_property_set_value(&priv->crtcs[i]->base,
+					priv->rotation_prop, 0);
+		}
+
+		for (i = 0; i < priv->num_planes; i++) {
+			drm_object_property_set_value(&priv->planes[i]->base,
+					priv->rotation_prop, 0);
+		}
+	}
 
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
 	if (ret)
@@ -761,7 +784,6 @@ static struct drm_driver omap_drm_driver = {
 		.irq_postinstall = dev_irq_postinstall,
 		.irq_uninstall = dev_irq_uninstall,
 		.irq_handler = dev_irq_handler,
-		.reclaim_buffers = drm_core_reclaim_buffers,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init = omap_debugfs_init,
 		.debugfs_cleanup = omap_debugfs_cleanup,

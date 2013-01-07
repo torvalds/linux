@@ -5,7 +5,7 @@
 #ifndef __SYS_PTRACE_PPC_H
 #define __SYS_PTRACE_PPC_H
 
-#include "linux/types.h"
+#include <linux/types.h>
 
 /* the following taken from <asm-ppc/ptrace.h> */
 

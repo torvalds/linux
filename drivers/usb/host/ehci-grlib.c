@@ -34,22 +34,6 @@
 
 #define GRUSBHC_HCIVERSION 0x0100 /* Known value of cap. reg. HCIVERSION */
 
-/* called during probe() after chip reset completes */
-static int ehci_grlib_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int		retval;
-
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 1);
-
-	return retval;
-}
-
-
 static const struct hc_driver ehci_grlib_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "GRLIB GRUSBHC EHCI",
@@ -64,7 +48,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_grlib_setup,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -98,7 +82,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 };
 
 
-static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
+static int ehci_hcd_grlib_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -127,12 +111,6 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
-		rv = -EBUSY;
-		goto err_rmr;
-	}
-
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
 		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
@@ -140,9 +118,9 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
 	if (!hcd->regs) {
-		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
+		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
 		rv = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -161,17 +139,13 @@ static int __devinit ehci_hcd_grlib_probe(struct platform_device *op)
 
 	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv)
-		goto err_ehci;
+		goto err_ioremap;
 
 	return 0;
 
-err_ehci:
-	iounmap(hcd->regs);
 err_ioremap:
 	irq_dispose_mapping(irq);
 err_irq:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err_rmr:
 	usb_put_hcd(hcd);
 
 	return rv;
@@ -188,9 +162,7 @@ static int ehci_hcd_grlib_remove(struct platform_device *op)
 
 	usb_remove_hcd(hcd);
 
-	iounmap(hcd->regs);
 	irq_dispose_mapping(hcd->irq);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	usb_put_hcd(hcd);
 

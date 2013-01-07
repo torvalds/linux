@@ -17,6 +17,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -24,16 +25,17 @@
 #include <linux/bitops.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <asm/mach/irq.h>
 
 #define DRIVER_NAME "pinmux-sirf"
 
 #define SIRFSOC_NUM_PADS    622
 #define SIRFSOC_RSC_PIN_MUX 0x4
 
-#define SIRFSOC_GPIO_PAD_EN(g) ((g)*0x100 + 0x84)
+#define SIRFSOC_GPIO_PAD_EN(g)		((g)*0x100 + 0x84)
+#define SIRFSOC_GPIO_PAD_EN_CLR(g)	((g)*0x100 + 0x90)
 #define SIRFSOC_GPIO_CTRL(g, i)			((g)*0x100 + (i)*4)
 #define SIRFSOC_GPIO_DSP_EN0			(0x80)
-#define SIRFSOC_GPIO_PAD_EN(g)			((g)*0x100 + 0x84)
 #define SIRFSOC_GPIO_INT_STATUS(g)		((g)*0x100 + 0x8C)
 
 #define SIRFSOC_GPIO_CTL_INTR_LOW_MASK		0x1
@@ -58,6 +60,7 @@ struct sirfsoc_gpio_bank {
 	int id;
 	int parent_irq;
 	spinlock_t lock;
+	bool is_marco; /* for marco, some registers are different with prima2 */
 };
 
 static struct sirfsoc_gpio_bank sgpio_bank[SIRFSOC_GPIO_NO_OF_BANKS];
@@ -68,6 +71,10 @@ static DEFINE_SPINLOCK(sgpio_lock);
  * refer to CS-131858-DC-6A.xls
  */
 static const struct pinctrl_pin_desc sirfsoc_pads[] = {
+	PINCTRL_PIN(0, "gpio0-0"),
+	PINCTRL_PIN(1, "gpio0-1"),
+	PINCTRL_PIN(2, "gpio0-2"),
+	PINCTRL_PIN(3, "gpio0-3"),
 	PINCTRL_PIN(4, "pwm0"),
 	PINCTRL_PIN(5, "pwm1"),
 	PINCTRL_PIN(6, "pwm2"),
@@ -76,7 +83,9 @@ static const struct pinctrl_pin_desc sirfsoc_pads[] = {
 	PINCTRL_PIN(9, "odo_0"),
 	PINCTRL_PIN(10, "odo_1"),
 	PINCTRL_PIN(11, "dr_dir"),
+	PINCTRL_PIN(12, "viprom_fa"),
 	PINCTRL_PIN(13, "scl_1"),
+	PINCTRL_PIN(14, "ntrst"),
 	PINCTRL_PIN(15, "sda_1"),
 	PINCTRL_PIN(16, "x_ldd[16]"),
 	PINCTRL_PIN(17, "x_ldd[17]"),
@@ -183,6 +192,7 @@ struct sirfsoc_pmx {
 	struct pinctrl_dev *pmx;
 	void __iomem *gpio_virtbase;
 	void __iomem *rsc_virtbase;
+	bool is_marco;
 };
 
 /* SIRFSOC_GPIO_PAD_EN set */
@@ -916,11 +926,66 @@ static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s
 	seq_printf(s, " " DRIVER_NAME);
 }
 
+static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np_config,
+				 struct pinctrl_map **map, unsigned *num_maps)
+{
+	struct sirfsoc_pmx *spmx = pinctrl_dev_get_drvdata(pctldev);
+	struct device_node *np;
+	struct property *prop;
+	const char *function, *group;
+	int ret, index = 0, count = 0;
+
+	/* calculate number of maps required */
+	for_each_child_of_node(np_config, np) {
+		ret = of_property_read_string(np, "sirf,function", &function);
+		if (ret < 0)
+			return ret;
+
+		ret = of_property_count_strings(np, "sirf,pins");
+		if (ret < 0)
+			return ret;
+
+		count += ret;
+	}
+
+	if (!count) {
+		dev_err(spmx->dev, "No child nodes passed via DT\n");
+		return -ENODEV;
+	}
+
+	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
+	if (!*map)
+		return -ENOMEM;
+
+	for_each_child_of_node(np_config, np) {
+		of_property_read_string(np, "sirf,function", &function);
+		of_property_for_each_string(np, "sirf,pins", prop, group) {
+			(*map)[index].type = PIN_MAP_TYPE_MUX_GROUP;
+			(*map)[index].data.mux.group = group;
+			(*map)[index].data.mux.function = function;
+			index++;
+		}
+	}
+
+	*num_maps = count;
+
+	return 0;
+}
+
+static void sirfsoc_dt_free_map(struct pinctrl_dev *pctldev,
+		struct pinctrl_map *map, unsigned num_maps)
+{
+	kfree(map);
+}
+
 static struct pinctrl_ops sirfsoc_pctrl_ops = {
 	.get_groups_count = sirfsoc_get_groups_count,
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
 	.pin_dbg_show = sirfsoc_pin_dbg_show,
+	.dt_node_to_map = sirfsoc_dt_node_to_map,
+	.dt_free_map = sirfsoc_dt_free_map,
 };
 
 struct sirfsoc_pmx_func {
@@ -1025,12 +1090,21 @@ static void sirfsoc_pinmux_endisable(struct sirfsoc_pmx *spmx, unsigned selector
 
 	for (i = 0; i < mux->muxmask_counts; i++) {
 		u32 muxval;
-		muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
-		if (enable)
-			muxval = muxval & ~mask[i].mask;
-		else
-			muxval = muxval | mask[i].mask;
-		writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
+		if (!spmx->is_marco) {
+			muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
+			if (enable)
+				muxval = muxval & ~mask[i].mask;
+			else
+				muxval = muxval | mask[i].mask;
+			writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(mask[i].group));
+		} else {
+			if (enable)
+				writel(mask[i].mask, spmx->gpio_virtbase +
+					SIRFSOC_GPIO_PAD_EN_CLR(mask[i].group));
+			else
+				writel(mask[i].mask, spmx->gpio_virtbase +
+					SIRFSOC_GPIO_PAD_EN(mask[i].group));
+		}
 	}
 
 	if (mux->funcmask && enable) {
@@ -1095,9 +1169,14 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 
 	spmx = pinctrl_dev_get_drvdata(pmxdev);
 
-	muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
-	muxval = muxval | (1 << (offset - range->pin_base));
-	writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
+	if (!spmx->is_marco) {
+		muxval = readl(spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
+		muxval = muxval | (1 << (offset - range->pin_base));
+		writel(muxval, spmx->gpio_virtbase + SIRFSOC_GPIO_PAD_EN(group));
+	} else {
+		writel(1 << (offset - range->pin_base), spmx->gpio_virtbase +
+			SIRFSOC_GPIO_PAD_EN(group));
+	}
 
 	return 0;
 }
@@ -1155,6 +1234,7 @@ static void __iomem *sirfsoc_rsc_of_iomap(void)
 {
 	const struct of_device_id rsc_ids[]  = {
 		{ .compatible = "sirf,prima2-rsc" },
+		{ .compatible = "sirf,marco-rsc" },
 		{}
 	};
 	struct device_node *np;
@@ -1196,6 +1276,9 @@ static int __devinit sirfsoc_pinmux_probe(struct platform_device *pdev)
 		goto out_no_rsc_remap;
 	}
 
+	if (of_device_is_compatible(np, "sirf,marco-pinctrl"))
+		spmx->is_marco = 1;
+
 	/* Now register the pin controller and all pins it handles */
 	spmx->pmx = pinctrl_register(&sirfsoc_pinmux_desc, &pdev->dev, spmx);
 	if (!spmx->pmx) {
@@ -1204,8 +1287,10 @@ static int __devinit sirfsoc_pinmux_probe(struct platform_device *pdev)
 		goto out_no_pmx;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++)
+	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++) {
+		sirfsoc_gpio_ranges[i].gc = &sgpio_bank[i].chip.gc;
 		pinctrl_add_gpio_range(spmx->pmx, &sirfsoc_gpio_ranges[i]);
+	}
 
 	dev_info(&pdev->dev, "initialized SIRFSOC pinmux driver\n");
 
@@ -1220,8 +1305,9 @@ out_no_gpio_remap:
 	return ret;
 }
 
-static const struct of_device_id pinmux_ids[] __devinitconst = {
-	{ .compatible = "sirf,prima2-gpio-pinmux" },
+static const struct of_device_id pinmux_ids[] = {
+	{ .compatible = "sirf,prima2-pinctrl" },
+	{ .compatible = "sirf,marco-pinctrl" },
 	{}
 };
 
@@ -1257,41 +1343,6 @@ static inline struct sirfsoc_gpio_bank *sirfsoc_gpio_to_bank(unsigned int gpio)
 {
 	return &sgpio_bank[gpio / SIRFSOC_GPIO_BANK_SIZE];
 }
-
-void sirfsoc_gpio_set_pull(unsigned gpio, unsigned mode)
-{
-	struct sirfsoc_gpio_bank *bank = sirfsoc_gpio_to_bank(gpio);
-	int idx = sirfsoc_gpio_to_offset(gpio);
-	u32 val, offset;
-	unsigned long flags;
-
-	offset = SIRFSOC_GPIO_CTRL(bank->id, idx);
-
-	spin_lock_irqsave(&sgpio_lock, flags);
-
-	val = readl(bank->chip.regs + offset);
-
-	switch (mode) {
-	case SIRFSOC_GPIO_PULL_NONE:
-		val &= ~SIRFSOC_GPIO_CTL_PULL_MASK;
-		break;
-	case SIRFSOC_GPIO_PULL_UP:
-		val |= SIRFSOC_GPIO_CTL_PULL_MASK;
-		val |= SIRFSOC_GPIO_CTL_PULL_HIGH;
-		break;
-	case SIRFSOC_GPIO_PULL_DOWN:
-		val |= SIRFSOC_GPIO_CTL_PULL_MASK;
-		val &= ~SIRFSOC_GPIO_CTL_PULL_HIGH;
-		break;
-	default:
-		break;
-	}
-
-	writel(val, bank->chip.regs + offset);
-
-	spin_unlock_irqrestore(&sgpio_lock, flags);
-}
-EXPORT_SYMBOL(sirfsoc_gpio_set_pull);
 
 static inline struct sirfsoc_gpio_bank *sirfsoc_irqchip_to_bank(struct gpio_chip *chip)
 {
@@ -1419,6 +1470,9 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	u32 status, ctrl;
 	int idx = 0;
 	unsigned int first_irq;
+	struct irq_chip *chip = irq_get_chip(irq);
+
+	chained_irq_enter(chip, desc);
 
 	status = readl(bank->chip.regs + SIRFSOC_GPIO_INT_STATUS(bank->id));
 	if (!status) {
@@ -1447,20 +1501,17 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		idx++;
 		status = status >> 1;
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 static inline void sirfsoc_gpio_set_input(struct sirfsoc_gpio_bank *bank, unsigned ctrl_offset)
 {
 	u32 val;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->lock, flags);
 
 	val = readl(bank->chip.regs + ctrl_offset);
 	val &= ~SIRFSOC_GPIO_CTL_OUT_EN_MASK;
 	writel(val, bank->chip.regs + ctrl_offset);
-
-	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
 static int sirfsoc_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -1591,8 +1642,8 @@ static void sirfsoc_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
-int sirfsoc_gpio_irq_map(struct irq_domain *d, unsigned int irq,
-	irq_hw_number_t hwirq)
+static int sirfsoc_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+				irq_hw_number_t hwirq)
 {
 	struct sirfsoc_gpio_bank *bank = d->host_data;
 
@@ -1618,6 +1669,7 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 	struct sirfsoc_gpio_bank *bank;
 	void *regs;
 	struct platform_device *pdev;
+	bool is_marco = false;
 
 	pdev = of_find_device_by_node(np);
 	if (!pdev)
@@ -1626,6 +1678,9 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 	regs = of_iomap(np, 0);
 	if (!regs)
 		return -ENOMEM;
+
+	if (of_device_is_compatible(np, "sirf,marco-pinctrl"))
+		is_marco = 1;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
 		bank = &sgpio_bank[i];
@@ -1643,6 +1698,7 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 		bank->chip.gc.of_node = np;
 		bank->chip.regs = regs;
 		bank->id = i;
+		bank->is_marco = is_marco;
 		bank->parent_irq = platform_get_irq(pdev, i);
 		if (bank->parent_irq < 0) {
 			err = bank->parent_irq;
@@ -1669,6 +1725,8 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 		irq_set_chained_handler(bank->parent_irq, sirfsoc_gpio_handle_irq);
 		irq_set_handler_data(bank->parent_irq, bank);
 	}
+
+	return 0;
 
 out:
 	iounmap(regs);

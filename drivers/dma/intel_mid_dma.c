@@ -427,7 +427,7 @@ DMA engine callback Functions*/
  * intel_mid_dma_tx_submit -	callback to submit DMA transaction
  * @tx: dma engine descriptor
  *
- * Submit the DMA trasaction for this descriptor, start if ch idle
+ * Submit the DMA transaction for this descriptor, start if ch idle
  */
 static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
@@ -1225,7 +1225,7 @@ static void middma_shutdown(struct pci_dev *pdev)
  * Initialize the PCI device, map BARs, query driver data.
  * Call setup_dma to complete contoller and chan initilzation
  */
-static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,
+static int intel_mid_dma_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct middma_device *device;
@@ -1432,7 +1432,7 @@ static struct pci_driver intel_mid_dma_pci_driver = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
-	.remove		=	__devexit_p(intel_mid_dma_remove),
+	.remove		=	intel_mid_dma_remove,
 #ifdef CONFIG_PM
 	.driver = {
 		.pm = &intel_mid_dma_pm,

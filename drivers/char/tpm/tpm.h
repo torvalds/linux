@@ -329,10 +329,15 @@ extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *);
 
 #ifdef CONFIG_ACPI
-extern ssize_t sys_add_ppi(struct kobject *parent);
+extern int tpm_add_ppi(struct kobject *);
+extern void tpm_remove_ppi(struct kobject *);
 #else
-static inline ssize_t sys_add_ppi(struct kobject *parent)
+static inline int tpm_add_ppi(struct kobject *parent)
 {
 	return 0;
+}
+
+static inline void tpm_remove_ppi(struct kobject *parent)
+{
 }
 #endif

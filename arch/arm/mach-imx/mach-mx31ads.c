@@ -28,8 +28,6 @@
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 #include <linux/mfd/wm8350/audio.h>
@@ -37,7 +35,10 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /* Base address of PBC controller */
 #define PBC_BASE_ADDRESS	MX31_CS4_BASE_ADDR_VIRT
@@ -540,7 +541,7 @@ static void __init mxc_init_audio(void)
  */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
-		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length		= CS4_CS8900_MMIO_START,
 		.type		= MT_DEVICE

@@ -979,6 +979,10 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	priv->tx_dma_use = 1;
 
 	priv->sg_tx_p = kzalloc(sizeof(struct scatterlist)*num, GFP_ATOMIC);
+	if (!priv->sg_tx_p) {
+		dev_err(priv->port.dev, "%s:kzalloc Failed\n", __func__);
+		return 0;
+	}
 
 	sg_init_table(priv->sg_tx_p, num); /* Initialize SG table */
 	sg = priv->sg_tx_p;
@@ -1835,7 +1839,7 @@ static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	{0,},
 };
 
-static int __devinit pch_uart_pci_probe(struct pci_dev *pdev,
+static int pch_uart_pci_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	int ret;
@@ -1865,7 +1869,7 @@ static struct pci_driver pch_uart_pci_driver = {
 	.name = "pch_uart",
 	.id_table = pch_uart_pci_id,
 	.probe = pch_uart_pci_probe,
-	.remove = __devexit_p(pch_uart_pci_remove),
+	.remove = pch_uart_pci_remove,
 	.suspend = pch_uart_pci_suspend,
 	.resume = pch_uart_pci_resume,
 };

@@ -27,8 +27,8 @@
 #include <plat/regs-serial.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/ata.h>
-#include <plat/iic.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
 #include <plat/s5p-time.h>
 #include <plat/mfc.h>
@@ -85,7 +85,6 @@ static struct s3c_ide_platdata smdkc110_ide_pdata __initdata = {
 };
 
 static struct platform_device *smdkc110_devices[] __initdata = {
-	&samsung_asoc_dma,
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
 	&s5pv210_device_spdif,

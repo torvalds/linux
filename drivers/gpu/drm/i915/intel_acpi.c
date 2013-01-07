@@ -8,7 +8,7 @@
 #include <linux/vga_switcheroo.h>
 #include <acpi/acpi_drivers.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "i915_drv.h"
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */

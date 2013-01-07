@@ -141,9 +141,8 @@ static const struct ieee80211_regdomain world_regdom = {
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
 		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
-		/* IEEE 802.11b/g, channels 12..13. No HT40
-		 * channel fits here. */
-		REG_RULE(2467-10, 2472+10, 20, 6, 20,
+		/* IEEE 802.11b/g, channels 12..13. */
+		REG_RULE(2467-10, 2472+10, 40, 6, 20,
 			NL80211_RRF_PASSIVE_SCAN |
 			NL80211_RRF_NO_IBSS),
 		/* IEEE 802.11 channel 14 - Only JP enables
@@ -350,6 +349,9 @@ static void reg_regdb_search(struct work_struct *work)
 	struct reg_regdb_search_request *request;
 	const struct ieee80211_regdomain *curdom, *regdom;
 	int i, r;
+	bool set_reg = false;
+
+	mutex_lock(&cfg80211_mutex);
 
 	mutex_lock(&reg_regdb_search_mutex);
 	while (!list_empty(&reg_regdb_search_list)) {
@@ -365,9 +367,7 @@ static void reg_regdb_search(struct work_struct *work)
 				r = reg_copy_regd(&regdom, curdom);
 				if (r)
 					break;
-				mutex_lock(&cfg80211_mutex);
-				set_regdom(regdom);
-				mutex_unlock(&cfg80211_mutex);
+				set_reg = true;
 				break;
 			}
 		}
@@ -375,6 +375,11 @@ static void reg_regdb_search(struct work_struct *work)
 		kfree(request);
 	}
 	mutex_unlock(&reg_regdb_search_mutex);
+
+	if (set_reg)
+		set_regdom(regdom);
+
+	mutex_unlock(&cfg80211_mutex);
 }
 
 static DECLARE_WORK(reg_regdb_work, reg_regdb_search);
@@ -504,9 +509,11 @@ static bool reg_does_bw_fit(const struct ieee80211_freq_range *freq_range,
  *
  * This lets us know if a specific frequency rule is or is not relevant to
  * a specific frequency's band. Bands are device specific and artificial
- * definitions (the "2.4 GHz band" and the "5 GHz band"), however it is
- * safe for now to assume that a frequency rule should not be part of a
- * frequency's band if the start freq or end freq are off by more than 2 GHz.
+ * definitions (the "2.4 GHz band", the "5 GHz band" and the "60GHz band"),
+ * however it is safe for now to assume that a frequency rule should not be
+ * part of a frequency's band if the start freq or end freq are off by more
+ * than 2 GHz for the 2.4 and 5 GHz bands, and by more than 10 GHz for the
+ * 60 GHz band.
  * This resolution can be lowered and should be considered as we add
  * regulatory rule support for other "bands".
  **/
@@ -514,9 +521,16 @@ static bool freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
 	u32 freq_khz)
 {
 #define ONE_GHZ_IN_KHZ	1000000
-	if (abs(freq_khz - freq_range->start_freq_khz) <= (2 * ONE_GHZ_IN_KHZ))
+	/*
+	 * From 802.11ad: directional multi-gigabit (DMG):
+	 * Pertaining to operation in a frequency band containing a channel
+	 * with the Channel starting frequency above 45 GHz.
+	 */
+	u32 limit = freq_khz > 45 * ONE_GHZ_IN_KHZ ?
+			10 * ONE_GHZ_IN_KHZ : 2 * ONE_GHZ_IN_KHZ;
+	if (abs(freq_khz - freq_range->start_freq_khz) <= limit)
 		return true;
-	if (abs(freq_khz - freq_range->end_freq_khz) <= (2 * ONE_GHZ_IN_KHZ))
+	if (abs(freq_khz - freq_range->end_freq_khz) <= limit)
 		return true;
 	return false;
 #undef ONE_GHZ_IN_KHZ
@@ -893,7 +907,7 @@ static void handle_channel(struct wiphy *wiphy,
 			map_regdom_flags(reg_rule->flags) | bw_flags;
 		chan->max_antenna_gain = chan->orig_mag =
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
-		chan->max_power = chan->orig_mpwr =
+		chan->max_reg_power = chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
 		return;
 	}
@@ -1316,7 +1330,8 @@ static void handle_channel_custom(struct wiphy *wiphy,
 
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
-	chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
+	chan->max_reg_power = chan->max_power =
+		(int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
 static void handle_band_custom(struct wiphy *wiphy, enum ieee80211_band band,
@@ -1781,7 +1796,7 @@ EXPORT_SYMBOL(regulatory_hint);
  */
 void regulatory_hint_11d(struct wiphy *wiphy,
 			 enum ieee80211_band band,
-			 u8 *country_ie,
+			 const u8 *country_ie,
 			 u8 country_ie_len)
 {
 	char alpha2[2];
@@ -1949,8 +1964,7 @@ static void restore_regulatory_settings(bool reset_user)
 			if (reg_request->initiator !=
 			    NL80211_REGDOM_SET_BY_USER)
 				continue;
-			list_del(&reg_request->list);
-			list_add_tail(&reg_request->list, &tmp_reg_req_list);
+			list_move_tail(&reg_request->list, &tmp_reg_req_list);
 		}
 	}
 	spin_unlock(&reg_requests_lock);
@@ -2009,8 +2023,7 @@ static void restore_regulatory_settings(bool reset_user)
 			      "into the queue\n",
 			      reg_request->alpha2[0],
 			      reg_request->alpha2[1]);
-		list_del(&reg_request->list);
-		list_add_tail(&reg_request->list, &reg_requests_list);
+		list_move_tail(&reg_request->list, &reg_requests_list);
 	}
 	spin_unlock(&reg_requests_lock);
 
@@ -2195,7 +2208,6 @@ static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	const struct ieee80211_regdomain *intersected_rd = NULL;
-	struct cfg80211_registered_device *rdev = NULL;
 	struct wiphy *request_wiphy;
 	/* Some basic sanity checks first */
 
@@ -2307,24 +2319,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return 0;
 	}
 
-	if (!intersected_rd)
-		return -EINVAL;
-
-	rdev = wiphy_to_dev(request_wiphy);
-
-	rdev->country_ie_alpha2[0] = rd->alpha2[0];
-	rdev->country_ie_alpha2[1] = rd->alpha2[1];
-	rdev->env = last_request->country_ie_env;
-
-	BUG_ON(intersected_rd == rd);
-
-	kfree(rd);
-	rd = NULL;
-
-	reset_regdomains(false);
-	cfg80211_regdomain = intersected_rd;
-
-	return 0;
+	return -EINVAL;
 }
 
 
@@ -2370,7 +2365,6 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	return r;
 }
 
-#ifdef CONFIG_HOTPLUG
 int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	if (last_request && !last_request->processed) {
@@ -2382,12 +2376,6 @@ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-#else
-int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_HOTPLUG */
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {

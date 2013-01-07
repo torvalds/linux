@@ -458,6 +458,7 @@ static bool elv_attempt_insert_merge(struct request_queue *q,
 				     struct request *rq)
 {
 	struct request *__rq;
+	bool ret;
 
 	if (blk_queue_nomerges(q))
 		return false;
@@ -471,14 +472,21 @@ static bool elv_attempt_insert_merge(struct request_queue *q,
 	if (blk_queue_noxmerges(q))
 		return false;
 
+	ret = false;
 	/*
 	 * See if our hash lookup can find a potential backmerge.
 	 */
-	__rq = elv_rqhash_find(q, blk_rq_pos(rq));
-	if (__rq && blk_attempt_req_merge(q, __rq, rq))
-		return true;
+	while (1) {
+		__rq = elv_rqhash_find(q, blk_rq_pos(rq));
+		if (!__rq || !blk_attempt_req_merge(q, __rq, rq))
+			break;
 
-	return false;
+		/* The merged request could be merged with others, try again */
+		ret = true;
+		rq = __rq;
+	}
+
+	return ret;
 }
 
 void elv_merged_request(struct request_queue *q, struct request *rq, int type)
@@ -562,8 +570,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 
 	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
-		if (rq->cmd_type == REQ_TYPE_FS ||
-		    (rq->cmd_flags & REQ_DISCARD)) {
+		if (rq->cmd_type == REQ_TYPE_FS) {
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
@@ -605,8 +612,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 		if (elv_attempt_insert_merge(q, rq))
 			break;
 	case ELEVATOR_INSERT_SORT:
-		BUG_ON(rq->cmd_type != REQ_TYPE_FS &&
-		       !(rq->cmd_flags & REQ_DISCARD));
+		BUG_ON(rq->cmd_type != REQ_TYPE_FS);
 		rq->cmd_flags |= REQ_SORTED;
 		q->nr_sorted++;
 		if (rq_mergeable(rq)) {

@@ -338,7 +338,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 	}
 }
@@ -545,6 +545,7 @@ static int __init simrs_init(void)
 	/* the port is imaginary */
 	printk(KERN_INFO "ttyS0 at 0x03f8 (irq = %d) is a 16550\n", state->irq);
 
+	tty_port_link_device(&state->port, hp_simserial_driver, 0);
 	retval = tty_register_driver(hp_simserial_driver);
 	if (retval) {
 		printk(KERN_ERR "Couldn't register simserial driver\n");
@@ -554,6 +555,7 @@ static int __init simrs_init(void)
 	return 0;
 err_free_tty:
 	put_tty_driver(hp_simserial_driver);
+	tty_port_destroy(&state->port);
 	return retval;
 }
 

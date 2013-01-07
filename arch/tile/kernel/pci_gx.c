@@ -1034,14 +1034,6 @@ char __devinit *pcibios_setup(char *str)
 }
 
 /*
- * This is called from the generic Linux layer.
- */
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
-/*
  * Enable memory address decoding, as appropriate, for the
  * device described by the 'dev' struct. The I/O decoding
  * is disabled, though the TILE-Gx supports I/O addressing.
@@ -1055,8 +1047,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 }
 
 /* Called for each device after PCI setup is done. */
-static void __init
-pcibios_fixup_final(struct pci_dev *pdev)
+static void pcibios_fixup_final(struct pci_dev *pdev)
 {
 	set_dma_ops(&pdev->dev, gx_pci_dma_map_ops);
 	set_dma_offset(&pdev->dev, TILE_PCI_MEM_MAP_BASE_OFFSET);

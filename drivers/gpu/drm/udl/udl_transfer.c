@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/prefetch.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 #define MAX_CMD_PIXELS		255
@@ -126,10 +126,10 @@ static void udl_compress_hline16(
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
-		uint8_t *raw_pixels_count_byte = 0;
-		uint8_t *cmd_pixels_count_byte = 0;
-		const u8 *raw_pixel_start = 0;
-		const u8 *cmd_pixel_start, *cmd_pixel_end = 0;
+		uint8_t *raw_pixels_count_byte = NULL;
+		uint8_t *cmd_pixels_count_byte = NULL;
+		const u8 *raw_pixel_start = NULL;
+		const u8 *cmd_pixel_start, *cmd_pixel_end = NULL;
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
@@ -213,11 +213,12 @@ static void udl_compress_hline16(
  */
 int udl_render_hline(struct drm_device *dev, int bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
-		     u32 byte_offset, u32 byte_width,
+		     u32 byte_offset, u32 device_byte_offset,
+		     u32 byte_width,
 		     int *ident_ptr, int *sent_ptr)
 {
 	const u8 *line_start, *line_end, *next_pixel;
-	u32 base16 = 0 + (byte_offset / bpp) * 2;
+	u32 base16 = 0 + (device_byte_offset / bpp) * 2;
 	struct urb *urb = *urb_ptr;
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;

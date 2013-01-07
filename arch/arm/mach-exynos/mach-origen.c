@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/input.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
@@ -22,21 +23,22 @@
 #include <linux/mfd/max8997.h>
 #include <linux/lcd.h>
 #include <linux/rfkill-gpio.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <plat/regs-serial.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
-#include <plat/iic.h>
-#include <plat/ehci.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
@@ -44,7 +46,6 @@
 #include <plat/mfc.h>
 #include <plat/hdmi.h>
 
-#include <mach/ohci.h>
 #include <mach/map.h>
 
 #include <drm/exynos_drm.h>
@@ -96,12 +97,13 @@ static struct s3c2410_uartcfg origen_uartcfgs[] __initdata = {
 };
 
 static struct regulator_consumer_supply __initdata ldo3_consumer[] = {
-	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"), /* MIPI */
 	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"), /* HDMI */
 	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"), /* HDMI */
+	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"), /* OTG */
 };
 static struct regulator_consumer_supply __initdata ldo6_consumer[] = {
-	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddio", "s5p-mipi-csis.0"), /* MIPI */
 };
 static struct regulator_consumer_supply __initdata ldo7_consumer[] = {
 	REGULATOR_SUPPLY("avdd", "alc5625"), /* Realtek ALC5625 */
@@ -109,6 +111,7 @@ static struct regulator_consumer_supply __initdata ldo7_consumer[] = {
 static struct regulator_consumer_supply __initdata ldo8_consumer[] = {
 	REGULATOR_SUPPLY("vdd", "s5p-adc"), /* ADC */
 	REGULATOR_SUPPLY("vdd_osc", "exynos4-hdmi"), /* HDMI */
+	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"), /* OTG */
 };
 static struct regulator_consumer_supply __initdata ldo9_consumer[] = {
 	REGULATOR_SUPPLY("dvdd", "swb-a31"), /* AR6003 WLAN & CSR 8810 BT */
@@ -614,7 +617,11 @@ static struct platform_device origen_lcd_hv070wsa = {
 	.dev.platform_data	= &origen_lcd_hv070wsa_data,
 };
 
-#ifdef CONFIG_DRM_EXYNOS
+static struct pwm_lookup origen_pwm_lookup[] = {
+	PWM_LOOKUP("s3c24xx-pwm.0", 0, "pwm-backlight.0", NULL),
+};
+
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
 	.panel	= {
 		.timing	= {
@@ -704,9 +711,6 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
@@ -789,7 +793,7 @@ static void __init origen_machine_init(void)
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
-#ifdef CONFIG_DRM_EXYNOS
+#ifdef CONFIG_DRM_EXYNOS_FIMD
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();
 #else
@@ -798,6 +802,7 @@ static void __init origen_machine_init(void)
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
+	pwm_add_table(origen_pwm_lookup, ARRAY_SIZE(origen_pwm_lookup));
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 
 	origen_bt_setup();
@@ -806,6 +811,7 @@ static void __init origen_machine_init(void)
 MACHINE_START(ORIGEN, "ORIGEN")
 	/* Maintainer: JeongHyeon Kim <jhkim@insignal.co.kr> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= origen_map_io,
 	.handle_irq	= gic_handle_irq,

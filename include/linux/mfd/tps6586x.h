@@ -14,6 +14,7 @@
 #define TPS6586X_SLEW_RATE_MASK         0x07
 
 enum {
+	TPS6586X_ID_SYS,
 	TPS6586X_ID_SM_0,
 	TPS6586X_ID_SM_1,
 	TPS6586X_ID_SM_2,
@@ -28,6 +29,7 @@ enum {
 	TPS6586X_ID_LDO_8,
 	TPS6586X_ID_LDO_9,
 	TPS6586X_ID_LDO_RTC,
+	TPS6586X_ID_MAX_REGULATOR,
 };
 
 enum {
@@ -77,6 +79,9 @@ struct tps6586x_platform_data {
 
 	int gpio_base;
 	int irq_base;
+	bool pm_off;
+
+	struct regulator_init_data *reg_init_data[TPS6586X_ID_MAX_REGULATOR];
 };
 
 /*
@@ -91,5 +96,6 @@ extern int tps6586x_set_bits(struct device *dev, int reg, uint8_t bit_mask);
 extern int tps6586x_clr_bits(struct device *dev, int reg, uint8_t bit_mask);
 extern int tps6586x_update(struct device *dev, int reg, uint8_t val,
 			   uint8_t mask);
+extern int tps6586x_irq_get_virq(struct device *dev, int irq);
 
 #endif /*__LINUX_MFD_TPS6586X_H */

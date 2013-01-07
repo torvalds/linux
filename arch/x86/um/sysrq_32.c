@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/smp.h"
-#include "linux/sched.h"
-#include "linux/kallsyms.h"
-#include "asm/ptrace.h"
-#include "sysrq.h"
+#include <linux/kernel.h>
+#include <linux/smp.h>
+#include <linux/sched.h>
+#include <linux/kallsyms.h>
+#include <asm/ptrace.h>
+#include <asm/sysrq.h>
 
 /* This is declared by <linux/sched.h> */
 void show_regs(struct pt_regs *regs)

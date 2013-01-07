@@ -4,7 +4,9 @@
 #ifndef _ASM_X86_CPUFEATURE_H
 #define _ASM_X86_CPUFEATURE_H
 
+#ifndef _ASM_X86_REQUIRED_FEATURES_H
 #include <asm/required-features.h>
+#endif
 
 #define NCAPINTS	10	/* N 32-bit words worth of info */
 
@@ -97,6 +99,7 @@
 #define X86_FEATURE_EXTD_APICID	(3*32+26) /* has extended APICID (8 bits) */
 #define X86_FEATURE_AMD_DCM     (3*32+27) /* multi-node processor */
 #define X86_FEATURE_APERFMPERF	(3*32+28) /* APERFMPERF */
+#define X86_FEATURE_EAGER_FPU	(3*32+29) /* "eagerfpu" Non lazy FPU restore */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* "pni" SSE-3 */
@@ -199,6 +202,7 @@
 
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
 #define X86_FEATURE_FSGSBASE	(9*32+ 0) /* {RD/WR}{FS/GS}BASE instructions*/
+#define X86_FEATURE_TSC_ADJUST	(9*32+ 1) /* TSC adjustment MSR 0x3b */
 #define X86_FEATURE_BMI1	(9*32+ 3) /* 1st group bit manipulation extensions */
 #define X86_FEATURE_HLE		(9*32+ 4) /* Hardware Lock Elision */
 #define X86_FEATURE_AVX2	(9*32+ 5) /* AVX2 instructions */
@@ -209,6 +213,7 @@
 #define X86_FEATURE_RTM		(9*32+11) /* Restricted Transactional Memory */
 #define X86_FEATURE_RDSEED	(9*32+18) /* The RDSEED instruction */
 #define X86_FEATURE_ADX		(9*32+19) /* The ADCX and ADOX instructions */
+#define X86_FEATURE_SMAP	(9*32+20) /* Supervisor Mode Access Prevention */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
@@ -299,18 +304,15 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_xmm4_2		boot_cpu_has(X86_FEATURE_XMM4_2)
 #define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
+#define cpu_has_xsaveopt	boot_cpu_has(X86_FEATURE_XSAVEOPT)
 #define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
 #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
 #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
 #define cpu_has_cx8		boot_cpu_has(X86_FEATURE_CX8)
 #define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
-
-#if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
-# define cpu_has_invlpg		1
-#else
-# define cpu_has_invlpg		(boot_cpu_data.x86 > 3)
-#endif
+#define cpu_has_eager_fpu	boot_cpu_has(X86_FEATURE_EAGER_FPU)
+#define cpu_has_topoext		boot_cpu_has(X86_FEATURE_TOPOEXT)
 
 #ifdef CONFIG_X86_64
 

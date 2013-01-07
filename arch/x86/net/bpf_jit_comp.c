@@ -11,6 +11,7 @@
 #include <asm/cacheflush.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
+#include <linux/if_vlan.h>
 
 /*
  * Conventions :
@@ -212,6 +213,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 		case BPF_S_ANC_MARK:
 		case BPF_S_ANC_RXHASH:
 		case BPF_S_ANC_CPU:
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
 		case BPF_S_ANC_QUEUE:
 		case BPF_S_LD_W_ABS:
 		case BPF_S_LD_H_ABS:
@@ -280,6 +283,31 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				EMIT4(0x31, 0xd2, 0xf7, 0xf3); /* xor %edx,%edx; div %ebx */
 				break;
+			case BPF_S_ALU_MOD_X: /* A %= X; */
+				seen |= SEEN_XREG;
+				EMIT2(0x85, 0xdb);	/* test %ebx,%ebx */
+				if (pc_ret0 > 0) {
+					/* addrs[pc_ret0 - 1] is start address of target
+					 * (addrs[i] - 6) is the address following this jmp
+					 * ("xor %edx,%edx; div %ebx;mov %edx,%eax" being 6 bytes long)
+					 */
+					EMIT_COND_JMP(X86_JE, addrs[pc_ret0 - 1] -
+								(addrs[i] - 6));
+				} else {
+					EMIT_COND_JMP(X86_JNE, 2 + 5);
+					CLEAR_A();
+					EMIT1_off32(0xe9, cleanup_addr - (addrs[i] - 6)); /* jmp .+off32 */
+				}
+				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
+				EMIT2(0xf7, 0xf3);	/* div %ebx */
+				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
+				break;
+			case BPF_S_ALU_MOD_K: /* A %= K; */
+				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
+				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
+				EMIT2(0xf7, 0xf1);	/* div %ecx */
+				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
+				break;
 			case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K); */
 				EMIT3(0x48, 0x69, 0xc0); /* imul imm32,%rax,%rax */
 				EMIT(K, 4);
@@ -310,8 +338,17 @@ void bpf_jit_compile(struct sk_filter *fp)
 					EMIT1_off32(0x0d, K);	/* or imm32,%eax */
 				break;
 			case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+			case BPF_S_ALU_XOR_X:
 				seen |= SEEN_XREG;
 				EMIT2(0x31, 0xd8);		/* xor %ebx,%eax */
+				break;
+			case BPF_S_ALU_XOR_K: /* A ^= K; */
+				if (K == 0)
+					break;
+				if (is_imm8(K))
+					EMIT3(0x83, 0xf0, K);	/* xor imm8,%eax */
+				else
+					EMIT1_off32(0x35, K);	/* xor imm32,%eax */
 				break;
 			case BPF_S_ALU_LSH_X: /* A <<= X; */
 				seen |= SEEN_XREG;
@@ -480,6 +517,24 @@ void bpf_jit_compile(struct sk_filter *fp)
 #else
 				CLEAR_A();
 #endif
+				break;
+			case BPF_S_ANC_VLAN_TAG:
+			case BPF_S_ANC_VLAN_TAG_PRESENT:
+				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+				if (is_imm8(offsetof(struct sk_buff, vlan_tci))) {
+					/* movzwl off8(%rdi),%eax */
+					EMIT4(0x0f, 0xb7, 0x47, offsetof(struct sk_buff, vlan_tci));
+				} else {
+					EMIT3(0x0f, 0xb7, 0x87); /* movzwl off32(%rdi),%eax */
+					EMIT(offsetof(struct sk_buff, vlan_tci), 4);
+				}
+				BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+				if (filter[i].code == BPF_S_ANC_VLAN_TAG) {
+					EMIT3(0x80, 0xe4, 0xef); /* and    $0xef,%ah */
+				} else {
+					EMIT3(0xc1, 0xe8, 0x0c); /* shr    $0xc,%eax */
+					EMIT3(0x83, 0xe0, 0x01); /* and    $0x1,%eax */
+				}
 				break;
 			case BPF_S_LD_W_ABS:
 				func = CHOOSE_LOAD_FUNC(K, sk_load_word);

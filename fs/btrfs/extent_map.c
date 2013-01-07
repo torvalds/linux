@@ -11,7 +11,7 @@ static struct kmem_cache *extent_map_cache;
 
 int __init extent_map_init(void)
 {
-	extent_map_cache = kmem_cache_create("extent_map",
+	extent_map_cache = kmem_cache_create("btrfs_extent_map",
 			sizeof(struct extent_map), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_map_cache)
@@ -35,6 +35,7 @@ void extent_map_exit(void)
 void extent_map_tree_init(struct extent_map_tree *tree)
 {
 	tree->map = RB_ROOT;
+	INIT_LIST_HEAD(&tree->modified_extents);
 	rwlock_init(&tree->lock);
 }
 
@@ -48,13 +49,15 @@ void extent_map_tree_init(struct extent_map_tree *tree)
 struct extent_map *alloc_extent_map(void)
 {
 	struct extent_map *em;
-	em = kmem_cache_alloc(extent_map_cache, GFP_NOFS);
+	em = kmem_cache_zalloc(extent_map_cache, GFP_NOFS);
 	if (!em)
 		return NULL;
 	em->in_tree = 0;
 	em->flags = 0;
 	em->compress_type = BTRFS_COMPRESS_NONE;
+	em->generation = 0;
 	atomic_set(&em->refs, 1);
+	INIT_LIST_HEAD(&em->list);
 	return em;
 }
 
@@ -72,6 +75,7 @@ void free_extent_map(struct extent_map *em)
 	WARN_ON(atomic_read(&em->refs) == 0);
 	if (atomic_dec_and_test(&em->refs)) {
 		WARN_ON(em->in_tree);
+		WARN_ON(!list_empty(&em->list));
 		kmem_cache_free(extent_map_cache, em);
 	}
 }
@@ -194,10 +198,17 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			merge = rb_entry(rb, struct extent_map, rb_node);
 		if (rb && mergable_maps(merge, em)) {
 			em->start = merge->start;
+			em->orig_start = merge->orig_start;
 			em->len += merge->len;
 			em->block_len += merge->block_len;
 			em->block_start = merge->block_start;
 			merge->in_tree = 0;
+			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
+			em->mod_start = merge->mod_start;
+			em->generation = max(em->generation, merge->generation);
+			list_move(&em->list, &tree->modified_extents);
+
+			list_del_init(&merge->list);
 			rb_erase(&merge->rb_node, &tree->map);
 			free_extent_map(merge);
 		}
@@ -211,14 +222,30 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		em->block_len += merge->len;
 		rb_erase(&merge->rb_node, &tree->map);
 		merge->in_tree = 0;
+		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
+		em->generation = max(em->generation, merge->generation);
+		list_del_init(&merge->list);
 		free_extent_map(merge);
 	}
 }
 
-int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len)
+/**
+ * unpin_extent_cache - unpin an extent from the cache
+ * @tree:	tree to unpin the extent in
+ * @start:	logical offset in the file
+ * @len:	length of the extent
+ * @gen:	generation that this extent has been modified in
+ *
+ * Called after an extent has been written to disk properly.  Set the generation
+ * to the generation that actually added the file item to the inode so we know
+ * we need to sync this extent when we call fsync().
+ */
+int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
+		       u64 gen)
 {
 	int ret = 0;
 	struct extent_map *em;
+	bool prealloc = false;
 
 	write_lock(&tree->lock);
 	em = lookup_extent_mapping(tree, start, len);
@@ -228,9 +255,23 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len)
 	if (!em)
 		goto out;
 
+	list_move(&em->list, &tree->modified_extents);
+	em->generation = gen;
 	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+	em->mod_start = em->start;
+	em->mod_len = em->len;
+
+	if (test_bit(EXTENT_FLAG_FILLING, &em->flags)) {
+		prealloc = true;
+		clear_bit(EXTENT_FLAG_FILLING, &em->flags);
+	}
 
 	try_merge_map(tree, em);
+
+	if (prealloc) {
+		em->mod_start = em->start;
+		em->mod_len = em->len;
+	}
 
 	free_extent_map(em);
 out:
@@ -268,6 +309,9 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 	}
 	atomic_inc(&em->refs);
+
+	em->mod_start = em->start;
+	em->mod_len = em->len;
 
 	try_merge_map(tree, em);
 out:
@@ -358,6 +402,8 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	rb_erase(&em->rb_node, &tree->map);
+	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+		list_del_init(&em->list);
 	em->in_tree = 0;
 	return ret;
 }

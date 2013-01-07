@@ -38,16 +38,22 @@ void __init platform_init(bp_tag_t* bootparam)
 
 }
 
+#ifdef CONFIG_PCI
+void platform_pcibios_init(void)
+{
+}
+#endif
+
 void platform_halt(void)
 {
-	printk (" ** Called platform_halt(), looping forever! **\n");
-	while (1);
+	pr_info(" ** Called platform_halt() **\n");
+	__asm__ __volatile__("movi a2, 1\nsimcall\n");
 }
 
 void platform_power_off(void)
 {
-	printk (" ** Called platform_power_off(), looping forever! **\n");
-	while (1);
+	pr_info(" ** Called platform_power_off() **\n");
+	__asm__ __volatile__("movi a2, 1\nsimcall\n");
 }
 void platform_restart(void)
 {
@@ -55,13 +61,13 @@ void platform_restart(void)
 	 * jump to the reset vector. */
 
 	__asm__ __volatile__("movi	a2, 15\n\t"
-			     "wsr	a2, " __stringify(ICOUNTLEVEL) "\n\t"
+			     "wsr	a2, icountlevel\n\t"
 			     "movi	a2, 0\n\t"
-			     "wsr	a2, " __stringify(ICOUNT) "\n\t"
-			     "wsr	a2, " __stringify(IBREAKENABLE) "\n\t"
-			     "wsr	a2, " __stringify(LCOUNT) "\n\t"
+			     "wsr	a2, icount\n\t"
+			     "wsr	a2, ibreakenable\n\t"
+			     "wsr	a2, lcount\n\t"
 			     "movi	a2, 0x1f\n\t"
-			     "wsr	a2, " __stringify(PS) "\n\t"
+			     "wsr	a2, ps\n\t"
 			     "isync\n\t"
 			     "jx	%0\n\t"
 			     :

@@ -45,8 +45,8 @@
 
 #include <linux/atomic.h>
 
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_page_alloc.h"
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
 #ifdef TTM_HAS_AGP
 #include <asm/agp.h>
@@ -749,7 +749,10 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 	/* clear the pages coming from the pool if requested */
 	if (flags & TTM_PAGE_FLAG_ZERO_ALLOC) {
 		list_for_each_entry(p, &plist, lru) {
-			clear_page(page_address(p));
+			if (PageHighMem(p))
+				clear_highpage(p);
+			else
+				clear_page(page_address(p));
 		}
 	}
 

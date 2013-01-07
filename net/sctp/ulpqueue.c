@@ -326,7 +326,9 @@ static void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
  * payload was fragmented on the way and ip had to reassemble them.
  * We add the rest of skb's to the first skb's fraglist.
  */
-static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *queue, struct sk_buff *f_frag, struct sk_buff *l_frag)
+static struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
+	struct sk_buff_head *queue, struct sk_buff *f_frag,
+	struct sk_buff *l_frag)
 {
 	struct sk_buff *pos;
 	struct sk_buff *new = NULL;
@@ -394,7 +396,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 	}
 
 	event = sctp_skb2event(f_frag);
-	SCTP_INC_STATS(SCTP_MIB_REASMUSRMSGS);
+	SCTP_INC_STATS(net, SCTP_MIB_REASMUSRMSGS);
 
 	return event;
 }
@@ -493,7 +495,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 		cevent = sctp_skb2event(pd_first);
 		pd_point = sctp_sk(asoc->base.sk)->pd_point;
 		if (pd_point && pd_point <= pd_len) {
-			retval = sctp_make_reassembled_event(&ulpq->reasm,
+			retval = sctp_make_reassembled_event(sock_net(asoc->base.sk),
+							     &ulpq->reasm,
 							     pd_first,
 							     pd_last);
 			if (retval)
@@ -503,7 +506,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 done:
 	return retval;
 found:
-	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, pos);
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					     &ulpq->reasm, first_frag, pos);
 	if (retval)
 		retval->msg_flags |= MSG_EOR;
 	goto done;
@@ -563,7 +567,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq *ulpq)
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, last_frag);
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					&ulpq->reasm, first_frag, last_frag);
 	if (retval && is_last)
 		retval->msg_flags |= MSG_EOR;
 
@@ -655,7 +660,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *ulpq)
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(&ulpq->reasm, first_frag, last_frag);
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					&ulpq->reasm, first_frag, last_frag);
 	return retval;
 }
 
@@ -991,7 +997,6 @@ static __u16 sctp_ulpq_renege_frags(struct sctp_ulpq *ulpq, __u16 needed)
 
 /* Partial deliver the first message as there is pressure on rwnd. */
 void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
-				struct sctp_chunk *chunk,
 				gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
@@ -1054,7 +1059,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		sctp_tsnmap_mark(&asoc->peer.tsn_map, tsn, chunk->transport);
 		sctp_ulpq_tail_data(ulpq, chunk, gfp);
 
-		sctp_ulpq_partial_delivery(ulpq, chunk, gfp);
+		sctp_ulpq_partial_delivery(ulpq, gfp);
 	}
 
 	sk_mem_reclaim(asoc->base.sk);

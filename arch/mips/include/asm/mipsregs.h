@@ -240,7 +240,7 @@
 #define PM_HUGE_MASK	PM_64M
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define PM_HUGE_MASK	PM_256M
-#elif defined(CONFIG_HUGETLB_PAGE)
+#elif defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
 #error Bad page size configuration for hugetlbfs!
 #endif
 
@@ -458,6 +458,8 @@
 #define  CAUSEF_IP7		(_ULCAST_(1)   << 15)
 #define  CAUSEB_IV		23
 #define  CAUSEF_IV		(_ULCAST_(1)   << 23)
+#define  CAUSEB_PCI		26
+#define  CAUSEF_PCI		(_ULCAST_(1)   << 26)
 #define  CAUSEB_CE		28
 #define  CAUSEF_CE		(_ULCAST_(3)   << 28)
 #define  CAUSEB_TI		30
@@ -590,11 +592,15 @@
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<  6)
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
+#define MIPS_CONF3_DSP2P	(_ULCAST_(1) << 11)
+#define MIPS_CONF3_RXI		(_ULCAST_(1) << 12)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
 #define MIPS_CONF4_MMUEXTDEF	(_ULCAST_(3) << 14)
 #define MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT (_ULCAST_(1) << 14)
+
+#define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
@@ -971,10 +977,6 @@ do {									\
 #define read_c0_framemask()	__read_32bit_c0_register($21, 0)
 #define write_c0_framemask(val)	__write_32bit_c0_register($21, 0, val)
 
-/* RM9000 PerfControl performance counter control register */
-#define read_c0_perfcontrol()	__read_32bit_c0_register($22, 0)
-#define write_c0_perfcontrol(val) __write_32bit_c0_register($22, 0, val)
-
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
 
@@ -1026,10 +1028,6 @@ do {									\
 #define write_c0_perfcntr3(val)	__write_32bit_c0_register($25, 7, val)
 #define read_c0_perfcntr3_64()	__read_64bit_c0_register($25, 7)
 #define write_c0_perfcntr3_64(val) __write_64bit_c0_register($25, 7, val)
-
-/* RM9000 PerfCount performance counter register */
-#define read_c0_perfcount()	__read_64bit_c0_register($25, 0)
-#define write_c0_perfcount(val)	__write_64bit_c0_register($25, 0, val)
 
 #define read_c0_ecc()		__read_32bit_c0_register($26, 0)
 #define write_c0_ecc(val)	__write_32bit_c0_register($26, 0, val)

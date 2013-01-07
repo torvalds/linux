@@ -1,0 +1,67 @@
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "brcm,bcm2835";
+	model = "BCM2835";
+	interrupt-parent = <&intc>;
+
+	chosen {
+		bootargs = "earlyprintk console=ttyAMA0";
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x7e000000 0x20000000 0x02000000>;
+
+		timer {
+			compatible = "brcm,bcm2835-system-timer";
+			reg = <0x7e003000 0x1000>;
+			interrupts = <1 0>, <1 1>, <1 2>, <1 3>;
+			clock-frequency = <1000000>;
+		};
+
+		intc: interrupt-controller {
+			compatible = "brcm,bcm2835-armctrl-ic";
+			reg = <0x7e00b200 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		watchdog {
+			compatible = "brcm,bcm2835-pm-wdt";
+			reg = <0x7e100000 0x28>;
+		};
+
+		uart@20201000 {
+			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
+			reg = <0x7e201000 0x1000>;
+			interrupts = <2 25>;
+			clock-frequency = <3000000>;
+		};
+
+		gpio: gpio {
+			compatible = "brcm,bcm2835-gpio";
+			reg = <0x7e200000 0xb4>;
+			/*
+			 * The GPIO IP block is designed for 3 banks of GPIOs.
+			 * Each bank has a GPIO interrupt for itself.
+			 * There is an overall "any bank" interrupt.
+			 * In order, these are GIC interrupts 17, 18, 19, 20.
+			 * Since the BCM2835 only has 2 banks, the 2nd bank
+			 * interrupt output appears to be mirrored onto the
+			 * 3rd bank's interrupt signal.
+			 * So, a bank0 interrupt shows up on 17, 20, and
+			 * a bank1 interrupt shows up on 18, 19, 20!
+			 */
+			interrupts = <2 17>, <2 18>, <2 19>, <2 20>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+};

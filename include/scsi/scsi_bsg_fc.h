@@ -26,8 +26,6 @@
  * This file intended to be included by both kernel and user space
  */
 
-#include <scsi/scsi.h>
-
 /*
  * FC Transport SGIO v4 BSG Message Support
  */

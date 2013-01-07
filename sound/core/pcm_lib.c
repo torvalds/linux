@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <sound/core.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -315,6 +316,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	unsigned long jdelta;
 	unsigned long curr_jiffies;
 	struct timespec curr_tstamp;
+	struct timespec audio_tstamp;
+	int crossed_boundary = 0;
 
 	old_hw_ptr = runtime->status->hw_ptr;
 
@@ -326,8 +329,13 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	 */
 	pos = substream->ops->pointer(substream);
 	curr_jiffies = jiffies;
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+
+		if ((runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK) &&
+			(substream->ops->wall_clock))
+			substream->ops->wall_clock(substream, &audio_tstamp);
+	}
 
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
@@ -359,8 +367,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			hdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 			if (hdelta > runtime->hw_ptr_buffer_jiffies/2) {
 				hw_base += runtime->buffer_size;
-				if (hw_base >= runtime->boundary)
+				if (hw_base >= runtime->boundary) {
 					hw_base = 0;
+					crossed_boundary++;
+				}
 				new_hw_ptr = hw_base + pos;
 				goto __delta;
 			}
@@ -370,8 +380,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	/* pointer crosses the end of the ring buffer */
 	if (new_hw_ptr < old_hw_ptr) {
 		hw_base += runtime->buffer_size;
-		if (hw_base >= runtime->boundary)
+		if (hw_base >= runtime->boundary) {
 			hw_base = 0;
+			crossed_boundary++;
+		}
 		new_hw_ptr = hw_base + pos;
 	}
       __delta:
@@ -409,8 +421,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		while (hdelta > xrun_threshold) {
 			delta += runtime->buffer_size;
 			hw_base += runtime->buffer_size;
-			if (hw_base >= runtime->boundary)
+			if (hw_base >= runtime->boundary) {
 				hw_base = 0;
+				crossed_boundary++;
+			}
 			new_hw_ptr = hw_base + pos;
 			hdelta -= runtime->hw_ptr_buffer_jiffies;
 		}
@@ -455,8 +469,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		/* the delta value is small or zero in most cases */
 		while (delta > 0) {
 			new_hw_ptr += runtime->period_size;
-			if (new_hw_ptr >= runtime->boundary)
+			if (new_hw_ptr >= runtime->boundary) {
 				new_hw_ptr -= runtime->boundary;
+				crossed_boundary--;
+			}
 			delta--;
 		}
 		/* align hw_base to buffer_size */
@@ -506,8 +522,34 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = curr_jiffies;
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (crossed_boundary) {
+		snd_BUG_ON(crossed_boundary != 1);
+		runtime->hw_ptr_wrap += runtime->boundary;
+	}
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		runtime->status->tstamp = curr_tstamp;
+
+		if (!(runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK)) {
+			/*
+			 * no wall clock available, provide audio timestamp
+			 * derived from pointer position+delay
+			 */
+			u64 audio_frames, audio_nsecs;
+
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					- runtime->delay;
+			else
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					+ runtime->delay;
+			audio_nsecs = div_u64(audio_frames * 1000000000LL,
+					runtime->rate);
+			audio_tstamp = ns_to_timespec(audio_nsecs);
+		}
+		runtime->status->audio_tstamp = audio_tstamp;
+	}
 
 	return snd_pcm_update_state(substream, runtime);
 }
@@ -1660,8 +1702,10 @@ static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 	if (snd_pcm_running(substream) &&
 	    snd_pcm_update_hw_ptr(substream) >= 0)
 		runtime->status->hw_ptr %= runtime->buffer_size;
-	else
+	else {
 		runtime->status->hw_ptr = 0;
+		runtime->hw_ptr_wrap = 0;
+	}
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }
@@ -2302,3 +2346,216 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 }
 
 EXPORT_SYMBOL(snd_pcm_lib_readv);
+
+/*
+ * standard channel mapping helpers
+ */
+
+/* default channel maps for multi-channel playbacks, up to 8 channels */
+const struct snd_pcm_chmap_elem snd_pcm_std_chmaps[] = {
+	{ .channels = 1,
+	  .map = { SNDRV_CHMAP_MONO } },
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 4,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ .channels = 6,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR,
+		   SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ .channels = 8,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR,
+		   SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+		   SNDRV_CHMAP_SL, SNDRV_CHMAP_SR } },
+	{ }
+};
+EXPORT_SYMBOL_GPL(snd_pcm_std_chmaps);
+
+/* alternative channel maps with CLFE <-> surround swapped for 6/8 channels */
+const struct snd_pcm_chmap_elem snd_pcm_alt_chmaps[] = {
+	{ .channels = 1,
+	  .map = { SNDRV_CHMAP_MONO } },
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 4,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ .channels = 6,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ .channels = 8,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE,
+		   SNDRV_CHMAP_RL, SNDRV_CHMAP_RR,
+		   SNDRV_CHMAP_SL, SNDRV_CHMAP_SR } },
+	{ }
+};
+EXPORT_SYMBOL_GPL(snd_pcm_alt_chmaps);
+
+static bool valid_chmap_channels(const struct snd_pcm_chmap *info, int ch)
+{
+	if (ch > info->max_channels)
+		return false;
+	return !info->channel_mask || (info->channel_mask & (1U << ch));
+}
+
+static int pcm_chmap_ctl_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 0;
+	uinfo->count = info->max_channels;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = SNDRV_CHMAP_LAST;
+	return 0;
+}
+
+/* get callback for channel map ctl element
+ * stores the channel position firstly matching with the current channels
+ */
+static int pcm_chmap_ctl_get(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	struct snd_pcm_substream *substream;
+	const struct snd_pcm_chmap_elem *map;
+
+	if (snd_BUG_ON(!info->chmap))
+		return -EINVAL;
+	substream = snd_pcm_chmap_substream(info, idx);
+	if (!substream)
+		return -ENODEV;
+	memset(ucontrol->value.integer.value, 0,
+	       sizeof(ucontrol->value.integer.value));
+	if (!substream->runtime)
+		return 0; /* no channels set */
+	for (map = info->chmap; map->channels; map++) {
+		int i;
+		if (map->channels == substream->runtime->channels &&
+		    valid_chmap_channels(info, map->channels)) {
+			for (i = 0; i < map->channels; i++)
+				ucontrol->value.integer.value[i] = map->map[i];
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+/* tlv callback for channel map ctl element
+ * expands the pre-defined channel maps in a form of TLV
+ */
+static int pcm_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+			     unsigned int size, unsigned int __user *tlv)
+{
+	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+	const struct snd_pcm_chmap_elem *map;
+	unsigned int __user *dst;
+	int c, count = 0;
+
+	if (snd_BUG_ON(!info->chmap))
+		return -EINVAL;
+	if (size < 8)
+		return -ENOMEM;
+	if (put_user(SNDRV_CTL_TLVT_CONTAINER, tlv))
+		return -EFAULT;
+	size -= 8;
+	dst = tlv + 2;
+	for (map = info->chmap; map->channels; map++) {
+		int chs_bytes = map->channels * 4;
+		if (!valid_chmap_channels(info, map->channels))
+			continue;
+		if (size < 8)
+			return -ENOMEM;
+		if (put_user(SNDRV_CTL_TLVT_CHMAP_FIXED, dst) ||
+		    put_user(chs_bytes, dst + 1))
+			return -EFAULT;
+		dst += 2;
+		size -= 8;
+		count += 8;
+		if (size < chs_bytes)
+			return -ENOMEM;
+		size -= chs_bytes;
+		count += chs_bytes;
+		for (c = 0; c < map->channels; c++) {
+			if (put_user(map->map[c], dst))
+				return -EFAULT;
+			dst++;
+		}
+	}
+	if (put_user(count, tlv + 1))
+		return -EFAULT;
+	return 0;
+}
+
+static void pcm_chmap_ctl_private_free(struct snd_kcontrol *kcontrol)
+{
+	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
+	info->pcm->streams[info->stream].chmap_kctl = NULL;
+	kfree(info);
+}
+
+/**
+ * snd_pcm_add_chmap_ctls - create channel-mapping control elements
+ * @pcm: the assigned PCM instance
+ * @stream: stream direction
+ * @chmap: channel map elements (for query)
+ * @max_channels: the max number of channels for the stream
+ * @private_value: the value passed to each kcontrol's private_value field
+ * @info_ret: store struct snd_pcm_chmap instance if non-NULL
+ *
+ * Create channel-mapping control elements assigned to the given PCM stream(s).
+ * Returns zero if succeed, or a negative error value.
+ */
+int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
+			   const struct snd_pcm_chmap_elem *chmap,
+			   int max_channels,
+			   unsigned long private_value,
+			   struct snd_pcm_chmap **info_ret)
+{
+	struct snd_pcm_chmap *info;
+	struct snd_kcontrol_new knew = {
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.access = SNDRV_CTL_ELEM_ACCESS_READ |
+			SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
+		.info = pcm_chmap_ctl_info,
+		.get = pcm_chmap_ctl_get,
+		.tlv.c = pcm_chmap_ctl_tlv,
+	};
+	int err;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	info->pcm = pcm;
+	info->stream = stream;
+	info->chmap = chmap;
+	info->max_channels = max_channels;
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		knew.name = "Playback Channel Map";
+	else
+		knew.name = "Capture Channel Map";
+	knew.device = pcm->device;
+	knew.count = pcm->streams[stream].substream_count;
+	knew.private_value = private_value;
+	info->kctl = snd_ctl_new1(&knew, info);
+	if (!info->kctl) {
+		kfree(info);
+		return -ENOMEM;
+	}
+	info->kctl->private_free = pcm_chmap_ctl_private_free;
+	err = snd_ctl_add(pcm->card, info->kctl);
+	if (err < 0)
+		return err;
+	pcm->streams[stream].chmap_kctl = info->kctl;
+	if (info_ret)
+		*info_ret = info;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_pcm_add_chmap_ctls);

@@ -205,7 +205,7 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 {
 	u32 *key_jump_cmd;
 
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
@@ -224,7 +224,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	struct aead_tfm *tfm = &aead->base.crt_aead;
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline = 0;
+	bool keys_fit_inline = false;
 	u32 *key_jump_cmd, *jump_cmd;
 	u32 geniv, moveiv;
 	u32 *desc;
@@ -239,7 +239,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	if (DESC_AEAD_ENC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = 1;
+		keys_fit_inline = true;
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
@@ -297,12 +297,12 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	if (DESC_AEAD_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = 1;
+		keys_fit_inline = true;
 
 	desc = ctx->sh_desc_dec;
 
 	/* aead_decrypt shared descriptor */
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
@@ -365,7 +365,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	if (DESC_AEAD_GIVENC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
-		keys_fit_inline = 1;
+		keys_fit_inline = true;
 
 	/* aead_givencrypt shared descriptor */
 	desc = ctx->sh_desc_givenc;
@@ -564,7 +564,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
@@ -605,7 +605,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
@@ -1354,10 +1354,10 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 		contig &= ~GIV_SRC_CONTIG;
 	if (dst_nents || iv_dma + ivsize != sg_dma_address(req->dst))
 		contig &= ~GIV_DST_CONTIG;
-		if (unlikely(req->src != req->dst)) {
-			dst_nents = dst_nents ? : 1;
-			sec4_sg_len += 1;
-		}
+	if (unlikely(req->src != req->dst)) {
+		dst_nents = dst_nents ? : 1;
+		sec4_sg_len += 1;
+	}
 	if (!(contig & GIV_SRC_CONTIG)) {
 		assoc_nents = assoc_nents ? : 1;
 		src_nents = src_nents ? : 1;
@@ -1650,7 +1650,11 @@ struct caam_alg_template {
 };
 
 static struct caam_alg_template driver_algs[] = {
-	/* single-pass ipsec_esp descriptor */
+	/*
+	 * single-pass ipsec_esp descriptor
+	 * authencesn(*,*) is also registered, although not present
+	 * explicitly here.
+	 */
 	{
 		.name = "authenc(hmac(md5),cbc(aes))",
 		.driver_name = "authenc-hmac-md5-cbc-aes-caam",
@@ -2213,7 +2217,9 @@ static int __init caam_algapi_init(void)
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		/* TODO: check if h/w supports alg */
 		struct caam_crypto_alg *t_alg;
+		bool done = false;
 
+authencesn:
 		t_alg = caam_alg_alloc(ctrldev, &driver_algs[i]);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
@@ -2227,8 +2233,25 @@ static int __init caam_algapi_init(void)
 			dev_warn(ctrldev, "%s alg registration failed\n",
 				t_alg->crypto_alg.cra_driver_name);
 			kfree(t_alg);
-		} else
+		} else {
 			list_add_tail(&t_alg->entry, &priv->alg_list);
+			if (driver_algs[i].type == CRYPTO_ALG_TYPE_AEAD &&
+			    !memcmp(driver_algs[i].name, "authenc", 7) &&
+			    !done) {
+				char *name;
+
+				name = driver_algs[i].name;
+				memmove(name + 10, name + 7, strlen(name) - 7);
+				memcpy(name + 7, "esn", 3);
+
+				name = driver_algs[i].driver_name;
+				memmove(name + 10, name + 7, strlen(name) - 7);
+				memcpy(name + 7, "esn", 3);
+
+				done = true;
+				goto authencesn;
+			}
+		}
 	}
 	if (!list_empty(&priv->alg_list))
 		dev_info(ctrldev, "%s algorithms registered in /proc/crypto\n",

@@ -32,10 +32,6 @@ SYSSEG		= 0x1000		/* historical load address >> 4 */
 #define SVGA_MODE ASK_VGA
 #endif
 
-#ifndef RAMDISK
-#define RAMDISK 0
-#endif
-
 #ifndef ROOT_RDONLY
 #define ROOT_RDONLY 1
 #endif
@@ -480,6 +476,3 @@ die:
 setup_corrupt:
 	.byte	7
 	.string	"No setup signature found...\n"
-
-	.data
-dummy:	.long	0

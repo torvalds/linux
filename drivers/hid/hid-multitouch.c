@@ -51,12 +51,15 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_VALID_IS_INRANGE	(1 << 5)
 #define MT_QUIRK_VALID_IS_CONFIDENCE	(1 << 6)
 #define MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE	(1 << 8)
+#define MT_QUIRK_NO_AREA		(1 << 9)
+#define MT_QUIRK_IGNORE_DUPLICATES	(1 << 10)
+#define MT_QUIRK_HOVERING		(1 << 11)
 
 struct mt_slot {
-	__s32 x, y, p, w, h;
+	__s32 x, y, cx, cy, p, w, h;
 	__s32 contactid;	/* the device ContactID assigned to this slot */
 	bool touch_state;	/* is the touch valid? */
-	bool seen_in_this_frame;/* has this slot been updated */
+	bool inrange_state;	/* is the finger in proximity of the sensor? */
 };
 
 struct mt_class {
@@ -92,8 +95,9 @@ struct mt_device {
 	__u8 touches_by_report;	/* how many touches are present in one report:
 				* 1 means we should use a serial protocol
 				* > 1 means hybrid (multitouch) protocol */
+	bool serial_maybe;	/* need to check for serial protocol */
 	bool curvalid;		/* is the current contact valid? */
-	struct mt_slot *slots;
+	unsigned mt_flags;	/* flags to pass to input-mt */
 };
 
 /* classes of device behavior */
@@ -115,8 +119,12 @@ struct mt_device {
 #define MT_CLS_EGALAX_SERIAL			0x0104
 #define MT_CLS_TOPSEED				0x0105
 #define MT_CLS_PANASONIC			0x0106
+#define MT_CLS_FLATFROG				0x0107
+#define MT_CLS_GENERALTOUCH_TWOFINGERS		0x0108
+#define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
 
 #define MT_DEFAULT_MAXCONTACT	10
+#define MT_MAX_MAXCONTACT	250
 
 #define MT_USB_DEVICE(v, p)	HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH, v, p)
 #define MT_BT_DEVICE(v, p)	HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_MULTITOUCH, v, p)
@@ -132,25 +140,6 @@ static int cypress_compute_slot(struct mt_device *td)
 		return td->curdata.contactid;
 	else
 		return -1;
-}
-
-static int find_slot_from_contactid(struct mt_device *td)
-{
-	int i;
-	for (i = 0; i < td->maxcontacts; ++i) {
-		if (td->slots[i].contactid == td->curdata.contactid &&
-			td->slots[i].touch_state)
-			return i;
-	}
-	for (i = 0; i < td->maxcontacts; ++i) {
-		if (!td->slots[i].seen_in_this_frame &&
-			!td->slots[i].touch_state)
-			return i;
-	}
-	/* should not occurs. If this happens that means
-	 * that the device sent more touches that it says
-	 * in the report descriptor. It is ignored then. */
-	return -1;
 }
 
 static struct mt_class mt_classes[] = {
@@ -190,7 +179,9 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_SLOT_IS_CONTACTID,
 		.sn_move = 2048,
 		.sn_width = 128,
-		.sn_height = 128 },
+		.sn_height = 128,
+		.maxcontacts = 60,
+	},
 	{ .name = MT_CLS_CYPRESS,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
 			MT_QUIRK_CYPRESS,
@@ -215,7 +206,23 @@ static struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_PANASONIC,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP,
 		.maxcontacts = 4 },
+	{ .name	= MT_CLS_GENERALTOUCH_TWOFINGERS,
+		.quirks	= MT_QUIRK_NOT_SEEN_MEANS_UP |
+			MT_QUIRK_VALID_IS_INRANGE |
+			MT_QUIRK_SLOT_IS_CONTACTNUMBER,
+		.maxcontacts = 2
+	},
+	{ .name	= MT_CLS_GENERALTOUCH_PWT_TENFINGERS,
+		.quirks	= MT_QUIRK_NOT_SEEN_MEANS_UP |
+			MT_QUIRK_SLOT_IS_CONTACTNUMBER
+	},
 
+	{ .name = MT_CLS_FLATFROG,
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
+			MT_QUIRK_NO_AREA,
+		.sn_move = 2048,
+		.maxcontacts = 40,
+	},
 	{ }
 };
 
@@ -279,10 +286,25 @@ static void mt_feature_mapping(struct hid_device *hdev,
 	case HID_DG_CONTACTMAX:
 		td->maxcontact_report_id = field->report->id;
 		td->maxcontacts = field->value[0];
+		if (!td->maxcontacts &&
+		    field->logical_maximum <= MT_MAX_MAXCONTACT)
+			td->maxcontacts = field->logical_maximum;
 		if (td->mtclass.maxcontacts)
 			/* check if the maxcontacts is given by the class */
 			td->maxcontacts = td->mtclass.maxcontacts;
 
+		break;
+	case 0xff0000c5:
+		if (field->report_count == 256 && field->report_size == 8) {
+			/* Win 8 devices need special quirks */
+			__s32 *quirks = &td->mtclass.quirks;
+			*quirks |= MT_QUIRK_ALWAYS_VALID;
+			*quirks |= MT_QUIRK_IGNORE_DUPLICATES;
+			*quirks |= MT_QUIRK_HOVERING;
+			*quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
+			*quirks &= ~MT_QUIRK_VALID_IS_INRANGE;
+			*quirks &= ~MT_QUIRK_VALID_IS_CONFIDENCE;
+		}
 		break;
 	}
 }
@@ -294,6 +316,7 @@ static void set_abs(struct input_dev *input, unsigned int code,
 	int fmax = field->logical_maximum;
 	int fuzz = snratio ? (fmax - fmin) / snratio : 0;
 	input_set_abs_params(input, code, fmin, fmax, fuzz, 0);
+	input_abs_set_res(input, code, hidinput_calc_abs_res(field, code));
 }
 
 static void mt_store_field(struct hid_usage *usage, struct mt_device *td,
@@ -314,29 +337,22 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct mt_class *cls = &td->mtclass;
 	int code;
+	struct hid_usage *prev_usage = NULL;
 
 	/* Only map fields from TouchScreen or TouchPad collections.
 	* We need to ignore fields that belong to other collections
 	* such as Mouse that might have the same GenericDesktop usages. */
 	if (field->application == HID_DG_TOUCHSCREEN)
-		set_bit(INPUT_PROP_DIRECT, hi->input->propbit);
+		td->mt_flags |= INPUT_MT_DIRECT;
 	else if (field->application != HID_DG_TOUCHPAD)
 		return 0;
 
-	/* In case of an indirect device (touchpad), we need to add
-	 * specific BTN_TOOL_* to be handled by the synaptics xorg
-	 * driver.
-	 * We also consider that touchscreens providing buttons are touchpads.
+	/*
+	 * Model touchscreens providing buttons as touchpads.
 	 */
 	if (field->application == HID_DG_TOUCHPAD ||
-	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON ||
-	    cls->is_indirect) {
-		set_bit(INPUT_PROP_POINTER, hi->input->propbit);
-		set_bit(BTN_TOOL_FINGER, hi->input->keybit);
-		set_bit(BTN_TOOL_DOUBLETAP, hi->input->keybit);
-		set_bit(BTN_TOOL_TRIPLETAP, hi->input->keybit);
-		set_bit(BTN_TOOL_QUADTAP, hi->input->keybit);
-	}
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON)
+		td->mt_flags |= INPUT_MT_POINTER;
 
 	/* eGalax devices provide a Digitizer.Stylus input which overrides
 	 * the correct Digitizers.Finger X/Y ranges.
@@ -344,27 +360,42 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (field->physical == HID_DG_STYLUS)
 		return -1;
 
+	if (usage->usage_index)
+		prev_usage = &field->usage[usage->usage_index - 1];
+
 	switch (usage->hid & HID_USAGE_PAGE) {
 
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
-			hid_map_usage(hi, usage, bit, max,
+			if (prev_usage && (prev_usage->hid == usage->hid)) {
+				hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_TOOL_X);
+				set_abs(hi->input, ABS_MT_TOOL_X, field,
+					cls->sn_move);
+			} else {
+				hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_POSITION_X);
-			set_abs(hi->input, ABS_MT_POSITION_X, field,
-				cls->sn_move);
-			/* touchscreen emulation */
-			set_abs(hi->input, ABS_X, field, cls->sn_move);
+				set_abs(hi->input, ABS_MT_POSITION_X, field,
+					cls->sn_move);
+			}
+
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			return 1;
 		case HID_GD_Y:
-			hid_map_usage(hi, usage, bit, max,
+			if (prev_usage && (prev_usage->hid == usage->hid)) {
+				hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_TOOL_Y);
+				set_abs(hi->input, ABS_MT_TOOL_Y, field,
+					cls->sn_move);
+			} else {
+				hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_POSITION_Y);
-			set_abs(hi->input, ABS_MT_POSITION_Y, field,
-				cls->sn_move);
-			/* touchscreen emulation */
-			set_abs(hi->input, ABS_Y, field, cls->sn_move);
+				set_abs(hi->input, ABS_MT_POSITION_Y, field,
+					cls->sn_move);
+			}
+
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			return 1;
@@ -374,6 +405,12 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case HID_UP_DIGITIZER:
 		switch (usage->hid) {
 		case HID_DG_INRANGE:
+			if (cls->quirks & MT_QUIRK_HOVERING) {
+				hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_DISTANCE);
+				input_set_abs_params(hi->input,
+					ABS_MT_DISTANCE, 0, 1, 0, 0);
+			}
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			return 1;
@@ -388,9 +425,6 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			td->last_field_index = field->index;
 			return 1;
 		case HID_DG_CONTACTID:
-			if (!td->maxcontacts)
-				td->maxcontacts = MT_DEFAULT_MAXCONTACT;
-			input_mt_init_slots(hi->input, td->maxcontacts);
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			td->touches_by_report++;
@@ -398,18 +432,21 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MAJOR);
-			set_abs(hi->input, ABS_MT_TOUCH_MAJOR, field,
-				cls->sn_width);
+			if (!(cls->quirks & MT_QUIRK_NO_AREA))
+				set_abs(hi->input, ABS_MT_TOUCH_MAJOR, field,
+					cls->sn_width);
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MINOR);
-			set_abs(hi->input, ABS_MT_TOUCH_MINOR, field,
-				cls->sn_height);
-			input_set_abs_params(hi->input,
+			if (!(cls->quirks & MT_QUIRK_NO_AREA)) {
+				set_abs(hi->input, ABS_MT_TOUCH_MINOR, field,
+					cls->sn_height);
+				input_set_abs_params(hi->input,
 					ABS_MT_ORIENTATION, 0, 1, 0, 0);
+			}
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			return 1;
@@ -417,9 +454,6 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_PRESSURE);
 			set_abs(hi->input, ABS_MT_PRESSURE, field,
-				cls->sn_pressure);
-			/* touchscreen emulation */
-			set_abs(hi->input, ABS_PRESSURE, field,
 				cls->sn_pressure);
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
@@ -432,11 +466,11 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			 * contact max are global to the report */
 			td->last_field_index = field->index;
 			return -1;
-		}
 		case HID_DG_TOUCH:
 			/* Legacy devices use TIPSWITCH and not TOUCH.
 			 * Let's just ignore this field. */
 			return -1;
+		}
 		/* let hid-input decide for the others */
 		return 0;
 
@@ -464,7 +498,7 @@ static int mt_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	return -1;
 }
 
-static int mt_compute_slot(struct mt_device *td)
+static int mt_compute_slot(struct mt_device *td, struct input_dev *input)
 {
 	__s32 quirks = td->mtclass.quirks;
 
@@ -480,46 +514,35 @@ static int mt_compute_slot(struct mt_device *td)
 	if (quirks & MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE)
 		return td->curdata.contactid - 1;
 
-	return find_slot_from_contactid(td);
+	return input_mt_get_slot_by_key(input, td->curdata.contactid);
 }
 
 /*
  * this function is called when a whole contact has been processed,
  * so that it can assign it to a slot and store the data there
  */
-static void mt_complete_slot(struct mt_device *td)
+static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 {
-	td->curdata.seen_in_this_frame = true;
-	if (td->curvalid) {
-		int slotnum = mt_compute_slot(td);
+	if (td->curvalid || (td->mtclass.quirks & MT_QUIRK_ALWAYS_VALID)) {
+		int slotnum = mt_compute_slot(td, input);
+		struct mt_slot *s = &td->curdata;
+		struct input_mt *mt = input->mt;
 
-		if (slotnum >= 0 && slotnum < td->maxcontacts)
-			td->slots[slotnum] = td->curdata;
-	}
-	td->num_received++;
-}
+		if (slotnum < 0 || slotnum >= td->maxcontacts)
+			return;
 
-
-/*
- * this function is called when a whole packet has been received and processed,
- * so that it can decide what to send to the input layer.
- */
-static void mt_emit_event(struct mt_device *td, struct input_dev *input)
-{
-	int i;
-
-	for (i = 0; i < td->maxcontacts; ++i) {
-		struct mt_slot *s = &(td->slots[i]);
-		if ((td->mtclass.quirks & MT_QUIRK_NOT_SEEN_MEANS_UP) &&
-			!s->seen_in_this_frame) {
-			s->touch_state = false;
+		if ((td->mtclass.quirks & MT_QUIRK_IGNORE_DUPLICATES) && mt) {
+			struct input_mt_slot *slot = &mt->slots[slotnum];
+			if (input_mt_is_active(slot) &&
+			    input_mt_is_used(mt, slot))
+				return;
 		}
 
-		input_mt_slot(input, i);
+		input_mt_slot(input, slotnum);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER,
-			s->touch_state);
-		if (s->touch_state) {
-			/* this finger is on the screen */
+			s->touch_state || s->inrange_state);
+		if (s->touch_state || s->inrange_state) {
+			/* this finger is in proximity of the sensor */
 			int wide = (s->w > s->h);
 			/* divided by two to match visual scale of touch */
 			int major = max(s->w, s->h) >> 1;
@@ -527,21 +550,30 @@ static void mt_emit_event(struct mt_device *td, struct input_dev *input)
 
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, s->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, s->y);
+			input_event(input, EV_ABS, ABS_MT_TOOL_X, s->cx);
+			input_event(input, EV_ABS, ABS_MT_TOOL_Y, s->cy);
+			input_event(input, EV_ABS, ABS_MT_DISTANCE,
+				!s->touch_state);
 			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, s->p);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
 		}
-		s->seen_in_this_frame = false;
-
 	}
 
-	input_mt_report_pointer_emulation(input, true);
+	td->num_received++;
+}
+
+/*
+ * this function is called when a whole packet has been received and processed,
+ * so that it can decide what to send to the input layer.
+ */
+static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
+{
+	input_mt_sync_frame(input);
 	input_sync(input);
 	td->num_received = 0;
 }
-
-
 
 static int mt_event(struct hid_device *hid, struct hid_field *field,
 				struct hid_usage *usage, __s32 value)
@@ -549,13 +581,13 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 	struct mt_device *td = hid_get_drvdata(hid);
 	__s32 quirks = td->mtclass.quirks;
 
-	if (hid->claimed & HID_CLAIMED_INPUT && td->slots) {
+	if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
 		case HID_DG_INRANGE:
-			if (quirks & MT_QUIRK_ALWAYS_VALID)
-				td->curvalid = true;
-			else if (quirks & MT_QUIRK_VALID_IS_INRANGE)
+			if (quirks & MT_QUIRK_VALID_IS_INRANGE)
 				td->curvalid = value;
+			if (quirks & MT_QUIRK_HOVERING)
+				td->curdata.inrange_state = value;
 			break;
 		case HID_DG_TIPSWITCH:
 			if (quirks & MT_QUIRK_NOT_SEEN_MEANS_UP)
@@ -573,10 +605,16 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			td->curdata.p = value;
 			break;
 		case HID_GD_X:
-			td->curdata.x = value;
+			if (usage->code == ABS_MT_TOOL_X)
+				td->curdata.cx = value;
+			else
+				td->curdata.x = value;
 			break;
 		case HID_GD_Y:
-			td->curdata.y = value;
+			if (usage->code == ABS_MT_TOOL_Y)
+				td->curdata.cy = value;
+			else
+				td->curdata.y = value;
 			break;
 		case HID_DG_WIDTH:
 			td->curdata.w = value;
@@ -601,12 +639,15 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			return 0;
 		}
 
-		if (usage->hid == td->last_slot_field)
-			mt_complete_slot(td);
+		if (usage->usage_index + 1 == field->report_count) {
+			/* we only take into account the last report. */
+			if (usage->hid == td->last_slot_field)
+				mt_complete_slot(td, field->hidinput->input);
 
-		if (field->index == td->last_field_index
-			&& td->num_received >= td->num_expected)
-			mt_emit_event(td, field->hidinput->input);
+			if (field->index == td->last_field_index
+				&& td->num_received >= td->num_expected)
+				mt_sync_frame(td, field->hidinput->input);
+		}
 
 	}
 
@@ -685,18 +726,45 @@ static void mt_post_parse(struct mt_device *td)
 	}
 }
 
+static void mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
+
+{
+	struct mt_device *td = hid_get_drvdata(hdev);
+	struct mt_class *cls = &td->mtclass;
+	struct input_dev *input = hi->input;
+
+	/* Only initialize slots for MT input devices */
+	if (!test_bit(ABS_MT_POSITION_X, input->absbit))
+		return;
+
+	if (!td->maxcontacts)
+		td->maxcontacts = MT_DEFAULT_MAXCONTACT;
+
+	mt_post_parse(td);
+	if (td->serial_maybe)
+		mt_post_parse_default_settings(td);
+
+	if (cls->is_indirect)
+		td->mt_flags |= INPUT_MT_POINTER;
+
+	if (cls->quirks & MT_QUIRK_NOT_SEEN_MEANS_UP)
+		td->mt_flags |= INPUT_MT_DROP_UNUSED;
+
+	input_mt_init_slots(input, td->maxcontacts, td->mt_flags);
+
+	td->mt_flags = 0;
+}
+
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, i;
 	struct mt_device *td;
 	struct mt_class *mtclass = mt_classes; /* MT_CLS_DEFAULT */
 
-	if (id) {
-		for (i = 0; mt_classes[i].name ; i++) {
-			if (id->driver_data == mt_classes[i].name) {
-				mtclass = &(mt_classes[i]);
-				break;
-			}
+	for (i = 0; mt_classes[i].name ; i++) {
+		if (id->driver_data == mt_classes[i].name) {
+			mtclass = &(mt_classes[i]);
+			break;
 		}
 	}
 
@@ -722,6 +790,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto fail;
 	}
 
+	if (id->vendor == HID_ANY_ID && id->product == HID_ANY_ID)
+		td->serial_maybe = true;
+
 	ret = hid_parse(hdev);
 	if (ret != 0)
 		goto fail;
@@ -729,20 +800,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
 		goto fail;
-
-	mt_post_parse(td);
-
-	if (id->vendor == HID_ANY_ID && id->product == HID_ANY_ID)
-		mt_post_parse_default_settings(td);
-
-	td->slots = kzalloc(td->maxcontacts * sizeof(struct mt_slot),
-				GFP_KERNEL);
-	if (!td->slots) {
-		dev_err(&hdev->dev, "cannot allocate multitouch slots\n");
-		hid_hw_stop(hdev);
-		ret = -ENOMEM;
-		goto fail;
-	}
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &mt_attribute_group);
 
@@ -767,6 +824,32 @@ static int mt_reset_resume(struct hid_device *hdev)
 	mt_set_input_mode(hdev);
 	return 0;
 }
+
+static int mt_resume(struct hid_device *hdev)
+{
+	struct usb_interface *intf;
+	struct usb_host_interface *interface;
+	struct usb_device *dev;
+
+	if (hdev->bus != BUS_USB)
+		return 0;
+
+	intf = to_usb_interface(hdev->dev.parent);
+	interface = intf->cur_altsetting;
+	dev = hid_to_usb_dev(hdev);
+
+	/* Some Elan legacy devices require SET_IDLE to be set on resume.
+	 * It should be safe to send it to other devices too.
+	 * Tested on 3M, Stantum, Cypress, Zytronic, eGalax, and Elan panels. */
+
+	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			HID_REQ_SET_IDLE,
+			USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			0, interface->desc.bInterfaceNumber,
+			NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+	return 0;
+}
 #endif
 
 static void mt_remove(struct hid_device *hdev)
@@ -774,7 +857,6 @@ static void mt_remove(struct hid_device *hdev)
 	struct mt_device *td = hid_get_drvdata(hdev);
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
-	kfree(td->slots);
 	kfree(td);
 	hid_set_drvdata(hdev, NULL);
 }
@@ -885,17 +967,37 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_7349) },
 	{ .driver_data = MT_CLS_EGALAX_SERIAL,
 		MT_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_73F7) },
+	{ .driver_data = MT_CLS_EGALAX_SERIAL,
+		MT_USB_DEVICE(USB_VENDOR_ID_DWAV,
 			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_A001) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_7224) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_72D0) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_72C4) },
 
 	/* Elo TouchSystems IntelliTouch Plus panel */
 	{ .driver_data = MT_CLS_DUAL_NSMU_CONTACTID,
 		MT_USB_DEVICE(USB_VENDOR_ID_ELO,
 			USB_DEVICE_ID_ELO_TS2515) },
 
+	/* Flatfrog Panels */
+	{ .driver_data = MT_CLS_FLATFROG,
+		MT_USB_DEVICE(USB_VENDOR_ID_FLATFROG,
+			USB_DEVICE_ID_MULTITOUCH_3200) },
+
 	/* GeneralTouch panel */
-	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTNUMBER,
+	{ .driver_data = MT_CLS_GENERALTOUCH_TWOFINGERS,
 		MT_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
 			USB_DEVICE_ID_GENERAL_TOUCH_WIN7_TWOFINGERS) },
+	{ .driver_data = MT_CLS_GENERALTOUCH_PWT_TENFINGERS,
+		MT_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
+			USB_DEVICE_ID_GENERAL_TOUCH_WIN8_PWT_TENFINGERS) },
 
 	/* Gametel game controller */
 	{ .driver_data = MT_CLS_DEFAULT,
@@ -1087,11 +1189,13 @@ static struct hid_driver mt_driver = {
 	.remove = mt_remove,
 	.input_mapping = mt_input_mapping,
 	.input_mapped = mt_input_mapped,
+	.input_configured = mt_input_configured,
 	.feature_mapping = mt_feature_mapping,
 	.usage_table = mt_grabbed_usages,
 	.event = mt_event,
 #ifdef CONFIG_PM
 	.reset_resume = mt_reset_resume,
+	.resume = mt_resume,
 #endif
 };
 

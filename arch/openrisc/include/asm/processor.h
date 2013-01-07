@@ -81,8 +81,6 @@ struct thread_struct {
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
 
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp);
 void release_thread(struct task_struct *);
 unsigned long get_wchan(struct task_struct *p);
@@ -103,7 +101,7 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 
 #define init_stack      (init_thread_union.stack)
 
-#define cpu_relax()     do { } while (0)
+#define cpu_relax()     barrier()
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_OPENRISC_PROCESSOR_H */

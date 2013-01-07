@@ -275,6 +275,9 @@ static int __init exynos_dma_init(void)
 		exynos_pdma1_pdata.nr_valid_peri =
 			ARRAY_SIZE(exynos4210_pdma1_peri);
 		exynos_pdma1_pdata.peri_id = exynos4210_pdma1_peri;
+
+		if (samsung_rev() == EXYNOS4210_REV_0)
+			exynos_mdma1_device.res.start = EXYNOS4_PA_S_MDMA1;
 	} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
 		exynos_pdma0_pdata.nr_valid_peri =
 			ARRAY_SIZE(exynos4212_pdma0_peri);
@@ -303,10 +306,12 @@ static int __init exynos_dma_init(void)
 
 	dma_cap_set(DMA_SLAVE, exynos_pdma0_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, exynos_pdma0_pdata.cap_mask);
+	dma_cap_set(DMA_PRIVATE, exynos_pdma0_pdata.cap_mask);
 	amba_device_register(&exynos_pdma0_device, &iomem_resource);
 
 	dma_cap_set(DMA_SLAVE, exynos_pdma1_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, exynos_pdma1_pdata.cap_mask);
+	dma_cap_set(DMA_PRIVATE, exynos_pdma1_pdata.cap_mask);
 	amba_device_register(&exynos_pdma1_device, &iomem_resource);
 
 	dma_cap_set(DMA_MEMCPY, exynos_mdma1_pdata.cap_mask);

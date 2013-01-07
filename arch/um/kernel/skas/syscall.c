@@ -3,11 +3,11 @@
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/ptrace.h"
-#include "kern_util.h"
-#include "sysdep/ptrace.h"
-#include "sysdep/syscalls.h"
+#include <linux/kernel.h>
+#include <linux/ptrace.h>
+#include <kern_util.h>
+#include <sysdep/ptrace.h>
+#include <sysdep/syscalls.h>
 
 extern int syscall_table_size;
 #define NR_SYSCALLS (syscall_table_size / sizeof(void *))

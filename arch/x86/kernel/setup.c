@@ -68,6 +68,7 @@
 #include <linux/percpu.h>
 #include <linux/crash_dump.h>
 #include <linux/tboot.h>
+#include <linux/jiffies.h>
 
 #include <video/edid.h>
 
@@ -142,11 +143,7 @@ int default_check_phys_apicid_present(int phys_apicid)
 }
 #endif
 
-#ifndef CONFIG_DEBUG_BOOT_PARAMS
-struct boot_params __initdata boot_params;
-#else
 struct boot_params boot_params;
-#endif
 
 /*
  * Machine setup..
@@ -919,8 +916,22 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_64
 	if (max_pfn > max_low_pfn) {
-		max_pfn_mapped = init_memory_mapping(1UL<<32,
-						     max_pfn<<PAGE_SHIFT);
+		int i;
+		unsigned long start, end;
+		unsigned long start_pfn, end_pfn;
+
+		for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn,
+							 NULL) {
+
+			end = PFN_PHYS(end_pfn);
+			if (end <= (1UL<<32))
+				continue;
+
+			start = PFN_PHYS(start_pfn);
+			max_pfn_mapped = init_memory_mapping(
+						max((1UL<<32), start), end);
+		}
+
 		/* can we preseve max_low_pfn ?*/
 		max_low_pfn = max_pfn;
 	}
@@ -941,6 +952,10 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_BLK_DEV_INITRD)
+	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
+#endif
+
 	reserve_crashkernel();
 
 	vsmp_init();
@@ -957,13 +972,11 @@ void __init setup_arch(char **cmdline_p)
 	initmem_init();
 	memblock_find_dma_reserve();
 
-#ifdef CONFIG_KVM_CLOCK
+#ifdef CONFIG_KVM_GUEST
 	kvmclock_init();
 #endif
 
-	x86_init.paging.pagetable_setup_start(swapper_pg_dir);
-	paging_init();
-	x86_init.paging.pagetable_setup_done(swapper_pg_dir);
+	x86_init.paging.pagetable_init();
 
 	if (boot_cpu_data.cpuid_level >= 0) {
 		/* A CPU has %cr4 if and only if it has CPUID */
@@ -1034,6 +1047,20 @@ void __init setup_arch(char **cmdline_p)
 	mcheck_init();
 
 	arch_init_ideal_nops();
+
+	register_refined_jiffies(CLOCK_TICK_RATE);
+
+#ifdef CONFIG_EFI
+	/* Once setup is done above, disable efi_enabled on mismatched
+	 * firmware/kernel archtectures since there is no support for
+	 * runtime services.
+	 */
+	if (efi_enabled && IS_ENABLED(CONFIG_X86_64) != efi_64bit) {
+		pr_info("efi: Setup done, disabling due to 32/64-bit mismatch\n");
+		efi_unmap_memmap();
+		efi_enabled = 0;
+	}
+#endif
 }
 
 #ifdef CONFIG_X86_32

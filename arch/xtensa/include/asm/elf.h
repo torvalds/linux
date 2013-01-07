@@ -168,11 +168,11 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
  */
 
 #define ELF_PLAT_INIT(_r, load_addr) \
-  do { _r->areg[0]=0; /*_r->areg[1]=0;*/ _r->areg[2]=0;  _r->areg[3]=0;  \
-       _r->areg[4]=0;  _r->areg[5]=0;    _r->areg[6]=0;  _r->areg[7]=0;  \
-       _r->areg[8]=0;  _r->areg[9]=0;    _r->areg[10]=0; _r->areg[11]=0; \
-       _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
-  } while (0)
+	do { _r->areg[0]=0; /*_r->areg[1]=0;*/ _r->areg[2]=0;  _r->areg[3]=0;  \
+	     _r->areg[4]=0;  _r->areg[5]=0;    _r->areg[6]=0;  _r->areg[7]=0;  \
+	     _r->areg[8]=0;  _r->areg[9]=0;    _r->areg[10]=0; _r->areg[11]=0; \
+	     _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
+	} while (0)
 
 typedef struct {
 	xtregs_opt_t	opt;
@@ -189,7 +189,8 @@ typedef struct {
 #endif
 } elf_xtregs_t;
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX_32BIT)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
 
 struct task_struct;
 

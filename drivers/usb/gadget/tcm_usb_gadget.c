@@ -25,12 +25,9 @@
 #include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
-#include "usbstring.c"
-#include "epautoconf.c"
-#include "config.c"
-#include "composite.c"
-
 #include "tcm_usb_gadget.h"
+
+USB_GADGET_COMPOSITE_OPTIONS();
 
 static struct target_fabric_configfs *usbg_fabric_configfs;
 
@@ -1387,7 +1384,7 @@ static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
 	if (!nacl) {
-		printk(KERN_ERR "Unable to alocate struct usbg_nacl\n");
+		printk(KERN_ERR "Unable to allocate struct usbg_nacl\n");
 		return NULL;
 	}
 
@@ -1471,16 +1468,6 @@ static int usbg_get_cmd_state(struct se_cmd *se_cmd)
 }
 
 static int usbg_queue_tm_rsp(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
-static u16 usbg_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	return 0;
-}
-
-static u16 usbg_get_fabric_sense_len(void)
 {
 	return 0;
 }
@@ -1825,7 +1812,7 @@ static ssize_t tcm_usbg_tpg_store_nexus(
 		ret = tcm_usbg_drop_nexus(tpg);
 		return (!ret) ? count : ret;
 	}
-	if (strlen(page) > USBG_NAMELEN) {
+	if (strlen(page) >= USBG_NAMELEN) {
 		pr_err("Emulated NAA Sas Address: %s, exceeds"
 				" max: %d\n", page, USBG_NAMELEN);
 		return -EINVAL;
@@ -1910,8 +1897,6 @@ static struct target_core_fabric_ops usbg_ops = {
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
 	.queue_tm_rsp			= usbg_queue_tm_rsp,
-	.get_fabric_sense_len		= usbg_get_fabric_sense_len,
-	.set_fabric_sense_len		= usbg_set_fabric_sense_len,
 	.check_stop_free		= usbg_check_stop_free,
 
 	.fabric_make_wwn		= usbg_make_tport,
@@ -1971,13 +1956,11 @@ static void usbg_deregister_configfs(void)
 static struct usb_interface_descriptor bot_intf_desc = {
 	.bLength =              sizeof(bot_intf_desc),
 	.bDescriptorType =      USB_DT_INTERFACE,
-	.bAlternateSetting =	0,
 	.bNumEndpoints =        2,
 	.bAlternateSetting =	USB_G_ALT_INT_BBB,
 	.bInterfaceClass =      USB_CLASS_MASS_STORAGE,
 	.bInterfaceSubClass =   USB_SC_SCSI,
 	.bInterfaceProtocol =   USB_PR_BULK,
-	.iInterface =           USB_G_STR_INT_UAS,
 };
 
 static struct usb_interface_descriptor uasp_intf_desc = {
@@ -1988,7 +1971,6 @@ static struct usb_interface_descriptor uasp_intf_desc = {
 	.bInterfaceClass =	USB_CLASS_MASS_STORAGE,
 	.bInterfaceSubClass =	USB_SC_SCSI,
 	.bInterfaceProtocol =	USB_PR_UAS,
-	.iInterface =		USB_G_STR_INT_BBB,
 };
 
 static struct usb_endpoint_descriptor uasp_bi_desc = {
@@ -2157,6 +2139,7 @@ static struct usb_descriptor_header *uasp_fs_function_desc[] = {
 	(struct usb_descriptor_header *) &uasp_status_pipe_desc,
 	(struct usb_descriptor_header *) &uasp_fs_cmd_desc,
 	(struct usb_descriptor_header *) &uasp_cmd_pipe_desc,
+	NULL,
 };
 
 static struct usb_descriptor_header *uasp_hs_function_desc[] = {
@@ -2209,20 +2192,16 @@ static struct usb_device_descriptor usbg_device_desc = {
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 	.idVendor =		cpu_to_le16(UAS_VENDOR_ID),
 	.idProduct =		cpu_to_le16(UAS_PRODUCT_ID),
-	.iManufacturer =	USB_G_STR_MANUFACTOR,
-	.iProduct =		USB_G_STR_PRODUCT,
-	.iSerialNumber =	USB_G_STR_SERIAL,
-
 	.bNumConfigurations =   1,
 };
 
 static struct usb_string	usbg_us_strings[] = {
-	{ USB_G_STR_MANUFACTOR,	"Target Manufactor"},
-	{ USB_G_STR_PRODUCT,	"Target Product"},
-	{ USB_G_STR_SERIAL,	"000000000001"},
-	{ USB_G_STR_CONFIG,	"default config"},
-	{ USB_G_STR_INT_UAS,	"USB Attached SCSI"},
-	{ USB_G_STR_INT_BBB,	"Bulk Only Transport"},
+	[USB_GADGET_MANUFACTURER_IDX].s	= "Target Manufactor",
+	[USB_GADGET_PRODUCT_IDX].s	= "Target Product",
+	[USB_GADGET_SERIAL_IDX].s	= "000000000001",
+	[USB_G_STR_CONFIG].s		= "default config",
+	[USB_G_STR_INT_UAS].s		= "USB Attached SCSI",
+	[USB_G_STR_INT_BBB].s		= "Bulk Only Transport",
 	{ },
 };
 
@@ -2244,7 +2223,6 @@ static int guas_unbind(struct usb_composite_dev *cdev)
 static struct usb_configuration usbg_config_driver = {
 	.label                  = "Linux Target",
 	.bConfigurationValue    = 1,
-	.iConfiguration		= USB_G_STR_CONFIG,
 	.bmAttributes           = USB_CONFIG_ATT_SELFPOWER,
 };
 
@@ -2262,6 +2240,7 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct usb_ep		*ep;
 	int			iface;
+	int			ret;
 
 	iface = usb_interface_id(c, f);
 	if (iface < 0)
@@ -2312,6 +2291,11 @@ static int usbg_bind(struct usb_configuration *c, struct usb_function *f)
 		uasp_ss_status_desc.bEndpointAddress;
 	uasp_fs_cmd_desc.bEndpointAddress = uasp_ss_cmd_desc.bEndpointAddress;
 
+	ret = usb_assign_descriptors(f, uasp_fs_function_desc,
+			uasp_hs_function_desc, uasp_ss_function_desc);
+	if (ret)
+		goto ep_fail;
+
 	return 0;
 ep_fail:
 	pr_err("Can't claim all required eps\n");
@@ -2327,6 +2311,7 @@ static void usbg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_uas *fu = to_f_uas(f);
 
+	usb_free_all_descriptors(f);
 	kfree(fu);
 }
 
@@ -2407,15 +2392,15 @@ static int usbg_cfg_bind(struct usb_configuration *c)
 	if (!fu)
 		return -ENOMEM;
 	fu->function.name = "Target Function";
-	fu->function.descriptors = uasp_fs_function_desc;
-	fu->function.hs_descriptors = uasp_hs_function_desc;
-	fu->function.ss_descriptors = uasp_ss_function_desc;
 	fu->function.bind = usbg_bind;
 	fu->function.unbind = usbg_unbind;
 	fu->function.set_alt = usbg_set_alt;
 	fu->function.setup = usbg_setup;
 	fu->function.disable = usbg_disable;
 	fu->tpg = the_only_tpg_I_currently_have;
+
+	bot_intf_desc.iInterface = usbg_us_strings[USB_G_STR_INT_BBB].id;
+	uasp_intf_desc.iInterface = usbg_us_strings[USB_G_STR_INT_UAS].id;
 
 	ret = usb_add_function(c, &fu->function);
 	if (ret)
@@ -2431,22 +2416,38 @@ static int usb_target_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
 
+	ret = usb_string_ids_tab(cdev, usbg_us_strings);
+	if (ret)
+		return ret;
+
+	usbg_device_desc.iManufacturer =
+		usbg_us_strings[USB_GADGET_MANUFACTURER_IDX].id;
+	usbg_device_desc.iProduct = usbg_us_strings[USB_GADGET_PRODUCT_IDX].id;
+	usbg_device_desc.iSerialNumber =
+		usbg_us_strings[USB_GADGET_SERIAL_IDX].id;
+	usbg_config_driver.iConfiguration =
+		usbg_us_strings[USB_G_STR_CONFIG].id;
+
 	ret = usb_add_config(cdev, &usbg_config_driver,
 			usbg_cfg_bind);
+	if (ret)
+		return ret;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return 0;
 }
 
-static struct usb_composite_driver usbg_driver = {
+static __refdata struct usb_composite_driver usbg_driver = {
 	.name           = "g_target",
 	.dev            = &usbg_device_desc,
 	.strings        = usbg_strings,
 	.max_speed      = USB_SPEED_SUPER,
+	.bind		= usb_target_bind,
 	.unbind         = guas_unbind,
 };
 
 static int usbg_attach(struct usbg_tpg *tpg)
 {
-	return usb_composite_probe(&usbg_driver, usb_target_bind);
+	return usb_composite_probe(&usbg_driver);
 }
 
 static void usbg_detach(struct usbg_tpg *tpg)

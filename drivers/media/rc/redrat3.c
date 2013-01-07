@@ -890,6 +890,9 @@ static int redrat3_set_tx_carrier(struct rc_dev *rcdev, u32 carrier)
 	struct device *dev = rr3->dev;
 
 	rr3_dbg(dev, "Setting modulation frequency to %u", carrier);
+	if (carrier == 0)
+		return -EINVAL;
+
 	rr3->carrier = carrier;
 
 	return carrier;
@@ -1079,7 +1082,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->dev.parent = dev;
 	rc->priv = rr3;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_TYPE_ALL;
+	rc->allowed_protos = RC_BIT_ALL;
 	rc->timeout = US_TO_NS(2750);
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
@@ -1217,9 +1220,10 @@ static int __devinit redrat3_dev_probe(struct usb_interface *intf,
 	rr3->carrier = 38000;
 
 	rr3->rc = redrat3_init_rc_dev(rr3);
-	if (!rr3->rc)
+	if (!rr3->rc) {
+		retval = -ENOMEM;
 		goto error;
-
+	}
 	setup_timer(&rr3->rx_timeout, redrat3_rx_timeout, (unsigned long)rr3);
 
 	/* we can register the device now, as it is ready */

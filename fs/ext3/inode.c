@@ -1071,8 +1071,7 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode *inode,
 	 * mapped. 0 in case of a HOLE.
 	 */
 	if (err > 0) {
-		if (err > 1)
-			WARN_ON(1);
+		WARN_ON(err > 1);
 		err = 0;
 	}
 	*errp = err;
@@ -3207,7 +3206,7 @@ out_brelse:
  *
  * - Within generic_file_write() for O_SYNC files.
  *   Here, there will be no transaction running. We wait for any running
- *   trasnaction to commit.
+ *   transaction to commit.
  *
  * - Within sys_sync(), kupdate and such.
  *   We wait on commit, if tol to.

@@ -23,7 +23,6 @@ typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 union map_info {
 	void *ptr;
 	unsigned long long ll;
-	unsigned target_request_nr;
 };
 
 /*
@@ -46,8 +45,7 @@ typedef void (*dm_dtr_fn) (struct dm_target *ti);
  * = 1: simple remap complete
  * = 2: The target wants to push back the io
  */
-typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio,
-			  union map_info *map_context);
+typedef int (*dm_map_fn) (struct dm_target *ti, struct bio *bio);
 typedef int (*dm_map_request_fn) (struct dm_target *ti, struct request *clone,
 				  union map_info *map_context);
 
@@ -60,8 +58,7 @@ typedef int (*dm_map_request_fn) (struct dm_target *ti, struct request *clone,
  * 2   : The target wants to push back the io
  */
 typedef int (*dm_endio_fn) (struct dm_target *ti,
-			    struct bio *bio, int error,
-			    union map_info *map_context);
+			    struct bio *bio, int error);
 typedef int (*dm_request_endio_fn) (struct dm_target *ti,
 				    struct request *clone, int error,
 				    union map_info *map_context);
@@ -193,17 +190,29 @@ struct dm_target {
 	 * A number of zero-length barrier requests that will be submitted
 	 * to the target for the purpose of flushing cache.
 	 *
-	 * The request number will be placed in union map_info->target_request_nr.
+	 * The request number can be accessed with dm_bio_get_target_request_nr.
 	 * It is a responsibility of the target driver to remap these requests
 	 * to the real underlying devices.
 	 */
 	unsigned num_flush_requests;
 
 	/*
-	 * The number of discard requests that will be submitted to the
-	 * target.  map_info->request_nr is used just like num_flush_requests.
+	 * The number of discard requests that will be submitted to the target.
+	 * The request number can be accessed with dm_bio_get_target_request_nr.
 	 */
 	unsigned num_discard_requests;
+
+	/*
+	 * The number of WRITE SAME requests that will be submitted to the target.
+	 * The request number can be accessed with dm_bio_get_target_request_nr.
+	 */
+	unsigned num_write_same_requests;
+
+	/*
+	 * The minimum number of extra bytes allocated in each bio for the
+	 * target to use.  dm_per_bio_data returns the data location.
+	 */
+	unsigned per_bio_data_size;
 
 	/* target specific data */
 	void *private;
@@ -240,6 +249,36 @@ struct dm_target_callbacks {
 	struct list_head list;
 	int (*congested_fn) (struct dm_target_callbacks *, int);
 };
+
+/*
+ * For bio-based dm.
+ * One of these is allocated for each bio.
+ * This structure shouldn't be touched directly by target drivers.
+ * It is here so that we can inline dm_per_bio_data and
+ * dm_bio_from_per_bio_data
+ */
+struct dm_target_io {
+	struct dm_io *io;
+	struct dm_target *ti;
+	union map_info info;
+	unsigned target_request_nr;
+	struct bio clone;
+};
+
+static inline void *dm_per_bio_data(struct bio *bio, size_t data_size)
+{
+	return (char *)bio - offsetof(struct dm_target_io, clone) - data_size;
+}
+
+static inline struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
+{
+	return (struct bio *)((char *)data + data_size + offsetof(struct dm_target_io, clone));
+}
+
+static inline unsigned dm_bio_get_target_request_nr(const struct bio *bio)
+{
+	return container_of(bio, struct dm_target_io, clone)->target_request_nr;
+}
 
 int dm_register_target(struct target_type *t);
 void dm_unregister_target(struct target_type *t);

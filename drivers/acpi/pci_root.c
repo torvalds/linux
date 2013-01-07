@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
@@ -71,9 +71,11 @@ static struct acpi_driver acpi_pci_root_driver = {
 		},
 };
 
+/* Lock to protect both acpi_pci_roots and acpi_pci_drivers lists */
+static DEFINE_MUTEX(acpi_pci_root_lock);
 static LIST_HEAD(acpi_pci_roots);
+static LIST_HEAD(acpi_pci_drivers);
 
-static struct acpi_pci_driver *sub_driver;
 static DEFINE_MUTEX(osc_lock);
 
 int acpi_pci_register_driver(struct acpi_pci_driver *driver)
@@ -81,55 +83,46 @@ int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 	int n = 0;
 	struct acpi_pci_root *root;
 
-	struct acpi_pci_driver **pptr = &sub_driver;
-	while (*pptr)
-		pptr = &(*pptr)->next;
-	*pptr = driver;
-
-	if (!driver->add)
-		return 0;
-
-	list_for_each_entry(root, &acpi_pci_roots, node) {
-		driver->add(root->device->handle);
-		n++;
-	}
+	mutex_lock(&acpi_pci_root_lock);
+	list_add_tail(&driver->node, &acpi_pci_drivers);
+	if (driver->add)
+		list_for_each_entry(root, &acpi_pci_roots, node) {
+			driver->add(root);
+			n++;
+		}
+	mutex_unlock(&acpi_pci_root_lock);
 
 	return n;
 }
-
 EXPORT_SYMBOL(acpi_pci_register_driver);
 
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 {
 	struct acpi_pci_root *root;
 
-	struct acpi_pci_driver **pptr = &sub_driver;
-	while (*pptr) {
-		if (*pptr == driver)
-			break;
-		pptr = &(*pptr)->next;
-	}
-	BUG_ON(!*pptr);
-	*pptr = (*pptr)->next;
-
-	if (!driver->remove)
-		return;
-
-	list_for_each_entry(root, &acpi_pci_roots, node)
-		driver->remove(root->device->handle);
+	mutex_lock(&acpi_pci_root_lock);
+	list_del(&driver->node);
+	if (driver->remove)
+		list_for_each_entry(root, &acpi_pci_roots, node)
+			driver->remove(root);
+	mutex_unlock(&acpi_pci_root_lock);
 }
-
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 {
 	struct acpi_pci_root *root;
+	acpi_handle handle = NULL;
 	
+	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(root, &acpi_pci_roots, node)
 		if ((root->segment == (u16) seg) &&
-		    (root->secondary.start == (u16) bus))
-			return root->device->handle;
-	return NULL;		
+		    (root->secondary.start == (u16) bus)) {
+			handle = root->device->handle;
+			break;
+		}
+	mutex_unlock(&acpi_pci_root_lock);
+	return handle;
 }
 
 EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
@@ -277,12 +270,15 @@ static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 {
 	struct acpi_pci_root *root;
+	struct acpi_device *device;
 
-	list_for_each_entry(root, &acpi_pci_roots, node) {
-		if (root->device->handle == handle)
-			return root;
-	}
-	return NULL;
+	if (acpi_bus_get_device(handle, &device) ||
+	    acpi_match_device_ids(device, root_device_ids))
+		return NULL;
+
+	root = acpi_driver_data(device);
+
+	return root;
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
@@ -449,7 +445,7 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static int __devinit acpi_pci_root_add(struct acpi_device *device)
+static int acpi_pci_root_add(struct acpi_device *device)
 {
 	unsigned long long segment, bus;
 	acpi_status status;
@@ -458,6 +454,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	acpi_handle handle;
 	struct acpi_device *child;
 	u32 flags, base_flags;
+	bool is_osc_granted = false;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -505,6 +502,20 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
+	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
+	       acpi_device_name(device), acpi_device_bid(device),
+	       root->segment, &root->secondary);
+
+	/*
+	 * PCI Routing Table
+	 * -----------------
+	 * Evaluate and parse _PRT, if exists.
+	 */
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+	if (ACPI_SUCCESS(status))
+		result = acpi_pci_irq_add_prt(device->handle, root->segment,
+					      root->secondary.start);
+
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(device->handle);
 
 	/*
@@ -514,16 +525,67 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	acpi_pci_osc_support(root, flags);
 
+	/* Indicate support for various _OSC capabilities. */
+	if (pci_ext_cfg_avail())
+		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+	if (pcie_aspm_support_enabled()) {
+		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
+		OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
+	}
+	if (pci_msi_enabled())
+		flags |= OSC_MSI_SUPPORT;
+	if (flags != base_flags) {
+		status = acpi_pci_osc_support(root, flags);
+		if (ACPI_FAILURE(status)) {
+			dev_info(&device->dev, "ACPI _OSC support "
+				"notification failed, disabling PCIe ASPM\n");
+			pcie_no_aspm();
+			flags = base_flags;
+		}
+	}
+	if (!pcie_ports_disabled
+	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
+		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
+			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
+			| OSC_PCI_EXPRESS_PME_CONTROL;
+
+		if (pci_aer_available()) {
+			if (aer_acpi_firmware_first())
+				dev_dbg(&device->dev,
+					"PCIe errors handled by BIOS.\n");
+			else
+				flags |= OSC_PCI_EXPRESS_AER_CONTROL;
+		}
+
+		dev_info(&device->dev,
+			"Requesting ACPI _OSC control (0x%02x)\n", flags);
+
+		status = acpi_pci_osc_control_set(device->handle, &flags,
+				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+		if (ACPI_SUCCESS(status)) {
+			is_osc_granted = true;
+			dev_info(&device->dev,
+				"ACPI _OSC control (0x%02x) granted\n", flags);
+		} else {
+			is_osc_granted = false;
+			dev_info(&device->dev,
+				"ACPI _OSC request failed (%s), "
+				"returned control mask: 0x%02x\n",
+				acpi_format_exception(status), flags);
+		}
+	} else {
+		dev_info(&device->dev,
+			"Unable to request _OSC control "
+			"(_OSC support mask: 0x%02x)\n", flags);
+	}
+
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
 	 */
 
-	/* TBD: Locking */
+	mutex_lock(&acpi_pci_root_lock);
 	list_add_tail(&root->node, &acpi_pci_roots);
-
-	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
-	       acpi_device_name(device), acpi_device_bid(device),
-	       root->segment, &root->secondary);
+	mutex_unlock(&acpi_pci_root_lock);
 
 	/*
 	 * Scan the Root Bridge
@@ -538,7 +600,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 			    "Bus %04x:%02x not present in PCI namespace\n",
 			    root->segment, (unsigned int)root->secondary.start);
 		result = -ENODEV;
-		goto end;
+		goto out_del_root;
 	}
 
 	/*
@@ -548,16 +610,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	result = acpi_pci_bind_root(device);
 	if (result)
-		goto end;
-
-	/*
-	 * PCI Routing Table
-	 * -----------------
-	 * Evaluate and parse _PRT, if exists.
-	 */
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->bus);
+		goto out_del_root;
 
 	/*
 	 * Scan and bind all _ADR-Based Devices
@@ -565,66 +618,14 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	list_for_each_entry(child, &device->children, node)
 		acpi_pci_bridge_scan(child);
 
-	/* Indicate support for various _OSC capabilities. */
-	if (pci_ext_cfg_avail(root->bus->self))
-		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
-	if (pcie_aspm_support_enabled())
-		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
-			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
-	if (pci_msi_enabled())
-		flags |= OSC_MSI_SUPPORT;
-	if (flags != base_flags) {
-		status = acpi_pci_osc_support(root, flags);
-		if (ACPI_FAILURE(status)) {
-			dev_info(root->bus->bridge, "ACPI _OSC support "
-				"notification failed, disabling PCIe ASPM\n");
-			pcie_no_aspm();
-			flags = base_flags;
-		}
-	}
-
-	if (!pcie_ports_disabled
-	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
-		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
-			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
-			| OSC_PCI_EXPRESS_PME_CONTROL;
-
-		if (pci_aer_available()) {
-			if (aer_acpi_firmware_first())
-				dev_dbg(root->bus->bridge,
-					"PCIe errors handled by BIOS.\n");
-			else
-				flags |= OSC_PCI_EXPRESS_AER_CONTROL;
-		}
-
-		dev_info(root->bus->bridge,
-			"Requesting ACPI _OSC control (0x%02x)\n", flags);
-
-		status = acpi_pci_osc_control_set(device->handle, &flags,
-					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-		if (ACPI_SUCCESS(status)) {
-			dev_info(root->bus->bridge,
-				"ACPI _OSC control (0x%02x) granted\n", flags);
-			if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-				/*
-				 * We have ASPM control, but the FADT indicates
-				 * that it's unsupported. Clear it.
-				 */
-				pcie_clear_aspm(root->bus);
-			}
-		} else {
-			dev_info(root->bus->bridge,
-				"ACPI _OSC request failed (%s), "
-				"returned control mask: 0x%02x\n",
-				acpi_format_exception(status), flags);
-			pr_info("ACPI _OSC control for PCIe not granted, "
-				"disabling ASPM\n");
-			pcie_no_aspm();
-		}
+	/* ASPM setting */
+	if (is_osc_granted) {
+		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM)
+			pcie_clear_aspm(root->bus);
 	} else {
-		dev_info(root->bus->bridge,
-			 "Unable to request _OSC control "
-			 "(_OSC support mask: 0x%02x)\n", flags);
+		pr_info("ACPI _OSC control for PCIe not granted, "
+			"disabling ASPM\n");
+		pcie_no_aspm();
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);
@@ -633,9 +634,13 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 	return 0;
 
+out_del_root:
+	mutex_lock(&acpi_pci_root_lock);
+	list_del(&root->node);
+	mutex_unlock(&acpi_pci_root_lock);
+
+	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 end:
-	if (!list_empty(&root->node))
-		list_del(&root->node);
 	kfree(root);
 	return result;
 }
@@ -643,18 +648,53 @@ end:
 static int acpi_pci_root_start(struct acpi_device *device)
 {
 	struct acpi_pci_root *root = acpi_driver_data(device);
+	struct acpi_pci_driver *driver;
+
+	if (system_state != SYSTEM_BOOTING)
+		pci_assign_unassigned_bus_resources(root->bus);
+
+	mutex_lock(&acpi_pci_root_lock);
+	list_for_each_entry(driver, &acpi_pci_drivers, node)
+		if (driver->add)
+			driver->add(root);
+	mutex_unlock(&acpi_pci_root_lock);
+
+	/* need to after hot-added ioapic is registered */
+	if (system_state != SYSTEM_BOOTING)
+		pci_enable_bridges(root->bus);
 
 	pci_bus_add_devices(root->bus);
+
 	return 0;
 }
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
+	acpi_status status;
+	acpi_handle handle;
 	struct acpi_pci_root *root = acpi_driver_data(device);
+	struct acpi_pci_driver *driver;
+
+	pci_stop_root_bus(root->bus);
+
+	mutex_lock(&acpi_pci_root_lock);
+	list_for_each_entry_reverse(driver, &acpi_pci_drivers, node)
+		if (driver->remove)
+			driver->remove(root);
+	mutex_unlock(&acpi_pci_root_lock);
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+	if (ACPI_SUCCESS(status))
+		acpi_pci_irq_del_prt(root->segment, root->secondary.start);
+
+	pci_remove_root_bus(root->bus);
+
+	mutex_lock(&acpi_pci_root_lock);
+	list_del(&root->node);
+	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
 	return 0;
 }

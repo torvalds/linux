@@ -25,40 +25,87 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
+#include <asm/cache.h>
+#include <asm/cp15.h>
+#include <asm/hardware/cache-l2x0.h>
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #include "flowctrl.h"
+#include "sleep.h"
 
-#define TEGRA_FLOW_CTRL_VIRT (TEGRA_FLOW_CTRL_BASE - IO_PPSB_PHYS \
-					+ IO_PPSB_VIRT)
+#ifdef CONFIG_PM_SLEEP
+/*
+ * tegra_disable_clean_inv_dcache
+ *
+ * disable, clean & invalidate the D-cache
+ *
+ * Corrupted registers: r1-r3, r6, r8, r9-r11
+ */
+ENTRY(tegra_disable_clean_inv_dcache)
+	stmfd	sp!, {r0, r4-r5, r7, r9-r11, lr}
+	dmb					@ ensure ordering
 
-/* returns the offset of the flow controller halt register for a cpu */
-.macro cpu_to_halt_reg rd, rcpu
-	cmp	\rcpu, #0
-	subne	\rd, \rcpu, #1
-	movne	\rd, \rd, lsl #3
-	addne	\rd, \rd, #0x14
-	moveq	\rd, #0
-.endm
+	/* Disable the D-cache */
+	mrc	p15, 0, r2, c1, c0, 0
+	bic	r2, r2, #CR_C
+	mcr	p15, 0, r2, c1, c0, 0
+	isb
 
-/* returns the offset of the flow controller csr register for a cpu */
-.macro cpu_to_csr_reg rd, rcpu
-	cmp	\rcpu, #0
-	subne	\rd, \rcpu, #1
-	movne	\rd, \rd, lsl #3
-	addne	\rd, \rd, #0x18
-	moveq	\rd, #8
-.endm
+	/* Flush the D-cache */
+	bl	v7_flush_dcache_louis
 
-/* returns the ID of the current processor */
-.macro cpu_id, rd
-	mrc	p15, 0, \rd, c0, c0, 5
-	and	\rd, \rd, #0xF
-.endm
+	/* Trun off coherency */
+	exit_smp r4, r5
 
-/* loads a 32-bit value into a register without a data access */
-.macro mov32, reg, val
-	movw	\reg, #:lower16:\val
-	movt	\reg, #:upper16:\val
-.endm
+	ldmfd	sp!, {r0, r4-r5, r7, r9-r11, pc}
+ENDPROC(tegra_disable_clean_inv_dcache)
+
+/*
+ * tegra_sleep_cpu_finish(unsigned long v2p)
+ *
+ * enters suspend in LP2 by turning off the mmu and jumping to
+ * tegra?_tear_down_cpu
+ */
+ENTRY(tegra_sleep_cpu_finish)
+	/* Flush and disable the L1 data cache */
+	bl	tegra_disable_clean_inv_dcache
+
+	mov32	r6, tegra_tear_down_cpu
+	ldr	r1, [r6]
+	add	r1, r1, r0
+
+	mov32	r3, tegra_shut_off_mmu
+	add	r3, r3, r0
+	mov	r0, r1
+
+	mov	pc, r3
+ENDPROC(tegra_sleep_cpu_finish)
+
+/*
+ * tegra_shut_off_mmu
+ *
+ * r0 = physical address to jump to with mmu off
+ *
+ * called with VA=PA mapping
+ * turns off MMU, icache, dcache and branch prediction
+ */
+	.align	L1_CACHE_SHIFT
+	.pushsection	.idmap.text, "ax"
+ENTRY(tegra_shut_off_mmu)
+	mrc	p15, 0, r3, c1, c0, 0
+	movw	r2, #CR_I | CR_Z | CR_C | CR_M
+	bic	r3, r3, r2
+	dsb
+	mcr	p15, 0, r3, c1, c0, 0
+	isb
+#ifdef CONFIG_CACHE_L2X0
+	/* Disable L2 cache */
+	mov32	r4, TEGRA_ARM_PERIF_BASE + 0x3000
+	mov	r5, #0
+	str	r5, [r4, #L2X0_CTRL]
+#endif
+	mov	pc, r0
+ENDPROC(tegra_shut_off_mmu)
+	.popsection
+#endif

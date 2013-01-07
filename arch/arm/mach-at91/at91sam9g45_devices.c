@@ -26,16 +26,16 @@
 #include <video/atmel_lcdc.h>
 
 #include <mach/at91_adc.h>
-#include <mach/board.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9g45_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at_hdmac.h>
+#include <linux/platform_data/dma-atmel.h>
 #include <mach/atmel-mci.h>
 
 #include <media/atmel-isi.h>
 
+#include "board.h"
 #include "generic.h"
 #include "clock.h"
 
@@ -653,7 +653,7 @@ static struct resource twi0_resources[] = {
 };
 
 static struct platform_device at91sam9g45_twi0_device = {
-	.name		= "at91_i2c",
+	.name		= "i2c-at91sam9g10",
 	.id		= 0,
 	.resource	= twi0_resources,
 	.num_resources	= ARRAY_SIZE(twi0_resources),
@@ -673,7 +673,7 @@ static struct resource twi1_resources[] = {
 };
 
 static struct platform_device at91sam9g45_twi1_device = {
-	.name		= "at91_i2c",
+	.name		= "i2c-at91sam9g10",
 	.id		= 1,
 	.resource	= twi1_resources,
 	.num_resources	= ARRAY_SIZE(twi1_resources),
@@ -686,18 +686,12 @@ void __init at91_add_device_i2c(short i2c_id, struct i2c_board_info *devices, in
 	/* pins used for TWI interface */
 	if (i2c_id == 0) {
 		at91_set_A_periph(AT91_PIN_PA20, 0);		/* TWD */
-		at91_set_multi_drive(AT91_PIN_PA20, 1);
-
 		at91_set_A_periph(AT91_PIN_PA21, 0);		/* TWCK */
-		at91_set_multi_drive(AT91_PIN_PA21, 1);
 
 		platform_device_register(&at91sam9g45_twi0_device);
 	} else {
 		at91_set_A_periph(AT91_PIN_PB10, 0);		/* TWD */
-		at91_set_multi_drive(AT91_PIN_PB10, 1);
-
 		at91_set_A_periph(AT91_PIN_PB11, 0);		/* TWCK */
-		at91_set_multi_drive(AT91_PIN_PB11, 1);
 
 		platform_device_register(&at91sam9g45_twi1_device);
 	}
@@ -1465,7 +1459,7 @@ static struct resource ssc0_resources[] = {
 };
 
 static struct platform_device at91sam9g45_ssc0_device = {
-	.name	= "ssc",
+	.name	= "at91sam9g45_ssc",
 	.id	= 0,
 	.dev	= {
 		.dma_mask		= &ssc0_dmamask,
@@ -1507,7 +1501,7 @@ static struct resource ssc1_resources[] = {
 };
 
 static struct platform_device at91sam9g45_ssc1_device = {
-	.name	= "ssc",
+	.name	= "at91sam9g45_ssc",
 	.id	= 1,
 	.dev	= {
 		.dma_mask		= &ssc1_dmamask,
@@ -1847,8 +1841,8 @@ static struct resource sha_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9G45_ID_AESTDESSHA,
-		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.start	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
+		.end	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1880,8 +1874,8 @@ static struct resource tdes_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9G45_ID_AESTDESSHA,
-		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.start	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
+		.end	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1916,8 +1910,8 @@ static struct resource aes_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9G45_ID_AESTDESSHA,
-		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.start	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
+		.end	= NR_IRQS_LEGACY + AT91SAM9G45_ID_AESTDESSHA,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

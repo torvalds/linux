@@ -32,6 +32,8 @@ enum regulator_status {
 	REGULATOR_STATUS_NORMAL,
 	REGULATOR_STATUS_IDLE,
 	REGULATOR_STATUS_STANDBY,
+	/* The regulator is enabled but not regulating */
+	REGULATOR_STATUS_BYPASS,
 	/* in case that any other status doesn't apply */
 	REGULATOR_STATUS_UNDEFINED,
 };
@@ -58,6 +60,7 @@ enum regulator_status {
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
+ *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  *
  * @set_mode: Set the configured operating mode for the regulator.
@@ -66,6 +69,9 @@ enum regulator_status {
  *	REGULATOR_STATUS value (or negative errno)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
+ *
+ * @set_bypass: Set the regulator in bypass mode.
+ * @get_bypass: Get the regulator bypass mode state.
  *
  * @enable_time: Time taken for the regulator voltage output voltage to
  *               stabilise after being enabled, in microseconds.
@@ -133,6 +139,10 @@ struct regulator_ops {
 	unsigned int (*get_optimum_mode) (struct regulator_dev *, int input_uV,
 					  int output_uV, int load_uA);
 
+	/* control and report on bypass mode */
+	int (*set_bypass)(struct regulator_dev *dev, bool enable);
+	int (*get_bypass)(struct regulator_dev *dev, bool *enable);
+
 	/* the operations below are for configuration of regulator state when
 	 * its parent PMIC enters a global STANDBY/HIBERNATE state */
 
@@ -171,10 +181,13 @@ enum regulator_type {
  * @type: Indicates if the regulator is a voltage or current regulator.
  * @owner: Module providing the regulator, used for refcounting.
  *
+ * @continuous_voltage_range: Indicates if the regulator can set any
+ *                            voltage within constrains range.
  * @n_voltages: Number of selectors available for ops.list_voltage().
  *
  * @min_uV: Voltage given by the lowest selector (if linear mapping)
  * @uV_step: Voltage increase with each selector (if linear mapping)
+ * @linear_min_sel: Minimal selector for starting linear mapping
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @volt_table: Voltage mapping table (if table based mapping)
  *
@@ -189,6 +202,7 @@ struct regulator_desc {
 	const char *name;
 	const char *supply_name;
 	int id;
+	bool continuous_voltage_range;
 	unsigned n_voltages;
 	struct regulator_ops *ops;
 	int irq;
@@ -197,6 +211,7 @@ struct regulator_desc {
 
 	unsigned int min_uV;
 	unsigned int uV_step;
+	unsigned int linear_min_sel;
 	unsigned int ramp_delay;
 
 	const unsigned int *volt_table;
@@ -205,6 +220,8 @@ struct regulator_desc {
 	unsigned int vsel_mask;
 	unsigned int enable_reg;
 	unsigned int enable_mask;
+	unsigned int bypass_reg;
+	unsigned int bypass_mask;
 
 	unsigned int enable_time;
 };
@@ -221,7 +238,8 @@ struct regulator_desc {
  * @driver_data: private regulator data
  * @of_node: OpenFirmware node to parse for device tree bindings (may be
  *           NULL).
- * @regmap: regmap to use for core regmap helpers
+ * @regmap: regmap to use for core regmap helpers if dev_get_regulator() is
+ *          insufficient.
  * @ena_gpio: GPIO controlling regulator enable.
  * @ena_gpio_invert: Sense for GPIO enable control.
  * @ena_gpio_flags: Flags to use when calling gpio_request_one()
@@ -253,6 +271,7 @@ struct regulator_dev {
 	int exclusive;
 	u32 use_count;
 	u32 open_count;
+	u32 bypass_count;
 
 	/* lists we belong to */
 	struct list_head list; /* list of all regulators */
@@ -310,6 +329,8 @@ int regulator_disable_regmap(struct regulator_dev *rdev);
 int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 				   unsigned int old_selector,
 				   unsigned int new_selector);
+int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable);
+int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable);
 
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 

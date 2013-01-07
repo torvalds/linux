@@ -757,7 +757,7 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
 	u16 lnk;
 
 	/* Get the negotiated link width and speed from PCI config space */
-	pci_read_config_word(dev, dev->pcie_cap + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &lnk);
 
 	if ((lnk & PCI_EXP_LNKSTA_CLS) != 1)
 		return VXGE_HW_ERR_INVALID_PCI_INFO;
@@ -993,7 +993,7 @@ exit:
  * for the driver, FW version information, and the first mac address for
  * each vpath
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_hw_info_get(void __iomem *bar0,
 			   struct vxge_hw_device_hw_info *hw_info)
 {
@@ -1310,7 +1310,7 @@ __vxge_hw_device_config_check(struct vxge_hw_device_config *new_config)
  * When done, the driver allocates sizeof(struct __vxge_hw_device) bytes for HW
  * to enable the latter to perform Titan hardware initialization.
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_initialize(
 	struct __vxge_hw_device **devh,
 	struct vxge_hw_device_attr *attr,
@@ -1982,7 +1982,7 @@ u16 vxge_hw_device_link_width_get(struct __vxge_hw_device *hldev)
 	struct pci_dev *dev = hldev->pdev;
 	u16 lnk;
 
-	pci_read_config_word(dev, dev->pcie_cap + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &lnk);
 	return (lnk & VXGE_HW_PCI_EXP_LNKCAP_LNK_WIDTH) >> 4;
 }
 
@@ -2917,7 +2917,7 @@ exit:
  * vxge_hw_device_config_default_get - Initialize device config with defaults.
  * Initialize Titan device config with default values.
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_config_default_get(struct vxge_hw_device_config *device_config)
 {
 	u32 i;

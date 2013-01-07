@@ -146,11 +146,10 @@ enum drm_connector_status omap_connector_detect(
 	enum drm_connector_status ret;
 
 	if (dssdrv->detect) {
-		if (dssdrv->detect(dssdev)) {
+		if (dssdrv->detect(dssdev))
 			ret = connector_status_connected;
-		} else {
+		else
 			ret = connector_status_disconnected;
-		}
 	} else {
 		ret = connector_status_unknown;
 	}
@@ -200,14 +199,11 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 			drm_mode_connector_update_edid_property(
 					connector, edid);
 			n = drm_add_edid_modes(connector, edid);
-			kfree(connector->display_info.raw_edid);
-			connector->display_info.raw_edid = edid;
 		} else {
 			drm_mode_connector_update_edid_property(
 					connector, NULL);
-			connector->display_info.raw_edid = NULL;
-			kfree(edid);
 		}
+		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
 		struct omap_video_timings timings = {0};
@@ -386,9 +382,8 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	return connector;
 
 fail:
-	if (connector) {
+	if (connector)
 		omap_connector_destroy(connector);
-	}
 
 	return NULL;
 }

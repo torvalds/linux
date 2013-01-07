@@ -33,6 +33,8 @@
 #define HCI_LINK_KEY_SIZE	16
 #define HCI_AMP_LINK_KEY_SIZE	(2 * HCI_LINK_KEY_SIZE)
 
+#define HCI_MAX_AMP_ASSOC_SIZE	672
+
 /* HCI dev events */
 #define HCI_DEV_REG			1
 #define HCI_DEV_UNREG			2
@@ -61,6 +63,15 @@
 
 /* First BR/EDR Controller shall have ID = 0 */
 #define HCI_BREDR_ID	0
+
+/* AMP controller status */
+#define AMP_CTRL_POWERED_DOWN			0x00
+#define AMP_CTRL_BLUETOOTH_ONLY			0x01
+#define AMP_CTRL_NO_CAPACITY			0x02
+#define AMP_CTRL_LOW_CAPACITY			0x03
+#define AMP_CTRL_MEDIUM_CAPACITY		0x04
+#define AMP_CTRL_HIGH_CAPACITY			0x05
+#define AMP_CTRL_FULL_CAPACITY			0x06
 
 /* HCI device quirks */
 enum {
@@ -104,6 +115,7 @@ enum {
 	HCI_SSP_ENABLED,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
+	HCI_LE_PERIPHERAL,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
@@ -142,7 +154,7 @@ enum {
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
 #define HCI_PAIRING_TIMEOUT	msecs_to_jiffies(60000)	/* 60 seconds */
 #define HCI_INIT_TIMEOUT	msecs_to_jiffies(10000)	/* 10 seconds */
-#define HCI_CMD_TIMEOUT		msecs_to_jiffies(1000)	/* 1 second */
+#define HCI_CMD_TIMEOUT		msecs_to_jiffies(2000)	/* 2 seconds */
 #define HCI_ACL_TX_TIMEOUT	msecs_to_jiffies(45000)	/* 45 seconds */
 #define HCI_AUTO_OFF_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
 
@@ -187,6 +199,7 @@ enum {
 #define ACL_START_NO_FLUSH	0x00
 #define ACL_CONT		0x01
 #define ACL_START		0x02
+#define ACL_COMPLETE		0x03
 #define ACL_ACTIVE_BCAST	0x04
 #define ACL_PICO_BCAST		0x08
 
@@ -196,6 +209,7 @@ enum {
 #define ESCO_LINK	0x02
 /* Low Energy links do not have defined link type. Use invented one */
 #define LE_LINK		0x80
+#define AMP_LINK	0x81
 
 /* LMP features */
 #define LMP_3SLOT	0x01
@@ -293,14 +307,20 @@ enum {
 
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_BAD_ADDR		0x0f
 #define HCI_ERROR_REMOTE_USER_TERM	0x13
+#define HCI_ERROR_REMOTE_LOW_RESOURCES	0x14
+#define HCI_ERROR_REMOTE_POWER_OFF	0x15
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
 
 /* Flow control modes */
 #define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
 #define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
+
+/* The core spec defines 127 as the "not available" value */
+#define HCI_TX_POWER_INVALID	127
 
 /* Extended Inquiry Response field types */
 #define EIR_FLAGS		0x01 /* flags */
@@ -317,6 +337,13 @@ enum {
 #define EIR_SSP_HASH_C		0x0E /* Simple Pairing Hash C */
 #define EIR_SSP_RAND_R		0x0F /* Simple Pairing Randomizer R */
 #define EIR_DEVICE_ID		0x10 /* device ID */
+
+/* Low Energy Advertising Flags */
+#define LE_AD_LIMITED		0x01 /* Limited Discoverable */
+#define LE_AD_GENERAL		0x02 /* General Discoverable */
+#define LE_AD_NO_BREDR		0x04 /* BR/EDR not supported */
+#define LE_AD_SIM_LE_BREDR_CTRL	0x08 /* Simultaneous LE & BR/EDR Controller */
+#define LE_AD_SIM_LE_BREDR_HOST	0x10 /* Simultaneous LE & BR/EDR Host */
 
 /* -----  HCI Commands ---- */
 #define HCI_OP_NOP			0x0000
@@ -544,10 +571,44 @@ struct hci_cp_accept_phy_link {
 	__u8     key[HCI_AMP_LINK_KEY_SIZE];
 } __packed;
 
-#define HCI_OP_DISCONN_PHY_LINK	0x0437
+#define HCI_OP_DISCONN_PHY_LINK		0x0437
 struct hci_cp_disconn_phy_link {
 	__u8     phy_handle;
 	__u8     reason;
+} __packed;
+
+struct ext_flow_spec {
+	__u8       id;
+	__u8       stype;
+	__le16     msdu;
+	__le32     sdu_itime;
+	__le32     acc_lat;
+	__le32     flush_to;
+} __packed;
+
+#define HCI_OP_CREATE_LOGICAL_LINK	0x0438
+#define HCI_OP_ACCEPT_LOGICAL_LINK	0x0439
+struct hci_cp_create_accept_logical_link {
+	__u8                  phy_handle;
+	struct ext_flow_spec  tx_flow_spec;
+	struct ext_flow_spec  rx_flow_spec;
+} __packed;
+
+#define HCI_OP_DISCONN_LOGICAL_LINK	0x043a
+struct hci_cp_disconn_logical_link {
+	__le16   log_handle;
+} __packed;
+
+#define HCI_OP_LOGICAL_LINK_CANCEL	0x043b
+struct hci_cp_logical_link_cancel {
+	__u8     phy_handle;
+	__u8     flow_spec_id;
+} __packed;
+
+struct hci_rp_logical_link_cancel {
+	__u8     status;
+	__u8     phy_handle;
+	__u8     flow_spec_id;
 } __packed;
 
 #define HCI_OP_SNIFF_MODE		0x0803
@@ -881,6 +942,22 @@ struct hci_rp_le_read_buffer_size {
 	__le16   le_mtu;
 	__u8     le_max_pkt;
 } __packed;
+
+#define HCI_OP_LE_READ_ADV_TX_POWER	0x2007
+struct hci_rp_le_read_adv_tx_power {
+	__u8	status;
+	__s8	tx_power;
+} __packed;
+
+#define HCI_MAX_AD_LENGTH		31
+
+#define HCI_OP_LE_SET_ADV_DATA		0x2008
+struct hci_cp_le_set_adv_data {
+	__u8	length;
+	__u8	data[HCI_MAX_AD_LENGTH];
+} __packed;
+
+#define HCI_OP_LE_SET_ADV_ENABLE	0x200a
 
 #define HCI_OP_LE_SET_SCAN_PARAM	0x200b
 struct hci_cp_le_set_scan_param {
@@ -1237,6 +1314,24 @@ struct hci_ev_simple_pair_complete {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define HCI_EV_USER_PASSKEY_NOTIFY	0x3b
+struct hci_ev_user_passkey_notify {
+	bdaddr_t	bdaddr;
+	__le32		passkey;
+} __packed;
+
+#define HCI_KEYPRESS_STARTED		0
+#define HCI_KEYPRESS_ENTERED		1
+#define HCI_KEYPRESS_ERASED		2
+#define HCI_KEYPRESS_CLEARED		3
+#define HCI_KEYPRESS_COMPLETED		4
+
+#define HCI_EV_KEYPRESS_NOTIFY		0x3c
+struct hci_ev_keypress_notify {
+	bdaddr_t	bdaddr;
+	__u8		type;
+} __packed;
+
 #define HCI_EV_REMOTE_HOST_FEATURES	0x3d
 struct hci_ev_remote_host_features {
 	bdaddr_t bdaddr;
@@ -1295,6 +1390,8 @@ struct hci_ev_num_comp_blocks {
 } __packed;
 
 /* Low energy meta events */
+#define LE_CONN_ROLE_MASTER	0x00
+
 #define HCI_EV_LE_CONN_COMPLETE		0x01
 struct hci_ev_le_conn_complete {
 	__u8     status;

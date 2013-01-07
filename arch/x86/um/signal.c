@@ -11,8 +11,8 @@
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
-#include "frame_kern.h"
-#include "skas.h"
+#include <frame_kern.h>
+#include <skas.h>
 
 #ifdef CONFIG_X86_32
 
@@ -342,9 +342,7 @@ static int copy_ucontext_to_user(struct ucontext __user *uc,
 {
 	int err = 0;
 
-	err |= put_user(current->sas_ss_sp, &uc->uc_stack.ss_sp);
-	err |= put_user(sas_ss_flags(sp), &uc->uc_stack.ss_flags);
-	err |= put_user(current->sas_ss_size, &uc->uc_stack.ss_size);
+	err |= __save_altstack(&uc->uc_stack, sp);
 	err |= copy_sc_to_user(&uc->uc_mcontext, fp, &current->thread.regs, 0);
 	err |= copy_to_user(&uc->uc_sigmask, set, sizeof(*set));
 	return err;
@@ -416,9 +414,6 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	PT_REGS_AX(regs) = (unsigned long) sig;
 	PT_REGS_DX(regs) = (unsigned long) 0;
 	PT_REGS_CX(regs) = (unsigned long) 0;
-
-	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
-		ptrace_notify(SIGTRAP);
 	return 0;
 }
 
@@ -466,9 +461,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	PT_REGS_AX(regs) = (unsigned long) sig;
 	PT_REGS_DX(regs) = (unsigned long) &frame->info;
 	PT_REGS_CX(regs) = (unsigned long) &frame->uc;
-
-	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
-		ptrace_notify(SIGTRAP);
 	return 0;
 }
 
@@ -535,10 +527,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(PT_REGS_SP(regs)),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, PT_REGS_SP(regs));
 	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
 			       set->sig[0]);
 	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);

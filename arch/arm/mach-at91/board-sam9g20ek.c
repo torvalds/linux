@@ -43,11 +43,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/system_rev.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -92,7 +92,7 @@ static struct at91_udc_data __initdata ek_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
-#if !(defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_AT91))
+#if !IS_ENABLED(CONFIG_MMC_ATMELMCI)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 1,
@@ -199,7 +199,6 @@ static void __init ek_add_device_nand(void)
  * MCI (SD/MMC)
  * wp_pin and vcc_pin are not connected
  */
-#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 static struct mci_platform_data __initdata ek_mmc_data = {
 	.slot[1] = {
 		.bus_width	= 4,
@@ -208,28 +207,15 @@ static struct mci_platform_data __initdata ek_mmc_data = {
 	},
 
 };
-#else
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.slot_b		= 1,	/* Only one slot so use slot B */
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PC9,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
-};
-#endif
 
 static void __init ek_add_device_mmc(void)
 {
-#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 	if (ek_have_2mmc()) {
 		ek_mmc_data.slot[0].bus_width = 4;
 		ek_mmc_data.slot[0].detect_pin = AT91_PIN_PC2;
 		ek_mmc_data.slot[0].wp_pin = -1;
 	}
 	at91_add_device_mci(0, &ek_mmc_data);
-#else
-	at91_add_device_mmc(0, &ek_mmc_data);
-#endif
 }
 
 /*
@@ -367,6 +353,16 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
         },
 };
 
+static struct platform_device sam9g20ek_audio_device = {
+	.name   = "at91sam9g20ek-audio",
+	.id     = -1,
+};
+
+static void __init ek_add_device_audio(void)
+{
+	platform_device_register(&sam9g20ek_audio_device);
+}
+
 
 static void __init ek_board_init(void)
 {
@@ -408,6 +404,7 @@ static void __init ek_board_init(void)
 	at91_set_B_periph(AT91_PIN_PC1, 0);
 	/* SSC (for WM8731) */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	ek_add_device_audio();
 }
 
 MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")

@@ -709,15 +709,22 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	spinlock_t *ptl;
 	int swapped;
 	int err = -EFAULT;
+	unsigned long mmun_start;	/* For mmu_notifiers */
+	unsigned long mmun_end;		/* For mmu_notifiers */
 
 	addr = page_address_in_vma(page, vma);
 	if (addr == -EFAULT)
 		goto out;
 
 	BUG_ON(PageTransCompound(page));
+
+	mmun_start = addr;
+	mmun_end   = addr + PAGE_SIZE;
+	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
-		goto out;
+		goto out_mn;
 
 	if (pte_write(*ptep) || pte_dirty(*ptep)) {
 		pte_t entry;
@@ -752,6 +759,8 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 
 out_unlock:
 	pte_unmap_unlock(ptep, ptl);
+out_mn:
+	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 out:
 	return err;
 }
@@ -769,35 +778,31 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 			struct page *kpage, pte_t orig_pte)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	pgd_t *pgd;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep;
 	spinlock_t *ptl;
 	unsigned long addr;
 	int err = -EFAULT;
+	unsigned long mmun_start;	/* For mmu_notifiers */
+	unsigned long mmun_end;		/* For mmu_notifiers */
 
 	addr = page_address_in_vma(page, vma);
 	if (addr == -EFAULT)
 		goto out;
 
-	pgd = pgd_offset(mm, addr);
-	if (!pgd_present(*pgd))
+	pmd = mm_find_pmd(mm, addr);
+	if (!pmd)
 		goto out;
-
-	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud))
-		goto out;
-
-	pmd = pmd_offset(pud, addr);
 	BUG_ON(pmd_trans_huge(*pmd));
-	if (!pmd_present(*pmd))
-		goto out;
+
+	mmun_start = addr;
+	mmun_end   = addr + PAGE_SIZE;
+	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 
 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	if (!pte_same(*ptep, orig_pte)) {
 		pte_unmap_unlock(ptep, ptl);
-		goto out;
+		goto out_mn;
 	}
 
 	get_page(kpage);
@@ -814,6 +819,8 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 
 	pte_unmap_unlock(ptep, ptl);
 	err = 0;
+out_mn:
+	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 out:
 	return err;
 }
@@ -1469,9 +1476,13 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		 */
 		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
 				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
-				 VM_RESERVED  | VM_HUGETLB | VM_INSERTPAGE |
-				 VM_NONLINEAR | VM_MIXEDMAP | VM_SAO))
+				 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP))
 			return 0;		/* just ignore the advice */
+
+#ifdef VM_SAO
+		if (*vm_flags & VM_SAO)
+			return 0;
+#endif
 
 		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
 			err = __ksm_enter(mm);
@@ -1582,7 +1593,7 @@ struct page *ksm_does_need_to_copy(struct page *page,
 		SetPageSwapBacked(new_page);
 		__set_page_locked(new_page);
 
-		if (page_evictable(new_page, vma))
+		if (!mlocked_vma_newpage(vma, new_page))
 			lru_cache_add_lru(new_page, LRU_ACTIVE_ANON);
 		else
 			add_page_to_unevictable_list(new_page);
@@ -1613,8 +1624,9 @@ again:
 		struct anon_vma_chain *vmac;
 		struct vm_area_struct *vma;
 
-		anon_vma_lock(anon_vma);
-		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+		anon_vma_lock_read(anon_vma);
+		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
+					       0, ULONG_MAX) {
 			vma = vmac->vma;
 			if (rmap_item->address < vma->vm_start ||
 			    rmap_item->address >= vma->vm_end)
@@ -1636,7 +1648,7 @@ again:
 			if (!search_new_forks || !mapcount)
 				break;
 		}
-		anon_vma_unlock(anon_vma);
+		anon_vma_unlock_read(anon_vma);
 		if (!mapcount)
 			goto out;
 	}
@@ -1666,8 +1678,9 @@ again:
 		struct anon_vma_chain *vmac;
 		struct vm_area_struct *vma;
 
-		anon_vma_lock(anon_vma);
-		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+		anon_vma_lock_read(anon_vma);
+		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
+					       0, ULONG_MAX) {
 			vma = vmac->vma;
 			if (rmap_item->address < vma->vm_start ||
 			    rmap_item->address >= vma->vm_end)
@@ -1684,11 +1697,11 @@ again:
 			ret = try_to_unmap_one(page, vma,
 					rmap_item->address, flags);
 			if (ret != SWAP_AGAIN || !page_mapped(page)) {
-				anon_vma_unlock(anon_vma);
+				anon_vma_unlock_read(anon_vma);
 				goto out;
 			}
 		}
-		anon_vma_unlock(anon_vma);
+		anon_vma_unlock_read(anon_vma);
 	}
 	if (!search_new_forks++)
 		goto again;
@@ -1718,8 +1731,9 @@ again:
 		struct anon_vma_chain *vmac;
 		struct vm_area_struct *vma;
 
-		anon_vma_lock(anon_vma);
-		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+		anon_vma_lock_read(anon_vma);
+		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
+					       0, ULONG_MAX) {
 			vma = vmac->vma;
 			if (rmap_item->address < vma->vm_start ||
 			    rmap_item->address >= vma->vm_end)
@@ -1735,11 +1749,11 @@ again:
 
 			ret = rmap_one(page, vma, rmap_item->address, arg);
 			if (ret != SWAP_AGAIN) {
-				anon_vma_unlock(anon_vma);
+				anon_vma_unlock_read(anon_vma);
 				goto out;
 			}
 		}
-		anon_vma_unlock(anon_vma);
+		anon_vma_unlock_read(anon_vma);
 	}
 	if (!search_new_forks++)
 		goto again;
@@ -1905,12 +1919,9 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (ksm_run != flags) {
 		ksm_run = flags;
 		if (flags & KSM_RUN_UNMERGE) {
-			int oom_score_adj;
-
-			oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
+			set_current_oom_origin();
 			err = unmerge_and_remove_all_rmap_items();
-			compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX,
-								oom_score_adj);
+			clear_current_oom_origin();
 			if (err) {
 				ksm_run = KSM_RUN_STOP;
 				count = err;

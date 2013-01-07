@@ -792,22 +792,6 @@ static const u32 MIU_TEST_READ_DATA[] = {
 #define QLCNIC_FLASH_SEM2_ULK	0x0013C014
 #define QLCNIC_FLASH_LOCK_ID	0x001B2100
 
-#define QLCNIC_RD_DUMP_REG(addr, bar0, data) do {			\
-	writel((addr & 0xFFFF0000), (void *) (bar0 +			\
-		QLCNIC_FW_DUMP_REG1));					\
-	readl((void *) (bar0 + QLCNIC_FW_DUMP_REG1));			\
-	*data = readl((void *) (bar0 + QLCNIC_FW_DUMP_REG2 +		\
-		LSW(addr)));						\
-} while (0)
-
-#define QLCNIC_WR_DUMP_REG(addr, bar0, data) do {			\
-	writel((addr & 0xFFFF0000), (void *) (bar0 +			\
-		QLCNIC_FW_DUMP_REG1));					\
-	readl((void *) (bar0 + QLCNIC_FW_DUMP_REG1));			\
-	writel(data, (void *) (bar0 + QLCNIC_FW_DUMP_REG2 + LSW(addr)));\
-	readl((void *) (bar0 + QLCNIC_FW_DUMP_REG2 + LSW(addr)));	\
-} while (0)
-
 /* PCI function operational mode */
 enum {
 	QLCNIC_MGMT_FUNC	= 0,
@@ -832,55 +816,63 @@ enum {
 #define LSD(x)  ((uint32_t)((uint64_t)(x)))
 #define MSD(x)  ((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
+#define QLCNIC_MS_CTRL			0x41000090
+#define QLCNIC_MS_ADDR_LO		0x41000094
+#define QLCNIC_MS_ADDR_HI		0x41000098
+#define QLCNIC_MS_WRTDATA_LO		0x410000A0
+#define QLCNIC_MS_WRTDATA_HI		0x410000A4
+#define QLCNIC_MS_WRTDATA_ULO		0x410000B0
+#define QLCNIC_MS_WRTDATA_UHI		0x410000B4
+#define QLCNIC_MS_RDDATA_LO		0x410000A8
+#define QLCNIC_MS_RDDATA_HI		0x410000AC
+#define QLCNIC_MS_RDDATA_ULO		0x410000B8
+#define QLCNIC_MS_RDDATA_UHI		0x410000BC
+
+#define QLCNIC_TA_WRITE_ENABLE	(TA_CTL_ENABLE | TA_CTL_WRITE)
+#define QLCNIC_TA_WRITE_START	(TA_CTL_START | TA_CTL_ENABLE | TA_CTL_WRITE)
+#define QLCNIC_TA_START_ENABLE	(TA_CTL_START | TA_CTL_ENABLE)
+
 #define	QLCNIC_LEGACY_INTR_CONFIG					\
 {									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F0,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS,		\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(0) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK, },		\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F1,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F1,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F1,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(1) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F1, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F2,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F2,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F2,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(2) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F2, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F3,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F3,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F3,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(3) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F3, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F4,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F4,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F4,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(4) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F4, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F5,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F5,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F5,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(5) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F5, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F6,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F6,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F6,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(6) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F6, },	\
 									\
 	{								\
 		.int_vec_bit	=	PCIX_INT_VECTOR_BIT_F7,		\
 		.tgt_status_reg	=	ISR_INT_TARGET_STATUS_F7,	\
-		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F7,		\
-		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(7) },	\
+		.tgt_mask_reg	=	ISR_INT_TARGET_MASK_F7, },	\
 }
 
 /* NIU REGS */

@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <asm/system_misc.h>
 
+#include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
 #include "powerdomain.h"
@@ -69,9 +70,8 @@ static int omap4_pm_suspend(void)
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
-			pr_info("Powerdomain (%s) didn't enter "
-			       "target state %d\n",
-			       pwrst->pwrdm->name, pwrst->next_state);
+			pr_info("Powerdomain (%s) didn't enter target state %d\n",
+				pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
@@ -99,13 +99,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	 * further down in the code path
 	 */
 	if (!strncmp(pwrdm->name, "cpu", 3))
-		return 0;
-
-	/*
-	 * FIXME: Remove this check when core retention is supported
-	 * Only MPUSS power domain is added in the list.
-	 */
-	if (strcmp(pwrdm->name, "mpu_pwrdm"))
 		return 0;
 
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
@@ -189,8 +182,7 @@ int __init omap4_pm_init(void)
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_1_clkdm);
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_2_clkdm);
 	if (ret) {
-		pr_err("Failed to add MPUSS -> L3/EMIF/L4PER, DUCATI -> L3 "
-				"wakeup dependency\n");
+		pr_err("Failed to add MPUSS -> L3/EMIF/L4PER, DUCATI -> L3 wakeup dependency\n");
 		goto err2;
 	}
 

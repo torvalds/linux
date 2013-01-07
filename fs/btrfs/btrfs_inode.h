@@ -38,6 +38,8 @@
 #define BTRFS_INODE_DELALLOC_META_RESERVED	4
 #define BTRFS_INODE_HAS_ORPHAN_ITEM		5
 #define BTRFS_INODE_HAS_ASYNC_EXTENT		6
+#define BTRFS_INODE_NEEDS_FULL_SYNC		7
+#define BTRFS_INODE_COPY_EVERYTHING		8
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -88,6 +90,9 @@ struct btrfs_inode {
 	struct rb_node rb_node;
 
 	unsigned long runtime_flags;
+
+	/* Keep track of who's O_SYNC/fsycing currently */
+	atomic_t sync_writers;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.
@@ -142,6 +147,9 @@ struct btrfs_inode {
 
 	/* flags field from the on disk inode */
 	u32 flags;
+
+	/* a local copy of root's last_log_commit */
+	unsigned long last_log_commit;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due
@@ -202,15 +210,10 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 
 static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret = 0;
-
-	mutex_lock(&root->log_mutex);
 	if (BTRFS_I(inode)->logged_trans == generation &&
-	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
-		ret = 1;
-	mutex_unlock(&root->log_mutex);
-	return ret;
+	    BTRFS_I(inode)->last_sub_trans <= BTRFS_I(inode)->last_log_commit)
+		return 1;
+	return 0;
 }
 
 #endif

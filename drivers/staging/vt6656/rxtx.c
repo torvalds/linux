@@ -355,7 +355,7 @@ s_vFillTxKey (
         }
         // Append IV after Mac Header
         *pdwIV &= WEP_IV_MASK;//00000000 11111111 11111111 11111111
-        *pdwIV |= (pDevice->byKeyIndex << 30);
+	*pdwIV |= (u32)pDevice->byKeyIndex << 30;
         *pdwIV = cpu_to_le32(*pdwIV);
         pDevice->dwIVCounter++;
         if (pDevice->dwIVCounter > WEP_IV_MASK) {
@@ -375,7 +375,8 @@ s_vFillTxKey (
         *(pbyIVHead+3) = (BYTE)(((pDevice->byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
         // Append IV&ExtIV after Mac Header
         *pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFillTxKey()---- pdwExtIV: %lx\n", *pdwExtIV);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFillTxKey()---- pdwExtIV: %x\n",
+		*pdwExtIV);
 
     } else if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
         pTransmitKey->wTSC15_0++;
@@ -841,7 +842,7 @@ s_uFillDataHead (
 	if ((uDMAIdx == TYPE_ATIMDMA) || (uDMAIdx == TYPE_BEACONDMA)) {
 		PSTxDataHead_ab pBuf = (PSTxDataHead_ab) pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -858,10 +859,10 @@ s_uFillDataHead (
             if (byFBOption == AUTO_FB_NONE) {
                 PSTxDataHead_g pBuf = (PSTxDataHead_g)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (PWORD)&(pBuf->wTransmitLength_a), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
                 );
-                BBvCaculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                     (PWORD)&(pBuf->wTransmitLength_b), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
                 );
                 //Get Duration and TimeStamp
@@ -881,10 +882,10 @@ s_uFillDataHead (
                 // Auto Fallback
                 PSTxDataHead_g_FB pBuf = (PSTxDataHead_g_FB)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (PWORD)&(pBuf->wTransmitLength_a), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
                 );
-                BBvCaculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                     (PWORD)&(pBuf->wTransmitLength_b), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
                 );
                 //Get Duration and TimeStamp
@@ -907,7 +908,7 @@ s_uFillDataHead (
             // Auto Fallback
             PSTxDataHead_a_FB pBuf = (PSTxDataHead_a_FB)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -924,7 +925,7 @@ s_uFillDataHead (
         } else {
             PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -942,7 +943,7 @@ s_uFillDataHead (
     else if (byPktType == PK_TYPE_11B) {
             PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -987,17 +988,17 @@ s_vFillRTSHead (
         uRTSFrameLen -= 4;
     }
 
-    // Note: So far RTSHead dosen't appear in ATIM & Beacom DMA, so we don't need to take them into account.
+    // Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
     //       Otherwise, we need to modified codes for them.
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
         if (byFBOption == AUTO_FB_NONE) {
             PSRTS_g pBuf = (PSRTS_g)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
             );
             pBuf->wTransmitLength_a = cpu_to_le16(wLen);
@@ -1035,11 +1036,11 @@ s_vFillRTSHead (
         else {
            PSRTS_g_FB pBuf = (PSRTS_g_FB)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
             );
             pBuf->wTransmitLength_a = cpu_to_le16(wLen);
@@ -1084,7 +1085,7 @@ s_vFillRTSHead (
         if (byFBOption == AUTO_FB_NONE) {
             PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1119,7 +1120,7 @@ s_vFillRTSHead (
         else {
             PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1155,7 +1156,7 @@ s_vFillRTSHead (
     else if (byPktType == PK_TYPE_11B) {
         PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+        BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
             (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
         );
         pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1221,7 +1222,7 @@ s_vFillCTSHead (
             // Auto Fall back
             PSCTS_FB pBuf = (PSCTS_FB)pvCTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
@@ -1246,7 +1247,7 @@ s_vFillCTSHead (
         } else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
             PSCTS pBuf = (PSCTS)pvCTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
@@ -1452,12 +1453,10 @@ s_bPacketToWirelessUsb(
 
 
     pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
-    if ((bNeedEncryption) && (pTransmitKey != NULL))  {
-        if (((PSKeyTable) (pTransmitKey->pvKeyTable))->bSoftWEP == TRUE) {
-            // WEP 256
-            bSoftWEP = TRUE;
-        }
-    }
+	if (bNeedEncryption && pTransmitKey->pvKeyTable) {
+		if (((PSKeyTable)&pTransmitKey->pvKeyTable)->bSoftWEP == TRUE)
+			bSoftWEP = TRUE; /* WEP 256 */
+	}
 
     pTxBufHead = (PTX_BUFFER) usbPacketBuf;
     memset(pTxBufHead, 0, sizeof(TX_BUFFER));
@@ -1751,7 +1750,8 @@ s_bPacketToWirelessUsb(
         MIC_vAppend((PBYTE)&(psEthHeader->abyDstAddr[0]), 12);
         dwMIC_Priority = 0;
         MIC_vAppend((PBYTE)&dwMIC_Priority, 4);
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC KEY: %lX, %lX\n", dwMICKey0, dwMICKey1);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC KEY: %X, %X\n",
+		dwMICKey0, dwMICKey1);
 
         ///////////////////////////////////////////////////////////////////
 
@@ -1827,7 +1827,7 @@ s_bPacketToWirelessUsb(
  *
  * Parameters:
  *  In:
- *      pDevice         - Pointer to adpater
+ *      pDevice         - Pointer to adapter
  *      dwTxBufferAddr  - Transmit Buffer
  *      pPacket         - Packet from upper layer
  *      cbPacketSize    - Transmit Data Length
@@ -2198,7 +2198,7 @@ CMD_STATUS csMgmt_xmit(
 
     if (bIsPSPOLL) {
         // The MAC will automatically replace the Duration-field of MAC header by Duration-field
-        // of  FIFO control header.
+        // of FIFO control header.
         // This will cause AID-field of PS-POLL packet be incorrect (Because PS-POLL's AID field is
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
@@ -2272,7 +2272,7 @@ csBeacon_xmit(
         wCurrentRate = RATE_6M;
         pTxDataHead = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
+        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
             (PWORD)&(pTxDataHead->wTransmitLength), (PBYTE)&(pTxDataHead->byServiceField), (PBYTE)&(pTxDataHead->bySignalField)
         );
         //Get Duration and TimeStampOff
@@ -2285,7 +2285,7 @@ csBeacon_xmit(
         pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
         pTxDataHead = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
+        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
             (PWORD)&(pTxDataHead->wTransmitLength), (PBYTE)&(pTxDataHead->byServiceField), (PBYTE)&(pTxDataHead->bySignalField)
         );
         //Get Duration and TimeStampOff
@@ -2473,7 +2473,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
         cbMacHdLen = WLAN_HDR_ADDR3_LEN;
     }
 
-    // hostapd deamon ext support rate patch
+    // hostapd daemon ext support rate patch
     if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
 
         if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0) {
@@ -2591,7 +2591,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     pMACHeader->wFrameCtl &= cpu_to_le16(0xfffc);
     memcpy(pbyPayloadHead, (skb->data + cbMacHdLen), cbFrameBodySize);
 
-    // replace support rate, patch for hostapd deamon( only support 11M)
+    // replace support rate, patch for hostapd daemon( only support 11M)
     if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
         if (cbExtSuppRate != 0) {
             if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0)
@@ -2633,7 +2633,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
             MIC_vAppend((PBYTE)&(sEthHeader.abyDstAddr[0]), 12);
             dwMIC_Priority = 0;
             MIC_vAppend((PBYTE)&dwMIC_Priority, 4);
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"DMA0_tx_8021:MIC KEY: %lX, %lX\n", dwMICKey0, dwMICKey1);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"DMA0_tx_8021:MIC KEY:"\
+			" %X, %X\n", dwMICKey0, dwMICKey1);
 
             uLength = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen;
 
@@ -2653,7 +2654,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
 
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"uLength: %d, %d\n", uLength, cbFrameBodySize);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"cbReqCount:%d, %d, %d, %d\n", cbReqCount, cbHeaderSize, uPadding, cbIVlen);
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC:%lx, %lx\n", *pdwMIC_L, *pdwMIC_R);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC:%x, %x\n",
+			*pdwMIC_L, *pdwMIC_R);
 
         }
 
@@ -2770,7 +2772,7 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
                 pMgmt->abyPSTxMap[0] |= byMask[0];
                 return 0;
             }
-            // muticast/broadcast data rate
+            // multicast/broadcast data rate
 
             if (pDevice->byBBType != BB_TYPE_11A)
                 pDevice->wCurrentRate = RATE_2M;
@@ -2855,7 +2857,7 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
 			  }
 			  PRINT_K("Authentication completed!!\n");
                         }
-		    else if((Key_info & BIT3) && (Descriptor_type==2) &&  //RSN pairse-key challenge
+		    else if((Key_info & BIT3) && (Descriptor_type==2) &&  //RSN pairwise-key challenge
 			       (Key_info & BIT8) && (Key_info & BIT9)) {
 			  pDevice->fWPA_Authened = TRUE;
                             PRINT_K("WPA2 Authentication completed!!\n");
@@ -3027,21 +3029,18 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"error: KEY is GTK!!~~\n");
                     }
                     else {
-                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%lX]\n", pTransmitKey->dwKeyIndex);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%X]\n",
+				pTransmitKey->dwKeyIndex);
                         bNeedEncryption = TRUE;
                     }
                 }
             }
 
-            if (pDevice->byCntMeasure == 2) {
-                bNeedDeAuth = TRUE;
-                pDevice->s802_11Counter.TKIPCounterMeasuresInvoked++;
-            }
-
             if (pDevice->bEnableHostWEP) {
                 if ((uNodeIndex != 0) &&
                     (pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex & PAIRWISE_KEY)) {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%lX]\n", pTransmitKey->dwKeyIndex);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Find PTK [%X]\n",
+				pTransmitKey->dwKeyIndex);
                     bNeedEncryption = TRUE;
                  }
              }
@@ -3050,6 +3049,7 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
 
             if (pTransmitKey == NULL) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
+		pContext->bBoolInUse = FALSE;
                 dev_kfree_skb_irq(skb);
                 pStats->tx_dropped++;
                 return STATUS_FAILURE;

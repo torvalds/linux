@@ -41,6 +41,8 @@ Configuration Options:
 #include "../comedidev.h"
 #include <linux/ioport.h>
 
+#include "comedi_fc.h"
+
 /* Board register addresses */
 
 #define DMM32AT_MEMSIZE 0x10
@@ -156,10 +158,6 @@ static const struct comedi_lrange dmm32at_aoranges = {
 	 }
 };
 
-struct dmm32at_board {
-	const char *name;
-};
-
 struct dmm32at_private {
 
 	int data;
@@ -258,78 +256,49 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	int tmp;
 	int start_chan, gain, i;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER /*| TRIG_EXT */ ;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER /*| TRIG_EXT */ ;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER /*| TRIG_EXT */);
+	err |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER /*| TRIG_EXT */);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually
-	 * compatible */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* note that mutual compatibility is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SCAN_SPEED	1000000	/* in nanoseconds */
 #define MIN_SCAN_SPEED	1000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SCAN_SPEED) {
-			cmd->scan_begin_arg = MAX_SCAN_SPEED;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SCAN_SPEED) {
-			cmd->scan_begin_arg = MIN_SCAN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SCAN_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MIN_SCAN_SPEED);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if (cmd->scan_begin_arg > 9) {
-			cmd->scan_begin_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (cmd->convert_arg >= 17500)
 			cmd->convert_arg = 20000;
@@ -339,35 +308,20 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 			cmd->convert_arg = 10000;
 		else
 			cmd->convert_arg = 5000;
-
 	} else {
 		/* external trigger */
 		/* see above */
-		if (cmd->convert_arg > 9) {
-			cmd->convert_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0xfffffff0) {
-			cmd->stop_arg = 0xfffffff0;
-			err++;
-		}
-		if (cmd->stop_arg == 0) {
-			cmd->stop_arg = 1;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0xfffffff0);
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -737,13 +691,14 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 static int dmm32at_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct dmm32at_board *board = comedi_board(dev);
 	struct dmm32at_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 	unsigned long iobase;
 	unsigned int irq;
+
+	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
 	irq = it->options[1];
@@ -753,7 +708,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	       iobase, irq);
 
 	/* register address space */
-	if (!request_region(iobase, DMM32AT_MEMSIZE, board->name)) {
+	if (!request_region(iobase, DMM32AT_MEMSIZE, dev->board_name)) {
 		printk(KERN_ERR "comedi%d: dmm32at: I/O port conflict\n",
 		       dev->minor);
 		return -EIO;
@@ -807,7 +762,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	/* board is there, register interrupt */
 	if (irq) {
-		ret = request_irq(irq, dmm32at_isr, 0, board->name, dev);
+		ret = request_irq(irq, dmm32at_isr, 0, dev->board_name, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "dmm32at: irq conflict\n");
 			return ret;
@@ -815,17 +770,16 @@ static int dmm32at_attach(struct comedi_device *dev,
 		dev->irq = irq;
 	}
 
-	dev->board_name = board->name;
-
-	if (alloc_private(dev, sizeof(*devpriv)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	devpriv = dev->private;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -841,7 +795,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->do_cmdtest = dmm32at_ai_cmdtest;
 	s->cancel = dmm32at_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -851,7 +805,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->insn_write = dmm32at_ao_winsn;
 	s->insn_read = dmm32at_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 
 	/* get access to the DIO regs */
@@ -886,20 +840,11 @@ static void dmm32at_detach(struct comedi_device *dev)
 		release_region(dev->iobase, DMM32AT_MEMSIZE);
 }
 
-static const struct dmm32at_board dmm32at_boards[] = {
-	{
-		.name		= "dmm32at",
-	},
-};
-
 static struct comedi_driver dmm32at_driver = {
 	.driver_name	= "dmm32at",
 	.module		= THIS_MODULE,
 	.attach		= dmm32at_attach,
 	.detach		= dmm32at_detach,
-	.board_name	= &dmm32at_boards[0].name,
-	.offset		= sizeof(struct dmm32at_board),
-	.num_names	= ARRAY_SIZE(dmm32at_boards),
 };
 module_comedi_driver(dmm32at_driver);
 

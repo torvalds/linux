@@ -23,11 +23,11 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
-#include <mach/nand.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include "davinci.h"
 
@@ -246,7 +246,7 @@ static __init void dm355_leopard_init(void)
 	if (IS_ERR(aemif))
 		WARN("%s: unable to get AEMIF clock\n", __func__);
 	else
-		clk_enable(aemif);
+		clk_prepare_enable(aemif);
 
 	platform_add_devices(davinci_leopard_devices,
 			     ARRAY_SIZE(davinci_leopard_devices));

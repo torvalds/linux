@@ -1,7 +1,7 @@
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
@@ -15,12 +15,12 @@
 #include <linux/writeback.h>
 #include <linux/slab.h>
 
-#include "types.h"
-#include "messenger.h"
-#include "msgpool.h"
-#include "mon_client.h"
-#include "osd_client.h"
-#include "ceph_fs.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/msgpool.h>
+#include <linux/ceph/mon_client.h>
+#include <linux/ceph/osd_client.h>
+#include <linux/ceph/ceph_fs.h>
 
 /*
  * mount options
@@ -43,7 +43,6 @@ struct ceph_options {
 	struct ceph_entity_addr my_addr;
 	int mount_timeout;
 	int osd_idle_ttl;
-	int osd_timeout;
 	int osd_keepalive_timeout;
 
 	/*
@@ -63,7 +62,6 @@ struct ceph_options {
  * defaults
  */
 #define CEPH_MOUNT_TIMEOUT_DEFAULT  60
-#define CEPH_OSD_TIMEOUT_DEFAULT    60  /* seconds */
 #define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 

@@ -36,11 +36,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx51.h>
-
+#include "common.h"
 #include "devices-imx51.h"
+#include "hardware.h"
+#include "iomux-mx51.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd51_pads[] = {
 	/* LED */
@@ -228,4 +227,5 @@ void __init eukrea_mbimxsd51_baseboard_init(void)
 
 	gpio_led_register_device(-1, &eukrea_mbimxsd51_led_info);
 	imx_add_gpio_keys(&eukrea_mbimxsd51_button_data);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

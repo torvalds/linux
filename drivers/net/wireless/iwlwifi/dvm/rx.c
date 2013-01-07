@@ -631,8 +631,6 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
-	else
-		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 
@@ -667,6 +665,7 @@ static int iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	priv->last_phy_res_valid = true;
+	priv->ampdu_ref++;
 	memcpy(&priv->last_phy_res, pkt->data,
 	       sizeof(struct iwl_rx_phy_res));
 	return 0;
@@ -900,7 +899,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			    struct iwl_device_cmd *cmd)
 {
 	struct ieee80211_hdr *header;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status rx_status = {};
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
@@ -950,7 +949,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
 	 * this W/A doesn't propagate it to the mac80211 */
-	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
+	/*rx_status.flag |= RX_FLAG_MACTIME_START;*/
 
 	priv->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 
@@ -980,6 +979,16 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
+
+	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
+		/*
+		 * We know which subframes of an A-MPDU belong
+		 * together since we get a single PHY response
+		 * from the firmware for all of them
+		 */
+		rx_status.flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status.ampdu_reference = priv->ampdu_ref;
+	}
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)

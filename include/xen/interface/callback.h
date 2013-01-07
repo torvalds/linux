@@ -27,7 +27,7 @@
 #ifndef __XEN_PUBLIC_CALLBACK_H__
 #define __XEN_PUBLIC_CALLBACK_H__
 
-#include "xen.h"
+#include <xen/interface/xen.h>
 
 /*
  * Prototype for this hypercall is:

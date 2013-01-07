@@ -1,7 +1,7 @@
 /*
  * Signal support for Hexagon processor
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +20,6 @@
 
 #include <linux/linkage.h>
 #include <linux/syscalls.h>
-#include <linux/freezer.h>
 #include <linux/tracehook.h>
 #include <asm/registers.h>
 #include <asm/thread_info.h>
@@ -250,14 +249,14 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
  */
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
-	struct pt_regs *regs = current_thread_info()->regs;
+	struct pt_regs *regs = current_pt_regs();
 
 	return do_sigaltstack(uss, uoss, regs->r29);
 }
 
 asmlinkage int sys_rt_sigreturn(void)
 {
-	struct pt_regs *regs = current_thread_info()->regs;
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	sigset_t blocked;
 

@@ -345,17 +345,17 @@ static int find_gid_port(struct ib_device *device, union ib_gid *gid, u8 port_nu
 
 	err = ib_query_port(device, port_num, &props);
 	if (err)
-		return 1;
+		return err;
 
 	for (i = 0; i < props.gid_tbl_len; ++i) {
 		err = ib_query_gid(device, port_num, i, &tmp);
 		if (err)
-			return 1;
+			return err;
 		if (!memcmp(&tmp, gid, sizeof tmp))
 			return 0;
 	}
 
-	return -EAGAIN;
+	return -EADDRNOTAVAIL;
 }
 
 static int cma_acquire_dev(struct rdma_id_private *id_priv)
@@ -388,8 +388,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 				if (!ret) {
 					id_priv->id.port_num = port;
 					goto out;
-				} else if (ret == 1)
-					break;
+				}
 			}
 		}
 	}
@@ -2648,8 +2647,8 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	req.responder_resources = conn_param->responder_resources;
 	req.initiator_depth = conn_param->initiator_depth;
 	req.flow_control = conn_param->flow_control;
-	req.retry_count = conn_param->retry_count;
-	req.rnr_retry_count = conn_param->rnr_retry_count;
+	req.retry_count = min_t(u8, 7, conn_param->retry_count);
+	req.rnr_retry_count = min_t(u8, 7, conn_param->rnr_retry_count);
 	req.remote_cm_response_timeout = CMA_CM_RESPONSE_TIMEOUT;
 	req.local_cm_response_timeout = CMA_CM_RESPONSE_TIMEOUT;
 	req.max_cm_retries = CMA_MAX_CM_RETRIES;
@@ -2770,7 +2769,7 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 	rep.initiator_depth = conn_param->initiator_depth;
 	rep.failover_accepted = 0;
 	rep.flow_control = conn_param->flow_control;
-	rep.rnr_retry_count = conn_param->rnr_retry_count;
+	rep.rnr_retry_count = min_t(u8, 7, conn_param->rnr_retry_count);
 	rep.srq = id_priv->srq ? 1 : 0;
 
 	ret = ib_send_cm_rep(id_priv->cm_id.ib, &rep);
@@ -3058,7 +3057,10 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 
 	if (id_priv->id.ps == RDMA_PS_IPOIB)
 		comp_mask |= IB_SA_MCMEMBER_REC_RATE |
-			     IB_SA_MCMEMBER_REC_RATE_SELECTOR;
+			     IB_SA_MCMEMBER_REC_RATE_SELECTOR |
+			     IB_SA_MCMEMBER_REC_MTU_SELECTOR |
+			     IB_SA_MCMEMBER_REC_MTU |
+			     IB_SA_MCMEMBER_REC_HOP_LIMIT;
 
 	mc->multicast.ib = ib_sa_join_multicast(&sa_client, id_priv->id.device,
 						id_priv->id.port_num, &rec,
@@ -3495,7 +3497,8 @@ out:
 }
 
 static const struct ibnl_client_cbs cma_cb_table[] = {
-	[RDMA_NL_RDMA_CM_ID_STATS] = { .dump = cma_get_id_stats },
+	[RDMA_NL_RDMA_CM_ID_STATS] = { .dump = cma_get_id_stats,
+				       .module = THIS_MODULE },
 };
 
 static int __init cma_init(void)

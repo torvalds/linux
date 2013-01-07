@@ -56,6 +56,6 @@ The junction temperature is calculated:
 The junction temperature attribute is supported by the driver.
 
 The battery temperature is calculated:
-	Degree Celcius = 1 / (t1 + 1/298)- 273
+	Degree Celsius = 1 / (t1 + 1/298)- 273
 where t1 = (1/B)* ln(( ADCval * 2.5)/(R25*ITBAT*255))
 Default values of R25, B, ITBAT are 10e3, 3380 and 50e-6 respectively.

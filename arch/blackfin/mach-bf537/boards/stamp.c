@@ -1525,7 +1525,7 @@ static struct platform_device bfin_sport_spi1_device = {
 
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 static struct platform_device bfin_fb_device = {
-	.name = "bf537-lq035",
+	.name = "bf537_lq035",
 };
 #endif
 
@@ -2641,6 +2641,21 @@ static struct platform_device bfin_ac97_pcm = {
 };
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
+	        || defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+static const char * const ad1836_link[] = {
+	"bfin-tdm.0",
+	"spi0.4",
+};
+static struct platform_device bfin_ad1836_machine = {
+	.name = "bfin-snd-ad1836",
+	.id = -1,
+	.dev = {
+		.platform_data = (void *)ad1836_link,
+	},
+};
+#endif
+
 #if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \
 				defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
 static const unsigned ad73311_gpio[] = {
@@ -2925,6 +2940,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
 	&bfin_ac97_pcm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_AD1836) || \
+	defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+	&bfin_ad1836_machine,
 #endif
 
 #if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \

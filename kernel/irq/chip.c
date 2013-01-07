@@ -272,6 +272,7 @@ void handle_nested_irq(unsigned int irq)
 
 	raw_spin_lock_irq(&desc->lock);
 
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	action = desc->action;
@@ -671,6 +672,7 @@ irq_set_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 	irq_set_chip(irq, chip);
 	__irq_set_handler(irq, handle, 0, name);
 }
+EXPORT_SYMBOL_GPL(irq_set_chip_and_handler_name);
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 {

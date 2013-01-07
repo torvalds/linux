@@ -116,7 +116,7 @@ static void timbgpio_irq_disable(struct irq_data *d)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgpio->lock, flags);
-	tgpio->last_ier &= ~(1 << offset);
+	tgpio->last_ier &= ~(1UL << offset);
 	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
 	spin_unlock_irqrestore(&tgpio->lock, flags);
 }
@@ -128,7 +128,7 @@ static void timbgpio_irq_enable(struct irq_data *d)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgpio->lock, flags);
-	tgpio->last_ier |= 1 << offset;
+	tgpio->last_ier |= 1UL << offset;
 	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
 	spin_unlock_irqrestore(&tgpio->lock, flags);
 }
@@ -222,7 +222,7 @@ static struct irq_chip timbgpio_irqchip = {
 	.irq_set_type	= timbgpio_irq_type,
 };
 
-static int __devinit timbgpio_probe(struct platform_device *pdev)
+static int timbgpio_probe(struct platform_device *pdev)
 {
 	int err, i;
 	struct gpio_chip *gc;
@@ -316,7 +316,7 @@ err_mem:
 	return err;
 }
 
-static int __devexit timbgpio_remove(struct platform_device *pdev)
+static int timbgpio_remove(struct platform_device *pdev)
 {
 	int err;
 	struct timbgpio_platform_data *pdata = pdev->dev.platform_data;

@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/sizes.h>
 #include <linux/module.h>
 
 #ifdef CONFIG_MTRR
@@ -72,9 +73,9 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
-	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
+	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
+	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
 
 	return Clock;
 }
@@ -100,35 +101,35 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
-	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
+	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
+	sr_data = XGI_CRT1Table[index].CR[5];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[0];
+	cr_data = XGI_CRT1Table[index].CR[0];
 
 	/* Horizontal total */
 	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
 	A = HT + 5;
 
-	HDE = (XGI_Pr->RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
+	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[3];
+	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
 	F = HRS - E - 3;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
+	cr_data = XGI_CRT1Table[index].CR[1];
 
 	/* Horizontal blank start */
 	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[6];
+	sr_data = XGI_CRT1Table[index].CR[6];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[2];
+	cr_data = XGI_CRT1Table[index].CR[2];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[4];
+	cr_data2 = XGI_CRT1Table[index].CR[4];
 
 	/* Horizontal blank end */
 	HBE = (cr_data & 0x1f) | ((unsigned short) (cr_data2 & 0x80) >> 2)
@@ -149,11 +150,11 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*right_margin = F * 8;
 	*hsync_len = C * 8;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[14];
+	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[8];
+	cr_data = XGI_CRT1Table[index].CR[8];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[9];
+	cr_data2 = XGI_CRT1Table[index].CR[9];
 
 	/* Vertical total */
 	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
@@ -161,10 +162,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x01) << 10);
 	A = VT + 2;
 
-	VDE = XGI_Pr->RefIndex[RefreshRateTableIndex].YRes - 1;
+	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
 	E = VDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10];
+	cr_data = XGI_CRT1Table[index].CR[10];
 
 	/* Vertical retrace (=sync) start */
 	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
@@ -172,23 +173,23 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x08) << 7);
 	F = VRS + 1 - E;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[12];
+	cr_data = XGI_CRT1Table[index].CR[12];
 
-	cr_data3 = (XGI_Pr->XGINEWUB_CRT1Table[index].CR[14] & 0x80) << 5;
+	cr_data3 = (XGI_CRT1Table[index].CR[14] & 0x80) << 5;
 
 	/* Vertical blank start */
 	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
 			| ((unsigned short) (cr_data3 & 0x20) << 4)
 			| ((unsigned short) (sr_data & 0x04) << 8);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[13];
+	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
 	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
 	temp = VBE - ((E - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[11];
+	cr_data = XGI_CRT1Table[index].CR[11];
 
 	/* Vertical retrace (=sync) end */
 	VRE = (cr_data & 0x0f) | ((sr_data & 0x20) >> 1);
@@ -201,25 +202,25 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*lower_margin = F;
 	*vsync_len = C;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
 		*sync &= ~FB_SYNC_VERT_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_VERT_HIGH_ACT;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
 		*sync &= ~FB_SYNC_HOR_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_HOR_HIGH_ACT;
 
 	*vmode = FB_VMODE_NONINTERLACED;
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
 		*vmode = FB_VMODE_INTERLACED;
 	else {
 		j = 0;
-		while (XGI_Pr->EModeIDTable[j].Ext_ModeID != 0xff) {
-			if (XGI_Pr->EModeIDTable[j].Ext_ModeID ==
-			    XGI_Pr->RefIndex[RefreshRateTableIndex].ModeID) {
-				if (XGI_Pr->EModeIDTable[j].Ext_ModeFlag &
+		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
+			if (XGI330_EModeIDTable[j].Ext_ModeID ==
+			    XGI330_RefIndex[RefreshRateTableIndex].ModeID) {
+				if (XGI330_EModeIDTable[j].Ext_ModeFlag &
 				    DoubleScanMode) {
 					*vmode = FB_VMODE_DOUBLE;
 				}
@@ -329,6 +330,7 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 {
 	u16 xres, yres;
 	struct xgi_hw_device_info *hw_info = &xgifb_info->hw_info;
+	unsigned long required_mem;
 
 	if (xgifb_info->chip == XG21) {
 		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
@@ -345,13 +347,13 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			}
 
 		}
-		return myindex;
+		goto check_memory;
 
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
 	if (xgifb_info->chip == XG27)
-		return myindex;
+		goto check_memory;
 
 	if (!(XGIbios_mode[myindex].chipset & MD_XGI315))
 		return -1;
@@ -539,6 +541,12 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 	case XGIFB_DISP_NONE:
 		break;
 	}
+
+check_memory:
+	required_mem = XGIbios_mode[myindex].xres * XGIbios_mode[myindex].yres *
+		       XGIbios_mode[myindex].bpp / 8;
+	if (required_mem > xgifb_info->video_size)
+		return -1;
 	return myindex;
 
 }
@@ -913,17 +921,10 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 			}
 
 			if ((filter >= 0) && (filter <= 7)) {
-				pr_debug("FilterTable[%d]-%d: %02x %02x %02x %02x\n",
+				pr_debug("FilterTable[%d]-%d: %*ph\n",
 					 filter_tb, filter,
-					 XGI_TV_filter[filter_tb].
-						filter[filter][0],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][1],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][2],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][3]
-				);
+					 4, XGI_TV_filter[filter_tb].
+						   filter[filter]);
 				xgifb_reg_set(
 					XGIPART2,
 					0x35,
@@ -1404,11 +1405,10 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		if (var->yoffset < 0 || var->yoffset >= info->var.yres_virtual
 				|| var->xoffset)
 			return -EINVAL;
-	} else {
-		if (var->xoffset + info->var.xres > info->var.xres_virtual
+	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
 				|| var->yoffset + info->var.yres
-						> info->var.yres_virtual)
-			return -EINVAL;
+						> info->var.yres_virtual) {
+		return -EINVAL;
 	}
 	err = XGIfb_pan_var(var, info);
 	if (err < 0)
@@ -1471,6 +1471,9 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 		xgifb_reg_set(XGISR, IND_SIS_DRAM_SIZE, 0x51);
 
 	reg = xgifb_reg_get(XGISR, IND_SIS_DRAM_SIZE);
+	if (!reg)
+		return -1;
+
 	switch ((reg & XGI_DRAM_SIZE_MASK) >> 4) {
 	case XGI_DRAM_SIZE_1MB:
 		xgifb_info->video_size = 0x100000;
@@ -1692,7 +1695,7 @@ static int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static int __devinit xgifb_probe(struct pci_dev *pdev,
+static int xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	u8 reg, reg1;
@@ -1701,6 +1704,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	struct fb_info *fb_info;
 	struct xgifb_video_info *xgifb_info;
 	struct xgi_hw_device_info *hw_info;
+	unsigned long video_size_max;
 
 	fb_info = framebuffer_alloc(sizeof(*xgifb_info), &pdev->dev);
 	if (!fb_info)
@@ -1721,6 +1725,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->subsysvendor = pdev->subsystem_vendor;
 	xgifb_info->subsysdevice = pdev->subsystem_device;
 
+	video_size_max = pci_resource_len(pdev, 0);
 	xgifb_info->video_base = pci_resource_start(pdev, 0);
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
@@ -1777,10 +1782,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	hw_info->jChipType = xgifb_info->chip;
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
-		dev_err(&pdev->dev,
-			"Fatal error: Unable to determine RAM size.\n");
-		ret = -ENODEV;
-		goto error_disable;
+		xgifb_info->video_size = min_t(unsigned long, video_size_max,
+						SZ_16M);
+	} else if (xgifb_info->video_size > video_size_max) {
+		xgifb_info->video_size = video_size_max;
 	}
 
 	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
@@ -2098,7 +2103,7 @@ error:
 /*                PCI DEVICE HANDLING                */
 /*****************************************************/
 
-static void __devexit xgifb_remove(struct pci_dev *pdev)
+static void xgifb_remove(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct fb_info *fb_info = xgifb_info->fb_info;
@@ -2122,7 +2127,7 @@ static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
 	.id_table = xgifb_pci_table,
 	.probe = xgifb_probe,
-	.remove = __devexit_p(xgifb_remove)
+	.remove = xgifb_remove
 };
 
 

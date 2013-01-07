@@ -1567,7 +1567,7 @@ tx_complete++;
 /*--------------------------------- entries ---------------------------------*/
 
 
-static const char *media_name[] __devinitdata = {
+static char * const media_name[] __devinitconst = {
     "MMF", "SMF", "MMF", "03?", /*  0- 3 */
     "UTP", "05?", "06?", "07?", /*  4- 7 */
     "TAXI","09?", "10?", "11?", /*  8-11 */

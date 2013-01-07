@@ -41,11 +41,11 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91_shdwc.h>
 
+#include "at91_aic.h"
+#include "at91_shdwc.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -109,14 +109,12 @@ static struct mmc_spi_platform_data at91_mmc_spi_pdata = {
  * SPI devices.
  */
 static struct spi_board_info usb_a9263_spi_devices[] = {
-#if !defined(CONFIG_MMC_AT91)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 0,
 		.max_speed_hz	= 15 * 1000 * 1000,
 		.bus_num	= 0,
 	}
-#endif
 };
 
 static struct spi_board_info usb_a9g20_spi_devices[] = {

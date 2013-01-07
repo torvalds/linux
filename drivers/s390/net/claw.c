@@ -3018,10 +3018,8 @@ claw_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct claw_privbk *priv;
 
-	BUG_ON(!cgdev);
 	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = dev_get_drvdata(&cgdev->dev);
-	BUG_ON(!priv);
 	dev_info(&cgdev->dev, " will be removed.\n");
 	if (cgdev->state == CCWGROUP_ONLINE)
 		claw_shutdown_device(cgdev);

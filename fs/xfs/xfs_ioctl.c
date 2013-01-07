@@ -42,6 +42,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_export.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -70,16 +71,16 @@ xfs_find_handle(
 	int			hsize;
 	xfs_handle_t		handle;
 	struct inode		*inode;
-	struct file		*file = NULL;
+	struct fd		f = {0};
 	struct path		path;
 	int			error;
 	struct xfs_inode	*ip;
 
 	if (cmd == XFS_IOC_FD_TO_HANDLE) {
-		file = fget(hreq->fd);
-		if (!file)
+		f = fdget(hreq->fd);
+		if (!f.file)
 			return -EBADF;
-		inode = file->f_path.dentry->d_inode;
+		inode = f.file->f_path.dentry->d_inode;
 	} else {
 		error = user_lpath((const char __user *)hreq->path, &path);
 		if (error)
@@ -134,7 +135,7 @@ xfs_find_handle(
 
  out_put:
 	if (cmd == XFS_IOC_FD_TO_HANDLE)
-		fput(file);
+		fdput(f);
 	else
 		path_put(&path);
 	return error;
@@ -1601,6 +1602,26 @@ xfs_file_ioctl(
 
 		error = xfs_errortag_clearall(mp, 1);
 		return -error;
+
+	case XFS_IOC_FREE_EOFBLOCKS: {
+		struct xfs_eofblocks eofb;
+
+		if (copy_from_user(&eofb, arg, sizeof(eofb)))
+			return -XFS_ERROR(EFAULT);
+
+		if (eofb.eof_version != XFS_EOFBLOCKS_VERSION)
+			return -XFS_ERROR(EINVAL);
+
+		if (eofb.eof_flags & ~XFS_EOF_FLAGS_VALID)
+			return -XFS_ERROR(EINVAL);
+
+		if (memchr_inv(&eofb.pad32, 0, sizeof(eofb.pad32)) ||
+		    memchr_inv(eofb.pad64, 0, sizeof(eofb.pad64)))
+			return -XFS_ERROR(EINVAL);
+
+		error = xfs_icache_free_eofblocks(mp, &eofb);
+		return -error;
+	}
 
 	default:
 		return -ENOTTY;

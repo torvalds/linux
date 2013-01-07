@@ -73,7 +73,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  *       And loads of cleaning up, in particular streamlining the
  *       bulk transfers.
  * 1.1:  moved EP4 transfers to EP1 to make space for a PWM output on EP4
- * 1.2:  added PWM suport via EP4
+ * 1.2:  added PWM support via EP4
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
@@ -97,6 +97,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/firmware.h>
 
 #include "../comedidev.h"
+
+#include "comedi_fc.h"
 
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
@@ -404,7 +406,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 	/* subdevice which is the AD converter */
-	s = this_comedidev->subdevices + SUBDEV_AD;
+	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -604,7 +606,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -929,78 +931,40 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	int err = 0, tmp, i;
-	unsigned int tmpTimer;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0, i;
+	unsigned int tmpTimer;
 
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
 
-	dev_dbg(&this_usbduxsub->interface->dev,
-		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* start a new _scan_ with a timer */
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (this_usbduxsub->high_speed) {
@@ -1015,51 +979,35 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			while (i < (cmd->chanlist_len))
 				i = i * 2;
 
-			if (cmd->scan_begin_arg < (1000000 / 8 * i)) {
-				cmd->scan_begin_arg = 1000000 / 8 * i;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 1000000 / 8 * i);
 			/* now calc the real sampling rate with all the
 			 * rounding errors */
 			tmpTimer =
 			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
 			    125000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
-			if (cmd->scan_begin_arg < 1000000) {
-				cmd->scan_begin_arg = 1000000;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 1000000);
 			/*
 			 * calc the real sampling rate with the rounding errors
 			 */
 			tmpTimer = ((unsigned int)(cmd->scan_begin_arg /
 						   1000000)) * 1000000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
+						tmpTimer);
 	}
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -1488,8 +1436,9 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	int err = 0, tmp;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0;
+	unsigned int flags;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1497,126 +1446,73 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
 
-	dev_dbg(&this_usbduxsub->interface->dev,
-		"comedi%d: usbdux_ao_cmdtest\n", dev->minor);
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* just now we scan also in the high speed mode every frame */
-	/* this is due to ehci driver limitations */
 	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* start immediately a new scan */
 		/* the sampling rate is set by the coversion rate */
-		cmd->scan_begin_src &= TRIG_FOLLOW;
+		flags = TRIG_FOLLOW;
 	} else {
 		/* start a new scan (output at once) with a timer */
-		cmd->scan_begin_src &= TRIG_TIMER;
+		flags = TRIG_TIMER;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
 
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-	/* we always output at 1kHz just now all channels at once */
 	if (0) {		/* (this_usbduxsub->high_speed) */
 		/*
-		 * in usb-2.0 only one conversion it transmitted but with 8kHz/n
+		 * in usb-2.0 only one conversion it transmitted
+		 * but with 8kHz/n
 		 */
-		cmd->convert_src &= TRIG_TIMER;
+		flags = TRIG_TIMER;
 	} else {
-		/* all conversion events happen simultaneously with a rate of
-		 * 1kHz/n */
-		cmd->convert_src &= TRIG_NOW;
+		/*
+		 * all conversion events happen simultaneously with
+		 * a rate of 1kHz/n
+		 */
+		flags = TRIG_NOW;
 	}
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
 
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* timer */
-		if (cmd->scan_begin_arg < 1000000) {
-			cmd->scan_begin_arg = 1000000;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 1000000);
+
 	/* not used now, is for later use */
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < 125000) {
-			cmd->convert_arg = 125000;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
-
-	dev_dbg(&this_usbduxsub->interface->dev, "comedi%d: err=%d, "
-		"scan_begin_src=%d, scan_begin_arg=%d, convert_src=%d, "
-		"convert_arg=%d\n", dev->minor, err, cmd->scan_begin_src,
-		cmd->scan_begin_arg, cmd->convert_src, cmd->convert_arg);
 
 	if (err)
 		return 3;
@@ -1947,7 +1843,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -2293,10 +2189,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->pwm_cmd_running = 0;
 }
 
-/* common part of attach and attach_usb */
 static int usbdux_attach_common(struct comedi_device *dev,
-				struct usbduxsub *udev,
-				void *aux_data, int aux_len)
+				struct usbduxsub *udev)
 {
 	int ret;
 	struct comedi_subdevice *s = NULL;
@@ -2305,10 +2199,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	down(&udev->sem);
 	/* pointer back to the corresponding comedi device */
 	udev->comedidev = dev;
-
-	/* trying to upload the firmware into the chip */
-	if (aux_data)
-		firmwareUpload(udev, aux_data, aux_len);
 
 	dev->board_name = "usbdux";
 
@@ -2331,7 +2221,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	dev->private = udev;
 
 	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
+	s = &dev->subdevices[SUBDEV_AD];
 	/* the URBs get the comedi subdevice */
 	/* which is responsible for reading */
 	/* this is the subdevice which reads data */
@@ -2358,7 +2248,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	s->range_table = (&range_usbdux_ai_range);
 
 	/* analog out */
-	s = dev->subdevices + SUBDEV_DA;
+	s = &dev->subdevices[SUBDEV_DA];
 	/* analog out */
 	s->type = COMEDI_SUBD_AO;
 	/* backward pointer */
@@ -2384,7 +2274,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	s->insn_write = usbdux_ao_insn_write;
 
 	/* digital I/O */
-	s = dev->subdevices + SUBDEV_DIO;
+	s = &dev->subdevices[SUBDEV_DIO];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 8;
@@ -2396,7 +2286,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	s->private = NULL;
 
 	/* counter */
-	s = dev->subdevices + SUBDEV_COUNTER;
+	s = &dev->subdevices[SUBDEV_COUNTER];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 4;
@@ -2407,7 +2297,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 
 	if (udev->high_speed) {
 		/* timer / pwm */
-		s = dev->subdevices + SUBDEV_PWM;
+		s = &dev->subdevices[SUBDEV_PWM];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan = 8;
@@ -2429,51 +2319,10 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called when comedi-config is called */
-static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int usbdux_auto_attach(struct comedi_device *dev,
+			      unsigned long context_unused)
 {
-	int ret;
-	int index;
-	int i;
-	void *aux_data;
-	int aux_len;
-
-	dev->private = NULL;
-
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-	if (aux_data == NULL)
-		aux_len = 0;
-	else if (aux_len == 0)
-		aux_data = NULL;
-
-	down(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR
-		       "comedi%d: usbdux: error: attach failed, no usbdux devs connected to the usb bus.\n",
-		       dev->minor);
-		ret = -ENODEV;
-	} else
-		ret = usbdux_attach_common(dev, &usbduxsub[index],
-					   aux_data, aux_len);
-	up(&start_stop_sem);
-	return ret;
-}
-
-/* is called from comedi_usb_auto_config() */
-static int usbdux_attach_usb(struct comedi_device *dev,
-			     struct usb_interface *uinterf)
-{
+	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
 	int ret;
 	struct usbduxsub *this_usbduxsub;
 
@@ -2482,17 +2331,15 @@ static int usbdux_attach_usb(struct comedi_device *dev,
 	down(&start_stop_sem);
 	this_usbduxsub = usb_get_intfdata(uinterf);
 	if (!this_usbduxsub || !this_usbduxsub->probed) {
-		printk(KERN_ERR
-		       "comedi%d: usbdux: error: attach_usb failed, not connected\n",
-		       dev->minor);
+		dev_err(dev->class_dev,
+			"usbdux: error: auto_attach failed, not connected\n");
 		ret = -ENODEV;
 	} else if (this_usbduxsub->attached) {
-		printk(KERN_ERR
-		       "comedi%d: usbdux: error: attach_usb failed, already attached\n",
-		       dev->minor);
+		dev_err(dev->class_dev,
+			"error: auto_attach failed, already attached\n");
 		ret = -ENODEV;
 	} else
-		ret = usbdux_attach_common(dev, this_usbduxsub, NULL, 0);
+		ret = usbdux_attach_common(dev, this_usbduxsub);
 	up(&start_stop_sem);
 	return ret;
 }
@@ -2513,9 +2360,8 @@ static void usbdux_detach(struct comedi_device *dev)
 static struct comedi_driver usbdux_driver = {
 	.driver_name	= "usbdux",
 	.module		= THIS_MODULE,
-	.attach		= usbdux_attach,
+	.auto_attach	= usbdux_auto_attach,
 	.detach		= usbdux_detach,
-	.attach_usb	= usbdux_attach_usb,
 };
 
 static void usbdux_firmware_request_complete_handler(const struct firmware *fw,

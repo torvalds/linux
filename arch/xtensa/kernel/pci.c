@@ -210,14 +210,6 @@ void pcibios_set_master(struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
-/* the next one is stolen from the alpha port... */
-
-void __init
-pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	u16 cmd, old_cmd;
@@ -341,7 +333,7 @@ __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
 	int prot = pgprot_val(vma->vm_page_prot);
 
 	/* Set to write-through */
-	prot &= ~_PAGE_NO_CACHE;
+	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
 #if 0
 	if (!write_combine)
 		prot |= _PAGE_WRITETHRU;

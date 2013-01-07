@@ -14,6 +14,7 @@
 #include "delegation.h"
 #include "internal.h"
 #include "pnfs.h"
+#include "nfs4session.h"
 
 #ifdef NFS_DEBUG
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
@@ -122,7 +123,15 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, 
 			ino = igrab(lo->plh_inode);
 			if (!ino)
 				continue;
-			get_layout_hdr(lo);
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
+			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			return lo;
 		}
 	}
@@ -158,7 +167,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	ino = lo->plh_inode;
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
-	    mark_matching_lsegs_invalid(lo, &free_me_list,
+	    pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
 					&args->cbl_range))
 		rv = NFS4ERR_DELAY;
 	else
@@ -166,7 +175,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
-	put_layout_hdr(lo);
+	pnfs_put_layout_hdr(lo);
 	iput(ino);
 	return rv;
 }
@@ -196,10 +205,18 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 			continue;
 
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			if (!igrab(lo->plh_inode))
+			ino = igrab(lo->plh_inode);
+			if (ino)
 				continue;
-			get_layout_hdr(lo);
-			BUG_ON(!list_empty(&lo->plh_bulk_recall));
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
+			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			list_add(&lo->plh_bulk_recall, &recall_list);
 		}
 	}
@@ -211,12 +228,12 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 		ino = lo->plh_inode;
 		spin_lock(&ino->i_lock);
 		set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
-		if (mark_matching_lsegs_invalid(lo, &free_me_list, &range))
+		if (pnfs_mark_matching_lsegs_invalid(lo, &free_me_list, &range))
 			rv = NFS4ERR_DELAY;
 		list_del_init(&lo->plh_bulk_recall);
 		spin_unlock(&ino->i_lock);
 		pnfs_free_lseg_list(&free_me_list);
-		put_layout_hdr(lo);
+		pnfs_put_layout_hdr(lo);
 		iput(ino);
 	}
 	return rv;
@@ -545,23 +562,16 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 	if (!cps->clp) /* set in cb_sequence */
 		goto out;
 
-	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target max slots %d\n",
+	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target highest slotid %d\n",
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR),
-		args->crsa_target_max_slots);
+		args->crsa_target_highest_slotid);
 
 	fc_tbl = &cps->clp->cl_session->fc_slot_table;
 
-	status = htonl(NFS4ERR_BAD_HIGH_SLOT);
-	if (args->crsa_target_max_slots > fc_tbl->max_slots ||
-	    args->crsa_target_max_slots < 1)
-		goto out;
-
 	status = htonl(NFS4_OK);
-	if (args->crsa_target_max_slots == fc_tbl->max_slots)
-		goto out;
 
-	fc_tbl->target_max_slots = args->crsa_target_max_slots;
-	nfs41_handle_recall_slot(cps->clp);
+	nfs41_set_target_slotid(fc_tbl, args->crsa_target_highest_slotid);
+	nfs41_server_notify_target_slotid_update(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;

@@ -36,11 +36,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx35.h>
-
+#include "common.h"
 #include "devices-imx35.h"
+#include "hardware.h"
+#include "iomux-mx35.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{
@@ -315,4 +314,5 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 	gpio_led_register_device(-1, &eukrea_mbimxsd_led_info);
 	imx_add_gpio_keys(&eukrea_mbimxsd_button_data);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

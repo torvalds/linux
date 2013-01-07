@@ -29,6 +29,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/signalfd.h>
 #include <linux/syscalls.h>
+#include <linux/proc_fs.h>
 
 void signalfd_cleanup(struct sighand_struct *sighand)
 {
@@ -227,7 +228,24 @@ static ssize_t signalfd_read(struct file *file, char __user *buf, size_t count,
 	return total ? total: ret;
 }
 
+#ifdef CONFIG_PROC_FS
+static int signalfd_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct signalfd_ctx *ctx = f->private_data;
+	sigset_t sigmask;
+
+	sigmask = ctx->sigmask;
+	signotset(&sigmask);
+	render_sigset_t(m, "sigmask:\t", &sigmask);
+
+	return 0;
+}
+#endif
+
 static const struct file_operations signalfd_fops = {
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo	= signalfd_show_fdinfo,
+#endif
 	.release	= signalfd_release,
 	.poll		= signalfd_poll,
 	.read		= signalfd_read,
@@ -269,13 +287,12 @@ SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,
 		if (ufd < 0)
 			kfree(ctx);
 	} else {
-		int fput_needed;
-		struct file *file = fget_light(ufd, &fput_needed);
-		if (!file)
+		struct fd f = fdget(ufd);
+		if (!f.file)
 			return -EBADF;
-		ctx = file->private_data;
-		if (file->f_op != &signalfd_fops) {
-			fput_light(file, fput_needed);
+		ctx = f.file->private_data;
+		if (f.file->f_op != &signalfd_fops) {
+			fdput(f);
 			return -EINVAL;
 		}
 		spin_lock_irq(&current->sighand->siglock);
@@ -283,7 +300,7 @@ SYSCALL_DEFINE4(signalfd4, int, ufd, sigset_t __user *, user_mask,
 		spin_unlock_irq(&current->sighand->siglock);
 
 		wake_up(&current->sighand->signalfd_wqh);
-		fput_light(file, fput_needed);
+		fdput(f);
 	}
 
 	return ufd;

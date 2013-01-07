@@ -29,11 +29,10 @@
 
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/iomux-mx27.h>
-#include <mach/hardware.h>
-
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
 
 static const int eukrea_mbimx27_pins[] __initconst = {
 	/* UART2 */
@@ -348,4 +347,5 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	imx27_add_imx_keypad(&eukrea_mbimx27_keymap_data);
 
 	gpio_led_register_device(-1, &eukrea_mbimx27_gpio_led_info);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

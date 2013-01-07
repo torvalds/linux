@@ -35,23 +35,21 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/regulator/fixed.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
-#include <mach/hardware.h>
-#include <plat/mcspi.h>
-#include <plat/usb.h>
 #include <video/omapdss.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "gpmc-nand.h"
 
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23
@@ -321,9 +319,6 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup		= omap3pandora_twl_gpio_setup,
 };
 
@@ -607,7 +602,7 @@ static void __init omap3pandora_init(void)
 	omap_ads7846_init(1, OMAP3_PANDORA_TS_GPIO, 0, NULL);
 	usbhs_init(&usbhs_bdata);
 	usb_musb_init(NULL);
-	gpmc_nand_init(&pandora_nand_data);
+	gpmc_nand_init(&pandora_nand_data, NULL);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
@@ -624,5 +619,5 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.init_machine	= omap3pandora_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

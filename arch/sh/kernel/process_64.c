@@ -285,39 +285,6 @@ void show_regs(struct pt_regs *regs)
 }
 
 /*
- * Create a kernel thread
- */
-__noreturn void kernel_thread_helper(void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- * NOTE! Only a kernel-only process(ie the swapper or direct descendants
- * who haven't done an "execve()") should use this: it will work within
- * a system call from a "real" process, but the process memory space will
- * not be freed until both the parent and the child have exited.
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.regs[2] = (unsigned long)arg;
-	regs.regs[3] = (unsigned long)fn;
-
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.sr = (1 << 30);
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
-		      &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Free current thread data structures etc..
  */
 void exit_thread(void)
@@ -401,26 +368,37 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 EXPORT_SYMBOL(dump_fpu);
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs, *regs = current_pt_regs();
 
 #ifdef CONFIG_SH_FPU
-	if(last_task_used_math == current) {
+	/* can't happen for a kernel thread */
+	if (last_task_used_math == current) {
 		enable_fpu();
 		save_fpu(current);
 		disable_fpu();
 		last_task_used_math = NULL;
-		regs->sr |= SR_FD;
+		current_pt_regs()->sr |= SR_FD;
 	}
 #endif
 	/* Copy from sh version */
 	childregs = (struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1;
+	p->thread.sp = (unsigned long) childregs;
 
-	*childregs = *regs;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->regs[2] = (unsigned long)arg;
+		childregs->regs[3] = (unsigned long)fn;
+		childregs->sr = (1 << 30); /* not user_mode */
+		childregs->sr |= SR_FD; /* Invalidate FPU flag */
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		return 0;
+	}
+	*childregs = *current_pt_regs();
 
 	/*
 	 * Sign extend the edited stack.
@@ -428,83 +406,16 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * 32-bit wide and context switch must take care
 	 * of NEFF sign extension.
 	 */
-	if (user_mode(regs)) {
+	if (usp)
 		childregs->regs[15] = neff_sign_extend(usp);
-		p->thread.uregs = childregs;
-	} else {
-		childregs->regs[15] =
-			neff_sign_extend((unsigned long)task_stack_page(p) +
-					 THREAD_SIZE);
-	}
+	p->thread.uregs = childregs;
 
 	childregs->regs[9] = 0; /* Set return value for child */
 	childregs->sr |= SR_FD; /* Invalidate FPU flag */
 
-	p->thread.sp = (unsigned long) childregs;
 	p->thread.pc = (unsigned long) ret_from_fork;
 
 	return 0;
-}
-
-asmlinkage int sys_fork(unsigned long r2, unsigned long r3,
-			unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs *pregs)
-{
-	return do_fork(SIGCHLD, pregs->regs[15], pregs, 0, 0, 0);
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs *pregs)
-{
-	if (!newsp)
-		newsp = pregs->regs[15];
-	return do_fork(clone_flags, newsp, pregs, 0, 0, 0);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(unsigned long r2, unsigned long r3,
-			 unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs *pregs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, pregs->regs[15], pregs, 0, 0, 0);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char *ufilename, char **uargv,
-			  char **uenvp, unsigned long r5,
-			  unsigned long r6, unsigned long r7,
-			  struct pt_regs *pregs)
-{
-	int error;
-	char *filename;
-
-	filename = getname((char __user *)ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename,
-			  (const char __user *const __user *)uargv,
-			  (const char __user *const __user *)uenvp,
-			  pregs);
-	putname(filename);
-out:
-	return error;
 }
 
 #ifdef CONFIG_FRAME_POINTER

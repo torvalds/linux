@@ -177,9 +177,6 @@ static void nlm_destroy_host_locked(struct nlm_host *host)
 
 	dprintk("lockd: destroy host %s\n", host->h_name);
 
-	BUG_ON(!list_empty(&host->h_lockowners));
-	BUG_ON(atomic_read(&host->h_count));
-
 	hlist_del_init(&host->h_hash);
 
 	nsm_unmonitor(host);
@@ -289,13 +286,12 @@ void nlmclnt_release_host(struct nlm_host *host)
 
 	dprintk("lockd: release client host %s\n", host->h_name);
 
-	BUG_ON(atomic_read(&host->h_count) < 0);
-	BUG_ON(host->h_server);
+	WARN_ON_ONCE(host->h_server);
 
 	if (atomic_dec_and_test(&host->h_count)) {
-		BUG_ON(!list_empty(&host->h_lockowners));
-		BUG_ON(!list_empty(&host->h_granted));
-		BUG_ON(!list_empty(&host->h_reclaim));
+		WARN_ON_ONCE(!list_empty(&host->h_lockowners));
+		WARN_ON_ONCE(!list_empty(&host->h_granted));
+		WARN_ON_ONCE(!list_empty(&host->h_reclaim));
 
 		mutex_lock(&nlm_host_mutex);
 		nlm_destroy_host_locked(host);
@@ -412,8 +408,7 @@ void nlmsvc_release_host(struct nlm_host *host)
 
 	dprintk("lockd: release server host %s\n", host->h_name);
 
-	BUG_ON(atomic_read(&host->h_count) < 0);
-	BUG_ON(!host->h_server);
+	WARN_ON_ONCE(!host->h_server);
 	atomic_dec(&host->h_count);
 }
 

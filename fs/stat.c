@@ -57,13 +57,13 @@ EXPORT_SYMBOL(vfs_getattr);
 
 int vfs_fstat(unsigned int fd, struct kstat *stat)
 {
-	int fput_needed;
-	struct file *f = fget_raw_light(fd, &fput_needed);
+	struct fd f = fdget_raw(fd);
 	int error = -EBADF;
 
-	if (f) {
-		error = vfs_getattr(f->f_path.mnt, f->f_path.dentry, stat);
-		fput_light(f, fput_needed);
+	if (f.file) {
+		error = vfs_getattr(f.file->f_path.mnt, f.file->f_path.dentry,
+				    stat);
+		fdput(f);
 	}
 	return error;
 }
@@ -74,7 +74,7 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 {
 	struct path path;
 	int error = -EINVAL;
-	int lookup_flags = 0;
+	unsigned int lookup_flags = 0;
 
 	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
 		      AT_EMPTY_PATH)) != 0)
@@ -84,13 +84,17 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 		lookup_flags |= LOOKUP_FOLLOW;
 	if (flag & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
-
+retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (error)
 		goto out;
 
 	error = vfs_getattr(path.mnt, path.dentry, stat);
 	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 out:
 	return error;
 }
@@ -296,11 +300,13 @@ SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
 	struct path path;
 	int error;
 	int empty = 0;
+	unsigned int lookup_flags = LOOKUP_EMPTY;
 
 	if (bufsiz <= 0)
 		return -EINVAL;
 
-	error = user_path_at_empty(dfd, pathname, LOOKUP_EMPTY, &path, &empty);
+retry:
+	error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
 	if (!error) {
 		struct inode *inode = path.dentry->d_inode;
 
@@ -314,6 +320,10 @@ SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
 			}
 		}
 		path_put(&path);
+		if (retry_estale(error, lookup_flags)) {
+			lookup_flags |= LOOKUP_REVAL;
+			goto retry;
+		}
 	}
 	return error;
 }
@@ -326,7 +336,7 @@ SYSCALL_DEFINE3(readlink, const char __user *, path, char __user *, buf,
 
 
 /* ---------- LFS-64 ----------- */
-#ifdef __ARCH_WANT_STAT64
+#if defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_COMPAT_STAT64)
 
 #ifndef INIT_STRUCT_STAT64_PADDING
 #  define INIT_STRUCT_STAT64_PADDING(st) memset(&st, 0, sizeof(st))
@@ -415,7 +425,7 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 		return error;
 	return cp_new_stat64(&stat, statbuf);
 }
-#endif /* __ARCH_WANT_STAT64 */
+#endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
 /* Caller is here responsible for sufficient locking (ie. inode->i_lock) */
 void __inode_add_bytes(struct inode *inode, loff_t bytes)

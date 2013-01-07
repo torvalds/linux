@@ -39,6 +39,7 @@
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -76,6 +77,10 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* Then ACPI style match */
+	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	driver = to_i2c_driver(drv);
@@ -539,6 +544,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
+	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
 
 	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
@@ -982,7 +988,7 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 
 	if (adap->nr == -1) /* -1 means dynamically assign bus id */
 		return i2c_add_adapter(adap);
-	if (adap->nr & ~MAX_ID_MASK)
+	if (adap->nr & ~MAX_IDR_MASK)
 		return -EINVAL;
 
 retry:
@@ -1989,12 +1995,22 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
 	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
 	int num = read_write == I2C_SMBUS_READ ? 2 : 1;
-	struct i2c_msg msg[2] = { { addr, flags, 1, msgbuf0 },
-	                          { addr, flags | I2C_M_RD, 0, msgbuf1 }
-	                        };
 	int i;
 	u8 partial_pec = 0;
 	int status;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = addr,
+			.flags = flags,
+			.len = 1,
+			.buf = msgbuf0,
+		}, {
+			.addr = addr,
+			.flags = flags | I2C_M_RD,
+			.len = 0,
+			.buf = msgbuf1,
+		},
+	};
 
 	msgbuf0[0] = command;
 	switch (size) {

@@ -1281,7 +1281,7 @@ static int at_context_queue_packet(struct context *ctx,
 	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/*
-	 * The DMA format for asyncronous link packets is different
+	 * The DMA format for asynchronous link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
 	 * accordingly.
 	 */
@@ -1777,11 +1777,35 @@ static int get_self_id_pos(struct fw_ohci *ohci, u32 self_id,
 	return i;
 }
 
+static int initiated_reset(struct fw_ohci *ohci)
+{
+	int reg;
+	int ret = 0;
+
+	mutex_lock(&ohci->phy_reg_mutex);
+	reg = write_phy_reg(ohci, 7, 0xe0); /* Select page 7 */
+	if (reg >= 0) {
+		reg = read_phy_reg(ohci, 8);
+		reg |= 0x40;
+		reg = write_phy_reg(ohci, 8, reg); /* set PMODE bit */
+		if (reg >= 0) {
+			reg = read_phy_reg(ohci, 12); /* read register 12 */
+			if (reg >= 0) {
+				if ((reg & 0x08) == 0x08) {
+					/* bit 3 indicates "initiated reset" */
+					ret = 0x2;
+				}
+			}
+		}
+	}
+	mutex_unlock(&ohci->phy_reg_mutex);
+	return ret;
+}
+
 /*
  * TI TSB82AA2B and TSB12LV26 do not receive the selfID of a locally
  * attached TSB41BA3D phy; see http://www.ti.com/litv/pdf/sllz059.
  * Construct the selfID from phy register contents.
- * FIXME:  How to determine the selfID.i flag?
  */
 static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 {
@@ -1813,6 +1837,8 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 			return status;
 		self_id |= ((status & 0x3) << (6 - (i * 2)));
 	}
+
+	self_id |= initiated_reset(ohci);
 
 	pos = get_self_id_pos(ohci, self_id, self_id_count);
 	if (pos >= 0) {
@@ -3511,7 +3537,7 @@ static inline void pmac_ohci_on(struct pci_dev *dev) {}
 static inline void pmac_ohci_off(struct pci_dev *dev) {}
 #endif /* CONFIG_PPC_PMAC */
 
-static int __devinit pci_probe(struct pci_dev *dev,
+static int pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;

@@ -27,68 +27,19 @@
 #ifndef __NV50_DISPLAY_H__
 #define __NV50_DISPLAY_H__
 
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_reg.h"
+#include "nouveau_display.h"
 #include "nouveau_crtc.h"
-#include "nouveau_software.h"
-#include "nv50_evo.h"
+#include "nouveau_reg.h"
 
-struct nv50_display_crtc {
-	struct nouveau_channel *sync;
-	struct {
-		struct nouveau_bo *bo;
-		u32 offset;
-		u16 value;
-	} sem;
-};
+int  nv50_display_create(struct drm_device *);
+void nv50_display_destroy(struct drm_device *);
+int  nv50_display_init(struct drm_device *);
+void nv50_display_fini(struct drm_device *);
 
-struct nv50_display {
-	struct nouveau_channel *master;
-	struct nouveau_gpuobj *ntfy;
-
-	struct nv50_display_crtc crtc[2];
-
-	struct tasklet_struct tasklet;
-	struct {
-		struct dcb_entry *dcb;
-		u16 script;
-		u32 pclk;
-	} irq;
-};
-
-static inline struct nv50_display *
-nv50_display(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	return dev_priv->engine.display.priv;
-}
-
-int nv50_display_early_init(struct drm_device *dev);
-void nv50_display_late_takedown(struct drm_device *dev);
-int nv50_display_create(struct drm_device *dev);
-int nv50_display_init(struct drm_device *dev);
-void nv50_display_fini(struct drm_device *dev);
-void nv50_display_destroy(struct drm_device *dev);
-int nv50_crtc_blank(struct nouveau_crtc *, bool blank);
-int nv50_crtc_set_clock(struct drm_device *, int head, int pclk);
-
-u32  nv50_display_active_crtcs(struct drm_device *);
-
-int  nv50_display_sync(struct drm_device *);
-int  nv50_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
-			    struct nouveau_channel *chan);
 void nv50_display_flip_stop(struct drm_crtc *);
+int  nv50_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
+			    struct nouveau_channel *, u32 swap_interval);
 
-int  nv50_evo_create(struct drm_device *dev);
-void nv50_evo_destroy(struct drm_device *dev);
-int  nv50_evo_init(struct drm_device *dev);
-void nv50_evo_fini(struct drm_device *dev);
-void nv50_evo_dmaobj_init(struct nouveau_gpuobj *, u32 memtype, u64 base,
-			  u64 size);
-int  nv50_evo_dmaobj_new(struct nouveau_channel *, u32 handle, u32 memtype,
-			 u64 base, u64 size, struct nouveau_gpuobj **);
+struct nouveau_bo *nv50_display_crtc_sema(struct drm_device *, int head);
 
 #endif /* __NV50_DISPLAY_H__ */

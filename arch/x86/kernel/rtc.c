@@ -195,12 +195,6 @@ void read_persistent_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
-unsigned long long native_read_tsc(void)
-{
-	return __native_read_tsc();
-}
-EXPORT_SYMBOL(native_read_tsc);
-
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -225,7 +219,7 @@ static struct platform_device rtc_device = {
 static __init int add_rtc_cmos(void)
 {
 #ifdef CONFIG_PNP
-	static const char *ids[] __initconst =
+	static const char * const  const ids[] __initconst =
 	    { "PNP0b00", "PNP0b01", "PNP0b02", };
 	struct pnp_dev *dev;
 	struct pnp_id *id;

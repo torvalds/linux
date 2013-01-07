@@ -5,6 +5,7 @@
 #include <linux/mempolicy.h>
 #include <linux/pagemap.h>
 #include <linux/percpu_counter.h>
+#include <linux/xattr.h>
 
 /* inode in-kernel data */
 
@@ -18,7 +19,7 @@ struct shmem_inode_info {
 	};
 	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct list_head	swaplist;	/* chain of maybes on swap */
-	struct list_head	xattr_list;	/* list of shmem_xattr */
+	struct simple_xattrs	xattrs;		/* list of xattrs */
 	struct inode		vfs_inode;
 };
 

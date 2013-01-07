@@ -49,13 +49,16 @@ struct request_sock_ops {
 					   struct request_sock *req);
 };
 
+extern int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
+
 /* struct request_sock - mini sock to represent a connection request
  */
 struct request_sock {
 	struct request_sock		*dl_next; /* Must be first member! */
 	u16				mss;
-	u8				retrans;
-	u8				cookie_ts; /* syncookie: encode tcpopts in timestamp */
+	u8				num_retrans; /* number of retransmits */
+	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
+	u8				num_timeout:7; /* number of timeouts */
 	/* The following two fields can be easily recomputed I think -AK */
 	u32				window_clamp; /* window clamp at creation time */
 	u32				rcv_wnd;	  /* rcv_wnd offered first time */
@@ -106,6 +109,34 @@ struct listen_sock {
 	struct request_sock	*syn_table[0];
 };
 
+/*
+ * For a TCP Fast Open listener -
+ *	lock - protects the access to all the reqsk, which is co-owned by
+ *		the listener and the child socket.
+ *	qlen - pending TFO requests (still in TCP_SYN_RECV).
+ *	max_qlen - max TFO reqs allowed before TFO is disabled.
+ *
+ *	XXX (TFO) - ideally these fields can be made as part of "listen_sock"
+ *	structure above. But there is some implementation difficulty due to
+ *	listen_sock being part of request_sock_queue hence will be freed when
+ *	a listener is stopped. But TFO related fields may continue to be
+ *	accessed even after a listener is closed, until its sk_refcnt drops
+ *	to 0 implying no more outstanding TFO reqs. One solution is to keep
+ *	listen_opt around until	sk_refcnt drops to 0. But there is some other
+ *	complexity that needs to be resolved. E.g., a listener can be disabled
+ *	temporarily through shutdown()->tcp_disconnect(), and re-enabled later.
+ */
+struct fastopen_queue {
+	struct request_sock	*rskq_rst_head; /* Keep track of past TFO */
+	struct request_sock	*rskq_rst_tail; /* requests that caused RST.
+						 * This is part of the defense
+						 * against spoofing attack.
+						 */
+	spinlock_t	lock;
+	int		qlen;		/* # of pending (TCP_SYN_RECV) reqs */
+	int		max_qlen;	/* != 0 iff TFO is currently enabled */
+};
+
 /** struct request_sock_queue - queue of request_socks
  *
  * @rskq_accept_head - FIFO head of established children
@@ -129,6 +160,12 @@ struct request_sock_queue {
 	u8			rskq_defer_accept;
 	/* 3 bytes hole, try to pack */
 	struct listen_sock	*listen_opt;
+	struct fastopen_queue	*fastopenq; /* This is non-NULL iff TFO has been
+					     * enabled on this listener. Check
+					     * max_qlen != 0 in fastopen_queue
+					     * to determine if TFO is enabled
+					     * right at this moment.
+					     */
 };
 
 extern int reqsk_queue_alloc(struct request_sock_queue *queue,
@@ -136,6 +173,8 @@ extern int reqsk_queue_alloc(struct request_sock_queue *queue,
 
 extern void __reqsk_queue_destroy(struct request_sock_queue *queue);
 extern void reqsk_queue_destroy(struct request_sock_queue *queue);
+extern void reqsk_fastopen_remove(struct sock *sk,
+				  struct request_sock *req, bool reset);
 
 static inline struct request_sock *
 	reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
@@ -190,25 +229,12 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 	return req;
 }
 
-static inline struct sock *reqsk_queue_get_child(struct request_sock_queue *queue,
-						 struct sock *parent)
-{
-	struct request_sock *req = reqsk_queue_remove(queue);
-	struct sock *child = req->sk;
-
-	WARN_ON(child == NULL);
-
-	sk_acceptq_removed(parent);
-	__reqsk_free(req);
-	return child;
-}
-
 static inline int reqsk_queue_removed(struct request_sock_queue *queue,
 				      struct request_sock *req)
 {
 	struct listen_sock *lopt = queue->listen_opt;
 
-	if (req->retrans == 0)
+	if (req->num_timeout == 0)
 		--lopt->qlen_young;
 
 	return --lopt->qlen;
@@ -246,7 +272,8 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	struct listen_sock *lopt = queue->listen_opt;
 
 	req->expires = jiffies + timeout;
-	req->retrans = 0;
+	req->num_retrans = 0;
+	req->num_timeout = 0;
 	req->sk = NULL;
 	req->dl_next = lopt->syn_table[hash];
 

@@ -9,19 +9,19 @@ Attributes:
 			  this value will change the dev_loss_tmo for all
 			  FCFs discovered by this controller.
 
-	lesb_link_fail:   Link Error Status Block (LESB) link failure count.
+	lesb/link_fail:   Link Error Status Block (LESB) link failure count.
 
-	lesb_vlink_fail:  Link Error Status Block (LESB) virtual link
+	lesb/vlink_fail:  Link Error Status Block (LESB) virtual link
 			  failure count.
 
-	lesb_miss_fka:    Link Error Status Block (LESB) missed FCoE
+	lesb/miss_fka:    Link Error Status Block (LESB) missed FCoE
 			  Initialization Protocol (FIP) Keep-Alives (FKA).
 
-	lesb_symb_err:    Link Error Status Block (LESB) symbolic error count.
+	lesb/symb_err:    Link Error Status Block (LESB) symbolic error count.
 
-	lesb_err_block:   Link Error Status Block (LESB) block error count.
+	lesb/err_block:   Link Error Status Block (LESB) block error count.
 
-	lesb_fcs_error:   Link Error Status Block (LESB) Fibre Channel
+	lesb/fcs_error:   Link Error Status Block (LESB) Fibre Channel
 			  Serivces error count.
 
 Notes: ctlr_X (global increment starting at 0)

@@ -55,63 +55,6 @@ struct compat_ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-#define COMPAT_SI_PAD_SIZE	((SI_MAX_SIZE - 3 * sizeof(int)) / sizeof(int))
-
-struct compat_siginfo {
-	int si_signo;
-	int si_errno;
-	int si_code;
-
-	union {
-		int _pad[COMPAT_SI_PAD_SIZE];
-
-		/* kill() */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			compat_timer_t _tid;	/* timer id */
-			int _overrun;		/* overrun count */
-			compat_sigval_t _sigval;	/* same as below */
-			int _sys_private;	/* not to be passed to user */
-			int _overrun_incr;	/* amount to add to overrun */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-			compat_sigval_t _sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			unsigned int _pid;	/* which child */
-			unsigned int _uid;	/* sender's uid */
-			int _status;		/* exit code */
-			compat_clock_t _utime;
-			compat_clock_t _stime;
-		} _sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			unsigned int _addr;	/* faulting insn/memory ref. */
-#ifdef __ARCH_SI_TRAPNO
-			int _trapno;	/* TRAP # which caused the signal */
-#endif
-		} _sigfault;
-
-		/* SIGPOLL */
-		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
-		} _sigpoll;
-	} _sifields;
-};
-
 struct compat_rt_sigframe {
 	unsigned char save_area[C_ABI_SAVE_AREA_SIZE]; /* caller save area */
 	struct compat_siginfo info;
@@ -254,8 +197,7 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 }
 
 long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr,
-			    struct pt_regs *regs)
+			    struct compat_sigaltstack __user *uoss_ptr)
 {
 	stack_t uss, uoss;
 	int ret;
@@ -276,7 +218,7 @@ long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 	set_fs(KERNEL_DS);
 	ret = do_sigaltstack(uss_ptr ? (stack_t __user __force *)&uss : NULL,
 			     (stack_t __user __force *)&uoss,
-			     (unsigned long)compat_ptr(regs->sp));
+			     (unsigned long)compat_ptr(current_pt_regs()->sp));
 	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
 		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(*uoss_ptr)) ||
@@ -289,8 +231,9 @@ long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 }
 
 /* The assembly shim for this function arranges to ignore the return value. */
-long compat_sys_rt_sigreturn(struct pt_regs *regs)
+long compat_sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct compat_rt_sigframe __user *frame =
 		(struct compat_rt_sigframe __user *) compat_ptr(regs->sp);
 	sigset_t set;
@@ -305,7 +248,7 @@ long compat_sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL, regs) != 0)
+	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL) == -EFAULT)
 		goto badframe;
 
 	return 0;
@@ -411,15 +354,6 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[1] = ptr_to_compat_reg(&frame->info);
 	regs->regs[2] = ptr_to_compat_reg(&frame->uc);
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
-
-	/*
-	 * Notify any tracer that was single-stepping it.
-	 * The tracer may want to single-step inside the
-	 * handler too.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 0;
 
 give_sigsegv:

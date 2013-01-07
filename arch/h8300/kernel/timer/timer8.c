@@ -77,7 +77,7 @@ static struct irqaction timer8_irq = {
 	.flags		= IRQF_DISABLED | IRQF_TIMER,
 };
 
-static const int __initdata divide_rate[] = {8, 64, 8192};
+static const int __initconst divide_rate[] = {8, 64, 8192};
 
 void __init h8300_timer_setup(void)
 {

@@ -7,7 +7,6 @@ obj-$(CONFIG_MTD)		+= map_funcs.o
 endif
 
 # Chip mappings
-obj-$(CONFIG_MTD_CDB89712)	+= cdb89712.o
 obj-$(CONFIG_MTD_CFI_FLAGADM)	+= cfi_flagadm.o
 obj-$(CONFIG_MTD_DC21285)	+= dc21285.o
 obj-$(CONFIG_MTD_DILNETPC)	+= dilnetpc.o
@@ -40,14 +39,12 @@ obj-$(CONFIG_MTD_SOLUTIONENGINE)+= solutionengine.o
 obj-$(CONFIG_MTD_PCI)		+= pci.o
 obj-$(CONFIG_MTD_AUTCPU12)	+= autcpu12-nvram.o
 obj-$(CONFIG_MTD_IMPA7)		+= impa7.o
-obj-$(CONFIG_MTD_FORTUNET)	+= fortunet.o
 obj-$(CONFIG_MTD_UCLINUX)	+= uclinux.o
 obj-$(CONFIG_MTD_NETtel)	+= nettel.o
 obj-$(CONFIG_MTD_SCB2_FLASH)	+= scb2_flash.o
 obj-$(CONFIG_MTD_H720X)		+= h720x-flash.o
 obj-$(CONFIG_MTD_IXP4XX)	+= ixp4xx.o
 obj-$(CONFIG_MTD_IXP2000)	+= ixp2000.o
-obj-$(CONFIG_MTD_WRSBC8260)	+= wr_sbc82xx_flash.o
 obj-$(CONFIG_MTD_DMV182)	+= dmv182.o
 obj-$(CONFIG_MTD_PLATRAM)	+= plat-ram.o
 obj-$(CONFIG_MTD_INTEL_VR_NOR)	+= intel_vr_nor.o

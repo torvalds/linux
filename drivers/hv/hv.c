@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
+#include <linux/version.h>
 #include <asm/hyperv.h>
 #include "hyperv_vmbus.h"
 
@@ -36,28 +37,6 @@ struct hv_context hv_context = {
 	.signal_event_param	= NULL,
 	.signal_event_buffer	= NULL,
 };
-
-/*
- * query_hypervisor_presence
- * - Query the cpuid for presence of windows hypervisor
- */
-static int query_hypervisor_presence(void)
-{
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int op;
-
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	op = HVCPUID_VERSION_FEATURES;
-	cpuid(op, &eax, &ebx, &ecx, &edx);
-
-	return ecx & HV_PRESENT_BIT;
-}
 
 /*
  * query_hypervisor_info - Get version info of the windows hypervisor
@@ -159,14 +138,13 @@ int hv_init(void)
 	memset(hv_context.synic_message_page, 0,
 	       sizeof(void *) * NR_CPUS);
 
-	if (!query_hypervisor_presence())
-		goto cleanup;
-
 	max_leaf = query_hypervisor_info();
 
-	/* Write our OS info */
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
-	hv_context.guestid = HV_LINUX_GUEST_ID;
+	/*
+	 * Write our OS ID.
+	 */
+	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, 0);
+	wrmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
 
 	/* See if the hypercall page is already set */
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);

@@ -33,6 +33,7 @@
 /* Maximum number of main interrupts */
 #define MAX_MAIN_INTERRUPT		5
 #define RC5T583_MAX_GPEDGE_REG		2
+#define RC5T583_MAX_INTERRUPT_EN_REGS	8
 #define RC5T583_MAX_INTERRUPT_MASK_REGS	9
 
 /* Interrupt enable register */
@@ -145,6 +146,28 @@
 #define RC5T583_GPIO_EN_INT	0xA8
 #define RC5T583_GPIO_MON_IOIN	0xAB
 #define RC5T583_GPIO_GPOFUNC	0xAC
+
+/* RTC registers */
+#define RC5T583_RTC_SEC		0xE0
+#define RC5T583_RTC_MIN		0xE1
+#define RC5T583_RTC_HOUR	0xE2
+#define RC5T583_RTC_WDAY	0xE3
+#define RC5T583_RTC_DAY		0xE4
+#define RC5T583_RTC_MONTH	0xE5
+#define RC5T583_RTC_YEAR	0xE6
+#define RC5T583_RTC_ADJ		0xE7
+#define RC5T583_RTC_AW_MIN	0xE8
+#define RC5T583_RTC_AW_HOUR	0xE9
+#define RC5T583_RTC_AW_WEEK	0xEA
+#define RC5T583_RTC_AD_MIN	0xEB
+#define RC5T583_RTC_AD_HOUR	0xEC
+#define RC5T583_RTC_CTL1	0xED
+#define RC5T583_RTC_CTL2	0xEE
+#define RC5T583_RTC_AY_MIN	0xF0
+#define RC5T583_RTC_AY_HOUR	0xF1
+#define RC5T583_RTC_AY_DAY	0xF2
+#define RC5T583_RTC_AY_MONTH 0xF3
+#define RC5T583_RTC_AY_YEAR	0xF4
 
 /* RICOH_RC5T583 IRQ definitions */
 enum {
@@ -282,7 +305,7 @@ struct rc5t583 {
 	uint8_t		intc_inten_reg;
 
 	/* For group interrupt bits and address */
-	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_MASK_REGS];
+	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_EN_REGS];
 
 	/* For gpio edge */
 	uint8_t		gpedge_reg[RC5T583_MAX_GPEDGE_REG];

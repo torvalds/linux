@@ -21,7 +21,6 @@
 #include "csr_wifi_sme_sef.h"
 #endif
 
-
 /*
  * This file implements the SME SYS API and contains the following functions:
  * CsrWifiRouterCtrlMediaStatusReqHandler()
@@ -192,7 +191,7 @@ void CsrWifiRouterCtrlMediaStatusReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 #endif
                     unifi_trace(priv, UDBG1,
                                 "CsrWifiRouterCtrlMediaStatusReqHandler: AP/P2PGO setting netif_carrier_on\n");
-                    UF_NETIF_TX_WAKE_ALL_QUEUES(priv->netdev[req->interfaceTag]);
+                    netif_tx_wake_all_queues(priv->netdev[req->interfaceTag]);
                     break;
 
                 default:
@@ -226,7 +225,7 @@ void CsrWifiRouterCtrlMediaStatusReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
                     unifi_trace(priv, UDBG1,
                                 "CsrWifiRouterMediaStatusReqHandler: UnifiConnected && netif_carrier_on\n");
                     netif_carrier_on(priv->netdev[req->interfaceTag]);
-                    UF_NETIF_TX_WAKE_ALL_QUEUES(priv->netdev[req->interfaceTag]);
+                    netif_tx_wake_all_queues(priv->netdev[req->interfaceTag]);
                     uf_process_rx_pending_queue(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
                     uf_process_rx_pending_queue(priv, UF_CONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
                 }
@@ -413,8 +412,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
                                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                          0xc0, 0xa8, 0x00, 0x02};
 
-    func_enter();
-
     csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], sizeof(arp_req));
     if (csrResult != CSR_RESULT_SUCCESS)
     {
@@ -479,8 +476,6 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
         unifi_net_data_free(priv, &bulkdata.d[0]);
         return;
     }
-
-    func_exit();
 
 }
 #endif /* CSR_WIFI_SEND_GRATUITOUS_ARP */
@@ -869,7 +864,6 @@ wifi_off(unifi_priv_t *priv)
     unifi_trace(priv, UDBG1, "wifi_off\n");
 
     /* Destroy the Traffic Analysis Module */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
     cancel_work_sync(&priv->ta_ind_work.task);
     cancel_work_sync(&priv->ta_sample_ind_work.task);
 #ifdef CSR_SUPPORT_WEXT
@@ -884,7 +878,6 @@ wifi_off(unifi_priv_t *priv)
             cancel_work_sync(&netpriv->send_m4_ready_task);
         }
     }
-#endif
     flush_workqueue(priv->unifi_workqueue);
 
     /* fw_init parameter can prevent power off UniFi, for debugging */
@@ -955,7 +948,7 @@ void CsrWifiRouterCtrlWifiOffReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         netInterface_priv_t *interfacePriv = priv->interfacePriv[i];
         if (interfacePriv->netdev_registered == 1) {
             netif_carrier_off(priv->netdev[i]);
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[i]);
+            netif_tx_stop_all_queues(priv->netdev[i]);
             interfacePriv->connected = UnifiConnectedUnknown;
         }
         interfacePriv->interfaceMode = 0;
@@ -2104,7 +2097,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
     u8 freeSlotFound = FALSE;
     CsrWifiRouterCtrlStaInfo_t *newRecord = NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
-    CsrTime currentTime, currentTimeHi;
+    u32 currentTime, currentTimeHi;
     unsigned long lock_flags;
 
     if (req->interfaceTag >= CSR_WIFI_NUM_INTERFACES) {
@@ -2123,7 +2116,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
             /* Allocate for the new station record , to avoid race condition would happen between ADD_PEER &
              * DEL_PEER the allocation made atomic memory rather than kernel memory
              */
-            newRecord = (CsrWifiRouterCtrlStaInfo_t *) kmalloc(sizeof(CsrWifiRouterCtrlStaInfo_t), GFP_ATOMIC);
+            newRecord = kmalloc(sizeof(CsrWifiRouterCtrlStaInfo_t), GFP_ATOMIC);
             if (!newRecord) {
                 unifi_error(priv, "failed to allocate the %d bytes of mem for station record\n",
                             sizeof(CsrWifiRouterCtrlStaInfo_t));
@@ -2298,8 +2291,8 @@ static void check_inactivity_timer_expire_func(unsigned long data)
     struct unifi_priv *priv;
     CsrWifiRouterCtrlStaInfo_t *sta_record = NULL;
     u8 i = 0;
-    CsrTime now;
-    CsrTime inactive_time;
+    u32 now;
+    u32 inactive_time;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *) data;
 
     if (!interfacePriv)
@@ -2331,11 +2324,11 @@ static void check_inactivity_timer_expire_func(unsigned long data)
             if (sta_record->lastActivity > now)
             {
                 /* simple timer wrap (for 1 wrap) */
-                inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
+                inactive_time = CsrTimeAdd((u32)CsrTimeSub(CSR_SCHED_TIME_MAX, sta_record->lastActivity), now);
             }
             else
             {
-                inactive_time = (CsrTime)CsrTimeSub(now, sta_record->lastActivity);
+                inactive_time = (u32)CsrTimeSub(now, sta_record->lastActivity);
             }
 
             if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
@@ -2412,8 +2405,6 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
     u16 interfaceTag;
     struct list_head send_cfm_list;
     u8 j;
-
-    func_enter();
 
     if(!staInfo) {
         return;
@@ -2815,12 +2806,11 @@ u8 blockack_session_start(unifi_priv_t *priv,
         }
 
         /* create and populate the new BA session structure */
-        ba_session_tx = kmalloc(sizeof(ba_session_tx_struct), GFP_KERNEL);
+        ba_session_tx = kzalloc(sizeof(ba_session_tx_struct), GFP_KERNEL);
         if (!ba_session_tx) {
             unifi_error(priv, "%s: kmalloc failed for ba_session_tx\n", __FUNCTION__);
             return FALSE;
         }
-        memset(ba_session_tx, 0, sizeof(ba_session_tx_struct));
 
         ba_session_tx->interfacePriv = interfacePriv;
         ba_session_tx->tID = tID;
@@ -2905,25 +2895,22 @@ u8 blockack_session_start(unifi_priv_t *priv,
             return FALSE;
         }
 
-        ba_session_rx = kmalloc(sizeof(ba_session_rx_struct), GFP_KERNEL);
+        ba_session_rx = kzalloc(sizeof(ba_session_rx_struct), GFP_KERNEL);
         if (!ba_session_rx) {
             unifi_error(priv, "%s: kmalloc failed for ba_session_rx\n", __FUNCTION__);
             return FALSE;
         }
-        memset(ba_session_rx, 0, sizeof(ba_session_rx_struct));
 
         ba_session_rx->wind_size = wind_size;
         ba_session_rx->start_sn = ba_session_rx->expected_sn = start_sn;
         ba_session_rx->trigger_ba_after_ssn = FALSE;
 
-        ba_session_rx->buffer = kmalloc(ba_session_rx->wind_size*sizeof(frame_desc_struct), GFP_KERNEL);
+        ba_session_rx->buffer = kzalloc(ba_session_rx->wind_size*sizeof(frame_desc_struct), GFP_KERNEL);
         if (!ba_session_rx->buffer) {
             kfree(ba_session_rx);
             unifi_error(priv, "%s: kmalloc failed for buffer\n", __FUNCTION__);
             return FALSE;
         }
-
-        memset(ba_session_rx->buffer, 0, ba_session_rx->wind_size*sizeof(frame_desc_struct));
 
         INIT_WORK(&ba_session_rx->send_ba_err_task, uf_send_ba_err_wq);
         if (timeout) {

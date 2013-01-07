@@ -121,7 +121,7 @@ vAdHocBeaconStop(PSDevice  pDevice)
 
     /*
      * temporarily stop Beacon packet for AdHoc Server
-     * if all of the following coditions are met:
+     * if all of the following conditions are met:
      *  (1) STA is in AdHoc mode
      *  (2) VT3253 is programmed as automatic Beacon Transmitting
      *  (3) One of the following conditions is met
@@ -412,6 +412,7 @@ vCommandTimer (
 		if (!is_channel_valid(pMgmt->uScanChannel)) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n",pMgmt->uScanChannel);
                     s_bCommandComplete(pDevice);
+                    spin_unlock_irq(&pDevice->lock);
                     return;
                 }
 //printk("chester-pMgmt->uScanChannel=%d,pDevice->byMaxChannel=%d\n",pMgmt->uScanChannel,pDevice->byMaxChannel);
@@ -812,8 +813,8 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
                         }
                         pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
-                        // check if sta ps enable, wait next pspoll
-                        // if sta ps disable, send all pending buffers.
+                        // check if sta ps enabled, and wait next pspoll.
+                        // if sta ps disable, then send all pending buffers.
                         if (pMgmt->sNodeDBTable[ii].bPSEnable)
                             break;
                     }

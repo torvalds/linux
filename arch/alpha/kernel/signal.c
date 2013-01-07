@@ -122,12 +122,6 @@ SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
 	return sigsuspend(&blocked);
 }
 
-asmlinkage int
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -160,10 +154,10 @@ extern char compile_time_assert
 #define INSN_CALLSYS		0x00000083
 
 static long
-restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
-		   struct switch_stack *sw)
+restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
 	unsigned long usp;
+	struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	long i, err = __get_user(regs->pc, &sc->sc_pc);
 
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -215,9 +209,9 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
    registers and transfer control from userland.  */
 
 asmlinkage void
-do_sigreturn(struct sigcontext __user *sc, struct pt_regs *regs,
-	     struct switch_stack *sw)
+do_sigreturn(struct sigcontext __user *sc)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
 	/* Verify that it's a good sigcontext before using it */
@@ -228,7 +222,7 @@ do_sigreturn(struct sigcontext __user *sc, struct pt_regs *regs,
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(sc, regs, sw))
+	if (restore_sigcontext(sc, regs))
 		goto give_sigsegv;
 
 	/* Send SIGTRAP if we're single-stepping: */
@@ -249,9 +243,9 @@ give_sigsegv:
 }
 
 asmlinkage void
-do_rt_sigreturn(struct rt_sigframe __user *frame, struct pt_regs *regs,
-		struct switch_stack *sw)
+do_rt_sigreturn(struct rt_sigframe __user *frame)
 {
+	struct pt_regs *regs = current_pt_regs();
 	sigset_t set;
 
 	/* Verify that it's a good ucontext_t before using it */
@@ -262,7 +256,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame, struct pt_regs *regs,
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(&frame->uc.uc_mcontext, regs, sw))
+	if (restore_sigcontext(&frame->uc.uc_mcontext, regs))
 		goto give_sigsegv;
 
 	/* Send SIGTRAP if we're single-stepping: */
@@ -298,8 +292,9 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 
 static long
 setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, 
-		 struct switch_stack *sw, unsigned long mask, unsigned long sp)
+		 unsigned long mask, unsigned long sp)
 {
+	struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	long i, err = 0;
 
 	err |= __put_user(on_sig_stack((unsigned long)sc), &sc->sc_onstack);
@@ -354,7 +349,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 
 static int
 setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
-	    struct pt_regs *regs, struct switch_stack * sw)
+	    struct pt_regs *regs)
 {
 	unsigned long oldsp, r26, err = 0;
 	struct sigframe __user *frame;
@@ -364,7 +359,7 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
 
-	err |= setup_sigcontext(&frame->sc, regs, sw, set->sig[0], oldsp);
+	err |= setup_sigcontext(&frame->sc, regs, set->sig[0], oldsp);
 	if (err)
 		return -EFAULT;
 
@@ -401,7 +396,7 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-	       sigset_t *set, struct pt_regs *regs, struct switch_stack * sw)
+	       sigset_t *set, struct pt_regs *regs)
 {
 	unsigned long oldsp, r26, err = 0;
 	struct rt_sigframe __user *frame;
@@ -417,10 +412,8 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(set->sig[0], &frame->uc.uc_osf_sigmask);
-	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(oldsp), &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, sw,
+	err |= __save_altstack(&frame->uc.uc_stack, oldsp);
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, 
 				set->sig[0], oldsp);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
@@ -464,15 +457,15 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
  */
 static inline void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
-	      struct pt_regs * regs, struct switch_stack *sw)
+	      struct pt_regs * regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = setup_rt_frame(sig, ka, info, oldset, regs, sw);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		ret = setup_frame(sig, ka, oldset, regs, sw);
+		ret = setup_frame(sig, ka, oldset, regs);
 
 	if (ret) {
 		force_sigsegv(sig, current);
@@ -519,8 +512,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
  * all (if we get here from anything but a syscall return, it will be 0)
  */
 static void
-do_signal(struct pt_regs * regs, struct switch_stack * sw,
-	  unsigned long r0, unsigned long r19)
+do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 {
 	siginfo_t info;
 	int signr;
@@ -537,7 +529,7 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 		/* Whee!  Actually deliver the signal.  */
 		if (r0)
 			syscall_restart(r0, r19, regs, &ka);
-		handle_signal(signr, &ka, &info, regs, sw);
+		handle_signal(signr, &ka, &info, regs);
 		if (single_stepping) 
 			ptrace_set_bpt(current); /* re-set bpt */
 		return;
@@ -568,15 +560,23 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 }
 
 void
-do_notify_resume(struct pt_regs *regs, struct switch_stack *sw,
-		 unsigned long thread_info_flags,
+do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 		 unsigned long r0, unsigned long r19)
 {
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs, sw, r0, r19);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
+	do {
+		if (thread_flags & _TIF_NEED_RESCHED) {
+			schedule();
+		} else {
+			local_irq_enable();
+			if (thread_flags & _TIF_SIGPENDING) {
+				do_signal(regs, r0, r19);
+				r0 = 0;
+			} else {
+				clear_thread_flag(TIF_NOTIFY_RESUME);
+				tracehook_notify_resume(regs);
+			}
+		}
+		local_irq_disable();
+		thread_flags = current_thread_info()->flags;
+	} while (thread_flags & _TIF_WORK_MASK);
 }

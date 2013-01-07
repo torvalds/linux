@@ -82,6 +82,9 @@ static struct regulator_ops arizona_micsupp_ops = {
 
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+
+	.get_bypass = regulator_get_bypass_regmap,
+	.set_bypass = regulator_set_bypass_regmap,
 };
 
 static const struct regulator_desc arizona_micsupp = {
@@ -95,6 +98,10 @@ static const struct regulator_desc arizona_micsupp = {
 	.vsel_mask = ARIZONA_LDO2_VSEL_MASK,
 	.enable_reg = ARIZONA_MIC_CHARGE_PUMP_1,
 	.enable_mask = ARIZONA_CPMIC_ENA,
+	.bypass_reg = ARIZONA_MIC_CHARGE_PUMP_1,
+	.bypass_mask = ARIZONA_CPMIC_BYPASS,
+
+	.enable_time = 3000,
 
 	.owner = THIS_MODULE,
 };
@@ -110,7 +117,7 @@ static const struct regulator_init_data arizona_micsupp_default = {
 	.num_consumer_supplies = 1,
 };
 
-static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
+static int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
@@ -161,7 +168,7 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int arizona_micsupp_remove(struct platform_device *pdev)
+static int arizona_micsupp_remove(struct platform_device *pdev)
 {
 	struct arizona_micsupp *micsupp = platform_get_drvdata(pdev);
 
@@ -172,7 +179,7 @@ static __devexit int arizona_micsupp_remove(struct platform_device *pdev)
 
 static struct platform_driver arizona_micsupp_driver = {
 	.probe = arizona_micsupp_probe,
-	.remove = __devexit_p(arizona_micsupp_remove),
+	.remove = arizona_micsupp_remove,
 	.driver		= {
 		.name	= "arizona-micsupp",
 		.owner	= THIS_MODULE,

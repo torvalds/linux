@@ -202,7 +202,6 @@ out:
 /* A writeback failed: mark the page as bad, and invalidate the page cache */
 static void nfs_set_pageerror(struct page *page)
 {
-	SetPageError(page);
 	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
 }
 
@@ -239,21 +238,18 @@ int nfs_congestion_kb;
 #define NFS_CONGESTION_OFF_THRESH	\
 	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
 
-static int nfs_set_page_writeback(struct page *page)
+static void nfs_set_page_writeback(struct page *page)
 {
+	struct nfs_server *nfss = NFS_SERVER(page_file_mapping(page)->host);
 	int ret = test_set_page_writeback(page);
 
-	if (!ret) {
-		struct inode *inode = page_file_mapping(page)->host;
-		struct nfs_server *nfss = NFS_SERVER(inode);
+	WARN_ON_ONCE(ret != 0);
 
-		if (atomic_long_inc_return(&nfss->writeback) >
-				NFS_CONGESTION_ON_THRESH) {
-			set_bdi_congested(&nfss->backing_dev_info,
-						BLK_RW_ASYNC);
-		}
+	if (atomic_long_inc_return(&nfss->writeback) >
+			NFS_CONGESTION_ON_THRESH) {
+		set_bdi_congested(&nfss->backing_dev_info,
+					BLK_RW_ASYNC);
 	}
-	return ret;
 }
 
 static void nfs_end_page_writeback(struct page *page)
@@ -315,10 +311,10 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	if (IS_ERR(req))
 		goto out;
 
-	ret = nfs_set_page_writeback(page);
-	BUG_ON(ret != 0);
-	BUG_ON(test_bit(PG_CLEAN, &req->wb_flags));
+	nfs_set_page_writeback(page);
+	WARN_ON_ONCE(test_bit(PG_CLEAN, &req->wb_flags));
 
+	ret = 0;
 	if (!nfs_pageio_add_request(pgio, req)) {
 		nfs_redirty_request(req);
 		ret = pgio->pg_error;
@@ -450,8 +446,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 {
 	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
-
-	BUG_ON (!NFS_WBACK_BUSY(req));
 
 	spin_lock(&inode->i_lock);
 	if (likely(!PageSwapCache(req->wb_page))) {
@@ -846,6 +840,7 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 int nfs_flush_incompatible(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+	struct nfs_lock_context *l_ctx;
 	struct nfs_page	*req;
 	int do_flush, status;
 	/*
@@ -860,9 +855,12 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		req = nfs_page_find_request(page);
 		if (req == NULL)
 			return 0;
-		do_flush = req->wb_page != page || req->wb_context != ctx ||
-			req->wb_lock_context->lockowner != current->files ||
-			req->wb_lock_context->pid != current->tgid;
+		l_ctx = req->wb_lock_context;
+		do_flush = req->wb_page != page || req->wb_context != ctx;
+		if (l_ctx) {
+			do_flush |= l_ctx->lockowner.l_owner != current->files
+				|| l_ctx->lockowner.l_pid != current->tgid;
+		}
 		nfs_release_request(req);
 		if (!do_flush)
 			return 0;
@@ -880,7 +878,7 @@ static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
 {
 	if (nfs_have_delegated_attributes(inode))
 		goto out;
-	if (NFS_I(inode)->cache_validity & NFS_INO_REVAL_PAGECACHE)
+	if (NFS_I(inode)->cache_validity & (NFS_INO_INVALID_DATA|NFS_INO_REVAL_PAGECACHE))
 		return false;
 out:
 	return PageUptodate(page) != 0;
@@ -1576,6 +1574,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		/* We have a mismatch. Write the page again */
 		dprintk(" mismatch\n");
 		nfs_mark_request_dirty(req);
+		set_bit(NFS_CONTEXT_RESEND_WRITES, &req->wb_context->flags);
 	next:
 		nfs_unlock_and_release_request(req);
 	}
@@ -1722,7 +1721,6 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 	struct nfs_page *req;
 	int ret = 0;
 
-	BUG_ON(!PageLocked(page));
 	for (;;) {
 		wait_on_page_writeback(page);
 		req = nfs_page_find_request(page);
@@ -1796,7 +1794,8 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 	if (PagePrivate(page))
 		return -EBUSY;
 
-	nfs_fscache_release_page(page, GFP_KERNEL);
+	if (!nfs_fscache_release_page(page, GFP_KERNEL))
+		return -EBUSY;
 
 	return migrate_page(mapping, newpage, page, mode);
 }
@@ -1824,7 +1823,7 @@ int __init nfs_init_writepagecache(void)
 		goto out_destroy_write_mempool;
 
 	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
-						      nfs_wdata_cachep);
+						      nfs_cdata_cachep);
 	if (nfs_commit_mempool == NULL)
 		goto out_destroy_commit_cache;
 

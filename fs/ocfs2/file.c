@@ -1184,8 +1184,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
-			transfer_to[USRQUOTA] = dqget(sb, attr->ia_uid,
-						      USRQUOTA);
+			transfer_to[USRQUOTA] = dqget(sb, make_kqid_uid(attr->ia_uid));
 			if (!transfer_to[USRQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
@@ -1194,8 +1193,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
-			transfer_to[GRPQUOTA] = dqget(sb, attr->ia_gid,
-						      GRPQUOTA);
+			transfer_to[GRPQUOTA] = dqget(sb, make_kqid_gid(attr->ia_gid));
 			if (!transfer_to[GRPQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
@@ -1217,24 +1215,6 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 			status = PTR_ERR(handle);
 			mlog_errno(status);
 			goto bail_unlock;
-		}
-	}
-
-	/*
-	 * This will intentionally not wind up calling truncate_setsize(),
-	 * since all the work for a size change has been done above.
-	 * Otherwise, we could get into problems with truncate as
-	 * ip_alloc_sem is used there to protect against i_size
-	 * changes.
-	 *
-	 * XXX: this means the conditional below can probably be removed.
-	 */
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		status = vmtruncate(inode, attr->ia_size);
-		if (status) {
-			mlog_errno(status);
-			goto bail_commit;
 		}
 	}
 
@@ -2515,10 +2495,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		ret = sd.num_spliced;
 
 	if (ret > 0) {
-		unsigned long nr_pages;
 		int err;
-
-		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		err = generic_write_sync(out, *ppos, ret);
 		if (err)
@@ -2526,7 +2503,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		else
 			*ppos += ret;
 
-		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	return ret;
@@ -2642,14 +2619,14 @@ bail:
 }
 
 /* Refer generic_file_llseek_unlocked() */
-static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int ret = 0;
 
 	mutex_lock(&inode->i_mutex);
 
-	switch (origin) {
+	switch (whence) {
 	case SEEK_SET:
 		break;
 	case SEEK_END:
@@ -2664,7 +2641,7 @@ static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int origin)
 		break;
 	case SEEK_DATA:
 	case SEEK_HOLE:
-		ret = ocfs2_seek_data_hole_offset(file, &offset, origin);
+		ret = ocfs2_seek_data_hole_offset(file, &offset, whence);
 		if (ret)
 			goto out;
 		break;

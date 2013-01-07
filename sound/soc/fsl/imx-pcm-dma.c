@@ -30,7 +30,7 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx.h>
 
 #include "imx-pcm.h"
 
@@ -109,6 +109,9 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	dma_data = kzalloc(sizeof(*dma_data), GFP_KERNEL);
+	if (!dma_data)
+		return -ENOMEM;
+
 	dma_data->peripheral_type = dma_params->shared_peripheral ?
 					IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI;
 	dma_data->priority = DMA_PRIO_HIGH;
@@ -117,7 +120,7 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
 	if (ret) {
 		kfree(dma_data);
-		return 0;
+		return ret;
 	}
 
 	snd_dmaengine_pcm_set_data(substream, dma_data);
@@ -151,12 +154,12 @@ static struct snd_soc_platform_driver imx_soc_platform_mx2 = {
 	.pcm_free	= imx_pcm_free,
 };
 
-static int __devinit imx_soc_platform_probe(struct platform_device *pdev)
+static int imx_soc_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &imx_soc_platform_mx2);
 }
 
-static int __devexit imx_soc_platform_remove(struct platform_device *pdev)
+static int imx_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -168,7 +171,7 @@ static struct platform_driver imx_pcm_driver = {
 			.owner = THIS_MODULE,
 	},
 	.probe = imx_soc_platform_probe,
-	.remove = __devexit_p(imx_soc_platform_remove),
+	.remove = imx_soc_platform_remove,
 };
 
 module_platform_driver(imx_pcm_driver);

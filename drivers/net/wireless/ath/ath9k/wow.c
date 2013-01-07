@@ -118,7 +118,7 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 		       (ap_mac_addr[1] << 8) | (ap_mac_addr[0]);
 	data_word[5] = (ap_mac_addr[5] << 8) | (ap_mac_addr[4]);
 
-	if (AR_SREV_9462_20_OR_LATER(ah)) {
+	if (AR_SREV_9462_20(ah)) {
 		/* AR9462 2.0 has an extra descriptor word (time based
 		 * discard) compared to other chips */
 		REG_WRITE(ah, (AR_WOW_KA_DESC_WORD2 + (12 * 4)), 0);
@@ -497,7 +497,7 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 
 	REG_RMW(ah, AR_PCIE_PM_CTRL, set, clr);
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		/*
 		 * this is needed to prevent the chip waking up
 		 * the host within 3-4 seconds with certain

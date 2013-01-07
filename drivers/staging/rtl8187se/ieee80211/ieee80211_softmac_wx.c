@@ -14,6 +14,8 @@
  */
 
 
+#include <linux/etherdevice.h>
+
 #include "ieee80211.h"
 
 /* FIXME: add A freqs */
@@ -30,11 +32,11 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 			     union iwreq_data *wrqu, char *b)
 {
 	int ret;
-	struct iw_freq *fwrq = & wrqu->freq;
+	struct iw_freq *fwrq = &wrqu->freq;
 //	printk("in %s\n",__func__);
 	down(&ieee->wx_sem);
 
-	if(ieee->iw_mode == IW_MODE_INFRA){
+	if (ieee->iw_mode == IW_MODE_INFRA) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -55,21 +57,20 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		}
 	}
 
-	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1 ){
+	if (fwrq->e > 0 || fwrq->m > 14 || fwrq->m < 1) {
 		ret = -EOPNOTSUPP;
 		goto out;
 
-	}else { /* Set the channel */
+	} else { /* Set the channel */
 
 
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
-		if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
-			if(ieee->state == IEEE80211_LINKED){
-
-			ieee80211_stop_send_beacons(ieee);
-			ieee80211_start_send_beacons(ieee);
+		if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
+			if (ieee->state == IEEE80211_LINKED) {
+				ieee80211_stop_send_beacons(ieee);
+				ieee80211_start_send_beacons(ieee);
 			}
 	}
 
@@ -84,7 +85,7 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 			     struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
-	struct iw_freq *fwrq = & wrqu->freq;
+	struct iw_freq *fwrq = &wrqu->freq;
 
 	if (ieee->current_network.channel == 0)
 		return -1;
@@ -131,7 +132,6 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 {
 
 	int ret = 0;
-	u8 zero[] = {0,0,0,0,0,0};
 	unsigned long flags;
 
 	short ifup = ieee->proto_started;//dev->flags & IFF_UP;
@@ -142,12 +142,12 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 
 	down(&ieee->wx_sem);
 	/* use ifconfig hw ether */
-	if (ieee->iw_mode == IW_MODE_MASTER){
+	if (ieee->iw_mode == IW_MODE_MASTER) {
 		ret = -1;
 		goto out;
 	}
 
-	if (temp->sa_family != ARPHRD_ETHER){
+	if (temp->sa_family != ARPHRD_ETHER) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -161,7 +161,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
-	ieee->wap_set = memcmp(temp->sa_data, zero,ETH_ALEN)!=0;
+	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 	//printk(" %x:%x:%x:%x:%x:%x\n", ieee->current_network.bssid[0],ieee->current_network.bssid[1],ieee->current_network.bssid[2],ieee->current_network.bssid[3],ieee->current_network.bssid[4],ieee->current_network.bssid[5]);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -174,9 +174,10 @@ out:
 	return ret;
 }
 
- int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
+int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,
+			    union iwreq_data *wrqu, char *b)
 {
-	int len,ret = 0;
+	int len, ret = 0;
 	unsigned long flags;
 
 	if (ieee->iw_mode == IW_MODE_MONITOR)
@@ -199,7 +200,7 @@ out:
 	}
 	len = ieee->current_network.ssid_len;
 	wrqu->essid.length = len;
-	strncpy(b,ieee->current_network.ssid,len);
+	strncpy(b, ieee->current_network.ssid, len);
 	wrqu->essid.flags = 1;
 
 out:
@@ -217,11 +218,11 @@ int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 	u32 target_rate = wrqu->bitrate.value;
 
 	//added by lizhaoming for auto mode
-	if(target_rate == -1){
-	ieee->rate = 110;
-	} else {
-	ieee->rate = target_rate/100000;
-	}
+	if (target_rate == -1)
+		ieee->rate = 110;
+	else
+		ieee->rate = target_rate/100000;
+
 	//FIXME: we might want to limit rate also in management protocols.
 	return 0;
 }
@@ -249,16 +250,14 @@ int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info 
 	if (wrqu->mode == ieee->iw_mode)
 		goto out;
 
-	if (wrqu->mode == IW_MODE_MONITOR){
-
+	if (wrqu->mode == IW_MODE_MONITOR)
 		ieee->dev->type = ARPHRD_IEEE80211;
-	}else{
+	else
 		ieee->dev->type = ARPHRD_ETHER;
-	}
 
-	if (!ieee->proto_started){
+	if (!ieee->proto_started) {
 		ieee->iw_mode = wrqu->mode;
-	}else{
+	} else {
 		ieee80211_stop_protocol(ieee);
 		ieee->iw_mode = wrqu->mode;
 		ieee80211_start_protocol(ieee);
@@ -295,7 +294,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
 
-	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
+	if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
 
 	//YJ,add,080828, In prevent of lossing ping packet during scanning
@@ -313,7 +312,7 @@ int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info 
 
 	down(&ieee->wx_sem);
 
-	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)){
+	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)) {
 		ret = -1;
 		goto out;
 	}
@@ -322,7 +321,7 @@ int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info 
 	//ieee80211_sta_ps_send_null_frame(ieee, true);
 	//YJ,add,080828,end
 
-	if ( ieee->state == IEEE80211_LINKED){
+	if (ieee->state == IEEE80211_LINKED) {
 		queue_work(ieee->wq, &ieee->wx_sync_scan_wq);
 		/* intentionally forget to up sem */
 		return 0;
@@ -338,7 +337,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 			      union iwreq_data *wrqu, char *extra)
 {
 
-	int ret=0,len;
+	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
 
@@ -348,17 +347,17 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-	if (wrqu->essid.length > IW_ESSID_MAX_SIZE){
-		ret= -E2BIG;
+	if (wrqu->essid.length > IW_ESSID_MAX_SIZE) {
+		ret = -E2BIG;
 		goto out;
 	}
 
-	if (ieee->iw_mode == IW_MODE_MONITOR){
-		ret= -1;
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		ret = -1;
 		goto out;
 	}
 
-	if(proto_started)
+	if (proto_started)
 		ieee80211_stop_protocol(ieee);
 
 	/* this is just to be sure that the GET wx callback
@@ -376,13 +375,12 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 //YJ,modified,080819,end
 
 		//YJ,add,080819,for hidden ap
-		if(len == 0){
+		if (len == 0) {
 			memset(ieee->current_network.bssid, 0, ETH_ALEN);
 			ieee->current_network.capability = 0;
 		}
 		//YJ,add,080819,for hidden ap,end
-	}
-	else{
+	} else {
 		ieee->ssid_set = 0;
 		ieee->current_network.ssid[0] = '\0';
 		ieee->current_network.ssid_len = 0;
@@ -397,7 +395,7 @@ out:
 	return ret;
 }
 
- int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
+int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 
@@ -405,7 +403,7 @@ out:
 	return 0;
 }
 
- int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
+int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
@@ -416,24 +414,23 @@ out:
 
 	down(&ieee->wx_sem);
 
-	if(enable)
+	if (enable)
 		ieee->raw_tx = 1;
 	else
 		ieee->raw_tx = 0;
 
-	printk(KERN_INFO"raw TX is %s\n",
-	      ieee->raw_tx ? "enabled" : "disabled");
+	netdev_info(ieee->dev, "raw TX is %s\n",
+		    ieee->raw_tx ? "enabled" : "disabled");
 
-	if(ieee->iw_mode == IW_MODE_MONITOR)
-	{
-		if(prev == 0 && ieee->raw_tx){
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		if (prev == 0 && ieee->raw_tx) {
 			if (ieee->data_hard_resume)
 				ieee->data_hard_resume(ieee->dev);
 
 			netif_carrier_on(ieee->dev);
 		}
 
-		if(prev && ieee->raw_tx == 1)
+		if (prev && ieee->raw_tx == 1)
 			netif_carrier_off(ieee->dev);
 	}
 
@@ -447,18 +444,18 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	strlcpy(wrqu->name, "802.11", IFNAMSIZ);
-	if(ieee->modulation & IEEE80211_CCK_MODULATION){
+	if (ieee->modulation & IEEE80211_CCK_MODULATION) {
 		strlcat(wrqu->name, "b", IFNAMSIZ);
-		if(ieee->modulation & IEEE80211_OFDM_MODULATION)
+		if (ieee->modulation & IEEE80211_OFDM_MODULATION)
 			strlcat(wrqu->name, "/g", IFNAMSIZ);
-	}else if(ieee->modulation & IEEE80211_OFDM_MODULATION)
+	} else if (ieee->modulation & IEEE80211_OFDM_MODULATION)
 		strlcat(wrqu->name, "g", IFNAMSIZ);
 
-	if((ieee->state == IEEE80211_LINKED) ||
+	if ((ieee->state == IEEE80211_LINKED) ||
 		(ieee->state == IEEE80211_LINKED_SCANNING))
-		strlcat(wrqu->name,"  link", IFNAMSIZ);
-	else if(ieee->state != IEEE80211_NOLINK)
-		strlcat(wrqu->name," .....", IFNAMSIZ);
+		strlcat(wrqu->name, "  link", IFNAMSIZ);
+	else if (ieee->state != IEEE80211_NOLINK)
+		strlcat(wrqu->name, " .....", IFNAMSIZ);
 
 
 	return 0;
@@ -472,11 +469,10 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 {
 	int ret = 0;
 
-	if(
-		(!ieee->sta_wake_up) ||
-		(!ieee->ps_request_tx_ack) ||
-		(!ieee->enter_sleep_state) ||
-		(!ieee->ps_is_queue_empty)){
+	if ((!ieee->sta_wake_up) ||
+	    (!ieee->ps_request_tx_ack) ||
+	    (!ieee->enter_sleep_state) ||
+	    (!ieee->ps_is_queue_empty)) {
 
 		printk("ERROR. PS mode tried to be use but driver missed a callback\n\n");
 
@@ -485,7 +481,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 
 	down(&ieee->wx_sem);
 
-	if (wrqu->power.disabled){
+	if (wrqu->power.disabled) {
 		ieee->ps = IEEE80211_PS_DISABLED;
 
 		goto exit;
@@ -511,7 +507,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
 
 		ieee->ps_timeout = wrqu->power.value / 1000;
-		printk("Timeout %d\n",ieee->ps_timeout);
+		printk("Timeout %d\n", ieee->ps_timeout);
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD) {
@@ -532,11 +528,11 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret =0;
+	int ret = 0;
 
 	down(&ieee->wx_sem);
 
-	if(ieee->ps == IEEE80211_PS_DISABLED){
+	if (ieee->ps == IEEE80211_PS_DISABLED) {
 		wrqu->power.disabled = 1;
 		goto exit;
 	}

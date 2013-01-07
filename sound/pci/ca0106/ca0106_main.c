@@ -1334,10 +1334,29 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
+static const struct snd_pcm_chmap_elem surround_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ }
+};
+
+static const struct snd_pcm_chmap_elem clfe_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ }
+};
+
+static const struct snd_pcm_chmap_elem side_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_SL, SNDRV_CHMAP_SR } },
+	{ }
+};
+
+static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
+	const struct snd_pcm_chmap_elem *map = NULL;
 	int err;
   
 	err = snd_pcm_new(emu->card, "ca0106", device, 1, 1, &pcm);
@@ -1350,18 +1369,22 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	case 0:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_front_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_0_ops);
+	  map = snd_pcm_std_chmaps;
           break;
 	case 1:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_rear_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_1_ops);
+	  map = surround_map;
           break;
 	case 2:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_center_lfe_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_2_ops);
+	  map = clfe_map;
           break;
 	case 3:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_unknown_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_3_ops);
+	  map = side_map;
           break;
         }
 
@@ -1388,6 +1411,11 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 			return err;
 	}
   
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
+				     1 << 2, NULL);
+	if (err < 0)
+		return err;
+
 	emu->pcm[device] = pcm;
   
 	return 0;
@@ -1622,7 +1650,7 @@ static void ca0106_stop_chip(struct snd_ca0106 *chip)
 	 */
 }
 
-static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
+static int snd_ca0106_create(int dev, struct snd_card *card,
 					 struct pci_dev *pci,
 					 struct snd_ca0106 **rchip)
 {
@@ -1749,7 +1777,7 @@ static int ca0106_dev_id_port(void *dev_id)
 	return ((struct snd_ca0106 *)dev_id)->port;
 }
 
-static int __devinit snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int channel)
+static int snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int channel)
 {
 	struct snd_ca_midi *midi;
 	char *name;
@@ -1800,7 +1828,7 @@ static int __devinit snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int chann
 }
 
 
-static int __devinit snd_ca0106_probe(struct pci_dev *pci,
+static int snd_ca0106_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -1865,13 +1893,13 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_ca0106_remove(struct pci_dev *pci)
+static void snd_ca0106_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_ca0106_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -1943,7 +1971,7 @@ static struct pci_driver ca0106_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
-	.remove = __devexit_p(snd_ca0106_remove),
+	.remove = snd_ca0106_remove,
 	.driver = {
 		.pm = SND_CA0106_PM_OPS,
 	},

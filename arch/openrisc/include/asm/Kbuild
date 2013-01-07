@@ -1,6 +1,4 @@
-include include/asm-generic/Kbuild.asm
 
-header-y += elf.h
 header-y += ucontext.h
 
 generic-y += atomic.h
@@ -11,6 +9,7 @@ generic-y += bug.h
 generic-y += bugs.h
 generic-y += cacheflush.h
 generic-y += checksum.h
+generic-y += clkdev.h
 generic-y += cmpxchg.h
 generic-y += cmpxchg-local.h
 generic-y += cputime.h
@@ -33,6 +32,7 @@ generic-y += ipcbuf.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
 generic-y += kmap_types.h
+generic-y += kvm_para.h
 generic-y += local.h
 generic-y += mman.h
 generic-y += module.h
@@ -61,6 +61,7 @@ generic-y += swab.h
 generic-y += termbits.h
 generic-y += termios.h
 generic-y += topology.h
+generic-y += trace_clock.h
 generic-y += types.h
 generic-y += ucontext.h
 generic-y += user.h

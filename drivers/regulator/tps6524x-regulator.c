@@ -502,15 +502,13 @@ static int set_current_limit(struct regulator_dev *rdev, int min_uA,
 	if (info->n_ilimsels == 1)
 		return -EINVAL;
 
-	for (i = 0; i < info->n_ilimsels; i++)
+	for (i = info->n_ilimsels - 1; i >= 0; i--) {
 		if (min_uA <= info->ilimsels[i] &&
 		    max_uA >= info->ilimsels[i])
-			break;
+			return write_field(hw, &info->ilimsel, i);
+	}
 
-	if (i >= info->n_ilimsels)
-		return -EINVAL;
-
-	return write_field(hw, &info->ilimsel, i);
+	return -EINVAL;
 }
 
 static int get_current_limit(struct regulator_dev *rdev)
@@ -594,7 +592,7 @@ static int pmic_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit pmic_probe(struct spi_device *spi)
+static int pmic_probe(struct spi_device *spi)
 {
 	struct tps6524x *hw;
 	struct device *dev = &spi->dev;
@@ -651,7 +649,7 @@ fail:
 
 static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
-	.remove		= __devexit_p(pmic_remove),
+	.remove		= pmic_remove,
 	.driver		= {
 		.name	= "tps6524x",
 		.owner	= THIS_MODULE,

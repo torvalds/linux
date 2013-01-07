@@ -503,6 +503,22 @@ static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev)
 	return pnp_res;
 }
 
+struct pnp_resource *pnp_add_resource(struct pnp_dev *dev,
+				      struct resource *res)
+{
+	struct pnp_resource *pnp_res;
+
+	pnp_res = pnp_new_resource(dev);
+	if (!pnp_res) {
+		dev_err(&dev->dev, "can't add resource %pR\n", res);
+		return NULL;
+	}
+
+	pnp_res->res = *res;
+	dev_dbg(&dev->dev, "%pR\n", res);
+	return pnp_res;
+}
+
 struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 					  int flags)
 {

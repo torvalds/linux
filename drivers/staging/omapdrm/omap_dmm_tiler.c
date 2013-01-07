@@ -29,7 +29,6 @@
 #include <linux/mm.h>
 #include <linux/time.h>
 #include <linux/list.h>
-#include <linux/semaphore.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_dmm_priv.h"
@@ -120,7 +119,19 @@ static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
 	return 0;
 }
 
-irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
+static void release_engine(struct refill_engine *engine)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&list_lock, flags);
+	list_add(&engine->idle_node, &omap_dmm->idle_head);
+	spin_unlock_irqrestore(&list_lock, flags);
+
+	atomic_inc(&omap_dmm->engine_counter);
+	wake_up_interruptible(&omap_dmm->engine_queue);
+}
+
+static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 {
 	struct dmm *dmm = arg;
 	uint32_t status = readl(dmm->base + DMM_PAT_IRQSTATUS);
@@ -130,8 +141,12 @@ irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 	writel(status, dmm->base + DMM_PAT_IRQSTATUS);
 
 	for (i = 0; i < dmm->num_engines; i++) {
-		if (status & DMM_IRQSTAT_LST)
+		if (status & DMM_IRQSTAT_LST) {
 			wake_up_interruptible(&dmm->engines[i].wait_for_refill);
+
+			if (dmm->engines[i].async)
+				release_engine(&dmm->engines[i]);
+		}
 
 		status >>= 8;
 	}
@@ -146,17 +161,24 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 {
 	struct dmm_txn *txn = NULL;
 	struct refill_engine *engine = NULL;
+	int ret;
+	unsigned long flags;
 
-	down(&dmm->engine_sem);
+
+	/* wait until an engine is available */
+	ret = wait_event_interruptible(omap_dmm->engine_queue,
+		atomic_add_unless(&omap_dmm->engine_counter, -1, 0));
+	if (ret)
+		return ERR_PTR(ret);
 
 	/* grab an idle engine */
-	spin_lock(&list_lock);
+	spin_lock_irqsave(&list_lock, flags);
 	if (!list_empty(&dmm->idle_head)) {
 		engine = list_entry(dmm->idle_head.next, struct refill_engine,
 					idle_node);
 		list_del(&engine->idle_node);
 	}
-	spin_unlock(&list_lock);
+	spin_unlock_irqrestore(&list_lock, flags);
 
 	BUG_ON(!engine);
 
@@ -174,7 +196,7 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
  * Add region to DMM transaction.  If pages or pages[i] is NULL, then the
  * corresponding slot is cleared (ie. dummy_pa is programmed)
  */
-static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
+static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 		struct page **pages, uint32_t npages, uint32_t roll)
 {
 	dma_addr_t pat_pa = 0;
@@ -184,9 +206,6 @@ static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	int columns = (1 + area->x1 - area->x0);
 	int rows = (1 + area->y1 - area->y0);
 	int i = columns*rows;
-	u32 *lut = omap_dmm->lut + (engine->tcm->lut_id * omap_dmm->lut_width *
-			omap_dmm->lut_height) +
-			(area->y0 * omap_dmm->lut_width) + area->x0;
 
 	pat = alloc_dma(txn, sizeof(struct pat), &pat_pa);
 
@@ -209,13 +228,9 @@ static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 			page_to_phys(pages[n]) : engine->dmm->dummy_pa;
 	}
 
-	/* fill in lut with new addresses */
-	for (i = 0; i < rows; i++, lut += omap_dmm->lut_width)
-		memcpy(lut, &data[i*columns], columns * sizeof(u32));
-
 	txn->last_pat = pat;
 
-	return 0;
+	return;
 }
 
 /**
@@ -245,6 +260,9 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 		goto cleanup;
 	}
 
+	/* mark whether it is async to denote list management in IRQ handler */
+	engine->async = wait ? false : true;
+
 	/* kick reload */
 	writel(engine->refill_pa,
 		dmm->base + reg[PAT_DESCR][engine->id]);
@@ -259,11 +277,10 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	}
 
 cleanup:
-	spin_lock(&list_lock);
-	list_add(&engine->idle_node, &dmm->idle_head);
-	spin_unlock(&list_lock);
+	/* only place engine back on list if we are done with it */
+	if (ret || wait)
+		release_engine(engine);
 
-	up(&omap_dmm->engine_sem);
 	return ret;
 }
 
@@ -279,7 +296,7 @@ static int fill(struct tcm_area *area, struct page **pages,
 
 	txn = dmm_txn_init(omap_dmm, area->tcm);
 	if (IS_ERR_OR_NULL(txn))
-		return PTR_ERR(txn);
+		return -ENOMEM;
 
 	tcm_for_each_slice(slice, *area, area_s) {
 		struct pat_area p_area = {
@@ -287,16 +304,13 @@ static int fill(struct tcm_area *area, struct page **pages,
 				.x1 = slice.p1.x,  .y1 = slice.p1.y,
 		};
 
-		ret = dmm_txn_append(txn, &p_area, pages, npages, roll);
-		if (ret)
-			goto fail;
+		dmm_txn_append(txn, &p_area, pages, npages, roll);
 
 		roll += tcm_sizeof(slice);
 	}
 
 	ret = dmm_txn_commit(txn, wait);
 
-fail:
 	return ret;
 }
 
@@ -333,6 +347,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	struct tiler_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
 	u32 min_align = 128;
 	int ret;
+	unsigned long flags;
 
 	BUG_ON(!validfmt(fmt));
 
@@ -354,9 +369,9 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	}
 
 	/* add to allocation list */
-	spin_lock(&list_lock);
+	spin_lock_irqsave(&list_lock, flags);
 	list_add(&block->alloc_node, &omap_dmm->alloc_head);
-	spin_unlock(&list_lock);
+	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
 }
@@ -365,9 +380,10 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 {
 	struct tiler_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
 	int num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long flags;
 
 	if (!block)
-		return 0;
+		return ERR_PTR(-ENOMEM);
 
 	block->fmt = TILFMT_PAGE;
 
@@ -377,9 +393,9 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	spin_lock(&list_lock);
+	spin_lock_irqsave(&list_lock, flags);
 	list_add(&block->alloc_node, &omap_dmm->alloc_head);
-	spin_unlock(&list_lock);
+	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
 }
@@ -388,13 +404,14 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 int tiler_release(struct tiler_block *block)
 {
 	int ret = tcm_free(&block->area);
+	unsigned long flags;
 
 	if (block->area.tcm)
 		dev_err(omap_dmm->dev, "failed to release block\n");
 
-	spin_lock(&list_lock);
+	spin_lock_irqsave(&list_lock, flags);
 	list_del(&block->alloc_node);
-	spin_unlock(&list_lock);
+	spin_unlock_irqrestore(&list_lock, flags);
 
 	kfree(block);
 	return ret;
@@ -404,8 +421,26 @@ int tiler_release(struct tiler_block *block)
  * Utils
  */
 
-/* calculate the tiler space address of a pixel in a view orientation */
-static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
+/* calculate the tiler space address of a pixel in a view orientation...
+ * below description copied from the display subsystem section of TRM:
+ *
+ * When the TILER is addressed, the bits:
+ *   [28:27] = 0x0 for 8-bit tiled
+ *             0x1 for 16-bit tiled
+ *             0x2 for 32-bit tiled
+ *             0x3 for page mode
+ *   [31:29] = 0x0 for 0-degree view
+ *             0x1 for 180-degree view + mirroring
+ *             0x2 for 0-degree view + mirroring
+ *             0x3 for 180-degree view
+ *             0x4 for 270-degree view + mirroring
+ *             0x5 for 270-degree view
+ *             0x6 for 90-degree view
+ *             0x7 for 90-degree view + mirroring
+ * Otherwise the bits indicated the corresponding bit address to access
+ * the SDRAM.
+ */
+static u32 tiler_get_address(enum tiler_fmt fmt, u32 orient, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
 
@@ -417,8 +452,11 @@ static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 	x_mask = MASK(x_bits);
 	y_mask = MASK(y_bits);
 
-	if (x < 0 || x > x_mask || y < 0 || y > y_mask)
+	if (x < 0 || x > x_mask || y < 0 || y > y_mask) {
+		DBG("invalid coords: %u < 0 || %u > %u || %u < 0 || %u > %u",
+				x, x, x_mask, y, y, y_mask);
 		return 0;
+	}
 
 	/* account for mirroring */
 	if (orient & MASK_X_INVERT)
@@ -439,9 +477,20 @@ dma_addr_t tiler_ssptr(struct tiler_block *block)
 {
 	BUG_ON(!validfmt(block->fmt));
 
-	return TILVIEW_8BIT + tiler_get_address(0, block->fmt,
+	return TILVIEW_8BIT + tiler_get_address(block->fmt, 0,
 			block->area.p0.x * geom[block->fmt].slot_w,
 			block->area.p0.y * geom[block->fmt].slot_h);
+}
+
+dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
+		uint32_t x, uint32_t y)
+{
+	struct tcm_pt *p = &block->area.p0;
+	BUG_ON(!validfmt(block->fmt));
+
+	return tiler_get_address(block->fmt, orient,
+			(p->x * geom[block->fmt].slot_w) + x,
+			(p->y * geom[block->fmt].slot_h) + y);
 }
 
 void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
@@ -451,11 +500,14 @@ void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
 	*h = round_up(*h, geom[fmt].slot_h);
 }
 
-uint32_t tiler_stride(enum tiler_fmt fmt)
+uint32_t tiler_stride(enum tiler_fmt fmt, uint32_t orient)
 {
 	BUG_ON(!validfmt(fmt));
 
-	return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
+	if (orient & MASK_XY_FLIP)
+		return 1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft);
+	else
+		return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
 }
 
 size_t tiler_size(enum tiler_fmt fmt, uint16_t w, uint16_t h)
@@ -470,7 +522,7 @@ size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h)
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
-bool dmm_is_initialized(void)
+bool dmm_is_available(void)
 {
 	return omap_dmm ? true : false;
 }
@@ -479,16 +531,17 @@ static int omap_dmm_remove(struct platform_device *dev)
 {
 	struct tiler_block *block, *_block;
 	int i;
+	unsigned long flags;
 
 	if (omap_dmm) {
 		/* free all area regions */
-		spin_lock(&list_lock);
+		spin_lock_irqsave(&list_lock, flags);
 		list_for_each_entry_safe(block, _block, &omap_dmm->alloc_head,
 					alloc_node) {
 			list_del(&block->alloc_node);
 			kfree(block);
 		}
-		spin_unlock(&list_lock);
+		spin_unlock_irqrestore(&list_lock, flags);
 
 		for (i = 0; i < omap_dmm->num_lut; i++)
 			if (omap_dmm->tcm && omap_dmm->tcm[i])
@@ -497,14 +550,12 @@ static int omap_dmm_remove(struct platform_device *dev)
 
 		kfree(omap_dmm->engines);
 		if (omap_dmm->refill_va)
-			dma_free_coherent(omap_dmm->dev,
+			dma_free_writecombine(omap_dmm->dev,
 				REFILL_BUFFER_SIZE * omap_dmm->num_engines,
 				omap_dmm->refill_va,
 				omap_dmm->refill_pa);
 		if (omap_dmm->dummy_page)
 			__free_page(omap_dmm->dummy_page);
-
-		vfree(omap_dmm->lut);
 
 		if (omap_dmm->irq > 0)
 			free_irq(omap_dmm->irq, omap_dmm);
@@ -521,7 +572,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 {
 	int ret = -EFAULT, i;
 	struct tcm_area area = {0};
-	u32 hwinfo, pat_geom, lut_table_size;
+	u32 hwinfo, pat_geom;
 	struct resource *mem;
 
 	omap_dmm = kzalloc(sizeof(*omap_dmm), GFP_KERNEL);
@@ -533,6 +584,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 	/* initialize lists */
 	INIT_LIST_HEAD(&omap_dmm->alloc_head);
 	INIT_LIST_HEAD(&omap_dmm->idle_head);
+
+	init_waitqueue_head(&omap_dmm->engine_queue);
 
 	/* lookup hwmod data - base address and irq */
 	mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -561,6 +614,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 	omap_dmm->num_lut = (hwinfo >> 16) & 0x1F;
 	omap_dmm->container_width = 256;
 	omap_dmm->container_height = 128;
+
+	atomic_set(&omap_dmm->engine_counter, omap_dmm->num_engines);
 
 	/* read out actual LUT width and height */
 	pat_geom = readl(omap_dmm->base + DMM_PAT_GEOMETRY);
@@ -593,16 +648,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 	 */
 	writel(0x7e7e7e7e, omap_dmm->base + DMM_PAT_IRQENABLE_SET);
 
-	lut_table_size = omap_dmm->lut_width * omap_dmm->lut_height *
-			omap_dmm->num_lut;
-
-	omap_dmm->lut = vmalloc(lut_table_size * sizeof(*omap_dmm->lut));
-	if (!omap_dmm->lut) {
-		dev_err(&dev->dev, "could not allocate lut table\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
 		dev_err(&dev->dev, "could not allocate dummy page\n");
@@ -617,7 +662,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 	omap_dmm->dummy_pa = page_to_phys(omap_dmm->dummy_page);
 
 	/* alloc refill memory */
-	omap_dmm->refill_va = dma_alloc_coherent(&dev->dev,
+	omap_dmm->refill_va = dma_alloc_writecombine(&dev->dev,
 				REFILL_BUFFER_SIZE * omap_dmm->num_engines,
 				&omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
@@ -635,7 +680,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 		goto fail;
 	}
 
-	sema_init(&omap_dmm->engine_sem, omap_dmm->num_engines);
 	for (i = 0; i < omap_dmm->num_engines; i++) {
 		omap_dmm->engines[i].id = i;
 		omap_dmm->engines[i].dmm = omap_dmm;
@@ -684,9 +728,6 @@ static int omap_dmm_probe(struct platform_device *dev)
 		.p1.x = omap_dmm->container_width - 1,
 		.p1.y = omap_dmm->container_height - 1,
 	};
-
-	for (i = 0; i < lut_table_size; i++)
-		omap_dmm->lut[i] = omap_dmm->dummy_pa;
 
 	/* initialize all LUTs to dummy page entries */
 	for (i = 0; i < omap_dmm->num_lut; i++) {

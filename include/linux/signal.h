@@ -1,11 +1,8 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <asm/signal.h>
-#include <asm/siginfo.h>
-
-#ifdef __KERNEL__
 #include <linux/list.h>
+#include <uapi/linux/signal.h>
 
 struct task_struct;
 
@@ -388,6 +385,7 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 
 void signals_init(void);
 
-#endif /* __KERNEL__ */
+int restore_altstack(const stack_t __user *);
+int __save_altstack(stack_t __user *, unsigned long);
 
 #endif /* _LINUX_SIGNAL_H */

@@ -42,16 +42,15 @@
 #define UBIFS_VERSION 1
 
 /* Normal UBIFS messages */
-#define ubifs_msg(fmt, ...) \
-		printk(KERN_NOTICE "UBIFS: " fmt "\n", ##__VA_ARGS__)
+#define ubifs_msg(fmt, ...) pr_notice("UBIFS: " fmt "\n", ##__VA_ARGS__)
 /* UBIFS error messages */
-#define ubifs_err(fmt, ...)                                                  \
-	printk(KERN_ERR "UBIFS error (pid %d): %s: " fmt "\n", current->pid, \
+#define ubifs_err(fmt, ...)                                         \
+	pr_err("UBIFS error (pid %d): %s: " fmt "\n", current->pid, \
 	       __func__, ##__VA_ARGS__)
 /* UBIFS warning messages */
-#define ubifs_warn(fmt, ...)                                         \
-	printk(KERN_WARNING "UBIFS warning (pid %d): %s: " fmt "\n", \
-	       current->pid, __func__, ##__VA_ARGS__)
+#define ubifs_warn(fmt, ...)                                        \
+	pr_warn("UBIFS warning (pid %d): %s: " fmt "\n",            \
+		current->pid, __func__, ##__VA_ARGS__)
 
 /* UBIFS file system VFS magic number */
 #define UBIFS_SUPER_MAGIC 0x24051905
@@ -1184,6 +1183,8 @@ struct ubifs_debug_info;
  * @freeable_list: list of freeable non-index LEBs (free + dirty == @leb_size)
  * @frdi_idx_list: list of freeable index LEBs (free + dirty == @leb_size)
  * @freeable_cnt: number of freeable LEBs in @freeable_list
+ * @in_a_category_cnt: count of lprops which are in a certain category, which
+ *                     basically meants that they were loaded from the flash
  *
  * @ltab_lnum: LEB number of LPT's own lprops table
  * @ltab_offs: offset of LPT's own lprops table
@@ -1413,6 +1414,7 @@ struct ubifs_info {
 	struct list_head freeable_list;
 	struct list_head frdi_idx_list;
 	int freeable_cnt;
+	int in_a_category_cnt;
 
 	int ltab_lnum;
 	int ltab_offs;
@@ -1426,8 +1428,8 @@ struct ubifs_info {
 
 	long long rp_size;
 	long long report_rp_size;
-	uid_t rp_uid;
-	gid_t rp_gid;
+	kuid_t rp_uid;
+	kgid_t rp_gid;
 
 	/* The below fields are used only during mounting and re-mounting */
 	unsigned int empty:1;

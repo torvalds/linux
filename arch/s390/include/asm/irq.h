@@ -19,6 +19,7 @@ enum interruption_class {
 	EXTINT_IUC,
 	EXTINT_CMS,
 	EXTINT_CMC,
+	EXTINT_CMR,
 	IOINT_CIO,
 	IOINT_QAI,
 	IOINT_DAS,
@@ -30,7 +31,10 @@ enum interruption_class {
 	IOINT_CLW,
 	IOINT_CTC,
 	IOINT_APB,
+	IOINT_ADM,
 	IOINT_CSC,
+	IOINT_PCI,
+	IOINT_MSI,
 	NMI_NMI,
 	NR_IRQS,
 };
@@ -48,5 +52,15 @@ void service_subclass_irq_register(void);
 void service_subclass_irq_unregister(void);
 void measurement_alert_subclass_register(void);
 void measurement_alert_subclass_unregister(void);
+
+#ifdef CONFIG_LOCKDEP
+#  define disable_irq_nosync_lockdep(irq)	disable_irq_nosync(irq)
+#  define disable_irq_nosync_lockdep_irqsave(irq, flags) \
+						disable_irq_nosync(irq)
+#  define disable_irq_lockdep(irq)		disable_irq(irq)
+#  define enable_irq_lockdep(irq)		enable_irq(irq)
+#  define enable_irq_lockdep_irqrestore(irq, flags) \
+						enable_irq(irq)
+#endif
 
 #endif /* _ASM_IRQ_H */

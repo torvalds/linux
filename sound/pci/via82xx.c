@@ -362,7 +362,7 @@ struct via82xx {
 
 	unsigned char old_legacy;
 	unsigned char old_legacy_cfg;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	unsigned char legacy_saved;
 	unsigned char legacy_cfg_saved;
 	unsigned char spdif_ctrl_saved;
@@ -1437,9 +1437,10 @@ static void init_viadev(struct via82xx *chip, int idx, unsigned int reg_offset,
 /*
  * create pcm instances for VIA8233, 8233C and 8235 (not 8233A)
  */
-static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
+static int snd_via8233_pcm_new(struct via82xx *chip)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_chmap *chmap;
 	int i, err;
 
 	chip->playback_devno = 0;	/* x 4 */
@@ -1467,6 +1468,12 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
 
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_std_chmaps, 2, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+
 	/* PCM #1:  multi-channel playback and 2nd capture */
 	err = snd_pcm_new(chip->card, chip->card->shortname, 1, 1, 1, &pcm);
 	if (err < 0)
@@ -1484,15 +1491,24 @@ static int __devinit snd_via8233_pcm_new(struct via82xx *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
+
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, 6, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+	chip->ac97->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
+
 	return 0;
 }
 
 /*
  * create pcm instances for VIA8233A
  */
-static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
+static int snd_via8233a_pcm_new(struct via82xx *chip)
 {
 	struct snd_pcm *pcm;
+	struct snd_pcm_chmap *chmap;
 	int err;
 
 	chip->multi_devno = 0;
@@ -1519,6 +1535,13 @@ static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 					      snd_dma_pci_data(chip->pci),
 					      64*1024, VIA_MAX_BUFSIZE);
 
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, 6, 0,
+				     &chmap);
+	if (err < 0)
+		return err;
+	chip->ac97->chmaps[SNDRV_PCM_STREAM_PLAYBACK] = chmap;
+
 	/* SPDIF supported? */
 	if (! ac97_can_spdif(chip->ac97))
 		return 0;
@@ -1543,7 +1566,7 @@ static int __devinit snd_via8233a_pcm_new(struct via82xx *chip)
 /*
  * create a pcm instance for via686a/b
  */
-static int __devinit snd_via686_pcm_new(struct via82xx *chip)
+static int snd_via686_pcm_new(struct via82xx *chip)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1620,7 +1643,7 @@ static int snd_via8233_capture_source_put(struct snd_kcontrol *kcontrol,
 	return val != oval;
 }
 
-static struct snd_kcontrol_new snd_via8233_capture_source __devinitdata = {
+static struct snd_kcontrol_new snd_via8233_capture_source = {
 	.name = "Input Source Select",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_via8233_capture_source_info,
@@ -1660,7 +1683,7 @@ static int snd_via8233_dxs3_spdif_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_via8233_dxs3_spdif_control __devinitdata = {
+static struct snd_kcontrol_new snd_via8233_dxs3_spdif_control = {
 	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_via8233_dxs3_spdif_info,
@@ -1749,7 +1772,7 @@ static int snd_via8233_pcmdxs_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_dxs, -4650, 150, 1);
 
-static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata = {
+static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control = {
 	.name = "PCM Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -1760,7 +1783,7 @@ static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata =
 	.tlv = { .p = db_scale_dxs }
 };
 
-static struct snd_kcontrol_new snd_via8233_dxs_volume_control __devinitdata = {
+static struct snd_kcontrol_new snd_via8233_dxs_volume_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.device = 0,
 	/* .subdevice set later */
@@ -1872,7 +1895,7 @@ static struct ac97_quirk ac97_quirks[] = {
 	{ } /* terminator */
 };
 
-static int __devinit snd_via82xx_mixer_new(struct via82xx *chip, const char *quirk_override)
+static int snd_via82xx_mixer_new(struct via82xx *chip, const char *quirk_override)
 {
 	struct snd_ac97_template ac97;
 	int err;
@@ -1907,7 +1930,7 @@ static int __devinit snd_via82xx_mixer_new(struct via82xx *chip, const char *qui
 
 #ifdef SUPPORT_JOYSTICK
 #define JOYSTICK_ADDR	0x200
-static int __devinit snd_via686_create_gameport(struct via82xx *chip, unsigned char *legacy)
+static int snd_via686_create_gameport(struct via82xx *chip, unsigned char *legacy)
 {
 	struct gameport *gp;
 	struct resource *r;
@@ -1967,7 +1990,7 @@ static inline void snd_via686_free_gameport(struct via82xx *chip) { }
  *
  */
 
-static int __devinit snd_via8233_init_misc(struct via82xx *chip)
+static int snd_via8233_init_misc(struct via82xx *chip)
 {
 	int i, err, caps;
 	unsigned char val;
@@ -2024,7 +2047,7 @@ static int __devinit snd_via8233_init_misc(struct via82xx *chip)
 	return 0;
 }
 
-static int __devinit snd_via686_init_misc(struct via82xx *chip)
+static int snd_via686_init_misc(struct via82xx *chip)
 {
 	unsigned char legacy, legacy_cfg;
 	int rev_h = 0;
@@ -2038,7 +2061,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 		if (mpu_port >= 0x200) {	/* force MIDI */
 			mpu_port &= 0xfffc;
 			pci_write_config_dword(chip->pci, 0x18, mpu_port | 0x01);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 			chip->mpu_port_saved = mpu_port;
 #endif
 		} else {
@@ -2090,7 +2113,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 
 	snd_via686_create_gameport(chip, &legacy);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->legacy_saved = legacy;
 	chip->legacy_cfg_saved = legacy_cfg;
 #endif
@@ -2114,7 +2137,7 @@ static void snd_via82xx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit snd_via82xx_proc_init(struct via82xx *chip)
+static void snd_via82xx_proc_init(struct via82xx *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -2238,7 +2261,7 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2313,7 +2336,7 @@ static SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume
 #define SND_VIA82XX_PM_OPS	&snd_via82xx_pm
 #else
 #define SND_VIA82XX_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int snd_via82xx_free(struct via82xx *chip)
 {
@@ -2347,12 +2370,12 @@ static int snd_via82xx_dev_free(struct snd_device *device)
 	return snd_via82xx_free(chip);
 }
 
-static int __devinit snd_via82xx_create(struct snd_card *card,
-					struct pci_dev *pci,
-					int chip_type,
-					int revision,
-					unsigned int ac97_clock,
-					struct via82xx ** r_via)
+static int snd_via82xx_create(struct snd_card *card,
+			      struct pci_dev *pci,
+			      int chip_type,
+			      int revision,
+			      unsigned int ac97_clock,
+			      struct via82xx **r_via)
 {
 	struct via82xx *chip;
 	int err;
@@ -2429,7 +2452,7 @@ struct via823x_info {
 	char *name;
 	int type;
 };
-static struct via823x_info via823x_cards[] __devinitdata = {
+static struct via823x_info via823x_cards[] = {
 	{ VIA_REV_PRE_8233, "VIA 8233-Pre", TYPE_VIA8233 },
 	{ VIA_REV_8233C, "VIA 8233C", TYPE_VIA8233 },
 	{ VIA_REV_8233, "VIA 8233", TYPE_VIA8233 },
@@ -2443,7 +2466,7 @@ static struct via823x_info via823x_cards[] __devinitdata = {
  * auto detection of DXS channel supports.
  */
 
-static struct snd_pci_quirk dxs_whitelist[] __devinitdata = {
+static struct snd_pci_quirk dxs_whitelist[] = {
 	SND_PCI_QUIRK(0x1005, 0x4710, "Avance Logic Mobo", VIA_DXS_ENABLE),
 	SND_PCI_QUIRK(0x1019, 0x0996, "ESC Mobo", VIA_DXS_48K),
 	SND_PCI_QUIRK(0x1019, 0x0a81, "ECS K7VTA3 v8.0", VIA_DXS_NO_VRA),
@@ -2487,7 +2510,7 @@ static struct snd_pci_quirk dxs_whitelist[] __devinitdata = {
 	{ } /* terminator */
 };
 
-static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
+static int check_dxs_list(struct pci_dev *pci, int revision)
 {
 	const struct snd_pci_quirk *w;
 
@@ -2512,8 +2535,8 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 	return VIA_DXS_48K;
 };
 
-static int __devinit snd_via82xx_probe(struct pci_dev *pci,
-				       const struct pci_device_id *pci_id)
+static int snd_via82xx_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct via82xx *chip;
@@ -2620,7 +2643,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_via82xx_remove(struct pci_dev *pci)
+static void snd_via82xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2630,7 +2653,7 @@ static struct pci_driver via82xx_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_via82xx_ids,
 	.probe = snd_via82xx_probe,
-	.remove = __devexit_p(snd_via82xx_remove),
+	.remove = snd_via82xx_remove,
 	.driver = {
 		.pm = SND_VIA82XX_PM_OPS,
 	},

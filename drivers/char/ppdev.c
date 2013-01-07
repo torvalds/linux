@@ -251,12 +251,8 @@ static ssize_t pp_write (struct file * file, const char __user * buf,
 			break;
 		}
 
-		if (signal_pending (current)) {
-			if (!bytes_written) {
-				bytes_written = -EINTR;
-			}
+		if (signal_pending (current))
 			break;
-		}
 
 		cond_resched();
 	}
@@ -783,7 +779,8 @@ static int __init ppdev_init (void)
 		err = PTR_ERR(ppdev_class);
 		goto out_chrdev;
 	}
-	if (parport_register_driver(&pp_driver)) {
+	err = parport_register_driver(&pp_driver);
+	if (err < 0) {
 		printk (KERN_WARNING CHRDEV ": unable to register with parport\n");
 		goto out_class;
 	}

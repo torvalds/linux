@@ -205,7 +205,7 @@ struct fm801 {
 	struct snd_tea575x tea;
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u16 saved_regs[0x20];
 #endif
 };
@@ -689,7 +689,7 @@ static struct snd_pcm_ops snd_fm801_capture_ops = {
 	.pointer =	snd_fm801_capture_pointer,
 };
 
-static int __devinit snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm ** rpcm)
+static int snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -710,6 +710,13 @@ static int __devinit snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pc
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
+
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps,
+				     chip->multichannel ? 6 : 2, 0,
+				     NULL);
+	if (err < 0)
+		return err;
 
 	if (rpcm)
 		*rpcm = pcm;
@@ -760,9 +767,14 @@ static u8 snd_fm801_tea575x_get_pins(struct snd_tea575x *tea)
 	struct fm801 *chip = tea->private_data;
 	unsigned short reg = inw(FM801_REG(chip, GPIO_CTRL));
 	struct snd_fm801_tea575x_gpio gpio = *get_tea575x_gpio(chip);
+	u8 ret;
 
-	return  (reg & FM801_GPIO_GP(gpio.data)) ? TEA575X_DATA : 0 |
-		(reg & FM801_GPIO_GP(gpio.most)) ? TEA575X_MOST : 0;
+	ret = 0;
+	if (reg & FM801_GPIO_GP(gpio.data))
+		ret |= TEA575X_DATA;
+	if (reg & FM801_GPIO_GP(gpio.most))
+		ret |= TEA575X_MOST;
+	return ret;
 }
 
 static void snd_fm801_tea575x_set_direction(struct snd_tea575x *tea, bool output)
@@ -972,7 +984,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -3450, 150, 0);
 
 #define FM801_CONTROLS ARRAY_SIZE(snd_fm801_controls)
 
-static struct snd_kcontrol_new snd_fm801_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_fm801_controls[] = {
 FM801_DOUBLE_TLV("Wave Playback Volume", FM801_PCM_VOL, 0, 8, 31, 1,
 		 db_scale_dsp),
 FM801_SINGLE("Wave Playback Switch", FM801_PCM_VOL, 15, 1, 1),
@@ -993,7 +1005,7 @@ FM801_SINGLE("FM Playback Switch", FM801_FM_VOL, 15, 1, 1),
 
 #define FM801_CONTROLS_MULTI ARRAY_SIZE(snd_fm801_controls_multi)
 
-static struct snd_kcontrol_new snd_fm801_controls_multi[] __devinitdata = {
+static struct snd_kcontrol_new snd_fm801_controls_multi[] = {
 FM801_SINGLE("AC97 2ch->4ch Copy Switch", FM801_CODEC_CTRL, 7, 1, 0),
 FM801_SINGLE("AC97 18-bit Switch", FM801_CODEC_CTRL, 10, 1, 0),
 FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), FM801_I2S_MODE, 8, 1, 0),
@@ -1018,7 +1030,7 @@ static void snd_fm801_mixer_free_ac97(struct snd_ac97 *ac97)
 	}
 }
 
-static int __devinit snd_fm801_mixer(struct fm801 *chip)
+static int snd_fm801_mixer(struct fm801 *chip)
 {
 	struct snd_ac97_template ac97;
 	unsigned int i;
@@ -1179,11 +1191,11 @@ static int snd_fm801_dev_free(struct snd_device *device)
 	return snd_fm801_free(chip);
 }
 
-static int __devinit snd_fm801_create(struct snd_card *card,
-				      struct pci_dev * pci,
-				      int tea575x_tuner,
-				      int radio_nr,
-				      struct fm801 ** rchip)
+static int snd_fm801_create(struct snd_card *card,
+			    struct pci_dev *pci,
+			    int tea575x_tuner,
+			    int radio_nr,
+			    struct fm801 **rchip)
 {
 	struct fm801 *chip;
 	int err;
@@ -1284,8 +1296,8 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
-					  const struct pci_device_id *pci_id)
+static int snd_card_fm801_probe(struct pci_dev *pci,
+				const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1355,13 +1367,13 @@ static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_card_fm801_remove(struct pci_dev *pci)
+static void snd_card_fm801_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static unsigned char saved_regs[] = {
 	FM801_PCM_VOL, FM801_I2S_VOL, FM801_FM_VOL, FM801_REC_SRC,
 	FM801_PLY_CTRL, FM801_PLY_COUNT, FM801_PLY_BUF1, FM801_PLY_BUF2,
@@ -1421,13 +1433,13 @@ static SIMPLE_DEV_PM_OPS(snd_fm801_pm, snd_fm801_suspend, snd_fm801_resume);
 #define SND_FM801_PM_OPS	&snd_fm801_pm
 #else
 #define SND_FM801_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
-	.remove = __devexit_p(snd_card_fm801_remove),
+	.remove = snd_card_fm801_remove,
 	.driver = {
 		.pm = SND_FM801_PM_OPS,
 	},

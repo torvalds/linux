@@ -1,5 +1,5 @@
 #include "util.h"
-#include "string.h"
+#include "linux/string.h"
 
 #define K 1024LL
 /*
@@ -314,6 +314,24 @@ int strtailcmp(const char *s1, const char *s2)
 }
 
 /**
+ * strxfrchar - Locate and replace character in @s
+ * @s:    The string to be searched/changed.
+ * @from: Source character to be replaced.
+ * @to:   Destination character.
+ *
+ * Return pointer to the changed string.
+ */
+char *strxfrchar(char *s, char from, char to)
+{
+	char *p = s;
+
+	while ((p = strchr(p, from)) != NULL)
+		*p++ = to;
+
+	return s;
+}
+
+/**
  * rtrim - Removes trailing whitespace from @s.
  * @s: The string to be stripped.
  *
@@ -334,4 +352,20 @@ char *rtrim(char *s)
 	*(end + 1) = '\0';
 
 	return s;
+}
+
+/**
+ * memdup - duplicate region of memory
+ * @src: memory region to duplicate
+ * @len: memory region length
+ */
+void *memdup(const void *src, size_t len)
+{
+	void *p;
+
+	p = malloc(len);
+	if (p)
+		memcpy(p, src, len);
+
+	return p;
 }

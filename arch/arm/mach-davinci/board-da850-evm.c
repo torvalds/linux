@@ -11,39 +11,44 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/console.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/input.h>
+#include <linux/input/tps6507x-ts.h>
 #include <linux/mfd/tps6507x.h>
-#include <linux/gpio.h>
-#include <linux/gpio_keys.h>
-#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_data/uio_pruss.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/input/tps6507x-ts.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#include <linux/delay.h>
 #include <linux/wl12xx.h>
+
+#include <mach/cp_intc.h>
+#include <mach/da8xx.h>
+#include <mach/mux.h>
+#include <mach/sram.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/system_info.h>
 
-#include <mach/cp_intc.h>
-#include <mach/da8xx.h>
-#include <mach/nand.h>
-#include <mach/mux.h>
-#include <mach/aemif.h>
-#include <mach/spi.h>
+#include <media/tvp514x.h>
+#include <media/adv7343.h>
 
 #define DA850_EVM_PHY_ID		"davinci_mdio-0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
@@ -452,6 +457,15 @@ static void da850_evm_ui_keys_init(unsigned gpio)
 	}
 }
 
+#ifdef CONFIG_DA850_UI_SD_VIDEO_PORT
+static inline void da850_evm_setup_video_port(int video_sel)
+{
+	gpio_set_value_cansleep(video_sel, 0);
+}
+#else
+static inline void da850_evm_setup_video_port(int video_sel) { }
+#endif
+
 static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 						unsigned ngpio, void *c)
 {
@@ -496,6 +510,8 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 	da850_evm_setup_nor_nand();
 
 	da850_evm_setup_emac_rmii(sel_a);
+
+	da850_evm_setup_video_port(sel_c);
 
 	return 0;
 
@@ -748,16 +764,19 @@ static u8 da850_iis_serializer_direction[] = {
 };
 
 static struct snd_platform_data da850_evm_snd_data = {
-	.tx_dma_offset	= 0x2000,
-	.rx_dma_offset	= 0x2000,
-	.op_mode	= DAVINCI_MCASP_IIS_MODE,
-	.num_serializer	= ARRAY_SIZE(da850_iis_serializer_direction),
-	.tdm_slots	= 2,
-	.serial_dir	= da850_iis_serializer_direction,
-	.asp_chan_q	= EVENTQ_0,
-	.version	= MCASP_VERSION_2,
-	.txnumevt	= 1,
-	.rxnumevt	= 1,
+	.tx_dma_offset		= 0x2000,
+	.rx_dma_offset		= 0x2000,
+	.op_mode		= DAVINCI_MCASP_IIS_MODE,
+	.num_serializer		= ARRAY_SIZE(da850_iis_serializer_direction),
+	.tdm_slots		= 2,
+	.serial_dir		= da850_iis_serializer_direction,
+	.asp_chan_q		= EVENTQ_0,
+	.ram_chan_q		= EVENTQ_1,
+	.version		= MCASP_VERSION_2,
+	.txnumevt		= 1,
+	.rxnumevt		= 1,
+	.sram_size_playback	= SZ_8K,
+	.sram_size_capture	= SZ_8K,
 };
 
 static const short da850_evm_mcasp_pins[] __initconst = {
@@ -1149,6 +1168,169 @@ static __init int da850_evm_init_cpufreq(void)
 static __init int da850_evm_init_cpufreq(void) { return 0; }
 #endif
 
+#if defined(CONFIG_DA850_UI_SD_VIDEO_PORT)
+
+#define TVP5147_CH0		"tvp514x-0"
+#define TVP5147_CH1		"tvp514x-1"
+
+/* VPIF capture configuration */
+static struct tvp514x_platform_data tvp5146_pdata = {
+		.clk_polarity = 0,
+		.hs_polarity  = 1,
+		.vs_polarity  = 1,
+};
+
+#define TVP514X_STD_ALL (V4L2_STD_NTSC | V4L2_STD_PAL)
+
+static const struct vpif_input da850_ch0_inputs[] = {
+	{
+		.input = {
+			.index = 0,
+			.name  = "Composite",
+			.type  = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
+			.std   = TVP514X_STD_ALL,
+		},
+		.input_route = INPUT_CVBS_VI2B,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
+		.subdev_name = TVP5147_CH0,
+	},
+};
+
+static const struct vpif_input da850_ch1_inputs[] = {
+	{
+		.input = {
+			.index = 0,
+			.name  = "S-Video",
+			.type  = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
+			.std   = TVP514X_STD_ALL,
+		},
+		.input_route = INPUT_SVIDEO_VI2C_VI1C,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
+		.subdev_name = TVP5147_CH1,
+	},
+};
+
+static struct vpif_subdev_info da850_vpif_capture_sdev_info[] = {
+	{
+		.name = TVP5147_CH0,
+		.board_info = {
+			I2C_BOARD_INFO("tvp5146", 0x5d),
+			.platform_data = &tvp5146_pdata,
+		},
+	},
+	{
+		.name = TVP5147_CH1,
+		.board_info = {
+			I2C_BOARD_INFO("tvp5146", 0x5c),
+			.platform_data = &tvp5146_pdata,
+		},
+	},
+};
+
+static struct vpif_capture_config da850_vpif_capture_config = {
+	.subdev_info = da850_vpif_capture_sdev_info,
+	.subdev_count = ARRAY_SIZE(da850_vpif_capture_sdev_info),
+	.chan_config[0] = {
+		.inputs = da850_ch0_inputs,
+		.input_count = ARRAY_SIZE(da850_ch0_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol  = 1,
+			.vd_pol  = 1,
+			.fid_pol = 0,
+		},
+	},
+	.chan_config[1] = {
+		.inputs = da850_ch1_inputs,
+		.input_count = ARRAY_SIZE(da850_ch1_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol  = 1,
+			.vd_pol  = 1,
+			.fid_pol = 0,
+		},
+	},
+	.card_name = "DA850/OMAP-L138 Video Capture",
+};
+
+/* VPIF display configuration */
+static struct vpif_subdev_info da850_vpif_subdev[] = {
+	{
+		.name = "adv7343",
+		.board_info = {
+			I2C_BOARD_INFO("adv7343", 0x2a),
+		},
+	},
+};
+
+static const struct vpif_output da850_ch0_outputs[] = {
+	{
+		.output = {
+			.index = 0,
+			.name = "Composite",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPOSITE_ID,
+	},
+	{
+		.output = {
+			.index = 1,
+			.name = "S-Video",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_SVIDEO_ID,
+	},
+};
+
+static struct vpif_display_config da850_vpif_display_config = {
+	.subdevinfo   = da850_vpif_subdev,
+	.subdev_count = ARRAY_SIZE(da850_vpif_subdev),
+	.chan_config[0] = {
+		.outputs = da850_ch0_outputs,
+		.output_count = ARRAY_SIZE(da850_ch0_outputs),
+	},
+	.card_name    = "DA850/OMAP-L138 Video Display",
+};
+
+static __init void da850_vpif_init(void)
+{
+	int ret;
+
+	ret = da850_register_vpif();
+	if (ret)
+		pr_warn("da850_evm_init: VPIF setup failed: %d\n", ret);
+
+	ret = davinci_cfg_reg_list(da850_vpif_capture_pins);
+	if (ret)
+		pr_warn("da850_evm_init: VPIF capture mux setup failed: %d\n",
+			ret);
+
+	ret = da850_register_vpif_capture(&da850_vpif_capture_config);
+	if (ret)
+		pr_warn("da850_evm_init: VPIF capture setup failed: %d\n", ret);
+
+	ret = davinci_cfg_reg_list(da850_vpif_display_pins);
+	if (ret)
+		pr_warn("da850_evm_init: VPIF display mux setup failed: %d\n",
+			ret);
+
+	ret = da850_register_vpif_display(&da850_vpif_display_config);
+	if (ret)
+		pr_warn("da850_evm_init: VPIF display setup failed: %d\n", ret);
+}
+
+#else
+static __init void da850_vpif_init(void) {}
+#endif
+
 #ifdef CONFIG_DA850_WL12XX
 
 static void wl12xx_set_power(int index, bool power_on)
@@ -1332,11 +1514,17 @@ static __init void da850_evm_init(void)
 		pr_warning("da850_evm_init: mcasp mux setup failed: %d\n",
 				ret);
 
+	da850_evm_snd_data.sram_pool = sram_get_gen_pool();
 	da8xx_register_mcasp(0, &da850_evm_snd_data);
 
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
 	if (ret)
 		pr_warning("da850_evm_init: lcdcntl mux setup failed: %d\n",
+				ret);
+
+	ret = da8xx_register_uio_pruss();
+	if (ret)
+		pr_warn("da850_evm_init: pruss initialization failed: %d\n",
 				ret);
 
 	/* Handle board specific muxing for LCD here */
@@ -1374,6 +1562,8 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: suspend registration failed: %d\n",
 				ret);
+
+	da850_vpif_init();
 
 	ret = da8xx_register_spi(1, da850evm_spi_info,
 				 ARRAY_SIZE(da850evm_spi_info));

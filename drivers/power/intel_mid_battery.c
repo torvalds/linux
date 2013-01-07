@@ -649,7 +649,7 @@ static void pmic_battery_handle_intrpt(struct work_struct *work)
  * PMIC battery initializes its internal data structue and other
  * infrastructure components for it to work as expected.
  */
-static __devinit int probe(int irq, struct device *dev)
+static int probe(int irq, struct device *dev)
 {
 	int retval = 0;
 	struct pmic_power_module_info *pbi;
@@ -739,7 +739,7 @@ wqueue_failed:
 	return retval;
 }
 
-static int __devinit platform_pmic_battery_probe(struct platform_device *pdev)
+static int platform_pmic_battery_probe(struct platform_device *pdev)
 {
 	return probe(pdev->id, &pdev->dev);
 }
@@ -754,7 +754,7 @@ static int __devinit platform_pmic_battery_probe(struct platform_device *pdev)
  * pmic_battery_probe.
  */
 
-static int __devexit platform_pmic_battery_remove(struct platform_device *pdev)
+static int platform_pmic_battery_remove(struct platform_device *pdev)
 {
 	struct pmic_power_module_info *pbi = dev_get_drvdata(&pdev->dev);
 
@@ -776,7 +776,7 @@ static struct platform_driver platform_pmic_battery_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = platform_pmic_battery_probe,
-	.remove = __devexit_p(platform_pmic_battery_remove),
+	.remove = platform_pmic_battery_remove,
 };
 
 module_platform_driver(platform_pmic_battery_driver);

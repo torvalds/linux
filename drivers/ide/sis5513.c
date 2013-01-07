@@ -563,7 +563,7 @@ static const struct ide_port_ops sis_ata133_port_ops = {
 	.cable_detect		= sis_cable_detect,
 };
 
-static const struct ide_port_info sis5513_chipset __devinitdata = {
+static const struct ide_port_info sis5513_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sis5513,
 	.enablebits	= { {0x4a, 0x02, 0x02}, {0x4a, 0x04, 0x04} },

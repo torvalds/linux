@@ -24,17 +24,14 @@
  *
  */
 
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_ramht.h"
-#include "nouveau_fence.h"
-#include "nouveau_software.h"
+#include "nouveau_drm.h"
 #include "nouveau_dma.h"
+#include "nouveau_fence.h"
 
 void
 nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
@@ -54,16 +51,16 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 void
 nouveau_fence_context_new(struct nouveau_fence_chan *fctx)
 {
+	INIT_LIST_HEAD(&fctx->flip);
 	INIT_LIST_HEAD(&fctx->pending);
 	spin_lock_init(&fctx->lock);
 }
 
-void
+static void
 nouveau_fence_update(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
+	struct nouveau_fence_priv *priv = chan->drm->fence;
+	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_fence *fence, *fnext;
 
 	spin_lock(&fctx->lock);
@@ -83,9 +80,8 @@ nouveau_fence_update(struct nouveau_channel *chan)
 int
 nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
+	struct nouveau_fence_priv *priv = chan->drm->fence;
+	struct nouveau_fence_chan *fctx = chan->fence;
 	int ret;
 
 	fence->channel  = chan;
@@ -147,19 +143,17 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 int
 nouveau_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
+	struct nouveau_fence_priv *priv = chan->drm->fence;
 	struct nouveau_channel *prev;
 	int ret = 0;
 
-	prev = fence ? nouveau_channel_get_unlocked(fence->channel) : NULL;
+	prev = fence ? fence->channel : NULL;
 	if (prev) {
 		if (unlikely(prev != chan && !nouveau_fence_done(fence))) {
 			ret = priv->sync(fence, prev, chan);
 			if (unlikely(ret))
 				ret = nouveau_fence_wait(fence, true, false);
 		}
-		nouveau_channel_put_unlocked(&prev);
 	}
 
 	return ret;
@@ -193,7 +187,7 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
 	struct nouveau_fence *fence;
 	int ret = 0;
 
-	if (unlikely(!chan->engctx[NVOBJ_ENGINE_FENCE]))
+	if (unlikely(!chan->fence))
 		return -ENODEV;
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);

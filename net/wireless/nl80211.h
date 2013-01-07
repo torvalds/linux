@@ -76,13 +76,11 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 void nl80211_send_remain_on_channel(struct cfg80211_registered_device *rdev,
 				    struct wireless_dev *wdev, u64 cookie,
 				    struct ieee80211_channel *chan,
-				    enum nl80211_channel_type channel_type,
 				    unsigned int duration, gfp_t gfp);
 void nl80211_send_remain_on_channel_cancel(
 	struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev,
-	u64 cookie, struct ieee80211_channel *chan,
-	enum nl80211_channel_type channel_type, gfp_t gfp);
+	u64 cookie, struct ieee80211_channel *chan, gfp_t gfp);
 
 void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 			    struct net_device *dev, const u8 *mac_addr,
@@ -90,6 +88,11 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 				struct net_device *dev, const u8 *mac_addr,
 				gfp_t gfp);
+
+void nl80211_send_conn_failed_event(struct cfg80211_registered_device *rdev,
+				    struct net_device *dev, const u8 *mac_addr,
+				    enum nl80211_connect_failed_reason reason,
+				    gfp_t gfp);
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct wireless_dev *wdev, u32 nlpid,
@@ -124,8 +127,8 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 				    const u8 *bssid, bool preauth, gfp_t gfp);
 
 void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
-			      struct net_device *dev, int freq,
-			      enum nl80211_channel_type type, gfp_t gfp);
+			      struct net_device *dev,
+			      struct cfg80211_chan_def *chandef, gfp_t gfp);
 
 bool nl80211_unexpected_frame(struct net_device *dev,
 			      const u8 *addr, gfp_t gfp);

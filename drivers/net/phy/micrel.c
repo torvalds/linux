@@ -21,6 +21,12 @@
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 
+/* Operation Mode Strap Override */
+#define MII_KSZPHY_OMSO				0x16
+#define KSZPHY_OMSO_B_CAST_OFF			(1 << 9)
+#define KSZPHY_OMSO_RMII_OVERRIDE		(1 << 1)
+#define KSZPHY_OMSO_MII_OVERRIDE		(1 << 0)
+
 /* general Interrupt control/status reg in vendor specific block. */
 #define MII_KSZPHY_INTCS			0x1B
 #define	KSZPHY_INTCS_JABBER			(1 << 15)
@@ -101,6 +107,13 @@ static int kszphy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int ksz8021_config_init(struct phy_device *phydev)
+{
+	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
+	phy_write(phydev, MII_KSZPHY_OMSO, val);
+	return 0;
+}
+
 static int ks8051_config_init(struct phy_device *phydev)
 {
 	int regval;
@@ -111,6 +124,39 @@ static int ks8051_config_init(struct phy_device *phydev)
 		phy_write(phydev, MII_KSZPHY_CTRL, regval);
 	}
 
+	return 0;
+}
+
+#define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
+#define KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX	(1 << 6)
+#define KSZ8873MLL_GLOBAL_CONTROL_4_SPEED	(1 << 4)
+int ksz8873mll_read_status(struct phy_device *phydev)
+{
+	int regval;
+
+	/* dummy read */
+	regval = phy_read(phydev, KSZ8873MLL_GLOBAL_CONTROL_4);
+
+	regval = phy_read(phydev, KSZ8873MLL_GLOBAL_CONTROL_4);
+
+	if (regval & KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX)
+		phydev->duplex = DUPLEX_HALF;
+	else
+		phydev->duplex = DUPLEX_FULL;
+
+	if (regval & KSZ8873MLL_GLOBAL_CONTROL_4_SPEED)
+		phydev->speed = SPEED_10;
+	else
+		phydev->speed = SPEED_100;
+
+	phydev->link = 1;
+	phydev->pause = phydev->asym_pause = 0;
+
+	return 0;
+}
+
+static int ksz8873mll_config_aneg(struct phy_device *phydev)
+{
 	return 0;
 }
 
@@ -128,9 +174,22 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= ks8737_config_intr,
 	.driver		= { .owner = THIS_MODULE,},
 }, {
-	.phy_id		= PHY_ID_KS8041,
+	.phy_id		= PHY_ID_KSZ8021,
+	.phy_id_mask	= 0x00ffffff,
+	.name		= "Micrel KSZ8021",
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
+			   SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= ksz8021_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.ack_interrupt	= kszphy_ack_interrupt,
+	.config_intr	= kszphy_config_intr,
+	.driver		= { .owner = THIS_MODULE,},
+}, {
+	.phy_id		= PHY_ID_KSZ8041,
 	.phy_id_mask	= 0x00fffff0,
-	.name		= "Micrel KS8041",
+	.name		= "Micrel KSZ8041",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
@@ -141,9 +200,9 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= kszphy_config_intr,
 	.driver		= { .owner = THIS_MODULE,},
 }, {
-	.phy_id		= PHY_ID_KS8051,
+	.phy_id		= PHY_ID_KSZ8051,
 	.phy_id_mask	= 0x00fffff0,
-	.name		= "Micrel KS8051",
+	.name		= "Micrel KSZ8051",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
@@ -154,8 +213,8 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= kszphy_config_intr,
 	.driver		= { .owner = THIS_MODULE,},
 }, {
-	.phy_id		= PHY_ID_KS8001,
-	.name		= "Micrel KS8001 or KS8721",
+	.phy_id		= PHY_ID_KSZ8001,
+	.name		= "Micrel KSZ8001 or KS8721",
 	.phy_id_mask	= 0x00ffffff,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
@@ -177,6 +236,16 @@ static struct phy_driver ksphy_driver[] = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= ksz9021_config_intr,
+	.driver		= { .owner = THIS_MODULE, },
+}, {
+	.phy_id		= PHY_ID_KSZ8873MLL,
+	.phy_id_mask	= 0x00fffff0,
+	.name		= "Micrel KSZ8873MLL Switch",
+	.features	= (SUPPORTED_Pause | SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_MAGICANEG,
+	.config_init	= kszphy_config_init,
+	.config_aneg	= ksz8873mll_config_aneg,
+	.read_status	= ksz8873mll_read_status,
 	.driver		= { .owner = THIS_MODULE, },
 } };
 
@@ -201,10 +270,12 @@ MODULE_LICENSE("GPL");
 
 static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ9021, 0x000ffffe },
-	{ PHY_ID_KS8001, 0x00ffffff },
+	{ PHY_ID_KSZ8001, 0x00ffffff },
 	{ PHY_ID_KS8737, 0x00fffff0 },
-	{ PHY_ID_KS8041, 0x00fffff0 },
-	{ PHY_ID_KS8051, 0x00fffff0 },
+	{ PHY_ID_KSZ8021, 0x00ffffff },
+	{ PHY_ID_KSZ8041, 0x00fffff0 },
+	{ PHY_ID_KSZ8051, 0x00fffff0 },
+	{ PHY_ID_KSZ8873MLL, 0x00fffff0 },
 	{ }
 };
 

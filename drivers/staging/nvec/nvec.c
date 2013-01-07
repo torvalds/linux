@@ -39,7 +39,6 @@
 #include <linux/workqueue.h>
 
 #include <mach/clk.h>
-#include <mach/iomap.h>
 
 #include "nvec.h"
 
@@ -264,7 +263,7 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	list_add_tail(&msg->node, &nvec->tx_data);
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
-	queue_work(nvec->wq, &nvec->tx_work);
+	schedule_work(&nvec->tx_work);
 
 	return 0;
 }
@@ -294,8 +293,10 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
 
-	if (nvec_write_async(nvec, data, size) < 0)
+	if (nvec_write_async(nvec, data, size) < 0) {
+		mutex_unlock(&nvec->sync_write_mutex);
 		return NULL;
+	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
 					nvec->sync_write_pending);
@@ -366,8 +367,7 @@ static void nvec_request_master(struct work_struct *work)
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if ((msg->data[0] & 1 << 7) == 0 && msg->data[3]) {
-		dev_err(nvec->dev, "ec responded %02x %02x %02x %02x\n",
-			msg->data[0], msg->data[1], msg->data[2], msg->data[3]);
+		dev_err(nvec->dev, "ec responded %*ph\n", 4, msg->data);
 		return -EINVAL;
 	}
 
@@ -470,7 +470,7 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 	if (!nvec_msg_is_event(nvec->rx))
 		complete(&nvec->ec_transfer);
 
-	queue_work(nvec->wq, &nvec->rx_work);
+	schedule_work(&nvec->rx_work);
 }
 
 /**
@@ -715,7 +715,7 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, "\x04\x01", 2);
 }
 
-static int __devinit tegra_nvec_probe(struct platform_device *pdev)
+static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
@@ -737,12 +737,14 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		nvec->gpio = pdata->gpio;
 		nvec->i2c_addr = pdata->i2c_addr;
 	} else if (nvec->dev->of_node) {
-		nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
+		nvec->gpio = of_get_named_gpio(nvec->dev->of_node,
+					"request-gpios", 0);
 		if (nvec->gpio < 0) {
 			dev_err(&pdev->dev, "no gpio specified");
 			return -ENODEV;
 		}
-		if (of_property_read_u32(nvec->dev->of_node, "slave-addr", &nvec->i2c_addr)) {
+		if (of_property_read_u32(nvec->dev->of_node,
+					"slave-addr", &nvec->i2c_addr)) {
 			dev_err(&pdev->dev, "no i2c address specified");
 			return -ENODEV;
 		}
@@ -769,7 +771,7 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	i2c_clk = clk_get_sys("tegra-i2c.2", NULL);
+	i2c_clk = clk_get_sys("tegra-i2c.2", "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
@@ -791,13 +793,11 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&nvec->tx_data);
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
-	nvec->wq = alloc_workqueue("nvec", WQ_NON_REENTRANT, 2);
 
 	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
 					"nvec gpio");
 	if (err < 0) {
 		dev_err(nvec->dev, "couldn't request gpio\n");
-		destroy_workqueue(nvec->wq);
 		return -ENODEV;
 	}
 
@@ -805,7 +805,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 				"nvec", nvec);
 	if (err) {
 		dev_err(nvec->dev, "couldn't request irq\n");
-		destroy_workqueue(nvec->wq);
 		return -ENODEV;
 	}
 	disable_irq(nvec->irq);
@@ -853,13 +852,14 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_nvec_remove(struct platform_device *pdev)
+static int tegra_nvec_remove(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
 	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
 	mfd_remove_devices(nvec->dev);
-	destroy_workqueue(nvec->wq);
+	cancel_work_sync(&nvec->rx_work);
+	cancel_work_sync(&nvec->tx_work);
 
 	return 0;
 }
@@ -900,7 +900,7 @@ static int nvec_resume(struct device *dev)
 static const SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
 
 /* Match table for of_platform binding */
-static const struct of_device_id nvidia_nvec_of_match[] __devinitconst = {
+static const struct of_device_id nvidia_nvec_of_match[] = {
 	{ .compatible = "nvidia,nvec", },
 	{},
 };
@@ -908,7 +908,7 @@ MODULE_DEVICE_TABLE(of, nvidia_nvec_of_match);
 
 static struct platform_driver nvec_device_driver = {
 	.probe   = tegra_nvec_probe,
-	.remove  = __devexit_p(tegra_nvec_remove),
+	.remove  = tegra_nvec_remove,
 	.driver  = {
 		.name = "nvec",
 		.owner = THIS_MODULE,

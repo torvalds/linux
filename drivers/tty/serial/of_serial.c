@@ -21,8 +21,10 @@
 #include <linux/of_serial.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
+#include <linux/clk.h>
 
 struct of_serial_info {
+	struct clk *clk;
 	int type;
 	int line;
 };
@@ -50,8 +52,9 @@ EXPORT_SYMBOL_GPL(tegra_serial_handle_break);
 /*
  * Fill a struct uart_port for a given device node
  */
-static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
-					int type, struct uart_port *port)
+static int of_platform_serial_setup(struct platform_device *ofdev,
+			int type, struct uart_port *port,
+			struct of_serial_info *info)
 {
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
@@ -60,8 +63,17 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 
 	memset(port, 0, sizeof *port);
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
-		dev_warn(&ofdev->dev, "no clock-frequency property set\n");
-		return -ENODEV;
+
+		/* Get clk rate through clk driver if present */
+		info->clk = clk_get(&ofdev->dev, NULL);
+		if (IS_ERR(info->clk)) {
+			dev_warn(&ofdev->dev,
+				"clk or clock-frequency not defined\n");
+			return PTR_ERR(info->clk);
+		}
+
+		clk_prepare_enable(info->clk);
+		clk = clk_get_rate(info->clk);
 	}
 	/* If current-speed was set, then try not to change it. */
 	if (of_property_read_u32(np, "current-speed", &spd) == 0)
@@ -70,7 +82,7 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
 		dev_warn(&ofdev->dev, "invalid address\n");
-		return ret;
+		goto out;
 	}
 
 	spin_lock_init(&port->lock);
@@ -97,7 +109,8 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 		default:
 			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
 				 prop);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
@@ -105,19 +118,27 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 	port->uartclk = clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
+
+	if (of_find_property(np, "no-loopback-test", NULL))
+		port->flags |= UPF_SKIP_TEST;
+
 	port->dev = &ofdev->dev;
 
 	if (type == PORT_TEGRA)
 		port->handle_break = tegra_serial_handle_break;
 
 	return 0;
+out:
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
+	return ret;
 }
 
 /*
  * Try to register a serial port
  */
 static struct of_device_id of_platform_serial_table[];
-static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
+static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct of_serial_info *info;
@@ -137,15 +158,22 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	port_type = (unsigned long)match->data;
-	ret = of_platform_serial_setup(ofdev, port_type, &port);
+	ret = of_platform_serial_setup(ofdev, port_type, &port, info);
 	if (ret)
 		goto out;
 
 	switch (port_type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
-		ret = serial8250_register_port(&port);
+	{
+		/* For now the of bindings don't support the extra
+		   8250 specific bits */
+		struct uart_8250_port port8250;
+		memset(&port8250, 0, sizeof(port8250));
+		port8250.port = port;
+		ret = serial8250_register_8250_port(&port8250);
 		break;
+	}
 #endif
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	case PORT_NWPSERIAL:
@@ -193,6 +221,9 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 		/* need to add code for these */
 		break;
 	}
+
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
 	kfree(info);
 	return 0;
 }
@@ -200,7 +231,7 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id __devinitdata of_platform_serial_table[] = {
+static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },

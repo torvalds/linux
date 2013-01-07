@@ -25,10 +25,14 @@
 #include <linux/mmc/host.h>
 #include <linux/fb.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mipi-csis.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <drm/exynos_drm.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 #include <media/m5mols.h>
 #include <media/s5k6aa.h>
 #include <media/s5p_fimc.h>
@@ -39,20 +43,16 @@
 #include <asm/mach-types.h>
 
 #include <plat/adc.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/regs-serial.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
-#include <plat/ehci.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
-#include <plat/iic.h>
 #include <plat/mfc.h>
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
-#include <plat/mipi_csis.h>
 
 #include <mach/map.h>
 
@@ -113,7 +113,6 @@ static struct s3c_sdhci_platdata nuri_hsmmc0_data __initdata = {
 	.host_caps		= (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA |
 				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 				MMC_CAP_ERASE),
-	.host_caps2		= MMC_CAP2_BROKEN_VOLTAGE,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
@@ -378,10 +377,10 @@ static struct regulator_consumer_supply __initdata max8997_ldo1_[] = {
 };
 static struct regulator_consumer_supply __initdata max8997_ldo3_[] = {
 	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"), /* USB */
-	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"), /* MIPI */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo4_[] = {
-	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vddio", "s5p-mipi-csis.0"), /* MIPI */
 };
 static struct regulator_consumer_supply __initdata max8997_ldo5_[] = {
 	REGULATOR_SUPPLY("vhsic", "modemctl"), /* MODEM */
@@ -1180,9 +1179,7 @@ static struct platform_device cam_8m_12v_fixed_rdev = {
 static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 	.clk_rate	= 166000000UL,
 	.lanes		= 2,
-	.alignment	= 32,
 	.hs_settle	= 12,
-	.phy_enable	= s5p_csis_phy_enable,
 };
 
 #define GPIO_CAM_MEGA_RST	EXYNOS4_GPY3(7) /* ISP_RESET */
@@ -1226,7 +1223,6 @@ static struct s5p_fimc_isp_info nuri_camera_sensors[] = {
 		.bus_type	= FIMC_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.clk_frequency	= 24000000UL,
-		.csi_data_align	= 32,
 	},
 };
 
@@ -1330,9 +1326,6 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&cam_vdda_fixed_rdev,
 	&cam_8m_12v_fixed_rdev,
 	&exynos4_bus_devfreq,
-#ifdef CONFIG_DRM_EXYNOS
-	&exynos_device_drm,
-#endif
 };
 
 static void __init nuri_map_io(void)
@@ -1383,6 +1376,7 @@ static void __init nuri_machine_init(void)
 MACHINE_START(NURI, "NURI")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= nuri_map_io,
 	.handle_irq	= gic_handle_irq,

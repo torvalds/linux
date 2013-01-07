@@ -33,7 +33,6 @@ static unsigned long max_stack_size;
 static arch_spinlock_t max_stack_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-static int stack_trace_disabled __read_mostly;
 static DEFINE_PER_CPU(int, trace_active);
 static DEFINE_MUTEX(stack_sysctl_mutex);
 
@@ -111,12 +110,10 @@ static inline void check_stack(void)
 }
 
 static void
-stack_trace_call(unsigned long ip, unsigned long parent_ip)
+stack_trace_call(unsigned long ip, unsigned long parent_ip,
+		 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	int cpu;
-
-	if (unlikely(!ftrace_enabled || stack_trace_disabled))
-		return;
 
 	preempt_disable_notrace();
 
@@ -136,6 +133,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
+	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static ssize_t

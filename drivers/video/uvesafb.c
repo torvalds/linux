@@ -659,6 +659,8 @@ static int __devinit uvesafb_vbe_getedid(struct uvesafb_ktask *task,
 	task->t.flags = TF_BUF_RET | TF_BUF_ESDI;
 	task->t.buf_len = EDID_LENGTH;
 	task->buf = kzalloc(EDID_LENGTH, GFP_KERNEL);
+	if (!task->buf)
+		return -ENOMEM;
 
 	err = uvesafb_exec(task);
 

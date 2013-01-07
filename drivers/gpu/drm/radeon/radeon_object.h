@@ -52,7 +52,7 @@ static inline unsigned radeon_mem_type_to_domain(u32 mem_type)
 	return 0;
 }
 
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait);
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr);
 
 static inline void radeon_bo_unreserve(struct radeon_bo *bo)
 {
@@ -80,7 +80,7 @@ static inline unsigned long radeon_bo_size(struct radeon_bo *bo)
 
 static inline bool radeon_bo_is_reserved(struct radeon_bo *bo)
 {
-	return !!atomic_read(&bo->tbo.reserved);
+	return ttm_bo_is_reserved(&bo->tbo);
 }
 
 static inline unsigned radeon_bo_ngpu_pages(struct radeon_bo *bo)
@@ -141,8 +141,6 @@ extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 					struct ttm_mem_reg *mem);
 extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
-extern struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo,
-					 struct radeon_vm *vm);
 
 /*
  * sub allocation

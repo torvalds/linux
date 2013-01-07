@@ -27,8 +27,7 @@
 
 #include <asm/gpio.h>
 
-#include <mach/gpio-tegra.h>
-#include <mach/sdhci.h>
+#include <linux/platform_data/mmc-sdhci-tegra.h>
 
 #include "sdhci-pltfm.h"
 
@@ -207,7 +206,7 @@ static struct sdhci_tegra_soc_data soc_data_tegra30 = {
 };
 #endif
 
-static const struct of_device_id sdhci_tegra_dt_match[] __devinitdata = {
+static const struct of_device_id sdhci_tegra_dt_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	{ .compatible = "nvidia,tegra30-sdhci", .data = &soc_data_tegra30 },
 #endif
@@ -218,7 +217,7 @@ static const struct of_device_id sdhci_tegra_dt_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, sdhci_dt_ids);
 
-static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
+static struct tegra_sdhci_platform_data *sdhci_tegra_dt_parse_pdata(
 						struct platform_device *pdev)
 {
 	struct tegra_sdhci_platform_data *plat;
@@ -245,7 +244,7 @@ static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
 	return plat;
 }
 
-static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
+static int sdhci_tegra_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct sdhci_tegra_soc_data *soc_data;
@@ -257,10 +256,9 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	int rc;
 
 	match = of_match_device(sdhci_tegra_dt_match, &pdev->dev);
-	if (match)
-		soc_data = match->data;
-	else
-		soc_data = &soc_data_tegra20;
+	if (!match)
+		return -EINVAL;
+	soc_data = match->data;
 
 	host = sdhci_pltfm_init(pdev, soc_data->pdata);
 	if (IS_ERR(host))
@@ -372,7 +370,7 @@ err_no_plat:
 	return rc;
 }
 
-static int __devexit sdhci_tegra_remove(struct platform_device *pdev)
+static int sdhci_tegra_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -409,7 +407,7 @@ static struct platform_driver sdhci_tegra_driver = {
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_tegra_probe,
-	.remove		= __devexit_p(sdhci_tegra_remove),
+	.remove		= sdhci_tegra_remove,
 };
 
 module_platform_driver(sdhci_tegra_driver);

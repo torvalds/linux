@@ -71,6 +71,7 @@ do {                                                            	\
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
  * @removed:	      Indicates fcoe interface removed from net device
+ * @priority:	      Priority for the FCoE packet (DCB)
  * This structure is 1:1 with a net device.
  */
 struct fcoe_interface {
@@ -81,6 +82,7 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fc_exch_mgr *oem;
 	u8	removed;
+	u8	priority;
 };
 
 #define fcoe_to_ctlr(x)						\

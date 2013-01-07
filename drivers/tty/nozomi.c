@@ -400,7 +400,7 @@ struct buffer {
 } __attribute__ ((packed));
 
 /*    Global variables */
-static const struct pci_device_id nozomi_pci_tbl[] __devinitconst = {
+static const struct pci_device_id nozomi_pci_tbl[] = {
 	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
 	{},
 };
@@ -1360,7 +1360,7 @@ static void remove_sysfs_files(struct nozomi *dc)
 }
 
 /* Allocate memory for one device */
-static int __devinit nozomi_card_init(struct pci_dev *pdev,
+static int nozomi_card_init(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	resource_size_t start;
@@ -1473,12 +1473,13 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		port->dc = dc;
 		tty_port_init(&port->port);
 		port->port.ops = &noz_tty_port_ops;
-		tty_dev = tty_register_device(ntty_driver, dc->index_start + i,
-							&pdev->dev);
+		tty_dev = tty_port_register_device(&port->port, ntty_driver,
+				dc->index_start + i, &pdev->dev);
 
 		if (IS_ERR(tty_dev)) {
 			ret = PTR_ERR(tty_dev);
 			dev_err(&pdev->dev, "Could not allocate tty?\n");
+			tty_port_destroy(&port->port);
 			goto err_free_tty;
 		}
 	}
@@ -1486,8 +1487,10 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	return 0;
 
 err_free_tty:
-	for (i = dc->index_start; i < dc->index_start + MAX_PORT; ++i)
-		tty_unregister_device(ntty_driver, i);
+	for (i = 0; i < MAX_PORT; ++i) {
+		tty_unregister_device(ntty_driver, dc->index_start + i);
+		tty_port_destroy(&dc->port[i].port);
+	}
 err_free_kfifo:
 	for (i = 0; i < MAX_PORT; i++)
 		kfifo_free(&dc->port[i].fifo_ul);
@@ -1504,7 +1507,7 @@ err:
 	return ret;
 }
 
-static void __devexit tty_exit(struct nozomi *dc)
+static void tty_exit(struct nozomi *dc)
 {
 	unsigned int i;
 
@@ -1520,12 +1523,14 @@ static void __devexit tty_exit(struct nozomi *dc)
 	   complete off a hangup method ? */
 	while (dc->open_ttys)
 		msleep(1);
-	for (i = dc->index_start; i < dc->index_start + MAX_PORT; ++i)
-		tty_unregister_device(ntty_driver, i);
+	for (i = 0; i < MAX_PORT; ++i) {
+		tty_unregister_device(ntty_driver, dc->index_start + i);
+		tty_port_destroy(&dc->port[i].port);
+	}
 }
 
 /* Deallocate memory for one device */
-static void __devexit nozomi_card_exit(struct pci_dev *pdev)
+static void nozomi_card_exit(struct pci_dev *pdev)
 {
 	int i;
 	struct ctrl_ul ctrl;
@@ -1903,7 +1908,7 @@ static struct pci_driver nozomi_driver = {
 	.name = NOZOMI_NAME,
 	.id_table = nozomi_pci_tbl,
 	.probe = nozomi_card_init,
-	.remove = __devexit_p(nozomi_card_exit),
+	.remove = nozomi_card_exit,
 };
 
 static __init int nozomi_init(void)

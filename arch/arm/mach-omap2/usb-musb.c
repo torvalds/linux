@@ -23,15 +23,12 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-
 #include <linux/usb/musb.h>
 
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/am35xx.h>
-#include <plat/usb.h>
-#include <plat/omap_device.h>
+#include "omap_device.h"
+#include "soc.h"
 #include "mux.h"
+#include "usb.h"
 
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= 1,
@@ -117,7 +114,4 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	dev->dma_mask = &musb_dmamask;
 	dev->coherent_dma_mask = musb_dmamask;
 	put_device(dev);
-
-	if (cpu_is_omap44xx())
-		omap4430_phy_init(dev);
 }

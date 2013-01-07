@@ -660,8 +660,7 @@ static void session_reconnect_expired(struct sbp_session *sess)
 	spin_lock_bh(&sess->lock);
 	list_for_each_entry_safe(login, temp, &sess->login_list, link) {
 		login->sess = NULL;
-		list_del(&login->link);
-		list_add_tail(&login->link, &login_list);
+		list_move_tail(&login->link, &login_list);
 	}
 	spin_unlock_bh(&sess->lock);
 
@@ -705,16 +704,17 @@ static void session_maintenance_work(struct work_struct *work)
 static int tgt_agent_rw_agent_state(struct fw_card *card, int tcode, void *data,
 		struct sbp_target_agent *agent)
 {
-	__be32 state;
+	int state;
 
 	switch (tcode) {
 	case TCODE_READ_QUADLET_REQUEST:
 		pr_debug("tgt_agent AGENT_STATE READ\n");
 
 		spin_lock_bh(&agent->lock);
-		state = cpu_to_be32(agent->state);
+		state = agent->state;
 		spin_unlock_bh(&agent->lock);
-		memcpy(data, &state, sizeof(state));
+
+		*(__be32 *)data = cpu_to_be32(state);
 
 		return RCODE_COMPLETE;
 
@@ -1847,16 +1847,6 @@ static int sbp_queue_tm_rsp(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static u16 sbp_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	return 0;
-}
-
-static u16 sbp_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
 static int sbp_check_stop_free(struct se_cmd *se_cmd)
 {
 	struct sbp_target_request *req = container_of(se_cmd,
@@ -2068,7 +2058,7 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	return ret;
 }
 
-static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
+static ssize_t sbp_parse_wwn(const char *name, u64 *wwn)
 {
 	const char *cp;
 	char c, nibble;
@@ -2088,7 +2078,7 @@ static ssize_t sbp_parse_wwn(const char *name, u64 *wwn, int strict)
 		err = 3;
 		if (isdigit(c))
 			nibble = c - '0';
-		else if (isxdigit(c) && (islower(c) || !strict))
+		else if (isxdigit(c))
 			nibble = tolower(c) - 'a' + 10;
 		else
 			goto fail;
@@ -2117,7 +2107,7 @@ static struct se_node_acl *sbp_make_nodeacl(
 	u64 guid = 0;
 	u32 nexus_depth = 1;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	se_nacl_new = sbp_alloc_fabric_acl(se_tpg);
@@ -2218,20 +2208,23 @@ static struct se_portal_group *sbp_make_tpg(
 	tport->mgt_agt = sbp_management_agent_register(tport);
 	if (IS_ERR(tport->mgt_agt)) {
 		ret = PTR_ERR(tport->mgt_agt);
-		kfree(tpg);
-		return ERR_PTR(ret);
+		goto out_free_tpg;
 	}
 
 	ret = core_tpg_register(&sbp_fabric_configfs->tf_ops, wwn,
 			&tpg->se_tpg, (void *)tpg,
 			TRANSPORT_TPG_TYPE_NORMAL);
-	if (ret < 0) {
-		sbp_management_agent_unregister(tport->mgt_agt);
-		kfree(tpg);
-		return ERR_PTR(ret);
-	}
+	if (ret < 0)
+		goto out_unreg_mgt_agt;
 
 	return &tpg->se_tpg;
+
+out_unreg_mgt_agt:
+	sbp_management_agent_unregister(tport->mgt_agt);
+out_free_tpg:
+	tport->tpg = NULL;
+	kfree(tpg);
+	return ERR_PTR(ret);
 }
 
 static void sbp_drop_tpg(struct se_portal_group *se_tpg)
@@ -2253,7 +2246,7 @@ static struct se_wwn *sbp_make_tport(
 	struct sbp_tport *tport;
 	u64 guid = 0;
 
-	if (sbp_parse_wwn(name, &guid, 1) < 0)
+	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
@@ -2534,8 +2527,6 @@ static struct target_core_fabric_ops sbp_ops = {
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
 	.queue_tm_rsp			= sbp_queue_tm_rsp,
-	.get_fabric_sense_len		= sbp_get_fabric_sense_len,
-	.set_fabric_sense_len		= sbp_set_fabric_sense_len,
 	.check_stop_free		= sbp_check_stop_free,
 
 	.fabric_make_wwn		= sbp_make_tport,
@@ -2556,9 +2547,9 @@ static int sbp_register_configfs(void)
 	int ret;
 
 	fabric = target_fabric_configfs_init(THIS_MODULE, "sbp");
-	if (!fabric) {
+	if (IS_ERR(fabric)) {
 		pr_err("target_fabric_configfs_init() failed\n");
-		return -ENOMEM;
+		return PTR_ERR(fabric);
 	}
 
 	fabric->tf_ops = sbp_ops;

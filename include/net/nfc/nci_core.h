@@ -54,6 +54,7 @@ enum nci_state {
 /* NCI timeouts */
 #define NCI_RESET_TIMEOUT			5000
 #define NCI_INIT_TIMEOUT			5000
+#define NCI_SET_CONFIG_TIMEOUT			5000
 #define NCI_RF_DISC_TIMEOUT			5000
 #define NCI_RF_DISC_SELECT_TIMEOUT		5000
 #define NCI_RF_DEACTIVATE_TIMEOUT		30000
@@ -137,6 +138,10 @@ struct nci_dev {
 	data_exchange_cb_t	data_exchange_cb;
 	void			*data_exchange_cb_context;
 	struct sk_buff		*rx_data_reassembly;
+
+	/* stored during intf_activated_ntf */
+	__u8 remote_gb[NFC_MAX_GT_LEN];
+	__u8 remote_gb_len;
 };
 
 /* ----- NCI Devices ----- */

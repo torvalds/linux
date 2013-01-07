@@ -14,11 +14,13 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/device.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/if_vlan.h>
 
 #include "u_ether.h"
 
@@ -83,16 +85,9 @@ struct eth_dev {
 
 #define DEFAULT_QLEN	2	/* double buffering by default */
 
-
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-
 static unsigned qmult = 5;
 module_param(qmult, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");
-
-#else	/* full speed (low speed doesn't do bulk) */
-#define qmult		1
-#endif
 
 /* for dual-speed hardware, use deeper queues at high/super speed */
 static inline int qlen(struct usb_gadget *gadget)
@@ -301,7 +296,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 		while (skb2) {
 			if (status < 0
 					|| ETH_HLEN > skb2->len
-					|| skb2->len > ETH_FRAME_LEN) {
+					|| skb2->len > VLAN_ETH_FRAME_LEN) {
 				dev->net->stats.rx_errors++;
 				dev->net->stats.rx_length_errors++;
 				DBG(dev, "rx length %d\n", skb2->len);
@@ -840,7 +835,7 @@ void gether_cleanup(void)
 		return;
 
 	unregister_netdev(the_dev->net);
-	flush_work_sync(&the_dev->work);
+	flush_work(&the_dev->work);
 	free_netdev(the_dev->net);
 
 	the_dev = NULL;

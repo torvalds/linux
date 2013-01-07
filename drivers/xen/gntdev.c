@@ -105,6 +105,21 @@ static void gntdev_print_maps(struct gntdev_priv *priv,
 #endif
 }
 
+static void gntdev_free_map(struct grant_map *map)
+{
+	if (map == NULL)
+		return;
+
+	if (map->pages)
+		free_xenballooned_pages(map->count, map->pages);
+	kfree(map->pages);
+	kfree(map->grants);
+	kfree(map->map_ops);
+	kfree(map->unmap_ops);
+	kfree(map->kmap_ops);
+	kfree(map);
+}
+
 static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 {
 	struct grant_map *add;
@@ -142,12 +157,7 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	return add;
 
 err:
-	kfree(add->pages);
-	kfree(add->grants);
-	kfree(add->map_ops);
-	kfree(add->unmap_ops);
-	kfree(add->kmap_ops);
-	kfree(add);
+	gntdev_free_map(add);
 	return NULL;
 }
 
@@ -198,17 +208,9 @@ static void gntdev_put_map(struct grant_map *map)
 		evtchn_put(map->notify.event);
 	}
 
-	if (map->pages) {
-		if (!use_ptemod)
-			unmap_grant_pages(map, 0, map->count);
-
-		free_xenballooned_pages(map->count, map->pages);
-	}
-	kfree(map->pages);
-	kfree(map->grants);
-	kfree(map->map_ops);
-	kfree(map->unmap_ops);
-	kfree(map);
+	if (map->pages && !use_ptemod)
+		unmap_grant_pages(map, 0, map->count);
+	gntdev_free_map(map);
 }
 
 /* ------------------------------------------------------------------ */
@@ -446,7 +448,7 @@ static void mn_release(struct mmu_notifier *mn,
 	spin_unlock(&priv->lock);
 }
 
-struct mmu_notifier_ops gntdev_mmu_ops = {
+static struct mmu_notifier_ops gntdev_mmu_ops = {
 	.release                = mn_release,
 	.invalidate_page        = mn_invl_page,
 	.invalidate_range_start = mn_invl_range_start,
@@ -720,7 +722,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 
 	vma->vm_ops = &gntdev_vmops;
 
-	vma->vm_flags |= VM_RESERVED|VM_DONTEXPAND;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 
 	if (use_ptemod)
 		vma->vm_flags |= VM_DONTCOPY;

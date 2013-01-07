@@ -533,11 +533,11 @@ u64 b43_hf_read(struct b43_wldev *dev)
 {
 	u64 ret;
 
-	ret = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI);
+	ret = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF3);
 	ret <<= 16;
-	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI);
+	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF2);
 	ret <<= 16;
-	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO);
+	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1);
 
 	return ret;
 }
@@ -550,9 +550,9 @@ void b43_hf_write(struct b43_wldev *dev, u64 value)
 	lo = (value & 0x00000000FFFFULL);
 	mi = (value & 0x0000FFFF0000ULL) >> 16;
 	hi = (value & 0xFFFF00000000ULL) >> 32;
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO, lo);
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI, mi);
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI, hi);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1, lo);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF2, mi);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF3, hi);
 }
 
 /* Read the firmware capabilities bitmask (Opensource firmware only) */
@@ -3397,7 +3397,7 @@ static void b43_tx_work(struct work_struct *work)
 				break;
 			}
 			if (unlikely(err))
-				dev_kfree_skb(skb); /* Drop it */
+				ieee80211_free_txskb(wl->hw, skb);
 			err = 0;
 		}
 
@@ -3412,13 +3412,14 @@ static void b43_tx_work(struct work_struct *work)
 }
 
 static void b43_op_tx(struct ieee80211_hw *hw,
-		     struct sk_buff *skb)
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 
 	if (unlikely(skb->len < 2 + 2 + 6)) {
 		/* Too short, this can't be a valid frame. */
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
@@ -4228,8 +4229,12 @@ redo:
 
 	/* Drain all TX queues. */
 	for (queue_num = 0; queue_num < B43_QOS_QUEUE_NUM; queue_num++) {
-		while (skb_queue_len(&wl->tx_queue[queue_num]))
-			dev_kfree_skb(skb_dequeue(&wl->tx_queue[queue_num]));
+		while (skb_queue_len(&wl->tx_queue[queue_num])) {
+			struct sk_buff *skb;
+
+			skb = skb_dequeue(&wl->tx_queue[queue_num]);
+			ieee80211_free_txskb(wl->hw, skb);
+		}
 	}
 
 	b43_mac_suspend(dev);
@@ -4280,6 +4285,35 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	b43dbg(dev->wl, "Wireless interface started\n");
 out:
 	return err;
+}
+
+static char *b43_phy_name(struct b43_wldev *dev, u8 phy_type)
+{
+	switch (phy_type) {
+	case B43_PHYTYPE_A:
+		return "A";
+	case B43_PHYTYPE_B:
+		return "B";
+	case B43_PHYTYPE_G:
+		return "G";
+	case B43_PHYTYPE_N:
+		return "N";
+	case B43_PHYTYPE_LP:
+		return "LP";
+	case B43_PHYTYPE_SSLPN:
+		return "SSLPN";
+	case B43_PHYTYPE_HT:
+		return "HT";
+	case B43_PHYTYPE_LCN:
+		return "LCN";
+	case B43_PHYTYPE_LCNXN:
+		return "LCNXN";
+	case B43_PHYTYPE_LCN40:
+		return "LCN40";
+	case B43_PHYTYPE_AC:
+		return "AC";
+	}
+	return "UNKNOWN";
 }
 
 /* Get PHY and RADIO versioning numbers */
@@ -4342,13 +4376,13 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		unsupported = 1;
 	}
 	if (unsupported) {
-		b43err(dev->wl, "FOUND UNSUPPORTED PHY "
-		       "(Analog %u, Type %u, Revision %u)\n",
-		       analog_type, phy_type, phy_rev);
+		b43err(dev->wl, "FOUND UNSUPPORTED PHY (Analog %u, Type %d (%s), Revision %u)\n",
+		       analog_type, phy_type, b43_phy_name(dev, phy_type),
+		       phy_rev);
 		return -EOPNOTSUPP;
 	}
-	b43dbg(dev->wl, "Found PHY: Analog %u, Type %u, Revision %u\n",
-	       analog_type, phy_type, phy_rev);
+	b43info(dev->wl, "Found PHY: Analog %u, Type %d (%s), Revision %u\n",
+		analog_type, phy_type, b43_phy_name(dev, phy_type), phy_rev);
 
 	/* Get RADIO versioning */
 	if (dev->dev->core_rev >= 24) {
@@ -4622,7 +4656,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_irq_ctl(&dev->dev->bdev->bus->drv_pci,
+		bcma_core_pci_irq_ctl(&dev->dev->bdev->bus->drv_pci[0],
 				      dev->dev->bdev, true);
 		break;
 #endif
@@ -5374,6 +5408,8 @@ static void b43_bcma_remove(struct bcma_device *core)
 	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
+	if (!wldev->fw.ucode.data)
+		return;			/* NULL if firmware never loaded */
 	if (wl->current_dev == wldev && wl->hw_registred) {
 		b43_leds_stop(wldev);
 		ieee80211_unregister_hw(wl->hw);
@@ -5448,6 +5484,8 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
+	if (!wldev->fw.ucode.data)
+		return;			/* NULL if firmware never loaded */
 	if (wl->current_dev == wldev && wl->hw_registred) {
 		b43_leds_stop(wldev);
 		ieee80211_unregister_hw(wl->hw);

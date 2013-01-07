@@ -25,29 +25,30 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
+
+#include <asm/fncpy.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 #include <asm/system_misc.h>
 
-#include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/dma.h>
-#include <plat/board.h>
+#include <linux/omap-dma.h>
 
-#include <mach/irqs.h>
-
+#include "soc.h"
 #include "common.h"
-#include "prm2xxx_3xxx.h"
+#include "clock.h"
+#include "prm2xxx.h"
 #include "prm-regbits-24xx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
+#include "sram.h"
 #include "pm.h"
 #include "control.h"
 #include "powerdomain.h"
@@ -202,7 +203,7 @@ static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
 		return 0;
-	if (osc_ck->usecount > 1)
+	if (__clk_is_enabled(osc_ck))
 		return 0;
 	if (omap_dma_running())
 		return 0;
@@ -351,16 +352,6 @@ int __init omap2_pm_init(void)
 	}
 
 	prcm_setup_regs();
-
-	/* Hack to prevent MPU retention when STI console is enabled. */
-	{
-		const struct omap_sti_console_config *sti;
-
-		sti = omap_get_config(OMAP_TAG_STI_CONSOLE,
-				      struct omap_sti_console_config);
-		if (sti != NULL && sti->enable)
-			sti_console_enabled = 1;
-	}
 
 	/*
 	 * We copy the assembler sleep/wakeup routines to SRAM.

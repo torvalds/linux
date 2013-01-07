@@ -59,7 +59,7 @@ struct hpte_cache {
 	struct hlist_node list_vpte;
 	struct hlist_node list_vpte_long;
 	struct rcu_head rcu_head;
-	u64 host_va;
+	u64 host_vpn;
 	u64 pfn;
 	ulong slot;
 	struct kvmppc_pte pte;
@@ -81,6 +81,8 @@ struct kvmppc_vcpu_book3s {
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
+	u64 purr_offset;
+	u64 spurr_offset;
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32 vsid_pool[VSID_POOL_SIZE];
 	u32 vsid_next;
@@ -157,10 +159,14 @@ extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr);
 extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel);
-extern long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-			long pte_index, unsigned long pteh, unsigned long ptel);
+extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel,
+			pgd_t *pgdir, bool realmode, unsigned long *idx_ret);
+extern long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
+			unsigned long pte_index, unsigned long avpn,
+			unsigned long *hpret);
 extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
-			struct kvm_memory_slot *memslot);
+			struct kvm_memory_slot *memslot, unsigned long *map);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);

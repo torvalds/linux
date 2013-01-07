@@ -143,22 +143,14 @@ int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev, int min_uV,
 		__func__, id, min_uV, max_uV);
 
 	if (min_uV <= rdev->desc->volt_table[0] &&
-	    rdev->desc->volt_table[0] <= max_uV)
+	    rdev->desc->volt_table[0] <= max_uV) {
+		*selector = 0;
 		return 0;
-	else
+	} else {
 		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_set_voltage);
-
-int mc13xxx_fixed_regulator_get_voltage(struct regulator_dev *rdev)
-{
-	int id = rdev_get_id(rdev);
-
-	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
-
-	return rdev->desc->volt_table[0];
-}
-EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_get_voltage);
 
 struct regulator_ops mc13xxx_fixed_regulator_ops = {
 	.enable = mc13xxx_regulator_enable,
@@ -166,12 +158,11 @@ struct regulator_ops mc13xxx_fixed_regulator_ops = {
 	.is_enabled = mc13xxx_regulator_is_enabled,
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage = mc13xxx_fixed_regulator_set_voltage,
-	.get_voltage = mc13xxx_fixed_regulator_get_voltage,
 };
 EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_ops);
 
 #ifdef CONFIG_OF
-int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
+int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
 	struct device_node *parent, *child;
 	int num = 0;
@@ -188,7 +179,7 @@ int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
 
-struct mc13xxx_regulator_init_data * __devinit mc13xxx_parse_regulators_dt(
+struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
 	int num_regulators)
 {

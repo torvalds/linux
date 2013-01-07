@@ -708,6 +708,7 @@ information.</para>
     &sub-y41p;
     &sub-yuv420;
     &sub-yuv420m;
+    &sub-yvu420m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
@@ -757,6 +758,11 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 		<entry>'AVC1'</entry>
 		<entry>H264 video elementary stream without start codes.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-H264-MVC">
+		<entry><constant>V4L2_PIX_FMT_H264_MVC</constant></entry>
+		<entry>'MVC'</entry>
+		<entry>H264 MVC video elementary stream.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-H263">
 		<entry><constant>V4L2_PIX_FMT_H263</constant></entry>
 		<entry>'H263'</entry>
@@ -791,6 +797,11 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 		<entry><constant>V4L2_PIX_FMT_VC1_ANNEX_L</constant></entry>
 		<entry>'VC1L'</entry>
 		<entry>VC1, SMPTE 421M Annex L compliant stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VP8">
+		<entry><constant>V4L2_PIX_FMT_VP8</constant></entry>
+		<entry>'VP8'</entry>
+		<entry>VP8 video elementary stream.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -994,6 +1005,34 @@ the other bits are set to 0.</entry>
 	    <entry>'Y06 '</entry>
 	    <entry>Old 6-bit greyscale format. Only the most significant 6 bits of each byte are used,
 the other bits are set to 0.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-S5C-UYVY-JPG">
+	    <entry><constant>V4L2_PIX_FMT_S5C_UYVY_JPG</constant></entry>
+	    <entry>'S5CI'</entry>
+	    <entry>Two-planar format used by Samsung S5C73MX cameras. The
+first plane contains interleaved JPEG and UYVY image data, followed by meta data
+in form of an array of offsets to the UYVY data blocks. The actual pointer array
+follows immediately the interleaved JPEG/UYVY data, the number of entries in
+this array equals the height of the UYVY image. Each entry is a 4-byte unsigned
+integer in big endian order and it's an offset to a single pixel line of the
+UYVY image. The first plane can start either with JPEG or UYVY data chunk. The
+size of a single UYVY block equals the UYVY image's width multiplied by 2. The
+size of a JPEG chunk depends on the image and can vary with each line.
+<para>The second plane, at an offset of 4084 bytes, contains a 4-byte offset to
+the pointer array in the first plane. This offset is followed by a 4-byte value
+indicating size of the pointer array. All numbers in the second plane are also
+in big endian order. Remaining data in the second plane is undefined. The
+information in the second plane allows to easily find location of the pointer
+array, which can be different for each frame. The size of the pointer array is
+constant for given UYVY image height.</para>
+<para>In order to extract UYVY and JPEG frames an application can initially set
+a data pointer to the start of first plane and then add an offset from the first
+entry of the pointers table. Such a pointer indicates start of an UYVY image
+pixel line. Whole UYVY line can be copied to a separate buffer. These steps
+should be repeated for each line, i.e. the number of entries in the pointer
+array. Anything what's in between the UYVY lines is JPEG data and should be
+concatenated to form the JPEG stream. </para>
+</entry>
 	  </row>
 	</tbody>
       </tgroup>

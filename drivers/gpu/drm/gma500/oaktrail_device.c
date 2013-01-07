@@ -22,7 +22,7 @@
 #include <linux/dmi.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -544,7 +544,7 @@ const struct psb_ops oaktrail_chip_ops = {
 	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
-	.hdmi_mask = (1 << 0),
+	.hdmi_mask = (1 << 1),
 	.lvds_mask = (1 << 0),
 	.cursor_needs_phys = 0,
 	.sgx_offset = MRST_SGX_OFFSET,

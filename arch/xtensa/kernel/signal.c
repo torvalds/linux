@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
-#include <linux/freezer.h>
 #include <linux/tracehook.h>
 
 #include <asm/ucontext.h>
@@ -213,7 +212,7 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 	if (err)
 		return err;
 
- 	/* The signal handler may have used coprocessors in which
+	/* The signal handler may have used coprocessors in which
 	 * case they are still enabled.  We disable them to force a
 	 * reloading of the original task's CP state by the lazy
 	 * context-switching mechanisms of CP exception handling.
@@ -397,7 +396,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 */
 
 	/* Set up registers for signal handler */
-	start_thread(regs, (unsigned long) ka->sa.sa_handler, 
+	start_thread(regs, (unsigned long) ka->sa.sa_handler,
 		     (unsigned long) frame);
 
 	/* Set up a stack frame for a call4
@@ -425,9 +424,9 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-asmlinkage long xtensa_sigaltstack(const stack_t __user *uss, 
+asmlinkage long xtensa_sigaltstack(const stack_t __user *uss,
 				   stack_t __user *uoss,
-    				   long a2, long a3, long a4, long a5,
+				   long a2, long a3, long a4, long a5,
 				   struct pt_regs *regs)
 {
 	return do_sigaltstack(uss, uoss, regs->areg[1]);
@@ -527,9 +526,6 @@ static void do_signal(struct pt_regs *regs)
 
 void do_notify_resume(struct pt_regs *regs)
 {
-	if (!user_mode(regs))
-		return;
-
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs);
 

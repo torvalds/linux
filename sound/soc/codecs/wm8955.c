@@ -1012,8 +1012,8 @@ static const struct regmap_config wm8955_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8955_reg_defaults),
 };
 
-static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8955_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8955_priv *wm8955;
 	int ret;
@@ -1023,7 +1023,7 @@ static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
 	if (wm8955 == NULL)
 		return -ENOMEM;
 
-	wm8955->regmap = regmap_init_i2c(i2c, &wm8955_regmap);
+	wm8955->regmap = devm_regmap_init_i2c(i2c, &wm8955_regmap);
 	if (IS_ERR(wm8955->regmap)) {
 		ret = PTR_ERR(wm8955->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -1035,22 +1035,13 @@ static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8955, &wm8955_dai, 1);
-	if (ret != 0)
-		goto err;
 
-	return ret;
-
-err:
-	regmap_exit(wm8955->regmap);
 	return ret;
 }
 
-static __devexit int wm8955_i2c_remove(struct i2c_client *client)
+static int wm8955_i2c_remove(struct i2c_client *client)
 {
-	struct wm8955_priv *wm8955 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8955->regmap);
 
 	return 0;
 }
@@ -1067,27 +1058,11 @@ static struct i2c_driver wm8955_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8955_i2c_probe,
-	.remove =   __devexit_p(wm8955_i2c_remove),
+	.remove =   wm8955_i2c_remove,
 	.id_table = wm8955_i2c_id,
 };
 
-static int __init wm8955_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8955_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8955 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8955_modinit);
-
-static void __exit wm8955_exit(void)
-{
-	i2c_del_driver(&wm8955_i2c_driver);
-}
-module_exit(wm8955_exit);
+module_i2c_driver(wm8955_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8955 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

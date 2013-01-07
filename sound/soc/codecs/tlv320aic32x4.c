@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
@@ -65,6 +66,7 @@ struct aic32x4_priv {
 	u32 power_cfg;
 	u32 micpga_routing;
 	bool swapdacs;
+	int rstn_gpio;
 };
 
 /* 0dB min, 1dB steps */
@@ -627,9 +629,19 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
 	u32 tmp_reg;
+	int ret;
 
 	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->control_data = aic32x4->control_data;
+
+	if (aic32x4->rstn_gpio >= 0) {
+		ret = devm_gpio_request_one(codec->dev, aic32x4->rstn_gpio,
+				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
+		if (ret != 0)
+			return ret;
+		ndelay(10);
+		gpio_set_value(aic32x4->rstn_gpio, 1);
+	}
 
 	snd_soc_write(codec, AIC32X4_RESET, 0x01);
 
@@ -675,6 +687,16 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 			     ARRAY_SIZE(aic32x4_snd_controls));
 	aic32x4_add_widgets(codec);
 
+	/*
+	 * Workaround: for an unknown reason, the ADC needs to be powered up
+	 * and down for the first capture to work properly. It seems related to
+	 * a HW BUG or some kind of behavior not documented in the datasheet.
+	 */
+	tmp_reg = snd_soc_read(codec, AIC32X4_ADCSETUP);
+	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg |
+				AIC32X4_LADC_EN | AIC32X4_RADC_EN);
+	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg);
+
 	return 0;
 }
 
@@ -694,8 +716,8 @@ static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
 	.set_bias_level = aic32x4_set_bias_level,
 };
 
-static __devinit int aic32x4_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int aic32x4_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct aic32x4_pdata *pdata = i2c->dev.platform_data;
 	struct aic32x4_priv *aic32x4;
@@ -713,10 +735,12 @@ static __devinit int aic32x4_i2c_probe(struct i2c_client *i2c,
 		aic32x4->power_cfg = pdata->power_cfg;
 		aic32x4->swapdacs = pdata->swapdacs;
 		aic32x4->micpga_routing = pdata->micpga_routing;
+		aic32x4->rstn_gpio = pdata->rstn_gpio;
 	} else {
 		aic32x4->power_cfg = 0;
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
+		aic32x4->rstn_gpio = -1;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
@@ -724,7 +748,7 @@ static __devinit int aic32x4_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int aic32x4_i2c_remove(struct i2c_client *client)
+static int aic32x4_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -742,28 +766,11 @@ static struct i2c_driver aic32x4_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    aic32x4_i2c_probe,
-	.remove =   __devexit_p(aic32x4_i2c_remove),
+	.remove =   aic32x4_i2c_remove,
 	.id_table = aic32x4_i2c_id,
 };
 
-static int __init aic32x4_modinit(void)
-{
-	int ret = 0;
-
-	ret = i2c_add_driver(&aic32x4_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register aic32x4 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(aic32x4_modinit);
-
-static void __exit aic32x4_exit(void)
-{
-	i2c_del_driver(&aic32x4_i2c_driver);
-}
-module_exit(aic32x4_exit);
+module_i2c_driver(aic32x4_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC tlv320aic32x4 codec driver");
 MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com>");

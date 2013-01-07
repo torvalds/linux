@@ -15,8 +15,6 @@
  * ---------------------------------------------------------------------------
  */
 
-
-
 /*
  * Porting Notes:
  * Part of this file contains an example for how to glue the OS layer
@@ -37,6 +35,7 @@
 #include <linux/poll.h>
 #include <asm/uaccess.h>
 #include <linux/jiffies.h>
+#include <linux/version.h>
 
 #include "csr_wifi_hip_unifiversion.h"
 #include "unifi_priv.h"
@@ -124,11 +123,7 @@ static void udi_set_log_filter(ul_client_t *pcli,
 
 
 /* Mutex to protect access to  priv->sme_cli */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 DEFINE_SEMAPHORE(udi_mutex);
-#else
-DECLARE_MUTEX(udi_mutex);
-#endif
 
 s32 CsrHipResultToStatus(CsrResult csrResult)
 {
@@ -171,33 +166,32 @@ s32 CsrHipResultToStatus(CsrResult csrResult)
 static const char*
 trace_putest_cmdid(unifi_putest_command_t putest_cmd)
 {
-    switch (putest_cmd)
-    {
-        case UNIFI_PUTEST_START:
-            return "START";
-        case UNIFI_PUTEST_STOP:
-            return "STOP";
-        case UNIFI_PUTEST_SET_SDIO_CLOCK:
-            return "SET CLOCK";
-        case UNIFI_PUTEST_CMD52_READ:
-            return "CMD52R";
-        case UNIFI_PUTEST_CMD52_BLOCK_READ:
-            return "CMD52BR";
-        case UNIFI_PUTEST_CMD52_WRITE:
-            return "CMD52W";
-        case UNIFI_PUTEST_DL_FW:
-            return "D/L FW";
-        case UNIFI_PUTEST_DL_FW_BUFF:
-            return "D/L FW BUFFER";
-        case UNIFI_PUTEST_COREDUMP_PREPARE:
-            return "PREPARE COREDUMP";
-        case UNIFI_PUTEST_GP_READ16:
-            return "GP16R";
-        case UNIFI_PUTEST_GP_WRITE16:
-            return "GP16W";
-        default:
-            return "ERROR: unrecognised command";
-    }
+	switch (putest_cmd) {
+	case UNIFI_PUTEST_START:
+		return "START";
+	case UNIFI_PUTEST_STOP:
+		return "STOP";
+	case UNIFI_PUTEST_SET_SDIO_CLOCK:
+		return "SET CLOCK";
+	case UNIFI_PUTEST_CMD52_READ:
+		return "CMD52R";
+	case UNIFI_PUTEST_CMD52_BLOCK_READ:
+		return "CMD52BR";
+	case UNIFI_PUTEST_CMD52_WRITE:
+		return "CMD52W";
+	case UNIFI_PUTEST_DL_FW:
+		return "D/L FW";
+	case UNIFI_PUTEST_DL_FW_BUFF:
+		return "D/L FW BUFFER";
+	case UNIFI_PUTEST_COREDUMP_PREPARE:
+		return "PREPARE COREDUMP";
+	case UNIFI_PUTEST_GP_READ16:
+		return "GP16R";
+	case UNIFI_PUTEST_GP_WRITE16:
+		return "GP16W";
+	default:
+		return "ERROR: unrecognised command";
+	}
  }
 
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
@@ -271,8 +265,6 @@ unifi_open(struct inode *inode, struct file *file)
     unifi_priv_t *priv;
     ul_client_t *udi_cli;
 
-    func_enter();
-
     devno = MINOR(inode->i_rdev) >> 1;
 
     /*
@@ -283,7 +275,6 @@ unifi_open(struct inode *inode, struct file *file)
     priv = uf_get_instance(devno);
     if (priv == NULL) {
         unifi_error(NULL, "unifi_open: No device present\n");
-        func_exit();
         return -ENODEV;
     }
 
@@ -295,7 +286,6 @@ unifi_open(struct inode *inode, struct file *file)
             /* Too many clients already using this device */
             unifi_error(priv, "Too many clients already open\n");
             uf_put_instance(devno);
-            func_exit();
             return -ENOSPC;
         }
         unifi_trace(priv, UDBG1, "Client is registered to /dev/unifiudi%d\n", devno);
@@ -315,7 +305,6 @@ unifi_open(struct inode *inode, struct file *file)
             uf_put_instance(devno);
 
             unifi_info(priv, "There is already a configuration client using the character device\n");
-            func_exit();
             return -EBUSY;
         }
 #endif /* CSR_SME_USERSPACE */
@@ -336,7 +325,6 @@ unifi_open(struct inode *inode, struct file *file)
             uf_put_instance(devno);
 
             unifi_error(priv, "Too many clients already open\n");
-            func_exit();
             return -ENOSPC;
         }
 
@@ -362,7 +350,6 @@ unifi_open(struct inode *inode, struct file *file)
      */
     file->private_data = udi_cli;
 
-    func_exit();
     return 0;
 } /* unifi_open() */
 
@@ -373,8 +360,6 @@ unifi_release(struct inode *inode, struct file *filp)
     ul_client_t *udi_cli = (void*)filp->private_data;
     int devno;
     unifi_priv_t *priv;
-
-    func_enter();
 
     priv = uf_find_instance(udi_cli->instance);
     if (!priv) {
@@ -470,8 +455,6 @@ unifi_read(struct file *filp, char *p, size_t len, loff_t *poff)
     struct list_head *l;
     int msglen;
 
-    func_enter();
-
     priv = uf_find_instance(pcli->instance);
     if (!priv) {
         unifi_error(priv, "invalid priv\n");
@@ -532,7 +515,6 @@ unifi_read(struct file *filp, char *p, size_t len, loff_t *poff)
     /* It is our resposibility to free the message buffer. */
     kfree(logptr);
 
-    func_exit_r(msglen);
     return msglen;
 
 } /* unifi_read() */
@@ -620,7 +602,6 @@ udi_send_signal_unpacked(unifi_priv_t *priv, unsigned char* data, uint data_len)
                 unifi_net_data_free(priv, &bulk_data.d[i]);
             }
         }
-        func_exit();
         return -EIO;
     }
 
@@ -659,8 +640,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     int bytecount;
     CsrResult csrResult;
 
-    func_enter();
-
     /*
      * The signal is the first thing in buf, the signal id is the
      * first 16 bits of the signal.
@@ -673,7 +652,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     if ((signal_size <= 0) || (signal_size > buflen)) {
         unifi_error(priv, "udi_send_signal_raw - Couldn't find length of signal 0x%x\n",
                     sig_id);
-        func_exit();
         return -EINVAL;
     }
     unifi_trace(priv, UDBG2, "udi_send_signal_raw: signal 0x%.4X len:%d\n",
@@ -718,7 +696,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
 
     if (bytecount > buflen) {
         unifi_error(priv, "udi_send_signal_raw: Not enough data (%d instead of %d)\n", buflen, bytecount);
-        func_exit();
         return -EINVAL;
     }
 
@@ -726,7 +703,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
     r = ul_send_signal_raw(priv, buf, signal_size, &data_ptrs);
     if (r < 0) {
         unifi_error(priv, "udi_send_signal_raw: send failed (%d)\n", r);
-        func_exit();
         return -EIO;
     }
 
@@ -750,8 +726,6 @@ udi_send_signal_raw(unifi_priv_t *priv, unsigned char *buf, int buflen)
         }
     }
 #endif
-
-    func_exit_r(bytecount);
 
     return bytecount;
 } /* udi_send_signal_raw */
@@ -789,8 +763,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
     bulk_data_param_t bulkdata;
     CsrResult csrResult;
 
-    func_enter();
-
     priv = uf_find_instance(pcli->instance);
     if (!priv) {
         unifi_error(priv, "invalid priv\n");
@@ -817,7 +789,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         csrResult = unifi_net_data_malloc(priv, &bulkdata.d[0], len);
         if (csrResult != CSR_RESULT_SUCCESS) {
             unifi_error(priv, "unifi_write: failed to allocate request_data.\n");
-            func_exit();
             return -ENOMEM;
         }
 
@@ -827,7 +798,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         if (copy_from_user((void*)user_data_buf, p, len)) {
             unifi_error(priv, "unifi_write: copy from user failed\n");
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -EFAULT;
         }
 
@@ -843,7 +813,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
             unifi_error(priv, "unifi_write - Couldn't find length of signal 0x%x\n",
                         sig_id);
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -EINVAL;
         }
 
@@ -854,7 +823,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         signal_buf = kmalloc(signal_size, GFP_KERNEL);
         if (!signal_buf) {
             unifi_net_data_free(priv, &bulkdata.d[0]);
-            func_exit();
             return -ENOMEM;
         }
 
@@ -952,8 +920,6 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
     }
 
     kfree(buf);
-
-    func_exit_r(bytes_written);
 
     return bytes_written;
 } /* unifi_write() */
@@ -1662,8 +1628,6 @@ unifi_poll(struct file *filp, poll_table *wait)
     unsigned int mask = 0;
     int ready;
 
-    func_enter();
-
     ready = !list_empty(&pcli->udi_log);
 
     poll_wait(filp, &pcli->udi_wq, wait);
@@ -1671,8 +1635,6 @@ unifi_poll(struct file *filp, poll_table *wait)
     if (ready) {
         mask |= POLLIN | POLLRDNORM;    /* readable */
     }
-
-    func_exit();
 
     return mask;
 } /* unifi_poll() */
@@ -1789,8 +1751,6 @@ udi_log_event(ul_client_t *pcli,
     unsigned long n_1000;
 #endif
 
-    func_enter();
-
     /* Just a sanity check */
     if ((signal == NULL) || (signal_len <= 0)) {
         return;
@@ -1906,7 +1866,6 @@ udi_log_event(ul_client_t *pcli,
     if (down_interruptible(&pcli->udi_sem)) {
         printk(KERN_WARNING "udi_log_event_q: Failed to get udi sem\n");
         kfree(logptr);
-        func_exit();
         return;
     }
     list_add_tail(&logptr->q, &pcli->udi_log);
@@ -1915,7 +1874,6 @@ udi_log_event(ul_client_t *pcli,
     /* Wake any waiting user process */
     wake_up_interruptible(&pcli->udi_wq);
 
-    func_exit();
 } /* udi_log_event() */
 
 #ifdef CSR_SME_USERSPACE
@@ -1925,8 +1883,6 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     udi_log_t *logptr;
     udi_msg_t *msgptr;
     u8 *p;
-
-    func_enter();
 
     /* Just a sanity check */
     if ((buffer == NULL) || (length <= 0)) {
@@ -1973,23 +1929,9 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     /* It is our responsibility to free the buffer allocated in build_packed_*() */
     kfree(buffer);
 
-    func_exit();
-
     return 0;
 
 } /* uf_sme_queue_message() */
-#endif
-
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _priv, _fmt, _args)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create_drvdata(_class, _parent, _devno, _priv, _fmt, _args)
-#else
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _fmt, _args)
 #endif
 
 /*
@@ -2008,17 +1950,6 @@ static struct file_operations unifi_fops = {
     .unlocked_ioctl = unifi_ioctl,
     .poll       = unifi_poll,
 };
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _priv, _fmt, _args)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create_drvdata(_class, _parent, _devno, _priv, _fmt, _args)
-#else
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _fmt, _args)
-#endif
 
 static dev_t unifi_first_devno;
 static struct class *unifi_class;
@@ -2042,11 +1973,11 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
     }
 
 #ifdef SDIO_EXPORTS_STRUCT_DEVICE
-    if (!UF_DEVICE_CREATE(unifi_class, priv->unifi_device,
-                          devno, priv, "unifi%d", bus_id)) {
+    if (!device_create(unifi_class, priv->unifi_device,
+                       devno, priv, "unifi%d", bus_id)) {
 #else
-    priv->unifi_device = UF_DEVICE_CREATE(unifi_class, NULL,
-                                          devno, priv, "unifi%d", bus_id);
+    priv->unifi_device = device_create(unifi_class, NULL,
+                                       devno, priv, "unifi%d", bus_id);
     if (priv->unifi_device == NULL) {
 #endif /* SDIO_EXPORTS_STRUCT_DEVICE */
 
@@ -2068,13 +1999,13 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
         return r;
     }
 
-    if (!UF_DEVICE_CREATE(unifi_class,
+    if (!device_create(unifi_class,
 #ifdef SDIO_EXPORTS_STRUCT_DEVICE
-                          priv->unifi_device,
+                       priv->unifi_device,
 #else
-                          NULL,
+                       NULL,
 #endif /* SDIO_EXPORTS_STRUCT_DEVICE */
-                          devno, priv, "unifiudi%d", bus_id)) {
+                       devno, priv, "unifiudi%d", bus_id)) {
         device_destroy(unifi_class, priv->unifi_cdev.dev);
         cdev_del(&priv->unifiudi_cdev);
         cdev_del(&priv->unifi_cdev);
@@ -2087,10 +2018,10 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
 
 void uf_destroy_device_nodes(unifi_priv_t *priv)
 {
-    device_destroy(unifi_class, priv->unifiudi_cdev.dev);
-    device_destroy(unifi_class, priv->unifi_cdev.dev);
-    cdev_del(&priv->unifiudi_cdev);
-    cdev_del(&priv->unifi_cdev);
+	device_destroy(unifi_class, priv->unifiudi_cdev.dev);
+	device_destroy(unifi_class, priv->unifi_cdev.dev);
+	cdev_del(&priv->unifiudi_cdev);
+	cdev_del(&priv->unifi_cdev);
 }
 
 

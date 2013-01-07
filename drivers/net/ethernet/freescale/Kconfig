@@ -62,6 +62,13 @@ config FSL_PQ_MDIO
 	---help---
 	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
 
+config FSL_XGMAC_MDIO
+	tristate "Freescale XGMAC MDIO"
+	depends on FSL_SOC
+	select PHYLIB
+	---help---
+	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs.
+
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
@@ -84,5 +91,13 @@ config GIANFAR
 	---help---
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
 	  and MPC86xx family of chips, and the FEC on the 8540.
+
+config FEC_PTP
+	bool "PTP Hardware Clock (PHC)"
+	depends on FEC && ARCH_MXC && !SOC_IMX25 && !SOC_IMX27 && !SOC_IMX35 && !SOC_IMX5
+	select PTP_1588_CLOCK
+	--help---
+	  Say Y here if you want to use PTP Hardware Clock (PHC) in the
+	  driver.  Only the basic clock operations have been implemented.
 
 endif # NET_VENDOR_FREESCALE

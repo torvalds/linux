@@ -306,7 +306,7 @@ int pps_register_cdev(struct pps_device *pps)
 	if (err < 0)
 		return err;
 
-	pps->id &= MAX_ID_MASK;
+	pps->id &= MAX_IDR_MASK;
 	if (pps->id >= PPS_MAX_SOURCES) {
 		pr_err("%s: too many PPS sources in the system\n",
 					pps->info.name);

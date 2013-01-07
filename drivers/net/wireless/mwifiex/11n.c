@@ -176,23 +176,6 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of 11n configuration request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp,
-			struct mwifiex_ds_11n_tx_cfg *tx_cfg)
-{
-	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
-
-	if (tx_cfg) {
-		tx_cfg->tx_htcap = le16_to_cpu(htcfg->ht_tx_cap);
-		tx_cfg->tx_htinfo = le16_to_cpu(htcfg->ht_tx_info);
-	}
-	return 0;
-}
-
-/*
  * This function prepares command of reconfigure Tx buffer.
  *
  * Preparation includes -
@@ -253,27 +236,6 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 	default:
 		amsdu_ctrl->curr_buf_size = 0;
 		break;
-	}
-	return 0;
-}
-
-/*
- * This function handles the command response of AMSDU aggregation
- * control request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
-				struct mwifiex_ds_11n_amsdu_aggr_ctrl
-				*amsdu_aggr_ctrl)
-{
-	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
-		&resp->params.amsdu_aggr_ctrl;
-
-	if (amsdu_aggr_ctrl) {
-		amsdu_aggr_ctrl->enable = le16_to_cpu(amsdu_ctrl->enable);
-		amsdu_aggr_ctrl->curr_buf_size =
-			le16_to_cpu(amsdu_ctrl->curr_buf_size);
 	}
 	return 0;
 }
@@ -725,4 +687,30 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
 
 	return count;
+}
+
+/*
+ * This function retrieves the entry for specific tx BA stream table by RA and
+ * deletes it.
+ */
+void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra)
+{
+	struct mwifiex_tx_ba_stream_tbl *tbl, *tmp;
+	unsigned long flags;
+
+	if (!ra)
+		return;
+
+	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	list_for_each_entry_safe(tbl, tmp, &priv->tx_ba_stream_tbl_ptr, list) {
+		if (!memcmp(tbl->ra, ra, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
+					       flags);
+			mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, tbl);
+			spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+
+	return;
 }

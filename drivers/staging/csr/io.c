@@ -38,7 +38,6 @@
 #include "unifiio.h"
 #include "unifi_priv.h"
 
-
 /*
  * Array of pointers to context structs for unifi devices that are present.
  * The index in the array corresponds to the wlan interface number
@@ -70,11 +69,7 @@ static int In_use[MAX_UNIFI_DEVS];
  * Mutex to prevent UDI clients to open the character device before the priv
  * is created and initialised.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 DEFINE_SEMAPHORE(Unifi_instance_mutex);
-#else
-DECLARE_MUTEX(Unifi_instance_mutex);
-#endif
 /*
  * When the device is removed, unregister waits on Unifi_cleanup_wq
  * until all the UDI clients release the character device.
@@ -90,7 +85,6 @@ static int uf_read_proc(char *page, char **start, off_t offset, int count,
 static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
 {
     int i;
-    func_enter();
 
     priv->rxSignalBuffer.writePointer =
     priv->rxSignalBuffer.readPointer = 0;
@@ -110,11 +104,9 @@ static CsrResult signal_buffer_init(unifi_priv_t * priv, int size)
                  kfree(priv->rxSignalBuffer.rx_buff[j].bufptr);
                  priv->rxSignalBuffer.rx_buff[j].bufptr = NULL;
              }
-             func_exit();
              return -1;
          }
     }
-    func_exit();
     return 0;
 }
 
@@ -176,21 +168,6 @@ uf_register_netdev(unifi_priv_t *priv, int interfaceTag)
 
     /* The device is registed */
     interfacePriv->netdev_registered = 1;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-#ifdef CONFIG_NET_SCHED
-    /*
-     * IMPORTANT:
-     * uf_install_qdisc() holds the network device lock, we can not
-     * install the qdisk before the network device is registered.
-     */
-    r = uf_install_qdisc(priv->netdev[interfaceTag]);
-    if (r) {
-        unifi_error(priv, "Failed to install qdisc\n");
-        return r;
-    }
-#endif /* CONFIG_NET_SCHED */
-#endif /* LINUX_VERSION_CODE */
 
 #ifdef CSR_SUPPORT_SME
     /*
@@ -284,8 +261,6 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     int r = -1;
     CsrResult csrResult;
 
-    func_enter();
-
     if ((bus_id < 0) || (bus_id >= MAX_UNIFI_DEVS)) {
         unifi_error(priv, "register_unifi_sdio: invalid device %d\n",
                 bus_id);
@@ -347,7 +322,7 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     /*
      * We use the slot number as unifi device index.
      */
-    snprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
+    scnprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
     /*
      * The following complex casting is in place in order to eliminate 64-bit compilation warning
      * "cast to/from pointer from/to integer of different size"
@@ -434,7 +409,6 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
 
     up(&Unifi_instance_mutex);
 
-    func_exit();
     return priv;
 
 failed4:
@@ -468,7 +442,6 @@ failed0:
 
     up(&Unifi_instance_mutex);
 
-    func_exit();
     return NULL;
 } /* register_unifi_sdio() */
 
@@ -492,7 +465,6 @@ failed0:
 static void
 ask_unifi_sdio_cleanup(unifi_priv_t *priv)
 {
-    func_enter();
 
     /*
      * Now clear the flag that says the old instance is in use.
@@ -504,8 +476,6 @@ ask_unifi_sdio_cleanup(unifi_priv_t *priv)
 
     unifi_trace(NULL, UDBG5, "ask_unifi_sdio_cleanup: wake up cleanup workqueue.\n");
     wake_up(&Unifi_cleanup_wq);
-
-    func_exit();
 
 } /* ask_unifi_sdio_cleanup() */
 
@@ -529,8 +499,6 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
     int priv_instance;
     int i;
     static const CsrWifiMacAddress broadcast_address = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-
-    func_enter();
 
     /* Remove the device nodes */
     uf_destroy_device_nodes(priv);
@@ -623,8 +591,6 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
 
     unifi_trace(NULL, UDBG5, "cleanup_unifi_sdio: DONE.\n");
 
-    func_exit();
-
 } /* cleanup_unifi_sdio() */
 
 
@@ -658,7 +624,6 @@ unregister_unifi_sdio(int bus_id)
     if (priv == NULL) {
         unifi_error(priv, "unregister_unifi_sdio: device %d is not registered\n",
                 bus_id);
-        func_exit();
         return;
     }
 
@@ -669,7 +634,7 @@ unregister_unifi_sdio(int bus_id)
         if(interfacePriv->netdev_registered)
         {
             netif_carrier_off(priv->netdev[interfaceTag]);
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[interfaceTag]);
+            netif_tx_stop_all_queues(priv->netdev[interfaceTag]);
         }
     }
 
@@ -904,54 +869,54 @@ uf_read_proc(char *page, char **start, off_t offset, int count,
 
     orig_p = p;
 
-    written = CsrSnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
+    written = scnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
             CSR_WIFI_VERSION, __DATE__, __TIME__);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SME_USERSPACE
-    written = CsrSnprintf(p, remain, "SME: CSR userspace ");
+    written = scnprintf(p, remain, "SME: CSR userspace ");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SUPPORT_WEXT
-    written = CsrSnprintf(p, remain, "with WEXT support\n");
+    written = scnprintf(p, remain, "with WEXT support\n");
 #else
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
 #endif /* CSR_SUPPORT_WEXT */
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif /* CSR_SME_USERSPACE */
 #ifdef CSR_NATIVE_LINUX
-    written = CsrSnprintf(p, remain, "SME: native\n");
+    written = scnprintf(p, remain, "SME: native\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
 
 #ifdef CSR_SUPPORT_SME
-    written = CsrSnprintf(p, remain,
-            "Firmware (ROM) build:%lu, Patch:%lu\n",
+    written = scnprintf(p, remain,
+            "Firmware (ROM) build:%u, Patch:%u\n",
             priv->card_info.fw_build,
             priv->sme_versions.firmwarePatch);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
     p += unifi_print_status(priv->card, p, &remain);
 
-    written = CsrSnprintf(p, remain, "Last dbg str: %s\n",
+    written = scnprintf(p, remain, "Last dbg str: %s\n",
             priv->last_debug_string);
     UNIFI_SNPRINTF_RET(p, remain, written);
 
-    written = CsrSnprintf(p, remain, "Last dbg16:");
+    written = scnprintf(p, remain, "Last dbg16:");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (i = 0; i < 8; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
-    written = CsrSnprintf(p, remain, "           ");
+    written = scnprintf(p, remain, "           ");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (; i < 16; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
     *start = page;
 
@@ -1035,37 +1000,37 @@ uf_remove_os_device(int bus_id)
 static void
 uf_sdio_inserted(CsrSdioFunction *sdio_ctx)
 {
-    unifi_priv_t *priv;
+	unifi_priv_t *priv;
 
-    unifi_trace(NULL, UDBG5, "uf_sdio_inserted(0x%p), slot_id=%d, dev=%p\n",
-            sdio_ctx, active_slot, os_devices[active_slot]);
+	unifi_trace(NULL, UDBG5, "uf_sdio_inserted(0x%p), slot_id=%d, dev=%p\n",
+		      sdio_ctx, active_slot, os_devices[active_slot]);
 
-    priv = register_unifi_sdio(sdio_ctx, active_slot, os_devices[active_slot]);
-    if (priv == NULL) {
-        CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_FAILURE);
-        return;
-    }
+	priv = register_unifi_sdio(sdio_ctx, active_slot, os_devices[active_slot]);
+	if (priv == NULL) {
+		CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_FAILURE);
+		return;
+	}
 
-    sdio_ctx->driverData = priv;
+	sdio_ctx->driverData = priv;
 
-    CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_SUCCESS);
+	CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_SUCCESS);
 } /* uf_sdio_inserted() */
 
 
 static void
 uf_sdio_removed(CsrSdioFunction *sdio_ctx)
 {
-    unregister_unifi_sdio(active_slot);
-    CsrSdioRemovedAcknowledge(sdio_ctx);
+	unregister_unifi_sdio(active_slot);
+	CsrSdioRemovedAcknowledge(sdio_ctx);
 } /* uf_sdio_removed() */
 
 
 static void
 uf_sdio_dsr_handler(CsrSdioFunction *sdio_ctx)
 {
-    unifi_priv_t *priv = sdio_ctx->driverData;
+	unifi_priv_t *priv = sdio_ctx->driverData;
 
-    unifi_sdio_interrupt_handler(priv->card);
+	unifi_sdio_interrupt_handler(priv->card);
 } /* uf_sdio_dsr_handler() */
 
 /*
@@ -1087,7 +1052,7 @@ uf_sdio_dsr_handler(CsrSdioFunction *sdio_ctx)
 static CsrSdioInterruptDsrCallback
 uf_sdio_int_handler(CsrSdioFunction *sdio_ctx)
 {
-    return uf_sdio_dsr_handler;
+	return uf_sdio_dsr_handler;
 } /* uf_sdio_int_handler() */
 
 
@@ -1095,18 +1060,18 @@ uf_sdio_int_handler(CsrSdioFunction *sdio_ctx)
 
 static CsrSdioFunctionId unifi_ids[] =
 {
-    {
-        .manfId = SDIO_MANF_ID_CSR,
-        .cardId = SDIO_CARD_ID_UNIFI_3,
-        .sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_3,
-        .sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
-    },
-    {
-        .manfId = SDIO_MANF_ID_CSR,
-        .cardId = SDIO_CARD_ID_UNIFI_4,
-        .sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_4,
-        .sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
-    }
+	{
+		.manfId = SDIO_MANF_ID_CSR,
+		.cardId = SDIO_CARD_ID_UNIFI_3,
+		.sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_3,
+		.sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
+	},
+	{
+		.manfId = SDIO_MANF_ID_CSR,
+		.cardId = SDIO_CARD_ID_UNIFI_4,
+		.sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_4,
+		.sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
+	}
 };
 
 
@@ -1115,14 +1080,14 @@ static CsrSdioFunctionId unifi_ids[] =
  */
 static CsrSdioFunctionDriver unifi_sdioFunction_drv =
 {
-    .inserted = uf_sdio_inserted,
-    .removed = uf_sdio_removed,
-    .intr = uf_sdio_int_handler,
-    .suspend = uf_lx_suspend,
-    .resume = uf_lx_resume,
+	.inserted = uf_sdio_inserted,
+	.removed = uf_sdio_removed,
+	.intr = uf_sdio_int_handler,
+	.suspend = uf_lx_suspend,
+	.resume = uf_lx_resume,
 
-    .ids = unifi_ids,
-    .idsCount = sizeof(unifi_ids) / sizeof(unifi_ids[0])
+	.ids = unifi_ids,
+	.idsCount = sizeof(unifi_ids) / sizeof(unifi_ids[0])
 };
 
 
@@ -1145,15 +1110,15 @@ static CsrSdioFunctionDriver unifi_sdioFunction_drv =
 int __init
 uf_sdio_load(void)
 {
-    CsrResult csrResult;
+	CsrResult csrResult;
 
-    csrResult = CsrSdioFunctionDriverRegister(&unifi_sdioFunction_drv);
-    if (csrResult != CSR_RESULT_SUCCESS) {
-        unifi_error(NULL, "Failed to register UniFi SDIO driver: csrResult=%d\n", csrResult);
-        return -EIO;
-    }
+	csrResult = CsrSdioFunctionDriverRegister(&unifi_sdioFunction_drv);
+	if (csrResult != CSR_RESULT_SUCCESS) {
+		unifi_error(NULL, "Failed to register UniFi SDIO driver: csrResult=%d\n", csrResult);
+		return -EIO;
+	}
 
-    return 0;
+	return 0;
 } /* uf_sdio_load() */
 
 
@@ -1161,6 +1126,6 @@ uf_sdio_load(void)
 void __exit
 uf_sdio_unload(void)
 {
-    CsrSdioFunctionDriverUnregister(&unifi_sdioFunction_drv);
+	CsrSdioFunctionDriverUnregister(&unifi_sdioFunction_drv);
 } /* uf_sdio_unload() */
 

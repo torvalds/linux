@@ -23,11 +23,20 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_mtd.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sh_dma.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -43,11 +52,17 @@ static struct nand_ecclayout flctl_4secc_oob_16 = {
 };
 
 static struct nand_ecclayout flctl_4secc_oob_64 = {
-	.eccbytes = 10,
-	.eccpos = {48, 49, 50, 51, 52, 53, 54, 55, 56, 57},
+	.eccbytes = 4 * 10,
+	.eccpos = {
+		 6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+		22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+		38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+		54, 55, 56, 57, 58, 59, 60, 61, 62, 63 },
 	.oobfree = {
-		{.offset = 60,
-		. length = 4} },
+		{.offset =  2, .length = 4},
+		{.offset = 16, .length = 6},
+		{.offset = 32, .length = 6},
+		{.offset = 48, .length = 6} },
 };
 
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
@@ -61,15 +76,15 @@ static struct nand_bbt_descr flctl_4secc_smallpage = {
 
 static struct nand_bbt_descr flctl_4secc_largepage = {
 	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 58,
+	.offs = 0,
 	.len = 2,
 	.pattern = scan_ff_pattern,
 };
 
 static void empty_fifo(struct sh_flctl *flctl)
 {
-	writel(0x000c0000, FLINTDMACR(flctl));	/* FIFO Clear */
-	writel(0x00000000, FLINTDMACR(flctl));	/* Clear Error flags */
+	writel(flctl->flintdmacr_base | AC1CLR | AC0CLR, FLINTDMACR(flctl));
+	writel(flctl->flintdmacr_base, FLINTDMACR(flctl));
 }
 
 static void start_translation(struct sh_flctl *flctl)
@@ -96,6 +111,84 @@ static void wait_completion(struct sh_flctl *flctl)
 
 	timeout_error(flctl, __func__);
 	writeb(0x0, FLTRCR(flctl));
+}
+
+static void flctl_dma_complete(void *param)
+{
+	struct sh_flctl *flctl = param;
+
+	complete(&flctl->dma_complete);
+}
+
+static void flctl_release_dma(struct sh_flctl *flctl)
+{
+	if (flctl->chan_fifo0_rx) {
+		dma_release_channel(flctl->chan_fifo0_rx);
+		flctl->chan_fifo0_rx = NULL;
+	}
+	if (flctl->chan_fifo0_tx) {
+		dma_release_channel(flctl->chan_fifo0_tx);
+		flctl->chan_fifo0_tx = NULL;
+	}
+}
+
+static void flctl_setup_dma(struct sh_flctl *flctl)
+{
+	dma_cap_mask_t mask;
+	struct dma_slave_config cfg;
+	struct platform_device *pdev = flctl->pdev;
+	struct sh_flctl_platform_data *pdata = pdev->dev.platform_data;
+	int ret;
+
+	if (!pdata)
+		return;
+
+	if (pdata->slave_id_fifo0_tx <= 0 || pdata->slave_id_fifo0_rx <= 0)
+		return;
+
+	/* We can only either use DMA for both Tx and Rx or not use it at all */
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	flctl->chan_fifo0_tx = dma_request_channel(mask, shdma_chan_filter,
+					    (void *)pdata->slave_id_fifo0_tx);
+	dev_dbg(&pdev->dev, "%s: TX: got channel %p\n", __func__,
+		flctl->chan_fifo0_tx);
+
+	if (!flctl->chan_fifo0_tx)
+		return;
+
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.slave_id = pdata->slave_id_fifo0_tx;
+	cfg.direction = DMA_MEM_TO_DEV;
+	cfg.dst_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.src_addr = 0;
+	ret = dmaengine_slave_config(flctl->chan_fifo0_tx, &cfg);
+	if (ret < 0)
+		goto err;
+
+	flctl->chan_fifo0_rx = dma_request_channel(mask, shdma_chan_filter,
+					    (void *)pdata->slave_id_fifo0_rx);
+	dev_dbg(&pdev->dev, "%s: RX: got channel %p\n", __func__,
+		flctl->chan_fifo0_rx);
+
+	if (!flctl->chan_fifo0_rx)
+		goto err;
+
+	cfg.slave_id = pdata->slave_id_fifo0_rx;
+	cfg.direction = DMA_DEV_TO_MEM;
+	cfg.dst_addr = 0;
+	cfg.src_addr = (dma_addr_t)FLDTFIFO(flctl);
+	ret = dmaengine_slave_config(flctl->chan_fifo0_rx, &cfg);
+	if (ret < 0)
+		goto err;
+
+	init_completion(&flctl->dma_complete);
+
+	return;
+
+err:
+	flctl_release_dma(flctl);
 }
 
 static void set_addr(struct mtd_info *mtd, int column, int page_addr)
@@ -158,27 +251,56 @@ static void wait_wfifo_ready(struct sh_flctl *flctl)
 	timeout_error(flctl, __func__);
 }
 
-static int wait_recfifo_ready(struct sh_flctl *flctl, int sector_number)
+static enum flctl_ecc_res_t wait_recfifo_ready
+		(struct sh_flctl *flctl, int sector_number)
 {
 	uint32_t timeout = LOOP_TIMEOUT_MAX;
-	int checked[4];
 	void __iomem *ecc_reg[4];
 	int i;
+	int state = FL_SUCCESS;
 	uint32_t data, size;
 
-	memset(checked, 0, sizeof(checked));
-
+	/*
+	 * First this loops checks in FLDTCNTR if we are ready to read out the
+	 * oob data. This is the case if either all went fine without errors or
+	 * if the bottom part of the loop corrected the errors or marked them as
+	 * uncorrectable and the controller is given time to push the data into
+	 * the FIFO.
+	 */
 	while (timeout--) {
+		/* check if all is ok and we can read out the OOB */
 		size = readl(FLDTCNTR(flctl)) >> 24;
-		if (size & 0xFF)
-			return 0;	/* success */
+		if ((size & 0xFF) == 4)
+			return state;
 
-		if (readl(FL4ECCCR(flctl)) & _4ECCFA)
-			return 1;	/* can't correct */
-
-		udelay(1);
-		if (!(readl(FL4ECCCR(flctl)) & _4ECCEND))
+		/* check if a correction code has been calculated */
+		if (!(readl(FL4ECCCR(flctl)) & _4ECCEND)) {
+			/*
+			 * either we wait for the fifo to be filled or a
+			 * correction pattern is being generated
+			 */
+			udelay(1);
 			continue;
+		}
+
+		/* check for an uncorrectable error */
+		if (readl(FL4ECCCR(flctl)) & _4ECCFA) {
+			/* check if we face a non-empty page */
+			for (i = 0; i < 512; i++) {
+				if (flctl->done_buff[i] != 0xff) {
+					state = FL_ERROR; /* can't correct */
+					break;
+				}
+			}
+
+			if (state == FL_SUCCESS)
+				dev_dbg(&flctl->pdev->dev,
+				"reading empty sector %d, ecc error ignored\n",
+				sector_number);
+
+			writel(0, FL4ECCCR(flctl));
+			continue;
+		}
 
 		/* start error correction */
 		ecc_reg[0] = FL4ECCRESULT0(flctl);
@@ -187,28 +309,26 @@ static int wait_recfifo_ready(struct sh_flctl *flctl, int sector_number)
 		ecc_reg[3] = FL4ECCRESULT3(flctl);
 
 		for (i = 0; i < 3; i++) {
+			uint8_t org;
+			unsigned int index;
+
 			data = readl(ecc_reg[i]);
-			if (data != INIT_FL4ECCRESULT_VAL && !checked[i]) {
-				uint8_t org;
-				int index;
 
-				if (flctl->page_size)
-					index = (512 * sector_number) +
-						(data >> 16);
-				else
-					index = data >> 16;
+			if (flctl->page_size)
+				index = (512 * sector_number) +
+					(data >> 16);
+			else
+				index = data >> 16;
 
-				org = flctl->done_buff[index];
-				flctl->done_buff[index] = org ^ (data & 0xFF);
-				checked[i] = 1;
-			}
+			org = flctl->done_buff[index];
+			flctl->done_buff[index] = org ^ (data & 0xFF);
 		}
-
+		state = FL_REPAIRABLE;
 		writel(0, FL4ECCCR(flctl));
 	}
 
 	timeout_error(flctl, __func__);
-	return 1;	/* timeout */
+	return FL_TIMEOUT;	/* timeout */
 }
 
 static void wait_wecfifo_ready(struct sh_flctl *flctl)
@@ -226,6 +346,70 @@ static void wait_wecfifo_ready(struct sh_flctl *flctl)
 	timeout_error(flctl, __func__);
 }
 
+static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
+					int len, enum dma_data_direction dir)
+{
+	struct dma_async_tx_descriptor *desc = NULL;
+	struct dma_chan *chan;
+	enum dma_transfer_direction tr_dir;
+	dma_addr_t dma_addr;
+	dma_cookie_t cookie = -EINVAL;
+	uint32_t reg;
+	int ret;
+
+	if (dir == DMA_FROM_DEVICE) {
+		chan = flctl->chan_fifo0_rx;
+		tr_dir = DMA_DEV_TO_MEM;
+	} else {
+		chan = flctl->chan_fifo0_tx;
+		tr_dir = DMA_MEM_TO_DEV;
+	}
+
+	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
+
+	if (dma_addr)
+		desc = dmaengine_prep_slave_single(chan, dma_addr, len,
+			tr_dir, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+
+	if (desc) {
+		reg = readl(FLINTDMACR(flctl));
+		reg |= DREQ0EN;
+		writel(reg, FLINTDMACR(flctl));
+
+		desc->callback = flctl_dma_complete;
+		desc->callback_param = flctl;
+		cookie = dmaengine_submit(desc);
+
+		dma_async_issue_pending(chan);
+	} else {
+		/* DMA failed, fall back to PIO */
+		flctl_release_dma(flctl);
+		dev_warn(&flctl->pdev->dev,
+			 "DMA failed, falling back to PIO\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	ret =
+	wait_for_completion_timeout(&flctl->dma_complete,
+				msecs_to_jiffies(3000));
+
+	if (ret <= 0) {
+		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dev_err(&flctl->pdev->dev, "wait_for_completion_timeout\n");
+	}
+
+out:
+	reg = readl(FLINTDMACR(flctl));
+	reg &= ~DREQ0EN;
+	writel(reg, FLINTDMACR(flctl));
+
+	dma_unmap_single(chan->device->dev, dma_addr, len, dir);
+
+	/* ret > 0 is success */
+	return ret;
+}
+
 static void read_datareg(struct sh_flctl *flctl, int offset)
 {
 	unsigned long data;
@@ -241,43 +425,77 @@ static void read_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
 {
 	int i, len_4align;
 	unsigned long *buf = (unsigned long *)&flctl->done_buff[offset];
-	void *fifo_addr = (void *)FLDTFIFO(flctl);
 
 	len_4align = (rlen + 3) / 4;
 
+	/* initiate DMA transfer */
+	if (flctl->chan_fifo0_rx && rlen >= 32 &&
+		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_DEV_TO_MEM) > 0)
+			goto convert;	/* DMA success */
+
+	/* do polling transfer */
 	for (i = 0; i < len_4align; i++) {
 		wait_rfifo_ready(flctl);
-		buf[i] = readl(fifo_addr);
-		buf[i] = be32_to_cpu(buf[i]);
+		buf[i] = readl(FLDTFIFO(flctl));
 	}
+
+convert:
+	for (i = 0; i < len_4align; i++)
+		buf[i] = be32_to_cpu(buf[i]);
 }
 
-static int read_ecfiforeg(struct sh_flctl *flctl, uint8_t *buff, int sector)
+static enum flctl_ecc_res_t read_ecfiforeg
+		(struct sh_flctl *flctl, uint8_t *buff, int sector)
 {
 	int i;
+	enum flctl_ecc_res_t res;
 	unsigned long *ecc_buf = (unsigned long *)buff;
-	void *fifo_addr = (void *)FLECFIFO(flctl);
 
-	for (i = 0; i < 4; i++) {
-		if (wait_recfifo_ready(flctl , sector))
-			return 1;
-		ecc_buf[i] = readl(fifo_addr);
-		ecc_buf[i] = be32_to_cpu(ecc_buf[i]);
+	res = wait_recfifo_ready(flctl , sector);
+
+	if (res != FL_ERROR) {
+		for (i = 0; i < 4; i++) {
+			ecc_buf[i] = readl(FLECFIFO(flctl));
+			ecc_buf[i] = be32_to_cpu(ecc_buf[i]);
+		}
 	}
 
-	return 0;
+	return res;
 }
 
-static void write_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
+static void write_fiforeg(struct sh_flctl *flctl, int rlen,
+						unsigned int offset)
 {
 	int i, len_4align;
-	unsigned long *data = (unsigned long *)&flctl->done_buff[offset];
-	void *fifo_addr = (void *)FLDTFIFO(flctl);
+	unsigned long *buf = (unsigned long *)&flctl->done_buff[offset];
 
 	len_4align = (rlen + 3) / 4;
 	for (i = 0; i < len_4align; i++) {
 		wait_wfifo_ready(flctl);
-		writel(cpu_to_be32(data[i]), fifo_addr);
+		writel(cpu_to_be32(buf[i]), FLDTFIFO(flctl));
+	}
+}
+
+static void write_ec_fiforeg(struct sh_flctl *flctl, int rlen,
+						unsigned int offset)
+{
+	int i, len_4align;
+	unsigned long *buf = (unsigned long *)&flctl->done_buff[offset];
+
+	len_4align = (rlen + 3) / 4;
+
+	for (i = 0; i < len_4align; i++)
+		buf[i] = cpu_to_be32(buf[i]);
+
+	/* initiate DMA transfer */
+	if (flctl->chan_fifo0_tx && rlen >= 32 &&
+		flctl_dma_fifo0_transfer(flctl, buf, rlen, DMA_MEM_TO_DEV) > 0)
+			return;	/* DMA success */
+
+	/* do polling transfer */
+	for (i = 0; i < len_4align; i++) {
+		wait_wecfifo_ready(flctl);
+		writel(buf[i], FLECFIFO(flctl));
 	}
 }
 
@@ -346,73 +564,65 @@ static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_va
 static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int oob_required, int page)
 {
-	int i, eccsize = chip->ecc.size;
-	int eccbytes = chip->ecc.bytes;
-	int eccsteps = chip->ecc.steps;
-	uint8_t *p = buf;
-	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-
-	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
-		chip->read_buf(mtd, p, eccsize);
-
-	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		if (flctl->hwecc_cant_correct[i])
-			mtd->ecc_stats.failed++;
-		else
-			mtd->ecc_stats.corrected += 0; /* FIXME */
-	}
-
+	chip->read_buf(mtd, buf, mtd->writesize);
+	if (oob_required)
+		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 	return 0;
 }
 
-static void flctl_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
+static int flctl_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 				   const uint8_t *buf, int oob_required)
 {
-	int i, eccsize = chip->ecc.size;
-	int eccbytes = chip->ecc.bytes;
-	int eccsteps = chip->ecc.steps;
-	const uint8_t *p = buf;
-
-	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize)
-		chip->write_buf(mtd, p, eccsize);
+	chip->write_buf(mtd, buf, mtd->writesize);
+	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	return 0;
 }
 
 static void execmd_read_page_sector(struct mtd_info *mtd, int page_addr)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 	int sector, page_sectors;
+	enum flctl_ecc_res_t ecc_result;
 
-	if (flctl->page_size)
-		page_sectors = 4;
-	else
-		page_sectors = 1;
-
-	writel(readl(FLCMNCR(flctl)) | ACM_SACCES_MODE | _4ECCCORRECT,
-		 FLCMNCR(flctl));
+	page_sectors = flctl->page_size ? 4 : 1;
 
 	set_cmd_regs(mtd, NAND_CMD_READ0,
 		(NAND_CMD_READSTART << 8) | NAND_CMD_READ0);
 
+	writel(readl(FLCMNCR(flctl)) | ACM_SACCES_MODE | _4ECCCORRECT,
+		 FLCMNCR(flctl));
+	writel(readl(FLCMDCR(flctl)) | page_sectors, FLCMDCR(flctl));
+	writel(page_addr << 2, FLADR(flctl));
+
+	empty_fifo(flctl);
+	start_translation(flctl);
+
 	for (sector = 0; sector < page_sectors; sector++) {
-		int ret;
-
-		empty_fifo(flctl);
-		writel(readl(FLCMDCR(flctl)) | 1, FLCMDCR(flctl));
-		writel(page_addr << 2 | sector, FLADR(flctl));
-
-		start_translation(flctl);
 		read_fiforeg(flctl, 512, 512 * sector);
 
-		ret = read_ecfiforeg(flctl,
+		ecc_result = read_ecfiforeg(flctl,
 			&flctl->done_buff[mtd->writesize + 16 * sector],
 			sector);
 
-		if (ret)
-			flctl->hwecc_cant_correct[sector] = 1;
-
-		writel(0x0, FL4ECCCR(flctl));
-		wait_completion(flctl);
+		switch (ecc_result) {
+		case FL_REPAIRABLE:
+			dev_info(&flctl->pdev->dev,
+				"applied ecc on page 0x%x", page_addr);
+			flctl->mtd.ecc_stats.corrected++;
+			break;
+		case FL_ERROR:
+			dev_warn(&flctl->pdev->dev,
+				"page 0x%x contains corrupted data\n",
+				page_addr);
+			flctl->mtd.ecc_stats.failed++;
+			break;
+		default:
+			;
+		}
 	}
+
+	wait_completion(flctl);
+
 	writel(readl(FLCMNCR(flctl)) & ~(ACM_SACCES_MODE | _4ECCCORRECT),
 			FLCMNCR(flctl));
 }
@@ -420,30 +630,20 @@ static void execmd_read_page_sector(struct mtd_info *mtd, int page_addr)
 static void execmd_read_oob(struct mtd_info *mtd, int page_addr)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	int page_sectors = flctl->page_size ? 4 : 1;
+	int i;
 
 	set_cmd_regs(mtd, NAND_CMD_READ0,
 		(NAND_CMD_READSTART << 8) | NAND_CMD_READ0);
 
 	empty_fifo(flctl);
-	if (flctl->page_size) {
-		int i;
-		/* In case that the page size is 2k */
-		for (i = 0; i < 16 * 3; i++)
-			flctl->done_buff[i] = 0xFF;
 
-		set_addr(mtd, 3 * 528 + 512, page_addr);
+	for (i = 0; i < page_sectors; i++) {
+		set_addr(mtd, (512 + 16) * i + 512 , page_addr);
 		writel(16, FLDTCNTR(flctl));
 
 		start_translation(flctl);
-		read_fiforeg(flctl, 16, 16 * 3);
-		wait_completion(flctl);
-	} else {
-		/* In case that the page size is 512b */
-		set_addr(mtd, 512, page_addr);
-		writel(16, FLDTCNTR(flctl));
-
-		start_translation(flctl);
-		read_fiforeg(flctl, 16, 0);
+		read_fiforeg(flctl, 16, 16 * i);
 		wait_completion(flctl);
 	}
 }
@@ -451,34 +651,26 @@ static void execmd_read_oob(struct mtd_info *mtd, int page_addr)
 static void execmd_write_page_sector(struct mtd_info *mtd)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int i, page_addr = flctl->seqin_page_addr;
+	int page_addr = flctl->seqin_page_addr;
 	int sector, page_sectors;
 
-	if (flctl->page_size)
-		page_sectors = 4;
-	else
-		page_sectors = 1;
-
-	writel(readl(FLCMNCR(flctl)) | ACM_SACCES_MODE, FLCMNCR(flctl));
+	page_sectors = flctl->page_size ? 4 : 1;
 
 	set_cmd_regs(mtd, NAND_CMD_PAGEPROG,
 			(NAND_CMD_PAGEPROG << 8) | NAND_CMD_SEQIN);
 
+	empty_fifo(flctl);
+	writel(readl(FLCMNCR(flctl)) | ACM_SACCES_MODE, FLCMNCR(flctl));
+	writel(readl(FLCMDCR(flctl)) | page_sectors, FLCMDCR(flctl));
+	writel(page_addr << 2, FLADR(flctl));
+	start_translation(flctl);
+
 	for (sector = 0; sector < page_sectors; sector++) {
-		empty_fifo(flctl);
-		writel(readl(FLCMDCR(flctl)) | 1, FLCMDCR(flctl));
-		writel(page_addr << 2 | sector, FLADR(flctl));
-
-		start_translation(flctl);
 		write_fiforeg(flctl, 512, 512 * sector);
-
-		for (i = 0; i < 4; i++) {
-			wait_wecfifo_ready(flctl); /* wait for write ready */
-			writel(0xFFFFFFFF, FLECFIFO(flctl));
-		}
-		wait_completion(flctl);
+		write_ec_fiforeg(flctl, 16, mtd->writesize + 16 * sector);
 	}
 
+	wait_completion(flctl);
 	writel(readl(FLCMNCR(flctl)) & ~ACM_SACCES_MODE, FLCMNCR(flctl));
 }
 
@@ -488,18 +680,12 @@ static void execmd_write_oob(struct mtd_info *mtd)
 	int page_addr = flctl->seqin_page_addr;
 	int sector, page_sectors;
 
-	if (flctl->page_size) {
-		sector = 3;
-		page_sectors = 4;
-	} else {
-		sector = 0;
-		page_sectors = 1;
-	}
+	page_sectors = flctl->page_size ? 4 : 1;
 
 	set_cmd_regs(mtd, NAND_CMD_PAGEPROG,
 			(NAND_CMD_PAGEPROG << 8) | NAND_CMD_SEQIN);
 
-	for (; sector < page_sectors; sector++) {
+	for (sector = 0; sector < page_sectors; sector++) {
 		empty_fifo(flctl);
 		set_addr(mtd, sector * 528 + 512, page_addr);
 		writel(16, FLDTCNTR(flctl));	/* set read size */
@@ -710,7 +896,9 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 
 		if (!flctl->qos_request) {
 			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
-							&flctl->pm_qos, 100);
+							&flctl->pm_qos,
+							DEV_PM_QOS_LATENCY,
+							100);
 			if (ret < 0)
 				dev_err(&flctl->pdev->dev,
 					"PM QoS request failed: %d\n", ret);
@@ -731,52 +919,36 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 static void flctl_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int i, index = flctl->index;
 
-	for (i = 0; i < len; i++)
-		flctl->done_buff[index + i] = buf[i];
+	memcpy(&flctl->done_buff[flctl->index], buf, len);
 	flctl->index += len;
 }
 
 static uint8_t flctl_read_byte(struct mtd_info *mtd)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	int index = flctl->index;
 	uint8_t data;
 
-	data = flctl->done_buff[index];
+	data = flctl->done_buff[flctl->index];
 	flctl->index++;
 	return data;
 }
 
 static uint16_t flctl_read_word(struct mtd_info *mtd)
 {
-       struct sh_flctl *flctl = mtd_to_flctl(mtd);
-       int index = flctl->index;
-       uint16_t data;
-       uint16_t *buf = (uint16_t *)&flctl->done_buff[index];
+	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	uint16_t *buf = (uint16_t *)&flctl->done_buff[flctl->index];
 
-       data = *buf;
-       flctl->index += 2;
-       return data;
+	flctl->index += 2;
+	return *buf;
 }
 
 static void flctl_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	int i;
+	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 
-	for (i = 0; i < len; i++)
-		buf[i] = flctl_read_byte(mtd);
-}
-
-static int flctl_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		if (buf[i] != flctl_read_byte(mtd))
-			return -EFAULT;
-	return 0;
+	memcpy(buf, &flctl->done_buff[flctl->index], len);
+	flctl->index += len;
 }
 
 static int flctl_chip_init_tail(struct mtd_info *mtd)
@@ -831,7 +1003,7 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 		chip->ecc.mode = NAND_ECC_HW;
 
 		/* 4 symbols ECC enabled */
-		flctl->flcmncr_base |= _4ECCEN | ECCPOS2 | ECCPOS_02;
+		flctl->flcmncr_base |= _4ECCEN;
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
@@ -839,7 +1011,84 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 	return 0;
 }
 
-static int __devinit flctl_probe(struct platform_device *pdev)
+static irqreturn_t flctl_handle_flste(int irq, void *dev_id)
+{
+	struct sh_flctl *flctl = dev_id;
+
+	dev_err(&flctl->pdev->dev, "flste irq: %x\n", readl(FLINTDMACR(flctl)));
+	writel(flctl->flintdmacr_base, FLINTDMACR(flctl));
+
+	return IRQ_HANDLED;
+}
+
+#ifdef CONFIG_OF
+struct flctl_soc_config {
+	unsigned long flcmncr_val;
+	unsigned has_hwecc:1;
+	unsigned use_holden:1;
+};
+
+static struct flctl_soc_config flctl_sh7372_config = {
+	.flcmncr_val = CLK_16B_12L_4H | TYPESEL_SET | SHBUSSEL,
+	.has_hwecc = 1,
+	.use_holden = 1,
+};
+
+static const struct of_device_id of_flctl_match[] = {
+	{ .compatible = "renesas,shmobile-flctl-sh7372",
+				.data = &flctl_sh7372_config },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_flctl_match);
+
+static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
+{
+	const struct of_device_id *match;
+	struct flctl_soc_config *config;
+	struct sh_flctl_platform_data *pdata;
+	struct device_node *dn = dev->of_node;
+	int ret;
+
+	match = of_match_device(of_flctl_match, dev);
+	if (match)
+		config = (struct flctl_soc_config *)match->data;
+	else {
+		dev_err(dev, "%s: no OF configuration attached\n", __func__);
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(dev, sizeof(struct sh_flctl_platform_data),
+								GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "%s: failed to allocate config data\n", __func__);
+		return NULL;
+	}
+
+	/* set SoC specific options */
+	pdata->flcmncr_val = config->flcmncr_val;
+	pdata->has_hwecc = config->has_hwecc;
+	pdata->use_holden = config->use_holden;
+
+	/* parse user defined options */
+	ret = of_get_nand_bus_width(dn);
+	if (ret == 16)
+		pdata->flcmncr_val |= SEL_16BIT;
+	else if (ret != 8) {
+		dev_err(dev, "%s: invalid bus width\n", __func__);
+		return NULL;
+	}
+
+	return pdata;
+}
+#else /* CONFIG_OF */
+#define of_flctl_match NULL
+static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif /* CONFIG_OF */
+
+static int flctl_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct sh_flctl *flctl;
@@ -847,12 +1096,8 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	struct nand_chip *nand;
 	struct sh_flctl_platform_data *pdata;
 	int ret = -ENXIO;
-
-	pdata = pdev->dev.platform_data;
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data defined\n");
-		return -EINVAL;
-	}
+	int irq;
+	struct mtd_part_parser_data ppdata = {};
 
 	flctl = kzalloc(sizeof(struct sh_flctl), GFP_KERNEL);
 	if (!flctl) {
@@ -872,14 +1117,38 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 		goto err_iomap;
 	}
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get flste irq data\n");
+		goto err_flste;
+	}
+
+	ret = request_irq(irq, flctl_handle_flste, IRQF_SHARED, "flste", flctl);
+	if (ret) {
+		dev_err(&pdev->dev, "request interrupt failed.\n");
+		goto err_flste;
+	}
+
+	if (pdev->dev.of_node)
+		pdata = flctl_parse_dt(&pdev->dev);
+	else
+		pdata = pdev->dev.platform_data;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "no setup data defined\n");
+		ret = -EINVAL;
+		goto err_pdata;
+	}
+
 	platform_set_drvdata(pdev, flctl);
 	flctl_mtd = &flctl->mtd;
 	nand = &flctl->chip;
 	flctl_mtd->priv = nand;
 	flctl->pdev = pdev;
-	flctl->flcmncr_base = pdata->flcmncr_val;
 	flctl->hwecc = pdata->has_hwecc;
 	flctl->holden = pdata->use_holden;
+	flctl->flcmncr_base = pdata->flcmncr_val;
+	flctl->flintdmacr_base = flctl->hwecc ? (STERINTE | ECERB) : STERINTE;
 
 	/* Set address of hardware control function */
 	/* 20 us command delay time */
@@ -888,7 +1157,6 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	nand->read_byte = flctl_read_byte;
 	nand->write_buf = flctl_write_buf;
 	nand->read_buf = flctl_read_buf;
-	nand->verify_buf = flctl_verify_buf;
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
 
@@ -899,6 +1167,8 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
+
+	flctl_setup_dma(flctl);
 
 	ret = nand_scan_ident(flctl_mtd, 1, NULL);
 	if (ret)
@@ -912,23 +1182,33 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chip;
 
-	mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
+	ppdata.of_node = pdev->dev.of_node;
+	ret = mtd_device_parse_register(flctl_mtd, NULL, &ppdata, pdata->parts,
+			pdata->nr_parts);
 
 	return 0;
 
 err_chip:
+	flctl_release_dma(flctl);
 	pm_runtime_disable(&pdev->dev);
+err_pdata:
+	free_irq(irq, flctl);
+err_flste:
+	iounmap(flctl->reg);
 err_iomap:
 	kfree(flctl);
 	return ret;
 }
 
-static int __devexit flctl_remove(struct platform_device *pdev)
+static int flctl_remove(struct platform_device *pdev)
 {
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
+	flctl_release_dma(flctl);
 	nand_release(&flctl->mtd);
 	pm_runtime_disable(&pdev->dev);
+	free_irq(platform_get_irq(pdev, 0), flctl);
+	iounmap(flctl->reg);
 	kfree(flctl);
 
 	return 0;
@@ -939,6 +1219,7 @@ static struct platform_driver flctl_driver = {
 	.driver = {
 		.name	= "sh_flctl",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_flctl_match,
 	},
 };
 

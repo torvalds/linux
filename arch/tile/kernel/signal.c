@@ -37,10 +37,10 @@
 
 #define DEBUG_SIG 0
 
-SYSCALL_DEFINE3(sigaltstack, const stack_t __user *, uss,
-		stack_t __user *, uoss, struct pt_regs *, regs)
+SYSCALL_DEFINE2(sigaltstack, const stack_t __user *, uss,
+		stack_t __user *, uoss)
 {
-	return do_sigaltstack(uss, uoss, regs->sp);
+	return do_sigaltstack(uss, uoss, current_pt_regs()->sp);
 }
 
 
@@ -83,8 +83,9 @@ void signal_fault(const char *type, struct pt_regs *regs,
 }
 
 /* The assembly shim for this function arranges to ignore the return value. */
-SYSCALL_DEFINE1(rt_sigreturn, struct pt_regs *, regs)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame =
 		(struct rt_sigframe __user *)(regs->sp);
 	sigset_t set;
@@ -219,15 +220,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[1] = (unsigned long) &frame->info;
 	regs->regs[2] = (unsigned long) &frame->uc;
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
-
-	/*
-	 * Notify any tracer that was single-stepping it.
-	 * The tracer may want to single-step inside the
-	 * handler too.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 0;
 
 give_sigsegv:
@@ -278,7 +270,8 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	if (ret)
 		return;
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_delivered(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*

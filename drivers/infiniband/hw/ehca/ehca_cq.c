@@ -220,7 +220,7 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 			cq = ERR_PTR(-EAGAIN);
 			goto create_cq_exit4;
 		}
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 
 		h_ret = hipz_h_register_rpage_cq(adapter_handle,
 						 my_cq->ipz_cq_handle,

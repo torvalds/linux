@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>
+#include <linux/etherdevice.h>
 
 #include "dot11d.h"
 u8 rsn_authen_cipher_suite[16][4] = {
@@ -2110,13 +2111,7 @@ void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee)
 inline void ieee80211_randomize_cell(struct ieee80211_device *ieee)
 {
 
-	get_random_bytes(ieee->current_network.bssid, ETH_ALEN);
-
-	/* an IBSS cell address must have the two less significant
-	 * bits of the first byte = 2
-	 */
-	ieee->current_network.bssid[0] &= ~0x01;
-	ieee->current_network.bssid[0] |= 0x02;
+	random_ether_addr(ieee->current_network.bssid);
 }
 
 /* called in user context only */
@@ -2808,9 +2803,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 			       param->u.crypt.key_len);
 		return -EINVAL;
 	}
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= WEP_KEYS)
 			return -EINVAL;
 		crypt = &ieee->crypt[param->u.crypt.idx];

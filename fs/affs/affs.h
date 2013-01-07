@@ -88,8 +88,8 @@ struct affs_sb_info {
 	u32 s_root_block;		/* FFS root block number. */
 	int s_hashsize;			/* Size of hash table. */
 	unsigned long s_flags;		/* See below. */
-	uid_t s_uid;			/* uid to override */
-	gid_t s_gid;			/* gid to override */
+	kuid_t s_uid;			/* uid to override */
+	kgid_t s_gid;			/* gid to override */
 	umode_t s_mode;			/* mode to override */
 	struct buffer_head *s_root_bh;	/* Cached root block. */
 	struct mutex s_bmlock;		/* Protects bitmap access. */

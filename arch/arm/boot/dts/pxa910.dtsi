@@ -25,6 +25,11 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		L2: l2-cache {
+			compatible = "marvell,tauros2-cache";
+			marvell,tauros2-cache-features = <0x3>;
+		};
+
 		axi@d4200000 {	/* AXI */
 			compatible = "mrvl,axi-bus", "simple-bus";
 			#address-cells = <1>;
@@ -115,6 +120,8 @@
 
 			twsi1: i2c@d4011000 {
 				compatible = "mrvl,mmp-twsi";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xd4011000 0x1000>;
 				interrupts = <7>;
 				mrvl,i2c-fast-mode;
@@ -123,6 +130,8 @@
 
 			twsi2: i2c@d4037000 {
 				compatible = "mrvl,mmp-twsi";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xd4037000 0x1000>;
 				interrupts = <54>;
 				status = "disabled";

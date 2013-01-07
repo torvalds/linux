@@ -709,7 +709,7 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct htc_target *target = ar->htc_target;
-	int ret;
+	int ret = 0;
 	bool virt_scat = false;
 
 	if (ar_sdio->scatter_enabled)
@@ -844,22 +844,6 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 	bool try_deepsleep = false;
 	int ret;
 
-	if (ar->state == ATH6KL_STATE_SCHED_SCAN) {
-		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sched scan is in progress\n");
-
-		ret = ath6kl_set_sdio_pm_caps(ar);
-		if (ret)
-			goto cut_pwr;
-
-		ret =  ath6kl_cfg80211_suspend(ar,
-					       ATH6KL_CFG_SUSPEND_SCHED_SCAN,
-					       NULL);
-		if (ret)
-			goto cut_pwr;
-
-		return 0;
-	}
-
 	if (ar->suspend_mode == WLAN_POWER_STATE_WOW ||
 	    (!ar->suspend_mode && wow)) {
 
@@ -942,13 +926,13 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 	case ATH6KL_STATE_WOW:
 		break;
 
-	case ATH6KL_STATE_SCHED_SCAN:
-		break;
-
 	case ATH6KL_STATE_SUSPENDING:
 		break;
 
 	case ATH6KL_STATE_RESUMING:
+		break;
+
+	case ATH6KL_STATE_RECOVERY:
 		break;
 	}
 
@@ -1462,3 +1446,6 @@ MODULE_FIRMWARE(AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE);
 MODULE_FIRMWARE(AR6004_HW_1_2_FW_DIR "/" AR6004_HW_1_2_FIRMWARE_FILE);
 MODULE_FIRMWARE(AR6004_HW_1_2_BOARD_DATA_FILE);
 MODULE_FIRMWARE(AR6004_HW_1_2_DEFAULT_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_3_FW_DIR "/" AR6004_HW_1_3_FIRMWARE_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_3_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_3_DEFAULT_BOARD_DATA_FILE);

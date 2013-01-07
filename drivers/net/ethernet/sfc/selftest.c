@@ -373,7 +373,7 @@ static void efx_iterate_state(struct efx_nic *efx)
 	/* saddr set later and used as incrementing count */
 	payload->ip.daddr = htonl(INADDR_LOOPBACK);
 	payload->ip.ihl = 5;
-	payload->ip.check = htons(0xdead);
+	payload->ip.check = (__force __sum16) htons(0xdead);
 	payload->ip.tot_len = htons(sizeof(*payload) - sizeof(struct ethhdr));
 	payload->ip.version = IPVERSION;
 	payload->ip.protocol = IPPROTO_UDP;
@@ -614,7 +614,8 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 {
 	enum efx_loopback_mode mode;
 	struct efx_loopback_state *state;
-	struct efx_channel *channel = efx_get_channel(efx, 0);
+	struct efx_channel *channel =
+		efx_get_channel(efx, efx->tx_channel_offset);
 	struct efx_tx_queue *tx_queue;
 	int rc = 0;
 
@@ -721,7 +722,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Detach the device so the kernel doesn't transmit during the
 	 * loopback test and the watchdog timeout doesn't fire.
 	 */
-	netif_device_detach(efx->net_dev);
+	efx_device_detach_sync(efx);
 
 	if (efx->type->test_chip) {
 		rc_reset = efx->type->test_chip(efx, tests);

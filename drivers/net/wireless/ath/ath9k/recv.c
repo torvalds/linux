@@ -424,8 +424,8 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
 	if (sc->nvifs > 1 || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
-		/* The following may also be needed for other older chips */
-		if (sc->sc_ah->hw_version.macVersion == AR_SREV_VERSION_9160)
+		/* This is needed for older chips */
+		if (sc->sc_ah->hw_version.macVersion <= AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;
 		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 	}
@@ -976,7 +976,7 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal = ah->noise + rx_stats->rs_rssi;
 	rx_status->antenna = rx_stats->rs_antenna;
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_END;
 	if (rx_stats->rs_moreaggr)
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
@@ -1105,7 +1105,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		else
 			rs.is_mybeacon = false;
 
-		sc->rx.num_pkts++;
+		if (ieee80211_is_data_present(hdr->frame_control) &&
+		    !ieee80211_is_qos_nullfunc(hdr->frame_control))
+			sc->rx.num_pkts++;
+
 		ath_debug_stat_rx(sc, &rs);
 
 		/*

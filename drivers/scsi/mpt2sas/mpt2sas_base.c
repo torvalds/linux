@@ -3,7 +3,7 @@
  * for access to MPT (Message Passing Technology) firmware.
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.c
- * Copyright (C) 2007-2010  LSI Corporation
+ * Copyright (C) 2007-2012  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -1978,9 +1978,9 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 			    MPT2SAS_INTEL_RMS2LL040_BRANDING);
 			break;
-		case MPT2SAS_INTEL_RAMSDALE_SSDID:
+		case MPT2SAS_INTEL_SSD910_SSDID:
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
-			    MPT2SAS_INTEL_RAMSDALE_BRANDING);
+			    MPT2SAS_INTEL_SSD910_BRANDING);
 			break;
 		default:
 			break;

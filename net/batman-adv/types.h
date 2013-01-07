@@ -28,20 +28,41 @@
 	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
 			sizeof(struct batadv_bcast_packet)))
 
+#ifdef CONFIG_BATMAN_ADV_DAT
+
+/* batadv_dat_addr_t is the type used for all DHT addresses. If it is changed,
+ * BATADV_DAT_ADDR_MAX is changed as well.
+ *
+ * *Please be careful: batadv_dat_addr_t must be UNSIGNED*
+ */
+#define batadv_dat_addr_t uint16_t
+
+#endif /* CONFIG_BATMAN_ADV_DAT */
+
+/**
+ * struct batadv_hard_iface_bat_iv - per hard interface B.A.T.M.A.N. IV data
+ * @ogm_buff: buffer holding the OGM packet
+ * @ogm_buff_len: length of the OGM packet buffer
+ * @ogm_seqno: OGM sequence number - used to identify each OGM
+ */
+struct batadv_hard_iface_bat_iv {
+	unsigned char *ogm_buff;
+	int ogm_buff_len;
+	atomic_t ogm_seqno;
+};
+
 struct batadv_hard_iface {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
 	struct net_device *net_dev;
-	atomic_t seqno;
 	atomic_t frag_seqno;
-	unsigned char *packet_buff;
-	int packet_len;
 	struct kobject *hardif_obj;
 	atomic_t refcount;
 	struct packet_type batman_adv_ptype;
 	struct net_device *soft_iface;
 	struct rcu_head rcu;
+	struct batadv_hard_iface_bat_iv bat_iv;
 };
 
 /**
@@ -63,6 +84,9 @@ struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
 	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
+#ifdef CONFIG_BATMAN_ADV_DAT
+	batadv_dat_addr_t dat_addr;
+#endif
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
 	unsigned long last_seen;
@@ -77,13 +101,6 @@ struct batadv_orig_node {
 	spinlock_t tt_buff_lock; /* protects tt_buff */
 	atomic_t tt_size;
 	bool tt_initialised;
-	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
-	 * If true, then I sent a Roaming_adv to this orig_node and I have to
-	 * inspect every packet directed to it to check whether it is still
-	 * the true destination or not. This flag will be reset to false as
-	 * soon as I receive a new TTVN from this orig_node
-	 */
-	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -139,12 +156,17 @@ struct batadv_neigh_node {
 #ifdef CONFIG_BATMAN_ADV_BLA
 struct batadv_bcast_duplist_entry {
 	uint8_t orig[ETH_ALEN];
-	uint16_t crc;
+	__be32 crc;
 	unsigned long entrytime;
 };
 #endif
 
 enum batadv_counters {
+	BATADV_CNT_TX,
+	BATADV_CNT_TX_BYTES,
+	BATADV_CNT_TX_DROPPED,
+	BATADV_CNT_RX,
+	BATADV_CNT_RX_BYTES,
 	BATADV_CNT_FORWARD,
 	BATADV_CNT_FORWARD_BYTES,
 	BATADV_CNT_MGMT_TX,
@@ -157,8 +179,91 @@ enum batadv_counters {
 	BATADV_CNT_TT_RESPONSE_RX,
 	BATADV_CNT_TT_ROAM_ADV_TX,
 	BATADV_CNT_TT_ROAM_ADV_RX,
+#ifdef CONFIG_BATMAN_ADV_DAT
+	BATADV_CNT_DAT_GET_TX,
+	BATADV_CNT_DAT_GET_RX,
+	BATADV_CNT_DAT_PUT_TX,
+	BATADV_CNT_DAT_PUT_RX,
+	BATADV_CNT_DAT_CACHED_REPLY_TX,
+#endif
 	BATADV_CNT_NUM,
 };
+
+/**
+ * struct batadv_priv_tt - per mesh interface translation table data
+ * @vn: translation table version number
+ * @local_changes: changes registered in an originator interval
+ * @poss_change: Detect an ongoing roaming phase. If true, then this node
+ *  received a roaming_adv and has to inspect every packet directed to it to
+ *  check whether it still is the true destination or not. This flag will be
+ *  reset to false as soon as the this node's ttvn is increased
+ * @changes_list: tracks tt local changes within an originator interval
+ * @req_list: list of pending tt_requests
+ * @local_crc: Checksum of the local table, recomputed before sending a new OGM
+ */
+struct batadv_priv_tt {
+	atomic_t vn;
+	atomic_t ogm_append_cnt;
+	atomic_t local_changes;
+	struct list_head changes_list;
+	struct batadv_hashtable *local_hash;
+	struct batadv_hashtable *global_hash;
+	struct list_head req_list;
+	struct list_head roam_list;
+	spinlock_t changes_list_lock; /* protects changes */
+	spinlock_t req_list_lock; /* protects req_list */
+	spinlock_t roam_list_lock; /* protects roam_list */
+	atomic_t local_entry_num;
+	uint16_t local_crc;
+	unsigned char *last_changeset;
+	int16_t last_changeset_len;
+	spinlock_t last_changeset_lock; /* protects last_changeset */
+	struct delayed_work work;
+};
+
+#ifdef CONFIG_BATMAN_ADV_BLA
+struct batadv_priv_bla {
+	atomic_t num_requests; /* number of bla requests in flight */
+	struct batadv_hashtable *claim_hash;
+	struct batadv_hashtable *backbone_hash;
+	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
+	int bcast_duplist_curr;
+	/* protects bcast_duplist and bcast_duplist_curr */
+	spinlock_t bcast_duplist_lock;
+	struct batadv_bla_claim_dst claim_dest;
+	struct delayed_work work;
+};
+#endif
+
+struct batadv_priv_gw {
+	struct hlist_head list;
+	spinlock_t list_lock; /* protects gw_list and curr_gw */
+	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t reselect;
+};
+
+struct batadv_priv_vis {
+	struct list_head send_list;
+	struct batadv_hashtable *hash;
+	spinlock_t hash_lock; /* protects hash */
+	spinlock_t list_lock; /* protects info::recv_list */
+	struct delayed_work work;
+	struct batadv_vis_info *my_info;
+};
+
+/**
+ * struct batadv_priv_dat - per mesh interface DAT private data
+ * @addr: node DAT address
+ * @hash: hashtable representing the local ARP cache
+ * @work: work queue callback item for cache purging
+ */
+#ifdef CONFIG_BATMAN_ADV_DAT
+struct batadv_priv_dat {
+	batadv_dat_addr_t addr;
+	struct batadv_hashtable *hash;
+	struct delayed_work work;
+};
+#endif
 
 struct batadv_priv {
 	atomic_t mesh_state;
@@ -169,6 +274,9 @@ struct batadv_priv {
 	atomic_t fragmentation;		/* boolean */
 	atomic_t ap_isolation;		/* boolean */
 	atomic_t bridge_loop_avoidance;	/* boolean */
+#ifdef CONFIG_BATMAN_ADV_DAT
+	atomic_t distributed_arp_table;	/* boolean */
+#endif
 	atomic_t vis_mode;		/* VIS_TYPE_* */
 	atomic_t gw_mode;		/* GW_MODE_* */
 	atomic_t gw_sel_class;		/* uint */
@@ -179,64 +287,27 @@ struct batadv_priv {
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
-	atomic_t ttvn; /* translation table version number */
-	atomic_t tt_ogm_append_cnt;
-	atomic_t tt_local_changes; /* changes registered in a OGM interval */
-	atomic_t bla_num_requests; /* number of bla requests in flight */
-	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
-	 * If true, then I received a Roaming_adv and I have to inspect every
-	 * packet directed to me to check whether I am still the true
-	 * destination or not. This flag will be reset to false as soon as I
-	 * increase my TTVN
-	 */
-	bool tt_poss_change;
 	char num_ifaces;
 	struct batadv_debug_log *debug_log;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
-	struct hlist_head gw_list;
-	struct list_head tt_changes_list; /* tracks changes in a OGM int */
-	struct list_head vis_send_list;
 	struct batadv_hashtable *orig_hash;
-	struct batadv_hashtable *tt_local_hash;
-	struct batadv_hashtable *tt_global_hash;
-#ifdef CONFIG_BATMAN_ADV_BLA
-	struct batadv_hashtable *claim_hash;
-	struct batadv_hashtable *backbone_hash;
-#endif
-	struct list_head tt_req_list; /* list of pending tt_requests */
-	struct list_head tt_roam_list;
-	struct batadv_hashtable *vis_hash;
-#ifdef CONFIG_BATMAN_ADV_BLA
-	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
-	int bcast_duplist_curr;
-	struct batadv_bla_claim_dst claim_dest;
-#endif
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
-	spinlock_t forw_bcast_list_lock; /* protects  */
-	spinlock_t tt_changes_list_lock; /* protects tt_changes */
-	spinlock_t tt_req_list_lock; /* protects tt_req_list */
-	spinlock_t tt_roam_list_lock; /* protects tt_roam_list */
-	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
-	spinlock_t vis_hash_lock; /* protects vis_hash */
-	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
-	atomic_t num_local_tt;
-	/* Checksum of the local table, recomputed before sending a new OGM */
-	uint16_t tt_crc;
-	unsigned char *tt_buff;
-	int16_t tt_buff_len;
-	spinlock_t tt_buff_lock; /* protects tt_buff */
-	struct delayed_work tt_work;
+	spinlock_t forw_bcast_list_lock; /* protects forw_bcast_list */
 	struct delayed_work orig_work;
-	struct delayed_work vis_work;
-	struct delayed_work bla_work;
-	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
-	atomic_t gw_reselect;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
-	struct batadv_vis_info *my_vis_info;
 	struct batadv_algo_ops *bat_algo_ops;
+#ifdef CONFIG_BATMAN_ADV_BLA
+	struct batadv_priv_bla bla;
+#endif
+	struct batadv_priv_gw gw;
+	struct batadv_priv_tt tt;
+	struct batadv_priv_vis vis;
+#ifdef CONFIG_BATMAN_ADV_DAT
+	struct batadv_priv_dat dat;
+#endif
 };
 
 struct batadv_socket_client {
@@ -258,6 +329,7 @@ struct batadv_tt_common_entry {
 	uint8_t addr[ETH_ALEN];
 	struct hlist_node hash_entry;
 	uint16_t flags;
+	unsigned long added_at;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };
@@ -277,6 +349,7 @@ struct batadv_tt_global_entry {
 struct batadv_tt_orig_list_entry {
 	struct batadv_orig_node *orig_node;
 	uint8_t ttvn;
+	atomic_t refcount;
 	struct rcu_head rcu;
 	struct hlist_node list;
 };
@@ -288,6 +361,7 @@ struct batadv_backbone_gw {
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
 	unsigned long lasttime;	/* last time we heard of this backbone gw */
+	atomic_t wait_periods;
 	atomic_t request_sent;
 	atomic_t refcount;
 	struct rcu_head rcu;
@@ -405,6 +479,38 @@ struct batadv_algo_ops {
 	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	/* send scheduled OGM */
 	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
+};
+
+/**
+ * struct batadv_dat_entry - it is a single entry of batman-adv ARP backend. It
+ * is used to stored ARP entries needed for the global DAT cache
+ * @ip: the IPv4 corresponding to this DAT/ARP entry
+ * @mac_addr: the MAC address associated to the stored IPv4
+ * @last_update: time in jiffies when this entry was refreshed last time
+ * @hash_entry: hlist node for batadv_priv_dat::hash
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ */
+struct batadv_dat_entry {
+	__be32 ip;
+	uint8_t mac_addr[ETH_ALEN];
+	unsigned long last_update;
+	struct hlist_node hash_entry;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
+ * struct batadv_dat_candidate - candidate destination for DAT operations
+ * @type: the type of the selected candidate. It can one of the following:
+ *	  - BATADV_DAT_CANDIDATE_NOT_FOUND
+ *	  - BATADV_DAT_CANDIDATE_ORIG
+ * @orig_node: if type is BATADV_DAT_CANDIDATE_ORIG this field points to the
+ *	       corresponding originator node structure
+ */
+struct batadv_dat_candidate {
+	int type;
+	struct batadv_orig_node *orig_node;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

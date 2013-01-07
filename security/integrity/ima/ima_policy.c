@@ -45,8 +45,8 @@ struct ima_rule_entry {
 	enum ima_hooks func;
 	int mask;
 	unsigned long fsmagic;
-	uid_t uid;
-	uid_t fowner;
+	kuid_t uid;
+	kuid_t fowner;
 	struct {
 		void *rule;	/* LSM file metadata specific */
 		int type;	/* audit type */
@@ -78,8 +78,9 @@ static struct ima_rule_entry default_rules[] = {
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
-	{.action = MEASURE,.func = FILE_CHECK,.mask = MAY_READ,.uid = 0,
+	{.action = MEASURE,.func = FILE_CHECK,.mask = MAY_READ,.uid = GLOBAL_ROOT_UID,
 	 .flags = IMA_FUNC | IMA_MASK | IMA_UID},
+	{.action = MEASURE,.func = MODULE_CHECK, .flags = IMA_FUNC},
 };
 
 static struct ima_rule_entry default_appraise_rules[] = {
@@ -93,7 +94,7 @@ static struct ima_rule_entry default_appraise_rules[] = {
 	{.action = DONT_APPRAISE,.fsmagic = SECURITYFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE,.fsmagic = SELINUX_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE,.fsmagic = CGROUP_SUPER_MAGIC,.flags = IMA_FSMAGIC},
-	{.action = APPRAISE,.fowner = 0,.flags = IMA_FOWNER},
+	{.action = APPRAISE,.fowner = GLOBAL_ROOT_UID,.flags = IMA_FOWNER},
 };
 
 static LIST_HEAD(ima_default_rules);
@@ -141,9 +142,9 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
 		return false;
-	if ((rule->flags & IMA_UID) && rule->uid != cred->uid)
+	if ((rule->flags & IMA_UID) && !uid_eq(rule->uid, cred->uid))
 		return false;
-	if ((rule->flags & IMA_FOWNER) && rule->fowner != inode->i_uid)
+	if ((rule->flags & IMA_FOWNER) && !uid_eq(rule->fowner, inode->i_uid))
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
@@ -336,8 +337,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
-	entry->uid = -1;
-	entry->fowner = -1;
+	entry->uid = INVALID_UID;
+	entry->fowner = INVALID_UID;
 	entry->action = UNKNOWN;
 	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -401,6 +402,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			/* PATH_CHECK is for backwards compat */
 			else if (strcmp(args[0].from, "PATH_CHECK") == 0)
 				entry->func = FILE_CHECK;
+			else if (strcmp(args[0].from, "MODULE_CHECK") == 0)
+				entry->func = MODULE_CHECK;
 			else if (strcmp(args[0].from, "FILE_MMAP") == 0)
 				entry->func = FILE_MMAP;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
@@ -445,15 +448,15 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_uid:
 			ima_log_string(ab, "uid", args[0].from);
 
-			if (entry->uid != -1) {
+			if (uid_valid(entry->uid)) {
 				result = -EINVAL;
 				break;
 			}
 
 			result = strict_strtoul(args[0].from, 10, &lnum);
 			if (!result) {
-				entry->uid = (uid_t) lnum;
-				if (entry->uid != lnum)
+				entry->uid = make_kuid(current_user_ns(), (uid_t)lnum);
+				if (!uid_valid(entry->uid) || (((uid_t)lnum) != lnum))
 					result = -EINVAL;
 				else
 					entry->flags |= IMA_UID;
@@ -462,15 +465,15 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_fowner:
 			ima_log_string(ab, "fowner", args[0].from);
 
-			if (entry->fowner != -1) {
+			if (uid_valid(entry->fowner)) {
 				result = -EINVAL;
 				break;
 			}
 
 			result = strict_strtoul(args[0].from, 10, &lnum);
 			if (!result) {
-				entry->fowner = (uid_t) lnum;
-				if (entry->fowner != lnum)
+				entry->fowner = make_kuid(current_user_ns(), (uid_t)lnum);
+				if (!uid_valid(entry->fowner) || (((uid_t)lnum) != lnum))
 					result = -EINVAL;
 				else
 					entry->flags |= IMA_FOWNER;

@@ -45,7 +45,7 @@ struct queue_item {
 static struct kmem_cache *tipc_queue_item_cache;
 static struct list_head signal_queue_head;
 static DEFINE_SPINLOCK(qitem_lock);
-static int handler_enabled;
+static int handler_enabled __read_mostly;
 
 static void process_signal_queue(unsigned long dummy);
 
@@ -116,7 +116,6 @@ void tipc_handler_stop(void)
 		return;
 
 	handler_enabled = 0;
-	tasklet_disable(&tipc_tasklet);
 	tasklet_kill(&tipc_tasklet);
 
 	spin_lock_bh(&qitem_lock);

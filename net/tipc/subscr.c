@@ -304,9 +304,9 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	}
 
 	/* Refuse subscription if global limit exceeded */
-	if (atomic_read(&topsrv.subscription_count) >= tipc_max_subscriptions) {
+	if (atomic_read(&topsrv.subscription_count) >= TIPC_MAX_SUBSCRIPTIONS) {
 		pr_warn("Subscription rejected, limit reached (%u)\n",
-			tipc_max_subscriptions);
+			TIPC_MAX_SUBSCRIPTIONS);
 		subscr_terminate(subscriber);
 		return NULL;
 	}
@@ -462,7 +462,7 @@ static void subscr_named_msg_event(void *usr_handle,
 		kfree(subscriber);
 		return;
 	}
-	tipc_connect2port(subscriber->port_ref, orig);
+	tipc_connect(subscriber->port_ref, orig);
 
 	/* Lock server port (& save lock address for future use) */
 	subscriber->lock = tipc_port_lock(subscriber->port_ref)->lock;

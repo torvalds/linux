@@ -129,6 +129,13 @@ int dummy_rproc_example(struct rproc *my_rproc)
 
       Returns 0 on success and -EINVAL if @rproc isn't valid.
 
+  void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
+    - Report a crash in a remoteproc
+      This function must be called every time a crash is detected by the
+      platform specific rproc implementation. This should not be called from a
+      non-remoteproc driver. This function can be called from atomic/interrupt
+      context.
+
 5. Implementation callbacks
 
 These callbacks should be provided by platform-specific remoteproc

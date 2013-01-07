@@ -105,9 +105,6 @@
 #define AD7758_APP_PWR		4
 #define AD7758_WT(p, w)		(((w) << 2) | (p))
 
-#define DRIVER_NAME		"ade7758"
-
-
 /**
  * struct ade7758_state - device instance specific data
  * @us:			actual spi_device
@@ -122,7 +119,7 @@ struct ade7758_state {
 	u8			*tx;
 	u8			*rx;
 	struct mutex		buf_lock;
-	struct iio_chan_spec	*ade7758_ring_channels;
+	const struct iio_chan_spec *ade7758_ring_channels;
 	struct spi_transfer	ring_xfer[4];
 	struct spi_message	ring_msg;
 	/*

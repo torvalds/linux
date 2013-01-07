@@ -50,6 +50,18 @@ typedef int (*rproc_handle_resource_t)(struct rproc *rproc, void *, int avail);
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
 
+static const char * const rproc_crash_names[] = {
+	[RPROC_MMUFAULT]	= "mmufault",
+};
+
+/* translate rproc_crash_type to string */
+static const char *rproc_crash_to_string(enum rproc_crash_type type)
+{
+	if (type < ARRAY_SIZE(rproc_crash_names))
+		return rproc_crash_names[type];
+	return "unkown";
+}
+
 /*
  * This is the IOMMU fault handler we register with the IOMMU API
  * (when relevant; not all remote processors access memory through
@@ -57,18 +69,19 @@ static DEFINE_IDA(rproc_dev_index);
  *
  * IOMMU core will invoke this handler whenever the remote processor
  * will try to access an unmapped device address.
- *
- * Currently this is mostly a stub, but it will be later used to trigger
- * the recovery of the remote processor.
  */
 static int rproc_iommu_fault(struct iommu_domain *domain, struct device *dev,
 		unsigned long iova, int flags, void *token)
 {
+	struct rproc *rproc = token;
+
 	dev_err(dev, "iommu fault: da 0x%lx flags 0x%x\n", iova, flags);
+
+	rproc_report_crash(rproc, RPROC_MMUFAULT);
 
 	/*
 	 * Let the iommu core know we're not really handling this fault;
-	 * we just plan to use this as a recovery trigger.
+	 * we just used it as a recovery trigger.
 	 */
 	return -ENOSYS;
 }
@@ -215,8 +228,11 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 		return ret;
 	}
 
-	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
-					dma, size, notifyid);
+	/* Store largest notifyid */
+	rproc->max_notifyid = max(rproc->max_notifyid, notifyid);
+
+	dev_dbg(dev, "vring%d: va %p dma %llx size %x idr %d\n", i, va,
+				(unsigned long long)dma, size, notifyid);
 
 	rvring->va = va;
 	rvring->dma = dma;
@@ -256,13 +272,25 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	return 0;
 }
 
+static int rproc_max_notifyid(int id, void *p, void *data)
+{
+	int *maxid = data;
+	*maxid = max(*maxid, id);
+	return 0;
+}
+
 void rproc_free_vring(struct rproc_vring *rvring)
 {
 	int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 	struct rproc *rproc = rvring->rvdev->rproc;
+	int maxid = 0;
 
 	dma_free_coherent(rproc->dev.parent, size, rvring->va, rvring->dma);
 	idr_remove(&rproc->notifyids, rvring->notifyid);
+
+	/* Find the largest remaining notifyid */
+	idr_for_each(&rproc->notifyids, rproc_max_notifyid, &maxid);
+	rproc->max_notifyid = maxid;
 }
 
 /**
@@ -545,17 +573,10 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout rsc: da %x, pa %x, len %x, flags %x\n",
 			rsc->da, rsc->pa, rsc->len, rsc->flags);
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-	if (!mapping) {
-		dev_err(dev, "kzalloc mapping failed\n");
-		return -ENOMEM;
-	}
-
 	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
 	if (!carveout) {
 		dev_err(dev, "kzalloc carveout failed\n");
-		ret = -ENOMEM;
-		goto free_mapping;
+		return -ENOMEM;
 	}
 
 	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
@@ -565,7 +586,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		goto free_carv;
 	}
 
-	dev_dbg(dev, "carveout va %p, dma %x, len 0x%x\n", va, dma, rsc->len);
+	dev_dbg(dev, "carveout va %p, dma %llx, len 0x%x\n", va,
+					(unsigned long long)dma, rsc->len);
 
 	/*
 	 * Ok, this is non-standard.
@@ -585,11 +607,18 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	 * physical address in this case.
 	 */
 	if (rproc->domain) {
+		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+		if (!mapping) {
+			dev_err(dev, "kzalloc mapping failed\n");
+			ret = -ENOMEM;
+			goto dma_free;
+		}
+
 		ret = iommu_map(rproc->domain, rsc->da, dma, rsc->len,
 								rsc->flags);
 		if (ret) {
 			dev_err(dev, "iommu_map failed: %d\n", ret);
-			goto dma_free;
+			goto free_mapping;
 		}
 
 		/*
@@ -603,7 +632,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		mapping->len = rsc->len;
 		list_add_tail(&mapping->node, &rproc->mappings);
 
-		dev_dbg(dev, "carveout mapped 0x%x to 0x%x\n", rsc->da, dma);
+		dev_dbg(dev, "carveout mapped 0x%x to 0x%llx\n",
+					rsc->da, (unsigned long long)dma);
 	}
 
 	/*
@@ -634,12 +664,12 @@ static int rproc_handle_carveout(struct rproc *rproc,
 
 	return 0;
 
+free_mapping:
+	kfree(mapping);
 dma_free:
 	dma_free_coherent(dev->parent, rsc->len, va, dma);
 free_carv:
 	kfree(carveout);
-free_mapping:
-	kfree(mapping);
 	return ret;
 }
 
@@ -871,6 +901,91 @@ out:
 	complete_all(&rproc->firmware_loading_complete);
 }
 
+static int rproc_add_virtio_devices(struct rproc *rproc)
+{
+	int ret;
+
+	/* rproc_del() calls must wait until async loader completes */
+	init_completion(&rproc->firmware_loading_complete);
+
+	/*
+	 * We must retrieve early virtio configuration info from
+	 * the firmware (e.g. whether to register a virtio device,
+	 * what virtio features does it support, ...).
+	 *
+	 * We're initiating an asynchronous firmware loading, so we can
+	 * be built-in kernel code, without hanging the boot process.
+	 */
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				      rproc->firmware, &rproc->dev, GFP_KERNEL,
+				      rproc, rproc_fw_config_virtio);
+	if (ret < 0) {
+		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
+		complete_all(&rproc->firmware_loading_complete);
+	}
+
+	return ret;
+}
+
+/**
+ * rproc_trigger_recovery() - recover a remoteproc
+ * @rproc: the remote processor
+ *
+ * The recovery is done by reseting all the virtio devices, that way all the
+ * rpmsg drivers will be reseted along with the remote processor making the
+ * remoteproc functional again.
+ *
+ * This function can sleep, so it cannot be called from atomic context.
+ */
+int rproc_trigger_recovery(struct rproc *rproc)
+{
+	struct rproc_vdev *rvdev, *rvtmp;
+
+	dev_err(&rproc->dev, "recovering %s\n", rproc->name);
+
+	init_completion(&rproc->crash_comp);
+
+	/* clean up remote vdev entries */
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
+		rproc_remove_virtio_dev(rvdev);
+
+	/* wait until there is no more rproc users */
+	wait_for_completion(&rproc->crash_comp);
+
+	return rproc_add_virtio_devices(rproc);
+}
+
+/**
+ * rproc_crash_handler_work() - handle a crash
+ *
+ * This function needs to handle everything related to a crash, like cpu
+ * registers and stack dump, information to help to debug the fatal error, etc.
+ */
+static void rproc_crash_handler_work(struct work_struct *work)
+{
+	struct rproc *rproc = container_of(work, struct rproc, crash_handler);
+	struct device *dev = &rproc->dev;
+
+	dev_dbg(dev, "enter %s\n", __func__);
+
+	mutex_lock(&rproc->lock);
+
+	if (rproc->state == RPROC_CRASHED || rproc->state == RPROC_OFFLINE) {
+		/* handle only the first crash detected */
+		mutex_unlock(&rproc->lock);
+		return;
+	}
+
+	rproc->state = RPROC_CRASHED;
+	dev_err(dev, "handling crash #%u in %s\n", ++rproc->crash_cnt,
+		rproc->name);
+
+	mutex_unlock(&rproc->lock);
+
+	if (!rproc->recovery_disabled)
+		rproc_trigger_recovery(rproc);
+}
+
 /**
  * rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
@@ -992,6 +1107,10 @@ void rproc_shutdown(struct rproc *rproc)
 
 	rproc_disable_iommu(rproc);
 
+	/* if in crash state, unlock crash handler */
+	if (rproc->state == RPROC_CRASHED)
+		complete_all(&rproc->crash_comp);
+
 	rproc->state = RPROC_OFFLINE;
 
 	dev_info(dev, "stopped remote processor %s\n", rproc->name);
@@ -1026,7 +1145,7 @@ EXPORT_SYMBOL(rproc_shutdown);
 int rproc_add(struct rproc *rproc)
 {
 	struct device *dev = &rproc->dev;
-	int ret = 0;
+	int ret;
 
 	ret = device_add(dev);
 	if (ret < 0)
@@ -1040,26 +1159,7 @@ int rproc_add(struct rproc *rproc)
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
 
-	/* rproc_del() calls must wait until async loader completes */
-	init_completion(&rproc->firmware_loading_complete);
-
-	/*
-	 * We must retrieve early virtio configuration info from
-	 * the firmware (e.g. whether to register a virtio device,
-	 * what virtio features does it support, ...).
-	 *
-	 * We're initiating an asynchronous firmware loading, so we can
-	 * be built-in kernel code, without hanging the boot process.
-	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-					rproc->firmware, dev, GFP_KERNEL,
-					rproc, rproc_fw_config_virtio);
-	if (ret < 0) {
-		dev_err(dev, "request_firmware_nowait failed: %d\n", ret);
-		complete_all(&rproc->firmware_loading_complete);
-	}
-
-	return ret;
+	return rproc_add_virtio_devices(rproc);
 }
 EXPORT_SYMBOL(rproc_add);
 
@@ -1165,6 +1265,9 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->traces);
 	INIT_LIST_HEAD(&rproc->rvdevs);
 
+	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
+	init_completion(&rproc->crash_comp);
+
 	rproc->state = RPROC_OFFLINE;
 
 	return rproc;
@@ -1220,6 +1323,32 @@ int rproc_del(struct rproc *rproc)
 	return 0;
 }
 EXPORT_SYMBOL(rproc_del);
+
+/**
+ * rproc_report_crash() - rproc crash reporter function
+ * @rproc: remote processor
+ * @type: crash type
+ *
+ * This function must be called every time a crash is detected by the low-level
+ * drivers implementing a specific remoteproc. This should not be called from a
+ * non-remoteproc driver.
+ *
+ * This function can be called from atomic/interrupt context.
+ */
+void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
+{
+	if (!rproc) {
+		pr_err("NULL rproc pointer\n");
+		return;
+	}
+
+	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
+		rproc->name, rproc_crash_to_string(type));
+
+	/* create a new task to handle the error */
+	schedule_work(&rproc->crash_handler);
+}
+EXPORT_SYMBOL(rproc_report_crash);
 
 static int __init remoteproc_init(void)
 {

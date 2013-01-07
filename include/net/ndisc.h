@@ -49,6 +49,7 @@ enum {
 #include <linux/types.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
+#include <linux/hash.h>
 
 #include <net/neighbour.h>
 
@@ -75,6 +76,13 @@ struct ra_msg {
         struct icmp6hdr		icmph;
 	__be32			reachable_time;
 	__be32			retrans_timer;
+};
+
+struct rd_msg {
+	struct icmp6hdr icmph;
+	struct in6_addr	target;
+	struct in6_addr	dest;
+	__u8		opt[0];
 };
 
 struct nd_opt_hdr {
@@ -134,7 +142,7 @@ static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, _
 {
 	const u32 *p32 = pkey;
 
-	return (((p32[0] ^ dev->ifindex) * hash_rnd[0]) +
+	return (((p32[0] ^ hash32_ptr(dev)) * hash_rnd[0]) +
 		(p32[1] * hash_rnd[1]) +
 		(p32[2] * hash_rnd[2]) +
 		(p32[3] * hash_rnd[3]));
@@ -188,21 +196,6 @@ extern void			ndisc_send_redirect(struct sk_buff *skb,
 
 extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,
 					     struct net_device *dev, int dir);
-
-extern struct sk_buff		*ndisc_build_skb(struct net_device *dev,
-						 const struct in6_addr *daddr,
-						 const struct in6_addr *saddr,
-						 struct icmp6hdr *icmp6h,
-						 const struct in6_addr *target,
-						 int llinfo);
-
-extern void			ndisc_send_skb(struct sk_buff *skb,
-					       struct net_device *dev,
-					       struct neighbour *neigh,
-					       const struct in6_addr *daddr,
-					       const struct in6_addr *saddr,
-					       struct icmp6hdr *icmp6h);
-
 
 
 /*

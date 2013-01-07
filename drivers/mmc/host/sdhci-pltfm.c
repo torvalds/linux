@@ -75,6 +75,12 @@ void sdhci_get_of_property(struct platform_device *pdev)
 		if (sdhci_of_wp_inverted(np))
 			host->quirks |= SDHCI_QUIRK_INVERTED_WRITE_PROTECT;
 
+		if (of_get_property(np, "broken-cd", NULL))
+			host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
+		if (of_get_property(np, "no-1-8-v", NULL))
+			host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+
 		if (of_device_is_compatible(np, "fsl,p2020-rev1-esdhc"))
 			host->quirks |= SDHCI_QUIRK_BROKEN_DMA;
 
@@ -86,6 +92,12 @@ void sdhci_get_of_property(struct platform_device *pdev)
 		clk = of_get_property(np, "clock-frequency", &size);
 		if (clk && size == sizeof(*clk) && *clk)
 			pltfm_host->clock = be32_to_cpup(clk);
+
+		if (of_find_property(np, "keep-power-in-suspend", NULL))
+			host->mmc->pm_caps |= MMC_PM_KEEP_POWER;
+
+		if (of_find_property(np, "enable-sdio-wakeup", NULL))
+			host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 	}
 }
 #else
@@ -146,6 +158,13 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 		ret = -ENOMEM;
 		goto err_remap;
 	}
+
+	/*
+	 * Some platforms need to probe the controller to be able to
+	 * determine which caps should be used.
+	 */
+	if (host->ops && host->ops->platform_init)
+		host->ops->platform_init(host);
 
 	platform_set_drvdata(pdev, host);
 

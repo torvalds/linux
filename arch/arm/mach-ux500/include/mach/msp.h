@@ -8,7 +8,7 @@
 #ifndef __MSP_H
 #define __MSP_H
 
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 enum msp_i2s_id {
 	MSP_I2S_0 = 0,
@@ -22,8 +22,6 @@ struct msp_i2s_platform_data {
 	enum msp_i2s_id id;
 	struct stedma40_chan_cfg *msp_i2s_dma_rx;
 	struct stedma40_chan_cfg *msp_i2s_dma_tx;
-	int (*msp_i2s_init) (void);
-	int (*msp_i2s_exit) (void);
 };
 
 #endif

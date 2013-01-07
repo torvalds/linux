@@ -625,8 +625,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8974_dapm_routes),
 };
 
-static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8974_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	int ret;
 
@@ -636,7 +636,7 @@ static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int wm8974_i2c_remove(struct i2c_client *client)
+static int wm8974_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -655,27 +655,11 @@ static struct i2c_driver wm8974_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8974_i2c_probe,
-	.remove =   __devexit_p(wm8974_i2c_remove),
+	.remove =   wm8974_i2c_remove,
 	.id_table = wm8974_i2c_id,
 };
 
-static int __init wm8974_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8974_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8974 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8974_modinit);
-
-static void __exit wm8974_exit(void)
-{
-	i2c_del_driver(&wm8974_i2c_driver);
-}
-module_exit(wm8974_exit);
+module_i2c_driver(wm8974_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8974 driver");
 MODULE_AUTHOR("Liam Girdwood");

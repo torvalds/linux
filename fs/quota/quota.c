@@ -32,8 +32,8 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 	/* allow to query information for dquots we "own" */
 	case Q_GETQUOTA:
 	case Q_XGETQUOTA:
-		if ((type == USRQUOTA && current_euid() == id) ||
-		    (type == GRPQUOTA && in_egroup_p(id)))
+		if ((type == USRQUOTA && uid_eq(current_euid(), make_kuid(current_user_ns(), id))) ||
+		    (type == GRPQUOTA && in_egroup_p(make_kgid(current_user_ns(), id))))
 			break;
 		/*FALLTHROUGH*/
 	default:
@@ -130,13 +130,17 @@ static void copy_to_if_dqblk(struct if_dqblk *dst, struct fs_disk_quota *src)
 static int quota_getquota(struct super_block *sb, int type, qid_t id,
 			  void __user *addr)
 {
+	struct kqid qid;
 	struct fs_disk_quota fdq;
 	struct if_dqblk idq;
 	int ret;
 
 	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
+	qid = make_kqid(current_user_ns(), type, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+	ret = sb->s_qcop->get_dqblk(sb, qid, &fdq);
 	if (ret)
 		return ret;
 	copy_to_if_dqblk(&idq, &fdq);
@@ -176,13 +180,17 @@ static int quota_setquota(struct super_block *sb, int type, qid_t id,
 {
 	struct fs_disk_quota fdq;
 	struct if_dqblk idq;
+	struct kqid qid;
 
 	if (copy_from_user(&idq, addr, sizeof(idq)))
 		return -EFAULT;
 	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
+	qid = make_kqid(current_user_ns(), type, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
 	copy_from_if_dqblk(&fdq, &idq);
-	return sb->s_qcop->set_dqblk(sb, type, id, &fdq);
+	return sb->s_qcop->set_dqblk(sb, qid, &fdq);
 }
 
 static int quota_setxstate(struct super_block *sb, int cmd, void __user *addr)
@@ -213,23 +221,31 @@ static int quota_setxquota(struct super_block *sb, int type, qid_t id,
 			   void __user *addr)
 {
 	struct fs_disk_quota fdq;
+	struct kqid qid;
 
 	if (copy_from_user(&fdq, addr, sizeof(fdq)))
 		return -EFAULT;
 	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
-	return sb->s_qcop->set_dqblk(sb, type, id, &fdq);
+	qid = make_kqid(current_user_ns(), type, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+	return sb->s_qcop->set_dqblk(sb, qid, &fdq);
 }
 
 static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 			   void __user *addr)
 {
 	struct fs_disk_quota fdq;
+	struct kqid qid;
 	int ret;
 
 	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
+	qid = make_kqid(current_user_ns(), type, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+	ret = sb->s_qcop->get_dqblk(sb, qid, &fdq);
 	if (!ret && copy_to_user(addr, &fdq, sizeof(fdq)))
 		return -EFAULT;
 	return ret;
@@ -291,6 +307,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	}
 }
 
+#ifdef CONFIG_BLOCK
+
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
@@ -306,6 +324,8 @@ static int quotactl_cmd_write(int cmd)
 	return 1;
 }
 
+#endif /* CONFIG_BLOCK */
+
 /*
  * look up a superblock on which quota ops will be performed
  * - use the name of a block device to find the superblock thereon
@@ -315,11 +335,11 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 #ifdef CONFIG_BLOCK
 	struct block_device *bdev;
 	struct super_block *sb;
-	char *tmp = getname(special);
+	struct filename *tmp = getname(special);
 
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
-	bdev = lookup_bdev(tmp);
+	bdev = lookup_bdev(tmp->name);
 	putname(tmp);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);

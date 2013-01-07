@@ -81,8 +81,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 		switch (musb->xceiv->state) {
 		case OTG_STATE_A_HOST:
 			musb->xceiv->state = OTG_STATE_A_SUSPEND;
-			musb->is_active = is_otg_enabled(musb)
-					&& otg->host->b_hnp_enable;
+			musb->is_active = otg->host->b_hnp_enable;
 			if (musb->is_active)
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(
@@ -91,8 +90,7 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 			break;
 		case OTG_STATE_B_HOST:
 			musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-			musb->is_active = is_otg_enabled(musb)
-					&& otg->host->b_hnp_enable;
+			musb->is_active = otg->host->b_hnp_enable;
 			musb_platform_try_idle(musb, 0);
 			break;
 		default:
@@ -190,8 +188,7 @@ void musb_root_disconnect(struct musb *musb)
 
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_SUSPEND:
-		if (is_otg_enabled(musb)
-				&& otg->host->b_hnp_enable) {
+		if (otg->host->b_hnp_enable) {
 			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 			musb->g.is_a_peripheral = 1;
 			break;
@@ -273,7 +270,7 @@ int musb_hub_control(
 			musb_port_suspend(musb, false);
 			break;
 		case USB_PORT_FEAT_POWER:
-			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
+			if (!hcd->self.is_b_host)
 				musb_platform_set_vbus(musb, 0);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
@@ -369,7 +366,7 @@ int musb_hub_control(
 			 * initialization logic, e.g. for OTG, or change any
 			 * logic relating to VBUS power-up.
 			 */
-			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
+			if (!hcd->self.is_b_host)
 				musb_start(musb);
 			break;
 		case USB_PORT_FEAT_RESET:

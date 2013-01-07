@@ -213,7 +213,6 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/freezer.h>
-#include <linux/utsname.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -228,10 +227,6 @@
 #define FSG_DRIVER_VERSION	"2009/09/11"
 
 static const char fsg_string_interface[] = "Mass Storage";
-
-#define FSG_NO_DEVICE_STRINGS    1
-#define FSG_NO_OTG               1
-#define FSG_NO_INTR_EP           1
 
 #include "storage_common.c"
 
@@ -349,7 +344,6 @@ struct fsg_config {
 
 	const char *vendor_name;		/*  8 characters or less */
 	const char *product_name;		/* 16 characters or less */
-	u16 release;
 
 	char			can_stall;
 };
@@ -2773,18 +2767,7 @@ buffhds_first_it:
 	bh->next = common->buffhds;
 
 	/* Prepare inquiryString */
-	if (cfg->release != 0xffff) {
-		i = cfg->release;
-	} else {
-		i = usb_gadget_controller_number(gadget);
-		if (i >= 0) {
-			i = 0x0300 + i;
-		} else {
-			WARNING(common, "controller '%s' not recognized\n",
-				gadget->name);
-			i = 0x0399;
-		}
-	}
+	i = get_default_bcdDevice();
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
@@ -2917,9 +2900,7 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 	}
 
 	fsg_common_put(common);
-	usb_free_descriptors(fsg->function.descriptors);
-	usb_free_descriptors(fsg->function.hs_descriptors);
-	usb_free_descriptors(fsg->function.ss_descriptors);
+	usb_free_all_descriptors(&fsg->function);
 	kfree(fsg);
 }
 
@@ -2929,6 +2910,8 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			i;
 	struct usb_ep		*ep;
+	unsigned		max_burst;
+	int			ret;
 
 	fsg->gadget = gadget;
 
@@ -2952,45 +2935,27 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep->driver_data = fsg->common;	/* claim the endpoint */
 	fsg->bulk_out = ep;
 
-	/* Copy descriptors */
-	f->descriptors = usb_copy_descriptors(fsg_fs_function);
-	if (unlikely(!f->descriptors))
-		return -ENOMEM;
+	/* Assume endpoint addresses are the same for both speeds */
+	fsg_hs_bulk_in_desc.bEndpointAddress =
+		fsg_fs_bulk_in_desc.bEndpointAddress;
+	fsg_hs_bulk_out_desc.bEndpointAddress =
+		fsg_fs_bulk_out_desc.bEndpointAddress;
 
-	if (gadget_is_dualspeed(gadget)) {
-		/* Assume endpoint addresses are the same for both speeds */
-		fsg_hs_bulk_in_desc.bEndpointAddress =
-			fsg_fs_bulk_in_desc.bEndpointAddress;
-		fsg_hs_bulk_out_desc.bEndpointAddress =
-			fsg_fs_bulk_out_desc.bEndpointAddress;
-		f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
-		if (unlikely(!f->hs_descriptors)) {
-			usb_free_descriptors(f->descriptors);
-			return -ENOMEM;
-		}
-	}
+	/* Calculate bMaxBurst, we know packet size is 1024 */
+	max_burst = min_t(unsigned, FSG_BUFLEN / 1024, 15);
 
-	if (gadget_is_superspeed(gadget)) {
-		unsigned	max_burst;
+	fsg_ss_bulk_in_desc.bEndpointAddress =
+		fsg_fs_bulk_in_desc.bEndpointAddress;
+	fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
 
-		/* Calculate bMaxBurst, we know packet size is 1024 */
-		max_burst = min_t(unsigned, FSG_BUFLEN / 1024, 15);
+	fsg_ss_bulk_out_desc.bEndpointAddress =
+		fsg_fs_bulk_out_desc.bEndpointAddress;
+	fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
 
-		fsg_ss_bulk_in_desc.bEndpointAddress =
-			fsg_fs_bulk_in_desc.bEndpointAddress;
-		fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
-
-		fsg_ss_bulk_out_desc.bEndpointAddress =
-			fsg_fs_bulk_out_desc.bEndpointAddress;
-		fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
-
-		f->ss_descriptors = usb_copy_descriptors(fsg_ss_function);
-		if (unlikely(!f->ss_descriptors)) {
-			usb_free_descriptors(f->hs_descriptors);
-			usb_free_descriptors(f->descriptors);
-			return -ENOMEM;
-		}
-	}
+	ret = usb_assign_descriptors(f, fsg_fs_function, fsg_hs_function,
+			fsg_ss_function);
+	if (ret)
+		goto autoconf_fail;
 
 	return 0;
 
@@ -2998,7 +2963,6 @@ autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
 	return -ENOTSUPP;
 }
-
 
 /****************************** ADD FUNCTION ******************************/
 
@@ -3110,7 +3074,6 @@ fsg_config_from_params(struct fsg_config *cfg,
 	/* Let MSF use defaults */
 	cfg->vendor_name = 0;
 	cfg->product_name = 0;
-	cfg->release = 0xffff;
 
 	cfg->ops = NULL;
 	cfg->private_data = NULL;

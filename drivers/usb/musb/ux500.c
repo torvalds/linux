@@ -36,6 +36,26 @@ struct ux500_glue {
 };
 #define glue_to_musb(g)	platform_get_drvdata(g->musb)
 
+static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long   flags;
+	irqreturn_t     retval = IRQ_NONE;
+	struct musb     *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
+}
+
 static int ux500_musb_init(struct musb *musb)
 {
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
@@ -43,6 +63,8 @@ static int ux500_musb_init(struct musb *musb)
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
+
+	musb->isr = ux500_musb_interrupt;
 
 	return 0;
 }
@@ -59,13 +81,12 @@ static const struct musb_platform_ops ux500_ops = {
 	.exit		= ux500_musb_exit,
 };
 
-static int __devinit ux500_probe(struct platform_device *pdev)
+static int ux500_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct ux500_glue		*glue;
 	struct clk			*clk;
-
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -74,7 +95,7 @@ static int __devinit ux500_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
@@ -84,13 +105,13 @@ static int __devinit ux500_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
-		goto err2;
+		goto err3;
 	}
 
 	ret = clk_enable(clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err3;
+		goto err4;
 	}
 
 	musb->dev.parent		= &pdev->dev;
@@ -109,30 +130,30 @@ static int __devinit ux500_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err4;
+		goto err5;
 	}
 
 	return 0;
 
-err4:
+err5:
 	clk_disable(clk);
 
-err3:
+err4:
 	clk_put(clk);
 
-err2:
+err3:
 	platform_device_put(musb);
 
 err1:
@@ -142,12 +163,11 @@ err0:
 	return ret;
 }
 
-static int __devexit ux500_remove(struct platform_device *pdev)
+static int ux500_remove(struct platform_device *pdev)
 {
 	struct ux500_glue	*glue = platform_get_drvdata(pdev);
 
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);
@@ -196,7 +216,7 @@ static const struct dev_pm_ops ux500_pm_ops = {
 
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,
-	.remove		= __devexit_p(ux500_remove),
+	.remove		= ux500_remove,
 	.driver		= {
 		.name	= "musb-ux500",
 		.pm	= DEV_PM_OPS,
@@ -206,15 +226,4 @@ static struct platform_driver ux500_driver = {
 MODULE_DESCRIPTION("UX500 MUSB Glue Layer");
 MODULE_AUTHOR("Mian Yousaf Kaukab <mian.yousaf.kaukab@stericsson.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init ux500_init(void)
-{
-	return platform_driver_register(&ux500_driver);
-}
-module_init(ux500_init);
-
-static void __exit ux500_exit(void)
-{
-	platform_driver_unregister(&ux500_driver);
-}
-module_exit(ux500_exit);
+module_platform_driver(ux500_driver);

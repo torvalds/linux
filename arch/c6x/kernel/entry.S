@@ -277,6 +277,8 @@ work_rescheduled:
  [A1]	BNOP	.S1	work_resched,5
 
 work_notifysig:
+	;; enable interrupts for do_notify_resume()
+	UNMASK_INT B2
 	B	.S2	do_notify_resume
 	LDW	.D2T1	*+SP(REGS__END+8),A6 ; syscall flag
 	ADDKPC	.S2	resume_userspace,B3,1
@@ -400,9 +402,24 @@ ret_from_fork_2:
 	STW	.D2T2	B0,*+SP(REGS_A4+8)
 ENDPROC(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+#ifdef CONFIG_C6X_BIG_KERNEL
+	MVKL	.S1	schedule_tail,A0
+	MVKH	.S1	schedule_tail,A0
+	B	.S2X	A0
+#else
+	B	.S2	schedule_tail
+#endif
+	LDW	.D2T2	*+SP(REGS_A0+8),B10 /* get fn  */
+	ADDKPC	.S2	0f,B3,3
+0:
+	B	.S2	B10		   /* call fn */
+	LDW	.D2T1	*+SP(REGS_A1+8),A4 /* get arg */
+	ADDKPC	.S2	ret_from_fork_2,B3,3
+ENDPROC(ret_from_kernel_thread)
+
 	;;
-	;; These are the interrupt handlers, responsible for calling __do_IRQ()
-	;; int6 is used for syscalls (see _system_call entry)
+	;; These are the interrupt handlers, responsible for calling c6x_do_IRQ()
 	;;
 	.macro SAVE_ALL_INT
 	SAVE_ALL IRP,ITSR
@@ -593,29 +610,10 @@ ENTRY(sys_sigaltstack)
 	NOP	4
 ENDPROC(sys_sigaltstack)
 
-	;; kernel_execve
-ENTRY(kernel_execve)
-	MVK	.S2	__NR_execve,B0
-	SWE
-	BNOP	.S2	B3,5
-ENDPROC(kernel_execve)
-
 	;;
 	;; Special system calls
 	;; return address is in B3
 	;;
-ENTRY(sys_clone)
-	ADD	.D1X	SP,8,A4
-#ifdef CONFIG_C6X_BIG_KERNEL
- ||	MVKL	.S1	sys_c6x_clone,A0
-	MVKH	.S1	sys_c6x_clone,A0
-	BNOP	.S2X	A0,5
-#else
- ||	B	.S2	sys_c6x_clone
-	NOP	5
-#endif
-ENDPROC(sys_clone)
-
 ENTRY(sys_rt_sigreturn)
 	ADD	.D1X	SP,8,A4
 #ifdef CONFIG_C6X_BIG_KERNEL
@@ -627,29 +625,6 @@ ENTRY(sys_rt_sigreturn)
 	NOP	5
 #endif
 ENDPROC(sys_rt_sigreturn)
-
-ENTRY(sys_execve)
-	ADDAW	.D2	SP,2,B6		; put regs addr in 4th parameter
-					; & adjust regs stack addr
-	LDW	.D2T2	*+SP(REGS_B4+8),B4
-
-	;; c6x_execve(char *name, char **argv,
-	;;            char **envp, struct pt_regs *regs)
-#ifdef CONFIG_C6X_BIG_KERNEL
- ||	MVKL	.S1	sys_c6x_execve,A0
-	MVKH	.S1	sys_c6x_execve,A0
-	B	.S2X	A0
-#else
- ||	B	.S2	sys_c6x_execve
-#endif
-	STW	.D2T2	B3,*SP--[2]
-	ADDKPC	.S2	ret_from_c6x_execve,B3,3
-
-ret_from_c6x_execve:
-	LDW	.D2T2	*++SP[2],B3
-	NOP	4
-	BNOP	.S2	B3,5
-ENDPROC(sys_execve)
 
 ENTRY(sys_pread_c6x)
 	MV	.D2X	A8,B7

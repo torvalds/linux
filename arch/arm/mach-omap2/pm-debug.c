@@ -27,13 +27,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <plat/clock.h>
-#include <plat/board.h>
+#include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
+#include "soc.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
@@ -169,7 +168,7 @@ static int pm_dbg_open(struct inode *inode, struct file *file)
 	default:
 		return single_open(file, pm_dbg_show_timers,
 			&inode->i_private);
-	};
+	}
 }
 
 static const struct file_operations debug_fops = {

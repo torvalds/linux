@@ -23,6 +23,10 @@
 
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
 
+#define RTL8192E_BOOT_IMG_FW	"RTL8192E/boot.img"
+#define RTL8192E_MAIN_IMG_FW	"RTL8192E/main.img"
+#define RTL8192E_DATA_IMG_FW	"RTL8192E/data.img"
+
 enum firmware_init_step {
 	FW_INIT_STEP0_BOOT = 0,
 	FW_INIT_STEP1_MAIN = 1,

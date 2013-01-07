@@ -20,7 +20,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-s3c.h>
 
 #include "dma.h"
 #include "idma.h"
@@ -49,8 +49,6 @@ struct i2s_dai {
 	struct clk *clk;
 	/* Clock for generating I2S signals */
 	struct clk *op_clk;
-	/* Array of clock names for op_clk */
-	const char **src_clk;
 	/* Pointer to the Primary_Fifo if this is Sec_Fifo, NULL otherwise */
 	struct i2s_dai *pri_dai;
 	/* Pointer to the Secondary_Fifo if it has one, NULL otherwise */
@@ -423,7 +421,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 			if (i2s->op_clk) {
 				if ((clk_id && !(mod & MOD_IMS_SYSMUX)) ||
 					(!clk_id && (mod & MOD_IMS_SYSMUX))) {
-					clk_disable(i2s->op_clk);
+					clk_disable_unprepare(i2s->op_clk);
 					clk_put(i2s->op_clk);
 				} else {
 					i2s->rclk_srcrate =
@@ -432,9 +430,13 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 				}
 			}
 
-			i2s->op_clk = clk_get(&i2s->pdev->dev,
-						i2s->src_clk[clk_id]);
-			clk_enable(i2s->op_clk);
+			if (clk_id)
+				i2s->op_clk = clk_get(&i2s->pdev->dev,
+						"i2s_opclk1");
+			else
+				i2s->op_clk = clk_get(&i2s->pdev->dev,
+						"i2s_opclk0");
+			clk_prepare_enable(i2s->op_clk);
 			i2s->rclk_srcrate = clk_get_rate(i2s->op_clk);
 
 			/* Over-ride the other's */
@@ -880,7 +882,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 		iounmap(i2s->addr);
 		return -ENOENT;
 	}
-	clk_enable(i2s->clk);
+	clk_prepare_enable(i2s->clk);
 
 	if (other) {
 		other->addr = i2s->addr;
@@ -922,7 +924,7 @@ static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 		if (i2s->quirks & QUIRK_NEED_RSTCLR)
 			writel(0, i2s->addr + I2SCON);
 
-		clk_disable(i2s->clk);
+		clk_disable_unprepare(i2s->clk);
 		clk_put(i2s->clk);
 
 		iounmap(i2s->addr);
@@ -950,8 +952,7 @@ static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
 					SNDRV_PCM_FMTBIT_S16_LE | \
 					SNDRV_PCM_FMTBIT_S24_LE)
 
-static __devinit
-struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
+static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 {
 	struct i2s_dai *i2s;
 
@@ -992,7 +993,7 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 	return i2s;
 }
 
-static __devinit int samsung_i2s_probe(struct platform_device *pdev)
+static int samsung_i2s_probe(struct platform_device *pdev)
 {
 	u32 dma_pl_chan, dma_cp_chan, dma_pl_sec_chan;
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
@@ -1007,6 +1008,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai = dev_get_drvdata(&pdev->dev);
 		snd_soc_register_dai(&sec_dai->pdev->dev,
 			&sec_dai->i2s_dai_drv);
+		asoc_dma_platform_register(&pdev->dev);
 		return 0;
 	}
 
@@ -1067,7 +1069,6 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 		(struct s3c2410_dma_client *)&pri_dai->dma_capture;
 	pri_dai->dma_playback.channel = dma_pl_chan;
 	pri_dai->dma_capture.channel = dma_cp_chan;
-	pri_dai->src_clk = i2s_cfg->src_clk;
 	pri_dai->dma_playback.dma_size = 4;
 	pri_dai->dma_capture.dma_size = 4;
 	pri_dai->base = regs_base;
@@ -1088,7 +1089,6 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 			(struct s3c2410_dma_client *)&sec_dai->dma_playback;
 		/* Use iDMA always if SysDMA not provided */
 		sec_dai->dma_playback.channel = dma_pl_sec_chan ? : -1;
-		sec_dai->src_clk = i2s_cfg->src_clk;
 		sec_dai->dma_playback.dma_size = 4;
 		sec_dai->base = regs_base;
 		sec_dai->quirks = quirks;
@@ -1107,6 +1107,8 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	asoc_dma_platform_register(&pdev->dev);
+
 	return 0;
 err:
 	release_mem_region(regs_base, resource_size(res));
@@ -1114,7 +1116,7 @@ err:
 	return ret;
 }
 
-static __devexit int samsung_i2s_remove(struct platform_device *pdev)
+static int samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct i2s_dai *i2s, *other;
 	struct resource *res;
@@ -1135,6 +1137,7 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
 
+	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	return 0;
@@ -1142,7 +1145,7 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver samsung_i2s_driver = {
 	.probe  = samsung_i2s_probe,
-	.remove = __devexit_p(samsung_i2s_remove),
+	.remove = samsung_i2s_remove,
 	.driver = {
 		.name = "samsung-i2s",
 		.owner = THIS_MODULE,

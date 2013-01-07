@@ -2107,6 +2107,7 @@
 #define NIG_REG_LLH1_ERROR_MASK 				 0x10090
 /* [RW 8] event id for llh1 */
 #define NIG_REG_LLH1_EVENT_ID					 0x10088
+#define NIG_REG_LLH1_FUNC_EN					 0x16104
 #define NIG_REG_LLH1_FUNC_MEM					 0x161c0
 #define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
 #define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
@@ -2302,6 +2303,15 @@
  * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
  * accommodate the 9 input clients to ETS arbiter. */
 #define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB			 0x18684
+/* [RW 1] MCP-to-host path enable. Set this bit to enable the routing of MCP
+ * packets to BRB LB interface to forward the packet to the host. All
+ * packets from MCP are forwarded to the network when this bit is cleared -
+ * regardless of the configured destination in tx_mng_destination register.
+ * When MCP-to-host paths for both ports 0 and 1 are disabled - the arbiter
+ * for BRB LB interface is bypassed and PBF LB traffic is always selected to
+ * send to BRB LB.
+ */
+#define NIG_REG_P0_TX_MNG_HOST_ENABLE				 0x182f4
 #define NIG_REG_P1_HWPFC_ENABLE					 0x181d0
 #define NIG_REG_P1_MAC_IN_EN					 0x185c0
 /* [RW 1] Output enable for TX MAC interface */
@@ -2418,6 +2428,12 @@
 #define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB			 0x186e4
 /* [R 1] TX FIFO for transmitting data to MAC is empty. */
 #define NIG_REG_P1_TX_MACFIFO_EMPTY				 0x18594
+/* [RW 1] MCP-to-host path enable. Set this bit to enable the routing of MCP
+ * packets to BRB LB interface to forward the packet to the host. All
+ * packets from MCP are forwarded to the network when this bit is cleared -
+ * regardless of the configured destination in tx_mng_destination register.
+ */
+#define NIG_REG_P1_TX_MNG_HOST_ENABLE				 0x182f8
 /* [R 1] FIFO empty status of the MCP TX FIFO used for storing MCP packets
    forwarded to the host. */
 #define NIG_REG_P1_TX_MNG_HOST_FIFO_EMPTY			 0x182b8
@@ -4949,6 +4965,10 @@
 #define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
 #define UMAC_COMMAND_CONFIG_REG_TX_ENA				 (0x1<<0)
 #define UMAC_REG_COMMAND_CONFIG					 0x8
+/* [RW 16] This is the duration for which MAC must wait to go back to ACTIVE
+ * state from LPI state when it receives packet for transmission. The
+ * decrement unit is 1 micro-second. */
+#define UMAC_REG_EEE_WAKE_TIMER					 0x6c
 /* [RW 32] Register Bit 0 refers to Bit 16 of the MAC address; Bit 1 refers
  * to bit 17 of the MAC address etc. */
 #define UMAC_REG_MAC_ADDR0					 0xc
@@ -4958,6 +4978,8 @@
 /* [RW 14] Defines a 14-Bit maximum frame length used by the MAC receive
  * logic to check frames. */
 #define UMAC_REG_MAXFR						 0x14
+#define UMAC_REG_UMAC_EEE_CTRL					 0x64
+#define UMAC_UMAC_EEE_CTRL_REG_EEE_EN				 (0x1<<3)
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define USDM_REG_AGG_INT_EVENT_0				 0xc4038
 #define USDM_REG_AGG_INT_EVENT_1				 0xc403c
@@ -5476,6 +5498,7 @@
 #define XMAC_CTRL_REG_RX_EN					 (0x1<<1)
 #define XMAC_CTRL_REG_SOFT_RESET				 (0x1<<6)
 #define XMAC_CTRL_REG_TX_EN					 (0x1<<0)
+#define XMAC_CTRL_REG_XLGMII_ALIGN_ENB				 (0x1<<7)
 #define XMAC_PAUSE_CTRL_REG_RX_PAUSE_EN				 (0x1<<18)
 #define XMAC_PAUSE_CTRL_REG_TX_PAUSE_EN				 (0x1<<17)
 #define XMAC_PFC_CTRL_HI_REG_FORCE_PFC_XON			 (0x1<<1)
@@ -5496,11 +5519,14 @@
 #define XMAC_REG_PAUSE_CTRL					 0x68
 #define XMAC_REG_PFC_CTRL					 0x70
 #define XMAC_REG_PFC_CTRL_HI					 0x74
+#define XMAC_REG_RX_LSS_CTRL					 0x50
 #define XMAC_REG_RX_LSS_STATUS					 0x58
 /* [RW 14] Maximum packet size in receive direction; exclusive of preamble &
  * CRC in strip mode */
 #define XMAC_REG_RX_MAX_SIZE					 0x40
 #define XMAC_REG_TX_CTRL					 0x20
+#define XMAC_RX_LSS_CTRL_REG_LOCAL_FAULT_DISABLE		 (0x1<<0)
+#define XMAC_RX_LSS_CTRL_REG_REMOTE_FAULT_DISABLE		 (0x1<<1)
 /* [RW 16] Indirect access to the XX table of the XX protection mechanism.
    The fields are:[4:0] - tail pointer; 9:5] - Link List size; 14:10] -
    header pointer. */
@@ -5916,6 +5942,16 @@
 #define MISC_REGISTERS_SPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
 #define MISC_REGISTERS_SPIO_SET_POS				 8
+#define MISC_SPIO_CLR_POS					 16
+#define MISC_SPIO_FLOAT					 (0xffL<<24)
+#define MISC_SPIO_FLOAT_POS					 24
+#define MISC_SPIO_INPUT_HI_Z					 2
+#define MISC_SPIO_INT_OLD_SET_POS				 16
+#define MISC_SPIO_OUTPUT_HIGH					 1
+#define MISC_SPIO_OUTPUT_LOW					 0
+#define MISC_SPIO_SET_POS					 8
+#define MISC_SPIO_SPIO4					 0x10
+#define MISC_SPIO_SPIO5					 0x20
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
 #define HW_LOCK_RESOURCE_DCBX_ADMIN_MIB				 13
 #define HW_LOCK_RESOURCE_DRV_FLAGS				 10
@@ -6124,7 +6160,9 @@
 #define PCICFG_COMMAND_INT_DISABLE		(1<<10)
 #define PCICFG_COMMAND_RESERVED 		(0x1f<<11)
 #define PCICFG_STATUS_OFFSET				0x06
-#define PCICFG_REVESION_ID_OFFSET			0x08
+#define PCICFG_REVISION_ID_OFFSET			0x08
+#define PCICFG_REVESION_ID_MASK			0xff
+#define PCICFG_REVESION_ID_ERROR_VAL		0xff
 #define PCICFG_CACHE_LINE_SIZE				0x0c
 #define PCICFG_LATENCY_TIMER				0x0d
 #define PCICFG_BAR_1_LOW				0x10
@@ -6666,6 +6704,7 @@
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_XFI	0x1B00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_DXGXS	0x1E00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_SFI	0x1F00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_KR2	0x3900
 
 
 #define MDIO_REG_BANK_10G_PARALLEL_DETECT		0x8130
@@ -6992,6 +7031,7 @@ Theotherbitsarereservedandshouldbezero*/
 /* BCM84833 only */
 #define MDIO_84833_TOP_CFG_FW_REV			0x400f
 #define MDIO_84833_TOP_CFG_FW_EEE		0x10b1
+#define MDIO_84833_TOP_CFG_FW_NO_EEE		0x1f81
 #define MDIO_84833_TOP_CFG_XGPHY_STRAP1			0x401a
 #define MDIO_84833_SUPER_ISOLATE		0x8000
 /* These are mailbox register set used by 84833. */
@@ -7039,7 +7079,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT2	0x12
 #define MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_ABILITY	0x4000
 #define MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_REQ		0x8000
-#define MDIO_WC_REG_PMD_IEEE9BLK_TENGBASE_KR_PMD_CONTROL_REGISTER_150  0x96
+#define MDIO_WC_REG_PCS_STATUS2				0x0021
+#define MDIO_WC_REG_PMD_KR_CONTROL			0x0096
 #define MDIO_WC_REG_XGXSBLK0_XGXSCONTROL		0x8000
 #define MDIO_WC_REG_XGXSBLK0_MISCCONTROL1		0x800e
 #define MDIO_WC_REG_XGXSBLK1_DESKEW			0x8010
@@ -7071,6 +7112,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130
 #define MDIO_WC_REG_PAR_DET_10G_CTRL			0x8131
 #define MDIO_WC_REG_XGXS_X2_CONTROL2			0x8141
+#define MDIO_WC_REG_XGXS_X2_CONTROL3			0x8142
 #define MDIO_WC_REG_XGXS_RX_LN_SWAP1			0x816B
 #define MDIO_WC_REG_XGXS_TX_LN_SWAP1			0x8169
 #define MDIO_WC_REG_GP2_STATUS_GP_2_0			0x81d0
@@ -7105,6 +7147,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_OFFSET		0x0a
 #define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_MASK		0x7c00
 #define MDIO_WC_REG_TX_FIR_TAP_ENABLE		0x8000
+#define MDIO_WC_REG_CL72_USERB0_CL72_TX_FIR_TAP		0x82e2
 #define MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL	0x82e3
 #define MDIO_WC_REG_CL72_USERB0_CL72_OS_DEF_CTRL	0x82e6
 #define MDIO_WC_REG_CL72_USERB0_CL72_BR_DEF_CTRL	0x82e7
@@ -7122,9 +7165,16 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_DIGITAL4_MISC5			0x833e
 #define MDIO_WC_REG_DIGITAL5_MISC6			0x8345
 #define MDIO_WC_REG_DIGITAL5_MISC7			0x8349
+#define MDIO_WC_REG_DIGITAL5_LINK_STATUS		0x834d
 #define MDIO_WC_REG_DIGITAL5_ACTUAL_SPEED		0x834e
 #define MDIO_WC_REG_DIGITAL6_MP5_NEXTPAGECTRL		0x8350
 #define MDIO_WC_REG_CL49_USERB0_CTRL			0x8368
+#define MDIO_WC_REG_CL73_USERB0_CTRL			0x8370
+#define MDIO_WC_REG_CL73_USERB0_USTAT			0x8371
+#define MDIO_WC_REG_CL73_BAM_CTRL1			0x8372
+#define MDIO_WC_REG_CL73_BAM_CTRL2			0x8373
+#define MDIO_WC_REG_CL73_BAM_CTRL3			0x8374
+#define MDIO_WC_REG_CL73_BAM_CODE_FIELD			0x837b
 #define MDIO_WC_REG_EEE_COMBO_CONTROL0			0x8390
 #define MDIO_WC_REG_TX66_CONTROL			0x83b0
 #define MDIO_WC_REG_RX66_CONTROL			0x83c0
@@ -7138,7 +7188,17 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_RX66_SCW3_MASK			0x83c9
 #define MDIO_WC_REG_FX100_CTRL1				0x8400
 #define MDIO_WC_REG_FX100_CTRL3				0x8402
-
+#define MDIO_WC_REG_CL82_USERB1_TX_CTRL5		0x8436
+#define MDIO_WC_REG_CL82_USERB1_TX_CTRL6		0x8437
+#define MDIO_WC_REG_CL82_USERB1_TX_CTRL7		0x8438
+#define MDIO_WC_REG_CL82_USERB1_TX_CTRL9		0x8439
+#define MDIO_WC_REG_CL82_USERB1_RX_CTRL10		0x843a
+#define MDIO_WC_REG_CL82_USERB1_RX_CTRL11		0x843b
+#define MDIO_WC_REG_ETA_CL73_OUI1			0x8453
+#define MDIO_WC_REG_ETA_CL73_OUI2			0x8454
+#define MDIO_WC_REG_ETA_CL73_OUI3			0x8455
+#define MDIO_WC_REG_ETA_CL73_LD_BAM_CODE		0x8456
+#define MDIO_WC_REG_ETA_CL73_LD_UD_CODE			0x8457
 #define MDIO_WC_REG_MICROBLK_CMD			0xffc2
 #define MDIO_WC_REG_MICROBLK_DL_STATUS			0xffc5
 #define MDIO_WC_REG_MICROBLK_CMD3			0xffcc
@@ -7160,10 +7220,11 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_REG_GPHY_ID_54618SE		0x5cd5
 #define MDIO_REG_GPHY_CL45_ADDR_REG			0xd
 #define MDIO_REG_GPHY_CL45_DATA_REG			0xe
-#define MDIO_REG_GPHY_EEE_ADV			0x3c
-#define MDIO_REG_GPHY_EEE_1G		(0x1 << 2)
-#define MDIO_REG_GPHY_EEE_100		(0x1 << 1)
 #define MDIO_REG_GPHY_EEE_RESOLVED		0x803e
+#define MDIO_REG_GPHY_EXP_ACCESS_GATE			0x15
+#define MDIO_REG_GPHY_EXP_ACCESS			0x17
+#define MDIO_REG_GPHY_EXP_ACCESS_TOP		0xd00
+#define MDIO_REG_GPHY_EXP_TOP_2K_BUF		0x40
 #define MDIO_REG_GPHY_AUX_STATUS			0x19
 #define MDIO_REG_INTR_STATUS				0x1a
 #define MDIO_REG_INTR_MASK				0x1b

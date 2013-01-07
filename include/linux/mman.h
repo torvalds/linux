@@ -1,24 +1,17 @@
 #ifndef _LINUX_MMAN_H
 #define _LINUX_MMAN_H
 
-#include <asm/mman.h>
-
-#define MREMAP_MAYMOVE	1
-#define MREMAP_FIXED	2
-
-#define OVERCOMMIT_GUESS		0
-#define OVERCOMMIT_ALWAYS		1
-#define OVERCOMMIT_NEVER		2
-
-#ifdef __KERNEL__
 #include <linux/mm.h>
 #include <linux/percpu_counter.h>
 
 #include <linux/atomic.h>
+#include <uapi/linux/mman.h>
 
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern struct percpu_counter vm_committed_as;
+
+unsigned long vm_memory_committed(void);
 
 static inline void vm_acct_memory(long pages)
 {
@@ -86,8 +79,6 @@ calc_vm_flag_bits(unsigned long flags)
 {
 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
-	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
 }
-#endif /* __KERNEL__ */
 #endif /* _LINUX_MMAN_H */

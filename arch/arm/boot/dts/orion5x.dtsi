@@ -1,0 +1,98 @@
+/*
+ * Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Marvell Orion5x SoC";
+	compatible = "marvell,orion5x";
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller {
+		compatible = "marvell,orion-intc", "marvell,intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0xf1020204 0x04>;
+	};
+
+	ocp@f1000000 {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0xf1000000 0x4000000
+		          0xf2200000 0xf2200000 0x0000800>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		gpio0: gpio@10100 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0x10100 0x40>;
+			ngpio = <32>;
+			interrupts = <6>, <7>, <8>, <9>;
+		};
+
+		serial@12000 {
+			compatible = "ns16550a";
+			reg = <0x12000 0x100>;
+			reg-shift = <2>;
+			interrupts = <3>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		serial@12100 {
+			compatible = "ns16550a";
+			reg = <0x12100 0x100>;
+			reg-shift = <2>;
+			interrupts = <4>;
+			/* set clock-frequency in board dts */
+			status = "disabled";
+		};
+
+		spi@10600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			reg = <0x10600 0x28>;
+			status = "disabled";
+		};
+
+		wdt@20300 {
+			compatible = "marvell,orion-wdt";
+			reg = <0x20300 0x28>;
+			status = "okay";
+		};
+
+		sata@80000 {
+			compatible = "marvell,orion-sata";
+			reg = <0x80000 0x5000>;
+			interrupts = <29>;
+			status = "disabled";
+		};
+
+		i2c@11000 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <5>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		crypto@90000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x90000 0x10000>,
+			      <0xf2200000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <22>;
+			status = "okay";
+		};
+	};
+};

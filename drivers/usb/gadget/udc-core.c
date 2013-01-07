@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
  */
 static inline int usb_gadget_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	return gadget->ops->start(driver, bind);
 }
@@ -262,8 +262,8 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
 	if (udc_is_newstyle(udc)) {
-		udc->driver->disconnect(udc->gadget);
 		usb_gadget_disconnect(udc->gadget);
+		udc->driver->disconnect(udc->gadget);
 		udc->driver->unbind(udc->gadget);
 		usb_gadget_udc_stop(udc->gadget, udc->driver);
 	} else {
@@ -311,13 +311,12 @@ EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 
 /* ------------------------------------------------------------------------- */
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
 	struct usb_udc		*udc = NULL;
 	int			ret;
 
-	if (!driver || !bind || !driver->setup)
+	if (!driver || !driver->bind || !driver->setup)
 		return -EINVAL;
 
 	mutex_lock(&udc_lock);
@@ -339,7 +338,7 @@ found:
 	udc->dev.driver = &driver->driver;
 
 	if (udc_is_newstyle(udc)) {
-		ret = bind(udc->gadget);
+		ret = driver->bind(udc->gadget, driver);
 		if (ret)
 			goto err1;
 		ret = usb_gadget_udc_start(udc->gadget, driver);
@@ -350,7 +349,7 @@ found:
 		usb_gadget_connect(udc->gadget);
 	} else {
 
-		ret = usb_gadget_start(udc->gadget, driver, bind);
+		ret = usb_gadget_start(udc->gadget, driver, driver->bind);
 		if (ret)
 			goto err1;
 
@@ -440,16 +439,6 @@ static DEVICE_ATTR(name, S_IRUSR, usb_udc_##param##_show, NULL)
 static USB_UDC_SPEED_ATTR(current_speed, speed);
 static USB_UDC_SPEED_ATTR(maximum_speed, max_speed);
 
-/* TODO: Scheduled for removal in 3.8. */
-static ssize_t usb_udc_is_dualspeed_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			gadget_is_dualspeed(udc->gadget));
-}
-static DEVICE_ATTR(is_dualspeed, S_IRUSR, usb_udc_is_dualspeed_show, NULL);
-
 #define USB_UDC_ATTR(name)					\
 ssize_t usb_udc_##name##_show(struct device *dev,		\
 		struct device_attribute *attr, char *buf)	\
@@ -473,7 +462,6 @@ static struct attribute *usb_udc_attrs[] = {
 	&dev_attr_current_speed.attr,
 	&dev_attr_maximum_speed.attr,
 
-	&dev_attr_is_dualspeed.attr,
 	&dev_attr_is_otg.attr,
 	&dev_attr_is_a_peripheral.attr,
 	&dev_attr_b_hnp_enable.attr,

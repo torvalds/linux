@@ -296,7 +296,7 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req3.flags |= (interface->vlan_enabled <<
 			    FCOE_KWQE_CONN_OFFLOAD3_B_VLAN_FLAG_SHIFT);
 
-	/* C2_VALID and ACK flags are not set as they are not suppported */
+	/* C2_VALID and ACK flags are not set as they are not supported */
 
 
 	/* Initialize offload request 4 structure */

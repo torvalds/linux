@@ -129,7 +129,7 @@ static struct irq_domain_ops irq_domain_sdv_ops = {
 	.xlate = sdv_xlate,
 };
 
-static __devinit int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
+static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 		struct pci_dev *pdev)
 {
 	struct irq_chip_type *ct;
@@ -186,7 +186,7 @@ out_free_desc:
 	return ret;
 }
 
-static int __devinit sdv_gpio_probe(struct pci_dev *pdev,
+static int sdv_gpio_probe(struct pci_dev *pdev,
 					const struct pci_device_id *pci_id)
 {
 	struct sdv_gpio_chip_data *sd;
@@ -270,7 +270,7 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 	kfree(sd);
 }
 
-static struct pci_device_id sdv_gpio_pci_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sdv_gpio_pci_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SDV_GPIO) },
 	{ 0, },
 };

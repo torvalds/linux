@@ -46,7 +46,7 @@ static int da9052_i2c_enable_multiwrite(struct da9052 *da9052)
 	return 0;
 }
 
-static struct i2c_device_id da9052_i2c_id[] = {
+static const struct i2c_device_id da9052_i2c_id[] = {
 	{"da9052", DA9052},
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
@@ -64,7 +64,7 @@ static const struct of_device_id dialog_dt_ids[] = {
 };
 #endif
 
-static int __devinit da9052_i2c_probe(struct i2c_client *client,
+static int da9052_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct da9052 *da9052;
@@ -104,7 +104,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 		const struct of_device_id *deviceid;
 
 		deviceid = of_match_node(dialog_dt_ids, np);
-		id = (const struct i2c_device_id *)deviceid->data;
+		id = deviceid->data;
 	}
 #endif
 
@@ -121,7 +121,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit da9052_i2c_remove(struct i2c_client *client)
+static int da9052_i2c_remove(struct i2c_client *client)
 {
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 
@@ -131,7 +131,7 @@ static int __devexit da9052_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver da9052_i2c_driver = {
 	.probe = da9052_i2c_probe,
-	.remove = __devexit_p(da9052_i2c_remove),
+	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {
 		.name = "da9052",

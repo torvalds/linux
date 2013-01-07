@@ -30,8 +30,8 @@
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <plat/orion_nand.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/mtd-orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
@@ -42,22 +42,12 @@
  ****************************************************************************/
 static struct map_desc orion5x_io_desc[] __initdata = {
 	{
-		.virtual	= ORION5X_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_REGS_PHYS_BASE),
 		.length		= ORION5X_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCIE_IO_PHYS_BASE),
-		.length		= ORION5X_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCI_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(ORION5X_PCI_IO_PHYS_BASE),
-		.length		= ORION5X_PCI_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= ORION5X_PCIE_WA_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCIE_WA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_WA_PHYS_BASE),
 		.length		= ORION5X_PCIE_WA_SIZE,
 		.type		= MT_DEVICE,
@@ -75,7 +65,7 @@ void __init orion5x_map_io(void)
  ****************************************************************************/
 static struct clk *tclk;
 
-static void __init clk_init(void)
+void __init clk_init(void)
 {
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
 				       orion5x_tclk);
@@ -204,6 +194,13 @@ void __init orion5x_wdt_init(void)
 void __init orion5x_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/*
+	 * Some Orion5x devices allocate their coherent buffers from atomic
+	 * context. Increase size of atomic coherent pool to make sure such
+	 * the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int orion5x_tclk;
@@ -239,7 +236,7 @@ struct sys_timer orion5x_timer = {
 /*
  * Identify device ID and rev from PCIe configuration header space '0'.
  */
-static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
+void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 {
 	orion5x_pcie_id(dev, rev);
 

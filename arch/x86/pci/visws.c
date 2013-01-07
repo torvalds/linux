@@ -62,11 +62,6 @@ out:
 	return irq;
 }
 
-void __init pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 int __init pci_visws_init(void)
 {
 	pcibios_enable_irq = &pci_visws_enable_irq;

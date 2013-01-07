@@ -30,7 +30,7 @@
 
 #include "internal.h"
 
-DEFINE_MUTEX(crypto_cfg_mutex);
+static DEFINE_MUTEX(crypto_cfg_mutex);
 
 /* The crypto netlink socket */
 static struct sock *crypto_nlsk;
@@ -166,7 +166,7 @@ static int crypto_report_alg(struct crypto_alg *alg,
 	struct crypto_user_alg *ualg;
 	int err = 0;
 
-	nlh = nlmsg_put(skb, NETLINK_CB(in_skb).pid, info->nlmsg_seq,
+	nlh = nlmsg_put(skb, NETLINK_CB(in_skb).portid, info->nlmsg_seq,
 			CRYPTO_MSG_GETALG, sizeof(*ualg), info->nlmsg_flags);
 	if (!nlh) {
 		err = -EMSGSIZE;
@@ -216,7 +216,7 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	if (err)
 		return err;
 
-	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).pid);
+	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
 }
 
 static int crypto_dump_report(struct sk_buff *skb, struct netlink_callback *cb)
@@ -500,8 +500,7 @@ static int __init crypto_user_init(void)
 		.input	= crypto_netlink_rcv,
 	};
 
-	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO,
-					    THIS_MODULE, &cfg);
+	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO, &cfg);
 	if (!crypto_nlsk)
 		return -ENOMEM;
 

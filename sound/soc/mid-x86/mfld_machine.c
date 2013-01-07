@@ -318,6 +318,15 @@ static struct snd_soc_dai_link mfld_msic_dailink[] = {
 		.platform_name = "sst-platform",
 		.init = NULL,
 	},
+	{
+		.name = "Medfield Compress",
+		.stream_name = "Speaker",
+		.cpu_dai_name = "Compress-cpu-dai",
+		.codec_dai_name = "SN95031 Speaker",
+		.codec_name = "sn95031",
+		.platform_name = "sst-platform",
+		.init = NULL,
+	},
 };
 
 /* SoC card */
@@ -349,7 +358,7 @@ static irqreturn_t snd_mfld_jack_detection(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit snd_mfld_mc_probe(struct platform_device *pdev)
+static int snd_mfld_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0, irq;
 	struct mfld_mc_private *mc_drv_ctx;
@@ -408,7 +417,7 @@ unalloc:
 	return ret_val;
 }
 
-static int __devexit snd_mfld_mc_remove(struct platform_device *pdev)
+static int snd_mfld_mc_remove(struct platform_device *pdev)
 {
 	struct mfld_mc_private *mc_drv_ctx = platform_get_drvdata(pdev);
 
@@ -426,7 +435,7 @@ static struct platform_driver snd_mfld_mc_driver = {
 		.name = "msic_audio",
 	},
 	.probe = snd_mfld_mc_probe,
-	.remove = __devexit_p(snd_mfld_mc_remove),
+	.remove = snd_mfld_mc_remove,
 };
 
 module_platform_driver(snd_mfld_mc_driver);

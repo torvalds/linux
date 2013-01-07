@@ -2,7 +2,7 @@
  * fam15h_power.c - AMD Family 15h processor power monitoring
  *
  * Copyright (c) 2011 Advanced Micro Devices, Inc.
- * Author: Andreas Herrmann <andreas.herrmann3@amd.com>
+ * Author: Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *
  * This driver is free software; you can redistribute it and/or
@@ -28,8 +28,11 @@
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
-MODULE_AUTHOR("Andreas Herrmann <andreas.herrmann3@amd.com>");
+MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
 MODULE_LICENSE("GPL");
+
+/* Family 16h Northbridge's function 4 PCI ID */
+#define PCI_DEVICE_ID_AMD_16H_NB_F4	0x1534
 
 /* D18F3 */
 #define REG_NORTHBRIDGE_CAP		0xe8
@@ -111,7 +114,7 @@ static const struct attribute_group fam15h_power_attr_group = {
 	.attrs	= fam15h_power_attrs,
 };
 
-static bool __devinit fam15h_power_is_internal_node0(struct pci_dev *f4)
+static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -168,7 +171,7 @@ static int fam15h_power_resume(struct pci_dev *pdev)
 #define fam15h_power_resume NULL
 #endif
 
-static void __devinit fam15h_power_init_data(struct pci_dev *f4,
+static void fam15h_power_init_data(struct pci_dev *f4,
 					     struct fam15h_power_data *data)
 {
 	u32 val;
@@ -194,11 +197,11 @@ static void __devinit fam15h_power_init_data(struct pci_dev *f4,
 	data->processor_pwr_watts = (tmp * 15625) >> 10;
 }
 
-static int __devinit fam15h_power_probe(struct pci_dev *pdev,
+static int fam15h_power_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct fam15h_power_data *data;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 	int err;
 
 	/*
@@ -208,23 +211,19 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev)) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!fam15h_power_is_internal_node0(pdev))
+		return -ENODEV;
 
-	data = kzalloc(sizeof(struct fam15h_power_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	fam15h_power_init_data(pdev, data);
-	dev = &pdev->dev;
 
 	dev_set_drvdata(dev, data);
 	err = sysfs_create_group(&dev->kobj, &fam15h_power_attr_group);
 	if (err)
-		goto exit_free_data;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -236,13 +235,10 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 
 exit_remove_group:
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-exit_free_data:
-	kfree(data);
-exit:
 	return err;
 }
 
-static void __devexit fam15h_power_remove(struct pci_dev *pdev)
+static void fam15h_power_remove(struct pci_dev *pdev)
 {
 	struct device *dev;
 	struct fam15h_power_data *data;
@@ -251,12 +247,11 @@ static void __devexit fam15h_power_remove(struct pci_dev *pdev)
 	data = dev_get_drvdata(dev);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&dev->kobj, &fam15h_power_attr_group);
-	dev_set_drvdata(dev, NULL);
-	kfree(data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, fam15h_power_id_table);
@@ -265,7 +260,7 @@ static struct pci_driver fam15h_power_driver = {
 	.name = "fam15h_power",
 	.id_table = fam15h_power_id_table,
 	.probe = fam15h_power_probe,
-	.remove = __devexit_p(fam15h_power_remove),
+	.remove = fam15h_power_remove,
 	.resume = fam15h_power_resume,
 };
 

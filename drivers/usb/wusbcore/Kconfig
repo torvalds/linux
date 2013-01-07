@@ -2,8 +2,7 @@
 # Wireless USB Core configuration
 #
 config USB_WUSB
-	tristate "Enable Wireless USB extensions (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Enable Wireless USB extensions"
 	depends on USB
 	depends on PCI
 	depends on UWB

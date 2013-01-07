@@ -92,8 +92,8 @@ static void __fuse_put_request(struct fuse_req *req)
 
 static void fuse_req_init_context(struct fuse_req *req)
 {
-	req->in.h.uid = current_fsuid();
-	req->in.h.gid = current_fsgid();
+	req->in.h.uid = from_kuid_munged(&init_user_ns, current_fsuid());
+	req->in.h.gid = from_kgid_munged(&init_user_ns, current_fsgid());
 	req->in.h.pid = current->pid;
 }
 
@@ -148,8 +148,7 @@ static struct fuse_req *get_reserved_req(struct fuse_conn *fc,
 		if (ff->reserved_req) {
 			req = ff->reserved_req;
 			ff->reserved_req = NULL;
-			get_file(file);
-			req->stolen_file = file;
+			req->stolen_file = get_file(file);
 		}
 		spin_unlock(&fc->lock);
 	} while (!req);

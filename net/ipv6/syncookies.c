@@ -190,6 +190,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq6 = inet6_rsk(req);
 	treq = tcp_rsk(req);
+	treq->listener = NULL;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto out_free;
@@ -213,7 +214,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		ireq6->iif = inet6_iif(skb);
 
 	req->expires = 0UL;
-	req->retrans = 0;
+	req->num_retrans = 0;
 	ireq->ecn_ok		= ecn_ok;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;

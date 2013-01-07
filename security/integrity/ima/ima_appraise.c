@@ -34,7 +34,7 @@ __setup("ima_appraise=", default_appraise_setup);
  *
  * Return 1 to appraise
  */
-int ima_must_appraise(struct inode *inode, enum ima_hooks func, int mask)
+int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 {
 	if (!ima_appraise)
 		return 0;

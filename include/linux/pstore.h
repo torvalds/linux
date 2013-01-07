@@ -50,27 +50,21 @@ struct pstore_info {
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
-			struct timespec *time, char **buf,
+			int *count, struct timespec *time, char **buf,
 			struct pstore_info *psi);
 	int		(*write)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
-			unsigned int part, size_t size, struct pstore_info *psi);
+			unsigned int part, int count, size_t size,
+			struct pstore_info *psi);
 	int		(*write_buf)(enum pstore_type_id type,
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, const char *buf, size_t size,
 			struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
+			int count, struct timespec time,
 			struct pstore_info *psi);
 	void		*data;
 };
-
-
-#ifdef CONFIG_PSTORE_FTRACE
-extern void pstore_ftrace_call(unsigned long ip, unsigned long parent_ip);
-#else
-static inline void pstore_ftrace_call(unsigned long ip, unsigned long parent_ip)
-{ }
-#endif
 
 #ifdef CONFIG_PSTORE
 extern int pstore_register(struct pstore_info *);

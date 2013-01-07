@@ -1,0 +1,73 @@
+		     Memory Layout on AArch64 Linux
+		     ==============================
+
+Author: Catalin Marinas <catalin.marinas@arm.com>
+Date  : 20 February 2012
+
+This document describes the virtual memory layout used by the AArch64
+Linux kernel. The architecture allows up to 4 levels of translation
+tables with a 4KB page size and up to 3 levels with a 64KB page size.
+
+AArch64 Linux uses 3 levels of translation tables with the 4KB page
+configuration, allowing 39-bit (512GB) virtual addresses for both user
+and kernel. With 64KB pages, only 2 levels of translation tables are
+used but the memory layout is the same.
+
+User addresses have bits 63:39 set to 0 while the kernel addresses have
+the same bits set to 1. TTBRx selection is given by bit 63 of the
+virtual address. The swapper_pg_dir contains only kernel (global)
+mappings while the user pgd contains only user (non-global) mappings.
+The swapper_pgd_dir address is written to TTBR1 and never written to
+TTBR0.
+
+
+AArch64 Linux memory layout:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000007fffffffff	 512GB		user
+
+ffffff8000000000	ffffffbbfffeffff	~240GB		vmalloc
+
+ffffffbbffff0000	ffffffbbffffffff	  64KB		[guard page]
+
+ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
+
+ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[guard, future vmmemap]
+
+ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O space
+
+ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[guard]
+
+ffffffbffc000000	ffffffbfffffffff	  64MB		modules
+
+ffffffc000000000	ffffffffffffffff	 256GB		kernel logical memory map
+
+
+Translation table lookup with 4KB pages:
+
++--------+--------+--------+--------+--------+--------+--------+--------+
+|63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
++--------+--------+--------+--------+--------+--------+--------+--------+
+ |                 |         |         |         |         |
+ |                 |         |         |         |         v
+ |                 |         |         |         |   [11:0]  in-page offset
+ |                 |         |         |         +-> [20:12] L3 index
+ |                 |         |         +-----------> [29:21] L2 index
+ |                 |         +---------------------> [38:30] L1 index
+ |                 +-------------------------------> [47:39] L0 index (not used)
+ +-------------------------------------------------> [63] TTBR0/1
+
+
+Translation table lookup with 64KB pages:
+
++--------+--------+--------+--------+--------+--------+--------+--------+
+|63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
++--------+--------+--------+--------+--------+--------+--------+--------+
+ |                 |    |               |              |
+ |                 |    |               |              v
+ |                 |    |               |            [15:0]  in-page offset
+ |                 |    |               +----------> [28:16] L3 index
+ |                 |    +--------------------------> [41:29] L2 index (only 38:29 used)
+ |                 +-------------------------------> [47:42] L1 index (not used)
+ +-------------------------------------------------> [63] TTBR0/1

@@ -20,8 +20,10 @@
 #include <linux/usb/chipidea.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "ci.h"
+#include "ci13xxx_imx.h"
 
 #define pdev_to_phy(pdev) \
 	((struct usb_phy *)platform_get_drvdata(pdev))
@@ -34,7 +36,56 @@ struct ci13xxx_imx_data {
 	struct regulator *reg_vbus;
 };
 
-static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
+static const struct usbmisc_ops *usbmisc_ops;
+
+/* Common functions shared by usbmisc drivers */
+
+int usbmisc_set_ops(const struct usbmisc_ops *ops)
+{
+	if (usbmisc_ops)
+		return -EBUSY;
+
+	usbmisc_ops = ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbmisc_set_ops);
+
+void usbmisc_unset_ops(const struct usbmisc_ops *ops)
+{
+	usbmisc_ops = NULL;
+}
+EXPORT_SYMBOL_GPL(usbmisc_unset_ops);
+
+int usbmisc_get_init_data(struct device *dev, struct usbmisc_usb_device *usbdev)
+{
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args args;
+	int ret;
+
+	usbdev->dev = dev;
+
+	ret = of_parse_phandle_with_args(np, "fsl,usbmisc", "#index-cells",
+					0, &args);
+	if (ret) {
+		dev_err(dev, "Failed to parse property fsl,usbmisc, errno %d\n",
+			ret);
+		memset(usbdev, 0, sizeof(*usbdev));
+		return ret;
+	}
+	usbdev->index = args.args[0];
+	of_node_put(args.np);
+
+	if (of_find_property(np, "disable-over-current", NULL))
+		usbdev->disable_oc = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbmisc_get_init_data);
+
+/* End of common functions shared by usbmisc drivers*/
+
+static struct ci13xxx_platform_data ci13xxx_imx_platdata  = {
 	.name			= "ci13xxx_imx",
 	.flags			= CI13XXX_REQUIRE_TRANSCEIVER |
 				  CI13XXX_PULLUP_ON_VBUS |
@@ -42,14 +93,19 @@ static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
 	.capoffset		= DEF_CAPOFFSET,
 };
 
-static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
+static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
 	struct platform_device *plat_ci, *phy_pdev;
 	struct device_node *phy_np;
 	struct resource *res;
 	struct regulator *reg_vbus;
+	struct pinctrl *pinctrl;
 	int ret;
+
+	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
+		&& !usbmisc_ops)
+		return -EPROBE_DEFER;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -62,6 +118,11 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't get device resources!\n");
 		return -ENOENT;
 	}
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&pdev->dev, "pinctrl get/select failed, err=%ld\n",
+			PTR_ERR(pinctrl));
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk)) {
@@ -120,6 +181,16 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 		*pdev->dev.dma_mask = DMA_BIT_MASK(32);
 		dma_set_coherent_mask(&pdev->dev, *pdev->dev.dma_mask);
 	}
+
+	if (usbmisc_ops && usbmisc_ops->init) {
+		ret = usbmisc_ops->init(&pdev->dev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"usbmisc init failed, ret=%d\n", ret);
+			goto err;
+		}
+	}
+
 	plat_ci = ci13xxx_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
 				&ci13xxx_imx_platdata);
@@ -149,7 +220,7 @@ put_np:
 	return ret;
 }
 
-static int __devexit ci13xxx_imx_remove(struct platform_device *pdev)
+static int ci13xxx_imx_remove(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data = platform_get_drvdata(pdev);
 
@@ -181,7 +252,7 @@ MODULE_DEVICE_TABLE(of, ci13xxx_imx_dt_ids);
 
 static struct platform_driver ci13xxx_imx_driver = {
 	.probe = ci13xxx_imx_probe,
-	.remove = __devexit_p(ci13xxx_imx_remove),
+	.remove = ci13xxx_imx_remove,
 	.driver = {
 		.name = "imx_usb",
 		.owner = THIS_MODULE,

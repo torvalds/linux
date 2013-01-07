@@ -2084,7 +2084,7 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        return ret;
 }
 
-static int __devexit max98088_i2c_remove(struct i2c_client *client)
+static int max98088_i2c_remove(struct i2c_client *client)
 {
        snd_soc_unregister_codec(&client->dev);
        return 0;
@@ -2098,32 +2098,16 @@ static const struct i2c_device_id max98088_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 
 static struct i2c_driver max98088_i2c_driver = {
-       .driver = {
-               .name = "max98088",
-               .owner = THIS_MODULE,
-       },
-       .probe  = max98088_i2c_probe,
-       .remove = __devexit_p(max98088_i2c_remove),
-       .id_table = max98088_i2c_id,
+	.driver = {
+		.name = "max98088",
+		.owner = THIS_MODULE,
+	},
+	.probe  = max98088_i2c_probe,
+	.remove = max98088_i2c_remove,
+	.id_table = max98088_i2c_id,
 };
 
-static int __init max98088_init(void)
-{
-       int ret;
-
-       ret = i2c_add_driver(&max98088_i2c_driver);
-       if (ret)
-               pr_err("Failed to register max98088 I2C driver: %d\n", ret);
-
-       return ret;
-}
-module_init(max98088_init);
-
-static void __exit max98088_exit(void)
-{
-       i2c_del_driver(&max98088_i2c_driver);
-}
-module_exit(max98088_exit);
+module_i2c_driver(max98088_i2c_driver);
 
 MODULE_DESCRIPTION("ALSA SoC MAX98088 driver");
 MODULE_AUTHOR("Peter Hsiang, Jesse Marroquin");

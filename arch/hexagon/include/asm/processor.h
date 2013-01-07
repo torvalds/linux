@@ -1,7 +1,7 @@
 /*
  * Process/processor support for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,7 +34,6 @@
 struct task_struct;
 
 /*  this is defined in arch/process.c  */
-extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);

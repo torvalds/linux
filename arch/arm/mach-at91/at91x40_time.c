@@ -26,13 +26,14 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/time.h>
-#include <mach/at91_tc.h>
+
+#include "at91_tc.h"
 
 #define at91_tc_read(field) \
-	__raw_readl(AT91_TC + field)
+	__raw_readl(AT91_IO_P2V(AT91_TC) + field)
 
 #define at91_tc_write(field, value) \
-	__raw_writel(value, AT91_TC + field);
+	__raw_writel(value, AT91_IO_P2V(AT91_TC) + field);
 
 /*
  *	3 counter/timer units present.

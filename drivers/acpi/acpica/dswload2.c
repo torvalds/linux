@@ -230,6 +230,20 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			walk_state->scope_info->common.value = ACPI_TYPE_ANY;
 			break;
 
+		case ACPI_TYPE_METHOD:
+
+			/*
+			 * Allow scope change to root during execution of module-level
+			 * code. Root is typed METHOD during this time.
+			 */
+			if ((node == acpi_gbl_root_node) &&
+			    (walk_state->
+			     parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
+				break;
+			}
+
+			/*lint -fallthrough */
+
 		default:
 
 			/* All other types are an error */
@@ -240,7 +254,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 				    acpi_ut_get_type_name(node->type),
 				    acpi_ut_get_node_name(node)));
 
-			return (AE_AML_OPERAND_TYPE);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 		break;
 
@@ -588,7 +602,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 							  region_space,
 							  walk_state);
 				if (ACPI_FAILURE(status)) {
-					return (status);
+					return_ACPI_STATUS(status);
 				}
 
 				acpi_ex_exit_interpreter();

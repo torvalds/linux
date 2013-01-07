@@ -8,9 +8,12 @@
  * ----------------------------------------------------------------------- */
 
 #include <linux/efi.h>
+#include <linux/pci.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
+
+#undef memcpy			/* Use memcpy from misc.c */
 
 #include "eboot.h"
 
@@ -243,6 +246,121 @@ static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 	*size = len;
 }
 
+static efi_status_t setup_efi_pci(struct boot_params *params)
+{
+	efi_pci_io_protocol *pci;
+	efi_status_t status;
+	void **pci_handle;
+	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
+	unsigned long nr_pci, size = 0;
+	int i;
+	struct setup_data *data;
+
+	data = (struct setup_data *)params->hdr.setup_data;
+
+	while (data && data->next)
+		data = (struct setup_data *)data->next;
+
+	status = efi_call_phys5(sys_table->boottime->locate_handle,
+				EFI_LOCATE_BY_PROTOCOL, &pci_proto,
+				NULL, &size, pci_handle);
+
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		status = efi_call_phys3(sys_table->boottime->allocate_pool,
+					EFI_LOADER_DATA, size, &pci_handle);
+
+		if (status != EFI_SUCCESS)
+			return status;
+
+		status = efi_call_phys5(sys_table->boottime->locate_handle,
+					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
+					NULL, &size, pci_handle);
+	}
+
+	if (status != EFI_SUCCESS)
+		goto free_handle;
+
+	nr_pci = size / sizeof(void *);
+	for (i = 0; i < nr_pci; i++) {
+		void *h = pci_handle[i];
+		uint64_t attributes;
+		struct pci_setup_rom *rom;
+
+		status = efi_call_phys3(sys_table->boottime->handle_protocol,
+					h, &pci_proto, &pci);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		if (!pci)
+			continue;
+
+		status = efi_call_phys4(pci->attributes, pci,
+					EfiPciIoAttributeOperationGet, 0,
+					&attributes);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		if (!attributes & EFI_PCI_IO_ATTRIBUTE_EMBEDDED_ROM)
+			continue;
+
+		if (!pci->romimage || !pci->romsize)
+			continue;
+
+		size = pci->romsize + sizeof(*rom);
+
+		status = efi_call_phys3(sys_table->boottime->allocate_pool,
+				EFI_LOADER_DATA, size, &rom);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		rom->data.type = SETUP_PCI;
+		rom->data.len = size - sizeof(struct setup_data);
+		rom->data.next = 0;
+		rom->pcilen = pci->romsize;
+
+		status = efi_call_phys5(pci->pci.read, pci,
+					EfiPciIoWidthUint16, PCI_VENDOR_ID,
+					1, &(rom->vendor));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		status = efi_call_phys5(pci->pci.read, pci,
+					EfiPciIoWidthUint16, PCI_DEVICE_ID,
+					1, &(rom->devid));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		status = efi_call_phys5(pci->get_location, pci,
+					&(rom->segment), &(rom->bus),
+					&(rom->device), &(rom->function));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		memcpy(rom->romdata, pci->romimage, pci->romsize);
+
+		if (data)
+			data->next = (uint64_t)rom;
+		else
+			params->hdr.setup_data = (uint64_t)rom;
+
+		data = (struct setup_data *)rom;
+
+		continue;
+	free_struct:
+		efi_call_phys1(sys_table->boottime->free_pool, rom);
+	}
+
+free_handle:
+	efi_call_phys1(sys_table->boottime->free_pool, pci_handle);
+	return status;
+}
+
 /*
  * See if we have Graphics Output Protocol
  */
@@ -276,8 +394,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	nr_gops = size / sizeof(void *);
 	for (i = 0; i < nr_gops; i++) {
 		struct efi_graphics_output_mode_info *info;
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
-		void *pciio;
+		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
+		bool conout_found = false;
+		void *dummy;
 		void *h = gop_handle[i];
 
 		status = efi_call_phys3(sys_table->boottime->handle_protocol,
@@ -285,19 +404,21 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		if (status != EFI_SUCCESS)
 			continue;
 
-		efi_call_phys3(sys_table->boottime->handle_protocol,
-			       h, &pciio_proto, &pciio);
+		status = efi_call_phys3(sys_table->boottime->handle_protocol,
+					h, &conout_proto, &dummy);
+
+		if (status == EFI_SUCCESS)
+			conout_found = true;
 
 		status = efi_call_phys4(gop->query_mode, gop,
 					gop->mode->mode, &size, &info);
-		if (status == EFI_SUCCESS && (!first_gop || pciio)) {
+		if (status == EFI_SUCCESS && (!first_gop || conout_found)) {
 			/*
-			 * Apple provide GOPs that are not backed by
-			 * real hardware (they're used to handle
-			 * multiple displays). The workaround is to
-			 * search for a GOP implementing the PCIIO
-			 * protocol, and if one isn't found, to just
-			 * fallback to the first GOP.
+			 * Systems that use the UEFI Console Splitter may
+			 * provide multiple GOP devices, not all of which are
+			 * backed by real hardware. The workaround is to search
+			 * for a GOP implementing the ConOut protocol, and if
+			 * one isn't found, to just fall back to the first GOP.
 			 */
 			width = info->horizontal_resolution;
 			height = info->vertical_resolution;
@@ -308,10 +429,10 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			pixels_per_scan_line = info->pixels_per_scan_line;
 
 			/*
-			 * Once we've found a GOP supporting PCIIO,
+			 * Once we've found a GOP supporting ConOut,
 			 * don't bother looking any further.
 			 */
-			if (pciio)
+			if (conout_found)
 				break;
 
 			first_gop = gop;
@@ -328,7 +449,6 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 	si->lfb_width = width;
 	si->lfb_height = height;
 	si->lfb_base = fb_base;
-	si->lfb_size = fb_size;
 	si->pages = 1;
 
 	if (pixel_format == PIXEL_RGB_RESERVED_8BIT_PER_COLOR) {
@@ -375,6 +495,10 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		si->rsvd_size = 0;
 		si->rsvd_pos = 0;
 	}
+
+	si->lfb_size = si->lfb_linelength * si->lfb_height;
+
+	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
 
 free_handle:
 	efi_call_phys1(sys_table->boottime->free_pool, gop_handle);
@@ -1019,6 +1143,8 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 		goto fail;
 
 	setup_graphics(boot_params);
+
+	setup_efi_pci(boot_params);
 
 	status = efi_call_phys3(sys_table->boottime->allocate_pool,
 				EFI_LOADER_DATA, sizeof(*gdt),

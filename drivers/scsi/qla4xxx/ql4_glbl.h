@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -109,28 +109,28 @@ uint8_t qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 void qla4_8xxx_pci_config(struct scsi_qla_host *);
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha);
 int qla4_8xxx_load_risc(struct scsi_qla_host *);
-irqreturn_t qla4_8xxx_intr_handler(int irq, void *dev_id);
-void qla4_8xxx_queue_iocb(struct scsi_qla_host *ha);
-void qla4_8xxx_complete_iocb(struct scsi_qla_host *ha);
+irqreturn_t qla4_82xx_intr_handler(int irq, void *dev_id);
+void qla4_82xx_queue_iocb(struct scsi_qla_host *ha);
+void qla4_82xx_complete_iocb(struct scsi_qla_host *ha);
 
-int qla4_8xxx_crb_win_lock(struct scsi_qla_host *);
-void qla4_8xxx_crb_win_unlock(struct scsi_qla_host *);
-int qla4_8xxx_pci_get_crb_addr_2M(struct scsi_qla_host *, ulong *);
-void qla4_8xxx_wr_32(struct scsi_qla_host *, ulong, u32);
-int qla4_8xxx_rd_32(struct scsi_qla_host *, ulong);
-int qla4_8xxx_pci_mem_read_2M(struct scsi_qla_host *, u64, void *, int);
-int qla4_8xxx_pci_mem_write_2M(struct scsi_qla_host *ha, u64, void *, int);
-int qla4_8xxx_isp_reset(struct scsi_qla_host *ha);
-void qla4_8xxx_interrupt_service_routine(struct scsi_qla_host *ha,
+int qla4_82xx_crb_win_lock(struct scsi_qla_host *);
+void qla4_82xx_crb_win_unlock(struct scsi_qla_host *);
+int qla4_82xx_pci_get_crb_addr_2M(struct scsi_qla_host *, ulong *);
+void qla4_82xx_wr_32(struct scsi_qla_host *, ulong, u32);
+uint32_t qla4_82xx_rd_32(struct scsi_qla_host *, ulong);
+int qla4_82xx_pci_mem_read_2M(struct scsi_qla_host *, u64, void *, int);
+int qla4_82xx_pci_mem_write_2M(struct scsi_qla_host *ha, u64, void *, int);
+int qla4_82xx_isp_reset(struct scsi_qla_host *ha);
+void qla4_82xx_interrupt_service_routine(struct scsi_qla_host *ha,
 		uint32_t intr_status);
-uint16_t qla4_8xxx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
-uint16_t qla4_8xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
+uint16_t qla4_82xx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
+uint16_t qla4_82xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
 int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha);
 void qla4_8xxx_watchdog(struct scsi_qla_host *ha);
 int qla4_8xxx_stop_firmware(struct scsi_qla_host *ha);
 int qla4_8xxx_get_flash_info(struct scsi_qla_host *ha);
-void qla4_8xxx_enable_intrs(struct scsi_qla_host *ha);
-void qla4_8xxx_disable_intrs(struct scsi_qla_host *ha);
+void qla4_82xx_enable_intrs(struct scsi_qla_host *ha);
+void qla4_82xx_disable_intrs(struct scsi_qla_host *ha);
 int qla4_8xxx_enable_msix(struct scsi_qla_host *ha);
 void qla4_8xxx_disable_msix(struct scsi_qla_host *ha);
 irqreturn_t qla4_8xxx_msi_handler(int irq, void *dev_id);
@@ -138,8 +138,8 @@ irqreturn_t qla4_8xxx_default_intr_handler(int irq, void *dev_id);
 irqreturn_t qla4_8xxx_msix_rsp_q(int irq, void *dev_id);
 void qla4xxx_mark_all_devices_missing(struct scsi_qla_host *ha);
 void qla4xxx_dead_adapter_cleanup(struct scsi_qla_host *ha);
-int qla4_8xxx_idc_lock(struct scsi_qla_host *ha);
-void qla4_8xxx_idc_unlock(struct scsi_qla_host *ha);
+int qla4_82xx_idc_lock(struct scsi_qla_host *ha);
+void qla4_82xx_idc_unlock(struct scsi_qla_host *ha);
 int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
@@ -203,6 +203,62 @@ int qla4xxx_req_template_size(struct scsi_qla_host *ha);
 void qla4_8xxx_alloc_sysfs_attr(struct scsi_qla_host *ha);
 void qla4_8xxx_free_sysfs_attr(struct scsi_qla_host *ha);
 void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha);
+int qla4_82xx_try_start_fw(struct scsi_qla_host *ha);
+int qla4_8xxx_need_reset(struct scsi_qla_host *ha);
+int qla4_82xx_md_rd_32(struct scsi_qla_host *ha, uint32_t off, uint32_t *data);
+int qla4_82xx_md_wr_32(struct scsi_qla_host *ha, uint32_t off, uint32_t data);
+void qla4_82xx_rom_lock_recovery(struct scsi_qla_host *ha);
+void qla4_82xx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			      int incount);
+void qla4_82xx_process_mbox_intr(struct scsi_qla_host *ha, int outcount);
+void qla4xxx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			    int incount);
+void qla4xxx_process_mbox_intr(struct scsi_qla_host *ha, int outcount);
+void qla4_8xxx_dump_peg_reg(struct scsi_qla_host *ha);
+void qla4_83xx_disable_intrs(struct scsi_qla_host *ha);
+void qla4_83xx_enable_intrs(struct scsi_qla_host *ha);
+int qla4_83xx_start_firmware(struct scsi_qla_host *ha);
+irqreturn_t qla4_83xx_intr_handler(int irq, void *dev_id);
+void qla4_83xx_interrupt_service_routine(struct scsi_qla_host *ha,
+					 uint32_t intr_status);
+int qla4_83xx_isp_reset(struct scsi_qla_host *ha);
+void qla4_83xx_queue_iocb(struct scsi_qla_host *ha);
+void qla4_83xx_complete_iocb(struct scsi_qla_host *ha);
+uint16_t qla4_83xx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
+uint16_t qla4_83xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
+uint32_t qla4_83xx_rd_reg(struct scsi_qla_host *ha, ulong addr);
+void qla4_83xx_wr_reg(struct scsi_qla_host *ha, ulong addr, uint32_t val);
+int qla4_83xx_rd_reg_indirect(struct scsi_qla_host *ha, uint32_t addr,
+			      uint32_t *data);
+int qla4_83xx_wr_reg_indirect(struct scsi_qla_host *ha, uint32_t addr,
+			      uint32_t data);
+int qla4_83xx_drv_lock(struct scsi_qla_host *ha);
+void qla4_83xx_drv_unlock(struct scsi_qla_host *ha);
+void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha);
+void qla4_83xx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			      int incount);
+void qla4_83xx_process_mbox_intr(struct scsi_qla_host *ha, int outcount);
+void qla4_83xx_read_reset_template(struct scsi_qla_host *ha);
+void qla4_83xx_set_idc_dontreset(struct scsi_qla_host *ha);
+int qla4_83xx_idc_dontreset(struct scsi_qla_host *ha);
+int qla4_83xx_lockless_flash_read_u32(struct scsi_qla_host *ha,
+				      uint32_t flash_addr, uint8_t *p_data,
+				      int u32_word_count);
+void qla4_83xx_clear_idc_dontreset(struct scsi_qla_host *ha);
+void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha);
+int qla4_83xx_flash_read_u32(struct scsi_qla_host *ha, uint32_t flash_addr,
+			     uint8_t *p_data, int u32_word_count);
+void qla4_83xx_get_idc_param(struct scsi_qla_host *ha);
+void qla4_8xxx_set_rst_ready(struct scsi_qla_host *ha);
+void qla4_8xxx_clear_rst_ready(struct scsi_qla_host *ha);
+int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha);
+void qla4_8xxx_get_minidump(struct scsi_qla_host *ha);
+int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha);
+int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha);
+int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param);
+int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha);
+int qla4_83xx_post_idc_ack(struct scsi_qla_host *ha);
+void qla4_83xx_disable_pause(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

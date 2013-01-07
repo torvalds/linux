@@ -585,6 +585,7 @@ static const struct siena_nvram_type_info siena_nvram_types[] = {
 	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1]	= { 1, "sfc_exp_rom_cfg" },
 	[MC_CMD_NVRAM_TYPE_PHY_PORT0]		= { 0, "sfc_phy_fw" },
 	[MC_CMD_NVRAM_TYPE_PHY_PORT1]		= { 1, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_FPGA]		= { 0, "sfc_fpga" },
 };
 
 static int siena_mtd_probe_partition(struct efx_nic *efx,
@@ -598,7 +599,8 @@ static int siena_mtd_probe_partition(struct efx_nic *efx,
 	bool protected;
 	int rc;
 
-	if (type >= ARRAY_SIZE(siena_nvram_types))
+	if (type >= ARRAY_SIZE(siena_nvram_types) ||
+	    siena_nvram_types[type].name == NULL)
 		return -ENODEV;
 
 	info = &siena_nvram_types[type];
@@ -627,7 +629,8 @@ static int siena_mtd_get_fw_subtypes(struct efx_nic *efx,
 				     struct efx_mtd *efx_mtd)
 {
 	struct efx_mtd_partition *part;
-	uint16_t fw_subtype_list[MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM];
+	uint16_t fw_subtype_list[
+		MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM];
 	int rc;
 
 	rc = efx_mcdi_get_board_cfg(efx, NULL, fw_subtype_list, NULL);

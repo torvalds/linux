@@ -20,16 +20,16 @@
 #include <linux/uuid.h>
 
 /*
- * Timeouts
+ * Timeouts in Seconds
  */
-#define MEI_INTEROP_TIMEOUT    (HZ * 7)
-#define MEI_CONNECT_TIMEOUT		3	/* at least 2 seconds */
+#define MEI_INTEROP_TIMEOUT         7  /* Timeout on ready message */
+#define MEI_CONNECT_TIMEOUT         3  /* HPS: at least 2 seconds */
 
-#define CONNECT_TIMEOUT        15	/* HPS definition */
-#define INIT_CLIENTS_TIMEOUT   15	/* HPS definition */
+#define MEI_CL_CONNECT_TIMEOUT     15  /* HPS: Client Connect Timeout */
+#define MEI_CLIENTS_INIT_TIMEOUT   15  /* HPS: Clients Enumeration Timeout */
 
-#define IAMTHIF_STALL_TIMER		12	/* seconds */
-#define IAMTHIF_READ_TIMER		10000	/* ms */
+#define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
+#define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
 /*
  * Internal Clients Number
@@ -40,47 +40,48 @@
 /*
  * MEI device IDs
  */
-#define    MEI_DEV_ID_82946GZ	0x2974  /* 82946GZ/GL */
-#define    MEI_DEV_ID_82G35	0x2984  /* 82G35 Express */
-#define    MEI_DEV_ID_82Q965	0x2994  /* 82Q963/Q965 */
-#define    MEI_DEV_ID_82G965	0x29A4  /* 82P965/G965 */
+#define MEI_DEV_ID_82946GZ    0x2974  /* 82946GZ/GL */
+#define MEI_DEV_ID_82G35      0x2984  /* 82G35 Express */
+#define MEI_DEV_ID_82Q965     0x2994  /* 82Q963/Q965 */
+#define MEI_DEV_ID_82G965     0x29A4  /* 82P965/G965 */
 
-#define    MEI_DEV_ID_82GM965	0x2A04  /* Mobile PM965/GM965 */
-#define    MEI_DEV_ID_82GME965	0x2A14  /* Mobile GME965/GLE960 */
+#define MEI_DEV_ID_82GM965    0x2A04  /* Mobile PM965/GM965 */
+#define MEI_DEV_ID_82GME965   0x2A14  /* Mobile GME965/GLE960 */
 
-#define    MEI_DEV_ID_ICH9_82Q35 0x29B4  /* 82Q35 Express */
-#define    MEI_DEV_ID_ICH9_82G33 0x29C4  /* 82G33/G31/P35/P31 Express */
-#define    MEI_DEV_ID_ICH9_82Q33 0x29D4  /* 82Q33 Express */
-#define    MEI_DEV_ID_ICH9_82X38 0x29E4  /* 82X38/X48 Express */
-#define    MEI_DEV_ID_ICH9_3200  0x29F4  /* 3200/3210 Server */
+#define MEI_DEV_ID_ICH9_82Q35 0x29B4  /* 82Q35 Express */
+#define MEI_DEV_ID_ICH9_82G33 0x29C4  /* 82G33/G31/P35/P31 Express */
+#define MEI_DEV_ID_ICH9_82Q33 0x29D4  /* 82Q33 Express */
+#define MEI_DEV_ID_ICH9_82X38 0x29E4  /* 82X38/X48 Express */
+#define MEI_DEV_ID_ICH9_3200  0x29F4  /* 3200/3210 Server */
 
-#define    MEI_DEV_ID_ICH9_6	0x28B4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_7	0x28C4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_8	0x28D4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_9    0x28E4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_10	0x28F4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_6     0x28B4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_7     0x28C4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_8     0x28D4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_9     0x28E4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_10    0x28F4  /* Bearlake */
 
-#define    MEI_DEV_ID_ICH9M_1	0x2A44  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_2	0x2A54  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_3	0x2A64  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_4	0x2A74  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_1    0x2A44  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_2    0x2A54  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_3    0x2A64  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_4    0x2A74  /* Cantiga */
 
-#define    MEI_DEV_ID_ICH10_1	0x2E04  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_2	0x2E14  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_3	0x2E24  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_4	0x2E34  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_1    0x2E04  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_2    0x2E14  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_3    0x2E24  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_4    0x2E34  /* Eaglelake */
 
-#define    MEI_DEV_ID_IBXPK_1	0x3B64  /* Calpella */
-#define    MEI_DEV_ID_IBXPK_2	0x3B65  /* Calpella */
+#define MEI_DEV_ID_IBXPK_1    0x3B64  /* Calpella */
+#define MEI_DEV_ID_IBXPK_2    0x3B65  /* Calpella */
 
-#define    MEI_DEV_ID_CPT_1	0x1C3A    /* Cougerpoint */
-#define    MEI_DEV_ID_PBG_1	0x1D3A    /* PBG */
+#define MEI_DEV_ID_CPT_1      0x1C3A  /* Couger Point */
+#define MEI_DEV_ID_PBG_1      0x1D3A  /* C600/X79 Patsburg */
 
-#define    MEI_DEV_ID_PPT_1	0x1E3A    /* Pantherpoint PPT */
-#define    MEI_DEV_ID_PPT_2	0x1CBA    /* Pantherpoint PPT */
-#define    MEI_DEV_ID_PPT_3	0x1DBA    /* Pantherpoint PPT */
+#define MEI_DEV_ID_PPT_1      0x1E3A  /* Panther Point */
+#define MEI_DEV_ID_PPT_2      0x1CBA  /* Panther Point */
+#define MEI_DEV_ID_PPT_3      0x1DBA  /* Panther Point */
 
-
+#define MEI_DEV_ID_LPT        0x8C3A  /* Lynx Point */
+#define MEI_DEV_ID_LPT_LP     0x9C3A  /* Lynx Point LP */
 /*
  * MEI HW Section
  */
@@ -292,6 +293,14 @@ struct hbm_props_response {
 	struct mei_client_properties client_properties;
 } __packed;
 
+/**
+ * struct hbm_client_connect_request - connect/disconnect request
+ *
+ * @hbm_cmd - bus message command header
+ * @me_addr - address of the client in ME
+ * @host_addr - address of the client in the driver
+ * @reserved
+ */
 struct hbm_client_connect_request {
 	u8 hbm_cmd;
 	u8 me_addr;
@@ -299,6 +308,14 @@ struct hbm_client_connect_request {
 	u8 reserved;
 } __packed;
 
+/**
+ * struct hbm_client_connect_response - connect/disconnect response
+ *
+ * @hbm_cmd - bus message command header
+ * @me_addr - address of the client in ME
+ * @host_addr - address of the client in the driver
+ * @status - status of the request
+ */
 struct hbm_client_connect_response {
 	u8 hbm_cmd;
 	u8 me_addr;
@@ -306,12 +323,6 @@ struct hbm_client_connect_response {
 	u8 status;
 } __packed;
 
-struct hbm_client_disconnect_request {
-	u8 hbm_cmd;
-	u8 me_addr;
-	u8 host_addr;
-	u8 reserved[1];
-} __packed;
 
 #define MEI_FC_MESSAGE_RESERVED_LENGTH           5
 

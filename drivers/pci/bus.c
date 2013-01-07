@@ -87,11 +87,15 @@ EXPORT_SYMBOL_GPL(pci_bus_resource_n);
 void pci_bus_remove_resources(struct pci_bus *bus)
 {
 	int i;
+	struct pci_bus_resource *bus_res, *tmp;
 
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
 		bus->resource[i] = NULL;
 
-	pci_free_resource_list(&bus->resources);
+	list_for_each_entry_safe(bus_res, tmp, &bus->resources, list) {
+		list_del(&bus_res->list);
+		kfree(bus_res);
+	}
 }
 
 /**
@@ -166,6 +170,11 @@ int pci_bus_add_device(struct pci_dev *dev)
 	int retval;
 
 	pci_fixup_device(pci_fixup_final, dev);
+
+	retval = pcibios_add_device(dev);
+	if (retval)
+		return retval;
+
 	retval = device_add(&dev->dev);
 	if (retval)
 		return retval;
@@ -316,10 +325,7 @@ void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 		} else
 			next = dev->bus_list.next;
 
-		/* Run device routines with the device locked */
-		device_lock(&dev->dev);
 		retval = cb(dev, userdata);
-		device_unlock(&dev->dev);
 		if (retval)
 			break;
 	}

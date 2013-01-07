@@ -15,14 +15,10 @@ struct clocksource;
 struct clock_event_device;
 
 /*
- * kthread.S
- */
-extern int kernel_thread_helper(int);
-
-/*
  * entry.S
  */
 extern void ret_from_fork(struct task_struct *) __attribute__((noreturn));
+extern void ret_from_kernel_thread(struct task_struct *) __attribute__((noreturn));
 
 /*
  * smp-low.S

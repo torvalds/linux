@@ -23,7 +23,7 @@ struct tty_audit_buf {
 };
 
 static struct tty_audit_buf *tty_audit_buf_alloc(int major, int minor,
-						 int icanon)
+						 unsigned icanon)
 {
 	struct tty_audit_buf *buf;
 
@@ -61,7 +61,7 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
 }
 
 static void tty_audit_log(const char *description, struct task_struct *tsk,
-			  uid_t loginuid, unsigned sessionid, int major,
+			  kuid_t loginuid, unsigned sessionid, int major,
 			  int minor, unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
@@ -69,11 +69,14 @@ static void tty_audit_log(const char *description, struct task_struct *tsk,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
 		char name[sizeof(tsk->comm)];
-		uid_t uid = task_uid(tsk);
+		kuid_t uid = task_uid(tsk);
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u "
 				 "major=%d minor=%d comm=", description,
-				 tsk->pid, uid, loginuid, sessionid,
+				 tsk->pid,
+				 from_kuid(&init_user_ns, uid),
+				 from_kuid(&init_user_ns, loginuid),
+				 sessionid,
 				 major, minor);
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
@@ -89,7 +92,7 @@ static void tty_audit_log(const char *description, struct task_struct *tsk,
  *	Generate an audit message from the contents of @buf, which is owned by
  *	@tsk with @loginuid.  @buf->mutex must be locked.
  */
-static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
+static void tty_audit_buf_push(struct task_struct *tsk, kuid_t loginuid,
 			       unsigned int sessionid,
 			       struct tty_audit_buf *buf)
 {
@@ -112,7 +115,7 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
  */
 static void tty_audit_buf_push_current(struct tty_audit_buf *buf)
 {
-	uid_t auid = audit_get_loginuid(current);
+	kuid_t auid = audit_get_loginuid(current);
 	unsigned int sessionid = audit_get_sessionid(current);
 	tty_audit_buf_push(current, auid, sessionid, buf);
 }
@@ -179,7 +182,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 	}
 
 	if (should_audit && audit_enabled) {
-		uid_t auid;
+		kuid_t auid;
 		unsigned int sessionid;
 
 		auid = audit_get_loginuid(current);
@@ -199,7 +202,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
  * reference to the tty audit buffer if available.
  * Flush the buffer or return an appropriate error code.
  */
-int tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
+int tty_audit_push_task(struct task_struct *tsk, kuid_t loginuid, u32 sessionid)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
 	unsigned long flags;
@@ -236,7 +239,8 @@ int tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
  *	if TTY auditing is disabled or out of memory.  Otherwise, return a new
  *	reference to the buffer.
  */
-static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
+static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
+		unsigned icanon)
 {
 	struct tty_audit_buf *buf, *buf2;
 
@@ -254,7 +258,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
 
 	buf2 = tty_audit_buf_alloc(tty->driver->major,
 				   tty->driver->minor_start + tty->index,
-				   tty->icanon);
+				   icanon);
 	if (buf2 == NULL) {
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
@@ -284,7 +288,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
  *	Audit @data of @size from @tty, if necessary.
  */
 void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
-			size_t size)
+			size_t size, unsigned icanon)
 {
 	struct tty_audit_buf *buf;
 	int major, minor;
@@ -296,7 +300,7 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
-	buf = tty_audit_buf_get(tty);
+	buf = tty_audit_buf_get(tty, icanon);
 	if (!buf)
 		return;
 
@@ -304,11 +308,11 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	major = tty->driver->major;
 	minor = tty->driver->minor_start + tty->index;
 	if (buf->major != major || buf->minor != minor
-	    || buf->icanon != tty->icanon) {
+	    || buf->icanon != icanon) {
 		tty_audit_buf_push_current(buf);
 		buf->major = major;
 		buf->minor = minor;
-		buf->icanon = tty->icanon;
+		buf->icanon = icanon;
 	}
 	do {
 		size_t run;

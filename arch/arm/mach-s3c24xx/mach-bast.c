@@ -45,9 +45,9 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 
-#include <plat/hwmon.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
+#include <linux/platform_data/hwmon-s3c.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <mach/fb.h>
 
 #include <linux/mtd/mtd.h>
@@ -62,7 +62,7 @@
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/gpio-cfg.h>
-#include <plat/audio-simtec.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
 #include "simtec.h"
 #include "common.h"

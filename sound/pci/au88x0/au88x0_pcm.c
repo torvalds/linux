@@ -516,7 +516,7 @@ static int snd_vortex_spdif_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 }
 
 /* spdif controls */
-static struct snd_kcontrol_new snd_vortex_mixer_spdif[] __devinitdata = {
+static struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -585,7 +585,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 				case 4:
 					mixin = p->mixin[i];
 					break;
-				};
+				}
 				vol = p->vol[i];
 				vortex_mix_setinputvolumebyte(vortex,
 					vortex->mixplayb[i], mixin, vol);
@@ -598,7 +598,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_MINMAX(vortex_pcm_vol_db_scale, -9600, 2400);
 
-static struct snd_kcontrol_new snd_vortex_pcm_vol __devinitdata = {
+static struct snd_kcontrol_new snd_vortex_pcm_vol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -611,7 +611,7 @@ static struct snd_kcontrol_new snd_vortex_pcm_vol __devinitdata = {
 };
 
 /* create a pcm device */
-static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
+static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 {
 	struct snd_pcm *pcm;
 	struct snd_kcontrol *kctl;

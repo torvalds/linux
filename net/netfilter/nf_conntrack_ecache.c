@@ -61,7 +61,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 		goto out_unlock;
 
 	item.ct = ct;
-	item.pid = 0;
+	item.portid = 0;
 	item.report = 0;
 
 	ret = notify->fcn(events | missed, &item);
@@ -195,6 +195,10 @@ static int nf_conntrack_event_init_sysctl(struct net *net)
 
 	table[0].data = &net->ct.sysctl_events;
 	table[1].data = &net->ct.sysctl_events_retry_timeout;
+
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		table[0].procname = NULL;
 
 	net->ct.event_sysctl_header =
 		register_net_sysctl(net, "net/netfilter", table);

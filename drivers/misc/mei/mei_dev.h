@@ -19,23 +19,26 @@
 
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#include <linux/poll.h>
 #include <linux/mei.h>
 #include "hw.h"
 
 /*
  * watch dog definition
  */
-#define MEI_WATCHDOG_DATA_SIZE         16
-#define MEI_START_WD_DATA_SIZE         20
-#define MEI_WD_PARAMS_SIZE             4
+#define MEI_WD_HDR_SIZE       4
+#define MEI_WD_STOP_MSG_SIZE  MEI_WD_HDR_SIZE
+#define MEI_WD_START_MSG_SIZE (MEI_WD_HDR_SIZE + 16)
+
+#define MEI_WD_DEFAULT_TIMEOUT   120  /* seconds */
+#define MEI_WD_MIN_TIMEOUT       120  /* seconds */
+#define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
+
+#define MEI_WD_STOP_TIMEOUT      10 /* msecs */
+
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
-
-/*
- * MEI PCI Device object
- */
-extern struct pci_dev *mei_device;
 
 
 /*
@@ -54,19 +57,21 @@ extern const uuid_le mei_wd_guid;
 extern const u8 mei_wd_state_independence_msg[3][4];
 
 /*
+ * Number of Maximum MEI Clients
+ */
+#define MEI_CLIENTS_MAX 256
+
+/*
  * Number of File descriptors/handles
  * that can be opened to the driver.
  *
- * Limit to 253: 255 Total Clients
+ * Limit to 253: 256 Total Clients
+ * minus internal client for MEI Bus Messags
  * minus internal client for AMTHI
  * minus internal client for Watchdog
  */
-#define  MEI_MAX_OPEN_HANDLE_COUNT	253
+#define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 3)
 
-/*
- * Number of Maximum MEI Clients
- */
-#define MEI_CLIENTS_MAX 255
 
 /* File state */
 enum file_state {
@@ -78,16 +83,18 @@ enum file_state {
 };
 
 /* MEI device states */
-enum mei_states {
-	MEI_INITIALIZING = 0,
-	MEI_INIT_CLIENTS,
-	MEI_ENABLED,
-	MEI_RESETING,
-	MEI_DISABLED,
-	MEI_RECOVERING_FROM_RESET,
-	MEI_POWER_DOWN,
-	MEI_POWER_UP
+enum mei_dev_state {
+	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_INIT_CLIENTS,
+	MEI_DEV_ENABLED,
+	MEI_DEV_RESETING,
+	MEI_DEV_DISABLED,
+	MEI_DEV_RECOVERING_FROM_RESET,
+	MEI_DEV_POWER_DOWN,
+	MEI_DEV_POWER_UP
 };
+
+const char *mei_dev_state_str(int state);
 
 /* init clients states*/
 enum mei_init_clients_states {
@@ -113,13 +120,26 @@ enum mei_file_transaction_states {
 	MEI_READ_COMPLETE
 };
 
-/* MEI CB */
-enum mei_cb_major_types {
-	MEI_READ = 0,
-	MEI_WRITE,
-	MEI_IOCTL,
-	MEI_OPEN,
-	MEI_CLOSE
+enum mei_wd_states {
+	MEI_WD_IDLE,
+	MEI_WD_RUNNING,
+	MEI_WD_STOPPING,
+};
+
+/**
+ * enum mei_cb_file_ops  - file operation associated with the callback
+ * @MEI_FOP_READ   - read
+ * @MEI_FOP_WRITE  - write
+ * @MEI_FOP_IOCTL  - ioctl
+ * @MEI_FOP_OPEN   - open
+ * @MEI_FOP_CLOSE  - close
+ */
+enum mei_cb_file_ops {
+	MEI_FOP_READ = 0,
+	MEI_FOP_WRITE,
+	MEI_FOP_IOCTL,
+	MEI_FOP_OPEN,
+	MEI_FOP_CLOSE
 };
 
 /*
@@ -128,16 +148,24 @@ enum mei_cb_major_types {
 struct mei_message_data {
 	u32 size;
 	unsigned char *data;
-} __packed;
+};
 
 
+struct mei_cl;
+
+/**
+ * struct mei_cl_cb - file operation callback structure
+ *
+ * @cl - file client who is running this operation
+ * @fop_type - file operation type
+ */
 struct mei_cl_cb {
-	struct list_head cb_list;
-	enum mei_cb_major_types major_file_operations;
-	void *file_private;
+	struct list_head list;
+	struct mei_cl *cl;
+	enum mei_cb_file_ops fop_type;
 	struct mei_message_data request_buffer;
 	struct mei_message_data response_buffer;
-	unsigned long information;
+	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;
 };
@@ -163,29 +191,23 @@ struct mei_cl {
 	struct mei_cl_cb *read_cb;
 };
 
-struct mei_io_list {
-	struct mei_cl_cb mei_cb;
-};
-
 /**
- * struct mei_deive -  MEI private device struct
+ * struct mei_device -  MEI private device struct
  * @hbuf_depth - depth of host(write) buffer
+ * @wr_ext_msg - buffer for hbm control responses (set in read cycle)
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
 	/*
 	 * lists of queues
 	 */
-	 /* array of pointers to aio lists */
-	struct mei_io_list read_list;		/* driver read queue */
-	struct mei_io_list write_list;		/* driver write queue */
-	struct mei_io_list write_waiting_list;	/* write waiting queue */
-	struct mei_io_list ctrl_wr_list;	/* managed write IOCTL list */
-	struct mei_io_list ctrl_rd_list;	/* managed read IOCTL list */
-	struct mei_io_list amthi_cmd_list;	/* amthi list for cmd waiting */
+	/* array of pointers to aio lists */
+	struct mei_cl_cb read_list;		/* driver read queue */
+	struct mei_cl_cb write_list;		/* driver write queue */
+	struct mei_cl_cb write_waiting_list;	/* write waiting queue */
+	struct mei_cl_cb ctrl_wr_list;		/* managed write IOCTL list */
+	struct mei_cl_cb ctrl_rd_list;		/* managed read IOCTL list */
 
-	/* driver managed amthi list for reading completed amthi cmd data */
-	struct mei_io_list amthi_read_complete_list;
 	/*
 	 * list of files
 	 */
@@ -218,17 +240,18 @@ struct mei_device {
 	/*
 	 * mei device  states
 	 */
-	enum mei_states mei_state;
+	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	bool stop;
 	bool need_reset;
 
-	u32 extra_write_index;
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
-	u32 wr_msg_buf[128];	/* used for control messages */
-	u32 ext_msg_buf[8];	/* for control responses */
 	u32 rd_msg_hdr;
+	u32 wr_msg_buf[128];	/* used for control messages */
+	struct {
+		struct mei_msg_hdr hdr;
+		unsigned char data[4];	/* All HBM messages are 4 bytes */
+	} wr_ext_msg;		/* for control responses */
 
 	struct hbm_version version;
 
@@ -241,14 +264,16 @@ struct mei_device {
 	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
-	bool wd_interface_reg;
+	enum mei_wd_states wd_state;
 	bool wd_pending;
-	bool wd_stopped;
-	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
-	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
+	u16 wd_timeout;
+	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 
+	/* amthif list for cmd waiting */
+	struct mei_cl_cb amthif_cmd_list;
+	/* driver managed amthif list for reading completed amthif cmd data */
+	struct mei_cl_cb amthif_rd_complete_list;
 	struct file *iamthif_file_object;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
@@ -262,7 +287,14 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
+
+	struct work_struct init_work;
 };
+
+static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
+{
+	return msecs_to_jiffies(sec * MSEC_PER_SEC);
+}
 
 
 /*
@@ -274,20 +306,34 @@ int mei_hw_init(struct mei_device *dev);
 int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
-void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
-void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
-u8 mei_find_me_client_update_filext(struct mei_device *dev,
-				struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id);
+int mei_me_cl_link(struct mei_device *dev, struct mei_cl *cl,
+			const uuid_le *cguid, u8 host_client_id);
+void mei_me_cl_unlink(struct mei_device *dev, struct mei_cl *cl);
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
+int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 
 /*
- * MEI IO List Functions
+ * MEI IO Functions
  */
-void mei_io_list_init(struct mei_io_list *list);
-void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl);
+struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp);
+void mei_io_cb_free(struct mei_cl_cb *priv_cb);
+int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length);
+int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length);
+
+
+/**
+ * mei_io_list_init - Sets up a queue list.
+ *
+ * @list: An instance cl callback structure
+ */
+static inline void mei_io_list_init(struct mei_cl_cb *list)
+{
+	INIT_LIST_HEAD(&list->list);
+}
+void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl);
 
 /*
  * MEI ME Client Functions
@@ -319,7 +365,8 @@ static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
  */
 void mei_host_start_message(struct mei_device *dev);
 void mei_host_enum_clients_message(struct mei_device *dev);
-int mei_host_client_properties(struct mei_device *dev);
+int mei_host_client_enumerate(struct mei_device *dev);
+void mei_host_client_init(struct work_struct *work);
 
 /*
  *  MEI interrupt functions prototype
@@ -336,19 +383,40 @@ int mei_ioctl_connect_client(struct file *file,
 
 int mei_start_read(struct mei_device *dev, struct mei_cl *cl);
 
-int amthi_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
 
-int amthi_read(struct mei_device *dev, struct file *file,
-	      char __user *ubuf, size_t length, loff_t *offset);
+/*
+ * AMTHIF - AMT Host Interface Functions
+ */
+void mei_amthif_reset_params(struct mei_device *dev);
 
-struct mei_cl_cb *find_amthi_read_list_entry(struct mei_device *dev,
+void mei_amthif_host_init(struct mei_device *dev);
+
+int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
+
+int mei_amthif_read(struct mei_device *dev, struct file *file,
+		char __user *ubuf, size_t length, loff_t *offset);
+
+unsigned int mei_amthif_poll(struct mei_device *dev,
+		struct file *file, poll_table *wait);
+
+int mei_amthif_release(struct mei_device *dev, struct file *file);
+
+struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
-void mei_run_next_iamthif_cmd(struct mei_device *dev);
+void mei_amthif_run_next_cmd(struct mei_device *dev);
 
-void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
+int mei_amthif_read_message(struct mei_cl_cb *complete_list,
+		struct mei_device *dev, struct mei_msg_hdr *mei_hdr);
+
+int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
+			struct mei_cl_cb *cb, struct mei_cl_cb *cmpl_list);
+
+void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
+int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
+		struct mei_device *dev, struct mei_msg_hdr *mei_hdr);
+int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
 /*
  * Register Access Function
@@ -426,5 +494,16 @@ void mei_csr_clear_his(struct mei_device *dev);
 
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
+
+static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
+{
+	struct mei_msg_hdr *hdr = (struct mei_msg_hdr *)buf;
+	hdr->host_addr = 0;
+	hdr->me_addr = 0;
+	hdr->length = length;
+	hdr->msg_complete = 1;
+	hdr->reserved = 0;
+	return hdr;
+}
 
 #endif

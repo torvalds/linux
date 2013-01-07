@@ -141,28 +141,6 @@ static void au_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 }
 
 /**
- * au_verify_buf -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- *
- * verify function for 8bit buswidth
- */
-static int au_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-	struct nand_chip *this = mtd->priv;
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != readb(this->IO_ADDR_R))
-			return -EFAULT;
-		au_sync();
-	}
-
-	return 0;
-}
-
-/**
  * au_write_buf16 -  write buffer to chip
  * @mtd:	MTD device structure
  * @buf:	data buffer
@@ -203,29 +181,6 @@ static void au_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 		p[i] = readw(this->IO_ADDR_R);
 		au_sync();
 	}
-}
-
-/**
- * au_verify_buf16 -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- *
- * verify function for 16bit buswidth
- */
-static int au_verify_buf16(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-	struct nand_chip *this = mtd->priv;
-	u16 *p = (u16 *) buf;
-	len >>= 1;
-
-	for (i = 0; i < len; i++) {
-		if (p[i] != readw(this->IO_ADDR_R))
-			return -EFAULT;
-		au_sync();
-	}
-	return 0;
 }
 
 /* Select the chip by setting nCE to low */
@@ -427,7 +382,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	while(!this->dev_ready(mtd));
 }
 
-static int __devinit find_nand_cs(unsigned long nand_base)
+static int find_nand_cs(unsigned long nand_base)
 {
 	void __iomem *base =
 			(void __iomem *)KSEG1ADDR(AU1000_STATIC_MEM_PHYS_ADDR);
@@ -448,7 +403,7 @@ static int __devinit find_nand_cs(unsigned long nand_base)
 	return -ENODEV;
 }
 
-static int __devinit au1550nd_probe(struct platform_device *pdev)
+static int au1550nd_probe(struct platform_device *pdev)
 {
 	struct au1550nd_platdata *pd;
 	struct au1550nd_ctx *ctx;
@@ -516,7 +471,6 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	this->read_word = au_read_word;
 	this->write_buf = (pd->devwidth) ? au_write_buf16 : au_write_buf;
 	this->read_buf = (pd->devwidth) ? au_read_buf16 : au_read_buf;
-	this->verify_buf = (pd->devwidth) ? au_verify_buf16 : au_verify_buf;
 
 	ret = nand_scan(&ctx->info, 1);
 	if (ret) {
@@ -537,7 +491,7 @@ out1:
 	return ret;
 }
 
-static int __devexit au1550nd_remove(struct platform_device *pdev)
+static int au1550nd_remove(struct platform_device *pdev)
 {
 	struct au1550nd_ctx *ctx = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -555,7 +509,7 @@ static struct platform_driver au1550nd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1550nd_probe,
-	.remove		= __devexit_p(au1550nd_remove),
+	.remove		= au1550nd_remove,
 };
 
 module_platform_driver(au1550nd_driver);

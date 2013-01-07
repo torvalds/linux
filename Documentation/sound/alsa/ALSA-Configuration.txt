@@ -860,8 +860,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     [Multiple options for each card instance]
     model	- force the model name
-    position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF,
-    		   3 = VIACOMBO, 4 = COMBO)
+    position_fix - Fix DMA pointer
+		  -1 = system default: choose appropriate one per controller
+			hardware
+		  0 = auto: falls back to LPIB when POSBUF doesn't work
+		  1 = use LPIB
+		  2 = POSBUF: use position buffer
+		  3 = VIACOMBO: VIA-specific workaround for capture
+		  4 = COMBO: use LPIB for playback, auto for capture stream
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
     		  When the bit 8 (0x100) is set, the lower 8 bits are used
 		  as the "fixed" codec slots; i.e. the driver probes the
@@ -1899,7 +1905,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     vid             - Vendor ID for the device (optional)
     pid             - Product ID for the device (optional)
     nrpacks	    - Max. number of packets per URB (default: 8)
-    async_unlink    - Use async unlink mode (default: yes)
     device_setup    - Device specific magic number (optional)
                     - Influence depends on the device
                     - Default: 0x0000 
@@ -1911,8 +1916,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     NB: nrpacks parameter can be modified dynamically via sysfs.
         Don't put the value over 20.  Changing via sysfs has no sanity
 	check.
-    NB: async_unlink=0 would cause Oops.  It remains just for
-        debugging purpose (if any).
     NB: ignore_ctl_error=1 may help when you get an error at accessing
         the mixer element such as URB error -22.  This happens on some
         buggy USB device or the controller.

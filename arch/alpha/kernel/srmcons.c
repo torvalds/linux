@@ -205,7 +205,6 @@ static const struct tty_operations srmcons_ops = {
 static int __init
 srmcons_init(void)
 {
-	tty_port_init(&srmcons_singleton.port);
 	setup_timer(&srmcons_singleton.timer, srmcons_receive_chars,
 			(unsigned long)&srmcons_singleton);
 	if (srm_is_registered_console) {
@@ -215,6 +214,9 @@ srmcons_init(void)
 		driver = alloc_tty_driver(MAX_SRM_CONSOLE_DEVICES);
 		if (!driver)
 			return -ENOMEM;
+
+		tty_port_init(&srmcons_singleton.port);
+
 		driver->driver_name = "srm";
 		driver->name = "srm";
 		driver->major = 0; 	/* dynamic */
@@ -223,9 +225,11 @@ srmcons_init(void)
 		driver->subtype = SYSTEM_TYPE_SYSCONS;
 		driver->init_termios = tty_std_termios;
 		tty_set_operations(driver, &srmcons_ops);
+		tty_port_link_device(&srmcons_singleton.port, driver, 0);
 		err = tty_register_driver(driver);
 		if (err) {
 			put_tty_driver(driver);
+			tty_port_destroy(&srmcons_singleton.port);
 			return err;
 		}
 		srmcons_driver = driver;

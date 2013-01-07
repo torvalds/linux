@@ -30,7 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/pfn.h>
-#include <mach/usb.h>
+#include <linux/platform_data/usb-musb-ux500.h>
 #include "musb_core.h"
 
 struct ux500_dma_channel {
@@ -364,8 +364,7 @@ void dma_controller_destroy(struct dma_controller *c)
 	kfree(controller);
 }
 
-struct dma_controller *__init
-dma_controller_create(struct musb *musb, void __iomem *base)
+struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct ux500_dma_controller *controller;
 	struct platform_device *pdev = to_platform_device(musb->controller);

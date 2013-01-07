@@ -27,10 +27,10 @@
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #ifdef CONFIG_BRIDGE_DVFS
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 #endif
 
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 
 static struct platform_device *omap_dsp_pdev;
 

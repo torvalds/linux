@@ -16,8 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <plat/dma.h>
-#include <plat/mux.h>
+#include <linux/omap-dma.h>
 
 #include "musb_core.h"
 #include "tusb6010.h"
@@ -25,6 +24,13 @@
 #define to_chdat(c)		((struct tusb_omap_dma_ch *)(c)->private_data)
 
 #define MAX_DMAREQ		5	/* REVISIT: Really 6, but req5 not OK */
+
+#define OMAP24XX_DMA_EXT_DMAREQ0	2
+#define OMAP24XX_DMA_EXT_DMAREQ1	3
+#define OMAP242X_DMA_EXT_DMAREQ2	14
+#define OMAP242X_DMA_EXT_DMAREQ3	15
+#define OMAP242X_DMA_EXT_DMAREQ4	16
+#define OMAP242X_DMA_EXT_DMAREQ5	64
 
 struct tusb_omap_dma_ch {
 	struct musb		*musb;
@@ -662,8 +668,7 @@ void dma_controller_destroy(struct dma_controller *c)
 	kfree(tusb_dma);
 }
 
-struct dma_controller *__init
-dma_controller_create(struct musb *musb, void __iomem *base)
+struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	void __iomem		*tbase = musb->ctrl_base;
 	struct tusb_omap_dma	*tusb_dma;

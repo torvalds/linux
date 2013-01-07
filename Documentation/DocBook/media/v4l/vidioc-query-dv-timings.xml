@@ -78,6 +78,12 @@ capabilities in order to give more precise feedback to the user.
 
     <variablelist>
       <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video timings are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
 	<term><errorcode>ENOLINK</errorcode></term>
 	<listitem>
 	  <para>No timings could be detected because no signal was found.

@@ -138,7 +138,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	const struct nfnetlink_subsystem *ss;
 	int type, err;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	/* All the messages must at least contain nfgenmsg */
@@ -241,7 +241,7 @@ static int __net_init nfnetlink_net_init(struct net *net)
 #endif
 	};
 
-	nfnl = netlink_kernel_create(net, NETLINK_NETFILTER, THIS_MODULE, &cfg);
+	nfnl = netlink_kernel_create(net, NETLINK_NETFILTER, &cfg);
 	if (!nfnl)
 		return -ENOMEM;
 	net->nfnl_stash = nfnl;

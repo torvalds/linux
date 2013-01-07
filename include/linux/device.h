@@ -190,6 +190,7 @@ extern struct klist *bus_get_device_klist(struct bus_type *bus);
  * @mod_name:	Used for built-in modules.
  * @suppress_bind_attrs: Disables bind/unbind via sysfs.
  * @of_match_table: The open firmware table.
+ * @acpi_match_table: The ACPI match table.
  * @probe:	Called to query the existence of a specific device,
  *		whether this driver can work with it, and bind the driver
  *		to a specific device.
@@ -223,6 +224,7 @@ struct device_driver {
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
 
 	const struct of_device_id	*of_match_table;
+	const struct acpi_device_id	*acpi_match_table;
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
@@ -496,6 +498,10 @@ ssize_t device_show_int(struct device *dev, struct device_attribute *attr,
 			char *buf);
 ssize_t device_store_int(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count);
+ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
+			char *buf);
+ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
 
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
@@ -505,6 +511,9 @@ ssize_t device_store_int(struct device *dev, struct device_attribute *attr,
 #define DEVICE_INT_ATTR(_name, _mode, _var) \
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_int, device_store_int), &(_var) }
+#define DEVICE_BOOL_ATTR(_name, _mode, _var) \
+	struct dev_ext_attribute dev_attr_##_name = \
+		{ __ATTR(_name, _mode, device_show_bool, device_store_bool), &(_var) }
 #define DEVICE_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name =		\
 		__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
@@ -536,6 +545,10 @@ extern void *__devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 #else
 extern void *devres_alloc(dr_release_t release, size_t size, gfp_t gfp);
 #endif
+extern void devres_for_each_res(struct device *dev, dr_release_t release,
+				dr_match_t match, void *match_data,
+				void (*fn)(struct device *, void *, void *),
+				void *data);
 extern void devres_free(void *res);
 extern void devres_add(struct device *dev, void *res);
 extern void *devres_find(struct device *dev, dr_release_t release,
@@ -570,6 +583,12 @@ struct device_dma_parameters {
 	 */
 	unsigned int max_segment_size;
 	unsigned long segment_boundary_mask;
+};
+
+struct acpi_dev_node {
+#ifdef CONFIG_ACPI
+	void	*handle;
+#endif
 };
 
 /**
@@ -612,6 +631,7 @@ struct device_dma_parameters {
  * @dma_mem:	Internal for coherent mem override.
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
+ * @acpi_node:	Associated ACPI device node.
  * @devt:	For creating the sysfs "dev".
  * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
@@ -676,6 +696,7 @@ struct device {
 	struct dev_archdata	archdata;
 
 	struct device_node	*of_node; /* associated device tree node */
+	struct acpi_dev_node	acpi_node; /* associated ACPI device node */
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 	u32			id;	/* device instance */
@@ -695,6 +716,14 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
 {
 	return container_of(kobj, struct device, kobj);
 }
+
+#ifdef CONFIG_ACPI
+#define ACPI_HANDLE(dev)	((dev)->acpi_node.handle)
+#define ACPI_HANDLE_SET(dev, _handle_)	(dev)->acpi_node.handle = (_handle_)
+#else
+#define ACPI_HANDLE(dev)	(NULL)
+#define ACPI_HANDLE_SET(dev, _handle_)	do { } while (0)
+#endif
 
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
@@ -770,6 +799,13 @@ static inline bool device_async_suspend_enabled(struct device *dev)
 static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
 {
 	dev->power.ignore_children = enable;
+}
+
+static inline void dev_pm_syscore_device(struct device *dev, bool val)
+{
+#ifdef CONFIG_PM_SLEEP
+	dev->power.syscore = val;
+#endif
 }
 
 static inline void device_lock(struct device *dev)
@@ -891,12 +927,15 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
-extern int __dev_printk(const char *level, const struct device *dev,
-			struct va_format *vaf);
+extern __printf(3, 0)
+int dev_vprintk_emit(int level, const struct device *dev,
+		     const char *fmt, va_list args);
+extern __printf(3, 4)
+int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...);
+
 extern __printf(3, 4)
 int dev_printk(const char *level, const struct device *dev,
-	       const char *fmt, ...)
-	;
+	       const char *fmt, ...);
 extern __printf(2, 3)
 int dev_emerg(const struct device *dev, const char *fmt, ...);
 extern __printf(2, 3)
@@ -913,6 +952,14 @@ extern __printf(2, 3)
 int _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
+
+static inline __printf(3, 0)
+int dev_vprintk_emit(int level, const struct device *dev,
+		     const char *fmt, va_list args)
+{ return 0; }
+static inline __printf(3, 4)
+int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...)
+{ return 0; }
 
 static inline int __dev_printk(const char *level, const struct device *dev,
 			       struct va_format *vaf)
@@ -946,32 +993,6 @@ int _dev_info(const struct device *dev, const char *fmt, ...)
 
 #endif
 
-#define dev_level_ratelimited(dev_level, dev, fmt, ...)			\
-do {									\
-	static DEFINE_RATELIMIT_STATE(_rs,				\
-				      DEFAULT_RATELIMIT_INTERVAL,	\
-				      DEFAULT_RATELIMIT_BURST);		\
-	if (__ratelimit(&_rs))						\
-		dev_level(dev, fmt, ##__VA_ARGS__);			\
-} while (0)
-
-#define dev_emerg_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_emerg, dev, fmt, ##__VA_ARGS__)
-#define dev_alert_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_alert, dev, fmt, ##__VA_ARGS__)
-#define dev_crit_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_crit, dev, fmt, ##__VA_ARGS__)
-#define dev_err_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_err, dev, fmt, ##__VA_ARGS__)
-#define dev_warn_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_warn, dev, fmt, ##__VA_ARGS__)
-#define dev_notice_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_notice, dev, fmt, ##__VA_ARGS__)
-#define dev_info_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_info, dev, fmt, ##__VA_ARGS__)
-#define dev_dbg_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_dbg, dev, fmt, ##__VA_ARGS__)
-
 /*
  * Stupid hackaround for existing uses of non-printk uses dev_info
  *
@@ -996,6 +1017,46 @@ do {						     \
 		dev_printk(KERN_DEBUG, dev, format, ##arg);	\
 	0;							\
 })
+#endif
+
+#define dev_level_ratelimited(dev_level, dev, fmt, ...)			\
+do {									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+	if (__ratelimit(&_rs))						\
+		dev_level(dev, fmt, ##__VA_ARGS__);			\
+} while (0)
+
+#define dev_emerg_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_emerg, dev, fmt, ##__VA_ARGS__)
+#define dev_alert_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_alert, dev, fmt, ##__VA_ARGS__)
+#define dev_crit_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_crit, dev, fmt, ##__VA_ARGS__)
+#define dev_err_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_err, dev, fmt, ##__VA_ARGS__)
+#define dev_warn_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_warn, dev, fmt, ##__VA_ARGS__)
+#define dev_notice_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_notice, dev, fmt, ##__VA_ARGS__)
+#define dev_info_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_info, dev, fmt, ##__VA_ARGS__)
+#if defined(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
+#define dev_dbg_ratelimited(dev, fmt, ...)				\
+do {									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
+	if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT) &&	\
+	    __ratelimit(&_rs))						\
+		__dynamic_pr_debug(&descriptor, pr_fmt(fmt),		\
+				   ##__VA_ARGS__);			\
+} while (0)
+#else
+#define dev_dbg_ratelimited(dev, fmt, ...)			\
+	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 #ifdef VERBOSE_DEBUG

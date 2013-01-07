@@ -9,6 +9,7 @@
 
 /* For NOMADIK_NR_GPIO */
 #include <mach/irqs.h>
+#include <mach/msp.h>
 #include <linux/amba/mmci.h>
 
 /* Snowball specific GPIO assignments, this board has no GPIO expander */
@@ -80,7 +81,18 @@
 struct device;
 struct i2c_board_info;
 extern struct mmci_platform_data mop500_sdi0_data;
+extern struct mmci_platform_data mop500_sdi1_data;
+extern struct mmci_platform_data mop500_sdi2_data;
 extern struct mmci_platform_data mop500_sdi4_data;
+extern struct msp_i2s_platform_data msp0_platform_data;
+extern struct msp_i2s_platform_data msp1_platform_data;
+extern struct msp_i2s_platform_data msp2_platform_data;
+extern struct msp_i2s_platform_data msp3_platform_data;
+extern struct arm_pmu_platdata db8500_pmu_platdata;
+extern struct amba_pl011_data uart0_plat;
+extern struct amba_pl011_data uart1_plat;
+extern struct amba_pl011_data uart2_plat;
+extern struct pl022_ssp_controller ssp0_plat;
 
 extern void mop500_sdi_init(struct device *parent);
 extern void snowball_sdi_init(struct device *parent);
@@ -91,12 +103,9 @@ void __init mop500_stuib_init(void);
 void __init mop500_pinmaps_init(void);
 void __init snowball_pinmaps_init(void);
 void __init hrefv60_pinmaps_init(void);
+void mop500_audio_init(struct device *parent);
 
 int __init mop500_uib_init(void);
 void mop500_uib_i2c_add(int busnum, struct i2c_board_info *info,
 		unsigned n);
-
-/* TODO: Once all pieces are DT:ed, remove completely. */
-struct device * __init u8500_of_init_devices(void);
-
 #endif

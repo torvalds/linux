@@ -126,7 +126,8 @@ struct mlx4_rss_context {
 
 struct mlx4_qp_path {
 	u8			fl;
-	u8			reserved1[2];
+	u8			reserved1[1];
+	u8			disable_pkey_check;
 	u8			pkey_index;
 	u8			counter_index;
 	u8			grh_mylmc;

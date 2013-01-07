@@ -113,7 +113,8 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	orion_setup_cpu_mbus_target(&addr_map_cfg, ORION5X_DDR_WINDOW_CPU_BASE);
+	orion_setup_cpu_mbus_target(&addr_map_cfg,
+				    (void __iomem *) ORION5X_DDR_WINDOW_CPU_BASE);
 }
 
 void __init orion5x_setup_dev_boot_win(u32 base, u32 size)

@@ -24,36 +24,36 @@
 #include <mach/common.h>
 
 /* SH7372 registers */
-#define FRQCRA		0xe6150000
-#define FRQCRB		0xe6150004
-#define FRQCRC		0xe61500e0
-#define FRQCRD		0xe61500e4
-#define VCLKCR1		0xe6150008
-#define VCLKCR2		0xe615000c
-#define VCLKCR3		0xe615001c
-#define FMSICKCR	0xe6150010
-#define FMSOCKCR	0xe6150014
-#define FSIACKCR	0xe6150018
-#define FSIBCKCR	0xe6150090
-#define SUBCKCR		0xe6150080
-#define SPUCKCR		0xe6150084
-#define VOUCKCR		0xe6150088
-#define HDMICKCR	0xe6150094
-#define DSITCKCR	0xe6150060
-#define DSI0PCKCR	0xe6150064
-#define DSI1PCKCR	0xe6150098
-#define PLLC01CR	0xe6150028
-#define PLLC2CR		0xe615002c
-#define RMSTPCR0	0xe6150110
-#define RMSTPCR1	0xe6150114
-#define RMSTPCR2	0xe6150118
-#define RMSTPCR3	0xe615011c
-#define RMSTPCR4	0xe6150120
-#define SMSTPCR0	0xe6150130
-#define SMSTPCR1	0xe6150134
-#define SMSTPCR2	0xe6150138
-#define SMSTPCR3	0xe615013c
-#define SMSTPCR4	0xe6150140
+#define FRQCRA		IOMEM(0xe6150000)
+#define FRQCRB		IOMEM(0xe6150004)
+#define FRQCRC		IOMEM(0xe61500e0)
+#define FRQCRD		IOMEM(0xe61500e4)
+#define VCLKCR1		IOMEM(0xe6150008)
+#define VCLKCR2		IOMEM(0xe615000c)
+#define VCLKCR3		IOMEM(0xe615001c)
+#define FMSICKCR	IOMEM(0xe6150010)
+#define FMSOCKCR	IOMEM(0xe6150014)
+#define FSIACKCR	IOMEM(0xe6150018)
+#define FSIBCKCR	IOMEM(0xe6150090)
+#define SUBCKCR		IOMEM(0xe6150080)
+#define SPUCKCR		IOMEM(0xe6150084)
+#define VOUCKCR		IOMEM(0xe6150088)
+#define HDMICKCR	IOMEM(0xe6150094)
+#define DSITCKCR	IOMEM(0xe6150060)
+#define DSI0PCKCR	IOMEM(0xe6150064)
+#define DSI1PCKCR	IOMEM(0xe6150098)
+#define PLLC01CR	IOMEM(0xe6150028)
+#define PLLC2CR		IOMEM(0xe615002c)
+#define RMSTPCR0	IOMEM(0xe6150110)
+#define RMSTPCR1	IOMEM(0xe6150114)
+#define RMSTPCR2	IOMEM(0xe6150118)
+#define RMSTPCR3	IOMEM(0xe615011c)
+#define RMSTPCR4	IOMEM(0xe6150120)
+#define SMSTPCR0	IOMEM(0xe6150130)
+#define SMSTPCR1	IOMEM(0xe6150134)
+#define SMSTPCR2	IOMEM(0xe6150138)
+#define SMSTPCR3	IOMEM(0xe615013c)
+#define SMSTPCR4	IOMEM(0xe6150140)
 
 #define FSIDIVA		0xFE1F8000
 #define FSIDIVB		0xFE1F8008
@@ -295,10 +295,10 @@ struct clk sh7372_pllc2_clk = {
 };
 
 /* External input clock (pin name: FSIACK/FSIBCK ) */
-struct clk sh7372_fsiack_clk = {
+static struct clk fsiack_clk = {
 };
 
-struct clk sh7372_fsibck_clk = {
+static struct clk fsibck_clk = {
 };
 
 static struct clk *main_clks[] = {
@@ -314,8 +314,8 @@ static struct clk *main_clks[] = {
 	&pllc1_clk,
 	&pllc1_div2_clk,
 	&sh7372_pllc2_clk,
-	&sh7372_fsiack_clk,
-	&sh7372_fsibck_clk,
+	&fsiack_clk,
+	&fsibck_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -399,14 +399,14 @@ static struct clk *hdmi_parent[] = {
 static struct clk *fsiackcr_parent[] = {
 	[0] = &pllc1_div2_clk,
 	[1] = &sh7372_pllc2_clk,
-	[2] = &sh7372_fsiack_clk, /* external input for FSI A */
+	[2] = &fsiack_clk, /* external input for FSI A */
 	[3] = NULL,	/* setting prohibited */
 };
 
 static struct clk *fsibckcr_parent[] = {
 	[0] = &pllc1_div2_clk,
 	[1] = &sh7372_pllc2_clk,
-	[2] = &sh7372_fsibck_clk, /* external input for FSI B */
+	[2] = &fsibck_clk, /* external input for FSI B */
 	[3] = NULL,	/* setting prohibited */
 };
 
@@ -420,87 +420,11 @@ static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
 };
 
 /* FSI DIV */
-static unsigned long fsidiv_recalc(struct clk *clk)
-{
-	unsigned long value;
+enum { FSIDIV_A, FSIDIV_B, FSIDIV_REPARENT_NR };
 
-	value = __raw_readl(clk->mapping->base);
-
-	value >>= 16;
-	if (value < 2)
-		return 0;
-
-	return clk->parent->rate / value;
-}
-
-static long fsidiv_round_rate(struct clk *clk, unsigned long rate)
-{
-	return clk_rate_div_range_round(clk, 2, 0xffff, rate);
-}
-
-static void fsidiv_disable(struct clk *clk)
-{
-	__raw_writel(0, clk->mapping->base);
-}
-
-static int fsidiv_enable(struct clk *clk)
-{
-	unsigned long value;
-
-	value  = __raw_readl(clk->mapping->base) >> 16;
-	if (value < 2)
-		return -EIO;
-
-	__raw_writel((value << 16) | 0x3, clk->mapping->base);
-
-	return 0;
-}
-
-static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
-{
-	int idx;
-
-	idx = (clk->parent->rate / rate) & 0xffff;
-	if (idx < 2)
-		return -EINVAL;
-
-	__raw_writel(idx << 16, clk->mapping->base);
-	return 0;
-}
-
-static struct sh_clk_ops fsidiv_clk_ops = {
-	.recalc		= fsidiv_recalc,
-	.round_rate	= fsidiv_round_rate,
-	.set_rate	= fsidiv_set_rate,
-	.enable		= fsidiv_enable,
-	.disable	= fsidiv_disable,
-};
-
-static struct clk_mapping fsidiva_clk_mapping = {
-	.phys	= FSIDIVA,
-	.len	= 8,
-};
-
-struct clk sh7372_fsidiva_clk = {
-	.ops		= &fsidiv_clk_ops,
-	.parent		= &div6_reparent_clks[DIV6_FSIA], /* late install */
-	.mapping	= &fsidiva_clk_mapping,
-};
-
-static struct clk_mapping fsidivb_clk_mapping = {
-	.phys	= FSIDIVB,
-	.len	= 8,
-};
-
-struct clk sh7372_fsidivb_clk = {
-	.ops		= &fsidiv_clk_ops,
-	.parent		= &div6_reparent_clks[DIV6_FSIB],  /* late install */
-	.mapping	= &fsidivb_clk_mapping,
-};
-
-static struct clk *late_main_clks[] = {
-	&sh7372_fsidiva_clk,
-	&sh7372_fsidivb_clk,
+static struct clk fsidivs[] = {
+	[FSIDIV_A] = SH_CLK_FSIDIV(FSIDIVA, &div6_reparent_clks[DIV6_FSIA]),
+	[FSIDIV_B] = SH_CLK_FSIDIV(FSIDIVB, &div6_reparent_clks[DIV6_FSIB]),
 };
 
 enum { MSTP001, MSTP000,
@@ -583,6 +507,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
 	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
+	CLKDEV_CON_ID("fsiack", &fsiack_clk),
+	CLKDEV_CON_ID("fsibck", &fsibck_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
@@ -678,6 +604,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("icka", "sh_fsi2", &div6_reparent_clks[DIV6_FSIA]),
 	CLKDEV_ICK_ID("ickb", "sh_fsi2", &div6_reparent_clks[DIV6_FSIB]),
 	CLKDEV_ICK_ID("spu2", "sh_fsi2", &mstp_clks[MSTP223]),
+	CLKDEV_ICK_ID("diva", "sh_fsi2", &fsidivs[FSIDIV_A]),
+	CLKDEV_ICK_ID("divb", "sh_fsi2", &fsidivs[FSIDIV_B]),
+	CLKDEV_ICK_ID("xcka", "sh_fsi2", &fsiack_clk),
+	CLKDEV_ICK_ID("xckb", "sh_fsi2", &fsibck_clk),
 };
 
 void __init sh7372_clock_init(void)
@@ -706,8 +636,8 @@ void __init sh7372_clock_init(void)
 	if (!ret)
 		ret = sh_clk_mstp_register(mstp_clks, MSTP_NR);
 
-	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
-		ret = clk_register(late_main_clks[k]);
+	if (!ret)
+		ret = sh_clk_fsidiv_register(fsidivs, FSIDIV_REPARENT_NR);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

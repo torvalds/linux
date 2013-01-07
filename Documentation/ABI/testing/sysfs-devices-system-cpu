@@ -176,3 +176,14 @@ Description:	Disable L3 cache indices
 		All AMD processors with L3 caches provide this functionality.
 		For details, see BKDGs at
 		http://developer.amd.com/documentation/guides/Pages/default.aspx
+
+
+What:		/sys/devices/system/cpu/cpufreq/boost
+Date:		August 2012
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Processor frequency boosting control
+
+		This switch controls the boost setting for the whole system.
+		Boosting allows the CPU and the firmware to run at a frequency
+		beyound it's nominal limit.
+		More details can be found in Documentation/cpu-freq/boost.txt

@@ -86,7 +86,6 @@ void native_machine_restart(char *cmd)
 void machine_restart(char *cmd)
 {
 	native_machine_restart(cmd);
-	local_irq_disable();
 	if (smp_processor_id())
 		smp_call_function((void *)bfin_reset, 0, 1);
 	else

@@ -325,8 +325,8 @@ static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 		if (ret < DEVICE_HEADERLEN)
 			return -ENODATA;
 
-		dprintk(DRIVER_NAME ": Got %d bytes. Header: %02x %02x %02x\n",
-			ret, ir->buf_in[0], ir->buf_in[1], ir->buf_in[2]);
+		dprintk(DRIVER_NAME ": Got %d bytes. Header: %*ph\n",
+			ret, 3, ir->buf_in);
 
 		do_gettimeofday(&now);
 		timediff = now.tv_sec - ir->last_time.tv_sec;

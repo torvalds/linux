@@ -5,6 +5,7 @@
 #include "util.h"
 #include "strbuf.h"
 #include "../perf.h"
+#include "../ui/ui.h"
 
 #define CMD_EXEC_PATH "--exec-path"
 #define CMD_PERF_DIR "--perf-dir="
@@ -30,42 +31,6 @@ extern void setup_pager(void);
 extern const char *pager_program;
 extern int pager_in_use(void);
 extern int pager_use_color;
-
-extern int use_browser;
-
-#if defined(NO_NEWT_SUPPORT) && defined(NO_GTK2_SUPPORT)
-static inline void setup_browser(bool fallback_to_pager)
-{
-	if (fallback_to_pager)
-		setup_pager();
-}
-static inline void exit_browser(bool wait_for_ok __used) {}
-#else
-void setup_browser(bool fallback_to_pager);
-void exit_browser(bool wait_for_ok);
-
-#ifdef NO_NEWT_SUPPORT
-static inline int ui__init(void)
-{
-	return -1;
-}
-static inline void ui__exit(bool wait_for_ok __used) {}
-#else
-int ui__init(void);
-void ui__exit(bool wait_for_ok);
-#endif
-
-#ifdef NO_GTK2_SUPPORT
-static inline int perf_gtk__init(void)
-{
-	return -1;
-}
-static inline void perf_gtk__exit(bool wait_for_ok __used) {}
-#else
-int perf_gtk__init(void);
-void perf_gtk__exit(bool wait_for_ok);
-#endif
-#endif /* NO_NEWT_SUPPORT && NO_GTK2_SUPPORT */
 
 char *alias_lookup(const char *alias);
 int split_cmdline(char *cmdline, const char ***argv);
@@ -105,7 +70,7 @@ extern char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2
 extern char *perf_pathdup(const char *fmt, ...)
 	__attribute__((format (printf, 1, 2)));
 
-#ifdef NO_STRLCPY
+#ifndef HAVE_STRLCPY
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 #endif
 

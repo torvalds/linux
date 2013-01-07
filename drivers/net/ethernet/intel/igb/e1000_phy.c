@@ -464,6 +464,32 @@ s32 igb_copper_link_setup_82580(struct e1000_hw *hw)
 	phy_data |= I82580_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = phy->ops.write_reg(hw, I82580_CFG_REG, phy_data);
+	if (ret_val)
+		goto out;
+
+	/* Set MDI/MDIX mode */
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		goto out;
+	phy_data &= ~I82580_PHY_CTRL2_MDIX_CFG_MASK;
+	/*
+	 * Options:
+	 *   0 - Auto (default)
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 */
+	switch (hw->phy.mdix) {
+	case 1:
+		break;
+	case 2:
+		phy_data |= I82580_PHY_CTRL2_MANUAL_MDIX;
+		break;
+	case 0:
+	default:
+		phy_data |= I82580_PHY_CTRL2_AUTO_MDI_MDIX;
+		break;
+	}
+	ret_val = hw->phy.ops.write_reg(hw, I82580_PHY_CTRL_2, phy_data);
 
 out:
 	return ret_val;
@@ -1181,20 +1207,25 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	/*
-	 * Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
-	 * forced whenever speed and duplex are forced.
-	 */
-	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
-	if (ret_val)
-		goto out;
+	/* I210 and I211 devices support Auto-Crossover in forced operation. */
+	if (phy->type != e1000_phy_i210) {
+		/*
+		 * Clear Auto-Crossover to force MDI manually.  M88E1000
+		 * requires MDI forced whenever speed and duplex are forced.
+		 */
+		ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					    &phy_data);
+		if (ret_val)
+			goto out;
 
-	phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
-	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
-	if (ret_val)
-		goto out;
+		phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
+		ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					     phy_data);
+		if (ret_val)
+			goto out;
 
-	hw_dbg("M88E1000 PSCR: %X\n", phy_data);
+		hw_dbg("M88E1000 PSCR: %X\n", phy_data);
+	}
 
 	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
@@ -1684,6 +1715,26 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 
 	switch (hw->phy.id) {
 	case I210_I_PHY_ID:
+		/* Get cable length from PHY Cable Diagnostics Control Reg */
+		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
+					    (I347AT4_PCDL + phy->addr),
+					    &phy_data);
+		if (ret_val)
+			return ret_val;
+
+		/* Check if the unit of cable length is meters or cm */
+		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
+					    I347AT4_PCDC, &phy_data2);
+		if (ret_val)
+			return ret_val;
+
+		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
+
+		/* Populate the phy structure with cable length in meters */
+		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->cable_length = phy_data / (is_cm ? 100 : 1);
+		break;
 	case I347AT4_E_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
@@ -2246,8 +2297,7 @@ s32 igb_phy_force_speed_duplex_82580(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	phy_data &= ~I82580_PHY_CTRL2_AUTO_MDIX;
-	phy_data &= ~I82580_PHY_CTRL2_FORCE_MDI_MDIX;
+	phy_data &= ~I82580_PHY_CTRL2_MDIX_CFG_MASK;
 
 	ret_val = phy->ops.write_reg(hw, I82580_PHY_CTRL_2, phy_data);
 	if (ret_val)

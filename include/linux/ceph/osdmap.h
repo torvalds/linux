@@ -2,8 +2,8 @@
 #define _FS_CEPH_OSDMAP_H
 
 #include <linux/rbtree.h>
-#include "types.h"
-#include "ceph_fs.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/ceph_fs.h>
 #include <linux/crush/crush.h>
 
 /*
@@ -109,9 +109,9 @@ extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 
 /* calculate mapping of a file extent to an object */
-extern void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-					  u64 off, u64 *plen,
-					  u64 *bno, u64 *oxoff, u64 *oxlen);
+extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
+					 u64 off, u64 *plen,
+					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 /* calculate mapping of object to a placement group */
 extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
@@ -123,6 +123,7 @@ extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
 				struct ceph_pg pgid);
 
+extern const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id);
 extern int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name);
 
 #endif

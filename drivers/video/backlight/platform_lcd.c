@@ -16,6 +16,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/lcd.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 #include <video/platform_lcd.h>
@@ -26,7 +27,7 @@ struct platform_lcd {
 	struct plat_lcd_data	*pdata;
 
 	unsigned int		 power;
-	unsigned int		 suspended : 1;
+	unsigned int		 suspended:1;
 };
 
 static inline struct platform_lcd *to_our_lcd(struct lcd_device *lcd)
@@ -72,7 +73,7 @@ static struct lcd_ops platform_lcd_ops = {
 	.check_fb	= platform_lcd_match,
 };
 
-static int __devinit platform_lcd_probe(struct platform_device *pdev)
+static int platform_lcd_probe(struct platform_device *pdev)
 {
 	struct plat_lcd_data *pdata;
 	struct platform_lcd *plcd;
@@ -111,7 +112,7 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit platform_lcd_remove(struct platform_device *pdev)
+static int platform_lcd_remove(struct platform_device *pdev)
 {
 	struct platform_lcd *plcd = platform_get_drvdata(pdev);
 
@@ -145,6 +146,14 @@ static SIMPLE_DEV_PM_OPS(platform_lcd_pm_ops, platform_lcd_suspend,
 			platform_lcd_resume);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id platform_lcd_of_match[] = {
+	{ .compatible = "platform-lcd" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, platform_lcd_of_match);
+#endif
+
 static struct platform_driver platform_lcd_driver = {
 	.driver		= {
 		.name	= "platform-lcd",
@@ -152,9 +161,10 @@ static struct platform_driver platform_lcd_driver = {
 #ifdef CONFIG_PM
 		.pm	= &platform_lcd_pm_ops,
 #endif
+		.of_match_table = of_match_ptr(platform_lcd_of_match),
 	},
 	.probe		= platform_lcd_probe,
-	.remove		= __devexit_p(platform_lcd_remove),
+	.remove		= platform_lcd_remove,
 };
 
 module_platform_driver(platform_lcd_driver);

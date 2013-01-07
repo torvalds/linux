@@ -967,13 +967,22 @@ bool dm_table_request_based(struct dm_table *t)
 int dm_table_alloc_md_mempools(struct dm_table *t)
 {
 	unsigned type = dm_table_get_type(t);
+	unsigned per_bio_data_size = 0;
+	struct dm_target *tgt;
+	unsigned i;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
 		DMWARN("no table type is set, can't allocate mempools");
 		return -EINVAL;
 	}
 
-	t->mempools = dm_alloc_md_mempools(type, t->integrity_supported);
+	if (type == DM_TYPE_BIO_BASED)
+		for (i = 0; i < t->num_targets; i++) {
+			tgt = t->targets + i;
+			per_bio_data_size = max(per_bio_data_size, tgt->per_bio_data_size);
+		}
+
+	t->mempools = dm_alloc_md_mempools(type, t->integrity_supported, per_bio_data_size);
 	if (!t->mempools)
 		return -ENOMEM;
 
@@ -1212,6 +1221,41 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 	return &t->targets[(KEYS_PER_NODE * n) + k];
 }
 
+static int count_device(struct dm_target *ti, struct dm_dev *dev,
+			sector_t start, sector_t len, void *data)
+{
+	unsigned *num_devices = data;
+
+	(*num_devices)++;
+
+	return 0;
+}
+
+/*
+ * Check whether a table has no data devices attached using each
+ * target's iterate_devices method.
+ * Returns false if the result is unknown because a target doesn't
+ * support iterate_devices.
+ */
+bool dm_table_has_no_data_devices(struct dm_table *table)
+{
+	struct dm_target *uninitialized_var(ti);
+	unsigned i = 0, num_devices = 0;
+
+	while (i < dm_table_get_num_targets(table)) {
+		ti = dm_table_get_target(table, i++);
+
+		if (!ti->type->iterate_devices)
+			return false;
+
+		ti->type->iterate_devices(ti, count_device, &num_devices);
+		if (num_devices)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Establish the new table's queue_limits and validate them.
  */
@@ -1354,21 +1398,56 @@ static int device_is_nonrot(struct dm_target *ti, struct dm_dev *dev,
 	return q && blk_queue_nonrot(q);
 }
 
-static bool dm_table_is_nonrot(struct dm_table *t)
+static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
+			     sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && !blk_queue_add_random(q);
+}
+
+static bool dm_table_all_devices_attribute(struct dm_table *t,
+					   iterate_devices_callout_fn func)
 {
 	struct dm_target *ti;
 	unsigned i = 0;
 
-	/* Ensure that all underlying device are non-rotational. */
 	while (i < dm_table_get_num_targets(t)) {
 		ti = dm_table_get_target(t, i++);
 
 		if (!ti->type->iterate_devices ||
-		    !ti->type->iterate_devices(ti, device_is_nonrot, NULL))
+		    !ti->type->iterate_devices(ti, func, NULL))
 			return 0;
 	}
 
 	return 1;
+}
+
+static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
+					 sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && !q->limits.max_write_same_sectors;
+}
+
+static bool dm_table_supports_write_same(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->num_write_same_requests)
+			return false;
+
+		if (!ti->type->iterate_devices ||
+		    !ti->type->iterate_devices(ti, device_not_write_same_capable, NULL))
+			return false;
+	}
+
+	return true;
 }
 
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
@@ -1396,12 +1475,25 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	if (!dm_table_discard_zeroes_data(t))
 		q->limits.discard_zeroes_data = 0;
 
-	if (dm_table_is_nonrot(t))
+	/* Ensure that all underlying devices are non-rotational. */
+	if (dm_table_all_devices_attribute(t, device_is_nonrot))
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	else
 		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
 
+	if (!dm_table_supports_write_same(t))
+		q->limits.max_write_same_sectors = 0;
+
 	dm_table_set_integrity(t);
+
+	/*
+	 * Determine whether or not this queue's I/O timings contribute
+	 * to the entropy pool, Only request-based targets use this.
+	 * Clear QUEUE_FLAG_ADD_RANDOM if any underlying device does not
+	 * have it set.
+	 */
+	if (blk_queue_add_random(q) && dm_table_all_devices_attribute(t, device_is_not_random))
+		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 
 	/*
 	 * QUEUE_FLAG_STACKABLE must be set after all queue settings are

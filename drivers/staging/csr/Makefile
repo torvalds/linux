@@ -25,7 +25,6 @@ csr_wifi-y :=	bh.o				\
 		unifi_event.o			\
 		unifi_pdu_processing.o		\
 		unifi_sme.o			\
-		csr_formatted_io.o		\
 		csr_wifi_hip_card_sdio.o	\
 		csr_wifi_hip_card_sdio_intr.o	\
 		csr_wifi_hip_card_sdio_mem.o	\
@@ -71,5 +70,4 @@ csr_helper-y :=	csr_time.o			\
 		csr_framework_ext.o		\
 		csr_wifi_serialize_primitive_types.o	\
 		csr_serialize_primitive_types.o	\
-		csr_msgconv.o			\
-		csr_panic.o
+		csr_msgconv.o

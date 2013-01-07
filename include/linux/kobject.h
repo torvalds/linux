@@ -203,7 +203,6 @@ extern struct kobject *power_kobj;
 /* The global /sys/firmware/ kobject for people to chain off of */
 extern struct kobject *firmware_kobj;
 
-#if defined(CONFIG_HOTPLUG)
 int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
@@ -213,22 +212,5 @@ int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...);
 
 int kobject_action_type(const char *buf, size_t count,
 			enum kobject_action *type);
-#else
-static inline int kobject_uevent(struct kobject *kobj,
-				 enum kobject_action action)
-{ return 0; }
-static inline int kobject_uevent_env(struct kobject *kobj,
-				      enum kobject_action action,
-				      char *envp[])
-{ return 0; }
-
-static inline __printf(2, 3)
-int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
-{ return -ENOMEM; }
-
-static inline int kobject_action_type(const char *buf, size_t count,
-				      enum kobject_action *type)
-{ return -EINVAL; }
-#endif
 
 #endif /* _KOBJECT_H_ */

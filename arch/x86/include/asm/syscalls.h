@@ -20,23 +20,11 @@
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 long sys_iopl(unsigned int, struct pt_regs *);
 
-/* kernel/process.c */
-int sys_fork(struct pt_regs *);
-int sys_vfork(struct pt_regs *);
-long sys_execve(const char __user *,
-		const char __user *const __user *,
-		const char __user *const __user *, struct pt_regs *);
-long sys_clone(unsigned long, unsigned long, void __user *,
-	       void __user *, struct pt_regs *);
-
 /* kernel/ldt.c */
 asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/signal.c */
 long sys_rt_sigreturn(struct pt_regs *);
-long sys_sigaltstack(const stack_t __user *, stack_t __user *,
-		     struct pt_regs *);
-
 
 /* kernel/tls.c */
 asmlinkage int sys_set_thread_area(struct user_desc __user *);

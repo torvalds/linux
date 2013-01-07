@@ -16,11 +16,11 @@
 #include "session.h"
 #include "tool.h"
 
-static int build_id__mark_dso_hit(struct perf_tool *tool __used,
-				  union perf_event *event,
-				  struct perf_sample *sample __used,
-				  struct perf_evsel *evsel __used,
-				  struct machine *machine)
+int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
+			   union perf_event *event,
+			   struct perf_sample *sample __maybe_unused,
+			   struct perf_evsel *evsel __maybe_unused,
+			   struct machine *machine)
 {
 	struct addr_location al;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -41,9 +41,10 @@ static int build_id__mark_dso_hit(struct perf_tool *tool __used,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(struct perf_tool *tool __used,
+static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 				       union perf_event *event,
-				       struct perf_sample *sample __used,
+				       struct perf_sample *sample
+				       __maybe_unused,
 				       struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
@@ -63,11 +64,26 @@ static int perf_event__exit_del_thread(struct perf_tool *tool __used,
 struct perf_tool build_id__mark_dso_hit_ops = {
 	.sample	= build_id__mark_dso_hit,
 	.mmap	= perf_event__process_mmap,
-	.fork	= perf_event__process_task,
+	.fork	= perf_event__process_fork,
 	.exit	= perf_event__exit_del_thread,
 	.attr		 = perf_event__process_attr,
 	.build_id	 = perf_event__process_build_id,
 };
+
+int build_id__sprintf(const u8 *build_id, int len, char *bf)
+{
+	char *bid = bf;
+	const u8 *raw = build_id;
+	int i;
+
+	for (i = 0; i < len; ++i) {
+		sprintf(bid, "%02x", *raw);
+		++raw;
+		bid += 2;
+	}
+
+	return raw - build_id;
+}
 
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)
 {

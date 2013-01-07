@@ -129,7 +129,7 @@ CFLAGS ?= -g -Wall
 
 # Append required CFLAGS
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
-override CFLAGS += $(udis86-flags)
+override CFLAGS += $(udis86-flags) -D_GNU_SOURCE
 
 ifeq ($(VERBOSE),1)
   Q =
@@ -253,7 +253,7 @@ all_deps := $(all_objs:%.o=.%.d)
 # let .d file also depends on the source and header files
 define check_deps
 		@set -e; $(RM) $@; \
-		$(CC) -M $(CFLAGS) $< > $@.$$$$; \
+		$(CC) -MM $(CFLAGS) $< > $@.$$$$; \
 		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
 		$(RM) $@.$$$$
 endef

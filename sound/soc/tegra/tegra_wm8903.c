@@ -34,13 +34,12 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
-#include <mach/tegra_wm8903_pdata.h>
-
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/tegra_wm8903.h>
 
 #include "../codecs/wm8903.h"
 
@@ -253,7 +252,7 @@ static struct snd_soc_card snd_soc_tegra_wm8903 = {
 	.fully_routed = true,
 };
 
-static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
+static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &snd_soc_tegra_wm8903;
@@ -403,7 +402,7 @@ err:
 	return ret;
 }
 
-static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
+static int tegra_wm8903_driver_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
@@ -418,7 +417,7 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_wm8903_of_match[] __devinitconst = {
+static const struct of_device_id tegra_wm8903_of_match[] = {
 	{ .compatible = "nvidia,tegra-audio-wm8903", },
 	{},
 };
@@ -431,7 +430,7 @@ static struct platform_driver tegra_wm8903_driver = {
 		.of_match_table = tegra_wm8903_of_match,
 	},
 	.probe = tegra_wm8903_driver_probe,
-	.remove = __devexit_p(tegra_wm8903_driver_remove),
+	.remove = tegra_wm8903_driver_remove,
 };
 module_platform_driver(tegra_wm8903_driver);
 

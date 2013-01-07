@@ -28,6 +28,8 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/hardirq.h>
+#include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -384,7 +386,7 @@ acpi_evaluate_reference(acpi_handle handle,
 EXPORT_SYMBOL(acpi_evaluate_reference);
 
 acpi_status
-acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld)
+acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -400,13 +402,16 @@ acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld)
 	if (!output || output->type != ACPI_TYPE_PACKAGE
 	    || !output->package.count
 	    || output->package.elements[0].type != ACPI_TYPE_BUFFER
-	    || output->package.elements[0].buffer.length > sizeof(*pld)) {
+	    || output->package.elements[0].buffer.length < ACPI_PLD_REV1_BUFFER_SIZE) {
 		status = AE_TYPE;
 		goto out;
 	}
 
-	memcpy(pld, output->package.elements[0].buffer.pointer,
-	       output->package.elements[0].buffer.length);
+	status = acpi_decode_pld_buffer(
+			output->package.elements[0].buffer.pointer,
+			output->package.elements[0].buffer.length,
+			pld);
+
 out:
 	kfree(buffer.pointer);
 	return status;
@@ -454,3 +459,39 @@ acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 #endif
 }
 EXPORT_SYMBOL(acpi_evaluate_hotplug_ost);
+
+/**
+ * acpi_handle_printk: Print message with ACPI prefix and object path
+ *
+ * This function is called through acpi_handle_<level> macros and prints
+ * a message with ACPI prefix and object path.  This function acquires
+ * the global namespace mutex to obtain an object path.  In interrupt
+ * context, it shows the object path as <n/a>.
+ */
+void
+acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	struct acpi_buffer buffer = {
+		.length = ACPI_ALLOCATE_BUFFER,
+		.pointer = NULL
+	};
+	const char *path;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (in_interrupt() ||
+	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
+		path = "<n/a>";
+	else
+		path = buffer.pointer;
+
+	printk("%sACPI: %s: %pV", level, path, &vaf);
+
+	va_end(args);
+	kfree(buffer.pointer);
+}
+EXPORT_SYMBOL(acpi_handle_printk);

@@ -147,7 +147,7 @@ struct trace_array_cpu {
 	unsigned long		skipped_entries;
 	cycle_t			preempt_timestamp;
 	pid_t			pid;
-	uid_t			uid;
+	kuid_t			uid;
 	char			comm[TASK_COMM_LEN];
 };
 
@@ -285,8 +285,8 @@ struct tracer {
 	int			(*set_flag)(u32 old_flags, u32 bit, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
-	int			print_max;
-	int			use_max_tr;
+	bool			print_max;
+	bool			use_max_tr;
 };
 
 
@@ -327,7 +327,6 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
-void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
 void tracing_reset_online_cpus(struct trace_array *tr);
 void tracing_reset_current(int cpu);
@@ -349,15 +348,15 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 			  unsigned long len,
 			  unsigned long flags,
 			  int pc);
-void trace_buffer_unlock_commit(struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
 
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts);
+
+void __buffer_unlock_commit(struct ring_buffer *buffer,
+			    struct ring_buffer_event *event);
 
 int trace_empty(struct trace_iterator *iter);
 
@@ -367,7 +366,6 @@ void trace_init_global_iter(struct trace_iterator *iter);
 
 void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
-void default_wait_pipe(struct trace_iterator *iter);
 void poll_wait_pipe(struct trace_iterator *iter);
 
 void ftrace(struct trace_array *tr,
@@ -407,12 +405,7 @@ void tracing_sched_switch_assign_trace(struct trace_array *tr);
 void tracing_stop_sched_switch_record(void);
 void tracing_start_sched_switch_record(void);
 int register_tracer(struct tracer *type);
-void unregister_tracer(struct tracer *type);
 int is_tracing_stopped(void);
-enum trace_file_type {
-	TRACE_FILE_LAT_FMT	= 1,
-	TRACE_FILE_ANNOTATE	= 2,
-};
 
 extern cpumask_var_t __read_mostly tracing_buffer_mask;
 
@@ -472,11 +465,11 @@ extern void trace_find_cmdline(int pid, char comm[]);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
+#endif
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
 #define DYN_FTRACE_TEST_NAME2 trace_selftest_dynamic_test_func2
 extern int DYN_FTRACE_TEST_NAME2(void);
-#endif
 
 extern int ring_buffer_expanded;
 extern bool tracing_selftest_disabled;
@@ -680,6 +673,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_OVERWRITE		= 0x200000,
 	TRACE_ITER_STOP_ON_FREE		= 0x400000,
 	TRACE_ITER_IRQ_INFO		= 0x800000,
+	TRACE_ITER_MARKERS		= 0x1000000,
 };
 
 /*
@@ -840,6 +834,7 @@ extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
 
 void trace_printk_init_buffers(void);
+void trace_printk_start_comm(void);
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print, filter)	\

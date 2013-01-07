@@ -298,6 +298,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 	const u8 *rates_eid, *ext_rates_eid;
 	int n = 0;
 
+	rcu_read_lock();
 	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
 	ext_rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_EXT_SUPP_RATES);
 
@@ -325,6 +326,7 @@ static int lbs_add_common_rates_tlv(u8 *tlv, struct cfg80211_bss *bss)
 		*tlv++ = 0x96;
 		n = 4;
 	}
+	rcu_read_unlock();
 
 	rate_tlv->header.len = cpu_to_le16(n);
 	return sizeof(rate_tlv->header) + n;
@@ -436,19 +438,19 @@ static int lbs_add_wpa_tlv(u8 *tlv, const u8 *ie, u8 ie_len)
  */
 
 static int lbs_cfg_set_monitor_channel(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       enum nl80211_channel_type channel_type)
+				       struct cfg80211_chan_def *chandef)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = -ENOTSUPP;
 
 	lbs_deb_enter_args(LBS_DEB_CFG80211, "freq %d, type %d",
-			   channel->center_freq, channel_type);
+			   chandef->chan->center_freq,
+			   cfg80211_get_chandef_type(chandef));
 
-	if (channel_type != NL80211_CHAN_NO_HT)
+	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_NO_HT)
 		goto out;
 
-	ret = lbs_set_channel(priv, channel->hw_value);
+	ret = lbs_set_channel(priv, chandef->chan->hw_value);
 
  out:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -1140,11 +1142,13 @@ static int lbs_associate(struct lbs_private *priv,
 	cmd->capability = cpu_to_le16(bss->capability);
 
 	/* add SSID TLV */
+	rcu_read_lock();
 	ssid_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 	if (ssid_eid)
 		pos += lbs_add_ssid_tlv(pos, ssid_eid + 2, ssid_eid[1]);
 	else
 		lbs_deb_assoc("no SSID\n");
+	rcu_read_unlock();
 
 	/* add DS param TLV */
 	if (bss->channel)
@@ -1734,7 +1738,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	/* Fake DS channel IE */
 	*fake++ = WLAN_EID_DS_PARAMS;
 	*fake++ = 1;
-	*fake++ = params->channel->hw_value;
+	*fake++ = params->chandef.chan->hw_value;
 	/* Fake IBSS params IE */
 	*fake++ = WLAN_EID_IBSS_PARAMS;
 	*fake++ = 2;
@@ -1755,7 +1759,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	lbs_deb_hex(LBS_DEB_CFG80211, "IE", fake_ie, fake - fake_ie);
 
 	bss = cfg80211_inform_bss(priv->wdev->wiphy,
-				  params->channel,
+				  params->chandef.chan,
 				  bssid,
 				  0,
 				  capability,
@@ -1782,7 +1786,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 	struct cfg80211_ibss_params *params,
 	struct cfg80211_bss *bss)
 {
-	const u8 *rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
+	const u8 *rates_eid;
 	struct cmd_ds_802_11_ad_hoc_join cmd;
 	u8 preamble = RADIO_PREAMBLE_SHORT;
 	int ret = 0;
@@ -1833,7 +1837,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 	cmd.bss.beaconperiod = cpu_to_le16(params->beacon_interval);
 	cmd.bss.ds.header.id = WLAN_EID_DS_PARAMS;
 	cmd.bss.ds.header.len = 1;
-	cmd.bss.ds.channel = params->channel->hw_value;
+	cmd.bss.ds.channel = params->chandef.chan->hw_value;
 	cmd.bss.ibss.header.id = WLAN_EID_IBSS_PARAMS;
 	cmd.bss.ibss.header.len = 2;
 	cmd.bss.ibss.atimwindow = 0;
@@ -1841,6 +1845,8 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 
 	/* set rates to the intersection of our rates and the rates in the
 	   bss */
+	rcu_read_lock();
+	rates_eid = ieee80211_bss_get_ie(bss, WLAN_EID_SUPP_RATES);
 	if (!rates_eid) {
 		lbs_add_rates(cmd.bss.rates);
 	} else {
@@ -1860,6 +1866,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 			}
 		}
 	}
+	rcu_read_unlock();
 
 	/* Only v8 and below support setting this */
 	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8) {
@@ -1942,7 +1949,7 @@ static int lbs_ibss_start_new(struct lbs_private *priv,
 	cmd.ibss.atimwindow = 0;
 	cmd.ds.header.id = WLAN_EID_DS_PARAMS;
 	cmd.ds.header.len = 1;
-	cmd.ds.channel = params->channel->hw_value;
+	cmd.ds.channel = params->chandef.chan->hw_value;
 	/* Only v8 and below support setting probe delay */
 	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8)
 		cmd.probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
@@ -1987,18 +1994,18 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
-	if (!params->channel) {
+	if (!params->chandef.chan) {
 		ret = -ENOTSUPP;
 		goto out;
 	}
 
-	ret = lbs_set_channel(priv, params->channel->hw_value);
+	ret = lbs_set_channel(priv, params->chandef.chan->hw_value);
 	if (ret)
 		goto out;
 
 	/* Search if someone is beaconing. This assumes that the
 	 * bss list is populated already */
-	bss = cfg80211_get_bss(wiphy, params->channel, params->bssid,
+	bss = cfg80211_get_bss(wiphy, params->chandef.chan, params->bssid,
 		params->ssid, params->ssid_len,
 		WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
 

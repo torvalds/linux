@@ -138,7 +138,8 @@ ia64_init_addr_space (void)
 			vma->vm_mm = current->mm;
 			vma->vm_end = PAGE_SIZE;
 			vma->vm_page_prot = __pgprot(pgprot_val(PAGE_READONLY) | _PAGE_MA_NAT);
-			vma->vm_flags = VM_READ | VM_MAYREAD | VM_IO | VM_RESERVED;
+			vma->vm_flags = VM_READ | VM_MAYREAD | VM_IO |
+					VM_DONTEXPAND | VM_DONTDUMP;
 			down_write(&current->mm->mmap_sem);
 			if (insert_vm_struct(current->mm, vma)) {
 				up_write(&current->mm->mmap_sem);

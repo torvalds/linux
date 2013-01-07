@@ -356,7 +356,7 @@ static struct miscdevice sch311x_wdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
+static int sch311x_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int err;
@@ -429,7 +429,7 @@ exit:
 	return err;
 }
 
-static int __devexit sch311x_wdt_remove(struct platform_device *pdev)
+static int sch311x_wdt_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -451,7 +451,7 @@ static void sch311x_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver sch311x_wdt_driver = {
 	.probe		= sch311x_wdt_probe,
-	.remove		= __devexit_p(sch311x_wdt_remove),
+	.remove		= sch311x_wdt_remove,
 	.shutdown	= sch311x_wdt_shutdown,
 	.driver		= {
 		.owner = THIS_MODULE,

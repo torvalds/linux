@@ -1,10 +1,17 @@
 #include "../perf.h"
 #include "util.h"
 #include <sys/mman.h>
+#ifdef BACKTRACE_SUPPORT
+#include <execinfo.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
 
 /*
  * XXX We need to find a better place for these things...
  */
+unsigned int page_size;
+
 bool perf_host  = true;
 bool perf_guest = false;
 
@@ -158,3 +165,56 @@ size_t hex_width(u64 v)
 
 	return n;
 }
+
+static int hex(char ch)
+{
+	if ((ch >= '0') && (ch <= '9'))
+		return ch - '0';
+	if ((ch >= 'a') && (ch <= 'f'))
+		return ch - 'a' + 10;
+	if ((ch >= 'A') && (ch <= 'F'))
+		return ch - 'A' + 10;
+	return -1;
+}
+
+/*
+ * While we find nice hex chars, build a long_val.
+ * Return number of chars processed.
+ */
+int hex2u64(const char *ptr, u64 *long_val)
+{
+	const char *p = ptr;
+	*long_val = 0;
+
+	while (*p) {
+		const int hex_val = hex(*p);
+
+		if (hex_val < 0)
+			break;
+
+		*long_val = (*long_val << 4) | hex_val;
+		p++;
+	}
+
+	return p - ptr;
+}
+
+/* Obtain a backtrace and print it to stdout. */
+#ifdef BACKTRACE_SUPPORT
+void dump_stack(void)
+{
+	void *array[16];
+	size_t size = backtrace(array, ARRAY_SIZE(array));
+	char **strings = backtrace_symbols(array, size);
+	size_t i;
+
+	printf("Obtained %zd stack frames.\n", size);
+
+	for (i = 0; i < size; i++)
+		printf("%s\n", strings[i]);
+
+	free(strings);
+}
+#else
+void dump_stack(void) {}
+#endif

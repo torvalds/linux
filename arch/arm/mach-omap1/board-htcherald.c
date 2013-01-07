@@ -37,14 +37,13 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/omap7xx.h>
-#include <plat/board.h>
-#include <plat/keypad.h>
-#include <plat/mmc.h>
+#include <mach/omap7xx.h>
+#include "mmc.h"
 
 #include <mach/irqs.h>
 #include <mach/usb.h>
@@ -476,8 +475,7 @@ static void __init htcherald_lcd_init(void)
 				break;
 		}
 		if (!tries)
-			printk(KERN_WARNING "Timeout waiting for end of frame "
-			       "-- LCD may not be available\n");
+			pr_err("Timeout waiting for end of frame -- LCD may not be available\n");
 
 		/* turn off DMA */
 		reg = omap_readw(OMAP_DMA_LCD_CCR);
@@ -602,7 +600,6 @@ MACHINE_START(HERALD, "HTC Herald")
 	.atag_offset    = 0x100,
 	.map_io         = htcherald_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq       = omap1_init_irq,
 	.init_machine   = htcherald_init,
 	.init_late	= omap1_init_late,

@@ -171,7 +171,7 @@ static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
 	} while (0)
 
 int bench_mem_memset(int argc, const char **argv,
-		     const char *prefix __used)
+		     const char *prefix __maybe_unused)
 {
 	int i;
 	size_t len;

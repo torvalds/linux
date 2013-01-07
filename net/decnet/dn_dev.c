@@ -573,6 +573,9 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr __rcu **ifap;
 	int err = -EINVAL;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!net_eq(net, &init_net))
 		goto errout;
 
@@ -613,6 +616,9 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct ifaddrmsg *ifm;
 	struct dn_ifaddr *ifa;
 	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
@@ -667,12 +673,12 @@ static inline size_t dn_ifaddr_nlmsg_size(void)
 }
 
 static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
-			     u32 pid, u32 seq, int event, unsigned int flags)
+			     u32 portid, u32 seq, int event, unsigned int flags)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
 
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*ifm), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
@@ -753,7 +759,7 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			if (dn_idx < skip_naddr)
 				continue;
 
-			if (dn_nl_fill_ifaddr(skb, ifa, NETLINK_CB(cb->skb).pid,
+			if (dn_nl_fill_ifaddr(skb, ifa, NETLINK_CB(cb->skb).portid,
 					      cb->nlh->nlmsg_seq, RTM_NEWADDR,
 					      NLM_F_MULTI) < 0)
 				goto done;

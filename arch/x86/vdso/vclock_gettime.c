@@ -22,6 +22,7 @@
 #include <asm/hpet.h>
 #include <asm/unistd.h>
 #include <asm/io.h>
+#include <asm/pvclock.h>
 
 #define gtod (&VVAR(vsyscall_gtod_data))
 
@@ -62,6 +63,76 @@ static notrace cycle_t vread_hpet(void)
 	return readl((const void __iomem *)fix_to_virt(VSYSCALL_HPET) + 0xf0);
 }
 
+#ifdef CONFIG_PARAVIRT_CLOCK
+
+static notrace const struct pvclock_vsyscall_time_info *get_pvti(int cpu)
+{
+	const struct pvclock_vsyscall_time_info *pvti_base;
+	int idx = cpu / (PAGE_SIZE/PVTI_SIZE);
+	int offset = cpu % (PAGE_SIZE/PVTI_SIZE);
+
+	BUG_ON(PVCLOCK_FIXMAP_BEGIN + idx > PVCLOCK_FIXMAP_END);
+
+	pvti_base = (struct pvclock_vsyscall_time_info *)
+		    __fix_to_virt(PVCLOCK_FIXMAP_BEGIN+idx);
+
+	return &pvti_base[offset];
+}
+
+static notrace cycle_t vread_pvclock(int *mode)
+{
+	const struct pvclock_vsyscall_time_info *pvti;
+	cycle_t ret;
+	u64 last;
+	u32 version;
+	u32 migrate_count;
+	u8 flags;
+	unsigned cpu, cpu1;
+
+
+	/*
+	 * When looping to get a consistent (time-info, tsc) pair, we
+	 * also need to deal with the possibility we can switch vcpus,
+	 * so make sure we always re-fetch time-info for the current vcpu.
+	 */
+	do {
+		cpu = __getcpu() & VGETCPU_CPU_MASK;
+		/* TODO: We can put vcpu id into higher bits of pvti.version.
+		 * This will save a couple of cycles by getting rid of
+		 * __getcpu() calls (Gleb).
+		 */
+
+		pvti = get_pvti(cpu);
+
+		migrate_count = pvti->migrate_count;
+
+		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
+
+		/*
+		 * Test we're still on the cpu as well as the version.
+		 * We could have been migrated just after the first
+		 * vgetcpu but before fetching the version, so we
+		 * wouldn't notice a version change.
+		 */
+		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
+	} while (unlikely(cpu != cpu1 ||
+			  (pvti->pvti.version & 1) ||
+			  pvti->pvti.version != version ||
+			  pvti->migrate_count != migrate_count));
+
+	if (unlikely(!(flags & PVCLOCK_TSC_STABLE_BIT)))
+		*mode = VCLOCK_NONE;
+
+	/* refer to tsc.c read_tsc() comment for rationale */
+	last = VVAR(vsyscall_gtod_data).clock.cycle_last;
+
+	if (likely(ret >= last))
+		return ret;
+
+	return last;
+}
+#endif
+
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
 	long ret;
@@ -80,7 +151,7 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 }
 
 
-notrace static inline long vgetns(void)
+notrace static inline u64 vgetsns(int *mode)
 {
 	long v;
 	cycles_t cycles;
@@ -88,24 +159,31 @@ notrace static inline long vgetns(void)
 		cycles = vread_tsc();
 	else if (gtod->clock.vclock_mode == VCLOCK_HPET)
 		cycles = vread_hpet();
+#ifdef CONFIG_PARAVIRT_CLOCK
+	else if (gtod->clock.vclock_mode == VCLOCK_PVCLOCK)
+		cycles = vread_pvclock(mode);
+#endif
 	else
 		return 0;
 	v = (cycles - gtod->clock.cycle_last) & gtod->clock.mask;
-	return (v * gtod->clock.mult) >> gtod->clock.shift;
+	return v * gtod->clock.mult;
 }
 
 /* Code size doesn't matter (vdso is 4k anyway) and this is faster. */
 notrace static int __always_inline do_realtime(struct timespec *ts)
 {
-	unsigned long seq, ns;
+	unsigned long seq;
+	u64 ns;
 	int mode;
 
+	ts->tv_nsec = 0;
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->wall_time_sec;
-		ts->tv_nsec = gtod->wall_time_nsec;
-		ns = vgetns();
+		ns = gtod->wall_time_snsec;
+		ns += vgetsns(&mode);
+		ns >>= gtod->clock.shift;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 
 	timespec_add_ns(ts, ns);
@@ -114,15 +192,18 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 
 notrace static int do_monotonic(struct timespec *ts)
 {
-	unsigned long seq, ns;
+	unsigned long seq;
+	u64 ns;
 	int mode;
 
+	ts->tv_nsec = 0;
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->monotonic_time_sec;
-		ts->tv_nsec = gtod->monotonic_time_nsec;
-		ns = vgetns();
+		ns = gtod->monotonic_time_snsec;
+		ns += vgetsns(&mode);
+		ns >>= gtod->clock.shift;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 	timespec_add_ns(ts, ns);
 

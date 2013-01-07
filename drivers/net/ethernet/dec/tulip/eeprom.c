@@ -26,7 +26,7 @@
    */
 
 /* Known cards that have old-style EEPROMs. */
-static struct eeprom_fixup eeprom_fixups[] __devinitdata = {
+static struct eeprom_fixup eeprom_fixups[] = {
   {"Asante", 0, 0, 0x94, {0x1e00, 0x0000, 0x0800, 0x0100, 0x018c,
 			  0x0000, 0x0000, 0xe078, 0x0001, 0x0050, 0x0018 }},
   {"SMC9332DST", 0, 0, 0xC0, { 0x1e00, 0x0000, 0x0800, 0x041f,
@@ -79,7 +79,7 @@ static struct eeprom_fixup eeprom_fixups[] __devinitdata = {
   {NULL}};
 
 
-static const char *block_name[] __devinitdata = {
+static const char *const block_name[] = {
 	"21140 non-MII",
 	"21140 MII PHY",
 	"21142 Serial PHY",
@@ -102,7 +102,7 @@ static const char *block_name[] __devinitdata = {
  * #ifdef __hppa__ should completely optimize this function away for
  * non-parisc hardware.
  */
-static void __devinit tulip_build_fake_mediatable(struct tulip_private *tp)
+static void tulip_build_fake_mediatable(struct tulip_private *tp)
 {
 #ifdef CONFIG_GSC
 	if (tp->flags & NEEDS_FAKE_MEDIA_TABLE) {
@@ -140,7 +140,7 @@ static void __devinit tulip_build_fake_mediatable(struct tulip_private *tp)
 #endif
 }
 
-void __devinit tulip_parse_eeprom(struct net_device *dev)
+void tulip_parse_eeprom(struct net_device *dev)
 {
 	/*
 	  dev is not registered at this point, so logging messages can't
@@ -339,7 +339,7 @@ subsequent_board:
 #define EE_READ_CMD		(6)
 
 /* Note: this routine returns extra data bits for size detection. */
-int __devinit tulip_read_eeprom(struct net_device *dev, int location, int addr_len)
+int tulip_read_eeprom(struct net_device *dev, int location, int addr_len)
 {
 	int i;
 	unsigned retval = 0;

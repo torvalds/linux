@@ -867,14 +867,15 @@ static bool carl9170_tx_cts_check(struct ar9170 *ar,
 	return false;
 }
 
-static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
+static int carl9170_tx_prepare(struct ar9170 *ar,
+			       struct ieee80211_sta *sta,
+			       struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct _carl9170_tx_superframe *txc;
 	struct carl9170_vif_info *cvif;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_tx_rate *txrate;
-	struct ieee80211_sta *sta;
 	struct carl9170_tx_info *arinfo;
 	unsigned int hw_queue;
 	int i;
@@ -909,8 +910,6 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		cvif = (void *) info->control.vif->drv_priv;
 	else
 		cvif = NULL;
-
-	sta = info->control.sta;
 
 	txc = (void *)skb_push(skb, sizeof(*txc));
 	memset(txc, 0, sizeof(*txc));
@@ -1457,20 +1456,21 @@ err_unlock_rcu:
 	return false;
 }
 
-void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void carl9170_op_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_tx_control *control,
+		    struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_sta *sta;
+	struct ieee80211_sta *sta = control->sta;
 	bool run;
 
 	if (unlikely(!IS_STARTED(ar)))
 		goto err_free;
 
 	info = IEEE80211_SKB_CB(skb);
-	sta = info->control.sta;
 
-	if (unlikely(carl9170_tx_prepare(ar, skb)))
+	if (unlikely(carl9170_tx_prepare(ar, sta, skb)))
 		goto err_free;
 
 	carl9170_tx_accounting(ar, skb);
@@ -1485,6 +1485,13 @@ void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+		/* to static code analyzers and reviewers:
+		 * mac80211 guarantees that a valid "sta"
+		 * reference is present, if a frame is to
+		 * be part of an ampdu. Hence any extra
+		 * sta == NULL checks are redundant in this
+		 * special case.
+		 */
 		run = carl9170_tx_ampdu_queue(ar, sta, skb);
 		if (run)
 			carl9170_tx_ampdu(ar);

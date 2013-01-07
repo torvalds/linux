@@ -46,8 +46,9 @@ struct ads7846_platform_data {
 	u16	debounce_rep;		/* additional consecutive good readings
 					 * required after the first two */
 	int	gpio_pendown;		/* the GPIO used to decide the pendown
-					 * state if get_pendown_state == NULL
-					 */
+					 * state if get_pendown_state == NULL */
+	int	gpio_pendown_debounce;	/* platform specific debounce time for
+					 * the gpio_pendown */
 	int	(*get_pendown_state)(void);
 	int	(*filter_init)	(const struct ads7846_platform_data *pdata,
 				 void **filter_data);

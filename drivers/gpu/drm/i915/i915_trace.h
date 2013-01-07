@@ -214,43 +214,41 @@ TRACE_EVENT(i915_gem_evict,
 );
 
 TRACE_EVENT(i915_gem_evict_everything,
-	    TP_PROTO(struct drm_device *dev, bool purgeable),
-	    TP_ARGS(dev, purgeable),
+	    TP_PROTO(struct drm_device *dev),
+	    TP_ARGS(dev),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(bool, purgeable)
 			    ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->purgeable = purgeable;
 			  ),
 
-	    TP_printk("dev=%d%s",
-		      __entry->dev,
-		      __entry->purgeable ? ", purgeable only" : "")
+	    TP_printk("dev=%d", __entry->dev)
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
-	    TP_ARGS(ring, seqno),
+	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
+	    TP_ARGS(ring, seqno, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(u32, flags)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = ring->dev->primary->index;
 			   __entry->ring = ring->id;
 			   __entry->seqno = seqno;
+			   __entry->flags = flags;
 			   i915_trace_irq_get(ring, seqno);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
+		      __entry->dev, __entry->ring, __entry->seqno, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
@@ -432,6 +430,21 @@ TRACE_EVENT(i915_reg_rw,
 		__entry->reg, __entry->len,
 		(u32)(__entry->val & 0xffffffff),
 		(u32)(__entry->val >> 32))
+);
+
+TRACE_EVENT(intel_gpu_freq_change,
+	    TP_PROTO(u32 freq),
+	    TP_ARGS(freq),
+
+	    TP_STRUCT__entry(
+			     __field(u32, freq)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->freq = freq;
+			   ),
+
+	    TP_printk("new_freq=%u", __entry->freq)
 );
 
 #endif /* _I915_TRACE_H_ */

@@ -99,8 +99,25 @@ struct gfs2_rgrpd {
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 	spinlock_t rd_rsspin;           /* protects reservation related vars */
 	struct rb_root rd_rstree;       /* multi-block reservation tree */
-	u32 rd_rs_cnt;                  /* count of current reservations */
 };
+
+struct gfs2_rbm {
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_bitmap *bi;	/* Bitmap must belong to the rgd */
+	u32 offset;		/* The offset is bitmap relative */
+};
+
+static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
+{
+	return rbm->rgd->rd_data0 + (rbm->bi->bi_start * GFS2_NBBY) + rbm->offset;
+}
+
+static inline bool gfs2_rbm_eq(const struct gfs2_rbm *rbm1,
+			       const struct gfs2_rbm *rbm2)
+{
+	return (rbm1->rgd == rbm2->rgd) && (rbm1->bi == rbm2->bi) && 
+	       (rbm1->offset == rbm2->offset);
+}
 
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
@@ -188,7 +205,7 @@ struct lm_lockname {
 
 
 struct gfs2_glock_operations {
-	void (*go_xmote_th) (struct gfs2_glock *gl);
+	void (*go_sync) (struct gfs2_glock *gl);
 	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
@@ -199,6 +216,7 @@ struct gfs2_glock_operations {
 	const int go_type;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1
+#define GLOF_LVB    2
 };
 
 enum {
@@ -250,18 +268,11 @@ struct gfs2_blkreserv {
 	/* components used during write (step 1): */
 	atomic_t rs_sizehint;         /* hint of the write size */
 
-	/* components used during inplace_reserve (step 2): */
-	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-
-	/* components used during get_local_rgrp (step 3): */
-	struct gfs2_rgrpd *rs_rgd;    /* pointer to the gfs2_rgrpd */
 	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
 	struct rb_node rs_node;       /* link to other block reservations */
-
-	/* components used during block searches and assignments (step 4): */
-	struct gfs2_bitmap *rs_bi;    /* bitmap for the current allocation */
-	u32 rs_biblk;                 /* start block relative to the bi */
+	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
+	u64 rs_inum;                  /* Inode number for reservation */
 
 	/* ancillary quota stuff */
 	struct gfs2_quota_data *rs_qa_qd[2 * MAXQUOTAS];
@@ -311,7 +322,6 @@ struct gfs2_glock {
 	ktime_t gl_dstamp;
 	struct gfs2_lkstats gl_stats;
 	struct dlm_lksb gl_lksb;
-	char gl_lvb[32];
 	unsigned long gl_tchange;
 	void *gl_object;
 
@@ -529,6 +539,7 @@ enum {
 	SDF_DEMOTE		= 5,
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
+	SDF_SKIP_DLM_UNLOCK	= 8,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -611,6 +622,7 @@ struct gfs2_sbd {
 	u32 sd_hash_bsize_shift;
 	u32 sd_hash_ptrs;	/* Number of pointers in a hash block */
 	u32 sd_qc_per_block;
+	u32 sd_blocks_per_bitmap;
 	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	u32 sd_max_height;	/* Max height of a file's metadata tree */
 	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];

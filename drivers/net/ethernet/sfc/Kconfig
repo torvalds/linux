@@ -1,10 +1,11 @@
 config SFC
 	tristate "Solarflare SFC4000/SFC9000-family support"
-	depends on PCI && INET
+	depends on PCI
 	select MDIO
 	select CRC32
 	select I2C
 	select I2C_ALGOBIT
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports 10-gigabit Ethernet cards based on
 	  the Solarflare SFC4000 and SFC9000-family controllers.

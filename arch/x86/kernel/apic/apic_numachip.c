@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/delay.h>
 
+#include <asm/numachip/numachip.h>
 #include <asm/numachip/numachip_csr.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
@@ -30,7 +31,7 @@
 
 static int numachip_system __read_mostly;
 
-static struct apic apic_numachip __read_mostly;
+static const struct apic apic_numachip __read_mostly;
 
 static unsigned int get_apic_id(unsigned long x)
 {
@@ -179,6 +180,7 @@ static int __init numachip_system_init(void)
 		return 0;
 
 	x86_cpuinit.fixup_cpu_id = fixup_cpu_id;
+	x86_init.pci.arch_init = pci_numachip_init;
 
 	map_csrs();
 
@@ -199,7 +201,7 @@ static int numachip_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static struct apic apic_numachip __refconst = {
+static const struct apic apic_numachip __refconst = {
 
 	.name				= "NumaConnect system",
 	.probe				= numachip_probe,

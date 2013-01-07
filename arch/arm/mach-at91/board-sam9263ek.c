@@ -44,12 +44,12 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91_shdwc.h>
 #include <mach/system_rev.h>
 
+#include "at91_aic.h"
+#include "at91_shdwc.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -132,7 +132,7 @@ static struct spi_board_info ek_spi_devices[] = {
 		.max_speed_hz	= 125000 * 26,	/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
-		.irq		= AT91SAM9263_ID_IRQ1,
+		.irq		= NR_IRQS_LEGACY + AT91SAM9263_ID_IRQ1,
 	},
 #endif
 };
@@ -141,11 +141,12 @@ static struct spi_board_info ek_spi_devices[] = {
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PE18,
-	.wp_pin		= AT91_PIN_PE19,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata mci1_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PE18,
+		.wp_pin		= AT91_PIN_PE19,
+	},
 };
 
 
@@ -420,7 +421,7 @@ static void __init ek_board_init(void)
 	/* Touchscreen */
 	ek_add_device_ts();
 	/* MMC */
-	at91_add_device_mmc(1, &ek_mmc_data);
+	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* NAND */

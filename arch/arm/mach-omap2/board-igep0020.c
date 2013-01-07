@@ -29,20 +29,19 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/board.h>
-#include "common.h"
-#include <plat/gpmc.h>
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
+#include "common.h"
+#include "gpmc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-numonyx-m65kxxxxam.h"
 #include "common-board-devices.h"
 #include "board-flash.h"
 #include "control.h"
+#include "gpmc-onenand.h"
 
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176
@@ -175,7 +174,7 @@ static void __init igep_flash_init(void)
 		pr_info("IGEP: initializing NAND memory device\n");
 		board_nand_init(igep_flash_partitions,
 				ARRAY_SIZE(igep_flash_partitions),
-				0, NAND_BUSWIDTH_16);
+				0, NAND_BUSWIDTH_16, nand_default_timings);
 	} else if (mux == IGEP_SYSBOOT_ONENAND) {
 		pr_info("IGEP: initializing OneNAND memory device\n");
 		board_onenand_init(igep_flash_partitions,
@@ -192,7 +191,7 @@ static void __init igep_flash_init(void) {}
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = IGEP2_SMSC911X_CS,
@@ -425,9 +424,6 @@ static int igep_twl_gpio_setup(struct device *dev,
 };
 
 static struct twl4030_gpio_platform_data igep_twl4030_gpio_pdata = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= igep_twl_gpio_setup,
 };
@@ -583,6 +579,11 @@ static void __init igep_wlan_bt_init(void)
 	} else
 		return;
 
+	/* Make sure that the GPIO pins are muxed correctly */
+	omap_mux_init_gpio(igep_wlan_bt_gpios[0].gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(igep_wlan_bt_gpios[1].gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(igep_wlan_bt_gpios[2].gpio, OMAP_PIN_OUTPUT);
+
 	err = gpio_request_array(igep_wlan_bt_gpios,
 				 ARRAY_SIZE(igep_wlan_bt_gpios));
 	if (err) {
@@ -628,6 +629,7 @@ static void __init igep_init(void)
 
 	igep_flash_init();
 	igep_leds_init();
+	omap_twl4030_audio_init("igep2");
 
 	/*
 	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
@@ -654,7 +656,7 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
@@ -667,5 +669,5 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

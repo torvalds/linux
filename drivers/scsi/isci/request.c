@@ -1972,7 +1972,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 								      frame_index,
 								      (void **)&frame_buffer);
 
-			sci_controller_copy_sata_response(&ireq->stp.req,
+			sci_controller_copy_sata_response(&ireq->stp.rsp,
 							       frame_header,
 							       frame_buffer);
 
@@ -2240,7 +2240,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 			status = ireq->sci_status;
 			sci_change_state(&idev->sm, SCI_STP_DEV_ATAPI_ERROR);
 		} else {
-			/* If receiving any non-sucess TC status, no UF
+			/* If receiving any non-success TC status, no UF
 			 * received yet, then an UF for the status fis
 			 * is coming after (XXX: suspect this is
 			 * actually a protocol error or a bug like the

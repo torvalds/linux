@@ -56,7 +56,9 @@ a pointer to the &v4l2-dv-timings; structure as argument. If the ioctl is not su
 or the timing values are not correct, the driver returns &EINVAL;.</para>
 <para>The <filename>linux/v4l2-dv-timings.h</filename> header can be used to get the
 timings of the formats in the <xref linkend="cea861" /> and <xref linkend="vesadmt" />
-standards.</para>
+standards. If the current input or output does not support DV timings (e.g. if
+&VIDIOC-ENUMINPUT; does not set the <constant>V4L2_IN_CAP_DV_TIMINGS</constant> flag), then
+&ENODATA; is returned.</para>
   </refsect1>
 
   <refsect1>
@@ -68,6 +70,12 @@ standards.</para>
 	<listitem>
 	  <para>This ioctl is not supported, or the
 <constant>VIDIOC_S_DV_TIMINGS</constant> parameter was unsuitable.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video timings are not supported for this input or output.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -319,8 +327,5 @@ detected or used depends on the hardware.
 	</tbody>
       </tgroup>
     </table>
-  </refsect1>
-  <refsect1>
-    &return-value;
   </refsect1>
 </refentry>

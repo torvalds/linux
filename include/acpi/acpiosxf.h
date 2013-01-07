@@ -1,7 +1,6 @@
-
 /******************************************************************************
  *
- * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL).  These
+ * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL). These
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
@@ -47,8 +46,8 @@
 #ifndef __ACPIOSXF_H__
 #define __ACPIOSXF_H__
 
-#include "platform/acenv.h"
-#include "actypes.h"
+#include <acpi/platform/acenv.h>
+#include <acpi/actypes.h>
 
 /* Types for acpi_os_execute */
 

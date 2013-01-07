@@ -742,7 +742,7 @@ static struct uart_driver max3100_uart_driver = {
 };
 static int uart_driver_registered;
 
-static int __devinit max3100_probe(struct spi_device *spi)
+static int max3100_probe(struct spi_device *spi)
 {
 	int i, retval;
 	struct plat_max3100 *pdata;
@@ -818,7 +818,7 @@ static int __devinit max3100_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit max3100_remove(struct spi_device *spi)
+static int max3100_remove(struct spi_device *spi)
 {
 	struct max3100_port *s = dev_get_drvdata(&spi->dev);
 	int i;
@@ -827,14 +827,16 @@ static int __devexit max3100_remove(struct spi_device *spi)
 
 	/* find out the index for the chip we are removing */
 	for (i = 0; i < MAX_MAX3100; i++)
-		if (max3100s[i] == s)
+		if (max3100s[i] == s) {
+			dev_dbg(&spi->dev, "%s: removing port %d\n", __func__, i);
+			uart_remove_one_port(&max3100_uart_driver, &max3100s[i]->port);
+			kfree(max3100s[i]);
+			max3100s[i] = NULL;
 			break;
+		}
 
-	dev_dbg(&spi->dev, "%s: removing port %d\n", __func__, i);
-	uart_remove_one_port(&max3100_uart_driver, &max3100s[i]->port);
-	kfree(max3100s[i]);
-	max3100s[i] = NULL;
-
+	WARN_ON(i == MAX_MAX3100);
+	
 	/* check if this is the last chip we have */
 	for (i = 0; i < MAX_MAX3100; i++)
 		if (max3100s[i]) {
@@ -905,22 +907,12 @@ static struct spi_driver max3100_driver = {
 	},
 
 	.probe		= max3100_probe,
-	.remove		= __devexit_p(max3100_remove),
+	.remove		= max3100_remove,
 	.suspend	= max3100_suspend,
 	.resume		= max3100_resume,
 };
 
-static int __init max3100_init(void)
-{
-	return spi_register_driver(&max3100_driver);
-}
-module_init(max3100_init);
-
-static void __exit max3100_exit(void)
-{
-	spi_unregister_driver(&max3100_driver);
-}
-module_exit(max3100_exit);
+module_spi_driver(max3100_driver);
 
 MODULE_DESCRIPTION("MAX3100 driver");
 MODULE_AUTHOR("Christian Pellegrin <chripell@evolware.org>");

@@ -22,8 +22,6 @@
 #define DRIVER_AUTHOR "Qualcomm Inc"
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
-static bool debug;
-
 #define DEVICE_G1K(v, p) \
 	USB_DEVICE(v, p), .driver_info = 1
 
@@ -140,7 +138,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	struct usb_wwan_intf_private *data;
 	struct usb_host_interface *intf = serial->interface->cur_altsetting;
 	struct device *dev = &serial->dev->dev;
 	int retval = -ENODEV;
@@ -155,13 +152,6 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
 	ifnum = intf->desc.bInterfaceNumber;
 	dev_dbg(dev, "This Interface = %d\n", ifnum);
-
-	data = kzalloc(sizeof(struct usb_wwan_intf_private),
-					 GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	spin_lock_init(&data->susp_lock);
 
 	if (nintf == 1) {
 		/* QDL mode */
@@ -255,20 +245,28 @@ done:
 		}
 	}
 
-	/* Set serial->private if not returning error */
-	if (retval == 0)
-		usb_set_serial_data(serial, data);
-	else
-		kfree(data);
-
 	return retval;
+}
+
+static int qc_attach(struct usb_serial *serial)
+{
+	struct usb_wwan_intf_private *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	spin_lock_init(&data->susp_lock);
+
+	usb_set_serial_data(serial, data);
+
+	return 0;
 }
 
 static void qc_release(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *priv = usb_get_serial_data(serial);
 
-	/* Free the private data allocated in qcprobe */
 	usb_set_serial_data(serial, NULL);
 	kfree(priv);
 }
@@ -287,8 +285,9 @@ static struct usb_serial_driver qcdevice = {
 	.write		     = usb_wwan_write,
 	.write_room	     = usb_wwan_write_room,
 	.chars_in_buffer     = usb_wwan_chars_in_buffer,
-	.attach		     = usb_wwan_startup,
+	.attach              = qc_attach,
 	.release	     = qc_release,
+	.port_probe          = usb_wwan_port_probe,
 	.port_remove	     = usb_wwan_port_remove,
 #ifdef CONFIG_PM
 	.suspend	     = usb_wwan_suspend,
@@ -305,6 +304,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL v2");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

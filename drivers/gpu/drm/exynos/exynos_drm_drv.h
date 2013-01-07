@@ -30,12 +30,25 @@
 #define _EXYNOS_DRM_DRV_H_
 
 #include <linux/module.h>
-#include "drm.h"
 
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
+
+#define _wait_for(COND, MS) ({ \
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	int ret__ = 0;							\
+	while (!(COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+	}								\
+	ret__;								\
+})
+
+#define wait_for(COND, MS) _wait_for(COND, MS)
 
 struct drm_device;
 struct exynos_drm_overlay;
@@ -94,7 +107,6 @@ struct exynos_drm_overlay_ops {
  * @pixel_format: fourcc pixel format of this overlay
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
- * @vaddr: array of virtual memory addresss to this overlay.
  * @zpos: order of overlay layer(z position).
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
@@ -126,7 +138,6 @@ struct exynos_drm_overlay {
 	unsigned int pitch;
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
-	void __iomem *vaddr[MAX_FB_BUFFER];
 	int zpos;
 
 	bool default_win;
@@ -170,6 +181,8 @@ struct exynos_drm_display_ops {
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
+ * @wait_for_vblank: wait for vblank interrupt to make sure that
+ *	hardware overlay is updated.
  */
 struct exynos_drm_manager_ops {
 	void (*dpms)(struct device *subdrv_dev, int mode);
@@ -184,6 +197,7 @@ struct exynos_drm_manager_ops {
 	void (*commit)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
+	void (*wait_for_vblank)(struct device *subdrv_dev);
 };
 
 /*
@@ -215,16 +229,28 @@ struct exynos_drm_g2d_private {
 	struct device		*dev;
 	struct list_head	inuse_cmdlist;
 	struct list_head	event_list;
-	struct list_head	gem_list;
-	unsigned int		gem_nr;
+	struct list_head	userptr_list;
+};
+
+struct exynos_drm_ipp_private {
+	struct device	*dev;
+	struct list_head	event_list;
 };
 
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
+	struct exynos_drm_ipp_private	*ipp_priv;
 };
 
 /*
  * Exynos drm private structure.
+ *
+ * @da_start: start address to device address space.
+ *	with iommu, device address space starts from this address
+ *	otherwise default one.
+ * @da_space_size: size of device address space.
+ *	if 0 then default value is used for it.
+ * @da_space_order: order to device address space.
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
@@ -239,6 +265,10 @@ struct exynos_drm_private {
 	struct drm_crtc *crtc[MAX_CRTC];
 	struct drm_property *plane_zpos_property;
 	struct drm_property *crtc_mode_property;
+
+	unsigned long da_start;
+	unsigned long da_space_size;
+	unsigned long da_space_order;
 };
 
 /*
@@ -266,7 +296,7 @@ struct exynos_drm_subdrv {
 	struct exynos_drm_manager *manager;
 
 	int (*probe)(struct drm_device *drm_dev, struct device *dev);
-	void (*remove)(struct drm_device *dev);
+	void (*remove)(struct drm_device *drm_dev, struct device *dev);
 	int (*open)(struct drm_device *drm_dev, struct device *dev,
 			struct drm_file *file);
 	void (*close)(struct drm_device *drm_dev, struct device *dev,
@@ -302,10 +332,25 @@ int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
+/*
+ * this function registers exynos drm hdmi platform device. It ensures only one
+ * instance of the device is created.
+ */
+extern int exynos_platform_device_hdmi_register(void);
+
+/*
+ * this function unregisters exynos drm hdmi platform device if it exists.
+ */
+void exynos_platform_device_hdmi_unregister(void);
+
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
 extern struct platform_driver g2d_driver;
+extern struct platform_driver fimc_driver;
+extern struct platform_driver rotator_driver;
+extern struct platform_driver gsc_driver;
+extern struct platform_driver ipp_driver;
 #endif

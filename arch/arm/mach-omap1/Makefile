@@ -3,7 +3,8 @@
 #
 
 # Common support
-obj-y := io.o id.o sram.o time.o irq.o mux.o flash.o serial.o devices.o dma.o
+obj-y := io.o id.o sram-init.o sram.o time.o irq.o mux.o flash.o \
+	 serial.o devices.o dma.o fb.o
 obj-y += clock.o clock_data.o opp_data.o reset.o pm_bus.o timer.o
 
 ifneq ($(CONFIG_SND_OMAP_SOC_MCBSP),)
@@ -60,14 +61,6 @@ obj-$(CONFIG_ARCH_OMAP730)		+= gpio7xx.o
 obj-$(CONFIG_ARCH_OMAP850)		+= gpio7xx.o
 obj-$(CONFIG_ARCH_OMAP15XX)		+= gpio15xx.o
 obj-$(CONFIG_ARCH_OMAP16XX)		+= gpio16xx.o
-
-# LEDs support
-led-$(CONFIG_MACH_OMAP_H2)		+= leds-h2p2-debug.o
-led-$(CONFIG_MACH_OMAP_H3)		+= leds-h2p2-debug.o
-led-$(CONFIG_MACH_OMAP_INNOVATOR)	+= leds-innovator.o
-led-$(CONFIG_MACH_OMAP_PERSEUS2)	+= leds-h2p2-debug.o
-led-$(CONFIG_MACH_OMAP_OSK)		+= leds-osk.o
-obj-$(CONFIG_LEDS)			+= $(led-y)
 
 ifneq ($(CONFIG_FB_OMAP),)
 obj-y += lcd_dma.o

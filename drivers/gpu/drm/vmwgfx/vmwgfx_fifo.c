@@ -26,8 +26,8 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "drmP.h"
-#include "ttm/ttm_placement.h"
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_placement.h>
 
 bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 {

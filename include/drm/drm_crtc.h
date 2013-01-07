@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
+#include <drm/drm_mode.h>
 
 #include <drm/drm_fourcc.h>
 
@@ -215,11 +216,10 @@ struct drm_display_info {
 	u32 color_formats;
 
 	u8 cea_rev;
-
-	char *raw_edid; /* if any */
 };
 
 struct drm_framebuffer_funcs {
+	/* note: use drm_framebuffer_remove() */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
@@ -244,6 +244,16 @@ struct drm_framebuffer_funcs {
 
 struct drm_framebuffer {
 	struct drm_device *dev;
+	/*
+	 * Note that the fb is refcounted for the benefit of driver internals,
+	 * for example some hw, disabling a CRTC/plane is asynchronous, and
+	 * scanout does not actually complete until the next vblank.  So some
+	 * cleanup (like releasing the reference(s) on the backing GEM bo(s))
+	 * should be deferred.  In cases like this, the driver would like to
+	 * hold a ref to the fb even though it has already been removed from
+	 * userspace perspective.
+	 */
+	struct kref refcount;
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
@@ -359,6 +369,9 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
+ * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
+ *    invert the width/height of the crtc.  This is used if the driver
+ *    is performing 90 or 270 degree rotated scanout
  * @x: x position on screen
  * @y: y position on screen
  * @funcs: CRTC control functions
@@ -391,6 +404,8 @@ struct drm_crtc {
 	 * crtc, panel scaling etc. Needed for timestamping etc.
 	 */
 	struct drm_display_mode hwmode;
+
+	bool invert_dimensions;
 
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
@@ -593,6 +608,7 @@ struct drm_connector {
 	int video_latency[2];	/* [0]: progressive, [1]: interlaced */
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
+	unsigned bad_edid_counter;
 };
 
 /**
@@ -776,6 +792,7 @@ struct drm_mode_config {
 
 	/* output poll support */
 	bool poll_enabled;
+	bool poll_running;
 	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
@@ -862,6 +879,7 @@ extern char *drm_get_tv_subconnector_name(int val);
 extern char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
+extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
@@ -870,14 +888,14 @@ extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_
 extern void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src);
 extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 						   const struct drm_display_mode *mode);
-extern void drm_mode_debug_printmodeline(struct drm_display_mode *mode);
+extern void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
 extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 extern void drm_mode_set_name(struct drm_display_mode *mode);
-extern bool drm_mode_equal(struct drm_display_mode *mode1, struct drm_display_mode *mode2);
-extern int drm_mode_width(struct drm_display_mode *mode);
-extern int drm_mode_height(struct drm_display_mode *mode);
+extern bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
+extern int drm_mode_width(const struct drm_display_mode *mode);
+extern int drm_mode_height(const struct drm_display_mode *mode);
 
 /* for us by fb module */
 extern int drm_mode_attachmode_crtc(struct drm_device *dev,
@@ -902,12 +920,6 @@ extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 extern void drm_mode_connector_list_update(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						struct edid *edid);
-extern int drm_connector_property_set_value(struct drm_connector *connector,
-					 struct drm_property *property,
-					 uint64_t value);
-extern int drm_connector_property_get_value(struct drm_connector *connector,
-					 struct drm_property *property,
-					 uint64_t *value);
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t val);
@@ -920,14 +932,15 @@ extern void drm_framebuffer_set_object(struct drm_device *dev,
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
+extern void drm_framebuffer_unreference(struct drm_framebuffer *fb);
+extern void drm_framebuffer_reference(struct drm_framebuffer *fb);
+extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
 extern int drmfb_probe(struct drm_device *dev, struct drm_crtc *crtc);
 extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 extern void drm_crtc_probe_connector_modes(struct drm_device *dev, int maxX, int maxY);
 extern bool drm_crtc_in_use(struct drm_crtc *crtc);
 
-extern void drm_connector_attach_property(struct drm_connector *connector,
-					  struct drm_property *property, uint64_t init_val);
 extern void drm_object_attach_property(struct drm_mode_object *obj,
 				       struct drm_property *property,
 				       uint64_t init_val);
@@ -1017,6 +1030,7 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern u8 *drm_find_cea_extension(struct edid *edid);
+extern u8 drm_match_cea_mode(struct drm_display_mode *to_match);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
@@ -1033,9 +1047,10 @@ extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
 				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
+extern uint8_t drm_mode_cea_vic(const struct drm_display_mode *mode);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
-extern bool drm_edid_block_valid(u8 *raw_edid, int block);
+extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,

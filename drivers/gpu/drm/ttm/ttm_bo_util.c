@@ -28,8 +28,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
 #include <linux/io.h>
 #include <linux/highmem.h>
 #include <linux/wait.h>
@@ -43,7 +43,7 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    bool evict, bool no_wait_reserve,
+		    bool evict,
 		    bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
@@ -314,7 +314,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 }
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool evict, bool no_wait_reserve, bool no_wait_gpu,
+		       bool evict, bool no_wait_gpu,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
@@ -472,7 +472,7 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 	else
 		tmp = pgprot_noncached(tmp);
 #endif
-#if defined(__sparc__)
+#if defined(__sparc__) || defined(__mips__)
 	if (!(caching_flags & TTM_PL_FLAG_CACHED))
 		tmp = pgprot_noncached(tmp);
 #endif
@@ -611,8 +611,7 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      void *sync_obj,
-			      void *sync_obj_arg,
-			      bool evict, bool no_wait_reserve,
+			      bool evict,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
@@ -630,7 +629,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		bo->sync_obj = NULL;
 	}
 	bo->sync_obj = driver->sync_obj_ref(sync_obj);
-	bo->sync_obj_arg = sync_obj_arg;
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
 		spin_unlock(&bdev->fence_lock);

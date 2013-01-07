@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,8 +15,29 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x20000000>; /* 512 MB */
+		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		pmu_stat {
+			label = "beagleboard::pmu_stat";
+			gpios = <&twl_gpio 19 0>; /* LEDB */
+		};
+
+		heartbeat {
+			label = "beagleboard::usr0";
+			gpios = <&gpio5 22 0>; /* 150 -> D6 LED */
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "beagleboard::usr1";
+			gpios = <&gpio5 21 0>; /* 149 -> D7 LED */
+			linux,default-trigger = "mmc0";
+		};
+	};
+
 };
 
 &i2c1 {
@@ -26,33 +47,10 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
-
-		vsim: regulator@10 {
-			compatible = "ti,twl4030-vsim";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <3000000>;
-		};
 	};
 };
 
 /include/ "twl4030.dtsi"
-
-&i2c2 {
-	clock-frequency = <400000>;
-};
-
-&i2c3 {
-	clock-frequency = <100000>;
-
-	/*
-	 * Display monitor features are burnt in the EEPROM
-	 * as EDID data.
-	 */
-	eeprom@50 {
-		compatible = "ti,eeprom";
-		reg = <0x50>;
-	};
-};
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;

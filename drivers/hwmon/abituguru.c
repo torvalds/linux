@@ -478,7 +478,7 @@ static int abituguru_write(struct abituguru_data *data,
  * alarm for sensor type X and then enabling the sensor as sensor type
  * X, if we then get an alarm it is a sensor of type X.
  */
-static int __devinit
+static int
 abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				   u8 sensor_addr)
 {
@@ -635,7 +635,7 @@ abituguru_detect_bank1_sensor_type_exit:
  * read/write test would be feasible because of the reaction above, I've
  * however opted to stay on the safe side.
  */
-static void __devinit
+static void
 abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 {
 	int i;
@@ -691,7 +691,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		(int)data->bank2_sensors);
 }
 
-static void __devinit
+static void
 abituguru_detect_no_pwms(struct abituguru_data *data)
 {
 	int i, j;
@@ -1264,7 +1264,7 @@ static struct sensor_device_attribute_2 abituguru_sysfs_attr[] = {
 	SENSOR_ATTR_2(name, 0444, show_name, NULL, 0, 0),
 };
 
-static int __devinit abituguru_probe(struct platform_device *pdev)
+static int abituguru_probe(struct platform_device *pdev)
 {
 	struct abituguru_data *data;
 	int i, j, used, sysfs_names_free, sysfs_attr_i, res = -ENODEV;
@@ -1278,7 +1278,8 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 		0x00, 0x01, 0x03, 0x04, 0x0A, 0x08, 0x0E, 0x02,
 		0x09, 0x06, 0x05, 0x0B, 0x0F, 0x0D, 0x07, 0x0C };
 
-	data = kzalloc(sizeof(struct abituguru_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1430,12 +1431,10 @@ abituguru_probe_error:
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 	return res;
 }
 
-static int __devexit abituguru_remove(struct platform_device *pdev)
+static int abituguru_remove(struct platform_device *pdev)
 {
 	int i;
 	struct abituguru_data *data = platform_get_drvdata(pdev);
@@ -1446,8 +1445,6 @@ static int __devexit abituguru_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 
 	return 0;
 }
@@ -1548,7 +1545,7 @@ static struct platform_driver abituguru_driver = {
 		.pm	= ABIT_UGURU_PM,
 	},
 	.probe		= abituguru_probe,
-	.remove		= __devexit_p(abituguru_remove),
+	.remove		= abituguru_remove,
 };
 
 static int __init abituguru_detect(void)

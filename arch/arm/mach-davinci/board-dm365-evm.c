@@ -33,11 +33,11 @@
 
 #include <mach/mux.h>
 #include <mach/common.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
-#include <mach/mmc.h>
-#include <mach/nand.h>
-#include <mach/keyscan.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/keyscan-davinci.h>
 
 #include <media/tvp514x.h>
 
@@ -478,7 +478,7 @@ static void __init evm_init_cpld(void)
 	aemif_clk = clk_get(NULL, "aemif");
 	if (IS_ERR(aemif_clk))
 		return;
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (request_mem_region(DM365_ASYNC_EMIF_DATA_CE1_BASE, SECTION_SIZE,
 			"cpld") == NULL)
@@ -489,7 +489,7 @@ static void __init evm_init_cpld(void)
 				SECTION_SIZE);
 fail:
 		pr_err("ERROR: can't map CPLD\n");
-		clk_disable(aemif_clk);
+		clk_disable_unprepare(aemif_clk);
 		return;
 	}
 

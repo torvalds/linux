@@ -1443,13 +1443,12 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
 	return generic_swapfile_activate(sis, swap_file, span);
 }
 
-static void enable_swap_info(struct swap_info_struct *p, int prio,
+static void _enable_swap_info(struct swap_info_struct *p, int prio,
 				unsigned char *swap_map,
 				unsigned long *frontswap_map)
 {
 	int i, prev;
 
-	spin_lock(&swap_lock);
 	if (prio >= 0)
 		p->prio = prio;
 	else
@@ -1472,7 +1471,22 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
 		swap_list.head = swap_list.next = p->type;
 	else
 		swap_info[prev]->next = p->type;
+}
+
+static void enable_swap_info(struct swap_info_struct *p, int prio,
+				unsigned char *swap_map,
+				unsigned long *frontswap_map)
+{
+	spin_lock(&swap_lock);
+	_enable_swap_info(p, prio, swap_map, frontswap_map);
 	frontswap_init(p->type);
+	spin_unlock(&swap_lock);
+}
+
+static void reinsert_swap_info(struct swap_info_struct *p)
+{
+	spin_lock(&swap_lock);
+	_enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
 	spin_unlock(&swap_lock);
 }
 
@@ -1483,8 +1497,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	struct file *swap_file, *victim;
 	struct address_space *mapping;
 	struct inode *inode;
-	char *pathname;
-	int oom_score_adj;
+	struct filename *pathname;
 	int i, type, prev;
 	int err;
 
@@ -1494,12 +1507,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	BUG_ON(!current->mm);
 
 	pathname = getname(specialfile);
-	err = PTR_ERR(pathname);
 	if (IS_ERR(pathname))
-		goto out;
+		return PTR_ERR(pathname);
 
-	victim = filp_open(pathname, O_RDWR|O_LARGEFILE, 0);
-	putname(pathname);
+	victim = file_open_name(pathname, O_RDWR|O_LARGEFILE, 0);
 	err = PTR_ERR(victim);
 	if (IS_ERR(victim))
 		goto out;
@@ -1545,19 +1556,13 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	p->flags &= ~SWP_WRITEOK;
 	spin_unlock(&swap_lock);
 
-	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
+	set_current_oom_origin();
 	err = try_to_unuse(type, false, 0); /* force all pages to be unused */
-	compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX, oom_score_adj);
+	clear_current_oom_origin();
 
 	if (err) {
-		/*
-		 * reading p->prio and p->swap_map outside the lock is
-		 * safe here because only sys_swapon and sys_swapoff
-		 * change them, and there can be no other sys_swapon or
-		 * sys_swapoff for this swap_info_struct at this point.
-		 */
 		/* re-insert swap space back into swap_list */
-		enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
+		reinsert_swap_info(p);
 		goto out_dput;
 	}
 
@@ -1609,6 +1614,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 out_dput:
 	filp_close(victim, NULL);
 out:
+	putname(pathname);
 	return err;
 }
 
@@ -1936,7 +1942,7 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 {
 	struct swap_info_struct *p;
-	char *name;
+	struct filename *name;
 	struct file *swap_file = NULL;
 	struct address_space *mapping;
 	int i;
@@ -1967,7 +1973,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		name = NULL;
 		goto bad_swap;
 	}
-	swap_file = filp_open(name, O_RDWR|O_LARGEFILE, 0);
+	swap_file = file_open_name(name, O_RDWR|O_LARGEFILE, 0);
 	if (IS_ERR(swap_file)) {
 		error = PTR_ERR(swap_file);
 		swap_file = NULL;
@@ -2053,7 +2059,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 
 	printk(KERN_INFO "Adding %uk swap on %s.  "
 			"Priority:%d extents:%d across:%lluk %s%s%s\n",
-		p->pages<<(PAGE_SHIFT-10), name, p->prio,
+		p->pages<<(PAGE_SHIFT-10), name->name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
 		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
 		(p->flags & SWP_DISCARDABLE) ? "D" : "",

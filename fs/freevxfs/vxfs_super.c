@@ -279,6 +279,11 @@ static void __exit
 vxfs_cleanup(void)
 {
 	unregister_filesystem(&vxfs_fs_type);
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(vxfs_inode_cachep);
 }
 

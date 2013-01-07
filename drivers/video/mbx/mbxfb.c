@@ -26,8 +26,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <video/mbxfb.h>
 
@@ -939,8 +938,9 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	}
 	mfbi->reg_phys_addr = mfbi->reg_res->start;
 
-	mfbi->reg_virt_addr = ioremap_nocache(mfbi->reg_phys_addr,
-					      res_size(mfbi->reg_req));
+	mfbi->reg_virt_addr = devm_ioremap_nocache(&dev->dev,
+						   mfbi->reg_phys_addr,
+						   res_size(mfbi->reg_req));
 	if (!mfbi->reg_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap Marathon registers\n");
 		ret = -EINVAL;
@@ -948,12 +948,12 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	}
 	virt_base_2700 = mfbi->reg_virt_addr;
 
-	mfbi->fb_virt_addr = ioremap_nocache(mfbi->fb_phys_addr,
-					     res_size(mfbi->fb_req));
+	mfbi->fb_virt_addr = devm_ioremap_nocache(&dev->dev, mfbi->fb_phys_addr,
+						  res_size(mfbi->fb_req));
 	if (!mfbi->fb_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap frame buffer\n");
 		ret = -EINVAL;
-		goto err4;
+		goto err3;
 	}
 
 	fbi->screen_base = (char __iomem *)(mfbi->fb_virt_addr + 0x60000);
@@ -971,7 +971,7 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	if (ret < 0) {
 		dev_err(&dev->dev, "fb_alloc_cmap failed\n");
 		ret = -EINVAL;
-		goto err5;
+		goto err3;
 	}
 
 	platform_set_drvdata(dev, fbi);
@@ -996,10 +996,6 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 
 err6:
 	fb_dealloc_cmap(&fbi->cmap);
-err5:
-	iounmap(mfbi->fb_virt_addr);
-err4:
-	iounmap(mfbi->reg_virt_addr);
 err3:
 	release_mem_region(mfbi->reg_res->start, res_size(mfbi->reg_res));
 err2:
@@ -1026,10 +1022,7 @@ static int __devexit mbxfb_remove(struct platform_device *dev)
 			if (mfbi->platform_remove)
 				mfbi->platform_remove(fbi);
 
-			if (mfbi->fb_virt_addr)
-				iounmap(mfbi->fb_virt_addr);
-			if (mfbi->reg_virt_addr)
-				iounmap(mfbi->reg_virt_addr);
+
 			if (mfbi->reg_req)
 				release_mem_region(mfbi->reg_req->start,
 						   res_size(mfbi->reg_req));

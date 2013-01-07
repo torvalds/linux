@@ -77,22 +77,28 @@ EXPORT_SYMBOL(vfs_statfs);
 int user_statfs(const char __user *pathname, struct kstatfs *st)
 {
 	struct path path;
-	int error = user_path_at(AT_FDCWD, pathname, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &path);
+	int error;
+	unsigned int lookup_flags = LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT;
+retry:
+	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
 	if (!error) {
 		error = vfs_statfs(&path, st);
 		path_put(&path);
+		if (retry_estale(error, lookup_flags)) {
+			lookup_flags |= LOOKUP_REVAL;
+			goto retry;
+		}
 	}
 	return error;
 }
 
 int fd_statfs(int fd, struct kstatfs *st)
 {
-	int fput_needed;
-	struct file *file = fget_light(fd, &fput_needed);
+	struct fd f = fdget(fd);
 	int error = -EBADF;
-	if (file) {
-		error = vfs_statfs(&file->f_path, st);
-		fput_light(file, fput_needed);
+	if (f.file) {
+		error = vfs_statfs(&f.file->f_path, st);
+		fdput(f);
 	}
 	return error;
 }

@@ -7,16 +7,20 @@ config TILE
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
+	select SYSCTL_EXCEPTION_TRACE
 	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
+	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_SYSCALL_WRAPPERS if TILEGX
 	select SYS_HYPERVISOR
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
+	select MODULES_USE_ELF_RELA
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -411,14 +415,6 @@ config TILE_USB
 # a 32-bit address to OHCI.  So we need to use a bounce pool instead.
 config NEED_BOUNCE_POOL
 	def_bool USB_OHCI_HCD
-
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
-	---help---
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-	  One well-known example of this is USB.
 
 source "drivers/pci/hotplug/Kconfig"
 

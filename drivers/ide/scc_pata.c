@@ -811,7 +811,7 @@ static const struct ide_dma_ops scc_dma_ops = {
 	.dma_sff_read_status	= scc_dma_sff_read_status,
 };
 
-static const struct ide_port_info scc_chipset __devinitdata = {
+static const struct ide_port_info scc_chipset __devinitconst = {
 	.name		= "sccIDE",
 	.init_iops	= init_iops_scc,
 	.init_dma	= scc_init_dma,

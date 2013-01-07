@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
+#include <linux/io.h>
 
 #include "omap-bandgap.h"
 
@@ -112,6 +113,11 @@ static irqreturn_t talert_irq_handler(int irq, void *data)
 
 		omap_bandgap_writel(bg_ptr, ctrl, tsr->bgap_mask_ctrl);
 
+		dev_dbg(bg_ptr->dev,
+			"%s: IRQ from %s sensor: hotevent %d coldevent %d\n",
+			__func__, bg_ptr->conf->sensors[i].domain,
+			t_hot, t_cold);
+
 		/* read temperature */
 		temp = omap_bandgap_readl(bg_ptr, tsr->temp_sensor_ctrl);
 		temp &= tsr->bgap_dtemp_mask;
@@ -157,7 +163,7 @@ static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
 	high = ts_data->adc_end_val - ts_data->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < bg_ptr->conv_table[high] || temp > bg_ptr->conv_table[high])
+	if (temp < bg_ptr->conv_table[low] || temp > bg_ptr->conv_table[high])
 		return -EINVAL;
 
 	while (low < high) {
@@ -843,7 +849,7 @@ static struct omap_bandgap *omap_bandgap_build(struct platform_device *pdev)
 }
 
 static
-int __devinit omap_bandgap_probe(struct platform_device *pdev)
+int omap_bandgap_probe(struct platform_device *pdev)
 {
 	struct omap_bandgap *bg_ptr;
 	int clk_rate, ret = 0, i;
@@ -953,12 +959,12 @@ int __devinit omap_bandgap_probe(struct platform_device *pdev)
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		char *domain;
 
+		if (bg_ptr->conf->sensors[i].register_cooling)
+			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
+
 		domain = bg_ptr->conf->sensors[i].domain;
 		if (bg_ptr->conf->expose_sensor)
 			bg_ptr->conf->expose_sensor(bg_ptr, i, domain);
-
-		if (bg_ptr->conf->sensors[i].register_cooling)
-			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
 	}
 
 	/*
@@ -992,7 +998,7 @@ free_irqs:
 }
 
 static
-int __devexit omap_bandgap_remove(struct platform_device *pdev)
+int omap_bandgap_remove(struct platform_device *pdev)
 {
 	struct omap_bandgap *bg_ptr = platform_get_drvdata(pdev);
 	int i;
@@ -1037,20 +1043,20 @@ static int omap_bandgap_save_ctxt(struct omap_bandgap *bg_ptr)
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
 			rval->bg_mode_ctrl = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_mode_ctrl);
+							tsr->bgap_mode_ctrl);
 		if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
 			rval->bg_counter = omap_bandgap_readl(bg_ptr,
-							      tsr->bgap_counter);
+							tsr->bgap_counter);
 		if (OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
 			rval->bg_threshold = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_threshold);
+							tsr->bgap_threshold);
 			rval->bg_ctrl = omap_bandgap_readl(bg_ptr,
-							   tsr->bgap_mask_ctrl);
+						   tsr->bgap_mask_ctrl);
 		}
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
 			rval->tshut_threshold = omap_bandgap_readl(bg_ptr,
-								   tsr->tshut_threshold);
+						   tsr->tshut_threshold);
 	}
 
 	return 0;
@@ -1059,7 +1065,6 @@ static int omap_bandgap_save_ctxt(struct omap_bandgap *bg_ptr)
 static int omap_bandgap_restore_ctxt(struct omap_bandgap *bg_ptr)
 {
 	int i;
-	u32 temp = 0;
 
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		struct temp_sensor_registers *tsr;
@@ -1072,40 +1077,27 @@ static int omap_bandgap_restore_ctxt(struct omap_bandgap *bg_ptr)
 		if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
 			val = omap_bandgap_readl(bg_ptr, tsr->bgap_counter);
 
-		if (val == 0) {
-			if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
-				omap_bandgap_writel(bg_ptr, rval->tshut_threshold,
-							   tsr->tshut_threshold);
-			/* Force immediate temperature measurement and update
-			 * of the DTEMP field
-			 */
-			omap_bandgap_force_single_read(bg_ptr, i);
+		if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
+			omap_bandgap_writel(bg_ptr,
+				rval->tshut_threshold,
+					   tsr->tshut_threshold);
+		/* Force immediate temperature measurement and update
+		 * of the DTEMP field
+		 */
+		omap_bandgap_force_single_read(bg_ptr, i);
 
-			if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
-				omap_bandgap_writel(bg_ptr, rval->bg_counter,
-							   tsr->bgap_counter);
-			if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
-				omap_bandgap_writel(bg_ptr, rval->bg_mode_ctrl,
-							   tsr->bgap_mode_ctrl);
-			if (OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
-				omap_bandgap_writel(bg_ptr,
-							   rval->bg_threshold,
-							   tsr->bgap_threshold);
-				omap_bandgap_writel(bg_ptr, rval->bg_ctrl,
-							   tsr->bgap_mask_ctrl);
-			}
-		} else {
-			temp = omap_bandgap_readl(bg_ptr,
-						  tsr->temp_sensor_ctrl);
-			temp &= (tsr->bgap_dtemp_mask);
-			omap_bandgap_force_single_read(bg_ptr, i);
-			if (temp == 0 && OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
-				temp = omap_bandgap_readl(bg_ptr,
-							  tsr->bgap_mask_ctrl);
-				temp |= 1 << __ffs(tsr->mode_ctrl_mask);
-				omap_bandgap_writel(bg_ptr, temp,
-							   tsr->bgap_mask_ctrl);
-			}
+		if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
+			omap_bandgap_writel(bg_ptr, rval->bg_counter,
+						   tsr->bgap_counter);
+		if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
+			omap_bandgap_writel(bg_ptr, rval->bg_mode_ctrl,
+						   tsr->bgap_mode_ctrl);
+		if (OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
+			omap_bandgap_writel(bg_ptr,
+						   rval->bg_threshold,
+						   tsr->bgap_threshold);
+			omap_bandgap_writel(bg_ptr, rval->bg_ctrl,
+						   tsr->bgap_mask_ctrl);
 		}
 	}
 

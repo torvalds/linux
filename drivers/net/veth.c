@@ -264,6 +264,7 @@ static void veth_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	dev->netdev_ops = &veth_netdev_ops;
 	dev->ethtool_ops = &veth_ethtool_ops;
@@ -339,7 +340,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (IS_ERR(net))
 		return PTR_ERR(net);
 
-	peer = rtnl_create_link(src_net, net, ifname, &veth_link_ops, tbp);
+	peer = rtnl_create_link(net, ifname, &veth_link_ops, tbp);
 	if (IS_ERR(peer)) {
 		put_net(net);
 		return PTR_ERR(peer);
@@ -347,6 +348,9 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 	if (tbp[IFLA_ADDRESS] == NULL)
 		eth_hw_addr_random(peer);
+
+	if (ifmp && (dev->ifindex != 0))
+		peer->ifindex = ifmp->ifi_index;
 
 	err = register_netdevice(peer);
 	put_net(net);

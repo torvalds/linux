@@ -18,14 +18,15 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, int local, int ssize,
 		     unsigned int shift, unsigned int mmu_psize)
 {
+	unsigned long vpn;
 	unsigned long old_pte, new_pte;
-	unsigned long va, rflags, pa, sz;
+	unsigned long rflags, pa, sz;
 	long slot;
 
 	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
 
 	/* Search the Linux page table for a match with va */
-	va = hpt_va(ea, vsid, ssize);
+	vpn = hpt_vpn(ea, vsid, ssize);
 
 	/* At this point, we have a pte (old_pte) which can be used to build
 	 * or update an HPTE. There are 2 cases:
@@ -69,19 +70,19 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		/* There MIGHT be an HPTE for this pte */
 		unsigned long hash, slot;
 
-		hash = hpt_hash(va, shift, ssize);
+		hash = hpt_hash(vpn, shift, ssize);
 		if (old_pte & _PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, va, mmu_psize,
+		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
 					 ssize, local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
 	if (likely(!(old_pte & _PAGE_HASHPTE))) {
-		unsigned long hash = hpt_hash(va, shift, ssize);
+		unsigned long hash = hpt_hash(vpn, shift, ssize);
 		unsigned long hpte_group;
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
@@ -101,14 +102,14 @@ repeat:
 				      _PAGE_COHERENT | _PAGE_GUARDED));
 
 		/* Insert into the hash table, primary slot */
-		slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags, 0,
+		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
 					  mmu_psize, ssize);
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL;
-			slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags,
+			slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
 						  HPTE_V_SECONDARY,
 						  mmu_psize, ssize);
 			if (slot == -1) {

@@ -37,8 +37,9 @@
  *        the file system was mounted, (i.e., they have been
  *        referenced by the super block) or they have been
  *        written since then and the write completion callback
- *        was called and a FLUSH request to the device where
- *        these blocks are located was received and completed.
+ *        was called and no write error was indicated and a
+ *        FLUSH request to the device where these blocks are
+ *        located was received and completed.
  *    2b. All referenced blocks need to have a generation
  *        number which is equal to the parent's number.
  *
@@ -136,7 +137,7 @@ struct btrfsic_block {
 	unsigned int never_written:1;	/* block was added because it was
 					 * referenced, not because it was
 					 * written */
-	unsigned int mirror_num:2;	/* large enough to hold
+	unsigned int mirror_num;	/* large enough to hold
 					 * BTRFS_SUPER_MIRROR_MAX */
 	struct btrfsic_dev_state *dev_state;
 	u64 dev_bytenr;		/* key, physical byte num on disk */
@@ -722,7 +723,7 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -902,7 +903,7 @@ static int btrfsic_process_superblock_dev_mirror(
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1286,7 +1287,7 @@ static int btrfsic_create_link_to_next_block(
 	*next_blockp = NULL;
 	if (0 == *num_copiesp) {
 		*num_copiesp =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1488,7 +1489,7 @@ static int btrfsic_handle_extent_data(
 			chunk_len = num_bytes;
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->datablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1581,8 +1582,20 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(&state->root->fs_info->mapping_tree, READ,
+	ret = btrfs_map_block(state->root->fs_info, READ,
 			      bytenr, &length, &multi, mirror_num);
+
+	if (ret) {
+		block_ctx_out->start = 0;
+		block_ctx_out->dev_bytenr = 0;
+		block_ctx_out->len = 0;
+		block_ctx_out->dev = NULL;
+		block_ctx_out->datav = NULL;
+		block_ctx_out->pagev = NULL;
+		block_ctx_out->mem_to_free = NULL;
+
+		return ret;
+	}
 
 	device = multi->stripes[0].dev;
 	block_ctx_out->dev = btrfsic_dev_state_lookup(device->bdev);
@@ -1593,8 +1606,7 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	block_ctx_out->pagev = NULL;
 	block_ctx_out->mem_to_free = NULL;
 
-	if (0 == ret)
-		kfree(multi);
+	kfree(multi);
 	if (NULL == block_ctx_out->dev) {
 		ret = -ENXIO;
 		printk(KERN_INFO "btrfsic: error, cannot lookup dev (#1)!\n");
@@ -2462,7 +2474,7 @@ static int btrfsic_process_written_superblock(
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, BTRFS_SUPER_INFO_SIZE);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -2594,6 +2606,17 @@ static int btrfsic_check_all_ref_blocks(struct btrfsic_state *state,
 			printk(KERN_INFO "btrfs: attempt to write superblock"
 			       " which references block %c @%llu (%s/%llu/%d)"
 			       " which is not yet iodone!\n",
+			       btrfsic_get_block_type(state, l->block_ref_to),
+			       (unsigned long long)
+			       l->block_ref_to->logical_bytenr,
+			       l->block_ref_to->dev_state->name,
+			       (unsigned long long)l->block_ref_to->dev_bytenr,
+			       l->block_ref_to->mirror_num);
+			ret = -1;
+		} else if (l->block_ref_to->iodone_w_error) {
+			printk(KERN_INFO "btrfs: attempt to write superblock"
+			       " which references block %c @%llu (%s/%llu/%d)"
+			       " which has write error!\n",
 			       btrfsic_get_block_type(state, l->block_ref_to),
 			       (unsigned long long)
 			       l->block_ref_to->logical_bytenr,
@@ -2948,7 +2971,7 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 	struct btrfsic_block_data_ctx block_ctx;
 	int match = 0;
 
-	num_copies = btrfs_num_copies(&state->root->fs_info->mapping_tree,
+	num_copies = btrfs_num_copies(state->root->fs_info,
 				      bytenr, state->metablock_size);
 
 	for (mirror_num = 1; mirror_num <= num_copies; mirror_num++) {

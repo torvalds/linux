@@ -931,7 +931,7 @@ SND_SOC_DAPM_INPUT("IN2RP"),
 SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSCLK", 1, WM8996_AIF_CLOCKING_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
@@ -2765,8 +2765,8 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 	},
 };
 
-static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8996_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8996_priv *wm8996;
 	int ret, i;
@@ -3077,7 +3077,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm8996_i2c_remove(struct i2c_client *client)
+static int wm8996_i2c_remove(struct i2c_client *client)
 {
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
 	int i;
@@ -3107,7 +3107,7 @@ static struct i2c_driver wm8996_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8996_i2c_probe,
-	.remove =   __devexit_p(wm8996_i2c_remove),
+	.remove =   wm8996_i2c_remove,
 	.id_table = wm8996_i2c_id,
 };
 

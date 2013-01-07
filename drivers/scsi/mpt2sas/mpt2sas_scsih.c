@@ -2,7 +2,7 @@
  * Scsi Host Layer for MPT (Message Passing Technology) based controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_scsih.c
- * Copyright (C) 2007-2010  LSI Corporation
+ * Copyright (C) 2007-2012  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -118,6 +118,15 @@ static int diag_buffer_enable = -1;
 module_param(diag_buffer_enable, int, 0);
 MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
 	"(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
+
+static int disable_discovery = -1;
+module_param(disable_discovery, int, 0);
+MODULE_PARM_DESC(disable_discovery, " disable discovery ");
+
+/* permit overriding the host protection capabilities mask (EEDP/T10 PI) */
+static int prot_mask = 0;
+module_param(prot_mask, int, 0);
+MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=7 ");
 
 /**
  * struct sense_info - common structure for obtaining sense keys
@@ -3768,8 +3777,6 @@ static void
 _scsih_eedp_error_handling(struct scsi_cmnd *scmd, u16 ioc_status)
 {
 	u8 ascq;
-	u8 sk;
-	u8 host_byte;
 
 	switch (ioc_status) {
 	case MPI2_IOCSTATUS_EEDP_GUARD_ERROR:
@@ -3786,16 +3793,8 @@ _scsih_eedp_error_handling(struct scsi_cmnd *scmd, u16 ioc_status)
 		break;
 	}
 
-	if (scmd->sc_data_direction == DMA_TO_DEVICE) {
-		sk = ILLEGAL_REQUEST;
-		host_byte = DID_ABORT;
-	} else {
-		sk = ABORTED_COMMAND;
-		host_byte = DID_OK;
-	}
-
-	scsi_build_sense_buffer(0, scmd->sense_buffer, sk, 0x10, ascq);
-	scmd->result = DRIVER_SENSE << 24 | (host_byte << 16) |
+	scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST, 0x10, ascq);
+	scmd->result = DRIVER_SENSE << 24 | (DID_ABORT << 16) |
 	    SAM_STAT_CHECK_CONDITION;
 }
 
@@ -5973,8 +5972,14 @@ _scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc,
 #endif
 
 	if (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED &&
-	    !ioc->sas_hba.num_phys)
+	    !ioc->sas_hba.num_phys) {
+		if (disable_discovery > 0 && ioc->shost_recovery) {
+			/* Wait for the reset to complete */
+			while (ioc->shost_recovery)
+				ssleep(1);
+		}
 		_scsih_sas_host_add(ioc);
+	}
 }
 
 /**
@@ -7254,7 +7259,8 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		_scsih_search_responding_sas_devices(ioc);
 		_scsih_search_responding_raid_devices(ioc);
 		_scsih_search_responding_expanders(ioc);
-		if (!ioc->is_driver_loading) {
+		if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
+		    !ioc->sas_hba.num_phys)) {
 			_scsih_prep_device_scan(ioc);
 			_scsih_search_responding_sas_devices(ioc);
 			_scsih_search_responding_raid_devices(ioc);
@@ -7929,6 +7935,9 @@ _scsih_scan_start(struct Scsi_Host *shost)
 	if (diag_buffer_enable != -1 && diag_buffer_enable != 0)
 		mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
 
+	if (disable_discovery > 0)
+		return;
+
 	ioc->start_scan = 1;
 	rc = mpt2sas_port_enable(ioc);
 
@@ -7949,6 +7958,12 @@ static int
 _scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	if (disable_discovery > 0) {
+		ioc->is_driver_loading = 0;
+		ioc->wait_for_discovery_to_complete = 0;
+		return 1;
+	}
 
 	if (time >= (300 * HZ)) {
 		ioc->base_cmds.status = MPT2_CMD_NOT_USED;
@@ -8055,8 +8070,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (max_sectors != 0xFFFF) {
 		if (max_sectors < 64) {
 			shost->max_sectors = 64;
-			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
-			    "for max_sectors, range is 64 to 8192. Assigning "
+			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "\
+			    "for max_sectors, range is 64 to 32767. Assigning "\
 			    "value of 64.\n", ioc->name, max_sectors);
 		} else if (max_sectors > 32767) {
 			shost->max_sectors = 32767;
@@ -8078,8 +8093,14 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_add_shost_fail;
 	}
 
-	scsi_host_set_prot(shost, SHOST_DIF_TYPE1_PROTECTION
-	    | SHOST_DIF_TYPE2_PROTECTION | SHOST_DIF_TYPE3_PROTECTION);
+	/* register EEDP capabilities with SCSI layer */
+	if (prot_mask)
+		scsi_host_set_prot(shost, prot_mask);
+	else
+		scsi_host_set_prot(shost, SHOST_DIF_TYPE1_PROTECTION
+				   | SHOST_DIF_TYPE2_PROTECTION
+				   | SHOST_DIF_TYPE3_PROTECTION);
+
 	scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 
 	/* event thread */
@@ -8306,7 +8327,7 @@ _scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-static struct pci_error_handlers _scsih_err_handler = {
+static const struct pci_error_handlers _scsih_err_handler = {
 	.error_detected = _scsih_pci_error_detected,
 	.mmio_enabled = _scsih_pci_mmio_enabled,
 	.slot_reset =	_scsih_pci_slot_reset,

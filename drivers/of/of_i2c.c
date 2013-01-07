@@ -29,7 +29,7 @@ void of_i2c_register_devices(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
 
-	for_each_child_of_node(adap->dev.of_node, node) {
+	for_each_available_child_of_node(adap->dev.of_node, node) {
 		struct i2c_board_info info = {};
 		struct dev_archdata dev_ad = {};
 		const __be32 *addr;
@@ -60,6 +60,9 @@ void of_i2c_register_devices(struct i2c_adapter *adap)
 		info.irq = irq_of_parse_and_map(node, 0);
 		info.of_node = of_node_get(node);
 		info.archdata = &dev_ad;
+
+		if (of_get_property(node, "wakeup-source", NULL))
+			info.flags |= I2C_CLIENT_WAKE;
 
 		request_module("%s%s", I2C_MODULE_PREFIX, info.type);
 

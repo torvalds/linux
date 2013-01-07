@@ -81,7 +81,7 @@ the application calls the <constant>VIDIOC_S_FMT</constant> ioctl
 with a pointer to a <structname>v4l2_format</structname> structure
 the driver checks
 and adjusts the parameters against hardware abilities. Drivers
-should not return an error code unless the input is ambiguous, this is
+should not return an error code unless the <structfield>type</structfield> field is invalid, this is
 a mechanism to fathom device capabilities and to approach parameters
 acceptable for both the application and driver. On success the driver
 may program the hardware, allocate resources and generally prepare for
@@ -106,6 +106,10 @@ negotiate parameters, to learn about hardware limitations, without
 disabling I/O or possibly time consuming hardware preparations.
 Although strongly recommended drivers are not required to implement
 this ioctl.</para>
+
+    <para>The format as returned by <constant>VIDIOC_TRY_FMT</constant>
+must be identical to what <constant>VIDIOC_S_FMT</constant> returns for
+the same input or output.</para>
 
     <table pgwide="1" frame="none" id="v4l2-format">
       <title>struct <structname>v4l2_format</structname></title>
@@ -170,9 +174,7 @@ capture and output devices.</entry>
 	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>raw_data</structfield>[200]</entry>
-	    <entry>Place holder for future extensions and custom
-(driver defined) formats with <structfield>type</structfield>
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher.</entry>
+	    <entry>Place holder for future extensions.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -187,8 +189,7 @@ capture and output devices.</entry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-format; <structfield>type</structfield>
-field is invalid, the requested buffer type not supported, or the
-format is not supported with this buffer type.</para>
+field is invalid or the requested buffer type not supported.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

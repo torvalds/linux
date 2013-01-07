@@ -111,7 +111,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 
 	/* It is more difficult to avoid calling this function than to
 	 call it and ignore errors. */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1) == -EFAULT)
 		goto badframe;
 
 	return rval;
@@ -254,10 +254,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	set_fs(USER_DS);
 
-	/* the tracer may want to single-step inside the handler */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 #ifdef DEBUG_SIG
 	printk(KERN_INFO "SIG deliver (%s:%d): sp=%p pc=%08lx\n",
 		current->comm, current->pid, frame, regs->pc);
@@ -290,15 +286,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 	case -ERESTARTNOINTR:
 do_restart:
 		/* offset of 4 bytes to re-execute trap (brki) instruction */
-#ifndef CONFIG_MMU
 		regs->pc -= 4;
-#else
-		/* offset of 8 bytes required = 4 for rtbd
-		   offset, plus 4 for size of
-			"brki r14,8"
-		   instruction. */
-		regs->pc -= 8;
-#endif
 		break;
 	}
 }
@@ -323,7 +311,8 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (ret)
 		return;
 
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_delivered(sig, info, ka, regs,
+			test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -365,7 +354,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, int in_syscall)
+asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
 	/*
 	 * We want the common case to go fast, which

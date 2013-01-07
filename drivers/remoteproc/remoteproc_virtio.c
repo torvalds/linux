@@ -84,6 +84,9 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	if (id >= ARRAY_SIZE(rvdev->vring))
 		return ERR_PTR(-EINVAL);
 
+	if (!name)
+		return NULL;
+
 	ret = rproc_alloc_vring(rvdev, id);
 	if (ret)
 		return ERR_PTR(ret);
@@ -103,7 +106,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	 * Create the new vq, and tell virtio we're not interested in
 	 * the 'weak' smp barriers, since we're talking with a real device.
 	 */
-	vq = vring_new_virtqueue(len, rvring->align, vdev, false, addr,
+	vq = vring_new_virtqueue(id, len, rvring->align, vdev, false, addr,
 					rproc_virtio_notify, callback, name);
 	if (!vq) {
 		dev_err(dev, "vring_new_virtqueue %s failed\n", name);
@@ -117,14 +120,10 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	return vq;
 }
 
-static void rproc_virtio_del_vqs(struct virtio_device *vdev)
+static void __rproc_virtio_del_vqs(struct virtio_device *vdev)
 {
 	struct virtqueue *vq, *n;
-	struct rproc *rproc = vdev_to_rproc(vdev);
 	struct rproc_vring *rvring;
-
-	/* power down the remote processor before deleting vqs */
-	rproc_shutdown(rproc);
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
 		rvring = vq->priv;
@@ -132,6 +131,16 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 		vring_del_virtqueue(vq);
 		rproc_free_vring(rvring);
 	}
+}
+
+static void rproc_virtio_del_vqs(struct virtio_device *vdev)
+{
+	struct rproc *rproc = vdev_to_rproc(vdev);
+
+	/* power down the remote processor before deleting vqs */
+	rproc_shutdown(rproc);
+
+	__rproc_virtio_del_vqs(vdev);
 }
 
 static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
@@ -160,7 +169,7 @@ static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	return 0;
 
 error:
-	rproc_virtio_del_vqs(vdev);
+	__rproc_virtio_del_vqs(vdev);
 	return ret;
 }
 

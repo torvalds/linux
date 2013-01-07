@@ -6,7 +6,7 @@
  * (Reliable Autonomic Distributed Object Store).
  */
 
-#include "msgr.h"
+#include <linux/ceph/msgr.h>
 
 /*
  * osdmap encoding versions
@@ -87,6 +87,8 @@ struct ceph_pg {
  *
  *  lpgp_num -- as above.
  */
+#define CEPH_NOPOOL  ((__u64) (-1))  /* pool id not defined */
+
 #define CEPH_PG_TYPE_REP     1
 #define CEPH_PG_TYPE_RAID4   2
 #define CEPH_PG_POOL_VERSION 2

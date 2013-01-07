@@ -49,8 +49,7 @@
 ACPI_MODULE_NAME("hwxfsleep")
 
 /* Local prototypes */
-static acpi_status
-acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id);
+static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id);
 
 /*
  * Dispatch table used to efficiently branch to the various sleep
@@ -234,8 +233,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios)
  *              function.
  *
  ******************************************************************************/
-static acpi_status
-acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
+static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
 {
 	acpi_status status;
 	struct acpi_sleep_functions *sleep_functions =
@@ -369,8 +367,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
-	status =
-	    acpi_hw_sleep_dispatch(sleep_state, ACPI_SLEEP_FUNCTION_ID);
+	status = acpi_hw_sleep_dispatch(sleep_state, ACPI_SLEEP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 
@@ -381,7 +378,6 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  * FUNCTION:    acpi_leave_sleep_state_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we are exiting
- *              flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -397,8 +393,7 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state_prep);
 
 	status =
-	    acpi_hw_sleep_dispatch(sleep_state,
-				   ACPI_WAKE_PREP_FUNCTION_ID);
+	    acpi_hw_sleep_dispatch(sleep_state, ACPI_WAKE_PREP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 

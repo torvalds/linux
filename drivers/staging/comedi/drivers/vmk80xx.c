@@ -546,6 +546,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			reg[0] = VMK8055_AI2_REG;
 		break;
 	case VMK8061_MODEL:
+	default:
 		reg[0] = VMK8061_AI_REG1;
 		reg[1] = VMK8061_AI_REG2;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_AI;
@@ -904,6 +905,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			reg[0] = VMK8055_CNT2_REG;
 		break;
 	case VMK8061_MODEL:
+	default:
 		reg[0] = VMK8061_CNT_REG;
 		reg[1] = VMK8061_CNT_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_CNT;
@@ -1119,7 +1121,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 		return ret;
 	}
 	/* Analog input subdevice */
-	s = cdev->subdevices + VMK80XX_SUBD_AI;
+	s = &cdev->subdevices[VMK80XX_SUBD_AI];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = dev->board.ai_chans;
@@ -1127,7 +1129,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s->range_table = dev->board.range;
 	s->insn_read = vmk80xx_ai_rinsn;
 	/* Analog output subdevice */
-	s = cdev->subdevices + VMK80XX_SUBD_AO;
+	s = &cdev->subdevices[VMK80XX_SUBD_AO];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = dev->board.ao_chans;
@@ -1139,7 +1141,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 		s->insn_read = vmk80xx_ao_rinsn;
 	}
 	/* Digital input subdevice */
-	s = cdev->subdevices + VMK80XX_SUBD_DI;
+	s = &cdev->subdevices[VMK80XX_SUBD_DI];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = dev->board.di_chans;
@@ -1147,7 +1149,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	s->insn_read = vmk80xx_di_rinsn;
 	s->insn_bits = vmk80xx_di_bits;
 	/* Digital output subdevice */
-	s = cdev->subdevices + VMK80XX_SUBD_DO;
+	s = &cdev->subdevices[VMK80XX_SUBD_DO];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = dev->board.do_chans;
@@ -1159,7 +1161,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 		s->insn_read = vmk80xx_do_rinsn;
 	}
 	/* Counter subdevice */
-	s = cdev->subdevices + VMK80XX_SUBD_CNT;
+	s = &cdev->subdevices[VMK80XX_SUBD_CNT];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = dev->board.cnt_chans;
@@ -1172,7 +1174,7 @@ static int vmk80xx_attach_common(struct comedi_device *cdev,
 	}
 	/* PWM subdevice */
 	if (dev->board.model == VMK8061_MODEL) {
-		s = cdev->subdevices + VMK80XX_SUBD_PWM;
+		s = &cdev->subdevices[VMK80XX_SUBD_PWM];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
 		s->n_chan = dev->board.pwm_chans;
@@ -1207,9 +1209,10 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 }
 
 /* called via comedi_usb_auto_config() */
-static int vmk80xx_attach_usb(struct comedi_device *cdev,
-			      struct usb_interface *intf)
+static int vmk80xx_auto_attach(struct comedi_device *cdev,
+			       unsigned long context_unused)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(cdev);
 	int i;
 	int ret;
 
@@ -1244,7 +1247,7 @@ static struct comedi_driver vmk80xx_driver = {
 	.driver_name	= "vmk80xx",
 	.attach		= vmk80xx_attach,
 	.detach		= vmk80xx_detach,
-	.attach_usb	= vmk80xx_attach_usb,
+	.auto_attach	= vmk80xx_auto_attach,
 };
 
 static int vmk80xx_usb_probe(struct usb_interface *intf,
@@ -1369,12 +1372,11 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	if (dev->board.model == VMK8061_MODEL) {
 		vmk80xx_read_eeprom(dev, IC3_VERSION);
-		printk(KERN_INFO "comedi#: vmk80xx: %s\n", dev->fw.ic3_vers);
+		dev_info(&intf->dev, "%s\n", dev->fw.ic3_vers);
 
 		if (vmk80xx_check_data_link(dev)) {
 			vmk80xx_read_eeprom(dev, IC6_VERSION);
-			printk(KERN_INFO "comedi#: vmk80xx: %s\n",
-			       dev->fw.ic6_vers);
+			dev_info(&intf->dev, "%s\n", dev->fw.ic6_vers);
 		} else {
 			dbgcm("comedi#: vmk80xx: no conn. to CPU\n");
 		}
@@ -1385,8 +1387,8 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	dev->probed = 1;
 
-	printk(KERN_INFO "comedi#: vmk80xx: board #%d [%s] now attached\n",
-	       dev->count, dev->board.name);
+	dev_info(&intf->dev, "board #%d [%s] now attached\n",
+		 dev->count, dev->board.name);
 
 	mutex_unlock(&glb_mutex);
 
@@ -1420,8 +1422,8 @@ static void vmk80xx_usb_disconnect(struct usb_interface *intf)
 	kfree(dev->usb_rx_buf);
 	kfree(dev->usb_tx_buf);
 
-	printk(KERN_INFO "comedi#: vmk80xx: board #%d [%s] now detached\n",
-	       dev->count, dev->board.name);
+	dev_info(&intf->dev, "board #%d [%s] now detached\n",
+		 dev->count, dev->board.name);
 
 	up(&dev->limit_sem);
 	mutex_unlock(&glb_mutex);

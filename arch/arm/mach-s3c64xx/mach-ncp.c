@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -37,13 +38,12 @@
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/regs-fb-v4.h>
 
 #include "common.h"
 

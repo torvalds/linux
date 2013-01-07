@@ -109,13 +109,11 @@ struct nc_trailer {
 static int
 nc_vendor_read(struct usbnet *dev, u8 req, u8 regnum, u16 *retval_ptr)
 {
-	int status = usb_control_msg(dev->udev,
-		usb_rcvctrlpipe(dev->udev, 0),
-		req,
-		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		0, regnum,
-		retval_ptr, sizeof *retval_ptr,
-		USB_CTRL_GET_TIMEOUT);
+	int status = usbnet_read_cmd(dev, req,
+				     USB_DIR_IN | USB_TYPE_VENDOR |
+				     USB_RECIP_DEVICE,
+				     0, regnum, retval_ptr,
+				     sizeof *retval_ptr);
 	if (status > 0)
 		status = 0;
 	if (!status)
@@ -133,13 +131,9 @@ nc_register_read(struct usbnet *dev, u8 regnum, u16 *retval_ptr)
 static void
 nc_vendor_write(struct usbnet *dev, u8 req, u8 regnum, u16 value)
 {
-	usb_control_msg(dev->udev,
-		usb_sndctrlpipe(dev->udev, 0),
-		req,
-		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		value, regnum,
-		NULL, 0,			// data is in setup packet
-		USB_CTRL_SET_TIMEOUT);
+	usbnet_write_cmd(dev, req,
+			 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			 value, regnum, NULL, 0);
 }
 
 static inline void
@@ -155,12 +149,10 @@ static void nc_dump_registers(struct usbnet *dev)
 	u8	reg;
 	u16	*vp = kmalloc(sizeof (u16));
 
-	if (!vp) {
-		dbg("no memory?");
+	if (!vp)
 		return;
-	}
 
-	dbg("%s registers:", dev->net->name);
+	netdev_dbg(dev->net, "registers:\n");
 	for (reg = 0; reg < 0x20; reg++) {
 		int retval;
 
@@ -172,11 +164,10 @@ static void nc_dump_registers(struct usbnet *dev)
 
 		retval = nc_register_read(dev, reg, vp);
 		if (retval < 0)
-			dbg("%s reg [0x%x] ==> error %d",
-				dev->net->name, reg, retval);
+			netdev_dbg(dev->net, "reg [0x%x] ==> error %d\n",
+				   reg, retval);
 		else
-			dbg("%s reg [0x%x] = 0x%x",
-				dev->net->name, reg, *vp);
+			netdev_dbg(dev->net, "reg [0x%x] = 0x%x\n", reg, *vp);
 	}
 	kfree(vp);
 }
@@ -291,42 +282,39 @@ static inline void nc_dump_ttl(struct usbnet *dev, u16 ttl)
 static int net1080_reset(struct usbnet *dev)
 {
 	u16		usbctl, status, ttl;
-	u16		*vp = kmalloc(sizeof (u16), GFP_KERNEL);
+	u16		vp;
 	int		retval;
-
-	if (!vp)
-		return -ENOMEM;
 
 	// nc_dump_registers(dev);
 
-	if ((retval = nc_register_read(dev, REG_STATUS, vp)) < 0) {
-		dbg("can't read %s-%s status: %d",
-			dev->udev->bus->bus_name, dev->udev->devpath, retval);
+	if ((retval = nc_register_read(dev, REG_STATUS, &vp)) < 0) {
+		netdev_dbg(dev->net, "can't read %s-%s status: %d\n",
+			   dev->udev->bus->bus_name, dev->udev->devpath, retval);
 		goto done;
 	}
-	status = *vp;
+	status = vp;
 	nc_dump_status(dev, status);
 
-	if ((retval = nc_register_read(dev, REG_USBCTL, vp)) < 0) {
-		dbg("can't read USBCTL, %d", retval);
+	if ((retval = nc_register_read(dev, REG_USBCTL, &vp)) < 0) {
+		netdev_dbg(dev->net, "can't read USBCTL, %d\n", retval);
 		goto done;
 	}
-	usbctl = *vp;
+	usbctl = vp;
 	nc_dump_usbctl(dev, usbctl);
 
 	nc_register_write(dev, REG_USBCTL,
 			USBCTL_FLUSH_THIS | USBCTL_FLUSH_OTHER);
 
-	if ((retval = nc_register_read(dev, REG_TTL, vp)) < 0) {
-		dbg("can't read TTL, %d", retval);
+	if ((retval = nc_register_read(dev, REG_TTL, &vp)) < 0) {
+		netdev_dbg(dev->net, "can't read TTL, %d\n", retval);
 		goto done;
 	}
-	ttl = *vp;
+	ttl = vp;
 	// nc_dump_ttl(dev, ttl);
 
 	nc_register_write(dev, REG_TTL,
 			MK_TTL(NC_READ_TTL_MS, TTL_OTHER(ttl)) );
-	dbg("%s: assigned TTL, %d ms", dev->net->name, NC_READ_TTL_MS);
+	netdev_dbg(dev->net, "assigned TTL, %d ms\n", NC_READ_TTL_MS);
 
 	netif_info(dev, link, dev->net, "port %c, peer %sconnected\n",
 		   (status & STATUS_PORT_A) ? 'A' : 'B',
@@ -334,7 +322,6 @@ static int net1080_reset(struct usbnet *dev)
 	retval = 0;
 
 done:
-	kfree(vp);
 	return retval;
 }
 
@@ -342,15 +329,12 @@ static int net1080_check_connect(struct usbnet *dev)
 {
 	int			retval;
 	u16			status;
-	u16			*vp = kmalloc(sizeof (u16), GFP_KERNEL);
+	u16			vp;
 
-	if (!vp)
-		return -ENOMEM;
-	retval = nc_register_read(dev, REG_STATUS, vp);
-	status = *vp;
-	kfree(vp);
+	retval = nc_register_read(dev, REG_STATUS, &vp);
+	status = vp;
 	if (retval != 0) {
-		dbg("%s net1080_check_conn read - %d", dev->net->name, retval);
+		netdev_dbg(dev->net, "net1080_check_conn read - %d\n", retval);
 		return retval;
 	}
 	if ((status & STATUS_CONN_OTHER) != STATUS_CONN_OTHER)
@@ -358,59 +342,22 @@ static int net1080_check_connect(struct usbnet *dev)
 	return 0;
 }
 
-static void nc_flush_complete(struct urb *urb)
-{
-	kfree(urb->context);
-	usb_free_urb(urb);
-}
-
 static void nc_ensure_sync(struct usbnet *dev)
 {
-	dev->frame_errors++;
-	if (dev->frame_errors > 5) {
-		struct urb		*urb;
-		struct usb_ctrlrequest	*req;
-		int			status;
+	if (++dev->frame_errors <= 5)
+		return;
 
-		/* Send a flush */
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (!urb)
-			return;
+	if (usbnet_write_cmd_async(dev, REQUEST_REGISTER,
+					USB_DIR_OUT | USB_TYPE_VENDOR |
+					USB_RECIP_DEVICE,
+					USBCTL_FLUSH_THIS |
+					USBCTL_FLUSH_OTHER,
+					REG_USBCTL, NULL, 0))
+		return;
 
-		req = kmalloc(sizeof *req, GFP_ATOMIC);
-		if (!req) {
-			usb_free_urb(urb);
-			return;
-		}
-
-		req->bRequestType = USB_DIR_OUT
-			| USB_TYPE_VENDOR
-			| USB_RECIP_DEVICE;
-		req->bRequest = REQUEST_REGISTER;
-		req->wValue = cpu_to_le16(USBCTL_FLUSH_THIS
-				| USBCTL_FLUSH_OTHER);
-		req->wIndex = cpu_to_le16(REG_USBCTL);
-		req->wLength = cpu_to_le16(0);
-
-		/* queue an async control request, we don't need
-		 * to do anything when it finishes except clean up.
-		 */
-		usb_fill_control_urb(urb, dev->udev,
-			usb_sndctrlpipe(dev->udev, 0),
-			(unsigned char *) req,
-			NULL, 0,
-			nc_flush_complete, req);
-		status = usb_submit_urb(urb, GFP_ATOMIC);
-		if (status) {
-			kfree(req);
-			usb_free_urb(urb);
-			return;
-		}
-
-		netif_dbg(dev, rx_err, dev->net,
-			  "flush net1080; too many framing errors\n");
-		dev->frame_errors = 0;
-	}
+	netif_dbg(dev, rx_err, dev->net,
+		  "flush net1080; too many framing errors\n");
+	dev->frame_errors = 0;
 }
 
 static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
@@ -420,11 +367,9 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u16			hdr_len, packet_len;
 
 	if (!(skb->len & 0x01)) {
-#ifdef DEBUG
-		struct net_device	*net = dev->net;
-		dbg("rx framesize %d range %d..%d mtu %d", skb->len,
-			net->hard_header_len, dev->hard_mtu, net->mtu);
-#endif
+		netdev_dbg(dev->net, "rx framesize %d range %d..%d mtu %d\n",
+			   skb->len, dev->net->hard_header_len, dev->hard_mtu,
+			   dev->net->mtu);
 		dev->net->stats.rx_frame_errors++;
 		nc_ensure_sync(dev);
 		return 0;
@@ -435,17 +380,17 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	packet_len = le16_to_cpup(&header->packet_len);
 	if (FRAMED_SIZE(packet_len) > NC_MAX_PACKET) {
 		dev->net->stats.rx_frame_errors++;
-		dbg("packet too big, %d", packet_len);
+		netdev_dbg(dev->net, "packet too big, %d\n", packet_len);
 		nc_ensure_sync(dev);
 		return 0;
 	} else if (hdr_len < MIN_HEADER) {
 		dev->net->stats.rx_frame_errors++;
-		dbg("header too short, %d", hdr_len);
+		netdev_dbg(dev->net, "header too short, %d\n", hdr_len);
 		nc_ensure_sync(dev);
 		return 0;
 	} else if (hdr_len > MIN_HEADER) {
 		// out of band data for us?
-		dbg("header OOB, %d bytes", hdr_len - MIN_HEADER);
+		netdev_dbg(dev->net, "header OOB, %d bytes\n", hdr_len - MIN_HEADER);
 		nc_ensure_sync(dev);
 		// switch (vendor/product ids) { ... }
 	}
@@ -458,23 +403,23 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	if ((packet_len & 0x01) == 0) {
 		if (skb->data [packet_len] != PAD_BYTE) {
 			dev->net->stats.rx_frame_errors++;
-			dbg("bad pad");
+			netdev_dbg(dev->net, "bad pad\n");
 			return 0;
 		}
 		skb_trim(skb, skb->len - 1);
 	}
 	if (skb->len != packet_len) {
 		dev->net->stats.rx_frame_errors++;
-		dbg("bad packet len %d (expected %d)",
-			skb->len, packet_len);
+		netdev_dbg(dev->net, "bad packet len %d (expected %d)\n",
+			   skb->len, packet_len);
 		nc_ensure_sync(dev);
 		return 0;
 	}
 	if (header->packet_id != get_unaligned(&trailer->packet_id)) {
 		dev->net->stats.rx_fifo_errors++;
-		dbg("(2+ dropped) rx packet_id mismatch 0x%x 0x%x",
-			le16_to_cpu(header->packet_id),
-			le16_to_cpu(trailer->packet_id));
+		netdev_dbg(dev->net, "(2+ dropped) rx packet_id mismatch 0x%x 0x%x\n",
+			   le16_to_cpu(header->packet_id),
+			   le16_to_cpu(trailer->packet_id));
 		return 0;
 	}
 #if 0

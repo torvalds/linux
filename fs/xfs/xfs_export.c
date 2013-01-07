@@ -29,6 +29,7 @@
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -188,6 +189,9 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 {
 	struct xfs_fid64	*fid64 = (struct xfs_fid64 *)fid;
 	struct inode		*inode = NULL;
+
+	if (fh_len < xfs_fileid_length(fileid_type))
+		return NULL;
 
 	switch (fileid_type) {
 	case FILEID_INO32_GEN_PARENT:

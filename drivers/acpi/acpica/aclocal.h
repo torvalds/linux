@@ -262,10 +262,10 @@ struct acpi_create_field_info {
 };
 
 typedef
-acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
+acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 
 /*
- * Bitmapped ACPI types.  Used internally only
+ * Bitmapped ACPI types. Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -486,8 +486,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-		struct acpi_gpe_block_info *gpe_block, void *context);
+typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					 gpe_xrupt_info,
+					 struct acpi_gpe_block_info *gpe_block,
+					 void *context);
 
 /* Information about each particular fixed event */
 
@@ -582,7 +584,7 @@ struct acpi_pscope_state {
 };
 
 /*
- * Thread state - one per thread across multiple walk states.  Multiple walk
+ * Thread state - one per thread across multiple walk states. Multiple walk
  * states are created when there are nested control methods executing.
  */
 struct acpi_thread_state {
@@ -645,7 +647,7 @@ union acpi_generic_state {
  *
  ****************************************************************************/
 
-typedef acpi_status(*ACPI_EXECUTE_OP) (struct acpi_walk_state * walk_state);
+typedef acpi_status(*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 /* Address Range info block */
 
@@ -707,15 +709,18 @@ union acpi_parse_value {
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
 
-#define ACPI_DASM_BUFFER                0x00
-#define ACPI_DASM_RESOURCE              0x01
-#define ACPI_DASM_STRING                0x02
-#define ACPI_DASM_UNICODE               0x03
-#define ACPI_DASM_EISAID                0x04
-#define ACPI_DASM_MATCHOP               0x05
-#define ACPI_DASM_LNOT_PREFIX           0x06
-#define ACPI_DASM_LNOT_SUFFIX           0x07
-#define ACPI_DASM_IGNORE                0x08
+/* Flags for disasm_flags field above */
+
+#define ACPI_DASM_BUFFER                0x00	/* Buffer is a simple data buffer */
+#define ACPI_DASM_RESOURCE              0x01	/* Buffer is a Resource Descriptor */
+#define ACPI_DASM_STRING                0x02	/* Buffer is a ASCII string */
+#define ACPI_DASM_UNICODE               0x03	/* Buffer is a Unicode string */
+#define ACPI_DASM_PLD_METHOD            0x04	/* Buffer is a _PLD method bit-packed buffer */
+#define ACPI_DASM_EISAID                0x05	/* Integer is an EISAID */
+#define ACPI_DASM_MATCHOP               0x06	/* Parent opcode is a Match() operator */
+#define ACPI_DASM_LNOT_PREFIX           0x07	/* Start of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_SUFFIX           0x08	/* End  of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_IGNORE                0x09	/* Not used at this time */
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -932,6 +937,7 @@ struct acpi_bit_register_info {
 #define ACPI_OSI_WIN_VISTA_SP1          0x09
 #define ACPI_OSI_WIN_VISTA_SP2          0x0A
 #define ACPI_OSI_WIN_7                  0x0B
+#define ACPI_OSI_WIN_8                  0x0C
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
@@ -1024,8 +1030,10 @@ struct acpi_port_info {
  ****************************************************************************/
 
 struct acpi_db_method_info {
+	acpi_handle method;
 	acpi_handle main_thread_gate;
 	acpi_handle thread_complete_gate;
+	acpi_handle info_gate;
 	acpi_thread_id *threads;
 	u32 num_threads;
 	u32 num_created;
@@ -1036,6 +1044,7 @@ struct acpi_db_method_info {
 	u32 num_loops;
 	char pathname[128];
 	char **args;
+	acpi_object_type *types;
 
 	/*
 	 * Arguments to be passed to method for the command

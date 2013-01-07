@@ -705,7 +705,7 @@ static const struct net_device_ops sh_sir_ndo = {
 
 
 ************************************************************************/
-static int __devinit sh_sir_probe(struct platform_device *pdev)
+static int sh_sir_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct sh_sir_self *self;
@@ -741,6 +741,7 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	self->clk = clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(self->clk)) {
 		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		err = -ENODEV;
 		goto err_mem_3;
 	}
 
@@ -760,8 +761,8 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 		goto err_mem_4;
 
 	platform_set_drvdata(pdev, ndev);
-
-	if (request_irq(irq, sh_sir_irq, IRQF_DISABLED, "sh_sir", self)) {
+	err = request_irq(irq, sh_sir_irq, IRQF_DISABLED, "sh_sir", self);
+	if (err) {
 		dev_warn(&pdev->dev, "Unable to attach sh_sir interrupt\n");
 		goto err_mem_4;
 	}
@@ -782,7 +783,7 @@ exit:
 	return err;
 }
 
-static int __devexit sh_sir_remove(struct platform_device *pdev)
+static int sh_sir_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct sh_sir_self *self = netdev_priv(ndev);
@@ -802,7 +803,7 @@ static int __devexit sh_sir_remove(struct platform_device *pdev)
 
 static struct platform_driver sh_sir_driver = {
 	.probe   = sh_sir_probe,
-	.remove  = __devexit_p(sh_sir_remove),
+	.remove  = sh_sir_remove,
 	.driver  = {
 		.name = DRIVER_NAME,
 	},

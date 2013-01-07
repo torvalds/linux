@@ -20,7 +20,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
@@ -52,6 +52,98 @@ static void *find_section(struct bdb_header *bdb, int section_id)
 	}
 
 	return NULL;
+}
+
+static void
+parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
+{
+	struct bdb_edp *edp;
+	struct edp_power_seq *edp_pps;
+	struct edp_link_params *edp_link_params;
+	uint8_t	panel_type;
+
+	edp = find_section(bdb, BDB_EDP);
+	
+	dev_priv->edp.bpp = 18;
+	if (!edp) {
+		if (dev_priv->edp.support) {
+			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported, assume %dbpp panel color depth.\n",
+				      dev_priv->edp.bpp);
+		}
+		return;
+	}
+
+	panel_type = dev_priv->panel_type;
+	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
+	case EDP_18BPP:
+		dev_priv->edp.bpp = 18;
+		break;
+	case EDP_24BPP:
+		dev_priv->edp.bpp = 24;
+		break;
+	case EDP_30BPP:
+		dev_priv->edp.bpp = 30;
+		break;
+	}
+
+	/* Get the eDP sequencing and link info */
+	edp_pps = &edp->power_seqs[panel_type];
+	edp_link_params = &edp->link_params[panel_type];
+
+	dev_priv->edp.pps = *edp_pps;
+
+	DRM_DEBUG_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8, 
+				dev_priv->edp.pps.t9, dev_priv->edp.pps.t10,
+				dev_priv->edp.pps.t11_t12);
+
+	dev_priv->edp.rate = edp_link_params->rate ? DP_LINK_BW_2_7 :
+		DP_LINK_BW_1_62;
+	switch (edp_link_params->lanes) {
+	case 0:
+		dev_priv->edp.lanes = 1;
+		break;
+	case 1:
+		dev_priv->edp.lanes = 2;
+		break;
+	case 3:
+	default:
+		dev_priv->edp.lanes = 4;
+		break;
+	}
+	DRM_DEBUG_KMS("VBT reports EDP: Lane_count %d, Lane_rate %d, Bpp %d\n",
+			dev_priv->edp.lanes, dev_priv->edp.rate, dev_priv->edp.bpp);
+
+	switch (edp_link_params->preemphasis) {
+	case 0:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
+		break;
+	case 1:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
+		break;
+	case 2:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
+		break;
+	case 3:
+		dev_priv->edp.preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
+		break;
+	}
+	switch (edp_link_params->vswing) {
+	case 0:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_400;
+		break;
+	case 1:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_600;
+		break;
+	case 2:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_800;
+		break;
+	case 3:
+		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_1200;
+		break;
+	}
+	DRM_DEBUG_KMS("VBT reports EDP: VSwing  %d, Preemph %d\n",
+			dev_priv->edp.vswing, dev_priv->edp.preemphasis);
 }
 
 static u16
@@ -154,6 +246,8 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		return;
 
 	dev_priv->lvds_dither = lvds_options->pixel_dither;
+	dev_priv->panel_type = lvds_options->panel_type;
+
 	if (lvds_options->panel_type == 0xff)
 		return;
 
@@ -340,6 +434,9 @@ parse_driver_features(struct drm_psb_private *dev_priv,
 	if (!driver)
 		return;
 
+	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+		dev_priv->edp.support = 1;
+
 	/* This bit means to use 96Mhz for DPLL_A or not */
 	if (driver->primary_lfp_id)
 		dev_priv->dplla_96mhz = true;
@@ -437,6 +534,9 @@ int psb_intel_init_bios(struct drm_device *dev)
 	size_t size;
 	int i;
 
+
+	dev_priv->panel_type = 0xff;
+
 	/* XXX Should this validation be moved to intel_opregion.c? */
 	if (dev_priv->opregion.vbt) {
 		struct vbt_header *vbt = dev_priv->opregion.vbt;
@@ -477,6 +577,7 @@ int psb_intel_init_bios(struct drm_device *dev)
 	parse_sdvo_device_mapping(dev_priv, bdb);
 	parse_device_mapping(dev_priv, bdb);
 	parse_backlight_data(dev_priv, bdb);
+	parse_edp(dev_priv, bdb);
 
 	if (bios)
 		pci_unmap_rom(pdev, bios);

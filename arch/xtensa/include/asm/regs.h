@@ -27,52 +27,15 @@
 
 /*  Special registers.  */
 
-#define LBEG		0
-#define LEND		1
-#define LCOUNT		2
-#define SAR		3
-#define BR		4
-#define SCOMPARE1	12
-#define ACCHI		16
-#define ACCLO		17
-#define MR		32
-#define WINDOWBASE	72
-#define WINDOWSTART	73
-#define PTEVADDR	83
-#define RASID		90
-#define ITLBCFG		91
-#define DTLBCFG		92
-#define IBREAKENABLE	96
-#define DDR		104
-#define IBREAKA		128
-#define DBREAKA		144
-#define DBREAKC		160
-#define EPC		176
-#define EPC_1		177
-#define DEPC		192
-#define EPS		192
-#define EPS_1		193
-#define EXCSAVE		208
-#define EXCSAVE_1	209
-#define INTERRUPT	226
-#define INTENABLE	228
-#define PS		230
-#define THREADPTR	231
-#define EXCCAUSE	232
-#define DEBUGCAUSE	233
-#define CCOUNT		234
-#define PRID		235
-#define ICOUNT		236
-#define ICOUNTLEVEL	237
-#define EXCVADDR	238
-#define CCOMPARE	240
-#define MISC		244
-
-/*  Special names for read-only and write-only interrupt registers.  */
-
-#define INTREAD		226
-#define INTSET		226
-#define INTCLEAR	227
+#define SREG_MR			32
+#define SREG_IBREAKA		128
+#define SREG_DBREAKA		144
+#define SREG_DBREAKC		160
+#define SREG_EPC		176
+#define SREG_EPS		192
+#define SREG_EXCSAVE		208
+#define SREG_CCOMPARE		240
+#define SREG_MISC		244
 
 /*  EXCCAUSE register fields  */
 
@@ -89,6 +52,10 @@
 #define EXCCAUSE_SPECULATION			7
 #define EXCCAUSE_PRIVILEGED			8
 #define EXCCAUSE_UNALIGNED			9
+#define EXCCAUSE_INSTR_DATA_ERROR		12
+#define EXCCAUSE_LOAD_STORE_DATA_ERROR		13
+#define EXCCAUSE_INSTR_ADDR_ERROR		14
+#define EXCCAUSE_LOAD_STORE_ADDR_ERROR		15
 #define EXCCAUSE_ITLB_MISS			16
 #define EXCCAUSE_ITLB_MULTIHIT			17
 #define EXCCAUSE_ITLB_PRIVILEGE			18
@@ -142,4 +109,3 @@
 #define DEBUGCAUSE_ICOUNT_BIT		0	/* ICOUNT would incr. to zero */
 
 #endif /* _XTENSA_SPECREG_H */
-

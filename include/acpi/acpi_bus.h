@@ -54,37 +54,8 @@ acpi_status
 acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 			u32 status_code, struct acpi_buffer *status_buf);
 
-struct acpi_pld {
-	unsigned int revision:7; /* 0 */
-	unsigned int ignore_colour:1; /* 7 */
-	unsigned int colour:24; /* 8 */
-	unsigned int width:16; /* 32 */
-	unsigned int height:16; /* 48 */
-	unsigned int user_visible:1; /* 64 */
-	unsigned int dock:1; /* 65 */
-	unsigned int lid:1; /* 66 */
-	unsigned int panel:3; /* 67 */
-	unsigned int vertical_pos:2; /* 70 */
-	unsigned int horizontal_pos:2; /* 72 */
-	unsigned int shape:4; /* 74 */
-	unsigned int group_orientation:1; /* 78 */
-	unsigned int group_token:8; /* 79 */
-	unsigned int group_position:8; /* 87 */
-	unsigned int bay:1; /* 95 */
-	unsigned int ejectable:1; /* 96 */
-	unsigned int ospm_eject_required:1; /* 97 */
-	unsigned int cabinet_number:8; /* 98 */
-	unsigned int card_cage_number:8; /* 106 */
-	unsigned int reference:1; /* 114 */
-	unsigned int rotation:4; /* 115 */
-	unsigned int order:5; /* 119 */
-	unsigned int reserved:4; /* 124 */
-	unsigned int vertical_offset:16; /* 128 */
-	unsigned int horizontal_offset:16; /* 144 */
-} __attribute__((__packed__));
-
 acpi_status
-acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld);
+acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
@@ -173,12 +144,11 @@ struct acpi_device_flags {
 	u32 bus_address:1;
 	u32 removable:1;
 	u32 ejectable:1;
-	u32 lockable:1;
 	u32 suprise_removal_ok:1;
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 eject_pending:1;
-	u32 reserved:23;
+	u32 reserved:24;
 };
 
 /* File System */
@@ -208,6 +178,8 @@ struct acpi_device_pnp {
 	struct list_head ids;		/* _HID and _CIDs */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
+	union acpi_object *str_obj;	/* unicode string for _STR method */
+	unsigned long sun;		/* _SUN */
 };
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
@@ -229,6 +201,7 @@ struct acpi_device_power_flags {
 struct acpi_device_power_state {
 	struct {
 		u8 valid:1;
+		u8 os_accessible:1;
 		u8 explicit_set:1;	/* _PSx present? */
 		u8 reserved:6;
 	} flags;
@@ -282,8 +255,16 @@ struct acpi_device_wakeup {
 	int prepare_count;
 };
 
-/* Device */
+struct acpi_device_physical_node {
+	u8 node_id;
+	struct list_head node;
+	struct device *dev;
+};
 
+/* set maximum of physical nodes to 32 for expansibility */
+#define ACPI_MAX_PHYSICAL_NODE	32
+
+/* Device */
 struct acpi_device {
 	int device_type;
 	acpi_handle handle;		/* no handle for fixed hardware */
@@ -304,6 +285,10 @@ struct acpi_device {
 	struct device dev;
 	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
 	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
+	u8 physical_node_count;
+	struct list_head physical_node_list;
+	struct mutex physical_node_lock;
+	DECLARE_BITMAP(physical_node_id_bitmap, ACPI_MAX_PHYSICAL_NODE);
 };
 
 static inline void *acpi_driver_data(struct acpi_device *d)
@@ -355,6 +340,7 @@ acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
 int acpi_bus_set_power(acpi_handle handle, int state);
+int acpi_device_set_power(struct acpi_device *device, int state);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
 bool acpi_bus_can_wakeup(acpi_handle handle);
@@ -381,6 +367,19 @@ int acpi_match_device_ids(struct acpi_device *device,
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
 
+
+/**
+ * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver
+ * @__acpi_driver: acpi_driver struct
+ *
+ * Helper macro for ACPI drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_acpi_driver(__acpi_driver) \
+	module_driver(__acpi_driver, acpi_bus_register_driver, \
+		      acpi_bus_unregister_driver)
+
 /*
  * Bind physical devices with ACPI devices
  */
@@ -394,7 +393,6 @@ struct acpi_bus_type {
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
-struct device *acpi_get_physical_device(acpi_handle);
 
 struct acpi_pci_root {
 	struct list_head node;
@@ -414,27 +412,70 @@ acpi_handle acpi_get_child(acpi_handle, u64);
 int acpi_is_root_bridge(acpi_handle);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
-#define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->archdata.acpi_handle))
+#define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)ACPI_HANDLE(dev))
 
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_PM
+acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+				 acpi_notify_handler handler, void *context);
+acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
+				    acpi_notify_handler handler);
+int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
+			    u32 target_state, int d_max_in, int *d_min_p);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 #else
-static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
+static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+					       acpi_notify_handler handler,
+					       void *context)
+{
+	return AE_SUPPORT;
+}
+static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
+						  acpi_notify_handler handler)
+{
+	return AE_SUPPORT;
+}
+static inline int __acpi_device_power_state(int m, int *p)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
 }
+static inline int acpi_device_power_state(struct device *dev,
+					  struct acpi_device *adev,
+					  u32 target_state, int d_max_in,
+					  int *d_min_p)
+{
+	return __acpi_device_power_state(d_max_in, d_min_p);
+}
+static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
+{
+	return __acpi_device_power_state(m, p);
+}
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+int __acpi_device_run_wake(struct acpi_device *, bool);
+int acpi_pm_device_run_wake(struct device *, bool);
+#else
+static inline int __acpi_device_run_wake(struct acpi_device *adev, bool en)
+{
+	return -ENODEV;
+}
+static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
+{
+	return -ENODEV;
+}
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-int acpi_pm_device_run_wake(struct device *, bool);
+int __acpi_device_sleep_wake(struct acpi_device *, u32, bool);
 int acpi_pm_device_sleep_wake(struct device *, bool);
 #else
-static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
+static inline int __acpi_device_sleep_wake(struct acpi_device *adev,
+					   u32 target_state, bool enable)
 {
 	return -ENODEV;
 }
@@ -443,6 +484,27 @@ static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	return -ENODEV;
 }
 #endif
+
+#ifdef CONFIG_ACPI_SLEEP
+u32 acpi_target_system_state(void);
+#else
+static inline u32 acpi_target_system_state(void) { return ACPI_STATE_S0; }
+#endif
+
+static inline bool acpi_device_power_manageable(struct acpi_device *adev)
+{
+	return adev->flags.power_manageable;
+}
+
+static inline bool acpi_device_can_wakeup(struct acpi_device *adev)
+{
+	return adev->wakeup.flags.valid;
+}
+
+static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
+{
+	return adev->power.states[ACPI_STATE_D3_COLD].flags.os_accessible;
+}
 
 #else	/* CONFIG_ACPI */
 

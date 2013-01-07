@@ -89,7 +89,7 @@ SECTIONS
 
   .kstrtab : { *(.kstrtab) }
 
-  #include "asm/common.lds.S"
+  #include <asm/common.lds.S>
 
   init.data : { INIT_DATA }
 

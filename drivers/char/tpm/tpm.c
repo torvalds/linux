@@ -1168,7 +1168,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	struct tpm_chip *chip = file->private_data;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
 	kzfree(chip->data_buffer);
@@ -1182,17 +1182,20 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	size_t in_size = size, out_size;
+	size_t in_size = size;
+	ssize_t out_size;
 
 	/* cannot perform a write until the read has cleared
-	   either via tpm_read or a user_read_timer timeout */
-	while (atomic_read(&chip->data_pending) != 0)
-		msleep(TPM_TIMEOUT);
-
-	mutex_lock(&chip->buffer_mutex);
+	   either via tpm_read or a user_read_timer timeout.
+	   This also prevents splitted buffered writes from blocking here.
+	*/
+	if (atomic_read(&chip->data_pending) != 0)
+		return -EBUSY;
 
 	if (in_size > TPM_BUFSIZE)
-		in_size = TPM_BUFSIZE;
+		return -E2BIG;
+
+	mutex_lock(&chip->buffer_mutex);
 
 	if (copy_from_user
 	    (chip->data_buffer, (void __user *) buf, in_size)) {
@@ -1202,6 +1205,10 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	/* atomic tpm command send and result receive */
 	out_size = tpm_transmit(chip, chip->data_buffer, TPM_BUFSIZE);
+	if (out_size < 0) {
+		mutex_unlock(&chip->buffer_mutex);
+		return out_size;
+	}
 
 	atomic_set(&chip->data_pending, out_size);
 	mutex_unlock(&chip->buffer_mutex);
@@ -1221,7 +1228,7 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	int rc;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
 	if (ret_size > 0) {	/* relay data */
 		ssize_t orig_ret_size = ret_size;
@@ -1259,6 +1266,7 @@ void tpm_remove_hardware(struct device *dev)
 
 	misc_deregister(&chip->vendor.miscdev);
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
+	tpm_remove_ppi(&dev->kobj);
 	tpm_bios_log_teardown(chip->bios_dir);
 
 	/* write it this way to be explicit (chip->dev == dev) */
@@ -1476,7 +1484,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto put_device;
 	}
 
-	if (sys_add_ppi(&dev->kobj)) {
+	if (tpm_add_ppi(&dev->kobj)) {
 		misc_deregister(&chip->vendor.miscdev);
 		goto put_device;
 	}

@@ -28,7 +28,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 
-#define DEBUGFS_DEFAULT_MODE	0755
+#define DEBUGFS_DEFAULT_MODE	0700
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
@@ -59,7 +59,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 		case S_IFDIR:
 			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
-			inode->i_private = NULL;
 
 			/* directory inodes start off with i_nlink == 2
 			 * (for "." entry) */
@@ -128,8 +127,8 @@ static inline int debugfs_positive(struct dentry *dentry)
 }
 
 struct debugfs_mount_opts {
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 	umode_t mode;
 };
 
@@ -156,6 +155,8 @@ static int debugfs_parse_options(char *data, struct debugfs_mount_opts *opts)
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 	int token;
+	kuid_t uid;
+	kgid_t gid;
 	char *p;
 
 	opts->mode = DEBUGFS_DEFAULT_MODE;
@@ -169,12 +170,18 @@ static int debugfs_parse_options(char *data, struct debugfs_mount_opts *opts)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return -EINVAL;
-			opts->uid = option;
+			uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(uid))
+				return -EINVAL;
+			opts->uid = uid;
 			break;
 		case Opt_gid:
 			if (match_octal(&args[0], &option))
 				return -EINVAL;
-			opts->gid = option;
+			gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(gid))
+				return -EINVAL;
+			opts->gid = gid;
 			break;
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
@@ -226,10 +233,12 @@ static int debugfs_show_options(struct seq_file *m, struct dentry *root)
 	struct debugfs_fs_info *fsi = root->d_sb->s_fs_info;
 	struct debugfs_mount_opts *opts = &fsi->mount_opts;
 
-	if (opts->uid != 0)
-		seq_printf(m, ",uid=%u", opts->uid);
-	if (opts->gid != 0)
-		seq_printf(m, ",gid=%u", opts->gid);
+	if (!uid_eq(opts->uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, opts->uid));
+	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, opts->gid));
 	if (opts->mode != DEBUGFS_DEFAULT_MODE)
 		seq_printf(m, ",mode=%o", opts->mode);
 
@@ -291,9 +300,9 @@ static struct file_system_type debug_fs_type = {
 	.kill_sb =	kill_litter_super,
 };
 
-struct dentry *__create_file(const char *name, umode_t mode,
-				   struct dentry *parent, void *data,
-				   const struct file_operations *fops)
+static struct dentry *__create_file(const char *name, umode_t mode,
+				    struct dentry *parent, void *data,
+				    const struct file_operations *fops)
 {
 	struct dentry *dentry = NULL;
 	int error;

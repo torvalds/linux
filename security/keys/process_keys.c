@@ -34,8 +34,7 @@ struct key_user root_key_user = {
 	.lock		= __SPIN_LOCK_UNLOCKED(root_key_user.lock),
 	.nkeys		= ATOMIC_INIT(2),
 	.nikeys		= ATOMIC_INIT(2),
-	.uid		= 0,
-	.user_ns	= &init_user_ns,
+	.uid		= GLOBAL_ROOT_UID,
 };
 
 /*
@@ -49,12 +48,14 @@ int install_user_keyrings(void)
 	key_perm_t user_keyring_perm;
 	char buf[20];
 	int ret;
+	uid_t uid;
 
 	user_keyring_perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL;
 	cred = current_cred();
 	user = cred->user;
+	uid = from_kuid(cred->user_ns, user->uid);
 
-	kenter("%p{%u}", user, user->uid);
+	kenter("%p{%u}", user, uid);
 
 	if (user->uid_keyring) {
 		kleave(" = 0 [exist]");
@@ -69,11 +70,11 @@ int install_user_keyrings(void)
 		 * - there may be one in existence already as it may have been
 		 *   pinned by a session, but the user_struct pointing to it
 		 *   may have been destroyed by setuid */
-		sprintf(buf, "_uid.%u", user->uid);
+		sprintf(buf, "_uid.%u", uid);
 
 		uid_keyring = find_keyring_by_name(buf, true);
 		if (IS_ERR(uid_keyring)) {
-			uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1,
+			uid_keyring = keyring_alloc(buf, user->uid, INVALID_GID,
 						    cred, user_keyring_perm,
 						    KEY_ALLOC_IN_QUOTA, NULL);
 			if (IS_ERR(uid_keyring)) {
@@ -84,12 +85,12 @@ int install_user_keyrings(void)
 
 		/* get a default session keyring (which might also exist
 		 * already) */
-		sprintf(buf, "_uid_ses.%u", user->uid);
+		sprintf(buf, "_uid_ses.%u", uid);
 
 		session_keyring = find_keyring_by_name(buf, true);
 		if (IS_ERR(session_keyring)) {
 			session_keyring =
-				keyring_alloc(buf, user->uid, (gid_t) -1,
+				keyring_alloc(buf, user->uid, INVALID_GID,
 					      cred, user_keyring_perm,
 					      KEY_ALLOC_IN_QUOTA, NULL);
 			if (IS_ERR(session_keyring)) {
@@ -366,8 +367,6 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 
 		switch (PTR_ERR(key_ref)) {
 		case -EAGAIN: /* no key */
-			if (ret)
-				break;
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;

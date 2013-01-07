@@ -158,8 +158,6 @@ enum {
 #define TSC_IRQ_MASK			(0x03)
 #define RTC_IRQ_MASK			(0x0c)
 
-#define MAX8925_MAX_REGULATOR		(23)
-
 #define MAX8925_NAME_SIZE		(32)
 
 /* IRQ definitions */
@@ -236,7 +234,29 @@ struct max8925_platform_data {
 	struct max8925_backlight_pdata	*backlight;
 	struct max8925_touch_pdata	*touch;
 	struct max8925_power_pdata	*power;
-	struct regulator_init_data	*regulator[MAX8925_MAX_REGULATOR];
+	struct regulator_init_data	*sd1;
+	struct regulator_init_data	*sd2;
+	struct regulator_init_data	*sd3;
+	struct regulator_init_data	*ldo1;
+	struct regulator_init_data	*ldo2;
+	struct regulator_init_data	*ldo3;
+	struct regulator_init_data	*ldo4;
+	struct regulator_init_data	*ldo5;
+	struct regulator_init_data	*ldo6;
+	struct regulator_init_data	*ldo7;
+	struct regulator_init_data	*ldo8;
+	struct regulator_init_data	*ldo9;
+	struct regulator_init_data	*ldo10;
+	struct regulator_init_data	*ldo11;
+	struct regulator_init_data	*ldo12;
+	struct regulator_init_data	*ldo13;
+	struct regulator_init_data	*ldo14;
+	struct regulator_init_data	*ldo15;
+	struct regulator_init_data	*ldo16;
+	struct regulator_init_data	*ldo17;
+	struct regulator_init_data	*ldo18;
+	struct regulator_init_data	*ldo19;
+	struct regulator_init_data	*ldo20;
 
 	int		irq_base;
 	int		tsc_irq;

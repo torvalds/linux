@@ -52,14 +52,19 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 					 SNDRV_OSS_DEVICE_TYPE_MIXER);
 	if (card == NULL)
 		return -ENODEV;
-	if (card->mixer_oss == NULL)
+	if (card->mixer_oss == NULL) {
+		snd_card_unref(card);
 		return -ENODEV;
+	}
 	err = snd_card_file_add(card, file);
-	if (err < 0)
+	if (err < 0) {
+		snd_card_unref(card);
 		return err;
+	}
 	fmixer = kzalloc(sizeof(*fmixer), GFP_KERNEL);
 	if (fmixer == NULL) {
 		snd_card_file_remove(card, file);
+		snd_card_unref(card);
 		return -ENOMEM;
 	}
 	fmixer->card = card;
@@ -68,8 +73,10 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 	if (!try_module_get(card->module)) {
 		kfree(fmixer);
 		snd_card_file_remove(card, file);
+		snd_card_unref(card);
 		return -EFAULT;
 	}
+	snd_card_unref(card);
 	return 0;
 }
 
@@ -1046,6 +1053,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 			
 		if (kctl->info(kctl, uinfo)) {
 			up_read(&mixer->card->controls_rwsem);
+			kfree(uinfo);
 			return 0;
 		}
 		strcpy(str, ptr->name);
@@ -1061,6 +1069,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 				uinfo->value.enumerated.item = slot.capture_item;
 				if (kctl->info(kctl, uinfo)) {
 					up_read(&mixer->card->controls_rwsem);
+					kfree(uinfo);
 					return 0;
 				}
 				if (!strcmp(uinfo->value.enumerated.name, str)) {

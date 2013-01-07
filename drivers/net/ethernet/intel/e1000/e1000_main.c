@@ -111,7 +111,7 @@ void e1000_update_stats(struct e1000_adapter *adapter);
 static int e1000_init_module(void);
 static void e1000_exit_module(void);
 static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void __devexit e1000_remove(struct pci_dev *pdev);
+static void e1000_remove(struct pci_dev *pdev);
 static int e1000_alloc_queues(struct e1000_adapter *adapter);
 static int e1000_sw_init(struct e1000_adapter *adapter);
 static int e1000_open(struct net_device *netdev);
@@ -192,7 +192,7 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev);
 static void e1000_io_resume(struct pci_dev *pdev);
 
-static struct pci_error_handlers e1000_err_handler = {
+static const struct pci_error_handlers e1000_err_handler = {
 	.error_detected = e1000_io_error_detected,
 	.slot_reset = e1000_io_slot_reset,
 	.resume = e1000_io_resume,
@@ -202,7 +202,7 @@ static struct pci_driver e1000_driver = {
 	.name     = e1000_driver_name,
 	.id_table = e1000_pci_tbl,
 	.probe    = e1000_probe,
-	.remove   = __devexit_p(e1000_remove),
+	.remove   = e1000_remove,
 #ifdef CONFIG_PM
 	/* Power Management Hooks */
 	.suspend  = e1000_suspend,
@@ -938,8 +938,7 @@ static int e1000_init_hw_struct(struct e1000_adapter *adapter,
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  **/
-static int __devinit e1000_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct e1000_adapter *adapter;
@@ -1273,7 +1272,7 @@ err_pci_reg:
  * memory.
  **/
 
-static void __devexit e1000_remove(struct pci_dev *pdev)
+static void e1000_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1309,7 +1308,7 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
  * e1000_init_hw_struct MUST be called before this function
  **/
 
-static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
+static int e1000_sw_init(struct e1000_adapter *adapter)
 {
 	adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 
@@ -1340,7 +1339,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
  * number of queues at compile-time.
  **/
 
-static int __devinit e1000_alloc_queues(struct e1000_adapter *adapter)
+static int e1000_alloc_queues(struct e1000_adapter *adapter)
 {
 	adapter->tx_ring = kcalloc(adapter->num_tx_queues,
 	                           sizeof(struct e1000_tx_ring), GFP_KERNEL);
@@ -2014,6 +2013,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter,
 		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 	}
 
+	netdev_reset_queue(adapter->netdev);
 	size = sizeof(struct e1000_buffer) * tx_ring->count;
 	memset(tx_ring->buffer_info, 0, size);
 
@@ -3273,6 +3273,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	                     nr_frags, mss);
 
 	if (count) {
+		netdev_sent_queue(netdev, skb->len);
 		skb_tx_timestamp(skb);
 
 		e1000_tx_queue(adapter, tx_ring, tx_flags, count);
@@ -3860,6 +3861,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	unsigned int i, eop;
 	unsigned int count = 0;
 	unsigned int total_tx_bytes=0, total_tx_packets=0;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
@@ -3877,6 +3879,11 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			if (cleaned) {
 				total_tx_packets += buffer_info->segs;
 				total_tx_bytes += buffer_info->bytecount;
+				if (buffer_info->skb) {
+					bytes_compl += buffer_info->skb->len;
+					pkts_compl++;
+				}
+
 			}
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 			tx_desc->upper.data = 0;
@@ -3889,6 +3896,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	}
 
 	tx_ring->next_to_clean = i;
+
+	netdev_completed_queue(netdev, pkts_compl, bytes_compl);
 
 #define TX_WAKE_THRESHOLD 32
 	if (unlikely(count && netif_carrier_ok(netdev) &&
@@ -4950,6 +4959,10 @@ int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 	default:
 		goto err_inval;
 	}
+
+	/* clear MDI, MDI(-X) override is only allowed when autoneg enabled */
+	hw->mdix = AUTO_ALL_MODES;
+
 	return 0;
 
 err_inval:

@@ -22,12 +22,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <sound/pcm.h>
-#include <sound/soc.h>
-#include <sound/tlv.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <sound/pcm.h>
+#include <sound/soc.h>
+#include <sound/tlv.h>
 #include <sound/cs4271.h>
 
 #define CS4271_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
@@ -458,18 +460,42 @@ static int cs4271_soc_resume(struct snd_soc_codec *codec)
 #define cs4271_soc_resume	NULL
 #endif /* CONFIG_PM */
 
+#ifdef CONFIG_OF
+static const struct of_device_id cs4271_dt_ids[] = {
+	{ .compatible = "cirrus,cs4271", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs4271_dt_ids);
+#endif
+
 static int cs4271_probe(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
 	int gpio_nreset = -EINVAL;
+	int amutec_eq_bmutec = 0;
 
-	if (cs4271plat && gpio_is_valid(cs4271plat->gpio_nreset))
-		gpio_nreset = cs4271plat->gpio_nreset;
+#ifdef CONFIG_OF
+	if (of_match_device(cs4271_dt_ids, codec->dev)) {
+		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
+						"reset-gpio", 0);
+
+		if (!of_get_property(codec->dev->of_node,
+				     "cirrus,amutec-eq-bmutec", NULL))
+			amutec_eq_bmutec = 1;
+	}
+#endif
+
+	if (cs4271plat) {
+		if (gpio_is_valid(cs4271plat->gpio_nreset))
+			gpio_nreset = cs4271plat->gpio_nreset;
+
+		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
+	}
 
 	if (gpio_nreset >= 0)
-		if (gpio_request(gpio_nreset, "CS4271 Reset"))
+		if (devm_gpio_request(codec->dev, gpio_nreset, "CS4271 Reset"))
 			gpio_nreset = -EINVAL;
 	if (gpio_nreset >= 0) {
 		/* Reset codec */
@@ -512,6 +538,11 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	/* Power-up sequence requires 85 uS */
 	udelay(85);
 
+	if (amutec_eq_bmutec)
+		snd_soc_update_bits(codec, CS4271_MODE2,
+				    CS4271_MODE2_MUTECAEQUB,
+				    CS4271_MODE2_MUTECAEQUB);
+
 	return snd_soc_add_codec_controls(codec, cs4271_snd_controls,
 		ARRAY_SIZE(cs4271_snd_controls));
 }
@@ -519,15 +550,10 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 static int cs4271_remove(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	int gpio_nreset;
 
-	gpio_nreset = cs4271->gpio_nreset;
-
-	if (gpio_is_valid(gpio_nreset)) {
+	if (gpio_is_valid(cs4271->gpio_nreset))
 		/* Set codec to the reset state */
-		gpio_set_value(gpio_nreset, 0);
-		gpio_free(gpio_nreset);
-	}
+		gpio_set_value(cs4271->gpio_nreset, 0);
 
 	return 0;
 };
@@ -544,7 +570,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit cs4271_spi_probe(struct spi_device *spi)
+static int cs4271_spi_probe(struct spi_device *spi)
 {
 	struct cs4271_private *cs4271;
 
@@ -559,7 +585,7 @@ static int __devinit cs4271_spi_probe(struct spi_device *spi)
 		&cs4271_dai, 1);
 }
 
-static int __devexit cs4271_spi_remove(struct spi_device *spi)
+static int cs4271_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
@@ -569,9 +595,10 @@ static struct spi_driver cs4271_spi_driver = {
 	.driver = {
 		.name	= "cs4271",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.probe		= cs4271_spi_probe,
-	.remove		= __devexit_p(cs4271_spi_remove),
+	.remove		= cs4271_spi_remove,
 };
 #endif /* defined(CONFIG_SPI_MASTER) */
 
@@ -582,8 +609,8 @@ static const struct i2c_device_id cs4271_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs4271_i2c_id);
 
-static int __devinit cs4271_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int cs4271_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
 	struct cs4271_private *cs4271;
 
@@ -598,7 +625,7 @@ static int __devinit cs4271_i2c_probe(struct i2c_client *client,
 		&cs4271_dai, 1);
 }
 
-static int __devexit cs4271_i2c_remove(struct i2c_client *client)
+static int cs4271_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -608,10 +635,11 @@ static struct i2c_driver cs4271_i2c_driver = {
 	.driver = {
 		.name	= "cs4271",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.id_table	= cs4271_i2c_id,
 	.probe		= cs4271_i2c_probe,
-	.remove		= __devexit_p(cs4271_i2c_remove),
+	.remove		= cs4271_i2c_remove,
 };
 #endif /* defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE) */
 

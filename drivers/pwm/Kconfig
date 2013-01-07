@@ -1,6 +1,5 @@
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
-	depends on !MACH_JZ4740 && !PUV3_PWM
 	help
 	  Generic Pulse-Width Modulation (PWM) support.
 
@@ -29,6 +28,15 @@ menuconfig PWM
 
 if PWM
 
+config PWM_AB8500
+	tristate "AB8500 PWM support"
+	depends on AB8500_CORE && ARCH_U8500
+	help
+	  Generic PWM framework driver for Analog Baseband AB8500.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-ab8500.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
@@ -46,6 +54,16 @@ config PWM_IMX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx.
+
+config PWM_JZ4740
+	tristate "Ingenic JZ4740 PWM support"
+	depends on MACH_JZ4740
+	help
+	  Generic PWM framework driver for Ingenic JZ4740 based
+	  machines.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-jz4740.
 
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
@@ -67,6 +85,15 @@ config PWM_MXS
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
 
+config PWM_PUV3
+	tristate "PKUnity NetBook-0916 PWM support"
+	depends on ARCH_PUV3
+	help
+	  Generic PWM framework driver for PKUnity NetBook-0916.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-puv3.
+
 config PWM_PXA
 	tristate "PXA PWM support"
 	depends on ARCH_PXA
@@ -85,6 +112,17 @@ config PWM_SAMSUNG
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-samsung.
 
+config PWM_SPEAR
+	tristate "STMicroelectronics SPEAr PWM support"
+	depends on PLAT_SPEAR
+	depends on OF
+	help
+	  Generic PWM framework driver for the PWM controller on ST
+	  SPEAr SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-spear.
+
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA
@@ -98,6 +136,7 @@ config PWM_TEGRA
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
 	depends on SOC_AM33XX
+	select PWM_TIPWMSS
 	help
 	  PWM driver support for the ECAP APWM controller found on AM33XX
 	  TI SOC
@@ -108,12 +147,40 @@ config  PWM_TIECAP
 config  PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
 	depends on SOC_AM33XX
+	select PWM_TIPWMSS
 	help
 	  PWM driver support for the EHRPWM controller found on AM33XX
 	  TI SOC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiehrpwm.
+
+config  PWM_TIPWMSS
+	bool
+	depends on SOC_AM33XX && (PWM_TIEHRPWM || PWM_TIECAP)
+	help
+	  PWM Subsystem driver support for AM33xx SOC.
+
+	  PWM submodules require PWM config space access from submodule
+	  drivers and require common parent driver support.
+
+config PWM_TWL
+	tristate "TWL4030/6030 PWM support"
+	depends on TWL4030_CORE
+	help
+	  Generic PWM framework driver for TWL4030/6030.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-twl.
+
+config PWM_TWL_LED
+	tristate "TWL4030/6030 PWM support for LED drivers"
+	depends on TWL4030_CORE
+	help
+	  Generic PWM framework driver for TWL4030/6030 LED terminals.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-twl-led.
 
 config PWM_VT8500
 	tristate "vt8500 pwm support"

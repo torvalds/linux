@@ -1829,24 +1829,12 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
  * PCI						     *
  *****************************************************/
 
-static inline u16
-il_pcie_link_ctl(struct il_priv *il)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-	pos = pci_pcie_cap(il->pci_dev);
-	pci_read_config_word(il->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
 void il_bg_watchdog(unsigned long data);
 u32 il_usecs_to_beacons(struct il_priv *il, u32 usec, u32 beacon_interval);
 __le32 il_add_beacon_time(struct il_priv *il, u32 base, u32 addon,
 			  u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int il_pci_suspend(struct device *device);
-int il_pci_resume(struct device *device);
 extern const struct dev_pm_ops il_pm_ops;
 
 #define IL_LEGACY_PM_OPS	(&il_pm_ops)
@@ -2438,10 +2426,6 @@ struct il_tfd {
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
-/* PCI register values */
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
 struct il_rate_info {
 	u8 plcp;		/* uCode API:  RATE_6M_PLCP, etc. */
 	u8 plcp_siso;		/* uCode API:  RATE_SISO_6M_PLCP, etc. */
@@ -2923,9 +2907,8 @@ do {									\
 #define IL_DBG(level, fmt, args...)					\
 do {									\
 	if (il_get_debug_level(il) & level)				\
-		dev_printk(KERN_ERR, &il->hw->wiphy->dev,		\
-			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			__func__ , ## args);				\
+		dev_err(&il->hw->wiphy->dev, "%c %s " fmt,		\
+			in_interrupt() ? 'I' : 'U', __func__ , ##args); \
 } while (0)
 
 #define il_print_hex_dump(il, level, p, len)				\

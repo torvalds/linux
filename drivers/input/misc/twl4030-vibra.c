@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/workqueue.h>
 #include <linux/i2c/twl.h>
 #include <linux/mfd/twl4030-audio.h>
@@ -194,13 +195,26 @@ static int twl4030_vibra_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(twl4030_vibra_pm_ops,
 			 twl4030_vibra_suspend, twl4030_vibra_resume);
 
-static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
+static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
+			      struct device_node *node)
+{
+	if (pdata && pdata->coexist)
+		return true;
+
+	if (of_find_node_by_name(node, "codec"))
+		return true;
+
+	return false;
+}
+
+static int twl4030_vibra_probe(struct platform_device *pdev)
 {
 	struct twl4030_vibra_data *pdata = pdev->dev.platform_data;
+	struct device_node *twl4030_core_node = pdev->dev.parent->of_node;
 	struct vibra_info *info;
 	int ret;
 
-	if (!pdata) {
+	if (!pdata && !twl4030_core_node) {
 		dev_dbg(&pdev->dev, "platform_data not available\n");
 		return -EINVAL;
 	}
@@ -210,7 +224,7 @@ static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->dev = &pdev->dev;
-	info->coexist = pdata->coexist;
+	info->coexist = twl4030_vibra_check_coexist(pdata, twl4030_core_node);
 	INIT_WORK(&info->play_work, vibra_play_work);
 
 	info->input_dev = input_allocate_device();
@@ -255,7 +269,7 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
+static int twl4030_vibra_remove(struct platform_device *pdev)
 {
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
@@ -269,7 +283,7 @@ static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_vibra_driver = {
 	.probe		= twl4030_vibra_probe,
-	.remove		= __devexit_p(twl4030_vibra_remove),
+	.remove		= twl4030_vibra_remove,
 	.driver		= {
 		.name	= "twl4030-vibra",
 		.owner	= THIS_MODULE,

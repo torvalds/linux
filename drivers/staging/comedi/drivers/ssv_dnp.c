@@ -50,15 +50,6 @@ Status: unknown
 #define PCMR  0xa3		/* Port C Mode Register                      */
 #define PCDR  0xa7		/* Port C Data Register                      */
 
-/* This data structure holds information about the supported boards -------- */
-
-struct dnp_board {
-	const char *name;
-	int ai_chans;
-	int ai_bits;
-	int have_dio;
-};
-
 /* ------------------------------------------------------------------------- */
 /* The insn_bits interface allows packed reading/writing of DIO channels.    */
 /* The comedi core can convert between insn_bits and insn_read/write, so you */
@@ -173,19 +164,16 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dnp_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
-
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* digital i/o subdevice                                             */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -194,8 +182,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = dnp_dio_insn_bits;
 	s->insn_config = dnp_dio_insn_config;
-
-	printk("attached\n");
 
 	/* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
 	 * allocated for the primary 8259, so we don't need to allocate them
@@ -209,6 +195,7 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(PCMR, CSCIR);
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 
+	dev_info(dev->class_dev, "%s: attached\n", dev->board_name);
 	return 1;
 }
 
@@ -222,23 +209,11 @@ static void dnp_detach(struct comedi_device *dev)
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 }
 
-static const struct dnp_board dnp_boards[] = {
-	{
-		.name		= "dnp-1486",
-		.ai_chans	= 16,
-		.ai_bits	= 12,
-		.have_dio	= 1,
-	},
-};
-
 static struct comedi_driver dnp_driver = {
-	.driver_name	= "ssv_dnp",
+	.driver_name	= "dnp-1486",
 	.module		= THIS_MODULE,
 	.attach		= dnp_attach,
 	.detach		= dnp_detach,
-	.board_name	= &dnp_boards[0].name,
-	.offset		= sizeof(struct dnp_board),
-	.num_names	= ARRAY_SIZE(dnp_boards),
 };
 module_comedi_driver(dnp_driver);
 

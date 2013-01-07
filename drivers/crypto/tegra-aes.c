@@ -41,8 +41,6 @@
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 
-#include <mach/clk.h>
-
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
 #include <crypto/internal/rng.h>
@@ -674,8 +672,10 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	mutex_lock(&aes_lock);
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	ctx->dd = dd;
 	dd->ctx = ctx;
@@ -759,8 +759,10 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
 
 	ret = clk_prepare_enable(dd->aes_clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&aes_lock);
 		return ret;
+	}
 
 	aes_set_key(dd);
 
@@ -969,6 +971,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	aes_wq = alloc_workqueue("tegra_aes_wq", WQ_HIGHPRI | WQ_UNBOUND, 1);
 	if (!aes_wq) {
 		dev_err(dev, "alloc_workqueue failed\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -1004,8 +1007,6 @@ static int tegra_aes_probe(struct platform_device *pdev)
 
 	aes_dev = dd;
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
-		INIT_LIST_HEAD(&algs[i].cra_list);
-
 		algs[i].cra_priority = 300;
 		algs[i].cra_ctxsize = sizeof(struct tegra_aes_ctx);
 		algs[i].cra_module = THIS_MODULE;
@@ -1032,7 +1033,7 @@ out:
 	if (dd->buf_out)
 		dma_free_coherent(dev, AES_HW_DMA_BUFFER_SIZE_BYTES,
 			dd->buf_out, dd->dma_buf_out);
-	if (IS_ERR(dd->aes_clk))
+	if (!IS_ERR(dd->aes_clk))
 		clk_put(dd->aes_clk);
 	if (aes_wq)
 		destroy_workqueue(aes_wq);

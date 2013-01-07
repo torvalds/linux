@@ -29,7 +29,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-/* IDA to assign each registered device a unique id*/
+/* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
 
 static dev_t iio_devt;
@@ -65,6 +65,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_CAPACITANCE] = "capacitance",
 	[IIO_ALTVOLTAGE] = "altvoltage",
 	[IIO_CCT] = "cct",
+	[IIO_PRESSURE] = "pressure",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -99,6 +100,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_FREQUENCY] = "frequency",
 	[IIO_CHAN_INFO_PHASE] = "phase",
 	[IIO_CHAN_INFO_HARDWAREGAIN] = "hardwaregain",
+	[IIO_CHAN_INFO_HYSTERESIS] = "hysteresis",
 };
 
 const struct iio_chan_spec
@@ -365,6 +367,7 @@ static ssize_t iio_read_channel_info(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	unsigned long long tmp;
 	int val, val2;
 	bool scale_db = false;
 	int ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
@@ -390,10 +393,78 @@ static ssize_t iio_read_channel_info(struct device *dev,
 			return sprintf(buf, "-%d.%09u\n", val, -val2);
 		else
 			return sprintf(buf, "%d.%09u\n", val, val2);
+	case IIO_VAL_FRACTIONAL:
+		tmp = div_s64((s64)val * 1000000000LL, val2);
+		val2 = do_div(tmp, 1000000000LL);
+		val = tmp;
+		return sprintf(buf, "%d.%09u\n", val, val2);
+	case IIO_VAL_FRACTIONAL_LOG2:
+		tmp = (s64)val * 1000000000LL >> val2;
+		val2 = do_div(tmp, 1000000000LL);
+		val = tmp;
+		return sprintf(buf, "%d.%09u\n", val, val2);
 	default:
 		return 0;
 	}
 }
+
+/**
+ * iio_str_to_fixpoint() - Parse a fixed-point number from a string
+ * @str: The string to parse
+ * @fract_mult: Multiplier for the first decimal place, should be a power of 10
+ * @integer: The integer part of the number
+ * @fract: The fractional part of the number
+ *
+ * Returns 0 on success, or a negative error code if the string could not be
+ * parsed.
+ */
+int iio_str_to_fixpoint(const char *str, int fract_mult,
+	int *integer, int *fract)
+{
+	int i = 0, f = 0;
+	bool integer_part = true, negative = false;
+
+	if (str[0] == '-') {
+		negative = true;
+		str++;
+	} else if (str[0] == '+') {
+		str++;
+	}
+
+	while (*str) {
+		if ('0' <= *str && *str <= '9') {
+			if (integer_part) {
+				i = i * 10 + *str - '0';
+			} else {
+				f += fract_mult * (*str - '0');
+				fract_mult /= 10;
+			}
+		} else if (*str == '\n') {
+			if (*(str + 1) == '\0')
+				break;
+			else
+				return -EINVAL;
+		} else if (*str == '.' && integer_part) {
+			integer_part = false;
+		} else {
+			return -EINVAL;
+		}
+		str++;
+	}
+
+	if (negative) {
+		if (i)
+			i = -i;
+		else
+			f = -f;
+	}
+
+	*integer = i;
+	*fract = f;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iio_str_to_fixpoint);
 
 static ssize_t iio_write_channel_info(struct device *dev,
 				      struct device_attribute *attr,
@@ -402,8 +473,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int ret, integer = 0, fract = 0, fract_mult = 100000;
-	bool integer_part = true, negative = false;
+	int ret, fract_mult = 100000;
+	int integer, fract;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -422,39 +493,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 			return -EINVAL;
 		}
 
-	if (buf[0] == '-') {
-		negative = true;
-		buf++;
-	}
-
-	while (*buf) {
-		if ('0' <= *buf && *buf <= '9') {
-			if (integer_part)
-				integer = integer*10 + *buf - '0';
-			else {
-				fract += fract_mult*(*buf - '0');
-				if (fract_mult == 1)
-					break;
-				fract_mult /= 10;
-			}
-		} else if (*buf == '\n') {
-			if (*(buf + 1) == '\0')
-				break;
-			else
-				return -EINVAL;
-		} else if (*buf == '.') {
-			integer_part = false;
-		} else {
-			return -EINVAL;
-		}
-		buf++;
-	}
-	if (negative) {
-		if (integer)
-			integer = -integer;
-		else
-			fract = -fract;
-	}
+	ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
+	if (ret)
+		return ret;
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
 					 integer, fract, this_attr->address);
@@ -729,7 +770,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	attrcount = attrcount_orig;
 	/*
 	 * New channel registration method - relies on the fact a group does
-	 * not need to be initialized if it is name is NULL.
+	 * not need to be initialized if its name is NULL.
 	 */
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
@@ -844,6 +885,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 			return NULL;
 		}
 		dev_set_name(&dev->dev, "iio:device%d", dev->id);
+		INIT_LIST_HEAD(&dev->buffer_list);
 	}
 
 	return dev;
@@ -980,6 +1022,6 @@ EXPORT_SYMBOL(iio_device_unregister);
 subsys_initcall(iio_init);
 module_exit(iio_exit);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Industrial I/O core");
 MODULE_LICENSE("GPL");

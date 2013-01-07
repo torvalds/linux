@@ -43,9 +43,12 @@
 /* IO protection is currently unsupported. */
 
 ENTRY(fast_io_protect)
-	wsr	a0, EXCSAVE_1
+
+	wsr	a0, excsave1
 	movi	a0, unrecoverable_exception
 	callx0	a0
+
+ENDPROC(fast_io_protect)
 
 #if XTENSA_HAVE_COPROCESSORS
 
@@ -139,6 +142,7 @@ ENTRY(fast_io_protect)
  */
 
 ENTRY(coprocessor_save)
+
 	entry	a1, 32
 	s32i	a0, a1, 0
 	movi	a0, .Lsave_cp_regs_jump_table
@@ -150,7 +154,10 @@ ENTRY(coprocessor_save)
 1:	l32i	a0, a1, 0
 	retw
 
+ENDPROC(coprocessor_save)
+
 ENTRY(coprocessor_load)
+
 	entry	a1, 32
 	s32i	a0, a1, 0
 	movi	a0, .Lload_cp_regs_jump_table
@@ -162,8 +169,10 @@ ENTRY(coprocessor_load)
 1:	l32i	a0, a1, 0
 	retw
 
+ENDPROC(coprocessor_load)
+
 /*
- * coprocessor_flush(struct task_info*, index) 
+ * coprocessor_flush(struct task_info*, index)
  *                             a2        a3
  * coprocessor_restore(struct task_info*, index)
  *                              a2         a3
@@ -178,6 +187,7 @@ ENTRY(coprocessor_load)
 
 
 ENTRY(coprocessor_flush)
+
 	entry	a1, 32
 	s32i	a0, a1, 0
 	movi	a0, .Lsave_cp_regs_jump_table
@@ -190,6 +200,8 @@ ENTRY(coprocessor_flush)
 	callx0	a0
 1:	l32i	a0, a1, 0
 	retw
+
+ENDPROC(coprocessor_flush)
 
 ENTRY(coprocessor_restore)
 	entry	a1, 32
@@ -204,6 +216,8 @@ ENTRY(coprocessor_restore)
 	callx0	a0
 1:	l32i	a0, a1, 0
 	retw
+
+ENDPROC(coprocessor_restore)
 
 /*
  * Entry condition:
@@ -220,22 +234,24 @@ ENTRY(coprocessor_restore)
  */
 
 ENTRY(fast_coprocessor_double)
-	wsr	a0, EXCSAVE_1
+
+	wsr	a0, excsave1
 	movi	a0, unrecoverable_exception
 	callx0	a0
 
+ENDPROC(fast_coprocessor_double)
 
 ENTRY(fast_coprocessor)
 
 	/* Save remaining registers a1-a3 and SAR */
 
-	xsr	a3, EXCSAVE_1
+	xsr	a3, excsave1
 	s32i	a3, a2, PT_AREG3
-	rsr	a3, SAR
+	rsr	a3, sar
 	s32i	a1, a2, PT_AREG1
 	s32i	a3, a2, PT_SAR
 	mov	a1, a2
-	rsr	a2, DEPC
+	rsr	a2, depc
 	s32i	a2, a1, PT_AREG2
 
 	/*
@@ -248,17 +264,17 @@ ENTRY(fast_coprocessor)
 
 	/* Find coprocessor number. Subtract first CP EXCCAUSE from EXCCAUSE */
 
-	rsr	a3, EXCCAUSE
+	rsr	a3, exccause
 	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
 
 	/* Set corresponding CPENABLE bit -> (sar:cp-index, a3: 1<<cp-index)*/
 
 	ssl	a3			# SAR: 32 - coprocessor_number
 	movi	a2, 1
-	rsr	a0, CPENABLE
+	rsr	a0, cpenable
 	sll	a2, a2
 	or	a0, a0, a2
-	wsr	a0, CPENABLE
+	wsr	a0, cpenable
 	rsync
 
 	/* Retrieve previous owner. (a3 still holds CP number) */
@@ -291,7 +307,7 @@ ENTRY(fast_coprocessor)
 
 	/* Note that only a0 and a1 were preserved. */
 
-2:	rsr	a3, EXCCAUSE
+2:	rsr	a3, exccause
 	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
 	movi	a0, coprocessor_owner
 	addx4	a0, a3, a0
@@ -321,15 +337,20 @@ ENTRY(fast_coprocessor)
 	l32i	a0, a1, PT_SAR
 	l32i	a3, a1, PT_AREG3
 	l32i	a2, a1, PT_AREG2
-	wsr	a0, SAR
+	wsr	a0, sar
 	l32i	a0, a1, PT_AREG0
 	l32i	a1, a1, PT_AREG1
 
 	rfe
 
+ENDPROC(fast_coprocessor)
+
 	.data
+
 ENTRY(coprocessor_owner)
+
 	.fill XCHAL_CP_MAX, 4, 0
 
-#endif /* XTENSA_HAVE_COPROCESSORS */
+END(coprocessor_owner)
 
+#endif /* XTENSA_HAVE_COPROCESSORS */

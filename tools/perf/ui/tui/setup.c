@@ -11,11 +11,11 @@
 #include "../libslang.h"
 #include "../keysyms.h"
 
-pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
-
 static volatile int ui__need_resize;
 
 extern struct perf_error_ops perf_tui_eops;
+
+extern void hist_browser__init_hpp(void);
 
 void ui__refresh_dimensions(bool force)
 {
@@ -28,7 +28,7 @@ void ui__refresh_dimensions(bool force)
 	}
 }
 
-static void ui__sigwinch(int sig __used)
+static void ui__sigwinch(int sig __maybe_unused)
 {
 	ui__need_resize = 1;
 }
@@ -88,7 +88,7 @@ int ui__getch(int delay_secs)
 	return SLkp_getkey();
 }
 
-static void newt_suspend(void *d __used)
+static void newt_suspend(void *d __maybe_unused)
 {
 	newtSuspend();
 	raise(SIGTSTP);
@@ -118,6 +118,7 @@ int ui__init(void)
 	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__init();
 	ui_browser__init();
+	ui_progress__init();
 
 	signal(SIGSEGV, ui__signal);
 	signal(SIGFPE, ui__signal);
@@ -126,6 +127,8 @@ int ui__init(void)
 	signal(SIGTERM, ui__signal);
 
 	perf_error__register(&perf_tui_eops);
+
+	hist_browser__init_hpp();
 out:
 	return err;
 }

@@ -714,9 +714,9 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 			break;
 		}
 
-		dbg_gc("found LEB %d: free %d, dirty %d, sum %d "
-		       "(min. space %d)", lp.lnum, lp.free, lp.dirty,
-		       lp.free + lp.dirty, min_space);
+		dbg_gc("found LEB %d: free %d, dirty %d, sum %d (min. space %d)",
+		       lp.lnum, lp.free, lp.dirty, lp.free + lp.dirty,
+		       min_space);
 
 		space_before = c->leb_size - wbuf->offs - wbuf->used;
 		if (wbuf->lnum == -1)

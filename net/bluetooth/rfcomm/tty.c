@@ -166,7 +166,7 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
 {
 	struct rfcomm_dev *dev = dev_get_drvdata(tty_dev);
-	return sprintf(buf, "%s\n", batostr(&dev->dst));
+	return sprintf(buf, "%pMR\n", &dev->dst);
 }
 
 static ssize_t show_channel(struct device *tty_dev, struct device_attribute *attr, char *buf)
@@ -278,8 +278,8 @@ out:
 	if (err < 0)
 		goto free;
 
-	dev->tty_dev = tty_register_device(rfcomm_tty_driver, dev->id, NULL);
-
+	dev->tty_dev = tty_port_register_device(&dev->port, rfcomm_tty_driver,
+			dev->id, NULL);
 	if (IS_ERR(dev->tty_dev)) {
 		err = PTR_ERR(dev->tty_dev);
 		list_del(&dev->list);
@@ -663,8 +663,8 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 	if (!dev)
 		return -ENODEV;
 
-	BT_DBG("dev %p dst %s channel %d opened %d", dev, batostr(&dev->dst),
-				dev->channel, dev->port.count);
+	BT_DBG("dev %p dst %pMR channel %d opened %d", dev, &dev->dst,
+	       dev->channel, dev->port.count);
 
 	spin_lock_irqsave(&dev->port.lock, flags);
 	if (++dev->port.count > 1) {
@@ -705,9 +705,9 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 			break;
 		}
 
-		tty_unlock();
+		tty_unlock(tty);
 		schedule();
-		tty_lock();
+		tty_lock(tty);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->wait, &wait);
@@ -861,7 +861,7 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 
 static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
-	struct ktermios *new = tty->termios;
+	struct ktermios *new = &tty->termios;
 	int old_baud_rate = tty_termios_baud_rate(old);
 	int new_baud_rate = tty_termios_baud_rate(new);
 

@@ -52,8 +52,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 /* Vendor and Product ID */
 #define AIRCABLE_VID		0x16CA
 #define AIRCABLE_USB_PID	0x1502
@@ -70,10 +68,6 @@ static bool debug;
 #define THROTTLED		0x01
 #define ACTUALLY_THROTTLED	0x02
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Naranjo, Manuel Francisco <naranjo.manuel@gmail.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "AIRcable USB Driver"
 
@@ -194,8 +188,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

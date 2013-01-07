@@ -55,13 +55,14 @@
 \********************/
 
 static void
-ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
+	 struct sk_buff *skb)
 {
 	struct ath5k_hw *ah = hw->priv;
 	u16 qnum = skb_get_queue_mapping(skb);
 
 	if (WARN_ON(qnum >= ah->ah_capabilities.cap_queues.q_tx_num)) {
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
@@ -207,8 +208,8 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
-	(ah->power_level != conf->power_level)) {
-		ah->power_level = conf->power_level;
+	(ah->ah_txpower.txp_requested != conf->power_level)) {
+		ah->ah_txpower.txp_requested = conf->power_level;
 
 		/* Half dB steps */
 		ath5k_hw_set_txpower_limit(ah, (conf->power_level * 2));
@@ -451,8 +452,9 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	iter_data.hw_macaddr = NULL;
 	iter_data.n_stas = 0;
 	iter_data.need_set_hw_addr = false;
-	ieee80211_iterate_active_interfaces_atomic(ah->hw, ath5k_vif_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		ah->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath5k_vif_iter, &iter_data);
 
 	/* Set up RX Filter */
 	if (iter_data.n_stas > 1) {
@@ -486,6 +488,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int ret = 0;
 
 	if (ath5k_modparam_nohwcrypt)
+		return -EOPNOTSUPP;
+
+	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT)
 		return -EOPNOTSUPP;
 
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
@@ -522,7 +527,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 			if (key->cipher == WLAN_CIPHER_SUITE_CCMP)
-				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
+				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 			ret = 0;
 		}
 		break;

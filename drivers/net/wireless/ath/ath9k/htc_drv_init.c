@@ -30,6 +30,10 @@ int htc_modparam_nohwcrypt;
 module_param_named(nohwcrypt, htc_modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
+static int ath9k_htc_btcoex_enable;
+module_param_named(btcoex_enable, ath9k_htc_btcoex_enable, int, 0444);
+MODULE_PARM_DESC(btcoex_enable, "Enable wifi-BT coexistence");
+
 #define CHAN2G(_freq, _idx)  { \
 	.center_freq = (_freq), \
 	.hw_value = (_idx), \
@@ -545,20 +549,20 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 		goto err;
 	}
 
-	if (!ath9k_htc_txq_setup(priv, WME_AC_BE)) {
+	if (!ath9k_htc_txq_setup(priv, IEEE80211_AC_BE)) {
 		ath_err(common, "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
 
-	if (!ath9k_htc_txq_setup(priv, WME_AC_BK)) {
+	if (!ath9k_htc_txq_setup(priv, IEEE80211_AC_BK)) {
 		ath_err(common, "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, WME_AC_VI)) {
+	if (!ath9k_htc_txq_setup(priv, IEEE80211_AC_VI)) {
 		ath_err(common, "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, WME_AC_VO)) {
+	if (!ath9k_htc_txq_setup(priv, IEEE80211_AC_VO)) {
 		ath_err(common, "Unable to setup xmit queue for VO traffic\n");
 		goto err;
 	}
@@ -635,6 +639,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->hw = priv->hw;
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
+	common->btcoex_enabled = ath9k_htc_btcoex_enable == 1;
 
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx.tx_lock);
@@ -689,6 +694,20 @@ err_hw:
 	return ret;
 }
 
+static const struct ieee80211_iface_limit if_limits[] = {
+	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) },
+	{ .max = 2,	.types = BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
+static const struct ieee80211_iface_combination if_comb = {
+	.limits = if_limits,
+	.n_limits = ARRAY_SIZE(if_limits),
+	.max_interfaces = 2,
+	.num_different_channels = 1,
+};
+
 static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 			       struct ieee80211_hw *hw)
 {
@@ -710,6 +729,9 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_P2P_GO) |
 		BIT(NL80211_IFTYPE_P2P_CLIENT);
+
+	hw->wiphy->iface_combinations = &if_comb;
+	hw->wiphy->n_iface_combinations = 1;
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 

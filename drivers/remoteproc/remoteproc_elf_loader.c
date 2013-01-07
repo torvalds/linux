@@ -66,13 +66,13 @@ rproc_elf_sanity_check(struct rproc *rproc, const struct firmware *fw)
 		return -EINVAL;
 	}
 
-	/* We assume the firmware has the same endianess as the host */
+	/* We assume the firmware has the same endianness as the host */
 # ifdef __LITTLE_ENDIAN
 	if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB) {
 # else /* BIG ENDIAN */
 	if (ehdr->e_ident[EI_DATA] != ELFDATA2MSB) {
 # endif
-		dev_err(dev, "Unsupported firmware endianess\n");
+		dev_err(dev, "Unsupported firmware endianness\n");
 		return -EINVAL;
 	}
 

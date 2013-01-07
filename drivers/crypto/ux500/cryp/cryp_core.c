@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/semaphore.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
@@ -30,9 +31,7 @@
 #include <crypto/des.h>
 #include <crypto/scatterwalk.h>
 
-#include <plat/ste_dma40.h>
-
-#include <mach/crypto-ux500.h>
+#include <linux/platform_data/crypto-ux500.h>
 #include <mach/hardware.h>
 
 #include "cryp_p.h"
@@ -1486,6 +1485,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	if (!res_irq) {
 		dev_err(dev, "[%s]: IORESOURCE_IRQ unavailable",
 			__func__);
+		ret = -ENODEV;
 		goto out_power;
 	}
 

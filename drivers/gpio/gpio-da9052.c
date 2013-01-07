@@ -185,10 +185,14 @@ static int da9052_gpio_to_irq(struct gpio_chip *gc, u32 offset)
 	struct da9052_gpio *gpio = to_da9052_gpio(gc);
 	struct da9052 *da9052 = gpio->da9052;
 
-	return da9052->irq_base + DA9052_IRQ_GPI0 + offset;
+	int irq;
+
+	irq = regmap_irq_get_virq(da9052->irq_data, DA9052_IRQ_GPI0 + offset);
+
+	return irq;
 }
 
-static struct gpio_chip reference_gp __devinitdata = {
+static struct gpio_chip reference_gp = {
 	.label = "da9052-gpio",
 	.owner = THIS_MODULE,
 	.get = da9052_gpio_get,
@@ -201,13 +205,13 @@ static struct gpio_chip reference_gp __devinitdata = {
 	.base = -1,
 };
 
-static int __devinit da9052_gpio_probe(struct platform_device *pdev)
+static int da9052_gpio_probe(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio;
 	struct da9052_pdata *pdata;
 	int ret;
 
-	gpio = kzalloc(sizeof(*gpio), GFP_KERNEL);
+	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (gpio == NULL)
 		return -ENOMEM;
 
@@ -221,33 +225,24 @@ static int __devinit da9052_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&gpio->gp);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		goto err_mem;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, gpio);
 
 	return 0;
-
-err_mem:
-	kfree(gpio);
-	return ret;
 }
 
-static int __devexit da9052_gpio_remove(struct platform_device *pdev)
+static int da9052_gpio_remove(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&gpio->gp);
-	if (ret == 0)
-		kfree(gpio);
-
-	return ret;
+	return gpiochip_remove(&gpio->gp);
 }
 
 static struct platform_driver da9052_gpio_driver = {
 	.probe = da9052_gpio_probe,
-	.remove = __devexit_p(da9052_gpio_remove),
+	.remove = da9052_gpio_remove,
 	.driver = {
 		.name	= "da9052-gpio",
 		.owner	= THIS_MODULE,

@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 
 struct device;
 /*
@@ -68,6 +69,9 @@ struct led_classdev {
 	unsigned long		 blink_delay_on, blink_delay_off;
 	struct timer_list	 blink_timer;
 	int			 blink_brightness;
+
+	struct work_struct	set_brightness_work;
+	int			delayed_set_value;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	/* Protects the trigger data below */
@@ -175,6 +179,23 @@ extern void led_trigger_blink_oneshot(struct led_trigger *trigger,
 				      unsigned long *delay_on,
 				      unsigned long *delay_off,
 				      int invert);
+/**
+ * led_trigger_rename_static - rename a trigger
+ * @name: the new trigger name
+ * @trig: the LED trigger to rename
+ *
+ * Change a LED trigger name by copying the string passed in
+ * name into current trigger name, which MUST be large
+ * enough for the new string.
+ *
+ * Note that name must NOT point to the same string used
+ * during LED registration, as that could lead to races.
+ *
+ * This is meant to be used on triggers with statically
+ * allocated name.
+ */
+extern void led_trigger_rename_static(const char *name,
+				      struct led_trigger *trig);
 
 #else
 
@@ -236,5 +257,21 @@ struct gpio_led_platform_data {
 
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
+
+enum cpu_led_event {
+	CPU_LED_IDLE_START,	/* CPU enters idle */
+	CPU_LED_IDLE_END,	/* CPU idle ends */
+	CPU_LED_START,		/* Machine starts, especially resume */
+	CPU_LED_STOP,		/* Machine stops, especially suspend */
+	CPU_LED_HALTED,		/* Machine shutdown */
+};
+#ifdef CONFIG_LEDS_TRIGGER_CPU
+extern void ledtrig_cpu(enum cpu_led_event evt);
+#else
+static inline void ledtrig_cpu(enum cpu_led_event evt)
+{
+	return;
+}
+#endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

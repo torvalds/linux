@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
@@ -37,22 +38,19 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
-#include "common.h"
-#include <plat/nand.h>
-#include <plat/gpmc.h>
-#include <plat/usb.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/hardware.h>
-
+#include "common.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "gpmc.h"
+#include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57
 #define SB_T35_USB_HUB_RESET_GPIO	167
@@ -64,7 +62,7 @@
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <linux/smsc911x.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data cm_t35_smsc911x_cfg = {
 	.id		= 0,
@@ -181,7 +179,7 @@ static struct omap_nand_platform_data cm_t35_nand_data = {
 
 static void __init cm_t35_init_nand(void)
 {
-	if (gpmc_nand_init(&cm_t35_nand_data) < 0)
+	if (gpmc_nand_init(&cm_t35_nand_data, NULL) < 0)
 		pr_err("CM-T35: Unable to register NAND device\n");
 }
 #else
@@ -243,6 +241,7 @@ static struct omap_dss_device cm_t35_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= CM_T35_DVI_EN_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device cm_t35_dvi_device = {
@@ -470,9 +469,6 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 }
 
 static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup          = cm_t35_twl_gpio_setup,
 };
 
@@ -714,13 +710,8 @@ static inline void cm_t35_init_mux(void) {}
 static inline void cm_t3730_init_mux(void) {}
 #endif
 
-static struct omap_board_config_kernel cm_t35_config[] __initdata = {
-};
-
 static void __init cm_t3x_common_init(void)
 {
-	omap_board_config = cm_t35_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
@@ -731,6 +722,7 @@ static void __init cm_t3x_common_init(void)
 	cm_t35_init_ethernet();
 	cm_t35_init_led();
 	cm_t35_init_display();
+	omap_twl4030_audio_init("cm-t3x");
 
 	usb_musb_init(NULL);
 	cm_t35_init_usbh();
@@ -760,18 +752,18 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.init_machine	= cm_t35_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(CM_T3730, "Compulab CM-T3730")
-	.atag_offset    = 0x100,
-	.reserve        = omap_reserve,
-	.map_io         = omap3_map_io,
-	.init_early     = omap3630_init_early,
-	.init_irq       = omap3_init_irq,
+	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3630_init_early,
+	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
-	.init_machine   = cm_t3730_init,
+	.init_machine	= cm_t3730_init,
 	.init_late     = omap3630_init_late,
-	.timer          = &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.timer		= &omap3_timer,
+	.restart	= omap3xxx_restart,
 MACHINE_END

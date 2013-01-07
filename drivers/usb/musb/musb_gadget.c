@@ -373,7 +373,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		request_size = min_t(size_t, request->length - request->actual,
 					musb_ep->dma->max_len);
 
-		use_dma = (request->dma != DMA_ADDR_INVALID);
+		use_dma = (request->dma != DMA_ADDR_INVALID && request_size);
 
 		/* MUSB_TXCSR_P_ISO is still set correctly */
 
@@ -644,8 +644,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	struct usb_request	*request = &req->request;
 	struct musb_ep		*musb_ep;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
-	unsigned		fifo_count = 0;
-	u16			len;
+	unsigned		len = 0;
+	u16			fifo_count;
 	u16			csr = musb_readw(epio, MUSB_RXCSR);
 	struct musb_hw_ep	*hw_ep = &musb->endpoints[epnum];
 	u8			use_mode_1;
@@ -655,7 +655,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	else
 		musb_ep = &hw_ep->ep_out;
 
-	len = musb_ep->packet_sz;
+	fifo_count = musb_ep->packet_sz;
 
 	/* Check if EP is disabled */
 	if (!musb_ep->desc) {
@@ -704,7 +704,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	}
 
 	if (csr & MUSB_RXCSR_RXPKTRDY) {
-		len = musb_readw(epio, MUSB_RXCOUNT);
+		fifo_count = musb_readw(epio, MUSB_RXCOUNT);
 
 		/*
 		 * Enable Mode 1 on RX transfers only when short_not_ok flag
@@ -712,7 +712,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		 * file_storage and f_mass_storage drivers
 		 */
 
-		if (request->short_not_ok && len == musb_ep->packet_sz)
+		if (request->short_not_ok && fifo_count == musb_ep->packet_sz)
 			use_mode_1 = 1;
 		else
 			use_mode_1 = 0;
@@ -723,6 +723,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				struct dma_controller	*c;
 				struct dma_channel	*channel;
 				int			use_dma = 0;
+				int transfer_size;
 
 				c = musb->dma_controller;
 				channel = musb_ep->dma;
@@ -764,34 +765,29 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 						csr | MUSB_RXCSR_DMAMODE);
 					musb_writew(epio, MUSB_RXCSR, csr);
 
+					transfer_size = min(request->length - request->actual,
+							channel->max_len);
+					musb_ep->dma->desired_mode = 1;
+
 				} else {
 					if (!musb_ep->hb_mult &&
 						musb_ep->hw_ep->rx_double_buffered)
 						csr |= MUSB_RXCSR_AUTOCLEAR;
 					csr |= MUSB_RXCSR_DMAENAB;
 					musb_writew(epio, MUSB_RXCSR, csr);
+
+					transfer_size = min(request->length - request->actual,
+							(unsigned)fifo_count);
+					musb_ep->dma->desired_mode = 0;
 				}
 
-				if (request->actual < request->length) {
-					int transfer_size = 0;
-					if (use_mode_1) {
-						transfer_size = min(request->length - request->actual,
-								channel->max_len);
-						musb_ep->dma->desired_mode = 1;
-					} else {
-						transfer_size = min(request->length - request->actual,
-								(unsigned)len);
-						musb_ep->dma->desired_mode = 0;
-					}
-
-					use_dma = c->channel_program(
-							channel,
-							musb_ep->packet_sz,
-							channel->desired_mode,
-							request->dma
-							+ request->actual,
-							transfer_size);
-				}
+				use_dma = c->channel_program(
+						channel,
+						musb_ep->packet_sz,
+						channel->desired_mode,
+						request->dma
+						+ request->actual,
+						transfer_size);
 
 				if (use_dma)
 					return;
@@ -808,8 +804,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				channel = musb_ep->dma;
 
 				/* In case first packet is short */
-				if (len < musb_ep->packet_sz)
-					transfer_size = len;
+				if (fifo_count < musb_ep->packet_sz)
+					transfer_size = fifo_count;
 				else if (request->short_not_ok)
 					transfer_size =	min(request->length -
 							request->actual,
@@ -817,7 +813,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				else
 					transfer_size = min(request->length -
 							request->actual,
-							(unsigned)len);
+							(unsigned)fifo_count);
 
 				csr &= ~MUSB_RXCSR_DMAMODE;
 				csr |= (MUSB_RXCSR_DMAENAB |
@@ -845,10 +841,10 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 			}
 #endif	/* Mentor's DMA */
 
-			fifo_count = request->length - request->actual;
+			len = request->length - request->actual;
 			dev_dbg(musb->controller, "%s OUT/RX pio fifo %d/%d, maxpacket %d\n",
 					musb_ep->end_point.name,
-					len, fifo_count,
+					fifo_count, len,
 					musb_ep->packet_sz);
 
 			fifo_count = min_t(unsigned, len, fifo_count);
@@ -901,7 +897,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	}
 
 	/* reach the end or short packet detected */
-	if (request->actual == request->length || len < musb_ep->packet_sz)
+	if (request->actual == request->length ||
+	    fifo_count < musb_ep->packet_sz)
 		musb_g_giveback(musb_ep, request, 0);
 }
 
@@ -1093,7 +1090,6 @@ static int musb_gadget_enable(struct usb_ep *ep,
 	 */
 	musb_ep_select(mbase, epnum);
 	if (usb_endpoint_dir_in(desc)) {
-		u16 int_txe = musb_readw(mbase, MUSB_INTRTXE);
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 1;
@@ -1105,8 +1101,8 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 		}
 
-		int_txe |= (1 << epnum);
-		musb_writew(mbase, MUSB_INTRTXE, int_txe);
+		musb->intrtxe |= (1 << epnum);
+		musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe);
 
 		/* REVISIT if can_bulk_split(), use by updating "tmp";
 		 * likewise high bandwidth periodic tx
@@ -1133,7 +1129,6 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		musb_writew(regs, MUSB_TXCSR, csr);
 
 	} else {
-		u16 int_rxe = musb_readw(mbase, MUSB_INTRRXE);
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 0;
@@ -1145,8 +1140,8 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 		}
 
-		int_rxe |= (1 << epnum);
-		musb_writew(mbase, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe |= (1 << epnum);
+		musb_writew(mbase, MUSB_INTRRXE, musb->intrrxe);
 
 		/* REVISIT if can_bulk_combine() use by updating "tmp"
 		 * likewise high bandwidth periodic rx
@@ -1234,14 +1229,12 @@ static int musb_gadget_disable(struct usb_ep *ep)
 
 	/* zero the endpoint sizes */
 	if (musb_ep->is_in) {
-		u16 int_txe = musb_readw(musb->mregs, MUSB_INTRTXE);
-		int_txe &= ~(1 << epnum);
-		musb_writew(musb->mregs, MUSB_INTRTXE, int_txe);
+		musb->intrtxe &= ~(1 << epnum);
+		musb_writew(musb->mregs, MUSB_INTRTXE, musb->intrtxe);
 		musb_writew(epio, MUSB_TXMAXP, 0);
 	} else {
-		u16 int_rxe = musb_readw(musb->mregs, MUSB_INTRRXE);
-		int_rxe &= ~(1 << epnum);
-		musb_writew(musb->mregs, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe &= ~(1 << epnum);
+		musb_writew(musb->mregs, MUSB_INTRRXE, musb->intrrxe);
 		musb_writew(epio, MUSB_RXMAXP, 0);
 	}
 
@@ -1557,7 +1550,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	void __iomem	*epio = musb->endpoints[epnum].regs;
 	void __iomem	*mbase;
 	unsigned long	flags;
-	u16		csr, int_txe;
+	u16		csr;
 
 	mbase = musb->mregs;
 
@@ -1565,8 +1558,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	musb_ep_select(mbase, (u8) epnum);
 
 	/* disable interrupts */
-	int_txe = musb_readw(mbase, MUSB_INTRTXE);
-	musb_writew(mbase, MUSB_INTRTXE, int_txe & ~(1 << epnum));
+	musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe & ~(1 << epnum));
 
 	if (musb_ep->is_in) {
 		csr = musb_readw(epio, MUSB_TXCSR);
@@ -1590,7 +1582,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	}
 
 	/* re-enable interrupt */
-	musb_writew(mbase, MUSB_INTRTXE, int_txe);
+	musb_writew(mbase, MUSB_INTRTXE, musb->intrtxe);
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
@@ -1795,7 +1787,7 @@ static void musb_gadget_release(struct device *dev)
 }
 
 
-static void __devinit
+static void
 init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
 {
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
@@ -1832,7 +1824,7 @@ init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
  * Initialize the endpoints exposed to peripheral drivers, with backlinks
  * to the rest of the driver state.
  */
-static inline void __devinit musb_g_init_endpoints(struct musb *musb)
+static inline void musb_g_init_endpoints(struct musb *musb)
 {
 	u8			epnum;
 	struct musb_hw_ep	*hw_ep;
@@ -1865,7 +1857,7 @@ static inline void __devinit musb_g_init_endpoints(struct musb *musb)
 /* called once during driver setup to initialize and link into
  * the driver model; memory is zeroed.
  */
-int __devinit musb_gadget_setup(struct musb *musb)
+int musb_gadget_setup(struct musb *musb)
 {
 	int status;
 
@@ -1885,8 +1877,7 @@ int __devinit musb_gadget_setup(struct musb *musb)
 	musb->g.dev.release = musb_gadget_release;
 	musb->g.name = musb_driver_name;
 
-	if (is_otg_enabled(musb))
-		musb->g.is_otg = 1;
+	musb->g.is_otg = 1;
 
 	musb_g_init_endpoints(musb);
 
@@ -1932,11 +1923,14 @@ static int musb_gadget_start(struct usb_gadget *g,
 {
 	struct musb		*musb = gadget_to_musb(g);
 	struct usb_otg		*otg = musb->xceiv->otg;
+	struct usb_hcd		*hcd = musb_to_hcd(musb);
 	unsigned long		flags;
-	int			retval = -EINVAL;
+	int			retval = 0;
 
-	if (driver->max_speed < USB_SPEED_HIGH)
-		goto err0;
+	if (driver->max_speed < USB_SPEED_HIGH) {
+		retval = -EINVAL;
+		goto err;
+	}
 
 	pm_runtime_get_sync(musb->controller);
 
@@ -1950,49 +1944,30 @@ static int musb_gadget_start(struct usb_gadget *g,
 
 	otg_set_peripheral(otg, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
-
-	/*
-	 * FIXME this ignores the softconnect flag.  Drivers are
-	 * allowed hold the peripheral inactive until for example
-	 * userspace hooks up printer hardware or DSP codecs, so
-	 * hosts only see fully functional devices.
-	 */
-
-	if (!is_otg_enabled(musb))
-		musb_start(musb);
-
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	if (is_otg_enabled(musb)) {
-		struct usb_hcd	*hcd = musb_to_hcd(musb);
-
-		dev_dbg(musb->controller, "OTG startup...\n");
-
-		/* REVISIT:  funcall to other code, which also
-		 * handles power budgeting ... this way also
-		 * ensures HdrcStart is indirectly called.
-		 */
-		retval = usb_add_hcd(musb_to_hcd(musb), 0, 0);
-		if (retval < 0) {
-			dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
-			goto err2;
-		}
-
-		if ((musb->xceiv->last_event == USB_EVENT_ID)
-					&& otg->set_vbus)
-			otg_set_vbus(otg, 1);
-
-		hcd->self.uses_pio_for_control = 1;
+	/* REVISIT:  funcall to other code, which also
+	 * handles power budgeting ... this way also
+	 * ensures HdrcStart is indirectly called.
+	 */
+	retval = usb_add_hcd(hcd, 0, 0);
+	if (retval < 0) {
+		dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
+		goto err;
 	}
+
+	if ((musb->xceiv->last_event == USB_EVENT_ID)
+				&& otg->set_vbus)
+		otg_set_vbus(otg, 1);
+
+	hcd->self.uses_pio_for_control = 1;
+
 	if (musb->xceiv->last_event == USB_EVENT_NONE)
 		pm_runtime_put(musb->controller);
 
 	return 0;
 
-err2:
-	if (!is_otg_enabled(musb))
-		musb_stop(musb);
-err0:
+err:
 	return retval;
 }
 
@@ -2070,16 +2045,12 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	musb_platform_try_idle(musb, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	if (is_otg_enabled(musb)) {
-		usb_remove_hcd(musb_to_hcd(musb));
-		/* FIXME we need to be able to register another
-		 * gadget driver here and have everything work;
-		 * that currently misbehaves.
-		 */
-	}
-
-	if (!is_otg_enabled(musb))
-		musb_stop(musb);
+	usb_remove_hcd(musb_to_hcd(musb));
+	/*
+	 * FIXME we need to be able to register another
+	 * gadget driver here and have everything work;
+	 * that currently misbehaves.
+	 */
 
 	pm_runtime_put(musb->controller);
 
@@ -2200,10 +2171,9 @@ __acquires(musb->lock)
 	u8		devctl = musb_readb(mbase, MUSB_DEVCTL);
 	u8		power;
 
-	dev_dbg(musb->controller, "<== %s addr=%x driver '%s'\n",
+	dev_dbg(musb->controller, "<== %s driver '%s'\n",
 			(devctl & MUSB_DEVCTL_BDEVICE)
 				? "B-Device" : "A-Device",
-			musb_readb(mbase, MUSB_FADDR),
 			musb->gadget_driver
 				? musb->gadget_driver->driver.name
 				: NULL
@@ -2241,13 +2211,11 @@ __acquires(musb->lock)
 	if (devctl & MUSB_DEVCTL_BDEVICE) {
 		musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 		musb->g.is_a_peripheral = 0;
-	} else if (is_otg_enabled(musb)) {
+	} else {
 		musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 		musb->g.is_a_peripheral = 1;
-	} else
-		WARN_ON(1);
+	}
 
 	/* start with default limits on VBUS power draw */
-	(void) musb_gadget_vbus_draw(&musb->g,
-			is_otg_enabled(musb) ? 8 : 100);
+	(void) musb_gadget_vbus_draw(&musb->g, 8);
 }

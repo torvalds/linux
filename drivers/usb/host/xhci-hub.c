@@ -29,7 +29,7 @@
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
 
-/* usb 1.1 root hub device descriptor */
+/* USB 3.0 BOS descriptor and a capability descriptor, combined */
 static u8 usb_bos_descriptor [] = {
 	USB_DT_BOS_SIZE,		/*  __u8 bLength, 5 bytes */
 	USB_DT_BOS,			/*  __u8 bDescriptorType */
@@ -151,9 +151,8 @@ static void xhci_usb3_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		if (portsc & PORT_DEV_REMOVE)
 			port_removable |= 1 << (i + 1);
 	}
-	memset(&desc->u.ss.DeviceRemovable,
-			(__force __u16) cpu_to_le16(port_removable),
-			sizeof(__u16));
+
+	desc->u.ss.DeviceRemovable = cpu_to_le16(port_removable);
 }
 
 static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
@@ -422,7 +421,7 @@ void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 	xhci_writel(xhci, temp, port_array[port_id]);
 }
 
-void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
+static void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
 		__le32 __iomem **port_array, int port_id, u16 wake_mask)
 {
 	u32 temp;
@@ -808,6 +807,14 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			temp = xhci_readl(xhci, port_array[wIndex]);
 			xhci_dbg(xhci, "set port power, actual port %d status  = 0x%x\n", wIndex, temp);
+
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			temp = usb_acpi_power_manageable(hcd->self.root_hub,
+					wIndex);
+			if (temp)
+				usb_acpi_set_power_state(hcd->self.root_hub,
+						wIndex, true);
+			spin_lock_irqsave(&xhci->lock, flags);
 			break;
 		case USB_PORT_FEAT_RESET:
 			temp = (temp | PORT_RESET);
@@ -906,6 +913,18 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_ENABLE:
 			xhci_disable_port(hcd, xhci, wIndex,
 					port_array[wIndex], temp);
+			break;
+		case USB_PORT_FEAT_POWER:
+			xhci_writel(xhci, temp & ~PORT_POWER,
+				port_array[wIndex]);
+
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			temp = usb_acpi_power_manageable(hcd->self.root_hub,
+					wIndex);
+			if (temp)
+				usb_acpi_set_power_state(hcd->self.root_hub,
+						wIndex, false);
+			spin_lock_irqsave(&xhci->lock, flags);
 			break;
 		default:
 			goto error;

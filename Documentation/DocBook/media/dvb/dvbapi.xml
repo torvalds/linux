@@ -28,7 +28,7 @@
 	<holder>Convergence GmbH</holder>
 </copyright>
 <copyright>
-	<year>2009-2011</year>
+	<year>2009-2012</year>
 	<holder>Mauro Carvalho Chehab</holder>
 </copyright>
 
@@ -84,7 +84,7 @@ Added ISDB-T test originally written by Patrick Boettcher
 
 
 <title>LINUX DVB API</title>
-<subtitle>Version 5.2</subtitle>
+<subtitle>Version 5.8</subtitle>
 <!-- ADD THE CHAPTERS HERE -->
   <chapter id="dvb_introdution">
     &sub-intro;

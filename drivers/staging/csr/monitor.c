@@ -23,8 +23,6 @@
 #define ETH_P_80211_RAW ETH_P_ALL
 #endif
 
-
-
 /*
  * ---------------------------------------------------------------------------
  *  uf_start_sniff
@@ -123,8 +121,6 @@ netrx_radiotap(unifi_priv_t *priv,
     struct unifi_rx_radiotap_header *unifi_rt;
     int signal, noise, snr;
 
-    func_enter();
-
     if (ind_data_len <= 0) {
         unifi_error(priv, "Invalid length in CSR_MA_SNIFFDATA_INDICATION.\n");
         return;
@@ -192,11 +188,7 @@ netrx_radiotap(unifi_priv_t *priv,
 
 
     skb->dev = dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
     skb->mac_header = skb->data;
-#else
-    skb->mac.raw = skb->data;
-#endif
     skb->pkt_type = PACKET_OTHERHOST;
     skb->protocol = __constant_htons(ETH_P_80211_RAW);
     memset(skb->cb, 0, sizeof(skb->cb));
@@ -210,7 +202,6 @@ netrx_radiotap(unifi_priv_t *priv,
     priv->stats.rx_packets++;
     priv->stats.rx_bytes += ind_data_len;
 
-    func_exit();
 } /* netrx_radiotap() */
 #endif /* RADIOTAP */
 
@@ -260,8 +251,6 @@ netrx_prism(unifi_priv_t *priv,
         uint32  encoding;
     } *avs;
     int signal, noise, snr;
-
-    func_enter();
 
     if (ind_data_len <= 0) {
         unifi_error(priv, "Invalid length in CSR_MA_SNIFFDATA_INDICATION.\n");
@@ -324,7 +313,6 @@ netrx_prism(unifi_priv_t *priv,
     priv->stats.rx_packets++;
     priv->stats.rx_bytes += ind_data_len;
 
-    func_exit();
 } /* netrx_prism() */
 #endif /* PRISM */
 
@@ -356,11 +344,8 @@ ma_sniffdata_ind(void *ospriv,
     struct net_device *dev = priv->netdev;
     struct sk_buff *skb = (struct sk_buff*)bulkdata->d[0].os_net_buf_ptr;
 
-    func_enter();
-
     if (bulkdata->d[0].data_length == 0) {
         unifi_warning(priv, "rx: MA-SNIFFDATA indication with zero bulk data\n");
-        func_exit();
         return;
     }
 

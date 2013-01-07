@@ -33,8 +33,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-
-#include <plat/usb.h>
+#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/platform_data/usb-omap.h>
 
 #include "musb_core.h"
 
@@ -107,9 +107,8 @@ static void am35x_musb_enable(struct musb *musb)
 	musb_writel(reg_base, CORE_INTR_MASK_SET_REG, AM35X_INTR_USB_MASK);
 
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
-	if (is_otg_enabled(musb))
-		musb_writel(reg_base, CORE_INTR_SRC_SET_REG,
-			    AM35X_INTR_DRVVBUS << AM35X_INTR_USB_SHIFT);
+	musb_writel(reg_base, CORE_INTR_SRC_SET_REG,
+			AM35X_INTR_DRVVBUS << AM35X_INTR_USB_SHIFT);
 }
 
 /*
@@ -173,9 +172,6 @@ static void otg_timer(unsigned long _musb)
 			    MUSB_INTR_VBUSERROR << AM35X_INTR_USB_SHIFT);
 		break;
 	case OTG_STATE_B_IDLE:
-		if (!is_peripheral_enabled(musb))
-			break;
-
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
@@ -191,9 +187,6 @@ static void otg_timer(unsigned long _musb)
 static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	static unsigned long last_timer;
-
-	if (!is_otg_enabled(musb))
-		return;
 
 	if (timeout == 0)
 		timeout = jiffies + msecs_to_jiffies(3);
@@ -271,8 +264,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 		u8 devctl = musb_readb(mregs, MUSB_DEVCTL);
 		int err;
 
-		err = is_host_enabled(musb) && (musb->int_usb &
-						MUSB_INTR_VBUSERROR);
+		err = musb->int_usb & MUSB_INTR_VBUSERROR;
 		if (err) {
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
@@ -289,7 +281,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
-		} else if (is_host_enabled(musb) && drvvbus) {
+		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -312,6 +304,12 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 		ret = IRQ_HANDLED;
 	}
 
+	/* Drop spurious RX and TX if device is disconnected */
+	if (musb->int_usb & MUSB_INTR_DISCONNECT) {
+		musb->int_tx = 0;
+		musb->int_rx = 0;
+	}
+
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 
@@ -326,7 +324,7 @@ eoi:
 	}
 
 	/* Poll for ID change */
-	if (is_otg_enabled(musb) && musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->state == OTG_STATE_B_IDLE)
 		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -369,8 +367,7 @@ static int am35x_musb_init(struct musb *musb)
 	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -ENODEV;
 
-	if (is_host_enabled(musb))
-		setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
+	setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
 
 	/* Reset the musb */
 	if (data->reset)
@@ -400,8 +397,7 @@ static int am35x_musb_exit(struct musb *musb)
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct omap_musb_board_data *data = plat->board_data;
 
-	if (is_host_enabled(musb))
-		del_timer_sync(&otg_workaround);
+	del_timer_sync(&otg_workaround);
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	if (data->set_phy_power)
@@ -458,7 +454,7 @@ static const struct musb_platform_ops am35x_ops = {
 
 static u64 am35x_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit am35x_probe(struct platform_device *pdev)
+static int am35x_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -475,7 +471,7 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
@@ -485,26 +481,26 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_clk)) {
 		dev_err(&pdev->dev, "failed to get PHY clock\n");
 		ret = PTR_ERR(phy_clk);
-		goto err2;
+		goto err3;
 	}
 
 	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
-		goto err3;
+		goto err4;
 	}
 
 	ret = clk_enable(phy_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PHY clock\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = clk_enable(clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err5;
+		goto err6;
 	}
 
 	musb->dev.parent		= &pdev->dev;
@@ -524,36 +520,36 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err6;
+		goto err7;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err6;
+		goto err7;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err6;
+		goto err7;
 	}
 
 	return 0;
 
-err6:
+err7:
 	clk_disable(clk);
 
-err5:
+err6:
 	clk_disable(phy_clk);
 
-err4:
+err5:
 	clk_put(clk);
 
-err3:
+err4:
 	clk_put(phy_clk);
 
-err2:
+err3:
 	platform_device_put(musb);
 
 err1:
@@ -563,12 +559,11 @@ err0:
 	return ret;
 }
 
-static int __devexit am35x_remove(struct platform_device *pdev)
+static int am35x_remove(struct platform_device *pdev)
 {
 	struct am35x_glue	*glue = platform_get_drvdata(pdev);
 
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	clk_disable(glue->clk);
 	clk_disable(glue->phy_clk);
 	clk_put(glue->clk);
@@ -633,7 +628,7 @@ static struct dev_pm_ops am35x_pm_ops = {
 
 static struct platform_driver am35x_driver = {
 	.probe		= am35x_probe,
-	.remove		= __devexit_p(am35x_remove),
+	.remove		= am35x_remove,
 	.driver		= {
 		.name	= "musb-am35x",
 		.pm	= DEV_PM_OPS,
@@ -643,15 +638,4 @@ static struct platform_driver am35x_driver = {
 MODULE_DESCRIPTION("AM35x MUSB Glue Layer");
 MODULE_AUTHOR("Ajay Kumar Gupta <ajay.gupta@ti.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init am35x_init(void)
-{
-	return platform_driver_register(&am35x_driver);
-}
-module_init(am35x_init);
-
-static void __exit am35x_exit(void)
-{
-	platform_driver_unregister(&am35x_driver);
-}
-module_exit(am35x_exit);
+module_platform_driver(am35x_driver);

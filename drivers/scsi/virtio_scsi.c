@@ -215,21 +215,22 @@ static void virtscsi_ctrl_done(struct virtqueue *vq)
 static int virtscsi_kick_event(struct virtio_scsi *vscsi,
 			       struct virtio_scsi_event_node *event_node)
 {
-	int ret;
+	int err;
 	struct scatterlist sg;
 	unsigned long flags;
 
-	sg_set_buf(&sg, &event_node->event, sizeof(struct virtio_scsi_event));
+	sg_init_one(&sg, &event_node->event, sizeof(struct virtio_scsi_event));
 
 	spin_lock_irqsave(&vscsi->event_vq.vq_lock, flags);
 
-	ret = virtqueue_add_buf(vscsi->event_vq.vq, &sg, 0, 1, event_node, GFP_ATOMIC);
-	if (ret >= 0)
+	err = virtqueue_add_buf(vscsi->event_vq.vq, &sg, 0, 1, event_node,
+				GFP_ATOMIC);
+	if (!err)
 		virtqueue_kick(vscsi->event_vq.vq);
 
 	spin_unlock_irqrestore(&vscsi->event_vq.vq_lock, flags);
 
-	return ret;
+	return err;
 }
 
 static int virtscsi_kick_event_all(struct virtio_scsi *vscsi)
@@ -279,6 +280,31 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 	}
 }
 
+static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
+					 struct virtio_scsi_event *event)
+{
+	struct scsi_device *sdev;
+	struct Scsi_Host *shost = virtio_scsi_host(vscsi->vdev);
+	unsigned int target = event->lun[1];
+	unsigned int lun = (event->lun[2] << 8) | event->lun[3];
+	u8 asc = event->reason & 255;
+	u8 ascq = event->reason >> 8;
+
+	sdev = scsi_device_lookup(shost, 0, target, lun);
+	if (!sdev) {
+		pr_err("SCSI device %d 0 %d %d not found\n",
+			shost->host_no, target, lun);
+		return;
+	}
+
+	/* Handle "Parameters changed", "Mode parameters changed", and
+	   "Capacity data has changed".  */
+	if (asc == 0x2a && (ascq == 0x00 || ascq == 0x01 || ascq == 0x09))
+		scsi_rescan_device(&sdev->sdev_gendev);
+
+	scsi_device_put(sdev);
+}
+
 static void virtscsi_handle_event(struct work_struct *work)
 {
 	struct virtio_scsi_event_node *event_node =
@@ -296,6 +322,9 @@ static void virtscsi_handle_event(struct work_struct *work)
 		break;
 	case VIRTIO_SCSI_T_TRANSPORT_RESET:
 		virtscsi_handle_transport_reset(vscsi, event);
+		break;
+	case VIRTIO_SCSI_T_PARAM_CHANGE:
+		virtscsi_handle_param_change(vscsi, event);
 		break;
 	default:
 		pr_err("Unsupport virtio scsi event %x\n", event->event);
@@ -382,22 +411,23 @@ static int virtscsi_kick_cmd(struct virtio_scsi_target_state *tgt,
 {
 	unsigned int out_num, in_num;
 	unsigned long flags;
-	int ret;
+	int err;
+	bool needs_kick = false;
 
 	spin_lock_irqsave(&tgt->tgt_lock, flags);
 	virtscsi_map_cmd(tgt, cmd, &out_num, &in_num, req_size, resp_size);
 
 	spin_lock(&vq->vq_lock);
-	ret = virtqueue_add_buf(vq->vq, tgt->sg, out_num, in_num, cmd, gfp);
+	err = virtqueue_add_buf(vq->vq, tgt->sg, out_num, in_num, cmd, gfp);
 	spin_unlock(&tgt->tgt_lock);
-	if (ret >= 0)
-		ret = virtqueue_kick_prepare(vq->vq);
+	if (!err)
+		needs_kick = virtqueue_kick_prepare(vq->vq);
 
 	spin_unlock_irqrestore(&vq->vq_lock, flags);
 
-	if (ret > 0)
+	if (needs_kick)
 		virtqueue_notify(vq->vq);
-	return ret;
+	return err;
 }
 
 static int virtscsi_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
@@ -439,8 +469,10 @@ static int virtscsi_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 
 	if (virtscsi_kick_cmd(tgt, &vscsi->req_vq, cmd,
 			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd,
-			      GFP_ATOMIC) >= 0)
+			      GFP_ATOMIC) == 0)
 		ret = 0;
+	else
+		mempool_free(cmd, virtscsi_cmd_pool);
 
 out:
 	return ret;
@@ -677,7 +709,11 @@ static int __devinit virtscsi_probe(struct virtio_device *vdev)
 	cmd_per_lun = virtscsi_config_get(vdev, cmd_per_lun) ?: 1;
 	shost->cmd_per_lun = min_t(u32, cmd_per_lun, shost->can_queue);
 	shost->max_sectors = virtscsi_config_get(vdev, max_sectors) ?: 0xFFFF;
-	shost->max_lun = virtscsi_config_get(vdev, max_lun) + 1;
+
+	/* LUNs > 256 are reported with format 1, so they go in the range
+	 * 16640-32767.
+	 */
+	shost->max_lun = virtscsi_config_get(vdev, max_lun) + 1 + 0x4000;
 	shost->max_id = num_targets;
 	shost->max_channel = 0;
 	shost->max_cmd_len = VIRTIO_SCSI_CDB_SIZE;
@@ -733,7 +769,8 @@ static struct virtio_device_id id_table[] = {
 };
 
 static unsigned int features[] = {
-	VIRTIO_SCSI_F_HOTPLUG
+	VIRTIO_SCSI_F_HOTPLUG,
+	VIRTIO_SCSI_F_CHANGE,
 };
 
 static struct virtio_driver virtio_scsi_driver = {

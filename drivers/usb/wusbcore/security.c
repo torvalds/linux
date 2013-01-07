@@ -202,7 +202,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 {
 	int result, bytes, secd_size;
 	struct device *dev = &usb_dev->dev;
-	struct usb_security_descriptor *secd;
+	struct usb_security_descriptor *secd, *new_secd;
 	const struct usb_encryption_descriptor *etd, *ccm1_etd = NULL;
 	const void *itr, *top;
 	char buf[64];
@@ -221,11 +221,12 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 		goto out;
 	}
 	secd_size = le16_to_cpu(secd->wTotalLength);
-	secd = krealloc(secd, secd_size, GFP_KERNEL);
-	if (secd == NULL) {
+	new_secd = krealloc(secd, secd_size, GFP_KERNEL);
+	if (new_secd == NULL) {
 		dev_err(dev, "Can't allocate space for security descriptors\n");
 		goto out;
 	}
+	secd = new_secd;
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
 				    0, secd, secd_size);
 	if (result < secd_size) {

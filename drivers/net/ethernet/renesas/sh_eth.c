@@ -2286,7 +2286,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		mdp->mii_bus->irq[i] = PHY_POLL;
 
-	/* regist mdio bus */
+	/* register mdio bus */
 	ret = mdiobus_register(mdp->mii_bus);
 	if (ret)
 		goto out_free_irq;
@@ -2438,6 +2438,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (!rtsu) {
 			dev_err(&pdev->dev, "Not found TSU resource\n");
+			ret = -ENODEV;
 			goto out_release;
 		}
 		mdp->tsu_addr = ioremap(rtsu->start,

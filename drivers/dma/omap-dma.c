@@ -18,7 +18,6 @@
 #include <linux/spinlock.h>
 
 #include "virt-dma.h"
-#include <plat/dma.h>
 
 struct omap_dmadev {
 	struct dma_device ddev;
@@ -34,6 +33,7 @@ struct omap_chan {
 	struct dma_slave_config	cfg;
 	unsigned dma_sig;
 	bool cyclic;
+	bool paused;
 
 	int dma_ch;
 	struct omap_desc *desc;
@@ -365,7 +365,8 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 
 static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
-	size_t period_len, enum dma_transfer_direction dir, void *context)
+	size_t period_len, enum dma_transfer_direction dir, unsigned long flags,
+	void *context)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	enum dma_slave_buswidth dev_width;
@@ -413,7 +414,10 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	d->dev_addr = dev_addr;
 	d->fi = burst;
 	d->es = es;
-	d->sync_mode = OMAP_DMA_SYNC_PACKET;
+	if (burst)
+		d->sync_mode = OMAP_DMA_SYNC_PACKET;
+	else
+		d->sync_mode = OMAP_DMA_SYNC_ELEMENT;
 	d->sync_type = sync_type;
 	d->periph_port = OMAP_DMA_PORT_MPUI;
 	d->sg[0].addr = buf_addr;
@@ -424,16 +428,19 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	if (!c->cyclic) {
 		c->cyclic = true;
 		omap_dma_link_lch(c->dma_ch, c->dma_ch);
-		omap_enable_dma_irq(c->dma_ch, OMAP_DMA_FRAME_IRQ);
+
+		if (flags & DMA_PREP_INTERRUPT)
+			omap_enable_dma_irq(c->dma_ch, OMAP_DMA_FRAME_IRQ);
+
 		omap_disable_dma_irq(c->dma_ch, OMAP_DMA_BLOCK_IRQ);
 	}
 
-	if (!cpu_class_is_omap1()) {
+	if (dma_omap2plus()) {
 		omap_set_dma_src_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 		omap_set_dma_dest_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 	}
 
-	return vchan_tx_prep(&c->vc, &d->vd, DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
+	return vchan_tx_prep(&c->vc, &d->vd, flags);
 }
 
 static int omap_dma_slave_config(struct omap_chan *c, struct dma_slave_config *cfg)
@@ -467,11 +474,14 @@ static int omap_dma_terminate_all(struct omap_chan *c)
 	 */
 	if (c->desc) {
 		c->desc = NULL;
-		omap_stop_dma(c->dma_ch);
+		/* Avoid stopping the dma twice */
+		if (!c->paused)
+			omap_stop_dma(c->dma_ch);
 	}
 
 	if (c->cyclic) {
 		c->cyclic = false;
+		c->paused = false;
 		omap_dma_unlink_lch(c->dma_ch, c->dma_ch);
 	}
 
@@ -484,14 +494,30 @@ static int omap_dma_terminate_all(struct omap_chan *c)
 
 static int omap_dma_pause(struct omap_chan *c)
 {
-	/* FIXME: not supported by platform private API */
-	return -EINVAL;
+	/* Pause/Resume only allowed with cyclic mode */
+	if (!c->cyclic)
+		return -EINVAL;
+
+	if (!c->paused) {
+		omap_stop_dma(c->dma_ch);
+		c->paused = true;
+	}
+
+	return 0;
 }
 
 static int omap_dma_resume(struct omap_chan *c)
 {
-	/* FIXME: not supported by platform private API */
-	return -EINVAL;
+	/* Pause/Resume only allowed with cyclic mode */
+	if (!c->cyclic)
+		return -EINVAL;
+
+	if (c->paused) {
+		omap_start_dma(c->dma_ch);
+		c->paused = false;
+	}
+
+	return 0;
 }
 
 static int omap_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,

@@ -615,6 +615,7 @@ static void __init __sclp_vt220_cleanup(void)
 		return;
 	sclp_unregister(&sclp_vt220_register);
 	__sclp_vt220_free_pages();
+	tty_port_destroy(&sclp_vt220_port);
 }
 
 /* Allocate buffer pages and register with sclp core. Controlled by init
@@ -650,6 +651,7 @@ out:
 	if (rc) {
 		__sclp_vt220_free_pages();
 		sclp_vt220_init_count--;
+		tty_port_destroy(&sclp_vt220_port);
 	}
 	return rc;
 }
@@ -691,6 +693,7 @@ static int __init sclp_vt220_tty_init(void)
 	driver->init_termios = tty_std_termios;
 	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_vt220_ops);
+	tty_port_link_device(&sclp_vt220_port, driver, 0);
 
 	rc = tty_register_driver(driver);
 	if (rc)

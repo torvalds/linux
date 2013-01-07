@@ -67,13 +67,13 @@
  * to 0xFEF78000 .. 0xFF000000.  (544Kb)
  */
 #define AT91_IO_PHYS_BASE	0xFFF78000
-#define AT91_IO_VIRT_BASE	(0xFF000000 - AT91_IO_SIZE)
+#define AT91_IO_VIRT_BASE	IOMEM(0xFF000000 - AT91_IO_SIZE)
 #else
 /*
  * Identity mapping for the non MMU case.
  */
 #define AT91_IO_PHYS_BASE	AT91_BASE_SYS
-#define AT91_IO_VIRT_BASE	AT91_IO_PHYS_BASE
+#define AT91_IO_VIRT_BASE	IOMEM(AT91_IO_PHYS_BASE)
 #endif
 
 #define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
@@ -89,9 +89,6 @@
  /* Internal SRAM is mapped below the IO devices */
 #define AT91_SRAM_MAX		SZ_1M
 #define AT91_VIRT_BASE		(AT91_IO_VIRT_BASE - AT91_SRAM_MAX)
-
-/* Serial ports */
-#define ATMEL_MAX_UART		7		/* 6 USART3's and one DBGU port (SAM9260) */
 
 /* External Memory Map */
 #define AT91_CHIPSELECT_0	0x10000000

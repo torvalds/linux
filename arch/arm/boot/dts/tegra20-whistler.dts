@@ -10,6 +10,18 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	host1x {
+		hdmi {
+			status = "okay";
+
+			vdd-supply = <&hdmi_vdd_reg>;
+			pll-supply = <&hdmi_pll_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+		};
+	};
+
 	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
@@ -246,6 +258,11 @@
 		clock-frequency = <216000000>;
 	};
 
+	hdmi_ddc: i2c@7000c400 {
+		status = "okay";
+		clock-frequency = <100000>;
+	};
+
 	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <100000>;
@@ -261,6 +278,225 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		max8907@3c {
+			compatible = "maxim,max8907";
+			reg = <0x3c>;
+			interrupts = <0 86 0x4>;
+
+			maxim,system-power-controller;
+
+			mbatt-supply = <&usb0_vbus_reg>;
+			in-v1-supply = <&mbatt_reg>;
+			in-v2-supply = <&mbatt_reg>;
+			in-v3-supply = <&mbatt_reg>;
+			in1-supply = <&mbatt_reg>;
+			in2-supply = <&nvvdd_sv3_reg>;
+			in3-supply = <&mbatt_reg>;
+			in4-supply = <&mbatt_reg>;
+			in5-supply = <&mbatt_reg>;
+			in6-supply = <&mbatt_reg>;
+			in7-supply = <&mbatt_reg>;
+			in8-supply = <&mbatt_reg>;
+			in9-supply = <&mbatt_reg>;
+			in10-supply = <&mbatt_reg>;
+			in11-supply = <&mbatt_reg>;
+			in12-supply = <&mbatt_reg>;
+			in13-supply = <&mbatt_reg>;
+			in14-supply = <&mbatt_reg>;
+			in15-supply = <&mbatt_reg>;
+			in16-supply = <&mbatt_reg>;
+			in17-supply = <&nvvdd_sv3_reg>;
+			in18-supply = <&nvvdd_sv3_reg>;
+			in19-supply = <&mbatt_reg>;
+			in20-supply = <&mbatt_reg>;
+
+			regulators {
+				mbatt_reg: mbatt {
+					regulator-name = "vbat_pmu";
+					regulator-always-on;
+				};
+
+				sd1 {
+					regulator-name = "nvvdd_sv1,vdd_cpu_pmu";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+
+				sd2 {
+					regulator-name = "nvvdd_sv2,vdd_core";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				nvvdd_sv3_reg: sd3 {
+					regulator-name = "nvvdd_sv3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				ldo1 {
+					regulator-name = "nvvdd_ldo1,vddio_rx_ddr,vcore_acc";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+
+				ldo2 {
+					regulator-name = "nvvdd_ldo2,avdd_pll*";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
+				};
+
+				ldo3 {
+					regulator-name = "nvvdd_ldo3,vcom_1v8b";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				ldo4 {
+					regulator-name = "nvvdd_ldo4,avdd_usb*";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+
+				ldo5 {
+					regulator-name = "nvvdd_ldo5,vcore_mmc,avdd_lcd1,vddio_1wire";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					regulator-always-on;
+				};
+
+				hdmi_pll_reg: ldo6 {
+					regulator-name = "nvvdd_ldo6,avdd_hdmi_pll";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo7 {
+					regulator-name = "nvvdd_ldo7,avddio_audio";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					regulator-always-on;
+				};
+
+				ldo8 {
+					regulator-name = "nvvdd_ldo8,vcom_3v0,vcore_cmps";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+				};
+
+				ldo9 {
+					regulator-name = "nvvdd_ldo9,avdd_cam*";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo10 {
+					regulator-name = "nvvdd_ldo10,avdd_usb_ic_3v0";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
+				};
+
+				hdmi_vdd_reg: ldo11 {
+					regulator-name = "nvvdd_ldo11,vddio_pex_clk,vcom_33,avdd_hdmi";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				ldo12 {
+					regulator-name = "nvvdd_ldo12,vddio_sdio";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					regulator-always-on;
+				};
+
+				ldo13 {
+					regulator-name = "nvvdd_ldo13,vcore_phtn,vdd_af";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo14 {
+					regulator-name = "nvvdd_ldo14,avdd_vdac";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo15 {
+					regulator-name = "nvvdd_ldo15,vcore_temp,vddio_hdcp";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				ldo16 {
+					regulator-name = "nvvdd_ldo16,vdd_dbrtr";
+					regulator-min-microvolt = <1300000>;
+					regulator-max-microvolt = <1300000>;
+				};
+
+				ldo17 {
+					regulator-name = "nvvdd_ldo17,vddio_mipi";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				ldo18 {
+					regulator-name = "nvvdd_ldo18,vddio_vi,vcore_cam*";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo19 {
+					regulator-name = "nvvdd_ldo19,avdd_lcd2,vddio_lx";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo20 {
+					regulator-name = "nvvdd_ldo20,vddio_ddr_1v2,vddio_hsic,vcom_1v2";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				out5v {
+					regulator-name = "usb0_vbus_reg";
+				};
+
+				out33v {
+					regulator-name = "pmu_out3v3";
+				};
+
+				bbat {
+					regulator-name = "pmu_bbat";
+					regulator-min-microvolt = <2400000>;
+					regulator-max-microvolt = <2400000>;
+					regulator-always-on;
+				};
+
+				sdby {
+					regulator-name = "vdd_aon";
+					regulator-always-on;
+				};
+
+				vrtc {
+					regulator-name = "vrtc,pmu_vccadc";
+					regulator-always-on;
+				};
+			};
+		};
+	};
+
+	pmc {
+		nvidia,invert-interrupt;
 	};
 
 	usb@c5000000 {
@@ -282,6 +518,21 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb0_vbus_reg: regulator {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
 	};
 
 	sound {

@@ -20,6 +20,7 @@
 #include <linux/if_ether.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/firmware.h>
 
 #include "mac.h"
 #include "ani.h"
@@ -50,6 +51,7 @@
 #define AR9300_DEVID_AR9330	0x0035
 #define AR9300_DEVID_QCA955X	0x0038
 #define AR9485_DEVID_AR1111	0x0037
+#define AR9300_DEVID_AR9565     0x0036
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -246,6 +248,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
 	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
 	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
+	ATH9K_HW_CAP_PAPRD			= BIT(20),
 };
 
 /*
@@ -272,8 +275,6 @@ struct ath9k_hw_capabilities {
 	u8 rx_status_len;
 	u8 tx_desc_len;
 	u8 txs_len;
-	u16 pcie_lcr_offset;
-	bool pcie_lcr_extsync_en;
 };
 
 struct ath9k_ops_config {
@@ -400,6 +401,7 @@ enum ath9k_int {
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
+	u32 chanmode;
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
@@ -685,7 +687,7 @@ struct ath_hw_ops {
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
-
+	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
 };
 
 struct ath_nf_limits {
@@ -729,6 +731,7 @@ struct ath_hw {
 	bool aspm_enabled;
 	bool is_monitoring;
 	bool need_an_top2_fixup;
+	bool shared_chain_lnadiv;
 	u16 tx_trig_level;
 
 	u32 nf_regs[6];
@@ -739,6 +742,7 @@ struct ath_hw {
 	u32 rfkill_polarity;
 	u32 ah_flags;
 
+	bool reset_power_on;
 	bool htc_reset_init;
 
 	enum nl80211_iftype opmode;
@@ -831,6 +835,7 @@ struct ath_hw {
 	int coarse_low[5];
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
+	u32 ani_skip_count;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
@@ -872,7 +877,6 @@ struct ath_hw {
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
-	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 
@@ -918,6 +922,8 @@ struct ath_hw {
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
+
+	const struct firmware *eeprom_blob;
 };
 
 struct ath_bus_ops {
@@ -925,7 +931,6 @@ struct ath_bus_ops {
 	void (*read_cachesize)(struct ath_common *common, int *csz);
 	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
 	void (*bt_coex_prep)(struct ath_common *common);
-	void (*extn_synch_en)(struct ath_common *common);
 	void (*aspm_init)(struct ath_common *common);
 };
 
@@ -1057,9 +1062,10 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 					int chain);
 int ar9003_paprd_create_curve(struct ath_hw *ah,
 			      struct ath9k_hw_cal_data *caldata, int chain);
-int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
+void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
+bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);

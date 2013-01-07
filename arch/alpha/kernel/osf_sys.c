@@ -145,27 +145,24 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 		long __user *, basep)
 {
 	int error;
-	struct file *file;
+	struct fd arg = fdget(fd);
 	struct osf_dirent_callback buf;
 
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
+	if (!arg.file)
+		return -EBADF;
 
 	buf.dirent = dirent;
 	buf.basep = basep;
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, osf_filldir, &buf);
+	error = vfs_readdir(arg.file, osf_filldir, &buf);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
-	fput(file);
- out:
+	fdput(arg);
 	return error;
 }
 
@@ -278,8 +275,8 @@ linux_to_osf_stat(struct kstat *lstat, struct osf_stat __user *osf_stat)
 	tmp.st_dev	= lstat->dev;
 	tmp.st_mode	= lstat->mode;
 	tmp.st_nlink	= lstat->nlink;
-	tmp.st_uid	= lstat->uid;
-	tmp.st_gid	= lstat->gid;
+	tmp.st_uid	= from_kuid_munged(current_user_ns(), lstat->uid);
+	tmp.st_gid	= from_kgid_munged(current_user_ns(), lstat->gid);
 	tmp.st_rdev	= lstat->rdev;
 	tmp.st_ldev	= lstat->rdev;
 	tmp.st_size	= lstat->size;
@@ -448,11 +445,11 @@ struct procfs_args {
  * unhappy with OSF UFS. [CHECKME]
  */
 static int
-osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
+osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
-	char *devname;
+	struct filename *devname;
 
 	retval = -EFAULT;
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
@@ -461,18 +458,18 @@ osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
 	retval = PTR_ERR(devname);
 	if (IS_ERR(devname))
 		goto out;
-	retval = do_mount(devname, dirname, "ext2", flags, NULL);
+	retval = do_mount(devname->name, dirname, "ext2", flags, NULL);
 	putname(devname);
  out:
 	return retval;
 }
 
 static int
-osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
+osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
-	char *devname;
+	struct filename *devname;
 
 	retval = -EFAULT;
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
@@ -481,14 +478,14 @@ osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
 	retval = PTR_ERR(devname);
 	if (IS_ERR(devname))
 		goto out;
-	retval = do_mount(devname, dirname, "iso9660", flags, NULL);
+	retval = do_mount(devname->name, dirname, "iso9660", flags, NULL);
 	putname(devname);
  out:
 	return retval;
 }
 
 static int
-osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
+osf_procfs_mount(const char *dirname, struct procfs_args __user *args, int flags)
 {
 	struct procfs_args tmp;
 
@@ -502,7 +499,7 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		int, flag, void __user *, data)
 {
 	int retval;
-	char *name;
+	struct filename *name;
 
 	name = getname(path);
 	retval = PTR_ERR(name);
@@ -510,13 +507,13 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		goto out;
 	switch (typenr) {
 	case 1:
-		retval = osf_ufs_mount(name, data, flag);
+		retval = osf_ufs_mount(name->name, data, flag);
 		break;
 	case 6:
-		retval = osf_cdfs_mount(name, data, flag);
+		retval = osf_cdfs_mount(name->name, data, flag);
 		break;
 	case 9:
-		retval = osf_procfs_mount(name, data, flag);
+		retval = osf_procfs_mount(name->name, data, flag);
 		break;
 	default:
 		retval = -EINVAL;
@@ -796,8 +793,7 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
  	case GSI_UACPROC:
 		if (nbytes < sizeof(unsigned int))
 			return -EINVAL;
-		w = (current_thread_info()->flags >> ALPHA_UAC_SHIFT) &
-			UAC_BITMASK;
+		w = current_thread_info()->status & UAC_BITMASK;
 		if (put_user(w, (unsigned int __user *)buffer))
 			return -EFAULT;
  		return 1;
@@ -907,24 +903,20 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		break;
 
  	case SSI_NVPAIRS: {
-		unsigned long v, w, i;
-		unsigned int old, new;
+		unsigned __user *p = buffer;
+		unsigned i;
 		
- 		for (i = 0; i < nbytes; ++i) {
+		for (i = 0, p = buffer; i < nbytes; ++i, p += 2) {
+			unsigned v, w, status;
 
- 			if (get_user(v, 2*i + (unsigned int __user *)buffer))
- 				return -EFAULT;
- 			if (get_user(w, 2*i + 1 + (unsigned int __user *)buffer))
+			if (get_user(v, p) || get_user(w, p + 1))
  				return -EFAULT;
  			switch (v) {
  			case SSIN_UACPROC:
-			again:
-				old = current_thread_info()->flags;
-				new = old & ~(UAC_BITMASK << ALPHA_UAC_SHIFT);
-				new = new | (w & UAC_BITMASK) << ALPHA_UAC_SHIFT;
-				if (cmpxchg(&current_thread_info()->flags,
-					    old, new) != old)
-					goto again;
+				w &= UAC_BITMASK;
+				status = current_thread_info()->status;
+				status = (status & ~UAC_BITMASK) | w;
+				current_thread_info()->status = status;
  				break;
  
  			default:

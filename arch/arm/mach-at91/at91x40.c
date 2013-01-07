@@ -18,9 +18,10 @@
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <mach/at91x40.h>
-#include <mach/at91_aic.h>
 #include <mach/at91_st.h>
 #include <mach/timex.h>
+
+#include "at91_aic.h"
 #include "generic.h"
 
 /*
@@ -47,7 +48,7 @@ static void at91x40_idle(void)
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
-	__raw_writel(AT91_PS_CR_CPU, AT91_PS_CR);
+	__raw_writel(AT91_PS_CR_CPU, AT91_IO_P2V(AT91_PS_CR));
 	cpu_do_idle();
 }
 
@@ -88,6 +89,6 @@ void __init at91x40_init_interrupts(unsigned int priority[NR_AIC_IRQS])
 	if (!priority)
 		priority = at91x40_default_irq_priority;
 
-	at91_aic_init(priority);
+	at91_aic_init(priority, at91_extern_irq);
 }
 

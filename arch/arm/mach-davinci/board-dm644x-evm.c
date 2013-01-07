@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
+#include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
 
 #include <media/tvp514x.h>
@@ -31,13 +32,13 @@
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
-#include <mach/nand.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include "davinci.h"
 
@@ -518,13 +519,11 @@ static int dm6444evm_msp430_get_pins(void)
 	char buf[4];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = 0,
 			.len = 2,
 			.buf = (void __force *)txbuf,
 		},
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = I2C_M_RD,
 			.len = 4,
 			.buf = buf,
@@ -534,6 +533,9 @@ static int dm6444evm_msp430_get_pins(void)
 
 	if (!dm6446evm_msp)
 		return -ENXIO;
+
+	msg[0].addr = dm6446evm_msp->addr;
+	msg[1].addr = dm6446evm_msp->addr;
 
 	/* Command 4 == get input state, returns port 2 and port3 data
 	 *   S Addr W [A] len=2 [A] cmd=4 [A]
@@ -620,7 +622,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "ntsc",
 		.timings_type	= VPBE_ENC_STD,
-		.timings	= {V4L2_STD_525_60},
+		.std_id		= V4L2_STD_525_60,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 480,
@@ -632,7 +634,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "pal",
 		.timings_type	= VPBE_ENC_STD,
-		.timings	= {V4L2_STD_625_50},
+		.std_id		= V4L2_STD_625_50,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 576,
@@ -647,8 +649,8 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	{
 		.name		= "480p59_94",
-		.timings_type	= VPBE_ENC_DV_PRESET,
-		.timings	= {V4L2_DV_480P59_94},
+		.timings_type	= VPBE_ENC_CUSTOM_TIMINGS,
+		.dv_timings	= V4L2_DV_BT_CEA_720X480P59_94,
 		.interlaced	= 0,
 		.xres		= 720,
 		.yres		= 480,
@@ -659,8 +661,8 @@ static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	},
 	{
 		.name		= "576p50",
-		.timings_type	= VPBE_ENC_DV_PRESET,
-		.timings	= {V4L2_DV_576P50},
+		.timings_type	= VPBE_ENC_CUSTOM_TIMINGS,
+		.dv_timings	= V4L2_DV_BT_CEA_720X576P50,
 		.interlaced	= 0,
 		.xres		= 720,
 		.yres		= 576,
@@ -698,7 +700,7 @@ static struct vpbe_output dm644xevm_vpbe_outputs[] = {
 			.index		= 1,
 			.name		= "Component",
 			.type		= V4L2_OUTPUT_TYPE_ANALOG,
-			.capabilities	= V4L2_OUT_CAP_PRESETS,
+			.capabilities	= V4L2_OUT_CAP_DV_TIMINGS,
 		},
 		.subdev_name	= VPBE_VENC_SUBDEV_NAME,
 		.default_mode	= "480p59_94",
@@ -775,7 +777,7 @@ static __init void davinci_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND || HAS_NOR)

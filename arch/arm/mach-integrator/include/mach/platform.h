@@ -190,7 +190,6 @@
 #define INTEGRATOR_SC_CTRLC_OFFSET      0x0C
 #define INTEGRATOR_SC_DEC_OFFSET        0x10
 #define INTEGRATOR_SC_ARB_OFFSET        0x14
-#define INTEGRATOR_SC_PCIENABLE_OFFSET  0x18
 #define INTEGRATOR_SC_LOCK_OFFSET       0x1C
 
 #define INTEGRATOR_SC_BASE              0x11000000
@@ -323,6 +322,10 @@
 /*  unused ((128-16)M - 64K) from XXX
  */
 #define PHYS_PCI_V3_BASE                0x62000000
+
+#define PCI_MEMORY_VADDR		IOMEM(0xe8000000)
+#define PCI_CONFIG_VADDR		IOMEM(0xec000000)
+#define PCI_V3_VADDR			IOMEM(0xed000000)
 
 /* ------------------------------------------------------------------------
  *  Integrator Interrupt Controllers

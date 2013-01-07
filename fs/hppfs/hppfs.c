@@ -18,7 +18,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
-#include "os.h"
+#include <os.h>
 
 static struct inode *get_inode(struct super_block *, struct dentry *);
 
@@ -674,7 +674,7 @@ static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 
 	if (!inode) {
 		dput(dentry);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	if (S_ISDIR(dentry->d_inode->i_mode)) {
@@ -710,7 +710,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	struct vfsmount *proc_mnt;
 	int err = -ENOENT;
 
-	proc_mnt = mntget(current->nsproxy->pid_ns->proc_mnt);
+	proc_mnt = mntget(task_active_pid_ns(current)->proc_mnt);
 	if (IS_ERR(proc_mnt))
 		goto out;
 

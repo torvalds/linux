@@ -101,6 +101,8 @@ config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
 	select PHYLIB
+	select HWMON
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 

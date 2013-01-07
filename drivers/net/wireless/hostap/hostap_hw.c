@@ -3311,13 +3311,13 @@ static void prism2_free_local_data(struct net_device *dev)
 
 	unregister_netdev(local->dev);
 
-	flush_work_sync(&local->reset_queue);
-	flush_work_sync(&local->set_multicast_list_queue);
-	flush_work_sync(&local->set_tim_queue);
+	flush_work(&local->reset_queue);
+	flush_work(&local->set_multicast_list_queue);
+	flush_work(&local->set_tim_queue);
 #ifndef PRISM2_NO_STATION_MODES
-	flush_work_sync(&local->info_queue);
+	flush_work(&local->info_queue);
 #endif
-	flush_work_sync(&local->comms_qual_update);
+	flush_work(&local->comms_qual_update);
 
 	lib80211_crypt_info_free(&local->crypt_info);
 

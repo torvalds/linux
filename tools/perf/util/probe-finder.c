@@ -207,7 +207,7 @@ static int debuginfo__init_online_kernel_dwarf(struct debuginfo *self,
 #else
 /* With older elfutils, this just support kernel module... */
 static int debuginfo__init_online_kernel_dwarf(struct debuginfo *self,
-					       Dwarf_Addr addr __used)
+					       Dwarf_Addr addr __maybe_unused)
 {
 	const char *path = kernel_get_module_path("kernel");
 
@@ -525,8 +525,10 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			return -ENOENT;
 		}
 		/* Verify it is a data structure  */
-		if (dwarf_tag(&type) != DW_TAG_structure_type) {
-			pr_warning("%s is not a data structure.\n", varname);
+		tag = dwarf_tag(&type);
+		if (tag != DW_TAG_structure_type && tag != DW_TAG_union_type) {
+			pr_warning("%s is not a data structure nor an union.\n",
+				   varname);
 			return -EINVAL;
 		}
 
@@ -539,8 +541,9 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			*ref_ptr = ref;
 	} else {
 		/* Verify it is a data structure  */
-		if (tag != DW_TAG_structure_type) {
-			pr_warning("%s is not a data structure.\n", varname);
+		if (tag != DW_TAG_structure_type && tag != DW_TAG_union_type) {
+			pr_warning("%s is not a data structure nor an union.\n",
+				   varname);
 			return -EINVAL;
 		}
 		if (field->name[0] == '[') {
@@ -567,10 +570,15 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	}
 
 	/* Get the offset of the field */
-	ret = die_get_data_member_location(die_mem, &offs);
-	if (ret < 0) {
-		pr_warning("Failed to get the offset of %s.\n", field->name);
-		return ret;
+	if (tag == DW_TAG_union_type) {
+		offs = 0;
+	} else {
+		ret = die_get_data_member_location(die_mem, &offs);
+		if (ret < 0) {
+			pr_warning("Failed to get the offset of %s.\n",
+				   field->name);
+			return ret;
+		}
 	}
 	ref->offset += (long)offs;
 
@@ -1419,7 +1427,7 @@ static int line_range_add_line(const char *src, unsigned int lineno,
 }
 
 static int line_range_walk_cb(const char *fname, int lineno,
-			      Dwarf_Addr addr __used,
+			      Dwarf_Addr addr __maybe_unused,
 			      void *data)
 {
 	struct line_finder *lf = data;

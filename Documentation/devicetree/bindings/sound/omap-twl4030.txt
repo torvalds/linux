@@ -1,0 +1,17 @@
+* Texas Instruments SoC with twl4030 based audio setups
+
+Required properties:
+- compatible: "ti,omap-twl4030"
+- ti,model: Name of the sound card (for example "omap3beagle")
+- ti,mcbsp: phandle for the McBSP node
+- ti,codec: phandle for the twl4030 audio node
+
+Example:
+
+sound {
+	compatible = "ti,omap-twl4030";
+	ti,model = "omap3beagle";
+
+	ti,mcbsp = <&mcbsp2>;
+	ti,codec = <&twl_audio>;
+};

@@ -38,15 +38,15 @@
 #define IDR_SIZE (1 << IDR_BITS)
 #define IDR_MASK ((1 << IDR_BITS)-1)
 
-#define MAX_ID_SHIFT (sizeof(int)*8 - 1)
-#define MAX_ID_BIT (1U << MAX_ID_SHIFT)
-#define MAX_ID_MASK (MAX_ID_BIT - 1)
+#define MAX_IDR_SHIFT (sizeof(int)*8 - 1)
+#define MAX_IDR_BIT (1U << MAX_IDR_SHIFT)
+#define MAX_IDR_MASK (MAX_IDR_BIT - 1)
 
 /* Leave the possibility of an incomplete final layer */
-#define MAX_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+#define MAX_IDR_LEVEL ((MAX_IDR_SHIFT + IDR_BITS - 1) / IDR_BITS)
 
 /* Number of id_layer structs to leave in free list */
-#define IDR_FREE_MAX MAX_LEVEL + MAX_LEVEL
+#define MAX_IDR_FREE (MAX_IDR_LEVEL * 2)
 
 struct idr_layer {
 	unsigned long		 bitmap; /* A zero bit means "space here" */
@@ -151,5 +151,16 @@ int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
 void ida_simple_remove(struct ida *ida, unsigned int id);
 
 void __init idr_init_cache(void);
+
+/**
+ * idr_for_each_entry - iterate over an idr's elements of a given type
+ * @idp:     idr handle
+ * @entry:   the type * to use as cursor
+ * @id:      id entry's key
+ */
+#define idr_for_each_entry(idp, entry, id)				\
+	for (id = 0, entry = (typeof(entry))idr_get_next((idp), &(id)); \
+	     entry != NULL;                                             \
+	     ++id, entry = (typeof(entry))idr_get_next((idp), &(id)))
 
 #endif /* __IDR_H__ */

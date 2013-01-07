@@ -85,7 +85,7 @@ static int __rc5t583_set_ext_pwrreq1_control(struct device *dev,
 	int id, int ext_pwr, int slots)
 {
 	int ret;
-	uint8_t sleepseq_val;
+	uint8_t sleepseq_val = 0;
 	unsigned int en_bit;
 	unsigned int slot_bit;
 
@@ -246,7 +246,7 @@ static const struct regmap_config rc5t583_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
+static int rc5t583_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct rc5t583 *rc5t583;
@@ -281,7 +281,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 
 	if (i2c->irq) {
 		ret = rc5t583_irq_init(rc5t583, i2c->irq, pdata->irq_base);
-		/* Still continue with waring if irq init fails */
+		/* Still continue with warning, if irq init fails */
 		if (ret)
 			dev_warn(&i2c->dev, "IRQ init failed: %d\n", ret);
 		else
@@ -303,7 +303,7 @@ err_add_devs:
 	return ret;
 }
 
-static int  __devexit rc5t583_i2c_remove(struct i2c_client *i2c)
+static int  rc5t583_i2c_remove(struct i2c_client *i2c)
 {
 	struct rc5t583 *rc5t583 = i2c_get_clientdata(i2c);
 
@@ -325,7 +325,7 @@ static struct i2c_driver rc5t583_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = rc5t583_i2c_probe,
-	.remove = __devexit_p(rc5t583_i2c_remove),
+	.remove = rc5t583_i2c_remove,
 	.id_table = rc5t583_i2c_id,
 };
 

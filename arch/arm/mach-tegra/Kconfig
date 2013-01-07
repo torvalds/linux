@@ -4,43 +4,42 @@ comment "NVIDIA Tegra options"
 
 config ARCH_TEGRA_2x_SOC
 	bool "Enable support for Tegra20 family"
-	select CPU_V7
-	select ARM_GIC
 	select ARCH_REQUIRE_GPIOLIB
-	select PINCTRL
-	select PINCTRL_TEGRA20
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB
-	select USB_ULPI_VIEWPORT if USB_SUPPORT
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_742230
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754327
-	select ARM_ERRATA_764369
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
+	select CPU_FREQ_TABLE if CPU_FREQ
+	select CPU_V7
+	select PINCTRL
+	select PINCTRL_TEGRA20
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PL310_ERRATA_769419 if CACHE_L2X0
-	select CPU_FREQ_TABLE if CPU_FREQ
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select USB_ULPI if USB
+	select USB_ULPI_VIEWPORT if USB_SUPPORT
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
 
 config ARCH_TEGRA_3x_SOC
 	bool "Enable support for Tegra30 family"
-	select CPU_V7
-	select ARM_GIC
 	select ARCH_REQUIRE_GPIOLIB
-	select PINCTRL
-	select PINCTRL_TEGRA30
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB
-	select USB_ULPI_VIEWPORT if USB_SUPPORT
-	select USE_OF
 	select ARM_ERRATA_743622
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
-	select PL310_ERRATA_769419 if CACHE_L2X0
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
 	select CPU_FREQ_TABLE if CPU_FREQ
+	select CPU_V7
+	select PINCTRL
+	select PINCTRL_TEGRA30
+	select PL310_ERRATA_769419 if CACHE_L2X0
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select USB_ULPI if USB
+	select USB_ULPI_VIEWPORT if USB_SUPPORT
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -56,86 +55,7 @@ config TEGRA_AHB
 	help
 	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
 	  which controls AHB bus master arbitration and some
-	  perfomance parameters(priority, prefech size).
-
-comment "Tegra board type"
-
-config MACH_HARMONY
-       bool "Harmony board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for nVidia Harmony development platform
-
-config MACH_PAZ00
-       bool "Paz00 board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for the Toshiba AC100/Dynabook AZ netbook
-
-config MACH_TRIMSLICE
-       bool "TrimSlice board"
-       depends on ARCH_TEGRA_2x_SOC
-       select TEGRA_PCI
-       help
-         Support for CompuLab TrimSlice platform
-
-choice
-        prompt "Default low-level debug console UART"
-        default TEGRA_DEBUG_UART_NONE
-
-config TEGRA_DEBUG_UART_NONE
-        bool "None"
-
-config TEGRA_DEBUG_UARTA
-        bool "UART-A"
-
-config TEGRA_DEBUG_UARTB
-        bool "UART-B"
-
-config TEGRA_DEBUG_UARTC
-        bool "UART-C"
-
-config TEGRA_DEBUG_UARTD
-        bool "UART-D"
-
-config TEGRA_DEBUG_UARTE
-        bool "UART-E"
-
-endchoice
-
-choice
-	prompt "Automatic low-level debug console UART"
-	default TEGRA_DEBUG_UART_AUTO_NONE
-
-config TEGRA_DEBUG_UART_AUTO_NONE
-	bool "None"
-
-config TEGRA_DEBUG_UART_AUTO_ODMDATA
-	bool "Via ODMDATA"
-	help
-	  Automatically determines which UART to use for low-level debug based
-	  on the ODMDATA value. This value is part of the BCT, and is written
-	  to the boot memory device using nvflash, or other flashing tool.
-	  When bits 19:18 are 3, then bits 17:15 indicate which UART to use;
-	  0/1/2/3/4 are UART A/B/C/D/E.
-
-config TEGRA_DEBUG_UART_AUTO_SCRATCH
-	bool "Via UART scratch register"
-	help
-	  Automatically determines which UART to use for low-level debug based
-	  on the UART scratch register value. Some bootloaders put ASCII 'D'
-	  in this register when they initialize their own console UART output.
-	  Using this option allows the kernel to automatically pick the same
-	  UART.
-
-endchoice
-
-config TEGRA_SYSTEM_DMA
-	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
-	default y
-	help
-	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
-	  several Tegra device drivers
+	  performance parameters(priority, prefech size).
 
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"

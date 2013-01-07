@@ -31,12 +31,12 @@
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
-#include <mach/nand.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include "davinci.h"
 
@@ -188,7 +188,7 @@ static __init void davinci_ntosd2_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND)

@@ -17,8 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <mach/hardware.h>
-
 #define RTC_INPUT_CLK_32768HZ	(0x00 << 5)
 #define RTC_INPUT_CLK_32000HZ	(0x01 << 5)
 #define RTC_INPUT_CLK_38400HZ	(0x02 << 5)
@@ -72,13 +70,37 @@ static const u32 PIE_BIT_DEF[MAX_PIE_NUM][2] = {
 #define RTC_TEST2	0x2C	/*  32bit rtc test reg 2 */
 #define RTC_TEST3	0x30	/*  32bit rtc test reg 3 */
 
+enum imx_rtc_type {
+	IMX1_RTC,
+	IMX21_RTC,
+};
+
 struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
 	int irq;
 	struct clk *clk;
 	struct rtc_time g_rtc_alarm;
+	enum imx_rtc_type devtype;
 };
+
+static struct platform_device_id imx_rtc_devtype[] = {
+	{
+		.name = "imx1-rtc",
+		.driver_data = IMX1_RTC,
+	}, {
+		.name = "imx21-rtc",
+		.driver_data = IMX21_RTC,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_rtc_devtype);
+
+static inline int is_imx1_rtc(struct rtc_plat_data *data)
+{
+	return data->devtype == IMX1_RTC;
+}
 
 /*
  * This function is used to obtain the RTC time or the alarm value in
@@ -278,10 +300,13 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
  */
 static int mxc_rtc_set_mmss(struct device *dev, unsigned long time)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+
 	/*
 	 * TTC_DAYR register is 9-bit in MX1 SoC, save time and day of year only
 	 */
-	if (cpu_is_mx1()) {
+	if (is_imx1_rtc(pdata)) {
 		struct rtc_time tm;
 
 		rtc_time_to_tm(time, &tm);
@@ -343,7 +368,7 @@ static struct rtc_class_ops mxc_rtc_ops = {
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
 };
 
-static int __init mxc_rtc_probe(struct platform_device *pdev)
+static int __devinit mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct rtc_device *rtc;
@@ -360,6 +385,8 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
+	pdata->devtype = pdev->id_entry->driver_data;
+
 	if (!devm_request_mem_region(&pdev->dev, res->start,
 				     resource_size(res), pdev->name))
 		return -EBUSY;
@@ -367,14 +394,14 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
 				     resource_size(res));
 
-	pdata->clk = clk_get(&pdev->dev, "rtc");
+	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "unable to get clock!\n");
 		ret = PTR_ERR(pdata->clk);
 		goto exit_free_pdata;
 	}
 
-	clk_enable(pdata->clk);
+	clk_prepare_enable(pdata->clk);
 	rate = clk_get_rate(pdata->clk);
 
 	if (rate == 32768)
@@ -426,22 +453,20 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 exit_clr_drvdata:
 	platform_set_drvdata(pdev, NULL);
 exit_put_clk:
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 
 exit_free_pdata:
 
 	return ret;
 }
 
-static int __exit mxc_rtc_remove(struct platform_device *pdev)
+static int __devexit mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	rtc_device_unregister(pdata->rtc);
 
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -482,21 +507,12 @@ static struct platform_driver mxc_rtc_driver = {
 #endif
 		   .owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(mxc_rtc_remove),
+	.id_table = imx_rtc_devtype,
+	.probe = mxc_rtc_probe,
+	.remove = __devexit_p(mxc_rtc_remove),
 };
 
-static int __init mxc_rtc_init(void)
-{
-	return platform_driver_probe(&mxc_rtc_driver, mxc_rtc_probe);
-}
-
-static void __exit mxc_rtc_exit(void)
-{
-	platform_driver_unregister(&mxc_rtc_driver);
-}
-
-module_init(mxc_rtc_init);
-module_exit(mxc_rtc_exit);
+module_platform_driver(mxc_rtc_driver)
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("RTC driver for Freescale MXC");

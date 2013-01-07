@@ -23,6 +23,7 @@
 #define _I830_BIOS_H_
 
 #include <drm/drmP.h>
+#include <drm/drm_dp_helper.h>
 
 struct vbt_header {
 	u8 signature[20];		/**< Always starts with 'VBT$' */
@@ -93,6 +94,7 @@ struct vbios_data {
 #define BDB_SDVO_LVDS_PNP_IDS	 24
 #define BDB_SDVO_LVDS_POWER_SEQ	 25
 #define BDB_TV_OPTIONS		 26
+#define BDB_EDP			 27
 #define BDB_LVDS_OPTIONS	 40
 #define BDB_LVDS_LFP_DATA_PTRS	 41
 #define BDB_LVDS_LFP_DATA	 42
@@ -391,6 +393,11 @@ struct bdb_sdvo_lvds_options {
 	u8 panel_misc_bits_4;
 } __attribute__((packed));
 
+#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_INT_LVDS		1
+#define BDB_DRIVER_FEATURE_SDVO_LVDS		2
+#define BDB_DRIVER_FEATURE_EDP			3
+
 struct bdb_driver_features {
 	u8 boot_dev_algorithm:1;
 	u8 block_display_switch:1;
@@ -430,6 +437,45 @@ struct bdb_driver_features {
 	u8 hdmi_termination;
 	u8 custom_vbt_version;
 } __attribute__((packed));
+
+#define EDP_18BPP	0
+#define EDP_24BPP	1
+#define EDP_30BPP	2
+#define EDP_RATE_1_62	0
+#define EDP_RATE_2_7	1
+#define EDP_LANE_1	0
+#define EDP_LANE_2	1
+#define EDP_LANE_4	3
+#define EDP_PREEMPHASIS_NONE	0
+#define EDP_PREEMPHASIS_3_5dB	1
+#define EDP_PREEMPHASIS_6dB	2
+#define EDP_PREEMPHASIS_9_5dB	3
+#define EDP_VSWING_0_4V		0
+#define EDP_VSWING_0_6V		1
+#define EDP_VSWING_0_8V		2
+#define EDP_VSWING_1_2V		3
+
+struct edp_power_seq {
+	u16 t1_t3;
+	u16 t8;
+	u16 t9;
+	u16 t10;
+	u16 t11_t12;
+} __attribute__ ((packed));
+
+struct edp_link_params {
+	u8 rate:4;
+	u8 lanes:4;
+	u8 preemphasis:4;
+	u8 vswing:4;
+} __attribute__ ((packed));
+
+struct bdb_edp {
+	struct edp_power_seq power_seqs[16];
+	u32 color_depth;
+	u32 sdrrs_msa_timing_delay;
+	struct edp_link_params link_params[16];
+} __attribute__ ((packed));
 
 extern int psb_intel_init_bios(struct drm_device *dev);
 extern void psb_intel_destroy_bios(struct drm_device *dev);

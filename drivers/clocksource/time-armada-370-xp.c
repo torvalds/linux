@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/timer.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
@@ -167,7 +168,6 @@ void __init armada_370_xp_timer_init(void)
 	u32 u;
 	struct device_node *np;
 	unsigned int timer_clk;
-	int ret;
 	np = of_find_compatible_node(NULL, NULL, "marvell,armada-370-xp-timer");
 	timer_base = of_iomap(np, 0);
 	WARN_ON(!timer_base);
@@ -179,13 +179,14 @@ void __init armada_370_xp_timer_init(void)
 		       timer_base + TIMER_CTRL_OFF);
 		timer_clk = 25000000;
 	} else {
-		u32 clk = 0;
-		ret = of_property_read_u32(np, "clock-frequency", &clk);
-		WARN_ON(!clk || ret < 0);
+		unsigned long rate = 0;
+		struct clk *clk = of_clk_get(np, 0);
+		WARN_ON(IS_ERR(clk));
+		rate =  clk_get_rate(clk);
 		u = readl(timer_base + TIMER_CTRL_OFF);
 		writel(u & ~(TIMER0_25MHZ | TIMER1_25MHZ),
 		       timer_base + TIMER_CTRL_OFF);
-		timer_clk = clk / TIMER_DIVIDER;
+		timer_clk = rate / TIMER_DIVIDER;
 	}
 
 	/* We use timer 0 as clocksource, and timer 1 for

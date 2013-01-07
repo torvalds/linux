@@ -50,6 +50,13 @@ struct Qdisc {
 #define TCQ_F_INGRESS		2
 #define TCQ_F_CAN_BYPASS	4
 #define TCQ_F_MQROOT		8
+#define TCQ_F_ONETXQUEUE	0x10 /* dequeue_skb() can assume all skbs are for
+				      * q->dev_queue : It can test
+				      * netif_xmit_frozen_or_stopped() before
+				      * dequeueing next packet.
+				      * Its true for MQ/MQPRIO slaves, or non
+				      * multiqueue device.
+				      */
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	const struct Qdisc_ops	*ops;
@@ -188,7 +195,8 @@ struct tcf_proto_ops {
 
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
 	void			(*put)(struct tcf_proto*, unsigned long);
-	int			(*change)(struct tcf_proto*, unsigned long,
+	int			(*change)(struct sk_buff *,
+					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
 					unsigned long *);
 	int			(*delete)(struct tcf_proto*, unsigned long);

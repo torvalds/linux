@@ -209,8 +209,8 @@ static struct snd_soc_codec_driver soc_codec_dev_lm4857 = {
 	.set_bias_level = lm4857_set_bias_level,
 };
 
-static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int lm4857_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct lm4857 *lm4857;
 	int ret;
@@ -228,7 +228,7 @@ static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit lm4857_i2c_remove(struct i2c_client *i2c)
+static int lm4857_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
@@ -246,21 +246,11 @@ static struct i2c_driver lm4857_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm4857_i2c_probe,
-	.remove = __devexit_p(lm4857_i2c_remove),
+	.remove = lm4857_i2c_remove,
 	.id_table = lm4857_i2c_id,
 };
 
-static int __init lm4857_init(void)
-{
-	return i2c_add_driver(&lm4857_i2c_driver);
-}
-module_init(lm4857_init);
-
-static void __exit lm4857_exit(void)
-{
-	i2c_del_driver(&lm4857_i2c_driver);
-}
-module_exit(lm4857_exit);
+module_i2c_driver(lm4857_i2c_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("LM4857 amplifier driver");

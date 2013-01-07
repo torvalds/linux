@@ -127,6 +127,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 				     struct iwl_tx_cmd *tx_cmd,
 				     struct ieee80211_tx_info *info,
+				     struct ieee80211_sta *sta,
 				     __le16 fc)
 {
 	u32 rate_flags;
@@ -187,8 +188,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS ||
 			(rate_idx < 0) || (rate_idx > IWL_RATE_COUNT_LEGACY))
 		rate_idx = rate_lowest_index(
-				&priv->eeprom_data->bands[info->band],
-				info->control.sta);
+				&priv->nvm_data->bands[info->band], sta);
 	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
 	if (info->band == IEEE80211_BAND_5GHZ)
 		rate_idx += IWL_FIRST_OFDM_RATE;
@@ -207,11 +207,11 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-				first_antenna(priv->eeprom_data->valid_tx_ant));
+				first_antenna(priv->nvm_data->valid_tx_ant));
 	} else
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(
 					priv, priv->mgmt_tx_ant,
-					priv->eeprom_data->valid_tx_ant);
+					priv->nvm_data->valid_tx_ant);
 	rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* Set the rate in the TX cmd */
@@ -291,7 +291,9 @@ static int iwl_sta_id_or_broadcast(struct iwl_rxon_context *context,
 /*
  * start REPLY_TX command process
  */
-int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
+int iwlagn_tx_skb(struct iwl_priv *priv,
+		  struct ieee80211_sta *sta,
+		  struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -303,7 +305,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	u8 hdr_len;
 	u16 len, seq_number = 0;
 	u8 sta_id, tid = IWL_MAX_TID_COUNT;
-	bool is_agg = false;
+	bool is_agg = false, is_data_qos = false;
 	int txq_id;
 
 	if (info->control.vif)
@@ -345,7 +347,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		sta_id = ctx->bcast_sta_id;
 	else {
 		/* Find index into station table for destination station */
-		sta_id = iwl_sta_id_or_broadcast(ctx, info->control.sta);
+		sta_id = iwl_sta_id_or_broadcast(ctx, sta);
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 				       hdr->addr1);
@@ -355,8 +357,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
 
-	if (info->control.sta)
-		sta_priv = (void *)info->control.sta->drv_priv;
+	if (sta)
+		sta_priv = (void *)sta->drv_priv;
 
 	if (sta_priv && sta_priv->asleep &&
 	    (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)) {
@@ -376,9 +378,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		is_agg = true;
-
 	dev_cmd = iwl_trans_alloc_tx_cmd(priv->trans);
 
 	if (unlikely(!dev_cmd))
@@ -397,7 +396,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* TODO need this for burst mode later on */
 	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
 
-	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
+	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, sta, fc);
 
 	memset(&info->status, 0, sizeof(info->status));
 
@@ -431,7 +430,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		 * only. Check this here.
 		 */
 		if (WARN_ONCE(tid_data->agg.state != IWL_AGG_ON &&
-		    tid_data->agg.state != IWL_AGG_OFF,
+			      tid_data->agg.state != IWL_AGG_OFF,
 		    "Tx while agg.state = %d", tid_data->agg.state))
 			goto drop_unlock_sta;
 
@@ -440,6 +439,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
+
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+			is_agg = true;
+		is_data_qos = true;
 	}
 
 	/* Copy MAC header from skb into command buffer */
@@ -472,8 +475,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (iwl_trans_tx(priv->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
-	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
-	    !ieee80211_has_morefrags(fc))
+	if (is_data_qos && !ieee80211_has_morefrags(fc))
 		priv->tid_data[sta_id][tid].seq_number = seq_number;
 
 	spin_unlock(&priv->sta_lock);
@@ -1073,14 +1075,11 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 
 static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct ieee80211_tx_info *info,
-				 struct iwlagn_tx_resp *tx_resp,
-				 bool is_agg)
+				 struct iwlagn_tx_resp *tx_resp)
 {
-	u16  status = le16_to_cpu(tx_resp->status.status);
+	u16 status = le16_to_cpu(tx_resp->status.status);
 
 	info->status.rates[0].count = tx_resp->failure_frame + 1;
-	if (is_agg)
-		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 	info->flags |= iwl_tx_status_to_mac80211(status);
 	iwlagn_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
 				    info);
@@ -1096,29 +1095,6 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
 			queue_work(priv->workqueue, &priv->tx_flush);
 	}
-}
-
-static int iwl_reclaim(struct iwl_priv *priv, int sta_id, int tid,
-		       int txq_id, int ssn, struct sk_buff_head *skbs)
-{
-	if (unlikely(txq_id >= IWLAGN_FIRST_AMPDU_QUEUE &&
-		     tid != IWL_TID_NON_QOS &&
-		     txq_id != priv->tid_data[sta_id][tid].agg.txq_id)) {
-		/*
-		 * FIXME: this is a uCode bug which need to be addressed,
-		 * log the information and return for now.
-		 * Since it is can possibly happen very often and in order
-		 * not to fill the syslog, don't use IWL_ERR or IWL_WARN
-		 */
-		IWL_DEBUG_TX_QUEUES(priv,
-			"Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
-			txq_id, sta_id, tid,
-			priv->tid_data[sta_id][tid].agg.txq_id);
-		return 1;
-	}
-
-	iwl_trans_reclaim(priv->trans, txq_id, ssn, skbs);
-	return 0;
 }
 
 int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
@@ -1182,9 +1158,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 						  next_reclaimed);
 		}
 
-		/*we can free until ssn % q.n_bd not inclusive */
-		WARN_ON_ONCE(iwl_reclaim(priv, sta_id, tid,
-					 txq_id, ssn, &skbs));
+		iwl_trans_reclaim(priv->trans, txq_id, ssn, &skbs);
+
 		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 
@@ -1229,7 +1204,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			if (is_agg && !iwl_is_tx_success(status))
 				info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 			iwlagn_set_tx_status(priv, IEEE80211_SKB_CB(skb),
-				     tx_resp, is_agg);
+				     tx_resp);
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 
@@ -1309,16 +1284,27 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		return 0;
 	}
 
+	if (unlikely(scd_flow != agg->txq_id)) {
+		/*
+		 * FIXME: this is a uCode bug which need to be addressed,
+		 * log the information and return for now.
+		 * Since it is can possibly happen very often and in order
+		 * not to fill the syslog, don't use IWL_ERR or IWL_WARN
+		 */
+		IWL_DEBUG_TX_QUEUES(priv,
+				    "Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
+				    scd_flow, sta_id, tid, agg->txq_id);
+		spin_unlock(&priv->sta_lock);
+		return 0;
+	}
+
 	__skb_queue_head_init(&reclaimed_skbs);
 
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
-	if (iwl_reclaim(priv, sta_id, tid, scd_flow,
-			ba_resp_scd_ssn, &reclaimed_skbs)) {
-		spin_unlock(&priv->sta_lock);
-		return 0;
-	}
+	iwl_trans_reclaim(priv->trans, scd_flow, ba_resp_scd_ssn,
+			  &reclaimed_skbs);
 
 	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",

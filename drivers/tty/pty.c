@@ -4,9 +4,6 @@
  *  Added support for a Unix98-style ptmx device.
  *    -- C. Scott Ananian <cananian@alumni.princeton.edu>, 14-Jan-1998
  *
- *  When reading this code see also fs/devpts. In particular note that the
- *  driver_data field is used by the devpts side as a binding to the devpts
- *  inode.
  */
 
 #include <linux/module.h>
@@ -47,6 +44,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
 	tty->packet = 0;
+	/* Review - krefs on tty_link ?? */
 	if (!tty->link)
 		return;
 	tty->link->packet = 0;
@@ -58,13 +56,13 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 #ifdef CONFIG_UNIX98_PTYS
 		if (tty->driver == ptm_driver) {
 		        mutex_lock(&devpts_mutex);
-			devpts_pty_kill(tty->link);
+			devpts_pty_kill(tty->link->driver_data);
 		        mutex_unlock(&devpts_mutex);
 		}
 #endif
-		tty_unlock();
+		tty_unlock(tty);
 		tty_vhangup(tty->link);
-		tty_lock();
+		tty_lock(tty);
 	}
 }
 
@@ -95,7 +93,7 @@ static void pty_unthrottle(struct tty_struct *tty)
 
 static int pty_space(struct tty_struct *to)
 {
-	int n = 8192 - to->buf.memory_used;
+	int n = 8192 - to->port->buf.memory_used;
 	if (n < 0)
 		return 0;
 	return n;
@@ -173,6 +171,41 @@ static int pty_set_lock(struct tty_struct *tty, int __user *arg)
 	return 0;
 }
 
+static int pty_get_lock(struct tty_struct *tty, int __user *arg)
+{
+	int locked = test_bit(TTY_PTY_LOCK, &tty->flags);
+	return put_user(locked, arg);
+}
+
+/* Set the packet mode on a pty */
+static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
+{
+	unsigned long flags;
+	int pktmode;
+
+	if (get_user(pktmode, arg))
+		return -EFAULT;
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	if (pktmode) {
+		if (!tty->packet) {
+			tty->packet = 1;
+			tty->link->ctrl_status = 0;
+		}
+	} else
+		tty->packet = 0;
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+
+	return 0;
+}
+
+/* Get the packet mode of a pty */
+static int pty_get_pktmode(struct tty_struct *tty, int __user *arg)
+{
+	int pktmode = tty->packet;
+	return put_user(pktmode, arg);
+}
+
 /* Send a signal to the slave */
 static int pty_signal(struct tty_struct *tty, int sig)
 {
@@ -231,8 +264,8 @@ out:
 static void pty_set_termios(struct tty_struct *tty,
 					struct ktermios *old_termios)
 {
-	tty->termios->c_cflag &= ~(CSIZE | PARENB);
-	tty->termios->c_cflag |= (CS8 | CREAD);
+	tty->termios.c_cflag &= ~(CSIZE | PARENB);
+	tty->termios.c_cflag |= (CS8 | CREAD);
 }
 
 /**
@@ -244,7 +277,7 @@ static void pty_set_termios(struct tty_struct *tty,
  *	peform a terminal resize correctly
  */
 
-int pty_resize(struct tty_struct *tty,  struct winsize *ws)
+static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 {
 	struct pid *pgrp, *rpgrp;
 	unsigned long flags;
@@ -282,58 +315,116 @@ done:
 	return 0;
 }
 
-/* Traditional BSD devices */
-#ifdef CONFIG_LEGACY_PTYS
-
-static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+/**
+ *	pty_common_install		-	set up the pty pair
+ *	@driver: the pty driver
+ *	@tty: the tty being instantiated
+ *	@bool: legacy, true if this is BSD style
+ *
+ *	Perform the initial set up for the tty/pty pair. Called from the
+ *	tty layer when the port is first opened.
+ *
+ *	Locking: the caller must hold the tty_mutex
+ */
+static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
+		bool legacy)
 {
 	struct tty_struct *o_tty;
+	struct tty_port *ports[2];
 	int idx = tty->index;
-	int retval;
+	int retval = -ENOMEM;
 
 	o_tty = alloc_tty_struct();
 	if (!o_tty)
-		return -ENOMEM;
+		goto err;
+	ports[0] = kmalloc(sizeof **ports, GFP_KERNEL);
+	ports[1] = kmalloc(sizeof **ports, GFP_KERNEL);
+	if (!ports[0] || !ports[1])
+		goto err_free_tty;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		retval = -ENOMEM;
 		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
-	/* We always use new tty termios data so we can do this
-	   the easy way .. */
-	retval = tty_init_termios(tty);
-	if (retval)
-		goto err_deinit_tty;
+	if (legacy) {
+		/* We always use new tty termios data so we can do this
+		   the easy way .. */
+		retval = tty_init_termios(tty);
+		if (retval)
+			goto err_deinit_tty;
 
-	retval = tty_init_termios(o_tty);
-	if (retval)
-		goto err_free_termios;
+		retval = tty_init_termios(o_tty);
+		if (retval)
+			goto err_free_termios;
+
+		driver->other->ttys[idx] = o_tty;
+		driver->ttys[idx] = tty;
+	} else {
+		memset(&tty->termios_locked, 0, sizeof(tty->termios_locked));
+		tty->termios = driver->init_termios;
+		memset(&o_tty->termios_locked, 0, sizeof(tty->termios_locked));
+		o_tty->termios = driver->other->init_termios;
+	}
 
 	/*
 	 * Everything allocated ... set up the o_tty structure.
 	 */
-	driver->other->ttys[idx] = o_tty;
 	tty_driver_kref_get(driver->other);
 	if (driver->subtype == PTY_TYPE_MASTER)
 		o_tty->count++;
 	/* Establish the links in both directions */
 	tty->link   = o_tty;
 	o_tty->link = tty;
+	tty_port_init(ports[0]);
+	tty_port_init(ports[1]);
+	o_tty->port = ports[0];
+	tty->port = ports[1];
+	o_tty->port->itty = o_tty;
 
 	tty_driver_kref_get(driver);
 	tty->count++;
-	driver->ttys[idx] = tty;
 	return 0;
 err_free_termios:
-	tty_free_termios(tty);
+	if (legacy)
+		tty_free_termios(tty);
 err_deinit_tty:
 	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
 err_free_tty:
+	kfree(ports[0]);
+	kfree(ports[1]);
 	free_tty_struct(o_tty);
+err:
 	return retval;
+}
+
+/* this is called once with whichever end is closed last */
+static void pty_unix98_shutdown(struct tty_struct *tty)
+{
+	devpts_kill_index(tty->driver_data, tty->index);
+}
+
+static void pty_cleanup(struct tty_struct *tty)
+{
+	tty->port->itty = NULL;
+	tty_port_put(tty->port);
+}
+
+/* Traditional BSD devices */
+#ifdef CONFIG_LEGACY_PTYS
+
+static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	return pty_common_install(driver, tty, true);
+}
+
+static void pty_remove(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct tty_struct *pair = tty->link;
+	driver->ttys[tty->index] = NULL;
+	if (pair)
+		pair->driver->ttys[pair->index] = NULL;
 }
 
 static int pty_bsd_ioctl(struct tty_struct *tty,
@@ -342,6 +433,12 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 	switch (cmd) {
 	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
 		return pty_set_lock(tty, (int __user *) arg);
+	case TIOCGPTLCK: /* Get PT Lock status */
+		return pty_get_lock(tty, (int __user *)arg);
+	case TIOCPKT: /* Set PT packet mode */
+		return pty_set_pktmode(tty, (int __user *)arg);
+	case TIOCGPKT: /* Get PT packet mode */
+		return pty_get_pktmode(tty, (int __user *)arg);
 	case TIOCSIG:    /* Send signal to other side of pty */
 		return pty_signal(tty, (int) arg);
 	}
@@ -366,7 +463,9 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_bsd_ioctl,
-	.resize = pty_resize
+	.cleanup = pty_cleanup,
+	.resize = pty_resize,
+	.remove = pty_remove
 };
 
 static const struct tty_operations slave_pty_ops_bsd = {
@@ -379,7 +478,9 @@ static const struct tty_operations slave_pty_ops_bsd = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
-	.resize = pty_resize
+	.cleanup = pty_cleanup,
+	.resize = pty_resize,
+	.remove = pty_remove
 };
 
 static void __init legacy_pty_init(void)
@@ -389,12 +490,18 @@ static void __init legacy_pty_init(void)
 	if (legacy_count <= 0)
 		return;
 
-	pty_driver = alloc_tty_driver(legacy_count);
-	if (!pty_driver)
+	pty_driver = tty_alloc_driver(legacy_count,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_ALLOC);
+	if (IS_ERR(pty_driver))
 		panic("Couldn't allocate pty driver");
 
-	pty_slave_driver = alloc_tty_driver(legacy_count);
-	if (!pty_slave_driver)
+	pty_slave_driver = tty_alloc_driver(legacy_count,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_ALLOC);
+	if (IS_ERR(pty_slave_driver))
 		panic("Couldn't allocate pty slave driver");
 
 	pty_driver->driver_name = "pty_master";
@@ -410,7 +517,6 @@ static void __init legacy_pty_init(void)
 	pty_driver->init_termios.c_lflag = 0;
 	pty_driver->init_termios.c_ispeed = 38400;
 	pty_driver->init_termios.c_ospeed = 38400;
-	pty_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW;
 	pty_driver->other = pty_slave_driver;
 	tty_set_operations(pty_driver, &master_pty_ops_bsd);
 
@@ -424,8 +530,6 @@ static void __init legacy_pty_init(void)
 	pty_slave_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pty_slave_driver->init_termios.c_ispeed = 38400;
 	pty_slave_driver->init_termios.c_ospeed = 38400;
-	pty_slave_driver->flags = TTY_DRIVER_RESET_TERMIOS |
-					TTY_DRIVER_REAL_RAW;
 	pty_slave_driver->other = pty_driver;
 	tty_set_operations(pty_slave_driver, &slave_pty_ops_bsd);
 
@@ -449,6 +553,12 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 	switch (cmd) {
 	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
 		return pty_set_lock(tty, (int __user *)arg);
+	case TIOCGPTLCK: /* Get PT Lock status */
+		return pty_get_lock(tty, (int __user *)arg);
+	case TIOCPKT: /* Set PT packet mode */
+		return pty_set_pktmode(tty, (int __user *)arg);
+	case TIOCGPKT: /* Get PT packet mode */
+		return pty_get_pktmode(tty, (int __user *)arg);
 	case TIOCGPTN: /* Get PT Number */
 		return put_user(tty->index, (unsigned int __user *)arg);
 	case TIOCSIG:    /* Send signal to other side of pty */
@@ -489,7 +599,7 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 	struct tty_struct *tty;
 
 	mutex_lock(&devpts_mutex);
-	tty = devpts_get_tty(pts_inode, idx);
+	tty = devpts_get_priv(pts_inode);
 	mutex_unlock(&devpts_mutex);
 	/* Master must be open before slave */
 	if (!tty)
@@ -497,78 +607,22 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 	return tty;
 }
 
-static void pty_unix98_shutdown(struct tty_struct *tty)
-{
-	tty_driver_remove_tty(tty->driver, tty);
-	/* We have our own method as we don't use the tty index */
-	kfree(tty->termios);
-}
-
 /* We have no need to install and remove our tty objects as devpts does all
    the work for us */
 
 static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	struct tty_struct *o_tty;
-	int idx = tty->index;
-
-	o_tty = alloc_tty_struct();
-	if (!o_tty)
-		return -ENOMEM;
-	if (!try_module_get(driver->other->owner)) {
-		/* This cannot in fact currently happen */
-		goto err_free_tty;
-	}
-	initialize_tty_struct(o_tty, driver->other, idx);
-
-	tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
-	if (tty->termios == NULL)
-		goto err_free_mem;
-	*tty->termios = driver->init_termios;
-	tty->termios_locked = tty->termios + 1;
-
-	o_tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
-	if (o_tty->termios == NULL)
-		goto err_free_mem;
-	*o_tty->termios = driver->other->init_termios;
-	o_tty->termios_locked = o_tty->termios + 1;
-
-	tty_driver_kref_get(driver->other);
-	if (driver->subtype == PTY_TYPE_MASTER)
-		o_tty->count++;
-	/* Establish the links in both directions */
-	tty->link   = o_tty;
-	o_tty->link = tty;
-	/*
-	 * All structures have been allocated, so now we install them.
-	 * Failures after this point use release_tty to clean up, so
-	 * there's no need to null out the local pointers.
-	 */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	return 0;
-err_free_mem:
-	deinitialize_tty_struct(o_tty);
-	kfree(o_tty->termios);
-	kfree(tty->termios);
-	module_put(o_tty->driver->owner);
-err_free_tty:
-	free_tty_struct(o_tty);
-	return -ENOMEM;
+	return pty_common_install(driver, tty, false);
 }
 
-static void ptm_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
-{
-}
-
-static void pts_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
+static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
 }
 
 static const struct tty_operations ptm_unix98_ops = {
 	.lookup = ptm_unix98_lookup,
 	.install = pty_unix98_install,
-	.remove = ptm_unix98_remove,
+	.remove = pty_unix98_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -578,14 +632,15 @@ static const struct tty_operations ptm_unix98_ops = {
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.ioctl = pty_unix98_ioctl,
+	.resize = pty_resize,
 	.shutdown = pty_unix98_shutdown,
-	.resize = pty_resize
+	.cleanup = pty_cleanup
 };
 
 static const struct tty_operations pty_unix98_ops = {
 	.lookup = pts_unix98_lookup,
 	.install = pty_unix98_install,
-	.remove = pts_unix98_remove,
+	.remove = pty_unix98_remove,
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,
@@ -594,7 +649,8 @@ static const struct tty_operations pty_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
-	.shutdown = pty_unix98_shutdown
+	.shutdown = pty_unix98_shutdown,
+	.cleanup = pty_cleanup,
 };
 
 /**
@@ -612,6 +668,7 @@ static const struct tty_operations pty_unix98_ops = {
 static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
+	struct inode *slave_inode;
 	int retval;
 	int index;
 
@@ -622,47 +679,55 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		return retval;
 
 	/* find a device that is not in use. */
-	tty_lock();
+	mutex_lock(&devpts_mutex);
 	index = devpts_new_index(inode);
-	tty_unlock();
 	if (index < 0) {
 		retval = index;
+		mutex_unlock(&devpts_mutex);
 		goto err_file;
 	}
 
-	mutex_lock(&tty_mutex);
-	mutex_lock(&devpts_mutex);
-	tty = tty_init_dev(ptm_driver, index);
 	mutex_unlock(&devpts_mutex);
-	tty_lock();
-	mutex_unlock(&tty_mutex);
+
+	mutex_lock(&tty_mutex);
+	tty = tty_init_dev(ptm_driver, index);
 
 	if (IS_ERR(tty)) {
 		retval = PTR_ERR(tty);
 		goto out;
 	}
 
+	/* The tty returned here is locked so we can safely
+	   drop the mutex */
+	mutex_unlock(&tty_mutex);
+
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 
 	tty_add_file(tty, filp);
 
-	retval = devpts_pty_new(inode, tty->link);
-	if (retval)
+	slave_inode = devpts_pty_new(inode,
+			MKDEV(UNIX98_PTY_SLAVE_MAJOR, index), index,
+			tty->link);
+	if (IS_ERR(slave_inode)) {
+		retval = PTR_ERR(slave_inode);
 		goto err_release;
+	}
 
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
 		goto err_release;
 
-	tty_unlock();
+	tty_unlock(tty);
+	tty->driver_data = inode;
+	tty->link->driver_data = slave_inode;
 	return 0;
 err_release:
-	tty_unlock();
+	tty_unlock(tty);
 	tty_release(inode, filp);
 	return retval;
 out:
+	mutex_unlock(&tty_mutex);
 	devpts_kill_index(inode, index);
-	tty_unlock();
 err_file:
 	tty_free_file(filp);
 	return retval;
@@ -672,11 +737,21 @@ static struct file_operations ptmx_fops;
 
 static void __init unix98_pty_init(void)
 {
-	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
-	if (!ptm_driver)
+	ptm_driver = tty_alloc_driver(NR_UNIX98_PTY_MAX,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV |
+			TTY_DRIVER_DEVPTS_MEM |
+			TTY_DRIVER_DYNAMIC_ALLOC);
+	if (IS_ERR(ptm_driver))
 		panic("Couldn't allocate Unix98 ptm driver");
-	pts_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
-	if (!pts_driver)
+	pts_driver = tty_alloc_driver(NR_UNIX98_PTY_MAX,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV |
+			TTY_DRIVER_DEVPTS_MEM |
+			TTY_DRIVER_DYNAMIC_ALLOC);
+	if (IS_ERR(pts_driver))
 		panic("Couldn't allocate Unix98 pts driver");
 
 	ptm_driver->driver_name = "pty_master";
@@ -692,8 +767,6 @@ static void __init unix98_pty_init(void)
 	ptm_driver->init_termios.c_lflag = 0;
 	ptm_driver->init_termios.c_ispeed = 38400;
 	ptm_driver->init_termios.c_ospeed = 38400;
-	ptm_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	ptm_driver->other = pts_driver;
 	tty_set_operations(ptm_driver, &ptm_unix98_ops);
 
@@ -707,8 +780,6 @@ static void __init unix98_pty_init(void)
 	pts_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pts_driver->init_termios.c_ispeed = 38400;
 	pts_driver->init_termios.c_ospeed = 38400;
-	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	pts_driver->other = ptm_driver;
 	tty_set_operations(pts_driver, &pty_unix98_ops);
 

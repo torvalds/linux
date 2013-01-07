@@ -178,9 +178,9 @@ static void ssb_mips_serial_init(struct ssb_mipscore *mcore)
 {
 	struct ssb_bus *bus = mcore->dev->bus;
 
-	if (bus->extif.dev)
+	if (ssb_extif_available(&bus->extif))
 		mcore->nr_serial_ports = ssb_extif_serial_init(&bus->extif, mcore->serial_ports);
-	else if (bus->chipco.dev)
+	else if (ssb_chipco_available(&bus->chipco))
 		mcore->nr_serial_ports = ssb_chipco_serial_init(&bus->chipco, mcore->serial_ports);
 	else
 		mcore->nr_serial_ports = 0;
@@ -190,16 +190,32 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 {
 	struct ssb_bus *bus = mcore->dev->bus;
 
-	mcore->flash_buswidth = 2;
-	if (bus->chipco.dev) {
-		mcore->flash_window = 0x1c000000;
-		mcore->flash_window_size = 0x02000000;
+	/* When there is no chipcommon on the bus there is 4MB flash */
+	if (!ssb_chipco_available(&bus->chipco)) {
+		mcore->pflash.present = true;
+		mcore->pflash.buswidth = 2;
+		mcore->pflash.window = SSB_FLASH1;
+		mcore->pflash.window_size = SSB_FLASH1_SZ;
+		return;
+	}
+
+	/* There is ChipCommon, so use it to read info about flash */
+	switch (bus->chipco.capabilities & SSB_CHIPCO_CAP_FLASHT) {
+	case SSB_CHIPCO_FLASHT_STSER:
+	case SSB_CHIPCO_FLASHT_ATSER:
+		pr_err("Serial flash not supported\n");
+		break;
+	case SSB_CHIPCO_FLASHT_PARA:
+		pr_debug("Found parallel flash\n");
+		mcore->pflash.present = true;
+		mcore->pflash.window = SSB_FLASH2;
+		mcore->pflash.window_size = SSB_FLASH2_SZ;
 		if ((ssb_read32(bus->chipco.dev, SSB_CHIPCO_FLASH_CFG)
 		               & SSB_CHIPCO_CFG_DS16) == 0)
-			mcore->flash_buswidth = 1;
-	} else {
-		mcore->flash_window = 0x1fc00000;
-		mcore->flash_window_size = 0x00400000;
+			mcore->pflash.buswidth = 1;
+		else
+			mcore->pflash.buswidth = 2;
+		break;
 	}
 }
 
@@ -211,9 +227,9 @@ u32 ssb_cpu_clock(struct ssb_mipscore *mcore)
 	if (bus->chipco.capabilities & SSB_CHIPCO_CAP_PMU)
 		return ssb_pmu_get_cpu_clock(&bus->chipco);
 
-	if (bus->extif.dev) {
+	if (ssb_extif_available(&bus->extif)) {
 		ssb_extif_get_clockcontrol(&bus->extif, &pll_type, &n, &m);
-	} else if (bus->chipco.dev) {
+	} else if (ssb_chipco_available(&bus->chipco)) {
 		ssb_chipco_get_clockcpu(&bus->chipco, &pll_type, &n, &m);
 	} else
 		return 0;
@@ -249,9 +265,9 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 		hz = 100000000;
 	ns = 1000000000 / hz;
 
-	if (bus->extif.dev)
+	if (ssb_extif_available(&bus->extif))
 		ssb_extif_timing_init(&bus->extif, ns);
-	else if (bus->chipco.dev)
+	else if (ssb_chipco_available(&bus->chipco))
 		ssb_chipco_timing_init(&bus->chipco, ns);
 
 	/* Assign IRQs to all cores on the bus, start with irq line 2, because serial usually takes 1 */

@@ -19,8 +19,7 @@
 #include <linux/err.h>
 #include <linux/amba/bus.h>
 #include <linux/regulator/consumer.h>
-
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include "dmaengine.h"
 #include "ste_dma40_ll.h"
@@ -2347,7 +2346,8 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 static struct dma_async_tx_descriptor *
 dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		     size_t buf_len, size_t period_len,
-		     enum dma_transfer_direction direction, void *context)
+		     enum dma_transfer_direction direction, unsigned long flags,
+		     void *context)
 {
 	unsigned int periods = buf_len / period_len;
 	struct dma_async_tx_descriptor *txd;
@@ -2920,19 +2920,23 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	struct d40_base *base = NULL;
 	int num_log_chans = 0;
 	int num_phy_chans;
+	int clk_ret = -EINVAL;
 	int i;
 	u32 pid;
 	u32 cid;
 	u8 rev;
 
 	clk = clk_get(&pdev->dev, NULL);
-
 	if (IS_ERR(clk)) {
 		d40_err(&pdev->dev, "No matching clock found\n");
 		goto failure;
 	}
 
-	clk_enable(clk);
+	clk_ret = clk_prepare_enable(clk);
+	if (clk_ret) {
+		d40_err(&pdev->dev, "Failed to prepare/enable clock\n");
+		goto failure;
+	}
 
 	/* Get IO for DMAC base address */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "base");
@@ -3062,10 +3066,10 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	return base;
 
 failure:
-	if (!IS_ERR(clk)) {
-		clk_disable(clk);
+	if (!clk_ret)
+		clk_disable_unprepare(clk);
+	if (!IS_ERR(clk))
 		clk_put(clk);
-	}
 	if (virtbase)
 		iounmap(virtbase);
 	if (res)

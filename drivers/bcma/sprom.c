@@ -507,7 +507,9 @@ static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
 		/* for these chips OTP is always available */
 		present = true;
 		break;
+	case BCMA_CHIP_ID_BCM43227:
 	case BCMA_CHIP_ID_BCM43228:
+	case BCMA_CHIP_ID_BCM43428:
 		present = chip_status & BCMA_CC_CHIPST_43228_OTP_PRESENT;
 		break;
 	default:
@@ -593,8 +595,11 @@ int bcma_sprom_get(struct bcma_bus *bus)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, true);
 
 	err = bcma_sprom_valid(sprom);
-	if (err)
+	if (err) {
+		bcma_warn(bus, "invalid sprom read from the PCIe card, try to use fallback sprom\n");
+		err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
 		goto out;
+	}
 
 	bcma_sprom_extract_r8(bus, sprom);
 

@@ -668,7 +668,7 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "Insufficient resources.\n");
 		ret = -EFAULT;
-		goto irq_err;
+		goto err;
 	}
 	port->irq = res->start;
 
@@ -676,7 +676,7 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 		sirfport->p = pinctrl_get_select_default(&pdev->dev);
 		ret = IS_ERR(sirfport->p);
 		if (ret)
-			goto pin_err;
+			goto err;
 	}
 
 	port->ops = &sirfsoc_uart_ops;
@@ -695,9 +695,6 @@ port_err:
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-pin_err:
-irq_err:
-	devm_iounmap(&pdev->dev, port->membase);
 err:
 	return ret;
 }
@@ -709,7 +706,6 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-	devm_iounmap(&pdev->dev, port->membase);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;
 }
@@ -731,7 +727,7 @@ static int sirfsoc_uart_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id sirfsoc_uart_ids[] __devinitdata = {
+static struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", },
 	{}
 };
@@ -739,7 +735,7 @@ MODULE_DEVICE_TABLE(of, sirfsoc_serial_of_match);
 
 static struct platform_driver sirfsoc_uart_driver = {
 	.probe		= sirfsoc_uart_probe,
-	.remove		= __devexit_p(sirfsoc_uart_remove),
+	.remove		= sirfsoc_uart_remove,
 	.suspend	= sirfsoc_uart_suspend,
 	.resume		= sirfsoc_uart_resume,
 	.driver		= {

@@ -33,6 +33,9 @@
  */
 
 /dts-v1/;
+
+/include/ "e500v2_power_isa.dtsi"
+
 / {
 	compatible = "fsl,MPC8544";
 	#address-cells = <2>;

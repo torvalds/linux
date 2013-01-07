@@ -26,6 +26,7 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #define REFRESH_INTERVAL	(2 * HZ)
 #define DRVNAME			"ibmpex"

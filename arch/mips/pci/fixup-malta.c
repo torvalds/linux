@@ -8,7 +8,8 @@
 #define PCID		4
 
 /* This table is filled in by interrogating the PIIX4 chip */
-static char pci_irq[5] __initdata;
+static char pci_irq[5] __devinitdata = {
+};
 
 static char irq_tab[][5] __initdata = {
 	/*      INTA    INTB    INTC    INTD */

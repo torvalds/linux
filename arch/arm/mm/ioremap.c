@@ -36,6 +36,7 @@
 #include <asm/system_info.h>
 
 #include <asm/mach/map.h>
+#include <asm/mach/pci.h>
 #include "mm.h"
 
 int ioremap_page(unsigned long virt, unsigned long phys,
@@ -46,18 +47,18 @@ int ioremap_page(unsigned long virt, unsigned long phys,
 }
 EXPORT_SYMBOL(ioremap_page);
 
-void __check_kvm_seq(struct mm_struct *mm)
+void __check_vmalloc_seq(struct mm_struct *mm)
 {
 	unsigned int seq;
 
 	do {
-		seq = init_mm.context.kvm_seq;
+		seq = init_mm.context.vmalloc_seq;
 		memcpy(pgd_offset(mm, VMALLOC_START),
 		       pgd_offset_k(VMALLOC_START),
 		       sizeof(pgd_t) * (pgd_index(VMALLOC_END) -
 					pgd_index(VMALLOC_START)));
-		mm->context.kvm_seq = seq;
-	} while (seq != init_mm.context.kvm_seq);
+		mm->context.vmalloc_seq = seq;
+	} while (seq != init_mm.context.vmalloc_seq);
 }
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
@@ -88,13 +89,13 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 		if (!pmd_none(pmd)) {
 			/*
 			 * Clear the PMD from the page table, and
-			 * increment the kvm sequence so others
+			 * increment the vmalloc sequence so others
 			 * notice this change.
 			 *
 			 * Note: this is still racy on SMP machines.
 			 */
 			pmd_clear(pmdp);
-			init_mm.context.kvm_seq++;
+			init_mm.context.vmalloc_seq++;
 
 			/*
 			 * Free the page table, if there was one.
@@ -111,8 +112,8 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 	 * Ensure that the active_mm is up to date - we want to
 	 * catch any use-after-iounmap cases.
 	 */
-	if (current->active_mm->context.kvm_seq != init_mm.context.kvm_seq)
-		__check_kvm_seq(current->active_mm);
+	if (current->active_mm->context.vmalloc_seq != init_mm.context.vmalloc_seq)
+		__check_vmalloc_seq(current->active_mm);
 
 	flush_tlb_kernel_range(virt, end);
 }
@@ -247,6 +248,7 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
+	area->phys_addr = __pfn_to_phys(pfn);
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 	if (DOMAIN_IO == 0 &&
@@ -383,3 +385,16 @@ void __arm_iounmap(volatile void __iomem *io_addr)
 	arch_iounmap(io_addr);
 }
 EXPORT_SYMBOL(__arm_iounmap);
+
+#ifdef CONFIG_PCI
+int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
+{
+	BUG_ON(offset + SZ_64K > IO_SPACE_LIMIT);
+
+	return ioremap_page_range(PCI_IO_VIRT_BASE + offset,
+				  PCI_IO_VIRT_BASE + offset + SZ_64K,
+				  phys_addr,
+				  __pgprot(get_mem_type(MT_DEVICE)->prot_pte));
+}
+EXPORT_SYMBOL_GPL(pci_ioremap_io);
+#endif

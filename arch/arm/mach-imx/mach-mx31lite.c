@@ -39,13 +39,12 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/board-mx31lite.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
-
+#include "board-mx31lite.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains the module-specific initialization routines.
@@ -207,7 +206,7 @@ static struct platform_device physmap_flash_device = {
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = MX31_CS4_BASE_ADDR_VIRT,
+		.virtual = (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length = MX31_CS4_SIZE,
 		.type = MT_DEVICE

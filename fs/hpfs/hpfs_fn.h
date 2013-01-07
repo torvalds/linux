@@ -63,8 +63,8 @@ struct hpfs_sb_info {
 	unsigned sb_dmap;		/* sector number of dnode bit map */
 	unsigned sb_n_free;		/* free blocks for statfs, or -1 */
 	unsigned sb_n_free_dnodes;	/* free dnodes for statfs, or -1 */
-	uid_t sb_uid;			/* uid from mount options */
-	gid_t sb_gid;			/* gid from mount options */
+	kuid_t sb_uid;			/* uid from mount options */
+	kgid_t sb_gid;			/* gid from mount options */
 	umode_t sb_mode;		/* mode from mount options */
 	unsigned sb_eas : 2;		/* eas: 0-ignore, 1-ro, 2-rw */
 	unsigned sb_err : 2;		/* on errs: 0-cont, 1-ro, 2-panic */
@@ -252,6 +252,7 @@ void hpfs_set_ea(struct inode *, struct fnode *, const char *,
 /* file.c */
 
 int hpfs_file_fsync(struct file *, loff_t, loff_t, int);
+void hpfs_truncate(struct inode *);
 extern const struct file_operations hpfs_file_ops;
 extern const struct inode_operations hpfs_file_iops;
 extern const struct address_space_operations hpfs_aops;

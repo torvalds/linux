@@ -26,6 +26,12 @@
 
 #include "omap-pcm.h"
 
+#ifdef CONFIG_ARCH_OMAP1
+#define mcbsp_omap1()	1
+#else
+#define mcbsp_omap1()	0
+#endif
+
 /* McBSP register numbers. Register address offset = num * reg_step */
 enum {
 	/* Common registers */
@@ -334,9 +340,6 @@ void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
 /* McBSP functional clock source changing function */
 int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
 
-/* McBSP signal muxing API */
-int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux);
-
 /* Sidetone specific API */
 int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);
 int omap_st_get_chgain(struct omap_mcbsp *mcbsp, int channel, s16 *chgain);
@@ -344,7 +347,7 @@ int omap_st_enable(struct omap_mcbsp *mcbsp);
 int omap_st_disable(struct omap_mcbsp *mcbsp);
 int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
 
-int __devinit omap_mcbsp_init(struct platform_device *pdev);
-void __devexit omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_init(struct platform_device *pdev);
+void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
 
 #endif /* __ASOC_MCBSP_H */

@@ -489,8 +489,8 @@ static struct snd_soc_codec_driver adau1701_codec_drv = {
 	.set_sysclk		= adau1701_set_sysclk,
 };
 
-static __devinit int adau1701_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int adau1701_i2c_probe(struct i2c_client *client,
+			      const struct i2c_device_id *id)
 {
 	struct adau1701 *adau1701;
 	int ret;
@@ -505,7 +505,7 @@ static __devinit int adau1701_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static __devexit int adau1701_i2c_remove(struct i2c_client *client)
+static int adau1701_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -523,21 +523,11 @@ static struct i2c_driver adau1701_i2c_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adau1701_i2c_probe,
-	.remove		= __devexit_p(adau1701_i2c_remove),
+	.remove		= adau1701_i2c_remove,
 	.id_table	= adau1701_i2c_id,
 };
 
-static int __init adau1701_init(void)
-{
-	return i2c_add_driver(&adau1701_i2c_driver);
-}
-module_init(adau1701_init);
-
-static void __exit adau1701_exit(void)
-{
-	i2c_del_driver(&adau1701_i2c_driver);
-}
-module_exit(adau1701_exit);
+module_i2c_driver(adau1701_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC ADAU1701 SigmaDSP driver");
 MODULE_AUTHOR("Cliff Cai <cliff.cai@analog.com>");

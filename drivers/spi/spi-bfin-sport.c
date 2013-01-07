@@ -467,7 +467,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 		dev_dbg(drv_data->dev, "IO write error!\n");
 		drv_data->state = ERROR_STATE;
 	} else {
-		/* Update total byte transfered */
+		/* Update total byte transferred */
 		message->actual_length += transfer->len;
 		/* Move to next transfer of this msg */
 		drv_data->state = bfin_sport_spi_next_transfer(drv_data);
@@ -755,8 +755,7 @@ bfin_sport_spi_destroy_queue(struct bfin_sport_spi_master_data *drv_data)
 	return 0;
 }
 
-static int __devinit
-bfin_sport_spi_probe(struct platform_device *pdev)
+static int bfin_sport_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
@@ -863,8 +862,7 @@ bfin_sport_spi_probe(struct platform_device *pdev)
 }
 
 /* stop hardware and remove the driver */
-static int __devexit
-bfin_sport_spi_remove(struct platform_device *pdev)
+static int bfin_sport_spi_remove(struct platform_device *pdev)
 {
 	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
 	int status = 0;
@@ -935,7 +933,7 @@ static struct platform_driver bfin_sport_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe   = bfin_sport_spi_probe,
-	.remove  = __devexit_p(bfin_sport_spi_remove),
+	.remove  = bfin_sport_spi_remove,
 	.suspend = bfin_sport_spi_suspend,
 	.resume  = bfin_sport_spi_resume,
 };

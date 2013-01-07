@@ -13,6 +13,21 @@
 #include <linux/regulator/ab8500.h>
 #include "board-mop500-regulators.h"
 
+static struct regulator_consumer_supply gpio_en_3v3_consumers[] = {
+       REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
+struct regulator_init_data gpio_en_3v3_regulator = {
+       .constraints = {
+               .name = "EN-3V3",
+               .min_uV = 3300000,
+               .max_uV = 3300000,
+               .valid_ops_mask = REGULATOR_CHANGE_STATUS,
+       },
+       .num_consumer_supplies = ARRAY_SIZE(gpio_en_3v3_consumers),
+       .consumer_supplies = gpio_en_3v3_consumers,
+};
+
 /*
  * TPS61052 regulator
  */

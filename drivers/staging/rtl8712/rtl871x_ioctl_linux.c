@@ -407,9 +407,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 	if (param_len != (u32)((u8 *) param->u.crypt.key - (u8 *)param) +
 			 param->u.crypt.key_len)
 		return -EINVAL;
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= WEP_KEYS) {
 			/* for large key indices, set the default (0) */
 			param->u.crypt.idx = 0;
@@ -2112,10 +2110,10 @@ static int r871x_wps_start(struct net_device *dev,
 	struct iw_point *pdata = &wrqu->data;
 	u32   u32wps_start = 0;
 
-	if (copy_from_user((void *)&u32wps_start, pdata->pointer, 4))
-		return -EFAULT;
 	if ((padapter->bDriverStopped) || (pdata == NULL))
 		return -EINVAL;
+	if (copy_from_user((void *)&u32wps_start, pdata->pointer, 4))
+		return -EFAULT;
 	if (u32wps_start == 0)
 		u32wps_start = *extra;
 	if (u32wps_start == 1) /* WPS Start */

@@ -530,7 +530,7 @@ struct bfa_diag_results_fwping {
 
 struct bfa_diag_qtest_result_s {
 	u32	status;
-	u16	count;	/* sucessful queue test count */
+	u16	count;	/* successful queue test count */
 	u8	queue;
 	u8	rsvd;	/* 64-bit align */
 };
@@ -702,6 +702,55 @@ void bfa_phy_memclaim(struct bfa_phy_s *phy,
 void bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg);
 
 /*
+ * FRU module specific
+ */
+typedef void (*bfa_cb_fru_t) (void *cbarg, bfa_status_t status);
+
+struct bfa_fru_s {
+	struct bfa_ioc_s *ioc;		/* back pointer to ioc */
+	struct bfa_trc_mod_s *trcmod;	/* trace module */
+	u8		op_busy;	/* operation busy flag */
+	u8		rsv[3];
+	u32		residue;	/* residual length */
+	u32		offset;		/* offset */
+	bfa_status_t	status;		/* status */
+	u8		*dbuf_kva;	/* dma buf virtual address */
+	u64		dbuf_pa;	/* dma buf physical address */
+	struct bfa_reqq_wait_s reqq_wait; /* to wait for room in reqq */
+	bfa_cb_fru_t	cbfn;		/* user callback function */
+	void		*cbarg;		/* user callback arg */
+	u8		*ubuf;		/* user supplied buffer */
+	struct bfa_cb_qe_s	hcb_qe;	/* comp: BFA callback qelem */
+	u32		addr_off;	/* fru address offset */
+	struct bfa_mbox_cmd_s mb;	/* mailbox */
+	struct bfa_ioc_notify_s ioc_notify; /* ioc event notify */
+	struct bfa_mem_dma_s	fru_dma;
+};
+
+#define BFA_FRU(__bfa)	(&(__bfa)->modules.fru)
+#define BFA_MEM_FRU_DMA(__bfa)	(&(BFA_FRU(__bfa)->fru_dma))
+
+bfa_status_t bfa_fruvpd_update(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_fruvpd_read(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_fruvpd_get_max_size(struct bfa_fru_s *fru, u32 *max_size);
+bfa_status_t bfa_tfru_write(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_tfru_read(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+u32	bfa_fru_meminfo(bfa_boolean_t mincfg);
+void bfa_fru_attach(struct bfa_fru_s *fru, struct bfa_ioc_s *ioc,
+		void *dev, struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg);
+void bfa_fru_memclaim(struct bfa_fru_s *fru,
+		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
+void bfa_fru_intr(void *fruarg, struct bfi_mbmsg_s *msg);
+
+/*
  * Driver Config( dconf) specific
  */
 #define BFI_DCONF_SIGNATURE	0xabcdabcd
@@ -716,6 +765,7 @@ struct bfa_dconf_hdr_s {
 struct bfa_dconf_s {
 	struct bfa_dconf_hdr_s		hdr;
 	struct bfa_lunmask_cfg_s	lun_mask;
+	struct bfa_throttle_cfg_s	throttle_cfg;
 };
 #pragma pack()
 
@@ -738,6 +788,8 @@ struct bfa_dconf_mod_s {
 #define bfa_dconf_read_data_valid(__bfa)	\
 	(BFA_DCONF_MOD(__bfa)->read_data_valid)
 #define BFA_DCONF_UPDATE_TOV	5000	/* memtest timeout in msec */
+#define bfa_dconf_get_min_cfg(__bfa)	\
+	(BFA_DCONF_MOD(__bfa)->min_cfg)
 
 void	bfa_dconf_modinit(struct bfa_s *bfa);
 void	bfa_dconf_modexit(struct bfa_s *bfa);
@@ -761,7 +813,8 @@ bfa_status_t	bfa_dconf_update(struct bfa_s *bfa);
 #define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
 #define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\
-	BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop)
+	((bfa_ioc_is_cna(__ioc)) ? BFA_PORT_SPEED_10GBPS :	\
+	 BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop))
 #define bfa_ioc_get_nports(__ioc)	\
 	BFI_ADAPTER_GETP(NPORTS, (__ioc)->attr->adapter_prop)
 
@@ -820,6 +873,7 @@ void bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa,
 		struct bfa_ioc_cbfn_s *cbfn, struct bfa_timer_mod_s *timer_mod);
 void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
 void bfa_ioc_detach(struct bfa_ioc_s *ioc);
+void bfa_ioc_suspend(struct bfa_ioc_s *ioc);
 void bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 		enum bfi_pcifn_class clscode);
 void bfa_ioc_mem_claim(struct bfa_ioc_s *ioc,  u8 *dm_kva, u64 dm_pa);
@@ -866,6 +920,7 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 void bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event);
 bfa_status_t bfa_ioc_fw_stats_get(struct bfa_ioc_s *ioc, void *stats);
 bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
+void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
 
 /*
  * asic block configuration related APIs
@@ -883,12 +938,12 @@ bfa_status_t bfa_ablk_port_config(struct bfa_ablk_s *ablk, int port,
 		enum bfa_mode_s mode, int max_pf, int max_vf,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
-		u8 port, enum bfi_pcifn_class personality, int bw,
-		bfa_ablk_cbfn_t cbfn, void *cbarg);
+		u8 port, enum bfi_pcifn_class personality,
+		u16 bw_min, u16 bw_max, bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_pf_delete(struct bfa_ablk_s *ablk, int pcifn,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
-bfa_status_t bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
-		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn,
+		u16 bw_min, u16 bw_max, bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_optrom_en(struct bfa_ablk_s *ablk,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_optrom_dis(struct bfa_ablk_s *ablk,

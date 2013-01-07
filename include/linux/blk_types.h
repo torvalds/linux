@@ -59,12 +59,6 @@ struct bio {
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
 
-	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
-
-	atomic_t		bi_cnt;		/* pin count */
-
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
-
 	bio_end_io_t		*bi_end_io;
 
 	void			*bi_private;
@@ -80,7 +74,17 @@ struct bio {
 	struct bio_integrity_payload *bi_integrity;  /* data integrity */
 #endif
 
-	bio_destructor_t	*bi_destructor;	/* destructor */
+	/*
+	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
+	 */
+
+	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+
+	atomic_t		bi_cnt;		/* pin count */
+
+	struct bio_vec		*bi_io_vec;	/* the actual vec list */
+
+	struct bio_set		*bi_pool;
 
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid
@@ -89,6 +93,8 @@ struct bio {
 	 */
 	struct bio_vec		bi_inline_vecs[0];
 };
+
+#define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
 
 /*
  * bio flags
@@ -105,6 +111,13 @@ struct bio {
 #define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
 #define BIO_QUIET	10	/* Make BIO Quiet */
 #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
+
+/*
+ * Flags starting here get preserved by bio_reset() - this includes
+ * BIO_POOL_IDX()
+ */
+#define BIO_RESET_BITS	12
+
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
@@ -134,6 +147,7 @@ enum rq_flag_bits {
 	__REQ_PRIO,		/* boost priority in cfq */
 	__REQ_DISCARD,		/* request to discard sectors */
 	__REQ_SECURE,		/* secure discard (used with __REQ_DISCARD) */
+	__REQ_WRITE_SAME,	/* write same block many times */
 
 	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
 	__REQ_FUA,		/* forced unit access */
@@ -172,14 +186,20 @@ enum rq_flag_bits {
 #define REQ_META		(1 << __REQ_META)
 #define REQ_PRIO		(1 << __REQ_PRIO)
 #define REQ_DISCARD		(1 << __REQ_DISCARD)
+#define REQ_WRITE_SAME		(1 << __REQ_WRITE_SAME)
 #define REQ_NOIDLE		(1 << __REQ_NOIDLE)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_PRIO | \
-	 REQ_DISCARD | REQ_NOIDLE | REQ_FLUSH | REQ_FUA | REQ_SECURE)
+	 REQ_DISCARD | REQ_WRITE_SAME | REQ_NOIDLE | REQ_FLUSH | REQ_FUA | \
+	 REQ_SECURE)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
+
+/* This mask is used for both bio and request merge checking */
+#define REQ_NOMERGE_FLAGS \
+	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
 
 #define REQ_RAHEAD		(1 << __REQ_RAHEAD)
 #define REQ_THROTTLED		(1 << __REQ_THROTTLED)

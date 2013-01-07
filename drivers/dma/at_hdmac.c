@@ -168,9 +168,9 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 }
 
 /**
- * atc_desc_chain - build chain adding a descripor
- * @first: address of first descripor of the chain
- * @prev: address of previous descripor of the chain
+ * atc_desc_chain - build chain adding a descriptor
+ * @first: address of first descriptor of the chain
+ * @prev: address of previous descriptor of the chain
  * @desc: descriptor to queue
  *
  * Called from prep_* functions
@@ -796,7 +796,7 @@ err_out:
 }
 
 /**
- * atc_dma_cyclic_fill_desc - Fill one period decriptor
+ * atc_dma_cyclic_fill_desc - Fill one period descriptor
  */
 static int
 atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
@@ -852,12 +852,13 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
  * @buf_len: total number of bytes for the entire buffer
  * @period_len: number of bytes for each period
  * @direction: transfer direction, to or from device
+ * @flags: tx descriptor status flags
  * @context: transfer context (ignored)
  */
 static struct dma_async_tx_descriptor *
 atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		void *context)
+		unsigned long flags, void *context)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;

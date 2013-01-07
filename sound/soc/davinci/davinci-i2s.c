@@ -16,14 +16,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/platform_data/davinci_asp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-
-#include <mach/asp.h>
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
@@ -732,8 +731,16 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_release_clk;
 
+	ret = davinci_soc_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		goto err_unregister_dai;
+	}
+
 	return 0;
 
+err_unregister_dai:
+	snd_soc_unregister_dai(&pdev->dev);
 err_release_clk:
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
@@ -745,6 +752,8 @@ static int davinci_i2s_remove(struct platform_device *pdev)
 	struct davinci_mcbsp_dev *dev = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_dai(&pdev->dev);
+	davinci_soc_platform_unregister(&pdev->dev);
+
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;

@@ -6,19 +6,18 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/i2c/pxa-i2c.h>
 
-#include <asm/pmu.h>
 #include <mach/udc.h>
-#include <mach/pxa3xx-u2d.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
 #include <mach/irqs.h>
-#include <mach/ohci.h>
-#include <plat/pxa27x_keypad.h>
-#include <mach/camera.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/keypad-pxa27x.h>
+#include <linux/platform_data/camera-pxa.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -42,7 +41,7 @@ static struct resource pxa_resource_pmu = {
 
 struct platform_device pxa_device_pmu = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.resource	= &pxa_resource_pmu,
 	.num_resources	= 1,
 };
@@ -384,9 +383,24 @@ struct platform_device pxa_device_asoc_platform = {
 
 static u64 pxaficp_dmamask = ~(u32)0;
 
+static struct resource pxa_ir_resources[] = {
+	[0] = {
+		.start  = IRQ_STUART,
+		.end    = IRQ_STUART,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start  = IRQ_ICP,
+		.end    = IRQ_ICP,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 struct platform_device pxa_device_ficp = {
 	.name		= "pxa2xx-ir",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pxa_ir_resources),
+	.resource	= pxa_ir_resources,
 	.dev		= {
 		.dma_mask = &pxaficp_dmamask,
 		.coherent_dma_mask = 0xffffffff,
@@ -689,7 +703,7 @@ void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 }
 #endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 static struct resource pxa27x_resource_keypad[] = {
 	[0] = {
 		.start	= 0x41500000,
@@ -858,7 +872,7 @@ struct platform_device pxa27x_device_pwm1 = {
 	.resource	= pxa27x_resource_pwm1,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm1),
 };
-#endif /* CONFIG_PXA27x || CONFIG_PXA3xx || CONFIG_PXA95x*/
+#endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
 #ifdef CONFIG_PXA3xx
 static struct resource pxa3xx_resources_mci2[] = {
@@ -967,7 +981,7 @@ struct platform_device pxa3xx_device_gcu = {
 
 #endif /* CONFIG_PXA3xx */
 
-#if defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
+#if defined(CONFIG_PXA3xx)
 static struct resource pxa3xx_resources_i2c_power[] = {
 	{
 		.start  = 0x40f500c0,
@@ -1068,7 +1082,7 @@ struct platform_device pxa3xx_device_ssp4 = {
 	.resource	= pxa3xx_resource_ssp4,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resource_ssp4),
 };
-#endif /* CONFIG_PXA3xx || CONFIG_PXA95x */
+#endif /* CONFIG_PXA3xx */
 
 struct resource pxa_resource_gpio[] = {
 	{

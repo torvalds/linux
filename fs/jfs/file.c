@@ -108,8 +108,8 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if (is_quota_modification(inode, iattr))
 		dquot_initialize(inode);
-	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
-	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
+	if ((iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)) ||
+	    (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid))) {
 		rc = dquot_transfer(inode, iattr);
 		if (rc)
 			return rc;
@@ -119,9 +119,12 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	    iattr->ia_size != i_size_read(inode)) {
 		inode_dio_wait(inode);
 
-		rc = vmtruncate(inode, iattr->ia_size);
+		rc = inode_newsize_ok(inode, iattr->ia_size);
 		if (rc)
 			return rc;
+
+		truncate_setsize(inode, iattr->ia_size);
+		jfs_truncate(inode);
 	}
 
 	setattr_copy(inode, iattr);
@@ -133,7 +136,6 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 }
 
 const struct inode_operations jfs_file_inode_operations = {
-	.truncate	= jfs_truncate,
 	.setxattr	= jfs_setxattr,
 	.getxattr	= jfs_getxattr,
 	.listxattr	= jfs_listxattr,

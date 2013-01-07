@@ -81,6 +81,18 @@ config MMC_RICOH_MMC
 
 	  If unsure, say Y.
 
+config MMC_SDHCI_ACPI
+	tristate "SDHCI support for ACPI enumerated SDHCI controllers"
+	depends on MMC_SDHCI && ACPI
+	help
+	  This selects support for ACPI enumerated SDHCI controllers,
+	  identified by ACPI Compatibility ID PNP0D40 or specific
+	  ACPI Hardware IDs.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_PLTFM
 	tristate "SDHCI platform and OF driver helper"
 	depends on MMC_SDHCI
@@ -270,26 +282,8 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
-choice
-	prompt "Atmel SD/MMC Driver"
-	depends on AVR32 || ARCH_AT91
-	default MMC_ATMELMCI if AVR32
-	help
-	  Choose which driver to use for the Atmel MCI Silicon
-
-config MMC_AT91
-	tristate "AT91 SD/MMC Card Interface support (DEPRECATED)"
-	depends on ARCH_AT91
-	help
-	  This selects the AT91 MCI controller. This driver will
-	  be removed soon (for more information have a look to
-	  Documentation/feature-removal-schedule.txt). Please use
-	  MMC_ATMEL_MCI.
-
-	  If unsure, say N.
-
 config MMC_ATMELMCI
-	tristate "Atmel Multimedia Card Interface support"
+	tristate "Atmel SD/MMC Driver (Multimedia Card Interface)"
 	depends on AVR32 || ARCH_AT91
 	help
 	  This selects the Atmel Multimedia Card Interface driver. If
@@ -297,8 +291,6 @@ config MMC_ATMELMCI
 	  Card slot, say Y or M here.
 
 	  If unsure, say N.
-
-endchoice
 
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support"
@@ -540,6 +532,15 @@ config MMC_DW_PLTFM
 
 	  If unsure, say Y.
 
+config MMC_DW_EXYNOS
+	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Samsung Exynos SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on Exynos4 and Exynos5 SoC's.
+
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"
 	depends on MMC_DW && PCI
@@ -612,3 +613,21 @@ config MMC_USHC
 
 	  Note: These controllers only support SDIO cards and do not
 	  support MMC or SD memory cards.
+
+config MMC_WMT
+	tristate "Wondermedia SD/MMC Host Controller support"
+	depends on ARCH_VT8500
+	default y
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Wondermedia WM8505/WM8650 based SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wmt-sdmmc.
+
+config MMC_REALTEK_PCI
+	tristate "Realtek PCI-E SD/MMC Card Interface Driver"
+	depends on MFD_RTSX_PCI
+	help
+	  Say Y here to include driver code to support SD/MMC card interface
+	  of Realtek PCI-E card reader

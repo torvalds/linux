@@ -24,8 +24,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "mcbsp.h"
 
@@ -609,7 +610,7 @@ void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 	 * system will refuse to enter idle if the CLKS pin source is not reset
 	 * back to internal source.
 	 */
-	if (!cpu_class_is_omap1())
+	if (!mcbsp_omap1())
 		omap2_mcbsp_set_clks_src(mcbsp, MCBSP_CLKS_PRCM_SRC);
 
 	spin_lock(&mcbsp->lock);
@@ -726,50 +727,39 @@ void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx)
 
 int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 {
+	struct clk *fck_src;
 	const char *src;
+	int r;
 
 	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
-		src = "clks_ext";
+		src = "pad_fck";
 	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
-		src = "clks_fclk";
+		src = "prcm_fck";
 	else
 		return -EINVAL;
 
-	if (mcbsp->pdata->set_clk_src)
-		return mcbsp->pdata->set_clk_src(mcbsp->dev, mcbsp->fclk, src);
-	else
-		return -EINVAL;
-}
-
-int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
-{
-	const char *signal, *src;
-
-	if (!mcbsp->pdata->mux_signal)
-		return -EINVAL;
-
-	switch (mux) {
-	case CLKR_SRC_CLKR:
-		signal = "clkr";
-		src = "clkr";
-		break;
-	case CLKR_SRC_CLKX:
-		signal = "clkr";
-		src = "clkx";
-		break;
-	case FSR_SRC_FSR:
-		signal = "fsr";
-		src = "fsr";
-		break;
-	case FSR_SRC_FSX:
-		signal = "fsr";
-		src = "fsx";
-		break;
-	default:
+	fck_src = clk_get(mcbsp->dev, src);
+	if (IS_ERR(fck_src)) {
+		dev_err(mcbsp->dev, "CLKS: could not clk_get() %s\n", src);
 		return -EINVAL;
 	}
 
-	return mcbsp->pdata->mux_signal(mcbsp->dev, signal, src);
+	pm_runtime_put_sync(mcbsp->dev);
+
+	r = clk_set_parent(mcbsp->fclk, fck_src);
+	if (r) {
+		dev_err(mcbsp->dev, "CLKS: could not clk_set_parent() to %s\n",
+			src);
+		clk_put(fck_src);
+		return r;
+	}
+
+	pm_runtime_get_sync(mcbsp->dev);
+
+	clk_put(fck_src);
+
+	return 0;
+
 }
 
 #define max_thres(m)			(mcbsp->pdata->buffer_size)
@@ -940,8 +930,7 @@ static const struct attribute_group sidetone_attr_group = {
 	.attrs = (struct attribute **)sidetone_attrs,
 };
 
-static int __devinit omap_st_add(struct omap_mcbsp *mcbsp,
-				 struct resource *res)
+static int omap_st_add(struct omap_mcbsp *mcbsp, struct resource *res)
 {
 	struct omap_mcbsp_st_data *st_data;
 	int err;
@@ -967,7 +956,7 @@ static int __devinit omap_st_add(struct omap_mcbsp *mcbsp,
  * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.
  * 730 has only 2 McBSP, and both of them are MPU peripherals.
  */
-int __devinit omap_mcbsp_init(struct platform_device *pdev)
+int omap_mcbsp_init(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -1095,7 +1084,7 @@ err_thres:
 	return ret;
 }
 
-void __devexit omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp)
+void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp)
 {
 	if (mcbsp->pdata->buffer_size)
 		sysfs_remove_group(&mcbsp->dev->kobj, &additional_attr_group);

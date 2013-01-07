@@ -28,21 +28,16 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mcspi.h>
-#include <plat/board.h>
 #include "common.h"
-#include <plat/gpmc.h>
-#include <mach/board-zoom.h>
-
-#include <asm/delay.h>
-#include <plat/usb.h>
-#include <plat/gpmc-smsc911x.h>
+#include "board-zoom.h"
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
@@ -275,9 +270,6 @@ static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 }
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup		= ldp_twl_gpio_setup,
 };
 
@@ -427,8 +419,8 @@ static void __init omap_ldp_init(void)
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	usb_musb_init(NULL);
-	board_nand_init(ldp_nand_partitions,
-		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
+	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
+			ZOOM_NAND_CS, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();
@@ -444,5 +436,5 @@ MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.init_machine	= omap_ldp_init,
 	.init_late	= omap3430_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

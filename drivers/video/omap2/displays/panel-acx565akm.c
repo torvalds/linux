@@ -600,6 +600,9 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 
 	mutex_lock(&md->mutex);
 
+	omapdss_sdi_set_timings(dssdev, &dssdev->panel.timings);
+	omapdss_sdi_set_datapairs(dssdev, dssdev->phy.sdi.datapairs);
+
 	r = omapdss_sdi_display_enable(dssdev);
 	if (r) {
 		pr_err("%s sdi enable failed\n", __func__);
@@ -707,42 +710,12 @@ static void acx_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static int acx_panel_suspend(struct omap_dss_device *dssdev)
-{
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	acx_panel_power_off(dssdev);
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	return 0;
-}
-
-static int acx_panel_resume(struct omap_dss_device *dssdev)
-{
-	int r;
-
-	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	r = acx_panel_power_on(dssdev);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-	return 0;
-}
-
 static void acx_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	int r;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-		omapdss_sdi_display_disable(dssdev);
+	omapdss_sdi_set_timings(dssdev, timings);
 
 	dssdev->panel.timings = *timings;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		r = omapdss_sdi_display_enable(dssdev);
-		if (r)
-			dev_err(&dssdev->dev, "%s enable failed\n", __func__);
-	}
 }
 
 static int acx_panel_check_timings(struct omap_dss_device *dssdev,
@@ -758,8 +731,6 @@ static struct omap_dss_driver acx_panel_driver = {
 
 	.enable		= acx_panel_enable,
 	.disable	= acx_panel_disable,
-	.suspend	= acx_panel_suspend,
-	.resume		= acx_panel_resume,
 
 	.set_timings	= acx_panel_set_timings,
 	.check_timings	= acx_panel_check_timings,

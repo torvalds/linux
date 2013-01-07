@@ -1324,8 +1324,7 @@ static const struct net_device_ops ibmveth_netdev_ops = {
 #endif
 };
 
-static int __devinit ibmveth_probe(struct vio_dev *dev,
-				   const struct vio_device_id *id)
+static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
 	struct net_device *netdev;
@@ -1426,7 +1425,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev,
 	return 0;
 }
 
-static int __devexit ibmveth_remove(struct vio_dev *dev)
+static int ibmveth_remove(struct vio_dev *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(&dev->dev);
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
@@ -1593,7 +1592,7 @@ static int ibmveth_resume(struct device *dev)
 	return 0;
 }
 
-static struct vio_device_id ibmveth_device_table[] __devinitdata = {
+static struct vio_device_id ibmveth_device_table[] = {
 	{ "network", "IBM,l-lan"},
 	{ "", "" }
 };

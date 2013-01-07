@@ -9,8 +9,8 @@
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
-#include "frame_kern.h"
-#include "kern_util.h"
+#include <frame_kern.h>
+#include <kern_util.h>
 
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);
@@ -22,8 +22,12 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 			 struct k_sigaction *ka, siginfo_t *info)
 {
 	sigset_t *oldset = sigmask_to_save();
+	int singlestep = 0;
 	unsigned long sp;
 	int err;
+
+	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
+		singlestep = 1;
 
 	/* Did we come from a system call? */
 	if (PT_REGS_SYSCALL_NR(regs) >= 0) {
@@ -61,7 +65,7 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 	if (err)
 		force_sigsegv(signr, current);
 	else
-		signal_delivered(signr, info, ka, regs, 0);
+		signal_delivered(signr, info, ka, regs, singlestep);
 }
 
 static int kern_do_signal(struct pt_regs *regs)
@@ -127,9 +131,4 @@ long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
 	sigset_t blocked;
 	siginitset(&blocked, mask);
 	return sigsuspend(&blocked);
-}
-
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, PT_REGS_SP(&current->thread.regs));
 }

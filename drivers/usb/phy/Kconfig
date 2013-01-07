@@ -4,6 +4,16 @@
 comment "USB Physical Layer drivers"
 	depends on USB || USB_GADGET
 
+config OMAP_USB2
+	tristate "OMAP USB2 PHY Driver"
+	depends on ARCH_OMAP2PLUS
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the transceiver that is part of SOC. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  The USB OTG controller communicates with the comparator using this
+	  driver.
+
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
@@ -15,3 +25,23 @@ config USB_ISP1301
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1301.
+
+config MV_U3D_PHY
+	bool "Marvell USB 3.0 PHY controller Driver"
+	depends on USB_MV_U3D
+	select USB_OTG_UTILS
+	help
+	  Enable this to support Marvell USB 3.0 phy controller for Marvell
+	  SoC.
+
+config USB_RCAR_PHY
+	tristate "Renesas R-Car USB phy support"
+	depends on USB || USB_GADGET
+	select USB_OTG_UTILS
+	help
+	  Say Y here to add support for the Renesas R-Car USB phy driver.
+	  This chip is typically used as USB phy for USB host, gadget.
+	  This driver supports: R8A7779
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rcar-phy.

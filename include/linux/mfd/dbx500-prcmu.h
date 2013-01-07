@@ -136,6 +136,7 @@ enum prcmu_clock {
 	PRCMU_TIMCLK,
 	PRCMU_PLLSOC0,
 	PRCMU_PLLSOC1,
+	PRCMU_ARMSS,
 	PRCMU_PLLDDR,
 	PRCMU_PLLDSI,
 	PRCMU_DSI0CLK,
@@ -335,6 +336,11 @@ static inline int prcmu_get_ape_opp(void)
 	return db8500_prcmu_get_ape_opp();
 }
 
+static inline int prcmu_request_ape_opp_100_voltage(bool enable)
+{
+	return db8500_prcmu_request_ape_opp_100_voltage(enable);
+}
+
 static inline void prcmu_system_reset(u16 reset_code)
 {
 	return db8500_prcmu_system_reset(reset_code);
@@ -504,6 +510,11 @@ static inline int prcmu_set_ape_opp(u8 opp)
 static inline int prcmu_get_ape_opp(void)
 {
 	return APE_100_OPP;
+}
+
+static inline int prcmu_request_ape_opp_100_voltage(bool enable)
+{
+	return 0;
 }
 
 static inline int prcmu_set_arm_opp(u8 opp)

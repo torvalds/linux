@@ -327,7 +327,7 @@ static struct gpio tosa_bat_gpios[] = {
 static int tosa_bat_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/* flush all pending status updates */
-	flush_work_sync(&bat_work);
+	flush_work(&bat_work);
 	return 0;
 }
 
@@ -342,7 +342,7 @@ static int tosa_bat_resume(struct platform_device *dev)
 #define tosa_bat_resume NULL
 #endif
 
-static int __devinit tosa_bat_probe(struct platform_device *dev)
+static int tosa_bat_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -409,7 +409,7 @@ err_psy_reg_main:
 	return ret;
 }
 
-static int __devexit tosa_bat_remove(struct platform_device *dev)
+static int tosa_bat_remove(struct platform_device *dev)
 {
 	free_irq(gpio_to_irq(TOSA_GPIO_JACKET_DETECT), &tosa_bat_jacket);
 	free_irq(gpio_to_irq(TOSA_GPIO_BAT1_CRG), &tosa_bat_jacket);
@@ -433,7 +433,7 @@ static struct platform_driver tosa_bat_driver = {
 	.driver.name	= "wm97xx-battery",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tosa_bat_probe,
-	.remove		= __devexit_p(tosa_bat_remove),
+	.remove		= tosa_bat_remove,
 	.suspend	= tosa_bat_suspend,
 	.resume		= tosa_bat_resume,
 };

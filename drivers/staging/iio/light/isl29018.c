@@ -63,9 +63,11 @@ struct isl29018_chip {
 	struct regmap		*regmap;
 	struct mutex		lock;
 	unsigned int		lux_scale;
+	unsigned int		lux_uscale;
 	unsigned int		range;
 	unsigned int		adc_bit;
 	int			prox_scheme;
+	bool			suspended;
 };
 
 static int isl29018_set_range(struct isl29018_chip *chip, unsigned long range,
@@ -145,13 +147,22 @@ static int isl29018_read_sensor_input(struct isl29018_chip *chip, int mode)
 static int isl29018_read_lux(struct isl29018_chip *chip, int *lux)
 {
 	int lux_data;
+	unsigned int data_x_range, lux_unshifted;
 
 	lux_data = isl29018_read_sensor_input(chip, COMMMAND1_OPMODE_ALS_ONCE);
 
 	if (lux_data < 0)
 		return lux_data;
 
-	*lux = (lux_data * chip->range * chip->lux_scale) >> chip->adc_bit;
+	/* To support fractional scaling, separate the unshifted lux
+	 * into two calculations: int scaling and micro-scaling.
+	 * lux_uscale ranges from 0-999999, so about 20 bits.  Split
+	 * the /1,000,000 in two to reduce the risk of over/underflow.
+	 */
+	data_x_range = lux_data * chip->range;
+	lux_unshifted = data_x_range * chip->lux_scale;
+	lux_unshifted += data_x_range / 1000 * chip->lux_uscale / 1000;
+	*lux = lux_unshifted >> chip->adc_bit;
 
 	return 0;
 }
@@ -339,11 +350,13 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&chip->lock);
 	if (mask == IIO_CHAN_INFO_CALIBSCALE && chan->type == IIO_LIGHT) {
 		chip->lux_scale = val;
+		/* With no write_raw_get_fmt(), val2 is a MICRO fraction. */
+		chip->lux_uscale = val2;
 		ret = 0;
 	}
 	mutex_unlock(&chip->lock);
 
-	return 0;
+	return ret;
 }
 
 static int isl29018_read_raw(struct iio_dev *indio_dev,
@@ -356,6 +369,10 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	mutex_lock(&chip->lock);
+	if (chip->suspended) {
+		mutex_unlock(&chip->lock);
+		return -EBUSY;
+	}
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
@@ -379,7 +396,8 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
 			*val = chip->lux_scale;
-			ret = IIO_VAL_INT;
+			*val2 = chip->lux_uscale;
+			ret = IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
 	default:
@@ -525,7 +543,7 @@ static const struct regmap_config isl29018_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit isl29018_probe(struct i2c_client *client,
+static int isl29018_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct isl29018_chip *chip;
@@ -548,6 +566,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	chip->lux_scale = 1;
 	chip->range = 1000;
 	chip->adc_bit = 16;
+	chip->suspended = false;
 
 	chip->regmap = devm_regmap_init_i2c(client, &isl29018_regmap_config);
 	if (IS_ERR(chip->regmap)) {
@@ -579,7 +598,7 @@ exit:
 	return err;
 }
 
-static int __devexit isl29018_remove(struct i2c_client *client)
+static int isl29018_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -589,6 +608,44 @@ static int __devexit isl29018_remove(struct i2c_client *client)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int isl29018_suspend(struct device *dev)
+{
+	struct isl29018_chip *chip = iio_priv(dev_get_drvdata(dev));
+
+	mutex_lock(&chip->lock);
+
+	/* Since this driver uses only polling commands, we are by default in
+	 * auto shutdown (ie, power-down) mode.
+	 * So we do not have much to do here.
+	 */
+	chip->suspended = true;
+
+	mutex_unlock(&chip->lock);
+	return 0;
+}
+
+static int isl29018_resume(struct device *dev)
+{
+	struct isl29018_chip *chip = iio_priv(dev_get_drvdata(dev));
+	int err;
+
+	mutex_lock(&chip->lock);
+
+	err = isl29018_chip_init(chip);
+	if (!err)
+		chip->suspended = false;
+
+	mutex_unlock(&chip->lock);
+	return err;
+}
+
+static SIMPLE_DEV_PM_OPS(isl29018_pm_ops, isl29018_suspend, isl29018_resume);
+#define ISL29018_PM_OPS (&isl29018_pm_ops)
+#else
+#define ISL29018_PM_OPS NULL
+#endif
 
 static const struct i2c_device_id isl29018_id[] = {
 	{"isl29018", 0},
@@ -607,11 +664,12 @@ static struct i2c_driver isl29018_driver = {
 	.class	= I2C_CLASS_HWMON,
 	.driver	 = {
 			.name = "isl29018",
+			.pm = ISL29018_PM_OPS,
 			.owner = THIS_MODULE,
 			.of_match_table = isl29018_of_match,
 		    },
 	.probe	 = isl29018_probe,
-	.remove	 = __devexit_p(isl29018_remove),
+	.remove	 = isl29018_remove,
 	.id_table = isl29018_id,
 };
 module_i2c_driver(isl29018_driver);

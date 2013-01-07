@@ -374,29 +374,29 @@
       rectangle --- if it is supported by the hardware.</para>
 
       <orderedlist>
-	<listitem>Sink pad format. The user configures the sink pad
+	<listitem><para>Sink pad format. The user configures the sink pad
 	format. This format defines the parameters of the image the
-	entity receives through the pad for further processing.</listitem>
+	entity receives through the pad for further processing.</para></listitem>
 
-	<listitem>Sink pad actual crop selection. The sink pad crop
-	defines the crop performed to the sink pad format.</listitem>
+	<listitem><para>Sink pad actual crop selection. The sink pad crop
+	defines the crop performed to the sink pad format.</para></listitem>
 
-	<listitem>Sink pad actual compose selection. The size of the
+	<listitem><para>Sink pad actual compose selection. The size of the
 	sink pad compose rectangle defines the scaling ratio compared
 	to the size of the sink pad crop rectangle. The location of
 	the compose rectangle specifies the location of the actual
 	sink compose rectangle in the sink compose bounds
-	rectangle.</listitem>
+	rectangle.</para></listitem>
 
-	<listitem>Source pad actual crop selection. Crop on the source
+	<listitem><para>Source pad actual crop selection. Crop on the source
 	pad defines crop performed to the image in the sink compose
-	bounds rectangle.</listitem>
+	bounds rectangle.</para></listitem>
 
-	<listitem>Source pad format. The source pad format defines the
+	<listitem><para>Source pad format. The source pad format defines the
 	output pixel format of the subdev, as well as the other
 	parameters with the exception of the image width and height.
 	Width and height are defined by the size of the source pad
-	actual crop selection.</listitem>
+	actual crop selection.</para></listitem>
       </orderedlist>
 
       <para>Accessing any of the above rectangles not supported by the

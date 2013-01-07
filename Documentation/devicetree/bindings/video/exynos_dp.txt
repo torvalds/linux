@@ -1,0 +1,80 @@
+The Exynos display port interface should be configured based on
+the type of panel connected to it.
+
+We use two nodes:
+	-dp-controller node
+	-dptx-phy node(defined inside dp-controller node)
+
+For the DP-PHY initialization, we use the dptx-phy node.
+Required properties for dptx-phy:
+	-reg:
+		Base address of DP PHY register.
+	-samsung,enable-mask:
+		The bit-mask used to enable/disable DP PHY.
+
+For the Panel initialization, we read data from dp-controller node.
+Required properties for dp-controller:
+	-compatible:
+		should be "samsung,exynos5-dp".
+	-reg:
+		physical base address of the controller and length
+		of memory mapped region.
+	-interrupts:
+		interrupt combiner values.
+	-interrupt-parent:
+		phandle to Interrupt combiner node.
+	-samsung,color-space:
+		input video data format.
+			COLOR_RGB = 0, COLOR_YCBCR422 = 1, COLOR_YCBCR444 = 2
+	-samsung,dynamic-range:
+		dynamic range for input video data.
+			VESA = 0, CEA = 1
+	-samsung,ycbcr-coeff:
+		YCbCr co-efficients for input video.
+			COLOR_YCBCR601 = 0, COLOR_YCBCR709 = 1
+	-samsung,color-depth:
+		number of bits per colour component.
+			COLOR_6 = 0, COLOR_8 = 1, COLOR_10 = 2, COLOR_12 = 3
+	-samsung,link-rate:
+		link rate supported by the panel.
+			LINK_RATE_1_62GBPS = 0x6, LINK_RATE_2_70GBPS = 0x0A
+	-samsung,lane-count:
+		number of lanes supported by the panel.
+			LANE_COUNT1 = 1, LANE_COUNT2 = 2, LANE_COUNT4 = 4
+
+Optional properties for dp-controller:
+	-interlaced:
+		interlace scan mode.
+			Progressive if defined, Interlaced if not defined
+	-vsync-active-high:
+		VSYNC polarity configuration.
+			High if defined, Low if not defined
+	-hsync-active-high:
+		HSYNC polarity configuration.
+			High if defined, Low if not defined
+
+Example:
+
+SOC specific portion:
+	dp-controller {
+		compatible = "samsung,exynos5-dp";
+		reg = <0x145b0000 0x10000>;
+		interrupts = <10 3>;
+		interrupt-parent = <&combiner>;
+
+		dptx-phy {
+			reg = <0x10040720>;
+			samsung,enable-mask = <1>;
+		};
+
+	};
+
+Board Specific portion:
+	dp-controller {
+		samsung,color-space = <0>;
+		samsung,dynamic-range = <0>;
+		samsung,ycbcr-coeff = <0>;
+		samsung,color-depth = <1>;
+		samsung,link-rate = <0x0a>;
+		samsung,lane-count = <4>;
+	};

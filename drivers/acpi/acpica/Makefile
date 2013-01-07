@@ -158,5 +158,9 @@ acpi-y +=		\
 	utresrc.o	\
 	utstate.o	\
 	utxface.o	\
+	utxfinit.o	\
 	utxferror.o	\
 	utxfmutex.o
+
+acpi-$(ACPI_FUTURE_USAGE) += uttrack.o utcache.o utclib.o
+

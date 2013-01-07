@@ -8,4 +8,4 @@ config WLAGS49_H25
 	Driver for wireless cards using Agere's HERMES II.5 chipset
 	which are identified with Manufacture ID: 0156,0004
 	The software is a modified version of wl_lkm_722_abg.tar.gz
-	from the Agere Systems website, addapted for Ubuntu 9.04.
+	from the Agere Systems website, adapted for Ubuntu 9.04.

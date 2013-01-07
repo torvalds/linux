@@ -1379,6 +1379,7 @@ static const struct vm_operations_struct fuse_file_vm_ops = {
 	.close		= fuse_vma_close,
 	.fault		= filemap_fault,
 	.page_mkwrite	= fuse_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1598,19 +1599,19 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 	return err ? 0 : outarg.block;
 }
 
-static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t fuse_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t retval;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	/* No i_mutex protection necessary for SEEK_CUR and SEEK_SET */
-	if (origin == SEEK_CUR || origin == SEEK_SET)
-		return generic_file_llseek(file, offset, origin);
+	if (whence == SEEK_CUR || whence == SEEK_SET)
+		return generic_file_llseek(file, offset, whence);
 
 	mutex_lock(&inode->i_mutex);
 	retval = fuse_update_attributes(inode, NULL, file, NULL);
 	if (!retval)
-		retval = generic_file_llseek(file, offset, origin);
+		retval = generic_file_llseek(file, offset, whence);
 	mutex_unlock(&inode->i_mutex);
 
 	return retval;

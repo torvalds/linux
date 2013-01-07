@@ -5,8 +5,9 @@ struct winsize;
 
 void get_term_dimensions(struct winsize *ws);
 
+#include <asm/unistd.h>
+
 #if defined(__i386__)
-#include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
@@ -16,7 +17,6 @@ void get_term_dimensions(struct winsize *ws);
 #endif
 
 #if defined(__x86_64__)
-#include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
@@ -26,20 +26,18 @@ void get_term_dimensions(struct winsize *ws);
 #endif
 
 #ifdef __powerpc__
-#include "../../arch/powerpc/include/asm/unistd.h"
+#include "../../arch/powerpc/include/uapi/asm/unistd.h"
 #define rmb()		asm volatile ("sync" ::: "memory")
 #define cpu_relax()	asm volatile ("" ::: "memory");
 #define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __s390__
-#include "../../arch/s390/include/asm/unistd.h"
 #define rmb()		asm volatile("bcr 15,0" ::: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory");
 #endif
 
 #ifdef __sh__
-#include "../../arch/sh/include/asm/unistd.h"
 #if defined(__SH4A__) || defined(__SH5__)
 # define rmb()		asm volatile("synco" ::: "memory")
 #else
@@ -50,35 +48,30 @@ void get_term_dimensions(struct winsize *ws);
 #endif
 
 #ifdef __hppa__
-#include "../../arch/parisc/include/asm/unistd.h"
 #define rmb()		asm volatile("" ::: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory");
 #define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __sparc__
-#include "../../arch/sparc/include/asm/unistd.h"
 #define rmb()		asm volatile("":::"memory")
 #define cpu_relax()	asm volatile("":::"memory")
 #define CPUINFO_PROC	"cpu"
 #endif
 
 #ifdef __alpha__
-#include "../../arch/alpha/include/asm/unistd.h"
 #define rmb()		asm volatile("mb" ::: "memory")
 #define cpu_relax()	asm volatile("" ::: "memory")
 #define CPUINFO_PROC	"cpu model"
 #endif
 
 #ifdef __ia64__
-#include "../../arch/ia64/include/asm/unistd.h"
 #define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
 #define CPUINFO_PROC	"model name"
 #endif
 
 #ifdef __arm__
-#include "../../arch/arm/include/asm/unistd.h"
 /*
  * Use the __kuser_memory_barrier helper in the CPU helper page. See
  * arch/arm/kernel/entry-armv.S in the kernel source for details.
@@ -88,8 +81,12 @@ void get_term_dimensions(struct winsize *ws);
 #define CPUINFO_PROC	"Processor"
 #endif
 
+#ifdef __aarch64__
+#define rmb()		asm volatile("dmb ld" ::: "memory")
+#define cpu_relax()	asm volatile("yield" ::: "memory")
+#endif
+
 #ifdef __mips__
-#include "../../arch/mips/include/asm/unistd.h"
 #define rmb()		asm volatile(					\
 				".set	mips2\n\t"			\
 				"sync\n\t"				\
@@ -106,7 +103,7 @@ void get_term_dimensions(struct winsize *ws);
 #include <sys/types.h>
 #include <sys/syscall.h>
 
-#include "../../include/linux/perf_event.h"
+#include <linux/perf_event.h>
 #include "util/types.h"
 #include <stdbool.h>
 
@@ -168,13 +165,25 @@ static inline unsigned long long rdclock(void)
 	(void) (&_min1 == &_min2);		\
 	_min1 < _min2 ? _min1 : _min2; })
 
+extern bool test_attr__enabled;
+void test_attr__init(void);
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+		     int fd, int group_fd, unsigned long flags);
+
 static inline int
 sys_perf_event_open(struct perf_event_attr *attr,
 		      pid_t pid, int cpu, int group_fd,
 		      unsigned long flags)
 {
-	return syscall(__NR_perf_event_open, attr, pid, cpu,
-		       group_fd, flags);
+	int fd;
+
+	fd = syscall(__NR_perf_event_open, attr, pid, cpu,
+		     group_fd, flags);
+
+	if (unlikely(test_attr__enabled))
+		test_attr__open(attr, pid, cpu, fd, group_fd, flags);
+
+	return fd;
 }
 
 #define MAX_COUNTERS			256
@@ -202,6 +211,7 @@ struct branch_stack {
 	struct branch_entry	entries[0];
 };
 
+extern const char *input_name;
 extern bool perf_host, perf_guest;
 extern const char perf_version_string[];
 
@@ -209,9 +219,15 @@ void pthread__unblock_sigwinch(void);
 
 #include "util/target.h"
 
+enum perf_call_graph_mode {
+	CALLCHAIN_NONE,
+	CALLCHAIN_FP,
+	CALLCHAIN_DWARF
+};
+
 struct perf_record_opts {
 	struct perf_target target;
-	bool	     call_graph;
+	int	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;
 	bool	     no_delay;
@@ -230,6 +246,7 @@ struct perf_record_opts {
 	u64          branch_stack;
 	u64	     default_interval;
 	u64	     user_interval;
+	u16	     stack_dump_size;
 };
 
 #endif
