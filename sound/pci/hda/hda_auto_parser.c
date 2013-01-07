@@ -156,7 +156,8 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 
 		/* workaround for buggy BIOS setups */
 		if (dev == AC_JACK_LINE_OUT) {
-			if (conn == AC_JACK_PORT_FIXED)
+			if (conn == AC_JACK_PORT_FIXED ||
+			    conn == AC_JACK_PORT_BOTH)
 				dev = AC_JACK_SPEAKER;
 		}
 
