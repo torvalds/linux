@@ -267,8 +267,6 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
-	if (idx >= ARRAY_SIZE(hw_addrs))
-		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,

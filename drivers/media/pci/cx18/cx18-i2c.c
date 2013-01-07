@@ -116,9 +116,6 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
-	if (idx >= ARRAY_SIZE(hw_addrs))
-		return -1;
-
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
