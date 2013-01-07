@@ -610,6 +610,8 @@ enum station_parameters_apply_mask {
  * @sta_modify_mask: bitmap indicating which parameters changed
  *	(for those that don't have a natural "no change" value),
  *	see &enum station_parameters_apply_mask
+ * @local_pm: local link-specific mesh power save mode (no change when set
+ *	to unknown)
  */
 struct station_parameters {
 	u8 *supported_rates;
@@ -625,6 +627,7 @@ struct station_parameters {
 	struct ieee80211_vht_cap *vht_capa;
 	u8 uapsd_queues;
 	u8 max_sp;
+	enum nl80211_mesh_power_mode local_pm;
 };
 
 /**
@@ -655,6 +658,9 @@ struct station_parameters {
  * @STATION_INFO_STA_FLAGS: @sta_flags filled
  * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
  * @STATION_INFO_T_OFFSET: @t_offset filled
+ * @STATION_INFO_LOCAL_PM: @local_pm filled
+ * @STATION_INFO_PEER_PM: @peer_pm filled
+ * @STATION_INFO_NONPEER_PM: @nonpeer_pm filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -678,6 +684,9 @@ enum station_info_flags {
 	STATION_INFO_STA_FLAGS		= 1<<18,
 	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19,
 	STATION_INFO_T_OFFSET		= 1<<20,
+	STATION_INFO_LOCAL_PM		= 1<<21,
+	STATION_INFO_PEER_PM		= 1<<22,
+	STATION_INFO_NONPEER_PM		= 1<<23,
 };
 
 /**
@@ -791,6 +800,9 @@ struct sta_bss_parameters {
  * @sta_flags: station flags mask & values
  * @beacon_loss_count: Number of times beacon loss event has triggered.
  * @t_offset: Time offset of the station relative to this host.
+ * @local_pm: local mesh STA power save mode
+ * @peer_pm: peer mesh STA power save mode
+ * @nonpeer_pm: non-peer mesh STA power save mode
  */
 struct station_info {
 	u32 filled;
@@ -820,6 +832,9 @@ struct station_info {
 
 	u32 beacon_loss_count;
 	s64 t_offset;
+	enum nl80211_mesh_power_mode local_pm;
+	enum nl80211_mesh_power_mode peer_pm;
+	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	/*
 	 * Note: Add a new enum station_info_flags value for each new field and
@@ -995,6 +1010,10 @@ struct bss_parameters {
  * @dot11MeshHWMPconfirmationInterval: The minimum interval of time (in TUs)
  *	during which a mesh STA can send only one Action frame containing
  *	a PREQ element for root path confirmation.
+ * @power_mode: The default mesh power save mode which will be the initial
+ *	setting for new peer links.
+ * @dot11MeshAwakeWindowDuration: The duration in TUs the STA will remain awake
+ *	after transmitting its beacon.
  */
 struct mesh_config {
 	u16 dot11MeshRetryTimeout;
@@ -1022,6 +1041,8 @@ struct mesh_config {
 	u32 dot11MeshHWMPactivePathToRootTimeout;
 	u16 dot11MeshHWMProotInterval;
 	u16 dot11MeshHWMPconfirmationInterval;
+	enum nl80211_mesh_power_mode power_mode;
+	u16 dot11MeshAwakeWindowDuration;
 };
 
 /**
