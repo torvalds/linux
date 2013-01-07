@@ -5623,10 +5623,13 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 		return em;
 	if (em) {
 		/*
-		 * if our em maps to a hole, there might
-		 * actually be delalloc bytes behind it
+		 * if our em maps to
+		 * -  a hole or
+		 * -  a pre-alloc extent,
+		 * there might actually be delalloc bytes behind it.
 		 */
-		if (em->block_start != EXTENT_MAP_HOLE)
+		if (em->block_start != EXTENT_MAP_HOLE &&
+		    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			return em;
 		else
 			hole_em = em;
@@ -5708,6 +5711,8 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 			 */
 			em->block_start = hole_em->block_start;
 			em->block_len = hole_len;
+			if (test_bit(EXTENT_FLAG_PREALLOC, &hole_em->flags))
+				set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
 		} else {
 			em->start = range_start;
 			em->len = found;
