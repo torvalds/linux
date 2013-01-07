@@ -2010,6 +2010,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	init_timer(&child_ep->timer);
 	cxgb4_insert_tid(t, child_ep, hwtid);
+	insert_handle(dev, &dev->hwtid_idr, child_ep, child_ep->hwtid);
 	accept_cr(child_ep, peer_ip, skb, req);
 	set_bit(PASS_ACCEPT_REQ, &child_ep->com.history);
 	goto out;
@@ -2035,7 +2036,6 @@ static int pass_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	     ntohs(req->tcp_opt));
 
 	set_emss(ep, ntohs(req->tcp_opt));
-	insert_handle(dev, &dev->hwtid_idr, ep, ep->hwtid);
 
 	dst_confirm(ep->dst);
 	state_set(&ep->com, MPA_REQ_WAIT);
