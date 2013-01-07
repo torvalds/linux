@@ -69,6 +69,14 @@ struct automic_entry {
 /* active stream id */
 enum { STREAM_MULTI_OUT, STREAM_INDEP_HP };
 
+/* PCM hook action */
+enum {
+	HDA_GEN_PCM_ACT_OPEN,
+	HDA_GEN_PCM_ACT_PREPARE,
+	HDA_GEN_PCM_ACT_CLEANUP,
+	HDA_GEN_PCM_ACT_CLOSE,
+};
+
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -190,6 +198,12 @@ struct hda_gen_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
 	void (*cap_sync_hook)(struct hda_codec *codec);
+
+	/* PCM playback hook */
+	void (*pcm_playback_hook)(struct hda_pcm_stream *hinfo,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream,
+				  int action);
 
 	/* automute / autoswitch hooks */
 	void (*hp_automute_hook)(struct hda_codec *codec,
