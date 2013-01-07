@@ -661,9 +661,10 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 		status = -ESHUTDOWN;
 
 	urb->actual_length = pkt->actual;
-	usbhsh_ureq_free(hpriv, ureq);
 
 	usbhsh_endpoint_sequence_save(hpriv, urb, pkt);
+	usbhsh_ureq_free(hpriv, ureq);
+
 	usbhsh_pipe_detach(hpriv, usbhsh_ep_to_uep(urb->ep));
 
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
