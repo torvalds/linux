@@ -3034,6 +3034,9 @@ static int check_auto_mic_availability(struct hda_codec *codec)
 	unsigned int types;
 	int i, num_pins;
 
+	if (spec->suppress_auto_mic)
+		return 0;
+
 	types = 0;
 	num_pins = 0;
 	for (i = 0; i < cfg->num_inputs; i++) {
