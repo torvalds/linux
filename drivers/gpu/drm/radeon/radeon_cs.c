@@ -284,8 +284,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
 			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
-				kfree(p->chunks[i].kpage[0]);
-				kfree(p->chunks[i].kpage[1]);
+				kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
+				kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
 				return -ENOMEM;
 			}
 		}
