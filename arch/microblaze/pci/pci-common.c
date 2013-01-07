@@ -287,7 +287,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 	unsigned long io_offset = 0;
 	int i, res_bit;
 
-	if (hose == 0)
+	if (!hose)
 		return NULL;		/* should never happen */
 
 	/* If memory, add on the PCI bridge address offset */
@@ -821,8 +821,6 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 /* Decide whether to display the domain number in /proc */
 int pci_proc_domain(struct pci_bus *bus)
 {
-	struct pci_controller *hose = pci_bus_to_host(bus);
-
 	return 0;
 }
 
@@ -1123,7 +1121,7 @@ static int __init reparent_resources(struct resource *parent,
  *	    as well.
  */
 
-void pcibios_allocate_bus_resources(struct pci_bus *bus)
+static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 {
 	struct pci_bus *b;
 	int i;
@@ -1178,7 +1176,7 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 		}
 		printk(KERN_WARNING "PCI: Cannot allocate resource region "
 		       "%d of PCI bridge %d, will remap\n", i, bus->number);
-clear_resource:
+
 		res->start = res->end = 0;
 		res->flags = 0;
 	}
@@ -1433,7 +1431,8 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 		res->end = res->start + IO_SPACE_LIMIT;
 		res->flags = IORESOURCE_IO;
 	}
-	pci_add_resource_offset(resources, res, hose->io_base_virt - _IO_BASE);
+	pci_add_resource_offset(resources, res,
+		(__force resource_size_t)(hose->io_base_virt - _IO_BASE));
 
 	pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
 		 (unsigned long long)res->start,
