@@ -1138,6 +1138,16 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	memset(spec->multiout.extra_out_nid, 0, sizeof(spec->multiout.extra_out_nid));
 	spec->multi_ios = 0;
 	snd_array_free(&spec->paths);
+
+	/* clear path indices */
+	memset(spec->out_paths, 0, sizeof(spec->out_paths));
+	memset(spec->hp_paths, 0, sizeof(spec->hp_paths));
+	memset(spec->speaker_paths, 0, sizeof(spec->speaker_paths));
+	memset(spec->aamix_out_paths, 0, sizeof(spec->aamix_out_paths));
+	memset(spec->digout_paths, 0, sizeof(spec->digout_paths));
+	memset(spec->loopback_paths, 0, sizeof(spec->loopback_paths));
+	memset(&spec->digin_path, 0, sizeof(spec->digin_path));
+
 	badness = 0;
 
 	/* fill hard-wired DACs first */
