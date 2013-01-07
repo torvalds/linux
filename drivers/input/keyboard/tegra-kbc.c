@@ -614,13 +614,21 @@ static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	struct device_node *np = pdev->dev.of_node;
 	u32 prop;
 	int i;
+	u32 num_rows = 0;
+	u32 num_cols = 0;
+	u32 cols_cfg[KBC_MAX_GPIO];
+	u32 rows_cfg[KBC_MAX_GPIO];
+	int proplen;
+	int ret;
 
-	if (!np)
-		return NULL;
+	if (!np) {
+		dev_err(&pdev->dev, "device tree data is missing\n");
+		return ERR_PTR(-ENOENT);
+	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (!of_property_read_u32(np, "nvidia,debounce-delay-ms", &prop))
 		pdata->debounce_cnt = prop;
@@ -634,18 +642,55 @@ static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	if (of_find_property(np, "nvidia,wakeup-source", NULL))
 		pdata->wakeup = true;
 
-	/*
-	 * All currently known keymaps with device tree support use the same
-	 * pin_cfg, so set it up here.
-	 */
-	for (i = 0; i < KBC_MAX_ROW; i++) {
-		pdata->pin_cfg[i].num = i;
-		pdata->pin_cfg[i].type = PIN_CFG_ROW;
+	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
+		dev_err(&pdev->dev, "property nvidia,kbc-row-pins not found\n");
+		return ERR_PTR(-ENOENT);
+	}
+	num_rows = proplen / sizeof(u32);
+
+	if (!of_get_property(np, "nvidia,kbc-col-pins", &proplen)) {
+		dev_err(&pdev->dev, "property nvidia,kbc-col-pins not found\n");
+		return ERR_PTR(-ENOENT);
+	}
+	num_cols = proplen / sizeof(u32);
+
+	if (!of_get_property(np, "linux,keymap", &proplen)) {
+		dev_err(&pdev->dev, "property linux,keymap not found\n");
+		return ERR_PTR(-ENOENT);
 	}
 
-	for (i = 0; i < KBC_MAX_COL; i++) {
-		pdata->pin_cfg[KBC_MAX_ROW + i].num = i;
-		pdata->pin_cfg[KBC_MAX_ROW + i].type = PIN_CFG_COL;
+	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
+		dev_err(&pdev->dev,
+			"keypad rows/columns not porperly specified\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Set all pins as non-configured */
+	for (i = 0; i < KBC_MAX_GPIO; i++)
+		pdata->pin_cfg[i].type = PIN_CFG_IGNORE;
+
+	ret = of_property_read_u32_array(np, "nvidia,kbc-row-pins",
+				rows_cfg, num_rows);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Rows configurations are not proper\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	ret = of_property_read_u32_array(np, "nvidia,kbc-col-pins",
+				cols_cfg, num_cols);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Cols configurations are not proper\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	for (i = 0; i < num_rows; i++) {
+		pdata->pin_cfg[rows_cfg[i]].type = PIN_CFG_ROW;
+		pdata->pin_cfg[rows_cfg[i]].num = i;
+	}
+
+	for (i = 0; i < num_cols; i++) {
+		pdata->pin_cfg[cols_cfg[i]].type = PIN_CFG_COL;
+		pdata->pin_cfg[cols_cfg[i]].num = i;
 	}
 
 	return pdata;
@@ -654,7 +699,8 @@ static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 static inline struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	struct platform_device *pdev)
 {
-	return NULL;
+	dev_err(&pdev->dev, "platform data is missing\n");
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
@@ -700,10 +746,8 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	if (!pdata)
 		pdata = tegra_kbc_dt_parse_pdata(pdev);
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data missing\n");
-		return -EINVAL;
-	}
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	if (!tegra_kbc_check_pin_cfg(pdata, &pdev->dev, &num_rows))
 		return -EINVAL;
