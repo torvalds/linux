@@ -17,6 +17,7 @@ config HID_SENSOR_GYRO_3D
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Gyroscope 3D"
 	help
 	  Say yes here to build support for the HID SENSOR

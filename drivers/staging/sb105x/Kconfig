@@ -2,6 +2,7 @@ config SB105X
 	tristate "SystemBase PCI Multiport UART"
 	select SERIAL_CORE
 	depends on PCI
+	depends on X86
 	help
 	  A driver for the SystemBase Multi-2/PCI serial card
 

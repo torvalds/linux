@@ -1648,6 +1648,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	int rc;
 
 	if (!dev)
@@ -1660,6 +1661,9 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == COMEDI_DEVCONFIG) {
 		rc = do_devconfig_ioctl(dev,
 					(struct comedi_devconfig __user *)arg);
+		if (rc == 0)
+			/* Evade comedi_auto_unconfig(). */
+			info->hardware_device = NULL;
 		goto done;
 	}
 
