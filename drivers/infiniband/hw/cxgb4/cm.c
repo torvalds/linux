@@ -1391,30 +1391,31 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, dlen);
 
-	ep->rcv_seq += dlen;
-	BUG_ON(ep->rcv_seq != (ntohl(hdr->seq) + dlen));
-
 	/* update RX credits */
 	update_rx_credits(ep, dlen);
 
 	switch (state_read(&ep->com)) {
 	case MPA_REQ_SENT:
+		ep->rcv_seq += dlen;
 		process_mpa_reply(ep, skb);
 		break;
 	case MPA_REQ_WAIT:
+		ep->rcv_seq += dlen;
 		process_mpa_request(ep, skb);
-		break;
-	case MPA_REP_SENT:
 		break;
 	default:
 		pr_err("%s Unexpected streaming data." \
 		       " ep %p state %d tid %u status %d\n",
 		       __func__, ep, state_read(&ep->com), ep->hwtid, status);
 
-		/*
-		 * The ep will timeout and inform the ULP of the failure.
-		 * See ep_timeout().
-		 */
+		if (ep->com.qp) {
+			struct c4iw_qp_attributes attrs;
+
+			attrs.next_state = C4IW_QP_STATE_ERROR;
+			c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		}
+		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
 		break;
 	}
 	return 0;
