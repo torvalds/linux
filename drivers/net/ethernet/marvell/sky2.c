@@ -3079,8 +3079,10 @@ static irqreturn_t sky2_intr(int irq, void *dev_id)
 
 	/* Reading this mask interrupts as side effect */
 	status = sky2_read32(hw, B0_Y2_SP_ISRC2);
-	if (status == 0 || status == ~0)
+	if (status == 0 || status == ~0) {
+		sky2_write32(hw, B0_Y2_SP_ICR, 2);
 		return IRQ_NONE;
+	}
 
 	prefetch(&hw->st_le[hw->st_idx]);
 
