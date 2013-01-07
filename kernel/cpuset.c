@@ -1395,15 +1395,6 @@ static int fmeter_getrate(struct fmeter *fmp)
 	return val;
 }
 
-/*
- * Protected by cgroup_lock. The nodemasks must be stored globally because
- * dynamically allocating them is not allowed in can_attach, and they must
- * persist until attach.
- */
-static cpumask_var_t cpus_attach;
-static nodemask_t cpuset_attach_nodemask_from;
-static nodemask_t cpuset_attach_nodemask_to;
-
 /* Called by cgroups to determine if a cpuset is usable; cgroup_mutex held */
 static int cpuset_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
@@ -1430,6 +1421,28 @@ static int cpuset_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 			return ret;
 	}
 
+	return 0;
+}
+
+/*
+ * Protected by cgroup_mutex.  cpus_attach is used only by cpuset_attach()
+ * but we can't allocate it dynamically there.  Define it global and
+ * allocate from cpuset_init().
+ */
+static cpumask_var_t cpus_attach;
+
+static void cpuset_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	/* static bufs protected by cgroup_mutex */
+	static nodemask_t cpuset_attach_nodemask_from;
+	static nodemask_t cpuset_attach_nodemask_to;
+	struct mm_struct *mm;
+	struct task_struct *task;
+	struct task_struct *leader = cgroup_taskset_first(tset);
+	struct cgroup *oldcgrp = cgroup_taskset_cur_cgroup(tset);
+	struct cpuset *cs = cgroup_cs(cgrp);
+	struct cpuset *oldcs = cgroup_cs(oldcgrp);
+
 	/* prepare for attach */
 	if (cs == &top_cpuset)
 		cpumask_copy(cpus_attach, cpu_possible_mask);
@@ -1437,18 +1450,6 @@ static int cpuset_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 		guarantee_online_cpus(cs, cpus_attach);
 
 	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
-
-	return 0;
-}
-
-static void cpuset_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
-{
-	struct mm_struct *mm;
-	struct task_struct *task;
-	struct task_struct *leader = cgroup_taskset_first(tset);
-	struct cgroup *oldcgrp = cgroup_taskset_cur_cgroup(tset);
-	struct cpuset *cs = cgroup_cs(cgrp);
-	struct cpuset *oldcs = cgroup_cs(oldcgrp);
 
 	cgroup_taskset_for_each(task, cgrp, tset) {
 		/*
