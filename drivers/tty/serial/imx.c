@@ -1461,7 +1461,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct pinctrl *pinctrl;
 
-	sport = kzalloc(sizeof(*sport), GFP_KERNEL);
+	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
 		return -ENOMEM;
 
@@ -1469,19 +1469,15 @@ static int serial_imx_probe(struct platform_device *pdev)
 	if (ret > 0)
 		serial_imx_probe_pdata(sport, pdev);
 	else if (ret < 0)
-		goto free;
+		return ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto free;
-	}
+	if (!res)
+		return -ENODEV;
 
-	base = ioremap(res->start, PAGE_SIZE);
-	if (!base) {
-		ret = -ENOMEM;
-		goto free;
-	}
+	base = devm_ioremap(&pdev->dev, res->start, PAGE_SIZE);
+	if (!base)
+		return -ENOMEM;
 
 	sport->port.dev = &pdev->dev;
 	sport->port.mapbase = res->start;
@@ -1503,21 +1499,21 @@ static int serial_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		dev_err(&pdev->dev, "failed to get default pinctrl: %d\n", ret);
-		goto unmap;
+		return ret;
 	}
 
 	sport->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(sport->clk_ipg)) {
 		ret = PTR_ERR(sport->clk_ipg);
 		dev_err(&pdev->dev, "failed to get ipg clk: %d\n", ret);
-		goto unmap;
+		return ret;
 	}
 
 	sport->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(sport->clk_per)) {
 		ret = PTR_ERR(sport->clk_per);
 		dev_err(&pdev->dev, "failed to get per clk: %d\n", ret);
-		goto unmap;
+		return ret;
 	}
 
 	clk_prepare_enable(sport->clk_per);
@@ -1546,11 +1542,6 @@ deinit:
 clkput:
 	clk_disable_unprepare(sport->clk_per);
 	clk_disable_unprepare(sport->clk_ipg);
-unmap:
-	iounmap(sport->port.membase);
-free:
-	kfree(sport);
-
 	return ret;
 }
 
@@ -1570,9 +1561,6 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);
-
-	iounmap(sport->port.membase);
-	kfree(sport);
 
 	return 0;
 }
