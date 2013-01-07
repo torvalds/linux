@@ -204,7 +204,7 @@ struct dip_infoframe {
 			uint16_t bottom_bar_start;
 			uint16_t left_bar_end;
 			uint16_t right_bar_start;
-		} avi;
+		} __attribute__ ((packed)) avi;
 		uint8_t payload[27];
 	} __attribute__ ((packed)) body;
 } __attribute__((packed));
