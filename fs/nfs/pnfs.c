@@ -254,7 +254,7 @@ static void
 pnfs_layout_set_fail_bit(struct pnfs_layout_hdr *lo, int fail_bit)
 {
 	lo->plh_retry_timestamp = jiffies;
-	if (test_and_set_bit(fail_bit, &lo->plh_flags))
+	if (!test_and_set_bit(fail_bit, &lo->plh_flags))
 		atomic_inc(&lo->plh_refcount);
 }
 

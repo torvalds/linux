@@ -91,12 +91,16 @@ void nfs_readdata_release(struct nfs_read_data *rdata)
 	put_nfs_open_context(rdata->args.context);
 	if (rdata->pages.pagevec != rdata->pages.page_array)
 		kfree(rdata->pages.pagevec);
-	if (rdata != &read_header->rpc_data)
-		kfree(rdata);
-	else
+	if (rdata == &read_header->rpc_data) {
 		rdata->header = NULL;
+		rdata = NULL;
+	}
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
+	/* Note: we only free the rpc_task after callbacks are done.
+	 * See the comment in rpc_free_task() for why
+	 */
+	kfree(rdata);
 }
 EXPORT_SYMBOL_GPL(nfs_readdata_release);
 

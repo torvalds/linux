@@ -206,7 +206,7 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
 			ino = igrab(lo->plh_inode);
-			if (ino)
+			if (!ino)
 				continue;
 			spin_lock(&ino->i_lock);
 			/* Is this layout in the process of being freed? */
