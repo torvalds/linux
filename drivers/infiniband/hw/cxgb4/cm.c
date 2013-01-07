@@ -284,10 +284,10 @@ void _c4iw_free_ep(struct kref *kref)
 	if (test_bit(QP_REFERENCED, &ep->com.flags))
 		deref_qp(ep);
 	if (test_bit(RELEASE_RESOURCES, &ep->com.flags)) {
+		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
-		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
 	}
 	kfree(ep);
 }
@@ -699,7 +699,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = MPA_REJECT;
-	mpa->revision = mpa_rev;
+	mpa->revision = ep->mpa_attr.version;
 	mpa->private_data_size = htons(plen);
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
@@ -2176,7 +2176,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	case MPA_REQ_SENT:
 		stop_ep_timer(ep);
-		if (mpa_rev == 2 && ep->tried_with_mpa_v1)
+		if (mpa_rev == 1 || (mpa_rev == 2 && ep->tried_with_mpa_v1))
 			connect_reply_upcall(ep, -ECONNRESET);
 		else {
 			/*
@@ -2248,9 +2248,8 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 out:
 	if (release)
 		release_ep_resources(ep);
-
-	/* retry with mpa-v1 */
-	if (ep && ep->retry_with_mpa_v1) {
+	else if (ep->retry_with_mpa_v1) {
+		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
