@@ -3753,16 +3753,18 @@ EXPORT_SYMBOL_HDA(snd_hda_gen_build_pcms);
  * Standard auto-parser initializations
  */
 
-/* configure the path from the given dac to the pin as the proper output */
-static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
+/* configure the given path as a proper output */
+static void set_output_and_unmute(struct hda_codec *codec,
 				  int pin_type, int path_idx)
 {
 	struct nid_path *path;
+	hda_nid_t pin;
 
-	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
 	path = snd_hda_get_path_from_idx(codec, path_idx);
-	if (!path)
+	if (!path || !path->depth)
 		return;
+	pin = path->path[path->depth - 1];
+	snd_hda_set_pin_ctl_cache(codec, pin, pin_type);
 	snd_hda_activate_path(codec, path, path->active, true);
 	set_pin_eapd(codec, pin, path->active);
 }
@@ -3771,7 +3773,6 @@ static void set_output_and_unmute(struct hda_codec *codec, hda_nid_t pin,
 static void init_multi_out(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	hda_nid_t nid;
 	int pin_type;
 	int i;
 
@@ -3780,27 +3781,18 @@ static void init_multi_out(struct hda_codec *codec)
 	else
 		pin_type = PIN_OUT;
 
-	for (i = 0; i < spec->autocfg.line_outs; i++) {
-		nid = spec->autocfg.line_out_pins[i];
-		if (nid)
-			set_output_and_unmute(codec, nid, pin_type,
-					      spec->out_paths[i]);
-	}
+	for (i = 0; i < spec->autocfg.line_outs; i++)
+		set_output_and_unmute(codec, pin_type, spec->out_paths[i]);
 }
 
 
 static void __init_extra_out(struct hda_codec *codec, int num_outs,
-			     hda_nid_t *pins, int *paths, int type)
+			     int *paths, int type)
 {
 	int i;
-	hda_nid_t pin;
 
-	for (i = 0; i < num_outs; i++) {
-		pin = pins[i];
-		if (!pin)
-			break;
-		set_output_and_unmute(codec, pin, type, paths[i]);
-	}
+	for (i = 0; i < num_outs; i++)
+		set_output_and_unmute(codec, type, paths[i]);
 }
 
 /* initialize hp and speaker paths */
@@ -3810,11 +3802,9 @@ static void init_extra_out(struct hda_codec *codec)
 
 	if (spec->autocfg.line_out_type != AUTO_PIN_HP_OUT)
 		__init_extra_out(codec, spec->autocfg.hp_outs,
-				 spec->autocfg.hp_pins,
 				 spec->hp_paths, PIN_HP);
 	if (spec->autocfg.line_out_type != AUTO_PIN_SPEAKER_OUT)
 		__init_extra_out(codec, spec->autocfg.speaker_outs,
-				 spec->autocfg.speaker_pins,
 				 spec->speaker_paths, PIN_OUT);
 }
 
@@ -3911,13 +3901,8 @@ static void init_digital(struct hda_codec *codec)
 	int i;
 	hda_nid_t pin;
 
-	for (i = 0; i < spec->autocfg.dig_outs; i++) {
-		pin = spec->autocfg.dig_out_pins[i];
-		if (!pin)
-			continue;
-		set_output_and_unmute(codec, pin, PIN_OUT,
-				      spec->digout_paths[i]);
-	}
+	for (i = 0; i < spec->autocfg.dig_outs; i++)
+		set_output_and_unmute(codec, PIN_OUT, spec->digout_paths[i]);
 	pin = spec->autocfg.dig_in_pin;
 	if (pin) {
 		struct nid_path *path;
