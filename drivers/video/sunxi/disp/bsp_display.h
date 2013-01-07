@@ -77,6 +77,7 @@ typedef struct {
 
 	void (*tve_interrup) (__u32 sel);
 	 __s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
+	 __s32(*hdmi_set_videomode) (const struct __disp_video_timing *mode);
 	 __s32(*hdmi_wait_edid) (void);
 	 __s32(*Hdmi_open) (void);
 	 __s32(*Hdmi_close) (void);
@@ -235,6 +236,7 @@ extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
 extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2,
 					    __u32 para3);
+extern __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode);
 extern __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 #ifdef CONFIG_ARCH_SUN5I
@@ -257,6 +259,8 @@ extern __s32 BSP_disp_tv_get_dac_source(__u32 sel, __u32 index);
 extern __s32 BSP_disp_hdmi_open(__u32 sel);
 extern __s32 BSP_disp_hdmi_close(__u32 sel);
 extern __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode);
+extern __s32 BSP_disp_set_videomode(__u32 sel,
+		const struct fb_videomode *mode);
 extern __s32 BSP_disp_hdmi_get_mode(__u32 sel);
 extern __s32 BSP_disp_hdmi_check_support_mode(__u32 sel, __u8 mode);
 extern __s32 BSP_disp_hdmi_get_hpd_status(__u32 sel);

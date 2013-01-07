@@ -1052,8 +1052,19 @@ static int Fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	__disp_pixel_fmt_t fmt;
+	int dummy, sel;
 	__inf("Fb_check_var: %dx%d %dbits\n", var->xres, var->yres,
 	      var->bits_per_pixel);
+
+	for (sel = 0; sel < 2; sel++) {
+		if (g_fbi.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
+			continue;
+
+		/* Check that pll is found */
+		if (disp_get_pll_freq(PICOS2KHZ(var->pixclock) *
+				1000, &dummy, &dummy))
+			return -EINVAL;
+	}
 
 	switch (var->bits_per_pixel) {
 	case 16:
@@ -1104,10 +1115,25 @@ static int Fb_set_par(struct fb_info *info)
 		     (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0))) {
 			struct fb_var_screeninfo *var = &info->var;
 			struct fb_fix_screeninfo *fix = &info->fix;
+			bool mode_changed = false;
 			__s32 layer_hdl = g_fbi.layer_hdl[info->node][sel];
 			__disp_layer_info_t layer_para;
 			__u32 buffer_num = 1;
 			__u32 y_offset = 0;
+
+
+			if (g_fbi.disp_init.output_type[sel] ==
+					DISP_OUTPUT_TYPE_HDMI) {
+				struct fb_videomode new_mode;
+				struct fb_videomode old_mode;
+				fb_var_to_videomode(&new_mode, var);
+				BSP_disp_get_videomode(sel, &old_mode);
+				if (!fb_mode_is_equal(&new_mode, &old_mode)) {
+					mode_changed = (BSP_disp_set_videomode(
+							sel, &new_mode) == 0);
+
+				}
+			}
 
 			if (g_fbi.fb_mode[info->node] ==
 			    FB_MODE_DUAL_SAME_SCREEN_TB)
@@ -1124,7 +1150,8 @@ static int Fb_set_par(struct fb_info *info)
 			layer_para.src_win.y = var->yoffset + y_offset;
 			layer_para.src_win.width = var->xres;
 			layer_para.src_win.height = var->yres / buffer_num;
-			if (layer_para.mode != DISP_LAYER_WORK_MODE_SCALER) {
+			if (layer_para.mode != DISP_LAYER_WORK_MODE_SCALER ||
+					mode_changed) {
 				layer_para.scn_win.width =
 					layer_para.src_win.width;
 				layer_para.scn_win.height =

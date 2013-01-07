@@ -452,6 +452,7 @@ typedef struct {
 	__s32(*Hdmi_open) (void);
 	__s32(*Hdmi_close) (void);
 	__s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
+	__s32(*hdmi_set_videomode) (const struct __disp_video_timing *mode);
 	__s32(*hdmi_mode_support) (__disp_tv_mode_t mode);
 	__s32(*hdmi_get_video_timing) (__disp_tv_mode_t mode,
 				struct __disp_video_timing *video_timing);

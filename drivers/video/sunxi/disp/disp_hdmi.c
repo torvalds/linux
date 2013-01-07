@@ -191,6 +191,86 @@ __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode)
 	return DIS_SUCCESS;
 }
 
+void videomode_to_video_timing(struct __disp_video_timing *video_timing,
+		const struct fb_videomode *mode)
+{
+	memset(video_timing, 0, sizeof(struct __disp_video_timing));
+	video_timing->VIC = 511;
+	video_timing->PCLK = (PICOS2KHZ(mode->pixclock) * 1000);
+	video_timing->AVI_PR = 0;
+	video_timing->INPUTX = mode->xres;
+	video_timing->INPUTY = mode->yres;
+	video_timing->HT = mode->xres + mode->left_margin +
+			mode->right_margin + mode->hsync_len;
+	video_timing->HBP = mode->left_margin + mode->hsync_len;
+	video_timing->HFP = mode->right_margin;
+	video_timing->HPSW =  mode->hsync_len;
+	video_timing->VT = mode->yres + mode->upper_margin +
+			mode->lower_margin + mode->vsync_len;
+	video_timing->VBP = mode->upper_margin + mode->vsync_len;
+	video_timing->VFP = mode->lower_margin;
+	video_timing->VPSW = mode->vsync_len;
+	if (mode->vmode & FB_VMODE_INTERLACED)
+		video_timing->I = true;
+
+	if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
+		video_timing->HSYNC = true;
+
+	if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
+		video_timing->VSYNC = true;
+
+}
+
+__s32 BSP_disp_set_videomode(__u32 sel, const struct fb_videomode *mode)
+{
+	struct __disp_video_timing *old_video_timing =
+			kzalloc(sizeof(struct __disp_video_timing), GFP_KERNEL);
+	struct __disp_video_timing *new_video_timing =
+			kzalloc(sizeof(struct __disp_video_timing), GFP_KERNEL);
+	__disp_tv_mode_t hdmi_mode = gdisp.screen[sel].hdmi_mode;
+
+	if (!old_video_timing && !new_video_timing)
+		return DIS_FAIL;
+
+	if (!gdisp.init_para.hdmi_set_videomode)
+		return DIS_FAIL;
+
+	if (gdisp.init_para.hdmi_get_video_timing(hdmi_mode,
+			old_video_timing) != 0)
+		return DIS_FAIL;
+
+	videomode_to_video_timing(new_video_timing, mode);
+
+	if (gdisp.init_para.hdmi_set_videomode(new_video_timing) != 0)
+		return DIS_FAIL;
+
+	if (disp_clk_cfg(sel, DISP_OUTPUT_TYPE_HDMI, hdmi_mode) != 0)
+		goto failure;
+
+	if (DE_BE_set_display_size(sel, new_video_timing->INPUTX,
+			new_video_timing->INPUTY) != 0)
+		goto failure;
+
+	if (TCON1_set_hdmi_mode(sel, hdmi_mode) != 0)
+		goto failure;
+
+	gdisp.screen[sel].b_out_interlace = new_video_timing->I;
+
+	kfree(old_video_timing);
+	kfree(new_video_timing);
+	return DIS_SUCCESS;
+
+failure:
+	gdisp.init_para.hdmi_set_videomode(old_video_timing);
+	disp_clk_cfg(sel, DISP_OUTPUT_TYPE_HDMI, hdmi_mode);
+	DE_BE_set_display_size(sel, old_video_timing->INPUTX,
+			old_video_timing->INPUTY);
+	TCON1_set_hdmi_mode(sel, hdmi_mode);
+	kfree(old_video_timing);
+	kfree(new_video_timing);
+	return DIS_FAIL;
+}
+
 __s32 BSP_disp_hdmi_get_mode(__u32 sel)
 {
 	return gdisp.screen[sel].hdmi_mode;
@@ -253,6 +333,7 @@ __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func *func)
 	gdisp.init_para.Hdmi_open = func->Hdmi_open;
 	gdisp.init_para.Hdmi_close = func->Hdmi_close;
 	gdisp.init_para.hdmi_set_mode = func->hdmi_set_mode;
+	gdisp.init_para.hdmi_set_videomode = func->hdmi_set_videomode;
 	gdisp.init_para.hdmi_mode_support = func->hdmi_mode_support;
 	gdisp.init_para.hdmi_get_video_timing = func->hdmi_get_video_timing;
 	gdisp.init_para.hdmi_get_HPD_status = func->hdmi_get_HPD_status;
