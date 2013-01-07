@@ -1374,6 +1374,7 @@ static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 	struct rtable *rt = (struct rtable *) dst;
 	__be32 orig_gw = rt->rt_gateway;
 	struct neighbour *n, *old_n;
+	struct hh_cache *old_hh;
 
 	dst_confirm(&rt->dst);
 
@@ -1381,6 +1382,9 @@ static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 	n = __arp_bind_neighbour(&rt->dst, rt->rt_gateway);
 	if (IS_ERR(n))
 		return PTR_ERR(n);
+	old_hh = xchg(&rt->dst.hh, NULL);
+	if (old_hh)
+		hh_cache_put(old_hh);
 	old_n = xchg(&rt->dst._neighbour, n);
 	if (old_n)
 		neigh_release(old_n);
