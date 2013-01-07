@@ -3634,7 +3634,7 @@ failure:
 			release_mem_region(base->phy_start,
 					   base->phy_size);
 		if (base->clk) {
-			clk_disable(base->clk);
+			clk_disable_unprepare(base->clk);
 			clk_put(base->clk);
 		}
 
