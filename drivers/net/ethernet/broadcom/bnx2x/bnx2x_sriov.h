@@ -20,7 +20,15 @@
 #define BNX2X_SRIOV_H
 
 #include "bnx2x_vfpf.h"
-#include "bnx2x_cmn.h"
+#include "bnx2x.h"
+
+enum sample_bulletin_result {
+	   PFVF_BULLETIN_UNCHANGED,
+	   PFVF_BULLETIN_UPDATED,
+	   PFVF_BULLETIN_CRC_ERR
+};
+
+#ifdef CONFIG_BNX2X_SRIOV
 
 /* The bnx2x device structure holds vfdb structure described below.
  * The VF array is indexed by the relative vfid.
@@ -712,12 +720,89 @@ u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
 			  struct pf_vf_bulletin_content *bulletin);
 int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf);
 
-enum sample_bulletin_result {
-	   PFVF_BULLETIN_UNCHANGED,
-	   PFVF_BULLETIN_UPDATED,
-	   PFVF_BULLETIN_CRC_ERR
-};
 
 enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 
+/* VF side vfpf channel functions */
+int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
+int bnx2x_vfpf_release(struct bnx2x *bp);
+int bnx2x_vfpf_release(struct bnx2x *bp);
+int bnx2x_vfpf_init(struct bnx2x *bp);
+void bnx2x_vfpf_close_vf(struct bnx2x *bp);
+int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx);
+int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx);
+int bnx2x_vfpf_set_mac(struct bnx2x *bp);
+int bnx2x_vfpf_set_mcast(struct net_device *dev);
+int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp);
+
+static inline void bnx2x_vf_fill_fw_str(struct bnx2x *bp, char *buf,
+					size_t buf_len)
+{
+	strlcpy(buf, bp->acquire_resp.pfdev_info.fw_ver, buf_len);
+}
+
+static inline int bnx2x_vf_ustorm_prods_offset(struct bnx2x *bp,
+					       struct bnx2x_fastpath *fp)
+{
+	return PXP_VF_ADDR_USDM_QUEUES_START +
+		bp->acquire_resp.resc.hw_qid[fp->index] *
+		sizeof(struct ustorm_queue_zone_data);
+}
+
+enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
+void bnx2x_vf_map_doorbells(struct bnx2x *bp);
+int bnx2x_vf_pci_alloc(struct bnx2x *bp);
+void bnx2x_enable_sriov(struct bnx2x *bp);
+static inline int bnx2x_vf_headroom(struct bnx2x *bp)
+{
+	return bp->vfdb->sriov.nr_virtfn * BNX2X_CLIENTS_PER_VF;
+}
+
+#else /* CONFIG_BNX2X_SRIOV */
+
+static inline void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
+				struct bnx2x_queue_sp_obj **q_obj) {}
+static inline void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid,
+				      bool queue_work) {}
+static inline void bnx2x_vf_handle_flr_event(struct bnx2x *bp) {}
+static inline int bnx2x_iov_eq_sp_event(struct bnx2x *bp,
+					union event_ring_elem *elem) {return 1; }
+static inline void bnx2x_iov_sp_task(struct bnx2x *bp) {}
+static inline void bnx2x_vf_mbx(struct bnx2x *bp,
+				struct vf_pf_event_data *vfpf_event) {}
+static inline int bnx2x_iov_init_ilt(struct bnx2x *bp, u16 line) {return line; }
+static inline void bnx2x_iov_init_dq(struct bnx2x *bp) {}
+static inline int bnx2x_iov_alloc_mem(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_iov_chip_cleanup(struct bnx2x *bp) {return 0; }
+static inline void bnx2x_iov_init_dmae(struct bnx2x *bp) {}
+static inline int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
+				     int num_vfs_param) {return 0; }
+static inline void bnx2x_iov_remove_one(struct bnx2x *bp) {}
+static inline void bnx2x_enable_sriov(struct bnx2x *bp) {}
+static inline int bnx2x_vfpf_acquire(struct bnx2x *bp,
+				     u8 tx_count, u8 rx_count) {return 0; }
+static inline int bnx2x_vfpf_release(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_vfpf_init(struct bnx2x *bp) {return 0; }
+static inline void bnx2x_vfpf_close_vf(struct bnx2x *bp) {}
+static inline int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx) {return 0; }
+static inline int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx) {return 0; }
+static inline int bnx2x_vfpf_set_mac(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_vfpf_set_mcast(struct net_device *dev) {return 0; }
+static inline int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_iov_nic_init(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_vf_headroom(struct bnx2x *bp) {return 0; }
+static inline void bnx2x_iov_adjust_stats_req(struct bnx2x *bp) {}
+static inline void bnx2x_vf_fill_fw_str(struct bnx2x *bp, char *buf,
+					size_t buf_len) {}
+static inline int bnx2x_vf_ustorm_prods_offset(struct bnx2x *bp,
+					       struct bnx2x_fastpath *fp) {return 0; }
+static inline enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
+{
+	return PFVF_BULLETIN_UNCHANGED;
+}
+
+static inline int bnx2x_vf_map_doorbells(struct bnx2x *bp) {return 0; }
+static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
+
+#endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */

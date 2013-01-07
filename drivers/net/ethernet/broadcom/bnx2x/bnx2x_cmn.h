@@ -24,6 +24,7 @@
 
 
 #include "bnx2x.h"
+#include "bnx2x_sriov.h"
 
 /* This is used as a replacement for an MCP if it's not present */
 extern int load_count[2][3]; /* per-path: 0-common, 1-port0, 2-port1 */
@@ -1128,22 +1129,7 @@ static inline u8 bnx2x_fp_qzone_id(struct bnx2x_fastpath *fp)
 		return fp->cl_id;
 }
 
-static inline u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
-{
-	struct bnx2x *bp = fp->bp;
-	u32 offset = BAR_USTRORM_INTMEM;
-
-	if (IS_VF(bp))
-		return PXP_VF_ADDR_USDM_QUEUES_START +
-			bp->acquire_resp.resc.hw_qid[fp->index] *
-			sizeof(struct ustorm_queue_zone_data);
-	else if (!CHIP_IS_E1x(bp))
-		offset += USTORM_RX_PRODS_E2_OFFSET(fp->cl_qzone_id);
-	else
-		offset += USTORM_RX_PRODS_E1X_OFFSET(BP_PORT(bp), fp->cl_id);
-
-	return offset;
-}
+u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp);
 
 static inline void bnx2x_init_txdata(struct bnx2x *bp,
 				     struct bnx2x_fp_txdata *txdata, u32 cid,

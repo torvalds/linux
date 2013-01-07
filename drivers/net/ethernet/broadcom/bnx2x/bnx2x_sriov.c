@@ -20,7 +20,7 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 #include "bnx2x_cmn.h"
-#include "bnx2x_sriov.h"
+#include <linux/crc32.h>
 
 /* General service functions */
 static void storm_memset_vf_to_pf(struct bnx2x *bp, u16 abs_fid,
@@ -1334,25 +1334,6 @@ int bnx2x_vfop_qdown_cmd(struct bnx2x *bp,
  * for calling pretend prior to calling these routines
  */
 
-/* called only on E1H or E2.
- * When pretending to be PF, the pretend value is the function number 0...7
- * When pretending to be VF, the pretend val is the PF-num:VF-valid:ABS-VFID
- * combination
- */
-int bnx2x_pretend_func(struct bnx2x *bp, u16 pretend_func_val)
-{
-	u32 pretend_reg;
-
-	if (CHIP_IS_E1H(bp) && pretend_func_val > E1H_FUNC_MAX)
-		return -1;
-
-	/* get my own pretend register */
-	pretend_reg = bnx2x_get_pretend_reg(bp);
-	REG_WR(bp, pretend_reg, pretend_func_val);
-	REG_RD(bp, pretend_reg);
-	return 0;
-}
-
 /* internal vf enable - until vf is enabled internally all transactions
  * are blocked. this routine should always be called last with pretend.
  */
@@ -1800,7 +1781,7 @@ static void bnx2x_vf_set_bars(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		u64 start = pci_resource_start(dev, PCI_IOV_RESOURCES + i);
 		u32 size = pci_resource_len(dev, PCI_IOV_RESOURCES + i);
 
-		do_div(size, iov->total);
+		size /= iov->total;
 		vf->bars[n].bar = start + size * vf->abs_vfid;
 		vf->bars[n].size = size;
 	}
@@ -3030,4 +3011,189 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* record the locking op */
 	vf->op_current = CHANNEL_TLV_NONE;
+}
+
+void bnx2x_enable_sriov(struct bnx2x *bp)
+{
+	int rc = 0;
+
+	/* disbale sriov in case it is still enabled */
+	pci_disable_sriov(bp->pdev);
+	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+
+	/* enable sriov */
+	DP(BNX2X_MSG_IOV, "vf num (%d)\n", (bp->vfdb->sriov.nr_virtfn));
+	rc = pci_enable_sriov(bp->pdev, (bp->vfdb->sriov.nr_virtfn));
+	if (rc)
+		BNX2X_ERR("pci_enable_sriov failed with %d\n", rc);
+	else
+		DP(BNX2X_MSG_IOV, "sriov enabled\n");
+}
+
+/* New mac for VF. Consider these cases:
+ * 1. VF hasn't been acquired yet - save the mac in local bulletin board and
+ *    supply at acquire.
+ * 2. VF has already been acquired but has not yet initialized - store in local
+ *    bulletin board. mac will be posted on VF bulletin board after VF init. VF
+ *    will configure this mac when it is ready.
+ * 3. VF has already initialized but has not yet setup a queue - post the new
+ *    mac on VF's bulletin board right now. VF will configure this mac when it
+ *    is ready.
+ * 4. VF has already set a queue - delete any macs already configured for this
+ *    queue and manually config the new mac.
+ * In any event, once this function has been called refuse any attempts by the
+ * VF to configure any mac for itself except for this mac. In case of a race
+ * where the VF fails to see the new post on its bulletin board before sending a
+ * mac configuration request, the PF will simply fail the request and VF can try
+ * again after consulting its bulletin board
+ */
+int bnx2x_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int rc, q_logical_state, vfidx = queue;
+	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
+	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+
+	/* if SRIOV is disabled there is nothing to do (and somewhere, someone
+	 * has erred).
+	 */
+	if (!IS_SRIOV(bp)) {
+		BNX2X_ERR("bnx2x_set_vf_mac called though sriov is disabled\n");
+		return -EINVAL;
+	}
+
+	if (!is_valid_ether_addr(mac)) {
+		BNX2X_ERR("mac address invalid\n");
+		return -EINVAL;
+	}
+
+	/* update PF's copy of the VF's bulletin. will no longer accept mac
+	 * configuration requests from vf unless match this mac
+	 */
+	bulletin->valid_bitmap |= 1 << MAC_ADDR_VALID;
+	memcpy(bulletin->mac, mac, ETH_ALEN);
+
+	/* Post update on VF's bulletin board */
+	rc = bnx2x_post_vf_bulletin(bp, vfidx);
+	if (rc) {
+		BNX2X_ERR("failed to update VF[%d] bulletin\n", vfidx);
+		return rc;
+	}
+
+	/* is vf initialized and queue set up? */
+	q_logical_state =
+		bnx2x_get_q_logical_state(bp, &bnx2x_vfq(vf, 0, sp_obj));
+	if (vf->state == VF_ENABLED &&
+	    q_logical_state == BNX2X_Q_LOGICAL_STATE_ACTIVE) {
+		/* configure the mac in device on this vf's queue */
+		unsigned long flags = 0;
+		struct bnx2x_vlan_mac_obj *mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
+
+		/* must lock vfpf channel to protect against vf flows */
+		bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_MAC);
+
+		/* remove existing eth macs */
+		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_ETH_MAC, true);
+		if (rc) {
+			BNX2X_ERR("failed to delete eth macs\n");
+			return -EINVAL;
+		}
+
+		/* remove existing uc list macs */
+		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_UC_LIST_MAC, true);
+		if (rc) {
+			BNX2X_ERR("failed to delete uc_list macs\n");
+			return -EINVAL;
+		}
+
+		/* configure the new mac to device */
+		__set_bit(RAMROD_COMP_WAIT, &flags);
+		bnx2x_set_mac_one(bp, (u8 *)&bulletin->mac, mac_obj, true,
+				  BNX2X_ETH_MAC, &flags);
+
+		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_MAC);
+	}
+
+	return rc;
+}
+
+/* crc is the first field in the bulletin board. compute the crc over the
+ * entire bulletin board excluding the crc field itself
+ */
+u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
+			  struct pf_vf_bulletin_content *bulletin)
+{
+	return crc32(BULLETIN_CRC_SEED,
+		 ((u8 *)bulletin) + sizeof(bulletin->crc),
+		 BULLETIN_CONTENT_SIZE - sizeof(bulletin->crc));
+}
+
+/* Check for new posts on the bulletin board */
+enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
+{
+	struct pf_vf_bulletin_content bulletin = bp->pf2vf_bulletin->content;
+	int attempts;
+
+	/* bulletin board hasn't changed since last sample */
+	if (bp->old_bulletin.version == bulletin.version)
+		return PFVF_BULLETIN_UNCHANGED;
+
+	/* validate crc of new bulletin board */
+	if (bp->old_bulletin.version != bp->pf2vf_bulletin->content.version) {
+		/* sampling structure in mid post may result with corrupted data
+		 * validate crc to ensure coherency.
+		 */
+		for (attempts = 0; attempts < BULLETIN_ATTEMPTS; attempts++) {
+			bulletin = bp->pf2vf_bulletin->content;
+			if (bulletin.crc == bnx2x_crc_vf_bulletin(bp,
+								  &bulletin))
+				break;
+			BNX2X_ERR("bad crc on bulletin board. contained %x computed %x\n",
+				  bulletin.crc,
+				  bnx2x_crc_vf_bulletin(bp, &bulletin));
+		}
+		if (attempts >= BULLETIN_ATTEMPTS) {
+			BNX2X_ERR("pf to vf bulletin board crc was wrong %d consecutive times. Aborting\n",
+				  attempts);
+			return PFVF_BULLETIN_CRC_ERR;
+		}
+	}
+
+	/* the mac address in bulletin board is valid and is new */
+	if (bulletin.valid_bitmap & 1 << MAC_ADDR_VALID &&
+	    memcmp(bulletin.mac, bp->old_bulletin.mac, ETH_ALEN)) {
+		/* update new mac to net device */
+		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
+	}
+
+	/* copy new bulletin board to bp */
+	bp->old_bulletin = bulletin;
+
+	return PFVF_BULLETIN_UPDATED;
+}
+
+void bnx2x_vf_map_doorbells(struct bnx2x *bp)
+{
+	/* vf doorbells are embedded within the regview */
+	bp->doorbells = bp->regview + PXP_VF_ADDR_DB_START;
+}
+
+int bnx2x_vf_pci_alloc(struct bnx2x *bp)
+{
+	/* allocate vf2pf mailbox for vf to pf channel */
+	BNX2X_PCI_ALLOC(bp->vf2pf_mbox, &bp->vf2pf_mbox_mapping,
+			sizeof(struct bnx2x_vf_mbx_msg));
+
+	/* allocate pf 2 vf bulletin board */
+	BNX2X_PCI_ALLOC(bp->pf2vf_bulletin, &bp->pf2vf_bulletin_mapping,
+			sizeof(union pf_vf_bulletin));
+
+	return 0;
+
+alloc_mem_err:
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+		       sizeof(struct bnx2x_vf_mbx_msg));
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+		       sizeof(union pf_vf_bulletin));
+	return -ENOMEM;
 }

@@ -18,6 +18,8 @@
 #ifndef VF_PF_IF_H
 #define VF_PF_IF_H
 
+#ifdef CONFIG_BNX2X_SRIOV
+
 /* Common definitions for all HVs */
 struct vf_pf_resc_request {
 	u8  num_rxqs;
@@ -353,4 +355,5 @@ enum channel_tlvs {
 	CHANNEL_TLV_MAX
 };
 
+#endif /* CONFIG_BNX2X_SRIOV */
 #endif /* VF_PF_IF_H */

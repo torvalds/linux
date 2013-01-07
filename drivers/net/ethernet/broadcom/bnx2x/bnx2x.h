@@ -1266,6 +1266,7 @@ struct bnx2x {
 	  (vn) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
 #define BP_FW_MB_IDX(bp)		BP_FW_MB_IDX_VN(bp, BP_VN(bp))
 
+#ifdef CONFIG_BNX2X_SRIOV
 	/* vf pf channel mailbox contains request and response buffers */
 	struct bnx2x_vf_mbx_msg	*vf2pf_mbox;
 	dma_addr_t		vf2pf_mbox_mapping;
@@ -1278,6 +1279,7 @@ struct bnx2x {
 	dma_addr_t		pf2vf_bulletin_mapping;
 
 	struct pf_vf_bulletin_content	old_bulletin;
+#endif /* CONFIG_BNX2X_SRIOV */
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -1379,8 +1381,14 @@ struct bnx2x {
 #define IS_VF_FLAG			(1 << 22)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
+
+#ifdef CONFIG_BNX2X_SRIOV
 #define IS_VF(bp)			((bp)->flags & IS_VF_FLAG)
 #define IS_PF(bp)			(!((bp)->flags & IS_VF_FLAG))
+#else
+#define IS_VF(bp)			false
+#define IS_PF(bp)			true
+#endif
 
 #define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
 #define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
@@ -2275,18 +2283,6 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 
 #define GOOD_ME_REG(me_reg) (((me_reg) & ME_REG_VF_VALID) && \
 			    (!((me_reg) & ME_REG_VF_ERR)))
-int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id);
-int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping);
-int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
-int bnx2x_vfpf_release(struct bnx2x *bp);
-int bnx2x_vfpf_init(struct bnx2x *bp);
-void bnx2x_vfpf_close_vf(struct bnx2x *bp);
-int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx);
-int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx);
-int bnx2x_vfpf_set_mac(struct bnx2x *bp);
-int bnx2x_vfpf_set_mcast(struct net_device *dev);
-int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp);
-
 int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code);
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0

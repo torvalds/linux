@@ -121,4 +121,13 @@ config BNX2X
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
 
+config BNX2X_SRIOV
+	bool "Broadcom 578xx and 57712 SR-IOV support"
+	depends on BNX2X && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support in the 578xx and 57712 products. This
+	  allows for virtual function acceleration in virtual environments.
+
 endif # NET_VENDOR_BROADCOM
