@@ -460,8 +460,8 @@ static void aurora_pa_range(unsigned long start, unsigned long end,
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
-	writel(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
-	writel(end, l2x0_base + offset);
+	writel_relaxed(start, l2x0_base + AURORA_RANGE_BASE_ADDR_REG);
+	writel_relaxed(end, l2x0_base + offset);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 
 	cache_sync();
@@ -675,8 +675,9 @@ static void pl310_resume(void)
 static void aurora_resume(void)
 {
 	if (!(readl(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
-		writel(l2x0_saved_regs.aux_ctrl, l2x0_base + L2X0_AUX_CTRL);
-		writel(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
+		writel_relaxed(l2x0_saved_regs.aux_ctrl,
+				l2x0_base + L2X0_AUX_CTRL);
+		writel_relaxed(l2x0_saved_regs.ctrl, l2x0_base + L2X0_CTRL);
 	}
 }
 
