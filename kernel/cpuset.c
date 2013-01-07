@@ -1790,15 +1790,12 @@ static struct cftype files[] = {
 
 static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 {
-	struct cgroup *parent_cg = cont->parent;
-	struct cgroup *tmp_cg;
-	struct cpuset *parent, *cs;
+	struct cpuset *cs;
 
-	if (!parent_cg)
+	if (!cont->parent)
 		return &top_cpuset.css;
-	parent = cgroup_cs(parent_cg);
 
-	cs = kmalloc(sizeof(*cs), GFP_KERNEL);
+	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 	if (!alloc_cpumask_var(&cs->cpus_allowed, GFP_KERNEL)) {
@@ -1806,22 +1803,34 @@ static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cs->flags = 0;
-	if (is_spread_page(parent))
-		set_bit(CS_SPREAD_PAGE, &cs->flags);
-	if (is_spread_slab(parent))
-		set_bit(CS_SPREAD_SLAB, &cs->flags);
 	set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
 	cpumask_clear(cs->cpus_allowed);
 	nodes_clear(cs->mems_allowed);
 	fmeter_init(&cs->fmeter);
 	cs->relax_domain_level = -1;
+	cs->parent = cgroup_cs(cont->parent);
 
-	cs->parent = parent;
+	return &cs->css;
+}
+
+static int cpuset_css_online(struct cgroup *cgrp)
+{
+	struct cpuset *cs = cgroup_cs(cgrp);
+	struct cpuset *parent = cs->parent;
+	struct cgroup *tmp_cg;
+
+	if (!parent)
+		return 0;
+
+	if (is_spread_page(parent))
+		set_bit(CS_SPREAD_PAGE, &cs->flags);
+	if (is_spread_slab(parent))
+		set_bit(CS_SPREAD_SLAB, &cs->flags);
+
 	number_of_cpusets++;
 
-	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &cont->flags))
-		goto skip_clone;
+	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags))
+		return 0;
 
 	/*
 	 * Clone @parent's configuration if CGRP_CPUSET_CLONE_CHILDREN is
@@ -1836,19 +1845,34 @@ static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 	 * changed to grant parent->cpus_allowed-sibling_cpus_exclusive
 	 * (and likewise for mems) to the new cgroup.
 	 */
-	list_for_each_entry(tmp_cg, &parent_cg->children, sibling) {
+	list_for_each_entry(tmp_cg, &cgrp->parent->children, sibling) {
 		struct cpuset *tmp_cs = cgroup_cs(tmp_cg);
 
 		if (is_mem_exclusive(tmp_cs) || is_cpu_exclusive(tmp_cs))
-			goto skip_clone;
+			return 0;
 	}
 
 	mutex_lock(&callback_mutex);
 	cs->mems_allowed = parent->mems_allowed;
 	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
 	mutex_unlock(&callback_mutex);
-skip_clone:
-	return &cs->css;
+
+	return 0;
+}
+
+static void cpuset_css_offline(struct cgroup *cgrp)
+{
+	struct cpuset *cs = cgroup_cs(cgrp);
+
+	/* css_offline is called w/o cgroup_mutex, grab it */
+	cgroup_lock();
+
+	if (is_sched_load_balance(cs))
+		update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
+
+	number_of_cpusets--;
+
+	cgroup_unlock();
 }
 
 /*
@@ -1861,10 +1885,6 @@ static void cpuset_css_free(struct cgroup *cont)
 {
 	struct cpuset *cs = cgroup_cs(cont);
 
-	if (is_sched_load_balance(cs))
-		update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
-
-	number_of_cpusets--;
 	free_cpumask_var(cs->cpus_allowed);
 	kfree(cs);
 }
@@ -1872,6 +1892,8 @@ static void cpuset_css_free(struct cgroup *cont)
 struct cgroup_subsys cpuset_subsys = {
 	.name = "cpuset",
 	.css_alloc = cpuset_css_alloc,
+	.css_online = cpuset_css_online,
+	.css_offline = cpuset_css_offline,
 	.css_free = cpuset_css_free,
 	.can_attach = cpuset_can_attach,
 	.attach = cpuset_attach,
