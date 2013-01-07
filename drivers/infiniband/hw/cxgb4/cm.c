@@ -1419,9 +1419,9 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 		BUG_ON(!ep->com.qp);
 		if (ep->com.qp->attr.state == C4IW_QP_STATE_RTS)
 			pr_err("%s Unexpected streaming data." \
-			       " ep %p state %d tid %u status %d\n",
-			       __func__, ep, state_read(&ep->com),
-			       ep->hwtid, status);
+			       " qpid %u ep %p state %d tid %u status %d\n",
+			       __func__, ep->com.qp->wq.sq.qid, ep,
+			       state_read(&ep->com), ep->hwtid, status);
 		attrs.next_state = C4IW_QP_STATE_ERROR;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
