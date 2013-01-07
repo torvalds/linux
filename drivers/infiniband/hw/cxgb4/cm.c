@@ -1403,19 +1403,21 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 		ep->rcv_seq += dlen;
 		process_mpa_request(ep, skb);
 		break;
-	default:
-		pr_err("%s Unexpected streaming data." \
-		       " ep %p state %d tid %u status %d\n",
-		       __func__, ep, state_read(&ep->com), ep->hwtid, status);
-
-		if (ep->com.qp) {
-			struct c4iw_qp_attributes attrs;
-
-			attrs.next_state = C4IW_QP_STATE_ERROR;
-			c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
-		}
+	case FPDU_MODE: {
+		struct c4iw_qp_attributes attrs;
+		BUG_ON(!ep->com.qp);
+		if (ep->com.qp->attr.state == C4IW_QP_STATE_RTS)
+			pr_err("%s Unexpected streaming data." \
+			       " ep %p state %d tid %u status %d\n",
+			       __func__, ep, state_read(&ep->com),
+			       ep->hwtid, status);
+		attrs.next_state = C4IW_QP_STATE_ERROR;
+		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
+		break;
+	}
+	default:
 		break;
 	}
 	return 0;
