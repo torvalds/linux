@@ -506,15 +506,21 @@ static void aurora_clean_range(unsigned long start, unsigned long end)
 
 static void aurora_flush_range(unsigned long start, unsigned long end)
 {
-	if (!l2_wt_override) {
-		start &= ~(CACHE_LINE_SIZE - 1);
-		end = ALIGN(end, CACHE_LINE_SIZE);
-		while (start != end) {
-			unsigned long range_end = calc_range_end(start, end);
+	start &= ~(CACHE_LINE_SIZE - 1);
+	end = ALIGN(end, CACHE_LINE_SIZE);
+	while (start != end) {
+		unsigned long range_end = calc_range_end(start, end);
+		/*
+		 * If L2 is forced to WT, the L2 will always be clean and we
+		 * just need to invalidate.
+		 */
+		if (l2_wt_override)
 			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
-					AURORA_FLUSH_RANGE_REG);
-			start = range_end;
-		}
+							AURORA_INVAL_RANGE_REG);
+		else
+			aurora_pa_range(start, range_end - CACHE_LINE_SIZE,
+							AURORA_FLUSH_RANGE_REG);
+		start = range_end;
 	}
 }
 
