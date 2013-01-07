@@ -1438,6 +1438,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:
+		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		break;
