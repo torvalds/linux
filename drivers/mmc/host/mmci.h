@@ -193,7 +193,6 @@ struct mmci_host {
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
-	struct regulator	*vcc;
 
 	/* pinctrl handles */
 	struct pinctrl		*pinctrl;
