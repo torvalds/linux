@@ -28,6 +28,9 @@ struct pxa2xx_spi_master {
 	u32 clock_enable;
 	u16 num_chipselect;
 	u8 enable_dma;
+
+	/* For non-PXA arches */
+	struct ssp_device ssp;
 };
 
 /* spi_board_info.controller_data for SPI slave devices,

@@ -8,55 +8,11 @@
 #include <linux/module.h>
 #include <linux/spi/pxa2xx_spi.h>
 
-struct ce4100_info {
-	struct ssp_device ssp;
-	struct platform_device *spi_pdev;
-};
-
-static DEFINE_MUTEX(ssp_lock);
-static LIST_HEAD(ssp_list);
-
-struct ssp_device *pxa_ssp_request(int port, const char *label)
-{
-	struct ssp_device *ssp = NULL;
-
-	mutex_lock(&ssp_lock);
-
-	list_for_each_entry(ssp, &ssp_list, node) {
-		if (ssp->port_id == port && ssp->use_count == 0) {
-			ssp->use_count++;
-			ssp->label = label;
-			break;
-		}
-	}
-
-	mutex_unlock(&ssp_lock);
-
-	if (&ssp->node == &ssp_list)
-		return NULL;
-
-	return ssp;
-}
-EXPORT_SYMBOL_GPL(pxa_ssp_request);
-
-void pxa_ssp_free(struct ssp_device *ssp)
-{
-	mutex_lock(&ssp_lock);
-	if (ssp->use_count) {
-		ssp->use_count--;
-		ssp->label = NULL;
-	} else
-		dev_err(&ssp->pdev->dev, "device already free\n");
-	mutex_unlock(&ssp_lock);
-}
-EXPORT_SYMBOL_GPL(pxa_ssp_free);
-
 static int ce4100_spi_probe(struct pci_dev *dev,
 		const struct pci_device_id *ent)
 {
 	struct platform_device_info pi;
 	int ret;
-	struct ce4100_info *spi_info;
 	struct platform_device *pdev;
 	struct pxa2xx_spi_master spi_pdata;
 	struct ssp_device *ssp;
@@ -69,14 +25,10 @@ static int ce4100_spi_probe(struct pci_dev *dev,
 	if (!ret)
 		return ret;
 
-	spi_info = devm_kzalloc(&dev->dev, sizeof(*spi_info), GFP_KERNEL);
-	if (!spi_info)
-		return -ENOMEM;
-
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
 	spi_pdata.num_chipselect = dev->devfn;
 
-	ssp = &spi_info->ssp;
+	ssp = &spi_pdata.ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = pcim_iomap_table(dev)[0];
 	if (!ssp->mmio_base) {
@@ -87,10 +39,6 @@ static int ce4100_spi_probe(struct pci_dev *dev,
 	ssp->port_id = dev->devfn;
 	ssp->type = PXA25x_SSP;
 
-	mutex_lock(&ssp_lock);
-	list_add(&ssp->node, &ssp_list);
-	mutex_unlock(&ssp_lock);
-
 	memset(&pi, 0, sizeof(pi));
 	pi.parent = &dev->dev;
 	pi.name = "pxa2xx-spi";
@@ -99,30 +47,19 @@ static int ce4100_spi_probe(struct pci_dev *dev,
 	pi.size_data = sizeof(spi_pdata);
 
 	pdev = platform_device_register_full(&pi);
-	if (!pdev) {
-		mutex_lock(&ssp_lock);
-		list_del(&ssp->node);
-		mutex_unlock(&ssp_lock);
-
+	if (!pdev)
 		return -ENOMEM;
-	}
 
-	spi_info->spi_pdev = pdev;
-	pci_set_drvdata(dev, spi_info);
+	pci_set_drvdata(dev, pdev);
 
 	return 0;
 }
 
 static void ce4100_spi_remove(struct pci_dev *dev)
 {
-	struct ce4100_info *spi_info = pci_get_drvdata(dev);
-	struct ssp_device *ssp = &spi_info->ssp;
+	struct platform_device *pdev = pci_get_drvdata(dev);
 
-	platform_device_unregister(spi_info->spi_pdev);
-
-	mutex_lock(&ssp_lock);
-	list_del(&ssp->node);
-	mutex_unlock(&ssp_lock);
+	platform_device_unregister(pdev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ce4100_spi_devices) = {

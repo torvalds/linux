@@ -1535,11 +1535,18 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	struct ssp_device *ssp;
 	int status;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
+	if (!platform_info) {
+		dev_err(&pdev->dev, "missing platform data\n");
+		return -ENODEV;
+	}
 
 	ssp = pxa_ssp_request(pdev->id, pdev->name);
-	if (ssp == NULL) {
-		dev_err(&pdev->dev, "failed to request SSP%d\n", pdev->id);
+	if (!ssp)
+		ssp = &platform_info->ssp;
+
+	if (!ssp->mmio_base) {
+		dev_err(&pdev->dev, "failed to get ssp\n");
 		return -ENODEV;
 	}
 
@@ -1561,7 +1568,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	master->bus_num = pdev->id;
+	master->bus_num = ssp->port_id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->dma_alignment = DMA_ALIGNMENT;
 	master->cleanup = cleanup;
