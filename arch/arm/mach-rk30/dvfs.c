@@ -404,6 +404,7 @@ int clk_enable_dvfs(struct clk *clk)
 		}
 #endif
 		dvfs_vd_get_newvolt_byclk(dvfs_clk);
+#if 0
 		if(dvfs_clk->vd->cur_volt < dvfs_clk->set_volt) {
 			int ret;
 			mutex_lock(&rk_dvfs_mutex);
@@ -418,6 +419,7 @@ int clk_enable_dvfs(struct clk *clk)
 			dvfs_clk->vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
 			mutex_unlock(&rk_dvfs_mutex);
 		}
+#endif
 		dvfs_clk->enable_dvfs++;
 	} else {
 		DVFS_ERR("dvfs already enable clk enable = %d!\n", dvfs_clk->enable_dvfs);
