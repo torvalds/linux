@@ -53,8 +53,18 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 #endif
 
 #define readb __raw_readb
-#define readw(addr) __le16_to_cpu(__raw_readw(addr))
-#define readl(addr) __le32_to_cpu(__raw_readl(addr))
+
+#define readw readw
+static inline u16 readw(const volatile void __iomem *addr)
+{
+	return __le16_to_cpu(__raw_readw(addr));
+}
+
+#define readl readl
+static inline u32 readl(const volatile void __iomem *addr)
+{
+	return __le32_to_cpu(__raw_readl(addr));
+}
 
 #ifndef __raw_writeb
 static inline void __raw_writeb(u8 b, volatile void __iomem *addr)
@@ -89,7 +99,11 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 }
 #endif
 
-#define readq(addr) __le64_to_cpu(__raw_readq(addr))
+#define readq readq
+static inline u64 readq(const volatile void __iomem *addr)
+{
+	return __le64_to_cpu(__raw_readq(addr));
+}
 
 #ifndef __raw_writeq
 static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
