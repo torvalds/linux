@@ -116,8 +116,7 @@ static int max77686_clk_register(struct device *dev,
 	if (IS_ERR(clk))
 		return -ENOMEM;
 
-	max77686->lookup = devm_kzalloc(dev, sizeof(struct clk_lookup),
-					GFP_KERNEL);
+	max77686->lookup = kzalloc(sizeof(struct clk_lookup), GFP_KERNEL);
 	if (!max77686->lookup)
 		return -ENOMEM;
 
