@@ -1428,12 +1428,8 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 	for (i = 0; i < noutputs; i++) {
 		const char *name;
 		int index;
-		hda_nid_t dac;
 		struct nid_path *path;
 
-		dac = spec->multiout.dac_nids[i];
-		if (!dac)
-			continue;
 		if (i >= cfg->line_outs) {
 			index = 0;
 			name = channel_name[i];
