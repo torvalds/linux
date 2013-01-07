@@ -2368,7 +2368,6 @@ static int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 	}
 
 	inode->i_size = EXT4_I(inode)->i_disksize = blocksize;
-	dir_block = ext4_bread(handle, inode, 0, 1, &err);
 	if (!(dir_block = ext4_bread(handle, inode, 0, 1, &err))) {
 		if (!err) {
 			err = -EIO;
