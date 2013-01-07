@@ -716,6 +716,7 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
+	QP_REFERENCED           = 5,
 };
 
 enum c4iw_ep_history {
