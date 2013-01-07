@@ -76,7 +76,7 @@ make sure the strings are properly NUL-terminated.</para></entry>
 	  <row>
 	    <entry>__u8</entry>
 	    <entry><structfield>card</structfield>[32]</entry>
-	    <entry>Name of the device, a NUL-terminated ASCII string.
+	    <entry>Name of the device, a NUL-terminated UTF-8 string.
 For example: "Yoyodyne TV/FM". One driver may support different brands
 or models of video hardware. This information is intended for users,
 for example in a menu of available devices. Since multiple TV cards of
