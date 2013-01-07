@@ -32,7 +32,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
 #include <asm/mach/irq.h>
-#include <mach/irqs.h>
 #include "pinctrl-nomadik.h"
 #include "core.h"
 
@@ -217,7 +216,7 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 	u32 falling = nmk_chip->fimsc & BIT(offset);
 	u32 rising = nmk_chip->rimsc & BIT(offset);
 	int gpio = nmk_chip->chip.base + offset;
-	int irq = NOMADIK_GPIO_TO_IRQ(gpio);
+	int irq = irq_find_mapping(nmk_chip->domain, offset);
 	struct irq_data *d = irq_get_irq_data(irq);
 
 	if (!rising && !falling)
@@ -1428,7 +1427,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, nmk_chip);
 
 	if (!np)
-		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
+		irq_start = pdata->first_irq;
 	nmk_chip->domain = irq_domain_add_simple(np,
 				NMK_GPIO_PER_CHIP, irq_start,
 				&nmk_gpio_irq_simple_ops, nmk_chip);
