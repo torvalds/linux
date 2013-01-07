@@ -589,6 +589,7 @@ static int af9035_read_config_af9035(struct dvb_usb_device *d)
 
 	/* demod I2C "address" */
 	state->af9033_config[0].i2c_addr = 0x38;
+	state->af9033_config[0].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 
 	/* check if there is dual tuners */
 	ret = af9035_rd_reg(d, EEPROM_DUAL_MODE, &tmp);
