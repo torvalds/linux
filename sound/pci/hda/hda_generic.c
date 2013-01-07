@@ -1168,6 +1168,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	memset(spec->speaker_paths, 0, sizeof(spec->speaker_paths));
 	memset(spec->aamix_out_paths, 0, sizeof(spec->aamix_out_paths));
 	memset(spec->digout_paths, 0, sizeof(spec->digout_paths));
+	memset(spec->input_paths, 0, sizeof(spec->input_paths));
 	memset(spec->loopback_paths, 0, sizeof(spec->loopback_paths));
 	memset(&spec->digin_path, 0, sizeof(spec->digin_path));
 
@@ -2058,6 +2059,7 @@ static int create_input_ctls(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
 		const char *label;
+		int imux_idx;
 		bool imux_added;
 
 		pin = cfg->inputs[i].pin;
@@ -2083,24 +2085,23 @@ static int create_input_ctls(struct hda_codec *codec)
 		}
 
 		imux_added = false;
+		imux_idx = imux->num_items;
 		for (c = 0; c < num_adcs; c++) {
 			struct nid_path *path;
 			hda_nid_t adc = spec->adc_nids[c];
 
 			if (!is_reachable_path(codec, pin, adc))
 				continue;
-			path = snd_array_new(&spec->paths);
-			if (!path)
-				return -ENOMEM;
-			memset(path, 0, sizeof(*path));
-			if (!snd_hda_parse_nid_path(codec, pin, adc, HDA_PARSE_ALL, path)) {
+			path = snd_hda_add_new_path(codec, pin, adc, HDA_PARSE_ALL);
+			if (!path) {
 				snd_printd(KERN_ERR
 					   "invalid input path 0x%x -> 0x%x\n",
 					   pin, adc);
-				spec->paths.used--;
 				continue;
 			}
 			print_nid_path("input", path);
+			spec->input_paths[imux_idx][c] =
+				snd_hda_get_path_idx(codec, path);
 
 			if (!imux_added) {
 				spec->imux_pins[imux->num_items] = pin;
@@ -2119,13 +2120,13 @@ static int create_input_ctls(struct hda_codec *codec)
  * input source mux
  */
 
-/* get the ADC NID corresponding to the given index */
-static hda_nid_t get_adc_nid(struct hda_codec *codec, int adc_idx, int imux_idx)
+/* get the input path specified by the given adc and imux indices */
+static struct nid_path *get_input_path(struct hda_codec *codec, int adc_idx, int imux_idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	if (spec->dyn_adc_switch)
 		adc_idx = spec->dyn_adc_idx[imux_idx];
-	return spec->adc_nids[adc_idx];
+	return snd_hda_get_path_from_idx(codec, spec->input_paths[imux_idx][adc_idx]);
 }
 
 static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
@@ -2194,9 +2195,8 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	 */
 	codec->cached_write = 1;
 	for (i = 0; i < imux->num_items; i++) {
-		path = snd_hda_get_nid_path(codec, spec->imux_pins[i],
-					    get_adc_nid(codec, adc_idx, i));
-		if (!path->ctls[type])
+		path = get_input_path(codec, adc_idx, i);
+		if (!path || !path->ctls[type])
 			continue;
 		kcontrol->private_value = path->ctls[type];
 		err = func(kcontrol, ucontrol);
@@ -2396,21 +2396,18 @@ static int create_bind_cap_vol_ctl(struct hda_codec *codec, int idx,
 /* return the vol ctl when used first in the imux list */
 static unsigned int get_first_cap_ctl(struct hda_codec *codec, int idx, int type)
 {
-	struct hda_gen_spec *spec = codec->spec;
 	struct nid_path *path;
 	unsigned int ctl;
 	int i;
 
-	path = snd_hda_get_nid_path(codec, spec->imux_pins[idx],
-				    get_adc_nid(codec, 0, idx));
+	path = get_input_path(codec, 0, idx);
 	if (!path)
 		return 0;
 	ctl = path->ctls[type];
 	if (!ctl)
 		return 0;
 	for (i = 0; i < idx - 1; i++) {
-		path = snd_hda_get_nid_path(codec, spec->imux_pins[i],
-					    get_adc_nid(codec, 0, i));
+		path = get_input_path(codec, 0, i);
 		if (path && path->ctls[type] == ctl)
 			return 0;
 	}
@@ -2476,8 +2473,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		vol = sw = 0;
 		for (i = 0; i < imux->num_items; i++) {
 			struct nid_path *path;
-			path = snd_hda_get_nid_path(codec, spec->imux_pins[i],
-						    get_adc_nid(codec, n, i));
+			path = get_input_path(codec, n, i);
 			if (!path)
 				continue;
 			parse_capvol_in_path(codec, path);
@@ -2635,9 +2631,7 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	if (spec->cur_mux[adc_idx] == idx)
 		return 0;
 
-	path = snd_hda_get_nid_path(codec,
-				    spec->imux_pins[spec->cur_mux[adc_idx]],
-				    spec->adc_nids[adc_idx]);
+	path = get_input_path(codec, adc_idx, spec->cur_mux[adc_idx]);
 	if (!path)
 		return 0;
 	if (path->active)
@@ -2651,8 +2645,7 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	if (spec->dyn_adc_switch)
 		dyn_adc_pcm_resetup(codec, idx);
 
-	path = snd_hda_get_nid_path(codec, spec->imux_pins[idx],
-				    get_adc_nid(codec, adc_idx, idx));
+	path = get_input_path(codec, adc_idx, idx);
 	if (!path)
 		return 0;
 	if (path->active)
@@ -3889,8 +3882,7 @@ static void init_input_src(struct hda_codec *codec)
 
 	for (c = 0; c < nums; c++) {
 		for (i = 0; i < imux->num_items; i++) {
-			path = snd_hda_get_nid_path(codec, spec->imux_pins[i],
-						    get_adc_nid(codec, c, i));
+			path = get_input_path(codec, c, i);
 			if (path) {
 				bool active = path->active;
 				if (i == spec->cur_mux[c])

@@ -156,6 +156,7 @@ struct hda_gen_spec {
 	int speaker_paths[AUTO_CFG_MAX_OUTS];
 	int aamix_out_paths[3];
 	int digout_paths[AUTO_CFG_MAX_OUTS];
+	int input_paths[HDA_MAX_NUM_INPUTS][AUTO_CFG_MAX_OUTS];
 	int loopback_paths[HDA_MAX_NUM_INPUTS];
 	int digin_path;
 
