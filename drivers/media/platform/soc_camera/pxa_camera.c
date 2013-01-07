@@ -1661,23 +1661,18 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || irq < 0) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!res || irq < 0)
+		return -ENODEV;
 
-	pcdev = kzalloc(sizeof(*pcdev), GFP_KERNEL);
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev) {
 		dev_err(&pdev->dev, "Could not allocate pcdev\n");
-		err = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
-	pcdev->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pcdev->clk)) {
-		err = PTR_ERR(pcdev->clk);
-		goto exit_kfree;
-	}
+	pcdev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pcdev->clk))
+		return PTR_ERR(pcdev->clk);
 
 	pcdev->res = res;
 
@@ -1715,17 +1710,9 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	/*
 	 * Request the regions.
 	 */
-	if (!request_mem_region(res->start, resource_size(res),
-				PXA_CAM_DRV_NAME)) {
-		err = -EBUSY;
-		goto exit_clk;
-	}
-
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		err = -ENOMEM;
-		goto exit_release;
-	}
+	base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!base)
+		return -ENOMEM;
 	pcdev->irq = irq;
 	pcdev->base = base;
 
@@ -1734,7 +1721,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 			      pxa_camera_dma_irq_y, pcdev);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		goto exit_iounmap;
+		return err;
 	}
 	pcdev->dma_chans[0] = err;
 	dev_dbg(&pdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
@@ -1762,10 +1749,10 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	/* request irq */
-	err = request_irq(pcdev->irq, pxa_camera_irq, 0, PXA_CAM_DRV_NAME,
-			  pcdev);
+	err = devm_request_irq(&pdev->dev, pcdev->irq, pxa_camera_irq, 0,
+			       PXA_CAM_DRV_NAME, pcdev);
 	if (err) {
-		dev_err(&pdev->dev, "Camera interrupt register failed \n");
+		dev_err(&pdev->dev, "Camera interrupt register failed\n");
 		goto exit_free_dma;
 	}
 
@@ -1777,27 +1764,16 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
-		goto exit_free_irq;
+		goto exit_free_dma;
 
 	return 0;
 
-exit_free_irq:
-	free_irq(pcdev->irq, pcdev);
 exit_free_dma:
 	pxa_free_dma(pcdev->dma_chans[2]);
 exit_free_dma_u:
 	pxa_free_dma(pcdev->dma_chans[1]);
 exit_free_dma_y:
 	pxa_free_dma(pcdev->dma_chans[0]);
-exit_iounmap:
-	iounmap(base);
-exit_release:
-	release_mem_region(res->start, resource_size(res));
-exit_clk:
-	clk_put(pcdev->clk);
-exit_kfree:
-	kfree(pcdev);
-exit:
 	return err;
 }
 
@@ -1806,23 +1782,12 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct pxa_camera_dev *pcdev = container_of(soc_host,
 					struct pxa_camera_dev, soc_host);
-	struct resource *res;
-
-	clk_put(pcdev->clk);
 
 	pxa_free_dma(pcdev->dma_chans[0]);
 	pxa_free_dma(pcdev->dma_chans[1]);
 	pxa_free_dma(pcdev->dma_chans[2]);
-	free_irq(pcdev->irq, pcdev);
 
 	soc_camera_host_unregister(soc_host);
-
-	iounmap(pcdev->base);
-
-	res = pcdev->res;
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(pcdev);
 
 	dev_info(&pdev->dev, "PXA Camera driver unloaded\n");
 
