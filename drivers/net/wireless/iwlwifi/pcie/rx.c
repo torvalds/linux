@@ -436,7 +436,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 err_rb_stts:
 	dma_free_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
 			  rxq->bd, rxq->bd_dma);
-	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
+	rxq->bd_dma = 0;
 	rxq->bd = NULL;
 err_bd:
 	return -ENOMEM;
@@ -553,7 +553,7 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 
 	dma_free_coherent(trans->dev, sizeof(__le32) * RX_QUEUE_SIZE,
 			  rxq->bd, rxq->bd_dma);
-	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
+	rxq->bd_dma = 0;
 	rxq->bd = NULL;
 
 	if (rxq->rb_stts)
@@ -562,7 +562,7 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 				  rxq->rb_stts, rxq->rb_stts_dma);
 	else
 		IWL_DEBUG_INFO(trans, "Free rxq->rb_stts which is NULL\n");
-	memset(&rxq->rb_stts_dma, 0, sizeof(rxq->rb_stts_dma));
+	rxq->rb_stts_dma = 0;
 	rxq->rb_stts = NULL;
 }
 
