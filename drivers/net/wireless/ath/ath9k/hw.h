@@ -397,6 +397,7 @@ enum ath9k_int {
 #define MAX_RTT_TABLE_ENTRY     6
 #define MAX_IQCAL_MEASUREMENT	8
 #define MAX_CL_TAB_ENTRY	16
+#define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
 
 struct ath9k_hw_cal_data {
 	u16 channel;
