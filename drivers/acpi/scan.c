@@ -1558,7 +1558,8 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 	}
 
-	acpi_add_single_object(&device, handle, type, sta, false);
+	acpi_add_single_object(&device, handle, type, sta,
+			       type == ACPI_BUS_TYPE_POWER);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
