@@ -3939,36 +3939,39 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
-EXPORT_SYMBOL(snd_hda_gen_init);
+EXPORT_SYMBOL_HDA(snd_hda_gen_init);
+
+
+void snd_hda_gen_free(struct hda_codec *codec)
+{
+	snd_hda_gen_spec_free(codec->spec);
+	kfree(codec->spec);
+	codec->spec = NULL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_gen_free);
+
+#ifdef CONFIG_PM
+int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	return snd_hda_check_amp_list_power(codec, &spec->loopback, nid);
+}
+EXPORT_SYMBOL_HDA(snd_hda_gen_check_power_status);
+#endif
 
 
 /*
  * the generic codec support
  */
 
-#ifdef CONFIG_PM
-static int generic_check_power_status(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	return snd_hda_check_amp_list_power(codec, &spec->loopback, nid);
-}
-#endif
-
-static void generic_free(struct hda_codec *codec)
-{
-	snd_hda_gen_spec_free(codec->spec);
-	kfree(codec->spec);
-	codec->spec = NULL;
-}
-
 static const struct hda_codec_ops generic_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = snd_hda_gen_init,
-	.free = generic_free,
+	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
-	.check_power_status = generic_check_power_status,
+	.check_power_status = snd_hda_gen_check_power_status,
 #endif
 };
 
@@ -3995,7 +3998,7 @@ int snd_hda_parse_generic_codec(struct hda_codec *codec)
 	return 0;
 
 error:
-	generic_free(codec);
+	snd_hda_gen_free(codec);
 	return err;
 }
-EXPORT_SYMBOL(snd_hda_parse_generic_codec);
+EXPORT_SYMBOL_HDA(snd_hda_parse_generic_codec);

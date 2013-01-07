@@ -808,14 +808,6 @@ static int alc_init(struct hda_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int alc_check_power_status(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct alc_spec *spec = codec->spec;
-	return snd_hda_check_amp_list_power(codec, &spec->gen.loopback, nid);
-}
-#endif
-
 static inline void alc_shutup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -876,10 +868,8 @@ static const struct hda_codec_ops alc_patch_ops = {
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.resume = alc_resume,
-#endif
-#ifdef CONFIG_PM
 	.suspend = alc_suspend,
-	.check_power_status = alc_check_power_status,
+	.check_power_status = snd_hda_gen_check_power_status,
 #endif
 	.reboot_notify = alc_shutup,
 };

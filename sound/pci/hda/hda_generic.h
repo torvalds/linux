@@ -218,6 +218,7 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
 void snd_hda_gen_spec_free(struct hda_gen_spec *spec);
 
 int snd_hda_gen_init(struct hda_codec *codec);
+void snd_hda_gen_free(struct hda_codec *codec);
 
 struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
 				      hda_nid_t from_nid, hda_nid_t to_nid);
@@ -256,5 +257,9 @@ void snd_hda_gen_line_automute(struct hda_codec *codec,
 void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
 				struct hda_jack_tbl *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
+
+#ifdef CONFIG_PM
+int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
+#endif
 
 #endif /* __SOUND_HDA_GENERIC_H */
