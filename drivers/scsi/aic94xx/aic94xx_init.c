@@ -85,7 +85,7 @@ static struct scsi_host_template aic94xx_sht = {
 	.ioctl			= sas_ioctl,
 };
 
-static int __devinit asd_map_memio(struct asd_ha_struct *asd_ha)
+static int asd_map_memio(struct asd_ha_struct *asd_ha)
 {
 	int err, i;
 	struct asd_ha_addrspace *io_handle;
@@ -146,7 +146,7 @@ static void asd_unmap_memio(struct asd_ha_struct *asd_ha)
 	pci_release_region(asd_ha->pcidev, 0);
 }
 
-static int __devinit asd_map_ioport(struct asd_ha_struct *asd_ha)
+static int asd_map_ioport(struct asd_ha_struct *asd_ha)
 {
 	int i = PCI_IOBAR_OFFSET, err;
 	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];
@@ -175,7 +175,7 @@ static void asd_unmap_ioport(struct asd_ha_struct *asd_ha)
 	pci_release_region(asd_ha->pcidev, PCI_IOBAR_OFFSET);
 }
 
-static int __devinit asd_map_ha(struct asd_ha_struct *asd_ha)
+static int asd_map_ha(struct asd_ha_struct *asd_ha)
 {
 	int err;
 	u16 cmd_reg;
@@ -221,7 +221,7 @@ static const char *asd_dev_rev[30] = {
 	[8] = "B0",
 };
 
-static int __devinit asd_common_setup(struct asd_ha_struct *asd_ha)
+static int asd_common_setup(struct asd_ha_struct *asd_ha)
 {
 	int err, i;
 
@@ -257,7 +257,7 @@ Err:
 	return err;
 }
 
-static int __devinit asd_aic9410_setup(struct asd_ha_struct *asd_ha)
+static int asd_aic9410_setup(struct asd_ha_struct *asd_ha)
 {
 	int err = asd_common_setup(asd_ha);
 
@@ -272,7 +272,7 @@ static int __devinit asd_aic9410_setup(struct asd_ha_struct *asd_ha)
 	return 0;
 }
 
-static int __devinit asd_aic9405_setup(struct asd_ha_struct *asd_ha)
+static int asd_aic9405_setup(struct asd_ha_struct *asd_ha)
 {
 	int err = asd_common_setup(asd_ha);
 
@@ -531,7 +531,7 @@ static void asd_remove_dev_attrs(struct asd_ha_struct *asd_ha)
 static const struct asd_pcidev_struct {
 	const char * name;
 	int (*setup)(struct asd_ha_struct *asd_ha);
-} asd_pcidev_data[] __devinitconst = {
+} asd_pcidev_data[] = {
 	/* Id 0 is used for dynamic ids. */
 	{ .name  = "Adaptec AIC-94xx SAS/SATA Host Adapter",
 	  .setup = asd_aic9410_setup
@@ -731,8 +731,7 @@ static int asd_unregister_sas_ha(struct asd_ha_struct *asd_ha)
 	return err;
 }
 
-static int __devinit asd_pci_probe(struct pci_dev *dev,
-				   const struct pci_device_id *id)
+static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct asd_pcidev_struct *asd_dev;
 	unsigned asd_id = (unsigned) id->driver_data;
@@ -924,7 +923,7 @@ static void asd_turn_off_leds(struct asd_ha_struct *asd_ha)
 	}
 }
 
-static void __devexit asd_pci_remove(struct pci_dev *dev)
+static void asd_pci_remove(struct pci_dev *dev)
 {
 	struct asd_ha_struct *asd_ha = pci_get_drvdata(dev);
 
@@ -1012,7 +1011,7 @@ static struct sas_domain_function_template aic94xx_transport_functions = {
 	.lldd_ata_set_dmamode	= asd_set_dmamode,
 };
 
-static const struct pci_device_id aic94xx_pci_table[] __devinitconst = {
+static const struct pci_device_id aic94xx_pci_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x410),0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x412),0, 0, 1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ADAPTEC2, 0x416),0, 0, 1},
@@ -1031,7 +1030,7 @@ static struct pci_driver aic94xx_pci_driver = {
 	.name		= ASD_DRIVER_NAME,
 	.id_table	= aic94xx_pci_table,
 	.probe		= asd_pci_probe,
-	.remove		= __devexit_p(asd_pci_remove),
+	.remove		= asd_pci_remove,
 };
 
 static int __init aic94xx_init(void)

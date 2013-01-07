@@ -433,7 +433,7 @@ static const char * const ad5360_vref_name[] = {
 	 "vref0", "vref1", "vref2"
 };
 
-static int __devinit ad5360_alloc_channels(struct iio_dev *indio_dev)
+static int ad5360_alloc_channels(struct iio_dev *indio_dev)
 {
 	struct ad5360_state *st = iio_priv(indio_dev);
 	struct iio_chan_spec *channels;
@@ -456,7 +456,7 @@ static int __devinit ad5360_alloc_channels(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __devinit ad5360_probe(struct spi_device *spi)
+static int ad5360_probe(struct spi_device *spi)
 {
 	enum ad5360_type type = spi_get_device_id(spi)->driver_data;
 	struct iio_dev *indio_dev;
@@ -524,7 +524,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad5360_remove(struct spi_device *spi)
+static int ad5360_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5360_state *st = iio_priv(indio_dev);
@@ -560,7 +560,7 @@ static struct spi_driver ad5360_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5360_probe,
-	.remove = __devexit_p(ad5360_remove),
+	.remove = ad5360_remove,
 	.id_table = ad5360_ids,
 };
 module_spi_driver(ad5360_driver);

@@ -58,7 +58,7 @@ static void tscadc_idle_config(struct ti_tscadc_dev *config)
 	tscadc_writel(config, REG_IDLECONFIG, idleconfig);
 }
 
-static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
+static	int ti_tscadc_probe(struct platform_device *pdev)
 {
 	struct ti_tscadc_dev	*tscadc;
 	struct resource		*res;
@@ -202,7 +202,7 @@ ret:
 	return err;
 }
 
-static int __devexit ti_tscadc_remove(struct platform_device *pdev)
+static int ti_tscadc_remove(struct platform_device *pdev)
 {
 	struct ti_tscadc_dev	*tscadc = platform_get_drvdata(pdev);
 
@@ -263,7 +263,7 @@ static struct platform_driver ti_tscadc_driver = {
 		.pm	= TSCADC_PM_OPS,
 	},
 	.probe	= ti_tscadc_probe,
-	.remove	= __devexit_p(ti_tscadc_remove),
+	.remove	= ti_tscadc_remove,
 
 };
 

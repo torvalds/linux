@@ -653,7 +653,7 @@ static int armv6_map_event(struct perf_event *event)
 				&armv6_perf_cache_map, 0xFF);
 }
 
-static int __devinit armv6pmu_init(struct arm_pmu *cpu_pmu)
+static int armv6pmu_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name		= "v6";
 	cpu_pmu->handle_irq	= armv6pmu_handle_irq;
@@ -685,7 +685,7 @@ static int armv6mpcore_map_event(struct perf_event *event)
 				&armv6mpcore_perf_cache_map, 0xFF);
 }
 
-static int __devinit armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name		= "v6mpcore";
 	cpu_pmu->handle_irq	= armv6pmu_handle_irq;

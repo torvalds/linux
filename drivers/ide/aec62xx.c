@@ -181,7 +181,7 @@ static const struct ide_port_ops atp86x_port_ops = {
 	.cable_detect		= atp86x_cable_detect,
 };
 
-static const struct ide_port_info aec62xx_chipsets[] __devinitconst = {
+static const struct ide_port_info aec62xx_chipsets[] = {
 	{	/* 0: AEC6210 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,
@@ -251,7 +251,7 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitconst = {
  *	chips, pass a local copy of 'struct ide_port_info' down the call chain.
  */
 
-static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int aec62xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct chipset_bus_clock_list_entry *bus_clock;
 	struct ide_port_info d;
@@ -287,7 +287,7 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 	return err;
 }
 
-static void __devexit aec62xx_remove(struct pci_dev *dev)
+static void aec62xx_remove(struct pci_dev *dev)
 {
 	ide_pci_remove(dev);
 	pci_disable_device(dev);
@@ -307,7 +307,7 @@ static struct pci_driver aec62xx_pci_driver = {
 	.name		= "AEC62xx_IDE",
 	.id_table	= aec62xx_pci_tbl,
 	.probe		= aec62xx_init_one,
-	.remove		= __devexit_p(aec62xx_remove),
+	.remove		= aec62xx_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

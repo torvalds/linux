@@ -270,7 +270,7 @@ const struct agp_bridge_driver sgi_tioca_driver = {
 	.num_aperture_sizes = 1,
 };
 
-static int __devinit agp_sgi_init(void)
+static int agp_sgi_init(void)
 {
 	unsigned int j;
 	struct tioca_kernel *info;

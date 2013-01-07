@@ -419,7 +419,7 @@ int vpif_channel_getfid(u8 channel_id)
 }
 EXPORT_SYMBOL(vpif_channel_getfid);
 
-static int __devinit vpif_probe(struct platform_device *pdev)
+static int vpif_probe(struct platform_device *pdev)
 {
 	int status = 0;
 
@@ -457,7 +457,7 @@ fail:
 	return status;
 }
 
-static int __devexit vpif_remove(struct platform_device *pdev)
+static int vpif_remove(struct platform_device *pdev)
 {
 	if (vpif_clk) {
 		clk_disable_unprepare(vpif_clk);
@@ -498,7 +498,7 @@ static struct platform_driver vpif_driver = {
 		.owner = THIS_MODULE,
 		.pm	= vpif_pm_ops,
 	},
-	.remove = __devexit_p(vpif_remove),
+	.remove = vpif_remove,
 	.probe = vpif_probe,
 };
 

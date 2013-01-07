@@ -385,7 +385,7 @@ unsigned int probe_irq_mask(unsigned long val)
 }
 EXPORT_SYMBOL_GPL(probe_irq_mask);
 
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 }
 

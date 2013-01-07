@@ -897,7 +897,7 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 };
 
 /* -----------------------------------------------------------------------*/
-static int __devexit atmel_isi_remove(struct platform_device *pdev)
+static int atmel_isi_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct atmel_isi *isi = container_of(soc_host,
@@ -921,7 +921,7 @@ static int __devexit atmel_isi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit atmel_isi_probe(struct platform_device *pdev)
+static int atmel_isi_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	struct atmel_isi *isi;
@@ -1074,7 +1074,7 @@ err_clk_prepare_pclk:
 
 static struct platform_driver atmel_isi_driver = {
 	.probe		= atmel_isi_probe,
-	.remove		= __devexit_p(atmel_isi_remove),
+	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
 		.owner = THIS_MODULE,

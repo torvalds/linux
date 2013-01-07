@@ -122,7 +122,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
 
-static int __devinit pcibios_map_phb_io_space(struct pci_controller *hose)
+static int pcibios_map_phb_io_space(struct pci_controller *hose)
 {
 	struct vm_struct *area;
 	unsigned long phys_page;
@@ -173,7 +173,7 @@ static int __devinit pcibios_map_phb_io_space(struct pci_controller *hose)
 	return 0;
 }
 
-int __devinit pcibios_map_io_space(struct pci_bus *bus)
+int pcibios_map_io_space(struct pci_bus *bus)
 {
 	WARN_ON(bus == NULL);
 
@@ -193,7 +193,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	pcibios_map_phb_io_space(hose);
 }

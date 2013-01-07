@@ -211,8 +211,7 @@ out:
 	return 0;
 }
 
-static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
-					   const char *name)
+static void pdc202ata4_fixup_irq(struct pci_dev *dev, const char *name)
 {
 	if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE) {
 		u8 irq = 0, irq2 = 0;
@@ -270,7 +269,7 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 		.max_sectors	= sectors, \
 	}
 
-static const struct ide_port_info pdc202xx_chipsets[] __devinitconst = {
+static const struct ide_port_info pdc202xx_chipsets[] = {
 	{	/* 0: PDC20246 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_pdc202xx,
@@ -297,7 +296,8 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitconst = {
  *	finds a device matching our IDE device tables.
  */
  
-static int __devinit pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int pdc202xx_init_one(struct pci_dev *dev,
+			     const struct pci_device_id *id)
 {
 	const struct ide_port_info *d;
 	u8 idx = id->driver_data;

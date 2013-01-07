@@ -132,7 +132,7 @@
 #include "intelfbhw.h"
 #include "../edid.h"
 
-static void __devinit get_initial_mode(struct intelfb_info *dinfo);
+static void get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
 			 struct fb_var_screeninfo *var);
 static int intelfb_open(struct fb_info *info, int user);
@@ -162,10 +162,10 @@ static int intelfb_sync(struct fb_info *info);
 static int intelfb_ioctl(struct fb_info *info,
 			 unsigned int cmd, unsigned long arg);
 
-static int __devinit intelfb_pci_register(struct pci_dev *pdev,
-					  const struct pci_device_id *ent);
-static void __devexit intelfb_pci_unregister(struct pci_dev *pdev);
-static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo);
+static int intelfb_pci_register(struct pci_dev *pdev,
+				const struct pci_device_id *ent);
+static void intelfb_pci_unregister(struct pci_dev *pdev);
+static int intelfb_set_fbinfo(struct intelfb_info *dinfo);
 
 /*
  * Limiting the class to PCI_CLASS_DISPLAY_VGA prevents function 1 of the
@@ -177,7 +177,7 @@ static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo);
 #define INTELFB_CLASS_MASK 0
 #endif
 
-static struct pci_device_id intelfb_pci_table[] __devinitdata = {
+static struct pci_device_id intelfb_pci_table[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_830M, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_830M },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_845G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_845G },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_85XGM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_85XGM },
@@ -219,7 +219,7 @@ static struct pci_driver intelfb_driver = {
 	.name =		"intelfb",
 	.id_table =	intelfb_pci_table,
 	.probe =	intelfb_pci_register,
-	.remove =	__devexit_p(intelfb_pci_unregister)
+	.remove =	intelfb_pci_unregister,
 };
 
 /* Module description/parameters */
@@ -415,7 +415,7 @@ module_exit(intelfb_exit);
  ***************************************************************/
 
 #ifdef CONFIG_MTRR
-static inline void __devinit set_mtrr(struct intelfb_info *dinfo)
+static inline void set_mtrr(struct intelfb_info *dinfo)
 {
 	dinfo->mtrr_reg = mtrr_add(dinfo->aperture.physical,
 				   dinfo->aperture.size, MTRR_TYPE_WRCOMB, 1);
@@ -497,8 +497,8 @@ static void cleanup(struct intelfb_info *dinfo)
 } while (0)
 
 
-static int __devinit intelfb_pci_register(struct pci_dev *pdev,
-					  const struct pci_device_id *ent)
+static int intelfb_pci_register(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
@@ -921,8 +921,7 @@ err_out_cmap:
 	return -ENODEV;
 }
 
-static void __devexit
-intelfb_pci_unregister(struct pci_dev *pdev)
+static void intelfb_pci_unregister(struct pci_dev *pdev)
 {
 	struct intelfb_info *dinfo = pci_get_drvdata(pdev);
 
@@ -970,7 +969,7 @@ static __inline__ int var_to_refresh(const struct fb_var_screeninfo *var)
  *                Various intialisation functions              *
  ***************************************************************/
 
-static void __devinit get_initial_mode(struct intelfb_info *dinfo)
+static void get_initial_mode(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int xtot, ytot;
@@ -1037,7 +1036,7 @@ static void __devinit get_initial_mode(struct intelfb_info *dinfo)
 	}
 }
 
-static int __devinit intelfb_init_var(struct intelfb_info *dinfo)
+static int intelfb_init_var(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int msrc = 0;
@@ -1118,7 +1117,7 @@ static int __devinit intelfb_init_var(struct intelfb_info *dinfo)
 	return 0;
 }
 
-static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo)
+static int intelfb_set_fbinfo(struct intelfb_info *dinfo)
 {
 	struct fb_info *info = dinfo->info;
 

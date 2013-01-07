@@ -383,7 +383,7 @@ static struct mxs_pinctrl_soc_data imx28_pinctrl_data = {
 	.npins = ARRAY_SIZE(imx28_pins),
 };
 
-static int __devinit imx28_pinctrl_probe(struct platform_device *pdev)
+static int imx28_pinctrl_probe(struct platform_device *pdev)
 {
 	return mxs_pinctrl_probe(pdev, &imx28_pinctrl_data);
 }

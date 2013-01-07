@@ -62,7 +62,7 @@ static struct rtc_class_ops au1xtoy_rtc_ops = {
 	.set_time	= au1xtoy_rtc_set_time,
 };
 
-static int __devinit au1xtoy_rtc_probe(struct platform_device *pdev)
+static int au1xtoy_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long t;
@@ -116,7 +116,7 @@ out_err:
 	return ret;
 }
 
-static int __devexit au1xtoy_rtc_remove(struct platform_device *pdev)
+static int au1xtoy_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev = platform_get_drvdata(pdev);
 
@@ -131,7 +131,7 @@ static struct platform_driver au1xrtc_driver = {
 		.name	= "rtc-au1xxx",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(au1xtoy_rtc_remove),
+	.remove		= au1xtoy_rtc_remove,
 };
 
 static int __init au1xtoy_rtc_init(void)

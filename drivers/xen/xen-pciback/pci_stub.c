@@ -272,8 +272,8 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	up_write(&pcistub_sem);
 }
 
-static int __devinit pcistub_match_one(struct pci_dev *dev,
-				       struct pcistub_device_id *pdev_id)
+static int pcistub_match_one(struct pci_dev *dev,
+			     struct pcistub_device_id *pdev_id)
 {
 	/* Match the specified device by domain, bus, slot, func and also if
 	 * any of the device's parent bridges match.
@@ -292,7 +292,7 @@ static int __devinit pcistub_match_one(struct pci_dev *dev,
 	return 0;
 }
 
-static int __devinit pcistub_match(struct pci_dev *dev)
+static int pcistub_match(struct pci_dev *dev)
 {
 	struct pcistub_device_id *pdev_id;
 	unsigned long flags;
@@ -310,7 +310,7 @@ static int __devinit pcistub_match(struct pci_dev *dev)
 	return found;
 }
 
-static int __devinit pcistub_init_device(struct pci_dev *dev)
+static int pcistub_init_device(struct pci_dev *dev)
 {
 	struct xen_pcibk_dev_data *dev_data;
 	int err = 0;
@@ -428,7 +428,7 @@ static int __init pcistub_init_devices_late(void)
 	return 0;
 }
 
-static int __devinit pcistub_seize(struct pci_dev *dev)
+static int pcistub_seize(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
 	unsigned long flags;
@@ -463,8 +463,7 @@ static int __devinit pcistub_seize(struct pci_dev *dev)
 	return err;
 }
 
-static int __devinit pcistub_probe(struct pci_dev *dev,
-				   const struct pci_device_id *id)
+static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err = 0;
 

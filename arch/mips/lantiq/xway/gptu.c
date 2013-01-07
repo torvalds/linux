@@ -133,7 +133,7 @@ static inline void clkdev_add_gptu(struct device *dev, const char *con,
 	clkdev_add(&clk->cl);
 }
 
-static int __devinit gptu_probe(struct platform_device *pdev)
+static int gptu_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *res;

@@ -791,7 +791,7 @@ static struct ata_port_operations arasan_cf_ops = {
 	.set_dmamode = arasan_cf_set_dmamode,
 };
 
-static int __devinit arasan_cf_probe(struct platform_device *pdev)
+static int arasan_cf_probe(struct platform_device *pdev)
 {
 	struct arasan_cf_dev *acdev;
 	struct arasan_cf_pdata *pdata = dev_get_platdata(&pdev->dev);
@@ -905,7 +905,7 @@ free_clk:
 	return ret;
 }
 
-static int __devexit arasan_cf_remove(struct platform_device *pdev)
+static int arasan_cf_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
@@ -955,7 +955,7 @@ MODULE_DEVICE_TABLE(of, arasan_cf_id_table);
 
 static struct platform_driver arasan_cf_driver = {
 	.probe		= arasan_cf_probe,
-	.remove		= __devexit_p(arasan_cf_remove),
+	.remove		= arasan_cf_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,

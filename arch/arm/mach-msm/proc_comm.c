@@ -120,7 +120,7 @@ int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
  * and unknown state. This function should be called early to
  * wait on the ARM9.
  */
-void __devinit proc_comm_boot_wait(void)
+void proc_comm_boot_wait(void)
 {
 	void __iomem *base = MSM_SHARED_RAM_BASE;
  

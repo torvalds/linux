@@ -323,7 +323,7 @@ static int nec_8048_spi_resume(struct spi_device *spi)
 
 static struct spi_driver nec_8048_spi_driver = {
 	.probe		= nec_8048_spi_probe,
-	.remove		= __devexit_p(nec_8048_spi_remove),
+	.remove		= nec_8048_spi_remove,
 	.suspend	= nec_8048_spi_suspend,
 	.resume		= nec_8048_spi_resume,
 	.driver		= {

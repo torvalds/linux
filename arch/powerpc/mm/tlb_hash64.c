@@ -186,8 +186,6 @@ void tlb_flush(struct mmu_gather *tlb)
  * Because of that usage pattern, it's only available with CONFIG_HOTPLUG
  * and is implemented for small size rather than speed.
  */
-#ifdef CONFIG_HOTPLUG
-
 void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
@@ -221,5 +219,3 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	arch_leave_lazy_mmu_mode();
 	local_irq_restore(flags);
 }
-
-#endif /* CONFIG_HOTPLUG */

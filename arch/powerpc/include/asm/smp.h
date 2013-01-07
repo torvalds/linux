@@ -54,8 +54,8 @@ struct smp_ops_t {
 
 extern void smp_send_debugger_break(void);
 extern void start_secondary_resume(void);
-extern void __devinit smp_generic_give_timebase(void);
-extern void __devinit smp_generic_take_timebase(void);
+extern void smp_generic_give_timebase(void);
+extern void smp_generic_take_timebase(void);
 
 DECLARE_PER_CPU(unsigned int, cpu_pvr);
 

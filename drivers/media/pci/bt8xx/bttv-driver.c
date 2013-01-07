@@ -4199,7 +4199,7 @@ static void bttv_unregister_video(struct bttv *btv)
 }
 
 /* register video4linux devices */
-static int __devinit bttv_register_video(struct bttv *btv)
+static int bttv_register_video(struct bttv *btv)
 {
 	if (no_overlay > 0)
 		pr_notice("Overlay support disabled\n");
@@ -4265,8 +4265,7 @@ static void pci_set_command(struct pci_dev *dev)
 #endif
 }
 
-static int __devinit bttv_probe(struct pci_dev *dev,
-				const struct pci_device_id *pci_id)
+static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 {
 	int result;
 	unsigned char lat;
@@ -4454,7 +4453,7 @@ fail0:
 	return result;
 }
 
-static void __devexit bttv_remove(struct pci_dev *pci_dev)
+static void bttv_remove(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct bttv *btv = to_bttv(v4l2_dev);
@@ -4598,7 +4597,7 @@ static struct pci_driver bttv_pci_driver = {
 	.name     = "bttv",
 	.id_table = bttv_pci_tbl,
 	.probe    = bttv_probe,
-	.remove   = __devexit_p(bttv_remove),
+	.remove   = bttv_remove,
 #ifdef CONFIG_PM
 	.suspend  = bttv_suspend,
 	.resume   = bttv_resume,
