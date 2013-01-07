@@ -860,6 +860,27 @@ static struct badness_table extra_out_badness = {
 	.shared_surr_main = BAD_NO_EXTRA_SURR_DAC,
 };
 
+/* get the DAC of the primary output corresponding to the given array index */
+static hda_nid_t get_primary_out(struct hda_codec *codec, int idx)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	if (cfg->line_outs > idx)
+		return spec->private_dac_nids[idx];
+	idx -= cfg->line_outs;
+	if (spec->multi_ios > idx)
+		return spec->multi_io[idx].dac;
+	return 0;
+}
+
+/* return the DAC if it's reachable, otherwise zero */
+static inline hda_nid_t try_dac(struct hda_codec *codec,
+				hda_nid_t dac, hda_nid_t pin)
+{
+	return is_reachable_path(codec, dac, pin) ? dac : 0;
+}
+
 /* try to assign DACs to pins and return the resultant badness */
 static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 			   const hda_nid_t *pins, hda_nid_t *dacs,
@@ -867,7 +888,6 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 			   const struct badness_table *bad)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, j;
 	int badness = 0;
 	hda_nid_t dac;
@@ -897,11 +917,12 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 		}
 		dac = dacs[i];
 		if (!dac) {
-			if (is_reachable_path(codec, dacs[0], pin))
-				dac = dacs[0];
-			else if (cfg->line_outs > i &&
-				 is_reachable_path(codec, spec->private_dac_nids[i], pin))
-				dac = spec->private_dac_nids[i];
+			if (num_outs > 2)
+				dac = try_dac(codec, get_primary_out(codec, i), pin);
+			if (!dac)
+				dac = try_dac(codec, dacs[0], pin);
+			if (!dac)
+				dac = try_dac(codec, get_primary_out(codec, i), pin);
 			if (dac) {
 				if (!i)
 					badness += bad->shared_primary;
