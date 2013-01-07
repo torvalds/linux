@@ -163,6 +163,27 @@ __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
 	return 0;
 }
 
+__s32 Hdmi_set_display_videomode(const struct __disp_video_timing *mode)
+{
+	__inf("[Hdmi_set_display_videomode]\n");
+
+	if (video_mode != HDMI_EDID)
+		return -1;
+
+	if (memcmp(mode, &video_timing[video_timing_edid],
+			sizeof(struct __disp_video_timing)) != 0) {
+
+		if (hdmi_state >= HDMI_State_Video_config)
+			hdmi_state = HDMI_State_Video_config;
+
+		memcpy(&video_timing[video_timing_edid], mode,
+			   sizeof(struct __disp_video_timing));
+
+	}
+
+	return 0;
+}
+
 __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 {
 	__inf("[Hdmi_Audio_Enable],ch:%d\n", channel);
@@ -316,6 +337,7 @@ __s32 Hdmi_init(void)
 	disp_func.Hdmi_open = Hdmi_open;
 	disp_func.Hdmi_close = Hdmi_close;
 	disp_func.hdmi_set_mode = Hdmi_set_display_mode;
+	disp_func.hdmi_set_videomode = Hdmi_set_display_videomode;
 	disp_func.hdmi_mode_support = Hdmi_mode_support;
 	disp_func.hdmi_get_video_timing = hdmi_get_video_timing;
 	disp_func.hdmi_get_HPD_status = Hdmi_get_HPD_status;
