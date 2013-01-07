@@ -3252,6 +3252,9 @@ static const char * const slave_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", "Side",
 	"Headphone", "Speaker", "Mono", "Line Out",
 	"CLFE", "Bass Speaker", "PCM",
+	"Speaker Front", "Speaker Surround", "Speaker CLFE", "Speaker Side",
+	"Headphone Front", "Headphone Surround", "Headphone CLFE",
+	"Headphone Side",
 	NULL,
 };
 
