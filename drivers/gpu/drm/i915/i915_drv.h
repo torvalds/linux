@@ -1565,6 +1565,8 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 uint32_t
+i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode);
+uint32_t
 i915_gem_get_gtt_alignment(struct drm_device *dev, uint32_t size,
 			    int tiling_mode, bool fenced);
 

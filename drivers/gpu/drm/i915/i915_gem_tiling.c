@@ -272,18 +272,7 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 			return false;
 	}
 
-	/*
-	 * Previous chips need to be aligned to the size of the smallest
-	 * fence register that can contain the object.
-	 */
-	if (INTEL_INFO(obj->base.dev)->gen == 3)
-		size = 1024*1024;
-	else
-		size = 512*1024;
-
-	while (size < obj->base.size)
-		size <<= 1;
-
+	size = i915_gem_get_gtt_size(obj->base.dev, obj->base.size, tiling_mode);
 	if (obj->gtt_space->size != size)
 		return false;
 
