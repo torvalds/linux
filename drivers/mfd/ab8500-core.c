@@ -407,6 +407,11 @@ static void ab8500_irq_unmask(struct irq_data *data)
 	}
 }
 
+static int ab8500_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	return 0;
+}
+
 static struct irq_chip ab8500_irq_chip = {
 	.name			= "ab8500",
 	.irq_bus_lock		= ab8500_irq_lock,
@@ -414,6 +419,7 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_mask		= ab8500_irq_mask,
 	.irq_disable		= ab8500_irq_mask,
 	.irq_unmask		= ab8500_irq_unmask,
+	.irq_set_type		= ab8500_irq_set_type,
 };
 
 static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
