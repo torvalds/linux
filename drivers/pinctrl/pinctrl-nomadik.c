@@ -1341,8 +1341,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 
 		if (of_property_read_u32(np, "gpio-bank", &dev->id)) {
 			dev_err(&dev->dev, "gpio-bank property not found\n");
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
 		pdata->first_gpio = dev->id * NMK_GPIO_PER_CHIP;
@@ -1350,41 +1349,29 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!res)
+		return -ENOENT;
 
 	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto out;
-	}
+	if (irq < 0)
+		return irq;
 
 	secondary_irq = platform_get_irq(dev, 1);
-	if (secondary_irq >= 0 && !pdata->get_secondary_status) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (secondary_irq >= 0 && !pdata->get_secondary_status)
+		return -EINVAL;
 
 	base = devm_request_and_ioremap(&dev->dev, res);
-	if (!base) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!base)
+		return -ENOMEM;
 
 	clk = devm_clk_get(&dev->dev, NULL);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto out;
-	}
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 	clk_prepare(clk);
 
 	nmk_chip = devm_kzalloc(&dev->dev, sizeof(*nmk_chip), GFP_KERNEL);
-	if (!nmk_chip) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!nmk_chip)
+		return -ENOMEM;
 
 	/*
 	 * The virt address in nmk_chip->addr is in the nomadik register space,
@@ -1418,7 +1405,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
-		goto out;
+		return ret;
 
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 
@@ -1433,8 +1420,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				&nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
-		ret = -ENOSYS;
-		goto out;
+		/* Just do this, no matter if it fails */
+		ret = gpiochip_remove(&nmk_chip->chip);
+		return -ENOSYS;
 	}
 
 	nmk_gpio_init_irq(nmk_chip);
@@ -1442,12 +1430,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	dev_info(&dev->dev, "at address %p\n", nmk_chip->addr);
 
 	return 0;
-
-out:
-	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
-		  pdata->first_gpio, pdata->first_gpio+31);
-
-	return ret;
 }
 
 static int nmk_get_groups_cnt(struct pinctrl_dev *pctldev)
