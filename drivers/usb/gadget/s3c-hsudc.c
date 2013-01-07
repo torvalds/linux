@@ -1286,7 +1286,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsudc->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsudc->supplies),
 				 hsudc->supplies);
 	if (ret != 0) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
@@ -1367,7 +1367,6 @@ err_res:
 	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		usb_put_phy(hsudc->transceiver);
 
-	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:
 	return ret;
 }
