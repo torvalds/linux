@@ -111,9 +111,9 @@ extern struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 
 /* calculate mapping of a file extent to an object */
-extern void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-					  u64 off, u64 *plen,
-					  u64 *bno, u64 *oxoff, u64 *oxlen);
+extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
+					 u64 off, u64 *plen,
+					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 /* calculate mapping of object to a placement group */
 extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
