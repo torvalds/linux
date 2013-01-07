@@ -82,9 +82,6 @@ mali_dvfs_step step[MALI_DVFS_STEPS]={
 #endif
 #endif
 #endif
-#endif
-#endif
-#endif
 };
 
 mali_dvfs_staycount_table mali_dvfs_staycount[MALI_DVFS_STEPS]={
