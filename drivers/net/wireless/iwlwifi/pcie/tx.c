@@ -160,7 +160,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 		txq->q.read_ptr, txq->q.write_ptr);
 
-	iwl_read_targ_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
+	iwl_trans_read_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
 
 	iwl_print_hex_error(trans, buf, sizeof(buf));
 
@@ -173,9 +173,9 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
 		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
 		u32 tbl_dw =
-			iwl_read_targ_mem(trans,
-					  trans_pcie->scd_base_addr +
-					  SCD_TRANS_TBL_OFFSET_QUEUE(i));
+			iwl_trans_read_mem32(trans,
+					     trans_pcie->scd_base_addr +
+					     SCD_TRANS_TBL_OFFSET_QUEUE(i));
 
 		if (i & 0x1)
 			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
@@ -237,7 +237,10 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 		break;
 	}
 
-	bc_ent = cpu_to_le16((len & 0xFFF) | (sta_id << 12));
+	if (trans_pcie->bc_table_dword)
+		len = DIV_ROUND_UP(len, 4);
+
+	bc_ent = cpu_to_le16(len | (sta_id << 12));
 
 	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
@@ -656,16 +659,16 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	/* reset conext data memory */
 	for (; a < trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
 		a += 4)
-		iwl_write_targ_mem(trans, a, 0);
+		iwl_trans_write_mem32(trans, a, 0);
 	/* reset tx status memory */
 	for (; a < trans_pcie->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
 		a += 4)
-		iwl_write_targ_mem(trans, a, 0);
+		iwl_trans_write_mem32(trans, a, 0);
 	for (; a < trans_pcie->scd_base_addr +
 	       SCD_TRANS_TBL_OFFSET_QUEUE(
 				trans->cfg->base_params->num_of_queues);
 	       a += 4)
-		iwl_write_targ_mem(trans, a, 0);
+		iwl_trans_write_mem32(trans, a, 0);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
@@ -1002,14 +1005,14 @@ static int iwl_pcie_txq_set_ratid_map(struct iwl_trans *trans, u16 ra_tid,
 	tbl_dw_addr = trans_pcie->scd_base_addr +
 			SCD_TRANS_TBL_OFFSET_QUEUE(txq_id);
 
-	tbl_dw = iwl_read_targ_mem(trans, tbl_dw_addr);
+	tbl_dw = iwl_trans_read_mem32(trans, tbl_dw_addr);
 
 	if (txq_id & 0x1)
 		tbl_dw = (scd_q2ratid << 16) | (tbl_dw & 0x0000FFFF);
 	else
 		tbl_dw = scd_q2ratid | (tbl_dw & 0xFFFF0000);
 
-	iwl_write_targ_mem(trans, tbl_dw_addr, tbl_dw);
+	iwl_trans_write_mem32(trans, tbl_dw_addr, tbl_dw);
 
 	return 0;
 }
@@ -1068,9 +1071,9 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 	iwl_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), ssn);
 
 	/* Set up Tx window size and frame limit for this queue */
-	iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
+	iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id), 0);
-	iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
+	iwl_trans_write_mem32(trans, trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
 			((frame_limit << SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
 				SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
@@ -1101,8 +1104,8 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 
 	iwl_pcie_txq_set_inactive(trans, txq_id);
 
-	_iwl_write_targ_mem_dwords(trans, stts_addr,
-				   zero_val, ARRAY_SIZE(zero_val));
+	iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
+			    ARRAY_SIZE(zero_val));
 
 	iwl_pcie_txq_unmap(trans, txq_id);
 

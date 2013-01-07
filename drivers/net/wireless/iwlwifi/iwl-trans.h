@@ -321,6 +321,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  * @n_no_reclaim_cmds: # of commands in list
  * @rx_buf_size_8k: 8 kB RX buffer size needed for A-MSDUs,
  *	if unset 4k will be the RX buffer size
+ * @bc_table_dword: set to true if the BC table expects the byte count to be
+ *	in DWORD (as opposed to bytes)
  * @queue_watchdog_timeout: time (in ms) after which queues
  *	are considered stuck and will trigger device restart
  * @command_names: array of command names, must be 256 entries
@@ -335,6 +337,7 @@ struct iwl_trans_config {
 	int n_no_reclaim_cmds;
 
 	bool rx_buf_size_8k;
+	bool bc_table_dword;
 	unsigned int queue_watchdog_timeout;
 	const char **command_names;
 };
@@ -387,16 +390,21 @@ struct iwl_trans;
  * @read32: read a u32 register at offset ofs from the BAR
  * @read_prph: read a DWORD from a periphery register
  * @write_prph: write a DWORD to a periphery register
+ * @read_mem: read device's SRAM in DWORD
+ * @write_mem: write device's SRAM in DWORD
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
  * @set_pmi: set the power pmi state
+ * @grab_nic_access: wake the NIC to be able to access non-HBUS regs
+ * @release_nic_access: let the NIC go to sleep
  */
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
-	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
+	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
+			bool run_in_rfkill);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -424,9 +432,15 @@ struct iwl_trans_ops {
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
 	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
+	int (*read_mem)(struct iwl_trans *trans, u32 addr,
+			void *buf, int dwords);
+	int (*write_mem)(struct iwl_trans *trans, u32 addr,
+			 void *buf, int dwords);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
+	bool (*grab_nic_access)(struct iwl_trans *trans, bool silent);
+	void (*release_nic_access)(struct iwl_trans *trans);
 };
 
 /**
@@ -528,13 +542,14 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans,
-				     const struct fw_img *fw)
+				     const struct fw_img *fw,
+				     bool run_in_rfkill)
 {
 	might_sleep();
 
 	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
-	return trans->ops->start_fw(trans, fw);
+	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
@@ -636,7 +651,7 @@ static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
 }
 
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
-					    struct dentry *dir)
+					   struct dentry *dir)
 {
 	return trans->ops->dbgfs_register(trans, dir);
 }
@@ -679,9 +694,55 @@ static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
 	return trans->ops->write_prph(trans, ofs, val);
 }
 
+static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
+				     void *buf, int dwords)
+{
+	return trans->ops->read_mem(trans, addr, buf, dwords);
+}
+
+#define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)		      \
+	do {								      \
+		if (__builtin_constant_p(bufsize))			      \
+			BUILD_BUG_ON((bufsize) % sizeof(u32));		      \
+		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
+	} while (0)
+
+static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
+{
+	u32 value;
+
+	if (WARN_ON(iwl_trans_read_mem(trans, addr, &value, 1)))
+		return 0xa5a5a5a5;
+
+	return value;
+}
+
+static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
+				      void *buf, int dwords)
+{
+	return trans->ops->write_mem(trans, addr, buf, dwords);
+}
+
+static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
+					u32 val)
+{
+	return iwl_trans_write_mem(trans, addr, &val, 1);
+}
+
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 {
 	trans->ops->set_pmi(trans, state);
+}
+
+#define iwl_trans_grab_nic_access(trans, silent)	\
+	__cond_lock(nic_access,				\
+		    likely((trans)->ops->grab_nic_access(trans, silent)))
+
+static inline void __releases(nic_access)
+iwl_trans_release_nic_access(struct iwl_trans *trans)
+{
+	trans->ops->release_nic_access(trans);
+	__release(nic_access);
 }
 
 /*****************************************************

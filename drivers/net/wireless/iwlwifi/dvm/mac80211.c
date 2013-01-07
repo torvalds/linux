@@ -459,11 +459,11 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(priv->trans);
-		if (likely(ret == 0)) {
+		if (iwl_trans_grab_nic_access(priv->trans, true)) {
 			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
 			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(priv->trans);
+			iwl_trans_release_nic_access(priv->trans);
+			ret = 0;
 		}
 		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
@@ -479,7 +479,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 			}
 
 			if (priv->wowlan_sram)
-				_iwl_read_targ_mem_dwords(
+				iwl_trans_read_mem(
 				      priv->trans, 0x800000,
 				      priv->wowlan_sram,
 				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
