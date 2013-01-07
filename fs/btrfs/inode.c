@@ -2478,6 +2478,18 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
+
+			/* 1 for the orphan item deletion. */
+			trans = btrfs_start_transaction(root, 1);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
+			ret = btrfs_orphan_add(trans, inode);
+			btrfs_end_transaction(trans, root);
+			if (ret)
+				goto out;
+
 			ret = btrfs_truncate(inode);
 		} else {
 			nr_unlink++;
@@ -3783,9 +3795,34 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 			set_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
 				&BTRFS_I(inode)->runtime_flags);
 
+		/*
+		 * 1 for the orphan item we're going to add
+		 * 1 for the orphan item deletion.
+		 */
+		trans = btrfs_start_transaction(root, 2);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
+		/*
+		 * We need to do this in case we fail at _any_ point during the
+		 * actual truncate.  Once we do the truncate_setsize we could
+		 * invalidate pages which forces any outstanding ordered io to
+		 * be instantly completed which will give us extents that need
+		 * to be truncated.  If we fail to get an orphan inode down we
+		 * could have left over extents that were never meant to live,
+		 * so we need to garuntee from this point on that everything
+		 * will be consistent.
+		 */
+		ret = btrfs_orphan_add(trans, inode);
+		btrfs_end_transaction(trans, root);
+		if (ret)
+			return ret;
+
 		/* we don't support swapfiles, so vmtruncate shouldn't fail */
 		truncate_setsize(inode, newsize);
 		ret = btrfs_truncate(inode);
+		if (ret && inode->i_nlink)
+			btrfs_orphan_del(NULL, inode);
 	}
 
 	return ret;
@@ -6929,11 +6966,9 @@ static int btrfs_truncate(struct inode *inode)
 
 	/*
 	 * 1 for the truncate slack space
-	 * 1 for the orphan item we're going to add
-	 * 1 for the orphan item deletion
 	 * 1 for updating the inode.
 	 */
-	trans = btrfs_start_transaction(root, 4);
+	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto out;
@@ -6943,12 +6978,6 @@ static int btrfs_truncate(struct inode *inode)
 	ret = btrfs_block_rsv_migrate(&root->fs_info->trans_block_rsv, rsv,
 				      min_size);
 	BUG_ON(ret);
-
-	ret = btrfs_orphan_add(trans, inode);
-	if (ret) {
-		btrfs_end_transaction(trans, root);
-		goto out;
-	}
 
 	/*
 	 * setattr is responsible for setting the ordered_data_close flag,
@@ -7018,12 +7047,6 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_orphan_del(trans, inode);
 		if (ret)
 			err = ret;
-	} else if (ret && inode->i_nlink > 0) {
-		/*
-		 * Failed to do the truncate, remove us from the in memory
-		 * orphan list.
-		 */
-		ret = btrfs_orphan_del(NULL, inode);
 	}
 
 	if (trans) {
