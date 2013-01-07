@@ -37,15 +37,6 @@
 #define LP8755_BUCK_LINEAR_OUT_MAX	0x76
 #define LP8755_BUCK_VOUT_M	0x7F
 
-enum bucks {
-	BUCK0 = 0,
-	BUCK1,
-	BUCK2,
-	BUCK3,
-	BUCK4,
-	BUCK5,
-};
-
 struct lp8755_mphase {
 	int nreg;
 	int buck_num[LP8755_BUCK_MAX];
@@ -262,33 +253,26 @@ static struct regulator_ops lp8755_buck_ops = {
 }
 
 static struct regulator_init_data lp8755_reg_default[LP8755_BUCK_MAX] = {
-	[BUCK0] = lp8755_buck_init(0),
-	[BUCK1] = lp8755_buck_init(1),
-	[BUCK2] = lp8755_buck_init(2),
-	[BUCK3] = lp8755_buck_init(3),
-	[BUCK4] = lp8755_buck_init(4),
-	[BUCK5] = lp8755_buck_init(5),
+	[LP8755_BUCK0] = lp8755_buck_init(0),
+	[LP8755_BUCK1] = lp8755_buck_init(1),
+	[LP8755_BUCK2] = lp8755_buck_init(2),
+	[LP8755_BUCK3] = lp8755_buck_init(3),
+	[LP8755_BUCK4] = lp8755_buck_init(4),
+	[LP8755_BUCK5] = lp8755_buck_init(5),
 };
 
 static const struct lp8755_mphase mphase_buck[MPHASE_CONF_MAX] = {
-	{3, {BUCK0, BUCK3, BUCK5}
-	 },
-	{6, {BUCK0, BUCK1, BUCK2, BUCK3, BUCK4, BUCK5}
-	 },
-	{5, {BUCK0, BUCK2, BUCK3, BUCK4, BUCK5}
-	 },
-	{4, {BUCK0, BUCK3, BUCK4, BUCK5}
-	 },
-	{3, {BUCK0, BUCK4, BUCK5}
-	 },
-	{2, {BUCK0, BUCK5}
-	 },
-	{1, {BUCK0}
-	 },
-	{2, {BUCK0, BUCK3}
-	 },
-	{4, {BUCK0, BUCK2, BUCK3, BUCK5}
-	 },
+	{ 3, { LP8755_BUCK0, LP8755_BUCK3, LP8755_BUCK5 } },
+	{ 6, { LP8755_BUCK0, LP8755_BUCK1, LP8755_BUCK2, LP8755_BUCK3,
+	       LP8755_BUCK4, LP8755_BUCK5 } },
+	{ 5, { LP8755_BUCK0, LP8755_BUCK2, LP8755_BUCK3, LP8755_BUCK4,
+	       LP8755_BUCK5} },
+	{ 4, { LP8755_BUCK0, LP8755_BUCK3, LP8755_BUCK4, LP8755_BUCK5} },
+	{ 3, { LP8755_BUCK0, LP8755_BUCK4, LP8755_BUCK5} },
+	{ 2, { LP8755_BUCK0, LP8755_BUCK5} },
+	{ 1, { LP8755_BUCK0} },
+	{ 2, { LP8755_BUCK0, LP8755_BUCK3} },
+	{ 4, { LP8755_BUCK0, LP8755_BUCK2, LP8755_BUCK3, LP8755_BUCK5} },
 };
 
 static int lp8755_init_data(struct lp8755_chip *pchip)
