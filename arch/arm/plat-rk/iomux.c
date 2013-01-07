@@ -65,8 +65,7 @@ int iomux_gpio_to_mode(int gpio)
         off = gpio - PIN_BASE;
         m.mux.bank = off/32;
         m.mux.goff = (off%32)/8 + 0x0A;
-        m.mux.off = off%256;
-
+        m.mux.off = (off%32)%8;
 
 	if(!mode_is_valid(m.mode)){
 		INFO("<%s> gpio(gpio%d_%x%d) is invalid\n", __func__, m.mux.bank, m.mux.goff, m.mux.off);
