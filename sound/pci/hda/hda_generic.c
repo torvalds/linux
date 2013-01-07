@@ -576,15 +576,11 @@ enum {
 	HDA_CTL_WIDGET_VOL,
 	HDA_CTL_WIDGET_MUTE,
 	HDA_CTL_BIND_MUTE,
-	HDA_CTL_BIND_VOL,
-	HDA_CTL_BIND_SW,
 };
 static const struct snd_kcontrol_new control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	HDA_BIND_MUTE(NULL, 0, 0, 0),
-	HDA_BIND_VOL(NULL, 0),
-	HDA_BIND_SW(NULL, 0),
 };
 
 /* add dynamic controls from template */
