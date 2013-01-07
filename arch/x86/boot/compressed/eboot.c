@@ -295,10 +295,15 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 		if (!pci)
 			continue;
 
+#ifdef CONFIG_X86_64
 		status = efi_call_phys4(pci->attributes, pci,
 					EfiPciIoAttributeOperationGet, 0,
 					&attributes);
-
+#else
+		status = efi_call_phys5(pci->attributes, pci,
+					EfiPciIoAttributeOperationGet, 0, 0,
+					&attributes);
+#endif
 		if (status != EFI_SUCCESS)
 			continue;
 
