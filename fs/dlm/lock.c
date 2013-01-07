@@ -1132,6 +1132,7 @@ static void toss_rsb(struct kref *kref)
 	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].keep);
 	rsb_insert(r, &ls->ls_rsbtbl[r->res_bucket].toss);
 	r->res_toss_time = jiffies;
+	ls->ls_rsbtbl[r->res_bucket].flags |= DLM_RTF_SHRINK;
 	if (r->res_lvbptr) {
 		dlm_free_lvb(r->res_lvbptr);
 		r->res_lvbptr = NULL;
@@ -1659,11 +1660,18 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 	char *name;
 	int our_nodeid = dlm_our_nodeid();
 	int remote_count = 0;
+	int need_shrink = 0;
 	int i, len, rv;
 
 	memset(&ls->ls_remove_lens, 0, sizeof(int) * DLM_REMOVE_NAMES_MAX);
 
 	spin_lock(&ls->ls_rsbtbl[b].lock);
+
+	if (!(ls->ls_rsbtbl[b].flags & DLM_RTF_SHRINK)) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		return;
+	}
+
 	for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = next) {
 		next = rb_next(n);
 		r = rb_entry(n, struct dlm_rsb, res_hashnode);
@@ -1678,6 +1686,8 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		    (dlm_dir_nodeid(r) == our_nodeid)) {
 			continue;
 		}
+
+		need_shrink = 1;
 
 		if (!time_after_eq(jiffies, r->res_toss_time +
 				   dlm_config.ci_toss_secs * HZ)) {
@@ -1710,6 +1720,11 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
 		dlm_free_rsb(r);
 	}
+
+	if (need_shrink)
+		ls->ls_rsbtbl[b].flags |= DLM_RTF_SHRINK;
+	else
+		ls->ls_rsbtbl[b].flags &= ~DLM_RTF_SHRINK;
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
 
 	/*
