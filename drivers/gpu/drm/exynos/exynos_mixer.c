@@ -1029,8 +1029,8 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
-				 struct platform_device *pdev)
+static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
+				struct platform_device *pdev)
 {
 	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
@@ -1081,8 +1081,8 @@ static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 	return 0;
 }
 
-static int __devinit vp_resources_init(struct exynos_drm_hdmi_context *ctx,
-				 struct platform_device *pdev)
+static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
+			     struct platform_device *pdev)
 {
 	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
@@ -1155,7 +1155,7 @@ static struct of_device_id mixer_match_types[] = {
 	}
 };
 
-static int __devinit mixer_probe(struct platform_device *pdev)
+static int mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
@@ -1316,6 +1316,6 @@ struct platform_driver mixer_driver = {
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
-	.remove = __devexit_p(mixer_remove),
+	.remove = mixer_remove,
 	.id_table	= mixer_driver_types,
 };

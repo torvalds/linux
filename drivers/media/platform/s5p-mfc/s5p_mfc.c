@@ -1203,7 +1203,7 @@ err_res:
 }
 
 /* Remove the driver */
-static int __devexit s5p_mfc_remove(struct platform_device *pdev)
+static int s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
 
@@ -1368,7 +1368,7 @@ MODULE_DEVICE_TABLE(platform, mfc_driver_ids);
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove		= __devexit_p(s5p_mfc_remove),
+	.remove		= s5p_mfc_remove,
 	.id_table	= mfc_driver_ids,
 	.driver	= {
 		.name	= S5P_MFC_NAME,

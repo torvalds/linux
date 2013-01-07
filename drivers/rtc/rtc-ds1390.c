@@ -121,7 +121,7 @@ static const struct rtc_class_ops ds1390_rtc_ops = {
 	.set_time	= ds1390_set_time,
 };
 
-static int __devinit ds1390_probe(struct spi_device *spi)
+static int ds1390_probe(struct spi_device *spi)
 {
 	unsigned char tmp;
 	struct ds1390 *chip;
@@ -156,7 +156,7 @@ static int __devinit ds1390_probe(struct spi_device *spi)
 	return res;
 }
 
-static int __devexit ds1390_remove(struct spi_device *spi)
+static int ds1390_remove(struct spi_device *spi)
 {
 	struct ds1390 *chip = spi_get_drvdata(spi);
 
@@ -172,7 +172,7 @@ static struct spi_driver ds1390_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= ds1390_probe,
-	.remove = __devexit_p(ds1390_remove),
+	.remove = ds1390_remove,
 };
 
 module_spi_driver(ds1390_driver);

@@ -669,7 +669,7 @@ static struct miscdevice mpc52xx_wdt_miscdev = {
 	.fops		= &mpc52xx_wdt_fops,
 };
 
-static int __devinit mpc52xx_gpt_wdt_init(void)
+static int mpc52xx_gpt_wdt_init(void)
 {
 	int err;
 
@@ -704,7 +704,7 @@ static int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 
 #else
 
-static int __devinit mpc52xx_gpt_wdt_init(void)
+static int mpc52xx_gpt_wdt_init(void)
 {
 	return 0;
 }
@@ -720,7 +720,7 @@ static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
-static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev)
+static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 {
 	struct mpc52xx_gpt_priv *gpt;
 

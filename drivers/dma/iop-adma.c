@@ -1406,7 +1406,7 @@ out:
 }
 #endif
 
-static int __devexit iop_adma_remove(struct platform_device *dev)
+static int iop_adma_remove(struct platform_device *dev)
 {
 	struct iop_adma_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;

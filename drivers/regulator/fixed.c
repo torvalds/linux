@@ -246,7 +246,7 @@ static int reg_fixed_voltage_remove(struct platform_device *pdev)
 }
 
 #if defined(CONFIG_OF)
-static const struct of_device_id fixed_of_match[] __devinitconst = {
+static const struct of_device_id fixed_of_match[] = {
 	{ .compatible = "regulator-fixed", },
 	{},
 };

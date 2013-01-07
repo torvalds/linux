@@ -127,7 +127,7 @@ static void unmap_cpu_to_physid(int, int);
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 /* Boot up APs Routines : BSP                                                */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	bsp_phys_id = hard_smp_processor_id();
 	physid_set(bsp_phys_id, phys_cpu_present_map);

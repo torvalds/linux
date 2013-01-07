@@ -22,7 +22,7 @@
 struct bcma_bus;
 
 /* main.c */
-int __devinit bcma_bus_register(struct bcma_bus *bus);
+int bcma_bus_register(struct bcma_bus *bus);
 void bcma_bus_unregister(struct bcma_bus *bus);
 int __init bcma_bus_early_register(struct bcma_bus *bus,
 				   struct bcma_device *core_cc,
@@ -87,8 +87,8 @@ u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
-bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
-void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
+bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
+void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 
 #ifdef CONFIG_BCMA_DRIVER_GPIO

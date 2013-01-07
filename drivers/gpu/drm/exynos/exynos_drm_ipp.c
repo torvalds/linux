@@ -1888,7 +1888,7 @@ err_clear:
 	return;
 }
 
-static int __devinit ipp_probe(struct platform_device *pdev)
+static int ipp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ipp_context *ctx;
@@ -1963,7 +1963,7 @@ err_clear:
 	return ret;
 }
 
-static int __devexit ipp_remove(struct platform_device *pdev)
+static int ipp_remove(struct platform_device *pdev)
 {
 	struct ipp_context *ctx = platform_get_drvdata(pdev);
 
@@ -2050,7 +2050,7 @@ static const struct dev_pm_ops ipp_pm_ops = {
 
 struct platform_driver ipp_driver = {
 	.probe		= ipp_probe,
-	.remove		= __devexit_p(ipp_remove),
+	.remove		= ipp_remove,
 	.driver		= {
 		.name	= "exynos-drm-ipp",
 		.owner	= THIS_MODULE,

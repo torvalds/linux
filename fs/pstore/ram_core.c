@@ -390,8 +390,8 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 	return 0;
 }
 
-static int __devinit persistent_ram_post_init(struct persistent_ram_zone *prz,
-					      u32 sig, int ecc_size)
+static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
+				    int ecc_size)
 {
 	int ret;
 
@@ -443,9 +443,8 @@ void persistent_ram_free(struct persistent_ram_zone *prz)
 	kfree(prz);
 }
 
-struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
-							  size_t size, u32 sig,
-							  int ecc_size)
+struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
+					       u32 sig, int ecc_size)
 {
 	struct persistent_ram_zone *prz;
 	int ret = -ENOMEM;

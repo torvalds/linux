@@ -585,7 +585,7 @@ err_reg1:
 	return ret;
 }
 
-static int __devexit edma_remove(struct platform_device *pdev)
+static int edma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct edma_cc *ecc = dev_get_drvdata(dev);

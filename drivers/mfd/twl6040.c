@@ -517,8 +517,8 @@ static struct regmap_irq_chip twl6040_irq_chip = {
 	.mask_base = TWL6040_REG_INTMR,
 };
 
-static int __devinit twl6040_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int twl6040_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct twl6040_platform_data *pdata = client->dev.platform_data;
 	struct device_node *node = client->dev.of_node;
@@ -699,7 +699,7 @@ err:
 	return ret;
 }
 
-static int __devexit twl6040_remove(struct i2c_client *client)
+static int twl6040_remove(struct i2c_client *client)
 {
 	struct twl6040 *twl6040 = i2c_get_clientdata(client);
 
@@ -735,7 +735,7 @@ static struct i2c_driver twl6040_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= twl6040_probe,
-	.remove		= __devexit_p(twl6040_remove),
+	.remove		= twl6040_remove,
 	.id_table	= twl6040_i2c_id,
 };
 

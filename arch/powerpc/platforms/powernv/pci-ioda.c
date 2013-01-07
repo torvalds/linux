@@ -76,7 +76,7 @@ static struct pci_dn *pnv_ioda_get_pdn(struct pci_dev *dev)
 	return PCI_DN(np);
 }
 
-static int __devinit pnv_ioda_alloc_pe(struct pnv_phb *phb)
+static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
 	unsigned long pe;
 
@@ -91,7 +91,7 @@ static int __devinit pnv_ioda_alloc_pe(struct pnv_phb *phb)
 	return pe;
 }
 
-static void __devinit pnv_ioda_free_pe(struct pnv_phb *phb, int pe)
+static void pnv_ioda_free_pe(struct pnv_phb *phb, int pe)
 {
 	WARN_ON(phb->ioda.pe_array[pe].pdev);
 
@@ -103,7 +103,7 @@ static void __devinit pnv_ioda_free_pe(struct pnv_phb *phb, int pe)
  * but in the meantime, we need to protect them to avoid warnings
  */
 #ifdef CONFIG_PCI_MSI
-static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
+static struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -117,8 +117,7 @@ static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
 }
 #endif /* CONFIG_PCI_MSI */
 
-static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
-					   struct pnv_ioda_pe *pe)
+static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 {
 	struct pci_dev *parent;
 	uint8_t bcomp, dcomp, fcomp;
@@ -207,8 +206,8 @@ static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
 	return 0;
 }
 
-static void __devinit pnv_ioda_link_pe_by_weight(struct pnv_phb *phb,
-						 struct pnv_ioda_pe *pe)
+static void pnv_ioda_link_pe_by_weight(struct pnv_phb *phb,
+				       struct pnv_ioda_pe *pe)
 {
 	struct pnv_ioda_pe *lpe;
 
@@ -246,7 +245,7 @@ static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
 }
 
 #if 0
-static struct pnv_ioda_pe * __devinit pnv_ioda_setup_dev_PE(struct pci_dev *dev)
+static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -343,7 +342,7 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
  * subordinate PCI devices and buses. The second type of PE is normally
  * orgiriated by PCIe-to-PCI bridge or PLX switch downstream ports.
  */
-static void __devinit pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
+static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -399,7 +398,7 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 	pnv_ioda_link_pe_by_weight(phb, pe);
 }
 
-static void __devinit pnv_ioda_setup_PEs(struct pci_bus *bus)
+static void pnv_ioda_setup_PEs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -423,7 +422,7 @@ static void __devinit pnv_ioda_setup_PEs(struct pci_bus *bus)
  * port to PE# here. The game rule here is expected to be changed
  * as soon as we can detected PLX bridge correctly.
  */
-static void __devinit pnv_pci_ioda_setup_PEs(void)
+static void pnv_pci_ioda_setup_PEs(void)
 {
 	struct pci_controller *hose, *tmp;
 
@@ -432,14 +431,12 @@ static void __devinit pnv_pci_ioda_setup_PEs(void)
 	}
 }
 
-static void __devinit pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb,
-						 struct pci_dev *dev)
+static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *dev)
 {
 	/* We delay DMA setup after we have assigned all PE# */
 }
 
-static void __devinit pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
-					     struct pci_bus *bus)
+static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -450,10 +447,9 @@ static void __devinit pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 	}
 }
 
-static void __devinit pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
-						struct pnv_ioda_pe *pe,
-						unsigned int base,
-						unsigned int segs)
+static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
+				      struct pnv_ioda_pe *pe, unsigned int base,
+				      unsigned int segs)
 {
 
 	struct page *tce_mem = NULL;
@@ -541,7 +537,7 @@ static void __devinit pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		__free_pages(tce_mem, get_order(TCE32_TABLE_SIZE * segs));
 }
 
-static void __devinit pnv_ioda_setup_dma(struct pnv_phb *phb)
+static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 {
 	struct pci_controller *hose = phb->hose;
 	unsigned int residual, remaining, segs, tw, base;
@@ -684,8 +680,8 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb) { }
  * to bottom style. So the the I/O or MMIO segment assigned to
  * parent PE could be overrided by its child PEs if necessary.
  */
-static void __devinit pnv_ioda_setup_pe_seg(struct pci_controller *hose,
-				struct pnv_ioda_pe *pe)
+static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
+				  struct pnv_ioda_pe *pe)
 {
 	struct pnv_phb *phb = hose->private_data;
 	struct pci_bus_region region;
@@ -753,7 +749,7 @@ static void __devinit pnv_ioda_setup_pe_seg(struct pci_controller *hose,
 	}
 }
 
-static void __devinit pnv_pci_ioda_setup_seg(void)
+static void pnv_pci_ioda_setup_seg(void)
 {
 	struct pci_controller *tmp, *hose;
 	struct pnv_phb *phb;
@@ -767,7 +763,7 @@ static void __devinit pnv_pci_ioda_setup_seg(void)
 	}
 }
 
-static void __devinit pnv_pci_ioda_setup_DMA(void)
+static void pnv_pci_ioda_setup_DMA(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct pnv_phb *phb;
@@ -781,7 +777,7 @@ static void __devinit pnv_pci_ioda_setup_DMA(void)
 	}
 }
 
-static void __devinit pnv_pci_ioda_fixup(void)
+static void pnv_pci_ioda_fixup(void)
 {
 	pnv_pci_ioda_setup_PEs();
 	pnv_pci_ioda_setup_seg();
@@ -829,7 +825,7 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 /* Prevent enabling devices for which we couldn't properly
  * assign a PE
  */
-static int __devinit pnv_pci_enable_device_hook(struct pci_dev *dev)
+static int pnv_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;

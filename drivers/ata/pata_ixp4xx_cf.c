@@ -137,7 +137,7 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", raw_cmd, raw_ctl);
 }
 
-static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
+static int ixp4xx_pata_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	struct resource *cs0, *cs1;

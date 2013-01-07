@@ -278,7 +278,7 @@ static int accel_3d_parse_report(struct platform_device *pdev,
 }
 
 /* Function to initialize the processing for usage id */
-static int __devinit hid_accel_3d_probe(struct platform_device *pdev)
+static int hid_accel_3d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	static const char *name = "accel_3d";
@@ -375,7 +375,7 @@ error_ret:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int __devinit hid_accel_3d_remove(struct platform_device *pdev)
+static int hid_accel_3d_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);

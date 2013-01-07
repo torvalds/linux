@@ -484,12 +484,14 @@ static void truncate_node(struct dnode_of_data *dn)
 	struct node_info ni;
 
 	get_node_info(sbi, dn->nid, &ni);
+	if (dn->inode->i_blocks == 0) {
+		BUG_ON(ni.blk_addr != NULL_ADDR);
+		goto invalidate;
+	}
 	BUG_ON(ni.blk_addr == NULL_ADDR);
 
-	if (ni.blk_addr != NULL_ADDR)
-		invalidate_blocks(sbi, ni.blk_addr);
-
 	/* Deallocate node address */
+	invalidate_blocks(sbi, ni.blk_addr);
 	dec_valid_node_count(sbi, dn->inode, 1);
 	set_node_addr(sbi, &ni, NULL_ADDR);
 
@@ -499,7 +501,7 @@ static void truncate_node(struct dnode_of_data *dn)
 	} else {
 		sync_inode_page(dn);
 	}
-
+invalidate:
 	clear_node_page_dirty(dn->node_page);
 	F2FS_SET_SB_DIRT(sbi);
 
@@ -768,20 +770,12 @@ int remove_inode_page(struct inode *inode)
 		dn.inode_page_locked = 1;
 		truncate_node(&dn);
 	}
-	if (inode->i_blocks == 1) {
-		/* inernally call f2fs_put_page() */
-		set_new_dnode(&dn, inode, page, page, ino);
-		truncate_node(&dn);
-	} else if (inode->i_blocks == 0) {
-		struct node_info ni;
-		get_node_info(sbi, inode->i_ino, &ni);
 
-		/* called after f2fs_new_inode() is failed */
-		BUG_ON(ni.blk_addr != NULL_ADDR);
-		f2fs_put_page(page, 1);
-	} else {
-		BUG();
-	}
+	/* 0 is possible, after f2fs_new_inode() is failed */
+	BUG_ON(inode->i_blocks != 0 && inode->i_blocks != 1);
+	set_new_dnode(&dn, inode, page, page, ino);
+	truncate_node(&dn);
+
 	mutex_unlock_op(sbi, NODE_TRUNC);
 	return 0;
 }
@@ -834,17 +828,18 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 		goto fail;
 	}
 	set_node_addr(sbi, &new_ni, NEW_ADDR);
+	set_cold_node(dn->inode, page);
 
 	dn->node_page = page;
 	sync_inode_page(dn);
 	set_page_dirty(page);
-	set_cold_node(dn->inode, page);
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
 
 	return page;
 
 fail:
+	clear_node_page_dirty(page);
 	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
@@ -1093,7 +1088,6 @@ static int f2fs_write_node_page(struct page *page,
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	nid_t nid;
-	unsigned int nofs;
 	block_t new_addr;
 	struct node_info ni;
 
@@ -1110,7 +1104,6 @@ static int f2fs_write_node_page(struct page *page,
 
 	/* get old block addr of this node page */
 	nid = nid_of_node(page);
-	nofs = ofs_of_node(page);
 	BUG_ON(page->index != nid);
 
 	get_node_info(sbi, nid, &ni);
@@ -1571,7 +1564,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		nid_t nid;
 		struct f2fs_nat_entry raw_ne;
 		int offset = -1;
-		block_t old_blkaddr, new_blkaddr;
+		block_t new_blkaddr;
 
 		ne = list_entry(cur, struct nat_entry, list);
 		nid = nat_get_nid(ne);
@@ -1585,7 +1578,6 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		offset = lookup_journal_in_cursum(sum, NAT_JOURNAL, nid, 1);
 		if (offset >= 0) {
 			raw_ne = nat_in_journal(sum, offset);
-			old_blkaddr = le32_to_cpu(raw_ne.block_addr);
 			goto flush_now;
 		}
 to_nat_page:
@@ -1607,7 +1599,6 @@ to_nat_page:
 
 		BUG_ON(!nat_blk);
 		raw_ne = nat_blk->entries[nid - start_nid];
-		old_blkaddr = le32_to_cpu(raw_ne.block_addr);
 flush_now:
 		new_blkaddr = nat_get_blkaddr(ne);
 

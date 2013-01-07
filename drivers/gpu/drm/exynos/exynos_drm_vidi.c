@@ -609,7 +609,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	return 0;
 }
 
-static int __devinit vidi_probe(struct platform_device *pdev)
+static int vidi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vidi_context *ctx;
@@ -645,7 +645,7 @@ static int __devinit vidi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit vidi_remove(struct platform_device *pdev)
+static int vidi_remove(struct platform_device *pdev)
 {
 	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
@@ -683,7 +683,7 @@ static const struct dev_pm_ops vidi_pm_ops = {
 
 struct platform_driver vidi_driver = {
 	.probe		= vidi_probe,
-	.remove		= __devexit_p(vidi_remove),
+	.remove		= vidi_remove,
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.owner	= THIS_MODULE,

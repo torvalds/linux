@@ -350,10 +350,14 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 		BUG_ON(len < chunk_size);
 		len -= chunk_size;
 		block = gfs2_rbm_to_block(&rbm);
-		gfs2_rbm_from_block(&rbm, block + chunk_size);
-		n_unaligned = 3;
-		if (ptr)
+		if (gfs2_rbm_from_block(&rbm, block + chunk_size)) {
+			n_unaligned = 0;
 			break;
+		}
+		if (ptr) {
+			n_unaligned = 3;
+			break;
+		}
 		n_unaligned = len & 3;
 	}
 
@@ -557,22 +561,20 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
  */
 int gfs2_rs_alloc(struct gfs2_inode *ip)
 {
-	struct gfs2_blkreserv *res;
-
-	if (ip->i_res)
-		return 0;
-
-	res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
-	if (!res)
-		return -ENOMEM;
-
-	RB_CLEAR_NODE(&res->rs_node);
+	int error = 0;
 
 	down_write(&ip->i_rw_mutex);
 	if (ip->i_res)
-		kmem_cache_free(gfs2_rsrv_cachep, res);
-	else
-		ip->i_res = res;
+		goto out;
+
+	ip->i_res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
+	if (!ip->i_res) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	RB_CLEAR_NODE(&ip->i_res->rs_node);
+out:
 	up_write(&ip->i_rw_mutex);
 	return 0;
 }
@@ -1424,6 +1426,9 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 		rs->rs_free = extlen;
 		rs->rs_inum = ip->i_no_addr;
 		rs_insert(ip);
+	} else {
+		if (goal == rgd->rd_last_alloc + rgd->rd_data0)
+			rgd->rd_last_alloc = 0;
 	}
 }
 

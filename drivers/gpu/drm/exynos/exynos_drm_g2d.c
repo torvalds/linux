@@ -1090,7 +1090,7 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	kfree(file_priv->g2d_priv);
 }
 
-static int __devinit g2d_probe(struct platform_device *pdev)
+static int g2d_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -1188,7 +1188,7 @@ err_destroy_slab:
 	return ret;
 }
 
-static int __devexit g2d_remove(struct platform_device *pdev)
+static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
@@ -1242,7 +1242,7 @@ static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
-	.remove		= __devexit_p(g2d_remove),
+	.remove		= g2d_remove,
 	.driver		= {
 		.name	= "s5p-g2d",
 		.owner	= THIS_MODULE,

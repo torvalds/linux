@@ -208,7 +208,7 @@ int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 	struct page *page;
 	void *base_addr;
 	int error = 0, found = 0;
-	int value_len, name_len;
+	size_t value_len, name_len;
 
 	if (name == NULL)
 		return -EINVAL;
@@ -304,7 +304,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	struct f2fs_xattr_entry *here, *last;
 	struct page *page;
 	void *base_addr;
-	int error, found, free, name_len, newsize;
+	int error, found, free, newsize;
+	size_t name_len;
 	char *pval;
 
 	if (name == NULL)
