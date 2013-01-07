@@ -618,7 +618,7 @@ static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	if (!np)
 		return NULL;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
@@ -700,33 +700,36 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	if (!pdata)
 		pdata = tegra_kbc_dt_parse_pdata(pdev);
 
-	if (!pdata)
+	if (!pdata) {
+		dev_err(&pdev->dev, "Platform data missing\n");
 		return -EINVAL;
-
-	if (!tegra_kbc_check_pin_cfg(pdata, &pdev->dev, &num_rows)) {
-		err = -EINVAL;
-		goto err_free_pdata;
 	}
+
+	if (!tegra_kbc_check_pin_cfg(pdata, &pdev->dev, &num_rows))
+		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		err = -ENXIO;
-		goto err_free_pdata;
+		return -ENXIO;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get keyboard IRQ\n");
-		err = -ENXIO;
-		goto err_free_pdata;
+		return -ENXIO;
 	}
 
-	kbc = kzalloc(sizeof(*kbc), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!kbc || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
+	kbc = devm_kzalloc(&pdev->dev, sizeof(*kbc), GFP_KERNEL);
+	if (!kbc) {
+		dev_err(&pdev->dev, "failed to alloc memory for kbc\n");
+		return -ENOMEM;
+	}
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev) {
+		dev_err(&pdev->dev, "failed to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	kbc->pdata = pdata;
@@ -735,25 +738,16 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	spin_lock_init(&kbc->lock);
 	setup_timer(&kbc->timer, tegra_kbc_keypress_timer, (unsigned long)kbc);
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		err = -EBUSY;
-		goto err_free_mem;
-	}
-
-	kbc->mmio = ioremap(res->start, resource_size(res));
+	kbc->mmio = devm_request_and_ioremap(&pdev->dev, res);
 	if (!kbc->mmio) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		err = -ENXIO;
-		goto err_free_mem_region;
+		dev_err(&pdev->dev, "Cannot request memregion/iomap address\n");
+		return -EBUSY;
 	}
 
-	kbc->clk = clk_get(&pdev->dev, NULL);
+	kbc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(kbc->clk)) {
 		dev_err(&pdev->dev, "failed to get keyboard clock\n");
-		err = PTR_ERR(kbc->clk);
-		goto err_iounmap;
+		return PTR_ERR(kbc->clk);
 	}
 
 	/*
@@ -780,7 +774,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	err = tegra_kbd_setup_keymap(kbc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to setup keymap\n");
-		goto err_put_clk;
+		return err;
 	}
 
 	__set_bit(EV_REP, input_dev->evbit);
@@ -788,11 +782,11 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input_dev, kbc);
 
-	err = request_irq(kbc->irq, tegra_kbc_isr,
+	err = devm_request_irq(&pdev->dev, kbc->irq, tegra_kbc_isr,
 			  IRQF_NO_SUSPEND | IRQF_TRIGGER_HIGH, pdev->name, kbc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to request keyboard IRQ\n");
-		goto err_put_clk;
+		return err;
 	}
 
 	disable_irq(kbc->irq);
@@ -800,55 +794,11 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	err = input_register_device(kbc->idev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err_free_irq;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, kbc);
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
-
-	return 0;
-
-err_free_irq:
-	free_irq(kbc->irq, pdev);
-err_put_clk:
-	clk_put(kbc->clk);
-err_iounmap:
-	iounmap(kbc->mmio);
-err_free_mem_region:
-	release_mem_region(res->start, resource_size(res));
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(kbc);
-err_free_pdata:
-	if (!pdev->dev.platform_data)
-		kfree(pdata);
-
-	return err;
-}
-
-static int tegra_kbc_remove(struct platform_device *pdev)
-{
-	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	platform_set_drvdata(pdev, NULL);
-
-	free_irq(kbc->irq, pdev);
-	clk_put(kbc->clk);
-
-	input_unregister_device(kbc->idev);
-	iounmap(kbc->mmio);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	/*
-	 * If we do not have platform data attached to the device we
-	 * allocated it ourselves and thus need to free it.
-	 */
-	if (!pdev->dev.platform_data)
-		kfree(kbc->pdata);
-
-	kfree(kbc);
 
 	return 0;
 }
@@ -954,7 +904,6 @@ MODULE_DEVICE_TABLE(of, tegra_kbc_of_match);
 
 static struct platform_driver tegra_kbc_driver = {
 	.probe		= tegra_kbc_probe,
-	.remove		= tegra_kbc_remove,
 	.driver	= {
 		.name	= "tegra-kbc",
 		.owner  = THIS_MODULE,
