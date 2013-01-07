@@ -269,13 +269,17 @@ static ssize_t show_remote_port(struct netconsole_target *nt, char *buf)
 
 static ssize_t show_local_ip(struct netconsole_target *nt, char *buf)
 {
-	if (!nt->np.ipv6)
+	if (nt->np.ipv6)
+		return snprintf(buf, PAGE_SIZE, "%pI6c\n", &nt->np.local_ip.in6);
+	else
 		return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.local_ip);
 }
 
 static ssize_t show_remote_ip(struct netconsole_target *nt, char *buf)
 {
-	if (!nt->np.ipv6)
+	if (nt->np.ipv6)
+		return snprintf(buf, PAGE_SIZE, "%pI6c\n", &nt->np.remote_ip.in6);
+	else
 		return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.remote_ip);
 }
 
@@ -412,8 +416,22 @@ static ssize_t store_local_ip(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	if (!strnchr(buf, count, ':'))
-		nt->np.local_ip.ip = in_aton(buf);
+	if (strnchr(buf, count, ':')) {
+		const char *end;
+		if (in6_pton(buf, count, nt->np.local_ip.in6.s6_addr, -1, &end) > 0) {
+			if (*end && *end != '\n') {
+				printk(KERN_ERR "netconsole: invalid IPv6 address at: <%c>\n", *end);
+				return -EINVAL;
+			}
+			nt->np.ipv6 = true;
+		} else
+			return -EINVAL;
+	} else {
+		if (!nt->np.ipv6) {
+			nt->np.local_ip.ip = in_aton(buf);
+		} else
+			return -EINVAL;
+	}
 
 	return strnlen(buf, count);
 }
@@ -429,8 +447,22 @@ static ssize_t store_remote_ip(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	if (!strnchr(buf, count, ':'))
-		nt->np.remote_ip.ip = in_aton(buf);
+	if (strnchr(buf, count, ':')) {
+		const char *end;
+		if (in6_pton(buf, count, nt->np.remote_ip.in6.s6_addr, -1, &end) > 0) {
+			if (*end && *end != '\n') {
+				printk(KERN_ERR "netconsole: invalid IPv6 address at: <%c>\n", *end);
+				return -EINVAL;
+			}
+			nt->np.ipv6 = true;
+		} else
+			return -EINVAL;
+	} else {
+		if (!nt->np.ipv6) {
+			nt->np.remote_ip.ip = in_aton(buf);
+		} else
+			return -EINVAL;
+	}
 
 	return strnlen(buf, count);
 }
