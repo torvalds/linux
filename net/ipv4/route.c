@@ -2751,10 +2751,15 @@ static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 	    res.type == RTN_UNICAST && !fl4->flowi4_oif)
 		fib_select_default(&res);
 
+	dev_out = FIB_RES_DEV(res);
+	if (dev_out == NULL) {
+		rth = ERR_PTR(-ENODEV);
+		goto out;
+	}
+
 	if (!fl4->saddr)
 		fl4->saddr = FIB_RES_PREFSRC(net, res);
 
-	dev_out = FIB_RES_DEV(res);
 	fl4->flowi4_oif = dev_out->ifindex;
 
 
