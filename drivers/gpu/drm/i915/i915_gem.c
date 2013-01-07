@@ -1463,51 +1463,21 @@ i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
  * Return the required GTT alignment for an object, taking into account
  * potential fence register mapping.
  */
-static uint32_t
-i915_gem_get_gtt_alignment(struct drm_device *dev,
-			   uint32_t size,
-			   int tiling_mode)
+uint32_t
+i915_gem_get_gtt_alignment(struct drm_device *dev, uint32_t size,
+			   int tiling_mode, bool fenced)
 {
 	/*
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (INTEL_INFO(dev)->gen >= 4 ||
+	if (INTEL_INFO(dev)->gen >= 4 || (!fenced && IS_G33(dev)) ||
 	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
 	/*
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
-	 */
-	return i915_gem_get_gtt_size(dev, size, tiling_mode);
-}
-
-/**
- * i915_gem_get_unfenced_gtt_alignment - return required GTT alignment for an
- *					 unfenced object
- * @dev: the device
- * @size: size of the object
- * @tiling_mode: tiling mode of the object
- *
- * Return the required GTT alignment for an object, only taking into account
- * unfenced tiled surface requirements.
- */
-uint32_t
-i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
-				    uint32_t size,
-				    int tiling_mode)
-{
-	/*
-	 * Minimum alignment is 4k (GTT page size) for sane hw.
-	 */
-	if (INTEL_INFO(dev)->gen >= 4 || IS_G33(dev) ||
-	    tiling_mode == I915_TILING_NONE)
-		return 4096;
-
-	/* Previous hardware however needs to be aligned to a power-of-two
-	 * tile height. The simplest method for determining this is to reuse
-	 * the power-of-tile object size.
 	 */
 	return i915_gem_get_gtt_size(dev, size, tiling_mode);
 }
@@ -2934,11 +2904,11 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 					   obj->tiling_mode);
 	fence_alignment = i915_gem_get_gtt_alignment(dev,
 						     obj->base.size,
-						     obj->tiling_mode);
+						     obj->tiling_mode, true);
 	unfenced_alignment =
-		i915_gem_get_unfenced_gtt_alignment(dev,
+		i915_gem_get_gtt_alignment(dev,
 						    obj->base.size,
-						    obj->tiling_mode);
+						    obj->tiling_mode, false);
 
 	if (alignment == 0)
 		alignment = map_and_fenceable ? fence_alignment :
