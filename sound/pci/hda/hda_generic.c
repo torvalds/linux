@@ -39,7 +39,6 @@
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec)
 {
 	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
-	snd_array_init(&spec->bind_ctls, sizeof(struct hda_bind_ctls *), 8);
 	snd_array_init(&spec->paths, sizeof(struct nid_path), 8);
 	mutex_init(&spec->pcm_mutex);
 	return 0;
@@ -75,39 +74,11 @@ static void free_kctls(struct hda_gen_spec *spec)
 	snd_array_free(&spec->kctls);
 }
 
-static struct hda_bind_ctls *new_bind_ctl(struct hda_codec *codec,
-					  unsigned int nums,
-					  struct hda_ctl_ops *ops)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	struct hda_bind_ctls **ctlp, *ctl;
-	ctlp = snd_array_new(&spec->bind_ctls);
-	if (!ctlp)
-		return NULL;
-	ctl = kzalloc(sizeof(*ctl) + sizeof(long) * (nums + 1), GFP_KERNEL);
-	*ctlp = ctl;
-	if (ctl)
-		ctl->ops = ops;
-	return ctl;
-}
-
-static void free_bind_ctls(struct hda_gen_spec *spec)
-{
-	if (spec->bind_ctls.list) {
-		struct hda_bind_ctls **ctl = spec->bind_ctls.list;
-		int i;
-		for (i = 0; i < spec->bind_ctls.used; i++)
-			kfree(ctl[i]);
-	}
-	snd_array_free(&spec->bind_ctls);
-}
-
 void snd_hda_gen_spec_free(struct hda_gen_spec *spec)
 {
 	if (!spec)
 		return;
 	free_kctls(spec);
-	free_bind_ctls(spec);
 	snd_array_free(&spec->paths);
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_spec_free);
@@ -1489,8 +1460,7 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 	return 0;
 }
 
-static int create_extra_out(struct hda_codec *codec, hda_nid_t pin,
-			    hda_nid_t dac, int path_idx,
+static int create_extra_out(struct hda_codec *codec, int path_idx,
 			    const char *pfx, int cidx)
 {
 	struct nid_path *path;
@@ -1499,12 +1469,9 @@ static int create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 	path = snd_hda_get_path_from_idx(codec, path_idx);
 	if (!path)
 		return 0;
-	/* bind volume control will be created in the case of dac = 0 */
-	if (dac) {
-		err = add_stereo_vol(codec, pfx, cidx, path);
-		if (err < 0)
-			return err;
-	}
+	err = add_stereo_vol(codec, pfx, cidx, path);
+	if (err < 0)
+		return err;
 	err = add_stereo_sw(codec, pfx, cidx, path);
 	if (err < 0)
 		return err;
@@ -1513,69 +1480,26 @@ static int create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 
 /* add playback controls for speaker and HP outputs */
 static int create_extra_outs(struct hda_codec *codec, int num_pins,
-			     const hda_nid_t *pins, const hda_nid_t *dacs,
 			     const int *paths, const char *pfx)
 {
-	struct hda_gen_spec *spec = codec->spec;
-	struct hda_bind_ctls *ctl;
-	char name[44];
-	int i, n, err;
-
-	if (!num_pins || !pins[0])
-		return 0;
-
-	if (num_pins == 1) {
-		hda_nid_t dac = *dacs;
-		if (!dac)
-			dac = spec->multiout.dac_nids[0];
-		return create_extra_out(codec, *pins, dac, paths[0], pfx, 0);
-	}
+	int i;
 
 	for (i = 0; i < num_pins; i++) {
-		hda_nid_t dac;
-		if (dacs[num_pins - 1])
-			dac = dacs[i]; /* with individual volumes */
-		else
-			dac = 0;
-		if (num_pins == 2 && i == 1 && !strcmp(pfx, "Speaker")) {
-			err = create_extra_out(codec, pins[i], dac, paths[i],
-					       "Bass Speaker", 0);
-		} else if (num_pins >= 3) {
-			snprintf(name, sizeof(name), "%s %s",
+		const char *name;
+		char tmp[44];
+		int err, idx = 0;
+
+		if (num_pins == 2 && i == 1 && !strcmp(pfx, "Speaker"))
+			name = "Bass Speaker";
+		else if (num_pins >= 3) {
+			snprintf(tmp, sizeof(tmp), "%s %s",
 				 pfx, channel_name[i]);
-			err = create_extra_out(codec, pins[i], dac, paths[i],
-					       name, 0);
+			name = tmp;
 		} else {
-			err = create_extra_out(codec, pins[i], dac, paths[i],
-					       pfx, i);
+			name = pfx;
+			idx = i;
 		}
-		if (err < 0)
-			return err;
-	}
-	if (dacs[num_pins - 1])
-		return 0;
-
-	/* Let's create a bind-controls for volumes */
-	ctl = new_bind_ctl(codec, num_pins, &snd_hda_bind_vol);
-	if (!ctl)
-		return -ENOMEM;
-	n = 0;
-	for (i = 0; i < num_pins; i++) {
-		hda_nid_t vol;
-		struct nid_path *path;
-		if (!pins[i] || !dacs[i])
-			continue;
-		path = snd_hda_get_path_from_idx(codec, paths[i]);
-		if (!path)
-			continue;
-		vol = look_for_out_vol_nid(codec, path);
-		if (vol)
-			ctl->values[n++] =
-				HDA_COMPOSE_AMP_VAL(vol, 3, 0, HDA_OUTPUT);
-	}
-	if (n) {
-		snprintf(name, sizeof(name), "%s Playback Volume", pfx);
-		err = add_control(spec, HDA_CTL_BIND_VOL, name, 0, (long)ctl);
+		err = create_extra_out(codec, paths[i], name, idx);
 		if (err < 0)
 			return err;
 	}
@@ -1586,8 +1510,6 @@ static int create_hp_out_ctls(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	return create_extra_outs(codec, spec->autocfg.hp_outs,
-				 spec->autocfg.hp_pins,
-				 spec->multiout.hp_out_nid,
 				 spec->hp_paths,
 				 "Headphone");
 }
@@ -1596,8 +1518,6 @@ static int create_speaker_out_ctls(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	return create_extra_outs(codec, spec->autocfg.speaker_outs,
-				 spec->autocfg.speaker_pins,
-				 spec->multiout.extra_out_nid,
 				 spec->speaker_paths,
 				 "Speaker");
 }

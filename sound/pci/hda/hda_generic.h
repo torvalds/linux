@@ -186,9 +186,6 @@ struct hda_gen_spec {
 	int multi_ios;
 	struct hda_multi_io multi_io[4];
 
-	/* bind volumes */
-	struct snd_array bind_ctls;
-
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
