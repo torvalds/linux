@@ -1497,7 +1497,7 @@ static int create_extra_outs(struct hda_codec *codec, int num_pins,
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct hda_bind_ctls *ctl;
-	char name[32];
+	char name[44];
 	int i, n, err;
 
 	if (!num_pins || !pins[0])
@@ -2545,7 +2545,7 @@ static int parse_mic_boost(struct hda_codec *codec)
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			const char *label;
-			char boost_label[32];
+			char boost_label[44];
 			struct nid_path *path;
 			unsigned int val;
 
