@@ -154,11 +154,10 @@ _mali_osk_errcode_t _mali_osk_pmm_dev_idle(void)
 */
 int _mali_osk_pmm_dev_activate(void)
 {
-	
+	int err = 0;
 #if MALI_LICENSE_IS_GPL
 #ifdef CONFIG_PM_RUNTIME
 #if MALI_PMM_RUNTIME_JOB_CONTROL_ON
-	int err = 0;
 	if(is_runtime == 0)
 	{
 		pm_suspend_ignore_children(&(mali_gpu_device.dev), true);
