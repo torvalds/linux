@@ -3901,6 +3901,10 @@ static void clear_unsol_on_unused_pins(struct hda_codec *codec)
 	}
 }
 
+/*
+ * initialize the generic spec;
+ * this can be put as patch_ops.init function
+ */
 int snd_hda_gen_init(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
@@ -3937,7 +3941,10 @@ int snd_hda_gen_init(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_init);
 
-
+/*
+ * free the generic spec;
+ * this can be put as patch_ops.free function
+ */
 void snd_hda_gen_free(struct hda_codec *codec)
 {
 	snd_hda_gen_spec_free(codec->spec);
@@ -3947,6 +3954,10 @@ void snd_hda_gen_free(struct hda_codec *codec)
 EXPORT_SYMBOL_HDA(snd_hda_gen_free);
 
 #ifdef CONFIG_PM
+/*
+ * check the loopback power save state;
+ * this can be put as patch_ops.check_power_status function
+ */
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_gen_spec *spec = codec->spec;
