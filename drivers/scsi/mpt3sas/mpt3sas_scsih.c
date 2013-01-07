@@ -7374,8 +7374,7 @@ _scsih_ir_shutdown(struct MPT3SAS_ADAPTER *ioc)
  * Routine called when unloading the driver.
  * Return nothing.
  */
-static void __devexit
-_scsih_remove(struct pci_dev *pdev)
+static void _scsih_remove(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
@@ -8044,7 +8043,7 @@ static struct pci_driver scsih_driver = {
 	.name		= MPT3SAS_DRIVER_NAME,
 	.id_table	= scsih_pci_table,
 	.probe		= _scsih_probe,
-	.remove		= __devexit_p(_scsih_remove),
+	.remove		= _scsih_remove,
 	.shutdown	= _scsih_shutdown,
 	.err_handler	= &_scsih_err_handler,
 #ifdef CONFIG_PM

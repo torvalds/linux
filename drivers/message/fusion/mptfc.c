@@ -100,7 +100,7 @@ static int mptfc_slave_alloc(struct scsi_device *sdev);
 static int mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt);
 static void mptfc_target_destroy(struct scsi_target *starget);
 static void mptfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout);
-static void __devexit mptfc_remove(struct pci_dev *pdev);
+static void mptfc_remove(struct pci_dev *pdev);
 static int mptfc_abort(struct scsi_cmnd *SCpnt);
 static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
 static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
@@ -1360,7 +1360,7 @@ static struct pci_driver mptfc_driver = {
 	.name		= "mptfc",
 	.id_table	= mptfc_pci_table,
 	.probe		= mptfc_probe,
-	.remove		= __devexit_p(mptfc_remove),
+	.remove		= mptfc_remove,
 	.shutdown	= mptscsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,
@@ -1496,8 +1496,7 @@ mptfc_init(void)
  *	@pdev: Pointer to pci_dev structure
  *
  */
-static void __devexit
-mptfc_remove(struct pci_dev *pdev)
+static void mptfc_remove(struct pci_dev *pdev)
 {
 	MPT_ADAPTER		*ioc = pci_get_drvdata(pdev);
 	struct mptfc_rport_info	*p, *n;

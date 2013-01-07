@@ -563,7 +563,7 @@ static struct platform_driver mid_thermal_driver = {
 		.pm = &mid_thermal_pm,
 	},
 	.probe = mid_thermal_probe,
-	.remove = __devexit_p(mid_thermal_remove),
+	.remove = mid_thermal_remove,
 	.id_table = therm_id_table,
 };
 

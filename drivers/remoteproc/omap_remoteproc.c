@@ -179,7 +179,7 @@ static struct rproc_ops omap_rproc_ops = {
 	.kick		= omap_rproc_kick,
 };
 
-static int __devinit omap_rproc_probe(struct platform_device *pdev)
+static int omap_rproc_probe(struct platform_device *pdev)
 {
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc;
@@ -213,7 +213,7 @@ free_rproc:
 	return ret;
 }
 
-static int __devexit omap_rproc_remove(struct platform_device *pdev)
+static int omap_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
@@ -225,7 +225,7 @@ static int __devexit omap_rproc_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_rproc_driver = {
 	.probe = omap_rproc_probe,
-	.remove = __devexit_p(omap_rproc_remove),
+	.remove = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
 		.owner = THIS_MODULE,

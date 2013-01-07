@@ -400,7 +400,7 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 
 /* ----- end of gpio b chip ---------------------------------------------- */
 
-static int __devinit vprbrd_gpio_probe(struct platform_device *pdev)
+static int vprbrd_gpio_probe(struct platform_device *pdev)
 {
 	struct vprbrd *vb = dev_get_drvdata(pdev->dev.parent);
 	struct vprbrd_gpio *vb_gpio;
@@ -456,7 +456,7 @@ err_gpioa:
 	return ret;
 }
 
-static int __devexit vprbrd_gpio_remove(struct platform_device *pdev)
+static int vprbrd_gpio_remove(struct platform_device *pdev)
 {
 	struct vprbrd_gpio *vb_gpio = platform_get_drvdata(pdev);
 	int ret;
@@ -472,7 +472,7 @@ static struct platform_driver vprbrd_gpio_driver = {
 	.driver.name	= "viperboard-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_gpio_probe,
-	.remove		= __devexit_p(vprbrd_gpio_remove),
+	.remove		= vprbrd_gpio_remove,
 };
 
 static int __init vprbrd_gpio_init(void)

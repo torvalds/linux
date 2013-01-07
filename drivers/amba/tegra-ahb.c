@@ -243,7 +243,7 @@ static void tegra_ahb_gizmo_init(struct tegra_ahb *ahb)
 	gizmo_writel(ahb, val, AHB_MEM_PREFETCH_CFG4);
 }
 
-static int __devinit tegra_ahb_probe(struct platform_device *pdev)
+static int tegra_ahb_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct tegra_ahb *ahb;
@@ -267,7 +267,7 @@ static int __devinit tegra_ahb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_ahb_of_match[] __devinitconst = {
+static const struct of_device_id tegra_ahb_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ahb", },
 	{ .compatible = "nvidia,tegra20-ahb", },
 	{},

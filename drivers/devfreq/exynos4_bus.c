@@ -980,7 +980,7 @@ unlock:
 	return NOTIFY_DONE;
 }
 
-static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
+static int exynos4_busfreq_probe(struct platform_device *pdev)
 {
 	struct busfreq_data *data;
 	struct opp *opp;
@@ -1056,7 +1056,7 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int exynos4_busfreq_remove(struct platform_device *pdev)
+static int exynos4_busfreq_remove(struct platform_device *pdev)
 {
 	struct busfreq_data *data = platform_get_drvdata(pdev);
 
@@ -1087,7 +1087,7 @@ static const struct platform_device_id exynos4_busfreq_id[] = {
 
 static struct platform_driver exynos4_busfreq_driver = {
 	.probe	= exynos4_busfreq_probe,
-	.remove	= __devexit_p(exynos4_busfreq_remove),
+	.remove	= exynos4_busfreq_remove,
 	.id_table = exynos4_busfreq_id,
 	.driver = {
 		.name	= "exynos4-busfreq",

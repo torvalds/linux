@@ -100,7 +100,7 @@ static inline int mtrr_del(int reg, unsigned long base,
 #define VOODOO3_MAX_PIXCLOCK 300000
 #define VOODOO5_MAX_PIXCLOCK 350000
 
-static struct fb_fix_screeninfo tdfx_fix __devinitdata = {
+static struct fb_fix_screeninfo tdfx_fix = {
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
 	.ypanstep =	1,
@@ -108,7 +108,7 @@ static struct fb_fix_screeninfo tdfx_fix __devinitdata = {
 	.accel =	FB_ACCEL_3DFX_BANSHEE
 };
 
-static struct fb_var_screeninfo tdfx_var __devinitdata = {
+static struct fb_var_screeninfo tdfx_var = {
 	/* "640x480, 8 bpp @ 60 Hz */
 	.xres =		640,
 	.yres =		480,
@@ -135,9 +135,8 @@ static struct fb_var_screeninfo tdfx_var __devinitdata = {
 /*
  * PCI driver prototypes
  */
-static int __devinit tdfxfb_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *id);
-static void __devexit tdfxfb_remove(struct pci_dev *pdev);
+static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+static void tdfxfb_remove(struct pci_dev *pdev);
 
 static struct pci_device_id tdfxfb_id_table[] = {
 	{ PCI_VENDOR_ID_3DFX, PCI_DEVICE_ID_3DFX_BANSHEE,
@@ -156,7 +155,7 @@ static struct pci_driver tdfxfb_driver = {
 	.name		= "tdfxfb",
 	.id_table	= tdfxfb_id_table,
 	.probe		= tdfxfb_probe,
-	.remove		= __devexit_p(tdfxfb_remove),
+	.remove		= tdfxfb_remove,
 };
 
 MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
@@ -167,9 +166,9 @@ MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
 static int nopan;
 static int nowrap = 1;      /* not implemented (yet) */
 static int hwcursor = 1;
-static char *mode_option __devinitdata;
+static char *mode_option;
 /* mtrr option */
-static bool nomtrr __devinitdata;
+static bool nomtrr;
 
 /* -------------------------------------------------------------------------
  *			Hardware-specific funcions
@@ -1279,8 +1278,8 @@ static int tdfxfb_ddc_getsda(void *data)
 	return (0 != (tdfx_inl(par, VIDSERPARPORT) & DDC_SDA_IN));
 }
 
-static int __devinit tdfxfb_setup_ddc_bus(struct tdfxfb_i2c_chan *chan,
-					  const char *name, struct device *dev)
+static int tdfxfb_setup_ddc_bus(struct tdfxfb_i2c_chan *chan, const char *name,
+				struct device *dev)
 {
 	int rc;
 
@@ -1308,8 +1307,8 @@ static int __devinit tdfxfb_setup_ddc_bus(struct tdfxfb_i2c_chan *chan,
 	return rc;
 }
 
-static int __devinit tdfxfb_setup_i2c_bus(struct tdfxfb_i2c_chan *chan,
-					  const char *name, struct device *dev)
+static int tdfxfb_setup_i2c_bus(struct tdfxfb_i2c_chan *chan, const char *name,
+				struct device *dev)
 {
 	int rc;
 
@@ -1336,7 +1335,7 @@ static int __devinit tdfxfb_setup_i2c_bus(struct tdfxfb_i2c_chan *chan,
 	return rc;
 }
 
-static void __devinit tdfxfb_create_i2c_busses(struct fb_info *info)
+static void tdfxfb_create_i2c_busses(struct fb_info *info)
 {
 	struct tdfx_par *par = info->par;
 
@@ -1388,8 +1387,7 @@ static int tdfxfb_probe_i2c_connector(struct tdfx_par *par,
  *      Initializes and allocates resources for PCI device @pdev.
  *
  */
-static int __devinit tdfxfb_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *id)
+static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct tdfx_par *default_par;
 	struct fb_info *info;
@@ -1626,7 +1624,7 @@ static void __init tdfxfb_setup(char *options)
  *      lifetime for the PCI device @pdev.
  *
  */
-static void __devexit tdfxfb_remove(struct pci_dev *pdev)
+static void tdfxfb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct tdfx_par *par = info->par;

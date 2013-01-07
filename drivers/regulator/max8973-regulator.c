@@ -248,8 +248,8 @@ static struct regulator_ops max8973_dcdc_ops = {
 	.get_mode		= max8973_dcdc_get_mode,
 };
 
-static int __devinit max8973_init_dcdc(struct max8973_chip *max,
-		struct max8973_regulator_platform_data *pdata)
+static int max8973_init_dcdc(struct max8973_chip *max,
+			     struct max8973_regulator_platform_data *pdata)
 {
 	int ret;
 	uint8_t	control1 = 0;
@@ -359,8 +359,8 @@ static const struct regmap_config max8973_regmap_config = {
 	.cache_type		= REGCACHE_RBTREE,
 };
 
-static int __devinit max8973_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int max8973_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct max8973_regulator_platform_data *pdata;
 	struct regulator_config config = { };
@@ -463,7 +463,7 @@ static int __devinit max8973_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max8973_remove(struct i2c_client *client)
+static int max8973_remove(struct i2c_client *client)
 {
 	struct max8973_chip *max = i2c_get_clientdata(client);
 
@@ -484,7 +484,7 @@ static struct i2c_driver max8973_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8973_probe,
-	.remove = __devexit_p(max8973_remove),
+	.remove = max8973_remove,
 	.id_table = max8973_id,
 };
 

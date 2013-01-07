@@ -45,7 +45,6 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
 }
 
-#ifdef CONFIG_HOTPLUG
 static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
@@ -58,9 +57,6 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
 	return retval;
 }
-#else
-#define amba_uevent NULL
-#endif
 
 #define amba_attr_func(name,fmt,arg...)					\
 static ssize_t name##_show(struct device *_dev,				\

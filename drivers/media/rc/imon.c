@@ -255,7 +255,7 @@ static struct usb_device_id imon_usb_id_table[] = {
 static struct usb_driver imon_driver = {
 	.name		= MOD_NAME,
 	.probe		= imon_probe,
-	.disconnect	= __devexit_p(imon_disconnect),
+	.disconnect	= imon_disconnect,
 	.suspend	= imon_suspend,
 	.resume		= imon_resume,
 	.id_table	= imon_usb_id_table,
@@ -2288,8 +2288,8 @@ static void imon_init_display(struct imon_context *ictx,
 /**
  * Callback function for USB core API: Probe
  */
-static int __devinit imon_probe(struct usb_interface *interface,
-				const struct usb_device_id *id)
+static int imon_probe(struct usb_interface *interface,
+		      const struct usb_device_id *id)
 {
 	struct usb_device *usbdev = NULL;
 	struct usb_host_interface *iface_desc = NULL;
@@ -2372,7 +2372,7 @@ fail:
 /**
  * Callback function for USB core API: disconnect
  */
-static void __devexit imon_disconnect(struct usb_interface *interface)
+static void imon_disconnect(struct usb_interface *interface)
 {
 	struct imon_context *ictx;
 	struct device *dev;

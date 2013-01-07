@@ -167,7 +167,7 @@ static inline int pdev_bad_for_parity(struct pci_dev *dev)
  * pcibios_fixup_bus - Called after each bus is probed,
  * but before its children are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	u16 features = PCI_COMMAND_SERR

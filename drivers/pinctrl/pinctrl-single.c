@@ -493,7 +493,7 @@ static struct pinconf_ops pcs_pinconf_ops = {
  * @pcs: pcs driver instance
  * @offset: register offset from base
  */
-static int __devinit pcs_add_pin(struct pcs_device *pcs, unsigned offset)
+static int pcs_add_pin(struct pcs_device *pcs, unsigned offset)
 {
 	struct pinctrl_pin_desc *pin;
 	struct pcs_name *pn;
@@ -526,7 +526,7 @@ static int __devinit pcs_add_pin(struct pcs_device *pcs, unsigned offset)
  * If your hardware needs holes in the address space, then just set
  * up multiple driver instances.
  */
-static int __devinit pcs_allocate_pin_table(struct pcs_device *pcs)
+static int pcs_allocate_pin_table(struct pcs_device *pcs)
 {
 	int mux_bytes, nr_pins, i;
 
@@ -907,8 +907,7 @@ static void pcs_free_resources(struct pcs_device *pcs)
 
 static struct of_device_id pcs_of_match[];
 
-static int __devinit pcs_add_gpio_range(struct device_node *node,
-					struct pcs_device *pcs)
+static int pcs_add_gpio_range(struct device_node *node, struct pcs_device *pcs)
 {
 	struct pcs_gpio_range *gpio;
 	struct device_node *child;
@@ -951,7 +950,7 @@ static int __devinit pcs_add_gpio_range(struct device_node *node,
 	return 0;
 }
 
-static int __devinit pcs_probe(struct platform_device *pdev)
+static int pcs_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;

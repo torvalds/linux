@@ -1184,7 +1184,7 @@ static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.max_dma_count		= 1024UL * 64,
 };
 
-static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
+static const struct of_device_id tegra_dma_of_match[] = {
 	{
 		.compatible = "nvidia,tegra30-apbdma",
 		.data = &tegra30_dma_chip_data,
@@ -1360,7 +1360,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int __devexit tegra_dma_remove(struct platform_device *pdev)
+static int tegra_dma_remove(struct platform_device *pdev)
 {
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 	int i;
@@ -1403,7 +1403,7 @@ static int tegra_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tegra_dma_dev_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend = tegra_dma_runtime_suspend,
 	.runtime_resume = tegra_dma_runtime_resume,

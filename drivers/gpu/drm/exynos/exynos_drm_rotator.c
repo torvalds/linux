@@ -638,7 +638,7 @@ static int rotator_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	return 0;
 }
 
-static int __devinit rotator_probe(struct platform_device *pdev)
+static int rotator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot;
@@ -730,7 +730,7 @@ err_get_resource:
 	return ret;
 }
 
-static int __devexit rotator_remove(struct platform_device *pdev)
+static int rotator_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot = dev_get_drvdata(dev);
@@ -845,7 +845,7 @@ static const struct dev_pm_ops rotator_pm_ops = {
 
 struct platform_driver rotator_driver = {
 	.probe		= rotator_probe,
-	.remove		= __devexit_p(rotator_remove),
+	.remove		= rotator_remove,
 	.id_table	= rotator_driver_ids,
 	.driver		= {
 		.name	= "exynos-rot",

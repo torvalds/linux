@@ -193,7 +193,7 @@ static inline void lp8788_iio_map_unregister(struct iio_dev *indio_dev,
 	iio_map_array_unregister(indio_dev, adc->map);
 }
 
-static int __devinit lp8788_adc_probe(struct platform_device *pdev)
+static int lp8788_adc_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct iio_dev *indio_dev;
@@ -236,7 +236,7 @@ err_iio_map:
 	return ret;
 }
 
-static int __devexit lp8788_adc_remove(struct platform_device *pdev)
+static int lp8788_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct lp8788_adc *adc = iio_priv(indio_dev);
@@ -250,7 +250,7 @@ static int __devexit lp8788_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_adc_driver = {
 	.probe = lp8788_adc_probe,
-	.remove = __devexit_p(lp8788_adc_remove),
+	.remove = lp8788_adc_remove,
 	.driver = {
 		.name = LP8788_DEV_ADC,
 		.owner = THIS_MODULE,

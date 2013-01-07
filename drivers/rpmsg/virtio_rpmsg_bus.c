@@ -1022,7 +1022,7 @@ static int rpmsg_remove_device(struct device *dev, void *data)
 	return 0;
 }
 
-static void __devexit rpmsg_remove(struct virtio_device *vdev)
+static void rpmsg_remove(struct virtio_device *vdev)
 {
 	struct virtproc_info *vrp = vdev->priv;
 	int ret;
@@ -1063,7 +1063,7 @@ static struct virtio_driver virtio_ipc_driver = {
 	.driver.owner	= THIS_MODULE,
 	.id_table	= id_table,
 	.probe		= rpmsg_probe,
-	.remove		= __devexit_p(rpmsg_remove),
+	.remove		= rpmsg_remove,
 };
 
 static int __init rpmsg_init(void)

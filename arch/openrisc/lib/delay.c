@@ -22,7 +22,7 @@
 #include <asm/timex.h>
 #include <asm/processor.h>
 
-int __devinit read_current_timer(unsigned long *timer_value)
+int read_current_timer(unsigned long *timer_value)
 {
 	*timer_value = mfspr(SPR_TTCR);
 	return 0;

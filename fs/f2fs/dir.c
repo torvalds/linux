@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>
 #include "f2fs.h"
+#include "node.h"
 #include "acl.h"
 
 static unsigned long dir_blocks(struct inode *inode)
@@ -74,7 +75,7 @@ static unsigned long dir_block_index(unsigned int level, unsigned int idx)
 	return bidx;
 }
 
-static bool early_match_name(const char *name, int namelen,
+static bool early_match_name(const char *name, size_t namelen,
 			f2fs_hash_t namehash, struct f2fs_dir_entry *de)
 {
 	if (le16_to_cpu(de->name_len) != namelen)
@@ -87,7 +88,7 @@ static bool early_match_name(const char *name, int namelen,
 }
 
 static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
-			const char *name, int namelen, int *max_slots,
+			const char *name, size_t namelen, int *max_slots,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	struct f2fs_dir_entry *de;
@@ -126,7 +127,7 @@ found:
 }
 
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
-		unsigned int level, const char *name, int namelen,
+		unsigned int level, const char *name, size_t namelen,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	int s = GET_DENTRY_SLOTS(namelen);
@@ -181,7 +182,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 			struct qstr *child, struct page **res_page)
 {
 	const char *name = child->name;
-	int namelen = child->len;
+	size_t namelen = child->len;
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
 	f2fs_hash_t name_hash;
@@ -308,6 +309,7 @@ static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
 		ipage = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
 		if (IS_ERR(ipage))
 			return PTR_ERR(ipage);
+		set_cold_node(inode, ipage);
 		init_dent_inode(dentry, ipage);
 		f2fs_put_page(ipage, 1);
 	}
@@ -381,7 +383,7 @@ int f2fs_add_link(struct dentry *dentry, struct inode *inode)
 	struct inode *dir = dentry->d_parent->d_inode;
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	size_t namelen = dentry->d_name.len;
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	int slots = GET_DENTRY_SLOTS(namelen);
@@ -540,13 +542,13 @@ int f2fs_make_empty(struct inode *inode, struct inode *parent)
 
 	de = &dentry_blk->dentry[0];
 	de->name_len = cpu_to_le16(1);
-	de->hash_code = 0;
+	de->hash_code = f2fs_dentry_hash(".", 1);
 	de->ino = cpu_to_le32(inode->i_ino);
 	memcpy(dentry_blk->filename[0], ".", 1);
 	set_de_type(de, inode);
 
 	de = &dentry_blk->dentry[1];
-	de->hash_code = 0;
+	de->hash_code = f2fs_dentry_hash("..", 2);
 	de->name_len = cpu_to_le16(2);
 	de->ino = cpu_to_le32(parent->i_ino);
 	memcpy(dentry_blk->filename[1], "..", 2);

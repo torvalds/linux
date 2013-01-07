@@ -36,7 +36,7 @@
 
 static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
-static void __devinit quirk_fsl_pcie_header(struct pci_dev *dev)
+static void quirk_fsl_pcie_header(struct pci_dev *dev)
 {
 	u8 hdr_type;
 
@@ -871,7 +871,7 @@ void fsl_pci_assign_primary(void)
 	}
 }
 
-static int __devinit fsl_pci_probe(struct platform_device *pdev)
+static int fsl_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *node;
