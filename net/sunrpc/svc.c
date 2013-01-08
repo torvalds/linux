@@ -1042,6 +1042,7 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 /*
  * dprintk the given error with the address of the client that caused it.
  */
+#ifdef RPC_DEBUG
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
@@ -1058,6 +1059,9 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 
 	va_end(args);
 }
+#else
+static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...) {}
+#endif
 
 /*
  * Common routine for processing the RPC request.
