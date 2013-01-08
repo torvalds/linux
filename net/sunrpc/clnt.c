@@ -1508,7 +1508,7 @@ rpc_xdr_encode(struct rpc_task *task)
 static void
 call_bind(struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 
 	dprint_status(task);
 
@@ -1602,7 +1602,7 @@ retry_timeout:
 static void
 call_connect(struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 
 	dprintk("RPC: %5u call_connect xprt %p %s connected\n",
 			task->tk_pid, xprt,

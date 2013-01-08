@@ -697,7 +697,7 @@ out_abort:
  */
 void xprt_connect(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
 	dprintk("RPC: %5u xprt_connect xprt %p %s connected\n", task->tk_pid,
 			xprt, (xprt_connected(xprt) ? "is" : "is not"));
@@ -730,7 +730,7 @@ void xprt_connect(struct rpc_task *task)
 
 static void xprt_connect_status(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
 	if (task->tk_status == 0) {
 		xprt->stat.connect_count++;
