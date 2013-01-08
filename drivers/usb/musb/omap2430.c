@@ -532,15 +532,13 @@ static int omap2430_probe(struct platform_device *pdev)
 		if (!pdata) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb platfrom data\n");
-			ret = -ENOMEM;
 			goto err2;
 		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 		if (!data) {
 			dev_err(&pdev->dev,
-					"failed to allocate musb board data\n");
-			ret = -ENOMEM;
+				"failed to allocate musb board data\n");
 			goto err2;
 		}
 
