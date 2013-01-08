@@ -1,0 +1,23 @@
+# drivers/media/video/samsung/fimg2d4x/Kconfig
+#
+# Copyright (c) 2011 Samsung Electronics Co., Ltd.
+#	http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+config VIDEO_FIMG2D4X
+	bool "Samsung Graphics 2D Driver"
+	select VIDEO_FIMG2D
+	depends on VIDEO_SAMSUNG && (CPU_EXYNOS4212 || CPU_EXYNOS4412 || CPU_EXYNOS5250)
+	default n
+	---help---
+	  This is a graphics 2D (FIMG2D 4.x) driver for Samsung ARM based SoC.
+
+config VIDEO_FIMG2D4X_DEBUG
+	bool "Enables FIMG2D debug messages"
+	select VIDEO_FIMG2D_DEBUG
+	depends on VIDEO_FIMG2D4X
+	default n
+	---help---
+	  This enables FIMG2D driver debug messages.
+

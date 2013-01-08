@@ -916,8 +916,8 @@ static const struct memdev {
 			| S_IWOTH, &s3c_mem_fops},
 #endif
 #ifdef CONFIG_EXYNOS_MEM
-	[14] = {"exynos-mem", S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
-			| S_IWOTH, &exynos_mem_fops},
+	[14] = {"exynos-mem", S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
+				&exynos_mem_fops},
 #endif
 };
 

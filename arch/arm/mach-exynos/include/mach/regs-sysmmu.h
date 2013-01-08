@@ -17,6 +17,7 @@
 #define S5P_MMU_CFG			0x004
 #define S5P_MMU_STATUS			0x008
 #define S5P_MMU_FLUSH			0x00C
+#define S5P_MMU_FLUSH_ENTRY		0x010
 #define S5P_PT_BASE_ADDR		0x014
 #define S5P_INT_STATUS			0x018
 #define S5P_INT_CLEAR			0x01C

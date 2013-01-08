@@ -2478,6 +2478,14 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 	int idx, ctx_num;
 	int ret = -1;
 
+	u32 width;
+	u32 height;
+	u32 format;
+	u32 y_size = 0;
+	u32 cb_size = 0;
+	u32 cr_size = 0;
+	u32 size;
+
 	ctx = &ctrl->out->ctx[ctx_id];
 	fimc_info2("ctx(%d) queued idx = %d\n", ctx->ctx_num, b->index);
 	if (ctx->status == FIMC_STREAMOFF) {
@@ -2500,6 +2508,69 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 				 b->index, ctx->src[b->index].state);
 		return -EINVAL;
 	}
+
+	/* Check input buffer for CMA region */
+	width = ctx->pix.width;
+	height = ctx->pix.height;
+	format = ctx->pix.pixelformat;
+	y_size = width * height;
+
+	switch (format) {
+	case V4L2_PIX_FMT_RGB32:
+		y_size = y_size << 2;
+		size = PAGE_ALIGN(y_size);
+		break;
+	case V4L2_PIX_FMT_RGB565:	/* fall through */
+	case V4L2_PIX_FMT_UYVY:		/* fall through */
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_VYUY:
+		y_size = y_size << 1;
+		size = PAGE_ALIGN(y_size);
+		break;
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_YUV422P:
+	case V4L2_PIX_FMT_NV12M:
+		cb_size = y_size >> 2;
+		cr_size = y_size >> 2;
+		size = PAGE_ALIGN(y_size + cb_size + cr_size);
+		break;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		cb_size = y_size >> 1;
+		size = PAGE_ALIGN(y_size + cb_size);
+		break;
+	case V4L2_PIX_FMT_NV12T:
+		fimc_get_nv12t_size(width, height, &y_size, &cb_size);
+		size = PAGE_ALIGN(y_size + cb_size);
+		break;
+	default:
+		fimc_err("%s: Invalid pixelformt : %d\n", __func__, format);
+		return -EINVAL;
+	}
+
+	if (buf->base[FIMC_ADDR_Y] != 0 && y_size != 0 &&
+			!cma_is_registered_region(buf->base[FIMC_ADDR_Y], y_size)) {
+		fimc_err("%s: Y address is not CMA region 0x%x, %d \n",
+				__func__, buf->base[FIMC_ADDR_Y], y_size);
+		return -EINVAL;
+	}
+	if (buf->base[FIMC_ADDR_CB] != 0 && cb_size != 0 &&
+			!cma_is_registered_region(buf->base[FIMC_ADDR_CB], cb_size)) {
+		fimc_err("%s: CB address is not CMA region 0x%x, %d \n",
+				__func__, buf->base[FIMC_ADDR_CB], cb_size);
+		return -EINVAL;
+	}
+	if (buf->base[FIMC_ADDR_CR] != 0 && cr_size != 0 &&
+			!cma_is_registered_region(buf->base[FIMC_ADDR_CR], cr_size)) {
+		fimc_err("%s: CR address is not CMA region 0x%x, %d \n",
+				__func__, buf->base[FIMC_ADDR_CR], cr_size);
+		return -EINVAL;
+	}
+	/* End check CMA region */
 
 	if ((ctrl->status == FIMC_READY_ON) ||
 	    (ctrl->status == FIMC_STREAMON) ||
@@ -2529,7 +2600,16 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 	    (ctrl->status == FIMC_STREAMON_IDLE)) {
 		ret = fimc_pop_inq(ctrl, &ctx_num, &idx);
 		if (ret < 0) {
-			fimc_err("Fail: fimc_pop_inq\n");
+			fimc_err("Fail: fimc_pop_inq (ctx=%d ctrl>status=%d "
+				 "ctx->status=%d ret=%d)\n",
+				 ctx_id, ctrl->status, ctx->status, ret);
+			ret = -EINVAL;
+			goto err_routine;
+		}
+
+		if (ctrl->regs == NULL) {
+			fimc_err("%s:FIMC%d power is off!!! (ctx=%d)\n",
+				 __func__, ctrl->id, ctx_id);
 			return -EINVAL;
 		}
 
@@ -2544,6 +2624,78 @@ int fimc_qbuf_output(void *fh, struct v4l2_buffer *b)
 				return -EINVAL;
 			}
 		}
+
+		/* Check output buffer for CMA region */
+		width = ctx->fbuf.fmt.width;
+		height = ctx->fbuf.fmt.height;
+		format = ctx->fbuf.fmt.pixelformat;
+		y_size = width * height;
+		cb_size = 0;
+		cr_size = 0;
+
+		switch (format) {
+		case V4L2_PIX_FMT_RGB32:
+			y_size = y_size << 2;
+			size = PAGE_ALIGN(y_size);
+			break;
+		case V4L2_PIX_FMT_RGB565:	/* fall through */
+		case V4L2_PIX_FMT_UYVY:		/* fall through */
+		case V4L2_PIX_FMT_YUYV:
+		case V4L2_PIX_FMT_YVYU:
+		case V4L2_PIX_FMT_VYUY:
+			y_size = y_size << 1;
+			size = PAGE_ALIGN(y_size);
+			break;
+		case V4L2_PIX_FMT_YUV420:
+		case V4L2_PIX_FMT_YVU420:
+		case V4L2_PIX_FMT_YUV422P:
+		case V4L2_PIX_FMT_NV12M:
+			cb_size = y_size >> 2;
+			cr_size = y_size >> 2;
+			size = PAGE_ALIGN(y_size + cb_size + cr_size);
+			break;
+		case V4L2_PIX_FMT_NV12:
+		case V4L2_PIX_FMT_NV21:
+		case V4L2_PIX_FMT_NV16:
+		case V4L2_PIX_FMT_NV61:
+			cb_size = y_size >> 1;
+			size = PAGE_ALIGN(y_size + cb_size);
+			break;
+		case V4L2_PIX_FMT_NV12T:
+			fimc_get_nv12t_size(width, height, &y_size, &cb_size);
+			size = PAGE_ALIGN(y_size + cb_size);
+			break;
+		default:
+			fimc_err("%s: Invalid pixelformt : %d\n", __func__, format);
+			ret = -EINVAL;
+			goto err_routine;
+		}
+
+		if (ctx->dst[idx].base[FIMC_ADDR_Y] != 0 && y_size != 0 &&
+				!cma_is_registered_region((dma_addr_t)ctx->dst[idx].base[FIMC_ADDR_Y],
+					y_size)) {
+			fimc_err("%s: Y address is not CMA region 0x%x, %d \n",
+					__func__, ctx->dst[idx].base[FIMC_ADDR_Y], y_size);
+			ret = -EINVAL;
+			goto err_routine;
+		}
+		if (ctx->dst[idx].base[FIMC_ADDR_CB] != 0 && cb_size != 0 &&
+				!cma_is_registered_region((dma_addr_t)ctx->dst[idx].base[FIMC_ADDR_CB],
+					cb_size)) {
+			fimc_err("%s: CB address is not CMA region 0x%x, %d \n",
+					__func__, ctx->dst[idx].base[FIMC_ADDR_CB], cb_size);
+			ret = -EINVAL;
+			goto err_routine;
+		}
+		if (ctx->dst[idx].base[FIMC_ADDR_CR] != 0 && cr_size != 0 &&
+				!cma_is_registered_region((dma_addr_t)ctx->dst[idx].base[FIMC_ADDR_CR],
+					cr_size)) {
+			fimc_err("%s: CR address is not CMA region 0x%x, %d \n",
+					__func__, ctx->dst[idx].base[FIMC_ADDR_CR], cr_size);
+			ret = -EINVAL;
+			goto err_routine;
+		}
+		/* End check CMA region */
 
 		switch (ctx->overlay.mode) {
 		case FIMC_OVLY_FIFO:

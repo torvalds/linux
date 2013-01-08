@@ -6,6 +6,15 @@ config VIDEO_FIMC
 	help
 	  This is a video4linux driver for Samsung FIMC device.
 
+config USE_FIMC_CMA
+	bool "Use CMA for FIMC0/1 region (EXPERIMENTAL)"
+	depends on DMA_CMA
+	default n
+	help
+	  This enables the Contiguous Memory Allocator for MFC SECURE region.
+
+	  If unsure, say "n".
+
 choice
 depends on VIDEO_FIMC
 prompt "Select CSC Range config"

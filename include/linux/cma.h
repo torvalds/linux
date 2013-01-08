@@ -490,4 +490,10 @@ void __init cma_early_regions_reserve(int (*reserve)(struct cma_region *reg));
 
 #endif
 
+#ifdef CONFIG_CMA
+bool cma_is_registered_region(phys_addr_t start, size_t size);
+#else
+#define cma_is_registered_region(start, size)	(false)
+#endif
+
 #endif

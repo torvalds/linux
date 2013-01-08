@@ -636,6 +636,7 @@ config S3C_MEM
 
 config EXYNOS_MEM
 	bool "Support for /dev/exynos-mem"
+	depends on CMA
 	default y
 	help
 	  If you do say Y here, you can mmap using physically linear memories.

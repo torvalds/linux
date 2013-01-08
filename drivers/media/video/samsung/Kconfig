@@ -31,8 +31,16 @@ config VIDEO_FIMG2D_DEBUG
 	depends on VIDEO_FIMG2D
 	default n
 
+if ARCH_EXYNOS5
 source "drivers/media/video/samsung/fimg2d3x/Kconfig"
 source "drivers/media/video/samsung/fimg2d4x/Kconfig"
+endif
+
+if ARCH_EXYNOS4
+source "drivers/media/video/samsung/fimg2d3x-exynos4/Kconfig"
+source "drivers/media/video/samsung/fimg2d4x-exynos4/Kconfig"
+endif
+
 
 if CPU_EXYNOS4210
 	source "drivers/media/video/samsung/jpeg/Kconfig"
@@ -44,6 +52,15 @@ endif
 
 if VIDEO_SAMSUNG
 comment "Reserved memory configurations"
+config VIDEO_SAMSUNG_USE_DMA_MEM
+	bool "Use common contigouse dma memory for Multimedia devices"
+	depends on SLP
+
+config VIDEO_SAMSUNG_MEMSIZE_DMA
+	int "Memory size in kbytes for DMA"
+	depends on VIDEO_SAMSUNG_USE_DMA_MEM
+	default "5120"
+
 config VIDEO_SAMSUNG_MEMSIZE_FIMC0
 	int "Memory size in kbytes for FIMC0"
 	depends on VIDEO_FIMC || VIDEO_SAMSUNG_S5P_FIMC

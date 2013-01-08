@@ -55,21 +55,9 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"UNKNOWN FAULT"
 };
 
-struct sysmmu_drvdata {
-	struct list_head node;
-	struct device *dev;
-	struct device *owner;
-	void __iomem *sfrbase;
-	struct clk *clk;
-	int activations;
-	rwlock_t lock;
-	s5p_sysmmu_fault_handler_t fault_handler;
-	unsigned long version;
-};
-
 static LIST_HEAD(sysmmu_list);
 
-static struct sysmmu_drvdata *get_sysmmu_data(struct device *owner,
+struct sysmmu_drvdata *get_sysmmu_data(struct device *owner,
 						struct sysmmu_drvdata *start)
 {
 	if (start) {
@@ -83,6 +71,11 @@ static struct sysmmu_drvdata *get_sysmmu_data(struct device *owner,
 	}
 
 	return NULL;
+}
+
+struct list_head *get_sysmmu_list(void)
+{
+	return &sysmmu_list;
 }
 
 static struct sysmmu_drvdata *get_sysmmu_data_rollback(struct device *owner,
@@ -146,6 +139,12 @@ static void sysmmu_unblock(void __iomem *sfrbase)
 static void __sysmmu_tlb_invalidate(void __iomem *sfrbase)
 {
 	__raw_writel(0x1, sfrbase + S5P_MMU_FLUSH);
+}
+
+static void __sysmmu_tlb_invalidate_entry(void __iomem *sfrbase,
+						unsigned long iova)
+{
+	__raw_writel((iova & PAGE_MASK) | 1, sfrbase + S5P_MMU_FLUSH_ENTRY);
 }
 
 static void __sysmmu_set_ptbase(void __iomem *sfrbase,
@@ -322,6 +321,8 @@ void s5p_sysmmu_set_tablebase_pgd(struct device *owner, unsigned long pgd)
 {
 	struct sysmmu_drvdata *mmudata = NULL;
 
+	s5p_sysmmu_tlb_invalidate(owner);
+
 	while ((mmudata = get_sysmmu_data(owner, mmudata))) {
 		unsigned long flags;
 
@@ -352,7 +353,7 @@ static bool __sysmmu_disable(struct sysmmu_drvdata *data)
 	if (set_sysmmu_inactive(data)) {
 		__raw_writel(CTRL_DISABLE, data->sfrbase + S5P_MMU_CTRL);
 		if (data->clk)
-			clk_disable(data->clk);
+		clk_disable(data->clk);
 		disabled = true;
 	}
 
@@ -385,7 +386,7 @@ int s5p_sysmmu_enable(struct device *owner, unsigned long pgd)
 		ret = set_sysmmu_active(mmudata);
 		if (!ret && need_sysmmu_initialize(mmudata)) {
 			if (mmudata->clk)
-				clk_enable(mmudata->clk);
+			clk_enable(mmudata->clk);
 
 			__sysmmu_set_ptbase(mmudata->sfrbase, pgd);
 
@@ -458,6 +459,35 @@ void s5p_sysmmu_tlb_invalidate(struct device *owner)
 			sysmmu_block(mmudata->sfrbase);
 			__sysmmu_tlb_invalidate(mmudata->sfrbase);
 			sysmmu_unblock(mmudata->sfrbase);
+		} else {
+			dev_dbg(mmudata->dev,
+				"Disabled: Skipping invalidating TLB.\n");
+		}
+
+		read_unlock_irqrestore(&mmudata->lock, flags);
+	}
+}
+
+void s5p_sysmmu_tlb_invalidate_entry(struct device *owner, unsigned long iova,
+					unsigned int count,
+					unsigned long page_size)
+{
+	struct sysmmu_drvdata *mmudata = NULL;
+
+	while ((mmudata = get_sysmmu_data(owner, mmudata))) {
+		unsigned long flags;
+
+		read_lock_irqsave(&mmudata->lock, flags);
+
+		if (is_sysmmu_active(mmudata)) {
+			while (count > 0) {
+				sysmmu_block(mmudata->sfrbase);
+				__sysmmu_tlb_invalidate_entry(mmudata->sfrbase,
+								iova);
+				sysmmu_unblock(mmudata->sfrbase);
+				count--;
+				iova += page_size;
+			}
 		} else {
 			dev_dbg(mmudata->dev,
 				"Disabled: Skipping invalidating TLB.\n");
