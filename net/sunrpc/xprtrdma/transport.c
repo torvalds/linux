@@ -426,9 +426,8 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 }
 
 static void
-xprt_rdma_connect(struct rpc_task *task)
+xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	if (r_xprt->rx_ep.rep_connected != 0) {

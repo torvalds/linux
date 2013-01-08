@@ -2205,6 +2205,7 @@ out:
 
 /**
  * xs_connect - connect a socket to a remote endpoint
+ * @xprt: pointer to transport structure
  * @task: address of RPC task that manages state of connect request
  *
  * TCP: If the remote end dropped the connection, delay reconnecting.
@@ -2216,9 +2217,8 @@ out:
  * If a UDP socket connect fails, the delay behavior here prevents
  * retry floods (hard mounts).
  */
-static void xs_connect(struct rpc_task *task)
+static void xs_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
 	if (transport->sock != NULL && !RPC_IS_SOFTCONN(task)) {
