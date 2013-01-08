@@ -3270,12 +3270,10 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 		return -EINVAL;
 
 	mutex_lock(&kvm->slots_lock);
-	spin_lock(&kvm->mmu_lock);
 
 	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
 	kvm->arch.n_requested_mmu_pages = kvm_nr_mmu_pages;
 
-	spin_unlock(&kvm->mmu_lock);
 	mutex_unlock(&kvm->slots_lock);
 	return 0;
 }
@@ -6894,7 +6892,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	if (!kvm->arch.n_requested_mmu_pages)
 		nr_mmu_pages = kvm_mmu_calculate_mmu_pages(kvm);
 
-	spin_lock(&kvm->mmu_lock);
 	if (nr_mmu_pages)
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
 	/*
@@ -6902,9 +6899,11 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * Existing largepage mappings are destroyed here and new ones will
 	 * not be created until the end of the logging.
 	 */
-	if (npages && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES))
+	if (npages && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES)) {
+		spin_lock(&kvm->mmu_lock);
 		kvm_mmu_slot_remove_write_access(kvm, mem->slot);
-	spin_unlock(&kvm->mmu_lock);
+		spin_unlock(&kvm->mmu_lock);
+	}
 	/*
 	 * If memory slot is created, or moved, we need to clear all
 	 * mmio sptes.
