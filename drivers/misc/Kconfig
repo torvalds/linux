@@ -507,4 +507,5 @@ source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
+source "drivers/misc/vmw_vmci/Kconfig"
 endmenu
