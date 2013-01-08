@@ -205,10 +205,10 @@ static int mv88e6xxx_ppu_disable(struct dsa_switch *ds)
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-	        ret = REG_READ(REG_GLOBAL, 0x00);
+		ret = REG_READ(REG_GLOBAL, 0x00);
 		usleep_range(1000, 2000);
-	        if ((ret & 0xc000) != 0xc000)
-	                return 0;
+		if ((ret & 0xc000) != 0xc000)
+			return 0;
 	}
 
 	return -ETIMEDOUT;
@@ -224,10 +224,10 @@ static int mv88e6xxx_ppu_enable(struct dsa_switch *ds)
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-	        ret = REG_READ(REG_GLOBAL, 0x00);
+		ret = REG_READ(REG_GLOBAL, 0x00);
 		usleep_range(1000, 2000);
-	        if ((ret & 0xc000) == 0xc000)
-	                return 0;
+		if ((ret & 0xc000) == 0xc000)
+			return 0;
 	}
 
 	return -ETIMEDOUT;
@@ -239,11 +239,11 @@ static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
 
 	ps = container_of(ugly, struct mv88e6xxx_priv_state, ppu_work);
 	if (mutex_trylock(&ps->ppu_mutex)) {
-	        struct dsa_switch *ds = ((struct dsa_switch *)ps) - 1;
+		struct dsa_switch *ds = ((struct dsa_switch *)ps) - 1;
 
-	        if (mv88e6xxx_ppu_enable(ds) == 0)
-	                ps->ppu_disabled = 0;
-	        mutex_unlock(&ps->ppu_mutex);
+		if (mv88e6xxx_ppu_enable(ds) == 0)
+			ps->ppu_disabled = 0;
+		mutex_unlock(&ps->ppu_mutex);
 	}
 }
 
@@ -267,15 +267,15 @@ static int mv88e6xxx_ppu_access_get(struct dsa_switch *ds)
 	 * it.
 	 */
 	if (!ps->ppu_disabled) {
-	        ret = mv88e6xxx_ppu_disable(ds);
-	        if (ret < 0) {
-	                mutex_unlock(&ps->ppu_mutex);
-	                return ret;
-	        }
-	        ps->ppu_disabled = 1;
+		ret = mv88e6xxx_ppu_disable(ds);
+		if (ret < 0) {
+			mutex_unlock(&ps->ppu_mutex);
+			return ret;
+		}
+		ps->ppu_disabled = 1;
 	} else {
-	        del_timer(&ps->ppu_timer);
-	        ret = 0;
+		del_timer(&ps->ppu_timer);
+		ret = 0;
 	}
 
 	return ret;
@@ -307,8 +307,8 @@ int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum)
 
 	ret = mv88e6xxx_ppu_access_get(ds);
 	if (ret >= 0) {
-	        ret = mv88e6xxx_reg_read(ds, addr, regnum);
-	        mv88e6xxx_ppu_access_put(ds);
+		ret = mv88e6xxx_reg_read(ds, addr, regnum);
+		mv88e6xxx_ppu_access_put(ds);
 	}
 
 	return ret;
@@ -321,8 +321,8 @@ int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
 
 	ret = mv88e6xxx_ppu_access_get(ds);
 	if (ret >= 0) {
-	        ret = mv88e6xxx_reg_write(ds, addr, regnum, val);
-	        mv88e6xxx_ppu_access_put(ds);
+		ret = mv88e6xxx_reg_write(ds, addr, regnum, val);
+		mv88e6xxx_ppu_access_put(ds);
 	}
 
 	return ret;

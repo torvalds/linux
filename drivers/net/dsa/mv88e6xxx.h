@@ -49,7 +49,7 @@ struct mv88e6xxx_hw_stat {
 int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg);
 int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
 int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-                          int reg, u16 val);
+			  int reg, u16 val);
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
 int mv88e6xxx_config_prio(struct dsa_switch *ds);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
