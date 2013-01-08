@@ -603,6 +603,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 	print_amp_caps(buffer, codec, codec->afg, HDA_INPUT);
 	snd_iprintf(buffer, "Default Amp-Out caps: ");
 	print_amp_caps(buffer, codec, codec->afg, HDA_OUTPUT);
+	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", codec->afg);
+	print_power_state(buffer, codec, codec->afg);
 
 	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
 	if (! nid || nodes < 0) {
