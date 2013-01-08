@@ -28,7 +28,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-static struct class *class3270;
+struct class *class3270;
 
 /* The main 3270 data structure. */
 struct raw3270 {
@@ -46,8 +46,6 @@ struct raw3270 {
 	struct timer_list timer;	/* Device timer. */
 
 	unsigned char *ascebc;		/* ascii -> ebcdic table */
-	struct device *clttydev;	/* 3270-class tty device ptr */
-	struct device *cltubdev;	/* 3270-class tub device ptr */
 
 	struct raw3270_request init_request;
 	unsigned char init_data[256];
@@ -1072,10 +1070,6 @@ raw3270_delete_device(struct raw3270 *rp)
 
 	/* Remove from device chain. */
 	mutex_lock(&raw3270_mutex);
-	if (rp->clttydev && !IS_ERR(rp->clttydev))
-		device_destroy(class3270, MKDEV(IBM_TTY3270_MAJOR, rp->minor));
-	if (rp->cltubdev && !IS_ERR(rp->cltubdev))
-		device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, rp->minor));
 	list_del_init(&rp->list);
 	mutex_unlock(&raw3270_mutex);
 
@@ -1139,75 +1133,34 @@ static struct attribute_group raw3270_attr_group = {
 
 static int raw3270_create_attributes(struct raw3270 *rp)
 {
-	int rc;
-
-	rc = sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
-	if (rc)
-		goto out;
-
-	rp->clttydev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_TTY3270_MAJOR, rp->minor), NULL,
-				     "tty%s", dev_name(&rp->cdev->dev));
-	if (IS_ERR(rp->clttydev)) {
-		rc = PTR_ERR(rp->clttydev);
-		goto out_ttydev;
-	}
-
-	rp->cltubdev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_FS3270_MAJOR, rp->minor), NULL,
-				     "tub%s", dev_name(&rp->cdev->dev));
-	if (!IS_ERR(rp->cltubdev))
-		goto out;
-
-	rc = PTR_ERR(rp->cltubdev);
-	device_destroy(class3270, MKDEV(IBM_TTY3270_MAJOR, rp->minor));
-
-out_ttydev:
-	sysfs_remove_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
-out:
-	return rc;
+	return sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
 }
 
 /*
  * Notifier for device addition/removal
  */
-struct raw3270_notifier {
-	struct list_head list;
-	void (*notifier)(int, int);
-};
-
 static LIST_HEAD(raw3270_notifier);
 
-int raw3270_register_notifier(void (*notifier)(int, int))
+int raw3270_register_notifier(struct raw3270_notifier *notifier)
 {
-	struct raw3270_notifier *np;
 	struct raw3270 *rp;
 
-	np = kmalloc(sizeof(struct raw3270_notifier), GFP_KERNEL);
-	if (!np)
-		return -ENOMEM;
-	np->notifier = notifier;
 	mutex_lock(&raw3270_mutex);
-	list_add_tail(&np->list, &raw3270_notifier);
-	list_for_each_entry(rp, &raw3270_devices, list) {
-		get_device(&rp->cdev->dev);
-		notifier(rp->minor, 1);
-	}
+	list_add_tail(&notifier->list, &raw3270_notifier);
+	list_for_each_entry(rp, &raw3270_devices, list)
+		notifier->create(rp->minor);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
 
-void raw3270_unregister_notifier(void (*notifier)(int, int))
+void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 {
-	struct raw3270_notifier *np;
+	struct raw3270 *rp;
 
 	mutex_lock(&raw3270_mutex);
-	list_for_each_entry(np, &raw3270_notifier, list)
-		if (np->notifier == notifier) {
-			list_del(&np->list);
-			kfree(np);
-			break;
-		}
+	list_for_each_entry(rp, &raw3270_devices, list)
+		notifier->destroy(rp->minor);
+	list_del(&notifier->list);
 	mutex_unlock(&raw3270_mutex);
 }
 
@@ -1217,8 +1170,8 @@ void raw3270_unregister_notifier(void (*notifier)(int, int))
 static int
 raw3270_set_online (struct ccw_device *cdev)
 {
-	struct raw3270 *rp;
 	struct raw3270_notifier *np;
+	struct raw3270 *rp;
 	int rc;
 
 	rp = raw3270_create_device(cdev);
@@ -1239,7 +1192,7 @@ raw3270_set_online (struct ccw_device *cdev)
 	set_bit(RAW3270_FLAGS_READY, &rp->flags);
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)
-		np->notifier(rp->minor, 1);
+		np->create(rp->minor);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 
@@ -1290,7 +1243,7 @@ raw3270_remove (struct ccw_device *cdev)
 
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)
-		np->notifier(rp->minor, 0);
+		np->destroy(rp->minor);
 	mutex_unlock(&raw3270_mutex);
 
 	/* Reset 3270 device. */
@@ -1434,6 +1387,7 @@ MODULE_LICENSE("GPL");
 module_init(raw3270_init);
 module_exit(raw3270_exit);
 
+EXPORT_SYMBOL(class3270);
 EXPORT_SYMBOL(raw3270_request_alloc);
 EXPORT_SYMBOL(raw3270_request_free);
 EXPORT_SYMBOL(raw3270_request_reset);

@@ -829,9 +829,8 @@ tty3270_del_views(void)
 {
 	int i;
 
-	for (i = 0; i < tty3270_max_index; i++) {
-		struct raw3270_view *view =
-			raw3270_find_view(&tty3270_fn, i + RAW3270_FIRSTMINOR);
+	for (i = RAW3270_FIRSTMINOR; i <= tty3270_max_index; i++) {
+		struct raw3270_view *view = raw3270_find_view(&tty3270_fn, i);
 		if (!IS_ERR(view))
 			raw3270_del_view(view);
 	}
@@ -855,8 +854,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	int i, rc;
 
 	/* Check if the tty3270 is already there. */
-	view = raw3270_find_view(&tty3270_fn,
-				  tty->index + RAW3270_FIRSTMINOR);
+	view = raw3270_find_view(&tty3270_fn, tty->index);
 	if (!IS_ERR(view)) {
 		tp = container_of(view, struct tty3270, view);
 		tty->driver_data = tp;
@@ -868,8 +866,8 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tp->inattr = TF_INPUT;
 		return tty_port_install(&tp->port, driver, tty);
 	}
-	if (tty3270_max_index < tty->index + 1)
-		tty3270_max_index = tty->index + 1;
+	if (tty3270_max_index < tty->index)
+		tty3270_max_index = tty->index;
 
 	/* Quick exit if there is no device for tty->index. */
 	if (PTR_ERR(view) == -ENODEV)
@@ -880,8 +878,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
 
-	rc = raw3270_add_view(&tp->view, &tty3270_fn,
-			      tty->index + RAW3270_FIRSTMINOR);
+	rc = raw3270_add_view(&tp->view, &tty3270_fn, tty->index);
 	if (rc) {
 		tty3270_free_view(tp);
 		return rc;
@@ -1788,6 +1785,22 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
+void tty3270_create_cb(int minor)
+{
+	tty_register_device(tty3270_driver, minor, NULL);
+}
+
+void tty3270_destroy_cb(int minor)
+{
+	tty_unregister_device(tty3270_driver, minor);
+}
+
+struct raw3270_notifier tty3270_notifier =
+{
+	.create = tty3270_create_cb,
+	.destroy = tty3270_destroy_cb,
+};
+
 /*
  * 3270 tty registration code called from tty_init().
  * Most kernel services (incl. kmalloc) are available at this poimt.
@@ -1797,23 +1810,25 @@ static int __init tty3270_init(void)
 	struct tty_driver *driver;
 	int ret;
 
-	driver = alloc_tty_driver(RAW3270_MAXDEVS);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(RAW3270_MAXDEVS,
+				  TTY_DRIVER_REAL_RAW |
+				  TTY_DRIVER_DYNAMIC_DEV |
+				  TTY_DRIVER_RESET_TERMIOS);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	/*
 	 * Initialize the tty_driver structure
 	 * Entries in tty3270_driver that are NOT initialized:
 	 * proc_entry, set_termios, flush_buffer, set_ldisc, write_proc
 	 */
-	driver->driver_name = "ttyTUB";
-	driver->name = "ttyTUB";
+	driver->driver_name = "tty3270";
+	driver->name = "3270/tty";
 	driver->major = IBM_TTY3270_MAJOR;
-	driver->minor_start = RAW3270_FIRSTMINOR;
+	driver->minor_start = 0;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
-	driver->flags = TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(driver, &tty3270_ops);
 	ret = tty_register_driver(driver);
 	if (ret) {
@@ -1821,6 +1836,7 @@ static int __init tty3270_init(void)
 		return ret;
 	}
 	tty3270_driver = driver;
+	raw3270_register_notifier(&tty3270_notifier);
 	return 0;
 }
 
@@ -1829,6 +1845,7 @@ tty3270_exit(void)
 {
 	struct tty_driver *driver;
 
+	raw3270_unregister_notifier(&tty3270_notifier);
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
