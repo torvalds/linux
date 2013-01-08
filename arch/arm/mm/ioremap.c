@@ -237,11 +237,13 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	}
 	read_unlock(&vmlist_lock);
 
+#if 0 /* HACK - do allow RAM to be mapped, the problems are a bit overrated */
 	/*
 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
 	 */
 	if (WARN_ON(pfn_valid(pfn)))
 		return NULL;
+#endif
 
 	area = get_vm_area_caller(size, VM_IOREMAP, caller);
  	if (!area)
