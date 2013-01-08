@@ -12,6 +12,8 @@
  *
  */
 
+#define OMAP_AES_DMA_PRIVATE
+
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/err.h>
@@ -22,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/omap-dma.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/crypto.h>
@@ -29,7 +33,8 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
 
-#include <linux/omap-dma.h>
+#define DST_MAXBURST			4
+#define DMA_MIN				(DST_MAXBURST * sizeof(u32))
 
 /* OMAP TRM gives bitfields as start:end, where start is the higher bit
    number. For example 7:0 */
@@ -110,19 +115,33 @@ struct omap_aes_dev {
 	struct ablkcipher_request	*req;
 	size_t				total;
 	struct scatterlist		*in_sg;
+#ifndef OMAP_AES_DMA_PRIVATE
+	struct scatterlist		in_sgl;
+#endif
 	size_t				in_offset;
 	struct scatterlist		*out_sg;
+#ifndef OMAP_AES_DMA_PRIVATE
+	struct scatterlist		out_sgl;
+#endif
 	size_t				out_offset;
 
 	size_t			buflen;
 	void			*buf_in;
 	size_t			dma_size;
 	int			dma_in;
+#ifdef OMAP_AES_DMA_PRIVATE
 	int			dma_lch_in;
+#else
+	struct dma_chan		*dma_lch_in;
+#endif
 	dma_addr_t		dma_addr_in;
 	void			*buf_out;
 	int			dma_out;
+#ifdef OMAP_AES_DMA_PRIVATE
 	int			dma_lch_out;
+#else
+	struct dma_chan		*dma_lch_out;
+#endif
 	dma_addr_t		dma_addr_out;
 };
 
@@ -187,10 +206,17 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 		return err;
 
 	val = 0;
+#ifdef OMAP_AES_DMA_PRIVATE
 	if (dd->dma_lch_out >= 0)
 		val |= AES_REG_MASK_DMA_OUT_EN;
 	if (dd->dma_lch_in >= 0)
 		val |= AES_REG_MASK_DMA_IN_EN;
+#else
+	if (dd->dma_lch_out != NULL)
+		val |= AES_REG_MASK_DMA_OUT_EN;
+	if (dd->dma_lch_in != NULL)
+		val |= AES_REG_MASK_DMA_IN_EN;
+#endif
 
 	mask = AES_REG_MASK_DMA_IN_EN | AES_REG_MASK_DMA_OUT_EN;
 
@@ -218,6 +244,7 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 
 	omap_aes_write_mask(dd, AES_REG_CTRL, val, mask);
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	/* IN */
 	omap_set_dma_dest_params(dd->dma_lch_in, 0, OMAP_DMA_AMODE_CONSTANT,
 				 dd->phys_base + AES_REG_DATA, 0, 4);
@@ -231,6 +258,7 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 
 	omap_set_dma_src_burst_mode(dd->dma_lch_out, OMAP_DMA_DATA_BURST_4);
 	omap_set_dma_dest_burst_mode(dd->dma_lch_out, OMAP_DMA_DATA_BURST_4);
+#endif
 
 	return 0;
 }
@@ -256,6 +284,7 @@ static struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_ctx *ctx)
 	return dd;
 }
 
+#ifdef OMAP_AES_DMA_PRIVATE
 static void omap_aes_dma_callback(int lch, u16 ch_status, void *data)
 {
 	struct omap_aes_dev *dd = data;
@@ -271,13 +300,30 @@ static void omap_aes_dma_callback(int lch, u16 ch_status, void *data)
 	/* dma_lch_out - completed */
 	tasklet_schedule(&dd->done_task);
 }
+#else
+static void omap_aes_dma_out_callback(void *data)
+{
+	struct omap_aes_dev *dd = data;
+
+	/* dma_lch_out - completed */
+	tasklet_schedule(&dd->done_task);
+}
+#endif
 
 static int omap_aes_dma_init(struct omap_aes_dev *dd)
 {
 	int err = -ENOMEM;
+#ifndef OMAP_AES_DMA_PRIVATE
+	dma_cap_mask_t mask;
+#endif
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	dd->dma_lch_out = -1;
 	dd->dma_lch_in = -1;
+#else
+	dd->dma_lch_out = NULL;
+	dd->dma_lch_in = NULL;
+#endif
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, OMAP_AES_CACHE_SIZE);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, OMAP_AES_CACHE_SIZE);
@@ -306,6 +352,7 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 		goto err_map_out;
 	}
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	err = omap_request_dma(dd->dma_in, "omap-aes-rx",
 			       omap_aes_dma_callback, dd, &dd->dma_lch_in);
 	if (err) {
@@ -318,11 +365,33 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 		dev_err(dd->dev, "Unable to request DMA channel\n");
 		goto err_dma_out;
 	}
+#else
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	dd->dma_lch_in = dma_request_channel(mask, omap_dma_filter_fn,
+					     &dd->dma_in);
+	if (!dd->dma_lch_in) {
+		dev_err(dd->dev, "Unable to request in DMA channel\n");
+		goto err_dma_in;
+	}
+
+	dd->dma_lch_out = dma_request_channel(mask, omap_dma_filter_fn,
+					     &dd->dma_out);
+	if (!dd->dma_lch_out) {
+		dev_err(dd->dev, "Unable to request out DMA channel\n");
+		goto err_dma_out;
+	}
+#endif
 
 	return 0;
 
 err_dma_out:
+#ifdef OMAP_AES_DMA_PRIVATE
 	omap_free_dma(dd->dma_lch_in);
+#else
+	dma_release_channel(dd->dma_lch_in);
+#endif
 err_dma_in:
 	dma_unmap_single(dd->dev, dd->dma_addr_out, dd->buflen,
 			 DMA_FROM_DEVICE);
@@ -339,8 +408,13 @@ err_alloc:
 
 static void omap_aes_dma_cleanup(struct omap_aes_dev *dd)
 {
+#ifdef OMAP_AES_DMA_PRIVATE
 	omap_free_dma(dd->dma_lch_out);
 	omap_free_dma(dd->dma_lch_in);
+#else
+	dma_release_channel(dd->dma_lch_out);
+	dma_release_channel(dd->dma_lch_in);
+#endif
 	dma_unmap_single(dd->dev, dd->dma_addr_out, dd->buflen,
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen, DMA_TO_DEVICE);
@@ -398,12 +472,24 @@ static int sg_copy(struct scatterlist **sg, size_t *offset, void *buf,
 	return off;
 }
 
+#ifdef OMAP_AES_DMA_PRIVATE
 static int omap_aes_crypt_dma(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
 			       dma_addr_t dma_addr_out, int length)
+#else
+static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
+		struct scatterlist *in_sg, struct scatterlist *out_sg)
+#endif
 {
 	struct omap_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct omap_aes_dev *dd = ctx->dd;
+#ifdef OMAP_AES_DMA_PRIVATE
 	int len32;
+#else
+	struct dma_async_tx_descriptor *tx_in, *tx_out;
+	struct dma_slave_config cfg;
+	dma_addr_t dma_addr_in = sg_dma_address(in_sg);
+	int ret, length = sg_dma_len(in_sg);
+#endif
 
 	pr_debug("len: %d\n", length);
 
@@ -413,6 +499,7 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
 		dma_sync_single_for_device(dd->dev, dma_addr_in, length,
 					   DMA_TO_DEVICE);
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
 
 	/* IN */
@@ -433,6 +520,60 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
 
 	omap_start_dma(dd->dma_lch_in);
 	omap_start_dma(dd->dma_lch_out);
+#else
+	memset(&cfg, 0, sizeof(cfg));
+
+	cfg.src_addr = dd->phys_base + AES_REG_DATA;
+	cfg.dst_addr = dd->phys_base + AES_REG_DATA;
+	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	cfg.src_maxburst = DST_MAXBURST;
+	cfg.dst_maxburst = DST_MAXBURST;
+
+	/* IN */
+	ret = dmaengine_slave_config(dd->dma_lch_in, &cfg);
+	if (ret) {
+		dev_err(dd->dev, "can't configure IN dmaengine slave: %d\n",
+			ret);
+		return ret;
+	}
+
+	tx_in = dmaengine_prep_slave_sg(dd->dma_lch_in, in_sg, 1,
+					DMA_MEM_TO_DEV,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!tx_in) {
+		dev_err(dd->dev, "IN prep_slave_sg() failed\n");
+		return -EINVAL;
+	}
+
+	/* No callback necessary */
+	tx_in->callback_param = dd;
+
+	/* OUT */
+	ret = dmaengine_slave_config(dd->dma_lch_out, &cfg);
+	if (ret) {
+		dev_err(dd->dev, "can't configure OUT dmaengine slave: %d\n",
+			ret);
+		return ret;
+	}
+
+	tx_out = dmaengine_prep_slave_sg(dd->dma_lch_out, out_sg, 1,
+					DMA_DEV_TO_MEM,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!tx_out) {
+		dev_err(dd->dev, "OUT prep_slave_sg() failed\n");
+		return -EINVAL;
+	}
+
+	tx_out->callback = omap_aes_dma_out_callback;
+	tx_out->callback_param = dd;
+
+	dmaengine_submit(tx_in);
+	dmaengine_submit(tx_out);
+
+	dma_async_issue_pending(dd->dma_lch_in);
+	dma_async_issue_pending(dd->dma_lch_out);
+#endif
 
 	/* start DMA or disable idle mode */
 	omap_aes_write_mask(dd, AES_REG_MASK, AES_REG_MASK_START,
@@ -448,6 +589,10 @@ static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 	int err, fast = 0, in, out;
 	size_t count;
 	dma_addr_t addr_in, addr_out;
+#ifndef OMAP_AES_DMA_PRIVATE
+	struct scatterlist *in_sg, *out_sg;
+	int len32;
+#endif
 
 	pr_debug("total: %d\n", dd->total);
 
@@ -486,12 +631,40 @@ static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 		addr_in = sg_dma_address(dd->in_sg);
 		addr_out = sg_dma_address(dd->out_sg);
 
+#ifndef OMAP_AES_DMA_PRIVATE
+		in_sg = dd->in_sg;
+		out_sg = dd->out_sg;
+#endif
+
 		dd->flags |= FLAGS_FAST;
 
 	} else {
 		/* use cache buffers */
 		count = sg_copy(&dd->in_sg, &dd->in_offset, dd->buf_in,
 				 dd->buflen, dd->total, 0);
+
+#ifndef OMAP_AES_DMA_PRIVATE
+		len32 = DIV_ROUND_UP(count, DMA_MIN) * DMA_MIN;
+
+		/*
+		 * The data going into the AES module has been copied
+		 * to a local buffer and the data coming out will go
+		 * into a local buffer so set up local SG entries for
+		 * both.
+		 */
+		sg_init_table(&dd->in_sgl, 1);
+		dd->in_sgl.offset = dd->in_offset;
+		sg_dma_len(&dd->in_sgl) = len32;
+		sg_dma_address(&dd->in_sgl) = dd->dma_addr_in;
+
+		sg_init_table(&dd->out_sgl, 1);
+		dd->out_sgl.offset = dd->out_offset;
+		sg_dma_len(&dd->out_sgl) = len32;
+		sg_dma_address(&dd->out_sgl) = dd->dma_addr_out;
+
+		in_sg = &dd->in_sgl;
+		out_sg = &dd->out_sgl;
+#endif
 
 		addr_in = dd->dma_addr_in;
 		addr_out = dd->dma_addr_out;
@@ -502,7 +675,11 @@ static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 
 	dd->total -= count;
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	err = omap_aes_crypt_dma(tfm, addr_in, addr_out, count);
+#else
+	err = omap_aes_crypt_dma(tfm, in_sg, out_sg);
+#endif
 	if (err) {
 		dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_TO_DEVICE);
@@ -532,8 +709,13 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 
 	omap_aes_write_mask(dd, AES_REG_MASK, 0, AES_REG_MASK_START);
 
+#ifdef OMAP_AES_DMA_PRIVATE
 	omap_stop_dma(dd->dma_lch_in);
 	omap_stop_dma(dd->dma_lch_out);
+#else
+	dmaengine_terminate_all(dd->dma_lch_in);
+	dmaengine_terminate_all(dd->dma_lch_out);
+#endif
 
 	if (dd->flags & FLAGS_FAST) {
 		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
