@@ -23,6 +23,7 @@
 
 #include "mei_dev.h"
 #include "interface.h"
+#include "client.h"
 
 const char *mei_dev_state_str(int state)
 {
@@ -241,9 +242,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		}
 		/* remove entry if already in list */
 		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
-		mei_me_cl_unlink(dev, &dev->wd_cl);
-
-		mei_me_cl_unlink(dev, &dev->iamthif_cl);
+		mei_cl_unlink(&dev->wd_cl);
+		mei_cl_unlink(&dev->iamthif_cl);
 
 		mei_amthif_reset_params(dev);
 		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));

@@ -41,6 +41,7 @@
 
 #include "mei_dev.h"
 #include "interface.h"
+#include "client.h"
 
 /* AMT device is a singleton on the platform */
 static struct pci_dev *mei_pdev;
@@ -89,28 +90,6 @@ MODULE_DEVICE_TABLE(pci, mei_pci_tbl);
 
 static DEFINE_MUTEX(mei_mutex);
 
-
-/**
- * find_read_list_entry - find read list entry
- *
- * @dev: device structure
- * @file: pointer to file structure
- *
- * returns cb on success, NULL on error
- */
-static struct mei_cl_cb *find_read_list_entry(
-		struct mei_device *dev,
-		struct mei_cl *cl)
-{
-	struct mei_cl_cb *pos = NULL;
-	struct mei_cl_cb *next = NULL;
-
-	dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
-	list_for_each_entry_safe(pos, next, &dev->read_list.list, list)
-		if (mei_cl_cmp_id(cl, pos->cl))
-			return pos;
-	return NULL;
-}
 
 /**
  * mei_open - the open function
@@ -217,7 +196,7 @@ static int mei_release(struct inode *inode, struct file *file)
 		    "ME client = %d\n",
 		    cl->host_client_id,
 		    cl->me_client_id);
-		rets = mei_disconnect_host_client(dev, cl);
+		rets = mei_cl_disconnect(cl);
 	}
 	mei_cl_flush_queues(cl);
 	dev_dbg(&dev->pdev->dev, "remove client host client = %d, ME client = %d\n",
@@ -228,12 +207,12 @@ static int mei_release(struct inode *inode, struct file *file)
 		clear_bit(cl->host_client_id, dev->host_clients_map);
 		dev->open_handle_count--;
 	}
-	mei_me_cl_unlink(dev, cl);
+	mei_cl_unlink(cl);
 
 	/* free read cb */
 	cb = NULL;
 	if (cl->read_cb) {
-		cb = find_read_list_entry(dev, cl);
+		cb = mei_cl_find_read_cb(cl);
 		/* Remove entry from read list */
 		if (cb)
 			list_del(&cb->list);
@@ -323,7 +302,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	err = mei_start_read(dev, cl);
+	err = mei_cl_read_start(cl);
 	if (err && err != -EBUSY) {
 		dev_dbg(&dev->pdev->dev,
 			"mei start read failure with status = %d\n", err);
@@ -394,7 +373,7 @@ copy_buffer:
 		goto out;
 
 free:
-	cb_pos = find_read_list_entry(dev, cl);
+	cb_pos = mei_cl_find_read_cb(cl);
 	/* Remove entry from read list */
 	if (cb_pos)
 		list_del(&cb_pos->list);
@@ -476,7 +455,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	/* free entry used in read */
 	if (cl->reading_state == MEI_READ_COMPLETE) {
 		*offset = 0;
-		write_cb = find_read_list_entry(dev, cl);
+		write_cb = mei_cl_find_read_cb(cl);
 		if (write_cb) {
 			list_del(&write_cb->list);
 			mei_io_cb_free(write_cb);
@@ -531,7 +510,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	dev_dbg(&dev->pdev->dev, "host client = %d, ME client = %d\n",
 	    cl->host_client_id, cl->me_client_id);
-	rets = mei_flow_ctrl_creds(dev, cl);
+	rets = mei_cl_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
 
@@ -565,7 +544,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 out:
 	if (mei_hdr.msg_complete) {
-		if (mei_flow_ctrl_reduce(dev, cl)) {
+		if (mei_cl_flow_ctrl_reduce(cl)) {
 			rets = -ENODEV;
 			goto err;
 		}
@@ -904,11 +883,11 @@ static void mei_remove(struct pci_dev *pdev)
 
 	if (dev->iamthif_cl.state == MEI_FILE_CONNECTED) {
 		dev->iamthif_cl.state = MEI_FILE_DISCONNECTING;
-		mei_disconnect_host_client(dev, &dev->iamthif_cl);
+		mei_cl_disconnect(&dev->iamthif_cl);
 	}
 	if (dev->wd_cl.state == MEI_FILE_CONNECTED) {
 		dev->wd_cl.state = MEI_FILE_DISCONNECTING;
-		mei_disconnect_host_client(dev, &dev->wd_cl);
+		mei_cl_disconnect(&dev->wd_cl);
 	}
 
 	/* Unregistering watchdog device */
@@ -916,8 +895,8 @@ static void mei_remove(struct pci_dev *pdev)
 
 	/* remove entry if already in list */
 	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");
-	mei_me_cl_unlink(dev, &dev->wd_cl);
-	mei_me_cl_unlink(dev, &dev->iamthif_cl);
+	mei_cl_unlink(&dev->wd_cl);
+	mei_cl_unlink(&dev->iamthif_cl);
 
 	dev->iamthif_current_cb = NULL;
 	dev->me_clients_num = 0;

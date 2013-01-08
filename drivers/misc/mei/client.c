@@ -24,6 +24,54 @@
 #include "mei_dev.h"
 #include "hbm.h"
 #include "interface.h"
+#include "client.h"
+
+/**
+ * mei_me_cl_by_uuid - locate index of me client
+ *
+ * @dev: mei device
+ * returns me client index or -ENOENT if not found
+ */
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *uuid)
+{
+	int i, res = -ENOENT;
+
+	for (i = 0; i < dev->me_clients_num; ++i)
+		if (uuid_le_cmp(*uuid,
+				dev->me_clients[i].props.protocol_name) == 0) {
+			res = i;
+			break;
+		}
+
+	return res;
+}
+
+
+/**
+ * mei_me_cl_by_id return index to me_clients for client_id
+ *
+ * @dev: the device structure
+ * @client_id: me client id
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * returns index on success, -ENOENT on failure.
+ */
+
+int mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
+{
+	int i;
+	for (i = 0; i < dev->me_clients_num; i++)
+		if (dev->me_clients[i].client_id == client_id)
+			break;
+	if (WARN_ON(dev->me_clients[i].client_id != client_id))
+		return -ENOENT;
+
+	if (i == dev->me_clients_num)
+		return -ENOENT;
+
+	return i;
+}
 
 
 /**
@@ -141,7 +189,7 @@ int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length)
  */
 int mei_cl_flush_queues(struct mei_cl *cl)
 {
-	if (!cl || !cl->dev)
+	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
 
 	dev_dbg(&cl->dev->pdev->dev, "remove list entry belonging to cl\n");
@@ -155,52 +203,6 @@ int mei_cl_flush_queues(struct mei_cl *cl)
 	return 0;
 }
 
-/**
- * mei_me_cl_by_uuid - locate index of me client
- *
- * @dev: mei device
- * returns me client index or -ENOENT if not found
- */
-int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *uuid)
-{
-	int i, res = -ENOENT;
-
-	for (i = 0; i < dev->me_clients_num; ++i)
-		if (uuid_le_cmp(*uuid,
-				dev->me_clients[i].props.protocol_name) == 0) {
-			res = i;
-			break;
-		}
-
-	return res;
-}
-
-
-/**
- * mei_me_cl_by_id return index to me_clients for client_id
- *
- * @dev: the device structure
- * @client_id: me client id
- *
- * Locking: called under "dev->device_lock" lock
- *
- * returns index on success, -ENOENT on failure.
- */
-
-int mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
-{
-	int i;
-	for (i = 0; i < dev->me_clients_num; i++)
-		if (dev->me_clients[i].client_id == client_id)
-			break;
-	if (WARN_ON(dev->me_clients[i].client_id != client_id))
-		return -ENOENT;
-
-	if (i == dev->me_clients_num)
-		return -ENOENT;
-
-	return i;
-}
 
 /**
  * mei_cl_init - initializes intialize cl.
@@ -239,12 +241,29 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 	return cl;
 }
 
+/**
+ * mei_cl_find_read_cb - find this cl's callback in the read list
+ *
+ * @dev: device structure
+ * returns cb on success, NULL on error
+ */
+struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+	struct mei_cl_cb *cb = NULL;
+	struct mei_cl_cb *next = NULL;
+
+	list_for_each_entry_safe(cb, next, &dev->read_list.list, list)
+		if (mei_cl_cmp_id(cl, cb->cl))
+			return cb;
+	return NULL;
+}
+
 
 /**
  * mei_me_cl_link - create link between host and me clinet and add
  *   me_cl to the list
  *
- * @dev: the device structure
  * @cl: link between me and host client assocated with opened file descriptor
  * @uuid: uuid of ME client
  * @client_id: id of the host client
@@ -253,13 +272,15 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
  *	-EINVAL on incorrect values
  *	-ENONET if client not found
  */
-int mei_me_cl_link(struct mei_device *dev, struct mei_cl *cl,
-			const uuid_le *uuid, u8 host_cl_id)
+int mei_cl_link_me(struct mei_cl *cl, const uuid_le *uuid, u8 host_cl_id)
 {
+	struct mei_device *dev;
 	int i;
 
-	if (!dev || !cl || !uuid)
+	if (WARN_ON(!cl || !cl->dev || !uuid))
 		return -EINVAL;
+
+	dev = cl->dev;
 
 	/* check for valid client id */
 	i = mei_me_cl_by_uuid(dev, uuid);
@@ -275,22 +296,30 @@ int mei_me_cl_link(struct mei_device *dev, struct mei_cl *cl,
 	return -ENOENT;
 }
 /**
- * mei_me_cl_unlink - remove me_cl from the list
+ * mei_cl_unlink - remove me_cl from the list
  *
  * @dev: the device structure
  * @host_client_id: host client id to be removed
  */
-void mei_me_cl_unlink(struct mei_device *dev, struct mei_cl *cl)
+int mei_cl_unlink(struct mei_cl *cl)
 {
+	struct mei_device *dev;
 	struct mei_cl *pos, *next;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -EINVAL;
+
+	dev = cl->dev;
+
 	list_for_each_entry_safe(pos, next, &dev->file_list, link) {
 		if (cl->host_client_id == pos->host_client_id) {
 			dev_dbg(&dev->pdev->dev, "remove host client = %d, ME client = %d\n",
-					pos->host_client_id, pos->me_client_id);
+				pos->host_client_id, pos->me_client_id);
 			list_del_init(&pos->link);
 			break;
 		}
 	}
+	return 0;
 }
 
 
@@ -330,22 +359,24 @@ void mei_host_client_init(struct work_struct *work)
 
 
 /**
- * mei_disconnect_host_client - sends disconnect message to fw from host client.
+ * mei_cl_disconnect - disconnect host clinet form the me one
  *
- * @dev: the device structure
- * @cl: private data of the file object
+ * @cl: host client
  *
  * Locking: called under "dev->device_lock" lock
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
+int mei_cl_disconnect(struct mei_cl *cl)
 {
+	struct mei_device *dev;
 	struct mei_cl_cb *cb;
 	int rets, err;
 
-	if (!dev || !cl)
+	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
+
+	dev = cl->dev;
 
 	if (cl->state != MEI_FILE_DISCONNECTING)
 		return 0;
@@ -401,32 +432,36 @@ free:
 
 
 /**
- * mei_other_client_is_connecting - checks if other
- *    client with the same client id is connected.
+ * mei_cl_is_other_connecting - checks if other
+ *    client with the same me client id is connecting
  *
- * @dev: the device structure
  * @cl: private data of the file object
  *
- * returns 1 if other client is connected, 0 - otherwise.
+ * returns ture if other client is connected, 0 - otherwise.
  */
-int mei_other_client_is_connecting(struct mei_device *dev,
-				struct mei_cl *cl)
+bool mei_cl_is_other_connecting(struct mei_cl *cl)
 {
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
+	struct mei_device *dev;
+	struct mei_cl *pos;
+	struct mei_cl *next;
 
-	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
-		if ((cl_pos->state == MEI_FILE_CONNECTING) &&
-			(cl_pos != cl) &&
-			cl->me_client_id == cl_pos->me_client_id)
-			return 1;
+	if (WARN_ON(!cl || !cl->dev))
+		return false;
+
+	dev = cl->dev;
+
+	list_for_each_entry_safe(pos, next, &dev->file_list, link) {
+		if ((pos->state == MEI_FILE_CONNECTING) &&
+		    (pos != cl) && cl->me_client_id == pos->me_client_id)
+			return true;
 
 	}
-	return 0;
+
+	return false;
 }
 
 /**
- * mei_flow_ctrl_creds - checks flow_control credentials.
+ * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.
  *
  * @dev: the device structure
  * @cl: private data of the file object
@@ -435,9 +470,15 @@ int mei_other_client_is_connecting(struct mei_device *dev,
  *	-ENOENT if mei_cl is not present
  *	-EINVAL if single_recv_buf == 0
  */
-int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl)
+int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
+	struct mei_device *dev;
 	int i;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -EINVAL;
+
+	dev = cl->dev;
 
 	if (!dev->me_clients_num)
 		return 0;
@@ -461,7 +502,7 @@ int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_flow_ctrl_reduce - reduces flow_control.
+ * mei_cl_flow_ctrl_reduce - reduces flow_control.
  *
  * @dev: the device structure
  * @cl: private data of the file object
@@ -470,9 +511,15 @@ int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl)
  *	-ENOENT when me client is not found
  *	-EINVAL when ctrl credits are <= 0
  */
-int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl)
+int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 {
+	struct mei_device *dev;
 	int i;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -EINVAL;
+
+	dev = cl->dev;
 
 	if (!dev->me_clients_num)
 		return -ENOENT;
@@ -571,7 +618,7 @@ int mei_ioctl_connect_client(struct file *file,
 			goto end;
 		}
 		clear_bit(cl->host_client_id, dev->host_clients_map);
-		mei_me_cl_unlink(dev, cl);
+		mei_cl_unlink(cl);
 
 		kfree(cl);
 		cl = NULL;
@@ -598,8 +645,8 @@ int mei_ioctl_connect_client(struct file *file,
 	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
 	client->protocol_version = dev->me_clients[i].props.protocol_version;
 	dev_dbg(&dev->pdev->dev, "Can connect?\n");
-	if (dev->mei_host_buffer_is_empty
-	    && !mei_other_client_is_connecting(dev, cl)) {
+	if (dev->mei_host_buffer_is_empty &&
+	    !mei_cl_is_other_connecting(cl)) {
 		dev_dbg(&dev->pdev->dev, "Sending Connect Message\n");
 		dev->mei_host_buffer_is_empty = false;
 		if (mei_hbm_cl_connect_req(dev, cl)) {
@@ -650,19 +697,23 @@ end:
 }
 
 /**
- * mei_start_read - the start read client message function.
+ * mei_cl_start_read - the start read client message function.
  *
- * @dev: the device structure
- * @if_num:  minor number
- * @cl: private data of the file object
+ * @cl: host client
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
+int mei_cl_read_start(struct mei_cl *cl)
 {
+	struct mei_device *dev;
 	struct mei_cl_cb *cb;
 	int rets;
 	int i;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
 
 	if (cl->state != MEI_FILE_CONNECTED)
 		return -ENODEV;

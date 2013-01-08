@@ -26,6 +26,7 @@
 #include "mei_dev.h"
 #include "hbm.h"
 #include "interface.h"
+#include "client.h"
 
 
 /**
@@ -297,7 +298,7 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 		return -ENODEV;
 	}
 
-	if (mei_flow_ctrl_reduce(dev, cl))
+	if (mei_cl_flow_ctrl_reduce(cl))
 		return -ENODEV;
 
 	cl->status = 0;
@@ -478,10 +479,10 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 	}
 	if (dev->dev_state == MEI_DEV_ENABLED) {
 		if (dev->wd_pending &&
-		    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+		    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
 			if (mei_wd_send(dev))
 				dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-			else if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
+			else if (mei_cl_flow_ctrl_reduce(&dev->wd_cl))
 				return -ENODEV;
 
 			dev->wd_pending = false;
@@ -520,7 +521,7 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 			break;
 		case MEI_FOP_IOCTL:
 			/* connect message */
-			if (mei_other_client_is_connecting(dev, cl))
+			if (mei_cl_is_other_connecting(cl))
 				continue;
 			ret = _mei_irq_thread_ioctl(dev, &slots, pos,
 						cl, cmpl_list);
@@ -540,7 +541,7 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 		cl = pos->cl;
 		if (cl == NULL)
 			continue;
-		if (mei_flow_ctrl_creds(dev, cl) <= 0) {
+		if (mei_cl_flow_ctrl_creds(cl) <= 0) {
 			dev_dbg(&dev->pdev->dev,
 				"No flow control credentials for client %d, not sending.\n",
 				cl->host_client_id);

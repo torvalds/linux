@@ -26,6 +26,7 @@
 #include "mei_dev.h"
 #include "hbm.h"
 #include "interface.h"
+#include "client.h"
 
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
@@ -72,7 +73,7 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_state = MEI_WD_IDLE;
 
 	/* Connect WD ME client to the host client */
-	id = mei_me_cl_link(dev, &dev->wd_cl,
+	id = mei_cl_link_me(&dev->wd_cl,
 				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
 	if (id < 0) {
@@ -141,7 +142,7 @@ int mei_wd_stop(struct mei_device *dev)
 
 	dev->wd_state = MEI_WD_STOPPING;
 
-	ret = mei_flow_ctrl_creds(dev, &dev->wd_cl);
+	ret = mei_cl_flow_ctrl_creds(&dev->wd_cl);
 	if (ret < 0)
 		goto out;
 
@@ -150,7 +151,7 @@ int mei_wd_stop(struct mei_device *dev)
 		dev->mei_host_buffer_is_empty = false;
 
 		if (!mei_wd_send(dev)) {
-			ret = mei_flow_ctrl_reduce(dev, &dev->wd_cl);
+			ret = mei_cl_flow_ctrl_reduce(&dev->wd_cl);
 			if (ret)
 				goto out;
 		} else {
@@ -271,7 +272,7 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 
 	/* Check if we can send the ping to HW*/
 	if (dev->mei_host_buffer_is_empty &&
-		mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+	    mei_cl_flow_ctrl_creds(&dev->wd_cl) > 0) {
 
 		dev->mei_host_buffer_is_empty = false;
 		dev_dbg(&dev->pdev->dev, "wd: sending ping\n");
@@ -282,9 +283,9 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 			goto end;
 		}
 
-		if (mei_flow_ctrl_reduce(dev, &dev->wd_cl)) {
+		if (mei_cl_flow_ctrl_reduce(&dev->wd_cl)) {
 			dev_err(&dev->pdev->dev,
-				"wd: mei_flow_ctrl_reduce() failed.\n");
+				"wd: mei_cl_flow_ctrl_reduce() failed.\n");
 			ret = -EIO;
 			goto end;
 		}

@@ -50,7 +50,6 @@ static inline unsigned char mei_data2slots(size_t length)
 int mei_count_full_read_slots(struct mei_device *dev);
 
 
-int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl);
 
 
 
@@ -68,13 +67,6 @@ void mei_watchdog_register(struct mei_device *dev);
  * @dev - mei device
  */
 void mei_watchdog_unregister(struct mei_device *dev);
-
-int mei_other_client_is_connecting(struct mei_device *dev, struct mei_cl *cl);
-int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl);
-
-void mei_host_client_init(struct work_struct *work);
-
-
 
 
 #endif /* _MEI_INTERFACE_H_ */

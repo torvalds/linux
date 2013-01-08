@@ -36,6 +36,7 @@
 #include "mei_dev.h"
 #include "hbm.h"
 #include "interface.h"
+#include "client.h"
 
 const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0xa8, 0x46, 0xe0, 0xff, 0x65,
@@ -73,7 +74,7 @@ void mei_amthif_host_init(struct mei_device *dev)
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
-	i = mei_me_cl_link(dev, &dev->iamthif_cl,
+	i = mei_cl_link_me(&dev->iamthif_cl,
 			    &mei_amthi_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
 	if (i < 0) {
 		dev_info(&dev->pdev->dev, "failed to find iamthif client.\n");
@@ -280,7 +281,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
 	       cb->request_buffer.size);
 
-	ret = mei_flow_ctrl_creds(dev, &dev->iamthif_cl);
+	ret = mei_cl_flow_ctrl_creds(&dev->iamthif_cl);
 	if (ret < 0)
 		return ret;
 
@@ -304,7 +305,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			return -ENODEV;
 
 		if (mei_hdr.msg_complete) {
-			if (mei_flow_ctrl_reduce(dev, &dev->iamthif_cl))
+			if (mei_cl_flow_ctrl_reduce(&dev->iamthif_cl))
 				return -ENODEV;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
@@ -467,7 +468,7 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 			return -ENODEV;
 	}
 
-	if (mei_flow_ctrl_reduce(dev, cl))
+	if (mei_cl_flow_ctrl_reduce(cl))
 		return -ENODEV;
 
 	dev->iamthif_msg_buf_index += mei_hdr.length;
