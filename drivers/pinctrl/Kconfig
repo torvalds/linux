@@ -26,6 +26,13 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_ABX500
+	bool "ST-Ericsson ABx500 family Mixed Signal Circuit gpio functions"
+	depends on AB8500_CORE
+	select GENERIC_PINCONF
+	help
+	  Select this to enable the ABx500 family IC GPIO driver
+
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
 	depends on OF
