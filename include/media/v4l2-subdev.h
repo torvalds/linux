@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/v4l2-subdev.h>
 #include <media/media-entity.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
@@ -585,7 +586,14 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
+	struct v4l2_async_subdev_list asdl;
 };
+
+static inline struct v4l2_subdev *v4l2_async_to_subdev(
+			struct v4l2_async_subdev_list *asdl)
+{
+	return container_of(asdl, struct v4l2_subdev, asdl);
+}
 
 #define media_entity_to_v4l2_subdev(ent) \
 	container_of(ent, struct v4l2_subdev, entity)
