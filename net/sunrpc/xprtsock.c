@@ -1731,7 +1731,9 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
  */
 static void xs_local_rpcbind(struct rpc_task *task)
 {
-	xprt_set_bound(task->tk_xprt);
+	rcu_read_lock();
+	xprt_set_bound(rcu_dereference(task->tk_client->cl_xprt));
+	rcu_read_unlock();
 }
 
 static void xs_local_set_port(struct rpc_xprt *xprt, unsigned short port)
