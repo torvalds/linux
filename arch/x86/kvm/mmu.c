@@ -4172,25 +4172,27 @@ int kvm_mmu_setup(struct kvm_vcpu *vcpu)
 
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 {
-	struct kvm_mmu_page *sp;
-	bool flush = false;
+	struct kvm_memory_slot *memslot;
+	gfn_t last_gfn;
+	int i;
 
-	list_for_each_entry(sp, &kvm->arch.active_mmu_pages, link) {
-		int i;
-		u64 *pt;
+	memslot = id_to_memslot(kvm->memslots, slot);
+	last_gfn = memslot->base_gfn + memslot->npages - 1;
 
-		if (!test_bit(slot, sp->slot_bitmap))
-			continue;
+	for (i = PT_PAGE_TABLE_LEVEL;
+	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
+		unsigned long *rmapp;
+		unsigned long last_index, index;
 
-		pt = sp->spt;
-		for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-			if (!is_shadow_present_pte(pt[i]) ||
-			      !is_last_spte(pt[i], sp->role.level))
-				continue;
+		rmapp = memslot->arch.rmap[i - PT_PAGE_TABLE_LEVEL];
+		last_index = gfn_to_index(last_gfn, memslot->base_gfn, i);
 
-			spte_write_protect(kvm, &pt[i], &flush, false);
+		for (index = 0; index <= last_index; ++index, ++rmapp) {
+			if (*rmapp)
+				__rmap_write_protect(kvm, rmapp, false);
 		}
 	}
+
 	kvm_flush_remote_tlbs(kvm);
 }
 
