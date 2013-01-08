@@ -253,7 +253,7 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 	struct circ_buf *xmit = &s->port.state->xmit;
 
 	if (auart_dma_enabled(s)) {
-		int i = 0;
+		u32 i = 0;
 		int size;
 		void *buffer = s->tx_dma_buf;
 
