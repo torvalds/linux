@@ -73,12 +73,12 @@ static void __init socfpga_scu_map_io(void)
 
 static void __init init_socfpga_vt(void)
 {
-	cpu1start_addr = 0x10;
+	cpu1start_addr = 0xffd08010;
 }
 
 static void __init init_socfpga(void)
 {
-	cpu1start_addr = 0xc4;
+	cpu1start_addr = 0xffd080c4;
 }
 
 static void __init enable_periphs(void)

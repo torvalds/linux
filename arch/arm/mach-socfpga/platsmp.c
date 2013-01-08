@@ -29,7 +29,7 @@
 
 #include "core.h"
 
-void __cpuinit platform_secondary_init(unsigned int cpu)
+static void __cpuinit socfpga_secondary_init(unsigned int cpu)
 {
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -75,8 +75,8 @@ static void __init socfpga_smp_init_cpus(void)
 
 	/* sanity check */
 	if (ncores > num_possible_cpus()) {
-		pr_warn("# of cores (%d) greater maximum of %d\n",
-			ncores, num_possible_cpus());
+		pr_warn("socfpga: no. of cores (%d) greater than configured"
+			"maximum of %d - clipping\n", ncores, num_possible_cpus());
 		ncores = num_possible_cpus();
 	}
 

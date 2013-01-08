@@ -34,13 +34,15 @@ extern void __iomem *socfpga_scu_base_addr;
 extern void __iomem *sys_manager_base_addr;
 extern void __iomem *rst_manager_base_addr;
 
-extern void socfpga_secondary_startup(void);
-extern void socfpga_cpu_die(unsigned int cpu);
 extern void socfpga_init_clocks(void);
 
+extern void v7_secondary_startup(void);
+extern struct smp_operations socfpga_smp_ops;
+extern char secondary_trampoline, secondary_trampoline_end;
+
+extern struct dw_mci_board sdmmc_platform_data;
 extern unsigned long cpu1start_addr;
 
-#define SOCFPGA_SCU_VIRT_BASE	0xfffec000
-#define SOCFPGA_SDMMC_BASE	0xff704000
+#define SOCFPGA_SCU_VIRT_BASE   0xfffec000
 
 #endif /* __CORE_H */

@@ -296,7 +296,7 @@ static void port_otg_wqfunc(struct work_struct *work)
 	u32 count = 0;
 	u32 gotgctl;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	gotgctl = dwc_reg_read(global_regs, DWC_GOTGCTL);
 	if (gotgctl & DWC_GCTL_CONN_ID_STATUS) {

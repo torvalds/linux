@@ -52,6 +52,7 @@
  */
 
 #include <linux/usb/dwc_otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 
