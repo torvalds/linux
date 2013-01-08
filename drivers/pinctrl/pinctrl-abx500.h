@@ -177,4 +177,17 @@ struct abx500_pinctrl_soc_data {
 	int irq_gpio_factor;
 };
 
+#ifdef CONFIG_PINCTRL_AB8500
+
+void abx500_pinctrl_ab8500_init(struct abx500_pinctrl_soc_data **soc);
+
+#else
+
+static inline void
+abx500_pinctrl_ab8500_init(struct abx500_pinctrl_soc_data **soc)
+{
+}
+
+#endif
+
 #endif /* PINCTRL_PINCTRL_ABx500_H */

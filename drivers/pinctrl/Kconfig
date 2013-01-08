@@ -33,6 +33,10 @@ config PINCTRL_ABX500
 	help
 	  Select this to enable the ABx500 family IC GPIO driver
 
+config PINCTRL_AB8500
+	bool "AB8500 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
 	depends on OF
