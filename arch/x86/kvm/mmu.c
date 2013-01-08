@@ -1142,7 +1142,7 @@ spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush, bool pt_protect)
 }
 
 static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
-				 int level, bool pt_protect)
+				 bool pt_protect)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1180,7 +1180,7 @@ void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 	while (mask) {
 		rmapp = __gfn_to_rmap(slot->base_gfn + gfn_offset + __ffs(mask),
 				      PT_PAGE_TABLE_LEVEL, slot);
-		__rmap_write_protect(kvm, rmapp, PT_PAGE_TABLE_LEVEL, false);
+		__rmap_write_protect(kvm, rmapp, false);
 
 		/* clear the first set bit */
 		mask &= mask - 1;
@@ -1199,7 +1199,7 @@ static bool rmap_write_protect(struct kvm *kvm, u64 gfn)
 	for (i = PT_PAGE_TABLE_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		rmapp = __gfn_to_rmap(gfn, i, slot);
-		write_protected |= __rmap_write_protect(kvm, rmapp, i, true);
+		write_protected |= __rmap_write_protect(kvm, rmapp, true);
 	}
 
 	return write_protected;
