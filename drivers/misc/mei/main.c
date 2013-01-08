@@ -889,8 +889,6 @@ static int mei_probe(struct pci_dev *pdev,
 		       pdev->irq);
 		goto disable_msi;
 	}
-	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
-	INIT_WORK(&dev->init_work, mei_host_client_init);
 
 	if (mei_hw_init(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");

@@ -76,6 +76,10 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 	mei_io_list_init(&dev->ctrl_rd_list);
 	mei_io_list_init(&dev->amthif_cmd_list);
 	mei_io_list_init(&dev->amthif_rd_complete_list);
+
+	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
+	INIT_WORK(&dev->init_work, mei_host_client_init);
+
 	dev->pdev = pdev;
 	return dev;
 }
