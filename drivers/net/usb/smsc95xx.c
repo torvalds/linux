@@ -81,6 +81,11 @@ const   char *filepath = "/data/misc/smsc95xx_mac_addr";
 const	char *filepath = "/etc/smsc95xx_mac_addr";
 #endif
 
+/* FIXME:
+ * This code is dangerous because scanf from userland to kernel well..
+ * Can't work when loading SMSC95XX early in the boot
+ * process, from uInitrd, as the file *filepath does not exists yet.
+ */
 int smsc95xx_read_mac_addr(unsigned char *mac)
 {
     struct file *fp      = NULL;
