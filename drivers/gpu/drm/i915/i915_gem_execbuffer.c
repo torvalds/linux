@@ -69,6 +69,46 @@ eb_add_object(struct eb_objects *eb, struct drm_i915_gem_object *obj)
 		       &eb->buckets[obj->exec_handle & eb->and]);
 }
 
+static int
+eb_lookup_objects(struct eb_objects *eb,
+		  struct drm_i915_gem_exec_object2 *exec,
+		  int count,
+		  struct drm_file *file,
+		  struct list_head *objects)
+{
+	int i;
+
+	spin_lock(&file->table_lock);
+	for (i = 0; i < count; i++) {
+		struct drm_i915_gem_object *obj;
+
+		obj = to_intel_bo(idr_find(&file->object_idr, exec[i].handle));
+		if (obj == NULL) {
+			spin_unlock(&file->table_lock);
+			DRM_DEBUG("Invalid object handle %d at index %d\n",
+				   exec[i].handle, i);
+			return -ENOENT;
+		}
+
+		if (!list_empty(&obj->exec_list)) {
+			spin_unlock(&file->table_lock);
+			DRM_DEBUG("Object %p [handle %d, index %d] appears more than once in object list\n",
+				   obj, exec[i].handle, i);
+			return -EINVAL;
+		}
+
+		drm_gem_object_reference(&obj->base);
+		list_add_tail(&obj->exec_list, objects);
+
+		obj->exec_handle = exec[i].handle;
+		obj->exec_entry = &exec[i];
+		eb_add_object(eb, obj);
+	}
+	spin_unlock(&file->table_lock);
+
+	return 0;
+}
+
 static struct drm_i915_gem_object *
 eb_get_object(struct eb_objects *eb, unsigned long handle)
 {
@@ -550,21 +590,9 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 	/* reacquire the objects */
 	eb_reset(eb);
-	for (i = 0; i < count; i++) {
-		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
-							exec[i].handle));
-		if (&obj->base == NULL) {
-			DRM_DEBUG("Invalid object handle %d at index %d\n",
-				   exec[i].handle, i);
-			ret = -ENOENT;
-			goto err;
-		}
-
-		list_add_tail(&obj->exec_list, objects);
-		obj->exec_handle = exec[i].handle;
-		obj->exec_entry = &exec[i];
-		eb_add_object(eb, obj);
-	}
+	ret = eb_lookup_objects(eb, exec, count, file, objects);
+	if (ret)
+		goto err;
 
 	ret = i915_gem_execbuffer_reserve(ring, file, objects);
 	if (ret)
@@ -872,31 +900,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* Look up object handles */
 	INIT_LIST_HEAD(&objects);
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_i915_gem_object *obj;
-
-		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
-							exec[i].handle));
-		if (&obj->base == NULL) {
-			DRM_DEBUG("Invalid object handle %d at index %d\n",
-				   exec[i].handle, i);
-			/* prevent error path from reading uninitialized data */
-			ret = -ENOENT;
-			goto err;
-		}
-
-		if (!list_empty(&obj->exec_list)) {
-			DRM_DEBUG("Object %p [handle %d, index %d] appears more than once in object list\n",
-				   obj, exec[i].handle, i);
-			ret = -EINVAL;
-			goto err;
-		}
-
-		list_add_tail(&obj->exec_list, &objects);
-		obj->exec_handle = exec[i].handle;
-		obj->exec_entry = &exec[i];
-		eb_add_object(eb, obj);
-	}
+	ret = eb_lookup_objects(eb, exec, args->buffer_count, file, &objects);
+	if (ret)
+		goto err;
 
 	/* take note of the batch buffer before we might reorder the lists */
 	batch_obj = list_entry(objects.prev,
