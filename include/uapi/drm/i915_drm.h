@@ -309,6 +309,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_SECURE_BATCHES	 23
 #define I915_PARAM_HAS_PINNED_BATCHES	 24
 #define I915_PARAM_HAS_EXEC_NO_RELOC	 25
+#define I915_PARAM_HAS_EXEC_HANDLE_LUT   26
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -699,7 +700,12 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_NO_RELOC		(1<<11)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_NO_RELOC<<1)
+/** Use the reloc.handle as an index into the exec object array rather
+ * than as the per-file handle.
+ */
+#define I915_EXEC_HANDLE_LUT		(1<<12)
+
+#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_HANDLE_LUT<<1)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \

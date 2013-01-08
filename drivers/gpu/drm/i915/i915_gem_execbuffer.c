@@ -36,24 +36,40 @@
 struct eb_objects {
 	struct list_head objects;
 	int and;
-	struct hlist_head buckets[0];
+	union {
+		struct drm_i915_gem_object *lut[0];
+		struct hlist_head buckets[0];
+	};
 };
 
 static struct eb_objects *
-eb_create(int size)
+eb_create(struct drm_i915_gem_execbuffer2 *args)
 {
-	struct eb_objects *eb;
-	int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
-	BUILD_BUG_ON(!is_power_of_2(PAGE_SIZE / sizeof(struct hlist_head)));
-	while (count > size)
-		count >>= 1;
-	eb = kzalloc(count*sizeof(struct hlist_head) +
-		     sizeof(struct eb_objects),
-		     GFP_KERNEL);
-	if (eb == NULL)
-		return eb;
+	struct eb_objects *eb = NULL;
 
-	eb->and = count - 1;
+	if (args->flags & I915_EXEC_HANDLE_LUT) {
+		int size = args->buffer_count;
+		size *= sizeof(struct drm_i915_gem_object *);
+		size += sizeof(struct eb_objects);
+		eb = kmalloc(size, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
+	}
+
+	if (eb == NULL) {
+		int size = args->buffer_count;
+		int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
+		BUILD_BUG_ON(!is_power_of_2(PAGE_SIZE / sizeof(struct hlist_head)));
+		while (count > 2*size)
+			count >>= 1;
+		eb = kzalloc(count*sizeof(struct hlist_head) +
+			     sizeof(struct eb_objects),
+			     GFP_TEMPORARY);
+		if (eb == NULL)
+			return eb;
+
+		eb->and = count - 1;
+	} else
+		eb->and = -args->buffer_count;
+
 	INIT_LIST_HEAD(&eb->objects);
 	return eb;
 }
@@ -61,26 +77,20 @@ eb_create(int size)
 static void
 eb_reset(struct eb_objects *eb)
 {
-	memset(eb->buckets, 0, (eb->and+1)*sizeof(struct hlist_head));
-}
-
-static void
-eb_add_object(struct eb_objects *eb, struct drm_i915_gem_object *obj)
-{
-	hlist_add_head(&obj->exec_node,
-		       &eb->buckets[obj->exec_handle & eb->and]);
+	if (eb->and >= 0)
+		memset(eb->buckets, 0, (eb->and+1)*sizeof(struct hlist_head));
 }
 
 static int
 eb_lookup_objects(struct eb_objects *eb,
 		  struct drm_i915_gem_exec_object2 *exec,
-		  int count,
+		  const struct drm_i915_gem_execbuffer2 *args,
 		  struct drm_file *file)
 {
 	int i;
 
 	spin_lock(&file->table_lock);
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_i915_gem_object *obj;
 
 		obj = to_intel_bo(idr_find(&file->object_idr, exec[i].handle));
@@ -101,9 +111,15 @@ eb_lookup_objects(struct eb_objects *eb,
 		drm_gem_object_reference(&obj->base);
 		list_add_tail(&obj->exec_list, &eb->objects);
 
-		obj->exec_handle = exec[i].handle;
 		obj->exec_entry = &exec[i];
-		eb_add_object(eb, obj);
+		if (eb->and < 0) {
+			eb->lut[i] = obj;
+		} else {
+			uint32_t handle = args->flags & I915_EXEC_HANDLE_LUT ? i : exec[i].handle;
+			obj->exec_handle = handle;
+			hlist_add_head(&obj->exec_node,
+				       &eb->buckets[handle & eb->and]);
+		}
 	}
 	spin_unlock(&file->table_lock);
 
@@ -113,18 +129,24 @@ eb_lookup_objects(struct eb_objects *eb,
 static struct drm_i915_gem_object *
 eb_get_object(struct eb_objects *eb, unsigned long handle)
 {
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct drm_i915_gem_object *obj;
+	if (eb->and < 0) {
+		if (handle >= -eb->and)
+			return NULL;
+		return eb->lut[handle];
+	} else {
+		struct hlist_head *head;
+		struct hlist_node *node;
 
-	head = &eb->buckets[handle & eb->and];
-	hlist_for_each(node, head) {
-		obj = hlist_entry(node, struct drm_i915_gem_object, exec_node);
-		if (obj->exec_handle == handle)
-			return obj;
+		head = &eb->buckets[handle & eb->and];
+		hlist_for_each(node, head) {
+			struct drm_i915_gem_object *obj;
+
+			obj = hlist_entry(node, struct drm_i915_gem_object, exec_node);
+			if (obj->exec_handle == handle)
+				return obj;
+		}
+		return NULL;
 	}
-
-	return NULL;
 }
 
 static void
@@ -615,7 +637,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 	/* reacquire the objects */
 	eb_reset(eb);
-	ret = eb_lookup_objects(eb, exec, count, file);
+	ret = eb_lookup_objects(eb, exec, args, file);
 	if (ret)
 		goto err;
 
@@ -919,7 +941,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto pre_mutex_err;
 	}
 
-	eb = eb_create(args->buffer_count);
+	eb = eb_create(args);
 	if (eb == NULL) {
 		mutex_unlock(&dev->struct_mutex);
 		ret = -ENOMEM;
@@ -927,7 +949,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Look up object handles */
-	ret = eb_lookup_objects(eb, exec, args->buffer_count, file);
+	ret = eb_lookup_objects(eb, exec, args, file);
 	if (ret)
 		goto err;
 
