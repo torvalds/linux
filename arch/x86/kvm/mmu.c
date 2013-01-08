@@ -2380,15 +2380,10 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (pte_access & ACC_WRITE_MASK) {
 
 		/*
-		 * There are two cases:
-		 * - the one is other vcpu creates new sp in the window
-		 *   between mapping_level() and acquiring mmu-lock.
-		 * - the another case is the new sp is created by itself
-		 *   (page-fault path) when guest uses the target gfn as
-		 *   its page table.
-		 * Both of these cases can be fixed by allowing guest to
-		 * retry the access, it will refault, then we can establish
-		 * the mapping by using small page.
+		 * Other vcpu creates new sp in the window between
+		 * mapping_level() and acquiring mmu-lock. We can
+		 * allow guest to retry the access, the mapping can
+		 * be fixed if guest refault.
 		 */
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    has_wrprotected_page(vcpu->kvm, gfn, level))
