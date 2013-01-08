@@ -57,15 +57,20 @@ static const struct reg_default wm5102_reva_patch[] = {
 };
 
 static const struct reg_default wm5102_revb_patch[] = {
+	{ 0x19, 0x0001 },
 	{ 0x80, 0x0003 },
 	{ 0x081, 0xE022 },
-	{ 0x410, 0x4080 },
-	{ 0x418, 0x4080 },
-	{ 0x420, 0x4080 },
-	{ 0x428, 0xC000 },
+	{ 0x410, 0x6080 },
+	{ 0x418, 0xa080 },
+	{ 0x420, 0xa080 },
+	{ 0x428, 0xe000 },
+	{ 0x443, 0xDC1A },
 	{ 0x4B0, 0x0066 },
 	{ 0x458, 0x000b },
 	{ 0x212, 0x0000 },
+	{ 0x171, 0x0000 },
+	{ 0x35E, 0x000C },
+	{ 0x2D4, 0x0000 },
 	{ 0x80, 0x0000 },
 };
 
@@ -282,7 +287,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000155, 0x0000 },   /* R341   - Rate Estimator 4 */ 
 	{ 0x00000156, 0x0000 },   /* R342   - Rate Estimator 5 */ 
 	{ 0x00000161, 0x0000 },   /* R353   - Dynamic Frequency Scaling 1 */ 
-	{ 0x00000171, 0x0002 },   /* R369   - FLL1 Control 1 */
+	{ 0x00000171, 0x0000 },   /* R369   - FLL1 Control 1 */
 	{ 0x00000172, 0x0008 },   /* R370   - FLL1 Control 2 */ 
 	{ 0x00000173, 0x0018 },   /* R371   - FLL1 Control 3 */ 
 	{ 0x00000174, 0x007D },   /* R372   - FLL1 Control 4 */ 
