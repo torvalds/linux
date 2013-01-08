@@ -68,7 +68,7 @@ static const int m2ThreshExt_off = 127;
 static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u16 bMode, fracMode = 0, aModeRefSel = 0;
-	u32 freq, channelSel = 0, reg32 = 0;
+	u32 freq, chan_frac, div, channelSel = 0, reg32 = 0;
 	struct chan_centers centers;
 	int loadSynthChannel;
 
@@ -77,9 +77,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
 		if (AR_SREV_9330(ah)) {
-			u32 chan_frac;
-			u32 div;
-
 			if (ah->is_clk_25mhz)
 				div = 75;
 			else
@@ -89,34 +86,40 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			chan_frac = (((freq * 4) % div) * 0x20000) / div;
 			channelSel = (channelSel << 17) | chan_frac;
 		} else if (AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
-			u32 chan_frac;
-
 			/*
-			 * freq_ref = 40 / (refdiva >> amoderefsel); where refdiva=1 and amoderefsel=0
+			 * freq_ref = 40 / (refdiva >> amoderefsel);
+			 * where refdiva=1 and amoderefsel=0
 			 * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
 			 * chansel = int(ndiv), chanfrac = (ndiv - chansel) * 0x20000
 			 */
 			channelSel = (freq * 4) / 120;
 			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
 			channelSel = (channelSel << 17) | chan_frac;
-		} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
+		} else if (AR_SREV_9340(ah)) {
 			if (ah->is_clk_25mhz) {
-				u32 chan_frac;
-
 				channelSel = (freq * 2) / 75;
 				chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
 				channelSel = (channelSel << 17) | chan_frac;
-			} else
+			} else {
 				channelSel = CHANSEL_2G(freq) >> 1;
-		} else
+			}
+		} else if (AR_SREV_9550(ah)) {
+			if (ah->is_clk_25mhz)
+				div = 75;
+			else
+				div = 120;
+
+			channelSel = (freq * 4) / div;
+			chan_frac = (((freq * 4) % div) * 0x20000) / div;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else {
 			channelSel = CHANSEL_2G(freq);
+		}
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
 		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah)) &&
 		    ah->is_clk_25mhz) {
-			u32 chan_frac;
-
 			channelSel = freq / 75;
 			chan_frac = ((freq % 75) * 0x20000) / 75;
 			channelSel = (channelSel << 17) | chan_frac;
