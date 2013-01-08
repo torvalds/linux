@@ -692,6 +692,29 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 			    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 }
 
+void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int txq_id;
+
+	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
+	     txq_id++) {
+		struct iwl_txq *txq = &trans_pcie->txq[txq_id];
+
+		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(txq_id),
+				   txq->q.dma_addr >> 8);
+		iwl_pcie_txq_unmap(trans, txq_id);
+		txq->q.read_ptr = 0;
+		txq->q.write_ptr = 0;
+	}
+
+	/* Tell NIC where to find the "keep warm" buffer */
+	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
+			   trans_pcie->kw.dma >> 4);
+
+	iwl_pcie_tx_start(trans, trans_pcie->scd_base_addr);
+}
+
 /*
  * iwl_pcie_tx_stop - Stop all Tx DMA channels
  */
