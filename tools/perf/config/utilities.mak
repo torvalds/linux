@@ -13,7 +13,7 @@ newline := $(newline)
 # what should replace a newline when escaping
 # newlines; the default is a bizarre string.
 #
-nl-escape = $(or $(1),m822df3020w6a44id34bt574ctac44eb9f4n)
+nl-escape = $(if $(1),$(1),m822df3020w6a44id34bt574ctac44eb9f4n)
 
 # escape-nl
 #
@@ -173,9 +173,9 @@ _ge-abspath = $(if $(is-executable),$(1))
 # Usage: absolute-executable-path-or-empty = $(call get-executable-or-default,variable,default)
 #
 define get-executable-or-default
-$(if $($(1)),$(call _ge_attempt,$($(1)),$(1)),$(call _ge_attempt,$(2)))
+$(if $($(1)),$(call _ge_attempt,$($(1)),$(1)),$(call _ge_attempt,$(2),$(1)))
 endef
-_ge_attempt = $(or $(get-executable),$(_gea_warn),$(call _gea_err,$(2)))
+_ge_attempt = $(if $(get-executable),$(get-executable),$(_gea_warn)$(call _gea_err,$(2)))
 _gea_warn = $(warning The path '$(1)' is not executable.)
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 
