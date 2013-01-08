@@ -146,7 +146,7 @@ free:
 static void mxs_dt_free_map(struct pinctrl_dev *pctldev,
 			    struct pinctrl_map *map, unsigned num_maps)
 {
-	int i;
+	u32 i;
 
 	for (i = 0; i < num_maps; i++) {
 		if (map[i].type == PIN_MAP_TYPE_MUX_GROUP)
@@ -203,7 +203,7 @@ static int mxs_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	void __iomem *reg;
 	u8 bank, shift;
 	u16 pin;
-	int i;
+	u32 i;
 
 	for (i = 0; i < g->npins; i++) {
 		bank = PINID_TO_BANK(g->pins[i]);
@@ -256,7 +256,7 @@ static int mxs_pinconf_group_set(struct pinctrl_dev *pctldev,
 	void __iomem *reg;
 	u8 ma, vol, pull, bank, shift;
 	u16 pin;
-	int i;
+	u32 i;
 
 	ma = CONFIG_TO_MA(config);
 	vol = CONFIG_TO_VOL(config);
@@ -345,8 +345,7 @@ static int mxs_pinctrl_parse_group(struct platform_device *pdev,
 	const char *propname = "fsl,pinmux-ids";
 	char *group;
 	int length = strlen(np->name) + SUFFIX_LEN;
-	int i;
-	u32 val;
+	u32 val, i;
 
 	group = devm_kzalloc(&pdev->dev, length, GFP_KERNEL);
 	if (!group)
