@@ -691,7 +691,6 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
-	dev->host_hw_state = mei_hcsr_read(dev);
 
 	/* Ack the interrupt here
 	 * In case of MSI we don't go through the quick handler */
@@ -710,6 +709,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
+	dev->host_hw_state = mei_hcsr_read(dev);
 	/*  check if we need to start the dev */
 	if ((dev->host_hw_state & H_RDY) == 0) {
 		if ((dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA) {

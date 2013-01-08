@@ -915,8 +915,6 @@ static int mei_probe(struct pci_dev *pdev,
 	return 0;
 
 release_irq:
-	/* disable interrupts */
-	dev->host_hw_state = mei_hcsr_read(dev);
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);

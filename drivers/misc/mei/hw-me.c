@@ -106,8 +106,9 @@ void mei_hcsr_set(struct mei_device *dev)
  */
 void mei_clear_interrupts(struct mei_device *dev)
 {
-	if ((dev->host_hw_state & H_IS) == H_IS)
-		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+	u32 hcsr = mei_hcsr_read(dev);
+	if ((hcsr & H_IS) == H_IS)
+		mei_reg_write(dev, H_CSR, hcsr);
 }
 
 /**
@@ -117,8 +118,10 @@ void mei_clear_interrupts(struct mei_device *dev)
  */
 void mei_enable_interrupts(struct mei_device *dev)
 {
-	dev->host_hw_state |= H_IE;
-	mei_hcsr_set(dev);
+	u32 hcsr = mei_hcsr_read(dev);
+	hcsr |= H_IE;
+	hcsr &= ~H_IS;
+	mei_reg_write(dev, H_CSR, hcsr);
 }
 
 /**
@@ -128,8 +131,10 @@ void mei_enable_interrupts(struct mei_device *dev)
  */
 void mei_disable_interrupts(struct mei_device *dev)
 {
-	dev->host_hw_state &= ~H_IE;
-	mei_hcsr_set(dev);
+	u32 hcsr = mei_hcsr_read(dev);
+	hcsr  &= ~H_IE;
+	hcsr &= ~H_IS;
+	mei_reg_write(dev, H_CSR, hcsr);
 }
 
 /**
