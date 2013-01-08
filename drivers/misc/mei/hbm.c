@@ -20,6 +20,7 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
+#include "hbm.h"
 #include "interface.h"
 
 /**

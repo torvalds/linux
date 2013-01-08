@@ -72,12 +72,9 @@ void mei_watchdog_unregister(struct mei_device *dev);
 int mei_other_client_is_connecting(struct mei_device *dev, struct mei_cl *cl);
 int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl);
 
-void mei_hbm_start_req(struct mei_device *dev);
-
-int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl);
-int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl);
-int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl);
-
 void mei_host_client_init(struct work_struct *work);
+
+
+
 
 #endif /* _MEI_INTERFACE_H_ */

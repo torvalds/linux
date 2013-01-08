@@ -22,6 +22,7 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
+#include "hbm.h"
 #include "interface.h"
 
 const char *mei_dev_state_str(int state)
