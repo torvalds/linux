@@ -386,11 +386,10 @@ void mei_watchdog_unregister(struct mei_device *dev);
  */
 
 u32 mei_hcsr_read(const struct mei_device *dev);
+void mei_hcsr_set(struct mei_device *dev);
 u32 mei_mecsr_read(const struct mei_device *dev);
 u32 mei_mecbrw_read(const struct mei_device *dev);
 
-void mei_hcsr_set(struct mei_device *dev);
-void mei_csr_clear_his(struct mei_device *dev);
 
 void mei_clear_interrupts(struct mei_device *dev);
 void mei_enable_interrupts(struct mei_device *dev);
