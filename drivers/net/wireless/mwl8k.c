@@ -4531,6 +4531,8 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 		priv->irq = -1;
 		tasklet_disable(&priv->poll_tx_task);
 		tasklet_disable(&priv->poll_rx_task);
+	} else {
+		ieee80211_wake_queues(hw);
 	}
 
 	return rc;
