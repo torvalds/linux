@@ -29,7 +29,7 @@ extern void __init versatile_init(void);
 extern void __init versatile_init_early(void);
 extern void __init versatile_init_irq(void);
 extern void __init versatile_map_io(void);
-extern struct sys_timer versatile_timer;
+extern void versatile_timer_init(void);
 extern void versatile_restart(char, const char *);
 extern unsigned int mmc_status(struct device *dev);
 #ifdef CONFIG_OF

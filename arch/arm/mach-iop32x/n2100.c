@@ -50,10 +50,6 @@ static void __init n2100_timer_init(void)
 	iop_init_time(198000000);
 }
 
-static struct sys_timer n2100_timer = {
-	.init		= n2100_timer_init,
-};
-
 
 /*
  * N2100 I/O.
@@ -337,7 +333,7 @@ MACHINE_START(N2100, "Thecus N2100")
 	.atag_offset	= 0x100,
 	.map_io		= n2100_map_io,
 	.init_irq	= iop32x_init_irq,
-	.timer		= &n2100_timer,
+	.init_time	= n2100_timer_init,
 	.init_machine	= n2100_init_machine,
 	.restart	= n2100_restart,
 MACHINE_END

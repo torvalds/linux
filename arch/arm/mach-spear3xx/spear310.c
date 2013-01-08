@@ -256,7 +256,7 @@ DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")
 	.map_io		=	spear310_map_io,
 	.init_irq	=	spear3xx_dt_init_irq,
 	.handle_irq	=	vic_handle_irq,
-	.timer		=	&spear3xx_timer,
+	.init_time	=	spear3xx_timer_init,
 	.init_machine	=	spear310_dt_init,
 	.restart	=	spear_restart,
 	.dt_compat	=	spear310_dt_board_compat,

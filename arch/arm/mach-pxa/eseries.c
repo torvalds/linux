@@ -195,7 +195,7 @@ MACHINE_START(E330, "Toshiba e330")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e330_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -246,7 +246,7 @@ MACHINE_START(E350, "Toshiba e350")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e350_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -370,7 +370,7 @@ MACHINE_START(E400, "Toshiba e400")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e400_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -566,7 +566,7 @@ MACHINE_START(E740, "Toshiba e740")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e740_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -765,7 +765,7 @@ MACHINE_START(E750, "Toshiba e750")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e750_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -977,7 +977,7 @@ MACHINE_START(E800, "Toshiba e800")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e800_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif

@@ -280,7 +280,7 @@ MACHINE_START(TNETV107X, "TNETV107X EVM")
 	.atag_offset	= 0x100,
 	.map_io		= tnetv107x_init,
 	.init_irq	= cp_intc_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine	= tnetv107x_evm_board_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

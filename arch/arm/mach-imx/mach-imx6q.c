@@ -241,10 +241,6 @@ static void __init imx6q_timer_init(void)
 	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 
-static struct sys_timer imx6q_timer = {
-	.init = imx6q_timer_init,
-};
-
 static const char *imx6q_dt_compat[] __initdata = {
 	"fsl,imx6q",
 	NULL,
@@ -255,7 +251,7 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
 	.handle_irq	= imx6q_handle_irq,
-	.timer		= &imx6q_timer,
+	.init_time	= imx6q_timer_init,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,
