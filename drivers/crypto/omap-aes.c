@@ -25,6 +25,9 @@
 #include <linux/dmaengine.h>
 #include <linux/omap-dma.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/crypto.h>
 #include <linux/interrupt.h>
@@ -819,11 +822,97 @@ static struct crypto_alg algs[] = {
 }
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id omap_aes_of_match[] = {
+	{
+		.compatible	= "ti,omap2-aes",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_aes_of_match);
+
+static int omap_aes_get_res_of(struct omap_aes_dev *dd,
+		struct device *dev, struct resource *res)
+{
+	struct device_node *node = dev->of_node;
+	const struct of_device_id *match;
+	int err = 0;
+
+	match = of_match_device(of_match_ptr(omap_aes_of_match), dev);
+	if (!match) {
+		dev_err(dev, "no compatible OF match\n");
+		err = -EINVAL;
+		goto err;
+	}
+
+	err = of_address_to_resource(node, 0, res);
+	if (err < 0) {
+		dev_err(dev, "can't translate OF node address\n");
+		err = -EINVAL;
+		goto err;
+	}
+
+	dd->dma_out = -1; /* Dummy value that's unused */
+	dd->dma_in = -1; /* Dummy value that's unused */
+
+err:
+	return err;
+}
+#else
+static const struct of_device_id omap_aes_of_match[] = {
+	{},
+};
+
+static int omap_aes_get_res_of(struct omap_aes_dev *dd,
+		struct device *dev, struct resource *res)
+{
+	return -EINVAL;
+}
+#endif
+
+static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
+		struct platform_device *pdev, struct resource *res)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *r;
+	int err = 0;
+
+	/* Get the base address */
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		dev_err(dev, "no MEM resource info\n");
+		err = -ENODEV;
+		goto err;
+	}
+	memcpy(res, r, sizeof(*res));
+
+	/* Get the DMA out channel */
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!r) {
+		dev_err(dev, "no DMA out resource info\n");
+		err = -ENODEV;
+		goto err;
+	}
+	dd->dma_out = r->start;
+
+	/* Get the DMA in channel */
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!r) {
+		dev_err(dev, "no DMA in resource info\n");
+		err = -ENODEV;
+		goto err;
+	}
+	dd->dma_in = r->start;
+
+err:
+	return err;
+}
+
 static int omap_aes_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct omap_aes_dev *dd;
-	struct resource *res;
+	struct resource res;
 	int err = -ENOMEM, i, j;
 	u32 reg;
 
@@ -838,35 +927,18 @@ static int omap_aes_probe(struct platform_device *pdev)
 	spin_lock_init(&dd->lock);
 	crypto_init_queue(&dd->queue, OMAP_AES_QUEUE_LENGTH);
 
-	/* Get the base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "invalid resource type\n");
-		err = -ENODEV;
+	err = (dev->of_node) ? omap_aes_get_res_of(dd, dev, &res) :
+			       omap_aes_get_res_pdev(dd, pdev, &res);
+	if (err)
 		goto err_res;
-	}
-	dd->phys_base = res->start;
 
-	/* Get the DMA */
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res)
-		dev_info(dev, "no DMA info\n");
-	else
-		dd->dma_out = res->start;
-
-	/* Get the DMA */
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!res)
-		dev_info(dev, "no DMA info\n");
-	else
-		dd->dma_in = res->start;
-
-	dd->io_base = ioremap(dd->phys_base, SZ_4K);
+	dd->io_base = devm_request_and_ioremap(dev, &res);
 	if (!dd->io_base) {
 		dev_err(dev, "can't ioremap\n");
 		err = -ENOMEM;
 		goto err_res;
 	}
+	dd->phys_base = res.start;
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
@@ -904,7 +976,6 @@ err_algs:
 err_dma:
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
-	iounmap(dd->io_base);
 	pm_runtime_disable(dev);
 err_res:
 	kfree(dd);
@@ -932,7 +1003,6 @@ static int omap_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
 	omap_aes_dma_cleanup(dd);
-	iounmap(dd->io_base);
 	pm_runtime_disable(dd->dev);
 	kfree(dd);
 	dd = NULL;
@@ -965,6 +1035,7 @@ static struct platform_driver omap_aes_driver = {
 		.name	= "omap-aes",
 		.owner	= THIS_MODULE,
 		.pm	= &omap_aes_pm_ops,
+		.of_match_table	= omap_aes_of_match,
 	},
 };
 
