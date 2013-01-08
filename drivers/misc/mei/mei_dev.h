@@ -260,7 +260,6 @@ struct mei_device {
 	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	bool need_reset;
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
 	u32 rd_msg_hdr;

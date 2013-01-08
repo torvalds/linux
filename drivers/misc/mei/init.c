@@ -199,10 +199,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	struct mei_cl_cb *cb_next = NULL;
 	bool unexpected;
 
-	if (dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET) {
-		dev->need_reset = true;
+	if (dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET)
 		return;
-	}
 
 	unexpected = (dev->dev_state != MEI_DEV_INITIALIZING &&
 			dev->dev_state != MEI_DEV_DISABLED &&
@@ -223,8 +221,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev_dbg(&dev->pdev->dev, "currently saved host_hw_state = 0x%08x.\n",
 	    dev->host_hw_state);
-
-	dev->need_reset = false;
 
 	if (dev->dev_state != MEI_DEV_INITIALIZING) {
 		if (dev->dev_state != MEI_DEV_DISABLED &&
