@@ -1655,10 +1655,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	/* Set defualt MAC */
 	dev->addr_len = ETH_ALEN;
-	for (i = 0; i < ETH_ALEN; i++) {
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[ETH_ALEN - 1 - i] = (u8) (priv->mac >> (8 * i));
-		dev->perm_addr[ETH_ALEN - 1 - i] = (u8) (priv->mac >> (8 * i));
-	}
 
 	/*
 	 * Set driver features

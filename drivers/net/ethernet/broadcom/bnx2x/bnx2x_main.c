@@ -10806,7 +10806,6 @@ static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	}
 
 	memcpy(bp->link_params.mac_addr, bp->dev->dev_addr, ETH_ALEN);
-	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
 
 	if (!bnx2x_is_valid_ether_addr(bp, bp->dev->dev_addr))
 		dev_err(&bp->pdev->dev,

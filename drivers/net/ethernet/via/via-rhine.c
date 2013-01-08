@@ -990,7 +990,6 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev_info(dev, "Using random MAC address: %pM\n",
 			    dev->dev_addr);
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* For Rhine-I/II, phy_id is loaded from EEPROM */
 	if (!phy_id)

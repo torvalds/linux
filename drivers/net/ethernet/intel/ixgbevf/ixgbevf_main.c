@@ -3328,8 +3328,6 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_sw_init;
 
 	/* The HW MAC address was set and/or determined in sw_init */
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
-
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		pr_err("invalid MAC address\n");
 		err = -EIO;

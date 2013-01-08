@@ -2342,7 +2342,6 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	netdev_dbg(netdev, "mac address : %pM\n", adapter->hw.mac_addr);
 
 	INIT_WORK(&adapter->reset_task, atl1e_reset_task);

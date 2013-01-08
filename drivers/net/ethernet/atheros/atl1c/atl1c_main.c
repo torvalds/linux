@@ -2542,7 +2542,6 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	if (netif_msg_probe(adapter))
 		dev_dbg(&pdev->dev, "mac address : %pM\n",
 			adapter->hw.mac_addr);

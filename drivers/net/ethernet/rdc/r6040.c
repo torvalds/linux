@@ -755,9 +755,6 @@ static void r6040_mac_address(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
-
-	/* Store MAC Address in perm_addr */
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 }
 
 static int r6040_open(struct net_device *dev)

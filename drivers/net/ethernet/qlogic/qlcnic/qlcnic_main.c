@@ -208,12 +208,11 @@ qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 		return -EIO;
 
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
-	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */
 
-	if (!is_valid_ether_addr(netdev->perm_addr))
+	if (!is_valid_ether_addr(netdev->dev_addr))
 		dev_warn(&pdev->dev, "Bad MAC address %pM.\n",
 					netdev->dev_addr);
 

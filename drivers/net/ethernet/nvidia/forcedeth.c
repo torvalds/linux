@@ -5730,9 +5730,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 			"%s: set workaround bit for reversed mac addr\n",
 			__func__);
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->perm_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/*
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab

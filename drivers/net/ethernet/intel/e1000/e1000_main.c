@@ -1123,9 +1123,8 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	/* don't block initalization here due to bad MAC address */
 	memcpy(netdev->dev_addr, hw->mac_addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, hw->mac_addr, netdev->addr_len);
 
-	if (!is_valid_ether_addr(netdev->perm_addr))
+	if (!is_valid_ether_addr(netdev->dev_addr))
 		e_err(probe, "Invalid MAC Address\n");
 
 

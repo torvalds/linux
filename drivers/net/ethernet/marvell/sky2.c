@@ -4801,7 +4801,6 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8, ETH_ALEN);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return dev;
 }

@@ -11327,7 +11327,6 @@ static int ipw_up(struct ipw_priv *priv)
 		if (!(priv->config & CFG_CUSTOM_MAC))
 			eeprom_parse_mac(priv, priv->mac_addr);
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
-		memcpy(priv->net_dev->perm_addr, priv->mac_addr, ETH_ALEN);
 
 		ipw_set_geo(priv);
 

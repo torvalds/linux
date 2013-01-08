@@ -6948,7 +6948,6 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Get MAC address */
 	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	SET_ETHTOOL_OPS(dev, &rtl8169_ethtool_ops);
 	dev->watchdog_timeo = RTL8169_TX_TIMEOUT;

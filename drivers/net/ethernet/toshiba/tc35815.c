@@ -856,7 +856,6 @@ static int tc35815_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out;
 
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	printk(KERN_INFO "%s: %s at 0x%lx, %pM, IRQ %d\n",
 		dev->name,
 		chip_info[ent->driver_data].name,

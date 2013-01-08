@@ -2111,8 +2111,6 @@ static int b44_get_invariants(struct b44 *bp)
 		return -EINVAL;
 	}
 
-	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
-
 	bp->imask = IMASK_DEF;
 
 	/* XXX - really required?

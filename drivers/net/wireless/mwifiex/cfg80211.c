@@ -2117,7 +2117,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	dev->ieee80211_ptr = priv->wdev;
 	dev->ieee80211_ptr->iftype = priv->bss_mode;
 	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
-	memcpy(dev->perm_addr, wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;

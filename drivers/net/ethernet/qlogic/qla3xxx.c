@@ -3867,7 +3867,6 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 		ndev->mtu = qdev->nvram_data.macCfg_port0.etherMtu_mac ;
 		ql_set_mac_addr(ndev, qdev->nvram_data.funcCfg_fn0.macAddress);
 	}
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
 	ndev->tx_queue_len = NUM_REQ_Q_ENTRIES;
 
