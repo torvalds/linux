@@ -6725,6 +6725,17 @@ void intel_mark_busy(struct drm_device *dev)
 
 void intel_mark_idle(struct drm_device *dev)
 {
+	struct drm_crtc *crtc;
+
+	if (!i915_powersave)
+		return;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (!crtc->fb)
+			continue;
+
+		intel_decrease_pllclock(crtc);
+	}
 }
 
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
@@ -6741,23 +6752,6 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
 
 		if (to_intel_framebuffer(crtc->fb)->obj == obj)
 			intel_increase_pllclock(crtc);
-	}
-}
-
-void intel_mark_fb_idle(struct drm_i915_gem_object *obj)
-{
-	struct drm_device *dev = obj->base.dev;
-	struct drm_crtc *crtc;
-
-	if (!i915_powersave)
-		return;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
-			continue;
-
-		if (to_intel_framebuffer(crtc->fb)->obj == obj)
-			intel_decrease_pllclock(crtc);
 	}
 }
 
