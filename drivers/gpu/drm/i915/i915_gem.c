@@ -1828,6 +1828,11 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages)
 		return 0;
 
+	if (obj->madv != I915_MADV_WILLNEED) {
+		DRM_ERROR("Attempting to obtain a purgeable object\n");
+		return -EINVAL;
+	}
+
 	BUG_ON(obj->pages_pin_count);
 
 	ret = ops->get_pages(obj);
@@ -2440,7 +2445,7 @@ int
 i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
-	int ret = 0;
+	int ret;
 
 	if (obj->gtt_space == NULL)
 		return 0;
@@ -2879,11 +2884,6 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
 	int ret;
-
-	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_ERROR("Attempting to bind a purgeable object\n");
-		return -EINVAL;
-	}
 
 	fence_size = i915_gem_get_gtt_size(dev,
 					   obj->base.size,
