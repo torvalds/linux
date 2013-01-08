@@ -131,18 +131,18 @@ int mei_hw_init(struct mei_device *dev)
 		goto out;
 	}
 
-	if (!(((dev->host_hw_state & H_RDY) == H_RDY) &&
-	      ((dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA))) {
+	if (!(mei_host_is_ready(dev) && mei_me_is_ready(dev))) {
 		dev->dev_state = MEI_DEV_DISABLED;
+
 		dev_dbg(&dev->pdev->dev,
 			"host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 			dev->host_hw_state, dev->me_hw_state);
 
-		if (!(dev->host_hw_state & H_RDY))
-			dev_dbg(&dev->pdev->dev, "host turn off H_RDY.\n");
+		if (!mei_host_is_ready(dev))
+			dev_dbg(&dev->pdev->dev, "host is not ready.\n");
 
-		if (!(dev->me_hw_state & ME_RDY_HRA))
-			dev_dbg(&dev->pdev->dev, "ME turn off ME_RDY.\n");
+		if (!mei_me_is_ready(dev))
+			dev_dbg(&dev->pdev->dev, "ME is not ready.\n");
 
 		dev_err(&dev->pdev->dev, "link layer initialization failed.\n");
 		ret = -ENODEV;
@@ -159,9 +159,7 @@ int mei_hw_init(struct mei_device *dev)
 	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 	    dev->host_hw_state, dev->me_hw_state);
-	dev_dbg(&dev->pdev->dev, "ME turn on ME_RDY and host turn on H_RDY.\n");
 	dev_dbg(&dev->pdev->dev, "link layer has been established.\n");
-	dev_dbg(&dev->pdev->dev, "MEI  start success.\n");
 	ret = 0;
 
 out:

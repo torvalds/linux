@@ -700,7 +700,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	dev->me_hw_state = mei_mecsr_read(dev);
 
 	/* check if ME wants a reset */
-	if ((dev->me_hw_state & ME_RDY_HRA) == 0 &&
+	if (!mei_me_is_ready(dev) &&
 	    dev->dev_state != MEI_DEV_RESETING &&
 	    dev->dev_state != MEI_DEV_INITIALIZING) {
 		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
@@ -711,16 +711,17 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 
 	dev->host_hw_state = mei_hcsr_read(dev);
 	/*  check if we need to start the dev */
-	if ((dev->host_hw_state & H_RDY) == 0) {
-		if ((dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA) {
+	if (!mei_host_is_ready(dev)) {
+		if (mei_me_is_ready(dev)) {
 			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
-			dev->host_hw_state |= (H_IE | H_IG | H_RDY);
-			mei_hcsr_set(dev);
-			dev->dev_state = MEI_DEV_INIT_CLIENTS;
+
+			mei_host_set_ready(dev);
+
 			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
-			/* link is established
-			 * start sending messages.
-			 */
+			/* link is established * start sending messages.  */
+
+			dev->dev_state = MEI_DEV_INIT_CLIENTS;
+
 			mei_hbm_start_req(dev);
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;

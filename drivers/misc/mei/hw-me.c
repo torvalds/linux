@@ -172,6 +172,39 @@ void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", hcsr);
 }
 
+/**
+ * mei_host_set_ready - enable device
+ *
+ * @dev - mei device
+ * returns bool
+ */
+
+void mei_host_set_ready(struct mei_device *dev)
+{
+	dev->host_hw_state |= H_IE | H_IG | H_RDY;
+	mei_hcsr_set(dev);
+}
+/**
+ * mei_host_is_ready - check whether the host has turned ready
+ *
+ * @dev - mei device
+ * returns bool
+ */
+bool mei_host_is_ready(struct mei_device *dev)
+{
+	return (dev->host_hw_state & H_RDY) == H_RDY;
+}
+
+/**
+ * mei_me_is_ready - check whether the me has turned ready
+ *
+ * @dev - mei device
+ * returns bool
+ */
+bool mei_me_is_ready(struct mei_device *dev)
+{
+	return (dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
+}
 
 /**
  * mei_interrupt_quick_handler - The ISR of the MEI device
@@ -290,7 +323,7 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 	dev->host_hw_state |= H_IG;
 	mei_hcsr_set(dev);
 	dev->me_hw_state = mei_mecsr_read(dev);
-	if ((dev->me_hw_state & ME_RDY_HRA) != ME_RDY_HRA)
+	if (!mei_me_is_ready(dev))
 		return -EIO;
 
 	return 0;

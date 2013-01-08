@@ -396,6 +396,10 @@ void mei_clear_interrupts(struct mei_device *dev);
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
 
+void mei_host_set_ready(struct mei_device *dev);
+bool mei_host_is_ready(struct mei_device *dev);
+bool mei_me_is_ready(struct mei_device *dev);
+
 
 
 #define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d comp=%1d"
