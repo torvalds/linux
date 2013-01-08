@@ -281,9 +281,13 @@ struct ieee80211_supported_band {
 /**
  * struct vif_params - describes virtual interface parameters
  * @use_4addr: use 4-address frames
+ * @macaddr: address to use for this virtual interface. This will only
+ * 	be used for non-netdevice interfaces. If this parameter is set
+ * 	to zero address the driver may determine the address as needed.
  */
 struct vif_params {
        int use_4addr;
+       u8 macaddr[ETH_ALEN];
 };
 
 /**

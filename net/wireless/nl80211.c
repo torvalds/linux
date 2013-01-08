@@ -2079,6 +2079,13 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	    !(rdev->wiphy.interface_modes & (1 << type)))
 		return -EOPNOTSUPP;
 
+	if (type == NL80211_IFTYPE_P2P_DEVICE && info->attrs[NL80211_ATTR_MAC]) {
+		nla_memcpy(params.macaddr, info->attrs[NL80211_ATTR_MAC],
+			   ETH_ALEN);
+		if (!is_valid_ether_addr(params.macaddr))
+			return -EADDRNOTAVAIL;
+	}
+
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 		err = nl80211_valid_4addr(rdev, NULL, params.use_4addr, type);
