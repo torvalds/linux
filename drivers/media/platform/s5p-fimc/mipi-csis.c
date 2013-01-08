@@ -743,7 +743,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	for (i = 0; i < CSIS_NUM_SUPPLIES; i++)
 		state->supplies[i].supply = csis_supply_name[i];
 
-	ret = regulator_bulk_get(&pdev->dev, CSIS_NUM_SUPPLIES,
+	ret = devm_regulator_bulk_get(&pdev->dev, CSIS_NUM_SUPPLIES,
 				 state->supplies);
 	if (ret)
 		return ret;
@@ -762,7 +762,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 			       0, dev_name(&pdev->dev), state);
 	if (ret) {
 		dev_err(&pdev->dev, "Interrupt request failed\n");
-		goto e_regput;
+		goto e_clkput;
 	}
 
 	v4l2_subdev_init(&state->sd, &s5pcsis_subdev_ops);
@@ -793,8 +793,6 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	return 0;
 
-e_regput:
-	regulator_bulk_free(CSIS_NUM_SUPPLIES, state->supplies);
 e_clkput:
 	clk_disable(state->clock[CSIS_CLK_MUX]);
 	s5pcsis_clk_put(state);
@@ -903,7 +901,6 @@ static int s5pcsis_remove(struct platform_device *pdev)
 	clk_disable(state->clock[CSIS_CLK_MUX]);
 	pm_runtime_set_suspended(&pdev->dev);
 	s5pcsis_clk_put(state);
-	regulator_bulk_free(CSIS_NUM_SUPPLIES, state->supplies);
 
 	media_entity_cleanup(&state->sd.entity);
 
