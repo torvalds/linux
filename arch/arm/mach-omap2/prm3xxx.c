@@ -18,9 +18,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include "soc.h"
 #include "common.h"
-#include <plat/cpu.h>
-
 #include "vp.h"
 #include "powerdomain.h"
 #include "prm3xxx.h"

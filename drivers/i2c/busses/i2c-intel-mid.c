@@ -947,7 +947,7 @@ static const struct dev_pm_ops intel_mid_i2c_pm_ops = {
  * 5. Call intel_mid_i2c_hwinit() for hardware initialization
  * 6. Register I2C adapter in i2c-core
  */
-static int __devinit intel_mid_i2c_probe(struct pci_dev *dev,
+static int intel_mid_i2c_probe(struct pci_dev *dev,
 				    const struct pci_device_id *id)
 {
 	struct intel_mid_i2c_private *mrst;
@@ -1079,7 +1079,7 @@ exit:
 	return err;
 }
 
-static void __devexit intel_mid_i2c_remove(struct pci_dev *dev)
+static void intel_mid_i2c_remove(struct pci_dev *dev)
 {
 	struct intel_mid_i2c_private *mrst = pci_get_drvdata(dev);
 	intel_mid_i2c_disable(&mrst->adap);
@@ -1113,7 +1113,7 @@ static struct pci_driver intel_mid_i2c_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= intel_mid_i2c_ids,
 	.probe		= intel_mid_i2c_probe,
-	.remove		= __devexit_p(intel_mid_i2c_remove),
+	.remove		= intel_mid_i2c_remove,
 };
 
 module_pci_driver(intel_mid_i2c_driver);

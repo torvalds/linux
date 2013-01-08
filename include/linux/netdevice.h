@@ -1576,7 +1576,7 @@ extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
-extern seqlock_t	devnet_rename_seq;	/* Device rename lock */
+extern seqcount_t	devnet_rename_seq;	/* Device rename seq */
 
 
 #define for_each_netdev(net, d)		\

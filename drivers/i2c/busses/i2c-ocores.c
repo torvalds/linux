@@ -343,7 +343,7 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 #define ocores_i2c_of_probe(pdev,i2c) -ENODEV
 #endif
 
-static int __devinit ocores_i2c_probe(struct platform_device *pdev)
+static int ocores_i2c_probe(struct platform_device *pdev)
 {
 	struct ocores_i2c *i2c;
 	struct ocores_i2c_platform_data *pdata;
@@ -441,7 +441,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ocores_i2c_remove(struct platform_device *pdev)
+static int ocores_i2c_remove(struct platform_device *pdev)
 {
 	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -485,7 +485,7 @@ static SIMPLE_DEV_PM_OPS(ocores_i2c_pm, ocores_i2c_suspend, ocores_i2c_resume);
 
 static struct platform_driver ocores_i2c_driver = {
 	.probe   = ocores_i2c_probe,
-	.remove  = __devexit_p(ocores_i2c_remove),
+	.remove  = ocores_i2c_remove,
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",

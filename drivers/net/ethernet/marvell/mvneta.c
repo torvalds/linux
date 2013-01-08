@@ -635,7 +635,7 @@ static void mvneta_rxq_bm_disable(struct mvneta_port *pp,
 
 
 /* Sets the RGMII Enable bit (RGMIIEn) in port MAC control register */
-static void __devinit mvneta_gmac_rgmii_set(struct mvneta_port *pp, int enable)
+static void mvneta_gmac_rgmii_set(struct mvneta_port *pp, int enable)
 {
 	u32  val;
 
@@ -650,7 +650,7 @@ static void __devinit mvneta_gmac_rgmii_set(struct mvneta_port *pp, int enable)
 }
 
 /* Config SGMII port */
-static void __devinit mvneta_port_sgmii_config(struct mvneta_port *pp)
+static void mvneta_port_sgmii_config(struct mvneta_port *pp)
 {
 	u32 val;
 
@@ -2564,7 +2564,7 @@ const struct ethtool_ops mvneta_eth_tool_ops = {
 };
 
 /* Initialize hw */
-static int __devinit mvneta_init(struct mvneta_port *pp, int phy_addr)
+static int mvneta_init(struct mvneta_port *pp, int phy_addr)
 {
 	int queue;
 
@@ -2613,9 +2613,8 @@ static void mvneta_deinit(struct mvneta_port *pp)
 }
 
 /* platform glue : initialize decoding windows */
-static void __devinit
-mvneta_conf_mbus_windows(struct mvneta_port *pp,
-			 const struct mbus_dram_target_info *dram)
+static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
+				     const struct mbus_dram_target_info *dram)
 {
 	u32 win_enable;
 	u32 win_protect;
@@ -2648,7 +2647,7 @@ mvneta_conf_mbus_windows(struct mvneta_port *pp,
 }
 
 /* Power up the port */
-static void __devinit mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
+static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 {
 	u32 val;
 
@@ -2671,7 +2670,7 @@ static void __devinit mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 }
 
 /* Device initialization routine */
-static int __devinit mvneta_probe(struct platform_device *pdev)
+static int mvneta_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram_target_info;
 	struct device_node *dn = pdev->dev.of_node;
@@ -2803,7 +2802,7 @@ err_free_netdev:
 }
 
 /* Device removal routine */
-static int __devexit mvneta_remove(struct platform_device *pdev)
+static int mvneta_remove(struct platform_device *pdev)
 {
 	struct net_device  *dev = platform_get_drvdata(pdev);
 	struct mvneta_port *pp = netdev_priv(dev);
@@ -2828,7 +2827,7 @@ MODULE_DEVICE_TABLE(of, mvneta_match);
 
 static struct platform_driver mvneta_driver = {
 	.probe = mvneta_probe,
-	.remove = __devexit_p(mvneta_remove),
+	.remove = mvneta_remove,
 	.driver = {
 		.name = MVNETA_DRIVER_NAME,
 		.of_match_table = mvneta_match,

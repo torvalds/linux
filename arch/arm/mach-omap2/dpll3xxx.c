@@ -504,8 +504,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
 			freqsel = _omap3_dpll_compute_freqsel(clk,
 						dd->last_rounded_n);
-			if (!freqsel)
-				WARN_ON(1);
+			WARN_ON(!freqsel);
 		}
 
 		pr_debug("%s: %s: set rate: locking rate to %lu.\n",

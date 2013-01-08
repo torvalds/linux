@@ -2654,6 +2654,35 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			ib[idx+4] = upper_32_bits(offset) & 0xff;
 		}
 		break;
+	case PACKET3_MEM_WRITE:
+	{
+		u64 offset;
+
+		if (pkt->count != 3) {
+			DRM_ERROR("bad MEM_WRITE (invalid count)\n");
+			return -EINVAL;
+		}
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("bad MEM_WRITE (missing reloc)\n");
+			return -EINVAL;
+		}
+		offset = radeon_get_ib_value(p, idx+0);
+		offset += ((u64)(radeon_get_ib_value(p, idx+1) & 0xff)) << 32UL;
+		if (offset & 0x7) {
+			DRM_ERROR("bad MEM_WRITE (address not qwords aligned)\n");
+			return -EINVAL;
+		}
+		if ((offset + 8) > radeon_bo_size(reloc->robj)) {
+			DRM_ERROR("bad MEM_WRITE bo too small: 0x%llx, 0x%lx\n",
+				  offset + 8, radeon_bo_size(reloc->robj));
+			return -EINVAL;
+		}
+		offset += reloc->lobj.gpu_offset;
+		ib[idx+0] = offset;
+		ib[idx+1] = upper_32_bits(offset) & 0xff;
+		break;
+	}
 	case PACKET3_COPY_DW:
 		if (pkt->count != 4) {
 			DRM_ERROR("bad COPY_DW (invalid count)\n");
@@ -3287,6 +3316,7 @@ static bool evergreen_vm_reg_valid(u32 reg)
 
 	/* check config regs */
 	switch (reg) {
+	case WAIT_UNTIL:
 	case GRBM_GFX_INDEX:
 	case CP_STRMOUT_CNTL:
 	case CP_COHER_CNTL:

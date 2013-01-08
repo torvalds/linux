@@ -141,7 +141,7 @@ static int orion_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-static int __devinit orion_mdio_probe(struct platform_device *pdev)
+static int orion_mdio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mii_bus *bus;
@@ -197,7 +197,7 @@ static int __devinit orion_mdio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit orion_mdio_remove(struct platform_device *pdev)
+static int orion_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 	mdiobus_unregister(bus);
@@ -214,7 +214,7 @@ MODULE_DEVICE_TABLE(of, orion_mdio_match);
 
 static struct platform_driver orion_mdio_driver = {
 	.probe = orion_mdio_probe,
-	.remove = __devexit_p(orion_mdio_remove),
+	.remove = orion_mdio_remove,
 	.driver = {
 		.name = "orion-mdio",
 		.of_match_table = orion_mdio_match,
