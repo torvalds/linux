@@ -8,6 +8,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -50,6 +52,7 @@ static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
 {
 	int i;
 	int ret;
+	unsigned long timeout;
 
 	/* Set all ports to the disabled state. */
 	for (i = 0; i < 8; i++) {
@@ -58,20 +61,21 @@ static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
 	}
 
 	/* Wait for transmit queues to drain. */
-	msleep(2);
+	usleep_range(2000, 4000);
 
 	/* Reset the switch. */
 	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
 
 	/* Wait up to one second for reset to complete. */
-	for (i = 0; i < 1000; i++) {
+	timeout = jiffies + 1 * HZ;
+	while (time_before(jiffies, timeout)) {
 		ret = REG_READ(REG_GLOBAL, 0x00);
 		if ((ret & 0xc800) == 0xc800)
 			break;
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
-	if (i == 1000)
+	if (time_after(jiffies, timeout))
 		return -ETIMEDOUT;
 
 	return 0;

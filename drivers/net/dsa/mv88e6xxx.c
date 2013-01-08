@@ -8,6 +8,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -196,14 +198,15 @@ int mv88e6xxx_phy_write(struct dsa_switch *ds, int addr, int regnum, u16 val)
 static int mv88e6xxx_ppu_disable(struct dsa_switch *ds)
 {
 	int ret;
-	int i;
+	unsigned long timeout;
 
 	ret = REG_READ(REG_GLOBAL, 0x04);
 	REG_WRITE(REG_GLOBAL, 0x04, ret & ~0x4000);
 
-	for (i = 0; i < 1000; i++) {
+	timeout = jiffies + 1 * HZ;
+	while (time_before(jiffies, timeout)) {
 	        ret = REG_READ(REG_GLOBAL, 0x00);
-	        msleep(1);
+		usleep_range(1000, 2000);
 	        if ((ret & 0xc000) != 0xc000)
 	                return 0;
 	}
@@ -214,14 +217,15 @@ static int mv88e6xxx_ppu_disable(struct dsa_switch *ds)
 static int mv88e6xxx_ppu_enable(struct dsa_switch *ds)
 {
 	int ret;
-	int i;
+	unsigned long timeout;
 
 	ret = REG_READ(REG_GLOBAL, 0x04);
 	REG_WRITE(REG_GLOBAL, 0x04, ret | 0x4000);
 
-	for (i = 0; i < 1000; i++) {
+	timeout = jiffies + 1 * HZ;
+	while (time_before(jiffies, timeout)) {
 	        ret = REG_READ(REG_GLOBAL, 0x00);
-	        msleep(1);
+		usleep_range(1000, 2000);
 	        if ((ret & 0xc000) == 0xc000)
 	                return 0;
 	}
