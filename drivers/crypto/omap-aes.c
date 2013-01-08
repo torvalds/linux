@@ -891,12 +891,31 @@ static int omap_aes_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int omap_aes_suspend(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
+	return 0;
+}
+
+static int omap_aes_resume(struct device *dev)
+{
+	pm_runtime_get_sync(dev);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops omap_aes_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(omap_aes_suspend, omap_aes_resume)
+};
+
 static struct platform_driver omap_aes_driver = {
 	.probe	= omap_aes_probe,
 	.remove	= omap_aes_remove,
 	.driver	= {
 		.name	= "omap-aes",
 		.owner	= THIS_MODULE,
+		.pm	= &omap_aes_pm_ops,
 	},
 };
 
