@@ -1075,6 +1075,86 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
+void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 rxfilter;
+
+	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
+		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		return;
+	}
+
+	ath9k_ps_wakeup(sc);
+	rxfilter = ath9k_hw_getrxfilter(ah);
+	ath9k_hw_setrxfilter(ah, rxfilter |
+				 ATH9K_RX_FILTER_PHYRADAR |
+				 ATH9K_RX_FILTER_PHYERR);
+
+	/* TODO: usually this should not be neccesary, but for some reason
+	 * (or in some mode?) the trigger must be called after the
+	 * configuration, otherwise the register will have its values reset
+	 * (on my ar9220 to value 0x01002310)
+	 */
+	ath9k_spectral_scan_config(hw, sc->spectral_mode);
+	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
+	ath9k_ps_restore(sc);
+}
+
+int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
+			       enum spectral_mode spectral_mode)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_spec_scan param;
+
+	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
+		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		return -1;
+	}
+
+	/* NOTE: this will generate a few samples ...
+	 *
+	 * TODO: review default parameters, and/or define an interface to set
+	 * them.
+	 */
+	param.enabled = 1;
+	param.short_repeat = true;
+	param.count = 8;
+	param.endless = false;
+	param.period = 0xFF;
+	param.fft_period = 0xF;
+
+	switch (spectral_mode) {
+	case SPECTRAL_DISABLED:
+		param.enabled = 0;
+		break;
+	case SPECTRAL_BACKGROUND:
+		/* send endless samples.
+		 * TODO: is this really useful for "background"?
+		 */
+		param.endless = 1;
+		break;
+	case SPECTRAL_CHANSCAN:
+		break;
+	case SPECTRAL_MANUAL:
+		break;
+	default:
+		return -1;
+	}
+
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_ops(ah)->spectral_scan_config(ah, &param);
+	ath9k_ps_restore(sc);
+
+	sc->spectral_mode = spectral_mode;
+
+	return 0;
+}
+
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1188,6 +1268,11 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		 */
 		if (old_pos >= 0)
 			ath_update_survey_nf(sc, old_pos);
+
+		/* perform spectral scan if requested. */
+		if (sc->scanning && sc->spectral_mode == SPECTRAL_CHANSCAN)
+			ath9k_spectral_scan_trigger(hw);
+
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -2240,6 +2325,19 @@ static void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 }
 
 #endif
+static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	sc->scanning = 1;
+}
+
+static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	sc->scanning = 0;
+}
 
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
@@ -2286,4 +2384,6 @@ struct ieee80211_ops ath9k_ops = {
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
 	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
+	.sw_scan_start	    = ath9k_sw_scan_start,
+	.sw_scan_complete   = ath9k_sw_scan_complete,
 };

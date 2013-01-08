@@ -1453,6 +1453,67 @@ set_rfmode:
 	return 0;
 }
 
+static void ar9003_hw_spectral_scan_config(struct ath_hw *ah,
+					   struct ath_spec_scan *param)
+{
+	u8 count;
+
+	if (!param->enabled) {
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_ENABLE);
+		return;
+	}
+
+	REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_FFT_ENA);
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
+
+	/* on AR93xx and newer, count = 0 will make the the chip send
+	 * spectral samples endlessly. Check if this really was intended,
+	 * and fix otherwise.
+	 */
+	count = param->count;
+	if (param->endless)
+		count = 0;
+	else if (param->count == 0)
+		count = 1;
+
+	if (param->short_repeat)
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+	else
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_PERIOD, param->period);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_FFT_PERIOD, param->fft_period);
+
+	return;
+}
+
+static void ar9003_hw_spectral_scan_trigger(struct ath_hw *ah)
+{
+	/* Activate spectral scan */
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+		    AR_PHY_SPECTRAL_SCAN_ACTIVE);
+}
+
+static void ar9003_hw_spectral_scan_wait(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	/* Poll for spectral scan complete */
+	if (!ath9k_hw_wait(ah, AR_PHY_SPECTRAL_SCAN,
+			   AR_PHY_SPECTRAL_SCAN_ACTIVE,
+			   0, AH_WAIT_TIMEOUT)) {
+		ath_err(common, "spectral scan wait failed\n");
+		return;
+	}
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -1486,6 +1547,9 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
 	ops->antctrl_shared_chain_lnadiv = ar9003_hw_antctrl_shared_chain_lnadiv;
+	ops->spectral_scan_config = ar9003_hw_spectral_scan_config;
+	ops->spectral_scan_trigger = ar9003_hw_spectral_scan_trigger;
+	ops->spectral_scan_wait = ar9003_hw_spectral_scan_wait;
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);

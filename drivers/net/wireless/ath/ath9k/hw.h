@@ -658,6 +658,37 @@ struct ath_hw_private_ops {
 };
 
 /**
+ * struct ath_spec_scan - parameters for Atheros spectral scan
+ *
+ * @enabled: enable/disable spectral scan
+ * @short_repeat: controls whether the chip is in spectral scan mode
+ *		  for 4 usec (enabled) or 204 usec (disabled)
+ * @count: number of scan results requested. There are special meanings
+ *	   in some chip revisions:
+ *	   AR92xx: highest bit set (>=128) for endless mode
+ *		   (spectral scan won't stopped until explicitly disabled)
+ *	   AR9300 and newer: 0 for endless mode
+ * @endless: true if endless mode is intended. Otherwise, count value is
+ *           corrected to the next possible value.
+ * @period: time duration between successive spectral scan entry points
+ *	    (period*256*Tclk). Tclk = ath_common->clockrate
+ * @fft_period: PHY passes FFT frames to MAC every (fft_period+1)*4uS
+ *
+ * Note: Tclk = 40MHz or 44MHz depending upon operating mode.
+ *	 Typically it's 44MHz in 2/5GHz on later chips, but there's
+ *	 a "fast clock" check for this in 5GHz.
+ *
+ */
+struct ath_spec_scan {
+	bool enabled;
+	bool short_repeat;
+	bool endless;
+	u8 count;
+	u8 period;
+	u8 fft_period;
+};
+
+/**
  * struct ath_hw_ops - callbacks used by hardware code and driver code
  *
  * This structure contains callbacks designed to to be used internally by
@@ -665,6 +696,10 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
+ *
+ * @spectral_scan_config: set parameters for spectral scan and enable/disable it
+ * @spectral_scan_trigger: trigger a spectral scan run
+ * @spectral_scan_wait: wait for a spectral scan run to finish
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -685,6 +720,10 @@ struct ath_hw_ops {
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
+	void (*spectral_scan_config)(struct ath_hw *ah,
+				     struct ath_spec_scan *param);
+	void (*spectral_scan_trigger)(struct ath_hw *ah);
+	void (*spectral_scan_wait)(struct ath_hw *ah);
 };
 
 struct ath_nf_limits {

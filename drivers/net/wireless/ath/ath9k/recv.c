@@ -15,6 +15,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/relay.h>
 #include "ath9k.h"
 #include "ar9003_mac.h"
 
@@ -1025,6 +1026,108 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 		rxs->flag &= ~RX_FLAG_DECRYPTED;
 }
 
+static s8 fix_rssi_inv_only(u8 rssi_val)
+{
+	if (rssi_val == 128)
+		rssi_val = 0;
+	return (s8) rssi_val;
+}
+
+
+static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
+			    struct ath_rx_status *rs, u64 tsf)
+{
+#ifdef CONFIG_ATH_DEBUG
+	struct ath_hw *ah = sc->sc_ah;
+	u8 bins[SPECTRAL_HT20_NUM_BINS];
+	u8 *vdata = (u8 *)hdr;
+	struct fft_sample_ht20 fft_sample;
+	struct ath_radar_info *radar_info;
+	struct ath_ht20_mag_info *mag_info;
+	int len = rs->rs_datalen;
+	int i, dc_pos;
+
+	/* AR9280 and before report via ATH9K_PHYERR_RADAR, AR93xx and newer
+	 * via ATH9K_PHYERR_SPECTRAL. Haven't seen ATH9K_PHYERR_FALSE_RADAR_EXT
+	 * yet, but this is supposed to be possible as well.
+	 */
+	if (rs->rs_phyerr != ATH9K_PHYERR_RADAR &&
+	    rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT &&
+	    rs->rs_phyerr != ATH9K_PHYERR_SPECTRAL)
+		return;
+
+	/* Variation in the data length is possible and will be fixed later.
+	 * Note that we only support HT20 for now.
+	 *
+	 * TODO: add HT20_40 support as well.
+	 */
+	if ((len > SPECTRAL_HT20_TOTAL_DATA_LEN + 2) ||
+	    (len < SPECTRAL_HT20_TOTAL_DATA_LEN - 1))
+		return;
+
+	/* check if spectral scan bit is set. This does not have to be checked
+	 * if received through a SPECTRAL phy error, but shouldn't hurt.
+	 */
+	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
+	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
+		return;
+
+	fft_sample.tlv.type = ATH_FFT_SAMPLE_HT20;
+	fft_sample.tlv.length = sizeof(fft_sample) - sizeof(fft_sample.tlv);
+
+	fft_sample.freq = ah->curchan->chan->center_freq;
+	fft_sample.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
+	fft_sample.noise = ah->noise;
+
+	switch (len - SPECTRAL_HT20_TOTAL_DATA_LEN) {
+	case 0:
+		/* length correct, nothing to do. */
+		memcpy(bins, vdata, SPECTRAL_HT20_NUM_BINS);
+		break;
+	case -1:
+		/* first byte missing, duplicate it. */
+		memcpy(&bins[1], vdata, SPECTRAL_HT20_NUM_BINS - 1);
+		bins[0] = vdata[0];
+		break;
+	case 2:
+		/* MAC added 2 extra bytes at bin 30 and 32, remove them. */
+		memcpy(bins, vdata, 30);
+		bins[30] = vdata[31];
+		memcpy(&bins[31], &vdata[33], SPECTRAL_HT20_NUM_BINS - 31);
+		break;
+	case 1:
+		/* MAC added 2 extra bytes AND first byte is missing. */
+		bins[0] = vdata[0];
+		memcpy(&bins[0], vdata, 30);
+		bins[31] = vdata[31];
+		memcpy(&bins[32], &vdata[33], SPECTRAL_HT20_NUM_BINS - 32);
+		break;
+	default:
+		return;
+	}
+
+	/* DC value (value in the middle) is the blind spot of the spectral
+	 * sample and invalid, interpolate it.
+	 */
+	dc_pos = SPECTRAL_HT20_NUM_BINS / 2;
+	bins[dc_pos] = (bins[dc_pos + 1] + bins[dc_pos - 1]) / 2;
+
+	/* mag data is at the end of the frame, in front of radar_info */
+	mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
+
+	/* Apply exponent and grab further auxiliary information. */
+	for (i = 0; i < SPECTRAL_HT20_NUM_BINS; i++)
+		fft_sample.data[i] = bins[i] << mag_info->max_exp;
+
+	fft_sample.max_magnitude = spectral_max_magnitude(mag_info->all_bins);
+	fft_sample.max_index = spectral_max_index(mag_info->all_bins);
+	fft_sample.bitmap_weight = spectral_bitmap_weight(mag_info->all_bins);
+	fft_sample.tsf = tsf;
+
+	ath_debug_send_fft_sample(sc, &fft_sample.tlv);
+#endif
+}
+
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_buf *bf;
@@ -1121,6 +1224,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (rs.rs_tstamp < tsf_lower &&
 		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
 			rxs->mactime += 0x100000000ULL;
+
+		if ((rs.rs_status & ATH9K_RXERR_PHY))
+			ath_process_fft(sc, hdr, &rs, rxs->mactime);
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
 						 rxs, &decrypt_error);

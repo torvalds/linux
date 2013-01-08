@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
+#include <linux/relay.h>
 #include <asm/unaligned.h>
 
 #include "ath9k.h"
@@ -966,6 +967,112 @@ static const struct file_operations fops_recv = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_spec_scan_ctl(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char *mode = "";
+	unsigned int len;
+
+	switch (sc->spectral_mode) {
+	case SPECTRAL_DISABLED:
+		mode = "disable";
+		break;
+	case SPECTRAL_BACKGROUND:
+		mode = "background";
+		break;
+	case SPECTRAL_CHANSCAN:
+		mode = "chanscan";
+		break;
+	case SPECTRAL_MANUAL:
+		mode = "manual";
+		break;
+	}
+	len = strlen(mode);
+	return simple_read_from_buffer(user_buf, count, ppos, mode, len);
+}
+
+static ssize_t write_file_spec_scan_ctl(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (strncmp("trigger", buf, 7) == 0) {
+		ath9k_spectral_scan_trigger(sc->hw);
+	} else if (strncmp("background", buf, 9) == 0) {
+		ath9k_spectral_scan_config(sc->hw, SPECTRAL_BACKGROUND);
+		ath_dbg(common, CONFIG, "spectral scan: background mode enabled\n");
+	} else if (strncmp("chanscan", buf, 8) == 0) {
+		ath9k_spectral_scan_config(sc->hw, SPECTRAL_CHANSCAN);
+		ath_dbg(common, CONFIG, "spectral scan: channel scan mode enabled\n");
+	} else if (strncmp("manual", buf, 6) == 0) {
+		ath9k_spectral_scan_config(sc->hw, SPECTRAL_MANUAL);
+		ath_dbg(common, CONFIG, "spectral scan: manual mode enabled\n");
+	} else if (strncmp("disable", buf, 7) == 0) {
+		ath9k_spectral_scan_config(sc->hw, SPECTRAL_DISABLED);
+		ath_dbg(common, CONFIG, "spectral scan: disabled\n");
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_spec_scan_ctl = {
+	.read = read_file_spec_scan_ctl,
+	.write = write_file_spec_scan_ctl,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static struct dentry *create_buf_file_handler(const char *filename,
+					      struct dentry *parent,
+					      umode_t mode,
+					      struct rchan_buf *buf,
+					      int *is_global)
+{
+	struct dentry *buf_file;
+
+	buf_file = debugfs_create_file(filename, mode, parent, buf,
+				       &relay_file_operations);
+	*is_global = 1;
+	return buf_file;
+}
+
+static int remove_buf_file_handler(struct dentry *dentry)
+{
+	debugfs_remove(dentry);
+
+	return 0;
+}
+
+void ath_debug_send_fft_sample(struct ath_softc *sc,
+			       struct fft_sample_tlv *fft_sample_tlv)
+{
+	if (!sc->rfs_chan_spec_scan)
+		return;
+
+	relay_write(sc->rfs_chan_spec_scan, fft_sample_tlv,
+		    fft_sample_tlv->length + sizeof(*fft_sample_tlv));
+}
+
+static struct rchan_callbacks rfs_spec_scan_cb = {
+	.create_buf_file = create_buf_file_handler,
+	.remove_buf_file = remove_buf_file_handler,
+};
+
+
 static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
                                 size_t count, loff_t *ppos)
 {
@@ -1780,6 +1887,14 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_base_eeprom);
 	debugfs_create_file("modal_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_modal_eeprom);
+	sc->rfs_chan_spec_scan = relay_open("spectral_scan",
+					    sc->debug.debugfs_phy,
+					    262144, 4, &rfs_spec_scan_cb,
+					    NULL);
+	debugfs_create_file("spectral_scan_ctl", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc,
+			    &fops_spec_scan_ctl);
+
 #ifdef CONFIG_ATH9K_MAC_DEBUG
 	debugfs_create_file("samples", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_samps);
