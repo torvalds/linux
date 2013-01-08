@@ -71,6 +71,8 @@ int mei_amthif_host_init(struct mei_device *dev)
 	unsigned char *msg_buf;
 	int ret, i;
 
+	dev->iamthif_state = MEI_IAMTHIF_IDLE;
+
 	mei_cl_init(cl, dev);
 
 	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);

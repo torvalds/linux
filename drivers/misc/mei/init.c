@@ -68,7 +68,6 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->dev_state = MEI_DEV_INITIALIZING;
-	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
 	mei_io_list_init(&dev->read_list);
 	mei_io_list_init(&dev->write_list);
