@@ -170,22 +170,6 @@ out:
 }
 
 /**
- * mei_hw_reset - resets fw via mei csr register.
- *
- * @dev: the device structure
- * @interrupts_enabled: if interrupt should be enabled after reset.
- */
-static void mei_hw_reset(struct mei_device *dev, int interrupts_enabled)
-{
-	dev->host_hw_state |= (H_RST | H_IG);
-
-	if (interrupts_enabled)
-		mei_enable_interrupts(dev);
-	else
-		mei_disable_interrupts(dev);
-}
-
-/**
  * mei_reset - resets host and fw.
  *
  * @dev: the device structure
@@ -207,20 +191,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 			dev->dev_state != MEI_DEV_POWER_DOWN &&
 			dev->dev_state != MEI_DEV_POWER_UP);
 
-	dev->host_hw_state = mei_hcsr_read(dev);
-
-	dev_dbg(&dev->pdev->dev, "before reset host_hw_state = 0x%08x.\n",
-	    dev->host_hw_state);
-
 	mei_hw_reset(dev, interrupts_enabled);
 
-	dev->host_hw_state &= ~H_RST;
-	dev->host_hw_state |= H_IG;
-
-	mei_hcsr_set(dev);
-
-	dev_dbg(&dev->pdev->dev, "currently saved host_hw_state = 0x%08x.\n",
-	    dev->host_hw_state);
 
 	if (dev->dev_state != MEI_DEV_INITIALIZING) {
 		if (dev->dev_state != MEI_DEV_DISABLED &&

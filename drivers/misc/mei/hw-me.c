@@ -132,6 +132,41 @@ void mei_disable_interrupts(struct mei_device *dev)
 	mei_hcsr_set(dev);
 }
 
+/**
+ * mei_hw_reset - resets fw via mei csr register.
+ *
+ * @dev: the device structure
+ * @interrupts_enabled: if interrupt should be enabled after reset.
+ */
+void mei_hw_reset(struct mei_device *dev, bool intr_enable)
+{
+	u32 hcsr = mei_hcsr_read(dev);
+
+	dev_dbg(&dev->pdev->dev, "before reset HCSR = 0x%08x.\n", hcsr);
+
+	hcsr |= (H_RST | H_IG);
+
+	if (intr_enable)
+		hcsr |= H_IE;
+	else
+		hcsr &= ~H_IE;
+
+	hcsr &= ~H_IS;
+
+	mei_reg_write(dev, H_CSR, hcsr);
+	hcsr = mei_hcsr_read(dev);
+
+	hcsr &= ~H_RST;
+	hcsr |= H_IG;
+	hcsr &= ~H_IS;
+
+	mei_reg_write(dev, H_CSR, hcsr);
+
+	hcsr = mei_hcsr_read(dev);
+
+	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", hcsr);
+}
+
 
 /**
  * mei_interrupt_quick_handler - The ISR of the MEI device

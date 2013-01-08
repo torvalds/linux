@@ -385,6 +385,7 @@ void mei_watchdog_unregister(struct mei_device *dev);
  * Register Access Function
  */
 
+void mei_hw_reset(struct mei_device *dev, bool intr_enable);
 u32 mei_hcsr_read(const struct mei_device *dev);
 void mei_hcsr_set(struct mei_device *dev);
 u32 mei_mecsr_read(const struct mei_device *dev);
