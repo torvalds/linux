@@ -380,7 +380,6 @@ free:
 	mei_io_cb_free(cb);
 	cl->reading_state = MEI_IDLE;
 	cl->read_cb = NULL;
-	cl->read_pending = 0;
 out:
 	dev_dbg(&dev->pdev->dev, "end mei read rets= %d\n", rets);
 	mutex_unlock(&dev->device_lock);
@@ -462,9 +461,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			write_cb = NULL;
 			cl->reading_state = MEI_IDLE;
 			cl->read_cb = NULL;
-			cl->read_pending = 0;
 		}
-	} else if (cl->reading_state == MEI_IDLE && !cl->read_pending)
+	} else if (cl->reading_state == MEI_IDLE)
 		*offset = 0;
 
 

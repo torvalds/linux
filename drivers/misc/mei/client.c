@@ -631,7 +631,7 @@ int mei_cl_read_start(struct mei_cl *cl)
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		return -ENODEV;
 
-	if (cl->read_pending || cl->read_cb) {
+	if (cl->read_cb) {
 		dev_dbg(&dev->pdev->dev, "read is pending.\n");
 		return -EBUSY;
 	}

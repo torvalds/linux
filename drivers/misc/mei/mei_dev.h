@@ -199,7 +199,6 @@ struct mei_cl {
 	wait_queue_head_t tx_wait;
 	wait_queue_head_t rx_wait;
 	wait_queue_head_t wait;
-	int read_pending;
 	int status;
 	/* ID of client connected */
 	u8 host_client_id;
