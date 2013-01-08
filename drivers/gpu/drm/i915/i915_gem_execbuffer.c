@@ -34,6 +34,7 @@
 #include <linux/dma_remapping.h>
 
 struct eb_objects {
+	struct list_head objects;
 	int and;
 	struct hlist_head buckets[0];
 };
@@ -53,6 +54,7 @@ eb_create(int size)
 		return eb;
 
 	eb->and = count - 1;
+	INIT_LIST_HEAD(&eb->objects);
 	return eb;
 }
 
@@ -73,8 +75,7 @@ static int
 eb_lookup_objects(struct eb_objects *eb,
 		  struct drm_i915_gem_exec_object2 *exec,
 		  int count,
-		  struct drm_file *file,
-		  struct list_head *objects)
+		  struct drm_file *file)
 {
 	int i;
 
@@ -98,7 +99,7 @@ eb_lookup_objects(struct eb_objects *eb,
 		}
 
 		drm_gem_object_reference(&obj->base);
-		list_add_tail(&obj->exec_list, objects);
+		list_add_tail(&obj->exec_list, &eb->objects);
 
 		obj->exec_handle = exec[i].handle;
 		obj->exec_entry = &exec[i];
@@ -129,6 +130,15 @@ eb_get_object(struct eb_objects *eb, unsigned long handle)
 static void
 eb_destroy(struct eb_objects *eb)
 {
+	while (!list_empty(&eb->objects)) {
+		struct drm_i915_gem_object *obj;
+
+		obj = list_first_entry(&eb->objects,
+				       struct drm_i915_gem_object,
+				       exec_list);
+		list_del_init(&obj->exec_list);
+		drm_gem_object_unreference(&obj->base);
+	}
 	kfree(eb);
 }
 
@@ -328,8 +338,7 @@ i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
 
 static int
 i915_gem_execbuffer_relocate(struct drm_device *dev,
-			     struct eb_objects *eb,
-			     struct list_head *objects)
+			     struct eb_objects *eb)
 {
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
@@ -342,7 +351,7 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	 * lockdep complains vehemently.
 	 */
 	pagefault_disable();
-	list_for_each_entry(obj, objects, exec_list) {
+	list_for_each_entry(obj, &eb->objects, exec_list) {
 		ret = i915_gem_execbuffer_relocate_object(obj, eb);
 		if (ret)
 			break;
@@ -531,7 +540,6 @@ static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_file *file,
 				  struct intel_ring_buffer *ring,
-				  struct list_head *objects,
 				  struct eb_objects *eb,
 				  struct drm_i915_gem_exec_object2 *exec,
 				  int count)
@@ -542,8 +550,8 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	int i, total, ret;
 
 	/* We may process another execbuffer during the unlock... */
-	while (!list_empty(objects)) {
-		obj = list_first_entry(objects,
+	while (!list_empty(&eb->objects)) {
+		obj = list_first_entry(&eb->objects,
 				       struct drm_i915_gem_object,
 				       exec_list);
 		list_del_init(&obj->exec_list);
@@ -590,15 +598,15 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 	/* reacquire the objects */
 	eb_reset(eb);
-	ret = eb_lookup_objects(eb, exec, count, file, objects);
+	ret = eb_lookup_objects(eb, exec, count, file);
 	if (ret)
 		goto err;
 
-	ret = i915_gem_execbuffer_reserve(ring, file, objects);
+	ret = i915_gem_execbuffer_reserve(ring, file, &eb->objects);
 	if (ret)
 		goto err;
 
-	list_for_each_entry(obj, objects, exec_list) {
+	list_for_each_entry(obj, &eb->objects, exec_list) {
 		int offset = obj->exec_entry - exec;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
 							       reloc + reloc_offset[offset]);
@@ -756,7 +764,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_i915_gem_exec_object2 *exec)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct list_head objects;
 	struct eb_objects *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
@@ -899,28 +906,26 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Look up object handles */
-	INIT_LIST_HEAD(&objects);
-	ret = eb_lookup_objects(eb, exec, args->buffer_count, file, &objects);
+	ret = eb_lookup_objects(eb, exec, args->buffer_count, file);
 	if (ret)
 		goto err;
 
 	/* take note of the batch buffer before we might reorder the lists */
-	batch_obj = list_entry(objects.prev,
+	batch_obj = list_entry(eb->objects.prev,
 			       struct drm_i915_gem_object,
 			       exec_list);
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
-	ret = i915_gem_execbuffer_reserve(ring, file, &objects);
+	ret = i915_gem_execbuffer_reserve(ring, file, &eb->objects);
 	if (ret)
 		goto err;
 
 	/* The objects are in their final locations, apply the relocations. */
-	ret = i915_gem_execbuffer_relocate(dev, eb, &objects);
+	ret = i915_gem_execbuffer_relocate(dev, eb);
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
-								&objects, eb,
-								exec,
+								eb, exec,
 								args->buffer_count);
 			BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 		}
@@ -943,7 +948,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
 
-	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects);
+	ret = i915_gem_execbuffer_move_to_gpu(ring, &eb->objects);
 	if (ret)
 		goto err;
 
@@ -997,20 +1002,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
 
-	i915_gem_execbuffer_move_to_active(&objects, ring);
+	i915_gem_execbuffer_move_to_active(&eb->objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
 
 err:
 	eb_destroy(eb);
-	while (!list_empty(&objects)) {
-		struct drm_i915_gem_object *obj;
-
-		obj = list_first_entry(&objects,
-				       struct drm_i915_gem_object,
-				       exec_list);
-		list_del_init(&obj->exec_list);
-		drm_gem_object_unreference(&obj->base);
-	}
 
 	mutex_unlock(&dev->struct_mutex);
 
