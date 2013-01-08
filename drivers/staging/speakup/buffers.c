@@ -5,12 +5,12 @@
 #include "speakup.h"
 #include "spk_priv.h"
 
-#define synthBufferSize 8192	/* currently 8K bytes */
+#define SYNTH_BUF_SIZE 8192	/* currently 8K bytes */
 
-static u_char synth_buffer[synthBufferSize];	/* guess what this is for! */
+static u_char synth_buffer[SYNTH_BUF_SIZE];	/* guess what this is for! */
 static u_char *buff_in = synth_buffer;
 static u_char *buff_out = synth_buffer;
-static u_char *buffer_end = synth_buffer+synthBufferSize-1;
+static u_char *buffer_end = synth_buffer + SYNTH_BUF_SIZE - 1;
 
 /* These try to throttle applications by stopping the TTYs
  * Note: we need to make sure that we will restart them eventually, which is
@@ -44,13 +44,13 @@ static void speakup_stop_ttys(void)
 
 static int synth_buffer_free(void)
 {
-	int bytesFree;
+	int bytes_free;
 
 	if (buff_in >= buff_out)
-		bytesFree = synthBufferSize - (buff_in - buff_out);
+		bytes_free = SYNTH_BUF_SIZE - (buff_in - buff_out);
 	else
-		bytesFree = buff_out - buff_in;
-	return bytesFree;
+		bytes_free = buff_out - buff_in;
+	return bytes_free;
 }
 
 int synth_buffer_empty(void)
