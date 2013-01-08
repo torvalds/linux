@@ -127,7 +127,7 @@ struct mxs_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct completion cmd_complete;
-	u32 cmd_err;
+	int cmd_err;
 	struct i2c_adapter adapter;
 	const struct mxs_i2c_speed_config *speed;
 
