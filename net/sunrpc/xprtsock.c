@@ -770,7 +770,7 @@ static void xs_tcp_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 		goto out_release;
 	if (req->rq_bytes_sent == req->rq_snd_buf.len)
 		goto out_release;
-	set_bit(XPRT_CLOSE_WAIT, &task->tk_xprt->state);
+	set_bit(XPRT_CLOSE_WAIT, &xprt->state);
 out_release:
 	xprt_release_xprt(xprt, task);
 }

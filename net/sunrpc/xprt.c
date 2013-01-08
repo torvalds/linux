@@ -430,7 +430,9 @@ __xprt_put_cong(struct rpc_xprt *xprt, struct rpc_rqst *req)
  */
 void xprt_release_rqst_cong(struct rpc_task *task)
 {
-	__xprt_put_cong(task->tk_xprt, task->tk_rqstp);
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	__xprt_put_cong(req->rq_xprt, req);
 }
 EXPORT_SYMBOL_GPL(xprt_release_rqst_cong);
 

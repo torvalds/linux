@@ -1400,7 +1400,7 @@ call_allocate(struct rpc_task *task)
 {
 	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = req->rq_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 
 	dprint_status(task);
@@ -1685,7 +1685,7 @@ call_transmit(struct rpc_task *task)
 	if (rpc_reply_expected(task))
 		return;
 	task->tk_action = rpc_exit_task;
-	rpc_wake_up_queued_task(&task->tk_xprt->pending, task);
+	rpc_wake_up_queued_task(&task->tk_rqstp->rq_xprt->pending, task);
 }
 
 /*
@@ -1784,7 +1784,7 @@ call_bc_transmit(struct rpc_task *task)
 		 */
 		printk(KERN_NOTICE "RPC: Could not send backchannel reply "
 			"error: %d\n", task->tk_status);
-		xprt_conditional_disconnect(task->tk_xprt,
+		xprt_conditional_disconnect(req->rq_xprt,
 			req->rq_connect_cookie);
 		break;
 	default:
@@ -1836,7 +1836,7 @@ call_status(struct rpc_task *task)
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
 		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(task->tk_xprt,
+			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 		break;
 	case -ECONNRESET:
@@ -1991,7 +1991,7 @@ out_retry:
 	if (task->tk_rqstp == req) {
 		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(task->tk_xprt,
+			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 	}
 }
@@ -2005,7 +2005,7 @@ rpc_encode_header(struct rpc_task *task)
 
 	/* FIXME: check buffer size? */
 
-	p = xprt_skip_transport_header(task->tk_xprt, p);
+	p = xprt_skip_transport_header(req->rq_xprt, p);
 	*p++ = req->rq_xid;		/* XID */
 	*p++ = htonl(RPC_CALL);		/* CALL */
 	*p++ = htonl(RPC_VERSION);	/* RPC version */

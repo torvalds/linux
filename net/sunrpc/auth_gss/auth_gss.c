@@ -1154,7 +1154,7 @@ gss_marshal(struct rpc_task *task, __be32 *p)
 
 	/* We compute the checksum for the verifier over the xdr-encoded bytes
 	 * starting with the xid and ending at the end of the credential: */
-	iov.iov_base = xprt_skip_transport_header(task->tk_xprt,
+	iov.iov_base = xprt_skip_transport_header(req->rq_xprt,
 					req->rq_snd_buf.head[0].iov_base);
 	iov.iov_len = (u8 *)p - (u8 *)iov.iov_base;
 	xdr_buf_from_iov(&iov, &verf_buf);
