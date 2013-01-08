@@ -1522,7 +1522,6 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 		sp->gfns = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache);
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
-	bitmap_zero(sp->slot_bitmap, KVM_MEM_SLOTS_NUM);
 	sp->parent_ptes = 0;
 	mmu_page_add_parent_pte(vcpu, sp, parent_pte);
 	kvm_mod_used_mmu_pages(vcpu->kvm, +1);
@@ -2183,14 +2182,6 @@ int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page);
 
-static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
-{
-	int slot = memslot_id(kvm, gfn);
-	struct kvm_mmu_page *sp = page_header(__pa(pte));
-
-	__set_bit(slot, sp->slot_bitmap);
-}
-
 /*
  * The function is based on mtrr_type_lookup() in
  * arch/x86/kernel/cpu/mtrr/generic.c
@@ -2472,7 +2463,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		++vcpu->kvm->stat.lpages;
 
 	if (is_shadow_present_pte(*sptep)) {
-		page_header_update_slot(vcpu->kvm, sptep, gfn);
 		if (!was_rmapped) {
 			rmap_count = rmap_add(vcpu, sptep, gfn);
 			if (rmap_count > RMAP_RECYCLE_THRESHOLD)
