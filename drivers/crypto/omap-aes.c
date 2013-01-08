@@ -19,10 +19,10 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/crypto.h>
 #include <linux/interrupt.h>
@@ -96,7 +96,6 @@ struct omap_aes_dev {
 	struct list_head	list;
 	unsigned long		phys_base;
 	void __iomem		*io_base;
-	struct clk		*iclk;
 	struct omap_aes_ctx	*ctx;
 	struct device		*dev;
 	unsigned long		flags;
@@ -167,7 +166,7 @@ static int omap_aes_hw_init(struct omap_aes_dev *dd)
 	 * It may be long delays between requests.
 	 * Device might go to off mode to save power.
 	 */
-	clk_enable(dd->iclk);
+	pm_runtime_get_sync(dd->dev);
 
 	if (!(dd->flags & FLAGS_INIT)) {
 		dd->flags |= FLAGS_INIT;
@@ -518,7 +517,7 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 
 	pr_debug("err: %d\n", err);
 
-	clk_disable(dd->iclk);
+	pm_runtime_put_sync(dd->dev);
 	dd->flags &= ~FLAGS_BUSY;
 
 	req->base.complete(&req->base, err);
@@ -813,26 +812,21 @@ static int omap_aes_probe(struct platform_device *pdev)
 	else
 		dd->dma_in = res->start;
 
-	/* Initializing the clock */
-	dd->iclk = clk_get(dev, "ick");
-	if (IS_ERR(dd->iclk)) {
-		dev_err(dev, "clock intialization failed.\n");
-		err = PTR_ERR(dd->iclk);
-		goto err_res;
-	}
-
 	dd->io_base = ioremap(dd->phys_base, SZ_4K);
 	if (!dd->io_base) {
 		dev_err(dev, "can't ioremap\n");
 		err = -ENOMEM;
-		goto err_io;
+		goto err_res;
 	}
 
-	clk_enable(dd->iclk);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	reg = omap_aes_read(dd, AES_REG_REV);
 	dev_info(dev, "OMAP AES hw accel rev: %u.%u\n",
 		 (reg & AES_REG_REV_MAJOR) >> 4, reg & AES_REG_REV_MINOR);
-	clk_disable(dd->iclk);
+
+	pm_runtime_put_sync(dev);
 
 	tasklet_init(&dd->done_task, omap_aes_done_task, (unsigned long)dd);
 	tasklet_init(&dd->queue_task, omap_aes_queue_task, (unsigned long)dd);
@@ -862,8 +856,7 @@ err_dma:
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
 	iounmap(dd->io_base);
-err_io:
-	clk_put(dd->iclk);
+	pm_runtime_disable(dev);
 err_res:
 	kfree(dd);
 	dd = NULL;
@@ -891,7 +884,7 @@ static int omap_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->queue_task);
 	omap_aes_dma_cleanup(dd);
 	iounmap(dd->io_base);
-	clk_put(dd->iclk);
+	pm_runtime_disable(dd->dev);
 	kfree(dd);
 	dd = NULL;
 
