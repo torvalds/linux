@@ -403,6 +403,10 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 void r700_cp_stop(struct radeon_device *rdev);
 void r700_cp_fini(struct radeon_device *rdev);
+int rv770_copy_dma(struct radeon_device *rdev,
+		  uint64_t src_offset, uint64_t dst_offset,
+		  unsigned num_gpu_pages,
+		   struct radeon_fence **fence);
 
 /*
  * evergreen
