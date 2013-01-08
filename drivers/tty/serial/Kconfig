@@ -269,6 +269,17 @@ config SERIAL_SIRFSOC_CONSOLE
           your boot loader about how to pass options to the kernel at
           boot time.)
 
+config SERIAL_TEGRA
+	tristate "NVIDIA Tegra20/30 SoC serial controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	select SERIAL_CORE
+	help
+	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
+	  providing /dev/ttyHS0, 1, 2, 3 and 4 (note, some machines may not
+	  provide all of these ports, depending on how the serial port
+	  are enabled). This driver uses the APB DMA to achieve higher baudrate
+	  and better performance.
+
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
 	depends on SPI
