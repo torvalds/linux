@@ -880,8 +880,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 			goto err_algs;
 	}
 
-	pr_info("probe() done\n");
-
 	return 0;
 err_algs:
 	for (j = 0; j < i; j++)
@@ -938,8 +936,6 @@ static struct platform_driver omap_aes_driver = {
 
 static int __init omap_aes_mod_init(void)
 {
-	pr_info("loading %s driver\n", "omap-aes");
-
 	return  platform_driver_register(&omap_aes_driver);
 }
 
