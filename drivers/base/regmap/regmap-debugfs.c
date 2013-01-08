@@ -116,6 +116,15 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 		}
 	}
 
+	/* Close the last entry off if we didn't scan beyond it */
+	if (c) {
+		c->max = p - 1;
+		list_add_tail(&c->list,
+			      &map->debugfs_off_cache);
+	} else {
+		return base;
+	}
+
 	/*
 	 * This should never happen; we return above if we fail to
 	 * allocate and we should never be in this code if there are
