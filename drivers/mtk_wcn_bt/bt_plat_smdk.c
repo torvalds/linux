@@ -62,7 +62,7 @@ static int mt_bt_request_irq(void)
     struct mt6622_platform_data *pdata = (struct mt6622_platform_data *)mt_bt_get_platform_data();
 		
     if(pdata->irq_gpio.enable == GPIO_LOW)
-    	trigger = IRQF_TRIGGER_RISING;
+    	trigger = IRQF_TRIGGER_LOW;
     
     iRet = request_irq(irq_num, mt_bt_eirq_handler, 
         trigger, "BT_INT_B", NULL);
@@ -125,6 +125,10 @@ int mt_bt_power_init(void)
 	    	gpio_direction_output(pdata->reset_gpio.io, 0);
 	    msleep(200);
 	    
+	    /* PWR_EN pull up */
+	    //if(pdata->power_gpio.io != INVALID_GPIO)
+	    //	gpio_direction_output(pdata->power_gpio.io, 0);
+	    //msleep(200);
 	    /* RESET pull up */
 	    if(pdata->reset_gpio.io != INVALID_GPIO)
 	    	gpio_direction_output(pdata->reset_gpio.io, 1);
