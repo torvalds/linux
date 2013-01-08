@@ -2342,8 +2342,7 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 }
 
 static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-		    unsigned pte_access, int user_fault,
-		    int write_fault, int level,
+		    unsigned pte_access, int level,
 		    gfn_t gfn, pfn_t pfn, bool speculative,
 		    bool can_unsync, bool host_writable)
 {
@@ -2378,9 +2377,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	spte |= (u64)pfn << PAGE_SHIFT;
 
-	if ((pte_access & ACC_WRITE_MASK)
-	    || (!vcpu->arch.mmu.direct_map && write_fault
-		&& !is_write_protection(vcpu) && !user_fault)) {
+	if (pte_access & ACC_WRITE_MASK) {
 
 		/*
 		 * There are two cases:
@@ -2398,19 +2395,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			goto done;
 
 		spte |= PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE;
-
-		if (!vcpu->arch.mmu.direct_map
-		    && !(pte_access & ACC_WRITE_MASK)) {
-			spte &= ~PT_USER_MASK;
-			/*
-			 * If we converted a user page to a kernel page,
-			 * so that the kernel can write to it when cr0.wp=0,
-			 * then we should prevent the kernel from executing it
-			 * if SMEP is enabled.
-			 */
-			if (kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
-				spte |= PT64_NX_MASK;
-		}
 
 		/*
 		 * Optimization: for pte sync, if spte was writable the hash
@@ -2442,18 +2426,15 @@ done:
 
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			 unsigned pt_access, unsigned pte_access,
-			 int user_fault, int write_fault,
-			 int *emulate, int level, gfn_t gfn,
-			 pfn_t pfn, bool speculative,
-			 bool host_writable)
+			 int write_fault, int *emulate, int level, gfn_t gfn,
+			 pfn_t pfn, bool speculative, bool host_writable)
 {
 	int was_rmapped = 0;
 	int rmap_count;
 
-	pgprintk("%s: spte %llx access %x write_fault %d"
-		 " user_fault %d gfn %llx\n",
+	pgprintk("%s: spte %llx access %x write_fault %d gfn %llx\n",
 		 __func__, *sptep, pt_access,
-		 write_fault, user_fault, gfn);
+		 write_fault, gfn);
 
 	if (is_rmap_spte(*sptep)) {
 		/*
@@ -2477,9 +2458,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			was_rmapped = 1;
 	}
 
-	if (set_spte(vcpu, sptep, pte_access, user_fault, write_fault,
-		      level, gfn, pfn, speculative, true,
-		      host_writable)) {
+	if (set_spte(vcpu, sptep, pte_access, level, gfn, pfn, speculative,
+	      true, host_writable)) {
 		if (write_fault)
 			*emulate = 1;
 		kvm_mmu_flush_tlb(vcpu);
@@ -2571,10 +2551,9 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 		return -1;
 
 	for (i = 0; i < ret; i++, gfn++, start++)
-		mmu_set_spte(vcpu, start, ACC_ALL,
-			     access, 0, 0, NULL,
-			     sp->role.level, gfn,
-			     page_to_pfn(pages[i]), true, true);
+		mmu_set_spte(vcpu, start, ACC_ALL, access, 0, NULL,
+			     sp->role.level, gfn, page_to_pfn(pages[i]),
+			     true, true);
 
 	return 0;
 }
@@ -2636,8 +2615,8 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			unsigned pte_access = ACC_ALL;
 
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
-				     0, write, &emulate,
-				     level, gfn, pfn, prefault, map_writable);
+				     write, &emulate, level, gfn, pfn,
+				     prefault, map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;
