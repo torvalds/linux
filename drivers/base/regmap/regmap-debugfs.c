@@ -103,7 +103,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 
 	/* Find the relevant block */
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
-		if (*pos >= c->min && *pos <= c->max) {
+		if (from >= c->min && from <= c->max) {
 			*pos = c->min;
 			return c->base_reg;
 		}
