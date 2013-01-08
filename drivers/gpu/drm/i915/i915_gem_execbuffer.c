@@ -1113,7 +1113,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	}
 
 	exec2_list = kmalloc(sizeof(*exec2_list)*args->buffer_count,
-			     GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+			     GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 	if (exec2_list == NULL)
 		exec2_list = drm_malloc_ab(sizeof(*exec2_list),
 					   args->buffer_count);
