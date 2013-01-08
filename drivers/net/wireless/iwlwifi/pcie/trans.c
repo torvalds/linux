@@ -719,9 +719,6 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 	hw_rfkill = iwl_is_rfkill_set(trans);
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
-	if (!hw_rfkill)
-		iwl_enable_interrupts(trans);
-
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
