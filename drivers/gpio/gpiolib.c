@@ -1529,8 +1529,6 @@ int gpio_pull_updown(unsigned gpio, unsigned value)
 		}
 	}
 	status = chip->pull_updown(chip, gpio,value);
-	if (status == 0)
-		clear_bit(FLAG_IS_OUT, &desc->flags);
 	
 lose:
 	return status;
