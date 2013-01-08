@@ -1038,9 +1038,10 @@ kalDevRegWrite (
 
 retry:
     sdio_writel(prGlueInfo->rHifInfo.func, u4Value, u4Register, &ret);
-	if (ret && a < 5) {
+	if (ret && a < 10) {
 		a++;
-		printk("gwl =-==============> sdio_writel retry!\n");
+		printk("gwl =-==============> sdio_writel retry %d!\n", a);
+		msleep(1);
 		goto retry;
 	}
 
