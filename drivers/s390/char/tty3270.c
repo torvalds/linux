@@ -926,6 +926,20 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 }
 
 /*
+ * This routine is called whenever a 3270 tty is opened.
+ */
+static int
+tty3270_open(struct tty_struct *tty, struct file *filp)
+{
+	struct tty3270 *tp = tty->driver_data;
+	struct tty_port *port = &tp->port;
+
+	port->count++;
+	tty_port_tty_set(port, tty);
+	return 0;
+}
+
+/*
  * This routine is called when the 3270 tty is closed. We wait
  * for the remaining request to be completed. Then we clean up.
  */
@@ -1753,6 +1767,7 @@ static long tty3270_compat_ioctl(struct tty_struct *tty,
 static const struct tty_operations tty3270_ops = {
 	.install = tty3270_install,
 	.cleanup = tty3270_cleanup,
+	.open = tty3270_open,
 	.close = tty3270_close,
 	.write = tty3270_write,
 	.put_char = tty3270_put_char,
