@@ -26,9 +26,10 @@ struct rk30_i2c_platform_data {
 	int adap_type;
 	int is_div_from_arm;
 	u32 flags;
+	int scl_mode;
+	int sda_mode;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
-        int (*check_idle)(int);
 };
 
 struct spi_cs_gpio {

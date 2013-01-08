@@ -421,173 +421,6 @@ static void __init rk30_init_uart(void)
 #define I2C4_END        RK30_I2C4_PHYS + SZ_16K - 1
 #endif
 
-struct i2c_iomux{
-        int scl_pin;
-        char *scl_name;
-        unsigned int scl_i2c_mode;
-        unsigned int scl_gpio_mode;
-
-        int sda_pin;
-        char *sda_name;
-        unsigned int sda_i2c_mode;
-        unsigned int sda_gpio_mode;
-
-        char *req_name;
-};
-#ifdef CONFIG_ARCH_RK3066B
-static struct i2c_iomux iomux[] = {
-        {
-                .scl_pin = RK30_PIN1_PD1,
-                .scl_name = GPIO1D1_I2C0SCL_NAME,
-                .scl_i2c_mode = GPIO1D_I2C0SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN1_PD0,
-                .sda_name = GPIO1D0_I2C0SDA_NAME,
-                .sda_i2c_mode = GPIO1D_I2C0SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.0",
-        },
-        {
-                .scl_pin = RK30_PIN1_PD3,
-                .scl_name = GPIO1D3_I2C1SCL_NAME,
-                .scl_i2c_mode = GPIO1D_I2C1SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN1_PD2,
-                .sda_name = GPIO1D2_I2C1SDA_NAME,
-                .sda_i2c_mode = GPIO1D_I2C1SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.1",
-        },
-        {
-                .scl_pin = RK30_PIN1_PD5,
-                .scl_name = GPIO1D5_I2C2SCL_NAME,
-                .scl_i2c_mode = GPIO1D_I2C2SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN1_PD4,
-                .sda_name = GPIO1D4_I2C2SDA_NAME,
-                .sda_i2c_mode = GPIO1D_I2C2SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.2",
-        },
-        {
-                .scl_pin = RK30_PIN3_PB7,
-                .scl_name = GPIO3B7_CIFDATA11_I2C3SCL_NAME,
-                .scl_i2c_mode = GPIO3B_I2C3SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN3_PB6,
-                .sda_name = GPIO3B6_CIFDATA10_I2C3SDA_NAME,
-                .sda_i2c_mode = GPIO3B_I2C3SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.3",
-        },
-        {
-                .scl_pin = RK30_PIN1_PD7,
-                .scl_name = GPIO1D7_I2C4SCL_NAME,
-                .scl_i2c_mode = GPIO1D_I2C4SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN1_PD6,
-                .sda_name = GPIO1D6_I2C4SDA_NAME,
-                .sda_i2c_mode = GPIO1D_I2C4SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.4",
-        },
-};
-#else
-static struct i2c_iomux iomux[] = {
-        {
-                .scl_pin = RK30_PIN2_PD5,
-                .scl_name = GPIO2D5_I2C0SCL_NAME,
-                .scl_i2c_mode = GPIO2D_I2C0_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN2_PD4,
-                .sda_name = GPIO2D4_I2C0SDA_NAME,
-                .sda_i2c_mode = GPIO2D_I2C0_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.0",
-        },
-        {
-                .scl_pin = RK30_PIN2_PD7,
-                .scl_name = GPIO2D7_I2C1SCL_NAME,
-                .scl_i2c_mode = GPIO2D_I2C1_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN2_PD6,
-                .sda_name = GPIO2D6_I2C1SDA_NAME,
-                .sda_i2c_mode = GPIO2D_I2C1_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.1",
-        },
-        {
-                .scl_pin = RK30_PIN3_PA1,
-                .scl_name = GPIO3A1_I2C2SCL_NAME,
-                .scl_i2c_mode = GPIO3A_I2C2_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN3_PA0,
-                .sda_name = GPIO3A0_I2C2SDA_NAME,
-                .sda_i2c_mode = GPIO3A_I2C2_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.2",
-        },
-        {
-                .scl_pin = RK30_PIN3_PA3,
-                .scl_name = GPIO3A3_I2C3SCL_NAME,
-                .scl_i2c_mode = GPIO3A_I2C3_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN3_PA2,
-                .sda_name = GPIO3A2_I2C3SDA_NAME,
-                .sda_i2c_mode = GPIO3A_I2C3_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.3",
-        },
-        {
-                .scl_pin = RK30_PIN3_PA5,
-                .scl_name = GPIO3A5_I2C4SCL_NAME,
-                .scl_i2c_mode = GPIO3A_I2C4_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK30_PIN3_PA4,
-                .sda_name = GPIO3A4_I2C4SDA_NAME,
-                .sda_i2c_mode = GPIO3A_I2C4_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.4",
-        },
-};
-#endif
-static int i2c_check_idle(int id)
-{
-        int sda_level, scl_level;
-
-        if(id < 0 || id > 4){
-                printk("Error: id: %d\n", id);
-                return -1;
-        }
-
-        rk30_mux_api_set(iomux[id].scl_name, iomux[id].scl_gpio_mode);	
-        rk30_mux_api_set(iomux[id].sda_name, iomux[id].sda_gpio_mode);	
-
-        gpio_request(iomux[id].scl_pin, iomux[id].req_name);
-        gpio_request(iomux[id].sda_pin, iomux[id].req_name);
-        
-        gpio_direction_input(iomux[id].scl_pin);
-        gpio_direction_input(iomux[id].sda_pin);
-
-        scl_level = gpio_get_value(iomux[id].scl_pin);
-        sda_level = gpio_get_value(iomux[id].sda_pin);
-
-        gpio_free(iomux[id].scl_pin);
-        gpio_free(iomux[id].sda_pin);
-
-        rk30_mux_api_set(iomux[id].scl_name, iomux[id].scl_i2c_mode);	
-        rk30_mux_api_set(iomux[id].sda_name, iomux[id].sda_i2c_mode);	
-        
-        if(sda_level == 1 && scl_level == 1)
-                return I2C_IDLE;
-        else if(sda_level == 0 && scl_level == 1)
-                return I2C_SDA_LOW;
-        else if(sda_level == 1 && scl_level == 0)
-                return I2C_SCL_LOW;
-        else
-                return BOTH_LOW;
-}
-
 #ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
@@ -597,7 +430,8 @@ static struct rk30_i2c_platform_data default_i2c0_data = {
 	.is_div_from_arm = 1,
 #endif
 	.adap_type = I2C0_ADAP_TYPE,
-        .check_idle = &i2c_check_idle,
+	.sda_mode = I2C0_SDA,
+	.scl_mode = I2C0_SCL,
 };
 
 static struct resource resources_i2c0[] = {
@@ -633,7 +467,8 @@ static struct rk30_i2c_platform_data default_i2c1_data = {
 	.is_div_from_arm = 1,
 #endif
 	.adap_type = I2C1_ADAP_TYPE,
-        .check_idle = &i2c_check_idle,
+	.sda_mode = I2C1_SDA,
+	.scl_mode = I2C1_SCL,
 };
 
 static struct resource resources_i2c1[] = {
@@ -665,7 +500,8 @@ static struct rk30_i2c_platform_data default_i2c2_data = {
 	.bus_num = 2,
 	.is_div_from_arm = 0,
 	.adap_type = I2C2_ADAP_TYPE,
-        .check_idle = &i2c_check_idle,
+	.sda_mode = I2C2_SDA,
+	.scl_mode = I2C2_SCL,
 };
 
 static struct resource resources_i2c2[] = {
@@ -697,7 +533,8 @@ static struct rk30_i2c_platform_data default_i2c3_data = {
 	.bus_num = 3,
 	.is_div_from_arm = 0,
 	.adap_type = I2C3_ADAP_TYPE,
-        .check_idle = &i2c_check_idle,
+	.sda_mode = I2C3_SDA,
+	.scl_mode = I2C3_SCL,
 };
 
 static struct resource resources_i2c3[] = {
@@ -729,7 +566,8 @@ static struct rk30_i2c_platform_data default_i2c4_data = {
 	.bus_num = 4,
 	.is_div_from_arm = 0,
 	.adap_type = I2C4_ADAP_TYPE,
-        .check_idle = &i2c_check_idle,
+	.sda_mode = I2C4_SDA,
+	.scl_mode = I2C4_SCL,
 };
 
 static struct resource resources_i2c4[] = {

@@ -274,107 +274,14 @@ static void __init rk2928_init_uart(void)
 #define I2C3_END        RK2928_RKI2C3_PHYS + RK2928_RKI2C3_SIZE - 1
 #endif
 
-struct i2c_iomux{
-        int scl_pin;
-        char *scl_name;
-        unsigned int scl_i2c_mode;
-        unsigned int scl_gpio_mode;
-
-        int sda_pin;
-        char *sda_name;
-        unsigned int sda_i2c_mode;
-        unsigned int sda_gpio_mode;
-
-        char *req_name;
-};
-static struct i2c_iomux iomux[] = {
-        {
-                .scl_pin = RK2928_PIN0_PA0,
-                .scl_name = GPIO0A0_I2C0_SCL_NAME,
-                .scl_i2c_mode = GPIO0A_I2C0_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK2928_PIN0_PA1,
-                .sda_name = GPIO0A1_I2C0_SDA_NAME,
-                .sda_i2c_mode = GPIO0A_I2C0_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.0",
-        },
-        {
-                .scl_pin = RK2928_PIN0_PA2,
-                .scl_name = GPIO0A2_I2C1_SCL_NAME,
-                .scl_i2c_mode = GPIO0A_I2C1_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK2928_PIN0_PA3,
-                .sda_name = GPIO0A3_I2C1_SDA_NAME,
-                .sda_i2c_mode = GPIO0A_I2C1_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.1",
-        },
-        {
-                .scl_pin = RK2928_PIN2_PC5,
-                .scl_name = GPIO2C5_LCDC0_D19_LCDC1_D19_I2C2_SCL_NAME,
-                .scl_i2c_mode = GPIO2C_I2C2_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK2928_PIN2_PC4,
-                .sda_name = GPIO2C4_LCDC0_D18_LCDC1_D18_I2C2_SDA_NAME,
-                .sda_i2c_mode = GPIO2C_I2C2_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.2",
-        },
-        {
-                .scl_pin = RK2928_PIN0_PA6,
-                .scl_name = GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME,
-                .scl_i2c_mode = GPIO0A_I2C3_SCL,
-                .scl_gpio_mode = 0,
-                .sda_pin = RK2928_PIN0_PA7,
-                .sda_name = GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME,
-                .sda_i2c_mode = GPIO0A_I2C3_SDA,
-                .sda_gpio_mode = 0,
-                .req_name = "i2c.3",
-        },
-};
-static int i2c_check_idle(int id)
-{
-        int sda_level, scl_level;
-        
-        if(id < 0 || id > 3){
-                printk("Error: id: %d\n", id);
-        }
-
-        rk30_mux_api_set(iomux[id].scl_name, iomux[id].scl_gpio_mode);	
-        rk30_mux_api_set(iomux[id].sda_name, iomux[id].sda_gpio_mode);	
-
-        gpio_request(iomux[id].scl_pin, iomux[id].req_name);
-        gpio_request(iomux[id].sda_pin, iomux[id].req_name);
-        
-        gpio_direction_input(iomux[id].scl_pin);
-        gpio_direction_input(iomux[id].sda_pin);
-
-        scl_level = gpio_get_value(iomux[id].scl_pin);
-        sda_level = gpio_get_value(iomux[id].sda_pin);
-
-        gpio_free(iomux[id].scl_pin);
-        gpio_free(iomux[id].sda_pin);
-
-        rk30_mux_api_set(iomux[id].scl_name, iomux[id].scl_i2c_mode);	
-        rk30_mux_api_set(iomux[id].sda_name, iomux[id].sda_i2c_mode);	
-        
-        if(sda_level == 1 && scl_level == 1)
-                return I2C_IDLE;
-        else if(sda_level == 0 && scl_level == 1)
-                return I2C_SDA_LOW;
-        else if(sda_level == 1 && scl_level == 0)
-                return I2C_SCL_LOW;
-        else
-                return BOTH_LOW;
-}
-
-#ifdef CONFIG_I2C2_RK30
+#ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
 	.is_div_from_arm = 1,
 	.adap_type = I2C0_ADAP_TYPE,
-	.check_idle = &i2c_check_idle,
+	.sda_mode = I2C0_SDA,
+	.scl_mode = I2C0_SCL,
+
 };
 
 static struct resource resources_i2c0[] = {
@@ -406,7 +313,8 @@ static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
 	.is_div_from_arm = 1,
 	.adap_type = I2C1_ADAP_TYPE,
-	.check_idle = &i2c_check_idle,
+	.sda_mode = I2C1_SDA,
+	.scl_mode = I2C1_SCL,
 };
 
 static struct resource resources_i2c1[] = {
@@ -438,7 +346,8 @@ static struct rk30_i2c_platform_data default_i2c2_data = {
 	.bus_num = 2,
 	.is_div_from_arm = 0,
 	.adap_type = I2C2_ADAP_TYPE,
-	.check_idle = &i2c_check_idle,
+	.sda_mode = I2C2_SDA,
+	.scl_mode = I2C2_SCL,
 };
 
 static struct resource resources_i2c2[] = {
@@ -470,7 +379,8 @@ static struct rk30_i2c_platform_data default_i2c3_data = {
 	.bus_num = 3,
 	.is_div_from_arm = 0,
 	.adap_type = I2C3_ADAP_TYPE,
-	.check_idle = &i2c_check_idle,
+	.sda_mode = I2C3_SDA,
+	.scl_mode = I2C3_SCL,
 };
 
 static struct resource resources_i2c3[] = {

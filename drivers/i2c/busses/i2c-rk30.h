@@ -22,6 +22,7 @@
 #include <linux/miscdevice.h>
 #include <mach/board.h>
 #include <mach/iomux.h>
+#include <mach/gpio.h>
 #include <asm/irq.h>
 
 #if 0
@@ -97,6 +98,8 @@ struct rk30_i2c {
         unsigned int        addr;
         unsigned int        mode;
         unsigned int        count;
+
+	int sda_mode, scl_mode;
 
         struct wake_lock    idlelock[5];
         int is_div_from_arm[5];

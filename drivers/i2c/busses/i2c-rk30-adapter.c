@@ -107,6 +107,45 @@ static void rk30_show_regs(struct rk30_i2c *i2c)
         for( i = 0; i < 8; i ++) 
                 dev_info(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
 }
+
+static int rk30_i2c_check_idle(struct rk30_i2c *i2c)
+{
+	int ret = 0;
+	int sda_io, scl_io;
+	int sda_lev, scl_lev;
+
+	sda_io = iomux_mode_to_gpio(i2c->sda_mode);
+	scl_io = iomux_mode_to_gpio(i2c->scl_mode);
+
+	ret = gpio_request(sda_io, NULL);
+	if(unlikely(ret < 0)){
+		dev_err(i2c->dev, "Failed to request gpio: SDA_GPIO\n");
+		return ret;
+	}
+	ret = gpio_request(scl_io, NULL);
+	if(unlikely(ret < 0)){
+		dev_err(i2c->dev, "Failed to request gpio: SCL_GPIO\n");
+		gpio_free(sda_io);
+		return ret;
+	}
+	gpio_direction_input(sda_io);
+	gpio_direction_input(scl_io);
+
+	sda_lev = gpio_get_value(sda_io);
+	scl_lev = gpio_get_value(scl_io);
+
+	iomux_set(i2c->sda_mode);
+	iomux_set(i2c->scl_mode);
+
+	if(sda_lev == 1 && scl_lev == 1)
+		return I2C_IDLE;
+	else if(sda_lev == 0 && scl_lev == 1)
+		return I2C_SDA_LOW;
+	else if(sda_lev == 1 && scl_lev == 0)
+		return I2C_SCL_LOW;
+	else
+		return BOTH_LOW;
+}
 static inline void rk30_i2c_enable(struct rk30_i2c *i2c, unsigned int lastnak)
 {
         unsigned int con = 0;
@@ -543,7 +582,7 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
 
         clk_enable(i2c->clk);
 #ifdef I2C_CHECK_IDLE
-        while(retry-- && ((state = i2c->check_idle(i2c->adap.nr)) != I2C_IDLE)){
+        while(retry-- && ((state = rk30_i2c_check_idle(i2c)) != I2C_IDLE)){
                 msleep(10);
         }
         if(retry == 0){
