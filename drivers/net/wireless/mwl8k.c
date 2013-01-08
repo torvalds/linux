@@ -1588,6 +1588,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 		rc = -ETIMEDOUT;
 	}
+	priv->tx_wait = NULL;
 	spin_unlock_bh(&priv->tx_lock);
 
 	return rc;
