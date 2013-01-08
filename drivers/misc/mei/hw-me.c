@@ -90,13 +90,10 @@ u32 mei_hcsr_read(const struct mei_device *dev)
  *
  * @dev: the device structure
  */
-void mei_hcsr_set(struct mei_device *dev)
+static inline void mei_hcsr_set(struct mei_device *dev, u32 hcsr)
 {
-
-	if ((dev->host_hw_state & H_IS) == H_IS)
-		dev->host_hw_state &= ~H_IS;
-	mei_reg_write(dev, H_CSR, dev->host_hw_state);
-	dev->host_hw_state = mei_hcsr_read(dev);
+	hcsr &= ~H_IS;
+	mei_reg_write(dev, H_CSR, hcsr);
 }
 
 /**
@@ -120,8 +117,7 @@ void mei_enable_interrupts(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 	hcsr |= H_IE;
-	hcsr &= ~H_IS;
-	mei_reg_write(dev, H_CSR, hcsr);
+	mei_hcsr_set(dev, hcsr);
 }
 
 /**
@@ -133,8 +129,7 @@ void mei_disable_interrupts(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 	hcsr  &= ~H_IE;
-	hcsr &= ~H_IS;
-	mei_reg_write(dev, H_CSR, hcsr);
+	mei_hcsr_set(dev, hcsr);
 }
 
 /**
@@ -156,16 +151,12 @@ void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 	else
 		hcsr &= ~H_IE;
 
-	hcsr &= ~H_IS;
+	mei_hcsr_set(dev, hcsr);
 
-	mei_reg_write(dev, H_CSR, hcsr);
-	hcsr = mei_hcsr_read(dev);
-
+	hcsr = mei_hcsr_read(dev) | H_IG;
 	hcsr &= ~H_RST;
-	hcsr |= H_IG;
-	hcsr &= ~H_IS;
 
-	mei_reg_write(dev, H_CSR, hcsr);
+	mei_hcsr_set(dev, hcsr);
 
 	hcsr = mei_hcsr_read(dev);
 
@@ -182,7 +173,7 @@ void mei_hw_reset(struct mei_device *dev, bool intr_enable)
 void mei_host_set_ready(struct mei_device *dev)
 {
 	dev->host_hw_state |= H_IE | H_IG | H_RDY;
-	mei_hcsr_set(dev);
+	mei_hcsr_set(dev, dev->host_hw_state);
 }
 /**
  * mei_host_is_ready - check whether the host has turned ready
@@ -295,6 +286,7 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 	unsigned long rem, dw_cnt;
 	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
+	u32 hcsr;
 	int i;
 	int empty_slots;
 
@@ -319,9 +311,8 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 		mei_reg_write(dev, H_CB_WW, reg);
 	}
 
-	dev->host_hw_state = mei_hcsr_read(dev);
-	dev->host_hw_state |= H_IG;
-	mei_hcsr_set(dev);
+	hcsr = mei_hcsr_read(dev) | H_IG;
+	mei_hcsr_set(dev, hcsr);
 	dev->me_hw_state = mei_mecsr_read(dev);
 	if (!mei_me_is_ready(dev))
 		return -EIO;
@@ -366,6 +357,7 @@ void mei_read_slots(struct mei_device *dev, unsigned char *buffer,
 		    unsigned long buffer_length)
 {
 	u32 *reg_buf = (u32 *)buffer;
+	u32 hcsr;
 
 	for (; buffer_length >= sizeof(u32); buffer_length -= sizeof(u32))
 		*reg_buf++ = mei_mecbrw_read(dev);
@@ -375,7 +367,7 @@ void mei_read_slots(struct mei_device *dev, unsigned char *buffer,
 		memcpy(reg_buf, &reg, buffer_length);
 	}
 
-	dev->host_hw_state |= H_IG;
-	mei_hcsr_set(dev);
+	hcsr = mei_hcsr_read(dev) | H_IG;
+	mei_hcsr_set(dev, hcsr);
 }
 
