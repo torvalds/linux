@@ -38,12 +38,19 @@
 			next-level-cache = <&L2>;
 			operating-points = <
 				/* kHz    uV */
-				792000  1100000
+				1200000 1275000
+				996000  1250000
+				792000  1150000
 				396000  950000
-				198000  850000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
-			cpu0-supply = <&reg_cpu>;
+			clocks = <&clks 104>, <&clks 6>, <&clks 16>,
+				 <&clks 17>, <&clks 170>;
+			clock-names = "arm", "pll2_pfd2_396m", "step",
+				      "pll1_sw", "pll1_sys";
+			arm-supply = <&reg_arm>;
+			pu-supply = <&reg_pu>;
+			soc-supply = <&reg_soc>;
 		};
 
 		cpu@1 {
@@ -471,7 +478,7 @@
 					anatop-max-voltage = <2750000>;
 				};
 
-				reg_cpu: regulator-vddcore@140 {
+				reg_arm: regulator-vddcore@140 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "cpu";
 					regulator-min-microvolt = <725000>;
@@ -485,7 +492,7 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				regulator-vddpu@140 {
+				reg_pu: regulator-vddpu@140 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddpu";
 					regulator-min-microvolt = <725000>;
@@ -499,7 +506,7 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				regulator-vddsoc@140 {
+				reg_soc: regulator-vddsoc@140 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddsoc";
 					regulator-min-microvolt = <725000>;
@@ -965,6 +972,7 @@
 			};
 
 			ocotp@021bc000 {
+				compatible = "fsl,imx6q-ocotp";
 				reg = <0x021bc000 0x4000>;
 			};
 
