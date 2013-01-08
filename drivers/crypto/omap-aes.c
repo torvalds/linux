@@ -160,19 +160,6 @@ static void omap_aes_write_n(struct omap_aes_dev *dd, u32 offset,
 		omap_aes_write(dd, offset, *value);
 }
 
-static int omap_aes_wait(struct omap_aes_dev *dd, u32 offset, u32 bit)
-{
-	unsigned long timeout = jiffies + DEFAULT_TIMEOUT;
-
-	while (!(omap_aes_read(dd, offset) & bit)) {
-		if (time_is_before_jiffies(timeout)) {
-			dev_err(dd->dev, "omap-aes timeout\n");
-			return -ETIMEDOUT;
-		}
-	}
-	return 0;
-}
-
 static int omap_aes_hw_init(struct omap_aes_dev *dd)
 {
 	/*
@@ -183,20 +170,6 @@ static int omap_aes_hw_init(struct omap_aes_dev *dd)
 	clk_enable(dd->iclk);
 
 	if (!(dd->flags & FLAGS_INIT)) {
-		/* is it necessary to reset before every operation? */
-		omap_aes_write_mask(dd, AES_REG_MASK, AES_REG_MASK_SOFTRESET,
-					AES_REG_MASK_SOFTRESET);
-		/*
-		 * prevent OCP bus error (SRESP) in case an access to the module
-		 * is performed while the module is coming out of soft reset
-		 */
-		__asm__ __volatile__("nop");
-		__asm__ __volatile__("nop");
-
-		if (omap_aes_wait(dd, AES_REG_SYSSTATUS,
-				AES_REG_SYSSTATUS_RESETDONE))
-			return -ETIMEDOUT;
-
 		dd->flags |= FLAGS_INIT;
 		dd->err = 0;
 	}
