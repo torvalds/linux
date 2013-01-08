@@ -258,54 +258,61 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 	return NULL;
 }
 
-
-/**
- * mei_me_cl_link - create link between host and me clinet and add
- *   me_cl to the list
+/** mei_cl_link: allocte host id in the host map
  *
- * @cl: link between me and host client assocated with opened file descriptor
- * @uuid: uuid of ME client
- * @client_id: id of the host client
- *
- * returns ME client index if ME client
+ * @cl - host client
+ * @id - fixed host id or -1 for genereting one
+ * returns 0 on success
  *	-EINVAL on incorrect values
  *	-ENONET if client not found
  */
-int mei_cl_link_me(struct mei_cl *cl, const uuid_le *uuid, u8 host_cl_id)
+int mei_cl_link(struct mei_cl *cl, int id)
 {
 	struct mei_device *dev;
-	int i;
 
-	if (WARN_ON(!cl || !cl->dev || !uuid))
+	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
 
 	dev = cl->dev;
 
-	/* check for valid client id */
-	i = mei_me_cl_by_uuid(dev, uuid);
-	if (i >= 0) {
-		cl->me_client_id = dev->me_clients[i].client_id;
-		cl->state = MEI_FILE_CONNECTING;
-		cl->host_client_id = host_cl_id;
+	/* If Id is not asigned get one*/
+	if (id == MEI_HOST_CLIENT_ID_ANY)
+		id = find_first_zero_bit(dev->host_clients_map,
+					MEI_CLIENTS_MAX);
 
-		list_add_tail(&cl->link, &dev->file_list);
-		return (u8)i;
+	if (id >= MEI_CLIENTS_MAX) {
+		dev_err(&dev->pdev->dev, "id exceded %d", MEI_CLIENTS_MAX) ;
+		return -ENOENT;
 	}
 
-	return -ENOENT;
+	dev->open_handle_count++;
+
+	cl->host_client_id = id;
+	list_add_tail(&cl->link, &dev->file_list);
+
+	set_bit(id, dev->host_clients_map);
+
+	cl->state = MEI_FILE_INITIALIZING;
+
+	dev_dbg(&dev->pdev->dev, "link cl host id = %d\n", cl->host_client_id);
+	return 0;
 }
+
 /**
  * mei_cl_unlink - remove me_cl from the list
  *
  * @dev: the device structure
- * @host_client_id: host client id to be removed
  */
 int mei_cl_unlink(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	struct mei_cl *pos, *next;
 
-	if (WARN_ON(!cl || !cl->dev))
+	/* don't shout on error exit path */
+	if (!cl)
+		return 0;
+
+	if (WARN_ON(!cl->dev))
 		return -EINVAL;
 
 	dev = cl->dev;

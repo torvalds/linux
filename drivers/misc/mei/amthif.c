@@ -65,21 +65,21 @@ void mei_amthif_reset_params(struct mei_device *dev)
  * @dev: the device structure
  *
  */
-void mei_amthif_host_init(struct mei_device *dev)
+int mei_amthif_host_init(struct mei_device *dev)
 {
-	int i;
+	struct mei_cl *cl = &dev->iamthif_cl;
 	unsigned char *msg_buf;
+	int ret, i;
 
-	mei_cl_init(&dev->iamthif_cl, dev);
-	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
+	mei_cl_init(cl, dev);
 
-	/* find ME amthif client */
-	i = mei_cl_link_me(&dev->iamthif_cl,
-			    &mei_amthif_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
+	i = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (i < 0) {
-		dev_info(&dev->pdev->dev, "failed to find iamthif client.\n");
-		return;
+		dev_info(&dev->pdev->dev, "amthif: failed to find the client\n");
+		return -ENOENT;
 	}
+
+	cl->me_client_id = dev->me_clients[i].client_id;
 
 	/* Assign iamthif_mtu to the value received from ME  */
 
@@ -94,19 +94,29 @@ void mei_amthif_host_init(struct mei_device *dev)
 	msg_buf = kcalloc(dev->iamthif_mtu,
 			sizeof(unsigned char), GFP_KERNEL);
 	if (!msg_buf) {
-		dev_dbg(&dev->pdev->dev, "memory allocation for ME message buffer failed.\n");
-		return;
+		dev_err(&dev->pdev->dev, "amthif: memory allocation for ME message buffer failed.\n");
+		return -ENOMEM;
 	}
 
 	dev->iamthif_msg_buf = msg_buf;
 
-	if (mei_hbm_cl_connect_req(dev, &dev->iamthif_cl)) {
-		dev_dbg(&dev->pdev->dev, "Failed to connect to AMTHI client\n");
-		dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
-		dev->iamthif_cl.host_client_id = 0;
-	} else {
-		dev->iamthif_cl.timer_count = MEI_CONNECT_TIMEOUT;
+	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
+
+	if (ret < 0) {
+		dev_err(&dev->pdev->dev, "amthif: failed link client\n");
+		return -ENOENT;
 	}
+
+	cl->state = MEI_FILE_CONNECTING;
+
+	if (mei_hbm_cl_connect_req(dev, cl)) {
+		dev_dbg(&dev->pdev->dev, "amthif: Failed to connect to ME client\n");
+		cl->state = MEI_FILE_DISCONNECTED;
+		cl->host_client_id = 0;
+	} else {
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
+	}
+	return 0;
 }
 
 /**

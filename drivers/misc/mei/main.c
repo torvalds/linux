@@ -103,7 +103,6 @@ static int mei_open(struct inode *inode, struct file *file)
 {
 	struct mei_cl *cl;
 	struct mei_device *dev;
-	unsigned long cl_id;
 	int err;
 
 	err = -ENODEV;
@@ -133,24 +132,9 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto out_unlock;
 	}
 
-	cl_id = find_first_zero_bit(dev->host_clients_map, MEI_CLIENTS_MAX);
-	if (cl_id >= MEI_CLIENTS_MAX) {
-		dev_err(&dev->pdev->dev, "client_id exceded %d",
-				MEI_CLIENTS_MAX) ;
+	err = mei_cl_link(cl, MEI_HOST_CLIENT_ID_ANY);
+	if (err)
 		goto out_unlock;
-	}
-
-	cl->host_client_id  = cl_id;
-
-	dev_dbg(&dev->pdev->dev, "client_id = %d\n", cl->host_client_id);
-
-	dev->open_handle_count++;
-
-	list_add_tail(&cl->link, &dev->file_list);
-
-	set_bit(cl->host_client_id, dev->host_clients_map);
-	cl->state = MEI_FILE_INITIALIZING;
-	cl->sm_state = 0;
 
 	file->private_data = cl;
 	mutex_unlock(&dev->device_lock);
@@ -208,6 +192,7 @@ static int mei_release(struct inode *inode, struct file *file)
 		dev->open_handle_count--;
 	}
 	mei_cl_unlink(cl);
+
 
 	/* free read cb */
 	cb = NULL;
@@ -991,7 +976,13 @@ static void mei_remove(struct pci_dev *pdev)
 
 	/* remove entry if already in list */
 	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");
+
+	if (dev->open_handle_count > 0)
+		dev->open_handle_count--;
 	mei_cl_unlink(&dev->wd_cl);
+
+	if (dev->open_handle_count > 0)
+		dev->open_handle_count--;
 	mei_cl_unlink(&dev->iamthif_cl);
 
 	dev->iamthif_current_cb = NULL;

@@ -55,7 +55,7 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev);
 void mei_cl_init(struct mei_cl *cl, struct mei_device *dev);
 
 
-int mei_cl_link_me(struct mei_cl *cl, const uuid_le *uuid, u8 host_cl_id);
+int mei_cl_link(struct mei_cl *cl, int id);
 int mei_cl_unlink(struct mei_cl *cl);
 
 int mei_cl_flush_queues(struct mei_cl *cl);

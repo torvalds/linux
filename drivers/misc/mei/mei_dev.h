@@ -67,16 +67,16 @@ extern const u8 mei_wd_state_independence_msg[3][4];
  * Number of File descriptors/handles
  * that can be opened to the driver.
  *
- * Limit to 253: 256 Total Clients
+ * Limit to 255: 256 Total Clients
  * minus internal client for MEI Bus Messags
- * minus internal client for AMTHI
- * minus internal client for Watchdog
  */
-#define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 3)
+#define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 1)
 
 /*
  * Internal Clients Number
  */
+#define MEI_HOST_CLIENT_ID_ANY        (-1)
+#define MEI_HBM_HOST_CLIENT_ID         0 /* not used, just for documentation */
 #define MEI_WD_HOST_CLIENT_ID          1
 #define MEI_IAMTHIF_HOST_CLIENT_ID     2
 
@@ -339,7 +339,7 @@ void mei_timer(struct work_struct *work);
  */
 void mei_amthif_reset_params(struct mei_device *dev);
 
-void mei_amthif_host_init(struct mei_device *dev);
+int mei_amthif_host_init(struct mei_device *dev);
 
 int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
 
