@@ -296,15 +296,19 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dd->dma_lch_in = dma_request_channel(mask, omap_dma_filter_fn,
-					     &dd->dma_in);
+	dd->dma_lch_in = dma_request_slave_channel_compat(mask,
+							  omap_dma_filter_fn,
+							  &dd->dma_in,
+							  dd->dev, "rx");
 	if (!dd->dma_lch_in) {
 		dev_err(dd->dev, "Unable to request in DMA channel\n");
 		goto err_dma_in;
 	}
 
-	dd->dma_lch_out = dma_request_channel(mask, omap_dma_filter_fn,
-					     &dd->dma_out);
+	dd->dma_lch_out = dma_request_slave_channel_compat(mask,
+							   omap_dma_filter_fn,
+							   &dd->dma_out,
+							   dd->dev, "tx");
 	if (!dd->dma_lch_out) {
 		dev_err(dd->dev, "Unable to request out DMA channel\n");
 		goto err_dma_out;
