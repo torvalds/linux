@@ -1477,24 +1477,30 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     rk29sdk_init_wifi_mem();    
     rk29_mux_api_set(rk_platform_wifi_gpio.power_n.iomux.name, rk_platform_wifi_gpio.power_n.iomux.fgpio);
-    
-    if (gpio_request(rk_platform_wifi_gpio.power_n.io, "wifi_power")) {
-           pr_info("%s: request wifi power gpio failed\n", __func__);
-           return -1;
+
+    if (rk_platform_wifi_gpio.power_n.io != INVALID_GPIO) {
+        if (gpio_request(rk_platform_wifi_gpio.power_n.io, "wifi_power")) {
+               pr_info("%s: request wifi power gpio failed\n", __func__);
+               return -1;
+        }
     }
 
 #ifdef RK30SDK_WIFI_GPIO_RESET_N
-    if (gpio_request(rk_platform_wifi_gpio.reset_n.io, "wifi reset")) {
-           pr_info("%s: request wifi reset gpio failed\n", __func__);
-           gpio_free(rk_platform_wifi_gpio.reset_n.io);
-           return -1;
+    if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO) {
+        if (gpio_request(rk_platform_wifi_gpio.reset_n.io, "wifi reset")) {
+               pr_info("%s: request wifi reset gpio failed\n", __func__);
+               gpio_free(rk_platform_wifi_gpio.power_n.io);
+               return -1;
+        }
     }
 #endif    
 
-    gpio_direction_output(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable) );
+    if (rk_platform_wifi_gpio.power_n.io != INVALID_GPIO)
+        gpio_direction_output(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable) );
 
 #ifdef RK30SDK_WIFI_GPIO_RESET_N 
-    gpio_direction_output(rk_platform_wifi_gpio.reset_n.io, !(rk_platform_wifi_gpio.reset_n.enable) );
+    if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO)
+        gpio_direction_output(rk_platform_wifi_gpio.reset_n.io, !(rk_platform_wifi_gpio.reset_n.enable) );
 #endif    
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
@@ -1549,7 +1555,8 @@ int rk29sdk_wifi_power(int on)
                 #endif
 
             #ifdef RK30SDK_WIFI_GPIO_RESET_N
-                gpio_set_value(rk_platform_wifi_gpio.reset_n.io, rk_platform_wifi_gpio.reset_n.enable);
+                if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO)
+                    gpio_set_value(rk_platform_wifi_gpio.reset_n.io, rk_platform_wifi_gpio.reset_n.enable);
             #endif                
                 mdelay(100);
                 pr_info("wifi turn on power\n");
@@ -1568,7 +1575,8 @@ int rk29sdk_wifi_power(int on)
 //                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
 //                }
 #ifdef RK30SDK_WIFI_GPIO_RESET_N
-                gpio_set_value(rk_platform_wifi_gpio.reset_n.io, !(rk_platform_wifi_gpio.reset_n.enable));
+                if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO)
+                    gpio_set_value(rk_platform_wifi_gpio.reset_n.io, !(rk_platform_wifi_gpio.reset_n.enable));
 #endif 
         }
 
