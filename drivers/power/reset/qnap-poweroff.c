@@ -113,4 +113,4 @@ module_platform_driver(qnap_power_off_driver);
 
 MODULE_AUTHOR("Andrew Lunn <andrew@lunn.ch>");
 MODULE_DESCRIPTION("QNAP Power off driver");
-MODULE_LICENSE("GPLv2+");
+MODULE_LICENSE("GPL v2");
