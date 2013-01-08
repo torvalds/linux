@@ -441,7 +441,7 @@ fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 }
 #endif /* UNUSED */
 
-static int __init Fb_map_video_memory(struct fb_info *info)
+static int __init Fb_map_video_memory(__u32 fb_id, struct fb_info *info)
 {
 #ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
@@ -460,8 +460,18 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 		return -ENOMEM;
 	}
 #else
-	info->screen_base = (char __iomem *)disp_malloc(info->fix.smem_len);
-	info->fix.smem_start = (unsigned long)__pa(info->screen_base);
+	g_fbi.malloc_screen_base[fb_id] = disp_malloc(info->fix.smem_len);
+	info->fix.smem_start = (unsigned long)
+					__pa(g_fbi.malloc_screen_base[fb_id]);
+	info->screen_base = ioremap_wc(info->fix.smem_start,
+				       info->fix.smem_len);
+	__inf("Fb_map_video_memory: fb_id=%d, disp_malloc=%p, ioremap_wc=%p\n",
+		    fb_id, g_fbi.malloc_screen_base[fb_id], info->screen_base);
+	if (!info->screen_base) {
+		__wrn("ioremap_wc() failed, falling back to the existing "
+		      "cached mapping\n");
+		info->screen_base = g_fbi.malloc_screen_base[fb_id];
+	}
 	memset_io(info->screen_base, 0, info->fix.smem_len);
 
 	__inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",
@@ -471,14 +481,21 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 #endif
 }
 
-static inline void Fb_unmap_video_memory(struct fb_info *info)
+static inline void Fb_unmap_video_memory(__u32 fb_id, struct fb_info *info)
 {
 #ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 
 	free_pages((unsigned long)info->screen_base, get_order(map_size));
 #else
-	disp_free((void __kernel __force *) info->screen_base);
+	if ((void *)info->screen_base != g_fbi.malloc_screen_base[fb_id]) {
+		__inf("Fb_unmap_video_memory: fb_id=%d, iounmap(%p)\n",
+						fb_id, info->screen_base);
+		iounmap(info->screen_base);
+	}
+	__inf("Fb_unmap_video_memory: fb_id=%d, disp_free(%p)\n",
+			fb_id, g_fbi.malloc_screen_base[fb_id]);
+	disp_free(g_fbi.malloc_screen_base[fb_id]);
 #endif
 }
 
@@ -1380,7 +1397,7 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 		(fb_para->width * info->var.bits_per_pixel) >> 3;
 	info->fix.smem_len =
 		info->fix.line_length * fb_para->height * fb_para->buffer_num;
-	Fb_map_video_memory(info);
+	Fb_map_video_memory(fb_id, info);
 
 	for (sel = 0; sel < 2; sel++) {
 		if (((sel == 0) && (fb_para->fb_mode != FB_MODE_SCREEN1)) ||
@@ -1509,7 +1526,7 @@ __s32 Display_Fb_Release(__u32 fb_id)
 	g_fbi.fb_enable[fb_id] = 0;
 
 	fb_dealloc_cmap(&info->cmap);
-	Fb_unmap_video_memory(info);
+	Fb_unmap_video_memory(fb_id, info);
 
 	return DIS_SUCCESS;
 }
