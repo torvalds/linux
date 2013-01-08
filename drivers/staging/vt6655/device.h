@@ -882,14 +882,7 @@ inline static bool device_get_ip(PSDevice pInfo) {
 
 
 static inline PDEVICE_RD_INFO alloc_rd_info(void) {
-    PDEVICE_RD_INFO  ptr;
-    ptr = (PDEVICE_RD_INFO)kmalloc((int)sizeof(DEVICE_RD_INFO), (int)GFP_ATOMIC);
-    if (ptr == NULL)
-        return NULL;
-    else {
-        memset(ptr,0,sizeof(DEVICE_RD_INFO));
-        return ptr;
-    }
+    return kzalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
 }
 
 static inline PDEVICE_TD_INFO alloc_td_info(void) {
