@@ -543,7 +543,7 @@ static int omap2430_probe(struct platform_device *pdev)
 		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!data) {
+		if (!config) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb hdrc config\n");
 			goto err2;
