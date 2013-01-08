@@ -56,7 +56,7 @@ struct ceph_osd_request {
 	struct list_head r_linger_item;
 	struct list_head r_linger_osd;
 	struct ceph_osd *r_osd;
-	struct ceph_pg   r_pgid;
+	struct ceph_pg_v1 r_pgid;
 	int              r_pg_osds[CEPH_PG_MAX_SIZE];
 	int              r_num_pg_osds;
 

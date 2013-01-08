@@ -186,7 +186,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_object_layout ol;
-	struct ceph_pg pgid;
+	struct ceph_pg_v1 pgid;
 	int r;
 
 	/* copy and validate */

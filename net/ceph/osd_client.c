@@ -914,7 +914,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 			 struct ceph_osd_request *req, int force_resend)
 {
 	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
-	struct ceph_pg pgid;
+	struct ceph_pg_v1 pgid;
 	int acting[CEPH_PG_MAX_SIZE];
 	int o = -1, num = 0;
 	int err;
