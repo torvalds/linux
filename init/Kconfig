@@ -453,13 +453,15 @@ config TREE_RCU
 
 config TREE_PREEMPT_RCU
 	bool "Preemptible tree-based hierarchical RCU"
-	depends on PREEMPT && SMP
+	depends on PREEMPT
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
 	  thousands of CPUs, but for which real-time response
 	  is also required.  It also scales down nicely to
 	  smaller systems.
+
+	  Select this option if you are unsure.
 
 config TINY_RCU
 	bool "UP-only small-memory-footprint RCU"
