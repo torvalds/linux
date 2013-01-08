@@ -135,6 +135,7 @@ struct efx_special_buffer {
  *	freed when descriptor completes
  * @heap_buf: When @flags & %EFX_TX_BUF_HEAP, the associated heap buffer to be
  *	freed when descriptor completes.
+ * @option: When @flags & %EFX_TX_BUF_OPTION, a NIC-specific option descriptor.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
@@ -146,7 +147,10 @@ struct efx_tx_buffer {
 		const struct sk_buff *skb;
 		void *heap_buf;
 	};
-	dma_addr_t dma_addr;
+	union {
+		efx_qword_t option;
+		dma_addr_t dma_addr;
+	};
 	unsigned short flags;
 	unsigned short len;
 	unsigned short unmap_len;
@@ -155,6 +159,7 @@ struct efx_tx_buffer {
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
 #define EFX_TX_BUF_HEAP		4	/* buffer was allocated with kmalloc() */
 #define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
+#define EFX_TX_BUF_OPTION	0x10	/* empty buffer for option descriptor */
 
 /**
  * struct efx_tx_queue - An Efx TX queue

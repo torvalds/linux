@@ -325,6 +325,8 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		txd = efx_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
 
+		EFX_BUG_ON_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
+
 		/* Create TX descriptor ring entry */
 		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
 		EFX_POPULATE_QWORD_4(*txd,

@@ -306,7 +306,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
-		if (unlikely(buffer->len == 0)) {
+
+		if (!(buffer->flags & EFX_TX_BUF_OPTION) &&
+		    unlikely(buffer->len == 0)) {
 			netif_err(efx, tx_err, efx->net_dev,
 				  "TX queue %d spurious TX completion id %x\n",
 				  tx_queue->queue, read_ptr);
