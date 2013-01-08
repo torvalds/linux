@@ -18,9 +18,14 @@
 
 #define ACPI_GLUE_DEBUG	0
 #if ACPI_GLUE_DEBUG
-#define DBG(x...) printk(PREFIX x)
+#define DBG(fmt, ...)						\
+	printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__)
 #else
-#define DBG(x...) do { } while(0)
+#define DBG(fmt, ...)						\
+do {								\
+	if (0)							\
+		printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif
 static LIST_HEAD(bus_type_list);
 static DECLARE_RWSEM(bus_type_sem);
