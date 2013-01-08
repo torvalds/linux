@@ -328,7 +328,6 @@ void mei_reset(struct mei_device *dev, int interrupts);
 int mei_hw_init(struct mei_device *dev);
 int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
-void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
 

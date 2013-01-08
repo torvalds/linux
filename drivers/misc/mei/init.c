@@ -278,44 +278,5 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 }
 
 
-/**
- * allocate_me_clients_storage - allocates storage for me clients
- *
- * @dev: the device structure
- *
- * returns none.
- */
-void mei_allocate_me_clients_storage(struct mei_device *dev)
-{
-	struct mei_me_client *clients;
-	int b;
-
-	/* count how many ME clients we have */
-	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
-		dev->me_clients_num++;
-
-	if (dev->me_clients_num <= 0)
-		return ;
-
-
-	if (dev->me_clients != NULL) {
-		kfree(dev->me_clients);
-		dev->me_clients = NULL;
-	}
-	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
-		dev->me_clients_num * sizeof(struct mei_me_client));
-	/* allocate storage for ME clients representation */
-	clients = kcalloc(dev->me_clients_num,
-			sizeof(struct mei_me_client), GFP_KERNEL);
-	if (!clients) {
-		dev_dbg(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
-		dev->dev_state = MEI_DEV_RESETING;
-		mei_reset(dev, 1);
-		return ;
-	}
-	dev->me_clients = clients;
-	return ;
-}
-
 
 

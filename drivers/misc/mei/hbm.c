@@ -24,6 +24,43 @@
 #include "hw-me.h"
 
 /**
+ * mei_hbm_me_cl_allocate - allocates storage for me clients
+ *
+ * @dev: the device structure
+ *
+ * returns none.
+ */
+static void mei_hbm_me_cl_allocate(struct mei_device *dev)
+{
+	struct mei_me_client *clients;
+	int b;
+
+	/* count how many ME clients we have */
+	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
+		dev->me_clients_num++;
+
+	if (dev->me_clients_num <= 0)
+		return;
+
+	kfree(dev->me_clients);
+	dev->me_clients = NULL;
+
+	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
+		dev->me_clients_num * sizeof(struct mei_me_client));
+	/* allocate storage for ME clients representation */
+	clients = kcalloc(dev->me_clients_num,
+			sizeof(struct mei_me_client), GFP_KERNEL);
+	if (!clients) {
+		dev_err(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
+		dev->dev_state = MEI_DEV_RESETING;
+		mei_reset(dev, 1);
+		return;
+	}
+	dev->me_clients = clients;
+	return;
+}
+
+/**
  * mei_hbm_cl_hdr - construct client hbm header
  * @cl: - client
  * @hbm_cmd: host bus message command
@@ -593,7 +630,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 				dev->init_clients_timer = 0;
 				dev->me_client_presentation_num = 0;
 				dev->me_client_index = 0;
-				mei_allocate_me_clients_storage(dev);
+				mei_hbm_me_cl_allocate(dev);
 				dev->init_clients_state =
 					MEI_CLIENT_PROPERTIES_MESSAGE;
 
