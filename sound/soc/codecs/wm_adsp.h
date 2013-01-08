@@ -25,6 +25,13 @@ struct wm_adsp_region {
 	unsigned int base;
 };
 
+struct wm_adsp_alg_region {
+	struct list_head list;
+	unsigned int alg;
+	int type;
+	unsigned int base;
+};
+
 struct wm_adsp {
 	const char *part;
 	int num;
@@ -33,6 +40,8 @@ struct wm_adsp {
 	struct regmap *regmap;
 
 	int base;
+
+	struct list_head alg_regions;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
