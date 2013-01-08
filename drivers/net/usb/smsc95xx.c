@@ -46,6 +46,7 @@
 #define SMSC95XX_INTERNAL_PHY_ID	(1)
 #define SMSC95XX_TX_OVERHEAD		(8)
 #define SMSC95XX_TX_OVERHEAD_CSUM	(12)
+#define MAC_ADDR_LEN	(6)
 
 struct smsc95xx_priv {
 	u32 mac_cr;
@@ -62,6 +63,10 @@ struct usb_context {
 static int turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
+
+static char *macaddr = ":";
+module_param(macaddr, charp, 0);
+MODULE_PARM_DESC(macaddr, " macaddr=macaddr; (Set MAC only if there is a device without MAC on EEPROM or /etc/smsc94xx_mac_addr)");
 
 //----------------------------------------------------------------------
 //
@@ -143,6 +148,53 @@ int smsc95xx_read_mac_addr(unsigned char *mac)
 // END Hardkernel
 // 
 //----------------------------------------------------------------------
+
+/* Check the macaddr module parameter for a MAC address */ 
+static int smsc95xx_is_macaddr_param(struct usbnet *dev, u8 *dev_mac) 
+{ 
+	int i, j, got_num, num; 
+	u8 mtbl[MAC_ADDR_LEN]; 
+
+	if (macaddr[0] == ':') 
+		return 0; 
+
+	i = 0; 
+	j = 0; 
+    num = 0; 
+	got_num = 0; 
+	while (j < MAC_ADDR_LEN) { 
+		if (macaddr[i] && macaddr[i] != ':') { 
+			got_num++; 
+			if ('0' <= macaddr[i] && macaddr[i] <= '9') 
+				num = num * 16 + macaddr[i] - '0';
+			else if ('A' <= macaddr[i] && macaddr[i] <= 'F') 
+				num = num * 16 + 10 + macaddr[i] - 'A'; 
+			else if ('a' <= macaddr[i] && macaddr[i] <= 'f') 
+				num = num * 16 + 10 + macaddr[i] - 'a';
+			else
+				break;
+			i++;
+		} else if (got_num == 2) {
+			mtbl[j++] = (u8) num;
+			num = 0;
+			got_num = 0;
+			i++;
+		} else {
+			break;
+		} 
+	}
+
+	if (j == MAC_ADDR_LEN) {
+		netif_dbg(dev, ifup, dev->net, "Overriding MAC address with: "
+				"%02x:%02x:%02x:%02x:%02x:%02x\n", mtbl[0], mtbl[1], mtbl[2],
+				mtbl[3], mtbl[4], mtbl[5]);
+		for (i = 0; i < MAC_ADDR_LEN; i++)
+			dev_mac[i] = mtbl[i];
+		return 1;
+	} else {
+		return 0;
+	} 
+} 
 
 static int smsc95xx_read_reg(struct usbnet *dev, u32 index, u32 *data)
 {
@@ -683,6 +735,10 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
+	/* Check module parameters */ 
+	if (smsc95xx_is_macaddr_param(dev, dev->net->dev_addr)) 
+		return;
+
 	/* try reading mac address from EEPROM */
 	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
 			dev->net->dev_addr) == 0) {

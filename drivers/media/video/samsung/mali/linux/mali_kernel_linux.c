@@ -228,7 +228,7 @@ int mali_driver_init(void)
 	}
 
 	/* print build options */
-	MALI_DEBUG_PRINT(2, ("%s\n", __malidrv_build_info()));
+	/* MALI_DEBUG_PRINT(2, ("%s\n", __malidrv_build_info())); */
 
     return 0;
 }
