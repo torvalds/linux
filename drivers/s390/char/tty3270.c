@@ -683,12 +683,6 @@ tty3270_alloc_view(void)
 	INIT_LIST_HEAD(&tp->update);
 	INIT_LIST_HEAD(&tp->rcl_lines);
 	tp->rcl_max = 20;
-	tty_port_init(&tp->port);
-	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
-		    (unsigned long) tp);
-	tasklet_init(&tp->readlet,
-		     (void (*)(unsigned long)) tty3270_read_tasklet,
-		     (unsigned long) tp->read);
 
 	for (pages = 0; pages < TTY3270_STRING_PAGES; pages++) {
 		tp->freemem_pages[pages] = (void *)
@@ -710,6 +704,14 @@ tty3270_alloc_view(void)
 	tp->kbd = kbd_alloc();
 	if (!tp->kbd)
 		goto out_reset;
+
+	tty_port_init(&tp->port);
+	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
+		    (unsigned long) tp);
+	tasklet_init(&tp->readlet,
+		     (void (*)(unsigned long)) tty3270_read_tasklet,
+		     (unsigned long) tp->read);
+
 	return tp;
 
 out_reset:
