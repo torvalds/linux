@@ -103,13 +103,15 @@ static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
 	return info;
 }
 
+static struct comedi_device *
+comedi_dev_from_file_info(struct comedi_file_info *info)
+{
+	return info ? info->device : NULL;
+}
+
 struct comedi_device *comedi_dev_from_minor(unsigned minor)
 {
-	struct comedi_file_info *info;
-
-	info = comedi_file_info_from_minor(minor);
-
-	return info ? info->device : NULL;
+	return comedi_dev_from_file_info(comedi_file_info_from_minor(minor));
 }
 EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
 
@@ -1647,8 +1649,8 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_file_info(info);
 	int rc;
 
 	if (!dev)
@@ -1771,7 +1773,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_file_info(info);
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	unsigned long start = vma->vm_start;
@@ -1851,7 +1853,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_file_info(info);
 	struct comedi_subdevice *s;
 
 	if (!dev)
@@ -1897,7 +1899,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_file_info(info);
 
 	if (!dev)
 		return -ENODEV;
@@ -1992,7 +1994,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_from_file_info(info);
 
 	if (!dev)
 		return -ENODEV;
