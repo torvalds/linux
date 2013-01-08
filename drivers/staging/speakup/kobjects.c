@@ -654,16 +654,16 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (synth && synth->default_pitch) {
 			param = spk_var_header_by_name("pitch");
 			if (param)  {
-				spk_set_num_var(synth->default_pitch[value], param,
-					E_NEW_DEFAULT);
+				spk_set_num_var(synth->default_pitch[value],
+						param, E_NEW_DEFAULT);
 				spk_set_num_var(0, param, E_DEFAULT);
 			}
 		}
 		if (synth && synth->default_vol) {
 			param = spk_var_header_by_name("vol");
 			if (param)  {
-				spk_set_num_var(synth->default_vol[value], param,
-					E_NEW_DEFAULT);
+				spk_set_num_var(synth->default_vol[value],
+						param, E_NEW_DEFAULT);
 				spk_set_num_var(0, param, E_DEFAULT);
 			}
 		}
