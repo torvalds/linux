@@ -345,7 +345,7 @@ void mei_host_client_init(struct work_struct *work)
 	for (i = 0; i < dev->me_clients_num; i++) {
 		client_props = &dev->me_clients[i].props;
 
-		if (!uuid_le_cmp(client_props->protocol_name, mei_amthi_guid))
+		if (!uuid_le_cmp(client_props->protocol_name, mei_amthif_guid))
 			mei_amthif_host_init(dev);
 		else if (!uuid_le_cmp(client_props->protocol_name, mei_wd_guid))
 			mei_wd_host_init(dev);

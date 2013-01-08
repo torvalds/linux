@@ -46,7 +46,7 @@
 /*
  * AMTHI Client UUID
  */
-extern const uuid_le mei_amthi_guid;
+extern const uuid_le mei_amthif_guid;
 
 /*
  * Watchdog Client UUID
