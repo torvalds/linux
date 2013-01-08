@@ -134,6 +134,9 @@ static int rk30_i2c_check_idle(struct rk30_i2c *i2c)
 	sda_lev = gpio_get_value(sda_io);
 	scl_lev = gpio_get_value(scl_io);
 
+	gpio_free(sda_io);
+	gpio_free(scl_io);
+
 	iomux_set(i2c->sda_mode);
 	iomux_set(i2c->scl_mode);
 
