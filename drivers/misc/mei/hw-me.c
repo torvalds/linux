@@ -49,17 +49,13 @@ static inline void mei_reg_write(const struct mei_device *dev,
 }
 
 /**
- * mei_hcsr_read - Reads 32bit data from the host CSR
+ * mei_mecbrw_read - Reads 32bit data from ME circular buffer
+ *  read window register
  *
  * @dev: the device structure
  *
- * returns the byte read.
+ * returns ME_CB_RW register value (u32)
  */
-u32 mei_hcsr_read(const struct mei_device *dev)
-{
-	return mei_reg_read(dev, H_CSR);
-}
-
 u32 mei_mecbrw_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CB_RW);
@@ -77,13 +73,26 @@ u32 mei_mecsr_read(const struct mei_device *dev)
 }
 
 /**
- * mei_set_csr_register - writes H_CSR register to the mei device,
+ * mei_hcsr_read - Reads 32bit data from the host CSR
+ *
+ * @dev: the device structure
+ *
+ * returns H_CSR register value (u32)
+ */
+u32 mei_hcsr_read(const struct mei_device *dev)
+{
+	return mei_reg_read(dev, H_CSR);
+}
+
+/**
+ * mei_hcsr_set - writes H_CSR register to the mei device,
  * and ignores the H_IS bit for it is write-one-to-zero.
  *
  * @dev: the device structure
  */
 void mei_hcsr_set(struct mei_device *dev)
 {
+
 	if ((dev->host_hw_state & H_IS) == H_IS)
 		dev->host_hw_state &= ~H_IS;
 	mei_reg_write(dev, H_CSR, dev->host_hw_state);
@@ -91,7 +100,7 @@ void mei_hcsr_set(struct mei_device *dev)
 }
 
 /**
- * mei_enable_interrupts - clear and stop interrupts
+ * mei_clear_interrupts - clear and stop interrupts
  *
  * @dev: the device structure
  */
