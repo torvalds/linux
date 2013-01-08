@@ -49,24 +49,4 @@ static inline unsigned char mei_data2slots(size_t length)
 
 int mei_count_full_read_slots(struct mei_device *dev);
 
-
-
-
-
-int mei_wd_send(struct mei_device *dev);
-int mei_wd_stop(struct mei_device *dev);
-int mei_wd_host_init(struct mei_device *dev);
-/*
- * mei_watchdog_register  - Registering watchdog interface
- *   once we got connection to the WD Client
- * @dev - mei device
- */
-void mei_watchdog_register(struct mei_device *dev);
-/*
- * mei_watchdog_unregister  - Unregistering watchdog interface
- * @dev - mei device
- */
-void mei_watchdog_unregister(struct mei_device *dev);
-
-
 #endif /* _MEI_INTERFACE_H_ */

@@ -371,6 +371,23 @@ int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
 		struct mei_device *dev, struct mei_msg_hdr *mei_hdr);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
+
+int mei_wd_send(struct mei_device *dev);
+int mei_wd_stop(struct mei_device *dev);
+int mei_wd_host_init(struct mei_device *dev);
+/*
+ * mei_watchdog_register  - Registering watchdog interface
+ *   once we got connection to the WD Client
+ * @dev - mei device
+ */
+void mei_watchdog_register(struct mei_device *dev);
+/*
+ * mei_watchdog_unregister  - Unregistering watchdog interface
+ * @dev - mei device
+ */
+void mei_watchdog_unregister(struct mei_device *dev);
+
+
 /*
  * Register Access Function
  */
