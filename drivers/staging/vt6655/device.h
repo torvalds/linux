@@ -881,8 +881,9 @@ inline static bool device_get_ip(PSDevice pInfo) {
 
 
 
-static inline PDEVICE_RD_INFO alloc_rd_info(void) {
-    return kzalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
+static inline PDEVICE_RD_INFO alloc_rd_info(void)
+{
+	return kzalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
 }
 
 static inline PDEVICE_TD_INFO alloc_td_info(void) {
