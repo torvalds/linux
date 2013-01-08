@@ -641,9 +641,11 @@ static void iwl_pcie_txq_set_sched(struct iwl_trans *trans, u32 mask)
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 a;
+	int nq = trans->cfg->base_params->num_of_queues;
 	int chan;
 	u32 reg_val;
+	int clear_dwords = (SCD_TRANS_TBL_OFFSET_QUEUE(nq) -
+				SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(u32);
 
 	/* make sure all queue are not stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
@@ -655,20 +657,10 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	WARN_ON(scd_base_addr != 0 &&
 		scd_base_addr != trans_pcie->scd_base_addr);
 
-	a = trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
-	/* reset conext data memory */
-	for (; a < trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
-	/* reset tx status memory */
-	for (; a < trans_pcie->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
-	for (; a < trans_pcie->scd_base_addr +
-	       SCD_TRANS_TBL_OFFSET_QUEUE(
-				trans->cfg->base_params->num_of_queues);
-	       a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
+	/* reset context data, TX status and translation data */
+	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
+				   SCD_CONTEXT_MEM_LOWER_BOUND,
+			    NULL, clear_dwords);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
