@@ -89,82 +89,64 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
  */
 int mei_hw_init(struct mei_device *dev)
 {
-	int err = 0;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&dev->device_lock);
-
-	dev->host_hw_state = mei_hcsr_read(dev);
-	dev->me_hw_state = mei_mecsr_read(dev);
-	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, mestate = 0x%08x.\n",
-	    dev->host_hw_state, dev->me_hw_state);
 
 	/* acknowledge interrupt and stop interupts */
 	mei_clear_interrupts(dev);
 
-	/* Doesn't change in runtime */
-	dev->hbuf_depth = (dev->host_hw_state & H_CBD) >> 24;
+	mei_hw_config(dev);
 
 	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
 	mei_reset(dev, 1);
 
-	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
-	    dev->host_hw_state, dev->me_hw_state);
-
 	/* wait for ME to turn on ME_RDY */
 	if (!dev->recvd_msg) {
 		mutex_unlock(&dev->device_lock);
-		err = wait_event_interruptible_timeout(dev->wait_recvd_msg,
+		ret = wait_event_interruptible_timeout(dev->wait_recvd_msg,
 			dev->recvd_msg,
 			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
 		mutex_lock(&dev->device_lock);
 	}
 
-	if (err <= 0 && !dev->recvd_msg) {
+	if (ret <= 0 && !dev->recvd_msg) {
 		dev->dev_state = MEI_DEV_DISABLED;
 		dev_dbg(&dev->pdev->dev,
 			"wait_event_interruptible_timeout failed"
 			"on wait for ME to turn on ME_RDY.\n");
-		ret = -ENODEV;
-		goto out;
+		goto err;
 	}
 
-	if (!(mei_host_is_ready(dev) && mei_me_is_ready(dev))) {
-		dev->dev_state = MEI_DEV_DISABLED;
 
-		dev_dbg(&dev->pdev->dev,
-			"host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
-			dev->host_hw_state, dev->me_hw_state);
+	if (!mei_host_is_ready(dev)) {
+		dev_err(&dev->pdev->dev, "host is not ready.\n");
+		goto err;
+	}
 
-		if (!mei_host_is_ready(dev))
-			dev_dbg(&dev->pdev->dev, "host is not ready.\n");
-
-		if (!mei_me_is_ready(dev))
-			dev_dbg(&dev->pdev->dev, "ME is not ready.\n");
-
-		dev_err(&dev->pdev->dev, "link layer initialization failed.\n");
-		ret = -ENODEV;
-		goto out;
+	if (!mei_me_is_ready(dev)) {
+		dev_err(&dev->pdev->dev, "ME is not ready.\n");
+		goto err;
 	}
 
 	if (dev->version.major_version != HBM_MAJOR_VERSION ||
 	    dev->version.minor_version != HBM_MINOR_VERSION) {
 		dev_dbg(&dev->pdev->dev, "MEI start failed.\n");
-		ret = -ENODEV;
-		goto out;
+		goto err;
 	}
 
 	dev->recvd_msg = false;
-	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
-	    dev->host_hw_state, dev->me_hw_state);
 	dev_dbg(&dev->pdev->dev, "link layer has been established.\n");
-	ret = 0;
 
-out:
 	mutex_unlock(&dev->device_lock);
-	return ret;
+	return 0;
+err:
+	dev_err(&dev->pdev->dev, "link layer initialization failed.\n");
+	dev->dev_state = MEI_DEV_DISABLED;
+	mutex_unlock(&dev->device_lock);
+	return -ENODEV;
 }
 
 /**
@@ -220,13 +202,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
-
-	/* update the state of the registers after reset */
-	dev->host_hw_state = mei_hcsr_read(dev);
-	dev->me_hw_state = mei_mecsr_read(dev);
-
-	dev_dbg(&dev->pdev->dev, "after reset host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
-	    dev->host_hw_state, dev->me_hw_state);
 
 	if (unexpected)
 		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",

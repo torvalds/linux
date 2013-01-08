@@ -697,8 +697,6 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	if (pci_dev_msi_enabled(dev->pdev))
 		mei_clear_interrupts(dev);
 
-	dev->me_hw_state = mei_mecsr_read(dev);
-
 	/* check if ME wants a reset */
 	if (!mei_me_is_ready(dev) &&
 	    dev->dev_state != MEI_DEV_RESETING &&
@@ -709,7 +707,6 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	dev->host_hw_state = mei_hcsr_read(dev);
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
 		if (mei_me_is_ready(dev)) {
@@ -746,7 +743,6 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	rets = mei_irq_thread_write_handler(dev, &complete_list);
 end:
 	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
-	dev->host_hw_state = mei_hcsr_read(dev);
 	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
 
 	bus_message_received = false;

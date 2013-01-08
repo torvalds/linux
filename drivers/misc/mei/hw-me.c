@@ -67,7 +67,7 @@ u32 mei_mecbrw_read(const struct mei_device *dev)
  *
  * returns ME_CSR_HA register value (u32)
  */
-u32 mei_mecsr_read(const struct mei_device *dev)
+static inline u32 mei_mecsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CSR_HA);
 }
@@ -79,7 +79,7 @@ u32 mei_mecsr_read(const struct mei_device *dev)
  *
  * returns H_CSR register value (u32)
  */
-u32 mei_hcsr_read(const struct mei_device *dev)
+static inline u32 mei_hcsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, H_CSR);
 }
@@ -96,6 +96,18 @@ static inline void mei_hcsr_set(struct mei_device *dev, u32 hcsr)
 	mei_reg_write(dev, H_CSR, hcsr);
 }
 
+
+/**
+ * me_hw_config - configure hw dependent settings
+ *
+ * @dev: mei device
+ */
+void mei_hw_config(struct mei_device *dev)
+{
+	u32 hcsr = mei_hcsr_read(dev);
+	/* Doesn't change in runtime */
+	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
+}
 /**
  * mei_clear_interrupts - clear and stop interrupts
  *
@@ -183,6 +195,7 @@ void mei_host_set_ready(struct mei_device *dev)
  */
 bool mei_host_is_ready(struct mei_device *dev)
 {
+	dev->host_hw_state = mei_hcsr_read(dev);
 	return (dev->host_hw_state & H_RDY) == H_RDY;
 }
 
@@ -194,6 +207,7 @@ bool mei_host_is_ready(struct mei_device *dev)
  */
 bool mei_me_is_ready(struct mei_device *dev)
 {
+	dev->me_hw_state = mei_mecsr_read(dev);
 	return (dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
 }
 
@@ -313,7 +327,6 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 
 	hcsr = mei_hcsr_read(dev) | H_IG;
 	mei_hcsr_set(dev, hcsr);
-	dev->me_hw_state = mei_mecsr_read(dev);
 	if (!mei_me_is_ready(dev))
 		return -EIO;
 
