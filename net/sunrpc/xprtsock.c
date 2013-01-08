@@ -1005,7 +1005,7 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 
 	UDPX_INC_STATS_BH(sk, UDP_MIB_INDATAGRAMS);
 
-	xprt_adjust_cwnd(task, copied);
+	xprt_adjust_cwnd(xprt, task, copied);
 	xprt_complete_rqst(task, copied);
 
  out_unlock:
@@ -1646,9 +1646,9 @@ static void xs_udp_set_buffer_size(struct rpc_xprt *xprt, size_t sndsize, size_t
  *
  * Adjust the congestion window after a retransmit timeout has occurred.
  */
-static void xs_udp_timer(struct rpc_task *task)
+static void xs_udp_timer(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	xprt_adjust_cwnd(task, -ETIMEDOUT);
+	xprt_adjust_cwnd(xprt, task, -ETIMEDOUT);
 }
 
 static unsigned short xs_get_random_port(void)

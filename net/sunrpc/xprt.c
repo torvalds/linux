@@ -438,15 +438,15 @@ EXPORT_SYMBOL_GPL(xprt_release_rqst_cong);
 
 /**
  * xprt_adjust_cwnd - adjust transport congestion window
+ * @xprt: pointer to xprt
  * @task: recently completed RPC request used to adjust window
  * @result: result code of completed RPC request
  *
  * We use a time-smoothed congestion estimator to avoid heavy oscillation.
  */
-void xprt_adjust_cwnd(struct rpc_task *task, int result)
+void xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_xprt *xprt = task->tk_xprt;
 	unsigned long cwnd = xprt->cwnd;
 
 	if (result >= 0 && cwnd <= xprt->cong) {
@@ -834,7 +834,7 @@ static void xprt_timer(struct rpc_task *task)
 	spin_lock_bh(&xprt->transport_lock);
 	if (!req->rq_reply_bytes_recvd) {
 		if (xprt->ops->timer)
-			xprt->ops->timer(task);
+			xprt->ops->timer(xprt, task);
 	} else
 		task->tk_status = 0;
 	spin_unlock_bh(&xprt->transport_lock);
