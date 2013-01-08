@@ -13,6 +13,7 @@
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -384,6 +385,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	struct nfgenmsg *nfmsg;
 	sk_buff_data_t old_tail = inst->skb->tail;
 	struct sock *sk;
+	const unsigned char *hwhdrp;
 
 	nlh = nlmsg_put(inst->skb, 0, 0,
 			NFNL_SUBSYS_ULOG << 8 | NFULNL_MSG_PACKET,
@@ -485,9 +487,17 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (indev && skb_mac_header_was_set(skb)) {
 		if (nla_put_be16(inst->skb, NFULA_HWTYPE, htons(skb->dev->type)) ||
 		    nla_put_be16(inst->skb, NFULA_HWLEN,
-				 htons(skb->dev->hard_header_len)) ||
-		    nla_put(inst->skb, NFULA_HWHEADER, skb->dev->hard_header_len,
-			    skb_mac_header(skb)))
+				 htons(skb->dev->hard_header_len)))
+			goto nla_put_failure;
+
+		hwhdrp = skb_mac_header(skb);
+
+		if (skb->dev->type == ARPHRD_SIT)
+			hwhdrp -= ETH_HLEN;
+
+		if (hwhdrp >= skb->head &&
+		    nla_put(inst->skb, NFULA_HWHEADER,
+			    skb->dev->hard_header_len, hwhdrp))
 			goto nla_put_failure;
 	}
 
