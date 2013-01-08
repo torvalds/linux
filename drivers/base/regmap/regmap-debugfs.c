@@ -56,6 +56,19 @@ static const struct file_operations regmap_name_fops = {
 	.llseek = default_llseek,
 };
 
+static void regmap_debugfs_free_dump_cache(struct regmap *map)
+{
+	struct regmap_debugfs_off_cache *c;
+
+	while (!list_empty(&map->debugfs_off_cache)) {
+		c = list_first_entry(&map->debugfs_off_cache,
+				     struct regmap_debugfs_off_cache,
+				     list);
+		list_del(&c->list);
+		kfree(c);
+	}
+}
+
 /*
  * Work out where the start offset maps into register numbers, bearing
  * in mind that we suppress hidden registers.
@@ -91,8 +104,10 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			/* No cache entry?  Start a new one */
 			if (!c) {
 				c = kzalloc(sizeof(*c), GFP_KERNEL);
-				if (!c)
-					break;
+				if (!c) {
+					regmap_debugfs_free_dump_cache(map);
+					return base;
+				}
 				c->min = p;
 				c->base_reg = i;
 			}
@@ -388,16 +403,8 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 
 void regmap_debugfs_exit(struct regmap *map)
 {
-	struct regmap_debugfs_off_cache *c;
-
 	debugfs_remove_recursive(map->debugfs);
-	while (!list_empty(&map->debugfs_off_cache)) {
-		c = list_first_entry(&map->debugfs_off_cache,
-				     struct regmap_debugfs_off_cache,
-				     list);
-		list_del(&c->list);
-		kfree(c);
-	}
+	regmap_debugfs_free_dump_cache(map);
 	kfree(map->debugfs_name);
 }
 
