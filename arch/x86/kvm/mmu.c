@@ -4186,6 +4186,11 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		for (index = 0; index <= last_index; ++index, ++rmapp) {
 			if (*rmapp)
 				__rmap_write_protect(kvm, rmapp, false);
+
+			if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+				kvm_flush_remote_tlbs(kvm);
+				cond_resched_lock(&kvm->mmu_lock);
+			}
 		}
 	}
 
