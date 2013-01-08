@@ -562,6 +562,103 @@ err:
 	return rets;
 }
 
+/**
+ * mei_ioctl_connect_client - the connect to fw client IOCTL function
+ *
+ * @dev: the device structure
+ * @data: IOCTL connect data, input and output parameters
+ * @file: private data of the file object
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * returns 0 on success, <0 on failure.
+ */
+static int mei_ioctl_connect_client(struct file *file,
+			struct mei_connect_client_data *data)
+{
+	struct mei_device *dev;
+	struct mei_client *client;
+	struct mei_cl *cl;
+	int i;
+	int rets;
+
+	cl = file->private_data;
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	if (dev->dev_state != MEI_DEV_ENABLED) {
+		rets = -ENODEV;
+		goto end;
+	}
+
+	if (cl->state != MEI_FILE_INITIALIZING &&
+	    cl->state != MEI_FILE_DISCONNECTED) {
+		rets = -EBUSY;
+		goto end;
+	}
+
+	/* find ME client we're trying to connect to */
+	i = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
+	if (i >= 0 && !dev->me_clients[i].props.fixed_address) {
+		cl->me_client_id = dev->me_clients[i].client_id;
+		cl->state = MEI_FILE_CONNECTING;
+	}
+
+	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
+			cl->me_client_id);
+	dev_dbg(&dev->pdev->dev, "FW Client - Protocol Version = %d\n",
+			dev->me_clients[i].props.protocol_version);
+	dev_dbg(&dev->pdev->dev, "FW Client - Max Msg Len = %d\n",
+			dev->me_clients[i].props.max_msg_length);
+
+	/* if we're connecting to amthi client then we will use the
+	 * existing connection
+	 */
+	if (uuid_le_cmp(data->in_client_uuid, mei_amthi_guid) == 0) {
+		dev_dbg(&dev->pdev->dev, "FW Client is amthi\n");
+		if (dev->iamthif_cl.state != MEI_FILE_CONNECTED) {
+			rets = -ENODEV;
+			goto end;
+		}
+		clear_bit(cl->host_client_id, dev->host_clients_map);
+		mei_cl_unlink(cl);
+
+		kfree(cl);
+		cl = NULL;
+		file->private_data = &dev->iamthif_cl;
+
+		client = &data->out_client_properties;
+		client->max_msg_length =
+			dev->me_clients[i].props.max_msg_length;
+		client->protocol_version =
+			dev->me_clients[i].props.protocol_version;
+		rets = dev->iamthif_cl.status;
+
+		goto end;
+	}
+
+	if (cl->state != MEI_FILE_CONNECTING) {
+		rets = -ENODEV;
+		goto end;
+	}
+
+
+	/* prepare the output buffer */
+	client = &data->out_client_properties;
+	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
+	client->protocol_version = dev->me_clients[i].props.protocol_version;
+	dev_dbg(&dev->pdev->dev, "Can connect?\n");
+
+
+	rets = mei_cl_connect(cl, file);
+
+end:
+	dev_dbg(&dev->pdev->dev, "free connect cb memory.");
+	return rets;
+}
+
 
 /**
  * mei_ioctl - the IOCTL function
@@ -610,6 +707,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 		rets = -EFAULT;
 		goto out;
 	}
+
 	rets = mei_ioctl_connect_client(file, connect_data);
 
 	/* if all is ok, copying the data back to user. */

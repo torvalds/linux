@@ -461,6 +461,71 @@ bool mei_cl_is_other_connecting(struct mei_cl *cl)
 }
 
 /**
+ * mei_cl_connect - connect host clinet to the me one
+ *
+ * @cl: host client
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * returns 0 on success, <0 on failure.
+ */
+int mei_cl_connect(struct mei_cl *cl, struct file *file)
+{
+	struct mei_device *dev;
+	struct mei_cl_cb *cb;
+	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	cb = mei_io_cb_init(cl, file);
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	cb->fop_type = MEI_FOP_IOCTL;
+
+	if (dev->mei_host_buffer_is_empty &&
+	    !mei_cl_is_other_connecting(cl)) {
+		dev->mei_host_buffer_is_empty = false;
+
+		if (mei_hbm_cl_connect_req(dev, cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
+		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
+	} else {
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+	}
+
+	mutex_unlock(&dev->device_lock);
+	rets = wait_event_timeout(dev->wait_recvd_msg,
+				 (cl->state == MEI_FILE_CONNECTED ||
+				  cl->state == MEI_FILE_DISCONNECTED),
+				 timeout * HZ);
+	mutex_lock(&dev->device_lock);
+
+	if (cl->state != MEI_FILE_CONNECTED) {
+		rets = -EFAULT;
+
+		mei_io_list_flush(&dev->ctrl_rd_list, cl);
+		mei_io_list_flush(&dev->ctrl_wr_list, cl);
+		goto out;
+	}
+
+	rets = cl->status;
+
+out:
+	mei_io_cb_free(cb);
+	return rets;
+}
+
+/**
  * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.
  *
  * @dev: the device structure
@@ -540,160 +605,6 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 		}
 	}
 	return -ENOENT;
-}
-
-
-
-/**
- * mei_ioctl_connect_client - the connect to fw client IOCTL function
- *
- * @dev: the device structure
- * @data: IOCTL connect data, input and output parameters
- * @file: private data of the file object
- *
- * Locking: called under "dev->device_lock" lock
- *
- * returns 0 on success, <0 on failure.
- */
-int mei_ioctl_connect_client(struct file *file,
-			struct mei_connect_client_data *data)
-{
-	struct mei_device *dev;
-	struct mei_cl_cb *cb;
-	struct mei_client *client;
-	struct mei_cl *cl;
-	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
-	int i;
-	int err;
-	int rets;
-
-	cl = file->private_data;
-	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
-
-	dev = cl->dev;
-
-	dev_dbg(&dev->pdev->dev, "mei_ioctl_connect_client() Entry\n");
-
-	/* buffered ioctl cb */
-	cb = mei_io_cb_init(cl, file);
-	if (!cb) {
-		rets = -ENOMEM;
-		goto end;
-	}
-
-	cb->fop_type = MEI_FOP_IOCTL;
-
-	if (dev->dev_state != MEI_DEV_ENABLED) {
-		rets = -ENODEV;
-		goto end;
-	}
-	if (cl->state != MEI_FILE_INITIALIZING &&
-	    cl->state != MEI_FILE_DISCONNECTED) {
-		rets = -EBUSY;
-		goto end;
-	}
-
-	/* find ME client we're trying to connect to */
-	i = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (i >= 0 && !dev->me_clients[i].props.fixed_address) {
-		cl->me_client_id = dev->me_clients[i].client_id;
-		cl->state = MEI_FILE_CONNECTING;
-	}
-
-	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
-			cl->me_client_id);
-	dev_dbg(&dev->pdev->dev, "FW Client - Protocol Version = %d\n",
-			dev->me_clients[i].props.protocol_version);
-	dev_dbg(&dev->pdev->dev, "FW Client - Max Msg Len = %d\n",
-			dev->me_clients[i].props.max_msg_length);
-
-	/* if we're connecting to amthi client then we will use the
-	 * existing connection
-	 */
-	if (uuid_le_cmp(data->in_client_uuid, mei_amthi_guid) == 0) {
-		dev_dbg(&dev->pdev->dev, "FW Client is amthi\n");
-		if (dev->iamthif_cl.state != MEI_FILE_CONNECTED) {
-			rets = -ENODEV;
-			goto end;
-		}
-		clear_bit(cl->host_client_id, dev->host_clients_map);
-		mei_cl_unlink(cl);
-
-		kfree(cl);
-		cl = NULL;
-		file->private_data = &dev->iamthif_cl;
-
-		client = &data->out_client_properties;
-		client->max_msg_length =
-			dev->me_clients[i].props.max_msg_length;
-		client->protocol_version =
-			dev->me_clients[i].props.protocol_version;
-		rets = dev->iamthif_cl.status;
-
-		goto end;
-	}
-
-	if (cl->state != MEI_FILE_CONNECTING) {
-		rets = -ENODEV;
-		goto end;
-	}
-
-
-	/* prepare the output buffer */
-	client = &data->out_client_properties;
-	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
-	client->protocol_version = dev->me_clients[i].props.protocol_version;
-	dev_dbg(&dev->pdev->dev, "Can connect?\n");
-	if (dev->mei_host_buffer_is_empty &&
-	    !mei_cl_is_other_connecting(cl)) {
-		dev_dbg(&dev->pdev->dev, "Sending Connect Message\n");
-		dev->mei_host_buffer_is_empty = false;
-		if (mei_hbm_cl_connect_req(dev, cl)) {
-			dev_dbg(&dev->pdev->dev, "Sending connect message - failed\n");
-			rets = -ENODEV;
-			goto end;
-		} else {
-			dev_dbg(&dev->pdev->dev, "Sending connect message - succeeded\n");
-			cl->timer_count = MEI_CONNECT_TIMEOUT;
-			list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
-		}
-
-
-	} else {
-		dev_dbg(&dev->pdev->dev, "Queuing the connect request due to device busy\n");
-		dev_dbg(&dev->pdev->dev, "add connect cb to control write list.\n");
-		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
-	}
-	mutex_unlock(&dev->device_lock);
-	err = wait_event_timeout(dev->wait_recvd_msg,
-			(MEI_FILE_CONNECTED == cl->state ||
-			 MEI_FILE_DISCONNECTED == cl->state), timeout);
-
-	mutex_lock(&dev->device_lock);
-	if (MEI_FILE_CONNECTED == cl->state) {
-		dev_dbg(&dev->pdev->dev, "successfully connected to FW client.\n");
-		rets = cl->status;
-		goto end;
-	} else {
-		dev_dbg(&dev->pdev->dev, "failed to connect to FW client.cl->state = %d.\n",
-		    cl->state);
-		if (!err) {
-			dev_dbg(&dev->pdev->dev,
-				"wait_event_interruptible_timeout failed on client"
-				" connect message fw response message.\n");
-		}
-		rets = -EFAULT;
-
-		mei_io_list_flush(&dev->ctrl_rd_list, cl);
-		mei_io_list_flush(&dev->ctrl_wr_list, cl);
-		goto end;
-	}
-	rets = 0;
-end:
-	dev_dbg(&dev->pdev->dev, "free connect cb memory.");
-	mei_io_cb_free(cb);
-	return rets;
 }
 
 /**

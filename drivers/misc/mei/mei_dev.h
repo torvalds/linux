@@ -341,11 +341,6 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id);
 void mei_timer(struct work_struct *work);
 
 /*
- *  MEI input output function prototype
- */
-int mei_ioctl_connect_client(struct file *file,
-			struct mei_connect_client_data *data);
-/*
  * AMTHIF - AMT Host Interface Functions
  */
 void mei_amthif_reset_params(struct mei_device *dev);
