@@ -156,6 +156,26 @@ static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
 	return NULL;
 }
 
+static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *region,
+					  unsigned int offset)
+{
+	switch (region->type) {
+	case WMFW_ADSP1_PM:
+		return region->base + (offset * 3);
+	case WMFW_ADSP1_DM:
+		return region->base + (offset * 2);
+	case WMFW_ADSP2_XM:
+		return region->base + (offset * 2);
+	case WMFW_ADSP2_YM:
+		return region->base + (offset * 2);
+	case WMFW_ADSP1_ZM:
+		return region->base + (offset * 2);
+	default:
+		WARN_ON(NULL != "Unknown memory region type");
+		return offset;
+	}
+}
+
 static int wm_adsp_load(struct wm_adsp *dsp)
 {
 	const struct firmware *firmware;
@@ -282,27 +302,27 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		case WMFW_ADSP1_PM:
 			BUG_ON(!mem);
 			region_name = "PM";
-			reg = mem->base + (offset * 3);
+			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP1_DM:
 			BUG_ON(!mem);
 			region_name = "DM";
-			reg = mem->base + (offset * 2);
+			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP2_XM:
 			BUG_ON(!mem);
 			region_name = "XM";
-			reg = mem->base + (offset * 2);
+			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP2_YM:
 			BUG_ON(!mem);
 			region_name = "YM";
-			reg = mem->base + (offset * 2);
+			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP1_ZM:
 			BUG_ON(!mem);
 			region_name = "ZM";
-			reg = mem->base + (offset * 2);
+			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		default:
 			adsp_warn(dsp,
