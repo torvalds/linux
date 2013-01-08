@@ -2125,6 +2125,7 @@ struct ieee80211_iface_limit {
  * @beacon_int_infra_match: In this combination, the beacon intervals
  *	between infrastructure and AP types must match. This is required
  *	only in special cases.
+ * @radar_detect_widths: bitmap of channel widths supported for radar detection
  *
  * These examples can be expressed as follows:
  *
@@ -2177,6 +2178,7 @@ struct ieee80211_iface_combination {
 	u16 max_interfaces;
 	u8 n_limits;
 	bool beacon_int_infra_match;
+	u8 radar_detect_widths;
 };
 
 struct mac_address {
