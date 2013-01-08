@@ -356,12 +356,11 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		sin->sin6_port = serr->port;
 		sin->sin6_scope_id = 0;
 		if (skb->protocol == htons(ETH_P_IPV6)) {
-			sin->sin6_addr =
-				*(struct in6_addr *)(nh + serr->addr_offset);
+			const struct ipv6hdr *ip6h = container_of((struct in6_addr *)(nh + serr->addr_offset),
+								  struct ipv6hdr, daddr);
+			sin->sin6_addr = ip6h->daddr;
 			if (np->sndflow)
-				sin->sin6_flowinfo =
-					(*(__be32 *)(nh + serr->addr_offset - 24) &
-					 IPV6_FLOWINFO_MASK);
+				sin->sin6_flowinfo = *(__be32 *)ip6h & IPV6_FLOWINFO_MASK;
 			if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin->sin6_scope_id = IP6CB(skb)->iif;
 		} else {
