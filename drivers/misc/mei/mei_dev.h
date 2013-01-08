@@ -23,7 +23,7 @@
 #include <linux/mei.h>
 
 #include "hw.h"
-#include "hw-me.h"
+#include "hw-me-regs.h"
 
 /*
  * watch dog definition

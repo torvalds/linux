@@ -22,7 +22,6 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "interface.h"
 #include "client.h"
 
 const char *mei_dev_state_str(int state)

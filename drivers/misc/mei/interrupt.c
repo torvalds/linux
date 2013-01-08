@@ -25,7 +25,7 @@
 
 #include "mei_dev.h"
 #include "hbm.h"
-#include "interface.h"
+#include "hw-me.h"
 #include "client.h"
 
 

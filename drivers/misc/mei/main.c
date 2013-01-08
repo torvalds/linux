@@ -40,7 +40,7 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "interface.h"
+#include "hw-me.h"
 #include "client.h"
 
 /* AMT device is a singleton on the platform */

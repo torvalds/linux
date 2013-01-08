@@ -18,7 +18,7 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "interface.h"
+#include "hw-me.h"
 
 /**
  * mei_reg_read - Reads 32bit data from the mei device

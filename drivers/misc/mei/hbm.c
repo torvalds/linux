@@ -21,7 +21,7 @@
 
 #include "mei_dev.h"
 #include "hbm.h"
-#include "interface.h"
+#include "hw-me.h"
 
 /**
  * mei_hbm_cl_hdr - construct client hbm header
