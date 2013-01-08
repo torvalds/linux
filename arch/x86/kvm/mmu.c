@@ -4173,6 +4173,8 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 	memslot = id_to_memslot(kvm->memslots, slot);
 	last_gfn = memslot->base_gfn + memslot->npages - 1;
 
+	spin_lock(&kvm->mmu_lock);
+
 	for (i = PT_PAGE_TABLE_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		unsigned long *rmapp;
@@ -4188,6 +4190,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 	}
 
 	kvm_flush_remote_tlbs(kvm);
+	spin_unlock(&kvm->mmu_lock);
 }
 
 void kvm_mmu_zap_all(struct kvm *kvm)
