@@ -1698,7 +1698,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 				faked_port_index + 1);
 		if (slot_id && xhci->devs[slot_id])
 			xhci_ring_device(xhci, slot_id);
-		if (bus_state->port_remote_wakeup && (1 << faked_port_index)) {
+		if (bus_state->port_remote_wakeup & (1 << faked_port_index)) {
 			bus_state->port_remote_wakeup &=
 				~(1 << faked_port_index);
 			xhci_test_and_clear_bit(xhci, port_array,
