@@ -3935,7 +3935,30 @@ static int mwl8k_cmd_set_new_stn_del(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, u8 *addr)
 {
 	struct mwl8k_cmd_set_new_stn *cmd;
-	int rc;
+	struct mwl8k_priv *priv = hw->priv;
+	int rc, i;
+	u8 idx;
+
+	spin_lock(&priv->stream_lock);
+	/* Destroy any active ampdu streams for this sta */
+	for (i = 0; i < MWL8K_NUM_AMPDU_STREAMS; i++) {
+		struct mwl8k_ampdu_stream *s;
+		s = &priv->ampdu[i];
+		if (s->state != AMPDU_NO_STREAM) {
+			if (memcmp(s->sta->addr, addr, ETH_ALEN) == 0) {
+				if (s->state == AMPDU_STREAM_ACTIVE) {
+					idx = s->idx;
+					spin_unlock(&priv->stream_lock);
+					mwl8k_destroy_ba(hw, idx);
+					spin_lock(&priv->stream_lock);
+				} else if (s->state == AMPDU_STREAM_NEW) {
+					mwl8k_remove_stream(hw, s);
+				}
+			}
+		}
+	}
+
+	spin_unlock(&priv->stream_lock);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
