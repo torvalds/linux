@@ -194,8 +194,10 @@ unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 }
 EXPORT_SYMBOL(comedi_buf_write_alloc);
 
-/* munging is applied to data by core as it passes between user
- * and kernel space */
+/*
+ * munging is applied to data by core as it passes between user
+ * and kernel space
+ */
 static unsigned int comedi_buf_munge(struct comedi_async *async,
 				     unsigned int num_bytes)
 {
@@ -203,40 +205,46 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 	unsigned int count = 0;
 	const unsigned num_sample_bytes = bytes_per_sample(s);
 
-	if (s->munge == NULL || (async->cmd.flags & CMDF_RAWDATA)) {
+	if (!s->munge || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
-		BUG_ON((int)(async->munge_count - async->buf_write_count) > 0);
-		return num_bytes;
-	}
-	/* don't munge partial samples */
-	num_bytes -= num_bytes % num_sample_bytes;
-	while (count < num_bytes) {
-		int block_size;
+		count = num_bytes;
+	} else {
+		/* don't munge partial samples */
+		num_bytes -= num_bytes % num_sample_bytes;
+		while (count < num_bytes) {
+			int block_size = num_bytes - count;
+			unsigned int buf_end;
 
-		block_size = num_bytes - count;
-		if (block_size < 0) {
-			dev_warn(s->device->class_dev,
-				 "%s: %s: bug! block_size is negative\n",
-				 __FILE__, __func__);
-			break;
+			if (block_size < 0) {
+				dev_warn(s->device->class_dev,
+					"%s: %s: bug! block_size is negative\n",
+					__FILE__, __func__);
+				break;
+			}
+
+			buf_end = async->prealloc_bufsz - async->munge_ptr;
+			if (block_size > buf_end)
+				block_size = buf_end;
+
+			s->munge(s->device, s,
+				 async->prealloc_buf + async->munge_ptr,
+				 block_size, async->munge_chan);
+
+			/*
+			 * ensure data is munged in buffer before the
+			 * async buffer munge_count is incremented
+			 */
+			smp_wmb();
+
+			async->munge_chan += block_size / num_sample_bytes;
+			async->munge_chan %= async->cmd.chanlist_len;
+			async->munge_count += block_size;
+			async->munge_ptr += block_size;
+			async->munge_ptr %= async->prealloc_bufsz;
+			count += block_size;
 		}
-		if ((int)(async->munge_ptr + block_size -
-			  async->prealloc_bufsz) > 0)
-			block_size = async->prealloc_bufsz - async->munge_ptr;
-
-		s->munge(s->device, s, async->prealloc_buf + async->munge_ptr,
-			 block_size, async->munge_chan);
-
-		smp_wmb();	/* barrier insures data is munged in buffer
-				 * before munge_count is incremented */
-
-		async->munge_chan += block_size / num_sample_bytes;
-		async->munge_chan %= async->cmd.chanlist_len;
-		async->munge_count += block_size;
-		async->munge_ptr += block_size;
-		async->munge_ptr %= async->prealloc_bufsz;
-		count += block_size;
 	}
+
 	BUG_ON((int)(async->munge_count - async->buf_write_count) > 0);
 	return count;
 }
