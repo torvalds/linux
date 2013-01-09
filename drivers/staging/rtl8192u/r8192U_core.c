@@ -189,53 +189,47 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 	struct ieee80211_device* ieee = priv->ieee80211;
 	switch (channel_plan)
 	{
-		case COUNTRY_CODE_FCC:
-		case COUNTRY_CODE_IC:
-		case COUNTRY_CODE_ETSI:
-		case COUNTRY_CODE_SPAIN:
-		case COUNTRY_CODE_FRANCE:
-		case COUNTRY_CODE_MKK:
-		case COUNTRY_CODE_MKK1:
-		case COUNTRY_CODE_ISRAEL:
-		case COUNTRY_CODE_TELEC:
-		case COUNTRY_CODE_MIC:
-		{
-			Dot11d_Init(ieee);
-			ieee->bGlobalDomain = false;
-			//actually 8225 & 8256 rf chips only support B,G,24N mode
-			if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256))
-			{
-				min_chan = 1;
-				max_chan = 14;
-			}
-			else
-			{
-				RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
-			}
-			if (ChannelPlan[channel_plan].Len != 0){
-				// Clear old channel map
-				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-				// Set new channel map
-				for (i=0;i<ChannelPlan[channel_plan].Len;i++)
-				{
-					if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
+	case COUNTRY_CODE_FCC:
+	case COUNTRY_CODE_IC:
+	case COUNTRY_CODE_ETSI:
+	case COUNTRY_CODE_SPAIN:
+	case COUNTRY_CODE_FRANCE:
+	case COUNTRY_CODE_MKK:
+	case COUNTRY_CODE_MKK1:
+	case COUNTRY_CODE_ISRAEL:
+	case COUNTRY_CODE_TELEC:
+	case COUNTRY_CODE_MIC:	
+		Dot11d_Init(ieee);
+		ieee->bGlobalDomain = false;
+		//actually 8225 & 8256 rf chips only support B,G,24N mode
+		if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256)) {
+			min_chan = 1;
+			max_chan = 14;
+		}
+		else {
+			RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
+		}
+		if (ChannelPlan[channel_plan].Len != 0) {
+			// Clear old channel map
+			memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
+			// Set new channel map
+			for (i=0;i<ChannelPlan[channel_plan].Len;i++) {
+				if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
 					break;
-					GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
-				}
+				GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
 			}
-			break;
 		}
-		case COUNTRY_CODE_GLOBAL_DOMAIN:
-		{
-			GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
-			Dot11d_Reset(ieee);
-			ieee->bGlobalDomain = true;
-			break;
-		}
-		default:
-			break;
+		break;
+
+	case COUNTRY_CODE_GLOBAL_DOMAIN:
+		GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
+		Dot11d_Reset(ieee);
+		ieee->bGlobalDomain = true;
+		break;
+	
+	default:
+		break;
 	}
-	return;
 }
 
 
