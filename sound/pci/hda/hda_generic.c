@@ -2085,8 +2085,6 @@ static int create_input_ctls(struct hda_codec *codec)
 			continue;
 
 		label = hda_get_autocfg_input_label(codec, cfg, i);
-		if (spec->shared_mic_hp && !strcmp(label, "Misc"))
-			label = "Headphone Mic";
 		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
@@ -2540,8 +2538,6 @@ static int parse_mic_boost(struct hda_codec *codec)
 			unsigned int val;
 
 			label = hda_get_autocfg_input_label(codec, cfg, i);
-			if (spec->shared_mic_hp && !strcmp(label, "Misc"))
-				label = "Headphone Mic";
 			if (prev_label && !strcmp(label, prev_label))
 				type_idx++;
 			else

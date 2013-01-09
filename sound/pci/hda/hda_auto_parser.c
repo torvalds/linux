@@ -395,6 +395,8 @@ static const char *hda_get_input_pin_label(struct hda_codec *codec,
 		return "SPDIF In";
 	case AC_JACK_DIG_OTHER_IN:
 		return "Digital In";
+	case AC_JACK_HP_OUT:
+		return "Headphone Mic";
 	default:
 		return "Misc";
 	}
