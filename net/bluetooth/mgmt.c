@@ -2493,7 +2493,8 @@ static int confirm_name(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_inquiry_cache_update_resolve(hdev, e);
 	}
 
-	err = 0;
+	err = cmd_complete(sk, hdev->id, MGMT_OP_CONFIRM_NAME, 0, &cp->addr,
+			   sizeof(cp->addr));
 
 failed:
 	hci_dev_unlock(hdev);
