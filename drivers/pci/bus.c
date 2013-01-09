@@ -158,6 +158,8 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 	return ret;
 }
 
+void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
+
 /**
  * pci_bus_add_device - add a single device
  * @dev: device to add
