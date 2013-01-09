@@ -22,6 +22,43 @@
 #include "comedidev.h"
 #include "comedi_internal.h"
 
+static void __comedi_buf_free(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      unsigned n_pages)
+{
+	struct comedi_async *async = s->async;
+	struct comedi_buf_page *buf;
+	unsigned i;
+
+	if (async->prealloc_buf) {
+		vunmap(async->prealloc_buf);
+		async->prealloc_buf = NULL;
+		async->prealloc_bufsz = 0;
+	}
+
+	if (!async->buf_page_list)
+		return;
+
+	for (i = 0; i < n_pages; ++i) {
+		buf = &async->buf_page_list[i];
+		if (buf->virt_addr) {
+			clear_bit(PG_reserved,
+				  &(virt_to_page(buf->virt_addr)->flags));
+			if (s->async_dma_dir != DMA_NONE) {
+				dma_free_coherent(dev->hw_dev,
+						  PAGE_SIZE,
+						  buf->virt_addr,
+						  buf->dma_addr);
+			} else {
+				free_page((unsigned long)buf->virt_addr);
+			}
+		}
+	}
+	vfree(async->buf_page_list);
+	async->buf_page_list = NULL;
+	async->n_buf_pages = 0;
+}
+
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		     unsigned long new_size)
 {
@@ -34,39 +71,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (async->prealloc_buf && async->prealloc_bufsz == new_size)
 		return 0;
 
-	/*  deallocate old buffer */
-	if (async->prealloc_buf) {
-		vunmap(async->prealloc_buf);
-		async->prealloc_buf = NULL;
-		async->prealloc_bufsz = 0;
-	}
-	if (async->buf_page_list) {
-		unsigned i;
-		for (i = 0; i < async->n_buf_pages; ++i) {
-			if (async->buf_page_list[i].virt_addr) {
-				clear_bit(PG_reserved,
-					&(virt_to_page(async->buf_page_list[i].
-							virt_addr)->flags));
-				if (s->async_dma_dir != DMA_NONE) {
-					dma_free_coherent(dev->hw_dev,
-							  PAGE_SIZE,
-							  async->
-							  buf_page_list
-							  [i].virt_addr,
-							  async->
-							  buf_page_list
-							  [i].dma_addr);
-				} else {
-					free_page((unsigned long)
-						  async->buf_page_list[i].
-						  virt_addr);
-				}
-			}
-		}
-		vfree(async->buf_page_list);
-		async->buf_page_list = NULL;
-		async->n_buf_pages = 0;
-	}
+	/* deallocate old buffer */
+	__comedi_buf_free(dev, s, async->n_buf_pages);
+
 	/*  allocate new buffer */
 	if (new_size) {
 		unsigned i = 0;
@@ -114,36 +121,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 		vfree(pages);
 
-		if (async->prealloc_buf == NULL) {
-			/* Some allocation failed above. */
-			if (async->buf_page_list) {
-				for (i = 0; i < n_pages; i++) {
-					if (async->buf_page_list[i].virt_addr ==
-					    NULL) {
-						break;
-					}
-					clear_bit(PG_reserved,
-						&(virt_to_page(async->
-							buf_page_list[i].
-							virt_addr)->flags));
-					if (s->async_dma_dir != DMA_NONE) {
-						dma_free_coherent(dev->hw_dev,
-								  PAGE_SIZE,
-								  async->
-								  buf_page_list
-								  [i].virt_addr,
-								  async->
-								  buf_page_list
-								  [i].dma_addr);
-					} else {
-						free_page((unsigned long)
-							  async->buf_page_list
-							  [i].virt_addr);
-					}
-				}
-				vfree(async->buf_page_list);
-				async->buf_page_list = NULL;
-			}
+		if (!async->prealloc_buf) {
+			/* Some allocation failed above */
+			__comedi_buf_free(dev, s, n_pages);
 			return -ENOMEM;
 		}
 		async->n_buf_pages = n_pages;
