@@ -787,8 +787,9 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		cancel_delayed_work(&hdev->power_off);
 
 		if (cp->val) {
-			err = send_settings_rsp(sk, MGMT_OP_SET_POWERED, hdev);
-			mgmt_powered(hdev, 1);
+			mgmt_pending_add(sk, MGMT_OP_SET_POWERED, hdev,
+					 data, len);
+			err = mgmt_powered(hdev, 1);
 			goto failed;
 		}
 	}
