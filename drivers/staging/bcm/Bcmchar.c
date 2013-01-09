@@ -1792,7 +1792,7 @@ cntrlEnd:
 			if (IoBuffer.OutputLength < sizeof(struct bcm_flash_cs_info))
 				return -EINVAL;
 
-			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(struct bcm_flash2x_cs_info)))
+			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(struct bcm_flash_cs_info)))
 				return -EFAULT;
 		}
 	}
