@@ -114,9 +114,6 @@ void __init rk2928_init_irq(void)
         soc_gpio_init();
 }
 
-extern void __init rk2928_map_common_io(void);
-extern int __init clk_disable_unused(void);
-
 static unsigned int __initdata ddr_freq = DDR_FREQ;
 static int __init ddr_freq_setup(char *str)
 {
@@ -170,7 +167,6 @@ void __init rk2928_map_io(void)
 	rk2928_boot_mode_init();
 }
 
-extern u32 ddr_get_cap(void);
 static __init u32 rk2928_get_ddr_size(void)
 {
 #ifdef CONFIG_MACH_RK2928_FPGA

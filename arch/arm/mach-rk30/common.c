@@ -153,7 +153,6 @@ void __init rk30_init_irq(void)
 #endif
 	rk30_gpio_init();
 }
-int __init clk_disable_unused(void);
 
 void __init rk30_map_io(void)
 {
@@ -170,7 +169,6 @@ void __init rk30_map_io(void)
 	rk30_boot_mode_init();
 }
 
-extern u32 ddr_get_cap(void);
 static __init u32 rk30_get_ddr_size(void)
 {
 	u32 size;
