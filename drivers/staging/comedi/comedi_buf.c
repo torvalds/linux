@@ -312,14 +312,19 @@ EXPORT_SYMBOL(comedi_buf_read_alloc);
 /* transfers control of a chunk from reader to free buffer space */
 unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 {
-	/* barrier insures data has been read out of
-	 * buffer before read count is incremented */
+	unsigned int allocated;
+
+	/*
+	 * ensure data has been read out of buffer before
+	 * the async read count is incremented
+	 */
 	smp_mb();
-	if ((int)(async->buf_read_count + nbytes -
-		  async->buf_read_alloc_count) > 0) {
+
+	allocated = comedi_buf_read_n_allocated(async);
+	if (nbytes > allocated) {
 		dev_info(async->subdevice->device->class_dev,
 			 "attempted to read-free more bytes than have been read-allocated.\n");
-		nbytes = async->buf_read_alloc_count - async->buf_read_count;
+		nbytes = allocated;
 	}
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
