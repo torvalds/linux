@@ -42,7 +42,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	bool "Enable A5 and A9 only errata work-arounds"
 	default y
 	select ARM_ERRATA_720789
-	select ARM_ERRATA_751472
 	select PL310_ERRATA_753970 if CACHE_PL310
 	help
 	  Provides common dependencies for Versatile Express platforms
