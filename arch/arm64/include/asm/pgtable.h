@@ -132,9 +132,8 @@ extern struct page *empty_zero_page;
 #define pte_write(pte)		(!(pte_val(pte) & PTE_RDONLY))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 
-#define pte_present_exec_user(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_USER | PTE_UXN)) == \
-	 (PTE_VALID | PTE_USER))
+#define pte_present_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
 
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
@@ -157,10 +156,13 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_present_exec_user(pte))
-		__sync_icache_dcache(pte, addr);
-	if (!pte_dirty(pte))
-		pte = pte_wrprotect(pte);
+	if (pte_present_user(pte)) {
+		if (pte_exec(pte))
+			__sync_icache_dcache(pte, addr);
+		if (!pte_dirty(pte))
+			pte = pte_wrprotect(pte);
+	}
+
 	set_pte(ptep, pte);
 }
 
