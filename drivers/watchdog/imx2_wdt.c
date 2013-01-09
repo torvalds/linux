@@ -342,17 +342,7 @@ static struct platform_driver imx2_wdt_driver = {
 	},
 };
 
-static int __init imx2_wdt_init(void)
-{
-	return platform_driver_probe(&imx2_wdt_driver, imx2_wdt_probe);
-}
-module_init(imx2_wdt_init);
-
-static void __exit imx2_wdt_exit(void)
-{
-	platform_driver_unregister(&imx2_wdt_driver);
-}
-module_exit(imx2_wdt_exit);
+module_platform_driver_probe(imx2_wdt_driver, imx2_wdt_probe);
 
 MODULE_AUTHOR("Wolfram Sang");
 MODULE_DESCRIPTION("Watchdog driver for IMX2 and later");
