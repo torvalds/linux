@@ -113,6 +113,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
+		pd->plid = i;
 
 		/* invoke per-policy init */
 		if (pol->pd_init_fn)
@@ -908,6 +909,7 @@ int blkcg_activate_policy(struct request_queue *q,
 
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
+		pd->plid = pol->plid;
 		pol->pd_init_fn(blkg);
 
 		spin_unlock(&blkg->blkcg->lock);

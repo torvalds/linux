@@ -81,8 +81,9 @@ struct blkg_rwstat {
  * beginning and pd_size can't be smaller than pd.
  */
 struct blkg_policy_data {
-	/* the blkg this per-policy data belongs to */
+	/* the blkg and policy id this per-policy data belongs to */
 	struct blkcg_gq			*blkg;
+	int				plid;
 
 	/* used during policy activation */
 	struct list_head		alloc_node;
