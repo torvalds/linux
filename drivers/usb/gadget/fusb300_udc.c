@@ -1547,15 +1547,4 @@ static struct platform_driver fusb300_driver = {
 	},
 };
 
-static int __init fusb300_udc_init(void)
-{
-	return platform_driver_probe(&fusb300_driver, fusb300_probe);
-}
-
-module_init(fusb300_udc_init);
-
-static void __exit fusb300_udc_cleanup(void)
-{
-	platform_driver_unregister(&fusb300_driver);
-}
-module_exit(fusb300_udc_cleanup);
+module_platform_driver_probe(fusb300_driver, fusb300_probe);
