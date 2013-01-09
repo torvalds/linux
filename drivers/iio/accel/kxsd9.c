@@ -94,7 +94,6 @@ error_ret:
 
 static int kxsd9_read(struct iio_dev *indio_dev, u8 address)
 {
-	struct spi_message msg;
 	int ret;
 	struct kxsd9_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
@@ -112,10 +111,7 @@ static int kxsd9_read(struct iio_dev *indio_dev, u8 address)
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = KXSD9_READ(address);
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret)
 		return ret;
 	return (((u16)(st->rx[0])) << 8) | (st->rx[1] & 0xF0);
