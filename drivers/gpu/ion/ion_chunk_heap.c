@@ -101,6 +101,8 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 	struct scatterlist *sg;
 	int i;
 
+	ion_heap_buffer_zero(buffer);
+
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		__dma_page_cpu_to_dev(sg_page(sg), 0, sg_dma_len(sg),
 				      DMA_BIDIRECTIONAL);
