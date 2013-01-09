@@ -747,6 +747,8 @@ static struct pinctrl_map __initdata snowball_pinmap[] = {
 	DB8500_PIN_HOG("GPIO21_AB3", out_hi),
 	/* Mux in "SM" which is used for the SMSC911x Ethernet adapter */
 	DB8500_MUX_HOG("sm_b_1", "sm"),
+	/* User LED */
+	DB8500_PIN_HOG("GPIO142_C11", gpio_out_hi),
 	/* Drive RSTn_LAN high */
 	DB8500_PIN_HOG("GPIO141_C12", gpio_out_hi),
 	/*  Accelerometer/Magnetometer */
