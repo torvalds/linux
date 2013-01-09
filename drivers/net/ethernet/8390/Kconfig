@@ -6,7 +6,7 @@ config NET_VENDOR_8390
 	bool "National Semi-conductor 8390 devices"
 	default y
 	depends on NET_VENDOR_NATSEMI && (AMIGA_PCMCIA || PCI || SUPERH || \
-		   ISA || EISA || MAC || M32R || MACH_TX49XX || \
+		   ISA || MAC || M32R || MACH_TX49XX || \
 		   H8300 || ARM || MIPS || ZORRO || PCMCIA || \
 		   EXPERIMENTAL)
 	---help---
@@ -32,18 +32,6 @@ config EL2
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c503.
-
-config AC3200
-	tristate "Ansel Communications EISA 3200 support (EXPERIMENTAL)"
-	depends on PCI && (ISA || EISA) && EXPERIMENTAL
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ac3200.
 
 config PCMCIA_AXNET
 	tristate "Asix AX88190 PCMCIA support"
@@ -85,18 +73,6 @@ config E2100
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e2100.
-
-config ES3210
-	tristate "Racal-Interlan EISA ES3210 support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called es3210.
 
 config HPLAN_PLUS
 	tristate "HP PCLAN+ (27247B and 27252A) support"
@@ -140,18 +116,6 @@ config ARM_ETHERH
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
 
-config LNE390
-	tristate "Mylex EISA LNE390A/B support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called lne390.
-
 config MAC8390
 	bool "Macintosh NS 8390 based ethernet cards"
 	depends on MAC
@@ -187,8 +151,7 @@ config NE2000
 	  without a specific driver are compatible with NE2000.
 
 	  If you have a PCI NE2000 card however, say N here and Y to "PCI
-	  NE2000 and clone support" under "EISA, VLB, PCI and on board
-	  controllers" below.
+	  NE2000 and clone support" below.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ne.
@@ -222,19 +185,6 @@ config APNE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called apne.
-
-config NE3210
-	tristate "Novell/Eagle/Microdyne NE3210 EISA support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that this driver
-	  will NOT WORK for NE3200 cards as they are completely different.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne3210.
 
 config PCMCIA_PCNET
 	tristate "NE2000 compatible PCMCIA support"
@@ -284,18 +234,6 @@ config ULTRA
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called smc-ultra.
-
-config ULTRA32
-	tristate "SMC Ultra32 EISA support"
-	depends on EISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc-ultra32.
 
 config WD80x3
 	tristate "WD80*3 support"
