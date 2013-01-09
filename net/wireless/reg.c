@@ -1848,7 +1848,7 @@ static void restore_regulatory_settings(bool reset_user)
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
-	reset_regdomains(true, cfg80211_world_regdom);
+	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
 
 	/*
