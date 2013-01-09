@@ -106,12 +106,17 @@ struct blkcg_gq {
 	/* reference count */
 	int				refcnt;
 
+	/* is this blkg online? protected by both blkcg and q locks */
+	bool				online;
+
 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
 
 	struct rcu_head			rcu_head;
 };
 
 typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_online_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_offline_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_exit_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkcg_gq *blkg);
 
@@ -124,6 +129,8 @@ struct blkcg_policy {
 
 	/* operations */
 	blkcg_pol_init_pd_fn		*pd_init_fn;
+	blkcg_pol_online_pd_fn		*pd_online_fn;
+	blkcg_pol_offline_pd_fn		*pd_offline_fn;
 	blkcg_pol_exit_pd_fn		*pd_exit_fn;
 	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
 };

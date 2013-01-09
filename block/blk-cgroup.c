@@ -182,7 +182,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 				    struct blkcg_gq *new_blkg)
 {
 	struct blkcg_gq *blkg;
-	int ret;
+	int i, ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(q->queue_lock);
@@ -218,7 +218,15 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	if (likely(!ret)) {
 		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 		list_add(&blkg->q_node, &q->blkg_list);
+
+		for (i = 0; i < BLKCG_MAX_POLS; i++) {
+			struct blkcg_policy *pol = blkcg_policy[i];
+
+			if (blkg->pd[i] && pol->pd_online_fn)
+				pol->pd_online_fn(blkg);
+		}
 	}
+	blkg->online = true;
 	spin_unlock(&blkcg->lock);
 
 	if (!ret)
@@ -291,6 +299,7 @@ EXPORT_SYMBOL_GPL(blkg_lookup_create);
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
+	int i;
 
 	lockdep_assert_held(blkg->q->queue_lock);
 	lockdep_assert_held(&blkcg->lock);
@@ -298,6 +307,14 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	/* Something wrong if we are trying to remove same group twice */
 	WARN_ON_ONCE(list_empty(&blkg->q_node));
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg);
+	}
+	blkg->online = false;
 
 	radix_tree_delete(&blkcg->blkg_tree, blkg->q->id);
 	list_del_init(&blkg->q_node);
@@ -956,6 +973,8 @@ void blkcg_deactivate_policy(struct request_queue *q,
 		/* grab blkcg lock too while removing @pd from @blkg */
 		spin_lock(&blkg->blkcg->lock);
 
+		if (pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg);
 		if (pol->pd_exit_fn)
 			pol->pd_exit_fn(blkg);
 
