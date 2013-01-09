@@ -5,9 +5,6 @@
 adis16060-y             := adis16060_core.o
 obj-$(CONFIG_ADIS16060) += adis16060.o
 
-adis16080-y             := adis16080_core.o
-obj-$(CONFIG_ADIS16080) += adis16080.o
-
 adis16130-y             := adis16130_core.o
 obj-$(CONFIG_ADIS16130) += adis16130.o
 

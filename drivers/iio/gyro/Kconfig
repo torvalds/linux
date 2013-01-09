@@ -3,6 +3,13 @@
 #
 menu "Digital gyroscope sensors"
 
+config ADIS16080
+	tristate "Analog Devices ADIS16080/100 Yaw Rate Gyroscope with SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADIS16080, ADIS16100 Yaw
+	  Rate Gyroscope with SPI.
+
 config ADIS16136
 	tristate "Analog devices ADIS16136 and similar gyroscopes driver"
 	depends on SPI_MASTER

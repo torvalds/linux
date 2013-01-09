@@ -10,13 +10,6 @@ config ADIS16060
 	  Say yes here to build support for Analog Devices adis16060 wide bandwidth
 	  yaw rate gyroscope with SPI.
 
-config ADIS16080
-	tristate "Analog Devices ADIS16080/100 Yaw Rate Gyroscope with SPI driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices ADIS16080, ADIS16100 Yaw
-	  Rate Gyroscope with SPI.
-
 config ADIS16130
 	tristate "Analog Devices ADIS16130 High Precision Angular Rate Sensor driver"
 	depends on SPI
