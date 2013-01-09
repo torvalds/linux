@@ -509,55 +509,50 @@ static int proc_get_registers(char *page, char **start,
 	int max=0xff;
 
 	/* This dump the current register page */
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 0##################\n ");
 
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
 			"\nD:  %2x > ",n);
 
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x000|n));
+		for (i=0;i<16 && n<=max;i++,n++)
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x000|n));
 
 		//	printk("%2x ",read_nic_byte(dev,n));
 	}
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 1##################\n ");
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
+				"\nD:  %2x > ",n);
 
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x100|n));
+		for (i=0;i<16 && n<=max;i++,n++)
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x100|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 3##################\n ");
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
 			"\nD:  %2x > ",n);
 
 		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x300|n));
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x300|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
-
 
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
 	return len;
-
 }
 
 
