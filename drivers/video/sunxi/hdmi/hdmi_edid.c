@@ -427,7 +427,7 @@ __s32 ParseEDID(void)
 
 	pr_info("ParseEDID\n");
 
-	memset(Device_Support_VIC, 0, sizeof(Device_Support_VIC));
+	memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 	memset(EDID_Buf, 0, sizeof(EDID_Buf));
 
 	DDC_Init();

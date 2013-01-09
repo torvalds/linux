@@ -36,7 +36,7 @@ __bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
 __u8 EDID_Buf[1024];
-__u8 Device_Support_VIC[512];
+__u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 static __s32 HPD;
 
 __u32 hdmi_pll = AW_SYS_CLK_PLL3;
@@ -87,7 +87,7 @@ __s32 hdmi_core_initial(void)
 	hdmi_state = HDMI_State_Wait_Hpd;
 	video_mode = HDMI720P_50;
 	memset(&audio_info, 0, sizeof(HDMI_AUDIO_INFO));
-	memset(Device_Support_VIC, 0, sizeof(Device_Support_VIC));
+	memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 
 	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
 
@@ -343,7 +343,8 @@ __s32 video_config(__s32 vic)
 #endif
 
 	HDMI_WUINT8(0x086, 0x00);
-	HDMI_WUINT8(0x087, (video_timing[vic_tab].VIC >= 256) ?
+	HDMI_WUINT8(0x087, (video_timing[vic_tab].VIC >=
+					HDMI_NON_CEA861D_START) ?
 			   0 : video_timing[vic_tab].VIC);
 	HDMI_WUINT8(0x088, video_timing[vic_tab].AVI_PR);
 	HDMI_WUINT8(0x089, 0x00);
