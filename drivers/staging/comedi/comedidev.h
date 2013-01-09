@@ -448,10 +448,6 @@ void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 			  const void *source, unsigned int num_bytes);
 void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 			    void *destination, unsigned int num_bytes);
-static inline unsigned comedi_buf_write_n_allocated(struct comedi_async *async)
-{
-	return async->buf_write_alloc_count - async->buf_write_count;
-}
 
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);

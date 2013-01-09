@@ -249,6 +249,11 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 	return count;
 }
 
+unsigned int comedi_buf_write_n_allocated(struct comedi_async *async)
+{
+	return async->buf_write_alloc_count - async->buf_write_count;
+}
+
 /* transfers a chunk from writer to filled buffer space */
 unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 {
