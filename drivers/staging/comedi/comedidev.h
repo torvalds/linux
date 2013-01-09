@@ -461,31 +461,6 @@ static inline unsigned comedi_buf_read_n_allocated(struct comedi_async *async)
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-static inline void *comedi_aux_data(int options[], int n)
-{
-	unsigned long address;
-	unsigned long address_low;
-	int bit_shift;
-	if (sizeof(int) >= sizeof(void *))
-		address = options[COMEDI_DEVCONF_AUX_DATA_LO];
-	else {
-		address = options[COMEDI_DEVCONF_AUX_DATA_HI];
-		bit_shift = sizeof(int) * 8;
-		address <<= bit_shift;
-		address_low = options[COMEDI_DEVCONF_AUX_DATA_LO];
-		address_low &= (1UL << bit_shift) - 1;
-		address |= address_low;
-	}
-	if (n >= 1)
-		address += options[COMEDI_DEVCONF_AUX_DATA0_LENGTH];
-	if (n >= 2)
-		address += options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];
-	if (n >= 3)
-		address += options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];
-	BUG_ON(n > 3);
-	return (void *)address;
-}
-
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);

@@ -41,7 +41,17 @@
 
 /* number of config options in the config structure */
 #define COMEDI_NDEVCONFOPTS 32
-/*length of nth chunk of firmware data*/
+
+/*
+ * NOTE: 'comedi_config --init-data' is deprecated
+ *
+ * The following indexes in the config options were used by
+ * comedi_config to pass firmware blobs from user space to the
+ * comedi drivers. The request_firmware() hotplug interface is
+ * now used by all comedi drivers instead.
+ */
+
+/* length of nth chunk of firmware data -*/
 #define COMEDI_DEVCONF_AUX_DATA3_LENGTH		25
 #define COMEDI_DEVCONF_AUX_DATA2_LENGTH		26
 #define COMEDI_DEVCONF_AUX_DATA1_LENGTH		27

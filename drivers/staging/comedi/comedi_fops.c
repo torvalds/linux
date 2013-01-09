@@ -469,8 +469,6 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 {
 	struct comedi_devconfig it;
 	int ret;
-	unsigned char *aux_data = NULL;
-	int aux_len;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -491,31 +489,10 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 
 	it.board_name[COMEDI_NAMELEN - 1] = 0;
 
-	if (comedi_aux_data(it.options, 0) &&
-	    it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		int bit_shift;
-		aux_len = it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-		if (aux_len < 0)
-			return -EFAULT;
-
-		aux_data = vmalloc(aux_len);
-		if (!aux_data)
-			return -ENOMEM;
-
-		if (copy_from_user(aux_data,
-				   (unsigned char __user *
-				    )comedi_aux_data(it.options, 0), aux_len)) {
-			vfree(aux_data);
-			return -EFAULT;
-		}
-		it.options[COMEDI_DEVCONF_AUX_DATA_LO] =
-		    (unsigned long)aux_data;
-		if (sizeof(void *) > sizeof(int)) {
-			bit_shift = sizeof(int) * 8;
-			it.options[COMEDI_DEVCONF_AUX_DATA_HI] =
-			    ((unsigned long)aux_data) >> bit_shift;
-		} else
-			it.options[COMEDI_DEVCONF_AUX_DATA_HI] = 0;
+	if (it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
+		dev_warn(dev->class_dev,
+			 "comedi_config --init_data is deprecated\n");
+		return -EINVAL;
 	}
 
 	ret = comedi_device_attach(dev, &it);
@@ -525,9 +502,6 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			ret = -ENOSYS;
 		}
 	}
-
-	if (aux_data)
-		vfree(aux_data);
 
 	return ret;
 }
