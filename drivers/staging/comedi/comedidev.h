@@ -438,7 +438,6 @@ comedi_to_usb_interface(struct comedi_device *dev)
 int comedi_buf_put(struct comedi_async *async, short x);
 int comedi_buf_get(struct comedi_async *async, short *x);
 
-unsigned int comedi_buf_write_n_available(struct comedi_async *async);
 unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 				    unsigned int nbytes);
 unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,

@@ -159,22 +159,30 @@ void comedi_buf_reset(struct comedi_async *async)
 	async->events = 0;
 }
 
-unsigned int comedi_buf_write_n_available(struct comedi_async *async)
+static unsigned int comedi_buf_write_n_available(struct comedi_async *async)
 {
-	unsigned int free_end;
-	unsigned int nbytes;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if (async == NULL)
-		return 0;
+	return free_end - async->buf_write_alloc_count;
+}
 
-	free_end = async->buf_read_count + async->prealloc_bufsz;
-	nbytes = free_end - async->buf_write_alloc_count;
-	nbytes -= nbytes % bytes_per_sample(async->subdevice);
-	/* barrier insures the read of buf_read_count in this
-	   query occurs before any following writes to the buffer which
-	   might be based on the return value from this query.
+static unsigned int __comedi_buf_write_alloc(struct comedi_async *async,
+					     unsigned int nbytes,
+					     int strict)
+{
+	unsigned int available = comedi_buf_write_n_available(async);
+
+	if (nbytes > available)
+		nbytes = strict ? 0 : available;
+
+	async->buf_write_alloc_count += nbytes;
+
+	/*
+	 * ensure the async buffer 'counts' are read and updated
+	 * before we write data to the write-alloc'ed buffer space
 	 */
 	smp_mb();
+
 	return nbytes;
 }
 
@@ -182,16 +190,7 @@ unsigned int comedi_buf_write_n_available(struct comedi_async *async)
 unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 				    unsigned int nbytes)
 {
-	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
-
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0)
-		nbytes = free_end - async->buf_write_alloc_count;
-
-	async->buf_write_alloc_count += nbytes;
-	/* barrier insures the read of buf_read_count above occurs before
-	   we write data to the write-alloc'ed buffer space */
-	smp_mb();
-	return nbytes;
+	return __comedi_buf_write_alloc(async, nbytes, 0);
 }
 EXPORT_SYMBOL(comedi_buf_write_alloc);
 
@@ -199,16 +198,7 @@ EXPORT_SYMBOL(comedi_buf_write_alloc);
 unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
 					   unsigned int nbytes)
 {
-	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
-
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0)
-		nbytes = 0;
-
-	async->buf_write_alloc_count += nbytes;
-	/* barrier insures the read of buf_read_count above occurs before
-	   we write data to the write-alloc'ed buffer space */
-	smp_mb();
-	return nbytes;
+	return __comedi_buf_write_alloc(async, nbytes, 1);
 }
 
 /* munging is applied to data by core as it passes between user
