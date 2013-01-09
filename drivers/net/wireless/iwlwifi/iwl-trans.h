@@ -391,7 +391,8 @@ struct iwl_trans;
  * @read_prph: read a DWORD from a periphery register
  * @write_prph: write a DWORD to a periphery register
  * @read_mem: read device's SRAM in DWORD
- * @write_mem: write device's SRAM in DWORD
+ * @write_mem: write device's SRAM in DWORD. If %buf is %NULL, then the memory
+ *	will be zeroed.
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
