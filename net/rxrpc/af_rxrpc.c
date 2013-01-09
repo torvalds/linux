@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -792,10 +793,9 @@ static const struct net_proto_family rxrpc_family_ops = {
  */
 static int __init af_rxrpc_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int ret = -1;
 
-	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	rxrpc_epoch = htonl(get_seconds());
 
