@@ -1628,7 +1628,7 @@ static struct vport *lookup_vport(struct net *net,
 
 		vport = ovs_vport_rtnl_rcu(dp, port_no);
 		if (!vport)
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-ENODEV);
 		return vport;
 	} else
 		return ERR_PTR(-EINVAL);
