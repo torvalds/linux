@@ -286,7 +286,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 	spin_lock_init(&sc->sc_pcu_lock);
 	spin_lock_init(&sc->rx.rxbuflock);
-	clear_bit(SC_OP_RXFLUSH, &sc->sc_flags);
 
 	common->rx_bufsize = IEEE80211_MAX_MPDU_LEN / 2 +
 			     sc->sc_ah->caps.rx_status_len;
@@ -501,11 +500,9 @@ bool ath_stoprecv(struct ath_softc *sc)
 
 void ath_flushrecv(struct ath_softc *sc)
 {
-	set_bit(SC_OP_RXFLUSH, &sc->sc_flags);
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ath_rx_tasklet(sc, 1, true);
 	ath_rx_tasklet(sc, 1, false);
-	clear_bit(SC_OP_RXFLUSH, &sc->sc_flags);
 }
 
 static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
@@ -1067,9 +1064,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 	do {
 		bool decrypt_error = false;
-		/* If handling rx interrupt and flush is in progress => exit */
-		if (test_bit(SC_OP_RXFLUSH, &sc->sc_flags) && (flush == 0))
-			break;
 
 		memset(&rs, 0, sizeof(rs));
 		if (edma)
@@ -1111,15 +1105,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			sc->rx.num_pkts++;
 
 		ath_debug_stat_rx(sc, &rs);
-
-		/*
-		 * If we're asked to flush receive queue, directly
-		 * chain it back at the queue without processing it.
-		 */
-		if (test_bit(SC_OP_RXFLUSH, &sc->sc_flags)) {
-			RX_STAT_INC(rx_drop_rxflush);
-			goto requeue_drop_frag;
-		}
 
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
 

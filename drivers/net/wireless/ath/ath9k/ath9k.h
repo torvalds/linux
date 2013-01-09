@@ -646,7 +646,6 @@ void ath_ant_comb_update(struct ath_softc *sc);
 enum sc_op_flags {
 	SC_OP_INVALID,
 	SC_OP_BEACONS,
-	SC_OP_RXFLUSH,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
 	SC_OP_HW_RESET,

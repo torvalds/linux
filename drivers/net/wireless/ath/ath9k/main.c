@@ -196,6 +196,8 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
+	tasklet_disable(&sc->intr_tq);
+
 	if (!ath_stoprecv(sc))
 		ret = false;
 
@@ -209,6 +211,8 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 	} else {
 		ath_flushrecv(sc);
 	}
+
+	tasklet_enable(&sc->intr_tq);
 
 	return ret;
 }
