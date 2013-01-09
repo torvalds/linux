@@ -39,7 +39,7 @@ struct adis16080_state {
 	struct spi_device		*us;
 	struct mutex			buf_lock;
 
-	u8 buf[2] ____cacheline_aligned;
+	__be16 buf ____cacheline_aligned;
 };
 
 static int adis16080_read_sample(struct iio_dev *indio_dev,
@@ -60,8 +60,7 @@ static int adis16080_read_sample(struct iio_dev *indio_dev,
 	};
 
 	mutex_lock(&st->buf_lock);
-	st->buf[0] = addr >> 8;
-	st->buf[1] = addr;
+	st->buf = cpu_to_be16(addr | ADIS16080_DIN_WRITE);
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t[0], &m);
@@ -69,7 +68,7 @@ static int adis16080_read_sample(struct iio_dev *indio_dev,
 
 	ret = spi_sync(st->us, &m);
 	if (ret == 0)
-		*val = sign_extend32(((st->buf[0] & 0xF) << 8) | st->buf[1], 11);
+		*val = sign_extend32(be16_to_cpu(st->buf), 11);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
