@@ -309,6 +309,11 @@ unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes)
 }
 EXPORT_SYMBOL(comedi_buf_read_alloc);
 
+static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
+{
+	return async->buf_read_alloc_count - async->buf_read_count;
+}
+
 /* transfers control of a chunk from reader to free buffer space */
 unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 {

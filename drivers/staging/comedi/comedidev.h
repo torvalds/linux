@@ -453,11 +453,6 @@ static inline unsigned comedi_buf_write_n_allocated(struct comedi_async *async)
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
 
-static inline unsigned comedi_buf_read_n_allocated(struct comedi_async *async)
-{
-	return async->buf_read_alloc_count - async->buf_read_count;
-}
-
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);
