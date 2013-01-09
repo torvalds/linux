@@ -289,7 +289,8 @@ struct cfq_group {
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
 	struct cfq_ttime ttime;
-	struct cfqg_stats stats;
+	struct cfqg_stats stats;	/* stats for this cfqg */
+	struct cfqg_stats dead_stats;	/* stats pushed from dead children */
 };
 
 struct cfq_io_cq {
@@ -707,6 +708,47 @@ static void cfqg_stats_reset(struct cfqg_stats *stats)
 	blkg_stat_reset(&stats->idle_time);
 	blkg_stat_reset(&stats->empty_time);
 #endif
+}
+
+/* @to += @from */
+static void cfqg_stats_merge(struct cfqg_stats *to, struct cfqg_stats *from)
+{
+	/* queued stats shouldn't be cleared */
+	blkg_rwstat_merge(&to->service_bytes, &from->service_bytes);
+	blkg_rwstat_merge(&to->serviced, &from->serviced);
+	blkg_rwstat_merge(&to->merged, &from->merged);
+	blkg_rwstat_merge(&to->service_time, &from->service_time);
+	blkg_rwstat_merge(&to->wait_time, &from->wait_time);
+	blkg_stat_merge(&from->time, &from->time);
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	blkg_stat_merge(&to->unaccounted_time, &from->unaccounted_time);
+	blkg_stat_merge(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
+	blkg_stat_merge(&to->avg_queue_size_samples, &from->avg_queue_size_samples);
+	blkg_stat_merge(&to->dequeue, &from->dequeue);
+	blkg_stat_merge(&to->group_wait_time, &from->group_wait_time);
+	blkg_stat_merge(&to->idle_time, &from->idle_time);
+	blkg_stat_merge(&to->empty_time, &from->empty_time);
+#endif
+}
+
+/*
+ * Transfer @cfqg's stats to its parent's dead_stats so that the ancestors'
+ * recursive stats can still account for the amount used by this cfqg after
+ * it's gone.
+ */
+static void cfqg_stats_xfer_dead(struct cfq_group *cfqg)
+{
+	struct cfq_group *parent = cfqg_parent(cfqg);
+
+	lockdep_assert_held(cfqg_to_blkg(cfqg)->q->queue_lock);
+
+	if (unlikely(!parent))
+		return;
+
+	cfqg_stats_merge(&parent->dead_stats, &cfqg->stats);
+	cfqg_stats_merge(&parent->dead_stats, &cfqg->dead_stats);
+	cfqg_stats_reset(&cfqg->stats);
+	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
@@ -1475,11 +1517,23 @@ static void cfq_pd_init(struct blkcg_gq *blkg)
 	cfqg->leaf_weight = blkg->blkcg->cfq_leaf_weight;
 }
 
+static void cfq_pd_offline(struct blkcg_gq *blkg)
+{
+	/*
+	 * @blkg is going offline and will be ignored by
+	 * blkg_[rw]stat_recursive_sum().  Transfer stats to the parent so
+	 * that they don't get lost.  If IOs complete after this point, the
+	 * stats for them will be lost.  Oh well...
+	 */
+	cfqg_stats_xfer_dead(blkg_to_cfqg(blkg));
+}
+
 static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
 	cfqg_stats_reset(&cfqg->stats);
+	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
 /*
@@ -4408,6 +4462,7 @@ static struct blkcg_policy blkcg_policy_cfq = {
 	.cftypes		= cfq_blkcg_files,
 
 	.pd_init_fn		= cfq_pd_init,
+	.pd_offline_fn		= cfq_pd_offline,
 	.pd_reset_stats_fn	= cfq_pd_reset_stats,
 };
 #endif
