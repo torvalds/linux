@@ -1,0 +1,21 @@
+choice
+	prompt "Rockchip SoC Type"
+
+config SOC_RK3188
+	bool "RK3188"
+
+endchoice
+
+if SOC_RK3188
+choice
+	prompt "RK3188 Board Type"
+
+config MACH_RK3188_TB
+	bool "RK3188 Top Board"
+
+config MACH_RK3188_FPGA
+	bool "RK3188 FPGA board"
+	select RK_FPGA
+
+endchoice
+endif

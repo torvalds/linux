@@ -29,7 +29,7 @@
 
 #ifdef CONFIG_ADC_RK30
 static struct adc_platform_data rk30_adc_pdata = {
-        #if defined(CONFIG_ARCH_RK3066B)       
+        #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         .ref_volt = 1800, //1800mV
         #else
         .ref_volt = 2500, //2500mV
@@ -60,7 +60,7 @@ struct platform_device device_adc = {
 };
 #endif
 
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !defined(CONFIG_ARCH_RK3066B) && defined(IRQ_TSADC)
 static struct resource rk30_tsadc_resource[] = {
 	{
 		.start	= IRQ_TSADC,
@@ -80,6 +80,13 @@ static struct platform_device device_tsadc = {
 	.num_resources	= ARRAY_SIZE(rk30_tsadc_resource),
 	.resource	= rk30_tsadc_resource,
 };
+
+static void __init rk30_init_tsadc(void)
+{
+	platform_device_register(&device_tsadc);
+}
+#else
+static void __init rk30_init_tsadc(void) {}
 #endif
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
@@ -96,7 +103,8 @@ static struct resource resource_dmac1[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-#if defined(CONFIG_ARCH_RK3066B)
+
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 
 static struct rk29_pl330_platdata dmac1_pdata = {
 	.peri = {
@@ -1195,9 +1203,7 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_KEYS_RK29
 	platform_device_register(&device_keys);
 #endif
-#if !defined(CONFIG_ARCH_RK3066B)
-	platform_device_register(&device_tsadc);
-#endif
+	rk30_init_tsadc();
 	rk30_init_sdmmc();
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);

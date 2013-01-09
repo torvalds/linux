@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_CAMERA_RK30_H_
 #define __ASM_ARCH_CAMERA_RK30_H_
 
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define RK29_CAM_DRV_NAME "rk3066b-camera"
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   0

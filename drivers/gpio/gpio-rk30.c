@@ -29,10 +29,11 @@
 #include <mach/gpio.h>
 #include <mach/io.h>
 #include <mach/iomux.h>
+#include <mach/pmu.h>
 #include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define MAX_PIN	RK30_PIN3_PD7
 #elif defined(CONFIG_ARCH_RK30)
 #define MAX_PIN	RK30_PIN6_PB7
@@ -327,8 +328,46 @@ static void rk30_gpiolib_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, enum GPIOPullType type)
 {
-#if !defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B)
+#else
 	struct rk30_gpio_bank *bank = to_rk30_gpio_bank(chip);
+	void __iomem *base;
+	u32 val;
+
+#if defined(CONFIG_ARCH_RK3188)
+	/*
+	 * pull setting
+	 * 2'b00: Z(Noraml operaton)
+	 * 2'b01: weak 1(pull-up)
+	 * 2'b10: weak 0(pull-down)
+	 * 2'b11: Repeater(Bus keeper)
+	 */
+	switch (type) {
+	case PullDisable:
+		val = 0;
+		break;
+	case GPIOPullUp:
+		val = 1;
+		break;
+	case GPIOPullDown:
+		val = 2;
+		break;
+	default:
+		WARN(1, "%s: unsupported pull type %d\n", __func__, type);
+		return -EINVAL;
+	}
+
+	if (bank->id == 0 && offset < 12) {
+		base = RK30_PMU_BASE + PMU_GPIO0A_PULL + ((offset / 8) * 4);
+		offset = (offset % 8) * 2;
+		__raw_writel((0x3 << (16 + offset)) | (val << offset), base);
+	} else {
+		base = RK30_GRF_BASE + GRF_GPIO0B_PULL - 4 + bank->id * 16 + ((offset / 8) * 4);
+		offset = (7 - (offset % 8)) * 2;
+		__raw_writel((0x3 << (16 + offset)) | (val << offset), base);
+	}
+#else
+	/* RK30XX && RK292X */
 	/*
 	 * Values written to this register independently
 	 * control Pullup/Pulldown or not for the
@@ -337,13 +376,11 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, enu
 	 * to be up or down, not related with this value
 	 * 1: pull up/down disable
 	*/
-	u32 val = (type == PullDisable) ? 1 : 0;
-	void __iomem *base = RK30_GRF_BASE + bank->id * 8;
-
-	if (offset >= 16)
-		__raw_writel((1 << offset) | (val << (offset - 16)), base + GRF_GPIO0H_PULL);
-	else	
-		__raw_writel((1 << (offset + 16)) | (val << offset), base + GRF_GPIO0L_PULL);
+	val = (type == PullDisable) ? 1 : 0;
+	base = RK30_GRF_BASE + GRF_GPIO0L_PULL + bank->id * 8 + ((offset / 16) * 4);
+	offset = offset % 16;
+	__raw_writel((1 << (16 + offset)) | (val << offset), base);
+#endif
 #endif
 	return 0;
 }

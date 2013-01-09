@@ -24,7 +24,7 @@ config ADC_RK29
 
 config ADC_RK30
 	bool "RK30 adc interface"
-        depends on ARCH_RK30 || ARCH_RK2928
+        depends on ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188
 	help
 		This supports the use of the ADC interface on rk30 processors.
 endchoice
