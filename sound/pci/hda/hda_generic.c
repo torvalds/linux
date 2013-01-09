@@ -2110,13 +2110,9 @@ static int create_input_ctls(struct hda_codec *codec)
 
 			if (!is_reachable_path(codec, pin, adc))
 				continue;
-			path = snd_hda_add_new_path(codec, pin, adc, 0);
-			if (!path) {
-				snd_printd(KERN_ERR
-					   "invalid input path 0x%x -> 0x%x\n",
-					   pin, adc);
+			path = snd_hda_add_new_path(codec, pin, adc, -mixer);
+			if (!path)
 				continue;
-			}
 			print_nid_path("input", path);
 			spec->input_paths[imux_idx][c] =
 				snd_hda_get_path_idx(codec, path);
