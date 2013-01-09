@@ -247,6 +247,9 @@ static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
 	channel_writel(dwc, CTL_LO, ctllo);
 	channel_writel(dwc, CTL_HI, desc->lli.ctlhi);
 	channel_set_bit(dw, CH_EN, dwc->mask);
+
+	/* Move pointer to next descriptor */
+	dwc->tx_node_active = dwc->tx_node_active->next;
 }
 
 /* Called with dwc->lock held and bh disabled */
@@ -278,7 +281,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		dwc_initialize(dwc);
 
 		dwc->tx_list = &first->tx_list;
-		dwc->tx_node_active = first->tx_list.next;
+		dwc->tx_node_active = &first->tx_list;
 
 		dwc_do_single_block(dwc, first);
 
@@ -604,18 +607,13 @@ static void dw_dma_tasklet(unsigned long data)
 
 					dma_writel(dw, CLEAR.XFER, dwc->mask);
 
-					/* move pointer to next descriptor */
-					dwc->tx_node_active =
-						dwc->tx_node_active->next;
-
 					dwc_do_single_block(dwc, desc);
 
 					spin_unlock_irqrestore(&dwc->lock, flags);
 					continue;
-				} else {
-					/* we are done here */
-					clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
 				}
+				/* we are done here */
+				clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
 			}
 			spin_unlock_irqrestore(&dwc->lock, flags);
 
