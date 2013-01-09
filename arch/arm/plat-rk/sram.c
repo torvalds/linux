@@ -16,6 +16,7 @@
 #include <mach/memory.h>
 #include <plat/sram.h>
 #include <mach/gpio.h>
+#include <mach/debug_uart.h>
 
 /* SRAM section definitions from the linker */
 extern char __sram_code_start, __ssram_code_text, __esram_code_text;
