@@ -12,68 +12,6 @@
 #include <mach/sram.h>
 #include <linux/i2c-gpio.h>
 
-#ifndef _LINUX_WLAN_PLAT_H_
-struct wifi_platform_data {
-        int (*set_power)(int val);
-        int (*set_reset)(int val);
-        int (*set_carddetect)(int val);
-        void *(*mem_prealloc)(int section, unsigned long size);
-        int (*get_mac_addr)(unsigned char *buf);
-};
-#endif
-
-#if defined (CONFIG_TOUCHSCREEN_FT5306)
-struct ft5x0x_platform_data{
-	u16     model;
-	int	max_x;
-	int	max_y;
-	int	key_min_x;
-	int	key_min_y;
-	int	xy_swap;
-	int	x_revert;
-	int	y_revert;
-	int     (*get_pendown_state)(void);
-	int     (*init_platform_hw)(void);
-	int     (*ft5x0x_platform_sleep)(void);
-	int     (*ft5x0x_platform_wakeup)(void);  
-	void    (*exit_platform_hw)(void);
-
-};
-#endif
-
-#if defined (CONFIG_TOUCHSCREEN_FT5306_WPX2)
-struct ft5x0x_platform_data{
-          u16     model;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*ft5x0x_platform_sleep)(void);
-    int     (*ft5x0x_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-};
-#endif
-
-struct codec_io_info{
-	char	iomux_name[50];
-	int		iomux_mode;	
-};
-
-struct rt3261_platform_data{
-	unsigned int codec_en_gpio;
-	struct codec_io_info codec_en_gpio_info;
-	int (*io_init)(int, char *, int);
-	unsigned int spk_num;
-	unsigned int modem_input_mode;
-	unsigned int lout_to_modem_mode;
-	unsigned int spk_amplify;
-	unsigned int playback_if1_data_control;
-	unsigned int playback_if2_data_control;
-};
-
-extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
-extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
-
-extern struct i2c_gpio_platform_data default_i2c_gpio_data; 
-extern struct rk29_vmac_platform_data board_vmac_data;
 
 void __init rk30_map_common_io(void);
 void __init rk30_init_irq(void);
@@ -81,11 +19,6 @@ void __init rk30_map_io(void);
 struct machine_desc;
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
 void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags);
-void __init board_clock_init(void);
-void board_gpio_suspend(void);
-void board_gpio_resume(void);
-void __sramfunc board_pmu_suspend(void);
-void __sramfunc board_pmu_resume(void);
 
 #ifdef CONFIG_RK30_PWM_REGULATOR
 void  rk30_pwm_suspend_voltage_set(void);

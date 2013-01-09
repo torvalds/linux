@@ -15,95 +15,14 @@
 #define GPIO_SWPORTA_DR  0x0000
 #define GPIO_SWPORTA_DDR 0x0004
 
-extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
-extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
-
-extern struct i2c_gpio_platform_data default_i2c_gpio_data; 
-
 void __init rk2928_map_common_io(void);
 void __init rk2928_init_irq(void);
 void __init rk2928_map_io(void);
 struct machine_desc;
 void __init rk2928_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
 void __init rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags);
-void __init board_clock_init(void);
 void __init rk2928_iomux_init(void);
-void board_gpio_suspend(void);
-void board_gpio_resume(void);
-void __sramfunc board_pmu_suspend(void);
-void __sramfunc board_pmu_resume(void);
-
 extern struct sys_timer rk2928_timer;
-
-struct ts_hw_data {
-	int reset_gpio;
-	int touch_en_gpio;
-};
-
-#ifndef _LINUX_WLAN_PLAT_H_
-struct wifi_platform_data {
-        int (*set_power)(int val);
-        int (*set_reset)(int val);
-        int (*set_carddetect)(int val);
-        void *(*mem_prealloc)(int section, unsigned long size);
-        int (*get_mac_addr)(unsigned char *buf);
-};
-#endif
-#if defined (CONFIG_EETI_EGALAX)
-struct eeti_egalax_platform_data{
-	u16     model;
-
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*eeti_egalax_platform_sleep)(void);
-    int     (*eeti_egalax_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-    int     standby_pin;
-    int     standby_value;
-    int     disp_on_pin;
-    int     disp_on_value;
- 
-};
-#endif
-#if defined (CONFIG_TOUCHSCREEN_SITRONIX_A720)
-struct ft5x0x_platform_data{
-	  u16     model;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*ft5x0x_platform_sleep)(void);
-    int     (*ft5x0x_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-    int     (*direction_otation)(int *x ,int *y );
-};
-#endif
-
-#if defined (CONFIG_TOUCHSCREEN_I30)
-struct ft5306_platform_data {
-    int rest_pin;
-    int irq_pin ;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*platform_sleep)(void);
-    int     (*platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-};
-#endif
-#if defined(CONFIG_TOUCHSCREEN_BYD693X)
-struct byd_platform_data {
-	u16     model;
-	int     pwr_pin;
-	int	  int_pin;
-	int     rst_pin;
-	int		pwr_on_value;
-	int 	*tp_flag;
-
-	uint16_t screen_max_x;
-	uint16_t screen_max_y;
-	u8 swap_xy :1;
-	u8 xpol :1;
-	u8 ypol :1;	
-};
-#endif
 
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,

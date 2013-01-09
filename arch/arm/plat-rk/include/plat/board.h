@@ -185,14 +185,6 @@ struct gsensor_platform_data {
 	void (*exit_platform_hw)(void);
 };
 
-struct ft5606_platform_data {
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*platform_sleep)(void);
-    int     (*platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-};
-
 struct akm8975_platform_data {
 	short m_layout[4][3][3];
 	char project_name[64];
@@ -228,28 +220,6 @@ struct board_id_platform_data {
 	int (*exit_platform_hw)(void);
 	int (*init_parameter)(int id);  
 };
-
-
-
-struct goodix_platform_data {
-	int model ;
-	int rest_pin;
-	int irq_pin ;
-	int (*get_pendown_state)(void);
-	int (*init_platform_hw)(void);
-	int (*platform_sleep)(void);
-	int (*platform_wakeup)(void);
-	void (*exit_platform_hw)(void);
-};
-
-struct ct360_platform_data {
-	u16		model;
-	u16		x_max;
-	u16		y_max;
-	void 	(*hw_init)(void);
-	void 	(*shutdown)(int);
-};
-
 
 struct cm3217_platform_data {
 	int irq_pin;
@@ -337,6 +307,139 @@ struct rk30_adc_battery_platform_data {
 
 };
 
+#ifndef _LINUX_WLAN_PLAT_H_
+struct wifi_platform_data {
+        int (*set_power)(int val);
+        int (*set_reset)(int val);
+        int (*set_carddetect)(int val);
+        void *(*mem_prealloc)(int section, unsigned long size);
+        int (*get_mac_addr)(unsigned char *buf);
+};
+#endif
+
+struct goodix_platform_data {
+	int model ;
+	int rest_pin;
+	int irq_pin ;
+	int (*get_pendown_state)(void);
+	int (*init_platform_hw)(void);
+	int (*platform_sleep)(void);
+	int (*platform_wakeup)(void);
+	void (*exit_platform_hw)(void);
+};
+
+struct ct360_platform_data {
+	u16		model;
+	u16		x_max;
+	u16		y_max;
+	void 	(*hw_init)(void);
+	void 	(*shutdown)(int);
+};
+
+struct ft5606_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
+#if defined(CONFIG_TOUCHSCREEN_FT5306) || defined(CONFIG_TOUCHSCREEN_FT5306_WPX2)
+struct ft5x0x_platform_data{
+	u16     model;
+	int	max_x;
+	int	max_y;
+	int	key_min_x;
+	int	key_min_y;
+	int	xy_swap;
+	int	x_revert;
+	int	y_revert;
+	int     (*get_pendown_state)(void);
+	int     (*init_platform_hw)(void);
+	int     (*ft5x0x_platform_sleep)(void);
+	int     (*ft5x0x_platform_wakeup)(void);
+	void    (*exit_platform_hw)(void);
+};
+#endif
+
+#if defined (CONFIG_TOUCHSCREEN_SITRONIX_A720)
+struct ft5x0x_platform_data{
+    u16     model;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*ft5x0x_platform_sleep)(void);
+    int     (*ft5x0x_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+    int     (*direction_otation)(int *x ,int *y );
+};
+#endif
+
+#if defined (CONFIG_TOUCHSCREEN_I30)
+struct ft5306_platform_data {
+    int     rest_pin;
+    int     irq_pin;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
+
+#if defined (CONFIG_EETI_EGALAX)
+struct eeti_egalax_platform_data {
+    u16     model;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*eeti_egalax_platform_sleep)(void);
+    int     (*eeti_egalax_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+    int     standby_pin;
+    int     standby_value;
+    int     disp_on_pin;
+    int     disp_on_value;
+};
+#endif
+
+struct ts_hw_data {
+	int reset_gpio;
+	int touch_en_gpio;
+};
+
+#if defined(CONFIG_TOUCHSCREEN_BYD693X)
+struct byd_platform_data {
+	u16     model;
+	int     pwr_pin;
+	int     int_pin;
+	int     rst_pin;
+	int     pwr_on_value;
+	int     *tp_flag;
+
+	uint16_t screen_max_x;
+	uint16_t screen_max_y;
+	u8 swap_xy :1;
+	u8 xpol :1;
+	u8 ypol :1;
+};
+#endif
+
+struct codec_io_info {
+	char    iomux_name[50];
+	int     iomux_mode;
+};
+
+struct rt3261_platform_data {
+	unsigned int codec_en_gpio;
+	struct codec_io_info codec_en_gpio_info;
+	int (*io_init)(int, char *, int);
+	unsigned int spk_num;
+	unsigned int modem_input_mode;
+	unsigned int lout_to_modem_mode;
+	unsigned int spk_amplify;
+	unsigned int playback_if1_data_control;
+	unsigned int playback_if2_data_control;
+};
+
 
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
@@ -369,6 +472,18 @@ void rk28_send_wakeup_key(void);
  * return value: start address of reserved memory */
 phys_addr_t __init board_mem_reserve_add(char *name, size_t size);
 void __init board_mem_reserved(void);
+
+extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
+extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
+
+extern struct i2c_gpio_platform_data default_i2c_gpio_data;
+extern struct rk29_vmac_platform_data board_vmac_data;
+
+void __init board_clock_init(void);
+void board_gpio_suspend(void);
+void board_gpio_resume(void);
+void __sramfunc board_pmu_suspend(void);
+void __sramfunc board_pmu_resume(void);
 
 /*
  * For DDR frequency scaling setup. Board code something like this:
