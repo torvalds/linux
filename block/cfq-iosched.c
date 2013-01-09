@@ -237,6 +237,18 @@ struct cfq_group {
 	unsigned int children_weight;
 
 	/*
+	 * vfraction is the fraction of vdisktime that the tasks in this
+	 * cfqg are entitled to.  This is determined by compounding the
+	 * ratios walking up from this cfqg to the root.
+	 *
+	 * It is in fixed point w/ CFQ_SERVICE_SHIFT and the sum of all
+	 * vfractions on a service tree is approximately 1.  The sum may
+	 * deviate a bit due to rounding errors and fluctuations caused by
+	 * cfqgs entering and leaving the service tree.
+	 */
+	unsigned int vfraction;
+
+	/*
 	 * There are two weights - (internal) weight is the weight of this
 	 * cfqg against the sibling cfqgs.  leaf_weight is the wight of
 	 * this cfqg against the child cfqgs.  For the root cfqg, both
@@ -891,13 +903,27 @@ cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	return cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio);
 }
 
-static inline u64 cfq_scale_slice(unsigned long delta, struct cfq_group *cfqg)
+/**
+ * cfqg_scale_charge - scale disk time charge according to cfqg weight
+ * @charge: disk time being charged
+ * @vfraction: vfraction of the cfqg, fixed point w/ CFQ_SERVICE_SHIFT
+ *
+ * Scale @charge according to @vfraction, which is in range (0, 1].  The
+ * scaling is inversely proportional.
+ *
+ * scaled = charge / vfraction
+ *
+ * The result is also in fixed point w/ CFQ_SERVICE_SHIFT.
+ */
+static inline u64 cfqg_scale_charge(unsigned long charge,
+				    unsigned int vfraction)
 {
-	u64 d = delta << CFQ_SERVICE_SHIFT;
+	u64 c = charge << CFQ_SERVICE_SHIFT;	/* make it fixed point */
 
-	d = d * CFQ_WEIGHT_DEFAULT;
-	do_div(d, cfqg->weight);
-	return d;
+	/* charge / vfraction */
+	c <<= CFQ_SERVICE_SHIFT;
+	do_div(c, vfraction);
+	return c;
 }
 
 static inline u64 max_vdisktime(u64 min_vdisktime, u64 vdisktime)
@@ -1237,7 +1263,9 @@ cfq_update_group_weight(struct cfq_group *cfqg)
 static void
 cfq_group_service_tree_add(struct cfq_rb_root *st, struct cfq_group *cfqg)
 {
+	unsigned int vfr = 1 << CFQ_SERVICE_SHIFT;	/* start with 1 */
 	struct cfq_group *pos = cfqg;
+	struct cfq_group *parent;
 	bool propagate;
 
 	/* add to the service tree */
@@ -1248,22 +1276,34 @@ cfq_group_service_tree_add(struct cfq_rb_root *st, struct cfq_group *cfqg)
 	st->total_weight += cfqg->weight;
 
 	/*
-	 * Activate @cfqg and propagate activation upwards until we meet an
-	 * already activated node or reach root.
+	 * Activate @cfqg and calculate the portion of vfraction @cfqg is
+	 * entitled to.  vfraction is calculated by walking the tree
+	 * towards the root calculating the fraction it has at each level.
+	 * The compounded ratio is how much vfraction @cfqg owns.
+	 *
+	 * Start with the proportion tasks in this cfqg has against active
+	 * children cfqgs - its leaf_weight against children_weight.
 	 */
 	propagate = !pos->nr_active++;
 	pos->children_weight += pos->leaf_weight;
+	vfr = vfr * pos->leaf_weight / pos->children_weight;
 
-	while (propagate) {
-		struct cfq_group *parent = cfqg_flat_parent(pos);
-
-		if (!parent)
-			break;
-
-		propagate = !parent->nr_active++;
-		parent->children_weight += pos->weight;
+	/*
+	 * Compound ->weight walking up the tree.  Both activation and
+	 * vfraction calculation are done in the same loop.  Propagation
+	 * stops once an already activated node is met.  vfraction
+	 * calculation should always continue to the root.
+	 */
+	while ((parent = cfqg_flat_parent(pos))) {
+		if (propagate) {
+			propagate = !parent->nr_active++;
+			parent->children_weight += pos->weight;
+		}
+		vfr = vfr * pos->weight / parent->children_weight;
 		pos = parent;
 	}
+
+	cfqg->vfraction = max_t(unsigned, vfr, 1);
 }
 
 static void
@@ -1309,6 +1349,7 @@ cfq_group_service_tree_del(struct cfq_rb_root *st, struct cfq_group *cfqg)
 
 		/* @pos has 0 nr_active at this point */
 		WARN_ON_ONCE(pos->children_weight);
+		pos->vfraction = 0;
 
 		if (!parent)
 			break;
@@ -1381,6 +1422,7 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 	unsigned int used_sl, charge, unaccounted_sl = 0;
 	int nr_sync = cfqg->nr_cfqq - cfqg_busy_async_queues(cfqd, cfqg)
 			- cfqg->service_tree_idle.count;
+	unsigned int vfr;
 
 	BUG_ON(nr_sync < 0);
 	used_sl = charge = cfq_cfqq_slice_usage(cfqq, &unaccounted_sl);
@@ -1390,10 +1432,15 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 	else if (!cfq_cfqq_sync(cfqq) && !nr_sync)
 		charge = cfqq->allocated_slice;
 
-	/* Can't update vdisktime while group is on service tree */
+	/*
+	 * Can't update vdisktime while on service tree and cfqg->vfraction
+	 * is valid only while on it.  Cache vfr, leave the service tree,
+	 * update vdisktime and go back on.  The re-addition to the tree
+	 * will also update the weights as necessary.
+	 */
+	vfr = cfqg->vfraction;
 	cfq_group_service_tree_del(st, cfqg);
-	cfqg->vdisktime += cfq_scale_slice(charge, cfqg);
-	/* If a new weight was requested, update now, off tree */
+	cfqg->vdisktime += cfqg_scale_charge(charge, vfr);
 	cfq_group_service_tree_add(st, cfqg);
 
 	/* This group is being expired. Save the context */
@@ -1669,44 +1716,44 @@ static int cfqg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 
 static struct cftype cfq_blkcg_files[] = {
+	/* on root, weight is mapped to leaf_weight */
 	{
 		.name = "weight_device",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_seq_string = cfqg_print_leaf_weight_device,
+		.write_string = cfqg_set_leaf_weight_device,
+		.max_write_len = 256,
+	},
+	{
+		.name = "weight",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_seq_string = cfq_print_leaf_weight,
+		.write_u64 = cfq_set_leaf_weight,
+	},
+
+	/* no such mapping necessary for !roots */
+	{
+		.name = "weight_device",
+		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_seq_string = cfqg_print_weight_device,
 		.write_string = cfqg_set_weight_device,
 		.max_write_len = 256,
 	},
 	{
 		.name = "weight",
-		.read_seq_string = cfq_print_weight,
-		.write_u64 = cfq_set_weight,
-	},
-
-	/* on root, leaf_weight is mapped to weight */
-	{
-		.name = "leaf_weight_device",
-		.flags = CFTYPE_ONLY_ON_ROOT,
-		.read_seq_string = cfqg_print_weight_device,
-		.write_string = cfqg_set_weight_device,
-		.max_write_len = 256,
-	},
-	{
-		.name = "leaf_weight",
-		.flags = CFTYPE_ONLY_ON_ROOT,
-		.read_seq_string = cfq_print_weight,
-		.write_u64 = cfq_set_weight,
-	},
-
-	/* no such mapping necessary for !roots */
-	{
-		.name = "leaf_weight_device",
 		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_seq_string = cfq_print_weight,
+		.write_u64 = cfq_set_weight,
+	},
+
+	{
+		.name = "leaf_weight_device",
 		.read_seq_string = cfqg_print_leaf_weight_device,
 		.write_string = cfqg_set_leaf_weight_device,
 		.max_write_len = 256,
 	},
 	{
 		.name = "leaf_weight",
-		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_seq_string = cfq_print_leaf_weight,
 		.write_u64 = cfq_set_leaf_weight,
 	},
