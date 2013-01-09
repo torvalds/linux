@@ -219,12 +219,14 @@ static void prepare_frame_for_deferred_tx(struct ieee80211_sub_if_data *sdata,
 }
 
 /**
- * mesh_send_path error - Sends a PERR mesh management frame
+ * mesh_path_error_tx - Sends a PERR mesh management frame
  *
+ * @ttl: allowed remaining hops
  * @target: broken destination
  * @target_sn: SN of the broken destination
  * @target_rcode: reason code for this PERR
  * @ra: node this frame is addressed to
+ * @sdata: local mesh subif
  *
  * Note: This function may be called with driver locks taken that the driver
  * also acquires in the TX path.  To avoid a deadlock we don't transmit the
@@ -350,6 +352,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
  * @sdata: local mesh subif
  * @mgmt: mesh management frame
  * @hwmp_ie: hwmp information element (PREP or PREQ)
+ * @action: type of hwmp ie
  *
  * This function updates the path routing information to the originator and the
  * transmitter of a HWMP PREQ or PREP frame.
