@@ -379,7 +379,8 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	dentry = ERR_PTR(err);
 	if (unlikely(err))
 		goto out_name;
-	dentry = ERR_PTR(-ENOENT);
+	/* instead of ENOENT */
+	dentry = ERR_PTR(-ESTALE);
 	if (!arg.found)
 		goto out_name;
 
