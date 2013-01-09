@@ -254,16 +254,15 @@ static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
  * these macros are called: arguments may be evaluated more than once.
  * Fixing this is just not worth it.
  */
-#define IN_TO_REG(val)  (SENSORS_LIMIT((((val) + 8)/16),0,255))
+#define IN_TO_REG(val)  (clamp_val((((val) + 8) / 16), 0, 255))
 #define IN_FROM_REG(val) ((val) * 16)
 
 static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1,
-			     254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 #define TEMP_MIN (-128000)
@@ -275,9 +274,9 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  */
 static u8 TEMP_TO_REG(long temp)
 {
-        int ntemp = SENSORS_LIMIT(temp, TEMP_MIN, TEMP_MAX);
-        ntemp += (ntemp<0 ? -500 : 500);
-        return (u8)(ntemp / 1000);
+	int ntemp = clamp_val(temp, TEMP_MIN, TEMP_MAX);
+	ntemp += (ntemp < 0 ? -500 : 500);
+	return (u8)(ntemp / 1000);
 }
 
 static int TEMP_FROM_REG(u8 reg)
@@ -287,7 +286,7 @@ static int TEMP_FROM_REG(u8 reg)
 
 #define FAN_FROM_REG(val,div) ((val)==0?-1:(val)==255?0:1350000/((val)*(div)))
 
-#define PWM_TO_REG(val) (SENSORS_LIMIT((val),0,255))
+#define PWM_TO_REG(val) (clamp_val((val), 0, 255))
 
 static inline unsigned long pwm_freq_from_reg_627hf(u8 reg)
 {
@@ -342,7 +341,7 @@ static inline u8 pwm_freq_to_reg(unsigned long val)
 static inline u8 DIV_TO_REG(long val)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1, 128) >> 1;
+	val = clamp_val(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -614,8 +613,7 @@ static ssize_t store_regs_in_min0(struct device *dev, struct device_attribute *a
 
 		/* use VRM9 calculation */
 		data->in_min[0] =
-			SENSORS_LIMIT(((val * 100) - 70000 + 244) / 488, 0,
-					255);
+			clamp_val(((val * 100) - 70000 + 244) / 488, 0, 255);
 	else
 		/* use VRM8 (standard) calculation */
 		data->in_min[0] = IN_TO_REG(val);
@@ -644,8 +642,7 @@ static ssize_t store_regs_in_max0(struct device *dev, struct device_attribute *a
 		
 		/* use VRM9 calculation */
 		data->in_max[0] =
-			SENSORS_LIMIT(((val * 100) - 70000 + 244) / 488, 0,
-					255);
+			clamp_val(((val * 100) - 70000 + 244) / 488, 0, 255);
 	else
 		/* use VRM8 (standard) calculation */
 		data->in_max[0] = IN_TO_REG(val);

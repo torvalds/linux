@@ -384,7 +384,7 @@ static int adc_lsb(const struct it87_data *data, int nr)
 static u8 in_to_reg(const struct it87_data *data, int nr, long val)
 {
 	val = DIV_ROUND_CLOSEST(val, adc_lsb(data, nr));
-	return SENSORS_LIMIT(val, 0, 255);
+	return clamp_val(val, 0, 255);
 }
 
 static int in_from_reg(const struct it87_data *data, int nr, int val)
@@ -396,16 +396,15 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1,
-			     254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline u16 FAN16_TO_REG(long rpm)
 {
 	if (rpm == 0)
 		return 0xffff;
-	return SENSORS_LIMIT((1350000 + rpm) / (rpm * 2), 1, 0xfffe);
+	return clamp_val((1350000 + rpm) / (rpm * 2), 1, 0xfffe);
 }
 
 #define FAN_FROM_REG(val, div) ((val) == 0 ? -1 : (val) == 255 ? 0 : \
@@ -414,8 +413,8 @@ static inline u16 FAN16_TO_REG(long rpm)
 #define FAN16_FROM_REG(val) ((val) == 0 ? -1 : (val) == 0xffff ? 0 : \
 			     1350000 / ((val) * 2))
 
-#define TEMP_TO_REG(val) (SENSORS_LIMIT(((val) < 0 ? (((val) - 500) / 1000) : \
-					((val) + 500) / 1000), -128, 127))
+#define TEMP_TO_REG(val) (clamp_val(((val) < 0 ? (((val) - 500) / 1000) : \
+				    ((val) + 500) / 1000), -128, 127))
 #define TEMP_FROM_REG(val) ((val) * 1000)
 
 static u8 pwm_to_reg(const struct it87_data *data, long val)

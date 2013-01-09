@@ -239,7 +239,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_high[attr2->nr] = SENSORS_LIMIT(temp_to_reg(val), 0, 255);
+	data->temp_high[attr2->nr] = clamp_val(temp_to_reg(val), 0, 255);
 	i2c_smbus_write_byte_data(client, attr2->index,
 				  data->temp_high[attr2->nr]);
 	mutex_unlock(&data->update_lock);

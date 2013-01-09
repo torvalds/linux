@@ -237,9 +237,9 @@ static struct i2c_driver jc42_driver = {
 
 static u16 jc42_temp_to_reg(int temp, bool extended)
 {
-	int ntemp = SENSORS_LIMIT(temp,
-				  extended ? JC42_TEMP_MIN_EXTENDED :
-				  JC42_TEMP_MIN, JC42_TEMP_MAX);
+	int ntemp = clamp_val(temp,
+			      extended ? JC42_TEMP_MIN_EXTENDED :
+			      JC42_TEMP_MIN, JC42_TEMP_MAX);
 
 	/* convert from 0.001 to 0.0625 resolution */
 	return (ntemp * 2 / 125) & 0x1fff;

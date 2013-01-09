@@ -215,7 +215,7 @@ static ssize_t set_temp_max(struct device *dev,
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[index] = SENSORS_LIMIT(temp/1000, -128, 127);
+	data->temp_max[index] = clamp_val(temp/1000, -128, 127);
 	if (i2c_smbus_write_byte_data(client,
 					MAX1668_REG_LIMH_WR(index),
 					data->temp_max[index]))
@@ -240,7 +240,7 @@ static ssize_t set_temp_min(struct device *dev,
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[index] = SENSORS_LIMIT(temp/1000, -128, 127);
+	data->temp_min[index] = clamp_val(temp/1000, -128, 127);
 	if (i2c_smbus_write_byte_data(client,
 					MAX1668_REG_LIML_WR(index),
 					data->temp_max[index]))

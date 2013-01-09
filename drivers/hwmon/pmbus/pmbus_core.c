@@ -657,7 +657,7 @@ static u16 pmbus_data2reg_direct(struct pmbus_data *data,
 static u16 pmbus_data2reg_vid(struct pmbus_data *data,
 			      enum pmbus_sensor_classes class, long val)
 {
-	val = SENSORS_LIMIT(val, 500, 1600);
+	val = clamp_val(val, 500, 1600);
 
 	return 2 + DIV_ROUND_CLOSEST((1600 - val) * 100, 625);
 }

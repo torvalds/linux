@@ -173,8 +173,8 @@ abort:
 
 static s16 ADT7410_TEMP_TO_REG(long temp)
 {
-	return DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, ADT7410_TEMP_MIN,
-					       ADT7410_TEMP_MAX) * 128, 1000);
+	return DIV_ROUND_CLOSEST(clamp_val(temp, ADT7410_TEMP_MIN,
+					   ADT7410_TEMP_MAX) * 128, 1000);
 }
 
 static int ADT7410_REG_TO_TEMP(struct adt7410_data *data, s16 reg)
@@ -269,9 +269,9 @@ static ssize_t adt7410_set_t_hyst(struct device *dev,
 		return ret;
 	/* convert absolute hysteresis value to a 4 bit delta value */
 	limit = ADT7410_REG_TO_TEMP(data, data->temp[1]);
-	hyst = SENSORS_LIMIT(hyst, ADT7410_TEMP_MIN, ADT7410_TEMP_MAX);
-	data->hyst = SENSORS_LIMIT(DIV_ROUND_CLOSEST(limit - hyst, 1000),
-				   0, ADT7410_T_HYST_MASK);
+	hyst = clamp_val(hyst, ADT7410_TEMP_MIN, ADT7410_TEMP_MAX);
+	data->hyst = clamp_val(DIV_ROUND_CLOSEST(limit - hyst, 1000), 0,
+			       ADT7410_T_HYST_MASK);
 	ret = i2c_smbus_write_byte_data(client, ADT7410_T_HYST, data->hyst);
 	if (ret)
 		return ret;

@@ -158,7 +158,7 @@ struct vt1211_data {
 #define IN_FROM_REG(ix, reg)	((reg) < 3 ? 0 : (ix) == 5 ? \
 				 (((reg) - 3) * 15882 + 479) / 958 : \
 				 (((reg) - 3) * 10000 + 479) / 958)
-#define IN_TO_REG(ix, val)	(SENSORS_LIMIT((ix) == 5 ? \
+#define IN_TO_REG(ix, val)	(clamp_val((ix) == 5 ? \
 				 ((val) * 958 + 7941) / 15882 + 3 : \
 				 ((val) * 958 + 5000) / 10000 + 3, 0, 255))
 
@@ -173,7 +173,7 @@ struct vt1211_data {
 				 (ix) == 1 ? (reg) < 51 ? 0 : \
 				 ((reg) - 51) * 1000 : \
 				 ((253 - (reg)) * 2200 + 105) / 210)
-#define TEMP_TO_REG(ix, val)	SENSORS_LIMIT( \
+#define TEMP_TO_REG(ix, val)	clamp_val( \
 				 ((ix) == 0 ? ((val) + 500) / 1000 : \
 				  (ix) == 1 ? ((val) + 500) / 1000 + 51 : \
 				  253 - ((val) * 210 + 1100) / 2200), 0, 255)
@@ -183,7 +183,7 @@ struct vt1211_data {
 #define RPM_FROM_REG(reg, div)	(((reg) == 0) || ((reg) == 255) ? 0 : \
 				 1310720 / (reg) / DIV_FROM_REG(div))
 #define RPM_TO_REG(val, div)	((val) == 0 ? 255 : \
-				 SENSORS_LIMIT((1310720 / (val) / \
+				 clamp_val((1310720 / (val) / \
 				 DIV_FROM_REG(div)), 1, 254))
 
 /* ---------------------------------------------------------------------
@@ -687,7 +687,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 				data->fan_ctl));
 		break;
 	case SHOW_SET_PWM_FREQ:
-		val = 135000 / SENSORS_LIMIT(val, 135000 >> 7, 135000);
+		val = 135000 / clamp_val(val, 135000 >> 7, 135000);
 		/* calculate tmp = log2(val) */
 		tmp = 0;
 		for (val >>= 1; val > 0; val >>= 1)
@@ -845,7 +845,7 @@ static ssize_t set_pwm_auto_point_pwm(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->pwm_auto_pwm[ix][ap] = SENSORS_LIMIT(val, 0, 255);
+	data->pwm_auto_pwm[ix][ap] = clamp_val(val, 0, 255);
 	vt1211_write8(data, VT1211_REG_PWM_AUTO_PWM(ix, ap),
 		      data->pwm_auto_pwm[ix][ap]);
 	mutex_unlock(&data->update_lock);

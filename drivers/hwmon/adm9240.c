@@ -98,13 +98,13 @@ static inline unsigned int IN_FROM_REG(u8 reg, int n)
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	return SENSORS_LIMIT(SCALE(val, 192, nom_mv[n]), 0, 255);
+	return clamp_val(SCALE(val, 192, nom_mv[n]), 0, 255);
 }
 
 /* temperature range: -40..125, 127 disables temperature alarm */
 static inline s8 TEMP_TO_REG(long val)
 {
-	return SENSORS_LIMIT(SCALE(val, 1, 1000), -40, 127);
+	return clamp_val(SCALE(val, 1, 1000), -40, 127);
 }
 
 /* two fans, each with low fan speed limit */
@@ -122,7 +122,7 @@ static inline unsigned int FAN_FROM_REG(u8 reg, u8 div)
 /* analog out 0..1250mV */
 static inline u8 AOUT_TO_REG(unsigned long val)
 {
-	return SENSORS_LIMIT(SCALE(val, 255, 1250), 0, 255);
+	return clamp_val(SCALE(val, 255, 1250), 0, 255);
 }
 
 static inline unsigned int AOUT_FROM_REG(u8 reg)

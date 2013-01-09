@@ -56,8 +56,8 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 		return status;
 
 	/* Write value */
-	value = (short) SENSORS_LIMIT(temp/250, (LM73_TEMP_MIN*4),
-		(LM73_TEMP_MAX*4)) << 5;
+	value = (short) clamp_val(temp / 250, LM73_TEMP_MIN * 4,
+				  LM73_TEMP_MAX * 4) << 5;
 	err = i2c_smbus_write_word_swapped(client, attr->index, value);
 	return (err < 0) ? err : count;
 }

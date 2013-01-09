@@ -139,7 +139,7 @@ static const int lm85_scaling[] = {  /* .001 Volts */
 #define SCALE(val, from, to)	(((val) * (to) + ((from) / 2)) / (from))
 
 #define INS_TO_REG(n, val)	\
-		SENSORS_LIMIT(SCALE(val, lm85_scaling[n], 192), 0, 255)
+		clamp_val(SCALE(val, lm85_scaling[n], 192), 0, 255)
 
 #define INSEXT_FROM_REG(n, val, ext)	\
 		SCALE(((val) << 4) + (ext), 192 << 4, lm85_scaling[n])
@@ -151,19 +151,19 @@ static inline u16 FAN_TO_REG(unsigned long val)
 {
 	if (!val)
 		return 0xffff;
-	return SENSORS_LIMIT(5400000 / val, 1, 0xfffe);
+	return clamp_val(5400000 / val, 1, 0xfffe);
 }
 #define FAN_FROM_REG(val)	((val) == 0 ? -1 : (val) == 0xffff ? 0 : \
 				 5400000 / (val))
 
 /* Temperature is reported in .001 degC increments */
 #define TEMP_TO_REG(val)	\
-		SENSORS_LIMIT(SCALE(val, 1000, 1), -127, 127)
+		clamp_val(SCALE(val, 1000, 1), -127, 127)
 #define TEMPEXT_FROM_REG(val, ext)	\
 		SCALE(((val) << 4) + (ext), 16, 1000)
 #define TEMP_FROM_REG(val)	((val) * 1000)
 
-#define PWM_TO_REG(val)			SENSORS_LIMIT(val, 0, 255)
+#define PWM_TO_REG(val)			clamp_val(val, 0, 255)
 #define PWM_FROM_REG(val)		(val)
 
 
@@ -258,7 +258,7 @@ static int ZONE_TO_REG(int zone)
 	return i << 5;
 }
 
-#define HYST_TO_REG(val)	SENSORS_LIMIT(((val) + 500) / 1000, 0, 15)
+#define HYST_TO_REG(val)	clamp_val(((val) + 500) / 1000, 0, 15)
 #define HYST_FROM_REG(val)	((val) * 1000)
 
 /*

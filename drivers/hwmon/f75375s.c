@@ -359,7 +359,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
+	data->pwm[nr] = clamp_val(val, 0, 255);
 	f75375_write_pwm(client, nr);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -556,7 +556,7 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(VOLT_TO_REG(val), 0, 0xff);
+	val = clamp_val(VOLT_TO_REG(val), 0, 0xff);
 	mutex_lock(&data->update_lock);
 	data->in_max[nr] = val;
 	f75375_write8(client, F75375_REG_VOLT_HIGH(nr), data->in_max[nr]);
@@ -577,7 +577,7 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(VOLT_TO_REG(val), 0, 0xff);
+	val = clamp_val(VOLT_TO_REG(val), 0, 0xff);
 	mutex_lock(&data->update_lock);
 	data->in_min[nr] = val;
 	f75375_write8(client, F75375_REG_VOLT_LOW(nr), data->in_min[nr]);
@@ -625,7 +625,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(TEMP_TO_REG(val), 0, 127);
+	val = clamp_val(TEMP_TO_REG(val), 0, 127);
 	mutex_lock(&data->update_lock);
 	data->temp_high[nr] = val;
 	f75375_write8(client, F75375_REG_TEMP_HIGH(nr), data->temp_high[nr]);
@@ -646,7 +646,7 @@ static ssize_t set_temp_max_hyst(struct device *dev,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(TEMP_TO_REG(val), 0, 127);
+	val = clamp_val(TEMP_TO_REG(val), 0, 127);
 	mutex_lock(&data->update_lock);
 	data->temp_max_hyst[nr] = val;
 	f75375_write8(client, F75375_REG_TEMP_HYST(nr),
@@ -822,7 +822,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 		if (auto_mode_enabled(f75375s_pdata->pwm_enable[nr]) ||
 		    !duty_mode_enabled(f75375s_pdata->pwm_enable[nr]))
 			continue;
-		data->pwm[nr] = SENSORS_LIMIT(f75375s_pdata->pwm[nr], 0, 255);
+		data->pwm[nr] = clamp_val(f75375s_pdata->pwm[nr], 0, 255);
 		f75375_write_pwm(client, nr);
 	}
 
