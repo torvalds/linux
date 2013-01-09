@@ -98,6 +98,8 @@ static void __init kirkwood_dt_init(void)
 	/* Setup root of clk tree */
 	kirkwood_of_clk_init();
 
+	kirkwood_cpuidle_init();
+
 #ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
