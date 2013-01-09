@@ -140,8 +140,8 @@ static void rcu_free_regdom(const struct ieee80211_regdomain *r)
 
 static struct regulatory_request *get_last_request(void)
 {
-	return rcu_dereference_protected(last_request,
-					 lockdep_is_held(&reg_mutex));
+	return rcu_dereference_check(last_request,
+				     lockdep_is_held(&reg_mutex));
 }
 
 /* Used to queue up regulatory hints */
@@ -2250,14 +2250,21 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 #ifdef CONFIG_HOTPLUG
 int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct regulatory_request *lr = get_last_request();
+	struct regulatory_request *lr;
+	u8 alpha2[2];
+	bool add = false;
 
+	rcu_read_lock();
+	lr = get_last_request();
 	if (lr && !lr->processed) {
-		if (add_uevent_var(env, "COUNTRY=%c%c",
-				   lr->alpha2[0], lr->alpha2[1]))
-			return -ENOMEM;
+		memcpy(alpha2, lr->alpha2, 2);
+		add = true;
 	}
+	rcu_read_unlock();
 
+	if (add)
+		return add_uevent_var(env, "COUNTRY=%c%c",
+				      alpha2[0], alpha2[1]);
 	return 0;
 }
 #else
