@@ -486,6 +486,7 @@ static struct vb2_ops fimc_capture_qops = {
 int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+	struct v4l2_subdev *sensor = fimc->pipeline.subdevs[IDX_SENSOR];
 	int ret;
 
 	if (WARN_ON(vid_cap->ctx == NULL))
@@ -494,11 +495,13 @@ int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 		return 0;
 
 	ret = fimc_ctrls_create(vid_cap->ctx);
-	if (ret || vid_cap->user_subdev_api || !vid_cap->ctx->ctrls.ready)
+
+	if (ret || vid_cap->user_subdev_api || !sensor ||
+	    !vid_cap->ctx->ctrls.ready)
 		return ret;
 
 	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
-		    fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler, NULL);
+				     sensor->ctrl_handler, NULL);
 }
 
 static int fimc_capture_set_default_format(struct fimc_dev *fimc);
