@@ -42,32 +42,32 @@ struct adis16080_state {
 	u8 buf[2] ____cacheline_aligned;
 };
 
-static int adis16080_spi_write(struct iio_dev *indio_dev,
-		u16 val)
+static int adis16080_read_sample(struct iio_dev *indio_dev,
+		u16 addr, int *val)
 {
-	int ret;
 	struct adis16080_state *st = iio_priv(indio_dev);
+	struct spi_message m;
+	int ret;
+	struct spi_transfer	t[] = {
+		{
+			.tx_buf		= &st->buf,
+			.len		= 2,
+			.cs_change	= 1,
+		}, {
+			.rx_buf		= &st->buf,
+			.len		= 2,
+		},
+	};
 
 	mutex_lock(&st->buf_lock);
-	st->buf[0] = val >> 8;
-	st->buf[1] = val;
+	st->buf[0] = addr >> 8;
+	st->buf[1] = addr;
 
-	ret = spi_write(st->us, st->buf, 2);
-	mutex_unlock(&st->buf_lock);
+	spi_message_init(&m);
+	spi_message_add_tail(&t[0], &m);
+	spi_message_add_tail(&t[1], &m);
 
-	return ret;
-}
-
-static int adis16080_spi_read(struct iio_dev *indio_dev,
-			      u16 *val)
-{
-	int ret;
-	struct adis16080_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->buf_lock);
-
-	ret = spi_read(st->us, st->buf, 2);
-
+	ret = spi_sync(st->us, &m);
 	if (ret == 0)
 		*val = sign_extend32(((st->buf[0] & 0xF) << 8) | st->buf[1], 11);
 	mutex_unlock(&st->buf_lock);
@@ -81,28 +81,17 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 			     int *val2,
 			     long mask)
 {
-	int ret = -EINVAL;
-	u16 ut = 0;
-	/* Take the iio_dev status lock */
+	int ret;
 
-	mutex_lock(&indio_dev->mlock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adis16080_spi_write(indio_dev,
-					  chan->address |
-					  ADIS16080_DIN_WRITE);
-		if (ret < 0)
-			break;
-		ret = adis16080_spi_read(indio_dev, &ut);
-		if (ret < 0)
-			break;
-		*val = ut;
-		ret = IIO_VAL_INT;
-		break;
+		mutex_lock(&indio_dev->mlock);
+		ret = adis16080_read_sample(indio_dev, chan->address, val);
+		mutex_unlock(&indio_dev->mlock);
+		return ret ? ret : IIO_VAL_INT;
 	}
-	mutex_unlock(&indio_dev->mlock);
 
-	return ret;
+	return -EINVAL;
 }
 
 static const struct iio_chan_spec adis16080_channels[] = {
