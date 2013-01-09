@@ -2175,7 +2175,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
-	}else{
+	} else {
 		RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
 				status);
 		return -1;
@@ -4571,10 +4571,7 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 	{
 		// if previous packet is not aggregated packet
 		bcheck = true;
-	}else
-	{
 	}
-
 
 	if(slide_rssi_statistics++ >= PHY_RSSI_SLID_WIN_MAX)
 	{
@@ -5675,10 +5672,6 @@ void rtl8192_rx_cmd(struct sk_buff *skb)
 
 		dev_kfree_skb_any(skb);
 	}
-	else
-		;
-
-
 }
 
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
