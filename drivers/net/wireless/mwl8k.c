@@ -4250,9 +4250,11 @@ static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
 	p->amsdu_enabled = 0;
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
+	if (!rc)
+		rc = p->station_id;
 	kfree(cmd);
 
-	return rc ? rc : p->station_id;
+	return rc;
 }
 
 static int mwl8k_cmd_update_stadb_del(struct ieee80211_hw *hw,
