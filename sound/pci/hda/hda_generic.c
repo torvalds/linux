@@ -331,6 +331,15 @@ snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_new_path);
 
+/* clear the given path as invalid so that it won't be picked up later */
+static void invalidate_nid_path(struct hda_codec *codec, int idx)
+{
+	struct nid_path *path = snd_hda_get_path_from_idx(codec, idx);
+	if (!path)
+		return;
+	memset(path, 0, sizeof(*path));
+}
+
 /* look for an empty DAC slot */
 static hda_nid_t look_for_dac(struct hda_codec *codec, hda_nid_t pin,
 			      bool is_digital)
@@ -891,10 +900,12 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 
 		dacs[i] = look_for_dac(codec, pin, false);
 		if (!dacs[i] && !i) {
+			/* try to steal the DAC of surrounds for the front */
 			for (j = 1; j < num_outs; j++) {
 				if (is_reachable_path(codec, dacs[j], pin)) {
 					dacs[0] = dacs[j];
 					dacs[j] = 0;
+					invalidate_nid_path(codec, path_idx[j]);
 					path_idx[j] = 0;
 					break;
 				}
@@ -2046,9 +2057,12 @@ static int check_dyn_adc_switch(struct hda_codec *codec)
 				continue;
 			if (n != nums) {
 				spec->adc_nids[nums] = spec->adc_nids[n];
-				for (i = 0; i < imux->num_items; i++)
+				for (i = 0; i < imux->num_items; i++) {
+					invalidate_nid_path(codec,
+						spec->input_paths[i][nums]);
 					spec->input_paths[i][nums] =
 						spec->input_paths[i][n];
+				}
 			}
 			nums++;
 		}
