@@ -1600,13 +1600,6 @@ static int dw_probe(struct platform_device *pdev)
 	int			err;
 	int			i;
 
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata)
-		pdata = dw_dma_parse_dt(pdev);
-
-	if (!pdata || pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS)
-		return -EINVAL;
-
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io)
 		return -EINVAL;
@@ -1621,6 +1614,22 @@ static int dw_probe(struct platform_device *pdev)
 
 	dw_params = dma_read_byaddr(regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
+
+	pdata = dev_get_platdata(&pdev->dev);
+	if (!pdata)
+		pdata = dw_dma_parse_dt(pdev);
+
+	if (!pdata && autocfg) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		/* Fill platform data with the default values */
+		pdata->is_private = true;
+		pdata->chan_allocation_order = CHAN_ALLOCATION_ASCENDING;
+		pdata->chan_priority = CHAN_PRIORITY_ASCENDING;
+	} else if (!pdata || pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS)
+		return -EINVAL;
 
 	if (autocfg)
 		nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 0x7) + 1;
