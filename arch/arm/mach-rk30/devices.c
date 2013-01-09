@@ -24,6 +24,7 @@
 #include <plat/dma-pl330.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/debug_uart.h>
 #include <plat/rk_fiq_debugger.h>
 
 #ifdef CONFIG_ADC_RK30

@@ -22,6 +22,7 @@
 #include <mach/iomux.h>
 #include <mach/cru.h>
 #include <mach/ddr.h>
+#include <mach/debug_uart.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
