@@ -54,6 +54,7 @@ struct blkcg {
 
 	/* TODO: per-policy storage in blkcg */
 	unsigned int			cfq_weight;	/* belongs to cfq */
+	unsigned int			cfq_leaf_weight;
 };
 
 struct blkg_stat {

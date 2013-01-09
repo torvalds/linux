@@ -26,7 +26,8 @@
 
 static DEFINE_MUTEX(blkcg_pol_mutex);
 
-struct blkcg blkcg_root = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT };
+struct blkcg blkcg_root = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT,
+			    .cfq_leaf_weight = 2 * CFQ_WEIGHT_DEFAULT, };
 EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
@@ -710,6 +711,7 @@ static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
 		return ERR_PTR(-ENOMEM);
 
 	blkcg->cfq_weight = CFQ_WEIGHT_DEFAULT;
+	blkcg->cfq_leaf_weight = CFQ_WEIGHT_DEFAULT;
 	blkcg->id = atomic64_inc_return(&id_seq); /* root is 0, start from 1 */
 done:
 	spin_lock_init(&blkcg->lock);
