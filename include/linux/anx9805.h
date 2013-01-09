@@ -1,15 +1,7 @@
-#ifndef _DP_TX_Reg_def_H
-#define _DP_TX_Reg_def_H
-/***************************************************************/
-#include <linux/rk_screen.h>
-#include<linux/earlysuspend.h>
-#define RK_EDP_SCL_RATE (100*1000)
+#ifndef _DP_ANX9805_H_
+#define _DP_ANX9805_H_
+/**************register define  for anx9805 anx9804********/
 
-#define MAX_REG     0xf0
-#define MAX_BUF_CNT 6
-
-#define DP_TX_PORT0_ADDR 0x70
-#define HDMI_TX_PORT0_ADDR 0x72
 #define DP_TX_VND_IDL_REG             	0x00
 #define DP_TX_VND_IDH_REG             	0x01
 #define DP_TX_DEV_IDL_REG             	0x02

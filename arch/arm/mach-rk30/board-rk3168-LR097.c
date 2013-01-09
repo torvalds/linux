@@ -52,9 +52,9 @@
 #include <linux/mfd/rk610_core.h>
 #endif
 
-#if defined(CONFIG_DP_RK_EDP)
-	#include <linux/rk_edp.h>
-#endif 
+#if defined(CONFIG_DP_ANX6345)
+	#include<linux/anx6345.h>
+#endif
 
 #if defined(CONFIG_CT36X_TS)
 #include <linux/ct36x.h>
@@ -734,17 +734,16 @@ static struct platform_device rk29_device_vibrator = {
 };
 #endif
 
-#ifdef CONFIG_DP_RK_EDP
+#ifdef CONFIG_DP_ANX6345
 
 	#define DVDD33_EN_PIN 		RK30_PIN0_PB0
 	#define DVDD33_EN_VALUE 	GPIO_LOW
-
-	#define DVDD18_EN_MUX_NAME    GPIO1B6_SPDIFTX_SPI1CSN1_NAME 	
+	
 	#define DVDD18_EN_PIN 		RK30_PIN1_PB6//RK30_PIN4_PC7
 	#define DVDD18_EN_VALUE 	GPIO_HIGH
 
 	#define EDP_RST_PIN 		RK30_PIN0_PB4
-	static rk_edp_power_ctl(void)
+	static int rk_edp_power_ctl(void)
 	{
 		int ret;
 		ret = gpio_request(DVDD33_EN_PIN, "dvdd33_en_pin");
@@ -759,7 +758,6 @@ static struct platform_device rk29_device_vibrator = {
 			gpio_direction_output(DVDD33_EN_PIN, DVDD33_EN_VALUE);
 		}
 		
-		//rk30_mux_api_set(DVDD18_EN_MUX_NAME, GPIO4C_GPIO4C7);
 		ret = gpio_request(DVDD18_EN_PIN, "dvdd18_en_pin");
 		if (ret != 0)
 		{
@@ -788,13 +786,13 @@ static struct platform_device rk29_device_vibrator = {
 		return 0;
 		
 	}
-	static struct rk_edp_platform_data rk_edp_platform_data = {
-		.power_ctl = rk_edp_power_ctl,
-		.dvdd33_en_pin =  DVDD33_EN_PIN,
-		.dvdd33_en_val = DVDD33_EN_VALUE,
-		.dvdd18_en_pin = DVDD18_EN_PIN,
-		.dvdd18_en_val = DVDD18_EN_VALUE,
-		.edp_rst_pin   = EDP_RST_PIN,
+	static struct anx6345_platform_data anx6345_platform_data = {
+		.power_ctl 	= rk_edp_power_ctl,
+		.dvdd33_en_pin 	= DVDD33_EN_PIN,
+		.dvdd33_en_val 	= DVDD33_EN_VALUE,
+		.dvdd18_en_pin 	= DVDD18_EN_PIN,
+		.dvdd18_en_val 	= DVDD18_EN_VALUE,
+		.edp_rst_pin   	= EDP_RST_PIN,
 	};
 #endif
 
@@ -1905,14 +1903,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	},
 #endif
 
-#if defined (CONFIG_DP_RK_EDP)
+#if defined (CONFIG_DP_ANX6345)
 	{
-		.type          = "rk_edp",
+		.type          = "anx6345",
 		.addr          = 0x39,
 		.flags         = 0,
-		.platform_data = &rk_edp_platform_data,
+		.platform_data = &anx6345_platform_data,
 	},
 #endif
+
 
 #if defined (CONFIG_CT36X_TS)
 	{

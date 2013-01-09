@@ -16,7 +16,7 @@ config TC358768_RGB2MIPI
 	help
 	"a chip that change RGB interface parallel signal into DSI serial signal"
 
-config DP_RK_EDP
-        bool "RGB to Display Port transmitter RK_EDP support"
-
+config DP_ANX6345
+	bool "RGB to Display Port transmitter anx6345,anx9804,anx9805 support"
+	
 endchoice
