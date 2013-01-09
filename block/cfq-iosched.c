@@ -688,11 +688,9 @@ static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
 				io_start_time - start_time);
 }
 
-static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
+/* @stats = 0 */
+static void cfqg_stats_reset(struct cfqg_stats *stats)
 {
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
-	struct cfqg_stats *stats = &cfqg->stats;
-
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_reset(&stats->service_bytes);
 	blkg_rwstat_reset(&stats->serviced);
@@ -1475,6 +1473,13 @@ static void cfq_pd_init(struct blkcg_gq *blkg)
 	cfq_init_cfqg_base(cfqg);
 	cfqg->weight = blkg->blkcg->cfq_weight;
 	cfqg->leaf_weight = blkg->blkcg->cfq_leaf_weight;
+}
+
+static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
+{
+	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
+
+	cfqg_stats_reset(&cfqg->stats);
 }
 
 /*
