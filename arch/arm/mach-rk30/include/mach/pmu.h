@@ -19,6 +19,7 @@
 #define PMU_SCU_PWRUP_CNT	0x34
 #define PMU_MISC_CON1		0x38
 #define PMU_GPIO6_CON		0x3c
+#define PMU_GPIO0_CON		PMU_GPIO6_CON
 #define PMU_SYS_REG0		0x40
 #define PMU_SYS_REG1		0x44
 #define PMU_SYS_REG2		0x48
