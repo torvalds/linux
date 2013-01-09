@@ -22,6 +22,12 @@
 #include "comedidev.h"
 #include "comedi_internal.h"
 
+#ifdef PAGE_KERNEL_NOCACHE
+#define COMEDI_PAGE_PROTECTION		PAGE_KERNEL_NOCACHE
+#else
+#define COMEDI_PAGE_PROTECTION		PAGE_KERNEL
+#endif
+
 static void __comedi_buf_free(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned n_pages)
@@ -59,6 +65,48 @@ static void __comedi_buf_free(struct comedi_device *dev,
 	async->n_buf_pages = 0;
 }
 
+static void __comedi_buf_alloc(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       unsigned n_pages)
+{
+	struct comedi_async *async = s->async;
+	struct page **pages = NULL;
+	struct comedi_buf_page *buf;
+	unsigned i;
+
+	async->buf_page_list = vzalloc(sizeof(*buf) * n_pages);
+	if (async->buf_page_list)
+		pages = vmalloc(sizeof(struct page *) * n_pages);
+
+	if (!pages)
+		return;
+
+	for (i = 0; i < n_pages; i++) {
+		buf = &async->buf_page_list[i];
+		if (s->async_dma_dir != DMA_NONE)
+			buf->virt_addr = dma_alloc_coherent(dev->hw_dev,
+							    PAGE_SIZE,
+							    &buf->dma_addr,
+							    GFP_KERNEL |
+							    __GFP_COMP);
+		else
+			buf->virt_addr = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!buf->virt_addr)
+			break;
+
+		set_bit(PG_reserved, &(virt_to_page(buf->virt_addr)->flags));
+
+		pages[i] = virt_to_page(buf->virt_addr);
+	}
+
+	/* vmap the prealloc_buf if all the pages were allocated */
+	if (i == n_pages)
+		async->prealloc_buf = vmap(pages, n_pages, VM_MAP,
+					   COMEDI_PAGE_PROTECTION);
+
+	vfree(pages);
+}
+
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		     unsigned long new_size)
 {
@@ -74,55 +122,14 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* deallocate old buffer */
 	__comedi_buf_free(dev, s, async->n_buf_pages);
 
-	/*  allocate new buffer */
+	/* allocate new buffer */
 	if (new_size) {
-		unsigned i = 0;
 		unsigned n_pages = new_size >> PAGE_SHIFT;
-		struct page **pages = NULL;
 
-		async->buf_page_list =
-		    vzalloc(sizeof(struct comedi_buf_page) * n_pages);
-		if (async->buf_page_list)
-			pages = vmalloc(sizeof(struct page *) * n_pages);
-
-		if (pages) {
-			for (i = 0; i < n_pages; i++) {
-				if (s->async_dma_dir != DMA_NONE) {
-					async->buf_page_list[i].virt_addr =
-					    dma_alloc_coherent(dev->hw_dev,
-							       PAGE_SIZE,
-							       &async->
-							       buf_page_list
-							       [i].dma_addr,
-							       GFP_KERNEL |
-							       __GFP_COMP);
-				} else {
-					async->buf_page_list[i].virt_addr =
-					    (void *)
-					    get_zeroed_page(GFP_KERNEL);
-				}
-				if (async->buf_page_list[i].virt_addr == NULL)
-					break;
-
-				set_bit(PG_reserved,
-					&(virt_to_page(async->buf_page_list[i].
-							virt_addr)->flags));
-				pages[i] = virt_to_page(async->buf_page_list[i].
-								virt_addr);
-			}
-		}
-		if (i == n_pages) {
-			async->prealloc_buf =
-#ifdef PAGE_KERNEL_NOCACHE
-			    vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
-#else
-			    vmap(pages, n_pages, VM_MAP, PAGE_KERNEL);
-#endif
-		}
-		vfree(pages);
+		__comedi_buf_alloc(dev, s, n_pages);
 
 		if (!async->prealloc_buf) {
-			/* Some allocation failed above */
+			/* allocation failed */
 			__comedi_buf_free(dev, s, n_pages);
 			return -ENOMEM;
 		}
