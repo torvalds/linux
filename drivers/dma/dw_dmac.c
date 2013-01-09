@@ -1087,6 +1087,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	struct dw_desc		*desc;
 	int			i;
 	unsigned long		flags;
+	int			ret;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
@@ -1110,12 +1111,8 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
 		desc = kzalloc(sizeof(struct dw_desc), GFP_KERNEL);
-		if (!desc) {
-			dev_info(chan2dev(chan),
-				"only allocated %d descriptors\n", i);
-			spin_lock_irqsave(&dwc->lock, flags);
-			break;
-		}
+		if (!desc)
+			goto err_desc_alloc;
 
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
@@ -1123,6 +1120,10 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		desc->txd.flags = DMA_CTRL_ACK;
 		desc->txd.phys = dma_map_single(chan2parent(chan), &desc->lli,
 				sizeof(desc->lli), DMA_TO_DEVICE);
+		ret = dma_mapping_error(chan2parent(chan), desc->txd.phys);
+		if (ret)
+			goto err_desc_alloc;
+
 		dwc_desc_put(dwc, desc);
 
 		spin_lock_irqsave(&dwc->lock, flags);
@@ -1132,6 +1133,13 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	dev_dbg(chan2dev(chan), "%s: allocated %d descriptors\n", __func__, i);
+
+	return i;
+
+err_desc_alloc:
+	kfree(desc);
+
+	dev_info(chan2dev(chan), "only allocated %d descriptors\n", i);
 
 	return i;
 }
