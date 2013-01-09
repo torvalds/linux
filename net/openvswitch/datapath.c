@@ -1989,10 +1989,9 @@ static struct pernet_operations ovs_net_ops = {
 
 static int __init dp_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 
