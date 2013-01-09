@@ -538,7 +538,9 @@ static struct i2c_driver hym8563_driver = {
 	},
 	.probe		= hym8563_probe,
 	.remove		= __devexit_p(hym8563_remove),
-	.shutdown=hym8563_shutdown,
+#if defined(CONFIG_ARCH_RK3066B)
+	//.shutdown=hym8563_shutdown,
+#endif
 	.id_table	= hym8563_id,
 };
 
