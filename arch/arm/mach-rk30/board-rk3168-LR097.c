@@ -1513,6 +1513,84 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 
 int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
+
+#ifdef CONFIG_REGULATOR_ACT8846
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define ACT8846_HOST_IRQ                RK30_PIN0_PB3
+
+static struct pmu_info  act8846_dcdc_info[] = {
+	{
+		.name          = "act_dcdc1",   //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+		.suspend_vol  =  1200000,
+	},
+	{
+		.name          = "vdd_core",    //logic
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "act_dcdc4",   //vccio
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+		.suspend_vol  =  2800000,
+	},
+	
+};
+static  struct pmu_info  act8846_ldo_info[] = {
+	{
+		.name          = "act_ldo1",   //vdd11
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "act_ldo2",    //vdd12
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "act_ldo3",   //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo4",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo5",   //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo6",   //vcc33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo7",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo8",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+ };
+
+#include "board-pmu-act8846.c"
+#endif
+
 #ifdef CONFIG_MFD_WM831X_I2C
 #define PMU_POWER_SLEEP 		RK30_PIN0_PA1 
 
@@ -1691,84 +1769,17 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 #include "board-pmu-tps65910.c"
 #endif
 
-#ifdef CONFIG_REGULATOR_ACT8846
-#define PMU_POWER_SLEEP RK30_PIN0_PA1
-
-static struct pmu_info  act8846_dcdc_info[] = {
+static struct i2c_board_info __initdata i2c1_info[] = {
+#if defined (CONFIG_REGULATOR_ACT8846)
 	{
-		.name          = "act_dcdc1",   //ddr
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-		.suspend_vol  =  1200000,
+		.type    		= "act8846",
+		.addr           = 0x5a, 
+		.flags			= 0,
+		.irq            = ACT8846_HOST_IRQ,
+		.platform_data=&act8846_data,
 	},
-	/*{
-		.name          = "vdd_core",    //logic
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
-	},*/
-	{
-		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
-	},
-	{
-		.name          = "act_dcdc4",   //vccio
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
-		.suspend_vol  =  2800000,
-	},
-	
-};
-static  struct pmu_info  act8846_ldo_info[] = {
-	{
-		.name          = "act_ldo1",   //vdd11
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-	},
-	{
-		.name          = "act_ldo2",    //vdd12
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	{
-		.name          = "act_ldo3",   //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "act_ldo4",   //vcca33
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo5",   //vcctp
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo6",   //vcc33
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo7",   //vccio_wl
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "act_ldo8",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
-	},
- };
-
-#include "board-pmu-act8846.c"
 #endif
 
-
-static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
 	{
 		.type          = "wm8326",
@@ -1788,49 +1799,44 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 	},
 #endif
 
-#if defined (CONFIG_REGULATOR_ACT8846)
-	{
-		.type    		= "act8846",
-		.addr           = 0x5a, 
-		.flags			= 0,
-	//	.irq            = ACT8846_HOST_IRQ,
-		.platform_data=&act8846_data,
-	},
-#endif
+
 };
 #endif
 
 void __sramfunc board_pmu_suspend(void)
 {      
-	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(pmic_is_wm8326())
-       board_pmu_wm8326_suspend();
-	#endif
-	#if defined (CONFIG_MFD_TPS65910)
-       if(pmic_is_tps65910())
-       board_pmu_tps65910_suspend(); 
-    #endif   
-	#if defined (CONFIG_REGULATOR_ACT8846)
-       if(pmic_is_act8846())
-       board_pmu_act8846_suspend(); 
-       #endif   
+#if defined (CONFIG_REGULATOR_ACT8846)
+		if(pmic_is_act8846())
+		board_pmu_act8846_suspend(); 
+#endif   
+
+#if defined (CONFIG_MFD_WM831X_I2C)
+	if(pmic_is_wm8326())
+	board_pmu_wm8326_suspend();
+#endif
+#if defined (CONFIG_MFD_TPS65910)
+	if(pmic_is_tps65910())
+	board_pmu_tps65910_suspend(); 
+#endif   
 
 }
 
 void __sramfunc board_pmu_resume(void)
-{      
-	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(pmic_is_wm8326())
-       board_pmu_wm8326_resume();
-	#endif
-	#if defined (CONFIG_MFD_TPS65910)
-       if(pmic_is_tps65910())
-       board_pmu_tps65910_resume(); 
-	#endif
-	#if defined (CONFIG_REGULATOR_ACT8846)
-       if(pmic_is_act8846())
-       board_pmu_act8846_resume(); 
-       #endif   
+{    
+#if defined (CONFIG_REGULATOR_ACT8846)
+	if(pmic_is_act8846())
+	board_pmu_act8846_resume(); 
+#endif   
+
+#if defined (CONFIG_MFD_WM831X_I2C)
+	if(pmic_is_wm8326())
+	board_pmu_wm8326_resume();
+#endif
+#if defined (CONFIG_MFD_TPS65910)
+	if(pmic_is_tps65910())
+	board_pmu_tps65910_resume(); 
+#endif
+
 }
 
  int __sramdata gpio3d6_iomux,gpio3d6_do,gpio3d6_dir,gpio3d6_en;
@@ -2130,29 +2136,29 @@ static void __init rk30_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
-/*	{.frequency = 312 * 1000, 	.cpu_volt = 850 * 1000,		.logic_volt = 1000 * 1000},
+	{.frequency = 312 * 1000, 	.cpu_volt = 850 * 1000,		.logic_volt = 1000 * 1000},
 	{.frequency = 504 * 1000,	.cpu_volt = 900 * 1000,		.logic_volt = 1000 * 1000},
-*/	{.frequency = 816 * 1000,	.cpu_volt = 1000 * 1000,		.logic_volt = 1000 * 1000},
-/*	{.frequency = 1008 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},
+	{.frequency = 816 * 1000,	.cpu_volt = 950 * 1000,		.logic_volt = 1000 * 1000},
+	{.frequency = 1008 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},
 	{.frequency = 1200 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1050 * 1000},
-	{.frequency = 1416 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},
-	{.frequency = 1608 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1250 * 1000},
-*/	{.frequency = CPUFREQ_TABLE_END},
+	//{.frequency = 1416 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},
+	//{.frequency = 1608 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1250 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 100 * 1000,	.index = 1000 * 1000},
-	{.frequency = 200 * 1000,	.index = 1000 * 1000},
-	{.frequency = 266 * 1000,	.index = 1000 * 1000},
-	{.frequency = 300 * 1000,	.index = 1000 * 1000},
-	{.frequency = 400 * 1000,	.index = 1000 * 1000},
+	{.frequency = 100 * 1000,	.index = 900 * 1000},
+	{.frequency = 200 * 1000,	.index = 900 * 1000},
+	{.frequency = 266 * 1000,	.index = 900 * 1000},
+	{.frequency = 300 * 1000,	.index = 900 * 1000},
+	{.frequency = 400 * 1000,	.index = 950 * 1000},
 	{.frequency = 600 * 1000,	.index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 1000 * 1000},
-	{.frequency = 400 * 1000,	.index = 1000 * 1000},
+	{.frequency = 300 * 1000,	.index = 900 * 1000},
+	{.frequency = 400 * 1000,	.index = 950 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 #define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
