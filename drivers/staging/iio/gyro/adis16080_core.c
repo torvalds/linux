@@ -185,6 +185,13 @@ static int adis16080_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id adis16080_ids[] = {
+	{ "adis16080", 0 },
+	{ "adis16100", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, adis16080_ids);
+
 static struct spi_driver adis16080_driver = {
 	.driver = {
 		.name = "adis16080",
@@ -192,10 +199,10 @@ static struct spi_driver adis16080_driver = {
 	},
 	.probe = adis16080_probe,
 	.remove = adis16080_remove,
+	.id_table = adis16080_ids,
 };
 module_spi_driver(adis16080_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16080/100 Yaw Rate Gyroscope Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:adis16080");
