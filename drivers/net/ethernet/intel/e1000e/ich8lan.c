@@ -2949,19 +2949,32 @@ static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 data;
+	u16 word;
+	u16 valid_csum_mask;
 
-	/* Read 0x19 and check bit 6.  If this bit is 0, the checksum
-	 * needs to be fixed.  This bit is an indication that the NVM
-	 * was prepared by OEM software and did not calculate the
-	 * checksum...a likely scenario.
+	/* Read NVM and check Invalid Image CSUM bit.  If this bit is 0,
+	 * the checksum needs to be fixed.  This bit is an indication that
+	 * the NVM was prepared by OEM software and did not calculate
+	 * the checksum...a likely scenario.
 	 */
-	ret_val = e1000_read_nvm(hw, 0x19, 1, &data);
+	switch (hw->mac.type) {
+	case e1000_pch_lpt:
+		word = NVM_COMPAT;
+		valid_csum_mask = NVM_COMPAT_VALID_CSUM;
+		break;
+	default:
+		word = NVM_FUTURE_INIT_WORD1;
+		valid_csum_mask = NVM_FUTURE_INIT_WORD1_VALID_CSUM;
+		break;
+	}
+
+	ret_val = e1000_read_nvm(hw, word, 1, &data);
 	if (ret_val)
 		return ret_val;
 
-	if (!(data & 0x40)) {
-		data |= 0x40;
-		ret_val = e1000_write_nvm(hw, 0x19, 1, &data);
+	if (!(data & valid_csum_mask)) {
+		data |= valid_csum_mask;
+		ret_val = e1000_write_nvm(hw, word, 1, &data);
 		if (ret_val)
 			return ret_val;
 		ret_val = e1000e_update_nvm_checksum(hw);

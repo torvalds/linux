@@ -639,6 +639,10 @@
 /* NVM Word Offsets */
 #define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
+#define NVM_FUTURE_INIT_WORD1      0x0019
+#define NVM_COMPAT_VALID_CSUM      0x0001
+#define NVM_FUTURE_INIT_WORD1_VALID_CSUM	0x0040
+
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_3GIO_3            0x001A
