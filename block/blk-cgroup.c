@@ -552,6 +552,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
+EXPORT_SYMBOL_GPL(__blkg_prfill_rwstat);
 
 /**
  * blkg_prfill_stat - prfill callback for blkg_stat
