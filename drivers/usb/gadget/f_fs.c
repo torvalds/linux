@@ -1153,15 +1153,15 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 					pr_err("%s: unmapped value: %lu\n", opts, value);
 					return -EINVAL;
 				}
-			}
-			else if (!memcmp(opts, "gid", 3))
+			} else if (!memcmp(opts, "gid", 3)) {
 				data->perms.gid = make_kgid(current_user_ns(), value);
 				if (!gid_valid(data->perms.gid)) {
 					pr_err("%s: unmapped value: %lu\n", opts, value);
 					return -EINVAL;
 				}
-			else
+			} else {
 				goto invalid;
+			}
 			break;
 
 		default:
