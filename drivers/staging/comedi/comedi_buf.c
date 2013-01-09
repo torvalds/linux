@@ -140,7 +140,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-void comedi_reset_async_buf(struct comedi_async *async)
+void comedi_buf_reset(struct comedi_async *async)
 {
 	async->buf_write_alloc_count = 0;
 	async->buf_write_count = 0;
