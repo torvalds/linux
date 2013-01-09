@@ -491,6 +491,8 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	err = -EINVAL;
 	if (rcu_dereference_protected(tfile->tun, lockdep_rtnl_is_held()))
 		goto out;
+	if (tfile->detached && tun != tfile->detached)
+		goto out;
 
 	err = -EBUSY;
 	if (!(tun->flags & TUN_TAP_MQ) && tun->numqueues == 1)
