@@ -2802,7 +2802,7 @@ out:
 static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
-	__le64 snap_id;
+	u64 snap_id;
 	u8 order;
 	int ret;
 
