@@ -461,14 +461,14 @@ static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
 }
 
 /**
- * blkg_rwstat_sum - read the total count of a blkg_rwstat
+ * blkg_rwstat_total - read the total count of a blkg_rwstat
  * @rwstat: blkg_rwstat to read
  *
  * Return the total count of @rwstat regardless of the IO direction.  This
  * function can be called without synchronization and takes care of u64
  * atomicity.
  */
-static inline uint64_t blkg_rwstat_sum(struct blkg_rwstat *rwstat)
+static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
 {
 	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
 

@@ -536,7 +536,7 @@ static void cfqg_stats_set_start_empty_time(struct cfq_group *cfqg)
 {
 	struct cfqg_stats *stats = &cfqg->stats;
 
-	if (blkg_rwstat_sum(&stats->queued))
+	if (blkg_rwstat_total(&stats->queued))
 		return;
 
 	/*
@@ -580,7 +580,7 @@ static void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg)
 	struct cfqg_stats *stats = &cfqg->stats;
 
 	blkg_stat_add(&stats->avg_queue_size_sum,
-		      blkg_rwstat_sum(&stats->queued));
+		      blkg_rwstat_total(&stats->queued));
 	blkg_stat_add(&stats->avg_queue_size_samples, 1);
 	cfqg_stats_update_group_wait_time(stats);
 }
