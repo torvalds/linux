@@ -347,7 +347,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	if (callback_required && callback)
+	if (callback)
 		callback(param);
 }
 
