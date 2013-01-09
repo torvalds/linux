@@ -1424,6 +1424,12 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
+	if (!lmp_bredr_capable(hdev)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
+				 MGMT_STATUS_NOT_SUPPORTED);
+		goto unlock;
+	}
+
 	if (test_bit(HCI_PENDING_CLASS, &hdev->dev_flags)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
 				 MGMT_STATUS_BUSY);
