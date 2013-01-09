@@ -33,11 +33,9 @@
  * struct adis16080_state - device instance specific data
  * @us:			actual spi_device to write data
  * @buf:		transmit or receive buffer
- * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16080_state {
 	struct spi_device		*us;
-	struct mutex			buf_lock;
 
 	__be16 buf ____cacheline_aligned;
 };
@@ -59,7 +57,6 @@ static int adis16080_read_sample(struct iio_dev *indio_dev,
 		},
 	};
 
-	mutex_lock(&st->buf_lock);
 	st->buf = cpu_to_be16(addr | ADIS16080_DIN_WRITE);
 
 	spi_message_init(&m);
@@ -69,7 +66,6 @@ static int adis16080_read_sample(struct iio_dev *indio_dev,
 	ret = spi_sync(st->us, &m);
 	if (ret == 0)
 		*val = sign_extend32(be16_to_cpu(st->buf), 11);
-	mutex_unlock(&st->buf_lock);
 
 	return ret;
 }
@@ -144,7 +140,6 @@ static int adis16080_probe(struct spi_device *spi)
 
 	/* Allocate the comms buffers */
 	st->us = spi;
-	mutex_init(&st->buf_lock);
 
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16080_channels;
