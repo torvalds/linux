@@ -4016,8 +4016,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_GET(
-						  FW_PFVF_CMD_CMASK_MASK),
+						  FW_PFVF_CMD_CMASK_MASK,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
