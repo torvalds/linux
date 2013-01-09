@@ -21,6 +21,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/cru.h>
+#include <mach/debug_uart.h>
 
 #define cru_readl(offset)	readl_relaxed(RK2928_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK2928_CRU_BASE + offset); dsb(); } while (0)

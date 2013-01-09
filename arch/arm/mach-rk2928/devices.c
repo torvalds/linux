@@ -28,6 +28,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/dvfs.h>
+#include <mach/debug_uart.h>
 #include <plat/rk_fiq_debugger.h>
 #include <linux/regulator/consumer.h>
 

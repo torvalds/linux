@@ -16,6 +16,7 @@
 #include <mach/loader.h>
 #include <mach/ddr.h>
 #include <mach/cpu.h>
+#include <mach/debug_uart.h>
 
 static void __init rk2928_cpu_axi_init(void)
 {

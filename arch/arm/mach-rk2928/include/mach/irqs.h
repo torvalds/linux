@@ -57,9 +57,6 @@
 
 //hhb@rock-chips.com this spi is used for fiq_debugger signal irq
 #define IRQ_UART_SIGNAL			127
-#if CONFIG_RK_DEBUG_UART >= 0 && CONFIG_RK_DEBUG_UART < 3
-#define IRQ_DEBUG_UART			(IRQ_UART0 + CONFIG_RK_DEBUG_UART)
-#endif
 
 #define NR_GIC_IRQS                     (4 * 32)
 #define NR_GPIO_IRQS                    (4 * 32)
