@@ -291,14 +291,20 @@ EXPORT_SYMBOL(comedi_buf_read_n_available);
 /* allocates a chunk for the reader from filled (and munged) buffer space */
 unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes)
 {
-	if ((int)(async->buf_read_alloc_count + nbytes - async->munge_count) >
-	    0) {
-		nbytes = async->munge_count - async->buf_read_alloc_count;
-	}
+	unsigned int available;
+
+	available = async->munge_count - async->buf_read_alloc_count;
+	if (nbytes > available)
+		nbytes = available;
+
 	async->buf_read_alloc_count += nbytes;
-	/* barrier insures read of munge_count occurs before we actually read
-	   data out of buffer */
+
+	/*
+	 * ensure the async buffer 'counts' are read before we
+	 * attempt to read data from the read-alloc'ed buffer space
+	 */
 	smp_rmb();
+
 	return nbytes;
 }
 EXPORT_SYMBOL(comedi_buf_read_alloc);
