@@ -273,14 +273,17 @@ unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 {
 	unsigned num_bytes;
 
-	if (async == NULL)
+	if (!async)
 		return 0;
+
 	num_bytes = async->munge_count - async->buf_read_count;
-	/* barrier insures the read of munge_count in this
-	   query occurs before any following reads of the buffer which
-	   might be based on the return value from this query.
+
+	/*
+	 * ensure the async buffer 'counts' are read before we
+	 * attempt to read data from the buffer
 	 */
 	smp_rmb();
+
 	return num_bytes;
 }
 EXPORT_SYMBOL(comedi_buf_read_n_available);
