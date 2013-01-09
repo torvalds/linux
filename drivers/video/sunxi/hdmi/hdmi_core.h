@@ -24,6 +24,8 @@
 
 extern void __iomem *HDMI_BASE;
 
+#define HDMI_DEVICE_SUPPORT_VIC_SIZE	512
+
 #define HDMI_State_Wait_Hpd		0x02
 #define HDMI_State_Rx_Sense		0x03
 #define HDMI_State_EDID_Parse		0x04
@@ -49,9 +51,10 @@ extern void __iomem *HDMI_BASE;
 #define HDMI720P_60_3D_FP	(HDMI720P_60  + 0x80)
 
 /* Non CEA-861-D modes */
-#define HDMI1360_768_60		256
-#define HDMI1280_1024_60	257
-#define HDMI_EDID		511
+#define HDMI_NON_CEA861D_START	256
+#define HDMI1360_768_60		(HDMI_NON_CEA861D_START + 0)
+#define HDMI1280_1024_60	(HDMI_NON_CEA861D_START + 1)
+#define HDMI_EDID		(HDMI_DEVICE_SUPPORT_VIC_SIZE - 1) 
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)
 #define HDMI_RUINT32(offset)		readl(HDMI_BASE + offset)
@@ -103,7 +106,7 @@ void send_ini_sequence(void);
 __s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf);
 
 extern __u8 EDID_Buf[1024];
-extern __u8 Device_Support_VIC[512];
+extern __u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 
 extern __bool video_enable;
 extern __s32 hdmi_state;
