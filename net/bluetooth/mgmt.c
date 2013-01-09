@@ -1133,13 +1133,11 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	BT_DBG("request for %s", hdev->name);
 
-	hci_dev_lock(hdev);
+	if (!lmp_ssp_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
+				  MGMT_STATUS_NOT_SUPPORTED);
 
-	if (!lmp_ssp_capable(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
-				 MGMT_STATUS_NOT_SUPPORTED);
-		goto failed;
-	}
+	hci_dev_lock(hdev);
 
 	val = !!cp->val;
 
@@ -1217,13 +1215,11 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	BT_DBG("request for %s", hdev->name);
 
-	hci_dev_lock(hdev);
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
+				  MGMT_STATUS_NOT_SUPPORTED);
 
-	if (!lmp_le_capable(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
-				 MGMT_STATUS_NOT_SUPPORTED);
-		goto unlock;
-	}
+	hci_dev_lock(hdev);
 
 	val = !!cp->val;
 	enabled = lmp_host_le_capable(hdev);
@@ -1422,25 +1418,19 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (test_bit(HCI_PENDING_CLASS, &hdev->dev_flags))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
+				  MGMT_STATUS_BUSY);
+
+	if ((cp->minor & 0x03) != 0 || (cp->major & 0xe0) != 0)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
-
-	if (!lmp_bredr_capable(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
-				 MGMT_STATUS_NOT_SUPPORTED);
-		goto unlock;
-	}
-
-	if (test_bit(HCI_PENDING_CLASS, &hdev->dev_flags)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
-				 MGMT_STATUS_BUSY);
-		goto unlock;
-	}
-
-	if ((cp->minor & 0x03) != 0 || (cp->major & 0xe0) != 0) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_SET_DEV_CLASS,
-				 MGMT_STATUS_INVALID_PARAMS);
-		goto unlock;
-	}
 
 	hdev->major_class = cp->major;
 	hdev->minor_class = cp->minor;
