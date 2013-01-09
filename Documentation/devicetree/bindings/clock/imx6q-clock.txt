@@ -211,10 +211,6 @@ clks: ccm@020c4000 {
 	reg = <0x020c4000 0x4000>;
 	interrupts = <0 87 0x04 0 88 0x04>;
 	#clock-cells = <1>;
-	clock-output-names = ...
-			     "uart_ipg",
-			     "uart_serial",
-			     ...;
 };
 
 uart1: serial@02020000 {

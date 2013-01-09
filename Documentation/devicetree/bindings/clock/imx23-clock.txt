@@ -60,11 +60,6 @@ clks: clkctrl@80040000 {
 	compatible = "fsl,imx23-clkctrl";
 	reg = <0x80040000 0x2000>;
 	#clock-cells = <1>;
-	clock-output-names =
-		...
-		"uart",		/* 32 */
-		...
-		"end_of_list";
 };
 
 auart0: serial@8006c000 {
