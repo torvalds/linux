@@ -1563,12 +1563,12 @@ static int mp_open(struct tty_struct *tty, struct file *filp)
 
 	state = uart_get(drv, line);
 
-	mtpt  = (struct mp_port *)state->port;
-
 	if (IS_ERR(state)) {
 		retval = PTR_ERR(state);
 		goto fail;
 	}
+
+	mtpt  = (struct mp_port *)state->port;
 
 	tty->driver_data = state;
 	tty->low_latency = (state->port->flags & UPF_LOW_LATENCY) ? 1 : 0;
