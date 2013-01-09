@@ -215,6 +215,7 @@ static void prepare_frame_for_deferred_tx(struct ieee80211_sub_if_data *sdata,
 	skb->priority = 7;
 
 	info->control.vif = &sdata->vif;
+	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 	ieee80211_set_qos_hdr(sdata, skb);
 }
 
