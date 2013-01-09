@@ -60,6 +60,7 @@ static unsigned int fmax = 515633;
  * @blksz_datactrl16: true if Block size is at b16..b30 position in datactrl register
  * @pwrreg_powerup: power up value for MMCIPOWER register
  * @signal_direction: input/out direction of bus signals can be indicated
+ * @pwrreg_clkgate: MMCIPOWER register must be used to gate the clock
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -72,6 +73,7 @@ struct variant_data {
 	bool			blksz_datactrl16;
 	u32			pwrreg_powerup;
 	bool			signal_direction;
+	bool			pwrreg_clkgate;
 };
 
 static struct variant_data variant_arm = {
@@ -96,6 +98,7 @@ static struct variant_data variant_u300 = {
 	.sdio			= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
+	.pwrreg_clkgate		= true,
 };
 
 static struct variant_data variant_nomadik = {
@@ -107,6 +110,7 @@ static struct variant_data variant_nomadik = {
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
+	.pwrreg_clkgate		= true,
 };
 
 static struct variant_data variant_ux500 = {
@@ -119,6 +123,7 @@ static struct variant_data variant_ux500 = {
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
+	.pwrreg_clkgate		= true,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -132,6 +137,7 @@ static struct variant_data variant_ux500v2 = {
 	.blksz_datactrl16	= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
+	.pwrreg_clkgate		= true,
 };
 
 /*
@@ -1149,6 +1155,13 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			pwr |= MCI_OD;
 		}
 	}
+
+	/*
+	 * If clock = 0 and the variant requires the MMCIPOWER to be used for
+	 * gating the clock, the MCI_PWR_ON bit is cleared.
+	 */
+	if (!ios->clock && variant->pwrreg_clkgate)
+		pwr &= ~MCI_PWR_ON;
 
 	spin_lock_irqsave(&host->lock, flags);
 
