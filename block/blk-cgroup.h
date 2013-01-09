@@ -94,8 +94,13 @@ struct blkcg_gq {
 	struct list_head		q_node;
 	struct hlist_node		blkcg_node;
 	struct blkcg			*blkcg;
+
+	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	struct blkcg_gq			*parent;
+
 	/* request allocation list for this blkcg-q pair */
 	struct request_list		rl;
+
 	/* reference count */
 	int				refcnt;
 
@@ -178,6 +183,19 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
 	if (bio && bio->bi_css)
 		return container_of(bio->bi_css, struct blkcg, css);
 	return task_blkcg(current);
+}
+
+/**
+ * blkcg_parent - get the parent of a blkcg
+ * @blkcg: blkcg of interest
+ *
+ * Return the parent blkcg of @blkcg.  Can be called anytime.
+ */
+static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
+{
+	struct cgroup *pcg = blkcg->css.cgroup->parent;
+
+	return pcg ? cgroup_to_blkcg(pcg) : NULL;
 }
 
 /**

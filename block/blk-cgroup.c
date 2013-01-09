@@ -201,7 +201,16 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	}
 	blkg = new_blkg;
 
-	/* insert */
+	/* link parent and insert */
+	if (blkcg_parent(blkcg)) {
+		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
+		if (WARN_ON_ONCE(!blkg->parent)) {
+			blkg = ERR_PTR(-EINVAL);
+			goto err_put_css;
+		}
+		blkg_get(blkg->parent);
+	}
+
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
@@ -212,6 +221,10 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	if (!ret)
 		return blkg;
+
+	/* @blkg failed fully initialized, use the usual release path */
+	blkg_put(blkg);
+	return ERR_PTR(ret);
 
 err_put_css:
 	css_put(&blkcg->css);
@@ -226,8 +239,9 @@ err_free_blkg:
  * @q: request_queue of interest
  *
  * Lookup blkg for the @blkcg - @q pair.  If it doesn't exist, try to
- * create one.  This function should be called under RCU read lock and
- * @q->queue_lock.
+ * create one.  blkg creation is performed recursively from blkcg_root such
+ * that all non-root blkg's have access to the parent blkg.  This function
+ * should be called under RCU read lock and @q->queue_lock.
  *
  * Returns pointer to the looked up or created blkg on success, ERR_PTR()
  * value on error.  If @q is dead, returns ERR_PTR(-EINVAL).  If @q is not
@@ -252,7 +266,23 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	if (blkg)
 		return blkg;
 
-	return blkg_create(blkcg, q, NULL);
+	/*
+	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
+	 * non-root blkgs have access to their parents.
+	 */
+	while (true) {
+		struct blkcg *pos = blkcg;
+		struct blkcg *parent = blkcg_parent(blkcg);
+
+		while (parent && !__blkg_lookup(parent, q, false)) {
+			pos = parent;
+			parent = blkcg_parent(parent);
+		}
+
+		blkg = blkg_create(pos, q, NULL);
+		if (pos == blkcg || IS_ERR(blkg))
+			return blkg;
+	}
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
@@ -321,8 +351,10 @@ static void blkg_rcu_free(struct rcu_head *rcu_head)
 
 void __blkg_release(struct blkcg_gq *blkg)
 {
-	/* release the extra blkcg reference this blkg has been holding */
+	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
+	if (blkg->parent)
+		blkg_put(blkg->parent);
 
 	/*
 	 * A group is freed in rcu manner. But having an rcu lock does not
