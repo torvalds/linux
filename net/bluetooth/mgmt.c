@@ -2648,7 +2648,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 {
 	struct mgmt_cp_load_long_term_keys *cp = cp_data;
 	u16 key_count, expected_len;
-	int i;
+	int i, err;
 
 	key_count = __le16_to_cpu(cp->key_count);
 
@@ -2682,9 +2682,12 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			    key->enc_size, key->ediv, key->rand);
 	}
 
+	err = cmd_complete(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS, 0,
+			   NULL, 0);
+
 	hci_dev_unlock(hdev);
 
-	return 0;
+	return err;
 }
 
 static const struct mgmt_handler {
