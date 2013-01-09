@@ -2067,6 +2067,40 @@ static int check_dyn_adc_switch(struct hda_codec *codec)
 	return 0;
 }
 
+/* parse capture source paths from the given pin and create imux items */
+static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
+				int num_adcs, const char *label, int anchor)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct hda_input_mux *imux = &spec->input_mux;
+	int imux_idx = imux->num_items;
+	bool imux_added = false;
+	int c;
+
+	for (c = 0; c < num_adcs; c++) {
+		struct nid_path *path;
+		hda_nid_t adc = spec->adc_nids[c];
+
+		if (!is_reachable_path(codec, pin, adc))
+			continue;
+		path = snd_hda_add_new_path(codec, pin, adc, anchor);
+		if (!path)
+			continue;
+		print_nid_path("input", path);
+		spec->input_paths[imux_idx][c] =
+			snd_hda_get_path_idx(codec, path);
+
+		if (!imux_added) {
+			spec->imux_pins[imux->num_items] = pin;
+			snd_hda_add_imux_item(imux, label,
+					      imux->num_items, NULL);
+			imux_added = true;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * create playback/capture controls for input pins
  */
@@ -2075,9 +2109,8 @@ static int create_input_ctls(struct hda_codec *codec)
 	struct hda_gen_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t mixer = spec->mixer_nid;
-	struct hda_input_mux *imux = &spec->input_mux;
 	int num_adcs;
-	int i, c, err, type_idx = 0;
+	int i, err, type_idx = 0;
 	const char *prev_label = NULL;
 
 	num_adcs = fill_adc_nids(codec);
@@ -2087,8 +2120,6 @@ static int create_input_ctls(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
 		const char *label;
-		int imux_idx;
-		bool imux_added;
 
 		pin = cfg->inputs[i].pin;
 		if (!is_input_pin(codec, pin))
@@ -2110,28 +2141,16 @@ static int create_input_ctls(struct hda_codec *codec)
 			}
 		}
 
-		imux_added = false;
-		imux_idx = imux->num_items;
-		for (c = 0; c < num_adcs; c++) {
-			struct nid_path *path;
-			hda_nid_t adc = spec->adc_nids[c];
+		err = parse_capture_source(codec, pin, num_adcs, label, -mixer);
+		if (err < 0)
+			return err;
+	}
 
-			if (!is_reachable_path(codec, pin, adc))
-				continue;
-			path = snd_hda_add_new_path(codec, pin, adc, -mixer);
-			if (!path)
-				continue;
-			print_nid_path("input", path);
-			spec->input_paths[imux_idx][c] =
-				snd_hda_get_path_idx(codec, path);
-
-			if (!imux_added) {
-				spec->imux_pins[imux->num_items] = pin;
-				snd_hda_add_imux_item(imux, label,
-						      imux->num_items, NULL);
-				imux_added = true;
-			}
-		}
+	if (mixer && spec->add_stereo_mix_input) {
+		err = parse_capture_source(codec, mixer, num_adcs,
+					   "Stereo Mix", 0);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;

@@ -190,6 +190,7 @@ struct hda_gen_spec {
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
+	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
 
 	/* loopback mixing mode */
 	bool aamix_mode;
