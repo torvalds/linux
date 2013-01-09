@@ -194,13 +194,6 @@ unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 }
 EXPORT_SYMBOL(comedi_buf_write_alloc);
 
-/* allocates nothing unless it can completely fulfill the request */
-unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
-					   unsigned int nbytes)
-{
-	return __comedi_buf_write_alloc(async, nbytes, 1);
-}
-
 /* munging is applied to data by core as it passes between user
  * and kernel space */
 static unsigned int comedi_buf_munge(struct comedi_async *async,
@@ -319,7 +312,7 @@ EXPORT_SYMBOL(comedi_buf_read_free);
 
 int comedi_buf_put(struct comedi_async *async, short x)
 {
-	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(short));
+	unsigned int n = __comedi_buf_write_alloc(async, sizeof(short), 1);
 
 	if (n < sizeof(short)) {
 		async->events |= COMEDI_CB_ERROR;

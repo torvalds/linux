@@ -440,8 +440,6 @@ int comedi_buf_get(struct comedi_async *async, short *x);
 
 unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 				    unsigned int nbytes);
-unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
-					   unsigned int nbytes);
 unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes);
 unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes);
 unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes);
