@@ -255,7 +255,8 @@ unsigned int comedi_buf_write_n_allocated(struct comedi_async *async)
 }
 
 /* transfers a chunk from writer to filled buffer space */
-unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
+unsigned int comedi_buf_write_free(struct comedi_async *async,
+				   unsigned int nbytes)
 {
 	unsigned int allocated = comedi_buf_write_n_allocated(async);
 
@@ -294,7 +295,8 @@ unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 EXPORT_SYMBOL(comedi_buf_read_n_available);
 
 /* allocates a chunk for the reader from filled (and munged) buffer space */
-unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes)
+unsigned int comedi_buf_read_alloc(struct comedi_async *async,
+				   unsigned int nbytes)
 {
 	unsigned int available;
 
@@ -320,7 +322,8 @@ static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
 }
 
 /* transfers control of a chunk from reader to free buffer space */
-unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
+unsigned int comedi_buf_read_free(struct comedi_async *async,
+				  unsigned int nbytes)
 {
 	unsigned int allocated;
 

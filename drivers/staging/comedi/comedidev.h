@@ -435,15 +435,16 @@ comedi_to_usb_interface(struct comedi_device *dev)
 	return dev->hw_dev ? to_usb_interface(dev->hw_dev) : NULL;
 }
 
-int comedi_buf_put(struct comedi_async *async, short x);
-int comedi_buf_get(struct comedi_async *async, short *x);
+unsigned int comedi_buf_write_alloc(struct comedi_async *, unsigned int);
+unsigned int comedi_buf_write_free(struct comedi_async *, unsigned int);
 
-unsigned int comedi_buf_write_alloc(struct comedi_async *async,
-				    unsigned int nbytes);
-unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes);
-unsigned comedi_buf_read_alloc(struct comedi_async *async, unsigned nbytes);
-unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(struct comedi_async *async);
+unsigned int comedi_buf_read_n_available(struct comedi_async *);
+unsigned int comedi_buf_read_alloc(struct comedi_async *, unsigned int);
+unsigned int comedi_buf_read_free(struct comedi_async *, unsigned int);
+
+int comedi_buf_put(struct comedi_async *, short);
+int comedi_buf_get(struct comedi_async *, short *);
+
 void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 			  const void *source, unsigned int num_bytes);
 void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
