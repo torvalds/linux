@@ -187,16 +187,16 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget(&blkcg->css)) {
-		blkg = ERR_PTR(-EINVAL);
-		goto out_free;
+		ret = -EINVAL;
+		goto err_free_blkg;
 	}
 
 	/* allocate */
 	if (!new_blkg) {
 		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
 		if (unlikely(!new_blkg)) {
-			blkg = ERR_PTR(-ENOMEM);
-			goto out_put;
+			ret = -ENOMEM;
+			goto err_put_css;
 		}
 	}
 	blkg = new_blkg;
@@ -213,12 +213,11 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	if (!ret)
 		return blkg;
 
-	blkg = ERR_PTR(ret);
-out_put:
+err_put_css:
 	css_put(&blkcg->css);
-out_free:
+err_free_blkg:
 	blkg_free(new_blkg);
-	return blkg;
+	return ERR_PTR(ret);
 }
 
 /**
