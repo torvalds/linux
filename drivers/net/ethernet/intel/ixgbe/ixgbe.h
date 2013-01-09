@@ -92,8 +92,6 @@
  */
 #define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
 
-#define MAXIMUM_ETHERNET_VLAN_SIZE (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
-
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBE_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
