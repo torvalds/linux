@@ -988,6 +988,26 @@ set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	return 0;
 }
 
+static inline void dwc_chan_pause(struct dw_dma_chan *dwc)
+{
+	u32 cfglo = channel_readl(dwc, CFG_LO);
+
+	channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
+	while (!(channel_readl(dwc, CFG_LO) & DWC_CFGL_FIFO_EMPTY))
+		cpu_relax();
+
+	dwc->paused = true;
+}
+
+static inline void dwc_chan_resume(struct dw_dma_chan *dwc)
+{
+	u32 cfglo = channel_readl(dwc, CFG_LO);
+
+	channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
+
+	dwc->paused = false;
+}
+
 static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		       unsigned long arg)
 {
@@ -995,18 +1015,13 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc, *_desc;
 	unsigned long		flags;
-	u32			cfglo;
 	LIST_HEAD(list);
 
 	if (cmd == DMA_PAUSE) {
 		spin_lock_irqsave(&dwc->lock, flags);
 
-		cfglo = channel_readl(dwc, CFG_LO);
-		channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
-		while (!(channel_readl(dwc, CFG_LO) & DWC_CFGL_FIFO_EMPTY))
-			cpu_relax();
+		dwc_chan_pause(dwc);
 
-		dwc->paused = true;
 		spin_unlock_irqrestore(&dwc->lock, flags);
 	} else if (cmd == DMA_RESUME) {
 		if (!dwc->paused)
@@ -1014,9 +1029,7 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 		spin_lock_irqsave(&dwc->lock, flags);
 
-		cfglo = channel_readl(dwc, CFG_LO);
-		channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
-		dwc->paused = false;
+		dwc_chan_resume(dwc);
 
 		spin_unlock_irqrestore(&dwc->lock, flags);
 	} else if (cmd == DMA_TERMINATE_ALL) {
