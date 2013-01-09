@@ -214,8 +214,9 @@ tcp_ecn - INTEGER
 	congestion before having to drop packets.
 	Possible values are:
 		0 Disable ECN.  Neither initiate nor accept ECN.
-		1 Always request ECN on outgoing connection attempts.
-		2 Enable ECN when requested by incomming connections
+		1 Enable ECN when requested by incoming connections and
+		  also request ECN on outgoing connection attempts.
+		2 Enable ECN when requested by incoming connections
 		  but do not request ECN on outgoing connections.
 	Default: 2
 
