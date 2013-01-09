@@ -777,6 +777,10 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_POWERED,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
@@ -871,6 +875,10 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!lmp_bredr_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				 MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	timeout = __le16_to_cpu(cp->timeout);
 	if (!cp->val && timeout > 0)
@@ -971,6 +979,10 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
@@ -1041,6 +1053,10 @@ static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_PAIRABLE,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	if (cp->val)
@@ -1072,6 +1088,10 @@ static int set_link_security(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!lmp_bredr_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_LINK_SECURITY,
 				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_LINK_SECURITY,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
@@ -1137,6 +1157,10 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	val = !!cp->val;
@@ -1197,6 +1221,10 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	if (cp->val)
 		set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
 	else
@@ -1218,6 +1246,10 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	if (!lmp_le_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
@@ -2597,6 +2629,10 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 	if (!lmp_bredr_capable(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				  MGMT_STATUS_NOT_SUPPORTED);
+
+	if (cp->val != 0x00 && cp->val != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	if (!hdev_is_powered(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
