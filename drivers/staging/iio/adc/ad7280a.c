@@ -199,12 +199,8 @@ static int __ad7280_read32(struct spi_device *spi, unsigned *val)
 		.rx_buf = &rx_buf,
 		.len = 4,
 	};
-	struct spi_message m;
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	ret = spi_sync(spi, &m);
+	ret = spi_sync_transfer(spi, &t, 1);
 	if (ret)
 		return ret;
 
