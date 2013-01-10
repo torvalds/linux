@@ -55,10 +55,6 @@ static void __init kirkwood_legacy_clk_init(void)
 	orion_clkdev_add("0", "pcie",
 			 of_clk_get_from_provider(&clkspec));
 
-	clkspec.args[0] = CGC_BIT_USB0;
-	orion_clkdev_add(NULL, "orion-ehci.0",
-			 of_clk_get_from_provider(&clkspec));
-
 	clkspec.args[0] = CGC_BIT_PEX1;
 	orion_clkdev_add("1", "pcie",
 			 of_clk_get_from_provider(&clkspec));
