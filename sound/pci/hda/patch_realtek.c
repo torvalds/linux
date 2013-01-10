@@ -1737,8 +1737,7 @@ static void alc889_fixup_mbp_vref(struct hda_codec *codec,
 		unsigned int val = snd_hda_codec_get_pincfg(codec, nids[i]);
 		if (get_defcfg_device(val) != AC_JACK_HP_OUT)
 			continue;
-		val = snd_hda_codec_read(codec, nids[i], 0,
-					 AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		val = snd_hda_codec_get_pin_target(codec, nids[i]);
 		val |= AC_PINCTL_VREF_80;
 		snd_hda_set_pin_ctl(codec, nids[i], val);
 		spec->gen.keep_vref_in_automute = 1;
@@ -1758,8 +1757,7 @@ static void alc889_fixup_imac91_vref(struct hda_codec *codec,
 		return;
 	for (i = 0; i < ARRAY_SIZE(nids); i++) {
 		unsigned int val;
-		val = snd_hda_codec_read(codec, nids[i], 0,
-					 AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		val = snd_hda_codec_get_pin_target(codec, nids[i]);
 		val |= AC_PINCTL_VREF_50;
 		snd_hda_set_pin_ctl(codec, nids[i], val);
 	}
@@ -3137,8 +3135,7 @@ static void alc861_fixup_asus_amp_vref_0f(struct hda_codec *codec,
 
 	if (action != HDA_FIXUP_ACT_INIT)
 		return;
-	val = snd_hda_codec_read(codec, 0x0f, 0,
-				 AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+	val = snd_hda_codec_get_pin_target(codec, 0x0f);
 	if (!(val & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN)))
 		val |= AC_PINCTL_IN_EN;
 	val |= AC_PINCTL_VREF_50;
