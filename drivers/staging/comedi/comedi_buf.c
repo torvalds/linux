@@ -324,11 +324,9 @@ unsigned int comedi_buf_read_free(struct comedi_async *async,
 	smp_mb();
 
 	allocated = comedi_buf_read_n_allocated(async);
-	if (nbytes > allocated) {
-		dev_info(async->subdevice->device->class_dev,
-			 "attempted to read-free more bytes than have been read-allocated.\n");
+	if (nbytes > allocated)
 		nbytes = allocated;
-	}
+
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
 	async->buf_read_ptr %= async->prealloc_bufsz;
