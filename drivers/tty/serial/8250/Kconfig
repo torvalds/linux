@@ -256,7 +256,7 @@ config SERIAL_8250_FSL
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
-	depends on SERIAL_8250 && OF
+	depends on SERIAL_8250
 	help
 	  Selecting this option will enable handling of the extra features
 	  present in the Synopsys DesignWare APB UART.

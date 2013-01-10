@@ -2,6 +2,7 @@
  * Synopsys DesignWare 8250 driver.
  *
  * Copyright 2011 Picochip, Jamie Iles.
+ * Copyright 2013 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +25,15 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
 /* Offsets for the DesignWare specific registers */
 #define DW_UART_USR	0x1f /* UART Status Register */
 #define DW_UART_CPR	0xf4 /* Component Parameter Register */
 #define DW_UART_UCV	0xf8 /* UART Component Version */
+
+/* Intel Low Power Subsystem specific */
+#define LPSS_PRV_CLOCK_PARAMS 0x800
 
 /* Component Parameter Register bits */
 #define DW_UART_CPR_ABP_DATA_WIDTH	(3 << 0)
@@ -138,6 +143,30 @@ static int dw8250_probe_of(struct uart_port *p)
 	return 0;
 }
 
+static int dw8250_probe_acpi(struct uart_port *p)
+{
+	const struct acpi_device_id *id;
+	u32 reg;
+
+	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
+	if (!id)
+		return -ENODEV;
+
+	p->iotype = UPIO_MEM32;
+	p->serial_in = dw8250_serial_in32;
+	p->serial_out = dw8250_serial_out32;
+	p->regshift = 2;
+	p->uartclk = (unsigned int)id->driver_data;
+
+	/* Fix Haswell issue where the clocks do not get enabled */
+	if (!strcmp(id->id, "INT33C4") || !strcmp(id->id, "INT33C5")) {
+		reg = readl(p->membase + LPSS_PRV_CLOCK_PARAMS);
+		writel(reg | 1, p->membase + LPSS_PRV_CLOCK_PARAMS);
+	}
+
+	return 0;
+}
+
 static void dw8250_setup_port(struct uart_8250_port *up)
 {
 	struct uart_port	*p = &up->port;
@@ -199,6 +228,10 @@ static int dw8250_probe(struct platform_device *pdev)
 		err = dw8250_probe_of(&uart.port);
 		if (err)
 			return err;
+	} else if (ACPI_HANDLE(&pdev->dev)) {
+		err = dw8250_probe_acpi(&uart.port);
+		if (err)
+			return err;
 	} else {
 		return -ENODEV;
 	}
@@ -258,11 +291,19 @@ static const struct of_device_id dw8250_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw8250_of_match);
 
+static const struct acpi_device_id dw8250_acpi_match[] = {
+	{ "INT33C4", 100000000 },
+	{ "INT33C5", 100000000 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
+
 static struct platform_driver dw8250_platform_driver = {
 	.driver = {
 		.name		= "dw-apb-uart",
 		.owner		= THIS_MODULE,
 		.of_match_table	= dw8250_of_match,
+		.acpi_match_table = ACPI_PTR(dw8250_acpi_match),
 	},
 	.probe			= dw8250_probe,
 	.remove			= dw8250_remove,
