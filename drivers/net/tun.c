@@ -1791,8 +1791,6 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		tun = tfile->detached;
 		if (!tun)
 			ret = -EINVAL;
-		else if (tun_not_capable(tun))
-			ret = -EPERM;
 		else
 			ret = tun_attach(tun, file);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
