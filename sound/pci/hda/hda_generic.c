@@ -2773,6 +2773,9 @@ static bool detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 		hda_nid_t nid = pins[i];
 		if (!nid)
 			break;
+		/* don't detect pins retasked as inputs */
+		if (snd_hda_codec_get_pin_target(codec, nid) & AC_PINCTL_IN_EN)
+			continue;
 		present |= snd_hda_jack_detect(codec, nid);
 	}
 	return present;
@@ -2899,7 +2902,11 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *ja
 		return;
 
 	for (i = spec->am_num_entries - 1; i > 0; i--) {
-		if (snd_hda_jack_detect(codec, spec->am_entry[i].pin)) {
+		hda_nid_t pin = spec->am_entry[i].pin;
+		/* don't detect pins retasked as outputs */
+		if (snd_hda_codec_get_pin_target(codec, pin) & AC_PINCTL_OUT_EN)
+			continue;
+		if (snd_hda_jack_detect(codec, pin)) {
 			mux_select(codec, 0, spec->am_entry[i].idx);
 			return;
 		}
