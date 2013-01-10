@@ -1858,6 +1858,7 @@ MODULE_DEVICE_TABLE(of, dw_dma_id_table);
 #endif
 
 static struct platform_driver dw_driver = {
+	.probe		= dw_probe,
 	.remove		= dw_remove,
 	.shutdown	= dw_shutdown,
 	.driver = {
@@ -1869,7 +1870,7 @@ static struct platform_driver dw_driver = {
 
 static int __init dw_init(void)
 {
-	return platform_driver_probe(&dw_driver, dw_probe);
+	return platform_driver_register(&dw_driver);
 }
 subsys_initcall(dw_init);
 
