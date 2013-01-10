@@ -1915,107 +1915,158 @@ out_no_maps:
 	mutex_unlock(&xps_map_mutex);
 }
 
+static struct xps_map *expand_xps_map(struct xps_map *map,
+				      int cpu, u16 index)
+{
+	struct xps_map *new_map;
+	int alloc_len = XPS_MIN_MAP_ALLOC;
+	int i, pos;
+
+	for (pos = 0; map && pos < map->len; pos++) {
+		if (map->queues[pos] != index)
+			continue;
+		return map;
+	}
+
+	/* Need to add queue to this CPU's existing map */
+	if (map) {
+		if (pos < map->alloc_len)
+			return map;
+
+		alloc_len = map->alloc_len * 2;
+	}
+
+	/* Need to allocate new map to store queue on this CPU's map */
+	new_map = kzalloc_node(XPS_MAP_SIZE(alloc_len), GFP_KERNEL,
+			       cpu_to_node(cpu));
+	if (!new_map)
+		return NULL;
+
+	for (i = 0; i < pos; i++)
+		new_map->queues[i] = map->queues[i];
+	new_map->alloc_len = alloc_len;
+	new_map->len = pos;
+
+	return new_map;
+}
+
 int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask, u16 index)
 {
-	int i, cpu, pos, map_len, alloc_len, need_set;
+	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
 	struct xps_map *map, *new_map;
-	struct xps_dev_maps *dev_maps, *new_dev_maps;
-	int nonempty = 0;
-	int numa_node_id = -2;
 	int maps_sz = max_t(unsigned int, XPS_DEV_MAPS_SIZE, L1_CACHE_BYTES);
-
-	new_dev_maps = kzalloc(maps_sz, GFP_KERNEL);
-	if (!new_dev_maps)
-		return -ENOMEM;
+	int cpu, numa_node_id = -2;
+	bool active = false;
 
 	mutex_lock(&xps_map_mutex);
 
 	dev_maps = xmap_dereference(dev->xps_maps);
 
-	for_each_possible_cpu(cpu) {
-		map = dev_maps ?
-			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
-		new_map = map;
-		if (map) {
-			for (pos = 0; pos < map->len; pos++)
-				if (map->queues[pos] == index)
-					break;
-			map_len = map->len;
-			alloc_len = map->alloc_len;
-		} else
-			pos = map_len = alloc_len = 0;
+	/* allocate memory for queue storage */
+	for_each_online_cpu(cpu) {
+		if (!cpumask_test_cpu(cpu, mask))
+			continue;
 
-		need_set = cpumask_test_cpu(cpu, mask) && cpu_online(cpu);
+		if (!new_dev_maps)
+			new_dev_maps = kzalloc(maps_sz, GFP_KERNEL);
+		if (!new_dev_maps)
+			return -ENOMEM;
+
+		map = dev_maps ? xmap_dereference(dev_maps->cpu_map[cpu]) :
+				 NULL;
+
+		map = expand_xps_map(map, cpu, index);
+		if (!map)
+			goto error;
+
+		RCU_INIT_POINTER(new_dev_maps->cpu_map[cpu], map);
+	}
+
+	if (!new_dev_maps)
+		goto out_no_new_maps;
+
+	for_each_possible_cpu(cpu) {
+		if (cpumask_test_cpu(cpu, mask) && cpu_online(cpu)) {
+			/* add queue to CPU maps */
+			int pos = 0;
+
+			map = xmap_dereference(new_dev_maps->cpu_map[cpu]);
+			while ((pos < map->len) && (map->queues[pos] != index))
+				pos++;
+
+			if (pos == map->len)
+				map->queues[map->len++] = index;
 #ifdef CONFIG_NUMA
-		if (need_set) {
 			if (numa_node_id == -2)
 				numa_node_id = cpu_to_node(cpu);
 			else if (numa_node_id != cpu_to_node(cpu))
 				numa_node_id = -1;
-		}
 #endif
-		if (need_set && pos >= map_len) {
-			/* Need to add queue to this CPU's map */
-			if (map_len >= alloc_len) {
-				alloc_len = alloc_len ?
-				    2 * alloc_len : XPS_MIN_MAP_ALLOC;
-				new_map = kzalloc_node(XPS_MAP_SIZE(alloc_len),
-						       GFP_KERNEL,
-						       cpu_to_node(cpu));
-				if (!new_map)
-					goto error;
-				new_map->alloc_len = alloc_len;
-				for (i = 0; i < map_len; i++)
-					new_map->queues[i] = map->queues[i];
-				new_map->len = map_len;
-			}
-			new_map->queues[new_map->len++] = index;
-		} else if (!need_set && pos < map_len) {
-			/* Need to remove queue from this CPU's map */
-			if (map_len > 1)
-				new_map->queues[pos] =
-				    new_map->queues[--new_map->len];
-			else
-				new_map = NULL;
+		} else if (dev_maps) {
+			/* fill in the new device map from the old device map */
+			map = xmap_dereference(dev_maps->cpu_map[cpu]);
+			RCU_INIT_POINTER(new_dev_maps->cpu_map[cpu], map);
 		}
-		RCU_INIT_POINTER(new_dev_maps->cpu_map[cpu], new_map);
+
 	}
+
+	rcu_assign_pointer(dev->xps_maps, new_dev_maps);
 
 	/* Cleanup old maps */
-	for_each_possible_cpu(cpu) {
-		map = dev_maps ?
-			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
-		if (map && xmap_dereference(new_dev_maps->cpu_map[cpu]) != map)
-			kfree_rcu(map, rcu);
-		if (new_dev_maps->cpu_map[cpu])
-			nonempty = 1;
-	}
+	if (dev_maps) {
+		for_each_possible_cpu(cpu) {
+			new_map = xmap_dereference(new_dev_maps->cpu_map[cpu]);
+			map = xmap_dereference(dev_maps->cpu_map[cpu]);
+			if (map && map != new_map)
+				kfree_rcu(map, rcu);
+		}
 
-	if (nonempty) {
-		rcu_assign_pointer(dev->xps_maps, new_dev_maps);
-	} else {
-		kfree(new_dev_maps);
-		RCU_INIT_POINTER(dev->xps_maps, NULL);
-	}
-
-	if (dev_maps)
 		kfree_rcu(dev_maps, rcu);
+	}
 
+	dev_maps = new_dev_maps;
+	active = true;
+
+out_no_new_maps:
+	/* update Tx queue numa node */
 	netdev_queue_numa_node_write(netdev_get_tx_queue(dev, index),
 				     (numa_node_id >= 0) ? numa_node_id :
 				     NUMA_NO_NODE);
 
+	if (!dev_maps)
+		goto out_no_maps;
+
+	/* removes queue from unused CPUs */
+	for_each_possible_cpu(cpu) {
+		if (cpumask_test_cpu(cpu, mask) && cpu_online(cpu))
+			continue;
+
+		if (remove_xps_queue(dev_maps, cpu, index))
+			active = true;
+	}
+
+	/* free map if not active */
+	if (!active) {
+		RCU_INIT_POINTER(dev->xps_maps, NULL);
+		kfree_rcu(dev_maps, rcu);
+	}
+
+out_no_maps:
 	mutex_unlock(&xps_map_mutex);
 
 	return 0;
 error:
+	/* remove any maps that we added */
+	for_each_possible_cpu(cpu) {
+		new_map = xmap_dereference(new_dev_maps->cpu_map[cpu]);
+		map = dev_maps ? xmap_dereference(dev_maps->cpu_map[cpu]) :
+				 NULL;
+		if (new_map && new_map != map)
+			kfree(new_map);
+	}
+
 	mutex_unlock(&xps_map_mutex);
 
-	if (new_dev_maps)
-		for_each_possible_cpu(i)
-			kfree(rcu_dereference_protected(
-				new_dev_maps->cpu_map[i],
-				1));
 	kfree(new_dev_maps);
 	return -ENOMEM;
 }
