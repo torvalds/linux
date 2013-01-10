@@ -186,20 +186,20 @@ static ssize_t ina2xx_show_value(struct device *dev,
 }
 
 /* shunt voltage */
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, \
-	ina2xx_show_value, NULL, INA2XX_SHUNT_VOLTAGE);
+static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ina2xx_show_value, NULL,
+			  INA2XX_SHUNT_VOLTAGE);
 
 /* bus voltage */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, \
-	ina2xx_show_value, NULL, INA2XX_BUS_VOLTAGE);
+static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ina2xx_show_value, NULL,
+			  INA2XX_BUS_VOLTAGE);
 
 /* calculated current */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, \
-	ina2xx_show_value, NULL, INA2XX_CURRENT);
+static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ina2xx_show_value, NULL,
+			  INA2XX_CURRENT);
 
 /* calculated power */
-static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, \
-	ina2xx_show_value, NULL, INA2XX_POWER);
+static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, ina2xx_show_value, NULL,
+			  INA2XX_POWER);
 
 /* pointers to created device attributes */
 static struct attribute *ina2xx_attributes[] = {
