@@ -84,6 +84,7 @@ static inline int shmobile_cpuidle_init(void) { return 0; }
 
 extern void shmobile_cpu_die(unsigned int cpu);
 extern int shmobile_cpu_disable(unsigned int cpu);
+extern int shmobile_cpu_disable_any(unsigned int cpu);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern int shmobile_cpu_is_dead(unsigned int cpu);
