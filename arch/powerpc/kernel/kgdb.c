@@ -489,6 +489,6 @@ void kgdb_arch_exit(void)
 	__debugger_bpt = old__debugger_bpt;
 	__debugger_sstep = old__debugger_sstep;
 	__debugger_iabr_match = old__debugger_iabr_match;
-	__debugger_breakx_match = old__debugger_break_match;
+	__debugger_break_match = old__debugger_break_match;
 	__debugger_fault_handler = old__debugger_fault_handler;
 }
