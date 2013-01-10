@@ -327,6 +327,60 @@ struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
 EXPORT_SYMBOL(kmalloc_dma_caches);
 #endif
 
+/*
+ * Create the kmalloc array. Some of the regular kmalloc arrays
+ * may already have been created because they were needed to
+ * enable allocations for slab creation.
+ */
+void __init create_kmalloc_caches(unsigned long flags)
+{
+	int i;
+
+	/* Caches that are not of the two-to-the-power-of size */
+	if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1])
+		kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
+
+	if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2])
+		kmalloc_caches[2] = create_kmalloc_cache(NULL, 192, flags);
+
+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+		if (!kmalloc_caches[i])
+			kmalloc_caches[i] = create_kmalloc_cache(NULL,
+							1 << i, flags);
+
+	/* Kmalloc array is now usable */
+	slab_state = UP;
+
+	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
+		struct kmem_cache *s = kmalloc_caches[i];
+		char *n;
+
+		if (s) {
+			n = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
+
+			BUG_ON(!n);
+			s->name = n;
+		}
+	}
+
+#ifdef CONFIG_ZONE_DMA
+	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
+		struct kmem_cache *s = kmalloc_caches[i];
+
+		if (s) {
+			int size = kmalloc_size(i);
+			char *n = kasprintf(GFP_NOWAIT,
+				 "dma-kmalloc-%d", size);
+
+			BUG_ON(!n);
+			kmalloc_dma_caches[i] = create_kmalloc_cache(n,
+				size, SLAB_CACHE_DMA | flags);
+		}
+	}
+#endif
+}
+
+
 #endif /* !CONFIG_SLOB */
 
 

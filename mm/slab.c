@@ -1625,30 +1625,6 @@ void __init kmem_cache_init(void)
 
 	slab_early_init = 0;
 
-	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
-		size_t cs_size = kmalloc_size(i);
-
-		if (cs_size < KMALLOC_MIN_SIZE)
-			continue;
-
-		if (!kmalloc_caches[i]) {
-			/*
-			 * For performance, all the general caches are L1 aligned.
-			 * This should be particularly beneficial on SMP boxes, as it
-			 * eliminates "false sharing".
-			 * Note for systems short on memory removing the alignment will
-			 * allow tighter packing of the smaller caches.
-			 */
-			kmalloc_caches[i] = create_kmalloc_cache("kmalloc",
-					cs_size, ARCH_KMALLOC_FLAGS);
-		}
-
-#ifdef CONFIG_ZONE_DMA
-		kmalloc_dma_caches[i] = create_kmalloc_cache(
-			"kmalloc-dma", cs_size,
-			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
-#endif
-	}
 	/* 4) Replace the bootstrap head arrays */
 	{
 		struct array_cache *ptr;
@@ -1694,29 +1670,7 @@ void __init kmem_cache_init(void)
 		}
 	}
 
-	slab_state = UP;
-
-	/* Create the proper names */
-	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
-		char *s;
-		struct kmem_cache *c = kmalloc_caches[i];
-
-		if (!c)
-			continue;
-
-		s = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
-
-		BUG_ON(!s);
-		c->name = s;
-
-#ifdef CONFIG_ZONE_DMA
-		c = kmalloc_dma_caches[i];
-		BUG_ON(!c);
-		s = kasprintf(GFP_NOWAIT, "dma-kmalloc-%d", kmalloc_size(i));
-		BUG_ON(!s);
-		c->name = s;
-#endif
-	}
+	create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
 }
 
 void __init kmem_cache_init_late(void)

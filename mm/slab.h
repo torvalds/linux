@@ -35,6 +35,12 @@ extern struct kmem_cache *kmem_cache;
 unsigned long calculate_alignment(unsigned long flags,
 		unsigned long align, unsigned long size);
 
+#ifndef CONFIG_SLOB
+/* Kmalloc array related functions */
+void create_kmalloc_caches(unsigned long);
+#endif
+
+
 /* Functions provided by the slab allocators */
 extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
 
