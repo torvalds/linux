@@ -318,34 +318,18 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int len,
 static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp);
 static void cache_reap(struct work_struct *unused);
 
-/*
- * This function must be completely optimized away if a constant is passed to
- * it.  Mostly the same as what is in linux/slab.h except it returns an index.
- */
-static __always_inline int index_of(const size_t size)
-{
-	extern void __bad_size(void);
+struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
+EXPORT_SYMBOL(kmalloc_caches);
 
-	if (__builtin_constant_p(size)) {
-		int i = 0;
-
-#define CACHE(x) \
-	if (size <=x) \
-		return i; \
-	else \
-		i++;
-#include <linux/kmalloc_sizes.h>
-#undef CACHE
-		__bad_size();
-	} else
-		__bad_size();
-	return 0;
-}
+#ifdef CONFIG_ZONE_DMA
+struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
+EXPORT_SYMBOL(kmalloc_dma_caches);
+#endif
 
 static int slab_early_init = 1;
 
-#define INDEX_AC index_of(sizeof(struct arraycache_init))
-#define INDEX_L3 index_of(sizeof(struct kmem_list3))
+#define INDEX_AC kmalloc_index(sizeof(struct arraycache_init))
+#define INDEX_L3 kmalloc_index(sizeof(struct kmem_list3))
 
 static void kmem_list3_init(struct kmem_list3 *parent)
 {
@@ -524,30 +508,6 @@ static inline unsigned int obj_to_index(const struct kmem_cache *cache,
 	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
 }
 
-/*
- * These are the default caches for kmalloc. Custom caches can have other sizes.
- */
-struct cache_sizes malloc_sizes[] = {
-#define CACHE(x) { .cs_size = (x) },
-#include <linux/kmalloc_sizes.h>
-	CACHE(ULONG_MAX)
-#undef CACHE
-};
-EXPORT_SYMBOL(malloc_sizes);
-
-/* Must match cache_sizes above. Out of line to keep cache footprint low. */
-struct cache_names {
-	char *name;
-	char *name_dma;
-};
-
-static struct cache_names __initdata cache_names[] = {
-#define CACHE(x) { .name = "size-" #x, .name_dma = "size-" #x "(DMA)" },
-#include <linux/kmalloc_sizes.h>
-	{NULL,}
-#undef CACHE
-};
-
 static struct arraycache_init initarray_generic =
     { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
 
@@ -625,19 +585,23 @@ static void slab_set_debugobj_lock_classes(struct kmem_cache *cachep)
 
 static void init_node_lock_keys(int q)
 {
-	struct cache_sizes *s = malloc_sizes;
+	int i;
 
 	if (slab_state < UP)
 		return;
 
-	for (s = malloc_sizes; s->cs_size != ULONG_MAX; s++) {
+	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
 		struct kmem_list3 *l3;
+		struct kmem_cache *cache = kmalloc_caches[i];
 
-		l3 = s->cs_cachep->nodelists[q];
-		if (!l3 || OFF_SLAB(s->cs_cachep))
+		if (!cache)
 			continue;
 
-		slab_set_lock_classes(s->cs_cachep, &on_slab_l3_key,
+		l3 = cache->nodelists[q];
+		if (!l3 || OFF_SLAB(cache))
+			continue;
+
+		slab_set_lock_classes(cache, &on_slab_l3_key,
 				&on_slab_alc_key, q);
 	}
 }
@@ -705,20 +669,19 @@ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 static inline struct kmem_cache *__find_general_cachep(size_t size,
 							gfp_t gfpflags)
 {
-	struct cache_sizes *csizep = malloc_sizes;
+	int i;
 
 #if DEBUG
 	/* This happens if someone tries to call
 	 * kmem_cache_create(), or __kmalloc(), before
 	 * the generic caches are initialized.
 	 */
-	BUG_ON(malloc_sizes[INDEX_AC].cs_cachep == NULL);
+	BUG_ON(kmalloc_caches[INDEX_AC] == NULL);
 #endif
 	if (!size)
 		return ZERO_SIZE_PTR;
 
-	while (size > csizep->cs_size)
-		csizep++;
+	i = kmalloc_index(size);
 
 	/*
 	 * Really subtle: The last entry with cs->cs_size==ULONG_MAX
@@ -727,9 +690,9 @@ static inline struct kmem_cache *__find_general_cachep(size_t size,
 	 */
 #ifdef CONFIG_ZONE_DMA
 	if (unlikely(gfpflags & GFP_DMA))
-		return csizep->cs_dmacachep;
+		return kmalloc_dma_caches[i];
 #endif
-	return csizep->cs_cachep;
+	return kmalloc_caches[i];
 }
 
 static struct kmem_cache *kmem_find_general_cachep(size_t size, gfp_t gfpflags)
@@ -1602,8 +1565,6 @@ static void setup_nodelists_pointer(struct kmem_cache *cachep)
  */
 void __init kmem_cache_init(void)
 {
-	struct cache_sizes *sizes;
-	struct cache_names *names;
 	int i;
 
 	kmem_cache = &kmem_cache_boot;
@@ -1657,8 +1618,6 @@ void __init kmem_cache_init(void)
 	list_add(&kmem_cache->list, &slab_caches);
 
 	/* 2+3) create the kmalloc caches */
-	sizes = malloc_sizes;
-	names = cache_names;
 
 	/*
 	 * Initialize the caches that provide memory for the array cache and the
@@ -1666,35 +1625,39 @@ void __init kmem_cache_init(void)
 	 * bug.
 	 */
 
-	sizes[INDEX_AC].cs_cachep = create_kmalloc_cache(names[INDEX_AC].name,
-					sizes[INDEX_AC].cs_size, ARCH_KMALLOC_FLAGS);
+	kmalloc_caches[INDEX_AC] = create_kmalloc_cache("kmalloc-ac",
+					kmalloc_size(INDEX_AC), ARCH_KMALLOC_FLAGS);
 
 	if (INDEX_AC != INDEX_L3)
-		sizes[INDEX_L3].cs_cachep =
-			create_kmalloc_cache(names[INDEX_L3].name,
-				sizes[INDEX_L3].cs_size, ARCH_KMALLOC_FLAGS);
+		kmalloc_caches[INDEX_L3] =
+			create_kmalloc_cache("kmalloc-l3",
+				kmalloc_size(INDEX_L3), ARCH_KMALLOC_FLAGS);
 
 	slab_early_init = 0;
 
-	while (sizes->cs_size != ULONG_MAX) {
-		/*
-		 * For performance, all the general caches are L1 aligned.
-		 * This should be particularly beneficial on SMP boxes, as it
-		 * eliminates "false sharing".
-		 * Note for systems short on memory removing the alignment will
-		 * allow tighter packing of the smaller caches.
-		 */
-		if (!sizes->cs_cachep)
-			sizes->cs_cachep = create_kmalloc_cache(names->name,
-					sizes->cs_size, ARCH_KMALLOC_FLAGS);
+	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
+		size_t cs_size = kmalloc_size(i);
+
+		if (cs_size < KMALLOC_MIN_SIZE)
+			continue;
+
+		if (!kmalloc_caches[i]) {
+			/*
+			 * For performance, all the general caches are L1 aligned.
+			 * This should be particularly beneficial on SMP boxes, as it
+			 * eliminates "false sharing".
+			 * Note for systems short on memory removing the alignment will
+			 * allow tighter packing of the smaller caches.
+			 */
+			kmalloc_caches[i] = create_kmalloc_cache("kmalloc",
+					cs_size, ARCH_KMALLOC_FLAGS);
+		}
 
 #ifdef CONFIG_ZONE_DMA
-		sizes->cs_dmacachep = create_kmalloc_cache(
-			names->name_dma, sizes->cs_size,
+		kmalloc_dma_caches[i] = create_kmalloc_cache(
+			"kmalloc-dma", cs_size,
 			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
 #endif
-		sizes++;
-		names++;
 	}
 	/* 4) Replace the bootstrap head arrays */
 	{
@@ -1713,17 +1676,16 @@ void __init kmem_cache_init(void)
 
 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
 
-		BUG_ON(cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep)
+		BUG_ON(cpu_cache_get(kmalloc_caches[INDEX_AC])
 		       != &initarray_generic.cache);
-		memcpy(ptr, cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep),
+		memcpy(ptr, cpu_cache_get(kmalloc_caches[INDEX_AC]),
 		       sizeof(struct arraycache_init));
 		/*
 		 * Do not assume that spinlocks can be initialized via memcpy:
 		 */
 		spin_lock_init(&ptr->lock);
 
-		malloc_sizes[INDEX_AC].cs_cachep->array[smp_processor_id()] =
-		    ptr;
+		kmalloc_caches[INDEX_AC]->array[smp_processor_id()] = ptr;
 	}
 	/* 5) Replace the bootstrap kmem_list3's */
 	{
@@ -1732,17 +1694,39 @@ void __init kmem_cache_init(void)
 		for_each_online_node(nid) {
 			init_list(kmem_cache, &initkmem_list3[CACHE_CACHE + nid], nid);
 
-			init_list(malloc_sizes[INDEX_AC].cs_cachep,
+			init_list(kmalloc_caches[INDEX_AC],
 				  &initkmem_list3[SIZE_AC + nid], nid);
 
 			if (INDEX_AC != INDEX_L3) {
-				init_list(malloc_sizes[INDEX_L3].cs_cachep,
+				init_list(kmalloc_caches[INDEX_L3],
 					  &initkmem_list3[SIZE_L3 + nid], nid);
 			}
 		}
 	}
 
 	slab_state = UP;
+
+	/* Create the proper names */
+	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
+		char *s;
+		struct kmem_cache *c = kmalloc_caches[i];
+
+		if (!c)
+			continue;
+
+		s = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
+
+		BUG_ON(!s);
+		c->name = s;
+
+#ifdef CONFIG_ZONE_DMA
+		c = kmalloc_dma_caches[i];
+		BUG_ON(!c);
+		s = kasprintf(GFP_NOWAIT, "dma-kmalloc-%d", kmalloc_size(i));
+		BUG_ON(!s);
+		c->name = s;
+#endif
+	}
 }
 
 void __init kmem_cache_init_late(void)
@@ -2428,10 +2412,9 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 			size += BYTES_PER_WORD;
 	}
 #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
-	if (size >= malloc_sizes[INDEX_L3 + 1].cs_size
-	    && cachep->object_size > cache_line_size()
-	    && ALIGN(size, cachep->align) < PAGE_SIZE) {
-		cachep->obj_offset += PAGE_SIZE - ALIGN(size, cachep->align);
+	if (size >= kmalloc_size(INDEX_L3 + 1)
+	    && cachep->object_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
+		cachep->obj_offset += PAGE_SIZE - ALIGN(size, align);
 		size = PAGE_SIZE;
 	}
 #endif
