@@ -231,7 +231,7 @@ struct qp_guest_endpoint {
 	u64 num_ppns;
 	void *produce_q;
 	void *consume_q;
-	struct PPNSet ppn_set;
+	struct ppn_set ppn_set;
 };
 
 struct qp_list {
@@ -461,7 +461,7 @@ static int __qp_memcpy_from_queue(void *dest,
 static int qp_alloc_ppn_set(void *prod_q,
 			    u64 num_produce_pages,
 			    void *cons_q,
-			    u64 num_consume_pages, struct PPNSet *ppn_set)
+			    u64 num_consume_pages, struct ppn_set *ppn_set)
 {
 	u32 *produce_ppns;
 	u32 *consume_ppns;
@@ -532,7 +532,7 @@ static int qp_alloc_ppn_set(void *prod_q,
 /*
  * Frees the two list of PPNs for a queue pair.
  */
-static void qp_free_ppn_set(struct PPNSet *ppn_set)
+static void qp_free_ppn_set(struct ppn_set *ppn_set)
 {
 	if (ppn_set->initialized) {
 		/* Do not call these functions on NULL inputs. */
@@ -546,7 +546,7 @@ static void qp_free_ppn_set(struct PPNSet *ppn_set)
  * Populates the list of PPNs in the hypercall structure with the PPNS
  * of the produce queue and the consume queue.
  */
-static int qp_populate_ppn_set(u8 *call_buf, const struct PPNSet *ppn_set)
+static int qp_populate_ppn_set(u8 *call_buf, const struct ppn_set *ppn_set)
 {
 	memcpy(call_buf, ppn_set->produce_ppns,
 	       ppn_set->num_produce_pages * sizeof(*ppn_set->produce_ppns));

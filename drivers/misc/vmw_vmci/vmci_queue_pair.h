@@ -25,7 +25,7 @@
 typedef int (*vmci_event_release_cb) (void *client_data);
 
 /* Guest device port I/O. */
-struct PPNSet {
+struct ppn_set {
 	u64 num_produce_pages;
 	u64 num_consume_pages;
 	u32 *produce_ppns;
