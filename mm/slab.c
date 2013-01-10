@@ -656,40 +656,6 @@ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 	return cachep->array[smp_processor_id()];
 }
 
-static inline struct kmem_cache *__find_general_cachep(size_t size,
-							gfp_t gfpflags)
-{
-	int i;
-
-#if DEBUG
-	/* This happens if someone tries to call
-	 * kmem_cache_create(), or __kmalloc(), before
-	 * the generic caches are initialized.
-	 */
-	BUG_ON(kmalloc_caches[INDEX_AC] == NULL);
-#endif
-	if (!size)
-		return ZERO_SIZE_PTR;
-
-	i = kmalloc_index(size);
-
-	/*
-	 * Really subtle: The last entry with cs->cs_size==ULONG_MAX
-	 * has cs_{dma,}cachep==NULL. Thus no special case
-	 * for large kmalloc calls required.
-	 */
-#ifdef CONFIG_ZONE_DMA
-	if (unlikely(gfpflags & GFP_DMA))
-		return kmalloc_dma_caches[i];
-#endif
-	return kmalloc_caches[i];
-}
-
-static struct kmem_cache *kmem_find_general_cachep(size_t size, gfp_t gfpflags)
-{
-	return __find_general_cachep(size, gfpflags);
-}
-
 static size_t slab_mgmt_size(size_t nr_objs, size_t align)
 {
 	return ALIGN(sizeof(struct slab)+nr_objs*sizeof(kmem_bufctl_t), align);
@@ -2426,7 +2392,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 	cachep->reciprocal_buffer_size = reciprocal_value(size);
 
 	if (flags & CFLGS_OFF_SLAB) {
-		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
+		cachep->slabp_cache = kmalloc_slab(slab_size, 0u);
 		/*
 		 * This is a possibility for one of the malloc_sizes caches.
 		 * But since we go off slab only for object size greater than
@@ -3729,7 +3695,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
 {
 	struct kmem_cache *cachep;
 
-	cachep = kmem_find_general_cachep(size, flags);
+	cachep = kmalloc_slab(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
 	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
@@ -3774,7 +3740,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	 * Then kmalloc uses the uninlined functions instead of the inline
 	 * functions.
 	 */
-	cachep = __find_general_cachep(size, flags);
+	cachep = kmalloc_slab(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
 	ret = slab_alloc(cachep, flags, caller);
