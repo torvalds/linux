@@ -156,9 +156,13 @@
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
 #define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
 
-static void rk_cif_power(int on)
+static void rk_cif_power(struct rk29camera_gpio_res *res,int on)
 {
     struct regulator *ldo_18,*ldo_28;
+	int camera_power = res->gpio_power;
+	  int camera_ioflag = res->gpio_flag;
+	  int camera_io_init = res->gpio_init;
+	  
 	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
 	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
 	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
@@ -170,7 +174,13 @@ static void rk_cif_power(int on)
     	regulator_put(ldo_28);
     	regulator_disable(ldo_18);
     	regulator_put(ldo_18);
-    	mdelay(500);
+    	mdelay(10);
+	if (camera_power != INVALID_GPIO)  {
+		  if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
+			  gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			//  dprintk("%s..%s..PowerPin=%d ..PinLevel = %x	 \n",__FUNCTION__,res->dev_name, camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			}
+		}
         }
     else{
     	regulator_set_voltage(ldo_28, 2800000, 2800000);
@@ -183,14 +193,22 @@ static void rk_cif_power(int on)
     	regulator_enable(ldo_18);
     //	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_18));
     	regulator_put(ldo_18);
-        }
+	if (camera_power != INVALID_GPIO)  {
+		  if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
+			gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			//dprintk("%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,res->dev_name, camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			mdelay(10);
+		  	}
+	}
+
+    }
 }
 
 #if CONFIG_SENSOR_POWER_IOCTL_USR
 static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
 	//#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
-    rk_cif_power(on);
+    rk_cif_power(res,on);
 	return 0;
 }
 #endif

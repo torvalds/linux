@@ -1304,18 +1304,7 @@ config S5K5CA_USER_DEFINED_SERIES
 	depends on SOC_CAMERA_S5K5CA
 	bool "s5k5ca user defined init series"
 	default n
-
-config SOC_CAMERA_MTK9335ISP
-        tristate "mtk9335isp camera support for rockchip"
-        depends on SOC_CAMERA && I2C
-        help
-          This is a mtk9335isp camera driver for rockchip
-
-config MTK9335ISP_USER_DEFINED_SERIES
-        depends on SOC_CAMERA_MTK9335ISP
-        bool "mtk9335isp user defined init series"
-        default n
-
+	
 config SOC_CAMERA_SP0838
 	tristate "sp0838 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
@@ -1360,6 +1349,13 @@ config OV9740_USER_DEFINED_SERIES
 	depends on SOC_CAMERA_OV9740
 	bool "OV9740 user defined init series"
 	default n
+config SOC_CAMERA_MV9335
+        tristate "MtekVision camera isp chip"
+        depends on SOC_CAMERA && I2C
+        help
+          MtekVision camera isp chip
+
+source "drivers/media/video/mv9335/Kconfig"	
 
 config MX1_VIDEO
 	bool

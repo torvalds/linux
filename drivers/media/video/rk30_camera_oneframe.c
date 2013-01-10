@@ -280,8 +280,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 *v0.x.1c:
 *         1. fix query resolution error;
+*v0.x.1e: 1. add mv9335+ov5650 driver
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1c)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1e)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\

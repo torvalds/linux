@@ -64,8 +64,10 @@ static int soc_camera_power_set(struct soc_camera_device *icd,
 			return ret;
 		}
 
-		if (icl->power)
+		if (icl->power){
+			icl->power(icd->pdev, 0); // ensure power and reset pin are not active.
 			ret = icl->power(icd->pdev, power_on);
+			}
 		if (ret < 0) {
 			dev_err(&icd->dev,
 				"Platform failed to power-on the camera.\n");
@@ -491,9 +493,6 @@ static int soc_camera_open(struct file *file)
     		if (ret < 0)
     			goto epower;
 
-    		/* The camera could have been already on, try to reset */
-    		if (icl->reset)
-    			icl->reset(icd->pdev);
         }
 
 		ret = ici->ops->add(icd);
@@ -501,7 +500,14 @@ static int soc_camera_open(struct file *file)
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
-
+        /* ddl@rock-chips.com : accelerate device open  */
+        //reset MUST be done after mclk supply(for mt9335 isp)
+        
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		/* The camera could have been already on, try to reset */
+    		if (icl->reset)
+    			icl->reset(icd->pdev);
+            }
 		pm_runtime_enable(&icd->vdev->dev);
 		ret = pm_runtime_resume(&icd->vdev->dev);
 		if (ret < 0 && ret != -ENOSYS)
@@ -836,18 +842,19 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 	if (!qc->id)
 		return -EINVAL;
 
-	/* First check host controls */
-	for (i = 0; i < ici->ops->num_controls; i++)
-		if (qc->id == ici->ops->controls[i].id) {
-			memcpy(qc, &(ici->ops->controls[i]),
+	/* first device controls */
+	//if device support digital zoom ,first use it to do zoom,zyc
+	for (i = 0; i < icd->ops->num_controls; i++)
+		if (qc->id == icd->ops->controls[i].id) {
+			memcpy(qc, &(icd->ops->controls[i]),
 				sizeof(*qc));
 			return 0;
 		}
 
-	/* Then device controls */
-	for (i = 0; i < icd->ops->num_controls; i++)
-		if (qc->id == icd->ops->controls[i].id) {
-			memcpy(qc, &(icd->ops->controls[i]),
+	/* then check host controls */
+	for (i = 0; i < ici->ops->num_controls; i++)
+		if (qc->id == ici->ops->controls[i].id) {
+			memcpy(qc, &(ici->ops->controls[i]),
 				sizeof(*qc));
 			return 0;
 		}
@@ -1194,13 +1201,14 @@ static int soc_camera_probe(struct device *dev)
 	if (ret < 0)
 		goto epower;
 
-	/* The camera could have been already on, try to reset */
-	if (icl->reset)
-		icl->reset(icd->pdev);
-
 	ret = ici->ops->add(icd);
 	if (ret < 0)
 		goto eadd;
+    
+    /* The camera could have been already on, try to reset */
+    //reset MUST be done after mclk supply(for mt9335 isp)
+    if (icl->reset)
+            icl->reset(icd->pdev);
 
 	/* Must have icd->vdev before registering the device */
 	ret = video_dev_create(icd);

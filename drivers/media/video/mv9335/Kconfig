@@ -1,0 +1,12 @@
+#
+#  Fujitsu camera isp chip: m6moj.
+#
+choice
+	prompt "Camera Sensor attached to mv9335"
+	depends on SOC_CAMERA_MV9335
+	default n
+config MV9335_OV5650
+	tristate "mv9335 attached ov5650"
+	help
+	Choose Y here if you have this this sensor and it is attach to mv9335
+endchoice
