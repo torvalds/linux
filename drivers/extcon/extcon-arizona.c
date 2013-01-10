@@ -290,12 +290,20 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
-	unsigned int val;
+	unsigned int val, present, mask;
 	int ret, i;
 
 	pm_runtime_get_sync(info->dev);
 
 	mutex_lock(&info->lock);
+
+	if (arizona->pdata.jd_gpio5) {
+		mask = ARIZONA_MICD_CLAMP_STS;
+		present = 0;
+	} else {
+		mask = ARIZONA_JD1_STS;
+		present = ARIZONA_JD1_STS;
+	}
 
 	ret = regmap_read(arizona->regmap, ARIZONA_AOD_IRQ_RAW_STATUS, &val);
 	if (ret != 0) {
@@ -306,7 +314,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (val & ARIZONA_JD1_STS) {
+	if ((val & mask) == present) {
 		dev_dbg(arizona->dev, "Detected jack\n");
 		ret = extcon_set_cable_state_(&info->edev,
 					      ARIZONA_CABLE_MECHANICAL, true);
@@ -320,6 +328,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		dev_dbg(arizona->dev, "Detected jack removal\n");
 
 		arizona_stop_mic(info);
+
 
 		for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
 			input_report_key(info->input,
@@ -345,6 +354,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata;
 	struct arizona_extcon_info *info;
+	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i;
 
 	pdata = dev_get_platdata(arizona->dev);
@@ -426,12 +436,24 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				   << ARIZONA_MICD_BIAS_STARTTIME_SHIFT);
 
 	/*
-	 * If we have a clamp use it.
+	 * If we have a clamp use it, activating in conjunction with
+	 * GPIO5 if that is connected for jack detect operation.
 	 */
 	if (info->micd_clamp) {
-		regmap_update_bits(arizona->regmap,
-				   ARIZONA_MICD_CLAMP_CONTROL,
-				   ARIZONA_MICD_CLAMP_MODE_MASK, 4);
+		if (arizona->pdata.jd_gpio5) {
+			/* Put the GPIO into input mode */
+			regmap_write(arizona->regmap, ARIZONA_GPIO5_CTRL,
+				     0xc101);
+
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_MICD_CLAMP_CONTROL,
+					   ARIZONA_MICD_CLAMP_MODE_MASK, 0x9);
+		} else {
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_MICD_CLAMP_CONTROL,
+					   ARIZONA_MICD_CLAMP_MODE_MASK, 0x4);
+		}
+
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_JACK_DETECT_DEBOUNCE,
 				   ARIZONA_MICD_CLAMP_DB,
@@ -458,7 +480,15 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_JD_RISE,
+	if (arizona->pdata.jd_gpio5) {
+		jack_irq_rise = ARIZONA_IRQ_MICD_CLAMP_RISE;
+		jack_irq_fall = ARIZONA_IRQ_MICD_CLAMP_FALL;
+	} else {
+		jack_irq_rise = ARIZONA_IRQ_JD_RISE;
+		jack_irq_fall = ARIZONA_IRQ_JD_FALL;
+	}
+
+	ret = arizona_request_irq(arizona, jack_irq_rise,
 				  "JACKDET rise", arizona_jackdet, info);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to get JACKDET rise IRQ: %d\n",
@@ -466,21 +496,21 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		goto err_input;
 	}
 
-	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 1);
+	ret = arizona_set_irq_wake(arizona, jack_irq_rise, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to set JD rise IRQ wake: %d\n",
 			ret);
 		goto err_rise;
 	}
 
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_JD_FALL,
+	ret = arizona_request_irq(arizona, jack_irq_fall,
 				  "JACKDET fall", arizona_jackdet, info);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to get JD fall IRQ: %d\n", ret);
 		goto err_rise_wake;
 	}
 
-	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 1);
+	ret = arizona_set_irq_wake(arizona, jack_irq_fall, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to set JD fall IRQ wake: %d\n",
 			ret);
@@ -522,13 +552,13 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 err_micdet:
 	arizona_free_irq(arizona, ARIZONA_IRQ_MICDET, info);
 err_fall_wake:
-	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 0);
+	arizona_set_irq_wake(arizona, jack_irq_fall, 0);
 err_fall:
-	arizona_free_irq(arizona, ARIZONA_IRQ_JD_FALL, info);
+	arizona_free_irq(arizona, jack_irq_fall, info);
 err_rise_wake:
-	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 0);
+	arizona_set_irq_wake(arizona, jack_irq_rise, 0);
 err_rise:
-	arizona_free_irq(arizona, ARIZONA_IRQ_JD_RISE, info);
+	arizona_free_irq(arizona, jack_irq_rise, info);
 err_input:
 err_register:
 	pm_runtime_disable(&pdev->dev);
@@ -541,6 +571,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 {
 	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;
+	int jack_irq_rise, jack_irq_fall;
 
 	pm_runtime_disable(&pdev->dev);
 
@@ -548,11 +579,20 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 			   ARIZONA_MICD_CLAMP_CONTROL,
 			   ARIZONA_MICD_CLAMP_MODE_MASK, 0);
 
-	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 0);
-	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 0);
+	if (arizona->pdata.jd_gpio5) {
+		jack_irq_rise = ARIZONA_IRQ_MICD_CLAMP_RISE;
+		jack_irq_fall = ARIZONA_IRQ_MICD_CLAMP_FALL;
+	} else {
+		jack_irq_rise = ARIZONA_IRQ_JD_RISE;
+		jack_irq_fall = ARIZONA_IRQ_JD_FALL;
+	}
+
+	arizona_set_irq_wake(arizona, jack_irq_rise, 0);
+	arizona_set_irq_wake(arizona, jack_irq_fall, 0);
+	arizona_free_irq(arizona, ARIZONA_IRQ_HPDET, info);
 	arizona_free_irq(arizona, ARIZONA_IRQ_MICDET, info);
-	arizona_free_irq(arizona, ARIZONA_IRQ_JD_RISE, info);
-	arizona_free_irq(arizona, ARIZONA_IRQ_JD_FALL, info);
+	arizona_free_irq(arizona, jack_irq_rise, info);
+	arizona_free_irq(arizona, jack_irq_fall, info);
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);

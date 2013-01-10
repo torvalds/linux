@@ -96,6 +96,9 @@ struct arizona_pdata {
 	/** Pin state for GPIO pins */
 	int gpio_defaults[ARIZONA_MAX_GPIO];
 
+	/** GPIO5 is used for jack detection */
+	bool jd_gpio5;
+
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
 
