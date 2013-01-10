@@ -214,9 +214,6 @@ struct dw_dma_chan {
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
-
-	/* backlink to dw_dma */
-	struct dw_dma		*dw;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
