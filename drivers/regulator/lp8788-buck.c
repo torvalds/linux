@@ -474,7 +474,7 @@ static int lp8788_init_dvs(struct platform_device *pdev,
 	u8 default_dvs_mode[] = { LP8788_BUCK1_DVS_I2C, LP8788_BUCK2_DVS_I2C };
 
 	/* no dvs for buck3, 4 */
-	if (id == BUCK3 || id == BUCK4)
+	if (id > BUCK2)
 		return 0;
 
 	/* no dvs platform data, then dvs will be selected by I2C registers */
@@ -504,6 +504,9 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
 	int ret;
+
+	if (id >= LP8788_NUM_BUCKS)
+		return -EINVAL;
 
 	buck = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
 	if (!buck)
