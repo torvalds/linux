@@ -53,17 +53,6 @@ struct kmem_cache_cpu {
 #endif
 };
 
-struct kmem_cache_node {
-	spinlock_t list_lock;	/* Protect partial list and nr_partial */
-	unsigned long nr_partial;
-	struct list_head partial;
-#ifdef CONFIG_SLUB_DEBUG
-	atomic_long_t nr_slabs;
-	atomic_long_t total_objects;
-	struct list_head full;
-#endif
-};
-
 /*
  * Word size structure that can be atomically updated or read and that
  * contains both the order and the number of objects that a slab of the

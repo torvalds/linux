@@ -286,23 +286,6 @@ struct arraycache_init {
 };
 
 /*
- * The slab lists for all objects.
- */
-struct kmem_cache_node {
-	struct list_head slabs_partial;	/* partial list first, better asm code */
-	struct list_head slabs_full;
-	struct list_head slabs_free;
-	unsigned long free_objects;
-	unsigned int free_limit;
-	unsigned int colour_next;	/* Per-node cache coloring */
-	spinlock_t list_lock;
-	struct array_cache *shared;	/* shared per node */
-	struct array_cache **alien;	/* on other nodes */
-	unsigned long next_reap;	/* updated without locking */
-	int free_touched;		/* updated without locking */
-};
-
-/*
  * Need this for bootstrapping a per node allocator.
  */
 #define NUM_INIT_LISTS (3 * MAX_NUMNODES)
