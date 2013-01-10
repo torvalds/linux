@@ -11,6 +11,7 @@ config CPU_S5PC100
 	bool
 	select S5P_EXT_INT
 	select SAMSUNG_DMADEV
+	select SAMSUNG_HRT
 	help
 	  Enable S5PC100 CPU support
 
