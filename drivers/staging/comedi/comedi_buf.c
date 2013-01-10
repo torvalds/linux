@@ -245,7 +245,6 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 		}
 	}
 
-	BUG_ON((int)(async->munge_count - async->buf_write_count) > 0);
 	return count;
 }
 
