@@ -3,7 +3,6 @@
 #
 
 obj-$(CONFIG_ARM_ETHER1) += ether1.o
-obj-$(CONFIG_NI52) += ni52.o
 obj-$(CONFIG_SUN3_82586) += sun3_82586.o
 obj-$(CONFIG_LASI_82596) += lasi_82596.o
 obj-$(CONFIG_SNI_82596) += sni_82596.o

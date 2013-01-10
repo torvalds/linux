@@ -52,17 +52,6 @@ config MVME16x_NET
 	  driver for this chip in your kernel.
 	  To compile this driver as a module, choose M here.
 
-config NI52
-	tristate "NI5210 support"
-	depends on ISA
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ni52.
-
 config SNI_82596
 	tristate "SNI RM ethernet"
 	depends on SNI_RM

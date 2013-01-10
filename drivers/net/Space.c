@@ -51,7 +51,6 @@ extern struct net_device *i82596_probe(int unit);
 extern struct net_device *ewrk3_probe(int unit);
 extern struct net_device *e2100_probe(int unit);
 extern struct net_device *ni5010_probe(int unit);
-extern struct net_device *ni52_probe(int unit);
 extern struct net_device *ni65_probe(int unit);
 extern struct net_device *sonic_probe(int unit);
 extern struct net_device *seeq8005_probe(int unit);
@@ -156,9 +155,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #endif
 #ifdef CONFIG_NI5010
 	{ni5010_probe, 0},
-#endif
-#ifdef CONFIG_NI52
-	{ni52_probe, 0},
 #endif
 #ifdef CONFIG_NI65
 	{ni65_probe, 0},
