@@ -13,12 +13,16 @@
  * for more details.
  */
 
-#include <linux/device-mapper.h>
 #include <linux/vmw_vmci_defs.h>
 #include <linux/vmw_vmci_api.h>
+#include <linux/highmem.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pagemap.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/wait.h>
 
@@ -246,9 +250,9 @@ static struct qp_list qp_guest_endpoints = {
 };
 
 #define INVALID_VMCI_GUEST_MEM_ID  0
-#define QPE_NUM_PAGES(_QPE) ((u32)					 \
-			     (dm_div_up(_QPE.produce_size, PAGE_SIZE) +	 \
-			      dm_div_up(_QPE.consume_size, PAGE_SIZE) + 2))
+#define QPE_NUM_PAGES(_QPE) ((u32) \
+			     (DIV_ROUND_UP(_QPE.produce_size, PAGE_SIZE) + \
+			      DIV_ROUND_UP(_QPE.consume_size, PAGE_SIZE) + 2))
 
 
 /*
@@ -260,7 +264,7 @@ static void qp_free_queue(void *q, u64 size)
 	struct vmci_queue *queue = q;
 
 	if (queue) {
-		u64 i = dm_div_up(size, PAGE_SIZE);
+		u64 i = DIV_ROUND_UP(size, PAGE_SIZE);
 
 		if (queue->kernel_if->mapped) {
 			vunmap(queue->kernel_if->va);
@@ -289,7 +293,7 @@ static void *qp_alloc_queue(u64 size, u32 flags)
 	u64 i;
 	struct vmci_queue *queue;
 	struct vmci_queue_header *q_header;
-	const u64 num_data_pages = dm_div_up(size, PAGE_SIZE);
+	const u64 num_data_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	const uint queue_size =
 	    PAGE_SIZE +
 	    sizeof(*queue) + sizeof(*(queue->kernel_if)) +
@@ -611,7 +615,7 @@ static int qp_memcpy_from_queue_iov(void *dest,
 static struct vmci_queue *qp_host_alloc_queue(u64 size)
 {
 	struct vmci_queue *queue;
-	const size_t num_pages = dm_div_up(size, PAGE_SIZE) + 1;
+	const size_t num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
 	const size_t queue_size = sizeof(*queue) + sizeof(*(queue->kernel_if));
 	const size_t queue_page_size =
 	    num_pages * sizeof(*queue->kernel_if->page);
@@ -963,8 +967,8 @@ qp_guest_endpoint_create(struct vmci_handle handle,
 	int result;
 	struct qp_guest_endpoint *entry;
 	/* One page each for the queue headers. */
-	const u64 num_ppns = dm_div_up(produce_size, PAGE_SIZE) +
-	    dm_div_up(consume_size, PAGE_SIZE) + 2;
+	const u64 num_ppns = DIV_ROUND_UP(produce_size, PAGE_SIZE) +
+	    DIV_ROUND_UP(consume_size, PAGE_SIZE) + 2;
 
 	if (vmci_handle_is_invalid(handle)) {
 		u32 context_id = vmci_get_context_id();
@@ -1175,9 +1179,9 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
 			       u32 priv_flags)
 {
 	const u64 num_produce_pages =
-	    dm_div_up(produce_size, PAGE_SIZE) + 1;
+	    DIV_ROUND_UP(produce_size, PAGE_SIZE) + 1;
 	const u64 num_consume_pages =
-	    dm_div_up(consume_size, PAGE_SIZE) + 1;
+	    DIV_ROUND_UP(consume_size, PAGE_SIZE) + 1;
 	void *my_produce_q = NULL;
 	void *my_consume_q = NULL;
 	int result;
@@ -1456,7 +1460,7 @@ static int qp_broker_create(struct vmci_handle handle,
 		entry->state = VMCIQPB_CREATED_MEM;
 		entry->produce_q->q_header = entry->local_mem;
 		tmp = (u8 *)entry->local_mem + PAGE_SIZE *
-		    (dm_div_up(entry->qp.produce_size, PAGE_SIZE) + 1);
+		    (DIV_ROUND_UP(entry->qp.produce_size, PAGE_SIZE) + 1);
 		entry->consume_q->q_header = (struct vmci_queue_header *)tmp;
 	} else if (page_store) {
 		/*
