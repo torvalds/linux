@@ -619,7 +619,7 @@ static int gpio_fan_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(gpio_fan_pm, gpio_fan_suspend, gpio_fan_resume);
-#define GPIO_FAN_PM	&gpio_fan_pm
+#define GPIO_FAN_PM	(&gpio_fan_pm)
 #else
 #define GPIO_FAN_PM	NULL
 #endif
