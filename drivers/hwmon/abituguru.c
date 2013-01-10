@@ -98,7 +98,7 @@
 #define ABIT_UGURU_NAME				"abituguru"
 #define ABIT_UGURU_DEBUG(level, format, arg...)				\
 	if (level <= verbose)						\
-		printk(KERN_DEBUG ABIT_UGURU_NAME ": "	format , ## arg)
+		pr_debug(format , ## arg)
 /* Macros to help calculate the sysfs_names array length */
 /*
  * sum of strlen of: in??_input\0, in??_{min,max}\0, in??_{min,max}_alarm\0,

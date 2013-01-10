@@ -78,7 +78,7 @@
 #define ABIT_UGURU3_NAME			"abituguru3"
 #define ABIT_UGURU3_DEBUG(format, arg...)	\
 	if (verbose)				\
-		printk(KERN_DEBUG ABIT_UGURU3_NAME ": "	format , ## arg)
+		pr_debug(format , ## arg)
 
 /* Macros to help calculate the sysfs_names array length */
 #define ABIT_UGURU3_MAX_NO_SENSORS 26
