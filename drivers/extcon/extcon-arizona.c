@@ -45,6 +45,7 @@ struct arizona_extcon_info {
 	int micd_num_modes;
 
 	bool micd_reva;
+	bool micd_clamp;
 
 	bool mic;
 	bool detecting;
@@ -375,6 +376,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			info->micd_reva = true;
 			break;
 		default:
+			info->micd_clamp = true;
 			break;
 		}
 		break;
@@ -422,6 +424,19 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				   ARIZONA_MICD_BIAS_STARTTIME_MASK,
 				   arizona->pdata.micd_bias_start_time
 				   << ARIZONA_MICD_BIAS_STARTTIME_SHIFT);
+
+	/*
+	 * If we have a clamp use it.
+	 */
+	if (info->micd_clamp) {
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_MICD_CLAMP_CONTROL,
+				   ARIZONA_MICD_CLAMP_MODE_MASK, 4);
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_JACK_DETECT_DEBOUNCE,
+				   ARIZONA_MICD_CLAMP_DB,
+				   ARIZONA_MICD_CLAMP_DB);
+	}
 
 	arizona_extcon_set_mode(info, 0);
 
@@ -528,6 +543,10 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	struct arizona *arizona = info->arizona;
 
 	pm_runtime_disable(&pdev->dev);
+
+	regmap_update_bits(arizona->regmap,
+			   ARIZONA_MICD_CLAMP_CONTROL,
+			   ARIZONA_MICD_CLAMP_MODE_MASK, 0);
 
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 0);
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 0);
