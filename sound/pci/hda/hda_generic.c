@@ -1767,6 +1767,12 @@ static int set_multi_io(struct hda_codec *codec, int idx, bool output)
 		snd_hda_activate_path(codec, path, false, true);
 		set_pin_target(codec, nid, spec->multi_io[idx].ctl_in, true);
 	}
+
+	/* update jack retasking in case it modifies any of them */
+	snd_hda_gen_hp_automute(codec, NULL);
+	snd_hda_gen_line_automute(codec, NULL);
+	snd_hda_gen_mic_autoswitch(codec, NULL);
+
 	return 0;
 }
 
