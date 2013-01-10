@@ -981,8 +981,8 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec);
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;
-	unsigned char ctrl;	/* current pin control value */
-	unsigned char pad;	/* reserved */
+	unsigned char ctrl;	/* original pin control value */
+	unsigned char target;	/* target pin control value */
 	unsigned int cfg;	/* default configuration */
 };
 

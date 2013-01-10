@@ -529,6 +529,10 @@ snd_hda_set_pin_ctl_cache(struct hda_codec *codec, hda_nid_t pin,
 	return _snd_hda_set_pin_ctl(codec, pin, val, true);
 }
 
+int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid);
+int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int val);
+
 /*
  * get widget capabilities
  */

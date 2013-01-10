@@ -1100,6 +1100,32 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_get_pincfg);
 
+/* remember the current pinctl target value */
+int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int val)
+{
+	struct hda_pincfg *pin;
+
+	pin = look_up_pincfg(codec, &codec->init_pins, nid);
+	if (!pin)
+		return -EINVAL;
+	pin->target = val;
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_set_pin_target);
+
+/* return the current pinctl target value */
+int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_pincfg *pin;
+
+	pin = look_up_pincfg(codec, &codec->init_pins, nid);
+	if (!pin)
+		return 0;
+	return pin->target;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_get_pin_target);
+
 /**
  * snd_hda_shutup_pins - Shut up all pins
  * @codec: the HDA codec
@@ -5266,6 +5292,7 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 				val &= ~(AC_PINCTL_IN_EN | AC_PINCTL_VREFEN);
 		}
 	}
+	snd_hda_codec_set_pin_target(codec, pin, val);
 	if (cached)
 		return snd_hda_codec_update_cache(codec, pin, 0,
 				AC_VERB_SET_PIN_WIDGET_CONTROL, val);
