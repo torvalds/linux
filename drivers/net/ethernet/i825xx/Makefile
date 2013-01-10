@@ -3,8 +3,6 @@
 #
 
 obj-$(CONFIG_ARM_ETHER1) += ether1.o
-obj-$(CONFIG_EEXPRESS) += eexpress.o
-obj-$(CONFIG_EEXPRESS_PRO) += eepro.o
 obj-$(CONFIG_NI52) += ni52.o
 obj-$(CONFIG_SUN3_82586) += sun3_82586.o
 obj-$(CONFIG_ZNET) += znet.o
