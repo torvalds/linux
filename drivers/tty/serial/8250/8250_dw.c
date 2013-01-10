@@ -112,7 +112,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	uart.port.handle_irq = dw8250_handle_irq;
 	uart.port.type = PORT_8250;
 	uart.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP |
-		UPF_FIXED_PORT | UPF_FIXED_TYPE;
+		UPF_FIXED_PORT;
 	uart.port.dev = &pdev->dev;
 
 	uart.port.iotype = UPIO_MEM;
