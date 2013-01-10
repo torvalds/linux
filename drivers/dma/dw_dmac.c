@@ -1355,6 +1355,9 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 
 	retval = ERR_PTR(-EINVAL);
 
+	if (unlikely(!is_slave_direction(direction)))
+		goto out_err;
+
 	if (direction == DMA_MEM_TO_DEV)
 		reg_width = __ffs(sconfig->dst_addr_width);
 	else
@@ -1368,8 +1371,6 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	if (unlikely(period_len & ((1 << reg_width) - 1)))
 		goto out_err;
 	if (unlikely(buf_addr & ((1 << reg_width) - 1)))
-		goto out_err;
-	if (unlikely(!(direction & (DMA_MEM_TO_DEV | DMA_DEV_TO_MEM))))
 		goto out_err;
 
 	retval = ERR_PTR(-ENOMEM);
