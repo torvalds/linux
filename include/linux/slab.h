@@ -163,7 +163,12 @@ struct kmem_cache {
 #else /* CONFIG_SLOB */
 
 /*
- * The largest kmalloc size supported by the slab allocators is
+ * Kmalloc array related definitions
+ */
+
+#ifdef CONFIG_SLAB
+/*
+ * The largest kmalloc size supported by the SLAB allocators is
  * 32 megabyte (2^25) or the maximum allocatable page order if that is
  * less than 32 MB.
  *
@@ -173,9 +178,24 @@ struct kmem_cache {
  */
 #define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? \
 				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
+#define KMALLOC_SHIFT_MAX	KMALLOC_SHIFT_HIGH
+#define KMALLOC_SHIFT_LOW	5
+#else
+/*
+ * SLUB allocates up to order 2 pages directly and otherwise
+ * passes the request to the page allocator.
+ */
+#define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
+#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
+#define KMALLOC_SHIFT_LOW	3
+#endif
 
-#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
-#define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
+/* Maximum allocatable size */
+#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_MAX)
+/* Maximum size for which we actually use a slab cache */
+#define KMALLOC_MAX_CACHE_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
+/* Maximum order allocatable via the slab allocagtor */
+#define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_MAX - PAGE_SHIFT)
 
 /*
  * Kmalloc subsystem.
@@ -183,14 +203,8 @@ struct kmem_cache {
 #if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
 #define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
 #else
-#ifdef CONFIG_SLAB
-#define KMALLOC_MIN_SIZE 32
-#else
-#define KMALLOC_MIN_SIZE 8
+#define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
 #endif
-#endif
-
-#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 
 /*
  * Figure out which kmalloc slab an allocation of a certain size
