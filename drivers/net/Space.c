@@ -73,9 +73,6 @@ extern struct net_device *mac89x0_probe(int unit);
 extern struct net_device *cops_probe(int unit);
 extern struct net_device *ltpc_probe(void);
 
-/* Detachable devices ("pocket adaptors") */
-extern struct net_device *de620_probe(int unit);
-
 /* Fibre Channel adapters */
 extern int iph5526_probe(struct net_device *dev);
 
@@ -185,13 +182,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 	{NULL, 0},
 };
 
-static struct devprobe2 parport_probes[] __initdata = {
-#ifdef CONFIG_DE620		/* D-Link DE-620 adapter */
-	{de620_probe, 0},
-#endif
-	{NULL, 0},
-};
-
 static struct devprobe2 m68k_probes[] __initdata = {
 #ifdef CONFIG_ATARILANCE	/* Lance-based Atari ethernet boards */
 	{atarilance_probe, 0},
@@ -230,8 +220,7 @@ static void __init ethif_probe2(int unit)
 		return;
 
 	(void)(	probe_list2(unit, m68k_probes, base_addr == 0) &&
-		probe_list2(unit, isa_probes, base_addr == 0) &&
-		probe_list2(unit, parport_probes, base_addr == 0));
+		probe_list2(unit, isa_probes, base_addr == 0));
 }
 
 /*  Statically configured drivers -- order matters here. */
