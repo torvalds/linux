@@ -214,6 +214,7 @@ struct efx_tx_queue {
  *	If both this and page are %NULL, the buffer slot is currently free.
  * @page: The associated page buffer, if any.
  *	If both this and skb are %NULL, the buffer slot is currently free.
+ * @page_offset: Offset within page. Valid iff @flags & %EFX_RX_BUF_PAGE.
  * @len: Buffer length, in bytes.
  * @is_page: Indicates if @page is valid. If false, @skb is valid.
  */
@@ -223,7 +224,8 @@ struct efx_rx_buffer {
 		struct sk_buff *skb;
 		struct page *page;
 	} u;
-	unsigned int len;
+	u16 page_offset;
+	u16 len;
 	bool is_page;
 };
 
