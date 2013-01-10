@@ -2382,31 +2382,45 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
-		if (lmp_bredr_capable(hdev))
-			err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
-		else
-			err = -ENOTSUPP;
+		if (!lmp_bredr_capable(hdev)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_NOT_SUPPORTED);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
 		break;
 
 	case DISCOV_TYPE_LE:
-		if (lmp_host_le_capable(hdev))
-			err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
-					  LE_SCAN_WIN, LE_SCAN_TIMEOUT_LE_ONLY);
-		else
-			err = -ENOTSUPP;
+		if (!lmp_host_le_capable(hdev)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_NOT_SUPPORTED);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
+				  LE_SCAN_WIN, LE_SCAN_TIMEOUT_LE_ONLY);
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
-		if (lmp_host_le_capable(hdev) && lmp_bredr_capable(hdev))
-			err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
-					  LE_SCAN_WIN,
-					  LE_SCAN_TIMEOUT_BREDR_LE);
-		else
-			err = -ENOTSUPP;
+		if (!lmp_host_le_capable(hdev) || !lmp_bredr_capable(hdev)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_NOT_SUPPORTED);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT, LE_SCAN_WIN,
+				  LE_SCAN_TIMEOUT_BREDR_LE);
 		break;
 
 	default:
-		err = -EINVAL;
+		err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+				 MGMT_STATUS_INVALID_PARAMS);
+		mgmt_pending_remove(cmd);
+		goto failed;
 	}
 
 	if (err < 0)
