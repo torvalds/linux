@@ -2,7 +2,7 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * SAMSUNG - Common hr-timer support
+ * samsung - Common hr-timer support (s3c and s5p)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -267,8 +267,8 @@ static void __init samsung_clockevent_init(void)
 
 	tscaler = clk_get_parent(tdiv_event);
 
-	clk_set_rate(tscaler, pclk / 2);
-	clk_set_rate(tdiv_event, pclk / 2);
+	clk_set_rate(tscaler, pclk / TSCALER_DIV);
+	clk_set_rate(tdiv_event, pclk / TDIV);
 	clk_set_parent(tin_event, tdiv_event);
 
 	clock_rate = clk_get_rate(tin_event);
@@ -329,7 +329,7 @@ static void __init samsung_clocksource_init(void)
 
 	pclk = clk_get_rate(timerclk);
 
-	clk_set_rate(tdiv_source, pclk / 2);
+	clk_set_rate(tdiv_source, pclk / TDIV);
 	clk_set_parent(tin_source, tdiv_source);
 
 	clock_rate = clk_get_rate(tin_source);
@@ -337,10 +337,10 @@ static void __init samsung_clocksource_init(void)
 	samsung_time_setup(timer_source.source_id, TCNT_MAX);
 	samsung_time_start(timer_source.source_id, PERIODIC);
 
-	setup_sched_clock(samsung_read_sched_clock, 32, clock_rate);
+	setup_sched_clock(samsung_read_sched_clock, TSIZE, clock_rate);
 
 	if (clocksource_mmio_init(samsung_timer_reg(), "samsung_clocksource_timer",
-			clock_rate, 250, 32, clocksource_mmio_readl_down))
+			clock_rate, 250, TSIZE, clocksource_mmio_readl_down))
 		panic("samsung_clocksource_timer: can't register clocksource\n");
 }
 

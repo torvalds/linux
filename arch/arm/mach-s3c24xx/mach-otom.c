@@ -33,6 +33,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "otom.h"
@@ -101,6 +102,7 @@ static void __init otom11_map_io(void)
 	s3c24xx_init_io(otom11_iodesc, ARRAY_SIZE(otom11_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(otom11_uartcfgs, ARRAY_SIZE(otom11_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init otom11_init(void)
@@ -115,6 +117,6 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.map_io		= otom11_map_io,
 	.init_machine	= otom11_init,
 	.init_irq	= s3c24xx_init_irq,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

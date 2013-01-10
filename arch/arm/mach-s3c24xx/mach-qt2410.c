@@ -59,6 +59,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "common-smdk.h"
@@ -304,6 +305,7 @@ static void __init qt2410_map_io(void)
 	s3c24xx_init_io(qt2410_iodesc, ARRAY_SIZE(qt2410_iodesc));
 	s3c24xx_init_clocks(12*1000*1000);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init qt2410_machine_init(void)
@@ -343,6 +345,6 @@ MACHINE_START(QT2410, "QT2410")
 	.map_io		= qt2410_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= qt2410_machine_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

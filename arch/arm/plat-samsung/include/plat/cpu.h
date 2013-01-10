@@ -192,7 +192,7 @@ extern void s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
 				  struct s3c2410_uartcfg *cfg, int no);
 
-/* timer for 2410/2440 */
+/* timer for s5pc100 only */
 
 extern void s3c24xx_timer_init(void);
 

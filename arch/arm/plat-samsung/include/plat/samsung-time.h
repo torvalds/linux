@@ -30,7 +30,18 @@ struct samsung_timer_source {
 /* Be able to sleep for atleast 4 seconds (usually more) */
 #define SAMSUNG_TIMER_MIN_RANGE	4
 
+#ifdef CONFIG_ARCH_S3C24XX
+#define TCNT_MAX		0xffff
+#define TSCALER_DIV		25
+#define TDIV			50
+#define TSIZE			16
+#else
 #define TCNT_MAX		0xffffffff
+#define TSCALER_DIV		2
+#define TDIV			2
+#define TSIZE			32
+#endif
+
 #define NON_PERIODIC		0
 #define PERIODIC		1
 
