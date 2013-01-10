@@ -1358,9 +1358,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_chanctx *ctx;
 	struct sta_info *sta;
 	int res, i;
-#ifdef CONFIG_PM
 	bool reconfig_due_to_wowlan = false;
 
+#ifdef CONFIG_PM
 	if (local->suspended)
 		local->resuming = true;
 
@@ -1656,10 +1656,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended) {
+	if (!local->suspended || reconfig_due_to_wowlan)
 		drv_restart_complete(local);
+
+	if (!local->suspended)
 		return 0;
-	}
 
 #ifdef CONFIG_PM
 	/* first set suspended false, then resuming */

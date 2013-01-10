@@ -2488,7 +2488,10 @@ enum ieee80211_rate_control_changed {
  *
  * @restart_complete: Called after a call to ieee80211_restart_hw(), when the
  *	reconfiguration has completed. This can help the driver implement the
- *	reconfiguration step. This callback may sleep.
+ *	reconfiguration step. Also called when reconfiguring because the
+ *	driver's resume function returned 1, as this is just like an "inline"
+ *	hardware restart. This callback may sleep.
+ *
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
