@@ -217,6 +217,8 @@
 #define ARIZONA_PDM_SPK1_CTRL_2                  0x491
 #define ARIZONA_PDM_SPK2_CTRL_1                  0x492
 #define ARIZONA_PDM_SPK2_CTRL_2                  0x493
+#define ARIZONA_SPK_CTRL_2                       0x4B5
+#define ARIZONA_SPK_CTRL_3                       0x4B6
 #define ARIZONA_DAC_COMP_1                       0x4DC
 #define ARIZONA_DAC_COMP_2                       0x4DD
 #define ARIZONA_DAC_COMP_3                       0x4DE
