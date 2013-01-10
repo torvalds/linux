@@ -84,6 +84,14 @@ config SERIAL_8250_GSC
 	depends on SERIAL_8250 && GSC
 	default SERIAL_8250
 
+config SERIAL_8250_DMA
+	bool "DMA support for 16550 compatible UART controllers" if EXPERT
+	depends on SERIAL_8250 && DMADEVICES=y
+	default SERIAL_8250
+	help
+	  This builds DMA support that can be used with 8250/16650
+	  compatible UART controllers that support DMA signaling.
+
 config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
