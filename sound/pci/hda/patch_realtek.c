@@ -2666,7 +2666,7 @@ static void alc269_fixup_mic1_mute(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PROBE) {
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic1_mute_hook;
 		spec->gen.vmaster_mute_enum = 1;
 	}
@@ -2684,7 +2684,7 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PROBE) {
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic2_mute_hook;
 		spec->gen.vmaster_mute_enum = 1;
 	}
@@ -3373,7 +3373,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 static void alc272_fixup_mario(struct hda_codec *codec,
 			       const struct hda_fixup *fix, int action)
 {
-	if (action != HDA_FIXUP_ACT_PROBE)
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 	if (snd_hda_override_amp_caps(codec, 0x2, HDA_OUTPUT,
 				      (0x3b << AC_AMPCAP_OFFSET_SHIFT) |
