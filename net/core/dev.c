@@ -1862,11 +1862,36 @@ static DEFINE_MUTEX(xps_map_mutex);
 #define xmap_dereference(P)		\
 	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
 
+static struct xps_map *remove_xps_queue(struct xps_dev_maps *dev_maps,
+					int cpu, u16 index)
+{
+	struct xps_map *map = NULL;
+	int pos;
+
+	if (dev_maps)
+		map = xmap_dereference(dev_maps->cpu_map[cpu]);
+
+	for (pos = 0; map && pos < map->len; pos++) {
+		if (map->queues[pos] == index) {
+			if (map->len > 1) {
+				map->queues[pos] = map->queues[--map->len];
+			} else {
+				RCU_INIT_POINTER(dev_maps->cpu_map[cpu], NULL);
+				kfree_rcu(map, rcu);
+				map = NULL;
+			}
+			break;
+		}
+	}
+
+	return map;
+}
+
 void netif_reset_xps_queue(struct net_device *dev, u16 index)
 {
 	struct xps_dev_maps *dev_maps;
-	struct xps_map *map;
-	int i, pos, nonempty = 0;
+	int cpu;
+	bool active = false;
 
 	mutex_lock(&xps_map_mutex);
 	dev_maps = xmap_dereference(dev->xps_maps);
@@ -1874,33 +1899,18 @@ void netif_reset_xps_queue(struct net_device *dev, u16 index)
 	if (!dev_maps)
 		goto out_no_maps;
 
-	for_each_possible_cpu(i) {
-		map = xmap_dereference(dev_maps->cpu_map[i]);
-		if (!map)
-			continue;
-
-		for (pos = 0; pos < map->len; pos++)
-			if (map->queues[pos] == index)
-				break;
-
-		if (pos < map->len) {
-			if (map->len > 1) {
-				map->queues[pos] = map->queues[--map->len];
-			} else {
-				RCU_INIT_POINTER(dev_maps->cpu_map[i], NULL);
-				kfree_rcu(map, rcu);
-				map = NULL;
-			}
-		}
-		if (map)
-			nonempty = 1;
+	for_each_possible_cpu(cpu) {
+		if (remove_xps_queue(dev_maps, cpu, index))
+			active = true;
 	}
 
-	if (!nonempty) {
+	if (!active) {
 		RCU_INIT_POINTER(dev->xps_maps, NULL);
 		kfree_rcu(dev_maps, rcu);
 	}
 
+	netdev_queue_numa_node_write(netdev_get_tx_queue(dev, index),
+				     NUMA_NO_NODE);
 out_no_maps:
 	mutex_unlock(&xps_map_mutex);
 }
