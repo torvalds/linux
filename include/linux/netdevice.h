@@ -1403,6 +1403,7 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 
 extern struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 					   struct sk_buff *skb);
+extern u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb);
 
 /*
  * Net namespace inlines
