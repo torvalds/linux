@@ -116,17 +116,6 @@ struct kmem_cache {
 };
 
 /*
- * Kmalloc subsystem.
- */
-#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
-#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
-#else
-#define KMALLOC_MIN_SIZE 8
-#endif
-
-#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
-
-/*
  * Maximum kmalloc object size handled by SLUB. Larger object allocations
  * are passed through to the page allocator. The page allocator "fastpath"
  * is relatively slow so we need this value sufficiently high so that
@@ -151,58 +140,6 @@ struct kmem_cache {
  * 2^x bytes of allocations.
  */
 extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
-
-/*
- * Sorry that the following has to be that ugly but some versions of GCC
- * have trouble with constant propagation and loops.
- */
-static __always_inline int kmalloc_index(size_t size)
-{
-	if (!size)
-		return 0;
-
-	if (size <= KMALLOC_MIN_SIZE)
-		return KMALLOC_SHIFT_LOW;
-
-	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
-		return 1;
-	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
-		return 2;
-	if (size <=          8) return 3;
-	if (size <=         16) return 4;
-	if (size <=         32) return 5;
-	if (size <=         64) return 6;
-	if (size <=        128) return 7;
-	if (size <=        256) return 8;
-	if (size <=        512) return 9;
-	if (size <=       1024) return 10;
-	if (size <=   2 * 1024) return 11;
-	if (size <=   4 * 1024) return 12;
-/*
- * The following is only needed to support architectures with a larger page
- * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
- * size we would have to go up to 128k.
- */
-	if (size <=   8 * 1024) return 13;
-	if (size <=  16 * 1024) return 14;
-	if (size <=  32 * 1024) return 15;
-	if (size <=  64 * 1024) return 16;
-	if (size <= 128 * 1024) return 17;
-	if (size <= 256 * 1024) return 18;
-	if (size <= 512 * 1024) return 19;
-	if (size <= 1024 * 1024) return 20;
-	if (size <=  2 * 1024 * 1024) return 21;
-	BUG();
-	return -1; /* Will never be reached */
-
-/*
- * What we really wanted to do and cannot do because of compiler issues is:
- *	int i;
- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
- *		if (size <= (1 << i))
- *			return i;
- */
-}
 
 /*
  * Find the slab cache for a given combination of allocation flags and size.
