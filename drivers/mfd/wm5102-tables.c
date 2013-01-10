@@ -1106,6 +1106,8 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HP_DACVAL:
+	case ARIZONA_MICD_CLAMP_CONTROL:
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
@@ -1875,6 +1877,7 @@ static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_STATUS_2:
 	case ARIZONA_DSP1_STATUS_3:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HP_DACVAL:
 	case ARIZONA_MIC_DETECT_3:
 		return true;
 	default:

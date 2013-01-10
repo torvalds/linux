@@ -119,6 +119,7 @@
 #define ARIZONA_ACCESSORY_DETECT_MODE_1          0x293
 #define ARIZONA_HEADPHONE_DETECT_1               0x29B
 #define ARIZONA_HEADPHONE_DETECT_2               0x29C
+#define ARIZONA_HP_DACVAL			 0x29F
 #define ARIZONA_MICD_CLAMP_CONTROL               0x2A2
 #define ARIZONA_MIC_DETECT_1                     0x2A3
 #define ARIZONA_MIC_DETECT_2                     0x2A4
@@ -2036,6 +2037,9 @@
 /*
  * R667 (0x29B) - Headphone Detect 1
  */
+#define ARIZONA_HP_IMPEDANCE_RANGE_MASK          0x0600  /* HP_IMPEDANCE_RANGE - [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_SHIFT              9  /* HP_IMPEDANCE_RANGE - [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_WIDTH              2  /* HP_IMPEDANCE_RANGE - [10:9] */
 #define ARIZONA_HP_STEP_SIZE                     0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_MASK                0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_SHIFT                    8  /* HP_STEP_SIZE */
@@ -2069,6 +2073,14 @@
 #define ARIZONA_HP_LVL_MASK                      0x007F  /* HP_LVL - [6:0] */
 #define ARIZONA_HP_LVL_SHIFT                          0  /* HP_LVL - [6:0] */
 #define ARIZONA_HP_LVL_WIDTH                          7  /* HP_LVL - [6:0] */
+
+#define ARIZONA_HP_DONE_B                        0x8000  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_MASK                   0x8000  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_SHIFT                      15  /* HP_DONE */
+#define ARIZONA_HP_DONE_B_WIDTH                       1  /* HP_DONE */
+#define ARIZONA_HP_LVL_B_MASK                    0x7FFF  /* HP_LVL - [14:0] */
+#define ARIZONA_HP_LVL_B_SHIFT                        0  /* HP_LVL - [14:0] */
+#define ARIZONA_HP_LVL_B_WIDTH                       15  /* HP_LVL - [14:0] */
 
 /*
  * R674 (0x2A2) - MICD clamp control
