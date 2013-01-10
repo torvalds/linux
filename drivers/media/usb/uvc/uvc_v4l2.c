@@ -501,8 +501,8 @@ static int uvc_v4l2_open(struct file *file)
 	if (atomic_inc_return(&stream->dev->users) == 1) {
 		ret = uvc_status_start(stream->dev);
 		if (ret < 0) {
-			usb_autopm_put_interface(stream->dev->intf);
 			atomic_dec(&stream->dev->users);
+			usb_autopm_put_interface(stream->dev->intf);
 			kfree(handle);
 			return ret;
 		}
