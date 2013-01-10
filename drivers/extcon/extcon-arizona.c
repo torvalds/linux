@@ -112,6 +112,66 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	dev_dbg(arizona->dev, "Set jack polarity to %d\n", mode);
 }
 
+static void arizona_start_mic(struct arizona_extcon_info *info)
+{
+	struct arizona *arizona = info->arizona;
+	bool change;
+	int ret;
+
+	info->detecting = true;
+	info->mic = false;
+	info->jack_flips = 0;
+
+	/* Microphone detection can't use idle mode */
+	pm_runtime_get(info->dev);
+
+	ret = regulator_enable(info->micvdd);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to enable MICVDD: %d\n",
+			ret);
+	}
+
+	if (info->micd_reva) {
+		regmap_write(arizona->regmap, 0x80, 0x3);
+		regmap_write(arizona->regmap, 0x294, 0);
+		regmap_write(arizona->regmap, 0x80, 0x0);
+	}
+
+	regmap_update_bits(arizona->regmap,
+			   ARIZONA_ACCESSORY_DETECT_MODE_1,
+			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
+
+	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
+				 ARIZONA_MICD_ENA, ARIZONA_MICD_ENA,
+				 &change);
+	if (!change) {
+		regulator_disable(info->micvdd);
+		pm_runtime_put_autosuspend(info->dev);
+	}
+}
+
+static void arizona_stop_mic(struct arizona_extcon_info *info)
+{
+	struct arizona *arizona = info->arizona;
+	bool change;
+
+	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
+				 ARIZONA_MICD_ENA, 0,
+				 &change);
+
+	if (info->micd_reva) {
+		regmap_write(arizona->regmap, 0x80, 0x3);
+		regmap_write(arizona->regmap, 0x294, 2);
+		regmap_write(arizona->regmap, 0x80, 0x0);
+	}
+
+	if (change) {
+		regulator_disable(info->micvdd);
+		pm_runtime_mark_last_busy(info->dev);
+		pm_runtime_put_autosuspend(info->dev);
+	}
+}
+
 static struct {
 	unsigned int factor_a;
 	unsigned int factor_b;
@@ -394,66 +454,6 @@ err:
 	}
 
 	info->hpdet_active = false;
-}
-
-static void arizona_start_mic(struct arizona_extcon_info *info)
-{
-	struct arizona *arizona = info->arizona;
-	bool change;
-	int ret;
-
-	info->detecting = true;
-	info->mic = false;
-	info->jack_flips = 0;
-
-	/* Microphone detection can't use idle mode */
-	pm_runtime_get(info->dev);
-
-	ret = regulator_enable(info->micvdd);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to enable MICVDD: %d\n",
-			ret);
-	}
-
-	if (info->micd_reva) {
-		regmap_write(arizona->regmap, 0x80, 0x3);
-		regmap_write(arizona->regmap, 0x294, 0);
-		regmap_write(arizona->regmap, 0x80, 0x0);
-	}
-
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
-
-	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
-				 ARIZONA_MICD_ENA, ARIZONA_MICD_ENA,
-				 &change);
-	if (!change) {
-		regulator_disable(info->micvdd);
-		pm_runtime_put_autosuspend(info->dev);
-	}
-}
-
-static void arizona_stop_mic(struct arizona_extcon_info *info)
-{
-	struct arizona *arizona = info->arizona;
-	bool change;
-
-	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
-				 ARIZONA_MICD_ENA, 0,
-				 &change);
-
-	if (info->micd_reva) {
-		regmap_write(arizona->regmap, 0x80, 0x3);
-		regmap_write(arizona->regmap, 0x294, 2);
-		regmap_write(arizona->regmap, 0x80, 0x0);
-	}
-
-	if (change) {
-		regulator_disable(info->micvdd);
-		pm_runtime_mark_last_busy(info->dev);
-		pm_runtime_put_autosuspend(info->dev);
-	}
 }
 
 static irqreturn_t arizona_micdet(int irq, void *data)
