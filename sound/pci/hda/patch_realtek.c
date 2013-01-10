@@ -1436,6 +1436,7 @@ enum {
 	ALC260_FIXUP_REPLACER,
 	ALC260_FIXUP_HP_B1900,
 	ALC260_FIXUP_KN1,
+	ALC260_FIXUP_FSC_S7020,
 };
 
 static void alc260_gpio1_automute(struct hda_codec *codec)
@@ -1493,6 +1494,17 @@ static void alc260_fixup_kn1(struct hda_codec *codec,
 	}
 }
 
+static void alc260_fixup_fsc_s7020(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		spec->gen.add_out_jack_modes = 1;
+	else if (action == HDA_FIXUP_ACT_PROBE)
+		snd_hda_set_pin_ctl_cache(codec, 0x10, PIN_HP);
+}
+
 static const struct hda_fixup alc260_fixups[] = {
 	[ALC260_FIXUP_HP_DC5750] = {
 		.type = HDA_FIXUP_PINS,
@@ -1548,6 +1560,10 @@ static const struct hda_fixup alc260_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc260_fixup_kn1,
 	},
+	[ALC260_FIXUP_FSC_S7020] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc260_fixup_fsc_s7020,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
@@ -1556,6 +1572,7 @@ static const struct snd_pci_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
 	SND_PCI_QUIRK(0x103c, 0x30ba, "HP Presario B1900", ALC260_FIXUP_HP_B1900),
+	SND_PCI_QUIRK(0x10cf, 0x1326, "FSC LifeBook S7020", ALC260_FIXUP_FSC_S7020),
 	SND_PCI_QUIRK(0x1509, 0x4540, "Favorit 100XS", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x152d, 0x0729, "Quanta KN1", ALC260_FIXUP_KN1),
 	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_FIXUP_REPLACER),
