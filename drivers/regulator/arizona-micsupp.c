@@ -177,7 +177,8 @@ static const struct regulator_desc arizona_micsupp = {
 static const struct regulator_init_data arizona_micsupp_default = {
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
-				REGULATOR_CHANGE_VOLTAGE,
+				REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_BYPASS,
 		.min_uV = 1700000,
 		.max_uV = 3300000,
 	},
