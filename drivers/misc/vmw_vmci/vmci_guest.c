@@ -19,12 +19,15 @@
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/vmalloc.h>
 
 #include "vmci_datagram.h"
 #include "vmci_doorbell.h"
