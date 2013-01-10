@@ -106,16 +106,26 @@ static int nr_channels;
 
 static int how_many_channels(struct pci_dev *pdev)
 {
+	int n_channels;
+
 	unsigned char capid0_8b; /* 8th byte of CAPID0 */
 
 	pci_read_config_byte(pdev, I3200_CAPID0 + 8, &capid0_8b);
+
 	if (capid0_8b & 0x20) { /* check DCD: Dual Channel Disable */
 		edac_dbg(0, "In single channel mode\n");
-		return 1;
+		n_channels = 1;
 	} else {
 		edac_dbg(0, "In dual channel mode\n");
-		return 2;
+		n_channels = 2;
 	}
+
+	if (capid0_8b & 0x10) /* check if both channels are filled */
+		edac_dbg(0, "2 DIMMS per channel disabled\n");
+	else
+		edac_dbg(0, "2 DIMMS per channel enabled\n");
+
+	return n_channels;
 }
 
 static unsigned long eccerrlog_syndrome(u64 log)
@@ -290,6 +300,8 @@ static void i3200_get_drbs(void __iomem *window,
 	for (i = 0; i < I3200_RANKS_PER_CHANNEL; i++) {
 		drbs[0][i] = readw(window + I3200_C0DRB + 2*i) & I3200_DRB_MASK;
 		drbs[1][i] = readw(window + I3200_C1DRB + 2*i) & I3200_DRB_MASK;
+
+		edac_dbg(0, "drb[0][%d] = %d, drb[1][%d] = %d\n", i, drbs[0][i], i, drbs[1][i]);
 	}
 }
 
