@@ -76,7 +76,14 @@ elif [ "$arch" == "rk3066b" ]; then
 
 EXCLUDES=(
 arch/arm/mach-rk30/clock_data.c
-arch/arm/mach-rk30/board-rk30-*
+arch/arm/mach-rk30/board-rk30-ds*
+arch/arm/mach-rk30/board-rk30-phone*
+arch/arm/mach-rk30/board-rk30-sdk.c
+arch/arm/mach-rk30/board-rk30-sdk-tps65910.c
+arch/arm/mach-rk30/board-rk30-sdk-twl80032.c
+arch/arm/mach-rk30/board-rk30-sdk-rfkill.c
+arch/arm/mach-rk30/board-rk30-sdk-wm8326.c
+
 arch/arm/configs/rk30_*
 arch/arm/configs/rk3066_*
 
@@ -88,7 +95,7 @@ arch/arm/mach-rk29*/include
 arch/arm/configs/rk29*
 )
 
-defconfig=rk3066b_sdk_defconfig
+defconfig=rk3168_tb_defconfig
 
 else
 	echo "unknown arch" && usage
@@ -103,6 +110,10 @@ drivers/staging/rk29/vivante
 drivers/staging/rk29/ipp/rk29-ipp.c
 drivers/*rk28*.c
 include/*rk28*
+arch/arm/mach-rk3188/*.c
+arch/arm/mach-rk3188/*.h
+arch/arm/mach-rk3188/Makefile*
+arch/arm/mach-rk3188/include
 arch/arm/mach-rk29/*.c
 arch/arm/mach-rk29/*.h
 arch/arm/mach-rk29/*.S
@@ -110,6 +121,7 @@ arch/arm/mach-rk29/Makefile*
 arch/arm/mach-rk29/include
 arch/arm/mach-rk*/*-fpga*
 arch/arm/mach-rk*/*-tb*
+arch/arm/configs/rk3188_*
 arch/arm/configs/rk29_*
 arch/arm/configs/*_fpga_*
 arch/arm/configs/*_tb_*
@@ -134,6 +146,7 @@ echo build kernel on $kerndir with $defconfig, arch is $arch
 make clean >/dev/null 2>&1
 make $defconfig >/dev/null 2>&1
 
+[ -z "${files}${DIRS}" ] ||
 make -j`grep 'processor' /proc/cpuinfo | wc -l` ${files[@]/.[cS]/.o} ${DIRS[@]}
 
 for file in ${FILES[@]}; do
