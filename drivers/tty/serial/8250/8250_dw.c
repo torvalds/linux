@@ -87,24 +87,50 @@ static int dw8250_handle_irq(struct uart_port *p)
 	return 0;
 }
 
+static int dw8250_probe_of(struct uart_port *p)
+{
+	struct device_node	*np = p->dev->of_node;
+	u32			val;
+
+	if (!of_property_read_u32(np, "reg-io-width", &val)) {
+		switch (val) {
+		case 1:
+			break;
+		case 4:
+			p->iotype = UPIO_MEM32;
+			p->serial_in = dw8250_serial_in32;
+			p->serial_out = dw8250_serial_out32;
+			break;
+		default:
+			dev_err(p->dev, "unsupported reg-io-width (%u)\n", val);
+			return -EINVAL;
+		}
+	}
+
+	if (!of_property_read_u32(np, "reg-shift", &val))
+		p->regshift = val;
+
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
+		dev_err(p->dev, "no clock-frequency property set\n");
+		return -EINVAL;
+	}
+	p->uartclk = val;
+
+	return 0;
+}
+
 static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	struct device_node *np = pdev->dev.of_node;
-	u32 val;
 	struct dw8250_data *data;
+	int err;
 
 	if (!regs || !irq) {
 		dev_err(&pdev->dev, "no registers/irq defined\n");
 		return -EINVAL;
 	}
-
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-	uart.port.private_data = data;
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.mapbase = regs->start;
@@ -121,30 +147,20 @@ static int dw8250_probe(struct platform_device *pdev)
 	uart.port.iotype = UPIO_MEM;
 	uart.port.serial_in = dw8250_serial_in;
 	uart.port.serial_out = dw8250_serial_out;
-	if (!of_property_read_u32(np, "reg-io-width", &val)) {
-		switch (val) {
-		case 1:
-			break;
-		case 4:
-			uart.port.iotype = UPIO_MEM32;
-			uart.port.serial_in = dw8250_serial_in32;
-			uart.port.serial_out = dw8250_serial_out32;
-			break;
-		default:
-			dev_err(&pdev->dev, "unsupported reg-io-width (%u)\n",
-				val);
-			return -EINVAL;
-		}
+
+	if (pdev->dev.of_node) {
+		err = dw8250_probe_of(&uart.port);
+		if (err)
+			return err;
+	} else {
+		return -ENODEV;
 	}
 
-	if (!of_property_read_u32(np, "reg-shift", &val))
-		uart.port.regshift = val;
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(&pdev->dev, "no clock-frequency property set\n");
-		return -EINVAL;
-	}
-	uart.port.uartclk = val;
+	uart.port.private_data = data;
 
 	data->line = serial8250_register_8250_port(&uart);
 	if (data->line < 0)
@@ -187,17 +203,17 @@ static int dw8250_resume(struct platform_device *pdev)
 #define dw8250_resume NULL
 #endif /* CONFIG_PM */
 
-static const struct of_device_id dw8250_match[] = {
+static const struct of_device_id dw8250_of_match[] = {
 	{ .compatible = "snps,dw-apb-uart" },
 	{ /* Sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, dw8250_match);
+MODULE_DEVICE_TABLE(of, dw8250_of_match);
 
 static struct platform_driver dw8250_platform_driver = {
 	.driver = {
 		.name		= "dw-apb-uart",
 		.owner		= THIS_MODULE,
-		.of_match_table	= dw8250_match,
+		.of_match_table	= dw8250_of_match,
 	},
 	.probe			= dw8250_probe,
 	.remove			= dw8250_remove,
