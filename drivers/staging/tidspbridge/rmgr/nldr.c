@@ -1802,8 +1802,6 @@ int nldr_find_addr(struct nldr_nodeobject *nldr_node, u32 sym_addr,
 	bool status1 = false;
 	s32 i = 0;
 	struct lib_node root = { NULL, 0, NULL };
-	pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x,  %s)\n", __func__, (u32) nldr_node,
-			sym_addr, offset_range, (u32) offset_output, sym_name);
 
 	if (nldr_node->dynamic && *nldr_node->phase_split) {
 		switch (nldr_node->phase) {
@@ -1852,6 +1850,10 @@ int nldr_find_addr(struct nldr_nodeobject *nldr_node, u32 sym_addr,
 		pr_debug("%s: Address 0x%x not found in range %d.\n",
 					__func__, sym_addr, offset_range);
 		status = -ESPIPE;
+	} else {
+		pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x,  %s)\n",
+			 __func__, (u32) nldr_node, sym_addr, offset_range,
+			 (u32) offset_output, sym_name);
 	}
 
 	return status;
