@@ -625,6 +625,8 @@ SND_SOC_DAPM_OUTPUT("SPKDAT1L"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1R"),
 SND_SOC_DAPM_OUTPUT("SPKDAT2L"),
 SND_SOC_DAPM_OUTPUT("SPKDAT2R"),
+
+SND_SOC_DAPM_OUTPUT("MICSUPP"),
 };
 
 #define ARIZONA_MIXER_INPUT_ROUTES(name)	\
@@ -833,6 +835,8 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 
 	{ "SPKDAT2L", NULL, "OUT6L" },
 	{ "SPKDAT2R", NULL, "OUT6R" },
+
+	{ "MICSUPP", NULL, "SYSCLK" },
 };
 
 static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
