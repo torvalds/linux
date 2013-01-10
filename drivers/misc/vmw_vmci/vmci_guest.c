@@ -78,7 +78,7 @@ bool vmci_guest_code_active(void)
 u32 vmci_get_vm_context_id(void)
 {
 	if (vm_context_id == VMCI_INVALID_ID) {
-		u32 result;
+		int result;
 		struct vmci_datagram get_cid_msg;
 		get_cid_msg.dst =
 		    vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
