@@ -323,6 +323,9 @@ static unsigned long drb_to_nr_pages(
 	int n;
 
 	n = drbs[channel][rank];
+	if (!n)
+		return 0;
+
 	if (rank > 0)
 		n -= drbs[channel][rank - 1];
 	if (stacked && (channel == 1) &&
@@ -389,19 +392,19 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	 * cumulative; the last one will contain the total memory
 	 * contained in all ranks.
 	 */
-	for (i = 0; i < mci->nr_csrows; i++) {
+	for (i = 0; i < I3200_DIMMS; i++) {
 		unsigned long nr_pages;
-		struct csrow_info *csrow = mci->csrows[i];
-
-		nr_pages = drb_to_nr_pages(drbs, stacked,
-			i / I3200_RANKS_PER_CHANNEL,
-			i % I3200_RANKS_PER_CHANNEL);
-
-		if (nr_pages == 0)
-			continue;
 
 		for (j = 0; j < nr_channels; j++) {
-			struct dimm_info *dimm = csrow->channels[j]->dimm;
+			struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
+							       mci->n_layers, i, j, 0);
+
+			nr_pages = drb_to_nr_pages(drbs, stacked, j, i);
+			if (nr_pages == 0)
+				continue;
+
+			edac_dbg(0, "csrow %d, channel %d%s, size = %ld Mb\n", i, j,
+				 stacked ? " (stacked)" : "", PAGES_TO_MiB(nr_pages));
 
 			dimm->nr_pages = nr_pages;
 			dimm->grain = nr_pages << PAGE_SHIFT;
