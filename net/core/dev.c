@@ -2532,6 +2532,26 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 	return netdev_get_tx_queue(dev, queue_index);
 }
 
+static void qdisc_pkt_len_init(struct sk_buff *skb)
+{
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+
+	qdisc_skb_cb(skb)->pkt_len = skb->len;
+
+	/* To get more precise estimation of bytes sent on wire,
+	 * we add to pkt_len the headers size of all segments
+	 */
+	if (shinfo->gso_size)  {
+		unsigned int hdr_len = skb_transport_offset(skb);
+
+		if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
+			hdr_len += tcp_hdrlen(skb);
+		else
+			hdr_len += sizeof(struct udphdr);
+		qdisc_skb_cb(skb)->pkt_len += (shinfo->gso_segs - 1) * hdr_len;
+	}
+}
+
 static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
@@ -2540,7 +2560,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	bool contended;
 	int rc;
 
-	qdisc_skb_cb(skb)->pkt_len = skb->len;
+	qdisc_pkt_len_init(skb);
 	qdisc_calculate_pkt_len(skb, q);
 	/*
 	 * Heuristic to force contended enqueues to serialize on a
