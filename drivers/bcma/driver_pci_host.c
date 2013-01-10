@@ -577,7 +577,7 @@ int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 	pr_info("PCI: Fixing up device %s\n", pci_name(dev));
 
 	/* Fix up interrupt lines */
-	dev->irq = bcma_core_mips_irq(pc_host->pdev->core) + 2;
+	dev->irq = bcma_core_irq(pc_host->pdev->core);
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 
 	return 0;
@@ -596,6 +596,6 @@ int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
 
 	pc_host = container_of(dev->bus->ops, struct bcma_drv_pci_host,
 			       pci_ops);
-	return bcma_core_mips_irq(pc_host->pdev->core) + 2;
+	return bcma_core_irq(pc_host->pdev->core);
 }
 EXPORT_SYMBOL(bcma_core_pci_pcibios_map_irq);
