@@ -1282,7 +1282,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	if (sdd->regs == NULL) {
 		dev_err(&pdev->dev, "Unable to remap IO\n");
 		ret = -ENXIO;
-		goto err1;
+		goto err0;
 	}
 
 	if (!sci->cfg_gpio && pdev->dev.of_node) {
@@ -1291,36 +1291,36 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	} else if (sci->cfg_gpio == NULL || sci->cfg_gpio()) {
 		dev_err(&pdev->dev, "Unable to config gpio\n");
 		ret = -EBUSY;
-		goto err2;
+		goto err0;
 	}
 
 	/* Setup clocks */
-	sdd->clk = clk_get(&pdev->dev, "spi");
+	sdd->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(sdd->clk)) {
 		dev_err(&pdev->dev, "Unable to acquire clock 'spi'\n");
 		ret = PTR_ERR(sdd->clk);
-		goto err3;
+		goto err1;
 	}
 
 	if (clk_prepare_enable(sdd->clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock 'spi'\n");
 		ret = -EBUSY;
-		goto err4;
+		goto err1;
 	}
 
 	sprintf(clk_name, "spi_busclk%d", sci->src_clk_nr);
-	sdd->src_clk = clk_get(&pdev->dev, clk_name);
+	sdd->src_clk = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(sdd->src_clk)) {
 		dev_err(&pdev->dev,
 			"Unable to acquire clock '%s'\n", clk_name);
 		ret = PTR_ERR(sdd->src_clk);
-		goto err5;
+		goto err2;
 	}
 
 	if (clk_prepare_enable(sdd->src_clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock '%s'\n", clk_name);
 		ret = -EBUSY;
-		goto err6;
+		goto err2;
 	}
 
 	/* Setup Deufult Mode */
@@ -1330,11 +1330,12 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	init_completion(&sdd->xfer_completion);
 	INIT_LIST_HEAD(&sdd->queue);
 
-	ret = request_irq(irq, s3c64xx_spi_irq, 0, "spi-s3c64xx", sdd);
+	ret = devm_request_irq(&pdev->dev, irq, s3c64xx_spi_irq, 0,
+				"spi-s3c64xx", sdd);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ %d: %d\n",
 			irq, ret);
-		goto err7;
+		goto err3;
 	}
 
 	writel(S3C64XX_SPI_INT_RX_OVERRUN_EN | S3C64XX_SPI_INT_RX_UNDERRUN_EN |
@@ -1344,7 +1345,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	if (spi_register_master(master)) {
 		dev_err(&pdev->dev, "cannot register SPI master\n");
 		ret = -EBUSY;
-		goto err8;
+		goto err3;
 	}
 
 	dev_dbg(&pdev->dev, "Samsung SoC SPI Driver loaded for Bus SPI-%d "
@@ -1358,21 +1359,13 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 
 	return 0;
 
-err8:
-	free_irq(irq, sdd);
-err7:
-	clk_disable_unprepare(sdd->src_clk);
-err6:
-	clk_put(sdd->src_clk);
-err5:
-	clk_disable_unprepare(sdd->clk);
-err4:
-	clk_put(sdd->clk);
 err3:
+	clk_disable_unprepare(sdd->src_clk);
+err2:
+	clk_disable_unprepare(sdd->clk);
+err1:
 	if (!sdd->cntrlr_info->cfg_gpio && pdev->dev.of_node)
 		s3c64xx_spi_dt_gpio_free(sdd);
-err2:
-err1:
 err0:
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
@@ -1391,13 +1384,9 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	writel(0, sdd->regs + S3C64XX_SPI_INT_EN);
 
-	free_irq(platform_get_irq(pdev, 0), sdd);
-
 	clk_disable_unprepare(sdd->src_clk);
-	clk_put(sdd->src_clk);
 
 	clk_disable_unprepare(sdd->clk);
-	clk_put(sdd->clk);
 
 	if (!sdd->cntrlr_info->cfg_gpio && pdev->dev.of_node)
 		s3c64xx_spi_dt_gpio_free(sdd);
