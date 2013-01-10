@@ -191,6 +191,7 @@ struct hda_gen_spec {
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
 	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
+	unsigned int add_out_jack_modes:1; /* add output jack mode enum ctls */
 
 	/* loopback mixing mode */
 	bool aamix_mode;
