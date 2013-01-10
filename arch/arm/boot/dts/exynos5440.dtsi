@@ -58,11 +58,6 @@
 		};
 	};
 
-	common {
-		compatible = "samsung,exynos5440";
-
-	};
-
 	serial@B0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xB0000 0x1000>;
