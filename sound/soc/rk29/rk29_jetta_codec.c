@@ -127,7 +127,7 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	.name = "RK610_CODEC",
 	.stream_name = "RK610 CODEC PCM",
-#if defined(CONFIG_MACH_RK3168_DS1006H)
+#if defined(CONFIG_MACH_RK3168_DS1006H)|| defined(CONFIG_MACH_RK3168_LR097)
 	.codec_name = "RK610_CODEC.4-0060",
 #else
 	.codec_name = "RK610_CODEC.0-0060",
