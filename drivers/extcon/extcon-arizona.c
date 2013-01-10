@@ -417,6 +417,12 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (arizona->pdata.micd_bias_start_time)
+		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
+				   ARIZONA_MICD_BIAS_STARTTIME_MASK,
+				   arizona->pdata.micd_bias_start_time
+				   << ARIZONA_MICD_BIAS_STARTTIME_SHIFT);
+
 	arizona_extcon_set_mode(info, 0);
 
 	info->input = devm_input_allocate_device(&pdev->dev);

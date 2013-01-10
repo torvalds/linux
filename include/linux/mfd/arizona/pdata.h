@@ -99,6 +99,9 @@ struct arizona_pdata {
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
 
+	/** Mic detect ramp rate */
+	int micd_bias_start_time;
+
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
 	int num_micd_configs;
