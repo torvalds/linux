@@ -422,6 +422,7 @@ enum {
 	HDA_FIXUP_PINS,
 	HDA_FIXUP_VERBS,
 	HDA_FIXUP_FUNC,
+	HDA_FIXUP_PINCTLS,
 };
 
 /* fixup action definitions */

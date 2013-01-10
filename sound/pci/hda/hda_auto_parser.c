@@ -655,6 +655,13 @@ void snd_hda_apply_pincfgs(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_apply_pincfgs);
 
+static void set_pin_targets(struct hda_codec *codec,
+			    const struct hda_pintbl *cfg)
+{
+	for (; cfg->nid; cfg++)
+		snd_hda_set_pin_ctl_cache(codec, cfg->nid, cfg->val);
+}
+
 void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 {
 	int id = codec->fixup_id;
@@ -693,6 +700,14 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 				    "%s: Apply fix-func for %s\n",
 				    codec->chip_name, modelname);
 			fix->v.func(codec, fix, action);
+			break;
+		case HDA_FIXUP_PINCTLS:
+			if (action != HDA_FIXUP_ACT_PROBE || !fix->v.pins)
+				break;
+			snd_printdd(KERN_INFO SFX
+				    "%s: Apply pinctl for %s\n",
+				    codec->chip_name, modelname);
+			set_pin_targets(codec, fix->v.pins);
 			break;
 		default:
 			snd_printk(KERN_ERR SFX
