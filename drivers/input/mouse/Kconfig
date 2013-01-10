@@ -203,6 +203,18 @@ config MOUSE_BCM5974
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm5974.
 
+config MOUSE_CYAPA
+	tristate "Cypress APA I2C Trackpad support"
+	depends on I2C
+	help
+	  This driver adds support for Cypress All Points Addressable (APA)
+	  I2C Trackpads, including the ones used in 2012 Samsung Chromebooks.
+
+	  Say Y here if you have a Cypress APA I2C Trackpad.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cyapa.
+
 config MOUSE_INPORT
 	tristate "InPort/MS/ATIXL busmouse"
 	depends on ISA
