@@ -2243,7 +2243,7 @@ static const struct pnp_device_id pnp_dev_table[] = {
 static struct pnp_driver ipmi_pnp_driver = {
 	.name		= DEVICE_NAME,
 	.probe		= ipmi_pnp_probe,
-	.remove		= __devexit_p(ipmi_pnp_remove),
+	.remove		= ipmi_pnp_remove,
 	.id_table	= pnp_dev_table,
 };
 #endif
@@ -2546,7 +2546,7 @@ static struct pci_driver ipmi_pci_driver = {
 	.name =         DEVICE_NAME,
 	.id_table =     ipmi_pci_devices,
 	.probe =        ipmi_pci_probe,
-	.remove =       __devexit_p(ipmi_pci_remove),
+	.remove =       ipmi_pci_remove,
 };
 #endif /* CONFIG_PCI */
 
@@ -2661,7 +2661,7 @@ static struct platform_driver ipmi_driver = {
 		.of_match_table = ipmi_match,
 	},
 	.probe		= ipmi_probe,
-	.remove		= __devexit_p(ipmi_remove),
+	.remove		= ipmi_remove,
 };
 
 static int wait_for_msg_done(struct smi_info *smi_info)

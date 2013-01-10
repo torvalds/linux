@@ -145,7 +145,7 @@ static void at91_init_twi_bus(struct at91_twi_dev *dev)
  * Calculate symmetric clock as stated in datasheet:
  * twi_clk = F_MAIN / (2 * (cdiv * (1 << ckdiv) + offset))
  */
-static void __devinit at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
+static void at91_calc_twi_clock(struct at91_twi_dev *dev, int twi_clk)
 {
 	int ckdiv, cdiv, div;
 	struct at91_twi_pdata *pdata = dev->pdata;
@@ -604,7 +604,7 @@ MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
 #define atmel_twi_dt_ids NULL
 #endif
 
-static bool __devinit filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct at_dma_slave *sl = slave;
 
@@ -616,7 +616,7 @@ static bool __devinit filter(struct dma_chan *chan, void *slave)
 	}
 }
 
-static int __devinit at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
+static int at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
 {
 	int ret = 0;
 	struct at_dma_slave *sdata;
@@ -688,7 +688,7 @@ error:
 	return ret;
 }
 
-static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
+static struct at91_twi_pdata *at91_twi_get_driver_data(
 					struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
@@ -701,7 +701,7 @@ static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
 	return (struct at91_twi_pdata *) platform_get_device_id(pdev)->driver_data;
 }
 
-static int __devinit at91_twi_probe(struct platform_device *pdev)
+static int at91_twi_probe(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev;
 	struct resource *mem;
@@ -779,7 +779,7 @@ static int __devinit at91_twi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit at91_twi_remove(struct platform_device *pdev)
+static int at91_twi_remove(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev = platform_get_drvdata(pdev);
 	int rc;
@@ -820,7 +820,7 @@ static const struct dev_pm_ops at91_twi_pm = {
 
 static struct platform_driver at91_twi_driver = {
 	.probe		= at91_twi_probe,
-	.remove		= __devexit_p(at91_twi_remove),
+	.remove		= at91_twi_remove,
 	.id_table	= at91_twi_devtypes,
 	.driver		= {
 		.name	= "at91_i2c",

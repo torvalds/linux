@@ -676,8 +676,8 @@ static void virtio_pci_release_dev(struct device *_d)
 }
 
 /* the PCI probing function */
-static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
-				      const struct pci_device_id *id)
+static int virtio_pci_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
 {
 	struct virtio_pci_device *vp_dev;
 	int err;
@@ -751,7 +751,7 @@ out:
 	return err;
 }
 
-static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
+static void virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
@@ -822,7 +822,7 @@ static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
-	.remove		= __devexit_p(virtio_pci_remove),
+	.remove		= virtio_pci_remove,
 #ifdef CONFIG_PM
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif

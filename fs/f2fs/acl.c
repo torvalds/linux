@@ -82,7 +82,6 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			acl->a_entries[i].e_id = ACL_UNDEFINED_ID;
 			entry = (struct f2fs_acl_entry *)((char *)entry +
 					sizeof(struct f2fs_acl_entry_short));
 			break;

@@ -337,7 +337,7 @@ static const struct ide_port_ops svwks_port_ops = {
 	.cable_detect		= svwks_cable_detect,
 };
 
-static const struct ide_port_info serverworks_chipsets[] __devinitconst = {
+static const struct ide_port_info serverworks_chipsets[] = {
 	{	/* 0: OSB4 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
@@ -391,7 +391,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitconst = {
  *	finds a device matching our IDE device tables.
  */
  
-static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int svwks_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ide_port_info d;
 	u8 idx = id->driver_data;

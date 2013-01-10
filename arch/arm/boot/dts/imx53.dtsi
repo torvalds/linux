@@ -492,7 +492,7 @@
 				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
 				reg = <0x53fcc000 0x4000>;
 				interrupts = <83>;
-				clocks = <&clks 158>, <&clks 157>;
+				clocks = <&clks 87>, <&clks 86>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};

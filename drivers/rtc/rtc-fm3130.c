@@ -361,8 +361,8 @@ static const struct rtc_class_ops fm3130_rtc_ops = {
 
 static struct i2c_driver fm3130_driver;
 
-static int __devinit fm3130_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int fm3130_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct fm3130		*fm3130;
 	int			err = -ENODEV;
@@ -546,7 +546,7 @@ exit_free:
 	return err;
 }
 
-static int __devexit fm3130_remove(struct i2c_client *client)
+static int fm3130_remove(struct i2c_client *client)
 {
 	struct fm3130 *fm3130 = i2c_get_clientdata(client);
 
@@ -561,7 +561,7 @@ static struct i2c_driver fm3130_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= fm3130_probe,
-	.remove		= __devexit_p(fm3130_remove),
+	.remove		= fm3130_remove,
 	.id_table	= fm3130_id,
 };
 

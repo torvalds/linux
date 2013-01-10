@@ -45,8 +45,6 @@
 #define HUGETLB_PAGE_ORDER	({BUILD_BUG(); 0; })
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
-#ifndef __ASSEMBLY__
-
 #include <linux/pfn.h>
 #include <asm/io.h>
 
@@ -139,8 +137,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  */
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
 
-#endif /* !__ASSEMBLY__ */
-
 /*
  * __pa()/__va() should be used only during mem init.
  */
@@ -202,7 +198,10 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(kaddr)))
-#define virt_addr_valid(kaddr)	pfn_valid(PFN_DOWN(virt_to_phys(kaddr)))
+
+extern int __virt_addr_valid(const volatile void *kaddr);
+#define virt_addr_valid(kaddr)						\
+	__virt_addr_valid((const volatile void *) (kaddr))
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)

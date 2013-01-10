@@ -349,7 +349,7 @@ static struct mvebu_mpp_mode armada_xp_mpp_modes[] = {
 
 static struct mvebu_pinctrl_soc_info armada_xp_pinctrl_info;
 
-static struct of_device_id armada_xp_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id armada_xp_pinctrl_of_match[] = {
 	{
 		.compatible = "marvell,mv78230-pinctrl",
 		.data       = (void *) V_MV78230,
@@ -394,7 +394,7 @@ static struct pinctrl_gpio_range mv78460_mpp_gpio_ranges[] = {
 	MPP_GPIO_RANGE(2,  64, 64,  3),
 };
 
-static int __devinit armada_xp_pinctrl_probe(struct platform_device *pdev)
+static int armada_xp_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_xp_pinctrl_info;
 	const struct of_device_id *match =
@@ -446,7 +446,7 @@ static int __devinit armada_xp_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit armada_xp_pinctrl_remove(struct platform_device *pdev)
+static int armada_xp_pinctrl_remove(struct platform_device *pdev)
 {
 	return mvebu_pinctrl_remove(pdev);
 }
@@ -458,7 +458,7 @@ static struct platform_driver armada_xp_pinctrl_driver = {
 		.of_match_table = of_match_ptr(armada_xp_pinctrl_of_match),
 	},
 	.probe = armada_xp_pinctrl_probe,
-	.remove = __devexit_p(armada_xp_pinctrl_remove),
+	.remove = armada_xp_pinctrl_remove,
 };
 
 module_platform_driver(armada_xp_pinctrl_driver);

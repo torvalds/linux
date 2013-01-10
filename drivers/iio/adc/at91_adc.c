@@ -514,7 +514,7 @@ static const struct iio_info at91_adc_info = {
 	.read_raw = &at91_adc_read_raw,
 };
 
-static int __devinit at91_adc_probe(struct platform_device *pdev)
+static int at91_adc_probe(struct platform_device *pdev)
 {
 	unsigned int prsc, mstrclk, ticks, adc_clk;
 	int ret;
@@ -678,7 +678,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit at91_adc_remove(struct platform_device *pdev)
+static int at91_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *idev = platform_get_drvdata(pdev);
 	struct at91_adc_state *st = iio_priv(idev);
@@ -702,7 +702,7 @@ MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
 
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
-	.remove = __devexit_p(at91_adc_remove),
+	.remove = at91_adc_remove,
 	.driver = {
 		   .name = "at91_adc",
 		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
