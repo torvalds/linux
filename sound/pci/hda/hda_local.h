@@ -490,6 +490,8 @@ struct hda_bus_unsolicited {
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
 unsigned int snd_hda_get_default_vref(struct hda_codec *codec, hda_nid_t pin);
+unsigned int snd_hda_correct_pin_ctl(struct hda_codec *codec,
+				     hda_nid_t pin, unsigned int val);
 int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int val, bool cached);
 
