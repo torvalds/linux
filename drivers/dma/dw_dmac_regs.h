@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dmaengine.h>
 #include <linux/dw_dmac.h>
 
 #define DW_DMA_MAX_NR_CHANNELS	8
@@ -184,12 +185,13 @@ enum dw_dmac_flags {
 };
 
 struct dw_dma_chan {
-	struct dma_chan		chan;
-	void __iomem		*ch_regs;
-	u8			mask;
-	u8			priority;
-	bool			paused;
-	bool			initialized;
+	struct dma_chan			chan;
+	void __iomem			*ch_regs;
+	u8				mask;
+	u8				priority;
+	enum dma_transfer_direction	direction;
+	bool				paused;
+	bool				initialized;
 
 	/* software emulation of the LLP transfers */
 	struct list_head	*tx_list;

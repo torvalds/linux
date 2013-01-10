@@ -178,9 +178,9 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 		cfghi = dws->cfg_hi;
 		cfglo |= dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
 	} else {
-		if (dwc->dma_sconfig.direction == DMA_MEM_TO_DEV)
+		if (dwc->direction == DMA_MEM_TO_DEV)
 			cfghi = DWC_CFGH_DST_PER(dwc->dma_sconfig.slave_id);
-		else if (dwc->dma_sconfig.direction == DMA_DEV_TO_MEM)
+		else if (dwc->direction == DMA_DEV_TO_MEM)
 			cfghi = DWC_CFGH_SRC_PER(dwc->dma_sconfig.slave_id);
 	}
 
@@ -721,6 +721,8 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
+	dwc->direction = DMA_MEM_TO_MEM;
+
 	data_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_sms(dws)],
 					 dwc->dw->data_width[dwc_get_dms(dws)]);
 
@@ -804,6 +806,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	if (unlikely(!dws || !sg_len))
 		return NULL;
+
+	dwc->direction = direction;
 
 	prev = first = NULL;
 
@@ -981,6 +985,7 @@ set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 		return -EINVAL;
 
 	memcpy(&dwc->dma_sconfig, sconfig, sizeof(*sconfig));
+	dwc->direction = sconfig->direction;
 
 	convert_burst(&dwc->dma_sconfig.src_maxburst);
 	convert_burst(&dwc->dma_sconfig.dst_maxburst);
@@ -1358,6 +1363,8 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	if (unlikely(!is_slave_direction(direction)))
 		goto out_err;
 
+	dwc->direction = direction;
+
 	if (direction == DMA_MEM_TO_DEV)
 		reg_width = __ffs(sconfig->dst_addr_width);
 	else
@@ -1732,6 +1739,7 @@ static int dw_probe(struct platform_device *pdev)
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 
 		dwc->dw = dw;
+		dwc->direction = DMA_TRANS_NONE;
 
 		/* hardware configuration */
 		if (autocfg) {
