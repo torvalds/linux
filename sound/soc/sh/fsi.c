@@ -16,6 +16,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/scatterlist.h>
 #include <linux/sh_dma.h>
 #include <linux/slab.h>
@@ -297,7 +299,7 @@ struct fsi_master {
 	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
-	struct fsi_core *core;
+	const struct fsi_core *core;
 	spinlock_t lock;
 };
 
@@ -1887,6 +1889,33 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
+static void fsi_of_parse(char *name,
+			 struct device_node *np,
+			 struct sh_fsi_port_info *info,
+			 struct device *dev)
+{
+	int i;
+	char prop[128];
+	unsigned long flags = 0;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_parse_property[] = {
+		{ "spdif-connection",		SH_FSI_FMT_SPDIF },
+		{ "stream-mode-support",	SH_FSI_ENABLE_STREAM_MODE },
+		{ "use-internal-clock",		SH_FSI_CLK_CPG },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(of_parse_property); i++) {
+		sprintf(prop, "%s,%s", name, of_parse_property[i].name);
+		if (of_get_property(np, prop, NULL))
+			flags |= of_parse_property[i].val;
+	}
+	info->flags = flags;
+
+	dev_dbg(dev, "%s flags : %lx\n", name, info->flags);
+}
+
 static void fsi_port_info_init(struct fsi_priv *fsi,
 			       struct sh_fsi_port_info *info)
 {
@@ -1914,22 +1943,40 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	}
 }
 
+static struct of_device_id fsi_of_match[];
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
-	const struct platform_device_id	*id_entry;
+	struct device_node *np = pdev->dev.of_node;
 	struct sh_fsi_platform_info info;
+	const struct fsi_core *core;
 	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
 
 	memset(&info, 0, sizeof(info));
-	if (pdev->dev.platform_data)
-		memcpy(&info, pdev->dev.platform_data, sizeof(info));
 
-	id_entry = pdev->id_entry;
-	if (!id_entry) {
+	core = NULL;
+	if (np) {
+		const struct of_device_id *of_id;
+
+		of_id = of_match_device(fsi_of_match, &pdev->dev);
+		if (of_id) {
+			core = of_id->data;
+			fsi_of_parse("fsia", np, &info.port_a, &pdev->dev);
+			fsi_of_parse("fsib", np, &info.port_b, &pdev->dev);
+		}
+	} else {
+		const struct platform_device_id	*id_entry = pdev->id_entry;
+		if (id_entry)
+			core = (struct fsi_core *)id_entry->driver_data;
+
+		if (pdev->dev.platform_data)
+			memcpy(&info, pdev->dev.platform_data, sizeof(info));
+	}
+
+	if (!core) {
 		dev_err(&pdev->dev, "unknown fsi device\n");
 		return -ENODEV;
 	}
@@ -1956,7 +2003,7 @@ static int fsi_probe(struct platform_device *pdev)
 
 	/* master setting */
 	master->irq		= irq;
-	master->core		= (struct fsi_core *)id_entry->driver_data;
+	master->core		= core;
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
@@ -1987,7 +2034,7 @@ static int fsi_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, master);
 
 	ret = devm_request_irq(&pdev->dev, irq, &fsi_interrupt, 0,
-			  id_entry->name, master);
+			       dev_name(&pdev->dev), master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
 		goto exit_fsib;
@@ -2113,6 +2160,13 @@ static struct fsi_core fsi2_core = {
 	.b_mclk	= B_MST_CTLR,
 };
 
+static struct of_device_id fsi_of_match[] __devinitconst = {
+	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
+	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
+	{},
+};
+MODULE_DEVICE_TABLE(of, fsi_of_match);
+
 static struct platform_device_id fsi_id_table[] = {
 	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
 	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
@@ -2124,6 +2178,7 @@ static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "fsi-pcm-audio",
 		.pm	= &fsi_pm_ops,
+		.of_match_table = fsi_of_match,
 	},
 	.probe		= fsi_probe,
 	.remove		= fsi_remove,
