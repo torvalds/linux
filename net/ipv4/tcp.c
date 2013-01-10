@@ -1482,7 +1482,7 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 					break;
 			}
 			used = recv_actor(desc, skb, offset, len);
-			if (used < 0) {
+			if (used <= 0) {
 				if (!copied)
 					copied = used;
 				break;
