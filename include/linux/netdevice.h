@@ -2104,7 +2104,6 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 }
 
 #ifdef CONFIG_XPS
-extern void netif_reset_xps_queue(struct net_device *dev, u16 index);
 extern int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask,
 			       u16 index);
 #else

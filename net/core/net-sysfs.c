@@ -1002,16 +1002,6 @@ static ssize_t show_xps_map(struct netdev_queue *queue,
 	return len;
 }
 
-static void xps_queue_release(struct netdev_queue *queue)
-{
-	struct net_device *dev = queue->dev;
-	unsigned long index;
-
-	index = get_netdev_queue_index(queue);
-
-	netif_reset_xps_queue(dev, index);
-}
-
 static ssize_t store_xps_map(struct netdev_queue *queue,
 		      struct netdev_queue_attribute *attribute,
 		      const char *buf, size_t len)
@@ -1057,10 +1047,6 @@ static struct attribute *netdev_queue_default_attrs[] = {
 static void netdev_queue_release(struct kobject *kobj)
 {
 	struct netdev_queue *queue = to_netdev_queue(kobj);
-
-#ifdef CONFIG_XPS
-	xps_queue_release(queue);
-#endif
 
 	memset(kobj, 0, sizeof(*kobj));
 	dev_put(queue->dev);
