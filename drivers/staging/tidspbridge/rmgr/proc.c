@@ -394,7 +394,7 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 		if (!drv_datap || !drv_datap->base_img)
 			return -EFAULT;
 
-		if (strlen(drv_datap->base_img) > size)
+		if (strlen(drv_datap->base_img) >= size)
 			return -EINVAL;
 
 		strcpy(exec_file, drv_datap->base_img);
