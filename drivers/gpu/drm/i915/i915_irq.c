@@ -1892,6 +1892,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			   DE_AUX_CHANNEL_A;
 	u32 render_irqs;
 	u32 hotplug_mask;
+	u32 pch_irq_mask;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -1935,10 +1936,10 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 				SDE_AUX_MASK);
 	}
 
-	dev_priv->pch_irq_mask = ~hotplug_mask;
+	pch_irq_mask = ~hotplug_mask;
 
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
-	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask);
+	I915_WRITE(SDEIMR, pch_irq_mask);
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
 
@@ -1966,6 +1967,7 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		DE_AUX_CHANNEL_A_IVB;
 	u32 render_irqs;
 	u32 hotplug_mask;
+	u32 pch_irq_mask;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -1995,10 +1997,10 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 			SDE_PORTD_HOTPLUG_CPT |
 			SDE_GMBUS_CPT |
 			SDE_AUX_MASK_CPT);
-	dev_priv->pch_irq_mask = ~hotplug_mask;
+	pch_irq_mask = ~hotplug_mask;
 
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
-	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask);
+	I915_WRITE(SDEIMR, pch_irq_mask);
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
 
