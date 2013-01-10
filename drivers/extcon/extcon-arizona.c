@@ -418,7 +418,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	arizona_extcon_set_mode(info, 0);
 
-	info->input = input_allocate_device();
+	info->input = devm_input_allocate_device(&pdev->dev);
 	if (!info->input) {
 		dev_err(arizona->dev, "Can't allocate input dev\n");
 		ret = -ENOMEM;
@@ -510,7 +510,6 @@ err_rise_wake:
 err_rise:
 	arizona_free_irq(arizona, ARIZONA_IRQ_JD_RISE, info);
 err_input:
-	input_free_device(info->input);
 err_register:
 	pm_runtime_disable(&pdev->dev);
 	extcon_dev_unregister(&info->edev);
@@ -533,7 +532,6 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);
-	input_unregister_device(info->input);
 	extcon_dev_unregister(&info->edev);
 
 	return 0;
