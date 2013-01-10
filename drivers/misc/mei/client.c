@@ -312,8 +312,9 @@ int mei_cl_unlink(struct mei_cl *cl)
 	if (!cl)
 		return 0;
 
-	if (WARN_ON(!cl->dev))
-		return -EINVAL;
+	/* wd and amthif might not be initialized */
+	if (!cl->dev)
+		return 0;
 
 	dev = cl->dev;
 
