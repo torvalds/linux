@@ -12,7 +12,6 @@ obj-				:=
 # Objects we always build independent of SoC choice
 
 obj-y				+= init.o cpu.o
-obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-$(CONFIG_SAMSUNG_HRT) 	+= samsung-time.o
 
 obj-$(CONFIG_SAMSUNG_CLOCK)	+= clock.o
