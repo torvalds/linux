@@ -252,11 +252,9 @@ unsigned int comedi_buf_write_free(struct comedi_async *async,
 {
 	unsigned int allocated = comedi_buf_write_n_allocated(async);
 
-	if (nbytes > allocated) {
-		dev_info(async->subdevice->device->class_dev,
-			 "attempted to write-free more bytes than have been write-allocated.\n");
+	if (nbytes > allocated)
 		nbytes = allocated;
-	}
+
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
 	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
