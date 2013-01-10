@@ -299,7 +299,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 	err = __kmem_cache_create(s, flags);
 
 	if (err)
-		panic("Creation of kmalloc slab %s size=%zd failed. Reason %d\n",
+		panic("Creation of kmalloc slab %s size=%zu failed. Reason %d\n",
 					name, size, err);
 
 	s->refcount = -1;	/* Exempt from merging for now */
