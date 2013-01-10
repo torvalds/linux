@@ -132,7 +132,7 @@ static int do_signal(struct pt_regs *regs)
 	 */
 	if (current->thread.hw_brk.address &&
 		current->thread.hw_brk.type)
-		set_break(&current->thread.hw_brk);
+		set_breakpoint(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
