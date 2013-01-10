@@ -318,6 +318,7 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ehrpwm_pwm_chip *pc = to_ehrpwm_pwm_chip(chip);
 	unsigned short aqcsfrc_val, aqcsfrc_mask;
+	int ret;
 
 	/* Leave clock enabled on enabling PWM */
 	pm_runtime_get_sync(chip->dev);
@@ -341,7 +342,12 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	configure_polarity(pc, pwm->hwpwm);
 
 	/* Enable TBCLK before enabling PWM device */
-	clk_enable(pc->tbclk);
+	ret = clk_prepare_enable(pc->tbclk);
+	if (ret) {
+		pr_err("Failed to enable TBCLK for %s\n",
+				dev_name(pc->chip.dev));
+		return ret;
+	}
 
 	/* Enable time counter for free_run */
 	ehrpwm_modify(pc->mmio_base, TBCTL, TBCTL_RUN_MASK, TBCTL_FREE_RUN);
@@ -372,7 +378,7 @@ static void ehrpwm_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	ehrpwm_modify(pc->mmio_base, AQCSFRC, aqcsfrc_mask, aqcsfrc_val);
 
 	/* Disabling TBCLK on PWM disable */
-	clk_disable(pc->tbclk);
+	clk_disable_unprepare(pc->tbclk);
 
 	/* Stop Time base counter */
 	ehrpwm_modify(pc->mmio_base, TBCTL, TBCTL_RUN_MASK, TBCTL_STOP_NEXT);
