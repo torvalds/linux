@@ -382,7 +382,6 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 				u32 size, char *exec_file)
 {
 	u8 dev_type;
-	s32 len;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	dev_get_dev_type(hdev_obj, (u8 *) &dev_type);
@@ -398,9 +397,6 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 			return -EINVAL;
 
 		strcpy(exec_file, drv_datap->base_img);
-	} else if (dev_type == IVA_UNIT && iva_img) {
-		len = strlen(iva_img);
-		strncpy(exec_file, iva_img, len + 1);
 	} else {
 		return -ENOENT;
 	}
