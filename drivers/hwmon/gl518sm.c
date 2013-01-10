@@ -344,8 +344,9 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 		val = 3;
 		break;
 	default:
-		dev_err(dev, "Invalid fan clock divider %lu, choose one "
-			"of 1, 2, 4 or 8\n", val);
+		dev_err(dev,
+			"Invalid fan clock divider %lu, choose one of 1, 2, 4 or 8\n",
+			val);
 		return -EINVAL;
 	}
 

@@ -451,8 +451,9 @@ static ssize_t reset_temp_history(struct device *dev,
 		return -EINVAL;
 
 	if (val != 1) {
-		dev_err(dev, "temp_reset_history value %ld not"
-			" supported. Use 1 to reset the history!\n", val);
+		dev_err(dev,
+			"temp_reset_history value %ld not supported. Use 1 to reset the history!\n",
+			val);
 		return -EINVAL;
 	}
 	i2c_smbus_write_byte_data(to_i2c_client(dev),

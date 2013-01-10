@@ -166,6 +166,5 @@ static struct spi_driver ad7314_driver = {
 module_spi_driver(ad7314_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD7314, ADT7301 and ADT7302 digital"
-			" temperature sensor driver");
+MODULE_DESCRIPTION("Analog Devices AD7314, ADT7301 and ADT7302 digital temperature sensor driver");
 MODULE_LICENSE("GPL v2");

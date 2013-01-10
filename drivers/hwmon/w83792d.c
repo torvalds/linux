@@ -54,8 +54,8 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool init;
 module_param(init, bool, 0);
@@ -951,8 +951,8 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&new_client->dev, "invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&new_client->dev,
+					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -ENODEV;
 				goto ERROR_SC_0;
@@ -969,8 +969,9 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 	if (!(val & 0x80)) {
 		if ((data->lm75[0] != NULL) &&
 			((val & 0x7) == ((val >> 4) & 0x7))) {
-			dev_err(&new_client->dev, "duplicate addresses 0x%x, "
-				"use force_subclient\n", data->lm75[0]->addr);
+			dev_err(&new_client->dev,
+				"duplicate addresses 0x%x, use force_subclient\n",
+				data->lm75[0]->addr);
 			err = -ENODEV;
 			goto ERROR_SC_1;
 		}
