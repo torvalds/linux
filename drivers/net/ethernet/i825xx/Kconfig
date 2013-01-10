@@ -79,14 +79,4 @@ config SUN3_82586
 	  that this driver does not support 82586-based adapters on additional
 	  VME boards.
 
-config ZNET
-	tristate "Zenith Z-Note support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ISA_DMA_API && X86
-	---help---
-	  The Zenith Z-Note notebook computer has a built-in network
-	  (Ethernet) card, and this is the Linux driver for it. Note that the
-	  IBM Thinkpad 300 is compatible with the Z-Note and is also supported
-	  by this driver. Read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
 endif # NET_VENDOR_I825XX
