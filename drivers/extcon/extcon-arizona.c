@@ -56,7 +56,7 @@ struct arizona_extcon_info {
 	bool hpdet_active;
 
 	int num_hpdet_res;
-	unsigned int hpdet_res[2];
+	unsigned int hpdet_res[3];
 
 	bool mic;
 	bool detecting;
@@ -313,6 +313,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 {
 	struct arizona *arizona = info->arizona;
+	int id_gpio = arizona->pdata.hpdet_id_gpio;
 	int ret;
 
 	/*
@@ -338,9 +339,27 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 					   ARIZONA_ACCESSORY_DETECT_MODE_1,
 					   ARIZONA_ACCDET_SRC,
 					   ~info->micd_modes[0].src);
+
 			regmap_update_bits(arizona->regmap,
 					   ARIZONA_HEADPHONE_DETECT_1,
-					   ARIZONA_HP_POLL, 0);
+					   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
+			return -EAGAIN;
+		}
+
+		/* Only check the mic directly if we didn't already ID it */
+		if (id_gpio && info->num_hpdet_res == 2 &&
+		    !((info->hpdet_res[0] > info->hpdet_res[1] * 2))) {
+			dev_dbg(arizona->dev, "Measuring mic\n");
+
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_ACCESSORY_DETECT_MODE_1,
+					   ARIZONA_ACCDET_MODE_MASK |
+					   ARIZONA_ACCDET_SRC,
+					   ARIZONA_ACCDET_MODE_HPR |
+					   info->micd_modes[0].src);
+
+			gpio_set_value_cansleep(id_gpio, 1);
+
 			regmap_update_bits(arizona->regmap,
 					   ARIZONA_HEADPHONE_DETECT_1,
 					   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
@@ -348,10 +367,16 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 		}
 
 		/* OK, got both.  Now, compare... */
-		dev_dbg(arizona->dev, "HPDET measured %d %d\n",
-			info->hpdet_res[0], info->hpdet_res[1]);
+		dev_dbg(arizona->dev, "HPDET measured %d %d %d\n",
+			info->hpdet_res[0], info->hpdet_res[1],
+			info->hpdet_res[2]);
 
-		if (info->hpdet_res[0] > info->hpdet_res[1] * 2) {
+		/*
+		 * Either the two grounds measure differently or we
+		 * measure the mic as high impedance.
+		 */
+		if ((info->hpdet_res[0] > info->hpdet_res[1] * 2) ||
+		    (id_gpio && info->hpdet_res[2] > 10)) {
 			dev_dbg(arizona->dev, "Detected mic\n");
 			info->mic = true;
 			ret = extcon_set_cable_state_(&info->edev,
@@ -382,6 +407,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
+	int id_gpio = arizona->pdata.hpdet_id_gpio;
 	int report = ARIZONA_CABLE_HEADPHONE;
 	int ret, reading;
 
@@ -446,6 +472,8 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 		dev_warn(arizona->dev, "Failed to undo magic: %d\n", ret);
 
 done:
+	if (id_gpio)
+		gpio_set_value_cansleep(id_gpio, 0);
 
 	/* Revert back to MICDET mode */
 	regmap_update_bits(arizona->regmap,
@@ -850,6 +878,18 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
 				arizona->pdata.micd_pol_gpio, ret);
+			goto err_register;
+		}
+	}
+
+	if (arizona->pdata.hpdet_id_gpio > 0) {
+		ret = devm_gpio_request_one(&pdev->dev,
+					    arizona->pdata.hpdet_id_gpio,
+					    GPIOF_OUT_INIT_LOW,
+					    "HPDET");
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
+				arizona->pdata.hpdet_id_gpio, ret);
 			goto err_register;
 		}
 	}
