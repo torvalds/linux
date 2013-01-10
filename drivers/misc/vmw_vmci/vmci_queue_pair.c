@@ -3355,10 +3355,10 @@ ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 {
 	ssize_t result;
 
-	qp_lock(qpair);
-
 	if (!qpair || !iov)
 		return VMCI_ERROR_INVALID_ARGS;
+
+	qp_lock(qpair);
 
 	do {
 		result = qp_dequeue_locked(qpair->produce_q,
