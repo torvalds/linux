@@ -14,6 +14,7 @@
 #include <linux/gcd.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -65,6 +66,87 @@
 	dev_warn(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define arizona_aif_dbg(_dai, fmt, ...) \
 	dev_dbg(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
+
+static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol,
+			  int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	bool manual_ena = false;
+
+	switch (arizona->type) {
+	case WM5102:
+		switch (arizona->rev) {
+		case 0:
+			break;
+		default:
+			manual_ena = true;
+			break;
+		}
+	default:
+		break;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (!priv->spk_ena && manual_ena) {
+			snd_soc_write(codec, 0x4f5, 0x25a);
+			priv->spk_ena_pending = true;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		if (priv->spk_ena_pending) {
+			msleep(75);
+			snd_soc_write(codec, 0x4f5, 0xda);
+			priv->spk_ena_pending = false;
+			priv->spk_ena++;
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (manual_ena) {
+			priv->spk_ena--;
+			if (!priv->spk_ena)
+				snd_soc_write(codec, 0x4f5, 0x25a);
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (manual_ena) {
+			if (!priv->spk_ena)
+				snd_soc_write(codec, 0x4f5, 0x0da);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget arizona_spkl =
+	SND_SOC_DAPM_PGA_E("OUT4L", ARIZONA_OUTPUT_ENABLES_1,
+			   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+
+static const struct snd_soc_dapm_widget arizona_spkr =
+	SND_SOC_DAPM_PGA_E("OUT4R", ARIZONA_OUTPUT_ENABLES_1,
+			   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+
+int arizona_init_spk(struct snd_soc_codec *codec)
+{
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(&codec->dapm, &arizona_spkl, 1);
+	if (ret != 0)
+		return ret;
+
+	ret = snd_soc_dapm_new_controls(&codec->dapm, &arizona_spkr, 1);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_spk);
 
 const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
