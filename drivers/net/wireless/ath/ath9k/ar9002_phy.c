@@ -581,7 +581,7 @@ void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	 */
 	count = param->count;
 	if (param->endless)
-		count = 0;
+		count = 0x80;
 	else if (count & 0x80)
 		count = 0x7f;
 
