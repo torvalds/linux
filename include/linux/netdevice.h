@@ -2103,6 +2103,19 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 		__netif_schedule(txq->qdisc);
 }
 
+#ifdef CONFIG_XPS
+extern void netif_reset_xps_queue(struct net_device *dev, u16 index);
+extern int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask,
+			       u16 index);
+#else
+static inline int netif_set_xps_queue(struct net_device *dev,
+				      struct cpumask *mask,
+				      u16 index)
+{
+	return 0;
+}
+#endif
+
 /*
  * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
  * as a distribution range limit for the returned value.
