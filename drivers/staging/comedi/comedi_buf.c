@@ -215,13 +215,6 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 			int block_size = num_bytes - count;
 			unsigned int buf_end;
 
-			if (block_size < 0) {
-				dev_warn(s->device->class_dev,
-					"%s: %s: bug! block_size is negative\n",
-					__FILE__, __func__);
-				break;
-			}
-
 			buf_end = async->prealloc_bufsz - async->munge_ptr;
 			if (block_size > buf_end)
 				block_size = buf_end;
