@@ -18,20 +18,6 @@ config NET_VENDOR_3COM
 
 if NET_VENDOR_3COM
 
-config EL1
-	tristate "3c501 \"EtherLink\" support"
-	depends on ISA
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Also, consider buying a
-	  new card, since the 3c501 is slow, broken, and obsolete: you will
-	  have problems.  Some people suggest to ping ("man ping") a nearby
-	  machine every minute ("man cron") when using this card.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c501.
-
 config EL3
 	tristate "3c509/3c579 \"EtherLink III\" support"
 	depends on (ISA || EISA)

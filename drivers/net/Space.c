@@ -51,7 +51,6 @@ extern struct net_device *fmv18x_probe(int unit);
 extern struct net_device *eth16i_probe(int unit);
 extern struct net_device *i82596_probe(int unit);
 extern struct net_device *ewrk3_probe(int unit);
-extern struct net_device *el1_probe(int unit);
 extern struct net_device *el16_probe(int unit);
 extern struct net_device *elplus_probe(int unit);
 extern struct net_device *e2100_probe(int unit);
@@ -167,9 +166,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #endif
 #if defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel I82596 */
 	{i82596_probe, 0},
-#endif
-#ifdef CONFIG_EL1		/* 3c501 */
-	{el1_probe, 0},
 #endif
 #ifdef CONFIG_EL16		/* 3c507 */
 	{el16_probe, 0},
