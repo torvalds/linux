@@ -27,6 +27,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/extcon.h>
 
+#include <sound/soc.h>
+
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
@@ -113,6 +115,52 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	dev_dbg(arizona->dev, "Set jack polarity to %d\n", mode);
 }
 
+static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
+{
+	switch (info->micd_modes[0].bias >> ARIZONA_MICD_BIAS_SRC_SHIFT) {
+	case 1:
+		return "MICBIAS1";
+	case 2:
+		return "MICBIAS2";
+	case 3:
+		return "MICBIAS3";
+	default:
+		return "MICVDD";
+	}
+}
+
+static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
+{
+	struct arizona *arizona = info->arizona;
+	const char *widget = arizona_extcon_get_micbias(info);
+	struct snd_soc_dapm_context *dapm = arizona->dapm;
+	int ret;
+
+	mutex_lock(&dapm->card->dapm_mutex);
+
+	ret = snd_soc_dapm_force_enable_pin(dapm, widget);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to enable %s: %d\n",
+			 widget, ret);
+
+	mutex_unlock(&dapm->card->dapm_mutex);
+
+	snd_soc_dapm_sync(dapm);
+
+	if (!arizona->pdata.micd_force_micbias) {
+		mutex_lock(&dapm->card->dapm_mutex);
+
+		ret = snd_soc_dapm_disable_pin(arizona->dapm, widget);
+		if (ret != 0)
+			dev_warn(arizona->dev, "Failed to disable %s: %d\n",
+				 widget, ret);
+
+		mutex_unlock(&dapm->card->dapm_mutex);
+
+		snd_soc_dapm_sync(dapm);
+	}
+}
+
 static void arizona_start_mic(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
@@ -121,6 +169,15 @@ static void arizona_start_mic(struct arizona_extcon_info *info)
 
 	/* Microphone detection can't use idle mode */
 	pm_runtime_get(info->dev);
+
+	if (info->detecting) {
+		ret = regulator_allow_bypass(info->micvdd, false);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to regulate MICVDD: %d\n",
+				ret);
+		}
+	}
 
 	ret = regulator_enable(info->micvdd);
 	if (ret != 0) {
@@ -138,6 +195,8 @@ static void arizona_start_mic(struct arizona_extcon_info *info)
 			   ARIZONA_ACCESSORY_DETECT_MODE_1,
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
+	arizona_extcon_pulse_micbias(info);
+
 	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
 				 ARIZONA_MICD_ENA, ARIZONA_MICD_ENA,
 				 &change);
@@ -150,16 +209,37 @@ static void arizona_start_mic(struct arizona_extcon_info *info)
 static void arizona_stop_mic(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
+	const char *widget = arizona_extcon_get_micbias(info);
+	struct snd_soc_dapm_context *dapm = arizona->dapm;
 	bool change;
+	int ret;
 
 	regmap_update_bits_check(arizona->regmap, ARIZONA_MIC_DETECT_1,
 				 ARIZONA_MICD_ENA, 0,
 				 &change);
 
+	mutex_lock(&dapm->card->dapm_mutex);
+
+	ret = snd_soc_dapm_disable_pin(dapm, widget);
+	if (ret != 0)
+		dev_warn(arizona->dev,
+			 "Failed to disable %s: %d\n",
+			 widget, ret);
+
+	mutex_unlock(&dapm->card->dapm_mutex);
+
+	snd_soc_dapm_sync(dapm);
+
 	if (info->micd_reva) {
 		regmap_write(arizona->regmap, 0x80, 0x3);
 		regmap_write(arizona->regmap, 0x294, 2);
 		regmap_write(arizona->regmap, 0x80, 0x0);
+	}
+
+	ret = regulator_allow_bypass(info->micvdd, true);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to bypass MICVDD: %d\n",
+			ret);
 	}
 
 	if (change) {
@@ -564,6 +644,8 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 
 	info->hpdet_active = true;
 
+	arizona_extcon_pulse_micbias(info);
+
 	ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000, 0x4000);
 	if (ret != 0)
 		dev_warn(arizona->dev, "Failed to do magic: %d\n", ret);
@@ -649,6 +731,13 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 			dev_err(arizona->dev, "Headset report failed: %d\n",
 				ret);
 
+		/* Don't need to regulate for button detection */
+		ret = regulator_allow_bypass(info->micvdd, false);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to bypass MICVDD: %d\n",
+				ret);
+		}
+
 		info->mic = true;
 		info->detecting = false;
 		goto handled;
@@ -716,6 +805,7 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 			input_report_key(info->input,
 					 arizona_lvl_to_key[i].report, 0);
 		input_sync(info->input);
+		arizona_extcon_pulse_micbias(info);
 	}
 
 handled:
@@ -816,6 +906,9 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	struct arizona_extcon_info *info;
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i;
+
+	if (!arizona->dapm || !arizona->dapm->card)
+		return -EPROBE_DEFER;
 
 	pdata = dev_get_platdata(arizona->dev);
 

@@ -117,6 +117,9 @@ struct arizona_pdata {
 	/** Mic detect debounce level */
 	int micd_dbtime;
 
+	/** Force MICBIAS on for mic detect */
+	bool micd_force_micbias;
+
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
 	int num_micd_configs;
