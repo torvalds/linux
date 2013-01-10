@@ -19,6 +19,7 @@
 #include <linux/io.h>
 
 #include <asm/arch_timer.h>
+#include <asm/virt.h>
 
 #include <clocksource/arm_arch_timer.h>
 
@@ -364,10 +365,14 @@ int __init arch_timer_init(void)
 	of_node_put(np);
 
 	/*
+	 * If HYP mode is available, we know that the physical timer
+	 * has been configured to be accessible from PL1. Use it, so
+	 * that a guest can use the virtual timer instead.
+	 *
 	 * If no interrupt provided for virtual timer, we'll have to
 	 * stick to the physical timer. It'd better be accessible...
 	 */
-	if (!arch_timer_ppi[VIRT_PPI]) {
+	if (is_hyp_mode_available() || !arch_timer_ppi[VIRT_PPI]) {
 		arch_timer_use_virtual = false;
 
 		if (!arch_timer_ppi[PHYS_SECURE_PPI] ||
