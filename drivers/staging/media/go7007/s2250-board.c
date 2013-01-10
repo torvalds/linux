@@ -534,7 +534,7 @@ static int s2250_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Brightness: %d\n", state->brightness);
 	v4l2_info(sd, "Contrast: %d\n", state->contrast);
 	v4l2_info(sd, "Saturation: %d\n", state->saturation);
-	v4l2_info(sd, "Hue: %d\n", state->hue);	return 0;
+	v4l2_info(sd, "Hue: %d\n", state->hue);
 	v4l2_info(sd, "Audio input: %s\n", state->audio_input == 0 ? "Line In" :
 					state->audio_input == 1 ? "Mic" :
 					state->audio_input == 2 ? "Mic Boost" :
