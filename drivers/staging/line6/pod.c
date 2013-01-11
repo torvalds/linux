@@ -40,8 +40,8 @@ enum {
 };
 
 enum {
-	POD_monitor_level  = 0x04,
-	POD_system_invalid = 0x10000
+	POD_MONITOR_LEVEL  = 0x04,
+	POD_SYSTEM_INVALID = 0x10000
 };
 
 /* *INDENT-ON* */
@@ -170,7 +170,7 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 								   << 8) |
 					    ((int)buf[9] << 4) | (int)buf[10];
 
-					if (buf[6] == POD_monitor_level)
+					if (buf[6] == POD_MONITOR_LEVEL)
 						pod->monitor_level = value;
 					break;
 				}
@@ -372,7 +372,7 @@ static int snd_pod_control_monitor_put(struct snd_kcontrol *kcontrol,
 
 	pod->monitor_level = ucontrol->value.integer.value[0];
 	pod_set_system_param_int(pod, ucontrol->value.integer.value[0],
-				 POD_monitor_level);
+				 POD_MONITOR_LEVEL);
 	return 1;
 }
 
@@ -463,7 +463,7 @@ static int pod_try_init(struct usb_interface *interface,
 	 */
 
 	if (pod->line6.properties->capabilities & LINE6_BIT_CONTROL) {
-		pod->monitor_level = POD_system_invalid;
+		pod->monitor_level = POD_SYSTEM_INVALID;
 
 		/* initiate startup procedure: */
 		pod_startup1(pod);
