@@ -113,6 +113,13 @@ struct ab8500_fg_avg_cap {
 	int sum;
 };
 
+struct ab8500_fg_cap_scaling {
+	bool enable;
+	int cap_to_scale[2];
+	int disable_cap_level;
+	int scaled_cap;
+};
+
 struct ab8500_fg_battery_capacity {
 	int max_mah_design;
 	int max_mah;
@@ -123,6 +130,7 @@ struct ab8500_fg_battery_capacity {
 	int prev_percent;
 	int prev_level;
 	int user_mah;
+	struct ab8500_fg_cap_scaling cap_scale;
 };
 
 struct ab8500_fg_flags {
@@ -1167,6 +1175,99 @@ static int ab8500_fg_capacity_level(struct ab8500_fg *di)
 }
 
 /**
+ * ab8500_fg_calculate_scaled_capacity() - Capacity scaling
+ * @di:		pointer to the ab8500_fg structure
+ *
+ * Calculates the capacity to be shown to upper layers. Scales the capacity
+ * to have 100% as a reference from the actual capacity upon removal of charger
+ * when charging is in maintenance mode.
+ */
+static int ab8500_fg_calculate_scaled_capacity(struct ab8500_fg *di)
+{
+	struct ab8500_fg_cap_scaling *cs = &di->bat_cap.cap_scale;
+	int capacity = di->bat_cap.prev_percent;
+
+	if (!cs->enable)
+		return capacity;
+
+	/*
+	 * As long as we are in fully charge mode scale the capacity
+	 * to show 100%.
+	 */
+	if (di->flags.fully_charged) {
+		cs->cap_to_scale[0] = 100;
+		cs->cap_to_scale[1] =
+			max(capacity, di->bm->fg_params->maint_thres);
+		dev_dbg(di->dev, "Scale cap with %d/%d\n",
+			 cs->cap_to_scale[0], cs->cap_to_scale[1]);
+	}
+
+	/* Calculates the scaled capacity. */
+	if ((cs->cap_to_scale[0] != cs->cap_to_scale[1])
+					&& (cs->cap_to_scale[1] > 0))
+		capacity = min(100,
+				 DIV_ROUND_CLOSEST(di->bat_cap.prev_percent *
+						 cs->cap_to_scale[0],
+						 cs->cap_to_scale[1]));
+
+	if (di->flags.charging) {
+		if (capacity < cs->disable_cap_level) {
+			cs->disable_cap_level = capacity;
+			dev_dbg(di->dev, "Cap to stop scale lowered %d%%\n",
+				cs->disable_cap_level);
+		} else if (!di->flags.fully_charged) {
+			if (di->bat_cap.prev_percent >=
+			    cs->disable_cap_level) {
+				dev_dbg(di->dev, "Disabling scaled capacity\n");
+				cs->enable = false;
+				capacity = di->bat_cap.prev_percent;
+			} else {
+				dev_dbg(di->dev,
+					"Waiting in cap to level %d%%\n",
+					cs->disable_cap_level);
+				capacity = cs->disable_cap_level;
+			}
+		}
+	}
+
+	return capacity;
+}
+
+/**
+ * ab8500_fg_update_cap_scalers() - Capacity scaling
+ * @di:		pointer to the ab8500_fg structure
+ *
+ * To be called when state change from charge<->discharge to update
+ * the capacity scalers.
+ */
+static void ab8500_fg_update_cap_scalers(struct ab8500_fg *di)
+{
+	struct ab8500_fg_cap_scaling *cs = &di->bat_cap.cap_scale;
+
+	if (!cs->enable)
+		return;
+	if (di->flags.charging) {
+		di->bat_cap.cap_scale.disable_cap_level =
+			di->bat_cap.cap_scale.scaled_cap;
+		dev_dbg(di->dev, "Cap to stop scale at charge %d%%\n",
+				di->bat_cap.cap_scale.disable_cap_level);
+	} else {
+		if (cs->scaled_cap != 100) {
+			cs->cap_to_scale[0] = cs->scaled_cap;
+			cs->cap_to_scale[1] = di->bat_cap.prev_percent;
+		} else {
+			cs->cap_to_scale[0] = 100;
+			cs->cap_to_scale[1] =
+				max(di->bat_cap.prev_percent,
+				    di->bm->fg_params->maint_thres);
+		}
+
+		dev_dbg(di->dev, "Cap to scale at discharge %d/%d\n",
+				cs->cap_to_scale[0], cs->cap_to_scale[1]);
+	}
+}
+
+/**
  * ab8500_fg_check_capacity_limits() - Check if capacity has changed
  * @di:		pointer to the ab8500_fg structure
  * @init:	capacity is allowed to go up in init mode
@@ -1214,16 +1315,24 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 	} else if (di->flags.fully_charged) {
 		/*
 		 * We report 100% if algorithm reported fully charged
-		 * unless capacity drops too much
+		 * and show 100% during maintenance charging (scaling).
 		 */
 		if (di->flags.force_full) {
 			di->bat_cap.prev_percent = di->bat_cap.permille / 10;
 			di->bat_cap.prev_mah = di->bat_cap.mah;
-		} else if (!di->flags.force_full &&
-			di->bat_cap.prev_percent !=
-			(di->bat_cap.permille) / 10 &&
-			(di->bat_cap.permille / 10) <
-			di->bm->fg_params->maint_thres) {
+
+			changed = true;
+
+			if (!di->bat_cap.cap_scale.enable &&
+						di->bm->capacity_scaling) {
+				di->bat_cap.cap_scale.enable = true;
+				di->bat_cap.cap_scale.cap_to_scale[0] = 100;
+				di->bat_cap.cap_scale.cap_to_scale[1] =
+						di->bat_cap.prev_percent;
+				di->bat_cap.cap_scale.disable_cap_level = 100;
+			}
+		} else if ( di->bat_cap.prev_percent !=
+			(di->bat_cap.permille) / 10) {
 			dev_dbg(di->dev,
 				"battery reported full "
 				"but capacity dropping: %d\n",
@@ -1272,6 +1381,14 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 	}
 
 	if (changed) {
+		if (di->bm->capacity_scaling) {
+			di->bat_cap.cap_scale.scaled_cap =
+				ab8500_fg_calculate_scaled_capacity(di);
+
+			dev_info(di->dev, "capacity=%d (%d)\n",
+				di->bat_cap.prev_percent,
+				di->bat_cap.cap_scale.scaled_cap);
+		}
 		power_supply_changed(&di->fg_psy);
 		if (di->flags.fully_charged && di->flags.force_full) {
 			dev_dbg(di->dev, "Battery full, notifying.\n");
@@ -1337,7 +1454,7 @@ static void ab8500_fg_algorithm_charging(struct ab8500_fg *di)
 		 * Read the FG and calculate the new capacity
 		 */
 		mutex_lock(&di->cc_lock);
-		if (!di->flags.conv_done) {
+		if (!di->flags.conv_done && !di->flags.force_full) {
 			/* Wasn't the CC IRQ that got us here */
 			mutex_unlock(&di->cc_lock);
 			dev_dbg(di->dev, "%s CC conv not done\n",
@@ -2027,7 +2144,9 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 			val->intval = di->bat_cap.prev_mah;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+		if (di->bm->capacity_scaling)
+			val->intval = di->bat_cap.cap_scale.scaled_cap;
+		else if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
 				di->flags.batt_id_received)
 			val->intval = 100;
 		else
@@ -2091,6 +2210,8 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 						break;
 					di->flags.charging = false;
 					di->flags.fully_charged = false;
+					if (di->bm->capacity_scaling)
+						ab8500_fg_update_cap_scalers(di);
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
 				case POWER_SUPPLY_STATUS_FULL:
@@ -2103,10 +2224,13 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
 				case POWER_SUPPLY_STATUS_CHARGING:
-					if (di->flags.charging)
+					if (di->flags.charging &&
+						!di->flags.fully_charged)
 						break;
 					di->flags.charging = true;
 					di->flags.fully_charged = false;
+					if (di->bm->capacity_scaling)
+						ab8500_fg_update_cap_scalers(di);
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
 				};
@@ -2146,8 +2270,8 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 		case POWER_SUPPLY_PROP_TEMP:
 			switch (ext->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
-			    if (di->flags.batt_id_received)
-				di->bat_temp = ret.intval;
+				if (di->flags.batt_id_received)
+					di->bat_temp = ret.intval;
 				break;
 			default:
 				break;
