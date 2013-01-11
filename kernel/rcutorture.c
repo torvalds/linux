@@ -846,7 +846,7 @@ static int rcu_torture_boost(void *arg)
 		/* Wait for the next test interval. */
 		oldstarttime = boost_starttime;
 		while (ULONG_CMP_LT(jiffies, oldstarttime)) {
-			schedule_timeout_uninterruptible(1);
+			schedule_timeout_interruptible(oldstarttime - jiffies);
 			rcu_stutter_wait("rcu_torture_boost");
 			if (kthread_should_stop() ||
 			    fullstop != FULLSTOP_DONTSTOP)
@@ -1318,19 +1318,35 @@ static void rcu_torture_shuffle_tasks(void)
 				set_cpus_allowed_ptr(reader_tasks[i],
 						     shuffle_tmp_mask);
 	}
-
 	if (fakewriter_tasks) {
 		for (i = 0; i < nfakewriters; i++)
 			if (fakewriter_tasks[i])
 				set_cpus_allowed_ptr(fakewriter_tasks[i],
 						     shuffle_tmp_mask);
 	}
-
 	if (writer_task)
 		set_cpus_allowed_ptr(writer_task, shuffle_tmp_mask);
-
 	if (stats_task)
 		set_cpus_allowed_ptr(stats_task, shuffle_tmp_mask);
+	if (stutter_task)
+		set_cpus_allowed_ptr(stutter_task, shuffle_tmp_mask);
+	if (fqs_task)
+		set_cpus_allowed_ptr(fqs_task, shuffle_tmp_mask);
+	if (shutdown_task)
+		set_cpus_allowed_ptr(shutdown_task, shuffle_tmp_mask);
+#ifdef CONFIG_HOTPLUG_CPU
+	if (onoff_task)
+		set_cpus_allowed_ptr(onoff_task, shuffle_tmp_mask);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+	if (stall_task)
+		set_cpus_allowed_ptr(stall_task, shuffle_tmp_mask);
+	if (barrier_cbs_tasks)
+		for (i = 0; i < n_barrier_cbs; i++)
+			if (barrier_cbs_tasks[i])
+				set_cpus_allowed_ptr(barrier_cbs_tasks[i],
+						     shuffle_tmp_mask);
+	if (barrier_task)
+		set_cpus_allowed_ptr(barrier_task, shuffle_tmp_mask);
 
 	if (rcu_idle_cpu == -1)
 		rcu_idle_cpu = num_online_cpus() - 1;
