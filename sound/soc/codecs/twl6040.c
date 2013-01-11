@@ -1174,7 +1174,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 	mutex_init(&priv->mutex);
 
 	ret = request_threaded_irq(priv->plug_irq, NULL, twl6040_audio_handler,
-				   0, "twl6040_irq_plug", codec);
+				   IRQF_NO_SUSPEND, "twl6040_irq_plug", codec);
 	if (ret) {
 		dev_err(codec->dev, "PLUG IRQ request failed: %d\n", ret);
 		goto plugirq_err;
