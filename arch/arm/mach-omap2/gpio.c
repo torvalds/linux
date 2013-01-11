@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/platform_data/gpio-omap.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include "omap-pm.h"
@@ -147,7 +148,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 /*
  * gpio_init needs to be done before
  * machine_init functions access gpio APIs.
- * Hence gpio_init is a postcore_initcall.
+ * Hence gpio_init is a omap_postcore_initcall.
  */
 static int __init omap2_gpio_init(void)
 {
@@ -157,4 +158,4 @@ static int __init omap2_gpio_init(void)
 
 	return omap_hwmod_for_each_by_class("gpio", omap2_gpio_dev_init, NULL);
 }
-postcore_initcall(omap2_gpio_init);
+omap_postcore_initcall(omap2_gpio_init);

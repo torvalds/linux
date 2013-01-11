@@ -1,5 +1,4 @@
-/* arch/arm/mach-omap2/include/mach/debug-macro.S
- *
+/*
  * Debugging macro include header
  *
  *  Copyright (C) 1994-1999 Russell King
@@ -13,7 +12,49 @@
 
 #include <linux/serial_reg.h>
 
-#include <mach/serial.h>
+/* OMAP2 serial ports */
+#define OMAP2_UART1_BASE	0x4806a000
+#define OMAP2_UART2_BASE	0x4806c000
+#define OMAP2_UART3_BASE	0x4806e000
+
+/* OMAP3 serial ports */
+#define OMAP3_UART1_BASE	OMAP2_UART1_BASE
+#define OMAP3_UART2_BASE	OMAP2_UART2_BASE
+#define OMAP3_UART3_BASE	0x49020000
+#define OMAP3_UART4_BASE	0x49042000	/* Only on 36xx */
+#define OMAP3_UART4_AM35XX_BASE	0x4809E000	/* Only on AM35xx */
+
+/* OMAP4 serial ports */
+#define OMAP4_UART1_BASE	OMAP2_UART1_BASE
+#define OMAP4_UART2_BASE	OMAP2_UART2_BASE
+#define OMAP4_UART3_BASE	0x48020000
+#define OMAP4_UART4_BASE	0x4806e000
+
+/* TI81XX serial ports */
+#define TI81XX_UART1_BASE	0x48020000
+#define TI81XX_UART2_BASE	0x48022000
+#define TI81XX_UART3_BASE	0x48024000
+
+/* AM3505/3517 UART4 */
+#define AM35XX_UART4_BASE	0x4809E000	/* Only on AM3505/3517 */
+
+/* AM33XX serial port */
+#define AM33XX_UART1_BASE	0x44E09000
+
+/* OMAP5 serial ports */
+#define OMAP5_UART1_BASE	OMAP2_UART1_BASE
+#define OMAP5_UART2_BASE	OMAP2_UART2_BASE
+#define OMAP5_UART3_BASE	OMAP4_UART3_BASE
+#define OMAP5_UART4_BASE	OMAP4_UART4_BASE
+#define OMAP5_UART5_BASE	0x48066000
+#define OMAP5_UART6_BASE	0x48068000
+
+/* External port on Zoom2/3 */
+#define ZOOM_UART_BASE		0x10000000
+#define ZOOM_UART_VIRT		0xfa400000
+
+#define OMAP_PORT_SHIFT		2
+#define ZOOM_PORT_SHIFT		1
 
 #define UART_OFFSET(addr)	((addr) & 0x00ffffff)
 
@@ -23,12 +64,6 @@ omap_uart_virt:	.word	0
 omap_uart_lsr:	.word	0
 		.popsection
 
-		/*
-		 * Note that this code won't work if the bootloader passes
-		 * a wrong machine ID number in r1. To debug, just hardcode
-		 * the desired UART phys and virt addresses temporarily into
-		 * the omap_uart_phys and omap_uart_virt above.
-		 */
 		.macro	addruart, rp, rv, tmp
 
 		/* Use omap_uart_phys/virt if already configured */
@@ -43,74 +78,64 @@ omap_uart_lsr:	.word	0
 		cmpne	\rv, #0
 		bne	100f			@ already configured
 
-		/* Check the debug UART configuration set in uncompress.h */
-		mov	\rp, pc
-		ldr	\rv, =OMAP_UART_INFO_OFS
-		and	\rp, \rp, #0xff000000
-		ldr	\rp, [\rp, \rv]
-
-		/* Select the UART to use based on the UART1 scratchpad value */
-		cmp	\rp, #0			@ no port configured?
-		beq	21f			@ if none, try to use UART1
-		cmp	\rp, #OMAP2UART1	@ OMAP2/3/4UART1
-		beq	21f			@ configure OMAP2/3/4UART1
-		cmp	\rp, #OMAP2UART2	@ OMAP2/3/4UART2
-		beq	22f			@ configure OMAP2/3/4UART2
-		cmp	\rp, #OMAP2UART3	@ only on 24xx
-		beq	23f			@ configure OMAP2UART3
-		cmp	\rp, #OMAP3UART3	@ only on 34xx
-		beq	33f			@ configure OMAP3UART3
-		cmp	\rp, #OMAP4UART3	@ only on 44xx/54xx
-		beq	43f			@ configure OMAP4/5UART3
-		cmp	\rp, #OMAP3UART4	@ only on 36xx
-		beq	34f			@ configure OMAP3UART4
-		cmp	\rp, #OMAP4UART4	@ only on 44xx/54xx
-		beq	44f			@ configure OMAP4/5UART4
-		cmp	\rp, #TI81XXUART1	@ ti81Xx UART offsets different
-		beq	81f			@ configure UART1
-		cmp	\rp, #TI81XXUART2	@ ti81Xx UART offsets different
-		beq	82f			@ configure UART2
-		cmp	\rp, #TI81XXUART3	@ ti81Xx UART offsets different
-		beq	83f			@ configure UART3
-		cmp	\rp, #AM33XXUART1	@ AM33XX UART offsets different
-		beq	84f			@ configure UART1
-		cmp	\rp, #ZOOM_UART		@ only on zoom2/3
-		beq	95f			@ configure ZOOM_UART
-
 		/* Configure the UART offset from the phys/virt base */
-21:		mov	\rp, #UART_OFFSET(OMAP2_UART1_BASE)	@ omap2/3/4
+#ifdef CONFIG_DEBUG_OMAP2UART1
+		mov	\rp, #UART_OFFSET(OMAP2_UART1_BASE)	@ omap2/3/4
 		b	98f
-22:		mov	\rp, #UART_OFFSET(OMAP2_UART2_BASE)	@ omap2/3/4
+#endif
+#ifdef CONFIG_DEBUG_OMAP2UART2
+		mov	\rp, #UART_OFFSET(OMAP2_UART2_BASE)	@ omap2/3/4
 		b	98f
-23:		mov	\rp, #UART_OFFSET(OMAP2_UART3_BASE)
+#endif
+#ifdef CONFIG_DEBUG_OMAP2UART3
+		mov	\rp, #UART_OFFSET(OMAP2_UART3_BASE)
 		b	98f
-33:		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
+#endif
+#ifdef CONFIG_DEBUG_OMAP3UART3
+		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
 		add	\rp, \rp, #0x00fb0000
 		add	\rp, \rp, #0x00006000		@ OMAP3_UART3_BASE
 		b	98f
-34:		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
+#endif
+#ifdef CONFIG_DEBUG_OMAP4UART3
+		mov	\rp, #UART_OFFSET(OMAP4_UART3_BASE)
+		b	98f
+#endif
+#ifdef CONFIG_DEBUG_OMAP3UART4
+		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
 		add	\rp, \rp, #0x00fb0000
 		add	\rp, \rp, #0x00028000		@ OMAP3_UART4_BASE
 		b	98f
-43:		mov	\rp, #UART_OFFSET(OMAP4_UART3_BASE)
+#endif
+#ifdef CONFIG_DEBUG_OMAP4UART4
+		mov	\rp, #UART_OFFSET(OMAP4_UART4_BASE)
 		b	98f
-44:		mov	\rp, #UART_OFFSET(OMAP4_UART4_BASE)
+#endif
+#ifdef CONFIG_DEBUG_TI81XXUART1
+		mov	\rp, #UART_OFFSET(TI81XX_UART1_BASE)
 		b	98f
-81:		mov	\rp, #UART_OFFSET(TI81XX_UART1_BASE)
+#endif
+#ifdef CONFIG_DEBUG_TI81XXUART2
+		mov	\rp, #UART_OFFSET(TI81XX_UART2_BASE)
 		b	98f
-82:		mov	\rp, #UART_OFFSET(TI81XX_UART2_BASE)
+#endif
+#ifdef CONFIG_DEBUG_TI81XXUART3
+		mov	\rp, #UART_OFFSET(TI81XX_UART3_BASE)
 		b	98f
-83:		mov	\rp, #UART_OFFSET(TI81XX_UART3_BASE)
-		b	98f
-84:		ldr	\rp, =AM33XX_UART1_BASE
+#endif
+#ifdef CONFIG_DEBUG_AM33XXUART1
+		ldr	\rp, =AM33XX_UART1_BASE
 		and	\rp, \rp, #0x00ffffff
 		b	97f
-95:		ldr	\rp, =ZOOM_UART_BASE
+#endif
+#ifdef CONFIG_DEBUG_ZOOM_UART
+		ldr	\rp, =ZOOM_UART_BASE
 		str	\rp, [\tmp, #0]		@ omap_uart_phys
 		ldr	\rp, =ZOOM_UART_VIRT
 		str	\rp, [\tmp, #4]		@ omap_uart_virt
 		mov	\rp, #(UART_LSR << ZOOM_PORT_SHIFT)
 		str	\rp, [\tmp, #8]		@ omap_uart_lsr
+#endif
 		b	10b
 
 		/* AM33XX: Store both phys and virt address for the uart */

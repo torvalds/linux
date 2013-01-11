@@ -61,7 +61,7 @@ static int __init omap_iommu_init(void)
 	return omap_hwmod_for_each_by_class("mmu", omap_iommu_dev_init, NULL);
 }
 /* must be ready before omap3isp is probed */
-subsys_initcall(omap_iommu_init);
+omap_subsys_initcall(omap_iommu_init);
 
 static void __exit omap_iommu_exit(void)
 {

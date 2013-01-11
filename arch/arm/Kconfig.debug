@@ -291,6 +291,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on MVEBU based platforms.
 
+	config DEBUG_OMAP2PLUS_UART
+		bool "Kernel low-level debugging messages via OMAP2PLUS UART"
+		depends on ARCH_OMAP2PLUS
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP2PLUS based platforms.
+
 	config DEBUG_PICOXCELL_UART
 		depends on ARCH_PICOXCELL
 		bool "Use PicoXcell UART for low-level debug"
@@ -461,6 +468,54 @@ config DEBUG_IMX6Q_UART_PORT
 
 choice
 	prompt "Low-level debug console UART"
+	depends on DEBUG_OMAP2PLUS_UART
+
+	config DEBUG_OMAP2UART1
+		bool "OMAP2/3/4 UART1 (omap2/3 sdp boards and some omap3 boards)"
+		help
+		  This covers at least h4, 2430sdp, 3430sdp, 3630sdp,
+		  omap3 torpedo and 3530 lv som.
+
+	config DEBUG_OMAP2UART2
+		bool "OMAP2/3/4 UART2"
+
+	config DEBUG_OMAP2UART3
+		bool "OMAP2 UART3 (n8x0)"
+
+	config DEBUG_OMAP3UART3
+		bool "OMAP3 UART3 (most omap3 boards)"
+		help
+		  This covers at least cm_t3x, beagle, crane, devkit8000,
+		  igep00x0, ldp, n900, n9(50), pandora, overo, touchbook,
+		  and 3517evm.
+
+	config DEBUG_OMAP4UART3
+		bool "OMAP4/5 UART3 (omap4 blaze, panda, omap5 sevm)"
+
+	config DEBUG_OMAP3UART4
+		bool "OMAP36XX UART4"
+
+	config DEBUG_OMAP4UART4
+		bool "OMAP4/5 UART4"
+
+	config DEBUG_TI81XXUART1
+		bool "TI81XX UART1 (ti8148evm)"
+
+	config DEBUG_TI81XXUART2
+		bool "TI81XX UART2"
+
+	config DEBUG_TI81XXUART3
+		bool "TI81XX UART3 (ti8168evm)"
+
+	config DEBUG_AM33XXUART1
+		bool "AM33XX UART1"
+
+	config DEBUG_ZOOM_UART
+		bool "Zoom2/3 UART"
+endchoice
+
+choice
+	prompt "Low-level debug console UART"
 	depends on DEBUG_LL && DEBUG_TEGRA_UART
 
 	config TEGRA_DEBUG_UART_AUTO_ODMDATA
@@ -501,6 +556,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6Q_UART
 	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
+	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1

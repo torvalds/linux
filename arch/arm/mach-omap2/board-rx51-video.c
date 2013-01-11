@@ -18,6 +18,7 @@
 #include <video/omapdss.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
+#include "soc.h"
 #include "board-rx51.h"
 
 #include "mux.h"
@@ -85,5 +86,5 @@ static int __init rx51_video_init(void)
 	return 0;
 }
 
-subsys_initcall(rx51_video_init);
+omap_subsys_initcall(rx51_video_init);
 #endif /* defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE) */

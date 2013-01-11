@@ -185,3 +185,8 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
 	return PTR_RET(pdev);
 }
 
+static  int __init omap_i2c_cmdline(void)
+{
+	return omap_register_i2c_bus_cmdline();
+}
+omap_subsys_initcall(omap_i2c_cmdline);
