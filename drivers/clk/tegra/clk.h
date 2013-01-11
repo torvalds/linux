@@ -493,4 +493,10 @@ void tegra20_clock_init(struct device_node *np);
 static inline void tegra20_clock_init(struct device_node *np) {}
 #endif /* CONFIG_ARCH_TEGRA_2x_SOC */
 
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+void tegra30_clock_init(struct device_node *np);
+#else
+static inline void tegra30_clock_init(struct device_node *np) {}
+#endif /* CONFIG_ARCH_TEGRA_3x_SOC */
+
 #endif /* TEGRA_CLK_H */
