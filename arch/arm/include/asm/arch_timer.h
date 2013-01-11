@@ -49,6 +49,8 @@ static inline void arch_timer_reg_write(const int access, const int reg, u32 val
 			break;
 		}
 	}
+
+	isb();
 }
 
 static inline u32 arch_timer_reg_read(const int access, const int reg)
@@ -91,6 +93,7 @@ static inline u64 arch_counter_get_cntpct(void)
 {
 	u64 cval;
 
+	isb();
 	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (cval));
 	return cval;
 }
@@ -99,6 +102,7 @@ static inline u64 arch_counter_get_cntvct(void)
 {
 	u64 cval;
 
+	isb();
 	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
 	return cval;
 }
