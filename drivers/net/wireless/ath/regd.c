@@ -356,9 +356,9 @@ static u16 ath_regd_find_country_by_name(char *alpha2)
 	return -1;
 }
 
-int ath_reg_notifier_apply(struct wiphy *wiphy,
-			   struct regulatory_request *request,
-			   struct ath_regulatory *reg)
+void ath_reg_notifier_apply(struct wiphy *wiphy,
+			    struct regulatory_request *request,
+			    struct ath_regulatory *reg)
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
 						 regulatory);
@@ -373,7 +373,7 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 	 * any pending requests in the queue.
 	 */
 	if (!request)
-		return 0;
+		return;
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
@@ -409,8 +409,6 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 
 		break;
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL(ath_reg_notifier_apply);
 
@@ -500,8 +498,8 @@ ath_get_regpair(int regdmn)
 static int
 ath_regd_init_wiphy(struct ath_regulatory *reg,
 		    struct wiphy *wiphy,
-		    int (*reg_notifier)(struct wiphy *wiphy,
-					struct regulatory_request *request))
+		    void (*reg_notifier)(struct wiphy *wiphy,
+					 struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
 
@@ -621,8 +619,8 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 int
 ath_regd_init(struct ath_regulatory *reg,
 	      struct wiphy *wiphy,
-	      int (*reg_notifier)(struct wiphy *wiphy,
-				  struct regulatory_request *request))
+	      void (*reg_notifier)(struct wiphy *wiphy,
+				   struct regulatory_request *request))
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
 						 regulatory);

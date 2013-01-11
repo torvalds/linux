@@ -3492,8 +3492,8 @@ void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
 		ath6kl_cfg80211_stop(vif);
 }
 
-static int ath6kl_cfg80211_reg_notify(struct wiphy *wiphy,
-				      struct regulatory_request *request)
+static void ath6kl_cfg80211_reg_notify(struct wiphy *wiphy,
+				       struct regulatory_request *request)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 	u32 rates[IEEE80211_NUM_BANDS];
@@ -3506,17 +3506,13 @@ static int ath6kl_cfg80211_reg_notify(struct wiphy *wiphy,
 		   request->processed ? " processed" : "",
 		   request->initiator, request->user_reg_hint_type);
 
-	/*
-	 * As firmware is not able intersect regdoms, we can only listen to
-	 * cellular hints.
-	 */
 	if (request->user_reg_hint_type != NL80211_USER_REG_HINT_CELL_BASE)
-		return -EOPNOTSUPP;
+		return;
 
 	ret = ath6kl_wmi_set_regdomain_cmd(ar->wmi, request->alpha2);
 	if (ret) {
 		ath6kl_err("failed to set regdomain: %d\n", ret);
-		return ret;
+		return;
 	}
 
 	/*
@@ -3536,10 +3532,8 @@ static int ath6kl_cfg80211_reg_notify(struct wiphy *wiphy,
 	if (ret) {
 		ath6kl_err("failed to start scan for a regdomain change: %d\n",
 			   ret);
-		return ret;
+		return;
 	}
-
-	return 0;
 }
 
 static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)

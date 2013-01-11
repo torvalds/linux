@@ -519,8 +519,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
  *      - Set by user
  *      - Set bt Country IE
  */
-static int mwifiex_reg_notifier(struct wiphy *wiphy,
-				struct regulatory_request *request)
+static void mwifiex_reg_notifier(struct wiphy *wiphy,
+				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
@@ -540,8 +540,6 @@ static int mwifiex_reg_notifier(struct wiphy *wiphy,
 		break;
 	}
 	mwifiex_send_domain_info_cmd_fw(wiphy);
-
-	return 0;
 }
 
 /*

@@ -1918,13 +1918,13 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	return 0;
 }
 
-static int carl9170_reg_notifier(struct wiphy *wiphy,
-				 struct regulatory_request *request)
+static void carl9170_reg_notifier(struct wiphy *wiphy,
+				  struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ar9170 *ar = hw->priv;
 
-	return ath_reg_notifier_apply(wiphy, request, &ar->common.regulatory);
+	ath_reg_notifier_apply(wiphy, request, &ar->common.regulatory);
 }
 
 int carl9170_register(struct ar9170 *ar)

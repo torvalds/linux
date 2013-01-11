@@ -89,8 +89,8 @@ static int wl12xx_set_authorized(struct wl1271 *wl,
 	return 0;
 }
 
-static int wl1271_reg_notify(struct wiphy *wiphy,
-			     struct regulatory_request *request)
+static void wl1271_reg_notify(struct wiphy *wiphy,
+			      struct regulatory_request *request)
 {
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
@@ -107,8 +107,6 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 				     IEEE80211_CHAN_PASSIVE_SCAN;
 
 	}
-
-	return 0;
 }
 
 static int wl1271_set_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
