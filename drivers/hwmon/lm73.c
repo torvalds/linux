@@ -36,8 +36,8 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
 
 #define LM73_ID			0x9001	/* 0x0190, byte-swapped */
 #define DRVNAME			"lm73"
-#define LM73_TEMP_MIN		(-40)
-#define LM73_TEMP_MAX		150
+#define LM73_TEMP_MIN		(-256000 / 250)
+#define LM73_TEMP_MAX		(255750 / 250)
 
 /*-----------------------------------------------------------------------*/
 
@@ -56,8 +56,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 		return status;
 
 	/* Write value */
-	value = (short) clamp_val(temp / 250, LM73_TEMP_MIN * 4,
-				  LM73_TEMP_MAX * 4) << 5;
+	value = clamp_val(temp / 250, LM73_TEMP_MIN, LM73_TEMP_MAX) << 5;
 	err = i2c_smbus_write_word_swapped(client, attr->index, value);
 	return (err < 0) ? err : count;
 }
