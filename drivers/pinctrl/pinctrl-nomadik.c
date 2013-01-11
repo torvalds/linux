@@ -25,6 +25,7 @@
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -2135,6 +2136,7 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct device_node *np = pdev->dev.of_node;
+	struct device_node *prcm_np;
 	struct nmk_pinctrl *npct;
 	struct resource *res;
 	unsigned int version = 0;
@@ -2163,21 +2165,26 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	if (version == PINCTRL_NMK_DB8540)
 		nmk_pinctrl_db8540_init(&npct->soc);
 
+	if (np) {
+		prcm_np = of_parse_phandle(np, "prcm", 0);
+		if (prcm_np)
+			npct->prcm_base = of_iomap(prcm_np, 0);
+	}
+
+	/* Allow platform passed information to over-write DT. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res) {
+	if (res)
 		npct->prcm_base = devm_ioremap(&pdev->dev, res->start,
 					       resource_size(res));
-		if (!npct->prcm_base) {
-			dev_err(&pdev->dev,
-				"failed to ioremap PRCM registers\n");
-			return -ENOMEM;
+	if (!npct->prcm_base) {
+		if (version == PINCTRL_NMK_STN8815) {
+			dev_info(&pdev->dev,
+				 "No PRCM base, "
+				 "assuming no ALT-Cx control is available\n");
+		} else {
+			dev_err(&pdev->dev, "missing PRCM base address\n");
+			return -EINVAL;
 		}
-	} else if (version == PINCTRL_NMK_STN8815) {
-		dev_info(&pdev->dev,
-			 "No PRCM base, assume no ALT-Cx control is available\n");
-	} else {
-		dev_err(&pdev->dev, "missing PRCM base address\n");
-		return -EINVAL;
 	}
 
 	/*
