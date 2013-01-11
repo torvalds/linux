@@ -782,14 +782,16 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (!npages && !old.npages)
 		goto out;
 
-	/* Check for overlaps */
-	r = -EEXIST;
-	kvm_for_each_memslot(slot, kvm->memslots) {
-		if (slot->id >= KVM_USER_MEM_SLOTS || slot == memslot)
-			continue;
-		if (!((base_gfn + npages <= slot->base_gfn) ||
-		      (base_gfn >= slot->base_gfn + slot->npages)))
-			goto out;
+	if ((npages && !old.npages) || (base_gfn != old.base_gfn)) {
+		/* Check for overlaps */
+		r = -EEXIST;
+		kvm_for_each_memslot(slot, kvm->memslots) {
+			if (slot->id >= KVM_USER_MEM_SLOTS || slot == memslot)
+				continue;
+			if (!((base_gfn + npages <= slot->base_gfn) ||
+			      (base_gfn >= slot->base_gfn + slot->npages)))
+				goto out;
+		}
 	}
 
 	/* Free page dirty bitmap if unneeded */
