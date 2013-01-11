@@ -1209,7 +1209,16 @@ static int efi_pstore_write(enum pstore_type_id type,
 	u64 storage_space, remaining_space, max_variable_size;
 	efi_status_t status = EFI_NOT_FOUND;
 
-	spin_lock(&efivars->lock);
+	if (pstore_cannot_block_path(reason)) {
+		/*
+		 * If the lock is taken by another cpu in non-blocking path,
+		 * this driver returns without entering firmware to avoid
+		 * hanging up.
+		 */
+		if (!spin_trylock(&efivars->lock))
+			return -EBUSY;
+	} else
+		spin_lock(&efivars->lock);
 
 	/*
 	 * Check if there is a space enough to log.
