@@ -324,6 +324,40 @@ nla_put_failure:
 #define ctnetlink_dump_secctx(a, b) (0)
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+static int ctnetlink_label_size(const struct nf_conn *ct)
+{
+	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
+
+	if (!labels)
+		return 0;
+	return nla_total_size(labels->words * sizeof(long));
+}
+
+static int
+ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
+	unsigned int len, i;
+
+	if (!labels)
+		return 0;
+
+	len = labels->words * sizeof(long);
+	i = 0;
+	do {
+		if (labels->bits[i] != 0)
+			return nla_put(skb, CTA_LABELS, len, labels->bits);
+		i++;
+	} while (i < labels->words);
+
+	return 0;
+}
+#else
+#define ctnetlink_dump_labels(a, b) (0)
+#define ctnetlink_label_size(a)	(0)
+#endif
+
 #define master_tuple(ct) &(ct->master->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 
 static inline int
@@ -464,6 +498,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_secctx(skb, ct) < 0 ||
+	    ctnetlink_dump_labels(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
 	    ctnetlink_dump_master(skb, ct) < 0 ||
@@ -562,6 +597,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_MARK */
 #endif
 	       + ctnetlink_proto_size(ct)
+	       + ctnetlink_label_size(ct)
 	       ;
 }
 
@@ -663,6 +699,9 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		    && ctnetlink_dump_secctx(skb, ct) < 0)
 			goto nla_put_failure;
 #endif
+		if (events & (1 << IPCT_LABEL) &&
+		     ctnetlink_dump_labels(skb, ct) < 0)
+			goto nla_put_failure;
 
 		if (events & (1 << IPCT_RELATED) &&
 		    ctnetlink_dump_master(skb, ct) < 0)
@@ -1986,6 +2025,8 @@ ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
 	if (ct->mark && ctnetlink_dump_mark(skb, ct) < 0)
 		goto nla_put_failure;
 #endif
+	if (ctnetlink_dump_labels(skb, ct) < 0)
+		goto nla_put_failure;
 	rcu_read_unlock();
 	return 0;
 
