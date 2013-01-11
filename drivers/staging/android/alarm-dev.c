@@ -42,10 +42,6 @@ do {									\
 	ANDROID_ALARM_RTC_WAKEUP_MASK | \
 	ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP_MASK)
 
-/* support old userspace code */
-#define ANDROID_ALARM_SET_OLD               _IOW('a', 2, time_t) /* set alarm */
-#define ANDROID_ALARM_SET_AND_WAIT_OLD      _IOW('a', 3, time_t)
-
 static int alarm_opened;
 static DEFINE_SPINLOCK(alarm_slock);
 static struct wakeup_source alarm_wake_lock;
@@ -142,15 +138,6 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		spin_unlock_irqrestore(&alarm_slock, flags);
 		break;
 
-	case ANDROID_ALARM_SET_OLD:
-	case ANDROID_ALARM_SET_AND_WAIT_OLD:
-		if (get_user(new_alarm_time.tv_sec, (int __user *)arg)) {
-			rv = -EFAULT;
-			goto err1;
-		}
-		new_alarm_time.tv_nsec = 0;
-		goto from_old_alarm_set;
-
 	case ANDROID_ALARM_SET_AND_WAIT(0):
 	case ANDROID_ALARM_SET(0):
 		if (copy_from_user(&new_alarm_time, (void __user *)arg,
@@ -158,7 +145,6 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rv = -EFAULT;
 			goto err1;
 		}
-from_old_alarm_set:
 		spin_lock_irqsave(&alarm_slock, flags);
 		alarm_dbg(IO, "alarm %d set %ld.%09ld\n",
 			  alarm_type,
@@ -167,8 +153,8 @@ from_old_alarm_set:
 		devalarm_start(&alarms[alarm_type],
 			timespec_to_ktime(new_alarm_time));
 		spin_unlock_irqrestore(&alarm_slock, flags);
-		if (ANDROID_ALARM_BASE_CMD(cmd) != ANDROID_ALARM_SET_AND_WAIT(0)
-		    && cmd != ANDROID_ALARM_SET_AND_WAIT_OLD)
+		if (ANDROID_ALARM_BASE_CMD(cmd) !=
+						ANDROID_ALARM_SET_AND_WAIT(0))
 			break;
 		/* fall though */
 	case ANDROID_ALARM_WAIT:
