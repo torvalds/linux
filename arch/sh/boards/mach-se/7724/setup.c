@@ -299,22 +299,21 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4642_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS |
-			  SND_SOC_DAIFMT_IB_NF,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi_ak4642_info = {
 	.name		= "AK4642",
 	.card		= "FSIA-AK4642",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4642_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4642_device = {

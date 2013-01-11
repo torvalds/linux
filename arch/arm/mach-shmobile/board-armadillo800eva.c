@@ -806,21 +806,21 @@ static struct platform_device fsi_device = {
 };
 
 /* FSI-WM8978 */
-static struct asoc_simple_dai_init_info fsi_wm8978_init_info = {
-	.fmt		= SND_SOC_DAIFMT_I2S,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_NB_NF,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 12288000,
-};
-
 static struct asoc_simple_card_info fsi_wm8978_info = {
 	.name		= "wm8978",
 	.card		= "FSI2A-WM8978",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "wm8978.0-001a",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "wm8978-hifi",
-	.init		= &fsi_wm8978_init_info,
+	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "wm8978-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_NB_NF,
+		.sysclk	= 12288000,
+	},
 };
 
 static struct platform_device fsi_wm8978_device = {
@@ -832,18 +832,18 @@ static struct platform_device fsi_wm8978_device = {
 };
 
 /* FSI-HDMI */
-static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-};
-
 static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.name		= "HDMI",
 	.card		= "FSI2B-HDMI",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "sh_mobile_hdmi-hifi",
-	.init		= &fsi2_hdmi_init_info,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+	},
+	.codec_dai = {
+		.name = "sh_mobile_hdmi-hifi",
+	},
 };
 
 static struct platform_device fsi_hdmi_device = {

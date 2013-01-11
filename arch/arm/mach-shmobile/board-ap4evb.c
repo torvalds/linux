@@ -686,21 +686,21 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4643_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.name		= "AK4643",
 	.card		= "FSI2A-AK4643",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4643_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4643_device = {
@@ -809,19 +809,18 @@ static struct platform_device lcdc1_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM |
-			  SND_SOC_DAIFMT_IB_NF,
-};
-
 static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.name		= "HDMI",
 	.card		= "FSI2B-HDMI",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "sh_mobile_hdmi-hifi",
-	.init		= &fsi2_hdmi_init_info,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "sh_mobile_hdmi-hifi",
+	},
 };
 
 static struct platform_device fsi_hdmi_device = {
