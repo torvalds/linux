@@ -974,7 +974,6 @@ struct blk_plug {
 	unsigned long magic; /* detect uninitialized use-cases */
 	struct list_head list; /* requests */
 	struct list_head cb_list; /* md requires an unplug callback */
-	unsigned int should_sort; /* list to be sorted before flushing? */
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
