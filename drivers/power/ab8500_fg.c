@@ -1854,7 +1854,7 @@ static void ab8500_fg_check_hw_failure_work(struct work_struct *work)
 		}
 		/* Not yet recovered from ovv, reschedule this test */
 		queue_delayed_work(di->fg_wq, &di->fg_check_hw_failure_work,
-				   round_jiffies(HZ));
+				   HZ);
 		} else {
 			dev_dbg(di->dev, "Battery recovered from OVV\n");
 			di->flags.bat_ovv = false;
