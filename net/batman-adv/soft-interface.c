@@ -449,6 +449,30 @@ static void batadv_interface_setup(struct net_device *dev)
 	memset(priv, 0, sizeof(*priv));
 }
 
+/**
+ * batadv_softif_destroy_finish - cleans up the remains of a softif
+ * @work: work queue item
+ *
+ * Free the parts of the soft interface which can not be removed under
+ * rtnl lock (to prevent deadlock situations).
+ */
+static void batadv_softif_destroy_finish(struct work_struct *work)
+{
+	struct batadv_priv *bat_priv;
+	struct net_device *soft_iface;
+
+	bat_priv = container_of(work, struct batadv_priv,
+				cleanup_work);
+	soft_iface = bat_priv->soft_iface;
+
+	batadv_debugfs_del_meshif(soft_iface);
+	batadv_sysfs_del_meshif(soft_iface);
+
+	rtnl_lock();
+	unregister_netdevice(soft_iface);
+	rtnl_unlock();
+}
+
 struct net_device *batadv_softif_create(const char *name)
 {
 	struct net_device *soft_iface;
@@ -463,6 +487,8 @@ struct net_device *batadv_softif_create(const char *name)
 		goto out;
 
 	bat_priv = netdev_priv(soft_iface);
+	bat_priv->soft_iface = soft_iface;
+	INIT_WORK(&bat_priv->cleanup_work, batadv_softif_destroy_finish);
 
 	/* batadv_interface_stats() needs to be available as soon as
 	 * register_netdevice() has been called
@@ -551,10 +577,10 @@ out:
 
 void batadv_softif_destroy(struct net_device *soft_iface)
 {
-	batadv_debugfs_del_meshif(soft_iface);
-	batadv_sysfs_del_meshif(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+
 	batadv_mesh_free(soft_iface);
-	unregister_netdevice(soft_iface);
+	queue_work(batadv_event_workqueue, &bat_priv->cleanup_work);
 }
 
 int batadv_softif_is_valid(const struct net_device *net_dev)

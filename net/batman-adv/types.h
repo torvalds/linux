@@ -68,6 +68,7 @@ struct batadv_hard_iface_bat_iv {
  * @soft_iface: the batman-adv interface which uses this network interface
  * @rcu: struct used for freeing in an RCU-safe manner
  * @bat_iv: BATMAN IV specific per hard interface data
+ * @cleanup_work: work queue callback item for hard interface deinit
  */
 struct batadv_hard_iface {
 	struct list_head list;
@@ -81,6 +82,7 @@ struct batadv_hard_iface {
 	struct net_device *soft_iface;
 	struct rcu_head rcu;
 	struct batadv_hard_iface_bat_iv bat_iv;
+	struct work_struct cleanup_work;
 };
 
 /**
@@ -428,6 +430,7 @@ struct batadv_priv_dat {
 /**
  * struct batadv_priv - per mesh interface data
  * @mesh_state: current status of the mesh (inactive/active/deactivating)
+ * @soft_iface: net device which holds this struct as private data
  * @stats: structure holding the data for the ndo_get_stats() call
  * @bat_counters: mesh internal traffic statistic counters (see batadv_counters)
  * @aggregated_ogms: bool indicating whether OGM aggregation is enabled
@@ -457,6 +460,7 @@ struct batadv_priv_dat {
  * @forw_bat_list_lock: lock protecting forw_bat_list
  * @forw_bcast_list_lock: lock protecting forw_bcast_list
  * @orig_work: work queue callback item for orig node purging
+ * @cleanup_work: work queue callback item for soft interface deinit
  * @primary_if: one of the hard interfaces assigned to this mesh interface
  *  becomes the primary interface
  * @bat_algo_ops: routing algorithm used by this mesh interface
@@ -469,6 +473,7 @@ struct batadv_priv_dat {
  */
 struct batadv_priv {
 	atomic_t mesh_state;
+	struct net_device *soft_iface;
 	struct net_device_stats stats;
 	uint64_t __percpu *bat_counters; /* Per cpu counters */
 	atomic_t aggregated_ogms;
@@ -502,6 +507,7 @@ struct batadv_priv {
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects forw_bcast_list */
 	struct delayed_work orig_work;
+	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct batadv_algo_ops *bat_algo_ops;
 #ifdef CONFIG_BATMAN_ADV_BLA
