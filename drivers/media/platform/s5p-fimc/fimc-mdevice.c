@@ -472,7 +472,7 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 		if (fmd->fimc_lite[i] == NULL)
 			continue;
 		v4l2_device_unregister_subdev(&fmd->fimc_lite[i]->subdev);
-		fmd->fimc[i]->pipeline_ops = NULL;
+		fmd->fimc_lite[i]->pipeline_ops = NULL;
 		fmd->fimc_lite[i] = NULL;
 	}
 	for (i = 0; i < CSIS_MAX_ENTITIES; i++) {
