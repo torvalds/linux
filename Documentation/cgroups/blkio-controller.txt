@@ -94,13 +94,11 @@ Throttling/Upper Limit policy
 
 Hierarchical Cgroups
 ====================
-- Currently none of the IO control policy supports hierarchical groups. But
-  cgroup interface does allow creation of hierarchical cgroups and internally
-  IO policies treat them as flat hierarchy.
+- Currently only CFQ supports hierarchical groups. For throttling,
+  cgroup interface does allow creation of hierarchical cgroups and
+  internally it treats them as flat hierarchy.
 
-  So this patch will allow creation of cgroup hierarchcy but at the backend
-  everything will be treated as flat. So if somebody created a hierarchy like
-  as follows.
+  If somebody created a hierarchy like as follows.
 
 			root
 			/  \
@@ -108,16 +106,20 @@ Hierarchical Cgroups
 			|
 		     test3
 
-  CFQ and throttling will practically treat all groups at same level.
+  CFQ will handle the hierarchy correctly but and throttling will
+  practically treat all groups at same level. For details on CFQ
+  hierarchy support, refer to Documentation/block/cfq-iosched.txt.
+  Throttling will treat the hierarchy as if it looks like the
+  following.
 
 				pivot
 			     /  /   \  \
 			root  test1 test2  test3
 
-  Down the line we can implement hierarchical accounting/control support
-  and also introduce a new cgroup file "use_hierarchy" which will control
-  whether cgroup hierarchy is viewed as flat or hierarchical by the policy..
-  This is how memory controller also has implemented the things.
+  Nesting cgroups, while allowed, isn't officially supported and blkio
+  genereates warning when cgroups nest. Once throttling implements
+  hierarchy support, hierarchy will be supported and the warning will
+  be removed.
 
 Various user visible config options
 ===================================
@@ -171,6 +173,12 @@ Proportional weight policy files
 	  # cat blkio.weight_device
 	  dev     weight
 	  8:16    300
+
+- blkio.leaf_weight[_device]
+	- Equivalents of blkio.weight[_device] for the purpose of
+          deciding how much weight tasks in the given cgroup has while
+          competing with the cgroup's child cgroups. For details,
+          please refer to Documentation/block/cfq-iosched.txt.
 
 - blkio.time
 	- disk time allocated to cgroup per device in milliseconds. First
@@ -278,6 +286,11 @@ Proportional weight policy files
 	  from service tree of the device. First two fields specify the major
 	  and minor number of the device and third field specifies the number
 	  of times a group was dequeued from a particular device.
+
+- blkio.*_recursive
+	- Recursive version of various stats. These files show the
+          same information as their non-recursive counterparts but
+          include stats from all the descendant cgroups.
 
 Throttling/Upper limit policy files
 -----------------------------------
