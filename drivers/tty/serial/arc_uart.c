@@ -526,15 +526,11 @@ static struct uart_ops arc_serial_pops = {
 };
 
 static int
-arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
+arc_uart_init_one(struct platform_device *pdev, int dev_id)
 {
 	struct resource *res, *res2;
 	unsigned long *plat_data;
-
-	if (pdev->id < 0 || pdev->id >= CONFIG_SERIAL_ARC_NR_PORTS) {
-		dev_err(&pdev->dev, "Wrong uart platform device id.\n");
-		return -ENOENT;
-	}
+	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 
 	plat_data = ((unsigned long *)(pdev->dev.platform_data));
 	uart->baud = plat_data[0];
@@ -557,7 +553,7 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	uart->port.dev = &pdev->dev;
 	uart->port.iotype = UPIO_MEM;
 	uart->port.flags = UPF_BOOT_AUTOCONF;
-	uart->port.line = pdev->id;
+	uart->port.line = dev_id;
 	uart->port.ops = &arc_serial_pops;
 
 	uart->port.uartclk = plat_data[1];
@@ -657,9 +653,14 @@ static struct __initdata console arc_early_serial_console = {
 
 static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
 {
-	arc_early_serial_console.index = pdev->id;
+	int dev_id = pdev->id < 0 ? 0 : pdev->id;
+	int rc;
 
-	arc_uart_init_one(pdev, &arc_uart_ports[pdev->id]);
+	arc_early_serial_console.index = dev_id;
+
+	rc = arc_uart_init_one(pdev, dev_id);
+	if (rc)
+		panic("early console init failed\n");
 
 	arc_serial_console_setup(&arc_early_serial_console, NULL);
 
@@ -675,18 +676,18 @@ static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
-	struct arc_uart_port *uart;
-	int rc;
+	int rc, dev_id;
 
 	if (is_early_platform_device(pdev))
 		return arc_serial_probe_earlyprintk(pdev);
 
-	uart = &arc_uart_ports[pdev->id];
-	rc = arc_uart_init_one(pdev, uart);
+	dev_id = pdev->id < 0 ? 0 : pdev->id;
+	rc = arc_uart_init_one(pdev, dev_id);
 	if (rc)
 		return rc;
 
-	return uart_add_one_port(&arc_uart_driver, &uart->port);
+	rc = uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
+	return rc;
 }
 
 static int arc_serial_remove(struct platform_device *pdev)
