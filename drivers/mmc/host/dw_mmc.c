@@ -74,6 +74,7 @@ struct idmac_desc {
  * struct dw_mci_slot - MMC slot state
  * @mmc: The mmc_host representing this slot.
  * @host: The MMC controller this slot is using.
+ * @quirks: Slot-level quirks (DW_MCI_SLOT_QUIRK_XXX)
  * @ctype: Card type for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
@@ -87,6 +88,8 @@ struct idmac_desc {
 struct dw_mci_slot {
 	struct mmc_host		*mmc;
 	struct dw_mci		*host;
+
+	int			quirks;
 
 	u32			ctype;
 
@@ -825,7 +828,13 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	struct dw_mci_board *brd = slot->host->pdata;
 
 	/* Use platform get_ro function, else try on board write protect */
-	if (brd->quirks & DW_MCI_QUIRK_NO_WRITE_PROTECT)
+
+	/*
+	 * NOTE: DW_MCI_QUIRK_NO_WRITE_PROTECT will be removed in a future
+	 * patch in the series once reference to it is removed.
+	 */
+	if ((brd->quirks & DW_MCI_QUIRK_NO_WRITE_PROTECT) ||
+	    (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT))
 		read_only = 0;
 	else if (brd->get_ro)
 		read_only = brd->get_ro(slot->id);
@@ -1785,6 +1794,30 @@ static struct device_node *dw_mci_of_find_slot_node(struct device *dev, u8 slot)
 	return NULL;
 }
 
+static struct dw_mci_of_slot_quirks {
+	char *quirk;
+	int id;
+} of_slot_quirks[] = {
+	{
+		.quirk	= "disable-wp",
+		.id	= DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT,
+	},
+};
+
+static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
+{
+	struct device_node *np = dw_mci_of_find_slot_node(dev, slot);
+	int quirks = 0;
+	int idx;
+
+	/* get quirks */
+	for (idx = 0; idx < ARRAY_SIZE(of_slot_quirks); idx++)
+		if (of_get_property(np, of_slot_quirks[idx].quirk, NULL))
+			quirks |= of_slot_quirks[idx].id;
+
+	return quirks;
+}
+
 /* find out bus-width for a given slot */
 static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
 {
@@ -1800,6 +1833,10 @@ static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
 	return bus_wd;
 }
 #else /* CONFIG_OF */
+static int dw_mci_of_get_slot_quirks(struct device *dev, u8 slot)
+{
+	return 0;
+}
 static u32 dw_mci_of_get_bus_wd(struct device *dev, u8 slot)
 {
 	return 1;
@@ -1827,6 +1864,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->mmc = mmc;
 	slot->host = host;
 	host->slot[id] = slot;
+
+	slot->quirks = dw_mci_of_get_slot_quirks(host->dev, slot->id);
 
 	mmc->ops = &dw_mci_ops;
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);

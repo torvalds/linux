@@ -209,8 +209,17 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
+
 /* Write Protect detection not available */
+/*
+ * NOTE: DW_MCI_QUIRK_NO_WRITE_PROTECT will be removed in a future
+ * patch in the series once reference to it is removed.
+ */
 #define DW_MCI_QUIRK_NO_WRITE_PROTECT		BIT(4)
+
+/* Slot level quirks */
+/* This slot has no write protect */
+#define DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT	BIT(0)
 
 struct dma_pdata;
 
