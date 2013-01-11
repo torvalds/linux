@@ -1136,16 +1136,16 @@ static inline int gfar_has_errata(struct gfar_private *priv,
 	return priv->errata & err;
 }
 
-static inline u32 gfar_read(volatile unsigned __iomem *addr)
+static inline u32 gfar_read(unsigned __iomem *addr)
 {
 	u32 val;
-	val = in_be32(addr);
+	val = ioread32be(addr);
 	return val;
 }
 
-static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
+static inline void gfar_write(unsigned __iomem *addr, u32 val)
 {
-	out_be32(addr, val);
+	iowrite32be(val, addr);
 }
 
 static inline void gfar_write_filer(struct gfar_private *priv,
