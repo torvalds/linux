@@ -57,7 +57,7 @@ typedef struct {
 	unsigned long wait_count[SUNXI_MAX_FB];
 	__u32 pseudo_palette[SUNXI_MAX_FB][16];
 #ifdef CONFIG_FB_SUNXI_UMP
-	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][2];
+	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][3];
 #endif
 	/* screen_base address, allocated with disp_malloc() */
 	void *malloc_screen_base[SUNXI_MAX_FB];

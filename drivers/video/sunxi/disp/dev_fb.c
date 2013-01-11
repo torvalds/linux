@@ -1335,8 +1335,10 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_FB_SUNXI_UMP
 	case GET_UMP_SECURE_ID_BUF2:	/* flow trough */
-		secure_id_buf_num = 1;
-	case GET_UMP_SECURE_ID_BUF1:
+		secure_id_buf_num++;
+	case GET_UMP_SECURE_ID_BUF1:	/* flow trough */
+		secure_id_buf_num++;
+	case GET_UMP_SECURE_ID_SUNXI_FB:
 		{
 			if (!disp_get_ump_secure_id)
 				request_module("disp_ump");
