@@ -54,7 +54,6 @@
 #include <linux/parser.h>
 #include <linux/nsproxy.h>
 #include <linux/rcupdate.h>
-#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 
@@ -417,54 +416,6 @@ void nfs_sb_deactive(struct super_block *sb)
 		deactivate_super(sb);
 }
 EXPORT_SYMBOL_GPL(nfs_sb_deactive);
-
-static int nfs_deactivate_super_async_work(void *ptr)
-{
-	struct super_block *sb = ptr;
-
-	deactivate_super(sb);
-	module_put_and_exit(0);
-	return 0;
-}
-
-/*
- * same effect as deactivate_super, but will do final unmount in kthread
- * context
- */
-static void nfs_deactivate_super_async(struct super_block *sb)
-{
-	struct task_struct *task;
-	char buf[INET6_ADDRSTRLEN + 1];
-	struct nfs_server *server = NFS_SB(sb);
-	struct nfs_client *clp = server->nfs_client;
-
-	if (!atomic_add_unless(&sb->s_active, -1, 1)) {
-		rcu_read_lock();
-		snprintf(buf, sizeof(buf),
-			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
-		rcu_read_unlock();
-
-		__module_get(THIS_MODULE);
-		task = kthread_run(nfs_deactivate_super_async_work, sb,
-				"%s-deactivate-super", buf);
-		if (IS_ERR(task)) {
-			pr_err("%s: kthread_run: %ld\n",
-				__func__, PTR_ERR(task));
-			/* make synchronous call and hope for the best */
-			deactivate_super(sb);
-			module_put(THIS_MODULE);
-		}
-	}
-}
-
-void nfs_sb_deactive_async(struct super_block *sb)
-{
-	struct nfs_server *server = NFS_SB(sb);
-
-	if (atomic_dec_and_test(&server->active))
-		nfs_deactivate_super_async(sb);
-}
-EXPORT_SYMBOL_GPL(nfs_sb_deactive_async);
 
 /*
  * Deliver file system statistics to userspace

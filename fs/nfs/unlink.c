@@ -95,7 +95,7 @@ static void nfs_async_unlink_release(void *calldata)
 
 	nfs_dec_sillycount(data->dir);
 	nfs_free_unlinkdata(data);
-	nfs_sb_deactive_async(sb);
+	nfs_sb_deactive(sb);
 }
 
 static void nfs_unlink_prepare(struct rpc_task *task, void *calldata)

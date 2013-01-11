@@ -2088,7 +2088,7 @@ static void nfs4_free_closedata(void *data)
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_state_owner(sp);
-	nfs_sb_deactive_async(sb);
+	nfs_sb_deactive(sb);
 	kfree(calldata);
 }
 
