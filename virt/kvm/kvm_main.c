@@ -778,9 +778,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	 */
 	r = -EINVAL;
 	if (npages && old.npages && npages != old.npages)
-		goto out_free;
+		goto out;
 	if (!npages && !old.npages)
-		goto out_free;
+		goto out;
 
 	/* Check for overlaps */
 	r = -EEXIST;
@@ -789,7 +789,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			continue;
 		if (!((base_gfn + npages <= slot->base_gfn) ||
 		      (base_gfn >= slot->base_gfn + slot->npages)))
-			goto out_free;
+			goto out;
 	}
 
 	/* Free page dirty bitmap if unneeded */
@@ -890,7 +890,6 @@ out_free:
 	kvm_free_physmem_slot(&new, &old);
 out:
 	return r;
-
 }
 EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
 
