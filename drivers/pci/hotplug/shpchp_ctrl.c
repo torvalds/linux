@@ -456,7 +456,7 @@ void shpchp_queue_pushbutton_work(struct work_struct *work)
 		kfree(info);
 		goto out;
 	}
-	queue_work(shpchp_ordered_wq, &info->work);
+	queue_work(shpchp_wq, &info->work);
  out:
 	mutex_unlock(&p_slot->lock);
 }
