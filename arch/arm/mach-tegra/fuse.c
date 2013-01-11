@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/export.h>
+#include <linux/tegra-soc.h>
 
 #include "fuse.h"
 #include "iomap.h"
@@ -105,6 +106,11 @@ static void tegra_get_process_id(void)
 	tegra_core_process_id = (reg >> 12) & 3;
 }
 
+u32 tegra_read_chipid(void)
+{
+	return readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
+}
+
 void tegra_init_fuse(void)
 {
 	u32 id;
@@ -119,7 +125,7 @@ void tegra_init_fuse(void)
 	reg = tegra_apb_readl(TEGRA_APB_MISC_BASE + STRAP_OPT);
 	tegra_bct_strapping = (reg & RAM_ID_MASK) >> RAM_CODE_SHIFT;
 
-	id = readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
+	id = tegra_read_chipid();
 	tegra_chip_id = (id >> 8) & 0xff;
 
 	switch (tegra_chip_id) {
