@@ -143,6 +143,71 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
+#define WM_ADSP_NUM_FW 3
+
+static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
+	"MBC/VSS", "Tx", "Rx ANC"
+};
+
+static struct {
+	const char *file;
+} wm_adsp_fw[WM_ADSP_NUM_FW] = {
+	{ .file = "mbc-vss" },
+	{ .file = "tx" },
+	{ .file = "rx-anc" },
+};
+
+static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct wm_adsp *adsp = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = adsp[e->shift_l].fw;
+
+	return 0;
+}
+
+static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct wm_adsp *adsp = snd_soc_codec_get_drvdata(codec);
+
+	if (ucontrol->value.integer.value[0] == adsp[e->shift_l].fw)
+		return 0;
+
+	if (ucontrol->value.integer.value[0] >= WM_ADSP_NUM_FW)
+		return -EINVAL;
+
+	if (adsp[e->shift_l].running)
+		return -EBUSY;
+
+	adsp->fw = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static const struct soc_enum wm_adsp_fw_enum[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
+	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
+	SOC_ENUM_SINGLE(0, 2, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
+	SOC_ENUM_SINGLE(0, 3, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
+};
+
+const struct snd_kcontrol_new wm_adsp_fw_controls[] = {
+	SOC_ENUM_EXT("DSP1 Firmware", wm_adsp_fw_enum[0],
+		     wm_adsp_fw_get, wm_adsp_fw_put),
+	SOC_ENUM_EXT("DSP2 Firmware", wm_adsp_fw_enum[1],
+		     wm_adsp_fw_get, wm_adsp_fw_put),
+	SOC_ENUM_EXT("DSP3 Firmware", wm_adsp_fw_enum[2],
+		     wm_adsp_fw_get, wm_adsp_fw_put),
+	SOC_ENUM_EXT("DSP4 Firmware", wm_adsp_fw_enum[3],
+		     wm_adsp_fw_get, wm_adsp_fw_put),
+};
+EXPORT_SYMBOL_GPL(wm_adsp_fw_controls);
 
 static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
 							int type)
@@ -197,7 +262,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	snprintf(file, PAGE_SIZE, "%s-dsp%d.wmfw", dsp->part, dsp->num);
+	snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.wmfw", dsp->part, dsp->num,
+		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -596,7 +662,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	snprintf(file, PAGE_SIZE, "%s-dsp%d.bin", dsp->part, dsp->num);
+	snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin", dsp->part, dsp->num,
+		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -886,9 +953,13 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 					 ADSP2_CORE_ENA | ADSP2_START);
 		if (ret != 0)
 			goto err;
+
+		dsp->running = true;
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
+		dsp->running = false;
+
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 				   ADSP2_SYS_ENA | ADSP2_CORE_ENA |
 				   ADSP2_START, 0);
