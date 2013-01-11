@@ -24,6 +24,7 @@
 #define _LINUX_AUDIT_H_
 
 #include <linux/sched.h>
+#include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
 
 struct audit_sig_info {

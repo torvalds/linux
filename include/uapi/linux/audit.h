@@ -26,7 +26,6 @@
 
 #include <linux/types.h>
 #include <linux/elf-em.h>
-#include <linux/ptrace.h>
 
 /* The netlink messages for the audit system is divided into blocks:
  * 1000 - 1099 are for commanding the audit system
