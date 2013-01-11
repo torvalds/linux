@@ -5,36 +5,6 @@ menu "TI OMAP Common Features"
 config ARCH_OMAP_OTG
 	bool
 
-choice
-	prompt "OMAP System Type"
-	default ARCH_OMAP2PLUS
-
-config ARCH_OMAP1
-	bool "TI OMAP1"
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select GENERIC_IRQ_CHIP
-	select HAVE_IDE
-	select IRQ_DOMAIN
-	select NEED_MACH_IO_H if PCCARD
-	select NEED_MACH_MEMORY_H
-	help
-	  "Systems based on omap7xx, omap15xx or omap16xx"
-
-config ARCH_OMAP2PLUS
-	bool "TI OMAP2/3/4"
-	select CLKDEV_LOOKUP
-	select GENERIC_IRQ_CHIP
-	select OMAP_DM_TIMER
-	select PINCTRL
-	select PROC_DEVICETREE if PROC_FS
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  "Systems based on OMAP2, OMAP3, OMAP4 or OMAP5"
-
-endchoice
-
 comment "OMAP Feature Selections"
 
 config OMAP_DEBUG_DEVICES

@@ -937,17 +937,24 @@ config ARCH_DAVINCI
 	help
 	  Support for TI's DaVinci platform.
 
-config ARCH_OMAP
-	bool "TI OMAP"
+config ARCH_OMAP1
+	bool "TI OMAP1"
 	depends on MMU
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
 	select HAVE_CLK
+	select HAVE_IDE
+	select IRQ_DOMAIN
+	select NEED_MACH_IO_H if PCCARD
+	select NEED_MACH_MEMORY_H
 	help
-	  Support for TI's OMAP platform (OMAP1/2/3/4).
+	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
 config ARCH_VT8500_SINGLE
 	bool "VIA/WonderMedia 85xx"
