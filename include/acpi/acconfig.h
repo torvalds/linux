@@ -191,6 +191,7 @@
 /* Maximum space_ids for Operation Regions */
 
 #define ACPI_MAX_ADDRESS_SPACE          255
+#define ACPI_NUM_DEFAULT_SPACES         4
 
 /* Array sizes.  Used for range checking also */
 
