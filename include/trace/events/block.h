@@ -6,9 +6,60 @@
 
 #include <linux/blktrace_api.h>
 #include <linux/blkdev.h>
+#include <linux/buffer_head.h>
 #include <linux/tracepoint.h>
 
 #define RWBS_LEN	8
+
+DECLARE_EVENT_CLASS(block_buffer,
+
+	TP_PROTO(struct buffer_head *bh),
+
+	TP_ARGS(bh),
+
+	TP_STRUCT__entry (
+		__field(  dev_t,	dev			)
+		__field(  sector_t,	sector			)
+		__field(  size_t,	size			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= bh->b_bdev->bd_dev;
+		__entry->sector		= bh->b_blocknr;
+		__entry->size		= bh->b_size;
+	),
+
+	TP_printk("%d,%d sector=%llu size=%zu",
+		MAJOR(__entry->dev), MINOR(__entry->dev),
+		(unsigned long long)__entry->sector, __entry->size
+	)
+);
+
+/**
+ * block_touch_buffer - mark a buffer accessed
+ * @bh: buffer_head being touched
+ *
+ * Called from touch_buffer().
+ */
+DEFINE_EVENT(block_buffer, block_touch_buffer,
+
+	TP_PROTO(struct buffer_head *bh),
+
+	TP_ARGS(bh)
+);
+
+/**
+ * block_dirty_buffer - mark a buffer dirty
+ * @bh: buffer_head being dirtied
+ *
+ * Called from mark_buffer_dirty().
+ */
+DEFINE_EVENT(block_buffer, block_dirty_buffer,
+
+	TP_PROTO(struct buffer_head *bh),
+
+	TP_ARGS(bh)
+);
 
 DECLARE_EVENT_CLASS(block_rq_with_error,
 
