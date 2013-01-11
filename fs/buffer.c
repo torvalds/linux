@@ -53,6 +53,12 @@ void init_buffer(struct buffer_head *bh, bh_end_io_t *handler, void *private)
 }
 EXPORT_SYMBOL(init_buffer);
 
+inline void touch_buffer(struct buffer_head *bh)
+{
+	mark_page_accessed(bh->b_page);
+}
+EXPORT_SYMBOL(touch_buffer);
+
 static int sleep_on_buffer(void *word)
 {
 	io_schedule();
