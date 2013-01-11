@@ -360,7 +360,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 static void line6_data_received(struct urb *urb)
 {
 	struct usb_line6 *line6 = (struct usb_line6 *)urb->context;
-	struct MidiBuffer *mb = &line6->line6midi->midibuf_in;
+	struct midi_buffer *mb = &line6->line6midi->midibuf_in;
 	int done;
 
 	if (urb->status == -ESHUTDOWN)
