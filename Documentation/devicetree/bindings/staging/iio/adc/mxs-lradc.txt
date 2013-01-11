@@ -5,6 +5,12 @@ Required properties:
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the LRADC interrupts
 
+Optional properties:
+- fsl,lradc-touchscreen-wires: Number of wires used to connect the touchscreen
+                               to LRADC. Valid value is either 4 or 5. If this
+                               property is not present, then the touchscreen is
+                               disabled.
+
 Examples:
 
 	lradc@80050000 {
