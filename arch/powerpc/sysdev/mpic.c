@@ -54,7 +54,7 @@ static DEFINE_RAW_SPINLOCK(mpic_lock);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 #ifdef CONFIG_IRQ_ALL_CPUS
-#define distribute_irqs	(1)
+#define distribute_irqs	(!(mpic->flags & MPIC_SINGLE_DEST_CPU))
 #else
 #define distribute_irqs	(0)
 #endif
