@@ -114,14 +114,14 @@ static void hist_setup_regs(struct ispstat *hist, void *priv)
 	/* Regions size and position */
 	for (c = 0; c < OMAP3ISP_HIST_MAX_REGIONS; c++) {
 		if (c < conf->num_regions) {
-			reg_hor[c] = conf->region[c].h_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_hor[c] = conf->region[c].h_end <<
-				     ISPHIST_REG_END_SHIFT;
-			reg_ver[c] = conf->region[c].v_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_ver[c] = conf->region[c].v_end <<
-				     ISPHIST_REG_END_SHIFT;
+			reg_hor[c] = (conf->region[c].h_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].h_end <<
+				     ISPHIST_REG_END_SHIFT);
+			reg_ver[c] = (conf->region[c].v_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].v_end <<
+				     ISPHIST_REG_END_SHIFT);
 		} else {
 			reg_hor[c] = 0;
 			reg_ver[c] = 0;
