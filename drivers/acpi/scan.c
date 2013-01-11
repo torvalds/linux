@@ -116,19 +116,13 @@ static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 void acpi_bus_hot_remove_device(void *context)
 {
 	struct acpi_eject_event *ej_event = (struct acpi_eject_event *) context;
-	struct acpi_device *device;
-	acpi_handle handle = ej_event->handle;
+	struct acpi_device *device = ej_event->device;
+	acpi_handle handle = device->handle;
 	acpi_handle temp;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
-
-	if (acpi_bus_get_device(handle, &device))
-		goto err_out;
-
-	if (!device)
-		goto err_out;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
@@ -215,7 +209,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		goto err;
 	}
 
-	ej_event->handle = acpi_device->handle;
+	ej_event->device = acpi_device;
 	if (acpi_device->flags.eject_pending) {
 		/* event originated from ACPI eject notification */
 		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
@@ -223,7 +217,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	} else {
 		/* event originated from user */
 		ej_event->event = ACPI_OST_EC_OSPM_EJECT;
-		(void) acpi_evaluate_hotplug_ost(ej_event->handle,
+		(void) acpi_evaluate_hotplug_ost(acpi_device->handle,
 			ej_event->event, ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	}
 

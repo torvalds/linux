@@ -306,7 +306,7 @@ struct acpi_bus_event {
 };
 
 struct acpi_eject_event {
-	acpi_handle	handle;
+	struct acpi_device	*device;
 	u32		event;
 };
 
