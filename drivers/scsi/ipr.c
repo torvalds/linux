@@ -2553,36 +2553,6 @@ static void ipr_oper_timeout(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
- * ipr_reset_reload - Reset/Reload the IOA
- * @ioa_cfg:		ioa config struct
- * @shutdown_type:	shutdown type
- *
- * This function resets the adapter and re-initializes it.
- * This function assumes that all new host commands have been stopped.
- * Return value:
- * 	SUCCESS / FAILED
- **/
-static int ipr_reset_reload(struct ipr_ioa_cfg *ioa_cfg,
-			    enum ipr_shutdown_type shutdown_type)
-{
-	if (!ioa_cfg->in_reset_reload)
-		ipr_initiate_ioa_reset(ioa_cfg, shutdown_type);
-
-	spin_unlock_irq(ioa_cfg->host->host_lock);
-	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
-	spin_lock_irq(ioa_cfg->host->host_lock);
-
-	/* If we got hit with a host reset while we were already resetting
-	 the adapter for some reason, and the reset failed. */
-	if (ioa_cfg->hrrq[IPR_INIT_HRRQ].ioa_is_dead) {
-		ipr_trace;
-		return FAILED;
-	}
-
-	return SUCCESS;
-}
-
-/**
  * ipr_find_ses_entry - Find matching SES in SES table
  * @res:	resource entry struct of SES
  *
@@ -4797,22 +4767,18 @@ static int ipr_slave_alloc(struct scsi_device *sdev)
 	return rc;
 }
 
-/**
- * ipr_eh_host_reset - Reset the host adapter
- * @scsi_cmd:	scsi command struct
- *
- * Return value:
- * 	SUCCESS / FAILED
- **/
-static int __ipr_eh_host_reset(struct scsi_cmnd *scsi_cmd)
+static int ipr_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
-	int rc;
+	unsigned long lock_flags = 0;
+	int rc = SUCCESS;
 
 	ENTER;
-	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
+	ioa_cfg = (struct ipr_ioa_cfg *) cmd->device->host->hostdata;
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 
 	if (!ioa_cfg->in_reset_reload) {
+		ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 		dev_err(&ioa_cfg->pdev->dev,
 			"Adapter being reset as a result of error recovery.\n");
 
@@ -4820,20 +4786,19 @@ static int __ipr_eh_host_reset(struct scsi_cmnd *scsi_cmd)
 			ioa_cfg->sdt_state = GET_DUMP;
 	}
 
-	rc = ipr_reset_reload(ioa_cfg, IPR_SHUTDOWN_ABBREV);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 
+	/* If we got hit with a host reset while we were already resetting
+	 the adapter for some reason, and the reset failed. */
+	if (ioa_cfg->hrrq[IPR_INIT_HRRQ].ioa_is_dead) {
+		ipr_trace;
+		rc = FAILED;
+	}
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	LEAVE;
-	return rc;
-}
-
-static int ipr_eh_host_reset(struct scsi_cmnd *cmd)
-{
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = __ipr_eh_host_reset(cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
 	return rc;
 }
 
