@@ -30,7 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
-#include "usb.h"
+#include "hub.h"
 
 /* if we are in debug mode, always announce new devices */
 #ifdef DEBUG
@@ -41,62 +41,6 @@
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
-
-struct usb_port {
-	struct usb_device *child;
-	struct device dev;
-	struct dev_state *port_owner;
-	enum usb_port_connect_type connect_type;
-};
-
-struct usb_hub {
-	struct device		*intfdev;	/* the "interface" device */
-	struct usb_device	*hdev;
-	struct kref		kref;
-	struct urb		*urb;		/* for interrupt polling pipe */
-
-	/* buffer for urb ... with extra space in case of babble */
-	char			(*buffer)[8];
-	union {
-		struct usb_hub_status	hub;
-		struct usb_port_status	port;
-	}			*status;	/* buffer for status reports */
-	struct mutex		status_mutex;	/* for the status buffer */
-
-	int			error;		/* last reported error */
-	int			nerrors;	/* track consecutive errors */
-
-	struct list_head	event_list;	/* hubs w/data or errs ready */
-	unsigned long		event_bits[1];	/* status change bitmask */
-	unsigned long		change_bits[1];	/* ports with logical connect
-							status change */
-	unsigned long		busy_bits[1];	/* ports being reset or
-							resumed */
-	unsigned long		removed_bits[1]; /* ports with a "removed"
-							device present */
-	unsigned long		wakeup_bits[1];	/* ports that have signaled
-							remote wakeup */
-#if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
-#error event_bits[] is too short!
-#endif
-
-	struct usb_hub_descriptor *descriptor;	/* class descriptor */
-	struct usb_tt		tt;		/* Transaction Translator */
-
-	unsigned		mA_per_port;	/* current for each child */
-
-	unsigned		limited_power:1;
-	unsigned		quiescing:1;
-	unsigned		disconnected:1;
-
-	unsigned		quirk_check_port_auto_suspend:1;
-
-	unsigned		has_indicators:1;
-	u8			indicator[USB_MAXCHILDREN];
-	struct delayed_work	leds;
-	struct delayed_work	init_work;
-	struct usb_port		**ports;
-};
 
 static inline int hub_is_superspeed(struct usb_device *hdev)
 {
@@ -167,9 +111,6 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 #define HUB_DEBOUNCE_TIMEOUT	1500
 #define HUB_DEBOUNCE_STEP	  25
 #define HUB_DEBOUNCE_STABLE	 100
-
-#define to_usb_port(_dev) \
-	container_of(_dev, struct usb_port, dev)
 
 static int usb_reset_and_verify_device(struct usb_device *udev);
 
@@ -1292,52 +1233,6 @@ static int hub_post_reset(struct usb_interface *intf)
 
 	hub_activate(hub, HUB_POST_RESET);
 	return 0;
-}
-
-static void usb_port_device_release(struct device *dev)
-{
-	struct usb_port *port_dev = to_usb_port(dev);
-
-	kfree(port_dev);
-}
-
-static void usb_hub_remove_port_device(struct usb_hub *hub,
-				       int port1)
-{
-	device_unregister(&hub->ports[port1 - 1]->dev);
-}
-
-struct device_type usb_port_device_type = {
-	.name =		"usb_port",
-	.release =	usb_port_device_release,
-};
-
-static int usb_hub_create_port_device(struct usb_hub *hub,
-				      int port1)
-{
-	struct usb_port *port_dev = NULL;
-	int retval;
-
-	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
-	if (!port_dev) {
-		retval = -ENOMEM;
-		goto exit;
-	}
-
-	hub->ports[port1 - 1] = port_dev;
-	port_dev->dev.parent = hub->intfdev;
-	port_dev->dev.type = &usb_port_device_type;
-	dev_set_name(&port_dev->dev, "port%d", port1);
-
-	retval = device_register(&port_dev->dev);
-	if (retval)
-		goto error_register;
-	return 0;
-
-error_register:
-	put_device(&port_dev->dev);
-exit:
-	return retval;
 }
 
 static int hub_configure(struct usb_hub *hub,
