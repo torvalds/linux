@@ -1189,28 +1189,11 @@ static __initdata struct tegra_clk_init_table init_table[] = {
  * table under two names.
  */
 static struct tegra_clk_duplicate tegra_clk_duplicates[] = {
-	TEGRA_CLK_DUPLICATE(uarta,  "serial8250.0", NULL),
-	TEGRA_CLK_DUPLICATE(uartb,  "serial8250.1", NULL),
-	TEGRA_CLK_DUPLICATE(uartc,  "serial8250.2", NULL),
-	TEGRA_CLK_DUPLICATE(uartd,  "serial8250.3", NULL),
-	TEGRA_CLK_DUPLICATE(uarte,  "serial8250.4", NULL),
 	TEGRA_CLK_DUPLICATE(usbd,   "utmip-pad",    NULL),
 	TEGRA_CLK_DUPLICATE(usbd,   "tegra-ehci.0", NULL),
 	TEGRA_CLK_DUPLICATE(usbd,   "tegra-otg",    NULL),
-	TEGRA_CLK_DUPLICATE(pll_p,   "tegradc.0",    "parent"),
-	TEGRA_CLK_DUPLICATE(pll_p,   "tegradc.1",    "parent"),
-	TEGRA_CLK_DUPLICATE(pll_d_out0,   "hdmi",    "parent"),
-	TEGRA_CLK_DUPLICATE(gr2d,   "tegra_grhost", "gr2d"),
-	TEGRA_CLK_DUPLICATE(gr3d,   "tegra_grhost", "gr3d"),
-	TEGRA_CLK_DUPLICATE(epp,    "tegra_grhost", "epp"),
-	TEGRA_CLK_DUPLICATE(mpe,    "tegra_grhost", "mpe"),
-	TEGRA_CLK_DUPLICATE(vde,    "tegra-aes",    "vde"),
 	TEGRA_CLK_DUPLICATE(cclk,   NULL,           "cpu"),
 	TEGRA_CLK_DUPLICATE(twd,    "smp_twd",      NULL),
-	TEGRA_CLK_DUPLICATE(pll_p_out3, "tegra-i2c.0", "fast-clk"),
-	TEGRA_CLK_DUPLICATE(pll_p_out3, "tegra-i2c.1", "fast-clk"),
-	TEGRA_CLK_DUPLICATE(pll_p_out3, "tegra-i2c.2", "fast-clk"),
-	TEGRA_CLK_DUPLICATE(pll_p_out3, "tegra-i2c.3", "fast-clk"),
 	TEGRA_CLK_DUPLICATE(clk_max, NULL, NULL), /* Must be the last entry */
 };
 
