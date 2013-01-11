@@ -82,6 +82,7 @@
 
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C0    0x0352
 #define IPR_SUBS_DEV_ID_57C3    0x0353
 #define IPR_SUBS_DEV_ID_57C4    0x0354
 #define IPR_SUBS_DEV_ID_57C6    0x0357
@@ -94,6 +95,10 @@
 #define IPR_SUBS_DEV_ID_574D    0x0356
 #define IPR_SUBS_DEV_ID_57C8    0x035D
 
+#define IPR_SUBS_DEV_ID_57D5    0x03FB
+#define IPR_SUBS_DEV_ID_57D6    0x03FC
+#define IPR_SUBS_DEV_ID_57D7    0x03FF
+#define IPR_SUBS_DEV_ID_57D8    0x03FE
 #define IPR_NAME				"ipr"
 
 /*
