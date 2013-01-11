@@ -522,17 +522,11 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *op)
 	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
 
 	/* get PSC id (0..11, used by port_config) */
-	if (op->dev.platform_data == NULL) {
-		const u32 *psc_nump;
-
-		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
-		if (!psc_nump || *psc_nump > 11) {
-			dev_err(&op->dev, "mpc512x_psc_spi: Device node %s "
-				"has invalid cell-index property\n",
-				op->dev.of_node->full_name);
-			return -EINVAL;
-		}
-		id = *psc_nump;
+	id = of_alias_get_id(op->dev.of_node, "spi");
+	if (id < 0) {
+		dev_err(&op->dev, "no alias id for %s\n",
+			op->dev.of_node->full_name);
+		return id;
 	}
 
 	return mpc512x_psc_spi_do_probe(&op->dev, (u32) regaddr64, (u32) size64,
