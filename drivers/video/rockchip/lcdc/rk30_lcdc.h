@@ -3,6 +3,8 @@
 
 #include<linux/rk_fb.h>
 
+
+#if 0
 #define LcdReadBit(inf, addr, msk)      ((inf->regbak.addr=inf->preg->addr)&(msk))
 #define LcdWrReg(inf, addr, val)        inf->preg->addr=inf->regbak.addr=(val)
 #define LcdRdReg(inf, addr)             (inf->preg->addr)
@@ -78,6 +80,102 @@ typedef volatile struct tagLCDC_REG
   
 } LCDC_REG, *pLCDC_REG;
 
+#else
+
+#define SYS_CTRL0  	0x00			//0x00 system control register 0
+#define SYS_CTRL1	0x04			//0x04 system control register 1
+#define DSP_CTRL0	0x08			//0x08 display control register 0
+#define DSP_CTRL1	0x0c			//0x0c display control register 1
+#define INT_STATUS 	0x10            	//0x10 Interrupt status register
+#define MCU_CTRL	0x14			//0x14 MCU mode contol register
+#define BLEND_CTRL 	0x18           		//0x18 Blending control register
+#define WIN0_COLOR_KEY_CTRL	0x1c    	//0x1c Win0 blending control register
+#define WIN1_COLOR_KEY_CTRL 	0x20    	//0x20 Win1 blending control register
+#define WIN2_COLOR_KEY_CTRL 	0x24    	//0x24 Win2 blending control register
+#define WIN0_YRGB_MST0 		0x28          //0x28 Win0 active YRGB memory start address0
+#define WIN0_CBR_MST0 		0x2c           //0x2c Win0 active Cbr memory start address0
+#define WIN0_YRGB_MST1		0x30           //0x30 Win0 active YRGB memory start address1
+#define WIN0_CBR_MST1		0x34            //0x34 Win0 active Cbr memory start address1
+#define WIN0_VIR 		0x38              //0x38 WIN0 virtual display width/height
+#define WIN0_ACT_INFO		0x3c           //0x3C Win0 active window width/height
+#define WIN0_DSP_INFO 		0x40          //0x40 Win0 display width/height on panel
+#define WIN0_DSP_ST  		0x44          //0x44 Win0 display start point on panel
+#define WIN0_SCL_FACTOR_YRGB	0x48    //0x48Win0 YRGB scaling  factor setting
+#define WIN0_SCL_FACTOR_CBR 	0x4c    //0x4c Win0 YRGB scaling factor setting
+#define WIN0_SCL_OFFSET 	0x50        //0x50 Win0 Cbr scaling start point offset
+#define WIN1_YRGB_MST  		0x54       //0x54 Win1 active YRGB memory start address
+#define WIN1_CBR_MST		0x58       //0x58 Win1 active Cbr memory start address
+#define WIN1_VIR 		0x5c       //0x5c WIN1 virtual display width/height
+#define WIN1_ACT_INFO 		0x60          //0x60 Win1 active window width/height
+#define WIN1_DSP_INFO		0x64           //0x64 Win1 display width/height on panel
+#define WIN1_DSP_ST		0x68             //0x68 Win1 display start point on panel
+#define WIN1_SCL_FACTOR_YRGB    0x6c   //0x6c Win1 YRGB scaling  factor setting
+#define WIN1_SCL_FACTOR_CBR	0x70     //0x70 Win1 YRGB scaling factor setting
+#define WIN1_SCL_OFFSET 	0x74        //0x74 Win1 Cbr scaling start point offset
+#define WIN2_MST		0x78	 //0x78 win2 memort start address
+#define WIN2_VIR		0x7c	//0x7c win2 virtual stride
+#define WIN2_DSP_INFO 		0x80    //0x80 Win2 display width/height on panel
+#define WIN2_DSP_ST		0x84    //0x84 Win2 display start point on panel
+#define HWC_MST                 0x88	//0x88 HWC memory start address
+#define HWC_DSP_ST		0x8c    //0x8C HWC display start point on panel
+#define HWC_COLOR_LUT0 		0x90         //0x90 Hardware cursor color 2¡¯b01 look up table 0
+#define HWC_COLOR_LUT1		0x94          //0x94 Hardware cursor color 2¡¯b10 look up table 1
+#define HWC_COLOR_LUT2          0x98		//0x98 Hardware cursor color 2¡¯b11 look up table 2
+#define DSP_HTOTAL_HS_END       0x9c		//0x9c Panel scanning horizontal width and hsync pulse end point
+#define DSP_HACT_ST_END		0xa0         //0xa0 Panel active horizontal scanning start/end point
+#define DSP_VTOTAL_VS_END	0xa4       //0xa4 Panel scanning vertical height and vsync pulse end point
+#define DSP_VACT_ST_END		0xa8         //0xa8 Panel active vertical scanning start/end point
+#define DSP_VS_ST_END_F1 	0xac       //0xac Vertical scanning start point and vsync pulse end point of even filed in interlace mode
+#define DSP_VACT_ST_END_F1     	0xb0		//0xb0 Vertical scanning active start/end point of even filed in interlace mode
+#define REG_CFG_DONE		0xc0            //0xc0 REGISTER CONFIG FINISH
+#define MCU_BYPASS_WPORT 	0x100        //0x100 MCU BYPASS MODE, DATA Write Only Port
+#define MCU_BYPASS_RPORT        0x200		//0x200 MCU BYPASS MODE, DATA Read Only Port   
+#define WIN2_LUT_ADDR		0x400
+#define DSP_LUT_ADDR		0x800
+
+#if 0
+#define lcdc_writel(lcdc_dev,offset,v)  do { \
+	u32 *_pv = (u32*)lcdc_dev->regsbak;	\
+	_pv += (offset >> 2);			\
+	writel_relaxed(v,lcdc_dev->regs+offset);\
+	*_pv = v;	\
+} while(0)
+
+#define lcdc_readl(lcdc_dev,offset)  		\
+	readl_relaxed(lcdc_dev->regs+offset)
+
+#define lcdc_read_bit(lcdc_dev,offset,msk) ( { \
+	u32 _v = readl_relaxed(lcdc_dev->regs+offset); \
+	_v &= msk;_v;	} )
+
+#define lcdc_set_bit(lcdc_dev,offset,msk) do {  \
+	u32* _pv = (u32*)lcdc_dev->regsbak;	\
+	_pv += (offset >> 2);				\
+	(*_pv) |= msk;				\
+	writel_relaxed(*_pv,lcdc_dev->regs + offset); \
+} while(0)
+
+#define lcdc_clr_bit(lcdc_dev,offset,msk) do{	\
+	u32* _pv = (u32*)lcdc_dev->regsbak;	\
+	_pv += (offset >> 2);				\
+	(*_pv) &= ~msk;				\
+	writel_relaxed(*_pv,lcdc_dev->regs + offset); \
+} while (0)
+
+#define lcdc_msk_reg(lcdc_dev,offset,msk,v) do {	\
+	u32 *_pv = (u32*)lcdc_dev->regsbak;	\
+	_pv += (offset >> 2);			\
+	(*_pv) &= (~msk);				\
+	(*_pv) |= v;				\
+	writel_relaxed(*_pv,lcdc_dev->regs+offset);	\
+} while(0)
+
+#define lcdc_cfg_done(lcdc_dev) do{ \
+	writel_relaxed(0x01,lcdc_dev->regs+REG_CFG_DONE); \
+	dsb();						\
+} while(0)
+#endif
+#endif
 
 /* SYS_CONFIG */
 
@@ -479,8 +577,10 @@ struct rk30_lcdc_device{
 	struct rk_lcdc_device_driver driver;
 	rk_screen *screen;
 	
-	LCDC_REG *preg;         // LCDC reg base address and backup reg 
-    	LCDC_REG regbak;
+	//LCDC_REG *preg;         // LCDC reg base address and backup reg 
+    	//LCDC_REG regbak;
+    	void __iomem *regs;
+	void *regsbak;		//back up reg
 	int __iomem *dsp_lut_addr_base;
 
 	void __iomem *reg_vir_base;  	// virtual basic address of lcdc register
@@ -536,6 +636,58 @@ struct win0_par {
     u8 par_seted;
     u8 addr_seted;
 };
+
+
+static inline void lcdc_writel(struct rk30_lcdc_device *lcdc_dev,u32 offset,u32 v)
+{
+	u32 *_pv = (u32*)lcdc_dev->regsbak;	
+	_pv += (offset >> 2);	
+	*_pv = v;
+	writel_relaxed(v,lcdc_dev->regs+offset);	
+}
+
+static inline u32 lcdc_readl(struct rk30_lcdc_device *lcdc_dev,u32 offset)
+{
+	return readl_relaxed(lcdc_dev->regs+offset);
+}
+
+static inline u32 lcdc_read_bit(struct rk30_lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+{
+       u32 _v = readl_relaxed(lcdc_dev->regs+offset); 
+       _v &= msk;
+       return (_v >> msk);   
+}
+
+static inline void  lcdc_set_bit(struct rk30_lcdc_device *lcdc_dev,u32 offset,u32 msk) 
+{
+	u32* _pv = (u32*)lcdc_dev->regsbak;	
+	_pv += (offset >> 2);				
+	(*_pv) |= msk;				
+	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
+} 
+
+static inline void lcdc_clr_bit(struct rk30_lcdc_device *lcdc_dev,u32 offset,u32 msk)
+{
+	u32* _pv = (u32*)lcdc_dev->regsbak;	
+	_pv += (offset >> 2);				
+	(*_pv) &= (~msk);				
+	writel_relaxed(*_pv,lcdc_dev->regs + offset); 
+} 
+
+static inline void  lcdc_msk_reg(struct rk30_lcdc_device *lcdc_dev,u32 offset,u32 msk,u32 v)
+{
+	u32 *_pv = (u32*)lcdc_dev->regsbak;	
+	_pv += (offset >> 2);			
+	(*_pv) &= (~msk);				
+	(*_pv) |= v;				
+	writel_relaxed(*_pv,lcdc_dev->regs+offset);	
+}
+
+static inline void lcdc_cfg_done(struct rk30_lcdc_device *lcdc_dev) 
+{
+	writel_relaxed(0x01,lcdc_dev->regs+REG_CFG_DONE); 
+	dsb();						
+} 
 
 #endif
 
