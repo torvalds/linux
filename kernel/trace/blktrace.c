@@ -803,6 +803,7 @@ static void blk_add_trace_bio_complete(void *ignore, struct bio *bio, int error)
 
 static void blk_add_trace_bio_backmerge(void *ignore,
 					struct request_queue *q,
+					struct request *rq,
 					struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE, 0);
@@ -810,6 +811,7 @@ static void blk_add_trace_bio_backmerge(void *ignore,
 
 static void blk_add_trace_bio_frontmerge(void *ignore,
 					 struct request_queue *q,
+					 struct request *rq,
 					 struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE, 0);
