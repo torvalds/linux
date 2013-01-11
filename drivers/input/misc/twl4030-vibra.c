@@ -219,7 +219,7 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -227,11 +227,10 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 	info->coexist = twl4030_vibra_check_coexist(pdata, twl4030_core_node);
 	INIT_WORK(&info->play_work, vibra_play_work);
 
-	info->input_dev = input_allocate_device();
+	info->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (info->input_dev == NULL) {
 		dev_err(&pdev->dev, "couldn't allocate input device\n");
-		ret = -ENOMEM;
-		goto err_kzalloc;
+		return -ENOMEM;
 	}
 
 	input_set_drvdata(info->input_dev, info);
@@ -246,7 +245,7 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 	ret = input_ff_create_memless(info->input_dev, NULL, vibra_play);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "couldn't register vibrator to FF\n");
-		goto err_ialloc;
+		return ret;
 	}
 
 	ret = input_register_device(info->input_dev);
@@ -262,28 +261,11 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 
 err_iff:
 	input_ff_destroy(info->input_dev);
-err_ialloc:
-	input_free_device(info->input_dev);
-err_kzalloc:
-	kfree(info);
 	return ret;
-}
-
-static int twl4030_vibra_remove(struct platform_device *pdev)
-{
-	struct vibra_info *info = platform_get_drvdata(pdev);
-
-	/* this also free ff-memless and calls close if needed */
-	input_unregister_device(info->input_dev);
-	kfree(info);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver twl4030_vibra_driver = {
 	.probe		= twl4030_vibra_probe,
-	.remove		= twl4030_vibra_remove,
 	.driver		= {
 		.name	= "twl4030-vibra",
 		.owner	= THIS_MODULE,
