@@ -69,10 +69,6 @@ struct twl6040_data {
 	int hs_power_mode_locked;
 	unsigned int clk_in;
 	unsigned int sysclk;
-	u16 hs_left_step;
-	u16 hs_right_step;
-	u16 hf_left_step;
-	u16 hf_right_step;
 	struct twl6040_jack_data hs_jack;
 	struct snd_soc_codec *codec;
 	struct mutex mutex;
@@ -1124,7 +1120,6 @@ static int twl6040_resume(struct snd_soc_codec *codec)
 static int twl6040_probe(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv;
-	struct twl6040_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct platform_device *pdev = container_of(codec->dev,
 						   struct platform_device, dev);
 	int ret = 0;
@@ -1137,22 +1132,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->codec = codec;
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
-
-	if (pdata && pdata->hs_left_step && pdata->hs_right_step) {
-		priv->hs_left_step = pdata->hs_left_step;
-		priv->hs_right_step = pdata->hs_right_step;
-	} else {
-		priv->hs_left_step = 1;
-		priv->hs_right_step = 1;
-	}
-
-	if (pdata && pdata->hf_left_step && pdata->hf_right_step) {
-		priv->hf_left_step = pdata->hf_left_step;
-		priv->hf_right_step = pdata->hf_right_step;
-	} else {
-		priv->hf_left_step = 1;
-		priv->hf_right_step = 1;
-	}
 
 	priv->plug_irq = platform_get_irq(pdev, 0);
 	if (priv->plug_irq < 0) {
