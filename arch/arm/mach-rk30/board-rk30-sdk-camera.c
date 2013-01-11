@@ -169,10 +169,12 @@ static void rk_cif_power(struct rk29camera_gpio_res *res,int on)
         printk("get cif ldo failed!\n");
 		return;
 	    }
-    if(on == 0){	
-    	regulator_disable(ldo_28);
+    if(on == 0){
+		while(regulator_is_enabled(ldo_28)>0)	
+    		regulator_disable(ldo_28);
     	regulator_put(ldo_28);
-    	regulator_disable(ldo_18);
+		while(regulator_is_enabled(ldo_18)>0)
+    		regulator_disable(ldo_18);
     	regulator_put(ldo_18);
     	mdelay(10);
 	if (camera_power != INVALID_GPIO)  {
