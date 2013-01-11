@@ -488,8 +488,6 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	err = -EINVAL;
 	if (rtnl_dereference(tfile->tun))
 		goto out;
-	if (tfile->detached && tun != tfile->detached)
-		goto out;
 
 	err = -EBUSY;
 	if (!(tun->flags & TUN_TAP_MQ) && tun->numqueues == 1)
@@ -1542,6 +1540,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct tun_file *tfile = file->private_data;
 	struct net_device *dev;
 	int err;
+
+	if (tfile->detached)
+		return -EINVAL;
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
