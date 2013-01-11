@@ -35,7 +35,7 @@ int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	if (!soc_info->psc_bases || (ctlr >= soc_info->psc_bases_num)) {
-		pr_warning("PSC: Bad psc data: 0x%x[%d]\n",
+		pr_warn("PSC: Bad psc data: 0x%x[%d]\n",
 				(int)soc_info->psc_bases, ctlr);
 		return 0;
 	}
@@ -58,7 +58,7 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 	u32 next_state = PSC_STATE_ENABLE;
 
 	if (!soc_info->psc_bases || (ctlr >= soc_info->psc_bases_num)) {
-		pr_warning("PSC: Bad psc data: 0x%x[%d]\n",
+		pr_warn("PSC: Bad psc data: 0x%x[%d]\n",
 				(int)soc_info->psc_bases, ctlr);
 		return;
 	}
