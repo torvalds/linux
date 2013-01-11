@@ -2296,18 +2296,6 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 },
 };
 
-static int twl4030_soc_suspend(struct snd_soc_codec *codec)
-{
-	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int twl4030_soc_resume(struct snd_soc_codec *codec)
-{
-	twl4030_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int twl4030_soc_probe(struct snd_soc_codec *codec)
 {
 	struct twl4030_priv *twl4030;
@@ -2345,8 +2333,6 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.probe = twl4030_soc_probe,
 	.remove = twl4030_soc_remove,
-	.suspend = twl4030_soc_suspend,
-	.resume = twl4030_soc_resume,
 	.read = twl4030_read_reg_cache,
 	.write = twl4030_write,
 	.set_bias_level = twl4030_set_bias_level,
