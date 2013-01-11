@@ -63,7 +63,7 @@ struct state {
 	struct af9033_config af9033_config[2];
 };
 
-u32 clock_lut[] = {
+static const u32 clock_lut[] = {
 	20480000, /*      FPGA */
 	16384000, /* 16.38 MHz */
 	20480000, /* 20.48 MHz */
@@ -78,7 +78,7 @@ u32 clock_lut[] = {
 	12000000, /* 12.00 MHz */
 };
 
-u32 clock_lut_it9135[] = {
+static const u32 clock_lut_it9135[] = {
 	12000000, /* 12.00 MHz */
 	20480000, /* 20.48 MHz */
 	36000000, /* 36.00 MHz */
