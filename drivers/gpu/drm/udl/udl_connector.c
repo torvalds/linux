@@ -40,7 +40,6 @@ static u8 *udl_get_edid(struct udl_device *udl)
 				      HZ);
 		if (ret < 1) {
 			DRM_ERROR("Read EDID byte %d failed err %x\n", i, ret);
-			i--;
 			goto error;
 		}
 		block[i] = rbuf[1];
