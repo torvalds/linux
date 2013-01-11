@@ -59,6 +59,14 @@ static int udl_get_modes(struct drm_connector *connector)
 
 	connector->display_info.raw_edid = (char *)edid;
 
+	/*
+	 * We only read the main block, but if the monitor reports extension
+	 * blocks then the drm edid code expects them to be present, so patch
+	 * the extension count to 0.
+	 */
+	edid->checksum += edid->extensions;
+	edid->extensions = 0;
+
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	connector->display_info.raw_edid = NULL;
