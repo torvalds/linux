@@ -648,7 +648,7 @@ F:	arch/arm/
 
 ARM SUB-ARCHITECTURES
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	MAINTAINED
+S:	Maintained
 F:	arch/arm/mach-*/
 F:	arch/arm/plat-*/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
@@ -5507,8 +5507,7 @@ M:	Benoît Cousson <b-cousson@ti.com>
 M:	Paul Walmsley <paul@pwsan.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
-F:	arch/arm/mach-omap2/omap_hwmod.c
-F:	arch/arm/plat-omap/include/plat/omap_hwmod.h
+F:	arch/arm/mach-omap2/omap_hwmod.*
 
 OMAP HWMOD DATA FOR OMAP4-BASED DEVICES
 M:	Benoît Cousson <b-cousson@ti.com>
@@ -7334,7 +7333,7 @@ S:	Odd Fixes
 F:	drivers/staging/speakup/
 
 STAGING - TI DSP BRIDGE DRIVERS
-M:	Omar Ramirez Luna <omar.ramirez@ti.com>
+M:	Omar Ramirez Luna <omar.ramirez@copitl.com>
 S:	Odd Fixes
 F:	drivers/staging/tidspbridge/
 
