@@ -1363,8 +1363,16 @@ static inline int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx)
 	unsigned long flags;
 	int last_frame = 0;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
+	if (ctx->state == MFCINST_FINISHING) {
+		last_frame = MFC_DEC_LAST_FRAME;
+		s5p_mfc_set_dec_stream_buffer_v6(ctx, 0, 0, 0);
+		dev->curr_ctx = ctx->num;
+		s5p_mfc_clean_ctx_int_flags(ctx);
+		s5p_mfc_decode_one_frame_v6(ctx, last_frame);
+		return 0;
+	}
 
+	spin_lock_irqsave(&dev->irqlock, flags);
 	/* Frames are being decoded */
 	if (list_empty(&ctx->src_queue)) {
 		mfc_debug(2, "No src buffers.\n");

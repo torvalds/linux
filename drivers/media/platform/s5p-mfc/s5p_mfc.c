@@ -386,6 +386,8 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		} else {
 			mfc_debug(2, "MFC needs next buffer\n");
 			ctx->consumed_stream = 0;
+			if (src_buf->flags & MFC_BUF_FLAG_EOS)
+				ctx->state = MFCINST_FINISHING;
 			list_del(&src_buf->list);
 			ctx->src_queue_cnt--;
 			if (s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) > 0)
