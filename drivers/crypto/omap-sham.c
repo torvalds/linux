@@ -38,7 +38,10 @@
 #include <crypto/internal/hash.h>
 
 #include <linux/omap-dma.h>
+
+#ifdef CONFIG_ARCH_OMAP1
 #include <mach/irqs.h>
+#endif
 
 #define SHA_REG_DIGEST(x)		(0x00 + ((x) * 0x04))
 #define SHA_REG_DIN(x)			(0x1C + ((x) * 0x04))

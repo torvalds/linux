@@ -118,7 +118,7 @@ config OMAP_MUX_WARNINGS
 
 config OMAP_MBOX_FWK
 	tristate "Mailbox framework support"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP && !ARCH_MULTIPLATFORM
 	help
 	  Say Y here if you want to use OMAP Mailbox framework support for
 	  DSP, IVA1.0 and IVA2 in OMAP1/2/3.
