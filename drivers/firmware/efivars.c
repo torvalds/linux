@@ -1076,7 +1076,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 		mutex_lock(&inode->i_mutex);
 		inode->i_private = entry;
-		i_size_write(inode, size+4);
+		i_size_write(inode, size + sizeof(entry->var.Attributes));
 		mutex_unlock(&inode->i_mutex);
 		d_add(dentry, inode);
 	}
