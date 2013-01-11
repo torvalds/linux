@@ -831,13 +831,7 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	struct dw_mci_board *brd = slot->host->pdata;
 
 	/* Use platform get_ro function, else try on board write protect */
-
-	/*
-	 * NOTE: DW_MCI_QUIRK_NO_WRITE_PROTECT will be removed in a future
-	 * patch in the series once reference to it is removed.
-	 */
-	if ((brd->quirks & DW_MCI_QUIRK_NO_WRITE_PROTECT) ||
-	    (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT))
+	if (slot->quirks & DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT)
 		read_only = 0;
 	else if (brd->get_ro)
 		read_only = brd->get_ro(slot->id);
