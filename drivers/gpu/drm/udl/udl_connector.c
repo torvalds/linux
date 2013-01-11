@@ -22,12 +22,16 @@
 static u8 *udl_get_edid(struct udl_device *udl)
 {
 	u8 *block;
-	char rbuf[3];
+	char *rbuf;
 	int ret, i;
 
 	block = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (block == NULL)
 		return NULL;
+
+	rbuf = kmalloc(2, GFP_KERNEL);
+	if (rbuf == NULL)
+		goto error;
 
 	for (i = 0; i < EDID_LENGTH; i++) {
 		ret = usb_control_msg(udl->ddev->usbdev,
@@ -42,10 +46,12 @@ static u8 *udl_get_edid(struct udl_device *udl)
 		block[i] = rbuf[1];
 	}
 
+	kfree(rbuf);
 	return block;
 
 error:
 	kfree(block);
+	kfree(rbuf);
 	return NULL;
 }
 
