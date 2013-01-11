@@ -663,54 +663,6 @@ out:
 	return error;
 }
 
-/**
- * gfs2_freeze_fs - freezes the file system
- * @sdp: the file system
- *
- * This function flushes data and meta data for all machines by
- * acquiring the transaction log exclusively.  All journals are
- * ensured to be in a clean state as well.
- *
- * Returns: errno
- */
-
-int gfs2_freeze_fs(struct gfs2_sbd *sdp)
-{
-	int error = 0;
-
-	mutex_lock(&sdp->sd_freeze_lock);
-
-	if (!sdp->sd_freeze_count++) {
-		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
-		if (error)
-			sdp->sd_freeze_count--;
-	}
-
-	mutex_unlock(&sdp->sd_freeze_lock);
-
-	return error;
-}
-
-/**
- * gfs2_unfreeze_fs - unfreezes the file system
- * @sdp: the file system
- *
- * This function allows the file system to proceed by unlocking
- * the exclusively held transaction lock.  Other GFS2 nodes are
- * now free to acquire the lock shared and go on with their lives.
- *
- */
-
-void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
-{
-	mutex_lock(&sdp->sd_freeze_lock);
-
-	if (sdp->sd_freeze_count && !--sdp->sd_freeze_count)
-		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-
-	mutex_unlock(&sdp->sd_freeze_lock);
-}
-
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
 	struct gfs2_dinode *str = buf;
@@ -888,13 +840,6 @@ static void gfs2_put_super(struct super_block *sb)
 	int error;
 	struct gfs2_jdesc *jd;
 
-	/*  Unfreeze the filesystem, if we need to  */
-
-	mutex_lock(&sdp->sd_freeze_lock);
-	if (sdp->sd_freeze_count)
-		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-	mutex_unlock(&sdp->sd_freeze_lock);
-
 	/* No more recovery requests */
 	set_bit(SDF_NORECOVERY, &sdp->sd_flags);
 	smp_mb();
@@ -985,7 +930,7 @@ static int gfs2_freeze(struct super_block *sb)
 		return -EINVAL;
 
 	for (;;) {
-		error = gfs2_freeze_fs(sdp);
+		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
 		if (!error)
 			break;
 
@@ -1013,7 +958,9 @@ static int gfs2_freeze(struct super_block *sb)
 
 static int gfs2_unfreeze(struct super_block *sb)
 {
-	gfs2_unfreeze_fs(sb->s_fs_info);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+
+	gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 	return 0;
 }
 

@@ -91,19 +91,15 @@ static ssize_t uuid_show(struct gfs2_sbd *sdp, char *buf)
 
 static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 {
-	unsigned int count;
+	struct super_block *sb = sdp->sd_vfs;
+	int frozen = (sb->s_writers.frozen == SB_UNFROZEN) ? 0 : 1;
 
-	mutex_lock(&sdp->sd_freeze_lock);
-	count = sdp->sd_freeze_count;
-	mutex_unlock(&sdp->sd_freeze_lock);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", count);
+	return snprintf(buf, PAGE_SIZE, "%u\n", frozen);
 }
 
 static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
-	ssize_t ret = len;
-	int error = 0;
+	int error;
 	int n = simple_strtol(buf, NULL, 0);
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -111,19 +107,21 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 
 	switch (n) {
 	case 0:
-		gfs2_unfreeze_fs(sdp);
+		error = thaw_super(sdp->sd_vfs);
 		break;
 	case 1:
-		error = gfs2_freeze_fs(sdp);
+		error = freeze_super(sdp->sd_vfs);
 		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	if (error)
+	if (error) {
 		fs_warn(sdp, "freeze %d error %d", n, error);
+		return error;
+	}
 
-	return ret;
+	return len;
 }
 
 static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)

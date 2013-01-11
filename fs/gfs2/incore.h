@@ -757,10 +757,7 @@ struct gfs2_sbd {
 	unsigned int sd_replayed_blocks;
 
 	/* For quiescing the filesystem */
-
 	struct gfs2_holder sd_freeze_gh;
-	struct mutex sd_freeze_lock;
-	unsigned int sd_freeze_count;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
 	char sd_table_name[GFS2_FSNAME_LEN];
