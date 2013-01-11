@@ -4023,7 +4023,12 @@ again:
 		return -EBUSY;
 	}
 	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-	if (!cgroup_clear_css_refs(cgrp)) {
+	/*
+	 * Note the cgrp->count check *must* be done before the
+	 * cgroup_clear_css_refs() call, because on success that call has
+	 * decremented all the css refs, and that *must* be done only once!
+	 */
+	if (atomic_read(&cgrp->count) != 0 || !cgroup_clear_css_refs(cgrp)) {
 		mutex_unlock(&cgroup_mutex);
 		/*
 		 * Because someone may call cgroup_wakeup_rmdir_waiter() before
