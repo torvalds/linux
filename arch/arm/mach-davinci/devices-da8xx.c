@@ -751,7 +751,7 @@ void __iomem * __init da8xx_get_mem_ctlr(void)
 
 	da8xx_ddr2_ctlr_base = ioremap(DA8XX_DDR2_CTL_BASE, SZ_32K);
 	if (!da8xx_ddr2_ctlr_base)
-		pr_warning("%s: Unable to map DDR2 controller",	__func__);
+		pr_warn("%s: Unable to map DDR2 controller", __func__);
 
 	return da8xx_ddr2_ctlr_base;
 }
