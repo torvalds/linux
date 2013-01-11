@@ -43,7 +43,6 @@ struct vibra_info {
 	struct device		*dev;
 	struct input_dev	*input_dev;
 
-	struct workqueue_struct *workqueue;
 	struct work_struct	play_work;
 
 	bool			enabled;
@@ -143,19 +142,7 @@ static int vibra_play(struct input_dev *input, void *data,
 	if (!info->speed)
 		info->speed = effect->u.rumble.weak_magnitude >> 9;
 	info->direction = effect->direction < EFFECT_DIR_180_DEG ? 0 : 1;
-	queue_work(info->workqueue, &info->play_work);
-	return 0;
-}
-
-static int twl4030_vibra_open(struct input_dev *input)
-{
-	struct vibra_info *info = input_get_drvdata(input);
-
-	info->workqueue = create_singlethread_workqueue("vibra");
-	if (info->workqueue == NULL) {
-		dev_err(&input->dev, "couldn't create workqueue\n");
-		return -ENOMEM;
-	}
+	schedule_work(&info->play_work);
 	return 0;
 }
 
@@ -164,9 +151,6 @@ static void twl4030_vibra_close(struct input_dev *input)
 	struct vibra_info *info = input_get_drvdata(input);
 
 	cancel_work_sync(&info->play_work);
-	INIT_WORK(&info->play_work, vibra_play_work); /* cleanup */
-	destroy_workqueue(info->workqueue);
-	info->workqueue = NULL;
 
 	if (info->enabled)
 		vibra_disable(info);
@@ -238,7 +222,6 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 	info->input_dev->name = "twl4030:vibrator";
 	info->input_dev->id.version = 1;
 	info->input_dev->dev.parent = pdev->dev.parent;
-	info->input_dev->open = twl4030_vibra_open;
 	info->input_dev->close = twl4030_vibra_close;
 	__set_bit(FF_RUMBLE, info->input_dev->ffbit);
 
