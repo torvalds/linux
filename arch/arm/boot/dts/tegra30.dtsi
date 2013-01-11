@@ -125,6 +125,12 @@
 			      0 122 0x04>;
 	};
 
+	tegra_car: clock {
+		compatible = "nvidia,tegra30-car";
+		reg = <0x60006000 0x1000>;
+		#clock-cells = <1>;
+	};
+
 	apbdma: dma {
 		compatible = "nvidia,tegra30-apbdma", "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1400>;
