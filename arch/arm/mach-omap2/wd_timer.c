@@ -130,4 +130,4 @@ static int __init omap_init_wdt(void)
 	     dev_name, oh->name);
 	return 0;
 }
-subsys_initcall(omap_init_wdt);
+omap_subsys_initcall(omap_init_wdt);

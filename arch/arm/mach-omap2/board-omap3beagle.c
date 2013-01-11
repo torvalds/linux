@@ -494,7 +494,7 @@ static int __init beagle_opp_init(void)
 	}
 	return 0;
 }
-device_initcall(beagle_opp_init);
+omap_device_initcall(beagle_opp_init);
 
 static void __init omap3_beagle_init(void)
 {

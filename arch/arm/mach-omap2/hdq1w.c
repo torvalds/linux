@@ -27,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include "hdq1w.h"
@@ -93,4 +94,4 @@ static int __init omap_init_hdq(void)
 
 	return 0;
 }
-arch_initcall(omap_init_hdq);
+omap_arch_initcall(omap_init_hdq);

@@ -89,4 +89,4 @@ static int __init omap_init_pmu(void)
 
 	return omap2_init_pmu(oh_num, oh_names);
 }
-subsys_initcall(omap_init_pmu);
+omap_subsys_initcall(omap_init_pmu);

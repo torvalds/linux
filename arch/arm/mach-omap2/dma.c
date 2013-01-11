@@ -293,4 +293,4 @@ static int __init omap2_system_dma_init(void)
 	return omap_hwmod_for_each_by_class("dma",
 			omap2_system_dma_init_dev, NULL);
 }
-arch_initcall(omap2_system_dma_init);
+omap_arch_initcall(omap2_system_dma_init);

@@ -1205,7 +1205,7 @@ static __exit void gpmc_exit(void)
 
 }
 
-postcore_initcall(gpmc_init);
+omap_postcore_initcall(gpmc_init);
 module_exit(gpmc_exit);
 
 static int __init omap_gpmc_init(void)
@@ -1225,7 +1225,7 @@ static int __init omap_gpmc_init(void)
 
 	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
-postcore_initcall(omap_gpmc_init);
+omap_postcore_initcall(omap_gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
