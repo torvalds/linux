@@ -1551,6 +1551,10 @@ static int wm2200_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
+	if (ret != 0)
+		return ret;
+
 	return ret;
 }
 
