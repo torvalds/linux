@@ -428,8 +428,10 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		/* Drop read queue */
 		skb_queue_purge(&tfile->sk.sk_receive_queue);
 		tun_set_real_num_queues(tun);
-	} else if (tfile->detached && clean)
+	} else if (tfile->detached && clean) {
 		tun = tun_enable_queue(tfile);
+		sock_put(&tfile->sk);
+	}
 
 	if (clean) {
 		if (tun && tun->numqueues == 0 && tun->numdisabled == 0 &&
@@ -478,6 +480,9 @@ static void tun_detach_all(struct net_device *dev)
 		sock_put(&tfile->sk);
 	}
 	BUG_ON(tun->numdisabled != 0);
+
+	if (tun->flags & TUN_PERSIST)
+		module_put(THIS_MODULE);
 }
 
 static int tun_attach(struct tun_struct *tun, struct file *file)
@@ -1874,10 +1879,11 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Disable/Enable persist mode. Keep an extra reference to the
 		 * module to prevent the module being unprobed.
 		 */
-		if (arg) {
+		if (arg && !(tun->flags & TUN_PERSIST)) {
 			tun->flags |= TUN_PERSIST;
 			__module_get(THIS_MODULE);
-		} else {
+		}
+		if (!arg && (tun->flags & TUN_PERSIST)) {
 			tun->flags &= ~TUN_PERSIST;
 			module_put(THIS_MODULE);
 		}
