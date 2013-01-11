@@ -137,6 +137,8 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 
 	if (sync)
 		write_checkpoint(sbi, false, false);
+	else
+		f2fs_balance_fs(sbi);
 
 	return 0;
 }

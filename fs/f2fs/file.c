@@ -137,6 +137,9 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 
+	/* guarantee free sections for fsync */
+	f2fs_balance_fs(sbi);
+
 	mutex_lock(&inode->i_mutex);
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
