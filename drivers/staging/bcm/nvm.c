@@ -2810,6 +2810,7 @@ int BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, enum bcm_flash2x
 	case CONTROL_SECTION:
 		/* Not Clear So Putting failure. confirm and fix it. */
 		SectEndOffset = STATUS_FAILURE;
+		break;
 	case ISO_IMAGE1_PART2:
 		if (Adapter->psFlash2xCSInfo->OffsetISOImage1Part2End != UNINIT_PTR_IN_CS)
 			SectEndOffset = (Adapter->psFlash2xCSInfo->OffsetISOImage1Part2End);
