@@ -1030,8 +1030,8 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 		ab8500_btemp_periodic_work);
 
 	/* Set BTEMP thermal limits. Low and Med are fixed */
-	di->btemp_ranges.btemp_low_limit = BTEMP_THERMAL_LOW_LIMIT * 10;
-	di->btemp_ranges.btemp_med_limit = BTEMP_THERMAL_MED_LIMIT * 10;
+	di->btemp_ranges.btemp_low_limit = BTEMP_THERMAL_LOW_LIMIT;
+	di->btemp_ranges.btemp_med_limit = BTEMP_THERMAL_MED_LIMIT;
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
 		AB8500_BTEMP_HIGH_TH, &val);
