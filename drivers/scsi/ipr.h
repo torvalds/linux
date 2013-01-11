@@ -482,16 +482,17 @@ struct ipr_hrr_queue {
 
 	struct list_head hrrq_free_q;
 	struct list_head hrrq_pending_q;
+	spinlock_t _lock;
+	spinlock_t *lock;
 
 	volatile u32 toggle_bit;
 	u32 size;
 	u32 min_cmd_id;
 	u32 max_cmd_id;
+	u8 allow_interrupts:1;
+	u8 ioa_is_dead:1;
+	u8 allow_cmds:1;
 };
-
-#define for_each_hrrq(hrrq, ioa_cfg) \
-		for (hrrq = (ioa_cfg)->hrrq; \
-			hrrq < ((ioa_cfg)->hrrq + (ioa_cfg)->hrrq_num); hrrq++)
 
 /* Command packet structure */
 struct ipr_cmd_pkt {
@@ -1057,6 +1058,10 @@ struct ipr_hostrcb64_fabric_desc {
 	struct ipr_hostrcb64_config_element elem[1];
 }__attribute__((packed, aligned (8)));
 
+#define for_each_hrrq(hrrq, ioa_cfg) \
+		for (hrrq = (ioa_cfg)->hrrq; \
+			hrrq < ((ioa_cfg)->hrrq + (ioa_cfg)->hrrq_num); hrrq++)
+
 #define for_each_fabric_cfg(fabric, cfg) \
 		for (cfg = (fabric)->elem; \
 			cfg < ((fabric)->elem + be16_to_cpu((fabric)->num_entries)); \
@@ -1411,13 +1416,10 @@ struct ipr_ioa_cfg {
 
 	struct list_head queue;
 
-	u8 allow_interrupts:1;
 	u8 in_reset_reload:1;
 	u8 in_ioa_bringdown:1;
 	u8 ioa_unit_checked:1;
-	u8 ioa_is_dead:1;
 	u8 dump_taken:1;
-	u8 allow_cmds:1;
 	u8 allow_ml_add_del:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
@@ -1449,7 +1451,7 @@ struct ipr_ioa_cfg {
 	char trace_start[8];
 #define IPR_TRACE_START_LABEL			"trace"
 	struct ipr_trace_entry *trace;
-	u32 trace_index:IPR_NUM_TRACE_INDEX_BITS;
+	atomic_t trace_index;
 
 	char cfg_table_start[8];
 #define IPR_CFG_TBL_START		"cfg"
@@ -1476,7 +1478,8 @@ struct ipr_ioa_cfg {
 
 	struct ipr_hrr_queue hrrq[IPR_MAX_HRRQ_NUM];
 	u32 hrrq_num;
-	u32 hrrq_index;
+	atomic_t  hrrq_index;
+	u16 identify_hrrq_index;
 
 	struct ipr_bus_attributes bus_attr[IPR_MAX_NUM_BUSES];
 
