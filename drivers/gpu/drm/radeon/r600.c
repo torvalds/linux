@@ -38,18 +38,7 @@
 #include "r600d.h"
 #include "atom.h"
 #include "avivod.h"
-
-#define PFP_UCODE_SIZE 576
-#define PM4_UCODE_SIZE 1792
-#define RLC_UCODE_SIZE 768
-#define R700_PFP_UCODE_SIZE 848
-#define R700_PM4_UCODE_SIZE 1360
-#define R700_RLC_UCODE_SIZE 1024
-#define EVERGREEN_PFP_UCODE_SIZE 1120
-#define EVERGREEN_PM4_UCODE_SIZE 1376
-#define EVERGREEN_RLC_UCODE_SIZE 768
-#define CAYMAN_RLC_UCODE_SIZE 1024
-#define ARUBA_RLC_UCODE_SIZE 1536
+#include "radeon_ucode.h"
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -2246,9 +2235,9 @@ int r600_init_microcode(struct radeon_device *rdev)
 		me_req_size = R700_PM4_UCODE_SIZE * 4;
 		rlc_req_size = R700_RLC_UCODE_SIZE * 4;
 	} else {
-		pfp_req_size = PFP_UCODE_SIZE * 4;
-		me_req_size = PM4_UCODE_SIZE * 12;
-		rlc_req_size = RLC_UCODE_SIZE * 4;
+		pfp_req_size = R600_PFP_UCODE_SIZE * 4;
+		me_req_size = R600_PM4_UCODE_SIZE * 12;
+		rlc_req_size = R600_RLC_UCODE_SIZE * 4;
 	}
 
 	DRM_INFO("Loading %s Microcode\n", chip_name);
@@ -2331,13 +2320,13 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 
 	fw_data = (const __be32 *)rdev->me_fw->data;
 	WREG32(CP_ME_RAM_WADDR, 0);
-	for (i = 0; i < PM4_UCODE_SIZE * 3; i++)
+	for (i = 0; i < R600_PM4_UCODE_SIZE * 3; i++)
 		WREG32(CP_ME_RAM_DATA,
 		       be32_to_cpup(fw_data++));
 
 	fw_data = (const __be32 *)rdev->pfp_fw->data;
 	WREG32(CP_PFP_UCODE_ADDR, 0);
-	for (i = 0; i < PFP_UCODE_SIZE; i++)
+	for (i = 0; i < R600_PFP_UCODE_SIZE; i++)
 		WREG32(CP_PFP_UCODE_DATA,
 		       be32_to_cpup(fw_data++));
 
@@ -3839,7 +3828,7 @@ static int r600_rlc_init(struct radeon_device *rdev)
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
 		}
 	} else {
-		for (i = 0; i < RLC_UCODE_SIZE; i++) {
+		for (i = 0; i < R600_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
 		}

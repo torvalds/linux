@@ -33,9 +33,7 @@
 #include "avivod.h"
 #include "evergreen_reg.h"
 #include "evergreen_blit_shaders.h"
-
-#define EVERGREEN_PFP_UCODE_SIZE 1120
-#define EVERGREEN_PM4_UCODE_SIZE 1376
+#include "radeon_ucode.h"
 
 static const u32 crtc_offsets[6] =
 {
