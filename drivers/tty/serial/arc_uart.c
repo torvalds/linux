@@ -651,7 +651,7 @@ static struct __initdata console arc_early_serial_console = {
 	.index = -1
 };
 
-static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
+static int __init arc_serial_probe_earlyprintk(struct platform_device *pdev)
 {
 	int dev_id = pdev->id < 0 ? 0 : pdev->id;
 	int rc;
@@ -667,19 +667,11 @@ static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&arc_early_serial_console);
 	return 0;
 }
-#else
-static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
 	int rc, dev_id;
-
-	if (is_early_platform_device(pdev))
-		return arc_serial_probe_earlyprintk(pdev);
 
 	dev_id = pdev->id < 0 ? 0 : pdev->id;
 	rc = arc_uart_init_one(pdev, dev_id);
@@ -706,6 +698,15 @@ static struct platform_driver arc_platform_driver = {
 };
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
+
+static struct platform_driver early_arc_platform_driver = {
+	.probe = arc_serial_probe_earlyprintk,
+	.remove = arc_serial_remove,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+	 },
+};
 /*
  * Register an early platform driver of "earlyprintk" class.
  * ARCH platform code installs the driver and probes the early devices
@@ -713,7 +714,7 @@ static struct platform_driver arc_platform_driver = {
  * or it could be done independently, for all "earlyprintk" class drivers.
  * [see arch/arc/plat-arcfpga/platform.c]
  */
-early_platform_init("earlyprintk", &arc_platform_driver);
+early_platform_init("earlyprintk", &early_arc_platform_driver);
 
 #endif  /* CONFIG_SERIAL_ARC_CONSOLE */
 
