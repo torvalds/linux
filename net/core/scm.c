@@ -51,11 +51,11 @@ static __inline__ int scm_check_creds(struct ucred *creds)
 	if (!uid_valid(uid) || !gid_valid(gid))
 		return -EINVAL;
 
-	if ((creds->pid == task_tgid_vnr(current) || capable(CAP_SYS_ADMIN)) &&
+	if ((creds->pid == task_tgid_vnr(current) || nsown_capable(CAP_SYS_ADMIN)) &&
 	    ((uid_eq(uid, cred->uid)   || uid_eq(uid, cred->euid) ||
-	      uid_eq(uid, cred->suid)) || capable(CAP_SETUID)) &&
+	      uid_eq(uid, cred->suid)) || nsown_capable(CAP_SETUID)) &&
 	    ((gid_eq(gid, cred->gid)   || gid_eq(gid, cred->egid) ||
-	      gid_eq(gid, cred->sgid)) || capable(CAP_SETGID))) {
+	      gid_eq(gid, cred->sgid)) || nsown_capable(CAP_SETGID))) {
 	       return 0;
 	}
 	return -EPERM;

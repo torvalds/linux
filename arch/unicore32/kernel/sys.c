@@ -28,20 +28,6 @@
 #include <asm/syscalls.h>
 #include <asm/cacheflush.h>
 
-/* Clone a task - this clones the calling program thread.
- * This is called indirectly via a small wrapper
- */
-asmlinkage long __sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 void __user *parent_tid, void __user *child_tid,
-			 struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->UCreg_sp;
-
-	return do_fork(clone_flags, newsp, regs, 0,
-			parent_tid, child_tid);
-}
-
 /* Note: used by the compat code even in 64-bit Linux. */
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,

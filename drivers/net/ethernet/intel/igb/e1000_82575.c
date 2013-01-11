@@ -319,6 +319,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		nvm->ops.acquire = igb_acquire_nvm_i210;
 		nvm->ops.release = igb_release_nvm_i210;
 		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
 		nvm->ops.valid_led_default = igb_valid_led_default_i210;
 		break;
 	case e1000_i211:
@@ -1027,6 +1028,15 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 		 * continue to check for link.
 		 */
 		hw->mac.get_link_status = !hw->mac.serdes_has_link;
+
+		/* Configure Flow Control now that Auto-Neg has completed.
+		 * First, we need to restore the desired flow control
+		 * settings because we may have had to re-autoneg with a
+		 * different link partner.
+		 */
+		ret_val = igb_config_fc_after_link_up(hw);
+		if (ret_val)
+			hw_dbg("Error configuring flow control\n");
 	} else {
 		ret_val = igb_check_for_copper_link(hw);
 	}
@@ -1277,11 +1287,19 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32  ret_val;
+	u32 phpm_reg;
 
 	ctrl = rd32(E1000_CTRL);
 	ctrl |= E1000_CTRL_SLU;
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	wr32(E1000_CTRL, ctrl);
+
+	/* Clear Go Link Disconnect bit */
+	if (hw->mac.type >= e1000_82580) {
+		phpm_reg = rd32(E1000_82580_PHY_POWER_MGMT);
+		phpm_reg &= ~E1000_82580_PM_GO_LINKD;
+		wr32(E1000_82580_PHY_POWER_MGMT, phpm_reg);
+	}
 
 	ret_val = igb_setup_serdes_link_82575(hw);
 	if (ret_val)
@@ -1336,7 +1354,7 @@ out:
  **/
 static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl_ext, ctrl_reg, reg;
+	u32 ctrl_ext, ctrl_reg, reg, anadv_reg;
 	bool pcs_autoneg;
 	s32 ret_val = E1000_SUCCESS;
 	u16 data;
@@ -1424,27 +1442,45 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	reg &= ~(E1000_PCS_LCTL_AN_ENABLE | E1000_PCS_LCTL_FLV_LINK_UP |
 		E1000_PCS_LCTL_FSD | E1000_PCS_LCTL_FORCE_LINK);
 
-	/*
-	 * We force flow control to prevent the CTRL register values from being
-	 * overwritten by the autonegotiated flow control values
-	 */
-	reg |= E1000_PCS_LCTL_FORCE_FCTRL;
-
 	if (pcs_autoneg) {
 		/* Set PCS register for autoneg */
 		reg |= E1000_PCS_LCTL_AN_ENABLE | /* Enable Autoneg */
 		       E1000_PCS_LCTL_AN_RESTART; /* Restart autoneg */
+
+		/* Disable force flow control for autoneg */
+		reg &= ~E1000_PCS_LCTL_FORCE_FCTRL;
+
+		/* Configure flow control advertisement for autoneg */
+		anadv_reg = rd32(E1000_PCS_ANADV);
+		anadv_reg &= ~(E1000_TXCW_ASM_DIR | E1000_TXCW_PAUSE);
+		switch (hw->fc.requested_mode) {
+		case e1000_fc_full:
+		case e1000_fc_rx_pause:
+			anadv_reg |= E1000_TXCW_ASM_DIR;
+			anadv_reg |= E1000_TXCW_PAUSE;
+			break;
+		case e1000_fc_tx_pause:
+			anadv_reg |= E1000_TXCW_ASM_DIR;
+			break;
+		default:
+			break;
+		}
+		wr32(E1000_PCS_ANADV, anadv_reg);
+
 		hw_dbg("Configuring Autoneg:PCS_LCTL=0x%08X\n", reg);
 	} else {
 		/* Set PCS register for forced link */
 		reg |= E1000_PCS_LCTL_FSD;        /* Force Speed */
+
+		/* Force flow control for forced link */
+		reg |= E1000_PCS_LCTL_FORCE_FCTRL;
 
 		hw_dbg("Configuring Forced Link:PCS_LCTL=0x%08X\n", reg);
 	}
 
 	wr32(E1000_PCS_LCTL, reg);
 
-	if (!igb_sgmii_active_82575(hw))
+	if (!pcs_autoneg && !igb_sgmii_active_82575(hw))
 		igb_force_mac_fc(hw);
 
 	return ret_val;
@@ -1918,6 +1954,12 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	hw->dev_spec._82575.global_device_reset = false;
 
+	/* due to hw errata, global device reset doesn't always
+	 * work on 82580
+	 */
+	if (hw->mac.type == e1000_82580)
+		global_device_reset = false;
+
 	/* Get current control state. */
 	ctrl = rd32(E1000_CTRL);
 
@@ -2233,19 +2275,16 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 
 	/* enable or disable per user setting */
 	if (!(hw->dev_spec._82575.eee_disable)) {
-		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN |
-			E1000_IPCNFG_EEE_100M_AN);
-		eeer |= (E1000_EEER_TX_LPI_EN |
-			E1000_EEER_RX_LPI_EN |
+		u32 eee_su = rd32(E1000_EEE_SU);
+
+		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN | E1000_IPCNFG_EEE_100M_AN);
+		eeer |= (E1000_EEER_TX_LPI_EN | E1000_EEER_RX_LPI_EN |
 			E1000_EEER_LPI_FC);
 
-		/* keep the LPI clock running before EEE is enabled */
-		if (hw->mac.type == e1000_i210 || hw->mac.type == e1000_i211) {
-			u32 eee_su;
-			eee_su = rd32(E1000_EEE_SU);
-			eee_su &= ~E1000_EEE_SU_LPI_CLK_STP;
-			wr32(E1000_EEE_SU, eee_su);
-		}
+		/* This bit should not be set in normal operation. */
+		if (eee_su & E1000_EEE_SU_LPI_CLK_STP)
+			hw_dbg("LPI Clock Stop Bit should not be set!\n");
+
 
 	} else {
 		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |

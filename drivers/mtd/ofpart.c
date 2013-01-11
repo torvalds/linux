@@ -71,7 +71,10 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		(*pparts)[i].name = (char *)partname;
 
 		if (of_get_property(pp, "read-only", &len))
-			(*pparts)[i].mask_flags = MTD_WRITEABLE;
+			(*pparts)[i].mask_flags |= MTD_WRITEABLE;
+
+		if (of_get_property(pp, "lock", &len))
+			(*pparts)[i].mask_flags |= MTD_POWERUP_LOCK;
 
 		i++;
 	}

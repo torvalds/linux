@@ -281,7 +281,6 @@ struct tx_queue_entry {
 struct mscan_priv {
 	struct can_priv can;	/* must be the first member */
 	unsigned int type; 	/* MSCAN type variants */
-	long open_time;
 	unsigned long flags;
 	void __iomem *reg_base;	/* ioremap'ed address to registers */
 	u8 shadow_statflg;

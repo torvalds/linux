@@ -22,7 +22,9 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/device.h>
 #include <core/gpuobj.h>
+#include <core/class.h>
 
 #include <subdev/fb.h>
 #include <engine/dmaobj.h>
@@ -31,44 +33,85 @@ struct nvc0_dmaeng_priv {
 	struct nouveau_dmaeng base;
 };
 
-struct nvc0_dmaobj_priv {
-	struct nouveau_dmaobj base;
-};
-
 static int
-nvc0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
+nvc0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
+		 struct nouveau_object *parent,
+		 struct nouveau_dmaobj *dmaobj,
+		 struct nouveau_gpuobj **pgpuobj)
 {
-	struct nvc0_dmaobj_priv *dmaobj;
+	u32 flags0 = nv_mclass(dmaobj);
+	u32 flags5 = 0x00000000;
 	int ret;
 
-	ret = nouveau_dmaobj_create(parent, engine, oclass, data, size, &dmaobj);
-	*pobject = nv_object(dmaobj);
-	if (ret)
-		return ret;
+	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
+		switch (nv_mclass(parent->parent)) {
+		case NVA3_DISP_MAST_CLASS:
+		case NVA3_DISP_SYNC_CLASS:
+		case NVA3_DISP_OVLY_CLASS:
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else
+		return 0;
 
-	if (dmaobj->base.target != NV_MEM_TARGET_VM || dmaobj->base.start)
+	if (!(dmaobj->conf0 & NVC0_DMA_CONF0_ENABLE)) {
+		if (dmaobj->target == NV_MEM_TARGET_VM) {
+			dmaobj->conf0  = NVC0_DMA_CONF0_PRIV_VM;
+			dmaobj->conf0 |= NVC0_DMA_CONF0_TYPE_VM;
+		} else {
+			dmaobj->conf0  = NVC0_DMA_CONF0_PRIV_US;
+			dmaobj->conf0 |= NVC0_DMA_CONF0_TYPE_LINEAR;
+			dmaobj->conf0 |= 0x00020000;
+		}
+	}
+
+	flags0 |= (dmaobj->conf0 & NVC0_DMA_CONF0_TYPE) << 22;
+	flags0 |= (dmaobj->conf0 & NVC0_DMA_CONF0_PRIV);
+	flags5 |= (dmaobj->conf0 & NVC0_DMA_CONF0_UNKN);
+
+	switch (dmaobj->target) {
+	case NV_MEM_TARGET_VM:
+		flags0 |= 0x00000000;
+		break;
+	case NV_MEM_TARGET_VRAM:
+		flags0 |= 0x00010000;
+		break;
+	case NV_MEM_TARGET_PCI:
+		flags0 |= 0x00020000;
+		break;
+	case NV_MEM_TARGET_PCI_NOSNOOP:
+		flags0 |= 0x00030000;
+		break;
+	default:
 		return -EINVAL;
+	}
 
-	return 0;
+	switch (dmaobj->access) {
+	case NV_MEM_ACCESS_VM:
+		break;
+	case NV_MEM_ACCESS_RO:
+		flags0 |= 0x00040000;
+		break;
+	case NV_MEM_ACCESS_WO:
+	case NV_MEM_ACCESS_RW:
+		flags0 |= 0x00080000;
+		break;
+	}
+
+	ret = nouveau_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
+	if (ret == 0) {
+		nv_wo32(*pgpuobj, 0x00, flags0);
+		nv_wo32(*pgpuobj, 0x04, lower_32_bits(dmaobj->limit));
+		nv_wo32(*pgpuobj, 0x08, lower_32_bits(dmaobj->start));
+		nv_wo32(*pgpuobj, 0x0c, upper_32_bits(dmaobj->limit) << 24 |
+					upper_32_bits(dmaobj->start));
+		nv_wo32(*pgpuobj, 0x10, 0x00000000);
+		nv_wo32(*pgpuobj, 0x14, flags5);
+	}
+
+	return ret;
 }
-
-static struct nouveau_ofuncs
-nvc0_dmaobj_ofuncs = {
-	.ctor = nvc0_dmaobj_ctor,
-	.dtor = _nouveau_dmaobj_dtor,
-	.init = _nouveau_dmaobj_init,
-	.fini = _nouveau_dmaobj_fini,
-};
-
-static struct nouveau_oclass
-nvc0_dmaobj_sclass[] = {
-	{ 0x0002, &nvc0_dmaobj_ofuncs },
-	{ 0x0003, &nvc0_dmaobj_ofuncs },
-	{ 0x003d, &nvc0_dmaobj_ofuncs },
-	{}
-};
 
 static int
 nvc0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -83,7 +126,8 @@ nvc0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.base.sclass = nvc0_dmaobj_sclass;
+	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
+	priv->base.bind = nvc0_dmaobj_bind;
 	return 0;
 }
 

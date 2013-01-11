@@ -210,3 +210,5 @@ source "drivers/gpu/drm/mgag200/Kconfig"
 source "drivers/gpu/drm/cirrus/Kconfig"
 
 source "drivers/gpu/drm/shmobile/Kconfig"
+
+source "drivers/gpu/drm/tegra/Kconfig"

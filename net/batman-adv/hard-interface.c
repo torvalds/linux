@@ -18,6 +18,7 @@
  */
 
 #include "main.h"
+#include "distributed-arp-table.h"
 #include "hard-interface.h"
 #include "soft-interface.h"
 #include "send.h"
@@ -29,6 +30,7 @@
 #include "bridge_loop_avoidance.h"
 
 #include <linux/if_arp.h>
+#include <linux/if_ether.h>
 
 void batadv_hardif_free_rcu(struct rcu_head *rcu)
 {
@@ -58,6 +60,45 @@ out:
 	return hard_iface;
 }
 
+/**
+ * batadv_is_on_batman_iface - check if a device is a batman iface descendant
+ * @net_dev: the device to check
+ *
+ * If the user creates any virtual device on top of a batman-adv interface, it
+ * is important to prevent this new interface to be used to create a new mesh
+ * network (this behaviour would lead to a batman-over-batman configuration).
+ * This function recursively checks all the fathers of the device passed as
+ * argument looking for a batman-adv soft interface.
+ *
+ * Returns true if the device is descendant of a batman-adv mesh interface (or
+ * if it is a batman-adv interface itself), false otherwise
+ */
+static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
+{
+	struct net_device *parent_dev;
+	bool ret;
+
+	/* check if this is a batman-adv mesh interface */
+	if (batadv_softif_is_valid(net_dev))
+		return true;
+
+	/* no more parents..stop recursion */
+	if (net_dev->iflink == net_dev->ifindex)
+		return false;
+
+	/* recurse over the parent device */
+	parent_dev = dev_get_by_index(&init_net, net_dev->iflink);
+	/* if we got a NULL parent_dev there is something broken.. */
+	if (WARN(!parent_dev, "Cannot find parent device"))
+		return false;
+
+	ret = batadv_is_on_batman_iface(parent_dev);
+
+	if (parent_dev)
+		dev_put(parent_dev);
+	return ret;
+}
+
 static int batadv_is_valid_iface(const struct net_device *net_dev)
 {
 	if (net_dev->flags & IFF_LOOPBACK)
@@ -70,7 +111,7 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
 		return 0;
 
 	/* no batman over batman */
-	if (batadv_softif_is_valid(net_dev))
+	if (batadv_is_on_batman_iface(net_dev))
 		return 0;
 
 	return 1;
@@ -108,6 +149,8 @@ static void batadv_primary_if_update_addr(struct batadv_priv *bat_priv,
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
+
+	batadv_dat_init_own_addr(bat_priv, primary_if);
 
 	skb = bat_priv->vis.my_info->skb_packet;
 	vis_packet = (struct batadv_vis_packet *)skb->data;
@@ -269,7 +312,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 {
 	struct batadv_priv *bat_priv;
 	struct net_device *soft_iface;
-	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
+	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	int ret;
 
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
@@ -450,8 +493,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	/* This can't be called via a bat_priv callback because
 	 * we have no bat_priv yet.
 	 */
-	atomic_set(&hard_iface->seqno, 1);
-	hard_iface->packet_buff = NULL;
+	atomic_set(&hard_iface->bat_iv.ogm_seqno, 1);
+	hard_iface->bat_iv.ogm_buff = NULL;
 
 	return hard_iface;
 

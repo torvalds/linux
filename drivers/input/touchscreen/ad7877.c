@@ -682,7 +682,7 @@ static void ad7877_setup_ts_def_msg(struct spi_device *spi, struct ad7877 *ts)
 	}
 }
 
-static int __devinit ad7877_probe(struct spi_device *spi)
+static int ad7877_probe(struct spi_device *spi)
 {
 	struct ad7877			*ts;
 	struct input_dev		*input_dev;
@@ -810,7 +810,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit ad7877_remove(struct spi_device *spi)
+static int ad7877_remove(struct spi_device *spi)
 {
 	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
 
@@ -857,7 +857,7 @@ static struct spi_driver ad7877_driver = {
 		.pm	= &ad7877_pm,
 	},
 	.probe		= ad7877_probe,
-	.remove		= __devexit_p(ad7877_remove),
+	.remove		= ad7877_remove,
 };
 
 module_spi_driver(ad7877_driver);

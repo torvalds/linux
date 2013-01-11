@@ -194,7 +194,7 @@ static int evm_led_setup(struct i2c_client *client, int gpio,
 	while (ngpio--) {
 		leds->gpio = gpio++;
 		leds++;
-	};
+	}
 
 	evm_led_dev = platform_device_alloc("leds-gpio", 0);
 	platform_device_add_data(evm_led_dev, &evm_led_data,
@@ -358,7 +358,7 @@ static int cpld_video_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit cpld_video_remove(struct i2c_client *client)
+static int cpld_video_remove(struct i2c_client *client)
 {
 	cpld_client = NULL;
 	return 0;

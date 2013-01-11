@@ -5,14 +5,13 @@ config ARM
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select BUILDTIME_EXTABLE_SORT if MMU
 	select CPU_PM if (SUSPEND || CPU_IDLE)
-	select DCACHE_WORD_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && !CPU_BIG_ENDIAN
+	select DCACHE_WORD_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && !CPU_BIG_ENDIAN && MMU
 	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
-	select GENERIC_KERNEL_THREAD
-	select GENERIC_KERNEL_EXECVE
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_STRNCPY_FROM_USER
@@ -21,6 +20,7 @@ config ARM
 	select HAVE_AOUT
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
 	select HAVE_C_RECORDMCOUNT
@@ -55,6 +55,7 @@ config ARM
 	select SYS_SUPPORTS_APM_EMULATION
 	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
 	select MODULES_USE_ELF_REL
+	select CLONE_BACKWARDS
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -284,8 +285,8 @@ config ARCH_INTEGRATOR
 	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_FPGA_IRQ
 	select SPARSE_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -318,7 +319,7 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_CLOCK
-	select PLAT_VERSATILE_FPGA_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -330,13 +331,15 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_GPIO_H
 	select NEED_MACH_IO_H if PCCARD
+	select PINCTRL
+	select PINCTRL_AT91 if USE_OF
 	help
 	  This enables support for systems based on Atmel
 	  AT91RM9200 and AT91SAM9* processors.
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_411920
 	select ARM_TIMER_SP804
@@ -344,7 +347,10 @@ config ARCH_BCM2835
 	select COMMON_CLK
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
 	select MULTI_IRQ_HANDLER
+	select PINCTRL
+	select PINCTRL_BCM2835
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -364,11 +370,15 @@ config ARCH_CNS3XXX
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
-	select ARCH_USES_GETTIMEOFFSET
+	select ARCH_REQUIRE_GPIOLIB
+	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_ARM720T
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.
 
@@ -432,19 +442,6 @@ config ARCH_FOOTBRIDGE
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
-
-config ARCH_MXC
-	bool "Freescale MXC/iMX-based"
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_IRQ_CHIP
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for Freescale MXC/iMX-based family of processors
 
 config ARCH_MXS
 	bool "Freescale MXS-based"
@@ -533,9 +530,12 @@ config ARCH_IXP4XX
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLK_DOVE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select PINCTRL
+	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select USB_ARCH_HAS_EHCI
 	help
@@ -548,6 +548,8 @@ config ARCH_KIRKWOOD
 	select GENERIC_CLOCKEVENTS
 	select PCI
 	select PCI_QUIRKS
+	select PINCTRL
+	select PINCTRL_KIRKWOOD
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
@@ -587,6 +589,7 @@ config ARCH_MMP
 	select GPIO_PXA
 	select IRQ_DOMAIN
 	select NEED_MACH_GPIO_H
+	select PINCTRL
 	select PLAT_PXA
 	select SPARSE_IRQ
 	help
@@ -645,6 +648,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
@@ -886,6 +890,7 @@ config ARCH_U8500
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SPARSE_IRQ
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
@@ -900,11 +905,13 @@ config ARCH_NOMADIK
 	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_STN8815
+	select SPARSE_IRQ
 	help
 	  Support for the Nomadik platform by ST-Ericsson
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
+	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
@@ -925,6 +932,7 @@ config ARCH_DAVINCI
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
 	select NEED_MACH_GPIO_H
+	select USE_OF
 	select ZONE_DMA
 	help
 	  Support for TI's DaVinci platform.
@@ -938,11 +946,10 @@ config ARCH_OMAP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select NEED_MACH_GPIO_H
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
-config ARCH_VT8500
+config ARCH_VT8500_SINGLE
 	bool "VIA/WonderMedia 85xx"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
@@ -952,22 +959,12 @@ config ARCH_VT8500
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 
-config ARCH_ZYNQ
-	bool "Xilinx Zynq ARM Cortex A9 Platform"
-	select ARM_AMBA
-	select ARM_GIC
-	select CLKDEV_LOOKUP
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select ICST
-	select MIGHT_HAVE_CACHE_L2X0
-	select USE_OF
-	help
-	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
 
 menu "Multiple platform selection"
@@ -1023,6 +1020,8 @@ source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
 
+source "arch/arm/mach-bcm/Kconfig"
+
 source "arch/arm/mach-clps711x/Kconfig"
 
 source "arch/arm/mach-cns3xxx/Kconfig"
@@ -1059,14 +1058,13 @@ source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
 
-source "arch/arm/plat-mxc/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
-source "arch/arm/plat-nomadik/Kconfig"
 
 source "arch/arm/plat-omap/Kconfig"
 
@@ -1114,6 +1112,8 @@ source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
+source "arch/arm/mach-sunxi/Kconfig"
+
 source "arch/arm/mach-prima2/Kconfig"
 
 source "arch/arm/mach-tegra/Kconfig"
@@ -1127,7 +1127,11 @@ source "arch/arm/mach-versatile/Kconfig"
 source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/plat-versatile/Kconfig"
 
+source "arch/arm/mach-vt8500/Kconfig"
+
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-zynq/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -1169,7 +1173,7 @@ config ARM_NR_BANKS
 config IWMMXT
 	bool "Enable iWMMXt support"
 	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
-	default y if PXA27x || PXA3xx || PXA95x || ARCH_MMP
+	default y if PXA27x || PXA3xx || ARCH_MMP
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -1225,6 +1229,7 @@ config ARM_ERRATA_430973
 config ARM_ERRATA_458693
 	bool "ARM errata: Processor deadlock when a false hazard is created"
 	depends on CPU_V7
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 458693 Cortex-A8 (r2p0)
 	  erratum. For very specific sequences of memory operations, it is
@@ -1238,6 +1243,7 @@ config ARM_ERRATA_458693
 config ARM_ERRATA_460075
 	bool "ARM errata: Data written to the L2 cache can be overwritten with stale data"
 	depends on CPU_V7
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 460075 Cortex-A8 (r2p0)
 	  erratum. Any asynchronous access to the L2 cache may encounter a
@@ -1250,6 +1256,7 @@ config ARM_ERRATA_460075
 config ARM_ERRATA_742230
 	bool "ARM errata: DMB operation may be faulty"
 	depends on CPU_V7 && SMP
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 742230 Cortex-A9
 	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
@@ -1262,6 +1269,7 @@ config ARM_ERRATA_742230
 config ARM_ERRATA_742231
 	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
 	depends on CPU_V7 && SMP
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 742231 Cortex-A9
 	  (r2p0..r2p2) erratum. Under certain conditions, specific to the
@@ -1312,6 +1320,7 @@ config PL310_ERRATA_727915
 config ARM_ERRATA_743622
 	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
 	depends on CPU_V7
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 743622 Cortex-A9
 	  (r2p*) erratum. Under very rare conditions, a faulty
@@ -1325,6 +1334,7 @@ config ARM_ERRATA_743622
 config ARM_ERRATA_751472
 	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
 	depends on CPU_V7
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables the workaround for the 751472 Cortex-A9 (prior
 	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the

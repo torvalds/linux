@@ -1483,8 +1483,8 @@ static const struct regmap_config lm49453_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
-				       const struct i2c_device_id *id)
+static int lm49453_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct lm49453_priv *lm49453;
 	int ret = 0;
@@ -1497,7 +1497,7 @@ static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, lm49453);
 
-	lm49453->regmap = regmap_init_i2c(i2c, &lm49453_regmap_config);
+	lm49453->regmap = devm_regmap_init_i2c(i2c, &lm49453_regmap_config);
 	if (IS_ERR(lm49453->regmap)) {
 		ret = PTR_ERR(lm49453->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -1508,21 +1508,15 @@ static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
 	ret =  snd_soc_register_codec(&i2c->dev,
 				      &soc_codec_dev_lm49453,
 				      lm49453_dai, ARRAY_SIZE(lm49453_dai));
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		regmap_exit(lm49453->regmap);
-		return ret;
-	}
 
 	return ret;
 }
 
-static int __devexit lm49453_i2c_remove(struct i2c_client *client)
+static int lm49453_i2c_remove(struct i2c_client *client)
 {
-	struct lm49453_priv *lm49453 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(lm49453->regmap);
 	return 0;
 }
 
@@ -1538,7 +1532,7 @@ static struct i2c_driver lm49453_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm49453_i2c_probe,
-	.remove = __devexit_p(lm49453_i2c_remove),
+	.remove = lm49453_i2c_remove,
 	.id_table = lm49453_i2c_id,
 };
 

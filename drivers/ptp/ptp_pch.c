@@ -557,7 +557,7 @@ static s32 pch_resume(struct pci_dev *pdev)
 #define pch_resume NULL
 #endif
 
-static void __devexit pch_remove(struct pci_dev *pdev)
+static void pch_remove(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
 
@@ -581,7 +581,7 @@ static void __devexit pch_remove(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "complete\n");
 }
 
-static s32 __devinit
+static s32
 pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	s32 ret;

@@ -841,7 +841,7 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static int __devinit lirc_serial_probe(struct platform_device *dev)
+static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
@@ -927,7 +927,7 @@ exit_free_irq:
 	return result;
 }
 
-static int __devexit lirc_serial_remove(struct platform_device *dev)
+static int lirc_serial_remove(struct platform_device *dev)
 {
 	free_irq(irq, (void *)&hardware);
 
@@ -1148,7 +1148,7 @@ static int lirc_serial_resume(struct platform_device *dev)
 
 static struct platform_driver lirc_serial_driver = {
 	.probe		= lirc_serial_probe,
-	.remove		= __devexit_p(lirc_serial_remove),
+	.remove		= lirc_serial_remove,
 	.suspend	= lirc_serial_suspend,
 	.resume		= lirc_serial_resume,
 	.driver		= {

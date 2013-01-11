@@ -139,7 +139,7 @@ static const struct rtc_class_ops pcap_rtc_ops = {
 	.alarm_irq_enable = pcap_rtc_alarm_irq_enable,
 };
 
-static int __devinit pcap_rtc_probe(struct platform_device *pdev)
+static int pcap_rtc_probe(struct platform_device *pdev)
 {
 	struct pcap_rtc *pcap_rtc;
 	int timer_irq, alarm_irq;
@@ -183,7 +183,7 @@ fail_rtc:
 	return err;
 }
 
-static int __devexit pcap_rtc_remove(struct platform_device *pdev)
+static int pcap_rtc_remove(struct platform_device *pdev)
 {
 	struct pcap_rtc *pcap_rtc = platform_get_drvdata(pdev);
 
@@ -196,7 +196,7 @@ static int __devexit pcap_rtc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver pcap_rtc_driver = {
-	.remove = __devexit_p(pcap_rtc_remove),
+	.remove = pcap_rtc_remove,
 	.driver = {
 		.name  = "pcap-rtc",
 		.owner = THIS_MODULE,

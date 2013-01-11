@@ -37,7 +37,7 @@ For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
             0x40    Inbound Queue Port
             0x44    Outbound Queue Port
 
-For Marvell IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
+For Marvell not Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
      BAR0 offset    Register
          0x20400    Inbound Doorbell Register
@@ -55,9 +55,31 @@ For Marvell IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
      0x40-0x1040    Inbound Queue
    0x1040-0x2040    Outbound Queue
 
+For Marvell Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
-I/O Request Workflow
-----------------------
+     BAR0 offset    Register
+             0x0    IOP configuration information.
+
+     BAR1 offset    Register
+          0x4000    Inbound List Base Address Low
+          0x4004    Inbound List Base Address High
+          0x4018    Inbound List Write Pointer
+          0x402C    Inbound List Configuration and Control
+          0x4050    Outbound List Base Address Low
+          0x4054    Outbound List Base Address High
+          0x4058    Outbound List Copy Pointer Shadow Base Address Low
+          0x405C    Outbound List Copy Pointer Shadow Base Address High
+          0x4088    Outbound List Interrupt Cause
+          0x408C    Outbound List Interrupt Enable
+         0x1020C    PCIe Function 0 Interrupt Enable
+         0x10400    PCIe Function 0 to CPU Message A
+         0x10420    CPU to PCIe Function 0 Message A
+         0x10480    CPU to PCIe Function 0 Doorbell
+         0x10484    CPU to PCIe Function 0 Doorbell Enable
+
+
+I/O Request Workflow of Not Marvell Frey
+------------------------------------------
 
 All queued requests are handled via inbound/outbound queue port.
 A request packet can be allocated in either IOP or host memory.
@@ -101,6 +123,45 @@ register 0. An outbound message with the same value indicates the completion
 of an inbound message.
 
 
+I/O Request Workflow of Marvell Frey
+--------------------------------------
+
+All queued requests are handled via inbound/outbound list.
+
+To send a request to the controller:
+
+    - Allocate a free request in host DMA coherent memory.
+
+      Requests allocated in host memory must be aligned on 32-bytes boundary.
+
+    - Fill the request with index of the request in the flag.
+
+      Fill a free inbound list unit with the physical address and the size of
+      the request.
+
+      Set up the inbound list write pointer with the index of previous unit,
+      round to 0 if the index reaches the supported count of requests.
+
+    - Post the inbound list writer pointer to IOP.
+
+    - The IOP process the request. When the request is completed, the flag of
+      the request with or-ed IOPMU_QUEUE_MASK_HOST_BITS will be put into a
+      free outbound list unit and the index of the outbound list unit will be
+      put into the copy pointer shadow register. An outbound interrupt will be
+      generated.
+
+    - The host read the outbound list copy pointer shadow register and compare
+      with previous saved read ponter N. If they are different, the host will
+      read the (N+1)th outbound list unit.
+
+      The host get the index of the request from the (N+1)th outbound list
+      unit and complete the request.
+
+Non-queued requests (reset communication/reset/flush etc) can be sent via PCIe
+Function 0 to CPU Message A register. The CPU to PCIe Function 0 Message register
+with the same value indicates the completion of message.
+
+
 User-level Interface
 ---------------------
 
@@ -112,7 +173,7 @@ The driver exposes following sysfs attributes:
 
 
 -----------------------------------------------------------------------------
-Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
+Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
 
   This file is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of

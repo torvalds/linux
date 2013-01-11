@@ -221,14 +221,21 @@ struct iwl_device_cmd {
 /**
  * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
  *
- * IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
+ * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
  *	rather copies it to an previously allocated DMA buffer. This flag tells
  *	the transport layer not to copy the command, but to map the existing
- *	buffer. This can save memcpy and is worth with very big comamnds.
+ *	buffer (that is passed in) instead. This saves the memcpy and allows
+ *	commands that are bigger than the fixed buffer to be submitted.
+ *	Note that a TFD entry after a NOCOPY one cannot be a normal copied one.
+ * @IWL_HCMD_DFL_DUP: Only valid without NOCOPY, duplicate the memory for this
+ *	chunk internally and free it again after the command completes. This
+ *	can (currently) be used only once per command.
+ *	Note that a TFD entry after a DUP one cannot be a normal copied one.
  */
 enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
+	IWL_HCMD_DFL_DUP	= BIT(1),
 };
 
 /**
@@ -348,14 +355,17 @@ struct iwl_trans;
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
  *	May sleep
- * @fw_alive: called when the fw sends alive notification
+ * @fw_alive: called when the fw sends alive notification. If the fw provides
+ *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
  * @stop_device:stops the whole device (embedded CPU put to reset)
  *	May sleep
  * @wowlan_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
- * @send_cmd:send a host command
+ * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
+ *	If RFkill is asserted in the middle of a SYNC host command, it must
+ *	return -ERFKILL straight away.
  *	May sleep only if CMD_SYNC is set
  * @tx: send an skb
  *	Must be atomic
@@ -375,6 +385,8 @@ struct iwl_trans;
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
+ * @read_prph: read a DWORD from a periphery register
+ * @write_prph: write a DWORD to a periphery register
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
@@ -385,7 +397,7 @@ struct iwl_trans_ops {
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
-	void (*fw_alive)(struct iwl_trans *trans);
+	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
 	void (*wowlan_suspend)(struct iwl_trans *trans);
@@ -410,6 +422,8 @@ struct iwl_trans_ops {
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
+	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
+	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -438,12 +452,15 @@ enum iwl_trans_state {
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
- * @wait_command_queue: the wait_queue for SYNC host commands
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_headroom: room needed for the transport's private use before the
  *	device_cmd for Tx - for internal use only
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
+ *	starting the firmware, used for tracing
+ * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
+ *	start of the 802.11 header in the @rx_mpdu_cmd
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -457,9 +474,9 @@ struct iwl_trans {
 	u32 hw_id;
 	char hw_id_str[52];
 
-	bool pm_support;
+	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
-	wait_queue_head_t wait_command_queue;
+	bool pm_support;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
@@ -476,10 +493,6 @@ struct iwl_trans {
 static inline void iwl_trans_configure(struct iwl_trans *trans,
 				       const struct iwl_trans_config *trans_cfg)
 {
-	/*
-	 * only set the op_mode for the moment. Later on, this function will do
-	 * more
-	 */
 	trans->op_mode = trans_cfg->op_mode;
 
 	trans->ops->configure(trans, trans_cfg);
@@ -499,22 +512,27 @@ static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
 
 	trans->ops->stop_hw(trans, op_mode_leaving);
 
+	if (op_mode_leaving)
+		trans->op_mode = NULL;
+
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
+static inline void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 {
 	might_sleep();
 
 	trans->state = IWL_TRANS_FW_ALIVE;
 
-	trans->ops->fw_alive(trans);
+	trans->ops->fw_alive(trans, scd_addr);
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 				     const struct fw_img *fw)
 {
 	might_sleep();
+
+	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
 	return trans->ops->start_fw(trans, fw);
 }
@@ -648,6 +666,17 @@ static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
 	return trans->ops->read32(trans, ofs);
+}
+
+static inline u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return trans->ops->read_prph(trans, ofs);
+}
+
+static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
+					u32 val)
+{
+	return trans->ops->write_prph(trans, ofs, val);
 }
 
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)

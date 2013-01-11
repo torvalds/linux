@@ -2010,7 +2010,7 @@ static int ioc3uart_remove(struct ioc3_submodule *is,
  * @idd: ioc3 driver data for this card
  */
 
-static int __devinit
+static int
 ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 {
 	struct pci_dev *pdev = idd->pdev;

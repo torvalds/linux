@@ -549,8 +549,10 @@ static int mgslpc_probe(struct pcmcia_device *link)
     /* Initialize the struct pcmcia_device structure */
 
     ret = mgslpc_config(link);
-    if (ret)
+    if (ret) {
+	    tty_port_destroy(&info->port);
 	    return ret;
+    }
 
     mgslpc_add_device(info);
 
@@ -2757,6 +2759,7 @@ static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 			hdlcdev_exit(info);
 #endif
 			release_resources(info);
+			tty_port_destroy(&info->port);
 			kfree(info);
 			mgslpc_device_count--;
 			return;

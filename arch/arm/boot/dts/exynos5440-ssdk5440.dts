@@ -1,0 +1,46 @@
+/*
+ * SAMSUNG SSDK5440 board device tree source
+ *
+ * Copyright (c) 2012 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos5440.dtsi"
+
+/ {
+	model = "SAMSUNG SSDK5440 board based on EXYNOS5440";
+	compatible = "samsung,ssdk5440", "samsung,exynos5440";
+
+	memory {
+		reg = <0x80000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x81000000,8M console=ttySAC0,115200 init=/linuxrc";
+	};
+
+	spi {
+		status = "disabled";
+	};
+
+	i2c@F0000 {
+		status = "disabled";
+	};
+
+	i2c@100000 {
+		status = "disabled";
+	};
+
+	watchdog {
+		status = "disabled";
+	};
+
+	rtc {
+		status = "disabled";
+	};
+};

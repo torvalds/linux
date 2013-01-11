@@ -1015,29 +1015,10 @@ err:
 		i = xennet_fill_frags(np, skb, &tmpq);
 
 		/*
-		 * Truesize approximates the size of true data plus
-		 * any supervisor overheads. Adding hypervisor
-		 * overheads has been shown to significantly reduce
-		 * achievable bandwidth with the default receive
-		 * buffer size. It is therefore not wise to account
-		 * for it here.
-		 *
-		 * After alloc_skb(RX_COPY_THRESHOLD), truesize is set
-		 * to RX_COPY_THRESHOLD + the supervisor
-		 * overheads. Here, we add the size of the data pulled
-		 * in xennet_fill_frags().
-		 *
-		 * We also adjust for any unused space in the main
-		 * data area by subtracting (RX_COPY_THRESHOLD -
-		 * len). This is especially important with drivers
-		 * which split incoming packets into header and data,
-		 * using only 66 bytes of the main data area (see the
-		 * e1000 driver for example.)  On such systems,
-		 * without this last adjustement, our achievable
-		 * receive throughout using the standard receive
-		 * buffer size was cut by 25%(!!!).
-		 */
-		skb->truesize += skb->data_len - RX_COPY_THRESHOLD;
+                 * Truesize is the actual allocation size, even if the
+                 * allocation is only partially used.
+                 */
+		skb->truesize += PAGE_SIZE * skb_shinfo(skb)->nr_frags;
 		skb->len += skb->data_len;
 
 		if (rx->flags & XEN_NETRXF_csum_blank)
@@ -1311,7 +1292,7 @@ static const struct net_device_ops xennet_netdev_ops = {
 #endif
 };
 
-static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev)
+static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 {
 	int i, err;
 	struct net_device *netdev;
@@ -1407,8 +1388,8 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
  * structures and the ring buffers for communication with the backend, and
  * inform the backend of the appropriate details for those.
  */
-static int __devinit netfront_probe(struct xenbus_device *dev,
-				    const struct xenbus_device_id *id)
+static int netfront_probe(struct xenbus_device *dev,
+			  const struct xenbus_device_id *id)
 {
 	int err;
 	struct net_device *netdev;
@@ -1967,7 +1948,7 @@ static const struct xenbus_device_id netfront_ids[] = {
 };
 
 
-static int __devexit xennet_remove(struct xenbus_device *dev)
+static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
@@ -1990,7 +1971,7 @@ static int __devexit xennet_remove(struct xenbus_device *dev)
 
 static DEFINE_XENBUS_DRIVER(netfront, ,
 	.probe = netfront_probe,
-	.remove = __devexit_p(xennet_remove),
+	.remove = xennet_remove,
 	.resume = netfront_resume,
 	.otherend_changed = netback_changed,
 );

@@ -329,11 +329,6 @@ static int ecovec24_set_brightness(int brightness)
 	return 0;
 }
 
-static int ecovec24_get_brightness(void)
-{
-	return gpio_get_value(GPIO_PTR1);
-}
-
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -347,7 +342,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
 			.set_brightness = ecovec24_set_brightness,
-			.get_brightness = ecovec24_get_brightness,
 		},
 	}
 };

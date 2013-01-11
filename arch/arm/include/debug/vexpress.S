@@ -21,14 +21,17 @@
 #if defined(CONFIG_DEBUG_VEXPRESS_UART0_DETECT)
 
 		.macro	addruart,rp,rv,tmp
+		.arch   armv7-a
 
 		@ Make an educated guess regarding the memory map:
-		@ - the original A9 core tile, which has MPCore peripherals
-		@   located at 0x1e000000, should use UART at 0x10009000
+		@ - the original A9 core tile (based on ARM Cortex-A9 r0p1)
+		@   should use UART at 0x10009000
 		@ - all other (RS1 complaint) tiles use UART mapped
 		@   at 0x1c090000
-		mrc	p15, 4, \tmp, c15, c0, 0
-		cmp	\tmp, #0x1e000000
+		mrc	p15, 0, \rp, c0, c0, 0
+		movw	\rv, #0xc091
+		movt	\rv, #0x410f
+		cmp	\rp, \rv
 
 		@ Original memory map
 		moveq	\rp, #DEBUG_LL_UART_OFFSET

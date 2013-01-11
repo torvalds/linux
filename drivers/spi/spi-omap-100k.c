@@ -486,7 +486,7 @@ static int __init omap1_spi100k_reset(struct omap1_spi100k *spi100k)
 	return 0;
 }
 
-static int __devinit omap1_spi100k_probe(struct platform_device *pdev)
+static int omap1_spi100k_probe(struct platform_device *pdev)
 {
 	struct spi_master       *master;
 	struct omap1_spi100k    *spi100k;

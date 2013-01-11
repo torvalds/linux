@@ -1,0 +1,12 @@
+DaVinci Watchdog Timer (WDT) Controller
+
+Required properties:
+- compatible : Should be "ti,davinci-wdt"
+- reg : Should contain WDT registers location and length
+
+Examples:
+
+wdt: wdt@2320000 {
+	compatible = "ti,davinci-wdt";
+	reg = <0x02320000 0x80>;
+};

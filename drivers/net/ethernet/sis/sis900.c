@@ -81,7 +81,7 @@
 #define SIS900_MODULE_NAME "sis900"
 #define SIS900_DRV_VERSION "v1.08.10 Apr. 2 2006"
 
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO "sis900.c: " SIS900_DRV_VERSION "\n";
 
 static int max_interrupt_work = 40;
@@ -251,7 +251,8 @@ static const struct ethtool_ops sis900_ethtool_ops;
  *	@net_dev->perm_addr.
  */
 
-static int __devinit sis900_get_mac_addr(struct pci_dev * pci_dev, struct net_device *net_dev)
+static int sis900_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -287,8 +288,8 @@ static int __devinit sis900_get_mac_addr(struct pci_dev * pci_dev, struct net_de
  *	@net_dev->perm_addr.
  */
 
-static int __devinit sis630e_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
+				struct net_device *net_dev)
 {
 	struct pci_dev *isa_bridge = NULL;
 	u8 reg;
@@ -330,8 +331,8 @@ static int __devinit sis630e_get_mac_addr(struct pci_dev * pci_dev,
  *	@net_dev->dev_addr and @net_dev->perm_addr.
  */
 
-static int __devinit sis635_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis635_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -377,8 +378,8 @@ static int __devinit sis635_get_mac_addr(struct pci_dev * pci_dev,
  *	MAC address is read into @net_dev->dev_addr and @net_dev->perm_addr.
  */
 
-static int __devinit sis96x_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -433,8 +434,8 @@ static const struct net_device_ops sis900_netdev_ops = {
  *	ie: sis900_open(), sis900_start_xmit(), sis900_close(), etc.
  */
 
-static int __devinit sis900_probe(struct pci_dev *pci_dev,
-				const struct pci_device_id *pci_id)
+static int sis900_probe(struct pci_dev *pci_dev,
+			const struct pci_device_id *pci_id)
 {
 	struct sis900_private *sis_priv;
 	struct net_device *net_dev;
@@ -605,7 +606,7 @@ err_out_cleardev:
  *	return error if it failed to found.
  */
 
-static int __devinit sis900_mii_probe(struct net_device * net_dev)
+static int sis900_mii_probe(struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	const char *dev_name = pci_name(sis_priv->pci_dev);
@@ -824,7 +825,7 @@ static void sis900_set_capability(struct net_device *net_dev, struct mii_phy *ph
  *	Note that location is in word (16 bits) unit
  */
 
-static u16 __devinit read_eeprom(void __iomem *ioaddr, int location)
+static u16 read_eeprom(void __iomem *ioaddr, int location)
 {
 	u32 read_cmd = location | EEread;
 	int i;
@@ -2410,7 +2411,7 @@ static void sis900_reset(struct net_device *net_dev)
  *	remove and release SiS900 net device
  */
 
-static void __devexit sis900_remove(struct pci_dev *pci_dev)
+static void sis900_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
@@ -2496,7 +2497,7 @@ static struct pci_driver sis900_pci_driver = {
 	.name		= SIS900_MODULE_NAME,
 	.id_table	= sis900_pci_tbl,
 	.probe		= sis900_probe,
-	.remove		= __devexit_p(sis900_remove),
+	.remove		= sis900_remove,
 #ifdef CONFIG_PM
 	.suspend	= sis900_suspend,
 	.resume		= sis900_resume,

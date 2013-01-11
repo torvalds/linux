@@ -138,7 +138,7 @@ static const struct iio_info adis16080_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit adis16080_probe(struct spi_device *spi)
+static int adis16080_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis16080_state *st;
@@ -177,7 +177,7 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int __devexit adis16080_remove(struct spi_device *spi)
+static int adis16080_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));
@@ -191,7 +191,7 @@ static struct spi_driver adis16080_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16080_probe,
-	.remove = __devexit_p(adis16080_remove),
+	.remove = adis16080_remove,
 };
 module_spi_driver(adis16080_driver);
 

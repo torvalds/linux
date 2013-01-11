@@ -18,26 +18,14 @@
 #include <linux/clk.h>
 #include <linux/clk-private.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data km_kirkwood_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
 };
 
-static unsigned int km_kirkwood_mpp_config[] __initdata = {
-	MPP8_GPIO,	/* I2C SDA */
-	MPP9_GPIO,	/* I2C SCL */
-	0
-};
-
 void __init km_kirkwood_init(void)
 {
 	struct clk *sata_clk;
-	/*
-	 * Basic setup. Needs to be called early.
-	 */
-	kirkwood_mpp_conf(km_kirkwood_mpp_config);
-
 	/*
 	 * Our variant of kirkwood (integrated in the Bobcat) hangs on accessing
 	 * SATA bits (14-15) of the Clock Gating Control Register. Since these
@@ -52,6 +40,5 @@ void __init km_kirkwood_init(void)
 	if (!IS_ERR(sata_clk))
 		sata_clk->flags |= CLK_IGNORE_UNUSED;
 
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&km_kirkwood_ge00_data);
 }

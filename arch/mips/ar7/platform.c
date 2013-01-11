@@ -202,8 +202,11 @@ static struct resource physmap_flash_resource = {
 	.end	= 0x107fffff,
 };
 
+static const char *ar7_probe_types[] = { "ar7part", NULL };
+
 static struct physmap_flash_data physmap_flash_data = {
 	.width	= 2,
+	.part_probe_types = ar7_probe_types,
 };
 
 static struct platform_device physmap_flash = {

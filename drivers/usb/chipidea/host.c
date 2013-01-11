@@ -20,77 +20,18 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 
-#define CHIPIDEA_EHCI
-#include "../host/ehci-hcd.c"
+#include "../host/ehci.h"
 
 #include "ci.h"
 #include "bits.h"
 #include "host.h"
 
-static int ci_ehci_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int ret;
-
-	hcd->has_tt = 1;
-
-	ret = ehci_setup(hcd);
-	if (ret)
-		return ret;
-
-	ehci_port_power(ehci, 0);
-
-	return ret;
-}
-
-static const struct hc_driver ci_ehci_hc_driver = {
-	.description	= "ehci_hcd",
-	.product_desc	= "ChipIdea HDRC EHCI",
-	.hcd_priv_size	= sizeof(struct ehci_hcd),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq	= ehci_irq,
-	.flags	= HCD_MEMORY | HCD_USB2,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset		= ci_ehci_setup,
-	.start		= ehci_run,
-	.stop		= ehci_stop,
-	.shutdown	= ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue		= ehci_urb_enqueue,
-	.urb_dequeue		= ehci_urb_dequeue,
-	.endpoint_disable	= ehci_endpoint_disable,
-	.endpoint_reset		= ehci_endpoint_reset,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number = ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
-	.relinquish_port	= ehci_relinquish_port,
-	.port_handed_over	= ehci_port_handed_over,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
-};
+static struct hc_driver __read_mostly ci_ehci_hc_driver;
 
 static irqreturn_t host_irq(struct ci13xxx *ci)
 {
@@ -156,6 +97,8 @@ int ci_hdrc_host_init(struct ci13xxx *ci)
 	rdrv->irq	= host_irq;
 	rdrv->name	= "host";
 	ci->roles[CI_ROLE_HOST] = rdrv;
+
+	ehci_init_driver(&ci_ehci_hc_driver, NULL);
 
 	return 0;
 }

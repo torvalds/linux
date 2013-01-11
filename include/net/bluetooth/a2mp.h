@@ -19,13 +19,25 @@
 
 #define A2MP_FEAT_EXT	0x8000
 
+enum amp_mgr_state {
+	READ_LOC_AMP_INFO,
+	READ_LOC_AMP_ASSOC,
+	READ_LOC_AMP_ASSOC_FINAL,
+};
+
 struct amp_mgr {
+	struct list_head	list;
 	struct l2cap_conn	*l2cap_conn;
 	struct l2cap_chan	*a2mp_chan;
+	struct l2cap_chan	*bredr_chan;
 	struct kref		kref;
 	__u8			ident;
 	__u8			handle;
+	enum amp_mgr_state	state;
 	unsigned long		flags;
+
+	struct list_head	amp_ctrls;
+	struct mutex		amp_ctrls_lock;
 };
 
 struct a2mp_cmd {
@@ -118,9 +130,19 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_PHYS_LINK_EXISTS		0x05
 #define A2MP_STATUS_SECURITY_VIOLATION		0x06
 
-void amp_mgr_get(struct amp_mgr *mgr);
+extern struct list_head amp_mgr_list;
+extern struct mutex amp_mgr_list_lock;
+
+struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
+u8 __next_ident(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
+struct amp_mgr *amp_mgr_lookup_by_state(u8 state);
+void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data);
+void a2mp_discover_amp(struct l2cap_chan *chan);
+void a2mp_send_getinfo_rsp(struct hci_dev *hdev);
+void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status);
+void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status);
 
 #endif /* __A2MP_H */

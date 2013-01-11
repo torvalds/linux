@@ -1139,7 +1139,7 @@ static const struct iio_info sca3000_info_with_temp = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit sca3000_probe(struct spi_device *spi)
+static int sca3000_probe(struct spi_device *spi)
 {
 	int ret;
 	struct sca3000_state *st;
@@ -1233,7 +1233,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit sca3000_remove(struct spi_device *spi)
+static int sca3000_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -1265,7 +1265,7 @@ static struct spi_driver sca3000_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = sca3000_probe,
-	.remove = __devexit_p(sca3000_remove),
+	.remove = sca3000_remove,
 	.id_table = sca3000_id,
 };
 module_spi_driver(sca3000_driver);

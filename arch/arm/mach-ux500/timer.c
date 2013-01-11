@@ -9,10 +9,9 @@
 #include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
 
 #include <asm/smp_twd.h>
-
-#include <plat/mtu.h>
 
 #include <mach/setup.h>
 #include <mach/hardware.h>
@@ -96,7 +95,7 @@ dt_fail:
 	 *
 	 */
 
-	nmdk_timer_init(mtu_timer_base);
+	nmdk_timer_init(mtu_timer_base, IRQ_MTU0);
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
 	ux500_twd_init();
 }

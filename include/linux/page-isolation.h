@@ -2,7 +2,8 @@
 #define __LINUX_PAGEISOLATION_H
 
 
-bool has_unmovable_pages(struct zone *zone, struct page *page, int count);
+bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+			 bool skip_hwpoisoned_pages);
 void set_pageblock_migratetype(struct page *page, int migratetype);
 int move_freepages_block(struct zone *zone, struct page *page,
 				int migratetype);
@@ -21,7 +22,7 @@ int move_freepages(struct zone *zone,
  */
 int
 start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-			 unsigned migratetype);
+			 unsigned migratetype, bool skip_hwpoisoned_pages);
 
 /*
  * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
@@ -34,12 +35,13 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 /*
  * Test all pages in [start_pfn, end_pfn) are isolated or not.
  */
-int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
+int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+			bool skip_hwpoisoned_pages);
 
 /*
  * Internal functions. Changes pageblock's migrate type.
  */
-int set_migratetype_isolate(struct page *page);
+int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages);
 void unset_migratetype_isolate(struct page *page, unsigned migratetype);
 struct page *alloc_migrate_target(struct page *page, unsigned long private,
 				int **resultp);

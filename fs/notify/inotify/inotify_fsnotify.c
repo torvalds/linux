@@ -118,6 +118,7 @@ static int inotify_handle_event(struct fsnotify_group *group,
 
 	fsn_event_priv = &event_priv->fsnotify_event_priv_data;
 
+	fsnotify_get_group(group);
 	fsn_event_priv->group = group;
 	event_priv->wd = wd;
 
@@ -131,7 +132,7 @@ static int inotify_handle_event(struct fsnotify_group *group,
 	}
 
 	if (inode_mark->mask & IN_ONESHOT)
-		fsnotify_destroy_mark(inode_mark);
+		fsnotify_destroy_mark(inode_mark, group);
 
 	return ret;
 }
@@ -210,6 +211,7 @@ void inotify_free_event_priv(struct fsnotify_event_private_data *fsn_event_priv)
 	event_priv = container_of(fsn_event_priv, struct inotify_event_private_data,
 				  fsnotify_event_priv_data);
 
+	fsnotify_put_group(fsn_event_priv->group);
 	kmem_cache_free(event_priv_cachep, event_priv);
 }
 

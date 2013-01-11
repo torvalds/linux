@@ -757,7 +757,7 @@ snd_vortex_eqtoggle_put(struct snd_kcontrol *kcontrol,
 	return 1;		/* Allways changes */
 }
 
-static struct snd_kcontrol_new vortex_eqtoggle_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_eqtoggle_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Enable",
 	.index = 0,
@@ -815,7 +815,7 @@ snd_vortex_eq_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucon
 	return changed;
 }
 
-static struct snd_kcontrol_new vortex_eq_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_eq_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "                        .",
 	.index = 0,
@@ -854,7 +854,7 @@ snd_vortex_peaks_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	return 0;
 }
 
-static struct snd_kcontrol_new vortex_levels_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_levels_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Peaks",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -863,7 +863,7 @@ static struct snd_kcontrol_new vortex_levels_kcontrol __devinitdata = {
 };
 
 /* EQ band gain labels. */
-static char *EqBandLabels[10] __devinitdata = {
+static char *EqBandLabels[10] = {
 	"EQ0 31Hz\0",
 	"EQ1 63Hz\0",
 	"EQ2 125Hz\0",
@@ -877,7 +877,7 @@ static char *EqBandLabels[10] __devinitdata = {
 };
 
 /* ALSA driver entry points. Init and exit. */
-static int __devinit vortex_eq_init(vortex_t * vortex)
+static int vortex_eq_init(vortex_t *vortex)
 {
 	struct snd_kcontrol *kcontrol;
 	int err, i;

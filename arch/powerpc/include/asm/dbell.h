@@ -1,5 +1,5 @@
 /*
- * Copyright 2009 Freescale Semicondutor, Inc.
+ * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

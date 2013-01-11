@@ -1271,7 +1271,7 @@ static struct i2c_driver cs42l52_i2c_driver = {
 	},
 	.id_table = cs42l52_id,
 	.probe =    cs42l52_i2c_probe,
-	.remove =   __devexit_p(cs42l52_i2c_remove),
+	.remove =   cs42l52_i2c_remove,
 };
 
 module_i2c_driver(cs42l52_i2c_driver);

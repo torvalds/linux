@@ -479,7 +479,7 @@ static int spi_sirfsoc_setup(struct spi_device *spi)
 	return spi_sirfsoc_setup_transfer(spi, NULL);
 }
 
-static int __devinit spi_sirfsoc_probe(struct platform_device *pdev)
+static int spi_sirfsoc_probe(struct platform_device *pdev)
 {
 	struct sirfsoc_spi *sspi;
 	struct spi_master *master;
@@ -604,7 +604,7 @@ err_cs:
 	return ret;
 }
 
-static int  __devexit spi_sirfsoc_remove(struct platform_device *pdev)
+static int  spi_sirfsoc_remove(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct sirfsoc_spi *sspi;
@@ -673,7 +673,7 @@ static struct platform_driver spi_sirfsoc_driver = {
 		.of_match_table = spi_sirfsoc_of_match,
 	},
 	.probe = spi_sirfsoc_probe,
-	.remove = __devexit_p(spi_sirfsoc_remove),
+	.remove = spi_sirfsoc_remove,
 };
 module_platform_driver(spi_sirfsoc_driver);
 

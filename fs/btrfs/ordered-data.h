@@ -76,7 +76,7 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_IOERR 6 /* We had an io error when writing this out */
 
-#define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates wether this ordered extent
+#define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates whether this ordered extent
 				       * has done its due diligence in updating
 				       * the isize. */
 
@@ -128,8 +128,11 @@ struct btrfs_ordered_extent {
 	struct list_head root_extent_list;
 
 	struct btrfs_work work;
-};
 
+	struct completion completion;
+	struct btrfs_work flush_work;
+	struct list_head work_list;
+};
 
 /*
  * calculates the total size you need to allocate for an ordered sum
@@ -186,7 +189,7 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(struct inode *inode,
 int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr, u32 *sum);
-void btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
+int btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);

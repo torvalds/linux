@@ -41,6 +41,7 @@ cflags-$(CONFIG_MARCH_Z990) += $(call cc-option,-march=z990)
 cflags-$(CONFIG_MARCH_Z9_109) += $(call cc-option,-march=z9-109)
 cflags-$(CONFIG_MARCH_Z10) += $(call cc-option,-march=z10)
 cflags-$(CONFIG_MARCH_Z196) += $(call cc-option,-march=z196)
+cflags-$(CONFIG_MARCH_ZEC12) += $(call cc-option,-march=zEC12)
 
 #KBUILD_IMAGE is necessary for make rpm
 KBUILD_IMAGE	:=arch/s390/boot/image

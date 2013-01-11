@@ -136,7 +136,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			break;
 
 		ret = psinfo->write(PSTORE_TYPE_DMESG, reason, &id, part,
-				    hsize + len, psinfo);
+				    oopscount, hsize + len, psinfo);
 		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
 
@@ -173,7 +173,7 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 			spin_lock_irqsave(&psinfo->buf_lock, flags);
 		}
 		memcpy(psinfo->buf, s, c);
-		psinfo->write(PSTORE_TYPE_CONSOLE, 0, &id, 0, c, psinfo);
+		psinfo->write(PSTORE_TYPE_CONSOLE, 0, &id, 0, 0, c, psinfo);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;
@@ -197,7 +197,7 @@ static void pstore_register_console(void) {}
 
 static int pstore_write_compat(enum pstore_type_id type,
 			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part,
+			       u64 *id, unsigned int part, int count,
 			       size_t size, struct pstore_info *psi)
 {
 	return psi->write_buf(type, reason, id, part, psinfo->buf, size, psi);
@@ -267,6 +267,7 @@ void pstore_get_records(int quiet)
 	char			*buf = NULL;
 	ssize_t			size;
 	u64			id;
+	int			count;
 	enum pstore_type_id	type;
 	struct timespec		time;
 	int			failed = 0, rc;
@@ -278,9 +279,9 @@ void pstore_get_records(int quiet)
 	if (psi->open && psi->open(psi))
 		goto out;
 
-	while ((size = psi->read(&id, &type, &time, &buf, psi)) > 0) {
-		rc = pstore_mkfile(type, psi->name, id, buf, (size_t)size,
-				  time, psi);
+	while ((size = psi->read(&id, &type, &count, &time, &buf, psi)) > 0) {
+		rc = pstore_mkfile(type, psi->name, id, count, buf,
+				  (size_t)size, time, psi);
 		kfree(buf);
 		buf = NULL;
 		if (rc && (rc != -EEXIST || !quiet))

@@ -40,9 +40,6 @@
 #include "msg.h"
 #include "node.h"
 
-#define PUSH_FAILED   1
-#define PUSH_FINISHED 2
-
 /*
  * Out-of-range value for link sequence numbers
  */
@@ -82,7 +79,6 @@ struct tipc_stats {
 	u32 recv_fragmented;
 	u32 recv_fragments;
 	u32 link_congs;		/* # port sends blocked by congestion */
-	u32 bearer_congs;
 	u32 deferred_recv;
 	u32 duplicates;
 	u32 max_queue_sz;	/* send queue size high water mark */

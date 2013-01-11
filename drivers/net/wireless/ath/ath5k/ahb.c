@@ -236,17 +236,4 @@ static struct platform_driver ath_ahb_driver = {
 	},
 };
 
-static int __init
-ath5k_ahb_init(void)
-{
-	return platform_driver_register(&ath_ahb_driver);
-}
-
-static void __exit
-ath5k_ahb_exit(void)
-{
-	platform_driver_unregister(&ath_ahb_driver);
-}
-
-module_init(ath5k_ahb_init);
-module_exit(ath5k_ahb_exit);
+module_platform_driver(ath_ahb_driver);

@@ -40,15 +40,11 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 /* return the index of the claim */
 static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 {
-	const unsigned char *key = data;
+	struct batadv_claim *claim = (struct batadv_claim *)data;
 	uint32_t hash = 0;
-	size_t i;
 
-	for (i = 0; i < ETH_ALEN + sizeof(short); i++) {
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
+	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
+	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
 
 	hash += (hash << 3);
 	hash ^= (hash >> 11);
@@ -61,15 +57,11 @@ static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 static inline uint32_t batadv_choose_backbone_gw(const void *data,
 						 uint32_t size)
 {
-	const unsigned char *key = data;
+	struct batadv_claim *claim = (struct batadv_claim *)data;
 	uint32_t hash = 0;
-	size_t i;
 
-	for (i = 0; i < ETH_ALEN + sizeof(short); i++) {
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
+	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
+	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
 
 	hash += (hash << 3);
 	hash ^= (hash >> 11);
@@ -85,8 +77,15 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_backbone_gw,
 					 hash_entry);
+	const struct batadv_backbone_gw *gw1 = data1, *gw2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(gw1->orig, gw2->orig))
+		return 0;
+
+	if (gw1->vid != gw2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* compares address and vid of two claims */
@@ -95,8 +94,15 @@ static int batadv_compare_claim(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_claim,
 					 hash_entry);
+	const struct batadv_claim *cl1 = data1, *cl2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(cl1->addr, cl2->addr))
+		return 0;
+
+	if (cl1->vid != cl2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* free a backbone gw */
@@ -362,7 +368,7 @@ out:
  */
 static struct batadv_backbone_gw *
 batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
-			   short vid)
+			   short vid, bool own_backbone)
 {
 	struct batadv_backbone_gw *entry;
 	struct batadv_orig_node *orig_node;
@@ -386,6 +392,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 	entry->crc = BATADV_BLA_CRC_INIT;
 	entry->bat_priv = bat_priv;
 	atomic_set(&entry->request_sent, 0);
+	atomic_set(&entry->wait_periods, 0);
 	memcpy(entry->orig, orig, ETH_ALEN);
 
 	/* one for the hash, one for returning */
@@ -409,6 +416,16 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 					  "became a backbone gateway");
 		batadv_orig_node_free_ref(orig_node);
 	}
+
+	if (own_backbone) {
+		batadv_bla_send_announce(bat_priv, entry);
+
+		/* this will be decreased in the worker thread */
+		atomic_inc(&entry->request_sent);
+		atomic_set(&entry->wait_periods, BATADV_BLA_WAIT_PERIODS);
+		atomic_inc(&bat_priv->bla.num_requests);
+	}
+
 	return entry;
 }
 
@@ -424,7 +441,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 
 	backbone_gw = batadv_bla_get_backbone_gw(bat_priv,
 						 primary_if->net_dev->dev_addr,
-						 vid);
+						 vid, true);
 	if (unlikely(!backbone_gw))
 		return;
 
@@ -632,7 +649,8 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	if (memcmp(an_addr, batadv_announce_mac, 4) != 0)
 		return 0;
 
-	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid);
+	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid,
+						 false);
 
 	if (unlikely(!backbone_gw))
 		return 1;
@@ -730,7 +748,8 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 
 	/* register the gateway if not yet available, and add the claim. */
 
-	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid);
+	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid,
+						 false);
 
 	if (unlikely(!backbone_gw))
 		return 1;
@@ -1140,6 +1159,24 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 			backbone_gw->lasttime = jiffies;
 
 			batadv_bla_send_announce(bat_priv, backbone_gw);
+
+			/* request_sent is only set after creation to avoid
+			 * problems when we are not yet known as backbone gw
+			 * in the backbone.
+			 *
+			 * We can reset this now after we waited some periods
+			 * to give bridge forward delays and bla group forming
+			 * some grace time.
+			 */
+
+			if (atomic_read(&backbone_gw->request_sent) == 0)
+				continue;
+
+			if (!atomic_dec_and_test(&backbone_gw->wait_periods))
+				continue;
+
+			atomic_dec(&backbone_gw->bat_priv->bla.num_requests);
+			atomic_set(&backbone_gw->request_sent, 0);
 		}
 		rcu_read_unlock();
 	}
@@ -1212,8 +1249,7 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 /**
  * batadv_bla_check_bcast_duplist
  * @bat_priv: the bat priv with all the soft interface information
- * @bcast_packet: encapsulated broadcast frame plus batman header
- * @bcast_packet_len: length of encapsulated broadcast frame plus batman header
+ * @skb: contains the bcast_packet to be checked
  *
  * check if it is on our broadcast list. Another gateway might
  * have sent the same packet because it is connected to the same backbone,
@@ -1225,20 +1261,17 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
  * the same host however as this might be intended.
  */
 int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
-				   struct batadv_bcast_packet *bcast_packet,
-				   int bcast_packet_len)
+				   struct sk_buff *skb)
 {
-	int i, length, curr, ret = 0;
-	uint8_t *content;
-	uint16_t crc;
+	int i, curr, ret = 0;
+	__be32 crc;
+	struct batadv_bcast_packet *bcast_packet;
 	struct batadv_bcast_duplist_entry *entry;
 
-	length = bcast_packet_len - sizeof(*bcast_packet);
-	content = (uint8_t *)bcast_packet;
-	content += sizeof(*bcast_packet);
+	bcast_packet = (struct batadv_bcast_packet *)skb->data;
 
 	/* calculate the crc ... */
-	crc = crc16(0, content, length);
+	crc = batadv_skb_crc32(skb, (u8 *)(bcast_packet + 1));
 
 	spin_lock_bh(&bat_priv->bla.bcast_duplist_lock);
 
@@ -1585,23 +1618,11 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_head *head;
 	uint32_t i;
 	bool is_own;
-	int ret = 0;
 	uint8_t *primary_addr;
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				 net_dev->name);
+	primary_if = batadv_seq_print_text_primary_if_get(seq);
+	if (!primary_if)
 		goto out;
-	}
-
-	if (primary_if->if_status != BATADV_IF_ACTIVE) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - primary interface not active\n",
-				 net_dev->name);
-		goto out;
-	}
 
 	primary_addr = primary_if->net_dev->dev_addr;
 	seq_printf(seq,
@@ -1628,7 +1649,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
-	return ret;
+	return 0;
 }
 
 int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
@@ -1643,23 +1664,11 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 	int secs, msecs;
 	uint32_t i;
 	bool is_own;
-	int ret = 0;
 	uint8_t *primary_addr;
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				 net_dev->name);
+	primary_if = batadv_seq_print_text_primary_if_get(seq);
+	if (!primary_if)
 		goto out;
-	}
-
-	if (primary_if->if_status != BATADV_IF_ACTIVE) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - primary interface not active\n",
-				 net_dev->name);
-		goto out;
-	}
 
 	primary_addr = primary_if->net_dev->dev_addr;
 	seq_printf(seq,
@@ -1693,5 +1702,5 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
-	return ret;
+	return 0;
 }

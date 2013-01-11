@@ -537,7 +537,7 @@ void snd_ad1816a_resume(struct snd_ad1816a *chip)
 }
 #endif
 
-static int __devinit snd_ad1816a_probe(struct snd_ad1816a *chip)
+static int snd_ad1816a_probe(struct snd_ad1816a *chip)
 {
 	unsigned long flags;
 
@@ -583,7 +583,7 @@ static int snd_ad1816a_dev_free(struct snd_device *device)
 	return snd_ad1816a_free(chip);
 }
 
-static const char __devinit *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
+static const char *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 {
 	switch (chip->hardware) {
 	case AD1816A_HW_AD1816A: return "AD1816A";
@@ -596,9 +596,9 @@ static const char __devinit *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 	}
 }
 
-int __devinit snd_ad1816a_create(struct snd_card *card,
-				 unsigned long port, int irq, int dma1, int dma2,
-				 struct snd_ad1816a *chip)
+int snd_ad1816a_create(struct snd_card *card,
+		       unsigned long port, int irq, int dma1, int dma2,
+		       struct snd_ad1816a *chip)
 {
         static struct snd_device_ops ops = {
 		.dev_free =	snd_ad1816a_dev_free,
@@ -675,7 +675,7 @@ static struct snd_pcm_ops snd_ad1816a_capture_ops = {
 	.pointer =	snd_ad1816a_capture_pointer,
 };
 
-int __devinit snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm)
+int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm)
 {
 	int error;
 	struct snd_pcm *pcm;
@@ -702,7 +702,8 @@ int __devinit snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_p
 	return 0;
 }
 
-int __devinit snd_ad1816a_timer(struct snd_ad1816a *chip, int device, struct snd_timer **rtimer)
+int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
+		      struct snd_timer **rtimer)
 {
 	struct snd_timer *timer;
 	struct snd_timer_id tid;
@@ -923,7 +924,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
-static struct snd_kcontrol_new snd_ad1816a_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_ad1816a_controls[] = {
 AD1816A_DOUBLE("Master Playback Switch", AD1816A_MASTER_ATT, 15, 7, 1, 1),
 AD1816A_DOUBLE_TLV("Master Playback Volume", AD1816A_MASTER_ATT, 8, 0, 31, 1,
 		   db_scale_5bit),
@@ -969,7 +970,7 @@ AD1816A_SINGLE("3D Control - Switch", AD1816A_3D_PHAT_CTRL, 15, 1, 1),
 AD1816A_SINGLE("3D Control - Level", AD1816A_3D_PHAT_CTRL, 0, 15, 0),
 };
                                         
-int __devinit snd_ad1816a_mixer(struct snd_ad1816a *chip)
+int snd_ad1816a_mixer(struct snd_ad1816a *chip)
 {
 	struct snd_card *card;
 	unsigned int idx;

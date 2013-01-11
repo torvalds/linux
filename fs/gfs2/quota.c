@@ -816,7 +816,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 3;
 
 	reserved = 1 + (nalloc * (data_blocks + ind_blocks));
-	error = gfs2_inplace_reserve(ip, reserved);
+	error = gfs2_inplace_reserve(ip, reserved, 0);
 	if (error)
 		goto out_alloc;
 
@@ -869,7 +869,7 @@ static int update_qd(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd)
 	if (error < 0)
 		return error;
 
-	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
 	qlvb->qb_magic = cpu_to_be32(GFS2_MAGIC);
 	qlvb->__pad = 0;
 	qlvb->qb_limit = q.qu_limit;
@@ -893,7 +893,7 @@ restart:
 	if (error)
 		return error;
 
-	qd->qd_qb = *(struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+	qd->qd_qb = *(struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
 
 	if (force_refresh || qd->qd_qb.qb_magic != cpu_to_be32(GFS2_MAGIC)) {
 		gfs2_glock_dq_uninit(q_gh);
@@ -1506,7 +1506,7 @@ static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 	if (error)
 		goto out;
 
-	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
 	fdq->d_version = FS_DQUOT_VERSION;
 	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
 	fdq->d_id = from_kqid(&init_user_ns, qid);
@@ -1605,7 +1605,7 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 		gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 				       &data_blocks, &ind_blocks);
 		blocks = 1 + data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip, blocks);
+		error = gfs2_inplace_reserve(ip, blocks, 0);
 		if (error)
 			goto out_i;
 		blocks += gfs2_rg_blocks(ip, blocks);

@@ -439,16 +439,6 @@ static DEVICE_ATTR(name, S_IRUSR, usb_udc_##param##_show, NULL)
 static USB_UDC_SPEED_ATTR(current_speed, speed);
 static USB_UDC_SPEED_ATTR(maximum_speed, max_speed);
 
-/* TODO: Scheduled for removal in 3.8. */
-static ssize_t usb_udc_is_dualspeed_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			gadget_is_dualspeed(udc->gadget));
-}
-static DEVICE_ATTR(is_dualspeed, S_IRUSR, usb_udc_is_dualspeed_show, NULL);
-
 #define USB_UDC_ATTR(name)					\
 ssize_t usb_udc_##name##_show(struct device *dev,		\
 		struct device_attribute *attr, char *buf)	\
@@ -472,7 +462,6 @@ static struct attribute *usb_udc_attrs[] = {
 	&dev_attr_current_speed.attr,
 	&dev_attr_maximum_speed.attr,
 
-	&dev_attr_is_dualspeed.attr,
 	&dev_attr_is_otg.attr,
 	&dev_attr_is_a_peripheral.attr,
 	&dev_attr_b_hnp_enable.attr,

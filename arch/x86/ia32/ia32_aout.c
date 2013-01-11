@@ -35,7 +35,7 @@
 #undef WARN_OLD
 #undef CORE_DUMP /* definitely broken */
 
-static int load_aout_binary(struct linux_binprm *, struct pt_regs *regs);
+static int load_aout_binary(struct linux_binprm *);
 static int load_aout_library(struct file *);
 
 #ifdef CORE_DUMP
@@ -260,9 +260,10 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
  * These are the functions used to load a.out style executables and shared
  * libraries.  There is no binary dependent code anywhere else.
  */
-static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_aout_binary(struct linux_binprm *bprm)
 {
 	unsigned long error, fd_offset, rlim;
+	struct pt_regs *regs = current_pt_regs();
 	struct exec ex;
 	int retval;
 

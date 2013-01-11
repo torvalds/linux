@@ -101,7 +101,6 @@ while [ "$1" != "" ] ; do
 	case "$CMD" in
 	--keep-case|-k)
 		MUNGE_CASE=no
-		shift
 		continue
 		;;
 	--refresh)

@@ -18,24 +18,6 @@ extern int shmobile_enter_wfi(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int index);
 extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
-extern void sh7367_init_irq(void);
-extern void sh7367_map_io(void);
-extern void sh7367_add_early_devices(void);
-extern void sh7367_add_standard_devices(void);
-extern void sh7367_clock_init(void);
-extern void sh7367_pinmux_init(void);
-extern struct clk sh7367_extalb1_clk;
-extern struct clk sh7367_extal2_clk;
-
-extern void sh7377_init_irq(void);
-extern void sh7377_map_io(void);
-extern void sh7377_add_early_devices(void);
-extern void sh7377_add_standard_devices(void);
-extern void sh7377_clock_init(void);
-extern void sh7377_pinmux_init(void);
-extern struct clk sh7377_extalc1_clk;
-extern struct clk sh7377_extal2_clk;
-
 extern void sh7372_init_irq(void);
 extern void sh7372_map_io(void);
 extern void sh7372_add_early_devices(void);

@@ -82,6 +82,9 @@
 
 #define LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT 12000
 
+#define INT_FW_UPGRADE	0
+#define RUN_FW_UPGRADE	1
+
 enum lpfc_sli4_queue_type {
 	LPFC_EQ,
 	LPFC_GCQ,

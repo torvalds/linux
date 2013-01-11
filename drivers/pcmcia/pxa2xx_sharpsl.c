@@ -208,7 +208,7 @@ static struct pcmcia_low_level sharpsl_pcmcia_ops = {
 #ifdef CONFIG_SA1100_COLLIE
 #include "sa11xx_base.h"
 
-int __devinit pcmcia_collie_init(struct device *dev)
+int pcmcia_collie_init(struct device *dev)
 {
        int ret = -ENODEV;
 

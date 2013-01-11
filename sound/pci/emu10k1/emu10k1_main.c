@@ -657,22 +657,17 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, const char *filename)
+static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu)
 {
-	int err;
 	int n, i;
 	int reg;
 	int value;
 	unsigned int write_post;
 	unsigned long flags;
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = emu->firmware;
 
-	err = request_firmware(&fw_entry, filename, &emu->pci->dev);
-	if (err != 0) {
-		snd_printk(KERN_ERR "firmware: %s not found. Err = %d\n", filename, err);
-		return err;
-	}
-	snd_printk(KERN_INFO "firmware size = 0x%zx\n", fw_entry->size);
+	if (!fw_entry)
+		return -EIO;
 
 	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
 	/* GPIO7 -> FPGA PGMN
@@ -705,7 +700,6 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, const char *filena
 	write_post = inl(emu->port + A_IOCFG);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 
-	release_firmware(fw_entry);
 	return 0;
 }
 
@@ -720,6 +714,10 @@ static int emu1010_firmware_thread(void *data)
 		msleep_interruptible(1000);
 		if (kthread_should_stop())
 			break;
+#ifdef CONFIG_PM_SLEEP
+		if (emu->suspend)
+			continue;
+#endif
 		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
 		snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
 		if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
@@ -727,22 +725,9 @@ static int emu1010_firmware_thread(void *data)
 			/* Return to Audio Dock programming mode */
 			snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware\n");
 			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK);
-			if (emu->card_capabilities->emu_model ==
-			    EMU_MODEL_EMU1010) {
-				err = snd_emu1010_load_firmware(emu, DOCK_FILENAME);
-				if (err != 0)
-					continue;
-			} else if (emu->card_capabilities->emu_model ==
-				   EMU_MODEL_EMU1010B) {
-				err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME);
-				if (err != 0)
-					continue;
-			} else if (emu->card_capabilities->emu_model ==
-				   EMU_MODEL_EMU1616) {
-				err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME);
-				if (err != 0)
-					continue;
-			}
+			err = snd_emu1010_load_firmware(emu);
+			if (err != 0)
+				continue;
 
 			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
 			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);
@@ -807,7 +792,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	unsigned int i;
 	u32 tmp, tmp2, reg;
 	int err;
-	const char *filename = NULL;
 
 	snd_printk(KERN_INFO "emu1010: Special config.\n");
 	/* AC97 2.1, Any 16Meg of 4Gig address, Auto-Mute, EMU32 Slave,
@@ -849,31 +833,33 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 		return -ENODEV;
 	}
 	snd_printk(KERN_INFO "emu1010: EMU_HANA_ID = 0x%x\n", reg);
-	switch (emu->card_capabilities->emu_model) {
-	case EMU_MODEL_EMU1010:
-		filename = HANA_FILENAME;
-		break;
-	case EMU_MODEL_EMU1010B:
-		filename = EMU1010B_FILENAME;
-		break;
-	case EMU_MODEL_EMU1616:
-		filename = EMU1010_NOTEBOOK_FILENAME;
-		break;
-	case EMU_MODEL_EMU0404:
-		filename = EMU0404_FILENAME;
-		break;
-	default:
-		filename = NULL;
-		return -ENODEV;
-		break;
-	}
-	snd_printk(KERN_INFO "emu1010: filename %s testing\n", filename);
-	err = snd_emu1010_load_firmware(emu, filename);
-	if (err != 0) {
-		snd_printk(
-			KERN_INFO "emu1010: Loading Firmware file %s failed\n",
-			filename);
-		return err;
+
+	if (!emu->firmware) {
+		const char *filename;
+		switch (emu->card_capabilities->emu_model) {
+		case EMU_MODEL_EMU1010:
+			filename = HANA_FILENAME;
+			break;
+		case EMU_MODEL_EMU1010B:
+			filename = EMU1010B_FILENAME;
+			break;
+		case EMU_MODEL_EMU1616:
+			filename = EMU1010_NOTEBOOK_FILENAME;
+			break;
+		case EMU_MODEL_EMU0404:
+			filename = EMU0404_FILENAME;
+			break;
+		default:
+			return -ENODEV;
+		}
+
+		err = request_firmware(&emu->firmware, filename, &emu->pci->dev);
+		if (err != 0) {
+			snd_printk(KERN_ERR "emu1010: firmware: %s not found. Err = %d\n", filename, err);
+			return err;
+		}
+		snd_printk(KERN_INFO "emu1010: firmware file = %s, size = 0x%zx\n",
+			   filename, emu->firmware->size);
 	}
 
 	/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
@@ -1259,6 +1245,8 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	}
 	if (emu->emu1010.firmware_thread)
 		kthread_stop(emu->emu1010.firmware_thread);
+	if (emu->firmware)
+		release_firmware(emu->firmware);
 	if (emu->irq >= 0)
 		free_irq(emu->irq, emu);
 	/* remove reserved page */
@@ -1738,7 +1726,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	{ } /* terminator */
 };
 
-int __devinit snd_emu10k1_create(struct snd_card *card,
+int snd_emu10k1_create(struct snd_card *card,
 		       struct pci_dev *pci,
 		       unsigned short extin_mask,
 		       unsigned short extout_mask,
@@ -2025,7 +2013,7 @@ static unsigned char saved_regs_audigy[] = {
 	0xff /* end */
 };
 
-static int __devinit alloc_pm_buffer(struct snd_emu10k1 *emu)
+static int alloc_pm_buffer(struct snd_emu10k1 *emu)
 {
 	int size;
 

@@ -51,7 +51,7 @@ struct e3d_info {
 	u32			pseudo_palette[16];
 };
 
-static int __devinit e3d_get_props(struct e3d_info *ep)
+static int e3d_get_props(struct e3d_info *ep)
 {
 	ep->width = of_getintprop_default(ep->of_node, "width", 0);
 	ep->height = of_getintprop_default(ep->of_node, "height", 0);
@@ -193,7 +193,7 @@ static struct fb_ops e3d_ops = {
 	.fb_imageblit		= e3d_imageblit,
 };
 
-static int __devinit e3d_set_fbinfo(struct e3d_info *ep)
+static int e3d_set_fbinfo(struct e3d_info *ep)
 {
 	struct fb_info *info = ep->info;
 	struct fb_var_screeninfo *var = &info->var;
@@ -238,8 +238,8 @@ static int __devinit e3d_set_fbinfo(struct e3d_info *ep)
         return 0;
 }
 
-static int __devinit e3d_pci_register(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int e3d_pci_register(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct device_node *of_node;
 	const char *device_type;
@@ -392,7 +392,7 @@ err_out:
 	return err;
 }
 
-static void __devexit e3d_pci_unregister(struct pci_dev *pdev)
+static void e3d_pci_unregister(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct e3d_info *ep = info->par;
@@ -437,7 +437,7 @@ static struct pci_driver e3d_driver = {
 	.name		= "e3d",
 	.id_table	= e3d_pci_table,
 	.probe		= e3d_pci_register,
-	.remove		= __devexit_p(e3d_pci_unregister),
+	.remove		= e3d_pci_unregister,
 };
 
 static int __init e3d_init(void)

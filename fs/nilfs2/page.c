@@ -431,7 +431,7 @@ void nilfs_mapping_init(struct address_space *mapping, struct inode *inode,
 	mapping->host = inode;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
-	mapping->assoc_mapping = NULL;
+	mapping->private_data = NULL;
 	mapping->backing_dev_info = bdi;
 	mapping->a_ops = &empty_aops;
 }

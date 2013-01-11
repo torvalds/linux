@@ -3,6 +3,15 @@
 #
 menu "Digital gyroscope sensors"
 
+config ADIS16136
+	tristate "Analog devices ADIS16136 and similar gyroscopes driver"
+	depends on SPI_MASTER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for the Analog Devices ADIS16133, ADIS16135,
+	  ADIS16136 gyroscope devices.
+
 config HID_SENSOR_GYRO_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER

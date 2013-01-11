@@ -145,4 +145,3 @@ __strnlen_user:
 lenfixup:
 	movi	a2, 0
 	retw
-

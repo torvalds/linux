@@ -34,9 +34,6 @@
 #include "dm_common.h"
 #include "phy_common.h"
 
-/* Define macro to shorten lines */
-#define MCS_TXPWR	mcs_txpwrlevel_origoffset
-
 u32 rtl92c_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -138,13 +135,13 @@ u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 		rfpi_enable = (u8) rtl_get_bbreg(hw, RFPGA0_XB_HSSIPARAMETER1,
 						 BIT(8));
 	if (rfpi_enable)
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readbackpi,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rbpi,
 					 BLSSIREADBACKDATA);
 	else
-		retvalue = rtl_get_bbreg(hw, pphyreg->rflssi_readback,
+		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 					 BLSSIREADBACKDATA);
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "RFR-%d Addr[0x%x]=0x%x\n",
-		 rfpath, pphyreg->rflssi_readback, retvalue);
+		 rfpath, pphyreg->rf_rb, retvalue);
 	return retvalue;
 }
 EXPORT_SYMBOL(_rtl92c_phy_rf_serial_read);
@@ -290,11 +287,11 @@ void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
 	else
 		return;
 
-	rtlphy->MCS_TXPWR[rtlphy->pwrgroup_cnt][index] = data;
+	rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index] = data;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 		 "MCSTxPowerLevelOriginalOffset[%d][%d] = 0x%x\n",
 		 rtlphy->pwrgroup_cnt, index,
-		 rtlphy->MCS_TXPWR[rtlphy->pwrgroup_cnt][index]);
+		 rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index]);
 
 	if (index == 13)
 		rtlphy->pwrgroup_cnt++;
@@ -374,14 +371,10 @@ void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_A].rfhssi_para2 = RFPGA0_XA_HSSIPARAMETER2;
 	rtlphy->phyreg_def[RF90_PATH_B].rfhssi_para2 = RFPGA0_XB_HSSIPARAMETER2;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rfswitch_control =
-	    RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_B].rfswitch_control =
-	    RFPGA0_XAB_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_C].rfswitch_control =
-	    RFPGA0_XCD_SWITCHCONTROL;
-	rtlphy->phyreg_def[RF90_PATH_D].rfswitch_control =
-	    RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_A].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_B].rfsw_ctrl = RFPGA0_XAB_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_C].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
+	rtlphy->phyreg_def[RF90_PATH_D].rfsw_ctrl = RFPGA0_XCD_SWITCHCONTROL;
 
 	rtlphy->phyreg_def[RF90_PATH_A].rfagc_control1 = ROFDM0_XAAGCCORE1;
 	rtlphy->phyreg_def[RF90_PATH_B].rfagc_control1 = ROFDM0_XBAGCCORE1;
@@ -393,47 +386,33 @@ void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_C].rfagc_control2 = ROFDM0_XCAGCCORE2;
 	rtlphy->phyreg_def[RF90_PATH_D].rfagc_control2 = ROFDM0_XDAGCCORE2;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbalance =
-	    ROFDM0_XARXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbalance =
-	    ROFDM0_XBRXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbalance =
-	    ROFDM0_XCRXIQIMBANLANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbalance =
-	    ROFDM0_XDRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rfrxiq_imbal = ROFDM0_XARXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rfrxiq_imbal = ROFDM0_XBRXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rfrxiq_imbal = ROFDM0_XCRXIQIMBANLANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rfrxiq_imbal = ROFDM0_XDRXIQIMBALANCE;
 
 	rtlphy->phyreg_def[RF90_PATH_A].rfrx_afe = ROFDM0_XARXAFE;
 	rtlphy->phyreg_def[RF90_PATH_B].rfrx_afe = ROFDM0_XBRXAFE;
 	rtlphy->phyreg_def[RF90_PATH_C].rfrx_afe = ROFDM0_XCRXAFE;
 	rtlphy->phyreg_def[RF90_PATH_D].rfrx_afe = ROFDM0_XDRXAFE;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbalance =
-	    ROFDM0_XATXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbalance =
-	    ROFDM0_XBTXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbalance =
-	    ROFDM0_XCTXIQIMBALANCE;
-	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbalance =
-	    ROFDM0_XDTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_A].rftxiq_imbal = ROFDM0_XATXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_B].rftxiq_imbal = ROFDM0_XBTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_C].rftxiq_imbal = ROFDM0_XCTXIQIMBALANCE;
+	rtlphy->phyreg_def[RF90_PATH_D].rftxiq_imbal = ROFDM0_XDTXIQIMBALANCE;
 
 	rtlphy->phyreg_def[RF90_PATH_A].rftx_afe = ROFDM0_XATXAFE;
 	rtlphy->phyreg_def[RF90_PATH_B].rftx_afe = ROFDM0_XBTXAFE;
 	rtlphy->phyreg_def[RF90_PATH_C].rftx_afe = ROFDM0_XCTXAFE;
 	rtlphy->phyreg_def[RF90_PATH_D].rftx_afe = ROFDM0_XDTXAFE;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readback =
-	    RFPGA0_XA_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readback =
-	    RFPGA0_XB_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_C].rflssi_readback =
-	    RFPGA0_XC_LSSIREADBACK;
-	rtlphy->phyreg_def[RF90_PATH_D].rflssi_readback =
-	    RFPGA0_XD_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rb = RFPGA0_XA_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rb = RFPGA0_XB_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_C].rf_rb = RFPGA0_XC_LSSIREADBACK;
+	rtlphy->phyreg_def[RF90_PATH_D].rf_rb = RFPGA0_XD_LSSIREADBACK;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_readbackpi =
-	    TRANSCEIVEA_HSPI_READBACK;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_readbackpi =
-	    TRANSCEIVEB_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVEA_HSPI_READBACK;
+	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVEB_HSPI_READBACK;
 
 }
 EXPORT_SYMBOL(_rtl92c_phy_init_bb_rf_register_definition);
@@ -724,6 +703,26 @@ u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(rtl92c_phy_sw_chnl);
 
+static void _rtl92c_phy_sw_rf_setting(struct ieee80211_hw *hw, u8 channel)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
+	if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version)) {
+		if (channel == 6 && rtlphy->current_chan_bw ==
+		    HT_CHANNEL_WIDTH_20)
+			rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1, MASKDWORD,
+				      0x00255);
+		else{
+			u32 backupRF0x1A = (u32)rtl_get_rfreg(hw, RF90_PATH_A,
+					    RF_RX_G1, RFREG_OFFSET_MASK);
+			rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1, MASKDWORD,
+				      backupRF0x1A);
+		}
+	}
+}
+
 static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 					     u32 cmdtableidx, u32 cmdtablesz,
 					     enum swchnlcmd_id cmdid,
@@ -837,6 +836,7 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 					      currentcmd->para1,
 					      RFREG_OFFSET_MASK,
 					      rtlphy->rfreg_chnlval[rfpath]);
+			_rtl92c_phy_sw_rf_setting(hw, channel);
 			}
 			break;
 		default:

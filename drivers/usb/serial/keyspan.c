@@ -44,10 +44,6 @@
 #include <linux/usb/ezusb.h>
 #include "keyspan.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.1.5"
 #define DRIVER_AUTHOR "Hugh Blemings <hugh@misc.nu"
 #define DRIVER_DESC "Keyspan USB to Serial Converter Driver"
 

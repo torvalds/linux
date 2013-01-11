@@ -142,4 +142,6 @@ u8 rtl_tid_to_ac(u8 tid);
 extern struct attribute_group rtl_attribute_group;
 int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 			 bool isht, u8 desc_rate, bool first_ampdu);
+bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb);
+
 #endif

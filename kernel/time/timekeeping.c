@@ -21,15 +21,10 @@
 #include <linux/time.h>
 #include <linux/tick.h>
 #include <linux/stop_machine.h>
+#include <linux/pvclock_gtod.h>
 
 
 static struct timekeeper timekeeper;
-
-/*
- * This read-write spinlock protects us from races in SMP while
- * playing with xtime.
- */
-__cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -180,6 +175,54 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 	return nsec + arch_gettimeoffset();
 }
 
+static RAW_NOTIFIER_HEAD(pvclock_gtod_chain);
+
+static void update_pvclock_gtod(struct timekeeper *tk)
+{
+	raw_notifier_call_chain(&pvclock_gtod_chain, 0, tk);
+}
+
+/**
+ * pvclock_gtod_register_notifier - register a pvclock timedata update listener
+ *
+ * Must hold write on timekeeper.lock
+ */
+int pvclock_gtod_register_notifier(struct notifier_block *nb)
+{
+	struct timekeeper *tk = &timekeeper;
+	unsigned long flags;
+	int ret;
+
+	write_seqlock_irqsave(&tk->lock, flags);
+	ret = raw_notifier_chain_register(&pvclock_gtod_chain, nb);
+	/* update timekeeping data */
+	update_pvclock_gtod(tk);
+	write_sequnlock_irqrestore(&tk->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pvclock_gtod_register_notifier);
+
+/**
+ * pvclock_gtod_unregister_notifier - unregister a pvclock
+ * timedata update listener
+ *
+ * Must hold write on timekeeper.lock
+ */
+int pvclock_gtod_unregister_notifier(struct notifier_block *nb)
+{
+	struct timekeeper *tk = &timekeeper;
+	unsigned long flags;
+	int ret;
+
+	write_seqlock_irqsave(&tk->lock, flags);
+	ret = raw_notifier_chain_unregister(&pvclock_gtod_chain, nb);
+	write_sequnlock_irqrestore(&tk->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pvclock_gtod_unregister_notifier);
+
 /* must hold write on timekeeper.lock */
 static void timekeeping_update(struct timekeeper *tk, bool clearntp)
 {
@@ -188,6 +231,7 @@ static void timekeeping_update(struct timekeeper *tk, bool clearntp)
 		ntp_clear();
 	}
 	update_vsyscall(tk);
+	update_pvclock_gtod(tk);
 }
 
 /**
@@ -1299,9 +1343,7 @@ struct timespec get_monotonic_coarse(void)
 }
 
 /*
- * The 64-bit jiffies value is not atomic - you MUST NOT read it
- * without sampling the sequence number in xtime_lock.
- * jiffies is defined in the linker script...
+ * Must hold jiffies_lock
  */
 void do_timer(unsigned long ticks)
 {
@@ -1389,7 +1431,7 @@ EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
  */
 void xtime_update(unsigned long ticks)
 {
-	write_seqlock(&xtime_lock);
+	write_seqlock(&jiffies_lock);
 	do_timer(ticks);
-	write_sequnlock(&xtime_lock);
+	write_sequnlock(&jiffies_lock);
 }

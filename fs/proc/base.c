@@ -542,13 +542,6 @@ int proc_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
-		if (error)
-			return error;
-	}
-
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
@@ -985,7 +978,7 @@ static ssize_t oom_score_adj_read(struct file *file, char __user *buf,
 {
 	struct task_struct *task = get_proc_task(file->f_path.dentry->d_inode);
 	char buffer[PROC_NUMBUF];
-	int oom_score_adj = OOM_SCORE_ADJ_MIN;
+	short oom_score_adj = OOM_SCORE_ADJ_MIN;
 	unsigned long flags;
 	size_t len;
 
@@ -996,7 +989,7 @@ static ssize_t oom_score_adj_read(struct file *file, char __user *buf,
 		unlock_task_sighand(task, &flags);
 	}
 	put_task_struct(task);
-	len = snprintf(buffer, sizeof(buffer), "%d\n", oom_score_adj);
+	len = snprintf(buffer, sizeof(buffer), "%hd\n", oom_score_adj);
 	return simple_read_from_buffer(buf, count, ppos, buffer, len);
 }
 
@@ -1043,15 +1036,15 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto err_task_lock;
 	}
 
-	if (oom_score_adj < task->signal->oom_score_adj_min &&
+	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
 			!capable(CAP_SYS_RESOURCE)) {
 		err = -EACCES;
 		goto err_sighand;
 	}
 
-	task->signal->oom_score_adj = oom_score_adj;
+	task->signal->oom_score_adj = (short)oom_score_adj;
 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
-		task->signal->oom_score_adj_min = oom_score_adj;
+		task->signal->oom_score_adj_min = (short)oom_score_adj;
 	trace_oom_score_adj_update(task);
 
 err_sighand:
@@ -2345,146 +2338,6 @@ static const struct file_operations proc_coredump_filter_operations = {
 };
 #endif
 
-/*
- * /proc/self:
- */
-static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
-			      int buflen)
-{
-	struct pid_namespace *ns = dentry->d_sb->s_fs_info;
-	pid_t tgid = task_tgid_nr_ns(current, ns);
-	char tmp[PROC_NUMBUF];
-	if (!tgid)
-		return -ENOENT;
-	sprintf(tmp, "%d", tgid);
-	return vfs_readlink(dentry,buffer,buflen,tmp);
-}
-
-static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct pid_namespace *ns = dentry->d_sb->s_fs_info;
-	pid_t tgid = task_tgid_nr_ns(current, ns);
-	char *name = ERR_PTR(-ENOENT);
-	if (tgid) {
-		/* 11 for max length of signed int in decimal + NULL term */
-		name = kmalloc(12, GFP_KERNEL);
-		if (!name)
-			name = ERR_PTR(-ENOMEM);
-		else
-			sprintf(name, "%d", tgid);
-	}
-	nd_set_link(nd, name);
-	return NULL;
-}
-
-static void proc_self_put_link(struct dentry *dentry, struct nameidata *nd,
-				void *cookie)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
-}
-
-static const struct inode_operations proc_self_inode_operations = {
-	.readlink	= proc_self_readlink,
-	.follow_link	= proc_self_follow_link,
-	.put_link	= proc_self_put_link,
-};
-
-/*
- * proc base
- *
- * These are the directory entries in the root directory of /proc
- * that properly belong to the /proc filesystem, as they describe
- * describe something that is process related.
- */
-static const struct pid_entry proc_base_stuff[] = {
-	NOD("self", S_IFLNK|S_IRWXUGO,
-		&proc_self_inode_operations, NULL, {}),
-};
-
-static struct dentry *proc_base_instantiate(struct inode *dir,
-	struct dentry *dentry, struct task_struct *task, const void *ptr)
-{
-	const struct pid_entry *p = ptr;
-	struct inode *inode;
-	struct proc_inode *ei;
-	struct dentry *error;
-
-	/* Allocate the inode */
-	error = ERR_PTR(-ENOMEM);
-	inode = new_inode(dir->i_sb);
-	if (!inode)
-		goto out;
-
-	/* Initialize the inode */
-	ei = PROC_I(inode);
-	inode->i_ino = get_next_ino();
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
-
-	/*
-	 * grab the reference to the task.
-	 */
-	ei->pid = get_task_pid(task, PIDTYPE_PID);
-	if (!ei->pid)
-		goto out_iput;
-
-	inode->i_mode = p->mode;
-	if (S_ISDIR(inode->i_mode))
-		set_nlink(inode, 2);
-	if (S_ISLNK(inode->i_mode))
-		inode->i_size = 64;
-	if (p->iop)
-		inode->i_op = p->iop;
-	if (p->fop)
-		inode->i_fop = p->fop;
-	ei->op = p->op;
-	d_add(dentry, inode);
-	error = NULL;
-out:
-	return error;
-out_iput:
-	iput(inode);
-	goto out;
-}
-
-static struct dentry *proc_base_lookup(struct inode *dir, struct dentry *dentry)
-{
-	struct dentry *error;
-	struct task_struct *task = get_proc_task(dir);
-	const struct pid_entry *p, *last;
-
-	error = ERR_PTR(-ENOENT);
-
-	if (!task)
-		goto out_no_task;
-
-	/* Lookup the directory entry */
-	last = &proc_base_stuff[ARRAY_SIZE(proc_base_stuff) - 1];
-	for (p = proc_base_stuff; p <= last; p++) {
-		if (p->len != dentry->d_name.len)
-			continue;
-		if (!memcmp(dentry->d_name.name, p->name, p->len))
-			break;
-	}
-	if (p > last)
-		goto out;
-
-	error = proc_base_instantiate(dir, dentry, task, p);
-
-out:
-	put_task_struct(task);
-out_no_task:
-	return error;
-}
-
-static int proc_base_fill_cache(struct file *filp, void *dirent,
-	filldir_t filldir, struct task_struct *task, const struct pid_entry *p)
-{
-	return proc_fill_cache(filp, dirent, filldir, p->name, p->len,
-				proc_base_instantiate, task, p);
-}
-
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 static int do_io_accounting(struct task_struct *task, char *buffer, int whole)
 {
@@ -2839,10 +2692,6 @@ void proc_flush_task(struct task_struct *task)
 		proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
 					tgid->numbers[i].nr);
 	}
-
-	upid = &pid->numbers[pid->level];
-	if (upid->nr == 1)
-		pid_ns_release_proc(upid->ns);
 }
 
 static struct dentry *proc_pid_instantiate(struct inode *dir,
@@ -2876,14 +2725,10 @@ out:
 
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)
 {
-	struct dentry *result;
+	struct dentry *result = NULL;
 	struct task_struct *task;
 	unsigned tgid;
 	struct pid_namespace *ns;
-
-	result = proc_base_lookup(dir, dentry);
-	if (!IS_ERR(result) || PTR_ERR(result) != -ENOENT)
-		goto out;
 
 	tgid = name_to_int(dentry);
 	if (tgid == ~0U)
@@ -2947,7 +2792,7 @@ retry:
 	return iter;
 }
 
-#define TGID_OFFSET (FIRST_PROCESS_ENTRY + ARRAY_SIZE(proc_base_stuff))
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY)
 
 static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	struct tgid_iter iter)
@@ -2967,25 +2812,12 @@ static int fake_filldir(void *buf, const char *name, int namelen,
 /* for the /proc/ directory itself, after non-process stuff has been done */
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	unsigned int nr;
-	struct task_struct *reaper;
 	struct tgid_iter iter;
 	struct pid_namespace *ns;
 	filldir_t __filldir;
 
 	if (filp->f_pos >= PID_MAX_LIMIT + TGID_OFFSET)
-		goto out_no_task;
-	nr = filp->f_pos - FIRST_PROCESS_ENTRY;
-
-	reaper = get_proc_task(filp->f_path.dentry->d_inode);
-	if (!reaper)
-		goto out_no_task;
-
-	for (; nr < ARRAY_SIZE(proc_base_stuff); filp->f_pos++, nr++) {
-		const struct pid_entry *p = &proc_base_stuff[nr];
-		if (proc_base_fill_cache(filp, dirent, filldir, reaper, p) < 0)
-			goto out;
-	}
+		goto out;
 
 	ns = filp->f_dentry->d_sb->s_fs_info;
 	iter.task = NULL;
@@ -3006,8 +2838,6 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	}
 	filp->f_pos = PID_MAX_LIMIT + TGID_OFFSET;
 out:
-	put_task_struct(reaper);
-out_no_task:
 	return 0;
 }
 

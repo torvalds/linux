@@ -182,7 +182,7 @@ static ssize_t dpms_show(struct device *device,
 	uint64_t dpms_status;
 	int ret;
 
-	ret = drm_connector_property_get_value(connector,
+	ret = drm_object_property_get_value(&connector->base,
 					    dev->mode_config.dpms_property,
 					    &dpms_status);
 	if (ret)
@@ -277,7 +277,7 @@ static ssize_t subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -318,7 +318,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 

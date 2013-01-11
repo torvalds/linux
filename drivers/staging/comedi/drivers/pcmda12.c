@@ -64,13 +64,6 @@ Configuration Options:
 #define MSB_PORT(chan) (LSB_PORT(chan)+1)
 #define BITS 12
 
-/*
- * Bords
- */
-struct pcmda12_board {
-	const char *name;
-};
-
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
 static const struct comedi_lrange pcmda12_ranges = {
@@ -85,8 +78,6 @@ struct pcmda12_private {
 	unsigned int ao_readback[CHANS];
 	int simultaneous_xfer_mode;
 };
-
-#define devpriv ((struct pcmda12_private *)(dev->private))
 
 static void zero_chans(struct comedi_device *dev)
 {				/* sets up an
@@ -104,6 +95,7 @@ static void zero_chans(struct comedi_device *dev)
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmda12_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -146,6 +138,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcmda12_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -162,7 +155,7 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcmda12_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct pcmda12_board *board = comedi_board(dev);
+	struct pcmda12_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int ret;
@@ -178,16 +171,12 @@ static int pcmda12_attach(struct comedi_device *dev,
 	}
 	dev->iobase = iobase;
 
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
-		printk(KERN_ERR "cannot allocate private data structure\n");
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	}
+	dev->private = devpriv;
 
 	devpriv->simultaneous_xfer_mode = it->options[1];
 
@@ -218,20 +207,11 @@ static void pcmda12_detach(struct comedi_device *dev)
 		release_region(dev->iobase, IOSIZE);
 }
 
-static const struct pcmda12_board pcmda12_boards[] = {
-	{
-		.name	= "pcmda12",
-	},
-};
-
 static struct comedi_driver pcmda12_driver = {
 	.driver_name	= "pcmda12",
 	.module		= THIS_MODULE,
 	.attach		= pcmda12_attach,
 	.detach		= pcmda12_detach,
-	.board_name	= &pcmda12_boards[0].name,
-	.offset		= sizeof(struct pcmda12_board),
-	.num_names	= ARRAY_SIZE(pcmda12_boards),
 };
 module_comedi_driver(pcmda12_driver);
 

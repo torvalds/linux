@@ -184,7 +184,7 @@ static const struct hc_driver ohci_tmio_hc_driver = {
 /*-------------------------------------------------------------------------*/
 static struct platform_driver ohci_hcd_tmio_driver;
 
-static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
+static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct resource *regs = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -271,7 +271,7 @@ err_usb_create_hcd:
 	return ret;
 }
 
-static int __devexit ohci_hcd_tmio_drv_remove(struct platform_device *dev)
+static int ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct tmio_hcd *tmio = hcd_to_tmio(hcd);
@@ -352,7 +352,7 @@ static int ohci_hcd_tmio_drv_resume(struct platform_device *dev)
 
 	spin_unlock_irqrestore(&tmio->lock, flags);
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 
 	return 0;
 }
@@ -363,7 +363,7 @@ static int ohci_hcd_tmio_drv_resume(struct platform_device *dev)
 
 static struct platform_driver ohci_hcd_tmio_driver = {
 	.probe		= ohci_hcd_tmio_drv_probe,
-	.remove		= __devexit_p(ohci_hcd_tmio_drv_remove),
+	.remove		= ohci_hcd_tmio_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.suspend	= ohci_hcd_tmio_drv_suspend,
 	.resume		= ohci_hcd_tmio_drv_resume,

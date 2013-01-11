@@ -184,18 +184,26 @@ EXPORT_SYMBOL(drm_mm_get_block_generic);
  * -ENOSPC if no suitable free area is available. The preallocated memory node
  * must be cleared.
  */
-int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
-		       unsigned long size, unsigned alignment)
+int drm_mm_insert_node_generic(struct drm_mm *mm, struct drm_mm_node *node,
+			       unsigned long size, unsigned alignment,
+			       unsigned long color)
 {
 	struct drm_mm_node *hole_node;
 
-	hole_node = drm_mm_search_free(mm, size, alignment, false);
+	hole_node = drm_mm_search_free_generic(mm, size, alignment,
+					       color, 0);
 	if (!hole_node)
 		return -ENOSPC;
 
-	drm_mm_insert_helper(hole_node, node, size, alignment, 0);
-
+	drm_mm_insert_helper(hole_node, node, size, alignment, color);
 	return 0;
+}
+EXPORT_SYMBOL(drm_mm_insert_node_generic);
+
+int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
+		       unsigned long size, unsigned alignment)
+{
+	return drm_mm_insert_node_generic(mm, node, size, alignment, 0);
 }
 EXPORT_SYMBOL(drm_mm_insert_node);
 
@@ -275,21 +283,30 @@ EXPORT_SYMBOL(drm_mm_get_block_range_generic);
  * -ENOSPC if no suitable free area is available. This is for range
  * restricted allocations. The preallocated memory node must be cleared.
  */
+int drm_mm_insert_node_in_range_generic(struct drm_mm *mm, struct drm_mm_node *node,
+					unsigned long size, unsigned alignment, unsigned long color,
+					unsigned long start, unsigned long end)
+{
+	struct drm_mm_node *hole_node;
+
+	hole_node = drm_mm_search_free_in_range_generic(mm,
+							size, alignment, color,
+							start, end, 0);
+	if (!hole_node)
+		return -ENOSPC;
+
+	drm_mm_insert_helper_range(hole_node, node,
+				   size, alignment, color,
+				   start, end);
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_insert_node_in_range_generic);
+
 int drm_mm_insert_node_in_range(struct drm_mm *mm, struct drm_mm_node *node,
 				unsigned long size, unsigned alignment,
 				unsigned long start, unsigned long end)
 {
-	struct drm_mm_node *hole_node;
-
-	hole_node = drm_mm_search_free_in_range(mm, size, alignment,
-						start, end, false);
-	if (!hole_node)
-		return -ENOSPC;
-
-	drm_mm_insert_helper_range(hole_node, node, size, alignment, 0,
-				   start, end);
-
-	return 0;
+	return drm_mm_insert_node_in_range_generic(mm, node, size, alignment, 0, start, end);
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range);
 

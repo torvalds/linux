@@ -14,6 +14,7 @@
 #define EXTENT_FLAG_VACANCY 2 /* no file extent item found */
 #define EXTENT_FLAG_PREALLOC 3 /* pre-allocated extent */
 #define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
+#define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */
 
 struct extent_map {
 	struct rb_node rb_node;
@@ -24,6 +25,7 @@ struct extent_map {
 	u64 mod_start;
 	u64 mod_len;
 	u64 orig_start;
+	u64 orig_block_len;
 	u64 block_start;
 	u64 block_len;
 	u64 generation;

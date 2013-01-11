@@ -50,63 +50,12 @@
 #ifndef _EPAPR_HCALLS_H
 #define _EPAPR_HCALLS_H
 
+#include <uapi/asm/epapr_hcalls.h>
+
+#ifndef __ASSEMBLY__
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <asm/byteorder.h>
-
-#define EV_BYTE_CHANNEL_SEND		1
-#define EV_BYTE_CHANNEL_RECEIVE		2
-#define EV_BYTE_CHANNEL_POLL		3
-#define EV_INT_SET_CONFIG		4
-#define EV_INT_GET_CONFIG		5
-#define EV_INT_SET_MASK			6
-#define EV_INT_GET_MASK			7
-#define EV_INT_IACK			9
-#define EV_INT_EOI			10
-#define EV_INT_SEND_IPI			11
-#define EV_INT_SET_TASK_PRIORITY	12
-#define EV_INT_GET_TASK_PRIORITY	13
-#define EV_DOORBELL_SEND		14
-#define EV_MSGSND			15
-#define EV_IDLE				16
-
-/* vendor ID: epapr */
-#define EV_LOCAL_VENDOR_ID		0	/* for private use */
-#define EV_EPAPR_VENDOR_ID		1
-#define EV_FSL_VENDOR_ID		2	/* Freescale Semiconductor */
-#define EV_IBM_VENDOR_ID		3	/* IBM */
-#define EV_GHS_VENDOR_ID		4	/* Green Hills Software */
-#define EV_ENEA_VENDOR_ID		5	/* Enea */
-#define EV_WR_VENDOR_ID			6	/* Wind River Systems */
-#define EV_AMCC_VENDOR_ID		7	/* Applied Micro Circuits */
-#define EV_KVM_VENDOR_ID		42	/* KVM */
-
-/* The max number of bytes that a byte channel can send or receive per call */
-#define EV_BYTE_CHANNEL_MAX_BYTES	16
-
-
-#define _EV_HCALL_TOKEN(id, num) (((id) << 16) | (num))
-#define EV_HCALL_TOKEN(hcall_num) _EV_HCALL_TOKEN(EV_EPAPR_VENDOR_ID, hcall_num)
-
-/* epapr error codes */
-#define EV_EPERM		1	/* Operation not permitted */
-#define EV_ENOENT		2	/*  Entry Not Found */
-#define EV_EIO			3	/* I/O error occured */
-#define EV_EAGAIN		4	/* The operation had insufficient
-					 * resources to complete and should be
-					 * retried
-					 */
-#define EV_ENOMEM		5	/* There was insufficient memory to
-					 * complete the operation */
-#define EV_EFAULT		6	/* Bad guest address */
-#define EV_ENODEV		7	/* No such device */
-#define EV_EINVAL		8	/* An argument supplied to the hcall
-					   was out of range or invalid */
-#define EV_INTERNAL		9	/* An internal error occured */
-#define EV_CONFIG		10	/* A configuration error was detected */
-#define EV_INVALID_STATE	11	/* The object is in an invalid state */
-#define EV_UNIMPLEMENTED	12	/* Unimplemented hypercall */
-#define EV_BUFFER_OVERFLOW	13	/* Caller-supplied buffer too small */
 
 /*
  * Hypercall register clobber list
@@ -193,7 +142,7 @@ static inline unsigned int ev_int_set_config(unsigned int interrupt,
 	r5  = priority;
 	r6  = destination;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4), "+r" (r5), "+r" (r6)
 		: : EV_HCALL_CLOBBERS4
 	);
@@ -222,7 +171,7 @@ static inline unsigned int ev_int_get_config(unsigned int interrupt,
 	r11 = EV_HCALL_TOKEN(EV_INT_GET_CONFIG);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4), "=r" (r5), "=r" (r6)
 		: : EV_HCALL_CLOBBERS4
 	);
@@ -252,7 +201,7 @@ static inline unsigned int ev_int_set_mask(unsigned int interrupt,
 	r3 = interrupt;
 	r4 = mask;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -277,7 +226,7 @@ static inline unsigned int ev_int_get_mask(unsigned int interrupt,
 	r11 = EV_HCALL_TOKEN(EV_INT_GET_MASK);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -305,7 +254,7 @@ static inline unsigned int ev_int_eoi(unsigned int interrupt)
 	r11 = EV_HCALL_TOKEN(EV_INT_EOI);
 	r3 = interrupt;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
@@ -344,7 +293,7 @@ static inline unsigned int ev_byte_channel_send(unsigned int handle,
 	r7 = be32_to_cpu(p[2]);
 	r8 = be32_to_cpu(p[3]);
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3),
 		  "+r" (r4), "+r" (r5), "+r" (r6), "+r" (r7), "+r" (r8)
 		: : EV_HCALL_CLOBBERS6
@@ -383,7 +332,7 @@ static inline unsigned int ev_byte_channel_receive(unsigned int handle,
 	r3 = handle;
 	r4 = *count;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "+r" (r4),
 		  "=r" (r5), "=r" (r6), "=r" (r7), "=r" (r8)
 		: : EV_HCALL_CLOBBERS6
@@ -421,7 +370,7 @@ static inline unsigned int ev_byte_channel_poll(unsigned int handle,
 	r11 = EV_HCALL_TOKEN(EV_BYTE_CHANNEL_POLL);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4), "=r" (r5)
 		: : EV_HCALL_CLOBBERS3
 	);
@@ -454,7 +403,7 @@ static inline unsigned int ev_int_iack(unsigned int handle,
 	r11 = EV_HCALL_TOKEN(EV_INT_IACK);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3), "=r" (r4)
 		: : EV_HCALL_CLOBBERS2
 	);
@@ -478,7 +427,7 @@ static inline unsigned int ev_doorbell_send(unsigned int handle)
 	r11 = EV_HCALL_TOKEN(EV_DOORBELL_SEND);
 	r3 = handle;
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "+r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
@@ -498,12 +447,12 @@ static inline unsigned int ev_idle(void)
 
 	r11 = EV_HCALL_TOKEN(EV_IDLE);
 
-	__asm__ __volatile__ ("sc 1"
+	asm volatile("bl	epapr_hypercall_start"
 		: "+r" (r11), "=r" (r3)
 		: : EV_HCALL_CLOBBERS1
 	);
 
 	return r3;
 }
-
-#endif
+#endif /* !__ASSEMBLY__ */
+#endif /* _EPAPR_HCALLS_H */

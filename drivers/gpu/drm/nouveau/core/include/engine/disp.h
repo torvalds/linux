@@ -39,6 +39,11 @@ nouveau_disp(void *obj)
 
 extern struct nouveau_oclass nv04_disp_oclass;
 extern struct nouveau_oclass nv50_disp_oclass;
+extern struct nouveau_oclass nv84_disp_oclass;
+extern struct nouveau_oclass nva0_disp_oclass;
+extern struct nouveau_oclass nv94_disp_oclass;
+extern struct nouveau_oclass nva3_disp_oclass;
 extern struct nouveau_oclass nvd0_disp_oclass;
+extern struct nouveau_oclass nve0_disp_oclass;
 
 #endif

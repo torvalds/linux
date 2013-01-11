@@ -457,6 +457,15 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Get the number of vendor data bytes
 			 */
 			extra_struct_bytes = resource_length;
+
+			/*
+			 * There is already one byte included in the minimum
+			 * descriptor size. If there are extra struct bytes,
+			 * subtract one from the count.
+			 */
+			if (extra_struct_bytes) {
+				extra_struct_bytes--;
+			}
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
@@ -601,7 +610,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	/*
 	 * Calculate the size of the return buffer.
 	 * The base size is the number of elements * the sizes of the
-	 * structures.  Additional space for the strings is added below.
+	 * structures. Additional space for the strings is added below.
 	 * The minus one is to subtract the size of the u8 Source[1]
 	 * member because it is added below.
 	 *
@@ -664,8 +673,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 						     (*sub_object_list)->string.
 						     length + 1);
 			} else {
-				temp_size_needed +=
-				    acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
 			}
 		} else {
 			/*

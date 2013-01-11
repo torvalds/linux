@@ -17,12 +17,6 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 
-/* This duplicates the definition from <linux/sched.h> */
-#define PT_TRACESYS	0x00000002	/* tracing system calls */
-
-/* This duplicates the definition from <asm/signal.h> */
-#define SIGILL		4		/* Illegal instruction (ANSI).  */
-
 #ifndef CONFIG_MIPS32_O32
 /* No O32, so define handle_sys here */
 #define handle_sysn32 handle_sys
@@ -167,7 +161,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_getsockopt
 	PTR	sys_clone			/* 6055 */
 	PTR	sys_fork
-	PTR	sys32_execve
+	PTR	compat_sys_execve
 	PTR	sys_exit
 	PTR	compat_sys_wait4
 	PTR	sys_kill			/* 6060 */
@@ -422,4 +416,5 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_process_vm_readv
 	PTR	compat_sys_process_vm_writev	/* 6310 */
 	PTR	sys_kcmp
+	PTR	sys_finit_module
 	.size	sysn32_call_table,.-sysn32_call_table

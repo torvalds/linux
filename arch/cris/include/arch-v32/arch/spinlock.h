@@ -118,7 +118,7 @@ static  inline int arch_write_trylock(arch_rwlock_t *rw)
 		ret = 1;
 	}
 	arch_spin_unlock(&rw->slock);
-	return 1;
+	return ret;
 }
 
 #define _raw_read_lock_flags(lock, flags) _raw_read_lock(lock)

@@ -295,7 +295,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/* this could be a huge page  */
 	if (pmd_huge(*pmdp)) {
 		unsigned long lo;
@@ -366,6 +366,26 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	local_flush_tlb_all();
 	EXIT_CRITICAL(flags);
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+int __init has_transparent_hugepage(void)
+{
+	unsigned int mask;
+	unsigned long flags;
+
+	ENTER_CRITICAL(flags);
+	write_c0_pagemask(PM_HUGE_MASK);
+	back_to_back_c0_hazard();
+	mask = read_c0_pagemask();
+	write_c0_pagemask(PM_DEFAULT_MASK);
+
+	EXIT_CRITICAL(flags);
+
+	return mask == PM_HUGE_MASK;
+}
+
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
 
 static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)

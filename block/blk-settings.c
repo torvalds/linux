@@ -611,7 +611,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			bottom = b->discard_granularity + alignment;
 
 			/* Verify that top and bottom intervals line up */
-			if (max(top, bottom) & (min(top, bottom) - 1))
+			if ((max(top, bottom) % min(top, bottom)) != 0)
 				t->discard_misaligned = 1;
 		}
 
@@ -619,8 +619,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 						      b->max_discard_sectors);
 		t->discard_granularity = max(t->discard_granularity,
 					     b->discard_granularity);
-		t->discard_alignment = lcm(t->discard_alignment, alignment) &
-			(t->discard_granularity - 1);
+		t->discard_alignment = lcm(t->discard_alignment, alignment) %
+			t->discard_granularity;
 	}
 
 	return ret;

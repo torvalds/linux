@@ -393,30 +393,35 @@ ENTRY(startup_kdump)
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	stck	__LC_LAST_UPDATE_CLOCK
-	spt	5f-.LPG0(%r13)
-	mvc	__LC_LAST_UPDATE_TIMER(8),5f-.LPG0(%r13)
+	spt	6f-.LPG0(%r13)
+	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
 #ifndef CONFIG_MARCH_G5
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	.insn	s,0xb2b10000,__LC_STFL_FAC_LIST	# store facility list
 	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
 	jz	0f
-	la	%r0,0
+	la	%r0,1
 	.insn	s,0xb2b00000,__LC_STFL_FAC_LIST	# store facility list extended
-0:	l	%r0,__LC_STFL_FAC_LIST
-	n	%r0,2f+8-.LPG0(%r13)
-	cl	%r0,2f+8-.LPG0(%r13)
-	jne	1f
-	l	%r0,__LC_STFL_FAC_LIST+4
-	n	%r0,2f+12-.LPG0(%r13)
-	cl	%r0,2f+12-.LPG0(%r13)
-	je	3f
-1:	l	%r15,.Lstack-.LPG0(%r13)
+	# verify if all required facilities are supported by the machine
+0:	la	%r1,__LC_STFL_FAC_LIST
+	la	%r2,3f+8-.LPG0(%r13)
+	l	%r3,0(%r2)
+1:	l	%r0,0(%r1)
+	n	%r0,4(%r2)
+	cl	%r0,4(%r2)
+	jne	2f
+	la	%r1,4(%r1)
+	la	%r2,4(%r2)
+	ahi	%r3,-1
+	jnz	1b
+	j	4f
+2:	l	%r15,.Lstack-.LPG0(%r13)
 	ahi	%r15,-96
 	la	%r2,.Lals_string-.LPG0(%r13)
 	l	%r3,.Lsclp_print-.LPG0(%r13)
 	basr	%r14,%r3
-	lpsw	2f-.LPG0(%r13)		# machine type not good enough, crash
+	lpsw	3f-.LPG0(%r13)		# machine type not good enough, crash
 .Lals_string:
 	.asciz	"The Linux kernel requires more recent processor hardware"
 .Lsclp_print:
@@ -424,33 +429,42 @@ ENTRY(startup_kdump)
 .Lstack:
 	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_ORDER))
 	.align 16
-2:	.long	0x000a0000,0x8badcccc
+3:	.long	0x000a0000,0x8badcccc
+
+# List of facilities that are required. If not all facilities are present
+# the kernel will crash. Format is number of facility words with bits set,
+# followed by the facility words.
+
 #if defined(CONFIG_64BIT)
-#if defined(CONFIG_MARCH_Z196)
-	.long 0xc100efe3, 0xf46c0000
+#if defined(CONFIG_MARCH_ZEC12)
+	.long 3, 0xc100efe3, 0xf46ce000, 0x00400000
+#elif defined(CONFIG_MARCH_Z196)
+	.long 2, 0xc100efe3, 0xf46c0000
 #elif defined(CONFIG_MARCH_Z10)
-	.long 0xc100efe3, 0xf0680000
+	.long 2, 0xc100efe3, 0xf0680000
 #elif defined(CONFIG_MARCH_Z9_109)
-	.long 0xc100efc3, 0x00000000
+	.long 1, 0xc100efc3
 #elif defined(CONFIG_MARCH_Z990)
-	.long 0xc0002000, 0x00000000
+	.long 1, 0xc0002000
 #elif defined(CONFIG_MARCH_Z900)
-	.long 0xc0000000, 0x00000000
+	.long 1, 0xc0000000
 #endif
 #else
-#if defined(CONFIG_MARCH_Z196)
-	.long 0x8100c880, 0x00000000
+#if defined(CONFIG_MARCH_ZEC12)
+	.long 1, 0x8100c880
+#elif defined(CONFIG_MARCH_Z196)
+	.long 1, 0x8100c880
 #elif defined(CONFIG_MARCH_Z10)
-	.long 0x8100c880, 0x00000000
+	.long 1, 0x8100c880
 #elif defined(CONFIG_MARCH_Z9_109)
-	.long 0x8100c880, 0x00000000
+	.long 1, 0x8100c880
 #elif defined(CONFIG_MARCH_Z990)
-	.long 0x80002000, 0x00000000
+	.long 1, 0x80002000
 #elif defined(CONFIG_MARCH_Z900)
-	.long 0x80000000, 0x00000000
+	.long 1, 0x80000000
 #endif
 #endif
-3:
+4:
 #endif
 
 #ifdef CONFIG_64BIT
@@ -459,14 +473,14 @@ ENTRY(startup_kdump)
 	jg	startup_continue
 #else
 	/* Continue with 31bit startup code in head31.S */
-	l	%r13,4f-.LPG0(%r13)
+	l	%r13,5f-.LPG0(%r13)
 	b	0(%r13)
 	.align	8
-4:	.long	startup_continue
+5:	.long	startup_continue
 #endif
 
 	.align	8
-5:	.long	0x7fffffff,0xffffffff
+6:	.long	0x7fffffff,0xffffffff
 
 #include "head_kdump.S"
 

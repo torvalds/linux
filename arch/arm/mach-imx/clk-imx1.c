@@ -22,9 +22,9 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 /* CCM register addresses */
 #define IO_ADDR_CCM(off)	(MX1_IO_ADDRESS(MX1_CCM_BASE_ADDR + (off)))
@@ -82,7 +82,8 @@ int __init mx1_clocks_init(unsigned long fref)
 			pr_err("imx1 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	clk_register_clkdev(clk[dma_gate], "ahb", "imx-dma");
+	clk_register_clkdev(clk[dma_gate], "ahb", "imx1-dma");
+	clk_register_clkdev(clk[hclk], "ipg", "imx1-dma");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx1-camera.0");
 	clk_register_clkdev(clk[mma_gate], "mma", NULL);
 	clk_register_clkdev(clk[usbd_gate], NULL, "imx_udc.0");
@@ -94,18 +95,18 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[hclk], "ipg", "imx1-uart.1");
 	clk_register_clkdev(clk[per1], "per", "imx1-uart.2");
 	clk_register_clkdev(clk[hclk], "ipg", "imx1-uart.2");
-	clk_register_clkdev(clk[hclk], NULL, "imx-i2c.0");
+	clk_register_clkdev(clk[hclk], NULL, "imx1-i2c.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.0");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.1");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.1");
 	clk_register_clkdev(clk[per2], NULL, "imx-mmc.0");
-	clk_register_clkdev(clk[per2], "per", "imx-fb.0");
-	clk_register_clkdev(clk[dummy], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[dummy], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[per2], "per", "imx1-fb.0");
+	clk_register_clkdev(clk[dummy], "ipg", "imx1-fb.0");
+	clk_register_clkdev(clk[dummy], "ahb", "imx1-fb.0");
 	clk_register_clkdev(clk[hclk], "mshc", NULL);
 	clk_register_clkdev(clk[per3], "ssi", NULL);
-	clk_register_clkdev(clk[clk32], NULL, "mxc_rtc.0");
+	clk_register_clkdev(clk[clk32], NULL, "imx1-rtc.0");
 	clk_register_clkdev(clk[clko], "clko", NULL);
 
 	mxc_timer_init(MX1_IO_ADDRESS(MX1_TIM1_BASE_ADDR), MX1_TIM1_INT);

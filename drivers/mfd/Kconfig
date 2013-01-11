@@ -63,6 +63,16 @@ config MFD_SM501_GPIO
 	 lines on the SM501. The platform data is used to supply the
 	 base number for the first GPIO line to register.
 
+config MFD_RTSX_PCI
+	tristate "Support for Realtek PCI-E card reader"
+	depends on PCI
+	select MFD_CORE
+	help
+	  This supports for Realtek PCI-Express card reader including rts5209,
+	  rts5229, rtl8411, etc. Realtek card reader supports access to many
+	  types of memory cards, such as Memory Stick, Memory Stick Pro,
+	  Secure Digital and MultiMediaCard.
+
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
@@ -93,6 +103,17 @@ config MFD_TI_SSP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti-ssp.
+
+config MFD_TI_AM335X_TSCADC
+	tristate "TI ADC / Touch Screen chip support"
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  If you say yes here you get support for Texas Instruments series
+	  of Touch Screen /ADC chips.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti_am335x_tscadc.
 
 config HTC_EGPIO
 	bool "HTC EGPIO support"
@@ -201,7 +222,6 @@ config MFD_TPS6586X
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	select REGMAP_I2C
-	depends on REGULATOR
 	help
 	  If you say yes here you get support for the TPS6586X series of
 	  Power Management chips.
@@ -243,6 +263,20 @@ config MFD_TPS65912_SPI
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.
+
+config MFD_TPS80031
+	bool "TI TPS80031/TPS80032 Power Management chips"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TPS80031/ TPS80032 Fully Integrated Power Management with Power
+	  Path and Battery Charger. The device provides five configurable
+	  step-down converters, 11 general purpose LDOs, USB OTG Module,
+	  ADC, RTC, 2 PWM, System Voltage Regulator/Battery Charger with
+	  Power Path from USB, 32K clock generator.
 
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
@@ -300,10 +334,10 @@ config MFD_TWL4030_AUDIO
 
 config TWL6040_CORE
 	bool "Support for TWL6040 audio codec"
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
-	select IRQ_DOMAIN
+	select REGMAP_IRQ
 	default n
 	help
 	  Say yes here if you want support for Texas Instruments TWL6040 audio
@@ -981,6 +1015,7 @@ config MFD_TPS65090
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	help
 	  If you say yes here you get support for the TPS65090 series of
 	  Power Management chips.
@@ -1025,6 +1060,7 @@ config MFD_STA2X11
 	bool "STA2X11 multi function device support"
 	depends on STA2X11
 	select MFD_CORE
+	select REGMAP_MMIO
 
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"
@@ -1043,6 +1079,38 @@ config MFD_PALMAS
 	help
 	  If you say yes here you get support for the Palmas
 	  series of PMIC chips from Texas Instruments.
+
+config MFD_VIPERBOARD
+        tristate "Support for Nano River Technologies Viperboard"
+	select MFD_CORE
+	depends on USB
+	default n
+	help
+	  Say yes here if you want support for Nano River Technologies
+	  Viperboard.
+	  There are mfd cell drivers available for i2c master, adc and
+	  both gpios found on the board. The spi part does not yet
+	  have a driver.
+	  You need to select the mfd cell drivers separately.
+	  The drivers do not support all features the board exposes.
+
+config MFD_RETU
+	tristate "Support for Retu multi-function device"
+	select MFD_CORE
+	depends on I2C
+	select REGMAP_IRQ
+	help
+	  Retu is a multi-function device found on Nokia Internet Tablets
+	  (770, N800 and N810).
+
+config MFD_AS3711
+	bool "Support for AS3711"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  Support for the AS3711 PMIC from AMS
 
 endmenu
 endif
@@ -1070,3 +1138,9 @@ config MCP_UCB1200_TS
 	depends on MCP_UCB1200 && INPUT
 
 endmenu
+
+config VEXPRESS_CONFIG
+	bool
+	help
+	  Platform configuration infrastructure for the ARM Ltd.
+	  Versatile Express.

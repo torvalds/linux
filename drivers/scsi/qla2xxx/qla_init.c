@@ -429,7 +429,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/
 
-int
+static int
 qla83xx_nic_core_fw_load(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -997,7 +997,7 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
  *
  * Returns 0 on success.
  */
-int
+static int
 qla81xx_reset_mpi(scsi_qla_host_t *vha)
 {
 	uint16_t mb[4] = {0x1010, 0, 1, 0};
@@ -1095,6 +1095,83 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		ha->isp_ops->enable_intrs(ha);
 }
 
+static void
+qla25xx_read_risc_sema_reg(scsi_qla_host_t *vha, uint32_t *data)
+{
+	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
+
+	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	*data = RD_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET);
+
+}
+
+static void
+qla25xx_write_risc_sema_reg(scsi_qla_host_t *vha, uint32_t data)
+{
+	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
+
+	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	WRT_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET, data);
+}
+
+static void
+qla25xx_manipulate_risc_semaphore(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t wd32 = 0;
+	uint delta_msec = 100;
+	uint elapsed_msec = 0;
+	uint timeout_msec;
+	ulong n;
+
+	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha))
+		return;
+
+attempt:
+	timeout_msec = TIMEOUT_SEMAPHORE;
+	n = timeout_msec / delta_msec;
+	while (n--) {
+		qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_SET);
+		qla25xx_read_risc_sema_reg(vha, &wd32);
+		if (wd32 & RISC_SEMAPHORE)
+			break;
+		msleep(delta_msec);
+		elapsed_msec += delta_msec;
+		if (elapsed_msec > TIMEOUT_TOTAL_ELAPSED)
+			goto force;
+	}
+
+	if (!(wd32 & RISC_SEMAPHORE))
+		goto force;
+
+	if (!(wd32 & RISC_SEMAPHORE_FORCE))
+		goto acquired;
+
+	qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_CLR);
+	timeout_msec = TIMEOUT_SEMAPHORE_FORCE;
+	n = timeout_msec / delta_msec;
+	while (n--) {
+		qla25xx_read_risc_sema_reg(vha, &wd32);
+		if (!(wd32 & RISC_SEMAPHORE_FORCE))
+			break;
+		msleep(delta_msec);
+		elapsed_msec += delta_msec;
+		if (elapsed_msec > TIMEOUT_TOTAL_ELAPSED)
+			goto force;
+	}
+
+	if (wd32 & RISC_SEMAPHORE_FORCE)
+		qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_FORCE_CLR);
+
+	goto attempt;
+
+force:
+	qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_FORCE_SET);
+
+acquired:
+	return;
+}
+
 /**
  * qla24xx_reset_chip() - Reset ISP24xx chip.
  * @ha: HA context
@@ -1112,6 +1189,8 @@ qla24xx_reset_chip(scsi_qla_host_t *vha)
 	}
 
 	ha->isp_ops->disable_intrs(ha);
+
+	qla25xx_manipulate_risc_semaphore(vha);
 
 	/* Perform RISC reset. */
 	qla24xx_reset_risc(vha);
@@ -1888,10 +1967,6 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		qla2x00_init_response_q_entries(rsp);
 	}
 
-	spin_lock(&ha->vport_slock);
-
-	spin_unlock(&ha->vport_slock);
-
 	ha->tgt.atio_ring_ptr = ha->tgt.atio_ring;
 	ha->tgt.atio_ring_index = 0;
 	/* Initialize ATIO queue entries */
@@ -1971,6 +2046,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 		    "Waiting for LIP to complete.\n");
 
 	do {
+		memset(state, -1, sizeof(state));
 		rval = qla2x00_get_firmware_state(vha, state);
 		if (rval == QLA_SUCCESS) {
 			if (state[0] < FSTATE_LOSS_OF_SYNC) {
@@ -2907,7 +2983,6 @@ cleanup_allocation:
 static void
 qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
-	char *link_speed;
 	int rval;
 	uint16_t mb[4];
 	struct qla_hw_data *ha = vha->hw;
@@ -2934,10 +3009,10 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    fcport->port_name[6], fcport->port_name[7], rval,
 		    fcport->fp_speed, mb[0], mb[1]);
 	} else {
-		link_speed = qla2x00_get_link_speed_str(ha);
 		ql_dbg(ql_dbg_disc, vha, 0x2005,
 		    "iIDMA adjusted to %s GB/s "
-		    "on %02x%02x%02x%02x%02x%02x%02x%02x.\n", link_speed,
+		    "on %02x%02x%02x%02x%02x%02x%02x%02x.\n",
+		    qla2x00_get_link_speed_str(ha, fcport->fp_speed),
 		    fcport->port_name[0], fcport->port_name[1],
 		    fcport->port_name[2], fcport->port_name[3],
 		    fcport->port_name[4], fcport->port_name[5],
@@ -3007,10 +3082,10 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->login_retry = 0;
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
+	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	qla2x00_iidma_fcport(vha, fcport);
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
 	qla2x00_reg_remote_port(vha, fcport);
-	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 }
 
 /*
@@ -3868,7 +3943,7 @@ qla83xx_reset_ownership(scsi_qla_host_t *vha)
 	}
 }
 
-int
+static int
 __qla83xx_set_drv_ack(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -3884,19 +3959,7 @@ __qla83xx_set_drv_ack(scsi_qla_host_t *vha)
 	return rval;
 }
 
-int
-qla83xx_set_drv_ack(scsi_qla_host_t *vha)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_set_drv_ack(vha);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
+static int
 __qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -3912,19 +3975,7 @@ __qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
 	return rval;
 }
 
-int
-qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_clear_drv_ack(vha);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-const char *
+static const char *
 qla83xx_dev_state_to_string(uint32_t dev_state)
 {
 	switch (dev_state) {
@@ -3978,7 +4029,7 @@ qla83xx_idc_audit(scsi_qla_host_t *vha, int audit_type)
 }
 
 /* Assumes idc_lock always held on entry */
-int
+static int
 qla83xx_initiating_reset(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -4026,36 +4077,12 @@ __qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
 }
 
 int
-qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_set_idc_control(vha, idc_control);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
 __qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
 {
 	return qla83xx_rd_reg(vha, QLA83XX_IDC_CONTROL, idc_control);
 }
 
-int
-qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_get_idc_control(vha, idc_control);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
+static int
 qla83xx_check_driver_presence(scsi_qla_host_t *vha)
 {
 	uint32_t drv_presence = 0;

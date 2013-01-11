@@ -26,6 +26,7 @@
 #include "debugfs.h"
 #include "wext-compat.h"
 #include "ethtool.h"
+#include "rdev-ops.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -216,7 +217,7 @@ static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
 {
 	struct cfg80211_registered_device *rdev = data;
 
-	rdev->ops->rfkill_poll(&rdev->wiphy);
+	rdev_rfkill_poll(rdev);
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -240,7 +241,7 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 		case NL80211_IFTYPE_P2P_DEVICE:
 			if (!wdev->p2p_started)
 				break;
-			rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+			rdev_stop_p2p_device(rdev, wdev);
 			wdev->p2p_started = false;
 			rdev->opencount--;
 			break;
@@ -325,6 +326,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	mutex_init(&rdev->devlist_mtx);
 	mutex_init(&rdev->sched_scan_mtx);
 	INIT_LIST_HEAD(&rdev->wdev_list);
+	INIT_LIST_HEAD(&rdev->beacon_registrations);
+	spin_lock_init(&rdev->beacon_registrations_lock);
 	spin_lock_init(&rdev->bss_lock);
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
@@ -369,6 +372,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.frag_threshold = (u32) -1;
 	rdev->wiphy.rts_threshold = (u32) -1;
 	rdev->wiphy.coverage_class = 0;
+
+	rdev->wiphy.features = NL80211_FEATURE_SCAN_FLUSH;
 
 	return &rdev->wiphy;
 }
@@ -687,7 +692,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->event_work);
 
 	if (rdev->wowlan && rdev->ops->set_wakeup)
-		rdev->ops->set_wakeup(&rdev->wiphy, false);
+		rdev_set_wakeup(rdev, false);
 	cfg80211_rdev_free_wowlan(rdev);
 }
 EXPORT_SYMBOL(wiphy_unregister);
@@ -695,10 +700,15 @@ EXPORT_SYMBOL(wiphy_unregister);
 void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 {
 	struct cfg80211_internal_bss *scan, *tmp;
+	struct cfg80211_beacon_registration *reg, *treg;
 	rfkill_destroy(rdev->rfkill);
 	mutex_destroy(&rdev->mtx);
 	mutex_destroy(&rdev->devlist_mtx);
 	mutex_destroy(&rdev->sched_scan_mtx);
+	list_for_each_entry_safe(reg, treg, &rdev->beacon_registrations, list) {
+		list_del(&reg->list);
+		kfree(reg);
+	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
 	kfree(rdev);
@@ -770,7 +780,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (!wdev->p2p_started)
 			break;
-		rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+		rdev_stop_p2p_device(rdev, wdev);
 		wdev->p2p_started = false;
 		rdev->opencount--;
 		break;
@@ -961,9 +971,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
 		    rdev->ops->set_power_mgmt)
-			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
-						      wdev->ps,
-						      wdev->ps_timeout)) {
+			if (rdev_set_power_mgmt(rdev, dev, wdev->ps,
+						wdev->ps_timeout)) {
 				/* assume this means it's off */
 				wdev->ps = false;
 			}

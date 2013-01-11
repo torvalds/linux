@@ -67,12 +67,26 @@ struct ptp_perout_request {
 	unsigned int rsv[4];          /* Reserved for future use. */
 };
 
+#define PTP_MAX_SAMPLES 25 /* Maximum allowed offset measurement samples. */
+
+struct ptp_sys_offset {
+	unsigned int n_samples; /* Desired number of measurements. */
+	unsigned int rsv[3];    /* Reserved for future use. */
+	/*
+	 * Array of interleaved system/phc time stamps. The kernel
+	 * will provide 2*n_samples + 1 time stamps, with the last
+	 * one as a system time stamp.
+	 */
+	struct ptp_clock_time ts[2 * PTP_MAX_SAMPLES + 1];
+};
+
 #define PTP_CLK_MAGIC '='
 
 #define PTP_CLOCK_GETCAPS  _IOR(PTP_CLK_MAGIC, 1, struct ptp_clock_caps)
 #define PTP_EXTTS_REQUEST  _IOW(PTP_CLK_MAGIC, 2, struct ptp_extts_request)
 #define PTP_PEROUT_REQUEST _IOW(PTP_CLK_MAGIC, 3, struct ptp_perout_request)
 #define PTP_ENABLE_PPS     _IOW(PTP_CLK_MAGIC, 4, int)
+#define PTP_SYS_OFFSET     _IOW(PTP_CLK_MAGIC, 5, struct ptp_sys_offset)
 
 struct ptp_extts_event {
 	struct ptp_clock_time t; /* Time event occured. */

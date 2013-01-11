@@ -167,7 +167,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 	} else {
 		usbip_dbg_vhci_rx("now giveback urb %p\n", urb);
 
-		/* If unlink is succeed, status is -ECONNRESET */
+		/* If unlink is successful, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;
 		pr_info("urb->status %d\n", urb->status);
 

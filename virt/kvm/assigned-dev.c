@@ -105,6 +105,15 @@ static irqreturn_t kvm_assigned_dev_thread_intx(int irq, void *dev_id)
 }
 
 #ifdef __KVM_HAVE_MSI
+static irqreturn_t kvm_assigned_dev_msi(int irq, void *dev_id)
+{
+	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
+	int ret = kvm_set_irq_inatomic(assigned_dev->kvm,
+				       assigned_dev->irq_source_id,
+				       assigned_dev->guest_irq, 1);
+	return unlikely(ret == -EWOULDBLOCK) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+}
+
 static irqreturn_t kvm_assigned_dev_thread_msi(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
@@ -117,6 +126,23 @@ static irqreturn_t kvm_assigned_dev_thread_msi(int irq, void *dev_id)
 #endif
 
 #ifdef __KVM_HAVE_MSIX
+static irqreturn_t kvm_assigned_dev_msix(int irq, void *dev_id)
+{
+	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
+	int index = find_index_from_host_irq(assigned_dev, irq);
+	u32 vector;
+	int ret = 0;
+
+	if (index >= 0) {
+		vector = assigned_dev->guest_msix_entries[index].vector;
+		ret = kvm_set_irq_inatomic(assigned_dev->kvm,
+					   assigned_dev->irq_source_id,
+					   vector, 1);
+	}
+
+	return unlikely(ret == -EWOULDBLOCK) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+}
+
 static irqreturn_t kvm_assigned_dev_thread_msix(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
@@ -334,11 +360,6 @@ static int assigned_device_enable_host_intx(struct kvm *kvm,
 }
 
 #ifdef __KVM_HAVE_MSI
-static irqreturn_t kvm_assigned_dev_msi(int irq, void *dev_id)
-{
-	return IRQ_WAKE_THREAD;
-}
-
 static int assigned_device_enable_host_msi(struct kvm *kvm,
 					   struct kvm_assigned_dev_kernel *dev)
 {
@@ -363,11 +384,6 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 #endif
 
 #ifdef __KVM_HAVE_MSIX
-static irqreturn_t kvm_assigned_dev_msix(int irq, void *dev_id)
-{
-	return IRQ_WAKE_THREAD;
-}
-
 static int assigned_device_enable_host_msix(struct kvm *kvm,
 					    struct kvm_assigned_dev_kernel *dev)
 {

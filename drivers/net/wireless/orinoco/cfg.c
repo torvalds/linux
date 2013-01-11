@@ -161,24 +161,23 @@ static int orinoco_scan(struct wiphy *wiphy,
 }
 
 static int orinoco_set_monitor_channel(struct wiphy *wiphy,
-				       struct ieee80211_channel *chan,
-				       enum nl80211_channel_type channel_type)
+				       struct cfg80211_chan_def *chandef)
 {
 	struct orinoco_private *priv = wiphy_priv(wiphy);
 	int err = 0;
 	unsigned long flags;
 	int channel;
 
-	if (!chan)
+	if (!chandef->chan)
 		return -EINVAL;
 
-	if (channel_type != NL80211_CHAN_NO_HT)
+	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_NO_HT)
 		return -EINVAL;
 
-	if (chan->band != IEEE80211_BAND_2GHZ)
+	if (chandef->chan->band != IEEE80211_BAND_2GHZ)
 		return -EINVAL;
 
-	channel = ieee80211_freq_to_dsss_chan(chan->center_freq);
+	channel = ieee80211_freq_to_dsss_chan(chandef->chan->center_freq);
 
 	if ((channel < 1) || (channel > NUM_CHANNELS) ||
 	     !(priv->channel_mask & (1 << (channel - 1))))

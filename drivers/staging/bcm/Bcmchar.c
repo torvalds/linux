@@ -160,7 +160,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	struct bcm_mini_adapter *Adapter = pTarang->Adapter;
 	INT Status = STATUS_FAILURE;
 	int timeout = 0;
-	IOCTL_BUFFER IoBuffer;
+	struct bcm_ioctl_buffer IoBuffer;
 	int bytes;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX", cmd, arg);
@@ -203,13 +203,13 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	switch (cmd) {
 	/* Rdms for Swin Idle... */
 	case IOCTL_BCM_REGISTER_READ_PRIVATE: {
-		RDM_BUFFER  sRdmBuffer = {0};
+		struct bcm_rdm_buffer sRdmBuffer = {0};
 		PCHAR temp_buff;
 		UINT Bufflen;
 		u16 temp_value;
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
@@ -248,11 +248,11 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	}
 
 	case IOCTL_BCM_REGISTER_WRITE_PRIVATE: {
-		WRM_BUFFER  sWrmBuffer = {0};
+		struct bcm_wrm_buffer sWrmBuffer = {0};
 		UINT uiTempVar = 0;
 		/* Copy Ioctl Buffer structure */
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(sWrmBuffer))
@@ -287,7 +287,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	case IOCTL_BCM_REGISTER_READ:
 	case IOCTL_BCM_EEPROM_REGISTER_READ: {
-		RDM_BUFFER  sRdmBuffer = {0};
+		struct bcm_rdm_buffer sRdmBuffer = {0};
 		PCHAR temp_buff = NULL;
 		UINT uiTempVar = 0;
 		if ((Adapter->IdleMode == TRUE) ||
@@ -299,7 +299,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
@@ -345,8 +345,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	}
 	case IOCTL_BCM_REGISTER_WRITE:
 	case IOCTL_BCM_EEPROM_REGISTER_WRITE: {
-		WRM_BUFFER  sWrmBuffer = {0};
+		struct bcm_wrm_buffer sWrmBuffer = {0};
 		UINT uiTempVar = 0;
+
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE)) {
@@ -356,7 +357,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(sWrmBuffer))
@@ -401,8 +402,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		UINT value = 0;
 		UINT uiBit = 0;
 		UINT uiOperation = 0;
+		struct bcm_gpio_info gpio_info = {0};
 
-		GPIO_INFO   gpio_info = {0};
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE)) {
@@ -411,7 +412,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			return -EACCES;
 		}
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(gpio_info))
@@ -478,7 +479,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	break;
 
 	case BCM_LED_THREAD_STATE_CHANGE_REQ: {
-		USER_THREAD_REQ threadReq = {0};
+		struct bcm_user_thread_req threadReq = {0};
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "User made LED thread InActive");
 
 		if ((Adapter->IdleMode == TRUE) ||
@@ -490,7 +491,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			break;
 		}
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(threadReq))
@@ -518,14 +519,14 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	case IOCTL_BCM_GPIO_STATUS_REQUEST: {
 		ULONG uiBit = 0;
 		UCHAR ucRead[4];
-		GPIO_INFO   gpio_info = {0};
+		struct bcm_gpio_info gpio_info = {0};
 
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE))
 			return -EACCES;
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(gpio_info))
@@ -552,17 +553,17 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	case IOCTL_BCM_GPIO_MULTI_REQUEST: {
 		UCHAR ucResetValue[4];
-		GPIO_MULTI_INFO gpio_multi_info[MAX_IDX];
-		PGPIO_MULTI_INFO pgpio_multi_info = (PGPIO_MULTI_INFO)gpio_multi_info;
+		struct bcm_gpio_multi_info gpio_multi_info[MAX_IDX];
+		struct bcm_gpio_multi_info *pgpio_multi_info = (struct bcm_gpio_multi_info *)gpio_multi_info;
 
-		memset(pgpio_multi_info, 0, MAX_IDX * sizeof(GPIO_MULTI_INFO));
+		memset(pgpio_multi_info, 0, MAX_IDX * sizeof(struct bcm_gpio_multi_info));
 
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE))
 			return -EINVAL;
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(gpio_multi_info))
@@ -636,15 +637,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	case IOCTL_BCM_GPIO_MODE_REQUEST: {
 		UCHAR ucResetValue[4];
-		GPIO_MULTI_MODE gpio_multi_mode[MAX_IDX];
-		PGPIO_MULTI_MODE pgpio_multi_mode = (PGPIO_MULTI_MODE)gpio_multi_mode;
+		struct bcm_gpio_multi_mode gpio_multi_mode[MAX_IDX];
+		struct bcm_gpio_multi_mode *pgpio_multi_mode = (struct bcm_gpio_multi_mode *)gpio_multi_mode;
 
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE))
 			return -EINVAL;
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength > sizeof(gpio_multi_mode))
@@ -719,7 +720,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		PVOID pvBuffer = NULL;
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength < sizeof(struct bcm_link_request))
@@ -799,7 +800,7 @@ cntrlEnd:
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
 			up(&Adapter->fw_download_sema);
 			return -EFAULT;
 		}
@@ -895,7 +896,7 @@ cntrlEnd:
 		mdelay(10);
 
 		/* Wait for MailBox Interrupt */
-		if (StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
+		if (StartInterruptUrb((struct bcm_interface_adapter *)Adapter->pvInterfaceAdapter))
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
 
 		timeout = 5*HZ;
@@ -1000,7 +1001,7 @@ cntrlEnd:
 		ulong len;
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		len = min_t(ulong, IoBuffer.OutputLength, strlen(VER_FILEVERSION_STR) + 1);
@@ -1015,7 +1016,7 @@ cntrlEnd:
 		LINK_STATE link_state;
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user failed..\n");
 			return -EFAULT;
 		}
@@ -1042,7 +1043,7 @@ cntrlEnd:
 		UINT  tracing_flag;
 
 		/* copy ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (copy_from_user(&tracing_flag, IoBuffer.InputBuffer, sizeof(UINT)))
@@ -1057,13 +1058,13 @@ cntrlEnd:
 
 	case IOCTL_BCM_GET_DSX_INDICATION: {
 		ULONG ulSFId = 0;
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength < sizeof(stLocalSFAddIndicationAlt)) {
+		if (IoBuffer.OutputLength < sizeof(struct bcm_add_indication_alt)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"Mismatch req: %lx needed is =0x%zx!!!",
-					IoBuffer.OutputLength, sizeof(stLocalSFAddIndicationAlt));
+					IoBuffer.OutputLength, sizeof(struct bcm_add_indication_alt));
 			return -EINVAL;
 		}
 
@@ -1079,18 +1080,18 @@ cntrlEnd:
 	case IOCTL_BCM_GET_HOST_MIBS: {
 		PVOID temp_buff;
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength != sizeof(S_MIBS_HOST_STATS_MIBS)) {
+		if (IoBuffer.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"Length Check failed %lu %zd\n",
-					IoBuffer.OutputLength, sizeof(S_MIBS_HOST_STATS_MIBS));
+					IoBuffer.OutputLength, sizeof(struct bcm_host_stats_mibs));
 			return -EINVAL;
 		}
 
 		/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
-		temp_buff = kzalloc(sizeof(S_MIBS_HOST_STATS_MIBS), GFP_KERNEL);
+		temp_buff = kzalloc(sizeof(struct bcm_host_stats_mibs), GFP_KERNEL);
 		if (!temp_buff)
 			return STATUS_FAILURE;
 
@@ -1098,7 +1099,7 @@ cntrlEnd:
 		GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
 
 		if (Status != STATUS_FAILURE)
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(S_MIBS_HOST_STATS_MIBS))) {
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(struct bcm_host_stats_mibs))) {
 				kfree(temp_buff);
 				return -EFAULT;
 			}
@@ -1118,7 +1119,7 @@ cntrlEnd:
 		break;
 
 	case IOCTL_BCM_BULK_WRM: {
-		PBULKWRM_BUFFER pBulkBuffer;
+		struct bcm_bulk_wrm_buffer *pBulkBuffer;
 		UINT uiTempVar = 0;
 		PCHAR pvBuffer = NULL;
 
@@ -1132,7 +1133,7 @@ cntrlEnd:
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.InputLength < sizeof(ULONG) * 2)
@@ -1143,7 +1144,7 @@ cntrlEnd:
 		if (IS_ERR(pvBuffer))
 			return PTR_ERR(pvBuffer);
 
-		pBulkBuffer = (PBULKWRM_BUFFER)pvBuffer;
+		pBulkBuffer = (struct bcm_bulk_wrm_buffer *)pvBuffer;
 
 		if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
 			((ULONG)pBulkBuffer->Register & 0x3)) {
@@ -1180,7 +1181,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_GET_NVM_SIZE:
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (Adapter->eNVMType == NVM_EEPROM || Adapter->eNVMType == NVM_FLASH) {
@@ -1194,7 +1195,7 @@ cntrlEnd:
 	case IOCTL_BCM_CAL_INIT: {
 		UINT uiSectorSize = 0 ;
 		if (Adapter->eNVMType == NVM_FLASH) {
-			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 				return -EFAULT;
 
 			if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer, sizeof(UINT)))
@@ -1231,7 +1232,7 @@ cntrlEnd:
 		USER_BCM_DBG_STATE sUserDebugState;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(USER_BCM_DBG_STATE)))
@@ -1262,7 +1263,7 @@ cntrlEnd:
 
 	case IOCTL_BCM_NVM_READ:
 	case IOCTL_BCM_NVM_WRITE: {
-		NVM_READWRITE  stNVMReadWrite;
+		struct bcm_nvm_readwrite stNVMReadWrite;
 		PUCHAR pReadData = NULL;
 		ULONG ulDSDMagicNumInUsrBuff = 0;
 		struct timeval tv0, tv1;
@@ -1284,12 +1285,12 @@ cntrlEnd:
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (copy_from_user(&stNVMReadWrite,
 					(IOCTL_BCM_NVM_READ == cmd) ? IoBuffer.OutputBuffer : IoBuffer.InputBuffer,
-					sizeof(NVM_READWRITE)))
+					sizeof(struct bcm_nvm_readwrite)))
 			return -EFAULT;
 
 		/*
@@ -1404,7 +1405,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_FLASH2X_SECTION_READ: {
-		FLASH2X_READWRITE sFlash2xRead = {0};
+		struct bcm_flash2x_readwrite sFlash2xRead = {0};
 		PUCHAR pReadBuff = NULL ;
 		UINT NOB = 0;
 		UINT BuffSize = 0;
@@ -1418,11 +1419,11 @@ cntrlEnd:
 		}
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		/* Reading FLASH 2.x READ structure */
-		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
 			return -EFAULT;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xRead.Section);
@@ -1495,7 +1496,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_FLASH2X_SECTION_WRITE: {
-		FLASH2X_READWRITE sFlash2xWrite = {0};
+		struct bcm_flash2x_readwrite sFlash2xWrite = {0};
 		PUCHAR pWriteBuff;
 		void __user *InputAddr;
 		UINT NOB = 0;
@@ -1513,11 +1514,11 @@ cntrlEnd:
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_WRITE Called");
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		/* Reading FLASH 2.x READ structure */
-		if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+		if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
 			return -EFAULT;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xWrite.Section);
@@ -1604,16 +1605,16 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP: {
-		PFLASH2X_BITMAP psFlash2xBitMap;
+		struct bcm_flash2x_bitmap *psFlash2xBitMap;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength != sizeof(FLASH2X_BITMAP))
+		if (IoBuffer.OutputLength != sizeof(struct bcm_flash2x_bitmap))
 			return -EINVAL;
 
-		psFlash2xBitMap = kzalloc(sizeof(FLASH2X_BITMAP), GFP_KERNEL);
+		psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap), GFP_KERNEL);
 		if (psFlash2xBitMap == NULL) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory is not available");
 			return -ENOMEM;
@@ -1634,7 +1635,7 @@ cntrlEnd:
 
 		BcmGetFlash2xSectionalBitMap(Adapter, psFlash2xBitMap);
 		up(&Adapter->NVMRdmWrmLock);
-		if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(FLASH2X_BITMAP))) {
+		if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(struct bcm_flash2x_bitmap))) {
 			kfree(psFlash2xBitMap);
 			return -EFAULT;
 		}
@@ -1644,7 +1645,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_SET_ACTIVE_SECTION: {
-		FLASH2X_SECTION_VAL eFlash2xSectionVal = 0;
+		enum bcm_flash2x_section_val eFlash2xSectionVal = 0;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SET_ACTIVE_SECTION Called");
 
 		if (IsFlash2x(Adapter) != TRUE) {
@@ -1652,7 +1653,7 @@ cntrlEnd:
 			return -EINVAL;
 		}
 
-		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
 			return -EFAULT;
@@ -1692,7 +1693,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_COPY_SECTION: {
-		FLASH2X_COPY_SECTION sCopySectStrut = {0};
+		struct bcm_flash2x_copy_section sCopySectStrut = {0};
 		Status = STATUS_SUCCESS;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_COPY_SECTION  Called");
 
@@ -1702,13 +1703,13 @@ cntrlEnd:
 			return -EINVAL;
 		}
 
-		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed Status :%d", Status);
 			return -EFAULT;
 		}
 
-		Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(FLASH2X_COPY_SECTION));
+		Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_copy_section));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of Copy_Section_Struct failed with Status :%d", Status);
 			return -EFAULT;
@@ -1769,7 +1770,7 @@ cntrlEnd:
 		Status = STATUS_SUCCESS;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_GET_FLASH_CS_INFO Called");
 
-		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
 			return -EFAULT;
@@ -1799,7 +1800,7 @@ cntrlEnd:
 
 	case IOCTL_BCM_SELECT_DSD: {
 		UINT SectOfset = 0;
-		FLASH2X_SECTION_VAL eFlash2xSectionVal;
+		enum bcm_flash2x_section_val eFlash2xSectionVal;
 		eFlash2xSectionVal = NO_SECTION_VAL;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SELECT_DSD Called");
 
@@ -1808,7 +1809,7 @@ cntrlEnd:
 			return -EINVAL;
 		}
 
-		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
 			return -EFAULT;
@@ -1842,7 +1843,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_NVM_RAW_READ: {
-		NVM_READWRITE stNVMRead;
+		struct bcm_nvm_readwrite stNVMRead;
 		INT NOB ;
 		INT BuffSize ;
 		INT ReadOffset = 0;
@@ -1856,12 +1857,12 @@ cntrlEnd:
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer))) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user 1 failed\n");
 			return -EFAULT;
 		}
 
-		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(NVM_READWRITE)))
+		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(struct bcm_nvm_readwrite)))
 			return -EFAULT;
 
 		NOB = stNVMRead.uiNumBytes;
@@ -1933,7 +1934,7 @@ cntrlEnd:
 		ULONG RxCntrlMsgBitMask = 0;
 
 		/* Copy Ioctl Buffer structure */
-		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		Status = copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of Ioctl buffer is failed from user space");
 			return -EFAULT;
@@ -1955,7 +1956,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_GET_DEVICE_DRIVER_INFO: {
-		DEVICE_DRIVER_INFO DevInfo;
+		struct bcm_driver_info DevInfo;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
 
@@ -1965,7 +1966,7 @@ cntrlEnd:
 		DevInfo.u32NVMType = Adapter->eNVMType;
 		DevInfo.u32InterfaceType = BCM_USB;
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
 		if (IoBuffer.OutputLength < sizeof(DevInfo))
@@ -1977,19 +1978,19 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_TIME_SINCE_NET_ENTRY: {
-		ST_TIME_ELAPSED stTimeElapsedSinceNetEntry = {0};
+		struct bcm_time_elapsed stTimeElapsedSinceNetEntry = {0};
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_TIME_SINCE_NET_ENTRY called");
 
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength < sizeof(ST_TIME_ELAPSED))
+		if (IoBuffer.OutputLength < sizeof(struct bcm_time_elapsed))
 			return -EINVAL;
 
 		stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry = get_seconds() - Adapter->liTimeSinceLastNetEntry;
 
-		if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(ST_TIME_ELAPSED)))
+		if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(struct bcm_time_elapsed)))
 			return -EFAULT;
 	}
 	break;

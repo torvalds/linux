@@ -39,9 +39,8 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/usb.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 
 #include "am35xx.h"
 
@@ -49,6 +48,7 @@
 #include "control.h"
 #include "common-board-devices.h"
 #include "am35xx-emac.h"
+#include "gpmc-nand.h"
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led cm_t3517_leds[] = {
@@ -240,7 +240,7 @@ static struct omap_nand_platform_data cm_t3517_nand_data = {
 
 static void __init cm_t3517_init_nand(void)
 {
-	if (gpmc_nand_init(&cm_t3517_nand_data) < 0)
+	if (gpmc_nand_init(&cm_t3517_nand_data, NULL) < 0)
 		pr_err("CM-T3517: NAND initialization failed\n");
 }
 #else
@@ -297,6 +297,6 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3517_init,
 	.init_late	= am35xx_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.timer		= &omap3_gp_timer,
+	.restart	= omap3xxx_restart,
 MACHINE_END

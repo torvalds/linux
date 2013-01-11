@@ -529,7 +529,7 @@ static int __init pmac_pic_probe_mpic(void)
 void __init pmac_pic_init(void)
 {
 	/* We configure the OF parsing based on our oldworld vs. newworld
-	 * platform type and wether we were booted by BootX.
+	 * platform type and whether we were booted by BootX.
 	 */
 #ifdef CONFIG_PPC32
 	if (!pmac_newworld)

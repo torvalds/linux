@@ -266,4 +266,8 @@ _K_enter_machcheck:
 	.globl ret_from_fork
 ret_from_fork:
 	call schedule_tail
+	P0 = cmp.eq(R24, #0);
+	if P0 jump return_from_syscall
+	R0 = R25;
+	callr R24
 	jump return_from_syscall

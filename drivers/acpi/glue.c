@@ -18,9 +18,14 @@
 
 #define ACPI_GLUE_DEBUG	0
 #if ACPI_GLUE_DEBUG
-#define DBG(x...) printk(PREFIX x)
+#define DBG(fmt, ...)						\
+	printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__)
 #else
-#define DBG(x...) do { } while(0)
+#define DBG(fmt, ...)						\
+do {								\
+	if (0)							\
+		printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif
 static LIST_HEAD(bus_type_list);
 static DECLARE_RWSEM(bus_type_sem);
@@ -130,46 +135,59 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
 	struct acpi_device *acpi_dev;
 	acpi_status status;
-	struct acpi_device_physical_node *physical_node;
+	struct acpi_device_physical_node *physical_node, *pn;
 	char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
 	int retval = -EINVAL;
 
-	if (dev->archdata.acpi_handle) {
-		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
-		return -EINVAL;
+	if (ACPI_HANDLE(dev)) {
+		if (handle) {
+			dev_warn(dev, "ACPI handle is already set\n");
+			return -EINVAL;
+		} else {
+			handle = ACPI_HANDLE(dev);
+		}
 	}
+	if (!handle)
+		return -EINVAL;
 
 	get_device(dev);
 	status = acpi_bus_get_device(handle, &acpi_dev);
 	if (ACPI_FAILURE(status))
 		goto err;
 
-	physical_node = kzalloc(sizeof(struct acpi_device_physical_node),
-		GFP_KERNEL);
+	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
 	if (!physical_node) {
 		retval = -ENOMEM;
 		goto err;
 	}
 
 	mutex_lock(&acpi_dev->physical_node_lock);
+
+	/* Sanity check. */
+	list_for_each_entry(pn, &acpi_dev->physical_node_list, node)
+		if (pn->dev == dev) {
+			dev_warn(dev, "Already associated with ACPI node\n");
+			goto err_free;
+		}
+
 	/* allocate physical node id according to physical_node_id_bitmap */
 	physical_node->node_id =
 		find_first_zero_bit(acpi_dev->physical_node_id_bitmap,
 		ACPI_MAX_PHYSICAL_NODE);
 	if (physical_node->node_id >= ACPI_MAX_PHYSICAL_NODE) {
 		retval = -ENOSPC;
-		mutex_unlock(&acpi_dev->physical_node_lock);
-		kfree(physical_node);
-		goto err;
+		goto err_free;
 	}
 
 	set_bit(physical_node->node_id, acpi_dev->physical_node_id_bitmap);
 	physical_node->dev = dev;
 	list_add_tail(&physical_node->node, &acpi_dev->physical_node_list);
 	acpi_dev->physical_node_count++;
+
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
-	dev->archdata.acpi_handle = handle;
+	if (!ACPI_HANDLE(dev))
+		ACPI_HANDLE_SET(dev, acpi_dev->handle);
 
 	if (!physical_node->node_id)
 		strcpy(physical_node_name, PHYSICAL_NODE_STRING);
@@ -187,8 +205,14 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	return 0;
 
  err:
+	ACPI_HANDLE_SET(dev, NULL);
 	put_device(dev);
 	return retval;
+
+ err_free:
+	mutex_unlock(&acpi_dev->physical_node_lock);
+	kfree(physical_node);
+	goto err;
 }
 
 static int acpi_unbind_one(struct device *dev)
@@ -198,11 +222,10 @@ static int acpi_unbind_one(struct device *dev)
 	acpi_status status;
 	struct list_head *node, *next;
 
-	if (!dev->archdata.acpi_handle)
+	if (!ACPI_HANDLE(dev))
 		return 0;
 
-	status = acpi_bus_get_device(dev->archdata.acpi_handle,
-		&acpi_dev);
+	status = acpi_bus_get_device(ACPI_HANDLE(dev), &acpi_dev);
 	if (ACPI_FAILURE(status))
 		goto err;
 
@@ -228,7 +251,7 @@ static int acpi_unbind_one(struct device *dev)
 
 		sysfs_remove_link(&acpi_dev->dev.kobj, physical_node_name);
 		sysfs_remove_link(&dev->kobj, "firmware_node");
-		dev->archdata.acpi_handle = NULL;
+		ACPI_HANDLE_SET(dev, NULL);
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 		kfree(entry);
@@ -248,6 +271,10 @@ static int acpi_platform_notify(struct device *dev)
 	acpi_handle handle;
 	int ret = -EINVAL;
 
+	ret = acpi_bind_one(dev, NULL);
+	if (!ret)
+		goto out;
+
 	if (!dev->bus || !dev->parent) {
 		/* bridge devices genernally haven't bus or parent */
 		ret = acpi_find_bridge_device(dev, &handle);
@@ -261,16 +288,16 @@ static int acpi_platform_notify(struct device *dev)
 	}
 	if ((ret = type->find_device(dev, &handle)) != 0)
 		DBG("Can't get handler for %s\n", dev_name(dev));
-      end:
+ end:
 	if (!ret)
 		acpi_bind_one(dev, handle);
 
+ out:
 #if ACPI_GLUE_DEBUG
 	if (!ret) {
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-		acpi_get_name(dev->archdata.acpi_handle,
-			      ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(dev->acpi_handle, ACPI_FULL_PATHNAME, &buffer);
 		DBG("Device %s -> %s\n", dev_name(dev), (char *)buffer.pointer);
 		kfree(buffer.pointer);
 	} else

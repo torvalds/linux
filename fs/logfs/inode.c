@@ -33,7 +33,7 @@
  * are being written out - and waiting for GC to make progress, naturally.
  *
  * So we cannot just call iget() or some variant of it, but first have to check
- * wether the inode in question might be in I_FREEING state.  Therefore we
+ * whether the inode in question might be in I_FREEING state.  Therefore we
  * maintain our own per-sb list of "almost deleted" inodes and check against
  * that list first.  Normally this should be at most 1-2 entries long.
  *

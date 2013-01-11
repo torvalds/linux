@@ -78,7 +78,7 @@ static struct pci_driver airo_driver = {
 	.name     = DRV_NAME,
 	.id_table = card_ids,
 	.probe    = airo_pci_probe,
-	.remove   = __devexit_p(airo_pci_remove),
+	.remove   = airo_pci_remove,
 	.suspend  = airo_pci_suspend,
 	.resume   = airo_pci_resume,
 };
@@ -5584,7 +5584,7 @@ static void timer_func( struct net_device *dev ) {
 }
 
 #ifdef CONFIG_PCI
-static int __devinit airo_pci_probe(struct pci_dev *pdev,
+static int airo_pci_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *pent)
 {
 	struct net_device *dev;
@@ -5606,7 +5606,7 @@ static int __devinit airo_pci_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static void __devexit airo_pci_remove(struct pci_dev *pdev)
+static void airo_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -7433,7 +7433,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 					num_null_ies++;
 				break;
 
-			case WLAN_EID_GENERIC:
+			case WLAN_EID_VENDOR_SPECIFIC:
 				if (ie[1] >= 4 &&
 				    ie[2] == 0x00 &&
 				    ie[3] == 0x50 &&

@@ -51,6 +51,10 @@ static int nf_conntrack_tstamp_init_sysctl(struct net *net)
 
 	table[0].data = &net->ct.sysctl_tstamp;
 
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		table[0].procname = NULL;
+
 	net->ct.tstamp_sysctl_header = register_net_sysctl(net,	"net/netfilter",
 							   table);
 	if (!net->ct.tstamp_sysctl_header) {

@@ -220,7 +220,7 @@ static const struct attribute_group hih6130_attr_group = {
  * device's name.
  * Returns 0 on success.
  */
-static int __devinit hih6130_probe(struct i2c_client *client,
+static int hih6130_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct hih6130 *hih6130;
@@ -263,7 +263,7 @@ fail_remove_sysfs:
  * hih6130_remove() - remove device
  * @client: I2C client device
  */
-static int __devexit hih6130_remove(struct i2c_client *client)
+static int hih6130_remove(struct i2c_client *client)
 {
 	struct hih6130 *hih6130 = i2c_get_clientdata(client);
 
@@ -283,7 +283,7 @@ MODULE_DEVICE_TABLE(i2c, hih6130_id);
 static struct i2c_driver hih6130_driver = {
 	.driver.name = "hih6130",
 	.probe       = hih6130_probe,
-	.remove      = __devexit_p(hih6130_remove),
+	.remove      = hih6130_remove,
 	.id_table    = hih6130_id,
 };
 

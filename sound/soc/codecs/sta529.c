@@ -380,8 +380,8 @@ static const struct regmap_config sta529_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(sta529_reg_defaults),
 };
 
-static __devinit int sta529_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int sta529_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct sta529 *sta529;
 	int ret;
@@ -412,7 +412,7 @@ static __devinit int sta529_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit sta529_i2c_remove(struct i2c_client *client)
+static int sta529_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -431,7 +431,7 @@ static struct i2c_driver sta529_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= sta529_i2c_probe,
-	.remove		= __devexit_p(sta529_i2c_remove),
+	.remove		= sta529_i2c_remove,
 	.id_table	= sta529_i2c_id,
 };
 

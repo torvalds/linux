@@ -228,20 +228,19 @@ handle_bh_error(unifi_priv_t *priv)
  *
  * ---------------------------------------------------------------------------
  */
-static int
-bh_thread_function(void *arg)
+static int bh_thread_function(void *arg)
 {
-    unifi_priv_t *priv = (unifi_priv_t*)arg;
-    CsrResult csrResult;
-    long ret;
-    u32 timeout, t;
-    struct uf_thread *this_thread;
+	unifi_priv_t *priv = (unifi_priv_t *)arg;
+	CsrResult csrResult;
+	long ret;
+	u32 timeout, t;
+	struct uf_thread *this_thread;
 
-    unifi_trace(priv, UDBG2, "bh_thread_function starting\n");
+	unifi_trace(priv, UDBG2, "bh_thread_function starting\n");
 
-    this_thread = &priv->bh_thread;
+	this_thread = &priv->bh_thread;
 
-    t = timeout = 0;
+	t = timeout = 0;
     while (!kthread_should_stop()) {
         /* wait until an error occurs, or we need to process something. */
         unifi_trace(priv, UDBG3, "bh_thread goes to sleep.\n");

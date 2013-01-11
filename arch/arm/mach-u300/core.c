@@ -27,7 +27,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/fsmc.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-u300.h>
@@ -82,8 +81,6 @@ static struct map_desc u300_io_desc[] __initdata = {
 static void __init u300_map_io(void)
 {
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
-	/* We enable a real big DMA buffer if need be. */
-	init_consistent_dma_size(SZ_4M);
 }
 
 /*
@@ -251,6 +248,18 @@ static struct resource rtc_resources[] = {
  * but these are not yet used by the driver.
  */
 static struct resource fsmc_resources[] = {
+	{
+		.name  = "nand_addr",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "nand_cmd",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
 	{
 		.name  = "nand_data",
 		.start = U300_NAND_CS0_PHYS_BASE,
@@ -1445,8 +1454,6 @@ static struct platform_device pinctrl_device = {
 static struct u300_gpio_platform u300_gpio_plat = {
 	.ports = 7,
 	.gpio_base = 0,
-	.gpio_irq_base = IRQ_U300_GPIO_BASE,
-	.pinctrl_device = &pinctrl_device,
 };
 
 static struct platform_device gpio_device = {
@@ -1496,8 +1503,6 @@ static struct fsmc_nand_platform_data nand_platform_data = {
 	.nr_partitions = ARRAY_SIZE(u300_partitions),
 	.options = NAND_SKIP_BBTSCAN,
 	.width = FSMC_NAND_BW8,
-	.ale_off = PLAT_NAND_ALE,
-	.cle_off = PLAT_NAND_CLE,
 };
 
 static struct platform_device nand_device = {
@@ -1547,39 +1552,6 @@ static struct pinctrl_map __initdata u300_pinmux_map[] = {
 				    pin_highz_conf),
 };
 
-struct u300_mux_hog {
-	struct device *dev;
-	struct pinctrl *p;
-};
-
-static struct u300_mux_hog u300_mux_hogs[] = {
-	{
-		.dev = &uart0_device.dev,
-	},
-	{
-		.dev = &mmcsd_device.dev,
-	},
-};
-
-static int __init u300_pinctrl_fetch(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
-		struct pinctrl *p;
-
-		p = pinctrl_get_select_default(u300_mux_hogs[i].dev);
-		if (IS_ERR(p)) {
-			pr_err("u300: could not get pinmux hog for dev %s\n",
-			       dev_name(u300_mux_hogs[i].dev));
-			continue;
-		}
-		u300_mux_hogs[i].p = p;
-	}
-	return 0;
-}
-subsys_initcall(u300_pinctrl_fetch);
-
 /*
  * Notice that AMBA devices are initialized before platform devices.
  *
@@ -1590,6 +1562,7 @@ static struct platform_device *platform_devs[] __initdata = {
 	&i2c1_device,
 	&keypad_device,
 	&rtc_device,
+	&pinctrl_device,
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
@@ -1804,7 +1777,7 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
 	.atag_offset	= 0x100,
 	.map_io		= u300_map_io,
-	.nr_irqs	= NR_IRQS_U300,
+	.nr_irqs	= 0,
 	.init_irq	= u300_init_irq,
 	.handle_irq	= vic_handle_irq,
 	.timer		= &u300_timer,

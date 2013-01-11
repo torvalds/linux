@@ -53,7 +53,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		return rc;
 
 	/* Loop over the child nodes and register a phy_device for each one */
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		const __be32 *paddr;
 		u32 addr;
 		int len;

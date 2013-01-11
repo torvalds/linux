@@ -170,6 +170,13 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	if (!ether_addr_equal(dest, br->group_addr))
 		goto out;
 
+	if (p->flags & BR_BPDU_GUARD) {
+		br_notice(br, "BPDU received on blocked port %u(%s)\n",
+			  (unsigned int) p->port_no, p->dev->name);
+		br_stp_disable_port(p);
+		goto out;
+	}
+
 	buf = skb_pull(skb, 3);
 
 	if (buf[0] == BPDU_TYPE_CONFIG) {

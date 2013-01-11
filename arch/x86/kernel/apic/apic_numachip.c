@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/delay.h>
 
+#include <asm/numachip/numachip.h>
 #include <asm/numachip/numachip_csr.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
@@ -179,6 +180,7 @@ static int __init numachip_system_init(void)
 		return 0;
 
 	x86_cpuinit.fixup_cpu_id = fixup_cpu_id;
+	x86_init.pci.arch_init = pci_numachip_init;
 
 	map_csrs();
 

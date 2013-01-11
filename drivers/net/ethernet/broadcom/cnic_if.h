@@ -14,8 +14,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.14"
-#define CNIC_MODULE_RELDATE	"Sep 30, 2012"
+#define CNIC_MODULE_VERSION	"2.5.16"
+#define CNIC_MODULE_RELDATE	"Dec 05, 2012"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -352,8 +352,5 @@ struct cnic_ulp_ops {
 extern int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
 
 extern int cnic_unregister_driver(int ulp_type);
-
-extern struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev);
-extern struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev);
 
 #endif

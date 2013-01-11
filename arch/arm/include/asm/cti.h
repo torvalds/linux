@@ -146,15 +146,7 @@ static inline void cti_irq_ack(struct cti *cti)
  */
 static inline void cti_unlock(struct cti *cti)
 {
-	void __iomem *base = cti->base;
-	unsigned long val;
-
-	val = __raw_readl(base + LOCKSTATUS);
-
-	if (val & 1) {
-		val = LOCKCODE;
-		__raw_writel(val, base + LOCKACCESS);
-	}
+	__raw_writel(LOCKCODE, cti->base + LOCKACCESS);
 }
 
 /**
@@ -166,14 +158,6 @@ static inline void cti_unlock(struct cti *cti)
  */
 static inline void cti_lock(struct cti *cti)
 {
-	void __iomem *base = cti->base;
-	unsigned long val;
-
-	val = __raw_readl(base + LOCKSTATUS);
-
-	if (!(val & 1)) {
-		val = ~LOCKCODE;
-		__raw_writel(val, base + LOCKACCESS);
-	}
+	__raw_writel(~LOCKCODE, cti->base + LOCKACCESS);
 }
 #endif

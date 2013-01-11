@@ -557,7 +557,7 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		status.mactime += mactime;
 		if (low_mactime_now <= mactime)
 			status.mactime -= 0x10000;
-		status.flag |= RX_FLAG_MACTIME_MPDU;
+		status.flag |= RX_FLAG_MACTIME_START;
 	}
 
 	chanid = (chanstat & B43legacy_RX_CHAN_ID) >>

@@ -486,7 +486,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 					"Could not enable GPE 0x%02X",
-					gpe_index + gpe_block->block_base_number));
+					gpe_index +
+					gpe_block->block_base_number));
 				continue;
 			}
 

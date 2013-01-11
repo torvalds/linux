@@ -168,7 +168,7 @@ static unsigned int s5m8767_opmode_reg[][4] = {
 static int s5m8767_get_register(struct regulator_dev *rdev, int *reg,
 				int *enable_ctrl)
 {
-	int reg_id = rdev_get_id(rdev);
+	int i, reg_id = rdev_get_id(rdev);
 	unsigned int mode;
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 
@@ -195,8 +195,17 @@ static int s5m8767_get_register(struct regulator_dev *rdev, int *reg,
 		return -EINVAL;
 	}
 
-	mode = s5m8767->opmode[reg_id].mode;
-	*enable_ctrl = s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
+	for (i = 0; i < s5m8767->num_regulators; i++) {
+		if (s5m8767->opmode[i].id == reg_id) {
+			mode = s5m8767->opmode[i].mode;
+			break;
+		}
+	}
+
+	if (i < s5m8767->num_regulators)
+		*enable_ctrl =
+		s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
+
 	return 0;
 }
 
@@ -263,17 +272,17 @@ static int s5m8767_get_voltage_register(struct regulator_dev *rdev, int *_reg)
 		reg = S5M8767_REG_BUCK1CTRL2;
 		break;
 	case S5M8767_BUCK2:
-		reg = S5M8767_REG_BUCK2DVS2;
+		reg = S5M8767_REG_BUCK2DVS1;
 		if (s5m8767->buck2_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
 	case S5M8767_BUCK3:
-		reg = S5M8767_REG_BUCK3DVS2;
+		reg = S5M8767_REG_BUCK3DVS1;
 		if (s5m8767->buck3_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
 	case S5M8767_BUCK4:
-		reg = S5M8767_REG_BUCK4DVS2;
+		reg = S5M8767_REG_BUCK4DVS1;
 		if (s5m8767->buck4_gpiodvs)
 			reg += s5m8767->buck_gpioindex;
 		break;
@@ -499,7 +508,7 @@ static struct regulator_desc regulators[] = {
 	s5m8767_regulator_desc(BUCK9),
 };
 
-static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
+static int s5m8767_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -547,7 +556,7 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	rdev = s5m8767->rdev;
 	s5m8767->dev = &pdev->dev;
 	s5m8767->iodev = iodev;
-	s5m8767->num_regulators = S5M8767_REG_MAX - 2;
+	s5m8767->num_regulators = pdata->num_regulators;
 	platform_set_drvdata(pdev, s5m8767);
 
 	s5m8767->buck_gpioindex = pdata->buck_default_idx;
@@ -617,9 +626,16 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (gpio_is_valid(pdata->buck_gpios[0]) &&
-		gpio_is_valid(pdata->buck_gpios[1]) &&
-		gpio_is_valid(pdata->buck_gpios[2])) {
+	if (pdata->buck2_gpiodvs || pdata->buck3_gpiodvs ||
+						pdata->buck4_gpiodvs) {
+
+		if (!gpio_is_valid(pdata->buck_gpios[0]) ||
+			!gpio_is_valid(pdata->buck_gpios[1]) ||
+			!gpio_is_valid(pdata->buck_gpios[2])) {
+			dev_err(&pdev->dev, "GPIO NOT VALID\n");
+			return -EINVAL;
+		}
+
 		ret = devm_gpio_request(&pdev->dev, pdata->buck_gpios[0],
 					"S5M8767 SET1");
 		if (ret)
@@ -644,10 +660,6 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		/* SET3 GPIO */
 		gpio_direction_output(pdata->buck_gpios[2],
 				(s5m8767->buck_gpioindex >> 0) & 0x1);
-	} else {
-		dev_err(&pdev->dev, "GPIO NOT VALID\n");
-		ret = -EINVAL;
-		return ret;
 	}
 
 	ret = devm_gpio_request(&pdev->dev, pdata->buck_ds[0], "S5M8767 DS2");
@@ -773,7 +785,7 @@ err:
 	return ret;
 }
 
-static int __devexit s5m8767_pmic_remove(struct platform_device *pdev)
+static int s5m8767_pmic_remove(struct platform_device *pdev)
 {
 	struct s5m8767_info *s5m8767 = platform_get_drvdata(pdev);
 	struct regulator_dev **rdev = s5m8767->rdev;
@@ -798,7 +810,7 @@ static struct platform_driver s5m8767_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
-	.remove = __devexit_p(s5m8767_pmic_remove),
+	.remove = s5m8767_pmic_remove,
 	.id_table = s5m8767_pmic_id,
 };
 

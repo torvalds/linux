@@ -26,6 +26,8 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 
+#include "board-mop500.h"
+
 void __iomem *_PRCMU_BASE;
 
 /*
@@ -82,6 +84,7 @@ void __init ux500_init_irq(void)
 
 void __init ux500_init_late(void)
 {
+	mop500_uib_init();
 }
 
 static const char * __init ux500_get_machine(void)

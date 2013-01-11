@@ -1,0 +1,63 @@
+/include/ "kirkwood.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			clock-frequency = <166666667>;
+			status = "okay";
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "mx25l4005a";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x80000>;
+					label = "u-boot";
+				};
+			};
+		};
+
+		i2c@11000 {
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "at,24c04";
+				pagesize = <16>;
+				reg = <0x50>;
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Power push button";
+			linux,code = <116>;
+			gpios = <&gpio1 0 0>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		red-fail {
+			label = "ns2:red:fail";
+			gpios = <&gpio0 12 0>;
+		};
+	};
+};

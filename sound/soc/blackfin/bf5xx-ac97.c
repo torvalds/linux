@@ -282,7 +282,7 @@ static struct snd_soc_dai_driver bfin_ac97_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 };
 
-static int __devinit asoc_bfin_ac97_probe(struct platform_device *pdev)
+static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 {
 	struct sport_device *sport_handle;
 	int ret;
@@ -352,7 +352,7 @@ gpio_err:
 	return ret;
 }
 
-static int __devexit asoc_bfin_ac97_remove(struct platform_device *pdev)
+static int asoc_bfin_ac97_remove(struct platform_device *pdev)
 {
 	struct sport_device *sport_handle = platform_get_drvdata(pdev);
 
@@ -372,7 +372,7 @@ static struct platform_driver asoc_bfin_ac97_driver = {
 	},
 
 	.probe = asoc_bfin_ac97_probe,
-	.remove = __devexit_p(asoc_bfin_ac97_remove),
+	.remove = asoc_bfin_ac97_remove,
 };
 
 module_platform_driver(asoc_bfin_ac97_driver);

@@ -36,9 +36,9 @@ static struct hp300_port *hp300_ports;
 
 #ifdef CONFIG_HPDCA
 
-static int __devinit hpdca_init_one(struct dio_dev *d,
+static int hpdca_init_one(struct dio_dev *d,
 					const struct dio_device_id *ent);
-static void __devexit hpdca_remove_one(struct dio_dev *d);
+static void hpdca_remove_one(struct dio_dev *d);
 
 static struct dio_device_id hpdca_dio_tbl[] = {
 	{ DIO_ID_DCA0 },
@@ -52,7 +52,7 @@ static struct dio_driver hpdca_driver = {
 	.name      = "hpdca",
 	.id_table  = hpdca_dio_tbl,
 	.probe     = hpdca_init_one,
-	.remove    = __devexit_p(hpdca_remove_one),
+	.remove    = hpdca_remove_one,
 };
 
 #endif
@@ -159,7 +159,7 @@ int __init hp300_setup_serial_console(void)
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
 
 #ifdef CONFIG_HPDCA
-static int __devinit hpdca_init_one(struct dio_dev *d,
+static int hpdca_init_one(struct dio_dev *d,
 				const struct dio_device_id *ent)
 {
 	struct uart_8250_port uart;
@@ -288,7 +288,7 @@ static int __init hp300_8250_init(void)
 }
 
 #ifdef CONFIG_HPDCA
-static void __devexit hpdca_remove_one(struct dio_dev *d)
+static void hpdca_remove_one(struct dio_dev *d)
 {
 	int line;
 

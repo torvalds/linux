@@ -36,9 +36,6 @@ The different levels of stability are:
 	the kernel, but are marked to be removed at some later point in
 	time.  The description of the interface will document the reason
 	why it is obsolete and when it can be expected to be removed.
-	The file Documentation/feature-removal-schedule.txt may describe
-	some of these interfaces, giving a schedule for when they will
-	be removed.
 
   removed/
 	This directory contains a list of the old interfaces that have

@@ -1415,7 +1415,7 @@ static int ks8851_resume(struct spi_device *spi)
 #define ks8851_resume NULL
 #endif
 
-static int __devinit ks8851_probe(struct spi_device *spi)
+static int ks8851_probe(struct spi_device *spi)
 {
 	struct net_device *ndev;
 	struct ks8851_net *ks;
@@ -1534,7 +1534,7 @@ err_irq:
 	return ret;
 }
 
-static int __devexit ks8851_remove(struct spi_device *spi)
+static int ks8851_remove(struct spi_device *spi)
 {
 	struct ks8851_net *priv = dev_get_drvdata(&spi->dev);
 
@@ -1554,7 +1554,7 @@ static struct spi_driver ks8851_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ks8851_probe,
-	.remove = __devexit_p(ks8851_remove),
+	.remove = ks8851_remove,
 	.suspend = ks8851_suspend,
 	.resume = ks8851_resume,
 };

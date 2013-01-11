@@ -520,7 +520,6 @@ static int peak_usb_ndo_open(struct net_device *netdev)
 		return err;
 	}
 
-	dev->open_time = jiffies;
 	netif_start_queue(netdev);
 
 	return 0;
@@ -576,7 +575,6 @@ static int peak_usb_ndo_stop(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	dev->open_time = 0;
 	dev->can.state = CAN_STATE_STOPPED;
 
 	/* can set bus off now */
@@ -660,9 +658,6 @@ static int peak_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 {
 	struct peak_usb_device *dev = netdev_priv(netdev);
 	int err = 0;
-
-	if (!dev->open_time)
-		return -EINVAL;
 
 	switch (mode) {
 	case CAN_MODE_START:

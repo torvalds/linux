@@ -64,9 +64,9 @@ int line6_midibuf_init(struct MidiBuffer *this, int size, int split)
 
 void line6_midibuf_status(struct MidiBuffer *this)
 {
-	pr_debug("midibuf size=%d split=%d pos_read=%d pos_write=%d "
-	       "full=%d command_prev=%02x\n", this->size, this->split,
-	       this->pos_read, this->pos_write, this->full, this->command_prev);
+	pr_debug("midibuf size=%d split=%d pos_read=%d pos_write=%d full=%d command_prev=%02x\n",
+		 this->size, this->split, this->pos_read, this->pos_write,
+		 this->full, this->command_prev);
 }
 
 int line6_midibuf_bytes_free(struct MidiBuffer *this)

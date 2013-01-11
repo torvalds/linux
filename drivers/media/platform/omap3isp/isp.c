@@ -61,6 +61,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/omap-iommu.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -1989,7 +1990,7 @@ error_csiphy:
  *
  * Always returns 0.
  */
-static int __devexit isp_remove(struct platform_device *pdev)
+static int isp_remove(struct platform_device *pdev)
 {
 	struct isp_device *isp = platform_get_drvdata(pdev);
 	int i;
@@ -2070,7 +2071,7 @@ static int isp_map_mem_resource(struct platform_device *pdev,
  *   -EINVAL if couldn't install ISR,
  *   or clk_get return error value.
  */
-static int __devinit isp_probe(struct platform_device *pdev)
+static int isp_probe(struct platform_device *pdev)
 {
 	struct isp_platform_data *pdata = pdev->dev.platform_data;
 	struct isp_device *isp;
@@ -2249,7 +2250,7 @@ MODULE_DEVICE_TABLE(platform, omap3isp_id_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,
-	.remove = __devexit_p(isp_remove),
+	.remove = isp_remove,
 	.id_table = omap3isp_id_table,
 	.driver = {
 		.owner = THIS_MODULE,

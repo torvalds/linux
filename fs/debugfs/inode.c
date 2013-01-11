@@ -59,7 +59,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 		case S_IFDIR:
 			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
-			inode->i_private = NULL;
 
 			/* directory inodes start off with i_nlink == 2
 			 * (for "." entry) */

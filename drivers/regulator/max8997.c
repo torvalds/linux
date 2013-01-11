@@ -24,6 +24,7 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -31,6 +32,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
+#include <linux/regulator/of_regulator.h>
 
 struct max8997_data {
 	struct device *dev;
@@ -933,20 +935,161 @@ static struct regulator_desc regulators[] = {
 				  max8997_charger_fixedstate_ops),
 };
 
-static __devinit int max8997_pmic_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static int max8997_pmic_dt_parse_dvs_gpio(struct max8997_dev *iodev,
+			struct max8997_platform_data *pdata,
+			struct device_node *pmic_np)
+{
+	int i, gpio;
+
+	for (i = 0; i < 3; i++) {
+		gpio = of_get_named_gpio(pmic_np,
+					"max8997,pmic-buck125-dvs-gpios", i);
+		if (!gpio_is_valid(gpio)) {
+			dev_err(iodev->dev, "invalid gpio[%d]: %d\n", i, gpio);
+			return -EINVAL;
+		}
+		pdata->buck125_gpios[i] = gpio;
+	}
+	return 0;
+}
+
+static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
+					struct max8997_platform_data *pdata)
+{
+	struct device_node *pmic_np, *regulators_np, *reg_np;
+	struct max8997_regulator_data *rdata;
+	unsigned int i, dvs_voltage_nr = 1, ret;
+
+	pmic_np = iodev->dev->of_node;
+	if (!pmic_np) {
+		dev_err(iodev->dev, "could not find pmic sub-node\n");
+		return -ENODEV;
+	}
+
+	regulators_np = of_find_node_by_name(pmic_np, "regulators");
+	if (!regulators_np) {
+		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		return -EINVAL;
+	}
+
+	/* count the number of regulators to be supported in pmic */
+	pdata->num_regulators = 0;
+	for_each_child_of_node(regulators_np, reg_np)
+		pdata->num_regulators++;
+
+	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+				pdata->num_regulators, GFP_KERNEL);
+	if (!rdata) {
+		dev_err(iodev->dev, "could not allocate memory for "
+						"regulator data\n");
+		return -ENOMEM;
+	}
+
+	pdata->regulators = rdata;
+	for_each_child_of_node(regulators_np, reg_np) {
+		for (i = 0; i < ARRAY_SIZE(regulators); i++)
+			if (!of_node_cmp(reg_np->name, regulators[i].name))
+				break;
+
+		if (i == ARRAY_SIZE(regulators)) {
+			dev_warn(iodev->dev, "don't know how to configure "
+				"regulator %s\n", reg_np->name);
+			continue;
+		}
+
+		rdata->id = i;
+		rdata->initdata = of_get_regulator_init_data(
+						iodev->dev, reg_np);
+		rdata->reg_node = reg_np;
+		rdata++;
+	}
+
+	if (of_get_property(pmic_np, "max8997,pmic-buck1-uses-gpio-dvs", NULL))
+		pdata->buck1_gpiodvs = true;
+
+	if (of_get_property(pmic_np, "max8997,pmic-buck2-uses-gpio-dvs", NULL))
+		pdata->buck2_gpiodvs = true;
+
+	if (of_get_property(pmic_np, "max8997,pmic-buck5-uses-gpio-dvs", NULL))
+		pdata->buck5_gpiodvs = true;
+
+	if (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
+						pdata->buck5_gpiodvs) {
+		ret = max8997_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
+		if (ret)
+			return -EINVAL;
+
+		if (of_property_read_u32(pmic_np,
+				"max8997,pmic-buck125-default-dvs-idx",
+				&pdata->buck125_default_idx)) {
+			pdata->buck125_default_idx = 0;
+		} else {
+			if (pdata->buck125_default_idx >= 8) {
+				pdata->buck125_default_idx = 0;
+				dev_info(iodev->dev, "invalid value for "
+				"default dvs index, using 0 instead\n");
+			}
+		}
+
+		if (of_get_property(pmic_np,
+			"max8997,pmic-ignore-gpiodvs-side-effect", NULL))
+			pdata->ignore_gpiodvs_side_effect = true;
+
+		dvs_voltage_nr = 8;
+	}
+
+	if (of_property_read_u32_array(pmic_np,
+				"max8997,pmic-buck1-dvs-voltage",
+				pdata->buck1_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck1 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32_array(pmic_np,
+				"max8997,pmic-buck2-dvs-voltage",
+				pdata->buck2_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck2 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32_array(pmic_np,
+				"max8997,pmic-buck5-dvs-voltage",
+				pdata->buck5_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck5 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#else
+static int max8997_pmic_dt_parse_pdata(struct max8997_dev *iodev,
+					struct max8997_platform_data *pdata)
+{
+	return 0;
+}
+#endif /* CONFIG_OF */
+
+static int max8997_pmic_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8997_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
 	struct regulator_dev **rdev;
 	struct max8997_data *max8997;
 	struct i2c_client *i2c;
-	int i, ret, size;
+	int i, ret, size, nr_dvs;
 	u8 max_buck1 = 0, max_buck2 = 0, max_buck5 = 0;
 
-	if (!pdata) {
+	if (IS_ERR_OR_NULL(pdata)) {
 		dev_err(pdev->dev.parent, "No platform init data supplied.\n");
 		return -ENODEV;
+	}
+
+	if (iodev->dev->of_node) {
+		ret = max8997_pmic_dt_parse_pdata(iodev, pdata);
+		if (ret)
+			return ret;
 	}
 
 	max8997 = devm_kzalloc(&pdev->dev, sizeof(struct max8997_data),
@@ -973,7 +1116,10 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	memcpy(max8997->buck125_gpios, pdata->buck125_gpios, sizeof(int) * 3);
 	max8997->ignore_gpiodvs_side_effect = pdata->ignore_gpiodvs_side_effect;
 
-	for (i = 0; i < 8; i++) {
+	nr_dvs = (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
+			pdata->buck5_gpiodvs) ? 8 : 1;
+
+	for (i = 0; i < nr_dvs; i++) {
 		max8997->buck1_vol[i] = ret =
 			max8997_get_voltage_proper_val(
 					&buck1245_voltage_map_desc,
@@ -1017,6 +1163,19 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 				max_buck2, 0x3f);
 		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS1 + i,
 				max_buck5, 0x3f);
+	}
+
+	/* Initialize all the DVS related BUCK registers */
+	for (i = 0; i < nr_dvs; i++) {
+		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS1 + i,
+				max8997->buck1_vol[i],
+				0x3f);
+		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS1 + i,
+				max8997->buck2_vol[i],
+				0x3f);
+		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS1 + i,
+				max8997->buck5_vol[i],
+				0x3f);
 	}
 
 	/*
@@ -1068,19 +1227,6 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	max8997_update_reg(i2c, MAX8997_REG_BUCK5CTRL, (pdata->buck5_gpiodvs) ?
 			(1 << 1) : (0 << 1), 1 << 1);
 
-	/* Initialize all the DVS related BUCK registers */
-	for (i = 0; i < 8; i++) {
-		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS1 + i,
-				max8997->buck1_vol[i],
-				0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK2DVS1 + i,
-				max8997->buck2_vol[i],
-				0x3f);
-		max8997_update_reg(i2c, MAX8997_REG_BUCK5DVS1 + i,
-				max8997->buck5_vol[i],
-				0x3f);
-	}
-
 	/* Misc Settings */
 	max8997->ramp_delay = 10; /* set 10mV/us, which is the default */
 	max8997_write_reg(i2c, MAX8997_REG_BUCKRAMP, (0xf << 4) | 0x9);
@@ -1101,6 +1247,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 		config.dev = max8997->dev;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8997;
+		config.of_node = pdata->regulators[i].reg_node;
 
 		rdev[i] = regulator_register(&regulators[id], &config);
 		if (IS_ERR(rdev[i])) {
@@ -1120,7 +1267,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit max8997_pmic_remove(struct platform_device *pdev)
+static int max8997_pmic_remove(struct platform_device *pdev)
 {
 	struct max8997_data *max8997 = platform_get_drvdata(pdev);
 	struct regulator_dev **rdev = max8997->rdev;
@@ -1143,7 +1290,7 @@ static struct platform_driver max8997_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8997_pmic_probe,
-	.remove = __devexit_p(max8997_pmic_remove),
+	.remove = max8997_pmic_remove,
 	.id_table = max8997_pmic_id,
 };
 

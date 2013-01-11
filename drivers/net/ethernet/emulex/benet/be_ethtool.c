@@ -261,6 +261,9 @@ be_get_reg_len(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 log_size = 0;
 
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (be_physfn(adapter)) {
 		if (lancer_chip(adapter))
 			log_size = lancer_cmd_get_file_len(adapter,
@@ -525,6 +528,10 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	u8 link_status;
 	u16 link_speed = 0;
 	int status;
+	u32 auto_speeds;
+	u32 fixed_speeds;
+	u32 dac_cable_len;
+	u16 interface_type;
 
 	if (adapter->phy.link_speed < 0) {
 		status = be_cmd_link_status_query(adapter, &link_speed,
@@ -534,39 +541,46 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ethtool_cmd_speed_set(ecmd, link_speed);
 
 		status = be_cmd_get_phy_info(adapter);
-		if (status)
-			return status;
+		if (!status) {
+			interface_type = adapter->phy.interface_type;
+			auto_speeds = adapter->phy.auto_speeds_supported;
+			fixed_speeds = adapter->phy.fixed_speeds_supported;
+			dac_cable_len = adapter->phy.dac_cable_len;
 
-		ecmd->supported =
-			convert_to_et_setting(adapter->phy.interface_type,
-					adapter->phy.auto_speeds_supported |
-					adapter->phy.fixed_speeds_supported);
-		ecmd->advertising =
-			convert_to_et_setting(adapter->phy.interface_type,
-					adapter->phy.auto_speeds_supported);
+			ecmd->supported =
+				convert_to_et_setting(interface_type,
+						      auto_speeds |
+						      fixed_speeds);
+			ecmd->advertising =
+				convert_to_et_setting(interface_type,
+						      auto_speeds);
 
-		ecmd->port = be_get_port_type(adapter->phy.interface_type,
-					      adapter->phy.dac_cable_len);
+			ecmd->port = be_get_port_type(interface_type,
+						      dac_cable_len);
 
-		if (adapter->phy.auto_speeds_supported) {
-			ecmd->supported |= SUPPORTED_Autoneg;
-			ecmd->autoneg = AUTONEG_ENABLE;
-			ecmd->advertising |= ADVERTISED_Autoneg;
-		}
+			if (adapter->phy.auto_speeds_supported) {
+				ecmd->supported |= SUPPORTED_Autoneg;
+				ecmd->autoneg = AUTONEG_ENABLE;
+				ecmd->advertising |= ADVERTISED_Autoneg;
+			}
 
-		if (be_pause_supported(adapter)) {
 			ecmd->supported |= SUPPORTED_Pause;
-			ecmd->advertising |= ADVERTISED_Pause;
-		}
+			if (be_pause_supported(adapter))
+				ecmd->advertising |= ADVERTISED_Pause;
 
-		switch (adapter->phy.interface_type) {
-		case PHY_TYPE_KR_10GB:
-		case PHY_TYPE_KX4_10GB:
-			ecmd->transceiver = XCVR_INTERNAL;
-			break;
-		default:
-			ecmd->transceiver = XCVR_EXTERNAL;
-			break;
+			switch (adapter->phy.interface_type) {
+			case PHY_TYPE_KR_10GB:
+			case PHY_TYPE_KX4_10GB:
+				ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			default:
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			}
+		} else {
+			ecmd->port = PORT_OTHER;
+			ecmd->autoneg = AUTONEG_DISABLE;
+			ecmd->transceiver = XCVR_DUMMY1;
 		}
 
 		/* Save for future use */
@@ -787,6 +801,10 @@ static int
 be_get_eeprom_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (lancer_chip(adapter)) {
 		if (be_physfn(adapter))
 			return lancer_cmd_get_file_len(adapter,

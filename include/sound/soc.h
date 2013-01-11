@@ -1039,6 +1039,7 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_dpcm_runtime dpcm[2];
 
 	long pmdown_time;
+	unsigned char pop_wait:1;
 
 	/* runtime devices */
 	struct snd_pcm *pcm;

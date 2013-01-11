@@ -28,7 +28,6 @@
 
 #include <plat/dmtimer.h>
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
@@ -444,7 +443,7 @@ static int lirc_rx51_resume(struct platform_device *dev)
 
 #endif /* CONFIG_PM */
 
-static int __devinit lirc_rx51_probe(struct platform_device *dev)
+static int lirc_rx51_probe(struct platform_device *dev)
 {
 	lirc_rx51_driver.features = LIRC_RX51_DRIVER_FEATURES;
 	lirc_rx51.pdata = dev->dev.platform_data;

@@ -735,7 +735,7 @@ static void iscsit_ack_from_expstatsn(struct iscsi_conn *conn, u32 exp_statsn)
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 		spin_lock(&cmd->istate_lock);
 		if ((cmd->i_state == ISTATE_SENT_STATUS) &&
-		    (cmd->stat_sn < exp_statsn)) {
+		    iscsi_sna_lt(cmd->stat_sn, exp_statsn)) {
 			cmd->i_state = ISTATE_REMOVE;
 			spin_unlock(&cmd->istate_lock);
 			iscsit_add_cmd_to_immediate_queue(cmd, conn,
@@ -767,9 +767,8 @@ static int iscsit_handle_scsi_cmd(
 	struct iscsi_conn *conn,
 	unsigned char *buf)
 {
-	int	data_direction, cmdsn_ret = 0, immed_ret, ret, transport_ret;
-	int	dump_immediate_data = 0, send_check_condition = 0, payload_length;
-	struct iscsi_cmd	*cmd = NULL;
+	int data_direction, payload_length, cmdsn_ret = 0, immed_ret;
+	struct iscsi_cmd *cmd = NULL;
 	struct iscsi_scsi_req *hdr;
 	int iscsi_task_attr;
 	int sam_task_attr;
@@ -956,38 +955,26 @@ done:
 		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
 		hdr->cmdsn, hdr->data_length, payload_length, conn->cid);
 
-	/*
-	 * The CDB is going to an se_device_t.
-	 */
-	ret = transport_lookup_cmd_lun(&cmd->se_cmd,
-				       scsilun_to_int(&hdr->lun));
-	if (ret < 0) {
-		if (cmd->se_cmd.scsi_sense_reason == TCM_NON_EXISTENT_LUN) {
-			pr_debug("Responding to non-acl'ed,"
-				" non-existent or non-exported iSCSI LUN:"
-				" 0x%016Lx\n", get_unaligned_le64(&hdr->lun));
+	cmd->sense_reason = transport_lookup_cmd_lun(&cmd->se_cmd,
+						     scsilun_to_int(&hdr->lun));
+	if (cmd->sense_reason)
+		goto attach_cmd;
+
+	cmd->sense_reason = target_setup_cmd_from_cdb(&cmd->se_cmd, hdr->cdb);
+	if (cmd->sense_reason) {
+		if (cmd->sense_reason == TCM_OUT_OF_RESOURCES) {
+			return iscsit_add_reject_from_cmd(
+					ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+					1, 1, buf, cmd);
 		}
-		send_check_condition = 1;
+
 		goto attach_cmd;
 	}
 
-	transport_ret = target_setup_cmd_from_cdb(&cmd->se_cmd, hdr->cdb);
-	if (transport_ret == -ENOMEM) {
+	if (iscsit_build_pdu_and_seq_lists(cmd, payload_length) < 0) {
 		return iscsit_add_reject_from_cmd(
-				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 1, buf, cmd);
-	} else if (transport_ret < 0) {
-		/*
-		 * Unsupported SAM Opcode.  CHECK_CONDITION will be sent
-		 * in iscsit_execute_cmd() during the CmdSN OOO Execution
-		 * Mechinism.
-		 */
-		send_check_condition = 1;
-	} else {
-		if (iscsit_build_pdu_and_seq_lists(cmd, payload_length) < 0)
-			return iscsit_add_reject_from_cmd(
-				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 1, buf, cmd);
+			ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+			1, 1, buf, cmd);
 	}
 
 attach_cmd:
@@ -1000,11 +987,12 @@ attach_cmd:
 	 */
 	core_alua_check_nonop_delay(&cmd->se_cmd);
 
-	ret = iscsit_allocate_iovecs(cmd);
-	if (ret < 0)
+	if (iscsit_allocate_iovecs(cmd) < 0) {
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
 				1, 0, buf, cmd);
+	}
+
 	/*
 	 * Check the CmdSN against ExpCmdSN/MaxCmdSN here if
 	 * the Immediate Bit is not set, and no Immediate
@@ -1031,10 +1019,7 @@ attach_cmd:
 	 * If no Immediate Data is attached, it's OK to return now.
 	 */
 	if (!cmd->immediate_data) {
-		if (send_check_condition)
-			return 0;
-
-		if (cmd->unsolicited_data) {
+		if (!cmd->sense_reason && cmd->unsolicited_data) {
 			iscsit_set_dataout_sequence_values(cmd);
 
 			spin_lock_bh(&cmd->dataout_timeout_lock);
@@ -1050,19 +1035,17 @@ attach_cmd:
 	 * thread.  They are processed in CmdSN order by
 	 * iscsit_check_received_cmdsn() below.
 	 */
-	if (send_check_condition) {
+	if (cmd->sense_reason) {
 		immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
-		dump_immediate_data = 1;
 		goto after_immediate_data;
 	}
 	/*
 	 * Call directly into transport_generic_new_cmd() to perform
 	 * the backend memory allocation.
 	 */
-	ret = transport_generic_new_cmd(&cmd->se_cmd);
-	if (ret < 0) {
+	cmd->sense_reason = transport_generic_new_cmd(&cmd->se_cmd);
+	if (cmd->sense_reason) {
 		immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
-		dump_immediate_data = 1;
 		goto after_immediate_data;
 	}
 
@@ -1079,7 +1062,7 @@ after_immediate_data:
 		 * Special case for Unsupported SAM WRITE Opcodes
 		 * and ImmediateData=Yes.
 		 */
-		if (dump_immediate_data) {
+		if (cmd->sense_reason) {
 			if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
 				return -1;
 		} else if (cmd->unsolicited_data) {
@@ -1272,8 +1255,7 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
 		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		if (!(se_cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) ||
-		     (se_cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION))
+		if (!(se_cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE))
 			dump_unsolicited_data = 1;
 		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
@@ -1742,7 +1724,6 @@ static int iscsit_handle_task_mgt_cmd(
 		ret = transport_lookup_tmr_lun(&cmd->se_cmd,
 					       scsilun_to_int(&hdr->lun));
 		if (ret < 0) {
-			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			se_tmr->response = ISCSI_TMF_RSP_NO_LUN;
 			goto attach;
 		}
@@ -1751,10 +1732,8 @@ static int iscsit_handle_task_mgt_cmd(
 	switch (function) {
 	case ISCSI_TM_FUNC_ABORT_TASK:
 		se_tmr->response = iscsit_tmr_abort_task(cmd, buf);
-		if (se_tmr->response != ISCSI_TMF_RSP_COMPLETE) {
-			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		if (se_tmr->response)
 			goto attach;
-		}
 		break;
 	case ISCSI_TM_FUNC_ABORT_TASK_SET:
 	case ISCSI_TM_FUNC_CLEAR_ACA:
@@ -1763,14 +1742,12 @@ static int iscsit_handle_task_mgt_cmd(
 		break;
 	case ISCSI_TM_FUNC_TARGET_WARM_RESET:
 		if (iscsit_tmr_task_warm_reset(conn, tmr_req, buf) < 0) {
-			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			se_tmr->response = ISCSI_TMF_RSP_AUTH_FAILED;
 			goto attach;
 		}
 		break;
 	case ISCSI_TM_FUNC_TARGET_COLD_RESET:
 		if (iscsit_tmr_task_cold_reset(conn, tmr_req, buf) < 0) {
-			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			se_tmr->response = ISCSI_TMF_RSP_AUTH_FAILED;
 			goto attach;
 		}
@@ -1781,7 +1758,7 @@ static int iscsit_handle_task_mgt_cmd(
 		 * Perform sanity checks on the ExpDataSN only if the
 		 * TASK_REASSIGN was successful.
 		 */
-		if (se_tmr->response != ISCSI_TMF_RSP_COMPLETE)
+		if (se_tmr->response)
 			break;
 
 		if (iscsit_check_task_reassign_expdatasn(tmr_req, conn) < 0)
@@ -1792,7 +1769,6 @@ static int iscsit_handle_task_mgt_cmd(
 	default:
 		pr_err("Unknown TMR function: 0x%02x, protocol"
 			" error.\n", function);
-		cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		se_tmr->response = ISCSI_TMF_RSP_NOT_SUPPORTED;
 		goto attach;
 	}
@@ -2360,7 +2336,7 @@ static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
 	if (!conn_p)
 		return;
 
-	cmd = iscsit_allocate_cmd(conn_p, GFP_KERNEL);
+	cmd = iscsit_allocate_cmd(conn_p, GFP_ATOMIC);
 	if (!cmd) {
 		iscsit_dec_conn_usage_count(conn_p);
 		return;

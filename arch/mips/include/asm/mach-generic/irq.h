@@ -34,12 +34,6 @@
 #endif
 #endif
 
-#ifdef CONFIG_IRQ_CPU_RM9K
-#ifndef RM9K_CPU_IRQ_BASE
-#define RM9K_CPU_IRQ_BASE (MIPS_CPU_IRQ_BASE+12)
-#endif
-#endif
-
 #endif /* CONFIG_IRQ_CPU */
 
 #endif /* __ASM_MACH_GENERIC_IRQ_H */

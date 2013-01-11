@@ -371,7 +371,7 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 	if (!curr_ctx->aborting) {
 		if ((irqst & PRP_INTR_ST_RDERR) ||
 		(irqst & PRP_INTR_ST_CH2WERR)) {
-			pr_err("PrP bus error ocurred, this transfer is probably corrupted\n");
+			pr_err("PrP bus error occurred, this transfer is probably corrupted\n");
 			writel(PRP_CNTL_SWRST, pcdev->base_emma + PRP_CNTL);
 		} else if (irqst & PRP_INTR_ST_CH2B1CI) { /* buffer ready */
 			src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);

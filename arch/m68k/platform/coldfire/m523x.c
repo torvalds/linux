@@ -19,6 +19,34 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfclk.h>
+
+/***************************************************************************/
+
+DEFINE_CLK(pll, "pll.0", MCF_CLK);
+DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
+DEFINE_CLK(mcfpit0, "mcfpit.0", MCF_CLK);
+DEFINE_CLK(mcfpit1, "mcfpit.1", MCF_CLK);
+DEFINE_CLK(mcfpit2, "mcfpit.2", MCF_CLK);
+DEFINE_CLK(mcfpit3, "mcfpit.3", MCF_CLK);
+DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
+DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
+DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
+DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
+
+struct clk *mcf_clks[] = {
+	&clk_pll,
+	&clk_sys,
+	&clk_mcfpit0,
+	&clk_mcfpit1,
+	&clk_mcfpit2,
+	&clk_mcfpit3,
+	&clk_mcfuart0,
+	&clk_mcfuart1,
+	&clk_mcfuart2,
+	&clk_fec0,
+	NULL
+};
 
 /***************************************************************************/
 

@@ -209,13 +209,6 @@ union octeon_cvmemctl {
 	} s;
 };
 
-struct octeon_cf_data {
-	unsigned long	base_region_bias;
-	unsigned int	base_region;	/* The chip select region used by CF */
-	int		is16bit;	/* 0 - 8bit, !0 - 16bit */
-	int		dma_engine;	/* -1 for no DMA */
-};
-
 extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
 extern int octeon_get_boot_debug_flag(void);

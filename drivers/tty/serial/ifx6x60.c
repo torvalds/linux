@@ -60,26 +60,56 @@
 #include <linux/pm_runtime.h>
 #include <linux/spi/ifx_modem.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 
 #include "ifx6x60.h"
 
 #define IFX_SPI_MORE_MASK		0x10
-#define IFX_SPI_MORE_BIT		12	/* bit position in u16 */
-#define IFX_SPI_CTS_BIT			13	/* bit position in u16 */
+#define IFX_SPI_MORE_BIT		4	/* bit position in u8 */
+#define IFX_SPI_CTS_BIT			6	/* bit position in u8 */
 #define IFX_SPI_MODE			SPI_MODE_1
 #define IFX_SPI_TTY_ID			0
 #define IFX_SPI_TIMEOUT_SEC		2
 #define IFX_SPI_HEADER_0		(-1)
 #define IFX_SPI_HEADER_F		(-2)
 
+#define PO_POST_DELAY		200
+#define IFX_MDM_RST_PMU	4
+
 /* forward reference */
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev);
+static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+				unsigned long event, void *data);
+static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev);
 
 /* local variables */
 static int spi_bpw = 16;		/* 8, 16 or 32 bit word length */
 static struct tty_driver *tty_drv;
 static struct ifx_spi_device *saved_ifx_dev;
 static struct lock_class_key ifx_spi_key;
+
+static struct notifier_block ifx_modem_reboot_notifier_block = {
+	.notifier_call = ifx_modem_reboot_callback,
+};
+
+static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev)
+{
+	gpio_set_value(IFX_MDM_RST_PMU, 1);
+	msleep(PO_POST_DELAY);
+
+	return 0;
+}
+
+static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+				 unsigned long event, void *data)
+{
+	if (saved_ifx_dev)
+		ifx_modem_power_off(saved_ifx_dev);
+	else
+		pr_warn("no ifx modem active;\n");
+
+	return NOTIFY_OK;
+}
 
 /* GPIO/GPE settings */
 
@@ -152,26 +182,67 @@ ifx_spi_power_state_clear(struct ifx_spi_device *ifx_dev, unsigned char val)
 }
 
 /**
- *	swap_buf
+ *	swap_buf_8
  *	@buf: our buffer
  *	@len : number of bytes (not words) in the buffer
  *	@end: end of buffer
  *
  *	Swap the contents of a buffer into big endian format
  */
-static inline void swap_buf(u16 *buf, int len, void *end)
+static inline void swap_buf_8(unsigned char *buf, int len, void *end)
+{
+	/* don't swap buffer if SPI word width is 8 bits */
+	return;
+}
+
+/**
+ *	swap_buf_16
+ *	@buf: our buffer
+ *	@len : number of bytes (not words) in the buffer
+ *	@end: end of buffer
+ *
+ *	Swap the contents of a buffer into big endian format
+ */
+static inline void swap_buf_16(unsigned char *buf, int len, void *end)
 {
 	int n;
 
+	u16 *buf_16 = (u16 *)buf;
 	len = ((len + 1) >> 1);
-	if ((void *)&buf[len] > end) {
-		pr_err("swap_buf: swap exceeds boundary (%p > %p)!",
-		       &buf[len], end);
+	if ((void *)&buf_16[len] > end) {
+		pr_err("swap_buf_16: swap exceeds boundary (%p > %p)!",
+		       &buf_16[len], end);
 		return;
 	}
 	for (n = 0; n < len; n++) {
-		*buf = cpu_to_be16(*buf);
-		buf++;
+		*buf_16 = cpu_to_be16(*buf_16);
+		buf_16++;
+	}
+}
+
+/**
+ *	swap_buf_32
+ *	@buf: our buffer
+ *	@len : number of bytes (not words) in the buffer
+ *	@end: end of buffer
+ *
+ *	Swap the contents of a buffer into big endian format
+ */
+static inline void swap_buf_32(unsigned char *buf, int len, void *end)
+{
+	int n;
+
+	u32 *buf_32 = (u32 *)buf;
+	len = (len + 3) >> 2;
+
+	if ((void *)&buf_32[len] > end) {
+		pr_err("swap_buf_32: swap exceeds boundary (%p > %p)!\n",
+		       &buf_32[len], end);
+		return;
+	}
+	for (n = 0; n < len; n++) {
+		*buf_32 = cpu_to_be32(*buf_32);
+		buf_32++;
 	}
 }
 
@@ -190,9 +261,7 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
 	if (!val) {
 		if (!test_and_set_bit(IFX_SPI_STATE_TIMER_PENDING,
 				      &ifx_dev->flags)) {
-			ifx_dev->spi_timer.expires =
-				jiffies + IFX_SPI_TIMEOUT_SEC*HZ;
-			add_timer(&ifx_dev->spi_timer);
+			mod_timer(&ifx_dev->spi_timer,jiffies + IFX_SPI_TIMEOUT_SEC*HZ);
 
 		}
 	}
@@ -449,7 +518,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 					tx_count-IFX_SPI_HEADER_OVERHEAD,
 					ifx_dev->spi_more);
 	/* swap actual data in the buffer */
-	swap_buf((u16 *)(ifx_dev->tx_buffer), tx_count,
+	ifx_dev->swap_buf((ifx_dev->tx_buffer), tx_count,
 		&ifx_dev->tx_buffer[IFX_SPI_TRANSFER_SIZE]);
 	return tx_count;
 }
@@ -469,9 +538,17 @@ static int ifx_spi_write(struct tty_struct *tty, const unsigned char *buf,
 {
 	struct ifx_spi_device *ifx_dev = tty->driver_data;
 	unsigned char *tmp_buf = (unsigned char *)buf;
-	int tx_count = kfifo_in_locked(&ifx_dev->tx_fifo, tmp_buf, count,
-				   &ifx_dev->fifo_lock);
-	mrdy_assert(ifx_dev);
+	unsigned long flags;
+	bool is_fifo_empty;
+	int tx_count;
+
+	spin_lock_irqsave(&ifx_dev->fifo_lock, flags);
+	is_fifo_empty = kfifo_is_empty(&ifx_dev->tx_fifo);
+	tx_count = kfifo_in(&ifx_dev->tx_fifo, tmp_buf, count);
+	spin_unlock_irqrestore(&ifx_dev->fifo_lock, flags);
+	if (is_fifo_empty)
+		mrdy_assert(ifx_dev);
+
 	return tx_count;
 }
 
@@ -530,11 +607,18 @@ static int ifx_port_activate(struct tty_port *port, struct tty_struct *tty)
 	/* clear any old data; can't do this in 'close' */
 	kfifo_reset(&ifx_dev->tx_fifo);
 
+	/* clear any flag which may be set in port shutdown procedure */
+	clear_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags);
+	clear_bit(IFX_SPI_STATE_IO_READY, &ifx_dev->flags);
+
 	/* put port data into this tty */
 	tty->driver_data = ifx_dev;
 
 	/* allows flip string push from int context */
 	tty->low_latency = 1;
+
+	/* set flag to allows data transfer */
+	set_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 
 	return 0;
 }
@@ -551,6 +635,7 @@ static void ifx_port_shutdown(struct tty_port *port)
 	struct ifx_spi_device *ifx_dev =
 		container_of(port, struct ifx_spi_device, tty_port);
 
+	clear_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 	mrdy_set_low(ifx_dev);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	tasklet_kill(&ifx_dev->io_work_tasklet);
@@ -617,7 +702,7 @@ static void ifx_spi_complete(void *ctx)
 
 	if (!ifx_dev->spi_msg.status) {
 		/* check header validity, get comm flags */
-		swap_buf((u16 *)ifx_dev->rx_buffer, IFX_SPI_HEADER_OVERHEAD,
+		ifx_dev->swap_buf(ifx_dev->rx_buffer, IFX_SPI_HEADER_OVERHEAD,
 			&ifx_dev->rx_buffer[IFX_SPI_HEADER_OVERHEAD]);
 		decode_result = ifx_spi_decode_spi_header(ifx_dev->rx_buffer,
 				&length, &more, &cts);
@@ -636,7 +721,8 @@ static void ifx_spi_complete(void *ctx)
 
 		actual_length = min((unsigned int)length,
 					ifx_dev->spi_msg.actual_length);
-		swap_buf((u16 *)(ifx_dev->rx_buffer + IFX_SPI_HEADER_OVERHEAD),
+		ifx_dev->swap_buf(
+			(ifx_dev->rx_buffer + IFX_SPI_HEADER_OVERHEAD),
 			 actual_length,
 			 &ifx_dev->rx_buffer[IFX_SPI_TRANSFER_SIZE]);
 		ifx_spi_insert_flip_string(
@@ -705,7 +791,8 @@ static void ifx_spi_io(unsigned long data)
 	int retval;
 	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *) data;
 
-	if (!test_and_set_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags)) {
+	if (!test_and_set_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags) &&
+		test_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags)) {
 		if (ifx_dev->gpio.unack_srdy_int_nb > 0)
 			ifx_dev->gpio.unack_srdy_int_nb--;
 
@@ -773,6 +860,7 @@ static void ifx_spi_free_port(struct ifx_spi_device *ifx_dev)
 {
 	if (ifx_dev->tty_dev)
 		tty_unregister_device(tty_drv, ifx_dev->minor);
+	tty_port_destroy(&ifx_dev->tty_port);
 	kfifo_free(&ifx_dev->tx_fifo);
 }
 
@@ -806,10 +894,12 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 		dev_dbg(&ifx_dev->spi_dev->dev,
 			"%s: registering tty device failed", __func__);
 		ret = PTR_ERR(ifx_dev->tty_dev);
-		goto error_ret;
+		goto error_port;
 	}
 	return 0;
 
+error_port:
+	tty_port_destroy(pport);
 error_ret:
 	ifx_spi_free_port(ifx_dev);
 	return ret;
@@ -826,7 +916,7 @@ error_ret:
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev)
 {
 	if (test_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags)) {
-		del_timer_sync(&ifx_dev->spi_timer);
+		del_timer(&ifx_dev->spi_timer);
 		clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	}
 
@@ -1000,6 +1090,14 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
 		return -ENODEV;
 	}
+
+	/* init swap_buf function according to word width configuration */
+	if (spi->bits_per_word == 32)
+		ifx_dev->swap_buf = swap_buf_32;
+	else if (spi->bits_per_word == 16)
+		ifx_dev->swap_buf = swap_buf_16;
+	else
+		ifx_dev->swap_buf = swap_buf_8;
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
@@ -1219,6 +1317,9 @@ static int ifx_spi_spi_remove(struct spi_device *spi)
 
 static void ifx_spi_spi_shutdown(struct spi_device *spi)
 {
+	struct ifx_spi_device *ifx_dev = spi_get_drvdata(spi);
+
+	ifx_modem_power_off(ifx_dev);
 }
 
 /*
@@ -1338,7 +1439,7 @@ static struct spi_driver ifx_spi_driver = {
 		.owner = THIS_MODULE},
 	.probe = ifx_spi_spi_probe,
 	.shutdown = ifx_spi_spi_shutdown,
-	.remove = __devexit_p(ifx_spi_spi_remove),
+	.remove = ifx_spi_spi_remove,
 	.suspend = ifx_spi_spi_suspend,
 	.resume = ifx_spi_spi_resume,
 	.id_table = ifx_id_table
@@ -1354,7 +1455,9 @@ static void __exit ifx_spi_exit(void)
 {
 	/* unregister */
 	tty_unregister_driver(tty_drv);
+	put_tty_driver(tty_drv);
 	spi_unregister_driver((void *)&ifx_spi_driver);
+	unregister_reboot_notifier(&ifx_modem_reboot_notifier_block);
 }
 
 /**
@@ -1389,16 +1492,31 @@ static int __init ifx_spi_init(void)
 	if (result) {
 		pr_err("%s: tty_register_driver failed(%d)",
 			DRVNAME, result);
-		put_tty_driver(tty_drv);
-		return result;
+		goto err_free_tty;
 	}
 
 	result = spi_register_driver((void *)&ifx_spi_driver);
 	if (result) {
 		pr_err("%s: spi_register_driver failed(%d)",
 			DRVNAME, result);
-		tty_unregister_driver(tty_drv);
+		goto err_unreg_tty;
 	}
+
+	result = register_reboot_notifier(&ifx_modem_reboot_notifier_block);
+	if (result) {
+		pr_err("%s: register ifx modem reboot notifier failed(%d)",
+			DRVNAME, result);
+		goto err_unreg_spi;
+	}
+
+	return 0;
+err_unreg_spi:
+	spi_unregister_driver((void *)&ifx_spi_driver);
+err_unreg_tty:
+	tty_unregister_driver(tty_drv);
+err_free_tty:
+	put_tty_driver(tty_drv);
+
 	return result;
 }
 

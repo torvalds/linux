@@ -883,6 +883,16 @@ static int usbhsg_get_frame(struct usb_gadget *gadget)
 	return usbhs_frame_get_num(priv);
 }
 
+static int usbhsg_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
+	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
+
+	usbhs_sys_function_pullup(priv, is_on);
+
+	return 0;
+}
+
 static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
@@ -900,6 +910,7 @@ static struct usb_gadget_ops usbhsg_gadget_ops = {
 	.set_selfpowered	= usbhsg_set_selfpowered,
 	.udc_start		= usbhsg_gadget_start,
 	.udc_stop		= usbhsg_gadget_stop,
+	.pullup			= usbhsg_pullup,
 };
 
 static int usbhsg_start(struct usbhs_priv *priv)

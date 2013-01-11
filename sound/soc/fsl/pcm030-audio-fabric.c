@@ -29,14 +29,14 @@ struct pcm030_audio_data {
 
 static struct snd_soc_dai_link pcm030_fabric_dai[] = {
 {
-	.name = "AC97",
+	.name = "AC97.0",
 	.stream_name = "AC97 Analog",
 	.codec_dai_name = "wm9712-hifi",
 	.cpu_dai_name = "mpc5200-psc-ac97.0",
 	.codec_name = "wm9712-codec",
 },
 {
-	.name = "AC97",
+	.name = "AC97.1",
 	.stream_name = "AC97 IEC958",
 	.codec_dai_name = "wm9712-aux",
 	.cpu_dai_name = "mpc5200-psc-ac97.1",
@@ -101,7 +101,7 @@ static int __init pcm030_fabric_probe(struct platform_device *op)
 	return ret;
 }
 
-static int __devexit pcm030_fabric_remove(struct platform_device *op)
+static int pcm030_fabric_remove(struct platform_device *op)
 {
 	struct pcm030_audio_data *pdata = platform_get_drvdata(op);
 	int ret;
@@ -120,7 +120,7 @@ MODULE_DEVICE_TABLE(of, pcm030_audio_match);
 
 static struct platform_driver pcm030_fabric_driver = {
 	.probe		= pcm030_fabric_probe,
-	.remove		= __devexit_p(pcm030_fabric_remove),
+	.remove		= pcm030_fabric_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -213,34 +213,20 @@ gser_bind(struct usb_configuration *c, struct usb_function *f)
 	gser->port.out = ep;
 	ep->driver_data = cdev;	/* claim */
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(gser_fs_function);
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		gser_hs_in_desc.bEndpointAddress =
-				gser_fs_in_desc.bEndpointAddress;
-		gser_hs_out_desc.bEndpointAddress =
-				gser_fs_out_desc.bEndpointAddress;
+	gser_hs_in_desc.bEndpointAddress = gser_fs_in_desc.bEndpointAddress;
+	gser_hs_out_desc.bEndpointAddress = gser_fs_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(gser_hs_function);
-	}
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		gser_ss_in_desc.bEndpointAddress =
-			gser_fs_in_desc.bEndpointAddress;
-		gser_ss_out_desc.bEndpointAddress =
-			gser_fs_out_desc.bEndpointAddress;
+	gser_ss_in_desc.bEndpointAddress = gser_fs_in_desc.bEndpointAddress;
+	gser_ss_out_desc.bEndpointAddress = gser_fs_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(gser_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
-
+	status = usb_assign_descriptors(f, gser_fs_function, gser_hs_function,
+			gser_ss_function);
+	if (status)
+		goto fail;
 	DBG(cdev, "generic ttyGS%d: %s speed IN/%s OUT/%s\n",
 			gser->port_num,
 			gadget_is_superspeed(c->cdev->gadget) ? "super" :
@@ -263,11 +249,7 @@ fail:
 static void
 gser_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	usb_free_descriptors(f->descriptors);
+	usb_free_all_descriptors(f);
 	kfree(func_to_gser(f));
 }
 

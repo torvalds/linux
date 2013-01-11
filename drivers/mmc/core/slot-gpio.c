@@ -27,7 +27,13 @@ struct mmc_gpio {
 static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 {
 	/* Schedule a card detection after a debounce timeout */
-	mmc_detect_change(dev_id, msecs_to_jiffies(100));
+	struct mmc_host *host = dev_id;
+
+	if (host->ops->card_event)
+		host->ops->card_event(host);
+
+	mmc_detect_change(host, msecs_to_jiffies(200));
+
 	return IRQ_HANDLED;
 }
 

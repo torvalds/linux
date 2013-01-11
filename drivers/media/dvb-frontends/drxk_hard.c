@@ -933,7 +933,7 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 		state->m_oscClockFreq = 20250;
 		break;
 	default:
-		printk(KERN_ERR "drxk: Clock Frequency is unkonwn\n");
+		printk(KERN_ERR "drxk: Clock Frequency is unknown\n");
 		return -EINVAL;
 	}
 	/*

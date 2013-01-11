@@ -176,7 +176,7 @@ static const struct rtc_class_ops max8907_rtc_ops = {
 	.set_alarm	= max8907_rtc_set_alarm,
 };
 
-static int __devinit max8907_rtc_probe(struct platform_device *pdev)
+static int max8907_rtc_probe(struct platform_device *pdev)
 {
 	struct max8907 *max8907 = dev_get_drvdata(pdev->dev.parent);
 	struct max8907_rtc *rtc;
@@ -220,7 +220,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit max8907_rtc_remove(struct platform_device *pdev)
+static int max8907_rtc_remove(struct platform_device *pdev)
 {
 	struct max8907_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -236,7 +236,7 @@ static struct platform_driver max8907_rtc_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8907_rtc_probe,
-	.remove = __devexit_p(max8907_rtc_remove),
+	.remove = max8907_rtc_remove,
 };
 module_platform_driver(max8907_rtc_driver);
 

@@ -7,7 +7,7 @@
 #include "util.h"
 #include "debug.h"
 
-static struct thread *thread__new(pid_t pid)
+struct thread *thread__new(pid_t pid)
 {
 	struct thread *self = zalloc(sizeof(*self));
 
@@ -58,45 +58,6 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 {
 	return fprintf(fp, "Thread %d %s\n", self->pid, self->comm) +
 	       map_groups__fprintf(&self->mg, verbose, fp);
-}
-
-struct thread *machine__findnew_thread(struct machine *self, pid_t pid)
-{
-	struct rb_node **p = &self->threads.rb_node;
-	struct rb_node *parent = NULL;
-	struct thread *th;
-
-	/*
-	 * Font-end cache - PID lookups come in blocks,
-	 * so most of the time we dont have to look up
-	 * the full rbtree:
-	 */
-	if (self->last_match && self->last_match->pid == pid)
-		return self->last_match;
-
-	while (*p != NULL) {
-		parent = *p;
-		th = rb_entry(parent, struct thread, rb_node);
-
-		if (th->pid == pid) {
-			self->last_match = th;
-			return th;
-		}
-
-		if (pid < th->pid)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	th = thread__new(pid);
-	if (th != NULL) {
-		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, &self->threads);
-		self->last_match = th;
-	}
-
-	return th;
 }
 
 void thread__insert_map(struct thread *self, struct map *map)

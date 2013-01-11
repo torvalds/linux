@@ -24,15 +24,18 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 
+#include <linux/firmware.h>
+
 #include "gdm_sdio.h"
 
 #define TYPE_A_HEADER_SIZE	4
 #define TYPE_A_LOOKAHEAD_SIZE   16
-#define YMEM0_SIZE			0x8000	/* 32kbytes */
+#define YMEM0_SIZE		0x8000	/* 32kbytes */
 #define DOWNLOAD_SIZE		(YMEM0_SIZE - TYPE_A_HEADER_SIZE)
 
-#define KRN_PATH	"/lib/firmware/gdm72xx/gdmskrn.bin"
-#define RFS_PATH	"/lib/firmware/gdm72xx/gdmsrfs.bin"
+#define FW_DIR			"gdm72xx/"
+#define FW_KRN			"gdmskrn.bin"
+#define FW_RFS			"gdmsrfs.bin"
 
 static u8 *tx_buf;
 
@@ -52,106 +55,109 @@ static int ack_ready(struct sdio_func *func)
 	return 0;
 }
 
-static int download_image(struct sdio_func *func, char *img_name)
+static int download_image(struct sdio_func *func, const char *img_name)
 {
-	int ret = 0, len, size, pno;
-	struct file *filp = NULL;
-	struct inode *inode = NULL;
+	int ret = 0, len, pno;
 	u8 *buf = tx_buf;
 	loff_t pos = 0;
+	int img_len;
+	const struct firmware *firm;
 
-	filp = filp_open(img_name, O_RDONLY | O_LARGEFILE, 0);
-	if (IS_ERR(filp)) {
-		printk(KERN_ERR "Can't find %s.\n", img_name);
-		return -ENOENT;
+	ret = request_firmware(&firm, img_name, &func->dev);
+	if (ret < 0) {
+		dev_err(&func->dev,
+			"requesting firmware %s failed with error %d\n",
+			img_name, ret);
+		return ret;
 	}
 
-	inode = filp->f_dentry->d_inode;
-	if (!S_ISREG(inode->i_mode)) {
-		printk(KERN_ERR "Invalid file type: %s\n", img_name);
-		ret = -EINVAL;
-		goto out;
+	buf = kmalloc(DOWNLOAD_SIZE + TYPE_A_HEADER_SIZE, GFP_KERNEL);
+	if (buf == NULL) {
+		dev_err(&func->dev, "Error: kmalloc\n");
+		return -ENOMEM;
 	}
 
-	size = i_size_read(inode->i_mapping->host);
-	if (size <= 0) {
-		printk(KERN_ERR "Unable to find file size: %s\n", img_name);
-		ret = size;
+	img_len = firm->size;
+
+	if (img_len <= 0) {
+		ret = -1;
 		goto out;
 	}
 
 	pno = 0;
-	while ((len = filp->f_op->read(filp, buf + TYPE_A_HEADER_SIZE,
-					DOWNLOAD_SIZE, &pos))) {
-		if (len < 0) {
-			ret = -1;
-			goto out;
+	while (img_len > 0) {
+		if (img_len > DOWNLOAD_SIZE) {
+			len = DOWNLOAD_SIZE;
+			buf[3] = 0;
+		} else {
+			len = img_len; /* the last packet */
+			buf[3] = 2;
 		}
 
 		buf[0] = len & 0xff;
 		buf[1] = (len >> 8) & 0xff;
 		buf[2] = (len >> 16) & 0xff;
 
-		if (pos >= size)	/* The last packet */
-			buf[3] = 2;
-		else
-			buf[3] = 0;
-
+		memcpy(buf+TYPE_A_HEADER_SIZE, firm->data + pos, len);
 		ret = sdio_memcpy_toio(func, 0, buf, len + TYPE_A_HEADER_SIZE);
 		if (ret < 0) {
-			printk(KERN_ERR "gdmwm: send image error: "
-				"packet number = %d ret = %d\n", pno, ret);
+			dev_err(&func->dev,
+				"send image error: packet number = %d ret = %d\n",
+				pno, ret);
 			goto out;
 		}
+
 		if (buf[3] == 2)	/* The last packet */
 			break;
 		if (!ack_ready(func)) {
 			ret = -EIO;
-			printk(KERN_ERR "gdmwm: Ack is not ready.\n");
+			dev_err(&func->dev, "Ack is not ready.\n");
 			goto out;
 		}
 		ret = sdio_memcpy_fromio(func, buf, 0, TYPE_A_LOOKAHEAD_SIZE);
 		if (ret < 0) {
-			printk(KERN_ERR "gdmwm: receive ack error: "
-				"packet number = %d ret = %d\n", pno, ret);
+			dev_err(&func->dev,
+				"receive ack error: packet number = %d ret = %d\n",
+				pno, ret);
 			goto out;
 		}
 		sdio_writeb(func, 0x01, 0x13, &ret);
 		sdio_writeb(func, 0x00, 0x10, &ret);	/* PCRRT */
 
+		img_len -= DOWNLOAD_SIZE;
+		pos += DOWNLOAD_SIZE;
 		pno++;
 	}
+
 out:
-	filp_close(filp, NULL);
+	kfree(buf);
 	return ret;
 }
 
 int sdio_boot(struct sdio_func *func)
 {
-	static mm_segment_t fs;
 	int ret;
+	const char *krn_name = FW_DIR FW_KRN;
+	const char *rfs_name = FW_DIR FW_RFS;
 
 	tx_buf = kmalloc(YMEM0_SIZE, GFP_KERNEL);
 	if (tx_buf == NULL) {
-		printk(KERN_ERR "Error: kmalloc: %s %d\n", __func__, __LINE__);
+		dev_err(&func->dev, "Error: kmalloc: %s %d\n",
+			__func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	fs = get_fs();
-	set_fs(get_ds());
-
-	ret = download_image(func, KRN_PATH);
+	ret = download_image(func, krn_name);
 	if (ret)
 		goto restore_fs;
-	printk(KERN_INFO "GCT: Kernel download success.\n");
+	dev_info(&func->dev, "GCT: Kernel download success.\n");
 
-	ret = download_image(func, RFS_PATH);
+	ret = download_image(func, rfs_name);
 	if (ret)
 		goto restore_fs;
-	printk(KERN_INFO "GCT: Filesystem download success.\n");
+	dev_info(&func->dev, "GCT: Filesystem download success.\n");
 
 restore_fs:
-	set_fs(fs);
 	kfree(tx_buf);
 	return ret;
 }

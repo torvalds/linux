@@ -93,6 +93,7 @@ config E1000E
 config IGB
 	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
 	depends on PCI
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -119,19 +120,6 @@ config IGB_DCA
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
-
-config IGB_PTP
-	bool "PTP Hardware Clock (PHC)"
-	default n
-	depends on IGB && EXPERIMENTAL
-	select PPS
-	select PTP_1588_CLOCK
-	---help---
-	  Say Y here if you want to use PTP Hardware Clock (PHC) in the
-	  driver.  Only the basic clock operations have been implemented.
-
-	  Every timestamp and clock read operations must consult the
-	  overflow counter to form a correct time value.
 
 config IGBVF
 	tristate "Intel(R) 82576 Virtual Function Ethernet support"
@@ -178,8 +166,9 @@ config IXGB
 
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
-	depends on PCI && INET
+	depends on PCI
 	select MDIO
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -219,19 +208,6 @@ config IXGBE_DCB
 	---help---
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
-
-	  If unsure, say N.
-
-config IXGBE_PTP
-	bool "PTP Clock Support"
-	default n
-	depends on IXGBE && EXPERIMENTAL
-	select PPS
-	select PTP_1588_CLOCK
-	---help---
-	  Say Y here if you want support for 1588 Timestamping with a
-	  PHC device, using the PTP 1588 Clock support. This is
-	  required to enable timestamping support for the device.
 
 	  If unsure, say N.
 

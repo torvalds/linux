@@ -12,7 +12,7 @@
 #define _XTENSA_MMU_H
 
 #ifndef CONFIG_MMU
-#include <asm/nommu.h>
+#include <asm-generic/mmu.h>
 #else
 
 /* Default "unsigned long" context */

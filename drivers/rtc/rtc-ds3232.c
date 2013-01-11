@@ -391,8 +391,8 @@ static const struct rtc_class_ops ds3232_rtc_ops = {
 	.alarm_irq_enable = ds3232_alarm_irq_enable,
 };
 
-static int __devinit ds3232_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int ds3232_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds3232 *ds3232;
 	int ret;
@@ -439,7 +439,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit ds3232_remove(struct i2c_client *client)
+static int ds3232_remove(struct i2c_client *client)
 {
 	struct ds3232 *ds3232 = i2c_get_clientdata(client);
 
@@ -469,7 +469,7 @@ static struct i2c_driver ds3232_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ds3232_probe,
-	.remove = __devexit_p(ds3232_remove),
+	.remove = ds3232_remove,
 	.id_table = ds3232_id,
 };
 

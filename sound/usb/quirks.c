@@ -497,6 +497,92 @@ static int snd_usb_nativeinstruments_boot_quirk(struct usb_device *dev)
 	return -EAGAIN;
 }
 
+static void mbox2_setup_48_24_magic(struct usb_device *dev)
+{
+	u8 srate[3];
+	u8 temp[12];
+
+	/* Choose 48000Hz permanently */
+	srate[0] = 0x80;
+	srate[1] = 0xbb;
+	srate[2] = 0x00;
+
+	/* Send the magic! */
+	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+		0x01, 0x22, 0x0100, 0x0085, &temp, 0x0003);
+	snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
+		0x81, 0xa2, 0x0100, 0x0085, &srate, 0x0003);
+	snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
+		0x81, 0xa2, 0x0100, 0x0086, &srate, 0x0003);
+	snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
+		0x81, 0xa2, 0x0100, 0x0003, &srate, 0x0003);
+	return;
+}
+
+/* Digidesign Mbox 2 needs to load firmware onboard
+ * and driver must wait a few seconds for initialisation.
+ */
+
+#define MBOX2_FIRMWARE_SIZE    646
+#define MBOX2_BOOT_LOADING     0x01 /* Hard coded into the device */
+#define MBOX2_BOOT_READY       0x02 /* Hard coded into the device */
+
+static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
+{
+	struct usb_host_config *config = dev->actconfig;
+	int err;
+	u8 bootresponse[12];
+	int fwsize;
+	int count;
+
+	fwsize = le16_to_cpu(get_cfg_desc(config)->wTotalLength);
+
+	if (fwsize != MBOX2_FIRMWARE_SIZE) {
+		snd_printk(KERN_ERR "usb-audio: Invalid firmware size=%d.\n", fwsize);
+		return -ENODEV;
+	}
+
+	snd_printd("usb-audio: Sending Digidesign Mbox 2 boot sequence...\n");
+
+	count = 0;
+	bootresponse[0] = MBOX2_BOOT_LOADING;
+	while ((bootresponse[0] == MBOX2_BOOT_LOADING) && (count < 10)) {
+		msleep(500); /* 0.5 second delay */
+		snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+			/* Control magic - load onboard firmware */
+			0x85, 0xc0, 0x0001, 0x0000, &bootresponse, 0x0012);
+		if (bootresponse[0] == MBOX2_BOOT_READY)
+			break;
+		snd_printd("usb-audio: device not ready, resending boot sequence...\n");
+		count++;
+	}
+
+	if (bootresponse[0] != MBOX2_BOOT_READY) {
+		snd_printk(KERN_ERR "usb-audio: Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse[0]);
+		return -ENODEV;
+	}
+
+	snd_printdd("usb-audio: device initialised!\n");
+
+	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
+		&dev->descriptor, sizeof(dev->descriptor));
+	config = dev->actconfig;
+	if (err < 0)
+		snd_printd("error usb_get_descriptor: %d\n", err);
+
+	err = usb_reset_configuration(dev);
+	if (err < 0)
+		snd_printd("error usb_reset_configuration: %d\n", err);
+	snd_printdd("mbox2_boot: new boot length = %d\n",
+		le16_to_cpu(get_cfg_desc(config)->wTotalLength));
+
+	mbox2_setup_48_24_magic(dev);
+
+	snd_printk(KERN_INFO "usb-audio: Digidesign Mbox 2: 24bit 48kHz");
+
+	return 0; /* Successful boot */
+}
+
 /*
  * Setup quirks
  */
@@ -572,7 +658,6 @@ static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 
 	return 0; /* keep this altsetting */
 }
-
 
 static int fasttrackpro_skip_setting_quirk(struct snd_usb_audio *chip,
 					   int iface, int altno)
@@ -655,6 +740,10 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 	case USB_ID(0x0ccd, 0x00b1): /* Terratec Aureon 7.1 USB */
 		return snd_usb_cm6206_boot_quirk(dev);
 
+	case USB_ID(0x0dba, 0x3000):
+		/* Digidesign Mbox 2 */
+		return snd_usb_mbox2_boot_quirk(dev);
+
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
@@ -675,7 +764,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
  */
 int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *fp)
 {
-	/* it depends on altsetting wether the device is big-endian or not */
+	/* it depends on altsetting whether the device is big-endian or not */
 	switch (chip->usb_id) {
 	case USB_ID(0x0763, 0x2001): /* M-Audio Quattro: captured data only */
 		if (fp->altsetting == 2 || fp->altsetting == 3 ||

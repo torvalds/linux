@@ -53,6 +53,8 @@
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <trace/events/block.h>
+
 #include "md.h"
 #include "raid5.h"
 #include "raid0.h"
@@ -182,6 +184,8 @@ static void return_io(struct bio *return_bi)
 		return_bi = bi->bi_next;
 		bi->bi_next = NULL;
 		bi->bi_size = 0;
+		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
+					 bi, 0);
 		bio_endio(bi, 0);
 		bi = return_bi;
 	}
@@ -466,7 +470,7 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 	do {
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    conf->quiesce == 0 || noquiesce,
-				    conf->device_lock, /* nothing */);
+				    conf->device_lock);
 		sh = __find_stripe(conf, sector, conf->generation - previous);
 		if (!sh) {
 			if (!conf->inactive_blocked)
@@ -480,8 +484,7 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 						    (atomic_read(&conf->active_stripes)
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
-						    conf->device_lock,
-						    );
+						    conf->device_lock);
 				conf->inactive_blocked = 0;
 			} else
 				init_stripe(sh, sector, previous);
@@ -671,6 +674,9 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			bi->bi_next = NULL;
 			if (rrdev)
 				set_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags);
+			trace_block_bio_remap(bdev_get_queue(bi->bi_bdev),
+					      bi, disk_devt(conf->mddev->gendisk),
+					      sh->dev[i].sector);
 			generic_make_request(bi);
 		}
 		if (rrdev) {
@@ -698,6 +704,9 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			rbi->bi_io_vec[0].bv_offset = 0;
 			rbi->bi_size = STRIPE_SIZE;
 			rbi->bi_next = NULL;
+			trace_block_bio_remap(bdev_get_queue(rbi->bi_bdev),
+					      rbi, disk_devt(conf->mddev->gendisk),
+					      sh->dev[i].sector);
 			generic_make_request(rbi);
 		}
 		if (!rdev && !rrdev) {
@@ -1576,7 +1585,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	 * This happens in stages:
 	 * 1/ create a new kmem_cache and allocate the required number of
 	 *    stripe_heads.
-	 * 2/ gather all the old stripe_heads and tranfer the pages across
+	 * 2/ gather all the old stripe_heads and transfer the pages across
 	 *    to the new stripe_heads.  This will have the side effect of
 	 *    freezing the array as once all stripe_heads have been collected,
 	 *    no IO will be possible.  Old stripe heads are freed once their
@@ -1646,8 +1655,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		spin_lock_irq(&conf->device_lock);
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    !list_empty(&conf->inactive_list),
-				    conf->device_lock,
-				    );
+				    conf->device_lock);
 		osh = get_free_stripe(conf);
 		spin_unlock_irq(&conf->device_lock);
 		atomic_set(&nsh->count, 1);
@@ -2855,8 +2863,10 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 	pr_debug("for sector %llu, rmw=%d rcw=%d\n",
 		(unsigned long long)sh->sector, rmw, rcw);
 	set_bit(STRIPE_HANDLE, &sh->state);
-	if (rmw < rcw && rmw > 0)
+	if (rmw < rcw && rmw > 0) {
 		/* prefer read-modify-write, but need to get some data */
+		blk_add_trace_msg(conf->mddev->queue, "raid5 rmw %llu %d",
+				  (unsigned long long)sh->sector, rmw);
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 			if ((dev->towrite || i == sh->pd_idx) &&
@@ -2867,7 +2877,7 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 				if (
 				  test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
 					pr_debug("Read_old block "
-						"%d for r-m-w\n", i);
+						 "%d for r-m-w\n", i);
 					set_bit(R5_LOCKED, &dev->flags);
 					set_bit(R5_Wantread, &dev->flags);
 					s->locked++;
@@ -2877,8 +2887,10 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 				}
 			}
 		}
+	}
 	if (rcw <= rmw && rcw > 0) {
 		/* want reconstruct write, but need to get some data */
+		int qread =0;
 		rcw = 0;
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
@@ -2897,12 +2909,17 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 					set_bit(R5_LOCKED, &dev->flags);
 					set_bit(R5_Wantread, &dev->flags);
 					s->locked++;
+					qread++;
 				} else {
 					set_bit(STRIPE_DELAYED, &sh->state);
 					set_bit(STRIPE_HANDLE, &sh->state);
 				}
 			}
 		}
+		if (rcw)
+			blk_add_trace_msg(conf->mddev->queue, "raid5 rcw %llu %d %d %d",
+					  (unsigned long long)sh->sector,
+					  rcw, qread, test_bit(STRIPE_DELAYED, &sh->state));
 	}
 	/* now if nothing is locked, and if we have enough data,
 	 * we can start a write request
@@ -3224,10 +3241,7 @@ static void handle_stripe_expansion(struct r5conf *conf, struct stripe_head *sh)
 
 		}
 	/* done submitting copies, wait for them to complete */
-	if (tx) {
-		async_tx_ack(tx);
-		dma_wait_for_async_tx(tx);
-	}
+	async_tx_quiesce(&tx);
 }
 
 /*
@@ -3903,6 +3917,8 @@ static void raid5_align_endio(struct bio *bi, int error)
 	rdev_dec_pending(rdev, conf->mddev);
 
 	if (!error && uptodate) {
+		trace_block_bio_complete(bdev_get_queue(raid_bi->bi_bdev),
+					 raid_bi, 0);
 		bio_endio(raid_bi, 0);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_stripe);
@@ -4003,10 +4019,13 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 		spin_lock_irq(&conf->device_lock);
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    conf->quiesce == 0,
-				    conf->device_lock, /* nothing */);
+				    conf->device_lock);
 		atomic_inc(&conf->active_aligned_reads);
 		spin_unlock_irq(&conf->device_lock);
 
+		trace_block_bio_remap(bdev_get_queue(align_bi->bi_bdev),
+				      align_bi, disk_devt(mddev->gendisk),
+				      raid_bio->bi_sector);
 		generic_make_request(align_bi);
 		return 1;
 	} else {
@@ -4081,6 +4100,7 @@ static void raid5_unplug(struct blk_plug_cb *blk_cb, bool from_schedule)
 	struct stripe_head *sh;
 	struct mddev *mddev = cb->cb.data;
 	struct r5conf *conf = mddev->private;
+	int cnt = 0;
 
 	if (cb->list.next && !list_empty(&cb->list)) {
 		spin_lock_irq(&conf->device_lock);
@@ -4095,9 +4115,11 @@ static void raid5_unplug(struct blk_plug_cb *blk_cb, bool from_schedule)
 			smp_mb__before_clear_bit();
 			clear_bit(STRIPE_ON_UNPLUG_LIST, &sh->state);
 			__release_stripe(conf, sh);
+			cnt++;
 		}
 		spin_unlock_irq(&conf->device_lock);
 	}
+	trace_block_unplug(mddev->queue, cnt, !from_schedule);
 	kfree(cb);
 }
 
@@ -4355,6 +4377,8 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 		if ( rw == WRITE )
 			md_write_end(mddev);
 
+		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
+					 bi, 0);
 		bio_endio(bi, 0);
 	}
 }
@@ -4731,8 +4755,11 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 		handled++;
 	}
 	remaining = raid5_dec_bi_active_stripes(raid_bio);
-	if (remaining == 0)
+	if (remaining == 0) {
+		trace_block_bio_complete(bdev_get_queue(raid_bio->bi_bdev),
+					 raid_bio, 0);
 		bio_endio(raid_bio, 0);
+	}
 	if (atomic_dec_and_test(&conf->active_aligned_reads))
 		wake_up(&conf->wait_for_stripe);
 	return handled;
@@ -6095,7 +6122,7 @@ static void raid5_quiesce(struct mddev *mddev, int state)
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    atomic_read(&conf->active_stripes) == 0 &&
 				    atomic_read(&conf->active_aligned_reads) == 0,
-				    conf->device_lock, /* nothing */);
+				    conf->device_lock);
 		conf->quiesce = 1;
 		spin_unlock_irq(&conf->device_lock);
 		/* allow reshape to continue */

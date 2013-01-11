@@ -19,7 +19,7 @@
 
 #include "omap_drv.h"
 
-#include "drm_mode.h"
+#include <drm/drm_mode.h>
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
@@ -114,7 +114,7 @@ static void omap_crtc_load_lut(struct drm_crtc *crtc)
 
 static void vblank_cb(void *arg)
 {
-	static uint32_t sequence = 0;
+	static uint32_t sequence;
 	struct drm_crtc *crtc = arg;
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -263,8 +263,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	return crtc;
 
 fail:
-	if (crtc) {
+	if (crtc)
 		omap_crtc_destroy(crtc);
-	}
+
 	return NULL;
 }

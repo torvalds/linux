@@ -269,7 +269,7 @@ static struct snd_soc_card poodle = {
 	.num_dapm_routes = ARRAY_SIZE(poodle_audio_map),
 };
 
-static int __devinit poodle_probe(struct platform_device *pdev)
+static int poodle_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &poodle;
 	int ret;
@@ -291,7 +291,7 @@ static int __devinit poodle_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit poodle_remove(struct platform_device *pdev)
+static int poodle_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -305,7 +305,7 @@ static struct platform_driver poodle_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= poodle_probe,
-	.remove		= __devexit_p(poodle_remove),
+	.remove		= poodle_remove,
 };
 
 module_platform_driver(poodle_driver);

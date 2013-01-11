@@ -308,7 +308,7 @@ static void wait(void)
  * Read board id and convert to string.
  * Effectively same code as decode_eisa_sig
  */
-static __devinit const char *hp100_read_id(int ioaddr)
+static const char *hp100_read_id(int ioaddr)
 {
 	int i;
 	static char str[HP100_SIG_LEN];
@@ -447,8 +447,8 @@ static const struct net_device_ops hp100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
-				  u_char bus, struct pci_dev *pci_dev)
+static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
+			struct pci_dev *pci_dev)
 {
 	int i;
 	int err = -ENODEV;
@@ -2866,7 +2866,7 @@ static int __init hp100_eisa_probe (struct device *gendev)
 	return err;
 }
 
-static int __devexit hp100_eisa_remove (struct device *gendev)
+static int hp100_eisa_remove(struct device *gendev)
 {
 	struct net_device *dev = dev_get_drvdata(gendev);
 	cleanup_dev(dev);
@@ -2878,14 +2878,14 @@ static struct eisa_driver hp100_eisa_driver = {
         .driver   = {
                 .name    = "hp100",
                 .probe   = hp100_eisa_probe,
-                .remove  = __devexit_p (hp100_eisa_remove),
+		.remove  = hp100_eisa_remove,
         }
 };
 #endif
 
 #ifdef CONFIG_PCI
-static int __devinit hp100_pci_probe (struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int hp100_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	int ioaddr;
@@ -2937,7 +2937,7 @@ static int __devinit hp100_pci_probe (struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit hp100_pci_remove (struct pci_dev *pdev)
+static void hp100_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -2950,7 +2950,7 @@ static struct pci_driver hp100_pci_driver = {
 	.name		= "hp100",
 	.id_table	= hp100_pci_tbl,
 	.probe		= hp100_pci_probe,
-	.remove		= __devexit_p(hp100_pci_remove),
+	.remove		= hp100_pci_remove,
 };
 #endif
 

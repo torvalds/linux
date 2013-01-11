@@ -484,7 +484,7 @@ static void smp_core99_give_timebase(void)
 }
 
 
-static void __devinit smp_core99_take_timebase(void)
+static void smp_core99_take_timebase(void)
 {
 	unsigned long flags;
 
@@ -669,7 +669,7 @@ static void smp_core99_gpio_tb_freeze(int freeze)
 volatile static long int core99_l2_cache;
 volatile static long int core99_l3_cache;
 
-static void __devinit core99_init_caches(int cpu)
+static void core99_init_caches(int cpu)
 {
 #ifndef CONFIG_PPC64
 	if (!cpu_has_feature(CPU_FTR_L2CR))
@@ -801,7 +801,7 @@ static int __init smp_core99_probe(void)
 	return ncpus;
 }
 
-static int __devinit smp_core99_kick_cpu(int nr)
+static int smp_core99_kick_cpu(int nr)
 {
 	unsigned int save_vector;
 	unsigned long target, flags;
@@ -844,7 +844,7 @@ static int __devinit smp_core99_kick_cpu(int nr)
 	return 0;
 }
 
-static void __devinit smp_core99_setup_cpu(int cpu_nr)
+static void smp_core99_setup_cpu(int cpu_nr)
 {
 	/* Setup L2/L3 */
 	if (cpu_nr != 0)

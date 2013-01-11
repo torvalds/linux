@@ -32,6 +32,8 @@
 #define PT_TRACE_EXIT		PT_EVENT_FLAG(PTRACE_EVENT_EXIT)
 #define PT_TRACE_SECCOMP	PT_EVENT_FLAG(PTRACE_EVENT_SECCOMP)
 
+#define PT_EXITKILL		(PTRACE_O_EXITKILL << PT_OPT_FLAG_SHIFT)
+
 /* single stepping state bits (used on ARM and PA-RISC) */
 #define PT_SINGLESTEP_BIT	31
 #define PT_SINGLESTEP		(1<<PT_SINGLESTEP_BIT)
@@ -327,6 +329,23 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 
 #ifndef current_pt_regs
 #define current_pt_regs() task_pt_regs(current)
+#endif
+
+#ifndef ptrace_signal_deliver
+#define ptrace_signal_deliver() ((void)0)
+#endif
+
+/*
+ * unlike current_pt_regs(), this one is equal to task_pt_regs(current)
+ * on *all* architectures; the only reason to have a per-arch definition
+ * is optimisation.
+ */
+#ifndef signal_pt_regs
+#define signal_pt_regs() task_pt_regs(current)
+#endif
+
+#ifndef current_user_stack_pointer
+#define current_user_stack_pointer() user_stack_pointer(current_pt_regs())
 #endif
 
 extern int task_current_syscall(struct task_struct *target, long *callno,

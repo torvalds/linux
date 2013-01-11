@@ -100,7 +100,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto out;
 	}
 again:
-	dst_release(&rt->dst);
+	ip6_rt_put(rt);
 	rt = NULL;
 	goto out;
 

@@ -480,7 +480,7 @@ A partial list of the supported mount options follows:
 		Unicode on the wire.
  nomapchars     Do not translate any of these seven characters (default).
  nocase         Request case insensitive path name matching (case
-		sensitive is the default if the server suports it).
+		sensitive is the default if the server supports it).
 		(mount option "ignorecase" is identical to "nocase")
  posixpaths     If CIFS Unix extensions are supported, attempt to
 		negotiate posix path name support which allows certain

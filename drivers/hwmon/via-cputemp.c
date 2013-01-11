@@ -121,7 +121,7 @@ static const struct attribute_group via_cputemp_group = {
 /* Optional attributes */
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_cpu_vid, NULL);
 
-static int __devinit via_cputemp_probe(struct platform_device *pdev)
+static int via_cputemp_probe(struct platform_device *pdev)
 {
 	struct via_cputemp_data *data;
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
@@ -192,7 +192,7 @@ exit_remove:
 	return err;
 }
 
-static int __devexit via_cputemp_remove(struct platform_device *pdev)
+static int via_cputemp_remove(struct platform_device *pdev)
 {
 	struct via_cputemp_data *data = platform_get_drvdata(pdev);
 
@@ -209,7 +209,7 @@ static struct platform_driver via_cputemp_driver = {
 		.name = DRVNAME,
 	},
 	.probe = via_cputemp_probe,
-	.remove = __devexit_p(via_cputemp_remove),
+	.remove = via_cputemp_remove,
 };
 
 struct pdev_entry {

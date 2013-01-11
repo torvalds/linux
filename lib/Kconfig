@@ -42,6 +42,9 @@ config GENERIC_IO
 config STMP_DEVICE
 	bool
 
+config PERCPU_RWSEM
+	boolean
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

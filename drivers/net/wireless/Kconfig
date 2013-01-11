@@ -156,11 +156,7 @@ config PRISM54
 	---help---
 	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
 	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
-	  p54pci supports FullMAC PCI/Cardbus devices as well. For details on
-	  the scheduled removal of this driver on the kernel see the feature
-	  removal schedule:
-
-	  Documentation/feature-removal-schedule.txt
+	  p54pci supports FullMAC PCI/Cardbus devices as well.
 
 	  For more information refer to the p54 wiki:
 

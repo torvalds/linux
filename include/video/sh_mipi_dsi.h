@@ -25,8 +25,6 @@ enum sh_mipi_dsi_data_fmt {
 	MIPI_YUV420,
 };
 
-struct sh_mobile_lcdc_chan_cfg;
-
 #define SH_MIPI_DSI_HSABM	(1 << 0)
 #define SH_MIPI_DSI_HBPBM	(1 << 1)
 #define SH_MIPI_DSI_HFPBM	(1 << 2)
@@ -47,7 +45,7 @@ struct sh_mobile_lcdc_chan_cfg;
 
 struct sh_mipi_dsi_info {
 	enum sh_mipi_dsi_data_fmt	data_format;
-	struct sh_mobile_lcdc_chan_cfg	*lcd_chan;
+	int				channel;
 	int				lane;
 	unsigned long			flags;
 	u32				clksrc;
