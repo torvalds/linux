@@ -32,6 +32,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/abx500/ab8500-gpadc.h>
+#include <linux/kernel.h>
 
 #define MILLI_TO_MICRO			1000
 #define FG_LSB_IN_MA			1627
@@ -1158,7 +1159,7 @@ static int ab8500_fg_capacity_level(struct ab8500_fg *di)
 {
 	int ret, percent;
 
-	percent = di->bat_cap.permille / 10;
+	percent = DIV_ROUND_CLOSEST(di->bat_cap.permille, 10);
 
 	if (percent <= di->bm->cap_levels->critical ||
 		di->flags.low_bat)
@@ -1279,6 +1280,7 @@ static void ab8500_fg_update_cap_scalers(struct ab8500_fg *di)
 static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 {
 	bool changed = false;
+	int percent = DIV_ROUND_CLOSEST(di->bat_cap.permille, 10);
 
 	di->bat_cap.level = ab8500_fg_capacity_level(di);
 
@@ -1310,6 +1312,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 		dev_dbg(di->dev, "Battery low, set capacity to 0\n");
 		di->bat_cap.prev_percent = 0;
 		di->bat_cap.permille = 0;
+		percent = 0;
 		di->bat_cap.prev_mah = 0;
 		di->bat_cap.mah = 0;
 		changed = true;
@@ -1319,7 +1322,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 		 * and show 100% during maintenance charging (scaling).
 		 */
 		if (di->flags.force_full) {
-			di->bat_cap.prev_percent = di->bat_cap.permille / 10;
+			di->bat_cap.prev_percent = percent;
 			di->bat_cap.prev_mah = di->bat_cap.mah;
 
 			changed = true;
@@ -1332,19 +1335,18 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 						di->bat_cap.prev_percent;
 				di->bat_cap.cap_scale.disable_cap_level = 100;
 			}
-		} else if ( di->bat_cap.prev_percent !=
-			(di->bat_cap.permille) / 10) {
+		} else if (di->bat_cap.prev_percent != percent) {
 			dev_dbg(di->dev,
 				"battery reported full "
 				"but capacity dropping: %d\n",
-				di->bat_cap.permille / 10);
-			di->bat_cap.prev_percent = di->bat_cap.permille / 10;
+				percent);
+			di->bat_cap.prev_percent = percent;
 			di->bat_cap.prev_mah = di->bat_cap.mah;
 
 			changed = true;
 		}
-	} else if (di->bat_cap.prev_percent != di->bat_cap.permille / 10) {
-		if (di->bat_cap.permille / 10 == 0) {
+	} else if (di->bat_cap.prev_percent != percent) {
+		if (percent == 0) {
 			/*
 			 * We will not report 0% unless we've got
 			 * the LOW_BAT IRQ, no matter what the FG
@@ -1354,11 +1356,11 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 			di->bat_cap.permille = 1;
 			di->bat_cap.prev_mah = 1;
 			di->bat_cap.mah = 1;
+			percent = 1;
 
 			changed = true;
 		} else if (!(!di->flags.charging &&
-			(di->bat_cap.permille / 10) >
-			di->bat_cap.prev_percent) || init) {
+			percent > di->bat_cap.prev_percent) || init) {
 			/*
 			 * We do not allow reported capacity to go up
 			 * unless we're charging or if we're in init
@@ -1366,9 +1368,9 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 			dev_dbg(di->dev,
 				"capacity changed from %d to %d (%d)\n",
 				di->bat_cap.prev_percent,
-				di->bat_cap.permille / 10,
+				percent,
 				di->bat_cap.permille);
-			di->bat_cap.prev_percent = di->bat_cap.permille / 10;
+			di->bat_cap.prev_percent = percent;
 			di->bat_cap.prev_mah = di->bat_cap.mah;
 
 			changed = true;
@@ -1376,7 +1378,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 			dev_dbg(di->dev, "capacity not allowed to go up since "
 				"no charger is connected: %d to %d (%d)\n",
 				di->bat_cap.prev_percent,
-				di->bat_cap.permille / 10,
+				percent,
 				di->bat_cap.permille);
 		}
 	}
