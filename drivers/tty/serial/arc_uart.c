@@ -533,7 +533,12 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 
 	plat_data = ((unsigned long *)(pdev->dev.platform_data));
-	uart->baud = plat_data[0];
+	if (!plat_data)
+		return -ENODEV;
+
+	uart->is_emulated = !!plat_data[0];	/* workaround ISS bug */
+	uart->port.uartclk = plat_data[1];
+	uart->baud = plat_data[2];
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -556,7 +561,6 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 	uart->port.line = dev_id;
 	uart->port.ops = &arc_serial_pops;
 
-	uart->port.uartclk = plat_data[1];
 	uart->port.fifosize = ARC_UART_TX_FIFO_SIZE;
 
 	/*
@@ -564,9 +568,6 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 	 * char or not. Explicitly setting it here, removes the subtelty
 	 */
 	uart->port.ignore_status_mask = 0;
-
-	/* Real Hardware vs. emulated to work around a bug */
-	uart->is_emulated = !!plat_data[2];
 
 	return 0;
 }
