@@ -409,7 +409,7 @@ struct ipr_config_table_entry64 {
 	__be64 dev_id;
 	__be64 lun;
 	__be64 lun_wwn[2];
-#define IPR_MAX_RES_PATH_LENGTH		24
+#define IPR_MAX_RES_PATH_LENGTH		48
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];
@@ -1722,7 +1722,8 @@ struct ipr_ucode_image_header {
 	if (ipr_is_device(hostrcb)) {					\
 		if ((hostrcb)->ioa_cfg->sis64) {			\
 			printk(KERN_ERR IPR_NAME ": %s: " fmt, 		\
-				ipr_format_res_path(hostrcb->hcam.u.error64.fd_res_path, \
+				ipr_format_res_path(hostrcb->ioa_cfg,	\
+					hostrcb->hcam.u.error64.fd_res_path, \
 					hostrcb->rp_buffer,		\
 					sizeof(hostrcb->rp_buffer)),	\
 				__VA_ARGS__);				\
