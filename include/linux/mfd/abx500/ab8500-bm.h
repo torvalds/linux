@@ -431,11 +431,18 @@ struct ab8500_fg *ab8500_fg_get(void);
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *dev);
 int ab8500_fg_inst_curr_start(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res);
+int ab8500_fg_inst_curr_started(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di);
 
 #else
+int ab8500_fg_inst_curr_started(struct ab8500_fg *di)
+{
+	return 0;
+}
+
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di)
 {
+	return 0;
 }
 static void ab8500_fg_reinit(void)
 {

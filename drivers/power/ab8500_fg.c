@@ -160,6 +160,7 @@ struct inst_curr_result_list {
  * @recovery_cnt:	Counter for recovery mode
  * @high_curr_cnt:	Counter for high current mode
  * @init_cnt:		Counter for init mode
+ * @nbr_cceoc_irq_cnt	Counter for number of CCEOC irqs received since enabled
  * @recovery_needed:	Indicate if recovery is needed
  * @high_curr_mode:	Indicate if we're in high current mode
  * @init_capacity:	Indicate if initial capacity measuring should be done
@@ -167,6 +168,7 @@ struct inst_curr_result_list {
  * @calib_state		State during offset calibration
  * @discharge_state:	Current discharge state
  * @charge_state:	Current charge state
+ * @ab8500_fg_started	Completion struct used for the instant current start
  * @ab8500_fg_complete	Completion struct used for the instant current reading
  * @flags:		Structure for information about events triggered
  * @bat_cap:		Structure for battery capacity specific parameters
@@ -199,6 +201,7 @@ struct ab8500_fg {
 	int recovery_cnt;
 	int high_curr_cnt;
 	int init_cnt;
+	int nbr_cceoc_irq_cnt;
 	bool recovery_needed;
 	bool high_curr_mode;
 	bool init_capacity;
@@ -206,6 +209,7 @@ struct ab8500_fg {
 	enum ab8500_fg_calibration_state calib_state;
 	enum ab8500_fg_discharge_state discharge_state;
 	enum ab8500_fg_charge_state charge_state;
+	struct completion ab8500_fg_started;
 	struct completion ab8500_fg_complete;
 	struct ab8500_fg_flags flags;
 	struct ab8500_fg_battery_capacity bat_cap;
@@ -524,13 +528,14 @@ cc_err:
  * Note: This is part "one" and has to be called before
  * ab8500_fg_inst_curr_finalize()
  */
- int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
+int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
 {
 	u8 reg_val;
 	int ret;
 
 	mutex_lock(&di->cc_lock);
 
+	di->nbr_cceoc_irq_cnt = 0;
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 		AB8500_RTC_CC_CONF_REG, &reg_val);
 	if (ret < 0)
@@ -558,6 +563,7 @@ cc_err:
 	}
 
 	/* Return and WFI */
+	INIT_COMPLETION(di->ab8500_fg_started);
 	INIT_COMPLETION(di->ab8500_fg_complete);
 	enable_irq(di->irq);
 
@@ -566,6 +572,17 @@ cc_err:
 fail:
 	mutex_unlock(&di->cc_lock);
 	return ret;
+}
+
+/**
+ * ab8500_fg_inst_curr_started() - check if fg conversion has started
+ * @di:         pointer to the ab8500_fg structure
+ *
+ * Returns 1 if conversion started, 0 if still waiting
+ */
+int ab8500_fg_inst_curr_started(struct ab8500_fg *di)
+{
+	return completion_done(&di->ab8500_fg_started);
 }
 
 /**
@@ -596,13 +613,15 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	int timeout;
 
 	if (!completion_done(&di->ab8500_fg_complete)) {
-		timeout = wait_for_completion_timeout(&di->ab8500_fg_complete,
+		timeout = wait_for_completion_timeout(
+			&di->ab8500_fg_complete,
 			INS_CURR_TIMEOUT);
 		dev_dbg(di->dev, "Finalize time: %d ms\n",
 			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
 		if (!timeout) {
 			ret = -ETIME;
 			disable_irq(di->irq);
+			di->nbr_cceoc_irq_cnt = 0;
 			dev_err(di->dev, "completion timed out [%d]\n",
 				__LINE__);
 			goto fail;
@@ -610,6 +629,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	}
 
 	disable_irq(di->irq);
+	di->nbr_cceoc_irq_cnt = 0;
 
 	ret = abx500_mask_and_set_register_interruptible(di->dev,
 			AB8500_GAS_GAUGE, AB8500_GASG_CC_CTRL_REG,
@@ -684,6 +704,7 @@ fail:
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 {
 	int ret;
+	int timeout;
 	int res = 0;
 
 	ret = ab8500_fg_inst_curr_start(di);
@@ -692,13 +713,32 @@ int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 		return 0;
 	}
 
+	/* Wait for CC to actually start */
+	if (!completion_done(&di->ab8500_fg_started)) {
+		timeout = wait_for_completion_timeout(
+			&di->ab8500_fg_started,
+			INS_CURR_TIMEOUT);
+		dev_dbg(di->dev, "Start time: %d ms\n",
+			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
+		if (!timeout) {
+			ret = -ETIME;
+			dev_err(di->dev, "completion timed out [%d]\n",
+				__LINE__);
+			goto fail;
+		}
+	}
+
 	ret = ab8500_fg_inst_curr_finalize(di, &res);
 	if (ret) {
 		dev_err(di->dev, "Failed to finalize fg_inst\n");
 		return 0;
 	}
 
+	dev_dbg(di->dev, "%s instant current: %d", __func__, res);
 	return res;
+fail:
+	mutex_unlock(&di->cc_lock);
+	return ret;
 }
 
 /**
@@ -1523,8 +1563,6 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 
 	case AB8500_FG_DISCHARGE_WAKEUP:
 		ab8500_fg_coulomb_counter(di, true);
-		di->inst_curr = ab8500_fg_inst_curr_blocking(di);
-
 		ab8500_fg_calc_cap_discharge_voltage(di, true);
 
 		di->fg_samples = SEC_TO_SAMPLE(
@@ -1641,8 +1679,6 @@ static void ab8500_fg_periodic_work(struct work_struct *work)
 		fg_periodic_work.work);
 
 	if (di->init_capacity) {
-		/* A dummy read that will return 0 */
-		di->inst_curr = ab8500_fg_inst_curr_blocking(di);
 		/* Get an initial capacity calculation */
 		ab8500_fg_calc_cap_discharge_voltage(di, true);
 		ab8500_fg_check_capacity_limits(di, true);
@@ -1828,7 +1864,13 @@ static void ab8500_fg_instant_work(struct work_struct *work)
 static irqreturn_t ab8500_fg_cc_data_end_handler(int irq, void *_di)
 {
 	struct ab8500_fg *di = _di;
-	complete(&di->ab8500_fg_complete);
+	if (!di->nbr_cceoc_irq_cnt) {
+		di->nbr_cceoc_irq_cnt++;
+		complete(&di->ab8500_fg_started);
+	} else {
+		di->nbr_cceoc_irq_cnt = 0;
+		complete(&di->ab8500_fg_complete);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -2551,7 +2593,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_samples = SEC_TO_SAMPLE(di->bm->fg_params->init_timer);
 	ab8500_fg_coulomb_counter(di, true);
 
-	/* Initialize completion used to notify completion of inst current */
+	/*
+	 * Initialize completion used to notify completion and start
+	 * of inst current
+	 */
+	init_completion(&di->ab8500_fg_started);
 	init_completion(&di->ab8500_fg_complete);
 
 	/* Register interrupts */
@@ -2571,6 +2617,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	}
 	di->irq = platform_get_irq_byname(pdev, "CCEOC");
 	disable_irq(di->irq);
+	di->nbr_cceoc_irq_cnt = 0;
 
 	platform_set_drvdata(pdev, di);
 

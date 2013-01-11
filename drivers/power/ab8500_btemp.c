@@ -374,13 +374,10 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
 		return ret;
 	}
 
-	/*
-	 * Since there is no interrupt when current measurement is done,
-	 * loop for over 250ms (250ms is one sample conversion time
-	 * with 32.768 Khz RTC clock). Note that a stop time must be set
-	 * since the ab8500_btemp_read_batctrl_voltage call can block and
-	 * take an unknown amount of time to complete.
-	 */
+	do {
+		msleep(20);
+	} while (!ab8500_fg_inst_curr_started(di->fg));
+
 	i = 0;
 
 	do {
