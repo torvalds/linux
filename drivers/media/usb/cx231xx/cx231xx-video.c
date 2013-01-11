@@ -1751,6 +1751,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 							0x02,
 							(u16)reg->reg, 1,
 							value, 1, 2);
+					break;
 			case 0x322:
 					ret =
 						cx231xx_write_i2c_master(dev,
