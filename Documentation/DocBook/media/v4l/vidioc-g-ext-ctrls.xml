@@ -106,7 +106,9 @@ value or if an error is returned.</para>
 &EINVAL;. When the value is out of bounds drivers can choose to take
 the closest valid value or return an &ERANGE;, whatever seems more
 appropriate. In the first case the new value is set in
-&v4l2-ext-control;.</para>
+&v4l2-ext-control;. If the new control value is inappropriate (e.g. the
+given menu index is not supported by the menu control), then this will
+also result in an &EINVAL; error.</para>
 
     <para>The driver will only set/get these controls if all control
 values are correct. This prevents the situation where only some of the
@@ -331,8 +333,10 @@ These controls are described in <xref
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-ext-control; <structfield>id</structfield>
-is invalid or the &v4l2-ext-controls;
-<structfield>ctrl_class</structfield> is invalid. This error code is
+is invalid, the &v4l2-ext-controls;
+<structfield>ctrl_class</structfield> is invalid, or the &v4l2-ext-control;
+<structfield>value</structfield> was inappropriate (e.g. the given menu
+index is not supported by the driver). This error code is
 also returned by the <constant>VIDIOC_S_EXT_CTRLS</constant> and
 <constant>VIDIOC_TRY_EXT_CTRLS</constant> ioctls if two or more
 control values are in conflict.</para>
