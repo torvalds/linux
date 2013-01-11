@@ -770,7 +770,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	i2c_clk = clk_get_sys("tegra-i2c.2", "div-clk");
+	i2c_clk = clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
