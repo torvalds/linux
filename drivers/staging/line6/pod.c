@@ -34,7 +34,9 @@ enum {
 	POD_SYSEX_DUMPMEM   = 0x73,
 	POD_SYSEX_DUMP      = 0x74,
 	POD_SYSEX_DUMPREQ   = 0x75
-	/* POD_SYSEX_DUMPMEM2  = 0x76 */   /* dumps entire internal memory of PODxt Pro */
+
+	/* dumps entire internal memory of PODxt Pro */
+	/* POD_SYSEX_DUMPMEM2  = 0x76 */
 };
 
 enum {
@@ -156,7 +158,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE:
 	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKNOWN:
-		if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) == 0) {
+		if (memcmp(buf + 1, line6_midi_id,
+			   sizeof(line6_midi_id)) == 0) {
 			switch (buf[5]) {
 			case POD_SYSEX_DUMP:
 				break;
