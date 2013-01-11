@@ -1519,6 +1519,12 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	}
 #endif
 
+	/* Demux ID.DRAT & ID.RZAT to determine trim support */
+	if (port->identify[69] & (1 << 14) && port->identify[69] & (1 << 5))
+		port->dd->trim_supp = true;
+	else
+		port->dd->trim_supp = false;
+
 	/* Set the identify buffer as valid. */
 	port->identify_valid = 1;
 
@@ -1702,6 +1708,81 @@ static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
 		rv = -EINVAL;
 	}
 
+	return rv;
+}
+
+/*
+ * Trim unused sectors
+ *
+ * @dd		pointer to driver_data structure
+ * @lba		starting lba
+ * @len		# of 512b sectors to trim
+ *
+ * return value
+ *      -ENOMEM		Out of dma memory
+ *      -EINVAL		Invalid parameters passed in, trim not supported
+ *      -EIO		Error submitting trim request to hw
+ */
+int mtip_send_trim(struct driver_data *dd, unsigned int lba, unsigned int len)
+{
+	int i, rv = 0;
+	u64 tlba, tlen, sect_left;
+	struct mtip_trim_entry *buf;
+	dma_addr_t dma_addr;
+	struct host_to_dev_fis fis;
+
+	if (!len || dd->trim_supp == false)
+		return -EINVAL;
+
+	/* Trim request too big */
+	WARN_ON(len > (MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES));
+
+	/* Trim request not aligned on 4k boundary */
+	WARN_ON(len % 8 != 0);
+
+	/* Warn if vu_trim structure is too big */
+	WARN_ON(sizeof(struct mtip_trim) > ATA_SECT_SIZE);
+
+	/* Allocate a DMA buffer for the trim structure */
+	buf = dmam_alloc_coherent(&dd->pdev->dev, ATA_SECT_SIZE, &dma_addr,
+								GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	memset(buf, 0, ATA_SECT_SIZE);
+
+	for (i = 0, sect_left = len, tlba = lba;
+			i < MTIP_MAX_TRIM_ENTRIES && sect_left;
+			i++) {
+		tlen = (sect_left >= MTIP_MAX_TRIM_ENTRY_LEN ?
+					MTIP_MAX_TRIM_ENTRY_LEN :
+					sect_left);
+		buf[i].lba = __force_bit2int cpu_to_le32(tlba);
+		buf[i].range = __force_bit2int cpu_to_le16(tlen);
+		tlba += tlen;
+		sect_left -= tlen;
+	}
+	WARN_ON(sect_left != 0);
+
+	/* Build the fis */
+	memset(&fis, 0, sizeof(struct host_to_dev_fis));
+	fis.type       = 0x27;
+	fis.opts       = 1 << 7;
+	fis.command    = 0xfb;
+	fis.features   = 0x60;
+	fis.sect_count = 1;
+	fis.device     = ATA_DEVICE_OBS;
+
+	if (mtip_exec_internal_command(dd->port,
+					&fis,
+					5,
+					dma_addr,
+					ATA_SECT_SIZE,
+					0,
+					GFP_KERNEL,
+					MTIP_TRIM_TIMEOUT_MS) < 0)
+		rv = -EIO;
+
+	dmam_free_coherent(&dd->pdev->dev, ATA_SECT_SIZE, buf, dma_addr);
 	return rv;
 }
 
@@ -3675,6 +3756,12 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		}
 	}
 
+	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+		bio_endio(bio, mtip_send_trim(dd, bio->bi_sector,
+						bio_sectors(bio)));
+		return;
+	}
+
 	if (unlikely(!bio_has_data(bio))) {
 		blk_queue_flush(queue, 0);
 		bio_endio(bio, 0);
@@ -3816,6 +3903,15 @@ skip_create_disk:
 	 * write back cache support, hence setting flush support to zero.
 	 */
 	blk_queue_flush(dd->queue, 0);
+
+	/* Signal trim support */
+	if (dd->trim_supp == true) {
+		set_bit(QUEUE_FLAG_DISCARD, &dd->queue->queue_flags);
+		dd->queue->limits.discard_granularity = 4096;
+		blk_queue_max_discard_sectors(dd->queue,
+			MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES);
+		dd->queue->limits.discard_zeroes_data = 0;
+	}
 
 	/* Set the capacity of the device in 512 byte sectors. */
 	if (!(mtip_hw_get_capacity(dd, &capacity))) {
