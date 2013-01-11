@@ -26,12 +26,12 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/clk/tegra.h>
 
 #include "clock.h"
 #include "fuse.h"
 #include "tegra2_emc.h"
 #include "tegra20_clocks.h"
-#include "tegra_cpu_car.h"
 
 /* Clock definitions */
 

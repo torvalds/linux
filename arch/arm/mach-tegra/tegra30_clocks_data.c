@@ -28,11 +28,11 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/clk/tegra.h>
 
 #include "clock.h"
 #include "fuse.h"
 #include "tegra30_clocks.h"
-#include "tegra_cpu_car.h"
 
 #define DEFINE_CLK_TEGRA(_name, _rate, _ops, _flags,		\
 		   _parent_names, _parents, _parent)		\

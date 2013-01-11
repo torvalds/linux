@@ -24,6 +24,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/clockchips.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
@@ -32,7 +33,6 @@
 
 #include "pm.h"
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 #ifdef CONFIG_PM_SLEEP
 static int tegra30_idle_lp2(struct cpuidle_device *dev,

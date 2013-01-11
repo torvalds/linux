@@ -24,6 +24,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
@@ -36,7 +37,6 @@
 #include "reset.h"
 #include "flowctrl.h"
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 #define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
 

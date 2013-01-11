@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/syscore_ops.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/clkdev.h>
 
@@ -36,7 +37,6 @@
 #include "clock.h"
 #include "fuse.h"
 #include "iomap.h"
-#include "tegra_cpu_car.h"
 
 #define USE_PLL_LOCK_BITS 0
 

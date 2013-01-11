@@ -26,10 +26,10 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/clk/tegra.h>
 
 #include "board.h"
 #include "clock.h"
-#include "tegra_cpu_car.h"
 
 /* Global data of Tegra CPU CAR ops */
 struct tegra_cpu_car_ops *tegra_cpu_car_ops;

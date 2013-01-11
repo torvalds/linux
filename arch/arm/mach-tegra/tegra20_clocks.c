@@ -26,12 +26,12 @@
 #include <linux/io.h>
 #include <linux/clkdev.h>
 #include <linux/clk.h>
+#include <linux/clk/tegra.h>
 
 #include "clock.h"
 #include "fuse.h"
 #include "iomap.h"
 #include "tegra2_emc.h"
-#include "tegra_cpu_car.h"
 
 #define RST_DEVICES			0x004
 #define RST_DEVICES_SET			0x300

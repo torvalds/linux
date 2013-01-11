@@ -10,12 +10,12 @@
  */
 #include <linux/kernel.h>
 #include <linux/smp.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 static void (*tegra_hotplug_shutdown)(void);
 
