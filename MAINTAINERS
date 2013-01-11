@@ -7333,7 +7333,7 @@ S:	Odd Fixes
 F:	drivers/staging/speakup/
 
 STAGING - TI DSP BRIDGE DRIVERS
-M:	Omar Ramirez Luna <omar.ramirez@ti.com>
+M:	Omar Ramirez Luna <omar.ramirez@copitl.com>
 S:	Odd Fixes
 F:	drivers/staging/tidspbridge/
 
