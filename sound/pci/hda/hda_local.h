@@ -618,6 +618,7 @@ static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_RECONFIG
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key);
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key);
+int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp);
 #else
 static inline
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
@@ -627,6 +628,12 @@ const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 
 static inline
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
+{
+	return -ENOENT;
+}
+
+static inline
+int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 {
 	return -ENOENT;
 }

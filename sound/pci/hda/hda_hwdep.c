@@ -644,6 +644,26 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_bool_hint);
 
+int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
+{
+	const char *p;
+	unsigned long val;
+	int ret;
+
+	mutex_lock(&codec->user_mutex);
+	p = snd_hda_get_hint(codec, key);
+	if (!p)
+		ret = -ENOENT;
+	else if (strict_strtoul(p, 0, &val))
+		ret = -EINVAL;
+	else {
+		*valp = val;
+		ret = 0;
+	}
+	mutex_unlock(&codec->user_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_int_hint);
 #endif /* CONFIG_SND_HDA_RECONFIG */
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER

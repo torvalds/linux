@@ -4295,24 +4295,10 @@ static void stac92xx_power_down(struct hda_codec *codec)
 static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 				  int enable);
 
-static inline int get_int_hint(struct hda_codec *codec, const char *key,
-			       int *valp)
+static inline bool get_int_hint(struct hda_codec *codec, const char *key,
+				int *valp)
 {
-#ifdef CONFIG_SND_HDA_RECONFIG
-	const char *p;
-	mutex_lock(&codec->user_mutex);
-	p = snd_hda_get_hint(codec, key);
-	if (p) {
-		unsigned long val;
-		if (!strict_strtoul(p, 0, &val)) {
-			*valp = val;
-			mutex_unlock(&codec->user_mutex);
-			return 1;
-		}
-	}
-	mutex_unlock(&codec->user_mutex);
-#endif
-	return 0;
+	return !snd_hda_get_int_hint(codec, key, valp);
 }
 
 /* override some hints from the hwdep entry */
