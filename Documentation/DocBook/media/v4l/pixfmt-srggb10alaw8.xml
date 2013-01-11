@@ -29,6 +29,6 @@
 	    formats with 10 bits per color compressed to 8 bits each,
 	    using the A-LAW algorithm. Each color component consumes 8
 	    bits of memory. In other respects this format is similar to
-	    <xref linkend="V4L2-PIX-FMT-SRGGB8">.</xref></para>
+	    <xref linkend="V4L2-PIX-FMT-SRGGB8"></xref>.</para>
 	  </refsect1>
 	</refentry>

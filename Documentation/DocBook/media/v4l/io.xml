@@ -477,7 +477,7 @@ rest should be evident.</para>
 
     <note>
       <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
+      <para>This is an <link linkend="experimental">experimental</link>
       interface and may change in the future.</para>
     </note>
 
@@ -488,7 +488,7 @@ DMA buffer from userspace using a file descriptor previously exported for a
 different or the same device (known as the importer role), or both. This
 section describes the DMABUF importer role API in V4L2.</para>
 
-    <para>Refer to <link linked="vidioc-expbuf"> DMABUF exporting </link> for
+    <para>Refer to <link linkend="vidioc-expbuf">DMABUF exporting</link> for
 details about exporting V4L2 buffers as DMABUF file descriptors.</para>
 
 <para>Input and output devices support the streaming I/O method when the
