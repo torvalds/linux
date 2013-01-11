@@ -3888,7 +3888,12 @@ static int mtip_block_remove(struct driver_data *dd)
 	 * Delete our gendisk structure. This also removes the device
 	 * from /dev
 	 */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
@@ -3922,7 +3927,13 @@ static int mtip_block_shutdown(struct driver_data *dd)
 		"Shutting down %s ...\n", dd->disk->disk_name);
 
 	/* Delete our gendisk structure, and cleanup the blk queue. */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
+
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
