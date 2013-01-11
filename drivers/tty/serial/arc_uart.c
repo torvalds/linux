@@ -37,6 +37,8 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 /*************************************
  * ARC UART Hardware Specs
@@ -537,8 +539,26 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 		return -ENODEV;
 
 	uart->is_emulated = !!plat_data[0];	/* workaround ISS bug */
-	uart->port.uartclk = plat_data[1];
-	uart->baud = plat_data[2];
+
+	if (is_early_platform_device(pdev)) {
+		uart->port.uartclk = plat_data[1];
+		uart->baud = plat_data[2];
+	} else {
+		struct device_node *np = pdev->dev.of_node;
+		u32 val;
+
+		if (of_property_read_u32(np, "clock-frequency", &val)) {
+			dev_err(&pdev->dev, "clock-frequency property NOTset\n");
+			return -EINVAL;
+		}
+		uart->port.uartclk = val;
+
+		if (of_property_read_u32(np, "baud", &val)) {
+			dev_err(&pdev->dev, "baud property NOT set\n");
+			return -EINVAL;
+		}
+		uart->baud = val;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -673,8 +693,18 @@ static int __init arc_serial_probe_earlyprintk(struct platform_device *pdev)
 static int arc_serial_probe(struct platform_device *pdev)
 {
 	int rc, dev_id;
+	struct device_node *np = pdev->dev.of_node;
 
-	dev_id = pdev->id < 0 ? 0 : pdev->id;
+	/* no device tree device */
+	if (!np)
+		return -ENODEV;
+
+	dev_id = of_alias_get_id(np, "serial");
+	if (dev_id < 0) {
+		dev_err(&pdev->dev, "failed to get alias id: %d\n", dev_id);
+		return dev_id;
+	}
+
 	rc = arc_uart_init_one(pdev, dev_id);
 	if (rc)
 		return rc;
@@ -689,12 +719,19 @@ static int arc_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id arc_uart_dt_ids[] = {
+	{ .compatible = "snps,arc-uart" },
+	{ /* Sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, arc_uart_dt_ids);
+
 static struct platform_driver arc_platform_driver = {
 	.probe = arc_serial_probe,
 	.remove = arc_serial_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table  = arc_uart_dt_ids,
 	 },
 };
 
