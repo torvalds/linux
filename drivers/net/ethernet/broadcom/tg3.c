@@ -13726,8 +13726,10 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 		switch (nvmpinstrp) {
 		case FLASH_5762_EEPROM_HD:
 			nvmpinstrp = FLASH_5720_EEPROM_HD;
+			break;
 		case FLASH_5762_EEPROM_LD:
 			nvmpinstrp = FLASH_5720_EEPROM_LD;
+			break;
 		}
 	}
 
