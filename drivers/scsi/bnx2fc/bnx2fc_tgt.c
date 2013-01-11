@@ -381,7 +381,9 @@ static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 	tgt->rq_cons_idx = 0;
 	atomic_set(&tgt->num_active_ios, 0);
 
-	if (rdata->flags & FC_RP_FLAGS_RETRY) {
+	if (rdata->flags & FC_RP_FLAGS_RETRY &&
+	    rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET &&
+	    !(rdata->ids.roles & FC_RPORT_ROLE_FCP_INITIATOR)) {
 		tgt->dev_type = TYPE_TAPE;
 		tgt->io_timeout = 0; /* use default ULP timeout */
 	} else {
