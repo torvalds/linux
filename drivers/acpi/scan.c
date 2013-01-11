@@ -1593,7 +1593,7 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	if (!acpi_match_device_ids(device, acpi_platform_device_ids)) {
 		/* This is a known good platform device. */
 		acpi_create_platform_device(device);
-	} else if (device_attach(&device->dev)) {
+	} else if (device_attach(&device->dev) < 0) {
 		status = AE_CTRL_DEPTH;
 	}
 	return status;
