@@ -366,7 +366,7 @@ static int __init shpcd_init(void)
 {
 	int retval = 0;
 
-	shpchp_wq = alloc_ordered_workqueue("shpchp", 0);
+	shpchp_wq = alloc_workqueue("shpchp", 0, 0);
 	if (!shpchp_wq)
 		return -ENOMEM;
 
