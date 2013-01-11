@@ -543,7 +543,7 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .type		= V4L2_CTRL_TYPE_INTEGER,
         .name		= "Focus Control",
         .minimum	= 0,
-        .maximum	= 2,
+        .maximum	= 0xff,
         .step		= 1,
         .default_value = 0,
     },
@@ -1307,7 +1307,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 		if (SENSOR_AF_CONTINUOUS == sensor->isp_priv_info.auto_focus) {
 			sensor_af_workqueue_set(icd,0,SENSOR_AF_CONTINUOUS_OFF,true);
 			}
-		if (ext_ctrl->value == 1) {
+		if (ext_ctrl->value == 0xff) {
 			sensor_af_workqueue_set(icd,0,SENSOR_AF_MACRO,true);
 			sensor->isp_priv_info.auto_focus = SENSOR_AF_MACRO;
 		} else if(ext_ctrl->value == 0){
@@ -1331,7 +1331,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 				if (SENSOR_AF_CONTINUOUS == sensor->isp_priv_info.auto_focus) {
 					sensor_af_workqueue_set(icd,0,SENSOR_AF_CONTINUOUS_OFF,true);
 				}
-				if (ext_ctrl->value == 1) {
+				if ((ext_ctrl->value == 1)||(sensor->isp_priv_info.auto_focus == SENSOR_AF_SINGLE)) {
 	                            sensor_af_workqueue_set(icd,0,SENSOR_AF_SINGLE,true);
 					sensor->isp_priv_info.auto_focus = SENSOR_AF_SINGLE;
 				} else if(ext_ctrl->value == 0){
@@ -1371,7 +1371,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 				if (sensor_set_face_detect(client, ext_ctrl->value) != 0)
 					return -EINVAL;
 				sensor->isp_priv_info.face = ext_ctrl->value;
-				SENSOR_DG("%s flash is %x\n",SENSOR_NAME_STRING(), sensor->isp_priv_info.face);
+				SENSOR_DG("%s face value is %x\n",SENSOR_NAME_STRING(), sensor->isp_priv_info.face);
 				}
 			break;
 		}
@@ -1796,7 +1796,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     /* ddl@rock-chips.com : if sensor support auto focus and flash, programer must run focus and flash code  */
 	//qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_AUTO);
 	//if (qctrl)
-		sensor->isp_priv_info.auto_focus = SENSOR_AF_CONTINUOUS_OFF;
+		sensor->isp_priv_info.auto_focus = SENSOR_AF_MODE_CLOSE;
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FACEDETECT);
 	if (qctrl)
 		sensor->isp_priv_info.face = qctrl->default_value;
