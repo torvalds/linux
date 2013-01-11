@@ -294,7 +294,8 @@ static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
-	return fimc_fill_format(frame, f);
+	__fimc_get_format(frame, f);
+	return 0;
 }
 
 static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
@@ -389,8 +390,8 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 	fimc_alpha_ctrl_update(ctx);
 
 	for (i = 0; i < frame->fmt->colplanes; i++) {
-		frame->payload[i] =
-			(pix->width * pix->height * frame->fmt->depth[i]) / 8;
+		frame->bytesperline[i] = pix->plane_fmt[i].bytesperline;
+		frame->payload[i] = pix->plane_fmt[i].sizeimage;
 	}
 
 	fimc_fill_frame(frame, f);

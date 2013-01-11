@@ -950,9 +950,9 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
 				 struct v4l2_format *f)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 
-	return fimc_fill_format(&ctx->d_frame, f);
+	__fimc_get_format(&fimc->vid_cap.ctx->d_frame, f);
+	return 0;
 }
 
 static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
@@ -1074,8 +1074,10 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 			return ret;
 	}
 
-	for (i = 0; i < ff->fmt->memplanes; i++)
+	for (i = 0; i < ff->fmt->memplanes; i++) {
+		ff->bytesperline[i] = pix->plane_fmt[i].bytesperline;
 		ff->payload[i] = pix->plane_fmt[i].sizeimage;
+	}
 
 	set_frame_bounds(ff, pix->width, pix->height);
 	/* Reset the composition rectangle if not yet configured */

@@ -691,7 +691,7 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
 	v4l2_ctrl_unlock(ctrl);
 }
 
-int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
+void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
 	int i;
@@ -704,19 +704,9 @@ int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
 	pixm->num_planes = frame->fmt->memplanes;
 
 	for (i = 0; i < pixm->num_planes; ++i) {
-		int bpl = frame->f_width;
-		if (frame->fmt->colplanes == 1) /* packed formats */
-			bpl = (bpl * frame->fmt->depth[0]) / 8;
-		pixm->plane_fmt[i].bytesperline = bpl;
-
-		if (frame->fmt->flags & FMT_FLAGS_COMPRESSED) {
-			pixm->plane_fmt[i].sizeimage = frame->payload[i];
-			continue;
-		}
-		pixm->plane_fmt[i].sizeimage = (frame->o_width *
-			frame->o_height * frame->fmt->depth[i]) / 8;
+		pixm->plane_fmt[i].bytesperline = frame->bytesperline[i];
+		pixm->plane_fmt[i].sizeimage = frame->payload[i];
 	}
-	return 0;
 }
 
 void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f)
@@ -765,9 +755,16 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 		if (fmt->colplanes == 1 && /* Packed */
 		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
 			bpl = (pix->width * fmt->depth[0]) / 8;
-
-		if (i == 0) /* Same bytesperline for each plane. */
+		/*
+		 * Currently bytesperline for each plane is same, except
+		 * V4L2_PIX_FMT_YUV420M format. This calculation may need
+		 * to be changed when other multi-planar formats are added
+		 * to the fimc_formats[] array.
+		 */
+		if (i == 0)
 			bytesperline = bpl;
+		else if (i == 1 && fmt->memplanes == 3)
+			bytesperline /= 2;
 
 		plane_fmt->bytesperline = bytesperline;
 		plane_fmt->sizeimage = max((pix->width * pix->height *
