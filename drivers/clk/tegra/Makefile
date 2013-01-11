@@ -6,3 +6,5 @@ obj-y					+= clk-periph-gate.o
 obj-y					+= clk-pll.o
 obj-y					+= clk-pll-out.o
 obj-y					+= clk-super.o
+
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += clk-tegra20.o
