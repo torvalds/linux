@@ -35,7 +35,7 @@
 #include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-tegra.h>
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #define SLINK_COMMAND			0x000
 #define SLINK_BIT_LENGTH(x)		(((x) & 0x1f) << 0)

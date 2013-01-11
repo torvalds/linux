@@ -17,6 +17,8 @@
 #ifndef __LINUX_CLK_TEGRA_H_
 #define __LINUX_CLK_TEGRA_H_
 
+#include <linux/clk.h>
+
 /*
  * Tegra CPU clock and reset control ops
  *
@@ -120,5 +122,8 @@ static inline void tegra_cpu_clock_resume(void)
 
 void tegra20_cpu_car_ops_init(void);
 void tegra30_cpu_car_ops_init(void);
+void tegra_periph_reset_deassert(struct clk *c);
+void tegra_periph_reset_assert(struct clk *c);
+void tegra_clocks_init(void);
 
 #endif /* __LINUX_CLK_TEGRA_H_ */

@@ -35,7 +35,6 @@
 #include <asm/hardware/gic.h>
 
 #include "board.h"
-#include "clock.h"
 #include "common.h"
 #include "iomap.h"
 
@@ -67,38 +66,8 @@ static struct of_dev_auxdata tegra30_auxdata_lookup[] __initdata = {
 	{}
 };
 
-static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
-	/* name		parent		rate		enabled */
-	{ "uarta",	"pll_p",	408000000,	true },
-	{ "pll_a",	"pll_p_out1",	564480000,	true },
-	{ "pll_a_out0",	"pll_a",	11289600,	true },
-	{ "extern1",	"pll_a_out0",	0,		true },
-	{ "clk_out_1",	"extern1",	0,		true },
-	{ "blink",	"clk_32k",	32768,		true },
-	{ "i2s0",	"pll_a_out0",	11289600,	false},
-	{ "i2s1",	"pll_a_out0",	11289600,	false},
-	{ "i2s2",	"pll_a_out0",	11289600,	false},
-	{ "i2s3",	"pll_a_out0",	11289600,	false},
-	{ "i2s4",	"pll_a_out0",	11289600,	false},
-	{ "sdmmc1",	"pll_p",	48000000,	false},
-	{ "sdmmc3",	"pll_p",	48000000,	false},
-	{ "sdmmc4",	"pll_p",	48000000,	false},
-	{ "sbc1",	"pll_p",	100000000,	false},
-	{ "sbc2",	"pll_p",	100000000,	false},
-	{ "sbc3",	"pll_p",	100000000,	false},
-	{ "sbc4",	"pll_p",	100000000,	false},
-	{ "sbc5",	"pll_p",	100000000,	false},
-	{ "sbc6",	"pll_p",	100000000,	false},
-	{ "host1x",	"pll_c",	150000000,	false},
-	{ "disp1",	"pll_p",	600000000,	false},
-	{ "disp2",	"pll_p",	600000000,	false},
-	{ NULL,		NULL,		0,		0},
-};
-
 static void __init tegra30_dt_init(void)
 {
-	tegra_clk_init_from_table(tegra_dt_clk_init_table);
-
 	of_platform_populate(NULL, of_default_bus_match_table,
 				tegra30_auxdata_lookup, NULL);
 }

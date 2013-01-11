@@ -37,8 +37,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #include "nvec.h"
 

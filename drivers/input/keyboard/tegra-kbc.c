@@ -30,7 +30,7 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/input/tegra_kbc.h>
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #define KBC_MAX_DEBOUNCE_CNT	0x3ffu
 

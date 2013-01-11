@@ -31,9 +31,6 @@
 #include "board.h"
 #include "clock.h"
 
-/* Global data of Tegra CPU CAR ops */
-struct tegra_cpu_car_ops *tegra_cpu_car_ops;
-
 /*
  * Locking:
  *
@@ -130,22 +127,6 @@ void tegra_clk_init_from_table(struct tegra_clk_init_table *table)
 	for (; table->name; table++)
 		tegra_clk_init_one_from_table(table);
 }
-
-void tegra_periph_reset_deassert(struct clk *c)
-{
-	struct clk_tegra *clk = to_clk_tegra(__clk_get_hw(c));
-	BUG_ON(!clk->reset);
-	clk->reset(__clk_get_hw(c), false);
-}
-EXPORT_SYMBOL(tegra_periph_reset_deassert);
-
-void tegra_periph_reset_assert(struct clk *c)
-{
-	struct clk_tegra *clk = to_clk_tegra(__clk_get_hw(c));
-	BUG_ON(!clk->reset);
-	clk->reset(__clk_get_hw(c), true);
-}
-EXPORT_SYMBOL(tegra_periph_reset_assert);
 
 /* Several extended clock configuration bits (e.g., clock routing, clock
  * phase control) are included in PLL and peripheral clock source

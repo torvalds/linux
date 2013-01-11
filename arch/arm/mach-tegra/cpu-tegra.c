@@ -266,7 +266,7 @@ static int __init tegra_cpufreq_init(void)
 	if (IS_ERR(pll_x_clk))
 		return PTR_ERR(pll_x_clk);
 
-	pll_p_clk = clk_get_sys(NULL, "pll_p");
+	pll_p_clk = clk_get_sys(NULL, "pll_p_cclk");
 	if (IS_ERR(pll_p_clk))
 		return PTR_ERR(pll_p_clk);
 

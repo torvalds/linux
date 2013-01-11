@@ -16,8 +16,13 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/of.h>
+#include <linux/clk/tegra.h>
 
 #include "clk.h"
+
+/* Global data of Tegra CPU CAR ops */
+struct tegra_cpu_car_ops *tegra_cpu_car_ops;
 
 void __init tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 				struct clk *clks[], int clk_max)
@@ -66,4 +71,15 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 				WARN_ON(1);
 			}
 	}
+}
+
+static const struct of_device_id tegra_dt_clk_match[] = {
+	{ .compatible = "nvidia,tegra20-car", .data = tegra20_clock_init },
+	{ .compatible = "nvidia,tegra30-car", .data = tegra30_clock_init },
+	{ }
+};
+
+void __init tegra_clocks_init(void)
+{
+	of_clk_init(tegra_dt_clk_match);
 }

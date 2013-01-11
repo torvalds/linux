@@ -110,6 +110,44 @@ static void clk_periph_disable(struct clk_hw *hw)
 	gate_ops->disable(gate_hw);
 }
 
+void tegra_periph_reset_deassert(struct clk *c)
+{
+	struct clk_hw *hw = __clk_get_hw(c);
+	struct tegra_clk_periph *periph = to_clk_periph(hw);
+	struct tegra_clk_periph_gate *gate;
+
+	if (periph->magic != TEGRA_CLK_PERIPH_MAGIC) {
+		gate = to_clk_periph_gate(hw);
+		if (gate->magic != TEGRA_CLK_PERIPH_GATE_MAGIC) {
+			WARN_ON(1);
+			return;
+		}
+	} else {
+		gate = &periph->gate;
+	}
+
+	tegra_periph_reset(gate, 0);
+}
+
+void tegra_periph_reset_assert(struct clk *c)
+{
+	struct clk_hw *hw = __clk_get_hw(c);
+	struct tegra_clk_periph *periph = to_clk_periph(hw);
+	struct tegra_clk_periph_gate *gate;
+
+	if (periph->magic != TEGRA_CLK_PERIPH_MAGIC) {
+		gate = to_clk_periph_gate(hw);
+		if (gate->magic != TEGRA_CLK_PERIPH_GATE_MAGIC) {
+			WARN_ON(1);
+			return;
+		}
+	} else {
+		gate = &periph->gate;
+	}
+
+	tegra_periph_reset(gate, 1);
+}
+
 const struct clk_ops tegra_clk_periph_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,

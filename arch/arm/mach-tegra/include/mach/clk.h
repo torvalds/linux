@@ -31,9 +31,6 @@ enum tegra_clk_ex_param {
 	TEGRA_CLK_PLLD_MIPI_MUX_SEL,
 };
 
-void tegra_periph_reset_deassert(struct clk *c);
-void tegra_periph_reset_assert(struct clk *c);
-
 #ifndef CONFIG_COMMON_CLK
 unsigned long clk_get_rate_all_locked(struct clk *c);
 #endif
