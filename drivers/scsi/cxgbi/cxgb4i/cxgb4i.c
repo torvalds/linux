@@ -1564,6 +1564,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 		break;
 	case CXGB4_STATE_DETACH:
 		pr_info("cdev 0x%p, DETACH.\n", cdev);
+		cxgbi_device_unregister(cdev);
 		break;
 	default:
 		pr_info("cdev 0x%p, unknown state %d.\n", cdev, state);
