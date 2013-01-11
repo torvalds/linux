@@ -199,11 +199,11 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	case NL80211_CHAN_WIDTH_40:
 		if (sdata->vif.bss_conf.chandef.chan->center_freq >
 				sdata->vif.bss_conf.chandef.center_freq1 &&
-		    chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+		    chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
 			disable_40 = true;
 		if (sdata->vif.bss_conf.chandef.chan->center_freq <
 				sdata->vif.bss_conf.chandef.center_freq1 &&
-		    chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+		    chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
 			disable_40 = true;
 		break;
 	default:
