@@ -745,6 +745,7 @@ int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 	dev_dbg(di->dev, "%s instant current: %d", __func__, res);
 	return res;
 fail:
+	disable_irq(di->irq);
 	mutex_unlock(&di->cc_lock);
 	return ret;
 }
