@@ -1143,7 +1143,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit sh_veu_probe(struct platform_device *pdev)
+static int sh_veu_probe(struct platform_device *pdev)
 {
 	struct sh_veu_dev *veu;
 	struct resource *reg_res;
@@ -1225,7 +1225,7 @@ einitctx:
 	return ret;
 }
 
-static int __devexit sh_veu_remove(struct platform_device *pdev)
+static int sh_veu_remove(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
 	struct sh_veu_dev *veu = container_of(v4l2_dev,
@@ -1241,7 +1241,7 @@ static int __devexit sh_veu_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata sh_veu_pdrv = {
-	.remove		= __devexit_p(sh_veu_remove),
+	.remove		= sh_veu_remove,
 	.driver		= {
 		.name	= "sh_veu",
 		.owner	= THIS_MODULE,
