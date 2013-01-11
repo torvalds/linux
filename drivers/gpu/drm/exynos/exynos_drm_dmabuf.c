@@ -110,6 +110,7 @@ static struct sg_table *
 	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
 	if (!nents) {
 		DRM_ERROR("failed to map sgl with iommu.\n");
+		sg_free_table(sgt);
 		sgt = ERR_PTR(-EIO);
 		goto err_unlock;
 	}
