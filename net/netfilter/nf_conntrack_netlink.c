@@ -961,6 +961,7 @@ ctnetlink_parse_help(const struct nlattr *attr, char **helper_name,
 	return 0;
 }
 
+#define __CTA_LABELS_MAX_LENGTH ((XT_CONNLABEL_MAXBIT + 1) / BITS_PER_BYTE)
 static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_TUPLE_ORIG]	= { .type = NLA_NESTED },
 	[CTA_TUPLE_REPLY]	= { .type = NLA_NESTED },
@@ -977,6 +978,10 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_NAT_SEQ_ADJ_REPLY] = { .type = NLA_NESTED },
 	[CTA_ZONE]		= { .type = NLA_U16 },
 	[CTA_MARK_MASK]		= { .type = NLA_U32 },
+	[CTA_LABELS]		= { .type = NLA_BINARY,
+				    .len = __CTA_LABELS_MAX_LENGTH },
+	[CTA_LABELS_MASK]	= { .type = NLA_BINARY,
+				    .len = __CTA_LABELS_MAX_LENGTH },
 };
 
 static int
@@ -1505,6 +1510,31 @@ ctnetlink_change_nat_seq_adj(struct nf_conn *ct,
 #endif
 
 static int
+ctnetlink_attach_labels(struct nf_conn *ct, const struct nlattr * const cda[])
+{
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	size_t len = nla_len(cda[CTA_LABELS]);
+	const void *mask = cda[CTA_LABELS_MASK];
+
+	if (len & (sizeof(u32)-1)) /* must be multiple of u32 */
+		return -EINVAL;
+
+	if (mask) {
+		if (nla_len(cda[CTA_LABELS_MASK]) == 0 ||
+		    nla_len(cda[CTA_LABELS_MASK]) != len)
+			return -EINVAL;
+		mask = nla_data(cda[CTA_LABELS_MASK]);
+	}
+
+	len /= sizeof(u32);
+
+	return nf_connlabels_replace(ct, nla_data(cda[CTA_LABELS]), mask, len);
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int
 ctnetlink_change_conntrack(struct nf_conn *ct,
 			   const struct nlattr * const cda[])
 {
@@ -1550,6 +1580,11 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 			return err;
 	}
 #endif
+	if (cda[CTA_LABELS]) {
+		err = ctnetlink_attach_labels(ct, cda);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
@@ -1757,6 +1792,10 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 				events = IPCT_RELATED;
 			else
 				events = IPCT_NEW;
+
+			if (cda[CTA_LABELS] &&
+			    ctnetlink_attach_labels(ct, cda) == 0)
+				events |= (1 << IPCT_LABEL);
 
 			nf_conntrack_eventmask_report((1 << IPCT_REPLY) |
 						      (1 << IPCT_ASSURED) |
@@ -2052,6 +2091,11 @@ ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 	}
 	if (cda[CTA_HELP]) {
 		err = ctnetlink_change_helper(ct, cda);
+		if (err < 0)
+			return err;
+	}
+	if (cda[CTA_LABELS]) {
+		err = ctnetlink_attach_labels(ct, cda);
 		if (err < 0)
 			return err;
 	}
