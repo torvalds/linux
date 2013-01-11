@@ -75,7 +75,6 @@ struct twl6040_data {
 	u16 hf_right_step;
 	struct twl6040_jack_data hs_jack;
 	struct snd_soc_codec *codec;
-	struct workqueue_struct *workqueue;
 	struct mutex mutex;
 };
 
@@ -404,8 +403,7 @@ static irqreturn_t twl6040_audio_handler(int irq, void *data)
 	struct snd_soc_codec *codec = data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
-	queue_delayed_work(priv->workqueue, &priv->hs_jack.work,
-			   msecs_to_jiffies(200));
+	schedule_delayed_work(&priv->hs_jack.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1162,10 +1160,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	priv->workqueue = alloc_workqueue("twl6040-codec", 0, 0);
-	if (!priv->workqueue)
-		return -ENOMEM;
-
 	INIT_DELAYED_WORK(&priv->hs_jack.work, twl6040_accessory_work);
 
 	mutex_init(&priv->mutex);
@@ -1175,27 +1169,18 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 					"twl6040_irq_plug", codec);
 	if (ret) {
 		dev_err(codec->dev, "PLUG IRQ request failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	twl6040_init_chip(codec);
 
 	/* power on device */
-	ret = twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	if (!ret)
-		return 0;
-
-err:
-	destroy_workqueue(priv->workqueue);
-	return ret;
+	return twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 }
 
 static int twl6040_remove(struct snd_soc_codec *codec)
 {
-	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-
 	twl6040_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	destroy_workqueue(priv->workqueue);
 
 	return 0;
 }
