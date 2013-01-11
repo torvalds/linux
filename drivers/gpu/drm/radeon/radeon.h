@@ -654,6 +654,8 @@ struct radeon_ring {
 	u32			ptr_reg_mask;
 	u32			nop;
 	u32			idx;
+	u64			last_semaphore_signal_addr;
+	u64			last_semaphore_wait_addr;
 };
 
 /*
