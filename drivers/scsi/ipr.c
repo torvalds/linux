@@ -108,6 +108,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 		.max_cmds = 100,
 		.cache_line_size = 0x20,
 		.clear_isr = 1,
+		.iopoll_weight = 0,
 		{
 			.set_interrupt_mask_reg = 0x0022C,
 			.clr_interrupt_mask_reg = 0x00230,
@@ -132,6 +133,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 		.max_cmds = 100,
 		.cache_line_size = 0x20,
 		.clear_isr = 1,
+		.iopoll_weight = 0,
 		{
 			.set_interrupt_mask_reg = 0x00288,
 			.clr_interrupt_mask_reg = 0x0028C,
@@ -156,6 +158,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 		.max_cmds = 1000,
 		.cache_line_size = 0x20,
 		.clear_isr = 0,
+		.iopoll_weight = 64,
 		{
 			.set_interrupt_mask_reg = 0x00010,
 			.clr_interrupt_mask_reg = 0x00018,
@@ -3560,6 +3563,95 @@ static struct device_attribute ipr_ioa_reset_attr = {
 	.store = ipr_store_reset_adapter
 };
 
+static int ipr_iopoll(struct blk_iopoll *iop, int budget);
+ /**
+ * ipr_show_iopoll_weight - Show ipr polling mode
+ * @dev:	class device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_iopoll_weight(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	unsigned long lock_flags = 0;
+	int len;
+
+	spin_lock_irqsave(shost->host_lock, lock_flags);
+	len = snprintf(buf, PAGE_SIZE, "%d\n", ioa_cfg->iopoll_weight);
+	spin_unlock_irqrestore(shost->host_lock, lock_flags);
+
+	return len;
+}
+
+/**
+ * ipr_store_iopoll_weight - Change the adapter's polling mode
+ * @dev:	class device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_store_iopoll_weight(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	unsigned long user_iopoll_weight;
+	unsigned long lock_flags = 0;
+	int i;
+
+	if (!ioa_cfg->sis64) {
+		dev_info(&ioa_cfg->pdev->dev, "blk-iopoll not supported on this adapter\n");
+		return -EINVAL;
+	}
+	if (kstrtoul(buf, 10, &user_iopoll_weight))
+		return -EINVAL;
+
+	if (user_iopoll_weight > 256) {
+		dev_info(&ioa_cfg->pdev->dev, "Invalid blk-iopoll weight. It must be less than 256\n");
+		return -EINVAL;
+	}
+
+	if (user_iopoll_weight == ioa_cfg->iopoll_weight) {
+		dev_info(&ioa_cfg->pdev->dev, "Current blk-iopoll weight has the same weight\n");
+		return strlen(buf);
+	}
+
+	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
+			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+		for (i = 1; i < ioa_cfg->hrrq_num; i++)
+			blk_iopoll_disable(&ioa_cfg->hrrq[i].iopoll);
+	}
+
+	spin_lock_irqsave(shost->host_lock, lock_flags);
+	ioa_cfg->iopoll_weight = user_iopoll_weight;
+	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
+			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
+			blk_iopoll_init(&ioa_cfg->hrrq[i].iopoll,
+					ioa_cfg->iopoll_weight, ipr_iopoll);
+			blk_iopoll_enable(&ioa_cfg->hrrq[i].iopoll);
+		}
+	}
+	spin_unlock_irqrestore(shost->host_lock, lock_flags);
+
+	return strlen(buf);
+}
+
+static struct device_attribute ipr_iopoll_weight_attr = {
+	.attr = {
+		.name =		"iopoll_weight",
+		.mode =		S_IRUGO | S_IWUSR,
+	},
+	.show = ipr_show_iopoll_weight,
+	.store = ipr_store_iopoll_weight
+};
+
 /**
  * ipr_alloc_ucode_buffer - Allocates a microcode download buffer
  * @buf_len:		buffer length
@@ -3928,6 +4020,7 @@ static struct device_attribute *ipr_ioa_attrs[] = {
 	&ipr_ioa_reset_attr,
 	&ipr_update_fw_attr,
 	&ipr_ioa_fw_type_attr,
+	&ipr_iopoll_weight_attr,
 	NULL,
 };
 
@@ -5218,7 +5311,7 @@ static void ipr_isr_eh(struct ipr_ioa_cfg *ioa_cfg, char *msg, u16 number)
 	ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
 }
 
-static int __ipr_process_hrrq(struct ipr_hrr_queue *hrr_queue,
+static int ipr_process_hrrq(struct ipr_hrr_queue *hrr_queue, int budget,
 						struct list_head *doneq)
 {
 	u32 ioasc;
@@ -5260,9 +5353,41 @@ static int __ipr_process_hrrq(struct ipr_hrr_queue *hrr_queue,
 			hrr_queue->toggle_bit ^= 1u;
 		}
 		num_hrrq++;
+		if (budget > 0 && num_hrrq >= budget)
+			break;
 	}
+
 	return num_hrrq;
 }
+
+static int ipr_iopoll(struct blk_iopoll *iop, int budget)
+{
+	struct ipr_ioa_cfg *ioa_cfg;
+	struct ipr_hrr_queue *hrrq;
+	struct ipr_cmnd *ipr_cmd, *temp;
+	unsigned long hrrq_flags;
+	int completed_ops;
+	LIST_HEAD(doneq);
+
+	hrrq = container_of(iop, struct ipr_hrr_queue, iopoll);
+	ioa_cfg = hrrq->ioa_cfg;
+
+	spin_lock_irqsave(hrrq->lock, hrrq_flags);
+	completed_ops = ipr_process_hrrq(hrrq, budget, &doneq);
+
+	if (completed_ops < budget)
+		blk_iopoll_complete(iop);
+	spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
+
+	list_for_each_entry_safe(ipr_cmd, temp, &doneq, queue) {
+		list_del(&ipr_cmd->queue);
+		del_timer(&ipr_cmd->timer);
+		ipr_cmd->fast_done(ipr_cmd);
+	}
+
+	return completed_ops;
+}
+
 /**
  * ipr_isr - Interrupt service routine
  * @irq:	irq number
@@ -5277,8 +5402,6 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	struct ipr_ioa_cfg *ioa_cfg = hrrq->ioa_cfg;
 	unsigned long hrrq_flags = 0;
 	u32 int_reg = 0;
-	u32 ioasc;
-	u16 cmd_index;
 	int num_hrrq = 0;
 	int irq_none = 0;
 	struct ipr_cmnd *ipr_cmd, *temp;
@@ -5293,60 +5416,30 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	}
 
 	while (1) {
-		ipr_cmd = NULL;
+		if (ipr_process_hrrq(hrrq, -1, &doneq)) {
+			rc =  IRQ_HANDLED;
 
-		while ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
-		       hrrq->toggle_bit) {
+			if (!ioa_cfg->clear_isr)
+				break;
 
-			cmd_index = (be32_to_cpu(*hrrq->hrrq_curr) &
-				     IPR_HRRQ_REQ_RESP_HANDLE_MASK) >> IPR_HRRQ_REQ_RESP_HANDLE_SHIFT;
-
-			if (unlikely(cmd_index > hrrq->max_cmd_id ||
-				     cmd_index < hrrq->min_cmd_id)) {
-				ipr_isr_eh(ioa_cfg,
-					"Invalid response handle from IOA: ",
-					cmd_index);
-				rc = IRQ_HANDLED;
-				goto unlock_out;
-			}
-
-			ipr_cmd = ioa_cfg->ipr_cmnd_list[cmd_index];
-			ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
-
-			ipr_trc_hook(ipr_cmd, IPR_TRACE_FINISH, ioasc);
-
-			list_move_tail(&ipr_cmd->queue, &doneq);
-
-			rc = IRQ_HANDLED;
-
-			if (hrrq->hrrq_curr < hrrq->hrrq_end) {
-				hrrq->hrrq_curr++;
-			} else {
-				hrrq->hrrq_curr = hrrq->hrrq_start;
-				hrrq->toggle_bit ^= 1u;
-			}
-		}
-
-		if (ipr_cmd && !ioa_cfg->clear_isr)
-			break;
-
-		if (ipr_cmd != NULL) {
 			/* Clear the PCI interrupt */
 			num_hrrq = 0;
 			do {
-				writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
+				writel(IPR_PCII_HRRQ_UPDATED,
+				     ioa_cfg->regs.clr_interrupt_reg32);
 				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 			} while (int_reg & IPR_PCII_HRRQ_UPDATED &&
-					num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
+				num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
 
 		} else if (rc == IRQ_NONE && irq_none == 0) {
 			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 			irq_none++;
 		} else if (num_hrrq == IPR_MAX_HRRQ_RETRIES &&
 			   int_reg & IPR_PCII_HRRQ_UPDATED) {
-			ipr_isr_eh(ioa_cfg, "Error clearing HRRQ: ", num_hrrq);
+			ipr_isr_eh(ioa_cfg,
+				"Error clearing HRRQ: ", num_hrrq);
 			rc = IRQ_HANDLED;
-			goto unlock_out;
+			break;
 		} else
 			break;
 	}
@@ -5354,7 +5447,6 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	if (unlikely(rc == IRQ_NONE))
 		rc = ipr_handle_other_interrupt(ioa_cfg, int_reg);
 
-unlock_out:
 	spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
 	list_for_each_entry_safe(ipr_cmd, temp, &doneq, queue) {
 		list_del(&ipr_cmd->queue);
@@ -5375,6 +5467,7 @@ unlock_out:
 static irqreturn_t ipr_isr_mhrrq(int irq, void *devp)
 {
 	struct ipr_hrr_queue *hrrq = (struct ipr_hrr_queue *)devp;
+	struct ipr_ioa_cfg *ioa_cfg = hrrq->ioa_cfg;
 	unsigned long hrrq_flags = 0;
 	struct ipr_cmnd *ipr_cmd, *temp;
 	irqreturn_t rc = IRQ_NONE;
@@ -5388,11 +5481,22 @@ static irqreturn_t ipr_isr_mhrrq(int irq, void *devp)
 		return IRQ_NONE;
 	}
 
-	if ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
-	     hrrq->toggle_bit)
+	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
+			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+		if ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
+		       hrrq->toggle_bit) {
+			if (!blk_iopoll_sched_prep(&hrrq->iopoll))
+				blk_iopoll_sched(&hrrq->iopoll);
+			spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
+			return IRQ_HANDLED;
+		}
+	} else {
+		if ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
+			hrrq->toggle_bit)
 
-		if (__ipr_process_hrrq(hrrq, &doneq))
-			rc =  IRQ_HANDLED;
+			if (ipr_process_hrrq(hrrq, -1, &doneq))
+				rc =  IRQ_HANDLED;
+	}
 
 	spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
 
@@ -9690,7 +9794,7 @@ static void ipr_remove(struct pci_dev *pdev)
 static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
-	int rc;
+	int rc, i;
 
 	rc = ipr_probe_ioa(pdev, dev_id);
 
@@ -9737,6 +9841,17 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	scsi_add_device(ioa_cfg->host, IPR_IOA_BUS, IPR_IOA_TARGET, IPR_IOA_LUN);
 	ioa_cfg->allow_ml_add_del = 1;
 	ioa_cfg->host->max_channel = IPR_VSET_BUS;
+	ioa_cfg->iopoll_weight = ioa_cfg->chip_cfg->iopoll_weight;
+
+	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
+			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
+			blk_iopoll_init(&ioa_cfg->hrrq[i].iopoll,
+					ioa_cfg->iopoll_weight, ipr_iopoll);
+			blk_iopoll_enable(&ioa_cfg->hrrq[i].iopoll);
+		}
+	}
+
 	schedule_work(&ioa_cfg->work_q);
 	return 0;
 }
@@ -9755,8 +9870,16 @@ static void ipr_shutdown(struct pci_dev *pdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 	unsigned long lock_flags = 0;
+	int i;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	if (blk_iopoll_enabled && ioa_cfg->iopoll_weight &&
+			ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
+		ioa_cfg->iopoll_weight = 0;
+		for (i = 1; i < ioa_cfg->hrrq_num; i++)
+			blk_iopoll_disable(&ioa_cfg->hrrq[i].iopoll);
+	}
+
 	while (ioa_cfg->in_reset_reload) {
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);

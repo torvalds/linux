@@ -32,6 +32,7 @@
 #include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/blk-iopoll.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -492,6 +493,8 @@ struct ipr_hrr_queue {
 	u8 allow_interrupts:1;
 	u8 ioa_is_dead:1;
 	u8 allow_cmds:1;
+
+	struct blk_iopoll iopoll;
 };
 
 /* Command packet structure */
@@ -1348,6 +1351,7 @@ struct ipr_chip_cfg_t {
 	u16 max_cmds;
 	u8 cache_line_size;
 	u8 clear_isr;
+	u32 iopoll_weight;
 	struct ipr_interrupt_offsets regs;
 };
 
@@ -1533,6 +1537,8 @@ struct ipr_ioa_cfg {
 		unsigned short vec;
 		char desc[22];
 	} vectors_info[IPR_MAX_MSIX_VECTORS];
+
+	u32 iopoll_weight;
 
 }; /* struct ipr_ioa_cfg */
 
