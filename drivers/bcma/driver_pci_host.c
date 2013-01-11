@@ -427,7 +427,7 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	/* Reset RC */
 	usleep_range(3000, 5000);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST_OE);
-	usleep_range(1000, 2000);
+	msleep(50);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST |
 			BCMA_CORE_PCI_CTL_RST_OE);
 
@@ -488,6 +488,17 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	msleep(100);
 
 	bcma_core_pci_enable_crs(pc);
+
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4716) {
+		u16 val16;
+		bcma_extpci_read_config(pc, 0, 0, BCMA_CORE_PCI_CFG_DEVCTRL,
+					&val16, sizeof(val16));
+		val16 |= (2 << 5);	/* Max payload size of 512 */
+		val16 |= (2 << 12);	/* MRRS 512 */
+		bcma_extpci_write_config(pc, 0, 0, BCMA_CORE_PCI_CFG_DEVCTRL,
+					 &val16, sizeof(val16));
+	}
 
 	/* Enable PCI bridge BAR0 memory & master access */
 	tmp = PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
