@@ -4817,10 +4817,17 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	if (buffer) {
-		if (val)
+		mutex_lock(&trace_types_lock);
+		if (val) {
 			ring_buffer_record_on(buffer);
-		else
+			if (current_trace->start)
+				current_trace->start(tr);
+		} else {
 			ring_buffer_record_off(buffer);
+			if (current_trace->stop)
+				current_trace->stop(tr);
+		}
+		mutex_unlock(&trace_types_lock);
 	}
 
 	(*ppos)++;
