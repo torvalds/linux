@@ -335,6 +335,11 @@ static inline int is_ab8500_2p0_or_earlier(struct ab8500 *ab)
 	return (is_ab8500(ab) && (ab->chip_id <= AB8500_CUT2P0));
 }
 
+static inline int is_ab8500_3p3_or_earlier(struct ab8500 *ab)
+{
+	return (is_ab8500(ab) && (ab->chip_id <= AB8500_CUT3P3));
+}
+
 /* exclude also ab8505, ab9540... */
 static inline int is_ab8500_2p0(struct ab8500 *ab)
 {
