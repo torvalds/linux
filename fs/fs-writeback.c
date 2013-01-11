@@ -318,8 +318,14 @@ static void queue_io(struct bdi_writeback *wb, struct wb_writeback_work *work)
 
 static int write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	if (inode->i_sb->s_op->write_inode && !is_bad_inode(inode))
-		return inode->i_sb->s_op->write_inode(inode, wbc);
+	int ret;
+
+	if (inode->i_sb->s_op->write_inode && !is_bad_inode(inode)) {
+		trace_writeback_write_inode_start(inode, wbc);
+		ret = inode->i_sb->s_op->write_inode(inode, wbc);
+		trace_writeback_write_inode(inode, wbc);
+		return ret;
+	}
 	return 0;
 }
 
@@ -449,6 +455,8 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	int ret;
 
 	WARN_ON(!(inode->i_state & I_SYNC));
+
+	trace_writeback_single_inode_start(inode, wbc, nr_to_write);
 
 	ret = do_writepages(mapping, wbc);
 
@@ -1150,8 +1158,12 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 	 * dirty the inode itself
 	 */
 	if (flags & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
+		trace_writeback_dirty_inode_start(inode, flags);
+
 		if (sb->s_op->dirty_inode)
 			sb->s_op->dirty_inode(inode, flags);
+
+		trace_writeback_dirty_inode(inode, flags);
 	}
 
 	/*
