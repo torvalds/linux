@@ -1000,7 +1000,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 
 	/* Correct version? */
 	if (ptp->mode == MC_CMD_PTP_MODE_V1) {
-		if (skb->len < PTP_V1_MIN_LENGTH) {
+		if (!pskb_may_pull(skb, PTP_V1_MIN_LENGTH)) {
 			return false;
 		}
 		version = ntohs(*(__be16 *)&skb->data[PTP_V1_VERSION_OFFSET]);
@@ -1014,7 +1014,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		match_data_012 = skb->data + PTP_V1_UUID_OFFSET;
 		match_data_345 = skb->data + PTP_V1_UUID_OFFSET + 3;
 	} else {
-		if (skb->len < PTP_V2_MIN_LENGTH) {
+		if (!pskb_may_pull(skb, PTP_V2_MIN_LENGTH)) {
 			return false;
 		}
 		version = skb->data[PTP_V2_VERSION_OFFSET];

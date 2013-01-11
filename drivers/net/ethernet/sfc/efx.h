@@ -37,7 +37,6 @@ extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
-extern void efx_rx_strategy(struct efx_channel *channel);
 extern void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
 extern void efx_rx_slow_fill(unsigned long context);
 extern void __efx_rx_packet(struct efx_channel *channel,

@@ -247,10 +247,8 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			__efx_rx_packet(channel, channel->rx_pkt);
 			channel->rx_pkt = NULL;
 		}
-		if (rx_queue->enabled) {
-			efx_rx_strategy(channel);
+		if (rx_queue->enabled)
 			efx_fast_push_rx_descriptors(rx_queue);
-		}
 	}
 
 	return spent;
@@ -655,16 +653,12 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_init_tx_queue(tx_queue);
 
-		/* The rx buffer allocation strategy is MTU dependent */
-		efx_rx_strategy(channel);
-
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
 			efx_nic_generate_fill_event(rx_queue);
 		}
 
 		WARN_ON(channel->rx_pkt != NULL);
-		efx_rx_strategy(channel);
 	}
 
 	if (netif_device_present(efx->net_dev))

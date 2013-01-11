@@ -206,25 +206,19 @@ struct efx_tx_queue {
 /**
  * struct efx_rx_buffer - An Efx RX data buffer
  * @dma_addr: DMA base address of the buffer
- * @skb: The associated socket buffer. Valid iff !(@flags & %EFX_RX_BUF_PAGE).
+ * @page: The associated page buffer.
  *	Will be %NULL if the buffer slot is currently free.
- * @page: The associated page buffer. Valif iff @flags & %EFX_RX_BUF_PAGE.
- *	Will be %NULL if the buffer slot is currently free.
- * @page_offset: Offset within page. Valid iff @flags & %EFX_RX_BUF_PAGE.
+ * @page_offset: Offset within page
  * @len: Buffer length, in bytes.
  * @flags: Flags for buffer and packet state.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
-	union {
-		struct sk_buff *skb;
-		struct page *page;
-	} u;
+	struct page *page;
 	u16 page_offset;
 	u16 len;
 	u16 flags;
 };
-#define EFX_RX_BUF_PAGE		0x0001
 #define EFX_RX_PKT_CSUMMED	0x0002
 #define EFX_RX_PKT_DISCARD	0x0004
 
@@ -266,8 +260,6 @@ struct efx_rx_page_state {
  * @min_fill: RX descriptor minimum non-zero fill level.
  *	This records the minimum fill level observed when a ring
  *	refill was triggered.
- * @alloc_page_count: RX allocation strategy counter.
- * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
  */
 struct efx_rx_queue {
@@ -286,8 +278,6 @@ struct efx_rx_queue {
 	unsigned int fast_fill_trigger;
 	unsigned int min_fill;
 	unsigned int min_overfill;
-	unsigned int alloc_page_count;
-	unsigned int alloc_skb_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 };
@@ -336,10 +326,6 @@ enum efx_rx_alloc_method {
  * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
- * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
- *	and diagnostic counters
- * @rx_alloc_push_pages: RX allocation method currently in use for pushing
- *	descriptors
  * @n_rx_tobe_disc: Count of RX_TOBE_DISC errors
  * @n_rx_ip_hdr_chksum_err: Count of RX IP header checksum errors
  * @n_rx_tcp_udp_chksum_err: Count of RX TCP and UDP checksum errors
@@ -370,9 +356,6 @@ struct efx_channel {
 #ifdef CONFIG_RFS_ACCEL
 	unsigned int rfs_filters_added;
 #endif
-
-	int rx_alloc_level;
-	int rx_alloc_push_pages;
 
 	unsigned n_rx_tobe_disc;
 	unsigned n_rx_ip_hdr_chksum_err;
