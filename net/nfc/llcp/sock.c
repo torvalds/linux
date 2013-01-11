@@ -672,7 +672,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	copied = min_t(unsigned int, rlen, len);
 
 	cskb = skb;
-	if (memcpy_toiovec(msg->msg_iov, cskb->data, copied)) {
+	if (skb_copy_datagram_iovec(cskb, 0, msg->msg_iov, copied)) {
 		if (!(flags & MSG_PEEK))
 			skb_queue_head(&sk->sk_receive_queue, skb);
 		return -EFAULT;
