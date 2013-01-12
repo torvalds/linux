@@ -190,8 +190,10 @@ static int tsl2563_configure(struct tsl2563_chip *chip)
 	ret = i2c_smbus_write_byte_data(chip->client,
 			TSL2563_CMD | TSL2563_REG_LOWHIGH,
 			(chip->low_thres >> 8) & 0xFF);
-/* Interrupt register is automatically written anyway if it is relevant
-   so is not here */
+/*
+ * Interrupt register is automatically written anyway if it is relevant
+ * so is not here.
+ */
 error_ret:
 	return ret;
 }
@@ -423,9 +425,7 @@ static const struct tsl2563_lux_coeff lux_table[] = {
 	},
 };
 
-/*
- * Convert normalized, scaled ADC values to lux.
- */
+/* Convert normalized, scaled ADC values to lux. */
 static unsigned int adc_to_lux(u32 adc0, u32 adc1)
 {
 	const struct tsl2563_lux_coeff *lp = lux_table;
@@ -440,11 +440,6 @@ static unsigned int adc_to_lux(u32 adc0, u32 adc1)
 
 	return (unsigned int) (lux >> ADC_FRAC_BITS);
 }
-
-/*--------------------------------------------------------------*/
-/*                      Sysfs interface                         */
-/*--------------------------------------------------------------*/
-
 
 /* Apply calibration coefficient to ADC count. */
 static u32 calib_adc(u32 adc, u32 calib)
@@ -684,9 +679,6 @@ error_ret:
 	return ret;
 }
 
-/*--------------------------------------------------------------*/
-/*                      Probe, Attach, Remove                   */
-/*--------------------------------------------------------------*/
 static struct i2c_driver tsl2563_i2c_driver;
 
 static const struct iio_info tsl2563_info_no_irq = {
