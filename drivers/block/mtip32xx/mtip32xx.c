@@ -1723,7 +1723,7 @@ static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
  *      -EINVAL		Invalid parameters passed in, trim not supported
  *      -EIO		Error submitting trim request to hw
  */
-int mtip_send_trim(struct driver_data *dd, unsigned int lba, unsigned int len)
+static int mtip_send_trim(struct driver_data *dd, unsigned int lba, unsigned int len)
 {
 	int i, rv = 0;
 	u64 tlba, tlen, sect_left;
