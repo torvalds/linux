@@ -393,6 +393,8 @@
 #define E1000_PBA_8K  0x0008    /* 8KB */
 #define E1000_PBA_16K 0x0010    /* 16KB */
 
+#define E1000_PBA_RXA_MASK	0xFFFF
+
 #define E1000_PBS_16K E1000_PBA_16K
 
 /* Uncorrectable/correctable ECC Error counts and enable bits */
