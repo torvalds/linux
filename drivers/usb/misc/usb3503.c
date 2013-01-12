@@ -178,7 +178,7 @@ err_hubmode:
 	return err;
 }
 
-int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct usb3503_platform_data *pdata = i2c->dev.platform_data;
 	struct usb3503 *hub;
