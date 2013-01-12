@@ -1188,7 +1188,7 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 
 	data_bh = sb_getblk(inode->i_sb, map.m_pblk);
 	if (!data_bh) {
-		error = -EIO;
+		error = -ENOMEM;
 		goto out_restore;
 	}
 

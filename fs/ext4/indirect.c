@@ -146,6 +146,7 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 	struct super_block *sb = inode->i_sb;
 	Indirect *p = chain;
 	struct buffer_head *bh;
+	int ret = -EIO;
 
 	*err = 0;
 	/* i_data is not going away, no lock needed */
@@ -154,8 +155,10 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 		goto no_block;
 	while (--depth) {
 		bh = sb_getblk(sb, le32_to_cpu(p->key));
-		if (unlikely(!bh))
+		if (unlikely(!bh)) {
+			ret = -ENOMEM;
 			goto failure;
+		}
 
 		if (!bh_uptodate_or_lock(bh)) {
 			if (bh_submit_read(bh) < 0) {
@@ -177,7 +180,7 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 	return NULL;
 
 failure:
-	*err = -EIO;
+	*err = ret;
 no_block:
 	return p;
 }
@@ -471,7 +474,7 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 		 */
 		bh = sb_getblk(inode->i_sb, new_blocks[n-1]);
 		if (unlikely(!bh)) {
-			err = -EIO;
+			err = -ENOMEM;
 			goto failed;
 		}
 
