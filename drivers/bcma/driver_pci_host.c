@@ -101,7 +101,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		 */
 		if (off >= PCI_CONFIG_SPACE_SIZE) {
 			addr = (func << 12);
-			addr |= (off & 0x0FFF);
+			addr |= (off & 0x0FFC);
 			val = bcma_pcie_read_config(pc, addr);
 		} else {
 			addr = BCMA_CORE_PCI_PCICFG0;
@@ -164,7 +164,11 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
-		if (off < PCI_CONFIG_SPACE_SIZE) {
+		if (off >= PCI_CONFIG_SPACE_SIZE) {
+			addr = (func << 12);
+			addr |= (off & 0x0FFC);
+			val = bcma_pcie_read_config(pc, addr);
+		} else {
 			addr = BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
 			addr |= (off & 0xfc);
@@ -202,13 +206,10 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
-		if (off >= PCI_CONFIG_SPACE_SIZE) {
-			addr = (func << 12);
-			addr |= (off & 0x0FFF);
+		if (off >= PCI_CONFIG_SPACE_SIZE)
 			bcma_pcie_write_config(pc, addr, val);
-		} else {
+		else
 			pcicore_write32(pc, addr, val);
-		}
 	} else {
 		writel(val, mmio);
 
