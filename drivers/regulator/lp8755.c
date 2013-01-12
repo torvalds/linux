@@ -497,35 +497,36 @@ static int lp8755_probe(struct i2c_client *client,
 		if (!pchip->pdata)
 			return -ENOMEM;
 		ret = lp8755_init_data(pchip);
-		if (ret < 0)
-			goto err_chip_init;
+		if (ret < 0) {
+			dev_err(&client->dev, "fail to initialize chip\n");
+			return ret;
+		}
 	}
 
 	ret = lp8755_regulator_init(pchip);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&client->dev, "fail to initialize regulators\n");
 		goto err_regulator;
+	}
 
 	pchip->irq = client->irq;
 	ret = lp8755_int_config(pchip);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&client->dev, "fail to irq config\n");
 		goto err_irq;
+	}
 
 	return ret;
 
 err_irq:
-	dev_err(&client->dev, "fail to irq config\n");
-
 	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++)
 		regulator_unregister(pchip->rdev[icnt]);
 
 err_regulator:
-	dev_err(&client->dev, "fail to initialize regulators\n");
 	/* output disable */
 	for (icnt = 0; icnt < 0x06; icnt++)
 		lp8755_write(pchip, icnt, 0x00);
 
-err_chip_init:
-	dev_err(&client->dev, "fail to initialize chip\n");
 	return ret;
 }
 
