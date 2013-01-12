@@ -22,7 +22,6 @@
 
 #include <asm/mach-types.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>

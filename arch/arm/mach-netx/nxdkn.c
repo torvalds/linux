@@ -28,7 +28,6 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/vic.h>
 #include <mach/netx-regs.h>
 #include <linux/platform_data/eth-netx.h>
 

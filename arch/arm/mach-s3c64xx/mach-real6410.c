@@ -25,7 +25,6 @@
 #include <linux/serial_core.h>
 #include <linux/types.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

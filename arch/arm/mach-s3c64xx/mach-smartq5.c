@@ -17,7 +17,6 @@
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 

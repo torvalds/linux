@@ -15,7 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/device.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>

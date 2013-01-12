@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>

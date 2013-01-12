@@ -30,7 +30,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

@@ -42,7 +42,6 @@
 
 #include <sound/wm1250-ev1.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 

@@ -31,7 +31,6 @@
 #include <linux/platform_data/video-ep93xx.h>
 #include <mach/gpio-ep93xx.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
