@@ -4122,14 +4122,14 @@ static inline int mtip_get_next_rr_node(void)
 	return next_node;
 }
 
-DEFINE_HANDLER(0);
-DEFINE_HANDLER(1);
-DEFINE_HANDLER(2);
-DEFINE_HANDLER(3);
-DEFINE_HANDLER(4);
-DEFINE_HANDLER(5);
-DEFINE_HANDLER(6);
-DEFINE_HANDLER(7);
+static DEFINE_HANDLER(0);
+static DEFINE_HANDLER(1);
+static DEFINE_HANDLER(2);
+static DEFINE_HANDLER(3);
+static DEFINE_HANDLER(4);
+static DEFINE_HANDLER(5);
+static DEFINE_HANDLER(6);
+static DEFINE_HANDLER(7);
 
 /*
  * Called for each supported PCI device detected.
