@@ -5,11 +5,6 @@
 config NET_VENDOR_INTEL
 	bool "Intel devices"
 	default y
-	depends on PCI || PCI_MSI || ISA || ISA_DMA_API || ARM || \
-		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
-		   GSC || BVME6000 || MVME16x || \
-		   (ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR) || \
-		   EXPERIMENTAL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from

@@ -322,8 +322,7 @@ config BLK_DEV_GENERIC
           which otherwise might not be supported.
 
 config BLK_DEV_OPTI621
-	tristate "OPTi 82C621 chipset enhanced support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "OPTi 82C621 chipset enhanced support"
 	select BLK_DEV_IDEPCI
 	help
 	  This is a driver for the OPTi 82C621 EIDE controller.
@@ -417,7 +416,6 @@ config BLK_DEV_CY82C693
 
 config BLK_DEV_CS5520
 	tristate "Cyrix CS5510/20 MediaGX chipset support (VERY EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  Include support for PIO tuning and virtual DMA on the Cyrix MediaGX
@@ -761,8 +759,8 @@ config BLK_DEV_GAYLE
 	  use Gayle IDE interfaces on the Zorro expansion bus.
 
 config BLK_DEV_BUDDHA
-	tristate "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
-	depends on ZORRO && EXPERIMENTAL
+	tristate "Buddha/Catweasel/X-Surf IDE interface support"
+	depends on ZORRO
 	help
 	  This is the IDE driver for the IDE interfaces on the Buddha, Catweasel
 	  and X-Surf expansion boards.  It supports up to two interfaces on the

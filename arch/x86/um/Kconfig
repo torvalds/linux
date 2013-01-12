@@ -37,9 +37,8 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool !RWSEM_XCHGADD_ALGORITHM
 
 config 3_LEVEL_PGTABLES
-	bool "Three-level pagetables (EXPERIMENTAL)" if !64BIT
+	bool "Three-level pagetables" if !64BIT
 	default 64BIT
-	depends on EXPERIMENTAL
 	help
 	Three-level pagetables will let UML have more than 4G of physical
 	memory.  All the memory that can't be mapped directly will be treated

@@ -718,8 +718,8 @@ source "arch/s390/kvm/Kconfig"
 
 config S390_GUEST
 	def_bool y
-	prompt "s390 support for virtio devices (EXPERIMENTAL)"
-	depends on 64BIT && EXPERIMENTAL
+	prompt "s390 support for virtio devices"
+	depends on 64BIT
 	select VIRTUALIZATION
 	select VIRTIO
 	select VIRTIO_CONSOLE

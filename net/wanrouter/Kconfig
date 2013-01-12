@@ -4,7 +4,6 @@
 
 config WAN_ROUTER
 	tristate "WAN router (DEPRECATED)"
-	depends on EXPERIMENTAL
 	---help---
 	  Wide Area Networks (WANs), such as X.25, frame relay and leased
 	  lines, are used to interconnect Local Area Networks (LANs) over vast

@@ -88,8 +88,8 @@ config TLAN
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
 config CPMAC
-	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && AR7
+	tristate "TI AR7 CPMAC Ethernet support"
+	depends on AR7
 	select PHYLIB
 	---help---
 	  TI AR7 CPMAC Ethernet support

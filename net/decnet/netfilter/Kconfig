@@ -3,7 +3,7 @@
 #
 
 menu "DECnet: Netfilter Configuration"
-	depends on DECNET && NETFILTER && EXPERIMENTAL
+	depends on DECNET && NETFILTER
 	depends on NETFILTER_ADVANCED
 
 config DECNET_NF_GRABULATOR

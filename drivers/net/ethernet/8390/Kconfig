@@ -5,10 +5,7 @@
 config NET_VENDOR_8390
 	bool "National Semi-conductor 8390 devices"
 	default y
-	depends on NET_VENDOR_NATSEMI && (AMIGA_PCMCIA || PCI || SUPERH || \
-		   ISA || MCA || EISA || MAC || M32R || MACH_TX49XX || \
-		   MCA_LEGACY || H8300 || ARM || MIPS || ZORRO || PCMCIA || \
-		   EXPERIMENTAL)
+	depends on NET_VENDOR_NATSEMI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -34,8 +31,8 @@ config EL2
 	  will be called 3c503.
 
 config AC3200
-	tristate "Ansel Communications EISA 3200 support (EXPERIMENTAL)"
-	depends on PCI && (ISA || EISA) && EXPERIMENTAL
+	tristate "Ansel Communications EISA 3200 support"
+	depends on PCI && (ISA || EISA)
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -87,8 +84,8 @@ config E2100
 	  will be called e2100.
 
 config ES3210
-	tristate "Racal-Interlan EISA ES3210 support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
+	tristate "Racal-Interlan EISA ES3210 support"
+	depends on PCI && EISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -141,8 +138,8 @@ config ARM_ETHERH
 	  should say Y to this option if you wish to use it with Linux.
 
 config LNE390
-	tristate "Mylex EISA LNE390A/B support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
+	tristate "Mylex EISA LNE390A/B support"
+	depends on PCI && EISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -227,8 +224,8 @@ config APNE
 	  will be called apne.
 
 config NE3210
-	tristate "Novell/Eagle/Microdyne NE3210 EISA support (EXPERIMENTAL)"
-	depends on PCI && EISA && EXPERIMENTAL
+	tristate "Novell/Eagle/Microdyne NE3210 EISA support"
+	depends on PCI && EISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
