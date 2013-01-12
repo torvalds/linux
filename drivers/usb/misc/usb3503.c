@@ -182,12 +182,12 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct usb3503_platform_data *pdata = i2c->dev.platform_data;
 	struct usb3503 *hub;
-	int err;
+	int err = -ENOMEM;
 
 	hub = kzalloc(sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub) {
 		dev_err(&i2c->dev, "private data alloc fail\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	i2c_set_clientdata(i2c, hub);
@@ -195,6 +195,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	if (!pdata) {
 		dev_dbg(&i2c->dev, "missing platform data\n");
+		goto err_out;
 	} else {
 		hub->gpio_intn		= pdata->gpio_intn;
 		hub->gpio_connect	= pdata->gpio_connect;
@@ -209,7 +210,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 			dev_err(&i2c->dev,
 					"unable to request GPIO %d as connect pin (%d)\n",
 					hub->gpio_intn, err);
-			goto err_gpio_intn;
+			goto err_out;
 		}
 	}
 
@@ -248,7 +249,7 @@ err_gpio_reset:
 err_gpio_connect:
 	if (gpio_is_valid(hub->gpio_intn))
 		gpio_free(hub->gpio_intn);
-err_gpio_intn:
+err_out:
 	kfree(hub);
 
 	return err;
