@@ -29,25 +29,6 @@
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
 
-#define E1000_TXD_POPTS_IXSM 0x01       /* Insert IP checksum */
-#define E1000_TXD_POPTS_TXSM 0x02       /* Insert TCP/UDP checksum */
-#define E1000_TXD_CMD_EOP    0x01000000 /* End of Packet */
-#define E1000_TXD_CMD_IFCS   0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_TXD_CMD_IC     0x04000000 /* Insert Checksum */
-#define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
-#define E1000_TXD_CMD_RPS    0x10000000 /* Report Packet Sent */
-#define E1000_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
-#define E1000_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
-#define E1000_TXD_CMD_IDE    0x80000000 /* Enable Tidv register */
-#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
-#define E1000_TXD_STAT_EC    0x00000002 /* Excess Collisions */
-#define E1000_TXD_STAT_LC    0x00000004 /* Late Collisions */
-#define E1000_TXD_STAT_TU    0x00000008 /* Transmit underrun */
-#define E1000_TXD_CMD_TCP    0x01000000 /* TCP packet */
-#define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
-#define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
-#define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
-
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define REQ_TX_DESCRIPTOR_MULTIPLE  8
 #define REQ_RX_DESCRIPTOR_MULTIPLE  8
@@ -86,7 +67,6 @@
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
-#define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers after IMS clear */
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK         0x00001000
 #define E1000_CTRL_EXT_PHYPDEN        0x00100000
@@ -546,7 +526,6 @@
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
 
 #define E1000_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
-#define E1000_TSYNCRXCTL_TYPE_ALL	0x08
 #define E1000_TSYNCTXCTL_ENABLED	0x00000010 /* enable Tx timestamping */
 
 #define E1000_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
