@@ -53,8 +53,7 @@ MODULE_PARM_DESC(copybreak,
  */
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
-	static int X[E1000_MAX_NIC+1]		\
-		= E1000_PARAM_INIT;				\
+	static int X[E1000_MAX_NIC+1] = E1000_PARAM_INIT;	\
 	static unsigned int num_##X;				\
 	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);

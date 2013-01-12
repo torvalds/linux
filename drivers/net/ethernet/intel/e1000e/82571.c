@@ -1327,9 +1327,10 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 			 */
 			vfta_offset = (hw->mng_cookie.vlan_id >>
 				       E1000_VFTA_ENTRY_SHIFT) &
-				      E1000_VFTA_ENTRY_MASK;
-			vfta_bit_in_reg = 1 << (hw->mng_cookie.vlan_id &
-					       E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+			    E1000_VFTA_ENTRY_MASK;
+			vfta_bit_in_reg =
+			    1 << (hw->mng_cookie.vlan_id &
+				  E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
 		break;
 	default:
@@ -1931,7 +1932,7 @@ static const struct e1000_phy_operations e82_phy_ops_igp = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_igp,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_m88 = {
@@ -1949,7 +1950,7 @@ static const struct e1000_phy_operations e82_phy_ops_m88 = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_m88,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_bm = {
@@ -1967,7 +1968,7 @@ static const struct e1000_phy_operations e82_phy_ops_bm = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_bm2,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_nvm_operations e82571_nvm_ops = {
