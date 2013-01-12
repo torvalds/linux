@@ -256,6 +256,32 @@ void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
 	mcore->early_setup_done = true;
 }
 
+static void bcma_fix_i2s_irqflag(struct bcma_bus *bus)
+{
+	struct bcma_device *cpu, *pcie, *i2s;
+
+	/* Fixup the interrupts in 4716/4748 for i2s core (2010 Broadcom SDK)
+	 * (IRQ flags > 7 are ignored when setting the interrupt masks)
+	 */
+	if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4716 &&
+	    bus->chipinfo.id != BCMA_CHIP_ID_BCM4748)
+		return;
+
+	cpu = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
+	pcie = bcma_find_core(bus, BCMA_CORE_PCIE);
+	i2s = bcma_find_core(bus, BCMA_CORE_I2S);
+	if (cpu && pcie && i2s &&
+	    bcma_aread32(cpu, BCMA_MIPS_OOBSELINA74) == 0x08060504 &&
+	    bcma_aread32(pcie, BCMA_MIPS_OOBSELINA74) == 0x08060504 &&
+	    bcma_aread32(i2s, BCMA_MIPS_OOBSELOUTA30) == 0x88) {
+		bcma_awrite32(cpu, BCMA_MIPS_OOBSELINA74, 0x07060504);
+		bcma_awrite32(pcie, BCMA_MIPS_OOBSELINA74, 0x07060504);
+		bcma_awrite32(i2s, BCMA_MIPS_OOBSELOUTA30, 0x87);
+		bcma_debug(bus,
+			   "Moved i2s interrupt to oob line 7 instead of 8\n");
+	}
+}
+
 void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus;
@@ -268,6 +294,8 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	bcma_debug(bus, "Initializing MIPS core...\n");
 
 	bcma_core_mips_early_init(mcore);
+
+	bcma_fix_i2s_irqflag(bus);
 
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4716:
