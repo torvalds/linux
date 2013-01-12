@@ -94,7 +94,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 	if (dev == 0) {
 		/* we support only two functions on device 0 */
 		if (func > 1)
-			return -EINVAL;
+			goto out;
 
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
@@ -157,6 +157,10 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	if (dev == 0) {
+		/* we support only two functions on device 0 */
+		if (func > 1)
+			goto out;
+
 		/* accesses to config registers with offsets >= 256
 		 * requires indirect access.
 		 */
