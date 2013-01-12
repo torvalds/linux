@@ -677,8 +677,6 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 	return !!(ret & 0x30);
 }
 
-static struct i2c_driver tsl2563_i2c_driver;
-
 static const struct iio_info tsl2563_info_no_irq = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &tsl2563_read_raw,
