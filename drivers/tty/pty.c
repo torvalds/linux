@@ -55,9 +55,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
 #ifdef CONFIG_UNIX98_PTYS
 		if (tty->driver == ptm_driver) {
-		        mutex_lock(&devpts_mutex);
+			mutex_lock(&devpts_mutex);
 			devpts_pty_kill(tty->link->driver_data);
-		        mutex_unlock(&devpts_mutex);
+			mutex_unlock(&devpts_mutex);
 		}
 #endif
 		tty_unlock(tty);
@@ -661,7 +661,7 @@ static const struct tty_operations pty_unix98_ops = {
  *	Allocate a unix98 pty master device from the ptmx driver.
  *
  *	Locking: tty_mutex protects the init_dev work. tty->count should
- * 		protect the rest.
+ *		protect the rest.
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
