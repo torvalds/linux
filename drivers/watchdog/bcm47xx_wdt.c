@@ -31,6 +31,7 @@
 
 #define WDT_DEFAULT_TIME	30	/* seconds */
 #define WDT_SOFTTIMER_MAX	255	/* seconds */
+#define WDT_SOFTTIMER_THRESHOLD	60	/* seconds */
 
 static int timeout = WDT_DEFAULT_TIME;
 static bool nowayout = WATCHDOG_NOWAYOUT;
@@ -48,6 +49,53 @@ static inline struct bcm47xx_wdt *bcm47xx_wdt_get(struct watchdog_device *wdd)
 {
 	return container_of(wdd, struct bcm47xx_wdt, wdd);
 }
+
+static int bcm47xx_wdt_hard_keepalive(struct watchdog_device *wdd)
+{
+	struct bcm47xx_wdt *wdt = bcm47xx_wdt_get(wdd);
+
+	wdt->timer_set_ms(wdt, wdd->timeout * 1000);
+
+	return 0;
+}
+
+static int bcm47xx_wdt_hard_start(struct watchdog_device *wdd)
+{
+	return 0;
+}
+
+static int bcm47xx_wdt_hard_stop(struct watchdog_device *wdd)
+{
+	struct bcm47xx_wdt *wdt = bcm47xx_wdt_get(wdd);
+
+	wdt->timer_set(wdt, 0);
+
+	return 0;
+}
+
+static int bcm47xx_wdt_hard_set_timeout(struct watchdog_device *wdd,
+					unsigned int new_time)
+{
+	struct bcm47xx_wdt *wdt = bcm47xx_wdt_get(wdd);
+	u32 max_timer = wdt->max_timer_ms;
+
+	if (new_time < 1 || new_time > max_timer / 1000) {
+		pr_warn("timeout value must be 1<=x<=%d, using %d\n",
+			max_timer / 1000, new_time);
+		return -EINVAL;
+	}
+
+	wdd->timeout = new_time;
+	return 0;
+}
+
+static struct watchdog_ops bcm47xx_wdt_hard_ops = {
+	.owner		= THIS_MODULE,
+	.start		= bcm47xx_wdt_hard_start,
+	.stop		= bcm47xx_wdt_hard_stop,
+	.ping		= bcm47xx_wdt_hard_keepalive,
+	.set_timeout	= bcm47xx_wdt_hard_set_timeout,
+};
 
 static void bcm47xx_wdt_soft_timer_tick(unsigned long data)
 {
@@ -133,15 +181,22 @@ static struct watchdog_ops bcm47xx_wdt_soft_ops = {
 static int bcm47xx_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
+	bool soft;
 	struct bcm47xx_wdt *wdt = dev_get_platdata(&pdev->dev);
 
 	if (!wdt)
 		return -ENXIO;
 
-	setup_timer(&wdt->soft_timer, bcm47xx_wdt_soft_timer_tick,
-		    (long unsigned int)wdt);
+	soft = wdt->max_timer_ms < WDT_SOFTTIMER_THRESHOLD * 1000;
 
-	wdt->wdd.ops = &bcm47xx_wdt_soft_ops;
+	if (soft) {
+		wdt->wdd.ops = &bcm47xx_wdt_soft_ops;
+		setup_timer(&wdt->soft_timer, bcm47xx_wdt_soft_timer_tick,
+			    (long unsigned int)wdt);
+	} else {
+		wdt->wdd.ops = &bcm47xx_wdt_hard_ops;
+	}
+
 	wdt->wdd.info = &bcm47xx_wdt_info;
 	wdt->wdd.timeout = WDT_DEFAULT_TIME;
 	ret = wdt->wdd.ops->set_timeout(&wdt->wdd, timeout);
@@ -159,14 +214,16 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_notifier;
 
-	pr_info("BCM47xx Watchdog Timer enabled (%d seconds%s)\n",
-		timeout, nowayout ? ", nowayout" : "");
+	dev_info(&pdev->dev, "BCM47xx Watchdog Timer enabled (%d seconds%s%s)\n",
+		timeout, nowayout ? ", nowayout" : "",
+		soft ? ", Software Timer" : "");
 	return 0;
 
 err_notifier:
 	unregister_reboot_notifier(&wdt->notifier);
 err_timer:
-	del_timer_sync(&wdt->soft_timer);
+	if (soft)
+		del_timer_sync(&wdt->soft_timer);
 
 	return ret;
 }
