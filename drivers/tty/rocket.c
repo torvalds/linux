@@ -55,7 +55,7 @@
 #undef REV_PCI_ORDER
 #undef ROCKET_DEBUG_IO
 
-#define POLL_PERIOD HZ/100	/*  Polling period .01 seconds (10ms) */
+#define POLL_PERIOD (HZ/100)	/*  Polling period .01 seconds (10ms) */
 
 /****** Kernel includes ******/
 
