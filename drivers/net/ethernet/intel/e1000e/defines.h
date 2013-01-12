@@ -261,8 +261,6 @@
 #define E1000_STATUS_PHYRA      0x00000400      /* PHY Reset Asserted */
 #define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Status of Master requests. */
 
-/* Constants used to interpret the masked PCI-X bus speed. */
-
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
 
@@ -329,8 +327,6 @@
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 #define E1000_TCTL_MULR   0x10000000    /* Multiple request support */
-
-/* Transmit Arbitration Count */
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
@@ -800,9 +796,6 @@
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
-/* 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
- * 0=Normal 10BASE-T Rx Threshold
- */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX 0x0800 /* 1=Assert CRS on Transmit */
 
 /* M88E1000 PHY Specific Status Register */
