@@ -122,8 +122,6 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 			val = 0xffffffff;
 			goto unmap;
 		}
-
-		val = readl(mmio);
 	}
 	val >>= (8 * (off & 3));
 
