@@ -793,6 +793,9 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				return -ENOMEM;
 			}
 
+			adsp_dbg(dsp, "%s.%d: Writing %d bytes at %x\n",
+				 file, blocks, le32_to_cpu(blk->len),
+				 reg);
 			ret = regmap_raw_write(regmap, reg, blk->data,
 					       le32_to_cpu(blk->len));
 			if (ret != 0) {
