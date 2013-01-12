@@ -93,7 +93,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 			*bh = NULL;
 		}
 	}
-	if (!*bh) {
+	if (unlikely(!*bh)) {
 		ext4_warning(sb, "Error while reading MMP block %llu",
 			     mmp_block);
 		return -EIO;

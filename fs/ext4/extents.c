@@ -956,7 +956,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		goto cleanup;
 	}
 	bh = sb_getblk(inode->i_sb, newblock);
-	if (!bh) {
+	if (unlikely(!bh)) {
 		err = -ENOMEM;
 		goto cleanup;
 	}
@@ -1029,7 +1029,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		oldblock = newblock;
 		newblock = ablocks[--a];
 		bh = sb_getblk(inode->i_sb, newblock);
-		if (!bh) {
+		if (unlikely(!bh)) {
 			err = -ENOMEM;
 			goto cleanup;
 		}
@@ -1142,7 +1142,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 		return err;
 
 	bh = sb_getblk(inode->i_sb, newblock);
-	if (!bh)
+	if (unlikely(!bh))
 		return -ENOMEM;
 	lock_buffer(bh);
 
