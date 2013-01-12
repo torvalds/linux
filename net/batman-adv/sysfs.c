@@ -688,15 +688,10 @@ int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
-	struct batadv_hard_iface *primary_if;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
-		goto out;
-
-	bat_kobj = &primary_if->soft_iface->dev.kobj;
+	bat_kobj = &bat_priv->soft_iface->dev.kobj;
 
 	uevent_env[0] = kmalloc(strlen(BATADV_UEV_TYPE_VAR) +
 				strlen(batadv_uev_type_str[type]) + 1,
@@ -731,9 +726,6 @@ out:
 	kfree(uevent_env[0]);
 	kfree(uevent_env[1]);
 	kfree(uevent_env[2]);
-
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
