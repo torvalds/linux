@@ -740,7 +740,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	int i;
 	int err;
 
-	phy = kmalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
+	phy = kzalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
