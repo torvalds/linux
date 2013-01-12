@@ -672,11 +672,9 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 				       TSL2563_CMD | TSL2563_REG_INT);
 	mutex_unlock(&chip->lock);
 	if (ret < 0)
-		goto error_ret;
-	ret = !!(ret & 0x30);
-error_ret:
+		return ret;
 
-	return ret;
+	return !!(ret & 0x30);
 }
 
 static struct i2c_driver tsl2563_i2c_driver;
