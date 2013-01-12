@@ -443,7 +443,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 
-	/* set a temporary block size */
+	/* set a block size */
 	if (!sb_set_blocksize(sb, F2FS_BLKSIZE)) {
 		f2fs_msg(sb, KERN_ERR, "unable to set blocksize");
 		goto free_sbi;
@@ -541,10 +541,6 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->alloc_valid_block_count = 0;
 	INIT_LIST_HEAD(&sbi->dir_inode_list);
 	spin_lock_init(&sbi->dir_inode_lock);
-
-	/* init super block */
-	if (!sb_set_blocksize(sb, sbi->blocksize))
-		goto free_cp;
 
 	init_orphan_info(sbi);
 
