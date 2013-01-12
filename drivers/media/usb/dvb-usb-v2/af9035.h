@@ -63,7 +63,7 @@ struct state {
 	struct af9033_config af9033_config[2];
 };
 
-static const u32 clock_lut[] = {
+static const u32 clock_lut_af9035[] = {
 	20480000, /*      FPGA */
 	16384000, /* 16.38 MHz */
 	20480000, /* 20.48 MHz */
@@ -95,17 +95,20 @@ static const u32 clock_lut_it9135[] = {
 #define AF9035_FIRMWARE_IT9135_V1 "dvb-usb-it9135-01.fw"
 #define AF9035_FIRMWARE_IT9135_V2 "dvb-usb-it9135-02.fw"
 
-/* EEPROM locations */
-#define EEPROM_IR_MODE            0x430d
-#define EEPROM_DUAL_MODE          0x4326
-#define EEPROM_2ND_DEMOD_ADDR     0x4327
-#define EEPROM_IR_TYPE            0x4329
-#define EEPROM_1_IFFREQ_L         0x432d
-#define EEPROM_1_IFFREQ_H         0x432e
-#define EEPROM_1_TUNER_ID         0x4331
-#define EEPROM_2_IFFREQ_L         0x433d
-#define EEPROM_2_IFFREQ_H         0x433e
-#define EEPROM_2_TUNER_ID         0x4341
+#define EEPROM_BASE_AF9035        0x42fd
+#define EEPROM_BASE_IT9135        0x499c
+#define EEPROM_SHIFT                0x10
+
+#define EEPROM_IR_MODE              0x10
+#define EEPROM_DUAL_MODE            0x29
+#define EEPROM_2ND_DEMOD_ADDR       0x2a
+#define EEPROM_IR_TYPE              0x2c
+#define EEPROM_1_IF_L               0x30
+#define EEPROM_1_IF_H               0x31
+#define EEPROM_1_TUNER_ID           0x34
+#define EEPROM_2_IF_L               0x40
+#define EEPROM_2_IF_H               0x41
+#define EEPROM_2_TUNER_ID           0x44
 
 /* USB commands */
 #define CMD_MEM_RD                  0x00
