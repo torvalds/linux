@@ -700,8 +700,8 @@ extern bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_DCB
 extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
-extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
+extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_HWMON

@@ -6812,6 +6812,7 @@ static void ixgbe_set_prio_tc_map(struct ixgbe_adapter *adapter)
 	}
 }
 
+#endif /* CONFIG_IXGBE_DCB */
 /**
  * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
@@ -6837,6 +6838,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		ixgbe_close(dev);
 	ixgbe_clear_interrupt_scheme(adapter);
 
+#ifdef CONFIG_IXGBE_DCB
 	if (tc) {
 		netdev_set_num_tc(dev, tc);
 		ixgbe_set_prio_tc_map(adapter);
@@ -6859,31 +6861,24 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		adapter->dcb_cfg.pfc_mode_enable = false;
 	}
 
-	ixgbe_init_interrupt_scheme(adapter);
 	ixgbe_validate_rtr(adapter, tc);
+
+#endif /* CONFIG_IXGBE_DCB */
+	ixgbe_init_interrupt_scheme(adapter);
+
 	if (netif_running(dev))
-		ixgbe_open(dev);
+		return ixgbe_open(dev);
 
 	return 0;
 }
 
-#endif /* CONFIG_IXGBE_DCB */
 #ifdef CONFIG_PCI_IOV
 void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
 	rtnl_lock();
-#ifdef CONFIG_IXGBE_DCB
 	ixgbe_setup_tc(netdev, netdev_get_num_tc(netdev));
-#else
-	if (netif_running(netdev))
-		ixgbe_close(netdev);
-	ixgbe_clear_interrupt_scheme(adapter);
-	ixgbe_init_interrupt_scheme(adapter);
-	if (netif_running(netdev))
-		ixgbe_open(netdev);
-#endif
 	rtnl_unlock();
 }
 
