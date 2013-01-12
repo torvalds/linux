@@ -30,7 +30,7 @@ static struct {
 	u32 cnt;
 } spear_cpufreq;
 
-int spear_cpufreq_verify(struct cpufreq_policy *policy)
+static int spear_cpufreq_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, spear_cpufreq.freq_tbl);
 }
