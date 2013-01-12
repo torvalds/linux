@@ -743,7 +743,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 
 	nfc_dev_dbg(&dev->interface->dev, "Sending command 0x%x", cmd_code);
 
-	arg = kzalloc(sizeof(arg), GFP_KERNEL);
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg)
 		return -ENOMEM;
 
@@ -863,7 +863,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	if (!resp)
 		return -ENOMEM;
 
-	arg = kzalloc(sizeof(arg), GFP_KERNEL);
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg) {
 		dev_kfree_skb(resp);
 		return -ENOMEM;
