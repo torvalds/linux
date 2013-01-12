@@ -1,5 +1,5 @@
 /*
- * drivers/i2c/chips/tsl2563.c
+ * drivers/iio/light/tsl2563.c
  *
  * Copyright (C) 2008 Nokia Corporation
  *
@@ -38,7 +38,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include "tsl2563.h"
+#include <linux/platform_data/tsl2563.h>
 
 /* Use this many bits for fraction part. */
 #define ADC_FRAC_BITS		14

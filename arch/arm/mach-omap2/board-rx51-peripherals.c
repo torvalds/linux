@@ -42,7 +42,7 @@
 #include <media/si4713.h>
 #include <linux/leds-lp5523.h>
 
-#include <../drivers/staging/iio/light/tsl2563.h>
+#include <linux/platform_data/tsl2563.h>
 #include <linux/lis3lv02d.h>
 
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
