@@ -35,6 +35,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/pmu.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
@@ -174,6 +175,22 @@ struct platform_device sun4i_twi2_device = {
 	},
 };
 
+static struct resource sun4i_pmu_resources[] = {
+	{
+		.start	= SW_INT_IRQNO_PLE_PFM,
+		.end	= SW_INT_IRQNO_PLE_PFM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sun4i_pmu_device = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.resource	= sun4i_pmu_resources,
+	.num_resources	= ARRAY_SIZE(sun4i_pmu_resources),
+};
+
+
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 static struct platform_device sun4i_device_mali_drm = {
 	.name = "mali_drm",
@@ -190,6 +207,7 @@ static struct platform_device *sw_pdevs[] __initdata = {
 	&sun4i_twi0_device,
 	&sun4i_twi1_device,
 	&sun4i_twi2_device,
+	&sun4i_pmu_device,
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sun4i_device_mali_drm,
 #endif

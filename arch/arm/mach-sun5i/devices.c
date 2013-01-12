@@ -39,6 +39,7 @@
 #include <asm/mach/time.h>
 #include <asm/setup.h>
 #include <mach/io.h>
+#include <asm/pmu.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
@@ -175,6 +176,21 @@ struct platform_device sun5i_twi2_device = {
 	},
 };
 
+static struct resource sun5i_pmu_resources[] = {
+	{
+		.start	= SW_INT_IRQNO_PLE_PFM,
+		.end	= SW_INT_IRQNO_PLE_PFM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sun5i_pmu_device = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.resource	= sun5i_pmu_resources,
+	.num_resources	= ARRAY_SIZE(sun5i_pmu_resources),
+};
+
 static struct platform_device *sw_pdevs[] __initdata = {
 	&debug_uart,
 	&sw_pdev_dmac,
@@ -182,6 +198,7 @@ static struct platform_device *sw_pdevs[] __initdata = {
 	&sun5i_twi0_device,
 	&sun5i_twi1_device,
 	&sun5i_twi2_device,
+	&sun5i_pmu_device,
 };
 
 void __init sw_pdev_init(void)
