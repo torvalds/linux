@@ -75,6 +75,7 @@ struct regmap {
 	const struct regmap_access_table *precious_table;
 
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
+	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
 
 	u8 read_flag_mask;
 	u8 write_flag_mask;
