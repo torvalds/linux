@@ -518,7 +518,7 @@ static inline int simulate_ll(struct pt_regs *regs, unsigned int opcode)
 	offset >>= 16;
 
 	vaddr = (unsigned long __user *)
-	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
+		((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 
 	if ((unsigned long)vaddr & 3)
 		return SIGBUS;
@@ -558,7 +558,7 @@ static inline int simulate_sc(struct pt_regs *regs, unsigned int opcode)
 	offset >>= 16;
 
 	vaddr = (unsigned long __user *)
-	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
+		((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 	reg = (opcode & RT) >> 16;
 
 	if ((unsigned long)vaddr & 3)
