@@ -326,7 +326,7 @@ err_out:
 	return 0;
 }
 /**
- * ext4_read_block_bitmap()
+ * ext4_read_block_bitmap_nowait()
  * @sb:			super block
  * @block_group:	given block group
  *
@@ -422,6 +422,8 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	struct buffer_head *bh;
 
 	bh = ext4_read_block_bitmap_nowait(sb, block_group);
+	if (!bh)
+		return NULL;
 	if (ext4_wait_block_bitmap(sb, block_group, bh)) {
 		put_bh(bh);
 		return NULL;
