@@ -82,8 +82,7 @@ extern void omap2_init_common_infrastructure(void);
 extern void omap2_sync32k_timer_init(void);
 extern void omap3_sync32k_timer_init(void);
 extern void omap3_secure_sync32k_timer_init(void);
-extern void omap3_gp_gptimer_timer_init(void);
-extern void omap3_am33xx_gptimer_timer_init(void);
+extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
 extern void omap5_realtime_timer_init(void);
 
