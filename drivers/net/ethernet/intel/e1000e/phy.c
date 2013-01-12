@@ -3106,8 +3106,9 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	msleep(200);
 
 	/* flush the packets in the fifo buffer */
-	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC |
-			   HV_MUX_DATA_CTRL_FORCE_SPEED);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL,
+			   (HV_MUX_DATA_CTRL_GEN_TO_MAC |
+			    HV_MUX_DATA_CTRL_FORCE_SPEED));
 	if (ret_val)
 		return ret_val;
 
