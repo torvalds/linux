@@ -984,7 +984,7 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 /* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
-acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
+acpi_status(*acpi_table_handler) (u32 event, void *table, void *context);
 
 #define ACPI_TABLE_LOAD             0x0
 #define ACPI_TABLE_UNLOAD           0x1

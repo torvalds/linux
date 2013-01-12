@@ -436,7 +436,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
  *
  ******************************************************************************/
 acpi_status
-acpi_install_table_handler(acpi_tbl_handler handler, void *context)
+acpi_install_table_handler(acpi_table_handler handler, void *context)
 {
 	acpi_status status;
 
@@ -482,7 +482,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_table_handler)
  * DESCRIPTION: Remove table event handler
  *
  ******************************************************************************/
-acpi_status acpi_remove_table_handler(acpi_tbl_handler handler)
+acpi_status acpi_remove_table_handler(acpi_table_handler handler)
 {
 	acpi_status status;
 
