@@ -106,7 +106,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		} else {
 			addr = BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
-			addr |= (off & 0xfc);
+			addr |= (off & 0xFC);
 			val = pcicore_read32(pc, addr);
 		}
 	} else {
@@ -119,7 +119,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 			goto out;
 
 		if (mips_busprobe32(val, mmio)) {
-			val = 0xffffffff;
+			val = 0xFFFFFFFF;
 			goto unmap;
 		}
 	}
@@ -171,7 +171,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		} else {
 			addr = BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
-			addr |= (off & 0xfc);
+			addr |= (off & 0xFC);
 			val = pcicore_read32(pc, addr);
 		}
 	} else {
@@ -184,7 +184,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 			goto out;
 
 		if (mips_busprobe32(val, mmio)) {
-			val = 0xffffffff;
+			val = 0xFFFFFFFF;
 			goto unmap;
 		}
 	}
@@ -280,7 +280,7 @@ static u8 __devinit bcma_find_pci_capability(struct bcma_drv_pci *pc,
 	/* check for Header type 0 */
 	bcma_extpci_read_config(pc, dev, func, PCI_HEADER_TYPE, &byte_val,
 				sizeof(u8));
-	if ((byte_val & 0x7f) != PCI_HEADER_TYPE_NORMAL)
+	if ((byte_val & 0x7F) != PCI_HEADER_TYPE_NORMAL)
 		return cap_ptr;
 
 	/* check if the capability pointer field exists */
