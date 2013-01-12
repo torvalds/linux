@@ -771,19 +771,23 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 {
 	struct ixgbe_q_vector *q_vector;
 	struct ixgbe_ring *ring;
-	int node = -1;
+	int node = NUMA_NO_NODE;
 	int cpu = -1;
 	int ring_count, size;
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
 
 	ring_count = txr_count + rxr_count;
 	size = sizeof(struct ixgbe_q_vector) +
 	       (sizeof(struct ixgbe_ring) * ring_count);
 
 	/* customize cpu for Flow Director mapping */
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
-		if (cpu_online(v_idx)) {
-			cpu = v_idx;
-			node = cpu_to_node(cpu);
+	if ((tcs <= 1) && !(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)) {
+		u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
+		if (rss_i > 1 && adapter->atr_sample_rate) {
+			if (cpu_online(v_idx)) {
+				cpu = v_idx;
+				node = cpu_to_node(cpu);
+			}
 		}
 	}
 
