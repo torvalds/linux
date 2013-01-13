@@ -388,15 +388,8 @@ static int rt6_info_hash_nhsfn(unsigned int candidate_count,
 {
 	unsigned int val = fl6->flowi6_proto;
 
-	val ^= (__force u32)fl6->daddr.s6_addr32[0];
-	val ^= (__force u32)fl6->daddr.s6_addr32[1];
-	val ^= (__force u32)fl6->daddr.s6_addr32[2];
-	val ^= (__force u32)fl6->daddr.s6_addr32[3];
-
-	val ^= (__force u32)fl6->saddr.s6_addr32[0];
-	val ^= (__force u32)fl6->saddr.s6_addr32[1];
-	val ^= (__force u32)fl6->saddr.s6_addr32[2];
-	val ^= (__force u32)fl6->saddr.s6_addr32[3];
+	val ^= ipv6_addr_hash(&fl6->daddr);
+	val ^= ipv6_addr_hash(&fl6->saddr);
 
 	/* Work only if this not encapsulated */
 	switch (fl6->flowi6_proto) {
