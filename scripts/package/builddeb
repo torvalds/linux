@@ -327,9 +327,9 @@ EOF
 fi
 
 # Copy device tree files if generated
-stat arch/$ARCH/boot/*.dtb && {
+stat arch/$ARCH/boot/dts/*.dtb && {
 	mkdir -p "$tmpdir/lib/firmware/$version/device-tree"
-	cp arch/$ARCH/boot/*.dtb "$tmpdir/lib/firmware/$version/device-tree"
+	cp arch/$ARCH/boot/dts/*.dtb "$tmpdir/lib/firmware/$version/device-tree"
 }
 
 cat <<EOF >> debian/control
