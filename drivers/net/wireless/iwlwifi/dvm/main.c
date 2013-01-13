@@ -1991,13 +1991,13 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
 	/* SKU Control */
-	iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
-			  (CSR_HW_REV_STEP(priv->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
-			  (CSR_HW_REV_DASH(priv->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
+				(CSR_HW_REV_STEP(priv->trans->hw_rev) <<
+					CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
+				(CSR_HW_REV_DASH(priv->trans->hw_rev) <<
+					CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {
@@ -2009,10 +2009,11 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 			priv->nvm_data->radio_cfg_dash <<
 				CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
 
-		iwl_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
-				  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH, reg_val);
+		iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
+					CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH,
+					reg_val);
 
 		IWL_INFO(priv, "Radio type=0x%x-0x%x-0x%x\n",
 			 priv->nvm_data->radio_cfg_type,

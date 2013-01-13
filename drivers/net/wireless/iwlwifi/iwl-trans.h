@@ -418,6 +418,7 @@ struct iwl_trans;
  * @set_pmi: set the power pmi state
  * @grab_nic_access: wake the NIC to be able to access non-HBUS regs
  * @release_nic_access: let the NIC go to sleep
+ * @set_bits_mask - set SRAM register according to value and mask.
  */
 struct iwl_trans_ops {
 
@@ -462,6 +463,8 @@ struct iwl_trans_ops {
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
 	bool (*grab_nic_access)(struct iwl_trans *trans, bool silent);
 	void (*release_nic_access)(struct iwl_trans *trans);
+	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
+			      u32 value);
 };
 
 /**
@@ -760,6 +763,12 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 {
 	trans->ops->set_pmi(trans, state);
+}
+
+static inline void
+iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
+{
+	trans->ops->set_bits_mask(trans, reg, mask, value);
 }
 
 #define iwl_trans_grab_nic_access(trans, silent)	\

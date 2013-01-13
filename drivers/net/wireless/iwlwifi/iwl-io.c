@@ -35,54 +35,6 @@
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
-void __iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	iwl_write32(trans, reg, iwl_read32(trans, reg) | mask);
-}
-
-void __iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	iwl_write32(trans, reg, iwl_read32(trans, reg) & ~mask);
-}
-
-void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	__iwl_set_bit(trans, reg, mask);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_set_bit);
-
-void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	__iwl_clear_bit(trans, reg, mask);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_clear_bit);
-
-void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
-{
-	unsigned long flags;
-	u32 v;
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	WARN_ON_ONCE(value & ~mask);
-#endif
-
-	spin_lock_irqsave(&trans->reg_lock, flags);
-	v = iwl_read32(trans, reg);
-	v &= ~mask;
-	v |= value;
-	iwl_write32(trans, reg, v);
-	spin_unlock_irqrestore(&trans->reg_lock, flags);
-}
-EXPORT_SYMBOL_GPL(iwl_set_bits_mask);
-
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout)
 {

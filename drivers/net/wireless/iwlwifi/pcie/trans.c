@@ -75,6 +75,33 @@
 #include "iwl-agn-hw.h"
 #include "internal.h"
 
+static void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
+						  u32 reg, u32 mask, u32 value)
+{
+	u32 v;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	WARN_ON_ONCE(value & ~mask);
+#endif
+
+	v = iwl_read32(trans, reg);
+	v &= ~mask;
+	v |= value;
+	iwl_write32(trans, reg, v);
+}
+
+static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
+					      u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
+}
+
+static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
+					    u32 reg, u32 mask)
+{
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
+}
+
 static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 {
 	if (vaux && pci_pme_capable(to_pci_dev(trans->dev), PCI_D3cold))
@@ -786,8 +813,8 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	lockdep_assert_held(&trans->reg_lock);
 
 	/* this bit wakes up the NIC */
-	__iwl_set_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
+				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/*
 	 * These bits say the device is running, and should keep running for
@@ -829,8 +856,8 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 {
 	lockdep_assert_held(&trans->reg_lock);
-	__iwl_clear_bit(trans, CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -950,6 +977,16 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 	}
 
 	return ret;
+}
+
+static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
+					 u32 mask, u32 value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
 static const char *get_fh_string(int cmd)
@@ -1405,7 +1442,8 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.configure = iwl_trans_pcie_configure,
 	.set_pmi = iwl_trans_pcie_set_pmi,
 	.grab_nic_access = iwl_trans_pcie_grab_nic_access,
-	.release_nic_access = iwl_trans_pcie_release_nic_access
+	.release_nic_access = iwl_trans_pcie_release_nic_access,
+	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,

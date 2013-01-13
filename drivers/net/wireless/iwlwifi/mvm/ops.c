@@ -177,15 +177,15 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_MAC_SI;
 
-	iwl_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-			  CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
-			  CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
-			  CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
-			  CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
-			  CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-			  CSR_HW_IF_CONFIG_REG_BIT_MAC_SI,
-			  reg_val);
+	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
+				CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
+				CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
+				CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
+				CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+				CSR_HW_IF_CONFIG_REG_BIT_MAC_SI,
+				reg_val);
 
 	IWL_DEBUG_INFO(mvm, "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,
 		       radio_cfg_step, radio_cfg_dash);
