@@ -125,8 +125,6 @@ static int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (buf[1] == 0xff)
 		return 0;
 
-	ir->old = buf[1];
-
 	/*
 	 * Rearranges bits to the right order.
 	 * The bit order were determined experimentally by using
