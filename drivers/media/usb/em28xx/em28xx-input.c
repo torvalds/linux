@@ -40,11 +40,6 @@ MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define MODULE_NAME "em28xx"
 
-#define i2cdprintk(fmt, arg...) \
-	if (ir_debug) { \
-		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
-	}
-
 #define dprintk(fmt, arg...) \
 	if (ir_debug) { \
 		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
@@ -86,16 +81,12 @@ static int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		i2cdprintk("read error\n");
+	if (1 != i2c_master_recv(ir->c, &b, 1))
 		return -EIO;
-	}
 
 	/* it seems that 0xFE indicates that a button is still hold
 	   down, while 0xff indicates that no button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
-
-	i2cdprintk("key %02x\n", b);
 
 	if (b == 0xff)
 		return 0;
@@ -147,9 +138,6 @@ static int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		 ((buf[1] & 0x40) ? 0x0200 : 0) | /* 0000 0010		  */
 		 ((buf[1] & 0x80) ? 0x0100 : 0);  /* 0000 0001		  */
 
-	i2cdprintk("ir hauppauge (em2840): code=0x%02x (rcv=0x%02x%02x)\n",
-			code, buf[1], buf[0]);
-
 	/* return key */
 	*ir_key = code;
 	*ir_raw = code;
@@ -163,12 +151,9 @@ static int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 
 	/* poll IR chip */
 
-	if (3 != i2c_master_recv(ir->c, buf, 3)) {
-		i2cdprintk("read error\n");
+	if (3 != i2c_master_recv(ir->c, buf, 3))
 		return -EIO;
-	}
 
-	i2cdprintk("key %02x\n", buf[2]&0x3f);
 	if (buf[0] != 0x00)
 		return 0;
 
@@ -188,19 +173,15 @@ static int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
 				{ .addr = ir->c->addr, .flags = I2C_M_RD, .buf = &keydetect, .len = 1} };
 
 	subaddr = 0x10;
-	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
-		i2cdprintk("read error\n");
+	if (2 != i2c_transfer(ir->c->adapter, msg, 2))
 		return -EIO;
-	}
 	if (keydetect == 0x00)
 		return 0;
 
 	subaddr = 0x00;
 	msg[1].buf = &key;
-	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
-		i2cdprintk("read error\n");
-	return -EIO;
-	}
+	if (2 != i2c_transfer(ir->c->adapter, msg, 2))
+		return -EIO;
 	if (key == 0x00)
 		return 0;
 
