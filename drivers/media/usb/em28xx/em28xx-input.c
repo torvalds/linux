@@ -338,19 +338,14 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 	}
 }
 
-static void em28xx_i2c_ir_work(struct work_struct *work)
-{
-	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work.work);
-
-	em28xx_i2c_ir_handle_key(ir);
-	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
-}
-
 static void em28xx_ir_work(struct work_struct *work)
 {
 	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work.work);
 
-	em28xx_ir_handle_key(ir);
+	if (ir->i2c_dev_addr) /* external i2c device */
+		em28xx_i2c_ir_handle_key(ir);
+	else /* internal device */
+		em28xx_ir_handle_key(ir);
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 }
 
@@ -358,10 +353,7 @@ static int em28xx_ir_start(struct rc_dev *rc)
 {
 	struct em28xx_IR *ir = rc->priv;
 
-	if (ir->i2c_dev_addr) /* external i2c device */
-		INIT_DELAYED_WORK(&ir->work, em28xx_i2c_ir_work);
-	else /* internal device */
-		INIT_DELAYED_WORK(&ir->work, em28xx_ir_work);
+	INIT_DELAYED_WORK(&ir->work, em28xx_ir_work);
 	schedule_delayed_work(&ir->work, 0);
 
 	return 0;
