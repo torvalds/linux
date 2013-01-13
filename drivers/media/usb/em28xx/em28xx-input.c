@@ -72,7 +72,7 @@ struct em28xx_IR {
 	/* external device (if used) */
 	struct i2c_client *i2c_dev;
 
-	int  (*get_key_i2c)(struct i2c_client *, u32 *, u32 *);
+	int  (*get_key_i2c)(struct i2c_client *, u32 *);
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
 };
 
@@ -80,8 +80,7 @@ struct em28xx_IR {
  I2C IR based get keycodes - should be used with ir-kbd-i2c
  **********************************************************/
 
-static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
-				   u32 *ir_key, u32 *ir_raw)
+static int em28xx_get_key_terratec(struct i2c_client *i2c_dev, u32 *ir_key)
 {
 	unsigned char b;
 
@@ -101,12 +100,10 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
 		return 1;
 
 	*ir_key = b;
-	*ir_raw = b;
 	return 1;
 }
 
-static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
-				  u32 *ir_key, u32 *ir_raw)
+static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev, u32 *ir_key)
 {
 	unsigned char buf[2];
 	u16 code;
@@ -146,12 +143,11 @@ static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
 
 	/* return key */
 	*ir_key = code;
-	*ir_raw = code;
 	return 1;
 }
 
 static int em28xx_get_key_pinnacle_usb_grey(struct i2c_client *i2c_dev,
-					    u32 *ir_key, u32 *ir_raw)
+					    u32 *ir_key)
 {
 	unsigned char buf[3];
 
@@ -164,13 +160,12 @@ static int em28xx_get_key_pinnacle_usb_grey(struct i2c_client *i2c_dev,
 		return 0;
 
 	*ir_key = buf[2]&0x3f;
-	*ir_raw = buf[2]&0x3f;
 
 	return 1;
 }
 
 static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
-					       u32 *ir_key, u32 *ir_raw)
+					       u32 *ir_key)
 {
 	unsigned char subaddr, keydetect, key;
 
@@ -192,7 +187,6 @@ static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
 		return 0;
 
 	*ir_key = key;
-	*ir_raw = key;
 	return 1;
 }
 
@@ -288,10 +282,10 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 
 static int em28xx_i2c_ir_handle_key(struct em28xx_IR *ir)
 {
-	static u32 ir_key, ir_raw;
+	static u32 ir_key;
 	int rc;
 
-	rc = ir->get_key_i2c(ir->i2c_dev, &ir_key, &ir_raw);
+	rc = ir->get_key_i2c(ir->i2c_dev, &ir_key);
 	if (rc < 0) {
 		dprintk("ir->get_key_i2c() failed: %d\n", rc);
 		return rc;
