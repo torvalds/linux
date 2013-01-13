@@ -785,6 +785,7 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 			return -EINVAL;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
+		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		dprintk(1, "%s() QAM modulation\n", __func__);
