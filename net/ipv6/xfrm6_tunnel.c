@@ -72,7 +72,7 @@ static inline unsigned int xfrm6_tunnel_spi_hash_byaddr(const xfrm_address_t *ad
 {
 	unsigned int h;
 
-	h = (__force u32)(addr->a6[0] ^ addr->a6[1] ^ addr->a6[2] ^ addr->a6[3]);
+	h = ipv6_addr_hash((const struct in6_addr *)addr);
 	h ^= h >> 16;
 	h ^= h >> 8;
 	h &= XFRM6_TUNNEL_SPI_BYADDR_HSIZE - 1;
