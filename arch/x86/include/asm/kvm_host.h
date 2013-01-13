@@ -497,6 +497,13 @@ struct kvm_vcpu_arch {
 		u64 msr_val;
 		struct gfn_to_hva_cache data;
 	} pv_eoi;
+
+	/*
+	 * Indicate whether the access faults on its page table in guest
+	 * which is set when fix page fault and used to detect unhandeable
+	 * instruction.
+	 */
+	bool write_fault_to_shadow_pgtable;
 };
 
 struct kvm_lpage_info {
