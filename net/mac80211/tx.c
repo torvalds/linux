@@ -1673,10 +1673,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 			chanctx_conf =
 				rcu_dereference(tmp_sdata->vif.chanctx_conf);
 	}
-	if (!chanctx_conf)
-		goto fail_rcu;
 
-	chan = chanctx_conf->def.chan;
+	if (chanctx_conf)
+		chan = chanctx_conf->def.chan;
+	else if (!local->use_chanctx)
+		chan = local->_oper_channel;
+	else
+		goto fail_rcu;
 
 	/*
 	 * Frame injection is not allowed if beaconing is not allowed
