@@ -27,6 +27,7 @@
 #include <linux/pagemap.h>	/* read_mapping_page */
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/export.h>
 #include <linux/rmap.h>		/* anon_vma_prepare */
 #include <linux/mmu_notifier.h>	/* set_pte_at_notify */
 #include <linux/swap.h>		/* try_to_free_swap */
@@ -851,6 +852,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 		goto retry;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(uprobe_register);
 
 /*
  * uprobe_unregister - unregister a already registered probe.
@@ -871,6 +873,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 	up_write(&uprobe->register_rwsem);
 	put_uprobe(uprobe);
 }
+EXPORT_SYMBOL_GPL(uprobe_unregister);
 
 static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
 {
