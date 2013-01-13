@@ -534,6 +534,7 @@ static struct i2c_client em28xx_client_template = {
  * incomplete list of known devices
  */
 static char *i2c_devs[128] = {
+	[0x3e >> 1] = "remote IR sensor",
 	[0x4a >> 1] = "saa7113h",
 	[0x52 >> 1] = "drxk",
 	[0x60 >> 1] = "remote IR sensor",
