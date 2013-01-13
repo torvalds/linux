@@ -230,10 +230,12 @@ nv04_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info, u32 freq,
 {
 	int ret;
 
-	if (!info->vco2.max_freq) {
+	if (!info->vco2.max_freq || !N2) {
 		ret = getMNP_single(subdev, info, freq, N1, M1, P);
-		*N2 = 1;
-		*M2 = 1;
+		if (N2) {
+			*N2 = 1;
+			*M2 = 1;
+		}
 	} else {
 		ret = getMNP_double(subdev, info, freq, N1, M1, N2, M2, P);
 	}

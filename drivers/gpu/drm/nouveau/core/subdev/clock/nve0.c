@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,13 +23,13 @@
  */
 
 #include <subdev/clock.h>
+#include <subdev/timer.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
-#include <subdev/timer.h>
 
 #include "pll.h"
 
-struct nvc0_clock_info {
+struct nve0_clock_info {
 	u32 freq;
 	u32 ssel;
 	u32 mdiv;
@@ -38,33 +38,33 @@ struct nvc0_clock_info {
 	u32 coef;
 };
 
-struct nvc0_clock_priv {
+struct nve0_clock_priv {
 	struct nouveau_clock base;
-	struct nvc0_clock_info eng[16];
+	struct nve0_clock_info eng[16];
 };
 
-static u32 read_div(struct nvc0_clock_priv *, int, u32, u32);
+static u32 read_div(struct nve0_clock_priv *, int, u32, u32);
+static u32 read_pll(struct nve0_clock_priv *, u32);
 
 static u32
-read_vco(struct nvc0_clock_priv *priv, u32 dsrc)
+read_vco(struct nve0_clock_priv *priv, u32 dsrc)
 {
-	struct nouveau_clock *clk = &priv->base;
 	u32 ssrc = nv_rd32(priv, dsrc);
 	if (!(ssrc & 0x00000100))
-		return clk->read(clk, nv_clk_src_sppll0);
-	return clk->read(clk, nv_clk_src_sppll1);
+		return read_pll(priv, 0x00e800);
+	return read_pll(priv, 0x00e820);
 }
 
 static u32
-read_pll(struct nvc0_clock_priv *priv, u32 pll)
+read_pll(struct nve0_clock_priv *priv, u32 pll)
 {
-	struct nouveau_clock *clk = &priv->base;
 	u32 ctrl = nv_rd32(priv, pll + 0x00);
 	u32 coef = nv_rd32(priv, pll + 0x04);
 	u32 P = (coef & 0x003f0000) >> 16;
 	u32 N = (coef & 0x0000ff00) >> 8;
 	u32 M = (coef & 0x000000ff) >> 0;
 	u32 sclk;
+	u16 fN = 0xf000;
 
 	if (!(ctrl & 0x00000001))
 		return 0;
@@ -76,10 +76,12 @@ read_pll(struct nvc0_clock_priv *priv, u32 pll)
 		P = 1;
 		break;
 	case 0x132000:
-		sclk = clk->read(clk, nv_clk_src_mpllsrc);
+		sclk = read_pll(priv, 0x132020);
+		P = (coef & 0x10000000) ? 2 : 1;
 		break;
 	case 0x132020:
-		sclk = clk->read(clk, nv_clk_src_mpllsrcref);
+		sclk = read_div(priv, 0, 0x137320, 0x137330);
+		fN   = nv_rd32(priv, pll + 0x10) >> 16;
 		break;
 	case 0x137000:
 	case 0x137020:
@@ -91,11 +93,15 @@ read_pll(struct nvc0_clock_priv *priv, u32 pll)
 		return 0;
 	}
 
-	return sclk * N / M / P;
+	if (P == 0)
+		P = 1;
+
+	sclk = (sclk * N) + (((u16)(fN + 4096) * sclk) >> 13);
+	return sclk / (M * P);
 }
 
 static u32
-read_div(struct nvc0_clock_priv *priv, int doff, u32 dsrc, u32 dctl)
+read_div(struct nve0_clock_priv *priv, int doff, u32 dsrc, u32 dctl)
 {
 	u32 ssrc = nv_rd32(priv, dsrc + (doff * 4));
 	u32 sctl = nv_rd32(priv, dctl + (doff * 4));
@@ -121,58 +127,72 @@ read_div(struct nvc0_clock_priv *priv, int doff, u32 dsrc, u32 dctl)
 }
 
 static u32
-read_clk(struct nvc0_clock_priv *priv, int clk)
+read_mem(struct nve0_clock_priv *priv)
+{
+	switch (nv_rd32(priv, 0x1373f4) & 0x0000000f) {
+	case 1: return read_pll(priv, 0x132020);
+	case 2: return read_pll(priv, 0x132000);
+	default:
+		return 0;
+	}
+}
+
+static u32
+read_clk(struct nve0_clock_priv *priv, int clk)
 {
 	u32 sctl = nv_rd32(priv, 0x137250 + (clk * 4));
-	u32 ssel = nv_rd32(priv, 0x137100);
 	u32 sclk, sdiv;
 
-	if (ssel & (1 << clk)) {
-		if (clk < 7)
+	if (clk < 7) {
+		u32 ssel = nv_rd32(priv, 0x137100);
+		if (ssel & (1 << clk)) {
 			sclk = read_pll(priv, 0x137000 + (clk * 0x20));
-		else
-			sclk = read_pll(priv, 0x1370e0);
-		sdiv = ((sctl & 0x00003f00) >> 8) + 2;
+			sdiv = 1;
+		} else {
+			sclk = read_div(priv, clk, 0x137160, 0x1371d0);
+			sdiv = 0;
+		}
 	} else {
-		sclk = read_div(priv, clk, 0x137160, 0x1371d0);
-		sdiv = ((sctl & 0x0000003f) >> 0) + 2;
+		u32 ssrc = nv_rd32(priv, 0x137160 + (clk * 0x04));
+		if ((ssrc & 0x00000003) == 0x00000003) {
+			sclk = read_div(priv, clk, 0x137160, 0x1371d0);
+			if (ssrc & 0x00000100) {
+				if (ssrc & 0x40000000)
+					sclk = read_pll(priv, 0x1370e0);
+				sdiv = 1;
+			} else {
+				sdiv = 0;
+			}
+		} else {
+			sclk = read_div(priv, clk, 0x137160, 0x1371d0);
+			sdiv = 0;
+		}
 	}
 
-	if (sctl & 0x80000000)
+	if (sctl & 0x80000000) {
+		if (sdiv)
+			sdiv = ((sctl & 0x00003f00) >> 8) + 2;
+		else
+			sdiv = ((sctl & 0x0000003f) >> 0) + 2;
 		return (sclk * 2) / sdiv;
+	}
 
 	return sclk;
 }
 
 static int
-nvc0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nve0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 {
 	struct nouveau_device *device = nv_device(clk);
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nve0_clock_priv *priv = (void *)clk;
 
 	switch (src) {
 	case nv_clk_src_crystal:
 		return device->crystal;
 	case nv_clk_src_href:
 		return 100000;
-	case nv_clk_src_sppll0:
-		return read_pll(priv, 0x00e800);
-	case nv_clk_src_sppll1:
-		return read_pll(priv, 0x00e820);
-
-	case nv_clk_src_mpllsrcref:
-		return read_div(priv, 0, 0x137320, 0x137330);
-	case nv_clk_src_mpllsrc:
-		return read_pll(priv, 0x132020);
-	case nv_clk_src_mpll:
-		return read_pll(priv, 0x132000);
-	case nv_clk_src_mdiv:
-		return read_div(priv, 0, 0x137300, 0x137310);
 	case nv_clk_src_mem:
-		if (nv_rd32(priv, 0x1373f0) & 0x00000002)
-			return clk->read(clk, nv_clk_src_mpll);
-		return clk->read(clk, nv_clk_src_mdiv);
-
+		return read_mem(priv);
 	case nv_clk_src_gpc:
 		return read_clk(priv, 0x00);
 	case nv_clk_src_rop:
@@ -183,8 +203,6 @@ nvc0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 		return read_clk(priv, 0x07);
 	case nv_clk_src_hubk01:
 		return read_clk(priv, 0x08);
-	case nv_clk_src_copy:
-		return read_clk(priv, 0x09);
 	case nv_clk_src_daemon:
 		return read_clk(priv, 0x0c);
 	case nv_clk_src_vdec:
@@ -196,7 +214,7 @@ nvc0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static u32
-calc_div(struct nvc0_clock_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
+calc_div(struct nve0_clock_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
 {
 	u32 div = min((ref * 2) / freq, (u32)65);
 	if (div < 2)
@@ -207,7 +225,7 @@ calc_div(struct nvc0_clock_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
 }
 
 static u32
-calc_src(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
+calc_src(struct nve0_clock_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
 {
 	u32 sclk;
 
@@ -236,7 +254,7 @@ calc_src(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
 }
 
 static u32
-calc_pll(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *coef)
+calc_pll(struct nve0_clock_priv *priv, int clk, u32 freq, u32 *coef)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll limits;
@@ -259,10 +277,10 @@ calc_pll(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *coef)
 }
 
 static int
-calc_clk(struct nvc0_clock_priv *priv,
+calc_clk(struct nve0_clock_priv *priv,
 	 struct nouveau_cstate *cstate, int clk, int dom)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nve0_clock_info *info = &priv->eng[clk];
 	u32 freq = cstate->domain[dom];
 	u32 src0, div0, div1D, div1P = 0;
 	u32 clk0, clk1 = 0;
@@ -276,7 +294,7 @@ calc_clk(struct nvc0_clock_priv *priv,
 	clk0 = calc_div(priv, clk, clk0, freq, &div1D);
 
 	/* see if we can get any closer using PLLs */
-	if (clk0 != freq && (0x00004387 & (1 << clk))) {
+	if (clk0 != freq && (0x0000ff87 & (1 << clk))) {
 		if (clk <= 7)
 			clk1 = calc_pll(priv, clk, freq, &info->coef);
 		else
@@ -296,7 +314,7 @@ calc_clk(struct nvc0_clock_priv *priv,
 			info->mdiv |= 0x80000000;
 			info->mdiv |= div1D;
 		}
-		info->ssel = info->coef = 0;
+		info->ssel = 0;
 		info->freq = clk0;
 	} else {
 		if (div1P) {
@@ -304,6 +322,7 @@ calc_clk(struct nvc0_clock_priv *priv,
 			info->mdiv |= div1P << 8;
 		}
 		info->ssel = (1 << clk);
+		info->dsrc = 0x40000100;
 		info->freq = clk1;
 	}
 
@@ -311,9 +330,9 @@ calc_clk(struct nvc0_clock_priv *priv,
 }
 
 static int
-nvc0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nve0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nve0_clock_priv *priv = (void *)clk;
 	int ret;
 
 	if ((ret = calc_clk(priv, cstate, 0x00, nv_clk_src_gpc)) ||
@@ -321,7 +340,6 @@ nvc0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 	    (ret = calc_clk(priv, cstate, 0x02, nv_clk_src_hubk07)) ||
 	    (ret = calc_clk(priv, cstate, 0x07, nv_clk_src_hubk06)) ||
 	    (ret = calc_clk(priv, cstate, 0x08, nv_clk_src_hubk01)) ||
-	    (ret = calc_clk(priv, cstate, 0x09, nv_clk_src_copy)) ||
 	    (ret = calc_clk(priv, cstate, 0x0c, nv_clk_src_daemon)) ||
 	    (ret = calc_clk(priv, cstate, 0x0e, nv_clk_src_vdec)))
 		return ret;
@@ -330,43 +348,54 @@ nvc0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static void
-nvc0_clock_prog_0(struct nvc0_clock_priv *priv, int clk)
+nve0_clock_prog_0(struct nve0_clock_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
-	if (clk < 7 && !info->ssel) {
+	struct nve0_clock_info *info = &priv->eng[clk];
+	if (!info->ssel) {
 		nv_mask(priv, 0x1371d0 + (clk * 0x04), 0x80003f3f, info->ddiv);
 		nv_wr32(priv, 0x137160 + (clk * 0x04), info->dsrc);
 	}
 }
 
 static void
-nvc0_clock_prog_1(struct nvc0_clock_priv *priv, int clk)
+nve0_clock_prog_1_0(struct nve0_clock_priv *priv, int clk)
 {
 	nv_mask(priv, 0x137100, (1 << clk), 0x00000000);
 	nv_wait(priv, 0x137100, (1 << clk), 0x00000000);
 }
 
 static void
-nvc0_clock_prog_2(struct nvc0_clock_priv *priv, int clk)
+nve0_clock_prog_1_1(struct nve0_clock_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	nv_mask(priv, 0x137160 + (clk * 0x04), 0x00000100, 0x00000000);
+}
+
+static void
+nve0_clock_prog_2(struct nve0_clock_priv *priv, int clk)
+{
+	struct nve0_clock_info *info = &priv->eng[clk];
 	const u32 addr = 0x137000 + (clk * 0x20);
-	if (clk <= 7) {
-		nv_mask(priv, addr + 0x00, 0x00000004, 0x00000000);
-		nv_mask(priv, addr + 0x00, 0x00000001, 0x00000000);
-		if (info->coef) {
-			nv_wr32(priv, addr + 0x04, info->coef);
-			nv_mask(priv, addr + 0x00, 0x00000001, 0x00000001);
-			nv_wait(priv, addr + 0x00, 0x00020000, 0x00020000);
-			nv_mask(priv, addr + 0x00, 0x00020004, 0x00000004);
-		}
+	nv_mask(priv, addr + 0x00, 0x00000004, 0x00000000);
+	nv_mask(priv, addr + 0x00, 0x00000001, 0x00000000);
+	if (info->coef) {
+		nv_wr32(priv, addr + 0x04, info->coef);
+		nv_mask(priv, addr + 0x00, 0x00000001, 0x00000001);
+		nv_wait(priv, addr + 0x00, 0x00020000, 0x00020000);
+		nv_mask(priv, addr + 0x00, 0x00020004, 0x00000004);
 	}
 }
 
 static void
-nvc0_clock_prog_3(struct nvc0_clock_priv *priv, int clk)
+nve0_clock_prog_3(struct nve0_clock_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nve0_clock_info *info = &priv->eng[clk];
+	nv_mask(priv, 0x137250 + (clk * 0x04), 0x00003f3f, info->mdiv);
+}
+
+static void
+nve0_clock_prog_4_0(struct nve0_clock_priv *priv, int clk)
+{
+	struct nve0_clock_info *info = &priv->eng[clk];
 	if (info->ssel) {
 		nv_mask(priv, 0x137100, (1 << clk), info->ssel);
 		nv_wait(priv, 0x137100, (1 << clk), info->ssel);
@@ -374,29 +403,37 @@ nvc0_clock_prog_3(struct nvc0_clock_priv *priv, int clk)
 }
 
 static void
-nvc0_clock_prog_4(struct nvc0_clock_priv *priv, int clk)
+nve0_clock_prog_4_1(struct nve0_clock_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
-	nv_mask(priv, 0x137250 + (clk * 0x04), 0x00003f3f, info->mdiv);
+	struct nve0_clock_info *info = &priv->eng[clk];
+	if (info->ssel) {
+		nv_mask(priv, 0x137160 + (clk * 0x04), 0x40000000, 0x40000000);
+		nv_mask(priv, 0x137160 + (clk * 0x04), 0x00000100, 0x00000100);
+	}
 }
 
 static int
-nvc0_clock_prog(struct nouveau_clock *clk)
+nve0_clock_prog(struct nouveau_clock *clk)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nve0_clock_priv *priv = (void *)clk;
 	struct {
-		void (*exec)(struct nvc0_clock_priv *, int);
+		u32 mask;
+		void (*exec)(struct nve0_clock_priv *, int);
 	} stage[] = {
-		{ nvc0_clock_prog_0 }, /* div programming */
-		{ nvc0_clock_prog_1 }, /* select div mode */
-		{ nvc0_clock_prog_2 }, /* (maybe) program pll */
-		{ nvc0_clock_prog_3 }, /* (maybe) select pll mode */
-		{ nvc0_clock_prog_4 }, /* final divider */
+		{ 0x007f, nve0_clock_prog_0   }, /* div programming */
+		{ 0x007f, nve0_clock_prog_1_0 }, /* select div mode */
+		{ 0xff80, nve0_clock_prog_1_1 },
+		{ 0x00ff, nve0_clock_prog_2   }, /* (maybe) program pll */
+		{ 0xff80, nve0_clock_prog_3   }, /* final divider */
+		{ 0x007f, nve0_clock_prog_4_0 }, /* (maybe) select pll mode */
+		{ 0xff80, nve0_clock_prog_4_1 },
 	};
 	int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(stage); i++) {
 		for (j = 0; j < ARRAY_SIZE(priv->eng); j++) {
+			if (!(stage[i].mask & (1 << j)))
+				continue;
 			if (!priv->eng[j].freq)
 				continue;
 			stage[i].exec(priv, j);
@@ -407,53 +444,52 @@ nvc0_clock_prog(struct nouveau_clock *clk)
 }
 
 static void
-nvc0_clock_tidy(struct nouveau_clock *clk)
+nve0_clock_tidy(struct nouveau_clock *clk)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nve0_clock_priv *priv = (void *)clk;
 	memset(priv->eng, 0x00, sizeof(priv->eng));
 }
 
 static struct nouveau_clocks
-nvc0_domain[] = {
+nve0_domain[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
-	{ nv_clk_src_hubk06 , 0x00 },
-	{ nv_clk_src_hubk01 , 0x01 },
-	{ nv_clk_src_copy   , 0x02 },
-	{ nv_clk_src_gpc    , 0x03, 0, "core", 2000 },
-	{ nv_clk_src_rop    , 0x04 },
-	{ nv_clk_src_mem    , 0x05, 0, "memory", 1000 },
+	{ nv_clk_src_gpc    , 0x00, NVKM_CLK_DOM_FLAG_CORE, "core", 2000 },
+	{ nv_clk_src_hubk07 , 0x01, NVKM_CLK_DOM_FLAG_CORE },
+	{ nv_clk_src_rop    , 0x02, NVKM_CLK_DOM_FLAG_CORE },
+	{ nv_clk_src_mem    , 0x03, 0, "memory", 1000 },
+	{ nv_clk_src_hubk06 , 0x04, NVKM_CLK_DOM_FLAG_CORE },
+	{ nv_clk_src_hubk01 , 0x05 },
 	{ nv_clk_src_vdec   , 0x06 },
-	{ nv_clk_src_daemon , 0x0a },
-	{ nv_clk_src_hubk07 , 0x0b },
+	{ nv_clk_src_daemon , 0x07 },
 	{ nv_clk_src_max }
 };
 
 static int
-nvc0_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nve0_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvc0_clock_priv *priv;
+	struct nve0_clock_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nvc0_domain, &priv);
+	ret = nouveau_clock_create(parent, engine, oclass, nve0_domain, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nvc0_clock_read;
-	priv->base.calc = nvc0_clock_calc;
-	priv->base.prog = nvc0_clock_prog;
-	priv->base.tidy = nvc0_clock_tidy;
+	priv->base.read = nve0_clock_read;
+	priv->base.calc = nve0_clock_calc;
+	priv->base.prog = nve0_clock_prog;
+	priv->base.tidy = nve0_clock_tidy;
 	return 0;
 }
 
 struct nouveau_oclass
-nvc0_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0xc0),
+nve0_clock_oclass = {
+	.handle = NV_SUBDEV(CLOCK, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_clock_ctor,
+		.ctor = nve0_clock_ctor,
 		.dtor = _nouveau_clock_dtor,
 		.init = _nouveau_clock_init,
 		.fini = _nouveau_clock_fini,
