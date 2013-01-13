@@ -216,7 +216,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
-	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl6->flowlabel;
+	ip6_flow_hdr(hdr, tclass, fl6->flowlabel);
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -267,7 +267,7 @@ int ip6_nd_hdr(struct sock *sk, struct sk_buff *skb, struct net_device *dev,
 	skb_put(skb, sizeof(struct ipv6hdr));
 	hdr = ipv6_hdr(skb);
 
-	*(__be32*)hdr = htonl(0x60000000);
+	ip6_flow_hdr(hdr, 0, 0);
 
 	hdr->payload_len = htons(len);
 	hdr->nexthdr = proto;
@@ -1548,9 +1548,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	skb_reset_network_header(skb);
 	hdr = ipv6_hdr(skb);
 
-	*(__be32*)hdr = fl6->flowlabel |
-		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
-
+	ip6_flow_hdr(hdr, np->cork.tclass, fl6->flowlabel);
 	hdr->hop_limit = np->cork.hop_limit;
 	hdr->nexthdr = proto;
 	hdr->saddr = fl6->saddr;

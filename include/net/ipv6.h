@@ -547,6 +547,15 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 extern void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 
 /*
+ *	Header manipulation
+ */
+static inline void ip6_flow_hdr(struct ipv6hdr *hdr, unsigned int tclass,
+				__be32 flowlabel)
+{
+	*(__be32 *)hdr = ntohl(0x60000000 | (tclass << 20)) | flowlabel;
+}
+
+/*
  *	Prototypes exported by ipv6
  */
 
