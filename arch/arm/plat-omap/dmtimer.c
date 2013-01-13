@@ -898,19 +898,8 @@ static struct platform_driver omap_dm_timer_driver = {
 	},
 };
 
-static int __init omap_dm_timer_driver_init(void)
-{
-	return platform_driver_register(&omap_dm_timer_driver);
-}
-
-static void __exit omap_dm_timer_driver_exit(void)
-{
-	platform_driver_unregister(&omap_dm_timer_driver);
-}
-
 early_platform_init("earlytimer", &omap_dm_timer_driver);
-module_init(omap_dm_timer_driver_init);
-module_exit(omap_dm_timer_driver_exit);
+module_platform_driver(omap_dm_timer_driver);
 
 MODULE_DESCRIPTION("OMAP Dual-Mode Timer Driver");
 MODULE_LICENSE("GPL");

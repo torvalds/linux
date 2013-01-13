@@ -434,7 +434,8 @@ static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 		.callback = set_scan_all,
 		.ident = "Stratus/NEC ftServer",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ftServer"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Stratus"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ftServer"),
 		},
 	},
 	{}

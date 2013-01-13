@@ -108,14 +108,6 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	/* Unaligned direct AIO must be serialized; see comment above */
 	if (unaligned_aio) {
-		static unsigned long unaligned_warn_time;
-
-		/* Warn about this once per day */
-		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
-			ext4_msg(inode->i_sb, KERN_WARNING,
-				 "Unaligned AIO/DIO on inode %ld by %s; "
-				 "performance will be poor.",
-				 inode->i_ino, current->comm);
 		mutex_lock(ext4_aio_mutex(inode));
 		ext4_unwritten_wait(inode);
 	}

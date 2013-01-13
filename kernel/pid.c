@@ -270,7 +270,6 @@ void free_pid(struct pid *pid)
 			wake_up_process(ns->child_reaper);
 			break;
 		case 0:
-			ns->nr_hashed = -1;
 			schedule_work(&ns->proc_work);
 			break;
 		}
@@ -319,7 +318,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
-	if (ns->nr_hashed < 0)
+	if (!(ns->nr_hashed & PIDNS_HASH_ADDING))
 		goto out_unlock;
 	for ( ; upid >= pid->numbers; --upid) {
 		hlist_add_head_rcu(&upid->pid_chain,
@@ -340,6 +339,13 @@ out_free:
 	kmem_cache_free(ns->pid_cachep, pid);
 	pid = NULL;
 	goto out;
+}
+
+void disable_pid_allocation(struct pid_namespace *ns)
+{
+	spin_lock_irq(&pidmap_lock);
+	ns->nr_hashed &= ~PIDNS_HASH_ADDING;
+	spin_unlock_irq(&pidmap_lock);
 }
 
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
@@ -573,6 +579,9 @@ void __init pidhash_init(void)
 
 void __init pidmap_init(void)
 {
+	/* Veryify no one has done anything silly */
+	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_HASH_ADDING);
+
 	/* bump default and minimum pid_max based on number of cpus */
 	pid_max = min(pid_max_max, max_t(int, pid_max,
 				PIDS_PER_CPU_DEFAULT * num_possible_cpus()));
@@ -584,7 +593,7 @@ void __init pidmap_init(void)
 	/* Reserve PID 0. We never call free_pidmap(0) */
 	set_bit(0, init_pid_ns.pidmap[0].page);
 	atomic_dec(&init_pid_ns.pidmap[0].nr_free);
-	init_pid_ns.nr_hashed = 1;
+	init_pid_ns.nr_hashed = PIDNS_HASH_ADDING;
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC);

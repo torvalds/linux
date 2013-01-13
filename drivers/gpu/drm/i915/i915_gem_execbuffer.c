@@ -808,6 +808,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 		flags |= I915_DISPATCH_SECURE;
 	}
+	if (args->flags & I915_EXEC_IS_PINNED)
+		flags |= I915_DISPATCH_PINNED;
 
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:

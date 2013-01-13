@@ -180,7 +180,6 @@ struct tun_struct {
 	int debug;
 #endif
 	spinlock_t lock;
-	struct kmem_cache *flow_cache;
 	struct hlist_head flows[TUN_NUM_FLOW_ENTRIES];
 	struct timer_list flow_gc_timer;
 	unsigned long ageing_time;
@@ -209,8 +208,8 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 					      struct hlist_head *head,
 					      u32 rxhash, u16 queue_index)
 {
-	struct tun_flow_entry *e = kmem_cache_alloc(tun->flow_cache,
-						    GFP_ATOMIC);
+	struct tun_flow_entry *e = kmalloc(sizeof(*e), GFP_ATOMIC);
+
 	if (e) {
 		tun_debug(KERN_INFO, tun, "create flow: hash %u index %u\n",
 			  rxhash, queue_index);
@@ -223,19 +222,12 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 	return e;
 }
 
-static void tun_flow_free(struct rcu_head *head)
-{
-	struct tun_flow_entry *e
-		= container_of(head, struct tun_flow_entry, rcu);
-	kmem_cache_free(e->tun->flow_cache, e);
-}
-
 static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 {
 	tun_debug(KERN_INFO, tun, "delete flow: hash %u index %u\n",
 		  e->rxhash, e->queue_index);
 	hlist_del_rcu(&e->hash_link);
-	call_rcu(&e->rcu, tun_flow_free);
+	kfree_rcu(e, rcu);
 }
 
 static void tun_flow_flush(struct tun_struct *tun)
@@ -833,12 +825,6 @@ static int tun_flow_init(struct tun_struct *tun)
 {
 	int i;
 
-	tun->flow_cache = kmem_cache_create("tun_flow_cache",
-					    sizeof(struct tun_flow_entry), 0, 0,
-					    NULL);
-	if (!tun->flow_cache)
-		return -ENOMEM;
-
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++)
 		INIT_HLIST_HEAD(&tun->flows[i]);
 
@@ -854,10 +840,6 @@ static void tun_flow_uninit(struct tun_struct *tun)
 {
 	del_timer_sync(&tun->flow_gc_timer);
 	tun_flow_flush(tun);
-
-	/* Wait for completion of call_rcu()'s */
-	rcu_barrier();
-	kmem_cache_destroy(tun->flow_cache);
 }
 
 /* Initialize net device. */

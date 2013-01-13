@@ -5385,6 +5385,15 @@ F:	arch/arm/*omap*/
 F:	drivers/i2c/busses/i2c-omap.c
 F:	include/linux/i2c-omap.h
 
+OMAP DEVICE TREE SUPPORT
+M:	Benoît Cousson <b-cousson@ti.com>
+M:	Tony Lindgren <tony@atomide.com>
+L:	linux-omap@vger.kernel.org
+L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/boot/dts/*omap*
+F:	arch/arm/boot/dts/*am3*
+
 OMAP CLOCK FRAMEWORK SUPPORT
 M:	Paul Walmsley <paul@pwsan.com>
 L:	linux-omap@vger.kernel.org

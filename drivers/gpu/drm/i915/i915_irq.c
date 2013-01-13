@@ -1087,6 +1087,18 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	if (!ring->get_seqno)
 		return NULL;
 
+	if (HAS_BROKEN_CS_TLB(dev_priv->dev)) {
+		u32 acthd = I915_READ(ACTHD);
+
+		if (WARN_ON(ring->id != RCS))
+			return NULL;
+
+		obj = ring->private;
+		if (acthd >= obj->gtt_offset &&
+		    acthd < obj->gtt_offset + obj->base.size)
+			return i915_error_object_create(dev_priv, obj);
+	}
+
 	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		if (obj->ring != ring)
