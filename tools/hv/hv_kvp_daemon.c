@@ -1162,16 +1162,13 @@ static int process_ip_string(FILE *f, char *ip_string, int type)
 				snprintf(str, sizeof(str), "%s", "DNS");
 				break;
 			}
-			if (i != 0) {
-				if (type != DNS) {
-					snprintf(sub_str, sizeof(sub_str),
-						"_%d", i++);
-				} else {
-					snprintf(sub_str, sizeof(sub_str),
-						"%d", ++i);
-				}
-			} else if (type == DNS) {
+
+			if (type == DNS) {
 				snprintf(sub_str, sizeof(sub_str), "%d", ++i);
+			} else if (type == GATEWAY && i == 0) {
+				++i;
+			} else {
+				snprintf(sub_str, sizeof(sub_str), "%d", i++);
 			}
 
 
@@ -1191,17 +1188,13 @@ static int process_ip_string(FILE *f, char *ip_string, int type)
 				snprintf(str, sizeof(str), "%s",  "DNS");
 				break;
 			}
-			if ((j != 0) || (type == DNS)) {
-				if (type != DNS) {
-					snprintf(sub_str, sizeof(sub_str),
-						"_%d", j++);
-				} else {
-					snprintf(sub_str, sizeof(sub_str),
-						"%d", ++i);
-				}
-			} else if (type == DNS) {
-				snprintf(sub_str, sizeof(sub_str),
-					"%d", ++i);
+
+			if (type == DNS) {
+				snprintf(sub_str, sizeof(sub_str), "%d", ++i);
+			} else if (j == 0) {
+				++j;
+			} else {
+				snprintf(sub_str, sizeof(sub_str), "_%d", j++);
 			}
 		} else {
 			return  HV_INVALIDARG;
@@ -1244,18 +1237,19 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * Here is the format of the ip configuration file:
 	 *
 	 * HWADDR=macaddr
-	 * IF_NAME=interface name
-	 * DHCP=yes (This is optional; if yes, DHCP is configured)
+	 * DEVICE=interface name
+	 * BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
+	 *                       or "none" if no boot-time protocol should be used)
 	 *
-	 * IPADDR=ipaddr1
-	 * IPADDR_1=ipaddr2
-	 * IPADDR_x=ipaddry (where y = x + 1)
+	 * IPADDR0=ipaddr1
+	 * IPADDR1=ipaddr2
+	 * IPADDRx=ipaddry (where y = x + 1)
 	 *
-	 * NETMASK=netmask1
-	 * NETMASK_x=netmasky (where y = x + 1)
+	 * NETMASK0=netmask1
+	 * NETMASKx=netmasky (where y = x + 1)
 	 *
 	 * GATEWAY=ipaddr1
-	 * GATEWAY_x=ipaddry (where y = x + 1)
+	 * GATEWAYx=ipaddry (where y = x + 1)
 	 *
 	 * DNSx=ipaddrx (where first DNS address is tagged as DNS1 etc)
 	 *
@@ -1294,12 +1288,12 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
-	error = kvp_write_file(file, "IF_NAME", "", if_name);
+	error = kvp_write_file(file, "DEVICE", "", if_name);
 	if (error)
 		goto setval_error;
 
 	if (new_val->dhcp_enabled) {
-		error = kvp_write_file(file, "DHCP", "", "yes");
+		error = kvp_write_file(file, "BOOTPROTO", "", "dhcp");
 		if (error)
 			goto setval_error;
 
@@ -1307,6 +1301,11 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 		 * We are done!.
 		 */
 		goto setval_done;
+
+	} else {
+		error = kvp_write_file(file, "BOOTPROTO", "", "none");
+		if (error)
+			goto setval_error;
 	}
 
 	/*
