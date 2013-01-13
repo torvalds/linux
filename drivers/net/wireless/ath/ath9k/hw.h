@@ -600,7 +600,6 @@ struct ath_hw_radar_conf {
  * @init_cal_settings: setup types of calibrations supported
  * @init_cal: starts actual calibration
  *
- * @init_mode_regs: Initializes mode registers
  * @init_mode_gain_regs: Initialize TX/RX gain registers
  *
  * @rf_set_freq: change frequency
@@ -619,7 +618,6 @@ struct ath_hw_private_ops {
 	void (*init_cal_settings)(struct ath_hw *ah);
 	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
 
-	void (*init_mode_regs)(struct ath_hw *ah);
 	void (*init_mode_gain_regs)(struct ath_hw *ah);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);

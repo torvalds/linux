@@ -54,11 +54,6 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
 }
 
-static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
-{
-	ath9k_hw_private_ops(ah)->init_mode_regs(ah);
-}
-
 static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
@@ -669,8 +664,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
-
-	ath9k_hw_init_mode_regs(ah);
 
 	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);

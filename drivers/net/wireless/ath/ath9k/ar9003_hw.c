@@ -704,7 +704,7 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
-	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
+	ar9003_hw_init_mode_regs(ah);
 	priv_ops->init_mode_gain_regs = ar9003_hw_init_mode_gain_regs;
 
 	ops->config_pci_powersave = ar9003_hw_configpcipowersave;
