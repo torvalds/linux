@@ -1506,10 +1506,12 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 		group_data[i].blocks_count = blocks_per_group;
 		overhead = ext4_group_overhead_blocks(sb, group + i);
 		group_data[i].free_blocks_count = blocks_per_group - overhead;
-		if (ext4_has_group_desc_csum(sb))
+		if (ext4_has_group_desc_csum(sb)) {
 			flex_gd->bg_flags[i] = EXT4_BG_BLOCK_UNINIT |
 					       EXT4_BG_INODE_UNINIT;
-		else
+			if (!test_opt(sb, INIT_INODE_TABLE))
+				flex_gd->bg_flags[i] |= EXT4_BG_INODE_ZEROED;
+		} else
 			flex_gd->bg_flags[i] = EXT4_BG_INODE_ZEROED;
 	}
 
@@ -1594,7 +1596,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	err = ext4_alloc_flex_bg_array(sb, input->group + 1);
 	if (err)
-		return err;
+		goto out;
 
 	err = ext4_mb_alloc_groupinfo(sb, input->group + 1);
 	if (err)
