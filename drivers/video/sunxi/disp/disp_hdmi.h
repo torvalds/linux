@@ -22,5 +22,6 @@
 
 __s32 Display_Hdmi_Init(void);
 __s32 Display_Hdmi_Exit(void);
+__u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock);
 
 #endif

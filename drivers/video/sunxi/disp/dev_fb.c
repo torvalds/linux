@@ -31,6 +31,7 @@
 #include "dev_fb.h"
 #include "disp_display.h"
 #include "disp_lcd.h"
+#include "disp_hdmi.h"
 
 fb_info_t g_fbi;
 static DEFINE_MUTEX(g_fbi_mutex);
@@ -1061,8 +1062,9 @@ static int Fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			continue;
 
 		/* Check that pll is found */
-		if (disp_get_pll_freq(PICOS2KHZ(var->pixclock) *
-				1000, &dummy, &dummy))
+		if (disp_get_pll_freq(
+			fb_videomode_pixclock_to_hdmi_pclk(var->pixclock),
+				&dummy, &dummy))
 			return -EINVAL;
 	}
 
