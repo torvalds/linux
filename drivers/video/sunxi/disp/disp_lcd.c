@@ -1832,9 +1832,9 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 	} else if ((gdisp.screen[sel].status & TV_ON)) {
 		__disp_tv_mode_t tv_mode = gdisp.screen[sel].tv_mode;
 		LCDC_get_timing(sel, 1, videomode);
-		videomode->pixclock = KHZ2PICOS(
-			(clk_tab.tv_clk_tab[tv_mode].tve_clk /
-			 clk_tab.tv_clk_tab[tv_mode].pre_scale) / 1000);
+		videomode->pixclock = HZ2PICOS(
+			clk_tab.tv_clk_tab[tv_mode].tve_clk /
+			clk_tab.tv_clk_tab[tv_mode].pre_scale);
 
 		interlaced = Disp_get_screen_scan_mode(tv_mode);
 	} else if (gdisp.screen[sel].status & HDMI_ON) {
@@ -1845,7 +1845,7 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 			return DIS_FAIL;
 
 		LCDC_get_timing(sel, 1, videomode);
-		videomode->pixclock = KHZ2PICOS(video_timing.PCLK / 1000);
+		videomode->pixclock = HZ2PICOS(video_timing.PCLK);
 		interlaced = video_timing.I;
 		hsync = video_timing.HSYNC;
 		vsync = video_timing.VSYNC;
@@ -1854,9 +1854,9 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 
 		LCDC_get_timing(sel, 1, videomode);
 
-		videomode->pixclock = KHZ2PICOS(
-			(clk_tab.vga_clk_tab[vga_mode].tve_clk /
-			 clk_tab.vga_clk_tab[vga_mode].pre_scale) / 1000);
+		videomode->pixclock = HZ2PICOS(
+			clk_tab.vga_clk_tab[vga_mode].tve_clk /
+			clk_tab.vga_clk_tab[vga_mode].pre_scale);
 		interlaced = Disp_get_screen_scan_mode(vga_mode);
 	} else {
 		DE_INF("get videomode fail because device is not output !\n");
@@ -1878,7 +1878,7 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 	if (!videomode->pixclock)
 		return DIS_SUCCESS;
 
-	pixclock = PICOS2KHZ(videomode->pixclock) * 1000;
+	pixclock = PICOS2HZ(videomode->pixclock);
 
 	htotal = videomode->xres + videomode->right_margin +
 			videomode->hsync_len + videomode->left_margin;

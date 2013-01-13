@@ -191,12 +191,25 @@ __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode)
 	return DIS_SUCCESS;
 }
 
+__u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock)
+{
+	/*
+	 * The conversions loose precision, which *is* a problem, luckily
+	 * all hdmi clocks are always a multiple of 10000 (the EDID base
+	 * unit for a pixelclock), so round to the nearest multiple of
+	 * 10000 to undo the precision loss.
+	 */
+	__u32 pclk = (PICOS2HZ(pixclock) + 5000) / 10000;
+	return pclk * 10000;
+}
+
 void videomode_to_video_timing(struct __disp_video_timing *video_timing,
 		const struct fb_videomode *mode)
 {
 	memset(video_timing, 0, sizeof(struct __disp_video_timing));
 	video_timing->VIC = 511;
-	video_timing->PCLK = (PICOS2KHZ(mode->pixclock) * 1000);
+	video_timing->PCLK =
+		fb_videomode_pixclock_to_hdmi_pclk(mode->pixclock);
 	video_timing->AVI_PR = 0;
 	video_timing->INPUTX = mode->xres;
 	video_timing->INPUTY = mode->yres;

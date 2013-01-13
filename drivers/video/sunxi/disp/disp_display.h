@@ -24,10 +24,12 @@
 #include "disp_layer.h"
 #include "disp_scaler.h"
 #include "disp_video.h"
+#include <asm/div64.h>
 
 #ifdef CONFIG_ARCH_SUN5I
 #include "disp_iep.h"
 #endif
+
 
 #define IMAGE_USED	0x00000004
 #define YUV_CH_USED	0x00000010
@@ -50,6 +52,20 @@
 
 #define DE_FLICKER_USED 0x01000000
 #define DE_FLICKER_REQUIRED 0x02000000
+
+static inline __u32 PICOS2HZ(__u32 picos)
+{
+	__u64 numerator = 1000000000000ULL + (picos / 2);
+	do_div(numerator, picos);
+	return numerator;
+}
+
+static inline __u32 HZ2PICOS(__u32 hz)
+{
+	__u64 numerator = 1000000000000ULL + (hz / 2);
+	do_div(numerator, hz);
+	return numerator;
+}
 
 typedef struct {
 	__bool lcd_used;
