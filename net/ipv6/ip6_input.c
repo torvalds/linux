@@ -212,7 +212,7 @@ resubmit:
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
 			    &hdr->saddr) &&
-			    !ipv6_is_mld(skb, nexthdr))
+			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
 				goto discard;
 		}
 		if (!(ipprot->flags & INET6_PROTO_NOPOLICY) &&
@@ -283,7 +283,6 @@ int ip6_mc_input(struct sk_buff *skb)
 		if (unlikely(opt->ra)) {
 			/* Check if this is a mld message */
 			u8 *ptr = skb_network_header(skb) + opt->ra;
-			struct icmp6hdr *icmp6;
 			u8 nexthdr = hdr->nexthdr;
 			__be16 frag_off;
 			int offset;
@@ -303,24 +302,10 @@ int ip6_mc_input(struct sk_buff *skb)
 				if (offset < 0)
 					goto out;
 
-				if (nexthdr != IPPROTO_ICMPV6)
+				if (!ipv6_is_mld(skb, nexthdr, offset))
 					goto out;
 
-				if (!pskb_may_pull(skb, (skb_network_header(skb) +
-						   offset + 1 - skb->data)))
-					goto out;
-
-				icmp6 = (struct icmp6hdr *)(skb_network_header(skb) + offset);
-
-				switch (icmp6->icmp6_type) {
-				case ICMPV6_MGM_QUERY:
-				case ICMPV6_MGM_REPORT:
-				case ICMPV6_MGM_REDUCTION:
-				case ICMPV6_MLD2_REPORT:
-					deliver = true;
-					break;
-				}
-				goto out;
+				deliver = true;
 			}
 			/* unknown RA - process it normally */
 		}

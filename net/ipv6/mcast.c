@@ -935,33 +935,6 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 }
 
 /*
- * identify MLD packets for MLD filter exceptions
- */
-bool ipv6_is_mld(struct sk_buff *skb, int nexthdr)
-{
-	struct icmp6hdr *pic;
-
-	if (nexthdr != IPPROTO_ICMPV6)
-		return false;
-
-	if (!pskb_may_pull(skb, sizeof(struct icmp6hdr)))
-		return false;
-
-	pic = icmp6_hdr(skb);
-
-	switch (pic->icmp6_type) {
-	case ICMPV6_MGM_QUERY:
-	case ICMPV6_MGM_REPORT:
-	case ICMPV6_MGM_REDUCTION:
-	case ICMPV6_MLD2_REPORT:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
-
-/*
  *	check if the interface/address pair is valid
  */
 bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,

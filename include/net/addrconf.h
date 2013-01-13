@@ -150,7 +150,31 @@ extern void addrconf_dad_failure(struct inet6_ifaddr *ifp);
 extern bool ipv6_chk_mcast_addr(struct net_device *dev,
 				const struct in6_addr *group,
 				const struct in6_addr *src_addr);
-extern bool ipv6_is_mld(struct sk_buff *skb, int nexthdr);
+
+/*
+ * identify MLD packets for MLD filter exceptions
+ */
+static inline bool ipv6_is_mld(struct sk_buff *skb, int nexthdr, int offset)
+{
+	struct icmp6hdr *hdr;
+
+	if (nexthdr != IPPROTO_ICMPV6 ||
+	    !pskb_network_may_pull(skb, offset + sizeof(struct icmp6hdr)))
+		return false;
+
+	hdr = (struct icmp6hdr *)(skb_network_header(skb) + offset);
+
+	switch (hdr->icmp6_type) {
+	case ICMPV6_MGM_QUERY:
+	case ICMPV6_MGM_REPORT:
+	case ICMPV6_MGM_REDUCTION:
+	case ICMPV6_MLD2_REPORT:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
 
 extern void addrconf_prefix_rcv(struct net_device *dev,
 				u8 *opt, int len, bool sllao);
