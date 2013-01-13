@@ -555,6 +555,11 @@ static inline void ip6_flow_hdr(struct ipv6hdr *hdr, unsigned int tclass,
 	*(__be32 *)hdr = ntohl(0x60000000 | (tclass << 20)) | flowlabel;
 }
 
+static inline __be32 ip6_flowinfo(const struct ipv6hdr *hdr)
+{
+	return *(__be32 *)hdr & IPV6_FLOWINFO_MASK;
+}
+
 /*
  *	Prototypes exported by ipv6
  */
