@@ -3819,46 +3819,6 @@ static void et131x_adjust_link(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct  phy_device *phydev = adapter->phydev;
 
-	if (netif_carrier_ok(netdev)) {
-		adapter->boot_coma = 20;
-
-		if (phydev && phydev->speed == SPEED_10) {
-			/*
-			 * NOTE - Is there a way to query this without
-			 * TruePHY?
-			 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
-			 * EMI_TRUEPHY_A13O) {
-			 */
-			u16 register18;
-
-			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-					 &register18);
-			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-					 register18 | 0x4);
-			et131x_mii_write(adapter, PHY_INDEX_REG,
-					 register18 | 0x8402);
-			et131x_mii_write(adapter, PHY_DATA_REG,
-					 register18 | 511);
-			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-					 register18);
-		}
-
-		et1310_config_flow_control(adapter);
-
-		if (phydev && phydev->speed == SPEED_1000 &&
-				adapter->registry_jumbo_packet > 2048) {
-			u16 reg;
-
-			et131x_mii_read(adapter, PHY_CONFIG, &reg);
-			reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
-			reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
-			et131x_mii_write(adapter, PHY_CONFIG, reg);
-		}
-
-		et131x_set_rx_dma_timer(adapter);
-		et1310_config_mac_regs2(adapter);
-	}
-
 	if (phydev && phydev->link != adapter->link) {
 		/*
 		 * Check to see if we are in coma mode and if
@@ -3868,11 +3828,47 @@ static void et131x_adjust_link(struct net_device *netdev)
 		if (et1310_in_phy_coma(adapter))
 			et1310_disable_phy_coma(adapter);
 
+		adapter->link = phydev->link;
+		phy_print_status(phydev);
+
 		if (phydev->link) {
 			adapter->boot_coma = 20;
+			if (phydev && phydev->speed == SPEED_10) {
+				/*
+				 * NOTE - Is there a way to query this without
+				 * TruePHY?
+				 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
+				 * EMI_TRUEPHY_A13O) {
+				 */
+				u16 register18;
+
+				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+						 &register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18 | 0x4);
+				et131x_mii_write(adapter, PHY_INDEX_REG,
+						 register18 | 0x8402);
+				et131x_mii_write(adapter, PHY_DATA_REG,
+						 register18 | 511);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18);
+			}
+
+			et1310_config_flow_control(adapter);
+
+			if (phydev && phydev->speed == SPEED_1000 &&
+					adapter->registry_jumbo_packet > 2048) {
+				u16 reg;
+
+				et131x_mii_read(adapter, PHY_CONFIG, &reg);
+				reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
+				reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
+				et131x_mii_write(adapter, PHY_CONFIG, reg);
+			}
+
+			et131x_set_rx_dma_timer(adapter);
+			et1310_config_mac_regs2(adapter);
 		} else {
-			dev_warn(&adapter->pdev->dev,
-			    "Link down - cable problem ?\n");
 			adapter->boot_coma = 0;
 
 			if (phydev->speed == SPEED_10) {
@@ -3917,9 +3913,6 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_enable_txrx(netdev);
 		}
 
-		adapter->link = phydev->link;
-
-		phy_print_status(phydev);
 	}
 }
 
