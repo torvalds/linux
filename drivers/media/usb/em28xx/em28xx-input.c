@@ -89,8 +89,7 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev, u32 *ir_key)
 		return -EIO;
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xff indicates that no button is hold
-	   down. 0xfe sequences are sometimes interrupted by 0xFF */
+	   down, while 0xff indicates that no button is hold down. */
 
 	if (b == 0xff)
 		return 0;
@@ -170,8 +169,7 @@ static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
 	unsigned char subaddr, keydetect, key;
 
 	struct i2c_msg msg[] = { { .addr = i2c_dev->addr, .flags = 0, .buf = &subaddr, .len = 1},
-
-				{ .addr = i2c_dev->addr, .flags = I2C_M_RD, .buf = &keydetect, .len = 1} };
+				 { .addr = i2c_dev->addr, .flags = I2C_M_RD, .buf = &keydetect, .len = 1} };
 
 	subaddr = 0x10;
 	if (2 != i2c_transfer(i2c_dev->adapter, msg, 2))
