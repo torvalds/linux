@@ -547,7 +547,7 @@ static int ak4642_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct of_device_id ak4642_of_match[] __devinitconst = {
+static struct of_device_id ak4642_of_match[] = {
 	{ .compatible = "asahi-kasei,ak4642",	.data = &soc_codec_dev_ak4642},
 	{ .compatible = "asahi-kasei,ak4643",	.data = &soc_codec_dev_ak4642},
 	{ .compatible = "asahi-kasei,ak4648",	.data = &soc_codec_dev_ak4648},
