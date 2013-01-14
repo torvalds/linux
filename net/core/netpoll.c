@@ -1048,11 +1048,13 @@ int netpoll_setup(struct netpoll *np)
 	struct in_device *in_dev;
 	int err;
 
+	rtnl_lock();
 	if (np->dev_name)
-		ndev = dev_get_by_name(&init_net, np->dev_name);
+		ndev = __dev_get_by_name(&init_net, np->dev_name);
 	if (!ndev) {
 		np_err(np, "%s doesn't exist, aborting\n", np->dev_name);
-		return -ENODEV;
+		err = -ENODEV;
+		goto unlock;
 	}
 
 	if (netdev_master_upper_dev_get(ndev)) {
@@ -1066,15 +1068,14 @@ int netpoll_setup(struct netpoll *np)
 
 		np_info(np, "device %s not up yet, forcing it\n", np->dev_name);
 
-		rtnl_lock();
 		err = dev_open(ndev);
-		rtnl_unlock();
 
 		if (err) {
 			np_err(np, "failed to open %s\n", ndev->name);
 			goto put;
 		}
 
+		rtnl_unlock();
 		atleast = jiffies + HZ/10;
 		atmost = jiffies + carrier_timeout * HZ;
 		while (!netif_carrier_ok(ndev)) {
@@ -1094,16 +1095,14 @@ int netpoll_setup(struct netpoll *np)
 			np_notice(np, "carrier detect appears untrustworthy, waiting 4 seconds\n");
 			msleep(4000);
 		}
+		rtnl_lock();
 	}
 
 	if (!np->local_ip.ip) {
 		if (!np->ipv6) {
-			rcu_read_lock();
-			in_dev = __in_dev_get_rcu(ndev);
-
+			in_dev = __in_dev_get_rtnl(ndev);
 
 			if (!in_dev || !in_dev->ifa_list) {
-				rcu_read_unlock();
 				np_err(np, "no IP address for %s, aborting\n",
 				       np->dev_name);
 				err = -EDESTADDRREQ;
@@ -1111,14 +1110,12 @@ int netpoll_setup(struct netpoll *np)
 			}
 
 			np->local_ip.ip = in_dev->ifa_list->ifa_local;
-			rcu_read_unlock();
 			np_info(np, "local IP %pI4\n", &np->local_ip.ip);
 		} else {
 #if IS_ENABLED(CONFIG_IPV6)
 			struct inet6_dev *idev;
 
 			err = -EDESTADDRREQ;
-			rcu_read_lock();
 			idev = __in6_dev_get(ndev);
 			if (idev) {
 				struct inet6_ifaddr *ifp;
@@ -1133,7 +1130,6 @@ int netpoll_setup(struct netpoll *np)
 				}
 				read_unlock_bh(&idev->lock);
 			}
-			rcu_read_unlock();
 			if (err) {
 				np_err(np, "no IPv6 address for %s, aborting\n",
 				       np->dev_name);
@@ -1151,17 +1147,17 @@ int netpoll_setup(struct netpoll *np)
 	/* fill up the skb queue */
 	refill_skbs();
 
-	rtnl_lock();
 	err = __netpoll_setup(np, ndev, GFP_KERNEL);
-	rtnl_unlock();
-
 	if (err)
 		goto put;
 
+	rtnl_unlock();
 	return 0;
 
 put:
 	dev_put(ndev);
+unlock:
+	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL(netpoll_setup);
