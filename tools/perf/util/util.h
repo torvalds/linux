@@ -271,4 +271,7 @@ void dump_stack(void);
 
 extern unsigned int page_size;
 
+struct winsize;
+void get_term_dimensions(struct winsize *ws);
+
 #endif
