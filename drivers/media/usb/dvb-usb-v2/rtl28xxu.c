@@ -1368,6 +1368,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl2832u_props, "ASUS My Cinema-U3100Mini Plus V2", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, 0xd393,
 		&rtl2832u_props, "GIGABYTE U7300", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x1104,
+		&rtl2832u_props, "Digivox Micro Hd", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
