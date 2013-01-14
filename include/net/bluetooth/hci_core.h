@@ -216,6 +216,7 @@ struct hci_dev {
 	unsigned long	le_last_tx;
 
 	struct workqueue_struct	*workqueue;
+	struct workqueue_struct	*req_workqueue;
 
 	struct work_struct	power_on;
 	struct delayed_work	power_off;
