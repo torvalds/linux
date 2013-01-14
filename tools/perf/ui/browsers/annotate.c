@@ -182,6 +182,16 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		ab->selection = dl;
 }
 
+static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
+{
+	if (!dl || !dl->ins || !ins__is_jump(dl->ins)
+	    || !disasm_line__has_offset(dl)
+	    || dl->ops.target.offset >= symbol__size(sym))
+		return false;
+
+	return true;
+}
+
 static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
@@ -195,8 +205,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (strstr(sym->name, "@plt"))
 		return;
 
-	if (!cursor || !cursor->ins || !ins__is_jump(cursor->ins) ||
-	    !disasm_line__has_offset(cursor))
+	if (!disasm_line__is_valid_jump(cursor, sym))
 		return;
 
 	target = ab->offsets[cursor->ops.target.offset];
@@ -788,16 +797,8 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		struct disasm_line *dl = browser->offsets[offset], *dlt;
 		struct browser_disasm_line *bdlt;
 
-		if (!dl || !dl->ins || !ins__is_jump(dl->ins) ||
-		    !disasm_line__has_offset(dl))
+		if (!disasm_line__is_valid_jump(dl, sym))
 			continue;
-
-		if (dl->ops.target.offset >= size) {
-			ui__error("jump to after symbol!\n"
-				  "size: %zx, jump target: %" PRIx64,
-				  size, dl->ops.target.offset);
-			continue;
-		}
 
 		dlt = browser->offsets[dl->ops.target.offset];
 		/*
@@ -921,7 +922,7 @@ out_free_offsets:
 
 #define ANNOTATE_CFG(n) \
 	{ .name = #n, .value = &annotate_browser__opts.n, }
-	
+
 /*
  * Keep the entries sorted, they are bsearch'ed
  */
