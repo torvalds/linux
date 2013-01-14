@@ -202,7 +202,7 @@ out:
 
 static enum reset_type siena_map_reset_reason(enum reset_type reason)
 {
-	return RESET_TYPE_ALL;
+	return RESET_TYPE_RECOVER_OR_ALL;
 }
 
 static int siena_map_reset_flags(u32 *flags)
@@ -244,6 +244,22 @@ static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 	else
 		return efx_mcdi_reset_port(efx);
 }
+
+#ifdef CONFIG_EEH
+/* When a PCI device is isolated from the bus, a subsequent MMIO read is
+ * required for the kernel EEH mechanisms to notice. As the Solarflare driver
+ * was written to minimise MMIO read (for latency) then a periodic call to check
+ * the EEH status of the device is required so that device recovery can happen
+ * in a timely fashion.
+ */
+static void siena_monitor(struct efx_nic *efx)
+{
+	struct eeh_dev *eehdev =
+		of_node_to_eeh_dev(pci_device_to_OF_node(efx->pci_dev));
+
+	eeh_dev_check_failure(eehdev);
+}
+#endif
 
 static int siena_probe_nvconfig(struct efx_nic *efx)
 {
@@ -665,7 +681,11 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.init = siena_init_nic,
 	.dimension_resources = siena_dimension_resources,
 	.fini = efx_port_dummy_op_void,
+#ifdef CONFIG_EEH
+	.monitor = siena_monitor,
+#else
 	.monitor = NULL,
+#endif
 	.map_reset_reason = siena_map_reset_reason,
 	.map_reset_flags = siena_map_reset_flags,
 	.reset = siena_reset_hw,

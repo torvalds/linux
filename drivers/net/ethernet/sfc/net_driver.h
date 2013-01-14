@@ -429,6 +429,7 @@ enum nic_state {
 	STATE_UNINIT = 0,	/* device being probed/removed or is frozen */
 	STATE_READY = 1,	/* hardware ready and netdev registered */
 	STATE_DISABLED = 2,	/* device disabled due to hardware errors */
+	STATE_RECOVERY = 3,	/* device recovering from PCI error */
 };
 
 /*
