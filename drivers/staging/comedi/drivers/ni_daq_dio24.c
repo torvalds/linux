@@ -318,31 +318,4 @@ static struct pcmcia_driver dio24_cs_driver = {
 	.name = "ni_daq_dio24",
 };
 
-static int __init init_dio24_cs(void)
-{
-	printk("ni_daq_dio24: HOLA SOY YO!\n");
-	pcmcia_register_driver(&dio24_cs_driver);
-	return 0;
-}
-
-static void __exit exit_dio24_cs(void)
-{
-	pcmcia_unregister_driver(&dio24_cs_driver);
-}
-
-int __init init_module(void)
-{
-	int ret;
-
-	ret = init_dio24_cs();
-	if (ret < 0)
-		return ret;
-
-	return comedi_driver_register(&driver_dio24);
-}
-
-void __exit cleanup_module(void)
-{
-	exit_dio24_cs();
-	comedi_driver_unregister(&driver_dio24);
-}
+module_comedi_pcmcia_driver(driver_dio24, dio24_cs_driver);
