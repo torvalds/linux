@@ -421,13 +421,16 @@ void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int __init fsl_add_bridge(struct device_node *dev, int is_primary)
+int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 {
 	int len;
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
 	u8 hdr_type, progif;
+	struct device_node *dev;
+
+	dev = pdev->dev.of_node;
 
 	if (!of_device_is_available(dev)) {
 		pr_warning("%s: disabled\n", dev->full_name);
@@ -453,6 +456,8 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	if (!hose)
 		return -ENOMEM;
 
+	/* set platform device as the parent */
+	hose->parent = &pdev->dev;
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
@@ -885,7 +890,7 @@ static int fsl_pci_probe(struct platform_device *pdev)
 #endif
 
 	node = pdev->dev.of_node;
-	ret = fsl_add_bridge(node, fsl_pci_primary == node);
+	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
 
 #ifdef CONFIG_SWIOTLB
 	if (ret == 0) {
