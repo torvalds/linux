@@ -768,10 +768,6 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	else
 		machine = NULL;
 
-	name = malloc(PATH_MAX);
-	if (!name)
-		return -1;
-
 	dso->adjust_symbols = 0;
 
 	if (strncmp(dso->name, "/tmp/perf-", 10) == 0) {
@@ -794,6 +790,10 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 
 	if (machine)
 		root_dir = machine->root_dir;
+
+	name = malloc(PATH_MAX);
+	if (!name)
+		return -1;
 
 	/* Iterate over candidate debug images.
 	 * Keep track of "interesting" ones (those which have a symtab, dynsym,
