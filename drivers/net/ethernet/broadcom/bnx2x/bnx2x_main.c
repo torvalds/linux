@@ -10789,7 +10789,7 @@ static void bnx2x_get_cnic_mac_hwinfo(struct bnx2x *bp)
 			/* Zero primary MAC configuration */
 			memset(bp->dev->dev_addr, 0, ETH_ALEN);
 
-		if (IS_MF_FCOE_AFEX(bp))
+		if (IS_MF_FCOE_AFEX(bp) || IS_MF_FCOE_SD(bp))
 			/* use FIP MAC as primary MAC */
 			memcpy(bp->dev->dev_addr, fip_mac, ETH_ALEN);
 
