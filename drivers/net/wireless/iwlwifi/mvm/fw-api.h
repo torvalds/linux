@@ -70,6 +70,7 @@
 #include "fw-api-mac.h"
 #include "fw-api-power.h"
 #include "fw-api-d3.h"
+#include "fw-api-bt-coex.h"
 
 /* queue and FIFO numbers by usage */
 enum {
@@ -152,6 +153,7 @@ enum {
 
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
 
 	/* RF-KILL commands and notifications */
@@ -161,6 +163,11 @@ enum {
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
+
+	/* BT Coex */
+	BT_COEX_PRIO_TABLE = 0xcc,
+	BT_COEX_PROT_ENV = 0xcd,
+	BT_PROFILE_NOTIFICATION = 0xce,
 
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
