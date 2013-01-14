@@ -217,7 +217,7 @@ static void nlm_init_node_irqs(int node)
 		nlm_setup_pic_irq(node, i, i, irt);
 		/* set interrupts to first cpu in node */
 		nlm_pic_init_irt(nodep->picbase, irt, i,
-					node * NLM_CPUS_PER_NODE);
+					node * NLM_CPUS_PER_NODE, 0);
 		irqmask |= (1ull << i);
 	}
 	nodep->irqmask = irqmask;

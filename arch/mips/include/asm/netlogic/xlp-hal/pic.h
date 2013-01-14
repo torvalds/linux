@@ -261,6 +261,8 @@
 #define PIC_LOCAL_SCHEDULING		1
 #define PIC_GLOBAL_SCHEDULING		0
 
+#define PIC_CLK_HZ			133333333
+
 #define nlm_read_pic_reg(b, r)	nlm_read_reg64(b, r)
 #define nlm_write_pic_reg(b, r, v) nlm_write_reg64(b, r, v)
 #define nlm_get_pic_pcibase(node) nlm_pcicfg_base(XLP_IO_PIC_OFFSET(node))
@@ -313,6 +315,12 @@ static inline uint64_t
 nlm_pic_read_timer(uint64_t base, int timer)
 {
 	return nlm_read_pic_reg(base, PIC_TIMER_COUNT(timer));
+}
+
+static inline uint32_t
+nlm_pic_read_timer32(uint64_t base, int timer)
+{
+	return (uint32_t)nlm_read_pic_reg(base, PIC_TIMER_COUNT(timer));
 }
 
 static inline void
@@ -376,9 +384,9 @@ nlm_pic_ack(uint64_t base, int irt_num)
 }
 
 static inline void
-nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
+nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt, int en)
 {
-	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, hwt);
+	nlm_pic_write_irt_direct(base, irt, en, 0, 0, irq, hwt);
 }
 
 int nlm_irq_to_irt(int irq);
