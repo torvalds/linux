@@ -67,13 +67,6 @@ static void __cpuinit omap4_secondary_init(unsigned int cpu)
 							4, 0, 0, 0, 0, 0);
 
 	/*
-	 * If any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
-	/*
 	 * Synchronise with the boot thread.
 	 */
 	spin_lock(&boot_lock);

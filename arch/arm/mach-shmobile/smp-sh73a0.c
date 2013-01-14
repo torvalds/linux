@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -57,11 +56,6 @@ static unsigned int __init sh73a0_get_core_count(void)
 	void __iomem *scu_base = scu_base_addr();
 
 	return scu_get_core_count(scu_base);
-}
-
-static void __cpuinit sh73a0_secondary_init(unsigned int cpu)
-{
-	gic_secondary_init(0);
 }
 
 static int __cpuinit sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -138,7 +132,6 @@ static void sh73a0_cpu_die(unsigned int cpu)
 struct smp_operations sh73a0_smp_ops __initdata = {
 	.smp_init_cpus		= sh73a0_smp_init_cpus,
 	.smp_prepare_cpus	= sh73a0_smp_prepare_cpus,
-	.smp_secondary_init	= sh73a0_secondary_init,
 	.smp_boot_secondary	= sh73a0_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= sh73a0_cpu_kill,
