@@ -924,20 +924,23 @@
 #define CAYMAN_DMA1_CNTL                                  0xd82c
 
 /* async DMA packets */
-#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
-					 (((t) & 0x1) << 23) |		\
-					 (((s) & 0x1) << 22) |		\
-					 (((n) & 0xFFFFF) << 0))
+#define DMA_PACKET(cmd, sub_cmd, n) ((((cmd) & 0xF) << 28) |    \
+                                    (((sub_cmd) & 0xFF) << 20) |\
+                                    (((n) & 0xFFFFF) << 0))
+#define GET_DMA_CMD(h) (((h) & 0xf0000000) >> 28)
+#define GET_DMA_COUNT(h) ((h) & 0x000fffff)
+#define GET_DMA_SUB_CMD(h) (((h) & 0x0ff00000) >> 20)
+
 /* async DMA Packet types */
-#define	DMA_PACKET_WRITE				  0x2
-#define	DMA_PACKET_COPY					  0x3
-#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
-#define	DMA_PACKET_SEMAPHORE				  0x5
-#define	DMA_PACKET_FENCE				  0x6
-#define	DMA_PACKET_TRAP					  0x7
-#define	DMA_PACKET_SRBM_WRITE				  0x9
-#define	DMA_PACKET_CONSTANT_FILL			  0xd
-#define	DMA_PACKET_NOP					  0xf
+#define	DMA_PACKET_WRITE                        0x2
+#define	DMA_PACKET_COPY                         0x3
+#define	DMA_PACKET_INDIRECT_BUFFER              0x4
+#define	DMA_PACKET_SEMAPHORE                    0x5
+#define	DMA_PACKET_FENCE                        0x6
+#define	DMA_PACKET_TRAP                         0x7
+#define	DMA_PACKET_SRBM_WRITE                   0x9
+#define	DMA_PACKET_CONSTANT_FILL                0xd
+#define	DMA_PACKET_NOP                          0xf
 
 /* PCIE link stuff */
 #define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */

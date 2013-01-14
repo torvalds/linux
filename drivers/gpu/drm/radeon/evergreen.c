@@ -3280,14 +3280,14 @@ void evergreen_dma_fence_ring_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
 	/* write the fence */
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_FENCE, 0, 0, 0));
+	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_FENCE, 0, 0));
 	radeon_ring_write(ring, addr & 0xfffffffc);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff));
 	radeon_ring_write(ring, fence->seq);
 	/* generate an interrupt */
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_TRAP, 0, 0, 0));
+	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_TRAP, 0, 0));
 	/* flush HDP */
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0));
+	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0));
 	radeon_ring_write(ring, (0xf << 16) | (HDP_MEM_COHERENCY_FLUSH_CNTL >> 2));
 	radeon_ring_write(ring, 1);
 }
@@ -3310,7 +3310,7 @@ void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
 		while ((next_rptr & 7) != 5)
 			next_rptr++;
 		next_rptr += 3;
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 1));
+		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 1));
 		radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
 		radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xff);
 		radeon_ring_write(ring, next_rptr);
@@ -3320,8 +3320,8 @@ void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
 	 * Pad as necessary with NOPs.
 	 */
 	while ((ring->wptr & 7) != 5)
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_INDIRECT_BUFFER, 0, 0, 0));
+		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0));
+	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_INDIRECT_BUFFER, 0, 0));
 	radeon_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	radeon_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
 
@@ -3380,7 +3380,7 @@ int evergreen_copy_dma(struct radeon_device *rdev,
 		if (cur_size_in_dw > 0xFFFFF)
 			cur_size_in_dw = 0xFFFFF;
 		size_in_dw -= cur_size_in_dw;
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 0, 0, cur_size_in_dw));
+		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 0, cur_size_in_dw));
 		radeon_ring_write(ring, dst_offset & 0xfffffffc);
 		radeon_ring_write(ring, src_offset & 0xfffffffc);
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
@@ -3488,7 +3488,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
 			     DMA_RB_RPTR, DMA_RB_WPTR,
-			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0));
 	if (r)
 		return r;
 
