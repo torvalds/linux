@@ -84,15 +84,19 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 /* IRQ_IPI_SMP_FUNCTION Handler */
 void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
-	write_c0_eirr(1ull << irq);
+	clear_c0_eimr(irq);
+	ack_c0_eirr(irq);
 	smp_call_function_interrupt();
+	set_c0_eimr(irq);
 }
 
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
 void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
-	write_c0_eirr(1ull << irq);
+	clear_c0_eimr(irq);
+	ack_c0_eirr(irq);
 	scheduler_ipi();
+	set_c0_eimr(irq);
 }
 
 /*
