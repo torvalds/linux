@@ -600,7 +600,7 @@ static void vp_win_reset(struct mixer_context *ctx)
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;
-		mdelay(10);
+		usleep_range(10000, 12000);
 	}
 	WARN(tries == 0, "failed to reset Video Processor\n");
 }

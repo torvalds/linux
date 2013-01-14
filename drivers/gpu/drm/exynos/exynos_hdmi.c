@@ -1647,9 +1647,9 @@ static void hdmi_conf_reset(struct hdmi_context *hdata)
 
 	/* resetting HDMI core */
 	hdmi_reg_writemask(hdata, reg,  0, HDMI_CORE_SW_RSTOUT);
-	mdelay(10);
+	usleep_range(10000, 12000);
 	hdmi_reg_writemask(hdata, reg, ~0, HDMI_CORE_SW_RSTOUT);
-	mdelay(10);
+	usleep_range(10000, 12000);
 }
 
 static void hdmi_conf_init(struct hdmi_context *hdata)
@@ -1774,7 +1774,7 @@ static void hdmi_v13_timing_apply(struct hdmi_context *hdata)
 		u32 val = hdmi_reg_read(hdata, HDMI_V13_PHY_STATUS);
 		if (val & HDMI_PHY_STATUS_READY)
 			break;
-		mdelay(1);
+		usleep_range(1000, 2000);
 	}
 	/* steady state not achieved */
 	if (tries == 0) {
@@ -1941,7 +1941,7 @@ static void hdmi_v14_timing_apply(struct hdmi_context *hdata)
 		u32 val = hdmi_reg_read(hdata, HDMI_PHY_STATUS_0);
 		if (val & HDMI_PHY_STATUS_READY)
 			break;
-		mdelay(1);
+		usleep_range(1000, 2000);
 	}
 	/* steady state not achieved */
 	if (tries == 0) {
@@ -1993,9 +1993,9 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 
 	/* reset hdmiphy */
 	hdmi_reg_writemask(hdata, reg, ~0, HDMI_PHY_SW_RSTOUT);
-	mdelay(10);
+	usleep_range(10000, 12000);
 	hdmi_reg_writemask(hdata, reg,  0, HDMI_PHY_SW_RSTOUT);
-	mdelay(10);
+	usleep_range(10000, 12000);
 }
 
 static void hdmiphy_poweron(struct hdmi_context *hdata)
@@ -2043,7 +2043,7 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 		return;
 	}
 
-	mdelay(10);
+	usleep_range(10000, 12000);
 
 	/* operation mode */
 	operation[0] = 0x1f;
