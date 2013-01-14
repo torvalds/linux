@@ -2930,11 +2930,14 @@ static int slic_if_init(struct adapter *adapter)
 	}
 
 	if (!adapter->queues_initialized) {
-		if ((rc = slic_rspqueue_init(adapter)))
+		rc = slic_rspqueue_init(adapter);
+		if (rc)
 			goto err;
-		if ((rc = slic_cmdq_init(adapter)))
+		rc = slic_cmdq_init(adapter);
+		if (rc)
 			goto err;
-		if ((rc = slic_rcvqueue_init(adapter)))
+		rc = slic_rcvqueue_init(adapter);
+		if (rc)
 			goto err;
 		adapter->queues_initialized = 1;
 	}
