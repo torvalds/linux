@@ -257,6 +257,7 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 				usb_endpoint_xfer_isoc(dep->endpoint.desc))
 				dep->busy_slot++;
 		} while(++i < req->request.num_mapped_sgs);
+		req->queued = false;
 	}
 	list_del(&req->list);
 	req->trb = NULL;
