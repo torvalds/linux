@@ -413,7 +413,7 @@ static int mb86a20s_get_modulation(struct mb86a20s_state *state,
 	rc = mb86a20s_readreg(state, 0x6e);
 	if (rc < 0)
 		return rc;
-	switch ((rc & 0x70) >> 4) {
+	switch ((rc >> 4) & 0x07) {
 	case 0:
 		return DQPSK;
 	case 1:
@@ -446,7 +446,7 @@ static int mb86a20s_get_fec(struct mb86a20s_state *state,
 	rc = mb86a20s_readreg(state, 0x6e);
 	if (rc < 0)
 		return rc;
-	switch (rc) {
+	switch ((rc >> 4) & 0x07) {
 	case 0:
 		return FEC_1_2;
 	case 1:
@@ -481,9 +481,21 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 	rc = mb86a20s_readreg(state, 0x6e);
 	if (rc < 0)
 		return rc;
-	if (rc > 3)
-		return -EINVAL;	/* Not used */
-	return rc;
+
+	switch ((rc >> 4) & 0x07) {
+	case 1:
+		return GUARD_INTERVAL_1_4;
+	case 2:
+		return GUARD_INTERVAL_1_8;
+	case 3:
+		return GUARD_INTERVAL_1_16;
+	case 4:
+		return GUARD_INTERVAL_1_32;
+
+	default:
+	case 0:
+		return GUARD_INTERVAL_AUTO;
+	}
 }
 
 static int mb86a20s_get_segment_count(struct mb86a20s_state *state,
