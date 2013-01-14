@@ -663,34 +663,6 @@ static struct exynos_drm_manager fimd_manager = {
 	.display_ops	= &fimd_display_ops,
 };
 
-static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
-{
-	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	struct timeval now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-
-	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
-			base.link) {
-		/* if event's pipe isn't same as crtc then ignore it. */
-		if (crtc != e->pipe)
-			continue;
-
-		do_gettimeofday(&now);
-		e->event.sequence = 0;
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-
-		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-		drm_vblank_put(drm_dev, crtc);
-	}
-
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-}
-
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
@@ -710,7 +682,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		goto out;
 
 	drm_handle_vblank(drm_dev, manager->pipe);
-	fimd_finish_pageflip(drm_dev, manager->pipe);
+	exynos_drm_crtc_finish_pageflip(drm_dev, manager->pipe);
 
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
@@ -1046,7 +1018,7 @@ static int fimd_resume(struct device *dev)
 	 * of pm runtime would still be 1 so in this case, fimd driver
 	 * should be on directly not drawing on pm runtime interface.
 	 */
-	if (pm_runtime_suspended(dev)) {
+	if (!pm_runtime_suspended(dev)) {
 		int ret;
 
 		ret = fimd_activate(ctx, true);
