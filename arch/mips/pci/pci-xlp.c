@@ -64,8 +64,12 @@ static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
 	u32 data;
 	u32 *cfgaddr;
 
+	where &= ~3;
+	if (bus->number == 0 && PCI_SLOT(devfn) == 1 && where == 0x954)
+		return 0xffffffff;
+
 	cfgaddr = (u32 *)(pci_config_base +
-			pci_cfg_addr(bus->number, devfn, where & ~3));
+			pci_cfg_addr(bus->number, devfn, where));
 	data = *cfgaddr;
 	return data;
 }
