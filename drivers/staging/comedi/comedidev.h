@@ -316,6 +316,27 @@ void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
 	module_driver(__comedi_driver, comedi_pci_driver_register, \
 			comedi_pci_driver_unregister, &(__pci_driver))
 
+struct pcmcia_driver;
+
+int comedi_pcmcia_driver_register(struct comedi_driver *,
+					struct pcmcia_driver *);
+void comedi_pcmcia_driver_unregister(struct comedi_driver *,
+					struct pcmcia_driver *);
+
+/**
+ * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
+ * @__comedi_driver: comedi_driver struct
+ * @__pcmcia_driver: pcmcia_driver struct
+ *
+ * Helper macro for comedi PCMCIA drivers which do not do anything special
+ * in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces
+ * module_init() and module_exit()
+ */
+#define module_comedi_pcmcia_driver(__comedi_driver, __pcmcia_driver) \
+	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
+			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
+
 struct usb_driver;
 
 int comedi_usb_driver_register(struct comedi_driver *, struct usb_driver *);
