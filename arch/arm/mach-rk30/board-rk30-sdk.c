@@ -835,7 +835,19 @@ static struct rk610_ctl_platform_data rk610_ctl_pdata = {
 	.rk610_power_on_init = rk610_power_on_init,
 };
 #endif
+#ifdef CONFIG_SND_SOC_RK610
+static int rk610_codec_io_init(void)
+{
+//if need iomux.
+//Must not gpio_request
+	return 0;
+}
 
+static struct rk610_codec_platform_data rk610_codec_pdata = {
+	.spk_ctl_io = RK30_PIN4_PC6,
+	.io_init = rk610_codec_io_init,
+};
+#endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
@@ -1536,6 +1548,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 			.type			= "rk610_i2c_codec",
 			.addr			= 0x60,
 			.flags			= 0,
+			.platform_data		= &rk610_codec_pdata,					
 		},
 #endif
 #endif

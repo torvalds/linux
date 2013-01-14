@@ -29,6 +29,7 @@
 #include <mach/iomux.h>
 #include <linux/workqueue.h>
 #include "rk610_codec.h"
+#include <mach/board.h>
 
 #define RK610_PROC
 #ifdef RK610_PROC
@@ -42,6 +43,9 @@
 //you can look soc-core.c the resume source.s
 #define RESUME_PROBLEM 0
 
+//old control method,please filling rk610_codec_platform_data into Board-xx-xx.c
+//qjb 2013-01-14
+#if 0
 #if defined(CONFIG_MACH_RK3168_DS1006H)|| defined(CONFIG_MACH_RK3168_LR097)
 #define RK610_SPK_CTRL_PIN  RK30_PIN2_PD7
 #elif defined(CONFIG_ARCH_RK3066B)
@@ -51,6 +55,8 @@
 #else
 #define RK610_SPK_CTRL_PIN  RK29_PIN6_PB6
 #endif
+#endif
+
 //1:set pll from rk610
 #define RK610_CTL_PLL 0
 
@@ -109,6 +115,7 @@ struct rk610_codec_priv {
 #if RESUME_PROBLEM
 	int rk610_workstatus;
 #endif
+	struct rk610_codec_platform_data *pdata;
 };
 
 void codec_set_spk(bool on)
@@ -123,9 +130,9 @@ void codec_set_spk(bool on)
 	
 	rk610_codec->hdmi_ndet = on;
 	if(on)
-		gpio_set_value(RK610_SPK_CTRL_PIN, GPIO_HIGH);
+		gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_HIGH);
 	else
-		gpio_set_value(RK610_SPK_CTRL_PIN, GPIO_LOW);			
+		gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);			
 }
 EXPORT_SYMBOL(codec_set_spk);
 
@@ -746,7 +753,10 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	INIT_DELAYED_WORK(&rk610_codec->rk610_delayed_work, rk610_delayedwork_fun);
-
+	
+//old control method,please filling rk610_codec_platform_data into Board-xx-xx.c
+//qjb 2013-01-14
+#if 0
 #ifdef RK610_SPK_CTRL_PIN
 	rk610_codec->spk_ctrl_io = RK610_SPK_CTRL_PIN;
 	ret = gpio_request(rk610_codec->spk_ctrl_io, "rk610 spk_ctrl");
@@ -759,6 +769,18 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 #else
 	rk610_codec->spk_ctrl_io = 0;
 #endif
+#endif
+	if(rk610_codec->spk_ctrl_io)
+	{
+		ret = gpio_request(rk610_codec->spk_ctrl_io, "rk610 spk_ctrl");
+	    if (ret){
+	        printk("rk610_control request gpio fail!\n");
+			return ret;
+	    }
+	    gpio_direction_output(rk610_codec->spk_ctrl_io, GPIO_LOW);
+	    gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);	
+	}
+	
 	rk610_codec->hdmi_ndet = true;
 #if RESUME_PROBLEM	
 	rk610_codec->rk610_workstatus = SND_SOC_DAPM_STREAM_NOP;
@@ -801,12 +823,24 @@ static int rk610_codec_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct rk610_codec_priv *rk610_codec;
+	struct rk610_codec_platform_data *pdata = i2c->dev.platform_data;
 	int ret;
 	DBG("%s start\n", __FUNCTION__);
 	rk610_codec = kzalloc(sizeof(struct rk610_codec_priv), GFP_KERNEL);
 	if (rk610_codec == NULL)
 		return -ENOMEM;
-
+//qjb 2013-01-14
+	rk610_codec->pdata = pdata;
+	rk610_codec->spk_ctrl_io = pdata->spk_ctl_io;
+	if(pdata->io_init){
+		ret =  pdata->io_init();
+		if (ret < 0) {
+			dev_err(&i2c->dev, "Failed to register codec pdata io_init error: %d\n", ret);
+			kfree(rk610_codec);
+			return ret;
+		}
+	}
+	
 	i2c_set_clientdata(i2c, rk610_codec);
 	rk610_codec->control_type = SND_SOC_I2C;
 

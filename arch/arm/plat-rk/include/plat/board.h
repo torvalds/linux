@@ -440,6 +440,10 @@ struct rt3261_platform_data {
 	unsigned int playback_if2_data_control;
 };
 
+struct rk610_codec_platform_data {
+	unsigned int spk_ctl_io;
+	int (*io_init)(void);
+};
 
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
