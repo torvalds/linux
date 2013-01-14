@@ -147,7 +147,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->free_irq	= cpu_pmu_free_irq;
 
 	/* Ensure the PMU has sane values out of reset. */
-	if (cpu_pmu && cpu_pmu->reset)
+	if (cpu_pmu->reset)
 		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
 }
 
