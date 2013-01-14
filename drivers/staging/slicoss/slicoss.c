@@ -144,24 +144,24 @@ MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
 #define SLIC_GET_SLIC_HANDLE(_adapter, _pslic_handle)                   \
 {                                                                       \
-    spin_lock_irqsave(&_adapter->handle_lock.lock,                      \
+	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
 			_adapter->handle_lock.flags);                   \
-    _pslic_handle  =  _adapter->pfree_slic_handles;                     \
-    if (_pslic_handle) {                                                \
-	_adapter->pfree_slic_handles = _pslic_handle->next;             \
-    }                                                                   \
-    spin_unlock_irqrestore(&_adapter->handle_lock.lock,                 \
+	_pslic_handle  =  _adapter->pfree_slic_handles;                 \
+	if (_pslic_handle) {                                            \
+		_adapter->pfree_slic_handles = _pslic_handle->next;     \
+	}                                                               \
+	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
 			_adapter->handle_lock.flags);                   \
 }
 
 #define SLIC_FREE_SLIC_HANDLE(_adapter, _pslic_handle)                  \
 {                                                                       \
-    _pslic_handle->type = SLIC_HANDLE_FREE;                             \
-    spin_lock_irqsave(&_adapter->handle_lock.lock,                      \
+	_pslic_handle->type = SLIC_HANDLE_FREE;                         \
+	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
 			_adapter->handle_lock.flags);                   \
-    _pslic_handle->next = _adapter->pfree_slic_handles;                 \
-    _adapter->pfree_slic_handles = _pslic_handle;                       \
-    spin_unlock_irqrestore(&_adapter->handle_lock.lock,                 \
+	_pslic_handle->next = _adapter->pfree_slic_handles;             \
+	_adapter->pfree_slic_handles = _pslic_handle;                   \
+	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
 			_adapter->handle_lock.flags);                   \
 }
 
