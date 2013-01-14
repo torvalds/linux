@@ -227,6 +227,9 @@ struct hda_gen_spec {
 				   struct hda_jack_tbl *tbl);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
 				    struct hda_jack_tbl *tbl);
+
+	/* capture switch hook (for mic-mute LED) */
+	void (*capture_switch_hook)(struct hda_codec *codec, bool enable);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);

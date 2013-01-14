@@ -2517,9 +2517,23 @@ static const struct snd_kcontrol_new cap_vol_temp = {
 static int cap_sw_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	return cap_put_caller(kcontrol, ucontrol,
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	int ret;
+
+	ret = cap_put_caller(kcontrol, ucontrol,
 			      snd_hda_mixer_amp_switch_put,
 			      NID_PATH_MUTE_CTL);
+	if (ret < 0)
+		return ret;
+
+	if (spec->capture_switch_hook) {
+		bool enable = (ucontrol->value.integer.value[0] ||
+			       ucontrol->value.integer.value[1]);
+		spec->capture_switch_hook(codec, enable);
+	}
+
+	return ret;
 }
 
 static const struct snd_kcontrol_new cap_sw_temp = {
