@@ -282,33 +282,4 @@ static struct pcmcia_driver labpc_cs_driver = {
 	.name = "daqcard-1200",
 };
 
-static int __init init_labpc_cs(void)
-{
-	pcmcia_register_driver(&labpc_cs_driver);
-	return 0;
-}
-
-static void __exit exit_labpc_cs(void)
-{
-	pcmcia_unregister_driver(&labpc_cs_driver);
-}
-
-static int __init labpc_init_module(void)
-{
-	int ret;
-
-	ret = init_labpc_cs();
-	if (ret < 0)
-		return ret;
-
-	return comedi_driver_register(&driver_labpc_cs);
-}
-
-static void __exit labpc_exit_module(void)
-{
-	exit_labpc_cs();
-	comedi_driver_unregister(&driver_labpc_cs);
-}
-
-module_init(labpc_init_module);
-module_exit(labpc_exit_module);
+module_comedi_pcmcia_driver(driver_labpc_cs, labpc_cs_driver);
