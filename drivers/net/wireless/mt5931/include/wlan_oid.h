@@ -468,6 +468,8 @@ typedef struct _PARAM_BSSID_EX_T {
     PARAM_SSID_T                    rSsid;               /*!< SSID */
     UINT_32                         u4Privacy;            /*!< Need WEP encryption */
     PARAM_RSSI                      rRssi;               /*!< in dBm */
+    PARAM_RSSI                      AvgRssiX8;
+    PARAM_RSSI                      AvgRssi;
     ENUM_PARAM_NETWORK_TYPE_T       eNetworkTypeInUse;
     PARAM_802_11_CONFIG_T           rConfiguration;
     ENUM_PARAM_OP_MODE_T            eOpMode;

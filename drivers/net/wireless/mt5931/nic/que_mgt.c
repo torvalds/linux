@@ -3131,10 +3131,11 @@ qmPopOutDueToFallWithin(
         else{
            if (TRUE == fgMissing &&
                CHECK_FOR_TIMEOUT(rCurrentTime, (*prMissTimeout), 
-                                  MSEC_TO_SEC(QM_RX_BA_ENTRY_MISS_TIMEOUT_MS))) {
-                //DBGLOG(QM, TRACE, ("RX BA timeout, next tid %d, SSN %d\n", 
-                //        prReorderQueParm->ucTid, prReorderedSwRfb->u2SSN));
-                fgDequeuHead == TRUE;
+                                  //MSEC_TO_SEC(QM_RX_BA_ENTRY_MISS_TIMEOUT_MS))) {
+                                  MSEC_TO_SYSTIME(QM_RX_BA_ENTRY_MISS_TIMEOUT_MS))) {
+                DBGLOG(QM, TRACE, ("RX BA timeout, next tid %d, SSN %d\n", 
+                        prReorderQueParm->ucTid, prReorderedSwRfb->u2SSN));
+                fgDequeuHead = TRUE;
                 prReorderQueParm->u2WinStart = (((prReorderedSwRfb->u2SSN) + 1) % MAX_SEQ_NO_COUNT);
                 fgMissing = FALSE;
              
@@ -4544,8 +4545,8 @@ qmHandleEventBssAbsencePresence(
     //DBGLOG(QM, TRACE, ("qmHandleEventBssAbsencePresence (ucNetTypeIdx=%d, fgIsAbsent=%d, FreeQuota=%d)\n",
     //    prEventBssStatus->ucNetTypeIdx, prBssInfo->fgIsNetAbsent, prBssInfo->ucBssFreeQuota));
 
-    //DBGLOG(QM, TRACE, ("NAF=%d,%d,%d\n",
-    //    prEventBssStatus->ucNetTypeIdx, prBssInfo->fgIsNetAbsent, prBssInfo->ucBssFreeQuota));
+    DBGLOG(QM, TRACE, ("NAF=%d,%d,%d\n",
+        prEventBssStatus->ucNetTypeIdx, prBssInfo->fgIsNetAbsent, prBssInfo->ucBssFreeQuota));
 
     if(!prBssInfo->fgIsNetAbsent) {
           QM_DBG_CNT_INC(&(prAdapter->rQM),QM_DBG_CNT_27);

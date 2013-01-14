@@ -1509,7 +1509,28 @@ wlanoidQueryBssidList (
             kalMemCopy(prBssidEx,
                     &(prAdapter->rWlanInfo.arScanResult[i]),
                     OFFSET_OF(PARAM_BSSID_EX_T, aucIEs));
+			
+#if RSSI_ENHANCE
+            BOOLEAN bInitial = FALSE;
+ 
+            if (!(prBssidEx->AvgRssiX8 | prBssidEx->AvgRssi))
+            {
+                bInitial = TRUE;
+            }
 
+            if (bInitial)
+            {
+                prBssidEx->AvgRssiX8 = prBssidEx->rRssi << 3;
+                prBssidEx->AvgRssi  = prBssidEx->rRssi;
+            } else {
+                prBssidEx->AvgRssiX8 = (prBssidEx->AvgRssiX8 - prBssidEx->AvgRssi) + prBssidEx->rRssi;
+            //DBGLOG(REQ, WARN,  ("%s:: prBssidEx->AvgRssiX8 = %d, prBssidEx->AvgRssi = %d, prBssidEx->rRssi= %d\n", __func__, prBssidEx->AvgRssiX8, prBssidEx->AvgRssi, prBssidEx->rRssi));
+            }
+
+            prBssidEx->AvgRssi = prBssidEx->AvgRssiX8 >> 3;
+            prBssidEx->AvgRssi +=10;
+            prBssidEx->rRssi = prBssidEx->AvgRssi;			
+#endif
             /*For WHQL test, Rssi should be in range -10 ~ -200 dBm*/
             if(prBssidEx->rRssi > PARAM_WHQL_RSSI_MAX_DBM) {
                 prBssidEx->rRssi = PARAM_WHQL_RSSI_MAX_DBM;
@@ -1816,6 +1837,9 @@ wlanoidSetBssidListScanExt (
 * \retval WLAN_STATUS_ADAPTER_NOT_READY
 */
 /*----------------------------------------------------------------------------*/
+#if RSSI_ENHANCE
+static int ORssi = 0;time = 2; // add by gwl 
+#endif
 WLAN_STATUS
 wlanoidSetBssid (
     IN  P_ADAPTER_T       prAdapter,
@@ -4388,7 +4412,23 @@ wlanoidQueryRssi (
         PARAM_RSSI rRssi;
 
         rRssi = (PARAM_RSSI)prAdapter->rLinkQuality.cRssi; // ranged from (-128 ~ 30) in unit of dBm
-
+#if RSSI_ENHANCE
+	// add by gwl	
+	rRssi += 10;
+	if (ORssi == 0) ORssi = rRssi;
+	else if ((ORssi - rRssi) > 8) {
+		if (time > 0) {
+			rRssi = ORssi;
+			time--;
+		} else {
+			time = 2;
+			ORssi = rRssi;
+		}
+	}else {
+		time = 2;
+		ORssi = rRssi;
+	}
+#endif						
         if(rRssi > PARAM_WHQL_RSSI_MAX_DBM)
             rRssi = PARAM_WHQL_RSSI_MAX_DBM;
         else if(rRssi < PARAM_WHQL_RSSI_MIN_DBM)
