@@ -53,7 +53,7 @@ void s5p_mfc_release_priv_buf(struct device *dev,
 {
 	if (b->virt) {
 		dma_free_coherent(dev, b->size, b->virt, b->dma);
-		b->virt = 0;
+		b->virt = NULL;
 		b->dma = 0;
 		b->size = 0;
 	}
