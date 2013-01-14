@@ -119,7 +119,6 @@ struct batadv_orig_node {
 	spinlock_t ogm_cnt_lock;
 	/* bcast_seqno_lock protects bcast_bits, last_bcast_seqno */
 	spinlock_t bcast_seqno_lock;
-	spinlock_t tt_list_lock; /* protects tt_list */
 	atomic_t bond_candidates;
 	struct list_head bond_list;
 };
@@ -273,7 +272,9 @@ struct batadv_priv {
 	atomic_t bonding;		/* boolean */
 	atomic_t fragmentation;		/* boolean */
 	atomic_t ap_isolation;		/* boolean */
+#ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;	/* boolean */
+#endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;	/* boolean */
 #endif
@@ -283,12 +284,16 @@ struct batadv_priv {
 	atomic_t gw_bandwidth;		/* gw bandwidth */
 	atomic_t orig_interval;		/* uint */
 	atomic_t hop_penalty;		/* uint */
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 	atomic_t log_level;		/* uint */
+#endif
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 	struct batadv_debug_log *debug_log;
+#endif
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;

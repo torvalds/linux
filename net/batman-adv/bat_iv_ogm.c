@@ -183,7 +183,6 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 	/* adjust all flags and log packets */
 	while (batadv_iv_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
 					 batadv_ogm_packet->tt_num_changes)) {
-
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet
 		 */
@@ -261,7 +260,6 @@ static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 	 */
 	if ((directlink && (batadv_ogm_packet->header.ttl == 1)) ||
 	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
-
 		/* FIXME: what about aggregated packets ? */
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "%s packet (originator %pM, seqno %u, TTL %d) on interface %s [%pM]\n",
@@ -325,7 +323,6 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 	if (time_before(send_time, forw_packet->send_time) &&
 	    time_after_eq(aggregation_end_time, forw_packet->send_time) &&
 	    (aggregated_bytes <= BATADV_MAX_AGGREGATION_BYTES)) {
-
 		/* check aggregation compatibility
 		 * -> direct link packets are broadcasted on
 		 *    their interface only
@@ -815,7 +812,6 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_neigh_node->neigh_list, list) {
-
 		if (!batadv_compare_eth(tmp_neigh_node->addr,
 					orig_neigh_node->orig))
 			continue;
@@ -949,7 +945,6 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_node->neigh_list, list) {
-
 		is_duplicate |= batadv_test_bit(tmp_neigh_node->real_bits,
 						orig_node->last_real_seqno,
 						seqno);
@@ -1033,7 +1028,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		is_single_hop_neigh = true;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
+		   "Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %#.4x, changes %u, tq %d, TTL %d, V %d, IDF %d)\n",
 		   ethhdr->h_source, if_incoming->net_dev->name,
 		   if_incoming->net_dev->dev_addr, batadv_ogm_packet->orig,
 		   batadv_ogm_packet->prev_sender,
@@ -1223,7 +1218,6 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
-
 		/* mark direct link on incoming interface */
 		batadv_iv_ogm_forward(orig_node, ethhdr, batadv_ogm_packet,
 				      is_single_hop_neigh,

@@ -28,6 +28,9 @@
 
 #define BATADV_MAX_VIS_PACKET_SIZE 1000
 
+/* hash class keys */
+static struct lock_class_key batadv_vis_hash_lock_class_key;
+
 static void batadv_start_vis_timer(struct batadv_priv *bat_priv);
 
 /* free the info */
@@ -851,6 +854,9 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 		pr_err("Can't initialize vis_hash\n");
 		goto err;
 	}
+
+	batadv_hash_set_lock_class(bat_priv->vis.hash,
+				   &batadv_vis_hash_lock_class_key);
 
 	bat_priv->vis.my_info = kmalloc(BATADV_MAX_VIS_PACKET_SIZE, GFP_ATOMIC);
 	if (!bat_priv->vis.my_info)

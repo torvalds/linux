@@ -29,6 +29,9 @@
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
 
+/* hash class keys */
+static struct lock_class_key batadv_orig_hash_lock_class_key;
+
 static void batadv_purge_orig(struct work_struct *work);
 
 static void batadv_start_purge_timer(struct batadv_priv *bat_priv)
@@ -56,6 +59,9 @@ int batadv_originator_init(struct batadv_priv *bat_priv)
 
 	if (!bat_priv->orig_hash)
 		goto err;
+
+	batadv_hash_set_lock_class(bat_priv->orig_hash,
+				   &batadv_orig_hash_lock_class_key);
 
 	batadv_start_purge_timer(bat_priv);
 	return 0;
@@ -178,7 +184,6 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(orig_node, node, node_tmp,
 					  head, hash_entry) {
-
 			hlist_del_rcu(node);
 			batadv_orig_node_free_ref(orig_node);
 		}
@@ -285,7 +290,6 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
-
 		last_seen = neigh_node->last_seen;
 		if_incoming = neigh_node->if_incoming;
 
@@ -293,7 +297,6 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 		    (if_incoming->if_status == BATADV_IF_INACTIVE) ||
 		    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
 		    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED)) {
-
 			if ((if_incoming->if_status == BATADV_IF_INACTIVE) ||
 			    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
 			    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED))

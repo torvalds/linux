@@ -164,7 +164,6 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 		buf++;
 		i++;
-
 	}
 
 	spin_unlock_bh(&debug_log->lock);
@@ -230,7 +229,6 @@ static void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 #else /* CONFIG_BATMAN_ADV_DEBUG */
 static int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
-	bat_priv->debug_log = NULL;
 	return 0;
 }
 
@@ -397,10 +395,8 @@ err:
 
 void batadv_debugfs_destroy(void)
 {
-	if (batadv_debugfs) {
-		debugfs_remove_recursive(batadv_debugfs);
-		batadv_debugfs = NULL;
-	}
+	debugfs_remove_recursive(batadv_debugfs);
+	batadv_debugfs = NULL;
 }
 
 int batadv_debugfs_add_meshif(struct net_device *dev)
