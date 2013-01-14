@@ -349,27 +349,19 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	/* Copy the addresses to the bss_conf list */
 	ifa = idev->ifa_list;
-	while (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN && ifa) {
-		bss_conf->arp_addr_list[c] = ifa->ifa_address;
+	while (ifa) {
+		if (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN)
+			bss_conf->arp_addr_list[c] = ifa->ifa_address;
 		ifa = ifa->ifa_next;
 		c++;
 	}
 
-	/* If not all addresses fit the list, disable filtering */
-	if (ifa) {
-		sdata->arp_filter_state = false;
-		c = 0;
-	} else {
-		sdata->arp_filter_state = true;
-	}
 	bss_conf->arp_addr_cnt = c;
 
 	/* Configure driver only if associated (which also implies it is up) */
-	if (ifmgd->associated) {
-		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+	if (ifmgd->associated)
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_ARP_FILTER);
-	}
 
 	mutex_unlock(&ifmgd->mtx);
 

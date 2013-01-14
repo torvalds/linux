@@ -1465,10 +1465,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		bss_info_changed |= BSS_CHANGED_CQM;
 
 	/* Enable ARP filtering */
-	if (bss_conf->arp_filter_enabled != sdata->arp_filter_state) {
-		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+	if (bss_conf->arp_addr_cnt)
 		bss_info_changed |= BSS_CHANGED_ARP_FILTER;
-	}
 
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
@@ -1582,10 +1580,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	/* Disable ARP filtering */
-	if (sdata->vif.bss_conf.arp_filter_enabled) {
-		sdata->vif.bss_conf.arp_filter_enabled = false;
+	if (sdata->vif.bss_conf.arp_addr_cnt)
 		changed |= BSS_CHANGED_ARP_FILTER;
-	}
 
 	sdata->vif.bss_conf.qos = false;
 	changed |= BSS_CHANGED_QOS;

@@ -347,8 +347,11 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(s32, cqm_rssi_hyst);
 		__field(u32, channel_width);
 		__field(u32, channel_cfreq1);
-		__dynamic_array(u32, arp_addr_list, info->arp_addr_cnt);
-		__field(bool, arp_filter_enabled);
+		__dynamic_array(u32, arp_addr_list,
+				info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
+					info->arp_addr_cnt);
+		__field(int, arp_addr_cnt);
 		__field(bool, qos);
 		__field(bool, idle);
 		__field(bool, ps);
@@ -384,9 +387,11 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->cqm_rssi_hyst = info->cqm_rssi_hyst;
 		__entry->channel_width = info->chandef.width;
 		__entry->channel_cfreq1 = info->chandef.center_freq1;
+		__entry->arp_addr_cnt = info->arp_addr_cnt;
 		memcpy(__get_dynamic_array(arp_addr_list), info->arp_addr_list,
-		       sizeof(u32) * info->arp_addr_cnt);
-		__entry->arp_filter_enabled = info->arp_filter_enabled;
+		       sizeof(u32) * (info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
+					info->arp_addr_cnt));
 		__entry->qos = info->qos;
 		__entry->idle = info->idle;
 		__entry->ps = info->ps;

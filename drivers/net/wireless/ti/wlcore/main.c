@@ -4113,8 +4113,7 @@ sta_not_found:
 		wlvif->sta.qos = bss_conf->qos;
 		WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS);
 
-		if (bss_conf->arp_addr_cnt == 1 &&
-		    bss_conf->arp_filter_enabled) {
+		if (bss_conf->arp_addr_cnt == 1 && bss_conf->assoc) {
 			wlvif->ip_addr = addr;
 			/*
 			 * The template should have been configured only upon
