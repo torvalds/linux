@@ -618,9 +618,8 @@ static char *otp_setup(struct mtd_info *device, char revision)
 /*
  * Register DataFlash device with MTD subsystem.
  */
-static int
-add_dataflash_otp(struct spi_device *spi, char *name,
-		int nr_pages, int pagesize, int pageoffset, char revision)
+static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
+			     int pagesize, int pageoffset, char revision)
 {
 	struct dataflash		*priv;
 	struct mtd_info			*device;
@@ -679,9 +678,8 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	return err;
 }
 
-static inline int
-add_dataflash(struct spi_device *spi, char *name,
-		int nr_pages, int pagesize, int pageoffset)
+static inline int add_dataflash(struct spi_device *spi, char *name,
+				int nr_pages, int pagesize, int pageoffset)
 {
 	return add_dataflash_otp(spi, name, nr_pages, pagesize,
 			pageoffset, 0);

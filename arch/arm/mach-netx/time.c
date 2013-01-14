@@ -76,7 +76,6 @@ static int netx_set_next_event(unsigned long evt,
 
 static struct clock_event_device netx_clockevent = {
 	.name = "netx-timer" __stringify(TIMER_CLOCKEVENT),
-	.shift = 32,
 	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event = netx_set_next_event,
 	.set_mode = netx_set_mode,
@@ -140,14 +139,9 @@ void __init netx_timer_init(void)
 	clocksource_mmio_init(NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE),
 		"netx_timer", CLOCK_TICK_RATE, 200, 32, clocksource_mmio_readl_up);
 
-	netx_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
-			netx_clockevent.shift);
-	netx_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &netx_clockevent);
 	/* with max_delta_ns >= delta2ns(0x800) the system currently runs fine.
 	 * Adding some safety ... */
-	netx_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xa00, &netx_clockevent);
 	netx_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&netx_clockevent);
+	clockevents_config_and_register(&netx_clockevent, CLOCK_TICK_RATE,
+					0xa00, 0xfffffffe);
 }

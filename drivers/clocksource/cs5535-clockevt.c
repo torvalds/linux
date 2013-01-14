@@ -100,7 +100,6 @@ static struct clock_event_device cs5535_clockevent = {
 	.set_mode = mfgpt_set_mode,
 	.set_next_event = mfgpt_next_event,
 	.rating = 250,
-	.shift = 32
 };
 
 static irqreturn_t mfgpt_tick(int irq, void *dev_id)
@@ -169,17 +168,11 @@ static int __init cs5535_mfgpt_init(void)
 	cs5535_mfgpt_write(cs5535_event_clock, MFGPT_REG_SETUP, val);
 
 	/* Set up the clock event */
-	cs5535_clockevent.mult = div_sc(MFGPT_HZ, NSEC_PER_SEC,
-			cs5535_clockevent.shift);
-	cs5535_clockevent.min_delta_ns = clockevent_delta2ns(0xF,
-			&cs5535_clockevent);
-	cs5535_clockevent.max_delta_ns = clockevent_delta2ns(0xFFFE,
-			&cs5535_clockevent);
-
 	printk(KERN_INFO DRV_NAME
 		": Registering MFGPT timer as a clock event, using IRQ %d\n",
 		timer_irq);
-	clockevents_register_device(&cs5535_clockevent);
+	clockevents_config_and_register(&cs5535_clockevent, MFGPT_HZ,
+					0xF, 0xFFFE);
 
 	return 0;
 

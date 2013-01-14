@@ -74,6 +74,8 @@ config SOC_EXYNOS5440
 	depends on ARCH_EXYNOS5
 	select ARM_ARCH_TIMER
 	select AUTO_ZRELADDR
+	select PINCTRL
+	select PINCTRL_EXYNOS5440
 	help
 	  Enable EXYNOS5440 SoC support
 

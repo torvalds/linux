@@ -70,7 +70,6 @@ static void lpc32xx_clkevt_mode(enum clock_event_mode mode,
 static struct clock_event_device lpc32xx_clkevt = {
 	.name		= "lpc32xx_clkevt",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 300,
 	.set_next_event	= lpc32xx_clkevt_next_event,
 	.set_mode	= lpc32xx_clkevt_mode,
@@ -141,14 +140,8 @@ void __init lpc32xx_timer_init(void)
 	setup_irq(IRQ_LPC32XX_TIMER0, &lpc32xx_timer_irq);
 
 	/* Setup the clockevent structure. */
-	lpc32xx_clkevt.mult = div_sc(clkrate, NSEC_PER_SEC,
-		lpc32xx_clkevt.shift);
-	lpc32xx_clkevt.max_delta_ns = clockevent_delta2ns(-1,
-		&lpc32xx_clkevt);
-	lpc32xx_clkevt.min_delta_ns = clockevent_delta2ns(1,
-		&lpc32xx_clkevt) + 1;
 	lpc32xx_clkevt.cpumask = cpumask_of(0);
-	clockevents_register_device(&lpc32xx_clkevt);
+	clockevents_config_and_register(&lpc32xx_clkevt, clkrate, 1, -1);
 
 	/* Use timer1 as clock source. */
 	__raw_writel(LPC32XX_TIMER_CNTR_TCR_RESET,

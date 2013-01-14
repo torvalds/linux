@@ -115,9 +115,8 @@ static const struct file_operations csio_mem_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
-static void __devinit
-csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
-		     unsigned int idx, unsigned int size_mb)
+static void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
+				 unsigned int idx, unsigned int size_mb)
 {
 	struct dentry *de;
 
@@ -127,8 +126,7 @@ csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
 		de->d_inode->i_size = size_mb << 20;
 }
 
-static int __devinit
-csio_setup_debugfs(struct csio_hw *hw)
+static int csio_setup_debugfs(struct csio_hw *hw)
 {
 	int i;
 
@@ -531,8 +529,7 @@ csio_resource_free(struct csio_hw *hw)
  * Allocates HW structure, DMA, memory resources, maps BARS to
  * host memory and initializes HW module.
  */
-static struct csio_hw * __devinit
-csio_hw_alloc(struct pci_dev *pdev)
+static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 {
 	struct csio_hw *hw;
 
@@ -956,8 +953,7 @@ csio_lnode_init_post(struct csio_lnode *ln)
  * - Once hardware is ready, initiated scan of the host via
  *   scsi_scan_host.
  */
-static int __devinit
-csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int rv;
 	int bars;
@@ -1036,8 +1032,7 @@ err:
  *
  * Used during hotplug operation.
  */
-static void __devexit
-csio_remove_one(struct pci_dev *pdev)
+static void csio_remove_one(struct pci_dev *pdev)
 {
 	struct csio_hw *hw = pci_get_drvdata(pdev);
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);

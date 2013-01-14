@@ -192,7 +192,7 @@ static void bcma_unregister_cores(struct bcma_bus *bus)
 		platform_device_unregister(bus->drv_cc.watchdog);
 }
 
-int __devinit bcma_bus_register(struct bcma_bus *bus)
+int bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;

@@ -216,13 +216,13 @@ static void init_lb035q02_panel(struct spi_device *spi)
 	lb035q02_write_reg(spi, 0x3b, 0x0806);
 }
 
-static int __devinit lb035q02_panel_spi_probe(struct spi_device *spi)
+static int lb035q02_panel_spi_probe(struct spi_device *spi)
 {
 	init_lb035q02_panel(spi);
 	return omap_dss_register_driver(&lb035q02_driver);
 }
 
-static int __devexit lb035q02_panel_spi_remove(struct spi_device *spi)
+static int lb035q02_panel_spi_remove(struct spi_device *spi)
 {
 	omap_dss_unregister_driver(&lb035q02_driver);
 	return 0;
@@ -234,7 +234,7 @@ static struct spi_driver lb035q02_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lb035q02_panel_spi_probe,
-	.remove		= __devexit_p(lb035q02_panel_spi_remove),
+	.remove		= lb035q02_panel_spi_remove,
 };
 
 module_spi_driver(lb035q02_spi_driver);

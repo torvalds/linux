@@ -222,7 +222,7 @@ static const struct rtc_class_ops tps65910_rtc_ops = {
 	.alarm_irq_enable = tps65910_rtc_alarm_irq_enable,
 };
 
-static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
+static int tps65910_rtc_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = NULL;
 	struct tps65910_rtc *tps_rtc = NULL;
@@ -292,7 +292,7 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
  * Disable tps65910 RTC interrupts.
  * Sets status flag to free.
  */
-static int __devexit tps65910_rtc_remove(struct platform_device *pdev)
+static int tps65910_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct tps65910_rtc *tps_rtc = platform_get_drvdata(pdev);
@@ -342,7 +342,7 @@ static const struct dev_pm_ops tps65910_rtc_pm_ops = {
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
-	.remove		= __devexit_p(tps65910_rtc_remove),
+	.remove		= tps65910_rtc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "tps65910-rtc",

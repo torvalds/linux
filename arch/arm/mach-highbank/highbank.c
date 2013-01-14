@@ -131,7 +131,7 @@ static void __init highbank_timer_init(void)
 
 static void highbank_power_off(void)
 {
-	hignbank_set_pwr_shutdown();
+	highbank_set_pwr_shutdown();
 
 	while (1)
 		cpu_do_idle();

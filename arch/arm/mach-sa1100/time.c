@@ -124,16 +124,12 @@ void __init sa1100_timer_init(void)
 
 	setup_sched_clock(sa1100_read_sched_clock, 32, 3686400);
 
-	clockevents_calc_mult_shift(&ckevt_sa1100_osmr0, 3686400, 4);
-	ckevt_sa1100_osmr0.max_delta_ns =
-		clockevent_delta2ns(0x7fffffff, &ckevt_sa1100_osmr0);
-	ckevt_sa1100_osmr0.min_delta_ns =
-		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_sa1100_osmr0) + 1;
 	ckevt_sa1100_osmr0.cpumask = cpumask_of(0);
 
 	setup_irq(IRQ_OST0, &sa1100_timer_irq);
 
 	clocksource_mmio_init(OSCR, "oscr", CLOCK_TICK_RATE, 200, 32,
 		clocksource_mmio_readl_up);
-	clockevents_register_device(&ckevt_sa1100_osmr0);
+	clockevents_config_and_register(&ckevt_sa1100_osmr0, 3686400,
+					MIN_OSCR_DELTA * 2, 0x7fffffff);
 }

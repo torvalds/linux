@@ -338,7 +338,7 @@ static int pmecc_get_ecc_bytes(int cap, int sector_size)
 }
 
 static void pmecc_config_ecc_layout(struct nand_ecclayout *layout,
-	int oobsize, int ecc_len)
+				    int oobsize, int ecc_len)
 {
 	int i;
 
@@ -1213,7 +1213,7 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 
 #if defined(CONFIG_OF)
 static int atmel_of_init_port(struct atmel_nand_host *host,
-					 struct device_node *np)
+			      struct device_node *np)
 {
 	u32 val, table_offset;
 	u32 offset[2];
@@ -1300,7 +1300,7 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 }
 #else
 static int atmel_of_init_port(struct atmel_nand_host *host,
-					 struct device_node *np)
+			      struct device_node *np)
 {
 	return -EINVAL;
 }

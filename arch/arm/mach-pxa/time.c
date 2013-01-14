@@ -151,16 +151,12 @@ void __init pxa_timer_init(void)
 
 	setup_sched_clock(pxa_read_sched_clock, 32, clock_tick_rate);
 
-	clockevents_calc_mult_shift(&ckevt_pxa_osmr0, clock_tick_rate, 4);
-	ckevt_pxa_osmr0.max_delta_ns =
-		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
-	ckevt_pxa_osmr0.min_delta_ns =
-		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
 	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
 	setup_irq(IRQ_OST0, &pxa_ost0_irq);
 
 	clocksource_mmio_init(OSCR, "oscr0", clock_tick_rate, 200, 32,
 		clocksource_mmio_readl_up);
-	clockevents_register_device(&ckevt_pxa_osmr0);
+	clockevents_config_and_register(&ckevt_pxa_osmr0, clock_tick_rate,
+		MIN_OSCR_DELTA * 2, 0x7fffffff);
 }

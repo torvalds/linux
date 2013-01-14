@@ -43,8 +43,7 @@ enum dvma_rev {
 	dvmahme
 };
 
-static int __devinit esp_sbus_setup_dma(struct esp *esp,
-					struct platform_device *dma_of)
+static int esp_sbus_setup_dma(struct esp *esp, struct platform_device *dma_of)
 {
 	esp->dma = dma_of;
 
@@ -79,7 +78,7 @@ static int __devinit esp_sbus_setup_dma(struct esp *esp,
 
 }
 
-static int __devinit esp_sbus_map_regs(struct esp *esp, int hme)
+static int esp_sbus_map_regs(struct esp *esp, int hme)
 {
 	struct platform_device *op = esp->dev;
 	struct resource *res;
@@ -99,7 +98,7 @@ static int __devinit esp_sbus_map_regs(struct esp *esp, int hme)
 	return 0;
 }
 
-static int __devinit esp_sbus_map_command_block(struct esp *esp)
+static int esp_sbus_map_command_block(struct esp *esp)
 {
 	struct platform_device *op = esp->dev;
 
@@ -111,7 +110,7 @@ static int __devinit esp_sbus_map_command_block(struct esp *esp)
 	return 0;
 }
 
-static int __devinit esp_sbus_register_irq(struct esp *esp)
+static int esp_sbus_register_irq(struct esp *esp)
 {
 	struct Scsi_Host *host = esp->host;
 	struct platform_device *op = esp->dev;
@@ -120,7 +119,7 @@ static int __devinit esp_sbus_register_irq(struct esp *esp)
 	return request_irq(host->irq, scsi_esp_intr, IRQF_SHARED, "ESP", esp);
 }
 
-static void __devinit esp_get_scsi_id(struct esp *esp, struct platform_device *espdma)
+static void esp_get_scsi_id(struct esp *esp, struct platform_device *espdma)
 {
 	struct platform_device *op = esp->dev;
 	struct device_node *dp;
@@ -142,7 +141,7 @@ done:
 	esp->scsi_id_mask = (1 << esp->scsi_id);
 }
 
-static void __devinit esp_get_differential(struct esp *esp)
+static void esp_get_differential(struct esp *esp)
 {
 	struct platform_device *op = esp->dev;
 	struct device_node *dp;
@@ -154,7 +153,7 @@ static void __devinit esp_get_differential(struct esp *esp)
 		esp->flags &= ~ESP_FLAG_DIFFERENTIAL;
 }
 
-static void __devinit esp_get_clock_params(struct esp *esp)
+static void esp_get_clock_params(struct esp *esp)
 {
 	struct platform_device *op = esp->dev;
 	struct device_node *bus_dp, *dp;
@@ -170,7 +169,7 @@ static void __devinit esp_get_clock_params(struct esp *esp)
 	esp->cfreq = fmhz;
 }
 
-static void __devinit esp_get_bursts(struct esp *esp, struct platform_device *dma_of)
+static void esp_get_bursts(struct esp *esp, struct platform_device *dma_of)
 {
 	struct device_node *dma_dp = dma_of->dev.of_node;
 	struct platform_device *op = esp->dev;
@@ -195,7 +194,7 @@ static void __devinit esp_get_bursts(struct esp *esp, struct platform_device *dm
 	esp->bursts = bursts;
 }
 
-static void __devinit esp_sbus_get_props(struct esp *esp, struct platform_device *espdma)
+static void esp_sbus_get_props(struct esp *esp, struct platform_device *espdma)
 {
 	esp_get_scsi_id(esp, espdma);
 	esp_get_differential(esp);
@@ -487,9 +486,8 @@ static const struct esp_driver_ops sbus_esp_ops = {
 	.dma_error	=	sbus_esp_dma_error,
 };
 
-static int __devinit esp_sbus_probe_one(struct platform_device *op,
-					struct platform_device *espdma,
-					int hme)
+static int esp_sbus_probe_one(struct platform_device *op,
+			      struct platform_device *espdma, int hme)
 {
 	struct scsi_host_template *tpnt = &scsi_esp_template;
 	struct Scsi_Host *host;
@@ -562,7 +560,7 @@ fail:
 	return err;
 }
 
-static int __devinit esp_sbus_probe(struct platform_device *op)
+static int esp_sbus_probe(struct platform_device *op)
 {
 	struct device_node *dma_node = NULL;
 	struct device_node *dp = op->dev.of_node;
@@ -585,7 +583,7 @@ static int __devinit esp_sbus_probe(struct platform_device *op)
 	return esp_sbus_probe_one(op, dma_of, hme);
 }
 
-static int __devexit esp_sbus_remove(struct platform_device *op)
+static int esp_sbus_remove(struct platform_device *op)
 {
 	struct esp *esp = dev_get_drvdata(&op->dev);
 	struct platform_device *dma_of = esp->dma;
@@ -639,7 +637,7 @@ static struct platform_driver esp_sbus_driver = {
 		.of_match_table = esp_match,
 	},
 	.probe		= esp_sbus_probe,
-	.remove		= __devexit_p(esp_sbus_remove),
+	.remove		= esp_sbus_remove,
 };
 
 static int __init sunesp_init(void)

@@ -361,8 +361,8 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = pn544_hci_i2c_disable,
 };
 
-static int __devinit pn544_hci_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int pn544_hci_i2c_probe(struct i2c_client *client,
+			       const struct i2c_device_id *id)
 {
 	struct pn544_i2c_phy *phy;
 	struct pn544_nfc_platform_data *pdata;
@@ -442,7 +442,7 @@ err_phy_alloc:
 	return r;
 }
 
-static __devexit int pn544_hci_i2c_remove(struct i2c_client *client)
+static int pn544_hci_i2c_remove(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
 	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
@@ -469,7 +469,7 @@ static struct i2c_driver pn544_hci_i2c_driver = {
 		  },
 	.probe = pn544_hci_i2c_probe,
 	.id_table = pn544_hci_i2c_id_table,
-	.remove = __devexit_p(pn544_hci_i2c_remove),
+	.remove = pn544_hci_i2c_remove,
 };
 
 static int __init pn544_hci_i2c_init(void)

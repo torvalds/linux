@@ -358,7 +358,7 @@ static int cpld_video_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit cpld_video_remove(struct i2c_client *client)
+static int cpld_video_remove(struct i2c_client *client)
 {
 	cpld_client = NULL;
 	return 0;
