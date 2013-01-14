@@ -60,7 +60,7 @@ struct ab8500_prcmu_ranges {
 static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	[0x0] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[AB8500_SYS_CTRL1_BLOCK] = {
 		.num_ranges = 3,
