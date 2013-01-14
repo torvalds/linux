@@ -9854,6 +9854,8 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 				prev_undi = true;
 				/* clear the UNDI indication */
 				REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
+				/* clear possible idle check errors */
+				REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 			}
 		}
 		/* wait until BRB is empty */

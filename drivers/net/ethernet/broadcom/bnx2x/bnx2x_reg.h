@@ -2154,6 +2154,8 @@
 /* [R 32] Interrupt register #0 read */
 #define NIG_REG_NIG_INT_STS_0					 0x103b0
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
+/* [RC 32] Interrupt register #0 read clear */
+#define NIG_REG_NIG_INT_STS_CLR_0				 0x103b4
 /* [R 32] Legacy E1 and E1H location for parity error mask register. */
 #define NIG_REG_NIG_PRTY_MASK					 0x103dc
 /* [RW 32] Parity mask register #0 read/write */
