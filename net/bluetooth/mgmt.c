@@ -812,9 +812,9 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (cp->val)
-		schedule_work(&hdev->power_on);
+		queue_work(hdev->req_workqueue, &hdev->power_on);
 	else
-		schedule_work(&hdev->power_off.work);
+		queue_work(hdev->req_workqueue, &hdev->power_off.work);
 
 	err = 0;
 
