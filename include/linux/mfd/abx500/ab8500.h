@@ -274,6 +274,7 @@ struct ab8500_codec_platform_data;
 /**
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
+ * @pm_power_off: Should machine pm power off hook be registered or not
  * @init: board-specific initialization after detection of ab8500
  * @num_regulator_reg_init: number of regulator init registers
  * @regulator_reg_init: regulator init registers
@@ -282,6 +283,7 @@ struct ab8500_codec_platform_data;
  */
 struct ab8500_platform_data {
 	int irq_base;
+	bool pm_power_off;
 	void (*init) (struct ab8500 *);
 	int num_regulator_reg_init;
 	struct ab8500_regulator_reg_init *regulator_reg_init;

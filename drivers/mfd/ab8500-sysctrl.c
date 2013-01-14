@@ -7,11 +7,28 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/signal.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-sysctrl.h>
 
 static struct device *sysctrl_dev;
+
+void ab8500_power_off(void)
+{
+	sigset_t old;
+	sigset_t all;
+
+	sigfillset(&all);
+
+	if (!sigprocmask(SIG_BLOCK, &all, &old)) {
+		(void)ab8500_sysctrl_set(AB8500_STW4500CTRL1,
+					 AB8500_STW4500CTRL1_SWOFF |
+					 AB8500_STW4500CTRL1_SWRESET4500N);
+		(void)sigprocmask(SIG_SETMASK, &old, NULL);
+	}
+}
 
 static inline bool valid_bank(u8 bank)
 {
@@ -51,7 +68,12 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 
 static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
+	struct ab8500_platform_data *plat;
+
 	sysctrl_dev = &pdev->dev;
+	plat = dev_get_platdata(pdev->dev.parent);
+	if (plat->pm_power_off)
+		pm_power_off = ab8500_power_off;
 	return 0;
 }
 
