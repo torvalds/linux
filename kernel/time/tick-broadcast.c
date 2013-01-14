@@ -125,6 +125,23 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 	return ret;
 }
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+int tick_receive_broadcast(void)
+{
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
+	struct clock_event_device *evt = td->evtdev;
+
+	if (!evt)
+		return -ENODEV;
+
+	if (!evt->event_handler)
+		return -EINVAL;
+
+	evt->event_handler(evt);
+	return 0;
+}
+#endif
+
 /*
  * Broadcast the event to the cpus, which are set in the mask (mangled).
  */
