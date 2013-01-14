@@ -99,6 +99,7 @@ static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
 atomic_t ata_print_id = ATOMIC_INIT(0);
+atomic_t host_print_id = ATOMIC_INIT(0);
 
 struct ata_force_param {
 	const char	*name;
@@ -6096,6 +6097,9 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	 */
 	for (i = host->n_ports; host->ports[i]; i++)
 		kfree(host->ports[i]);
+
+	/* track host controller */
+	host->host_id = atomic_inc_return(&host_print_id);
 
 	/* give ports names and add SCSI hosts */
 	for (i = 0; i < host->n_ports; i++)
