@@ -241,21 +241,22 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		int status)
 {
 	struct dwc3			*dwc = dep->dwc;
+	int				i;
 
 	if (req->queued) {
-		if (req->request.num_mapped_sgs)
-			dep->busy_slot += req->request.num_mapped_sgs;
-		else
+		i = 0;
+		do {
 			dep->busy_slot++;
-
-		/*
-		 * Skip LINK TRB. We can't use req->trb and check for
-		 * DWC3_TRBCTL_LINK_TRB because it points the TRB we just
-		 * completed (not the LINK TRB).
-		 */
-		if (((dep->busy_slot & DWC3_TRB_MASK) == DWC3_TRB_NUM - 1) &&
+			/*
+			 * Skip LINK TRB. We can't use req->trb and check for
+			 * DWC3_TRBCTL_LINK_TRB because it points the TRB we
+			 * just completed (not the LINK TRB).
+			 */
+			if (((dep->busy_slot & DWC3_TRB_MASK) ==
+				DWC3_TRB_NUM- 1) &&
 				usb_endpoint_xfer_isoc(dep->endpoint.desc))
-			dep->busy_slot++;
+				dep->busy_slot++;
+		} while(++i < req->request.num_mapped_sgs);
 	}
 	list_del(&req->list);
 	req->trb = NULL;
@@ -749,7 +750,7 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
  */
 static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		struct dwc3_request *req, dma_addr_t dma,
-		unsigned length, unsigned last, unsigned chain)
+		unsigned length, unsigned last, unsigned chain, unsigned node)
 {
 	struct dwc3		*dwc = dep->dwc;
 	struct dwc3_trb		*trb;
@@ -765,13 +766,15 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		dep->free_slot++;
 
 	trb = &dep->trb_pool[dep->free_slot & DWC3_TRB_MASK];
-	dep->free_slot++;
 
 	if (!req->trb) {
 		dwc3_gadget_move_request_queued(req);
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
+		req->start_slot = dep->free_slot & DWC3_TRB_MASK;
 	}
+
+	dep->free_slot++;
 
 	trb->size = DWC3_TRB_SIZE_LENGTH(length);
 	trb->bpl = lower_32_bits(dma);
@@ -783,9 +786,12 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
-		trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
+		if (!node)
+			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
+		else
+			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS;
 
-		if (!req->request.no_interrupt)
+		if (!req->request.no_interrupt && !chain)
 			trb->ctrl |= DWC3_TRB_CTRL_IOC;
 		break;
 
@@ -804,13 +810,12 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		trb->ctrl |= DWC3_TRB_CTRL_ISP_IMI;
 		trb->ctrl |= DWC3_TRB_CTRL_CSP;
-	} else {
-		if (chain)
-			trb->ctrl |= DWC3_TRB_CTRL_CHN;
-
-		if (last)
-			trb->ctrl |= DWC3_TRB_CTRL_LST;
+	} else if (last) {
+		trb->ctrl |= DWC3_TRB_CTRL_LST;
 	}
+
+	if (chain)
+		trb->ctrl |= DWC3_TRB_CTRL_CHN;
 
 	if (usb_endpoint_xfer_bulk(dep->endpoint.desc) && dep->stream_capable)
 		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(req->request.stream_id);
@@ -882,6 +887,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 	list_for_each_entry_safe(req, n, &dep->request_list, list) {
 		unsigned	length;
 		dma_addr_t	dma;
+		last_one = false;
 
 		if (req->request.num_mapped_sgs > 0) {
 			struct usb_request *request = &req->request;
@@ -897,7 +903,9 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 
 				if (i == (request->num_mapped_sgs - 1) ||
 						sg_is_last(s)) {
-					last_one = true;
+					if (list_is_last(&req->list,
+							&dep->request_list))
+						last_one = true;
 					chain = false;
 				}
 
@@ -909,7 +917,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 					chain = false;
 
 				dwc3_prepare_one_trb(dep, req, dma, length,
-						last_one, chain);
+						last_one, chain, i);
 
 				if (last_one)
 					break;
@@ -927,7 +935,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 				last_one = 1;
 
 			dwc3_prepare_one_trb(dep, req, dma, length,
-					last_one, false);
+					last_one, false, 0);
 
 			if (last_one)
 				break;
@@ -1642,14 +1650,90 @@ static void dwc3_gadget_release(struct device *dev)
 }
 
 /* -------------------------------------------------------------------------- */
+static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
+		struct dwc3_request *req, struct dwc3_trb *trb,
+		const struct dwc3_event_depevt *event, int status)
+{
+	unsigned int		count;
+	unsigned int		s_pkt = 0;
+	unsigned int		trb_status;
+
+	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
+		/*
+		 * We continue despite the error. There is not much we
+		 * can do. If we don't clean it up we loop forever. If
+		 * we skip the TRB then it gets overwritten after a
+		 * while since we use them in a ring buffer. A BUG()
+		 * would help. Lets hope that if this occurs, someone
+		 * fixes the root cause instead of looking away :)
+		 */
+		dev_err(dwc->dev, "%s's TRB (%p) still owned by HW\n",
+				dep->name, trb);
+	count = trb->size & DWC3_TRB_SIZE_MASK;
+
+	if (dep->direction) {
+		if (count) {
+			trb_status = DWC3_TRB_SIZE_TRBSTS(trb->size);
+			if (trb_status == DWC3_TRBSTS_MISSED_ISOC) {
+				dev_dbg(dwc->dev, "incomplete IN transfer %s\n",
+						dep->name);
+				/*
+				 * If missed isoc occurred and there is
+				 * no request queued then issue END
+				 * TRANSFER, so that core generates
+				 * next xfernotready and we will issue
+				 * a fresh START TRANSFER.
+				 * If there are still queued request
+				 * then wait, do not issue either END
+				 * or UPDATE TRANSFER, just attach next
+				 * request in request_list during
+				 * giveback.If any future queued request
+				 * is successfully transferred then we
+				 * will issue UPDATE TRANSFER for all
+				 * request in the request_list.
+				 */
+				dep->flags |= DWC3_EP_MISSED_ISOC;
+			} else {
+				dev_err(dwc->dev, "incomplete IN transfer %s\n",
+						dep->name);
+				status = -ECONNRESET;
+			}
+		} else {
+			dep->flags &= ~DWC3_EP_MISSED_ISOC;
+		}
+	} else {
+		if (count && (event->status & DEPEVT_STATUS_SHORT))
+			s_pkt = 1;
+	}
+
+	/*
+	 * We assume here we will always receive the entire data block
+	 * which we should receive. Meaning, if we program RX to
+	 * receive 4K but we receive only 2K, we assume that's all we
+	 * should receive and we simply bounce the request back to the
+	 * gadget driver for further processing.
+	 */
+	req->request.actual += req->request.length - count;
+	if (s_pkt)
+		return 1;
+	if ((event->status & DEPEVT_STATUS_LST) &&
+			(trb->ctrl & (DWC3_TRB_CTRL_LST |
+				DWC3_TRB_CTRL_HWO)))
+		return 1;
+	if ((event->status & DEPEVT_STATUS_IOC) &&
+			(trb->ctrl & DWC3_TRB_CTRL_IOC))
+		return 1;
+	return 0;
+}
+
 static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
 	struct dwc3_request	*req;
 	struct dwc3_trb		*trb;
-	unsigned int		count;
-	unsigned int		s_pkt = 0;
-	unsigned int		trb_status;
+	unsigned int		slot;
+	unsigned int		i;
+	int			ret;
 
 	do {
 		req = next_request(&dep->req_queued);
@@ -1657,74 +1741,24 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			WARN_ON_ONCE(1);
 			return 1;
 		}
+		i = 0;
+		do {
+			slot = req->start_slot + i;
+			if ((slot == DWC3_TRB_NUM - 1) &&
+				usb_endpoint_xfer_isoc(dep->endpoint.desc))
+				slot++;
+			slot %= DWC3_TRB_NUM;
+			trb = &dep->trb_pool[slot];
 
-		trb = req->trb;
+			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
+					event, status);
+			if (ret)
+				break;
+		}while (++i < req->request.num_mapped_sgs);
 
-		if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
-			/*
-			 * We continue despite the error. There is not much we
-			 * can do. If we don't clean it up we loop forever. If
-			 * we skip the TRB then it gets overwritten after a
-			 * while since we use them in a ring buffer. A BUG()
-			 * would help. Lets hope that if this occurs, someone
-			 * fixes the root cause instead of looking away :)
-			 */
-			dev_err(dwc->dev, "%s's TRB (%p) still owned by HW\n",
-					dep->name, req->trb);
-		count = trb->size & DWC3_TRB_SIZE_MASK;
-
-		if (dep->direction) {
-			if (count) {
-				trb_status = DWC3_TRB_SIZE_TRBSTS(trb->size);
-				if (trb_status == DWC3_TRBSTS_MISSED_ISOC) {
-					dev_dbg(dwc->dev, "incomplete IN transfer %s\n",
-							dep->name);
-					/*
-					 * If missed isoc occurred and there is
-					 * no request queued then issue END
-					 * TRANSFER, so that core generates
-					 * next xfernotready and we will issue
-					 * a fresh START TRANSFER.
-					 * If there are still queued request
-					 * then wait, do not issue either END
-					 * or UPDATE TRANSFER, just attach next
-					 * request in request_list during
-					 * giveback.If any future queued request
-					 * is successfully transferred then we
-					 * will issue UPDATE TRANSFER for all
-					 * request in the request_list.
-					 */
-					dep->flags |= DWC3_EP_MISSED_ISOC;
-				} else {
-					dev_err(dwc->dev, "incomplete IN transfer %s\n",
-							dep->name);
-					status = -ECONNRESET;
-				}
-			} else {
-				dep->flags &= ~DWC3_EP_MISSED_ISOC;
-			}
-		} else {
-			if (count && (event->status & DEPEVT_STATUS_SHORT))
-				s_pkt = 1;
-		}
-
-		/*
-		 * We assume here we will always receive the entire data block
-		 * which we should receive. Meaning, if we program RX to
-		 * receive 4K but we receive only 2K, we assume that's all we
-		 * should receive and we simply bounce the request back to the
-		 * gadget driver for further processing.
-		 */
-		req->request.actual += req->request.length - count;
 		dwc3_gadget_giveback(dep, req, status);
-		if (s_pkt)
-			break;
-		if ((event->status & DEPEVT_STATUS_LST) &&
-				(trb->ctrl & (DWC3_TRB_CTRL_LST |
-						DWC3_TRB_CTRL_HWO)))
-			break;
-		if ((event->status & DEPEVT_STATUS_IOC) &&
-				(trb->ctrl & DWC3_TRB_CTRL_IOC))
+
+		if (ret)
 			break;
 	} while (1);
 
