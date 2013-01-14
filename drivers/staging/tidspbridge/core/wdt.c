@@ -63,11 +63,15 @@ int dsp_wdt_init(void)
 	dsp_wdt.fclk = clk_get(NULL, "wdt3_fck");
 
 	if (!IS_ERR(dsp_wdt.fclk)) {
+		clk_prepare(dsp_wdt.fclk);
+
 		dsp_wdt.iclk = clk_get(NULL, "wdt3_ick");
 		if (IS_ERR(dsp_wdt.iclk)) {
 			clk_put(dsp_wdt.fclk);
 			dsp_wdt.fclk = NULL;
 			ret = -EFAULT;
+		} else {
+			clk_prepare(dsp_wdt.iclk);
 		}
 	} else
 		ret = -EFAULT;
@@ -95,10 +99,14 @@ void dsp_wdt_exit(void)
 	free_irq(INT_34XX_WDT3_IRQ, &dsp_wdt);
 	tasklet_kill(&dsp_wdt.wdt3_tasklet);
 
-	if (dsp_wdt.fclk)
+	if (dsp_wdt.fclk) {
+		clk_unprepare(dsp_wdt.fclk);
 		clk_put(dsp_wdt.fclk);
-	if (dsp_wdt.iclk)
+	}
+	if (dsp_wdt.iclk) {
+		clk_unprepare(dsp_wdt.iclk);
 		clk_put(dsp_wdt.iclk);
+	}
 
 	dsp_wdt.fclk = NULL;
 	dsp_wdt.iclk = NULL;
