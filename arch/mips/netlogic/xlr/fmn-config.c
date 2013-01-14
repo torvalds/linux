@@ -216,6 +216,8 @@ void xlr_board_info_setup(void)
 	case PRID_IMP_NETLOGIC_XLS404B:
 	case PRID_IMP_NETLOGIC_XLS408B:
 	case PRID_IMP_NETLOGIC_XLS416B:
+	case PRID_IMP_NETLOGIC_XLS608B:
+	case PRID_IMP_NETLOGIC_XLS616B:
 		setup_fmn_cc(&gmac[0], FMN_STNID_GMAC0,
 					FMN_STNID_GMAC0_TX3, 8, 8, 32);
 		setup_fmn_cc(&gmac[1], FMN_STNID_GMAC1_FR_0,
