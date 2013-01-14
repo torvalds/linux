@@ -500,14 +500,15 @@ static unsigned char sp5100_tco_setupdevice(void)
 	/* Restore to the low three bits, if chipset is SB8x0(or later) */
 	if (sp5100_tco_pci->revision >= 0x40) {
 		u8 reserved_bit;
-		reserved_bit = inb(base_addr) & 0x7;
+		outb(base_addr+0, index_reg);
+		reserved_bit = inb(data_reg) & 0x7;
 		val |= (u32)reserved_bit;
 	}
 
 	/* Re-programming the watchdog timer base address */
 	outb(base_addr+0, index_reg);
 	/* Low three bits of BASE are reserved */
-	outb((val >>  0) & 0xf8, data_reg);
+	outb((val >>  0) & 0xff, data_reg);
 	outb(base_addr+1, index_reg);
 	outb((val >>  8) & 0xff, data_reg);
 	outb(base_addr+2, index_reg);
