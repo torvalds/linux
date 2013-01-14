@@ -103,4 +103,6 @@
 		? (((v) >> 2) & MX6Q_BM_BCH_FLASH0LAYOUT1_DATAN_SIZE)	\
 		: ((v) & BM_BCH_FLASH0LAYOUT1_DATAN_SIZE)		\
 	)
+
+#define HW_BCH_VERSION				0x00000160
 #endif

@@ -208,6 +208,11 @@ void gpmi_dump_info(struct gpmi_nand_data *this)
 	}
 
 	/* start to print out the BCH info */
+	pr_err("Show BCH registers :\n");
+	for (i = 0; i <= HW_BCH_VERSION / 0x10 + 1; i++) {
+		reg = readl(r->bch_regs + i * 0x10);
+		pr_err("offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
+	}
 	pr_err("BCH Geometry :\n");
 	pr_err("GF length              : %u\n", geo->gf_len);
 	pr_err("ECC Strength           : %u\n", geo->ecc_strength);
