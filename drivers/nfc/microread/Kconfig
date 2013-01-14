@@ -22,3 +22,14 @@ config NFC_MICROREAD_I2C
 
 	  If you choose to build a module, it'll be called microread_i2c.
 	  Say N if unsure.
+
+config NFC_MICROREAD_MEI
+	tristate "NFC Microread MEI support"
+	depends on NFC_MICROREAD && INTEL_MEI_BUS_NFC
+	---help---
+	  This module adds support for the mei interface of adapters using
+	  Inside microread chipsets.  Select this if your microread chipset
+	  is handled by Intel's Management Engine Interface on your platform.
+
+	  If you choose to build a module, it'll be called microread_mei.
+	  Say N if unsure.
