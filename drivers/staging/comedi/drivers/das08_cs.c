@@ -181,31 +181,7 @@ static struct pcmcia_driver das08_cs_driver = {
 	.id_table	= das08_cs_id_table,
 };
 
-static int __init das08_cs_init_module(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das08_cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das08_cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das08_cs);
-		return ret;
-	}
-
-	return 0;
-
-}
-module_init(das08_cs_init_module);
-
-static void __exit das08_cs_exit_module(void)
-{
-	pcmcia_unregister_driver(&das08_cs_driver);
-	comedi_driver_unregister(&driver_das08_cs);
-}
-module_exit(das08_cs_exit_module);
+module_comedi_pcmcia_driver(driver_das08_cs, das08_cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
 	      "Frank Mori Hess <fmhess@users.sourceforge.net>");
