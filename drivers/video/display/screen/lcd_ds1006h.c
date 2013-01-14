@@ -20,7 +20,7 @@
 #define OUT_TYPE	    SCREEN_RGB
 #endif
 
-#define OUT_FACE	    OUT_D888_P666
+#define OUT_FACE	    OUT_P888
 
 
 #define OUT_CLK	          71000000
