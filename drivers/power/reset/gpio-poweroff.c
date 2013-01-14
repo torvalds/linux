@@ -29,15 +29,16 @@ static int gpio_active_low;
 
 static void gpio_poweroff_do_poweroff(void)
 {
-	BUG_ON(gpio_num == -1);
+	BUG_ON(!gpio_is_valid(gpio_num));
 
-	/* drive it active */
+	/* drive it active, also inactive->active edge */
 	gpio_direction_output(gpio_num, !gpio_active_low);
 	mdelay(100);
-	/* rising edge or drive inactive */
+	/* drive inactive, also active->inactive edge */
 	gpio_set_value(gpio_num, gpio_active_low);
 	mdelay(100);
-	/* falling edge */
+
+	/* drive it active, also inactive->active edge */
 	gpio_set_value(gpio_num, !gpio_active_low);
 
 	/* give it some time */
@@ -60,15 +61,12 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	}
 
 	gpio_num = of_get_gpio_flags(pdev->dev.of_node, 0, &flags);
-	if (gpio_num < 0) {
-		pr_err("%s: Could not get GPIO configuration: %d",
-		       __func__, gpio_num);
-		return -ENODEV;
-	}
+	if (!gpio_is_valid(gpio_num))
+		return gpio_num;
+
 	gpio_active_low = flags & OF_GPIO_ACTIVE_LOW;
 
-	if (of_get_property(pdev->dev.of_node, "input", NULL))
-		input = true;
+	input = of_property_read_bool(pdev->dev.of_node, "input");
 
 	ret = gpio_request(gpio_num, "poweroff-gpio");
 	if (ret) {
@@ -98,8 +96,7 @@ err:
 
 static int gpio_poweroff_remove(struct platform_device *pdev)
 {
-	if (gpio_num != -1)
-		gpio_free(gpio_num);
+	gpio_free(gpio_num);
 	if (pm_power_off == &gpio_poweroff_do_poweroff)
 		pm_power_off = NULL;
 
@@ -115,15 +112,15 @@ static struct platform_driver gpio_poweroff_driver = {
 	.probe = gpio_poweroff_probe,
 	.remove = gpio_poweroff_remove,
 	.driver = {
-		   .name = "poweroff-gpio",
-		   .owner = THIS_MODULE,
-		   .of_match_table = of_gpio_poweroff_match,
-		   },
+		.name = "poweroff-gpio",
+		.owner = THIS_MODULE,
+		.of_match_table = of_gpio_poweroff_match,
+	},
 };
 
 module_platform_driver(gpio_poweroff_driver);
 
 MODULE_AUTHOR("Jamie Lentin <jm@lentin.co.uk>");
 MODULE_DESCRIPTION("GPIO poweroff driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:poweroff-gpio");

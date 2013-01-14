@@ -1191,6 +1191,7 @@ static void vxlan_setup(struct net_device *dev)
 
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	dev->priv_flags	&= ~IFF_XMIT_DST_RELEASE;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	spin_lock_init(&vxlan->hash_lock);
 

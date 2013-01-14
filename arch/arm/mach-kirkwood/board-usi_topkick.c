@@ -64,8 +64,6 @@ static unsigned int topkick_mpp_config[] __initdata = {
 	0
 };
 
-#define TOPKICK_SATA0_PWR_ENABLE 36
-
 void __init usi_topkick_init(void)
 {
 	/*
@@ -73,8 +71,6 @@ void __init usi_topkick_init(void)
 	 */
 	kirkwood_mpp_conf(topkick_mpp_config);
 
-	/* SATA0 power enable */
-	gpio_set_value(TOPKICK_SATA0_PWR_ENABLE, 1);
 
 	kirkwood_ge00_init(&topkick_ge00_data);
 	kirkwood_sdio_init(&topkick_mvsdio_data);

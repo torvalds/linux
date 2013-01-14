@@ -523,7 +523,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	}
 	if (!result && (entry->action == UNKNOWN))
 		result = -EINVAL;
-
+	else if (entry->func == MODULE_CHECK)
+		ima_appraise |= IMA_APPRAISE_MODULES;
 	audit_log_format(ab, "res=%d", !result);
 	audit_log_end(ab);
 	return result;

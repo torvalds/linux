@@ -299,10 +299,21 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 
 int __init br_netlink_init(void)
 {
-	return rtnl_link_register(&br_link_ops);
+	int err;
+
+	br_mdb_init();
+	err = rtnl_link_register(&br_link_ops);
+	if (err)
+		goto out;
+
+	return 0;
+out:
+	br_mdb_uninit();
+	return err;
 }
 
 void __exit br_netlink_fini(void)
 {
+	br_mdb_uninit();
 	rtnl_link_unregister(&br_link_ops);
 }

@@ -1167,6 +1167,8 @@ static const struct clk_ops emu_src_ck_ops = {
 	.recalc_rate	= &omap2_clksel_recalc,
 	.get_parent	= &omap2_clksel_find_parent_index,
 	.set_parent	= &omap2_clksel_set_parent,
+	.enable		= &omap2_clkops_enable_clkdm,
+	.disable	= &omap2_clkops_disable_clkdm,
 };
 
 static struct clk emu_src_ck;
