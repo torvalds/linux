@@ -592,7 +592,7 @@ static inline void acpi_wakeup_device(acpi_handle handle, u32 event,
 				      void *context) {}
 #endif /* CONFIG_PM_RUNTIME */
 
- #ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 /**
  * __acpi_device_sleep_wake - Enable or disable device to wake up the system.
  * @dev: Device to enable/desible to wake up the system.
