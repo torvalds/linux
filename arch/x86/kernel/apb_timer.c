@@ -240,7 +240,7 @@ static int apbt_cpuhp_notify(struct notifier_block *n,
 		dw_apb_clockevent_pause(adev->timer);
 		if (system_state == SYSTEM_RUNNING) {
 			pr_debug("skipping APBT CPU %lu offline\n", cpu);
-		} else if (adev) {
+		} else {
 			pr_debug("APBT clockevent for cpu %lu offline\n", cpu);
 			dw_apb_clockevent_stop(adev->timer);
 		}
