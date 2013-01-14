@@ -317,7 +317,6 @@ struct ath_rx {
 	u32 *rxlink;
 	u32 num_pkts;
 	unsigned int rxfilter;
-	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
 	struct ath_buf *rx_bufptr;
