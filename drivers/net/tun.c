@@ -185,6 +185,7 @@ struct tun_struct {
 	unsigned long ageing_time;
 	unsigned int numdisabled;
 	struct list_head disabled;
+	void *security;
 };
 
 static inline u32 tun_hashfn(u32 rxhash)
@@ -489,6 +490,10 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
 	int err;
+
+	err = security_tun_dev_attach(tfile->socket.sk, tun->security);
+	if (err < 0)
+		goto out;
 
 	err = -EINVAL;
 	if (rtnl_dereference(tfile->tun))
@@ -1373,6 +1378,7 @@ static void tun_free_netdev(struct net_device *dev)
 
 	BUG_ON(!(list_empty(&tun->disabled)));
 	tun_flow_uninit(tun);
+	security_tun_dev_free_security(tun->security);
 	free_netdev(dev);
 }
 
@@ -1562,7 +1568,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (tun_not_capable(tun))
 			return -EPERM;
-		err = security_tun_dev_attach(tfile->socket.sk);
+		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
 
@@ -1619,7 +1625,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		spin_lock_init(&tun->lock);
 
-		security_tun_dev_post_create(&tfile->sk);
+		err = security_tun_dev_alloc_security(&tun->security);
+		if (err < 0)
+			goto err_free_dev;
 
 		tun_net_init(dev);
 
@@ -1789,10 +1797,14 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 
 	if (ifr->ifr_flags & IFF_ATTACH_QUEUE) {
 		tun = tfile->detached;
-		if (!tun)
+		if (!tun) {
 			ret = -EINVAL;
-		else
-			ret = tun_attach(tun, file);
+			goto unlock;
+		}
+		ret = security_tun_dev_attach_queue(tun->security);
+		if (ret < 0)
+			goto unlock;
+		ret = tun_attach(tun, file);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & TUN_TAP_MQ))
@@ -1802,6 +1814,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 	} else
 		ret = -EINVAL;
 
+unlock:
 	rtnl_unlock();
 	return ret;
 }
