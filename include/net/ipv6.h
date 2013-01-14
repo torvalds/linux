@@ -487,8 +487,13 @@ static inline bool ipv6_addr_loopback(const struct in6_addr *a)
 
 static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 {
-	return (a->s6_addr32[0] | a->s6_addr32[1] |
-		 (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0;
+	return (
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+		*(__be64 *)a |
+#else
+		(a->s6_addr32[0] | a->s6_addr32[1]) |
+#endif
+		(a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0UL;
 }
 
 /*
