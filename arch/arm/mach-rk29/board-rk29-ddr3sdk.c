@@ -1135,7 +1135,19 @@ struct bq27510_platform_data bq27510_info = {
 	.bat_num = LI_LION_BAT_NUM,
 };
 #endif
+#ifdef CONFIG_SND_SOC_RK610
+static int rk610_codec_io_init(void)
+{
+//if need iomux.
+//Must not gpio_request
+	return 0;
+}
 
+static struct rk610_codec_platform_data rk610_codec_pdata = {
+	.spk_ctl_io = RK29_PIN6_PB6,
+	.io_init = rk610_codec_io_init,
+};
+#endif
 /*************************************PMU ACT8891****************************************/
 
 #if defined (CONFIG_REGULATOR_ACT8891) 
@@ -1735,6 +1747,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 			.type			= "rk610_i2c_codec",
 			.addr			= 0x60,
 			.flags			= 0,
+			.platform_data		= &rk610_codec_pdata,					
 		},
 #endif
 
