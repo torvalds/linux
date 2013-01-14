@@ -334,30 +334,7 @@ static struct pcmcia_driver daq700_cs_driver = {
 	.id_table	= daq700_cs_ids,
 };
 
-static int __init daq700_cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&daq700_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&daq700_cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&daq700_driver);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(daq700_cs_init);
-
-static void __exit daq700_cs_exit(void)
-{
-	pcmcia_unregister_driver(&daq700_cs_driver);
-	comedi_driver_unregister(&daq700_driver);
-}
-module_exit(daq700_cs_exit);
+module_comedi_pcmcia_driver(daq700_driver, daq700_cs_driver);
 
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(
