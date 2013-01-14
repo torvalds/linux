@@ -399,6 +399,31 @@ static inline bool ipv6_addr_equal(const struct in6_addr *a1,
 #endif
 }
 
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+static inline bool __ipv6_prefix_equal64_half(const __be64 *a1,
+					      const __be64 *a2,
+					      unsigned int len)
+{
+	if (len && ((*a1 ^ *a2) & cpu_to_be64(~0UL) << (64 - len)))
+		return false;
+	return true;
+}
+
+static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
+				     const struct in6_addr *addr2,
+				     unsigned int prefixlen)
+{
+	const __be64 *a1 = (const __be64 *)addr1;
+	const __be64 *a2 = (const __be64 *)addr2;
+
+	if (prefixlen >= 64) {
+		if (a1[0] ^ a2[0])
+			return false;
+		return __ipv6_prefix_equal64_half(a1 + 1, a2 + 1, prefixlen - 64);
+	}
+	return __ipv6_prefix_equal64_half(a1, a2, prefixlen);
+}
+#else
 static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
 				     const struct in6_addr *addr2,
 				     unsigned int prefixlen)
@@ -419,6 +444,7 @@ static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
 
 	return true;
 }
+#endif
 
 struct inet_frag_queue;
 
