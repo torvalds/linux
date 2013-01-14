@@ -1539,25 +1539,30 @@ static void bnx2x_igu_int_enable(struct bnx2x *bp)
 	if (msix) {
 		val &= ~(IGU_PF_CONF_INT_LINE_EN |
 			 IGU_PF_CONF_SINGLE_ISR_EN);
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_MSI_MSIX_EN |
+		val |= (IGU_PF_CONF_MSI_MSIX_EN |
 			IGU_PF_CONF_ATTN_BIT_EN);
 
 		if (single_msix)
 			val |= IGU_PF_CONF_SINGLE_ISR_EN;
 	} else if (msi) {
 		val &= ~IGU_PF_CONF_INT_LINE_EN;
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_MSI_MSIX_EN |
+		val |= (IGU_PF_CONF_MSI_MSIX_EN |
 			IGU_PF_CONF_ATTN_BIT_EN |
 			IGU_PF_CONF_SINGLE_ISR_EN);
 	} else {
 		val &= ~IGU_PF_CONF_MSI_MSIX_EN;
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_INT_LINE_EN |
+		val |= (IGU_PF_CONF_INT_LINE_EN |
 			IGU_PF_CONF_ATTN_BIT_EN |
 			IGU_PF_CONF_SINGLE_ISR_EN);
 	}
+
+	/* Clean previous status - need to configure igu prior to ack*/
+	if ((!msix) || single_msix) {
+		REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
+		bnx2x_ack_int(bp);
+	}
+
+	val |= IGU_PF_CONF_FUNC_EN;
 
 	DP(NETIF_MSG_IFUP, "write 0x%x to IGU  mode %s\n",
 	   val, (msix ? "MSI-X" : (msi ? "MSI" : "INTx")));

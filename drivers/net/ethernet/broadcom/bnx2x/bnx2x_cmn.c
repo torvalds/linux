@@ -1681,7 +1681,6 @@ static int bnx2x_setup_irqs(struct bnx2x *bp)
 		if (rc)
 			return rc;
 	} else {
-		bnx2x_ack_int(bp);
 		rc = bnx2x_req_irq(bp);
 		if (rc) {
 			BNX2X_ERR("IRQ request failed  rc %d, aborting\n", rc);
