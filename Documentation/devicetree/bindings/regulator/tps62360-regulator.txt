@@ -17,9 +17,9 @@ Optional properties:
 - ti,vsel1-gpio: Gpio for controlling VSEL1 line.
   If this property is missing, then assume that there is no GPIO
   for vsel1 control.
-- ti,vsel0-state-high: Inital state of vsel0 input is high.
+- ti,vsel0-state-high: Initial state of vsel0 input is high.
   If this property is missing, then assume the state as low (0).
-- ti,vsel1-state-high: Inital state of vsel1 input is high.
+- ti,vsel1-state-high: Initial state of vsel1 input is high.
   If this property is missing, then assume the state as low (0).
 
 Any property defined as part of the core regulator binding, defined in

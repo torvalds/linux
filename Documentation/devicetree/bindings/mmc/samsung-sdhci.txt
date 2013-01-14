@@ -55,5 +55,5 @@ Example:
 	};
 
 	Note: This example shows both SoC specific and board specific properties
-	in a single device node. The properties can be actually be seperated
+	in a single device node. The properties can be actually be separated
 	into SoC specific node and board specific node.

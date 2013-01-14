@@ -11,11 +11,11 @@ Required Properties:
 
 * compatible: should be
 	- "samsung,exynos4210-dw-mshc": for controllers with Samsung Exynos4210
-	  specific extentions.
+	  specific extensions.
 	- "samsung,exynos4412-dw-mshc": for controllers with Samsung Exynos4412
-	  specific extentions.
+	  specific extensions.
 	- "samsung,exynos5250-dw-mshc": for controllers with Samsung Exynos5250
-	  specific extentions.
+	  specific extensions.
 
 * samsung,dw-mshc-ciu-div: Specifies the divider value for the card interface
   unit (ciu) clock. This property is applicable only for Exynos5 SoC's and
