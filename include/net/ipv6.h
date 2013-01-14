@@ -399,9 +399,12 @@ static inline bool ipv6_addr_equal(const struct in6_addr *a1,
 #endif
 }
 
-static inline bool __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
-				       unsigned int prefixlen)
+static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
+				     const struct in6_addr *addr2,
+				     unsigned int prefixlen)
 {
+	const __be32 *a1 = addr1->s6_addr32;
+	const __be32 *a2 = addr2->s6_addr32;
 	unsigned int pdw, pbi;
 
 	/* check complete u32 in prefix */
@@ -415,14 +418,6 @@ static inline bool __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
 		return false;
 
 	return true;
-}
-
-static inline bool ipv6_prefix_equal(const struct in6_addr *a1,
-				     const struct in6_addr *a2,
-				     unsigned int prefixlen)
-{
-	return __ipv6_prefix_equal(a1->s6_addr32, a2->s6_addr32,
-				   prefixlen);
 }
 
 struct inet_frag_queue;
