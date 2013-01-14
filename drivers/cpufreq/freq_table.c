@@ -227,6 +227,15 @@ void cpufreq_frequency_table_put_attr(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_put_attr);
 
+void cpufreq_frequency_table_update_policy_cpu(struct cpufreq_policy *policy)
+{
+	pr_debug("Updating show_table for new_cpu %u from last_cpu %u\n",
+			policy->cpu, policy->last_cpu);
+	per_cpu(cpufreq_show_table, policy->cpu) = per_cpu(cpufreq_show_table,
+			policy->last_cpu);
+	per_cpu(cpufreq_show_table, policy->last_cpu) = NULL;
+}
+
 struct cpufreq_frequency_table *cpufreq_frequency_get_table(unsigned int cpu)
 {
 	return per_cpu(cpufreq_show_table, cpu);
