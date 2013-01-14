@@ -16,9 +16,8 @@ struct neighbour;
 
 struct netevent_redirect {
 	struct dst_entry *old;
-	struct neighbour *old_neigh;
 	struct dst_entry *new;
-	struct neighbour *new_neigh;
+	struct neighbour *neigh;
 	const void *daddr;
 };
 

@@ -1803,10 +1803,9 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 		goto out;
 
 	netevent.old = &rt->dst;
-	netevent.old_neigh = old_neigh;
 	netevent.new = &nrt->dst;
-	netevent.new_neigh = neigh;
 	netevent.daddr = &msg->dest;
+	netevent.neigh = neigh;
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 	if (rt->rt6i_flags & RTF_CACHE) {
