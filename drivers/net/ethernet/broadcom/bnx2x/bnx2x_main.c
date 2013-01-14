@@ -10570,6 +10570,13 @@ static void bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->wol = (!(bp->flags & NO_WOL_FLAG) &&
 		   (config & PORT_FEATURE_WOL_ENABLED));
 
+	if ((config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
+	    PORT_FEAT_CFG_STORAGE_PERSONALITY_FCOE && !IS_MF(bp))
+		bp->flags |= NO_ISCSI_FLAG;
+	if ((config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
+	    PORT_FEAT_CFG_STORAGE_PERSONALITY_ISCSI && !(IS_MF(bp)))
+		bp->flags |= NO_FCOE_FLAG;
+
 	BNX2X_DEV_INFO("lane_config 0x%08x  speed_cap_mask0 0x%08x  link_config0 0x%08x\n",
 		       bp->link_params.lane_config,
 		       bp->link_params.speed_cap_mask[0],

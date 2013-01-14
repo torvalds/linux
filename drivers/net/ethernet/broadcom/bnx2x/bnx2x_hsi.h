@@ -899,6 +899,10 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 		#define PORT_FEAT_CFG_DCBX_DISABLED                  0x00000000
 		#define PORT_FEAT_CFG_DCBX_ENABLED                   0x00000100
 
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK        0x00000C00
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_FCOE        0x00000400
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_ISCSI       0x00000800
+
 	#define PORT_FEATURE_EN_SIZE_MASK                   0x0f000000
 	#define PORT_FEATURE_EN_SIZE_SHIFT                           24
 	#define PORT_FEATURE_WOL_ENABLED                             0x01000000
