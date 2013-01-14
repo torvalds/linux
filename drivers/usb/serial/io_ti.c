@@ -2088,6 +2088,7 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	int chars = 0;
 	unsigned long flags;
+	int ret;
 
 	if (edge_port == NULL)
 		return 0;
@@ -2097,6 +2098,12 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	chars = kfifo_len(&edge_port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
+
+	if (!chars) {
+		ret = tx_active(edge_port);
+		if (ret > 0)
+			chars = ret;
+	}
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
 	return chars;
