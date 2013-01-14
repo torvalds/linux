@@ -98,6 +98,10 @@ void __init plat_time_init(void)
 {
 	nlm_init_pic_timer();
 	mips_hpt_frequency = nlm_get_cpu_frequency();
+	if (current_cpu_type() == CPU_XLR)
+		preset_lpj = mips_hpt_frequency / (3 * HZ);
+	else
+		preset_lpj = mips_hpt_frequency / (2 * HZ);
 	pr_info("MIPS counter frequency [%ld]\n",
 			(unsigned long)mips_hpt_frequency);
 }
