@@ -45,7 +45,6 @@ extern struct net_device *ne_probe(int unit);
 extern struct net_device *hp_probe(int unit);
 extern struct net_device *hp_plus_probe(int unit);
 extern struct net_device *fmv18x_probe(int unit);
-extern struct net_device *eth16i_probe(int unit);
 extern struct net_device *i82596_probe(int unit);
 extern struct net_device *ewrk3_probe(int unit);
 extern struct net_device *e2100_probe(int unit);
@@ -138,9 +137,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifndef CONFIG_CS89x0_PLATFORM
  	{cs89x0_probe, 0},
 #endif
-#endif
-#ifdef CONFIG_ETH16I
-	{eth16i_probe, 0},	/* ICL EtherTeam 16i/32 */
 #endif
 #ifdef CONFIG_EWRK3             /* DEC EtherWORKS 3 */
     	{ewrk3_probe, 0},
