@@ -433,9 +433,9 @@ static void do_ext_call_interrupt(struct ext_code ext_code,
 
 	cpu = smp_processor_id();
 	if (ext_code.code == 0x1202)
-		kstat_cpu(cpu).irqs[EXTINT_EXC]++;
+		inc_irq_stat(IRQEXT_EXC);
 	else
-		kstat_cpu(cpu).irqs[EXTINT_EMS]++;
+		inc_irq_stat(IRQEXT_EMS);
 	/*
 	 * handle bit signal external calls
 	 */
@@ -623,9 +623,10 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 	return info;
 }
 
-static int smp_add_present_cpu(int cpu);
+static int __cpuinit smp_add_present_cpu(int cpu);
 
-static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
+static int __cpuinit __smp_rescan_cpus(struct sclp_cpu_info *info,
+				       int sysfs_add)
 {
 	struct pcpu *pcpu;
 	cpumask_t avail;
@@ -708,6 +709,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
+	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
@@ -985,7 +987,7 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 	return notifier_from_errno(err);
 }
 
-static int smp_add_present_cpu(int cpu)
+static int __cpuinit smp_add_present_cpu(int cpu)
 {
 	struct cpu *c = &pcpu_devices[cpu].cpu;
 	struct device *s = &c->dev;

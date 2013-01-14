@@ -555,7 +555,7 @@ EXPORT_SYMBOL_GPL(rpc_clone_client);
  * rpc_clone_client_set_auth - Clone an RPC client structure and set its auth
  *
  * @clnt: RPC client whose parameters are copied
- * @auth: security flavor for new client
+ * @flavor: security flavor for new client
  *
  * Returns a fresh RPC client or an ERR_PTR.
  */
@@ -610,11 +610,6 @@ EXPORT_SYMBOL_GPL(rpc_killall_tasks);
  */
 void rpc_shutdown_client(struct rpc_clnt *clnt)
 {
-	/*
-	 * To avoid deadlock, never call rpc_shutdown_client from a
-	 * workqueue context!
-	 */
-	WARN_ON_ONCE(current->flags & PF_WQ_WORKER);
 	might_sleep();
 
 	dprintk_rcu("RPC:       shutting down %s client for %s\n",

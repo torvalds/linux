@@ -569,7 +569,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 	subcode = ext_code.subcode;
 	if ((subcode & 0xff00) != __SUBCODE_MASK)
 		return;
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;
+	inc_irq_stat(IRQEXT_PFL);
 	/* Get the token (= pid of the affected task). */
 	pid = sizeof(void *) == 4 ? param32 : param64;
 	rcu_read_lock();

@@ -108,7 +108,7 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
 #else
 # define __FIXUP_SECTION	".section .discard,\"ax\"\n"
-# define __EX_TABLE_SECTION	".section .discard,\"a\"\n"
+# define __EX_TABLE_SECTION	".section .discard,\"ax\"\n"
 #endif
 
 extern unsigned long __copy_tofrom_user(void __user *to,

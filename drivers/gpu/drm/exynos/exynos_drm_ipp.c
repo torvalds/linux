@@ -27,7 +27,7 @@
 #include "exynos_drm_iommu.h"
 
 /*
- * IPP is stand for Image Post Processing and
+ * IPP stands for Image Post Processing and
  * supports image scaler/rotator and input/output DMA operations.
  * using FIMC, GSC, Rotator, so on.
  * IPP is integration device driver of same attribute h/w
@@ -1292,7 +1292,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, property->prop_id);
 
 	/* store command info in ippdrv */
-	ippdrv->cmd = c_node;
+	ippdrv->c_node = c_node;
 
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("%s:empty memory.\n", __func__);
@@ -1303,7 +1303,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	ret = ipp_set_property(ippdrv, property);
 	if (ret) {
 		DRM_ERROR("failed to set property.\n");
-		ippdrv->cmd = NULL;
+		ippdrv->c_node = NULL;
 		return ret;
 	}
 
@@ -1487,11 +1487,6 @@ void ipp_sched_cmd(struct work_struct *work)
 	mutex_lock(&c_node->cmd_lock);
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property:prop_id[%d]\n",
-			c_node->property.prop_id);
-		goto err_unlock;
-	}
 
 	switch (cmd_work->ctrl) {
 	case IPP_CTRL_PLAY:
@@ -1704,7 +1699,7 @@ void ipp_sched_event(struct work_struct *work)
 		return;
 	}
 
-	c_node = ippdrv->cmd;
+	c_node = ippdrv->c_node;
 	if (!c_node) {
 		DRM_ERROR("failed to get command node.\n");
 		return;
@@ -1895,7 +1890,7 @@ static int ipp_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1916,8 +1911,7 @@ static int ipp_probe(struct platform_device *pdev)
 	ctx->event_workq = create_singlethread_workqueue("ipp_event");
 	if (!ctx->event_workq) {
 		dev_err(dev, "failed to create event workqueue\n");
-		ret = -EINVAL;
-		goto err_clear;
+		return -EINVAL;
 	}
 
 	/*
@@ -1958,8 +1952,6 @@ err_cmd_workq:
 	destroy_workqueue(ctx->cmd_workq);
 err_event_workq:
 	destroy_workqueue(ctx->event_workq);
-err_clear:
-	kfree(ctx);
 	return ret;
 }
 
@@ -1984,8 +1976,6 @@ static int ipp_remove(struct platform_device *pdev)
 	/* destroy command, event work queue */
 	destroy_workqueue(ctx->cmd_workq);
 	destroy_workqueue(ctx->event_workq);
-
-	kfree(ctx);
 
 	return 0;
 }
