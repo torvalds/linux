@@ -1127,6 +1127,7 @@ struct ieee80211_local {
 	struct timer_list dynamic_ps_timer;
 	struct notifier_block network_latency_notifier;
 	struct notifier_block ifa_notifier;
+	struct notifier_block ifa6_notifier;
 
 	/*
 	 * The dynamic ps timeout configured from user space via WEXT -

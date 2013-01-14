@@ -1036,4 +1036,16 @@ drv_set_default_unicast_key(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline void drv_ipv6_addr_change(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata,
+					struct inet6_dev *idev)
+{
+	trace_drv_ipv6_addr_change(local, sdata);
+	if (local->ops->ipv6_addr_change)
+		local->ops->ipv6_addr_change(&local->hw, &sdata->vif, idev);
+	trace_drv_return_void(local);
+}
+#endif
+
 #endif /* __MAC80211_DRIVER_OPS */

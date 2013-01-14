@@ -1437,6 +1437,14 @@ DEFINE_EVENT(local_only_evt, drv_restart_complete,
 	TP_ARGS(local)
 );
 
+#if IS_ENABLED(CONFIG_IPV6)
+DEFINE_EVENT(local_sdata_evt, drv_ipv6_addr_change,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+#endif
+
 /*
  * Tracing for API calls that drivers call.
  */

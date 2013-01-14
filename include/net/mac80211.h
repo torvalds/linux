@@ -2497,6 +2497,9 @@ enum ieee80211_rate_control_changed {
  *	driver's resume function returned 1, as this is just like an "inline"
  *	hardware restart. This callback may sleep.
  *
+ * @ipv6_addr_change: IPv6 address assignment on the given interface changed.
+ *	Currently, this is only called for managed or P2P client interfaces.
+ *	This callback is optional; it must not sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2672,6 +2675,12 @@ struct ieee80211_ops {
 				     struct ieee80211_chanctx_conf *ctx);
 
 	void (*restart_complete)(struct ieee80211_hw *hw);
+
+#if IS_ENABLED(CONFIG_IPV6)
+	void (*ipv6_addr_change)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct inet6_dev *idev);
+#endif
 };
 
 /**
