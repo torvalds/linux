@@ -113,17 +113,6 @@ struct mmc_blk_data {
 
 static DEFINE_MUTEX(open_lock);
 
-enum mmc_blk_status {
-	MMC_BLK_SUCCESS = 0,
-	MMC_BLK_PARTIAL,
-	MMC_BLK_CMD_ERR,
-	MMC_BLK_RETRY,
-	MMC_BLK_ABORT,
-	MMC_BLK_DATA_ERR,
-	MMC_BLK_ECC_ERR,
-	MMC_BLK_NOMEDIUM,
-};
-
 module_param(perdev_minors, int, 0444);
 MODULE_PARM_DESC(perdev_minors, "Minors numbers to allocate per device");
 
@@ -1364,8 +1353,11 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		} else
 			areq = NULL;
 		areq = mmc_start_req(card->host, areq, (int *) &status);
-		if (!areq)
+		if (!areq) {
+			if (status == MMC_BLK_NEW_REQUEST)
+				mq->flags |= MMC_QUEUE_NEW_REQUEST;
 			return 0;
+		}
 
 		mq_rq = container_of(areq, struct mmc_queue_req, mmc_active);
 		brq = &mq_rq->brq;
@@ -1438,6 +1430,10 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			break;
 		case MMC_BLK_NOMEDIUM:
 			goto cmd_abort;
+		default:
+			pr_err("%s: Unhandled return value (%d)",
+					req->rq_disk->disk_name, status);
+			goto cmd_abort;
 		}
 
 		if (ret) {
@@ -1472,6 +1468,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	int ret;
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
+	struct mmc_host *host = card->host;
+	unsigned long flags;
 
 	if (req && !mq->mqrq_prev->req)
 		/* claim host only for the first request */
@@ -1486,6 +1484,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		goto out;
 	}
 
+	mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
 	if (req && req->cmd_flags & REQ_DISCARD) {
 		/* complete ongoing async transfer before issuing discard */
 		if (card->host->areq)
@@ -1501,11 +1500,16 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			mmc_blk_issue_rw_rq(mq, NULL);
 		ret = mmc_blk_issue_flush(mq, req);
 	} else {
+		if (!req && host->areq) {
+			spin_lock_irqsave(&host->context_info.lock, flags);
+			host->context_info.is_waiting_last_req = true;
+			spin_unlock_irqrestore(&host->context_info.lock, flags);
+		}
 		ret = mmc_blk_issue_rw_rq(mq, req);
 	}
 
 out:
-	if (!req)
+	if (!req && !(mq->flags & MMC_QUEUE_NEW_REQUEST))
 		/* release host only when there are no more requests */
 		mmc_release_host(card->host);
 	return ret;
