@@ -262,10 +262,10 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 			goto err;
 	}
 
+err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-err:
 	if (rc < 0) {
 		state->need_init = true;
 		printk(KERN_INFO "mb86a20s: Init failed. Will try again later\n");
@@ -363,6 +363,10 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 
 	dprintk("\n");
 
+	/*
+	 * Gate should already be opened, but it doesn't hurt to
+	 * double-check
+	 */
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	dprintk("Calling tuner set parameters\n");
