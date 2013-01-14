@@ -372,9 +372,6 @@ static void __init rk30_init_uart(void)
 #endif
 }
 
-// i2c
-#ifdef CONFIG_I2C_RK30
-
 #ifdef CONFIG_I2C0_CONTROLLER_RK29
 #define I2C0_ADAP_TYPE  I2C_RK29_ADAP
 #define I2C0_START      RK30_I2C0_PHYS
@@ -634,8 +631,6 @@ static void __init rk30_init_i2c(void)
 	platform_device_register(&device_i2c_gpio);
 #endif
 }
-
-#endif//end of i2c
 
 #if defined(CONFIG_SPIM0_RK29) || defined(CONFIG_SPIM1_RK29)
 /*****************************************************************************************
