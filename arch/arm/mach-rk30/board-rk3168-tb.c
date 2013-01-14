@@ -91,8 +91,6 @@ static int goodix_init_platform_hw(void)
 {
 	int ret;
 	
-	rk30_mux_api_set(GPIO0C5_FLASHDATA13_NAME, GPIO0C_GPIO0C5);
-
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
 		if (ret != 0) {
@@ -138,10 +136,7 @@ static struct spi_board_info board_spi_devices[] = {
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 #define PWM_ID            3
-#define PWM_MUX_NAME      GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME
-#define PWM_MUX_MODE      GPIO3D_PWM3
-#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D6
-#define PWM_GPIO 	  RK30_PIN3_PD6
+#define PWM_MODE          PWM3
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
@@ -153,57 +148,54 @@ static struct spi_board_info board_spi_devices[] = {
 static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+
+	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
-	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
-
-	ret = gpio_request(BL_EN_PIN, NULL);
-	if (ret != 0) {
-		gpio_free(BL_EN_PIN);
+	ret = gpio_request(BL_EN_PIN, "bl_en");
+	if (ret == 0) {
+		gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 	}
-
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return ret;
 }
 
 static int rk29_backlight_io_deinit(void)
 {
-	int ret = 0;
+	int ret = 0, pwm_gpio;
 #ifdef  LCD_DISP_ON_PIN
 	gpio_free(BL_EN_PIN);
 #endif
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	gpio_request(PWM_GPIO, NULL);
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+	gpio_request(pwm_gpio, "bl_pwm");
+	gpio_direction_output(pwm_gpio, GPIO_LOW);
 	return ret;
 }
 
 static int rk29_backlight_pwm_suspend(void)
 {
-	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	if (gpio_request(PWM_GPIO, NULL)) {
+	int ret, pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+
+	ret = gpio_request(pwm_gpio, "bl_pwm");
+	if (ret) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
+		return ret;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(pwm_gpio, GPIO_LOW);
 #ifdef  LCD_DISP_ON_PIN
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, !BL_EN_VALUE);
 #endif
 	return ret;
 }
 
 static int rk29_backlight_pwm_resume(void)
 {
-	gpio_free(PWM_GPIO);
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+	int pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+
+	gpio_free(pwm_gpio);
+	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	msleep(30);
-	gpio_direction_output(BL_EN_PIN, 1);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return 0;
 }
@@ -671,6 +663,20 @@ static int rk610_power_on_init(void)
 
 static struct rk610_ctl_platform_data rk610_ctl_pdata = {
 	.rk610_power_on_init = rk610_power_on_init,
+};
+#endif
+
+#ifdef CONFIG_SND_SOC_RK610
+static int rk610_codec_io_init(void)
+{
+//if need iomux.
+//Must not gpio_request
+	return 0;
+}
+
+static struct rk610_codec_platform_data rk610_codec_pdata = {
+	.spk_ctl_io = RK30_PIN4_PC6,
+	.io_init = rk610_codec_io_init,
 };
 #endif
 
@@ -1369,6 +1375,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 			.type			= "rk610_i2c_codec",
 			.addr			= 0x60,
 			.flags			= 0,
+			.platform_data		= &rk610_codec_pdata,					
 		},
 #endif
 #endif
@@ -1484,11 +1491,7 @@ static struct pmu_info  wm8326_ldo_info[] = {
 #endif
 
 #ifdef CONFIG_MFD_TPS65910
-#ifdef CONFIG_ARCH_RK3066B
 #define TPS65910_HOST_IRQ        RK30_PIN0_PB3
-#else
-#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
-#endif
 
 #define PMU_POWER_SLEEP RK30_PIN0_PA1
 

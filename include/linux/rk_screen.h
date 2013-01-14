@@ -129,7 +129,11 @@ typedef struct rk29fb_screen {
 	int (*sscreen_set)(struct rk29fb_screen *screen, bool type);// 1: use scaler 0:bypass
 } rk_screen;
 
+#ifndef CONFIG_DISPLAY_SUPPORT
+static inline void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info) {}
+#else
 extern void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
+#endif
 extern void set_tv_info(struct rk29fb_screen *screen);
 extern void set_hdmi_info(struct rk29fb_screen *screen);
 
