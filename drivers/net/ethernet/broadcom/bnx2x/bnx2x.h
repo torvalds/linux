@@ -1704,6 +1704,7 @@ struct bnx2x {
 
 	/* priority to cos mapping */
 	u8					prio_to_cos[8];
+	u32 dump_preset_idx;
 };
 
 /* Tx queues may be less or equal to Rx queues */

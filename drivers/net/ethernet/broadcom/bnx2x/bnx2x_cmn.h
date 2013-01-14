@@ -197,6 +197,7 @@ void bnx2x_igu_ack_sb(struct bnx2x *bp, u8 igu_sb_id, u8 segment,
 
 /* Disable transactions from chip to host */
 void bnx2x_pf_disable(struct bnx2x *bp);
+int bnx2x_pretend_func(struct bnx2x *bp, u16 pretend_func_val);
 
 /**
  * bnx2x__link_status_update - handles link status change.

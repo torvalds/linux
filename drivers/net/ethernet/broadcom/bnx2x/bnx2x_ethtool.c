@@ -186,6 +186,7 @@ static const struct {
 };
 
 #define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
+
 static int bnx2x_get_port_type(struct bnx2x *bp)
 {
 	int port_type;
@@ -596,28 +597,57 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return 0;
 }
 
-#define IS_E1_ONLINE(info)	(((info) & RI_E1_ONLINE) == RI_E1_ONLINE)
-#define IS_E1H_ONLINE(info)	(((info) & RI_E1H_ONLINE) == RI_E1H_ONLINE)
-#define IS_E2_ONLINE(info)	(((info) & RI_E2_ONLINE) == RI_E2_ONLINE)
-#define IS_E3_ONLINE(info)	(((info) & RI_E3_ONLINE) == RI_E3_ONLINE)
-#define IS_E3B0_ONLINE(info)	(((info) & RI_E3B0_ONLINE) == RI_E3B0_ONLINE)
+#define DUMP_ALL_PRESETS		0x1FFF
+#define DUMP_MAX_PRESETS		13
 
-static bool bnx2x_is_reg_online(struct bnx2x *bp,
-				const struct reg_addr *reg_info)
+static int __bnx2x_get_preset_regs_len(struct bnx2x *bp, u32 preset)
 {
 	if (CHIP_IS_E1(bp))
-		return IS_E1_ONLINE(reg_info->info);
+		return dump_num_registers[0][preset-1];
 	else if (CHIP_IS_E1H(bp))
-		return IS_E1H_ONLINE(reg_info->info);
+		return dump_num_registers[1][preset-1];
 	else if (CHIP_IS_E2(bp))
-		return IS_E2_ONLINE(reg_info->info);
+		return dump_num_registers[2][preset-1];
 	else if (CHIP_IS_E3A0(bp))
-		return IS_E3_ONLINE(reg_info->info);
+		return dump_num_registers[3][preset-1];
 	else if (CHIP_IS_E3B0(bp))
-		return IS_E3B0_ONLINE(reg_info->info);
+		return dump_num_registers[4][preset-1];
 	else
-		return false;
+		return 0;
 }
+
+static int __bnx2x_get_regs_len(struct bnx2x *bp)
+{
+	u32 preset_idx;
+	int regdump_len = 0;
+
+	/* Calculate the total preset regs length */
+	for (preset_idx = 1; preset_idx <= DUMP_MAX_PRESETS; preset_idx++)
+		regdump_len += __bnx2x_get_preset_regs_len(bp, preset_idx);
+
+	return regdump_len;
+}
+
+static int bnx2x_get_regs_len(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int regdump_len = 0;
+
+	regdump_len = __bnx2x_get_regs_len(bp);
+	regdump_len *= 4;
+	regdump_len += sizeof(struct dump_header);
+
+	return regdump_len;
+}
+
+#define IS_E1_REG(chips)	((chips & DUMP_CHIP_E1) == DUMP_CHIP_E1)
+#define IS_E1H_REG(chips)	((chips & DUMP_CHIP_E1H) == DUMP_CHIP_E1H)
+#define IS_E2_REG(chips)	((chips & DUMP_CHIP_E2) == DUMP_CHIP_E2)
+#define IS_E3A0_REG(chips)	((chips & DUMP_CHIP_E3A0) == DUMP_CHIP_E3A0)
+#define IS_E3B0_REG(chips)	((chips & DUMP_CHIP_E3B0) == DUMP_CHIP_E3B0)
+
+#define IS_REG_IN_PRESET(presets, idx)  \
+		((presets & (1 << (idx-1))) == (1 << (idx-1)))
 
 /******* Paged registers info selectors ********/
 static const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
@@ -680,38 +710,39 @@ static u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
 		return 0;
 }
 
-static int __bnx2x_get_regs_len(struct bnx2x *bp)
+static bool bnx2x_is_reg_in_chip(struct bnx2x *bp,
+				       const struct reg_addr *reg_info)
 {
-	int num_pages = __bnx2x_get_page_reg_num(bp);
-	int page_write_num = __bnx2x_get_page_write_num(bp);
-	const struct reg_addr *page_read_addr = __bnx2x_get_page_read_ar(bp);
-	int page_read_num = __bnx2x_get_page_read_num(bp);
-	int regdump_len = 0;
-	int i, j, k;
-
-	for (i = 0; i < REGS_COUNT; i++)
-		if (bnx2x_is_reg_online(bp, &reg_addrs[i]))
-			regdump_len += reg_addrs[i].size;
-
-	for (i = 0; i < num_pages; i++)
-		for (j = 0; j < page_write_num; j++)
-			for (k = 0; k < page_read_num; k++)
-				if (bnx2x_is_reg_online(bp, &page_read_addr[k]))
-					regdump_len += page_read_addr[k].size;
-
-	return regdump_len;
+	if (CHIP_IS_E1(bp))
+		return IS_E1_REG(reg_info->chips);
+	else if (CHIP_IS_E1H(bp))
+		return IS_E1H_REG(reg_info->chips);
+	else if (CHIP_IS_E2(bp))
+		return IS_E2_REG(reg_info->chips);
+	else if (CHIP_IS_E3A0(bp))
+		return IS_E3A0_REG(reg_info->chips);
+	else if (CHIP_IS_E3B0(bp))
+		return IS_E3B0_REG(reg_info->chips);
+	else
+		return false;
 }
 
-static int bnx2x_get_regs_len(struct net_device *dev)
+
+static bool bnx2x_is_wreg_in_chip(struct bnx2x *bp,
+	const struct wreg_addr *wreg_info)
 {
-	struct bnx2x *bp = netdev_priv(dev);
-	int regdump_len = 0;
-
-	regdump_len = __bnx2x_get_regs_len(bp);
-	regdump_len *= 4;
-	regdump_len += sizeof(struct dump_hdr);
-
-	return regdump_len;
+	if (CHIP_IS_E1(bp))
+		return IS_E1_REG(wreg_info->chips);
+	else if (CHIP_IS_E1H(bp))
+		return IS_E1H_REG(wreg_info->chips);
+	else if (CHIP_IS_E2(bp))
+		return IS_E2_REG(wreg_info->chips);
+	else if (CHIP_IS_E3A0(bp))
+		return IS_E3A0_REG(wreg_info->chips);
+	else if (CHIP_IS_E3B0(bp))
+		return IS_E3B0_REG(wreg_info->chips);
+	else
+		return false;
 }
 
 /**
@@ -720,14 +751,16 @@ static int bnx2x_get_regs_len(struct net_device *dev)
  * @bp		device handle
  * @p		output buffer
  *
- * Reads "paged" memories: memories that may only be read by first writing to a
- * specific address ("write address") and then reading from a specific address
- * ("read address"). There may be more than one write address per "page" and
- * more than one read address per write address.
+ * Reads "paged" memories: memories that may only be read by
+ * first writing to a specific address ("write address") and
+ * then reading from a specific address ("read address"). There
+ * may be more than one write address per "page" and more than
+ * one read address per write address.
  */
-static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
+static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p, u32 preset)
 {
 	u32 i, j, k, n;
+
 	/* addresses of the paged registers */
 	const u32 *page_addr = __bnx2x_get_page_addr_ar(bp);
 	/* number of paged registers */
@@ -740,32 +773,100 @@ static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 	const struct reg_addr *read_addr = __bnx2x_get_page_read_ar(bp);
 	/* number of read addresses */
 	int read_num = __bnx2x_get_page_read_num(bp);
+	u32 addr, size;
 
 	for (i = 0; i < num_pages; i++) {
 		for (j = 0; j < write_num; j++) {
 			REG_WR(bp, write_addr[j], page_addr[i]);
-			for (k = 0; k < read_num; k++)
-				if (bnx2x_is_reg_online(bp, &read_addr[k]))
-					for (n = 0; n <
-					      read_addr[k].size; n++)
-						*p++ = REG_RD(bp,
-						       read_addr[k].addr + n*4);
+
+			for (k = 0; k < read_num; k++) {
+				if (IS_REG_IN_PRESET(read_addr[k].presets,
+						     preset)) {
+					size = read_addr[k].size;
+					for (n = 0; n < size; n++) {
+						addr = read_addr[k].addr + n*4;
+						*p++ = REG_RD(bp, addr);
+					}
+				}
+			}
 		}
 	}
 }
 
-static void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
+static int __bnx2x_get_preset_regs(struct bnx2x *bp, u32 *p, u32 preset)
 {
-	u32 i, j;
+	u32 i, j, addr;
+	const struct wreg_addr *wreg_addr_p = NULL;
+
+	if (CHIP_IS_E1(bp))
+		wreg_addr_p = &wreg_addr_e1;
+	else if (CHIP_IS_E1H(bp))
+		wreg_addr_p = &wreg_addr_e1h;
+	else if (CHIP_IS_E2(bp))
+		wreg_addr_p = &wreg_addr_e2;
+	else if (CHIP_IS_E3A0(bp))
+		wreg_addr_p = &wreg_addr_e3;
+	else if (CHIP_IS_E3B0(bp))
+		wreg_addr_p = &wreg_addr_e3b0;
+
+	/* Read the idle_chk registers */
+	for (i = 0; i < IDLE_REGS_COUNT; i++) {
+		if (bnx2x_is_reg_in_chip(bp, &idle_reg_addrs[i]) &&
+		    IS_REG_IN_PRESET(idle_reg_addrs[i].presets, preset)) {
+			for (j = 0; j < idle_reg_addrs[i].size; j++)
+				*p++ = REG_RD(bp, idle_reg_addrs[i].addr + j*4);
+		}
+	}
 
 	/* Read the regular registers */
-	for (i = 0; i < REGS_COUNT; i++)
-		if (bnx2x_is_reg_online(bp, &reg_addrs[i]))
+	for (i = 0; i < REGS_COUNT; i++) {
+		if (bnx2x_is_reg_in_chip(bp, &reg_addrs[i]) &&
+		    IS_REG_IN_PRESET(reg_addrs[i].presets, preset)) {
 			for (j = 0; j < reg_addrs[i].size; j++)
 				*p++ = REG_RD(bp, reg_addrs[i].addr + j*4);
+		}
+	}
 
-	/* Read "paged" registes */
-	bnx2x_read_pages_regs(bp, p);
+	/* Read the CAM registers */
+	if (bnx2x_is_wreg_in_chip(bp, wreg_addr_p) &&
+	    IS_REG_IN_PRESET(wreg_addr_p->presets, preset)) {
+		for (i = 0; i < wreg_addr_p->size; i++) {
+			*p++ = REG_RD(bp, wreg_addr_p->addr + i*4);
+
+			/* In case of wreg_addr register, read additional
+			   registers from read_regs array
+			*/
+			for (j = 0; j < wreg_addr_p->read_regs_count; j++) {
+				addr = *(wreg_addr_p->read_regs);
+				*p++ = REG_RD(bp, addr + j*4);
+			}
+		}
+	}
+
+	/* Paged registers are supported in E2 & E3 only */
+	if (CHIP_IS_E2(bp) || CHIP_IS_E3(bp)) {
+		/* Read "paged" registes */
+		bnx2x_read_pages_regs(bp, p, preset);
+	}
+
+	return 0;
+}
+
+static void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
+{
+	u32 preset_idx;
+
+	/* Read all registers, by reading all preset registers */
+	for (preset_idx = 1; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
+		/* Skip presets with IOR */
+		if ((preset_idx == 2) ||
+		    (preset_idx == 5) ||
+		    (preset_idx == 8) ||
+		    (preset_idx == 11))
+			continue;
+		__bnx2x_get_preset_regs(bp, p, preset_idx);
+		p += __bnx2x_get_preset_regs_len(bp, preset_idx);
+	}
 }
 
 static void bnx2x_get_regs(struct net_device *dev,
@@ -773,9 +874,9 @@ static void bnx2x_get_regs(struct net_device *dev,
 {
 	u32 *p = _p;
 	struct bnx2x *bp = netdev_priv(dev);
-	struct dump_hdr dump_hdr = {0};
+	struct dump_header dump_hdr = {0};
 
-	regs->version = 1;
+	regs->version = 2;
 	memset(p, 0, regs->len);
 
 	if (!netif_running(bp->dev))
@@ -785,32 +886,161 @@ static void bnx2x_get_regs(struct net_device *dev,
 	 * cause false alarms by reading never written registers. We
 	 * will re-enable parity attentions right after the dump.
 	 */
+
+	/* Disable parity on path 0 */
+	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
 
-	dump_hdr.hdr_size = (sizeof(struct dump_hdr) / 4) - 1;
-	dump_hdr.dump_sign = dump_sign_all;
-	dump_hdr.xstorm_waitp = REG_RD(bp, XSTORM_WAITP_ADDR);
-	dump_hdr.tstorm_waitp = REG_RD(bp, TSTORM_WAITP_ADDR);
-	dump_hdr.ustorm_waitp = REG_RD(bp, USTORM_WAITP_ADDR);
-	dump_hdr.cstorm_waitp = REG_RD(bp, CSTORM_WAITP_ADDR);
+	/* Disable parity on path 1 */
+	bnx2x_pretend_func(bp, 1);
+	bnx2x_disable_blocks_parity(bp);
 
-	if (CHIP_IS_E1(bp))
-		dump_hdr.info = RI_E1_ONLINE;
-	else if (CHIP_IS_E1H(bp))
-		dump_hdr.info = RI_E1H_ONLINE;
-	else if (!CHIP_IS_E1x(bp))
-		dump_hdr.info = RI_E2_ONLINE |
-		(BP_PATH(bp) ? RI_PATH1_DUMP : RI_PATH0_DUMP);
+	/* Return to current function */
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
-	memcpy(p, &dump_hdr, sizeof(struct dump_hdr));
-	p += dump_hdr.hdr_size + 1;
+	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
+	dump_hdr.preset = DUMP_ALL_PRESETS;
+	dump_hdr.version = BNX2X_DUMP_VERSION;
+
+	/* dump_meta_data presents OR of CHIP and PATH. */
+	if (CHIP_IS_E1(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E1;
+	} else if (CHIP_IS_E1H(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E1H;
+	} else if (CHIP_IS_E2(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E2 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	} else if (CHIP_IS_E3A0(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E3A0 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	} else if (CHIP_IS_E3B0(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E3B0 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	}
+
+	memcpy(p, &dump_hdr, sizeof(struct dump_header));
+	p += dump_hdr.header_size + 1;
 
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
 
-	/* Re-enable parity attentions */
+	/* Re-enable parity attentions on path 0 */
+	bnx2x_pretend_func(bp, 0);
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
+
+	/* Re-enable parity attentions on path 1 */
+	bnx2x_pretend_func(bp, 1);
+	bnx2x_clear_blocks_parity(bp);
+	bnx2x_enable_blocks_parity(bp);
+
+	/* Return to current function */
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+}
+
+static int bnx2x_get_preset_regs_len(struct net_device *dev, u32 preset)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int regdump_len = 0;
+
+	regdump_len = __bnx2x_get_preset_regs_len(bp, preset);
+	regdump_len *= 4;
+	regdump_len += sizeof(struct dump_header);
+
+	return regdump_len;
+}
+
+static int bnx2x_set_dump(struct net_device *dev, struct ethtool_dump *val)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	/* Use the ethtool_dump "flag" field as the dump preset index */
+	bp->dump_preset_idx = val->flag;
+	return 0;
+}
+
+static int bnx2x_get_dump_flag(struct net_device *dev,
+			       struct ethtool_dump *dump)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	/* Calculate the requested preset idx length */
+	dump->len = bnx2x_get_preset_regs_len(dev, bp->dump_preset_idx);
+	DP(BNX2X_MSG_ETHTOOL, "Get dump preset %d length=%d\n",
+	   bp->dump_preset_idx, dump->len);
+
+	dump->flag = ETHTOOL_GET_DUMP_DATA;
+	return 0;
+}
+
+static int bnx2x_get_dump_data(struct net_device *dev,
+			       struct ethtool_dump *dump,
+			       void *buffer)
+{
+	u32 *p = buffer;
+	struct bnx2x *bp = netdev_priv(dev);
+	struct dump_header dump_hdr = {0};
+
+	memset(p, 0, dump->len);
+
+	/* Disable parity attentions as long as following dump may
+	 * cause false alarms by reading never written registers. We
+	 * will re-enable parity attentions right after the dump.
+	 */
+
+	/* Disable parity on path 0 */
+	bnx2x_pretend_func(bp, 0);
+	bnx2x_disable_blocks_parity(bp);
+
+	/* Disable parity on path 1 */
+	bnx2x_pretend_func(bp, 1);
+	bnx2x_disable_blocks_parity(bp);
+
+	/* Return to current function */
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+
+	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
+	dump_hdr.preset = bp->dump_preset_idx;
+	dump_hdr.version = BNX2X_DUMP_VERSION;
+
+	DP(BNX2X_MSG_ETHTOOL, "Get dump data of preset %d\n", dump_hdr.preset);
+
+	/* dump_meta_data presents OR of CHIP and PATH. */
+	if (CHIP_IS_E1(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E1;
+	} else if (CHIP_IS_E1H(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E1H;
+	} else if (CHIP_IS_E2(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E2 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	} else if (CHIP_IS_E3A0(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E3A0 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	} else if (CHIP_IS_E3B0(bp)) {
+		dump_hdr.dump_meta_data = DUMP_CHIP_E3B0 |
+		(BP_PATH(bp) ? DUMP_PATH_1 : DUMP_PATH_0);
+	}
+
+	memcpy(p, &dump_hdr, sizeof(struct dump_header));
+	p += dump_hdr.header_size + 1;
+
+	/* Actually read the registers */
+	__bnx2x_get_preset_regs(bp, p, dump_hdr.preset);
+
+	/* Re-enable parity attentions on path 0 */
+	bnx2x_pretend_func(bp, 0);
+	bnx2x_clear_blocks_parity(bp);
+	bnx2x_enable_blocks_parity(bp);
+
+	/* Re-enable parity attentions on path 1 */
+	bnx2x_pretend_func(bp, 1);
+	bnx2x_clear_blocks_parity(bp);
+	bnx2x_enable_blocks_parity(bp);
+
+	/* Return to current function */
+	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
+
+	return 0;
 }
 
 static void bnx2x_get_drvinfo(struct net_device *dev,
@@ -1061,7 +1291,8 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 			val = REG_RD(bp, MCP_REG_MCPR_NVM_READ);
 			/* we read nvram data in cpu order
 			 * but ethtool sees it as an array of bytes
-			 * converting to big-endian will do the work */
+			 * converting to big-endian will do the work
+			 */
 			*ret_val = cpu_to_be32(val);
 			rc = 0;
 			break;
@@ -1288,7 +1519,8 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 		val |= (*data_buf << BYTE_OFFSET(offset));
 
 		/* nvram data is returned as an array of bytes
-		 * convert it back to cpu order */
+		 * convert it back to cpu order
+		 */
 		val = be32_to_cpu(val);
 
 		rc = bnx2x_nvram_write_dword(bp, align_offset, val,
@@ -1866,7 +2098,8 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 		hw = BNX2X_CHIP_MASK_E3;
 
 	/* Repeat the test twice:
-	   First by writing 0x00000000, second by writing 0xffffffff */
+	 * First by writing 0x00000000, second by writing 0xffffffff
+	 */
 	for (idx = 0; idx < 2; idx++) {
 
 		switch (idx) {
@@ -2958,6 +3191,9 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_drvinfo		= bnx2x_get_drvinfo,
 	.get_regs_len		= bnx2x_get_regs_len,
 	.get_regs		= bnx2x_get_regs,
+	.get_dump_flag		= bnx2x_get_dump_flag,
+	.get_dump_data		= bnx2x_get_dump_data,
+	.set_dump		= bnx2x_set_dump,
 	.get_wol		= bnx2x_get_wol,
 	.set_wol		= bnx2x_set_wol,
 	.get_msglevel		= bnx2x_get_msglevel,
