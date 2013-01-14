@@ -123,20 +123,18 @@ do {								 \
 } while (0)
 
 #ifdef BNX2X_STOP_ON_ERROR
-void bnx2x_int_disable(struct bnx2x *bp);
 #define bnx2x_panic()				\
 do {						\
 	bp->panic = 1;				\
 	BNX2X_ERR("driver assert\n");		\
-	bnx2x_int_disable(bp);			\
-	bnx2x_panic_dump(bp);			\
+	bnx2x_panic_dump(bp, true);		\
 } while (0)
 #else
 #define bnx2x_panic()				\
 do {						\
 	bp->panic = 1;				\
 	BNX2X_ERR("driver assert\n");		\
-	bnx2x_panic_dump(bp);			\
+	bnx2x_panic_dump(bp, false);		\
 } while (0)
 #endif
 

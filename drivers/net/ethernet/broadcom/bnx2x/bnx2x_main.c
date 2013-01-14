@@ -802,7 +802,71 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 	bnx2x_fw_dump_lvl(bp, KERN_ERR);
 }
 
-void bnx2x_panic_dump(struct bnx2x *bp)
+static void bnx2x_hc_int_disable(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
+	u32 val = REG_RD(bp, addr);
+
+	/* in E1 we must use only PCI configuration space to disable
+	 * MSI/MSIX capablility
+	 * It's forbitten to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
+	 */
+	if (CHIP_IS_E1(bp)) {
+		/* Since IGU_PF_CONF_MSI_MSIX_EN still always on
+		 * Use mask register to prevent from HC sending interrupts
+		 * after we exit the function
+		 */
+		REG_WR(bp, HC_REG_INT_MASK + port*4, 0);
+
+		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
+			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+	} else
+		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			 HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
+			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
+			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+
+	DP(NETIF_MSG_IFDOWN,
+	   "write %x to HC %d (addr 0x%x)\n",
+	   val, port, addr);
+
+	/* flush all outstanding writes */
+	mmiowb();
+
+	REG_WR(bp, addr, val);
+	if (REG_RD(bp, addr) != val)
+		BNX2X_ERR("BUG! proper val not read from IGU!\n");
+}
+
+static void bnx2x_igu_int_disable(struct bnx2x *bp)
+{
+	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
+
+	val &= ~(IGU_PF_CONF_MSI_MSIX_EN |
+		 IGU_PF_CONF_INT_LINE_EN |
+		 IGU_PF_CONF_ATTN_BIT_EN);
+
+	DP(NETIF_MSG_IFDOWN, "write %x to IGU\n", val);
+
+	/* flush all outstanding writes */
+	mmiowb();
+
+	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
+	if (REG_RD(bp, IGU_REG_PF_CONFIGURATION) != val)
+		BNX2X_ERR("BUG! proper val not read from IGU!\n");
+}
+
+static void bnx2x_int_disable(struct bnx2x *bp)
+{
+	if (bp->common.int_block == INT_BLOCK_HC)
+		bnx2x_hc_int_disable(bp);
+	else
+		bnx2x_igu_int_disable(bp);
+}
+
+void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 {
 	int i;
 	u16 j;
@@ -812,6 +876,8 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	u16 start = 0, end = 0;
 	u8 cos;
 #endif
+	if (disable_int)
+		bnx2x_int_disable(bp);
 
 	bp->stats_state = STATS_STATE_DISABLED;
 	bp->eth_stats.unrecoverable_error++;
@@ -1525,71 +1591,6 @@ void bnx2x_int_enable(struct bnx2x *bp)
 		bnx2x_hc_int_enable(bp);
 	else
 		bnx2x_igu_int_enable(bp);
-}
-
-static void bnx2x_hc_int_disable(struct bnx2x *bp)
-{
-	int port = BP_PORT(bp);
-	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
-	u32 val = REG_RD(bp, addr);
-
-	/*
-	 * in E1 we must use only PCI configuration space to disable
-	 * MSI/MSIX capablility
-	 * It's forbitten to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
-	 */
-	if (CHIP_IS_E1(bp)) {
-		/*  Since IGU_PF_CONF_MSI_MSIX_EN still always on
-		 *  Use mask register to prevent from HC sending interrupts
-		 *  after we exit the function
-		 */
-		REG_WR(bp, HC_REG_INT_MASK + port*4, 0);
-
-		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
-			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
-			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
-	} else
-		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
-			 HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
-			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
-			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
-
-	DP(NETIF_MSG_IFDOWN,
-	   "write %x to HC %d (addr 0x%x)\n",
-	   val, port, addr);
-
-	/* flush all outstanding writes */
-	mmiowb();
-
-	REG_WR(bp, addr, val);
-	if (REG_RD(bp, addr) != val)
-		BNX2X_ERR("BUG! proper val not read from IGU!\n");
-}
-
-static void bnx2x_igu_int_disable(struct bnx2x *bp)
-{
-	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
-
-	val &= ~(IGU_PF_CONF_MSI_MSIX_EN |
-		 IGU_PF_CONF_INT_LINE_EN |
-		 IGU_PF_CONF_ATTN_BIT_EN);
-
-	DP(NETIF_MSG_IFDOWN, "write %x to IGU\n", val);
-
-	/* flush all outstanding writes */
-	mmiowb();
-
-	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
-	if (REG_RD(bp, IGU_REG_PF_CONFIGURATION) != val)
-		BNX2X_ERR("BUG! proper val not read from IGU!\n");
-}
-
-static void bnx2x_int_disable(struct bnx2x *bp)
-{
-	if (bp->common.int_block == INT_BLOCK_HC)
-		bnx2x_hc_int_disable(bp);
-	else
-		bnx2x_igu_int_disable(bp);
 }
 
 void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
@@ -2944,6 +2945,10 @@ static unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 	if (zero_stats)
 		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
 
+
+#ifdef BNX2X_STOP_ON_ERROR
+	__set_bit(BNX2X_Q_FLG_TX_SEC, &flags);
+#endif
 
 	return flags;
 }
@@ -4765,7 +4770,7 @@ static int  bnx2x_cnic_handle_cfc_del(struct bnx2x *bp, u32 cid,
 
 		BNX2X_ERR("got delete ramrod for CNIC CID %d with error!\n",
 			  cid);
-		bnx2x_panic_dump(bp);
+		bnx2x_panic_dump(bp, false);
 	}
 	bnx2x_cnic_cfc_comp(bp, cid, err);
 	return 0;

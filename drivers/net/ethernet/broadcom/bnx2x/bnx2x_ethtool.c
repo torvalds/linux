@@ -2720,10 +2720,6 @@ static void bnx2x_self_test(struct net_device *dev,
 			buf[2] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
-
-#ifdef BNX2X_EXTRA_DEBUG
-	bnx2x_panic_dump(bp);
-#endif
 }
 
 #define IS_PORT_STAT(i) \

@@ -3535,13 +3535,17 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* when transmitting in a vf, start bd must hold the ethertype
 		 * for fw to enforce it
 		 */
+#ifndef BNX2X_STOP_ON_ERROR
 		if (IS_VF(bp)) {
+#endif
 			tx_start_bd->vlan_or_ethertype =
 				cpu_to_le16(ntohs(eth->h_proto));
+#ifndef BNX2X_STOP_ON_ERROR
 		} else {
 			/* used by FW for packet accounting */
 			tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 		}
+#endif
 	}
 
 	/* turn on parsing and get a BD */
