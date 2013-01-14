@@ -1361,7 +1361,8 @@ static bool enable_service_cache(struct hci_dev *hdev)
 		return false;
 
 	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
-		schedule_delayed_work(&hdev->service_cache, CACHE_TIMEOUT);
+		queue_delayed_work(hdev->workqueue, &hdev->service_cache,
+				   CACHE_TIMEOUT);
 		return true;
 	}
 
