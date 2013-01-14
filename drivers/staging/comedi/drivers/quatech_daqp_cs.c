@@ -1038,9 +1038,6 @@ static int daqp_cs_resume(struct pcmcia_device *link)
 }
 
 /*====================================================================*/
-
-#ifdef MODULE
-
 static const struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
@@ -1061,17 +1058,4 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.name = "quatech_daqp_cs",
 };
 
-int __init init_module(void)
-{
-	pcmcia_register_driver(&daqp_cs_driver);
-	comedi_driver_register(&driver_daqp);
-	return 0;
-}
-
-void __exit cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_daqp);
-	pcmcia_unregister_driver(&daqp_cs_driver);
-}
-
-#endif
+module_comedi_pcmcia_driver(driver_daqp, daqp_cs_driver);
