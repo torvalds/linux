@@ -408,8 +408,6 @@ static int ni_getboardtype(struct comedi_device *dev,
 	return 0;
 }
 
-#ifdef MODULE
-
 static const struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d),	/* DAQCard-ai-16xe-50 */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010c),	/* DAQCard-ai-16e-4 */
@@ -434,20 +432,4 @@ static struct pcmcia_driver ni_mio_cs_driver = {
 	.name = "ni_mio_cs",
 };
 
-int init_module(void)
-{
-	pcmcia_register_driver(&ni_mio_cs_driver);
-	comedi_driver_register(&driver_ni_mio_cs);
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	pcmcia_unregister_driver(&ni_mio_cs_driver);
-#if 0
-	while (cur_dev != NULL)
-		cs_detach(cur_dev->handle);
-#endif
-	comedi_driver_unregister(&driver_ni_mio_cs);
-}
-#endif
+module_comedi_pcmcia_driver(driver_ni_mio_cs, ni_mio_cs_driver);
