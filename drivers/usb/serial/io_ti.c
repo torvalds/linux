@@ -521,8 +521,7 @@ exit_is_tx_active:
 	return bytes_left;
 }
 
-static void chase_port(struct edgeport_port *port, unsigned long timeout,
-								int flush)
+static void chase_port(struct edgeport_port *port, unsigned long timeout)
 {
 	int baud_rate;
 	struct tty_struct *tty = tty_port_tty_get(&port->port->port);
@@ -550,8 +549,6 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&tty->write_wait, &wait);
-	if (flush)
-		kfifo_reset_out(&port->write_fifo);
 	spin_unlock_irqrestore(&port->ep_lock, flags);
 	tty_kref_put(tty);
 
@@ -1956,6 +1953,7 @@ static void edge_close(struct usb_serial_port *port)
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;
 	struct usb_serial *serial = port->serial;
+	unsigned long flags;
 	int port_number;
 
 	edge_serial = usb_get_serial_data(port->serial);
@@ -1967,12 +1965,14 @@ static void edge_close(struct usb_serial_port *port)
 	 * this flag and dump add read data */
 	edge_port->close_pending = 1;
 
-	/* chase the port close and flush */
-	chase_port(edge_port, (HZ * closing_wait) / 100, 1);
+	chase_port(edge_port, (HZ * closing_wait) / 100);
 
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
 	edge_port->ep_write_urb_in_use = 0;
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
+	kfifo_reset_out(&edge_port->write_fifo);
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	/* assuming we can still talk to the device,
 	 * send a close port command to it */
@@ -2515,7 +2515,7 @@ static void edge_break(struct tty_struct *tty, int break_state)
 	int bv = 0;	/* Off */
 
 	/* chase the port close */
-	chase_port(edge_port, 0, 0);
+	chase_port(edge_port, 0);
 
 	if (break_state == -1)
 		bv = 1;	/* On */
