@@ -209,7 +209,7 @@ static u32 slic_crc_init;	/* Is table initialized */
  */
 static void slic_mcast_init_crc32(void)
 {
-	u32 c;		/*  CRC shit reg                 */
+	u32 c;			/*  CRC reg                      */
 	u32 e = 0;		/*  Poly X-or pattern            */
 	int i;			/*  counter                      */
 	int k;			/*  byte being shifted into crc  */
@@ -3437,7 +3437,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 					       (eecodesize - 2));
 			/*
 			    if the ucdoe chksum flag bit worked,
-			    we wouldn't need this shit
+			    we wouldn't need this
 			*/
 			if (ee_chksum == calc_chksum)
 				card->config.EepromValid = true;
