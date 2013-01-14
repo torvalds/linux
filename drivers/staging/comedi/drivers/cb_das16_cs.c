@@ -548,30 +548,7 @@ static struct pcmcia_driver das16cs_driver = {
 	.id_table	= das16cs_id_table,
 };
 
-static int __init das16cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das16cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das16cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das16cs);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(das16cs_init);
-
-static void __exit das16cs_exit(void)
-{
-	pcmcia_unregister_driver(&das16cs_driver);
-	comedi_driver_unregister(&driver_das16cs);
-}
-module_exit(das16cs_exit);
+module_comedi_pcmcia_driver(driver_das16cs, das16cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");
