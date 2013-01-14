@@ -1353,11 +1353,6 @@ static int is_display_toggle(int code)
 	return 0;
 }
 
-static void do_nothing(void)
-{
-	return;
-}
-
 static void asus_wmi_notify(u32 value, void *context)
 {
 	struct asus_wmi *asus = context;
