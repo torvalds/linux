@@ -377,7 +377,7 @@ static int ax88172a_reset(struct usbnet *dev)
 
 	priv->phydev = phy_connect(dev->net, priv->phy_name,
 				   &ax88172a_adjust_link,
-				   0, PHY_INTERFACE_MODE_MII);
+				   PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(priv->phydev)) {
 		netdev_err(dev->net, "Could not connect to PHY device %s\n",
 			   priv->phy_name);

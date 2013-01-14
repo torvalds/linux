@@ -2004,8 +2004,8 @@ static int tg3_phy_init(struct tg3 *tp)
 	phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
 
 	/* Attach the MAC to the PHY. */
-	phydev = phy_connect(tp->dev, dev_name(&phydev->dev), tg3_adjust_link,
-			     phydev->dev_flags, phydev->interface);
+	phydev = phy_connect(tp->dev, dev_name(&phydev->dev),
+			     tg3_adjust_link, phydev->interface);
 	if (IS_ERR(phydev)) {
 		dev_err(&tp->pdev->dev, "Could not attach to PHY\n");
 		return PTR_ERR(phydev);

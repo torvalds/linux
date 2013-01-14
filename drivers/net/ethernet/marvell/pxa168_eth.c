@@ -1390,7 +1390,7 @@ static void phy_init(struct pxa168_eth_private *pep, int speed, int duplex)
 	struct phy_device *phy = pep->phy;
 	ethernet_phy_reset(pep);
 
-	phy_attach(pep->dev, dev_name(&phy->dev), 0, PHY_INTERFACE_MODE_MII);
+	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;

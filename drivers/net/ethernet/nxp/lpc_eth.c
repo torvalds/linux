@@ -800,7 +800,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 	else
 		netdev_info(ndev, "using RMII interface\n");
 	phydev = phy_connect(ndev, dev_name(&phydev->dev),
-			     &lpc_handle_link_change, 0,
+			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 
 	if (IS_ERR(phydev)) {

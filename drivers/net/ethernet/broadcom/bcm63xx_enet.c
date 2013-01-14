@@ -799,7 +799,7 @@ static int bcm_enet_open(struct net_device *dev)
 		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
 			 priv->mii_bus->id, priv->phy_id);
 
-		phydev = phy_connect(dev, phy_id, bcm_enet_adjust_phy_link, 0,
+		phydev = phy_connect(dev, phy_id, bcm_enet_adjust_phy_link,
 				     PHY_INTERFACE_MODE_MII);
 
 		if (IS_ERR(phydev)) {

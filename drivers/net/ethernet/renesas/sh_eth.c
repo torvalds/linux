@@ -1422,7 +1422,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 
 	/* Try connect to PHY */
 	phydev = phy_connect(ndev, phy_id, sh_eth_adjust_link,
-				0, mdp->phy_interface);
+			     mdp->phy_interface);
 	if (IS_ERR(phydev)) {
 		dev_err(&ndev->dev, "phy_connect failed\n");
 		return PTR_ERR(phydev);

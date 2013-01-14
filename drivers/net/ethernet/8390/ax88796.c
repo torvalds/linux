@@ -358,7 +358,7 @@ static int ax_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change, 0,
+	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");

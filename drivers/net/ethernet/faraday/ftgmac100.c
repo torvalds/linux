@@ -858,8 +858,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 	}
 
 	phydev = phy_connect(netdev, dev_name(&phydev->dev),
-			     &ftgmac100_adjust_link, 0,
-			     PHY_INTERFACE_MODE_GMII);
+			     &ftgmac100_adjust_link, PHY_INTERFACE_MODE_GMII);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(netdev, "%s: Could not attach to PHY\n", netdev->name);

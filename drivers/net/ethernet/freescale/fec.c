@@ -1008,7 +1008,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	}
 
 	snprintf(phy_name, sizeof(phy_name), PHY_ID_FMT, mdio_bus_id, phy_id);
-	phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link, 0,
+	phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link,
 			      fep->phy_interface);
 	if (IS_ERR(phy_dev)) {
 		printk(KERN_ERR "%s: could not attach to PHY\n", ndev->name);

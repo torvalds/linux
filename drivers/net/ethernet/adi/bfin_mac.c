@@ -425,8 +425,8 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 		return -EINVAL;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &bfin_mac_adjust_link,
-			0, phy_mode);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &bfin_mac_adjust_link, phy_mode);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "could not attach PHY\n");

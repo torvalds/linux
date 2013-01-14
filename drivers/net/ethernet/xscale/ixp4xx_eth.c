@@ -1451,7 +1451,7 @@ static int eth_init_one(struct platform_device *pdev)
 
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
 		mdio_bus->id, plat->phy);
-	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
+	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link,
 				   PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(port->phydev)) {
 		err = PTR_ERR(port->phydev);

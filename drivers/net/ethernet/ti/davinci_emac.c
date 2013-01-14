@@ -1599,7 +1599,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 	if (priv->phy_id && *priv->phy_id) {
 		priv->phydev = phy_connect(ndev, priv->phy_id,
-					   &emac_adjust_link, 0,
+					   &emac_adjust_link,
 					   PHY_INTERFACE_MODE_MII);
 
 		if (IS_ERR(priv->phydev)) {

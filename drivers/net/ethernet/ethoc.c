@@ -682,8 +682,8 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		return -ENXIO;
 	}
 
-	err = phy_connect_direct(dev, phy, ethoc_mdio_poll, 0,
-			PHY_INTERFACE_MODE_GMII);
+	err = phy_connect_direct(dev, phy, ethoc_mdio_poll,
+				 PHY_INTERFACE_MODE_GMII);
 	if (err) {
 		dev_err(&dev->dev, "could not attach to PHY\n");
 		return err;

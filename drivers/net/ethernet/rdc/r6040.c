@@ -1042,7 +1042,7 @@ static int r6040_mii_probe(struct net_device *dev)
 	}
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev), &r6040_adjust_link,
-				0, PHY_INTERFACE_MODE_MII);
+			     PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		dev_err(&lp->pdev->dev, "could not attach to PHY\n");

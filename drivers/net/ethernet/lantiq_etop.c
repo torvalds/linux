@@ -393,8 +393,8 @@ ltq_etop_mdio_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &ltq_etop_mdio_link,
-			0, priv->pldata->mii_mode);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "Could not attach to PHY\n");

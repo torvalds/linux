@@ -3917,7 +3917,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	}
 
 	phydev = phy_connect(netdev, dev_name(&phydev->dev),
-			&et131x_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");

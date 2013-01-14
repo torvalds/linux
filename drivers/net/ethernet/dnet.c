@@ -281,11 +281,11 @@ static int dnet_mii_probe(struct net_device *dev)
 	/* attach the mac to the phy */
 	if (bp->capabilities & DNET_HAS_RMII) {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_RMII);
 	} else {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_MII);
 	}
 

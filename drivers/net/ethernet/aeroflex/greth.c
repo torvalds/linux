@@ -1288,9 +1288,7 @@ static int greth_mdio_probe(struct net_device *dev)
 	}
 
 	ret = phy_connect_direct(dev, phy, &greth_link_change,
-			0, greth->gbit_mac ?
-			PHY_INTERFACE_MODE_GMII :
-			PHY_INTERFACE_MODE_MII);
+				 greth->gbit_mac ? PHY_INTERFACE_MODE_GMII : PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		if (netif_msg_ifup(greth))
 			dev_err(&dev->dev, "could not attach to PHY\n");

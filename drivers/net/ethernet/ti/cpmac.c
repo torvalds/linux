@@ -1172,8 +1172,8 @@ static int cpmac_probe(struct platform_device *pdev)
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
 						mdio_bus_id, phy_id);
 
-	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link, 0,
-						PHY_INTERFACE_MODE_MII);
+	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link,
+				PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(priv->phy)) {
 		if (netif_msg_drv(priv))
