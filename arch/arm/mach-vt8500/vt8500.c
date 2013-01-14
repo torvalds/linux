@@ -20,6 +20,7 @@
 
 #include <linux/io.h>
 #include <linux/pm.h>
+#include <linux/vt8500_timer.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
