@@ -170,6 +170,22 @@ struct mmc_slot {
 	void *handler_priv;
 };
 
+/**
+ * mmc_context_info - synchronization details for mmc context
+ * @is_done_rcv		wake up reason was done request
+ * @is_new_req		wake up reason was new request
+ * @is_waiting_last_req	mmc context waiting for single running request
+ * @wait		wait queue
+ * @lock		lock to protect data fields
+ */
+struct mmc_context_info {
+	bool			is_done_rcv;
+	bool			is_new_req;
+	bool			is_waiting_last_req;
+	wait_queue_head_t	wait;
+	spinlock_t		lock;
+};
+
 struct regulator;
 
 struct mmc_supply {
@@ -331,6 +347,7 @@ struct mmc_host {
 	struct dentry		*debugfs_root;
 
 	struct mmc_async_req	*areq;		/* active async req */
+	struct mmc_context_info	context_info;	/* async synchronization info */
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
 	struct fault_attr	fail_mmc_request;
