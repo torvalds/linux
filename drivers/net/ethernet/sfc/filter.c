@@ -650,14 +650,22 @@ u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
  * efx_filter_insert_filter - add or replace a filter
  * @efx: NIC in which to insert the filter
  * @spec: Specification for the filter
- * @replace: Flag for whether the specified filter may replace a filter
- *	with an identical match expression and equal or lower priority
+ * @replace_equal: Flag for whether the specified filter may replace an
+ *	existing filter with equal priority
  *
  * On success, return the filter ID.
  * On failure, return a negative error code.
+ *
+ * If an existing filter has equal match values to the new filter
+ * spec, then the new filter might replace it, depending on the
+ * relative priorities.  If the existing filter has lower priority, or
+ * if @replace_equal is set and it has equal priority, then it is
+ * replaced.  Otherwise the function fails, returning -%EPERM if
+ * the existing filter has higher priority or -%EEXIST if it has
+ * equal priority.
  */
 s32 efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
-			     bool replace)
+			     bool replace_equal)
 {
 	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_table *table = efx_filter_spec_table(state, spec);
@@ -687,7 +695,7 @@ s32 efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 
 	if (test_bit(filter_idx, table->used_bitmap)) {
 		/* Should we replace the existing filter? */
-		if (!replace) {
+		if (spec->priority == saved_spec->priority && !replace_equal) {
 			rc = -EEXIST;
 			goto out;
 		}
