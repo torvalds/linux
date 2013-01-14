@@ -438,6 +438,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		master->num_chipselect = pdata->max_chipselect;
 	}
 
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	master->setup = mpc512x_psc_spi_setup;
 	master->transfer = mpc512x_psc_spi_transfer;
 	master->cleanup = mpc512x_psc_spi_cleanup;
