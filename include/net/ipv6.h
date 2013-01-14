@@ -507,7 +507,7 @@ static inline void ipv6_addr_set_v4mapped(const __be32 addr,
  * find the first different bit between two addresses
  * length of address must be a multiple of 32bits
  */
-static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int addrlen)
 {
 	const __be32 *a1 = token1, *a2 = token2;
 	int i;
@@ -537,6 +537,33 @@ static inline int __ipv6_addr_diff(const void *token1, const void *token2, int a
 	 *					--ANK (980803)
 	 */
 	return addrlen << 5;
+}
+
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+static inline int __ipv6_addr_diff64(const void *token1, const void *token2, int addrlen)
+{
+	const __be64 *a1 = token1, *a2 = token2;
+	int i;
+
+	addrlen >>= 3;
+
+	for (i = 0; i < addrlen; i++) {
+		__be64 xb = a1[i] ^ a2[i];
+		if (xb)
+			return i * 64 + 63 - __fls(be64_to_cpu(xb));
+	}
+
+	return addrlen << 6;
+}
+#endif
+
+static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	if (__builtin_constant_p(addrlen) && !(addrlen & 7))
+		return __ipv6_addr_diff64(token1, token2, addrlen);
+#endif
+	return __ipv6_addr_diff32(token1, token2, addrlen);
 }
 
 static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
