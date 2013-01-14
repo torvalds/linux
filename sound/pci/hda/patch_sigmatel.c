@@ -176,7 +176,6 @@ enum {
 };
 
 enum {
-	STAC_9872_AUTO,
 	STAC_9872_VAIO,
 	STAC_9872_MODELS
 };
@@ -6606,22 +6605,32 @@ static const unsigned long stac9872_capvols[] = {
 };
 #define stac9872_capsws		stac9872_capvols
 
-static const unsigned int stac9872_vaio_pin_configs[9] = {
-	0x03211020, 0x411111f0, 0x411111f0, 0x03a15030,
-	0x411111f0, 0x90170110, 0x411111f0, 0x411111f0,
-	0x90a7013e
+static const struct hda_pintbl stac9872_vaio_pin_configs[] = {
+	{ 0x0a, 0x03211020 },
+	{ 0x0b, 0x411111f0 },
+	{ 0x0c, 0x411111f0 },
+	{ 0x0d, 0x03a15030 },
+	{ 0x0e, 0x411111f0 },
+	{ 0x0f, 0x90170110 },
+	{ 0x11, 0x411111f0 },
+	{ 0x13, 0x411111f0 },
+	{ 0x14, 0x90a7013e },
+	{}
 };
 
-static const char * const stac9872_models[STAC_9872_MODELS] = {
-	[STAC_9872_AUTO] = "auto",
-	[STAC_9872_VAIO] = "vaio",
+static const struct hda_model_fixup stac9872_models[] = {
+	{ .id = STAC_9872_VAIO, .name = "vaio" },
+	{}
 };
 
-static const unsigned int *stac9872_brd_tbl[STAC_9872_MODELS] = {
-	[STAC_9872_VAIO] = stac9872_vaio_pin_configs,
+static const struct hda_fixup stac9872_fixups[] = {
+	[STAC_9872_VAIO] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = stac9872_vaio_pin_configs,
+	},
 };
 
-static const struct snd_pci_quirk stac9872_cfg_tbl[] = {
+static const struct snd_pci_quirk stac9872_fixup_tbl[] = {
 	SND_PCI_QUIRK_MASK(0x104d, 0xfff0, 0x81e0,
 			   "Sony VAIO F/S", STAC_9872_VAIO),
 	{} /* terminator */
@@ -6640,25 +6649,20 @@ static int patch_stac9872(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 
-	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
-							stac9872_models,
-							stac9872_cfg_tbl);
-	if (spec->board_config < 0)
-		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-			    codec->chip_name);
-	else
-		stac92xx_set_config_regs(codec,
-					 stac9872_brd_tbl[spec->board_config]);
+	snd_hda_pick_fixup(codec, stac9872_models, stac9872_fixup_tbl,
+			   stac9872_fixups);
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->num_adcs = ARRAY_SIZE(stac9872_adc_nids);
 	spec->adc_nids = stac9872_adc_nids;
 	spec->num_muxes = ARRAY_SIZE(stac9872_mux_nids);
 	spec->mux_nids = stac9872_mux_nids;
-	spec->init = stac9872_core_init;
 	spec->num_caps = 1;
 	spec->capvols = stac9872_capvols;
 	spec->capsws = stac9872_capsws;
+	snd_hda_add_verbs(codec, stac9872_core_init);
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = stac92xx_parse_auto_config(codec);
 	if (err < 0) {
@@ -6667,6 +6671,9 @@ static int patch_stac9872(struct hda_codec *codec)
 	}
 	spec->input_mux = &spec->private_imux;
 	codec->patch_ops = stac92xx_patch_ops;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+
 	return 0;
 }
 
