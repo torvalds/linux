@@ -245,6 +245,14 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 
 		if (he->ms.map)
 			he->ms.map->referenced = true;
+
+		if (he->branch_info) {
+			if (he->branch_info->from.map)
+				he->branch_info->from.map->referenced = true;
+			if (he->branch_info->to.map)
+				he->branch_info->to.map->referenced = true;
+		}
+
 		if (symbol_conf.use_callchain)
 			callchain_init(he->callchain);
 
