@@ -300,13 +300,22 @@ static void set_guest_esr(struct kvm_vcpu *vcpu, u32 esr)
 #endif
 }
 
+static unsigned long get_guest_epr(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	return mfspr(SPRN_GEPR);
+#else
+	return vcpu->arch.epr;
+#endif
+}
+
 /* Deliver the interrupt of the corresponding priority, if possible. */
 static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
 {
 	int allowed = 0;
 	ulong msr_mask = 0;
-	bool update_esr = false, update_dear = false;
+	bool update_esr = false, update_dear = false, update_epr = false;
 	ulong crit_raw = vcpu->arch.shared->critical;
 	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
 	bool crit;
@@ -329,6 +338,9 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		priority = BOOKE_IRQPRIO_EXTERNAL;
 		keep_irq = true;
 	}
+
+	if ((priority == BOOKE_IRQPRIO_EXTERNAL) && vcpu->arch.epr_enabled)
+		update_epr = true;
 
 	switch (priority) {
 	case BOOKE_IRQPRIO_DTLB_MISS:
@@ -408,6 +420,8 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
+		if (update_epr == true)
+			kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
 
 		new_msr &= msr_mask;
 #if defined(CONFIG_64BIT)
@@ -581,6 +595,11 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	kvmppc_core_check_exceptions(vcpu);
 
+	if (vcpu->requests) {
+		/* Exception delivery raised request; start over */
+		return 1;
+	}
+
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
@@ -607,6 +626,13 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 
 	if (kvm_check_request(KVM_REQ_WATCHDOG, vcpu)) {
 		vcpu->run->exit_reason = KVM_EXIT_WATCHDOG;
+		r = 0;
+	}
+
+	if (kvm_check_request(KVM_REQ_EPR_EXIT, vcpu)) {
+		vcpu->run->epr.epr = 0;
+		vcpu->arch.epr_needed = true;
+		vcpu->run->exit_reason = KVM_EXIT_EPR;
 		r = 0;
 	}
 
@@ -1388,6 +1414,11 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
 		break;
 	}
+	case KVM_REG_PPC_EPR: {
+		u32 epr = get_guest_epr(vcpu);
+		r = put_user(epr, (u32 __user *)(long)reg->addr);
+		break;
+	}
 #if defined(CONFIG_64BIT)
 	case KVM_REG_PPC_EPCR:
 		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
@@ -1418,6 +1449,13 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		int dac = reg->id - KVM_REG_PPC_DAC1;
 		r = copy_from_user(&vcpu->arch.dbg_reg.dac[dac],
 			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_EPR: {
+		u32 new_epr;
+		r = get_user(new_epr, (u32 __user *)(long)reg->addr);
+		if (!r)
+			kvmppc_set_epr(vcpu, new_epr);
 		break;
 	}
 #if defined(CONFIG_64BIT)

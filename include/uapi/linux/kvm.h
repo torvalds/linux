@@ -169,6 +169,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_S390_UCONTROL	  20
 #define KVM_EXIT_WATCHDOG         21
 #define KVM_EXIT_S390_TSCH        22
+#define KVM_EXIT_EPR              23
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -295,6 +296,10 @@ struct kvm_run {
 			__u32 ipb;
 			__u8 dequeued;
 		} s390_tsch;
+		/* KVM_EXIT_EPR */
+		struct {
+			__u32 epr;
+		} epr;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -656,6 +661,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_PPC_BOOKE_WATCHDOG 83
 #define KVM_CAP_PPC_HTAB_FD 84
 #define KVM_CAP_S390_CSS_SUPPORT 85
+#define KVM_CAP_PPC_EPR 86
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

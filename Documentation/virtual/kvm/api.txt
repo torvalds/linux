@@ -345,7 +345,7 @@ struct kvm_sregs {
 	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
 };
 
-/* ppc -- see arch/powerpc/include/asm/kvm.h */
+/* ppc -- see arch/powerpc/include/uapi/asm/kvm.h */
 
 interrupt_bitmap is a bitmap of pending external interrupts.  At most
 one bit may be set.  This interrupt has been acknowledged by the APIC
@@ -1774,6 +1774,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_VPA_SLB   | 128
   PPC   | KVM_REG_PPC_VPA_DTL   | 128
   PPC   | KVM_REG_PPC_EPCR	| 32
+  PPC   | KVM_REG_PPC_EPR	| 32
 
 4.69 KVM_GET_ONE_REG
 
@@ -2246,8 +2247,8 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR
-      and KVM_EXIT_PAPR the corresponding
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
+      KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
@@ -2365,6 +2366,25 @@ and TEST SUBCHANNEL was intercepted. If dequeued is set, a pending I/O
 interrupt for the target subchannel has been dequeued and subchannel_id,
 subchannel_nr, io_int_parm and io_int_word contain the parameters for that
 interrupt. ipb is needed for instruction parameter decoding.
+
+		/* KVM_EXIT_EPR */
+		struct {
+			__u32 epr;
+		} epr;
+
+On FSL BookE PowerPC chips, the interrupt controller has a fast patch
+interrupt acknowledge path to the core. When the core successfully
+delivers an interrupt, it automatically populates the EPR register with
+the interrupt vector number and acknowledges the interrupt inside
+the interrupt controller.
+
+In case the interrupt controller lives in user space, we need to do
+the interrupt acknowledge cycle through it to fetch the next to be
+delivered interrupt vector using this exit.
+
+It gets triggered whenever both KVM_CAP_PPC_EPR are enabled and an
+external interrupt has just been delivered into the guest. User space
+should put the acknowledged interrupt vector into the 'epr' field.
 
 		/* Fix the size of the union. */
 		char padding[256];
@@ -2501,3 +2521,20 @@ handled in-kernel, while the other I/O instructions are passed to userspace.
 
 When this capability is enabled, KVM_EXIT_S390_TSCH will occur on TEST
 SUBCHANNEL intercepts.
+
+6.5 KVM_CAP_PPC_EPR
+
+Architectures: ppc
+Parameters: args[0] defines whether the proxy facility is active
+Returns: 0 on success; -1 on error
+
+This capability enables or disables the delivery of interrupts through the
+external proxy facility.
+
+When enabled (args[0] != 0), every time the guest gets an external interrupt
+delivered, it automatically exits into user space with a KVM_EXIT_EPR exit
+to receive the topmost interrupt vector.
+
+When disabled (args[0] == 0), behavior is as if this facility is unsupported.
+
+When this capability is enabled, KVM_EXIT_EPR can occur.

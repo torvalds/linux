@@ -760,6 +760,11 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_MMIO;
 			r = RESUME_HOST_NV;
 			break;
+		case EMULATE_DO_PAPR:
+			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->arch.hcall_needed = 1;
+			r = RESUME_HOST_NV;
+			break;
 		default:
 			BUG();
 		}
