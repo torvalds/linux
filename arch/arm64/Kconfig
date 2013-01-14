@@ -6,6 +6,7 @@ config ARM64
 	select ARCH_WANT_FRAME_POINTERS
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
+	select ARM_GIC
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
