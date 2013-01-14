@@ -102,7 +102,7 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 	[TCA_IPT_TARG]	= { .len = sizeof(struct xt_entry_target) },
 };
 
-static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
+static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
 	struct nlattr *tb[TCA_IPT_MAX + 1];

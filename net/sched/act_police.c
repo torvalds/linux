@@ -130,8 +130,9 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
 };
 
-static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
-				 struct tc_action *a, int ovr, int bind)
+static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
+				 struct nlattr *est, struct tc_action *a,
+				 int ovr, int bind)
 {
 	unsigned int h;
 	int ret = 0, err;

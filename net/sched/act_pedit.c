@@ -38,8 +38,9 @@ static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
 };
 
-static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
-			  struct tc_action *a, int ovr, int bind)
+static int tcf_pedit_init(struct net *net, struct nlattr *nla,
+			  struct nlattr *est, struct tc_action *a,
+			  int ovr, int bind)
 {
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
 	struct tc_pedit *parm;

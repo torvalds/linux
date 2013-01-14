@@ -95,8 +95,9 @@ static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
 	[TCA_DEF_DATA]	= { .type = NLA_STRING, .len = SIMP_MAX_DATA },
 };
 
-static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
-			 struct tc_action *a, int ovr, int bind)
+static int tcf_simp_init(struct net *net, struct nlattr *nla,
+			 struct nlattr *est, struct tc_action *a,
+			 int ovr, int bind)
 {
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
