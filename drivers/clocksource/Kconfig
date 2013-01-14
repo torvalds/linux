@@ -28,6 +28,9 @@ config ARMADA_370_XP_TIMER
 config SUNXI_TIMER
 	bool
 
+config VT8500_TIMER
+	bool
+
 config CLKSRC_NOMADIK_MTU
 	bool
 	depends on (ARCH_NOMADIK || ARCH_U8500)
