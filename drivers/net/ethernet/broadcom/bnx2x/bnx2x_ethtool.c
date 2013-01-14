@@ -2379,8 +2379,8 @@ static void bnx2x_self_test(struct net_device *dev,
 			    struct ethtool_test *etest, u64 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u8 is_serdes;
-	int rc;
+	u8 is_serdes, link_up;
+	int rc, cnt = 0;
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		netdev_err(bp->dev,
@@ -2402,19 +2402,16 @@ static void bnx2x_self_test(struct net_device *dev,
 	}
 
 	is_serdes = (bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
-
+	link_up = bp->link_vars.link_up;
 	/* offline tests are not supported in MF mode */
 	if ((etest->flags & ETH_TEST_FL_OFFLINE) && !IS_MF(bp)) {
 		int port = BP_PORT(bp);
 		u32 val;
-		u8 link_up;
 
 		/* save current value of input enable for TX port IF */
 		val = REG_RD(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4);
 		/* disable input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, 0);
-
-		link_up = bp->link_vars.link_up;
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 		rc = bnx2x_nic_load(bp, LOAD_DIAG);
@@ -2477,7 +2474,13 @@ static void bnx2x_self_test(struct net_device *dev,
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 
-	if (bnx2x_link_test(bp, is_serdes) != 0) {
+	if (link_up) {
+		cnt = 100;
+		while (bnx2x_link_test(bp, is_serdes) && --cnt)
+			msleep(20);
+	}
+
+	if (!cnt) {
 		if (!IS_MF(bp))
 			buf[6] = 1;
 		else
