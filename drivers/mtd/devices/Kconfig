@@ -272,6 +272,7 @@ config MTD_DOCG3
 	tristate "M-Systems Disk-On-Chip G3"
 	select BCH
 	select BCH_CONST_PARAMS
+	select BITREVERSE
 	---help---
 	  This provides an MTD device driver for the M-Systems DiskOnChip
 	  G3 devices.
