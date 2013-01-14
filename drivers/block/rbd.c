@@ -264,7 +264,7 @@ struct rbd_device {
 	spinlock_t		lock;		/* queue lock */
 
 	struct rbd_image_header	header;
-	atomic_t		exists;
+	unsigned long		flags;
 	struct rbd_spec		*spec;
 
 	char			*header_name;
@@ -290,6 +290,12 @@ struct rbd_device {
 	/* sysfs related */
 	struct device		dev;
 	unsigned long		open_count;
+};
+
+/* Flag bits for rbd_dev->flags */
+
+enum rbd_dev_flags {
+	RBD_DEV_FLAG_EXISTS,	/* mapped snapshot has not been deleted */
 };
 
 static DEFINE_MUTEX(ctl_mutex);	  /* Serialize open/close/setup/teardown */
@@ -782,7 +788,8 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 			goto done;
 		rbd_dev->mapping.read_only = true;
 	}
-	atomic_set(&rbd_dev->exists, 1);
+	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
+
 done:
 	return ret;
 }
@@ -1877,9 +1884,14 @@ static void rbd_request_fn(struct request_queue *q)
 			rbd_assert(rbd_dev->spec->snap_id == CEPH_NOSNAP);
 		}
 
-		/* Quit early if the snapshot has disappeared */
-
-		if (!atomic_read(&rbd_dev->exists)) {
+		/*
+		 * Quit early if the mapped snapshot no longer
+		 * exists.  It's still possible the snapshot will
+		 * have disappeared by the time our request arrives
+		 * at the osd, but there's no sense in sending it if
+		 * we already know.
+		 */
+		if (!test_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags)) {
 			dout("request for non-existent snapshot");
 			rbd_assert(rbd_dev->spec->snap_id != CEPH_NOSNAP);
 			result = -ENXIO;
@@ -2571,7 +2583,7 @@ struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 		return NULL;
 
 	spin_lock_init(&rbd_dev->lock);
-	atomic_set(&rbd_dev->exists, 0);
+	rbd_dev->flags = 0;
 	INIT_LIST_HEAD(&rbd_dev->node);
 	INIT_LIST_HEAD(&rbd_dev->snaps);
 	init_rwsem(&rbd_dev->header_rwsem);
@@ -3200,10 +3212,17 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 		if (snap_id == CEPH_NOSNAP || (snap && snap->id > snap_id)) {
 			struct list_head *next = links->next;
 
-			/* Existing snapshot not in the new snap context */
-
+			/*
+			 * A previously-existing snapshot is not in
+			 * the new snap context.
+			 *
+			 * If the now missing snapshot is the one the
+			 * image is mapped to, clear its exists flag
+			 * so we can avoid sending any more requests
+			 * to it.
+			 */
 			if (rbd_dev->spec->snap_id == snap->id)
-				atomic_set(&rbd_dev->exists, 0);
+				clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 			rbd_remove_snap_dev(snap);
 			dout("%ssnap id %llu has been removed\n",
 				rbd_dev->spec->snap_id == snap->id ?
