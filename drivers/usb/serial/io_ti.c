@@ -523,7 +523,6 @@ exit_is_tx_active:
 
 static void chase_port(struct edgeport_port *port, unsigned long timeout)
 {
-	int baud_rate;
 	struct tty_struct *tty = tty_port_tty_get(&port->port->port);
 	struct usb_serial *serial = port->port->serial;
 	wait_queue_t wait;
@@ -561,17 +560,6 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout)
 			break;
 		msleep(10);
 	}
-
-	/* disconnected */
-	if (serial->disconnected)
-		return;
-
-	/* wait one more character time, based on baud rate */
-	/* (tx_active doesn't seem to wait for the last byte) */
-	baud_rate = port->baud_rate;
-	if (baud_rate == 0)
-		baud_rate = 50;
-	msleep(max(1, DIV_ROUND_UP(10000, baud_rate)));
 }
 
 static int choose_config(struct usb_device *dev)
@@ -1937,6 +1925,8 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	++edge_serial->num_ports_open;
+
+	port->port.drain_delay = 1;
 
 	goto release_es_lock;
 
