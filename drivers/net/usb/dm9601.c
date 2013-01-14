@@ -53,7 +53,6 @@
 #define DM_RX_OVERHEAD	7	/* 3 byte header + 4 byte crc tail */
 #define DM_TIMEOUT	1000
 
-
 static int dm_read(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
 	int err;
@@ -84,32 +83,23 @@ static int dm_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 
 static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)
 {
-	return usbnet_write_cmd(dev, DM_WRITE_REGS,
+	return usbnet_write_cmd(dev, DM_WRITE_REG,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				value, reg, NULL, 0);
 }
 
-static void dm_write_async_helper(struct usbnet *dev, u8 reg, u8 value,
-				  u16 length, void *data)
+static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
 	usbnet_write_cmd_async(dev, DM_WRITE_REGS,
 			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			       value, reg, data, length);
-}
-
-static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
-{
-	netdev_dbg(dev->net, "dm_write_async() reg=0x%02x length=%d\n", reg, length);
-
-	dm_write_async_helper(dev, reg, 0, length, data);
+			       0, reg, data, length);
 }
 
 static void dm_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 {
-	netdev_dbg(dev->net, "dm_write_reg_async() reg=0x%02x value=0x%02x\n",
-		   reg, value);
-
-	dm_write_async_helper(dev, reg, value, 0, NULL);
+	usbnet_write_cmd_async(dev, DM_WRITE_REG,
+			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			       value, reg, NULL, 0);
 }
 
 static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 *value)
