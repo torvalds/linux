@@ -158,7 +158,8 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
-int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
+static int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
+				  bool interruptible)
 {
 	if (interruptible) {
 		return wait_event_interruptible(bo->event_queue,
@@ -168,7 +169,6 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
 		return 0;
 	}
 }
-EXPORT_SYMBOL(ttm_bo_wait_unreserved);
 
 void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 {

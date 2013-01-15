@@ -898,18 +898,6 @@ extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
  */
 extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
 
-/**
- * ttm_bo_wait_unreserved
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Wait for a struct ttm_buffer_object to become unreserved.
- * This is typically used in the execbuf code to relax cpu-usage when
- * a potential deadlock condition backoff.
- */
-extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
-				  bool interruptible);
-
 /*
  * ttm_bo_util.c
  */
