@@ -187,7 +187,6 @@ struct sigmatel_spec {
 	struct snd_kcontrol_new *mixers[4];
 	unsigned int num_mixers;
 
-	int board_config;
 	unsigned int eapd_switch: 1;
 	unsigned int surr_switch: 1;
 	unsigned int alt_switch: 1;
