@@ -150,6 +150,7 @@ void zpodd_on_suspend(struct ata_device *dev)
 
 	if (!zpready(dev)) {
 		zpodd->zp_sampled = false;
+		zpodd->zp_ready = false;
 		return;
 	}
 
