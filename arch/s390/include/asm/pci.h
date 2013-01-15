@@ -160,9 +160,14 @@ void zpci_teardown_msi_irq(struct zpci_dev *, struct msi_desc *);
 int zpci_msihash_init(void);
 void zpci_msihash_exit(void);
 
+#ifdef CONFIG_PCI
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
+#else /* CONFIG_PCI */
+static inline void zpci_event_error(void *e) {}
+static inline void zpci_event_availability(void *e) {}
+#endif /* CONFIG_PCI */
 
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
