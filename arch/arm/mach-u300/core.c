@@ -1780,7 +1780,7 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	.nr_irqs	= 0,
 	.init_irq	= u300_init_irq,
 	.handle_irq	= vic_handle_irq,
-	.timer		= &u300_timer,
+	.init_time	= u300_timer_init,
 	.init_machine	= u300_init_machine,
 	.restart	= u300_restart,
 MACHINE_END

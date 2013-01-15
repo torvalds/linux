@@ -355,10 +355,6 @@ static void __init eukrea_cpuimx51sd_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= eukrea_cpuimx51sd_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
 	.atag_offset = 0x100,
@@ -366,7 +362,7 @@ MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
 	.handle_irq = imx51_handle_irq,
-	.timer = &mxc_timer,
+	.init_time	= eukrea_cpuimx51sd_timer_init,
 	.init_machine = eukrea_cpuimx51sd_init,
 	.init_late	= imx51_init_late,
 	.restart	= mxc_restart,

@@ -467,7 +467,7 @@ DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.init_irq	= emev2_init_irq_dt,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= emev2_add_standard_devices_dt,
-	.timer		= &shmobile_timer,
+	.init_time	= shmobile_timer_init,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
 

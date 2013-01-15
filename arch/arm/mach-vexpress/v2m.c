@@ -291,10 +291,6 @@ static void __init v2m_timer_init(void)
 	v2m_sp804_init(ioremap(V2M_TIMER01, SZ_4K), IRQ_V2M_TIMER0);
 }
 
-static struct sys_timer v2m_timer = {
-	.init	= v2m_timer_init,
-};
-
 static void __init v2m_init_early(void)
 {
 	if (ct_desc->init_early)
@@ -376,7 +372,7 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.map_io		= v2m_map_io,
 	.init_early	= v2m_init_early,
 	.init_irq	= v2m_init_irq,
-	.timer		= &v2m_timer,
+	.init_time	= v2m_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= v2m_init,
 	.restart	= vexpress_restart,
@@ -468,10 +464,6 @@ static void __init v2m_dt_timer_init(void)
 				24000000);
 }
 
-static struct sys_timer v2m_dt_timer = {
-	.init = v2m_dt_timer_init,
-};
-
 static const struct of_device_id v2m_dt_bus_match[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "arm,amba-bus", },
@@ -498,7 +490,7 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.map_io		= v2m_dt_map_io,
 	.init_early	= v2m_dt_init_early,
 	.init_irq	= v2m_dt_init_irq,
-	.timer		= &v2m_dt_timer,
+	.init_time	= v2m_dt_timer_init,
 	.init_machine	= v2m_dt_init,
 	.handle_irq	= gic_handle_irq,
 	.restart	= vexpress_restart,

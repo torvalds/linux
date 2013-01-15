@@ -602,10 +602,6 @@ static void __init mx35pdk_timer_init(void)
 	mx35_clocks_init();
 }
 
-static struct sys_timer mx35pdk_timer = {
-	.init	= mx35pdk_timer_init,
-};
-
 static void __init mx35_3ds_reserve(void)
 {
 	/* reserve MX35_3DS_CAMERA_BUF_SIZE bytes for mx3-camera */
@@ -620,7 +616,7 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.handle_irq = imx35_handle_irq,
-	.timer = &mx35pdk_timer,
+	.init_time	= mx35pdk_timer_init,
 	.init_machine = mx35_3ds_init,
 	.reserve = mx35_3ds_reserve,
 	.restart	= mxc_restart,

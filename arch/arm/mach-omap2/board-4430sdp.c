@@ -725,6 +725,6 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_4430sdp_init,
 	.init_late	= omap4430_init_late,
-	.timer		= &omap4_timer,
+	.init_time	= omap4_local_timer_init,
 	.restart	= omap44xx_restart,
 MACHINE_END
