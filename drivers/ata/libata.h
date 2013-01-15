@@ -230,4 +230,18 @@ static inline void ata_sff_exit(void)
 { }
 #endif /* CONFIG_ATA_SFF */
 
+/* libata-zpodd.c */
+#ifdef CONFIG_SATA_ZPODD
+void zpodd_init(struct ata_device *dev);
+void zpodd_exit(struct ata_device *dev);
+static inline bool zpodd_dev_enabled(struct ata_device *dev)
+{
+	return dev->zpodd != NULL;
+}
+#else /* CONFIG_SATA_ZPODD */
+static inline void zpodd_init(struct ata_device *dev) {}
+static inline void zpodd_exit(struct ata_device *dev) {}
+static inline bool zpodd_dev_enabled(struct ata_device *dev) { return false; }
+#endif /* CONFIG_SATA_ZPODD */
+
 #endif /* __LIBATA_H__ */

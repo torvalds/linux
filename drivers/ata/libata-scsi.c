@@ -3755,6 +3755,8 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	mutex_lock(&ap->scsi_host->scan_mutex);
 	spin_lock_irqsave(ap->lock, flags);
 
+	if (zpodd_dev_enabled(dev))
+		zpodd_exit(dev);
 	ata_acpi_unbind(dev);
 
 	/* clearing dev->sdev is protected by host lock */
