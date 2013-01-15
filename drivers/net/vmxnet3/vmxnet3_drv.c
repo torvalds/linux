@@ -1226,6 +1226,11 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			pci_unmap_single(adapter->pdev, rbi->dma_addr, rbi->len,
 					 PCI_DMA_FROMDEVICE);
 
+#ifdef VMXNET3_RSS
+			if (rcd->rssType != VMXNET3_RCD_RSS_TYPE_NONE &&
+			    (adapter->netdev->features & NETIF_F_RXHASH))
+				ctx->skb->rxhash = le32_to_cpu(rcd->rssHash);
+#endif
 			skb_put(ctx->skb, rcd->len);
 
 			/* Immediate refill */
@@ -3022,6 +3027,8 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	if (adapter->num_rx_queues > 1 &&
 	    adapter->intr.type == VMXNET3_IT_MSIX) {
 		adapter->rss = true;
+		netdev->hw_features |= NETIF_F_RXHASH;
+		netdev->features |= NETIF_F_RXHASH;
 		dev_dbg(&pdev->dev, "RSS is enabled.\n");
 	} else {
 		adapter->rss = false;
