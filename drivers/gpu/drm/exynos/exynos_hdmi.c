@@ -1457,21 +1457,20 @@ static int hdmi_v14_check_timing(struct fb_videomode *check_timing)
 	return -EINVAL;
 }
 
-static int hdmi_check_timing(void *ctx, void *timing)
+static int hdmi_check_timing(void *ctx, struct fb_videomode *timing)
 {
 	struct hdmi_context *hdata = ctx;
-	struct fb_videomode *check_timing = timing;
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	DRM_DEBUG_KMS("[%d]x[%d] [%d]Hz [%x]\n", check_timing->xres,
-			check_timing->yres, check_timing->refresh,
-			check_timing->vmode);
+	DRM_DEBUG_KMS("[%d]x[%d] [%d]Hz [%x]\n", timing->xres,
+			timing->yres, timing->refresh,
+			timing->vmode);
 
 	if (hdata->type == HDMI_TYPE13)
-		return hdmi_v13_check_timing(check_timing);
+		return hdmi_v13_check_timing(timing);
 	else
-		return hdmi_v14_check_timing(check_timing);
+		return hdmi_v14_check_timing(timing);
 }
 
 static void hdmi_set_acr(u32 freq, u8 *acr)
