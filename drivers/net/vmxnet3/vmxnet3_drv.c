@@ -2671,10 +2671,6 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
 	netdev->vlan_features = netdev->hw_features &
 				~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
 	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_FILTER;
-
-	netdev_info(adapter->netdev,
-		"features: sg csum vlan jf tso tsoIPv6 lro%s\n",
-		dma64 ? " highDMA" : "");
 }
 
 
@@ -2717,7 +2713,7 @@ vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter,
 			adapter->intr.num_intrs = vectors;
 			return 0;
 		} else if (err < 0) {
-			netdev_err(adapter->netdev,
+			dev_err(&adapter->netdev->dev,
 				   "Failed to enable MSI-X, error: %d\n", err);
 			vectors = 0;
 		} else if (err < vector_threshold) {
@@ -2726,15 +2722,16 @@ vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter,
 			/* If fails to enable required number of MSI-x vectors
 			 * try enabling minimum number of vectors required.
 			 */
-			netdev_err(adapter->netdev,
-				   "Failed to enable %d MSI-X, trying %d instead\n",
+			dev_err(&adapter->netdev->dev,
+				"Failed to enable %d MSI-X, trying %d instead\n",
 				    vectors, vector_threshold);
 			vectors = vector_threshold;
 		}
 	}
 
-	netdev_info(adapter->netdev,
-		    "Number of MSI-X interrupts which can be allocated are lower than min threshold required.\n");
+	dev_info(&adapter->pdev->dev,
+		 "Number of MSI-X interrupts which can be allocated "
+		 "is lower than min threshold required.\n");
 	return err;
 }
 
@@ -2800,9 +2797,9 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 			return;
 
 		/* If we cannot allocate MSIx vectors use only one rx queue */
-		netdev_info(adapter->netdev,
-			    "Failed to enable MSI-X, error %d . Limiting #rx queues to 1, try MSI.\n",
-			    err);
+		dev_info(&adapter->pdev->dev,
+			 "Failed to enable MSI-X, error %d. "
+			 "Limiting #rx queues to 1, try MSI.\n", err);
 
 		adapter->intr.type = VMXNET3_IT_MSI;
 	}
