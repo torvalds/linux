@@ -16,6 +16,8 @@ config UNICORE32
 	select ARCH_WANT_FRAME_POINTERS
 	select GENERIC_IOMAP
 	select MODULES_USE_ELF_REL
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
@@ -63,6 +65,9 @@ config GENERIC_CALIBRATE_DELAY
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
+
+config ZONE_DMA
+	def_bool y
 
 config NEED_DMA_MAP_STATE
        def_bool y
@@ -216,7 +221,7 @@ config PUV3_GPIO
 	bool
 	depends on !ARCH_FPGA
 	select GENERIC_GPIO
-	select GPIO_SYSFS if EXPERIMENTAL
+	select GPIO_SYSFS
 	default y
 
 if PUV3_NB0916

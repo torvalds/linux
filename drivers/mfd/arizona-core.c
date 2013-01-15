@@ -98,9 +98,9 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 
 	if (val & ARIZONA_AIF3_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "AIF3 underclocked\n");
-	if (val & ARIZONA_AIF3_UNDERCLOCKED_STS)
-		dev_err(arizona->dev, "AIF3 underclocked\n");
 	if (val & ARIZONA_AIF2_UNDERCLOCKED_STS)
+		dev_err(arizona->dev, "AIF2 underclocked\n");
+	if (val & ARIZONA_AIF1_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "AIF1 underclocked\n");
 	if (val & ARIZONA_ISRC2_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "ISRC2 underclocked\n");
@@ -415,9 +415,17 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 	/* If we have a /RESET GPIO we'll already be reset */
 	if (!arizona->pdata.reset) {
+		regcache_mark_dirty(arizona->regmap);
+
 		ret = regmap_write(arizona->regmap, ARIZONA_SOFTWARE_RESET, 0);
 		if (ret != 0) {
 			dev_err(dev, "Failed to reset device: %d\n", ret);
+			goto err_reset;
+		}
+
+		ret = regcache_sync(arizona->regmap);
+		if (ret != 0) {
+			dev_err(dev, "Failed to sync device: %d\n", ret);
 			goto err_reset;
 		}
 	}
@@ -520,7 +528,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		break;
 	case WM5110:
 		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
-				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
+				      ARRAY_SIZE(wm5110_devs), NULL, 0, NULL);
 		break;
 	}
 

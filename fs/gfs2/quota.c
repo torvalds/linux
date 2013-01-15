@@ -497,8 +497,11 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	struct gfs2_quota_data **qd;
 	int error;
 
-	if (ip->i_res == NULL)
-		gfs2_rs_alloc(ip);
+	if (ip->i_res == NULL) {
+		error = gfs2_rs_alloc(ip);
+		if (error)
+			return error;
+	}
 
 	qd = ip->i_res->rs_qa_qd;
 

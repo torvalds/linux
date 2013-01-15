@@ -685,7 +685,10 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	dput(ctx->dentry);
-	nfs_sb_deactive(sb);
+	if (is_sync)
+		nfs_sb_deactive(sb);
+	else
+		nfs_sb_deactive_async(sb);
 	kfree(ctx->mdsthreshold);
 	kfree(ctx);
 }

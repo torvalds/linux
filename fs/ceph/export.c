@@ -90,6 +90,8 @@ static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 		*max_len = handle_length;
 		type = 255;
 	}
+	if (dentry)
+		dput(dentry);
 	return type;
 }
 

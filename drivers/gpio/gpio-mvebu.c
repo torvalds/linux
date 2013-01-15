@@ -92,6 +92,11 @@ static inline void __iomem *mvebu_gpioreg_out(struct mvebu_gpio_chip *mvchip)
 	return mvchip->membase + GPIO_OUT_OFF;
 }
 
+static inline void __iomem *mvebu_gpioreg_blink(struct mvebu_gpio_chip *mvchip)
+{
+	return mvchip->membase + GPIO_BLINK_EN_OFF;
+}
+
 static inline void __iomem *mvebu_gpioreg_io_conf(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_IO_CONF_OFF;
@@ -206,6 +211,23 @@ static int mvebu_gpio_get(struct gpio_chip *chip, unsigned pin)
 	return (u >> pin) & 1;
 }
 
+static void mvebu_gpio_blink(struct gpio_chip *chip, unsigned pin, int value)
+{
+	struct mvebu_gpio_chip *mvchip =
+		container_of(chip, struct mvebu_gpio_chip, chip);
+	unsigned long flags;
+	u32 u;
+
+	spin_lock_irqsave(&mvchip->lock, flags);
+	u = readl_relaxed(mvebu_gpioreg_blink(mvchip));
+	if (value)
+		u |= 1 << pin;
+	else
+		u &= ~(1 << pin);
+	writel_relaxed(u, mvebu_gpioreg_blink(mvchip));
+	spin_unlock_irqrestore(&mvchip->lock, flags);
+}
+
 static int mvebu_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 {
 	struct mvebu_gpio_chip *mvchip =
@@ -243,6 +265,9 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
 	ret = pinctrl_gpio_direction_output(chip->base + pin);
 	if (ret)
 		return ret;
+
+	mvebu_gpio_blink(chip, pin, 0);
+	mvebu_gpio_set(chip, pin, value);
 
 	spin_lock_irqsave(&mvchip->lock, flags);
 	u = readl_relaxed(mvebu_gpioreg_io_conf(mvchip));
@@ -644,7 +669,7 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 	ct->handler = handle_edge_irq;
 	ct->chip.name = mvchip->chip.label;
 
-	irq_setup_generic_chip(gc, IRQ_MSK(ngpios), IRQ_GC_INIT_MASK_CACHE,
+	irq_setup_generic_chip(gc, IRQ_MSK(ngpios), 0,
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */

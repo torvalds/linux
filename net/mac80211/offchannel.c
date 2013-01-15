@@ -458,8 +458,6 @@ void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
 		list_move_tail(&roc->list, &tmp_list);
 		roc->abort = true;
 	}
-
-	ieee80211_start_next_roc(local);
 	mutex_unlock(&local->mtx);
 
 	list_for_each_entry_safe(roc, tmp, &tmp_list, list) {

@@ -935,7 +935,7 @@ aoe_end_request(struct aoedev *d, struct request *rq, int fastfail)
 
 	/* cf. http://lkml.org/lkml/2006/10/31/28 */
 	if (!fastfail)
-		q->request_fn(q);
+		__blk_run_queue(q);
 }
 
 static void

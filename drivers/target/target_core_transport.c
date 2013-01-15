@@ -1616,7 +1616,6 @@ static void target_complete_tmr_failure(struct work_struct *work)
 
 	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
 	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
-	transport_generic_free_cmd(se_cmd, 0);
 }
 
 /**
@@ -1820,8 +1819,10 @@ void target_execute_cmd(struct se_cmd *cmd)
 	/*
 	 * If the received CDB has aleady been aborted stop processing it here.
 	 */
-	if (transport_check_aborted_status(cmd, 1))
+	if (transport_check_aborted_status(cmd, 1)) {
+		complete(&cmd->t_transport_stop_comp);
 		return;
+	}
 
 	/*
 	 * Determine if IOCTL context caller in requesting the stopping of this
@@ -3068,7 +3069,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
+	if (cmd->se_cmd_flags & (SCF_SENT_CHECK_CONDITION | SCF_SENT_DELAYED_TAS)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}

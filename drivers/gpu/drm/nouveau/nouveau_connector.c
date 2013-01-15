@@ -355,7 +355,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 	 * valid - it's not (rh#613284)
 	 */
 	if (nv_encoder->dcb->lvdsconf.use_acpi_for_edid) {
-		if (!(nv_connector->edid = nouveau_acpi_edid(dev, connector))) {
+		if ((nv_connector->edid = nouveau_acpi_edid(dev, connector))) {
 			status = connector_status_connected;
 			goto out;
 		}

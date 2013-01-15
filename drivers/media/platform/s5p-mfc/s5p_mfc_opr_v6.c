@@ -1762,7 +1762,7 @@ int s5p_mfc_get_dspl_y_adr_v6(struct s5p_mfc_dev *dev)
 
 int s5p_mfc_get_dec_y_adr_v6(struct s5p_mfc_dev *dev)
 {
-	return mfc_read(dev, S5P_FIMV_D_DISPLAY_LUMA_ADDR_V6);
+	return mfc_read(dev, S5P_FIMV_D_DECODED_LUMA_ADDR_V6);
 }
 
 int s5p_mfc_get_dspl_status_v6(struct s5p_mfc_dev *dev)

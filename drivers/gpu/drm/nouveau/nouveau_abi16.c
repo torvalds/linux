@@ -241,6 +241,10 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
+
+	if (!drm->channel)
+		return nouveau_abi16_put(abi16, -ENODEV);
+
 	client = nv_client(abi16->client);
 
 	if (init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)

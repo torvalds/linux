@@ -799,9 +799,10 @@ static inline void stride_align(__u32 *width)
  * default g_crop and cropcap from soc_camera.c
  */
 static int mx3_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+			       const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);

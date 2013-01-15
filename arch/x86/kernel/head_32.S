@@ -292,8 +292,8 @@ default_entry:
  *	be using the global pages. 
  *
  *	NOTE! If we are on a 486 we may have no cr4 at all!
- *	Specifically, cr4 exists if and only if CPUID exists,
- *	which in turn exists if and only if EFLAGS.ID exists.
+ *	Specifically, cr4 exists if and only if CPUID exists
+ *	and has flags other than the FPU flag set.
  */
 	movl $X86_EFLAGS_ID,%ecx
 	pushl %ecx
@@ -307,6 +307,11 @@ default_entry:
 	xorl %edx,%eax
 	testl %ecx,%eax
 	jz 6f			# No ID flag = no CPUID = no CR4
+
+	movl $1,%eax
+	cpuid
+	andl $~1,%edx		# Ignore CPUID.FPU
+	jz 6f			# No flags or only CPUID.FPU = no CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4

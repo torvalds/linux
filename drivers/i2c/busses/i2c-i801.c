@@ -82,7 +82,8 @@
 #include <linux/wait.h>
 #include <linux/err.h>
 
-#if defined CONFIG_I2C_MUX || defined CONFIG_I2C_MUX_MODULE
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
 #include <linux/gpio.h>
 #include <linux/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
@@ -192,7 +193,8 @@ struct i801_priv {
 	int len;
 	u8 *data;
 
-#if defined CONFIG_I2C_MUX || defined CONFIG_I2C_MUX_MODULE
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
 	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
 #endif
@@ -921,7 +923,8 @@ static void __init input_apanel_init(void) {}
 static void __devinit i801_probe_optional_slaves(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
-#if defined CONFIG_I2C_MUX || defined CONFIG_I2C_MUX_MODULE
+#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
+		defined CONFIG_DMI
 static struct i801_mux_config i801_mux_config_asus_z8_d12 = {
 	.gpio_chip = "gpio_ich",
 	.values = { 0x02, 0x03 },
@@ -1059,7 +1062,7 @@ static unsigned int __devinit i801_get_adapter_class(struct i801_priv *priv)
 
 	id = dmi_first_match(mux_dmi_table);
 	if (id) {
-		/* Remove from branch classes from trunk */
+		/* Remove branch classes from trunk */
 		mux_config = id->driver_data;
 		for (i = 0; i < mux_config->n_values; i++)
 			class &= ~mux_config->classes[i];

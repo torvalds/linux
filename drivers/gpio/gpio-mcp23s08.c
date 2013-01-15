@@ -77,7 +77,7 @@ struct mcp23s08_driver_data {
 
 /*----------------------------------------------------------------------*/
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 
 static int mcp23008_read(struct mcp23s08 *mcp, unsigned reg)
 {
@@ -399,7 +399,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		break;
 #endif /* CONFIG_SPI_MASTER */
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 	case MCP_TYPE_008:
 		mcp->ops = &mcp23008_ops;
 		mcp->chip.ngpio = 8;
@@ -473,7 +473,7 @@ fail:
 
 /*----------------------------------------------------------------------*/
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 
 static int __devinit mcp230xx_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)

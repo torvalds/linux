@@ -556,8 +556,7 @@ static int fimc_capture_close(struct file *file)
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&fimc->lock);
 
 	if (--fimc->vid_cap.refcnt == 0) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
@@ -1736,7 +1735,9 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct fimc_vid_buffer);
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret)
+		goto err_ent;
 
 	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
@@ -1772,9 +1773,13 @@ static int fimc_capture_subdev_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
+	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
+
 	ret = fimc_register_capture_device(fimc, sd->v4l2_dev);
-	if (ret)
+	if (ret) {
 		fimc_unregister_m2m_device(fimc);
+		fimc->pipeline_ops = NULL;
+	}
 
 	return ret;
 }
@@ -1791,6 +1796,7 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->vid_cap.vfd)) {
 		video_unregister_device(&fimc->vid_cap.vfd);
 		media_entity_cleanup(&fimc->vid_cap.vfd.entity);
+		fimc->pipeline_ops = NULL;
 	}
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;

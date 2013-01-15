@@ -268,7 +268,7 @@ EXPORT_SYMBOL_GPL(arizona_out_ev);
 static unsigned int arizona_sysclk_48k_rates[] = {
 	6144000,
 	12288000,
-	22579200,
+	24576000,
 	49152000,
 	73728000,
 	98304000,
@@ -278,7 +278,7 @@ static unsigned int arizona_sysclk_48k_rates[] = {
 static unsigned int arizona_sysclk_44k1_rates[] = {
 	5644800,
 	11289600,
-	24576000,
+	22579200,
 	45158400,
 	67737600,
 	90316800,

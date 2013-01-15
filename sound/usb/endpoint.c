@@ -35,6 +35,7 @@
 
 #define EP_FLAG_ACTIVATED	0
 #define EP_FLAG_RUNNING		1
+#define EP_FLAG_STOPPING	2
 
 /*
  * snd_usb_endpoint is a model that abstracts everything related to an
@@ -502,8 +503,18 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs on EP #%x\n",
 					alive, ep->ep_num);
+	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
 	return 0;
+}
+
+/* sync the pending stop operation;
+ * this function itself doesn't trigger the stop operation
+ */
+void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
+{
+	if (ep && test_bit(EP_FLAG_STOPPING, &ep->flags))
+		wait_clear_urbs(ep);
 }
 
 /*
@@ -918,6 +929,8 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep,
 
 		if (wait)
 			wait_clear_urbs(ep);
+		else
+			set_bit(EP_FLAG_STOPPING, &ep->flags);
 	}
 }
 

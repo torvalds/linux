@@ -175,14 +175,18 @@ nv_mo32(void *obj, u32 addr, u32 mask, u32 data)
 	return temp;
 }
 
-static inline bool
-nv_strncmp(void *obj, u32 addr, u32 len, const char *str)
+static inline int
+nv_memcmp(void *obj, u32 addr, const char *str, u32 len)
 {
+	unsigned char c1, c2;
+
 	while (len--) {
-		if (nv_ro08(obj, addr++) != *(str++))
-			return false;
+		c1 = nv_ro08(obj, addr++);
+		c2 = *(str++);
+		if (c1 != c2)
+			return c1 - c2;
 	}
-	return true;
+	return 0;
 }
 
 #endif

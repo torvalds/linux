@@ -753,7 +753,8 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 				   flowi4_to_flowi(&fl1), false)) {
 			if (!afinfo->route(&init_net, (struct dst_entry **)&rt2,
 					   flowi4_to_flowi(&fl2), false)) {
-				if (rt1->rt_gateway == rt2->rt_gateway &&
+				if (rt_nexthop(rt1, fl1.daddr) ==
+				    rt_nexthop(rt2, fl2.daddr) &&
 				    rt1->dst.dev  == rt2->dst.dev)
 					ret = 1;
 				dst_release(&rt2->dst);

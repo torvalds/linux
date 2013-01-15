@@ -2859,7 +2859,12 @@ static int snd_vt1724_resume(struct device *dev)
 		ice->set_spdif_clock(ice, 0);
 	} else {
 		/* internal on-card clock */
-		snd_vt1724_set_pro_rate(ice, ice->pro_rate_default, 1);
+		int rate;
+		if (ice->cur_rate)
+			rate = ice->cur_rate;
+		else
+			rate = ice->pro_rate_default;
+		snd_vt1724_set_pro_rate(ice, rate, 1);
 	}
 
 	update_spdif_bits(ice, ice->pm_saved_spdif_ctrl);

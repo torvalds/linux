@@ -13,6 +13,8 @@ config XTENSA
 	select GENERIC_CPU_DEVICES
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica

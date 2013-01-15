@@ -553,7 +553,6 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
  */
 int gfs2_rs_alloc(struct gfs2_inode *ip)
 {
-	int error = 0;
 	struct gfs2_blkreserv *res;
 
 	if (ip->i_res)
@@ -561,7 +560,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 
 	res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
 	if (!res)
-		error = -ENOMEM;
+		return -ENOMEM;
 
 	RB_CLEAR_NODE(&res->rs_node);
 
@@ -571,7 +570,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	else
 		ip->i_res = res;
 	up_write(&ip->i_rw_mutex);
-	return error;
+	return 0;
 }
 
 static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
@@ -1263,7 +1262,9 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	int ret = 0;
 	u64 amt;
 	u64 trimmed = 0;
+	u64 start, end, minlen;
 	unsigned int x;
+	unsigned bs_shift = sdp->sd_sb.sb_bsize_shift;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1271,19 +1272,25 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
 
-	if (argp == NULL) {
-		r.start = 0;
-		r.len = ULLONG_MAX;
-		r.minlen = 0;
-	} else if (copy_from_user(&r, argp, sizeof(r)))
+	if (copy_from_user(&r, argp, sizeof(r)))
 		return -EFAULT;
 
 	ret = gfs2_rindex_update(sdp);
 	if (ret)
 		return ret;
 
-	rgd = gfs2_blk2rgrpd(sdp, r.start, 0);
-	rgd_end = gfs2_blk2rgrpd(sdp, r.start + r.len, 0);
+	start = r.start >> bs_shift;
+	end = start + (r.len >> bs_shift);
+	minlen = max_t(u64, r.minlen,
+		       q->limits.discard_granularity) >> bs_shift;
+
+	rgd = gfs2_blk2rgrpd(sdp, start, 0);
+	rgd_end = gfs2_blk2rgrpd(sdp, end - 1, 0);
+
+	if (end <= start ||
+	    minlen > sdp->sd_max_rg_data ||
+	    start > rgd_end->rd_data0 + rgd_end->rd_data)
+		return -EINVAL;
 
 	while (1) {
 
@@ -1295,7 +1302,9 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 			/* Trim each bitmap in the rgrp */
 			for (x = 0; x < rgd->rd_length; x++) {
 				struct gfs2_bitmap *bi = rgd->rd_bits + x;
-				ret = gfs2_rgrp_send_discards(sdp, rgd->rd_data0, NULL, bi, r.minlen, &amt);
+				ret = gfs2_rgrp_send_discards(sdp,
+						rgd->rd_data0, NULL, bi, minlen,
+						&amt);
 				if (ret) {
 					gfs2_glock_dq_uninit(&gh);
 					goto out;
@@ -1324,7 +1333,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 
 out:
 	r.len = trimmed << 9;
-	if (argp && copy_to_user(argp, &r, sizeof(r)))
+	if (copy_to_user(argp, &r, sizeof(r)))
 		return -EFAULT;
 
 	return ret;

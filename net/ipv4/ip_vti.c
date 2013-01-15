@@ -338,12 +338,17 @@ static int vti_rcv(struct sk_buff *skb)
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
 
+		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			return -1;
+
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
+		skb->mark = 0;
+		secpath_reset(skb);
 		skb->dev = tunnel->dev;
 		return 1;
 	}

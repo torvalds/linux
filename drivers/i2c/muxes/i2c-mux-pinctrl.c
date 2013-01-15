@@ -169,7 +169,7 @@ static int __devinit i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	mux->busses = devm_kzalloc(&pdev->dev,
 				   sizeof(mux->busses) * mux->pdata->bus_count,
 				   GFP_KERNEL);
-	if (!mux->states) {
+	if (!mux->busses) {
 		dev_err(&pdev->dev, "Cannot allocate busses\n");
 		ret = -ENOMEM;
 		goto err;

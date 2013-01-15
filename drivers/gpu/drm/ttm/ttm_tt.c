@@ -308,9 +308,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		if (unlikely(to_page == NULL))
 			goto out_err;
 
-		preempt_disable();
 		copy_highpage(to_page, from_page);
-		preempt_enable();
 		page_cache_release(from_page);
 	}
 
@@ -358,9 +356,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 			ret = PTR_ERR(to_page);
 			goto out_err;
 		}
-		preempt_disable();
 		copy_highpage(to_page, from_page);
-		preempt_enable();
 		set_page_dirty(to_page);
 		mark_page_accessed(to_page);
 		page_cache_release(to_page);

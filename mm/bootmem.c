@@ -198,8 +198,6 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 			int order = ilog2(BITS_PER_LONG);
 
 			__free_pages_bootmem(pfn_to_page(start), order);
-			fixup_zone_present_pages(page_to_nid(pfn_to_page(start)),
-					start, start + BITS_PER_LONG);
 			count += BITS_PER_LONG;
 			start += BITS_PER_LONG;
 		} else {
@@ -210,9 +208,6 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 				if (vec & 1) {
 					page = pfn_to_page(start + off);
 					__free_pages_bootmem(page, 0);
-					fixup_zone_present_pages(
-						page_to_nid(page),
-						start + off, start + off + 1);
 					count++;
 				}
 				vec >>= 1;
@@ -226,11 +221,8 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 	pages = bdata->node_low_pfn - bdata->node_min_pfn;
 	pages = bootmem_bootmap_pages(pages);
 	count += pages;
-	while (pages--) {
-		fixup_zone_present_pages(page_to_nid(page),
-				page_to_pfn(page), page_to_pfn(page) + 1);
+	while (pages--)
 		__free_pages_bootmem(page++, 0);
-	}
 
 	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
 

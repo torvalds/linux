@@ -21,10 +21,23 @@
 #include <asm/i8259.h>
 #include <asm/io.h>
 #include <asm/io_apic.h>
+#include <asm/emergency-restart.h>
 
 static int ce4100_i8042_detect(void)
 {
 	return 0;
+}
+
+/*
+ * The CE4100 platform has an internal 8051 Microcontroller which is
+ * responsible for signaling to the external Power Management Unit the
+ * intention to reset, reboot or power off the system. This 8051 device has
+ * its command register mapped at I/O port 0xcf9 and the value 0x4 is used
+ * to power off the system.
+ */
+static void ce4100_power_off(void)
+{
+	outb(0x4, 0xcf9);
 }
 
 #ifdef CONFIG_SERIAL_8250
@@ -139,8 +152,19 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.mpparse.find_smp_config = x86_init_noop;
 	x86_init.pci.init = ce4100_pci_init;
 
+	/*
+	 * By default, the reboot method is ACPI which is supported by the
+	 * CE4100 bootloader CEFDK using FADT.ResetReg Address and ResetValue
+	 * the bootloader will however issue a system power off instead of
+	 * reboot. By using BOOT_KBD we ensure proper system reboot as
+	 * expected.
+	 */
+	reboot_type = BOOT_KBD;
+
 #ifdef CONFIG_X86_IO_APIC
 	x86_init.pci.init_irq = sdv_pci_init;
 	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_nocheck;
 #endif
+
+	pm_power_off = ce4100_power_off;
 }

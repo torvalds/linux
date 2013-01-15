@@ -370,10 +370,6 @@ static enum dev_type i82975x_dram_type(void __iomem *mch_window, int rank)
 static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		struct pci_dev *pdev, void __iomem *mch_window)
 {
-	static const char *labels[4] = {
-							"DIMM A1", "DIMM A2",
-							"DIMM B1", "DIMM B2"
-						};
 	struct csrow_info *csrow;
 	unsigned long last_cumul_size;
 	u8 value;
@@ -423,9 +419,10 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 			dimm = mci->csrows[index]->channels[chan]->dimm;
 
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
-			strncpy(csrow->channels[chan]->dimm->label,
-					labels[(index >> 1) + (chan * 2)],
-					EDAC_MC_LABEL_LEN);
+
+			snprintf(csrow->channels[chan]->dimm->label, EDAC_MC_LABEL_LEN, "DIMM %c%d",
+				 (chan == 0) ? 'A' : 'B',
+				 index);
 			dimm->grain = 1 << 7;	/* 128Byte cache-line resolution */
 			dimm->dtype = i82975x_dram_type(mch_window, index);
 			dimm->mtype = MEM_DDR2; /* I82975x supports only DDR2 */

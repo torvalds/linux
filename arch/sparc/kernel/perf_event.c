@@ -1762,15 +1762,25 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 
 	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
-		struct sparc_stackf32 *usf, sf;
 		unsigned long pc;
 
-		usf = (struct sparc_stackf32 *) ufp;
-		if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
-			break;
+		if (thread32_stack_is_64bit(ufp)) {
+			struct sparc_stackf *usf, sf;
 
-		pc = sf.callers_pc;
-		ufp = (unsigned long)sf.fp;
+			ufp += STACK_BIAS;
+			usf = (struct sparc_stackf *) ufp;
+			if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
+				break;
+			pc = sf.callers_pc & 0xffffffff;
+			ufp = ((unsigned long) sf.fp) & 0xffffffff;
+		} else {
+			struct sparc_stackf32 *usf, sf;
+			usf = (struct sparc_stackf32 *) ufp;
+			if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
+				break;
+			pc = sf.callers_pc;
+			ufp = (unsigned long)sf.fp;
+		}
 		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }

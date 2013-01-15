@@ -247,3 +247,15 @@ static int __init xen_init_events(void)
 	return 0;
 }
 postcore_initcall(xen_init_events);
+
+
+/* In the hypervisor.S file. */
+EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_grant_table_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_xen_version);
+EXPORT_SYMBOL_GPL(HYPERVISOR_console_io);
+EXPORT_SYMBOL_GPL(HYPERVISOR_sched_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_hvm_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_memory_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_physdev_op);
+EXPORT_SYMBOL_GPL(privcmd_call);

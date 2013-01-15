@@ -47,7 +47,7 @@ if GPIOLIB
 
 config OF_GPIO
 	def_bool y
-	depends on OF && !SPARC
+	depends on OF
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
@@ -466,7 +466,7 @@ config GPIO_ADP5588_IRQ
 
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
-	depends on I2C && OF
+	depends on I2C && OF_GPIO
 	help
 	  This option enables support for N GPIOs found on Avionic Design
 	  I2C GPIO expanders. The register space will be extended by powers

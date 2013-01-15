@@ -1,5 +1,5 @@
 /*
- * VXLAN: Virtual eXtensiable Local Area Network
+ * VXLAN: Virtual eXtensible Local Area Network
  *
  * Copyright (c) 2012 Vyatta Inc.
  *
@@ -50,8 +50,8 @@
 
 #define VXLAN_N_VID	(1u << 24)
 #define VXLAN_VID_MASK	(VXLAN_N_VID - 1)
-/* VLAN + IP header + UDP + VXLAN */
-#define VXLAN_HEADROOM (4 + 20 + 8 + 8)
+/* IP header + UDP + VXLAN + Ethernet header */
+#define VXLAN_HEADROOM (20 + 8 + 8 + 14)
 
 #define VXLAN_FLAGS 0x08000000	/* struct vxlanhdr.vx_flags required value. */
 
@@ -816,7 +816,7 @@ static void vxlan_cleanup(unsigned long arg)
 				= container_of(p, struct vxlan_fdb, hlist);
 			unsigned long timeout;
 
-			if (f->state == NUD_PERMANENT)
+			if (f->state & NUD_PERMANENT)
 				continue;
 
 			timeout = f->used + vxlan->age_interval * HZ;
@@ -1102,6 +1102,10 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 		if (!tb[IFLA_MTU])
 			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
+
+		/* update header length based on lower device */
+		dev->hard_header_len = lowerdev->hard_header_len +
+				       VXLAN_HEADROOM;
 	}
 
 	if (data[IFLA_VXLAN_TOS])

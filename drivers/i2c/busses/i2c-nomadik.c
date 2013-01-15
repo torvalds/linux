@@ -644,7 +644,11 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	pm_runtime_get_sync(&dev->adev->dev);
 
-	clk_enable(dev->clk);
+	status = clk_prepare_enable(dev->clk);
+	if (status) {
+		dev_err(&dev->adev->dev, "can't prepare_enable clock\n");
+		goto out_clk;
+	}
 
 	status = init_hw(dev);
 	if (status)
@@ -671,7 +675,8 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 out:
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
+out_clk:
 	pm_runtime_put_sync(&dev->adev->dev);
 
 	dev->busy = false;

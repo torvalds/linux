@@ -698,13 +698,14 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	cmd = list_first_entry(&dev->cmd_queue, struct pn533_cmd, queue);
 
+	list_del(&cmd->queue);
+
 	mutex_unlock(&dev->cmd_lock);
 
 	__pn533_send_cmd_frame_async(dev, cmd->out_frame, cmd->in_frame,
 				     cmd->in_frame_len, cmd->cmd_complete,
 				     cmd->arg, cmd->flags);
 
-	list_del(&cmd->queue);
 	kfree(cmd);
 }
 
@@ -1678,11 +1679,14 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 						u8 *params, int params_len)
 {
-	struct pn533_cmd_jump_dep *cmd;
 	struct pn533_cmd_jump_dep_response *resp;
 	struct nfc_target nfc_target;
 	u8 target_gt_len;
 	int rc;
+	struct pn533_cmd_jump_dep *cmd = (struct pn533_cmd_jump_dep *)arg;
+	u8 active = cmd->active;
+
+	kfree(arg);
 
 	if (params_len == -ENOENT) {
 		nfc_dev_dbg(&dev->interface->dev, "");
@@ -1704,7 +1708,6 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	}
 
 	resp = (struct pn533_cmd_jump_dep_response *) params;
-	cmd = (struct pn533_cmd_jump_dep *) arg;
 	rc = resp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
@@ -1734,7 +1737,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	if (rc == 0)
 		rc = nfc_dep_link_is_up(dev->nfc_dev,
 						dev->nfc_dev->targets[0].idx,
-						!cmd->active, NFC_RF_INITIATOR);
+						!active, NFC_RF_INITIATOR);
 
 	return 0;
 }
@@ -1819,12 +1822,8 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
 				dev->in_maxlen,	pn533_in_dep_link_up_complete,
 				cmd, GFP_KERNEL);
-	if (rc)
-		goto out;
-
-
-out:
-	kfree(cmd);
+	if (rc < 0)
+		kfree(cmd);
 
 	return rc;
 }
@@ -2078,7 +2077,11 @@ error:
 static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
 				  u8 *params, int params_len)
 {
+	struct sk_buff *skb_out = arg;
+
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	dev_kfree_skb(skb_out);
 
 	if (params_len < 0) {
 		nfc_dev_err(&dev->interface->dev,
@@ -2117,7 +2120,7 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, dev->in_frame,
 					dev->in_maxlen, pn533_tm_send_complete,
-					NULL, GFP_KERNEL);
+					skb, GFP_KERNEL);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "Error %d when trying to send data", rc);

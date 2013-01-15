@@ -657,8 +657,7 @@ static int gsc_m2m_release(struct file *file)
 	pr_debug("pid: %d, state: 0x%lx, refcnt= %d",
 		task_pid_nr(current), gsc->state, gsc->m2m.refcnt);
 
-	if (mutex_lock_interruptible(&gsc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&gsc->lock);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	gsc_ctrls_delete(ctx);
@@ -732,6 +731,7 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->vdev.ioctl_ops	= &gsc_m2m_ioctl_ops;
 	gsc->vdev.release	= video_device_release_empty;
 	gsc->vdev.lock		= &gsc->lock;
+	gsc->vdev.vfl_dir	= VFL_DIR_M2M;
 	snprintf(gsc->vdev.name, sizeof(gsc->vdev.name), "%s.%d:m2m",
 					GSC_MODULE_NAME, gsc->id);
 

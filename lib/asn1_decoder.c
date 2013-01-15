@@ -91,7 +91,7 @@ next_tag:
 
 	/* Extract the length */
 	len = data[dp++];
-	if (len < 0x7f) {
+	if (len <= 0x7f) {
 		dp += len;
 		goto next_tag;
 	}

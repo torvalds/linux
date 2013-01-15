@@ -1134,4 +1134,4 @@ module_platform_driver(mxcmci_driver);
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-mmc");
+MODULE_ALIAS("platform:mxc-mmc");

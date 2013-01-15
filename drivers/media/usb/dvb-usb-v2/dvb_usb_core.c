@@ -283,14 +283,13 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 
 	/* activate the pid on the device pid filter */
 	if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-			adap->pid_filtering &&
-			adap->props->pid_filter)
+			adap->pid_filtering && adap->props->pid_filter) {
 		ret = adap->props->pid_filter(adap, dvbdmxfeed->index,
 				dvbdmxfeed->pid, (count == 1) ? 1 : 0);
-			if (ret < 0)
-				dev_err(&d->udev->dev, "%s: pid_filter() " \
-						"failed=%d\n", KBUILD_MODNAME,
-						ret);
+		if (ret < 0)
+			dev_err(&d->udev->dev, "%s: pid_filter() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
 
 	/* start feeding if it is first pid */
 	if (adap->feed_count == 1 && count == 1) {

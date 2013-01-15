@@ -24,7 +24,7 @@
 #include "dw_mmc.h"
 
 int dw_mci_pltfm_register(struct platform_device *pdev,
-				struct dw_mci_drv_data *drv_data)
+				const struct dw_mci_drv_data *drv_data)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -50,8 +50,8 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	if (!host->regs)
 		return -ENOMEM;
 
-	if (host->drv_data->init) {
-		ret = host->drv_data->init(host);
+	if (drv_data && drv_data->init) {
+		ret = drv_data->init(host);
 		if (ret)
 			return ret;
 	}

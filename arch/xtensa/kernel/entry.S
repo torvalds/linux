@@ -1833,50 +1833,6 @@ ENTRY(system_call)
 
 
 /*
- * Create a kernel thread
- *
- * int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
- * a2                    a2                 a3             a4
- */
-
-ENTRY(kernel_thread)
-	entry	a1, 16
-
-	mov	a5, a2			# preserve fn over syscall
-	mov	a7, a3			# preserve args over syscall
-
-	movi	a3, _CLONE_VM | _CLONE_UNTRACED
-	movi	a2, __NR_clone
-	or	a6, a4, a3		# arg0: flags
-	mov	a3, a1			# arg1: sp
-	syscall
-
-	beq	a3, a1, 1f		# branch if parent
-	mov	a6, a7			# args
-	callx4	a5			# fn(args)
-
-	movi	a2, __NR_exit
-	syscall				# return value of fn(args) still in a6
-
-1:	retw
-
-/*
- * Do a system call from kernel instead of calling sys_execve, so we end up
- * with proper pt_regs.
- *
- * int kernel_execve(const char *fname, char *const argv[], charg *const envp[])
- * a2                        a2               a3                  a4
- */
-
-ENTRY(kernel_execve)
-	entry	a1, 16
-	mov	a6, a2			# arg0 is in a6
-	movi	a2, __NR_execve
-	syscall
-
-	retw
-
-/*
  * Task switch.
  *
  * struct task*  _switch_to (struct task* prev, struct task* next)
@@ -1958,3 +1914,16 @@ ENTRY(ret_from_fork)
 
 	j	common_exception_return
 
+/*
+ * Kernel thread creation helper
+ * On entry, set up by copy_thread: a2 = thread_fn, a3 = thread_fn arg
+ *           left from _switch_to: a6 = prev
+ */
+ENTRY(ret_from_kernel_thread)
+
+	call4	schedule_tail
+	mov	a6, a3
+	callx4	a2
+	j	common_exception_return
+
+ENDPROC(ret_from_kernel_thread)

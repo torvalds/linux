@@ -2774,10 +2774,12 @@ static void handle_stripe_clean_event(struct r5conf *conf,
 			dev = &sh->dev[i];
 			if (!test_bit(R5_LOCKED, &dev->flags) &&
 			    (test_bit(R5_UPTODATE, &dev->flags) ||
-			     test_and_clear_bit(R5_Discard, &dev->flags))) {
+			     test_bit(R5_Discard, &dev->flags))) {
 				/* We can return any write requests */
 				struct bio *wbi, *wbi2;
 				pr_debug("Return write for disc %d\n", i);
+				if (test_and_clear_bit(R5_Discard, &dev->flags))
+					clear_bit(R5_UPTODATE, &dev->flags);
 				wbi = dev->written;
 				dev->written = NULL;
 				while (wbi && wbi->bi_sector <
@@ -2795,7 +2797,8 @@ static void handle_stripe_clean_event(struct r5conf *conf,
 					 !test_bit(STRIPE_DEGRADED, &sh->state),
 						0);
 			}
-		}
+		} else if (test_bit(R5_Discard, &sh->dev[i].flags))
+			clear_bit(R5_Discard, &sh->dev[i].flags);
 
 	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
 		if (atomic_dec_and_test(&conf->pending_full_writes))
@@ -3490,40 +3493,6 @@ static void handle_stripe(struct stripe_head *sh)
 			handle_failed_sync(conf, sh, &s);
 	}
 
-	/*
-	 * might be able to return some write requests if the parity blocks
-	 * are safe, or on a failed drive
-	 */
-	pdev = &sh->dev[sh->pd_idx];
-	s.p_failed = (s.failed >= 1 && s.failed_num[0] == sh->pd_idx)
-		|| (s.failed >= 2 && s.failed_num[1] == sh->pd_idx);
-	qdev = &sh->dev[sh->qd_idx];
-	s.q_failed = (s.failed >= 1 && s.failed_num[0] == sh->qd_idx)
-		|| (s.failed >= 2 && s.failed_num[1] == sh->qd_idx)
-		|| conf->level < 6;
-
-	if (s.written &&
-	    (s.p_failed || ((test_bit(R5_Insync, &pdev->flags)
-			     && !test_bit(R5_LOCKED, &pdev->flags)
-			     && (test_bit(R5_UPTODATE, &pdev->flags) ||
-				 test_bit(R5_Discard, &pdev->flags))))) &&
-	    (s.q_failed || ((test_bit(R5_Insync, &qdev->flags)
-			     && !test_bit(R5_LOCKED, &qdev->flags)
-			     && (test_bit(R5_UPTODATE, &qdev->flags) ||
-				 test_bit(R5_Discard, &qdev->flags))))))
-		handle_stripe_clean_event(conf, sh, disks, &s.return_bi);
-
-	/* Now we might consider reading some blocks, either to check/generate
-	 * parity, or to satisfy requests
-	 * or to load a block that is being partially written.
-	 */
-	if (s.to_read || s.non_overwrite
-	    || (conf->level == 6 && s.to_write && s.failed)
-	    || (s.syncing && (s.uptodate + s.compute < disks))
-	    || s.replacing
-	    || s.expanding)
-		handle_stripe_fill(sh, &s, disks);
-
 	/* Now we check to see if any write operations have recently
 	 * completed
 	 */
@@ -3560,6 +3529,40 @@ static void handle_stripe(struct stripe_head *sh)
 		if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 			s.dec_preread_active = 1;
 	}
+
+	/*
+	 * might be able to return some write requests if the parity blocks
+	 * are safe, or on a failed drive
+	 */
+	pdev = &sh->dev[sh->pd_idx];
+	s.p_failed = (s.failed >= 1 && s.failed_num[0] == sh->pd_idx)
+		|| (s.failed >= 2 && s.failed_num[1] == sh->pd_idx);
+	qdev = &sh->dev[sh->qd_idx];
+	s.q_failed = (s.failed >= 1 && s.failed_num[0] == sh->qd_idx)
+		|| (s.failed >= 2 && s.failed_num[1] == sh->qd_idx)
+		|| conf->level < 6;
+
+	if (s.written &&
+	    (s.p_failed || ((test_bit(R5_Insync, &pdev->flags)
+			     && !test_bit(R5_LOCKED, &pdev->flags)
+			     && (test_bit(R5_UPTODATE, &pdev->flags) ||
+				 test_bit(R5_Discard, &pdev->flags))))) &&
+	    (s.q_failed || ((test_bit(R5_Insync, &qdev->flags)
+			     && !test_bit(R5_LOCKED, &qdev->flags)
+			     && (test_bit(R5_UPTODATE, &qdev->flags) ||
+				 test_bit(R5_Discard, &qdev->flags))))))
+		handle_stripe_clean_event(conf, sh, disks, &s.return_bi);
+
+	/* Now we might consider reading some blocks, either to check/generate
+	 * parity, or to satisfy requests
+	 * or to load a block that is being partially written.
+	 */
+	if (s.to_read || s.non_overwrite
+	    || (conf->level == 6 && s.to_write && s.failed)
+	    || (s.syncing && (s.uptodate + s.compute < disks))
+	    || s.replacing
+	    || s.expanding)
+		handle_stripe_fill(sh, &s, disks);
 
 	/* Now to consider new write requests and what else, if anything
 	 * should be read.  We do not handle new writes when:
@@ -5529,6 +5532,10 @@ static int run(struct mddev *mddev)
 		 * discard data disk but write parity disk
 		 */
 		stripe = stripe * PAGE_SIZE;
+		/* Round up to power of 2, as discard handling
+		 * currently assumes that */
+		while ((stripe-1) & stripe)
+			stripe = (stripe | (stripe-1)) + 1;
 		mddev->queue->limits.discard_alignment = stripe;
 		mddev->queue->limits.discard_granularity = stripe;
 		/*

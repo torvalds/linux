@@ -398,6 +398,8 @@ static void pci_device_shutdown(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct pci_driver *drv = pci_dev->driver;
 
+	pm_runtime_resume(dev);
+
 	if (drv && drv->shutdown)
 		drv->shutdown(pci_dev);
 	pci_msi_shutdown(pci_dev);
@@ -408,16 +410,6 @@ static void pci_device_shutdown(struct device *dev)
 	 * continue to do DMA
 	 */
 	pci_disable_device(pci_dev);
-
-	/*
-	 * Devices may be enabled to wake up by runtime PM, but they need not
-	 * be supposed to wake up the system from its "power off" state (e.g.
-	 * ACPI S5).  Therefore disable wakeup for all devices that aren't
-	 * supposed to wake up the system at this point.  The state argument
-	 * will be ignored by pci_enable_wake().
-	 */
-	if (!device_may_wakeup(dev))
-		pci_enable_wake(pci_dev, PCI_UNKNOWN, false);
 }
 
 #ifdef CONFIG_PM

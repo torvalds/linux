@@ -325,18 +325,18 @@ void batadv_interface_rx(struct net_device *soft_iface,
 
 	soft_iface->last_rx = jiffies;
 
+	/* Let the bridge loop avoidance check the packet. If will
+	 * not handle it, we can safely push it up.
+	 */
+	if (batadv_bla_rx(bat_priv, skb, vid, is_bcast))
+		goto out;
+
 	if (orig_node)
 		batadv_tt_add_temporary_global_entry(bat_priv, orig_node,
 						     ethhdr->h_source);
 
 	if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest))
 		goto dropped;
-
-	/* Let the bridge loop avoidance check the packet. If will
-	 * not handle it, we can safely push it up.
-	 */
-	if (batadv_bla_rx(bat_priv, skb, vid, is_bcast))
-		goto out;
 
 	netif_rx(skb);
 	goto out;

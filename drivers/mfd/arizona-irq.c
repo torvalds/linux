@@ -178,6 +178,7 @@ int arizona_irq_init(struct arizona *arizona)
 
 		switch (arizona->rev) {
 		case 0:
+		case 1:
 			ctrlif_error = false;
 			break;
 		default:

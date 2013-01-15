@@ -264,7 +264,7 @@ static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
 
 	if (initialized) {
 		if (voltdm->pmic->i2c_high_speed != i2c_high_speed)
-			pr_warn("%s: I2C config for vdd_%s does not match other channels (%u).",
+			pr_warn("%s: I2C config for vdd_%s does not match other channels (%u).\n",
 				__func__, voltdm->name, i2c_high_speed);
 		return;
 	}
