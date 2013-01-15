@@ -883,6 +883,8 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 		goto err4;
 	}
 	printk("rk3188 lcdc%d probe ok!\n",lcdc_dev->id);
+	
+	return 0;
 
 err4:
 	free_irq(lcdc_dev->irq,lcdc_dev);
