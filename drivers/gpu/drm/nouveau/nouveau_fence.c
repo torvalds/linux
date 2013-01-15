@@ -195,11 +195,9 @@ nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
 		return -ENOMEM;
 	kref_init(&fence->kref);
 
-	if (chan) {
-		ret = nouveau_fence_emit(fence, chan);
-		if (ret)
-			nouveau_fence_unref(&fence);
-	}
+	ret = nouveau_fence_emit(fence, chan);
+	if (ret)
+		nouveau_fence_unref(&fence);
 
 	*pfence = fence;
 	return ret;
