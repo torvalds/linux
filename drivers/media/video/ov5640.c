@@ -2946,6 +2946,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
                 if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
                     sensor_af_workqueue_set(icd,WqCmd_af_continues,0,false,NULL); 
                 }
+
+                msleep(300);
             }
             #else   
             msleep(500);
