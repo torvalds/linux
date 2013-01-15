@@ -1406,7 +1406,7 @@ static int fimc_lite_clk_get(struct fimc_lite *fimc)
 	return ret;
 }
 
-static int __devinit fimc_lite_probe(struct platform_device *pdev)
+static int fimc_lite_probe(struct platform_device *pdev)
 {
 	struct flite_drvdata *drv_data = fimc_lite_get_drvdata(pdev);
 	struct fimc_lite *fimc;
@@ -1547,7 +1547,7 @@ static int fimc_lite_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int __devexit fimc_lite_remove(struct platform_device *pdev)
+static int fimc_lite_remove(struct platform_device *pdev)
 {
 	struct fimc_lite *fimc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -1595,7 +1595,7 @@ static const struct dev_pm_ops fimc_lite_pm_ops = {
 
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
-	.remove		= __devexit_p(fimc_lite_remove),
+	.remove		= fimc_lite_remove,
 	.id_table	= fimc_lite_driver_ids,
 	.driver = {
 		.name		= FIMC_LITE_DRV_NAME,

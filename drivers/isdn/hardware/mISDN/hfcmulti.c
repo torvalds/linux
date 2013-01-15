@@ -5274,7 +5274,7 @@ free_card:
 	return ret_err;
 }
 
-static void __devexit hfc_remove_pci(struct pci_dev *pdev)
+static void hfc_remove_pci(struct pci_dev *pdev)
 {
 	struct hfc_multi	*card = pci_get_drvdata(pdev);
 	u_long			flags;
@@ -5351,7 +5351,7 @@ static const struct hm_map hfcm_map[] = {
 
 #undef H
 #define H(x)	((unsigned long)&hfcm_map[x])
-static struct pci_device_id hfmultipci_ids[] __devinitdata = {
+static struct pci_device_id hfmultipci_ids[] = {
 
 	/* Cards with HFC-4S Chip */
 	{ PCI_VENDOR_ID_CCD, PCI_DEVICE_ID_CCD_HFC4S, PCI_VENDOR_ID_CCD,
@@ -5472,7 +5472,7 @@ hfcmulti_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static struct pci_driver hfcmultipci_driver = {
 	.name		= "hfc_multi",
 	.probe		= hfcmulti_probe,
-	.remove		= __devexit_p(hfc_remove_pci),
+	.remove		= hfc_remove_pci,
 	.id_table	= hfmultipci_ids,
 };
 

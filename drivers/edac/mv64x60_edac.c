@@ -100,7 +100,7 @@ static int __init mv64x60_pci_fixup(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
+static int mv64x60_pci_err_probe(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci;
 	struct mv64x60_pci_pdata *pdata;
@@ -221,7 +221,7 @@ static int mv64x60_pci_err_remove(struct platform_device *pdev)
 
 static struct platform_driver mv64x60_pci_err_driver = {
 	.probe = mv64x60_pci_err_probe,
-	.remove = __devexit_p(mv64x60_pci_err_remove),
+	.remove = mv64x60_pci_err_remove,
 	.driver = {
 		   .name = "mv64x60_pci_err",
 	}
@@ -271,7 +271,7 @@ static irqreturn_t mv64x60_sram_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mv64x60_sram_err_probe(struct platform_device *pdev)
+static int mv64x60_sram_err_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *edac_dev;
 	struct mv64x60_sram_pdata *pdata;
@@ -439,7 +439,7 @@ static irqreturn_t mv64x60_cpu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mv64x60_cpu_err_probe(struct platform_device *pdev)
+static int mv64x60_cpu_err_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *edac_dev;
 	struct resource *r;
@@ -697,7 +697,7 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 	dimm->edac_mode = EDAC_SECDED;
 }
 
-static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
+static int mv64x60_mc_err_probe(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];

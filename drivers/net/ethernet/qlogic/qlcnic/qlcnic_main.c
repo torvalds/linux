@@ -1717,7 +1717,7 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static int __devinit
+static int
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -1909,7 +1909,7 @@ err_out_disable_pdev:
 	return err;
 }
 
-static void __devexit qlcnic_remove(struct pci_dev *pdev)
+static void qlcnic_remove(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter;
 	struct net_device *netdev;

@@ -515,7 +515,7 @@ static int acerhdf_suspend(struct device *dev)
 	return 0;
 }
 
-static int __devinit acerhdf_probe(struct platform_device *device)
+static int acerhdf_probe(struct platform_device *device)
 {
 	return 0;
 }

@@ -303,7 +303,7 @@ titan_late_init(void)
 
 }
 
-static int __devinit
+static int
 titan_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	u8 intline;

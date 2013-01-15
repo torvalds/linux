@@ -367,7 +367,7 @@ static const struct ad7266_chan_info ad7266_chan_infos[] = {
 	},
 };
 
-static void __devinit ad7266_init_channels(struct iio_dev *indio_dev)
+static void ad7266_init_channels(struct iio_dev *indio_dev)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
 	bool is_differential, is_signed;
@@ -391,7 +391,7 @@ static const char * const ad7266_gpio_labels[] = {
 	"AD0", "AD1", "AD2",
 };
 
-static int __devinit ad7266_probe(struct spi_device *spi)
+static int ad7266_probe(struct spi_device *spi)
 {
 	struct ad7266_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -411,7 +411,11 @@ static int __devinit ad7266_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg;
 
-		st->vref_uv = regulator_get_voltage(st->reg);
+		ret = regulator_get_voltage(st->reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		st->vref_uv = ret;
 	} else {
 		/* Use internal reference */
 		st->vref_uv = 2500000;
@@ -494,7 +498,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad7266_remove(struct spi_device *spi)
+static int ad7266_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7266_state *st = iio_priv(indio_dev);
@@ -525,7 +529,7 @@ static struct spi_driver ad7266_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7266_probe,
-	.remove		= __devexit_p(ad7266_remove),
+	.remove		= ad7266_remove,
 	.id_table	= ad7266_id,
 };
 module_spi_driver(ad7266_driver);

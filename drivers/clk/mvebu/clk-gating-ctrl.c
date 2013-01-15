@@ -32,7 +32,7 @@ struct mvebu_soc_descr {
 
 #define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
-static struct clk __init *mvebu_clk_gating_get_src(
+static struct clk *mvebu_clk_gating_get_src(
 	struct of_phandle_args *clkspec, void *data)
 {
 	struct mvebu_gating_ctrl *ctrl = (struct mvebu_gating_ctrl *)data;

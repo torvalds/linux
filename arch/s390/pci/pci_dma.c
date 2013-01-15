@@ -13,8 +13,6 @@
 #include <linux/pci.h>
 #include <asm/pci_dma.h>
 
-static enum zpci_ioat_dtype zpci_ioat_dt = ZPCI_IOTA_RTTO;
-
 static struct kmem_cache *dma_region_table_cache;
 static struct kmem_cache *dma_page_table_cache;
 

@@ -291,11 +291,15 @@ EXPORT_SYMBOL_GPL(ima_file_check);
  */
 int ima_module_check(struct file *file)
 {
-	int rc;
+	int rc = 0;
 
-	if (!file)
-		rc = INTEGRITY_UNKNOWN;
-	else
+	if (!file) {
+		if (ima_appraise & IMA_APPRAISE_MODULES) {
+#ifndef CONFIG_MODULE_SIG_FORCE
+			rc = -EACCES;	/* INTEGRITY_UNKNOWN */
+#endif
+		}
+	} else
 		rc = process_measurement(file, file->f_dentry->d_name.name,
 					 MAY_EXEC, MODULE_CHECK);
 	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;

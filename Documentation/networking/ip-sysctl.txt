@@ -36,7 +36,7 @@ neigh/default/unres_qlen_bytes - INTEGER
 	The maximum number of bytes which may be used by packets
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
-	Seting negative value is meaningless and will retrun error.
+	Setting negative value is meaningless and will return error.
 	Default: 65536 Bytes(64KB)
 
 neigh/default/unres_qlen - INTEGER
@@ -504,7 +504,7 @@ tcp_fastopen - INTEGER
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
-	is 6, which corresponds to 63seconds till the last restransmission
+	is 6, which corresponds to 63seconds till the last retransmission
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
 
@@ -1332,6 +1332,12 @@ force_tllao - BOOLEAN
 	race condition where the sender deletes the cached link-layer address
 	prior to receiving a response to a previous solicitation."
 
+ndisc_notify - BOOLEAN
+	Define mode for notification of address and device changes.
+	0 - (default): do nothing
+	1 - Generate unsolicited neighbour advertisements when device is brought
+	    up or hardware address changes.
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
@@ -1531,7 +1537,7 @@ cookie_hmac_alg - STRING
 	* sha1
 	* none
 	Ability to assign md5 or sha1 as the selected alg is predicated on the
-	configuarion of those algorithms at build time (CONFIG_CRYPTO_MD5 and
+	configuration of those algorithms at build time (CONFIG_CRYPTO_MD5 and
 	CONFIG_CRYPTO_SHA1).
 
 	Default: Dependent on configuration.  MD5 if available, else SHA1 if
@@ -1549,7 +1555,7 @@ rcvbuf_policy - INTEGER
 	blocking.
 
 	1: rcvbuf space is per association
-	0: recbuf space is per socket
+	0: rcvbuf space is per socket
 
 	Default: 0
 

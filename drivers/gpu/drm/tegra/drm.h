@@ -204,24 +204,6 @@ extern int tegra_output_parse_dt(struct tegra_output *output);
 extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
 extern int tegra_output_exit(struct tegra_output *output);
 
-/* from gem.c */
-extern struct tegra_gem_object *tegra_gem_alloc(struct drm_device *drm,
-						size_t size);
-extern int tegra_gem_handle_create(struct drm_device *drm,
-				   struct drm_file *file, size_t size,
-				   unsigned long flags, uint32_t *handle);
-extern int tegra_gem_dumb_create(struct drm_file *file, struct drm_device *drm,
-				 struct drm_mode_create_dumb *args);
-extern int tegra_gem_dumb_map_offset(struct drm_file *file,
-				     struct drm_device *drm, uint32_t handle,
-				     uint64_t *offset);
-extern int tegra_gem_dumb_destroy(struct drm_file *file,
-				  struct drm_device *drm, uint32_t handle);
-extern int tegra_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-extern int tegra_gem_init_object(struct drm_gem_object *obj);
-extern void tegra_gem_free_object(struct drm_gem_object *obj);
-extern struct vm_operations_struct tegra_gem_vm_ops;
-
 /* from fb.c */
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);

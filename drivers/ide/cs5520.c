@@ -94,7 +94,7 @@ static const struct ide_port_ops cs5520_port_ops = {
 	.set_dma_mode		= cs5520_set_dma_mode,
 };
 
-static const struct ide_port_info cyrix_chipset __devinitconst = {
+static const struct ide_port_info cyrix_chipset = {
 	.name		= DRV_NAME,
 	.enablebits	= { { 0x60, 0x01, 0x01 }, { 0x60, 0x02, 0x02 } },
 	.port_ops	= &cs5520_port_ops,
@@ -108,7 +108,7 @@ static const struct ide_port_info cyrix_chipset __devinitconst = {
  *	work longhand.
  */
  
-static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &cyrix_chipset;
 	struct ide_hw hw[2], *hws[] = { NULL, NULL };

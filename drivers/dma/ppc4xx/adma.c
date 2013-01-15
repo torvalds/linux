@@ -4592,7 +4592,7 @@ out:
 /**
  * ppc440spe_adma_remove - remove the asynch device
  */
-static int __devexit ppc440spe_adma_remove(struct platform_device *ofdev)
+static int ppc440spe_adma_remove(struct platform_device *ofdev)
 {
 	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
 	struct device_node *np = ofdev->dev.of_node;
@@ -4905,7 +4905,7 @@ out_free:
 	return ret;
 }
 
-static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
+static const struct of_device_id ppc440spe_adma_of_match[] = {
 	{ .compatible	= "ibm,dma-440spe", },
 	{ .compatible	= "amcc,xor-accelerator", },
 	{},

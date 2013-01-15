@@ -185,6 +185,7 @@ struct tun_struct {
 	unsigned long ageing_time;
 	unsigned int numdisabled;
 	struct list_head disabled;
+	void *security;
 };
 
 static inline u32 tun_hashfn(u32 rxhash)
@@ -404,8 +405,8 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 	struct tun_struct *tun;
 	struct net_device *dev;
 
-	tun = rcu_dereference_protected(tfile->tun,
-					lockdep_rtnl_is_held());
+	tun = rtnl_dereference(tfile->tun);
+
 	if (tun) {
 		u16 index = tfile->queue_index;
 		BUG_ON(index >= tun->numqueues);
@@ -414,8 +415,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		rcu_assign_pointer(tun->tfiles[index],
 				   tun->tfiles[tun->numqueues - 1]);
 		rcu_assign_pointer(tfile->tun, NULL);
-		ntfile = rcu_dereference_protected(tun->tfiles[index],
-						   lockdep_rtnl_is_held());
+		ntfile = rtnl_dereference(tun->tfiles[index]);
 		ntfile->queue_index = index;
 
 		--tun->numqueues;
@@ -429,8 +429,10 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		/* Drop read queue */
 		skb_queue_purge(&tfile->sk.sk_receive_queue);
 		tun_set_real_num_queues(tun);
-	} else if (tfile->detached && clean)
+	} else if (tfile->detached && clean) {
 		tun = tun_enable_queue(tfile);
+		sock_put(&tfile->sk);
+	}
 
 	if (clean) {
 		if (tun && tun->numqueues == 0 && tun->numdisabled == 0 &&
@@ -458,8 +460,7 @@ static void tun_detach_all(struct net_device *dev)
 	int i, n = tun->numqueues;
 
 	for (i = 0; i < n; i++) {
-		tfile = rcu_dereference_protected(tun->tfiles[i],
-						  lockdep_rtnl_is_held());
+		tfile = rtnl_dereference(tun->tfiles[i]);
 		BUG_ON(!tfile);
 		wake_up_all(&tfile->wq.wait);
 		rcu_assign_pointer(tfile->tun, NULL);
@@ -469,8 +470,7 @@ static void tun_detach_all(struct net_device *dev)
 
 	synchronize_net();
 	for (i = 0; i < n; i++) {
-		tfile = rcu_dereference_protected(tun->tfiles[i],
-						  lockdep_rtnl_is_held());
+		tfile = rtnl_dereference(tun->tfiles[i]);
 		/* Drop read queue */
 		skb_queue_purge(&tfile->sk.sk_receive_queue);
 		sock_put(&tfile->sk);
@@ -481,6 +481,9 @@ static void tun_detach_all(struct net_device *dev)
 		sock_put(&tfile->sk);
 	}
 	BUG_ON(tun->numdisabled != 0);
+
+	if (tun->flags & TUN_PERSIST)
+		module_put(THIS_MODULE);
 }
 
 static int tun_attach(struct tun_struct *tun, struct file *file)
@@ -488,8 +491,12 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	struct tun_file *tfile = file->private_data;
 	int err;
 
+	err = security_tun_dev_attach(tfile->socket.sk, tun->security);
+	if (err < 0)
+		goto out;
+
 	err = -EINVAL;
-	if (rcu_dereference_protected(tfile->tun, lockdep_rtnl_is_held()))
+	if (rtnl_dereference(tfile->tun))
 		goto out;
 
 	err = -EBUSY;
@@ -1371,6 +1378,7 @@ static void tun_free_netdev(struct net_device *dev)
 
 	BUG_ON(!(list_empty(&tun->disabled)));
 	tun_flow_uninit(tun);
+	security_tun_dev_free_security(tun->security);
 	free_netdev(dev);
 }
 
@@ -1544,6 +1552,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct net_device *dev;
 	int err;
 
+	if (tfile->detached)
+		return -EINVAL;
+
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
@@ -1557,7 +1568,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (tun_not_capable(tun))
 			return -EPERM;
-		err = security_tun_dev_attach(tfile->socket.sk);
+		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
 
@@ -1614,7 +1625,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		spin_lock_init(&tun->lock);
 
-		security_tun_dev_post_create(&tfile->sk);
+		err = security_tun_dev_alloc_security(&tun->security);
+		if (err < 0)
+			goto err_free_dev;
 
 		tun_net_init(dev);
 
@@ -1738,8 +1751,7 @@ static void tun_detach_filter(struct tun_struct *tun, int n)
 	struct tun_file *tfile;
 
 	for (i = 0; i < n; i++) {
-		tfile = rcu_dereference_protected(tun->tfiles[i],
-						  lockdep_rtnl_is_held());
+		tfile = rtnl_dereference(tun->tfiles[i]);
 		sk_detach_filter(tfile->socket.sk);
 	}
 
@@ -1752,8 +1764,7 @@ static int tun_attach_filter(struct tun_struct *tun)
 	struct tun_file *tfile;
 
 	for (i = 0; i < tun->numqueues; i++) {
-		tfile = rcu_dereference_protected(tun->tfiles[i],
-						  lockdep_rtnl_is_held());
+		tfile = rtnl_dereference(tun->tfiles[i]);
 		ret = sk_attach_filter(&tun->fprog, tfile->socket.sk);
 		if (ret) {
 			tun_detach_filter(tun, i);
@@ -1771,8 +1782,7 @@ static void tun_set_sndbuf(struct tun_struct *tun)
 	int i;
 
 	for (i = 0; i < tun->numqueues; i++) {
-		tfile = rcu_dereference_protected(tun->tfiles[i],
-						lockdep_rtnl_is_held());
+		tfile = rtnl_dereference(tun->tfiles[i]);
 		tfile->socket.sk->sk_sndbuf = tun->sndbuf;
 	}
 }
@@ -1787,15 +1797,16 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 
 	if (ifr->ifr_flags & IFF_ATTACH_QUEUE) {
 		tun = tfile->detached;
-		if (!tun)
+		if (!tun) {
 			ret = -EINVAL;
-		else if (tun_not_capable(tun))
-			ret = -EPERM;
-		else
-			ret = tun_attach(tun, file);
+			goto unlock;
+		}
+		ret = security_tun_dev_attach_queue(tun->security);
+		if (ret < 0)
+			goto unlock;
+		ret = tun_attach(tun, file);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
-		tun = rcu_dereference_protected(tfile->tun,
-						lockdep_rtnl_is_held());
+		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & TUN_TAP_MQ))
 			ret = -EINVAL;
 		else
@@ -1803,6 +1814,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 	} else
 		ret = -EINVAL;
 
+unlock:
 	rtnl_unlock();
 	return ret;
 }
@@ -1880,10 +1892,11 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Disable/Enable persist mode. Keep an extra reference to the
 		 * module to prevent the module being unprobed.
 		 */
-		if (arg) {
+		if (arg && !(tun->flags & TUN_PERSIST)) {
 			tun->flags |= TUN_PERSIST;
 			__module_get(THIS_MODULE);
-		} else {
+		}
+		if (!arg && (tun->flags & TUN_PERSIST)) {
 			tun->flags &= ~TUN_PERSIST;
 			module_put(THIS_MODULE);
 		}

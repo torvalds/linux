@@ -897,6 +897,25 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 }
 
 /**
+ * radeon_switcheroo_quirk_long_wakeup - return true if longer d3 delay is
+ * needed for waking up.
+ *
+ * @pdev: pci dev pointer
+ */
+static bool radeon_switcheroo_quirk_long_wakeup(struct pci_dev *pdev)
+{
+
+	/* 6600m in a macbook pro */
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
+	    pdev->subsystem_device == 0x00e2) {
+		printk(KERN_INFO "radeon: quirking longer d3 wakeup delay\n");
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * radeon_switcheroo_set_state - set switcheroo state
  *
  * @pdev: pci dev pointer
@@ -910,10 +929,19 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
+		unsigned d3_delay = dev->pdev->d3_delay;
+
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
+
+		if (d3_delay < 20 && radeon_switcheroo_quirk_long_wakeup(pdev))
+			dev->pdev->d3_delay = 20;
+
 		radeon_resume_kms(dev);
+
+		dev->pdev->d3_delay = d3_delay;
+
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
 	} else {
@@ -1164,6 +1192,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
 	int i, r;
+	bool force_completion = false;
 
 	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
@@ -1206,8 +1235,16 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 	mutex_lock(&rdev->ring_lock);
 	/* wait for gpu to finish processing current batch */
-	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_empty_locked(rdev, i);
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		r = radeon_fence_wait_empty_locked(rdev, i);
+		if (r) {
+			/* delay GPU reset to resume */
+			force_completion = true;
+		}
+	}
+	if (force_completion) {
+		radeon_fence_driver_force_completion(rdev);
+	}
 	mutex_unlock(&rdev->ring_lock);
 
 	radeon_save_bios_scratch_regs(rdev);
@@ -1338,7 +1375,6 @@ retry:
 	}
 
 	radeon_restore_bios_scratch_regs(rdev);
-	drm_helper_resume_force_mode(rdev->ddev);
 
 	if (!r) {
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -1358,10 +1394,13 @@ retry:
 			}
 		}
 	} else {
+		radeon_fence_driver_force_completion(rdev);
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 			kfree(ring_data[i]);
 		}
 	}
+
+	drm_helper_resume_force_mode(rdev->ddev);
 
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	if (r) {

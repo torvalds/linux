@@ -148,8 +148,7 @@ NETjet_S_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-static int __devinit njs_pci_probe(struct pci_dev *dev_netjet,
-				   struct IsdnCardState *cs)
+static int njs_pci_probe(struct pci_dev *dev_netjet, struct IsdnCardState *cs)
 {
 	u32 cfg;
 
@@ -187,8 +186,7 @@ static int __devinit njs_pci_probe(struct pci_dev *dev_netjet,
 	return (1);
 }
 
-static int __devinit njs_cs_init(struct IsdnCard *card,
-				 struct IsdnCardState *cs)
+static int njs_cs_init(struct IsdnCard *card, struct IsdnCardState *cs)
 {
 
 	cs->hw.njet.auxa = cs->hw.njet.base + NETJET_AUXDATA;
@@ -225,8 +223,7 @@ static int __devinit njs_cs_init(struct IsdnCard *card,
 	return 1;			/* end loop */
 }
 
-static int __devinit njs_cs_init_rest(struct IsdnCard *card,
-				      struct IsdnCardState *cs)
+static int njs_cs_init_rest(struct IsdnCard *card, struct IsdnCardState *cs)
 {
 	const int bytecnt = 256;
 
@@ -256,10 +253,9 @@ static int __devinit njs_cs_init_rest(struct IsdnCard *card,
 	return (1);
 }
 
-static struct pci_dev *dev_netjet __devinitdata = NULL;
+static struct pci_dev *dev_netjet = NULL;
 
-int __devinit
-setup_netjet_s(struct IsdnCard *card)
+int setup_netjet_s(struct IsdnCard *card)
 {
 	int ret;
 	struct IsdnCardState *cs = card->cs;

@@ -447,6 +447,7 @@ nouveau_bios_ctor(struct nouveau_object *parent,
 		bios->version.chip  = nv_ro08(bios, bit_i.offset + 2);
 		bios->version.minor = nv_ro08(bios, bit_i.offset + 1);
 		bios->version.micro = nv_ro08(bios, bit_i.offset + 0);
+		bios->version.patch = nv_ro08(bios, bit_i.offset + 4);
 	} else
 	if (bmp_version(bios)) {
 		bios->version.major = nv_ro08(bios, bios->bmp_offset + 13);
@@ -455,9 +456,9 @@ nouveau_bios_ctor(struct nouveau_object *parent,
 		bios->version.micro = nv_ro08(bios, bios->bmp_offset + 10);
 	}
 
-	nv_info(bios, "version %02x.%02x.%02x.%02x\n",
+	nv_info(bios, "version %02x.%02x.%02x.%02x.%02x\n",
 		bios->version.major, bios->version.chip,
-		bios->version.minor, bios->version.micro);
+		bios->version.minor, bios->version.micro, bios->version.patch);
 
 	return 0;
 }

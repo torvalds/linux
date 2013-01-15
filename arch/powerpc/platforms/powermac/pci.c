@@ -561,7 +561,7 @@ static struct pci_ops u4_pcie_pci_ops =
 	.write = u4_pcie_write_config,
 };
 
-static void __devinit pmac_pci_fixup_u4_of_node(struct pci_dev *dev)
+static void pmac_pci_fixup_u4_of_node(struct pci_dev *dev)
 {
 	/* Apple's device-tree "hides" the root complex virtual P2P bridge
 	 * on U4. However, Linux sees it, causing the PCI <-> OF matching
@@ -988,7 +988,7 @@ static int __init pmac_add_bridge(struct device_node *dev)
 	return 0;
 }
 
-void __devinit pmac_pci_irq_fixup(struct pci_dev *dev)
+void pmac_pci_irq_fixup(struct pci_dev *dev)
 {
 #ifdef CONFIG_PPC32
 	/* Fixup interrupt for the modem/ethernet combo controller.
@@ -1138,7 +1138,7 @@ int pmac_pci_enable_device_hook(struct pci_dev *dev)
 	return 0;
 }
 
-void __devinit pmac_pci_fixup_ohci(struct pci_dev *dev)
+void pmac_pci_fixup_ohci(struct pci_dev *dev)
 {
 	struct device_node *node = pci_device_to_OF_node(dev);
 

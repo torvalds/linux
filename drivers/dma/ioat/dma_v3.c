@@ -836,7 +836,7 @@ ioat3_prep_interrupt_lock(struct dma_chan *c, unsigned long flags)
 	return &desc->txd;
 }
 
-static void __devinit ioat3_dma_test_callback(void *dma_async_param)
+static void ioat3_dma_test_callback(void *dma_async_param)
 {
 	struct completion *cmp = dma_async_param;
 
@@ -844,7 +844,7 @@ static void __devinit ioat3_dma_test_callback(void *dma_async_param)
 }
 
 #define IOAT_NUM_SRC_TEST 6 /* must be <= 8 */
-static int __devinit ioat_xor_val_self_test(struct ioatdma_device *device)
+static int ioat_xor_val_self_test(struct ioatdma_device *device)
 {
 	int i, src_idx;
 	struct page *dest;
@@ -1096,7 +1096,7 @@ out:
 	return err;
 }
 
-static int __devinit ioat3_dma_self_test(struct ioatdma_device *device)
+static int ioat3_dma_self_test(struct ioatdma_device *device)
 {
 	int rc = ioat_dma_self_test(device);
 
@@ -1187,7 +1187,7 @@ static bool is_snb_ioat(struct pci_dev *pdev)
 	}
 }
 
-int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
+int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
 	int dca_en = system_has_dca_enabled(pdev);

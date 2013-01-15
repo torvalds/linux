@@ -780,6 +780,7 @@ typedef struct drm_i915_private {
 		struct i915_hw_ppgtt *aliasing_ppgtt;
 
 		struct shrinker inactive_shrinker;
+		bool shrinker_no_lock_stealing;
 
 		/**
 		 * List of objects currently involved in rendering.
@@ -1100,6 +1101,7 @@ struct drm_i915_gem_object {
 	 */
 	atomic_t pending_flip;
 };
+#define to_gem_object(obj) (&((struct drm_i915_gem_object *)(obj))->base)
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
@@ -1166,6 +1168,9 @@ struct drm_i915_file_private {
 #define IS_IVB_GT1(dev)		((dev)->pci_device == 0x0156 || \
 				 (dev)->pci_device == 0x0152 ||	\
 				 (dev)->pci_device == 0x015a)
+#define IS_SNB_GT1(dev)		((dev)->pci_device == 0x0102 || \
+				 (dev)->pci_device == 0x0106 ||	\
+				 (dev)->pci_device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
@@ -1195,6 +1200,9 @@ struct drm_i915_file_private {
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
+
+/* Early gen2 have a totally busted CS tlb and require pinned batches. */
+#define HAS_BROKEN_CS_TLB(dev)		(IS_I830(dev) || IS_845G(dev))
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.

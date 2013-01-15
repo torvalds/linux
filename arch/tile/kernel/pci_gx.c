@@ -58,10 +58,10 @@
 #define TRACE_CFG_RD(...)
 #endif
 
-static int __devinitdata pci_probe = 1;
+static int pci_probe = 1;
 
 /* Information on the PCIe RC ports configuration. */
-static int __devinitdata pcie_rc[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
+static int pcie_rc[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 
 /*
  * On some platforms with one or more Gx endpoint ports, we need to
@@ -72,7 +72,7 @@ static int __devinitdata pcie_rc[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
  * the delay in seconds. If the delay is not provided, the value
  * will be DEFAULT_RC_DELAY.
  */
-static int __devinitdata rc_delay[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
+static int rc_delay[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 
 /* Default number of seconds that the PCIe RC port probe can be delayed. */
 #define DEFAULT_RC_DELAY	10
@@ -137,7 +137,7 @@ static int tile_irq_cpu(int irq)
 /*
  * Open a file descriptor to the TRIO shim.
  */
-static int __devinit tile_pcie_open(int trio_index)
+static int tile_pcie_open(int trio_index)
 {
 	gxio_trio_context_t *context = &trio_contexts[trio_index];
 	int ret;
@@ -265,7 +265,7 @@ trio_handle_level_irq(unsigned int irq, struct irq_desc *desc)
  * Create kernel irqs and set up the handlers for the legacy interrupts.
  * Also some minimum initialization for the MSI support.
  */
-static int __devinit tile_init_irqs(struct pci_controller *controller)
+static int tile_init_irqs(struct pci_controller *controller)
 {
 	int i;
 	int j;
@@ -459,8 +459,7 @@ static int tile_map_irq(const struct pci_dev *dev, u8 device, u8 pin)
 }
 
 
-static void __devinit fixup_read_and_payload_sizes(struct pci_controller *
-						controller)
+static void fixup_read_and_payload_sizes(struct pci_controller *controller)
 {
 	gxio_trio_context_t *trio_context = controller->trio;
 	struct pci_bus *root_bus = controller->root_bus;
@@ -541,7 +540,7 @@ static void __devinit fixup_read_and_payload_sizes(struct pci_controller *
 	}
 }
 
-static int __devinit setup_pcie_rc_delay(char *str)
+static int setup_pcie_rc_delay(char *str)
 {
 	unsigned long delay = 0;
 	unsigned long trio_index;
@@ -1016,7 +1015,7 @@ alloc_mem_map_failed:
 subsys_initcall(pcibios_init);
 
 /* Note: to be deleted after Linux 3.6 merge. */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 }
 
@@ -1024,7 +1023,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  * This can be called from the generic PCI layer, but doesn't need to
  * do anything.
  */
-char __devinit *pcibios_setup(char *str)
+char *pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
@@ -1143,11 +1142,8 @@ EXPORT_SYMBOL(pci_iounmap);
  * specified bus & device.
  */
 
-static int __devinit tile_cfg_read(struct pci_bus *bus,
-				   unsigned int devfn,
-				   int offset,
-				   int size,
-				   u32 *val)
+static int tile_cfg_read(struct pci_bus *bus, unsigned int devfn, int offset,
+			 int size, u32 *val)
 {
 	struct pci_controller *controller = bus->sysdata;
 	gxio_trio_context_t *trio_context = controller->trio;
@@ -1271,11 +1267,8 @@ invalid_device:
  * See tile_cfg_read() for relevent comments.
  * Note that "val" is the value to write, not a pointer to that value.
  */
-static int __devinit tile_cfg_write(struct pci_bus *bus,
-				    unsigned int devfn,
-				    int offset,
-				    int size,
-				    u32 val)
+static int tile_cfg_write(struct pci_bus *bus, unsigned int devfn, int offset,
+			  int size, u32 val)
 {
 	struct pci_controller *controller = bus->sysdata;
 	gxio_trio_context_t *trio_context = controller->trio;

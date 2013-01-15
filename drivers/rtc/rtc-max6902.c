@@ -120,7 +120,7 @@ static const struct rtc_class_ops max6902_rtc_ops = {
 	.set_time	= max6902_set_time,
 };
 
-static int __devinit max6902_probe(struct spi_device *spi)
+static int max6902_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	unsigned char tmp;
@@ -143,7 +143,7 @@ static int __devinit max6902_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit max6902_remove(struct spi_device *spi)
+static int max6902_remove(struct spi_device *spi)
 {
 	struct rtc_device *rtc = dev_get_drvdata(&spi->dev);
 
@@ -157,7 +157,7 @@ static struct spi_driver max6902_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= max6902_probe,
-	.remove = __devexit_p(max6902_remove),
+	.remove = max6902_remove,
 };
 
 module_spi_driver(max6902_driver);

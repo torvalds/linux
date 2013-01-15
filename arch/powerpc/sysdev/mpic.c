@@ -1864,7 +1864,7 @@ int __init smp_mpic_probe(void)
 	return nr_cpus;
 }
 
-void __devinit smp_mpic_setup_cpu(int cpu)
+void smp_mpic_setup_cpu(int cpu)
 {
 	mpic_setup_this_cpu();
 }
