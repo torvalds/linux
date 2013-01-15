@@ -53,6 +53,7 @@ then
 	export DEBFULLNAME='Jon Medhurst (Tixy)'
 fi
 dch -i -c debian/changelog CHANGE_MSG
+dch -r -c debian/changelog ""
 
 TIMESTAMP="$(date -u +%Y%m%d%H%M%S)"
 sed -i -e "1 s/ubuntu1/-$TIMESTAMP/" debian/changelog
