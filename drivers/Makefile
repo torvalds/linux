@@ -44,6 +44,7 @@ obj-$(CONFIG_RESET_CONTROLLER)	+= reset/
 # default.
 obj-y				+= tty/
 obj-y				+= char/
+obj-$(CONFIG_FPGA)		+= fpga/
 
 # gpu/ comes after char for AGP vs DRM startup
 obj-y				+= gpu/
