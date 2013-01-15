@@ -1284,6 +1284,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, err, badness;
+	unsigned int val;
 
 	/* set num_dacs once to full for look_for_dac() */
 	spec->multiout.num_dacs = cfg->line_outs;
@@ -1421,13 +1422,18 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				   spec->speaker_paths);
 
 	/* set initial pinctl targets */
-	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins,
-			cfg->line_out_type == AUTO_PIN_HP_OUT ? PIN_HP : PIN_OUT);
+	if (spec->prefer_hp_amp || cfg->line_out_type == AUTO_PIN_HP_OUT)
+		val = PIN_HP;
+	else
+		val = PIN_OUT;
+	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins, val);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
 		set_pin_targets(codec, cfg->hp_outs, cfg->hp_pins, PIN_HP);
-	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		val = spec->prefer_hp_amp ? PIN_HP : PIN_OUT;
 		set_pin_targets(codec, cfg->speaker_outs,
-				cfg->speaker_pins, PIN_OUT);
+				cfg->speaker_pins, val);
+	}
 
 	return badness;
 }
