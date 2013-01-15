@@ -1594,7 +1594,9 @@ int __init kvmppc_booke_init(void)
 {
 #ifndef CONFIG_KVM_BOOKE_HV
 	unsigned long ivor[16];
+	unsigned long *handler = kvmppc_booke_handler_addr;
 	unsigned long max_ivor = 0;
+	unsigned long handler_len;
 	int i;
 
 	/* We install our own exception handlers by hijacking IVPR. IVPR must
@@ -1627,14 +1629,16 @@ int __init kvmppc_booke_init(void)
 
 	for (i = 0; i < 16; i++) {
 		if (ivor[i] > max_ivor)
-			max_ivor = ivor[i];
+			max_ivor = i;
 
+		handler_len = handler[i + 1] - handler[i];
 		memcpy((void *)kvmppc_booke_handlers + ivor[i],
-		       kvmppc_handlers_start + i * kvmppc_handler_len,
-		       kvmppc_handler_len);
+		       (void *)handler[i], handler_len);
 	}
-	flush_icache_range(kvmppc_booke_handlers,
-	                   kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
+
+	handler_len = handler[max_ivor + 1] - handler[max_ivor];
+	flush_icache_range(kvmppc_booke_handlers, kvmppc_booke_handlers +
+			   ivor[max_ivor] + handler_len);
 #endif /* !BOOKE_HV */
 	return 0;
 }
