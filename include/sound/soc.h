@@ -1171,6 +1171,8 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
+unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
+				     const char *prefix);
 
 #include <sound/soc-dai.h>
 
