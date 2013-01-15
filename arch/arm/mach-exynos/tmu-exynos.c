@@ -64,7 +64,7 @@ static int get_cur_temp(struct tmu_info *info)
 
 	/* compensate and calculate current temperature */
 	temperature = curr_temp - info->te1 + TMU_DC_VALUE;
-	if (temperature < 10) {
+	if (temperature < 5) {
 		/* temperature code range are between min 10 and 125 */
 		pr_alert("Current temperature is in inaccurate range->"
 			" check if vdd_18_ts is on or room temperature.\n");
