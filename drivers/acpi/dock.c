@@ -339,7 +339,7 @@ static void dock_remove_acpi_device(acpi_handle handle)
 	int ret;
 
 	if (!acpi_bus_get_device(handle, &device)) {
-		ret = acpi_bus_trim(device, 1);
+		ret = acpi_bus_trim(device);
 		if (ret)
 			pr_debug("error removing bus, %x\n", -ret);
 	}

@@ -742,7 +742,7 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 		/* this shouldn't be in here, so remove
 		 * the bus then re-add it...
 		 */
-		ret_val = acpi_bus_trim(device, 1);
+		ret_val = acpi_bus_trim(device);
 		dbg("acpi_bus_trim return %x\n", ret_val);
 	}
 
@@ -772,7 +772,7 @@ static int acpiphp_bus_trim(acpi_handle handle)
 		return retval;
 	}
 
-	retval = acpi_bus_trim(device, 1);
+	retval = acpi_bus_trim(device);
 	if (retval)
 		err("cannot remove from acpi list\n");
 

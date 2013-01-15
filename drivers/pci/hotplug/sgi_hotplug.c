@@ -535,7 +535,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 				ret = acpi_bus_get_device(chandle,
 							  &device);
 				if (ACPI_SUCCESS(ret))
-					acpi_bus_trim(device, 1);
+					acpi_bus_trim(device);
 			}
 		}
 

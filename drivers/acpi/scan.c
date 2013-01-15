@@ -133,7 +133,7 @@ void acpi_bus_hot_remove_device(void *context)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
-	if (acpi_bus_trim(device, 1)) {
+	if (acpi_bus_trim(device)) {
 		printk(KERN_ERR PREFIX
 				"Removing device failed\n");
 		goto err_out;
@@ -1374,16 +1374,13 @@ static int acpi_device_set_context(struct acpi_device *device)
 	return -ENODEV;
 }
 
-static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
+static int acpi_bus_remove(struct acpi_device *dev)
 {
 	if (!dev)
 		return -EINVAL;
 
 	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
 	device_release_driver(&dev->dev);
-
-	if (!rmdevice)
-		return 0;
 
 	acpi_device_unregister(dev);
 
@@ -1642,7 +1639,7 @@ int acpi_bus_add(acpi_handle handle)
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
-int acpi_bus_trim(struct acpi_device *start, int rmdevice)
+int acpi_bus_trim(struct acpi_device *start)
 {
 	acpi_status status;
 	struct acpi_device *parent, *child;
@@ -1668,12 +1665,7 @@ int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 			acpi_get_parent(phandle, &phandle);
 			child = parent;
 			parent = parent->parent;
-
-			if (level == 0)
-				err = acpi_bus_remove(child, rmdevice);
-			else
-				err = acpi_bus_remove(child, 1);
-
+			err = acpi_bus_remove(child);
 			continue;
 		}
 
