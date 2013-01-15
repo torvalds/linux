@@ -150,16 +150,6 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 
 	u32 val = readl(host->ioaddr + reg);
 
-	if (unlikely(reg == SDHCI_PRESENT_STATE)) {
-		/*
-		 * After SDHCI core gets improved to never query
-		 * SDHCI_CARD_PRESENT state in GPIO case, we can
-		 * remove this check.
-		 */
-		if (boarddata->cd_type == ESDHC_CD_GPIO)
-			val &= ~SDHCI_CARD_PRESENT;
-	}
-
 	if (unlikely(reg == SDHCI_CAPABILITIES)) {
 		/* In FSL esdhc IC module, only bit20 is used to indicate the
 		 * ADMA2 capability of esdhc, but this bit is messed up on
@@ -192,13 +182,6 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 	u32 data;
 
 	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)) {
-		if (boarddata->cd_type == ESDHC_CD_GPIO)
-			/*
-			 * These interrupts won't work with a custom
-			 * card_detect gpio (only applied to mx25/35)
-			 */
-			val &= ~(SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT);
-
 		if (val & SDHCI_INT_CARD_INT) {
 			/*
 			 * Clear and then set D3CD bit to avoid missing the
