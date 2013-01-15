@@ -26,7 +26,25 @@ struct zpodd {
 	bool			zp_ready; /* ZP ready state */
 	unsigned long		last_ready; /* last ZP ready timestamp */
 	bool			zp_sampled; /* ZP ready state sampled */
+	bool			powered_off; /* ODD is powered off
+					      *	during suspend */
 };
+
+static int eject_tray(struct ata_device *dev)
+{
+	struct ata_taskfile tf = {};
+	const char cdb[] = {  GPCMD_START_STOP_UNIT,
+		0, 0, 0,
+		0x02,     /* LoEj */
+		0, 0, 0, 0, 0, 0, 0,
+	};
+
+	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.command = ATA_CMD_PACKET;
+	tf.protocol = ATAPI_PROT_NODATA;
+
+	return ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
+}
 
 /* Per the spec, only slot type and drawer type ODD can be supported */
 static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
@@ -147,6 +165,71 @@ void zpodd_on_suspend(struct ata_device *dev)
 		return;
 
 	zpodd->zp_ready = true;
+}
+
+bool zpodd_zpready(struct ata_device *dev)
+{
+	struct zpodd *zpodd = dev->zpodd;
+	return zpodd->zp_ready;
+}
+
+/*
+ * Enable runtime wake capability through ACPI and set the powered_off flag,
+ * this flag will be used during resume to decide what operations are needed
+ * to take.
+ */
+void zpodd_enable_run_wake(struct ata_device *dev)
+{
+	struct zpodd *zpodd = dev->zpodd;
+
+	zpodd->powered_off = true;
+	device_set_run_wake(&dev->sdev->sdev_gendev, true);
+	acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, true);
+}
+
+/* Disable runtime wake capability if it is enabled */
+void zpodd_disable_run_wake(struct ata_device *dev)
+{
+	struct zpodd *zpodd = dev->zpodd;
+
+	if (zpodd->powered_off) {
+		acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, false);
+		device_set_run_wake(&dev->sdev->sdev_gendev, false);
+	}
+}
+
+/*
+ * Post power on processing after the ODD has been recovered. If the
+ * ODD wasn't powered off during suspend, it doesn't do anything.
+ *
+ * For drawer type ODD, if it is powered on due to user pressed the
+ * eject button, the tray needs to be ejected. This can only be done
+ * after the ODD has been recovered, i.e. link is initialized and
+ * device is able to process NON_DATA PIO command, as eject needs to
+ * send command for the ODD to process.
+ *
+ * The from_notify flag set in wake notification handler function
+ * zpodd_wake_dev represents if power on is due to user's action.
+ *
+ * For both types of ODD, several fields need to be reset.
+ */
+void zpodd_post_poweron(struct ata_device *dev)
+{
+	struct zpodd *zpodd = dev->zpodd;
+
+	if (!zpodd->powered_off)
+		return;
+
+	zpodd->powered_off = false;
+
+	if (zpodd->from_notify) {
+		zpodd->from_notify = false;
+		if (zpodd->mech_type == ODD_MECH_TYPE_DRAWER)
+			eject_tray(dev);
+	}
+
+	zpodd->zp_sampled = false;
+	zpodd->zp_ready = false;
 }
 
 static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)

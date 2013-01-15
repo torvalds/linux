@@ -242,11 +242,19 @@ static inline bool zpodd_dev_enabled(struct ata_device *dev)
 	return dev->zpodd != NULL;
 }
 void zpodd_on_suspend(struct ata_device *dev);
+bool zpodd_zpready(struct ata_device *dev);
+void zpodd_enable_run_wake(struct ata_device *dev);
+void zpodd_disable_run_wake(struct ata_device *dev);
+void zpodd_post_poweron(struct ata_device *dev);
 #else /* CONFIG_SATA_ZPODD */
 static inline void zpodd_init(struct ata_device *dev) {}
 static inline void zpodd_exit(struct ata_device *dev) {}
 static inline bool zpodd_dev_enabled(struct ata_device *dev) { return false; }
 static inline void zpodd_on_suspend(struct ata_device *dev) {}
+static inline bool zpodd_zpready(struct ata_device *dev) { return false; }
+static inline void zpodd_enable_run_wake(struct ata_device *dev) {}
+static inline void zpodd_disable_run_wake(struct ata_device *dev) {}
+static inline void zpodd_post_poweron(struct ata_device *dev) {}
 #endif /* CONFIG_SATA_ZPODD */
 
 #endif /* __LIBATA_H__ */
