@@ -195,4 +195,7 @@ config RK_FPGA
 config RK_CONFIG
 	bool
 
+config RK_TIMER
+	bool
+
 endif

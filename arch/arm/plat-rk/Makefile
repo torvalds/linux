@@ -15,3 +15,4 @@ CFLAGS_sram.o += -mthumb
 obj-$(CONFIG_DDR_TEST) += memtester.o ddr_test.o
 obj-$(CONFIG_DDR_FREQ) += ddr_freq.o
 obj-y += pwm.o
+obj-$(CONFIG_RK_TIMER) += rk_timer.o

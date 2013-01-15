@@ -10,5 +10,6 @@ obj-y += ../mach-rk30/common.o
 CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 obj-y += ../mach-rk30/devices.o
 obj-y += io.o
+obj-y += rk_timer.o
 
 obj-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
