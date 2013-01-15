@@ -547,6 +547,15 @@ redirty_out:
 
 #define MAX_DESIRED_PAGES_WP	4096
 
+static int __f2fs_writepage(struct page *page, struct writeback_control *wbc,
+			void *data)
+{
+	struct address_space *mapping = data;
+	int ret = mapping->a_ops->writepage(page, wbc);
+	mapping_set_error(mapping, ret);
+	return ret;
+}
+
 static int f2fs_write_data_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
@@ -563,7 +572,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	if (!S_ISDIR(inode->i_mode))
 		mutex_lock(&sbi->writepages);
-	ret = generic_writepages(mapping, wbc);
+	ret = write_cache_pages(mapping, wbc, __f2fs_writepage, mapping);
 	if (!S_ISDIR(inode->i_mode))
 		mutex_unlock(&sbi->writepages);
 	f2fs_submit_bio(sbi, DATA, (wbc->sync_mode == WB_SYNC_ALL));
