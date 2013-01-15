@@ -10,13 +10,12 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/workqueue.h>
 
 struct sunxi_gpio_data {
