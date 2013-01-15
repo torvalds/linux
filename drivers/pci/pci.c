@@ -2067,13 +2067,13 @@ void pci_free_cap_save_buffers(struct pci_dev *dev)
 }
 
 /**
- * pci_enable_ari - enable ARI forwarding if hardware support it
+ * pci_configure_ari - enable or disable ARI forwarding
  * @dev: the PCI device
  *
  * If @dev and its upstream bridge both support ARI, enable ARI in the
  * bridge.  Otherwise, disable ARI in the bridge.
  */
-void pci_enable_ari(struct pci_dev *dev)
+void pci_configure_ari(struct pci_dev *dev)
 {
 	u32 cap;
 	struct pci_dev *bridge;
