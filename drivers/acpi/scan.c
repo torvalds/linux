@@ -1374,17 +1374,20 @@ static int acpi_device_set_context(struct acpi_device *device)
 	return -ENODEV;
 }
 
-static int acpi_bus_remove(struct acpi_device *dev)
+static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
+				   void *not_used, void **ret_not_used)
 {
-	if (!dev)
-		return -EINVAL;
+	struct acpi_device *dev = NULL;
+
+	if (acpi_bus_get_device(handle, &dev))
+		return AE_OK;
 
 	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
 	device_release_driver(&dev->dev);
 
 	acpi_device_unregister(dev);
 
-	return 0;
+	return AE_OK;
 }
 
 static int acpi_add_single_object(struct acpi_device **child,
@@ -1641,51 +1644,14 @@ EXPORT_SYMBOL(acpi_bus_add);
 
 int acpi_bus_trim(struct acpi_device *start)
 {
-	acpi_status status;
-	struct acpi_device *parent, *child;
-	acpi_handle phandle, chandle;
-	acpi_object_type type;
-	u32 level = 1;
-	int err = 0;
-
-	parent = start;
-	phandle = start->handle;
-	child = chandle = NULL;
-
-	while ((level > 0) && parent && (!err)) {
-		status = acpi_get_next_object(ACPI_TYPE_ANY, phandle,
-					      chandle, &chandle);
-
-		/*
-		 * If this scope is exhausted then move our way back up.
-		 */
-		if (ACPI_FAILURE(status)) {
-			level--;
-			chandle = phandle;
-			acpi_get_parent(phandle, &phandle);
-			child = parent;
-			parent = parent->parent;
-			err = acpi_bus_remove(child);
-			continue;
-		}
-
-		status = acpi_get_type(chandle, &type);
-		if (ACPI_FAILURE(status)) {
-			continue;
-		}
-		/*
-		 * If there is a device corresponding to chandle then
-		 * parse it (depth-first).
-		 */
-		if (acpi_bus_get_device(chandle, &child) == 0) {
-			level++;
-			phandle = chandle;
-			chandle = NULL;
-			parent = child;
-		}
-		continue;
-	}
-	return err;
+	/*
+	 * Execute acpi_bus_remove() as a post-order callback to remove device
+	 * nodes in the given namespace scope.
+	 */
+	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
+			    acpi_bus_remove, NULL, NULL);
+	acpi_bus_remove(start->handle, 0, NULL, NULL);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
