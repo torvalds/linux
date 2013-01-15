@@ -1,9 +1,14 @@
 #include <linux/libata.h>
 #include <linux/cdrom.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <scsi/scsi_device.h>
 
 #include "libata.h"
+
+static int zpodd_poweroff_delay = 30; /* 30 seconds for power off delay */
+module_param(zpodd_poweroff_delay, int, 0644);
+MODULE_PARM_DESC(zpodd_poweroff_delay, "Poweroff delay for ZPODD in seconds");
 
 enum odd_mech_type {
 	ODD_MECH_TYPE_SLOT,
@@ -18,6 +23,9 @@ struct zpodd {
 	/* The following fields are synchronized by PM core. */
 	bool			from_notify; /* resumed as a result of
 					      * acpi wake notification */
+	bool			zp_ready; /* ZP ready state */
+	unsigned long		last_ready; /* last ZP ready timestamp */
+	bool			zp_sampled; /* ZP ready state sampled */
 };
 
 /* Per the spec, only slot type and drawer type ODD can be supported */
@@ -72,6 +80,73 @@ static bool odd_can_poweroff(struct ata_device *ata_dev)
 		return false;
 
 	return acpi_device_can_poweroff(acpi_dev);
+}
+
+/* Test if ODD is zero power ready by sense code */
+static bool zpready(struct ata_device *dev)
+{
+	u8 sense_key, *sense_buf;
+	unsigned int ret, asc, ascq, add_len;
+	struct zpodd *zpodd = dev->zpodd;
+
+	ret = atapi_eh_tur(dev, &sense_key);
+
+	if (!ret || sense_key != NOT_READY)
+		return false;
+
+	sense_buf = dev->link->ap->sector_buf;
+	ret = atapi_eh_request_sense(dev, sense_buf, sense_key);
+	if (ret)
+		return false;
+
+	/* sense valid */
+	if ((sense_buf[0] & 0x7f) != 0x70)
+		return false;
+
+	add_len = sense_buf[7];
+	/* has asc and ascq */
+	if (add_len < 6)
+		return false;
+
+	asc = sense_buf[12];
+	ascq = sense_buf[13];
+
+	if (zpodd->mech_type == ODD_MECH_TYPE_SLOT)
+		/* no media inside */
+		return asc == 0x3a;
+	else
+		/* no media inside and door closed */
+		return asc == 0x3a && ascq == 0x01;
+}
+
+/*
+ * Update the zpodd->zp_ready field. This field will only be set
+ * if the ODD has stayed in ZP ready state for zpodd_poweroff_delay
+ * time, and will be used to decide if power off is allowed. If it
+ * is set, it will be cleared during resume from powered off state.
+ */
+void zpodd_on_suspend(struct ata_device *dev)
+{
+	struct zpodd *zpodd = dev->zpodd;
+	unsigned long expires;
+
+	if (!zpready(dev)) {
+		zpodd->zp_sampled = false;
+		return;
+	}
+
+	if (!zpodd->zp_sampled) {
+		zpodd->zp_sampled = true;
+		zpodd->last_ready = jiffies;
+		return;
+	}
+
+	expires = zpodd->last_ready +
+		  msecs_to_jiffies(zpodd_poweroff_delay * 1000);
+	if (time_before(jiffies, expires))
+		return;
+
+	zpodd->zp_ready = true;
 }
 
 static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)

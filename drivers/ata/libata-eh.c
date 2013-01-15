@@ -1591,7 +1591,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, AC_ERR_* mask on failure.
  */
-static unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
+unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 {
 	u8 cdb[ATAPI_CDB_LEN] = { TEST_UNIT_READY, 0, 0, 0, 0, 0 };
 	struct ata_taskfile tf;
@@ -1624,7 +1624,7 @@ static unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
  *	RETURNS:
  *	0 on success, AC_ERR_* mask on failure
  */
-static unsigned int atapi_eh_request_sense(struct ata_device *dev,
+unsigned int atapi_eh_request_sense(struct ata_device *dev,
 					   u8 *sense_buf, u8 dfl_sense_key)
 {
 	u8 cdb[ATAPI_CDB_LEN] =
@@ -4022,6 +4022,7 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 {
 	unsigned long flags;
 	int rc = 0;
+	struct ata_device *dev;
 
 	/* are we suspending? */
 	spin_lock_irqsave(ap->lock, flags);
@@ -4033,6 +4034,15 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	WARN_ON(ap->pflags & ATA_PFLAG_SUSPENDED);
+
+	/*
+	 * If we have a ZPODD attached, check its zero
+	 * power ready status before the port is frozen.
+	 */
+	ata_for_each_dev(dev, &ap->link, ENABLED) {
+		if (zpodd_dev_enabled(dev))
+			zpodd_on_suspend(dev);
+	}
 
 	/* tell ACPI we're suspending */
 	rc = ata_acpi_on_suspend(ap);
