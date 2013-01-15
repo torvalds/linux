@@ -6219,53 +6219,50 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 		return 1;
 	}
 
-	if ((codec->subsystem_id >> 16) == PCI_VENDOR_ID_HP) {
-		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
-								NULL, dev))) {
-			if (sscanf(dev->name, "HP_Mute_LED_%d_%x",
-				  &spec->gpio_led_polarity,
-				  &spec->gpio_led) == 2) {
-				unsigned int max_gpio;
-				max_gpio = snd_hda_param_read(codec, codec->afg,
-							      AC_PAR_GPIO_CAP);
-				max_gpio &= AC_GPIO_IO_COUNT;
-				if (spec->gpio_led < max_gpio)
-					spec->gpio_led = 1 << spec->gpio_led;
-				else
-					spec->vref_mute_led_nid = spec->gpio_led;
-				return 1;
-			}
-			if (sscanf(dev->name, "HP_Mute_LED_%d",
-				  &spec->gpio_led_polarity) == 1) {
-				set_hp_led_gpio(codec);
-				return 1;
-			}
-			/* BIOS bug: unfilled OEM string */
-			if (strstr(dev->name, "HP_Mute_LED_P_G")) {
-				set_hp_led_gpio(codec);
-				switch (codec->subsystem_id) {
-				case 0x103c148a:
-					spec->gpio_led_polarity = 0;
-					break;
-				default:
-					spec->gpio_led_polarity = 1;
-					break;
-				}
-				return 1;
-			}
-		}
-
-		/*
-		 * Fallback case - if we don't find the DMI strings,
-		 * we statically set the GPIO - if not a B-series system
-		 * and default polarity is provided
-		 */
-		if (!hp_blike_system(codec->subsystem_id) &&
-			(default_polarity == 0 || default_polarity == 1)) {
-			set_hp_led_gpio(codec);
-			spec->gpio_led_polarity = default_polarity;
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
+		if (sscanf(dev->name, "HP_Mute_LED_%d_%x",
+			   &spec->gpio_led_polarity,
+			   &spec->gpio_led) == 2) {
+			unsigned int max_gpio;
+			max_gpio = snd_hda_param_read(codec, codec->afg,
+						      AC_PAR_GPIO_CAP);
+			max_gpio &= AC_GPIO_IO_COUNT;
+			if (spec->gpio_led < max_gpio)
+				spec->gpio_led = 1 << spec->gpio_led;
+			else
+				spec->vref_mute_led_nid = spec->gpio_led;
 			return 1;
 		}
+		if (sscanf(dev->name, "HP_Mute_LED_%d",
+			   &spec->gpio_led_polarity) == 1) {
+			set_hp_led_gpio(codec);
+			return 1;
+		}
+		/* BIOS bug: unfilled OEM string */
+		if (strstr(dev->name, "HP_Mute_LED_P_G")) {
+			set_hp_led_gpio(codec);
+			switch (codec->subsystem_id) {
+			case 0x103c148a:
+				spec->gpio_led_polarity = 0;
+				break;
+			default:
+				spec->gpio_led_polarity = 1;
+				break;
+			}
+			return 1;
+		}
+	}
+
+	/*
+	 * Fallback case - if we don't find the DMI strings,
+	 * we statically set the GPIO - if not a B-series system
+	 * and default polarity is provided
+	 */
+	if (!hp_blike_system(codec->subsystem_id) &&
+	    (default_polarity == 0 || default_polarity == 1)) {
+		set_hp_led_gpio(codec);
+		spec->gpio_led_polarity = default_polarity;
+		return 1;
 	}
 	return 0;
 }
