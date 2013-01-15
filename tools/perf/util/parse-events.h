@@ -29,8 +29,7 @@ const char *event_type(int type);
 
 extern int parse_events_option(const struct option *opt, const char *str,
 			       int unset);
-extern int parse_events(struct perf_evlist *evlist, const char *str,
-			int unset);
+extern int parse_events(struct perf_evlist *evlist, const char *str);
 extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
 

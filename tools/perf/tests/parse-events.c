@@ -1018,7 +1018,7 @@ static int test_event(struct test__event_st *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
-	ret = parse_events(evlist, e->name, 0);
+	ret = parse_events(evlist, e->name);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);

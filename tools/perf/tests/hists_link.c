@@ -441,10 +441,10 @@ int test__hists_link(void)
 	if (evlist == NULL)
                 return -ENOMEM;
 
-	err = parse_events(evlist, "cpu-clock", 0);
+	err = parse_events(evlist, "cpu-clock");
 	if (err)
 		goto out;
-	err = parse_events(evlist, "task-clock", 0);
+	err = parse_events(evlist, "task-clock");
 	if (err)
 		goto out;
 
