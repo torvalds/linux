@@ -25,7 +25,14 @@
 #include <linux/ion.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
+#include <linux/fb.h>
+#include <linux/regulator/machine.h>
+#include <linux/rfkill-rk.h>
+#include <linux/sensor-dev.h>
 
+#include <asm/cacheflush.h>
+#include <asm/fiq_glue.h>
+#include <asm/smp_scu.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -38,10 +45,8 @@
 #include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
-#include <linux/fb.h>
-#include <linux/regulator/machine.h>
-#include <linux/rfkill-rk.h>
-#include <linux/sensor-dev.h>
+#include <mach/ddr.h>
+#include <mach/fiq.h>
 
 
 #ifdef CONFIG_VIDEO_RK29
@@ -711,9 +716,9 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init fpga_board_init(void)
 {
-        rk30_i2c_register_board_info();
-        spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
-        platform_add_devices(devices, ARRAY_SIZE(devices));
+	rk30_i2c_register_board_info();
+	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init fpga_reserve(void)
@@ -783,7 +788,7 @@ static void __init fpga_fixup(struct machine_desc *desc, struct tag *tags,
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PLAT_PHYS_OFFSET;
-	mi->bank[0].size = SZ_128M;
+	mi->bank[0].size = ddr_get_cap();
 }
 
 static void __init fpga_map_io(void)
@@ -800,6 +805,7 @@ MACHINE_START(RK30, "RK30board")
 	.reserve	= &fpga_reserve,
 	.map_io		= fpga_map_io,
 	.init_irq	= rk30_init_irq,
+	.timer		= &rk30_timer,
 	.init_machine	= fpga_board_init,
 MACHINE_END
 
