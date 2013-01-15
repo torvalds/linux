@@ -179,4 +179,4 @@ obj-$(CONFIG_VIDEOMODE_HELPERS) += of_display_timing.o of_videomode.o
 endif
 
 # platform specific output drivers
-obj-$(CONFIG_VEXPRESS_CONFIG)	  += vexpress-dvi.o
+obj-$(CONFIG_VEXPRESS_DVI_CONTROL) += vexpress-dvi.o

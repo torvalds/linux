@@ -39,6 +39,11 @@ config VIDEOMODE_HELPERS
 config HDMI
 	bool
 
+config VEXPRESS_DVI_CONTROL
+	bool "Versatile Express DVI control"
+	depends on FB && VEXPRESS_CONFIG
+	default y
+
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	---help---
