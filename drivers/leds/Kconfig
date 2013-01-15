@@ -40,6 +40,16 @@ config LEDS_ATMEL_PWM
 	  This option enables support for LEDs driven using outputs
 	  of the dedicated PWM controller found on newer Atmel SOCs.
 
+config LEDS_SUNXI
+	tristate "LED Support for sunxi platform"
+	depends on LEDS_CLASS
+	depends on (ARCH_SUN3I || ARCH_SUN4I || ARCH_SUN5I)
+	help
+	  This option enables support for LEDs connected to gpio
+	  lines on the Allwinner SOCs (sun3i/sun4i/arch_sun5i).
+	  The leds must be defined in [leds] section of sysconfig.fex
+	  file (leds_used/leds_num/leds_pin_x/leds_name_x variables)
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
