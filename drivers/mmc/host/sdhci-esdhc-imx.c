@@ -297,10 +297,8 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		 */
 		return;
 	case SDHCI_HOST_CONTROL:
-		/* FSL messed up here, so we can just keep those three */
-		new_val = val & (SDHCI_CTRL_LED | \
-				SDHCI_CTRL_4BITBUS | \
-				SDHCI_CTRL_D3CD);
+		/* FSL messed up here, so we need to manually compose it. */
+		new_val = val & (SDHCI_CTRL_LED | SDHCI_CTRL_4BITBUS);
 		/* ensure the endianness */
 		new_val |= ESDHC_HOST_CONTROL_LE;
 		/* bits 8&9 are reserved on mx25 */
