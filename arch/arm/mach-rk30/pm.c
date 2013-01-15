@@ -644,7 +644,7 @@ static int rk30_pm_enter(suspend_state_t state)
 	clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
 
 	cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-	cru_writel(CORE_PERIPH_MSK | CORE_PERIPH_2
+	cru_writel(CORE_PERIPH_W_MSK | CORE_PERIPH_2
 		   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
 		   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
 		   | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
