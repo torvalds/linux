@@ -1,5 +1,7 @@
 #include <linux/libata.h>
 #include <linux/cdrom.h>
+#include <linux/pm_runtime.h>
+#include <scsi/scsi_device.h>
 
 #include "libata.h"
 
@@ -12,6 +14,10 @@ enum odd_mech_type {
 struct zpodd {
 	enum odd_mech_type	mech_type; /* init during probe, RO afterwards */
 	struct ata_device	*dev;
+
+	/* The following fields are synchronized by PM core. */
+	bool			from_notify; /* resumed as a result of
+					      * acpi wake notification */
 };
 
 /* Per the spec, only slot type and drawer type ODD can be supported */
@@ -68,6 +74,32 @@ static bool odd_can_poweroff(struct ata_device *ata_dev)
 	return acpi_device_can_poweroff(acpi_dev);
 }
 
+static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)
+{
+	struct ata_device *ata_dev = context;
+	struct zpodd *zpodd = ata_dev->zpodd;
+	struct device *dev = &ata_dev->sdev->sdev_gendev;
+
+	if (event == ACPI_NOTIFY_DEVICE_WAKE && ata_dev &&
+			pm_runtime_suspended(dev)) {
+		zpodd->from_notify = true;
+		pm_runtime_resume(dev);
+	}
+}
+
+static void ata_acpi_add_pm_notifier(struct ata_device *dev)
+{
+	acpi_handle handle = ata_dev_acpi_handle(dev);
+	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+				    zpodd_wake_dev, dev);
+}
+
+static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->sdev->sdev_gendev);
+	acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
+}
+
 void zpodd_init(struct ata_device *dev)
 {
 	enum odd_mech_type mech_type;
@@ -89,12 +121,14 @@ void zpodd_init(struct ata_device *dev)
 
 	zpodd->mech_type = mech_type;
 
+	ata_acpi_add_pm_notifier(dev);
 	zpodd->dev = dev;
 	dev->zpodd = zpodd;
 }
 
 void zpodd_exit(struct ata_device *dev)
 {
+	ata_acpi_remove_pm_notifier(dev);
 	kfree(dev->zpodd);
 	dev->zpodd = NULL;
 }
