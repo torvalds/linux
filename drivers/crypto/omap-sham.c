@@ -1607,7 +1607,11 @@ err:
 	return err;
 }
 #else
-static int omap_sham_get_res_dev(struct omap_sham_dev *dd,
+static const struct of_device_id omap_sham_of_match[] = {
+	{},
+};
+
+static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		struct device *dev, struct resource *res)
 {
 	return -EINVAL;
