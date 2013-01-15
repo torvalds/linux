@@ -83,6 +83,7 @@ static inline cycle_t arch_counter_get_cntpct(void)
 {
 	cycle_t cval;
 
+	isb();
 	asm volatile("mrs %0, cntpct_el0" : "=r" (cval));
 
 	return cval;
@@ -92,6 +93,7 @@ static inline cycle_t arch_counter_get_cntvct(void)
 {
 	cycle_t cval;
 
+	isb();
 	asm volatile("mrs %0, cntvct_el0" : "=r" (cval));
 
 	return cval;
