@@ -1054,7 +1054,7 @@ static void chipio_enable_clocks(struct hda_codec *codec)
 static int dspio_send(struct hda_codec *codec, unsigned int reg,
 		      unsigned int data)
 {
-	unsigned int res;
+	int res;
 	int retry = 50;
 
 	/* send bits of data specified by reg to dsp */
