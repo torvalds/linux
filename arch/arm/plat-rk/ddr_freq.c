@@ -55,7 +55,8 @@ struct ddr {
 	unsigned long sys_status;
 	struct task_struct *task;
 	wait_queue_head_t wait;
-} ddr;
+};
+static struct ddr ddr;
 
 module_param_named(sys_status, ddr.sys_status, ulong, S_IRUGO);
 module_param_named(video_state, ddr.video_state, byte, S_IRUGO);
@@ -102,9 +103,9 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 		gpu = clk_get(NULL, "gpu");
 
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
-	if (s & (1 << SYS_STATUS_SUSPEND)) {
+	if (ddr.suspend_rate && (s & (1 << SYS_STATUS_SUSPEND))) {
 		ddrfreq_mode(true, &ddr.suspend_rate, "suspend");
-	} else if (s & (1 << SYS_STATUS_VIDEO)) {
+	} else if (ddr.video_rate && (s & (1 << SYS_STATUS_VIDEO))) {
 		ddrfreq_mode(false, &ddr.video_rate, "video");
 	} else if (ddr.idle_rate
 		&& !(s & (1 << SYS_STATUS_GPU))
@@ -312,6 +313,7 @@ static int ddrfreq_init(void)
 {
 	int i, ret;
 	struct cpufreq_frequency_table *table;
+	bool new_version = false;
 
 	init_waitqueue_head(&ddr.wait);
 	ddr.video_state = '0';
@@ -327,14 +329,23 @@ static int ddrfreq_init(void)
 	}
 
 	ddr.normal_rate = clk_get_rate(ddr.clk);
-	ddr.video_rate = 300 * MHZ;
-	ddr.suspend_rate = 200 * MHZ;
 
 	table = dvfs_get_freq_volt_table(ddr.clk);
 	if (!table) {
 		pr_err("failed to get ddr freq volt table\n");
 	}
+
 	for (i = 0; table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (table[i].frequency % 1000) {
+			new_version = true;
+			break;
+		}
+	}
+	if (!new_version) {
+		ddr.video_rate = 300 * MHZ;
+		ddr.suspend_rate = 200 * MHZ;
+	}
+	for (i = 0; new_version && table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		unsigned int mode = table[i].frequency % 1000;
 		unsigned long rate;
 
@@ -403,8 +414,8 @@ static int ddrfreq_late_init(void)
 	kthread_bind(ddr.task, 0);
 	wake_up_process(ddr.task);
 
-	pr_info("verion 1.0\n");
-	dprintk(DEBUG_VERBOSE, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz\n",
+	pr_info("verion 1.1\n");
+	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ);
 
 	return 0;
