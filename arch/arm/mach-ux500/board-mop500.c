@@ -92,7 +92,6 @@ static struct platform_device snowball_gpio_en_3v3_regulator_dev = {
 
 static struct abx500_gpio_platform_data ab8500_gpio_pdata = {
 	.gpio_base		= MOP500_AB8500_PIN_GPIO(1),
-	.irq_base		= MOP500_AB8500_VIR_GPIO_IRQ_BASE,
 };
 
 /* ab8500-codec */

@@ -16,7 +16,6 @@
 
 struct abx500_gpio_platform_data {
 	int gpio_base;
-	u32 irq_base;
 };
 
 enum abx500_gpio_pull_updown {
