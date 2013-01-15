@@ -12,6 +12,11 @@ config CLOCKSOURCE_WATCHDOG
 config ARCH_CLOCKSOURCE_DATA
 	bool
 
+# Platforms has a persistent clock
+config HAS_PERSISTENT_CLOCK
+	bool
+	default n
+
 # Timekeeping vsyscall support
 config GENERIC_TIME_VSYSCALL
 	bool

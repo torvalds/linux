@@ -116,10 +116,15 @@ static inline bool timespec_valid_strict(const struct timespec *ts)
 }
 
 extern bool persistent_clock_exist;
+
+#ifdef CONFIG_HAS_PERSISTENT_CLOCK
+#define has_persistent_clock()	true
+#else
 static inline bool has_persistent_clock(void)
 {
 	return persistent_clock_exist;
 }
+#endif
 
 extern void read_persistent_clock(struct timespec *ts);
 extern void read_boot_clock(struct timespec *ts);
