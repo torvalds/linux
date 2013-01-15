@@ -3158,15 +3158,13 @@ static int ca0132_select_out(struct hda_codec *codec)
 		/* disable headphone node */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		snd_hda_codec_write(codec, spec->out_pins[1], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    pin_ctl & 0xBF);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
+				    pin_ctl & ~PIN_HP);
 		/* enable speaker node */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 					     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		snd_hda_codec_write(codec, spec->out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    pin_ctl | 0x40);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
+				    pin_ctl | PIN_OUT);
 	} else {
 		snd_printdd(KERN_INFO "ca0132_select_out hp\n");
 		/*headphone out config*/
@@ -3193,15 +3191,13 @@ static int ca0132_select_out(struct hda_codec *codec)
 		/* disable speaker*/
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		snd_hda_codec_write(codec, spec->out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    pin_ctl & 0xBF);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
+				    pin_ctl & ~PIN_HP);
 		/* enable headphone*/
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		snd_hda_codec_write(codec, spec->out_pins[1], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    pin_ctl | 0x40);
+		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
+				    pin_ctl | PIN_HP);
 	}
 
 exit:
@@ -4065,8 +4061,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 {
 	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		snd_hda_set_pin_ctl(codec, pin, PIN_HP);
 		if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, pin, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -4080,8 +4075,7 @@ static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 {
 	if (pin) {
-		snd_hda_codec_write(codec, pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80);
+		snd_hda_set_pin_ctl(codec, pin, PIN_VREF80);
 		if (get_wcaps(codec, pin) & AC_WCAP_IN_AMP)
 			snd_hda_codec_write(codec, pin, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
