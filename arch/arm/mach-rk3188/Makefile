@@ -13,3 +13,4 @@ obj-y += io.o
 obj-y += rk_timer.o
 
 obj-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
+obj-$(CONFIG_MACH_RK3188_TB) += ../mach-rk30/board-rk3168-tb.o
