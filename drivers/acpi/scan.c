@@ -1374,22 +1374,6 @@ static int acpi_device_set_context(struct acpi_device *device)
 	return -ENODEV;
 }
 
-static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
-				   void *not_used, void **ret_not_used)
-{
-	struct acpi_device *dev = NULL;
-
-	if (acpi_bus_get_device(handle, &dev))
-		return AE_OK;
-
-	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
-	device_release_driver(&dev->dev);
-
-	acpi_device_unregister(dev);
-
-	return AE_OK;
-}
-
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
 				  unsigned long long sta, bool match_driver)
@@ -1642,8 +1626,38 @@ int acpi_bus_add(acpi_handle handle)
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
+static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
+					  void *not_used, void **ret_not_used)
+{
+	struct acpi_device *device = NULL;
+
+	if (!acpi_bus_get_device(handle, &device)) {
+		device->removal_type = ACPI_BUS_REMOVAL_EJECT;
+		device_release_driver(&device->dev);
+	}
+	return AE_OK;
+}
+
+static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
+				   void *not_used, void **ret_not_used)
+{
+	struct acpi_device *device = NULL;
+
+	if (!acpi_bus_get_device(handle, &device))
+		acpi_device_unregister(device);
+
+	return AE_OK;
+}
+
 int acpi_bus_trim(struct acpi_device *start)
 {
+	/*
+	 * Execute acpi_bus_device_detach() as a post-order callback to detach
+	 * all ACPI drivers from the device nodes being removed.
+	 */
+	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
+			    acpi_bus_device_detach, NULL, NULL);
+	acpi_bus_device_detach(start->handle, 0, NULL, NULL);
 	/*
 	 * Execute acpi_bus_remove() as a post-order callback to remove device
 	 * nodes in the given namespace scope.
