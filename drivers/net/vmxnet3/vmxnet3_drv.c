@@ -44,7 +44,6 @@ static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
 MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 
 static int enable_mq = 1;
-static int irq_share_mode;
 
 static void
 vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac);
@@ -3003,9 +3002,9 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	vmxnet3_declare_features(adapter, dma64);
 
-	adapter->share_intr = irq_share_mode;
-	if (adapter->share_intr == VMXNET3_INTR_BUDDYSHARE &&
-	    adapter->num_tx_queues != adapter->num_rx_queues)
+	if (adapter->num_tx_queues == adapter->num_rx_queues)
+		adapter->share_intr = VMXNET3_INTR_BUDDYSHARE;
+	else
 		adapter->share_intr = VMXNET3_INTR_DONTSHARE;
 
 	vmxnet3_alloc_intr_resources(adapter);
