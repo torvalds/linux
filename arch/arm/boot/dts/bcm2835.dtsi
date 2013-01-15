@@ -89,15 +89,23 @@
 		};
 	};
 
-	clk_i2c: clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <150000000>;
-	};
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	clk_mmc: clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
+		clk_mmc: mmc {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+		};
+
+		clk_i2c: i2c {
+			compatible = "fixed-clock";
+			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <150000000>;
+		};
 	};
 };
