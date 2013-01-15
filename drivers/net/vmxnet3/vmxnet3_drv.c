@@ -580,15 +580,14 @@ vmxnet3_rq_alloc_rx_buf(struct vmxnet3_rx_queue *rq, u32 ring_idx,
 
 		if (rbi->buf_type == VMXNET3_RX_BUF_SKB) {
 			if (rbi->skb == NULL) {
-				rbi->skb = dev_alloc_skb(rbi->len +
-							 NET_IP_ALIGN);
+				rbi->skb = __netdev_alloc_skb_ip_align(adapter->netdev,
+								       rbi->len,
+								       GFP_KERNEL);
 				if (unlikely(rbi->skb == NULL)) {
 					rq->stats.rx_buf_alloc_failure++;
 					break;
 				}
-				rbi->skb->dev = adapter->netdev;
 
-				skb_reserve(rbi->skb, NET_IP_ALIGN);
 				rbi->dma_addr = pci_map_single(adapter->pdev,
 						rbi->skb->data, rbi->len,
 						PCI_DMA_FROMDEVICE);
@@ -1221,7 +1220,8 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 
 			skip_page_frags = false;
 			ctx->skb = rbi->skb;
-			new_skb = dev_alloc_skb(rbi->len + NET_IP_ALIGN);
+			new_skb = netdev_alloc_skb_ip_align(adapter->netdev,
+							    rbi->len);
 			if (new_skb == NULL) {
 				/* Skb allocation failed, do not handover this
 				 * skb to stack. Reuse it. Drop the existing pkt
@@ -1239,8 +1239,6 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			skb_put(ctx->skb, rcd->len);
 
 			/* Immediate refill */
-			new_skb->dev = adapter->netdev;
-			skb_reserve(new_skb, NET_IP_ALIGN);
 			rbi->skb = new_skb;
 			rbi->dma_addr = pci_map_single(adapter->pdev,
 						       rbi->skb->data, rbi->len,
