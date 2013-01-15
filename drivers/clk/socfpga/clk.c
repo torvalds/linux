@@ -145,6 +145,14 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 			SOCFPGA_S2F_USR_CLK);
 	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
 
+	clk = clk_register_fixed_rate(NULL, "i2c0_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_PER_PLL_CLK);
+	clk_register_clkdev(clk, NULL, "ffc04000.i2c");
+
+	clk = clk_register_fixed_rate(NULL, "i2c1_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_PER_PLL_CLK);
+	clk_register_clkdev(clk, NULL, "ffc05000.i2c");
+
 	clk = clk_register_gate(NULL, "gmac0_clk", "per_pll_clk", 0,
 			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_EMAC0_CLK_EN, 0, &_lock);

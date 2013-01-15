@@ -316,5 +316,23 @@
 				dev-tx-fifo-size = <512 512 512 512 512 512
 					512 512 512 512 512 512 512 512 512>;
 		};
+
+		i2c0: i2c@ffc04000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc04000 0x1000>;
+			interrupts = <0 158 4>;
+			emptyfifo_hold_master = <1>;
+		};
+
+		i2c1: i2c@ffc05000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc05000 0x1000>;
+			interrupts = <0 159 4>;
+			emptyfifo_hold_master = <1>;
+		};
 	};
 };
