@@ -89,8 +89,7 @@ struct fiq_debugger_state {
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 	spinlock_t console_lock;
 	struct console console;
-	struct tty_struct *tty;
-	int tty_open_count;
+	struct tty_port tty_port;
 	struct fiq_debugger_ringbuf *tty_rbuf;
 	bool syslog_dumping;
 #endif
@@ -768,6 +767,22 @@ static irqreturn_t wakeup_irq_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void debug_handle_console_irq_context(struct fiq_debugger_state *state)
+{
+#if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
+	if (state->tty_port.ops) {
+		int i;
+		int count = fiq_debugger_ringbuf_level(state->tty_rbuf);
+		for (i = 0; i < count; i++) {
+			int c = fiq_debugger_ringbuf_peek(state->tty_rbuf, 0);
+			tty_insert_flip_char(&state->tty_port, c, TTY_NORMAL);
+			if (!fiq_debugger_ringbuf_consume(state->tty_rbuf, 1))
+				pr_warn("fiq tty failed to consume byte\n");
+		}
+		tty_flip_buffer_push(&state->tty_port);
+	}
+#endif
+}
 
 static void debug_handle_irq_context(struct fiq_debugger_state *state)
 {
@@ -779,19 +794,7 @@ static void debug_handle_irq_context(struct fiq_debugger_state *state)
 		mod_timer(&state->sleep_timer, jiffies + HZ * 5);
 		spin_unlock_irqrestore(&state->sleep_timer_lock, flags);
 	}
-#if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
-	if (state->tty) {
-		int i;
-		int count = fiq_debugger_ringbuf_level(state->tty_rbuf);
-		for (i = 0; i < count; i++) {
-			int c = fiq_debugger_ringbuf_peek(state->tty_rbuf, 0);
-			tty_insert_flip_char(state->tty, c, TTY_NORMAL);
-			if (!fiq_debugger_ringbuf_consume(state->tty_rbuf, 1))
-				pr_warn("fiq tty failed to consume byte\n");
-		}
-		tty_flip_buffer_push(state->tty);
-	}
-#endif
+	debug_handle_console_irq_context(state);
 	if (state->debug_busy) {
 		debug_irq_exec(state, state->debug_cmd);
 		if (!state->console_enable)
@@ -995,26 +998,21 @@ int fiq_tty_open(struct tty_struct *tty, struct file *filp)
 	int line = tty->index;
 	struct fiq_debugger_state **states = tty->driver->driver_state;
 	struct fiq_debugger_state *state = states[line];
-	if (state->tty_open_count++)
-		return 0;
 
-	tty->driver_data = state;
-	state->tty = tty;
-	return 0;
+	return tty_port_open(&state->tty_port, tty, filp);
 }
 
 void fiq_tty_close(struct tty_struct *tty, struct file *filp)
 {
-	struct fiq_debugger_state *state = tty->driver_data;
-	if (--state->tty_open_count)
-		return;
-	state->tty = NULL;
+	tty_port_close(tty->port, tty, filp);
 }
 
 int  fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	int i;
-	struct fiq_debugger_state *state = tty->driver_data;
+	int line = tty->index;
+	struct fiq_debugger_state **states = tty->driver->driver_state;
+	struct fiq_debugger_state *state = states[line];
 
 	if (!state->console_enable)
 		return count;
@@ -1042,7 +1040,8 @@ static int fiq_tty_poll_init(struct tty_driver *driver, int line, char *options)
 
 static int fiq_tty_poll_get_char(struct tty_driver *driver, int line)
 {
-	struct fiq_debugger_state *state = driver->ttys[line]->driver_data;
+	struct fiq_debugger_state **states = driver->driver_state;
+	struct fiq_debugger_state *state = states[line];
 	int c = NO_POLL_CHAR;
 
 	debug_uart_enable(state);
@@ -1064,12 +1063,15 @@ static int fiq_tty_poll_get_char(struct tty_driver *driver, int line)
 
 static void fiq_tty_poll_put_char(struct tty_driver *driver, int line, char ch)
 {
-	struct fiq_debugger_state *state = driver->ttys[line]->driver_data;
+	struct fiq_debugger_state **states = driver->driver_state;
+	struct fiq_debugger_state *state = states[line];
 	debug_uart_enable(state);
 	debug_putc(state, ch);
 	debug_uart_disable(state);
 }
 #endif
+
+static const struct tty_port_operations fiq_tty_port_ops;
 
 static const struct tty_operations fiq_tty_driver_ops = {
 	.write = fiq_tty_write,
@@ -1150,8 +1152,11 @@ static int fiq_debugger_tty_init_one(struct fiq_debugger_state *state)
 		goto err;
 	}
 
-	tty_dev = tty_register_device(fiq_tty_driver, state->pdev->id,
-		&state->pdev->dev);
+	tty_port_init(&state->tty_port);
+	state->tty_port.ops = &fiq_tty_port_ops;
+
+	tty_dev = tty_port_register_device(&state->tty_port, fiq_tty_driver,
+					   state->pdev->id, &state->pdev->dev);
 	if (IS_ERR(tty_dev)) {
 		pr_err("Failed to register fiq debugger tty device\n");
 		ret = PTR_ERR(tty_dev);
