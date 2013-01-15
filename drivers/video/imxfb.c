@@ -729,6 +729,8 @@ static int __init imxfb_init_fbinfo(struct platform_device *pdev)
 
 	memset(fbi, 0, sizeof(struct imxfb_info));
 
+	fbi->devtype = pdev->id_entry->driver_data;
+
 	strlcpy(info->fix.id, IMX_NAME, sizeof(info->fix.id));
 
 	info->fix.type			= FB_TYPE_PACKED_PIXELS;
@@ -789,7 +791,6 @@ static int __init imxfb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fbi = info->par;
-	fbi->devtype = pdev->id_entry->driver_data;
 
 	if (!fb_mode)
 		fb_mode = pdata->mode[0].mode.name;
