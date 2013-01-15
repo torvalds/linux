@@ -24,8 +24,6 @@
  *
  */
 
-#include <linux/dma-buf.h>
-
 #include <subdev/fb.h>
 
 #include "nouveau_drm.h"
