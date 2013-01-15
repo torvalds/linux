@@ -43,8 +43,6 @@ static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
 
 MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 
-static atomic_t devices_found;
-
 static int enable_mq = 1;
 static int irq_share_mode;
 
@@ -3005,8 +3003,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	vmxnet3_declare_features(adapter, dma64);
 
-	adapter->dev_number = atomic_read(&devices_found);
-
 	adapter->share_intr = irq_share_mode;
 	if (adapter->share_intr == VMXNET3_INTR_BUDDYSHARE &&
 	    adapter->num_tx_queues != adapter->num_rx_queues)
@@ -3057,7 +3053,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	}
 
 	vmxnet3_check_link(adapter, false);
-	atomic_inc(&devices_found);
 	return 0;
 
 err_register:

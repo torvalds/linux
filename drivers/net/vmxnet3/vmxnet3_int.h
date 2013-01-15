@@ -352,7 +352,6 @@ struct vmxnet3_adapter {
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
-	int dev_number;
 	int share_intr;
 };
 
