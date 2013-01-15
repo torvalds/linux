@@ -32,6 +32,11 @@
 		#clock-cells = <1>;
 	};
 
+	ahb: ahb {
+		compatible = "nvidia,tegra114-ahb", "nvidia,tegra30-ahb";
+		reg = <0x6000c004 0x14c>;
+	};
+
 	serial@70006000 {
 		compatible = "nvidia,tegra114-uart", "nvidia,tegra20-uart";
 		reg = <0x70006000 0x40>;
