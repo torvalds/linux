@@ -101,7 +101,9 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 int s5p_mfc_clock_on(void)
 {
 	int ret;
+#ifdef CONFIG_PM_RUNTIME
 	struct s5p_mfc_dev *dev = platform_get_drvdata(to_platform_device(pm->device));
+#endif
 
 	atomic_inc(&clk_ref);
 
@@ -110,23 +112,28 @@ int s5p_mfc_clock_on(void)
 #endif
 
 	ret = clk_enable(pm->clock);
+#ifdef CONFIG_PM_RUNTIME
 	if (atomic_read(&clk_ref) == 1)
 		s5p_mfc_mem_resume(dev->alloc_ctx[0]);
-
+#endif
 	return ret;
 }
 
 void s5p_mfc_clock_off(void)
 {
+#ifdef CONFIG_PM_RUNTIME
 	struct s5p_mfc_dev *dev = platform_get_drvdata(to_platform_device(pm->device));
+#endif
 
 	atomic_dec(&clk_ref);
 #ifdef CLK_DEBUG
 	mfc_debug(3, "- %d", atomic_read(&clk_ref));
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
 	if (atomic_read(&clk_ref) == 0)
 		s5p_mfc_mem_suspend(dev->alloc_ctx[0]);
+#endif
 	clk_disable(pm->clock);
 }
 
