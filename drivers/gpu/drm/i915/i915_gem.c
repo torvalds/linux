@@ -1662,7 +1662,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	kfree(obj->pages);
 }
 
-static int
+int
 i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
 	const struct drm_i915_gem_object_ops *ops = obj->ops;

@@ -1776,6 +1776,102 @@ static const struct file_operations i915_ring_stop_fops = {
 	.llseek = default_llseek,
 };
 
+#define DROP_UNBOUND 0x1
+#define DROP_BOUND 0x2
+#define DROP_RETIRE 0x4
+#define DROP_ACTIVE 0x8
+#define DROP_ALL (DROP_UNBOUND | \
+		  DROP_BOUND | \
+		  DROP_RETIRE | \
+		  DROP_ACTIVE)
+static ssize_t
+i915_drop_caches_read(struct file *filp,
+		      char __user *ubuf,
+		      size_t max,
+		      loff_t *ppos)
+{
+	char buf[20];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", DROP_ALL);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_drop_caches_write(struct file *filp,
+		       const char __user *ubuf,
+		       size_t cnt,
+		       loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj, *next;
+	char buf[20];
+	int val = 0, ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Dropping caches: 0x%08x\n", val);
+
+	/* No need to check and wait for gpu resets, only libdrm auto-restarts
+	 * on ioctls on -EAGAIN. */
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (val & DROP_ACTIVE) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			goto unlock;
+	}
+
+	if (val & (DROP_RETIRE | DROP_ACTIVE))
+		i915_gem_retire_requests(dev);
+
+	if (val & DROP_BOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.inactive_list, mm_list)
+			if (obj->pin_count == 0) {
+				ret = i915_gem_object_unbind(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+	if (val & DROP_UNBOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+			if (obj->pages_pin_count == 0) {
+				ret = i915_gem_object_put_pages(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret ?: cnt;
+}
+
+static const struct file_operations i915_drop_caches_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_drop_caches_read,
+	.write = i915_drop_caches_write,
+	.llseek = default_llseek,
+};
+
 static ssize_t
 i915_max_freq_read(struct file *filp,
 		   char __user *ubuf,
@@ -2173,6 +2269,12 @@ int i915_debugfs_init(struct drm_minor *minor)
 		return ret;
 
 	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_gem_drop_caches",
+				  &i915_drop_caches_fops);
+	if (ret)
+		return ret;
+
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
 				  "i915_error_state",
 				  &i915_error_state_fops);
 	if (ret)
@@ -2202,6 +2304,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_min_freq_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_cache_sharing_fops,
+				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_drop_caches_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
 				 1, minor);
