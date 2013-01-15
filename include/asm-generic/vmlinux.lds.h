@@ -158,6 +158,16 @@
 #define CLKSRC_OF_TABLES()
 #endif
 
+#ifdef CONFIG_IRQCHIP
+#define IRQCHIP_OF_MATCH_TABLE()					\
+	. = ALIGN(8);							\
+	VMLINUX_SYMBOL(__irqchip_begin) = .;				\
+	*(__irqchip_of_table)		  				\
+	*(__irqchip_of_end)
+#else
+#define IRQCHIP_OF_MATCH_TABLE()
+#endif
+
 #define KERNEL_DTB()							\
 	STRUCT_ALIGN();							\
 	VMLINUX_SYMBOL(__dtb_start) = .;				\
@@ -502,7 +512,8 @@
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)					\
 	CLKSRC_OF_TABLES()						\
-	KERNEL_DTB()
+	KERNEL_DTB()							\
+	IRQCHIP_OF_MATCH_TABLE()
 
 #define INIT_TEXT							\
 	*(.init.text)							\

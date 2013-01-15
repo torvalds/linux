@@ -17,9 +17,8 @@
 #include <linux/clk.h>
 #include <linux/dw_dmac.h>
 #include <linux/err.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/smp_twd.h>
 #include <mach/dma.h>
@@ -181,14 +180,4 @@ void __init spear13xx_timer_init(void)
 
 	spear_setup_of_timer();
 	twd_local_timer_of_register();
-}
-
-static const struct of_device_id gic_of_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
-	{ /* Sentinel */ }
-};
-
-void __init spear13xx_dt_init_irq(void)
-{
-	of_irq_init(gic_of_match);
 }

@@ -30,7 +30,6 @@ extern struct pl08x_platform_data pl080_plat_data;
 void __init spear_setup_of_timer(void);
 void __init spear3xx_clk_init(void);
 void __init spear3xx_map_io(void);
-void __init spear3xx_dt_init_irq(void);
 
 void spear_restart(char, const char *);
 
