@@ -531,6 +531,10 @@ static void acpi_thermal_check(void *data)
 {
 	struct acpi_thermal *tz = data;
 
+	if (!tz->tz_enabled) {
+		pr_warn("thermal zone is disabled \n");
+		return;
+	}
 	thermal_zone_device_update(tz->thermal_zone);
 }
 
