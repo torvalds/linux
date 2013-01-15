@@ -2722,37 +2722,6 @@ char *d_path(const struct path *path, char *buf, int buflen)
 }
 EXPORT_SYMBOL(d_path);
 
-/**
- * d_path_with_unreachable - return the path of a dentry
- * @path: path to report
- * @buf: buffer to return value in
- * @buflen: buffer length
- *
- * The difference from d_path() is that this prepends "(unreachable)"
- * to paths which are unreachable from the current process' root.
- */
-char *d_path_with_unreachable(const struct path *path, char *buf, int buflen)
-{
-	char *res = buf + buflen;
-	struct path root;
-	int error;
-
-	if (path->dentry->d_op && path->dentry->d_op->d_dname)
-		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
-
-	get_fs_root(current->fs, &root);
-	write_seqlock(&rename_lock);
-	error = path_with_deleted(path, &root, &res, &buflen);
-	if (error > 0)
-		error = prepend_unreachable(&res, &buflen);
-	write_sequnlock(&rename_lock);
-	path_put(&root);
-	if (error)
-		res =  ERR_PTR(error);
-
-	return res;
-}
-
 /*
  * Helper function for dentry_operations.d_dname() members
  */
