@@ -689,9 +689,10 @@ static void tegra_crtc_commit(struct drm_crtc *crtc)
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned long value;
 
-	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ |
-		GENERAL_UPDATE | WIN_A_UPDATE;
+	value = GENERAL_UPDATE | WIN_A_UPDATE;
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
+	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
 	drm_vblank_post_modeset(crtc->dev, dc->pipe);
