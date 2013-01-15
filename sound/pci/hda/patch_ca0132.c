@@ -75,7 +75,9 @@
 
 #define EFX_FILE   "ctefx.bin"
 
+#ifdef CONFIG_SND_HDA_DSP_LOADER
 MODULE_FIRMWARE(EFX_FILE);
+#endif
 
 static char *dirstr[2] = { "Playback", "Capture" };
 
