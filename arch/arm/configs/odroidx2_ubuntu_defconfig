@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.57 Kernel Configuration
+# Linux/arm 3.0.58 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_HAVE_PWM=y
@@ -2609,10 +2609,11 @@ CONFIG_FILE_LOCKING=y
 CONFIG_FSNOTIFY=y
 # CONFIG_DNOTIFY is not set
 CONFIG_INOTIFY_USER=y
-# CONFIG_FANOTIFY is not set
+CONFIG_FANOTIFY=y
+CONFIG_FANOTIFY_ACCESS_PERMISSIONS=y
 # CONFIG_QUOTA is not set
 # CONFIG_QUOTACTL is not set
-# CONFIG_AUTOFS4_FS is not set
+CONFIG_AUTOFS4_FS=m
 CONFIG_FUSE_FS=m
 CONFIG_CUSE=m
 CONFIG_GENERIC_ACL=y
