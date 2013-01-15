@@ -18,9 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/clocksource.h>
 #include <linux/io.h>
 #include <linux/pm.h>
-#include <linux/vt8500_timer.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -186,8 +186,8 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
 	.init_irq	= vt8500_init_irq,
-	.init_time	= vt8500_timer_init,
 	.init_machine	= vt8500_init,
+	.init_time	= clocksource_of_init,
 	.restart	= vt8500_restart,
 	.handle_irq	= vt8500_handle_irq,
 MACHINE_END
