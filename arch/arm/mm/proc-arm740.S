@@ -145,5 +145,5 @@ __arm740_proc_info:
 	.long	arm740_processor_functions
 	.long	0
 	.long	0
-	.long	v3_cache_fns			@ cache model
+	.long	v4_cache_fns			@ cache model
 	.size	__arm740_proc_info, . - __arm740_proc_info
