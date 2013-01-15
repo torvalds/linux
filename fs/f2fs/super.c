@@ -675,14 +675,17 @@ static int __init init_f2fs_fs(void)
 	err = create_checkpoint_caches();
 	if (err)
 		goto fail;
-	return register_filesystem(&f2fs_fs_type);
+	err = register_filesystem(&f2fs_fs_type);
+	if (err)
+		goto fail;
+	f2fs_create_root_stats();
 fail:
 	return err;
 }
 
 static void __exit exit_f2fs_fs(void)
 {
-	destroy_root_stats();
+	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
 	destroy_checkpoint_caches();
 	destroy_gc_caches();

@@ -300,7 +300,7 @@ static const struct file_operations stat_fops = {
 	.release = single_release,
 };
 
-static int init_stats(struct f2fs_sb_info *sbi)
+int f2fs_build_stats(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_stat_info *si;
@@ -327,21 +327,6 @@ static int init_stats(struct f2fs_sb_info *sbi)
 	return 0;
 }
 
-int f2fs_build_stats(struct f2fs_sb_info *sbi)
-{
-	int retval;
-
-	retval = init_stats(sbi);
-	if (retval)
-		return retval;
-
-	if (!debugfs_root)
-		debugfs_root = debugfs_create_dir("f2fs", NULL);
-
-	debugfs_create_file("status", S_IRUGO, debugfs_root, NULL, &stat_fops);
-	return 0;
-}
-
 void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = sbi->stat_info;
@@ -353,7 +338,15 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 	kfree(sbi->stat_info);
 }
 
-void destroy_root_stats(void)
+void __init f2fs_create_root_stats(void)
+{
+	debugfs_root = debugfs_create_dir("f2fs", NULL);
+	if (debugfs_root)
+		debugfs_create_file("status", S_IRUGO, debugfs_root,
+					 NULL, &stat_fops);
+}
+
+void f2fs_destroy_root_stats(void)
 {
 	debugfs_remove_recursive(debugfs_root);
 	debugfs_root = NULL;

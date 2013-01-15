@@ -1060,7 +1060,8 @@ struct f2fs_stat_info {
 
 int f2fs_build_stats(struct f2fs_sb_info *);
 void f2fs_destroy_stats(struct f2fs_sb_info *);
-void destroy_root_stats(void);
+void f2fs_create_root_stats(void);
+void f2fs_destroy_root_stats(void);
 #else
 #define stat_inc_call_count(si)
 #define stat_inc_seg_count(si, type)
@@ -1070,7 +1071,8 @@ void destroy_root_stats(void);
 
 static inline int f2fs_build_stats(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_stats(struct f2fs_sb_info *sbi) { }
-static inline void destroy_root_stats(void) { }
+static inline void f2fs_create_root_stats(void) { }
+static inline void f2fs_destroy_root_stats(void) { }
 #endif
 
 extern const struct file_operations f2fs_dir_operations;
