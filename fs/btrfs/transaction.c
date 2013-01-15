@@ -1468,7 +1468,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		goto cleanup_transaction;
 	}
 
-	if (cur_trans->aborted) {
+	/* Stop the commit early if ->aborted is set */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
 		ret = cur_trans->aborted;
 		goto cleanup_transaction;
 	}
