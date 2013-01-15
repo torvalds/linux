@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 372668 2012-12-04 14:07:12Z $
+ * $Id: wl_cfgp2p.c 376685 2013-01-02 06:28:45Z $
  *
  */
 #include <typedefs.h>
@@ -716,7 +716,7 @@ exit:
 s32
 wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 	u32 num_chans, u16 *channels,
-	s32 search_state, u16 action, u32 bssidx)
+	s32 search_state, u16 action, u32 bssidx, struct ether_addr *tx_dst_addr)
 {
 	s32 ret = BCME_OK;
 	s32 memsize;
@@ -786,7 +786,11 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 	else
 		eparams->params.scan_type = DOT11_SCANTYPE_PASSIVE;
 
-	memcpy(&eparams->params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+	if (tx_dst_addr == NULL)
+		memcpy(&eparams->params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+	else
+		memcpy(&eparams->params.bssid, tx_dst_addr, ETHER_ADDR_LEN);
+
 	if (ssid.SSID_len)
 		memcpy(&eparams->params.ssid, &ssid, sizeof(wlc_ssid_t));
 
@@ -852,7 +856,7 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
  */
 s32
 wl_cfgp2p_act_frm_search(struct wl_priv *wl, struct net_device *ndev,
-	s32 bssidx, s32 channel)
+	s32 bssidx, s32 channel, struct ether_addr *tx_dst_addr)
 {
 	s32 ret = 0;
 	u32 chan_cnt = 0;
@@ -885,7 +889,7 @@ wl_cfgp2p_act_frm_search(struct wl_priv *wl, struct net_device *ndev,
 	}
 	ret = wl_cfgp2p_escan(wl, ndev, true, chan_cnt,
 		default_chan_list, WL_P2P_DISC_ST_SEARCH,
-		WL_SCAN_ACTION_START, bssidx);
+		WL_SCAN_ACTION_START, bssidx, tx_dst_addr);
 	kfree(default_chan_list);
 exit:
 	return ret;

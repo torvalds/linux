@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 374275 2012-12-12 11:44:18Z $
+ * $Id: dhd_linux.c 377078 2013-01-04 01:16:17Z $
  */
 
 #include <typedefs.h>
@@ -380,6 +380,11 @@ uint dhd_console_ms = 0;
 module_param(dhd_console_ms, uint, 0644);
 #endif /* defined(DHD_DEBUG) */
 
+extern uint dhd_doflow;
+/* tunable paramter to update tx credit in each dpc */
+extern uint dhd_dpcpoll;
+module_param(dhd_doflow, uint, 0644);
+module_param(dhd_dpcpoll, uint, 0644);
 uint dhd_slpauto = TRUE;
 module_param(dhd_slpauto, uint, 0);
 

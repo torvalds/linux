@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 374275 2012-12-12 11:44:18Z $
+ * $Id: wl_cfg80211.c 376971 2013-01-03 14:06:06Z $
  */
 
 #include <typedefs.h>
@@ -1869,7 +1869,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 		}
 		err = wl_cfgp2p_escan(wl, ndev, wl->active_scan, num_chans, default_chan_list,
 			search_state, action,
-			wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE));
+			wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE), NULL);
 		kfree(default_chan_list);
 	}
 exit:
@@ -3871,7 +3871,8 @@ wl_cfg80211_afx_handler(struct work_struct *work)
 				(100 * (1 + (random32() % 3)))); /* 100ms ~ 300ms */
 		} else {
 			ret = wl_cfgp2p_act_frm_search(wl, wl->afx_hdl->dev,
-				wl->afx_hdl->bssidx, wl->afx_hdl->peer_listen_chan);
+				wl->afx_hdl->bssidx, wl->afx_hdl->peer_listen_chan,
+				&wl->afx_hdl->tx_dst_addr);
 		}
 		if (unlikely(ret != BCME_OK)) {
 			WL_ERR(("ERROR occurred! returned value is (%d)\n", ret));
@@ -8341,7 +8342,8 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		goto cfg80211_attach_out;
 	}
 #if defined(COEX_DHCP)
-	if (wl_cfg80211_btcoex_init(wl))
+	err = wl_cfg80211_btcoex_init(wl);
+	if (err)
 		goto cfg80211_attach_out;
 #endif 
 
@@ -8356,7 +8358,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 	return err;
 
 cfg80211_attach_out:
-	err = wl_setup_rfkill(wl, FALSE);
+	wl_setup_rfkill(wl, FALSE);
 	wl_free_wdev(wl);
 	return err;
 }
@@ -9215,6 +9217,7 @@ wl_update_prof(struct wl_priv *wl, struct net_device *ndev,
 		break;
 	case WL_PROF_CHAN:
 		profile->channel = *(u32*)data;
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;

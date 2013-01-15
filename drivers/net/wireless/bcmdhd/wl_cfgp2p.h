@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 368091 2012-11-12 04:28:31Z $
+ * $Id: wl_cfgp2p.h 376685 2013-01-02 06:28:45Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -215,11 +215,11 @@ wl_cfgp2p_disable_discovery(struct wl_priv *wl);
 extern s32
 wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active, u32 num_chans,
 	u16 *channels,
-	s32 search_state, u16 action, u32 bssidx);
+	s32 search_state, u16 action, u32 bssidx, struct ether_addr *tx_dst_addr);
 
 extern s32
 wl_cfgp2p_act_frm_search(struct wl_priv *wl, struct net_device *ndev,
-	s32 bssidx, s32 channel);
+	s32 bssidx, s32 channel, struct ether_addr *tx_dst_addr);
 
 extern wpa_ie_fixed_t *
 wl_cfgp2p_find_wpaie(u8 *parse, u32 len);

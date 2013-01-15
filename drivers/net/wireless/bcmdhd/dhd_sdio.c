@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 373330 2012-12-07 04:46:17Z $
+ * $Id: dhd_sdio.c 377078 2013-01-04 01:16:17Z $
  */
 
 #include <typedefs.h>
@@ -391,7 +391,8 @@ uint dhd_txminmax = DHD_TXMINMAX;
 #define DONGLE_MIN_MEMSIZE (128 *1024)
 int dhd_dongle_memsize;
 
-static bool dhd_doflow;
+uint dhd_doflow = TRUE;
+uint dhd_dpcpoll = FALSE;
 static bool dhd_alignctl;
 
 static bool sd1idle;
@@ -5841,6 +5842,11 @@ clkwait:
 	}
 
 exit:
+	/* attemp to update tx credit before exiting dpc */
+	if (!resched && dhd_dpcpoll) {
+		if (dhdsdio_readframes(bus, dhd_rxbound, &rxdone) != 0)
+			resched = TRUE;
+	}
 	dhd_os_sdunlock(bus->dhd);
 	return resched;
 }
