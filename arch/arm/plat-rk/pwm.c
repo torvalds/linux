@@ -19,7 +19,7 @@ struct clk *rk_pwm_get_clk(unsigned id)
 #if defined(CONFIG_ARCH_RK29)
 	if (id < 4)
 		return clk_get(NULL, "pwm");
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 	if (id == 0 || id == 1)
 		return clk_get(NULL, "pwm01");
 	else if (id== 2 || id == 3)
@@ -39,7 +39,7 @@ void __iomem *rk_pwm_get_base(unsigned id)
 #if defined(CONFIG_ARCH_RK29)
 	if (id < 4)
 		return RK29_PWM_BASE + id * 0x10;
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 	if (id == 0 || id == 1)
 		return RK30_PWM01_BASE + id * 0x10;
 	else if (id== 2 || id == 3)
