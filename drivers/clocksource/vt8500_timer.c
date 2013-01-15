@@ -134,7 +134,7 @@ static struct of_device_id vt8500_timer_ids[] = {
 	{ }
 };
 
-void __init vt8500_timer_init(void)
+static void __init vt8500_timer_init(void)
 {
 	struct device_node *np;
 	int timer_irq;
@@ -177,3 +177,4 @@ void __init vt8500_timer_init(void)
 					4, 0xf0000000);
 }
 
+CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init)
