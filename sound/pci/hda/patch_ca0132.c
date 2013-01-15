@@ -2416,15 +2416,13 @@ static int dspxfr_image(struct hda_codec *codec,
 		return -EINVAL;
 
 	dma_engine = kzalloc(sizeof(*dma_engine), GFP_KERNEL);
-	if (!dma_engine) {
-		status = -ENOMEM;
-		goto exit;
-	}
+	if (!dma_engine)
+		return -ENOMEM;
 
 	dma_engine->dmab = kzalloc(sizeof(*dma_engine->dmab), GFP_KERNEL);
 	if (!dma_engine->dmab) {
-		status = -ENOMEM;
-		goto exit;
+		kfree(dma_engine);
+		return -ENOMEM;
 	}
 
 	dma_engine->codec = codec;
