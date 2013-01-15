@@ -109,9 +109,9 @@ typedef struct rk29fb_screen {
 	u8 pin_dispon;
 
 	/* Swap rule */
-	u8 swap_rb;
+	u8 swap_bg;
 	u8 swap_rg;
-	u8 swap_gb;
+	u8 swap_rb;
 	u8 swap_delta;
 	u8 swap_dumy;
 

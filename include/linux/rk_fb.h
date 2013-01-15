@@ -20,8 +20,8 @@
 #include<linux/completion.h>
 #include<linux/spinlock.h>
 #include<asm/atomic.h>
-#include <mach/board.h>
-
+#include<mach/board.h>
+#include<linux/rk_screen.h>
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
@@ -52,20 +52,19 @@
 #define FBIOGET_ENABLE			0x5020
 
 /********************************************************************
-**              display output interface supported by rk lcdc                       *
+**          display output interface supported by rockchip lcdc                       *
 ********************************************************************/
 /* */
-#define OUT_P888            0
-#define OUT_P666            1
+#define OUT_P888            0   //24bit screen,connect to lcdc D0~D23
+#define OUT_P666            1   //18bit screen,connect to lcdc D0~D17
 #define OUT_P565            2 
 #define OUT_S888x           4
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
 #define OUT_P16BPP4         24
-#define OUT_D888_P666       0x21
+#define OUT_D888_P666       0x21 //18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
 #define OUT_D888_P565       0x22
-
 
 /**
  * pixel format definitions,this is copy from android/system/core/include/system/graphics.h
@@ -144,8 +143,8 @@ enum data_format{
 
 enum fb_win_map_order{
 	FB_DEFAULT_ORDER	   = 0,
-	FB0_WIN2_FB1_WIN1_FB2_WIN0 = 012,
-	FB0_WIN1_FB1_WIN2_FB2_WIN0 = 021, 
+	FB0_WIN2_FB1_WIN1_FB2_WIN0 = 12,
+	FB0_WIN1_FB1_WIN2_FB2_WIN0 = 21, 
 	FB0_WIN2_FB1_WIN0_FB2_WIN1 = 102,
 	FB0_WIN0_FB1_WIN2_FB2_WIN1 = 120,
 	FB0_WIN0_FB1_WIN1_FB2_WIN2 = 210,
@@ -237,6 +236,7 @@ struct rk_lcdc_device_driver{
 	int (*set_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
 	int (*read_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
 	int (*lcdc_hdmi_process)(struct rk_lcdc_device_driver *dev_drv,int mode); //some lcdc need to some process in hdmi mode
+	int (*lcdc_rst)(struct rk_lcdc_device_driver *dev_drv);
 	
 };
 
@@ -260,4 +260,26 @@ extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
 extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
+static int inline rk_fb_calc_fps(rk_screen *screen,u32 pixclock)
+{
+	int x, y;
+	unsigned long long hz;
+	if(!screen)
+	{
+		printk(KERN_ERR "%s:null screen!\n",__func__);
+		return 0;
+	}
+	x = screen->x_res + screen->left_margin + screen->right_margin + screen->hsync_len;
+	y = screen->y_res + screen->upper_margin + screen->lower_margin + screen->vsync_len;
+
+	hz = 1000000000000ULL;		/* 1e12 picoseconds per second */
+
+	hz += (x * y) / 2;
+	do_div(hz, x * y);		/* divide by x * y with rounding */
+
+	hz += pixclock / 2;
+	do_div(hz,pixclock);		/* divide by pixclock with rounding */
+
+	return  hz;
+}
 #endif
