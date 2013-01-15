@@ -2167,7 +2167,7 @@ static const struct dsp_image_seg *get_next_seg_ptr(
 /*
  * CA0132 chip DSP transfer stuffs.  For DSP download.
  */
-#define INVALID_DMA_CHANNEL (~0UL)
+#define INVALID_DMA_CHANNEL (~0U)
 
 /*
  * Program a list of address/data pairs via the ChipIO widget.
@@ -2431,7 +2431,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	dma_engine->buf_size = (ovly ? DSP_DMA_WRITE_BUFLEN_OVLY :
 			DSP_DMA_WRITE_BUFLEN_INIT) * 2;
 
-	dma_chan = 0;
+	dma_chan = ovly ? INVALID_DMA_CHANNEL : 0;
 
 	status = codec_set_converter_format(codec, WIDGET_CHIP_CTRL,
 					hda_format, &response);
@@ -2453,7 +2453,7 @@ static int dspxfr_image(struct hda_codec *codec,
 		status = dspio_alloc_dma_chan(codec, &dma_chan);
 		if (status < 0) {
 			snd_printdd(KERN_ERR "alloc dmachan fail");
-			dma_chan = (unsigned int)INVALID_DMA_CHANNEL;
+			dma_chan = INVALID_DMA_CHANNEL;
 			goto exit;
 		}
 	}
