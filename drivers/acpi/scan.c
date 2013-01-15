@@ -701,7 +701,7 @@ end:
 	return result;
 }
 
-static void acpi_device_unregister(struct acpi_device *device, int type)
+static void acpi_device_unregister(struct acpi_device *device)
 {
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
@@ -1385,7 +1385,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	if (!rmdevice)
 		return 0;
 
-	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
+	acpi_device_unregister(dev);
 
 	return 0;
 }
@@ -1746,7 +1746,7 @@ int __init acpi_scan_init(void)
 		result = acpi_bus_scan_fixed();
 
 	if (result)
-		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
+		acpi_device_unregister(acpi_root);
 	else
 		acpi_update_all_gpes();
 
