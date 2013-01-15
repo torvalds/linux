@@ -86,6 +86,7 @@ static int fcoe_link_ok(struct fc_lport *);
 
 static struct fc_lport *fcoe_hostlist_lookup(const struct net_device *);
 static int fcoe_hostlist_add(const struct fc_lport *);
+static void fcoe_hostlist_del(const struct fc_lport *);
 
 static int fcoe_device_notification(struct notifier_block *, ulong, void *);
 static void fcoe_dev_setup(void);
@@ -1119,6 +1120,12 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	port->min_queue_depth = FCOE_MIN_QUEUE_DEPTH;
 	INIT_WORK(&port->destroy_work, fcoe_destroy_work);
 
+	/*
+	 * Need to add the lport to the hostlist
+	 * so we catch NETDEV_CHANGE events.
+	 */
+	fcoe_hostlist_add(lport);
+
 	/* configure a fc_lport including the exchange manager */
 	rc = fcoe_lport_config(lport);
 	if (rc) {
@@ -1190,6 +1197,7 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 out_lp_destroy:
 	fc_exch_mgr_free(lport);
 out_host_put:
+	fcoe_hostlist_del(lport);
 	scsi_host_put(lport->host);
 out:
 	return ERR_PTR(rc);
@@ -2313,9 +2321,6 @@ static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
 	/* setup DCB priority attributes. */
 	fcoe_dcb_create(fcoe);
 
-	/* add to lports list */
-	fcoe_hostlist_add(lport);
-
 	/* start FIP Discovery and FLOGI */
 	lport->boot_time = jiffies;
 	fc_fabric_login(lport);
@@ -2523,6 +2528,24 @@ static int fcoe_hostlist_add(const struct fc_lport *lport)
 	return 0;
 }
 
+/**
+ * fcoe_hostlist_del() - Remove the FCoE interface identified by a local
+ *			 port to the hostlist
+ * @lport: The local port that identifies the FCoE interface to be added
+ *
+ * Locking: must be called with the RTNL mutex held
+ *
+ */
+static void fcoe_hostlist_del(const struct fc_lport *lport)
+{
+	struct fcoe_interface *fcoe;
+	struct fcoe_port *port;
+
+	port = lport_priv(lport);
+	fcoe = port->priv;
+	list_del(&fcoe->list);
+	return;
+}
 
 static struct fcoe_transport fcoe_sw_transport = {
 	.name = {FCOE_TRANSPORT_DEFAULT},
@@ -2613,9 +2636,9 @@ static void __exit fcoe_exit(void)
 	/* releases the associated fcoe hosts */
 	rtnl_lock();
 	list_for_each_entry_safe(fcoe, tmp, &fcoe_hostlist, list) {
-		list_del(&fcoe->list);
 		ctlr = fcoe_to_ctlr(fcoe);
 		port = lport_priv(ctlr->lp);
+		fcoe_hostlist_del(port->lport);
 		queue_work(fcoe_wq, &port->destroy_work);
 	}
 	rtnl_unlock();
