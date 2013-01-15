@@ -21,7 +21,7 @@
 #define LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
 #define LOG_BUF_PAGE_ORDER	(CONFIG_LOG_BUF_SHIFT - PAGE_SHIFT)
 static char last_log_buf[LOG_BUF_LEN];
-extern void switch_log_buf(char *new_log_buf, unsigned size);
+extern void __init switch_log_buf(char *new_log_buf, unsigned size);
 
 char *last_log_get(unsigned *size)
 {
@@ -53,14 +53,15 @@ static const struct file_operations last_log_file_ops = {
 
 static void * __init last_log_vmap(phys_addr_t start, unsigned int page_count)
 {
-	struct page *pages[page_count];
+	struct page *pages[page_count + 1];
 	unsigned int i;
 
 	for (i = 0; i < page_count; i++) {
 		phys_addr_t addr = start + i * PAGE_SIZE;
 		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
 	}
-	return vmap(pages, page_count, VM_MAP, pgprot_noncached(PAGE_KERNEL));
+	pages[page_count] = pfn_to_page(start >> PAGE_SHIFT);
+	return vmap(pages, page_count + 1, VM_MAP, pgprot_noncached(PAGE_KERNEL));
 }
 
 static int __init last_log_init(void)
@@ -80,9 +81,10 @@ static int __init last_log_init(void)
 		return 0;
 	}
 
-	pr_info("0x%p map to 0x%p and copy to 0x%p (version 2.0)\n", log_buf, new_log_buf, last_log_buf);
+	pr_info("0x%p map to 0x%p and copy to 0x%p (version 2.1)\n", log_buf, new_log_buf, last_log_buf);
 
-	memcpy(last_log_buf, log_buf, LOG_BUF_LEN);
+	memcpy(last_log_buf, new_log_buf, LOG_BUF_LEN);
+	memset(new_log_buf, 0, LOG_BUF_LEN);
 	switch_log_buf(new_log_buf, LOG_BUF_LEN);
 
 	entry = create_proc_entry("last_log", S_IFREG | S_IRUGO, NULL);

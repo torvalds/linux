@@ -1031,7 +1031,7 @@ void pm_emit_log_char(char c)
 #endif
 
 #ifdef CONFIG_RK29_LAST_LOG
-void switch_log_buf(char *new_log_buf, int size)
+void __init switch_log_buf(char *new_log_buf, int size)
 {
 	unsigned long flags;
 
