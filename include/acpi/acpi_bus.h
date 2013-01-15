@@ -271,7 +271,6 @@ struct acpi_device {
 	struct acpi_device_wakeup wakeup;
 	struct acpi_device_perf performance;
 	struct acpi_device_dir dir;
-	struct acpi_device_ops ops;
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
