@@ -498,5 +498,13 @@
 			emptyfifo_hold_master = <1>;
 			clocks = <&per_base_clk>;
 		};
+
+		hps_0_fpgamgr: fpgamgr@0xff706000 {
+			compatible = "altr,fpga-mgr-1.0", "altr,fpga-mgr";
+			transport = "mmio";
+			reg = <0xFF706000 0x1000
+			       0xFFB90000 0x1000>;
+			interrupts = <0 175 4>;
+		};
 	};
 };

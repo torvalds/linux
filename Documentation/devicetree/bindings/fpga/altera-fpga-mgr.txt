@@ -1,0 +1,25 @@
+Altera FPGA Manager
+
+Required properties:
+
+  - compatible : should be "<manufacturer>,<type>"
+                 "altr,fpga-mgr-1.0", "altr,fpga-mgr";
+
+  - transport  : the interface for register and configuration data.
+                 Currently only memory mapped io is supported, so must be "mmio"
+
+  - reg        : base address for memory mapped io.
+                  - The first index is for FPGA manager register access.
+                  - The second index is for writing FPGA configuration data.
+
+  - interrupts : interrupts for the FPGA Manager device.
+
+Example:
+
+	hps_0_fpgamgr: fpgamgr@0xff706000 {
+		compatible = "altr,fpga-mgr-1.0", "altr,fpga-mgr";
+		transport = "mmio";
+		reg = <0xFF706000 0x1000
+		       0xFFB90000 0x1000>;
+		interrupts = <0 175 4>;
+	};
