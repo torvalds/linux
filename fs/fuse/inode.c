@@ -408,7 +408,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct fuse_statfs_out outarg;
 	int err;
 
-	if (!fuse_allow_task(fc, current)) {
+	if (!fuse_allow_current_process(fc)) {
 		buf->f_type = FUSE_SUPER_MAGIC;
 		return 0;
 	}

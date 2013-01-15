@@ -774,9 +774,9 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc);
 int fuse_valid_type(int m);
 
 /**
- * Is task allowed to perform filesystem operation?
+ * Is current process allowed to perform filesystem operation?
  */
-int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task);
+int fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 

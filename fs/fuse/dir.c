@@ -985,7 +985,7 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 
 /*
  * Calling into a user-controlled filesystem gives the filesystem
- * daemon ptrace-like capabilities over the requester process.  This
+ * daemon ptrace-like capabilities over the current process.  This
  * means, that the filesystem daemon is able to record the exact
  * filesystem operations performed, and can also control the behavior
  * of the requester process in otherwise impossible ways.  For example
@@ -996,27 +996,23 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
  * for which the owner of the mount has ptrace privilege.  This
  * excludes processes started by other users, suid or sgid processes.
  */
-int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
+int fuse_allow_current_process(struct fuse_conn *fc)
 {
 	const struct cred *cred;
-	int ret;
 
 	if (fc->flags & FUSE_ALLOW_OTHER)
 		return 1;
 
-	rcu_read_lock();
-	ret = 0;
-	cred = __task_cred(task);
+	cred = current_cred();
 	if (uid_eq(cred->euid, fc->user_id) &&
 	    uid_eq(cred->suid, fc->user_id) &&
 	    uid_eq(cred->uid,  fc->user_id) &&
 	    gid_eq(cred->egid, fc->group_id) &&
 	    gid_eq(cred->sgid, fc->group_id) &&
 	    gid_eq(cred->gid,  fc->group_id))
-		ret = 1;
-	rcu_read_unlock();
+		return 1;
 
-	return ret;
+	return 0;
 }
 
 static int fuse_access(struct inode *inode, int mask)
@@ -1077,7 +1073,7 @@ static int fuse_permission(struct inode *inode, int mask)
 	bool refreshed = false;
 	int err = 0;
 
-	if (!fuse_allow_task(fc, current))
+	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
 	/*
@@ -1544,7 +1540,7 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	loff_t oldsize;
 	int err;
 
-	if (!fuse_allow_task(fc, current))
+	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
 	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
@@ -1653,7 +1649,7 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	struct inode *inode = entry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
-	if (!fuse_allow_task(fc, current))
+	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
 	return fuse_update_attributes(inode, stat, NULL, NULL);
@@ -1756,7 +1752,7 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
-	if (!fuse_allow_task(fc, current))
+	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
 	if (fc->no_listxattr)
