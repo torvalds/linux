@@ -1256,11 +1256,24 @@ static struct vpif_capture_config da850_vpif_capture_config = {
 };
 
 /* VPIF display configuration */
+
+static struct adv7343_platform_data adv7343_pdata = {
+	.mode_config = {
+		.dac_3 = 1,
+		.dac_2 = 1,
+		.dac_1 = 1,
+	},
+	.sd_config = {
+		.sd_dac_out1 = 1,
+	},
+};
+
 static struct vpif_subdev_info da850_vpif_subdev[] = {
 	{
 		.name = "adv7343",
 		.board_info = {
 			I2C_BOARD_INFO("adv7343", 0x2a),
+			.platform_data = &adv7343_pdata,
 		},
 	},
 };
