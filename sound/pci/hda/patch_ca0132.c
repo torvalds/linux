@@ -2325,7 +2325,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (!comm_dma_setup_done) {
 			status = dsp_dma_stop(codec, dma_chan, ovly);
 			if (status < 0)
-				return -EIO;
+				return status;
 			status = dsp_dma_setup_common(codec, chip_addx,
 						dma_chan, port_map_mask, ovly);
 			if (status < 0)
