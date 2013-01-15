@@ -1043,8 +1043,8 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
     cropW = pcdev->zoominfo.a.c.width;
     cropH = pcdev->zoominfo.a.c.height;
 	
-    psY = psY + (srcW-cropW);
-    psUV = psUV + (srcW-cropW); 
+    psY = psY + (srcW-cropW)/2;
+    psUV = psUV + (srcW-cropW)/2; 
     
     vb_info = pcdev->vbinfo+vb->i; 
     dst_phy = vb_info->phy_addr;
