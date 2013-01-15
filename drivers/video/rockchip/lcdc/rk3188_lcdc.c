@@ -317,7 +317,7 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		//set background color to black,set swap according to the screen panel,disable blank mode
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BG_COLOR| m_DSP_BG_SWAP | m_DSP_RB_SWAP | 
 			     m_DSP_RG_SWAP | m_DSP_DELTA_SWAP | m_DSP_DUMMY_SWAP | m_BLANK_EN,
-			     v_BG_COLOR(0x000000) | v_DSP_BG_SWAP(screen->swap_bg) | 
+			     v_BG_COLOR(0x000000) | v_DSP_BG_SWAP(screen->swap_gb) | 
 			     v_DSP_RB_SWAP(screen->swap_rb) | v_DSP_RG_SWAP(screen->swap_rg) | 
 			     v_DSP_DELTA_SWAP(screen->swap_delta) | v_DSP_DUMMY_SWAP(screen->swap_dumy) |
 			     v_BLANK_EN(0) | v_BLACK_EN(0));
