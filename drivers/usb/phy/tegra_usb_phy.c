@@ -825,16 +825,3 @@ void tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
 }
 EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_end);
 
-void tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy)
-{
-	if (!phy_is_ulpi(phy))
-		utmi_phy_clk_disable(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_clk_disable);
-
-void tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy)
-{
-	if (!phy_is_ulpi(phy))
-		utmi_phy_clk_enable(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_clk_enable);

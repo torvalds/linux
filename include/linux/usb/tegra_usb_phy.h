@@ -64,10 +64,6 @@ struct tegra_usb_phy {
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode);
 
-void tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy);
-
-void tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy);
-
 void tegra_usb_phy_preresume(struct tegra_usb_phy *phy);
 
 void tegra_usb_phy_postresume(struct tegra_usb_phy *phy);
