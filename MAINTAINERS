@@ -1972,9 +1972,9 @@ S:	Maintained
 F:	drivers/usb/host/ohci-ep93xx.c
 
 CIRRUS LOGIC CS4270 SOUND DRIVER
-M:	Timur Tabi <timur@freescale.com>
+M:	Timur Tabi <timur@tabi.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
-S:	Supported
+S:	Odd Fixes
 F:	sound/soc/codecs/cs4270*
 
 CLEANCACHE API
@@ -3191,9 +3191,9 @@ F:	include/uapi/video/
 F:	include/uapi/linux/fb.h
 
 FREESCALE DIU FRAMEBUFFER DRIVER
-M:	Timur Tabi <timur@freescale.com>
+M:	Timur Tabi <timur@tabi.org>
 L:	linux-fbdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/video/fsl-diu-fb.*
 
 FREESCALE DMA DRIVER
@@ -3228,9 +3228,8 @@ F:	drivers/net/ethernet/freescale/fs_enet/
 F:	include/linux/fs_enet_pd.h
 
 FREESCALE QUICC ENGINE LIBRARY
-M:	Timur Tabi <timur@freescale.com>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Supported
+S:	Orphan
 F:	arch/powerpc/sysdev/qe_lib/
 F:	arch/powerpc/include/asm/*qe.h
 
@@ -3249,16 +3248,16 @@ S:	Maintained
 F:	drivers/net/ethernet/freescale/ucc_geth*
 
 FREESCALE QUICC ENGINE UCC UART DRIVER
-M:	Timur Tabi <timur@freescale.com>
+M:	Timur Tabi <timur@tabi.org>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Supported
+S:	Maintained
 F:	drivers/tty/serial/ucc_uart.c
 
 FREESCALE SOC SOUND DRIVERS
-M:	Timur Tabi <timur@freescale.com>
+M:	Timur Tabi <timur@tabi.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Supported
+S:	Maintained
 F:	sound/soc/fsl/fsl*
 F:	sound/soc/fsl/mpc8610_hpcd.c
 
