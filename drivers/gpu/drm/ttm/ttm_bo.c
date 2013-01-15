@@ -310,6 +310,53 @@ int ttm_bo_reserve(struct ttm_buffer_object *bo,
 	return ret;
 }
 
+int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
+				  bool interruptible, uint32_t sequence)
+{
+	bool wake_up = false;
+	int ret;
+
+	while (unlikely(atomic_xchg(&bo->reserved, 1) != 0)) {
+		WARN_ON(bo->seq_valid && sequence == bo->val_seq);
+
+		ret = ttm_bo_wait_unreserved(bo, interruptible);
+
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if ((bo->val_seq - sequence < (1 << 31)) || !bo->seq_valid)
+		wake_up = true;
+
+	/**
+	 * Wake up waiters that may need to recheck for deadlock,
+	 * if we decreased the sequence number.
+	 */
+	bo->val_seq = sequence;
+	bo->seq_valid = true;
+	if (wake_up)
+		wake_up_all(&bo->event_queue);
+
+	return 0;
+}
+
+int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
+			    bool interruptible, uint32_t sequence)
+{
+	struct ttm_bo_global *glob = bo->glob;
+	int put_count, ret;
+
+	ret = ttm_bo_reserve_slowpath_nolru(bo, interruptible, sequence);
+	if (likely(!ret)) {
+		spin_lock(&glob->lru_lock);
+		put_count = ttm_bo_del_from_lru(bo);
+		spin_unlock(&glob->lru_lock);
+		ttm_bo_list_ref_sub(bo, put_count, true);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(ttm_bo_reserve_slowpath);
+
 void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo)
 {
 	ttm_bo_add_to_lru(bo);

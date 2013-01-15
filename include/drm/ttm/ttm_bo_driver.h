@@ -821,6 +821,36 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
 			  bool no_wait, bool use_sequence, uint32_t sequence);
 
+/**
+ * ttm_bo_reserve_slowpath_nolru:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ *
+ * Will not remove reserved buffers from the lru lists.
+ * Otherwise identical to ttm_bo_reserve_slowpath.
+ */
+extern int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
+					 bool interruptible,
+					 uint32_t sequence);
+
+
+/**
+ * ttm_bo_reserve_slowpath:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ */
+extern int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
+				   bool interruptible, uint32_t sequence);
 
 /**
  * ttm_bo_reserve_nolru:
