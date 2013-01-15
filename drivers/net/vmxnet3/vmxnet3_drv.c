@@ -45,7 +45,6 @@ MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 
 static atomic_t devices_found;
 
-#define VMXNET3_MAX_DEVICES 10
 static int enable_mq = 1;
 static int irq_share_mode;
 
