@@ -3388,7 +3388,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			val = 0;
 	}
 
-	snd_printdd(KERN_INFO, "ca0132_effect_set: nid=0x%x, val=%ld\n",
+	snd_printdd(KERN_INFO "ca0132_effect_set: nid=0x%x, val=%ld\n",
 		    nid, val);
 
 	on = (val == 0) ? FLOAT_ZERO : FLOAT_ONE;
