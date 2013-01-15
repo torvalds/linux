@@ -129,12 +129,16 @@ int ttm_eu_reserve_buffers(struct list_head *list)
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
 
-retry:
 	spin_lock(&glob->lru_lock);
 	val_seq = entry->bo->bdev->val_seq++;
 
+retry:
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
+
+		/* already slowpath reserved? */
+		if (entry->reserved)
+			continue;
 
 		ret = ttm_bo_reserve_nolru(bo, true, true, true, val_seq);
 		switch (ret) {
@@ -155,11 +159,26 @@ retry:
 			/* fallthrough */
 		case -EAGAIN:
 			ttm_eu_backoff_reservation_locked(list);
+
+			/*
+			 * temporarily increase sequence number every retry,
+			 * to prevent us from seeing our old reservation
+			 * sequence when someone else reserved the buffer,
+			 * but hasn't updated the seq_valid/seqno members yet.
+			 */
+			val_seq = entry->bo->bdev->val_seq++;
+
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
-			ret = ttm_bo_wait_unreserved(bo, true);
+			ret = ttm_bo_reserve_slowpath_nolru(bo, true, val_seq);
 			if (unlikely(ret != 0))
 				return ret;
+			spin_lock(&glob->lru_lock);
+			entry->reserved = true;
+			if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
+				ret = -EBUSY;
+				goto err;
+			}
 			goto retry;
 		default:
 			goto err;
