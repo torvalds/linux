@@ -1362,8 +1362,8 @@ struct sensor_parameter
 	unsigned short int preview_line_width;
 	unsigned short int preview_gain;
 
-	unsigned int PreviewPclk;
-	unsigned int CapturePclk;
+	unsigned short int PreviewPclk;
+	unsigned short int CapturePclk;
 	char awb[6];
 };
 
@@ -1586,8 +1586,8 @@ static int sensor_parameter_record(struct i2c_client *client)
 	sensor_read(client,0x350b, &ret_l);
 	sensor->parameter.preview_gain = ret_l;
 
-    sensor->parameter.CapturePclk = 24000000;
-    sensor->parameter.PreviewPclk = 24000000;
+    sensor->parameter.CapturePclk = 24000;
+    sensor->parameter.PreviewPclk = 24000;
     sensor->parameter.PreviewDummyPixels = 0;
     sensor->parameter.CaptureDummyPixels = 0;
 	SENSOR_DG(" %s Read 0x350b=0x%02x  PreviewExposure:%d 0x3500=0x%02x  0x3501=0x%02x 0x3502=0x%02x \n",
@@ -1614,7 +1614,7 @@ static void OV2659SetDummy(struct i2c_client *client,unsigned int dummy_pixels, 
 {
     unsigned char val;
 	unsigned int temp_reg1, temp_reg2;
-	unsigned int temp_reg, base_shutter = 0x9B;
+	unsigned int temp_reg;
 	
 	if (dummy_pixels > 0)
 	{
