@@ -56,7 +56,8 @@
 _GLOBAL(kvmppc_handler_\ivor_nr)
 	/* Get pointer to vcpu and record exit number. */
 	mtspr	\scratch , r4
-	mfspr	r4, SPRN_SPRG_RVCPU
+	mfspr   r4, SPRN_SPRG_THREAD
+	lwz     r4, THREAD_KVM_VCPU(r4)
 	stw	r3, VCPU_GPR(R3)(r4)
 	stw	r5, VCPU_GPR(R5)(r4)
 	stw	r6, VCPU_GPR(R6)(r4)
@@ -401,9 +402,6 @@ lightweight_exit:
 	lis	r8, kvmppc_booke_handlers@ha
 	lwz	r8, kvmppc_booke_handlers@l(r8)
 	mtspr	SPRN_IVPR, r8
-
-	/* Save vcpu pointer for the exception handlers. */
-	mtspr	SPRN_SPRG_WVCPU, r4
 
 	lwz	r5, VCPU_SHARED(r4)
 

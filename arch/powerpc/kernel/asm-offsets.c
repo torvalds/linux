@@ -117,7 +117,7 @@ int main(void)
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	DEFINE(THREAD_KVM_SVCPU, offsetof(struct thread_struct, kvm_shadow_vcpu));
 #endif
-#ifdef CONFIG_KVM_BOOKE_HV
+#if defined(CONFIG_KVM) && defined(CONFIG_BOOKE)
 	DEFINE(THREAD_KVM_VCPU, offsetof(struct thread_struct, kvm_vcpu));
 #endif
 
