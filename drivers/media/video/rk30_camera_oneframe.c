@@ -48,6 +48,9 @@
 
 #if defined(CONFIG_ARCH_RK2928)
 #include <mach/rk2928_camera.h>
+#include <mach/cru.h>
+#include <mach/pmu.h>
+#define SOFT_RST_CIF1 (SOFT_RST_MAX+1)
 #endif
 #include <asm/cacheflush.h>
 static int debug;
@@ -1795,7 +1798,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     }
 #if 1
         {
-#ifdef CONFIG_ARCH_RK30
+#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928))
            mdelay(100);
             if(IS_CIF0()){
         //		pmu_set_idle_request(IDLE_REQ_VIO, true);
