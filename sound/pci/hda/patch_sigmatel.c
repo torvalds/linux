@@ -2343,6 +2343,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP Mini", STAC_92HD83XXX_HP_LED),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x144E,
 			  "HP Pavilion dv5", STAC_92HD83XXX_HP_INV_LED),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x148a,
+		      "HP Mini", STAC_92HD83XXX_HP_LED),
 	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_HP, "HP", STAC_92HD83XXX_HP),
 	{} /* terminator */
 };
@@ -6241,14 +6243,10 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 		/* BIOS bug: unfilled OEM string */
 		if (strstr(dev->name, "HP_Mute_LED_P_G")) {
 			set_hp_led_gpio(codec);
-			switch (codec->subsystem_id) {
-			case 0x103c148a:
-				spec->gpio_led_polarity = 0;
-				break;
-			default:
+			if (default_polarity >= 0)
+				spec->gpio_led_polarity = default_polarity;
+			else
 				spec->gpio_led_polarity = 1;
-				break;
-			}
 			return 1;
 		}
 	}
