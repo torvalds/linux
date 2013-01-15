@@ -106,6 +106,15 @@ struct fuse_inode {
 
 	/** List of writepage requestst (pending or sent) */
 	struct list_head writepages;
+
+	/** Miscellaneous bits describing inode state */
+	unsigned long state;
+};
+
+/** FUSE inode state bits */
+enum {
+	/** Advise readdirplus  */
+	FUSE_I_ADVISE_RDPLUS,
 };
 
 struct fuse_conn;

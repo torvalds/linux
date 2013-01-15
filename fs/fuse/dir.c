@@ -14,6 +14,27 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 
+static bool fuse_use_readdirplus(struct inode *dir, struct file *filp)
+{
+	struct fuse_conn *fc = get_fuse_conn(dir);
+	struct fuse_inode *fi = get_fuse_inode(dir);
+
+	if (!fc->do_readdirplus)
+		return false;
+	if (test_and_clear_bit(FUSE_I_ADVISE_RDPLUS, &fi->state))
+		return true;
+	if (filp->f_pos == 0)
+		return true;
+	return false;
+}
+
+static void fuse_advise_use_readdirplus(struct inode *dir)
+{
+	struct fuse_inode *fi = get_fuse_inode(dir);
+
+	set_bit(FUSE_I_ADVISE_RDPLUS, &fi->state);
+}
+
 #if BITS_PER_LONG >= 64
 static inline void fuse_dentry_settime(struct dentry *entry, u64 time)
 {
@@ -219,6 +240,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 				       attr_version);
 		fuse_change_entry_timeout(entry, &outarg);
 	}
+	fuse_advise_use_readdirplus(inode);
 	return 1;
 }
 
@@ -355,6 +377,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	else
 		fuse_invalidate_entry_cache(entry);
 
+	fuse_advise_use_readdirplus(dir);
 	return newent;
 
  out_iput:
@@ -1290,7 +1313,7 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 
 static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 {
-	int err;
+	int plus, err;
 	size_t nbytes;
 	struct page *page;
 	struct inode *inode = file->f_path.dentry->d_inode;
@@ -1310,11 +1333,13 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 		fuse_put_request(fc, req);
 		return -ENOMEM;
 	}
+
+	plus = fuse_use_readdirplus(inode, file);
 	req->out.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
 	req->page_descs[0].length = PAGE_SIZE;
-	if (fc->do_readdirplus) {
+	if (plus) {
 		attr_version = fuse_get_attr_version(fc);
 		fuse_read_fill(req, file, file->f_pos, PAGE_SIZE,
 			       FUSE_READDIRPLUS);
@@ -1327,7 +1352,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err) {
-		if (fc->do_readdirplus) {
+		if (plus) {
 			err = parse_dirplusfile(page_address(page), nbytes,
 						file, dstbuf, filldir,
 						attr_version);
