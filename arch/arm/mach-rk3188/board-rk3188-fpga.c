@@ -494,70 +494,90 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 
 #endif /* CONFIG_VIDEO_RK29 */
 
+#ifdef CONFIG_FB_ROCKCHIP
+
 #define RK_FB_MEM_SIZE 3*SZ_1M
 
-#define LCD_CS_MUX_NAME    GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME
-#define LCD_CS_PIN         RK30_PIN2_PA7
+#define LCD_CS_PIN         INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
-#define LCD_EN_MUX_NAME    GPIO2D7_TESTCLOCKOUT_NAME
-#define LCD_EN_PIN         RK30_PIN2_PD7
+#define LCD_EN_PIN         INVALID_GPIO
 #define LCD_EN_VALUE       GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
-	ret = gpio_request(LCD_CS_PIN, NULL);
-	if (ret != 0)
+
+	if(LCD_CS_PIN != INVALID_GPIO)
 	{
-		gpio_free(LCD_CS_PIN);
-		printk(KERN_ERR "request lcd cs pin fail!\n");
-		return -1;
+		ret = gpio_request(LCD_CS_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_CS_PIN);
+			printk(KERN_ERR "request lcd cs pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
+		}
 	}
-	else
+
+	if(LCD_EN_PIN != INVALID_GPIO)
 	{
-		gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
-	}
-	ret = gpio_request(LCD_EN_PIN, NULL);
-	if (ret != 0)
-	{
-		gpio_free(LCD_EN_PIN);
-		printk(KERN_ERR "request lcd en pin fail!\n");
-		return -1;
-	}
-	else
-	{
-		gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		ret = gpio_request(LCD_EN_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_EN_PIN);
+			printk(KERN_ERR "request lcd en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		}
 	}
 	return 0;
 }
 static int rk_fb_io_disable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
+	if(LCD_CS_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, !LCD_CS_VALUE);
+	}
+
+	if(LCD_EN_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, !LCD_EN_VALUE);
+	}
 	return 0;
 }
 static int rk_fb_io_enable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	if(LCD_CS_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
+	}
+
+	if(LCD_EN_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
 	return 0;
 }
 
 struct rk29fb_info lcdc0_screen_info = {
-	.prop	   = PRMRY,		//primary display device
-	.io_init   = rk_fb_io_init,
-	.io_disable = rk_fb_io_disable,
-	.io_enable = rk_fb_io_enable,
+	.prop	   	= PRMRY,		//primary display device
+	.io_init   	= rk_fb_io_init,
+	.io_disable 	= rk_fb_io_disable,
+	.io_enable 	= rk_fb_io_enable,
 	.set_screen_info = set_lcd_info,
 };
 
 struct rk29fb_info lcdc1_screen_info = {
-	#if defined(CONFIG_HDMI_RK30)
 	.prop		= EXTEND,	//extend display device
-	.lcd_info  = NULL,
-	.set_screen_info = hdmi_init_lcdc,
-	#endif
+	.lcd_info  	= NULL,
+	.set_screen_info = NULL,
 };
 
 static struct resource resource_fb[] = {
@@ -587,6 +607,62 @@ static struct platform_device device_fb = {
 	.num_resources	= ARRAY_SIZE(resource_fb),
 	.resource	= resource_fb,
 };
+#endif
+
+#if defined(CONFIG_LCDC0_RK3188)
+static struct resource resource_lcdc0[] = {
+	[0] = {
+		.name  = "lcdc0 reg",
+		.start = RK30_LCDC0_PHYS,
+		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	
+	[1] = {
+		.name  = "lcdc0 irq",
+		.start = IRQ_LCDC0,
+		.end   = IRQ_LCDC0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc0 = {
+	.name		  = "rk3188-lcdc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
+	.resource	  = resource_lcdc0,
+	.dev 		= {
+		.platform_data = &lcdc0_screen_info,
+	},
+};
+#endif
+#if defined(CONFIG_LCDC1_RK3188) 
+extern struct rk29fb_info lcdc1_screen_info;
+static struct resource resource_lcdc1[] = {
+	[0] = {
+		.name  = "lcdc1 reg",
+		.start = RK30_LCDC1_PHYS,
+		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "lcdc1 irq",
+		.start = IRQ_LCDC1,
+		.end   = IRQ_LCDC1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc1 = {
+	.name		  = "rk3188-lcdc",
+	.id		  = 1,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
+	.resource	  = resource_lcdc1,
+	.dev 		= {
+		.platform_data = &lcdc1_screen_info,
+	},
+};
+#endif
 
 static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined (CONFIG_SND_SOC_RK1000)
@@ -709,8 +785,19 @@ static struct platform_device device_ion = {
 };
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
+#endif
+#if defined(CONFIG_LCDC0_RK3188)
+	&device_lcdc0,
+#endif
+#if defined(CONFIG_LCDC1_RK3188)
+	&device_lcdc1,
+#endif
+
+#ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
+#endif
 	&device_ion,
 };
 
