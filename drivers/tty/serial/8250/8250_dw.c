@@ -145,6 +145,7 @@ static int dw8250_probe_of(struct uart_port *p)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
 static bool dw8250_acpi_dma_filter(struct dma_chan *chan, void *parm)
 {
 	return chan->chan_id == *(int *)parm;
@@ -231,6 +232,12 @@ static int dw8250_probe_acpi(struct uart_port *p)
 
 	return 0;
 }
+#else
+static inline int dw8250_probe_acpi(struct uart_port *p)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_ACPI */
 
 static void dw8250_setup_port(struct uart_8250_port *up)
 {
