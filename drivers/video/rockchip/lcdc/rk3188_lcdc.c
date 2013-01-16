@@ -649,6 +649,11 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 	struct rk3188_lcdc_device *lcdc_dev = 
 		container_of(dev_drv,struct rk3188_lcdc_device,driver);
 
+	if(dev_drv->screen0->standby)
+		dev_drv->screen0->standby(1);
+	if(dev_drv->screen_ctr_info->io_disable)
+		dev_drv->screen_ctr_info->io_disable();
+
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -674,6 +679,10 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	int i=0;
 	int __iomem *c;
 	int v;
+
+	if(dev_drv->screen_ctr_info->io_enable) 		//power on
+		dev_drv->screen_ctr_info->io_enable();
+	
 	if(!lcdc_dev->clk_on)
 	{
 		rk3188_lcdc_clk_enable(lcdc_dev);
@@ -704,6 +713,9 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 
 	if(!lcdc_dev->atv_layer_cnt)
 		rk3188_lcdc_clk_disable(lcdc_dev);
+
+	if(dev_drv->screen0->standby)
+		dev_drv->screen0->standby(0);	      //screen wake up
 	
 	return 0;
 }
@@ -1098,6 +1110,25 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	       ret = -EBUSY;
 	       goto err3;
 	}
+
+	if(screen_ctr_info->set_screen_info)
+	{
+		screen_ctr_info->set_screen_info(screen,screen_ctr_info->lcd_info);
+		if(SCREEN_NULL==screen->type)
+		{
+			printk(KERN_WARNING "no display device on lcdc%d!?\n",lcdc_dev->id);
+			ret = -ENODEV;
+		}
+		if(screen_ctr_info->io_init)
+			screen_ctr_info->io_init(NULL);
+	}
+	else
+	{
+		printk(KERN_WARNING "no display device on lcdc%d!?\n",lcdc_dev->id);
+		ret =  -ENODEV;
+		goto err4;
+	}
+	
 	ret = rk_fb_register(&(lcdc_dev->driver),&lcdc_driver,lcdc_dev->id);
 	if(ret < 0)
 	{

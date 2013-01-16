@@ -1028,6 +1028,11 @@ static int rk2928_lcdc_hdmi_process(struct rk_lcdc_device_driver *dev_drv,int mo
 int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
+
+	if(dev_drv->screen0->standby)
+		dev_drv->screen0->standby(1);
+	if(dev_drv->screen_ctr_info->io_disable)
+		dev_drv->screen_ctr_info->io_disable();
 	
 	if(dev_drv->cur_screen->sscreen_set)
 		dev_drv->cur_screen->sscreen_set(dev_drv->cur_screen , 0);
@@ -1065,6 +1070,9 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
+
+	if(dev_drv->screen_ctr_info->io_enable) 		//power on
+		dev_drv->screen_ctr_info->io_enable();
 	
 	if(!lcdc_dev->clk_on)
 	{
@@ -1090,6 +1098,9 @@ int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	
 	if(dev_drv->cur_screen->sscreen_set)
 		dev_drv->cur_screen->sscreen_set(dev_drv->cur_screen , 1);
+
+	if(dev_drv->screen0->standby)
+		dev_drv->screen0->standby(0);	      //screen wake up
 	
 
     	return 0;
@@ -1246,6 +1257,25 @@ static int __devinit rk2928_lcdc_probe (struct platform_device *pdev)
 	       ret = -EBUSY;
 	       goto err3;
 	}
+
+	if(screen_ctr_info->set_screen_info)
+	{
+		screen_ctr_info->set_screen_info(screen0,screen_ctr_info->lcd_info);
+		if(SCREEN_NULL==screen0->type)
+		{
+			printk(KERN_WARNING "no display device on lcdc%d!?\n",lcdc_dev->id);
+			ret = -ENODEV;
+		}
+		if(screen_ctr_info->io_init)
+			screen_ctr_info->io_init(NULL);
+	}
+	else
+	{
+		printk(KERN_WARNING "no display device on lcdc%d!?\n",lcdc_dev->id);
+		ret =  -ENODEV;
+		goto err4;
+	}
+	
 	ret = rk_fb_register(&(lcdc_dev->driver),&lcdc_driver,lcdc_dev->id);
 	if(ret < 0)
 	{

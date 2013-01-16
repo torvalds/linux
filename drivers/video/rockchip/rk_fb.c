@@ -1099,26 +1099,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     	}
     	lcdc_id = i;
 	init_lcdc_device_driver(dev_drv, def_drv,id);
-	if(dev_drv->screen_ctr_info->set_screen_info)
-	{
-		dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
-			dev_drv->screen_ctr_info->lcd_info);
-		if(SCREEN_NULL==dev_drv->cur_screen->type)
-		{
-			printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
-			fb_inf->num_lcdc--;
-			return -ENODEV;
-		}
-		if(dev_drv->screen_ctr_info->io_init)
-			dev_drv->screen_ctr_info->io_init(NULL);
-	}
-	else
-	{
-		printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
-		fb_inf->num_lcdc--;
-		return -ENODEV;
-	}
-		
+	
 	dev_drv->init_lcdc(dev_drv);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
@@ -1254,10 +1235,7 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	{
 		if (!inf->lcdc_dev_drv[i])
 			continue;
-		if(inf->lcdc_dev_drv[i]->screen0->standby)
-			inf->lcdc_dev_drv[i]->screen0->standby(1);
-		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
-			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
+			
 		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
 	}
 }
@@ -1271,15 +1249,8 @@ static void rkfb_early_resume(struct early_suspend *h)
 	{
 		if (!inf->lcdc_dev_drv[i])
 			continue;
-		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable) 		//power on
-			inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable();
 		
 		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);	       // data out
-		
-		if(inf->lcdc_dev_drv[i]->screen0->standby)
-			inf->lcdc_dev_drv[i]->screen0->standby(0);	      //screen wake up
-		
-		
 	}
 
 }
