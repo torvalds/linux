@@ -74,8 +74,6 @@
 #define SUB_CHIP_ID3 3
 #define SUB_CHIP_ID_INVAL 0xff
 
-#define TWL_MODULE_LAST TWL4030_MODULE_LAST
-
 /* Base Address defns for twl4030_map[] */
 
 /* subchip/slave 0 - USB ID */
@@ -94,10 +92,7 @@
 #define TWL4030_BASEADD_MADC		0x0000
 #define TWL4030_BASEADD_MAIN_CHARGE	0x0074
 #define TWL4030_BASEADD_PRECHARGE	0x00AA
-#define TWL4030_BASEADD_PWM0		0x00F8
-#define TWL4030_BASEADD_PWM1		0x00FB
-#define TWL4030_BASEADD_PWMA		0x00EF
-#define TWL4030_BASEADD_PWMB		0x00F1
+#define TWL4030_BASEADD_PWM		0x00F8
 #define TWL4030_BASEADD_KEYPAD		0x00D2
 
 #define TWL5031_BASEADD_ACCESSORY	0x0074 /* Replaces Main Charge */
@@ -117,7 +112,7 @@
 
 /* subchip/slave 0 0x48 - POWER */
 #define TWL6030_BASEADD_RTC		0x0000
-#define TWL6030_BASEADD_MEM		0x0017
+#define TWL6030_BASEADD_SECURED_REG	0x0017
 #define TWL6030_BASEADD_PM_MASTER	0x001F
 #define TWL6030_BASEADD_PM_SLAVE_MISC	0x0030 /* PM_RECEIVER */
 #define TWL6030_BASEADD_PM_MISC		0x00E2
@@ -132,6 +127,7 @@
 #define TWL6030_BASEADD_PIH		0x00D0
 #define TWL6030_BASEADD_CHARGER		0x00E0
 #define TWL6025_BASEADD_CHARGER		0x00DA
+#define TWL6030_BASEADD_LED		0x00F4
 
 /* subchip/slave 2 0x4A - DFT */
 #define TWL6030_BASEADD_DIEID		0x00C0
@@ -188,34 +184,33 @@ static struct twl_mapping twl4030_map[] = {
 	 * so they continue to match the order in this table.
 	 */
 
+	/* Common IPs */
 	{ 0, TWL4030_BASEADD_USB },
+	{ 1, TWL4030_BASEADD_PIH },
+	{ 2, TWL4030_BASEADD_MAIN_CHARGE },
+	{ 3, TWL4030_BASEADD_PM_MASTER },
+	{ 3, TWL4030_BASEADD_PM_RECEIVER },
+
+	{ 3, TWL4030_BASEADD_RTC },
+	{ 2, TWL4030_BASEADD_PWM },
+	{ 2, TWL4030_BASEADD_LED },
+	{ 3, TWL4030_BASEADD_SECURED_REG },
+
+	/* TWL4030 specific IPs */
 	{ 1, TWL4030_BASEADD_AUDIO_VOICE },
 	{ 1, TWL4030_BASEADD_GPIO },
 	{ 1, TWL4030_BASEADD_INTBR },
-	{ 1, TWL4030_BASEADD_PIH },
-
 	{ 1, TWL4030_BASEADD_TEST },
 	{ 2, TWL4030_BASEADD_KEYPAD },
+
 	{ 2, TWL4030_BASEADD_MADC },
 	{ 2, TWL4030_BASEADD_INTERRUPTS },
-	{ 2, TWL4030_BASEADD_LED },
-
-	{ 2, TWL4030_BASEADD_MAIN_CHARGE },
 	{ 2, TWL4030_BASEADD_PRECHARGE },
-	{ 2, TWL4030_BASEADD_PWM0 },
-	{ 2, TWL4030_BASEADD_PWM1 },
-	{ 2, TWL4030_BASEADD_PWMA },
-
-	{ 2, TWL4030_BASEADD_PWMB },
-	{ 2, TWL5031_BASEADD_ACCESSORY },
-	{ 2, TWL5031_BASEADD_INTERRUPTS },
 	{ 3, TWL4030_BASEADD_BACKUP },
 	{ 3, TWL4030_BASEADD_INT },
 
-	{ 3, TWL4030_BASEADD_PM_MASTER },
-	{ 3, TWL4030_BASEADD_PM_RECEIVER },
-	{ 3, TWL4030_BASEADD_RTC },
-	{ 3, TWL4030_BASEADD_SECURED_REG },
+	{ 2, TWL5031_BASEADD_ACCESSORY },
+	{ 2, TWL5031_BASEADD_INTERRUPTS },
 };
 
 static struct regmap_config twl4030_regmap_config[4] = {
@@ -251,35 +246,25 @@ static struct twl_mapping twl6030_map[] = {
 	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_USB },
-	{ SUB_CHIP_ID_INVAL, TWL6030_BASEADD_AUDIO },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_DIEID },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_PIH },
 
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_GPADC_CTRL },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	/* Common IPs */
+	{ 1, TWL6030_BASEADD_USB },
+	{ 1, TWL6030_BASEADD_PIH },
+	{ 1, TWL6030_BASEADD_CHARGER },
+	{ 0, TWL6030_BASEADD_PM_MASTER },
+	{ 0, TWL6030_BASEADD_PM_SLAVE_MISC },
 
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_CHARGER },
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_GASGAUGE },
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_PWM },
-	{ SUB_CHIP_ID0, TWL6030_BASEADD_ZERO },
-	{ SUB_CHIP_ID1, TWL6030_BASEADD_ZERO },
+	{ 0, TWL6030_BASEADD_RTC },
+	{ 1, TWL6030_BASEADD_PWM },
+	{ 1, TWL6030_BASEADD_LED },
+	{ 0, TWL6030_BASEADD_SECURED_REG },
 
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_ZERO },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_ZERO },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
-
-	{ SUB_CHIP_ID0, TWL6030_BASEADD_PM_MASTER },
-	{ SUB_CHIP_ID0, TWL6030_BASEADD_PM_SLAVE_MISC },
-	{ SUB_CHIP_ID0, TWL6030_BASEADD_RTC },
-	{ SUB_CHIP_ID0, TWL6030_BASEADD_MEM },
-	{ SUB_CHIP_ID1, TWL6025_BASEADD_CHARGER },
+	/* TWL6030 specific IPs */
+	{ 0, TWL6030_BASEADD_ZERO },
+	{ 1, TWL6030_BASEADD_ZERO },
+	{ 2, TWL6030_BASEADD_ZERO },
+	{ 1, TWL6030_BASEADD_GPADC_CTRL },
+	{ 1, TWL6030_BASEADD_GASGAUGE },
 };
 
 static struct regmap_config twl6030_regmap_config[3] = {
@@ -305,6 +290,14 @@ static struct regmap_config twl6030_regmap_config[3] = {
 
 /*----------------------------------------------------------------------*/
 
+static inline int twl_get_last_module(void)
+{
+	if (twl_class_is_4030())
+		return TWL4030_MODULE_LAST;
+	else
+		return TWL6030_MODULE_LAST;
+}
+
 /* Exported Functions */
 
 /**
@@ -325,7 +318,7 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	int sid;
 	struct twl_client *twl;
 
-	if (unlikely(mod_no >= TWL_MODULE_LAST)) {
+	if (unlikely(mod_no >= twl_get_last_module())) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
@@ -367,7 +360,7 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	int sid;
 	struct twl_client *twl;
 
-	if (unlikely(mod_no >= TWL_MODULE_LAST)) {
+	if (unlikely(mod_no >= twl_get_last_module())) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
@@ -1228,6 +1221,10 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if ((id->driver_data) & TWL6030_CLASS) {
 		twl_id = TWL6030_CLASS_ID;
 		twl_map = &twl6030_map[0];
+		/* The charger base address is different in twl6025 */
+		if ((id->driver_data) & TWL6025_SUBCLASS)
+			twl_map[TWL_MODULE_MAIN_CHARGE].base =
+							TWL6025_BASEADD_CHARGER;
 		twl_regmap_config = twl6030_regmap_config;
 		num_slaves = TWL_NUM_SLAVES - 1;
 	} else {
