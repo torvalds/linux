@@ -66,8 +66,6 @@
 
 /* Triton Core internal information (BEGIN) */
 
-#define TWL_NUM_SLAVES		4
-
 /* Base Address defns for twl4030_map[] */
 
 /* subchip/slave 0 - USB ID */
@@ -162,7 +160,7 @@ struct twl_client {
 	struct regmap *regmap;
 };
 
-static struct twl_client twl_modules[TWL_NUM_SLAVES];
+static struct twl_client *twl_modules;
 
 /* mapping the module id to slave id and base address */
 struct twl_mapping {
@@ -283,6 +281,14 @@ static struct regmap_config twl6030_regmap_config[3] = {
 };
 
 /*----------------------------------------------------------------------*/
+
+static inline int twl_get_num_slaves(void)
+{
+	if (twl_class_is_4030())
+		return 4; /* TWL4030 class have four slave address */
+	else
+		return 3; /* TWL6030 class have three slave address */
+}
 
 static inline int twl_get_last_module(void)
 {
@@ -1127,17 +1133,15 @@ static int twl_remove(struct i2c_client *client)
 	unsigned i, num_slaves;
 	int status;
 
-	if (twl_class_is_4030()) {
+	if (twl_class_is_4030())
 		status = twl4030_exit_irq();
-		num_slaves = TWL_NUM_SLAVES;
-	} else {
+	else
 		status = twl6030_exit_irq();
-		num_slaves = TWL_NUM_SLAVES - 1;
-	}
 
 	if (status < 0)
 		return status;
 
+	num_slaves = twl_get_num_slaves();
 	for (i = 0; i < num_slaves; i++) {
 		struct twl_client	*twl = &twl_modules[i];
 
@@ -1215,12 +1219,19 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			twl_map[TWL_MODULE_MAIN_CHARGE].base =
 							TWL6025_BASEADD_CHARGER;
 		twl_regmap_config = twl6030_regmap_config;
-		num_slaves = TWL_NUM_SLAVES - 1;
 	} else {
 		twl_id = TWL4030_CLASS_ID;
 		twl_map = &twl4030_map[0];
 		twl_regmap_config = twl4030_regmap_config;
-		num_slaves = TWL_NUM_SLAVES;
+	}
+
+	num_slaves = twl_get_num_slaves();
+	twl_modules = devm_kzalloc(&client->dev,
+				   sizeof(struct twl_client) * num_slaves,
+				   GFP_KERNEL);
+	if (!twl_modules) {
+		status = -ENOMEM;
+		goto free;
 	}
 
 	for (i = 0; i < num_slaves; i++) {
