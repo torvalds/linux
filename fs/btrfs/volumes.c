@@ -3507,7 +3507,7 @@ struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	{ 1, 1, 2, 2, 2, 2 /* raid1 */ },
 	{ 1, 2, 1, 1, 1, 2 /* dup */ },
 	{ 1, 1, 0, 2, 1, 1 /* raid0 */ },
-	{ 1, 1, 0, 1, 1, 1 /* single */ },
+	{ 1, 1, 1, 1, 1, 1 /* single */ },
 };
 
 static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
