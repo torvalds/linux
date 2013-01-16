@@ -1302,7 +1302,6 @@ struct radeon_dpm {
 	struct radeon_ps        *boot_ps;
 	/* default uvd power state */
 	struct radeon_ps        *uvd_ps;
-	struct radeon_ps        hw_ps;
 	enum radeon_pm_state_type state;
 	enum radeon_pm_state_type user_state;
 	u32                     platform_caps;
