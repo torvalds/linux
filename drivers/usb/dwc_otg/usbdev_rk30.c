@@ -116,8 +116,6 @@ void usb20otg_hw_init(void)
         // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
         //GPIO init
-        rk30_mux_api_set(GPIO0D6_SPI1CLK_NAME, GPIO0D_GPIO0D6);
-        
         gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
         gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_LOW);
 #else
@@ -287,7 +285,6 @@ void usb20host_hw_init(void)
 
     // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
-    rk30_mux_api_set(GPIO0D7_SPI1CSN0_NAME, GPIO0D_GPIO0D7); 
     gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
     gpio_direction_output(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
 #else
