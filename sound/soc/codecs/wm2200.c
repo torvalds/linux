@@ -2224,6 +2224,9 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	wm2200->dsp[1].mem = wm2200_dsp2_regions;
 	wm2200->dsp[1].num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
 
+	for (i = 0; i < ARRAY_SIZE(wm2200->dsp); i++)
+		wm_adsp1_init(&wm2200->dsp[i]);
+
 	if (pdata)
 		wm2200->pdata = *pdata;
 
