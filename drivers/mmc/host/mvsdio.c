@@ -52,7 +52,6 @@ struct mvsd_host {
 	struct mmc_host *mmc;
 	struct device *dev;
 	struct clk *clk;
-	int gpio_card_detect;
 };
 
 #define mvsd_write(offs, val)	writel(val, iobase + (offs))
@@ -538,13 +537,6 @@ static void mvsd_timeout_timer(unsigned long data)
 		mmc_request_done(host->mmc, mrq);
 }
 
-static irqreturn_t mvsd_card_detect_irq(int irq, void *dev)
-{
-	struct mvsd_host *host = dev;
-	mmc_detect_change(host->mmc, msecs_to_jiffies(100));
-	return IRQ_HANDLED;
-}
-
 static void mvsd_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct mvsd_host *host = mmc_priv(mmc);
@@ -757,26 +749,11 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (!IS_ERR(host->clk))
 		clk_prepare_enable(host->clk);
 
-	if (mvsd_data->gpio_card_detect) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					    mvsd_data->gpio_card_detect,
-					    GPIOF_IN, DRIVER_NAME " cd");
-		if (ret == 0) {
-			irq = gpio_to_irq(mvsd_data->gpio_card_detect);
-			ret = devm_request_irq(&pdev->dev, irq,
-					       mvsd_card_detect_irq,
-					       IRQ_TYPE_EDGE_RISING |
-					       IRQ_TYPE_EDGE_FALLING,
-					       DRIVER_NAME " cd", host);
-			if (ret == 0)
-				host->gpio_card_detect =
-					mvsd_data->gpio_card_detect;
-			else
-				devm_gpio_free(&pdev->dev,
-					       mvsd_data->gpio_card_detect);
-		}
-	}
-	if (!host->gpio_card_detect)
+	if (gpio_is_valid(mvsd_data->gpio_card_detect)) {
+		ret = mmc_gpio_request_cd(mmc, mvsd_data->gpio_card_detect);
+		if (ret)
+			goto out;
+	} else
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
@@ -789,15 +766,16 @@ static int __init mvsd_probe(struct platform_device *pdev)
 
 	pr_notice("%s: %s driver initialized, ",
 			   mmc_hostname(mmc), DRIVER_NAME);
-	if (host->gpio_card_detect)
+	if (!(mmc->caps & MMC_CAP_NEEDS_POLL))
 		printk("using GPIO %d for card detection\n",
-		       host->gpio_card_detect);
+		       mvsd_data->gpio_card_detect);
 	else
 		printk("lacking card detect (fall back to polling)\n");
 	return 0;
 
 out:
 	if (mmc) {
+		mmc_gpio_free_cd(mmc);
 		mmc_gpio_free_ro(mmc);
 		if (!IS_ERR(host->clk))
 			clk_disable_unprepare(host->clk);
@@ -813,6 +791,7 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 
 	struct mvsd_host *host = mmc_priv(mmc);
 
+	mmc_gpio_free_cd(mmc);
 	mmc_gpio_free_ro(mmc);
 	mmc_remove_host(mmc);
 	del_timer_sync(&host->timer);
