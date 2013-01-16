@@ -2403,8 +2403,16 @@ static int create_input_ctls(struct hda_codec *codec)
 static struct nid_path *get_input_path(struct hda_codec *codec, int adc_idx, int imux_idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	if (imux_idx < 0 || imux_idx >= HDA_MAX_NUM_INPUTS) {
+		snd_BUG();
+		return NULL;
+	}
 	if (spec->dyn_adc_switch)
 		adc_idx = spec->dyn_adc_idx[imux_idx];
+	if (adc_idx < 0 || adc_idx >= AUTO_CFG_MAX_OUTS) {
+		snd_BUG();
+		return NULL;
+	}
 	return snd_hda_get_path_from_idx(codec, spec->input_paths[imux_idx][adc_idx]);
 }
 
