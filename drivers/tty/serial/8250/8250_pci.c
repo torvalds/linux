@@ -1283,7 +1283,7 @@ static int pci_quatech_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
-static void __devexit pci_quatech_exit(struct pci_dev *dev)
+static void pci_quatech_exit(struct pci_dev *dev)
 {
 }
 
@@ -1783,7 +1783,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_quatech_init,
 		.setup		= pci_quatech_setup,
-		.exit		= __devexit_p(pci_quatech_exit),
+		.exit		= pci_quatech_exit,
 	},
 	/*
 	 * Panacom
