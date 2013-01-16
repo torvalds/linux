@@ -185,10 +185,8 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
 		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
-		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		if (iwl_trans_grab_nic_access(priv->trans, false))
-			iwl_trans_release_nic_access(priv->trans);
-		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
+		if (iwl_trans_grab_nic_access(priv->trans, false, &flags))
+			iwl_trans_release_nic_access(priv->trans, &flags);
 
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a

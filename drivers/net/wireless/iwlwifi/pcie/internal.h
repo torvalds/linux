@@ -235,6 +235,7 @@ struct iwl_txq {
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
+ * @reg_lock: protect hw register access
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -283,6 +284,9 @@ struct iwl_trans_pcie {
 
 	/* queue watchdog */
 	unsigned long wd_timeout;
+
+	/*protect hw register */
+	spinlock_t reg_lock;
 };
 
 /**
