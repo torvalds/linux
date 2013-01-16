@@ -2776,8 +2776,12 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 	 * we add to pkt_len the headers size of all segments
 	 */
 	if (shinfo->gso_size)  {
-		unsigned int hdr_len = skb_transport_offset(skb);
+		unsigned int hdr_len;
 
+		/* mac layer + network layer */
+		hdr_len = skb_transport_header(skb) - skb_mac_header(skb);
+
+		/* + transport layer */
 		if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
 			hdr_len += tcp_hdrlen(skb);
 		else
