@@ -357,7 +357,6 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 				       struct ktermios *old)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
-	unsigned long	ioclk_rate;
 	unsigned long	config_reg = 0;
 	unsigned long	baud_rate;
 	unsigned long	setted_baud;
@@ -369,7 +368,6 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 	int		threshold_div;
 	int		temp;
 
-	ioclk_rate = 150000000;
 	switch (termios->c_cflag & CSIZE) {
 	default:
 	case CS8:
@@ -425,14 +423,17 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 			sirfsoc_uart_disable_ms(port);
 	}
 
-	/* common rate: fast calculation */
-	for (ic = 0; ic < SIRF_BAUD_RATE_SUPPORT_NR; ic++)
-		if (baud_rate == baudrate_to_regv[ic].baud_rate)
-			clk_div_reg = baudrate_to_regv[ic].reg_val;
+	if (port->uartclk == 150000000) {
+		/* common rate: fast calculation */
+		for (ic = 0; ic < SIRF_BAUD_RATE_SUPPORT_NR; ic++)
+			if (baud_rate == baudrate_to_regv[ic].baud_rate)
+				clk_div_reg = baudrate_to_regv[ic].reg_val;
+	}
+
 	setted_baud = baud_rate;
 	/* arbitary rate setting */
 	if (unlikely(clk_div_reg == 0))
-		clk_div_reg = sirfsoc_calc_sample_div(baud_rate, ioclk_rate,
+		clk_div_reg = sirfsoc_calc_sample_div(baud_rate, port->uartclk,
 								&setted_baud);
 	wr_regl(port, SIRFUART_DIVISOR, clk_div_reg);
 
@@ -691,6 +692,14 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 			goto err;
 	}
 
+	sirfport->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sirfport->clk)) {
+		ret = PTR_ERR(sirfport->clk);
+		goto clk_err;
+	}
+	clk_prepare_enable(sirfport->clk);
+	port->uartclk = clk_get_rate(sirfport->clk);
+
 	port->ops = &sirfsoc_uart_ops;
 	spin_lock_init(&port->lock);
 
@@ -704,6 +713,9 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	return 0;
 
 port_err:
+	clk_disable_unprepare(sirfport->clk);
+	clk_put(sirfport->clk);
+clk_err:
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
@@ -718,6 +730,8 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
+	clk_disable_unprepare(sirfport->clk);
+	clk_put(sirfport->clk);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;
 }

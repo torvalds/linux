@@ -163,6 +163,7 @@ struct sirfsoc_uart_port {
 
 	struct uart_port		port;
 	struct pinctrl			*p;
+	struct clk			*clk;
 };
 
 /* Hardware Flow Control */
