@@ -178,7 +178,8 @@ nvc0_fb_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
+	if (priv->r100c10_page)
+		nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
 	return 0;
 }
 
@@ -217,13 +218,13 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.ram.put = nv50_fb_vram_del;
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!priv->r100c10_page)
-		return -ENOMEM;
-
-	priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page, 0,
-				     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(device->pdev, priv->r100c10))
-		return -EFAULT;
+	if (priv->r100c10_page) {
+		priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page,
+					     0, PAGE_SIZE,
+					     PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(device->pdev, priv->r100c10))
+			return -EFAULT;
+	}
 
 	return nouveau_fb_preinit(&priv->base);
 }
