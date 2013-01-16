@@ -368,7 +368,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -ffast-math \
-		   -mno-unaligned-access \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
 		   $(ARM_FLAGS)
