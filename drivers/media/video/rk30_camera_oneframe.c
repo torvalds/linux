@@ -2890,16 +2890,16 @@ static void rk_camera_cif_iomux(int cif_index)
 #if defined(CONFIG_ARCH_RK3066B)
     switch(cif_index){
         case 0:
-            rk30_mux_api_set(GPIO3B3_CIFCLKOUT_NAME, GPIO3B_CIFCLKOUT);
+            iomux_set(CIF0_CLKOUT);
             write_grf_reg(GRF_IO_CON3, (CIF_DRIVER_STRENGTH_MASK|CIF_DRIVER_STRENGTH_8MA));
             write_grf_reg(GRF_IO_CON4, (CIF_CLKOUT_AMP_MASK|CIF_CLKOUT_AMP_1V8));
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
-	        rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME, GPIO3B_CIFDATA0);
-	        rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME, GPIO3B_CIFDATA1);
+	        iomux_set(CIF0_D0);
+	        iomux_set(CIF0_D1);
             #endif
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & RK_CAM_INPUT_FMT_RAW12)
-	        rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME, GPIO3B_CIFDATA10);
-	        rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME, GPIO3B_CIFDATA11);
+	        iomux_set(CIF0_D10);
+	        iomux_set(CIF0_D11);
             RKCAMERA_TR("%s(%d): WARNING: Cif 0 is configurated that support RAW 12bit, so I2C3 is invalidate!!\n",__FUNCTION__,__LINE__);
             #endif
             
