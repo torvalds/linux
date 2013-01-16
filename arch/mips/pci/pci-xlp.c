@@ -191,7 +191,13 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static int xlp_enable_pci_bswap(void)
+/*
+ * If big-endian, enable hardware byteswap on the PCIe bridges.
+ * This will make both the SoC and PCIe devices behave consistently with
+ * readl/writel.
+ */
+#ifdef __BIG_ENDIAN
+static void xlp_config_pci_bswap(void)
 {
 	uint64_t pciebase, sysbase;
 	int node, i;
@@ -222,8 +228,11 @@ static int xlp_enable_pci_bswap(void)
 		reg = nlm_read_bridge_reg(sysbase, BRIDGE_PCIEIO_LIMIT0 + i);
 		nlm_write_pci_reg(pciebase, PCIE_BYTE_SWAP_IO_LIM, reg | 0xfff);
 	}
-	return 0;
 }
+#else
+/* Swap configuration not needed in little-endian mode */
+static inline void xlp_config_pci_bswap(void) {}
+#endif /* __BIG_ENDIAN */
 
 static int __init pcibios_init(void)
 {
@@ -235,7 +244,7 @@ static int __init pcibios_init(void)
 	ioport_resource.start =  0;
 	ioport_resource.end   = ~0;
 
-	xlp_enable_pci_bswap();
+	xlp_config_pci_bswap();
 	set_io_port_base(CKSEG1);
 	nlm_pci_controller.io_map_base = CKSEG1;
 
