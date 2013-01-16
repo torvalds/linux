@@ -219,7 +219,7 @@ struct pn533_poll_modulations {
 	u8 len;
 };
 
-const struct pn533_poll_modulations poll_mod[] = {
+static const struct pn533_poll_modulations poll_mod[] = {
 	[PN533_POLL_MOD_106KBPS_A] = {
 		.data = {
 			.maxtg = 1,
@@ -485,7 +485,7 @@ static u8 pn533_get_cmd_code(void *frame)
 	return PN533_FRAME_CMD(f);
 }
 
-struct pn533_frame_ops pn533_std_frame_ops = {
+static struct pn533_frame_ops pn533_std_frame_ops = {
 	.tx_frame_init = pn533_tx_frame_init,
 	.tx_frame_finish = pn533_tx_frame_finish,
 	.tx_update_payload_len = pn533_tx_update_payload_len,
