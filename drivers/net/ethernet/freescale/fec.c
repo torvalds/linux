@@ -68,6 +68,14 @@
 
 #define DRIVER_NAME	"fec"
 
+/* Pause frame feild and FIFO threshold */
+#define FEC_ENET_FCE	(1 << 5)
+#define FEC_ENET_RSEM_V	0x84
+#define FEC_ENET_RSFL_V	16
+#define FEC_ENET_RAEM_V	0x8
+#define FEC_ENET_RAFL_V	0x8
+#define FEC_ENET_OPD_V	0xFFF0
+
 /* Controller is ENET-MAC */
 #define FEC_QUIRK_ENET_MAC		(1 << 0)
 /* Controller needs driver to swap frame */
@@ -192,6 +200,9 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
+
+#define FEC_PAUSE_FLAG_AUTONEG	0x1
+#define FEC_PAUSE_FLAG_ENABLE	0x2
 
 static int mii_cnt;
 
@@ -470,6 +481,25 @@ fec_restart(struct net_device *ndev, int duplex)
 		}
 #endif
 	}
+
+	/* enable pause frame*/
+	if ((fep->pause_flag & FEC_PAUSE_FLAG_ENABLE) ||
+	    ((fep->pause_flag & FEC_PAUSE_FLAG_AUTONEG) &&
+	     fep->phy_dev && fep->phy_dev->pause)) {
+		rcntl |= FEC_ENET_FCE;
+
+		/* set FIFO thresh hold parameter to reduce overrun */
+		writel(FEC_ENET_RSEM_V, fep->hwp + FEC_R_FIFO_RSEM);
+		writel(FEC_ENET_RSFL_V, fep->hwp + FEC_R_FIFO_RSFL);
+		writel(FEC_ENET_RAEM_V, fep->hwp + FEC_R_FIFO_RAEM);
+		writel(FEC_ENET_RAFL_V, fep->hwp + FEC_R_FIFO_RAFL);
+
+		/* OPD */
+		writel(FEC_ENET_OPD_V, fep->hwp + FEC_OPD);
+	} else {
+		rcntl &= ~FEC_ENET_FCE;
+	}
+
 	writel(rcntl, fep->hwp + FEC_R_CNTRL);
 
 	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC) {
@@ -1016,8 +1046,10 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	}
 
 	/* mask with MAC supported features */
-	if (id_entry->driver_data & FEC_QUIRK_HAS_GBIT)
+	if (id_entry->driver_data & FEC_QUIRK_HAS_GBIT) {
 		phy_dev->supported &= PHY_GBIT_FEATURES;
+		phy_dev->supported |= SUPPORTED_Pause;
+	}
 	else
 		phy_dev->supported &= PHY_BASIC_FEATURES;
 
@@ -1203,7 +1235,55 @@ static int fec_enet_get_ts_info(struct net_device *ndev,
 	}
 }
 
+static void fec_enet_get_pauseparam(struct net_device *ndev,
+				    struct ethtool_pauseparam *pause)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	pause->autoneg = (fep->pause_flag & FEC_PAUSE_FLAG_AUTONEG) != 0;
+	pause->tx_pause = (fep->pause_flag & FEC_PAUSE_FLAG_ENABLE) != 0;
+	pause->rx_pause = pause->tx_pause;
+}
+
+static int fec_enet_set_pauseparam(struct net_device *ndev,
+				   struct ethtool_pauseparam *pause)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	if (pause->tx_pause != pause->rx_pause) {
+		netdev_info(ndev,
+			"hardware only support enable/disable both tx and rx");
+		return -EINVAL;
+	}
+
+	fep->pause_flag = 0;
+
+	/* tx pause must be same as rx pause */
+	fep->pause_flag |= pause->rx_pause ? FEC_PAUSE_FLAG_ENABLE : 0;
+	fep->pause_flag |= pause->autoneg ? FEC_PAUSE_FLAG_AUTONEG : 0;
+
+	if (pause->rx_pause || pause->autoneg) {
+		fep->phy_dev->supported |= ADVERTISED_Pause;
+		fep->phy_dev->advertising |= ADVERTISED_Pause;
+	} else {
+		fep->phy_dev->supported &= ~ADVERTISED_Pause;
+		fep->phy_dev->advertising &= ~ADVERTISED_Pause;
+	}
+
+	if (pause->autoneg) {
+		if (netif_running(ndev))
+			fec_stop(ndev);
+		phy_start_aneg(fep->phy_dev);
+	}
+	if (netif_running(ndev))
+		fec_restart(ndev, 0);
+
+	return 0;
+}
+
 static const struct ethtool_ops fec_enet_ethtool_ops = {
+	.get_pauseparam		= fec_enet_get_pauseparam,
+	.set_pauseparam		= fec_enet_set_pauseparam,
 	.get_settings		= fec_enet_get_settings,
 	.set_settings		= fec_enet_set_settings,
 	.get_drvinfo		= fec_enet_get_drvinfo,
@@ -1642,6 +1722,11 @@ fec_probe(struct platform_device *pdev)
 
 	/* setup board info structure */
 	fep = netdev_priv(ndev);
+
+	/* default enable pause frame auto negotiation */
+	if (pdev->id_entry &&
+	    (pdev->id_entry->driver_data & FEC_QUIRK_HAS_GBIT))
+		fep->pause_flag |= FEC_PAUSE_FLAG_AUTONEG;
 
 	fep->hwp = ioremap(r->start, resource_size(r));
 	fep->pdev = pdev;
