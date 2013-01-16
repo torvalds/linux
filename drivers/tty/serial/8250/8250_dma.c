@@ -67,12 +67,12 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	struct circ_buf			*xmit = &p->port.state->xmit;
 	struct dma_async_tx_descriptor	*desc;
 
-	if (dma->tx_running) {
-		uart_write_wakeup(&p->port);
+	if (dma->tx_running)
 		return -EBUSY;
-	}
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	if (!dma->tx_size)
+		return -EINVAL;
 
 	desc = dmaengine_prep_slave_single(dma->txchan,
 					   dma->tx_addr + xmit->tail,
