@@ -1116,12 +1116,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = 5884,
 		.temp_scale_nano = 140000000, /* 0.14 C */
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
-		.default_scan_mask = (1 << ADIS16400_SCAN_SUPPLY) |
-		(1 << ADIS16400_SCAN_GYRO_X) | (1 << ADIS16400_SCAN_ACC_X) |
-		(1 << ADIS16400_SCAN_ACC_Y) | (1 << ADIS16400_SCAN_ACC_Z) |
-		(1 << ADIS16400_SCAN_TEMP) | (1 << ADIS16400_SCAN_ADC_0) |
-		(1 << ADIS16300_SCAN_INCLI_X) | (1 << ADIS16300_SCAN_INCLI_Y) |
-		(1 << 14),
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
 	},
@@ -1133,10 +1127,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.temp_scale_nano = 67850000, /* 0.06785 C */
 		.temp_offset = 25000000 / 67850, /* 25 C = 0x00 */
-		.default_scan_mask = (1 << ADIS16400_SCAN_GYRO_X) |
-		(1 << ADIS16400_SCAN_GYRO_Y) | (1 << ADIS16400_SCAN_GYRO_Z) |
-		(1 << ADIS16400_SCAN_ACC_X) | (1 << ADIS16400_SCAN_ACC_Y) |
-		(1 << ADIS16400_SCAN_ACC_Z),
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
 	},
@@ -1147,7 +1137,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = IIO_G_TO_M_S_2(2522), /* 0.002522 g */
 		.temp_scale_nano = 145300000, /* 0.1453 C */
 		.temp_offset = 25000000 / 145300, /* 25 C = 0x00 */
-		.default_scan_mask = 0x7FF,
 		.flags = ADIS16400_NO_BURST | ADIS16400_HAS_SLOW_MODE,
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -1160,7 +1149,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.default_scan_mask = 0x7FF,
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
 	},
@@ -1172,7 +1160,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.default_scan_mask = 0x7FF,
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
 	},
@@ -1184,7 +1171,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
-		.default_scan_mask = 0x7FF,
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
 	},
@@ -1194,7 +1180,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.default_scan_mask = 0xFFF,
 		.temp_scale_nano = 140000000, /* 0.14 C */
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,

@@ -145,7 +145,6 @@ struct adis16400_chip_info {
 	unsigned int accel_scale_micro;
 	int temp_scale_nano;
 	int temp_offset;
-	unsigned long default_scan_mask;
 	int (*set_freq)(struct iio_dev *indio_dev, unsigned int freq);
 	int (*get_freq)(struct iio_dev *indio_dev);
 };
