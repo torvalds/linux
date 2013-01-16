@@ -2432,7 +2432,7 @@ static int mux_enum_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gen_spec *spec = codec->spec;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int adc_idx = kcontrol->id.index;
 
 	ucontrol->value.enumerated.item[0] = spec->cur_mux[adc_idx];
 	return 0;
@@ -2442,7 +2442,7 @@ static int mux_enum_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int adc_idx = kcontrol->id.index;
 	return mux_select(codec, adc_idx,
 			  ucontrol->value.enumerated.item[0]);
 }
@@ -2474,7 +2474,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	int i, adc_idx, err = 0;
 
 	imux = &spec->input_mux;
-	adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	adc_idx = kcontrol->id.index;
 	mutex_lock(&codec->control_mutex);
 	/* we use the cache-only update at first since multiple input paths
 	 * may shared the same amp; by updating only caches, the redundant
