@@ -15,7 +15,7 @@
 static int rk_sensor_iomux(int pin)
 {    
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-	iomux_set(pin);
+    iomux_set_gpio_mode(pin);
 #elif defined(CONFIG_ARCH_RK30)
     switch (pin)
     {
