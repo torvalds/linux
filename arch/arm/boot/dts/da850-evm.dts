@@ -15,6 +15,9 @@
 	model = "DA850/AM1808/OMAP-L138 EVM";
 
 	soc {
+		pmx_core: pinmux@1c14120 {
+			status = "okay";
+		};
 		serial0: serial@1c42000 {
 			status = "okay";
 		};
