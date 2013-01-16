@@ -1,10 +1,12 @@
-#include <linux/fb.h>
+
 #include <linux/delay.h>
 #include <linux/rk_fb.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
+#if defined(CONFIG_RK_HDMI)
 #include "../../rockchip/hdmi/rk_hdmi.h"
+#endif
 
 
 #ifdef CONFIG_RK610_LVDS
@@ -45,8 +47,13 @@
 #else
 #define DCLK_POL	0
 #endif
+#define DEN_POL		0
+#define VSYNC_POL	0
+#define HSYNC_POL	0
 
 #define SWAP_RB		0
+#define SWAP_RG		0
+#define SWAP_GB		0
 
 int dsp_lut[256] ={
 		0x00000000, 0x00010101, 0x00020202, 0x00030303, 0x00040404, 0x00050505, 0x00060606, 0x00070707, 
@@ -312,15 +319,15 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->vsync_len = V_PW;
 
 	/* Pin polarity */
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	screen->pin_den = 0;
+	screen->pin_hsync = HSYNC_POL;
+	screen->pin_vsync = VSYNC_POL;
+	screen->pin_den = DEN_POL;
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
 	screen->swap_rb = SWAP_RB;
-	screen->swap_rg = 0;
-	screen->swap_gb = 0;
+	screen->swap_rg = SWAP_RG;
+	screen->swap_gb = SWAP_GB;
 	screen->swap_delta = 0;
 	screen->swap_dumy = 0;
 
