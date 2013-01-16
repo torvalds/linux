@@ -40,6 +40,15 @@ enum rk_disp_prop{       //display device property
     EXTEND,                        //extend display device ,like hdmi ,tv out
 };
 
+struct rk29_fb_setting_info {
+	u8 data_num;
+	u8 vsync_en;
+	u8 den_en;
+	u8 mcu_fmk_en;
+	u8 disp_on_en;
+	u8 standby_en;
+};
+
 struct rk29lcd_info {
 	u32 lcd_id;
 	u32 txd_pin;
@@ -128,6 +137,18 @@ typedef struct rk29fb_screen {
 	int (*sscreen_get)(struct rk29fb_screen *screen, u8 resolution);
 	int (*sscreen_set)(struct rk29fb_screen *screen, bool type);// 1: use scaler 0:bypass
 } rk_screen;
+
+struct rk29fb_info {
+	u32 fb_id;
+	enum rk_disp_prop prop;		//display device property,like PRMRY,EXTEND
+	u32 mcu_fmk_pin;
+	struct rk29lcd_info *lcd_info;
+	int (*io_init)(struct rk29_fb_setting_info *fb_setting);
+	int (*io_deinit)(void);
+	int (*io_enable)(void);
+	int (*io_disable)(void);
+	void (*set_screen_info)(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info );
+};
 
 #ifndef CONFIG_DISPLAY_SUPPORT
 static inline void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info) {}
