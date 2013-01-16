@@ -1561,7 +1561,7 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 
 #ifdef CONFIG_REGULATOR_ACT8846
 #define PMU_POWER_SLEEP RK30_PIN0_PA1
-
+#define PMU_VSEL RK30_PIN3_PD3
 static struct pmu_info  act8846_dcdc_info[] = {
 	{
 		.name          = "act_dcdc1",   //ddr
@@ -1573,19 +1573,19 @@ static struct pmu_info  act8846_dcdc_info[] = {
 		.name          = "vdd_core",    //logic
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
+		.suspend_vol  =  1000000,
 	},
 	{
 		.name          = "vdd_cpu",   //arm
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
+		.suspend_vol  =  1000000,
 	},
 	{
 		.name          = "act_dcdc4",   //vccio
 		.min_uv          = 3000000,
 		.max_uv         = 3000000,
-		.suspend_vol  =  2800000,
+		.suspend_vol  =  3000000,
 	},
 	
 };

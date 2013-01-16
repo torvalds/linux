@@ -16,26 +16,6 @@ static int act8846_set_init(struct act8846 *act8846)
 	int i = 0;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
-	#ifdef CONFIG_RK_CONFIG
-	if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
-		printk(KERN_ERR "sram_gpio_init failed\n");
-		return -EINVAL;
-	}
-	if(port_output_init(pmic_slp, 0, "pmic_slp") < 0){
-		printk(KERN_ERR "port_output_init failed\n");
-		return -EINVAL;
-	}
-	#else
-	if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
-		printk(KERN_ERR "sram_gpio_init failed\n");
-		return -EINVAL;
-	}
-
-	gpio_request(PMU_POWER_SLEEP, "NULL");
-	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
-	#endif
-
-
 	#ifndef CONFIG_RK_CONFIG
 	g_pmic_type = PMIC_TYPE_ACT8846;
 	#endif
@@ -66,7 +46,37 @@ static int act8846_set_init(struct act8846 *act8846)
 	        regulator_put(ldo);
 	}
 
+	#ifdef CONFIG_RK_CONFIG
+	if(sram_gpio_init(get_port_config(pmic_slp).gpio, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+	if(port_output_init(pmic_slp, 0, "pmic_slp") < 0){
+		printk(KERN_ERR "port_output_init failed\n");
+		return -EINVAL;
+	}
+	#else
+	if(sram_gpio_init(PMU_POWER_SLEEP, &pmic_sleep) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+	gpio_request(PMU_POWER_SLEEP, "NULL");
+	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+	
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	if(sram_gpio_init(PMU_VSEL, &pmic_vsel) < 0){
+		printk(KERN_ERR "sram_gpio_init failed\n");
+		return -EINVAL;
+	}
+	rk30_mux_api_set(GPIO3D3_PWM0_NAME,GPIO3D_GPIO3D3);
+	gpio_request(PMU_VSEL, "NULL");
+	gpio_direction_output(PMU_VSEL, GPIO_HIGH);
+	#endif
+	
+	#endif
+
 	printk("%s,line=%d END\n", __func__,__LINE__);
+	
 	
 	return 0;
 }
@@ -432,9 +442,6 @@ void act8846_late_resume(struct early_suspend *h)
 {
 }
 #endif
-
-#endif
-
 void __sramfunc board_pmu_act8846_suspend(void)
 {	
 	#ifdef CONFIG_CLK_SWITCH_TO_32K
@@ -448,5 +455,9 @@ void __sramfunc board_pmu_act8846_resume(void)
 	sram_udelay(2000);
 	#endif
 }
+
+#endif
+
+
 
 

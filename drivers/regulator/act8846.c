@@ -323,7 +323,11 @@ static int act8846_dcdc_get_voltage(struct regulator_dev *dev)
 	int buck = rdev_get_id(dev) - ACT8846_DCDC1;
 	u16 reg = 0;
 	int val;
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	reg = act8846_reg_read(act8846,(act8846_BUCK_SET_VOL_REG(buck)+0x1));
+	#else
 	reg = act8846_reg_read(act8846,act8846_BUCK_SET_VOL_REG(buck));
+	#endif
 	reg &= BUCK_VOL_MASK;
         DBG("%d\n", reg);
 	val = 1000 * buck_voltage_map[reg];	
@@ -352,8 +356,13 @@ static int act8846_dcdc_set_voltage(struct regulator_dev *dev,
 
 	if (vol_map[val] > max_vol)
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
-	ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(buck),
-	       	BUCK_VOL_MASK, val);
+
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(buck) +0x1),BUCK_VOL_MASK, val);
+	#else
+	ret = act8846_set_bits(act8846, act8846_BUCK_SET_VOL_REG(buck) ,BUCK_VOL_MASK, val);
+	#endif
+	
 	return ret;
 }
 static int act8846_dcdc_set_sleep_voltage(struct regulator_dev *dev,
@@ -378,8 +387,12 @@ static int act8846_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 
 	if (vol_map[val] > max_vol)
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
-	   ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(buck) + 0x01),
-                                BUCK_VOL_MASK, val);
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	 ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(buck) ),BUCK_VOL_MASK, val);
+	#else
+	ret = act8846_set_bits(act8846, (act8846_BUCK_SET_VOL_REG(buck) +0x01),BUCK_VOL_MASK, val);
+	#endif
+	
 	return ret;
 }
 static unsigned int act8846_dcdc_get_mode(struct regulator_dev *dev)

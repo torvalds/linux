@@ -288,6 +288,13 @@ config REGULATOR_ACT8846
 	help
 	  Support the voltage and current regulators of the ACT8846 series of PMIC devices.
 
+config ACT8846_SUPPORT_RESET
+	tristate "ACT8846 PMIC SUPPORT RESET"
+	depends on REGULATOR_ACT8846=y
+	help
+	  Support short press key to restart.
+
+
 config RK29_PWM_REGULATOR
 	tristate "rk2918 pwm voltage regulator"
 	help

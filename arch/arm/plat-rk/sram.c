@@ -178,7 +178,7 @@ void __sramfunc sram_printhex(unsigned int hex)
 	}
 }
 
-struct sram_gpio_data __sramdata pmic_sleep;
+struct sram_gpio_data __sramdata pmic_sleep,pmic_vsel;
 #if defined(CONFIG_ARCH_RK2928)
 static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928_GPIO2_BASE, RK2928_GPIO3_BASE};
 #elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)

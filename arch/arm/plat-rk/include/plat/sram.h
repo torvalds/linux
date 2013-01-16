@@ -22,7 +22,7 @@ struct sram_gpio_data {
        uint offset;
 };
 
-extern struct sram_gpio_data __sramdata pmic_sleep;
+extern struct sram_gpio_data __sramdata pmic_sleep,pmic_vsel;
 int sram_gpio_init(int gpio, struct sram_gpio_data *data);
 void __sramfunc sram_gpio_set_value(struct sram_gpio_data data, uint value);
 
