@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
-#include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/cpu.h>
@@ -1117,9 +1116,9 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	adapter->tx_hang_recheck = false;
 	netif_stop_queue(netdev);
 
-	e1e_rphy(hw, PHY_STATUS, &phy_status);
-	e1e_rphy(hw, PHY_1000T_STATUS, &phy_1000t_status);
-	e1e_rphy(hw, PHY_EXT_STATUS, &phy_ext_status);
+	e1e_rphy(hw, MII_BMSR, &phy_status);
+	e1e_rphy(hw, MII_STAT1000, &phy_1000t_status);
+	e1e_rphy(hw, MII_ESTATUS, &phy_ext_status);
 
 	pci_read_config_word(adapter->pdev, PCI_STATUS, &pci_status);
 
@@ -4677,14 +4676,14 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
 		int ret_val;
 
-		ret_val  = e1e_rphy(hw, PHY_CONTROL, &phy->bmcr);
-		ret_val |= e1e_rphy(hw, PHY_STATUS, &phy->bmsr);
-		ret_val |= e1e_rphy(hw, PHY_AUTONEG_ADV, &phy->advertise);
-		ret_val |= e1e_rphy(hw, PHY_LP_ABILITY, &phy->lpa);
-		ret_val |= e1e_rphy(hw, PHY_AUTONEG_EXP, &phy->expansion);
-		ret_val |= e1e_rphy(hw, PHY_1000T_CTRL, &phy->ctrl1000);
-		ret_val |= e1e_rphy(hw, PHY_1000T_STATUS, &phy->stat1000);
-		ret_val |= e1e_rphy(hw, PHY_EXT_STATUS, &phy->estatus);
+		ret_val = e1e_rphy(hw, MII_BMCR, &phy->bmcr);
+		ret_val |= e1e_rphy(hw, MII_BMSR, &phy->bmsr);
+		ret_val |= e1e_rphy(hw, MII_ADVERTISE, &phy->advertise);
+		ret_val |= e1e_rphy(hw, MII_LPA, &phy->lpa);
+		ret_val |= e1e_rphy(hw, MII_EXPANSION, &phy->expansion);
+		ret_val |= e1e_rphy(hw, MII_CTRL1000, &phy->ctrl1000);
+		ret_val |= e1e_rphy(hw, MII_STAT1000, &phy->stat1000);
+		ret_val |= e1e_rphy(hw, MII_ESTATUS, &phy->estatus);
 		if (ret_val)
 			e_warn("Error reading PHY register\n");
 	} else {
@@ -4856,9 +4855,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 			    (adapter->link_duplex == HALF_DUPLEX)) {
 				u16 autoneg_exp;
 
-				e1e_rphy(hw, PHY_AUTONEG_EXP, &autoneg_exp);
+				e1e_rphy(hw, MII_EXPANSION, &autoneg_exp);
 
-				if (!(autoneg_exp & NWAY_ER_LP_NWAY_CAPS))
+				if (!(autoneg_exp & EXPANSION_NWAY))
 					e_info("Autonegotiated half duplex but link partner cannot autoneg.  Try forcing full duplex if link gets many collisions.\n");
 			}
 

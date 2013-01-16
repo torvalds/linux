@@ -312,12 +312,12 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	u16 retry_count;
 
 	for (retry_count = 0; retry_count < 2; retry_count++) {
-		ret_val = e1e_rphy_locked(hw, PHY_ID1, &phy_reg);
+		ret_val = e1e_rphy_locked(hw, MII_PHYSID1, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF))
 			continue;
 		phy_id = (u32)(phy_reg << 16);
 
-		ret_val = e1e_rphy_locked(hw, PHY_ID2, &phy_reg);
+		ret_val = e1e_rphy_locked(hw, MII_PHYSID2, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF)) {
 			phy_id = 0;
 			continue;
@@ -882,8 +882,8 @@ static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 			lpi_ctrl |= I82579_LPI_CTRL_1000_ENABLE;
 
 		if (dev_spec->eee_lp_ability & I82579_EEE_100_SUPPORTED) {
-			e1e_rphy_locked(hw, PHY_LP_ABILITY, &data);
-			if (data & NWAY_LPAR_100TX_FD_CAPS)
+			e1e_rphy_locked(hw, MII_LPA, &data);
+			if (data & LPA_100FULL)
 				lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
 			else
 				/* EEE is not supported in 100Half, so ignore
@@ -1792,7 +1792,7 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 		 */
 		if (hw->phy.revision < 2) {
 			e1000e_phy_sw_reset(hw);
-			ret_val = e1e_wphy(hw, PHY_CONTROL, 0x3140);
+			ret_val = e1e_wphy(hw, MII_BMCR, 0x3140);
 		}
 	}
 

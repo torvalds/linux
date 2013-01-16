@@ -447,13 +447,13 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		ret_val = e1e_rphy(hw, PHY_ID1, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
 		if (ret_val)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
 		udelay(20);
-		ret_val = e1e_rphy(hw, PHY_ID2, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
 

@@ -563,66 +563,6 @@
 			   E1000_GCR_TXDSCW_NO_SNOOP      | \
 			   E1000_GCR_TXDSCR_NO_SNOOP)
 
-/* PHY Control Register */
-#define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
-#define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
-#define MII_CR_POWER_DOWN       0x0800  /* Power down */
-#define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
-#define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
-#define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */
-#define MII_CR_SPEED_1000       0x0040
-#define MII_CR_SPEED_100        0x2000
-#define MII_CR_SPEED_10         0x0000
-
-/* PHY Status Register */
-#define MII_SR_LINK_STATUS       0x0004 /* Link Status 1 = link */
-#define MII_SR_AUTONEG_COMPLETE  0x0020 /* Auto Neg Complete */
-
-/* Autoneg Advertisement Register */
-#define NWAY_AR_10T_HD_CAPS      0x0020   /* 10T   Half Duplex Capable */
-#define NWAY_AR_10T_FD_CAPS      0x0040   /* 10T   Full Duplex Capable */
-#define NWAY_AR_100TX_HD_CAPS    0x0080   /* 100TX Half Duplex Capable */
-#define NWAY_AR_100TX_FD_CAPS    0x0100   /* 100TX Full Duplex Capable */
-#define NWAY_AR_PAUSE            0x0400   /* Pause operation desired */
-#define NWAY_AR_ASM_DIR          0x0800   /* Asymmetric Pause Direction bit */
-
-/* Link Partner Ability Register (Base Page) */
-#define NWAY_LPAR_100TX_FD_CAPS  0x0100 /* LP 100TX Full Dplx Capable */
-#define NWAY_LPAR_PAUSE          0x0400 /* LP Pause operation desired */
-#define NWAY_LPAR_ASM_DIR        0x0800 /* LP Asymmetric Pause Direction bit */
-
-/* Autoneg Expansion Register */
-#define NWAY_ER_LP_NWAY_CAPS     0x0001 /* LP has Auto Neg Capability */
-
-/* 1000BASE-T Control Register */
-#define CR_1000T_HD_CAPS         0x0100 /* Advertise 1000T HD capability */
-#define CR_1000T_FD_CAPS         0x0200 /* Advertise 1000T FD capability  */
-					/* 0=DTE device */
-#define CR_1000T_MS_VALUE        0x0800 /* 1=Configure PHY as Master */
-					/* 0=Configure PHY as Slave */
-#define CR_1000T_MS_ENABLE       0x1000 /* 1=Master/Slave manual config value */
-					/* 0=Automatic Master/Slave config */
-
-/* 1000BASE-T Status Register */
-#define SR_1000T_REMOTE_RX_STATUS 0x1000 /* Remote receiver OK */
-#define SR_1000T_LOCAL_RX_STATUS  0x2000 /* Local receiver OK */
-
-
-/* PHY 1000 MII Register/Bit Definitions */
-/* PHY Registers defined by IEEE */
-#define PHY_CONTROL      0x00 /* Control Register */
-#define PHY_STATUS       0x01 /* Status Register */
-#define PHY_ID1          0x02 /* Phy Id Reg (word 1) */
-#define PHY_ID2          0x03 /* Phy Id Reg (word 2) */
-#define PHY_AUTONEG_ADV  0x04 /* Autoneg Advertisement */
-#define PHY_LP_ABILITY   0x05 /* Link Partner Ability (Base Page) */
-#define PHY_AUTONEG_EXP  0x06 /* Autoneg Expansion Reg */
-#define PHY_1000T_CTRL   0x09 /* 1000Base-T Control Reg */
-#define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
-#define PHY_EXT_STATUS   0x0F /* Extended Status Reg */
-
-#define PHY_CONTROL_LB   0x4000 /* PHY Loopback bit */
-
 /* NVM Control */
 #define E1000_EECD_SK        0x00000001 /* NVM Clock */
 #define E1000_EECD_CS        0x00000002 /* NVM Chip Select */

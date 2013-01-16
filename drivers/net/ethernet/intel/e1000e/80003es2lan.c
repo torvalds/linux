@@ -624,16 +624,16 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 
 	e_dbg("GG82563 PSCR: %X\n", phy_data);
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
 	/* Reset the phy to commit changes. */
-	phy_data |= MII_CR_RESET;
+	phy_data |= BMCR_RESET;
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_data);
 	if (ret_val)
 		return ret_val;
 
