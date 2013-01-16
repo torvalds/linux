@@ -686,6 +686,16 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		return -EINVAL;
 	}
 
+	switch (be32_to_cpu(hdr->rev) & 0xff) {
+	case 1:
+		break;
+	default:
+		adsp_err(dsp, "%s: Unsupported coefficient file format %d\n",
+			 file, be32_to_cpu(hdr->rev) & 0xff);
+		ret = -EINVAL;
+		goto out_fw;
+	}
+
 	adsp_dbg(dsp, "%s: v%d.%d.%d\n", file,
 		(le32_to_cpu(hdr->ver) >> 16) & 0xff,
 		(le32_to_cpu(hdr->ver) >>  8) & 0xff,
@@ -698,8 +708,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	       pos - firmware->size > sizeof(*blk)) {
 		blk = (void*)(&firmware->data[pos]);
 
-		type = be32_to_cpu(blk->type) & 0xff;
-		offset = le32_to_cpu(blk->offset) & 0xffffff;
+		type = le16_to_cpu(blk->type);
+		offset = le16_to_cpu(blk->offset);
 
 		adsp_dbg(dsp, "%s.%d: %x v%d.%d.%d\n",
 			 file, blocks, le32_to_cpu(blk->id),
@@ -712,10 +722,10 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		reg = 0;
 		region_name = "Unknown";
 		switch (type) {
-		case WMFW_NAME_TEXT:
-		case WMFW_INFO_TEXT:
+		case (WMFW_NAME_TEXT << 8):
+		case (WMFW_INFO_TEXT << 8):
 			break;
-		case WMFW_ABSOLUTE:
+		case (WMFW_ABSOLUTE << 8):
 			region_name = "register";
 			reg = offset;
 			break;
