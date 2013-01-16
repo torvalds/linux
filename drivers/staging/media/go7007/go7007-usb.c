@@ -1245,7 +1245,6 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 	struct urb *vurb, *aurb;
 	int i;
 
-	go->status = STATUS_SHUTDOWN;
 	usb_kill_urb(usb->intr_urb);
 
 	/* Free USB-related structs */
@@ -1269,6 +1268,7 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 	kfree(go->hpi_context);
 
 	go7007_remove(go);
+	go->status = STATUS_SHUTDOWN;
 }
 
 static struct usb_driver go7007_usb_driver = {
