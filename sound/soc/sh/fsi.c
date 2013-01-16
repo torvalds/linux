@@ -2160,7 +2160,7 @@ static struct fsi_core fsi2_core = {
 	.b_mclk	= B_MST_CTLR,
 };
 
-static struct of_device_id fsi_of_match[] __devinitconst = {
+static struct of_device_id fsi_of_match[] = {
 	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
 	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
 	{},
