@@ -74,7 +74,10 @@
 #define ADIS16400_ALM_CTRL  0x48 /* Alarm control */
 #define ADIS16400_AUX_DAC   0x4A /* Auxiliary DAC data */
 
+#define ADIS16334_LOT_ID1   0x52 /* Lot identification code 1 */
+#define ADIS16334_LOT_ID2   0x54 /* Lot identification code 2 */
 #define ADIS16400_PRODUCT_ID 0x56 /* Product identifier */
+#define ADIS16334_SERIAL_NUMBER 0x58 /* Serial number, lot specific */
 
 #define ADIS16400_ERROR_ACTIVE			(1<<14)
 #define ADIS16400_NEW_DATA			(1<<14)
@@ -132,6 +135,7 @@
 #define ADIS16400_HAS_PROD_ID		BIT(0)
 #define ADIS16400_NO_BURST		BIT(1)
 #define ADIS16400_HAS_SLOW_MODE		BIT(2)
+#define ADIS16400_HAS_SERIAL_NUMBER	BIT(3)
 
 struct adis16400_state;
 

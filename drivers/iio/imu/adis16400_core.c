@@ -25,12 +25,111 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 
 #include "adis16400.h"
+
+#ifdef CONFIG_DEBUG_FS
+
+static ssize_t adis16400_show_serial_number(struct file *file,
+		char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct adis16400_state *st = file->private_data;
+	u16 lot1, lot2, serial_number;
+	char buf[16];
+	size_t len;
+	int ret;
+
+	ret = adis_read_reg_16(&st->adis, ADIS16334_LOT_ID1, &lot1);
+	if (ret < 0)
+		return ret;
+
+	ret = adis_read_reg_16(&st->adis, ADIS16334_LOT_ID2, &lot2);
+	if (ret < 0)
+		return ret;
+
+	ret = adis_read_reg_16(&st->adis, ADIS16334_SERIAL_NUMBER,
+			&serial_number);
+	if (ret < 0)
+		return ret;
+
+	len = snprintf(buf, sizeof(buf), "%.4x-%.4x-%.4x\n", lot1, lot2,
+			serial_number);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+static const struct file_operations adis16400_serial_number_fops = {
+	.open = simple_open,
+	.read = adis16400_show_serial_number,
+	.llseek = default_llseek,
+	.owner = THIS_MODULE,
+};
+
+static int adis16400_show_product_id(void *arg, u64 *val)
+{
+	struct adis16400_state *st = arg;
+	uint16_t prod_id;
+	int ret;
+
+	ret = adis_read_reg_16(&st->adis, ADIS16400_PRODUCT_ID, &prod_id);
+	if (ret < 0)
+		return ret;
+
+	*val = prod_id;
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(adis16400_product_id_fops,
+	adis16400_show_product_id, NULL, "%lld\n");
+
+static int adis16400_show_flash_count(void *arg, u64 *val)
+{
+	struct adis16400_state *st = arg;
+	uint16_t flash_count;
+	int ret;
+
+	ret = adis_read_reg_16(&st->adis, ADIS16400_FLASH_CNT, &flash_count);
+	if (ret < 0)
+		return ret;
+
+	*val = flash_count;
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(adis16400_flash_count_fops,
+	adis16400_show_flash_count, NULL, "%lld\n");
+
+static int adis16400_debugfs_init(struct iio_dev *indio_dev)
+{
+	struct adis16400_state *st = iio_priv(indio_dev);
+
+	if (st->variant->flags & ADIS16400_HAS_SERIAL_NUMBER)
+		debugfs_create_file("serial_number", 0400,
+			indio_dev->debugfs_dentry, st,
+			&adis16400_serial_number_fops);
+	if (st->variant->flags & ADIS16400_HAS_PROD_ID)
+		debugfs_create_file("product_id", 0400,
+			indio_dev->debugfs_dentry, st,
+			&adis16400_product_id_fops);
+	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
+		st, &adis16400_flash_count_fops);
+
+	return 0;
+}
+
+#else
+
+static int adis16400_debugfs_init(struct iio_dev *indio_dev)
+{
+	return 0;
+}
+
+#endif
 
 enum adis16400_chip_variant {
 	ADIS16300,
@@ -600,7 +699,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16334] = {
 		.channels = adis16334_channels,
 		.num_channels = ARRAY_SIZE(adis16334_channels),
-		.flags = ADIS16400_HAS_PROD_ID,
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_NO_BURST |
+				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.temp_scale_nano = 67850000, /* 0.06785 C */
@@ -622,7 +722,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16360] = {
 		.channels = adis16350_channels,
 		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
@@ -633,7 +734,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16362] = {
 		.channels = adis16350_channels,
 		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
@@ -644,7 +746,8 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16364] = {
 		.channels = adis16350_channels,
 		.num_channels = ARRAY_SIZE(adis16350_channels),
-		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
+		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE |
+				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.temp_scale_nano = 136000000, /* 0.136 C */
@@ -671,6 +774,7 @@ static const struct iio_info adis16400_info = {
 	.write_raw = &adis16400_write_raw,
 	.attrs = &adis16400_attribute_group,
 	.update_scan_mode = adis16400_update_scan_mode,
+	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
 static const unsigned long adis16400_burst_scan_mask[] = {
@@ -768,6 +872,7 @@ static int adis16400_probe(struct spi_device *spi)
 	if (ret)
 		goto error_cleanup_buffer;
 
+	adis16400_debugfs_init(indio_dev);
 	return 0;
 
 error_cleanup_buffer:
