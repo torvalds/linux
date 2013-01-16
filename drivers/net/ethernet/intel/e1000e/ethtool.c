@@ -418,7 +418,7 @@ static void e1000_set_msglevel(struct net_device *netdev, u32 data)
 	adapter->msg_enable = data;
 }
 
-static int e1000_get_regs_len(struct net_device *netdev)
+static int e1000_get_regs_len(struct net_device __always_unused *netdev)
 {
 #define E1000_REGS_LEN 32 /* overestimate */
 	return E1000_REGS_LEN * sizeof(u32);
@@ -934,7 +934,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static irqreturn_t e1000_test_intr(int irq, void *data)
+static irqreturn_t e1000_test_intr(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1705,7 +1705,8 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static int e1000e_get_sset_count(struct net_device *netdev, int sset)
+static int e1000e_get_sset_count(struct net_device __always_unused *netdev,
+				 int sset)
 {
 	switch (sset) {
 	case ETH_SS_TEST:
@@ -1968,7 +1969,7 @@ static int e1000_nway_reset(struct net_device *netdev)
 }
 
 static void e1000_get_ethtool_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats,
+				    struct ethtool_stats __always_unused *stats,
 				    u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1997,8 +1998,8 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-static void e1000_get_strings(struct net_device *netdev, u32 stringset,
-			      u8 *data)
+static void e1000_get_strings(struct net_device __always_unused *netdev,
+			      u32 stringset, u8 *data)
 {
 	u8 *p = data;
 	int i;
@@ -2018,7 +2019,8 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static int e1000_get_rxnfc(struct net_device *netdev,
-			   struct ethtool_rxnfc *info, u32 *rule_locs)
+			   struct ethtool_rxnfc *info,
+			   u32 __always_unused *rule_locs)
 {
 	info->data = 0;
 

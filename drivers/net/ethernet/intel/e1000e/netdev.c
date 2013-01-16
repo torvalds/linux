@@ -1747,7 +1747,7 @@ static void e1000e_downshift_workaround(struct work_struct *work)
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
  **/
-static irqreturn_t e1000_intr_msi(int irq, void *data)
+static irqreturn_t e1000_intr_msi(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1813,7 +1813,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
  **/
-static irqreturn_t e1000_intr(int irq, void *data)
+static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1888,7 +1888,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t e1000_msix_other(int irq, void *data)
+static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1920,8 +1920,7 @@ no_link_interrupt:
 	return IRQ_HANDLED;
 }
 
-
-static irqreturn_t e1000_intr_msix_tx(int irq, void *data)
+static irqreturn_t e1000_intr_msix_tx(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1939,7 +1938,7 @@ static irqreturn_t e1000_intr_msix_tx(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t e1000_intr_msix_rx(int irq, void *data)
+static irqreturn_t e1000_intr_msix_rx(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -2496,9 +2495,7 @@ void e1000e_free_rx_resources(struct e1000_ring *rx_ring)
  *      while increasing bulk throughput.  This functionality is controlled
  *      by the InterruptThrottleRate module parameter.
  **/
-static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
-				     u16 itr_setting, int packets,
-				     int bytes)
+static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 {
 	unsigned int retval = itr_setting;
 
@@ -2558,18 +2555,16 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 		goto set_itr_now;
 	}
 
-	adapter->tx_itr = e1000_update_itr(adapter,
-				    adapter->tx_itr,
-				    adapter->total_tx_packets,
-				    adapter->total_tx_bytes);
+	adapter->tx_itr = e1000_update_itr(adapter->tx_itr,
+					   adapter->total_tx_packets,
+					   adapter->total_tx_bytes);
 	/* conservative mode (itr 3) eliminates the lowest_latency setting */
 	if (adapter->itr_setting == 3 && adapter->tx_itr == lowest_latency)
 		adapter->tx_itr = low_latency;
 
-	adapter->rx_itr = e1000_update_itr(adapter,
-				    adapter->rx_itr,
-				    adapter->total_rx_packets,
-				    adapter->total_rx_bytes);
+	adapter->rx_itr = e1000_update_itr(adapter->rx_itr,
+					   adapter->total_rx_packets,
+					   adapter->total_rx_bytes);
 	/* conservative mode (itr 3) eliminates the lowest_latency setting */
 	if (adapter->itr_setting == 3 && adapter->rx_itr == lowest_latency)
 		adapter->rx_itr = low_latency;
@@ -4115,7 +4110,7 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
  **/
-static irqreturn_t e1000_intr_msi_test(int irq, void *data)
+static irqreturn_t e1000_intr_msi_test(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -6249,7 +6244,7 @@ static void e1000_shutdown(struct pci_dev *pdev)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 
-static irqreturn_t e1000_intr_msix(int irq, void *data)
+static irqreturn_t e1000_intr_msix(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);

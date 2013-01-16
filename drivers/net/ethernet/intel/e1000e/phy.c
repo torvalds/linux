@@ -2178,7 +2178,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
  *  Generic function to wait 10 milli-seconds for configuration to complete
  *  and return success.
  **/
-s32 e1000e_get_cfg_done_generic(struct e1000_hw *hw)
+s32 e1000e_get_cfg_done_generic(struct e1000_hw __always_unused *hw)
 {
 	mdelay(10);
 
