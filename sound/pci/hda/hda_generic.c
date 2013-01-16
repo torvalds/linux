@@ -3047,6 +3047,7 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 	else
 		on = spec->hp_jack_present | spec->line_jack_present;
 	on |= spec->master_mute;
+	spec->speaker_muted = on;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.speaker_pins),
 		    spec->autocfg.speaker_pins, on);
 
@@ -3060,6 +3061,7 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 	else
 		on = spec->hp_jack_present;
 	on |= spec->master_mute;
+	spec->line_out_muted = on;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 		    spec->autocfg.line_out_pins, on);
 }

@@ -170,6 +170,8 @@ struct hda_gen_spec {
 	unsigned int auto_mic:1;
 	unsigned int automute_speaker:1; /* automute speaker outputs */
 	unsigned int automute_lo:1; /* automute LO outputs */
+	unsigned int speaker_muted:1; /* current status of speaker mute */
+	unsigned int line_out_muted:1; /* current status of LO mute */
 	unsigned int detect_hp:1;	/* Headphone detection enabled */
 	unsigned int detect_lo:1;	/* Line-out detection enabled */
 	unsigned int automute_speaker_possible:1; /* there are speakers and either LO or HP */
