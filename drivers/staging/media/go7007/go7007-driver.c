@@ -173,6 +173,11 @@ static int go7007_init_encoder(struct go7007 *go)
 		go7007_write_addr(go, 0x3c82, 0x0001);
 		go7007_write_addr(go, 0x3c80, 0x00fe);
 	}
+	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
+		/* set GPIO5 to be an output, currently low */
+		go7007_write_addr(go, 0x3c82, 0x0000);
+		go7007_write_addr(go, 0x3c80, 0x00df);
+	}
 	return 0;
 }
 

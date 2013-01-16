@@ -1110,9 +1110,6 @@ static int go7007_usb_probe(struct usb_interface *intf,
 			} else {
 				u16 channel;
 
-				/* set GPIO5 to be an output, currently low */
-				go7007_write_addr(go, 0x3c82, 0x0000);
-				go7007_write_addr(go, 0x3c80, 0x00df);
 				/* read channel number from GPIO[1:0] */
 				go7007_read_addr(go, 0x3c81, &channel);
 				channel &= 0x3;
