@@ -17,11 +17,10 @@
 #ifndef SPI_ADIS16400_H_
 #define SPI_ADIS16400_H_
 
+#include <linux/iio/imu/adis.h>
+
 #define ADIS16400_STARTUP_DELAY	290 /* ms */
 #define ADIS16400_MTEST_DELAY 90 /* ms */
-
-#define ADIS16400_READ_REG(a)    a
-#define ADIS16400_WRITE_REG(a) ((a) | 0x80)
 
 #define ADIS16400_FLASH_CNT  0x00 /* Flash memory write count */
 #define ADIS16400_SUPPLY_OUT 0x02 /* Power supply measurement */
@@ -96,21 +95,21 @@
 #define ADIS16400_SMPL_PRD_DIV_MASK	0x7F
 
 /* DIAG_STAT */
-#define ADIS16400_DIAG_STAT_ZACCL_FAIL	(1<<15)
-#define ADIS16400_DIAG_STAT_YACCL_FAIL	(1<<14)
-#define ADIS16400_DIAG_STAT_XACCL_FAIL	(1<<13)
-#define ADIS16400_DIAG_STAT_XGYRO_FAIL	(1<<12)
-#define ADIS16400_DIAG_STAT_YGYRO_FAIL	(1<<11)
-#define ADIS16400_DIAG_STAT_ZGYRO_FAIL	(1<<10)
-#define ADIS16400_DIAG_STAT_ALARM2	(1<<9)
-#define ADIS16400_DIAG_STAT_ALARM1	(1<<8)
-#define ADIS16400_DIAG_STAT_FLASH_CHK	(1<<6)
-#define ADIS16400_DIAG_STAT_SELF_TEST	(1<<5)
-#define ADIS16400_DIAG_STAT_OVERFLOW	(1<<4)
-#define ADIS16400_DIAG_STAT_SPI_FAIL	(1<<3)
-#define ADIS16400_DIAG_STAT_FLASH_UPT	(1<<2)
-#define ADIS16400_DIAG_STAT_POWER_HIGH	(1<<1)
-#define ADIS16400_DIAG_STAT_POWER_LOW	(1<<0)
+#define ADIS16400_DIAG_STAT_ZACCL_FAIL	15
+#define ADIS16400_DIAG_STAT_YACCL_FAIL	14
+#define ADIS16400_DIAG_STAT_XACCL_FAIL	13
+#define ADIS16400_DIAG_STAT_XGYRO_FAIL	12
+#define ADIS16400_DIAG_STAT_YGYRO_FAIL	11
+#define ADIS16400_DIAG_STAT_ZGYRO_FAIL	10
+#define ADIS16400_DIAG_STAT_ALARM2	9
+#define ADIS16400_DIAG_STAT_ALARM1	8
+#define ADIS16400_DIAG_STAT_FLASH_CHK	6
+#define ADIS16400_DIAG_STAT_SELF_TEST	5
+#define ADIS16400_DIAG_STAT_OVERFLOW	4
+#define ADIS16400_DIAG_STAT_SPI_FAIL	3
+#define ADIS16400_DIAG_STAT_FLASH_UPT	2
+#define ADIS16400_DIAG_STAT_POWER_HIGH	1
+#define ADIS16400_DIAG_STAT_POWER_LOW	0
 
 /* GLOB_CMD */
 #define ADIS16400_GLOB_CMD_SW_RESET	(1<<7)
@@ -126,9 +125,6 @@
 #define ADIS16334_RATE_DIV_SHIFT 8
 #define ADIS16334_RATE_INT_CLK BIT(0)
 
-#define ADIS16400_MAX_TX 24
-#define ADIS16400_MAX_RX 24
-
 #define ADIS16400_SPI_SLOW	(u32)(300 * 1000)
 #define ADIS16400_SPI_BURST	(u32)(1000 * 1000)
 #define ADIS16400_SPI_FAST	(u32)(2000 * 1000)
@@ -136,6 +132,8 @@
 #define ADIS16400_HAS_PROD_ID		BIT(0)
 #define ADIS16400_NO_BURST		BIT(1)
 #define ADIS16400_HAS_SLOW_MODE		BIT(2)
+
+struct adis16400_state;
 
 struct adis16400_chip_info {
 	const struct iio_chan_spec *channels;
@@ -145,58 +143,47 @@ struct adis16400_chip_info {
 	unsigned int accel_scale_micro;
 	int temp_scale_nano;
 	int temp_offset;
-	int (*set_freq)(struct iio_dev *indio_dev, unsigned int freq);
-	int (*get_freq)(struct iio_dev *indio_dev);
+	int (*set_freq)(struct adis16400_state *st, unsigned int freq);
+	int (*get_freq)(struct adis16400_state *st);
 };
 
 /**
  * struct adis16400_state - device instance specific data
- * @us:			actual spi_device
- * @trig:		data ready trigger registered with iio
- * @tx:			transmit buffer
- * @rx:			receive buffer
- * @buf_lock:		mutex to protect tx and rx
- * @filt_int:		integer part of requested filter frequency
+ * @variant:	chip variant info
+ * @filt_int:	integer part of requested filter frequency
+ * @adis:	adis device
  **/
 struct adis16400_state {
-	struct spi_device		*us;
-	struct iio_trigger		*trig;
-	struct mutex			buf_lock;
 	struct adis16400_chip_info	*variant;
 	int				filt_int;
 
-	u8	tx[ADIS16400_MAX_TX] ____cacheline_aligned;
-	u8	rx[ADIS16400_MAX_RX] ____cacheline_aligned;
+	struct adis adis;
 };
-
-int adis16400_set_irq(struct iio_dev *indio_dev, bool enable);
 
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
 
-#define ADIS16400_SCAN_SUPPLY	0
-#define ADIS16400_SCAN_GYRO_X	1
-#define ADIS16400_SCAN_GYRO_Y	2
-#define ADIS16400_SCAN_GYRO_Z	3
-#define ADIS16400_SCAN_ACC_X	4
-#define ADIS16400_SCAN_ACC_Y	5
-#define ADIS16400_SCAN_ACC_Z	6
-#define ADIS16400_SCAN_MAGN_X	7
-#define ADIS16350_SCAN_TEMP_X	7
-#define ADIS16400_SCAN_MAGN_Y	8
-#define ADIS16350_SCAN_TEMP_Y	8
-#define ADIS16400_SCAN_MAGN_Z	9
-#define ADIS16350_SCAN_TEMP_Z	9
-#define ADIS16400_SCAN_TEMP	10
-#define ADIS16350_SCAN_ADC_0	10
-#define ADIS16400_SCAN_ADC_0	11
-#define ADIS16300_SCAN_INCLI_X	12
-#define ADIS16300_SCAN_INCLI_Y	13
+enum {
+	ADIS16400_SCAN_SUPPLY,
+	ADIS16400_SCAN_GYRO_X,
+	ADIS16400_SCAN_GYRO_Y,
+	ADIS16400_SCAN_GYRO_Z,
+	ADIS16400_SCAN_ACC_X,
+	ADIS16400_SCAN_ACC_Y,
+	ADIS16400_SCAN_ACC_Z,
+	ADIS16400_SCAN_MAGN_X,
+	ADIS16400_SCAN_MAGN_Y,
+	ADIS16400_SCAN_MAGN_Z,
+	ADIS16350_SCAN_TEMP_X,
+	ADIS16350_SCAN_TEMP_Y,
+	ADIS16350_SCAN_TEMP_Z,
+	ADIS16300_SCAN_INCLI_X,
+	ADIS16300_SCAN_INCLI_Y,
+	ADIS16400_SCAN_ADC,
+};
 
 #ifdef CONFIG_IIO_BUFFER
-void adis16400_remove_trigger(struct iio_dev *indio_dev);
-int adis16400_probe_trigger(struct iio_dev *indio_dev);
 
 ssize_t adis16400_read_data_from_ring(struct device *dev,
 				      struct device_attribute *attr,
@@ -207,15 +194,6 @@ int adis16400_configure_ring(struct iio_dev *indio_dev);
 void adis16400_unconfigure_ring(struct iio_dev *indio_dev);
 
 #else /* CONFIG_IIO_BUFFER */
-
-static inline void adis16400_remove_trigger(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16400_probe_trigger(struct iio_dev *indio_dev)
-{
-	return 0;
-}
 
 static inline ssize_t
 adis16400_read_data_from_ring(struct device *dev,
@@ -235,4 +213,5 @@ static inline void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
 }
 
 #endif /* CONFIG_IIO_BUFFER */
+
 #endif /* SPI_ADIS16400_H_ */

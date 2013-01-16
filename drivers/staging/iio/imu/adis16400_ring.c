@@ -9,6 +9,7 @@
 #include <linux/iio/iio.h>
 #include "../ring_sw.h"
 #include <linux/iio/trigger_consumer.h>
+
 #include "adis16400.h"
 
 /**
@@ -20,12 +21,12 @@ static int adis16400_spi_read_burst(struct iio_dev *indio_dev, u8 *rx)
 {
 	struct spi_message msg;
 	struct adis16400_state *st = iio_priv(indio_dev);
-	u32 old_speed_hz = st->us->max_speed_hz;
+	u32 old_speed_hz = st->adis.spi->max_speed_hz;
 	int ret;
 
 	struct spi_transfer xfers[] = {
 		{
-			.tx_buf = st->tx,
+			.tx_buf = st->adis.tx,
 			.bits_per_word = 8,
 			.len = 2,
 		}, {
@@ -35,39 +36,39 @@ static int adis16400_spi_read_burst(struct iio_dev *indio_dev, u8 *rx)
 		},
 	};
 
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADIS16400_READ_REG(ADIS16400_GLOB_CMD);
-	st->tx[1] = 0;
+	mutex_lock(&st->adis.txrx_lock);
+	st->adis.tx[0] = ADIS_READ_REG(ADIS16400_GLOB_CMD);
+	st->adis.tx[1] = 0;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
 	spi_message_add_tail(&xfers[1], &msg);
 
-	st->us->max_speed_hz = min(ADIS16400_SPI_BURST, old_speed_hz);
-	spi_setup(st->us);
+	st->adis.spi->max_speed_hz = min(ADIS16400_SPI_BURST, old_speed_hz);
+	spi_setup(st->adis.spi);
 
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync(st->adis.spi, &msg);
 	if (ret)
-		dev_err(&st->us->dev, "problem when burst reading");
+		dev_err(&st->adis.spi->dev, "problem when burst reading");
 
-	st->us->max_speed_hz = old_speed_hz;
-	spi_setup(st->us);
-	mutex_unlock(&st->buf_lock);
+	st->adis.spi->max_speed_hz = old_speed_hz;
+	spi_setup(st->adis.spi);
+	mutex_unlock(&st->adis.txrx_lock);
 	return ret;
 }
 
 static const u16 read_all_tx_array[] = {
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_SUPPLY_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_XGYRO_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_YGYRO_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_ZGYRO_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_XACCL_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_YACCL_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_ZACCL_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_XTEMP_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_YTEMP_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_ZTEMP_OUT)),
-	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_AUX_ADC)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_SUPPLY_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_XGYRO_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_YGYRO_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_ZGYRO_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_XACCL_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_YACCL_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_ZACCL_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16350_XTEMP_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16350_YTEMP_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16350_ZTEMP_OUT)),
+	cpu_to_be16(ADIS_READ_REG(ADIS16400_AUX_ADC)),
 };
 
 static int adis16350_spi_read_all(struct iio_dev *indio_dev, u8 *rx)
@@ -100,7 +101,7 @@ static int adis16350_spi_read_all(struct iio_dev *indio_dev, u8 *rx)
 	for (j = 0; j < scan_count + 1; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync(st->adis.spi, &msg);
 	kfree(xfers);
 
 	return ret;
@@ -123,26 +124,26 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 				       indio_dev->masklength);
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
-		dev_err(&st->us->dev, "memory alloc failed in ring bh");
+		dev_err(&st->adis.spi->dev, "memory alloc failed in ring bh");
 		goto done;
 	}
 
 	if (scan_count) {
 		if (st->variant->flags & ADIS16400_NO_BURST) {
-			ret = adis16350_spi_read_all(indio_dev, st->rx);
+			ret = adis16350_spi_read_all(indio_dev, st->adis.rx);
 			if (ret < 0)
 				goto done;
 			for (; i < scan_count; i++)
-				data[i]	= *(s16 *)(st->rx + i*2);
+				data[i]	= *(s16 *)(st->adis.rx + i*2);
 		} else {
-			ret = adis16400_spi_read_burst(indio_dev, st->rx);
+			ret = adis16400_spi_read_burst(indio_dev, st->adis.rx);
 			if (ret < 0)
 				goto done;
 			for (; i < scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
 				data[i] = be16_to_cpup(
-					(__be16 *)&(st->rx[j*2]));
+					(__be16 *)&(st->adis.rx[j*2]));
 			}
 		}
 	}
