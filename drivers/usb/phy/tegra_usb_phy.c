@@ -209,11 +209,6 @@ static struct tegra_utmip_config utmip_default[] = {
 	},
 };
 
-static inline bool phy_is_ulpi(struct tegra_usb_phy *phy)
-{
-	return (phy->instance == 1);
-}
-
 static int utmip_pad_open(struct tegra_usb_phy *phy)
 {
 	phy->pad_clk = clk_get_sys("utmip-pad", NULL);
@@ -655,7 +650,7 @@ static int	tegra_phy_init(struct usb_phy *x)
 	struct tegra_ulpi_config *ulpi_config;
 	int err;
 
-	if (phy_is_ulpi(phy)) {
+	if (phy->is_ulpi_phy) {
 		ulpi_config = phy->config;
 		phy->clk = clk_get_sys(NULL, ulpi_config->clk);
 		if (IS_ERR(phy->clk)) {
@@ -693,7 +688,7 @@ static void tegra_usb_phy_close(struct usb_phy *x)
 {
 	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
 
-	if (phy_is_ulpi(phy))
+	if (phy->is_ulpi_phy)
 		clk_put(phy->clk);
 	else
 		utmip_pad_close(phy);
@@ -704,7 +699,7 @@ static void tegra_usb_phy_close(struct usb_phy *x)
 
 static int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 {
-	if (phy_is_ulpi(phy))
+	if (phy->is_ulpi_phy)
 		return ulpi_phy_power_on(phy);
 	else
 		return utmi_phy_power_on(phy);
@@ -712,7 +707,7 @@ static int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 
 static int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 {
-	if (phy_is_ulpi(phy))
+	if (phy->is_ulpi_phy)
 		return ulpi_phy_power_off(phy);
 	else
 		return utmi_phy_power_off(phy);
@@ -747,9 +742,14 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	phy->dev = dev;
 	phy->is_legacy_phy =
 		of_property_read_bool(np, "nvidia,has-legacy-mode");
+	err = of_property_match_string(np, "phy_type", "ulpi");
+	if (err < 0)
+		phy->is_ulpi_phy = false;
+	else
+		phy->is_ulpi_phy = true;
 
 	if (!phy->config) {
-		if (phy_is_ulpi(phy)) {
+		if (phy->is_ulpi_phy) {
 			pr_err("%s: ulpi phy configuration missing", __func__);
 			err = -EINVAL;
 			goto err0;
@@ -796,14 +796,14 @@ EXPORT_SYMBOL_GPL(tegra_usb_phy_open);
 
 void tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
 {
-	if (!phy_is_ulpi(phy))
+	if (!phy->is_ulpi_phy)
 		utmi_phy_preresume(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_preresume);
 
 void tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
 {
-	if (!phy_is_ulpi(phy))
+	if (!phy->is_ulpi_phy)
 		utmi_phy_postresume(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_postresume);
@@ -811,14 +811,14 @@ EXPORT_SYMBOL_GPL(tegra_usb_phy_postresume);
 void tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
 				 enum tegra_usb_phy_port_speed port_speed)
 {
-	if (!phy_is_ulpi(phy))
+	if (!phy->is_ulpi_phy)
 		utmi_phy_restore_start(phy, port_speed);
 }
 EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_start);
 
 void tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
 {
-	if (!phy_is_ulpi(phy))
+	if (!phy->is_ulpi_phy)
 		utmi_phy_restore_end(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_end);

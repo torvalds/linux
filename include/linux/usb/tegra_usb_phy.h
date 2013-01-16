@@ -60,6 +60,7 @@ struct tegra_usb_phy {
 	struct usb_phy u_phy;
 	struct device *dev;
 	bool is_legacy_phy;
+	bool is_ulpi_phy;
 };
 
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
