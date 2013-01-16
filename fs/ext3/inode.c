@@ -1083,7 +1083,7 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode *inode,
 		struct buffer_head *bh;
 		bh = sb_getblk(inode->i_sb, dummy.b_blocknr);
 		if (unlikely(!bh)) {
-			*errp = -EIO;
+			*errp = -ENOMEM;
 			goto err;
 		}
 		if (buffer_new(&dummy)) {
@@ -2738,7 +2738,7 @@ static int __ext3_get_inode_loc(struct inode *inode,
 				"unable to read inode block - "
 				"inode=%lu, block="E3FSBLK,
 				 inode->i_ino, block);
-		return -EIO;
+		return -ENOMEM;
 	}
 	if (!buffer_uptodate(bh)) {
 		lock_buffer(bh);

@@ -816,7 +816,7 @@ inserted:
 			if (unlikely(!new_bh)) {
 getblk_failed:
 				ext3_free_blocks(handle, inode, block, 1);
-				error = -EIO;
+				error = -ENOMEM;
 				goto cleanup;
 			}
 			lock_buffer(new_bh);
