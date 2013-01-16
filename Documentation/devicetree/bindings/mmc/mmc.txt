@@ -10,7 +10,7 @@ Required properties:
 - bus-width: Number of data lines, can be <1>, <4>, or <8>
 
 Card detection:
-If no property below is supplied, standard SDHCI card detect is used.
+If no property below is supplied, host native card detect is used.
 Only one of the properties in this section should be supplied:
   - broken-cd: There is no card detection available; polling must be used.
   - cd-gpios: Specify GPIOs for card detection, see gpio binding
