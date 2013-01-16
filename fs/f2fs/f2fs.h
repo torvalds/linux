@@ -914,7 +914,7 @@ int restore_node_summary(struct f2fs_sb_info *, unsigned int,
 void flush_nat_entries(struct f2fs_sb_info *);
 int build_node_manager(struct f2fs_sb_info *);
 void destroy_node_manager(struct f2fs_sb_info *);
-int create_node_manager_caches(void);
+int __init create_node_manager_caches(void);
 void destroy_node_manager_caches(void);
 
 /*
@@ -966,7 +966,7 @@ void sync_dirty_dir_inodes(struct f2fs_sb_info *);
 void block_operations(struct f2fs_sb_info *);
 void write_checkpoint(struct f2fs_sb_info *, bool, bool);
 void init_orphan_info(struct f2fs_sb_info *);
-int create_checkpoint_caches(void);
+int __init create_checkpoint_caches(void);
 void destroy_checkpoint_caches(void);
 
 /*
@@ -988,7 +988,7 @@ void stop_gc_thread(struct f2fs_sb_info *);
 block_t start_bidx_of_node(unsigned int);
 int f2fs_gc(struct f2fs_sb_info *);
 void build_gc_manager(struct f2fs_sb_info *);
-int create_gc_caches(void);
+int __init create_gc_caches(void);
 void destroy_gc_caches(void);
 
 /*
@@ -1060,7 +1060,7 @@ struct f2fs_stat_info {
 
 int f2fs_build_stats(struct f2fs_sb_info *);
 void f2fs_destroy_stats(struct f2fs_sb_info *);
-void f2fs_create_root_stats(void);
+void __init f2fs_create_root_stats(void);
 void f2fs_destroy_root_stats(void);
 #else
 #define stat_inc_call_count(si)
@@ -1071,7 +1071,7 @@ void f2fs_destroy_root_stats(void);
 
 static inline int f2fs_build_stats(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_stats(struct f2fs_sb_info *sbi) { }
-static inline void f2fs_create_root_stats(void) { }
+static inline void __init f2fs_create_root_stats(void) { }
 static inline void f2fs_destroy_root_stats(void) { }
 #endif
 

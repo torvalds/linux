@@ -697,7 +697,7 @@ void build_gc_manager(struct f2fs_sb_info *sbi)
 	DIRTY_I(sbi)->v_ops = &default_v_ops;
 }
 
-int create_gc_caches(void)
+int __init create_gc_caches(void)
 {
 	winode_slab = f2fs_kmem_cache_create("f2fs_gc_inodes",
 			sizeof(struct inode_entry), NULL);
