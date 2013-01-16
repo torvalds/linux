@@ -116,7 +116,7 @@ static ssize_t adis16400_read_frequency(struct device *dev,
 	ret = st->variant->get_freq(st);
 	if (ret < 0)
 		return ret;
-	len = sprintf(buf, "%d SPS\n", ret);
+	len = sprintf(buf, "%d\n", ret);
 	return len;
 }
 
