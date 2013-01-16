@@ -202,7 +202,8 @@ struct ni_power_info {
 	const struct ni_cac_weights *cac_weights;
 	u8 lta_window_size;
 	u8 lts_truncate;
-	struct ni_ps hw_ps;
+	struct ni_ps current_ps;
+	struct ni_ps requested_ps;
 	/* scratch structs */
 	SMC_NIslands_MCRegisters smc_mc_reg_table;
 	NISLANDS_SMC_STATETABLE smc_statetable;

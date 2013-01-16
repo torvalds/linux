@@ -791,18 +791,12 @@ static void ni_calculate_leakage_for_v_and_t(struct radeon_device *rdev,
 static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *rps)
 {
-	struct ni_power_info *ni_pi = ni_get_pi(rdev);
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
 	int i;
-
-	/* point to the hw copy since this function will modify the ps */
-	ni_pi->hw_ps = *ps;
-	rdev->pm.dpm.hw_ps.ps_priv = &ni_pi->hw_ps;
-	ps = &ni_pi->hw_ps;
 
 	if (rdev->pm.dpm.new_active_crtc_count > 1)
 		disable_mclk_switching = true;
@@ -3516,6 +3510,30 @@ void ni_dpm_setup_asic(struct radeon_device *rdev)
 	rv770_enable_acpi_pm(rdev);
 }
 
+static void ni_update_current_ps(struct radeon_device *rdev,
+				 struct radeon_ps *rps)
+{
+	struct ni_ps *new_ps = ni_get_ps(rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+        struct ni_power_info *ni_pi = ni_get_pi(rdev);
+
+	eg_pi->current_rps = *rps;
+	ni_pi->current_ps = *new_ps;
+	eg_pi->current_rps.ps_priv = &ni_pi->current_ps;
+}
+
+static void ni_update_requested_ps(struct radeon_device *rdev,
+				   struct radeon_ps *rps)
+{
+	struct ni_ps *new_ps = ni_get_ps(rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+        struct ni_power_info *ni_pi = ni_get_pi(rdev);
+
+	eg_pi->requested_rps = *rps;
+	ni_pi->requested_ps = *new_ps;
+	eg_pi->requested_rps.ps_priv = &ni_pi->requested_ps;
+}
+
 int ni_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
@@ -3590,6 +3608,8 @@ int ni_dpm_enable(struct radeon_device *rdev)
 
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
+	ni_update_current_ps(rdev, boot_ps);
+
 	return 0;
 }
 
@@ -3627,6 +3647,8 @@ void ni_dpm_disable(struct radeon_device *rdev)
 	btc_reset_to_default(rdev);
 	ni_stop_smc(rdev);
 	ni_force_switch_to_arb_f0(rdev);
+
+	ni_update_current_ps(rdev, boot_ps);
 }
 
 int ni_power_control_set_level(struct radeon_device *rdev)
@@ -3642,13 +3664,24 @@ int ni_power_control_set_level(struct radeon_device *rdev)
 	return 0;
 }
 
+int ni_dpm_pre_set_power_state(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps requested_ps = *rdev->pm.dpm.requested_ps;
+	struct radeon_ps *new_ps = &requested_ps;
+
+	ni_update_requested_ps(rdev, new_ps);
+
+	ni_apply_state_adjust_rules(rdev, &eg_pi->requested_rps);
+
+	return 0;
+}
+
 int ni_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+	struct radeon_ps *new_ps = &eg_pi->requested_rps;
 	int ret;
-
-	ni_apply_state_adjust_rules(rdev, new_ps);
 
 	ni_restrict_performance_levels_before_switch(rdev);
 	ni_enable_power_containment(rdev, new_ps, false);
@@ -3674,6 +3707,14 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 #endif
 
 	return 0;
+}
+
+void ni_dpm_post_set_power_state(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *new_ps = &eg_pi->requested_rps;
+
+	ni_update_current_ps(rdev, new_ps);
 }
 
 void ni_dpm_reset_asic(struct radeon_device *rdev)
@@ -4097,7 +4138,8 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 
 u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low)
 {
-	struct ni_ps *requested_state = ni_get_ps(rdev->pm.dpm.requested_ps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct ni_ps *requested_state = ni_get_ps(&eg_pi->requested_rps);
 
 	if (low)
 		return requested_state->performance_levels[0].sclk;
@@ -4107,7 +4149,8 @@ u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low)
 
 u32 ni_dpm_get_mclk(struct radeon_device *rdev, bool low)
 {
-	struct ni_ps *requested_state = ni_get_ps(rdev->pm.dpm.requested_ps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct ni_ps *requested_state = ni_get_ps(&eg_pi->requested_rps);
 
 	if (low)
 		return requested_state->performance_levels[0].mclk;
