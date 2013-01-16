@@ -1155,11 +1155,13 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	default:
 		dev_err(&pdev->dev, "Unsupported pinctrl sub driver (%d)\n",
 				(int) platid->driver_data);
+		mutex_destroy(&pct->lock);
 		return -EINVAL;
 	}
 
 	if (!pct->soc) {
 		dev_err(&pdev->dev, "Invalid SOC data\n");
+		mutex_destroy(&pct->lock);
 		return -EINVAL;
 	}
 
@@ -1176,6 +1178,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&pct->chip);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
+		mutex_destroy(&pct->lock);
 		goto out_rem_irq;
 	}
 	dev_info(&pdev->dev, "added gpiochip\n");
