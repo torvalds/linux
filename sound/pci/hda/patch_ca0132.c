@@ -387,14 +387,14 @@ struct ct_voicefx_preset {
 	unsigned int vals[VOICEFX_MAX_PARAM_COUNT];
 };
 
-struct ct_voicefx ca0132_voicefx = {
+static struct ct_voicefx ca0132_voicefx = {
 	.name = "VoiceFX Capture Switch",
 	.nid = VOICEFX,
 	.mid = 0x95,
 	.reqs = {10, 11, 12, 13, 14, 15, 16, 17, 18}
 };
 
-struct ct_voicefx_preset ca0132_voicefx_presets[] = {
+static struct ct_voicefx_preset ca0132_voicefx_presets[] = {
 	{ .name = "Neutral",
 	  .vals = { 0x00000000, 0x43C80000, 0x44AF0000,
 		    0x44FA0000, 0x3F800000, 0x3F800000,
