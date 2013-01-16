@@ -1170,6 +1170,12 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -EINVAL;
 	}
 
+	if (inuse) {
+		dev_dbg(&client->dev, "only one instance of %s allowed\n",
+			DRIVER_NAME);
+		return -EBUSY;
+	}
+
 	pdev = platform_device_alloc(DRIVER_NAME, -1);
 	if (!pdev) {
 		dev_err(&client->dev, "can't alloc pdev\n");
@@ -1185,12 +1191,6 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
 		dev_dbg(&client->dev, "can't talk I2C?\n");
 		status = -EIO;
-		goto free;
-	}
-
-	if (inuse) {
-		dev_dbg(&client->dev, "driver is already in use\n");
-		status = -EBUSY;
 		goto free;
 	}
 
