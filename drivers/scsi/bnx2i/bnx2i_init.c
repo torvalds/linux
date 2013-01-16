@@ -21,7 +21,7 @@ static u32 adapter_count;
 #define DRV_MODULE_VERSION	"2.7.2.2"
 #define DRV_MODULE_RELDATE	"Apr 25, 2012"
 
-static char version[] __devinitdata =
+static char version[] =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
 		" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 

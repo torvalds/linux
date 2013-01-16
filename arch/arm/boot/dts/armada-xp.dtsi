@@ -42,17 +42,19 @@
 
 	soc {
 		serial@d0012200 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012200 0x100>;
 				reg-shift = <2>;
 				interrupts = <43>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 		serial@d0012300 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012300 0x100>;
 				reg-shift = <2>;
 				interrupts = <44>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 
@@ -90,14 +92,6 @@
 				reg = <0xd0030000 0x2500>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
-				status = "disabled";
-		};
-
-		ethernet@d0034000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0xd0034000 0x2500>;
-				interrupts = <14>;
-				clocks = <&gateclk 1>;
 				status = "disabled";
 		};
 

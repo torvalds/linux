@@ -241,6 +241,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 
 static void gfs2_reverse_hex(char *c, u64 value)
 {
+	*c = '0';
 	while (value) {
 		*c-- = hex_asc[value & 0x0f];
 		value >>= 4;

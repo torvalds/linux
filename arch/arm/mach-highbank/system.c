@@ -22,9 +22,9 @@
 void highbank_restart(char mode, const char *cmd)
 {
 	if (mode == 'h')
-		hignbank_set_pwr_hard_reset();
+		highbank_set_pwr_hard_reset();
 	else
-		hignbank_set_pwr_soft_reset();
+		highbank_set_pwr_soft_reset();
 
 	while (1)
 		cpu_do_idle();

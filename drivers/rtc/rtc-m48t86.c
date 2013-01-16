@@ -144,7 +144,7 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 	.proc		= m48t86_rtc_proc,
 };
 
-static int __devinit m48t86_rtc_probe(struct platform_device *dev)
+static int m48t86_rtc_probe(struct platform_device *dev)
 {
 	unsigned char reg;
 	struct m48t86_ops *ops = dev->dev.platform_data;
@@ -164,7 +164,7 @@ static int __devinit m48t86_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit m48t86_rtc_remove(struct platform_device *dev)
+static int m48t86_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(dev);
 
@@ -182,7 +182,7 @@ static struct platform_driver m48t86_rtc_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t86_rtc_probe,
-	.remove		= __devexit_p(m48t86_rtc_remove),
+	.remove		= m48t86_rtc_remove,
 };
 
 module_platform_driver(m48t86_rtc_platform_driver);

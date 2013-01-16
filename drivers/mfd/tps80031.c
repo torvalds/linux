@@ -269,8 +269,7 @@ static int tps80031_init_ext_control(struct tps80031 *tps80031,
 	return ret;
 }
 
-static int __devinit tps80031_irq_init(struct tps80031 *tps80031, int irq,
-				int irq_base)
+static int tps80031_irq_init(struct tps80031 *tps80031, int irq, int irq_base)
 {
 	struct device *dev = tps80031->dev;
 	int i, ret;
@@ -416,8 +415,8 @@ static const struct regmap_config tps80031_regmap_configs[] = {
 	},
 };
 
-static int __devinit tps80031_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int tps80031_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct tps80031_platform_data *pdata = client->dev.platform_data;
 	struct tps80031 *tps80031;
@@ -519,7 +518,7 @@ fail_client_reg:
 	return ret;
 }
 
-static int __devexit tps80031_remove(struct i2c_client *client)
+static int tps80031_remove(struct i2c_client *client)
 {
 	struct tps80031 *tps80031 = i2c_get_clientdata(client);
 	int i;
@@ -553,7 +552,7 @@ static struct i2c_driver tps80031_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps80031_probe,
-	.remove		= __devexit_p(tps80031_remove),
+	.remove		= tps80031_remove,
 	.id_table	= tps80031_id_table,
 };
 

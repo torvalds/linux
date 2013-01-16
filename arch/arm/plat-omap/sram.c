@@ -26,6 +26,8 @@
 
 #include <asm/mach/map.h>
 
+#include <plat/sram.h>
+
 #define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
 
 static void __iomem *omap_sram_base;

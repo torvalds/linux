@@ -1226,7 +1226,7 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
-static u32 __devinit armv7_read_num_pmnc_events(void)
+static u32 armv7_read_num_pmnc_events(void)
 {
 	u32 nb_cnt;
 
@@ -1237,7 +1237,7 @@ static u32 __devinit armv7_read_num_pmnc_events(void)
 	return nb_cnt + 1;
 }
 
-static int __devinit armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A8";
@@ -1246,7 +1246,7 @@ static int __devinit armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A9";
@@ -1255,7 +1255,7 @@ static int __devinit armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A5";
@@ -1264,7 +1264,7 @@ static int __devinit armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A15";
@@ -1274,7 +1274,7 @@ static int __devinit armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static int __devinit armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "ARMv7 Cortex-A7";

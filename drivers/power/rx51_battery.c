@@ -197,7 +197,7 @@ static enum power_supply_property rx51_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 };
 
-static int __devinit rx51_battery_probe(struct platform_device *pdev)
+static int rx51_battery_probe(struct platform_device *pdev)
 {
 	struct rx51_device_info *di;
 	int ret;
@@ -224,7 +224,7 @@ static int __devinit rx51_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rx51_battery_remove(struct platform_device *pdev)
+static int rx51_battery_remove(struct platform_device *pdev)
 {
 	struct rx51_device_info *di = platform_get_drvdata(pdev);
 
@@ -237,7 +237,7 @@ static int __devexit rx51_battery_remove(struct platform_device *pdev)
 
 static struct platform_driver rx51_battery_driver = {
 	.probe = rx51_battery_probe,
-	.remove = __devexit_p(rx51_battery_remove),
+	.remove = rx51_battery_remove,
 	.driver = {
 		.name = "rx51-battery",
 		.owner = THIS_MODULE,

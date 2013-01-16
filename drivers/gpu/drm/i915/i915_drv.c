@@ -877,8 +877,7 @@ int i915_reset(struct drm_device *dev)
 	return 0;
 }
 
-static int __devinit
-i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
