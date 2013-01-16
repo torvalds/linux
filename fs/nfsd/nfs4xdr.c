@@ -2230,8 +2230,10 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		if ((buflen -= 4) < 0)
 			goto out_resource;
 		dummy = nfs4_file_type(stat.mode);
-		if (dummy == NF4BAD)
-			goto out_serverfault;
+		if (dummy == NF4BAD) {
+			status = nfserr_serverfault;
+			goto out;
+		}
 		WRITE32(dummy);
 	}
 	if (bmval0 & FATTR4_WORD0_FH_EXPIRE_TYPE) {
@@ -2325,8 +2327,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			WRITE32(ace->flag);
 			WRITE32(ace->access_mask & NFS4_ACE_MASK_ALL);
 			status = nfsd4_encode_aclname(rqstp, ace, &p, &buflen);
-			if (status == nfserr_resource)
-				goto out_resource;
 			if (status)
 				goto out;
 		}
@@ -2387,8 +2387,6 @@ out_acl:
 	}
 	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
 		status = nfsd4_encode_fs_locations(rqstp, exp, &p, &buflen);
-		if (status == nfserr_resource)
-			goto out_resource;
 		if (status)
 			goto out;
 	}
@@ -2439,15 +2437,11 @@ out_acl:
 	}
 	if (bmval1 & FATTR4_WORD1_OWNER) {
 		status = nfsd4_encode_user(rqstp, stat.uid, &p, &buflen);
-		if (status == nfserr_resource)
-			goto out_resource;
 		if (status)
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_OWNER_GROUP) {
 		status = nfsd4_encode_group(rqstp, stat.gid, &p, &buflen);
-		if (status == nfserr_resource)
-			goto out_resource;
 		if (status)
 			goto out;
 	}
@@ -2549,9 +2543,6 @@ out_nfserr:
 	goto out;
 out_resource:
 	status = nfserr_resource;
-	goto out;
-out_serverfault:
-	status = nfserr_serverfault;
 	goto out;
 }
 
