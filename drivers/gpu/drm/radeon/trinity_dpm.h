@@ -97,7 +97,6 @@ struct trinity_power_info {
 	u32 thermal_auto_throttling;
 	struct trinity_sys_info sys_info;
 	struct trinity_pl boot_pl;
-	struct trinity_ps current_ps;
 	u32 min_sclk_did;
 	bool enable_nbps_policy;
 	bool voltage_drop_in_dce;
@@ -110,7 +109,10 @@ struct trinity_power_info {
 	bool enable_dpm;
 	bool enable_sclk_ds;
 	bool uvd_dpm;
-	struct trinity_ps hw_ps;
+	struct radeon_ps current_rps;
+	struct trinity_ps current_ps;
+	struct radeon_ps requested_rps;
+	struct trinity_ps requested_ps;
 };
 
 #define TRINITY_AT_DFLT            30

@@ -604,7 +604,9 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
+int trinity_dpm_pre_set_power_state(struct radeon_device *rdev);
 int trinity_dpm_set_power_state(struct radeon_device *rdev);
+void trinity_dpm_post_set_power_state(struct radeon_device *rdev);
 void trinity_dpm_setup_asic(struct radeon_device *rdev);
 void trinity_dpm_display_configuration_changed(struct radeon_device *rdev);
 void trinity_dpm_fini(struct radeon_device *rdev);

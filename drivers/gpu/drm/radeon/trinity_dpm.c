@@ -832,15 +832,6 @@ static void trinity_unforce_levels(struct radeon_device *rdev)
 	trinity_dpm_no_forced_level(rdev);
 }
 
-static void trinity_update_current_power_levels(struct radeon_device *rdev,
-						struct radeon_ps *rps)
-{
-	struct trinity_ps *new_ps = trinity_get_ps(rps);
-	struct trinity_power_info *pi = trinity_get_pi(rdev);
-
-	pi->current_ps = *new_ps;
-}
-
 static void trinity_program_power_levels_0_to_n(struct radeon_device *rdev,
 						struct radeon_ps *new_rps,
 						struct radeon_ps *old_rps)
@@ -1046,6 +1037,28 @@ static int trinity_set_thermal_temperature_range(struct radeon_device *rdev,
 	return 0;
 }
 
+static void trinity_update_current_ps(struct radeon_device *rdev,
+				      struct radeon_ps *rps)
+{
+	struct trinity_ps *new_ps = trinity_get_ps(rps);
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+
+	pi->current_rps = *rps;
+	pi->current_ps = *new_ps;
+	pi->current_rps.ps_priv = &pi->current_ps;
+}
+
+static void trinity_update_requested_ps(struct radeon_device *rdev,
+					struct radeon_ps *rps)
+{
+	struct trinity_ps *new_ps = trinity_get_ps(rps);
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+
+	pi->requested_rps = *rps;
+	pi->requested_ps = *new_ps;
+	pi->requested_rps.ps_priv = &pi->requested_ps;
+}
+
 int trinity_dpm_enable(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
@@ -1077,6 +1090,8 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 		radeon_irq_set(rdev);
 	}
 
+	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
 	return 0;
 }
 
@@ -1099,6 +1114,8 @@ void trinity_dpm_disable(struct radeon_device *rdev)
 		rdev->irq.dpm_thermal = false;
 		radeon_irq_set(rdev);
 	}
+
+	trinity_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 }
 
 static void trinity_get_min_sclk_divider(struct radeon_device *rdev)
@@ -1127,14 +1144,26 @@ static void trinity_setup_nbp_sim(struct radeon_device *rdev,
 	}
 }
 
+int trinity_dpm_pre_set_power_state(struct radeon_device *rdev)
+{
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	struct radeon_ps requested_ps = *rdev->pm.dpm.requested_ps;
+	struct radeon_ps *new_ps = &requested_ps;
+
+	trinity_update_requested_ps(rdev, new_ps);
+
+	trinity_apply_state_adjust_rules(rdev,
+					 &pi->requested_rps,
+					 &pi->current_rps);
+
+	return 0;
+}
+
 int trinity_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
-	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
-
-	trinity_apply_state_adjust_rules(rdev, new_ps, old_ps);
-	trinity_update_current_power_levels(rdev, new_ps);
+	struct radeon_ps *new_ps = &pi->requested_rps;
+	struct radeon_ps *old_ps = &pi->current_rps;
 
 	trinity_acquire_mutex(rdev);
 	if (pi->enable_dpm) {
@@ -1151,6 +1180,14 @@ int trinity_dpm_set_power_state(struct radeon_device *rdev)
 	trinity_release_mutex(rdev);
 
 	return 0;
+}
+
+void trinity_dpm_post_set_power_state(struct radeon_device *rdev)
+{
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	struct radeon_ps *new_ps = &pi->requested_rps;
+
+	trinity_update_current_ps(rdev, new_ps);
 }
 
 void trinity_dpm_setup_asic(struct radeon_device *rdev)
@@ -1389,11 +1426,6 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev,
 	u32 i;
 	bool force_high;
 	u32 num_active_displays = rdev->pm.dpm.new_active_crtc_count;
-
-	/* point to the hw copy since this function will modify the ps */
-	pi->hw_ps = *ps;
-	rdev->pm.dpm.hw_ps.ps_priv = &pi->hw_ps;
-	ps = &pi->hw_ps;
 
 	if (new_rps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
 		return trinity_patch_thermal_state(rdev, ps, current_ps);
@@ -1833,7 +1865,8 @@ void trinity_dpm_fini(struct radeon_device *rdev)
 
 u32 trinity_dpm_get_sclk(struct radeon_device *rdev, bool low)
 {
-	struct trinity_ps *requested_state = trinity_get_ps(rdev->pm.dpm.requested_ps);
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	struct trinity_ps *requested_state = trinity_get_ps(&pi->requested_rps);
 
 	if (low)
 		return requested_state->levels[0].sclk;
