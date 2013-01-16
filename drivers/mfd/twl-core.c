@@ -308,9 +308,6 @@ EXPORT_SYMBOL(twl_rev);
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
- * IMPORTANT: for 'value' parameter: Allocate value num_bytes+1 and
- * valid data starts at Offset 1.
- *
  * Returns the result of operation - 0 is success
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
