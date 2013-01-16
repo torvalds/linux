@@ -1400,7 +1400,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	}
 
 	spec->ext_channel_count = spec->min_channel_count =
-		spec->multiout.num_dacs;
+		spec->multiout.num_dacs * 2;
 
 	if (spec->multi_ios == 2) {
 		for (i = 0; i < 2; i++)
