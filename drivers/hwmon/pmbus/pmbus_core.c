@@ -2,6 +2,7 @@
  * Hardware monitoring driver for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
+ * Copyright (c) 2012 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +38,6 @@
 #define PMBUS_ATTR_ALLOC_SIZE	32
 
 /*
- * status, status_vout, status_iout, status_fans, status_fan34, and status_temp
- * are paged. status_input is unpaged.
- */
-#define PB_NUM_STATUS_REG	(PMBUS_PAGES * 6 + 1)
-
-/*
  * Index into status register array, per status register group
  */
 #define PB_STATUS_BASE		0
@@ -50,8 +45,11 @@
 #define PB_STATUS_IOUT_BASE	(PB_STATUS_VOUT_BASE + PMBUS_PAGES)
 #define PB_STATUS_FAN_BASE	(PB_STATUS_IOUT_BASE + PMBUS_PAGES)
 #define PB_STATUS_FAN34_BASE	(PB_STATUS_FAN_BASE + PMBUS_PAGES)
-#define PB_STATUS_INPUT_BASE	(PB_STATUS_FAN34_BASE + PMBUS_PAGES)
-#define PB_STATUS_TEMP_BASE	(PB_STATUS_INPUT_BASE + 1)
+#define PB_STATUS_TEMP_BASE	(PB_STATUS_FAN34_BASE + PMBUS_PAGES)
+#define PB_STATUS_INPUT_BASE	(PB_STATUS_TEMP_BASE + PMBUS_PAGES)
+#define PB_STATUS_VMON_BASE	(PB_STATUS_INPUT_BASE + 1)
+
+#define PB_NUM_STATUS_REG	(PB_STATUS_VMON_BASE + 1)
 
 #define PMBUS_NAME_SIZE		24
 
@@ -378,6 +376,11 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
 			data->status[PB_STATUS_INPUT_BASE]
 			  = _pmbus_read_byte_data(client, 0,
 						  PMBUS_STATUS_INPUT);
+
+		if (info->func[0] & PMBUS_HAVE_STATUS_VMON)
+			data->status[PB_STATUS_VMON_BASE]
+			  = _pmbus_read_byte_data(client, 0,
+						  PMBUS_VIRT_STATUS_VMON);
 
 		for (sensor = data->sensors; sensor; sensor = sensor->next) {
 			if (!data->valid || sensor->update)
@@ -913,7 +916,7 @@ struct pmbus_limit_attr {
  * description includes a reference to the associated limit attributes.
  */
 struct pmbus_sensor_attr {
-	u8 reg;				/* sensor register */
+	u16 reg;			/* sensor register */
 	enum pmbus_sensor_classes class;/* sensor class */
 	const char *label;		/* sensor label */
 	bool paged;			/* true if paged sensor */
@@ -1085,6 +1088,30 @@ static const struct pmbus_limit_attr vin_limit_attrs[] = {
 	},
 };
 
+static const struct pmbus_limit_attr vmon_limit_attrs[] = {
+	{
+		.reg = PMBUS_VIRT_VMON_UV_WARN_LIMIT,
+		.attr = "min",
+		.alarm = "min_alarm",
+		.sbit = PB_VOLTAGE_UV_WARNING,
+	}, {
+		.reg = PMBUS_VIRT_VMON_UV_FAULT_LIMIT,
+		.attr = "lcrit",
+		.alarm = "lcrit_alarm",
+		.sbit = PB_VOLTAGE_UV_FAULT,
+	}, {
+		.reg = PMBUS_VIRT_VMON_OV_WARN_LIMIT,
+		.attr = "max",
+		.alarm = "max_alarm",
+		.sbit = PB_VOLTAGE_OV_WARNING,
+	}, {
+		.reg = PMBUS_VIRT_VMON_OV_FAULT_LIMIT,
+		.attr = "crit",
+		.alarm = "crit_alarm",
+		.sbit = PB_VOLTAGE_OV_FAULT,
+	}
+};
+
 static const struct pmbus_limit_attr vout_limit_attrs[] = {
 	{
 		.reg = PMBUS_VOUT_UV_WARN_LIMIT,
@@ -1135,6 +1162,15 @@ static const struct pmbus_sensor_attr voltage_attributes[] = {
 		.gbit = PB_STATUS_VIN_UV,
 		.limit = vin_limit_attrs,
 		.nlimit = ARRAY_SIZE(vin_limit_attrs),
+	}, {
+		.reg = PMBUS_VIRT_READ_VMON,
+		.class = PSC_VOLTAGE_IN,
+		.label = "vmon",
+		.func = PMBUS_HAVE_VMON,
+		.sfunc = PMBUS_HAVE_STATUS_VMON,
+		.sbase = PB_STATUS_VMON_BASE,
+		.limit = vmon_limit_attrs,
+		.nlimit = ARRAY_SIZE(vmon_limit_attrs),
 	}, {
 		.reg = PMBUS_READ_VCAP,
 		.class = PSC_VOLTAGE_IN,

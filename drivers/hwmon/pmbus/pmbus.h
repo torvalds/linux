@@ -2,6 +2,7 @@
  * pmbus.h - Common defines and structures for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
+ * Copyright (c) 2012 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -177,6 +178,13 @@
 #define PMBUS_VIRT_READ_TEMP2_MAX	(PMBUS_VIRT_BASE + 28)
 #define PMBUS_VIRT_RESET_TEMP2_HISTORY	(PMBUS_VIRT_BASE + 29)
 
+#define PMBUS_VIRT_READ_VMON		(PMBUS_VIRT_BASE + 30)
+#define PMBUS_VIRT_VMON_UV_WARN_LIMIT	(PMBUS_VIRT_BASE + 31)
+#define PMBUS_VIRT_VMON_OV_WARN_LIMIT	(PMBUS_VIRT_BASE + 32)
+#define PMBUS_VIRT_VMON_UV_FAULT_LIMIT	(PMBUS_VIRT_BASE + 33)
+#define PMBUS_VIRT_VMON_OV_FAULT_LIMIT	(PMBUS_VIRT_BASE + 34)
+#define PMBUS_VIRT_STATUS_VMON		(PMBUS_VIRT_BASE + 35)
+
 /*
  * CAPABILITY
  */
@@ -317,6 +325,8 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_TEMP	(1 << 15)
 #define PMBUS_HAVE_STATUS_FAN12	(1 << 16)
 #define PMBUS_HAVE_STATUS_FAN34	(1 << 17)
+#define PMBUS_HAVE_VMON		(1 << 18)
+#define PMBUS_HAVE_STATUS_VMON	(1 << 19)
 
 enum pmbus_data_format { linear = 0, direct, vid };
 
