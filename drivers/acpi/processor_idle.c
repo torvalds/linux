@@ -958,6 +958,9 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 		return -EINVAL;
 	}
 
+	if (!dev)
+		return -EINVAL;
+
 	dev->cpu = pr->id;
 
 	if (max_cstate == 0)
