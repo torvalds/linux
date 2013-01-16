@@ -3122,7 +3122,7 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	/* first some sanity checks */
 
-	if (!tty || !info->xmit.buf)
+	if (!info->xmit.buf)
 		return 0;
 
 #ifdef SERIAL_DEBUG_DATA
