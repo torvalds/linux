@@ -7,7 +7,8 @@
 #include <linux/export.h>
 
 #include <linux/iio/iio.h>
-#include "../ring_sw.h"
+#include <linux/iio/buffer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
 #include "adis16400.h"
@@ -159,47 +160,13 @@ done:
 	return IRQ_HANDLED;
 }
 
-void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
-{
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
-}
-
-static const struct iio_buffer_setup_ops adis16400_ring_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 int adis16400_configure_ring(struct iio_dev *indio_dev)
 {
-	int ret = 0;
-	struct iio_buffer *ring;
+	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+		&adis16400_trigger_handler, NULL);
+}
 
-	ring = iio_sw_rb_allocate(indio_dev);
-	if (!ring) {
-		ret = -ENOMEM;
-		return ret;
-	}
-	indio_dev->buffer = ring;
-	ring->scan_timestamp = true;
-	indio_dev->setup_ops = &adis16400_ring_setup_ops;
-
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 &adis16400_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
-	}
-
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->buffer);
-	return ret;
+void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
+{
+	iio_triggered_buffer_cleanup(indio_dev);
 }

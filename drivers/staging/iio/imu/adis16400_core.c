@@ -981,18 +981,10 @@ static int adis16400_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_buffer_register(indio_dev,
-				  st->variant->channels,
-				  st->variant->num_channels);
-	if (ret) {
-		dev_err(&spi->dev, "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
-	}
-
 	if (spi->irq) {
 		ret = adis_probe_trigger(&st->adis, indio_dev);
 		if (ret)
-			goto error_uninitialize_ring;
+			goto error_unreg_ring_funcs;
 	}
 
 	/* Get the device into a sane initial state */
@@ -1008,8 +1000,6 @@ static int adis16400_probe(struct spi_device *spi)
 error_remove_trigger:
 	if (spi->irq)
 		adis_remove_trigger(&st->adis);
-error_uninitialize_ring:
-	iio_buffer_unregister(indio_dev);
 error_unreg_ring_funcs:
 	adis16400_unconfigure_ring(indio_dev);
 error_free_dev:
@@ -1029,7 +1019,6 @@ static int adis16400_remove(struct spi_device *spi)
 
 	if (spi->irq)
 		adis_remove_trigger(&st->adis);
-	iio_buffer_unregister(indio_dev);
 	adis16400_unconfigure_ring(indio_dev);
 
 	iio_device_free(indio_dev);
