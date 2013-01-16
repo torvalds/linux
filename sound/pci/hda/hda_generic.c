@@ -119,6 +119,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
 
+	val = snd_hda_get_bool_hint(codec, "auto_mute");
+	if (val >= 0)
+		spec->suppress_auto_mute = !val;
 	val = snd_hda_get_bool_hint(codec, "auto_mic");
 	if (val >= 0)
 		spec->suppress_auto_mic = !val;
@@ -3252,6 +3255,9 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int present = 0;
 	int i, err;
+
+	if (spec->suppress_auto_mute)
+		return 0;
 
 	if (cfg->hp_pins[0])
 		present++;

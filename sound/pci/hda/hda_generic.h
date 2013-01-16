@@ -177,6 +177,7 @@ struct hda_gen_spec {
 	unsigned int automute_speaker_possible:1; /* there are speakers and either LO or HP */
 	unsigned int automute_lo_possible:1;	  /* there are line outs and HP */
 	unsigned int keep_vref_in_automute:1; /* Don't clear VREF in automute */
+	unsigned int suppress_auto_mute:1; /* suppress input jack auto mute */
 	unsigned int suppress_auto_mic:1; /* suppress input jack auto switch */
 	unsigned int line_in_auto_switch:1; /* allow line-in auto switch */
 
