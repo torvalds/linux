@@ -484,6 +484,15 @@ static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
 	return false;
 }
 
+static bool same_amp_caps(struct hda_codec *codec, hda_nid_t nid1,
+			  hda_nid_t nid2, int dir)
+{
+	if (!(get_wcaps(codec, nid1) & (1 << (dir + 1))))
+		return !(get_wcaps(codec, nid2) & (1 << (dir + 1)));
+	return (query_amp_caps(codec, nid1, dir) ==
+		query_amp_caps(codec, nid2, dir));
+}
+
 #define nid_has_mute(codec, nid, dir) \
 	check_amp_caps(codec, nid, dir, AC_AMPCAP_MUTE)
 #define nid_has_volume(codec, nid, dir) \
@@ -2768,6 +2777,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 
 	for (n = 0; n < nums; n++) {
 		bool multi = false;
+		bool multi_cap_vol = spec->multi_cap_vol;
 		bool inv_dmic = false;
 		int vol, sw;
 
@@ -2780,12 +2790,20 @@ static int create_capture_mixers(struct hda_codec *codec)
 			parse_capvol_in_path(codec, path);
 			if (!vol)
 				vol = path->ctls[NID_PATH_VOL_CTL];
-			else if (vol != path->ctls[NID_PATH_VOL_CTL])
+			else if (vol != path->ctls[NID_PATH_VOL_CTL]) {
 				multi = true;
+				if (!same_amp_caps(codec, vol,
+				    path->ctls[NID_PATH_VOL_CTL], HDA_INPUT))
+					multi_cap_vol = true;
+			}
 			if (!sw)
 				sw = path->ctls[NID_PATH_MUTE_CTL];
-			else if (sw != path->ctls[NID_PATH_MUTE_CTL])
+			else if (sw != path->ctls[NID_PATH_MUTE_CTL]) {
 				multi = true;
+				if (!same_amp_caps(codec, sw,
+				    path->ctls[NID_PATH_MUTE_CTL], HDA_INPUT))
+					multi_cap_vol = true;
+			}
 			if (is_inv_dmic_pin(codec, spec->imux_pins[i]))
 				inv_dmic = true;
 		}
@@ -2793,7 +2811,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		if (!multi)
 			err = create_single_cap_vol_ctl(codec, n, vol, sw,
 							inv_dmic);
-		else if (!spec->multi_cap_vol)
+		else if (!multi_cap_vol)
 			err = create_bind_cap_vol_ctl(codec, n, vol, sw);
 		else
 			err = create_multi_cap_vol_ctl(codec);
