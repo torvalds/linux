@@ -1685,10 +1685,8 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	struct pmbus_data *data;
 	int ret;
 
-	if (!info) {
-		dev_err(&client->dev, "Missing chip information");
+	if (!info)
 		return -ENODEV;
-	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE
 				     | I2C_FUNC_SMBUS_BYTE_DATA
@@ -1696,10 +1694,8 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		return -ENODEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "No memory to allocate driver data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -1739,31 +1735,23 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	ret = -ENOMEM;
 	data->sensors = devm_kzalloc(&client->dev, sizeof(struct pmbus_sensor)
 				     * data->max_sensors, GFP_KERNEL);
-	if (!data->sensors) {
-		dev_err(&client->dev, "No memory to allocate sensor data\n");
+	if (!data->sensors)
 		return -ENOMEM;
-	}
 
 	data->booleans = devm_kzalloc(&client->dev, sizeof(struct pmbus_boolean)
 				 * data->max_booleans, GFP_KERNEL);
-	if (!data->booleans) {
-		dev_err(&client->dev, "No memory to allocate boolean data\n");
+	if (!data->booleans)
 		return -ENOMEM;
-	}
 
 	data->labels = devm_kzalloc(&client->dev, sizeof(struct pmbus_label)
 				    * data->max_labels, GFP_KERNEL);
-	if (!data->labels) {
-		dev_err(&client->dev, "No memory to allocate label data\n");
+	if (!data->labels)
 		return -ENOMEM;
-	}
 
 	data->attributes = devm_kzalloc(&client->dev, sizeof(struct attribute *)
 					* data->max_attributes, GFP_KERNEL);
-	if (!data->attributes) {
-		dev_err(&client->dev, "No memory to allocate attribute data\n");
+	if (!data->attributes)
 		return -ENOMEM;
-	}
 
 	pmbus_find_attributes(client, data);
 
