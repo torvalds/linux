@@ -178,6 +178,7 @@ dw8250_acpi_walk_resource(struct acpi_resource *res, void *data)
 			slave->direction	= DMA_MEM_TO_DEV;
 			slave->dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
 			slave->slave_id		= fixed_dma->request_lines;
+			slave->dst_maxburst	= port->tx_loadsz / 4;
 
 			dma->tx_chan_id		= fixed_dma->channels;
 			dma->tx_param		= &dma->tx_chan_id;
@@ -189,6 +190,7 @@ dw8250_acpi_walk_resource(struct acpi_resource *res, void *data)
 			slave->direction	= DMA_DEV_TO_MEM;
 			slave->src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
 			slave->slave_id		= fixed_dma->request_lines;
+			slave->src_maxburst	= p->fifosize / 4;
 
 			dma->rx_chan_id		= fixed_dma->channels;
 			dma->rx_param		= &dma->rx_chan_id;
@@ -296,6 +298,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	uart.port.serial_in = dw8250_serial_in;
 	uart.port.serial_out = dw8250_serial_out;
 
+	dw8250_setup_port(&uart);
+
 	if (pdev->dev.of_node) {
 		err = dw8250_probe_of(&uart.port);
 		if (err)
@@ -307,8 +311,6 @@ static int dw8250_probe(struct platform_device *pdev)
 	} else {
 		return -ENODEV;
 	}
-
-	dw8250_setup_port(&uart);
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
