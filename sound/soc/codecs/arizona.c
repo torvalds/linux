@@ -897,17 +897,6 @@ int arizona_init_dai(struct arizona_priv *priv, int id)
 }
 EXPORT_SYMBOL_GPL(arizona_init_dai);
 
-static irqreturn_t arizona_fll_lock(int irq, void *data)
-{
-	struct arizona_fll *fll = data;
-
-	arizona_fll_dbg(fll, "Lock status changed\n");
-
-	complete(&fll->lock);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t arizona_fll_clock_ok(int irq, void *data)
 {
 	struct arizona_fll *fll = data;
@@ -1147,7 +1136,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 {
 	int ret;
 
-	init_completion(&fll->lock);
 	init_completion(&fll->ok);
 
 	fll->id = id;
@@ -1157,13 +1145,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 	snprintf(fll->lock_name, sizeof(fll->lock_name), "FLL%d lock", id);
 	snprintf(fll->clock_ok_name, sizeof(fll->clock_ok_name),
 		 "FLL%d clock OK", id);
-
-	ret = arizona_request_irq(arizona, lock_irq, fll->lock_name,
-				  arizona_fll_lock, fll);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to get FLL%d lock IRQ: %d\n",
-			id, ret);
-	}
 
 	ret = arizona_request_irq(arizona, ok_irq, fll->clock_ok_name,
 				  arizona_fll_clock_ok, fll);
