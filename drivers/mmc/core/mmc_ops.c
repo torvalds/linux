@@ -531,6 +531,12 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		goto out;
 
 	/*
+	 * WORKAROUND: for Sandisk eMMC cards, it might need certain delay
+	 * before sending CMD13 after CMD6
+	 */
+	mdelay(1);
+
+	/*
 	 * CRC errors shall only be ignored in cases were CMD13 is used to poll
 	 * to detect busy completion.
 	 */
