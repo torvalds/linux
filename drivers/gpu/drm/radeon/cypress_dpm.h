@@ -88,7 +88,10 @@ struct evergreen_power_info {
 	struct at ats[2];
 	/* smc offsets */
 	u16 mc_reg_table_start;
-	struct rv7xx_ps hw_ps;
+	struct radeon_ps current_rps;
+	struct rv7xx_ps current_ps;
+	struct radeon_ps requested_rps;
+	struct rv7xx_ps requested_ps;
 };
 
 #define CYPRESS_HASI_DFLT                               400000

@@ -2062,17 +2062,11 @@ static void btc_init_stutter_mode(struct radeon_device *rdev)
 static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
 					 struct radeon_ps *rps)
 {
-	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct rv7xx_ps *ps = rv770_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
-
-	/* point to the hw copy since this function will modify the ps */
-	eg_pi->hw_ps = *ps;
-	rdev->pm.dpm.hw_ps.ps_priv = &eg_pi->hw_ps;
-	ps = &eg_pi->hw_ps;
 
 	if (rdev->pm.dpm.new_active_crtc_count > 1)
 		disable_mclk_switching = true;
@@ -2222,6 +2216,28 @@ static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
 		ps->high.flags &= ~ATOM_PPLIB_R600_FLAGS_PCIEGEN2;
 }
 
+static void btc_update_current_ps(struct radeon_device *rdev,
+				  struct radeon_ps *rps)
+{
+	struct rv7xx_ps *new_ps = rv770_get_ps(rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+
+	eg_pi->current_rps = *rps;
+	eg_pi->current_ps = *new_ps;
+	eg_pi->current_rps.ps_priv = &eg_pi->current_ps;
+}
+
+static void btc_update_requested_ps(struct radeon_device *rdev,
+				    struct radeon_ps *rps)
+{
+	struct rv7xx_ps *new_ps = rv770_get_ps(rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+
+	eg_pi->requested_rps = *rps;
+	eg_pi->requested_ps = *new_ps;
+	eg_pi->requested_rps.ps_priv = &eg_pi->requested_ps;
+}
+
 void btc_dpm_reset_asic(struct radeon_device *rdev)
 {
 	rv770_restrict_performance_levels_before_switch(rdev);
@@ -2230,13 +2246,24 @@ void btc_dpm_reset_asic(struct radeon_device *rdev)
 	rv770_set_boot_state(rdev);
 }
 
+int btc_dpm_pre_set_power_state(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps requested_ps = *rdev->pm.dpm.requested_ps;
+	struct radeon_ps *new_ps = &requested_ps;
+
+	btc_update_requested_ps(rdev, new_ps);
+
+	btc_apply_state_adjust_rules(rdev, &eg_pi->requested_rps);
+
+	return 0;
+}
+
 int btc_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
-	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
-	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
-
-	btc_apply_state_adjust_rules(rdev, new_ps);
+	struct radeon_ps *new_ps = &eg_pi->requested_rps;
+	struct radeon_ps *old_ps = &eg_pi->current_rps;
 
 	btc_disable_ulv(rdev);
 	btc_set_boot_state_timing(rdev);
@@ -2272,6 +2299,14 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 #endif
 
 	return 0;
+}
+
+void btc_dpm_post_set_power_state(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *new_ps = &eg_pi->requested_rps;
+
+	btc_update_current_ps(rdev, new_ps);
 }
 
 int btc_dpm_enable(struct radeon_device *rdev)
@@ -2369,6 +2404,8 @@ int btc_dpm_enable(struct radeon_device *rdev)
 
 	btc_init_stutter_mode(rdev);
 
+	btc_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
+
 	return 0;
 };
 
@@ -2407,6 +2444,8 @@ void btc_dpm_disable(struct radeon_device *rdev)
 	btc_reset_to_default(rdev);
 	btc_stop_smc(rdev);
 	cypress_enable_spread_spectrum(rdev, false);
+
+	btc_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 }
 
 void btc_dpm_setup_asic(struct radeon_device *rdev)
@@ -2590,4 +2629,26 @@ void btc_dpm_fini(struct radeon_device *rdev)
 	kfree(rdev->pm.dpm.ps);
 	kfree(rdev->pm.dpm.priv);
 	r600_free_extended_power_table(rdev);
+}
+
+u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct rv7xx_ps *requested_state = rv770_get_ps(&eg_pi->requested_rps);
+
+	if (low)
+		return requested_state->low.sclk;
+	else
+		return requested_state->high.sclk;
+}
+
+u32 btc_dpm_get_mclk(struct radeon_device *rdev, bool low)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct rv7xx_ps *requested_state = rv770_get_ps(&eg_pi->requested_rps);
+
+	if (low)
+		return requested_state->low.mclk;
+	else
+		return requested_state->high.mclk;
 }
