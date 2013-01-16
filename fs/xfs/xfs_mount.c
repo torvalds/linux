@@ -658,7 +658,7 @@ xfs_sb_quiet_read_verify(
 		return;
 	}
 	/* quietly fail */
-	xfs_buf_ioerror(bp, EFSCORRUPTED);
+	xfs_buf_ioerror(bp, EWRONGFS);
 }
 
 static void
