@@ -131,6 +131,8 @@ static inline void tegra20_hotplug_init(void) {}
 static inline void tegra30_hotplug_init(void) {}
 #endif
 
+void tegra20_cpu_shutdown(int cpu);
+int tegra20_cpu_is_resettable_soon(void);
 void tegra20_cpu_clear_resettable(void);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void tegra20_cpu_set_resettable_soon(void);
@@ -139,6 +141,7 @@ static inline void tegra20_cpu_set_resettable_soon(void) {}
 #endif
 
 int tegra20_sleep_cpu_secondary_finish(unsigned long);
+void tegra20_tear_down_cpu(void);
 int tegra30_sleep_cpu_secondary_finish(unsigned long);
 void tegra30_tear_down_cpu(void);
 

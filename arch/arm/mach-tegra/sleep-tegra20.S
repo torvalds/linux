@@ -57,6 +57,9 @@ ENDPROC(tegra20_hotplug_shutdown)
 ENTRY(tegra20_cpu_shutdown)
 	cmp	r0, #0
 	moveq	pc, lr			@ must not be called for CPU 0
+	mov32	r1, TEGRA_PMC_VIRT + PMC_SCRATCH41
+	mov	r12, #CPU_RESETTABLE
+	str	r12, [r1]
 
 	cpu_to_halt_reg r1, r0
 	ldr	r3, =TEGRA_FLOW_CTRL_VIRT
@@ -163,6 +166,21 @@ ENTRY(tegra20_cpu_set_resettable_soon)
 ENDPROC(tegra20_cpu_set_resettable_soon)
 
 /*
+ * tegra20_cpu_is_resettable_soon(void)
+ *
+ * Returns true if the "resettable soon" flag in PMC_SCRATCH41 has been
+ * set because it is expected that the secondary CPU will be idle soon.
+ */
+ENTRY(tegra20_cpu_is_resettable_soon)
+	mov32	r1, TEGRA_PMC_VIRT + PMC_SCRATCH41
+	ldr	r12, [r1]
+	cmp	r12, #CPU_RESETTABLE_SOON
+	moveq	r0, #1
+	movne	r0, #0
+	mov	pc, lr
+ENDPROC(tegra20_cpu_is_resettable_soon)
+
+/*
  * tegra20_sleep_cpu_secondary_finish(unsigned long v2p)
  *
  * Enters WFI on secondary CPU by exiting coherency.
@@ -221,4 +239,39 @@ ENTRY(tegra20_sleep_cpu_secondary_finish)
 
 	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(tegra20_sleep_cpu_secondary_finish)
+
+/*
+ * tegra20_tear_down_cpu
+ *
+ * Switches the CPU cluster to PLL-P and enters sleep.
+ */
+ENTRY(tegra20_tear_down_cpu)
+	bl	tegra_switch_cpu_to_pllp
+	b	tegra20_enter_sleep
+ENDPROC(tegra20_tear_down_cpu)
+
+/*
+ * tegra20_enter_sleep
+ *
+ * uses flow controller to enter sleep state
+ * executes from IRAM with SDRAM in selfrefresh when target state is LP0 or LP1
+ * executes from SDRAM with target state is LP2
+ */
+tegra20_enter_sleep:
+	mov32   r6, TEGRA_FLOW_CTRL_BASE
+
+	mov     r0, #FLOW_CTRL_WAIT_FOR_INTERRUPT
+	orr	r0, r0, #FLOW_CTRL_HALT_CPU_IRQ | FLOW_CTRL_HALT_CPU_FIQ
+	cpu_id	r1
+	cpu_to_halt_reg r1, r1
+	str	r0, [r6, r1]
+	dsb
+	ldr	r0, [r6, r1] /* memory barrier */
+
+halted:
+	dsb
+	wfe	/* CPU should be power gated here */
+	isb
+	b	halted
+
 #endif
