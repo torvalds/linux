@@ -2987,7 +2987,13 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 		}
 	} else {
 		u8 status = MGMT_STATUS_NOT_POWERED;
+		u8 zero_cod[] = { 0, 0, 0 };
+
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
+
+		if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
+			mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
+				   zero_cod, sizeof(zero_cod), NULL);
 	}
 
 	err = new_settings(hdev, match.sk);
