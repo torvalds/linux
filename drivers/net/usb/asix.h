@@ -167,6 +167,9 @@ struct asix_data {
 	u8 res;
 };
 
+/* ASIX specific flags */
+#define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
+
 int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		  u16 size, void *data);
 
