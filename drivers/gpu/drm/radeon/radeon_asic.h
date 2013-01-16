@@ -402,6 +402,8 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
 int rv6xx_get_temp(struct radeon_device *rdev);
+int r600_dpm_pre_set_power_state(struct radeon_device *rdev);
+void r600_dpm_post_set_power_state(struct radeon_device *rdev);
 /* rv6xx dpm */
 int rv6xx_dpm_init(struct radeon_device *rdev);
 int rv6xx_dpm_enable(struct radeon_device *rdev);

@@ -662,6 +662,16 @@ void r600_stop_dpm(struct radeon_device *rdev)
 	r600_dynamicpm_enable(rdev, false);
 }
 
+int r600_dpm_pre_set_power_state(struct radeon_device *rdev)
+{
+	return 0;
+}
+
+void r600_dpm_post_set_power_state(struct radeon_device *rdev)
+{
+
+}
+
 bool r600_is_uvd_state(u32 class, u32 class2)
 {
 	if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
