@@ -53,16 +53,15 @@ static int adis16334_get_freq(struct adis16400_state *st)
 
 	t >>= ADIS16334_RATE_DIV_SHIFT;
 
-	return (8192 >> t) / 10;
+	return 819200 >> t;
 }
 
 static int adis16334_set_freq(struct adis16400_state *st, unsigned int freq)
 {
 	unsigned int t;
 
-	freq *= 10;
-	if (freq < 8192)
-		t = ilog2(8192 / freq);
+	if (freq < 819200)
+		t = ilog2(819200 / freq);
 	else
 		t = 0;
 
@@ -84,7 +83,7 @@ static int adis16400_get_freq(struct adis16400_state *st)
 	if (ret < 0)
 		return ret;
 
-	sps = (t & ADIS16400_SMPL_PRD_TIME_BASE) ? 53 : 1638;
+	sps = (t & ADIS16400_SMPL_PRD_TIME_BASE) ? 52851 : 1638404;
 	sps /= (t & ADIS16400_SMPL_PRD_DIV_MASK) + 1;
 
 	return sps;
@@ -94,7 +93,7 @@ static int adis16400_set_freq(struct adis16400_state *st, unsigned int freq)
 {
 	unsigned int t;
 
-	t = 1638 / freq;
+	t = 1638404 / freq;
 	if (t > 0)
 		t--;
 	t &= ADIS16400_SMPL_PRD_DIV_MASK;
@@ -119,7 +118,7 @@ static ssize_t adis16400_read_frequency(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sprintf(buf, "%d.%.3d\n", ret / 1000, ret % 1000);
 }
 
 static const unsigned adis16400_3db_divisors[] = {
@@ -158,14 +157,16 @@ static ssize_t adis16400_write_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16400_state *st = iio_priv(indio_dev);
-	long val;
+	int i, f, val;
 	int ret;
 
-	ret = kstrtol(buf, 10, &val);
+	ret = iio_str_to_fixpoint(buf, 100, &i, &f);
 	if (ret)
 		return ret;
 
-	if (val == 0)
+	val = i * 1000 + f;
+
+	if (val <= 0)
 		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
@@ -281,7 +282,8 @@ static int adis16400_write_raw(struct iio_dev *indio_dev,
 			return sps;
 		}
 
-		ret = adis16400_set_filter(indio_dev, sps, val);
+		ret = adis16400_set_filter(indio_dev, sps,
+			val * 1000 + val2 / 1000);
 		mutex_unlock(&indio_dev->mlock);
 		return ret;
 	default:
@@ -355,9 +357,11 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		}
 		ret = st->variant->get_freq(st);
-		if (ret >= 0)
-			*val = ret / adis16400_3db_divisors[val16 & 0x07];
-		*val2 = 0;
+		if (ret >= 0) {
+			ret /= adis16400_3db_divisors[val16 & 0x07];
+			*val = ret / 1000;
+			*val2 = (ret % 1000) * 1000;
+		}
 		mutex_unlock(&indio_dev->mlock);
 		if (ret < 0)
 			return ret;
