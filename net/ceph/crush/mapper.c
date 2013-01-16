@@ -392,7 +392,7 @@ static int crush_choose(const struct crush_map *map,
 				}
 
 				reject = 0;
-				if (recurse_to_leaf) {
+				if (!collide && recurse_to_leaf) {
 					if (item < 0) {
 						if (crush_choose(map,
 							 map->buckets[-1-item],
