@@ -1615,7 +1615,9 @@ struct radeon_asic {
 		void (*setup_asic)(struct radeon_device *rdev);
 		int (*enable)(struct radeon_device *rdev);
 		void (*disable)(struct radeon_device *rdev);
+		int (*pre_set_power_state)(struct radeon_device *rdev);
 		int (*set_power_state)(struct radeon_device *rdev);
+		void (*post_set_power_state)(struct radeon_device *rdev);
 		void (*display_configuration_changed)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
 		u32 (*get_sclk)(struct radeon_device *rdev, bool low);
@@ -2328,7 +2330,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_dpm_setup_asic(rdev) rdev->asic->dpm.setup_asic((rdev))
 #define radeon_dpm_enable(rdev) rdev->asic->dpm.enable((rdev))
 #define radeon_dpm_disable(rdev) rdev->asic->dpm.disable((rdev))
+#define radeon_dpm_pre_set_power_state(rdev) rdev->asic->dpm.pre_set_power_state((rdev))
 #define radeon_dpm_set_power_state(rdev) rdev->asic->dpm.set_power_state((rdev))
+#define radeon_dpm_post_set_power_state(rdev) rdev->asic->dpm.post_set_power_state((rdev))
 #define radeon_dpm_display_configuration_changed(rdev) rdev->asic->dpm.display_configuration_changed((rdev))
 #define radeon_dpm_fini(rdev) rdev->asic->dpm.fini((rdev))
 #define radeon_dpm_get_sclk(rdev, l) rdev->asic->dpm.get_sclk((rdev), (l))

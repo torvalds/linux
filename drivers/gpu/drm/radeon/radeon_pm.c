@@ -700,6 +700,7 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	int i;
 	struct radeon_ps *ps;
 	enum radeon_pm_state_type dpm_state;
+	int ret;
 
 	/* if dpm init failed */
 	if (!rdev->pm.dpm_enabled)
@@ -766,6 +767,12 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
+	if (rdev->asic->dpm.pre_set_power_state) {
+		ret = radeon_dpm_pre_set_power_state(rdev);
+		if (ret)
+			goto done;
+	}
+
 	/* update display watermarks based on new power state */
 	radeon_bandwidth_update(rdev);
 	/* update displays */
@@ -787,6 +794,10 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	/* update current power state */
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps;
 
+	if (rdev->asic->dpm.post_set_power_state)
+		radeon_dpm_post_set_power_state(rdev);
+
+done:
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
 	mutex_unlock(&rdev->ddev->struct_mutex);
