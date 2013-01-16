@@ -788,10 +788,10 @@ static void ni_calculate_leakage_for_v_and_t(struct radeon_device *rdev,
 	ni_calculate_leakage_for_v_and_t_formula(coeff, v, t, i_leakage, leakage);
 }
 
-static void ni_apply_state_adjust_rules(struct radeon_device *rdev)
+static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
+					struct radeon_ps *rps)
 {
 	struct ni_power_info *ni_pi = ni_get_pi(rdev);
-	struct radeon_ps *rps = rdev->pm.dpm.requested_ps;
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
@@ -1447,13 +1447,13 @@ static int ni_calculate_adjusted_tdp_limits(struct radeon_device *rdev,
 	return 0;
 }
 
-static int ni_populate_smc_tdp_limits(struct radeon_device *rdev)
+static int ni_populate_smc_tdp_limits(struct radeon_device *rdev,
+				      struct radeon_ps *radeon_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct ni_power_info *ni_pi = ni_get_pi(rdev);
 
 	if (ni_pi->enable_power_containment) {
-		struct radeon_ps *radeon_state = rdev->pm.dpm.requested_ps;
 		NISLANDS_SMC_STATETABLE *smc_table = &ni_pi->smc_statetable;
 		u32 scaling_factor = ni_get_smc_power_scaling_factor(rdev);
 		u32 tdp_limit;
@@ -1660,10 +1660,9 @@ static int ni_do_program_memory_timing_parameters(struct radeon_device *rdev,
 	return ret;
 }
 
-static int ni_program_memory_timing_parameters(struct radeon_device *rdev)
+static int ni_program_memory_timing_parameters(struct radeon_device *rdev,
+					       struct radeon_ps *radeon_new_state)
 {
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-
 	return ni_do_program_memory_timing_parameters(rdev, radeon_new_state,
 						      NISLANDS_DRIVER_STATE_ARB_INDEX);
 }
@@ -2590,7 +2589,9 @@ static int ni_populate_sq_ramping_values(struct radeon_device *rdev,
 	return 0;
 }
 
-static int ni_enable_power_containment(struct radeon_device *rdev, bool enable)
+static int ni_enable_power_containment(struct radeon_device *rdev,
+				       struct radeon_ps *radeon_new_state,
+				       bool enable)
 {
         struct ni_power_info *ni_pi = ni_get_pi(rdev);
 	PPSMC_Result smc_result;
@@ -2598,8 +2599,6 @@ static int ni_enable_power_containment(struct radeon_device *rdev, bool enable)
 
 	if (ni_pi->enable_power_containment) {
 		if (enable) {
-			struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-
 			if (!r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2)) {
 				smc_result = rv770_send_msg_to_smc(rdev, PPSMC_TDPClampingActive);
 				if (smc_result != PPSMC_Result_OK) {
@@ -2679,10 +2678,10 @@ static int ni_convert_power_state_to_smc(struct radeon_device *rdev,
 	return ni_populate_smc_t(rdev, radeon_state, smc_state);
 }
 
-static int ni_upload_sw_state(struct radeon_device *rdev)
+static int ni_upload_sw_state(struct radeon_device *rdev,
+			      struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	u16 address = pi->state_table_start +
 		offsetof(NISLANDS_SMC_STATETABLE, driverState);
 	u16 state_size = sizeof(NISLANDS_SMC_SWSTATE) +
@@ -2988,12 +2987,12 @@ static void ni_convert_mc_reg_table_to_smc(struct radeon_device *rdev,
 	}
 }
 
-static int ni_populate_mc_reg_table(struct radeon_device *rdev)
+static int ni_populate_mc_reg_table(struct radeon_device *rdev,
+				    struct radeon_ps *radeon_boot_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
         struct ni_power_info *ni_pi = ni_get_pi(rdev);
-        struct radeon_ps *radeon_boot_state = rdev->pm.dpm.boot_ps;
 	struct ni_ps *boot_state = ni_get_ps(radeon_boot_state);
 	SMC_NIslands_MCRegisters *mc_reg_table = &ni_pi->smc_mc_reg_table;
 
@@ -3019,12 +3018,12 @@ static int ni_populate_mc_reg_table(struct radeon_device *rdev)
 				       pi->sram_end);
 }
 
-static int ni_upload_mc_reg_table(struct radeon_device *rdev)
+static int ni_upload_mc_reg_table(struct radeon_device *rdev,
+				  struct radeon_ps *radeon_new_state)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
         struct ni_power_info *ni_pi = ni_get_pi(rdev);
-	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	struct ni_ps *ni_new_state = ni_get_ps(radeon_new_state);
 	SMC_NIslands_MCRegisters *mc_reg_table = &ni_pi->smc_mc_reg_table;
 	u16 address;
@@ -3373,7 +3372,9 @@ static int ni_initialize_hardware_cac_manager(struct radeon_device *rdev)
 	return 0;
 }
 
-static int ni_enable_smc_cac(struct radeon_device *rdev, bool enable)
+static int ni_enable_smc_cac(struct radeon_device *rdev,
+			     struct radeon_ps *radeon_new_state,
+			     bool enable)
 {
 	struct ni_power_info *ni_pi = ni_get_pi(rdev);
 	int ret = 0;
@@ -3381,8 +3382,6 @@ static int ni_enable_smc_cac(struct radeon_device *rdev, bool enable)
 
 	if (ni_pi->enable_cac) {
 		if (enable) {
-			struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
-
 			if (!r600_is_uvd_state(radeon_new_state->class, radeon_new_state->class2)) {
 				smc_result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_CollectCAC_PowerCorreln);
 
@@ -3521,6 +3520,7 @@ int ni_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (pi->gfx_clock_gating)
 		ni_cg_clockgating_default(rdev);
@@ -3557,10 +3557,10 @@ int ni_dpm_enable(struct radeon_device *rdev)
 	ni_init_smc_spll_table(rdev);
 	ni_init_arb_table_index(rdev);
 	if (eg_pi->dynamic_ac_timing)
-		ni_populate_mc_reg_table(rdev);
+		ni_populate_mc_reg_table(rdev, boot_ps);
 	ni_initialize_smc_cac_tables(rdev);
 	ni_initialize_hardware_cac_manager(rdev);
-	ni_populate_smc_tdp_limits(rdev);
+	ni_populate_smc_tdp_limits(rdev, boot_ps);
 	ni_program_response_times(rdev);
 	r7xx_start_smc(rdev);
 	cypress_notify_smc_display_change(rdev, false);
@@ -3597,14 +3597,15 @@ void ni_dpm_disable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	if (!btc_dpm_enabled(rdev))
 		return;
 	rv770_clear_vc(rdev);
 	if (pi->thermal_protection)
 		rv770_enable_thermal_protection(rdev, false);
-	ni_enable_power_containment(rdev, false);
-	ni_enable_smc_cac(rdev, false);
+	ni_enable_power_containment(rdev, boot_ps, false);
+	ni_enable_smc_cac(rdev, boot_ps, false);
 	cypress_enable_spread_spectrum(rdev, false);
 	rv770_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, false);
 	if (pi->dynamic_pcie_gen2)
@@ -3630,9 +3631,11 @@ void ni_dpm_disable(struct radeon_device *rdev)
 
 int ni_power_control_set_level(struct radeon_device *rdev)
 {
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+
 	ni_restrict_performance_levels_before_switch(rdev);
 	rv770_halt_smc(rdev);
-	ni_populate_smc_tdp_limits(rdev);
+	ni_populate_smc_tdp_limits(rdev, new_ps);
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
 
@@ -3645,25 +3648,25 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	int ret;
 
-	ni_apply_state_adjust_rules(rdev);
+	ni_apply_state_adjust_rules(rdev, new_ps);
 
 	ni_restrict_performance_levels_before_switch(rdev);
-	ni_enable_power_containment(rdev, false);
-	ni_enable_smc_cac(rdev, false);
+	ni_enable_power_containment(rdev, new_ps, false);
+	ni_enable_smc_cac(rdev, new_ps, false);
 	rv770_halt_smc(rdev);
 	if (eg_pi->smu_uvd_hs)
 		btc_notify_uvd_to_smc(rdev, new_ps);
-	ni_upload_sw_state(rdev);
+	ni_upload_sw_state(rdev, new_ps);
 	if (eg_pi->dynamic_ac_timing)
-		ni_upload_mc_reg_table(rdev);
-	ret = ni_program_memory_timing_parameters(rdev);
+		ni_upload_mc_reg_table(rdev, new_ps);
+	ret = ni_program_memory_timing_parameters(rdev, new_ps);
 	if (ret)
 		return ret;
-	ni_populate_smc_tdp_limits(rdev);
+	ni_populate_smc_tdp_limits(rdev, new_ps);
 	rv770_resume_smc(rdev);
 	rv770_set_sw_state(rdev);
-	ni_enable_smc_cac(rdev, true);
-	ni_enable_power_containment(rdev, true);
+	ni_enable_smc_cac(rdev, new_ps, true);
+	ni_enable_power_containment(rdev, new_ps, true);
 
 #if 0
 	/* XXX */
