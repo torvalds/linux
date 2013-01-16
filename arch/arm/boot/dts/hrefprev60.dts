@@ -25,6 +25,14 @@
 	};
 
 	soc-u9500 {
+		prcmu@80157000 {
+			ab8500@5 {
+				ab8500-gpio {
+					compatible = "stericsson,ab8500-gpio";
+				};
+			};
+		};
+
 		i2c@80004000 {
 			tps61052@33 {
 				compatible = "tps61052";
