@@ -64,6 +64,7 @@ struct wm_adsp {
 
 extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 
+int wm_adsp1_init(struct wm_adsp *adsp);
 int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);

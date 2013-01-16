@@ -780,6 +780,14 @@ out:
 	return 0;
 }
 
+int wm_adsp1_init(struct wm_adsp *adsp)
+{
+	INIT_LIST_HEAD(&adsp->alg_regions);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp1_init);
+
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
 		   int event)
