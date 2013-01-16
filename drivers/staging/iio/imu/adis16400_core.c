@@ -178,7 +178,11 @@ static int adis16334_set_freq(struct iio_dev *indio_dev, unsigned int freq)
 {
 	unsigned int t;
 
-	t = ilog2(8192 / (freq * 10));
+	freq *= 10;
+	if (freq < 8192)
+		t = ilog2(8192 / freq);
+	else
+		t = 0;
 
 	if (t > 0x31)
 		t = 0x31;
