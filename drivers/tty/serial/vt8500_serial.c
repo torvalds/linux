@@ -560,7 +560,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 
 	if (np)
 		port = of_alias_get_id(np, "serial");
-		if (port > VT8500_MAX_PORTS)
+		if (port >= VT8500_MAX_PORTS)
 			port = -1;
 	else
 		port = -1;
@@ -571,7 +571,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 					sizeof(vt8500_ports_in_use));
 	}
 
-	if (port > VT8500_MAX_PORTS)
+	if (port >= VT8500_MAX_PORTS)
 		return -ENODEV;
 
 	/* reserve the port id */
