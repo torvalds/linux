@@ -1097,7 +1097,7 @@ static struct mfd_cell ab8500_bm_devs[] = {
 
 static struct mfd_cell ab8500_devs[] = {
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8500",
 		.of_compatible = "stericsson,ab8500-gpio",
 	},
 	{
