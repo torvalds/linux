@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -91,14 +92,6 @@ static inline unsigned int dwc_get_data_width(struct dma_chan *chan, int master)
 
 /*----------------------------------------------------------------------*/
 
-/*
- * Because we're not relying on writeback from the controller (it may not
- * even be configured into the core!) we don't need to use dma_pool.  These
- * descriptors -- and associated data -- are cacheable.  We do need to make
- * sure their dcache entries are written back before handing them off to
- * the controller, though.
- */
-
 static struct device *chan2dev(struct dma_chan *chan)
 {
 	return &chan->dev->device;
@@ -137,19 +130,6 @@ static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
 	return ret;
 }
 
-static void dwc_sync_desc_for_cpu(struct dw_dma_chan *dwc, struct dw_desc *desc)
-{
-	struct dw_desc	*child;
-
-	list_for_each_entry(child, &desc->tx_list, desc_node)
-		dma_sync_single_for_cpu(chan2parent(&dwc->chan),
-				child->txd.phys, sizeof(child->lli),
-				DMA_TO_DEVICE);
-	dma_sync_single_for_cpu(chan2parent(&dwc->chan),
-			desc->txd.phys, sizeof(desc->lli),
-			DMA_TO_DEVICE);
-}
-
 /*
  * Move a descriptor, including any children, to the free list.
  * `desc' must not be on any lists.
@@ -160,8 +140,6 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 
 	if (desc) {
 		struct dw_desc *child;
-
-		dwc_sync_desc_for_cpu(dwc, desc);
 
 		spin_lock_irqsave(&dwc->lock, flags);
 		list_for_each_entry(child, &desc->tx_list, desc_node)
@@ -334,8 +312,6 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 		callback = txd->callback;
 		param = txd->callback_param;
 	}
-
-	dwc_sync_desc_for_cpu(dwc, desc);
 
 	/* async_tx_ack */
 	list_for_each_entry(child, &desc->tx_list, desc_node)
@@ -770,25 +746,17 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			first = desc;
 		} else {
 			prev->lli.llp = desc->txd.phys;
-			dma_sync_single_for_device(chan2parent(chan),
-					prev->txd.phys, sizeof(prev->lli),
-					DMA_TO_DEVICE);
 			list_add_tail(&desc->desc_node,
 					&first->tx_list);
 		}
 		prev = desc;
 	}
 
-
 	if (flags & DMA_PREP_INTERRUPT)
 		/* Trigger interrupt after last block */
 		prev->lli.ctllo |= DWC_CTLL_INT_EN;
 
 	prev->lli.llp = 0;
-	dma_sync_single_for_device(chan2parent(chan),
-			prev->txd.phys, sizeof(prev->lli),
-			DMA_TO_DEVICE);
-
 	first->txd.flags = flags;
 	first->len = len;
 
@@ -876,10 +844,6 @@ slave_sg_todev_fill_desc:
 				first = desc;
 			} else {
 				prev->lli.llp = desc->txd.phys;
-				dma_sync_single_for_device(chan2parent(chan),
-						prev->txd.phys,
-						sizeof(prev->lli),
-						DMA_TO_DEVICE);
 				list_add_tail(&desc->desc_node,
 						&first->tx_list);
 			}
@@ -938,10 +902,6 @@ slave_sg_fromdev_fill_desc:
 				first = desc;
 			} else {
 				prev->lli.llp = desc->txd.phys;
-				dma_sync_single_for_device(chan2parent(chan),
-						prev->txd.phys,
-						sizeof(prev->lli),
-						DMA_TO_DEVICE);
 				list_add_tail(&desc->desc_node,
 						&first->tx_list);
 			}
@@ -961,10 +921,6 @@ slave_sg_fromdev_fill_desc:
 		prev->lli.ctllo |= DWC_CTLL_INT_EN;
 
 	prev->lli.llp = 0;
-	dma_sync_single_for_device(chan2parent(chan),
-			prev->txd.phys, sizeof(prev->lli),
-			DMA_TO_DEVICE);
-
 	first->len = total_len;
 
 	return &first->txd;
@@ -1118,7 +1074,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	struct dw_desc		*desc;
 	int			i;
 	unsigned long		flags;
-	int			ret;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
@@ -1139,21 +1094,21 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&dwc->lock, flags);
 	i = dwc->descs_allocated;
 	while (dwc->descs_allocated < NR_DESCS_PER_CHANNEL) {
+		dma_addr_t phys;
+
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
-		desc = kzalloc(sizeof(struct dw_desc), GFP_KERNEL);
+		desc = dma_pool_alloc(dw->desc_pool, GFP_ATOMIC, &phys);
 		if (!desc)
 			goto err_desc_alloc;
+
+		memset(desc, 0, sizeof(struct dw_desc));
 
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		desc->txd.tx_submit = dwc_tx_submit;
 		desc->txd.flags = DMA_CTRL_ACK;
-		desc->txd.phys = dma_map_single(chan2parent(chan), &desc->lli,
-				sizeof(desc->lli), DMA_TO_DEVICE);
-		ret = dma_mapping_error(chan2parent(chan), desc->txd.phys);
-		if (ret)
-			goto err_desc_alloc;
+		desc->txd.phys = phys;
 
 		dwc_desc_put(dwc, desc);
 
@@ -1168,8 +1123,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	return i;
 
 err_desc_alloc:
-	kfree(desc);
-
 	dev_info(chan2dev(chan), "only allocated %d descriptors\n", i);
 
 	return i;
@@ -1204,9 +1157,7 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 
 	list_for_each_entry_safe(desc, _desc, &list, desc_node) {
 		dev_vdbg(chan2dev(chan), "  freeing descriptor %p\n", desc);
-		dma_unmap_single(chan2parent(chan), desc->txd.phys,
-				sizeof(desc->lli), DMA_TO_DEVICE);
-		kfree(desc);
+		dma_pool_free(dw->desc_pool, desc, desc->txd.phys);
 	}
 
 	dev_vdbg(chan2dev(chan), "%s: done\n", __func__);
@@ -1451,20 +1402,14 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		desc->lli.ctlhi = (period_len >> reg_width);
 		cdesc->desc[i] = desc;
 
-		if (last) {
+		if (last)
 			last->lli.llp = desc->txd.phys;
-			dma_sync_single_for_device(chan2parent(chan),
-					last->txd.phys, sizeof(last->lli),
-					DMA_TO_DEVICE);
-		}
 
 		last = desc;
 	}
 
 	/* lets make a cyclic list */
 	last->lli.llp = cdesc->desc[0]->txd.phys;
-	dma_sync_single_for_device(chan2parent(chan), last->txd.phys,
-			sizeof(last->lli), DMA_TO_DEVICE);
 
 	dev_dbg(chan2dev(&dwc->chan), "cyclic prepared buf 0x%llx len %zu "
 			"period %zu periods %d\n", (unsigned long long)buf_addr,
@@ -1721,6 +1666,14 @@ static int dw_probe(struct platform_device *pdev)
 		return err;
 
 	platform_set_drvdata(pdev, dw);
+
+	/* create a pool of consistent memory blocks for hardware descriptors */
+	dw->desc_pool = dmam_pool_create("dw_dmac_desc_pool", &pdev->dev,
+					 sizeof(struct dw_desc), 4, 0);
+	if (!dw->desc_pool) {
+		dev_err(&pdev->dev, "No memory for descriptors dma pool\n");
+		return -ENOMEM;
+	}
 
 	tasklet_init(&dw->tasklet, dw_dma_tasklet, (unsigned long)dw);
 

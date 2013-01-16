@@ -235,6 +235,7 @@ static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 struct dw_dma {
 	struct dma_device	dma;
 	void __iomem		*regs;
+	struct dma_pool		*desc_pool;
 	struct tasklet_struct	tasklet;
 	struct clk		*clk;
 
