@@ -793,6 +793,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 		spin_unlock(&efivars->lock);
 		efivar_unregister(var);
 		drop_nlink(inode);
+		d_delete(file->f_dentry);
 		dput(file->f_dentry);
 
 	} else {
