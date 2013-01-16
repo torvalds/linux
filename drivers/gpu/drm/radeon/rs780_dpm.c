@@ -71,10 +71,11 @@ static void rs780_get_pm_mode_parameters(struct radeon_device *rdev)
 
 static void rs780_voltage_scaling_enable(struct radeon_device *rdev, bool enable);
 
-static int rs780_initialize_dpm_power_state(struct radeon_device *rdev)
+static int rs780_initialize_dpm_power_state(struct radeon_device *rdev,
+					    struct radeon_ps *boot_ps)
 {
 	struct atom_clock_dividers dividers;
-	struct igp_ps *default_state = rs780_get_ps(rdev->pm.dpm.boot_ps);
+	struct igp_ps *default_state = rs780_get_ps(boot_ps);
 	int i, ret;
 
 	ret = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
@@ -104,7 +105,8 @@ static int rs780_initialize_dpm_power_state(struct radeon_device *rdev)
 	return 0;
 }
 
-static int rs780_initialize_dpm_parameters(struct radeon_device *rdev)
+static int rs780_initialize_dpm_parameters(struct radeon_device *rdev,
+					   struct radeon_ps *boot_ps)
 {
 	int ret = 0;
 	int i;
@@ -140,7 +142,7 @@ static int rs780_initialize_dpm_parameters(struct radeon_device *rdev)
 	r600_vid_rt_set_vrt(rdev, R600_VOLTAGERESPONSETIME_DFLT);
 	r600_vid_rt_set_ssu(rdev, R600_SPLLSTEPUNIT_DFLT);
 
-	ret = rs780_initialize_dpm_power_state(rdev);
+	ret = rs780_initialize_dpm_power_state(rdev, boot_ps);
 
 	r600_power_level_set_voltage_index(rdev, R600_POWER_LEVEL_LOW,     0);
 	r600_power_level_set_voltage_index(rdev, R600_POWER_LEVEL_MEDIUM,  0);
@@ -401,11 +403,13 @@ static void rs780_force_voltage_to_high(struct radeon_device *rdev)
 	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
 }
 
-static int rs780_set_engine_clock_scaling(struct radeon_device *rdev)
+static int rs780_set_engine_clock_scaling(struct radeon_device *rdev,
+					  struct radeon_ps *new_ps,
+					  struct radeon_ps *old_ps)
 {
 	struct atom_clock_dividers min_dividers, max_dividers, current_max_dividers;
-	struct igp_ps *new_state = rs780_get_ps(rdev->pm.dpm.requested_ps);
-	struct igp_ps *old_state = rs780_get_ps(rdev->pm.dpm.current_ps);
+	struct igp_ps *new_state = rs780_get_ps(new_ps);
+	struct igp_ps *old_state = rs780_get_ps(old_ps);
 	int ret;
 
 	if ((new_state->sclk_high == old_state->sclk_high) &&
@@ -451,10 +455,12 @@ static int rs780_set_engine_clock_scaling(struct radeon_device *rdev)
 	return 0;
 }
 
-static void rs780_set_engine_clock_spc(struct radeon_device *rdev)
+static void rs780_set_engine_clock_spc(struct radeon_device *rdev,
+				       struct radeon_ps *new_ps,
+				       struct radeon_ps *old_ps)
 {
-	struct igp_ps *new_state = rs780_get_ps(rdev->pm.dpm.requested_ps);
-	struct igp_ps *old_state = rs780_get_ps(rdev->pm.dpm.current_ps);
+	struct igp_ps *new_state = rs780_get_ps(new_ps);
+	struct igp_ps *old_state = rs780_get_ps(old_ps);
 	struct igp_power_info *pi = rs780_get_pi(rdev);
 
 	if ((new_state->sclk_high == old_state->sclk_high) &&
@@ -468,10 +474,12 @@ static void rs780_set_engine_clock_spc(struct radeon_device *rdev)
 
 }
 
-static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev)
+static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev,
+					      struct radeon_ps *new_ps,
+					      struct radeon_ps *old_ps)
 {
-	struct igp_ps *new_state = rs780_get_ps(rdev->pm.dpm.requested_ps);
-	struct igp_ps *old_state = rs780_get_ps(rdev->pm.dpm.current_ps);
+	struct igp_ps *new_state = rs780_get_ps(new_ps);
+	struct igp_ps *old_state = rs780_get_ps(old_ps);
 
 	if ((new_state->sclk_high == old_state->sclk_high) &&
 	    (new_state->sclk_low == old_state->sclk_low))
@@ -493,9 +501,10 @@ static u32 rs780_get_voltage_for_vddc_level(struct radeon_device *rdev,
 		return pi->max_voltage;
 }
 
-static void rs780_enable_voltage_scaling(struct radeon_device *rdev)
+static void rs780_enable_voltage_scaling(struct radeon_device *rdev,
+					 struct radeon_ps *new_ps)
 {
-	struct igp_ps *new_state = rs780_get_ps(rdev->pm.dpm.requested_ps);
+	struct igp_ps *new_state = rs780_get_ps(new_ps);
 	struct igp_power_info *pi = rs780_get_pi(rdev);
 	enum rs780_vddc_level vddc_high, vddc_low;
 
@@ -536,13 +545,14 @@ static void rs780_enable_voltage_scaling(struct radeon_device *rdev)
 int rs780_dpm_enable(struct radeon_device *rdev)
 {
 	struct igp_power_info *pi = rs780_get_pi(rdev);
+	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
 
 	rs780_get_pm_mode_parameters(rdev);
 	rs780_disable_vbios_powersaving(rdev);
 
 	if (r600_dynamicpm_enabled(rdev))
 		return -EINVAL;
-	if (rs780_initialize_dpm_parameters(rdev))
+	if (rs780_initialize_dpm_parameters(rdev, boot_ps))
 		return -EINVAL;
 	rs780_start_dpm(rdev);
 
@@ -591,6 +601,8 @@ void rs780_dpm_disable(struct radeon_device *rdev)
 int rs780_dpm_set_power_state(struct radeon_device *rdev)
 {
 	struct igp_power_info *pi = rs780_get_pi(rdev);
+	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
+	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 
 	rs780_get_pm_mode_parameters(rdev);
 
@@ -599,13 +611,13 @@ int rs780_dpm_set_power_state(struct radeon_device *rdev)
 		mdelay(5);
 	}
 
-	rs780_set_engine_clock_scaling(rdev);
-	rs780_set_engine_clock_spc(rdev);
+	rs780_set_engine_clock_scaling(rdev, new_ps, old_ps);
+	rs780_set_engine_clock_spc(rdev, new_ps, old_ps);
 
-	rs780_activate_engine_clk_scaling(rdev);
+	rs780_activate_engine_clk_scaling(rdev, new_ps, old_ps);
 
 	if (pi->voltage_control)
-		rs780_enable_voltage_scaling(rdev);
+		rs780_enable_voltage_scaling(rdev, new_ps);
 
 	return 0;
 }
