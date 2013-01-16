@@ -1516,8 +1516,6 @@ static int parse_output_paths(struct hda_codec *codec)
 	bool best_wired = true, best_mio = true;
 	bool hp_spk_swapped = false;
 
-	fill_all_dac_nids(codec);
-
 	best_cfg = kmalloc(sizeof(*best_cfg), GFP_KERNEL);
 	if (!best_cfg)
 		return -ENOMEM;
@@ -3427,6 +3425,8 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 		spec->autocfg = *cfg;
 		cfg = &spec->autocfg;
 	}
+
+	fill_all_dac_nids(codec);
 
 	if (!cfg->line_outs) {
 		if (cfg->dig_outs || cfg->dig_in_pin) {
