@@ -2826,6 +2826,9 @@ static int parse_mic_boost(struct hda_codec *codec)
 			struct nid_path *path;
 			unsigned int val;
 
+			if (!nid_has_volume(codec, nid, HDA_INPUT))
+				continue;
+
 			label = hda_get_autocfg_input_label(codec, cfg, i);
 			if (prev_label && !strcmp(label, prev_label))
 				type_idx++;
