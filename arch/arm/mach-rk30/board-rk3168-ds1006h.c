@@ -832,9 +832,8 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
 		.pwm_id = 1,
 		.pwm_gpio = RK30_PIN3_PD4,
-		.pwm_iomux_name = GPIO3D4_PWM1_JTAGTRSTN_NAME,
-		.pwm_iomux_pwm = GPIO3D_PWM1,
-		.pwm_iomux_gpio = GPIO3D_GPIO3D4,
+		.pwm_iomux_pwm = PWM1,
+		.pwm_iomux_gpio = GPIO3_D4,
 		.pwm_voltage = 1100000,
 		.suspend_voltage = 1050000,
 		.min_uV = 950000,
@@ -865,8 +864,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = INVALID_GPIO, //RK30_PIN3_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
-            .fgpio      = GPIO3C_GPIO3C7,
+            .name       = "bt_poweron",
+            .fgpio      = GPIO3_C7,
         },
     },
 
@@ -874,8 +873,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME,
-            .fgpio      = GPIO3D_GPIO3D1,
+            .name       = "bt_reset",
+            .fgpio      = GPIO3_D1,
        },
    }, 
 
@@ -883,8 +882,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C6_SDMMC1DETECTN_RMIIRXERR_NAME,
-            .fgpio      = GPIO3C_GPIO3C6,
+            .name       = "bt_wake",
+            .fgpio      = GPIO3_C6,
         },
     },
 
@@ -902,9 +901,9 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO1A3_UART0RTSN_NAME,
-            .fgpio      = GPIO1A_GPIO1A3,
-            .fmux       = GPIO1A_UART0RTSN,
+            .name       = "bt_rts",
+            .fgpio      = GPIO1_A3,
+            .fmux       = UART0_RTSN,
         },
     },
 };
@@ -1482,12 +1481,12 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 
 //	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
 	sram_udelay(10000);
-	gpio3d6_iomux = readl_relaxed(GRF_GPIO3D_IOMUX);
+	gpio3d6_iomux = grf_readl(GRF_GPIO3D_IOMUX);
 	gpio3d6_do = grf_readl(GRF_GPIO3H_DO);
 	gpio3d6_dir = grf_readl(GRF_GPIO3H_DIR);
 	gpio3d6_en = grf_readl(GRF_GPIO3H_EN);
 
-	writel_relaxed((1<<28), GRF_GPIO3D_IOMUX);
+	grf_writel((1<<28), GRF_GPIO3D_IOMUX);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DIR);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DO);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_EN);
@@ -1496,7 +1495,7 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 void __sramfunc rk30_pwm_logic_resume_voltage(void)
 {
 #ifdef CONFIG_RK30_PWM_REGULATOR
-	writel_relaxed((1<<28)|gpio3d6_iomux, GRF_GPIO3D_IOMUX);
+	grf_writel((1<<28)|gpio3d6_iomux, GRF_GPIO3D_IOMUX);
 	grf_writel((1<<30)|gpio3d6_en, GRF_GPIO3H_EN);
 	grf_writel((1<<30)|gpio3d6_dir, GRF_GPIO3H_DIR);
 	grf_writel((1<<30)|gpio3d6_do, GRF_GPIO3H_DO);
