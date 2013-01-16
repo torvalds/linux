@@ -4465,7 +4465,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	unsigned int rss;
+	unsigned int rss, fdir;
 	u32 fwsm;
 #ifdef CONFIG_IXGBE_DCB
 	int j;
@@ -4485,9 +4485,10 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].limit = rss;
 	adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 	adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
-	adapter->ring_feature[RING_F_FDIR].limit = IXGBE_MAX_FDIR_INDICES;
 	adapter->max_q_vectors = MAX_Q_VECTORS_82599;
 	adapter->atr_sample_rate = 20;
+	fdir = min_t(int, IXGBE_MAX_FDIR_INDICES, num_online_cpus());
+	adapter->ring_feature[RING_F_FDIR].limit = fdir;
 	adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
 #ifdef CONFIG_IXGBE_DCA
 	adapter->flags |= IXGBE_FLAG_DCA_CAPABLE;
@@ -7230,9 +7231,8 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
+	unsigned int indices = MAX_TX_QUEUES;
 	u8 part_str[IXGBE_PBANUM_LENGTH];
-	unsigned int indices = num_possible_cpus();
-	unsigned int dcb_max = 0;
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
@@ -7281,25 +7281,15 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
+	if (ii->mac == ixgbe_mac_82598EB) {
 #ifdef CONFIG_IXGBE_DCB
-	if (ii->mac == ixgbe_mac_82598EB)
-		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
-				IXGBE_MAX_RSS_INDICES);
-	else
-		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
-				IXGBE_MAX_FDIR_INDICES);
+		/* 8 TC w/ 4 queues per TC */
+		indices = 4 * MAX_TRAFFIC_CLASS;
+#else
+		indices = IXGBE_MAX_RSS_INDICES;
 #endif
+	}
 
-	if (ii->mac == ixgbe_mac_82598EB)
-		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
-	else
-		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
-
-#ifdef IXGBE_FCOE
-	indices += min_t(unsigned int, num_possible_cpus(),
-			 IXGBE_MAX_FCOE_INDICES);
-#endif
-	indices = max_t(unsigned int, dcb_max, indices);
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), indices);
 	if (!netdev) {
 		err = -ENOMEM;
@@ -7454,13 +7444,17 @@ skip_sriov:
 
 #ifdef IXGBE_FCOE
 	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
+		unsigned int fcoe_l;
+
 		if (hw->mac.ops.get_device_caps) {
 			hw->mac.ops.get_device_caps(hw, &device_caps);
 			if (device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)
 				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 
-		adapter->ring_feature[RING_F_FCOE].limit = IXGBE_FCRETA_SIZE;
+
+		fcoe_l = min_t(int, IXGBE_FCRETA_SIZE, num_online_cpus());
+		adapter->ring_feature[RING_F_FCOE].limit = fcoe_l;
 
 		netdev->features |= NETIF_F_FSO |
 				    NETIF_F_FCOE_CRC;

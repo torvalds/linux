@@ -386,7 +386,6 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 		fcoe = &adapter->ring_feature[RING_F_FCOE];
 
 		/* limit ourselves based on feature limits */
-		fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
 		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
 
 		if (fcoe_i) {
@@ -562,9 +561,6 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
 
 		if (vmdq_i > 1 && fcoe_i) {
-			/* reserve no more than number of CPUs */
-			fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
-
 			/* alloc queues for FCoE separately */
 			fcoe->indices = fcoe_i;
 			fcoe->offset = vmdq_i * rss_i;
@@ -623,8 +619,7 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	if (rss_i > 1 && adapter->atr_sample_rate) {
 		f = &adapter->ring_feature[RING_F_FDIR];
 
-		f->indices = min_t(u16, num_online_cpus(), f->limit);
-		rss_i = max_t(u16, rss_i, f->indices);
+		rss_i = f->indices = f->limit;
 
 		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;

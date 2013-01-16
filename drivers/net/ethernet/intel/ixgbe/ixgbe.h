@@ -278,15 +278,10 @@ enum ixgbe_ring_f_enum {
 
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 64
-#define IXGBE_MAX_FDIR_INDICES 64
-#ifdef IXGBE_FCOE
+#define IXGBE_MAX_FDIR_INDICES 63	/* based on q_vector limit */
 #define IXGBE_MAX_FCOE_INDICES  8
-#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
-#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
-#else
-#define MAX_RX_QUEUES IXGBE_MAX_FDIR_INDICES
-#define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
-#endif /* IXGBE_FCOE */
+#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
+#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
 	u16 indices;	/* current value of indices */
