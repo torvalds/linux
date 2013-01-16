@@ -384,7 +384,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT, \
 	.address = (addr), \
 	.scan_index = (si), \
-	.scan_type = IIO_ST('u', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_SUPPLY_CHAN(addr, bits) \
@@ -403,7 +409,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT, \
 	.address = addr, \
 	.scan_index = ADIS16400_SCAN_GYRO_ ## mod, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_ACCEL_CHAN(mod, addr, bits) { \
@@ -416,7 +428,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT, \
 	.address = (addr), \
 	.scan_index = ADIS16400_SCAN_ACC_ ## mod, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_MAGN_CHAN(mod, addr, bits) { \
@@ -428,7 +446,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT, \
 	.address = (addr), \
 	.scan_index = ADIS16400_SCAN_MAGN_ ## mod, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_MOD_TEMP_NAME_X "x"
@@ -446,7 +470,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT, \
 	.address = (addr), \
 	.scan_index = ADIS16350_SCAN_TEMP_ ## mod, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_TEMP_CHAN(addr, bits) { \
@@ -458,7 +488,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT, \
 	.address = (addr), \
 	.scan_index = ADIS16350_SCAN_TEMP_X, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 #define ADIS16400_INCLI_CHAN(mod, addr, bits) { \
@@ -469,7 +505,13 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		IIO_CHAN_INFO_SCALE_SHARED_BIT, \
 	.address = (addr), \
 	.scan_index = ADIS16300_SCAN_INCLI_ ## mod, \
-	.scan_type = IIO_ST('s', (bits), 16, 0), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (bits), \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
 }
 
 static const struct iio_chan_spec adis16400_channels[] = {
@@ -625,6 +667,12 @@ static const struct iio_info adis16400_info = {
 	.read_raw = &adis16400_read_raw,
 	.write_raw = &adis16400_write_raw,
 	.attrs = &adis16400_attribute_group,
+	.update_scan_mode = adis16400_update_scan_mode,
+};
+
+static const unsigned long adis16400_burst_scan_mask[] = {
+	~0UL,
+	0,
 };
 
 static const char * const adis16400_status_error_msgs[] = {
@@ -696,35 +744,30 @@ static int adis16400_probe(struct spi_device *spi)
 	indio_dev->info = &adis16400_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	if (!(st->variant->flags & ADIS16400_NO_BURST))
+		indio_dev->available_scan_masks = adis16400_burst_scan_mask;
+
 	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);
 	if (ret)
 		goto error_free_dev;
 
-	ret = adis16400_configure_ring(indio_dev);
+	ret = adis_setup_buffer_and_trigger(&st->adis, indio_dev,
+			adis16400_trigger_handler);
 	if (ret)
 		goto error_free_dev;
-
-	if (spi->irq) {
-		ret = adis_probe_trigger(&st->adis, indio_dev);
-		if (ret)
-			goto error_unreg_ring_funcs;
-	}
 
 	/* Get the device into a sane initial state */
 	ret = adis16400_initial_setup(indio_dev);
 	if (ret)
-		goto error_remove_trigger;
+		goto error_cleanup_buffer;
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_remove_trigger;
+		goto error_cleanup_buffer;
 
 	return 0;
 
-error_remove_trigger:
-	if (spi->irq)
-		adis_remove_trigger(&st->adis);
-error_unreg_ring_funcs:
-	adis16400_unconfigure_ring(indio_dev);
+error_cleanup_buffer:
+	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
 error_free_dev:
 	iio_device_free(indio_dev);
 error_ret:
@@ -740,9 +783,7 @@ static int adis16400_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	adis16400_stop_device(indio_dev);
 
-	if (spi->irq)
-		adis_remove_trigger(&st->adis);
-	adis16400_unconfigure_ring(indio_dev);
+	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
 
 	iio_device_free(indio_dev);
 

@@ -13,160 +13,84 @@
 
 #include "adis16400.h"
 
-/**
- * adis16400_spi_read_burst() - read all data registers
- * @indio_dev: the IIO device
- * @rx: somewhere to pass back the value read (min size is 24 bytes)
- **/
-static int adis16400_spi_read_burst(struct iio_dev *indio_dev, u8 *rx)
-{
-	struct spi_message msg;
-	struct adis16400_state *st = iio_priv(indio_dev);
-	u32 old_speed_hz = st->adis.spi->max_speed_hz;
-	int ret;
-
-	struct spi_transfer xfers[] = {
-		{
-			.tx_buf = st->adis.tx,
-			.bits_per_word = 8,
-			.len = 2,
-		}, {
-			.rx_buf = rx,
-			.bits_per_word = 8,
-			.len = 24,
-		},
-	};
-
-	mutex_lock(&st->adis.txrx_lock);
-	st->adis.tx[0] = ADIS_READ_REG(ADIS16400_GLOB_CMD);
-	st->adis.tx[1] = 0;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-
-	st->adis.spi->max_speed_hz = min(ADIS16400_SPI_BURST, old_speed_hz);
-	spi_setup(st->adis.spi);
-
-	ret = spi_sync(st->adis.spi, &msg);
-	if (ret)
-		dev_err(&st->adis.spi->dev, "problem when burst reading");
-
-	st->adis.spi->max_speed_hz = old_speed_hz;
-	spi_setup(st->adis.spi);
-	mutex_unlock(&st->adis.txrx_lock);
-	return ret;
-}
-
-static const u16 read_all_tx_array[] = {
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_SUPPLY_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_XGYRO_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_YGYRO_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_ZGYRO_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_XACCL_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_YACCL_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_ZACCL_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16350_XTEMP_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16350_YTEMP_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16350_ZTEMP_OUT)),
-	cpu_to_be16(ADIS_READ_REG(ADIS16400_AUX_ADC)),
-};
-
-static int adis16350_spi_read_all(struct iio_dev *indio_dev, u8 *rx)
+int adis16400_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *scan_mask)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
+	struct adis *adis = &st->adis;
+	uint16_t *tx, *rx;
 
-	struct spi_message msg;
-	int i, j = 0, ret;
-	struct spi_transfer *xfers;
-	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
-				       indio_dev->masklength);
+	if (st->variant->flags & ADIS16400_NO_BURST)
+		return adis_update_scan_mode(indio_dev, scan_mask);
 
-	xfers = kzalloc(sizeof(*xfers)*(scan_count + 1),
-			GFP_KERNEL);
-	if (xfers == NULL)
+	kfree(adis->xfer);
+	kfree(adis->buffer);
+
+	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
+	if (!adis->xfer)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
-		if (test_bit(i, indio_dev->active_scan_mask)) {
-			xfers[j].tx_buf = &read_all_tx_array[i];
-			xfers[j].bits_per_word = 16;
-			xfers[j].len = 2;
-			xfers[j + 1].rx_buf = rx + j*2;
-			j++;
-		}
-	xfers[j].bits_per_word = 16;
-	xfers[j].len = 2;
+	adis->buffer = kzalloc(indio_dev->scan_bytes + sizeof(u16),
+		GFP_KERNEL);
+	if (!adis->buffer)
+		return -ENOMEM;
 
-	spi_message_init(&msg);
-	for (j = 0; j < scan_count + 1; j++)
-		spi_message_add_tail(&xfers[j], &msg);
+	rx = adis->buffer;
+	tx = adis->buffer + indio_dev->scan_bytes;
 
-	ret = spi_sync(st->adis.spi, &msg);
-	kfree(xfers);
+	tx[0] = ADIS_READ_REG(ADIS16400_GLOB_CMD);
+	tx[1] = 0;
 
-	return ret;
+	adis->xfer[0].tx_buf = tx;
+	adis->xfer[0].bits_per_word = 8;
+	adis->xfer[0].len = 2;
+	adis->xfer[1].tx_buf = tx;
+	adis->xfer[1].bits_per_word = 8;
+	adis->xfer[1].len = indio_dev->scan_bytes;
+
+	spi_message_init(&adis->msg);
+	spi_message_add_tail(&adis->xfer[0], &adis->msg);
+	spi_message_add_tail(&adis->xfer[1], &adis->msg);
+
+	return 0;
 }
 
-/* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
- * specific to be rolled into the core.
- */
-static irqreturn_t adis16400_trigger_handler(int irq, void *p)
+irqreturn_t adis16400_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16400_state *st = iio_priv(indio_dev);
-	int i = 0, j, ret = 0;
-	s16 *data;
+	struct adis *adis = &st->adis;
+	u32 old_speed_hz = st->adis.spi->max_speed_hz;
+	int ret;
 
-	/* Asumption that long is enough for maximum channels */
-	unsigned long mask = *indio_dev->active_scan_mask;
-	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
-				       indio_dev->masklength);
-	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(&st->adis.spi->dev, "memory alloc failed in ring bh");
-		goto done;
+	if (!adis->buffer)
+		return -ENOMEM;
+
+	if (!(st->variant->flags & ADIS16400_NO_BURST) &&
+		st->adis.spi->max_speed_hz > ADIS16400_SPI_BURST) {
+		st->adis.spi->max_speed_hz = ADIS16400_SPI_BURST;
+		spi_setup(st->adis.spi);
 	}
 
-	if (scan_count) {
-		if (st->variant->flags & ADIS16400_NO_BURST) {
-			ret = adis16350_spi_read_all(indio_dev, st->adis.rx);
-			if (ret < 0)
-				goto done;
-			for (; i < scan_count; i++)
-				data[i]	= *(s16 *)(st->adis.rx + i*2);
-		} else {
-			ret = adis16400_spi_read_burst(indio_dev, st->adis.rx);
-			if (ret < 0)
-				goto done;
-			for (; i < scan_count; i++) {
-				j = __ffs(mask);
-				mask &= ~(1 << j);
-				data[i] = be16_to_cpup(
-					(__be16 *)&(st->adis.rx[j*2]));
-			}
-		}
+	ret = spi_sync(adis->spi, &adis->msg);
+	if (ret)
+		dev_err(&adis->spi->dev, "Failed to read data: %d\n", ret);
+
+	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
+		st->adis.spi->max_speed_hz = old_speed_hz;
+		spi_setup(st->adis.spi);
 	}
+
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
-	iio_push_to_buffers(indio_dev, (u8 *) data);
+	if (indio_dev->scan_timestamp) {
+		void *b = adis->buffer + indio_dev->scan_bytes - sizeof(s64);
+		*(s64 *)b = pf->timestamp;
+	}
 
-done:
-	kfree(data);
+	iio_push_to_buffers(indio_dev, adis->buffer);
+
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
-}
-
-int adis16400_configure_ring(struct iio_dev *indio_dev)
-{
-	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-		&adis16400_trigger_handler, NULL);
-}
-
-void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
-{
-	iio_triggered_buffer_cleanup(indio_dev);
 }
