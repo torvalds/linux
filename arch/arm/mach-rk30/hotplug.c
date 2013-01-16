@@ -33,7 +33,7 @@ int platform_cpu_kill(unsigned int cpu)
 	 */
 	for (k = 0; k < 1000; k++) {
 		if (cpumask_test_cpu(cpu, &dead_cpus)) {
-			pmu_set_power_domain(PD_A9_1, false);
+			pmu_set_power_domain(PD_A9_0 + cpu, false);
 			return 1;
 		}
 
