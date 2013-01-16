@@ -73,6 +73,16 @@ void pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 	u32 val;
 	unsigned long flags;
 
+#if defined(CONFIG_ARCH_RK3188)
+	if (req == IDLE_REQ_CORE) {
+		idle_mask = 1 << 15;
+		idle_target = idle << 15;
+	} else if (req == IDLE_REQ_DMA) {
+		idle_mask = 1 << 14;
+		idle_target = idle << 14;
+	}
+#endif
+
 	spin_lock_irqsave(&pmu_misc_con1_lock, flags);
 	val = readl_relaxed(RK30_PMU_BASE + PMU_MISC_CON1);
 	if (idle)

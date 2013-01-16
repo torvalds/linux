@@ -4,6 +4,7 @@ obj-y += ../plat-rk/clock.o
 obj-y += clock_data.o
 obj-y += ../mach-rk30/ddr.o
 CFLAGS_ddr.o += -mthumb
+obj-y += ../mach-rk30/pmu.o
 obj-y += ../mach-rk30/reset.o
 endif
 obj-y += ../mach-rk30/common.o
