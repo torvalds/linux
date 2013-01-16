@@ -74,8 +74,8 @@ config MTD_REDBOOT_PARTS_READONLY
 endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
-	bool "Command line partition table parsing"
-	depends on MTD = "y"
+	tristate "Command line partition table parsing"
+	depends on MTD
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where

@@ -81,6 +81,7 @@ struct cmdline_mtd_partition {
 static struct cmdline_mtd_partition *partitions;
 
 /* the command line passed to mtdpart_setup() */
+static char *mtdparts;
 static char *cmdline;
 static int cmdline_parsed;
 
@@ -376,7 +377,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
  *
  * This function needs to be visible for bootloaders.
  */
-static int mtdpart_setup(char *s)
+static int __init mtdpart_setup(char *s)
 {
 	cmdline = s;
 	return 1;
@@ -392,10 +393,15 @@ static struct mtd_part_parser cmdline_parser = {
 
 static int __init cmdline_parser_init(void)
 {
+	if (mtdparts)
+		mtdpart_setup(mtdparts);
 	return register_mtd_parser(&cmdline_parser);
 }
 
 module_init(cmdline_parser_init);
+
+MODULE_PARM_DESC(mtdparts, "Partitioning specification");
+module_param(mtdparts, charp, 0);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marius Groeger <mag@sysgo.de>");
