@@ -379,34 +379,6 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 }
 EXPORT_SYMBOL(twl_i2c_read);
 
-/**
- * twl_i2c_write_u8 - Writes a 8 bit register in TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
- * @value: the value to be written 8 bit
- * @reg: register address (just offset will do)
- *
- * Returns result of operation - 0 is success
- */
-int twl_i2c_write_u8(u8 mod_no, u8 value, u8 reg)
-{
-	return twl_i2c_write(mod_no, &value, reg, 1);
-}
-EXPORT_SYMBOL(twl_i2c_write_u8);
-
-/**
- * twl_i2c_read_u8 - Reads a 8 bit register from TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
- * @value: the value read 8 bit
- * @reg: register address (just offset will do)
- *
- * Returns result of operation - 0 is success
- */
-int twl_i2c_read_u8(u8 mod_no, u8 *value, u8 reg)
-{
-	return twl_i2c_read(mod_no, value, reg, 1);
-}
-EXPORT_SYMBOL(twl_i2c_read_u8);
-
 /*----------------------------------------------------------------------*/
 
 /**

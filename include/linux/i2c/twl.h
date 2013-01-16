@@ -175,16 +175,21 @@ TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
 /*
- * Read and write single 8-bit registers
- */
-int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg);
-int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
-
-/*
  * Read and write several 8-bit registers at once.
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+
+/*
+ * Read and write single 8-bit registers
+ */
+static inline int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg) {
+	return twl_i2c_write(mod_no, &val, reg, 1);
+}
+
+static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
+	return twl_i2c_read(mod_no, val, reg, 1);
+}
 
 int twl_get_type(void);
 int twl_get_version(void);
