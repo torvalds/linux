@@ -92,18 +92,26 @@ static int adis16400_get_freq(struct adis16400_state *st)
 static int adis16400_set_freq(struct adis16400_state *st, unsigned int freq)
 {
 	unsigned int t;
+	uint8_t val = 0;
 
 	t = 1638404 / freq;
-	if (t > 0)
+	if (t >= 128) {
+		val |= ADIS16400_SMPL_PRD_TIME_BASE;
+		t = 52851 / freq;
+		if (t >= 128)
+			t = 127;
+	} else if (t != 0) {
 		t--;
-	t &= ADIS16400_SMPL_PRD_DIV_MASK;
+	}
 
-	if ((t & ADIS16400_SMPL_PRD_DIV_MASK) >= 0x0A)
+	val |= t;
+
+	if (t >= 0x0A || (val & ADIS16400_SMPL_PRD_TIME_BASE))
 		st->adis.spi->max_speed_hz = ADIS16400_SPI_SLOW;
 	else
 		st->adis.spi->max_speed_hz = ADIS16400_SPI_FAST;
 
-	return adis_write_reg_8(&st->adis, ADIS16400_SMPL_PRD, t);
+	return adis_write_reg_8(&st->adis, ADIS16400_SMPL_PRD, val);
 }
 
 static ssize_t adis16400_read_frequency(struct device *dev,
