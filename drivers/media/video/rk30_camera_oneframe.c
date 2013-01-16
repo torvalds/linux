@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30) ||defined(CONFIG_ARCH_RK3188)
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -179,7 +179,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
 #endif
 
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 //GRF_IO_CON3                        0x100
 #define CIF_DRIVER_STRENGTH_2MA            (0x00 << 12)
 #define CIF_DRIVER_STRENGTH_4MA            (0x01 << 12)
@@ -2883,11 +2883,10 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
     .set_ctrl = rk_camera_set_ctrl,
     .controls = rk_camera_controls,
     .num_controls = ARRAY_SIZE(rk_camera_controls)
-    
 };
 static void rk_camera_cif_iomux(int cif_index)
 {
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     switch(cif_index){
         case 0:
             iomux_set(CIF0_CLKOUT);
