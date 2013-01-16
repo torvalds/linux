@@ -763,7 +763,7 @@ static int nfs_show_devname(struct seq_file *m, struct vfsmount *mnt)
 	int err = 0;
 	if (!page)
 		return -ENOMEM;
-	devname = nfs_path(&dummy, mnt->mnt_root, page, PAGE_SIZE);
+	devname = nfs_path(&dummy, mnt->mnt_root, page, PAGE_SIZE, 0);
 	if (IS_ERR(devname))
 		err = PTR_ERR(devname);
 	else
@@ -1052,7 +1052,7 @@ static int nfs_get_option_str(substring_t args[], char **option)
 {
 	kfree(*option);
 	*option = match_strdup(args);
-	return !option;
+	return !*option;
 }
 
 static int nfs_get_option_ul(substring_t args[], unsigned long *option)

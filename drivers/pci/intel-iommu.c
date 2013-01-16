@@ -3573,6 +3573,8 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 			found = 1;
 	}
 
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
 	if (found == 0) {
 		unsigned long tmp_flags;
 		spin_lock_irqsave(&domain->iommu_lock, tmp_flags);
@@ -3589,8 +3591,6 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 			spin_unlock_irqrestore(&iommu->lock, tmp_flags);
 		}
 	}
-
-	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
 
 static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
