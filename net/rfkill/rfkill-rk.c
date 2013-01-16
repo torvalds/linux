@@ -460,11 +460,7 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     ret = rfkill_rk_setup_wake_irq(rfkill);
     if (ret) goto fail_wake;
 
-#ifdef CONFIG_ARCH_RK2928
     ret = rfkill_rk_setup_gpio(&pdata->rts_gpio, IOMUX_FMUX, rfkill->pdata->name, "rts"); 
-#else
-    ret = rfkill_rk_setup_gpio(&(pdata->rts_gpio), IOMUX_FNORMAL, rfkill->pdata->name, "rts");
-#endif
     if (ret) goto fail_wake_host_irq;
 
     // 创建并注册RFKILL设备
