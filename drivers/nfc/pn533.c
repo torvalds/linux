@@ -532,7 +532,6 @@ static void pn533_recv_response(struct urb *urb)
 			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
-		break;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
@@ -589,7 +588,6 @@ static void pn533_recv_ack(struct urb *urb)
 			    urb->status);
 		dev->wq_in_error = urb->status;
 		goto sched_wq;
-		break;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
