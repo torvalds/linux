@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/slot-gpio.h>
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
@@ -52,7 +53,6 @@ struct mvsd_host {
 	struct device *dev;
 	struct clk *clk;
 	int gpio_card_detect;
-	int gpio_write_protect;
 };
 
 #define mvsd_write(offs, val)	writel(val, iobase + (offs))
@@ -564,20 +564,6 @@ static void mvsd_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static int mvsd_get_ro(struct mmc_host *mmc)
-{
-	struct mvsd_host *host = mmc_priv(mmc);
-
-	if (host->gpio_write_protect)
-		return gpio_get_value(host->gpio_write_protect);
-
-	/*
-	 * Board doesn't support read only detection; let the mmc core
-	 * decide what to do.
-	 */
-	return -ENOSYS;
-}
-
 static void mvsd_power_up(struct mvsd_host *host)
 {
 	void __iomem *iobase = host->base;
@@ -674,7 +660,7 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 static const struct mmc_host_ops mvsd_ops = {
 	.request		= mvsd_request,
-	.get_ro			= mvsd_get_ro,
+	.get_ro			= mmc_gpio_get_ro,
 	.set_ios		= mvsd_set_ios,
 	.enable_sdio_irq	= mvsd_enable_sdio_irq,
 };
@@ -793,15 +779,7 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (!host->gpio_card_detect)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	if (mvsd_data->gpio_write_protect) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					    mvsd_data->gpio_write_protect,
-					    GPIOF_IN, DRIVER_NAME " wp");
-		if (ret == 0) {
-			host->gpio_write_protect =
-				mvsd_data->gpio_write_protect;
-		}
-	}
+	mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
 
 	setup_timer(&host->timer, mvsd_timeout_timer, (unsigned long)host);
 	platform_set_drvdata(pdev, mmc);
@@ -820,6 +798,7 @@ static int __init mvsd_probe(struct platform_device *pdev)
 
 out:
 	if (mmc) {
+		mmc_gpio_free_ro(mmc);
 		if (!IS_ERR(host->clk))
 			clk_disable_unprepare(host->clk);
 		mmc_free_host(mmc);
@@ -834,6 +813,7 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 
 	struct mvsd_host *host = mmc_priv(mmc);
 
+	mmc_gpio_free_ro(mmc);
 	mmc_remove_host(mmc);
 	del_timer_sync(&host->timer);
 	mvsd_power_down(host);
