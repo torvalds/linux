@@ -581,7 +581,7 @@ int rt3261_headset_mic_detect(int jack_insert)
 			RT3261_PWR_LDO2, RT3261_PWR_LDO2);
 		snd_soc_update_bits(rt3261_codec, RT3261_PWR_ANLG2,
 			RT3261_PWR_MB1, RT3261_PWR_MB1);
-		mdelay(400);
+		msleep(400);
 		snd_soc_update_bits(rt3261_codec, RT3261_MICBIAS,
 			RT3261_MIC1_OVCD_MASK | RT3261_MIC1_OVTH_MASK |
 			RT3261_PWR_CLK25M_MASK | RT3261_PWR_MB_MASK,
@@ -707,7 +707,6 @@ static int rt3261_dmic_put(struct snd_kcontrol *kcontrol,
 }
 
 //bard 8-9 s
-#if 0
 static int rt3261_mic1_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -724,7 +723,7 @@ static int rt3261_mic1_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	if(ucontrol->value.integer.value[0]) {
+	if(ucontrol->value.integer.value[0]==0) {
 		snd_soc_update_bits(codec, RT3261_REC_L2_MIXER,
 			RT3261_M_BST1_RM_L, 0);
 		snd_soc_update_bits(codec, RT3261_REC_R2_MIXER,
@@ -755,7 +754,7 @@ static int rt3261_mic2_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	if(ucontrol->value.integer.value[0]) {
+	if(ucontrol->value.integer.value[0]==0) {
 		snd_soc_update_bits(codec, RT3261_REC_L2_MIXER,
 			RT3261_M_BST4_RM_L, 0);
 		snd_soc_update_bits(codec, RT3261_REC_R2_MIXER,
@@ -769,7 +768,6 @@ static int rt3261_mic2_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-#endif
 //bard 8-9 e
 
 void hp_amp_power(struct snd_soc_codec *codec, int on)
@@ -1097,11 +1095,8 @@ static const SOC_ENUM_SINGLE_DECL(rt3261_rxdp1_sel_enum, 0, 0, rt3261_rxdp1_sel_
 
 
 //bard 8-9 s
-#if 0
 static const char *rt3261_mic_mode[] = {"off", "on",};
-
 static const SOC_ENUM_SINGLE_DECL(rt3261_mic_enum, 0, 0, rt3261_mic_mode);
-#endif
 //bard 8-9 e
 
 static const char *rt3261_hp_mute_mode[] = {"off", "on",};
@@ -1264,7 +1259,6 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	},
 #endif
 //bard 8-9 s
-#if 0
 	SOC_SINGLE_TLV("Main Mic Capture Volume", RT3261_IN1_IN2,
 		RT3261_BST_SFT1,  8, 0, bst_tlv), 
 	SOC_SINGLE_TLV("Headset Mic Capture Volume", RT3261_IN3_IN4,
@@ -1273,7 +1267,6 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 		rt3261_mic1_get, rt3261_mic1_put),
 	SOC_ENUM_EXT("Headset Mic Capture Switch", rt3261_mic_enum,
 		rt3261_mic2_get, rt3261_mic2_put),
-#endif
 //bard 8-9 e
 
 	SOC_ENUM_EXT("HP mute Switch", rt3261_hp_mute_enum,
