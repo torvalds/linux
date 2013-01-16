@@ -22,9 +22,6 @@
 
 //#define IOMUX_DBG
 
-#if defined(CONFIG_ARCH_RK3066B)
-#include "iomux-rk3066b.c"
-#else
 static struct mux_config rk30_muxs[] = {
 /*
  *	 description				mux  mode   mux	  mux  
@@ -234,7 +231,6 @@ MUX_CFG(GPIO4D0_SMCDATA8_TRACEDATA8_NAME,		GPIO4D,   0,	 2,   0,	DEFAULT)
 MUX_CFG(GPIO6B7_TESTCLOCKOUT_NAME,			GPIO6B,   14,	 1,   0,	DEFAULT) 
 
 };     
-#endif
 
 
 void rk30_mux_set(struct mux_config *cfg)

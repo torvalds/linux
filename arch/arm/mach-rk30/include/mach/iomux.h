@@ -4,7 +4,12 @@
 #include <linux/init.h>
 #include <mach/iomux-rk30.h>
 #if defined(CONFIG_ARCH_RK3066B)
-#include <mach/iomux-rk3066b.h>
+
+#include <mach/grf-rk3066b.h>
+#define rk29_mux_api_set(name, mode) iomux_set(mode)
+#define rk30_mux_api_set(name, mode) iomux_set(mode)
+#define rk30_iomux_init() iomux_init()
+
 #elif defined(CONFIG_ARCH_RK30)
 //GPIO0A
 #define GPIO0A_GPIO0A7				0 
@@ -788,8 +793,6 @@
 //GPIO6B
 #define GPIO6B7_TESTCLOCKOUT_NAME			"gpio6b7_testclockout_name" 
 
-#endif
-
 #define DEFAULT					0
 #define INITIAL					1
 
@@ -818,5 +821,7 @@ struct mux_config {
 extern int __init rk30_iomux_init(void);
 extern void rk30_mux_api_set(char *name, unsigned int mode);
 extern int rk30_mux_api_get(char *name);
+
+#endif
 
 #endif
