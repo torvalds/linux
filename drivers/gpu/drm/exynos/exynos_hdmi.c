@@ -98,8 +98,7 @@ struct hdmi_context {
 
 	void __iomem			*regs;
 	void				*parent_ctx;
-	int				external_irq;
-	int				internal_irq;
+	int				irq;
 
 	struct i2c_client		*ddc_port;
 	struct i2c_client		*hdmiphy_port;
@@ -1656,7 +1655,7 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 {
 	struct hdmi_infoframe infoframe;
 
-	/* disable HPD interrupts */
+	/* disable HPD interrupts from HDMI IP block, use GPIO instead */
 	hdmi_reg_writemask(hdata, HDMI_INTC_CON, 0, HDMI_INTC_EN_GLOBAL |
 		HDMI_INTC_EN_HPD_PLUG | HDMI_INTC_EN_HPD_UNPLUG);
 
@@ -2260,7 +2259,7 @@ static struct exynos_hdmi_ops hdmi_ops = {
 	.dpms		= hdmi_dpms,
 };
 
-static irqreturn_t hdmi_external_irq_thread(int irq, void *arg)
+static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 {
 	struct exynos_drm_hdmi_context *ctx = arg;
 	struct hdmi_context *hdata = ctx->ctx;
@@ -2268,31 +2267,6 @@ static irqreturn_t hdmi_external_irq_thread(int irq, void *arg)
 	mutex_lock(&hdata->hdmi_mutex);
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 	mutex_unlock(&hdata->hdmi_mutex);
-
-	if (ctx->drm_dev)
-		drm_helper_hpd_irq_event(ctx->drm_dev);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t hdmi_internal_irq_thread(int irq, void *arg)
-{
-	struct exynos_drm_hdmi_context *ctx = arg;
-	struct hdmi_context *hdata = ctx->ctx;
-	u32 intc_flag;
-
-	intc_flag = hdmi_reg_read(hdata, HDMI_INTC_FLAG);
-	/* clearing flags for HPD plug/unplug */
-	if (intc_flag & HDMI_INTC_FLAG_HPD_UNPLUG) {
-		DRM_DEBUG_KMS("unplugged\n");
-		hdmi_reg_writemask(hdata, HDMI_INTC_FLAG, ~0,
-			HDMI_INTC_FLAG_HPD_UNPLUG);
-	}
-	if (intc_flag & HDMI_INTC_FLAG_HPD_PLUG) {
-		DRM_DEBUG_KMS("plugged\n");
-		hdmi_reg_writemask(hdata, HDMI_INTC_FLAG, ~0,
-			HDMI_INTC_FLAG_HPD_PLUG);
-	}
 
 	if (ctx->drm_dev)
 		drm_helper_hpd_irq_event(ctx->drm_dev);
@@ -2550,37 +2524,22 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	hdata->hdmiphy_port = hdmi_hdmiphy;
 
-	hdata->external_irq = gpio_to_irq(hdata->hpd_gpio);
-	if (hdata->external_irq < 0) {
-		DRM_ERROR("failed to get GPIO external irq\n");
-		ret = hdata->external_irq;
-		goto err_hdmiphy;
-	}
-
-	hdata->internal_irq = platform_get_irq(pdev, 0);
-	if (hdata->internal_irq < 0) {
-		DRM_ERROR("failed to get platform internal irq\n");
-		ret = hdata->internal_irq;
+	hdata->irq = gpio_to_irq(hdata->hpd_gpio);
+	if (hdata->irq < 0) {
+		DRM_ERROR("failed to get GPIO irq\n");
+		ret = hdata->irq;
 		goto err_hdmiphy;
 	}
 
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
-	ret = request_threaded_irq(hdata->external_irq, NULL,
-			hdmi_external_irq_thread, IRQF_TRIGGER_RISING |
+	ret = request_threaded_irq(hdata->irq, NULL,
+			hdmi_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			"hdmi_external", drm_hdmi_ctx);
+			"hdmi", drm_hdmi_ctx);
 	if (ret) {
-		DRM_ERROR("failed to register hdmi external interrupt\n");
+		DRM_ERROR("failed to register hdmi interrupt\n");
 		goto err_hdmiphy;
-	}
-
-	ret = request_threaded_irq(hdata->internal_irq, NULL,
-			hdmi_internal_irq_thread, IRQF_ONESHOT,
-			"hdmi_internal", drm_hdmi_ctx);
-	if (ret) {
-		DRM_ERROR("failed to register hdmi internal interrupt\n");
-		goto err_free_irq;
 	}
 
 	/* Attach HDMI Driver to common hdmi. */
@@ -2593,8 +2552,6 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_free_irq:
-	free_irq(hdata->external_irq, drm_hdmi_ctx);
 err_hdmiphy:
 	i2c_del_driver(&hdmiphy_driver);
 err_ddc:
@@ -2612,8 +2569,7 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 
-	free_irq(hdata->internal_irq, hdata);
-	free_irq(hdata->external_irq, hdata);
+	free_irq(hdata->irq, hdata);
 
 
 	/* hdmiphy i2c driver */
@@ -2632,8 +2588,7 @@ static int hdmi_suspend(struct device *dev)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	disable_irq(hdata->internal_irq);
-	disable_irq(hdata->external_irq);
+	disable_irq(hdata->irq);
 
 	hdata->hpd = false;
 	if (ctx->drm_dev)
@@ -2658,8 +2613,7 @@ static int hdmi_resume(struct device *dev)
 
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
-	enable_irq(hdata->external_irq);
-	enable_irq(hdata->internal_irq);
+	enable_irq(hdata->irq);
 
 	if (!pm_runtime_suspended(dev)) {
 		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
