@@ -2620,17 +2620,14 @@ out_put:
 static __be32 *
 nfsd4_encode_rdattr_error(__be32 *p, int buflen, __be32 nfserr)
 {
-	__be32 *attrlenp;
-
 	if (buflen < 6)
 		return NULL;
 	*p++ = htonl(2);
 	*p++ = htonl(FATTR4_WORD0_RDATTR_ERROR); /* bmval0 */
 	*p++ = htonl(0);			 /* bmval1 */
 
-	attrlenp = p++;
+	*p++ = htonl(4);     /* attribute length */
 	*p++ = nfserr;       /* no htonl */
-	*attrlenp = htonl((char *)p - (char *)attrlenp - 4);
 	return p;
 }
 
