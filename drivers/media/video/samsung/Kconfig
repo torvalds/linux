@@ -17,8 +17,7 @@ if CPU_EXYNOS4210 || CPU_EXYNOS4212 || CPU_EXYNOS4412
 	source "drivers/media/video/samsung/fimc/Kconfig"
 	source "drivers/media/video/samsung/tvout/Kconfig"
 	source "drivers/media/video/samsung/mfc5x/Kconfig"
-	source "drivers/media/video/samsung/ump/Kconfig"
-	source "drivers/media/video/samsung/mali/Kconfig"
+
 endif
 
 config VIDEO_FIMG2D
@@ -96,3 +95,26 @@ config VIDEO_SAMSUNG_MEMSIZE_JPEG
 	default "40960"
 endif
 
+config VIDEO_MALI_R2P4
+	bool "Use Mali r2p4 version"
+	depends on VIDEO_SAMSUNG
+	default n
+	help
+	  Use Mali r2p4 version
+
+config VIDEO_MALI_R3P2
+	bool "Use Mali r3p2 version"
+	depends on VIDEO_SAMSUNG
+	default n
+	help
+	  Use Mali r3p2 version
+
+if VIDEO_MALI_R2P4
+	source "drivers/media/video/samsung/ump/Kconfig"
+	source "drivers/media/video/samsung/mali/Kconfig"
+endif
+
+if VIDEO_MALI_R3P2
+	source "drivers/media/video/samsung/ump_r3p2/Kconfig"
+	source "drivers/media/video/samsung/mali_r3p2/Kconfig"
+endif

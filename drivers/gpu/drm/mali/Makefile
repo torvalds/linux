@@ -12,7 +12,7 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y = -Iinclude/drm
-mali_drm-y := mali_drv.o
+mali_drm-y := mali_drv.o mali_mm.o
 
 obj-$(CONFIG_DRM_MALI)   += mali_drm.o
 
