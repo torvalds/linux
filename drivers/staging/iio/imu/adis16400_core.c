@@ -247,8 +247,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      adis16400_read_frequency,
 			      adis16400_write_frequency);
 
-static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
-
 static const u8 adis16400_addresses[] = {
 	[ADIS16400_SCAN_GYRO_X] = ADIS16400_XGYRO_OFF,
 	[ADIS16400_SCAN_GYRO_Y] = ADIS16400_YGYRO_OFF,
@@ -574,7 +572,6 @@ static const struct iio_chan_spec adis16334_channels[] = {
 
 static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
 };
 
