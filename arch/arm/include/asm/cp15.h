@@ -61,6 +61,20 @@ static inline void set_cr(unsigned int val)
 	isb();
 }
 
+static inline unsigned int get_auxcr(void)
+{
+	unsigned int val;
+	asm("mrc p15, 0, %0, c1, c0, 1	@ get AUXCR" : "=r" (val));
+	return val;
+}
+
+static inline void set_auxcr(unsigned int val)
+{
+	asm volatile("mcr p15, 0, %0, c1, c0, 1	@ set AUXCR"
+	  : : "r" (val));
+	isb();
+}
+
 #ifndef CONFIG_SMP
 extern void adjust_cr(unsigned long mask, unsigned long set);
 #endif
