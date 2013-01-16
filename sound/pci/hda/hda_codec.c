@@ -3794,7 +3794,7 @@ static void hda_mark_cmd_cache_dirty(struct hda_codec *codec)
 	}
 	for (i = 0; i < codec->amp_cache.buf.used; i++) {
 		struct hda_amp_info *amp;
-		amp = snd_array_elem(&codec->cmd_cache.buf, i);
+		amp = snd_array_elem(&codec->amp_cache.buf, i);
 		amp->head.dirty = 1;
 	}
 }

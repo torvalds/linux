@@ -97,6 +97,28 @@ static void reorder_outputs(unsigned int nums, hda_nid_t *pins)
 	}
 }
 
+/* check whether the given pin has a proper pin I/O capability bit */
+static bool check_pincap_validity(struct hda_codec *codec, hda_nid_t pin,
+				  unsigned int dev)
+{
+	unsigned int pincap = snd_hda_query_pin_caps(codec, pin);
+
+	/* some old hardware don't return the proper pincaps */
+	if (!pincap)
+		return true;
+
+	switch (dev) {
+	case AC_JACK_LINE_OUT:
+	case AC_JACK_SPEAKER:
+	case AC_JACK_HP_OUT:
+	case AC_JACK_SPDIF_OUT:
+	case AC_JACK_DIG_OTHER_OUT:
+		return !!(pincap & AC_PINCAP_OUT);
+	default:
+		return !!(pincap & AC_PINCAP_IN);
+	}
+}
+
 /*
  * Parse all pin widgets and store the useful pin nids to cfg
  *
@@ -163,6 +185,9 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			    conn == AC_JACK_PORT_BOTH)
 				dev = AC_JACK_SPEAKER;
 		}
+
+		if (!check_pincap_validity(codec, nid, dev))
+			continue;
 
 		switch (dev) {
 		case AC_JACK_LINE_OUT:

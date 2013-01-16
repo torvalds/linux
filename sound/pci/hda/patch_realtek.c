@@ -1506,8 +1506,6 @@ static void alc260_fixup_fsc_s7020(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE)
 		spec->gen.add_out_jack_modes = 1;
-	else if (action == HDA_FIXUP_ACT_PROBE)
-		snd_hda_set_pin_ctl_cache(codec, 0x10, PIN_HP);
 }
 
 static const struct hda_fixup alc260_fixups[] = {
@@ -1597,6 +1595,11 @@ static int patch_alc260(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	/* as quite a few machines require HP amp for speaker outputs,
+	 * it's easier to enable it unconditionally; even if it's unneeded,
+	 * it's almost harmless.
+	 */
+	spec->gen.prefer_hp_amp = 1;
 
 	snd_hda_pick_fixup(codec, NULL, alc260_fixup_tbl, alc260_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);

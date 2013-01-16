@@ -484,6 +484,15 @@ static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
 	return false;
 }
 
+static bool same_amp_caps(struct hda_codec *codec, hda_nid_t nid1,
+			  hda_nid_t nid2, int dir)
+{
+	if (!(get_wcaps(codec, nid1) & (1 << (dir + 1))))
+		return !(get_wcaps(codec, nid2) & (1 << (dir + 1)));
+	return (query_amp_caps(codec, nid1, dir) ==
+		query_amp_caps(codec, nid2, dir));
+}
+
 #define nid_has_mute(codec, nid, dir) \
 	check_amp_caps(codec, nid, dir, AC_AMPCAP_MUTE)
 #define nid_has_volume(codec, nid, dir) \
@@ -1284,6 +1293,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, err, badness;
+	unsigned int val;
 
 	/* set num_dacs once to full for look_for_dac() */
 	spec->multiout.num_dacs = cfg->line_outs;
@@ -1399,7 +1409,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	}
 
 	spec->ext_channel_count = spec->min_channel_count =
-		spec->multiout.num_dacs;
+		spec->multiout.num_dacs * 2;
 
 	if (spec->multi_ios == 2) {
 		for (i = 0; i < 2; i++)
@@ -1421,13 +1431,18 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				   spec->speaker_paths);
 
 	/* set initial pinctl targets */
-	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins,
-			cfg->line_out_type == AUTO_PIN_HP_OUT ? PIN_HP : PIN_OUT);
+	if (spec->prefer_hp_amp || cfg->line_out_type == AUTO_PIN_HP_OUT)
+		val = PIN_HP;
+	else
+		val = PIN_OUT;
+	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins, val);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
 		set_pin_targets(codec, cfg->hp_outs, cfg->hp_pins, PIN_HP);
-	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		val = spec->prefer_hp_amp ? PIN_HP : PIN_OUT;
 		set_pin_targets(codec, cfg->speaker_outs,
-				cfg->speaker_pins, PIN_OUT);
+				cfg->speaker_pins, val);
+	}
 
 	return badness;
 }
@@ -1500,8 +1515,6 @@ static int parse_output_paths(struct hda_codec *codec)
 	bool fill_hardwired = true, fill_mio_first = true;
 	bool best_wired = true, best_mio = true;
 	bool hp_spk_swapped = false;
-
-	fill_all_dac_nids(codec);
 
 	best_cfg = kmalloc(sizeof(*best_cfg), GFP_KERNEL);
 	if (!best_cfg)
@@ -2397,8 +2410,16 @@ static int create_input_ctls(struct hda_codec *codec)
 static struct nid_path *get_input_path(struct hda_codec *codec, int adc_idx, int imux_idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	if (imux_idx < 0 || imux_idx >= HDA_MAX_NUM_INPUTS) {
+		snd_BUG();
+		return NULL;
+	}
 	if (spec->dyn_adc_switch)
 		adc_idx = spec->dyn_adc_idx[imux_idx];
+	if (adc_idx < 0 || adc_idx >= AUTO_CFG_MAX_OUTS) {
+		snd_BUG();
+		return NULL;
+	}
 	return snd_hda_get_path_from_idx(codec, spec->input_paths[imux_idx][adc_idx]);
 }
 
@@ -2418,7 +2439,7 @@ static int mux_enum_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gen_spec *spec = codec->spec;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int adc_idx = kcontrol->id.index;
 
 	ucontrol->value.enumerated.item[0] = spec->cur_mux[adc_idx];
 	return 0;
@@ -2428,7 +2449,7 @@ static int mux_enum_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	unsigned int adc_idx = kcontrol->id.index;
 	return mux_select(codec, adc_idx,
 			  ucontrol->value.enumerated.item[0]);
 }
@@ -2460,7 +2481,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	int i, adc_idx, err = 0;
 
 	imux = &spec->input_mux;
-	adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	adc_idx = kcontrol->id.index;
 	mutex_lock(&codec->control_mutex);
 	/* we use the cache-only update at first since multiple input paths
 	 * may shared the same amp; by updating only caches, the redundant
@@ -2754,6 +2775,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 
 	for (n = 0; n < nums; n++) {
 		bool multi = false;
+		bool multi_cap_vol = spec->multi_cap_vol;
 		bool inv_dmic = false;
 		int vol, sw;
 
@@ -2766,12 +2788,20 @@ static int create_capture_mixers(struct hda_codec *codec)
 			parse_capvol_in_path(codec, path);
 			if (!vol)
 				vol = path->ctls[NID_PATH_VOL_CTL];
-			else if (vol != path->ctls[NID_PATH_VOL_CTL])
+			else if (vol != path->ctls[NID_PATH_VOL_CTL]) {
 				multi = true;
+				if (!same_amp_caps(codec, vol,
+				    path->ctls[NID_PATH_VOL_CTL], HDA_INPUT))
+					multi_cap_vol = true;
+			}
 			if (!sw)
 				sw = path->ctls[NID_PATH_MUTE_CTL];
-			else if (sw != path->ctls[NID_PATH_MUTE_CTL])
+			else if (sw != path->ctls[NID_PATH_MUTE_CTL]) {
 				multi = true;
+				if (!same_amp_caps(codec, sw,
+				    path->ctls[NID_PATH_MUTE_CTL], HDA_INPUT))
+					multi_cap_vol = true;
+			}
 			if (is_inv_dmic_pin(codec, spec->imux_pins[i]))
 				inv_dmic = true;
 		}
@@ -2779,7 +2809,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		if (!multi)
 			err = create_single_cap_vol_ctl(codec, n, vol, sw,
 							inv_dmic);
-		else if (!spec->multi_cap_vol)
+		else if (!multi_cap_vol)
 			err = create_bind_cap_vol_ctl(codec, n, vol, sw);
 		else
 			err = create_multi_cap_vol_ctl(codec);
@@ -2811,6 +2841,9 @@ static int parse_mic_boost(struct hda_codec *codec)
 			char boost_label[44];
 			struct nid_path *path;
 			unsigned int val;
+
+			if (!nid_has_volume(codec, nid, HDA_INPUT))
+				continue;
 
 			label = hda_get_autocfg_input_label(codec, cfg, i);
 			if (prev_label && !strcmp(label, prev_label))
@@ -3392,6 +3425,8 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 		spec->autocfg = *cfg;
 		cfg = &spec->autocfg;
 	}
+
+	fill_all_dac_nids(codec);
 
 	if (!cfg->line_outs) {
 		if (cfg->dig_outs || cfg->dig_in_pin) {
