@@ -1002,7 +1002,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned long flags;
 
-	if (!info || serial_paranoia_check(info, tty->name, "rs_close"))
+	if (serial_paranoia_check(info, tty->name, "rs_close"))
 		return;
 	
 	local_irq_save(flags);
