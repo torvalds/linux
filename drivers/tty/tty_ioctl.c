@@ -1096,12 +1096,16 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 	ld = tty_ldisc_ref_wait(tty);
 	switch (arg) {
 	case TCIFLUSH:
-		if (ld && ld->ops->flush_buffer)
+		if (ld && ld->ops->flush_buffer) {
 			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
 		break;
 	case TCIOFLUSH:
-		if (ld && ld->ops->flush_buffer)
+		if (ld && ld->ops->flush_buffer) {
 			ld->ops->flush_buffer(tty);
+			tty_unthrottle(tty);
+		}
 		/* fall through */
 	case TCOFLUSH:
 		tty_driver_flush_buffer(tty);
