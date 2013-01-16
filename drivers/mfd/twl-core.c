@@ -1165,6 +1165,11 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int				status;
 	unsigned			i, num_slaves;
 
+	if (!node && !pdata) {
+		dev_err(&client->dev, "no platform data\n");
+		return -EINVAL;
+	}
+
 	pdev = platform_device_alloc(DRIVER_NAME, -1);
 	if (!pdev) {
 		dev_err(&client->dev, "can't alloc pdev\n");
@@ -1176,28 +1181,6 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		platform_device_put(pdev);
 		return status;
 	}
-
-	if (node && !pdata) {
-		/*
-		 * XXX: Temporary pdata until the information is correctly
-		 * retrieved by every TWL modules from DT.
-		 */
-		pdata = devm_kzalloc(&client->dev,
-				     sizeof(struct twl4030_platform_data),
-				     GFP_KERNEL);
-		if (!pdata) {
-			status = -ENOMEM;
-			goto free;
-		}
-	}
-
-	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data?\n");
-		status = -EINVAL;
-		goto free;
-	}
-
-	platform_set_drvdata(pdev, pdata);
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
 		dev_dbg(&client->dev, "can't talk I2C?\n");
@@ -1264,7 +1247,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	inuse = true;
 
 	/* setup clock framework */
-	clocks_init(&pdev->dev, pdata->clock);
+	clocks_init(&pdev->dev, pdata ? pdata->clock : NULL);
 
 	/* read TWL IDCODE Register */
 	if (twl_id == TWL4030_CLASS_ID) {
@@ -1273,7 +1256,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* load power event scripts */
-	if (IS_ENABLED(CONFIG_TWL4030_POWER) && pdata->power)
+	if (IS_ENABLED(CONFIG_TWL4030_POWER) && pdata && pdata->power)
 		twl4030_power_init(pdata->power);
 
 	/* Maybe init the T2 Interrupt subsystem */
