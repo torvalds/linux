@@ -721,6 +721,9 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	unsigned int fsize = sizeof(struct sock_filter) * fprog->len;
 	int err;
 
+	if (sock_flag(sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+
 	/* Make sure new filter is there and in the right amounts. */
 	if (fprog->filter == NULL)
 		return -EINVAL;
@@ -756,6 +759,9 @@ int sk_detach_filter(struct sock *sk)
 {
 	int ret = -ENOENT;
 	struct sk_filter *filter;
+
+	if (sock_flag(sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
 
 	filter = rcu_dereference_protected(sk->sk_filter,
 					   sock_owned_by_user(sk));

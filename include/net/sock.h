@@ -664,6 +664,7 @@ enum sock_flags {
 		     * Will use last 4 bytes of packet sent from
 		     * user-space instead.
 		     */
+	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)

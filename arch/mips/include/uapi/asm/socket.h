@@ -90,5 +90,6 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		43
 
+#define SO_LOCK_FILTER		44
 
 #endif /* _UAPI_ASM_SOCKET_H */
