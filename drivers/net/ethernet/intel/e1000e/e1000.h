@@ -447,7 +447,7 @@ struct e1000_info {
 #define FLAG_MSI_ENABLED                  (1 << 27)
 /* reserved (1 << 28) */
 #define FLAG_TSO_FORCE                    (1 << 29)
-#define FLAG_RX_RESTART_NOW               (1 << 30)
+#define FLAG_RESTART_NOW                  (1 << 30)
 #define FLAG_MSI_TEST_FAILED              (1 << 31)
 
 #define FLAG2_CRC_STRIPPING               (1 << 0)

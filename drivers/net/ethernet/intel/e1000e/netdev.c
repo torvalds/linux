@@ -765,7 +765,7 @@ static void e1000_alloc_jumbo_rx_buffers(struct e1000_ring *rx_ring,
 	struct e1000_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
-	unsigned int bufsz = 256 - 16 /* for skb_reserve */;
+	unsigned int bufsz = 256 - 16;	/* for skb_reserve */
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
@@ -1671,7 +1671,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 			/* disable receives */
 			u32 rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
-			adapter->flags |= FLAG_RX_RESTART_NOW;
+			adapter->flags |= FLAG_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -1734,7 +1734,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 			/* disable receives */
 			rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
-			adapter->flags |= FLAG_RX_RESTART_NOW;
+			adapter->flags |= FLAG_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -2405,7 +2405,6 @@ static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 
 static void e1000_set_itr(struct e1000_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	u16 current_itr;
 	u32 new_itr = adapter->itr;
 
@@ -2468,10 +2467,7 @@ set_itr_now:
 		if (adapter->msix_entries)
 			adapter->rx_ring->set_itr = 1;
 		else
-			if (new_itr)
-				ew32(ITR, 1000000000 / (new_itr * 256));
-			else
-				ew32(ITR, 0);
+			e1000e_write_itr(adapter, new_itr);
 	}
 }
 
@@ -3013,7 +3009,7 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 	ew32(RCTL, rctl);
 	/* just started the receive unit, no need to restart */
-	adapter->flags &= ~FLAG_RX_RESTART_NOW;
+	adapter->flags &= ~FLAG_RESTART_NOW;
 }
 
 /**
@@ -4300,9 +4296,8 @@ static void e1000_print_link_info(struct e1000_adapter *adapter)
 	u32 ctrl = er32(CTRL);
 
 	/* Link status message must follow this format for user tools */
-	printk(KERN_INFO "e1000e: %s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
-		adapter->netdev->name,
-		adapter->link_speed,
+	pr_info("%s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
+		adapter->netdev->name, adapter->link_speed,
 		adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half",
 		(ctrl & E1000_CTRL_TFCE) && (ctrl & E1000_CTRL_RFCE) ? "Rx/Tx" :
 		(ctrl & E1000_CTRL_RFCE) ? "Rx" :
@@ -4355,11 +4350,11 @@ static void e1000e_enable_receives(struct e1000_adapter *adapter)
 {
 	/* make sure the receive unit is started */
 	if ((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
-	    (adapter->flags & FLAG_RX_RESTART_NOW)) {
+	    (adapter->flags & FLAG_RESTART_NOW)) {
 		struct e1000_hw *hw = &adapter->hw;
 		u32 rctl = er32(RCTL);
 		ew32(RCTL, rctl | E1000_RCTL_EN);
-		adapter->flags &= ~FLAG_RX_RESTART_NOW;
+		adapter->flags &= ~FLAG_RESTART_NOW;
 	}
 }
 
@@ -4521,15 +4516,22 @@ static void e1000_watchdog_task(struct work_struct *work)
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
 			/* Link status message must follow this format */
-			printk(KERN_INFO "e1000e: %s NIC Link is Down\n",
-			       adapter->netdev->name);
+			pr_info("%s NIC Link is Down\n", adapter->netdev->name);
 			netif_carrier_off(netdev);
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
 
-			if (adapter->flags & FLAG_RX_NEEDS_RESTART)
-				schedule_work(&adapter->reset_task);
+			/* The link is lost so the controller stops DMA.
+			 * If there is queued Tx work that cannot be done
+			 * or if on an 8000ES2LAN which requires a Rx packet
+			 * buffer work-around on link down event, reset the
+			 * controller to flush the Tx/Rx packet buffers.
+			 * (Do the reset outside of interrupt context).
+			 */
+			if ((adapter->flags & FLAG_RX_NEEDS_RESTART) ||
+			    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count))
+				adapter->flags |= FLAG_RESTART_NOW;
 			else
 				pm_schedule_suspend(netdev->dev.parent,
 							LINK_TIMEOUT);
@@ -4551,19 +4553,13 @@ link_up:
 	adapter->gotc_old = adapter->stats.gotc;
 	spin_unlock(&adapter->stats64_lock);
 
-	e1000e_update_adaptive(&adapter->hw);
-
-	if (!netif_carrier_ok(netdev) &&
-	    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count)) {
-		/* We've lost link, so the controller stops DMA,
-		 * but we've got queued Tx work that's never going
-		 * to get done, so reset controller to flush Tx.
-		 * (Do the reset outside of interrupt context).
-		 */
+	if (adapter->flags & FLAG_RESTART_NOW) {
 		schedule_work(&adapter->reset_task);
 		/* return immediately since reset is imminent */
 		return;
 	}
+
+	e1000e_update_adaptive(&adapter->hw);
 
 	/* Simple mode for Interrupt Throttle Rate (ITR) */
 	if (adapter->itr_setting == 4) {
@@ -4918,12 +4914,11 @@ static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 	struct e1000_hw *hw =  &adapter->hw;
 	u16 length, offset;
 
-	if (vlan_tx_tag_present(skb)) {
-		if (!((vlan_tx_tag_get(skb) == adapter->hw.mng_cookie.vlan_id) &&
-		    (adapter->hw.mng_cookie.status &
-			E1000_MNG_DHCP_COOKIE_STATUS_VLAN)))
-			return 0;
-	}
+	if (vlan_tx_tag_present(skb) &&
+	    !((vlan_tx_tag_get(skb) == adapter->hw.mng_cookie.vlan_id) &&
+	      (adapter->hw.mng_cookie.status &
+	       E1000_MNG_DHCP_COOKIE_STATUS_VLAN)))
+		return 0;
 
 	if (skb->len <= MINIMUM_DHCP_PACKET_SIZE)
 		return 0;
@@ -5134,10 +5129,9 @@ static void e1000_reset_task(struct work_struct *work)
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
 
-	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
-	      (adapter->flags & FLAG_RX_RESTART_NOW))) {
+	if (!(adapter->flags & FLAG_RESTART_NOW)) {
 		e1000e_dump(adapter);
-		e_err("Reset adapter\n");
+		e_err("Reset adapter unexpectedly\n");
 	}
 	e1000e_reinit_locked(adapter);
 }

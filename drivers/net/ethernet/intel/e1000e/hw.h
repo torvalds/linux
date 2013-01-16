@@ -191,6 +191,10 @@ enum e1e_registers {
 	E1000_ICTXQMTC = 0x0411C, /* Irq Cause Tx Queue MinThreshold Count */
 	E1000_ICRXDMTC = 0x04120, /* Irq Cause Rx Desc MinThreshold Count */
 	E1000_ICRXOC   = 0x04124, /* Irq Cause Receiver Overrun Count */
+	E1000_PCS_LCTL = 0x04208, /* PCS Link Control - RW */
+	E1000_PCS_LSTAT = 0x0420C, /* PCS Link Status - RO */
+	E1000_PCS_ANADV = 0x04218, /* AN advertisement - RW */
+	E1000_PCS_LPAB = 0x0421C, /* Link Partner Ability - RW */
 	E1000_RXCSUM   = 0x05000, /* Rx Checksum Control - RW */
 	E1000_RFCTL    = 0x05008, /* Receive Filter Control */
 	E1000_MTA      = 0x05200, /* Multicast Table Array - RW Array */
