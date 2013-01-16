@@ -404,7 +404,7 @@ static inline bool __ipv6_prefix_equal64_half(const __be64 *a1,
 					      const __be64 *a2,
 					      unsigned int len)
 {
-	if (len && ((*a1 ^ *a2) & cpu_to_be64(~0UL) << (64 - len)))
+	if (len && ((*a1 ^ *a2) & cpu_to_be64((~0UL) << (64 - len))))
 		return false;
 	return true;
 }
