@@ -2589,27 +2589,23 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	struct nfs_subversion *nfs_mod = NFS_SB(data->sb)->nfs_client->cl_nfs_mod;
-	int error;
 
-	dprintk("--> nfs_xdev_mount_common()\n");
+	dprintk("--> nfs_xdev_mount()\n");
 
 	mount_info.mntfh = mount_info.cloned->fh;
 
 	/* create a new volume representation */
 	server = nfs_mod->rpc_ops->clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
-	if (IS_ERR(server)) {
-		error = PTR_ERR(server);
-		goto out_err;
-	}
 
-	mntroot = nfs_fs_mount_common(server, flags, dev_name, &mount_info, nfs_mod);
-	dprintk("<-- nfs_xdev_mount_common() = 0\n");
-out:
+	if (IS_ERR(server))
+		mntroot = ERR_CAST(server);
+	else
+		mntroot = nfs_fs_mount_common(server, flags,
+				dev_name, &mount_info, nfs_mod);
+
+	dprintk("<-- nfs_xdev_mount() = %ld\n",
+			IS_ERR(mntroot) ? PTR_ERR(mntroot) : 0L);
 	return mntroot;
-
-out_err:
-	dprintk("<-- nfs_xdev_mount_common() = %d [error]\n", error);
-	goto out;
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
