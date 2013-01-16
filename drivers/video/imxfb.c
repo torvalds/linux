@@ -139,6 +139,7 @@ struct imxfb_info {
 	struct clk		*clk_ahb;
 	struct clk		*clk_per;
 	enum imxfb_type		devtype;
+	bool			enabled;
 
 	/*
 	 * These are the addresses we mapped
@@ -536,6 +537,10 @@ static void imxfb_exit_backlight(struct imxfb_info *fbi)
 
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
+
+	if (fbi->enabled)
+		return;
+
 	pr_debug("Enabling LCD controller\n");
 
 	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
@@ -556,6 +561,7 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	clk_prepare_enable(fbi->clk_ipg);
 	clk_prepare_enable(fbi->clk_ahb);
 	clk_prepare_enable(fbi->clk_per);
+	fbi->enabled = true;
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(1);
@@ -565,6 +571,9 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
 {
+	if (!fbi->enabled)
+		return;
+
 	pr_debug("Disabling LCD controller\n");
 
 	if (fbi->backlight_power)
@@ -575,6 +584,7 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	clk_disable_unprepare(fbi->clk_per);
 	clk_disable_unprepare(fbi->clk_ipg);
 	clk_disable_unprepare(fbi->clk_ahb);
+	fbi->enabled = false;
 
 	writel(0, fbi->regs + LCDC_RMCR);
 }
