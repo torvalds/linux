@@ -28,4 +28,9 @@
 			status = "okay";
 		};
 	};
+	nand_cs3@62000000 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&nand_cs3_pins>;
+	};
 };
