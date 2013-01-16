@@ -534,9 +534,6 @@ ifneq ($(MAKECMDGOALS),tags)
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
 
--include config.mak.autogen
--include config.mak
-
 ifdef NO_LIBELF
 	NO_DWARF := 1
 	NO_DEMANGLE := 1
