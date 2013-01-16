@@ -659,7 +659,7 @@ static __init void early_serial_write(struct console *con, const char *s,
 	}
 }
 
-static struct __initdata console arc_early_serial_console = {
+static struct console arc_early_serial_console __initdata = {
 	.name = "early_ARCuart",
 	.write = early_serial_write,
 	.flags = CON_PRINTBUFFER | CON_BOOT,
@@ -731,7 +731,7 @@ static struct platform_driver arc_platform_driver = {
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 
-static struct platform_driver early_arc_platform_driver = {
+static struct platform_driver early_arc_platform_driver __initdata = {
 	.probe = arc_serial_probe_earlyprintk,
 	.remove = arc_serial_remove,
 	.driver = {
