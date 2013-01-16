@@ -674,7 +674,7 @@ static int efi_status_to_err(efi_status_t status)
 		err = -EACCES;
 		break;
 	case EFI_NOT_FOUND:
-		err = -ENOENT;
+		err = -EIO;
 		break;
 	default:
 		err = -EINVAL;
