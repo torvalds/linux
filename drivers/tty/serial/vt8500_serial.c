@@ -606,9 +606,9 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	snprintf(vt8500_port->name, sizeof(vt8500_port->name),
 		 "VT8500 UART%d", pdev->id);
 
-	vt8500_port->uart.membase = ioremap(mmres->start, resource_size(mmres));
+	vt8500_port->uart.membase = devm_request_and_ioremap(&pdev->dev, mmres);
 	if (!vt8500_port->uart.membase) {
-		ret = -ENOMEM;
+		ret = -EADDRNOTAVAIL;
 		goto err;
 	}
 
