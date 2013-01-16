@@ -1,10 +1,10 @@
-#include <linux/fb.h>
+
 #include <linux/delay.h>
-#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
-#include "screen.h"
+#include <linux/rk_fb.h>
+
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -52,7 +52,7 @@ static struct rk29lcd_info *gLcd_info = NULL;
 int init(void);
 int standby(u8 enable);
 
-void set_lcd_info(struct rk29fb_screen *screen, struct rk2918lcd_info *lcd_info )
+void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;

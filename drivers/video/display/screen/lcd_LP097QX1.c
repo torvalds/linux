@@ -1,10 +1,8 @@
-#include <linux/fb.h>
+#include <linux/rk_fb.h>
 #include <linux/delay.h>
-#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
-#include "screen.h"
 
 
 /* Base */

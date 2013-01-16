@@ -5,7 +5,7 @@
 #include <mach/iomux.h>
 #include <mach/board.h>
 #include "../../rockchip/hdmi/rk_hdmi.h"
-#include "screen.h"
+
 
 #ifdef CONFIG_RK610_LVDS
 #include "../transmitter/rk610_lcd.h"
