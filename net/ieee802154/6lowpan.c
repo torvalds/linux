@@ -594,10 +594,32 @@ static int lowpan_header_create(struct sk_buff *skb,
 	}
 }
 
+static int lowpan_give_skb_to_devices(struct sk_buff *skb)
+{
+	struct lowpan_dev_record *entry;
+	struct sk_buff *skb_cp;
+	int stat = NET_RX_SUCCESS;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &lowpan_devices, list)
+		if (lowpan_dev_info(entry->ldev)->real_dev == skb->dev) {
+			skb_cp = skb_copy(skb, GFP_ATOMIC);
+			if (!skb_cp) {
+				stat = -ENOMEM;
+				break;
+			}
+
+			skb_cp->dev = entry->ldev;
+			stat = netif_rx(skb_cp);
+		}
+	rcu_read_unlock();
+
+	return stat;
+}
+
 static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 {
 	struct sk_buff *new;
-	struct lowpan_dev_record *entry;
 	int stat = NET_RX_SUCCESS;
 
 	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
@@ -614,19 +636,7 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 	new->protocol = htons(ETH_P_IPV6);
 	new->pkt_type = PACKET_HOST;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(entry, &lowpan_devices, list)
-		if (lowpan_dev_info(entry->ldev)->real_dev == new->dev) {
-			skb = skb_copy(new, GFP_ATOMIC);
-			if (!skb) {
-				stat = -ENOMEM;
-				break;
-			}
-
-			skb->dev = entry->ldev;
-			stat = netif_rx(skb);
-		}
-	rcu_read_unlock();
+	stat = lowpan_give_skb_to_devices(new);
 
 	kfree_skb(new);
 
