@@ -188,28 +188,19 @@ RATEwGetRateIdx(
  * Return Value: none
  *
 -*/
-void RATEvParseMaxRate(
-     void *pDeviceHandler,
-     PWLAN_IE_SUPP_RATES pItemRates,
-     PWLAN_IE_SUPP_RATES pItemExtRates,
-     BOOL bUpdateBasicRate,
-     PWORD pwMaxBasicRate,
-     PWORD pwMaxSuppRate,
-     PWORD pwSuppRate,
-     PBYTE pbyTopCCKRate,
-     PBYTE pbyTopOFDMRate
-    )
+
+void RATEvParseMaxRate(struct vnt_private *pDevice,
+	PWLAN_IE_SUPP_RATES pItemRates, PWLAN_IE_SUPP_RATES pItemExtRates,
+	int bUpdateBasicRate, u16 *pwMaxBasicRate, u16 *pwMaxSuppRate,
+	u16 *pwSuppRate, u8 *pbyTopCCKRate, u8 *pbyTopOFDMRate)
 {
-PSDevice  pDevice = (PSDevice) pDeviceHandler;
-unsigned int  ii;
-BYTE  byHighSuppRate = 0;
-BYTE  byRate = 0;
-WORD  wOldBasicRate = pDevice->wBasicRate;
-unsigned int  uRateLen;
+	int  ii;
+	u8 byHighSuppRate = 0, byRate = 0;
+	u16 wOldBasicRate = pDevice->wBasicRate;
+	u32 uRateLen;
 
-
-    if (pItemRates == NULL)
-        return;
+	if (pItemRates == NULL)
+		return;
 
     *pwSuppRate = 0;
     uRateLen = pItemRates->len;
@@ -301,27 +292,24 @@ unsigned int  uRateLen;
 #define AUTORATE_TXCNT_THRESHOLD        20
 #define AUTORATE_INC_THRESHOLD          30
 
-void
-RATEvTxRateFallBack(
-     void *pDeviceHandler,
-     PKnownNodeDB psNodeDBTable
-    )
+void RATEvTxRateFallBack(struct vnt_private *pDevice,
+	PKnownNodeDB psNodeDBTable)
 {
-PSDevice        pDevice = (PSDevice) pDeviceHandler;
-PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-WORD            wIdxDownRate = 0;
-unsigned int            ii;
-BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
-DWORD           dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
-DWORD           dwThroughput = 0;
-WORD            wIdxUpRate = 0;
-DWORD           dwTxDiff = 0;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u16 wIdxDownRate = 0;
+	int ii;
+	int bAutoRate[MAX_RATE] = {TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE,
+					 TRUE, TRUE, TRUE, TRUE, TRUE};
+	u32 dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180,
+		240, 360, 480, 540};
+	u32 dwThroughput = 0;
+	u16 wIdxUpRate = 0;
+	u32 dwTxDiff = 0;
 
-    if (pMgmt->eScanState != WMAC_NO_SCANNING) {
-        // Don't do Fallback when scanning Channel
-        return;
-    }
-    psNodeDBTable->uTimeCount ++;
+	if (pMgmt->eScanState != WMAC_NO_SCANNING)
+		return; /* Don't do Fallback when scanning Channel */
+
+	psNodeDBTable->uTimeCount++;
 
     if (psNodeDBTable->uTxFail[MAX_RATE] > psNodeDBTable->uTxOk[MAX_RATE])
         dwTxDiff = psNodeDBTable->uTxFail[MAX_RATE] - psNodeDBTable->uTxOk[MAX_RATE];

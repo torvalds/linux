@@ -84,61 +84,23 @@ s_vGetDASA(
      PSEthernetHeader psEthHeader
     );
 
-static
-void
-s_vProcessRxMACHeader (
-      PSDevice pDevice,
-      PBYTE pbyRxBufferAddr,
-      unsigned int cbPacketSize,
-      BOOL bIsWEP,
-      BOOL bExtIV,
-     unsigned int *pcbHeadSize
-    );
+static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
+	u8 *pbyRxBufferAddr, u32 cbPacketSize, int bIsWEP, int bExtIV,
+	u32 *pcbHeadSize);
 
-static BOOL s_bAPModeRxCtl(
-     PSDevice pDevice,
-     PBYTE    pbyFrame,
-     signed int      iSANodeIndex
-    );
+static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
+	s32 iSANodeIndex);
 
+static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
+	u32 FrameSize, u32 cbHeaderOffset, s32 iSANodeIndex, s32 iDANodeIndex);
 
+static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
+	u32 FrameSize, u8 *pbyRsr, u8 *pbyNewRsr, PSKeyItem *pKeyOut,
+	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16);
 
-static BOOL s_bAPModeRxData (
-     PSDevice pDevice,
-     struct sk_buff *skb,
-     unsigned int     FrameSize,
-     unsigned int     cbHeaderOffset,
-     signed int      iSANodeIndex,
-     signed int      iDANodeIndex
-    );
-
-
-static BOOL s_bHandleRxEncryption(
-     PSDevice     pDevice,
-     PBYTE        pbyFrame,
-     unsigned int         FrameSize,
-     PBYTE        pbyRsr,
-     PBYTE       pbyNewRsr,
-     PSKeyItem   * pKeyOut,
-    int *       pbExtIV,
-     PWORD       pwRxTSC15_0,
-     PDWORD      pdwRxTSC47_16
-    );
-
-static BOOL s_bHostWepRxEncryption(
-
-     PSDevice     pDevice,
-     PBYTE        pbyFrame,
-     unsigned int         FrameSize,
-     PBYTE        pbyRsr,
-     BOOL         bOnFly,
-     PSKeyItem    pKey,
-     PBYTE       pbyNewRsr,
-    int *       pbExtIV,
-     PWORD       pwRxTSC15_0,
-     PDWORD      pdwRxTSC47_16
-
-    );
+static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
+	u32 FrameSize, u8 *pbyRsr, int bOnFly, PSKeyItem pKey, u8 *pbyNewRsr,
+	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16);
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -159,22 +121,16 @@ static BOOL s_bHostWepRxEncryption(
  * Return Value: None
  *
 -*/
-static
-void
-s_vProcessRxMACHeader (
-      PSDevice pDevice,
-      PBYTE pbyRxBufferAddr,
-      unsigned int cbPacketSize,
-      BOOL bIsWEP,
-      BOOL bExtIV,
-     unsigned int *pcbHeadSize
-    )
+
+static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
+	u8 *pbyRxBufferAddr, u32 cbPacketSize, int bIsWEP, int bExtIV,
+	u32 *pcbHeadSize)
 {
-    PBYTE           pbyRxBuffer;
-    unsigned int            cbHeaderSize = 0;
-    PWORD           pwType;
-    PS802_11Header  pMACHeader;
-    int             ii;
+	u8 *pbyRxBuffer;
+	u32 cbHeaderSize = 0;
+	u16 *pwType;
+	PS802_11Header pMACHeader;
+	int ii;
 
 
     pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
@@ -310,56 +266,39 @@ s_vGetDASA (
 }
 
 
-
-
-BOOL
-RXbBulkInProcessData (
-     PSDevice         pDevice,
-     PRCB             pRCB,
-     unsigned long            BytesToIndicate
-    )
+int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
+	unsigned long BytesToIndicate)
 {
-
-    struct net_device_stats* pStats=&pDevice->stats;
-    struct sk_buff* skb;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PSRxMgmtPacket  pRxPacket = &(pMgmt->sRxPacket);
-    PS802_11Header  p802_11Header;
-    PBYTE           pbyRsr;
-    PBYTE           pbyNewRsr;
-    PBYTE           pbyRSSI;
+	struct net_device_stats *pStats = &pDevice->stats;
+	struct sk_buff *skb;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_rx_mgmt *pRxPacket = &pMgmt->sRxPacket;
+	PS802_11Header p802_11Header;
+	u8 *pbyRsr, *pbyNewRsr, *pbyRSSI, *pbyFrame;
 	u64 *pqwTSFTime;
-    PBYTE           pbyFrame;
-    BOOL            bDeFragRx = FALSE;
-    unsigned int            cbHeaderOffset;
+	u32 bDeFragRx = FALSE;
+	u32 cbHeaderOffset, cbIVOffset;
 	u32 FrameSize;
-    WORD            wEtherType = 0;
-    signed int             iSANodeIndex = -1;
-    signed int             iDANodeIndex = -1;
-    unsigned int            ii;
-    unsigned int            cbIVOffset;
-    PBYTE           pbyRxSts;
-    PBYTE           pbyRxRate;
-    PBYTE           pbySQ;
-    PBYTE           pby3SQ;
-    unsigned int            cbHeaderSize;
-    PSKeyItem       pKey = NULL;
-    WORD            wRxTSC15_0 = 0;
-    DWORD           dwRxTSC47_16 = 0;
-    SKeyItem        STempKey;
-    // 802.11h RPI
-    /* signed long ldBm = 0; */
-    BOOL            bIsWEP = FALSE;
-    BOOL            bExtIV = FALSE;
+	u16 wEtherType = 0;
+	s32 iSANodeIndex = -1, iDANodeIndex = -1;
+	int ii;
+	u8 *pbyRxSts, *pbyRxRate, *pbySQ, *pby3SQ;
+	u32 cbHeaderSize;
+	PSKeyItem pKey = NULL;
+	u16 wRxTSC15_0 = 0;
+	u32 dwRxTSC47_16 = 0;
+	SKeyItem STempKey;
+	/* signed long ldBm = 0; */
+	int bIsWEP = FALSE; int bExtIV = FALSE;
 	u32 dwWbkStatus;
-    PRCB            pRCBIndicate = pRCB;
-    PBYTE           pbyDAddress;
-    PWORD           pwPLCP_Length;
-    BYTE            abyVaildRate[MAX_RATE] = {2,4,11,22,12,18,24,36,48,72,96,108};
-    WORD            wPLCPwithPadding;
-    PS802_11Header  pMACHeader;
-    BOOL            bRxeapol_key = FALSE;
-
+	PRCB pRCBIndicate = pRCB;
+	u8 *pbyDAddress;
+	u16 *pwPLCP_Length;
+	u8 abyVaildRate[MAX_RATE]
+		= {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
+	u16 wPLCPwithPadding;
+	PS802_11Header pMACHeader;
+	int bRxeapol_key = FALSE;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- RXbBulkInProcessData---\n");
@@ -985,16 +924,12 @@ RXbBulkInProcessData (
     return TRUE;
 }
 
-
-static BOOL s_bAPModeRxCtl (
-     PSDevice pDevice,
-     PBYTE    pbyFrame,
-     signed int      iSANodeIndex
-    )
+static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
+	s32 iSANodeIndex)
 {
-    PS802_11Header      p802_11Header;
-    CMD_STATUS          Status;
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &(pDevice->sMgmtObj);
+	PS802_11Header p802_11Header;
+	CMD_STATUS Status;
 
 
     if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
@@ -1096,24 +1031,16 @@ static BOOL s_bAPModeRxCtl (
 
 }
 
-static BOOL s_bHandleRxEncryption (
-     PSDevice     pDevice,
-     PBYTE        pbyFrame,
-     unsigned int         FrameSize,
-     PBYTE        pbyRsr,
-     PBYTE       pbyNewRsr,
-     PSKeyItem   * pKeyOut,
-    int *       pbExtIV,
-     PWORD       pwRxTSC15_0,
-     PDWORD      pdwRxTSC47_16
-    )
+static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
+	u32 FrameSize, u8 *pbyRsr, u8 *pbyNewRsr, PSKeyItem *pKeyOut,
+	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16)
 {
-    unsigned int            PayloadLen = FrameSize;
-    PBYTE           pbyIV;
-    BYTE            byKeyIdx;
-    PSKeyItem       pKey = NULL;
-    BYTE            byDecMode = KEY_CTL_WEP;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u32 PayloadLen = FrameSize;
+	u8 *pbyIV;
+	u8 byKeyIdx;
+	PSKeyItem pKey = NULL;
+	u8 byDecMode = KEY_CTL_WEP;
 
 
     *pwRxTSC15_0 = 0;
@@ -1241,31 +1168,19 @@ static BOOL s_bHandleRxEncryption (
     return TRUE;
 }
 
-
-static BOOL s_bHostWepRxEncryption (
-     PSDevice     pDevice,
-     PBYTE        pbyFrame,
-     unsigned int         FrameSize,
-     PBYTE        pbyRsr,
-     BOOL         bOnFly,
-     PSKeyItem    pKey,
-     PBYTE       pbyNewRsr,
-    int *       pbExtIV,
-     PWORD       pwRxTSC15_0,
-     PDWORD      pdwRxTSC47_16
-    )
+static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
+	u32 FrameSize, u8 *pbyRsr, int bOnFly, PSKeyItem pKey, u8 *pbyNewRsr,
+	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16)
 {
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            PayloadLen = FrameSize;
-    PBYTE           pbyIV;
-    BYTE            byKeyIdx;
-    BYTE            byDecMode = KEY_CTL_WEP;
-    PS802_11Header  pMACHeader;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	PS802_11Header  pMACHeader;
+	u32 PayloadLen = FrameSize;
+	u8 *pbyIV;
+	u8 byKeyIdx;
+	u8 byDecMode = KEY_CTL_WEP;
 
-
-
-    *pwRxTSC15_0 = 0;
-    *pdwRxTSC47_16 = 0;
+	*pwRxTSC15_0 = 0;
+	*pdwRxTSC47_16 = 0;
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
     if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
@@ -1372,26 +1287,16 @@ static BOOL s_bHostWepRxEncryption (
     return TRUE;
 }
 
-
-
-static BOOL s_bAPModeRxData (
-     PSDevice pDevice,
-     struct sk_buff *skb,
-     unsigned int     FrameSize,
-     unsigned int     cbHeaderOffset,
-     signed int      iSANodeIndex,
-     signed int      iDANodeIndex
-    )
-
+static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
+	u32 FrameSize, u32 cbHeaderOffset, s32 iSANodeIndex, s32 iDANodeIndex)
 {
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-    BOOL                bRelayAndForward = FALSE;
-    BOOL                bRelayOnly = FALSE;
-    BYTE                byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    WORD                wAID;
+	struct sk_buff *skbcpy;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int  bRelayAndForward = FALSE;
+	int bRelayOnly = FALSE;
+	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+	u16 wAID;
 
-
-    struct sk_buff* skbcpy = NULL;
 
     if (FrameSize > CB_MAX_BUF_SIZE)
         return FALSE;
@@ -1468,11 +1373,10 @@ static BOOL s_bAPModeRxData (
 
 
 
-void RXvWorkItem(void *Context)
+void RXvWorkItem(struct vnt_private *pDevice)
 {
-    PSDevice pDevice = (PSDevice) Context;
-    int ntStatus;
-    PRCB            pRCB=NULL;
+	int ntStatus;
+	PRCB pRCB = NULL;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
@@ -1492,13 +1396,9 @@ void RXvWorkItem(void *Context)
 }
 
 
-void
-RXvFreeRCB(
-     PRCB pRCB,
-     BOOL bReAllocSkb
-    )
+void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 {
-    PSDevice pDevice = (PSDevice)pRCB->pDevice;
+	struct vnt_private *pDevice = pRCB->pDevice;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
@@ -1537,12 +1437,11 @@ RXvFreeRCB(
 }
 
 
-void RXvMngWorkItem(void *Context)
+void RXvMngWorkItem(struct vnt_private *pDevice)
 {
-    PSDevice pDevice = (PSDevice) Context;
-    PRCB            pRCB=NULL;
-    PSRxMgmtPacket  pRxPacket;
-    BOOL            bReAllocSkb = FALSE;
+	PRCB pRCB = NULL;
+	struct vnt_rx_mgmt *pRxPacket;
+	int bReAllocSkb = FALSE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Mng Thread\n");
 

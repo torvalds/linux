@@ -70,12 +70,10 @@ static int msglevel = MSG_LEVEL_INFO;
  *
  */
 
-void PSvEnablePowerSaving(void *hDeviceContext,
-			  WORD wListenInterval)
+void PSvEnablePowerSaving(struct vnt_private *pDevice, u16 wListenInterval)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
-	WORD wAID = pMgmt->wCurrAID | BIT14 | BIT15;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u16 wAID = pMgmt->wCurrAID | BIT14 | BIT15;
 
 	/* set period of power up before TBTT */
 	MACvWriteWord(pDevice, MAC_REG_PWBT, C_PWBT);
@@ -136,10 +134,8 @@ void PSvEnablePowerSaving(void *hDeviceContext,
  *
  */
 
-void PSvDisablePowerSaving(void *hDeviceContext)
+void PSvDisablePowerSaving(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	/* PSMgmtObject pMgmt = &(pDevice->sMgmtObj); */
 
 	/* disable power saving hw function */
 	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
@@ -168,13 +164,11 @@ void PSvDisablePowerSaving(void *hDeviceContext)
  *    FALSE, if fail
  */
 
-BOOL PSbConsiderPowerDown(void *hDeviceContext,
-			  BOOL bCheckRxDMA,
-			  BOOL bCheckCountToWakeUp)
+int PSbConsiderPowerDown(struct vnt_private *pDevice, int bCheckRxDMA,
+	int bCheckCountToWakeUp)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
-	BYTE byData;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u8 byData;
 
 	/* check if already in Doze mode */
 	ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG,
@@ -225,15 +219,17 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
  *
  */
 
-void PSvSendPSPOLL(void *hDeviceContext)
+void PSvSendPSPOLL(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
-	PSTxMgmtPacket pTxPacket = NULL;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_tx_mgmt *pTxPacket = NULL;
 
-	memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_HDR_ADDR2_LEN);
-	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
-	pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+	memset(pMgmt->pbyPSPacketPool, 0, sizeof(struct vnt_tx_mgmt)
+		+ WLAN_HDR_ADDR2_LEN);
+	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyPSPacketPool;
+	pTxPacket->p80211Header = (PUWLAN_80211HDR)((u8 *)pTxPacket
+		+ sizeof(struct vnt_tx_mgmt));
+
 	pTxPacket->p80211Header->sA2.wFrameCtl = cpu_to_le16(
 		(
 			WLAN_SET_FC_FTYPE(WLAN_TYPE_CTL) |
@@ -263,11 +259,10 @@ void PSvSendPSPOLL(void *hDeviceContext)
  *
  */
 
-BOOL PSbSendNullPacket(void *hDeviceContext)
+int PSbSendNullPacket(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSTxMgmtPacket pTxPacket = NULL;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_tx_mgmt *pTxPacket = NULL;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u16 flags = 0;
 
 	if (pDevice->bLinkPass == FALSE)
@@ -278,9 +273,11 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 			return FALSE;
 	}
 
-	memset(pMgmt->pbyPSPacketPool, 0, sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN);
-	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
-	pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
+	memset(pMgmt->pbyPSPacketPool, 0, sizeof(struct vnt_tx_mgmt)
+		+ WLAN_NULLDATA_FR_MAXLEN);
+	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyPSPacketPool;
+	pTxPacket->p80211Header = (PUWLAN_80211HDR)((u8 *)pTxPacket
+		+ sizeof(struct vnt_tx_mgmt));
 
 	flags = WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
                         WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL);
@@ -318,11 +315,10 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
  *
  */
 
-BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
+int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = (PSDevice)hDeviceContext;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
-	BOOL bWakeUp = FALSE;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int bWakeUp = FALSE;
 
 	if (pMgmt->wListenInterval >= 2) {
 		if (pMgmt->wCountToWakeUp == 0)

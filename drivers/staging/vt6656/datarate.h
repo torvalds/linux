@@ -29,6 +29,7 @@
 #ifndef __DATARATE_H__
 #define __DATARATE_H__
 
+
 /*---------------------  Export Definitions -------------------------*/
 
 #define FALLBACK_PKT_COLLECT_TR_H  50   // pkts
@@ -69,24 +70,13 @@
 
 
 
-void
-RATEvParseMaxRate(
-     void *pDeviceHandler,
-     PWLAN_IE_SUPP_RATES pItemRates,
-     PWLAN_IE_SUPP_RATES pItemExtRates,
-     BOOL bUpdateBasicRate,
-     PWORD pwMaxBasicRate,
-     PWORD pwMaxSuppRate,
-     PWORD pwSuppRate,
-     PBYTE pbyTopCCKRate,
-     PBYTE pbyTopOFDMRate
-    );
+void RATEvParseMaxRate(struct vnt_private *, PWLAN_IE_SUPP_RATES pItemRates,
+	PWLAN_IE_SUPP_RATES pItemExtRates, int bUpdateBasicRate,
+	u16 *pwMaxBasicRate, u16 *pwMaxSuppRate, u16 *pwSuppRate,
+	u8 *pbyTopCCKRate, u8 *pbyTopOFDMRate);
 
-void
-RATEvTxRateFallBack(
-     void *pDeviceHandler,
-     PKnownNodeDB psNodeDBTable
-    );
+void RATEvTxRateFallBack(struct vnt_private *pDevice,
+	PKnownNodeDB psNodeDBTable);
 
 BYTE
 RATEuSetIE(
