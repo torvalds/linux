@@ -45,9 +45,10 @@
 
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
+#include <asm/fpsimd.h>
+#include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
-#include <asm/fpsimd.h>
 
 static void setup_restart(void)
 {
@@ -319,6 +320,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
+	contextidr_thread_switch(next);
 	return last;
 }
 

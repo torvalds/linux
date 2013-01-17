@@ -35,6 +35,21 @@ extern unsigned int cpu_last_asid;
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 void __new_context(struct mm_struct *mm);
 
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+static inline void contextidr_thread_switch(struct task_struct *next)
+{
+	asm(
+	"	msr	contextidr_el1, %0\n"
+	"	isb"
+	:
+	: "r" (task_pid_nr(next)));
+}
+#else
+static inline void contextidr_thread_switch(struct task_struct *next)
+{
+}
+#endif
+
 /*
  * Set TTBR0 to empty_zero_page. No translations will be possible via TTBR0.
  */
