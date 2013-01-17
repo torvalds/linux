@@ -97,7 +97,8 @@ static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 	return container_of(device, struct acpi_power_resource, device);
 }
 
-void acpi_power_resources_list_add(acpi_handle handle, struct list_head *list)
+static void acpi_power_resources_list_add(acpi_handle handle,
+					  struct list_head *list)
 {
 	struct acpi_power_resource *resource = acpi_power_get_context(handle);
 	struct acpi_power_resource_entry *entry;
@@ -130,6 +131,35 @@ void acpi_power_resources_list_free(struct list_head *list)
 		list_del(&entry->node);
 		kfree(entry);
 	}
+}
+
+acpi_status acpi_extract_power_resources(union acpi_object *package,
+					 unsigned int start,
+					 struct list_head *list)
+{
+	acpi_status status = AE_OK;
+	unsigned int i;
+
+	for (i = start; i < package->package.count; i++) {
+		union acpi_object *element = &package->package.elements[i];
+		acpi_handle rhandle;
+
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
+			status = AE_BAD_DATA;
+			break;
+		}
+		rhandle = element->reference.handle;
+		if (!rhandle) {
+			status = AE_NULL_ENTRY;
+			break;
+		}
+		acpi_add_power_resource(rhandle);
+		acpi_power_resources_list_add(rhandle, list);
+	}
+	if (ACPI_FAILURE(status))
+		acpi_power_resources_list_free(list);
+
+	return status;
 }
 
 static int acpi_power_get_state(acpi_handle handle, int *state)

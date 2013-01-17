@@ -50,8 +50,10 @@ void acpi_free_ids(struct acpi_device *device);
                                   Power Resource
    -------------------------------------------------------------------------- */
 int acpi_power_init(void);
-void acpi_power_resources_list_add(acpi_handle handle, struct list_head *list);
 void acpi_power_resources_list_free(struct list_head *list);
+acpi_status acpi_extract_power_resources(union acpi_object *package,
+					 unsigned int start,
+					 struct list_head *list);
 void acpi_add_power_resource(acpi_handle handle);
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
 int acpi_device_sleep_wake(struct acpi_device *dev,

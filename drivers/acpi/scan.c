@@ -900,7 +900,6 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	union acpi_object *package = NULL;
 	union acpi_object *element = NULL;
 	acpi_status status;
-	int i = 0;
 
 	if (!wakeup)
 		return AE_BAD_PARAMETER;
@@ -953,18 +952,9 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	}
 	wakeup->sleep_state = element->integer.value;
 
-	for (i = 2; i < package->package.count; i++) {
-		acpi_handle rhandle;
-
-		element = &(package->package.elements[i]);
-		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
-			status = AE_BAD_DATA;
-			goto out;
-		}
-		rhandle = element->reference.handle;
-		acpi_add_power_resource(rhandle);
-		acpi_power_resources_list_add(rhandle, &wakeup->resources);
-	}
+	status = acpi_extract_power_resources(package, 2, &wakeup->resources);
+	if (ACPI_FAILURE(status))
+		goto out;
 
 	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
 
@@ -1021,7 +1011,6 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	status = acpi_bus_extract_wakeup_device_power_package(device->handle,
 							      &device->wakeup);
 	if (ACPI_FAILURE(status)) {
-		acpi_power_resources_list_free(&device->wakeup.resources);
 		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
 		return;
 	}
@@ -1044,30 +1033,32 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 {
 	struct acpi_device_power_state *ps = &device->power.states[state];
-	char object_name[5] = { '_', 'P', 'R', '0' + state, '\0' };
-	struct acpi_handle_list resources;
+	char pathname[5] = { '_', 'P', 'R', '0' + state, '\0' };
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_handle handle;
 	acpi_status status;
 
 	INIT_LIST_HEAD(&ps->resources);
 
-	/* Evaluate "_PRx" to se if power resources are referenced */
-	acpi_evaluate_reference(device->handle, object_name, NULL, &resources);
-	if (resources.count) {
-		int j;
+	/* Evaluate "_PRx" to get referenced power resources */
+	status = acpi_evaluate_object(device->handle, pathname, NULL, &buffer);
+	if (ACPI_SUCCESS(status)) {
+		union acpi_object *package = buffer.pointer;
 
-		device->power.flags.power_resources = 1;
-		for (j = 0; j < resources.count; j++) {
-			acpi_handle rhandle = resources.handles[j];
-
-			acpi_add_power_resource(rhandle);
-			acpi_power_resources_list_add(rhandle, &ps->resources);
+		if (buffer.length && package
+		    && package->type == ACPI_TYPE_PACKAGE
+		    && package->package.count) {
+			status = acpi_extract_power_resources(package, 0,
+							      &ps->resources);
+			if (ACPI_SUCCESS(status))
+				device->power.flags.power_resources = 1;
 		}
+		ACPI_FREE(buffer.pointer);
 	}
 
 	/* Evaluate "_PSx" to see if we can do explicit sets */
-	object_name[2] = 'S';
-	status = acpi_get_handle(device->handle, object_name, &handle);
+	pathname[2] = 'S';
+	status = acpi_get_handle(device->handle, pathname, &handle);
 	if (ACPI_SUCCESS(status))
 		ps->flags.explicit_set = 1;
 
@@ -1075,7 +1066,7 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 	 * State is valid if there are means to put the device into it.
 	 * D3hot is only valid if _PR3 present.
 	 */
-	if (resources.count
+	if (!list_empty(&ps->resources)
 	    || (ps->flags.explicit_set && state < ACPI_STATE_D3_HOT)) {
 		ps->flags.valid = 1;
 		ps->flags.os_accessible = 1;
