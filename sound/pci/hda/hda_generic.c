@@ -1601,6 +1601,9 @@ static int parse_output_paths(struct hda_codec *codec)
 		path = snd_hda_get_path_from_idx(codec, spec->out_paths[0]);
 		if (path)
 			spec->vmaster_nid = look_for_out_vol_nid(codec, path);
+		if (spec->vmaster_nid)
+			snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
+						HDA_OUTPUT, spec->vmaster_tlv);
 	}
 
 	kfree(best_cfg);
@@ -3752,11 +3755,8 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 	/* if we have no master control, let's create it */
 	if (!spec->no_analog &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
-		unsigned int vmaster_tlv[4];
-		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
-					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_pfxs,
+					  spec->vmaster_tlv, slave_pfxs,
 					  "Playback Volume");
 		if (err < 0)
 			return err;
