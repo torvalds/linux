@@ -290,6 +290,27 @@ struct b_format {			/* BREAK and SYSCALL */
 	;)))
 };
 
+struct ps_format {			/* MIPS-3D / paired single format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int ft : 5,
+	BITFIELD_FIELD(unsigned int fs : 5,
+	BITFIELD_FIELD(unsigned int fd : 5,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;))))))
+};
+
+struct v_format {				/* MDMX vector format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int sel : 4,
+	BITFIELD_FIELD(unsigned int fmt : 1,
+	BITFIELD_FIELD(unsigned int vt : 5,
+	BITFIELD_FIELD(unsigned int vs : 5,
+	BITFIELD_FIELD(unsigned int vd : 5,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;)))))))
+};
+
 union mips_instruction {
 	unsigned int word;
 	unsigned short halfword[2];
@@ -303,6 +324,8 @@ union mips_instruction {
 	struct f_format f_format;
 	struct ma_format ma_format;
 	struct b_format b_format;
+	struct ps_format ps_format;
+	struct v_format v_format;
 };
 
 #endif /* _UAPI_ASM_INST_H */
