@@ -331,6 +331,7 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
 		.ver = DIP_VERSION_AVI,
@@ -339,6 +340,13 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
+
+	if (intel_hdmi->rgb_quant_range_selectable) {
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+		else
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+	}
 
 	avi_if.body.avi.VIC = drm_mode_cea_vic(adjusted_mode);
 
@@ -825,6 +833,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
+	intel_hdmi->rgb_quant_range_selectable = false;
 	edid = drm_get_edid(connector,
 			    intel_gmbus_get_adapter(dev_priv,
 						    intel_hdmi->ddc_bus));
@@ -836,6 +845,8 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 				intel_hdmi->has_hdmi_sink =
 						drm_detect_hdmi_monitor(edid);
 			intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
+			intel_hdmi->rgb_quant_range_selectable =
+				drm_rgb_quant_range_selectable(edid);
 		}
 		kfree(edid);
 	}

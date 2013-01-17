@@ -289,6 +289,9 @@ struct cxsr_latency {
 #define DIP_LEN_AVI     13
 #define DIP_AVI_PR_1    0
 #define DIP_AVI_PR_2    1
+#define DIP_AVI_RGB_QUANT_RANGE_DEFAULT	(0 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_LIMITED	(1 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_FULL	(2 << 2)
 
 #define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
@@ -347,6 +350,7 @@ struct intel_hdmi {
 	bool has_hdmi_sink;
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
+	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				struct dip_infoframe *frame);
 	void (*set_infoframes)(struct drm_encoder *encoder,
