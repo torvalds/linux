@@ -913,8 +913,12 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	 * dst entry of the nexthop router
 	 */
 	rt = (struct rt6_info *) *dst;
-	n = rt->n;
-	if (n && !(n->nud_state & NUD_VALID)) {
+	rcu_read_lock_bh();
+	n = __ipv6_neigh_lookup_noref(rt->dst.dev, rt6_nexthop(rt, &fl6->daddr));
+	err = n && !(n->nud_state & NUD_VALID) ? -EINVAL : 0;
+	rcu_read_unlock_bh();
+
+	if (err) {
 		struct inet6_ifaddr *ifp;
 		struct flowi6 fl_gw6;
 		int redirect;
