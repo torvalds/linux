@@ -41,10 +41,17 @@
 #define ECCTL2_SYNC_SEL_DISA	(BIT(7) | BIT(6))
 #define ECCTL2_TSCTR_FREERUN	BIT(4)
 
+struct ecap_context {
+	u32	cap3;
+	u32	cap4;
+	u16	ecctl2;
+};
+
 struct ecap_pwm_chip {
 	struct pwm_chip	chip;
 	unsigned int	clk_rate;
 	void __iomem	*mmio_base;
+	struct ecap_context ctx;
 };
 
 static inline struct ecap_pwm_chip *to_ecap_pwm_chip(struct pwm_chip *chip)
@@ -288,11 +295,57 @@ static int ecap_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
+void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
+{
+	pm_runtime_get_sync(pc->chip.dev);
+	pc->ctx.ecctl2 = readw(pc->mmio_base + ECCTL2);
+	pc->ctx.cap4 = readl(pc->mmio_base + CAP4);
+	pc->ctx.cap3 = readl(pc->mmio_base + CAP3);
+	pm_runtime_put_sync(pc->chip.dev);
+}
+
+void ecap_pwm_restore_context(struct ecap_pwm_chip *pc)
+{
+	writel(pc->ctx.cap3, pc->mmio_base + CAP3);
+	writel(pc->ctx.cap4, pc->mmio_base + CAP4);
+	writew(pc->ctx.ecctl2, pc->mmio_base + ECCTL2);
+}
+
+static int ecap_pwm_suspend(struct device *dev)
+{
+	struct ecap_pwm_chip *pc = dev_get_drvdata(dev);
+	struct pwm_device *pwm = pc->chip.pwms;
+
+	ecap_pwm_save_context(pc);
+
+	/* Disable explicitly if PWM is running */
+	if (test_bit(PWMF_ENABLED, &pwm->flags))
+		pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
+static int ecap_pwm_resume(struct device *dev)
+{
+	struct ecap_pwm_chip *pc = dev_get_drvdata(dev);
+	struct pwm_device *pwm = pc->chip.pwms;
+
+	/* Enable explicitly if PWM was running */
+	if (test_bit(PWMF_ENABLED, &pwm->flags))
+		pm_runtime_get_sync(dev);
+
+	ecap_pwm_restore_context(pc);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
+
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
 		.name	= "ecap",
 		.owner	= THIS_MODULE,
 		.of_match_table = ecap_of_match,
+		.pm	= &ecap_pwm_pm_ops,
 	},
 	.probe = ecap_pwm_probe,
 	.remove = ecap_pwm_remove,
