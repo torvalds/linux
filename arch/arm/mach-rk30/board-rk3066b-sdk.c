@@ -91,10 +91,6 @@ static int goodix_init_platform_hw(void)
 {
 	int ret;
 	
-	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
-	rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME, GPIO2B_GPIO2B4);
-	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME));
-
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
 		if (ret != 0) {
@@ -140,10 +136,7 @@ static struct spi_board_info board_spi_devices[] = {
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 #define PWM_ID            2
-#define PWM_MUX_NAME      GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME
-#define PWM_MUX_MODE      GPIO3D_PWM2
-#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D5
-#define PWM_GPIO 	  RK30_PIN3_PD5
+#define PWM_MODE          PWM2
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
@@ -155,57 +148,54 @@ static struct spi_board_info board_spi_devices[] = {
 static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+
+	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
-	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
-
-	ret = gpio_request(BL_EN_PIN, NULL);
-	if (ret != 0) {
-		gpio_free(BL_EN_PIN);
+	ret = gpio_request(BL_EN_PIN, "bl_en");
+	if (ret == 0) {
+		gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 	}
-
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return ret;
 }
 
 static int rk29_backlight_io_deinit(void)
 {
-	int ret = 0;
+	int ret = 0, pwm_gpio;
 #ifdef  LCD_DISP_ON_PIN
 	gpio_free(BL_EN_PIN);
 #endif
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	gpio_request(PWM_GPIO, NULL);
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+	gpio_request(pwm_gpio, "bl_pwm");
+	gpio_direction_output(pwm_gpio, GPIO_LOW);
 	return ret;
 }
 
 static int rk29_backlight_pwm_suspend(void)
 {
-	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	if (gpio_request(PWM_GPIO, NULL)) {
+	int ret, pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+
+	ret = gpio_request(pwm_gpio, "bl_pwm");
+	if (ret) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
+		return ret;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(pwm_gpio, GPIO_LOW);
 #ifdef  LCD_DISP_ON_PIN
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, !BL_EN_VALUE);
 #endif
 	return ret;
 }
 
 static int rk29_backlight_pwm_resume(void)
 {
-	gpio_free(PWM_GPIO);
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+	int pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
+
+	gpio_free(pwm_gpio);
+	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	msleep(30);
-	gpio_direction_output(BL_EN_PIN, 1);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return 0;
 }
@@ -647,7 +637,6 @@ static int rk610_power_on_init(void)
 	int ret;
 	if(RK610_RST_PIN != INVALID_GPIO)
 	{
-		rk30_mux_api_set(RK610_RST_PIN_MUX_NAME,RK610_RST_PIN_MUX_MODE);
 		ret = gpio_request(RK610_RST_PIN, "rk610 reset");
 		if (ret)
 		{
@@ -834,9 +823,9 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	    rk29_sdmmc_set_iomux(0, 0xFFFF);
 
     #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
-        rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO);
+        iomux_set_gpio_mode(iomux_mode_to_gpio(MMC0_DETN));
     #else
-	    rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FMUX);
+        iomux_set(MMC0_DETN);
     #endif	
 
     #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
@@ -1063,9 +1052,8 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
 		.pwm_id = 3,
 		.pwm_gpio = RK30_PIN3_PD6,
-		.pwm_iomux_name = GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME,
-		.pwm_iomux_pwm = GPIO3D_PWM3,
-		.pwm_iomux_gpio = GPIO3D_GPIO3D6,
+		.pwm_iomux_pwm = PWM3,
+		.pwm_iomux_gpio = GPIO3_D6,
 		.pwm_voltage = 1100000,
 		.suspend_voltage = 1050000,
 		.min_uV = 950000,
@@ -1101,8 +1089,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = INVALID_GPIO, //RK30_PIN3_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
-            .fgpio      = GPIO3C_GPIO3C7,
+            .name       = "bt_poweron",
+            .fgpio      = GPIO3_C7,
         },
     },
 
@@ -1110,8 +1098,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME,
-            .fgpio      = GPIO3D_GPIO3D1,
+            .name       = "bt_reset",
+            .fgpio      = GPIO3_D1,
        },
    }, 
 
@@ -1119,8 +1107,8 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C6_SDMMC1DETECTN_RMIIRXERR_NAME,
-            .fgpio      = GPIO3C_GPIO3C6,
+            .name       = "bt_wake",
+            .fgpio      = GPIO3_C6,
         },
     },
 
@@ -1138,9 +1126,9 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
         .io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO1A3_UART0RTSN_NAME,
-            .fgpio      = GPIO1A_GPIO1A3,
-            .fmux       = GPIO1A_UART0RTSN,
+            .name       = "bt_rts",
+            .fgpio      = GPIO1_A3,
+            .fmux       = UART0_RTSN,
         },
     },
 };
@@ -1159,23 +1147,19 @@ int rk_gps_io_init(void)
 {
 	printk("%s \n", __FUNCTION__);
 	
-	rk30_mux_api_set(GPIO1B5_UART3RTSN_NAME, GPIO1B_GPIO1B5);//VCC_EN
 	gpio_request(RK30_PIN1_PB5, NULL);
 	gpio_direction_output(RK30_PIN1_PB5, GPIO_LOW);
 
-	rk30_mux_api_set(GPIO1B4_UART3CTSN_GPSRFCLK_NAME, GPIO1B_GPSRFCLK);//GPS_CLK
-	rk30_mux_api_set(GPIO1B2_UART3SIN_GPSMAG_NAME, GPIO1B_GPSMAG);//GPS_MAG
-	rk30_mux_api_set(GPIO1B3_UART3SOUT_GPSSIG_NAME, GPIO1B_GPSSIG);//GPS_SIGN
+	iomux_set(GPS_RFCLK);//GPS_CLK
+	iomux_set(GPS_MAG);//GPS_MAG
+	iomux_set(GPS_SIG);//GPS_SIGN
 
-	rk30_mux_api_set(GPIO1A6_UART1CTSN_SPI0CLK_NAME, GPIO1A_GPIO1A6);//SPI_CLK
 	gpio_request(RK30_PIN1_PA6, NULL);
 	gpio_direction_output(RK30_PIN1_PA6, GPIO_LOW);
 
-	rk30_mux_api_set(GPIO1A5_UART1SOUT_SPI0TXD_NAME, GPIO1A_GPIO1A5);//SPI_MOSI
 	gpio_request(RK30_PIN1_PA5, NULL);
 	gpio_direction_output(RK30_PIN1_PA5, GPIO_LOW);	
 
-	rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0CSN0_NAME, GPIO1A_GPIO1A7);//SPI_CS
 	gpio_request(RK30_PIN1_PA7, NULL);
 	gpio_direction_output(RK30_PIN1_PA7, GPIO_LOW);		
 	return 0;
@@ -1627,12 +1611,12 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 
 //	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
 	sram_udelay(10000);
-	gpio3d6_iomux = readl_relaxed(GRF_GPIO3D_IOMUX);
+	gpio3d6_iomux = grf_readl(GRF_GPIO3D_IOMUX);
 	gpio3d6_do = grf_readl(GRF_GPIO3H_DO);
 	gpio3d6_dir = grf_readl(GRF_GPIO3H_DIR);
 	gpio3d6_en = grf_readl(GRF_GPIO3H_EN);
 
-	writel_relaxed((1<<28), GRF_GPIO3D_IOMUX);
+	grf_writel((1<<28), GRF_GPIO3D_IOMUX);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DIR);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DO);
 	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_EN);
@@ -1641,7 +1625,7 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 void __sramfunc rk30_pwm_logic_resume_voltage(void)
 {
 #ifdef CONFIG_RK30_PWM_REGULATOR
-	writel_relaxed((1<<28)|gpio3d6_iomux, GRF_GPIO3D_IOMUX);
+	grf_writel((1<<28)|gpio3d6_iomux, GRF_GPIO3D_IOMUX);
 	grf_writel((1<<30)|gpio3d6_en, GRF_GPIO3H_EN);
 	grf_writel((1<<30)|gpio3d6_dir, GRF_GPIO3H_DIR);
 	grf_writel((1<<30)|gpio3d6_do, GRF_GPIO3H_DO);
