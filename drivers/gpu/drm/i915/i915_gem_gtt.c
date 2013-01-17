@@ -394,7 +394,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 	/* First fill our portion of the GTT with scratch pages */
 	i915_ggtt_clear_range(dev, dev_priv->mm.gtt_start / PAGE_SIZE,
-			      (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
+			      dev_priv->mm.gtt_total / PAGE_SIZE);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		i915_gem_clflush_object(obj);
@@ -556,7 +556,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
-	dev_priv->mm.gtt_end = end;
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
 

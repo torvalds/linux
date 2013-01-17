@@ -801,7 +801,6 @@ typedef struct drm_i915_private {
 		/** Usable portion of the GTT for GEM */
 		unsigned long gtt_start;
 		unsigned long gtt_mappable_end;
-		unsigned long gtt_end;
 		unsigned long stolen_base; /* limited to low memory (32-bit) */
 
 		/** "Graphics Stolen Memory" holds the global PTEs */
