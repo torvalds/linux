@@ -1,5 +1,5 @@
 config FB_OMAP
-	tristate "OMAP frame buffer support (EXPERIMENTAL)"
+	tristate "OMAP frame buffer support"
 	depends on FB
 	depends on ARCH_OMAP1
 	select FB_CFB_FILLRECT
