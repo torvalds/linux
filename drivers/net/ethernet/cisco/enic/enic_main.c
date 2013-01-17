@@ -1490,7 +1490,8 @@ static int enic_request_intr(struct enic *enic)
 
 		for (i = 0; i < enic->rq_count; i++) {
 			intr = enic_msix_rq_intr(enic, i);
-			sprintf(enic->msix[intr].devname,
+			snprintf(enic->msix[intr].devname,
+				sizeof(enic->msix[intr].devname),
 				"%.11s-rx-%d", netdev->name, i);
 			enic->msix[intr].isr = enic_isr_msix_rq;
 			enic->msix[intr].devid = &enic->napi[i];
@@ -1498,20 +1499,23 @@ static int enic_request_intr(struct enic *enic)
 
 		for (i = 0; i < enic->wq_count; i++) {
 			intr = enic_msix_wq_intr(enic, i);
-			sprintf(enic->msix[intr].devname,
+			snprintf(enic->msix[intr].devname,
+				sizeof(enic->msix[intr].devname),
 				"%.11s-tx-%d", netdev->name, i);
 			enic->msix[intr].isr = enic_isr_msix_wq;
 			enic->msix[intr].devid = enic;
 		}
 
 		intr = enic_msix_err_intr(enic);
-		sprintf(enic->msix[intr].devname,
+		snprintf(enic->msix[intr].devname,
+			sizeof(enic->msix[intr].devname),
 			"%.11s-err", netdev->name);
 		enic->msix[intr].isr = enic_isr_msix_err;
 		enic->msix[intr].devid = enic;
 
 		intr = enic_msix_notify_intr(enic);
-		sprintf(enic->msix[intr].devname,
+		snprintf(enic->msix[intr].devname,
+			sizeof(enic->msix[intr].devname),
 			"%.11s-notify", netdev->name);
 		enic->msix[intr].isr = enic_isr_msix_notify;
 		enic->msix[intr].devid = enic;
