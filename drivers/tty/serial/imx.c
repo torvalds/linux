@@ -516,7 +516,6 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx, flg, ignored = 0;
-	struct tty_struct *tty = sport->port.state->port.tty;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long flags, temp;
 
