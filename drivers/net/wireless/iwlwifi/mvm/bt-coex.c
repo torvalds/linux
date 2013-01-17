@@ -64,6 +64,7 @@
 #include "fw-api-bt-coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
+#include "iwl-debug.h"
 
 #define EVENT_PRIO_ANT(_evt, _prio, _shrd_ant)			\
 	[(_evt)] = (((_prio) << BT_COEX_PRIO_TBL_PRIO_POS) |	\
@@ -239,4 +240,53 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, CMD_SYNC,
 				    sizeof(cmd), &cmd);
+}
+
+int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb,
+			     struct iwl_device_cmd *dev_cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
+	struct iwl_bt_coex_cmd cmd = {};
+	enum iwl_bt_kill_msk bt_kill_msk;
+
+	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
+	IWL_DEBUG_COEX(mvm, "\tBT %salive\n", notif->bt_status ? "" : "not ");
+	IWL_DEBUG_COEX(mvm, "\tBT open conn %d\n", notif->bt_open_conn);
+	IWL_DEBUG_COEX(mvm, "\tBT traffic load %d\n", notif->bt_traffic_load);
+	IWL_DEBUG_COEX(mvm, "\tBT agg traffic load %d\n",
+		       notif->bt_agg_traffic_load);
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+
+	/* Low latency BT profile is active: give higher prio to BT */
+	if (BT_MBOX_MSG(notif, 3, SCO_STATE)  ||
+	    BT_MBOX_MSG(notif, 3, A2DP_STATE) ||
+	    BT_MBOX_MSG(notif, 3, SNIFF_STATE))
+		bt_kill_msk = BT_KILL_MSK_SCO_HID_A2DP;
+	else
+		bt_kill_msk = BT_KILL_MSK_DEFAULT;
+
+	/* Don't send HCMD if there is no update */
+	if (bt_kill_msk == mvm->bt_kill_msk)
+		return 0;
+
+	IWL_DEBUG_COEX(mvm,
+		       "Udpate kill_msk: %d\n\t SCO %sactive A2DP %sactive SNIFF %sactive\n",
+		       bt_kill_msk,
+		       BT_MBOX_MSG(notif, 3, SCO_STATE) ? "" : "in",
+		       BT_MBOX_MSG(notif, 3, A2DP_STATE) ? "" : "in",
+		       BT_MBOX_MSG(notif, 3, SNIFF_STATE) ? "" : "in");
+
+	mvm->bt_kill_msk = bt_kill_msk;
+	cmd.kill_ack_msk = cpu_to_le32(iwl_bt_ack_kill_msk[bt_kill_msk]);
+	cmd.kill_cts_msk = cpu_to_le32(iwl_bt_cts_kill_msk[bt_kill_msk]);
+
+	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_KILL_ACK | BT_VALID_KILL_CTS);
+
+	if (iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, CMD_SYNC, sizeof(cmd), &cmd))
+		IWL_ERR(mvm, "Failed to sent BT Coex CMD\n");
+
+	/* This handler is ASYNC */
+	return 0;
 }
