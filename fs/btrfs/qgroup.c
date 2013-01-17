@@ -379,6 +379,13 @@ next1:
 
 		ret = add_relation_rb(fs_info, found_key.objectid,
 				      found_key.offset);
+		if (ret == -ENOENT) {
+			printk(KERN_WARNING
+				"btrfs: orphan qgroup relation 0x%llx->0x%llx\n",
+				(unsigned long long)found_key.objectid,
+				(unsigned long long)found_key.offset);
+			ret = 0;	/* ignore the error */
+		}
 		if (ret)
 			goto out;
 next2:
