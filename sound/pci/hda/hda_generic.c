@@ -26,6 +26,7 @@
 #include <linux/sort.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -119,6 +120,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
 
+	val = snd_hda_get_bool_hint(codec, "auto_mute");
+	if (val >= 0)
+		spec->suppress_auto_mute = !val;
 	val = snd_hda_get_bool_hint(codec, "auto_mic");
 	if (val >= 0)
 		spec->suppress_auto_mic = !val;
@@ -146,6 +150,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "add_out_jack_modes");
 	if (val >= 0)
 		spec->add_out_jack_modes = !!val;
+	val = snd_hda_get_bool_hint(codec, "add_in_jack_modes");
+	if (val >= 0)
+		spec->add_in_jack_modes = !!val;
 
 	if (!snd_hda_get_int_hint(codec, "mixer_nid", &val))
 		spec->mixer_nid = val;
@@ -818,19 +825,27 @@ static int add_stereo_sw(struct hda_codec *codec, const char *pfx,
 	return add_sw_ctl(codec, pfx, cidx, chs, path);
 }
 
+/* any ctl assigned to the path with the given index? */
+static bool path_has_mixer(struct hda_codec *codec, int path_idx, int ctl_type)
+{
+	struct nid_path *path = snd_hda_get_path_from_idx(codec, path_idx);
+	return path && path->ctls[ctl_type];
+}
+
 static const char * const channel_name[4] = {
 	"Front", "Surround", "CLFE", "Side"
 };
 
 /* give some appropriate ctl name prefix for the given line out channel */
-static const char *get_line_out_pfx(struct hda_gen_spec *spec, int ch,
-				    bool can_be_master, int *index)
+static const char *get_line_out_pfx(struct hda_codec *codec, int ch,
+				    int *index, int ctl_type)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 
 	*index = 0;
 	if (cfg->line_outs == 1 && !spec->multi_ios &&
-	    !cfg->hp_outs && !cfg->speaker_outs && can_be_master)
+	    !cfg->hp_outs && !cfg->speaker_outs)
 		return spec->vmaster_mute.hook ? "PCM" : "Master";
 
 	/* if there is really a single DAC used in the whole output paths,
@@ -840,24 +855,41 @@ static const char *get_line_out_pfx(struct hda_gen_spec *spec, int ch,
 	    !spec->multiout.hp_out_nid[0] && !spec->multiout.extra_out_nid[0])
 		return spec->vmaster_mute.hook ? "PCM" : "Master";
 
+	/* multi-io channels */
+	if (ch >= cfg->line_outs)
+		return channel_name[ch];
+
 	switch (cfg->line_out_type) {
 	case AUTO_PIN_SPEAKER_OUT:
+		/* if the primary channel vol/mute is shared with HP volume,
+		 * don't name it as Speaker
+		 */
+		if (!ch && cfg->hp_outs &&
+		    !path_has_mixer(codec, spec->hp_paths[0], ctl_type))
+			break;
 		if (cfg->line_outs == 1)
 			return "Speaker";
 		if (cfg->line_outs == 2)
 			return ch ? "Bass Speaker" : "Speaker";
 		break;
 	case AUTO_PIN_HP_OUT:
+		/* if the primary channel vol/mute is shared with spk volume,
+		 * don't name it as Headphone
+		 */
+		if (!ch && cfg->speaker_outs &&
+		    !path_has_mixer(codec, spec->speaker_paths[0], ctl_type))
+			break;
 		/* for multi-io case, only the primary out */
 		if (ch && spec->multi_ios)
 			break;
 		*index = ch;
 		return "Headphone";
-	default:
-		if (cfg->line_outs == 1 && !spec->multi_ios)
-			return "PCM";
-		break;
 	}
+
+	/* for a single channel output, we don't have to name the channel */
+	if (cfg->line_outs == 1 && !spec->multi_ios)
+		return "PCM";
+
 	if (ch >= ARRAY_SIZE(channel_name)) {
 		snd_BUG();
 		return "PCM";
@@ -1594,6 +1626,9 @@ static int parse_output_paths(struct hda_codec *codec)
 		path = snd_hda_get_path_from_idx(codec, spec->out_paths[0]);
 		if (path)
 			spec->vmaster_nid = look_for_out_vol_nid(codec, path);
+		if (spec->vmaster_nid)
+			snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
+						HDA_OUTPUT, spec->vmaster_tlv);
 	}
 
 	kfree(best_cfg);
@@ -1616,16 +1651,11 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 		int index;
 		struct nid_path *path;
 
-		if (i >= cfg->line_outs) {
-			index = 0;
-			name = channel_name[i];
-		} else {
-			name = get_line_out_pfx(spec, i, true, &index);
-		}
-
 		path = snd_hda_get_path_from_idx(codec, spec->out_paths[i]);
 		if (!path)
 			continue;
+
+		name = get_line_out_pfx(codec, i, &index, NID_PATH_VOL_CTL);
 		if (!name || !strcmp(name, "CLFE")) {
 			/* Center/LFE */
 			err = add_vol_ctl(codec, "Center", 0, 1, path);
@@ -1634,6 +1664,14 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 			err = add_vol_ctl(codec, "LFE", 0, 2, path);
 			if (err < 0)
 				return err;
+		} else {
+			err = add_stereo_vol(codec, name, index, path);
+			if (err < 0)
+				return err;
+		}
+
+		name = get_line_out_pfx(codec, i, &index, NID_PATH_MUTE_CTL);
+		if (!name || !strcmp(name, "CLFE")) {
 			err = add_sw_ctl(codec, "Center", 0, 1, path);
 			if (err < 0)
 				return err;
@@ -1641,9 +1679,6 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 			if (err < 0)
 				return err;
 		} else {
-			err = add_stereo_vol(codec, name, index, path);
-			if (err < 0)
-				return err;
 			err = add_stereo_sw(codec, name, index, path);
 			if (err < 0)
 				return err;
@@ -1826,6 +1861,8 @@ get_multiio_path(struct hda_codec *codec, int idx)
 		spec->out_paths[spec->autocfg.line_outs + idx]);
 }
 
+static void update_automute_all(struct hda_codec *codec);
+
 static int set_multi_io(struct hda_codec *codec, int idx, bool output)
 {
 	struct hda_gen_spec *spec = codec->spec;
@@ -1850,9 +1887,7 @@ static int set_multi_io(struct hda_codec *codec, int idx, bool output)
 	}
 
 	/* update jack retasking in case it modifies any of them */
-	snd_hda_gen_hp_automute(codec, NULL);
-	snd_hda_gen_line_automute(codec, NULL);
-	snd_hda_gen_mic_autoswitch(codec, NULL);
+	update_automute_all(codec);
 
 	return 0;
 }
@@ -2135,6 +2170,136 @@ static int create_out_jack_modes(struct hda_codec *codec, int num_pins,
 	return 0;
 }
 
+/*
+ * input jack mode
+ */
+
+/* from AC_PINCTL_VREF_HIZ to AC_PINCTL_VREF_100 */
+#define NUM_VREFS	6
+
+static const char * const vref_texts[NUM_VREFS] = {
+	"Line In", "Mic 50pc Bias", "Mic 0V Bias",
+	"", "Mic 80pc Bias", "Mic 100pc Bias"
+};
+
+static unsigned int get_vref_caps(struct hda_codec *codec, hda_nid_t pin)
+{
+	unsigned int pincap;
+
+	pincap = snd_hda_query_pin_caps(codec, pin);
+	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+	/* filter out unusual vrefs */
+	pincap &= ~(AC_PINCAP_VREF_GRD | AC_PINCAP_VREF_100);
+	return pincap;
+}
+
+/* convert from the enum item index to the vref ctl index (0=HIZ, 1=50%...) */
+static int get_vref_idx(unsigned int vref_caps, unsigned int item_idx)
+{
+	unsigned int i, n = 0;
+
+	for (i = 0; i < NUM_VREFS; i++) {
+		if (vref_caps & (1 << i)) {
+			if (n == item_idx)
+				return i;
+			n++;
+		}
+	}
+	return 0;
+}
+
+/* convert back from the vref ctl index to the enum item index */
+static int cvt_from_vref_idx(unsigned int vref_caps, unsigned int idx)
+{
+	unsigned int i, n = 0;
+
+	for (i = 0; i < NUM_VREFS; i++) {
+		if (i == idx)
+			return n;
+		if (vref_caps & (1 << i))
+			n++;
+	}
+	return 0;
+}
+
+static int in_jack_mode_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+
+	snd_hda_enum_helper_info(kcontrol, uinfo, hweight32(vref_caps),
+				 vref_texts);
+	/* set the right text */
+	strcpy(uinfo->value.enumerated.name,
+	       vref_texts[get_vref_idx(vref_caps, uinfo->value.enumerated.item)]);
+	return 0;
+}
+
+static int in_jack_mode_get(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+	unsigned int idx;
+
+	idx = snd_hda_codec_get_pin_target(codec, nid) & AC_PINCTL_VREFEN;
+	ucontrol->value.enumerated.item[0] = cvt_from_vref_idx(vref_caps, idx);
+	return 0;
+}
+
+static int in_jack_mode_put(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+	unsigned int val, idx;
+
+	val = snd_hda_codec_get_pin_target(codec, nid);
+	idx = cvt_from_vref_idx(vref_caps, val & AC_PINCTL_VREFEN);
+	if (idx == ucontrol->value.enumerated.item[0])
+		return 0;
+
+	val &= ~AC_PINCTL_VREFEN;
+	val |= get_vref_idx(vref_caps, ucontrol->value.enumerated.item[0]);
+	snd_hda_set_pin_ctl_cache(codec, nid, val);
+	return 1;
+}
+
+static const struct snd_kcontrol_new in_jack_mode_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = in_jack_mode_info,
+	.get = in_jack_mode_get,
+	.put = in_jack_mode_put,
+};
+
+static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int defcfg;
+	struct snd_kcontrol_new *knew;
+	char name[44];
+
+	/* no jack mode for fixed pins */
+	defcfg = snd_hda_codec_get_pincfg(codec, pin);
+	if (snd_hda_get_input_pin_attr(defcfg) == INPUT_PIN_ATTR_INT)
+		return 0;
+
+	/* no multiple vref caps? */
+	if (hweight32(get_vref_caps(codec, pin)) <= 1)
+		return 0;
+
+	get_jack_mode_name(codec, pin, name, sizeof(name));
+	knew = snd_hda_gen_add_kctl(spec, name, &in_jack_mode_enum);
+	if (!knew)
+		return -ENOMEM;
+	knew->private_value = pin;
+	return 0;
+}
+
 
 /*
  * Parse input paths
@@ -2228,6 +2393,11 @@ static int fill_adc_nids(struct hda_codec *codec)
 			break;
 	}
 	spec->num_adc_nids = nums;
+
+	/* copy the detected ADCs to all_adcs[] */
+	spec->num_all_adcs = nums;
+	memcpy(spec->all_adcs, spec->adc_nids, nums * sizeof(hda_nid_t));
+
 	return nums;
 }
 
@@ -2389,6 +2559,12 @@ static int create_input_ctls(struct hda_codec *codec)
 		err = parse_capture_source(codec, pin, num_adcs, label, -mixer);
 		if (err < 0)
 			return err;
+
+		if (spec->add_in_jack_modes) {
+			err = create_in_jack_mode(codec, pin);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	if (mixer && spec->add_stereo_mix_input) {
@@ -3047,6 +3223,7 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 	else
 		on = spec->hp_jack_present | spec->line_jack_present;
 	on |= spec->master_mute;
+	spec->speaker_muted = on;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.speaker_pins),
 		    spec->autocfg.speaker_pins, on);
 
@@ -3060,6 +3237,7 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 	else
 		on = spec->hp_jack_present;
 	on |= spec->master_mute;
+	spec->line_out_muted = on;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 		    spec->autocfg.line_out_pins, on);
 }
@@ -3130,6 +3308,25 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *ja
 	mux_select(codec, 0, spec->am_entry[0].idx);
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_mic_autoswitch);
+
+/* update jack retasking */
+static void update_automute_all(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->hp_automute_hook)
+		spec->hp_automute_hook(codec, NULL);
+	else
+		snd_hda_gen_hp_automute(codec, NULL);
+	if (spec->line_automute_hook)
+		spec->line_automute_hook(codec, NULL);
+	else
+		snd_hda_gen_line_automute(codec, NULL);
+	if (spec->mic_autoswitch_hook)
+		spec->mic_autoswitch_hook(codec, NULL);
+	else
+		snd_hda_gen_mic_autoswitch(codec, NULL);
+}
 
 /*
  * Auto-Mute mode mixer enum support
@@ -3231,6 +3428,9 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int present = 0;
 	int i, err;
+
+	if (spec->suppress_auto_mute)
+		return 0;
 
 	if (cfg->hp_pins[0])
 		present++;
@@ -3585,11 +3785,8 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 	/* if we have no master control, let's create it */
 	if (!spec->no_analog &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
-		unsigned int vmaster_tlv[4];
-		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
-					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_pfxs,
+					  spec->vmaster_tlv, slave_pfxs,
 					  "Playback Volume");
 		if (err < 0)
 			return err;
@@ -3641,6 +3838,16 @@ static void call_pcm_playback_hook(struct hda_pcm_stream *hinfo,
 	struct hda_gen_spec *spec = codec->spec;
 	if (spec->pcm_playback_hook)
 		spec->pcm_playback_hook(hinfo, codec, substream, action);
+}
+
+static void call_pcm_capture_hook(struct hda_pcm_stream *hinfo,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream,
+				  int action)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->pcm_capture_hook)
+		spec->pcm_capture_hook(hinfo, codec, substream, action);
 }
 
 /*
@@ -3707,6 +3914,44 @@ static int playback_pcm_close(struct hda_pcm_stream *hinfo,
 	call_pcm_playback_hook(hinfo, codec, substream,
 			       HDA_GEN_PCM_ACT_CLOSE);
 	mutex_unlock(&spec->pcm_mutex);
+	return 0;
+}
+
+static int capture_pcm_open(struct hda_pcm_stream *hinfo,
+			    struct hda_codec *codec,
+			    struct snd_pcm_substream *substream)
+{
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_OPEN);
+	return 0;
+}
+
+static int capture_pcm_prepare(struct hda_pcm_stream *hinfo,
+			       struct hda_codec *codec,
+			       unsigned int stream_tag,
+			       unsigned int format,
+			       struct snd_pcm_substream *substream)
+{
+	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_PREPARE);
+	return 0;
+}
+
+static int capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
+			       struct hda_codec *codec,
+			       struct snd_pcm_substream *substream)
+{
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_CLEANUP);
+	return 0;
+}
+
+static int capture_pcm_close(struct hda_pcm_stream *hinfo,
+			     struct hda_codec *codec,
+			     struct snd_pcm_substream *substream)
+{
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_CLOSE);
 	return 0;
 }
 
@@ -3804,6 +4049,9 @@ static int dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 /*
  * Analog capture
  */
+#define alt_capture_pcm_open	capture_pcm_open
+#define alt_capture_pcm_close	capture_pcm_close
+
 static int alt_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   unsigned int stream_tag,
@@ -3814,6 +4062,8 @@ static int alt_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number + 1],
 				   stream_tag, 0, format);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_PREPARE);
 	return 0;
 }
 
@@ -3825,6 +4075,8 @@ static int alt_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_cleanup_stream(codec,
 				     spec->adc_nids[substream->number + 1]);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_CLEANUP);
 	return 0;
 }
 
@@ -3848,6 +4100,12 @@ static const struct hda_pcm_stream pcm_analog_capture = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in build_pcms */
+	.ops = {
+		.open = capture_pcm_open,
+		.close = capture_pcm_close,
+		.prepare = capture_pcm_prepare,
+		.cleanup = capture_pcm_cleanup
+	},
 };
 
 static const struct hda_pcm_stream pcm_analog_alt_playback = {
@@ -3869,6 +4127,8 @@ static const struct hda_pcm_stream pcm_analog_alt_capture = {
 	.channels_max = 2,
 	/* NID is set in build_pcms */
 	.ops = {
+		.open = alt_capture_pcm_open,
+		.close = alt_capture_pcm_close,
 		.prepare = alt_capture_pcm_prepare,
 		.cleanup = alt_capture_pcm_cleanup
 	},
@@ -4281,9 +4541,7 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	clear_unsol_on_unused_pins(codec);
 
 	/* call init functions of standard auto-mute helpers */
-	snd_hda_gen_hp_automute(codec, NULL);
-	snd_hda_gen_line_automute(codec, NULL);
-	snd_hda_gen_mic_autoswitch(codec, NULL);
+	update_automute_all(codec);
 
 	snd_hda_codec_flush_amp_cache(codec);
 	snd_hda_codec_flush_cmd_cache(codec);
