@@ -270,6 +270,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	int result = 0;
 	acpi_status status = AE_OK;
 	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
+	bool cut_power = false;
 
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
@@ -294,9 +295,13 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
-	/* For D3cold we should execute _PS3, not _PS4. */
-	if (state == ACPI_STATE_D3_COLD)
+	/* For D3cold we should first transition into D3hot. */
+	if (state == ACPI_STATE_D3_COLD
+	    && device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible) {
+		state = ACPI_STATE_D3_HOT;
 		object_name[3] = '3';
+		cut_power = true;
+	}
 
 	/*
 	 * Transition Power
@@ -340,6 +345,9 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 				goto end;
 		}
 	}
+
+	if (cut_power)
+		result = acpi_power_transition(device, ACPI_STATE_D3_COLD);
 
       end:
 	if (result)
