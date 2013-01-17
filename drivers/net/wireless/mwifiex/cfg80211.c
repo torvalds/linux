@@ -1459,7 +1459,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
-	u8 is_scanning_required = 0, config_bands = 0;
+	u8 is_scanning_required = 0;
 
 	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
@@ -1477,19 +1477,6 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 
 	/* disconnect before try to associate */
 	mwifiex_deauthenticate(priv, NULL);
-
-	if (channel) {
-		if (mode == NL80211_IFTYPE_STATION) {
-			if (channel->band == IEEE80211_BAND_2GHZ)
-				config_bands = BAND_B | BAND_G | BAND_GN;
-			else
-				config_bands = BAND_A | BAND_AN;
-
-			if (!((config_bands | priv->adapter->fw_bands) &
-			      ~priv->adapter->fw_bands))
-				priv->adapter->config_bands = config_bands;
-		}
-	}
 
 	/* As this is new association, clear locally stored
 	 * keys and security related flags */
@@ -1707,7 +1694,7 @@ static int mwifiex_set_ibss_params(struct mwifiex_private *priv,
 
 		if (cfg80211_get_chandef_type(&params->chandef) !=
 						NL80211_CHAN_NO_HT)
-			config_bands |= BAND_GN;
+			config_bands |= BAND_G | BAND_GN;
 	} else {
 		if (cfg80211_get_chandef_type(&params->chandef) ==
 						NL80211_CHAN_NO_HT)

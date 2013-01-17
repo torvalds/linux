@@ -861,7 +861,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	RXS_ERR("RX-LENGTH-ERR", rx_len_err);
 	RXS_ERR("RX-OOM-ERR", rx_oom_err);
 	RXS_ERR("RX-RATE-ERR", rx_rate_err);
-	RXS_ERR("RX-DROP-RXFLUSH", rx_drop_rxflush);
 	RXS_ERR("RX-TOO-MANY-FRAGS", rx_too_many_frags_err);
 
 	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
