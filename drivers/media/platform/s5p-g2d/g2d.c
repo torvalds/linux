@@ -604,8 +604,13 @@ static void device_run(void *prv)
 	g2d_set_flip(dev, ctx->flip);
 
 	if (ctx->in.c_width != ctx->out.c_width ||
-		ctx->in.c_height != ctx->out.c_height)
-		cmd |= g2d_cmd_stretch(1);
+		ctx->in.c_height != ctx->out.c_height) {
+		if (dev->variant->hw_rev == TYPE_G2D_3X)
+			cmd |= CMD_V3_ENABLE_STRETCH;
+		else
+			g2d_set_v41_stretch(dev, &ctx->in, &ctx->out);
+	}
+
 	g2d_set_cmd(dev, cmd);
 	g2d_start(dev);
 
@@ -791,6 +796,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
+	dev->variant = g2d_get_drv_data(pdev);
 
 	return 0;
 
@@ -830,9 +836,30 @@ static int g2d_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct g2d_variant g2d_drvdata_v3x = {
+	.hw_rev = TYPE_G2D_3X,
+};
+
+static struct g2d_variant g2d_drvdata_v4x = {
+	.hw_rev = TYPE_G2D_4X, /* Revision 4.1 for Exynos4X12 and Exynos5 */
+};
+
+static struct platform_device_id g2d_driver_ids[] = {
+	{
+		.name = "s5p-g2d",
+		.driver_data = (unsigned long)&g2d_drvdata_v3x,
+	}, {
+		.name = "s5p-g2d-v4x",
+		.driver_data = (unsigned long)&g2d_drvdata_v4x,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, g2d_driver_ids);
+
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
+	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
 		.owner = THIS_MODULE,

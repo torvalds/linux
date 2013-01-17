@@ -10,10 +10,13 @@
  * License, or (at your option) any later version
  */
 
+#include <linux/platform_device.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
 #define G2D_NAME "s5p-g2d"
+#define TYPE_G2D_3X 3
+#define TYPE_G2D_4X 4
 
 struct g2d_dev {
 	struct v4l2_device	v4l2_dev;
@@ -27,6 +30,7 @@ struct g2d_dev {
 	struct clk		*clk;
 	struct clk		*gate;
 	struct g2d_ctx		*curr;
+	struct g2d_variant	*variant;
 	int irq;
 	wait_queue_head_t	irq_queue;
 };
@@ -53,7 +57,7 @@ struct g2d_frame {
 struct g2d_ctx {
 	struct v4l2_fh fh;
 	struct g2d_dev		*dev;
-	struct v4l2_m2m_ctx     *m2m_ctx;
+	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct g2d_frame	in;
 	struct g2d_frame	out;
 	struct v4l2_ctrl	*ctrl_hflip;
@@ -70,6 +74,9 @@ struct g2d_fmt {
 	u32	hw;
 };
 
+struct g2d_variant {
+	unsigned short hw_rev;
+};
 
 void g2d_reset(struct g2d_dev *d);
 void g2d_set_src_size(struct g2d_dev *d, struct g2d_frame *f);
@@ -80,7 +87,11 @@ void g2d_start(struct g2d_dev *d);
 void g2d_clear_int(struct g2d_dev *d);
 void g2d_set_rop4(struct g2d_dev *d, u32 r);
 void g2d_set_flip(struct g2d_dev *d, u32 r);
-u32 g2d_cmd_stretch(u32 e);
+void g2d_set_v41_stretch(struct g2d_dev *d,
+			struct g2d_frame *src, struct g2d_frame *dst);
 void g2d_set_cmd(struct g2d_dev *d, u32 c);
 
-
+static inline struct g2d_variant *g2d_get_drv_data(struct platform_device *pdev)
+{
+	return (struct g2d_variant *)platform_get_device_id(pdev)->driver_data;
+}
