@@ -33,6 +33,9 @@
 
 #define VMWARE_PORT_CMD_GETVERSION	10
 #define VMWARE_PORT_CMD_GETHZ		45
+#define VMWARE_PORT_CMD_GETVCPU_INFO	68
+#define VMWARE_PORT_CMD_LEGACY_X2APIC	3
+#define VMWARE_PORT_CMD_VCPU_RESERVED	31
 
 #define VMWARE_PORT(cmd, eax, ebx, ecx, edx)				\
 	__asm__("inl (%%dx)" :						\
@@ -125,10 +128,20 @@ static void __cpuinit vmware_set_cpu_features(struct cpuinfo_x86 *c)
 	set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
 }
 
+/* Checks if hypervisor supports x2apic without VT-D interrupt remapping. */
+static bool __init vmware_legacy_x2apic_available(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+	VMWARE_PORT(GETVCPU_INFO, eax, ebx, ecx, edx);
+	return (eax & (1 << VMWARE_PORT_CMD_VCPU_RESERVED)) == 0 &&
+	       (eax & (1 << VMWARE_PORT_CMD_LEGACY_X2APIC)) != 0;
+}
+
 const __refconst struct hypervisor_x86 x86_hyper_vmware = {
 	.name			= "VMware",
 	.detect			= vmware_platform,
 	.set_cpu_features	= vmware_set_cpu_features,
 	.init_platform		= vmware_platform_setup,
+	.x2apic_available	= vmware_legacy_x2apic_available,
 };
 EXPORT_SYMBOL(x86_hyper_vmware);

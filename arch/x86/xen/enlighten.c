@@ -1668,6 +1668,7 @@ const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
 	.name			= "Xen HVM",
 	.detect			= xen_hvm_platform,
 	.init_platform		= xen_hvm_guest_init,
+	.x2apic_available	= xen_x2apic_para_available,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif
