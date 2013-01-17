@@ -196,153 +196,99 @@ enum lx_func {
  * Damn ...  bitfields depend from byteorder :-(
  */
 #ifdef __MIPSEB__
-struct j_format {	/* Jump format */
-	unsigned int opcode : 6;
-	unsigned int target : 26;
-};
-
-struct i_format {	/* Immediate format (addi, lw, ...) */
-	unsigned int opcode : 6;
-	unsigned int rs : 5;
-	unsigned int rt : 5;
-	signed int simmediate : 16;
-};
-
-struct u_format {	/* Unsigned immediate format (ori, xori, ...) */
-	unsigned int opcode : 6;
-	unsigned int rs : 5;
-	unsigned int rt : 5;
-	unsigned int uimmediate : 16;
-};
-
-struct c_format {	/* Cache (>= R6000) format */
-	unsigned int opcode : 6;
-	unsigned int rs : 5;
-	unsigned int c_op : 3;
-	unsigned int cache : 2;
-	unsigned int simmediate : 16;
-};
-
-struct r_format {	/* Register format */
-	unsigned int opcode : 6;
-	unsigned int rs : 5;
-	unsigned int rt : 5;
-	unsigned int rd : 5;
-	unsigned int re : 5;
-	unsigned int func : 6;
-};
-
-struct p_format {	/* Performance counter format (R10000) */
-	unsigned int opcode : 6;
-	unsigned int rs : 5;
-	unsigned int rt : 5;
-	unsigned int rd : 5;
-	unsigned int re : 5;
-	unsigned int func : 6;
-};
-
-struct f_format {	/* FPU register format */
-	unsigned int opcode : 6;
-	unsigned int : 1;
-	unsigned int fmt : 4;
-	unsigned int rt : 5;
-	unsigned int rd : 5;
-	unsigned int re : 5;
-	unsigned int func : 6;
-};
-
-struct ma_format {	/* FPU multiply and add format (MIPS IV) */
-	unsigned int opcode : 6;
-	unsigned int fr : 5;
-	unsigned int ft : 5;
-	unsigned int fs : 5;
-	unsigned int fd : 5;
-	unsigned int func : 4;
-	unsigned int fmt : 2;
-};
-
-struct b_format { /* BREAK and SYSCALL */
-	unsigned int opcode:6;
-	unsigned int code:20;
-	unsigned int func:6;
-};
+#define BITFIELD_FIELD(field, more)					\
+	field;								\
+	more
 
 #elif defined(__MIPSEL__)
 
-struct j_format {	/* Jump format */
-	unsigned int target : 26;
-	unsigned int opcode : 6;
-};
-
-struct i_format {	/* Immediate format */
-	signed int simmediate : 16;
-	unsigned int rt : 5;
-	unsigned int rs : 5;
-	unsigned int opcode : 6;
-};
-
-struct u_format {	/* Unsigned immediate format */
-	unsigned int uimmediate : 16;
-	unsigned int rt : 5;
-	unsigned int rs : 5;
-	unsigned int opcode : 6;
-};
-
-struct c_format {	/* Cache (>= R6000) format */
-	unsigned int simmediate : 16;
-	unsigned int cache : 2;
-	unsigned int c_op : 3;
-	unsigned int rs : 5;
-	unsigned int opcode : 6;
-};
-
-struct r_format {	/* Register format */
-	unsigned int func : 6;
-	unsigned int re : 5;
-	unsigned int rd : 5;
-	unsigned int rt : 5;
-	unsigned int rs : 5;
-	unsigned int opcode : 6;
-};
-
-struct p_format {	/* Performance counter format (R10000) */
-	unsigned int func : 6;
-	unsigned int re : 5;
-	unsigned int rd : 5;
-	unsigned int rt : 5;
-	unsigned int rs : 5;
-	unsigned int opcode : 6;
-};
-
-struct f_format {	/* FPU register format */
-	unsigned int func : 6;
-	unsigned int re : 5;
-	unsigned int rd : 5;
-	unsigned int rt : 5;
-	unsigned int fmt : 4;
-	unsigned int : 1;
-	unsigned int opcode : 6;
-};
-
-struct ma_format {	/* FPU multiply and add format (MIPS IV) */
-	unsigned int fmt : 2;
-	unsigned int func : 4;
-	unsigned int fd : 5;
-	unsigned int fs : 5;
-	unsigned int ft : 5;
-	unsigned int fr : 5;
-	unsigned int opcode : 6;
-};
-
-struct b_format { /* BREAK and SYSCALL */
-	unsigned int func:6;
-	unsigned int code:20;
-	unsigned int opcode:6;
-};
+#define BITFIELD_FIELD(field, more)					\
+	more								\
+	field;
 
 #else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
 #error "MIPS but neither __MIPSEL__ nor __MIPSEB__?"
 #endif
+
+struct j_format {
+	BITFIELD_FIELD(unsigned int opcode : 6,	/* Jump format */
+	BITFIELD_FIELD(unsigned int target : 26,
+	;))
+};
+
+struct i_format {			/* signed immediate format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int rt : 5,
+	BITFIELD_FIELD(signed int simmediate : 16,
+	;))))
+};
+
+struct u_format {			/* unsigned immediate format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int rt : 5,
+	BITFIELD_FIELD(unsigned int uimmediate : 16,
+	;))))
+};
+
+struct c_format {			/* Cache (>= R6000) format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int c_op : 3,
+	BITFIELD_FIELD(unsigned int cache : 2,
+	BITFIELD_FIELD(unsigned int simmediate : 16,
+	;)))))
+};
+
+struct r_format {			/* Register format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int rt : 5,
+	BITFIELD_FIELD(unsigned int rd : 5,
+	BITFIELD_FIELD(unsigned int re : 5,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;))))))
+};
+
+struct p_format {		/* Performance counter format (R10000) */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int rs : 5,
+	BITFIELD_FIELD(unsigned int rt : 5,
+	BITFIELD_FIELD(unsigned int rd : 5,
+	BITFIELD_FIELD(unsigned int re : 5,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;))))))
+};
+
+struct f_format { 			/* FPU register format */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int : 1,
+	BITFIELD_FIELD(unsigned int fmt : 4,
+	BITFIELD_FIELD(unsigned int rt : 5,
+	BITFIELD_FIELD(unsigned int rd : 5,
+	BITFIELD_FIELD(unsigned int re : 5,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;)))))))
+};
+
+struct ma_format {		/* FPU multiply and add format (MIPS IV) */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int fr : 5,
+	BITFIELD_FIELD(unsigned int ft : 5,
+	BITFIELD_FIELD(unsigned int fs : 5,
+	BITFIELD_FIELD(unsigned int fd : 5,
+	BITFIELD_FIELD(unsigned int func : 4,
+	BITFIELD_FIELD(unsigned int fmt : 2,
+	;)))))))
+};
+
+struct b_format {			/* BREAK and SYSCALL */
+	BITFIELD_FIELD(unsigned int opcode : 6,
+	BITFIELD_FIELD(unsigned int code : 20,
+	BITFIELD_FIELD(unsigned int func : 6,
+	;)))
+};
 
 union mips_instruction {
 	unsigned int word;
