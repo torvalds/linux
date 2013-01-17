@@ -182,7 +182,11 @@ EXPORT_SYMBOL(acpi_bus_get_private_data);
                                  Power Management
    -------------------------------------------------------------------------- */
 
-static const char *state_string(int state)
+/**
+ * acpi_power_state_string - String representation of ACPI device power state.
+ * @state: ACPI device power state to return the string representation of.
+ */
+const char *acpi_power_state_string(int state)
 {
 	switch (state) {
 	case ACPI_STATE_D0:
@@ -260,7 +264,7 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 
  out:
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] power state is %s\n",
-			  device->pnp.bus_id, state_string(*state)));
+			  device->pnp.bus_id, acpi_power_state_string(*state)));
 
 	return 0;
 }
@@ -288,13 +292,13 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at %s\n",
-				  state_string(state)));
+				  acpi_power_state_string(state)));
 		return 0;
 	}
 
 	if (!device->power.states[state].flags.valid) {
 		printk(KERN_WARNING PREFIX "Device does not support %s\n",
-		       state_string(state));
+		       acpi_power_state_string(state));
 		return -ENODEV;
 	}
 	if (device->parent && (state < device->parent->power.state)) {
@@ -362,12 +366,14 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	if (result)
 		printk(KERN_WARNING PREFIX
 			      "Device [%s] failed to transition to %s\n",
-			      device->pnp.bus_id, state_string(state));
+			      device->pnp.bus_id,
+			      acpi_power_state_string(state));
 	else {
 		device->power.state = state;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to %s\n",
-				  device->pnp.bus_id, state_string(state)));
+				  device->pnp.bus_id,
+				  acpi_power_state_string(state)));
 	}
 
 	return result;
