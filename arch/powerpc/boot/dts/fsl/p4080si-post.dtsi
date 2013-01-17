@@ -41,7 +41,7 @@
 
 /* controller at 0x200000 */
 &pci0 {
-	compatible = "fsl,p4080-pcie";
+	compatible = "fsl,p4080-pcie", "fsl,qoriq-pcie-v2.1";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -70,7 +70,7 @@
 
 /* controller at 0x201000 */
 &pci1 {
-	compatible = "fsl,p4080-pcie";
+	compatible = "fsl,p4080-pcie", "fsl,qoriq-pcie-v2.1";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -99,7 +99,7 @@
 
 /* controller at 0x202000 */
 &pci2 {
-	compatible = "fsl,p4080-pcie";
+	compatible = "fsl,p4080-pcie", "fsl,qoriq-pcie-v2.1";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;

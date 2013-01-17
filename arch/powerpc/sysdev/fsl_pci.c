@@ -827,13 +827,18 @@ static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,mpc8548-pcie", },
 	{ .compatible = "fsl,mpc8610-pci", },
 	{ .compatible = "fsl,mpc8641-pcie", },
-	{ .compatible = "fsl,p1022-pcie", },
-	{ .compatible = "fsl,p1010-pcie", },
-	{ .compatible = "fsl,p1023-pcie", },
-	{ .compatible = "fsl,p4080-pcie", },
-	{ .compatible = "fsl,qoriq-pcie-v2.4", },
-	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.1", },
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
+	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.4", },
+
+	/*
+	 * The following entries are for compatibility with older device
+	 * trees.
+	 */
+	{ .compatible = "fsl,p1022-pcie", },
+	{ .compatible = "fsl,p4080-pcie", },
+
 	{},
 };
 
