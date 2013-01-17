@@ -374,6 +374,9 @@ void cpsw_tx_handler(void *token, int len, int status)
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
 
+	/* Check whether the queue is stopped due to stalled tx dma, if the
+	 * queue is stopped then start the queue as we have free desc for tx
+	 */
 	if (unlikely(netif_queue_stopped(ndev)))
 		netif_start_queue(ndev);
 	cpts_tx_timestamp(&priv->cpts, skb);
@@ -735,6 +738,12 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 		cpsw_err(priv, tx_err, "desc submit failed\n");
 		goto fail;
 	}
+
+	/* If there is no more tx desc left free then we need to
+	 * tell the kernel to stop sending us tx frames.
+	 */
+	if (unlikely(cpdma_check_free_tx_desc(priv->txch)))
+		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;
 fail:

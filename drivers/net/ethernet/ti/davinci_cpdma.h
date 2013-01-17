@@ -88,6 +88,7 @@ int cpdma_chan_process(struct cpdma_chan *chan, int quota);
 int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable);
 void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr);
 int cpdma_chan_int_ctrl(struct cpdma_chan *chan, bool enable);
+bool cpdma_check_free_tx_desc(struct cpdma_chan *chan);
 
 enum cpdma_control {
 	CPDMA_CMD_IDLE,			/* write-only */
