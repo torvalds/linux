@@ -1,5 +1,5 @@
 /*
- * debugfs.c - ACPI debugfs interface to userspace.
+ * custom_method.c - debugfs interface for customizing ACPI control method
  */
 
 #include <linux/init.h>
