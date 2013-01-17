@@ -47,13 +47,29 @@ static inline unsigned int dwc_get_sms(struct dw_dma_slave *slave)
 	return slave ? slave->src_master : 1;
 }
 
+#define SRC_MASTER	0
+#define DST_MASTER	1
+
+static inline unsigned int dwc_get_master(struct dma_chan *chan, int master)
+{
+	struct dw_dma *dw = to_dw_dma(chan->device);
+	struct dw_dma_slave *dws = chan->private;
+	unsigned int m;
+
+	if (master == SRC_MASTER)
+		m = dwc_get_sms(dws);
+	else
+		m = dwc_get_dms(dws);
+
+	return min_t(unsigned int, dw->nr_masters - 1, m);
+}
+
 #define DWC_DEFAULT_CTLLO(_chan) ({				\
-		struct dw_dma_slave *__slave = (_chan->private);	\
 		struct dw_dma_chan *_dwc = to_dw_dma_chan(_chan);	\
 		struct dma_slave_config	*_sconfig = &_dwc->dma_sconfig;	\
 		bool _is_slave = is_slave_direction(_dwc->direction);	\
-		int _dms = dwc_get_dms(__slave);		\
-		int _sms = dwc_get_sms(__slave);		\
+		int _dms = dwc_get_master(_chan, DST_MASTER);		\
+		int _sms = dwc_get_master(_chan, SRC_MASTER);		\
 		u8 _smsize = _is_slave ? _sconfig->src_maxburst :	\
 			DW_DMA_MSIZE_16;			\
 		u8 _dmsize = _is_slave ? _sconfig->dst_maxburst :	\
@@ -74,20 +90,11 @@ static inline unsigned int dwc_get_sms(struct dw_dma_slave *slave)
  */
 #define NR_DESCS_PER_CHANNEL	64
 
-#define SRC_MASTER	0
-#define DST_MASTER	1
-
 static inline unsigned int dwc_get_data_width(struct dma_chan *chan, int master)
 {
 	struct dw_dma *dw = to_dw_dma(chan->device);
-	struct dw_dma_slave *dws = chan->private;
 
-	if (master == SRC_MASTER)
-		return dw->data_width[dwc_get_sms(dws)];
-	else if (master == DST_MASTER)
-		return dw->data_width[dwc_get_dms(dws)];
-
-	return 0;
+	return dw->data_width[dwc_get_master(chan, master)];
 }
 
 /*----------------------------------------------------------------------*/
