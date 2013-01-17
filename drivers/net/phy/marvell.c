@@ -353,15 +353,6 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	int err;
 	int temp;
 
-	/* Enable Fiber/Copper auto selection */
-	temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
-	temp &= ~MII_M1111_HWCFG_FIBER_COPPER_AUTO;
-	phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
-
-	temp = phy_read(phydev, MII_BMCR);
-	temp |= BMCR_RESET;
-	phy_write(phydev, MII_BMCR, temp);
-
 	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
