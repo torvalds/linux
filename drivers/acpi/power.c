@@ -97,18 +97,18 @@ static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 	return container_of(device, struct acpi_power_resource, device);
 }
 
-static void acpi_power_resources_list_add(acpi_handle handle,
-					  struct list_head *list)
+static int acpi_power_resources_list_add(acpi_handle handle,
+					 struct list_head *list)
 {
 	struct acpi_power_resource *resource = acpi_power_get_context(handle);
 	struct acpi_power_resource_entry *entry;
 
 	if (!resource || !list)
-		return;
+		return -EINVAL;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return;
+		return -ENOMEM;
 
 	entry->resource = resource;
 	if (!list_empty(list)) {
@@ -117,10 +117,11 @@ static void acpi_power_resources_list_add(acpi_handle handle,
 		list_for_each_entry(e, list, node)
 			if (e->resource->order > resource->order) {
 				list_add_tail(&entry->node, &e->node);
-				return;
+				return 0;
 			}
 	}
 	list_add_tail(&entry->node, list);
+	return 0;
 }
 
 void acpi_power_resources_list_free(struct list_head *list)
@@ -133,33 +134,37 @@ void acpi_power_resources_list_free(struct list_head *list)
 	}
 }
 
-acpi_status acpi_extract_power_resources(union acpi_object *package,
-					 unsigned int start,
-					 struct list_head *list)
+int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
+				 struct list_head *list)
 {
-	acpi_status status = AE_OK;
 	unsigned int i;
+	int err = 0;
 
 	for (i = start; i < package->package.count; i++) {
 		union acpi_object *element = &package->package.elements[i];
 		acpi_handle rhandle;
 
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
-			status = AE_BAD_DATA;
+			err = -ENODATA;
 			break;
 		}
 		rhandle = element->reference.handle;
 		if (!rhandle) {
-			status = AE_NULL_ENTRY;
+			err = -ENODEV;
 			break;
 		}
-		acpi_add_power_resource(rhandle);
-		acpi_power_resources_list_add(rhandle, list);
+		err = acpi_add_power_resource(rhandle);
+		if (err)
+			break;
+
+		err = acpi_power_resources_list_add(rhandle, list);
+		if (err)
+			break;
 	}
-	if (ACPI_FAILURE(status))
+	if (err)
 		acpi_power_resources_list_free(list);
 
-	return status;
+	return err;
 }
 
 static int acpi_power_get_state(acpi_handle handle, int *state)
@@ -662,7 +667,7 @@ static void acpi_release_power_resource(struct device *dev)
 	kfree(resource);
 }
 
-void acpi_add_power_resource(acpi_handle handle)
+int acpi_add_power_resource(acpi_handle handle)
 {
 	struct acpi_power_resource *resource;
 	struct acpi_device *device = NULL;
@@ -673,11 +678,11 @@ void acpi_add_power_resource(acpi_handle handle)
 
 	acpi_bus_get_device(handle, &device);
 	if (device)
-		return;
+		return 0;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
 	if (!resource)
-		return;
+		return -ENOMEM;
 
 	device = &resource->device;
 	acpi_init_device_object(device, handle, ACPI_BUS_TYPE_POWER,
@@ -712,10 +717,11 @@ void acpi_add_power_resource(acpi_handle handle)
 	mutex_lock(&power_resource_list_lock);
 	list_add(&resource->list_node, &acpi_power_resource_list);
 	mutex_unlock(&power_resource_list_lock);
-	return;
+	return 0;
 
  err:
 	acpi_release_power_resource(&device->dev);
+	return result;
 }
 
 #ifdef CONFIG_ACPI_SLEEP

@@ -892,17 +892,17 @@ void acpi_bus_data_handler(acpi_handle handle, void *context)
 	return;
 }
 
-static acpi_status
-acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
-					     struct acpi_device_wakeup *wakeup)
+static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
+					struct acpi_device_wakeup *wakeup)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
 	union acpi_object *element = NULL;
 	acpi_status status;
+	int err = -ENODATA;
 
 	if (!wakeup)
-		return AE_BAD_PARAMETER;
+		return -EINVAL;
 
 	INIT_LIST_HEAD(&wakeup->resources);
 
@@ -910,29 +910,25 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	status = acpi_evaluate_object(handle, "_PRW", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
-		return status;
+		return err;
 	}
 
 	package = (union acpi_object *)buffer.pointer;
 
-	if (!package || (package->package.count < 2)) {
-		status = AE_BAD_DATA;
+	if (!package || package->package.count < 2)
 		goto out;
-	}
 
 	element = &(package->package.elements[0]);
-	if (!element) {
-		status = AE_BAD_DATA;
+	if (!element)
 		goto out;
-	}
+
 	if (element->type == ACPI_TYPE_PACKAGE) {
 		if ((element->package.count < 2) ||
 		    (element->package.elements[0].type !=
 		     ACPI_TYPE_LOCAL_REFERENCE)
-		    || (element->package.elements[1].type != ACPI_TYPE_INTEGER)) {
-			status = AE_BAD_DATA;
+		    || (element->package.elements[1].type != ACPI_TYPE_INTEGER))
 			goto out;
-		}
+
 		wakeup->gpe_device =
 		    element->package.elements[0].reference.handle;
 		wakeup->gpe_number =
@@ -941,27 +937,24 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 		wakeup->gpe_device = NULL;
 		wakeup->gpe_number = element->integer.value;
 	} else {
-		status = AE_BAD_DATA;
 		goto out;
 	}
 
 	element = &(package->package.elements[1]);
-	if (element->type != ACPI_TYPE_INTEGER) {
-		status = AE_BAD_DATA;
+	if (element->type != ACPI_TYPE_INTEGER)
 		goto out;
-	}
+
 	wakeup->sleep_state = element->integer.value;
 
-	status = acpi_extract_power_resources(package, 2, &wakeup->resources);
-	if (ACPI_FAILURE(status))
+	err = acpi_extract_power_resources(package, 2, &wakeup->resources);
+	if (err)
 		goto out;
 
 	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
 
  out:
 	kfree(buffer.pointer);
-
-	return status;
+	return err;
 }
 
 static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
@@ -1001,17 +994,17 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 {
 	acpi_handle temp;
 	acpi_status status = 0;
-	int psw_error;
+	int err;
 
 	/* Presence of _PRW indicates wake capable */
 	status = acpi_get_handle(device->handle, "_PRW", &temp);
 	if (ACPI_FAILURE(status))
 		return;
 
-	status = acpi_bus_extract_wakeup_device_power_package(device->handle,
-							      &device->wakeup);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
+	err = acpi_bus_extract_wakeup_device_power_package(device->handle,
+							   &device->wakeup);
+	if (err) {
+		dev_err(&device->dev, "_PRW evaluation error: %d\n", err);
 		return;
 	}
 
@@ -1024,8 +1017,8 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	 * So it is necessary to call _DSW object first. Only when it is not
 	 * present will the _PSW object used.
 	 */
-	psw_error = acpi_device_sleep_wake(device, 0, 0, 0);
-	if (psw_error)
+	err = acpi_device_sleep_wake(device, 0, 0, 0);
+	if (err)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				"error in _DSW or _PSW evaluation\n"));
 }
@@ -1048,9 +1041,9 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 		if (buffer.length && package
 		    && package->type == ACPI_TYPE_PACKAGE
 		    && package->package.count) {
-			status = acpi_extract_power_resources(package, 0,
-							      &ps->resources);
-			if (ACPI_SUCCESS(status))
+			int err = acpi_extract_power_resources(package, 0,
+							       &ps->resources);
+			if (!err)
 				device->power.flags.power_resources = 1;
 		}
 		ACPI_FREE(buffer.pointer);
