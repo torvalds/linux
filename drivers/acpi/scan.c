@@ -1087,9 +1087,9 @@ static void acpi_bus_init_power_state(struct acpi_device *device, int state)
 
 static void acpi_bus_get_power_flags(struct acpi_device *device)
 {
-	acpi_status status = 0;
-	acpi_handle handle = NULL;
-	u32 i = 0;
+	acpi_status status;
+	acpi_handle handle;
+	u32 i;
 
 	/* Presence of _PS0|_PR0 indicates 'power manageable' */
 	status = acpi_get_handle(device->handle, "_PS0", &handle);
