@@ -193,9 +193,6 @@ static int __acpi_power_on(struct acpi_power_resource *resource)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	/* Update the power resource's _device_ power state */
-	resource->device.power.state = ACPI_STATE_D0;
-
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned on\n",
 			  resource->name));
 
@@ -261,16 +258,12 @@ static int acpi_power_off(acpi_handle handle)
 	}
 
 	status = acpi_evaluate_object(resource->device.handle, "_OFF", NULL, NULL);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		result = -ENODEV;
-	} else {
-		/* Update the power resource's _device_ power state */
-		resource->device.power.state = ACPI_STATE_D3;
-
+	else
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Power resource [%s] turned off\n",
 				  resource->name));
-	}
 
  unlock:
 	mutex_unlock(&resource->resource_lock);
@@ -659,6 +652,7 @@ void acpi_add_power_resource(acpi_handle handle)
 	resource->name = device->pnp.bus_id;
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
+	device->power.state = ACPI_STATE_UNKNOWN;
 
 	/* Evalute the object to get the system level and resource order. */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
@@ -671,17 +665,6 @@ void acpi_add_power_resource(acpi_handle handle)
 	result = acpi_power_get_state(handle, &state);
 	if (result)
 		goto err;
-
-	switch (state) {
-	case ACPI_POWER_RESOURCE_STATE_ON:
-		device->power.state = ACPI_STATE_D0;
-		break;
-	case ACPI_POWER_RESOURCE_STATE_OFF:
-		device->power.state = ACPI_STATE_D3;
-		break;
-	default:
-		device->power.state = ACPI_STATE_UNKNOWN;
-	}
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n", acpi_device_name(device),
 	       acpi_device_bid(device), state ? "on" : "off");
