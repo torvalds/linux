@@ -766,6 +766,11 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode)
 {
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+	if (intel_hdmi->color_range)
+		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+
 	return true;
 }
 

@@ -5096,6 +5096,11 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
+	if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		val |= PIPECONF_COLOR_RANGE_SELECT;
+	else
+		val &= ~PIPECONF_COLOR_RANGE_SELECT;
+
 	I915_WRITE(PIPECONF(pipe), val);
 	POSTING_READ(PIPECONF(pipe));
 }

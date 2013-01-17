@@ -109,6 +109,11 @@
  * timings in the mode to prevent the crtc fixup from overwriting them.
  * Currently only lvds needs that. */
 #define INTEL_MODE_CRTC_TIMINGS_SET (0x20)
+/*
+ * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
+ * to be used.
+ */
+#define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
 
 static inline void
 intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,

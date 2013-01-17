@@ -1064,6 +1064,9 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	multiplier = intel_sdvo_get_pixel_multiplier(adjusted_mode);
 	intel_mode_set_pixel_multiplier(adjusted_mode, multiplier);
 
+	if (intel_sdvo->color_range)
+		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+
 	return true;
 }
 
@@ -1153,7 +1156,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (intel_sdvo->is_hdmi)
+		if (!HAS_PCH_SPLIT(dev) && intel_sdvo->is_hdmi)
 			sdvox |= intel_sdvo->color_range;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;

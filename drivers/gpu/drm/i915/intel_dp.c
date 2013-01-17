@@ -763,6 +763,10 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 		return false;
 
 	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
+
+	if (intel_dp->color_range)
+		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+
 	mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
 	for (clock = 0; clock <= max_clock; clock++) {
@@ -967,7 +971,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		else
 			intel_dp->DP |= DP_PLL_FREQ_270MHZ;
 	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
-		intel_dp->DP |= intel_dp->color_range;
+		if (!HAS_PCH_SPLIT(dev))
+			intel_dp->DP |= intel_dp->color_range;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
