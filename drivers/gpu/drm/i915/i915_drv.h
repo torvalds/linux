@@ -886,7 +886,6 @@ typedef struct drm_i915_private {
 
 		/* accounting, useful for userland debugging */
 		size_t gtt_total;
-		size_t mappable_gtt_total;
 		size_t object_memory;
 		u32 object_count;
 	} mm;

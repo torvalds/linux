@@ -259,7 +259,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, size);
 
 	seq_printf(m, "%zu [%zu] gtt total\n",
-		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
+		   dev_priv->mm.gtt_total,
+		   dev_priv->mm.gtt_mappable_end - dev_priv->mm.gtt_start);
 
 	mutex_unlock(&dev->struct_mutex);
 

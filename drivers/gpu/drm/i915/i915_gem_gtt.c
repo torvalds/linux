@@ -559,7 +559,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
 	dev_priv->mm.gtt_total = end - start;
-	dev_priv->mm.mappable_gtt_total = mappable_end - start;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
