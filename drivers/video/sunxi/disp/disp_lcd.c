@@ -1512,6 +1512,7 @@ __u32 Disp_get_screen_scan_mode(__disp_tv_mode_t tv_mode)
 	case DISP_TV_MOD_1080I_50HZ:
 	case DISP_TV_MOD_1080I_60HZ:
 		ret = 1;
+		break;
 	case DISP_TV_MODE_EDID:
 		if (gdisp.init_para.hdmi_get_video_timing(tv_mode,
 							  &video_timing) == 0)
