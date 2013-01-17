@@ -1941,7 +1941,7 @@ static void stac92hd73xx_fixup_no_jd(struct hda_codec *codec,
 {
 	struct sigmatel_spec *spec = codec->spec;
 
-	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+	if (action != HDA_FIXUP_ACT_PROBE)
 		return;
 	spec->hp_detect = 0;
 }
@@ -2502,14 +2502,14 @@ static void stac92hd71bxx_fixup_hp_dv5(struct hda_codec *codec,
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
 		stac92xx_auto_set_pinctl(codec, 0x0d, AC_PINCTL_OUT_EN);
+		break;
+
+	case HDA_FIXUP_ACT_PROBE:
 		/* HP dv6 gives the headphone pin as a line-out.  Thus we
 		 * need to set hp_detect flag here to force to enable HP
 		 * detection.
 		 */
 		spec->hp_detect = 1;
-		break;
-
-	case HDA_FIXUP_ACT_PROBE:
 		/* enable bass on HP dv7 */
 		cap = snd_hda_param_read(codec, 0x1, AC_PAR_GPIO_CAP);
 		cap &= AC_GPIO_IO_COUNT;
@@ -2559,7 +2559,7 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 		}
 	}
 
-	if (find_mute_led_cfg(codec, 1))
+	if (find_mute_led_cfg(codec, spec->default_polarity))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
@@ -5159,7 +5159,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec)
 						spec->dmic_nids)) < 0)
 		return err;
 	if (! spec->autocfg.line_outs)
-		return 0; /* can't find valid pin config */
+		return -EINVAL; /* can't find valid pin config */
 
 	/* If we have no real line-out pin and multiple hp-outs, HPs should
 	 * be set up as multi-channel outputs.
@@ -5362,7 +5362,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec)
 		spec->dinput_mux = &spec->private_dimux;
 	spec->sinput_mux = &spec->private_smux;
 	spec->mono_mux = &spec->private_mono_mux;
-	return 1;
+	return 0;
 }
 
 /* add playback controls for HP output */
@@ -5468,7 +5468,7 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux;
 	spec->dinput_mux = &spec->private_dimux;
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -6531,8 +6531,6 @@ static int patch_stac925x(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -6621,9 +6619,6 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		snd_hda_add_verbs(codec, stac92hd73xx_core_init);
 
 	err = stac92xx_parse_auto_config(codec);
-
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -6833,8 +6828,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	stac_setup_gpio(codec);
 
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -7024,15 +7017,14 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
 	spec->num_smuxes = stac92hd71bxx_connected_smuxes(codec, 0x1e);
 
+	spec->multiout.dac_nids = spec->dac_nids;
+	spec->default_polarity = 1;
+
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	stac_setup_gpio(codec);
 
-	spec->multiout.dac_nids = spec->dac_nids;
-
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -7079,8 +7071,6 @@ static int patch_stac922x(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -7144,14 +7134,12 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
 
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
 	if (!spec->volknob_init)
 		snd_hda_add_verbs(codec, stac927x_core_init);
 
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
-
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
@@ -7228,8 +7216,6 @@ static int patch_stac9205(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = stac92xx_parse_auto_config(codec);
-	if (!err)
-		err = -EINVAL;
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
