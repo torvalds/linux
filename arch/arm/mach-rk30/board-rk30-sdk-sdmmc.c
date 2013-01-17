@@ -77,14 +77,14 @@
 #define RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO      GPIO2L_GPIO2A2
 #define RK29SDK_SD_CARD_DETECT_IOMUX_FMUX       GPIO2L_SDMMC0_DETECT_N
 
-#elif defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 //refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
 //define reset-pin
 #define RK29SDK_SD_CARD_DETECT_N                RK30_PIN3_PB0  //According to your own project to set the value of card-detect-pin.
 #define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
-#define RK29SDK_SD_CARD_DETECT_PIN_NAME         GPIO3B0_SDMMC0DETECTN_NAME
-#define RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO      GPIO3B_GPIO3B0
-#define RK29SDK_SD_CARD_DETECT_IOMUX_FMUX       GPIO3B_SDMMC0DETECTN
+#define RK29SDK_SD_CARD_DETECT_PIN_NAME         "mmc0_detn"
+#define RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO      GPIO3_B0
+#define RK29SDK_SD_CARD_DETECT_IOMUX_FMUX       MMC0_DETN
 
 #elif defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B) //for RK30,RK3066 SDK
 //refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
@@ -349,49 +349,49 @@
             #endif
         #endif// #endif --#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     #endif 
-#elif defined(CONFIG_ARCH_RK3066B)//refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
+#elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)//refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
     #define WIFI_HOST_WAKE RK30_PIN3_PD2
          
     #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        
-        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
-        #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
+        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        "wifi_power"
+        #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3_D0
         
     #elif defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0                 
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH                   
-        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
-        #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
+        #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        "wifi_power"
+        #define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3_D0
 
         #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
         #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
-        #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME
-        #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO2A_GPIO2A7
+        #define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        "wifi_reset"
+        #define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO2_A7
     
     #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)
 
 		#ifdef  CONFIG_MACH_RK3168_LR097 
 	    	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0 
 	    	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
-        	#define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
-        	#define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
+        	#define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        "wifi_power"
+        	#define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3_D0
  
         	//#define RK30SDK_WIFI_GPIO_RESET_N 	            RK30_PIN3_PD1
         	//#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH
-        	//#define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME
-        	//#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3D_GPIO3D1
+        	//#define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        "wifi_reset"
+        	//#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3_D1
 
 		#else
         	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN0_PA5
         	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
-        	//#define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO3D0_SDMMC1PWREN_MIIMD_NAME
-        	//#define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3D_GPIO3D0
+        	//#define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        "wifi_power"
+        	//#define RK30SDK_WIFI_GPIO_POWER_IOMUX_FGPIO     GPIO3_D0
  
         	#define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN3_PD1
         	#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH
-        	#define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME
-        	#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3D_GPIO3D1	
+        	#define RK30SDK_WIFI_GPIO_RESET_PIN_NAME        "wifi_reset"
+        	#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3_D1
 		#endif
 
     #endif   
@@ -446,14 +446,14 @@
 #define RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO      GPIO5H_GPIO5D5
 #define RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX       GPIO5H_SDMMC0_PWR_EN
 
-#elif defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 //refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
 //define PowerEn-pin
 #define RK29SDK_SD_CARD_PWR_EN                  RK30_PIN3_PA1
 #define RK29SDK_SD_CARD_PWR_EN_LEVEL            GPIO_LOW 
-#define RK29SDK_SD_CARD_PWR_EN_PIN_NAME         GPIO3A1_SDMMC0PWREN_NAME
-#define RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO      GPIO3A_GPIO3A1
-#define RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX       GPIO3A_SDMMC0PWREN
+#define RK29SDK_SD_CARD_PWR_EN_PIN_NAME         "mmc0_pwren"
+#define RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO      GPIO3_A1
+#define RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX       MMC0_PWREN
 
 #elif defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B) //for RK30,RK3066 SDK
 //refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
@@ -652,7 +652,7 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
 };
  // ---end -#if defined(CONFIG_ARCH_RK30)&& !defined(CONFIG_ARCH_RK3066B)
 
-#elif defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 
 /*
 * define the gpio for sdmmc0
@@ -663,9 +663,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA2,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A2_SDMMC0CLKOUT_NAME,
-            .fgpio      = GPIO3A_GPIO3A2,
-            .fmux       = GPIO3A_SDMMC0CLKOUT,
+            .name       = "mmc0_clkout",
+            .fgpio      = GPIO3_A2,
+            .fmux       = MMC0_CLKOUT,
         },
     },   
 
@@ -673,9 +673,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA3,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A3_SDMMC0CMD_NAME,
-            .fgpio      = GPIO3A_GPIO3A3,
-            .fmux       = GPIO3A_SDMMC0CMD,
+            .name       = "mmc0_cmd",
+            .fgpio      = GPIO3_A3,
+            .fmux       = MMC0_CMD,
         },
     },      
 
@@ -683,9 +683,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA4,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A4_SDMMC0DATA0_NAME,
-            .fgpio      = GPIO3A_GPIO3A4,
-            .fmux       = GPIO3A_SDMMC0DATA0,
+            .name       = "mmc0_d0",
+            .fgpio      = GPIO3_A4,
+            .fmux       = MMC0_D0,
         },
     },      
 
@@ -693,9 +693,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA5,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A5_SDMMC0DATA1_NAME,
-            .fgpio      = GPIO3A_GPIO3A5,
-            .fmux       = GPIO3A_SDMMC0DATA1,
+            .name       = "mmc0_d1",
+            .fgpio      = GPIO3_A5,
+            .fmux       = MMC0_D1,
         },
     },      
 
@@ -703,9 +703,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA6,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A6_SDMMC0DATA2_NAME,
-            .fgpio      = GPIO3A_GPIO3A6,
-            .fmux       = GPIO3A_SDMMC0DATA2,
+            .name       = "mmc_d2",
+            .fgpio      = GPIO3_A6,
+            .fmux       = MMC0_D2,
         },
     }, 
 
@@ -713,9 +713,9 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PA7,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3A7_SDMMC0DATA3_NAME,
-            .fgpio      = GPIO3A_GPIO3A7,
-            .fmux       = GPIO3A_SDMMC0DATA3,
+            .name       = "mmc_d3",
+            .fgpio      = GPIO3_A7,
+            .fmux       = MMC0_D3,
         },
     }, 
 
@@ -774,9 +774,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC5,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C5_SDMMC1CLKOUT_RMIICLKOUT_RMIICLKIN_NAME,
-            .fgpio      = GPIO3C_GPIO3C5,
-            .fmux       = GPIO3C_SDMMC1CLKOUT,
+            .name       = "mmc1_clkout",
+            .fgpio      = GPIO3_C5,
+            .fmux       = MMC1_CLKOUT,
         },
     },   
 
@@ -784,9 +784,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC0,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C0_SDMMC1CMD_RMIITXEN_NAME,
-            .fgpio      = GPIO3C_GPIO3C0,
-            .fmux       = GPIO3C_SDMMC1CMD,
+            .name       = "mmc1_cmd",
+            .fgpio      = GPIO3_C0,
+            .fmux       = MMC1_CMD,
         },
     },      
 
@@ -794,9 +794,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC1,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C1_SDMMC1DATA0_RMIITXD1_NAME,
-            .fgpio      = GPIO3C_GPIO3C1,
-            .fmux       = GPIO3C_SDMMC1DATA0,
+            .name       = "mmc1_d0",
+            .fgpio      = GPIO3_C1,
+            .fmux       = MMC1_D0,
         },
     },      
 
@@ -804,9 +804,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC2,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C2_SDMMC1DATA1_RMIITXD0_NAME,
-            .fgpio      = GPIO3C_GPIO3C2,
-            .fmux       = GPIO3C_SDMMC1DATA1,
+            .name       = "mmc1_d1",
+            .fgpio      = GPIO3_C2,
+            .fmux       = MMC1_D1,
         },
     },      
 
@@ -814,9 +814,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC3,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C3_SDMMC1DATA2_RMIIRXD0_NAME,
-            .fgpio      = GPIO3C_GPIO3C3,
-            .fmux       = GPIO3C_SDMMC1DATA2,
+            .name       = "mmc1_d2",
+            .fgpio      = GPIO3_C3,
+            .fmux       = MMC1_D2,
         },
     }, 
 
@@ -824,9 +824,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC4,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C4_SDMMC1DATA3_RMIIRXD1_NAME,
-            .fgpio      = GPIO3C_GPIO3C4,
-            .fmux       = GPIO3C_SDMMC1DATA3,
+            .name       = "mmc1_d3",
+            .fgpio      = GPIO3_C4,
+            .fmux       = MMC1_D3,
         },
     }, 
 };
