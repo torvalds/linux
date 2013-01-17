@@ -629,7 +629,7 @@ extern void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 static inline void ip6_flow_hdr(struct ipv6hdr *hdr, unsigned int tclass,
 				__be32 flowlabel)
 {
-	*(__be32 *)hdr = ntohl(0x60000000 | (tclass << 20)) | flowlabel;
+	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | flowlabel;
 }
 
 static inline __be32 ip6_flowinfo(const struct ipv6hdr *hdr)
