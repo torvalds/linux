@@ -633,6 +633,7 @@ static int acpi_device_register(struct acpi_device *device)
 	INIT_LIST_HEAD(&device->wakeup_list);
 	INIT_LIST_HEAD(&device->physical_node_list);
 	mutex_init(&device->physical_node_lock);
+	INIT_LIST_HEAD(&device->power_dependent);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
 	if (!new_bus_id) {
@@ -706,8 +707,14 @@ static void acpi_device_unregister(struct acpi_device *device)
 
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
 
+	acpi_power_add_remove_device(device, false);
 	acpi_device_remove_files(device);
 	device_unregister(&device->dev);
+	/*
+	 * Drop the reference counts of all power resources the device depends
+	 * on and turn off the ones that have no more references.
+	 */
+	acpi_power_transition(device, ACPI_STATE_D3_COLD);
 }
 
 /* --------------------------------------------------------------------------
@@ -1441,6 +1448,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 
 end:
 	if (!result) {
+		acpi_power_add_remove_device(device, true);
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			"Adding %s [%s] parent %s\n", dev_name(&device->dev),

@@ -38,6 +38,7 @@ static inline void acpi_debugfs_init(void) { return; }
                                   Power Resource
    -------------------------------------------------------------------------- */
 int acpi_power_init(void);
+void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
