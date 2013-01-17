@@ -349,20 +349,14 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 	return ret;
 }
 
-static int sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
+static bool sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
 {
-	if (pd->pos == -1)
-		return 1;
-
-	return 0;
+	return pd->pos == -1;
 }
 
-static int sh_mobile_i2c_is_last_byte(struct sh_mobile_i2c_data *pd)
+static bool sh_mobile_i2c_is_last_byte(struct sh_mobile_i2c_data *pd)
 {
-	if (pd->pos == (pd->msg->len - 1))
-		return 1;
-
-	return 0;
+	return pd->pos == pd->msg->len - 1;
 }
 
 static void sh_mobile_i2c_get_data(struct sh_mobile_i2c_data *pd,
