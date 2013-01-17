@@ -1034,11 +1034,16 @@ out:
 static void ntb_transport_rx(unsigned long data)
 {
 	struct ntb_transport_qp *qp = (struct ntb_transport_qp *)data;
-	int rc;
+	int rc, i;
 
-	do {
+	/* Limit the number of packets processed in a single interrupt to
+	 * provide fairness to others
+	 */
+	for (i = 0; i < qp->rx_max_entry; i++) {
 		rc = ntb_process_rxc(qp);
-	} while (!rc);
+		if (rc)
+			break;
+	}
 }
 
 static void ntb_transport_rxc_db(void *data, int db_num)
