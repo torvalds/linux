@@ -145,7 +145,7 @@ static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst,
 	struct neighbour *n;
 
 	daddr = choose_neigh_daddr(rt, skb, daddr);
-	n = __ipv6_neigh_lookup(&nd_tbl, dst->dev, daddr);
+	n = __ipv6_neigh_lookup(dst->dev, daddr);
 	if (n)
 		return n;
 	return neigh_create(&nd_tbl, daddr, dst->dev);
@@ -153,7 +153,7 @@ static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst,
 
 static int rt6_bind_neighbour(struct rt6_info *rt, struct net_device *dev)
 {
-	struct neighbour *n = __ipv6_neigh_lookup(&nd_tbl, dev, &rt->rt6i_gateway);
+	struct neighbour *n = __ipv6_neigh_lookup(dev, &rt->rt6i_gateway);
 	if (!n) {
 		n = neigh_create(&nd_tbl, &rt->rt6i_gateway, dev);
 		if (IS_ERR(n))
