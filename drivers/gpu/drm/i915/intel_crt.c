@@ -776,7 +776,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
-	if (IS_HASWELL(dev))
+	if (HAS_DDI(dev))
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
 	else
 		crt->base.get_hw_state = intel_crt_get_hw_state;

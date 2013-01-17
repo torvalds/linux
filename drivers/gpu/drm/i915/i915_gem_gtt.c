@@ -282,7 +282,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	uint32_t __iomem *pd_addr;
+	gtt_pte_t __iomem *pd_addr;
 	uint32_t pd_entry;
 	int i;
 
@@ -290,7 +290,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(uint32_t);
+	pd_addr = (gtt_pte_t __iomem*)dev_priv->mm.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
@@ -367,7 +367,7 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
-	gtt_pte_t __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->mm.gsm + first_entry;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	int i;
 
@@ -432,7 +432,8 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	struct scatterlist *sg = st->sgl;
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
-	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_entries =
+		(gtt_pte_t __iomem *)dev_priv->mm.gsm + first_entry;
 	int unused, i = 0;
 	unsigned int len, m = 0;
 	dma_addr_t addr;
@@ -525,17 +526,33 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-void i915_gem_init_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+void i915_gem_setup_global_gtt(struct drm_device *dev,
+			       unsigned long start,
+			       unsigned long mappable_end,
+			       unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_mm_node *entry;
+	struct drm_i915_gem_object *obj;
+	unsigned long hole_start, hole_end;
 
-	/* Substract the guard page ... */
+	/* Subtract the guard page ... */
 	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
 		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;
+
+	/* Mark any preallocated objects as occupied */
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+		DRM_DEBUG_KMS("reserving preallocated space: %x + %zx\n",
+			      obj->gtt_offset, obj->base.size);
+
+		BUG_ON(obj->gtt_space != I915_GTT_RESERVED);
+		obj->gtt_space = drm_mm_create_block(&dev_priv->mm.gtt_space,
+						     obj->gtt_offset,
+						     obj->base.size,
+						     false);
+		obj->has_global_gtt_mapping = 1;
+	}
 
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
@@ -543,8 +560,69 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
 
-	/* ... but ensure that we clear the entire range. */
-	i915_ggtt_clear_range(dev, start / PAGE_SIZE, (end-start) / PAGE_SIZE);
+	/* Clear any non-preallocated blocks */
+	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
+			     hole_start, hole_end) {
+		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
+			      hole_start, hole_end);
+		i915_ggtt_clear_range(dev,
+				      hole_start / PAGE_SIZE,
+				      (hole_end-hole_start) / PAGE_SIZE);
+	}
+
+	/* And finally clear the reserved guard page */
+	i915_ggtt_clear_range(dev, end / PAGE_SIZE - 1, 1);
+}
+
+static bool
+intel_enable_ppgtt(struct drm_device *dev)
+{
+	if (i915_enable_ppgtt >= 0)
+		return i915_enable_ppgtt;
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Disable ppgtt on SNB if VT-d is on. */
+	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
+		return false;
+#endif
+
+	return true;
+}
+
+void i915_gem_init_global_gtt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long gtt_size, mappable_size;
+	int ret;
+
+	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
+	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+
+	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
+		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
+		 * aperture accordingly when using aliasing ppgtt. */
+		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+
+		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
+
+		ret = i915_gem_init_aliasing_ppgtt(dev);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return;
+		}
+	} else {
+		/* Let GEM Manage all of the aperture.
+		 *
+		 * However, leave one page at the end still bound to the scratch
+		 * page.  There are a number of places where the hardware
+		 * apparently prefetches past the end of the object, and we've
+		 * seen multiple hangs with the GPU head pointer stuck in a
+		 * batchbuffer bound at the last page of the aperture.  One page
+		 * should be enough to keep any prefetching inside of the
+		 * aperture.
+		 */
+		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
+	}
 }
 
 static int setup_scratch_page(struct drm_device *dev)
@@ -674,9 +752,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		goto err_out;
 	}
 
-	dev_priv->mm.gtt->gtt = ioremap_wc(gtt_bus_addr,
-					   dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
-	if (!dev_priv->mm.gtt->gtt) {
+	dev_priv->mm.gsm = ioremap_wc(gtt_bus_addr,
+				      dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
+	if (!dev_priv->mm.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		teardown_scratch_page(dev);
 		ret = -ENOMEM;
@@ -700,7 +778,7 @@ err_out:
 void i915_gem_gtt_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	iounmap(dev_priv->mm.gtt->gtt);
+	iounmap(dev_priv->mm.gsm);
 	teardown_scratch_page(dev);
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();

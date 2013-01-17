@@ -52,6 +52,8 @@ struct intel_lvds_encoder {
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
 	bool pfit_dirty;
+	bool is_dual_link;
+	u32 reg;
 
 	struct intel_lvds_connector *attached_connector;
 };
@@ -71,15 +73,10 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 lvds_reg, tmp;
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	u32 tmp;
 
-	if (HAS_PCH_SPLIT(dev)) {
-		lvds_reg = PCH_LVDS;
-	} else {
-		lvds_reg = LVDS;
-	}
-
-	tmp = I915_READ(lvds_reg);
+	tmp = I915_READ(lvds_encoder->reg);
 
 	if (!(tmp & LVDS_PORT_EN))
 		return false;
@@ -92,6 +89,68 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+ * This is an exception to the general rule that mode_set doesn't turn
+ * things on.
+ */
+static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
+{
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *fixed_mode =
+		lvds_encoder->attached_connector->base.panel.fixed_mode;
+	int pipe = intel_crtc->pipe;
+	u32 temp;
+
+	temp = I915_READ(lvds_encoder->reg);
+	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~PORT_TRANS_SEL_MASK;
+		temp |= PORT_TRANS_SEL_CPT(pipe);
+	} else {
+		if (pipe == 1) {
+			temp |= LVDS_PIPEB_SELECT;
+		} else {
+			temp &= ~LVDS_PIPEB_SELECT;
+		}
+	}
+
+	/* set the corresponsding LVDS_BORDER bit */
+	temp |= dev_priv->lvds_border_bits;
+	/* Set the B0-B3 data pairs corresponding to whether we're going to
+	 * set the DPLLs for dual-channel mode or not.
+	 */
+	if (lvds_encoder->is_dual_link)
+		temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
+	else
+		temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
+
+	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
+	 * appropriately here, but we need to look more thoroughly into how
+	 * panels behave in the two modes.
+	 */
+
+	/* Set the dithering flag on LVDS as needed, note that there is no
+	 * special lvds dither control bit on pch-split platforms, dithering is
+	 * only controlled through the PIPECONF reg. */
+	if (INTEL_INFO(dev)->gen == 4) {
+		if (dev_priv->lvds_dither)
+			temp |= LVDS_ENABLE_DITHER;
+		else
+			temp &= ~LVDS_ENABLE_DITHER;
+	}
+	temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
+	if (fixed_mode->flags & DRM_MODE_FLAG_NHSYNC)
+		temp |= LVDS_HSYNC_POLARITY;
+	if (fixed_mode->flags & DRM_MODE_FLAG_NVSYNC)
+		temp |= LVDS_VSYNC_POLARITY;
+
+	I915_WRITE(lvds_encoder->reg, temp);
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -101,19 +160,17 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
 
 	if (lvds_encoder->pfit_dirty) {
 		/*
@@ -132,7 +189,7 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
-	POSTING_READ(lvds_reg);
+	POSTING_READ(lvds_encoder->reg);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
@@ -144,15 +201,13 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
@@ -167,8 +222,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 		lvds_encoder->pfit_dirty = true;
 	}
 
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
-	POSTING_READ(lvds_reg);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
+	POSTING_READ(lvds_encoder->reg);
 }
 
 static int intel_lvds_mode_valid(struct drm_connector *connector,
@@ -591,8 +646,7 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 			 * If the CRTC is enabled, the display will be changed
 			 * according to the new panel fitting mode.
 			 */
-			intel_set_mode(crtc, &crtc->mode,
-				       crtc->x, crtc->y, crtc->fb);
+			intel_crtc_restore_mode(crtc);
 		}
 	}
 
@@ -903,6 +957,66 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
+static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
+{
+	DRM_INFO("Forcing lvds to dual link mode on %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_dual_link_lvds[] = {
+	{
+		.callback = intel_dual_link_lvds_callback,
+		.ident = "Apple MacBook Pro (Core i5/i7 Series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro8,2"),
+		},
+	},
+	{ }	/* terminating entry */
+};
+
+bool intel_is_dual_link_lvds(struct drm_device *dev)
+{
+	struct intel_encoder *encoder;
+	struct intel_lvds_encoder *lvds_encoder;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->type == INTEL_OUTPUT_LVDS) {
+			lvds_encoder = to_lvds_encoder(&encoder->base);
+
+			return lvds_encoder->is_dual_link;
+		}
+	}
+
+	return false;
+}
+
+static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
+{
+	struct drm_device *dev = lvds_encoder->base.base.dev;
+	unsigned int val;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* use the module option value if specified */
+	if (i915_lvds_channel_mode > 0)
+		return i915_lvds_channel_mode == 2;
+
+	if (dmi_check_system(intel_dual_link_lvds))
+		return true;
+
+	/* BIOS should set the proper LVDS register value at boot, but
+	 * in reality, it doesn't set the value when the lid is closed;
+	 * we need to check "the value to be set" in VBT when LVDS
+	 * register is uninitialized.
+	 */
+	val = I915_READ(lvds_encoder->reg);
+	if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
+		val = dev_priv->bios_lvds_val;
+
+	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
+}
+
 static bool intel_lvds_supported(struct drm_device *dev)
 {
 	/* With the introduction of the PCH we gained a dedicated
@@ -988,6 +1102,7 @@ bool intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
+	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
@@ -1008,6 +1123,12 @@ bool intel_lvds_init(struct drm_device *dev)
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		lvds_encoder->reg = PCH_LVDS;
+	} else {
+		lvds_encoder->reg = LVDS;
+	}
 
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
@@ -1109,6 +1230,10 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
+	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
+		      lvds_encoder->is_dual_link ? "dual" : "single");
+
 	/*
 	 * Unlock registers and just
 	 * leave them unlocked

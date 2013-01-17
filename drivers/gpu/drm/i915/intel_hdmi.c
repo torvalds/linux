@@ -48,7 +48,7 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t enabled_bits;
 
-	enabled_bits = IS_HASWELL(dev) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
+	enabled_bits = HAS_DDI(dev) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
 
 	WARN(I915_READ(intel_hdmi->sdvox_reg) & enabled_bits,
 	     "HDMI port enabled, expecting disabled\n");
@@ -793,16 +793,21 @@ static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
+	struct drm_device *dev = connector->dev;
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct intel_digital_port *intel_dig_port =
 		hdmi_to_dig_port(intel_hdmi);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	if (IS_G4X(connector->dev) && !g4x_hdmi_connected(intel_hdmi))
+
+	if (IS_G4X(dev) && !g4x_hdmi_connected(intel_hdmi))
 		return status;
+	else if (HAS_PCH_SPLIT(dev) &&
+		 !ibx_digital_port_connected(dev_priv, intel_dig_port))
+		 return status;
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
@@ -912,11 +917,8 @@ intel_hdmi_set_property(struct drm_connector *connector,
 	return -EINVAL;
 
 done:
-	if (intel_dig_port->base.base.crtc) {
-		struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
-	}
+	if (intel_dig_port->base.base.crtc)
+		intel_crtc_restore_mode(intel_dig_port->base.base.crtc);
 
 	return 0;
 }
@@ -1013,7 +1015,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->set_infoframes = cpt_set_infoframes;
 	}
 
-	if (IS_HASWELL(dev))
+	if (HAS_DDI(dev))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;

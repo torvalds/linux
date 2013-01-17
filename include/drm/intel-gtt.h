@@ -18,8 +18,6 @@ struct intel_gtt {
 	/* Share the scratch page dma with ppgtts. */
 	dma_addr_t scratch_page_dma;
 	struct page *scratch_page;
-	/* for ppgtt PDE access */
-	u32 __iomem *gtt;
 	/* needed for ioremap in drm/i915 */
 	phys_addr_t gma_bus_addr;
 } *intel_gtt_get(void);

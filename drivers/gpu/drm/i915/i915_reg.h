@@ -142,6 +142,7 @@
 #define   VGA_MSR_CGA_MODE (1<<0)
 
 #define VGA_SR_INDEX 0x3c4
+#define SR01			1
 #define VGA_SR_DATA 0x3c5
 
 #define VGA_AR_INDEX 0x3c0
@@ -940,23 +941,6 @@
 #define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
 
-#define SRX_INDEX		0x3c4
-#define SRX_DATA		0x3c5
-#define SR01			1
-#define SR01_SCREEN_OFF		(1<<5)
-
-#define PPCR			0x61204
-#define PPCR_ON			(1<<0)
-
-#define DVOB			0x61140
-#define DVOB_ON			(1<<31)
-#define DVOC			0x61160
-#define DVOC_ON			(1<<31)
-#define LVDS			0x61180
-#define LVDS_ON			(1<<31)
-
-/* Scratch pad debug 0 reg:
- */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
@@ -1893,8 +1877,6 @@
 #define   PFIT_SCALING_PILLAR	(2 << 26)
 #define   PFIT_SCALING_LETTER	(3 << 26)
 #define PFIT_PGM_RATIOS	0x61234
-#define   PFIT_VERT_SCALE_MASK			0xfff00000
-#define   PFIT_HORIZ_SCALE_MASK			0x0000fff0
 /* Pre-965 */
 #define		PFIT_VERT_SCALE_SHIFT		20
 #define		PFIT_VERT_SCALE_MASK		0xfff00000
@@ -2668,11 +2650,11 @@
 #define   PIPECONF_INTERLACED_DBL_ILK		(4 << 21) /* ilk/snb only */
 #define   PIPECONF_PFIT_PF_INTERLACED_DBL_ILK	(5 << 21) /* ilk/snb only */
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
-#define   PIPECONF_BPP_MASK	(0x000000e0)
-#define   PIPECONF_BPP_8	(0<<5)
-#define   PIPECONF_BPP_10	(1<<5)
-#define   PIPECONF_BPP_6	(2<<5)
-#define   PIPECONF_BPP_12	(3<<5)
+#define   PIPECONF_BPC_MASK	(0x7 << 5)
+#define   PIPECONF_8BPC		(0<<5)
+#define   PIPECONF_10BPC	(1<<5)
+#define   PIPECONF_6BPC		(2<<5)
+#define   PIPECONF_12BPC	(3<<5)
 #define   PIPECONF_DITHER_EN	(1<<4)
 #define   PIPECONF_DITHER_TYPE_MASK (0x0000000c)
 #define   PIPECONF_DITHER_TYPE_SP (0<<2)
@@ -2716,11 +2698,6 @@
 #define   PIPE_START_VBLANK_INTERRUPT_STATUS	(1UL<<2) /* 965 or later */
 #define   PIPE_VBLANK_INTERRUPT_STATUS		(1UL<<1)
 #define   PIPE_OVERLAY_UPDATED_STATUS		(1UL<<0)
-#define   PIPE_BPC_MASK				(7 << 5) /* Ironlake */
-#define   PIPE_8BPC				(0 << 5)
-#define   PIPE_10BPC				(1 << 5)
-#define   PIPE_6BPC				(2 << 5)
-#define   PIPE_12BPC				(3 << 5)
 
 #define PIPESRC(pipe) _PIPE(pipe, _PIPEASRC, _PIPEBSRC)
 #define PIPECONF(tran) _TRANSCODER(tran, _PIPEACONF, _PIPEBCONF)
@@ -3578,27 +3555,30 @@
 #define PORTD_PULSE_DURATION_6ms        (2 << 18)
 #define PORTD_PULSE_DURATION_100ms      (3 << 18)
 #define PORTD_PULSE_DURATION_MASK	(3 << 18)
-#define PORTD_HOTPLUG_NO_DETECT         (0)
-#define PORTD_HOTPLUG_SHORT_DETECT      (1 << 16)
-#define PORTD_HOTPLUG_LONG_DETECT       (1 << 17)
+#define PORTD_HOTPLUG_STATUS_MASK	(0x3 << 16)
+#define  PORTD_HOTPLUG_NO_DETECT	(0 << 16)
+#define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
+#define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
 #define PORTC_HOTPLUG_ENABLE            (1 << 12)
 #define PORTC_PULSE_DURATION_2ms        (0)
 #define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
 #define PORTC_PULSE_DURATION_6ms        (2 << 10)
 #define PORTC_PULSE_DURATION_100ms      (3 << 10)
 #define PORTC_PULSE_DURATION_MASK	(3 << 10)
-#define PORTC_HOTPLUG_NO_DETECT         (0)
-#define PORTC_HOTPLUG_SHORT_DETECT      (1 << 8)
-#define PORTC_HOTPLUG_LONG_DETECT       (1 << 9)
+#define PORTC_HOTPLUG_STATUS_MASK	(0x3 << 8)
+#define  PORTC_HOTPLUG_NO_DETECT	(0 << 8)
+#define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
+#define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
 #define PORTB_HOTPLUG_ENABLE            (1 << 4)
 #define PORTB_PULSE_DURATION_2ms        (0)
 #define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
 #define PORTB_PULSE_DURATION_6ms        (2 << 2)
 #define PORTB_PULSE_DURATION_100ms      (3 << 2)
 #define PORTB_PULSE_DURATION_MASK	(3 << 2)
-#define PORTB_HOTPLUG_NO_DETECT         (0)
-#define PORTB_HOTPLUG_SHORT_DETECT      (1 << 0)
-#define PORTB_HOTPLUG_LONG_DETECT       (1 << 1)
+#define PORTB_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
+#define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
+#define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
 
 #define PCH_GPIOA               0xc5010
 #define PCH_GPIOB               0xc5014
@@ -3817,8 +3797,6 @@
 #define  TRANS_FSYNC_DELAY_HB2  (1<<27)
 #define  TRANS_FSYNC_DELAY_HB3  (2<<27)
 #define  TRANS_FSYNC_DELAY_HB4  (3<<27)
-#define  TRANS_DP_AUDIO_ONLY    (1<<26)
-#define  TRANS_DP_VIDEO_AUDIO   (0<<26)
 #define  TRANS_INTERLACE_MASK   (7<<21)
 #define  TRANS_PROGRESSIVE      (0<<21)
 #define  TRANS_INTERLACED       (3<<21)

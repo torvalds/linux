@@ -83,7 +83,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
-	obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_object_create_stolen(dev, size);
+	if (obj == NULL)
+		obj = i915_gem_alloc_object(dev, size);
 	if (!obj) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;
@@ -152,6 +154,13 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
+
+	/* If the object is shmemfs backed, it will have given us zeroed pages.
+	 * If the object is stolen however, it will be full of whatever
+	 * garbage was left in there.
+	 */
+	if (ifbdev->ifb.obj->stolen)
+		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -241,8 +250,16 @@ int intel_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
-	drm_fb_helper_initial_config(&ifbdev->helper, 32);
+
 	return 0;
+}
+
+void intel_fbdev_initial_config(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	/* Due to peculiar init order wrt to hpd handling this is separate. */
+	drm_fb_helper_initial_config(&dev_priv->fbdev->helper, 32);
 }
 
 void intel_fbdev_fini(struct drm_device *dev)

@@ -1997,11 +1997,8 @@ set_value:
 
 
 done:
-	if (intel_sdvo->base.base.crtc) {
-		struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
-	}
+	if (intel_sdvo->base.base.crtc)
+		intel_crtc_restore_mode(intel_sdvo->base.base.crtc);
 
 	return 0;
 #undef CHECK_PROPERTY

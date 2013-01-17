@@ -150,17 +150,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return ret;
 	}
-	if (unlikely(reloc->write_domain && target_obj->pending_write_domain &&
-		     reloc->write_domain != target_obj->pending_write_domain)) {
-		DRM_DEBUG("Write domain conflict: "
-			  "obj %p target %d offset %d "
-			  "new %08x old %08x\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->offset,
-			  reloc->write_domain,
-			  target_obj->pending_write_domain);
-		return ret;
-	}
 
 	target_obj->pending_read_domains |= reloc->read_domains;
 	target_obj->pending_write_domain |= reloc->write_domain;
@@ -602,44 +591,11 @@ err:
 }
 
 static int
-i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
-{
-	u32 plane, flip_mask;
-	int ret;
-
-	/* Check for any pending flips. As we only maintain a flip queue depth
-	 * of 1, we can simply insert a WAIT for the next display flip prior
-	 * to executing the batch and avoid stalling the CPU.
-	 */
-
-	for (plane = 0; flips >> plane; plane++) {
-		if (((flips >> plane) & 1) == 0)
-			continue;
-
-		if (plane)
-			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-		else
-			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
-		ret = intel_ring_begin(ring, 2);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
-	}
-
-	return 0;
-}
-
-static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 				struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
 	uint32_t flush_domains = 0;
-	uint32_t flips = 0;
 	int ret;
 
 	list_for_each_entry(obj, objects, exec_list) {
@@ -650,16 +606,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
 			i915_gem_clflush_object(obj);
 
-		if (obj->base.pending_write_domain)
-			flips |= atomic_read(&obj->pending_flip);
-
 		flush_domains |= obj->base.write_domain;
-	}
-
-	if (flips) {
-		ret = i915_gem_execbuffer_wait_for_flips(ring, flips);
-		if (ret)
-			return ret;
 	}
 
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
