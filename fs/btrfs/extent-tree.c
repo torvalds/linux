@@ -5545,20 +5545,16 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 
 int __get_raid_index(u64 flags)
 {
-	int index;
-
 	if (flags & BTRFS_BLOCK_GROUP_RAID10)
-		index = 0;
+		return BTRFS_RAID_RAID10;
 	else if (flags & BTRFS_BLOCK_GROUP_RAID1)
-		index = 1;
+		return BTRFS_RAID_RAID1;
 	else if (flags & BTRFS_BLOCK_GROUP_DUP)
-		index = 2;
+		return BTRFS_RAID_DUP;
 	else if (flags & BTRFS_BLOCK_GROUP_RAID0)
-		index = 3;
+		return BTRFS_RAID_RAID0;
 	else
-		index = 4;
-
-	return index;
+		return BTRFS_RAID_SINGLE;
 }
 
 static int get_block_group_index(struct btrfs_block_group_cache *cache)
@@ -7518,16 +7514,16 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		index = get_block_group_index(block_group);
 	}
 
-	if (index == 0) {
+	if (index == BTRFS_RAID_RAID10) {
 		dev_min = 4;
 		/* Divide by 2 */
 		min_free >>= 1;
-	} else if (index == 1) {
+	} else if (index == BTRFS_RAID_RAID1) {
 		dev_min = 2;
-	} else if (index == 2) {
+	} else if (index == BTRFS_RAID_DUP) {
 		/* Multiply by 2 */
 		min_free <<= 1;
-	} else if (index == 3) {
+	} else if (index == BTRFS_RAID_RAID0) {
 		dev_min = fs_devices->rw_devices;
 		do_div(min_free, dev_min);
 	}
