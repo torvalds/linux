@@ -131,6 +131,7 @@ struct cgw_job {
 	struct rcu_head rcu;
 	u32 handled_frames;
 	u32 dropped_frames;
+	u32 deleted_frames;
 	struct cf_mod mod;
 	union {
 		/* CAN frame data source */
@@ -367,8 +368,11 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	BUG_ON(skb->ip_summed != CHECKSUM_UNNECESSARY);
 
-	if (cgw_hops(skb) >= max_hops)
+	if (cgw_hops(skb) >= max_hops) {
+		/* indicate deleted frames due to misconfiguration */
+		gwj->deleted_frames++;
 		return;
+	}
 
 	if (!(gwj->dst.dev->flags & IFF_UP)) {
 		gwj->dropped_frames++;
@@ -497,6 +501,11 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 
 	if (gwj->dropped_frames) {
 		if (nla_put_u32(skb, CGW_DROPPED, gwj->dropped_frames) < 0)
+			goto cancel;
+	}
+
+	if (gwj->deleted_frames) {
+		if (nla_put_u32(skb, CGW_DELETED, gwj->deleted_frames) < 0)
 			goto cancel;
 	}
 
@@ -799,6 +808,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 
 	gwj->handled_frames = 0;
 	gwj->dropped_frames = 0;
+	gwj->deleted_frames = 0;
 	gwj->flags = r->flags;
 	gwj->gwtype = r->gwtype;
 
