@@ -498,28 +498,34 @@ static void rt6_probe(struct rt6_info *rt)
 	 * Router Reachability Probe MUST be rate-limited
 	 * to no more than one per minute.
 	 */
-	neigh = rt ? rt->n : NULL;
-	if (!neigh)
+	if (!rt || !(rt->rt6i_flags & RTF_GATEWAY))
 		return;
-	write_lock_bh(&neigh->lock);
-	if (neigh->nud_state & NUD_VALID) {
-		write_unlock_bh(&neigh->lock);
-		return;
+	rcu_read_lock_bh();
+	neigh = __ipv6_neigh_lookup_noref(rt->dst.dev, &rt->rt6i_gateway);
+	if (neigh) {
+		write_lock(&neigh->lock);
+		if (neigh->nud_state & NUD_VALID)
+			goto out;
 	}
-	if (!(neigh->nud_state & NUD_VALID) &&
+
+	if (!neigh ||
 	    time_after(jiffies, neigh->updated + rt->rt6i_idev->cnf.rtr_probe_interval)) {
 		struct in6_addr mcaddr;
 		struct in6_addr *target;
 
 		neigh->updated = jiffies;
-		write_unlock_bh(&neigh->lock);
 
-		target = (struct in6_addr *)&neigh->primary_key;
+		if (neigh)
+			write_unlock(&neigh->lock);
+
+		target = (struct in6_addr *)&rt->rt6i_gateway;
 		addrconf_addr_solict_mult(target, &mcaddr);
 		ndisc_send_ns(rt->dst.dev, NULL, target, &mcaddr, NULL);
 	} else {
-		write_unlock_bh(&neigh->lock);
+out:
+		write_unlock(&neigh->lock);
 	}
+	rcu_read_unlock_bh();
 }
 #else
 static inline void rt6_probe(struct rt6_info *rt)
