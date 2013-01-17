@@ -472,6 +472,7 @@ static void acpi_free_ids(struct acpi_device *device)
 		kfree(id->id);
 		kfree(id);
 	}
+	kfree(device->pnp.unique_id);
 }
 
 static void acpi_device_release(struct device *dev)
@@ -479,7 +480,6 @@ static void acpi_device_release(struct device *dev)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	acpi_free_ids(acpi_dev);
-	kfree(acpi_dev->pnp.unique_id);
 	kfree(acpi_dev);
 }
 
@@ -623,6 +623,18 @@ static int acpi_device_register(struct acpi_device *device)
 	struct acpi_device_bus_id *acpi_device_bus_id, *new_bus_id;
 	int found = 0;
 
+	if (device->handle) {
+		acpi_status status;
+
+		status = acpi_attach_data(device->handle, acpi_bus_data_handler,
+					  device);
+		if (ACPI_FAILURE(status)) {
+			acpi_handle_err(device->handle,
+					"Unable to attach device data\n");
+			return -ENODEV;
+		}
+	}
+
 	/*
 	 * Linkage
 	 * -------
@@ -637,8 +649,9 @@ static int acpi_device_register(struct acpi_device *device)
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
 	if (!new_bus_id) {
-		printk(KERN_ERR PREFIX "Memory allocation error\n");
-		return -ENOMEM;
+		pr_err(PREFIX "Memory allocation error\n");
+		result = -ENOMEM;
+		goto err_detach;
 	}
 
 	mutex_lock(&acpi_device_lock);
@@ -677,7 +690,7 @@ static int acpi_device_register(struct acpi_device *device)
 	result = device_register(&device->dev);
 	if (result) {
 		dev_err(&device->dev, "Error registering device\n");
-		goto end;
+		goto err;
 	}
 
 	result = acpi_device_setup_files(device);
@@ -687,12 +700,16 @@ static int acpi_device_register(struct acpi_device *device)
 
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
-end:
+
+ err:
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
 		list_del(&device->node);
 	list_del(&device->wakeup_list);
 	mutex_unlock(&acpi_device_lock);
+
+ err_detach:
+	acpi_detach_data(device->handle, acpi_bus_data_handler);
 	return result;
 }
 
@@ -857,12 +874,6 @@ void acpi_bus_data_handler(acpi_handle handle, void *context)
 	return;
 }
 
-static int acpi_bus_get_perf_flags(struct acpi_device *device)
-{
-	device->performance.state = ACPI_STATE_UNKNOWN;
-	return 0;
-}
-
 static acpi_status
 acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 					     struct acpi_device_wakeup *wakeup)
@@ -1013,12 +1024,25 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 
 static void acpi_bus_add_power_resource(acpi_handle handle);
 
-static int acpi_bus_get_power_flags(struct acpi_device *device)
+static void acpi_bus_get_power_flags(struct acpi_device *device)
 {
 	acpi_status status = 0;
 	acpi_handle handle = NULL;
 	u32 i = 0;
 
+	/* Power resources cannot be power manageable. */
+	if (device->device_type == ACPI_BUS_TYPE_POWER)
+		return;
+
+	/* Presence of _PS0|_PR0 indicates 'power manageable' */
+	status = acpi_get_handle(device->handle, "_PS0", &handle);
+	if (ACPI_FAILURE(status)) {
+		status = acpi_get_handle(device->handle, "_PR0", &handle);
+		if (ACPI_FAILURE(status))
+			return;
+	}
+
+	device->flags.power_manageable = 1;
 
 	/*
 	 * Power Management Flags
@@ -1084,15 +1108,12 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 		device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible = 1;
 
 	acpi_bus_init_power(device);
-
-	return 0;
 }
 
-static int acpi_bus_get_flags(struct acpi_device *device)
+static void acpi_bus_get_flags(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
 	acpi_handle temp = NULL;
-
 
 	/* Presence of _STA indicates 'dynamic_status' */
 	status = acpi_get_handle(device->handle, "_STA", &temp);
@@ -1113,21 +1134,6 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 		if (ACPI_SUCCESS(status))
 			device->flags.ejectable = 1;
 	}
-
-	/* Power resources cannot be power manageable. */
-	if (device->device_type == ACPI_BUS_TYPE_POWER)
-		return 0;
-
-	/* Presence of _PS0|_PR0 indicates 'power manageable' */
-	status = acpi_get_handle(device->handle, "_PS0", &temp);
-	if (ACPI_FAILURE(status))
-		status = acpi_get_handle(device->handle, "_PR0", &temp);
-	if (ACPI_SUCCESS(status))
-		device->flags.power_manageable = 1;
-
-	/* TBD: Performance management */
-
-	return 0;
 }
 
 static void acpi_device_get_busid(struct acpi_device *device)
@@ -1352,27 +1358,18 @@ static void acpi_device_set_id(struct acpi_device *device)
 	}
 }
 
-static int acpi_device_set_context(struct acpi_device *device)
+static void acpi_init_device_object(struct acpi_device *device,
+				     acpi_handle handle,
+				     int type, unsigned long long sta)
 {
-	acpi_status status;
-
-	/*
-	 * Context
-	 * -------
-	 * Attach this 'struct acpi_device' to the ACPI object.  This makes
-	 * resolutions from handle->device very efficient.  Fixed hardware
-	 * devices have no handles, so we skip them.
-	 */
-	if (!device->handle)
-		return 0;
-
-	status = acpi_attach_data(device->handle,
-				  acpi_bus_data_handler, device);
-	if (ACPI_SUCCESS(status))
-		return 0;
-
-	printk(KERN_ERR PREFIX "Error attaching device data\n");
-	return -ENODEV;
+	INIT_LIST_HEAD(&device->pnp.ids);
+	device->device_type = type;
+	device->handle = handle;
+	device->parent = acpi_bus_get_parent(handle);
+	STRUCT_TO_INT(device->status) = sta;
+	acpi_device_get_busid(device);
+	acpi_device_set_id(device);
+	acpi_bus_get_flags(device);
 }
 
 static int acpi_add_single_object(struct acpi_device **child,
@@ -1389,78 +1386,25 @@ static int acpi_add_single_object(struct acpi_device **child,
 		return -ENOMEM;
 	}
 
-	INIT_LIST_HEAD(&device->pnp.ids);
-	device->device_type = type;
-	device->handle = handle;
-	device->parent = acpi_bus_get_parent(handle);
-	STRUCT_TO_INT(device->status) = sta;
-
-	acpi_device_get_busid(device);
-
-	/*
-	 * Flags
-	 * -----
-	 * Note that we only look for object handles -- cannot evaluate objects
-	 * until we know the device is present and properly initialized.
-	 */
-	result = acpi_bus_get_flags(device);
-	if (result)
-		goto end;
-
-	/*
-	 * Initialize Device
-	 * -----------------
-	 * TBD: Synch with Core's enumeration/initialization process.
-	 */
-	acpi_device_set_id(device);
-
-	/*
-	 * Power Management
-	 * ----------------
-	 */
-	if (device->flags.power_manageable) {
-		result = acpi_bus_get_power_flags(device);
-		if (result)
-			goto end;
-	}
-
-	/*
-	 * Wakeup device management
-	 *-----------------------
-	 */
+	acpi_init_device_object(device, handle, type, sta);
+	acpi_bus_get_power_flags(device);
 	acpi_bus_get_wakeup_device_flags(device);
-
-	/*
-	 * Performance Management
-	 * ----------------------
-	 */
-	if (device->flags.performance_manageable) {
-		result = acpi_bus_get_perf_flags(device);
-		if (result)
-			goto end;
-	}
-
-	if ((result = acpi_device_set_context(device)))
-		goto end;
 
 	device->flags.match_driver = match_driver;
 	result = acpi_device_register(device);
-
-end:
-	if (!result) {
-		acpi_power_add_remove_device(device, true);
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Adding %s [%s] parent %s\n", dev_name(&device->dev),
-			 (char *) buffer.pointer,
-			 device->parent ? dev_name(&device->parent->dev) :
-					  "(null)"));
-		kfree(buffer.pointer);
-		*child = device;
-	} else
+	if (result) {
 		acpi_device_release(&device->dev);
+		return result;
+	}
 
-	return result;
+	acpi_power_add_remove_device(device, true);
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Added %s [%s] parent %s\n",
+		dev_name(&device->dev), (char *) buffer.pointer,
+		device->parent ? dev_name(&device->parent->dev) : "(null)"));
+	kfree(buffer.pointer);
+	*child = device;
+	return 0;
 }
 
 #define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
