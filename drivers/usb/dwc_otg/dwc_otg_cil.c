@@ -723,7 +723,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00100320 );	//ep3 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep5 tx fifo
 #endif
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 	/* Configure data FIFO sizes, RK30 otg has 0x3cc dwords total */
     dwc_write_reg32( &global_regs->grxfsiz, 0x00000120 );
     dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100120 );				//ep0 tx fifo

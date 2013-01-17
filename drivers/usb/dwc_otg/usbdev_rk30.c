@@ -12,19 +12,24 @@
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h" 
 
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 
 #define GRF_REG_BASE	RK30_GRF_BASE	
 #define USBOTG_SIZE	RK30_USBOTG20_SIZE
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0xac)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x114)
 #define USBGRF_UOC0_CON3	(GRF_REG_BASE+0x118)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
 #define USBGRF_UOC1_CON3	(GRF_REG_BASE+0x128)
 
+#if defined(CONFIG_SOC_RK3066B) || defined(CONFIG_SOC_RK3108) 
 #define RK3066B_HOST_DRV_VBUS RK30_PIN0_PD7
 #define RK3066B_OTG_DRV_VBUS  RK30_PIN0_PD6
+#elif defined(CONFIG_SOC_RK3168) || defined(CONFIG_ARCH_RK3188) 
+#define RK3066B_HOST_DRV_VBUS RK30_PIN0_PC0
+#define RK3066B_OTG_DRV_VBUS  RK30_PIN3_PD5
+#endif
 
 #else
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x15c)
@@ -101,7 +106,7 @@ void usb20otg_hw_init(void)
 {
 #ifndef CONFIG_USB20_HOST
         // close USB 2.0 HOST phy and clock
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
         unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC1_CON3);
         *otg_phy_con1 =  (0x01<<2)|((0x01<<2)<<16);     //enable soft control
@@ -114,7 +119,7 @@ void usb20otg_hw_init(void)
         // usb phy config init
     
         // other haredware init
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         //GPIO init
         gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
         gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_LOW);
@@ -125,7 +130,7 @@ void usb20otg_hw_init(void)
 
 void usb20otg_phy_suspend(void* pdata, int suspend)
 {
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         struct dwc_otg_platform_data *usbpdata=pdata;
         unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
         unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC0_CON3);
@@ -191,7 +196,7 @@ int usb20otg_get_status(int id)
         unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
         switch(id)
         {
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
             case USB_STATUS_BVABLID:
                 // bvalid in grf
                 ret = (usbgrf_status &(1<<10));
@@ -224,7 +229,7 @@ int usb20otg_get_status(int id)
         return ret;
 }
  
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 void usb20otg_power_enable(int enable)
 { 
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
@@ -250,7 +255,7 @@ struct dwc_otg_platform_data usb20otg_pdata = {
     .clock_init=usb20otg_clock_init,
     .clock_enable=usb20otg_clock_enable,
     .get_status=usb20otg_get_status,
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     .power_enable=usb20otg_power_enable,
 #endif    
 };
@@ -284,7 +289,7 @@ void usb20host_hw_init(void)
     // usb phy config init
 
     // other haredware init
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
     gpio_direction_output(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
 #else
@@ -293,7 +298,7 @@ void usb20host_hw_init(void)
 }
 void usb20host_phy_suspend(void* pdata, int suspend)
 { 
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         struct dwc_otg_platform_data *usbpdata=pdata;
         unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
         unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC1_CON3);
@@ -363,7 +368,7 @@ int usb20host_get_status(int id)
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
     switch(id)
     {
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         case USB_STATUS_BVABLID:
             // bvalid in grf
             ret = (usbgrf_status &(1<<17));
@@ -396,7 +401,7 @@ int usb20host_get_status(int id)
     return ret;
 }
 
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 void usb20host_power_enable(int enable)
 { 
 
@@ -429,7 +434,7 @@ struct dwc_otg_platform_data usb20host_pdata = {
     .clock_init=usb20host_clock_init,
     .clock_enable=usb20host_clock_enable,
     .get_status=usb20host_get_status,
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     .power_enable=usb20host_power_enable,
 #endif    
 };
