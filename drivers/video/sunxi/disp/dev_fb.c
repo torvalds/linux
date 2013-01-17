@@ -43,7 +43,9 @@ MODULE_PARM_DESC(screen0_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 static char *screen0_output_mode;
 module_param(screen0_output_mode, charp, 0444);
 MODULE_PARM_DESC(screen0_output_mode,
-	"tv/hdmi: <width>x<height><i|p><24|50|60> vga: <width>x<height> "
+	"tv: pal, pal-svideo, ntsc, ntsc-svideo, pal-m, pal-m-svideo, pal-nc "
+	"or pal-nc-svideo "
+	"hdmi: <width>x<height><i|p><24|50|60> vga: <width>x<height> "
 	"hdmi modes can be prefixed with \"EDID:\". Then EDID will be used, "
 	"with the specified mode as a fallback, ie \"EDID:1280x720p60\".");
 
@@ -54,6 +56,17 @@ MODULE_PARM_DESC(screen1_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 static char *screen1_output_mode;
 module_param(screen1_output_mode, charp, 0444);
 MODULE_PARM_DESC(screen1_output_mode, "See screen0_output_mode");
+
+static const char * const tv_mode_names[] = {
+	[DISP_TV_MOD_PAL]		= "pal",
+	[DISP_TV_MOD_PAL_SVIDEO]	= "pal-svideo",
+	[DISP_TV_MOD_NTSC]		= "ntsc",
+	[DISP_TV_MOD_NTSC_SVIDEO]	= "ntsc-svideo",
+	[DISP_TV_MOD_PAL_M]		= "pal-m",
+	[DISP_TV_MOD_PAL_M_SVIDEO]	= "pal-m-svideo",
+	[DISP_TV_MOD_PAL_NC]		= "pal-nc",
+	[DISP_TV_MOD_PAL_NC_SVIDEO]	= "pal-nc-svideo",
+};
 
 static u32 tv_mode_to_frame_rate(u32 mode)
 {
@@ -79,8 +92,18 @@ static u32 tv_mode_to_frame_rate(u32 mode)
 
 static int parse_output_mode(char *mode, int type, int fallback, __bool *edid)
 {
-	u32 i, max, width, height, interlace, frame_rate;
+	u32 i, width, height, interlace, frame_rate;
 	char *ep;
+
+	if (type == DISP_OUTPUT_TYPE_TV) {
+		for (i = 0; i < ARRAY_SIZE(tv_mode_names); i++) {
+			if (tv_mode_names[i] &&
+					strcmp(mode, tv_mode_names[i]) == 0)
+				return i;
+		}
+		__wrn("Unsupported mode: %s, ignoring\n", mode);
+		return fallback;
+	}
 
 	if (type == DISP_OUTPUT_TYPE_HDMI && strncmp(mode, "EDID:", 5) == 0) {
 		*edid = true;
@@ -94,7 +117,7 @@ static int parse_output_mode(char *mode, int type, int fallback, __bool *edid)
 	}
 	height = simple_strtol(ep + 1, &ep, 10);
 
-	if (type == DISP_OUTPUT_TYPE_TV || type == DISP_OUTPUT_TYPE_HDMI) {
+	if (type == DISP_OUTPUT_TYPE_HDMI) {
 		if (*ep == 'i') {
 			interlace = 1;
 		} else if (*ep == 'p') {
@@ -105,9 +128,7 @@ static int parse_output_mode(char *mode, int type, int fallback, __bool *edid)
 		}
 		frame_rate = simple_strtol(ep + 1, &ep, 10);
 
-		max = (type == DISP_OUTPUT_TYPE_TV) ?
-			DISP_TV_MOD_1080P_24HZ_3D_FP : DISP_TV_MODE_NUM;
-		for (i = 0; i < max; i++) {
+		for (i = 0; i < DISP_TV_MODE_NUM; i++) {
 			if (tv_mode_to_width(i) == width &&
 			    tv_mode_to_height(i) == height &&
 			    Disp_get_screen_scan_mode(i) == interlace &&
