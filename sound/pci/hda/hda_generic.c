@@ -26,6 +26,7 @@
 #include <linux/sort.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -149,6 +150,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "add_out_jack_modes");
 	if (val >= 0)
 		spec->add_out_jack_modes = !!val;
+	val = snd_hda_get_bool_hint(codec, "add_in_jack_modes");
+	if (val >= 0)
+		spec->add_in_jack_modes = !!val;
 
 	if (!snd_hda_get_int_hint(codec, "mixer_nid", &val))
 		spec->mixer_nid = val;
@@ -2138,6 +2142,136 @@ static int create_out_jack_modes(struct hda_codec *codec, int num_pins,
 	return 0;
 }
 
+/*
+ * input jack mode
+ */
+
+/* from AC_PINCTL_VREF_HIZ to AC_PINCTL_VREF_100 */
+#define NUM_VREFS	6
+
+static const char * const vref_texts[NUM_VREFS] = {
+	"Line In", "Mic 50pc Bias", "Mic 0V Bias",
+	"", "Mic 80pc Bias", "Mic 100pc Bias"
+};
+
+static unsigned int get_vref_caps(struct hda_codec *codec, hda_nid_t pin)
+{
+	unsigned int pincap;
+
+	pincap = snd_hda_query_pin_caps(codec, pin);
+	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+	/* filter out unusual vrefs */
+	pincap &= ~(AC_PINCAP_VREF_GRD | AC_PINCAP_VREF_100);
+	return pincap;
+}
+
+/* convert from the enum item index to the vref ctl index (0=HIZ, 1=50%...) */
+static int get_vref_idx(unsigned int vref_caps, unsigned int item_idx)
+{
+	unsigned int i, n = 0;
+
+	for (i = 0; i < NUM_VREFS; i++) {
+		if (vref_caps & (1 << i)) {
+			if (n == item_idx)
+				return i;
+			n++;
+		}
+	}
+	return 0;
+}
+
+/* convert back from the vref ctl index to the enum item index */
+static int cvt_from_vref_idx(unsigned int vref_caps, unsigned int idx)
+{
+	unsigned int i, n = 0;
+
+	for (i = 0; i < NUM_VREFS; i++) {
+		if (i == idx)
+			return n;
+		if (vref_caps & (1 << i))
+			n++;
+	}
+	return 0;
+}
+
+static int in_jack_mode_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+
+	snd_hda_enum_helper_info(kcontrol, uinfo, hweight32(vref_caps),
+				 vref_texts);
+	/* set the right text */
+	strcpy(uinfo->value.enumerated.name,
+	       vref_texts[get_vref_idx(vref_caps, uinfo->value.enumerated.item)]);
+	return 0;
+}
+
+static int in_jack_mode_get(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+	unsigned int idx;
+
+	idx = snd_hda_codec_get_pin_target(codec, nid) & AC_PINCTL_VREFEN;
+	ucontrol->value.enumerated.item[0] = cvt_from_vref_idx(vref_caps, idx);
+	return 0;
+}
+
+static int in_jack_mode_put(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value;
+	unsigned int vref_caps = get_vref_caps(codec, nid);
+	unsigned int val, idx;
+
+	val = snd_hda_codec_get_pin_target(codec, nid);
+	idx = cvt_from_vref_idx(vref_caps, val & AC_PINCTL_VREFEN);
+	if (idx == ucontrol->value.enumerated.item[0])
+		return 0;
+
+	val &= ~AC_PINCTL_VREFEN;
+	val |= get_vref_idx(vref_caps, ucontrol->value.enumerated.item[0]);
+	snd_hda_set_pin_ctl_cache(codec, nid, val);
+	return 1;
+}
+
+static const struct snd_kcontrol_new in_jack_mode_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = in_jack_mode_info,
+	.get = in_jack_mode_get,
+	.put = in_jack_mode_put,
+};
+
+static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int defcfg;
+	struct snd_kcontrol_new *knew;
+	char name[44];
+
+	/* no jack mode for fixed pins */
+	defcfg = snd_hda_codec_get_pincfg(codec, pin);
+	if (snd_hda_get_input_pin_attr(defcfg) == INPUT_PIN_ATTR_INT)
+		return 0;
+
+	/* no multiple vref caps? */
+	if (hweight32(get_vref_caps(codec, pin)) <= 1)
+		return 0;
+
+	get_jack_mode_name(codec, pin, name, sizeof(name));
+	knew = snd_hda_gen_add_kctl(spec, name, &in_jack_mode_enum);
+	if (!knew)
+		return -ENOMEM;
+	knew->private_value = pin;
+	return 0;
+}
+
 
 /*
  * Parse input paths
@@ -2392,6 +2526,12 @@ static int create_input_ctls(struct hda_codec *codec)
 		err = parse_capture_source(codec, pin, num_adcs, label, -mixer);
 		if (err < 0)
 			return err;
+
+		if (spec->add_in_jack_modes) {
+			err = create_in_jack_mode(codec, pin);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	if (mixer && spec->add_stereo_mix_input) {

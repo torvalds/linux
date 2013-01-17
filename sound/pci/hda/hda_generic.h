@@ -202,6 +202,7 @@ struct hda_gen_spec {
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
 	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
 	unsigned int add_out_jack_modes:1; /* add output jack mode enum ctls */
+	unsigned int add_in_jack_modes:1; /* add input jack mode enum ctls */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
