@@ -37,6 +37,7 @@
 #include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include "i2c-designware-core.h"
@@ -149,6 +150,10 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	}
 	of_i2c_register_devices(adap);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_put(&pdev->dev);
+
 	return 0;
 
 err_free_irq:
@@ -175,6 +180,8 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	platform_set_drvdata(pdev, NULL);
+	pm_runtime_get_sync(&pdev->dev);
+
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 
@@ -185,6 +192,9 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	i2c_dw_disable(dev);
 	free_irq(dev->irq, dev);
 	kfree(dev);
+
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
