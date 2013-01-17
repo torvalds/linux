@@ -992,6 +992,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PINNED_BATCHES:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_EXEC_NO_RELOC:
+		value = 1;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
