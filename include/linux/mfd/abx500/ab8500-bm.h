@@ -404,28 +404,6 @@ struct ab8500_bm_data {
 	const struct ab8500_fg_parameters *fg_params;
 };
 
-struct ab8500_charger_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-	bool autopower_cfg;
-	bool ac_enabled;
-	bool usb_enabled;
-};
-
-struct ab8500_btemp_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_fg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_chargalg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
 struct ab8500_btemp;
 struct ab8500_gpadc;
 struct ab8500_fg;

@@ -2998,7 +2998,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
-	di->ac_chg.enabled = di->pdata->ac_enabled;
+	di->ac_chg.enabled = di->bm->ac_enabled;
 	di->ac_chg.external = false;
 
 	/* USB supply */
@@ -3019,7 +3019,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
-	di->usb_chg.enabled = di->pdata->usb_enabled;
+	di->usb_chg.enabled = di->bm->usb_enabled;
 	di->usb_chg.external = false;
 
 	/* Create a work queue for the charger */
