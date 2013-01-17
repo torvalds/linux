@@ -1398,7 +1398,7 @@ Sysfs notes:
 EXPERIMENTAL: UWB
 -----------------
 
-This feature is marked EXPERIMENTAL because it has not been extensively
+This feature is considered EXPERIMENTAL because it has not been extensively
 tested and validated in various ThinkPad models yet.  The feature may not
 work as expected. USE WITH CAUTION! To use this feature, you need to supply
 the experimental=1 parameter when loading the module.
