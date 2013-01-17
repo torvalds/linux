@@ -194,12 +194,12 @@ config PARISC_PAGE_SIZE_4KB
 	  If you don't know what to do, choose 4KB.
 
 config PARISC_PAGE_SIZE_16KB
-	bool "16KB (EXPERIMENTAL)"
-	depends on PA8X00 && EXPERIMENTAL
+	bool "16KB"
+	depends on PA8X00
 
 config PARISC_PAGE_SIZE_64KB
-	bool "64KB (EXPERIMENTAL)"
-	depends on PA8X00 && EXPERIMENTAL
+	bool "64KB"
+	depends on PA8X00
 
 endchoice
 
