@@ -648,7 +648,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL && MMU
+	depends on SUPERH32 && MMU
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -665,7 +665,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL && BROKEN_ON_SMP
+	depends on SUPERH32 && BROKEN_ON_SMP
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -679,7 +679,7 @@ config CRASH_DUMP
 
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
-	depends on SUPERH32 && KEXEC && HIBERNATION && EXPERIMENTAL
+	depends on SUPERH32 && KEXEC && HIBERNATION
 	help
 	  Jump between original kernel and kexeced kernel and invoke
 	  code via KEXEC
@@ -713,7 +713,7 @@ config SECCOMP
 
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL
+	depends on SUPERH32
 	help
 	  This option turns on the -fstack-protector GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -764,7 +764,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
+	depends on SMP && HOTPLUG
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
@@ -843,7 +843,7 @@ config ENTRY_OFFSET
 
 config ROMIMAGE_MMCIF
 	bool "Include MMCIF loader in romImage (EXPERIMENTAL)"
-	depends on CPU_SUBTYPE_SH7724 && EXPERIMENTAL
+	depends on CPU_SUBTYPE_SH7724
 	help
 	  Say Y here to include experimental MMCIF loading code in
 	  romImage. With this enabled it is possible to write the romImage
@@ -929,7 +929,6 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options (EXPERIMENTAL)"
-depends on EXPERIMENTAL
 
 source "kernel/power/Kconfig"
 
