@@ -260,7 +260,6 @@ static int
 uac2_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_uac2_chip *uac2 = snd_pcm_substream_chip(substream);
-	struct audio_dev *agdev = uac2_to_agdev(uac2);
 	struct uac2_rtd_params *prm;
 	unsigned long flags;
 	int err = 0;
