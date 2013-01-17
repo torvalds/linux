@@ -2368,6 +2368,11 @@ static int fill_adc_nids(struct hda_codec *codec)
 			break;
 	}
 	spec->num_adc_nids = nums;
+
+	/* copy the detected ADCs to all_adcs[] */
+	spec->num_all_adcs = nums;
+	memcpy(spec->all_adcs, spec->adc_nids, nums * sizeof(hda_nid_t));
+
 	return nums;
 }
 

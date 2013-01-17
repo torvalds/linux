@@ -142,9 +142,11 @@ struct hda_gen_spec {
 	unsigned int dyn_adc_idx[HDA_MAX_NUM_INPUTS];
 	hda_nid_t shared_mic_vref_pin;
 
-	/* DAC list */
+	/* DAC/ADC lists */
 	int num_all_dacs;
 	hda_nid_t all_dacs[16];
+	int num_all_adcs;
+	hda_nid_t all_adcs[AUTO_CFG_MAX_OUTS];
 
 	/* path list */
 	struct snd_array paths;
