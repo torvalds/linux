@@ -672,7 +672,6 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	unsigned long flags;
 	int locked = 1;
 
-	clk_prepare_enable(up->clk);
 
 	local_irq_save(flags);
 	if (up->port.sysrq)
@@ -701,7 +700,6 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 		spin_unlock(&up->port.lock);
 	local_irq_restore(flags);
 
-	clk_disable_unprepare(up->clk);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
