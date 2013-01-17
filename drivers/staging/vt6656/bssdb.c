@@ -772,7 +772,7 @@ void BSSvRemoveOneNode(struct vnt_private *pDevice, u32 uNodeIndex)
 void BSSvUpdateAPNode(struct vnt_private *pDevice, u16 *pwCapInfo,
 	PWLAN_IE_SUPP_RATES pSuppRates, PWLAN_IE_SUPP_RATES pExtSuppRates)
 {
-	struct vnt_manager *pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u32 uRateLen = WLAN_RATES_MAXLEN;
 
     memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));

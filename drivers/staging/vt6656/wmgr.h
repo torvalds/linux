@@ -219,15 +219,15 @@ typedef enum tagWMAC_POWER_MODE {
 
 
 /* Tx Management Packet descriptor */
-typedef struct vnt_tx_mgmt {
+struct vnt_tx_mgmt {
 	PUWLAN_80211HDR p80211Header;
 	u32 cbMPDULen;
 	u32 cbPayloadLen;
-} STxMgmtPacket, *PSTxMgmtPacket;
+};
 
 
 /* Rx Management Packet descriptor */
-typedef struct vnt_rx_mgmt {
+struct vnt_rx_mgmt {
 	PUWLAN_80211HDR p80211Header;
 	u64 qwLocalTSF;
 	u32 cbMPDULen;
@@ -236,10 +236,10 @@ typedef struct vnt_rx_mgmt {
 	u8 bySQ;
 	u8 byRxRate;
 	u8 byRxChannel;
-} SRxMgmtPacket, *PSRxMgmtPacket;
+};
 
 
-typedef struct vnt_manager {
+struct vnt_manager {
 	void *pAdapter;
     // MAC address
     BYTE                    abyMACAddr[WLAN_ADDR_LEN];
@@ -391,7 +391,7 @@ typedef struct vnt_manager {
 
     struct sk_buff  skb;
 
-} SMgmtObject, *PSMgmtObject;
+};
 
 /*---------------------  Export Macros ------------------------------*/
 

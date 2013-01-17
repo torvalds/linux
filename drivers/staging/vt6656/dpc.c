@@ -850,9 +850,9 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             RSC += wRxTSC15_0;
 		memcpy(&(pKey->KeyRSC), &RSC,  sizeof(u64));
 
-            if ( (pDevice->sMgmtObj.eCurrMode == WMAC_MODE_ESS_STA) &&
-                 (pDevice->sMgmtObj.eCurrState == WMAC_STATE_ASSOC)) {
-                // check RSC
+		if (pDevice->vnt_mgmt.eCurrMode == WMAC_MODE_ESS_STA &&
+			pDevice->vnt_mgmt.eCurrState == WMAC_STATE_ASSOC) {
+			/* check RSC */
                 if ( (wRxTSC15_0 < wLocalTSC15_0) &&
                      (dwRxTSC47_16 <= dwLocalTSC47_16) &&
                      !((dwRxTSC47_16 == 0) && (dwLocalTSC47_16 == 0xFFFFFFFF))) {
@@ -927,7 +927,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
 	s32 iSANodeIndex)
 {
-	struct vnt_manager *pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	PS802_11Header p802_11Header;
 	CMD_STATUS Status;
 
@@ -1456,7 +1456,7 @@ void RXvMngWorkItem(struct vnt_private *pDevice)
         }
         ASSERT(pRCB);// cannot be NULL
         pRxPacket = &(pRCB->sMngPacket);
-	vMgrRxManagePacket((void *) pDevice, &(pDevice->sMgmtObj), pRxPacket);
+	vMgrRxManagePacket(pDevice, &pDevice->vnt_mgmt, pRxPacket);
         pRCB->Ref--;
         if(pRCB->Ref == 0) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeMng %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);

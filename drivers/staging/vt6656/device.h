@@ -392,7 +392,7 @@ typedef struct __device_opt {
 } OPTIONS, *POPTIONS;
 
 
-typedef struct vnt_private {
+struct vnt_private {
 
 // netdev
 	struct usb_device*          usb;
@@ -524,9 +524,8 @@ typedef struct vnt_private {
     unsigned long                       RcvBuffersInUse;
 
 
-    // 802.11 management
+	/* 802.11 management */
 	struct vnt_manager vnt_mgmt;
-    SMgmtObject                 sMgmtObj;
 
 	u64 qwCurrTSF;
     unsigned int                        cbBulkInMax;
@@ -815,7 +814,7 @@ typedef struct vnt_private {
 	struct iw_statistics	wstats;		// wireless stats
     BOOL                    bCommit;
 
-} DEVICE_INFO, *PSDevice;
+};
 
 
 

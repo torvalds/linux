@@ -1511,10 +1511,10 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
         ///////////////////////////////////////////////////////////////////
 
-        if (pDevice->sMgmtObj.eAuthenMode == WMAC_AUTH_WPANONE) {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
-        }
+	if (pDevice->vnt_mgmt.eAuthenMode == WMAC_AUTH_WPANONE) {
+		dwMICKey0 = *(u32 *)(&pTransmitKey->abyKey[16]);
+		dwMICKey1 = *(u32 *)(&pTransmitKey->abyKey[20]);
+	}
         else if ((pTransmitKey->dwKeyIndex & AUTHENTICATOR_KEY) != 0) {
             dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
             dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);

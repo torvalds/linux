@@ -706,7 +706,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	spin_lock_init(&pDevice->lock);
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
-	pDevice->sMgmtObj.pAdapter = (void *) pDevice;
+	pDevice->vnt_mgmt.pAdapter = (void *) pDevice;
 
 	netdev->netdev_ops = &device_netdev_ops;
 	netdev->wireless_handlers =
@@ -986,7 +986,8 @@ static int  device_open(struct net_device *dev)
     // Init for Key Management
 
     KeyvInitTable(pDevice,&pDevice->sKey);
-    memcpy(pDevice->sMgmtObj.abyMACAddr, pDevice->abyCurrentNetAddr, ETH_ALEN);
+	memcpy(pDevice->vnt_mgmt.abyMACAddr,
+		pDevice->abyCurrentNetAddr, ETH_ALEN);
     memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, ETH_ALEN);
     pDevice->bStopTx0Pkt = FALSE;
     pDevice->bStopDataPkt = FALSE;
@@ -1001,7 +1002,7 @@ static int  device_open(struct net_device *dev)
     tasklet_init(&pDevice->RxMngWorkItem, (void *)RXvMngWorkItem, (unsigned long)pDevice);
     tasklet_init(&pDevice->ReadWorkItem, (void *)RXvWorkItem, (unsigned long)pDevice);
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
-    add_timer(&(pDevice->sMgmtObj.sTimerSecondCallback));
+	add_timer(&pDevice->vnt_mgmt.sTimerSecondCallback);
     pDevice->int_interval = 100;  //Max 100 microframes.
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
@@ -1035,14 +1036,10 @@ static int  device_open(struct net_device *dev)
          pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
     }
 
-    if (pDevice->sMgmtObj.eConfigMode == WMAC_CONFIG_AP) {
+	if (pDevice->vnt_mgmt.eConfigMode == WMAC_CONFIG_AP)
 		bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
-	}
-	else {
-	//mike:mark@2008-11-10
-	  bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-	  /* bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL); */
-    }
+	else
+		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 
 
     netif_stop_queue(pDevice->dev);

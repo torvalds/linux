@@ -246,10 +246,9 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 	int ii;
 	u8 pbyData[24];
 
-    if ( pDevice->byLocalID <= MAC_REVISION_A1 ) {
-        if ( pDevice->sMgmtObj.byCSSPK == KEY_CTL_CCMP )
-            return;
-    }
+	if (pDevice->byLocalID <= MAC_REVISION_A1)
+		if (pDevice->vnt_mgmt.byCSSPK == KEY_CTL_CCMP)
+			return;
 
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);

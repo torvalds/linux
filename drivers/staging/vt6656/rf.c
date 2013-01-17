@@ -888,14 +888,22 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
                 bResult &= IFRFbWriteEmbedded(pDevice, dwVT3226Pwr);
 
                 bResult &= IFRFbWriteEmbedded(pDevice, 0x03C6A200+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
-                if (pDevice->sMgmtObj.eScanState != WMAC_NO_SCANNING) {
-                    // scanning, the channel number is pDevice->uScanChannel
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"@@@@ RFbRawSetPower> 11B mode uCurrChannel[%d]\n", pDevice->sMgmtObj.uScanChannel);
-                    bResult &= IFRFbWriteEmbedded(pDevice, dwVT3226D0LoCurrentTable[pDevice->sMgmtObj.uScanChannel-1]); //RobertYu:20060420, sometimes didn't change channel just set power with different rate
-                } else {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"@@@@ RFbRawSetPower> 11B mode uCurrChannel[%d]\n", pDevice->sMgmtObj.uCurrChannel);
-                    bResult &= IFRFbWriteEmbedded(pDevice, dwVT3226D0LoCurrentTable[pDevice->sMgmtObj.uCurrChannel-1]); //RobertYu:20060420, sometimes didn't change channel just set power with different rate
-                }
+		if (pDevice->vnt_mgmt.eScanState != WMAC_NO_SCANNING) {
+			/* scanning, channel number is pDevice->uScanChannel */
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				pDevice->vnt_mgmt.uScanChannel);
+			bResult &= IFRFbWriteEmbedded(pDevice,
+				dwVT3226D0LoCurrentTable[pDevice->
+					vnt_mgmt.uScanChannel - 1]);
+		} else {
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+				"RFbRawSetPower> 11B mode uCurrChannel[%d]\n",
+				pDevice->vnt_mgmt.uCurrChannel);
+			bResult &= IFRFbWriteEmbedded(pDevice,
+				dwVT3226D0LoCurrentTable[pDevice->
+					vnt_mgmt.uCurrChannel - 1]);
+		}
 
                 bResult &= IFRFbWriteEmbedded(pDevice, 0x015C0800+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW); //RobertYu:20060420, ok now, new switching power (mini-pci can have bigger power consumption)
             } else {

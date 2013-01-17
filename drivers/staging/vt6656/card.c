@@ -513,7 +513,7 @@ void vUpdateIFS(struct vnt_private *pDevice)
         }
         pDevice->uDIFS = C_SIFS_BG + 2*pDevice->uSlot;
 
-        pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->sMgmtObj.abyCurrSuppRates;
+	pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->vnt_mgmt.abyCurrSuppRates;
         for (ii = 0; ii < pItemRates->len; ii++) {
             byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
             if (RATEwGetRateIdx(byRate) > RATE_11M) {
@@ -522,7 +522,8 @@ void vUpdateIFS(struct vnt_private *pDevice)
             }
         }
         if (bOFDMRate == FALSE) {
-            pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->sMgmtObj.abyCurrExtSuppRates;
+		pItemRates = (PWLAN_IE_SUPP_RATES)pDevice->vnt_mgmt
+			.abyCurrExtSuppRates;
             for (ii = 0; ii < pItemRates->len; ii++) {
                 byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
                 if (RATEwGetRateIdx(byRate) > RATE_11M) {
@@ -1035,12 +1036,11 @@ int CARDbChannelSwitch(struct vnt_private *pDevice, u8 byMode,
 {
 	int bResult = TRUE;
 
-    if (byCount == 0) {
-        pDevice->sMgmtObj.uCurrChannel = byNewChannel;
-	CARDbSetMediaChannel(pDevice, byNewChannel);
-
-	return bResult;
-    }
+	if (byCount == 0) {
+		pDevice->vnt_mgmt.uCurrChannel = byNewChannel;
+		CARDbSetMediaChannel(pDevice, byNewChannel);
+		return bResult;
+	}
     pDevice->byChannelSwitchCount = byCount;
     pDevice->byNewChannel = byNewChannel;
     pDevice->bChannelSwitch = TRUE;
