@@ -122,7 +122,7 @@ static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 *valu
 	dm_write_reg(dev, DM_SHARED_CTRL, phy ? 0xc : 0x4);
 
 	for (i = 0; i < DM_TIMEOUT; i++) {
-		u8 tmp;
+		u8 tmp = 0;
 
 		udelay(1);
 		ret = dm_read_reg(dev, DM_SHARED_CTRL, &tmp);
@@ -165,7 +165,7 @@ static int dm_write_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 valu
 	dm_write_reg(dev, DM_SHARED_CTRL, phy ? 0x1a : 0x12);
 
 	for (i = 0; i < DM_TIMEOUT; i++) {
-		u8 tmp;
+		u8 tmp = 0;
 
 		udelay(1);
 		ret = dm_read_reg(dev, DM_SHARED_CTRL, &tmp);
