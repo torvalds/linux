@@ -46,7 +46,7 @@ config VGACON_SOFT_SCROLLBACK_SIZE
 
 config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA
-	tristate "MDA text console (dual-headed) (EXPERIMENTAL)"
+	tristate "MDA text console (dual-headed)"
 	---help---
 	  Say Y here if you have an old MDA or monochrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
