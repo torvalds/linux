@@ -4676,9 +4676,6 @@ __xfs_bmapi_allocate(
 			return error;
 	}
 
-	if (bma->flags & XFS_BMAPI_STACK_SWITCH)
-		bma->stack_switch = 1;
-
 	error = xfs_bmap_alloc(bma);
 	if (error)
 		return error;
@@ -4951,6 +4948,9 @@ xfs_bmapi_write(
 	bma.userdata = 0;
 	bma.flist = flist;
 	bma.firstblock = firstblock;
+
+	if (flags & XFS_BMAPI_STACK_SWITCH)
+		bma.stack_switch = 1;
 
 	while (bno < end && n < *nmap) {
 		inhole = eof || bma.got.br_startoff > bno;
