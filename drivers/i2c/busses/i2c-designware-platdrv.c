@@ -40,6 +40,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include "i2c-designware-core.h"
 
 static struct i2c_algorithm i2c_dw_algo = {
@@ -50,6 +51,42 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
 	return clk_get_rate(dev->clk)/1000;
 }
+
+#ifdef CONFIG_ACPI
+static int dw_i2c_acpi_configure(struct platform_device *pdev)
+{
+	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
+	struct acpi_device *adev;
+	int busno, ret;
+
+	if (!ACPI_HANDLE(&pdev->dev))
+		return -ENODEV;
+
+	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
+	if (ret)
+		return -ENODEV;
+
+	dev->adapter.nr = -1;
+	if (adev->pnp.unique_id && !kstrtoint(adev->pnp.unique_id, 0, &busno))
+		dev->adapter.nr = busno;
+
+	dev->tx_fifo_depth = 32;
+	dev->rx_fifo_depth = 32;
+	return 0;
+}
+
+static const struct acpi_device_id dw_i2c_acpi_match[] = {
+	{ "INT33C2", 0 },
+	{ "INT33C3", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
+#else
+static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif
 
 static int dw_i2c_probe(struct platform_device *pdev)
 {
@@ -115,18 +152,22 @@ static int dw_i2c_probe(struct platform_device *pdev)
 		r = -EBUSY;
 		goto err_unuse_clocks;
 	}
-	{
+
+	/* Try first if we can configure the device from ACPI */
+	r = dw_i2c_acpi_configure(pdev);
+	if (r) {
 		u32 param1 = i2c_dw_read_comp_param(dev);
 
 		dev->tx_fifo_depth = ((param1 >> 16) & 0xff) + 1;
 		dev->rx_fifo_depth = ((param1 >> 8)  & 0xff) + 1;
+		dev->adapter.nr = pdev->id;
 	}
 	r = i2c_dw_init(dev);
 	if (r)
 		goto err_iounmap;
 
 	i2c_dw_disable_int(dev);
-	r = request_irq(dev->irq, i2c_dw_isr, IRQF_DISABLED, pdev->name, dev);
+	r = request_irq(dev->irq, i2c_dw_isr, IRQF_SHARED, pdev->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
 		goto err_iounmap;
@@ -141,14 +182,15 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	adap->algo = &i2c_dw_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
+	ACPI_HANDLE_SET(&adap->dev, ACPI_HANDLE(&pdev->dev));
 
-	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
 		dev_err(&pdev->dev, "failure adding adapter\n");
 		goto err_free_irq;
 	}
 	of_i2c_register_devices(adap);
+	acpi_i2c_register_devices(adap);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
@@ -243,6 +285,7 @@ static struct platform_driver dw_i2c_driver = {
 		.name	= "i2c_designware",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dw_i2c_of_match),
+		.acpi_match_table = ACPI_PTR(dw_i2c_acpi_match),
 		.pm	= &dw_i2c_dev_pm_ops,
 	},
 };
