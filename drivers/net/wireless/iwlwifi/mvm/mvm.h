@@ -504,4 +504,8 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 
+/* BT Coex */
+int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);
+int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
+
 #endif /* __IWL_MVM_H__ */

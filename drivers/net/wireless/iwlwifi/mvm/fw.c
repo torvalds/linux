@@ -309,6 +309,10 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
+	ret = iwl_send_bt_prio_tbl(mvm);
+	if (ret)
+		goto error;
+
 	if (read_nvm) {
 		/* Read nvm */
 		ret = iwl_nvm_init(mvm);
@@ -411,6 +415,14 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	if (ret)
+		goto error;
+
+	ret = iwl_send_bt_prio_tbl(mvm);
+	if (ret)
+		goto error;
+
+	ret = iwl_send_bt_init_conf(mvm);
 	if (ret)
 		goto error;
 
