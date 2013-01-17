@@ -65,8 +65,8 @@ config AMD_IOMMU_STATS
 	  If unsure, say N.
 
 config AMD_IOMMU_V2
-	tristate "AMD IOMMU Version 2 driver (EXPERIMENTAL)"
-	depends on AMD_IOMMU && PROFILING && EXPERIMENTAL
+	tristate "AMD IOMMU Version 2 driver"
+	depends on AMD_IOMMU && PROFILING
 	select MMU_NOTIFIER
 	---help---
 	  This option enables support for the AMD IOMMUv2 features of the IOMMU
@@ -119,8 +119,8 @@ config INTEL_IOMMU_FLOPPY_WA
 	  16MiB to make floppy (an ISA device) work.
 
 config IRQ_REMAP
-	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
-	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	bool "Support for Interrupt Remapping"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
 	select DMAR_TABLE
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
