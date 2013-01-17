@@ -1426,7 +1426,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return;
 
-	ap->ranges[0].base = dev_priv->mm.gtt->gma_bus_addr;
+	ap->ranges[0].base = dev_priv->gtt.mappable_base;
 	ap->ranges[0].size =
 		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 	primary =
@@ -1543,7 +1543,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-	dev_priv->gtt.mappable_base = dev_priv->mm.gtt->gma_bus_addr;
 
 	dev_priv->gtt.mappable =
 		io_mapping_create_wc(dev_priv->gtt.mappable_base,

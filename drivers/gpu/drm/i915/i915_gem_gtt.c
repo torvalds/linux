@@ -691,6 +691,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	u16 snb_gmch_ctl;
 	int ret;
 
+	dev_priv->gtt.mappable_base = pci_resource_start(dev->pdev, 2);
+
 	/* On modern platforms we need not worry ourself with the legacy
 	 * hostbridge query stuff. Skip it entirely
 	 */
@@ -723,7 +725,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
 	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
-	dev_priv->mm.gtt->gma_bus_addr = pci_resource_start(dev->pdev, 2);
 
 	/* i9xx_setup */
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
