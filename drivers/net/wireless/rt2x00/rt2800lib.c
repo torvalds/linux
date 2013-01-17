@@ -1296,8 +1296,7 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PSPOLL,
 			   !(filter_flags & FIF_PSPOLL));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA,
-			   !(filter_flags & FIF_CONTROL));
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA, 0);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CNTL,
@@ -5146,8 +5145,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK |
 	    IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-	    IEEE80211_HW_TEARDOWN_AGGR_ON_BAR_FAIL;
+	    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
 	/*
 	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING for USB devices
