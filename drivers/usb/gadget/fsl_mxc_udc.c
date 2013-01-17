@@ -18,8 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
-
 static struct clk *mxc_ahb_clk;
 static struct clk *mxc_per_clk;
 static struct clk *mxc_ipg_clk;
@@ -59,7 +57,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	clk_prepare_enable(mxc_per_clk);
 
 	/* make sure USB_CLK is running at 60 MHz +/- 1000 Hz */
-	if (!cpu_is_mx51()) {
+	if (!strcmp(pdev->id_entry->name, "imx-udc-mx27")) {
 		freq = clk_get_rate(mxc_per_clk);
 		if (pdata->phy_mode != FSL_USB2_PHY_ULPI &&
 		    (freq < 59999000 || freq > 60001000)) {
@@ -82,17 +80,15 @@ eclkrate:
 void fsl_udc_clk_finalize(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-	if (cpu_is_mx35()) {
-		unsigned int v;
+	unsigned int v;
 
-		/* workaround ENGcm09152 for i.MX35 */
-		if (pdata->workaround & FLS_USB2_WORKAROUND_ENGCM09152) {
-			v = readl(MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
-					USBPHYCTRL_OTGBASE_OFFSET));
-			writel(v | USBPHYCTRL_EVDO,
-				MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
-					USBPHYCTRL_OTGBASE_OFFSET));
-		}
+	/* workaround ENGcm09152 for i.MX35 */
+	if (pdata->workaround & FLS_USB2_WORKAROUND_ENGCM09152) {
+		v = readl(MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
+				USBPHYCTRL_OTGBASE_OFFSET));
+		writel(v | USBPHYCTRL_EVDO,
+			MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
+				USBPHYCTRL_OTGBASE_OFFSET));
 	}
 
 	/* ULPI transceivers don't need usbpll */
