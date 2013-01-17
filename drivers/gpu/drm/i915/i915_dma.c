@@ -1427,8 +1427,8 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 		return;
 
 	ap->ranges[0].base = dev_priv->gtt.mappable_base;
-	ap->ranges[0].size =
-		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	ap->ranges[0].size = dev_priv->gtt.mappable_end - dev_priv->gtt.start;
+
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 
@@ -1542,7 +1542,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_gmch;
 	}
 
-	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	aperture_size = dev_priv->gtt.mappable_end;
 
 	dev_priv->gtt.mappable =
 		io_mapping_create_wc(dev_priv->gtt.mappable_base,
@@ -1699,7 +1699,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		mtrr_del(dev_priv->mm.gtt_mtrr,
 			 dev_priv->gtt.mappable_base,
-			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE);
+			 dev_priv->gtt.mappable_end);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 

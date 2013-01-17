@@ -149,6 +149,7 @@ int
 i915_gem_init_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_init *args = data;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -165,6 +166,7 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_setup_global_gtt(dev, args->gtt_start, args->gtt_end,
 				  args->gtt_end);
+	dev_priv->gtt.mappable_end = args->gtt_end;
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;

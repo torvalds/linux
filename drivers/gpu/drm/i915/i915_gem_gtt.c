@@ -557,7 +557,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	}
 
 	dev_priv->gtt.start = start;
-	dev_priv->gtt.mappable_end = mappable_end;
 	dev_priv->gtt.total = end - start;
 
 	/* Clear any non-preallocated blocks */
@@ -596,7 +595,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	int ret;
 
 	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
-	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	mappable_size = dev_priv->gtt.mappable_end;
 
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
@@ -692,6 +691,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	int ret;
 
 	dev_priv->gtt.mappable_base = pci_resource_start(dev->pdev, 2);
+	dev_priv->gtt.mappable_end = pci_resource_len(dev->pdev, 2);
 
 	/* On modern platforms we need not worry ourself with the legacy
 	 * hostbridge query stuff. Skip it entirely
@@ -735,14 +735,13 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	else
 		dev_priv->mm.gtt->stolen_size = gen7_get_stolen_size(snb_gmch_ctl);
 
-	dev_priv->mm.gtt->gtt_mappable_entries = pci_resource_len(dev->pdev, 2) >> PAGE_SHIFT;
 	/* 64/512MB is the current min/max we actually know of, but this is just a
 	 * coarse sanity check.
 	 */
-	if ((dev_priv->mm.gtt->gtt_mappable_entries >> 8) < 64 ||
-	    dev_priv->mm.gtt->gtt_mappable_entries > dev_priv->mm.gtt->gtt_total_entries) {
-		DRM_ERROR("Unknown GMADR entries (%d)\n",
-			  dev_priv->mm.gtt->gtt_mappable_entries);
+	if ((dev_priv->gtt.mappable_end < (64<<20) ||
+	    (dev_priv->gtt.mappable_end > (512<<20)))) {
+		DRM_ERROR("Unknown GMADR size (%lx)\n",
+			  dev_priv->gtt.mappable_end);
 		ret = -ENXIO;
 		goto err_out;
 	}
@@ -764,7 +763,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 
 	/* GMADR is the PCI aperture used by SW to access tiled GFX surfaces in a linear fashion. */
 	DRM_INFO("Memory usable by graphics device = %dM\n", dev_priv->mm.gtt->gtt_total_entries >> 8);
-	DRM_DEBUG_DRIVER("GMADR size = %dM\n", dev_priv->mm.gtt->gtt_mappable_entries >> 8);
+	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", dev_priv->gtt.mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %dM\n", dev_priv->mm.gtt->stolen_size >> 20);
 
 	return 0;

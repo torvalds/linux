@@ -258,7 +258,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "%u fault mappable objects, %zu bytes\n",
 		   count, size);
 
-	seq_printf(m, "%zu [%zu] gtt total\n",
+	seq_printf(m, "%zu [%lu] gtt total\n",
 		   dev_priv->gtt.total,
 		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
 
