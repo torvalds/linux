@@ -546,20 +546,24 @@ static inline bool rt6_check_neigh(struct rt6_info *rt)
 	struct neighbour *neigh;
 	bool ret = false;
 
-	neigh = rt->n;
 	if (rt->rt6i_flags & RTF_NONEXTHOP ||
 	    !(rt->rt6i_flags & RTF_GATEWAY))
-		ret = true;
-	else if (neigh) {
-		read_lock_bh(&neigh->lock);
+		return true;
+
+	rcu_read_lock_bh();
+	neigh = __ipv6_neigh_lookup_noref(rt->dst.dev, &rt->rt6i_gateway);
+	if (neigh) {
+		read_lock(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
 			ret = true;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 		else if (!(neigh->nud_state & NUD_FAILED))
 			ret = true;
 #endif
-		read_unlock_bh(&neigh->lock);
+		read_unlock(&neigh->lock);
 	}
+	rcu_read_unlock_bh();
+
 	return ret;
 }
 
