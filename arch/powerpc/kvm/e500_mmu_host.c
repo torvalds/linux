@@ -216,9 +216,20 @@ void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 		vcpu_e500->g2h_tlb1_map[esel] = 0;
 		ref->flags &= ~(E500_TLB_BITMAP | E500_TLB_VALID);
 		local_irq_restore(flags);
-
-		return;
 	}
+
+	if (tlbsel == 1 && ref->flags & E500_TLB_TLB0) {
+		/*
+		 * TLB1 entry is backed by 4k pages. This should happen
+		 * rarely and is not worth optimizing. Invalidate everything.
+		 */
+		kvmppc_e500_tlbil_all(vcpu_e500);
+		ref->flags &= ~(E500_TLB_TLB0 | E500_TLB_VALID);
+	}
+
+	/* Already invalidated in between */
+	if (!(ref->flags & E500_TLB_VALID))
+		return;
 
 	/* Guest tlbe is backed by at most one host tlbe per shadow pid. */
 	kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
@@ -487,29 +498,16 @@ static int kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500, int esel,
 	return 0;
 }
 
-/* Caller must ensure that the specified guest TLB entry is safe to insert into
- * the shadow TLB. */
-/* XXX for both one-one and one-to-many , for now use TLB1 */
-static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
-		u64 gvaddr, gfn_t gfn, struct kvm_book3e_206_tlb_entry *gtlbe,
-		struct kvm_book3e_206_tlb_entry *stlbe, int esel)
+static int kvmppc_e500_tlb1_map_tlb1(struct kvmppc_vcpu_e500 *vcpu_e500,
+				     struct tlbe_ref *ref,
+				     int esel)
 {
-	struct tlbe_ref *ref;
-	unsigned int sesel;
-	int r;
-	int stlbsel = 1;
-
-	sesel = vcpu_e500->host_tlb1_nv++;
+	unsigned int sesel = vcpu_e500->host_tlb1_nv++;
 
 	if (unlikely(vcpu_e500->host_tlb1_nv >= tlb1_max_shadow_size()))
 		vcpu_e500->host_tlb1_nv = 0;
 
-	ref = &vcpu_e500->tlb_refs[1][sesel];
-	r = kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1, stlbe,
-				   ref);
-	if (r)
-		return r;
-
+	vcpu_e500->tlb_refs[1][sesel] = *ref;
 	vcpu_e500->g2h_tlb1_map[esel] |= (u64)1 << sesel;
 	vcpu_e500->gtlb_priv[1][esel].ref.flags |= E500_TLB_BITMAP;
 	if (vcpu_e500->h2g_tlb1_rmap[sesel]) {
@@ -518,7 +516,36 @@ static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 	vcpu_e500->h2g_tlb1_rmap[sesel] = esel;
 
-	write_stlbe(vcpu_e500, gtlbe, stlbe, stlbsel, sesel);
+	return sesel;
+}
+
+/* Caller must ensure that the specified guest TLB entry is safe to insert into
+ * the shadow TLB. */
+/* For both one-one and one-to-many */
+static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
+		u64 gvaddr, gfn_t gfn, struct kvm_book3e_206_tlb_entry *gtlbe,
+		struct kvm_book3e_206_tlb_entry *stlbe, int esel)
+{
+	struct tlbe_ref ref;
+	int sesel;
+	int r;
+
+	ref.flags = 0;
+	r = kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1, stlbe,
+				   &ref);
+	if (r)
+		return r;
+
+	/* Use TLB0 when we can only map a page with 4k */
+	if (get_tlb_tsize(stlbe) == BOOK3E_PAGESZ_4K) {
+		vcpu_e500->gtlb_priv[1][esel].ref.flags |= E500_TLB_TLB0;
+		write_stlbe(vcpu_e500, gtlbe, stlbe, 0, 0);
+		return 0;
+	}
+
+	/* Otherwise map into TLB1 */
+	sesel = kvmppc_e500_tlb1_map_tlb1(vcpu_e500, &ref, esel);
+	write_stlbe(vcpu_e500, gtlbe, stlbe, 1, sesel);
 
 	return 0;
 }
