@@ -103,16 +103,6 @@ static const int lp8788_buck_vtbl[] = {
 	1950000, 2000000,
 };
 
-static const u8 buck1_vout_addr[] = {
-	LP8788_BUCK1_VOUT0, LP8788_BUCK1_VOUT1,
-	LP8788_BUCK1_VOUT2, LP8788_BUCK1_VOUT3,
-};
-
-static const u8 buck2_vout_addr[] = {
-	LP8788_BUCK2_VOUT0, LP8788_BUCK2_VOUT1,
-	LP8788_BUCK2_VOUT2, LP8788_BUCK2_VOUT3,
-};
-
 static void lp8788_buck1_set_dvs(struct lp8788_buck *buck)
 {
 	struct lp8788_buck1_dvs *dvs = (struct lp8788_buck1_dvs *)buck->dvs;
@@ -235,7 +225,7 @@ static u8 lp8788_select_buck_vout_addr(struct lp8788_buck *buck,
 			lp8788_read_byte(buck->lp, LP8788_BUCK_DVS_SEL, &val);
 			idx = (val & LP8788_BUCK1_DVS_M) >> LP8788_BUCK1_DVS_S;
 		}
-		addr = buck1_vout_addr[idx];
+		addr = LP8788_BUCK1_VOUT0 + idx;
 		break;
 	case BUCK2:
 		if (mode == EXTPIN) {
@@ -258,7 +248,7 @@ static u8 lp8788_select_buck_vout_addr(struct lp8788_buck *buck,
 			lp8788_read_byte(buck->lp, LP8788_BUCK_DVS_SEL, &val);
 			idx = (val & LP8788_BUCK2_DVS_M) >> LP8788_BUCK2_DVS_S;
 		}
-		addr = buck2_vout_addr[idx];
+		addr = LP8788_BUCK2_VOUT0 + idx;
 		break;
 	default:
 		goto err;
