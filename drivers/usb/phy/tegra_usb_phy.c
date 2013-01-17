@@ -36,19 +36,6 @@
 
 #define ULPI_VIEWPORT		0x170
 
-#define USB_PORTSC1		0x184
-#define   USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
-#define   USB_PORTSC1_PSPD(x)	(((x) & 0x3) << 26)
-#define   USB_PORTSC1_PHCD	(1 << 23)
-#define   USB_PORTSC1_WKOC	(1 << 22)
-#define   USB_PORTSC1_WKDS	(1 << 21)
-#define   USB_PORTSC1_WKCN	(1 << 20)
-#define   USB_PORTSC1_PTC(x)	(((x) & 0xf) << 16)
-#define   USB_PORTSC1_PP	(1 << 12)
-#define   USB_PORTSC1_SUSP	(1 << 7)
-#define   USB_PORTSC1_PE	(1 << 2)
-#define   USB_PORTSC1_CCS	(1 << 0)
-
 #define USB_SUSP_CTRL		0x400
 #define   USB_WAKE_ON_CNNT_EN_DEV	(1 << 3)
 #define   USB_WAKE_ON_DISCON_EN_DEV	(1 << 4)
@@ -311,11 +298,8 @@ static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~USB_SUSP_SET;
 		writel(val, base + USB_SUSP_CTRL);
-	} else {
-		val = readl(base + USB_PORTSC1);
-		val |= USB_PORTSC1_PHCD;
-		writel(val, base + USB_PORTSC1);
-	}
+	} else
+		tegra_ehci_set_phcd(&phy->u_phy, true);
 
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID, 0) < 0)
 		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
@@ -336,11 +320,8 @@ static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~USB_SUSP_CLR;
 		writel(val, base + USB_SUSP_CTRL);
-	} else {
-		val = readl(base + USB_PORTSC1);
-		val &= ~USB_PORTSC1_PHCD;
-		writel(val, base + USB_PORTSC1);
-	}
+	} else
+		tegra_ehci_set_phcd(&phy->u_phy, false);
 
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
 						     USB_PHY_CLK_VALID))
@@ -462,11 +443,8 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	utmi_phy_clk_enable(phy);
 
-	if (!phy->is_legacy_phy) {
-		val = readl(base + USB_PORTSC1);
-		val &= ~USB_PORTSC1_PTS(~0);
-		writel(val, base + USB_PORTSC1);
-	}
+	if (!phy->is_legacy_phy)
+		tegra_ehci_set_pts(&phy->u_phy, 0);
 
 	return 0;
 }
@@ -611,10 +589,6 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 		return ret;
 	}
 
-	val = readl(base + USB_PORTSC1);
-	val |= USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN;
-	writel(val, base + USB_PORTSC1);
-
 	val = readl(base + USB_SUSP_CTRL);
 	val |= USB_SUSP_CLR;
 	writel(val, base + USB_SUSP_CTRL);
@@ -629,16 +603,7 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 {
-	unsigned long val;
-	void __iomem *base = phy->regs;
 	struct tegra_ulpi_config *config = phy->config;
-
-	/* Clear WKCN/WKDS/WKOC wake-on events that can cause the USB
-	 * Controller to immediately bring the ULPI PHY out of low power
-	 */
-	val = readl(base + USB_PORTSC1);
-	val &= ~(USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN);
-	writel(val, base + USB_PORTSC1);
 
 	clk_disable(phy->clk);
 	return gpio_direction_output(config->reset_gpio, 0);

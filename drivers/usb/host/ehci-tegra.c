@@ -2,7 +2,7 @@
  * EHCI-compliant USB host controller driver for NVIDIA Tegra SoCs
  *
  * Copyright (C) 2010 Google, Inc.
- * Copyright (C) 2009 NVIDIA Corporation
+ * Copyright (C) 2009 - 2013 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,12 +26,17 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
 
 #define TEGRA_USB_BASE			0xC5000000
 #define TEGRA_USB2_BASE			0xC5004000
 #define TEGRA_USB3_BASE			0xC5008000
+
+/* PORTSC registers */
+#define TEGRA_USB_PORTSC1			0x184
+#define TEGRA_USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
+#define TEGRA_USB_PORTSC1_PHCD	(1 << 23)
 
 #define TEGRA_USB_DMA_ALIGN 32
 
@@ -605,6 +610,37 @@ static const struct dev_pm_ops tegra_ehci_pm_ops = {
 
 #endif
 
+/* Bits of PORTSC1, which will get cleared by writing 1 into them */
+#define TEGRA_PORTSC1_RWC_BITS (PORT_CSC | PORT_PEC | PORT_OCC)
+
+void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
+{
+	unsigned long val;
+	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
+	void __iomem *base = hcd->regs;
+
+	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+	val &= ~TEGRA_USB_PORTSC1_PTS(3);
+	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
+	writel(val, base + TEGRA_USB_PORTSC1);
+}
+EXPORT_SYMBOL_GPL(tegra_ehci_set_pts);
+
+void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
+{
+	unsigned long val;
+	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
+	void __iomem *base = hcd->regs;
+
+	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+	if (enable)
+		val |= TEGRA_USB_PORTSC1_PHCD;
+	else
+		val &= ~TEGRA_USB_PORTSC1_PHCD;
+	writel(val, base + TEGRA_USB_PORTSC1);
+}
+EXPORT_SYMBOL_GPL(tegra_ehci_set_phcd);
+
 static u64 tegra_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int tegra_ehci_probe(struct platform_device *pdev)
@@ -616,6 +652,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	int err = 0;
 	int irq;
 	int instance = pdev->id;
+	struct usb_phy *u_phy;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -717,6 +754,16 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 
 	usb_phy_init(&tegra->phy->u_phy);
+
+	hcd->phy = u_phy = &tegra->phy->u_phy;
+	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
+			     GFP_KERNEL);
+	if (!u_phy->otg) {
+		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
+		err = -ENOMEM;
+		goto fail_io;
+	}
+	u_phy->otg->host = hcd_to_bus(hcd);
 
 	err = usb_phy_set_suspend(&tegra->phy->u_phy, 0);
 	if (err) {
