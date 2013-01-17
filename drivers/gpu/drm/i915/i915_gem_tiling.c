@@ -357,7 +357,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 		obj->map_and_fenceable =
 			obj->gtt_space == NULL ||
-			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
+			(obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
 		/* Rebind if we need a change of alignment */

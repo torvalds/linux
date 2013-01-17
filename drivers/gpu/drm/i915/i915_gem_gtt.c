@@ -290,7 +290,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = (gtt_pte_t __iomem*)dev_priv->mm.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
+	pd_addr = (gtt_pte_t __iomem*)dev_priv->gtt.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
@@ -367,7 +367,7 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
-	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->mm.gsm + first_entry;
+	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	int i;
 
@@ -393,8 +393,8 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 
 	/* First fill our portion of the GTT with scratch pages */
-	i915_ggtt_clear_range(dev, dev_priv->mm.gtt_start / PAGE_SIZE,
-			      dev_priv->mm.gtt_total / PAGE_SIZE);
+	i915_ggtt_clear_range(dev, dev_priv->gtt.start / PAGE_SIZE,
+			      dev_priv->gtt.total / PAGE_SIZE);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		i915_gem_clflush_object(obj);
@@ -433,7 +433,7 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	gtt_pte_t __iomem *gtt_entries =
-		(gtt_pte_t __iomem *)dev_priv->mm.gsm + first_entry;
+		(gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
 	int unused, i = 0;
 	unsigned int len, m = 0;
 	dma_addr_t addr;
@@ -556,9 +556,9 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 		obj->has_global_gtt_mapping = 1;
 	}
 
-	dev_priv->mm.gtt_start = start;
-	dev_priv->mm.gtt_mappable_end = mappable_end;
-	dev_priv->mm.gtt_total = end - start;
+	dev_priv->gtt.start = start;
+	dev_priv->gtt.mappable_end = mappable_end;
+	dev_priv->gtt.total = end - start;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
@@ -752,9 +752,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		goto err_out;
 	}
 
-	dev_priv->mm.gsm = ioremap_wc(gtt_bus_addr,
-				      dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
-	if (!dev_priv->mm.gsm) {
+	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr,
+				       dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
+	if (!dev_priv->gtt.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		teardown_scratch_page(dev);
 		ret = -ENOMEM;
@@ -778,7 +778,7 @@ err_out:
 void i915_gem_gtt_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	iounmap(dev_priv->mm.gsm);
+	iounmap(dev_priv->gtt.gsm);
 	teardown_scratch_page(dev);
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();

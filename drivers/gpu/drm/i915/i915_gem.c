@@ -186,7 +186,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			pinned += obj->gtt_space->size;
 	mutex_unlock(&dev->struct_mutex);
 
-	args->aper_size = dev_priv->mm.gtt_total;
+	args->aper_size = dev_priv->gtt.total;
 	args->aper_available_size = args->aper_size - pinned;
 
 	return 0;
@@ -637,7 +637,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * source page isn't available.  Return the error and we'll
 		 * retry in the slow path.
 		 */
-		if (fast_user_write(dev_priv->mm.gtt_mapping, page_base,
+		if (fast_user_write(dev_priv->gtt.mappable, page_base,
 				    page_offset, user_data, page_length)) {
 			ret = -EFAULT;
 			goto out_unpin;
@@ -1362,7 +1362,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	obj->fault_mappable = true;
 
-	pfn = ((dev_priv->mm.gtt_base_addr + obj->gtt_offset) >> PAGE_SHIFT) +
+	pfn = ((dev_priv->gtt.mappable_base + obj->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
 
 	/* Finally, remap it using the new GTT offset */
@@ -1544,7 +1544,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 		goto unlock;
 	}
 
-	if (obj->base.size > dev_priv->mm.gtt_mappable_end) {
+	if (obj->base.size > dev_priv->gtt.mappable_end) {
 		ret = -E2BIG;
 		goto out;
 	}
@@ -2910,7 +2910,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	 * before evicting everything in a vain attempt to find space.
 	 */
 	if (obj->base.size >
-	    (map_and_fenceable ? dev_priv->mm.gtt_mappable_end : dev_priv->mm.gtt_total)) {
+	    (map_and_fenceable ? dev_priv->gtt.mappable_end : dev_priv->gtt.total)) {
 		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
 		return -E2BIG;
 	}
@@ -2931,7 +2931,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (map_and_fenceable)
 		ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space, node,
 							  size, alignment, obj->cache_level,
-							  0, dev_priv->mm.gtt_mappable_end);
+							  0, dev_priv->gtt.mappable_end);
 	else
 		ret = drm_mm_insert_node_generic(&dev_priv->mm.gtt_space, node,
 						 size, alignment, obj->cache_level);
@@ -2971,7 +2971,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		(node->start & (fence_alignment - 1)) == 0;
 
 	mappable =
-		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
+		obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end;
 
 	obj->map_and_fenceable = mappable && fenceable;
 

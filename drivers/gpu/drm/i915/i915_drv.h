@@ -364,6 +364,25 @@ struct intel_device_info {
 	u8 has_llc:1;
 };
 
+/* The Graphics Translation Table is the way in which GEN hardware translates a
+ * Graphics Virtual Address into a Physical Address. In addition to the normal
+ * collateral associated with any va->pa translations GEN hardware also has a
+ * portion of the GTT which can be mapped by the CPU and remain both coherent
+ * and correct (in cases like swizzling). That region is referred to as GMADR in
+ * the spec.
+ */
+struct i915_gtt {
+	unsigned long start;		/* Start offset of used GTT */
+	size_t total;			/* Total size GTT can map */
+
+	unsigned long mappable_end;	/* End offset that we can CPU map */
+	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
+	phys_addr_t mappable_base;	/* PA of our GMADR */
+
+	/** "Graphics Stolen Memory" holds the global PTEs */
+	void __iomem *gsm;
+};
+
 #define I915_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES 1024
 struct i915_hw_ppgtt {
@@ -781,6 +800,8 @@ typedef struct drm_i915_private {
 	/* Register state */
 	bool modeset_on_lid;
 
+	struct i915_gtt gtt;
+
 	struct {
 		/** Bridge to intel-gtt-ko */
 		struct intel_gtt *gtt;
@@ -799,15 +820,8 @@ typedef struct drm_i915_private {
 		struct list_head unbound_list;
 
 		/** Usable portion of the GTT for GEM */
-		unsigned long gtt_start;
-		unsigned long gtt_mappable_end;
 		unsigned long stolen_base; /* limited to low memory (32-bit) */
 
-		/** "Graphics Stolen Memory" holds the global PTEs */
-		void __iomem *gsm;
-
-		struct io_mapping *gtt_mapping;
-		phys_addr_t gtt_base_addr;
 		int gtt_mtrr;
 
 		/** PPGTT used for aliasing the PPGTT with the GTT */
@@ -885,7 +899,6 @@ typedef struct drm_i915_private {
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 
 		/* accounting, useful for userland debugging */
-		size_t gtt_total;
 		size_t object_memory;
 		u32 object_count;
 	} mm;

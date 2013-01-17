@@ -281,7 +281,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
-		reloc_page = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+		reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
 						      reloc->offset & PAGE_MASK);
 		reloc_entry = (uint32_t __iomem *)
 			(reloc_page + (reloc->offset & ~PAGE_MASK));

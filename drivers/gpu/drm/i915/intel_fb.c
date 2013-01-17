@@ -142,7 +142,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->mm.gtt_base_addr + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
 			   size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
