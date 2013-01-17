@@ -536,6 +536,8 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	unsigned long hole_start, hole_end;
 
+	BUG_ON(mappable_end > end);
+
 	/* Subtract the guard page ... */
 	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
@@ -557,7 +559,7 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
 	dev_priv->mm.gtt_total = end - start;
-	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
+	dev_priv->mm.mappable_gtt_total = mappable_end - start;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
