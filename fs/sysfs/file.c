@@ -91,8 +91,8 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 	 * indicate truncated result or overflow in normal use cases.
 	 */
 	if (count >= (ssize_t)PAGE_SIZE) {
-		printk("fill_read_buffer: %pSR returned bad count\n",
-		       ops->show);
+		print_symbol("fill_read_buffer: %s returned bad count\n",
+			(unsigned long)ops->show);
 		/* Try to struggle along */
 		count = PAGE_SIZE - 1;
 	}
