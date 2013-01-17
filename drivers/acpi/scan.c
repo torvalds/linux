@@ -475,11 +475,25 @@ void acpi_free_ids(struct acpi_device *device)
 	kfree(device->pnp.unique_id);
 }
 
+static void acpi_free_power_resources_lists(struct acpi_device *device)
+{
+	int i;
+
+	if (!device->flags.power_manageable)
+		return;
+
+	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
+		struct acpi_device_power_state *ps = &device->power.states[i];
+		acpi_power_resources_list_free(&ps->resources);
+	}
+}
+
 static void acpi_device_release(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	acpi_free_ids(acpi_dev);
+	acpi_free_power_resources_lists(acpi_dev);
 	kfree(acpi_dev);
 }
 
@@ -1055,17 +1069,22 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
 		struct acpi_device_power_state *ps = &device->power.states[i];
 		char object_name[5] = { '_', 'P', 'R', '0' + i, '\0' };
+		struct acpi_handle_list resources;
 
+		INIT_LIST_HEAD(&ps->resources);
 		/* Evaluate "_PRx" to se if power resources are referenced */
 		acpi_evaluate_reference(device->handle, object_name, NULL,
-					&ps->resources);
-		if (ps->resources.count) {
+					&resources);
+		if (resources.count) {
 			int j;
 
 			device->power.flags.power_resources = 1;
-			for (j = 0; j < ps->resources.count; j++) {
-				acpi_handle rhandle = ps->resources.handles[j];
+			for (j = 0; j < resources.count; j++) {
+				acpi_handle rhandle = resources.handles[j];
+
 				acpi_add_power_resource(rhandle);
+				acpi_power_resources_list_add(rhandle,
+							      &ps->resources);
 			}
 		}
 
@@ -1079,7 +1098,7 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 		 * State is valid if there are means to put the device into it.
 		 * D3hot is only valid if _PR3 present.
 		 */
-		if (ps->resources.count ||
+		if (resources.count ||
 		    (ps->flags.explicit_set && i < ACPI_STATE_D3_HOT)) {
 			ps->flags.valid = 1;
 			ps->flags.os_accessible = 1;
@@ -1088,6 +1107,8 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 		ps->power = -1;	/* Unknown - driver assigned */
 		ps->latency = -1;	/* Unknown - driver assigned */
 	}
+
+	INIT_LIST_HEAD(&device->power.states[ACPI_STATE_D3_COLD].resources);
 
 	/* Set defaults for D0 and D3 states (always valid) */
 	device->power.states[ACPI_STATE_D0].flags.valid = 1;

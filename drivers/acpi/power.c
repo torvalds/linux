@@ -75,6 +75,11 @@ struct acpi_power_resource {
 	struct mutex resource_lock;
 };
 
+struct acpi_power_resource_entry {
+	struct list_head node;
+	struct acpi_power_resource *resource;
+};
+
 static LIST_HEAD(acpi_power_resource_list);
 static DEFINE_MUTEX(power_resource_list_lock);
 
@@ -90,6 +95,41 @@ static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 		return NULL;
 
 	return container_of(device, struct acpi_power_resource, device);
+}
+
+void acpi_power_resources_list_add(acpi_handle handle, struct list_head *list)
+{
+	struct acpi_power_resource *resource = acpi_power_get_context(handle);
+	struct acpi_power_resource_entry *entry;
+
+	if (!resource || !list)
+		return;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return;
+
+	entry->resource = resource;
+	if (!list_empty(list)) {
+		struct acpi_power_resource_entry *e;
+
+		list_for_each_entry(e, list, node)
+			if (e->resource->order > resource->order) {
+				list_add_tail(&entry->node, &e->node);
+				return;
+			}
+	}
+	list_add_tail(&entry->node, list);
+}
+
+void acpi_power_resources_list_free(struct list_head *list)
+{
+	struct acpi_power_resource_entry *entry, *e;
+
+	list_for_each_entry_safe(entry, e, list, node) {
+		list_del(&entry->node);
+		kfree(entry);
+	}
 }
 
 static int acpi_power_get_state(acpi_handle handle, int *state)
@@ -119,31 +159,23 @@ static int acpi_power_get_state(acpi_handle handle, int *state)
 	return 0;
 }
 
-static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
+static int acpi_power_get_list_state(struct list_head *list, int *state)
 {
+	struct acpi_power_resource_entry *entry;
 	int cur_state;
-	int i = 0;
 
 	if (!list || !state)
 		return -EINVAL;
 
 	/* The state of the list is 'on' IFF all resources are 'on'. */
-
-	for (i = 0; i < list->count; i++) {
-		struct acpi_power_resource *resource;
-		acpi_handle handle = list->handles[i];
+	list_for_each_entry(entry, list, node) {
+		struct acpi_power_resource *resource = entry->resource;
+		acpi_handle handle = resource->device.handle;
 		int result;
 
-		resource = acpi_power_get_context(handle);
-		if (!resource)
-			return -ENODEV;
-
 		mutex_lock(&resource->resource_lock);
-
 		result = acpi_power_get_state(handle, &cur_state);
-
 		mutex_unlock(&resource->resource_lock);
-
 		if (result)
 			return result;
 
@@ -155,7 +187,6 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 			  cur_state ? "on" : "off"));
 
 	*state = cur_state;
-
 	return 0;
 }
 
@@ -199,14 +230,9 @@ static int __acpi_power_on(struct acpi_power_resource *resource)
 	return 0;
 }
 
-static int acpi_power_on(acpi_handle handle)
+static int acpi_power_on(struct acpi_power_resource *resource)
 {
-	int result = 0;
-	struct acpi_power_resource *resource;
-
-	resource = acpi_power_get_context(handle);
-	if (!resource)
-		return -ENODEV;
+	int result = 0;;
 
 	mutex_lock(&resource->resource_lock);
 
@@ -231,15 +257,10 @@ static int acpi_power_on(acpi_handle handle)
 	return result;
 }
 
-static int acpi_power_off(acpi_handle handle)
+static int acpi_power_off(struct acpi_power_resource *resource)
 {
-	int result = 0;
 	acpi_status status = AE_OK;
-	struct acpi_power_resource *resource;
-
-	resource = acpi_power_get_context(handle);
-	if (!resource)
-		return -ENODEV;
+	int result = 0;
 
 	mutex_lock(&resource->resource_lock);
 
@@ -271,47 +292,48 @@ static int acpi_power_off(acpi_handle handle)
 	return result;
 }
 
-static void __acpi_power_off_list(struct acpi_handle_list *list, int num_res)
+static int acpi_power_off_list(struct list_head *list)
 {
-	int i;
-
-	for (i = num_res - 1; i >= 0 ; i--)
-		acpi_power_off(list->handles[i]);
-}
-
-static void acpi_power_off_list(struct acpi_handle_list *list)
-{
-	__acpi_power_off_list(list, list->count);
-}
-
-static int acpi_power_on_list(struct acpi_handle_list *list)
-{
+	struct acpi_power_resource_entry *entry;
 	int result = 0;
-	int i;
 
-	for (i = 0; i < list->count; i++) {
-		result = acpi_power_on(list->handles[i]);
-		if (result) {
-			__acpi_power_off_list(list, i);
-			break;
-		}
+	list_for_each_entry_reverse(entry, list, node) {
+		result = acpi_power_off(entry->resource);
+		if (result)
+			goto err;
 	}
+	return 0;
+
+ err:
+	list_for_each_entry_continue(entry, list, node)
+		acpi_power_on(entry->resource);
 
 	return result;
 }
 
-static void acpi_power_add_dependent(acpi_handle rhandle,
+static int acpi_power_on_list(struct list_head *list)
+{
+	struct acpi_power_resource_entry *entry;
+	int result = 0;
+
+	list_for_each_entry(entry, list, node) {
+		result = acpi_power_on(entry->resource);
+		if (result)
+			goto err;
+	}
+	return 0;
+
+ err:
+	list_for_each_entry_continue_reverse(entry, list, node)
+		acpi_power_off(entry->resource);
+
+	return result;
+}
+
+static void acpi_power_add_dependent(struct acpi_power_resource *resource,
 				     struct acpi_device *adev)
 {
 	struct acpi_power_dependent_device *dep;
-	struct acpi_power_resource *resource;
-
-	if (!rhandle || !adev)
-		return;
-
-	resource = acpi_power_get_context(rhandle);
-	if (!resource)
-		return;
 
 	mutex_lock(&resource->resource_lock);
 
@@ -331,19 +353,11 @@ static void acpi_power_add_dependent(acpi_handle rhandle,
 	mutex_unlock(&resource->resource_lock);
 }
 
-static void acpi_power_remove_dependent(acpi_handle rhandle,
+static void acpi_power_remove_dependent(struct acpi_power_resource *resource,
 					struct acpi_device *adev)
 {
 	struct acpi_power_dependent_device *dep;
-	struct acpi_power_resource *resource;
 	struct work_struct *work = NULL;
-
-	if (!rhandle || !adev)
-		return;
-
-	resource = acpi_power_get_context(rhandle);
-	if (!resource)
-		return;
 
 	mutex_lock(&resource->resource_lock);
 
@@ -366,16 +380,16 @@ void acpi_power_add_remove_device(struct acpi_device *adev, bool add)
 {
 	if (adev->power.flags.power_resources) {
 		struct acpi_device_power_state *ps;
-		int j;
+		struct acpi_power_resource_entry *entry;
 
 		ps = &adev->power.states[ACPI_STATE_D0];
-		for (j = 0; j < ps->resources.count; j++) {
-			acpi_handle rhandle = ps->resources.handles[j];
+		list_for_each_entry(entry, &ps->resources, node) {
+			struct acpi_power_resource *resource = entry->resource;
 
 			if (add)
-				acpi_power_add_dependent(rhandle, adev);
+				acpi_power_add_dependent(resource, adev);
 			else
-				acpi_power_remove_dependent(rhandle, adev);
+				acpi_power_remove_dependent(resource, adev);
 		}
 	}
 }
@@ -539,7 +553,6 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 {
 	int result = 0;
-	struct acpi_handle_list *list = NULL;
 	int list_state = 0;
 	int i = 0;
 
@@ -551,8 +564,9 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 	 * required for a given D-state are 'on'.
 	 */
 	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
-		list = &device->power.states[i].resources;
-		if (list->count < 1)
+		struct list_head *list = &device->power.states[i].resources;
+
+		if (list_empty(list))
 			continue;
 
 		result = acpi_power_get_list_state(list, &list_state);
@@ -571,8 +585,11 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 
 int acpi_power_on_resources(struct acpi_device *device, int state)
 {
-	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3)
+	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3_COLD)
 		return -EINVAL;
+
+	if (state == ACPI_STATE_D3_COLD)
+		return 0;
 
 	return acpi_power_on_list(&device->power.states[state].resources);
 }
@@ -584,7 +601,7 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
-	if (device->power.state == state)
+	if (device->power.state == state || !device->flags.power_manageable)
 		return 0;
 
 	if ((device->power.state < ACPI_STATE_D0)

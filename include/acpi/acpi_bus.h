@@ -199,7 +199,7 @@ struct acpi_device_power_state {
 	} flags;
 	int power;		/* % Power (compared to D0) */
 	int latency;		/* Dx->D0 time (microseconds) */
-	struct acpi_handle_list resources;	/* Power resources referenced */
+	struct list_head resources;	/* Power resources referenced */
 };
 
 struct acpi_device_power {
