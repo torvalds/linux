@@ -685,7 +685,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	}
 	sr_val = i;
 
-	lrclk = snd_soc_params_to_bclk(params) / params_rate(params);
+	lrclk = rates[bclk] / params_rate(params);
 
 	arizona_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
