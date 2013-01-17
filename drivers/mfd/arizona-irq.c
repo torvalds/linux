@@ -192,6 +192,9 @@ int arizona_irq_init(struct arizona *arizona)
 		return -EINVAL;
 	}
 
+	/* Disable all wake sources by default */
+	regmap_write(arizona->regmap, ARIZONA_WAKE_CONTROL, 0);
+
 	if (arizona->pdata.irq_active_high) {
 		ret = regmap_update_bits(arizona->regmap, ARIZONA_IRQ_CTRL_1,
 					 ARIZONA_IRQ_POL, 0);
