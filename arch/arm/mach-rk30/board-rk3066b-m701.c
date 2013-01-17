@@ -1769,12 +1769,12 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 
 //	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
 	sram_udelay(10000);
-	gpio0d7_iomux = readl_relaxed(GRF_GPIO0D_IOMUX);
+	gpio0d7_iomux = grf_readl(GRF_GPIO0D_IOMUX);
 	gpio0d7_do = grf_readl(GRF_GPIO0H_DO);
 	gpio0d7_dir = grf_readl(GRF_GPIO0H_DIR);
 	gpio0d7_en = grf_readl(GRF_GPIO0H_EN);
 
-	writel_relaxed((1<<30), GRF_GPIO0D_IOMUX);
+	grf_writel((1<<30), GRF_GPIO0D_IOMUX);
 	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_DIR);
 	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_DO);
 	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_EN);
@@ -1783,7 +1783,7 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 void __sramfunc rk30_pwm_logic_resume_voltage(void)
 {
 #ifdef CONFIG_RK30_PWM_REGULATOR
-	writel_relaxed((1<<30)|gpio0d7_iomux, GRF_GPIO0D_IOMUX);
+	grf_writel((1<<30)|gpio0d7_iomux, GRF_GPIO0D_IOMUX);
 	grf_writel((1<<31)|gpio0d7_en, GRF_GPIO0H_EN);
 	grf_writel((1<<31)|gpio0d7_dir, GRF_GPIO0H_DIR);
 	grf_writel((1<<31)|gpio0d7_do, GRF_GPIO0H_DO);
