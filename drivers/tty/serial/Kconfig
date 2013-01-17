@@ -1458,4 +1458,28 @@ config SERIAL_ARC_NR_PORTS
 	  Set this to the number of serial ports you want the driver
 	  to support.
 
+config SERIAL_RP2
+	tristate "Comtrol RocketPort EXPRESS/INFINITY support"
+	depends on PCI
+	select SERIAL_CORE
+	help
+	  This driver supports the Comtrol RocketPort EXPRESS and
+	  RocketPort INFINITY families of PCI/PCIe multiport serial adapters.
+	  These adapters use a "RocketPort 2" ASIC that is not compatible
+	  with the original RocketPort driver (CONFIG_ROCKETPORT).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rp2.
+
+	  If you want to compile this driver into the kernel, say Y here.  If
+	  you don't have a suitable RocketPort card installed, say N.
+
+config SERIAL_RP2_NR_UARTS
+	int "Maximum number of RocketPort EXPRESS/INFINITY ports"
+	depends on SERIAL_RP2
+	default "32"
+	help
+	  If multiple cards are present, the default limit of 32 ports may
+	  need to be increased.
+
 endmenu
