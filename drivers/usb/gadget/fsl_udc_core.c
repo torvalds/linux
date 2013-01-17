@@ -2543,7 +2543,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		dr_controller_setup(udc_controller);
 	}
 
-	fsl_udc_clk_finalize(pdev);
+	ret = fsl_udc_clk_finalize(pdev);
+	if (ret)
+		goto err_free_irq;
 
 	/* Setup gadget structure */
 	udc_controller->gadget.ops = &fsl_gadget_ops;
