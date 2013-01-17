@@ -562,8 +562,7 @@ choice
 	  accurate - This option is therefore marked experimental.
 
 config BFIN_KERNEL_CLOCK_MEMINIT_CALC
-	bool "Calculate Timings (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Calculate Timings"
 
 config BFIN_KERNEL_CLOCK_MEMINIT_SPEC
 	bool "Provide accurate Timings based on target SCLK"
@@ -1120,7 +1119,7 @@ endchoice
 
 comment "Memory Protection Unit"
 config MPU
-	bool "Enable the memory protection unit (EXPERIMENTAL)"
+	bool "Enable the memory protection unit"
 	default n
 	help
 	  Use the processor's MPU to protect applications from accessing
@@ -1442,7 +1441,6 @@ config BFIN_CPU_FREQ
 
 config CPU_VOLTAGE
 	bool "CPU Voltage scaling"
-	depends on EXPERIMENTAL
 	depends on CPU_FREQ
 	default n
 	help
