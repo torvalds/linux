@@ -1041,6 +1041,50 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 				"error in _DSW or _PSW evaluation\n"));
 }
 
+static void acpi_bus_init_power_state(struct acpi_device *device, int state)
+{
+	struct acpi_device_power_state *ps = &device->power.states[state];
+	char object_name[5] = { '_', 'P', 'R', '0' + state, '\0' };
+	struct acpi_handle_list resources;
+	acpi_handle handle;
+	acpi_status status;
+
+	INIT_LIST_HEAD(&ps->resources);
+
+	/* Evaluate "_PRx" to se if power resources are referenced */
+	acpi_evaluate_reference(device->handle, object_name, NULL, &resources);
+	if (resources.count) {
+		int j;
+
+		device->power.flags.power_resources = 1;
+		for (j = 0; j < resources.count; j++) {
+			acpi_handle rhandle = resources.handles[j];
+
+			acpi_add_power_resource(rhandle);
+			acpi_power_resources_list_add(rhandle, &ps->resources);
+		}
+	}
+
+	/* Evaluate "_PSx" to see if we can do explicit sets */
+	object_name[2] = 'S';
+	status = acpi_get_handle(device->handle, object_name, &handle);
+	if (ACPI_SUCCESS(status))
+		ps->flags.explicit_set = 1;
+
+	/*
+	 * State is valid if there are means to put the device into it.
+	 * D3hot is only valid if _PR3 present.
+	 */
+	if (resources.count
+	    || (ps->flags.explicit_set && state < ACPI_STATE_D3_HOT)) {
+		ps->flags.valid = 1;
+		ps->flags.os_accessible = 1;
+	}
+
+	ps->power = -1;		/* Unknown - driver assigned */
+	ps->latency = -1;	/* Unknown - driver assigned */
+}
+
 static void acpi_bus_get_power_flags(struct acpi_device *device)
 {
 	acpi_status status = 0;
@@ -1070,47 +1114,8 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 	/*
 	 * Enumerate supported power management states
 	 */
-	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
-		struct acpi_device_power_state *ps = &device->power.states[i];
-		char object_name[5] = { '_', 'P', 'R', '0' + i, '\0' };
-		struct acpi_handle_list resources;
-
-		INIT_LIST_HEAD(&ps->resources);
-		/* Evaluate "_PRx" to se if power resources are referenced */
-		acpi_evaluate_reference(device->handle, object_name, NULL,
-					&resources);
-		if (resources.count) {
-			int j;
-
-			device->power.flags.power_resources = 1;
-			for (j = 0; j < resources.count; j++) {
-				acpi_handle rhandle = resources.handles[j];
-
-				acpi_add_power_resource(rhandle);
-				acpi_power_resources_list_add(rhandle,
-							      &ps->resources);
-			}
-		}
-
-		/* Evaluate "_PSx" to see if we can do explicit sets */
-		object_name[2] = 'S';
-		status = acpi_get_handle(device->handle, object_name, &handle);
-		if (ACPI_SUCCESS(status))
-			ps->flags.explicit_set = 1;
-
-		/*
-		 * State is valid if there are means to put the device into it.
-		 * D3hot is only valid if _PR3 present.
-		 */
-		if (resources.count ||
-		    (ps->flags.explicit_set && i < ACPI_STATE_D3_HOT)) {
-			ps->flags.valid = 1;
-			ps->flags.os_accessible = 1;
-		}
-
-		ps->power = -1;	/* Unknown - driver assigned */
-		ps->latency = -1;	/* Unknown - driver assigned */
-	}
+	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++)
+		acpi_bus_init_power_state(device, i);
 
 	INIT_LIST_HEAD(&device->power.states[ACPI_STATE_D3_COLD].resources);
 
