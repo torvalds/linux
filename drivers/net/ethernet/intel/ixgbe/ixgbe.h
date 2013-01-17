@@ -620,6 +620,7 @@ enum ixgbe_state_t {
 	__IXGBE_DOWN,
 	__IXGBE_SERVICE_SCHED,
 	__IXGBE_IN_SFP_INIT,
+	__IXGBE_READ_I2C,
 };
 
 struct ixgbe_cb {

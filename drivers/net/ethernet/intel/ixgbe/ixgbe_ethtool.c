@@ -39,6 +39,7 @@
 #include <linux/uaccess.h>
 
 #include "ixgbe.h"
+#include "ixgbe_phy.h"
 
 
 #define IXGBE_ALL_RAR_ENTRIES 16
@@ -2839,6 +2840,117 @@ static int ixgbe_set_channels(struct net_device *dev,
 	return ixgbe_setup_tc(dev, netdev_get_num_tc(dev));
 }
 
+static int ixgbe_get_module_info(struct net_device *dev,
+				       struct ethtool_modinfo *modinfo)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 status;
+	u8 sff8472_rev, addr_mode;
+	int ret_val = 0;
+	bool page_swap = false;
+
+	/* avoid concurent i2c reads */
+	while (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
+		msleep(100);
+
+	/* used by the service task */
+	set_bit(__IXGBE_READ_I2C, &adapter->state);
+
+	/* Check whether we support SFF-8472 or not */
+	status = hw->phy.ops.read_i2c_eeprom(hw,
+					     IXGBE_SFF_SFF_8472_COMP,
+					     &sff8472_rev);
+	if (status != 0) {
+		ret_val = -EIO;
+		goto err_out;
+	}
+
+	/* addressing mode is not supported */
+	status = hw->phy.ops.read_i2c_eeprom(hw,
+					     IXGBE_SFF_SFF_8472_SWAP,
+					     &addr_mode);
+	if (status != 0) {
+		ret_val = -EIO;
+		goto err_out;
+	}
+
+	if (addr_mode & IXGBE_SFF_ADDRESSING_MODE) {
+		e_err(drv, "Address change required to access page 0xA2, but not supported. Please report the module type to the driver maintainers.\n");
+		page_swap = true;
+	}
+
+	if (sff8472_rev == IXGBE_SFF_SFF_8472_UNSUP || page_swap) {
+		/* We have a SFP, but it does not support SFF-8472 */
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+	} else {
+		/* We have a SFP which supports a revision of SFF-8472. */
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+	}
+
+err_out:
+	clear_bit(__IXGBE_READ_I2C, &adapter->state);
+	return ret_val;
+}
+
+static int ixgbe_get_module_eeprom(struct net_device *dev,
+					 struct ethtool_eeprom *ee,
+					 u8 *data)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 status = IXGBE_ERR_PHY_ADDR_INVALID;
+	u8 databyte = 0xFF;
+	int i = 0;
+	int ret_val = 0;
+
+	/* ixgbe_get_module_info is called before this function in all
+	 * cases, so we do not need any checks we already do above,
+	 * and can trust ee->len to be a known value.
+	 */
+
+	while (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
+		msleep(100);
+	set_bit(__IXGBE_READ_I2C, &adapter->state);
+
+	/* Read the first block, SFF-8079 */
+	for (i = 0; i < ETH_MODULE_SFF_8079_LEN; i++) {
+		status = hw->phy.ops.read_i2c_eeprom(hw, i, &databyte);
+		if (status != 0) {
+			/* Error occured while reading module */
+			ret_val = -EIO;
+			goto err_out;
+		}
+		data[i] = databyte;
+	}
+
+	/* If the second block is requested, check if SFF-8472 is supported. */
+	if (ee->len == ETH_MODULE_SFF_8472_LEN) {
+		if (data[IXGBE_SFF_SFF_8472_COMP] == IXGBE_SFF_SFF_8472_UNSUP)
+			return -EOPNOTSUPP;
+
+		/* Read the second block, SFF-8472 */
+		for (i = ETH_MODULE_SFF_8079_LEN;
+		     i < ETH_MODULE_SFF_8472_LEN; i++) {
+			status = hw->phy.ops.read_i2c_sff8472(hw,
+				i - ETH_MODULE_SFF_8079_LEN, &databyte);
+			if (status != 0) {
+				/* Error occured while reading module */
+				ret_val = -EIO;
+				goto err_out;
+			}
+			data[i] = databyte;
+		}
+	}
+
+err_out:
+	clear_bit(__IXGBE_READ_I2C, &adapter->state);
+
+	return ret_val;
+}
+
 static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_settings           = ixgbe_get_settings,
 	.set_settings           = ixgbe_set_settings,
@@ -2870,6 +2982,8 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_channels		= ixgbe_get_channels,
 	.set_channels		= ixgbe_set_channels,
 	.get_ts_info		= ixgbe_get_ts_info,
+	.get_module_info	= ixgbe_get_module_info,
+	.get_module_eeprom	= ixgbe_get_module_eeprom,
 };
 
 void ixgbe_set_ethtool_ops(struct net_device *netdev)
