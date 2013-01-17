@@ -242,7 +242,7 @@ struct acpi_device_wakeup {
 	acpi_handle gpe_device;
 	u64 gpe_number;
 	u64 sleep_state;
-	struct acpi_handle_list resources;
+	struct list_head resources;
 	struct acpi_device_wakeup_flags flags;
 	int prepare_count;
 };

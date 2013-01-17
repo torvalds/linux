@@ -469,7 +469,7 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
  */
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 {
-	int i, err = 0;
+	int err = 0;
 
 	if (!dev || !dev->wakeup.flags.valid)
 		return -EINVAL;
@@ -479,24 +479,17 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 	if (dev->wakeup.prepare_count++)
 		goto out;
 
-	/* Open power resource */
-	for (i = 0; i < dev->wakeup.resources.count; i++) {
-		int ret = acpi_power_on(dev->wakeup.resources.handles[i]);
-		if (ret) {
-			printk(KERN_ERR PREFIX "Transition power state\n");
-			dev->wakeup.flags.valid = 0;
-			err = -ENODEV;
-			goto err_out;
-		}
+	err = acpi_power_on_list(&dev->wakeup.resources);
+	if (err) {
+		dev_err(&dev->dev, "Cannot turn wakeup power resources on\n");
+		dev->wakeup.flags.valid = 0;
+	} else {
+		/*
+		 * Passing 3 as the third argument below means the device may be
+		 * put into arbitrary power state afterward.
+		 */
+		err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
 	}
-
-	/*
-	 * Passing 3 as the third argument below means the device may be placed
-	 * in arbitrary power state afterwards.
-	 */
-	err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
-
- err_out:
 	if (err)
 		dev->wakeup.prepare_count = 0;
 
@@ -513,7 +506,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
  */
 int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 {
-	int i, err = 0;
+	int err = 0;
 
 	if (!dev || !dev->wakeup.flags.valid)
 		return -EINVAL;
@@ -534,15 +527,10 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 	if (err)
 		goto out;
 
-	/* Close power resource */
-	for (i = 0; i < dev->wakeup.resources.count; i++) {
-		int ret = acpi_power_off(dev->wakeup.resources.handles[i]);
-		if (ret) {
-			printk(KERN_ERR PREFIX "Transition power state\n");
-			dev->wakeup.flags.valid = 0;
-			err = -ENODEV;
-			goto out;
-		}
+	err = acpi_power_off_list(&dev->wakeup.resources);
+	if (err) {
+		dev_err(&dev->dev, "Cannot turn wakeup power resources off\n");
+		dev->wakeup.flags.valid = 0;
 	}
 
  out:

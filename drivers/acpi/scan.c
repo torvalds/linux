@@ -479,6 +479,9 @@ static void acpi_free_power_resources_lists(struct acpi_device *device)
 {
 	int i;
 
+	if (device->wakeup.flags.valid)
+		acpi_power_resources_list_free(&device->wakeup.resources);
+
 	if (!device->flags.power_manageable)
 		return;
 
@@ -902,6 +905,8 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	if (!wakeup)
 		return AE_BAD_PARAMETER;
 
+	INIT_LIST_HEAD(&wakeup->resources);
+
 	/* _PRW */
 	status = acpi_evaluate_object(handle, "_PRW", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -948,19 +953,17 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	}
 	wakeup->sleep_state = element->integer.value;
 
-	if ((package->package.count - 2) > ACPI_MAX_HANDLES) {
-		status = AE_NO_MEMORY;
-		goto out;
-	}
-	wakeup->resources.count = package->package.count - 2;
-	for (i = 0; i < wakeup->resources.count; i++) {
-		element = &(package->package.elements[i + 2]);
+	for (i = 2; i < package->package.count; i++) {
+		acpi_handle rhandle;
+
+		element = &(package->package.elements[i]);
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
 			status = AE_BAD_DATA;
 			goto out;
 		}
-
-		wakeup->resources.handles[i] = element->reference.handle;
+		rhandle = element->reference.handle;
+		acpi_add_power_resource(rhandle);
+		acpi_power_resources_list_add(rhandle, &wakeup->resources);
 	}
 
 	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
@@ -1018,6 +1021,7 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	status = acpi_bus_extract_wakeup_device_power_package(device->handle,
 							      &device->wakeup);
 	if (ACPI_FAILURE(status)) {
+		acpi_power_resources_list_free(&device->wakeup.resources);
 		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
 		return;
 	}
@@ -1491,9 +1495,11 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		acpi_handle temp;
 
 		status = acpi_get_handle(handle, "_PRW", &temp);
-		if (ACPI_SUCCESS(status))
+		if (ACPI_SUCCESS(status)) {
 			acpi_bus_extract_wakeup_device_power_package(handle,
 								     &wakeup);
+			acpi_power_resources_list_free(&wakeup.resources);
+		}
 		return AE_CTRL_DEPTH;
 	}
 
