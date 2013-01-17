@@ -119,7 +119,7 @@ err:
 	return err;
 }
 
-static int __devexit test_remove(struct platform_device *plat_dev)
+static int test_remove(struct platform_device *plat_dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
@@ -131,7 +131,7 @@ static int __devexit test_remove(struct platform_device *plat_dev)
 
 static struct platform_driver test_driver = {
 	.probe	= test_probe,
-	.remove = __devexit_p(test_remove),
+	.remove = test_remove,
 	.driver = {
 		.name = "rtc-test",
 		.owner = THIS_MODULE,

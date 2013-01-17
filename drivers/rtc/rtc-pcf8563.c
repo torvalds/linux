@@ -296,7 +296,7 @@ static const struct i2c_device_id pcf8563_id[] = {
 MODULE_DEVICE_TABLE(i2c, pcf8563_id);
 
 #ifdef CONFIG_OF
-static const struct of_device_id pcf8563_of_match[] __devinitconst = {
+static const struct of_device_id pcf8563_of_match[] = {
 	{ .compatible = "nxp,pcf8563" },
 	{}
 };

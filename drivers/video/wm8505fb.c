@@ -260,7 +260,7 @@ static struct fb_ops wm8505fb_ops = {
 	.fb_blank	= wm8505fb_blank,
 };
 
-static int __devinit wm8505fb_probe(struct platform_device *pdev)
+static int wm8505fb_probe(struct platform_device *pdev)
 {
 	struct wm8505fb_info	*fbi;
 	struct resource		*res;
@@ -431,7 +431,7 @@ failed:
 	return ret;
 }
 
-static int __devexit wm8505fb_remove(struct platform_device *pdev)
+static int wm8505fb_remove(struct platform_device *pdev)
 {
 	struct wm8505fb_info *fbi = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -462,7 +462,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver wm8505fb_driver = {
 	.probe		= wm8505fb_probe,
-	.remove		= __devexit_p(wm8505fb_remove),
+	.remove		= wm8505fb_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRIVER_NAME,

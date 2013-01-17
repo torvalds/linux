@@ -674,7 +674,7 @@ static const struct of_device_id xway_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xway_match);
 
-static int __devinit pinmux_xway_probe(struct platform_device *pdev)
+static int pinmux_xway_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct pinctrl_xway_soc *xway_soc;

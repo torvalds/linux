@@ -47,7 +47,7 @@ static void gpio_poweroff_do_poweroff(void)
 	WARN_ON(1);
 }
 
-static int __devinit gpio_poweroff_probe(struct platform_device *pdev)
+static int gpio_poweroff_probe(struct platform_device *pdev)
 {
 	enum of_gpio_flags flags;
 	bool input = false;
@@ -94,7 +94,7 @@ err:
 	return -ENODEV;
 }
 
-static int __devexit gpio_poweroff_remove(struct platform_device *pdev)
+static int gpio_poweroff_remove(struct platform_device *pdev)
 {
 	gpio_free(gpio_num);
 	if (pm_power_off == &gpio_poweroff_do_poweroff)
@@ -110,7 +110,7 @@ static const struct of_device_id of_gpio_poweroff_match[] = {
 
 static struct platform_driver gpio_poweroff_driver = {
 	.probe = gpio_poweroff_probe,
-	.remove = __devexit_p(gpio_poweroff_remove),
+	.remove = gpio_poweroff_remove,
 	.driver = {
 		.name = "poweroff-gpio",
 		.owner = THIS_MODULE,
