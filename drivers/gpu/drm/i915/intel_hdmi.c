@@ -768,6 +768,15 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
+	if (intel_hdmi->color_range_auto) {
+		/* See CEA-861-E - 5.1 Default Encoding Parameters */
+		if (intel_hdmi->has_hdmi_sink &&
+		    drm_mode_cea_vic(adjusted_mode) > 1)
+			intel_hdmi->color_range = SDVO_COLOR_RANGE_16_235;
+		else
+			intel_hdmi->color_range = 0;
+	}
+
 	if (intel_hdmi->color_range)
 		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
 
@@ -912,10 +921,21 @@ intel_hdmi_set_property(struct drm_connector *connector,
 	}
 
 	if (property == dev_priv->broadcast_rgb_property) {
-		if (val == !!intel_hdmi->color_range)
-			return 0;
-
-		intel_hdmi->color_range = val ? SDVO_COLOR_RANGE_16_235 : 0;
+		switch (val) {
+		case INTEL_BROADCAST_RGB_AUTO:
+			intel_hdmi->color_range_auto = true;
+			break;
+		case INTEL_BROADCAST_RGB_FULL:
+			intel_hdmi->color_range_auto = false;
+			intel_hdmi->color_range = 0;
+			break;
+		case INTEL_BROADCAST_RGB_LIMITED:
+			intel_hdmi->color_range_auto = false;
+			intel_hdmi->color_range = SDVO_COLOR_RANGE_16_235;
+			break;
+		default:
+			return -EINVAL;
+		}
 		goto done;
 	}
 
@@ -964,6 +984,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 {
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
+	intel_hdmi->color_range_auto = true;
 }
 
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,

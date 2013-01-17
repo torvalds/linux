@@ -1811,5 +1811,9 @@ __i915_write(64, q)
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
+/* "Broadcast RGB" property */
+#define INTEL_BROADCAST_RGB_AUTO 0
+#define INTEL_BROADCAST_RGB_FULL 1
+#define INTEL_BROADCAST_RGB_LIMITED 2
 
 #endif

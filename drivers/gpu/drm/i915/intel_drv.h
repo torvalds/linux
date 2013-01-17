@@ -343,6 +343,7 @@ struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
 	uint32_t color_range;
+	bool color_range_auto;
 	bool has_hdmi_sink;
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
@@ -362,6 +363,7 @@ struct intel_dp {
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
+	bool color_range_auto;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
