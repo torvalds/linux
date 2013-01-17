@@ -891,9 +891,9 @@ static int sccnxp_probe(struct platform_device *pdev)
 	} else
 		memcpy(&s->pdata, pdata, sizeof(struct sccnxp_pdata));
 
-	if (pdata->poll_time_us) {
+	if (s->pdata.poll_time_us) {
 		dev_info(&pdev->dev, "Using poll mode, resolution %u usecs\n",
-			 pdata->poll_time_us);
+			 s->pdata.poll_time_us);
 		s->poll = 1;
 	}
 
