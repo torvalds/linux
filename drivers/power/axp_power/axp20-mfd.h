@@ -26,11 +26,12 @@
 static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 {
 	uint8_t chip_id;
-	uint8_t v[19] = {0xd8,POWER20_INTEN2, 0xff,POWER20_INTEN3,0x03,
-												POWER20_INTEN4, 0x01,POWER20_INTEN5, 0x00,
-												POWER20_INTSTS1,0xff,POWER20_INTSTS2, 0xff,
-												POWER20_INTSTS3,0xff,POWER20_INTSTS4, 0xff,
-												POWER20_INTSTS5,0xff};
+	uint8_t v[19] = { /* POWER20_INTEN1 */ 0xd8,
+		POWER20_INTEN2,  0xff, POWER20_INTEN3,  0x03,
+		POWER20_INTEN4,  0x01, POWER20_INTEN5,  0x00,
+		POWER20_INTSTS1, 0xff, POWER20_INTSTS2, 0xff,
+		POWER20_INTSTS3, 0xff, POWER20_INTSTS4, 0xff,
+		POWER20_INTSTS5, 0xff };
 	int err;
 	/*read chip id*/
 	err =  __axp_read(chip->client, POWER20_IC_TYPE, &chip_id);
