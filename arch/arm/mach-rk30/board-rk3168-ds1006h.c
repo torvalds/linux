@@ -542,6 +542,7 @@ static int rk610_codec_io_init(void)
 static struct rk610_codec_platform_data rk610_codec_pdata = {
 	.spk_ctl_io = RK30_PIN2_PD7,
 	.io_init = rk610_codec_io_init,
+	.boot_depop = 1,
 };
 #endif
 

@@ -63,7 +63,7 @@
 /*
  * Debug
  */
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -590,13 +590,16 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 static void rk610_delayedwork_fun(struct work_struct *work)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);	
+	struct rk610_codec_platform_data *pdata= rk610_codec->pdata;	
 	DBG("--------%s----------\n",__FUNCTION__);
-
-	#if OUT_CAPLESS
-	rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
-	#else
-	rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);
-	#endif
+	if(!pdata->boot_depop){
+		#if OUT_CAPLESS
+		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
+		#else
+		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);
+		#endif
+	}
 	spk_ctrl_fun(GPIO_HIGH);
 }
 
@@ -658,6 +661,8 @@ static int rk610_codec_resume(struct snd_soc_codec *codec)
 void rk610_codec_reg_set(void)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);	
+	struct rk610_codec_platform_data *pdata= rk610_codec->pdata;
     unsigned int digital_gain;
 	unsigned int mic_vol = Volume_Input;
 	rk610_codec_write(codec,ACCELCODEC_R1D, 0x30);
@@ -715,12 +720,13 @@ void rk610_codec_reg_set(void)
     rk610_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_ENABLE|ASC_INT_ENABLE);
     gR0BReg = ASC_DEC_ENABLE|ASC_INT_ENABLE;  //ASC_DEC_DISABLE|ASC_INT_ENABLE;
 
-
-//	#if OUT_CAPLESS
-//	rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
-//	#else
-//	rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);
-//	#endif
+	if(pdata->boot_depop){
+		#if OUT_CAPLESS
+		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE);
+		#else
+		rk610_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);
+		#endif
+	}	
 }
 
 #ifdef RK610_PROC	

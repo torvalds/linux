@@ -423,6 +423,7 @@ struct rt3261_platform_data {
 struct rk610_codec_platform_data {
 	unsigned int spk_ctl_io;
 	int (*io_init)(void);
+	int boot_depop;//if found boot pop,set boot_depop 1 test
 };
 
 #define BOOT_MODE_NORMAL		0
