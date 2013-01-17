@@ -3815,6 +3815,16 @@ static void call_pcm_playback_hook(struct hda_pcm_stream *hinfo,
 		spec->pcm_playback_hook(hinfo, codec, substream, action);
 }
 
+static void call_pcm_capture_hook(struct hda_pcm_stream *hinfo,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream,
+				  int action)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	if (spec->pcm_capture_hook)
+		spec->pcm_capture_hook(hinfo, codec, substream, action);
+}
+
 /*
  * Analog playback callbacks
  */
@@ -3879,6 +3889,44 @@ static int playback_pcm_close(struct hda_pcm_stream *hinfo,
 	call_pcm_playback_hook(hinfo, codec, substream,
 			       HDA_GEN_PCM_ACT_CLOSE);
 	mutex_unlock(&spec->pcm_mutex);
+	return 0;
+}
+
+static int capture_pcm_open(struct hda_pcm_stream *hinfo,
+			    struct hda_codec *codec,
+			    struct snd_pcm_substream *substream)
+{
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_OPEN);
+	return 0;
+}
+
+static int capture_pcm_prepare(struct hda_pcm_stream *hinfo,
+			       struct hda_codec *codec,
+			       unsigned int stream_tag,
+			       unsigned int format,
+			       struct snd_pcm_substream *substream)
+{
+	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_PREPARE);
+	return 0;
+}
+
+static int capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
+			       struct hda_codec *codec,
+			       struct snd_pcm_substream *substream)
+{
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_CLEANUP);
+	return 0;
+}
+
+static int capture_pcm_close(struct hda_pcm_stream *hinfo,
+			     struct hda_codec *codec,
+			     struct snd_pcm_substream *substream)
+{
+	call_pcm_capture_hook(hinfo, codec, substream, HDA_GEN_PCM_ACT_CLOSE);
 	return 0;
 }
 
@@ -3976,6 +4024,9 @@ static int dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 /*
  * Analog capture
  */
+#define alt_capture_pcm_open	capture_pcm_open
+#define alt_capture_pcm_close	capture_pcm_close
+
 static int alt_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   unsigned int stream_tag,
@@ -3986,6 +4037,8 @@ static int alt_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number + 1],
 				   stream_tag, 0, format);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_PREPARE);
 	return 0;
 }
 
@@ -3997,6 +4050,8 @@ static int alt_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_cleanup_stream(codec,
 				     spec->adc_nids[substream->number + 1]);
+	call_pcm_capture_hook(hinfo, codec, substream,
+			      HDA_GEN_PCM_ACT_CLEANUP);
 	return 0;
 }
 
@@ -4020,6 +4075,12 @@ static const struct hda_pcm_stream pcm_analog_capture = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in build_pcms */
+	.ops = {
+		.open = capture_pcm_open,
+		.close = capture_pcm_close,
+		.prepare = capture_pcm_prepare,
+		.cleanup = capture_pcm_cleanup
+	},
 };
 
 static const struct hda_pcm_stream pcm_analog_alt_playback = {
@@ -4041,6 +4102,8 @@ static const struct hda_pcm_stream pcm_analog_alt_capture = {
 	.channels_max = 2,
 	/* NID is set in build_pcms */
 	.ops = {
+		.open = alt_capture_pcm_open,
+		.close = alt_capture_pcm_close,
 		.prepare = alt_capture_pcm_prepare,
 		.cleanup = alt_capture_pcm_cleanup
 	},
