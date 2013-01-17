@@ -96,8 +96,9 @@ out:
 }
 
 static const struct vm_operations_struct f2fs_file_vm_ops = {
-	.fault        = filemap_fault,
-	.page_mkwrite = f2fs_vm_page_mkwrite,
+	.fault		= filemap_fault,
+	.page_mkwrite	= f2fs_vm_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 static int need_to_sync_dir(struct f2fs_sb_info *sbi, struct inode *inode)
