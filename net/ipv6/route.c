@@ -2484,7 +2484,6 @@ static int rt6_fill_node(struct net *net,
 	struct nlmsghdr *nlh;
 	long expires;
 	u32 table;
-	struct neighbour *n;
 
 	if (prefix) {	/* user wants prefix routes only */
 		if (!(rt->rt6i_flags & RTF_PREFIX_RT)) {
@@ -2597,9 +2596,8 @@ static int rt6_fill_node(struct net *net,
 	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
 		goto nla_put_failure;
 
-	n = rt->n;
-	if (n) {
-		if (nla_put(skb, RTA_GATEWAY, 16, &n->primary_key) < 0)
+	if (rt->rt6i_flags & RTF_GATEWAY) {
+		if (nla_put(skb, RTA_GATEWAY, 16, &rt->rt6i_gateway) < 0)
 			goto nla_put_failure;
 	}
 
@@ -2794,7 +2792,6 @@ struct rt6_proc_arg
 static int rt6_info_route(struct rt6_info *rt, void *p_arg)
 {
 	struct seq_file *m = p_arg;
-	struct neighbour *n;
 
 	seq_printf(m, "%pi6 %02x ", &rt->rt6i_dst.addr, rt->rt6i_dst.plen);
 
@@ -2803,9 +2800,8 @@ static int rt6_info_route(struct rt6_info *rt, void *p_arg)
 #else
 	seq_puts(m, "00000000000000000000000000000000 00 ");
 #endif
-	n = rt->n;
-	if (n) {
-		seq_printf(m, "%pi6", n->primary_key);
+	if (rt->rt6i_flags & RTF_GATEWAY) {
+		seq_printf(m, "%pi6", &rt->rt6i_gateway);
 	} else {
 		seq_puts(m, "00000000000000000000000000000000");
 	}
