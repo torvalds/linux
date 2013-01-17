@@ -950,6 +950,17 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	if (err)
 		goto out;
 
+	if (!list_empty(&wakeup->resources)) {
+		int sleep_state;
+
+		sleep_state = acpi_power_min_system_level(&wakeup->resources);
+		if (sleep_state < wakeup->sleep_state) {
+			acpi_handle_warn(handle, "Overriding _PRW sleep state "
+					 "(S%d) by S%d from power resources\n",
+					 (int)wakeup->sleep_state, sleep_state);
+			wakeup->sleep_state = sleep_state;
+		}
+	}
 	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
 
  out:

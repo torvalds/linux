@@ -55,6 +55,7 @@ int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 				 struct list_head *list);
 int acpi_add_power_resource(acpi_handle handle);
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
+int acpi_power_min_system_level(struct list_head *list);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);

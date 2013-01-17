@@ -429,6 +429,20 @@ void acpi_power_add_remove_device(struct acpi_device *adev, bool add)
 	}
 }
 
+int acpi_power_min_system_level(struct list_head *list)
+{
+	struct acpi_power_resource_entry *entry;
+	int system_level = 5;
+
+	list_for_each_entry(entry, list, node) {
+		struct acpi_power_resource *resource = entry->resource;
+
+		if (system_level > resource->system_level)
+			system_level = resource->system_level;
+	}
+	return system_level;
+}
+
 /* --------------------------------------------------------------------------
                              Device Power Management
    -------------------------------------------------------------------------- */
