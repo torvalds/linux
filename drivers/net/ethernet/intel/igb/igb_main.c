@@ -193,6 +193,7 @@ static const struct dev_pm_ops igb_pm_ops = {
 };
 #endif
 static void igb_shutdown(struct pci_dev *);
+static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 #ifdef CONFIG_IGB_DCA
 static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
 static struct notifier_block dca_notifier = {
@@ -234,6 +235,7 @@ static struct pci_driver igb_driver = {
 	.driver.pm = &igb_pm_ops,
 #endif
 	.shutdown = igb_shutdown,
+	.sriov_configure = igb_pci_sriov_configure,
 	.err_handler = &igb_err_handler
 };
 
@@ -2195,6 +2197,99 @@ err_dma:
 	return err;
 }
 
+#ifdef CONFIG_PCI_IOV
+static int  igb_disable_sriov(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* reclaim resources allocated to VFs */
+	if (adapter->vf_data) {
+		/* disable iov and allow time for transactions to clear */
+		if (igb_vfs_are_assigned(adapter)) {
+			dev_warn(&pdev->dev,
+				 "Cannot deallocate SR-IOV virtual functions while they are assigned - VFs will not be deallocated\n");
+			return -EPERM;
+		} else {
+			pci_disable_sriov(pdev);
+			msleep(500);
+		}
+
+		kfree(adapter->vf_data);
+		adapter->vf_data = NULL;
+		adapter->vfs_allocated_count = 0;
+		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
+		wrfl();
+		msleep(100);
+		dev_info(&pdev->dev, "IOV Disabled\n");
+
+		/* Re-enable DMA Coalescing flag since IOV is turned off */
+		adapter->flags |= IGB_FLAG_DMAC;
+	}
+
+	return 0;
+}
+
+static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int old_vfs = pci_num_vf(pdev);
+	int err = 0;
+	int i;
+
+	if (!num_vfs)
+		goto out;
+	else if (old_vfs && old_vfs == num_vfs)
+		goto out;
+	else if (old_vfs && old_vfs != num_vfs)
+		err = igb_disable_sriov(pdev);
+
+	if (err)
+		goto out;
+
+	if (num_vfs > 7) {
+		err = -EPERM;
+		goto out;
+	}
+
+	adapter->vfs_allocated_count = num_vfs;
+
+	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
+				sizeof(struct vf_data_storage), GFP_KERNEL);
+
+	/* if allocation failed then we do not support SR-IOV */
+	if (!adapter->vf_data) {
+		adapter->vfs_allocated_count = 0;
+		dev_err(&pdev->dev,
+			"Unable to allocate memory for VF Data Storage\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
+	if (err)
+		goto err_out;
+
+	dev_info(&pdev->dev, "%d VFs allocated\n",
+		 adapter->vfs_allocated_count);
+	for (i = 0; i < adapter->vfs_allocated_count; i++)
+		igb_vf_configure(adapter, i);
+
+	/* DMA Coalescing is not supported in IOV mode. */
+	adapter->flags &= ~IGB_FLAG_DMAC;
+	goto out;
+
+err_out:
+	kfree(adapter->vf_data);
+	adapter->vf_data = NULL;
+	adapter->vfs_allocated_count = 0;
+out:
+	return err;
+}
+
+#endif
 /**
  * igb_remove - Device Removal Routine
  * @pdev: PCI device information struct
@@ -2242,23 +2337,7 @@ static void igb_remove(struct pci_dev *pdev)
 	igb_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PCI_IOV
-	/* reclaim resources allocated to VFs */
-	if (adapter->vf_data) {
-		/* disable iov and allow time for transactions to clear */
-		if (igb_vfs_are_assigned(adapter)) {
-			dev_info(&pdev->dev, "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
-		} else {
-			pci_disable_sriov(pdev);
-			msleep(500);
-		}
-
-		kfree(adapter->vf_data);
-		adapter->vf_data = NULL;
-		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
-		wrfl();
-		msleep(100);
-		dev_info(&pdev->dev, "IOV Disabled\n");
-	}
+	igb_disable_sriov(pdev);
 #endif
 
 	iounmap(hw->hw_addr);
@@ -2289,102 +2368,21 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_hw *hw = &adapter->hw;
-	int old_vfs = pci_num_vf(adapter->pdev);
-	int i;
 
 	/* Virtualization features not supported on i210 family. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
 		return;
 
-	if (old_vfs) {
-		dev_info(&pdev->dev, "%d pre-allocated VFs found - override "
-			 "max_vfs setting of %d\n", old_vfs, max_vfs);
-		adapter->vfs_allocated_count = old_vfs;
-	}
+	igb_enable_sriov(pdev, max_vfs);
+	pci_sriov_set_totalvfs(pdev, 7);
 
-	if (!adapter->vfs_allocated_count)
-		return;
-
-	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
-				sizeof(struct vf_data_storage), GFP_KERNEL);
-
-	/* if allocation failed then we do not support SR-IOV */
-	if (!adapter->vf_data) {
-		adapter->vfs_allocated_count = 0;
-		dev_err(&pdev->dev, "Unable to allocate memory for VF "
-			"Data Storage\n");
-		goto out;
-	}
-
-	if (!old_vfs) {
-		if (pci_enable_sriov(pdev, adapter->vfs_allocated_count))
-			goto err_out;
-	}
-	dev_info(&pdev->dev, "%d VFs allocated\n",
-		 adapter->vfs_allocated_count);
-	for (i = 0; i < adapter->vfs_allocated_count; i++)
-		igb_vf_configure(adapter, i);
-
-	/* DMA Coalescing is not supported in IOV mode. */
-	adapter->flags &= ~IGB_FLAG_DMAC;
-	goto out;
-err_out:
-	kfree(adapter->vf_data);
-	adapter->vf_data = NULL;
-	adapter->vfs_allocated_count = 0;
-out:
-	return;
 #endif /* CONFIG_PCI_IOV */
 }
 
-/**
- * igb_sw_init - Initialize general software structures (struct igb_adapter)
- * @adapter: board private structure to initialize
- *
- * igb_sw_init initializes the Adapter private data structure.
- * Fields are initialized based on PCI device information and
- * OS network device settings (MTU size).
- **/
-static int igb_sw_init(struct igb_adapter *adapter)
+static void igb_init_queue_configuration(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	struct pci_dev *pdev = adapter->pdev;
 	u32 max_rss_queues;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
-
-	/* set default ring sizes */
-	adapter->tx_ring_count = IGB_DEFAULT_TXD;
-	adapter->rx_ring_count = IGB_DEFAULT_RXD;
-
-	/* set default ITR values */
-	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
-	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
-
-	/* set default work limits */
-	adapter->tx_work_limit = IGB_DEFAULT_TX_WORK;
-
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
-				  VLAN_HLEN;
-	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
-
-	spin_lock_init(&adapter->stats64_lock);
-#ifdef CONFIG_PCI_IOV
-	switch (hw->mac.type) {
-	case e1000_82576:
-	case e1000_i350:
-		if (max_vfs > 7) {
-			dev_warn(&pdev->dev,
-				 "Maximum of 7 VFs per PF, using max\n");
-			adapter->vfs_allocated_count = 7;
-		} else
-			adapter->vfs_allocated_count = max_vfs;
-		break;
-	default:
-		break;
-	}
-#endif /* CONFIG_PCI_IOV */
 
 	/* Determine the maximum number of RSS queues supported. */
 	switch (hw->mac.type) {
@@ -2444,6 +2442,60 @@ static int igb_sw_init(struct igb_adapter *adapter)
 			adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
 		break;
 	}
+}
+
+/**
+ * igb_sw_init - Initialize general software structures (struct igb_adapter)
+ * @adapter: board private structure to initialize
+ *
+ * igb_sw_init initializes the Adapter private data structure.
+ * Fields are initialized based on PCI device information and
+ * OS network device settings (MTU size).
+ **/
+static int igb_sw_init(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
+
+	/* set default ring sizes */
+	adapter->tx_ring_count = IGB_DEFAULT_TXD;
+	adapter->rx_ring_count = IGB_DEFAULT_RXD;
+
+	/* set default ITR values */
+	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
+	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
+
+	/* set default work limits */
+	adapter->tx_work_limit = IGB_DEFAULT_TX_WORK;
+
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
+				  VLAN_HLEN;
+	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+
+	spin_lock_init(&adapter->stats64_lock);
+#ifdef CONFIG_PCI_IOV
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_i350:
+		if (max_vfs > 7) {
+			dev_warn(&pdev->dev,
+				 "Maximum of 7 VFs per PF, using max\n");
+			adapter->vfs_allocated_count = 7;
+		} else
+			adapter->vfs_allocated_count = max_vfs;
+		if (adapter->vfs_allocated_count)
+			dev_warn(&pdev->dev,
+				 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
+		break;
+	default:
+		break;
+	}
+#endif /* CONFIG_PCI_IOV */
+
+	igb_init_queue_configuration(adapter);
 
 	/* Setup and initialize a copy of the hw vlan table array */
 	adapter->shadow_vfta = kzalloc(sizeof(u32) *
@@ -6900,6 +6952,72 @@ static void igb_shutdown(struct pci_dev *pdev)
 		pci_wake_from_d3(pdev, wake);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
+}
+
+#ifdef CONFIG_PCI_IOV
+static int igb_sriov_reinit(struct pci_dev *dev)
+{
+	struct net_device *netdev = pci_get_drvdata(dev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
+
+	rtnl_lock();
+
+	if (netif_running(netdev))
+		igb_close(netdev);
+
+	igb_clear_interrupt_scheme(adapter);
+
+	igb_init_queue_configuration(adapter);
+
+	if (igb_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	if (netif_running(netdev))
+		igb_open(netdev);
+
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int igb_pci_disable_sriov(struct pci_dev *dev)
+{
+	int err = igb_disable_sriov(dev);
+
+	if (!err)
+		err = igb_sriov_reinit(dev);
+
+	return err;
+}
+
+static int igb_pci_enable_sriov(struct pci_dev *dev, int num_vfs)
+{
+	int err = igb_enable_sriov(dev, num_vfs);
+
+	if (err)
+		goto out;
+
+	err = igb_sriov_reinit(dev);
+	if (!err)
+		return num_vfs;
+
+out:
+	return err;
+}
+
+#endif
+static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+#ifdef CONFIG_PCI_IOV
+	if (num_vfs == 0)
+		return igb_pci_disable_sriov(dev);
+	else
+		return igb_pci_enable_sriov(dev, num_vfs);
+#endif
+	return 0;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
