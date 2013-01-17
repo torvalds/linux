@@ -218,7 +218,6 @@ static void __init imx6q_map_io(void)
 {
 	imx_lluart_map_io();
 	imx_scu_map_io();
-	imx6q_clock_map_io();
 }
 
 static const struct of_device_id imx6q_irq_match[] __initconst = {

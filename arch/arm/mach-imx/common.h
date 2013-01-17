@@ -139,7 +139,6 @@ extern void imx_gpc_init(void);
 extern void imx_gpc_pre_suspend(void);
 extern void imx_gpc_post_resume(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
-extern void imx6q_clock_map_io(void);
 
 extern void imx_cpu_die(unsigned int cpu);
 

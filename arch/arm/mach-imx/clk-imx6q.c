@@ -56,8 +56,6 @@
 
 static void __iomem *ccm_base;
 
-void __init imx6q_clock_map_io(void) { }
-
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 {
 	u32 val = readl_relaxed(ccm_base + CLPCR);
