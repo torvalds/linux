@@ -1483,9 +1483,11 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
+#define VIDEO_CAPABILITY_BLOCK	0x07
 #define EDID_BASIC_AUDIO	(1 << 6)
 #define EDID_CEA_YCRCB444	(1 << 5)
 #define EDID_CEA_YCRCB422	(1 << 4)
+#define EDID_CEA_VCDB_QS	(1 << 6)
 
 /**
  * Search EDID for CEA extension block.
@@ -1900,6 +1902,37 @@ end:
 	return has_audio;
 }
 EXPORT_SYMBOL(drm_detect_monitor_audio);
+
+/**
+ * drm_rgb_quant_range_selectable - is RGB quantization range selectable?
+ *
+ * Check whether the monitor reports the RGB quantization range selection
+ * as supported. The AVI infoframe can then be used to inform the monitor
+ * which quantization range (full or limited) is used.
+ */
+bool drm_rgb_quant_range_selectable(struct edid *edid)
+{
+	u8 *edid_ext;
+	int i, start, end;
+
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return false;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return false;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		if (cea_db_tag(&edid_ext[i]) == VIDEO_CAPABILITY_BLOCK &&
+		    cea_db_payload_len(&edid_ext[i]) == 2) {
+			DRM_DEBUG_KMS("CEA VCDB 0x%02x\n", edid_ext[i + 2]);
+			return edid_ext[i + 2] & EDID_CEA_VCDB_QS;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
 /**
  * drm_add_display_info - pull display info out if present
