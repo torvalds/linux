@@ -236,7 +236,7 @@ irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
 /**
  * mei_hbuf_filled_slots - gets number of device filled buffer slots
  *
- * @device: the device structure
+ * @dev: the device structure
  *
  * returns number of filled slots
  */
@@ -289,7 +289,7 @@ int mei_hbuf_empty_slots(struct mei_device *dev)
  * mei_write_message - writes a message to mei device.
  *
  * @dev: the device structure
- * @hader: mei HECI header of message
+ * @header: mei HECI header of message
  * @buf: message payload will be written
  *
  * This function returns -EIO if write has failed
