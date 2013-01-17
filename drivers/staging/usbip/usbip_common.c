@@ -672,9 +672,8 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 		return 0;
 
 	/* my Bluetooth dongle gets ISO URBs which are np = 0 */
-	if (np == 0) {
+	if (np == 0)
 		return 0;
-	}
 
 	buff = kzalloc(size, GFP_KERNEL);
 	if (!buff)
