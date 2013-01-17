@@ -386,6 +386,8 @@ static void acpi_pm_finish(void)
 
 	acpi_target_sleep_state = ACPI_STATE_S0;
 
+	acpi_resume_power_resources();
+
 	/* If we were woken with the fixed power button, provide a small
 	 * hint to userspace in the form of a wakeup event on the fixed power
 	 * button device (if it can be found).

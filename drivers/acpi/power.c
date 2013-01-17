@@ -58,27 +58,6 @@ ACPI_MODULE_NAME("power");
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 
-static inline int acpi_power_add(struct acpi_device *device) { return 0; }
-
-static const struct acpi_device_id power_device_ids[] = {
-	{ACPI_POWER_HID, 0},
-	{"", 0},
-};
-MODULE_DEVICE_TABLE(acpi, power_device_ids);
-
-#ifdef CONFIG_PM_SLEEP
-static int acpi_power_resume(struct device *dev);
-#endif
-static SIMPLE_DEV_PM_OPS(acpi_power_pm, NULL, acpi_power_resume);
-
-static struct acpi_driver acpi_power_driver = {
-	.name = "power",
-	.class = ACPI_POWER_CLASS,
-	.ids = power_device_ids,
-	.ops.add = acpi_power_add,
-	.drv.pm = &acpi_power_pm,
-};
-
 struct acpi_power_dependent_device {
 	struct list_head node;
 	struct acpi_device *adev;
@@ -87,6 +66,7 @@ struct acpi_power_dependent_device {
 
 struct acpi_power_resource {
 	struct acpi_device device;
+	struct list_head list_node;
 	struct list_head dependent;
 	char *name;
 	u32 system_level;
@@ -95,7 +75,8 @@ struct acpi_power_resource {
 	struct mutex resource_lock;
 };
 
-static struct list_head acpi_power_resource_list;
+static LIST_HEAD(acpi_power_resource_list);
+static DEFINE_MUTEX(power_resource_list_lock);
 
 /* --------------------------------------------------------------------------
                              Power Resource Management
@@ -643,8 +624,13 @@ static void acpi_release_power_resource(struct device *dev)
 	struct acpi_device *device = to_acpi_device(dev);
 	struct acpi_power_resource *resource;
 
-	acpi_free_ids(device);
 	resource = container_of(device, struct acpi_power_resource, device);
+
+	mutex_lock(&power_resource_list_lock);
+	list_del(&resource->list_node);
+	mutex_unlock(&power_resource_list_lock);
+
+	acpi_free_ids(device);
 	kfree(resource);
 }
 
@@ -677,14 +663,14 @@ void acpi_add_power_resource(acpi_handle handle)
 	/* Evalute the object to get the system level and resource order. */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		goto out;
+		goto err;
 
 	resource->system_level = acpi_object.power_resource.system_level;
 	resource->order = acpi_object.power_resource.resource_order;
 
 	result = acpi_power_get_state(handle, &state);
 	if (result)
-		goto out;
+		goto err;
 
 	switch (state) {
 	case ACPI_POWER_RESOURCE_STATE_ON:
@@ -702,51 +688,40 @@ void acpi_add_power_resource(acpi_handle handle)
 
 	device->flags.match_driver = true;
 	result = acpi_device_register(device, acpi_release_power_resource);
-
- out:
 	if (result)
-		acpi_release_power_resource(&device->dev);
+		goto err;
 
+	mutex_lock(&power_resource_list_lock);
+	list_add(&resource->list_node, &acpi_power_resource_list);
+	mutex_unlock(&power_resource_list_lock);
 	return;
+
+ err:
+	acpi_release_power_resource(&device->dev);
 }
 
-/* --------------------------------------------------------------------------
-                                Driver Interface
-   -------------------------------------------------------------------------- */
-
-#ifdef CONFIG_PM_SLEEP
-static int acpi_power_resume(struct device *dev)
+#ifdef CONFIG_ACPI_SLEEP
+void acpi_resume_power_resources(void)
 {
-	int result = 0, state;
-	struct acpi_device *device;
 	struct acpi_power_resource *resource;
 
-	if (!dev)
-		return -EINVAL;
+	mutex_lock(&power_resource_list_lock);
 
-	device = to_acpi_device(dev);
-	resource = acpi_driver_data(device);
-	if (!resource)
-		return -EINVAL;
+	list_for_each_entry(resource, &acpi_power_resource_list, list_node) {
+		int result, state;
 
-	mutex_lock(&resource->resource_lock);
+		mutex_lock(&resource->resource_lock);
 
-	result = acpi_power_get_state(device->handle, &state);
-	if (result)
-		goto unlock;
+		result = acpi_power_get_state(resource->device.handle, &state);
+		if (!result && state == ACPI_POWER_RESOURCE_STATE_OFF
+		    && resource->ref_count) {
+			dev_info(&resource->device.dev, "Turning ON\n");
+			__acpi_power_on(resource);
+		}
 
-	if (state == ACPI_POWER_RESOURCE_STATE_OFF && resource->ref_count)
-		result = __acpi_power_on(resource);
+		mutex_unlock(&resource->resource_lock);
+	}
 
- unlock:
-	mutex_unlock(&resource->resource_lock);
-
-	return result;
+	mutex_unlock(&power_resource_list_lock);
 }
 #endif
-
-int __init acpi_power_init(void)
-{
-	INIT_LIST_HEAD(&acpi_power_resource_list);
-	return acpi_bus_register_driver(&acpi_power_driver);
-}
