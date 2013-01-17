@@ -112,10 +112,6 @@ Timing
   This can be used to work around timing problems on multiprocessor systems
   with not properly synchronized CPUs.
 
-  report_lost_ticks
-  Report when timer interrupts are lost because some code turned off
-  interrupts for too long.
-
   nohpet
   Don't use the HPET timer.
 
