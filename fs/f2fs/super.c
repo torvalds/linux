@@ -119,7 +119,6 @@ static void f2fs_put_super(struct super_block *sb)
 int f2fs_sync_fs(struct super_block *sb, int sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	int ret = 0;
 
 	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
 		return 0;
@@ -127,7 +126,7 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	if (sync)
 		write_checkpoint(sbi, false, false);
 
-	return ret;
+	return 0;
 }
 
 static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -148,8 +147,8 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_blocks - valid_user_blocks(sbi) - ovp_count;
 	buf->f_bavail = user_block_count - valid_user_blocks(sbi);
 
-	buf->f_files = valid_inode_count(sbi);
-	buf->f_ffree = sbi->total_node_count - valid_node_count(sbi);
+	buf->f_files = sbi->total_node_count;
+	buf->f_ffree = sbi->total_node_count - valid_inode_count(sbi);
 
 	buf->f_namelen = F2FS_MAX_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
@@ -302,7 +301,7 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 		case Opt_active_logs:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != 6)
+			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
 				return -EINVAL;
 			sbi->active_logs = arg;
 			break;
@@ -528,8 +527,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* if there are nt orphan nodes free them */
 	err = -EINVAL;
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				recover_orphan_inodes(sbi))
+	if (recover_orphan_inodes(sbi))
 		goto free_node_inode;
 
 	/* read root inode and dentry */
@@ -548,8 +546,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* recover fsynced data */
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				!test_opt(sbi, DISABLE_ROLL_FORWARD))
+	if (!test_opt(sbi, DISABLE_ROLL_FORWARD))
 		recover_fsync_data(sbi);
 
 	/* After POR, we can run background GC thread */

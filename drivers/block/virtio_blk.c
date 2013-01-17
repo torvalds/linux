@@ -696,7 +696,7 @@ static const struct device_attribute dev_attr_cache_type_rw =
 	__ATTR(cache_type, S_IRUGO|S_IWUSR,
 	       virtblk_cache_type_show, virtblk_cache_type_store);
 
-static int __devinit virtblk_probe(struct virtio_device *vdev)
+static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
 	struct request_queue *q;
@@ -885,7 +885,7 @@ out:
 	return err;
 }
 
-static void __devexit virtblk_remove(struct virtio_device *vdev)
+static void virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	int index = vblk->index;
@@ -961,19 +961,14 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_WCE, VIRTIO_BLK_F_TOPOLOGY, VIRTIO_BLK_F_CONFIG_WCE
 };
 
-/*
- * virtio_blk causes spurious section mismatch warning by
- * simultaneously referring to a __devinit and a __devexit function.
- * Use __refdata to avoid this warning.
- */
-static struct virtio_driver __refdata virtio_blk = {
+static struct virtio_driver virtio_blk = {
 	.feature_table		= features,
 	.feature_table_size	= ARRAY_SIZE(features),
 	.driver.name		= KBUILD_MODNAME,
 	.driver.owner		= THIS_MODULE,
 	.id_table		= id_table,
 	.probe			= virtblk_probe,
-	.remove			= __devexit_p(virtblk_remove),
+	.remove			= virtblk_remove,
 	.config_changed		= virtblk_config_changed,
 #ifdef CONFIG_PM
 	.freeze			= virtblk_freeze,

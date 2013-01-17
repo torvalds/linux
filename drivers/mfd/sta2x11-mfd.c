@@ -510,19 +510,19 @@ enum mfd1_bar1_cells {
 	STA2X11_APB_SOC_REGS = 0,
 };
 
-static const __devinitconst struct resource vic_resources[] = {
+static const struct resource vic_resources[] = {
 	CELL_4K(STA2X11_MFD_VIC_NAME, STA2X11_VIC),
 };
 
-static const __devinitconst struct resource apb_soc_regs_resources[] = {
+static const struct resource apb_soc_regs_resources[] = {
 	CELL_4K(STA2X11_MFD_APB_SOC_REGS_NAME, STA2X11_APB_SOC_REGS),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd1_bar0[] = {
+static struct mfd_cell sta2x11_mfd1_bar0[] = {
 	DEV(STA2X11_MFD_VIC_NAME, vic_resources),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd1_bar1[] = {
+static struct mfd_cell sta2x11_mfd1_bar1[] = {
 	DEV(STA2X11_MFD_APB_SOC_REGS_NAME, apb_soc_regs_resources),
 };
 

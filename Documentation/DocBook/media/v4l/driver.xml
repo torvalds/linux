@@ -116,7 +116,7 @@ my_suspend              (struct pci_dev *               pci_dev,
 	return 0; /* a negative value on error, 0 on success. */
 }
 
-static void __devexit
+static void
 my_remove               (struct pci_dev *               pci_dev)
 {
 	my_device *my = pci_get_drvdata (pci_dev);
@@ -124,7 +124,7 @@ my_remove               (struct pci_dev *               pci_dev)
 	/* Describe me. */
 }
 
-static int __devinit
+static int
 my_probe                (struct pci_dev *               pci_dev,
 			 const struct pci_device_id *   pci_id)
 {
@@ -157,7 +157,7 @@ my_pci_driver = {
 	.id_table = my_pci_device_ids,
 
 	.probe    = my_probe,
-	.remove   = __devexit_p (my_remove),
+	.remove   = my_remove,
 
 	/* Power management functions. */
 	.suspend  = my_suspend,

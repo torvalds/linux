@@ -230,7 +230,7 @@ static irqreturn_t pmic_irq_handler(int irq, void *data)
 	return ret;
 }
 
-static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
+static int platform_pmic_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int irq = platform_get_irq(pdev, 0);

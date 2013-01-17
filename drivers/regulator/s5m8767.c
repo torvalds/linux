@@ -214,7 +214,7 @@ static int s5m8767_reg_is_enabled(struct regulator_dev *rdev)
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	int ret, reg;
 	int mask = 0xc0, enable_ctrl;
-	u8 val;
+	unsigned int val;
 
 	ret = s5m8767_get_register(rdev, &reg, &enable_ctrl);
 	if (ret == -EINVAL)
@@ -306,7 +306,7 @@ static int s5m8767_get_voltage_sel(struct regulator_dev *rdev)
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	int reg, mask, ret;
 	int reg_id = rdev_get_id(rdev);
-	u8 val;
+	unsigned int val;
 
 	ret = s5m8767_get_voltage_register(rdev, &reg);
 	if (ret)

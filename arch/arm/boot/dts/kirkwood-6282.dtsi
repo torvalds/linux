@@ -39,6 +39,7 @@
 			#size-cells = <0>;
 			interrupts = <32>;
 			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 	};

@@ -35,6 +35,7 @@
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_hdmi.h"
 #include "exynos_drm_iommu.h"
 
@@ -949,35 +950,6 @@ static struct exynos_mixer_ops mixer_ops = {
 	.win_disable		= mixer_win_disable,
 };
 
-/* for pageflip event */
-static void mixer_finish_pageflip(struct drm_device *drm_dev, int crtc)
-{
-	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	struct timeval now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-
-	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
-			base.link) {
-		/* if event's pipe isn't same as crtc then ignore it. */
-		if (crtc != e->pipe)
-			continue;
-
-		do_gettimeofday(&now);
-		e->event.sequence = 0;
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-
-		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-		drm_vblank_put(drm_dev, crtc);
-	}
-
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-}
-
 static irqreturn_t mixer_irq_handler(int irq, void *arg)
 {
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = arg;
@@ -1006,7 +978,8 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 		}
 
 		drm_handle_vblank(drm_hdmi_ctx->drm_dev, ctx->pipe);
-		mixer_finish_pageflip(drm_hdmi_ctx->drm_dev, ctx->pipe);
+		exynos_drm_crtc_finish_pageflip(drm_hdmi_ctx->drm_dev,
+				ctx->pipe);
 
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
@@ -1029,8 +1002,8 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
-				 struct platform_device *pdev)
+static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
+				struct platform_device *pdev)
 {
 	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
@@ -1081,8 +1054,8 @@ static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 	return 0;
 }
 
-static int __devinit vp_resources_init(struct exynos_drm_hdmi_context *ctx,
-				 struct platform_device *pdev)
+static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
+			     struct platform_device *pdev)
 {
 	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
@@ -1155,7 +1128,7 @@ static struct of_device_id mixer_match_types[] = {
 	}
 };
 
-static int __devinit mixer_probe(struct platform_device *pdev)
+static int mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
@@ -1316,6 +1289,6 @@ struct platform_driver mixer_driver = {
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
-	.remove = __devexit_p(mixer_remove),
+	.remove = mixer_remove,
 	.id_table	= mixer_driver_types,
 };

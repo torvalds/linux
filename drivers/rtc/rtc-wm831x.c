@@ -459,7 +459,7 @@ err:
 	return ret;
 }
 
-static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
+static int wm831x_rtc_remove(struct platform_device *pdev)
 {
 	struct wm831x_rtc *wm831x_rtc = platform_get_drvdata(pdev);
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
@@ -483,7 +483,7 @@ static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 
 static struct platform_driver wm831x_rtc_driver = {
 	.probe = wm831x_rtc_probe,
-	.remove = __devexit_p(wm831x_rtc_remove),
+	.remove = wm831x_rtc_remove,
 	.driver = {
 		.name = "wm831x-rtc",
 		.pm = &wm831x_rtc_pm_ops,

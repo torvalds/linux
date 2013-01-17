@@ -880,7 +880,7 @@ ermrdmars:
 	return err;
 }
 
-static int __devexit sh_dmae_remove(struct platform_device *pdev)
+static int sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct dma_device *dma_dev = &shdev->shdma_dev.dma_dev;

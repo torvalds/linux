@@ -160,7 +160,7 @@ static int mpic_msgr_block_number(struct device_node *node)
 
 /* The probe function for a single message register block.
  */
-static __devinit int mpic_msgr_probe(struct platform_device *dev)
+static int mpic_msgr_probe(struct platform_device *dev)
 {
 	void __iomem *msgr_block_addr;
 	int block_number;
