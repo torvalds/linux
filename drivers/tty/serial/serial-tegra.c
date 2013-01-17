@@ -504,7 +504,7 @@ static void tegra_uart_handle_tx_pio(struct tegra_uart_port *tup)
 }
 
 static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
-		struct tty_struct *tty)
+		struct tty_port *tty)
 {
 	do {
 		char flag = TTY_NORMAL;
@@ -527,7 +527,7 @@ static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
 }
 
 static void tegra_uart_copy_rx_to_tty(struct tegra_uart_port *tup,
-		struct tty_struct *tty, int count)
+		struct tty_port *tty, int count)
 {
 	int copied;
 
@@ -554,6 +554,7 @@ static void tegra_uart_rx_dma_complete(void *args)
 	struct uart_port *u = &tup->uport;
 	int count = tup->rx_bytes_requested;
 	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
+	struct tty_port *port = &u->state->port;
 	unsigned long flags;
 
 	async_tx_ack(tup->rx_dma_desc);
@@ -565,11 +566,11 @@ static void tegra_uart_rx_dma_complete(void *args)
 
 	/* If we are here, DMA is stopped */
 	if (count)
-		tegra_uart_copy_rx_to_tty(tup, tty, count);
+		tegra_uart_copy_rx_to_tty(tup, port, count);
 
-	tegra_uart_handle_rx_pio(tup, tty);
+	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -585,6 +586,7 @@ static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup)
 {
 	struct dma_tx_state state;
 	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
+	struct tty_port *port = &tup->uport.state->port;
 	int count;
 
 	/* Deactivate flow control to stop sender */
@@ -597,11 +599,11 @@ static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup)
 
 	/* If we are here, DMA is stopped */
 	if (count)
-		tegra_uart_copy_rx_to_tty(tup, tty, count);
+		tegra_uart_copy_rx_to_tty(tup, port, count);
 
-	tegra_uart_handle_rx_pio(tup, tty);
+	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -724,6 +726,7 @@ static void tegra_uart_stop_rx(struct uart_port *u)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
 	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
+	struct tty_port *port = &u->state->port;
 	struct dma_tx_state state;
 	unsigned long ier;
 	int count;
@@ -747,13 +750,13 @@ static void tegra_uart_stop_rx(struct uart_port *u)
 		dmaengine_tx_status(tup->rx_dma_chan, tup->rx_cookie, &state);
 		async_tx_ack(tup->rx_dma_desc);
 		count = tup->rx_bytes_requested - state.residue;
-		tegra_uart_copy_rx_to_tty(tup, tty, count);
-		tegra_uart_handle_rx_pio(tup, tty);
+		tegra_uart_copy_rx_to_tty(tup, port, count);
+		tegra_uart_handle_rx_pio(tup, port);
 	} else {
-		tegra_uart_handle_rx_pio(tup, tty);
+		tegra_uart_handle_rx_pio(tup, port);
 	}
 	if (tty) {
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 		tty_kref_put(tty);
 	}
 	return;
