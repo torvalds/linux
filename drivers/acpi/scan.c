@@ -464,7 +464,7 @@ int acpi_match_device_ids(struct acpi_device *device,
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
 
-static void acpi_free_ids(struct acpi_device *device)
+void acpi_free_ids(struct acpi_device *device)
 {
 	struct acpi_hardware_id *id, *tmp;
 
@@ -617,7 +617,8 @@ struct bus_type acpi_bus_type = {
 	.uevent		= acpi_device_uevent,
 };
 
-static int acpi_device_register(struct acpi_device *device)
+int acpi_device_register(struct acpi_device *device,
+			 void (*release)(struct device *))
 {
 	int result;
 	struct acpi_device_bus_id *acpi_device_bus_id, *new_bus_id;
@@ -686,7 +687,7 @@ static int acpi_device_register(struct acpi_device *device)
 	if (device->parent)
 		device->dev.parent = &device->parent->dev;
 	device->dev.bus = &acpi_bus_type;
-	device->dev.release = &acpi_device_release;
+	device->dev.release = release;
 	result = device_register(&device->dev);
 	if (result) {
 		dev_err(&device->dev, "Error registering device\n");
@@ -1022,17 +1023,11 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 				"error in _DSW or _PSW evaluation\n"));
 }
 
-static void acpi_bus_add_power_resource(acpi_handle handle);
-
 static void acpi_bus_get_power_flags(struct acpi_device *device)
 {
 	acpi_status status = 0;
 	acpi_handle handle = NULL;
 	u32 i = 0;
-
-	/* Power resources cannot be power manageable. */
-	if (device->device_type == ACPI_BUS_TYPE_POWER)
-		return;
 
 	/* Presence of _PS0|_PR0 indicates 'power manageable' */
 	status = acpi_get_handle(device->handle, "_PS0", &handle);
@@ -1068,8 +1063,10 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 			int j;
 
 			device->power.flags.power_resources = 1;
-			for (j = 0; j < ps->resources.count; j++)
-				acpi_bus_add_power_resource(ps->resources.handles[j]);
+			for (j = 0; j < ps->resources.count; j++) {
+				acpi_handle rhandle = ps->resources.handles[j];
+				acpi_add_power_resource(rhandle);
+			}
 		}
 
 		/* Evaluate "_PSx" to see if we can do explicit sets */
@@ -1358,9 +1355,8 @@ static void acpi_device_set_id(struct acpi_device *device)
 	}
 }
 
-static void acpi_init_device_object(struct acpi_device *device,
-				     acpi_handle handle,
-				     int type, unsigned long long sta)
+void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
+			     int type, unsigned long long sta)
 {
 	INIT_LIST_HEAD(&device->pnp.ids);
 	device->device_type = type;
@@ -1391,7 +1387,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	acpi_bus_get_wakeup_device_flags(device);
 
 	device->flags.match_driver = match_driver;
-	result = acpi_device_register(device);
+	result = acpi_device_register(device, acpi_device_release);
 	if (result) {
 		acpi_device_release(&device->dev);
 		return result;
@@ -1405,19 +1401,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 	kfree(buffer.pointer);
 	*child = device;
 	return 0;
-}
-
-#define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
-			  ACPI_STA_DEVICE_UI      | ACPI_STA_DEVICE_FUNCTIONING)
-
-static void acpi_bus_add_power_resource(acpi_handle handle)
-{
-	struct acpi_device *device = NULL;
-
-	acpi_bus_get_device(handle, &device);
-	if (!device)
-		acpi_add_single_object(&device, handle, ACPI_BUS_TYPE_POWER,
-					ACPI_STA_DEFAULT, true);
 }
 
 static int acpi_bus_type_and_status(acpi_handle handle, int *type,
@@ -1476,6 +1459,11 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	if (result)
 		return AE_OK;
 
+	if (type == ACPI_BUS_TYPE_POWER) {
+		acpi_add_power_resource(handle);
+		return AE_OK;
+	}
+
 	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
 	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
 		struct acpi_device_wakeup wakeup;
@@ -1488,8 +1476,7 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 	}
 
-	acpi_add_single_object(&device, handle, type, sta,
-			       type == ACPI_BUS_TYPE_POWER);
+	acpi_add_single_object(&device, handle, type, sta, false);
 	if (!device)
 		return AE_CTRL_DEPTH;
 

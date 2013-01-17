@@ -35,9 +35,22 @@ static inline void acpi_debugfs_init(void) { return; }
 #endif
 
 /* --------------------------------------------------------------------------
+                     Device Node Initialization / Removal
+   -------------------------------------------------------------------------- */
+#define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
+			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
+
+int acpi_device_register(struct acpi_device *device,
+			 void (*release)(struct device *));
+void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
+			     int type, unsigned long long sta);
+void acpi_free_ids(struct acpi_device *device);
+
+/* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
 int acpi_power_init(void);
+void acpi_add_power_resource(acpi_handle handle);
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
