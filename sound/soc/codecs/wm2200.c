@@ -2224,6 +2224,9 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 		wm2200->dsp[i].num = i + 1;
 		wm2200->dsp[i].dev = &i2c->dev;
 		wm2200->dsp[i].regmap = wm2200->regmap;
+		wm2200->dsp[i].sysclk_reg = WM2200_CLOCKING_3;
+		wm2200->dsp[i].sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
+		wm2200->dsp[i].sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
 	}
 
 	wm2200->dsp[0].base = WM2200_DSP1_CONTROL_1;
