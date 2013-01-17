@@ -1785,7 +1785,7 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 	return 0;
 }
 
-static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev,
+static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 				   u64 ver, u64 notify_id)
 {
 	struct rbd_obj_request *obj_request;
@@ -1809,11 +1809,11 @@ static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev,
 		goto out;
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
+	obj_request->callback = rbd_obj_request_put;
 	ret = rbd_obj_request_submit(osdc, obj_request);
-	if (!ret)
-		ret = rbd_obj_request_wait(obj_request);
 out:
-	rbd_obj_request_put(obj_request);
+	if (ret)
+		rbd_obj_request_put(obj_request);
 
 	return ret;
 }
@@ -1835,7 +1835,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 		rbd_warn(rbd_dev, "got notification but failed to "
 			   " update snaps: %d\n", rc);
 
-	rbd_obj_notify_ack_sync(rbd_dev, hver, notify_id);
+	rbd_obj_notify_ack(rbd_dev, hver, notify_id);
 }
 
 /*
