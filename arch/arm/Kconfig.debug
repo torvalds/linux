@@ -32,7 +32,7 @@ config FRAME_POINTER
 
 config ARM_UNWIND
 	bool "Enable stack unwinding support (EXPERIMENTAL)"
-	depends on AEABI && EXPERIMENTAL
+	depends on AEABI
 	default y
 	help
 	  This option enables stack unwinding support in the kernel
