@@ -762,18 +762,28 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
 	int base = dai->driver->base;
 	const int *rates;
 	int i, ret;
-	int bclk, lrclk, wl, frame;
+	int chan_limit = arizona->pdata.max_channels_clocked[dai->id - 1];
+	int bclk, lrclk, wl, frame, bclk_target;
 
 	if (params_rate(params) % 8000)
 		rates = &arizona_44k1_bclk_rates[0];
 	else
 		rates = &arizona_48k_bclk_rates[0];
 
+	bclk_target = snd_soc_params_to_bclk(params);
+	if (chan_limit && chan_limit < params_channels(params)) {
+		arizona_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
+		bclk_target /= params_channels(params);
+		bclk_target *= chan_limit;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(arizona_44k1_bclk_rates); i++) {
-		if (rates[i] >= snd_soc_params_to_bclk(params) &&
+		if (rates[i] >= bclk_target &&
 		    rates[i] % params_rate(params) == 0) {
 			bclk = i;
 			break;

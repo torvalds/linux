@@ -62,6 +62,8 @@
 
 #define ARIZONA_MAX_OUTPUT 6
 
+#define ARIZONA_MAX_AIF 3
+
 #define ARIZONA_HAP_ACT_ERM 0
 #define ARIZONA_HAP_ACT_LRA 2
 
@@ -95,6 +97,13 @@ struct arizona_pdata {
 
 	/** Pin state for GPIO pins */
 	int gpio_defaults[ARIZONA_MAX_GPIO];
+
+	/**
+	 * Maximum number of channels clocks will be generated for,
+	 * useful for systems where and I2S bus with multiple data
+	 * lines is mastered.
+	 */
+	int max_channels_clocked[ARIZONA_MAX_AIF];
 
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
