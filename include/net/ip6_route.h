@@ -23,6 +23,7 @@ struct route_info {
 #include <net/sock.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/route.h>
 
 #define RT6_LOOKUP_F_IFACE		0x00000001
 #define RT6_LOOKUP_F_REACHABLE		0x00000002
@@ -192,6 +193,13 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 
 	return (np && np->pmtudisc == IPV6_PMTUDISC_PROBE) ?
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
+}
+
+static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt, struct in6_addr *dest)
+{
+	if (rt->rt6i_flags & RTF_GATEWAY)
+		return &rt->rt6i_gateway;
+	return dest;
 }
 
 #endif
