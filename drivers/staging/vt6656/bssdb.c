@@ -91,9 +91,9 @@ const WORD             awHWRetry1[5][5] = {
 
 /*---------------------  Static Functions  --------------------------*/
 
-void s_vCheckSensitivity(void *hDeviceContext);
-void s_vCheckPreEDThreshold(void *hDeviceContext);
-void s_uCalculateLinkQual(void *hDeviceContext);
+static void s_vCheckSensitivity(struct vnt_private *pDevice);
+static void s_vCheckPreEDThreshold(struct vnt_private *pDevice);
+static void s_uCalculateLinkQual(struct vnt_private *pDevice);
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -114,20 +114,19 @@ void s_uCalculateLinkQual(void *hDeviceContext);
  *
 -*/
 
-PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
-			    PBYTE pbyDesireBSSID,
-			    PBYTE pbyDesireSSID,
-			    CARD_PHY_TYPE ePhyType)
+PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
+		u8 *pbyDesireBSSID, u8 *pbyDesireSSID,
+		CARD_PHY_TYPE ePhyType)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PBYTE           pbyBSSID = NULL;
-    PWLAN_IE_SSID   pSSID = NULL;
-    PKnownBSS       pCurrBSS = NULL;
-    PKnownBSS       pSelect = NULL;
-    BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
-    unsigned int ii = 0;
-    unsigned int jj = 0;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u8 *pbyBSSID = NULL;
+	PWLAN_IE_SSID pSSID = NULL;
+	PKnownBSS pCurrBSS = NULL;
+	PKnownBSS pSelect = NULL;
+	u8 ZeroBSSID[WLAN_BSSID_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	int ii = 0;
+	int jj = 0;
+
     if (pbyDesireBSSID != NULL) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"BSSpSearchBSSList BSSID[%pM]\n", pbyDesireBSSID);
@@ -262,11 +261,10 @@ pDevice->bSameBSSMaxNum = jj;
 -*/
 
 
-void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID)
+void BSSvClearBSSList(struct vnt_private *pDevice, int bKeepCurrBSSID)
 {
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int ii;
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         if (bKeepCurrBSSID) {
@@ -298,14 +296,12 @@ void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID)
  *    TRUE if found.
  *
 -*/
-PKnownBSS BSSpAddrIsInBSSList(void *hDeviceContext,
-			      PBYTE abyBSSID,
-			      PWLAN_IE_SSID pSSID)
+PKnownBSS BSSpAddrIsInBSSList(struct vnt_private *pDevice,
+	u8 *abyBSSID, PWLAN_IE_SSID pSSID)
 {
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PKnownBSS       pBSSList = NULL;
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	PKnownBSS pBSSList = NULL;
+	int ii;
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         pBSSList = &(pMgmt->sBSSList[ii]);
@@ -336,32 +332,30 @@ PKnownBSS BSSpAddrIsInBSSList(void *hDeviceContext,
  *
 -*/
 
-BOOL BSSbInsertToBSSList(void *hDeviceContext,
-			 PBYTE abyBSSIDAddr,
+int BSSbInsertToBSSList(struct vnt_private *pDevice,
+			u8 *abyBSSIDAddr,
 			u64 qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext)
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext)
 {
-
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
-    PKnownBSS       pBSSList = NULL;
-    unsigned int            ii;
-    BOOL            bParsingQuiet = FALSE;
-
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_rx_mgmt *pRxPacket =
+		(struct vnt_rx_mgmt *)pRxPacketContext;
+	PKnownBSS pBSSList = NULL;
+	unsigned int ii;
+	BOOL bParsingQuiet = FALSE;
 
 
     pBSSList = (PKnownBSS)&(pMgmt->sBSSList[0]);
@@ -516,31 +510,31 @@ BOOL BSSbInsertToBSSList(void *hDeviceContext,
 -*/
 // TODO: input structure modify
 
-BOOL BSSbUpdateToBSSList(void *hDeviceContext,
+int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 			u64 qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 BOOL bChannelHit,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 PKnownBSS pBSSList,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext)
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			int bChannelHit,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			PKnownBSS pBSSList,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext)
 {
-    int             ii, jj;
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
-    signed long            ldBm, ldBmSum;
-    BOOL            bParsingQuiet = FALSE;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_rx_mgmt *pRxPacket =
+		(struct vnt_rx_mgmt *)pRxPacketContext;
+	int ii, jj;
+	signed long ldBm, ldBmSum;
+	BOOL bParsingQuiet = FALSE;
 
     if (pBSSList == NULL)
         return FALSE;
@@ -658,13 +652,11 @@ BOOL BSSbUpdateToBSSList(void *hDeviceContext,
  *
 -*/
 
-BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
-		       PBYTE abyDstAddr,
-		       unsigned int *puNodeIndex)
+int BSSbIsSTAInNodeDB(struct vnt_private *pDevice,
+		u8 *abyDstAddr, u32 *puNodeIndex)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	unsigned int ii;
 
     // Index = 0 reserved for AP Node
     for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {
@@ -692,15 +684,14 @@ BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
  *    None
  *
 -*/
-void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
+void BSSvCreateOneNode(struct vnt_private *pDevice, u32 *puNodeIndex)
 {
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int            ii;
+	u32 BigestCount = 0;
+	u32 SelectIndex;
+	struct sk_buff  *skb;
 
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
-    unsigned int            BigestCount = 0;
-    unsigned int            SelectIndex;
-    struct sk_buff  *skb;
     // Index = 0 reserved for AP Node (In STA mode)
     // Index = 0 reserved for Broadcast/MultiCast (In AP mode)
     SelectIndex = 1;
@@ -753,13 +744,11 @@ void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
  *
 -*/
 
-void BSSvRemoveOneNode(void *hDeviceContext, unsigned int uNodeIndex)
+void BSSvRemoveOneNode(struct vnt_private *pDevice, u32 uNodeIndex)
 {
-
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    struct sk_buff  *skb;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+	struct sk_buff  *skb;
 
 
     while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue)) != NULL)
@@ -780,14 +769,11 @@ void BSSvRemoveOneNode(void *hDeviceContext, unsigned int uNodeIndex)
  *
 -*/
 
-void BSSvUpdateAPNode(void *hDeviceContext,
-		      PWORD pwCapInfo,
-		      PWLAN_IE_SUPP_RATES pSuppRates,
-		      PWLAN_IE_SUPP_RATES pExtSuppRates)
+void BSSvUpdateAPNode(struct vnt_private *pDevice, u16 *pwCapInfo,
+	PWLAN_IE_SUPP_RATES pSuppRates, PWLAN_IE_SUPP_RATES pExtSuppRates)
 {
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            uRateLen = WLAN_RATES_MAXLEN;
+	struct vnt_manager *pMgmt = &(pDevice->sMgmtObj);
+	u32 uRateLen = WLAN_RATES_MAXLEN;
 
     memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
 
@@ -832,10 +818,9 @@ void BSSvUpdateAPNode(void *hDeviceContext,
  *
 -*/
 
-void BSSvAddMulticastNode(void *hDeviceContext)
+void BSSvAddMulticastNode(struct vnt_private *pDevice)
 {
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 
     if (!pDevice->bEnableHostWEP)
         memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
@@ -871,15 +856,14 @@ void BSSvAddMulticastNode(void *hDeviceContext)
  *
 -*/
 
-void BSSvSecondCallBack(void *hDeviceContext)
+void BSSvSecondCallBack(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
-    PWLAN_IE_SSID   pItemSSID, pCurrSSID;
-    unsigned int            uSleepySTACnt = 0;
-    unsigned int            uNonShortSlotSTACnt = 0;
-    unsigned int            uLongPreambleSTACnt = 0;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int ii;
+	PWLAN_IE_SSID pItemSSID, pCurrSSID;
+	u32 uSleepySTACnt = 0;
+	u32 uNonShortSlotSTACnt = 0;
+	u32 uLongPreambleSTACnt = 0;
 
     spin_lock_irq(&pDevice->lock);
 
@@ -925,7 +909,7 @@ if(pDevice->byReAssocCount > 0) {
 
  pMgmt->eLastState = pMgmt->eCurrState ;
 
-   s_uCalculateLinkQual((void *)pDevice);
+	s_uCalculateLinkQual(pDevice);
 
     for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
 
@@ -1065,8 +1049,8 @@ if(pDevice->byReAssocCount > 0) {
         if (pMgmt->sNodeDBTable[0].bActive) { // Assoc with BSS
 
             if (pDevice->bUpdateBBVGA) {
-		/* s_vCheckSensitivity((void *) pDevice); */
-		s_vCheckPreEDThreshold((void *) pDevice);
+		s_vCheckSensitivity(pDevice);
+		s_vCheckPreEDThreshold(pDevice);
             }
 
     	    if ((pMgmt->sNodeDBTable[0].uInActiveCount >= (LOST_BEACON_COUNT/2)) &&
@@ -1167,8 +1151,8 @@ else {
         if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
 
 		if (pDevice->bUpdateBBVGA) {
-			/* s_vCheckSensitivity((void *) pDevice); */
-			s_vCheckPreEDThreshold((void *) pDevice);
+			s_vCheckSensitivity(pDevice);
+			s_vCheckPreEDThreshold(pDevice);
 		}
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >=ADHOC_LOST_BEACON_COUNT) {
         	    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost other STA beacon [%d] sec, started !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
@@ -1205,22 +1189,19 @@ else {
  *
 -*/
 
-void BSSvUpdateNodeTxCounter(void *hDeviceContext,
-			     PSStatCounter pStatistic,
-			     BYTE byTSR,
-			     BYTE byPktNO)
+void BSSvUpdateNodeTxCounter(struct vnt_private *pDevice,
+	PSStatCounter pStatistic, u8 byTSR, u8 byPktNO)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            uNodeIndex = 0;
-    BYTE            byTxRetry;
-    WORD            wRate;
-    WORD            wFallBackRate = RATE_1M;
-    BYTE            byFallBack;
-    unsigned int            ii;
-    PBYTE           pbyDestAddr;
-    BYTE            byPktNum;
-    WORD            wFIFOCtl;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	u32 uNodeIndex = 0;
+	u8 byTxRetry;
+	u16 wRate;
+	u16 wFallBackRate = RATE_1M;
+	u8 byFallBack;
+	int ii;
+	u8 *pbyDestAddr;
+	u8 byPktNum;
+	u16 wFIFOCtl;
 
     byPktNum = (byPktNO & 0x0F) >> 4;
     byTxRetry = (byTSR & 0xF0) >> 4;
@@ -1368,13 +1349,11 @@ void BSSvUpdateNodeTxCounter(void *hDeviceContext,
  *
 -*/
 
-void BSSvClearNodeDBTable(void *hDeviceContext,
-			  unsigned int uStartIndex)
+void BSSvClearNodeDBTable(struct vnt_private *pDevice, u32 uStartIndex)
 {
-    PSDevice     pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    struct sk_buff  *skb;
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct sk_buff  *skb;
+	int ii;
 
     for (ii = uStartIndex; ii < (MAX_NODE_NUM + 1); ii++) {
         if (pMgmt->sNodeDBTable[ii].bActive) {
@@ -1390,12 +1369,11 @@ void BSSvClearNodeDBTable(void *hDeviceContext,
     }
 };
 
-void s_vCheckSensitivity(void *hDeviceContext)
+static void s_vCheckSensitivity(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PKnownBSS       pBSSList = NULL;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    int             ii;
+	PKnownBSS pBSSList = NULL;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int ii;
 
     if ((pMgmt->eCurrState == WMAC_STATE_ASSOC) ||
         ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED))) {
@@ -1422,7 +1400,7 @@ void s_vCheckSensitivity(void *hDeviceContext)
                 if (pDevice->byBBVGANew != pDevice->byBBVGACurrent) {
                     pDevice->uBBVGADiffCount++;
                     if (pDevice->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD)
-			bScheduleCommand((void *) pDevice,
+			bScheduleCommand(pDevice,
 					 WLAN_CMD_CHANGE_BBSENSITIVITY,
 					 NULL);
                 } else {
@@ -1433,13 +1411,12 @@ void s_vCheckSensitivity(void *hDeviceContext)
     }
 }
 
-void s_uCalculateLinkQual(void *hDeviceContext)
+static void s_uCalculateLinkQual(struct vnt_private *pDevice)
 {
-   PSDevice        pDevice = (PSDevice)hDeviceContext;
-   unsigned long TxOkRatio, TxCnt;
-   unsigned long RxOkRatio, RxCnt;
-   unsigned long RssiRatio;
-   long ldBm;
+	unsigned long TxOkRatio, TxCnt;
+	unsigned long RxOkRatio, RxCnt;
+	unsigned long RssiRatio;
+	long ldBm;
 
 TxCnt = pDevice->scStatistic.TxNoRetryOkCount +
 	      pDevice->scStatistic.TxRetryOkCount +
@@ -1476,21 +1453,21 @@ else
    pDevice->scStatistic.TxRetryOkCount = 0;
 }
 
-void BSSvClearAnyBSSJoinRecord(void *hDeviceContext)
+void BSSvClearAnyBSSJoinRecord(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    unsigned int            ii;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	int ii;
 
 	for (ii = 0; ii < MAX_BSS_NUM; ii++)
-        pMgmt->sBSSList[ii].bSelected = FALSE;
+		pMgmt->sBSSList[ii].bSelected = FALSE;
+
+	return;
 }
 
-void s_vCheckPreEDThreshold(void *hDeviceContext)
+static void s_vCheckPreEDThreshold(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
-    PKnownBSS       pBSSList = NULL;
-    PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	PKnownBSS pBSSList = NULL;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 
     if ((pMgmt->eCurrState == WMAC_STATE_ASSOC) ||
         ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED))) {

@@ -260,19 +260,16 @@ WPA2vParseRSN (
  * Return Value: length of IEs.
  *
 -*/
-unsigned int
-WPA2uSetIEs(void *pMgmtHandle,
-     PWLAN_IE_RSN pRSNIEs
-    )
+unsigned int WPA2uSetIEs(void *pMgmtHandle, PWLAN_IE_RSN pRSNIEs)
 {
-    PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtHandle;
-    PBYTE           pbyBuffer = NULL;
-    unsigned int            ii = 0;
-    PWORD           pwPMKID = NULL;
+	struct vnt_manager *pMgmt = (struct vnt_manager *)pMgmtHandle;
+	u8 *pbyBuffer = NULL;
+	int ii = 0;
+	u16 *pwPMKID = NULL;
 
-    if (pRSNIEs == NULL) {
-        return(0);
-    }
+	if (pRSNIEs == NULL)
+		return 0;
+
     if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
          (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
         (pMgmt->pCurrBSS != NULL)) {

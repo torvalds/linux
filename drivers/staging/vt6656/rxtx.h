@@ -665,30 +665,11 @@ typedef struct tagSBEACON_BUFFER
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL
-bPacketToWirelessUsb(
-      PSDevice         pDevice,
-      BYTE             byPktType,
-      PBYTE            usbPacketBuf,
-      BOOL             bNeedEncrypt,
-      unsigned int             cbPayloadSize,
-      unsigned int             uDMAIdx,
-      PSEthernetHeader psEthHeader,
-      PBYTE            pPacket,
-      PSKeyItem        pTransmitKey,
-      unsigned int             uNodeIndex,
-      WORD             wCurrentRate,
-     unsigned int             *pcbHeaderLen,
-     unsigned int             *pcbTotalLen
-    );
-
-void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
-int nsDMA_tx_packet(PSDevice pDevice,
-		    unsigned int uDMAIdx,
-		    struct sk_buff *skb);
-CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
-CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
-BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData,
-		      unsigned int uDataLen, unsigned int uNodeIndex);
+void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
+int nsDMA_tx_packet(struct vnt_private *, u32 uDMAIdx, struct sk_buff *skb);
+CMD_STATUS csMgmt_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
+CMD_STATUS csBeacon_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
+int bRelayPacketSend(struct vnt_private *, u8 *pbySkbData, u32 uDataLen,
+	u32 uNodeIndex);
 
 #endif /* __RXTX_H__ */

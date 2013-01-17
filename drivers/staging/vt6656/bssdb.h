@@ -226,80 +226,70 @@ typedef struct tagKnownNodeDB {
 
 /*---------------------  Export Functions  --------------------------*/
 
-PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
-			    PBYTE pbyDesireBSSID,
-			    PBYTE pbyDesireSSID,
-			    CARD_PHY_TYPE ePhyType);
+PKnownBSS BSSpSearchBSSList(struct vnt_private *, u8 *pbyDesireBSSID,
+	u8 *pbyDesireSSID, CARD_PHY_TYPE ePhyType);
 
-PKnownBSS BSSpAddrIsInBSSList(void *hDeviceContext,
-			      PBYTE abyBSSID,
-			      PWLAN_IE_SSID pSSID);
+PKnownBSS BSSpAddrIsInBSSList(struct vnt_private *, u8 *abyBSSID,
+	PWLAN_IE_SSID pSSID);
 
-void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID);
+void BSSvClearBSSList(struct vnt_private *, int bKeepCurrBSSID);
 
-BOOL BSSbInsertToBSSList(void *hDeviceContext,
-			 PBYTE abyBSSIDAddr,
+int BSSbInsertToBSSList(struct vnt_private *,
+			u8 *abyBSSIDAddr,
 			u64 qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext);
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext);
 
-BOOL BSSbUpdateToBSSList(void *hDeviceContext,
+int BSSbUpdateToBSSList(struct vnt_private *,
 			u64 qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 BOOL bChannelHit,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 PKnownBSS pBSSList,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext);
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			int bChannelHit,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			PKnownBSS pBSSList,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext);
 
-BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
-		       PBYTE abyDstAddr,
-		       unsigned int *puNodeIndex);
+int BSSbIsSTAInNodeDB(struct vnt_private *, PBYTE abyDstAddr,
+	u32 *puNodeIndex);
 
-void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex);
+void BSSvCreateOneNode(struct vnt_private *, u32 *puNodeIndex);
 
-void BSSvUpdateAPNode(void *hDeviceContext,
-		      PWORD pwCapInfo,
-		      PWLAN_IE_SUPP_RATES pItemRates,
-		      PWLAN_IE_SUPP_RATES pExtSuppRates);
+void BSSvUpdateAPNode(struct vnt_private *, u16 *pwCapInfo,
+	PWLAN_IE_SUPP_RATES pItemRates, PWLAN_IE_SUPP_RATES pExtSuppRates);
 
-void BSSvSecondCallBack(void *hDeviceContext);
+void BSSvSecondCallBack(struct vnt_private *);
 
-void BSSvUpdateNodeTxCounter(void *hDeviceContext,
-			     PSStatCounter pStatistic,
-			     BYTE byTSR,
-			     BYTE byPktNO);
+void BSSvUpdateNodeTxCounter(struct vnt_private *, PSStatCounter pStatistic,
+	u8 byTSR, u8 byPktNO);
 
-void BSSvRemoveOneNode(void *hDeviceContext,
-		       unsigned int uNodeIndex);
+void BSSvRemoveOneNode(struct vnt_private *, u32 uNodeIndex);
 
-void BSSvAddMulticastNode(void *hDeviceContext);
+void BSSvAddMulticastNode(struct vnt_private *);
 
-void BSSvClearNodeDBTable(void *hDeviceContext,
-			  unsigned int uStartIndex);
+void BSSvClearNodeDBTable(struct vnt_private *, u32 uStartIndex);
 
-void BSSvClearAnyBSSJoinRecord(void *hDeviceContext);
+void BSSvClearAnyBSSJoinRecord(struct vnt_private *);
 
 #endif /* __BSSDB_H__ */
