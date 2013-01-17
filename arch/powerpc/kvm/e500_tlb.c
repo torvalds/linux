@@ -878,8 +878,8 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, gva_t ea)
 int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
-	struct kvm_book3e_206_tlb_entry *gtlbe, stlbe;
-	int tlbsel, esel, stlbsel, sesel;
+	struct kvm_book3e_206_tlb_entry *gtlbe;
+	int tlbsel, esel;
 	int recal = 0;
 
 	tlbsel = get_tlb_tlbsel(vcpu);
@@ -917,40 +917,16 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe_is_host_safe(vcpu, gtlbe)) {
-		u64 eaddr;
-		u64 raddr;
+		u64 eaddr = get_tlb_eaddr(gtlbe);
+		u64 raddr = get_tlb_raddr(gtlbe);
 
-		switch (tlbsel) {
-		case 0:
-			/* TLB0 */
+		if (tlbsel == 0) {
 			gtlbe->mas1 &= ~MAS1_TSIZE(~0);
 			gtlbe->mas1 |= MAS1_TSIZE(BOOK3E_PAGESZ_4K);
-
-			stlbsel = 0;
-			kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
-			sesel = 0; /* unused */
-
-			break;
-
-		case 1:
-			/* TLB1 */
-			eaddr = get_tlb_eaddr(gtlbe);
-			raddr = get_tlb_raddr(gtlbe);
-
-			/* Create a 4KB mapping on the host.
-			 * If the guest wanted a large page,
-			 * only the first 4KB is mapped here and the rest
-			 * are mapped on the fly. */
-			stlbsel = 1;
-			sesel = kvmppc_e500_tlb1_map(vcpu_e500, eaddr,
-				    raddr >> PAGE_SHIFT, gtlbe, &stlbe, esel);
-			break;
-
-		default:
-			BUG();
 		}
 
-		write_stlbe(vcpu_e500, gtlbe, &stlbe, stlbsel, sesel);
+		/* Premap the faulting page */
+		kvmppc_mmu_map(vcpu, eaddr, raddr, index_of(tlbsel, esel));
 	}
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
