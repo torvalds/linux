@@ -184,7 +184,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	complete(&data->fw_loaded);
 }
 
-static int __devinit lattice_ecp3_probe(struct spi_device *spi)
+static int lattice_ecp3_probe(struct spi_device *spi)
 {
 	struct fpga_data *data;
 	int err;
@@ -210,7 +210,7 @@ static int __devinit lattice_ecp3_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit lattice_ecp3_remove(struct spi_device *spi)
+static int lattice_ecp3_remove(struct spi_device *spi)
 {
 	struct fpga_data *data = spi_get_drvdata(spi);
 
@@ -219,7 +219,7 @@ static int __devexit lattice_ecp3_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct spi_device_id lattice_ecp3_id[] __devinitdata = {
+static const struct spi_device_id lattice_ecp3_id[] = {
 	{ "ecp3-17", 0 },
 	{ "ecp3-35", 0 },
 	{ }
@@ -232,7 +232,7 @@ static struct spi_driver lattice_ecp3_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lattice_ecp3_probe,
-	.remove = __devexit_p(lattice_ecp3_remove),
+	.remove = lattice_ecp3_remove,
 	.id_table = lattice_ecp3_id,
 };
 
