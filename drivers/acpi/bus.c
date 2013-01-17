@@ -200,7 +200,16 @@ static const char *state_string(int state)
 	}
 }
 
-static int __acpi_bus_get_power(struct acpi_device *device, int *state)
+/**
+ * acpi_device_get_power - Get power state of an ACPI device.
+ * @device: Device to get the power state of.
+ * @state: Place to store the power state of the device.
+ *
+ * This function does not update the device's power.state field, but it may
+ * update its parent's power.state field (when the parent's power state is
+ * unknown and the device's power state turns out to be D0).
+ */
+int acpi_device_get_power(struct acpi_device *device, int *state)
 {
 	int result = ACPI_STATE_UNKNOWN;
 
@@ -397,7 +406,7 @@ int acpi_bus_init_power(struct acpi_device *device)
 
 	device->power.state = ACPI_STATE_UNKNOWN;
 
-	result = __acpi_bus_get_power(device, &state);
+	result = acpi_device_get_power(device, &state);
 	if (result)
 		return result;
 
@@ -421,7 +430,7 @@ int acpi_bus_update_power(acpi_handle handle, int *state_p)
 	if (result)
 		return result;
 
-	result = __acpi_bus_get_power(device, &state);
+	result = acpi_device_get_power(device, &state);
 	if (result)
 		return result;
 
