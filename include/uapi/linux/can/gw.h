@@ -51,6 +51,7 @@ enum {
 
 #define CGW_FLAGS_CAN_ECHO 0x01
 #define CGW_FLAGS_CAN_SRC_TSTAMP 0x02
+#define CGW_FLAGS_CAN_IIF_TX_OK 0x04
 
 #define CGW_MOD_FUNCS 4 /* AND OR XOR SET */
 

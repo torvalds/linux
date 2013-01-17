@@ -52,6 +52,7 @@
 #include <linux/skbuff.h>
 #include <linux/can.h>
 #include <linux/can/core.h>
+#include <linux/can/skb.h>
 #include <linux/can/gw.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
@@ -346,6 +347,13 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		gwj->dropped_frames++;
 		return;
 	}
+
+	/* is sending the skb back to the incoming interface not allowed? */
+	if (!(gwj->flags & CGW_FLAGS_CAN_IIF_TX_OK) &&
+	    skb_headroom(skb) == sizeof(struct can_skb_priv) &&
+	    (((struct can_skb_priv *)(skb->head))->ifindex ==
+	     gwj->dst.dev->ifindex))
+		return;
 
 	/*
 	 * clone the given skb, which has not been done in can_rcv()
