@@ -353,6 +353,7 @@ config MIPS_SEAD3
 	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USE_OF
 	help
 	  This enables support for the MIPS Technologies SEAD3 evaluation
 	  board.
