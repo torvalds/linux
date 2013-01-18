@@ -37,6 +37,9 @@
  */
 #define WLCORE_NUM_MAC_ADDRESSES 3
 
+/* wl12xx/wl18xx maximum transmission power (in dBm) */
+#define WLCORE_MAX_TXPWR        25
+
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
@@ -51,6 +54,9 @@ struct wlcore_ops {
 	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
 			   void *buf, size_t len);
 	int (*ack_event)(struct wl1271 *wl);
+	int (*wait_for_event)(struct wl1271 *wl, enum wlcore_wait_event event,
+			      bool *timeout);
+	int (*process_mailbox_events)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,
@@ -82,12 +88,32 @@ struct wlcore_ops {
 	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
 	int (*handle_static_data)(struct wl1271 *wl,
 				  struct wl1271_static_data *static_data);
+	int (*scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			  struct cfg80211_scan_request *req);
+	int (*scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
+	int (*sched_scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				struct cfg80211_sched_scan_request *req,
+				struct ieee80211_sched_scan_ies *ies);
+	void (*sched_scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
 	int (*set_key)(struct wl1271 *wl, enum set_key_cmd cmd,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key_conf);
+	int (*channel_switch)(struct wl1271 *wl,
+			      struct wl12xx_vif *wlvif,
+			      struct ieee80211_channel_switch *ch_switch);
 	u32 (*pre_pkt_send)(struct wl1271 *wl, u32 buf_offset, u32 last_len);
+	void (*sta_rc_update)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      struct ieee80211_sta *sta, u32 changed);
+	int (*set_peer_cap)(struct wl1271 *wl,
+			    struct ieee80211_sta_ht_cap *ht_cap,
+			    bool allow_ht_operation,
+			    u32 rate_set, u8 hlid);
+	bool (*lnk_high_prio)(struct wl1271 *wl, u8 hlid,
+			      struct wl1271_link *lnk);
+	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
+			     struct wl1271_link *lnk);
 };
 
 enum wlcore_partitions {
@@ -202,6 +228,8 @@ struct wl1271 {
 	unsigned long klv_templates_map[
 			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
+	u8 session_ids[WL12XX_MAX_LINKS];
+
 	struct list_head wlvif_list;
 
 	u8 sta_count;
@@ -227,7 +255,8 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	int tx_queue_count[NUM_TX_QUEUES];
-	unsigned long queue_stop_reasons[NUM_TX_QUEUES];
+	unsigned long queue_stop_reasons[
+				NUM_TX_QUEUES * WLCORE_NUM_MAC_ADDRESSES];
 
 	/* Frames received, not handled yet by mac80211 */
 	struct sk_buff_head deferred_rx_queue;
@@ -269,24 +298,30 @@ struct wl1271 {
 	struct work_struct recovery_work;
 	bool watchdog_recovery;
 
+	/* Reg domain last configuration */
+	u32 reg_ch_conf_last[2];
+	/* Reg domain pending configuration */
+	u32 reg_ch_conf_pending[2];
+
 	/* Pointer that holds DMA-friendly block for the mailbox */
-	struct event_mailbox *mbox;
+	void *mbox;
 
 	/* The mbox event mask */
 	u32 event_mask;
 
 	/* Mailbox pointers */
+	u32 mbox_size;
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	struct ieee80211_vif *scan_vif;
+	struct wl12xx_vif *scan_wlvif;
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
 
-	/* Connection loss work */
-	struct delayed_work connection_loss_work;
+	struct ieee80211_vif *roc_vif;
+	struct delayed_work roc_complete_work;
 
-	bool sched_scanning;
+	struct wl12xx_vif *sched_vif;
 
 	/* The current band */
 	enum ieee80211_band band;
@@ -299,7 +334,7 @@ struct wl1271 {
 
 	struct wl1271_stats stats;
 
-	__le32 buffer_32;
+	__le32 *buffer_32;
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
@@ -313,6 +348,8 @@ struct wl1271 {
 	bool sg_enabled;
 
 	bool enable_11a;
+
+	int recovery_count;
 
 	/* Most recently reported noise in dBm */
 	s8 noise;
@@ -332,6 +369,12 @@ struct wl1271 {
 	 * are always active.
 	 */
 	struct wl1271_link links[WL12XX_MAX_LINKS];
+
+	/* number of currently active links */
+	int active_link_count;
+
+	/* Fast/slow links bitmap according to FW */
+	u32 fw_fast_lnk_map;
 
 	/* AP-mode - a bitmap of links currently in PS mode according to FW */
 	u32 ap_fw_ps_map;
@@ -366,6 +409,12 @@ struct wl1271 {
 	const char *plt_fw_name;
 	const char *sr_fw_name;
 	const char *mr_fw_name;
+
+	u8 scan_templ_id_2_4;
+	u8 scan_templ_id_5;
+	u8 sched_scan_templ_id_2_4;
+	u8 sched_scan_templ_id_5;
+	u8 max_channels_5;
 
 	/* per-chip-family private structure */
 	void *priv;
@@ -408,20 +457,28 @@ struct wl1271 {
 	/* the number of allocated MAC addresses in this chip */
 	int num_mac_addr;
 
-	/* the minimum FW version required for the driver to work */
-	unsigned int min_fw_ver[NUM_FW_VER];
+	/* minimum FW version required for the driver to work in single-role */
+	unsigned int min_sr_fw_ver[NUM_FW_VER];
+
+	/* minimum FW version required for the driver to work in multi-role */
+	unsigned int min_mr_fw_ver[NUM_FW_VER];
 
 	struct completion nvs_loading_complete;
+
+	/* number of concurrent channels the HW supports */
+	u32 num_channels;
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int wlcore_remove(struct platform_device *pdev);
-struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size);
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
+				     u32 mbox_size);
 int wlcore_free_hw(struct wl1271 *wl);
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key_conf);
+void wlcore_regdomain_config(struct wl1271 *wl);
 
 static inline void
 wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
@@ -430,16 +487,27 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
 }
 
+/* Tell wlcore not to care about this element when checking the version */
+#define WLCORE_FW_VER_IGNORE	-1
+
 static inline void
 wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
-		      unsigned int iftype, unsigned int major,
-		      unsigned int subtype, unsigned int minor)
+		      unsigned int iftype_sr, unsigned int major_sr,
+		      unsigned int subtype_sr, unsigned int minor_sr,
+		      unsigned int iftype_mr, unsigned int major_mr,
+		      unsigned int subtype_mr, unsigned int minor_mr)
 {
-	wl->min_fw_ver[FW_VER_CHIP] = chip;
-	wl->min_fw_ver[FW_VER_IF_TYPE] = iftype;
-	wl->min_fw_ver[FW_VER_MAJOR] = major;
-	wl->min_fw_ver[FW_VER_SUBTYPE] = subtype;
-	wl->min_fw_ver[FW_VER_MINOR] = minor;
+	wl->min_sr_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_sr_fw_ver[FW_VER_IF_TYPE] = iftype_sr;
+	wl->min_sr_fw_ver[FW_VER_MAJOR] = major_sr;
+	wl->min_sr_fw_ver[FW_VER_SUBTYPE] = subtype_sr;
+	wl->min_sr_fw_ver[FW_VER_MINOR] = minor_sr;
+
+	wl->min_mr_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_mr_fw_ver[FW_VER_IF_TYPE] = iftype_mr;
+	wl->min_mr_fw_ver[FW_VER_MAJOR] = major_mr;
+	wl->min_mr_fw_ver[FW_VER_SUBTYPE] = subtype_mr;
+	wl->min_mr_fw_ver[FW_VER_MINOR] = minor_mr;
 }
 
 /* Firmware image load chunk size */
@@ -449,6 +517,9 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 
 /* Each RX/TX transaction requires an end-of-transaction transfer */
 #define WLCORE_QUIRK_END_OF_TRANSACTION		BIT(0)
+
+/* the first start_role(sta) sometimes doesn't work on wl12xx */
+#define WLCORE_QUIRK_START_STA_FAILS		BIT(1)
 
 /* wl127x and SPI don't support SDIO block size alignment */
 #define WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN		BIT(2)
@@ -462,9 +533,6 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* Older firmwares use an old NVS format */
 #define WLCORE_QUIRK_LEGACY_NVS			BIT(5)
 
-/* Some firmwares may not support ELP */
-#define WLCORE_QUIRK_NO_ELP			BIT(6)
-
 /* pad only the last frame in the aggregate buffer */
 #define WLCORE_QUIRK_TX_PAD_LAST_FRAME		BIT(7)
 
@@ -477,11 +545,11 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* separate probe response templates for one-shot and sched scans */
 #define WLCORE_QUIRK_DUAL_PROBE_TMPL		BIT(10)
 
-/* TODO: move to the lower drivers when all usages are abstracted */
-#define CHIP_ID_1271_PG10              (0x4030101)
-#define CHIP_ID_1271_PG20              (0x4030111)
-#define CHIP_ID_1283_PG10              (0x05030101)
-#define CHIP_ID_1283_PG20              (0x05030111)
+/* Firmware requires reg domain configuration for active calibration */
+#define WLCORE_QUIRK_REGDOMAIN_CONF		BIT(11)
+
+/* The FW only support a zero session id for AP */
+#define WLCORE_QUIRK_AP_ZERO_SESSION_ID		BIT(12)
 
 /* TODO: move all these common registers and values elsewhere */
 #define HW_ACCESS_ELP_CTRL_REG		0x1FFFC

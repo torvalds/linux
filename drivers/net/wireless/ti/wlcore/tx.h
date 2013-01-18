@@ -207,19 +207,22 @@ static inline int wl1271_tx_get_queue(int queue)
 	}
 }
 
-static inline int wl1271_tx_get_mac80211_queue(int queue)
+static inline
+int wlcore_tx_get_mac80211_queue(struct wl12xx_vif *wlvif, int queue)
 {
+	int mac_queue = wlvif->hw_queue_base;
+
 	switch (queue) {
 	case CONF_TX_AC_VO:
-		return 0;
+		return mac_queue + 0;
 	case CONF_TX_AC_VI:
-		return 1;
+		return mac_queue + 1;
 	case CONF_TX_AC_BE:
-		return 2;
+		return mac_queue + 2;
 	case CONF_TX_AC_BK:
-		return 3;
+		return mac_queue + 3;
 	default:
-		return 2;
+		return mac_queue + 2;
 	}
 }
 
@@ -252,20 +255,26 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids);
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
 					  unsigned int packet_length);
 void wl1271_free_tx_id(struct wl1271 *wl, int id);
-void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
-			      enum wlcore_queue_stop_reason reason);
-void wlcore_stop_queue(struct wl1271 *wl, u8 queue,
+void wlcore_stop_queue_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      u8 queue, enum wlcore_queue_stop_reason reason);
+void wlcore_stop_queue(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 queue,
 		       enum wlcore_queue_stop_reason reason);
-void wlcore_wake_queue(struct wl1271 *wl, u8 queue,
+void wlcore_wake_queue(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 queue,
 		       enum wlcore_queue_stop_reason reason);
 void wlcore_stop_queues(struct wl1271 *wl,
 			enum wlcore_queue_stop_reason reason);
 void wlcore_wake_queues(struct wl1271 *wl,
 			enum wlcore_queue_stop_reason reason);
-void wlcore_reset_stopped_queues(struct wl1271 *wl);
-bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl, u8 queue,
+bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl,
+				       struct wl12xx_vif *wlvif, u8 queue,
 				       enum wlcore_queue_stop_reason reason);
-bool wlcore_is_queue_stopped(struct wl1271 *wl, u8 queue);
+bool
+wlcore_is_queue_stopped_by_reason_locked(struct wl1271 *wl,
+					 struct wl12xx_vif *wlvif,
+					 u8 queue,
+					 enum wlcore_queue_stop_reason reason);
+bool wlcore_is_queue_stopped_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				    u8 queue);
 
 /* from main.c */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid);
