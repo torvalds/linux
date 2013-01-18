@@ -1487,7 +1487,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
 	u32 changed = 0;
 
 	ASSERT_MGD_MTX(ifmgd);
@@ -1518,14 +1517,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
-
-	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get(sdata, ifmgd->bssid);
-	if (sta) {
-		set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-		ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
-	}
-	mutex_unlock(&local->sta_mtx);
 
 	/*
 	 * if we want to get out of ps before disassoc (why?) we have

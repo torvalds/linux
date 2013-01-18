@@ -296,7 +296,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				       IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
 				       &sta->sta, tid, NULL, 0);
 		WARN_ON_ONCE(ret);
-		goto remove_tid_tx;
+		return 0;
 	}
 
 	if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
@@ -354,12 +354,15 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		 */
 	}
 
-	if (reason == AGG_STOP_DESTROY_STA) {
- remove_tid_tx:
-		spin_lock_bh(&sta->lock);
-		ieee80211_remove_tid_tx(sta, tid);
-		spin_unlock_bh(&sta->lock);
-	}
+	/*
+	 * In the case of AGG_STOP_DESTROY_STA, the driver won't
+	 * necessarily call ieee80211_stop_tx_ba_cb(), so this may
+	 * seem like we can leave the tid_tx data pending forever.
+	 * This is true, in a way, but "forever" is only until the
+	 * station struct is actually destroyed. In the meantime,
+	 * leaving it around ensures that we don't transmit packets
+	 * to the driver on this TID which might confuse it.
+	 */
 
 	return 0;
 }
