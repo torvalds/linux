@@ -5,21 +5,34 @@
 
 #include "addi-data/hwdrv_apci2200.c"
 
+/*
+ * I/O Register Map
+ */
+#define APCI2200_DI_REG			0x00
+
 static const struct addi_board apci2200_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci2200",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1005,
-		.i_NbrDiChannel		= 8,
 		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
-		.di_bits		= apci2200_di_insn_bits,
 		.do_bits		= apci2200_do_insn_bits,
 		.timer_config		= i_APCI2200_ConfigWatchdog,
 		.timer_write		= i_APCI2200_StartStopWriteWatchdog,
 		.timer_read		= i_APCI2200_ReadWatchdog,
 	},
 };
+
+static int apci2200_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	data[1] = inw(dev->iobase + APCI2200_DI_REG);
+
+	return insn->n;
+}
 
 static int apci2200_reset(struct comedi_device *dev)
 {
@@ -92,21 +105,13 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (this_board->i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist = this_board->i_NbrDiChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci2200_di_insn_bits;
+
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
 	if (this_board->i_NbrDoChannel) {

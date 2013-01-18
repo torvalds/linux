@@ -51,7 +51,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* DIGITAL INPUT-OUTPUT DEFINE */
 
 #define APCI2200_DIGITAL_OP		4
-#define APCI2200_DIGITAL_IP		0
 
 /* TIMER COUNTER WATCHDOG DEFINES */
 
@@ -59,16 +58,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI2200_WATCHDOG_ENABLEDISABLE	12
 #define APCI2200_WATCHDOG_RELOAD_VALUE	4
 #define APCI2200_WATCHDOG_STATUS	16
-
-static int apci2200_di_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	data[1] = inw(dev->iobase + APCI2200_DIGITAL_IP);
-
-	return insn->n;
-}
 
 static int apci2200_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
