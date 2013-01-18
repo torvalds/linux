@@ -147,8 +147,10 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
+#ifndef CONFIG_SMP
 	/* PGD cached in MMU reg to avoid 3 mem lookups: task->mm->pgd */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);
+#endif
 
 	/*
 	 * Get a new ASID if task doesn't have a valid one. Possible when
@@ -197,7 +199,9 @@ static inline void destroy_context(struct mm_struct *mm)
 
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
+#ifndef CONFIG_SMP
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);
+#endif
 
 	/* Unconditionally get a new ASID */
 	get_new_mmu_context(next);

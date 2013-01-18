@@ -133,3 +133,6 @@ archclean:
 # Thus forcing all exten calls in this file to be long calls
 export CFLAGS_decompress_inflate.o = -mmedium-calls
 export CFLAGS_initramfs.o = -mmedium-calls
+ifdef CONFIG_SMP
+export CFLAGS_core.o = -mmedium-calls
+endif

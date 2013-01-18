@@ -474,6 +474,12 @@ void __init arc_mmu_init(void)
 
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
+
+	/* In smp we use this reg for interrupt 1 scratch */
+#ifndef CONFIG_SMP
+	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
+	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
+#endif
 }
 
 /*

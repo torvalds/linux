@@ -354,11 +354,15 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
  * Thus use this macro only when you are certain that "current" is current
  * e.g. when dealing with signal frame setup code etc
  */
+#ifndef CONFIG_SMP
 #define pgd_offset_fast(mm, addr)	\
 ({					\
 	pgd_t *pgd_base = (pgd_t *) read_aux_reg(ARC_REG_SCRATCH_DATA0);  \
 	pgd_base + pgd_index(addr);	\
 })
+#else
+#define pgd_offset_fast(mm, addr)	pgd_offset(mm, addr)
+#endif
 
 extern void paging_init(void);
 extern pgd_t swapper_pg_dir[] __aligned(PAGE_SIZE);

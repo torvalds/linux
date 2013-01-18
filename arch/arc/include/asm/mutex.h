@@ -6,4 +6,13 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * xchg() based mutex fast path maintains a state of 0 or 1, as opposed to
+ * atomic dec based which can "count" any number of lock contenders.
+ * This ideally needs to be fixed in core, but for now switching to dec ver.
+ */
+#if defined(CONFIG_SMP) && (CONFIG_NR_CPUS > 2)
+#include <asm-generic/mutex-dec.h>
+#else
 #include <asm-generic/mutex-xchg.h>
+#endif

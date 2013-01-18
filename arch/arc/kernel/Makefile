@@ -13,6 +13,7 @@ obj-y	+= signal.o traps.o sys.o troubleshoot.o stacktrace.o clk.o
 obj-y	+= devtree.o
 
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o
+obj-$(CONFIG_SMP) 			+= smp.o
 
 obj-$(CONFIG_ARC_FPU_SAVE_RESTORE)	+= fpu.o
 CFLAGS_fpu.o   += -mdpfp

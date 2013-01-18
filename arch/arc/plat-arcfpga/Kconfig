@@ -13,6 +13,7 @@ choice
 
 config ARC_BOARD_ANGEL4
 	bool "ARC Angel4"
+	select ISS_SMP_EXTN if SMP
 	help
 	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
 
@@ -20,6 +21,19 @@ config ARC_BOARD_ML509
 	bool "ML509"
 	help
 	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
+
+config ISS_SMP_EXTN
+	bool "ARC SMP Extensions (ISS Models only)"
+	default n
+	depends on SMP
+	select ARC_HAS_COH_RTSC
+	help
+	  SMP Extensions to ARC700, in a "simulation only" Model, supported in
+	  ARC ISS (Instruction Set Simulator).
+	  The SMP extensions include:
+	  -IDU (Interrupt Distribution Unit)
+	  -XTL (To enable CPU start/stop/set-PC for another CPU)
+	  It doesn't provide coherent Caches and/or Atomic Ops (LLOCK/SCOND)
 
 endchoice
 

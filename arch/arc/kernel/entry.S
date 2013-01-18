@@ -232,7 +232,11 @@ ARC_EXIT handle_interrupt_level2
 ARC_ENTRY handle_interrupt_level1
 
 	/* free up r9 as scratchpad */
+#ifdef CONFIG_SMP
+	sr  r9, [ARC_REG_SCRATCH_DATA0]
+#else
 	st   r9, [@int1_saved_reg]
+#endif
 
 	;Which mode (user/kernel) was the system in when intr occured
 	lr  r9, [status32_l1]

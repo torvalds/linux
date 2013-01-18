@@ -7,3 +7,4 @@
 #
 
 obj-y := platform.o irq.o
+obj-$(CONFIG_SMP)		+= smp.o

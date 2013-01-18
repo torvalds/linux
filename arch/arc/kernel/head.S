@@ -27,6 +27,15 @@ stext:
 	; Don't clobber r0-r4 yet. It might have bootloader provided info
 	;-------------------------------------------------------------------
 
+#ifdef CONFIG_SMP
+	; Only Boot (Master) proceeds. Others wait in platform dependent way
+	;	IDENTITY Reg [ 3  2  1  0 ]
+	;	(cpu-id)             ^^^	=> Zero for UP ARC700
+	;					=> #Core-ID if SMP (Master 0)
+	GET_CPU_ID  r5
+	cmp	r5, 0
+	jnz	arc_platform_smp_wait_to_boot
+#endif
 	; Clear BSS before updating any globals
 	; XXX: use ZOL here
 	mov	r5, __bss_start
@@ -76,3 +85,27 @@ stext:
 	GET_TSK_STACK_BASE r9, sp	; r9 = tsk, sp = stack base(output)
 
 	j	start_kernel	; "C" entry point
+
+#ifdef CONFIG_SMP
+;----------------------------------------------------------------
+;     First lines of code run by secondary before jumping to 'C'
+;----------------------------------------------------------------
+	.section .init.text, "ax",@progbits
+	.type first_lines_of_secondary, @function
+	.globl first_lines_of_secondary
+
+first_lines_of_secondary:
+
+	; setup per-cpu idle task as "current" on this CPU
+	ld	r0, [@secondary_idle_tsk]
+	SET_CURR_TASK_ON_CPU  r0, r1
+
+	; setup stack (fp, sp)
+	mov	fp, 0
+
+	; set it's stack base to tsk->thread_info bottom
+	GET_TSK_STACK_BASE r0, sp
+
+	j	start_kernel_secondary
+
+#endif

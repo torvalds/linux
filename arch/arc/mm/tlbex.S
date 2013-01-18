@@ -57,9 +57,15 @@
 	.global ex_saved_reg1
 	.align 1 << L1_CACHE_SHIFT	; IMP: Must be Cache Line aligned
 	.type   ex_saved_reg1, @object
+#ifdef CONFIG_SMP
+	.size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)
+ex_saved_reg1:
+	.zero (CONFIG_NR_CPUS << L1_CACHE_SHIFT)
+#else
 	.size   ex_saved_reg1, 16
 ex_saved_reg1:
 	.zero 16
+#endif
 
 ;============================================================================
 ;  Troubleshooting Stuff
@@ -116,7 +122,13 @@ ex_saved_reg1:
 
 	lr  r2, [efa]
 
+#ifndef CONFIG_SMP
 	lr  r1, [ARC_REG_SCRATCH_DATA0] ; current pgd
+#else
+	GET_CURR_TASK_ON_CPU  r1
+	ld  r1, [r1, TASK_ACT_MM]
+	ld  r1, [r1, MM_PGD]
+#endif
 
 	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
 	ld.as   r1, [r1, r0]            ; PGD entry corresp to faulting addr
@@ -192,12 +204,28 @@ ex_saved_reg1:
 ;	".size   ex_saved_reg1, 16"
 ; [All of this dance is to avoid stack switching for each TLB Miss, since we
 ; only need to save only a handful of regs, as opposed to complete reg file]
+;
+; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
+; core reg as it will not be SMP safe.
+; Thus scratch AUX reg is used (and no longer used to cache task PGD).
+; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
+; Epilogue thus has to locate the "per-cpu" storage for regs.
+; To avoid cache line bouncing the per-cpu global is aligned/sized per
+; L1_CACHE_SHIFT, despite fundamentally needing to be 12 bytes only. Hence
+;	".size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)"
 
 ; As simple as that....
 
 .macro TLBMISS_FREEUP_REGS
+#ifdef CONFIG_SMP
+	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
+	GET_CPU_ID  r0			; get to per cpu scratch mem,
+	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
+	add r0, @ex_saved_reg1, r0
+#else
 	st    r0, [@ex_saved_reg1]
 	mov_s r0, @ex_saved_reg1
+#endif
 	st_s  r1, [r0, 4]
 	st_s  r2, [r0, 8]
 	st_s  r3, [r0, 12]
@@ -210,11 +238,21 @@ ex_saved_reg1:
 
 ;-----------------------------------------------------------------
 .macro TLBMISS_RESTORE_REGS
+#ifdef CONFIG_SMP
+	GET_CPU_ID  r0			; get to per cpu scratch mem
+	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
+	add r0, @ex_saved_reg1, r0
+	ld_s  r3, [r0,12]
+	ld_s  r2, [r0, 8]
+	ld_s  r1, [r0, 4]
+	lr    r0, [ARC_REG_SCRATCH_DATA0]
+#else
 	mov_s r0, @ex_saved_reg1
 	ld_s  r3, [r0,12]
 	ld_s  r2, [r0, 8]
 	ld_s  r1, [r0, 4]
 	ld_s  r0, [r0]
+#endif
 .endm
 
 .section .text, "ax",@progbits	;Fast Path Code, candidate for ICCM

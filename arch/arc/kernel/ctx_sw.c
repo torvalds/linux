@@ -58,7 +58,18 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 		 * For SMP extra work to get to &_current_task[cpu]
 		 * (open coded SET_CURR_TASK_ON_CPU)
 		 */
+#ifndef CONFIG_SMP
 		"st  %2, [@_current_task]	\n\t"
+#else
+		"lr   r24, [identity]		\n\t"
+		"lsr  r24, r24, 8		\n\t"
+		"bmsk r24, r24, 7		\n\t"
+		"add2 r24, @_current_task, r24	\n\t"
+		"st   %2,  [r24]		\n\t"
+#endif
+#ifdef CONFIG_ARC_CURR_IN_REG
+		"mov r25, %2   \n\t"
+#endif
 
 		/* get ksp of incoming task from tsk->thread.ksp */
 		"ld.as  sp, [%2, %1]   \n\t"

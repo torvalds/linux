@@ -116,9 +116,42 @@ config CPU_BIG_ENDIAN
 	help
 	  Build kernel for Big Endian Mode of ARC CPU
 
+config SMP
+	bool "Symmetric Multi-Processing (Incomplete)"
+	default n
+	select USE_GENERIC_SMP_HELPERS
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+if SMP
+
+config ARC_HAS_COH_CACHES
+	def_bool n
+
+config ARC_HAS_COH_LLSC
+	def_bool n
+
+config ARC_HAS_COH_RTSC
+	def_bool n
+
+config ARC_HAS_REENTRANT_IRQ_LV2
+	def_bool n
+
+endif
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "2"
+
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
 	default y
+	# if SMP, cache enabled ONLY if ARC implementation has cache coherency
+	depends on !SMP || ARC_HAS_COH_CACHES
 
 if ARC_CACHE
 
@@ -213,6 +246,8 @@ config ARC_COMPACT_IRQ_LEVELS
 	default n
 	# Timer HAS to be high priority, for any other high priority config
 	select ARC_IRQ3_LV2
+	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
+	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
 
 if ARC_COMPACT_IRQ_LEVELS
 
@@ -261,6 +296,8 @@ config ARC_HAS_RTSC
 	bool "Insn: RTSC (64-bit r/o cycle counter)"
 	default y
 	depends on ARC_CPU_REL_4_10
+	# if SMP, enable RTSC only if counter is coherent across cores
+	depends on !SMP || ARC_HAS_COH_RTSC
 
 endmenu   # "ARC CPU Configuration"
 
@@ -309,7 +346,7 @@ menuconfig ARC_DBG
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
-	depends on ARC_DBG
+	depends on ARC_DBG && !SMP
 	default n
 
 config ARC_DBG_TLB_MISS_COUNT

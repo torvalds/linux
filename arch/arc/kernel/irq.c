@@ -124,6 +124,11 @@ void __init init_IRQ(void)
 {
 	init_onchip_IRQ();
 	plat_init_IRQ();
+
+#ifdef CONFIG_SMP
+	/* Master CPU can initialize it's side of IPI */
+	arc_platform_smp_init_cpu();
+#endif
 }
 
 /*

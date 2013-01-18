@@ -389,11 +389,19 @@
  * to be saved again on kernel mode stack, as part of ptregs.
  *-------------------------------------------------------------*/
 .macro EXCPN_PROLOG_FREEUP_REG	reg
+#ifdef CONFIG_SMP
+	sr  \reg, [ARC_REG_SCRATCH_DATA0]
+#else
 	st  \reg, [@ex_saved_reg1]
+#endif
 .endm
 
 .macro EXCPN_PROLOG_RESTORE_REG	reg
+#ifdef CONFIG_SMP
+	lr  \reg, [ARC_REG_SCRATCH_DATA0]
+#else
 	ld  \reg, [@ex_saved_reg1]
+#endif
 .endm
 
 /*--------------------------------------------------------------
@@ -508,7 +516,11 @@
 	/* restore original r9 , saved in int1_saved_reg
 	* It will be saved on stack in macro: SAVE_CALLER_SAVED
 	*/
+#ifdef CONFIG_SMP
+	lr  r9, [ARC_REG_SCRATCH_DATA0]
+#else
 	ld  r9, [@int1_saved_reg]
+#endif
 
 	/* now we are ready to save the remaining context :) */
 	st      orig_r8_IS_IRQ1, [sp, 8]    /* Event Type */
@@ -639,6 +651,41 @@
 	bmsk \reg, \reg, 7
 .endm
 
+#ifdef CONFIG_SMP
+
+/*-------------------------------------------------
+ * Retrieve the current running task on this CPU
+ * 1. Determine curr CPU id.
+ * 2. Use it to index into _current_task[ ]
+ */
+.macro  GET_CURR_TASK_ON_CPU   reg
+	GET_CPU_ID  \reg
+	ld.as  \reg, [@_current_task, \reg]
+.endm
+
+/*-------------------------------------------------
+ * Save a new task as the "current" task on this CPU
+ * 1. Determine curr CPU id.
+ * 2. Use it to index into _current_task[ ]
+ *
+ * Coded differently than GET_CURR_TASK_ON_CPU (which uses LD.AS)
+ * because ST r0, [r1, offset] can ONLY have s9 @offset
+ * while   LD can take s9 (4 byte insn) or LIMM (8 byte insn)
+ */
+
+.macro  SET_CURR_TASK_ON_CPU    tsk, tmp
+	GET_CPU_ID  \tmp
+	add2 \tmp, @_current_task, \tmp
+	st   \tsk, [\tmp]
+#ifdef CONFIG_ARC_CURR_IN_REG
+	mov r25, \tsk
+#endif
+
+.endm
+
+
+#else   /* Uniprocessor implementation of macros */
+
 .macro  GET_CURR_TASK_ON_CPU    reg
 	ld  \reg, [@_current_task]
 .endm
@@ -649,6 +696,8 @@
 	mov r25, \tsk
 #endif
 .endm
+
+#endif /* SMP / UNI */
 
 /* ------------------------------------------------------------------
  * Get the ptr to some field of Current Task at @off in task struct
