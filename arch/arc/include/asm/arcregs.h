@@ -13,6 +13,7 @@
 
 /* Build Configuration Registers */
 #define ARC_REG_VECBASE_BCR	0x68
+#define ARC_REG_MMU_BCR		0x6f
 
 /* status32 Bits Positions */
 #define STATUS_H_BIT		0	/* CPU Halted */
@@ -36,6 +37,35 @@
 #define STATUS_U_MASK		(1<<STATUS_U_BIT)
 #define STATUS_L_MASK		(1<<STATUS_L_BIT)
 
+/*
+ * ECR: Exception Cause Reg bits-n-pieces
+ * [23:16] = Exception Vector
+ * [15: 8] = Exception Cause Code
+ * [ 7: 0] = Exception Parameters (for certain types only)
+ */
+#define ECR_VEC_MASK			0xff0000
+#define ECR_CODE_MASK			0x00ff00
+#define ECR_PARAM_MASK			0x0000ff
+
+/* Exception Cause Vector Values */
+#define ECR_V_INSN_ERR			0x02
+#define ECR_V_MACH_CHK			0x20
+#define ECR_V_ITLB_MISS			0x21
+#define ECR_V_DTLB_MISS			0x22
+#define ECR_V_PROTV			0x23
+
+/* Protection Violation Exception Cause Code Values */
+#define ECR_C_PROTV_INST_FETCH		0x00
+#define ECR_C_PROTV_LOAD		0x01
+#define ECR_C_PROTV_STORE		0x02
+#define ECR_C_PROTV_XCHG		0x03
+#define ECR_C_PROTV_MISALIG_DATA	0x04
+
+/* DTLB Miss Exception Cause Code Values */
+#define ECR_C_BIT_DTLB_LD_MISS		8
+#define ECR_C_BIT_DTLB_ST_MISS		9
+
+
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
@@ -57,6 +87,44 @@
 
 #define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
 #define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
+
+#if defined(CONFIG_ARC_MMU_V1)
+#define CONFIG_ARC_MMU_VER 1
+#elif defined(CONFIG_ARC_MMU_V2)
+#define CONFIG_ARC_MMU_VER 2
+#elif defined(CONFIG_ARC_MMU_V3)
+#define CONFIG_ARC_MMU_VER 3
+#else
+#error "Error: MMU ver"
+#endif
+
+/* MMU Management regs */
+#define ARC_REG_TLBPD0		0x405
+#define ARC_REG_TLBPD1		0x406
+#define ARC_REG_TLBINDEX	0x407
+#define ARC_REG_TLBCOMMAND	0x408
+#define ARC_REG_PID		0x409
+#define ARC_REG_SCRATCH_DATA0	0x418
+
+/* Bits in MMU PID register */
+#define MMU_ENABLE		(1 << 31)	/* Enable MMU for process */
+
+/* Error code if probe fails */
+#define TLB_LKUP_ERR		0x80000000
+
+/* TLB Commands */
+#define TLBWrite    0x1
+#define TLBRead     0x2
+#define TLBGetIndex 0x3
+#define TLBProbe    0x4
+
+#if (CONFIG_ARC_MMU_VER >= 2)
+#define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
+#define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
+#else
+#undef TLBWriteNI		/* These cmds don't exist on older MMU */
+#undef TLBIVUTLB
+#endif
 
 /* Instruction cache related Auxiliary registers */
 #define ARC_REG_IC_BCR		0x77	/* Build Config reg */
@@ -205,6 +273,24 @@ struct arc_fpu {
  * Build Configuration Registers, with encoded hardware config
  */
 
+struct bcr_mmu_1_2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, u_itlb:8, u_dtlb:8;
+#else
+	unsigned int u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
+#endif
+};
+
+struct bcr_mmu_3 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, osm:1, reserv:3, pg_sz:4,
+		     u_itlb:4, u_dtlb:4;
+#else
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4,
+		     ways:4, ver:8;
+#endif
+};
+
 struct bcr_cache {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
@@ -218,12 +304,17 @@ struct bcr_cache {
  * Generic structures to hold build configuration used at runtime
  */
 
+struct cpuinfo_arc_mmu {
+	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
+};
+
 struct cpuinfo_arc_cache {
 	unsigned int has_aliasing, sz, line_len, assoc, ver;
 };
 
 struct cpuinfo_arc {
 	struct cpuinfo_arc_cache icache, dcache;
+	struct cpuinfo_arc_mmu mmu;
 };
 
 extern struct cpuinfo_arc cpuinfo_arc700[];
