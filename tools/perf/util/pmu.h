@@ -12,14 +12,14 @@ enum {
 
 #define PERF_PMU_FORMAT_BITS 64
 
-struct perf_pmu__format {
+struct perf_pmu_format {
 	char *name;
 	int value;
 	DECLARE_BITMAP(bits, PERF_PMU_FORMAT_BITS);
 	struct list_head list;
 };
 
-struct perf_pmu__alias {
+struct perf_pmu_alias {
 	char *name;
 	struct list_head terms;
 	struct list_head list;
@@ -42,7 +42,7 @@ int perf_pmu__config_terms(struct list_head *formats,
 			   struct list_head *head_terms);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms);
 struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
-				struct list_head *head_terms);
+				  struct list_head *head_terms);
 int perf_pmu_wrap(void);
 void perf_pmu_error(struct list_head *list, char *name, char const *msg);
 
