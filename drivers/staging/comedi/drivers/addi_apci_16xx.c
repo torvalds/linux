@@ -195,25 +195,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
-	if (devpriv->s_EeParameters.i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDoChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
