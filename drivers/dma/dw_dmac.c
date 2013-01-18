@@ -1608,6 +1608,8 @@ static int dw_probe(struct platform_device *pdev)
 	dw_params = dma_read_byaddr(regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
 
+	dev_dbg(&pdev->dev, "DW_PARAMS: 0x%08x\n", dw_params);
+
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata)
 		pdata = dw_dma_parse_dt(pdev);
@@ -1720,6 +1722,9 @@ static int dw_probe(struct platform_device *pdev)
 
 			dwc_params = dma_read_byaddr(regs + r * sizeof(u32),
 						     DWC_PARAMS);
+
+			dev_dbg(&pdev->dev, "DWC_PARAMS[%d]: 0x%08x\n", i,
+					    dwc_params);
 
 			/* Decode maximum block size for given channel. The
 			 * stored 4 bit value represents blocks from 0x00 for 3
