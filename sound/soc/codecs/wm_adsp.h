@@ -40,6 +40,9 @@ struct wm_adsp {
 	struct regmap *regmap;
 
 	int base;
+	int sysclk_reg;
+	int sysclk_mask;
+	int sysclk_shift;
 
 	struct list_head alg_regions;
 
