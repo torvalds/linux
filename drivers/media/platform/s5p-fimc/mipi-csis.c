@@ -771,7 +771,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 			       0, dev_name(&pdev->dev), state);
 	if (ret) {
 		dev_err(&pdev->dev, "Interrupt request failed\n");
-		goto e_clkput;
+		goto e_clkdis;
 	}
 
 	v4l2_subdev_init(&state->sd, &s5pcsis_subdev_ops);
@@ -789,7 +789,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	ret = media_entity_init(&state->sd.entity,
 				CSIS_PADS_NUM, state->pads, 0);
 	if (ret < 0)
-		goto e_clkput;
+		goto e_clkdis;
 
 	/* This allows to retrieve the platform device id by the host driver */
 	v4l2_set_subdevdata(&state->sd, pdev);
@@ -802,8 +802,9 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	return 0;
 
-e_clkput:
+e_clkdis:
 	clk_disable(state->clock[CSIS_CLK_MUX]);
+e_clkput:
 	s5pcsis_clk_put(state);
 	return ret;
 }
