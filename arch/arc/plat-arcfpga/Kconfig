@@ -44,4 +44,36 @@ config ARC_SERIAL_BAUD
 	help
 	  Baud rate for the ARC UART
 
+menuconfig ARC_HAS_BVCI_LAT_UNIT
+	bool "BVCI Bus Latency Unit"
+	depends on ARC_BOARD_ML509 || ARC_BOARD_ANGEL4
+	help
+	  IP to add artifical latency to BVCI Bus Based FPGA builds.
+	  The default latency (even worst case) for FPGA is non-realistic
+	  (~10 SDRAM, ~5 SSRAM).
+
+config BVCI_LAT_UNITS
+	hex "Latency Unit(s) Bitmap"
+	default "0x0"
+	depends on ARC_HAS_BVCI_LAT_UNIT
+	help
+	  There are multiple Latency Units corresponding to the many
+	  interfaces of the system bus arbiter (both CPU side as well as
+	  the peripheral side).
+	  To add latency to ALL memory transaction, choose Unit 0, otherwise
+	  for finer grainer - interface wise latency, specify a bitmap (1 bit
+	  per unit) of all units. e.g. 1,2,12 will be 0x1003
+
+	  Unit  0 - System Arb and Mem Controller
+	  Unit  1 - I$ and System Bus
+	  Unit  2 - D$ and System Bus
+	  ..
+	  Unit 12 - IDE Disk controller and System Bus
+
+config BVCI_LAT_CYCLES
+	int "Latency Value in cycles"
+	range 0 63
+	default "30"
+	depends on ARC_HAS_BVCI_LAT_UNIT
+
 endif
