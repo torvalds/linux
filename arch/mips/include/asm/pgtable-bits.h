@@ -52,7 +52,7 @@
  * The following bits are implemented in software
  *
  * _PAGE_FILE semantics: set:pagecache unset:swap
- */ 
+ */
 #define _PAGE_PRESENT_SHIFT	6
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
 #define _PAGE_READ_SHIFT	7
