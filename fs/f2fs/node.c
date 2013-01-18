@@ -1124,6 +1124,12 @@ static int f2fs_write_node_page(struct page *page,
 	return 0;
 }
 
+/*
+ * It is very important to gather dirty pages and write at once, so that we can
+ * submit a big bio without interfering other data writes.
+ * Be default, 512 pages (2MB), a segment size, is quite reasonable.
+ */
+#define COLLECT_DIRTY_NODES	512
 static int f2fs_write_node_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
@@ -1131,16 +1137,15 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	struct block_device *bdev = sbi->sb->s_bdev;
 	long nr_to_write = wbc->nr_to_write;
 
-	if (wbc->for_kupdate)
-		return 0;
-
-	if (get_pages(sbi, F2FS_DIRTY_NODES) == 0)
-		return 0;
-
+	/* First check balancing cached NAT entries */
 	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK)) {
 		write_checkpoint(sbi, false, false);
 		return 0;
 	}
+
+	/* collect a number of dirty node pages and write together */
+	if (get_pages(sbi, F2FS_DIRTY_NODES) < COLLECT_DIRTY_NODES)
+		return 0;
 
 	/* if mounting is failed, skip writing node pages */
 	wbc->nr_to_write = bio_get_nr_vecs(bdev);
