@@ -245,6 +245,7 @@ struct map_info {
 	unsigned long pfow_base;
 	unsigned long map_priv_1;
 	unsigned long map_priv_2;
+	struct device_node *device_node;
 	void *fldrv_priv;
 	struct mtd_chip_driver *fldrv;
 };

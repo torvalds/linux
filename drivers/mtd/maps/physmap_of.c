@@ -241,6 +241,7 @@ static int of_flash_probe(struct platform_device *dev)
 		info->list[i].map.phys = res.start;
 		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = be32_to_cpup(width);
+		info->list[i].map.device_node = dp;
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,
