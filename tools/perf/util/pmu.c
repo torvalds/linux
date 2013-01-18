@@ -1,4 +1,3 @@
-
 #include <linux/list.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -10,6 +9,19 @@
 #include "pmu.h"
 #include "parse-events.h"
 #include "cpumap.h"
+
+struct perf_pmu_alias {
+	char *name;
+	struct list_head terms;
+	struct list_head list;
+};
+
+struct perf_pmu_format {
+	char *name;
+	int value;
+	DECLARE_BITMAP(bits, PERF_PMU_FORMAT_BITS);
+	struct list_head list;
+};
 
 #define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
 

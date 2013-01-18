@@ -12,19 +12,6 @@ enum {
 
 #define PERF_PMU_FORMAT_BITS 64
 
-struct perf_pmu_format {
-	char *name;
-	int value;
-	DECLARE_BITMAP(bits, PERF_PMU_FORMAT_BITS);
-	struct list_head list;
-};
-
-struct perf_pmu_alias {
-	char *name;
-	struct list_head terms;
-	struct list_head list;
-};
-
 struct perf_pmu {
 	char *name;
 	__u32 type;
