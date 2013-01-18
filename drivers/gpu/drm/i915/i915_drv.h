@@ -383,6 +383,8 @@ struct i915_gtt {
 	void __iomem *gsm;
 
 	bool do_idle_maps;
+	dma_addr_t scratch_page_dma;
+	struct page *scratch_page;
 };
 
 #define I915_PPGTT_PD_ENTRIES 512

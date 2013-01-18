@@ -162,7 +162,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		}
 	}
 
-	ppgtt->scratch_page_dma_addr = dev_priv->mm.gtt->scratch_page_dma;
+	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
 	i915_ppgtt_clear_range(ppgtt, 0,
 			       ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
@@ -396,7 +396,7 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = pte_encode(dev, dev_priv->mm.gtt->scratch_page_dma, I915_CACHE_LLC);
+	scratch_pte = pte_encode(dev, dev_priv->gtt.scratch_page_dma, I915_CACHE_LLC);
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
@@ -659,8 +659,8 @@ static int setup_scratch_page(struct drm_device *dev)
 #else
 	dma_addr = page_to_phys(page);
 #endif
-	dev_priv->mm.gtt->scratch_page = page;
-	dev_priv->mm.gtt->scratch_page_dma = dma_addr;
+	dev_priv->gtt.scratch_page = page;
+	dev_priv->gtt.scratch_page_dma = dma_addr;
 
 	return 0;
 }
@@ -668,11 +668,11 @@ static int setup_scratch_page(struct drm_device *dev)
 static void teardown_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	set_pages_wb(dev_priv->mm.gtt->scratch_page, 1);
-	pci_unmap_page(dev->pdev, dev_priv->mm.gtt->scratch_page_dma,
+	set_pages_wb(dev_priv->gtt.scratch_page, 1);
+	pci_unmap_page(dev->pdev, dev_priv->gtt.scratch_page_dma,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	put_page(dev_priv->mm.gtt->scratch_page);
-	__free_page(dev_priv->mm.gtt->scratch_page);
+	put_page(dev_priv->gtt.scratch_page);
+	__free_page(dev_priv->gtt.scratch_page);
 }
 
 static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)

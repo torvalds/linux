@@ -13,9 +13,6 @@ struct intel_gtt {
 	unsigned int gtt_mappable_entries;
 	/* Whether i915 needs to use the dmar apis or not. */
 	unsigned int needs_dmar : 1;
-	/* Share the scratch page dma with ppgtts. */
-	dma_addr_t scratch_page_dma;
-	struct page *scratch_page;
 	/* needed for ioremap in drm/i915 */
 	phys_addr_t gma_bus_addr;
 } *intel_gtt_get(void);
