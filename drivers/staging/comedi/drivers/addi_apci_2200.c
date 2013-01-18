@@ -9,15 +9,14 @@
  * I/O Register Map
  */
 #define APCI2200_DI_REG			0x00
+#define APCI2200_DO_REG			0x04
 
 static const struct addi_board apci2200_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci2200",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1005,
-		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
-		.do_bits		= apci2200_do_insn_bits,
 		.timer_config		= i_APCI2200_ConfigWatchdog,
 		.timer_write		= i_APCI2200_StartStopWriteWatchdog,
 		.timer_read		= i_APCI2200_ReadWatchdog,
@@ -34,9 +33,30 @@ static int apci2200_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int apci2200_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	s->state = inw(dev->iobase + APCI2200_DO_REG);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outw(s->state, dev->iobase + APCI2200_DO_REG);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
 static int apci2200_reset(struct comedi_device *dev)
 {
-	outw(0x0, dev->iobase + APCI2200_DIGITAL_OP);
+	outw(0x0, dev->iobase + APCI2200_DO_REG);
 	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
 			APCI2200_WATCHDOG_ENABLEDISABLE);
 	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
@@ -114,24 +134,12 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
-	if (this_board->i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDoChannel;
-		s->maxdata = this_board->i_DoMaxdata;
-		s->len_chanlist = this_board->i_NbrDoChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci2200_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];

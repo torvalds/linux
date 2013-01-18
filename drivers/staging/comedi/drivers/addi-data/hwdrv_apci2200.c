@@ -46,39 +46,12 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*********      Definitions for APCI-2200 card  *****/
-
-/* DIGITAL INPUT-OUTPUT DEFINE */
-
-#define APCI2200_DIGITAL_OP		4
-
 /* TIMER COUNTER WATCHDOG DEFINES */
 
 #define APCI2200_WATCHDOG		0x08
 #define APCI2200_WATCHDOG_ENABLEDISABLE	12
 #define APCI2200_WATCHDOG_RELOAD_VALUE	4
 #define APCI2200_WATCHDOG_STATUS	16
-
-static int apci2200_do_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	s->state = inw(dev->iobase + APCI2200_DIGITAL_OP);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
-		outw(s->state, dev->iobase + APCI2200_DIGITAL_OP);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
-}
 
 /*
 +----------------------------------------------------------------------------+
