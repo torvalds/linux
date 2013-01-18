@@ -671,6 +671,11 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	bool inc;
 	int is_router = -1;
 
+	if (skb->len < sizeof(struct nd_msg)) {
+		ND_PRINTK(2, warn, "NS: packet too short\n");
+		return;
+	}
+
 	if (ipv6_addr_is_multicast(&msg->target)) {
 		ND_PRINTK(2, warn, "NS: multicast target address\n");
 		return;
