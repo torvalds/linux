@@ -322,7 +322,7 @@ exit_tx:
 static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_port *port = &port->state->port;
+	struct tty_port *tport = &port->state->port;
 	u32 status;
 
 	spin_lock(&port->lock);
