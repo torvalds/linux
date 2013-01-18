@@ -127,6 +127,12 @@ struct vt8500_gpio_chip {
 	void __iomem	*base;
 };
 
+struct vt8500_data {
+	struct vt8500_gpio_chip *chip;
+	void __iomem *iobase;
+	int num_banks;
+};
+
 
 #define to_vt8500(__chip) container_of(__chip, struct vt8500_gpio_chip, chip)
 
@@ -224,18 +230,31 @@ static int vt8500_of_xlate(struct gpio_chip *gc,
 static int vt8500_add_chips(struct platform_device *pdev, void __iomem *base,
 				const struct vt8500_gpio_data *data)
 {
+	struct vt8500_data *priv;
 	struct vt8500_gpio_chip *vtchip;
 	struct gpio_chip *chip;
 	int i;
 	int pin_cnt = 0;
 
-	vtchip = devm_kzalloc(&pdev->dev,
-			sizeof(struct vt8500_gpio_chip) * data->num_banks,
-			GFP_KERNEL);
-	if (!vtchip) {
-		pr_err("%s: failed to allocate chip memory\n", __func__);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct vt8500_data), GFP_KERNEL);
+	if (!priv) {
+		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
+
+	priv->chip = devm_kzalloc(&pdev->dev,
+			sizeof(struct vt8500_gpio_chip) * data->num_banks,
+			GFP_KERNEL);
+	if (!priv->chip) {
+		dev_err(&pdev->dev, "failed to allocate chip memory\n");
+		return -ENOMEM;
+	}
+
+	priv->iobase = base;
+	priv->num_banks = data->num_banks;
+	platform_set_drvdata(pdev, priv);
+
+	vtchip = priv->chip;
 
 	for (i = 0; i < data->num_banks; i++) {
 		vtchip[i].base = base;
@@ -273,36 +292,54 @@ static struct of_device_id vt8500_gpio_dt_ids[] = {
 
 static int vt8500_gpio_probe(struct platform_device *pdev)
 {
+	int ret;
 	void __iomem *gpio_base;
-	struct device_node *np;
+	struct resource *res;
 	const struct of_device_id *of_id =
 				of_match_device(vt8500_gpio_dt_ids, &pdev->dev);
 
 	if (!of_id) {
-		dev_err(&pdev->dev, "Failed to find gpio controller\n");
+		dev_err(&pdev->dev, "No matching driver data\n");
 		return -ENODEV;
 	}
 
-	np = pdev->dev.of_node;
-	if (!np) {
-		dev_err(&pdev->dev, "Missing GPIO description in devicetree\n");
-		return -EFAULT;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get IO resource\n");
+		return -ENODEV;
 	}
 
-	gpio_base = of_iomap(np, 0);
+	gpio_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!gpio_base) {
 		dev_err(&pdev->dev, "Unable to map GPIO registers\n");
-		of_node_put(np);
 		return -ENOMEM;
 	}
 
-	vt8500_add_chips(pdev, gpio_base, of_id->data);
+	ret = vt8500_add_chips(pdev, gpio_base, of_id->data);
+
+	return ret;
+}
+
+static int vt8500_gpio_remove(struct platform_device *pdev)
+{
+	int i;
+	int ret;
+	struct vt8500_data *priv = platform_get_drvdata(pdev);
+	struct vt8500_gpio_chip *vtchip = priv->chip;
+
+	for (i = 0; i < priv->num_banks; i++) {
+		ret = gpiochip_remove(&vtchip[i].chip);
+		if (ret)
+			dev_warn(&pdev->dev, "gpiochip_remove returned %d\n",
+				 ret);
+	}
 
 	return 0;
 }
 
 static struct platform_driver vt8500_gpio_driver = {
 	.probe		= vt8500_gpio_probe,
+	.remove		= vt8500_gpio_remove,
 	.driver		= {
 		.name	= "vt8500-gpio",
 		.owner	= THIS_MODULE,
