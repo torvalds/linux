@@ -64,6 +64,33 @@ void __init read_arc_build_cfg_regs(void)
 	cpu->extn.ext_arith = read_aux_reg(ARC_REG_EXTARITH_BCR);
 	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR);
 
+	/* Note that we read the CCM BCRs independent of kernel config
+	 * This is to catch the cases where user doesn't know that
+	 * CCMs are present in hardware build
+	 */
+	{
+		struct bcr_iccm iccm;
+		struct bcr_dccm dccm;
+		struct bcr_dccm_base dccm_base;
+		unsigned int bcr_32bit_val;
+
+		bcr_32bit_val = read_aux_reg(ARC_REG_ICCM_BCR);
+		if (bcr_32bit_val) {
+			iccm = *((struct bcr_iccm *)&bcr_32bit_val);
+			cpu->iccm.base_addr = iccm.base << 16;
+			cpu->iccm.sz = 0x2000 << (iccm.sz - 1);
+		}
+
+		bcr_32bit_val = read_aux_reg(ARC_REG_DCCM_BCR);
+		if (bcr_32bit_val) {
+			dccm = *((struct bcr_dccm *)&bcr_32bit_val);
+			cpu->dccm.sz = 0x800 << (dccm.sz);
+
+			READ_BCR(ARC_REG_DCCMBASE_BCR, dccm_base);
+			cpu->dccm.base_addr = dccm_base.addr << 8;
+		}
+	}
+
 	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
 
 	read_decode_mmu_bcr();
@@ -211,6 +238,30 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
+void __init arc_chk_ccms(void)
+{
+#if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+
+#ifdef CONFIG_ARC_HAS_DCCM
+	/*
+	 * DCCM can be arbit placed in hardware.
+	 * Make sure it's placement/sz matches what Linux is built with
+	 */
+	if ((unsigned int)__arc_dccm_base != cpu->dccm.base_addr)
+		panic("Linux built with incorrect DCCM Base address\n");
+
+	if (CONFIG_ARC_DCCM_SZ != cpu->dccm.sz)
+		panic("Linux built with incorrect DCCM Size\n");
+#endif
+
+#ifdef CONFIG_ARC_HAS_ICCM
+	if (CONFIG_ARC_ICCM_SZ != cpu->iccm.sz)
+		panic("Linux built with incorrect ICCM Size\n");
+#endif
+#endif
+}
+
 /*
  * Ensure that FP hardware and kernel config match
  * -If hardware contains DPFP, kernel needs to save/restore FPU state
@@ -255,7 +306,7 @@ void __init setup_processor(void)
 
 	arc_mmu_init();
 	arc_cache_init();
-
+	arc_chk_ccms();
 
 	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
 

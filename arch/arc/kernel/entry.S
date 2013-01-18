@@ -149,7 +149,7 @@ VECTOR   reserved                ; Reserved Exceptions
 
 ;##################### Scratch Mem for IRQ stack switching #############
 
-	.section .data		; NOT .global
+ARCFP_DATA int1_saved_reg
 	.align 32
 	.type   int1_saved_reg, @object
 	.size   int1_saved_reg, 4
@@ -159,7 +159,7 @@ int1_saved_reg:
 /* Each Interrupt level needs it's own scratch */
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
-	.section .data		; NOT .global
+ARCFP_DATA int2_saved_reg
 	.type   int2_saved_reg, @object
 	.size   int2_saved_reg, 4
 int2_saved_reg:

@@ -198,6 +198,33 @@ config ARC_CACHE_PAGES
 
 endif	#ARC_CACHE
 
+config ARC_HAS_ICCM
+	bool "Use ICCM"
+	help
+	  Single Cycle RAMS to store Fast Path Code
+	default n
+
+config ARC_ICCM_SZ
+	int "ICCM Size in KB"
+	default "64"
+	depends on ARC_HAS_ICCM
+
+config ARC_HAS_DCCM
+	bool "Use DCCM"
+	help
+	  Single Cycle RAMS to store Fast Path Data
+	default n
+
+config ARC_DCCM_SZ
+	int "DCCM Size in KB"
+	default "64"
+	depends on ARC_HAS_DCCM
+
+config ARC_DCCM_BASE
+	hex "DCCM map address"
+	default "0xA0000000"
+	depends on ARC_HAS_DCCM
+
 config ARC_HAS_HW_MPY
 	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
 	default y

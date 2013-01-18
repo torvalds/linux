@@ -53,8 +53,7 @@
 ; For details refer to comments before TLBMISS_FREEUP_REGS below
 ;--------------------------------------------------------------------------
 
-	.section .data
-	.global ex_saved_reg1
+ARCFP_DATA ex_saved_reg1
 	.align 1 << L1_CACHE_SHIFT	; IMP: Must be Cache Line aligned
 	.type   ex_saved_reg1, @object
 #ifdef CONFIG_SMP
@@ -255,7 +254,7 @@ ex_saved_reg1:
 #endif
 .endm
 
-.section .text, "ax",@progbits	;Fast Path Code, candidate for ICCM
+ARCFP_CODE	;Fast Path Code, candidate for ICCM
 
 ;-----------------------------------------------------------------------------
 ; I-TLB Miss Exception Handler
