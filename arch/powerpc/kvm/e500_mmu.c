@@ -541,10 +541,8 @@ static void free_gtlb(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
 	int i;
 
-	clear_tlb1_bitmap(vcpu_e500);
+	kvmppc_core_flush_tlb(&vcpu_e500->vcpu);
 	kfree(vcpu_e500->g2h_tlb1_map);
-
-	clear_tlb_refs(vcpu_e500);
 	kfree(vcpu_e500->gtlb_priv[0]);
 	kfree(vcpu_e500->gtlb_priv[1]);
 
@@ -735,7 +733,7 @@ int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
-	clear_tlb_refs(vcpu_e500);
+	kvmppc_core_flush_tlb(vcpu);
 	return 0;
 }
 
