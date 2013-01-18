@@ -79,6 +79,7 @@ static struct _intel_private {
 	int refcount;
 	/* Whether i915 needs to use the dmar apis or not. */
 	unsigned int needs_dmar : 1;
+	phys_addr_t gma_bus_addr;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -625,7 +626,7 @@ static int intel_gtt_init(void)
 		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
 				      &gma_addr);
 
-	intel_private.base.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
+	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	return 0;
 }
@@ -781,7 +782,7 @@ static int intel_fake_agp_configure(void)
 	    return -EIO;
 
 	intel_private.clear_fake_agp = true;
-	agp_bridge->gart_bus_addr = intel_private.base.gma_bus_addr;
+	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
 	return 0;
 }
