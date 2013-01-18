@@ -4,10 +4,6 @@
 
 #include "addi-data/addi_common.h"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci2200.c"
 
@@ -285,22 +281,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
-	if (this_board->i_NbrTTLChannel) {
-		s->type = COMEDI_SUBD_TTLIO;
-		s->subdev_flags =
-			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrTTLChannel;
-		s->maxdata = 1;
-		s->io_bits = 0;	/* all bits input */
-		s->len_chanlist = this_board->i_NbrTTLChannel;
-		s->range_table = &range_digital;
-		s->insn_config = this_board->ttl_config;
-		s->insn_bits = this_board->ttl_bits;
-		s->insn_read = this_board->ttl_read;
-		s->insn_write = this_board->ttl_write;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
