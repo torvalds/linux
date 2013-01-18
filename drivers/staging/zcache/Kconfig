@@ -1,23 +1,18 @@
-config ZCACHE2
+config ZCACHE
 	bool "Dynamic compression of swap pages and clean pagecache pages"
-	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP && !ZCACHE 
+	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP
 	select CRYPTO_LZO
 	default n
 	help
-	  Zcache2 doubles RAM efficiency while providing a significant
-	  performance boosts on many workloads.  Zcache2 uses
+	  Zcache doubles RAM efficiency while providing a significant
+	  performance boosts on many workloads.  Zcache uses
 	  compression and an in-kernel implementation of transcendent
 	  memory to store clean page cache pages and swap in RAM,
-	  providing a noticeable reduction in disk I/O.  Zcache2
-	  is a complete rewrite of the older zcache; it was intended to
-	  be a merge but that has been blocked due to political and
-	  technical disagreements.  It is intended that they will merge
-	  again in the future.  Until then, zcache2 is a single-node
-	  version of ramster.
+	  providing a noticeable reduction in disk I/O.
 
 config RAMSTER
 	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE2=y
+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE=y
 	depends on NET
 	# must ensure struct page is 8-byte aligned
 	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
