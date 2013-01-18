@@ -57,6 +57,111 @@
 #define __access_ok(addr, sz)	(unlikely(__kernel_ok) || \
 				 likely(__user_ok((addr), (sz))))
 
+/*********** Single byte/hword/word copies ******************/
+
+#define __get_user_fn(sz, u, k)					\
+({								\
+	long __ret = 0;	/* success by default */	\
+	switch (sz) {						\
+	case 1: __arc_get_user_one(*(k), u, "ldb", __ret); break;	\
+	case 2: __arc_get_user_one(*(k), u, "ldw", __ret); break;	\
+	case 4: __arc_get_user_one(*(k), u, "ld", __ret);  break;	\
+	case 8: __arc_get_user_one_64(*(k), u, __ret);     break;	\
+	}							\
+	__ret;							\
+})
+
+/*
+ * Returns 0 on success, -EFAULT if not.
+ * @ret already contains 0 - given that errors will be less likely
+ * (hence +r asm constraint below).
+ * In case of error, fixup code will make it -EFAULT
+ */
+#define __arc_get_user_one(dst, src, op, ret)	\
+	__asm__ __volatile__(                   \
+	"1:	"op"    %1,[%2]\n"		\
+	"2:	;nop\n"				\
+	"	.section .fixup, \"ax\"\n"	\
+	"	.align 4\n"			\
+	"3:	mov %0, %3\n"			\
+	"	j   2b\n"			\
+	"	.previous\n"			\
+	"	.section __ex_table, \"a\"\n"	\
+	"	.align 4\n"			\
+	"	.word 1b,3b\n"			\
+	"	.previous\n"			\
+						\
+	: "+r" (ret), "=r" (dst)		\
+	: "r" (src), "ir" (-EFAULT))
+
+#define __arc_get_user_one_64(dst, src, ret)	\
+	__asm__ __volatile__(                   \
+	"1:	ld   %1,[%2]\n"			\
+	"4:	ld  %R1,[%2, 4]\n"		\
+	"2:	;nop\n"				\
+	"	.section .fixup, \"ax\"\n"	\
+	"	.align 4\n"			\
+	"3:	mov %0, %3\n"			\
+	"	j   2b\n"			\
+	"	.previous\n"			\
+	"	.section __ex_table, \"a\"\n"	\
+	"	.align 4\n"			\
+	"	.word 1b,3b\n"			\
+	"	.word 4b,3b\n"			\
+	"	.previous\n"			\
+						\
+	: "+r" (ret), "=r" (dst)		\
+	: "r" (src), "ir" (-EFAULT))
+
+#define __put_user_fn(sz, u, k)					\
+({								\
+	long __ret = 0;	/* success by default */	\
+	switch (sz) {						\
+	case 1: __arc_put_user_one(*(k), u, "stb", __ret); break;	\
+	case 2: __arc_put_user_one(*(k), u, "stw", __ret); break;	\
+	case 4: __arc_put_user_one(*(k), u, "st", __ret);  break;	\
+	case 8: __arc_put_user_one_64(*(k), u, __ret);     break;	\
+	}							\
+	__ret;							\
+})
+
+#define __arc_put_user_one(src, dst, op, ret)	\
+	__asm__ __volatile__(                   \
+	"1:	"op"    %1,[%2]\n"		\
+	"2:	;nop\n"				\
+	"	.section .fixup, \"ax\"\n"	\
+	"	.align 4\n"			\
+	"3:	mov %0, %3\n"			\
+	"	j   2b\n"			\
+	"	.previous\n"			\
+	"	.section __ex_table, \"a\"\n"	\
+	"	.align 4\n"			\
+	"	.word 1b,3b\n"			\
+	"	.previous\n"			\
+						\
+	: "+r" (ret)				\
+	: "r" (src), "r" (dst), "ir" (-EFAULT))
+
+#define __arc_put_user_one_64(src, dst, ret)	\
+	__asm__ __volatile__(                   \
+	"1:	st   %1,[%2]\n"			\
+	"4:	st  %R1,[%2, 4]\n"		\
+	"2:	;nop\n"				\
+	"	.section .fixup, \"ax\"\n"	\
+	"	.align 4\n"			\
+	"3:	mov %0, %3\n"			\
+	"	j   2b\n"			\
+	"	.previous\n"			\
+	"	.section __ex_table, \"a\"\n"	\
+	"	.align 4\n"			\
+	"	.word 1b,3b\n"			\
+	"	.word 4b,3b\n"			\
+	"	.previous\n"			\
+						\
+	: "+r" (ret)				\
+	: "r" (src), "r" (dst), "ir" (-EFAULT))
+
+
 static inline unsigned long
 __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
