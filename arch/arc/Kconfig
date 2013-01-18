@@ -1,0 +1,328 @@
+#
+# Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+config ARC
+	def_bool y
+	select ARCH_NO_VIRT_TO_BUS
+	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
+	select DEVTMPFS if !INITRAMFS_SOURCE=""
+	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_FIND_FIRST_BIT
+	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_SMP_IDLE_THREAD
+	select HAVE_GENERIC_HARDIRQS
+	select MODULES_USE_ELF_RELA
+
+config SCHED_OMIT_FRAME_POINTER
+	def_bool y
+
+config GENERIC_CSUM
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config MMU
+	def_bool y
+
+config NO_IOPORT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config BINFMT_ELF
+	def_bool y
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
+config NO_DMA
+	def_bool n
+
+source "init/Kconfig"
+source "kernel/Kconfig.freezer"
+
+menu "ARC Architecture Configuration"
+
+choice
+	prompt "ARC Platform"
+	default ARC_PLAT_FPGA_LEGACY
+
+config ARC_PLAT_FPGA_LEGACY
+	bool "\"Legacy\" ARC FPGA dev platform"
+	help
+	  Support for ARC development platforms, provided by Synopsys.
+	  These are based on FPGA or ISS. e.g.
+	  - ARCAngel4
+	  - ML509
+	  - MetaWare ISS
+
+#New platform adds here
+endchoice
+
+menu "ARC CPU Configuration"
+
+choice
+	prompt "ARC Core"
+	default ARC_CPU_770
+
+config ARC_CPU_750D
+	bool "ARC750D"
+	help
+	  Support for ARC750 core
+
+config ARC_CPU_770
+	bool "ARC770"
+	select ARC_CPU_REL_4_10
+	help
+	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
+	  This core has a bunch of cool new features:
+	  -MMU-v3: Variable Page Sz (4k, 8k, 16k), bigger J-TLB (128x4)
+                   Shared Address Spaces (for sharing TLB entires in MMU)
+	  -Caches: New Prog Model, Region Flush
+	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
+
+endchoice
+
+config CPU_BIG_ENDIAN
+	bool "Enable Big Endian Mode"
+	default n
+	help
+	  Build kernel for Big Endian Mode of ARC CPU
+
+menuconfig ARC_CACHE
+	bool "Enable Cache Support"
+	default y
+
+if ARC_CACHE
+
+config ARC_CACHE_LINE_SHIFT
+	int "Cache Line Length (as power of 2)"
+	range 5 7
+	default "6"
+	help
+	  Starting with ARC700 4.9, Cache line length is configurable,
+	  This option specifies "N", with Line-len = 2 power N
+	  So line lengths of 32, 64, 128 are specified by 5,6,7, respectively
+	  Linux only supports same line lengths for I and D caches.
+
+config ARC_HAS_ICACHE
+	bool "Use Instruction Cache"
+	default y
+
+config ARC_HAS_DCACHE
+	bool "Use Data Cache"
+	default y
+
+config ARC_CACHE_PAGES
+	bool "Per Page Cache Control"
+	default y
+	depends on ARC_HAS_ICACHE || ARC_HAS_DCACHE
+	help
+	  This can be used to over-ride the global I/D Cache Enable on a
+	  per-page basis (but only for pages accessed via MMU such as
+	  Kernel Virtual address or User Virtual Address)
+	  TLB entries have a per-page Cache Enable Bit.
+	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
+	  Global DISABLE + Per Page ENABLE won't work
+
+endif	#ARC_CACHE
+
+config ARC_HAS_HW_MPY
+	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
+	default y
+	help
+	  Influences how gcc generates code for MPY operations.
+	  If enabled, MPYxx insns are generated, provided by Standard/XMAC
+	  Multipler. Otherwise software multipy lib is used
+
+choice
+	prompt "ARC700 MMU Version"
+	default ARC_MMU_V3 if ARC_CPU_770
+	default ARC_MMU_V2 if ARC_CPU_750D
+
+config ARC_MMU_V1
+	bool "MMU v1"
+	help
+	  Orig ARC700 MMU
+
+config ARC_MMU_V2
+	bool "MMU v2"
+	help
+	  Fixed the deficiency of v1 - possible thrashing in memcpy sceanrio
+	  when 2 D-TLB and 1 I-TLB entries index into same 2way set.
+
+config ARC_MMU_V3
+	bool "MMU v3"
+	depends on ARC_CPU_770
+	help
+	  Introduced with ARC700 4.10: New Features
+	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
+	  Shared Address Spaces (SASID)
+
+endchoice
+
+
+choice
+	prompt "MMU Page Size"
+	default ARC_PAGE_SIZE_8K
+
+config ARC_PAGE_SIZE_8K
+	bool "8KB"
+	help
+	  Choose between 8k vs 16k
+
+config ARC_PAGE_SIZE_16K
+	bool "16KB"
+	depends on ARC_MMU_V3
+
+config ARC_PAGE_SIZE_4K
+	bool "4KB"
+	depends on ARC_MMU_V3
+
+endchoice
+
+config ARC_FPU_SAVE_RESTORE
+	bool "Enable FPU state persistence across context switch"
+	default n
+	help
+	  Double Precision Floating Point unit had dedictaed regs which
+	  need to be saved/restored across context-switch.
+	  Note that ARC FPU is overly simplistic, unlike say x86, which has
+	  hardware pieces to allow software to conditionally save/restore,
+	  based on actual usage of FPU by a task. Thus our implemn does
+	  this for all tasks in system.
+
+menuconfig ARC_CPU_REL_4_10
+	bool "Enable support for Rel 4.10 features"
+	default n
+	help
+	  -ARC770 (and dependent features) enabled
+	  -ARC750 also shares some of the new features with 770
+
+config ARC_HAS_LLSC
+	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
+	default y
+	depends on ARC_CPU_770
+	# if SMP, enable LLSC ONLY if ARC implementation has coherent atomics
+	depends on !SMP || ARC_HAS_COH_LLSC
+
+config ARC_HAS_SWAPE
+	bool "Insn: SWAPE (endian-swap)"
+	default y
+	depends on ARC_CPU_REL_4_10
+
+config ARC_HAS_RTSC
+	bool "Insn: RTSC (64-bit r/o cycle counter)"
+	default y
+	depends on ARC_CPU_REL_4_10
+
+endmenu   # "ARC CPU Configuration"
+
+menu "Platform Board Configuration"
+
+source "arch/arc/plat-arcfpga/Kconfig"
+
+#New platform adds here
+
+config ARC_PLAT_CLK
+	int "Clk speed in Hz"
+	default "80000000"
+
+config LINUX_LINK_BASE
+	hex "Linux Link Address"
+	default "0x80000000"
+	help
+	  ARC700 divides the 32 bit phy address space into two equal halves
+	  -Lower 2G (0 - 0x7FFF_FFFF ) is user virtual, translated by MMU
+	  -Upper 2G (0x8000_0000 onwards) is untranslated, for kernel
+	  Typically Linux kernel is linked at the start of untransalted addr,
+	  hence the default value of 0x8zs.
+	  However some customers have peripherals mapped at this addr, so
+	  Linux needs to be scooted a bit.
+	  If you don't know what the above means, leave this setting alone.
+
+config ARC_PLAT_SDRAM_SIZE
+	hex "SD RAM Size"
+	default "0x10000000"
+	help
+	  Implies the amount of SDRAM/DRAM Linux is going to claim/own.
+	  The actual memory itself could be larger than this number. But for
+	  all software purposes, this is the amt of memory.
+
+endmenu # "Platform Board Configuration"
+
+config ARC_STACK_NONEXEC
+	bool "Make stack non-executable"
+	default n
+	help
+	  To disable the execute permissions of stack/heap of processes
+	  which are enabled by default.
+
+config HZ
+	int "Timer Frequency"
+	default 100
+
+menuconfig ARC_DBG
+	bool "ARC debugging"
+	default y
+
+config ARC_DBG_TLB_PARANOIA
+	bool "Paranoia Checks in Low Level TLB Handlers"
+	depends on ARC_DBG
+	default n
+
+config ARC_DBG_TLB_MISS_COUNT
+	bool "Profile TLB Misses"
+	default n
+	select DEBUG_FS
+	depends on ARC_DBG
+	help
+	  Counts number of I and D TLB Misses and exports them via Debugfs
+	  The counters can be cleared via Debugfs as well
+
+config CMDLINE
+	string "Kernel command line to built-in"
+	default "print-fatal-signals=1"
+	help
+	  The default command line which will be appended to the optional
+	  u-boot provided command line (see below)
+
+config CMDLINE_UBOOT
+	bool "Support U-boot kernel command line passing"
+	default n
+	help
+	  If you are using U-boot (www.denx.de) and wish to pass the kernel
+	  command line from the U-boot environment to the Linux kernel then
+	  switch this option on.
+	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
+	  to it. kernel startup code will copy the string into cmdline buffer
+	  and also append CONFIG_CMDLINE.
+
+source "kernel/Kconfig.preempt"
+
+endmenu	 # "ARC Architecture Configuration"
+
+source "mm/Kconfig"
+source "net/Kconfig"
+source "drivers/Kconfig"
+source "fs/Kconfig"
+source "arch/arc/Kconfig.debug"
+source "security/Kconfig"
+source "crypto/Kconfig"
+source "lib/Kconfig"

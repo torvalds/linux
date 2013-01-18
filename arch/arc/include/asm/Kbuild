@@ -33,6 +33,7 @@ generic-y += mman.h
 generic-y += msgbuf.h
 generic-y += param.h
 generic-y += parport.h
+generic-y += pci.h
 generic-y += percpu.h
 generic-y += poll.h
 generic-y += posix_types.h

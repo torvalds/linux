@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+if ARC_PLAT_FPGA_LEGACY
+
+choice
+	prompt "FPGA Board"
+
+config ARC_BOARD_ANGEL4
+	bool "ARC Angel4"
+	help
+	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
+
+config ARC_BOARD_ML509
+	bool "ML509"
+	help
+	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
+
+endchoice
+
+config ARC_SERIAL_BAUD
+	int "UART Baud rate"
+	default "115200"
+	depends on SERIAL_ARC || SERIAL_ARC_CONSOLE
+	help
+	  Baud rate for the ARC UART
+
+endif
