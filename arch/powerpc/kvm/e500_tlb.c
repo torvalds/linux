@@ -204,9 +204,13 @@ static void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500,
 {
 	struct kvm_book3e_206_tlb_entry *gtlbe =
 		get_entry(vcpu_e500, tlbsel, esel);
+	struct tlbe_ref *ref = &vcpu_e500->gtlb_priv[tlbsel][esel].ref;
 
-	if (tlbsel == 1 &&
-	    vcpu_e500->gtlb_priv[1][esel].ref.flags & E500_TLB_BITMAP) {
+	/* Don't bother with unmapped entries */
+	if (!(ref->flags & E500_TLB_VALID))
+		return;
+
+	if (tlbsel == 1 && ref->flags & E500_TLB_BITMAP) {
 		u64 tmp = vcpu_e500->g2h_tlb1_map[esel];
 		int hw_tlb_indx;
 		unsigned long flags;
@@ -224,7 +228,7 @@ static void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500,
 		}
 		mb();
 		vcpu_e500->g2h_tlb1_map[esel] = 0;
-		vcpu_e500->gtlb_priv[1][esel].ref.flags &= ~E500_TLB_BITMAP;
+		ref->flags &= ~(E500_TLB_BITMAP | E500_TLB_VALID);
 		local_irq_restore(flags);
 
 		return;
@@ -232,6 +236,9 @@ static void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	/* Guest tlbe is backed by at most one host tlbe per shadow pid. */
 	kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
+
+	/* Mark the TLB as not backed by the host anymore */
+	ref->flags &= ~E500_TLB_VALID;
 }
 
 static int tlb0_set_base(gva_t addr, int sets, int ways)
