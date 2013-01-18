@@ -2889,11 +2889,7 @@ static void rk_camera_cif_iomux(int cif_index)
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     switch(cif_index){
         case 0:
-	    #if defined(CONFIG_ARCH_RK3066B)
 		iomux_set(CIF0_CLKOUT);
-	    #else
-		iomux_set(CIF_CLKOUT);
-	    #endif	
             write_grf_reg(GRF_IO_CON3, (CIF_DRIVER_STRENGTH_MASK|CIF_DRIVER_STRENGTH_8MA));
             write_grf_reg(GRF_IO_CON4, (CIF_CLKOUT_AMP_MASK|CIF_CLKOUT_AMP_1V8));
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
