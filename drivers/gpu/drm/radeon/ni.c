@@ -34,6 +34,7 @@
 #include "ni_reg.h"
 #include "cayman_blit_shaders.h"
 
+extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
@@ -1310,111 +1311,15 @@ void cayman_dma_fini(struct radeon_device *rdev)
 	radeon_ring_fini(rdev, &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX]);
 }
 
-static void cayman_gpu_soft_reset_gfx(struct radeon_device *rdev)
-{
-	u32 grbm_reset = 0;
-
-	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		return;
-
-	dev_info(rdev->dev, "  GRBM_STATUS               = 0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0           = 0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1           = 0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  SRBM_STATUS               = 0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
-		RREG32(CP_STALLED_STAT1));
-	dev_info(rdev->dev, "  R_008678_CP_STALLED_STAT2 = 0x%08X\n",
-		RREG32(CP_STALLED_STAT2));
-	dev_info(rdev->dev, "  R_00867C_CP_BUSY_STAT     = 0x%08X\n",
-		RREG32(CP_BUSY_STAT));
-	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
-		RREG32(CP_STAT));
-
-	/* Disable CP parsing/prefetching */
-	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT);
-
-	/* reset all the gfx blocks */
-	grbm_reset = (SOFT_RESET_CP |
-		      SOFT_RESET_CB |
-		      SOFT_RESET_DB |
-		      SOFT_RESET_GDS |
-		      SOFT_RESET_PA |
-		      SOFT_RESET_SC |
-		      SOFT_RESET_SPI |
-		      SOFT_RESET_SH |
-		      SOFT_RESET_SX |
-		      SOFT_RESET_TC |
-		      SOFT_RESET_TA |
-		      SOFT_RESET_VGT |
-		      SOFT_RESET_IA);
-
-	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
-	WREG32(GRBM_SOFT_RESET, grbm_reset);
-	(void)RREG32(GRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(GRBM_SOFT_RESET, 0);
-	(void)RREG32(GRBM_SOFT_RESET);
-
-	dev_info(rdev->dev, "  GRBM_STATUS               = 0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0           = 0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1           = 0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  SRBM_STATUS               = 0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
-		RREG32(CP_STALLED_STAT1));
-	dev_info(rdev->dev, "  R_008678_CP_STALLED_STAT2 = 0x%08X\n",
-		RREG32(CP_STALLED_STAT2));
-	dev_info(rdev->dev, "  R_00867C_CP_BUSY_STAT     = 0x%08X\n",
-		RREG32(CP_BUSY_STAT));
-	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
-		RREG32(CP_STAT));
-
-}
-
-static void cayman_gpu_soft_reset_dma(struct radeon_device *rdev)
-{
-	u32 tmp;
-
-	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
-		return;
-
-	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
-		RREG32(DMA_STATUS_REG));
-
-	/* dma0 */
-	tmp = RREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET);
-	tmp &= ~DMA_RB_ENABLE;
-	WREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET, tmp);
-
-	/* dma1 */
-	tmp = RREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET);
-	tmp &= ~DMA_RB_ENABLE;
-	WREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET, tmp);
-
-	/* Reset dma */
-	WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA | SOFT_RESET_DMA1);
-	RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
-
-	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
-		RREG32(DMA_STATUS_REG));
-
-}
-
 static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 {
 	struct evergreen_mc_save save;
+	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 tmp;
+	int ret = 0;
 
 	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE);
+		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE | RADEON_RESET_CP);
 
 	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
 		reset_mask &= ~RADEON_RESET_DMA;
@@ -1422,10 +1327,9 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	if (reset_mask == 0)
 		return 0;
 
-	r600_set_bios_scratch_engine_hung(rdev, true);
-
 	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
 
+	evergreen_print_gpu_status_regs(rdev);
 	dev_info(rdev->dev, "  VM_CONTEXT0_PROTECTION_FAULT_ADDR   0x%08X\n",
 		 RREG32(0x14F8));
 	dev_info(rdev->dev, "  VM_CONTEXT0_PROTECTION_FAULT_STATUS 0x%08X\n",
@@ -1435,23 +1339,102 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		 RREG32(0x14DC));
 
+	r600_set_bios_scratch_engine_hung(rdev, true);
+
 	evergreen_mc_stop(rdev, &save);
 	if (evergreen_mc_wait_for_idle(rdev)) {
 		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
 
-	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE))
-		cayman_gpu_soft_reset_gfx(rdev);
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT);
+
+	if (reset_mask & RADEON_RESET_DMA) {
+		/* dma0 */
+		tmp = RREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET);
+		tmp &= ~DMA_RB_ENABLE;
+		WREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET, tmp);
+
+		/* dma1 */
+		tmp = RREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET);
+		tmp &= ~DMA_RB_ENABLE;
+		WREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET, tmp);
+	}
+
+	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE)) {
+		grbm_soft_reset = SOFT_RESET_CB |
+			SOFT_RESET_DB |
+			SOFT_RESET_GDS |
+			SOFT_RESET_PA |
+			SOFT_RESET_SC |
+			SOFT_RESET_SPI |
+			SOFT_RESET_SH |
+			SOFT_RESET_SX |
+			SOFT_RESET_TC |
+			SOFT_RESET_TA |
+			SOFT_RESET_VGT |
+			SOFT_RESET_IA;
+	}
+
+	if (reset_mask & RADEON_RESET_CP) {
+		grbm_soft_reset |= SOFT_RESET_CP | SOFT_RESET_VGT;
+
+		srbm_soft_reset |= SOFT_RESET_GRBM;
+	}
 
 	if (reset_mask & RADEON_RESET_DMA)
-		cayman_gpu_soft_reset_dma(rdev);
+		srbm_soft_reset |= SOFT_RESET_DMA | SOFT_RESET_DMA1;
+
+	if (grbm_soft_reset) {
+		tmp = RREG32(GRBM_SOFT_RESET);
+		tmp |= grbm_soft_reset;
+		dev_info(rdev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(GRBM_SOFT_RESET, tmp);
+		tmp = RREG32(GRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~grbm_soft_reset;
+		WREG32(GRBM_SOFT_RESET, tmp);
+		tmp = RREG32(GRBM_SOFT_RESET);
+	}
+
+	if (srbm_soft_reset) {
+		tmp = RREG32(SRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(rdev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(SRBM_SOFT_RESET, tmp);
+		tmp = RREG32(SRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(SRBM_SOFT_RESET, tmp);
+		tmp = RREG32(SRBM_SOFT_RESET);
+	}
 
 	/* Wait a little for things to settle down */
 	udelay(50);
 
 	evergreen_mc_resume(rdev, &save);
+	udelay(50);
 
-	r600_set_bios_scratch_engine_hung(rdev, false);
+#if 0
+	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE | RADEON_RESET_CP)) {
+		if (RREG32(GRBM_STATUS) & GUI_ACTIVE)
+			ret = -EAGAIN;
+	}
+
+	if (reset_mask & RADEON_RESET_DMA) {
+		if (!(RREG32(DMA_STATUS_REG) & DMA_IDLE))
+			ret = -EAGAIN;
+	}
+#endif
+
+	if (!ret)
+		r600_set_bios_scratch_engine_hung(rdev, false);
+
+	evergreen_print_gpu_status_regs(rdev);
 
 	return 0;
 }
@@ -1460,7 +1443,8 @@ int cayman_asic_reset(struct radeon_device *rdev)
 {
 	return cayman_gpu_soft_reset(rdev, (RADEON_RESET_GFX |
 					    RADEON_RESET_COMPUTE |
-					    RADEON_RESET_DMA));
+					    RADEON_RESET_DMA |
+					    RADEON_RESET_CP));
 }
 
 /**

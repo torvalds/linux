@@ -2327,7 +2327,7 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
-static void evergreen_print_gpu_status_regs(struct radeon_device *rdev)
+void evergreen_print_gpu_status_regs(struct radeon_device *rdev)
 {
 	dev_info(rdev->dev, "  GRBM_STATUS               = 0x%08X\n",
 		RREG32(GRBM_STATUS));
