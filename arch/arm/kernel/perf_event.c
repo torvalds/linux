@@ -350,7 +350,7 @@ __hw_perf_event_init(struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	int mapping, err;
+	int mapping;
 
 	mapping = armpmu->map_event(event);
 
@@ -399,14 +399,12 @@ __hw_perf_event_init(struct perf_event *event)
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
-	err = 0;
 	if (event->group_leader != event) {
-		err = validate_group(event);
-		if (err)
+		if (validate_group(event) != 0);
 			return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static int armpmu_event_init(struct perf_event *event)
