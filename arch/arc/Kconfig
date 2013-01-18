@@ -389,6 +389,15 @@ config HZ
 	int "Timer Frequency"
 	default 100
 
+config ARC_METAWARE_HLINK
+	bool "Support for Metaware debugger assisted Host access"
+	default n
+	help
+	  This options allows a Linux userland apps to directly access
+	  host file system (open/creat/read/write etc) with help from
+	  Metaware Debugger. This can come in handy for Linux-host communication
+	  when there is no real usable peripheral such as EMAC.
+
 menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
