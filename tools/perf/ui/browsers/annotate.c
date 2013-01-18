@@ -926,7 +926,7 @@ out_free_offsets:
 /*
  * Keep the entries sorted, they are bsearch'ed
  */
-static struct annotate__config {
+static struct annotate_config {
 	const char *name;
 	bool *value;
 } annotate__configs[] = {
@@ -940,7 +940,7 @@ static struct annotate__config {
 
 static int annotate_config__cmp(const void *name, const void *cfgp)
 {
-	const struct annotate__config *cfg = cfgp;
+	const struct annotate_config *cfg = cfgp;
 
 	return strcmp(name, cfg->name);
 }
@@ -948,7 +948,7 @@ static int annotate_config__cmp(const void *name, const void *cfgp)
 static int annotate__config(const char *var, const char *value,
 			    void *data __maybe_unused)
 {
-	struct annotate__config *cfg;
+	struct annotate_config *cfg;
 	const char *name;
 
 	if (prefixcmp(var, "annotate.") != 0)
@@ -956,7 +956,7 @@ static int annotate__config(const char *var, const char *value,
 
 	name = var + 9;
 	cfg = bsearch(name, annotate__configs, ARRAY_SIZE(annotate__configs),
-		      sizeof(struct annotate__config), annotate_config__cmp);
+		      sizeof(struct annotate_config), annotate_config__cmp);
 
 	if (cfg == NULL)
 		return -1;
