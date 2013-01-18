@@ -24,25 +24,10 @@ static char smp_cpuinfo_buf[128];
  *-------------------------------------------------------------------
  */
 
-const char *arc_platform_smp_cpuinfo(void)
-{
-#define IS_AVAIL1(var, str)    ((var) ? str : "")
-
-	struct bcr_mp mp;
-
-	READ_BCR(ARC_REG_MP_BCR, mp);
-
-	sprintf(smp_cpuinfo_buf, "Extn [700-SMP]: v%d, arch(%d) %s %s %s\n",
-		mp.ver, mp.mp_arch, IS_AVAIL1(mp.scu, "SCU"),
-		IS_AVAIL1(mp.idu, "IDU"), IS_AVAIL1(mp.sdu, "SDU"));
-
-	return smp_cpuinfo_buf;
-}
-
 /*
  * Master kick starting another CPU
  */
-void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc)
+static void iss_model_smp_wakeup_cpu(int cpu, unsigned long pc)
 {
 	/* setup the start PC */
 	write_aux_reg(ARC_AUX_XTL_REG_PARAM, pc);
@@ -103,17 +88,37 @@ void iss_model_init_smp(unsigned int cpu)
 	smp_ipi_irq_setup(cpu, IDU_INTERRUPT_0 + cpu);
 }
 
-void arc_platform_ipi_send(const struct cpumask *callmap)
+static void iss_model_ipi_send(void *arg)
 {
+	struct cpumask *callmap = arg;
 	unsigned int cpu;
 
 	for_each_cpu(cpu, callmap)
 		idu_irq_assert(cpu);
 }
 
-void arc_platform_ipi_clear(int cpu, int irq)
+static void iss_model_ipi_clear(int cpu, int irq)
 {
 	idu_irq_clear(IDU_INTERRUPT_0 + cpu);
+}
+
+void iss_model_init_early_smp(void)
+{
+#define IS_AVAIL1(var, str)    ((var) ? str : "")
+
+	struct bcr_mp mp;
+
+	READ_BCR(ARC_REG_MP_BCR, mp);
+
+	sprintf(smp_cpuinfo_buf, "Extn [ISS-SMP]: v%d, arch(%d) %s %s %s\n",
+		mp.ver, mp.mp_arch, IS_AVAIL1(mp.scu, "SCU"),
+		IS_AVAIL1(mp.idu, "IDU"), IS_AVAIL1(mp.sdu, "SDU"));
+
+	plat_smp_ops.info = smp_cpuinfo_buf;
+
+	plat_smp_ops.cpu_kick = iss_model_smp_wakeup_cpu;
+	plat_smp_ops.ipi_send = iss_model_ipi_send;
+	plat_smp_ops.ipi_clear = iss_model_ipi_clear;
 }
 
 /*

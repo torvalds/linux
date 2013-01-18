@@ -162,6 +162,10 @@ static void __init plat_fpga_early_init(void)
 	setup_bvci_lat_unit();
 
 	arc_fpga_serial_init();
+
+#ifdef CONFIG_SMP
+	iss_model_init_early_smp();
+#endif
 }
 
 static struct of_dev_auxdata plat_auxdata_lookup[] __initdata = {
