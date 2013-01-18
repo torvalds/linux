@@ -1,6 +1,5 @@
 #include "../comedidev.h"
 #include "comedi_fc.h"
-#include "amcc_s5933.h"
 
 #include "addi-data/addi_common.h"
 
@@ -8,7 +7,6 @@
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
-#include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci16xx.c"
 
 static const struct addi_board apci16xx_boardtypes[] = {
@@ -38,23 +36,6 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.ttl_write		= i_APCI16XX_InsnBitsWriteTTLIO,
 	},
 };
-
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
-	unsigned short w_Address = CR_CHAN(insn->chanspec);
-	unsigned short w_Data;
-
-	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
-		this_board->pc_EepromChip, 2 * w_Address);
-	data[0] = w_Data;
-
-	return insn->n;
-}
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
@@ -98,7 +79,6 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
-	unsigned int dw_Dummy;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -159,23 +139,6 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	/*  Read eepeom and fill addi_board Structure */
-
-	if (this_board->i_PCIEeprom) {
-		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035")))
-				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			else
-				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-
-			/*  Enable the interrupt for the controller */
-			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-		}
-		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
-	}
-
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
@@ -222,15 +185,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
-	if (this_board->i_PCIEeprom) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 256;
-		s->maxdata = 0xffff;
-		s->insn_read = i_ADDIDATA_InsnReadEeprom;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	i_ADDI_Reset(dev);
 	return 0;
