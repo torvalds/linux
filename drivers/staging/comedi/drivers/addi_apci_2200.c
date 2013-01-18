@@ -86,21 +86,6 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 1);
 
-	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
-	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
-	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
-	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
-	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
-	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
-	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-		this_board->ui_MinAcquisitiontimeNs;
-	devpriv->s_EeParameters.ui_MinDelaytimeNs =
-		this_board->ui_MinDelaytimeNs;
-
 	/* ## */
 
 	if (pcidev->irq > 0) {
@@ -125,13 +110,12 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
+	if (this_board->i_NbrDiChannel) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
+		s->n_chan = this_board->i_NbrDiChannel;
 		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
+		s->len_chanlist = this_board->i_NbrDiChannel;
 		s->range_table = &range_digital;
 		s->io_bits = 0;	/* all bits input */
 		s->insn_config = this_board->di_config;
@@ -143,14 +127,13 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	}
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
-	if (devpriv->s_EeParameters.i_NbrDoChannel) {
+	if (this_board->i_NbrDoChannel) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags =
 			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDoChannel;
+		s->n_chan = this_board->i_NbrDoChannel;
+		s->maxdata = this_board->i_DoMaxdata;
+		s->len_chanlist = this_board->i_NbrDoChannel;
 		s->range_table = &range_digital;
 		s->io_bits = 0xf;	/* all bits output */
 
@@ -165,7 +148,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
-	if (devpriv->s_EeParameters.i_Timer) {
+	if (this_board->i_Timer) {
 		s->type = COMEDI_SUBD_TIMER;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = 1;
