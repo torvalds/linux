@@ -1296,6 +1296,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case OF_RECONFIG_DETACH_NODE:
+		remove_ddw(np);
 		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 
@@ -1308,16 +1309,6 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 			}
 		}
 		spin_unlock(&direct_window_list_lock);
-
-		/*
-		 * Because the notifier runs after isolation of the
-		 * slot, we are guaranteed any DMA window has already
-		 * been revoked and the TCEs have been marked invalid,
-		 * so we don't need a call to remove_ddw(np). However,
-		 * if an additional notifier action is added before the
-		 * isolate call, we should update this code for
-		 * completeness with such a call.
-		 */
 		break;
 	default:
 		err = NOTIFY_DONE;
