@@ -583,6 +583,9 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 	return 1;
 }
 
+#define is_hdmi_cfg(conf) \
+	(get_defcfg_location(conf) == AC_JACK_LOC_HDMI)
+
 /**
  * snd_hda_get_pin_label - Get a label for the given I/O pin
  *
@@ -603,6 +606,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	const char *name = NULL;
 	int i;
+	bool hdmi;
 
 	if (indexp)
 		*indexp = 0;
@@ -621,16 +625,18 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 					   label, maxlen, indexp);
 	case AC_JACK_SPDIF_OUT:
 	case AC_JACK_DIG_OTHER_OUT:
-		if (get_defcfg_location(def_conf) == AC_JACK_LOC_HDMI)
-			name = "HDMI";
-		else
-			name = "SPDIF";
-		if (cfg && indexp) {
-			i = find_idx_in_nid_list(nid, cfg->dig_out_pins,
-						 cfg->dig_outs);
-			if (i >= 0)
-				*indexp = i;
-		}
+		hdmi = is_hdmi_cfg(def_conf);
+		name = hdmi ? "HDMI" : "SPDIF";
+		if (cfg && indexp)
+			for (i = 0; i < cfg->dig_outs; i++) {
+				hda_nid_t pin = cfg->dig_out_pins[i];
+				unsigned int c;
+				if (pin == nid)
+					break;
+				c = snd_hda_codec_get_pincfg(codec, pin);
+				if (hdmi == is_hdmi_cfg(c))
+					(*indexp)++;
+			}
 		break;
 	default:
 		if (cfg) {
