@@ -2675,7 +2675,8 @@ static int mux_enum_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gen_spec *spec = codec->spec;
-	unsigned int adc_idx = kcontrol->id.index;
+	/* the ctls are created at once with multiple counts */
+	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
 	ucontrol->value.enumerated.item[0] = spec->cur_mux[adc_idx];
 	return 0;
@@ -2685,7 +2686,7 @@ static int mux_enum_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int adc_idx = kcontrol->id.index;
+	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	return mux_select(codec, adc_idx,
 			  ucontrol->value.enumerated.item[0]);
 }
