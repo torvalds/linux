@@ -103,6 +103,13 @@
 #define ADSP1_START_SHIFT                      0  /* DSP1_START */
 #define ADSP1_START_WIDTH                      1  /* DSP1_START */
 
+/*
+ * ADSP1 Control 31
+ */
+#define ADSP1_CLK_SEL_MASK                0x0007  /* CLK_SEL_ENA */
+#define ADSP1_CLK_SEL_SHIFT                    0  /* CLK_SEL_ENA */
+#define ADSP1_CLK_SEL_WIDTH                    3  /* CLK_SEL_ENA */
+
 #define ADSP2_CONTROL  0
 #define ADSP2_CLOCKING 1
 #define ADSP2_STATUS1  4
@@ -686,6 +693,16 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		return -EINVAL;
 	}
 
+	switch (be32_to_cpu(hdr->rev) & 0xff) {
+	case 1:
+		break;
+	default:
+		adsp_err(dsp, "%s: Unsupported coefficient file format %d\n",
+			 file, be32_to_cpu(hdr->rev) & 0xff);
+		ret = -EINVAL;
+		goto out_fw;
+	}
+
 	adsp_dbg(dsp, "%s: v%d.%d.%d\n", file,
 		(le32_to_cpu(hdr->ver) >> 16) & 0xff,
 		(le32_to_cpu(hdr->ver) >>  8) & 0xff,
@@ -698,8 +715,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	       pos - firmware->size > sizeof(*blk)) {
 		blk = (void*)(&firmware->data[pos]);
 
-		type = be32_to_cpu(blk->type) & 0xff;
-		offset = le32_to_cpu(blk->offset) & 0xffffff;
+		type = le16_to_cpu(blk->type);
+		offset = le16_to_cpu(blk->offset);
 
 		adsp_dbg(dsp, "%s.%d: %x v%d.%d.%d\n",
 			 file, blocks, le32_to_cpu(blk->id),
@@ -712,10 +729,10 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		reg = 0;
 		region_name = "Unknown";
 		switch (type) {
-		case WMFW_NAME_TEXT:
-		case WMFW_INFO_TEXT:
+		case (WMFW_NAME_TEXT << 8):
+		case (WMFW_INFO_TEXT << 8):
 			break;
-		case WMFW_ABSOLUTE:
+		case (WMFW_ABSOLUTE << 8):
 			region_name = "register";
 			reg = offset;
 			break;
@@ -796,11 +813,37 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
 	int ret;
+	int val;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
 				   ADSP1_SYS_ENA, ADSP1_SYS_ENA);
+
+		/*
+		 * For simplicity set the DSP clock rate to be the
+		 * SYSCLK rate rather than making it configurable.
+		 */
+		if(dsp->sysclk_reg) {
+			ret = regmap_read(dsp->regmap, dsp->sysclk_reg, &val);
+			if (ret != 0) {
+				adsp_err(dsp, "Failed to read SYSCLK state: %d\n",
+				ret);
+				return ret;
+			}
+
+			val = (val & dsp->sysclk_mask)
+				>> dsp->sysclk_shift;
+
+			ret = regmap_update_bits(dsp->regmap,
+						 dsp->base + ADSP1_CONTROL_31,
+						 ADSP1_CLK_SEL_MASK, val);
+			if (ret != 0) {
+				adsp_err(dsp, "Failed to set clock rate: %d\n",
+					 ret);
+				return ret;
+			}
+		}
 
 		ret = wm_adsp_load(dsp);
 		if (ret != 0)
