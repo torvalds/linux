@@ -39,6 +39,11 @@
 void *empty_zero_page;
 EXPORT_SYMBOL(empty_zero_page);
 
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
+extern void init_pointer_table(unsigned long ptable);
+extern pmd_t *zero_pgtable;
+#endif
+
 #ifdef CONFIG_MMU
 
 pg_data_t pg_data_map[MAX_NUMNODES];
@@ -68,9 +73,6 @@ void __init m68k_setup_node(int node)
 	pg_data_map[node].bdata = bootmem_node_data + node;
 	node_set_online(node);
 }
-
-extern void init_pointer_table(unsigned long ptable);
-extern pmd_t *zero_pgtable;
 
 #else /* CONFIG_MMU */
 
