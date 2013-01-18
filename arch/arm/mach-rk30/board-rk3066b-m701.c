@@ -261,7 +261,7 @@ static int rk29_backlight_io_deinit(void)
 #endif
 	pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
 	gpio_request(pwm_gpio, "bl_pwm");
-	gpio_direction_output(pwm_gpio, GPIO_LOW);
+	gpio_direction_input(pwm_gpio);
 	return ret;
 }
 
@@ -274,7 +274,7 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return ret;
 	}
-	gpio_direction_output(pwm_gpio, GPIO_LOW);
+	gpio_direction_input(pwm_gpio);
 #ifdef  LCD_DISP_ON_PIN
 	gpio_direction_output(BL_EN_PIN, !BL_EN_VALUE);
 #endif
