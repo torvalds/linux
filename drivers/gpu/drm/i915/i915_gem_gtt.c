@@ -338,11 +338,27 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	}
 }
 
+extern int intel_iommu_gfx_mapped;
+/* Certain Gen5 chipsets require require idling the GPU before
+ * unmapping anything from the GTT when VT-d is enabled.
+ */
+static inline bool needs_idle_maps(struct drm_device *dev)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	/* Query intel_iommu to see if we need the workaround. Presumably that
+	 * was loaded first.
+	 */
+	if (IS_GEN5(dev) && IS_MOBILE(dev) && intel_iommu_gfx_mapped)
+		return true;
+#endif
+	return false;
+}
+
 static bool do_idling(struct drm_i915_private *dev_priv)
 {
 	bool ret = dev_priv->mm.interruptible;
 
-	if (unlikely(dev_priv->mm.gtt->do_idle_maps)) {
+	if (unlikely(dev_priv->gtt.do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
 		if (i915_gpu_idle(dev_priv->dev)) {
 			DRM_ERROR("Couldn't idle GPU\n");
@@ -356,10 +372,9 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 {
-	if (unlikely(dev_priv->mm.gtt->do_idle_maps))
+	if (unlikely(dev_priv->gtt.do_idle_maps))
 		dev_priv->mm.interruptible = interruptible;
 }
-
 
 static void i915_ggtt_clear_range(struct drm_device *dev,
 				 unsigned first_entry,
@@ -709,6 +724,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			intel_gmch_remove();
 			return -ENODEV;
 		}
+
+		dev_priv->gtt.do_idle_maps = needs_idle_maps(dev);
+
 		return 0;
 	}
 

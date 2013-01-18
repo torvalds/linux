@@ -381,6 +381,8 @@ struct i915_gtt {
 
 	/** "Graphics Stolen Memory" holds the global PTEs */
 	void __iomem *gsm;
+
+	bool do_idle_maps;
 };
 
 #define I915_PPGTT_PD_ENTRIES 512

@@ -840,9 +840,6 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 {
 	int ret = -EINVAL;
 
-	if (intel_private.base.do_idle_maps)
-		return -ENODEV;
-
 	if (intel_private.clear_fake_agp) {
 		int start = intel_private.base.stolen_size / PAGE_SIZE;
 		int end = intel_private.base.gtt_mappable_entries;
@@ -906,9 +903,6 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 {
 	if (mem->page_count == 0)
 		return 0;
-
-	if (intel_private.base.do_idle_maps)
-		return -ENODEV;
 
 	intel_gtt_clear_range(pg_start, mem->page_count);
 
@@ -1069,24 +1063,6 @@ static void i965_write_entry(dma_addr_t addr,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-/* Certain Gen5 chipsets require require idling the GPU before
- * unmapping anything from the GTT when VT-d is enabled.
- */
-static inline int needs_idle_maps(void)
-{
-#ifdef CONFIG_INTEL_IOMMU
-	const unsigned short gpu_devid = intel_private.pcidev->device;
-
-	/* Query intel_iommu to see if we need the workaround. Presumably that
-	 * was loaded first.
-	 */
-	if ((gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB ||
-	     gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG) &&
-	     intel_iommu_gfx_mapped)
-		return 1;
-#endif
-	return 0;
-}
 
 static int i9xx_setup(void)
 {
@@ -1114,9 +1090,6 @@ static int i9xx_setup(void)
 		intel_private.gtt_bus_addr = reg_addr + KB(512);
 		break;
 	}
-
-	if (needs_idle_maps())
-		intel_private.base.do_idle_maps = 1;
 
 	intel_i9xx_setup_flush();
 
