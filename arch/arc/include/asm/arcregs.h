@@ -58,6 +58,33 @@
 #define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
 #define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
 
+/* Instruction cache related Auxiliary registers */
+#define ARC_REG_IC_BCR		0x77	/* Build Config reg */
+#define ARC_REG_IC_IVIC		0x10
+#define ARC_REG_IC_CTRL		0x11
+#define ARC_REG_IC_IVIL		0x19
+#if (CONFIG_ARC_MMU_VER > 2)
+#define ARC_REG_IC_PTAG		0x1E
+#endif
+
+/* Bit val in IC_CTRL */
+#define IC_CTRL_CACHE_DISABLE   0x1
+
+/* Data cache related Auxiliary registers */
+#define ARC_REG_DC_BCR		0x72
+#define ARC_REG_DC_IVDC		0x47
+#define ARC_REG_DC_CTRL		0x48
+#define ARC_REG_DC_IVDL		0x4A
+#define ARC_REG_DC_FLSH		0x4B
+#define ARC_REG_DC_FLDL		0x4C
+#if (CONFIG_ARC_MMU_VER > 2)
+#define ARC_REG_DC_PTAG		0x5C
+#endif
+
+/* Bit val in DC_CTRL */
+#define DC_CTRL_INV_MODE_FLUSH  0x40
+#define DC_CTRL_FLUSH_STATUS    0x100
+
 /*
  * Floating Pt Registers
  * Status regs are read-only (build-time) so need not be saved/restored
@@ -132,6 +159,31 @@
 
 #endif
 
+#define READ_BCR(reg, into)				\
+{							\
+	unsigned int tmp;				\
+	tmp = read_aux_reg(reg);			\
+	if (sizeof(tmp) == sizeof(into)) {		\
+		into = *((typeof(into) *)&tmp);		\
+	} else {					\
+		extern void bogus_undefined(void);	\
+		bogus_undefined();			\
+	}						\
+}
+
+#define WRITE_BCR(reg, into)				\
+{							\
+	unsigned int tmp;				\
+	if (sizeof(tmp) == sizeof(into)) {		\
+		tmp = (*(unsigned int *)(into));	\
+		write_aux_reg(reg, tmp);		\
+	} else  {					\
+		extern void bogus_undefined(void);	\
+		bogus_undefined();			\
+	}						\
+}
+
+
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 /* These DPFP regs need to be saved/restored across ctx-sw */
 struct arc_fpu {
@@ -140,6 +192,34 @@ struct arc_fpu {
 	} aux_dpfp[2];
 };
 #endif
+
+/*
+ ***************************************************************
+ * Build Configuration Registers, with encoded hardware config
+ */
+
+struct bcr_cache {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+	unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+};
+
+/*
+ *******************************************************************
+ * Generic structures to hold build configuration used at runtime
+ */
+
+struct cpuinfo_arc_cache {
+	unsigned int has_aliasing, sz, line_len, assoc, ver;
+};
+
+struct cpuinfo_arc {
+	struct cpuinfo_arc_cache icache, dcache;
+};
+
+extern struct cpuinfo_arc cpuinfo_arc700[];
 
 #endif /* __ASEMBLY__ */
 
