@@ -22,7 +22,7 @@ static struct test_format {
 #define TEST_FORMATS_CNT (sizeof(test_formats) / sizeof(struct test_format))
 
 /* Simulated users input. */
-static struct parse_events__term test_terms[] = {
+static struct parse_events_term test_terms[] = {
 	{
 		.config    = (char *) "krava01",
 		.val.num   = 15,
@@ -78,7 +78,7 @@ static struct parse_events__term test_terms[] = {
 		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 };
-#define TERMS_CNT (sizeof(test_terms) / sizeof(struct parse_events__term))
+#define TERMS_CNT (sizeof(test_terms) / sizeof(struct parse_events_term))
 
 /*
  * Prepare format directory data, exported by kernel

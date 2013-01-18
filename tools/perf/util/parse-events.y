@@ -68,7 +68,7 @@ do { \
 	char *str;
 	u64 num;
 	struct list_head *head;
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 }
 %%
 
@@ -315,7 +315,7 @@ event_config:
 event_config ',' event_term
 {
 	struct list_head *head = $1;
-	struct parse_events__term *term = $3;
+	struct parse_events_term *term = $3;
 
 	ABORT_ON(!head);
 	list_add_tail(&term->list, head);
@@ -325,7 +325,7 @@ event_config ',' event_term
 event_term
 {
 	struct list_head *head = malloc(sizeof(*head));
-	struct parse_events__term *term = $1;
+	struct parse_events_term *term = $1;
 
 	ABORT_ON(!head);
 	INIT_LIST_HEAD(head);
@@ -336,70 +336,70 @@ event_term
 event_term:
 PE_NAME '=' PE_NAME
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_str(&term, PARSE_EVENTS__TERM_TYPE_USER,
+	ABORT_ON(parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_USER,
 					$1, $3));
 	$$ = term;
 }
 |
 PE_NAME '=' PE_VALUE
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
 					$1, $3));
 	$$ = term;
 }
 |
 PE_NAME '=' PE_VALUE_SYM_HW
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 	int config = $3 & 255;
 
-	ABORT_ON(parse_events__term_sym_hw(&term, $1, config));
+	ABORT_ON(parse_events_term__sym_hw(&term, $1, config));
 	$$ = term;
 }
 |
 PE_NAME
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
 					$1, 1));
 	$$ = term;
 }
 |
 PE_VALUE_SYM_HW
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 	int config = $1 & 255;
 
-	ABORT_ON(parse_events__term_sym_hw(&term, NULL, config));
+	ABORT_ON(parse_events_term__sym_hw(&term, NULL, config));
 	$$ = term;
 }
 |
 PE_TERM '=' PE_NAME
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_str(&term, (int)$1, NULL, $3));
+	ABORT_ON(parse_events_term__str(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
 PE_TERM '=' PE_VALUE
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, $3));
+	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
 PE_TERM
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
-	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, 1));
+	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, 1));
 	$$ = term;
 }
 

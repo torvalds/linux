@@ -175,12 +175,12 @@ static int pmu_aliases(char *name, struct list_head *head)
 static int pmu_alias_terms(struct perf_pmu__alias *alias,
 			   struct list_head *terms)
 {
-	struct parse_events__term *term, *clone;
+	struct parse_events_term *term, *clone;
 	LIST_HEAD(list);
 	int ret;
 
 	list_for_each_entry(term, &alias->terms, list) {
-		ret = parse_events__term_clone(&clone, term);
+		ret = parse_events_term__clone(&clone, term);
 		if (ret) {
 			parse_events__free_terms(&list);
 			return ret;
@@ -403,7 +403,7 @@ static __u64 pmu_format_value(unsigned long *format, __u64 value)
  */
 static int pmu_config_term(struct list_head *formats,
 			   struct perf_event_attr *attr,
-			   struct parse_events__term *term)
+			   struct parse_events_term *term)
 {
 	struct perf_pmu__format *format;
 	__u64 *vp;
@@ -450,7 +450,7 @@ int perf_pmu__config_terms(struct list_head *formats,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	list_for_each_entry(term, head_terms, list)
 		if (pmu_config_term(formats, attr, term))
@@ -472,7 +472,7 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 }
 
 static struct perf_pmu__alias *pmu_find_alias(struct perf_pmu *pmu,
-					      struct parse_events__term *term)
+					      struct parse_events_term *term)
 {
 	struct perf_pmu__alias *alias;
 	char *name;
@@ -507,7 +507,7 @@ static struct perf_pmu__alias *pmu_find_alias(struct perf_pmu *pmu,
  */
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms)
 {
-	struct parse_events__term *term, *h;
+	struct parse_events_term *term, *h;
 	struct perf_pmu__alias *alias;
 	int ret;
 

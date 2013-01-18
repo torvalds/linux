@@ -464,10 +464,10 @@ static int test__checkevent_pmu_events(struct perf_evlist *evlist)
 
 static int test__checkterms_simple(struct list_head *terms)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	/* config=10 */
-	term = list_entry(terms->next, struct parse_events__term, list);
+	term = list_entry(terms->next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG);
 	TEST_ASSERT_VAL("wrong type val",
@@ -476,7 +476,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* config1 */
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG1);
 	TEST_ASSERT_VAL("wrong type val",
@@ -485,7 +485,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* config2=3 */
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG2);
 	TEST_ASSERT_VAL("wrong type val",
@@ -494,7 +494,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* umask=1*/
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
 	TEST_ASSERT_VAL("wrong type val",
