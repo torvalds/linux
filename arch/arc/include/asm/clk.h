@@ -17,4 +17,6 @@ static inline unsigned long arc_get_core_freq(void)
 	return core_freq;
 }
 
+extern int arc_set_core_freq(unsigned long);
+
 #endif

@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <asm/prom.h>
+#include <asm/clk.h>
 
 /* called from unflatten_device_tree() to bootstrap devicetree itself */
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -34,7 +35,9 @@ int __init setup_machine_fdt(void *dt)
 	struct boot_param_header *devtree = dt;
 	unsigned long dt_root;
 	char *model, *compat;
+	void *clk;
 	char manufacturer[16];
+	unsigned long len;
 
 	/* check device tree validity */
 	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER)
@@ -59,6 +62,16 @@ int __init setup_machine_fdt(void *dt)
 
 	/* Retrieve various information from the /chosen node */
 	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
+
+	/* Initialize {size,address}-cells info */
+	of_scan_flat_dt(early_init_dt_scan_root, NULL);
+
+	/* Setup memory, calling early_init_dt_add_memory_arch */
+	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+
+	clk = of_get_flat_dt_prop(dt_root, "clock-frequency", &len);
+	if (clk)
+		arc_set_core_freq(of_read_ulong(clk, len/4));
 
 	return 0;
 }

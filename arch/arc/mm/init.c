@@ -25,7 +25,7 @@ char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
 /* Default tot mem from .config */
-static unsigned long arc_mem_sz = CONFIG_ARC_PLAT_SDRAM_SIZE;
+static unsigned long arc_mem_sz = 0x20000000;  /* some default */
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
@@ -41,7 +41,8 @@ early_param("mem", setup_mem_sz);
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	pr_err("%s(%llx, %llx)\n", __func__, base, size);
+	arc_mem_sz = size & PAGE_MASK;
+	pr_info("Memory size set via devicetree %ldM\n", TO_MB(arc_mem_sz));
 }
 
 /*
@@ -62,7 +63,9 @@ void __init setup_arch_memory(void)
 
 	/*
 	 * We do it here, so that memory is correctly instantiated
-	 * even if "mem=xxx" cmline over-ride is not given
+	 * even if "mem=xxx" cmline over-ride is given and/or
+	 * DT has memory node. Each causes an update to @arc_mem_sz
+	 * and we finally add memory one here
 	 */
 	memblock_add(CONFIG_LINUX_LINK_BASE, arc_mem_sz);
 
