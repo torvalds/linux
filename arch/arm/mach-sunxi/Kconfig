@@ -7,3 +7,4 @@ config ARCH_SUNXI
 	select PINCTRL
 	select SPARSE_IRQ
 	select SUNXI_TIMER
+	select PINCTRL_SUNXI
