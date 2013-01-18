@@ -750,6 +750,7 @@ config USB_GADGET_TARGET
 
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
+	depends on TTY
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
@@ -798,6 +799,8 @@ config USB_G_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
+
+if TTY
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
@@ -879,6 +882,8 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+endif # TTY
+
 config USB_G_HID
 	tristate "HID Gadget"
 	select USB_LIBCOMPOSITE
@@ -895,6 +900,7 @@ config USB_G_HID
 # Standalone / single function gadgets
 config USB_G_DBGP
 	tristate "EHCI Debug Device Gadget"
+	depends on TTY
 	select USB_LIBCOMPOSITE
 	help
 	  This gadget emulates an EHCI Debug device. This is useful when you want

@@ -5,7 +5,7 @@ comment "SIR device drivers"
 
 config IRTTY_SIR
 	tristate "IrTTY (uses Linux serial driver)"
-	depends on IRDA
+	depends on IRDA && TTY
 	help
 	  Say Y here if you want to build support for the IrTTY line
 	  discipline.  To compile it as a module, choose M here: the module

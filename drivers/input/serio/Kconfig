@@ -4,6 +4,7 @@
 config SERIO
 	tristate "Serial I/O support" if EXPERT || !X86
 	default y
+	depends on TTY
 	help
 	  Say Yes here if you have any input device that uses serial I/O to
 	  communicate with the system. This includes the

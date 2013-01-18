@@ -132,6 +132,7 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
+	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
 	select XTENSA_ISS_NETWORK

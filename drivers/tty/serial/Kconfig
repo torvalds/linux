@@ -2,6 +2,8 @@
 # Serial device configuration
 #
 
+if TTY
+
 menu "Serial drivers"
 	depends on HAS_IOMEM
 
@@ -1483,3 +1485,5 @@ config SERIAL_RP2_NR_UARTS
 	  need to be increased.
 
 endmenu
+
+endif # TTY

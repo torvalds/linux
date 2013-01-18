@@ -22,6 +22,7 @@ config KGDB_SERIAL_CONSOLE
 	tristate "KGDB: use kgdb over the serial console"
 	select CONSOLE_POLL
 	select MAGIC_SYSRQ
+	depends on TTY
 	default y
 	help
 	  Share a serial console with kgdb. Sysrq-g must be used

@@ -6,7 +6,7 @@ comment "USB Device Class drivers"
 
 config USB_ACM
 	tristate "USB Modem (CDC ACM) support"
-	depends on USB
+	depends on USB && TTY
 	---help---
 	  This driver supports USB modems and ISDN adapters which support the
 	  Communication Device Class Abstract Control Model interface.

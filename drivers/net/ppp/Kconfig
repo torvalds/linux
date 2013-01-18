@@ -147,6 +147,7 @@ config PPPOL2TP
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
 	  tunnels. L2TP is replacing PPTP for VPN uses.
+if TTY
 
 config PPP_ASYNC
 	tristate "PPP support for async serial ports"
@@ -171,5 +172,7 @@ config PPP_SYNC_TTY
 	  are often used for high-speed leased lines like T1/E1.
 
 	  To compile this driver as a module, choose M here.
+
+endif # TTY
 
 endif # PPP
