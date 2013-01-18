@@ -60,6 +60,10 @@ config GENERIC_HWEIGHT
 config BINFMT_ELF
 	def_bool y
 
+config STACKTRACE_SUPPORT
+	def_bool y
+	select STACKTRACE
+
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
