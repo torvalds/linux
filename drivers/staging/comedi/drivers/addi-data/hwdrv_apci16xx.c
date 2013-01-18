@@ -179,7 +179,7 @@ static int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device *dev,
 					outl(devpriv->
 						ul_TTLPortConfiguration[b_Cpt /
 							4],
-						devpriv->iobase + 32 + b_Cpt);
+						dev->iobase + 32 + b_Cpt);
 				}
 			}
 		}
@@ -295,7 +295,7 @@ static int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device *dev,
 
 		/* Get the digital inpu status */
 		dw_Status =
-			inl(devpriv->iobase + 8 + ((b_SelectedPort / 4) * 4));
+			inl(dev->iobase + 8 + ((b_SelectedPort / 4) * 4));
 		dw_Status = (dw_Status >> (8 * (b_SelectedPort % 4))) & 0xFF;
 
 		/* Save the port value */
@@ -362,7 +362,7 @@ static int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 				for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt++) {
 					/* Read the 32-Bit port */
 					pls_ReadData[b_Cpt] =
-						inl(devpriv->iobase + 8 +
+						inl(dev->iobase + 8 +
 						(b_Cpt * 4));
 
 					/* Mask all channels used als outputs */
@@ -376,7 +376,7 @@ static int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 				for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt++) {
 					/* Read the 32-Bit port */
 					pls_ReadData[b_Cpt] =
-						inl(devpriv->iobase + 20 +
+						inl(dev->iobase + 20 +
 						(b_Cpt * 4));
 
 					/* Mask all channels used als outputs */
@@ -508,7 +508,7 @@ static int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device *dev,
 	if (i_ReturnValue >= 0) {
 		/* Get the digital output state */
 		dw_Status =
-			inl(devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
+			inl(dev->iobase + 20 + ((b_SelectedPort / 4) * 4));
 
 		/* Test if output memory not used */
 		if (devpriv->b_OutputMemoryStatus == ADDIDATA_DISABLE) {
@@ -549,7 +549,7 @@ static int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device *dev,
 		}
 
 		outl(dw_Status,
-			devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
+			dev->iobase + 20 + ((b_SelectedPort / 4) * 4));
 	}
 
 	return i_ReturnValue;

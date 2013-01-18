@@ -73,7 +73,6 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 0);
-	devpriv->iobase = dev->iobase;
 
 	/* Initialize parameters that can be overridden in EEPROM */
 	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
