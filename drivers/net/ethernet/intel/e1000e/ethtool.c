@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
+#include <linux/mdio.h>
 
 #include "e1000.h"
 
@@ -107,6 +108,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("dropped_smbus", stats.mgpdc),
 	E1000_STAT("rx_dma_failed", rx_dma_failed),
 	E1000_STAT("tx_dma_failed", tx_dma_failed),
+	E1000_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -2050,6 +2052,159 @@ static int e1000_get_rxnfc(struct net_device *netdev,
 	}
 }
 
+static int e1000e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u16 cap_addr, adv_addr, lpa_addr, pcs_stat_addr, phy_data, lpi_ctrl;
+	u32 status, ret_val;
+
+	if (!(adapter->flags & FLAG_IS_ICH) ||
+	    !(adapter->flags2 & FLAG2_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	switch (hw->phy.type) {
+	case e1000_phy_82579:
+		cap_addr = I82579_EEE_CAPABILITY;
+		adv_addr = I82579_EEE_ADVERTISEMENT;
+		lpa_addr = I82579_EEE_LP_ABILITY;
+		pcs_stat_addr = I82579_EEE_PCS_STATUS;
+		break;
+	case e1000_phy_i217:
+		cap_addr = I217_EEE_CAPABILITY;
+		adv_addr = I217_EEE_ADVERTISEMENT;
+		lpa_addr = I217_EEE_LP_ABILITY;
+		pcs_stat_addr = I217_EEE_PCS_STATUS;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return -EBUSY;
+
+	/* EEE Capability */
+	ret_val = e1000_read_emi_reg_locked(hw, cap_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->supported = mmd_eee_cap_to_ethtool_sup_t(phy_data);
+
+	/* EEE Advertised */
+	ret_val = e1000_read_emi_reg_locked(hw, adv_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+	/* EEE Link Partner Advertised */
+	ret_val = e1000_read_emi_reg_locked(hw, lpa_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+	/* EEE PCS Status */
+	ret_val = e1000_read_emi_reg_locked(hw, pcs_stat_addr, &phy_data);
+	if (hw->phy.type == e1000_phy_82579)
+		phy_data <<= 8;
+
+release:
+	hw->phy.ops.release(hw);
+	if (ret_val)
+		return -ENODATA;
+
+	e1e_rphy(hw, I82579_LPI_CTRL, &lpi_ctrl);
+	status = er32(STATUS);
+
+	/* Result of the EEE auto negotiation - there is no register that
+	 * has the status of the EEE negotiation so do a best-guess based
+	 * on whether both Tx and Rx LPI indications have been received or
+	 * base it on the link speed, the EEE advertised speeds on both ends
+	 * and the speeds on which EEE is enabled locally.
+	 */
+	if (((phy_data & E1000_EEE_TX_LPI_RCVD) &&
+	     (phy_data & E1000_EEE_RX_LPI_RCVD)) ||
+	    ((status & E1000_STATUS_SPEED_100) &&
+	     (edata->advertised & ADVERTISED_100baseT_Full) &&
+	     (edata->lp_advertised & ADVERTISED_100baseT_Full) &&
+	     (lpi_ctrl & I82579_LPI_CTRL_100_ENABLE)) ||
+	    ((status & E1000_STATUS_SPEED_1000) &&
+	     (edata->advertised & ADVERTISED_1000baseT_Full) &&
+	     (edata->lp_advertised & ADVERTISED_1000baseT_Full) &&
+	     (lpi_ctrl & I82579_LPI_CTRL_1000_ENABLE)))
+		edata->eee_active = true;
+
+	edata->eee_enabled = !hw->dev_spec.ich8lan.eee_disable;
+	edata->tx_lpi_enabled = true;
+	edata->tx_lpi_timer = er32(LPIC) >> E1000_LPIC_LPIET_SHIFT;
+
+	return 0;
+}
+
+static int e1000e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_curr;
+	s32 ret_val;
+
+	if (!(adapter->flags & FLAG_IS_ICH) ||
+	    !(adapter->flags2 & FLAG2_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	ret_val = e1000e_get_eee(netdev, &eee_curr);
+	if (ret_val)
+		return ret_val;
+
+	if (eee_curr.advertised != edata->advertised) {
+		e_err("Setting EEE advertisement is not supported\n");
+		return -EINVAL;
+	}
+
+	if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
+		e_err("Setting EEE tx-lpi is not supported\n");
+		return -EINVAL;
+	}
+
+	if (eee_curr.tx_lpi_timer != edata->tx_lpi_timer) {
+		e_err("Setting EEE Tx LPI timer is not supported\n");
+		return -EINVAL;
+	}
+
+	if (hw->dev_spec.ich8lan.eee_disable != !edata->eee_enabled) {
+		hw->dev_spec.ich8lan.eee_disable = !edata->eee_enabled;
+
+		/* reset the link */
+		if (netif_running(netdev))
+			e1000e_reinit_locked(adapter);
+		else
+			e1000e_reset(adapter);
+	}
+
+	return 0;
+}
+
+static int e1000e_get_ts_info(struct net_device *netdev,
+			      struct ethtool_ts_info *info)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	ethtool_op_get_ts_info(netdev, info);
+
+	if (!(adapter->flags & FLAG_HAS_HW_TIMESTAMP))
+		return 0;
+
+	info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
+				  SOF_TIMESTAMPING_RX_HARDWARE |
+				  SOF_TIMESTAMPING_RAW_HARDWARE);
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+			    (1 << HWTSTAMP_FILTER_ALL));
+
+	return 0;
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -2077,7 +2232,9 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_rxnfc		= e1000_get_rxnfc,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= e1000e_get_ts_info,
+	.get_eee		= e1000e_get_eee,
+	.set_eee		= e1000e_set_eee,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

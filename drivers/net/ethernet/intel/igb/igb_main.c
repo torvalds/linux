@@ -57,6 +57,7 @@
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
+#include <linux/i2c.h>
 #include "igb.h"
 
 #define MAJ 4
@@ -193,6 +194,7 @@ static const struct dev_pm_ops igb_pm_ops = {
 };
 #endif
 static void igb_shutdown(struct pci_dev *);
+static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 #ifdef CONFIG_IGB_DCA
 static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
 static struct notifier_block dca_notifier = {
@@ -234,6 +236,7 @@ static struct pci_driver igb_driver = {
 	.driver.pm = &igb_pm_ops,
 #endif
 	.shutdown = igb_shutdown,
+	.sriov_configure = igb_pci_sriov_configure,
 	.err_handler = &igb_err_handler
 };
 
@@ -564,6 +567,91 @@ rx_ring_summary:
 exit:
 	return;
 }
+
+/*  igb_get_i2c_data - Reads the I2C SDA data bit
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *
+ *  Returns the I2C data bit value
+ */
+static int igb_get_i2c_data(void *data)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	return ((i2cctl & E1000_I2C_DATA_IN) != 0);
+}
+
+/* igb_set_i2c_data - Sets the I2C data bit
+ *  @data: pointer to hardware structure
+ *  @state: I2C data value (0 or 1) to set
+ *
+ *  Sets the I2C data bit
+ */
+static void igb_set_i2c_data(void *data, int state)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	if (state)
+		i2cctl |= E1000_I2C_DATA_OUT;
+	else
+		i2cctl &= ~E1000_I2C_DATA_OUT;
+
+	i2cctl &= ~E1000_I2C_DATA_OE_N;
+	i2cctl |= E1000_I2C_CLK_OE_N;
+	wr32(E1000_I2CPARAMS, i2cctl);
+	wrfl();
+
+}
+
+/* igb_set_i2c_clk - Sets the I2C SCL clock
+ *  @data: pointer to hardware structure
+ *  @state: state to set clock
+ *
+ *  Sets the I2C clock line to state
+ */
+static void igb_set_i2c_clk(void *data, int state)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	if (state) {
+		i2cctl |= E1000_I2C_CLK_OUT;
+		i2cctl &= ~E1000_I2C_CLK_OE_N;
+	} else {
+		i2cctl &= ~E1000_I2C_CLK_OUT;
+		i2cctl &= ~E1000_I2C_CLK_OE_N;
+	}
+	wr32(E1000_I2CPARAMS, i2cctl);
+	wrfl();
+}
+
+/* igb_get_i2c_clk - Gets the I2C SCL clock state
+ *  @data: pointer to hardware structure
+ *
+ *  Gets the I2C clock state
+ */
+static int igb_get_i2c_clk(void *data)
+{
+	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct e1000_hw *hw = &adapter->hw;
+	s32 i2cctl = rd32(E1000_I2CPARAMS);
+
+	return ((i2cctl & E1000_I2C_CLK_IN) != 0);
+}
+
+static const struct i2c_algo_bit_data igb_i2c_algo = {
+	.setsda		= igb_set_i2c_data,
+	.setscl		= igb_set_i2c_clk,
+	.getsda		= igb_get_i2c_data,
+	.getscl		= igb_get_i2c_clk,
+	.udelay		= 5,
+	.timeout	= 20,
+};
 
 /**
  * igb_get_hw_dev - return device
@@ -1708,6 +1796,18 @@ void igb_reset(struct igb_adapter *adapter)
 		igb_force_mac_fc(hw);
 
 	igb_init_dmac(adapter, pba);
+#ifdef CONFIG_IGB_HWMON
+	/* Re-initialize the thermal sensor on i350 devices. */
+	if (!test_bit(__IGB_DOWN, &adapter->state)) {
+		if (mac->type == e1000_i350 && hw->bus.func == 0) {
+			/* If present, re-initialize the external thermal sensor
+			 * interface.
+			 */
+			if (adapter->ets)
+				mac->ops.init_thermal_sensor_thresh(hw);
+		}
+	}
+#endif
 	if (!netif_running(adapter->netdev))
 		igb_power_down_link(adapter);
 
@@ -1820,6 +1920,37 @@ void igb_set_fw_version(struct igb_adapter *adapter)
 		break;
 	}
 	return;
+}
+
+static const struct i2c_board_info i350_sensor_info = {
+	I2C_BOARD_INFO("i350bb", 0Xf8),
+};
+
+/*  igb_init_i2c - Init I2C interface
+ *  @adapter: pointer to adapter structure
+ *
+ */
+static s32 igb_init_i2c(struct igb_adapter *adapter)
+{
+	s32 status = E1000_SUCCESS;
+
+	/* I2C interface supported on i350 devices */
+	if (adapter->hw.mac.type != e1000_i350)
+		return E1000_SUCCESS;
+
+	/* Initialize the i2c bus which is controlled by the registers.
+	 * This bus will use the i2c_algo_bit structue that implements
+	 * the protocol through toggling of the 4 bits in the register.
+	 */
+	adapter->i2c_adap.owner = THIS_MODULE;
+	adapter->i2c_algo = igb_i2c_algo;
+	adapter->i2c_algo.data = adapter;
+	adapter->i2c_adap.algo_data = &adapter->i2c_algo;
+	adapter->i2c_adap.dev.parent = &adapter->pdev->dev;
+	strlcpy(adapter->i2c_adap.name, "igb BB",
+		sizeof(adapter->i2c_adap.name));
+	status = i2c_bit_add_bus(&adapter->i2c_adap);
+	return status;
 }
 
 /**
@@ -2114,6 +2245,13 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* reset the hardware with the new settings */
 	igb_reset(adapter);
 
+	/* Init the I2C interface */
+	err = igb_init_i2c(adapter);
+	if (err) {
+		dev_err(&pdev->dev, "failed to init i2c interface\n");
+		goto err_eeprom;
+	}
+
 	/* let the f/w know that the h/w is now under the control of the
 	 * driver. */
 	igb_get_hw_control(adapter);
@@ -2134,7 +2272,27 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #endif
+#ifdef CONFIG_IGB_HWMON
+	/* Initialize the thermal sensor on i350 devices. */
+	if (hw->mac.type == e1000_i350 && hw->bus.func == 0) {
+		u16 ets_word;
 
+		/*
+		 * Read the NVM to determine if this i350 device supports an
+		 * external thermal sensor.
+		 */
+		hw->nvm.ops.read(hw, NVM_ETS_CFG, 1, &ets_word);
+		if (ets_word != 0x0000 && ets_word != 0xFFFF)
+			adapter->ets = true;
+		else
+			adapter->ets = false;
+		if (igb_sysfs_init(adapter))
+			dev_err(&pdev->dev,
+				"failed to allocate sysfs resources\n");
+	} else {
+		adapter->ets = false;
+	}
+#endif
 	/* do hw tstamp init after resetting */
 	igb_ptp_init(adapter);
 
@@ -2175,6 +2333,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_register:
 	igb_release_hw_control(adapter);
+	memset(&adapter->i2c_adap, 0, sizeof(adapter->i2c_adap));
 err_eeprom:
 	if (!igb_check_reset_block(hw))
 		igb_reset_phy(hw);
@@ -2195,6 +2354,111 @@ err_dma:
 	return err;
 }
 
+#ifdef CONFIG_PCI_IOV
+static int  igb_disable_sriov(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* reclaim resources allocated to VFs */
+	if (adapter->vf_data) {
+		/* disable iov and allow time for transactions to clear */
+		if (igb_vfs_are_assigned(adapter)) {
+			dev_warn(&pdev->dev,
+				 "Cannot deallocate SR-IOV virtual functions while they are assigned - VFs will not be deallocated\n");
+			return -EPERM;
+		} else {
+			pci_disable_sriov(pdev);
+			msleep(500);
+		}
+
+		kfree(adapter->vf_data);
+		adapter->vf_data = NULL;
+		adapter->vfs_allocated_count = 0;
+		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
+		wrfl();
+		msleep(100);
+		dev_info(&pdev->dev, "IOV Disabled\n");
+
+		/* Re-enable DMA Coalescing flag since IOV is turned off */
+		adapter->flags |= IGB_FLAG_DMAC;
+	}
+
+	return 0;
+}
+
+static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int old_vfs = pci_num_vf(pdev);
+	int err = 0;
+	int i;
+
+	if (!num_vfs)
+		goto out;
+	else if (old_vfs && old_vfs == num_vfs)
+		goto out;
+	else if (old_vfs && old_vfs != num_vfs)
+		err = igb_disable_sriov(pdev);
+
+	if (err)
+		goto out;
+
+	if (num_vfs > 7) {
+		err = -EPERM;
+		goto out;
+	}
+
+	adapter->vfs_allocated_count = num_vfs;
+
+	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
+				sizeof(struct vf_data_storage), GFP_KERNEL);
+
+	/* if allocation failed then we do not support SR-IOV */
+	if (!adapter->vf_data) {
+		adapter->vfs_allocated_count = 0;
+		dev_err(&pdev->dev,
+			"Unable to allocate memory for VF Data Storage\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
+	if (err)
+		goto err_out;
+
+	dev_info(&pdev->dev, "%d VFs allocated\n",
+		 adapter->vfs_allocated_count);
+	for (i = 0; i < adapter->vfs_allocated_count; i++)
+		igb_vf_configure(adapter, i);
+
+	/* DMA Coalescing is not supported in IOV mode. */
+	adapter->flags &= ~IGB_FLAG_DMAC;
+	goto out;
+
+err_out:
+	kfree(adapter->vf_data);
+	adapter->vf_data = NULL;
+	adapter->vfs_allocated_count = 0;
+out:
+	return err;
+}
+
+#endif
+/*
+ *  igb_remove_i2c - Cleanup  I2C interface
+ *  @adapter: pointer to adapter structure
+ *
+ */
+static void igb_remove_i2c(struct igb_adapter *adapter)
+{
+
+	/* free the adapter bus structure */
+	i2c_del_adapter(&adapter->i2c_adap);
+}
+
 /**
  * igb_remove - Device Removal Routine
  * @pdev: PCI device information struct
@@ -2211,8 +2475,11 @@ static void igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
+#ifdef CONFIG_IGB_HWMON
+	igb_sysfs_exit(adapter);
+#endif
+	igb_remove_i2c(adapter);
 	igb_ptp_stop(adapter);
-
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
 	 * disable watchdog from being rescheduled.
@@ -2242,23 +2509,7 @@ static void igb_remove(struct pci_dev *pdev)
 	igb_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PCI_IOV
-	/* reclaim resources allocated to VFs */
-	if (adapter->vf_data) {
-		/* disable iov and allow time for transactions to clear */
-		if (igb_vfs_are_assigned(adapter)) {
-			dev_info(&pdev->dev, "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
-		} else {
-			pci_disable_sriov(pdev);
-			msleep(500);
-		}
-
-		kfree(adapter->vf_data);
-		adapter->vf_data = NULL;
-		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
-		wrfl();
-		msleep(100);
-		dev_info(&pdev->dev, "IOV Disabled\n");
-	}
+	igb_disable_sriov(pdev);
 #endif
 
 	iounmap(hw->hw_addr);
@@ -2289,102 +2540,21 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_hw *hw = &adapter->hw;
-	int old_vfs = pci_num_vf(adapter->pdev);
-	int i;
 
 	/* Virtualization features not supported on i210 family. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
 		return;
 
-	if (old_vfs) {
-		dev_info(&pdev->dev, "%d pre-allocated VFs found - override "
-			 "max_vfs setting of %d\n", old_vfs, max_vfs);
-		adapter->vfs_allocated_count = old_vfs;
-	}
+	igb_enable_sriov(pdev, max_vfs);
+	pci_sriov_set_totalvfs(pdev, 7);
 
-	if (!adapter->vfs_allocated_count)
-		return;
-
-	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
-				sizeof(struct vf_data_storage), GFP_KERNEL);
-
-	/* if allocation failed then we do not support SR-IOV */
-	if (!adapter->vf_data) {
-		adapter->vfs_allocated_count = 0;
-		dev_err(&pdev->dev, "Unable to allocate memory for VF "
-			"Data Storage\n");
-		goto out;
-	}
-
-	if (!old_vfs) {
-		if (pci_enable_sriov(pdev, adapter->vfs_allocated_count))
-			goto err_out;
-	}
-	dev_info(&pdev->dev, "%d VFs allocated\n",
-		 adapter->vfs_allocated_count);
-	for (i = 0; i < adapter->vfs_allocated_count; i++)
-		igb_vf_configure(adapter, i);
-
-	/* DMA Coalescing is not supported in IOV mode. */
-	adapter->flags &= ~IGB_FLAG_DMAC;
-	goto out;
-err_out:
-	kfree(adapter->vf_data);
-	adapter->vf_data = NULL;
-	adapter->vfs_allocated_count = 0;
-out:
-	return;
 #endif /* CONFIG_PCI_IOV */
 }
 
-/**
- * igb_sw_init - Initialize general software structures (struct igb_adapter)
- * @adapter: board private structure to initialize
- *
- * igb_sw_init initializes the Adapter private data structure.
- * Fields are initialized based on PCI device information and
- * OS network device settings (MTU size).
- **/
-static int igb_sw_init(struct igb_adapter *adapter)
+static void igb_init_queue_configuration(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	struct pci_dev *pdev = adapter->pdev;
 	u32 max_rss_queues;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
-
-	/* set default ring sizes */
-	adapter->tx_ring_count = IGB_DEFAULT_TXD;
-	adapter->rx_ring_count = IGB_DEFAULT_RXD;
-
-	/* set default ITR values */
-	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
-	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
-
-	/* set default work limits */
-	adapter->tx_work_limit = IGB_DEFAULT_TX_WORK;
-
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
-				  VLAN_HLEN;
-	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
-
-	spin_lock_init(&adapter->stats64_lock);
-#ifdef CONFIG_PCI_IOV
-	switch (hw->mac.type) {
-	case e1000_82576:
-	case e1000_i350:
-		if (max_vfs > 7) {
-			dev_warn(&pdev->dev,
-				 "Maximum of 7 VFs per PF, using max\n");
-			adapter->vfs_allocated_count = 7;
-		} else
-			adapter->vfs_allocated_count = max_vfs;
-		break;
-	default:
-		break;
-	}
-#endif /* CONFIG_PCI_IOV */
 
 	/* Determine the maximum number of RSS queues supported. */
 	switch (hw->mac.type) {
@@ -2444,6 +2614,60 @@ static int igb_sw_init(struct igb_adapter *adapter)
 			adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
 		break;
 	}
+}
+
+/**
+ * igb_sw_init - Initialize general software structures (struct igb_adapter)
+ * @adapter: board private structure to initialize
+ *
+ * igb_sw_init initializes the Adapter private data structure.
+ * Fields are initialized based on PCI device information and
+ * OS network device settings (MTU size).
+ **/
+static int igb_sw_init(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
+
+	/* set default ring sizes */
+	adapter->tx_ring_count = IGB_DEFAULT_TXD;
+	adapter->rx_ring_count = IGB_DEFAULT_RXD;
+
+	/* set default ITR values */
+	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
+	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
+
+	/* set default work limits */
+	adapter->tx_work_limit = IGB_DEFAULT_TX_WORK;
+
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
+				  VLAN_HLEN;
+	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+
+	spin_lock_init(&adapter->stats64_lock);
+#ifdef CONFIG_PCI_IOV
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_i350:
+		if (max_vfs > 7) {
+			dev_warn(&pdev->dev,
+				 "Maximum of 7 VFs per PF, using max\n");
+			adapter->vfs_allocated_count = 7;
+		} else
+			adapter->vfs_allocated_count = max_vfs;
+		if (adapter->vfs_allocated_count)
+			dev_warn(&pdev->dev,
+				 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
+		break;
+	default:
+		break;
+	}
+#endif /* CONFIG_PCI_IOV */
+
+	igb_init_queue_configuration(adapter);
 
 	/* Setup and initialize a copy of the hw vlan table array */
 	adapter->shadow_vfta = kzalloc(sizeof(u32) *
@@ -3767,6 +3991,7 @@ static void igb_watchdog_task(struct work_struct *work)
 	}
 
 	igb_spoof_check(adapter);
+	igb_ptp_rx_hang(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -4386,12 +4611,15 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
+	skb_tx_timestamp(skb);
+
 	if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
 		     !(adapter->ptp_tx_skb))) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
 
 		adapter->ptp_tx_skb = skb_get(skb);
+		adapter->ptp_tx_start = jiffies;
 		if (adapter->hw.mac.type == e1000_82576)
 			schedule_work(&adapter->ptp_tx_work);
 	}
@@ -6902,6 +7130,72 @@ static void igb_shutdown(struct pci_dev *pdev)
 	}
 }
 
+#ifdef CONFIG_PCI_IOV
+static int igb_sriov_reinit(struct pci_dev *dev)
+{
+	struct net_device *netdev = pci_get_drvdata(dev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
+
+	rtnl_lock();
+
+	if (netif_running(netdev))
+		igb_close(netdev);
+
+	igb_clear_interrupt_scheme(adapter);
+
+	igb_init_queue_configuration(adapter);
+
+	if (igb_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	if (netif_running(netdev))
+		igb_open(netdev);
+
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int igb_pci_disable_sriov(struct pci_dev *dev)
+{
+	int err = igb_disable_sriov(dev);
+
+	if (!err)
+		err = igb_sriov_reinit(dev);
+
+	return err;
+}
+
+static int igb_pci_enable_sriov(struct pci_dev *dev, int num_vfs)
+{
+	int err = igb_enable_sriov(dev, num_vfs);
+
+	if (err)
+		goto out;
+
+	err = igb_sriov_reinit(dev);
+	if (!err)
+		return num_vfs;
+
+out:
+	return err;
+}
+
+#endif
+static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+#ifdef CONFIG_PCI_IOV
+	if (num_vfs == 0)
+		return igb_pci_disable_sriov(dev);
+	else
+		return igb_pci_enable_sriov(dev, num_vfs);
+#endif
+	return 0;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
@@ -7307,4 +7601,138 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 	}
 }
 
+static DEFINE_SPINLOCK(i2c_clients_lock);
+
+/*  igb_get_i2c_client - returns matching client
+ *  in adapters's client list.
+ *  @adapter: adapter struct
+ *  @dev_addr: device address of i2c needed.
+ */
+struct i2c_client *
+igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
+{
+	ulong flags;
+	struct igb_i2c_client_list *client_list;
+	struct i2c_client *client = NULL;
+	struct i2c_board_info client_info = {
+		I2C_BOARD_INFO("igb", 0x00),
+	};
+
+	spin_lock_irqsave(&i2c_clients_lock, flags);
+	client_list = adapter->i2c_clients;
+
+	/* See if we already have an i2c_client */
+	while (client_list) {
+		if (client_list->client->addr == (dev_addr >> 1)) {
+			client = client_list->client;
+			goto exit;
+		} else {
+			client_list = client_list->next;
+		}
+	}
+
+	/* no client_list found, create a new one as long as
+	 * irqs are not disabled
+	 */
+	if (unlikely(irqs_disabled()))
+		goto exit;
+
+	client_list = kzalloc(sizeof(*client_list), GFP_KERNEL);
+	if (client_list == NULL)
+		goto exit;
+
+	/* dev_addr passed to us is left-shifted by 1 bit
+	 * i2c_new_device call expects it to be flush to the right.
+	 */
+	client_info.addr = dev_addr >> 1;
+	client_info.platform_data = adapter;
+	client_list->client = i2c_new_device(&adapter->i2c_adap, &client_info);
+	if (client_list->client == NULL) {
+		dev_info(&adapter->pdev->dev,
+			"Failed to create new i2c device..\n");
+		goto err_no_client;
+	}
+
+	/* insert new client at head of list */
+	client_list->next = adapter->i2c_clients;
+	adapter->i2c_clients = client_list;
+
+	client = client_list->client;
+	goto exit;
+
+err_no_client:
+	kfree(client_list);
+exit:
+	spin_unlock_irqrestore(&i2c_clients_lock, flags);
+	return client;
+}
+
+/*  igb_read_i2c_byte - Reads 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to read
+ *  @dev_addr: device address
+ *  @data: value read
+ *
+ *  Performs byte read operation over I2C interface at
+ *  a specified device address.
+ */
+s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				u8 dev_addr, u8 *data)
+{
+	struct igb_adapter *adapter = container_of(hw, struct igb_adapter, hw);
+	struct i2c_client *this_client = igb_get_i2c_client(adapter, dev_addr);
+	s32 status;
+	u16 swfw_mask = 0;
+
+	if (!this_client)
+		return E1000_ERR_I2C;
+
+	swfw_mask = E1000_SWFW_PHY0_SM;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask)
+	    != E1000_SUCCESS)
+		return E1000_ERR_SWFW_SYNC;
+
+	status = i2c_smbus_read_byte_data(this_client, byte_offset);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+
+	if (status < 0)
+		return E1000_ERR_I2C;
+	else {
+		*data = status;
+		return E1000_SUCCESS;
+	}
+}
+
+/*  igb_write_i2c_byte - Writes 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to write
+ *  @dev_addr: device address
+ *  @data: value to write
+ *
+ *  Performs byte write operation over I2C interface at
+ *  a specified device address.
+ */
+s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
+				 u8 dev_addr, u8 data)
+{
+	struct igb_adapter *adapter = container_of(hw, struct igb_adapter, hw);
+	struct i2c_client *this_client = igb_get_i2c_client(adapter, dev_addr);
+	s32 status;
+	u16 swfw_mask = E1000_SWFW_PHY0_SM;
+
+	if (!this_client)
+		return E1000_ERR_I2C;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask) != E1000_SUCCESS)
+		return E1000_ERR_SWFW_SYNC;
+	status = i2c_smbus_write_byte_data(this_client, byte_offset, data);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+
+	if (status)
+		return E1000_ERR_I2C;
+	else
+		return E1000_SUCCESS;
+
+}
 /* igb_main.c */

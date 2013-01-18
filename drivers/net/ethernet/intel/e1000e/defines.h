@@ -107,6 +107,7 @@
 #define E1000_RXD_ERR_RXE       0x80    /* Rx Data Error */
 #define E1000_RXD_SPC_VLAN_MASK 0x0FFF  /* VLAN ID is in lower 12 bits */
 
+#define E1000_RXDEXT_STATERR_TST   0x00000100	/* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_CE    0x01000000
 #define E1000_RXDEXT_STATERR_SE    0x02000000
 #define E1000_RXDEXT_STATERR_SEQ   0x04000000
@@ -318,6 +319,7 @@
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
+#define E1000_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_EN     0x00000002    /* enable Tx */
@@ -382,6 +384,9 @@
 #define E1000_PHY_CTRL_GBE_DISABLE        0x00000040
 
 #define E1000_KABGTXD_BGSQLBIAS           0x00050000
+
+/* Low Power IDLE Control */
+#define E1000_LPIC_LPIET_SHIFT		24	/* Low Power Idle Entry Time */
 
 /* PBA constants */
 #define E1000_PBA_8K  0x0008    /* 8KB */
@@ -532,6 +537,18 @@
 #define E1000_RXCW_IV         0x08000000        /* Receive config invalid */
 #define E1000_RXCW_C          0x20000000        /* Receive config */
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
+
+#define E1000_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_ALL	0x08
+#define E1000_TSYNCTXCTL_ENABLED	0x00000010 /* enable Tx timestamping */
+
+#define E1000_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK	0x0000000E /* Rx type mask */
+#define E1000_TSYNCRXCTL_ENABLED	0x00000010 /* enable Rx timestamping */
+#define E1000_TSYNCRXCTL_SYSCFI		0x00000020 /* Sys clock frequency */
+
+#define E1000_TIMINCA_INCPERIOD_SHIFT	24
+#define E1000_TIMINCA_INCVALUE_MASK	0x00FFFFFF
 
 /* PCI Express Control */
 #define E1000_GCR_RXD_NO_SNOOP          0x00000001
@@ -799,6 +816,33 @@
 /* BME1000 PHY Specific Control Register */
 #define BME1000_PSCR_ENABLE_DOWNSHIFT   0x0800 /* 1 = enable downshift */
 
+/* PHY Low Power Idle Control */
+#define I82579_LPI_CTRL				PHY_REG(772, 20)
+#define I82579_LPI_CTRL_100_ENABLE		0x2000
+#define I82579_LPI_CTRL_1000_ENABLE		0x4000
+#define I82579_LPI_CTRL_ENABLE_MASK		0x6000
+#define I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT	0x80
+
+/* Extended Management Interface (EMI) Registers */
+#define I82579_EMI_ADDR		0x10
+#define I82579_EMI_DATA		0x11
+#define I82579_LPI_UPDATE_TIMER	0x4805	/* in 40ns units + 40 ns base value */
+#define I82579_MSE_THRESHOLD	0x084F	/* 82579 Mean Square Error Threshold */
+#define I82577_MSE_THRESHOLD	0x0887	/* 82577 Mean Square Error Threshold */
+#define I82579_MSE_LINK_DOWN	0x2411	/* MSE count before dropping link */
+#define I82579_EEE_PCS_STATUS	0x182D	/* IEEE MMD Register 3.1 >> 8 */
+#define I82579_EEE_CAPABILITY	0x0410	/* IEEE MMD Register 3.20 */
+#define I82579_EEE_ADVERTISEMENT	0x040E	/* IEEE MMD Register 7.60 */
+#define I82579_EEE_LP_ABILITY		0x040F	/* IEEE MMD Register 7.61 */
+#define I82579_EEE_100_SUPPORTED	(1 << 1) /* 100BaseTx EEE supported */
+#define I82579_EEE_1000_SUPPORTED	(1 << 2) /* 1000BaseTx EEE supported */
+#define I217_EEE_PCS_STATUS	0x9401	/* IEEE MMD Register 3.1 */
+#define I217_EEE_CAPABILITY	0x8000	/* IEEE MMD Register 3.20 */
+#define I217_EEE_ADVERTISEMENT	0x8001	/* IEEE MMD Register 7.60 */
+#define I217_EEE_LP_ABILITY	0x8002	/* IEEE MMD Register 7.61 */
+
+#define E1000_EEE_RX_LPI_RCVD	0x0400	/* Tx LP idle received */
+#define E1000_EEE_TX_LPI_RCVD	0x0800	/* Rx LP idle received */
 
 #define PHY_PAGE_SHIFT 5
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \

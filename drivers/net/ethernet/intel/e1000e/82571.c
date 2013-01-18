@@ -2044,6 +2044,7 @@ const struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_MSIX
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
+				  | FLAG_HAS_HW_TIMESTAMP
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
@@ -2065,6 +2066,7 @@ const struct e1000_info e1000_82583_info = {
 	.mac			= e1000_82583,
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_WOL
+				  | FLAG_HAS_HW_TIMESTAMP
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
