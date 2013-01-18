@@ -382,6 +382,7 @@ static int tce_clearrange_multi_pSeriesLP(unsigned long start_pfn,
 		rc = plpar_tce_stuff((u64)be32_to_cpu(maprange->liobn),
 					     dma_offset,
 					     0, limit);
+		next += limit * tce_size;
 		num_tce -= limit;
 	} while (num_tce > 0 && !rc);
 
