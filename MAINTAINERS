@@ -1652,6 +1652,15 @@ W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
 
+BLACKFIN MEDIA DRIVER
+M:	Scott Jiang <scott.jiang.linux@gmail.com>
+L:	uclinux-dist-devel@blackfin.uclinux.org
+W:	http://blackfin.uclinux.org/
+S:	Supported
+F:	drivers/media/platform/blackfin/
+F:	drivers/media/i2c/adv7183*
+F:	drivers/media/i2c/vs6624*
+
 BLINKM RGB LED DRIVER
 M:	Jan-Simon Moeller <jansimon.moeller@gmx.de>
 S:	Maintained
