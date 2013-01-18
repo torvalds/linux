@@ -5555,6 +5555,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		if (priv->rxd_ops == NULL) {
 			wiphy_err(hw->wiphy,
 				  "Driver does not have AP firmware image support for this hardware\n");
+			rc = -ENOENT;
 			goto err_stop_firmware;
 		}
 	} else {
@@ -5901,6 +5902,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
 		wiphy_err(hw->wiphy, "Cannot map device SRAM\n");
+		rc = -EIO;
 		goto err_iounmap;
 	}
 
@@ -5913,6 +5915,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
 			wiphy_err(hw->wiphy, "Cannot map device registers\n");
+			rc = -EIO;
 			goto err_iounmap;
 		}
 	}
