@@ -1939,11 +1939,15 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("");
 
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
+
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
-				 MGMT_STATUS_NOT_POWERED);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
+				   MGMT_STATUS_NOT_POWERED, &rp, sizeof(rp));
 		goto unlock;
 	}
 
@@ -1959,10 +1963,6 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		conn = hci_connect(hdev, LE_LINK, &cp->addr.bdaddr,
 				   cp->addr.type, sec_level, auth_type);
-
-	memset(&rp, 0, sizeof(rp));
-	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
-	rp.addr.type = cp->addr.type;
 
 	if (IS_ERR(conn)) {
 		int status;
