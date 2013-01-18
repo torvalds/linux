@@ -48,9 +48,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 
 /*********      Definitions for APCI-2200 card  *****/
 
-/* Card Specific information */
-#define APCI2200_ADDRESS_RANGE		64
-
 /* DIGITAL INPUT-OUTPUT DEFINE */
 
 #define APCI2200_DIGITAL_OP		4
