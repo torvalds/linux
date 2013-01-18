@@ -100,6 +100,9 @@ struct callee_regs {
 #define in_syscall(regs)    (regs->event & orig_r8_IS_SCALL)
 #define in_brkpt_trap(regs) (regs->event & orig_r8_IS_BRKPT)
 
+#define syscall_wont_restart(regs) (regs->event |= orig_r8_IS_SCALL_RESTARTED)
+#define syscall_restartable(regs) !(regs->event &  orig_r8_IS_SCALL_RESTARTED)
+
 #define current_pt_regs()					\
 ({								\
 	/* open-coded current_thread_info() */			\
