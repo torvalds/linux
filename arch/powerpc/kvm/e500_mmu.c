@@ -239,8 +239,8 @@ int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500, ulong value)
 		for (esel = 0; esel < vcpu_e500->gtlb_params[1].entries; esel++)
 			kvmppc_e500_gtlbe_invalidate(vcpu_e500, 1, esel);
 
-	/* Invalidate all vcpu id mappings */
-	kvmppc_e500_tlbil_all(vcpu_e500);
+	/* Invalidate all host shadow mappings */
+	kvmppc_core_flush_tlb(&vcpu_e500->vcpu);
 
 	return EMULATE_DONE;
 }
@@ -269,8 +269,8 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, gva_t ea)
 			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
 	}
 
-	/* Invalidate all vcpu id mappings */
-	kvmppc_e500_tlbil_all(vcpu_e500);
+	/* Invalidate all host shadow mappings */
+	kvmppc_core_flush_tlb(&vcpu_e500->vcpu);
 
 	return EMULATE_DONE;
 }
