@@ -527,6 +527,10 @@ struct cfg80211_beacon_data {
 	size_t probe_resp_len;
 };
 
+struct mac_address {
+	u8 addr[ETH_ALEN];
+};
+
 /**
  * struct cfg80211_ap_settings - AP configuration
  *
@@ -2179,10 +2183,6 @@ struct ieee80211_iface_combination {
 	u8 n_limits;
 	bool beacon_int_infra_match;
 	u8 radar_detect_widths;
-};
-
-struct mac_address {
-	u8 addr[ETH_ALEN];
 };
 
 struct ieee80211_txrx_stypes {
