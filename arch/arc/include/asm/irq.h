@@ -9,6 +9,8 @@
 #ifndef __ASM_ARC_IRQ_H
 #define __ASM_ARC_IRQ_H
 
+#define NR_IRQS		32
+
 /* Platform Independent IRQs */
 #define TIMER0_IRQ      3
 #define TIMER1_IRQ      4

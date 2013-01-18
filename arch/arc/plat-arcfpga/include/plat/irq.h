@@ -12,12 +12,6 @@
 #ifndef __PLAT_IRQ_H
 #define __PLAT_IRQ_H
 
-#ifdef CONFIG_SMP
-#define NR_IRQS 32
-#else
-#define NR_IRQS 16
-#endif
-
 #define UART0_IRQ	5
 #define UART1_IRQ	10
 #define UART2_IRQ	11
