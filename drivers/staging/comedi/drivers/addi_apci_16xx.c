@@ -14,8 +14,6 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.pc_DriverName		= "apci1648",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1009,
-		.i_IorangeBase0		= 128,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 48,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
@@ -25,8 +23,6 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.pc_DriverName		= "apci1696",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x100A,
-		.i_IorangeBase0		= 128,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 96,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
@@ -76,25 +72,8 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	if (!this_board->pc_EepromChip ||
-	    strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
-		/* board does not have an eeprom or is not ADDIDATA_9054 */
-		if (this_board->i_IorangeBase1)
-			dev->iobase = pci_resource_start(pcidev, 1);
-		else
-			dev->iobase = pci_resource_start(pcidev, 0);
-
-		devpriv->iobase = dev->iobase;
-		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
-		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	} else {
-		/* board has an ADDIDATA_9054 eeprom */
-		dev->iobase = pci_resource_start(pcidev, 2);
-		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-					     this_board->i_IorangeBase3);
-	}
-	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
+	dev->iobase = pci_resource_start(pcidev, 0);
+	devpriv->iobase = dev->iobase;
 
 	/* Initialize parameters that can be overridden in EEPROM */
 	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
@@ -165,12 +144,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 static void apci16xx_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
-	}
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
