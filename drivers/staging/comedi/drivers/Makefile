@@ -55,6 +55,7 @@ obj-$(CONFIG_COMEDI_POC)		+= poc.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_8255_PCI)		+= 8255_pci.o
+obj-$(CONFIG_COMEDI_ADDI_WATCHDOG)	+= addi_watchdog.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_035)	+= addi_apci_035.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1032)	+= addi_apci_1032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1500)	+= addi_apci_1500.o
