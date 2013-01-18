@@ -2738,7 +2738,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	mutex_unlock(&codec->control_mutex);
 	snd_hda_codec_flush_amp_cache(codec); /* flush the updates */
 	if (err >= 0 && spec->cap_sync_hook)
-		spec->cap_sync_hook(codec);
+		spec->cap_sync_hook(codec, ucontrol);
 	return err;
 }
 
@@ -2774,23 +2774,9 @@ static const struct snd_kcontrol_new cap_vol_temp = {
 static int cap_sw_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct hda_gen_spec *spec = codec->spec;
-	int ret;
-
-	ret = cap_put_caller(kcontrol, ucontrol,
+	return cap_put_caller(kcontrol, ucontrol,
 			      snd_hda_mixer_amp_switch_put,
 			      NID_PATH_MUTE_CTL);
-	if (ret < 0)
-		return ret;
-
-	if (spec->capture_switch_hook) {
-		bool enable = (ucontrol->value.integer.value[0] ||
-			       ucontrol->value.integer.value[1]);
-		spec->capture_switch_hook(codec, enable);
-	}
-
-	return ret;
 }
 
 static const struct snd_kcontrol_new cap_sw_temp = {
@@ -2860,6 +2846,7 @@ static bool is_inv_dmic_pin(struct hda_codec *codec, hda_nid_t nid)
 	return false;
 }
 
+/* capture switch put callback for a single control with hook call */
 static int cap_single_sw_put(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
@@ -2871,11 +2858,8 @@ static int cap_single_sw_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	if (spec->capture_switch_hook) {
-		bool enable = (ucontrol->value.integer.value[0] ||
-			       ucontrol->value.integer.value[1]);
-		spec->capture_switch_hook(codec, enable);
-	}
+	if (spec->cap_sync_hook)
+		spec->cap_sync_hook(codec, ucontrol);
 
 	return ret;
 }
@@ -2904,7 +2888,7 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 			   amp_val_replace_channels(ctl, chs));
 	if (!knew)
 		return -ENOMEM;
-	if (is_switch && spec->capture_switch_hook)
+	if (is_switch)
 		knew->put = cap_single_sw_put;
 	if (!inv_dmic)
 		return 0;
@@ -2920,7 +2904,7 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 			   amp_val_replace_channels(ctl, 2));
 	if (!knew)
 		return -ENOMEM;
-	if (is_switch && spec->capture_switch_hook)
+	if (is_switch)
 		knew->put = cap_single_sw_put;
 	return 0;
 }
@@ -3280,7 +3264,7 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		return 0;
 	snd_hda_activate_path(codec, path, true, false);
 	if (spec->cap_sync_hook)
-		spec->cap_sync_hook(codec);
+		spec->cap_sync_hook(codec, NULL);
 	return 1;
 }
 
@@ -4610,7 +4594,7 @@ static void init_input_src(struct hda_codec *codec)
 		update_shared_mic_hp(codec, spec->cur_mux[0]);
 
 	if (spec->cap_sync_hook)
-		spec->cap_sync_hook(codec);
+		spec->cap_sync_hook(codec, NULL);
 }
 
 /* set right pin controls for digital I/O */

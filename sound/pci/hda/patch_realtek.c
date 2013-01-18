@@ -670,7 +670,8 @@ static void alc_inv_dmic_sync(struct hda_codec *codec, bool force)
 	}
 }
 
-static void alc_inv_dmic_hook(struct hda_codec *codec)
+static void alc_inv_dmic_hook(struct hda_codec *codec,
+			     struct snd_ctl_elem_value *ucontrol)
 {
 	alc_inv_dmic_sync(codec, false);
 }

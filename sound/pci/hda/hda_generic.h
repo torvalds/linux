@@ -233,7 +233,8 @@ struct hda_gen_spec {
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
-	void (*cap_sync_hook)(struct hda_codec *codec);
+	void (*cap_sync_hook)(struct hda_codec *codec,
+			      struct snd_ctl_elem_value *ucontrol);
 
 	/* PCM hooks */
 	void (*pcm_playback_hook)(struct hda_pcm_stream *hinfo,
@@ -252,9 +253,6 @@ struct hda_gen_spec {
 				   struct hda_jack_tbl *tbl);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
 				    struct hda_jack_tbl *tbl);
-
-	/* capture switch hook (for mic-mute LED) */
-	void (*capture_switch_hook)(struct hda_codec *codec, bool enable);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
