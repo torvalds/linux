@@ -40,7 +40,7 @@
 #include <plat/ipp.h>
 #include <plat/vpu_service.h>
 #include "../../video/rockchip/rga/rga.h"
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK3188)
 #include <mach/rk30_camera.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
@@ -160,7 +160,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
 #define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
 
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 //CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
 #define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<24)|(0x1<<8))
@@ -932,7 +932,7 @@ static int rk_camera_scale_crop_rga(struct work_struct *work){
 }
 
 #endif
-#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+#if ((defined(CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_ON)) && (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP))
 
 static int rk_camera_scale_crop_ipp(struct work_struct *work)
 {
@@ -2889,7 +2889,11 @@ static void rk_camera_cif_iomux(int cif_index)
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     switch(cif_index){
         case 0:
-            iomux_set(CIF0_CLKOUT);
+	    #if defined(CONFIG_ARCH_RK3066B)
+		iomux_set(CIF0_CLKOUT);
+	    #else
+		iomux_set(CIF_CLKOUT);
+	    #endif	
             write_grf_reg(GRF_IO_CON3, (CIF_DRIVER_STRENGTH_MASK|CIF_DRIVER_STRENGTH_8MA));
             write_grf_reg(GRF_IO_CON4, (CIF_CLKOUT_AMP_MASK|CIF_CLKOUT_AMP_1V8));
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
@@ -3113,8 +3117,7 @@ static int rk_camera_probe(struct platform_device *pdev)
 	hrtimer_init(&(pcdev->fps_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pcdev->fps_timer.timer.function = rk_camera_fps_func;
     pcdev->icd_cb.sensor_cb = NULL;
-
-#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+#if ((defined(CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_ON)) && (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP))
     pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_ipp;
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
     pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_arm;
