@@ -3197,6 +3197,9 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.init = snd_hda_gen_init,
 	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
+#ifdef CONFIG_PM
+	.check_power_status = snd_hda_gen_check_power_status,
+#endif
 };
 
 /*
@@ -3347,6 +3350,10 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	switch (codec->vendor_id) {
 	case 0x14f15045:
 		codec->single_adc_amp = 1;
+		break;
+	case 0x14f15047:
+		codec->pin_amp_workaround = 1;
+		spec->gen.mixer_nid = 0x19;
 		break;
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
