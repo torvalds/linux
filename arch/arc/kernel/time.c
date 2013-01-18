@@ -43,6 +43,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/clk.h>
+#include <asm/mach_desc.h>
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
@@ -258,6 +259,9 @@ void __init time_init(void)
 
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());
+
+	if (machine_desc->init_time)
+		machine_desc->init_time();
 }
 
 #ifdef CONFIG_ARC_HAS_RTSC

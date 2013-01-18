@@ -25,12 +25,14 @@
 #include <asm/prom.h>
 #include <asm/unwind.h>
 #include <asm/clk.h>
+#include <asm/mach_desc.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
 int running_on_hw = 1;	/* vs. on ISS */
 
 char __initdata command_line[COMMAND_LINE_SIZE];
+struct machine_desc *machine_desc __initdata;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
@@ -323,8 +325,6 @@ void __init __attribute__((weak)) arc_platform_early_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	int rc;
-
 #ifdef CONFIG_CMDLINE_UBOOT
 	/* Make sure that a whitespace is inserted before */
 	strlcat(command_line, " ", sizeof(command_line));
@@ -339,13 +339,17 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
-	rc = setup_machine_fdt(__dtb_start);
+	machine_desc = setup_machine_fdt(__dtb_start);
+	if (!machine_desc)
+		panic("Embedded DT invalid\n");
 
 	/* To force early parsing of things like mem=xxx */
 	parse_early_param();
 
 	/* Platform/board specific: e.g. early console registration */
 	arc_platform_early_init();
+	if (machine_desc->init_early)
+		machine_desc->init_early();
 
 	setup_processor();
 
@@ -372,6 +376,24 @@ void __init setup_arch(char **cmdline_p)
 	arc_unwind_setup();
 }
 
+static int __init customize_machine(void)
+{
+	/* Add platform devices */
+	if (machine_desc->init_machine)
+		machine_desc->init_machine();
+
+	return 0;
+}
+arch_initcall(customize_machine);
+
+static int __init init_late_machine(void)
+{
+	if (machine_desc->init_late)
+		machine_desc->init_late();
+
+	return 0;
+}
+late_initcall(init_late_machine);
 /*
  *  Get CPU information for use by the procfs.
  */

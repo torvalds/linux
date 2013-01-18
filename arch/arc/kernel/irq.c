@@ -13,6 +13,7 @@
 #include <linux/irqdomain.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
+#include <asm/mach_desc.h>
 
 /*
  * Early Hardware specific Interrupt setup
@@ -125,9 +126,15 @@ void __init init_IRQ(void)
 	init_onchip_IRQ();
 	plat_init_IRQ();
 
+	/* Any external intc can be setup here */
+	if (machine_desc->init_irq)
+		machine_desc->init_irq();
+
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */
 	arc_platform_smp_init_cpu();
+	if (machine_desc->init_smp)
+		machine_desc->init_smp(smp_processor_id());
 #endif
 }
 

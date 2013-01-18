@@ -32,6 +32,7 @@
 #include <linux/reboot.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
+#include <asm/mach_desc.h>
 
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -127,6 +128,8 @@ void __cpuinit start_kernel_secondary(void)
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
 	arc_platform_smp_init_cpu();
+	if (machine_desc->init_smp)
+		machine_desc->init_smp(smp_processor_id());
 
 	arc_local_timer_setup(cpu);
 

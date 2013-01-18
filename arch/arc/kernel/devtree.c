@@ -16,6 +16,7 @@
 #include <linux/of_fdt.h>
 #include <asm/prom.h>
 #include <asm/clk.h>
+#include <asm/mach_desc.h>
 
 /* called from unflatten_device_tree() to bootstrap devicetree itself */
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -30,27 +31,57 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
  * If a dtb was passed to the kernel, then use it to choose the correct
  * machine_desc and to setup the system.
  */
-int __init setup_machine_fdt(void *dt)
+struct machine_desc * __init setup_machine_fdt(void *dt)
 {
 	struct boot_param_header *devtree = dt;
+	struct machine_desc *mdesc = NULL, *mdesc_best = NULL;
+	unsigned int score, mdesc_score = ~1;
 	unsigned long dt_root;
-	char *model, *compat;
+	const char *model, *compat;
 	void *clk;
 	char manufacturer[16];
 	unsigned long len;
 
 	/* check device tree validity */
 	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER)
-		return 1;
+		return NULL;
 
-	/* Search the mdescs for the 'best' compatible value match */
 	initial_boot_params = devtree;
 	dt_root = of_get_flat_dt_root();
 
+	/*
+	 * The kernel could be multi-platform enabled, thus could have many
+	 * "baked-in" machine descriptors. Search thru all for the best
+	 * "compatible" string match.
+	 */
+	for_each_machine_desc(mdesc) {
+		score = of_flat_dt_match(dt_root, mdesc->dt_compat);
+		if (score > 0 && score < mdesc_score) {
+			mdesc_best = mdesc;
+			mdesc_score = score;
+		}
+	}
+	if (!mdesc_best) {
+		const char *prop;
+		long size;
+
+		pr_err("\n unrecognized device tree list:\n[ ");
+
+		prop = of_get_flat_dt_prop(dt_root, "compatible", &size);
+		if (prop) {
+			while (size > 0) {
+				printk("'%s' ", prop);
+				size -= strlen(prop) + 1;
+				prop += strlen(prop) + 1;
+			}
+		}
+		printk("]\n\n");
+
+		machine_halt();
+	}
+
 	/* compat = "<manufacturer>,<model>" */
-	compat = of_get_flat_dt_prop(dt_root, "compatible", NULL);
-	if (!compat)
-		compat = "<unknown>";
+	compat =  mdesc_best->dt_compat[0];
 
 	model = strchr(compat, ',');
 	if (model)
@@ -73,5 +104,5 @@ int __init setup_machine_fdt(void *dt)
 	if (clk)
 		arc_set_core_freq(of_read_ulong(clk, len/4));
 
-	return 0;
+	return mdesc_best;
 }

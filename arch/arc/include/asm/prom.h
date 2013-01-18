@@ -10,6 +10,5 @@
 #define _ASM_ARC_PROM_H_
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
-extern int __init setup_machine_fdt(void *dt);
 
 #endif
