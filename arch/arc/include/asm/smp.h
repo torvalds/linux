@@ -31,6 +31,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
  */
 extern void __init smp_init_cpus(void);
 extern void __init first_lines_of_secondary(void);
+extern const char *arc_platform_smp_cpuinfo(void);
 
 /*
  * API expected BY platform smp code (FROM arch smp code)
@@ -41,29 +42,22 @@ extern void __init first_lines_of_secondary(void);
 extern int smp_ipi_irq_setup(int cpu, int irq);
 
 /*
- * APIs expected FROM platform smp code
+ * struct plat_smp_ops	- SMP callbacks provided by platform to ARC SMP
  *
- * arc_platform_smp_cpuinfo:
- *	returns a string containing info for /proc/cpuinfo
- *
- * arc_platform_smp_wait_to_boot:
- *	Called from early bootup code for non-Master CPUs to "park" them
- *
- * arc_platform_smp_wakeup_cpu:
- *	Called from __cpu_up (Master CPU) to kick start another one
- *
- * arc_platform_ipi_send:
- *	Takes @cpumask to which IPI(s) would be sent.
- *	The actual msg-id/buffer is manager in arch-common code
- *
- * arc_platform_ipi_clear:
- *	Takes @cpu which got IPI at @irq to do any IPI clearing
+ * @info:		SoC SMP specific info for /proc/cpuinfo etc
+ * @cpu_kick:		For Master to kickstart a cpu (optionally at a PC)
+ * @ipi_send:		To send IPI to a @cpumask
+ * @ips_clear:		To clear IPI received by @cpu at @irq
  */
-extern const char *arc_platform_smp_cpuinfo(void);
-extern void arc_platform_smp_wait_to_boot(int cpu);
-extern void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc);
-extern void arc_platform_ipi_send(const struct cpumask *callmap);
-extern void arc_platform_ipi_clear(int cpu, int irq);
+struct plat_smp_ops {
+	const char 	*info;
+	void		(*cpu_kick)(int cpu, unsigned long pc);
+	void		(*ipi_send)(void *callmap);
+	void		(*ipi_clear)(int cpu, int irq);
+};
+
+/* TBD: stop exporting it for direct population by platform */
+extern struct plat_smp_ops  plat_smp_ops;
 
 #endif  /* CONFIG_SMP */
 

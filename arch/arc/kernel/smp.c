@@ -37,6 +37,8 @@
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
+struct plat_smp_ops  plat_smp_ops;
+
 /* XXX: per cpu ? Only needed once in early seconday boot */
 struct task_struct *secondary_idle_tsk;
 
@@ -105,6 +107,11 @@ void __attribute__((weak)) arc_platform_smp_wait_to_boot(int cpu)
 	"	b 1b	\n");
 }
 
+const char *arc_platform_smp_cpuinfo(void)
+{
+	return plat_smp_ops.info;
+}
+
 /*
  * The very first "C" code executed by secondary
  * Called from asm stub in head.S
@@ -156,7 +163,8 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	pr_info("Idle Task [%d] %p", cpu, idle);
 	pr_info("Trying to bring up CPU%u ...\n", cpu);
 
-	arc_platform_smp_wakeup_cpu(cpu,
+	if (plat_smp_ops.cpu_kick)
+		plat_smp_ops.cpu_kick(cpu,
 				(unsigned long)first_lines_of_secondary);
 
 	/* wait for 1 sec after kicking the secondary */
@@ -225,7 +233,8 @@ static void ipi_send_msg(const struct cpumask *callmap, enum ipi_msg_type msg)
 	}
 
 	/* Call the platform specific cross-CPU call function  */
-	arc_platform_ipi_send(callmap);
+	if (plat_smp_ops.ipi_send)
+		plat_smp_ops.ipi_send((void *)callmap);
 
 	local_irq_restore(flags);
 }
@@ -299,7 +308,8 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
 	unsigned long ops;
 
-	arc_platform_ipi_clear(cpu, irq);
+	if (plat_smp_ops.ipi_clear)
+		plat_smp_ops.ipi_clear(cpu, irq);
 
 	/*
 	 * XXX: is this loop really needed
