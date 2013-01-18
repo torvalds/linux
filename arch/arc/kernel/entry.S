@@ -470,7 +470,11 @@ resume_user_mode_begin:
 
 	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
 
-	; save CALLEE Regs.
+	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
+	; in pt_reg since the "C" ABI (kernel code) will automatically
+	; save/restore callee-saved regs.
+	;
+	; However, here we need to explicitly save callee regs because
 	; (i)  If this signal causes coredump - full regfile needed
 	; (ii) If signal is SIGTRAP/SIGSTOP, task is being traced thus
 	;      tracer might call PEEKUSR(CALLEE reg)
@@ -484,8 +488,9 @@ resume_user_mode_begin:
 
 	bl  @do_signal
 
-	; unwind SP for cheap discard of Callee saved Regs
-	DISCARD_CALLEE_SAVED_USER
+	; Ideally we want to discard the Callee reg above, however if this was
+	; a tracing signal, tracer could have done a POKEUSR(CALLEE reg)
+	RESTORE_CALLEE_SAVED_USER
 
 	b      resume_user_mode_begin	; loop back to start of U mode ret
 
