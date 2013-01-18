@@ -12,7 +12,8 @@
  */
 
 #include <linux/smp.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
+#include <plat/irq.h>
 #include <plat/smp.h>
 
 static char smp_cpuinfo_buf[128];

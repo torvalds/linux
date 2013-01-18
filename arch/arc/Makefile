@@ -10,14 +10,6 @@ UTS_MACHINE := arc
 
 KBUILD_DEFCONFIG := fpga_defconfig
 
-# For ARC FPGA Platforms
-platform-$(CONFIG_ARC_PLAT_FPGA_LEGACY)	:= arcfpga
-#New platform adds here
-
-PLATFORM := $(platform-y)
-export PLATFORM
-
-cflags-y	+= -Iarch/arc/plat-$(PLATFORM)/include
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h
@@ -86,9 +78,6 @@ KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
 LDFLAGS		+= $(ldflags-y)
 
-# Needed for Linker script preprocessing
-KBUILD_CPPFLAGS	+= -Iarch/arc/plat-$(PLATFORM)/include
-
 head-y		:= arch/arc/kernel/head.o
 
 # See arch/arc/Kbuild for content of core part of the kernel
@@ -97,10 +86,7 @@ core-y		+= arch/arc/
 # w/o this dtb won't embed into kernel binary
 core-y		+= arch/arc/boot/dts/
 
-# w/o this ifneq, make ARCH=arc clean was crapping out
-ifneq ($(platform-y),)
-core-y		+= arch/arc/plat-$(PLATFORM)/
-endif
+core-$(CONFIG_ARC_PLAT_FPGA_LEGACY)	+= arch/arc/plat-arcfpga/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 

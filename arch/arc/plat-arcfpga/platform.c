@@ -16,11 +16,11 @@
 #include <linux/console.h>
 #include <linux/of_platform.h>
 #include <asm/setup.h>
-#include <asm/irq.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 #include <plat/memmap.h>
 #include <plat/smp.h>
+#include <plat/irq.h>
 
 /*-----------------------BVCI Latency Unit -----------------------------*/
 

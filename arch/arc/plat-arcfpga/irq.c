@@ -9,7 +9,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <asm/irq.h>
+#include <plat/irq.h>
 
 void __init plat_fpga_init_IRQ(void)
 {
