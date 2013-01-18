@@ -569,3 +569,30 @@ ARC_ENTRY ret_from_fork
 	bl  @schedule_tail
 	b @ret_from_exception
 ARC_EXIT ret_from_fork
+
+;################### Special Sys Call Wrappers ##########################
+
+; TBD: call do_fork directly from here
+ARC_ENTRY sys_fork_wrapper
+	SAVE_CALLEE_SAVED_USER
+	bl  @sys_fork
+	DISCARD_CALLEE_SAVED_USER
+
+	b ret_from_system_call
+ARC_EXIT sys_fork_wrapper
+
+ARC_ENTRY sys_vfork_wrapper
+	SAVE_CALLEE_SAVED_USER
+	bl  @sys_vfork
+	DISCARD_CALLEE_SAVED_USER
+
+	b ret_from_system_call
+ARC_EXIT sys_vfork_wrapper
+
+ARC_ENTRY sys_clone_wrapper
+	SAVE_CALLEE_SAVED_USER
+	bl  @sys_clone
+	DISCARD_CALLEE_SAVED_USER
+
+	b ret_from_system_call
+ARC_EXIT sys_clone_wrapper

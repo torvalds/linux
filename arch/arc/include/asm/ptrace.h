@@ -86,6 +86,11 @@ struct callee_regs {
 		sp = -1;	\
 	sp;			\
 })
+
+/* return 1 if in syscall, 0 if Intr or Exception */
+#define in_syscall(regs) (((regs->orig_r8) >= 0 && \
+			   (regs->orig_r8 <= NR_syscalls)) ? 1 : 0)
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
