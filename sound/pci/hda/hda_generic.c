@@ -3056,39 +3056,92 @@ static int create_capture_mixers(struct hda_codec *codec)
 /*
  * add mic boosts if needed
  */
+
+/* check whether the given amp is feasible as a boost volume */
+static bool check_boost_vol(struct hda_codec *codec, hda_nid_t nid,
+			    int dir, int idx)
+{
+	unsigned int step;
+
+	if (!nid_has_volume(codec, nid, dir) ||
+	    is_ctl_associated(codec, nid, dir, idx, NID_PATH_VOL_CTL) ||
+	    is_ctl_associated(codec, nid, dir, idx, NID_PATH_BOOST_CTL))
+		return false;
+
+	step = (query_amp_caps(codec, nid, dir) & AC_AMPCAP_STEP_SIZE)
+		>> AC_AMPCAP_STEP_SIZE_SHIFT;
+	if (step < 0x20)
+		return false;
+	return true;
+}
+
+/* look for a boost amp in a widget close to the pin */
+static unsigned int look_for_boost_amp(struct hda_codec *codec,
+				       struct nid_path *path)
+{
+	unsigned int val = 0;
+	hda_nid_t nid;
+	int depth;
+
+	for (depth = 0; depth < 3; depth++) {
+		if (depth >= path->depth - 1)
+			break;
+		nid = path->path[depth];
+		if (depth && check_boost_vol(codec, nid, HDA_OUTPUT, 0)) {
+			val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT);
+			break;
+		} else if (check_boost_vol(codec, nid, HDA_INPUT,
+					   path->idx[depth])) {
+			val = HDA_COMPOSE_AMP_VAL(nid, 3, path->idx[depth],
+						  HDA_INPUT);
+			break;
+		}
+	}
+
+	return val;
+}
+
 static int parse_mic_boost(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	struct hda_input_mux *imux = &spec->input_mux;
 	int i, err;
-	hda_nid_t nid;
 
-	for (i = 0; i < cfg->num_inputs; i++) {
-		if (cfg->inputs[i].type > AUTO_PIN_MIC)
-			break;
-		nid = cfg->inputs[i].pin;
-		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
-			char boost_label[44];
-			struct nid_path *path;
-			unsigned int val;
+	if (!spec->num_adc_nids)
+		return 0;
 
-			if (!nid_has_volume(codec, nid, HDA_INPUT))
-				continue;
+	for (i = 0; i < imux->num_items; i++) {
+		struct nid_path *path;
+		unsigned int val;
+		int idx;
+		char boost_label[44];
 
-			snprintf(boost_label, sizeof(boost_label),
-				 "%s Boost Volume",
-				 spec->input_labels[i]);
-			val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT);
-			err = add_control(spec, HDA_CTL_WIDGET_VOL,
-					  boost_label,
-					  spec->input_label_idxs[i], val);
-			if (err < 0)
-				return err;
+		idx = imux->items[i].index;
+		if (idx >= imux->num_items)
+			continue;
 
-			path = snd_hda_get_nid_path(codec, nid, 0);
-			if (path)
-				path->ctls[NID_PATH_BOOST_CTL] = val;
-		}
+		/* check only line-in and mic pins */
+		if (cfg->inputs[idx].type > AUTO_PIN_MIC)
+			continue;
+
+		path = get_input_path(codec, 0, i);
+		if (!path)
+			continue;
+
+		val = look_for_boost_amp(codec, path);
+		if (!val)
+			continue;
+
+		/* create a boost control */
+		snprintf(boost_label, sizeof(boost_label),
+			 "%s Boost Volume", spec->input_labels[idx]);
+		err = add_control(spec, HDA_CTL_WIDGET_VOL, boost_label,
+				  spec->input_label_idxs[idx], val);
+		if (err < 0)
+			return err;
+
+		path->ctls[NID_PATH_BOOST_CTL] = val;
 	}
 	return 0;
 }
