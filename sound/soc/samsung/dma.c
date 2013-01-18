@@ -174,7 +174,8 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 		config.width = prtd->params->dma_size;
 		config.fifo = prtd->params->dma_addr;
 		prtd->params->ch = prtd->params->ops->request(
-				prtd->params->channel, &req);
+				prtd->params->channel, &req, rtd->cpu_dai->dev,
+				prtd->params->ch_name);
 		prtd->params->ops->config(prtd->params->ch, &config);
 	}
 
