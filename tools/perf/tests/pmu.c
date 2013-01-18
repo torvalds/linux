@@ -19,8 +19,6 @@ static struct test_format {
 	{ "krava23", "config2:28-29,38\n", },
 };
 
-#define TEST_FORMATS_CNT (sizeof(test_formats) / sizeof(struct test_format))
-
 /* Simulated users input. */
 static struct parse_events_term test_terms[] = {
 	{
@@ -78,7 +76,6 @@ static struct parse_events_term test_terms[] = {
 		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
 	},
 };
-#define TERMS_CNT (sizeof(test_terms) / sizeof(struct parse_events_term))
 
 /*
  * Prepare format directory data, exported by kernel
@@ -93,7 +90,7 @@ static char *test_format_dir_get(void)
 	if (!mkdtemp(dir))
 		return NULL;
 
-	for (i = 0; i < TEST_FORMATS_CNT; i++) {
+	for (i = 0; i < ARRAY_SIZE(test_formats); i++) {
 		static char name[PATH_MAX];
 		struct test_format *format = &test_formats[i];
 		FILE *file;
@@ -130,13 +127,11 @@ static struct list_head *test_terms_list(void)
 	static LIST_HEAD(terms);
 	unsigned int i;
 
-	for (i = 0; i < TERMS_CNT; i++)
+	for (i = 0; i < ARRAY_SIZE(test_terms); i++)
 		list_add_tail(&test_terms[i].list, &terms);
 
 	return &terms;
 }
-
-#undef TERMS_CNT
 
 int test__pmu(void)
 {
