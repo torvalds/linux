@@ -45,6 +45,38 @@
 					compatible = "fixed-clock";
 					clock-frequency = <24000000>;
 				};
+
+				clkuart0: uart0 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <1>;
+				};
+
+				clkuart1: uart1 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <2>;
+				};
+
+				clkuart2: uart2 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <3>;
+				};
+
+				clkuart3: uart3 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <4>;
+				};
 			};
 		};
 
@@ -83,28 +115,28 @@
 			compatible = "via,vt8500-uart";
 			reg = <0xd8200000 0x1040>;
 			interrupts = <32>;
-			clocks = <&ref24>;
+			clocks = <&clkuart0>;
 		};
 
 		uart@d82b0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82b0000 0x1040>;
 			interrupts = <33>;
-			clocks = <&ref24>;
+			clocks = <&clkuart1>;
 		};
 
 		uart@d8210000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd8210000 0x1040>;
 			interrupts = <47>;
-			clocks = <&ref24>;
+			clocks = <&clkuart2>;
 		};
 
 		uart@d82c0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82c0000 0x1040>;
 			interrupts = <50>;
-			clocks = <&ref24>;
+			clocks = <&clkuart3>;
 		};
 
 		rtc@d8100000 {
