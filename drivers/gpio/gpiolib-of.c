@@ -250,7 +250,7 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		 * on the same GPIO chip.
 		 */
 		ret = gpiochip_add_pin_range(chip,
-					     pinctrl_dev_get_name(pctldev),
+					     pinctrl_dev_get_devname(pctldev),
 					     0, /* offset in gpiochip */
 					     pinspec.args[0],
 					     pinspec.args[1]);
