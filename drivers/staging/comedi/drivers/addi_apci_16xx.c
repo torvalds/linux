@@ -26,19 +26,17 @@ static const struct apci16xx_boardinfo apci16xx_boardtypes[] = {
 	},
 };
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
+static const void *apci16xx_find_boardinfo(struct comedi_device *dev,
+					   struct pci_dev *pcidev)
 {
-	const void *p = dev->driver->board_name;
-	const struct apci16xx_boardinfo *this_board;
+	const struct apci16xx_boardinfo *board;
 	int i;
 
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->vendor == pcidev->vendor &&
-		    this_board->device == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
+	for (i = 0; i < ARRAY_SIZE(apci16xx_boardtypes); i++) {
+		board = &apci16xx_boardtypes[i];
+		if (board->vendor == pcidev->vendor &&
+		    board->device == pcidev->device)
+			return board;
 	}
 	return NULL;
 }
@@ -47,16 +45,16 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci16xx_boardinfo *this_board;
+	const struct apci16xx_boardinfo *board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
+	board = apci16xx_find_boardinfo(dev, pcidev);
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -77,10 +75,10 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
-	s->n_chan	= this_board->n_chan;
+	s->n_chan	= board->n_chan;
 	s->maxdata	= 1;
 	s->io_bits	= 0;	/* all bits input */
-	s->len_chanlist	= this_board->n_chan;
+	s->len_chanlist	= board->n_chan;
 	s->range_table	= &range_digital;
 	s->insn_config	= i_APCI16XX_InsnConfigInitTTLIO;
 	s->insn_bits	= i_APCI16XX_InsnBitsReadTTLIO;
