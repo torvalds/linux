@@ -15,12 +15,12 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/spinlock.h>
-#include <asm/mach/irq.h>
 
 #define MAX_GPIO_PER_REG		32
 #define PIN_OFFSET(pin)			(pin % MAX_GPIO_PER_REG)

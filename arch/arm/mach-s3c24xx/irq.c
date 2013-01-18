@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 
 #include <asm/mach/irq.h>
 

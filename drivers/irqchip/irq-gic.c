@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/irq.h>
