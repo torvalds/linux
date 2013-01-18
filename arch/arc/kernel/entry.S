@@ -566,8 +566,19 @@ ARC_ENTRY ret_from_fork
 	; when the forked child comes here from the __switch_to function
 	; r0 has the last task pointer.
 	; put last task in scheduler queue
-	bl  @schedule_tail
-	b @ret_from_exception
+	bl   @schedule_tail
+
+	; If kernel thread, jump to it's entry-point
+	ld   r9, [sp, PT_status32]
+	brne r9, 0, 1f
+
+	jl.d [r14]
+	mov  r0, r13		; arg to payload
+
+1:
+	; special case of kernel_thread entry point returning back due to
+	; kernel_execve() - pretend return from syscall to ret to userland
+	b    ret_from_exception
 ARC_EXIT ret_from_fork
 
 ;################### Special Sys Call Wrappers ##########################

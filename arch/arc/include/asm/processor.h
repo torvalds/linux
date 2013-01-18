@@ -29,6 +29,9 @@ struct thread_struct {
 	unsigned long callee_reg;	/* pointer to callee regs */
 	unsigned long fault_address;	/* dbls as brkpt holder as well */
 	unsigned long cause_code;	/* Exception Cause Code (ECR) */
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
+	struct arc_fpu fpu;
+#endif
 };
 
 #define INIT_THREAD  {                          \
@@ -53,12 +56,6 @@ unsigned long thread_saved_pc(struct task_struct *t);
 #define prepare_to_copy(tsk)    do { } while (0)
 
 #define cpu_relax()	do { } while (0)
-
-/*
- * Create a new kernel thread
- */
-
-extern int kernel_thread(int (*fn) (void *), void *arg, unsigned long flags);
 
 #define copy_segments(tsk, mm)      do { } while (0)
 #define release_segments(mm)        do { } while (0)

@@ -47,6 +47,17 @@
 #define AUX_ITRIGGER		0x40d
 #define AUX_IPULSE		0x415
 
+/*
+ * Floating Pt Registers
+ * Status regs are read-only (build-time) so need not be saved/restored
+ */
+#define ARC_AUX_FP_STAT         0x300
+#define ARC_AUX_DPFP_1L         0x301
+#define ARC_AUX_DPFP_1H         0x302
+#define ARC_AUX_DPFP_2L         0x303
+#define ARC_AUX_DPFP_2H         0x304
+#define ARC_AUX_DPFP_STAT       0x305
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -108,6 +119,15 @@
 	: "r"(val), "memory"(&reg_in_var));	\
 })
 
+#endif
+
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
+/* These DPFP regs need to be saved/restored across ctx-sw */
+struct arc_fpu {
+	struct {
+		unsigned int l, h;
+	} aux_dpfp[2];
+};
 #endif
 
 #endif /* __ASEMBLY__ */
