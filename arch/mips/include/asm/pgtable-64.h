@@ -230,6 +230,7 @@ static inline void pud_clear(pud_t *pudp)
 #else
 #define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 
 #define __pgd_offset(address)	pgd_index(address)
