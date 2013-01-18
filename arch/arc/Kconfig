@@ -82,9 +82,7 @@ source "kernel/Kconfig.freezer"
 
 menu "ARC Architecture Configuration"
 
-choice
-	prompt "ARC Platform"
-	default ARC_PLAT_FPGA_LEGACY
+menu "ARC Platform/SoC"
 
 config ARC_PLAT_FPGA_LEGACY
 	bool "\"Legacy\" ARC FPGA dev platform"
@@ -96,7 +94,7 @@ config ARC_PLAT_FPGA_LEGACY
 	  - MetaWare ISS
 
 #New platform adds here
-endchoice
+endmenu
 
 menu "ARC CPU Configuration"
 

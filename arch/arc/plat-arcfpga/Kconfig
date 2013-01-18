@@ -8,8 +8,7 @@
 
 if ARC_PLAT_FPGA_LEGACY
 
-choice
-	prompt "FPGA Board"
+menu "FPGA Board"
 
 config ARC_BOARD_ANGEL4
 	bool "ARC Angel4"
@@ -35,7 +34,7 @@ config ISS_SMP_EXTN
 	  -XTL (To enable CPU start/stop/set-PC for another CPU)
 	  It doesn't provide coherent Caches and/or Atomic Ops (LLOCK/SCOND)
 
-endchoice
+endmenu
 
 config ARC_SERIAL_BAUD
 	int "UART Baud rate"
