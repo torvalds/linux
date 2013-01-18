@@ -57,13 +57,6 @@ obj-$(CONFIG_MPU_SENSORS_MPU6050B1)	+= inv_mpu/
 obj-$(CONFIG_USBHUB_USB3503)	+= usb3503.o
 obj-$(CONFIG_USBHUB_USB3503_OTG_CONN)	+= usb3503_otg_conn.o
 obj-$(CONFIG_USBHUB_USB3803)	+= usb3803.o
-ifeq ($(CONFIG_SEC_MODEM_P8LTE),y)
-obj-$(CONFIG_SEC_MODEM)         += modem_if_na/
-else ifeq ($(CONFIG_SEC_MODEM_U1_SPR),y)
-obj-$(CONFIG_SEC_MODEM)		+= modem_if_na_spr/
-else
-obj-$(CONFIG_SEC_MODEM)		+= modem_if/
-endif
 obj-$(CONFIG_MFD_MAX77693)	+= max77693-muic.o
 obj-$(CONFIG_STMPE811_ADC)	+= stmpe811-adc.o
 obj-$(CONFIG_JACK_MON)		+= jack.o
