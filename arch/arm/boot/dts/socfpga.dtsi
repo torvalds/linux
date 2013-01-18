@@ -156,7 +156,7 @@
 			compatible = "snps,dw-mshc";
 			reg = <0xff704000 0x1000>;
 			interrupts = <0 139 4>;
-			bus-hz = <50000000>; /*50 MHz*/
+			bus-hz = <12500000>; /*12.5 MHz*/
 			#address-cells = <1>;
 			#size-cells = <0>;
 			num-slots = <1>;
