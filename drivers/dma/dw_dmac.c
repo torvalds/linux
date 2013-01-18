@@ -400,6 +400,20 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	if (status_xfer & dwc->mask) {
 		/* Everything we've submitted is done */
 		dma_writel(dw, CLEAR.XFER, dwc->mask);
+
+		if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
+			if (dwc->tx_node_active != dwc->tx_list) {
+				desc = to_dw_desc(dwc->tx_node_active);
+
+				/* Submit next block */
+				dwc_do_single_block(dwc, desc);
+				spin_unlock_irqrestore(&dwc->lock, flags);
+
+				return;
+			}
+			/* We are done here */
+			clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
+		}
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
 		dwc_complete_all(dw, dwc);
@@ -407,6 +421,12 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	}
 
 	if (list_empty(&dwc->active_list)) {
+		spin_unlock_irqrestore(&dwc->lock, flags);
+		return;
+	}
+
+	if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
+		dev_vdbg(chan2dev(&dwc->chan), "%s: soft LLP mode\n", __func__);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return;
 	}
@@ -596,29 +616,8 @@ static void dw_dma_tasklet(unsigned long data)
 			dwc_handle_cyclic(dw, dwc, status_err, status_xfer);
 		else if (status_err & (1 << i))
 			dwc_handle_error(dw, dwc);
-		else if (status_xfer & (1 << i)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&dwc->lock, flags);
-			if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
-				if (dwc->tx_node_active != dwc->tx_list) {
-					struct dw_desc *desc =
-						to_dw_desc(dwc->tx_node_active);
-
-					dma_writel(dw, CLEAR.XFER, dwc->mask);
-
-					dwc_do_single_block(dwc, desc);
-
-					spin_unlock_irqrestore(&dwc->lock, flags);
-					continue;
-				}
-				/* we are done here */
-				clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
-			}
-			spin_unlock_irqrestore(&dwc->lock, flags);
-
+		else if (status_xfer & (1 << i))
 			dwc_scan_descriptors(dw, dwc);
-		}
 	}
 
 	/*
