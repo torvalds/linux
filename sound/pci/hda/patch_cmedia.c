@@ -576,6 +576,7 @@ static const struct hda_codec_ops cmi_auto_patch_ops = {
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = snd_hda_gen_init,
 	.free = snd_hda_gen_free,
+	.unsol_event = snd_hda_jack_unsol_event,
 };
 
 static int cmi_parse_auto_config(struct hda_codec *codec)

@@ -595,6 +595,7 @@ static const struct hda_codec_ops ad198x_auto_patch_ops = {
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = snd_hda_gen_init,
 	.free = ad198x_free,
+	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
 	.suspend = ad198x_suspend,
