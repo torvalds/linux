@@ -349,7 +349,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	struct net_device_context *ndevctx = netdev_priv(ndev);
 	struct hv_device *hdev =  ndevctx->device_ctx;
 	struct sockaddr *addr = p;
-	char save_adr[14];
+	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
 	int err;
 
