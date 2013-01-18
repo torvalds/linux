@@ -21,15 +21,6 @@ static const struct addi_board apci2200_boardtypes[] = {
 	},
 };
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
-}
-
 static int apci2200_reset(struct comedi_device *dev)
 {
 	outw(0x0, dev->iobase + APCI2200_DIGITAL_OP);
@@ -85,15 +76,6 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-
-	/* ## */
-
-	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
 
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
@@ -184,8 +166,6 @@ static void apci2200_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (dev->iobase)
 			apci2200_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
 	}
 	if (pcidev) {
 		if (dev->iobase)
