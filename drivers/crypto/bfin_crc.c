@@ -586,7 +586,7 @@ static int bfin_crypto_crc_suspend(struct platform_device *pdev, pm_message_t st
  *	bfin_crypto_crc_probe - Initialize module
  *
  */
-static int __devinit bfin_crypto_crc_probe(struct platform_device *pdev)
+static int bfin_crypto_crc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -707,7 +707,7 @@ out_error_free_mem:
  *	bfin_crypto_crc_remove - Initialize module
  *
  */
-static int __devexit bfin_crypto_crc_remove(struct platform_device *pdev)
+static int bfin_crypto_crc_remove(struct platform_device *pdev)
 {
 	struct bfin_crypto_crc *crc = platform_get_drvdata(pdev);
 
@@ -731,7 +731,7 @@ static int __devexit bfin_crypto_crc_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_crypto_crc_driver = {
 	.probe     = bfin_crypto_crc_probe,
-	.remove    = __devexit_p(bfin_crypto_crc_remove),
+	.remove    = bfin_crypto_crc_remove,
 	.suspend   = bfin_crypto_crc_suspend,
 	.resume    = bfin_crypto_crc_resume,
 	.driver    = {

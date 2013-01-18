@@ -290,34 +290,34 @@ struct zorrocl {
 	zorro_id ramid2;	/* Zorro ID of optional second RAM device */
 };
 
-static const struct zorrocl zcl_sd64 __devinitconst = {
+static const struct zorrocl zcl_sd64 = {
 	.type		= BT_SD64,
 	.ramid		= ZORRO_PROD_HELFRICH_SD64_RAM,
 };
 
-static const struct zorrocl zcl_piccolo __devinitconst = {
+static const struct zorrocl zcl_piccolo = {
 	.type		= BT_PICCOLO,
 	.ramid		= ZORRO_PROD_HELFRICH_PICCOLO_RAM,
 };
 
-static const struct zorrocl zcl_picasso __devinitconst = {
+static const struct zorrocl zcl_picasso = {
 	.type		= BT_PICASSO,
 	.ramid		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_II_II_PLUS_RAM,
 };
 
-static const struct zorrocl zcl_spectrum __devinitconst = {
+static const struct zorrocl zcl_spectrum = {
 	.type		= BT_SPECTRUM,
 	.ramid		= ZORRO_PROD_GVP_EGS_28_24_SPECTRUM_RAM,
 };
 
-static const struct zorrocl zcl_picasso4_z3 __devinitconst = {
+static const struct zorrocl zcl_picasso4_z3 = {
 	.type		= BT_PICASSO4,
 	.regoffset	= 0x00600000,
 	.ramsize	= 4 * MB_,
 	.ramoffset	= 0x01000000,	/* 0x02000000 for 64 MiB boards */
 };
 
-static const struct zorrocl zcl_picasso4_z2 __devinitconst = {
+static const struct zorrocl zcl_picasso4_z2 = {
 	.type		= BT_PICASSO4,
 	.regoffset	= 0x10000,
 	.ramid		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_RAM1,
@@ -325,7 +325,7 @@ static const struct zorrocl zcl_picasso4_z2 __devinitconst = {
 };
 
 
-static const struct zorro_device_id cirrusfb_zorro_table[] __devinitconst = {
+static const struct zorro_device_id cirrusfb_zorro_table[] = {
 	{
 		.id		= ZORRO_PROD_HELFRICH_SD64_REG,
 		.driver_data	= (unsigned long)&zcl_sd64,
@@ -372,8 +372,8 @@ struct cirrusfb_info {
 	void (*unmap)(struct fb_info *info);
 };
 
-static bool noaccel __devinitdata;
-static char *mode_option __devinitdata = "640x480@60";
+static bool noaccel;
+static char *mode_option = "640x480@60";
 
 /****************************************************************************/
 /**** BEGIN PROTOTYPES ******************************************************/
@@ -1892,8 +1892,8 @@ static int release_io_ports;
  * based on the DRAM bandwidth bit and DRAM bank switching bit.  This
  * works with 1MB, 2MB and 4MB configurations (which the Motorola boards
  * seem to have. */
-static unsigned int __devinit cirrusfb_get_memsize(struct fb_info *info,
-						   u8 __iomem *regbase)
+static unsigned int cirrusfb_get_memsize(struct fb_info *info,
+					 u8 __iomem *regbase)
 {
 	unsigned long mem;
 	struct cirrusfb_info *cinfo = info->par;
@@ -2003,7 +2003,7 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_imageblit	= cirrusfb_imageblit,
 };
 
-static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
+static int cirrusfb_set_fbinfo(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_var_screeninfo *var = &info->var;
@@ -2052,7 +2052,7 @@ static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit cirrusfb_register(struct fb_info *info)
+static int cirrusfb_register(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	int err;
@@ -2096,7 +2096,7 @@ err_dealloc_cmap:
 	return err;
 }
 
-static void __devexit cirrusfb_cleanup(struct fb_info *info)
+static void cirrusfb_cleanup(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 
@@ -2109,8 +2109,8 @@ static void __devexit cirrusfb_cleanup(struct fb_info *info)
 }
 
 #ifdef CONFIG_PCI
-static int __devinit cirrusfb_pci_register(struct pci_dev *pdev,
-					   const struct pci_device_id *ent)
+static int cirrusfb_pci_register(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
@@ -2215,7 +2215,7 @@ err_out:
 	return ret;
 }
 
-static void __devexit cirrusfb_pci_unregister(struct pci_dev *pdev)
+static void cirrusfb_pci_unregister(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 
@@ -2226,7 +2226,7 @@ static struct pci_driver cirrusfb_pci_driver = {
 	.name		= "cirrusfb",
 	.id_table	= cirrusfb_pci_table,
 	.probe		= cirrusfb_pci_register,
-	.remove		= __devexit_p(cirrusfb_pci_unregister),
+	.remove		= cirrusfb_pci_unregister,
 #ifdef CONFIG_PM
 #if 0
 	.suspend	= cirrusfb_pci_suspend,
@@ -2237,8 +2237,8 @@ static struct pci_driver cirrusfb_pci_driver = {
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
-					     const struct zorro_device_id *ent)
+static int cirrusfb_zorro_register(struct zorro_dev *z,
+				   const struct zorro_device_id *ent)
 {
 	struct fb_info *info;
 	int error;
@@ -2352,7 +2352,7 @@ err_release_fb:
 	return error;
 }
 
-void __devexit cirrusfb_zorro_unregister(struct zorro_dev *z)
+void cirrusfb_zorro_unregister(struct zorro_dev *z)
 {
 	struct fb_info *info = zorro_get_drvdata(z);
 
@@ -2364,7 +2364,7 @@ static struct zorro_driver cirrusfb_zorro_driver = {
 	.name		= "cirrusfb",
 	.id_table	= cirrusfb_zorro_table,
 	.probe		= cirrusfb_zorro_register,
-	.remove		= __devexit_p(cirrusfb_zorro_unregister),
+	.remove		= cirrusfb_zorro_unregister,
 };
 #endif /* CONFIG_ZORRO */
 

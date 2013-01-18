@@ -346,7 +346,7 @@ static const struct iio_info ad5791_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad5791_probe(struct spi_device *spi)
+static int ad5791_probe(struct spi_device *spi)
 {
 	struct ad5791_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -365,7 +365,11 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_pos;
 
-		pos_voltage_uv = regulator_get_voltage(st->reg_vdd);
+		ret = regulator_get_voltage(st->reg_vdd);
+		if (ret < 0)
+			goto error_disable_reg_pos;
+
+		pos_voltage_uv = ret;
 	}
 
 	st->reg_vss = regulator_get(&spi->dev, "vss");
@@ -374,7 +378,11 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_neg;
 
-		neg_voltage_uv = regulator_get_voltage(st->reg_vss);
+		ret = regulator_get_voltage(st->reg_vss);
+		if (ret < 0)
+			goto error_disable_reg_neg;
+
+		neg_voltage_uv = ret;
 	}
 
 	st->pwr_down = true;
@@ -428,6 +436,7 @@ error_put_reg_neg:
 	if (!IS_ERR(st->reg_vss))
 		regulator_put(st->reg_vss);
 
+error_disable_reg_pos:
 	if (!IS_ERR(st->reg_vdd))
 		regulator_disable(st->reg_vdd);
 error_put_reg_pos:
@@ -439,7 +448,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad5791_remove(struct spi_device *spi)
+static int ad5791_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5791_state *st = iio_priv(indio_dev);
@@ -475,7 +484,7 @@ static struct spi_driver ad5791_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5791_probe,
-	.remove = __devexit_p(ad5791_remove),
+	.remove = ad5791_remove,
 	.id_table = ad5791_id,
 };
 module_spi_driver(ad5791_driver);

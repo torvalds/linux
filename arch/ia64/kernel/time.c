@@ -243,8 +243,7 @@ static int __init nojitter_setup(char *str)
 __setup("nojitter", nojitter_setup);
 
 
-void __devinit
-ia64_init_itm (void)
+void ia64_init_itm(void)
 {
 	unsigned long platform_base_freq, itc_freq;
 	struct pal_freq_ratio itc_ratio, proc_ratio;

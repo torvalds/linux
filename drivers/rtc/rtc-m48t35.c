@@ -141,7 +141,7 @@ static const struct rtc_class_ops m48t35_ops = {
 	.set_time	= m48t35_set_time,
 };
 
-static int __devinit m48t35_probe(struct platform_device *pdev)
+static int m48t35_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct m48t35_priv *priv;
@@ -194,7 +194,7 @@ out:
 	return ret;
 }
 
-static int __devexit m48t35_remove(struct platform_device *pdev)
+static int m48t35_remove(struct platform_device *pdev)
 {
 	struct m48t35_priv *priv = platform_get_drvdata(pdev);
 
@@ -213,7 +213,7 @@ static struct platform_driver m48t35_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t35_probe,
-	.remove		= __devexit_p(m48t35_remove),
+	.remove		= m48t35_remove,
 };
 
 module_platform_driver(m48t35_platform_driver);

@@ -170,7 +170,9 @@
 			gpio-bank = <8>;
 		};
 
-		pinctrl {
+		pinctrl@80157000 {
+			// This is actually the PRCMU base address
+			reg = <0x80157000 0x2000>;
 			compatible = "stericsson,nmk_pinctrl";
 		};
 

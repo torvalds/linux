@@ -442,9 +442,9 @@ static struct da9055_regulator_info da9055_regulator_info[] = {
  * GPIO can control regulator state and/or select the regulator register
  * set A/B for voltage ramping.
  */
-static __devinit int da9055_gpio_init(struct da9055_regulator *regulator,
-				      struct regulator_config *config,
-				      struct da9055_pdata *pdata, int id)
+static int da9055_gpio_init(struct da9055_regulator *regulator,
+			    struct regulator_config *config,
+			    struct da9055_pdata *pdata, int id)
 {
 	struct da9055_regulator_info *info = regulator->info;
 	int ret = 0;
@@ -533,7 +533,7 @@ static inline struct da9055_regulator_info *find_regulator_info(int id)
 	return NULL;
 }
 
-static int __devinit da9055_regulator_probe(struct platform_device *pdev)
+static int da9055_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { };
 	struct da9055_regulator *regulator;
@@ -605,7 +605,7 @@ err_regulator:
 	return ret;
 }
 
-static int __devexit da9055_regulator_remove(struct platform_device *pdev)
+static int da9055_regulator_remove(struct platform_device *pdev)
 {
 	struct da9055_regulator *regulator = platform_get_drvdata(pdev);
 
@@ -616,7 +616,7 @@ static int __devexit da9055_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver da9055_regulator_driver = {
 	.probe = da9055_regulator_probe,
-	.remove = __devexit_p(da9055_regulator_remove),
+	.remove = da9055_regulator_remove,
 	.driver = {
 		.name = "da9055-regulator",
 		.owner = THIS_MODULE,

@@ -153,10 +153,10 @@ static const struct svga_timing_regs s3_timing_regs     = {
 /* Module parameters */
 
 
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 #ifdef CONFIG_MTRR
-static int mtrr __devinitdata = 1;
+static int mtrr = 1;
 #endif
 
 static int fasttext = 1;
@@ -255,7 +255,7 @@ static int s3fb_ddc_getsda(void *data)
 	return !!(s3fb_ddc_read(par) & DDC_SDA_IN);
 }
 
-static int __devinit s3fb_setup_ddc_bus(struct fb_info *info)
+static int s3fb_setup_ddc_bus(struct fb_info *info)
 {
 	struct s3fb_info *par = info->par;
 
@@ -1066,7 +1066,7 @@ static struct fb_ops s3fb_ops = {
 
 /* ------------------------------------------------------------------------- */
 
-static int __devinit s3_identification(struct s3fb_info *par)
+static int s3_identification(struct s3fb_info *par)
 {
 	int chip = par->chip;
 
@@ -1122,7 +1122,7 @@ static int __devinit s3_identification(struct s3fb_info *par)
 
 /* PCI probe */
 
-static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int s3_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct pci_bus_region bus_reg;
 	struct resource vga_res;
@@ -1403,7 +1403,7 @@ err_enable_device:
 
 /* PCI remove */
 
-static void __devexit s3_pci_remove(struct pci_dev *dev)
+static void s3_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct s3fb_info __maybe_unused *par = info->par;
@@ -1509,7 +1509,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 
 /* List of boards that we are trying to support */
 
-static struct pci_device_id s3_devices[] __devinitdata = {
+static struct pci_device_id s3_devices[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8810), .driver_data = CHIP_XXX_TRIO},
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8811), .driver_data = CHIP_XXX_TRIO},
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8812), .driver_data = CHIP_M65_AURORA64VP},
@@ -1537,7 +1537,7 @@ static struct pci_driver s3fb_pci_driver = {
 	.name		= "s3fb",
 	.id_table	= s3_devices,
 	.probe		= s3_pci_probe,
-	.remove		= __devexit_p(s3_pci_remove),
+	.remove		= s3_pci_remove,
 	.suspend	= s3_pci_suspend,
 	.resume		= s3_pci_resume,
 };

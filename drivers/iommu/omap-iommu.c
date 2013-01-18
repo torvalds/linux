@@ -934,7 +934,7 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 /*
  *	OMAP Device MMU(IOMMU) detection
  */
-static int __devinit omap_iommu_probe(struct platform_device *pdev)
+static int omap_iommu_probe(struct platform_device *pdev)
 {
 	int err = -ENODEV;
 	int irq;
@@ -1003,7 +1003,7 @@ err_mem:
 	return err;
 }
 
-static int __devexit omap_iommu_remove(struct platform_device *pdev)
+static int omap_iommu_remove(struct platform_device *pdev)
 {
 	int irq;
 	struct resource *res;
@@ -1028,7 +1028,7 @@ static int __devexit omap_iommu_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_iommu_driver = {
 	.probe	= omap_iommu_probe,
-	.remove	= __devexit_p(omap_iommu_remove),
+	.remove	= omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
 	},

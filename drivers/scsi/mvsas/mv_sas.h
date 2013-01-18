@@ -456,8 +456,8 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex);
 void mvs_phys_reset(struct mvs_info *mvi, u32 phy_mask, int hard);
 int mvs_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			void *funcdata);
-void __devinit mvs_set_sas_addr(struct mvs_info *mvi, int port_id,
-				u32 off_lo, u32 off_hi, u64 sas_addr);
+void mvs_set_sas_addr(struct mvs_info *mvi, int port_id, u32 off_lo,
+		      u32 off_hi, u64 sas_addr);
 void mvs_scan_start(struct Scsi_Host *shost);
 int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time);
 int mvs_queue_command(struct sas_task *task, const int num,

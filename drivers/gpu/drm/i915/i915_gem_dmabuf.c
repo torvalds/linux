@@ -266,7 +266,12 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		obj = dma_buf->priv;
 		/* is it from our device? */
 		if (obj->base.dev == dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
 			drm_gem_object_reference(&obj->base);
+			dma_buf_put(dma_buf);
 			return &obj->base;
 		}
 	}

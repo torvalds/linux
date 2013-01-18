@@ -1239,7 +1239,7 @@ int gnttab_init(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_init);
 
-static int __devinit __gnttab_init(void)
+static int __gnttab_init(void)
 {
 	/* Delay grant-table initialization in the PV on HVM case */
 	if (xen_hvm_domain())

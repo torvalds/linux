@@ -679,7 +679,7 @@ out:
 	return err;
 }
 
-static int __devinit virtscsi_probe(struct virtio_device *vdev)
+static int virtscsi_probe(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost;
 	struct virtio_scsi *vscsi;
@@ -733,7 +733,7 @@ virtscsi_init_failed:
 	return err;
 }
 
-static void __devexit virtscsi_remove(struct virtio_device *vdev)
+static void virtscsi_remove(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost = virtio_scsi_host(vdev);
 	struct virtio_scsi *vscsi = shost_priv(shost);
@@ -785,7 +785,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
 #endif
-	.remove = __devexit_p(virtscsi_remove),
+	.remove = virtscsi_remove,
 };
 
 static int __init init(void)

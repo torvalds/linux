@@ -56,7 +56,7 @@ static int octeon_rng_data_read(struct hwrng *rng, u32 *data)
 	return sizeof(u32);
 }
 
-static int __devinit octeon_rng_probe(struct platform_device *pdev)
+static int octeon_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res_ports;
 	struct resource *res_result;

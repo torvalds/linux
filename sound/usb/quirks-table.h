@@ -50,6 +50,28 @@
 	}
 },
 
+{
+	/* Creative BT-D1 */
+	USB_DEVICE(0x041e, 0x0005),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.ifnum = 1,
+		.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+		.data = &(const struct audioformat) {
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels = 2,
+			.iface = 1,
+			.altsetting = 1,
+			.altset_idx = 1,
+			.endpoint = 0x03,
+			.ep_attr = USB_ENDPOINT_XFER_ISOC,
+			.attributes = 0,
+			.rates = SNDRV_PCM_RATE_CONTINUOUS,
+			.rate_min = 48000,
+			.rate_max = 48000,
+		}
+	}
+},
+
 /* Creative/Toshiba Multimedia Center SB-0500 */
 {
 	USB_DEVICE(0x041e, 0x3048),
@@ -2267,7 +2289,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.rate_table = (unsigned int[]) {
 							44100, 48000, 88200, 96000
 					},
-					.clock = 0x81,
+					.clock = 0x80,
 				}
 			},
 			/* Capture */
@@ -2293,7 +2315,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.rate_table = (unsigned int[]) {
 						44100, 48000, 88200, 96000
 					},
-					.clock = 0x81,
+					.clock = 0x80,
 				}
 			},
 			/* MIDI */
@@ -2993,7 +3015,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			},
 			{
 				.ifnum = 6,
-				.type = QUIRK_MIDI_MBOX2,
+				.type = QUIRK_MIDI_MIDIMAN,
 				.data = &(const struct snd_usb_midi_endpoint_info) {
 					.out_ep =  0x02,
 					.out_cables = 0x0001,

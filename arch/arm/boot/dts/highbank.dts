@@ -30,33 +30,37 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu@900 {
 			compatible = "arm,cortex-a9";
-			reg = <0>;
+			device_type = "cpu";
+			reg = <0x900>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
-		cpu@1 {
+		cpu@901 {
 			compatible = "arm,cortex-a9";
-			reg = <1>;
+			device_type = "cpu";
+			reg = <0x901>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
-		cpu@2 {
+		cpu@902 {
 			compatible = "arm,cortex-a9";
-			reg = <2>;
+			device_type = "cpu";
+			reg = <0x902>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
-		cpu@3 {
+		cpu@903 {
 			compatible = "arm,cortex-a9";
-			reg = <3>;
+			device_type = "cpu";
+			reg = <0x903>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";

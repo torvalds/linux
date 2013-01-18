@@ -78,7 +78,7 @@ static int of_flash_remove(struct platform_device *dev)
  * compatible binding, which has an extra "probe-type" property
  * describing the type of flash probe necessary. */
 static struct mtd_info *obsolete_probe(struct platform_device *dev,
-						  struct map_info *map)
+				       struct map_info *map)
 {
 	struct device_node *dp = dev->dev.of_node;
 	const char *of_probe;

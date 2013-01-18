@@ -86,7 +86,7 @@ static void octeon_lmc_edac_poll_o2(struct mem_ctl_info *mci)
 		cvmx_write_csr(CVMX_LMCX_INT(mci->mc_idx), int_reg.u64);
 }
 
-static int __devinit octeon_lmc_edac_probe(struct platform_device *pdev)
+static int octeon_lmc_edac_probe(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];

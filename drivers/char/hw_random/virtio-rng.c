@@ -147,7 +147,7 @@ static struct virtio_driver virtio_rng_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtrng_probe,
-	.remove =	__devexit_p(virtrng_remove),
+	.remove =	virtrng_remove,
 #ifdef CONFIG_PM
 	.freeze =	virtrng_freeze,
 	.restore =	virtrng_restore,

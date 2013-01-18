@@ -414,7 +414,7 @@ static ssize_t vexpress_sysreg_sys_id_show(struct device *dev,
 
 DEVICE_ATTR(sys_id, S_IRUGO, vexpress_sysreg_sys_id_show, NULL);
 
-static int __devinit vexpress_sysreg_probe(struct platform_device *pdev)
+static int vexpress_sysreg_probe(struct platform_device *pdev)
 {
 	int err;
 	struct resource *res = platform_get_resource(pdev,

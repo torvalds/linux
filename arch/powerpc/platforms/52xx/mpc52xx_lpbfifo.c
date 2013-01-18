@@ -470,7 +470,7 @@ void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_abort);
 
-static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op)
+static int mpc52xx_lpbfifo_probe(struct platform_device *op)
 {
 	struct resource res;
 	int rc = -ENOMEM;
@@ -540,7 +540,7 @@ static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op)
 }
 
 
-static int __devexit mpc52xx_lpbfifo_remove(struct platform_device *op)
+static int mpc52xx_lpbfifo_remove(struct platform_device *op)
 {
 	if (lpbfifo.dev != &op->dev)
 		return 0;
@@ -564,7 +564,7 @@ static int __devexit mpc52xx_lpbfifo_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc52xx_lpbfifo_match[] __devinitconst = {
+static struct of_device_id mpc52xx_lpbfifo_match[] = {
 	{ .compatible = "fsl,mpc5200-lpbfifo", },
 	{},
 };
@@ -576,6 +576,6 @@ static struct platform_driver mpc52xx_lpbfifo_driver = {
 		.of_match_table = mpc52xx_lpbfifo_match,
 	},
 	.probe = mpc52xx_lpbfifo_probe,
-	.remove = __devexit_p(mpc52xx_lpbfifo_remove),
+	.remove = mpc52xx_lpbfifo_remove,
 };
 module_platform_driver(mpc52xx_lpbfifo_driver);

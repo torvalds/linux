@@ -82,7 +82,7 @@ static int  co_cache_error_event(struct notifier_block *this,
 	return NOTIFY_STOP;
 }
 
-static int __devinit co_cache_error_probe(struct platform_device *pdev)
+static int co_cache_error_probe(struct platform_device *pdev)
 {
 	struct co_cache_error *p = devm_kzalloc(&pdev->dev, sizeof(*p),
 						GFP_KERNEL);
