@@ -199,21 +199,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
-	if (devpriv->s_EeParameters.i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
