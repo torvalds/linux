@@ -8,6 +8,7 @@
 #define _KERNEL_WORKQUEUE_INTERNAL_H
 
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 
 struct global_cwq;
 struct worker_pool;
@@ -43,6 +44,16 @@ struct worker {
 	/* used only by rescuers to point to the target workqueue */
 	struct workqueue_struct	*rescue_wq;	/* I: the workqueue to rescue */
 };
+
+/**
+ * current_wq_worker - return struct worker if %current is a workqueue worker
+ */
+static inline struct worker *current_wq_worker(void)
+{
+	if (current->flags & PF_WQ_WORKER)
+		return kthread_data(current);
+	return NULL;
+}
 
 /*
  * Scheduler hooks for concurrency managed workqueue.  Only to be used from

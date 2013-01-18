@@ -57,6 +57,8 @@ asynchronous and synchronous parts of the kernel.
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
+#include "workqueue_internal.h"
+
 static async_cookie_t next_cookie = 1;
 
 #define MAX_WORK	32768
@@ -337,3 +339,15 @@ void async_synchronize_cookie(async_cookie_t cookie)
 	async_synchronize_cookie_domain(cookie, &async_running);
 }
 EXPORT_SYMBOL_GPL(async_synchronize_cookie);
+
+/**
+ * current_is_async - is %current an async worker task?
+ *
+ * Returns %true if %current is an async worker task.
+ */
+bool current_is_async(void)
+{
+	struct worker *worker = current_wq_worker();
+
+	return worker && worker->current_func == async_run_entry_fn;
+}
