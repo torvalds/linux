@@ -7,7 +7,6 @@ config ARCH_PICOXCELL
 	select DW_APB_TIMER
 	select DW_APB_TIMER_OF
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select HAVE_TCM
 	select NO_IOPORT
 	select SPARSE_IRQ

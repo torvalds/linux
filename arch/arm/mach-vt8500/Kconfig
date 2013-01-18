@@ -7,7 +7,6 @@ config ARCH_VT8500
 	select CLKSRC_OF
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select HAVE_CLK
 	select VT8500_TIMER
 	help
