@@ -29,7 +29,7 @@ ACPI_MODULE_NAME("platform");
  * that's the case, create and register a platform device, populate its common
  * resources and returns a pointer to it.  Otherwise, return %NULL.
  *
- * The platform device's name will be taken from the @adev's _HID and _UID.
+ * Name of the platform device will be the same as @adev's.
  */
 struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 {
