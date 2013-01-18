@@ -207,6 +207,7 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 		if (channel->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) {
 			iowrite8(CR_CMD_NEGATE_RTSN, &channel->regs->w.cr);
 			iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
+			channel->rx_enable = 1;
 		}
 	}
 
