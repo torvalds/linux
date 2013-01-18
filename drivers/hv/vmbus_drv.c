@@ -509,7 +509,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
  * can be handled concurrently.
  */
 
-void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
+static void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
 {
 	kstat_incr_irqs_this_cpu(irq, desc);
 
