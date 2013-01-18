@@ -149,6 +149,9 @@ struct worker {
 
 	/* for rebinding worker to CPU */
 	struct work_struct	rebind_work;	/* L: for busy worker */
+
+	/* used only by rescuers to point to the target workqueue */
+	struct workqueue_struct	*rescue_wq;	/* I: the workqueue to rescue */
 };
 
 struct worker_pool {
@@ -763,11 +766,19 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task,
 				       unsigned int cpu)
 {
 	struct worker *worker = kthread_data(task), *to_wakeup = NULL;
-	struct worker_pool *pool = worker->pool;
-	atomic_t *nr_running = get_pool_nr_running(pool);
+	struct worker_pool *pool;
+	atomic_t *nr_running;
 
+	/*
+	 * Rescuers, which may not have all the fields set up like normal
+	 * workers, also reach here, let's not access anything before
+	 * checking NOT_RUNNING.
+	 */
 	if (worker->flags & WORKER_NOT_RUNNING)
 		return NULL;
+
+	pool = worker->pool;
+	nr_running = get_pool_nr_running(pool);
 
 	/* this can only happen on the local cpu */
 	BUG_ON(cpu != raw_smp_processor_id());
@@ -2357,7 +2368,7 @@ sleep:
 
 /**
  * rescuer_thread - the rescuer thread function
- * @__wq: the associated workqueue
+ * @__rescuer: self
  *
  * Workqueue rescuer thread function.  There's one rescuer for each
  * workqueue which has WQ_RESCUER set.
@@ -2374,20 +2385,27 @@ sleep:
  *
  * This should happen rarely.
  */
-static int rescuer_thread(void *__wq)
+static int rescuer_thread(void *__rescuer)
 {
-	struct workqueue_struct *wq = __wq;
-	struct worker *rescuer = wq->rescuer;
+	struct worker *rescuer = __rescuer;
+	struct workqueue_struct *wq = rescuer->rescue_wq;
 	struct list_head *scheduled = &rescuer->scheduled;
 	bool is_unbound = wq->flags & WQ_UNBOUND;
 	unsigned int cpu;
 
 	set_user_nice(current, RESCUER_NICE_LEVEL);
+
+	/*
+	 * Mark rescuer as worker too.  As WORKER_PREP is never cleared, it
+	 * doesn't participate in concurrency management.
+	 */
+	rescuer->task->flags |= PF_WQ_WORKER;
 repeat:
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	if (kthread_should_stop()) {
 		__set_current_state(TASK_RUNNING);
+		rescuer->task->flags &= ~PF_WQ_WORKER;
 		return 0;
 	}
 
@@ -2431,6 +2449,8 @@ repeat:
 		spin_unlock_irq(&gcwq->lock);
 	}
 
+	/* rescuers should never participate in concurrency management */
+	WARN_ON_ONCE(!(rescuer->flags & WORKER_NOT_RUNNING));
 	schedule();
 	goto repeat;
 }
@@ -3266,7 +3286,8 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 		if (!rescuer)
 			goto err;
 
-		rescuer->task = kthread_create(rescuer_thread, wq, "%s",
+		rescuer->rescue_wq = wq;
+		rescuer->task = kthread_create(rescuer_thread, rescuer, "%s",
 					       wq->name);
 		if (IS_ERR(rescuer->task))
 			goto err;
