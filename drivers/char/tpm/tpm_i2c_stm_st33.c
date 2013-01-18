@@ -658,7 +658,8 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	err = 0;
 
 	if (client == NULL) {
-		dev_info(&client->dev, "client is NULL. exiting.\n");
+		pr_info("%s: i2c client is NULL. Device not accessible.\n",
+			__func__);
 		err = -ENODEV;
 		goto end;
 	}
@@ -677,6 +678,13 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	platform_data = client->dev.platform_data;
+
+	if (!platform_data) {
+		dev_info(&client->dev, "chip not available\n");
+		err = -ENODEV;
+		goto _tpm_clean_answer;
+	}
+
 	platform_data->tpm_i2c_buffer[0] =
 	    kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
 	if (platform_data->tpm_i2c_buffer[0] == NULL) {
@@ -759,7 +767,6 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tpm_get_timeouts(chip);
 
 	i2c_set_clientdata(client, chip);
-	platform_data->bChipF = false;
 
 	dev_info(chip->dev, "TPM I2C Initialized\n");
 	return 0;
@@ -779,7 +786,6 @@ _tpm_clean_response1:
 	platform_data->tpm_i2c_buffer[0] = NULL;
 _tpm_clean_answer:
 	tpm_remove_hardware(chip->dev);
-	platform_data->bChipF = true;
 end:
 	pr_info("TPM I2C initialisation fail\n");
 	return err;
@@ -803,8 +809,8 @@ static __devexit int tpm_st33_i2c_remove(struct i2c_client *client)
 		gpio_free(pin_infos->io_serirq);
 		gpio_free(pin_infos->io_lpcpd);
 
-		if (pin_infos->bChipF != true)
-			tpm_remove_hardware(chip->dev);
+		tpm_remove_hardware(chip->dev);
+
 		if (pin_infos->tpm_i2c_buffer[1] != NULL) {
 			kzfree(pin_infos->tpm_i2c_buffer[1]);
 			pin_infos->tpm_i2c_buffer[1] = NULL;

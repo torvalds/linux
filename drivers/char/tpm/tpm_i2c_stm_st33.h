@@ -53,7 +53,6 @@ struct st33zp24_platform_data {
 	int io_serirq;
 	int io_lpcpd;
 	struct i2c_client *client;
-	bool bChipF;
 	u8 *tpm_i2c_buffer[2]; /* 0 Request 1 Response */
 	struct completion irq_detection;
 	struct mutex lock;
