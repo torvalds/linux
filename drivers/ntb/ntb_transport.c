@@ -217,7 +217,7 @@ struct bus_type ntb_bus_type = {
 
 static LIST_HEAD(ntb_transport_list);
 
-static int __devinit ntb_bus_init(struct ntb_transport *nt)
+static int ntb_bus_init(struct ntb_transport *nt)
 {
 	if (list_empty(&ntb_transport_list)) {
 		int rc = bus_register(&ntb_bus_type);
@@ -230,7 +230,7 @@ static int __devinit ntb_bus_init(struct ntb_transport *nt)
 	return 0;
 }
 
-static void __devexit ntb_bus_remove(struct ntb_transport *nt)
+static void ntb_bus_remove(struct ntb_transport *nt)
 {
 	struct ntb_transport_client_dev *client_dev, *cd;
 

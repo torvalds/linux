@@ -637,7 +637,7 @@ static int ntb_bwd_setup(struct ntb_device *ndev)
 	return 0;
 }
 
-static int __devinit ntb_device_setup(struct ntb_device *ndev)
+static int ntb_device_setup(struct ntb_device *ndev)
 {
 	int rc;
 
@@ -909,7 +909,7 @@ static int ntb_setup_intx(struct ntb_device *ndev)
 	return 0;
 }
 
-static int __devinit ntb_setup_interrupts(struct ntb_device *ndev)
+static int ntb_setup_interrupts(struct ntb_device *ndev)
 {
 	int rc;
 
@@ -943,7 +943,7 @@ done:
 	return 0;
 }
 
-static void __devexit ntb_free_interrupts(struct ntb_device *ndev)
+static void ntb_free_interrupts(struct ntb_device *ndev)
 {
 	struct pci_dev *pdev = ndev->pdev;
 
@@ -973,7 +973,7 @@ static void __devexit ntb_free_interrupts(struct ntb_device *ndev)
 	}
 }
 
-static int __devinit ntb_create_callbacks(struct ntb_device *ndev)
+static int ntb_create_callbacks(struct ntb_device *ndev)
 {
 	int i;
 
@@ -1006,9 +1006,7 @@ static void ntb_free_callbacks(struct ntb_device *ndev)
 	kfree(ndev->db_cb);
 }
 
-static int __devinit
-ntb_pci_probe(struct pci_dev *pdev,
-	      __attribute__((unused)) const struct pci_device_id *id)
+static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ntb_device *ndev;
 	int rc, i;
@@ -1122,7 +1120,7 @@ err:
 	return rc;
 }
 
-static void __devexit ntb_pci_remove(struct pci_dev *pdev)
+static void ntb_pci_remove(struct pci_dev *pdev)
 {
 	struct ntb_device *ndev = pci_get_drvdata(pdev);
 	int i;
@@ -1152,6 +1150,6 @@ static struct pci_driver ntb_pci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ntb_pci_tbl,
 	.probe = ntb_pci_probe,
-	.remove = __devexit_p(ntb_pci_remove),
+	.remove = ntb_pci_remove,
 };
 module_pci_driver(ntb_pci_driver);

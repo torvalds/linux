@@ -323,7 +323,7 @@ static const struct ntb_queue_handlers ntb_netdev_handlers = {
 	.event_handler = ntb_netdev_event_handler,
 };
 
-static int __devinit ntb_netdev_probe(struct pci_dev *pdev)
+static int ntb_netdev_probe(struct pci_dev *pdev)
 {
 	struct net_device *ndev;
 	struct ntb_netdev *dev;
