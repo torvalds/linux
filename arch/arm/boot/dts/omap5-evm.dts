@@ -16,7 +16,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>; /* 2 GB */
+		reg = <0x80000000 0x7F000000>; /* 2032 MB */
 	};
 
 	vmmcsd_fixed: fixedregulator-mmcsd {
