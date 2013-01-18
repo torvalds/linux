@@ -136,6 +136,22 @@ static int __init elevator_setup(char *str)
 
 __setup("elevator=", elevator_setup);
 
+/* called during boot to load the elevator chosen by the elevator param */
+void __init load_default_elevator_module(void)
+{
+	struct elevator_type *e;
+
+	if (!chosen_elevator[0])
+		return;
+
+	spin_lock(&elv_list_lock);
+	e = elevator_find(chosen_elevator);
+	spin_unlock(&elv_list_lock);
+
+	if (!e)
+		request_module("%s-iosched", chosen_elevator);
+}
+
 static struct kobj_type elv_ktype;
 
 static struct elevator_queue *elevator_alloc(struct request_queue *q,
