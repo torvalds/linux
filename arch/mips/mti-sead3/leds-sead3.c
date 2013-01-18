@@ -125,4 +125,3 @@ module_exit(sead3_led_exit);
 MODULE_AUTHOR("Kristian Kielhofner <kris@krisk.org>");
 MODULE_DESCRIPTION("SEAD3 LED driver");
 MODULE_LICENSE("GPL");
-
