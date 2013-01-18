@@ -1288,7 +1288,7 @@ void gserial_disconnect(struct gserial *gser)
 }
 EXPORT_SYMBOL_GPL(gserial_disconnect);
 
-int userial_init(void)
+static int userial_init(void)
 {
 	unsigned			i;
 	int				status;

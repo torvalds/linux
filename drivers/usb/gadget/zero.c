@@ -63,7 +63,7 @@ static const char longname[] = "Gadget Zero";
 static bool loopdefault = 0;
 module_param(loopdefault, bool, S_IRUGO|S_IWUSR);
 
-struct usb_zero_options gzero_options = {
+static struct usb_zero_options gzero_options = {
 	.isoc_interval = 4,
 	.isoc_maxpacket = 1024,
 	.bulk_buflen = 4096,
