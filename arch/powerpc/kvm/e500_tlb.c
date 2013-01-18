@@ -432,7 +432,7 @@ static inline void kvmppc_e500_setup_stlbe(
 #endif
 }
 
-static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
+static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	u64 gvaddr, gfn_t gfn, struct kvm_book3e_206_tlb_entry *gtlbe,
 	int tlbsel, struct kvm_book3e_206_tlb_entry *stlbe,
 	struct tlbe_ref *ref)
@@ -551,7 +551,7 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		if (is_error_noslot_pfn(pfn)) {
 			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
 					(long)gfn);
-			return;
+			return -EINVAL;
 		}
 
 		/* Align guest and physical address to page map boundaries */
@@ -571,22 +571,33 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	/* Drop refcount on page, so that mmu notifiers can clear it */
 	kvm_release_pfn_clean(pfn);
+
+	return 0;
 }
 
 /* XXX only map the one-one case, for now use TLB0 */
-static void kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500,
-				 int esel,
-				 struct kvm_book3e_206_tlb_entry *stlbe)
+static int kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500,
+				int esel,
+				struct kvm_book3e_206_tlb_entry *stlbe)
 {
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 	struct tlbe_ref *ref;
+	int stlbsel = 0;
+	int sesel = 0;
+	int r;
 
 	gtlbe = get_entry(vcpu_e500, 0, esel);
 	ref = &vcpu_e500->gtlb_priv[0][esel].ref;
 
-	kvmppc_e500_shadow_map(vcpu_e500, get_tlb_eaddr(gtlbe),
+	r = kvmppc_e500_shadow_map(vcpu_e500, get_tlb_eaddr(gtlbe),
 			get_tlb_raddr(gtlbe) >> PAGE_SHIFT,
 			gtlbe, 0, stlbe, ref);
+	if (r)
+		return r;
+
+	write_stlbe(vcpu_e500, gtlbe, stlbe, stlbsel, sesel);
+
+	return 0;
 }
 
 /* Caller must ensure that the specified guest TLB entry is safe to insert into
@@ -597,25 +608,32 @@ static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		struct kvm_book3e_206_tlb_entry *stlbe, int esel)
 {
 	struct tlbe_ref *ref;
-	unsigned int victim;
+	unsigned int sesel;
+	int r;
+	int stlbsel = 1;
 
-	victim = vcpu_e500->host_tlb1_nv++;
+	sesel = vcpu_e500->host_tlb1_nv++;
 
 	if (unlikely(vcpu_e500->host_tlb1_nv >= tlb1_max_shadow_size()))
 		vcpu_e500->host_tlb1_nv = 0;
 
-	ref = &vcpu_e500->tlb_refs[1][victim];
-	kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1, stlbe, ref);
+	ref = &vcpu_e500->tlb_refs[1][sesel];
+	r = kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1, stlbe,
+				   ref);
+	if (r)
+		return r;
 
-	vcpu_e500->g2h_tlb1_map[esel] |= (u64)1 << victim;
+	vcpu_e500->g2h_tlb1_map[esel] |= (u64)1 << sesel;
 	vcpu_e500->gtlb_priv[1][esel].ref.flags |= E500_TLB_BITMAP;
-	if (vcpu_e500->h2g_tlb1_rmap[victim]) {
-		unsigned int idx = vcpu_e500->h2g_tlb1_rmap[victim];
-		vcpu_e500->g2h_tlb1_map[idx] &= ~(1ULL << victim);
+	if (vcpu_e500->h2g_tlb1_rmap[sesel]) {
+		unsigned int idx = vcpu_e500->h2g_tlb1_rmap[sesel];
+		vcpu_e500->g2h_tlb1_map[idx] &= ~(1ULL << sesel);
 	}
-	vcpu_e500->h2g_tlb1_rmap[victim] = esel;
+	vcpu_e500->h2g_tlb1_rmap[sesel] = esel;
 
-	return victim;
+	write_stlbe(vcpu_e500, gtlbe, stlbe, stlbsel, sesel);
+
+	return 0;
 }
 
 static void kvmppc_recalc_tlb1map_range(struct kvmppc_vcpu_e500 *vcpu_e500)
@@ -1034,30 +1052,27 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 	struct kvm_book3e_206_tlb_entry *gtlbe, stlbe;
 	int tlbsel = tlbsel_of(index);
 	int esel = esel_of(index);
-	int stlbsel, sesel;
 
 	gtlbe = get_entry(vcpu_e500, tlbsel, esel);
 
 	switch (tlbsel) {
 	case 0:
-		stlbsel = 0;
-		sesel = 0; /* unused */
 		priv = &vcpu_e500->gtlb_priv[tlbsel][esel];
 
-		/* Only triggers after clear_tlb_refs */
-		if (unlikely(!(priv->ref.flags & E500_TLB_VALID)))
+		/* Triggers after clear_tlb_refs or on initial mapping */
+		if (!(priv->ref.flags & E500_TLB_VALID)) {
 			kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
-		else
+		} else {
 			kvmppc_e500_setup_stlbe(vcpu, gtlbe, BOOK3E_PAGESZ_4K,
 						&priv->ref, eaddr, &stlbe);
+			write_stlbe(vcpu_e500, gtlbe, &stlbe, 0, 0);
+		}
 		break;
 
 	case 1: {
 		gfn_t gfn = gpaddr >> PAGE_SHIFT;
-
-		stlbsel = 1;
-		sesel = kvmppc_e500_tlb1_map(vcpu_e500, eaddr, gfn,
-					     gtlbe, &stlbe, esel);
+		kvmppc_e500_tlb1_map(vcpu_e500, eaddr, gfn, gtlbe, &stlbe,
+				     esel);
 		break;
 	}
 
@@ -1065,8 +1080,6 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 		BUG();
 		break;
 	}
-
-	write_stlbe(vcpu_e500, gtlbe, &stlbe, stlbsel, sesel);
 }
 
 /************* MMU Notifiers *************/
