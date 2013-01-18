@@ -723,6 +723,7 @@ struct dwc3 {
 
 	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
+	struct debugfs_regset32	*regset;
 
 	u8			test_mode;
 	u8			test_mode_nr;
