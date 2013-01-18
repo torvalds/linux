@@ -2735,26 +2735,22 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
-			 "PF still in reset state, assigning new address."
-			 " Is the PF interface up?\n");
-		eth_hw_addr_random(netdev);
-		memcpy(adapter->hw.mac.addr, netdev->dev_addr,
-			netdev->addr_len);
+			 "PF still in reset state. Is the PF interface up?\n");
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
-		if (err) {
-			dev_err(&pdev->dev, "Error reading MAC address\n");
-			goto err_hw_init;
-		}
+		if (err)
+			dev_info(&pdev->dev, "Error reading MAC address.\n");
+		else if (is_zero_ether_addr(adapter->hw.mac.addr))
+			dev_info(&pdev->dev, "MAC address not assigned by administrator.\n");
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-			netdev->addr_len);
+		       netdev->addr_len);
 	}
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
-		        netdev->dev_addr);
-		err = -EIO;
-		goto err_hw_init;
+		dev_info(&pdev->dev, "Assigning random MAC address.\n");
+		eth_hw_addr_random(netdev);
+		memcpy(adapter->hw.mac.addr, netdev->dev_addr,
+			netdev->addr_len);
 	}
 
 	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
