@@ -82,6 +82,28 @@ static void __ic_line_inv_4_alias(unsigned long, int);
 static void (*___flush_icache_rtn) (unsigned long, int);
 #endif
 
+char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
+{
+	int n = 0;
+	unsigned int c = smp_processor_id();
+
+#define PR_CACHE(p, enb, str)						\
+{									\
+	if (!(p)->ver)							\
+		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
+	else								\
+		n += scnprintf(buf + n, len - n,			\
+			str"\t\t: (%uK) VIPT, %dway set-asc, %ub Line %s\n", \
+			TO_KB((p)->sz), (p)->assoc, (p)->line_len,	\
+			enb ?  "" : "DISABLED (kernel-build)");		\
+}
+
+	PR_CACHE(&cpuinfo_arc700[c].icache, __CONFIG_ARC_HAS_ICACHE, "I-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].dcache, __CONFIG_ARC_HAS_DCACHE, "D-Cache");
+
+	return buf;
+}
+
 /*
  * Read the Cache Build Confuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
@@ -132,9 +154,28 @@ void __init arc_cache_init(void)
 	struct cpuinfo_arc_cache *dc;
 #endif
 	int way_pg_ratio = way_pg_ratio;
+	char str[256];
+
+	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
 #ifdef CONFIG_ARC_HAS_ICACHE
 	ic = &cpuinfo_arc700[cpu].icache;
+
+	/* 1. Confirm some of I-cache params which Linux assumes */
+	if ((ic->assoc != ARC_ICACHE_WAYS) ||
+	    (ic->line_len != ARC_ICACHE_LINE_LEN)) {
+		panic("Cache H/W doesn't match kernel Config");
+	}
+#if (CONFIG_ARC_MMU_VER > 2)
+	if (ic->ver != 3) {
+		if (running_on_hw)
+			panic("Cache ver doesn't match MMU ver\n");
+
+		/* For ISS - suggest the toggles to use */
+		pr_err("Use -prop=icache_version=3,-prop=dcache_version=3\n");
+
+	}
+#endif
 
 	/*
 	 * if Cache way size is <= page size then no aliasing exhibited
@@ -174,6 +215,11 @@ void __init arc_cache_init(void)
 
 #ifdef CONFIG_ARC_HAS_DCACHE
 	dc = &cpuinfo_arc700[cpu].dcache;
+
+	if ((dc->assoc != ARC_DCACHE_WAYS) ||
+	    (dc->line_len != ARC_DCACHE_LINE_LEN)) {
+		panic("Cache H/W doesn't match kernel Config");
+	}
 
 	/* check for D-Cache aliasing */
 	if ((dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE)

@@ -463,8 +463,46 @@ void __init read_decode_mmu_bcr(void)
 	mmu->num_tlb = mmu->sets * mmu->ways;
 }
 
+char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
+{
+	int n = 0;
+	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+
+	n += scnprintf(buf + n, len - n, "ARC700 MMU [v%x]\t: %dk PAGE, ",
+		       p_mmu->ver, TO_KB(p_mmu->pg_sz));
+
+	n += scnprintf(buf + n, len - n,
+		       "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",
+		       p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
+		       p_mmu->u_dtlb, p_mmu->u_itlb,
+		       __CONFIG_ARC_MMU_SASID_VAL ? "SASID" : "");
+
+	return buf;
+}
+
 void __init arc_mmu_init(void)
 {
+	char str[256];
+	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+
+	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
+
+	/* For efficiency sake, kernel is compile time built for a MMU ver
+	 * This must match the hardware it is running on.
+	 * Linux built for MMU V2, if run on MMU V1 will break down because V1
+	 *  hardware doesn't understand cmds such as WriteNI, or IVUTLB
+	 * On the other hand, Linux built for V1 if run on MMU V2 will do
+	 *   un-needed workarounds to prevent memcpy thrashing.
+	 * Similarly MMU V3 has new features which won't work on older MMU
+	 */
+	if (mmu->ver != CONFIG_ARC_MMU_VER) {
+		panic("MMU ver %d doesn't match kernel built for %d...\n",
+		      mmu->ver, CONFIG_ARC_MMU_VER);
+	}
+
+	if (mmu->pg_sz != PAGE_SIZE)
+		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
+
 	/*
 	 * ASID mgmt data structures are compile time init
 	 *  asid_cache = FIRST_ASID and asid_mm_map[] all zeroes

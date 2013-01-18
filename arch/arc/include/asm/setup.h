@@ -13,6 +13,20 @@
 
 #define COMMAND_LINE_SIZE 256
 
+/*
+ * Data structure to map a ID to string
+ * Used a lot for bootup reporting of hardware diversity
+ */
+struct id_to_str {
+	int id;
+	const char *str;
+};
+
+struct cpuinfo_data {
+	struct id_to_str info;
+	int up_range;
+};
+
 extern int root_mountflags, end_mem;
 extern int running_on_hw;
 

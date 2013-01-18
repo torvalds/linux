@@ -12,8 +12,26 @@
 #ifdef __KERNEL__
 
 /* Build Configuration Registers */
+#define ARC_REG_DCCMBASE_BCR	0x61	/* DCCM Base Addr */
+#define ARC_REG_CRC_BCR		0x62
+#define ARC_REG_DVFB_BCR	0x64
+#define ARC_REG_EXTARITH_BCR	0x65
 #define ARC_REG_VECBASE_BCR	0x68
+#define ARC_REG_PERIBASE_BCR	0x69
+#define ARC_REG_FP_BCR		0x6B	/* Single-Precision FPU */
+#define ARC_REG_DPFP_BCR	0x6C	/* Dbl Precision FPU */
 #define ARC_REG_MMU_BCR		0x6f
+#define ARC_REG_DCCM_BCR	0x74	/* DCCM Present + SZ */
+#define ARC_REG_TIMERS_BCR	0x75
+#define ARC_REG_ICCM_BCR	0x78
+#define ARC_REG_XY_MEM_BCR	0x79
+#define ARC_REG_MAC_BCR		0x7a
+#define ARC_REG_MUL_BCR		0x7b
+#define ARC_REG_SWAP_BCR	0x7c
+#define ARC_REG_NORM_BCR	0x7d
+#define ARC_REG_MIXMAX_BCR	0x7e
+#define ARC_REG_BARREL_BCR	0x7f
+#define ARC_REG_D_UNCACH_BCR	0x6A
 
 /* status32 Bits Positions */
 #define STATUS_H_BIT		0	/* CPU Halted */
@@ -87,16 +105,6 @@
 
 #define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
 #define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
-
-#if defined(CONFIG_ARC_MMU_V1)
-#define CONFIG_ARC_MMU_VER 1
-#elif defined(CONFIG_ARC_MMU_V2)
-#define CONFIG_ARC_MMU_VER 2
-#elif defined(CONFIG_ARC_MMU_V3)
-#define CONFIG_ARC_MMU_VER 3
-#else
-#error "Error: MMU ver"
-#endif
 
 /* MMU Management regs */
 #define ARC_REG_TLBPD0		0x405
@@ -277,6 +285,13 @@ struct arc_fpu {
  ***************************************************************
  * Build Configuration Registers, with encoded hardware config
  */
+struct bcr_identity {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int chip_id:16, cpu_id:8, family:8;
+#else
+	unsigned int family:8, cpu_id:8, chip_id:16;
+#endif
+};
 
 struct bcr_mmu_1_2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -296,11 +311,85 @@ struct bcr_mmu_3 {
 #endif
 };
 
+#define EXTN_SWAP_VALID     0x1
+#define EXTN_NORM_VALID     0x2
+#define EXTN_MINMAX_VALID   0x2
+#define EXTN_BARREL_VALID   0x2
+
+struct bcr_extn {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:20, crc:1, ext_arith:2, mul:2, barrel:2, minmax:2,
+		     norm:2, swap:1;
+#else
+	unsigned int swap:1, norm:2, minmax:2, barrel:2, mul:2, ext_arith:2,
+		     crc:1, pad:20;
+#endif
+};
+
+/* DSP Options Ref Manual */
+struct bcr_extn_mac_mul {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:16, type:8, ver:8;
+#else
+	unsigned int ver:8, type:8, pad:16;
+#endif
+};
+
+struct bcr_extn_xymem {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ram_org:2, num_banks:4, bank_sz:4, ver:8;
+#else
+	unsigned int ver:8, bank_sz:4, num_banks:4, ram_org:2;
+#endif
+};
+
 struct bcr_cache {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
 #else
 	unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+};
+
+struct bcr_perip {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int start:8, pad2:8, sz:8, pad:8;
+#else
+	unsigned int pad:8, sz:8, pad2:8, start:8;
+#endif
+};
+struct bcr_iccm {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int base:16, pad:5, sz:3, ver:8;
+#else
+	unsigned int ver:8, sz:3, pad:5, base:16;
+#endif
+};
+
+/* DCCM Base Address Register: ARC_REG_DCCMBASE_BCR */
+struct bcr_dccm_base {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int addr:24, ver:8;
+#else
+	unsigned int ver:8, addr:24;
+#endif
+};
+
+/* DCCM RAM Configuration Register: ARC_REG_DCCM_BCR */
+struct bcr_dccm {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int res:21, sz:3, ver:8;
+#else
+	unsigned int ver:8, sz:3, res:21;
+#endif
+};
+
+/* Both SP and DP FPU BCRs have same format */
+struct bcr_fp {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int fast:1, ver:8;
+#else
+	unsigned int ver:8, fast:1;
 #endif
 };
 
@@ -317,9 +406,22 @@ struct cpuinfo_arc_cache {
 	unsigned int has_aliasing, sz, line_len, assoc, ver;
 };
 
+struct cpuinfo_arc_ccm {
+	unsigned int base_addr, sz;
+};
+
 struct cpuinfo_arc {
 	struct cpuinfo_arc_cache icache, dcache;
 	struct cpuinfo_arc_mmu mmu;
+	struct bcr_identity core;
+	unsigned int timers;
+	unsigned int vec_base;
+	unsigned int uncached_base;
+	struct cpuinfo_arc_ccm iccm, dccm;
+	struct bcr_extn extn;
+	struct bcr_extn_xymem extn_xymem;
+	struct bcr_extn_mac_mul extn_mac_mul;
+	struct bcr_fp fp, dpfp;
 };
 
 extern struct cpuinfo_arc cpuinfo_arc700[];

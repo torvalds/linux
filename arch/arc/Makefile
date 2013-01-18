@@ -20,6 +20,8 @@ export PLATFORM
 cflags-y	+= -Iarch/arc/plat-$(PLATFORM)/include
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 
+LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h
+
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
 # We had a customer reported bug where some code built in kernel was NOT using
