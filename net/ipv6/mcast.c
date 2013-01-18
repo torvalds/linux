@@ -1391,7 +1391,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	icmpv6_flow_init(net->ipv6.igmp_sk, &fl6, ICMPV6_MLD2_REPORT,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
-	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
+	dst = icmp6_dst_alloc(skb->dev, &fl6);
 
 	err = 0;
 	if (IS_ERR(dst)) {
@@ -1759,7 +1759,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	icmpv6_flow_init(sk, &fl6, type,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
-	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
+	dst = icmp6_dst_alloc(skb->dev, &fl6);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto err_out;

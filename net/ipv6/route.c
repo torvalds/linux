@@ -1203,7 +1203,6 @@ static struct dst_entry *icmp6_dst_gc_list;
 static DEFINE_SPINLOCK(icmp6_dst_lock);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
-				  struct neighbour *neigh,
 				  struct flowi6 *fl6)
 {
 	struct dst_entry *dst;

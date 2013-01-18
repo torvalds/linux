@@ -432,7 +432,6 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 }
 
 static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
-			   struct neighbour *neigh,
 			   const struct in6_addr *daddr,
 			   const struct in6_addr *saddr,
 			   struct icmp6hdr *icmp6h)
@@ -448,7 +447,7 @@ static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
 	type = icmp6h->icmp6_type;
 
 	icmpv6_flow_init(sk, &fl6, type, saddr, daddr, dev->ifindex);
-	dst = icmp6_dst_alloc(dev, neigh, &fl6);
+	dst = icmp6_dst_alloc(dev, &fl6);
 	if (IS_ERR(dst)) {
 		kfree_skb(skb);
 		return;
@@ -474,7 +473,6 @@ static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
  *	Send a Neighbour Discover packet
  */
 static void __ndisc_send(struct net_device *dev,
-			 struct neighbour *neigh,
 			 const struct in6_addr *daddr,
 			 const struct in6_addr *saddr,
 			 struct icmp6hdr *icmp6h, const struct in6_addr *target,
@@ -486,7 +484,7 @@ static void __ndisc_send(struct net_device *dev,
 	if (!skb)
 		return;
 
-	ndisc_send_skb(skb, dev, neigh, daddr, saddr, icmp6h);
+	ndisc_send_skb(skb, dev, daddr, saddr, icmp6h);
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
@@ -521,8 +519,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	icmp6h.icmp6_solicited = solicited;
 	icmp6h.icmp6_override = override;
 
-	__ndisc_send(dev, neigh, daddr, src_addr,
-		     &icmp6h, solicited_addr,
+	__ndisc_send(dev, daddr, src_addr, &icmp6h, solicited_addr,
 		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0);
 }
 
@@ -563,8 +560,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		saddr = &addr_buf;
 	}
 
-	__ndisc_send(dev, neigh, daddr, saddr,
-		     &icmp6h, solicit,
+	__ndisc_send(dev, daddr, saddr, &icmp6h, solicit,
 		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
 
@@ -598,8 +594,7 @@ void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
 		}
 	}
 #endif
-	__ndisc_send(dev, NULL, daddr, saddr,
-		     &icmp6h, NULL,
+	__ndisc_send(dev, daddr, saddr, &icmp6h, NULL,
 		     send_sllao ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
 
