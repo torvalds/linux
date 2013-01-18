@@ -811,6 +811,15 @@ config NETFILTER_XT_MATCH_ADDRTYPE
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_BPF
+	tristate '"bpf" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  BPF matching applies a linux socket filter to each packet and
+	  accepts those for which the filter returns non-zero.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
 	depends on NF_CONNTRACK
