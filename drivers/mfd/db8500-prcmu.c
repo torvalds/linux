@@ -2212,21 +2212,25 @@ int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 			    sleep_auto_off ? A9WDOG_AUTO_OFF_EN :
 			    A9WDOG_AUTO_OFF_DIS);
 }
+EXPORT_SYMBOL(db8500_prcmu_config_a9wdog);
 
 int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_EN, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_enable_a9wdog);
 
 int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_DIS, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_disable_a9wdog);
 
 int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_KICK, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_kick_a9wdog);
 
 /*
  * timeout is 28 bit, in ms.
@@ -2244,6 +2248,7 @@ int db8500_prcmu_load_a9wdog(u8 id, u32 timeout)
 			    (u8)((timeout >> 12) & 0xff),
 			    (u8)((timeout >> 20) & 0xff));
 }
+EXPORT_SYMBOL(db8500_prcmu_load_a9wdog);
 
 /**
  * prcmu_abb_read() - Read register value(s) from the ABB.
