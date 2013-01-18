@@ -1767,6 +1767,24 @@ DEFINE_EVENT(wiphy_wdev_evt, rdev_stop_p2p_device,
 	TP_ARGS(wiphy, wdev)
 );
 
+TRACE_EVENT(rdev_set_mac_acl,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_acl_data *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(u32, acl_policy)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WIPHY_ASSIGN;
+		__entry->acl_policy = params->acl_policy;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", acl policy: %d",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->acl_policy)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
