@@ -3138,7 +3138,7 @@ static int parse_mic_boost(struct hda_codec *codec)
 			continue;
 
 		/* check only line-in and mic pins */
-		if (cfg->inputs[idx].type > AUTO_PIN_MIC)
+		if (cfg->inputs[idx].type > AUTO_PIN_LINE_IN)
 			continue;
 
 		path = get_input_path(codec, 0, i);
