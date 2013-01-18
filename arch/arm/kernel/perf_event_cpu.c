@@ -277,17 +277,22 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (ret) {
-		pr_info("failed to register PMU devices!");
-		kfree(pmu);
-		return ret;
+		pr_info("failed to probe PMU!");
+		goto out_free;
 	}
 
 	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
-	armpmu_register(cpu_pmu, PERF_TYPE_RAW);
+	ret = armpmu_register(cpu_pmu, PERF_TYPE_RAW);
 
-	return 0;
+	if (!ret)
+		return 0;
+
+out_free:
+	pr_info("failed to register PMU devices!");
+	kfree(pmu);
+	return ret;
 }
 
 static struct platform_driver cpu_pmu_driver = {
