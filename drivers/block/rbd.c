@@ -170,7 +170,9 @@ typedef void (*rbd_img_callback_t)(struct rbd_img_request *);
 struct rbd_obj_request;
 typedef void (*rbd_obj_callback_t)(struct rbd_obj_request *);
 
-enum obj_request_type { OBJ_REQUEST_BIO, OBJ_REQUEST_PAGES };
+enum obj_request_type {
+	OBJ_REQUEST_NODATA, OBJ_REQUEST_BIO, OBJ_REQUEST_PAGES
+};
 
 struct rbd_obj_request {
 	const char		*object_name;
@@ -1083,6 +1085,7 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 static bool obj_request_type_valid(enum obj_request_type type)
 {
 	switch (type) {
+	case OBJ_REQUEST_NODATA:
 	case OBJ_REQUEST_BIO:
 	case OBJ_REQUEST_PAGES:
 		return true;
@@ -1306,6 +1309,12 @@ static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
 	return wait_for_completion_interruptible(&obj_request->completion);
 }
 
+static void rbd_osd_trivial_callback(struct rbd_obj_request *obj_request,
+				struct ceph_osd_op *op)
+{
+	atomic_set(&obj_request->done, 1);
+}
+
 static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 {
 	if (obj_request->callback)
@@ -1500,6 +1509,9 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	case CEPH_OSD_OP_WRITE:
 		rbd_osd_write_callback(obj_request, op);
 		break;
+	case CEPH_OSD_OP_WATCH:
+		rbd_osd_trivial_callback(obj_request, op);
+		break;
 	default:
 		rbd_warn(NULL, "%s: unsupported op %hu\n",
 			obj_request->object_name, (unsigned short) opcode);
@@ -1543,6 +1555,8 @@ static struct ceph_osd_request *rbd_osd_req_create(
 
 	rbd_assert(obj_request_type_valid(obj_request->type));
 	switch (obj_request->type) {
+	case OBJ_REQUEST_NODATA:
+		break;		/* Nothing to do */
 	case OBJ_REQUEST_BIO:
 		rbd_assert(obj_request->bio_list != NULL);
 		osd_req->r_bio = obj_request->bio_list;
@@ -1635,6 +1649,8 @@ static void rbd_obj_request_destroy(struct kref *kref)
 
 	rbd_assert(obj_request_type_valid(obj_request->type));
 	switch (obj_request->type) {
+	case OBJ_REQUEST_NODATA:
+		break;		/* Nothing to do */
 	case OBJ_REQUEST_BIO:
 		if (obj_request->bio_list)
 			bio_chain_put(obj_request->bio_list);
@@ -1860,6 +1876,72 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 	}
 
 	return 0;
+}
+
+/*
+ * Request sync osd watch/unwatch.  The value of "start" determines
+ * whether a watch request is being initiated or torn down.
+ */
+static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct rbd_obj_request *obj_request;
+	struct ceph_osd_req_op *op;
+	int ret;
+
+	rbd_assert(start ^ !!rbd_dev->watch_event);
+	rbd_assert(start ^ !!rbd_dev->watch_request);
+
+	if (start) {
+		ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0, rbd_dev,
+						&rbd_dev->watch_event);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = -ENOMEM;
+	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
+							OBJ_REQUEST_NODATA);
+	if (!obj_request)
+		goto out_cancel;
+
+	op = rbd_osd_req_op_create(CEPH_OSD_OP_WATCH,
+				rbd_dev->watch_event->cookie,
+				rbd_dev->header.obj_version, start);
+	if (!op)
+		goto out_cancel;
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true,
+							obj_request, op);
+	rbd_osd_req_op_destroy(op);
+	if (!obj_request->osd_req)
+		goto out_cancel;
+
+	if (start) {
+		rbd_dev->watch_request = obj_request->osd_req;
+		ceph_osdc_set_request_linger(osdc, rbd_dev->watch_request);
+	}
+	ret = rbd_obj_request_submit(osdc, obj_request);
+	if (ret)
+		goto out_cancel;
+	ret = rbd_obj_request_wait(obj_request);
+	if (ret)
+		goto out_cancel;
+
+	ret = obj_request->result;
+	if (ret)
+		goto out_cancel;
+
+	if (start)
+		goto done;	/* Done if setting up the watch request */
+out_cancel:
+	/* Cancel the event if we're tearing down, or on error */
+	ceph_osdc_cancel_event(rbd_dev->watch_event);
+	rbd_dev->watch_event = NULL;
+done:
+	if (obj_request)
+		rbd_obj_request_put(obj_request);
+
+	return ret;
 }
 
 static void rbd_request_fn(struct request_queue *q)
@@ -3879,7 +3961,8 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_bus;
 
-	ret = rbd_req_sync_watch(rbd_dev, 1);
+	(void) rbd_req_sync_watch;	/* avoid a warning */
+	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
 	if (ret)
 		goto err_out_bus;
 
@@ -4042,7 +4125,7 @@ static void rbd_dev_release(struct device *dev)
 						    rbd_dev->watch_request);
 	}
 	if (rbd_dev->watch_event)
-		rbd_req_sync_watch(rbd_dev, 0);
+		rbd_dev_header_watch_sync(rbd_dev, 0);
 
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
