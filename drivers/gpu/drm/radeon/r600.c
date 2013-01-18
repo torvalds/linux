@@ -94,6 +94,12 @@ MODULE_FIRMWARE("radeon/SUMO_me.bin");
 MODULE_FIRMWARE("radeon/SUMO2_pfp.bin");
 MODULE_FIRMWARE("radeon/SUMO2_me.bin");
 
+static const u32 crtc_offsets[2] =
+{
+	0,
+	AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL
+};
+
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
 /* r600,rv610,rv630,rv620,rv635,rv670 */
@@ -1286,27 +1292,110 @@ static void r600_print_gpu_status_regs(struct radeon_device *rdev)
 		RREG32(DMA_STATUS_REG));
 }
 
-static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
+static bool r600_is_display_hung(struct radeon_device *rdev)
+{
+	u32 crtc_hung = 0;
+	u32 crtc_status[2];
+	u32 i, j, tmp;
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]) & AVIVO_CRTC_EN) {
+			crtc_status[i] = RREG32(AVIVO_D1CRTC_STATUS_HV_COUNT + crtc_offsets[i]);
+			crtc_hung |= (1 << i);
+		}
+	}
+
+	for (j = 0; j < 10; j++) {
+		for (i = 0; i < rdev->num_crtc; i++) {
+			if (crtc_hung & (1 << i)) {
+				tmp = RREG32(AVIVO_D1CRTC_STATUS_HV_COUNT + crtc_offsets[i]);
+				if (tmp != crtc_status[i])
+					crtc_hung &= ~(1 << i);
+			}
+		}
+		if (crtc_hung == 0)
+			return false;
+		udelay(100);
+	}
+
+	return true;
+}
+
+static u32 r600_gpu_check_soft_reset(struct radeon_device *rdev)
+{
+	u32 reset_mask = 0;
+	u32 tmp;
+
+	/* GRBM_STATUS */
+	tmp = RREG32(R_008010_GRBM_STATUS);
+	if (rdev->family >= CHIP_RV770) {
+		if (G_008010_PA_BUSY(tmp) | G_008010_SC_BUSY(tmp) |
+		    G_008010_SH_BUSY(tmp) | G_008010_SX_BUSY(tmp) |
+		    G_008010_TA_BUSY(tmp) | G_008010_VGT_BUSY(tmp) |
+		    G_008010_DB03_BUSY(tmp) | G_008010_CB03_BUSY(tmp) |
+		    G_008010_SPI03_BUSY(tmp) | G_008010_VGT_BUSY_NO_DMA(tmp))
+			reset_mask |= RADEON_RESET_GFX;
+	} else {
+		if (G_008010_PA_BUSY(tmp) | G_008010_SC_BUSY(tmp) |
+		    G_008010_SH_BUSY(tmp) | G_008010_SX_BUSY(tmp) |
+		    G_008010_TA03_BUSY(tmp) | G_008010_VGT_BUSY(tmp) |
+		    G_008010_DB03_BUSY(tmp) | G_008010_CB03_BUSY(tmp) |
+		    G_008010_SPI03_BUSY(tmp) | G_008010_VGT_BUSY_NO_DMA(tmp))
+			reset_mask |= RADEON_RESET_GFX;
+	}
+
+	if (G_008010_CF_RQ_PENDING(tmp) | G_008010_PF_RQ_PENDING(tmp) |
+	    G_008010_CP_BUSY(tmp) | G_008010_CP_COHERENCY_BUSY(tmp))
+		reset_mask |= RADEON_RESET_CP;
+
+	if (G_008010_GRBM_EE_BUSY(tmp))
+		reset_mask |= RADEON_RESET_GRBM | RADEON_RESET_GFX | RADEON_RESET_CP;
+
+	/* DMA_STATUS_REG */
+	tmp = RREG32(DMA_STATUS_REG);
+	if (!(tmp & DMA_IDLE))
+		reset_mask |= RADEON_RESET_DMA;
+
+	/* SRBM_STATUS */
+	tmp = RREG32(R_000E50_SRBM_STATUS);
+	if (G_000E50_RLC_RQ_PENDING(tmp) | G_000E50_RLC_BUSY(tmp))
+		reset_mask |= RADEON_RESET_RLC;
+
+	if (G_000E50_IH_BUSY(tmp))
+		reset_mask |= RADEON_RESET_IH;
+
+	if (G_000E50_SEM_BUSY(tmp))
+		reset_mask |= RADEON_RESET_SEM;
+
+	if (G_000E50_GRBM_RQ_PENDING(tmp))
+		reset_mask |= RADEON_RESET_GRBM;
+
+	if (G_000E50_VMC_BUSY(tmp))
+		reset_mask |= RADEON_RESET_VMC;
+
+	if (G_000E50_MCB_BUSY(tmp) | G_000E50_MCDZ_BUSY(tmp) |
+	    G_000E50_MCDY_BUSY(tmp) | G_000E50_MCDX_BUSY(tmp) |
+	    G_000E50_MCDW_BUSY(tmp))
+		reset_mask |= RADEON_RESET_MC;
+
+	if (r600_is_display_hung(rdev))
+		reset_mask |= RADEON_RESET_DISPLAY;
+
+	return reset_mask;
+}
+
+static void r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 {
 	struct rv515_mc_save save;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
-	int ret = 0;
-
-	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE | RADEON_RESET_CP);
-
-	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
-		reset_mask &= ~RADEON_RESET_DMA;
 
 	if (reset_mask == 0)
-		return 0;
+		return;
 
 	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
 
 	r600_print_gpu_status_regs(rdev);
-
-	r600_set_bios_scratch_engine_hung(rdev, true);
 
 	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
@@ -1374,6 +1463,24 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 			srbm_soft_reset |= SOFT_RESET_DMA;
 	}
 
+	if (reset_mask & RADEON_RESET_RLC)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_RLC(1);
+
+	if (reset_mask & RADEON_RESET_SEM)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_SEM(1);
+
+	if (reset_mask & RADEON_RESET_IH)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_IH(1);
+
+	if (reset_mask & RADEON_RESET_GRBM)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_GRBM(1);
+
+	if (reset_mask & RADEON_RESET_MC)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_MC(1);
+
+	if (reset_mask & RADEON_RESET_VMC)
+		srbm_soft_reset |= S_000E60_SOFT_RESET_VMC(1);
+
 	if (grbm_soft_reset) {
 		tmp = RREG32(R_008020_GRBM_SOFT_RESET);
 		tmp |= grbm_soft_reset;
@@ -1408,32 +1515,26 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	rv515_mc_resume(rdev, &save);
 	udelay(50);
 
-#if 0
-	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE | RADEON_RESET_CP)) {
-		if (RREG32(GRBM_STATUS) & GUI_ACTIVE)
-			ret = -EAGAIN;
-	}
-
-	if (reset_mask & RADEON_RESET_DMA) {
-		if (!(RREG32(DMA_STATUS_REG) & DMA_IDLE))
-			ret = -EAGAIN;
-	}
-#endif
-
-	if (!ret)
-		r600_set_bios_scratch_engine_hung(rdev, false);
-
 	r600_print_gpu_status_regs(rdev);
-
-	return ret;
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
 {
-	return r600_gpu_soft_reset(rdev, (RADEON_RESET_GFX |
-					  RADEON_RESET_COMPUTE |
-					  RADEON_RESET_DMA |
-					  RADEON_RESET_CP));
+	u32 reset_mask;
+
+	reset_mask = r600_gpu_check_soft_reset(rdev);
+
+	if (reset_mask)
+		r600_set_bios_scratch_engine_hung(rdev, true);
+
+	r600_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = r600_gpu_check_soft_reset(rdev);
+
+	if (!reset_mask)
+		r600_set_bios_scratch_engine_hung(rdev, false);
+
+	return 0;
 }
 
 bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)

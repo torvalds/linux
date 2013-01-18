@@ -1321,6 +1321,7 @@
 #define		G_008010_VC_BUSY(x)			(((x) >> 11) & 1)
 #define		G_008010_DB03_CLEAN(x)			(((x) >> 12) & 1)
 #define		G_008010_CB03_CLEAN(x)			(((x) >> 13) & 1)
+#define		G_008010_TA_BUSY(x)			(((x) >> 14) & 1)
 #define		G_008010_VGT_BUSY_NO_DMA(x)		(((x) >> 16) & 1)
 #define		G_008010_VGT_BUSY(x)			(((x) >> 17) & 1)
 #define		G_008010_TA03_BUSY(x)			(((x) >> 18) & 1)
@@ -1388,6 +1389,7 @@
 #define		G_000E50_MCDW_BUSY(x)			(((x) >> 13) & 1)
 #define		G_000E50_SEM_BUSY(x)			(((x) >> 14) & 1)
 #define		G_000E50_RLC_BUSY(x)			(((x) >> 15) & 1)
+#define		G_000E50_IH_BUSY(x)			(((x) >> 17) & 1)
 #define		G_000E50_BIF_BUSY(x)			(((x) >> 29) & 1)
 #define	R_000E60_SRBM_SOFT_RESET			0x0E60
 #define		S_000E60_SOFT_RESET_BIF(x)		(((x) & 1) << 1)
