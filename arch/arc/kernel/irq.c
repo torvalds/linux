@@ -9,8 +9,111 @@
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <asm/irqflags.h>
-#include <asm/arcregs.h>
+#include <asm/sections.h>
+#include <asm/irq.h>
+
+/*
+ * Early Hardware specific Interrupt setup
+ * -Called very early (start_kernel -> setup_arch -> setup_processor)
+ * -Platform Independent (must for any ARC700)
+ * -Needed for each CPU (hence not foldable into init_IRQ)
+ *
+ * what it does ?
+ * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
+ * -Disable all IRQs (on CPU side)
+ */
+void __init arc_init_IRQ(void)
+{
+	int level_mask = level_mask;
+
+	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
+
+	/* Disable all IRQs: enable them as devices request */
+	write_aux_reg(AUX_IENABLE, 0);
+}
+
+/*
+ * ARC700 core includes a simple on-chip intc supporting
+ * -per IRQ enable/disable
+ * -2 levels of interrupts (high/low)
+ * -all interrupts being level triggered
+ *
+ * To reduce platform code, we assume all IRQs directly hooked-up into intc.
+ * Platforms with external intc, hence cascaded IRQs, are free to over-ride
+ * below, per IRQ.
+ */
+
+static void arc_mask_irq(struct irq_data *data)
+{
+	arch_mask_irq(data->irq);
+}
+
+static void arc_unmask_irq(struct irq_data *data)
+{
+	arch_unmask_irq(data->irq);
+}
+
+static struct irq_chip onchip_intc = {
+	.name           = "ARC In-core Intc",
+	.irq_mask	= arc_mask_irq,
+	.irq_unmask	= arc_unmask_irq,
+};
+
+void __init init_onchip_IRQ(void)
+{
+	int i;
+
+	for (i = 0; i < NR_IRQS; i++)
+		irq_set_chip_and_handler(i, &onchip_intc, handle_level_irq);
+
+#ifdef CONFIG_SMP
+	irq_set_chip_and_handler(TIMER0_IRQ, &onchip_intc, handle_percpu_irq);
+#endif
+}
+
+/*
+ * Late Interrupt system init called from start_kernel for Boot CPU only
+ *
+ * Since slab must already be initialized, platforms can start doing any
+ * needed request_irq( )s
+ */
+void __init init_IRQ(void)
+{
+	init_onchip_IRQ();
+	plat_init_IRQ();
+}
+
+/*
+ * "C" Entry point for any ARC ISR, called from low level vector handler
+ * @irq is the vector number read from ICAUSE reg of on-chip intc
+ */
+void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	irq_enter();
+	generic_handle_irq(irq);
+	irq_exit();
+	set_irq_regs(old_regs);
+}
+
+int __init get_hw_config_num_irq(void)
+{
+	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+
+	switch (val & 0x03) {
+	case 0:
+		return 16;
+	case 1:
+		return 32;
+	case 2:
+		return 8;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
 
 void arch_local_irq_enable(void)
 {

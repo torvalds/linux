@@ -11,6 +11,9 @@
 
 #ifdef __KERNEL__
 
+/* Build Configuration Registers */
+#define ARC_REG_VECBASE_BCR	0x68
+
 /* status32 Bits Positions */
 #define STATUS_H_BIT		0	/* CPU Halted */
 #define STATUS_E1_BIT		1	/* Int 1 enable */
