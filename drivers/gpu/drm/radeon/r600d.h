@@ -182,6 +182,8 @@
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC
 #define	R_0086D8_CP_ME_CNTL			0x86D8
+#define		S_0086D8_CP_PFP_HALT(x)			(((x) & 1)<<26)
+#define		C_0086D8_CP_PFP_HALT(x)			((x) & 0xFBFFFFFF)
 #define		S_0086D8_CP_ME_HALT(x)			(((x) & 1)<<28)
 #define		C_0086D8_CP_ME_HALT(x)			((x) & 0xEFFFFFFF)
 #define	CP_ME_RAM_DATA					0xC160
