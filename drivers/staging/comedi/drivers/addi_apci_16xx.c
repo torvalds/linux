@@ -74,21 +74,6 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 0);
 
-	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
-	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
-	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
-	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
-	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
-	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
-	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-		this_board->ui_MinAcquisitiontimeNs;
-	devpriv->s_EeParameters.ui_MinDelaytimeNs =
-		this_board->ui_MinDelaytimeNs;
-
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
