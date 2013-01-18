@@ -138,28 +138,23 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 			goto err_pt_alloc;
 	}
 
-	if (dev_priv->mm.gtt->needs_dmar) {
-		ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t)
-						*ppgtt->num_pd_entries,
-					     GFP_KERNEL);
-		if (!ppgtt->pt_dma_addr)
-			goto err_pt_alloc;
+	ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t) *ppgtt->num_pd_entries,
+				     GFP_KERNEL);
+	if (!ppgtt->pt_dma_addr)
+		goto err_pt_alloc;
 
-		for (i = 0; i < ppgtt->num_pd_entries; i++) {
-			dma_addr_t pt_addr;
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		dma_addr_t pt_addr;
 
-			pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i],
-					       0, 4096,
-					       PCI_DMA_BIDIRECTIONAL);
+		pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i], 0, 4096,
+				       PCI_DMA_BIDIRECTIONAL);
 
-			if (pci_dma_mapping_error(dev->pdev,
-						  pt_addr)) {
-				ret = -EIO;
-				goto err_pd_pin;
+		if (pci_dma_mapping_error(dev->pdev, pt_addr)) {
+			ret = -EIO;
+			goto err_pd_pin;
 
-			}
-			ppgtt->pt_dma_addr[i] = pt_addr;
 		}
+		ppgtt->pt_dma_addr[i] = pt_addr;
 	}
 
 	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
@@ -294,11 +289,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
-		if (dev_priv->mm.gtt->needs_dmar)
-			pt_addr = ppgtt->pt_dma_addr[i];
-		else
-			pt_addr = page_to_phys(ppgtt->pt_pages[i]);
-
+		pt_addr = ppgtt->pt_dma_addr[i];
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
 
@@ -730,16 +721,12 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		return 0;
 	}
 
-	dev_priv->mm.gtt = kzalloc(sizeof(*dev_priv->mm.gtt), GFP_KERNEL);
-	if (!dev_priv->mm.gtt)
-		return -ENOMEM;
-
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 
-#ifdef CONFIG_INTEL_IOMMU
-	dev_priv->mm.gtt->needs_dmar = 1;
-#endif
+	dev_priv->mm.gtt = kzalloc(sizeof(*dev_priv->mm.gtt), GFP_KERNEL);
+	if (!dev_priv->mm.gtt)
+		return -ENOMEM;
 
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
 	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);

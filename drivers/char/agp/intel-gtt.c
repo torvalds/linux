@@ -77,6 +77,8 @@ static struct _intel_private {
 	struct page *scratch_page;
 	phys_addr_t scratch_page_dma;
 	int refcount;
+	/* Whether i915 needs to use the dmar apis or not. */
+	unsigned int needs_dmar : 1;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -292,7 +294,7 @@ static int intel_gtt_setup_scratch_page(void)
 	get_page(page);
 	set_pages_uc(page, 1);
 
-	if (intel_private.base.needs_dmar) {
+	if (intel_private.needs_dmar) {
 		dma_addr = pci_map_page(intel_private.pcidev, page, 0,
 				    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		if (pci_dma_mapping_error(intel_private.pcidev, dma_addr))
@@ -608,7 +610,7 @@ static int intel_gtt_init(void)
 
 	intel_private.base.stolen_size = intel_gtt_stolen_size();
 
-	intel_private.base.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
+	intel_private.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
 
 	ret = intel_gtt_setup_scratch_page();
 	if (ret != 0) {
@@ -866,7 +868,7 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	if (!mem->is_flushed)
 		global_cache_flush();
 
-	if (intel_private.base.needs_dmar) {
+	if (intel_private.needs_dmar) {
 		struct sg_table st;
 
 		ret = intel_gtt_map_memory(mem->pages, mem->page_count, &st);
@@ -907,7 +909,7 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 
 	intel_gtt_clear_range(pg_start, mem->page_count);
 
-	if (intel_private.base.needs_dmar) {
+	if (intel_private.needs_dmar) {
 		intel_gtt_unmap_memory(mem->sg_list, mem->num_sg);
 		mem->sg_list = NULL;
 		mem->num_sg = 0;
