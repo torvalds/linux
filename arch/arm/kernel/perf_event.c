@@ -149,12 +149,6 @@ again:
 static void
 armpmu_read(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
-
-	/* Don't read disabled counters! */
-	if (hwc->idx < 0)
-		return;
-
 	armpmu_event_update(event);
 }
 
@@ -206,8 +200,6 @@ armpmu_del(struct perf_event *event, int flags)
 	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-
-	WARN_ON(idx < 0);
 
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
