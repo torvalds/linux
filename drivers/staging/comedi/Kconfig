@@ -626,6 +626,7 @@ config COMEDI_ADDI_APCI_16XX
 
 config COMEDI_ADDI_APCI_2032
 	tristate "ADDI-DATA APCI_2032 support"
+	select COMEDI_ADDI_WATCHDOG
 	---help---
 	  Enable support for ADDI-DATA APCI_2032 cards
 

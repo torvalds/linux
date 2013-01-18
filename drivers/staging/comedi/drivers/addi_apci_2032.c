@@ -30,6 +30,7 @@
  */
 
 #include "../comedidev.h"
+#include "addi_watchdog.h"
 #include "comedi_fc.h"
 
 /*
@@ -45,18 +46,6 @@
 #define APCI2032_STATUS_REG		0x0c
 #define APCI2032_STATUS_IRQ		(1 << 0)
 #define APCI2032_WDOG_REG		0x10
-#define APCI2032_WDOG_RELOAD_REG	0x14
-#define APCI2032_WDOG_TIMEBASE		0x18
-#define APCI2032_WDOG_CTRL_REG		0x1c
-#define APCI2032_WDOG_CTRL_ENABLE	(1 << 0)
-#define APCI2032_WDOG_CTRL_SW_TRIG	(1 << 9)
-#define APCI2032_WDOG_STATUS_REG	0x20
-#define APCI2032_WDOG_STATUS_ENABLED	(1 << 0)
-#define APCI2032_WDOG_STATUS_SW_TRIG	(1 << 1)
-
-struct apci2032_private {
-	unsigned int wdog_ctrl;
-};
 
 struct apci2032_int_private {
 	spinlock_t spinlock;
@@ -82,81 +71,6 @@ static int apci2032_do_insn_bits(struct comedi_device *dev,
 	}
 
 	data[1] = s->state;
-
-	return insn->n;
-}
-
-/*
- * The watchdog subdevice is configured with two INSN_CONFIG instructions:
- *
- * Enable the watchdog and set the reload timeout:
- *	data[0] = INSN_CONFIG_ARM
- *	data[1] = timeout reload value
- *
- * Disable the watchdog:
- *	data[0] = INSN_CONFIG_DISARM
- */
-static int apci2032_wdog_insn_config(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	struct apci2032_private *devpriv = dev->private;
-	unsigned int reload;
-
-	switch (data[0]) {
-	case INSN_CONFIG_ARM:
-		devpriv->wdog_ctrl = APCI2032_WDOG_CTRL_ENABLE;
-		reload = data[1] & s->maxdata;
-		outw(reload, dev->iobase + APCI2032_WDOG_RELOAD_REG);
-
-		/* Time base is 20ms, let the user know the timeout */
-		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
-			20 * reload + 20);
-		break;
-	case INSN_CONFIG_DISARM:
-		devpriv->wdog_ctrl = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	outw(devpriv->wdog_ctrl, dev->iobase + APCI2032_WDOG_CTRL_REG);
-
-	return insn->n;
-}
-
-static int apci2032_wdog_insn_write(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	struct apci2032_private *devpriv = dev->private;
-	int i;
-
-	if (devpriv->wdog_ctrl == 0) {
-		dev_warn(dev->class_dev, "watchdog is disabled\n");
-		return -EINVAL;
-	}
-
-	/* "ping" the watchdog */
-	for (i = 0; i < insn->n; i++) {
-		outw(devpriv->wdog_ctrl | APCI2032_WDOG_CTRL_SW_TRIG,
-			dev->iobase + APCI2032_WDOG_CTRL_REG);
-	}
-
-	return insn->n;
-}
-
-static int apci2032_wdog_insn_read(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data)
-{
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = inl(dev->iobase + APCI2032_WDOG_STATUS_REG);
 
 	return insn->n;
 }
@@ -357,8 +271,8 @@ static int apci2032_reset(struct comedi_device *dev)
 {
 	outl(0x0, dev->iobase + APCI2032_DO_REG);
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
-	outl(0x0, dev->iobase + APCI2032_WDOG_CTRL_REG);
-	outl(0x0, dev->iobase + APCI2032_WDOG_RELOAD_REG);
+
+	addi_watchdog_reset(dev->iobase + APCI2032_WDOG_REG);
 
 	return 0;
 }
@@ -367,16 +281,10 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct apci2032_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -406,13 +314,9 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[1];
-	s->type		= COMEDI_SUBD_TIMER;
-	s->subdev_flags	= SDF_WRITEABLE;
-	s->n_chan	= 1;
-	s->maxdata	= 0xff;
-	s->insn_write	= apci2032_wdog_insn_write;
-	s->insn_read	= apci2032_wdog_insn_read;
-	s->insn_config	= apci2032_wdog_insn_config;
+	ret = addi_watchdog_init(s, dev->iobase + APCI2032_WDOG_REG);
+	if (ret)
+		return ret;
 
 	/* Initialize the interrupt subdevice */
 	s = &dev->subdevices[2];
@@ -451,6 +355,8 @@ static void apci2032_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->read_subdev)
 		kfree(dev->read_subdev->private);
+	if (dev->subdevices)
+		addi_watchdog_cleanup(&dev->subdevices[1]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
