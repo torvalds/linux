@@ -191,22 +191,8 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
+
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
 	if (devpriv->s_EeParameters.i_NbrDoChannel) {
