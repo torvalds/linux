@@ -59,19 +59,30 @@ static irqreturn_t ppi_irq_err(int irq, void *dev_id)
 		 * others are W1C
 		 */
 		status = bfin_read16(&reg->status);
+		if (status & 0x3000)
+			ppi->err = true;
 		bfin_write16(&reg->status, 0xff00);
 		break;
 	}
 	case PPI_TYPE_EPPI:
 	{
 		struct bfin_eppi_regs *reg = info->base;
+		unsigned short status;
+
+		status = bfin_read16(&reg->status);
+		if (status & 0x2)
+			ppi->err = true;
 		bfin_write16(&reg->status, 0xffff);
 		break;
 	}
 	case PPI_TYPE_EPPI3:
 	{
 		struct bfin_eppi3_regs *reg = info->base;
+		unsigned long stat;
 
+		stat = bfin_read32(&reg->stat);
+		if (stat & 0x2)
+			ppi->err = true;
 		bfin_write32(&reg->stat, 0xc0ff);
 		break;
 	}

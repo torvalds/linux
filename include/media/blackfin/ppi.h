@@ -86,7 +86,8 @@ struct ppi_if {
 	unsigned long ppi_control;
 	const struct ppi_ops *ops;
 	const struct ppi_info *info;
-	bool err_int;
+	bool err_int; /* if we need request error interrupt */
+	bool err; /* if ppi has fifo error */
 	void *priv;
 };
 
