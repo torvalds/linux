@@ -45,6 +45,7 @@ struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL),
 	PCONFDUMP(PIN_CONFIG_INPUT_DEBOUNCE, "input debounce", "time units"),
 	PCONFDUMP(PIN_CONFIG_POWER_SOURCE, "pin power source", "selector"),
+	PCONFDUMP(PIN_CONFIG_SLEW_RATE, "slew rate", NULL),
 	PCONFDUMP(PIN_CONFIG_LOW_POWER_MODE, "pin low power", "mode"),
 	PCONFDUMP(PIN_CONFIG_OUTPUT, "pin output", "level"),
 };
