@@ -20,6 +20,7 @@
 #include <asm/setup.h>
 #include <asm/kprobes.h>
 #include <asm/unaligned.h>
+#include <asm/kgdb.h>
 
 void __init trap_init(void)
 {
@@ -139,6 +140,11 @@ void do_non_swi_trap(unsigned long cause, unsigned long address,
 
 	case 2:
 		trap_is_kprobe(param, address, regs);
+		break;
+
+	case 3:
+	case 4:
+		kgdb_trap(regs, param);
 		break;
 
 	default:

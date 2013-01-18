@@ -22,6 +22,7 @@ config ARC
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SIGALTSTACK
 	select GENERIC_SMP_IDLE_THREAD
+	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_KPROBES
@@ -378,7 +379,7 @@ config ARC_DW2_UNWIND
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
-	depends on ARC_DBG && !SMP
+	depends on ARC_DBG
 	default n
 
 config ARC_DBG_TLB_MISS_COUNT
