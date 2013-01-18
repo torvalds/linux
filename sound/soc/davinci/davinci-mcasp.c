@@ -626,7 +626,7 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 				       int word_length)
 {
 	u32 fmt;
-	u32 rotate = (32 - word_length) / 4;
+	u32 rotate = (word_length / 4) & 0x7;
 	u32 mask = (1ULL << word_length) - 1;
 
 	/*
