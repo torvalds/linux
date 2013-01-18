@@ -159,7 +159,7 @@ struct fimc_lite {
 	unsigned long		payload[FLITE_MAX_PLANES];
 	struct flite_frame	inp_frame;
 	struct flite_frame	out_frame;
-	enum fimc_datapath	out_path;
+	atomic_t		out_path;
 	unsigned int		source_subdev_grp_id;
 
 	unsigned long		state;

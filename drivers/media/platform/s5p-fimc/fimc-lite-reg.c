@@ -65,7 +65,7 @@ void flite_hw_set_interrupt_mask(struct fimc_lite *dev)
 	u32 cfg, intsrc;
 
 	/* Select interrupts to be enabled for each output mode */
-	if (dev->out_path == FIMC_IO_DMA) {
+	if (atomic_read(&dev->out_path) == FIMC_IO_DMA) {
 		intsrc = FLITE_REG_CIGCTRL_IRQ_OVFEN |
 			 FLITE_REG_CIGCTRL_IRQ_LASTEN |
 			 FLITE_REG_CIGCTRL_IRQ_STARTEN;
