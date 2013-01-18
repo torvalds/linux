@@ -1254,6 +1254,18 @@ void r600_vram_scratch_fini(struct radeon_device *rdev)
 	radeon_bo_unref(&rdev->vram_scratch.robj);
 }
 
+void r600_set_bios_scratch_engine_hung(struct radeon_device *rdev, bool hung)
+{
+	u32 tmp = RREG32(R600_BIOS_3_SCRATCH);
+
+	if (hung)
+		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+	else
+		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+
+	WREG32(R600_BIOS_3_SCRATCH, tmp);
+}
+
 /* We doesn't check that the GPU really needs a reset we simply do the
  * reset, it's up to the caller to determine if the GPU needs one. We
  * might add an helper function to check that.
@@ -1389,6 +1401,8 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 
 	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
 
+	r600_set_bios_scratch_engine_hung(rdev, true);
+
 	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
 		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
@@ -1404,6 +1418,9 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	mdelay(1);
 
 	rv515_mc_resume(rdev, &save);
+
+	r600_set_bios_scratch_engine_hung(rdev, false);
+
 	return 0;
 }
 

@@ -1422,6 +1422,8 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	if (reset_mask == 0)
 		return 0;
 
+	r600_set_bios_scratch_engine_hung(rdev, true);
+
 	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
 
 	dev_info(rdev->dev, "  VM_CONTEXT0_PROTECTION_FAULT_ADDR   0x%08X\n",
@@ -1448,6 +1450,9 @@ static int cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	udelay(50);
 
 	evergreen_mc_resume(rdev, &save);
+
+	r600_set_bios_scratch_engine_hung(rdev, false);
+
 	return 0;
 }
 
