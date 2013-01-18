@@ -65,15 +65,4 @@ config ARCH_VEXPRESS_TC2
 	help
 	  Support for CPU and cluster power management on TC2.
 
-config VEXPRESS_TC2_CPUIDLE
-	bool "cpuidle support for TC2 test-chip (EXPERIMENTAL)"
-	depends on CPU_IDLE && PM && ARCH_VEXPRESS_TC2
-	select ARM_CPU_SUSPEND
-	select ARM_SPC
-	help
-	  Provides code that enables CPU idle power management on the
-	  TC2 testchip. It enables the CPU idle driver so that the kernel
-	  can enter cluster power down states provided by the power
-	  controller.
-
 endmenu

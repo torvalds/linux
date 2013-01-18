@@ -1,5 +1,5 @@
 /*
- * TC2 CPU idle driver.
+ * big.LITTLE CPU idle driver.
  *
  * Copyright (C) 2012 ARM Ltd.
  * Author: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -26,10 +26,9 @@
 #include <asm/idmap.h>
 #include <asm/proc-fns.h>
 #include <asm/suspend.h>
+#include <linux/of.h>
 
-#include <mach/motherboard.h>
-
-static int tc2_cpuidle_simple_enter(struct cpuidle_device *dev,
+static int bl_cpuidle_simple_enter(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	ktime_t time_start, time_end;
@@ -52,12 +51,12 @@ static int tc2_cpuidle_simple_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static int tc2_enter_powerdown(struct cpuidle_device *dev,
+static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx);
 
-static struct cpuidle_state tc2_cpuidle_set[] __initdata = {
+static struct cpuidle_state bl_cpuidle_set[] __initdata = {
 	[0] = {
-		.enter                  = tc2_cpuidle_simple_enter,
+		.enter                  = bl_cpuidle_simple_enter,
 		.exit_latency           = 1,
 		.target_residency       = 1,
 		.power_usage		= UINT_MAX,
@@ -66,7 +65,7 @@ static struct cpuidle_state tc2_cpuidle_set[] __initdata = {
 		.desc                   = "ARM WFI",
 	},
 	[1] = {
-		.enter			= tc2_enter_powerdown,
+		.enter			= bl_enter_powerdown,
 		.exit_latency		= 300,
 		.target_residency	= 1000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID,
@@ -75,15 +74,15 @@ static struct cpuidle_state tc2_cpuidle_set[] __initdata = {
 	},
 };
 
-struct cpuidle_driver tc2_idle_driver = {
-	.name = "tc2_idle",
+struct cpuidle_driver bl_idle_driver = {
+	.name = "bl_idle",
 	.owner = THIS_MODULE,
 	.safe_state_index = 0
 };
 
-static DEFINE_PER_CPU(struct cpuidle_device, tc2_idle_dev);
+static DEFINE_PER_CPU(struct cpuidle_device, bl_idle_dev);
 
-static int notrace tc2_powerdown_finisher(unsigned long arg)
+static int notrace bl_powerdown_finisher(unsigned long arg)
 {
 	unsigned int mpidr = read_cpuid_mpidr();
 	unsigned int cluster = (mpidr >> 8) & 0xf;
@@ -95,7 +94,7 @@ static int notrace tc2_powerdown_finisher(unsigned long arg)
 }
 
 /*
- * tc2_enter_powerdown - Programs CPU to enter the specified state
+ * bl_enter_powerdown - Programs CPU to enter the specified state
  * @dev: cpuidle device
  * @drv: The target state to be programmed
  * @idx: state index
@@ -103,7 +102,7 @@ static int notrace tc2_powerdown_finisher(unsigned long arg)
  * Called from the CPUidle framework to program the device to the
  * specified target state selected by the governor.
  */
-static int tc2_enter_powerdown(struct cpuidle_device *dev,
+static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
 {
 	struct timespec ts_preidle, ts_postidle, ts_idle;
@@ -118,7 +117,7 @@ static int tc2_enter_powerdown(struct cpuidle_device *dev,
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
 
-	ret = cpu_suspend((unsigned long) dev, tc2_powerdown_finisher);
+	ret = cpu_suspend((unsigned long) dev, bl_powerdown_finisher);
 	if (ret)
 		BUG();
 
@@ -138,27 +137,27 @@ static int tc2_enter_powerdown(struct cpuidle_device *dev,
 }
 
 /*
- * tc2_idle_init
+ * bl_idle_init
  *
- * Registers the TC2 specific cpuidle driver with the cpuidle
+ * Registers the bl specific cpuidle driver with the cpuidle
  * framework with the valid set of states.
  */
-int __init tc2_idle_init(void)
+int __init bl_idle_init(void)
 {
 	struct cpuidle_device *dev;
 	int i, cpu_id;
-	struct cpuidle_driver *drv = &tc2_idle_driver;
+	struct cpuidle_driver *drv = &bl_idle_driver;
 
-	if (!vexpress_spc_check_loaded()) {
-		pr_info("TC2 CPUidle not registered because no SPC found\n");
+	if (!of_find_compatible_node(NULL, NULL, "arm,generic")) {
+		pr_info("%s: No compatible node found\n", __func__);
 		return -ENODEV;
 	}
 
-	drv->state_count = (sizeof(tc2_cpuidle_set) /
+	drv->state_count = (sizeof(bl_cpuidle_set) /
 				       sizeof(struct cpuidle_state));
 
 	for (i = 0; i < drv->state_count; i++) {
-		memcpy(&drv->states[i], &tc2_cpuidle_set[i],
+		memcpy(&drv->states[i], &bl_cpuidle_set[i],
 				sizeof(struct cpuidle_state));
 	}
 
@@ -166,7 +165,7 @@ int __init tc2_idle_init(void)
 
 	for_each_cpu(cpu_id, cpu_online_mask) {
 		pr_err("CPUidle for CPU%d registered\n", cpu_id);
-		dev = &per_cpu(tc2_idle_dev, cpu_id);
+		dev = &per_cpu(bl_idle_dev, cpu_id);
 		dev->cpu = cpu_id;
 
 		dev->state_count = drv->state_count;
@@ -181,4 +180,4 @@ int __init tc2_idle_init(void)
 	return 0;
 }
 
-late_initcall(tc2_idle_init);
+late_initcall(bl_idle_init);
