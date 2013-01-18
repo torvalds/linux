@@ -136,6 +136,15 @@ extern int radeon_lockup_timeout;
 #define RADEON_RESET_GFX			(1 << 0)
 #define RADEON_RESET_COMPUTE			(1 << 1)
 #define RADEON_RESET_DMA			(1 << 2)
+#define RADEON_RESET_CP				(1 << 3)
+#define RADEON_RESET_GRBM			(1 << 4)
+#define RADEON_RESET_DMA1			(1 << 5)
+#define RADEON_RESET_RLC			(1 << 6)
+#define RADEON_RESET_SEM			(1 << 7)
+#define RADEON_RESET_IH				(1 << 8)
+#define RADEON_RESET_VMC			(1 << 9)
+#define RADEON_RESET_MC				(1 << 10)
+#define RADEON_RESET_DISPLAY			(1 << 11)
 
 /*
  * Errata workarounds.
