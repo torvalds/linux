@@ -2151,6 +2151,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
  */
 enum {
 	ALC262_FIXUP_FSC_H270,
+	ALC262_FIXUP_FSC_S7110,
 	ALC262_FIXUP_HP_Z200,
 	ALC262_FIXUP_TYAN,
 	ALC262_FIXUP_LENOVO_3000,
@@ -2168,6 +2169,15 @@ static const struct hda_fixup alc262_fixups[] = {
 			{ 0x1b, 0x0121141f }, /* rear HP */
 			{ }
 		}
+	},
+	[ALC262_FIXUP_FSC_S7110] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x15, 0x90170110 }, /* speaker */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC262_FIXUP_BENQ,
 	},
 	[ALC262_FIXUP_HP_Z200] = {
 		.type = HDA_FIXUP_PINS,
@@ -2216,7 +2226,7 @@ static const struct hda_fixup alc262_fixups[] = {
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", ALC262_FIXUP_HP_Z200),
-	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FIXUP_BENQ),
+	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu Lifebook S7110", ALC262_FIXUP_FSC_S7110),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FIXUP_BENQ),
 	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_FIXUP_TYAN),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
