@@ -212,7 +212,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem, *l_tg_pt_gp_mem;
 	unsigned char *buf;
 	unsigned char *ptr;
-	sense_reason_t rc;
+	sense_reason_t rc = TCM_NO_SENSE;
 	u32 len = 4; /* Skip over RESERVED area in header */
 	int alua_access_state, primary = 0;
 	u16 tg_pt_id, rtpi;

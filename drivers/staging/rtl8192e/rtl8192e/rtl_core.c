@@ -2104,7 +2104,10 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 						  skb_tail_pointer_rsl(skb),
 						  priv->rxbuffersize,
 						  PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+				dev_kfree_skb_any(skb);
+				return -1;
+			}
 			entry->BufferAddress = cpu_to_le32(*mapping);
 
 			entry->Length = priv->rxbuffersize;
@@ -2397,7 +2400,11 @@ static void rtl8192_rx_normal(struct net_device *dev)
 						    skb_tail_pointer_rsl(skb),
 						    priv->rxbuffersize,
 						    PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev,
+						  *((dma_addr_t *)skb->cb))) {
+				dev_kfree_skb_any(skb);
+				return;
+			}
 		}
 done:
 		pdesc->BufferAddress = cpu_to_le32(*((dma_addr_t *)skb->cb));

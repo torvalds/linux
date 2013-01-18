@@ -56,7 +56,7 @@
 #define dump_register(nm)				\
 {							\
 	.name	= __stringify(nm),			\
-	.offset	= DWC3_ ##nm,				\
+	.offset	= DWC3_ ##nm - DWC3_GLOBALS_REGS_START,	\
 }
 
 static const struct debugfs_reg32 dwc3_regs[] = {

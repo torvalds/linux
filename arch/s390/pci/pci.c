@@ -160,35 +160,6 @@ int pci_proc_domain(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pci_proc_domain);
 
-/* Store PCI function information block */
-static int zpci_store_fib(struct zpci_dev *zdev, u8 *fc)
-{
-	struct zpci_fib *fib;
-	u8 status, cc;
-
-	fib = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!fib)
-		return -ENOMEM;
-
-	do {
-		cc = __stpcifc(zdev->fh, 0, fib, &status);
-		if (cc == 2) {
-			msleep(ZPCI_INSN_BUSY_DELAY);
-			memset(fib, 0, PAGE_SIZE);
-		}
-	} while (cc == 2);
-
-	if (cc)
-		pr_err_once("%s: cc: %u  status: %u\n",
-			    __func__, cc, status);
-
-	/* Return PCI function controls */
-	*fc = fib->fc;
-
-	free_page((unsigned long) fib);
-	return (cc) ? -EIO : 0;
-}
-
 /* Modify PCI: Register adapter interruptions */
 static int zpci_register_airq(struct zpci_dev *zdev, unsigned int aisb,
 			      u64 aibv)
@@ -469,7 +440,7 @@ static void zpci_irq_handler(void *dont, void *need)
 	int rescan = 0, max = aisb_max;
 	struct zdev_irq_map *imap;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_PCI]++;
+	inc_irq_stat(IRQIO_PCI);
 	sbit = start;
 
 scan:
@@ -481,7 +452,7 @@ scan:
 		/* find vector bit */
 		imap = bucket->imap[sbit];
 		for_each_set_bit_left(mbit, &imap->aibv, imap->msi_vecs) {
-			kstat_cpu(smp_processor_id()).irqs[IOINT_MSI]++;
+			inc_irq_stat(IRQIO_MSI);
 			clear_bit(63 - mbit, &imap->aibv);
 
 			spin_lock(&imap->lock);
