@@ -100,6 +100,10 @@ static inline void suspend_nvs_restore(void) {}
   -------------------------------------------------------------------------- */
 struct platform_device;
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
+/* Flags for acpi_create_platform_device */
+#define ACPI_PLATFORM_CLK	BIT(0)
+
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+						    unsigned long flags);
 
 #endif /* _ACPI_INTERNAL_H_ */
