@@ -1169,8 +1169,6 @@ static void __init eva_init(void)
 	platform_add_devices(eva_devices,
 			     ARRAY_SIZE(eva_devices));
 
-	eva_clock_init();
-
 	rmobile_add_device_to_domain("A4LC", &lcdc0_device);
 	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
 	if (usb)
@@ -1181,6 +1179,9 @@ static void __init eva_earlytimer_init(void)
 {
 	r8a7740_clock_init(MD_CK0 | MD_CK2);
 	shmobile_earlytimer_init();
+
+	/* the rate of extal1 clock must be set before late_time_init */
+	eva_clock_init();
 }
 
 static void __init eva_add_early_devices(void)
