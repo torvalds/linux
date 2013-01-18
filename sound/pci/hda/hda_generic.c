@@ -2558,7 +2558,7 @@ static int fill_input_pin_labels(struct hda_codec *codec)
 
 		label = hda_get_autocfg_input_label(codec, cfg, i);
 		idx = 0;
-		for (j = i; j >= 0; j--) {
+		for (j = i - 1; j >= 0; j--) {
 			if (spec->input_labels[j] &&
 			    !strcmp(spec->input_labels[j], label)) {
 				idx = spec->input_label_idxs[j] + 1;
