@@ -9,6 +9,8 @@
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 
@@ -59,16 +61,40 @@ static struct irq_chip onchip_intc = {
 	.irq_unmask	= arc_unmask_irq,
 };
 
+static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
+				irq_hw_number_t hw)
+{
+	if (irq == TIMER0_IRQ)
+		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
+	else
+		irq_set_chip_and_handler(irq, &onchip_intc, handle_level_irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops arc_intc_domain_ops = {
+	.xlate = irq_domain_xlate_onecell,
+	.map = arc_intc_domain_map,
+};
+
+static struct irq_domain *root_domain;
+
 void __init init_onchip_IRQ(void)
 {
-	int i;
+	struct device_node *intc = NULL;
 
-	for (i = 0; i < NR_IRQS; i++)
-		irq_set_chip_and_handler(i, &onchip_intc, handle_level_irq);
+	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
+	if(!intc)
+		panic("DeviceTree Missing incore intc\n");
 
-#ifdef CONFIG_SMP
-	irq_set_chip_and_handler(TIMER0_IRQ, &onchip_intc, handle_percpu_irq);
-#endif
+	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
+					    &arc_intc_domain_ops, NULL);
+
+	if (!root_domain)
+		panic("root irq domain not avail\n");
+
+	/* with this we don't need to export root_domain */
+	irq_set_default_host(root_domain);
 }
 
 /*
