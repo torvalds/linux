@@ -580,7 +580,8 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
+	vt8500_port = devm_kzalloc(&pdev->dev, sizeof(struct vt8500_port),
+				   GFP_KERNEL);
 	if (!vt8500_port)
 		return -ENOMEM;
 
@@ -591,14 +592,13 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
 	if (IS_ERR(vt8500_port->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = -EINVAL;
-		goto err;
+		return  -EINVAL;
 	}
 
 	ret = clk_prepare_enable(vt8500_port->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err;
+		return ret;
 	}
 
 	vt8500_port->uart.type = PORT_VT8500;
@@ -622,10 +622,6 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vt8500_port);
 
 	return 0;
-
-err:
-	kfree(vt8500_port);
-	return ret;
 }
 
 static int vt8500_serial_remove(struct platform_device *pdev)
@@ -635,7 +631,6 @@ static int vt8500_serial_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	clk_disable_unprepare(vt8500_port->clk);
 	uart_remove_one_port(&vt8500_uart_driver, &vt8500_port->uart);
-	kfree(vt8500_port);
 
 	return 0;
 }
