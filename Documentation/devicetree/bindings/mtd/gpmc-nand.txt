@@ -29,6 +29,9 @@ Optional properties:
 		"bch4"		4-bit BCH ecc code
 		"bch8"		8-bit BCH ecc code
 
+ - elm_id:	Specifies elm device node. This is required to support BCH
+ 		error correction using ELM module.
+
 For inline partiton table parsing (optional):
 
  - #address-cells: should be set to 1
@@ -46,6 +49,7 @@ Example for an AM33xx board:
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0x08000000 0x2000>;	/* CS0: NAND */
+		elm_id = <&elm>;
 
 		nand@0,0 {
 			reg = <0 0 0>; /* CS0, offset 0 */
