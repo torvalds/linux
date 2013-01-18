@@ -258,6 +258,11 @@
 	}						\
 }
 
+/* Helpers */
+#define TO_KB(bytes)		((bytes) >> 10)
+#define TO_MB(bytes)		(TO_KB(bytes) >> 10)
+#define PAGES_TO_KB(n_pages)	((n_pages) << (PAGE_SHIFT - 10))
+#define PAGES_TO_MB(n_pages)	(PAGES_TO_KB(n_pages) >> 10)
 
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 /* These DPFP regs need to be saved/restored across ctx-sw */
