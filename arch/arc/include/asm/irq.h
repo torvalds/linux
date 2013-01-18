@@ -13,6 +13,7 @@
 #define TIMER0_IRQ      3
 #define TIMER1_IRQ      4
 
+#include <plat/irq.h>		/* Board Specific IRQ assignments */
 #include <asm-generic/irq.h>
 
 extern void __init arc_init_IRQ(void);
