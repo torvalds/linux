@@ -156,6 +156,22 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 }
 
+/* sesel is for tlb1 only */
+static void write_stlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
+			struct kvm_book3e_206_tlb_entry *gtlbe,
+			struct kvm_book3e_206_tlb_entry *stlbe,
+			int stlbsel, int sesel)
+{
+	int stid;
+
+	preempt_disable();
+	stid = kvmppc_e500_get_tlb_stid(&vcpu_e500->vcpu, gtlbe);
+
+	stlbe->mas1 |= MAS1_TID(stid);
+	write_host_tlbe(vcpu_e500, stlbsel, sesel, stlbe);
+	preempt_enable();
+}
+
 #ifdef CONFIG_KVM_E500V2
 void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 {
@@ -832,22 +848,6 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, gva_t ea)
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBSX_EXITS);
 	return EMULATE_DONE;
-}
-
-/* sesel is for tlb1 only */
-static void write_stlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
-			struct kvm_book3e_206_tlb_entry *gtlbe,
-			struct kvm_book3e_206_tlb_entry *stlbe,
-			int stlbsel, int sesel)
-{
-	int stid;
-
-	preempt_disable();
-	stid = kvmppc_e500_get_tlb_stid(&vcpu_e500->vcpu, gtlbe);
-
-	stlbe->mas1 |= MAS1_TID(stid);
-	write_host_tlbe(vcpu_e500, stlbsel, sesel, stlbe);
-	preempt_enable();
 }
 
 int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
