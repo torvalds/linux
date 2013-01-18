@@ -620,7 +620,8 @@ static void i915_save_display(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Display arbitration control */
-	dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
+	if (INTEL_INFO(dev)->gen <= 4)
+		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
 
 	/* This is only meaningful in non-KMS mode */
 	/* Don't regfile.save them in KMS mode */
@@ -707,7 +708,8 @@ static void i915_restore_display(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Display arbitration */
-	I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
+	if (INTEL_INFO(dev)->gen <= 4)
+		I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/* Display port ratios (must be done before clock is set) */
