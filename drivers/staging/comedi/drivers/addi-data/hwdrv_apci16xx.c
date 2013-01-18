@@ -47,10 +47,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO		11 /* Digital Input Output But TTL */
-#endif
-
 #define APCI16XX_TTL_INIT		0
 #define APCI16XX_TTL_INITDIRECTION	1
 #define APCI16XX_TTL_OUTPUTMEMORY	2

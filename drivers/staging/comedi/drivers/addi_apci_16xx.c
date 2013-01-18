@@ -3,10 +3,6 @@
 
 #include "addi-data/addi_common.h"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 #include "addi-data/hwdrv_apci16xx.c"
 
 static const struct addi_board apci16xx_boardtypes[] = {
@@ -15,19 +11,11 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1009,
 		.i_NbrTTLChannel	= 48,
-		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
-		.ttl_read		= i_APCI16XX_InsnReadTTLIOAllPortValue,
-		.ttl_write		= i_APCI16XX_InsnBitsWriteTTLIO,
 	}, {
 		.pc_DriverName		= "apci1696",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x100A,
 		.i_NbrTTLChannel	= 96,
-		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
-		.ttl_read		= i_APCI16XX_InsnReadTTLIOAllPortValue,
-		.ttl_write		= i_APCI16XX_InsnBitsWriteTTLIO,
 	},
 };
 
@@ -80,18 +68,17 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the TTL digital i/o */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_TTLIO;
-	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = this_board->i_NbrTTLChannel;
-	s->maxdata = 1;
-	s->io_bits = 0;	/* all bits input */
-	s->len_chanlist = this_board->i_NbrTTLChannel;
-	s->range_table = &range_digital;
-	s->insn_config = this_board->ttl_config;
-	s->insn_bits = this_board->ttl_bits;
-	s->insn_read = this_board->ttl_read;
-	s->insn_write = this_board->ttl_write;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
+	s->n_chan	= this_board->i_NbrTTLChannel;
+	s->maxdata	= 1;
+	s->io_bits	= 0;	/* all bits input */
+	s->len_chanlist	= this_board->i_NbrTTLChannel;
+	s->range_table	= &range_digital;
+	s->insn_config	= i_APCI16XX_InsnConfigInitTTLIO;
+	s->insn_bits	= i_APCI16XX_InsnBitsReadTTLIO;
+	s->insn_read	= i_APCI16XX_InsnReadTTLIOAllPortValue;
+	s->insn_write	= i_APCI16XX_InsnBitsWriteTTLIO;
 
 	return 0;
 }
