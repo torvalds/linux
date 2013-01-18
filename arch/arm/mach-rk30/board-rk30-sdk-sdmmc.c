@@ -1055,7 +1055,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
             else
             {
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.clk_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.clk_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.clk_gpio.iomux.name, rksdmmc0_gpio_init.clk_gpio.iomux.fgpio);
                 #endif
@@ -1063,7 +1063,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc0_gpio_init.clk_gpio.io,GPIO_LOW);//set mmc0-clk to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.cmd_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.cmd_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.cmd_gpio.iomux.name, rksdmmc0_gpio_init.cmd_gpio.iomux.fgpio);
                 #endif
@@ -1071,7 +1071,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc0_gpio_init.cmd_gpio.io,GPIO_LOW);//set mmc0-cmd to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.data0_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.data0_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.data0_gpio.iomux.name, rksdmmc0_gpio_init.data0_gpio.iomux.fgpio);
                 #endif
@@ -1079,7 +1079,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc0_gpio_init.data0_gpio.io,GPIO_LOW);//set mmc0-data0 to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.data1_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.data1_gpio.iomux.name, rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
                 #endif
@@ -1087,7 +1087,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc0_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc0-data1 to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.data2_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.data2_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.data2_gpio.iomux.name, rksdmmc0_gpio_init.data2_gpio.iomux.fgpio);
                 #endif
@@ -1095,7 +1095,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc0_gpio_init.data2_gpio.io,GPIO_LOW);//set mmc0-data2 to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc0_gpio_init.data3_gpio.io);
+                iomux_set(rksdmmc0_gpio_init.data3_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc0_gpio_init.data3_gpio.iomux.name, rksdmmc0_gpio_init.data3_gpio.iomux.fgpio);
                 #endif
@@ -1124,7 +1124,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
             else
             {
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.clk_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.clk_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc1_gpio_init.clk_gpio.iomux.name, rksdmmc1_gpio_init.clk_gpio.iomux.fgpio);
                 #endif
@@ -1132,7 +1132,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc1_gpio_init.clk_gpio.io,GPIO_LOW);//set mmc1-clk to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.cmd_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.cmd_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc1_gpio_init.cmd_gpio.iomux.name, rksdmmc1_gpio_init.cmd_gpio.iomux.fgpio);
                 #endif
@@ -1140,7 +1140,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc1_gpio_init.cmd_gpio.io,GPIO_LOW);//set mmc1-cmd to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.data0_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.data0_gpio.iomux.fgpio);
                 #else
                 rk30_mux_api_set(rksdmmc1_gpio_init.data0_gpio.iomux.name, rksdmmc1_gpio_init.data0_gpio.iomux.fgpio);
                 #endif
@@ -1149,7 +1149,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 
             #if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC) || defined(CONFIG_MT5931) || defined(CONFIG_MT5931_MT6622)
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.data1_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
                 #else
                 rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
                 #endif
@@ -1157,7 +1157,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.data2_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.data2_gpio.iomux.fgpio);
                 #else
                 rk29_mux_api_set(rksdmmc1_gpio_init.data2_gpio.iomux.name, rksdmmc1_gpio_init.data2_gpio.iomux.fgpio);
                 #endif
@@ -1165,7 +1165,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 gpio_direction_output(rksdmmc1_gpio_init.data2_gpio.io,GPIO_LOW);//set mmc1-data2 to low.
 
                 #if SDMMC_USE_NEW_IOMUX_API
-                iomux_set_gpio_mode(rksdmmc1_gpio_init.data3_gpio.io);
+                iomux_set(rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
                 #else
                 rk29_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name, rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
                 #endif
@@ -1210,7 +1210,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
     	case 0xFFFF: //gpio_reset
     	{
     	    #if SDMMC_USE_NEW_IOMUX_API
-            iomux_set_gpio_mode(rksdmmc0_gpio_init.power_en_gpio.io);
+            iomux_set(rksdmmc0_gpio_init.power_en_gpio.iomux.fgpio);
             #else
             rk30_mux_api_set(rksdmmc0_gpio_init.power_en_gpio.iomux.name, rksdmmc0_gpio_init.power_en_gpio.iomux.fgpio);
             #endif
@@ -1240,7 +1240,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
         	#endif
 
             #if SDMMC_USE_NEW_IOMUX_API
-            iomux_set_gpio_mode(rksdmmc0_gpio_init.data1_gpio.io);
+            iomux_set(rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
             #else
             rk30_mux_api_set(rksdmmc0_gpio_init.data1_gpio.iomux.name, rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
             #endif
@@ -1248,7 +1248,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             gpio_direction_output(rksdmmc0_gpio_init.data1_gpio.io,GPIO_HIGH);//set mmc0-data1 to high.
 
             #if SDMMC_USE_NEW_IOMUX_API
-            iomux_set_gpio_mode(rksdmmc0_gpio_init.data2_gpio.io);
+            iomux_set(rksdmmc0_gpio_init.data2_gpio.iomux.fgpio);
             #else
             rk30_mux_api_set(rksdmmc0_gpio_init.data2_gpio.iomux.name, rksdmmc0_gpio_init.data2_gpio.iomux.fgpio);
             #endif
@@ -1256,7 +1256,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             gpio_direction_output(rksdmmc0_gpio_init.data2_gpio.io,GPIO_HIGH);//set mmc0-data2 to high.
 
             #if SDMMC_USE_NEW_IOMUX_API
-            iomux_set_gpio_mode(rksdmmc0_gpio_init.data3_gpio.io);
+            iomux_set(rksdmmc0_gpio_init.data3_gpio.iomux.fgpio);
             #else
             rk30_mux_api_set(rksdmmc0_gpio_init.data3_gpio.iomux.name, rksdmmc0_gpio_init.data3_gpio.iomux.fgpio);
             #endif
