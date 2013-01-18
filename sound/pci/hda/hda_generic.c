@@ -750,19 +750,20 @@ static const struct snd_kcontrol_new control_templates[] = {
 };
 
 /* add dynamic controls from template */
-static int add_control(struct hda_gen_spec *spec, int type, const char *name,
+static struct snd_kcontrol_new *
+add_control(struct hda_gen_spec *spec, int type, const char *name,
 		       int cidx, unsigned long val)
 {
 	struct snd_kcontrol_new *knew;
 
 	knew = snd_hda_gen_add_kctl(spec, name, &control_templates[type]);
 	if (!knew)
-		return -ENOMEM;
+		return NULL;
 	knew->index = cidx;
 	if (get_amp_nid_(val))
 		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
-	return 0;
+	return knew;
 }
 
 static int add_control_with_pfx(struct hda_gen_spec *spec, int type,
@@ -771,7 +772,9 @@ static int add_control_with_pfx(struct hda_gen_spec *spec, int type,
 {
 	char name[32];
 	snprintf(name, sizeof(name), "%s %s %s", pfx, dir, sfx);
-	return add_control(spec, type, name, cidx, val);
+	if (!add_control(spec, type, name, cidx, val))
+		return -ENOMEM;
+	return 0;
 }
 
 #define add_pb_vol_ctrl(spec, type, pfx, val)			\
@@ -2857,6 +2860,26 @@ static bool is_inv_dmic_pin(struct hda_codec *codec, hda_nid_t nid)
 	return false;
 }
 
+static int cap_single_sw_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	int ret;
+
+	ret = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+	if (ret < 0)
+		return ret;
+
+	if (spec->capture_switch_hook) {
+		bool enable = (ucontrol->value.integer.value[0] ||
+			       ucontrol->value.integer.value[1]);
+		spec->capture_switch_hook(codec, enable);
+	}
+
+	return ret;
+}
+
 static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 			      int idx, bool is_switch, unsigned int ctl,
 			      bool inv_dmic)
@@ -2866,7 +2889,7 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 	int type = is_switch ? HDA_CTL_WIDGET_MUTE : HDA_CTL_WIDGET_VOL;
 	const char *sfx = is_switch ? "Switch" : "Volume";
 	unsigned int chs = inv_dmic ? 1 : 3;
-	int err;
+	struct snd_kcontrol_new *knew;
 
 	if (!ctl)
 		return 0;
@@ -2877,10 +2900,14 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 	else
 		snprintf(tmpname, sizeof(tmpname),
 			 "Capture %s", sfx);
-	err = add_control(spec, type, tmpname, idx,
-			  amp_val_replace_channels(ctl, chs));
-	if (err < 0 || !inv_dmic)
-		return err;
+	knew = add_control(spec, type, tmpname, idx,
+			   amp_val_replace_channels(ctl, chs));
+	if (!knew)
+		return -ENOMEM;
+	if (is_switch && spec->capture_switch_hook)
+		knew->put = cap_single_sw_put;
+	if (!inv_dmic)
+		return 0;
 
 	/* Make independent right kcontrol */
 	if (label)
@@ -2889,8 +2916,13 @@ static int add_single_cap_ctl(struct hda_codec *codec, const char *label,
 	else
 		snprintf(tmpname, sizeof(tmpname),
 			 "Inverted Capture %s", sfx);
-	return add_control(spec, type, tmpname, idx,
+	knew = add_control(spec, type, tmpname, idx,
 			   amp_val_replace_channels(ctl, 2));
+	if (!knew)
+		return -ENOMEM;
+	if (is_switch && spec->capture_switch_hook)
+		knew->put = cap_single_sw_put;
+	return 0;
 }
 
 /* create single (and simple) capture volume and switch controls */
@@ -3106,7 +3138,7 @@ static int parse_mic_boost(struct hda_codec *codec)
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	struct hda_input_mux *imux = &spec->input_mux;
-	int i, err;
+	int i;
 
 	if (!spec->num_adc_nids)
 		return 0;
@@ -3136,10 +3168,9 @@ static int parse_mic_boost(struct hda_codec *codec)
 		/* create a boost control */
 		snprintf(boost_label, sizeof(boost_label),
 			 "%s Boost Volume", spec->input_labels[idx]);
-		err = add_control(spec, HDA_CTL_WIDGET_VOL, boost_label,
-				  spec->input_label_idxs[idx], val);
-		if (err < 0)
-			return err;
+		if (!add_control(spec, HDA_CTL_WIDGET_VOL, boost_label,
+				 spec->input_label_idxs[idx], val))
+			return -ENOMEM;
 
 		path->ctls[NID_PATH_BOOST_CTL] = val;
 	}
