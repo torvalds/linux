@@ -739,7 +739,7 @@ EXPORT_SYMBOL_GPL(pci_num_vf);
 /**
  * pci_sriov_set_totalvfs -- reduce the TotalVFs available
  * @dev: the PCI PF device
- * numvfs: number that should be used for TotalVFs supported
+ * @numvfs: number that should be used for TotalVFs supported
  *
  * Should be called from PF driver's probe routine with
  * device's mutex held.

@@ -2935,6 +2935,7 @@ static void guard_bh_eod(int rw, struct bio *bio, struct buffer_head *bh)
 		void *kaddr = kmap_atomic(bh->b_page);
 		memset(kaddr + bh_offset(bh) + bytes, 0, bh->b_size - bytes);
 		kunmap_atomic(kaddr);
+		flush_dcache_page(bh->b_page);
 	}
 }
 

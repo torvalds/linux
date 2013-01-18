@@ -1590,7 +1590,7 @@ static int axienet_of_probe(struct platform_device *op)
 	lp->rx_irq = irq_of_parse_and_map(np, 1);
 	lp->tx_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
+	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		ret = -ENOMEM;
 		goto err_iounmap_2;
