@@ -90,6 +90,9 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 	sprctl |= SPRITE_ENABLE;
 
+	if (IS_HASWELL(dev))
+		sprctl |= SPRITE_PIPE_CSC_ENABLE;
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;

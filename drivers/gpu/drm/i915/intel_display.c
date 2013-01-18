@@ -5126,6 +5126,71 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	POSTING_READ(PIPECONF(pipe));
 }
 
+/*
+ * Set up the pipe CSC unit.
+ *
+ * Currently only full range RGB to limited range RGB conversion
+ * is supported, but eventually this should handle various
+ * RGB<->YCbCr scenarios as well.
+ */
+static void intel_set_pipe_csc(struct drm_crtc *crtc,
+			       const struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	uint16_t coeff = 0x7800; /* 1.0 */
+
+	/*
+	 * TODO: Check what kind of values actually come out of the pipe
+	 * with these coeff/postoff values and adjust to get the best
+	 * accuracy. Perhaps we even need to take the bpc value into
+	 * consideration.
+	 */
+
+	if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		coeff = ((235 - 16) * (1 << 12) / 255) & 0xff8; /* 0.xxx... */
+
+	/*
+	 * GY/GU and RY/RU should be the other way around according
+	 * to BSpec, but reality doesn't agree. Just set them up in
+	 * a way that results in the correct picture.
+	 */
+	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeff << 16);
+	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), 0);
+
+	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeff);
+	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), 0);
+
+	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), 0);
+	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeff << 16);
+
+	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
+	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
+	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
+
+	if (INTEL_INFO(dev)->gen > 6) {
+		uint16_t postoff = 0;
+
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			postoff = (16 * (1 << 13) / 255) & 0x1fff;
+
+		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
+		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
+		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), postoff);
+
+		I915_WRITE(PIPE_CSC_MODE(pipe), 0);
+	} else {
+		uint32_t mode = CSC_MODE_YUV_TO_RGB;
+
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			mode |= CSC_BLACK_SCREEN_OFFSET;
+
+		I915_WRITE(PIPE_CSC_MODE(pipe), mode);
+	}
+}
+
 static void haswell_set_pipeconf(struct drm_crtc *crtc,
 				 struct drm_display_mode *adjusted_mode,
 				 bool dither)
@@ -5714,8 +5779,10 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	haswell_set_pipeconf(crtc, adjusted_mode, dither);
 
+	intel_set_pipe_csc(crtc, adjusted_mode);
+
 	/* Set up the display plane register */
-	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
+	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE | DISPPLANE_PIPE_CSC_ENABLE);
 	POSTING_READ(DSPCNTR(plane));
 
 	ret = intel_pipe_set_base(crtc, x, y, fb);
@@ -6120,6 +6187,8 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
+		if (IS_HASWELL(dev))
+			cntl |= CURSOR_PIPE_CSC_ENABLE;
 		I915_WRITE(CURCNTR_IVB(pipe), cntl);
 
 		intel_crtc->cursor_visible = visible;
