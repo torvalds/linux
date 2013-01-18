@@ -414,7 +414,7 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 		goto error_sramclean;
 	}
 
-	if (!request_mem_region(res_bcom.start, sizeof(struct mpc52xx_sdma),
+	if (!request_mem_region(res_bcom.start, resource_size(&res_bcom),
 				DRIVER_NAME)) {
 		printk(KERN_ERR DRIVER_NAME ": "
 			"Can't request registers region\n");
