@@ -1737,7 +1737,7 @@ xlog_sync(
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 	ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
 
-	xlog_verify_iclog(log, iclog, count, B_TRUE);
+	xlog_verify_iclog(log, iclog, count, true);
 
 	/* account for log which doesn't start at block #0 */
 	XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
