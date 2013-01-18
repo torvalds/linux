@@ -31,6 +31,8 @@
  *   exception. Thus FAKE RTIE needed in low level Priv-Violation handler.
  *   Instr Error could also cause similar scenario, so same there as well.
  *
+ * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
+ *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
  *   Normally CPU does this automatically, however when doing FAKE rtie,
@@ -96,13 +98,25 @@ VECTOR   mem_service             ; 0x8, Mem exception   (0x1)
 VECTOR   instr_service           ; 0x10, Instrn Error   (0x2)
 
 ; ******************** Device ISRs **********************
+#ifdef CONFIG_ARC_IRQ3_LV2
+VECTOR   handle_interrupt_level2
+#else
 VECTOR   handle_interrupt_level1
+#endif
 
 VECTOR   handle_interrupt_level1
 
+#ifdef CONFIG_ARC_IRQ5_LV2
+VECTOR   handle_interrupt_level2
+#else
 VECTOR   handle_interrupt_level1
+#endif
 
+#ifdef CONFIG_ARC_IRQ6_LV2
+VECTOR   handle_interrupt_level2
+#else
 VECTOR   handle_interrupt_level1
+#endif
 
 .rept   25
 VECTOR   handle_interrupt_level1 ; Other devices
@@ -139,6 +153,17 @@ VECTOR   reserved                ; Reserved Exceptions
 int1_saved_reg:
 	.zero 4
 
+/* Each Interrupt level needs it's own scratch */
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+
+	.section .data		; NOT .global
+	.type   int2_saved_reg, @object
+	.size   int2_saved_reg, 4
+int2_saved_reg:
+	.zero 4
+
+#endif
+
 ; ---------------------------------------------
 	.section .text, "ax",@progbits
 
@@ -151,6 +176,55 @@ reserved:		; processor restart
 	rtie            ; jump to processor initializations
 
 ;##################### Interrupt Handling ##############################
+
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+; ---------------------------------------------
+;  Level 2 ISR: Can interrupt a Level 1 ISR
+; ---------------------------------------------
+ARC_ENTRY handle_interrupt_level2
+
+	; TODO-vineetg for SMP this wont work
+	; free up r9 as scratchpad
+	st  r9, [@int2_saved_reg]
+
+	;Which mode (user/kernel) was the system in when intr occured
+	lr  r9, [status32_l2]
+
+	SWITCH_TO_KERNEL_STK
+	SAVE_ALL_INT2
+
+	;------------------------------------------------------
+	; if L2 IRQ interrupted a L1 ISR, disable preemption
+	;------------------------------------------------------
+
+	ld r9, [sp, PT_status32]        ; get statu32_l2 (saved in pt_regs)
+	bbit0 r9, STATUS_A1_BIT, 1f     ; L1 not active when L2 IRQ, so normal
+
+	; A1 is set in status32_l2
+	; bump thread_info->preempt_count (Disable preemption)
+	GET_CURR_THR_INFO_FROM_SP   r10
+	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
+	add     r9, r9, 1
+	st      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
+
+1:
+	;------------------------------------------------------
+	; setup params for Linux common ISR and invoke it
+	;------------------------------------------------------
+	lr  r0, [icause2]
+	and r0, r0, 0x1f
+
+	bl.d  @arch_do_IRQ
+	mov r1, sp
+
+	mov r8,0x2
+	sr r8, [AUX_IRQ_LV12]       ; clear bit in Sticky Status Reg
+
+	b   ret_from_exception
+
+ARC_EXIT handle_interrupt_level2
+
+#endif
 
 ; ---------------------------------------------
 ;  Level 1 ISR
@@ -618,6 +692,49 @@ restore_regs :
 	; Not Exception so maybe Interrupts (Level 1 or 2)
 
 not_exception:
+
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+
+	bbit0  r10, STATUS_A2_BIT, not_level2_interrupt
+
+	;------------------------------------------------------------------
+	; if L2 IRQ interrupted a L1 ISR,  we'd disbaled preemption earlier
+	; so that sched doesnt move to new task, causing L1 to be delayed
+	; undeterministically. Now that we've achieved that, lets reset
+	; things to what they were, before returning from L2 context
+	;----------------------------------------------------------------
+
+	ld r9, [sp, PT_orig_r8]        ; get orig_r8 to make sure it is
+	brne r9, orig_r8_IS_IRQ2, 149f ; infact a L2 ISR ret path
+
+	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)
+	bbit0 r9, STATUS_A1_BIT, 149f  ; L1 not active when L2 IRQ, so normal
+
+	; A1 is set in status32_l2
+	; decrement thread_info->preempt_count (re-enable preemption)
+	GET_CURR_THR_INFO_FROM_SP   r10
+	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
+
+	; paranoid check, given A1 was active when A2 happened, preempt count
+	; must not be 0 beccause we would have incremented it.
+	; If this does happen we simply HALT as it means a BUG !!!
+	cmp     r9, 0
+	bnz     2f
+	flag 1
+
+2:
+	sub     r9, r9, 1
+	st      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
+
+149:
+	;return from level 2
+	RESTORE_ALL_INT2
+debug_marker_l2:
+	rtie
+
+not_level2_interrupt:
+
+#endif
 
 	bbit0  r10, STATUS_A1_BIT, not_level1_interrupt
 

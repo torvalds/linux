@@ -208,6 +208,25 @@ config ARC_PAGE_SIZE_4K
 
 endchoice
 
+config ARC_COMPACT_IRQ_LEVELS
+	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
+	default n
+	# Timer HAS to be high priority, for any other high priority config
+	select ARC_IRQ3_LV2
+
+if ARC_COMPACT_IRQ_LEVELS
+
+config ARC_IRQ3_LV2
+	bool
+
+config ARC_IRQ5_LV2
+	bool
+
+config ARC_IRQ6_LV2
+	bool
+
+endif
+
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
 	default n

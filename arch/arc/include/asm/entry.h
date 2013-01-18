@@ -5,6 +5,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
+ *  Stack switching code can no longer reliably rely on the fact that
+ *  if we are NOT in user mode, stack is switched to kernel mode.
+ *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
+ *  it's prologue including stack switching from user mode
+ *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
  *   Normally CPU does this automatically, however when doing FAKE rtie,
@@ -268,6 +274,33 @@
 	 * assume SP is kernel mode SP. _NO_ need to do any stack switching
 	 */
 
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+	/* However....
+	 * If Level 2 Interrupts enabled, we may end up with a corner case:
+	 * 1. User Task executing
+	 * 2. L1 IRQ taken, ISR starts (CPU auto-switched to KERNEL mode)
+	 * 3. But before it could switch SP from USER to KERNEL stack
+	 *      a L2 IRQ "Interrupts" L1
+	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
+	 * not switched.
+	 * To handle this, we may need to switch stack even if in kernel mode
+	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
+	 */
+	brlo sp, VMALLOC_START, 88f
+
+	/* TODO: vineetg:
+	 * We need to be a bit more cautious here. What if a kernel bug in
+	 * L1 ISR, caused SP to go whaco (some small value which looks like
+	 * USER stk) and then we take L2 ISR.
+	 * Above brlo alone would treat it as a valid L1-L2 sceanrio
+	 * instead of shouting alound
+	 * The only feasible way is to make sure this L2 happened in
+	 * L1 prelogue ONLY i.e. ilink2 is less than a pre-set marker in
+	 * L1 ISR before it switches stack
+	 */
+
+#endif
+
 	/* Save Pre Intr/Exception KERNEL MODE SP on kernel stack
 	 * safe-keeping not really needed, but it keeps the epilogue code
 	 * (SP restore) simpler/uniform.
@@ -503,6 +536,42 @@
 	sub sp, sp, 4
 .endm
 
+.macro SAVE_ALL_INT2
+
+	/* TODO-vineetg: SMP we can't use global nor can we use
+	*   SCRATCH0 as we do for int1 because while int1 is using
+	*   it, int2 can come
+	*/
+	/* retsore original r9 , saved in sys_saved_r9 */
+	ld  r9, [@int2_saved_reg]
+
+	/* now we are ready to save the remaining context :) */
+	st      orig_r8_IS_IRQ2, [sp, 8]    /* Event Type */
+	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
+	SAVE_CALLER_SAVED
+	st.a    r26, [sp, -4]   /* gp */
+	st.a    fp, [sp, -4]
+	st.a    blink, [sp, -4]
+	st.a    ilink2, [sp, -4]
+	lr	r9, [status32_l2]
+	st.a    r9, [sp, -4]
+	st.a    lp_count, [sp, -4]
+	lr	r9, [lp_end]
+	st.a    r9, [sp, -4]
+	lr	r9, [lp_start]
+	st.a    r9, [sp, -4]
+	lr	r9, [bta_l2]
+	st.a    r9, [sp, -4]
+
+#ifdef PT_REGS_CANARY
+	mov   r9, 0xdeadbee2
+	st    r9, [sp, -4]
+#endif
+
+	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
+	sub sp, sp, 4
+.endm
+
 /*--------------------------------------------------------------
  * Restore all registers used by interrupt handlers.
  *
@@ -536,6 +605,32 @@
 	ld  sp, [sp] /* restore original sp */
 	/* orig_r0 and orig_r8 skipped automatically */
 .endm
+
+.macro RESTORE_ALL_INT2
+	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
+
+	ld.ab   r9, [sp, 4]
+	sr	r9, [bta_l2]
+	ld.ab   r9, [sp, 4]
+	sr	r9, [lp_start]
+	ld.ab   r9, [sp, 4]
+	sr	r9, [lp_end]
+	ld.ab   r9, [sp, 4]
+	mov	lp_count, r9
+	ld.ab   r9, [sp, 4]
+	sr	r9, [status32_l2]
+	ld.ab   r9, [sp, 4]
+	mov	ilink2, r9
+	ld.ab   blink, [sp, 4]
+	ld.ab   fp, [sp, 4]
+	ld.ab   r26, [sp, 4]    /* gp */
+	RESTORE_CALLER_SAVED
+
+	ld  sp, [sp] /* restore original sp */
+	/* orig_r0 and orig_r8 skipped automatically */
+
+.endm
+
 
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg
