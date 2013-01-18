@@ -297,9 +297,9 @@ ACPI_EXPORT_SYMBOL(acpi_bios_warning)
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              Pathname        - Full pathname to the node
+ *              pathname        - Full pathname to the node
  *              node_flags      - From Namespace node for the method/object
- *              Format          - Printf format string + additional args
+ *              format          - Printf format string + additional args
  *
  * RETURN:      None
  *

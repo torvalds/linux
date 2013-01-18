@@ -76,12 +76,12 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
 
 		/* It's really the parent's _scope_ that we want */
 
-		return parent_node->child;
+		return (parent_node->child);
 	}
 
 	/* Otherwise just return the next peer */
 
-	return child_node->peer;
+	return (child_node->peer);
 }
 
 /*******************************************************************************

@@ -202,14 +202,6 @@ u8 acpi_ps_is_leading_char(u32 c)
 }
 
 /*
- * Is "c" a namestring prefix character?
- */
-u8 acpi_ps_is_prefix_char(u32 c)
-{
-	return ((u8) (c == '\\' || c == '^'));
-}
-
-/*
  * Get op's name (4-byte name segment) or 0 if unnamed
  */
 #ifdef ACPI_FUTURE_USAGE

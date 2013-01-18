@@ -200,7 +200,6 @@ acpi_status acpi_hw_extended_wake_prep(u8 sleep_state)
  * FUNCTION:    acpi_hw_extended_wake
  *
  * PARAMETERS:  sleep_state         - Which sleep state we just exited
- *              flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *

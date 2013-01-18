@@ -785,7 +785,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 		status = acpi_os_create_mutex(&dest_desc->mutex.os_mutex);
 		if (ACPI_FAILURE(status)) {
-			return status;
+			return (status);
 		}
 		break;
 
@@ -795,7 +795,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 						  &dest_desc->event.
 						  os_semaphore);
 		if (ACPI_FAILURE(status)) {
-			return status;
+			return (status);
 		}
 		break;
 

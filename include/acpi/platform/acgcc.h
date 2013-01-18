@@ -64,8 +64,4 @@
  */
 #define ACPI_UNUSED_VAR __attribute__ ((unused))
 
-#ifdef _ANSI
-#define inline
-#endif
-
 #endif				/* __ACGCC_H__ */
