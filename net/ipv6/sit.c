@@ -592,14 +592,9 @@ out:
 
 static int ipip6_rcv(struct sk_buff *skb)
 {
-	const struct iphdr *iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct ip_tunnel *tunnel;
 	int err;
-
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto out;
-
-	iph = ip_hdr(skb);
 
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
