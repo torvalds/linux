@@ -2478,7 +2478,8 @@ static int check_dyn_adc_switch(struct hda_codec *codec)
 
 /* parse capture source paths from the given pin and create imux items */
 static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
-				int num_adcs, const char *label, int anchor)
+				int cfg_idx, int num_adcs,
+				const char *label, int anchor)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->input_mux;
@@ -2501,8 +2502,7 @@ static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
 
 		if (!imux_added) {
 			spec->imux_pins[imux->num_items] = pin;
-			snd_hda_add_imux_item(imux, label,
-					      imux->num_items, NULL);
+			snd_hda_add_imux_item(imux, label, cfg_idx, NULL);
 			imux_added = true;
 		}
 	}
@@ -2513,6 +2513,9 @@ static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
 /*
  * create playback/capture controls for input pins
  */
+
+#define CFG_IDX_MIX	99	/* a dummy cfg->input idx for stereo mix */
+
 static int create_input_ctls(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
@@ -2556,7 +2559,8 @@ static int create_input_ctls(struct hda_codec *codec)
 			}
 		}
 
-		err = parse_capture_source(codec, pin, num_adcs, label, -mixer);
+		err = parse_capture_source(codec, pin, i,
+					   num_adcs, label, -mixer);
 		if (err < 0)
 			return err;
 
@@ -2568,7 +2572,7 @@ static int create_input_ctls(struct hda_codec *codec)
 	}
 
 	if (mixer && spec->add_stereo_mix_input) {
-		err = parse_capture_source(codec, mixer, num_adcs,
+		err = parse_capture_source(codec, mixer, CFG_IDX_MIX, num_adcs,
 					   "Stereo Mix", 0);
 		if (err < 0)
 			return err;
@@ -2909,7 +2913,11 @@ static int create_multi_cap_vol_ctl(struct hda_codec *codec)
 	for (i = 0; i < imux->num_items; i++) {
 		const char *label;
 		bool inv_dmic;
-		label = hda_get_autocfg_input_label(codec, &spec->autocfg, i);
+
+		if (imux->items[i].index >= spec->autocfg.num_inputs)
+			continue;
+		label = hda_get_autocfg_input_label(codec, &spec->autocfg,
+						    imux->items[i].index);
 		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
