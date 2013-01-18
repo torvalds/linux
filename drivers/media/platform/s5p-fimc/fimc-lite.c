@@ -1280,18 +1280,6 @@ static int fimc_lite_subdev_s_stream(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static int fimc_lite_subdev_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
-
-	if (fimc->out_path == FIMC_IO_DMA)
-		return -ENOIOCTLCMD;
-
-	/* TODO: */
-
-	return 0;
-}
-
 static int fimc_lite_log_status(struct v4l2_subdev *sd)
 {
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
@@ -1391,7 +1379,6 @@ static const struct v4l2_subdev_video_ops fimc_lite_subdev_video_ops = {
 };
 
 static const struct v4l2_subdev_core_ops fimc_lite_core_ops = {
-	.s_power = fimc_lite_subdev_s_power,
 	.log_status = fimc_lite_log_status,
 };
 
