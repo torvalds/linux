@@ -154,6 +154,7 @@ struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 #endif /* CONFIG_OF */
 
 extern const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev);
+extern const char *pinctrl_dev_get_devname(struct pinctrl_dev *pctldev);
 extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
 #else
 

@@ -83,6 +83,12 @@ const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 }
 EXPORT_SYMBOL_GPL(pinctrl_dev_get_name);
 
+const char *pinctrl_dev_get_devname(struct pinctrl_dev *pctldev)
+{
+	return dev_name(pctldev->dev);
+}
+EXPORT_SYMBOL_GPL(pinctrl_dev_get_devname);
+
 void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev)
 {
 	return pctldev->driver_data;
