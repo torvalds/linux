@@ -7,7 +7,6 @@
  * address space, e.g. all NOMMU machines.
  */
 #include <linux/sched.h>
-#include <linux/mm.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>
@@ -32,7 +31,9 @@ static inline void set_fs(mm_segment_t fs)
 }
 #endif
 
+#ifndef segment_eq
 #define segment_eq(a, b) ((a).seg == (b).seg)
+#endif
 
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
