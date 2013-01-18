@@ -3156,23 +3156,22 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (!ifmgd->associated)
+	mutex_lock(&ifmgd->mtx);
+	if (!ifmgd->associated) {
+		mutex_unlock(&ifmgd->mtx);
 		return;
+	}
 
 	if (sdata->flags & IEEE80211_SDATA_DISCONNECT_RESUME) {
 		sdata->flags &= ~IEEE80211_SDATA_DISCONNECT_RESUME;
-		mutex_lock(&ifmgd->mtx);
-		if (ifmgd->associated) {
-			mlme_dbg(sdata,
-				 "driver requested disconnect after resume\n");
-			ieee80211_sta_connection_lost(sdata,
-				ifmgd->associated->bssid,
-				WLAN_REASON_UNSPECIFIED);
-			mutex_unlock(&ifmgd->mtx);
-			return;
-		}
+		mlme_dbg(sdata, "driver requested disconnect after resume\n");
+		ieee80211_sta_connection_lost(sdata,
+					      ifmgd->associated->bssid,
+					      WLAN_REASON_UNSPECIFIED);
 		mutex_unlock(&ifmgd->mtx);
+		return;
 	}
+	mutex_unlock(&ifmgd->mtx);
 
 	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
 		add_timer(&ifmgd->timer);
