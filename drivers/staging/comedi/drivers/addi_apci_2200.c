@@ -17,7 +17,6 @@ static const struct addi_board apci2200_boardtypes[] = {
 		.i_NbrDiChannel		= 8,
 		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
-		.reset			= i_APCI2200_Reset,
 		.di_bits		= apci2200_di_insn_bits,
 		.do_bits		= apci2200_do_insn_bits,
 		.timer_config		= i_APCI2200_ConfigWatchdog,
@@ -35,11 +34,18 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
+static int apci2200_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
 
-	this_board->reset(dev);
+	outw(0x0, devpriv->iobase + APCI2200_DIGITAL_OP);
+	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+			APCI2200_WATCHDOG_ENABLEDISABLE);
+	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+			APCI2200_WATCHDOG_RELOAD_VALUE);
+	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+			APCI2200_WATCHDOG_RELOAD_VALUE + 2);
+
 	return 0;
 }
 
@@ -207,7 +213,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_ADDI_Reset(dev);
+	apci2200_reset(dev);
 	return 0;
 }
 
@@ -218,7 +224,7 @@ static void apci2200_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			apci2200_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)

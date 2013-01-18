@@ -229,35 +229,3 @@ static int i_APCI2200_ReadWatchdog(struct comedi_device *dev,
 		APCI2200_WATCHDOG_STATUS) & 0x1;
 	return insn->n;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2200_Reset(struct comedi_device *dev)               |                                                                                                          |
-+----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI2200_Reset(struct comedi_device *dev)
-{
-	struct addi_private *devpriv = dev->private;
-
-	outw(0x0, devpriv->iobase + APCI2200_DIGITAL_OP);	/* RESETS THE DIGITAL OUTPUTS */
-	outw(0x0,
-		devpriv->iobase + APCI2200_WATCHDOG +
-		APCI2200_WATCHDOG_ENABLEDISABLE);
-	outw(0x0,
-		devpriv->iobase + APCI2200_WATCHDOG +
-		APCI2200_WATCHDOG_RELOAD_VALUE);
-	outw(0x0,
-		devpriv->iobase + APCI2200_WATCHDOG +
-		APCI2200_WATCHDOG_RELOAD_VALUE + 2);
-	return 0;
-}
