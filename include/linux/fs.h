@@ -1414,6 +1414,7 @@ struct super_block {
 	u8 s_uuid[16];				/* UUID */
 
 	void 			*s_fs_info;	/* Filesystem private info */
+	unsigned int		s_max_links;
 	fmode_t			s_mode;
 
 	/* Granularity of c/m/atime in ns.
@@ -1585,6 +1586,7 @@ struct inode_operations {
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	int (*permission) (struct inode *, int, unsigned int);
 	int (*check_acl)(struct inode *, int, unsigned int);
+    struct posix_acl * (*get_acl)(struct inode *, int);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
@@ -1771,6 +1773,14 @@ static inline void drop_nlink(struct inode *inode)
 static inline void clear_nlink(struct inode *inode)
 {
 	inode->i_nlink = 0;
+}
+static inline void set_nlink(struct inode *inode, unsigned int nlink)
+{
+	if (!nlink) {
+		clear_nlink(inode);
+	} else {
+		inode->i_nlink = nlink;
+	}
 }
 
 static inline void inode_dec_link_count(struct inode *inode)
@@ -2605,6 +2615,8 @@ static inline void inode_has_no_xattr(struct inode *inode)
 	if (!is_sxid(inode->i_mode) && (inode->i_sb->s_flags & MS_NOSEC))
 		inode->i_flags |= S_NOSEC;
 }
+
+void clear_inode(struct inode *inode);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */

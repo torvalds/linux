@@ -1,0 +1,53 @@
+config F2FS_FS
+	tristate "F2FS filesystem support (EXPERIMENTAL)"
+	depends on BLOCK
+	help
+	  F2FS is based on Log-structured File System (LFS), which supports
+	  versatile "flash-friendly" features. The design has been focused on
+	  addressing the fundamental issues in LFS, which are snowball effect
+	  of wandering tree and high cleaning overhead.
+
+	  Since flash-based storages show different characteristics according to
+	  the internal geometry or flash memory management schemes aka FTL, F2FS
+	  and tools support various parameters not only for configuring on-disk
+	  layout, but also for selecting allocation and cleaning algorithms.
+
+	  If unsure, say N.
+
+config F2FS_STAT_FS
+	bool "F2FS Status Information"
+	depends on F2FS_FS && DEBUG_FS
+	default y
+	help
+	  /sys/kernel/debug/f2fs/ contains information about all the partitions
+	  mounted as f2fs. Each file shows the whole f2fs information.
+
+	  /sys/kernel/debug/f2fs/status includes:
+	    - major file system information managed by f2fs currently
+	    - average SIT information about whole segments
+	    - current memory footprint consumed by f2fs.
+
+config F2FS_FS_XATTR
+	bool "F2FS extended attributes"
+	depends on F2FS_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+config F2FS_FS_POSIX_ACL
+	bool "F2FS Access Control Lists"
+	depends on F2FS_FS_XATTR
+	select FS_POSIX_ACL
+	default y
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  gourps beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
