@@ -5,17 +5,24 @@
 
 #include "addi-data/hwdrv_apci16xx.c"
 
-static const struct addi_board apci16xx_boardtypes[] = {
+struct apci16xx_boardinfo {
+	const char *name;
+	unsigned short vendor;
+	unsigned short device;
+	int n_chan;
+};
+
+static const struct apci16xx_boardinfo apci16xx_boardtypes[] = {
 	{
-		.pc_DriverName		= "apci1648",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1009,
-		.i_NbrTTLChannel	= 48,
+		.name		= "apci1648",
+		.vendor		= PCI_VENDOR_ID_ADDIDATA,
+		.device		= 0x1009,
+		.n_chan		= 48,
 	}, {
-		.pc_DriverName		= "apci1696",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x100A,
-		.i_NbrTTLChannel	= 96,
+		.name		= "apci1696",
+		.vendor		= PCI_VENDOR_ID_ADDIDATA,
+		.device		= 0x100A,
+		.n_chan		= 96,
 	},
 };
 
@@ -23,13 +30,13 @@ static const void *addi_find_boardinfo(struct comedi_device *dev,
 				       struct pci_dev *pcidev)
 {
 	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
+	const struct apci16xx_boardinfo *this_board;
 	int i;
 
 	for (i = 0; i < dev->driver->num_names; i++) {
 		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
+		if (this_board->vendor == pcidev->vendor &&
+		    this_board->device == pcidev->device)
 			return this_board;
 		p += dev->driver->offset;
 	}
@@ -40,7 +47,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
+	const struct apci16xx_boardinfo *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -49,7 +56,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = this_board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -70,10 +77,10 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
-	s->n_chan	= this_board->i_NbrTTLChannel;
+	s->n_chan	= this_board->n_chan;
 	s->maxdata	= 1;
 	s->io_bits	= 0;	/* all bits input */
-	s->len_chanlist	= this_board->i_NbrTTLChannel;
+	s->len_chanlist	= this_board->n_chan;
 	s->range_table	= &range_digital;
 	s->insn_config	= i_APCI16XX_InsnConfigInitTTLIO;
 	s->insn_bits	= i_APCI16XX_InsnBitsReadTTLIO;
@@ -99,8 +106,8 @@ static struct comedi_driver apci16xx_driver = {
 	.auto_attach	= apci16xx_auto_attach,
 	.detach		= apci16xx_detach,
 	.num_names	= ARRAY_SIZE(apci16xx_boardtypes),
-	.board_name	= &apci16xx_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
+	.board_name	= &apci16xx_boardtypes[0].name,
+	.offset		= sizeof(struct apci16xx_boardinfo),
 };
 
 static int apci16xx_pci_probe(struct pci_dev *dev,
