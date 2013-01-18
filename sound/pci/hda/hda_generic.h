@@ -105,8 +105,8 @@ struct hda_gen_spec {
 	hda_nid_t adc_nids[AUTO_CFG_MAX_OUTS];
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 	hda_nid_t mixer_nid;		/* analog-mixer NID */
-	const char *input_labels[AUTO_CFG_MAX_OUTS];
-	int input_label_idxs[AUTO_CFG_MAX_OUTS];
+	const char *input_labels[AUTO_CFG_MAX_INS];
+	int input_label_idxs[AUTO_CFG_MAX_INS];
 
 	/* capture setup for dynamic dual-adc switch */
 	hda_nid_t cur_adc;
@@ -159,7 +159,7 @@ struct hda_gen_spec {
 	int speaker_paths[AUTO_CFG_MAX_OUTS];
 	int aamix_out_paths[3];
 	int digout_paths[AUTO_CFG_MAX_OUTS];
-	int input_paths[HDA_MAX_NUM_INPUTS][AUTO_CFG_MAX_OUTS];
+	int input_paths[HDA_MAX_NUM_INPUTS][AUTO_CFG_MAX_INS];
 	int loopback_paths[HDA_MAX_NUM_INPUTS];
 	int digin_path;
 

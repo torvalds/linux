@@ -2652,7 +2652,7 @@ static struct nid_path *get_input_path(struct hda_codec *codec, int adc_idx, int
 	}
 	if (spec->dyn_adc_switch)
 		adc_idx = spec->dyn_adc_idx[imux_idx];
-	if (adc_idx < 0 || adc_idx >= AUTO_CFG_MAX_OUTS) {
+	if (adc_idx < 0 || adc_idx >= AUTO_CFG_MAX_INS) {
 		snd_BUG();
 		return NULL;
 	}
