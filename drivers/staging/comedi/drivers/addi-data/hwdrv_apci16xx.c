@@ -787,21 +787,3 @@ static int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device *dev,
 
 	return i_ReturnValue;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2200_Reset(struct comedi_device *dev)               |                                                         +----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev                                     |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : -                                                      |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI16XX_Reset(struct comedi_device *dev)
-{
-	return 0;
-}

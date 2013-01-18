@@ -17,7 +17,6 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.i_IorangeBase0		= 128,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 48,
-		.reset			= i_APCI16XX_Reset,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
 		.ttl_read		= i_APCI16XX_InsnReadTTLIOAllPortValue,
@@ -29,7 +28,6 @@ static const struct addi_board apci16xx_boardtypes[] = {
 		.i_IorangeBase0		= 128,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrTTLChannel	= 96,
-		.reset			= i_APCI16XX_Reset,
 		.ttl_config		= i_APCI16XX_InsnConfigInitTTLIO,
 		.ttl_bits		= i_APCI16XX_InsnBitsReadTTLIO,
 		.ttl_read		= i_APCI16XX_InsnReadTTLIOAllPortValue,
@@ -44,14 +42,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
-}
-
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->reset(dev);
-	return 0;
 }
 
 static const void *addi_find_boardinfo(struct comedi_device *dev,
@@ -187,7 +177,6 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_ADDI_Reset(dev);
 	return 0;
 }
 
@@ -197,8 +186,6 @@ static void apci16xx_detach(struct comedi_device *dev)
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
-		if (dev->iobase)
-			i_ADDI_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
