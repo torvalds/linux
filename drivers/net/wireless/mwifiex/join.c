@@ -615,23 +615,33 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	struct ieee_types_assoc_rsp *assoc_rsp;
 	struct mwifiex_bssdescriptor *bss_desc;
 	u8 enable_data = true;
+	u16 cap_info, status_code;
 
 	assoc_rsp = (struct ieee_types_assoc_rsp *) &resp->params;
+
+	cap_info = le16_to_cpu(assoc_rsp->cap_info_bitmap);
+	status_code = le16_to_cpu(assoc_rsp->status_code);
 
 	priv->assoc_rsp_size = min(le16_to_cpu(resp->size) - S_DS_GEN,
 				   sizeof(priv->assoc_rsp_buf));
 
 	memcpy(priv->assoc_rsp_buf, &resp->params, priv->assoc_rsp_size);
 
-	if (le16_to_cpu(assoc_rsp->status_code)) {
+	if (status_code) {
 		priv->adapter->dbg.num_cmd_assoc_failure++;
 		dev_err(priv->adapter->dev,
 			"ASSOC_RESP: failed, status code=%d err=%#x a_id=%#x\n",
-			le16_to_cpu(assoc_rsp->status_code),
-			le16_to_cpu(assoc_rsp->cap_info_bitmap),
-			le16_to_cpu(assoc_rsp->a_id));
+			status_code, cap_info, le16_to_cpu(assoc_rsp->a_id));
 
-		ret = le16_to_cpu(assoc_rsp->status_code);
+		if (cap_info == MWIFIEX_TIMEOUT_FOR_AP_RESP) {
+			if (status_code == MWIFIEX_STATUS_CODE_AUTH_TIMEOUT)
+				ret = WLAN_STATUS_AUTH_TIMEOUT;
+			else
+				ret = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		} else {
+			ret = status_code;
+		}
+
 		goto done;
 	}
 

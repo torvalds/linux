@@ -330,6 +330,9 @@ enum P2P_MODES {
 #define HOST_SLEEP_CFG_GPIO_DEF		0xff
 #define HOST_SLEEP_CFG_GAP_DEF		0
 
+#define MWIFIEX_TIMEOUT_FOR_AP_RESP		0xfffc
+#define MWIFIEX_STATUS_CODE_AUTH_TIMEOUT	2
+
 #define CMD_F_HOSTCMD           (1 << 0)
 #define CMD_F_CANCELED          (1 << 1)
 
