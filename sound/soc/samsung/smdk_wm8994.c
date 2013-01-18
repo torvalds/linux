@@ -134,9 +134,9 @@ static struct snd_soc_dai_link smdk_dai[] = {
 	}, { /* Sec_Fifo Playback i/f */
 		.name = "Sec_FIFO TX",
 		.stream_name = "Sec_Dai",
-		.cpu_dai_name = "samsung-i2s.4",
+		.cpu_dai_name = "samsung-i2s-sec",
 		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-i2s.4",
+		.platform_name = "samsung-i2s-sec",
 		.codec_name = "wm8994-codec",
 		.ops = &smdk_ops,
 	},
