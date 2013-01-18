@@ -55,7 +55,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int ret;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -74,53 +74,24 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 0);
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
+	/* Initialize the TTL digital i/o */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	if (this_board->i_NbrTTLChannel) {
-		s->type = COMEDI_SUBD_TTLIO;
-		s->subdev_flags =
-			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrTTLChannel;
-		s->maxdata = 1;
-		s->io_bits = 0;	/* all bits input */
-		s->len_chanlist = this_board->i_NbrTTLChannel;
-		s->range_table = &range_digital;
-		s->insn_config = this_board->ttl_config;
-		s->insn_bits = this_board->ttl_bits;
-		s->insn_read = this_board->ttl_read;
-		s->insn_write = this_board->ttl_write;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
+	s->type = COMEDI_SUBD_TTLIO;
+	s->subdev_flags =
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = this_board->i_NbrTTLChannel;
+	s->maxdata = 1;
+	s->io_bits = 0;	/* all bits input */
+	s->len_chanlist = this_board->i_NbrTTLChannel;
+	s->range_table = &range_digital;
+	s->insn_config = this_board->ttl_config;
+	s->insn_bits = this_board->ttl_bits;
+	s->insn_read = this_board->ttl_read;
+	s->insn_write = this_board->ttl_write;
 
 	return 0;
 }
