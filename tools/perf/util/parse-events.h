@@ -61,12 +61,12 @@ struct parse_events_term {
 	struct list_head list;
 };
 
-struct parse_events_data__events {
+struct parse_events_evlist {
 	struct list_head list;
 	int idx;
 };
 
-struct parse_events_data__terms {
+struct parse_events_terms {
 	struct list_head *terms;
 };
 

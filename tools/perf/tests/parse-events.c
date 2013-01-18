@@ -840,13 +840,13 @@ static int test__all_tracepoints(struct perf_evlist *evlist)
 	return test__checkevent_tracepoint_multi(evlist);
 }
 
-struct test__event_st {
+struct evlist_test {
 	const char *name;
 	__u32 type;
 	int (*check)(struct perf_evlist *evlist);
 };
 
-static struct test__event_st test__events[] = {
+static struct evlist_test test__events[] = {
 	[0] = {
 		.name  = "syscalls:sys_enter_open",
 		.check = test__checkevent_tracepoint,
@@ -985,7 +985,7 @@ static struct test__event_st test__events[] = {
 	},
 };
 
-static struct test__event_st test__events_pmu[] = {
+static struct evlist_test test__events_pmu[] = {
 	[0] = {
 		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
 		.check = test__checkevent_pmu,
@@ -996,20 +996,20 @@ static struct test__event_st test__events_pmu[] = {
 	},
 };
 
-struct test__term {
+struct terms_test {
 	const char *str;
 	__u32 type;
 	int (*check)(struct list_head *terms);
 };
 
-static struct test__term test__terms[] = {
+static struct terms_test test__terms[] = {
 	[0] = {
 		.str   = "config=10,config1,config2=3,umask=1",
 		.check = test__checkterms_simple,
 	},
 };
 
-static int test_event(struct test__event_st *e)
+static int test_event(struct evlist_test *e)
 {
 	struct perf_evlist *evlist;
 	int ret;
@@ -1031,13 +1031,13 @@ static int test_event(struct test__event_st *e)
 	return ret;
 }
 
-static int test_events(struct test__event_st *events, unsigned cnt)
+static int test_events(struct evlist_test *events, unsigned cnt)
 {
 	int ret1, ret2 = 0;
 	unsigned i;
 
 	for (i = 0; i < cnt; i++) {
-		struct test__event_st *e = &events[i];
+		struct evlist_test *e = &events[i];
 
 		pr_debug("running test %d '%s'\n", i, e->name);
 		ret1 = test_event(e);
@@ -1048,7 +1048,7 @@ static int test_events(struct test__event_st *events, unsigned cnt)
 	return ret2;
 }
 
-static int test_term(struct test__term *t)
+static int test_term(struct terms_test *t)
 {
 	struct list_head *terms;
 	int ret;
@@ -1072,13 +1072,13 @@ static int test_term(struct test__term *t)
 	return ret;
 }
 
-static int test_terms(struct test__term *terms, unsigned cnt)
+static int test_terms(struct terms_test *terms, unsigned cnt)
 {
 	int ret = 0;
 	unsigned i;
 
 	for (i = 0; i < cnt; i++) {
-		struct test__term *t = &terms[i];
+		struct terms_test *t = &terms[i];
 
 		pr_debug("running test %d '%s'\n", i, t->str);
 		ret = test_term(t);
@@ -1129,7 +1129,7 @@ static int test_pmu_events(void)
 
 	while (!ret && (ent = readdir(dir))) {
 #define MAX_NAME 100
-		struct test__event_st e;
+		struct evlist_test e;
 		char name[MAX_NAME];
 
 		if (!strcmp(ent->d_name, ".") ||

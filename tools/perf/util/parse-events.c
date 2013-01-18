@@ -856,7 +856,7 @@ static int parse_events__scanner(const char *str, void *data, int start_token)
  */
 int parse_events_terms(struct list_head *terms, const char *str)
 {
-	struct parse_events_data__terms data = {
+	struct parse_events_terms data = {
 		.terms = NULL,
 	};
 	int ret;
@@ -874,7 +874,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 
 int parse_events(struct perf_evlist *evlist, const char *str)
 {
-	struct parse_events_data__events data = {
+	struct parse_events_evlist data = {
 		.list = LIST_HEAD_INIT(data.list),
 		.idx  = evlist->nr_entries,
 	};
