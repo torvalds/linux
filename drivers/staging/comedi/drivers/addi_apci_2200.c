@@ -32,14 +32,12 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 static int apci2200_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
-
-	outw(0x0, devpriv->iobase + APCI2200_DIGITAL_OP);
-	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+	outw(0x0, dev->iobase + APCI2200_DIGITAL_OP);
+	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
 			APCI2200_WATCHDOG_ENABLEDISABLE);
-	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
 			APCI2200_WATCHDOG_RELOAD_VALUE);
-	outw(0x0, devpriv->iobase + APCI2200_WATCHDOG +
+	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
 			APCI2200_WATCHDOG_RELOAD_VALUE + 2);
 
 	return 0;
@@ -87,7 +85,6 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);

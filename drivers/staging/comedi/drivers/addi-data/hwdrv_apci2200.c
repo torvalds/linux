@@ -65,9 +65,7 @@ static int apci2200_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inw(devpriv->iobase + APCI2200_DIGITAL_IP);
+	data[1] = inw(dev->iobase + APCI2200_DIGITAL_IP);
 
 	return insn->n;
 }
@@ -77,16 +75,15 @@ static int apci2200_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inw(devpriv->iobase + APCI2200_DIGITAL_OP);
+	s->state = inw(dev->iobase + APCI2200_DIGITAL_OP);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outw(s->state, devpriv->iobase + APCI2200_DIGITAL_OP);
+		outw(s->state, dev->iobase + APCI2200_DIGITAL_OP);
 	}
 
 	data[1] = s->state;
@@ -120,21 +117,16 @@ static int i_APCI2200_ConfigWatchdog(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
 	if (data[0] == 0) {
 		/* Disable the watchdog */
-		outw(0x0,
-			devpriv->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_ENABLEDISABLE);
+		outw(0x0, dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_ENABLEDISABLE);
 		/* Loading the Reload value */
-		outw(data[1],
-			devpriv->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_RELOAD_VALUE);
+		outw(data[1], dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_RELOAD_VALUE);
 		data[1] = data[1] >> 16;
-		outw(data[1],
-			devpriv->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_RELOAD_VALUE + 2);
+		outw(data[1], dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_RELOAD_VALUE + 2);
 	}			/* if(data[0]==0) */
 	else {
 		printk("\nThe input parameters are wrong\n");
@@ -170,21 +162,18 @@ static int i_APCI2200_StartStopWriteWatchdog(struct comedi_device *dev,
 					     struct comedi_insn *insn,
 					     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
-		outw(0x0, devpriv->iobase + APCI2200_WATCHDOG + APCI2200_WATCHDOG_ENABLEDISABLE);	/* disable the watchdog */
+		outw(0x0, dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_ENABLEDISABLE);
 		break;
 	case 1:		/* start the watchdog */
-		outw(0x0001,
-			devpriv->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_ENABLEDISABLE);
+		outw(0x0001, dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_ENABLEDISABLE);
 		break;
 	case 2:		/* Software trigger */
-		outw(0x0201,
-			devpriv->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_ENABLEDISABLE);
+		outw(0x0201, dev->iobase + APCI2200_WATCHDOG +
+				APCI2200_WATCHDOG_ENABLEDISABLE);
 		break;
 	default:
 		printk("\nSpecified functionality does not exist\n");
@@ -219,10 +208,7 @@ static int i_APCI2200_ReadWatchdog(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
-	data[0] =
-		inw(devpriv->iobase + APCI2200_WATCHDOG +
-		APCI2200_WATCHDOG_STATUS) & 0x1;
+	data[0] = inw(dev->iobase + APCI2200_WATCHDOG +
+			APCI2200_WATCHDOG_STATUS) & 0x1;
 	return insn->n;
 }
