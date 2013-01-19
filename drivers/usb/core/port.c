@@ -16,6 +16,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "hub.h"
 
 static void usb_port_device_release(struct device *dev)
