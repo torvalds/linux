@@ -142,10 +142,12 @@ applications. -->
       <revision>
 	<revnumber>3.9</revnumber>
 	<date>2012-12-03</date>
-	<authorinitials>sa</authorinitials>
+	<authorinitials>sa, sn</authorinitials>
 	<revremark>Added timestamp types to
 	<structname>v4l2_buffer</structname>, see <xref
 	linkend="buffer-flags" />.
+	Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control
+	event changes flag, see <xref linkend="changes-flags"/>.
 	</revremark>
       </revision>
 

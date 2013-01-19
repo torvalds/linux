@@ -2486,6 +2486,10 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <structname>v4l2_buffer</structname>. See <xref
 	  linkend="buffer-flags" />.</para>
         </listitem>
+        <listitem>
+	  <para>Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control event
+	  changes flag. See <xref linkend="changes-flags"/>.</para>
+        </listitem>
       </orderedlist>
     </section>
 

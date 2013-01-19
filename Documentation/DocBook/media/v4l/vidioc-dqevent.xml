@@ -261,6 +261,12 @@
 	    <entry>This control event was triggered because the control flags
 		changed.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_RANGE</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>This control event was triggered because the minimum,
+	    maximum, step or the default value of the control changed.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
