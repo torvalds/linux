@@ -2209,7 +2209,7 @@ static int em_cmpxchg(struct x86_emulate_ctxt *ctxt)
 	/* Save real source value, then compare EAX against destination. */
 	ctxt->src.orig_val = ctxt->src.val;
 	ctxt->src.val = reg_read(ctxt, VCPU_REGS_RAX);
-	emulate_2op_SrcV(ctxt, "cmp");
+	fastop(ctxt, em_cmp);
 
 	if (ctxt->eflags & EFLG_ZF) {
 		/* Success: write back to memory. */
@@ -2977,7 +2977,7 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	ctxt->src.type = OP_IMM;
 	ctxt->src.val = 0;
 	ctxt->src.bytes = 1;
-	emulate_2op_SrcV(ctxt, "or");
+	fastop(ctxt, em_or);
 	ctxt->eflags &= ~(X86_EFLAGS_AF | X86_EFLAGS_CF);
 	if (cf)
 		ctxt->eflags |= X86_EFLAGS_CF;
@@ -4816,7 +4816,7 @@ twobyte_insn:
 							(s16) ctxt->src.val;
 		break;
 	case 0xc0 ... 0xc1:	/* xadd */
-		emulate_2op_SrcV(ctxt, "add");
+		fastop(ctxt, em_add);
 		/* Write back the register source. */
 		ctxt->src.val = ctxt->dst.orig_val;
 		write_register_operand(&ctxt->src);
