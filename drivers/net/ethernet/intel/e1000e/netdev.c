@@ -3413,7 +3413,7 @@ static void e1000e_setup_rss_hash(struct e1000_adapter *adapter)
  * Get attributes for incrementing the System Time Register SYSTIML/H at
  * the default base frequency, and set the cyclecounter shift value.
  **/
-static s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
+s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 incvalue, incperiod, shift;
@@ -3485,6 +3485,10 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 	struct hwtstamp_config *config = &adapter->hwtstamp_config;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
+	u32 rxmtrl = 0;
+	u16 rxudp = 0;
+	bool is_l4 = false;
+	bool is_l2 = false;
 	u32 regval;
 	s32 ret_val;
 
@@ -3509,7 +3513,69 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
+		rxmtrl = E1000_RXMTRL_PTP_V1_SYNC_MESSAGE;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
+		rxmtrl = E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+		/* Also time stamps V2 L2 Path Delay Request/Response */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_SYNC_MESSAGE;
+		is_l2 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		/* Also time stamps V2 L2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE;
+		is_l2 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+		/* Hardware cannot filter just V2 L4 Sync messages;
+		 * fall-through to V2 (both L2 and L4) Sync.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+		/* Also time stamps V2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_SYNC_MESSAGE;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		/* Hardware cannot filter just V2 L4 Delay Request messages;
+		 * fall-through to V2 (both L2 and L4) Delay Request.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		/* Also time stamps V2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		/* Hardware cannot filter just V2 L4 or L2 Event messages;
+		 * fall-through to all V2 (both L2 and L4) Events.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		/* For V1, the hardware can only filter Sync messages or
+		 * Delay Request messages but not both so fall-through to
+		 * time stamp all packets.
+		 */
 	case HWTSTAMP_FILTER_ALL:
+		is_l2 = true;
+		is_l4 = true;
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
@@ -3540,6 +3606,22 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 		e_err("Timesync Rx Control register not set as expected\n");
 		return -EAGAIN;
 	}
+
+	/* L2: define ethertype filter for time stamped packets */
+	if (is_l2)
+		rxmtrl |= ETH_P_1588;
+
+	/* define which PTP packets get time stamped */
+	ew32(RXMTRL, rxmtrl);
+
+	/* Filter by destination port */
+	if (is_l4) {
+		rxudp = PTP_EV_PORT;
+		cpu_to_be16s(&rxudp);
+	}
+	ew32(RXUDP, rxudp);
+
+	e1e_flush();
 
 	/* Clear TSYNCRXCTL_VALID & TSYNCTXCTL_VALID bit */
 	regval = er32(RXSTMPH);
@@ -5665,6 +5747,24 @@ static int e1000e_hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 
 	config = adapter->hwtstamp_config;
 
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		/* With V2 type filters which specify a Sync or Delay Request,
+		 * Path Delay Request/Response messages are also time stamped
+		 * by hardware so notify the caller the requested packets plus
+		 * some others are time stamped.
+		 */
+		config.rx_filter = HWTSTAMP_FILTER_SOME;
+		break;
+	default:
+		break;
+	}
+
 	return copy_to_user(ifr->ifr_data, &config,
 			    sizeof(config)) ? -EFAULT : 0;
 }
@@ -6672,6 +6772,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	/* init PTP hardware clock */
+	e1000e_ptp_init(adapter);
+
 	e1000_print_device_info(adapter);
 
 	if (pci_dev_run_wake(pdev))
@@ -6719,6 +6822,8 @@ static void e1000_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	bool down = test_bit(__E1000_DOWN, &adapter->state);
+
+	e1000e_ptp_remove(adapter);
 
 	/* The timers may be rescheduled, so explicitly disable them
 	 * from being rescheduled.

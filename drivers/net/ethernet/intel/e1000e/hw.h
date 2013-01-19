@@ -251,6 +251,8 @@ enum e1e_registers {
 	E1000_TSYNCRXCTL = 0x0B620, /* Rx Time Sync Control register - RW */
 	E1000_RXSTMPL   = 0x0B624, /* Rx timestamp Low - RO */
 	E1000_RXSTMPH   = 0x0B628, /* Rx timestamp High - RO */
+	E1000_RXMTRL    = 0x0B634, /* Timesync Rx EtherType and Msg Type - RW */
+	E1000_RXUDP     = 0x0B638, /* Timesync Rx UDP Port - RW */
 };
 
 #define E1000_MAX_PHY_ADDR		4
