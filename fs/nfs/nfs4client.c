@@ -352,14 +352,8 @@ int nfs40_walk_client_list(struct nfs_client *new,
 	}
 	spin_unlock(&nn->nfs_client_lock);
 
+	/* No match found. The server lost our clientid */
 out:
-	/*
-	 * No matching nfs_client found.  This should be impossible,
-	 * because the new nfs_client has already been added to
-	 * nfs_client_list by nfs_get_client().
-	 *
-	 * Don't BUG(), since the caller is holding a mutex.
-	 */
 	if (prev)
 		nfs_put_client(prev);
 	dprintk("NFS: <-- %s status = %d\n", __func__, status);
@@ -430,7 +424,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 {
 	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
 	struct nfs_client *pos, *n, *prev = NULL;
-	int error;
+	int status = -NFS4ERR_STALE_CLIENTID;
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry_safe(pos, n, &nn->nfs_client_list, cl_share_link) {
@@ -446,8 +440,8 @@ int nfs41_walk_client_list(struct nfs_client *new,
 				nfs_put_client(prev);
 			prev = pos;
 
-			error = nfs_wait_client_init_complete(pos);
-			if (error < 0) {
+			status = nfs_wait_client_init_complete(pos);
+			if (status < 0) {
 				nfs_put_client(pos);
 				spin_lock(&nn->nfs_client_lock);
 				continue;
@@ -480,16 +474,10 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		return 0;
 	}
 
-	/*
-	 * No matching nfs_client found.  This should be impossible,
-	 * because the new nfs_client has already been added to
-	 * nfs_client_list by nfs_get_client().
-	 *
-	 * Don't BUG(), since the caller is holding a mutex.
-	 */
+	/* No matching nfs_client found. */
 	spin_unlock(&nn->nfs_client_lock);
-	pr_err("NFS: %s Error: no matching nfs_client found\n", __func__);
-	return -NFS4ERR_STALE_CLIENTID;
+	dprintk("NFS: <-- %s status = %d\n", __func__, status);
+	return status;
 }
 #endif	/* CONFIG_NFS_V4_1 */
 

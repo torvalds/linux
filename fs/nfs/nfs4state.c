@@ -136,16 +136,11 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 	clp->cl_confirm = clid.confirm;
 
 	status = nfs40_walk_client_list(clp, result, cred);
-	switch (status) {
-	case -NFS4ERR_STALE_CLIENTID:
-		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
-	case 0:
+	if (status == 0) {
 		/* Sustain the lease, even if it's empty.  If the clientid4
 		 * goes stale it's of no use for trunking discovery. */
 		nfs4_schedule_state_renewal(*result);
-		break;
 	}
-
 out:
 	return status;
 }
@@ -1863,6 +1858,7 @@ again:
 	case -ETIMEDOUT:
 	case -EAGAIN:
 		ssleep(1);
+	case -NFS4ERR_STALE_CLIENTID:
 		dprintk("NFS: %s after status %d, retrying\n",
 			__func__, status);
 		goto again;
