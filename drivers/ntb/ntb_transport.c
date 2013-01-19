@@ -364,12 +364,6 @@ void ntb_unregister_client(struct ntb_client *drv)
 }
 EXPORT_SYMBOL_GPL(ntb_unregister_client);
 
-static int debugfs_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			    loff_t *offp)
 {
@@ -425,7 +419,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 
 static const struct file_operations ntb_qp_debugfs_stats = {
 	.owner = THIS_MODULE,
-	.open = debugfs_open,
+	.open = simple_open,
 	.read = debugfs_read,
 };
 
