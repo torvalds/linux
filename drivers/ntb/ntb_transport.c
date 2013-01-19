@@ -910,12 +910,15 @@ void ntb_transport_free(void *transport)
 static void ntb_rx_copy_task(struct ntb_transport_qp *qp,
 			     struct ntb_queue_entry *entry, void *offset)
 {
+	void *cb_data = entry->cb_data;
+	unsigned int len = entry->len;
+
 	memcpy(entry->buf, offset, entry->len);
 
-	if (qp->rx_handler && qp->client_ready == NTB_LINK_UP)
-		qp->rx_handler(qp, qp->cb_data, entry->cb_data, entry->len);
-
 	ntb_list_add(&qp->ntb_rx_free_q_lock, &entry->entry, &qp->rx_free_q);
+
+	if (qp->rx_handler && qp->client_ready == NTB_LINK_UP)
+		qp->rx_handler(qp, qp->cb_data, cb_data, len);
 }
 
 static int ntb_process_rxc(struct ntb_transport_qp *qp)
