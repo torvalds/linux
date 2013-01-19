@@ -135,85 +135,27 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 {
 	const unsigned char *buf = pod->line6.buffer_message;
 
-	/* filter messages by type */
-	switch (buf[0] & 0xf0) {
-	case LINE6_PARAM_CHANGE:
-	case LINE6_PROGRAM_CHANGE:
-	case LINE6_SYSEX_BEGIN:
-		break;		/* handle these further down */
-
-	default:
-		return;		/* ignore all others */
+	if (memcmp(buf, pod_version_header, sizeof(pod_version_header)) == 0) {
+		pod->firmware_version = buf[13] * 100 + buf[14] * 10 + buf[15];
+		pod->device_id = ((int)buf[8] << 16) | ((int)buf[9] << 8) |
+				 (int) buf[10];
+		pod_startup3(pod);
+		return;
 	}
 
-	/* process all remaining messages */
-	switch (buf[0]) {
-	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_DEVICE:
-	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST:
-		break;
+	/* Only look for sysex messages from this device */
+	if (buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE) &&
+	    buf[0] != (LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKNOWN)) {
+		return;
+	}
+	if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) != 0) {
+		return;
+	}
 
-	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
-	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
-		break;
-
-	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE:
-	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_UNKNOWN:
-		if (memcmp(buf + 1, line6_midi_id,
-			   sizeof(line6_midi_id)) == 0) {
-			switch (buf[5]) {
-			case POD_SYSEX_DUMP:
-				break;
-
-			case POD_SYSEX_SYSTEM:{
-					short value =
-					    ((int)buf[7] << 12) | ((int)buf[8]
-								   << 8) |
-					    ((int)buf[9] << 4) | (int)buf[10];
-
-					if (buf[6] == POD_MONITOR_LEVEL)
-						pod->monitor_level = value;
-					break;
-				}
-
-			case POD_SYSEX_FINISH:
-				/* do we need to respond to this? */
-				break;
-
-			case POD_SYSEX_SAVE:
-				break;
-
-			case POD_SYSEX_STORE:
-				dev_dbg(pod->line6.ifcdev,
-					"message %02X not yet implemented\n",
-					buf[5]);
-				break;
-
-			default:
-				dev_dbg(pod->line6.ifcdev,
-					"unknown sysex message %02X\n",
-					buf[5]);
-			}
-		} else
-		    if (memcmp
-			(buf, pod_version_header,
-			 sizeof(pod_version_header)) == 0) {
-			pod->firmware_version =
-			    buf[13] * 100 + buf[14] * 10 + buf[15];
-			pod->device_id =
-			    ((int)buf[8] << 16) | ((int)buf[9] << 8) | (int)
-			    buf[10];
-			pod_startup3(pod);
-		} else
-			dev_dbg(pod->line6.ifcdev, "unknown sysex header\n");
-
-		break;
-
-	case LINE6_SYSEX_END:
-		break;
-
-	default:
-		dev_dbg(pod->line6.ifcdev, "POD: unknown message %02X\n",
-			buf[0]);
+	if (buf[5] == POD_SYSEX_SYSTEM && buf[6] == POD_MONITOR_LEVEL) {
+		short value = ((int)buf[7] << 12) | ((int)buf[8] << 8) |
+			      ((int)buf[9] << 4) | (int)buf[10];
+		pod->monitor_level = value;
 	}
 }
 
