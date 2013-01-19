@@ -110,6 +110,7 @@ struct ntb_transport_qp {
 
 	void (*event_handler) (void *data, int status);
 	struct delayed_work link_work;
+	struct work_struct link_cleanup;
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_stats;
@@ -148,6 +149,7 @@ struct ntb_transport {
 	unsigned long qp_bitmap;
 	bool transport_link;
 	struct delayed_work link_work;
+	struct work_struct link_cleanup;
 	struct dentry *debugfs_dir;
 };
 
@@ -510,8 +512,11 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 	return 0;
 }
 
-static void ntb_qp_link_down(struct ntb_transport_qp *qp)
+static void ntb_qp_link_cleanup(struct work_struct *work)
 {
+	struct ntb_transport_qp *qp = container_of(work,
+						   struct ntb_transport_qp,
+						   link_cleanup);
 	struct ntb_transport *nt = qp->transport;
 	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
 
@@ -531,8 +536,15 @@ static void ntb_qp_link_down(struct ntb_transport_qp *qp)
 				      msecs_to_jiffies(NTB_LINK_DOWN_TIMEOUT));
 }
 
-static void ntb_transport_conn_down(struct ntb_transport *nt)
+static void ntb_qp_link_down(struct ntb_transport_qp *qp)
 {
+	schedule_work(&qp->link_cleanup);
+}
+
+static void ntb_transport_link_cleanup(struct work_struct *work)
+{
+	struct ntb_transport *nt = container_of(work, struct ntb_transport,
+						link_cleanup);
 	int i;
 
 	if (nt->transport_link == NTB_LINK_DOWN)
@@ -562,7 +574,7 @@ static void ntb_transport_event_callback(void *data, enum ntb_hw_event event)
 		schedule_delayed_work(&nt->link_work, 0);
 		break;
 	case NTB_EVENT_HW_LINK_DOWN:
-		ntb_transport_conn_down(nt);
+		schedule_work(&nt->link_cleanup);
 		break;
 	default:
 		BUG();
@@ -769,6 +781,7 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 	}
 
 	INIT_DELAYED_WORK(&qp->link_work, ntb_qp_link_work);
+	INIT_WORK(&qp->link_cleanup, ntb_qp_link_cleanup);
 
 	spin_lock_init(&qp->ntb_rx_pend_q_lock);
 	spin_lock_init(&qp->ntb_rx_free_q_lock);
@@ -814,6 +827,7 @@ int ntb_transport_init(struct pci_dev *pdev)
 		ntb_transport_init_queue(nt, i);
 
 	INIT_DELAYED_WORK(&nt->link_work, ntb_transport_link_work);
+	INIT_WORK(&nt->link_cleanup, ntb_transport_link_cleanup);
 
 	rc = ntb_register_event_callback(nt->ndev,
 					 ntb_transport_event_callback);
