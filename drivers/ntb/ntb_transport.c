@@ -60,7 +60,7 @@
 
 #define NTB_TRANSPORT_VERSION	1
 
-static int transport_mtu = 0x401E;
+static unsigned int transport_mtu = 0x401E;
 module_param(transport_mtu, uint, 0644);
 MODULE_PARM_DESC(transport_mtu, "Maximum size of NTB transport packets");
 
@@ -94,6 +94,7 @@ struct ntb_transport_qp {
 	void *tx_mw_begin;
 	void *tx_mw_end;
 	void *tx_offset;
+	unsigned int tx_max_frame;
 
 	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
 			    void *data, int len);
@@ -105,6 +106,7 @@ struct ntb_transport_qp {
 	void *rx_buff_begin;
 	void *rx_buff_end;
 	void *rx_offset;
+	unsigned int rx_max_frame;
 
 	void (*event_handler) (void *data, int status);
 	struct delayed_work link_work;
@@ -458,28 +460,29 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 				      unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp = &nt->qps[qp_num];
-	unsigned int size, num_qps_mw;
+	unsigned int rx_size, num_qps_mw;
 	u8 mw_num = QP_TO_MW(qp_num);
+	void *offset;
 
 	WARN_ON(nt->mw[mw_num].virt_addr == 0);
 
-	if (nt->max_qps % NTB_NUM_MW && !mw_num)
-		num_qps_mw = nt->max_qps / NTB_NUM_MW +
-			     (nt->max_qps % NTB_NUM_MW - mw_num);
+	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
 	else
 		num_qps_mw = nt->max_qps / NTB_NUM_MW;
 
-	size = nt->mw[mw_num].size / num_qps_mw;
-
+	rx_size = nt->mw[mw_num].size / num_qps_mw;
 	qp->rx_buff_begin = nt->mw[mw_num].virt_addr +
-			    (qp_num / NTB_NUM_MW * size);
-	qp->rx_buff_end = qp->rx_buff_begin + size;
+			    (qp_num / NTB_NUM_MW * rx_size);
+	qp->rx_buff_end = qp->rx_buff_begin + rx_size;
 	qp->rx_offset = qp->rx_buff_begin;
+	qp->rx_max_frame = min(transport_mtu, rx_size);
 
-	qp->tx_mw_begin = ntb_get_mw_vbase(nt->ndev, mw_num) +
-			  (qp_num / NTB_NUM_MW * size);
-	qp->tx_mw_end = qp->tx_mw_begin + size;
-	qp->tx_offset = qp->tx_mw_begin;
+	/* setup the hdr offsets with 0's */
+	for (offset = qp->rx_buff_begin + qp->rx_max_frame -
+		      sizeof(struct ntb_payload_header);
+	     offset < qp->rx_buff_end; offset += qp->rx_max_frame)
+		memset(offset, 0, sizeof(struct ntb_payload_header));
 
 	qp->rx_pkts = 0;
 	qp->tx_pkts = 0;
@@ -489,7 +492,6 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 {
 	struct ntb_transport_mw *mw = &nt->mw[num_mw];
 	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
-	void *offset;
 
 	/* Alloc memory for receiving data.  Must be 4k aligned */
 	mw->size = ALIGN(size, 4096);
@@ -501,12 +503,6 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 		       (int) mw->size);
 		return -ENOMEM;
 	}
-
-	/* setup the hdr offsets with 0's */
-	for (offset = mw->virt_addr + transport_mtu -
-		      sizeof(struct ntb_payload_header);
-	     offset < mw->virt_addr + size; offset += transport_mtu)
-		memset(offset, 0, sizeof(struct ntb_payload_header));
 
 	/* Notify HW the memory location of the receive buffer */
 	ntb_set_mw_addr(nt->ndev, num_mw, mw->dma_addr);
@@ -737,6 +733,8 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 				     unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp;
+	unsigned int num_qps_mw, tx_size;
+	u8 mw_num = QP_TO_MW(qp_num);
 
 	qp = &nt->qps[qp_num];
 	qp->qp_num = qp_num;
@@ -745,6 +743,18 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->qp_link = NTB_LINK_DOWN;
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
+
+	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
+	else
+		num_qps_mw = nt->max_qps / NTB_NUM_MW;
+
+	tx_size = ntb_get_mw_size(qp->ndev, mw_num) / num_qps_mw;
+	qp->tx_mw_begin = ntb_get_mw_vbase(nt->ndev, mw_num) +
+			  (qp_num / NTB_NUM_MW * tx_size);
+	qp->tx_mw_end = qp->tx_mw_begin + tx_size;
+	qp->tx_offset = qp->tx_mw_begin;
+	qp->tx_max_frame = min(transport_mtu, tx_size);
 
 	if (nt->debugfs_dir) {
 		char debugfs_name[4];
@@ -873,9 +883,9 @@ static void ntb_rx_copy_task(struct ntb_transport_qp *qp,
 	struct ntb_payload_header *hdr;
 
 	BUG_ON(offset < qp->rx_buff_begin ||
-	       offset + transport_mtu >= qp->rx_buff_end);
+	       offset + qp->rx_max_frame >= qp->rx_buff_end);
 
-	hdr = offset + transport_mtu - sizeof(struct ntb_payload_header);
+	hdr = offset + qp->rx_max_frame - sizeof(struct ntb_payload_header);
 	entry->len = hdr->len;
 
 	memcpy(entry->buf, offset, entry->len);
@@ -898,7 +908,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	entry = ntb_list_rm(&qp->ntb_rx_pend_q_lock, &qp->rx_pend_q);
 	if (!entry) {
-		hdr = offset + transport_mtu -
+		hdr = offset + qp->rx_max_frame -
 		      sizeof(struct ntb_payload_header);
 		dev_dbg(&ntb_query_pdev(qp->ndev)->dev,
 			"no buffer - HDR ver %llu, len %d, flags %x\n",
@@ -908,7 +918,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 	}
 
 	offset = qp->rx_offset;
-	hdr = offset + transport_mtu - sizeof(struct ntb_payload_header);
+	hdr = offset + qp->rx_max_frame - sizeof(struct ntb_payload_header);
 
 	if (!(hdr->flags & DESC_DONE_FLAG)) {
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
@@ -966,8 +976,8 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 	qp->rx_pkts++;
 
 out:
-	qp->rx_offset += transport_mtu;
-	if (qp->rx_offset + transport_mtu >= qp->rx_buff_end)
+	qp->rx_offset += qp->rx_max_frame;
+	if (qp->rx_offset + qp->rx_max_frame >= qp->rx_buff_end)
 		qp->rx_offset = qp->rx_buff_begin;
 
 	return 0;
@@ -1000,11 +1010,11 @@ static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
 	struct ntb_payload_header *hdr;
 
 	BUG_ON(offset < qp->tx_mw_begin ||
-	       offset + transport_mtu >= qp->tx_mw_end);
+	       offset + qp->tx_max_frame >= qp->tx_mw_end);
 
 	memcpy_toio(offset, entry->buf, entry->len);
 
-	hdr = offset + transport_mtu - sizeof(struct ntb_payload_header);
+	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
 	hdr->len = entry->len;
 	hdr->ver = qp->tx_pkts;
 
@@ -1036,7 +1046,7 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 	void *offset;
 
 	offset = qp->tx_offset;
-	hdr = offset + transport_mtu - sizeof(struct ntb_payload_header);
+	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
 
 	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%lld - offset %p, tx %p, entry len %d flags %x buff %p\n",
 		 qp->tx_pkts, offset, qp->tx_offset, entry->len, entry->flags,
@@ -1046,7 +1056,7 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 		return -EAGAIN;
 	}
 
-	if (entry->len > transport_mtu - sizeof(struct ntb_payload_header)) {
+	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
 		if (qp->tx_handler)
 			qp->tx_handler(qp->cb_data, qp, NULL, -EIO);
 
@@ -1057,8 +1067,8 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 
 	ntb_tx_copy_task(qp, entry, offset);
 
-	qp->tx_offset += transport_mtu;
-	if (qp->tx_offset + transport_mtu >= qp->tx_mw_end)
+	qp->tx_offset += qp->tx_max_frame;
+	if (qp->tx_offset + qp->tx_max_frame >= qp->tx_mw_end)
 		qp->tx_offset = qp->tx_mw_begin;
 
 	qp->tx_pkts++;
@@ -1425,9 +1435,8 @@ EXPORT_SYMBOL_GPL(ntb_transport_qp_num);
  *
  * RETURNS: the max payload size of a qp
  */
-unsigned int
-ntb_transport_max_size(__attribute__((unused)) struct ntb_transport_qp *qp)
+unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp)
 {
-	return transport_mtu - sizeof(struct ntb_payload_header);
+	return qp->tx_max_frame - sizeof(struct ntb_payload_header);
 }
 EXPORT_SYMBOL_GPL(ntb_transport_max_size);
