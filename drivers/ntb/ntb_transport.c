@@ -212,7 +212,7 @@ static int ntb_client_remove(struct device *dev)
 	return 0;
 }
 
-struct bus_type ntb_bus_type = {
+static struct bus_type ntb_bus_type = {
 	.name = "ntb_bus",
 	.match = ntb_match_bus,
 	.probe = ntb_client_probe,

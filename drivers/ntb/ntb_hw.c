@@ -237,20 +237,6 @@ void ntb_unregister_transport(struct ntb_device *ndev)
 }
 
 /**
- * ntb_get_max_spads() - get the total scratch regs usable
- * @ndev: pointer to ntb_device instance
- *
- * This function returns the max 32bit scratchpad registers usable by the
- * upper layer.
- *
- * RETURNS: total number of scratch pad registers available
- */
-int ntb_get_max_spads(struct ntb_device *ndev)
-{
-	return ndev->limits.max_spads;
-}
-
-/**
  * ntb_write_local_spad() - write to the secondary scratchpad register
  * @ndev: pointer to ntb_device instance
  * @idx: index to the scratchpad register, 0 based
