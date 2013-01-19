@@ -2055,6 +2055,8 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 
 FASTOP1(not);
 FASTOP1(neg);
+FASTOP1(inc);
+FASTOP1(dec);
 
 FASTOP2CL(rol);
 FASTOP2CL(ror);
@@ -2105,12 +2107,6 @@ static int em_grp45(struct x86_emulate_ctxt *ctxt)
 	int rc = X86EMUL_CONTINUE;
 
 	switch (ctxt->modrm_reg) {
-	case 0:	/* inc */
-		emulate_1op(ctxt, "inc");
-		break;
-	case 1:	/* dec */
-		emulate_1op(ctxt, "dec");
-		break;
 	case 2: /* call near abs */ {
 		long int old_eip;
 		old_eip = ctxt->_eip;
@@ -3735,14 +3731,14 @@ static const struct opcode group3[] = {
 };
 
 static const struct opcode group4[] = {
-	I(ByteOp | DstMem | SrcNone | Lock, em_grp45),
-	I(ByteOp | DstMem | SrcNone | Lock, em_grp45),
+	F(ByteOp | DstMem | SrcNone | Lock, em_inc),
+	F(ByteOp | DstMem | SrcNone | Lock, em_dec),
 	N, N, N, N, N, N,
 };
 
 static const struct opcode group5[] = {
-	I(DstMem | SrcNone | Lock,		em_grp45),
-	I(DstMem | SrcNone | Lock,		em_grp45),
+	F(DstMem | SrcNone | Lock,		em_inc),
+	F(DstMem | SrcNone | Lock,		em_dec),
 	I(SrcMem | Stack,			em_grp45),
 	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
 	I(SrcMem | Stack,			em_grp45),
@@ -3891,7 +3887,7 @@ static const struct opcode opcode_table[256] = {
 	/* 0x38 - 0x3F */
 	F6ALU(NoWrite, em_cmp), N, N,
 	/* 0x40 - 0x4F */
-	X16(D(DstReg)),
+	X8(F(DstReg, em_inc)), X8(F(DstReg, em_dec)),
 	/* 0x50 - 0x57 */
 	X8(I(SrcReg | Stack, em_push)),
 	/* 0x58 - 0x5F */
@@ -4681,12 +4677,6 @@ special_insn:
 		goto twobyte_insn;
 
 	switch (ctxt->b) {
-	case 0x40 ... 0x47: /* inc r16/r32 */
-		emulate_1op(ctxt, "inc");
-		break;
-	case 0x48 ... 0x4f: /* dec r16/r32 */
-		emulate_1op(ctxt, "dec");
-		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
