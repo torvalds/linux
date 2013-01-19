@@ -194,13 +194,17 @@ static void __init exynos5_core_down_clk(void)
 
 static int __init exynos4_init_cpuidle(void)
 {
-	int cpu_id;
+	int cpu_id, ret;
 	struct cpuidle_device *device;
 
 	if (soc_is_exynos5250())
 		exynos5_core_down_clk();
 
-	cpuidle_register_driver(&exynos4_idle_driver);
+	ret = cpuidle_register_driver(&exynos4_idle_driver);
+	if (ret) {
+		printk(KERN_ERR "CPUidle failed to register driver\n");
+		return ret;
+	}
 
 	for_each_cpu(cpu_id, cpu_online_mask) {
 		device = &per_cpu(exynos4_cpuidle_device, cpu_id);
@@ -210,9 +214,10 @@ static int __init exynos4_init_cpuidle(void)
 		if (cpu_id != 0)
 			device->state_count = 1;
 
-		if (cpuidle_register_device(device)) {
-			printk(KERN_ERR "CPUidle register device failed\n,");
-			return -EIO;
+		ret = cpuidle_register_device(device);
+		if (ret) {
+			printk(KERN_ERR "CPUidle register device failed\n");
+			return ret;
 		}
 	}
 
