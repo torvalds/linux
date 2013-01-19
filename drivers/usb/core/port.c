@@ -20,6 +20,48 @@
 
 #include "hub.h"
 
+static const struct attribute_group *port_dev_group[];
+
+static ssize_t show_port_connect_type(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	char *result;
+
+	switch (port_dev->connect_type) {
+	case USB_PORT_CONNECT_TYPE_HOT_PLUG:
+		result = "hotplug";
+		break;
+	case USB_PORT_CONNECT_TYPE_HARD_WIRED:
+		result = "hardwired";
+		break;
+	case USB_PORT_NOT_USED:
+		result = "not used";
+		break;
+	default:
+		result = "unknown";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", result);
+}
+static DEVICE_ATTR(connect_type, S_IRUGO, show_port_connect_type,
+		NULL);
+
+static struct attribute *port_dev_attrs[] = {
+	&dev_attr_connect_type.attr,
+	NULL,
+};
+
+static struct attribute_group port_dev_attr_grp = {
+	.attrs = port_dev_attrs,
+};
+
+static const struct attribute_group *port_dev_group[] = {
+	&port_dev_attr_grp,
+	NULL,
+};
+
 static void usb_port_device_release(struct device *dev)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
@@ -45,6 +87,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 
 	hub->ports[port1 - 1] = port_dev;
 	port_dev->dev.parent = hub->intfdev;
+	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
 	dev_set_name(&port_dev->dev, "port%d", port1);
 
