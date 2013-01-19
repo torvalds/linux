@@ -144,9 +144,6 @@ static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	}
 
 	dev_kfree_skb(skb);
-
-	if (netif_queue_stopped(ndev))
-		netif_wake_queue(ndev);
 }
 
 static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
@@ -166,7 +163,6 @@ static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
 err:
 	ndev->stats.tx_dropped++;
 	ndev->stats.tx_errors++;
-	netif_stop_queue(ndev);
 	return NETDEV_TX_BUSY;
 }
 
@@ -270,18 +266,11 @@ err:
 	return rc;
 }
 
-static void ntb_netdev_tx_timeout(struct net_device *ndev)
-{
-	if (netif_running(ndev))
-		netif_wake_queue(ndev);
-}
-
 static const struct net_device_ops ntb_netdev_ops = {
 	.ndo_open = ntb_netdev_open,
 	.ndo_stop = ntb_netdev_close,
 	.ndo_start_xmit = ntb_netdev_start_xmit,
 	.ndo_change_mtu = ntb_netdev_change_mtu,
-	.ndo_tx_timeout = ntb_netdev_tx_timeout,
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
