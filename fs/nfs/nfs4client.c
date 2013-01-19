@@ -236,11 +236,10 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	error = nfs4_discover_server_trunking(clp, &old);
 	if (error < 0)
 		goto error;
+	nfs_put_client(clp);
 	if (clp != old) {
 		clp->cl_preserve_clid = true;
-		nfs_put_client(clp);
 		clp = old;
-		atomic_inc(&clp->cl_count);
 	}
 
 	return clp;
@@ -306,7 +305,7 @@ int nfs40_walk_client_list(struct nfs_client *new,
 		.clientid	= new->cl_clientid,
 		.confirm	= new->cl_confirm,
 	};
-	int status;
+	int status = -NFS4ERR_STALE_CLIENTID;
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry_safe(pos, n, &nn->nfs_client_list, cl_share_link) {
@@ -332,28 +331,28 @@ int nfs40_walk_client_list(struct nfs_client *new,
 
 		if (prev)
 			nfs_put_client(prev);
+		prev = pos;
 
 		status = nfs4_proc_setclientid_confirm(pos, &clid, cred);
-		if (status == 0) {
+		switch (status) {
+		case -NFS4ERR_STALE_CLIENTID:
+			break;
+		case 0:
 			nfs4_swap_callback_idents(pos, new);
 
-			nfs_put_client(pos);
+			prev = NULL;
 			*result = pos;
 			dprintk("NFS: <-- %s using nfs_client = %p ({%d})\n",
 				__func__, pos, atomic_read(&pos->cl_count));
-			return 0;
-		}
-		if (status != -NFS4ERR_STALE_CLIENTID) {
-			nfs_put_client(pos);
-			dprintk("NFS: <-- %s status = %d, no result\n",
-				__func__, status);
-			return status;
+		default:
+			goto out;
 		}
 
 		spin_lock(&nn->nfs_client_lock);
-		prev = pos;
 	}
+	spin_unlock(&nn->nfs_client_lock);
 
+out:
 	/*
 	 * No matching nfs_client found.  This should be impossible,
 	 * because the new nfs_client has already been added to
@@ -363,9 +362,8 @@ int nfs40_walk_client_list(struct nfs_client *new,
 	 */
 	if (prev)
 		nfs_put_client(prev);
-	spin_unlock(&nn->nfs_client_lock);
-	pr_err("NFS: %s Error: no matching nfs_client found\n", __func__);
-	return -NFS4ERR_STALE_CLIENTID;
+	dprintk("NFS: <-- %s status = %d\n", __func__, status);
+	return status;
 }
 
 #ifdef CONFIG_NFS_V4_1
@@ -473,6 +471,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		if (!nfs4_match_serverowners(pos, new))
 			continue;
 
+		atomic_inc(&pos->cl_count);
 		spin_unlock(&nn->nfs_client_lock);
 		dprintk("NFS: <-- %s using nfs_client = %p ({%d})\n",
 			__func__, pos, atomic_read(&pos->cl_count));
