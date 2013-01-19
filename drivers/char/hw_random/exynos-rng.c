@@ -162,7 +162,7 @@ static int exynos_rng_runtime_resume(struct device *dev)
 }
 
 
-UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
+static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 					exynos_rng_runtime_resume, NULL);
 
 static struct platform_driver exynos_rng_driver = {
