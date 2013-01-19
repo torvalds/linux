@@ -368,10 +368,14 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			    loff_t *offp)
 {
 	struct ntb_transport_qp *qp;
-	char buf[1024];
+	char *buf;
 	ssize_t ret, out_offset, out_count;
 
-	out_count = 1024;
+	out_count = 600;
+
+	buf = kmalloc(out_count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	qp = filp->private_data;
 	out_offset = 0;
@@ -410,10 +414,13 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			       "tx_mw_end - \t%p\n", qp->tx_mw_end);
 
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "QP Link %s\n", (qp->qp_link == NTB_LINK_UP) ?
+			       "\nQP Link %s\n", (qp->qp_link == NTB_LINK_UP) ?
 			       "Up" : "Down");
+	if (out_offset > out_count)
+		out_offset = out_count;
 
 	ret = simple_read_from_buffer(ubuf, count, offp, buf, out_offset);
+	kfree(buf);
 	return ret;
 }
 
