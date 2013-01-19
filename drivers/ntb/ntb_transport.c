@@ -288,6 +288,9 @@ int ntb_register_client_dev(char *device_name)
 	struct ntb_transport *nt;
 	int rc;
 
+	if (list_empty(&ntb_transport_list))
+		return -ENODEV;
+
 	list_for_each_entry(nt, &ntb_transport_list, entry) {
 		struct device *dev;
 
@@ -335,6 +338,9 @@ EXPORT_SYMBOL_GPL(ntb_register_client_dev);
 int ntb_register_client(struct ntb_client *drv)
 {
 	drv->driver.bus = &ntb_bus_type;
+
+	if (list_empty(&ntb_transport_list))
+		return -ENODEV;
 
 	return driver_register(&drv->driver);
 }
