@@ -41,6 +41,7 @@ extern void clk_deactivate(struct clk *clk);
 extern struct clk *clk_get_cpu(void);
 extern struct clk *clk_get_fpi(void);
 extern struct clk *clk_get_io(void);
+extern struct clk *clk_get_ppe(void);
 
 /* find out what bootsource we have */
 extern unsigned char ltq_boot_select(void);

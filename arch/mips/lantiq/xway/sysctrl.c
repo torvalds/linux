@@ -356,14 +356,16 @@ void __init ltq_soc_init(void)
 
 	if (of_machine_is_compatible("lantiq,ase")) {
 		if (ltq_cgu_r32(CGU_SYS) & (1 << 5))
-			clkdev_add_static(CLOCK_266M, CLOCK_133M, CLOCK_133M);
+			clkdev_add_static(CLOCK_266M, CLOCK_133M,
+						CLOCK_133M, CLOCK_266M);
 		else
-			clkdev_add_static(CLOCK_133M, CLOCK_133M, CLOCK_133M);
+			clkdev_add_static(CLOCK_133M, CLOCK_133M,
+						CLOCK_133M, CLOCK_133M);
 		clkdev_add_cgu("1e180000.etop", "ephycgu", CGU_EPHY),
 		clkdev_add_pmu("1e180000.etop", "ephy", 0, PMU_EPHY);
 	} else if (of_machine_is_compatible("lantiq,vr9")) {
 		clkdev_add_static(ltq_vr9_cpu_hz(), ltq_vr9_fpi_hz(),
-				ltq_vr9_fpi_hz());
+				ltq_vr9_fpi_hz(), ltq_vr9_pp32_hz());
 		clkdev_add_pmu("1d900000.pcie", "phy", 1, PMU1_PCIE_PHY);
 		clkdev_add_pmu("1d900000.pcie", "bus", 0, PMU_PCIE_CLK);
 		clkdev_add_pmu("1d900000.pcie", "msi", 1, PMU1_PCIE_MSI);
@@ -376,10 +378,10 @@ void __init ltq_soc_init(void)
 				PMU_PPE_QSB | PMU_PPE_TOP);
 	} else if (of_machine_is_compatible("lantiq,ar9")) {
 		clkdev_add_static(ltq_ar9_cpu_hz(), ltq_ar9_fpi_hz(),
-				ltq_ar9_fpi_hz());
+				ltq_ar9_fpi_hz(), CLOCK_250M);
 		clkdev_add_pmu("1e180000.etop", "switch", 0, PMU_SWITCH);
 	} else {
 		clkdev_add_static(ltq_danube_cpu_hz(), ltq_danube_fpi_hz(),
-				ltq_danube_fpi_hz());
+				ltq_danube_fpi_hz(), ltq_danube_pp32_hz());
 	}
 }

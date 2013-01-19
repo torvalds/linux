@@ -26,13 +26,15 @@
 #include "prom.h"
 
 /* lantiq socs have 3 static clocks */
-static struct clk cpu_clk_generic[3];
+static struct clk cpu_clk_generic[4];
 
-void clkdev_add_static(unsigned long cpu, unsigned long fpi, unsigned long io)
+void clkdev_add_static(unsigned long cpu, unsigned long fpi,
+			unsigned long io, unsigned long ppe)
 {
 	cpu_clk_generic[0].rate = cpu;
 	cpu_clk_generic[1].rate = fpi;
 	cpu_clk_generic[2].rate = io;
+	cpu_clk_generic[3].rate = ppe;
 }
 
 struct clk *clk_get_cpu(void)
@@ -50,6 +52,12 @@ struct clk *clk_get_io(void)
 {
 	return &cpu_clk_generic[2];
 }
+
+struct clk *clk_get_ppe(void)
+{
+	return &cpu_clk_generic[3];
+}
+EXPORT_SYMBOL_GPL(clk_get_ppe);
 
 static inline int clk_good(struct clk *clk)
 {
