@@ -20,10 +20,6 @@
 
 #define DRIVER_NAME "line6usb"
 
-#if defined(CONFIG_LINE6_USB_DUMP_PCM)
-#define CONFIG_LINE6_USB_DUMP_ANY
-#endif
-
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
@@ -218,10 +214,5 @@ extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
-
-#ifdef CONFIG_LINE6_USB_DUMP_ANY
-extern void line6_write_hexdump(struct usb_line6 *line6, char dir,
-				const unsigned char *buffer, int size);
-#endif
 
 #endif

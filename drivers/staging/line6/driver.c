@@ -135,47 +135,6 @@ static void line6_stop_listen(struct usb_line6 *line6)
 	usb_kill_urb(line6->urb_listen);
 }
 
-#ifdef CONFIG_LINE6_USB_DUMP_ANY
-/*
-	Write hexdump to syslog.
-*/
-void line6_write_hexdump(struct usb_line6 *line6, char dir,
-			 const unsigned char *buffer, int size)
-{
-	static const int BYTES_PER_LINE = 8;
-	char hexdump[100];
-	char asc[BYTES_PER_LINE + 1];
-	int i, j;
-
-	for (i = 0; i < size; i += BYTES_PER_LINE) {
-		int hexdumpsize = sizeof(hexdump);
-		char *p = hexdump;
-		int n = min(size - i, BYTES_PER_LINE);
-		asc[n] = 0;
-
-		for (j = 0; j < BYTES_PER_LINE; ++j) {
-			int bytes;
-
-			if (j < n) {
-				unsigned char val = buffer[i + j];
-				bytes = snprintf(p, hexdumpsize, " %02X", val);
-				asc[j] = ((val >= 0x20)
-					  && (val < 0x7f)) ? val : '.';
-			} else
-				bytes = snprintf(p, hexdumpsize, "   ");
-
-			if (bytes > hexdumpsize)
-				break;	/* buffer overflow */
-
-			p += bytes;
-			hexdumpsize -= bytes;
-		}
-
-		dev_info(line6->ifcdev, "%c%04X:%s %s\n", dir, i, hexdump, asc);
-	}
-}
-#endif
-
 /*
 	Send raw message in pieces of wMaxPacketSize bytes.
 */

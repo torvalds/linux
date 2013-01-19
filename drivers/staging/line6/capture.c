@@ -216,16 +216,6 @@ static void audio_in_callback(struct urb *urb)
 		if (urb == line6pcm->urb_audio_in[index])
 			break;
 
-#ifdef CONFIG_LINE6_USB_DUMP_PCM
-	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
-		struct usb_iso_packet_descriptor *fout =
-		    &urb->iso_frame_desc[i];
-		line6_write_hexdump(line6pcm->line6, 'C',
-				    urb->transfer_buffer + fout->offset,
-				    fout->length);
-	}
-#endif
-
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
 
 	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
