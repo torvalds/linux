@@ -51,7 +51,7 @@
 #include <linux/pci.h>
 #include <linux/ntb.h>
 
-#define NTB_NETDEV_VER	"0.6"
+#define NTB_NETDEV_VER	"0.7"
 
 MODULE_DESCRIPTION(KBUILD_MODNAME);
 MODULE_VERSION(NTB_NETDEV_VER);
