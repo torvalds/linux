@@ -499,6 +499,28 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	ON64(FOP3E(op##q, rax, rbx, cl)) \
 	FOP_END
 
+/* Special case for SETcc - 1 instruction per cc */
+#define FOP_SETCC(op) ".align 4; " #op " %al; ret \n\t"
+
+FOP_START(setcc)
+FOP_SETCC(seto)
+FOP_SETCC(setno)
+FOP_SETCC(setc)
+FOP_SETCC(setnc)
+FOP_SETCC(setz)
+FOP_SETCC(setnz)
+FOP_SETCC(setbe)
+FOP_SETCC(setnbe)
+FOP_SETCC(sets)
+FOP_SETCC(setns)
+FOP_SETCC(setp)
+FOP_SETCC(setnp)
+FOP_SETCC(setl)
+FOP_SETCC(setnl)
+FOP_SETCC(setle)
+FOP_SETCC(setnle)
+FOP_END;
+
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
 	do {								\
 		unsigned long _tmp;					\
@@ -939,39 +961,15 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
-static int test_cc(unsigned int condition, unsigned int flags)
+static u8 test_cc(unsigned int condition, unsigned long flags)
 {
-	int rc = 0;
+	u8 rc;
+	void (*fop)(void) = (void *)em_setcc + 4 * (condition & 0xf);
 
-	switch ((condition & 15) >> 1) {
-	case 0: /* o */
-		rc |= (flags & EFLG_OF);
-		break;
-	case 1: /* b/c/nae */
-		rc |= (flags & EFLG_CF);
-		break;
-	case 2: /* z/e */
-		rc |= (flags & EFLG_ZF);
-		break;
-	case 3: /* be/na */
-		rc |= (flags & (EFLG_CF|EFLG_ZF));
-		break;
-	case 4: /* s */
-		rc |= (flags & EFLG_SF);
-		break;
-	case 5: /* p/pe */
-		rc |= (flags & EFLG_PF);
-		break;
-	case 7: /* le/ng */
-		rc |= (flags & EFLG_ZF);
-		/* fall through */
-	case 6: /* l/nge */
-		rc |= (!(flags & EFLG_SF) != !(flags & EFLG_OF));
-		break;
-	}
-
-	/* Odd condition identifiers (lsb == 1) have inverted sense. */
-	return (!!rc ^ (condition & 1));
+	flags = (flags & EFLAGS_MASK) | X86_EFLAGS_IF;
+	asm("pushq %[flags]; popf; call *%[fastop]"
+	    : "=a"(rc) : [fastop]"r"(fop), [flags]"r"(flags));
+	return rc;
 }
 
 static void fetch_register_operand(struct operand *op)
