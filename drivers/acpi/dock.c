@@ -317,7 +317,7 @@ static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 		 * no device created for this object,
 		 * so we should create one.
 		 */
-		ret = acpi_bus_add(handle);
+		ret = acpi_bus_scan(handle);
 		if (ret)
 			pr_debug("error adding bus, %x\n", -ret);
 

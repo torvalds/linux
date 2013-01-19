@@ -1577,7 +1577,19 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	return status;
 }
 
-static int acpi_bus_scan(acpi_handle handle)
+/**
+ * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
+ * @handle: Root of the namespace scope to scan.
+ *
+ * Scan a given ACPI tree (probably recently hot-plugged) and create and add
+ * found devices.
+ *
+ * If no devices were found, -ENODEV is returned, but it does not mean that
+ * there has been a real error.  There just have been no suitable ACPI objects
+ * in the table trunk from which the kernel could create a device and add an
+ * appropriate driver.
+ */
+int acpi_bus_scan(acpi_handle handle)
 {
 	void *device = NULL;
 
@@ -1594,31 +1606,7 @@ static int acpi_bus_scan(acpi_handle handle)
 
 	return 0;
 }
-
-/**
- * acpi_bus_add - Add ACPI device node objects in a given namespace scope.
- * @handle: Root of the namespace scope to scan.
- *
- * Scan a given ACPI tree (probably recently hot-plugged) and create and add
- * found devices.
- *
- * If no devices were found, -ENODEV is returned, but it does not mean that
- * there has been a real error.  There just have been no suitable ACPI objects
- * in the table trunk from which the kernel could create a device and add an
- * appropriate driver.
- */
-int acpi_bus_add(acpi_handle handle)
-{
-	int err;
-
-	err = acpi_bus_scan(handle);
-	if (err)
-		return err;
-
-	acpi_update_all_gpes();
-	return 0;
-}
-EXPORT_SYMBOL(acpi_bus_add);
+EXPORT_SYMBOL(acpi_bus_scan);
 
 static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
 					  void *not_used, void **ret_not_used)
@@ -1708,13 +1696,15 @@ int __init acpi_scan_init(void)
 		return result;
 
 	result = acpi_bus_get_device(ACPI_ROOT_OBJECT, &acpi_root);
-	if (!result)
-		result = acpi_bus_scan_fixed();
-
 	if (result)
-		acpi_device_unregister(acpi_root);
-	else
-		acpi_update_all_gpes();
+		return result;
 
-	return result;
+	result = acpi_bus_scan_fixed();
+	if (result) {
+		acpi_device_unregister(acpi_root);
+		return result;
+	}
+
+	acpi_update_all_gpes();
+	return 0;
 }
