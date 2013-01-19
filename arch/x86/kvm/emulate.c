@@ -478,6 +478,15 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	ON64(FOP2E(op##q, rax, rbx)) \
 	FOP_END
 
+/* 2 operand, word only */
+#define FASTOP2W(op) \
+	FOP_START(op) \
+	FOPNOP() \
+	FOP2E(op##w, ax, bx) \
+	FOP2E(op##l, eax, ebx) \
+	ON64(FOP2E(op##q, rax, rbx)) \
+	FOP_END
+
 /* 2 operand, src is CL */
 #define FASTOP2CL(op) \
 	FOP_START(op) \
@@ -2066,6 +2075,13 @@ FASTOP2CL(shl);
 FASTOP2CL(shr);
 FASTOP2CL(sar);
 
+FASTOP2W(bsf);
+FASTOP2W(bsr);
+FASTOP2W(bt);
+FASTOP2W(bts);
+FASTOP2W(btr);
+FASTOP2W(btc);
+
 static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
 {
 	u8 ex = 0;
@@ -3377,47 +3393,6 @@ static int em_sti(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_bt(struct x86_emulate_ctxt *ctxt)
-{
-	/* Disable writeback. */
-	ctxt->dst.type = OP_NONE;
-	/* only subword offset */
-	ctxt->src.val &= (ctxt->dst.bytes << 3) - 1;
-
-	emulate_2op_SrcV_nobyte(ctxt, "bt");
-	return X86EMUL_CONTINUE;
-}
-
-static int em_bts(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "bts");
-	return X86EMUL_CONTINUE;
-}
-
-static int em_btr(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "btr");
-	return X86EMUL_CONTINUE;
-}
-
-static int em_btc(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "btc");
-	return X86EMUL_CONTINUE;
-}
-
-static int em_bsf(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "bsf");
-	return X86EMUL_CONTINUE;
-}
-
-static int em_bsr(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "bsr");
-	return X86EMUL_CONTINUE;
-}
-
 static int em_cpuid(struct x86_emulate_ctxt *ctxt)
 {
 	u32 eax, ebx, ecx, edx;
@@ -3773,10 +3748,10 @@ static const struct group_dual group7 = { {
 
 static const struct opcode group8[] = {
 	N, N, N, N,
-	I(DstMem | SrcImmByte,				em_bt),
-	I(DstMem | SrcImmByte | Lock | PageTable,	em_bts),
-	I(DstMem | SrcImmByte | Lock,			em_btr),
-	I(DstMem | SrcImmByte | Lock | PageTable,	em_btc),
+	F(DstMem | SrcImmByte | NoWrite,		em_bt),
+	F(DstMem | SrcImmByte | Lock | PageTable,	em_bts),
+	F(DstMem | SrcImmByte | Lock,			em_btr),
+	F(DstMem | SrcImmByte | Lock | PageTable,	em_btc),
 };
 
 static const struct group_dual group9 = { {
@@ -4025,28 +4000,29 @@ static const struct opcode twobyte_table[256] = {
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
 	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
-	II(ImplicitOps, em_cpuid, cpuid), I(DstMem | SrcReg | ModRM | BitOp, em_bt),
+	II(ImplicitOps, em_cpuid, cpuid),
+	F(DstMem | SrcReg | ModRM | BitOp | NoWrite, em_bt),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shld),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
 	DI(ImplicitOps, rsm),
-	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
+	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
-	I(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
+	F(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2GS, em_lseg),
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
 	G(BitOp, group8),
-	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
-	I(DstReg | SrcMem | ModRM, em_bsf), I(DstReg | SrcMem | ModRM, em_bsr),
+	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
+	F(DstReg | SrcMem | ModRM, em_bsf), F(DstReg | SrcMem | ModRM, em_bsr),
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xC7 */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
