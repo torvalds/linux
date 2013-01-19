@@ -1009,7 +1009,7 @@ static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
 	hdr->ver = qp->tx_pkts;
 
 	/* Ensure that the data is fully copied out before setting the flag */
-	mmiowb();
+	wmb();
 	hdr->flags = entry->flags | DESC_DONE_FLAG;
 
 	ntb_ring_sdb(qp->ndev, qp->qp_num);
