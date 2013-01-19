@@ -13,7 +13,7 @@
  *
  */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
