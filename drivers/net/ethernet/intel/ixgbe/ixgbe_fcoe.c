@@ -544,15 +544,14 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		first->gso_segs = DIV_ROUND_UP(skb->len - *hdr_len,
 					       skb_shinfo(skb)->gso_size);
 		first->bytecount += (first->gso_segs - 1) * *hdr_len;
-		first->tx_flags |= IXGBE_TX_FLAGS_FSO;
+		first->tx_flags |= IXGBE_TX_FLAGS_TSO;
 	}
 
 	/* set flag indicating FCOE to ixgbe_tx_map call */
-	first->tx_flags |= IXGBE_TX_FLAGS_FCOE;
+	first->tx_flags |= IXGBE_TX_FLAGS_FCOE | IXGBE_TX_FLAGS_CC;
 
-	/* mss_l4len_id: use 1 for FSO as TSO, no need for L4LEN */
+	/* mss_l4len_id: use 0 for FSO as TSO, no need for L4LEN */
 	mss_l4len_idx = skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
-	mss_l4len_idx |= 1 << IXGBE_ADVTXD_IDX_SHIFT;
 
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	vlan_macip_lens = skb_transport_offset(skb) +

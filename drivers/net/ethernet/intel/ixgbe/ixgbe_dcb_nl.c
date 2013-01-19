@@ -30,6 +30,7 @@
 #include <linux/dcbnl.h>
 #include "ixgbe_dcb_82598.h"
 #include "ixgbe_dcb_82599.h"
+#include "ixgbe_sriov.h"
 
 /* Callbacks for DCB netlink in the kernel */
 #define BIT_DCB_MODE	0x01
@@ -643,9 +644,11 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 		return err;
 
 	err = dcb_ieee_setapp(dev, app);
+	if (err)
+		return err;
 
 #ifdef IXGBE_FCOE
-	if (!err && app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	if (app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
 	    app->protocol == ETH_P_FCOE) {
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
@@ -656,6 +659,23 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 		ixgbe_dcbnl_devreset(dev);
 	}
 #endif
+
+	/* VF devices should use default UP when available */
+	if (app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	    app->protocol == 0) {
+		int vf;
+
+		adapter->default_up = app->priority;
+
+		for (vf = 0; vf < adapter->num_vfs; vf++) {
+			struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
+
+			if (!vfinfo->pf_qos)
+				ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+						app->priority, vf);
+		}
+	}
+
 	return 0;
 }
 
@@ -683,6 +703,24 @@ static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 		ixgbe_dcbnl_devreset(dev);
 	}
 #endif
+	/* IF default priority is being removed clear VF default UP */
+	if (app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	    app->protocol == 0 && adapter->default_up == app->priority) {
+		int vf;
+		long unsigned int app_mask = dcb_ieee_getapp_mask(dev, app);
+		int qos = app_mask ? find_first_bit(&app_mask, 8) : 0;
+
+		adapter->default_up = qos;
+
+		for (vf = 0; vf < adapter->num_vfs; vf++) {
+			struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
+
+			if (!vfinfo->pf_qos)
+				ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+						qos, vf);
+		}
+	}
+
 	return err;
 }
 
