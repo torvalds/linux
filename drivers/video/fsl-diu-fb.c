@@ -1232,6 +1232,16 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+static inline void fsl_diu_enable_interrupts(struct fsl_diu_data *data)
+{
+	u32 int_mask = INT_UNDRUN; /* enable underrun detection */
+
+	if (IS_ENABLED(CONFIG_NOT_COHERENT_CACHE))
+		int_mask |= INT_VSYNC; /* enable vertical sync */
+
+	clrbits32(&data->diu_reg->int_mask, int_mask);
+}
+
 /* turn on fb if count == 1
  */
 static int fsl_diu_open(struct fb_info *info, int user)
@@ -1251,19 +1261,7 @@ static int fsl_diu_open(struct fb_info *info, int user)
 		if (res < 0)
 			mfbi->count--;
 		else {
-			struct fsl_diu_data *data = mfbi->parent;
-
-#ifdef CONFIG_NOT_COHERENT_CACHE
-			/*
-			 * Enable underrun detection and vertical sync
-			 * interrupts.
-			 */
-			clrbits32(&data->diu_reg->int_mask,
-				  INT_UNDRUN | INT_VSYNC);
-#else
-			/* Enable underrun detection */
-			clrbits32(&data->diu_reg->int_mask, INT_UNDRUN);
-#endif
+			fsl_diu_enable_interrupts(mfbi->parent);
 			fsl_diu_enable_panel(info);
 		}
 	}
@@ -1283,9 +1281,18 @@ static int fsl_diu_release(struct fb_info *info, int user)
 	mfbi->count--;
 	if (mfbi->count == 0) {
 		struct fsl_diu_data *data = mfbi->parent;
+		bool disable = true;
+		int i;
 
-		/* Disable interrupts */
-		out_be32(&data->diu_reg->int_mask, 0xffffffff);
+		/* Disable interrupts only if all AOIs are closed */
+		for (i = 0; i < NUM_AOIS; i++) {
+			struct mfb_info *mi = data->fsl_diu_info[i].par;
+
+			if (mi->count)
+				disable = false;
+		}
+		if (disable)
+			out_be32(&data->diu_reg->int_mask, 0xffffffff);
 		fsl_diu_disable_panel(info);
 	}
 
@@ -1614,14 +1621,6 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	out_be32(&data->diu_reg->desc[1], data->dummy_ad.paddr);
 	out_be32(&data->diu_reg->desc[2], data->dummy_ad.paddr);
 
-	for (i = 0; i < NUM_AOIS; i++) {
-		ret = install_fb(&data->fsl_diu_info[i]);
-		if (ret) {
-			dev_err(&pdev->dev, "could not register fb %d\n", i);
-			goto error;
-		}
-	}
-
 	/*
 	 * Older versions of U-Boot leave interrupts enabled, so disable
 	 * all of them and clear the status register.
@@ -1630,10 +1629,19 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	in_be32(&data->diu_reg->int_status);
 
 	ret = request_irq(data->irq, fsl_diu_isr, 0, "fsl-diu-fb",
-			  &data->diu_reg);
+			  data->diu_reg);
 	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq\n");
 		goto error;
+	}
+
+	for (i = 0; i < NUM_AOIS; i++) {
+		ret = install_fb(&data->fsl_diu_info[i]);
+		if (ret) {
+			dev_err(&pdev->dev, "could not register fb %d\n", i);
+			free_irq(data->irq, data->diu_reg);
+			goto error;
+		}
 	}
 
 	sysfs_attr_init(&data->dev_attr.attr);
@@ -1667,7 +1675,7 @@ static int fsl_diu_remove(struct platform_device *pdev)
 	data = dev_get_drvdata(&pdev->dev);
 	disable_lcdc(&data->fsl_diu_info[0]);
 
-	free_irq(data->irq, &data->diu_reg);
+	free_irq(data->irq, data->diu_reg);
 
 	for (i = 0; i < NUM_AOIS; i++)
 		uninstall_fb(&data->fsl_diu_info[i]);
