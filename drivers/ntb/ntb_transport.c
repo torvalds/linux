@@ -930,7 +930,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	if (!(hdr->flags & DESC_DONE_FLAG)) {
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-				  &qp->rx_pend_q);
+			     &qp->rx_pend_q);
 		qp->rx_ring_empty++;
 		return -EAGAIN;
 	}
@@ -940,7 +940,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 			"qp %d: version mismatch, expected %llu - got %llu\n",
 			qp->qp_num, qp->rx_pkts, hdr->ver);
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-				  &qp->rx_pend_q);
+			     &qp->rx_pend_q);
 		qp->rx_err_ver++;
 		return -EIO;
 	}
@@ -949,7 +949,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 		ntb_qp_link_down(qp);
 
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-				  &qp->rx_pend_q);
+			     &qp->rx_pend_q);
 
 		/* Ensure that the data is fully copied out before clearing the
 		 * done flag
@@ -967,7 +967,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 		ntb_rx_copy_task(qp, entry, offset);
 	else {
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-				  &qp->rx_pend_q);
+			     &qp->rx_pend_q);
 
 		/* Ensure that the data is fully copied out before clearing the
 		 * done flag
@@ -1057,8 +1057,8 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
 
 	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%lld - offset %p, tx %p, entry len %d flags %x buff %p\n",
-		 qp->tx_pkts, offset, qp->tx_offset, entry->len, entry->flags,
-		 entry->buf);
+		qp->tx_pkts, offset, qp->tx_offset, entry->len, entry->flags,
+		entry->buf);
 	if (hdr->flags) {
 		qp->tx_ring_full++;
 		return -EAGAIN;
@@ -1097,8 +1097,7 @@ static void ntb_send_link_down(struct ntb_transport_qp *qp)
 	dev_info(&pdev->dev, "qp %d: Link Down\n", qp->qp_num);
 
 	for (i = 0; i < NTB_LINK_DOWN_TIMEOUT; i++) {
-		entry = ntb_list_rm(&qp->ntb_tx_free_q_lock,
-					 &qp->tx_free_q);
+		entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 		if (entry)
 			break;
 		msleep(100);
@@ -1167,7 +1166,7 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 			goto err1;
 
 		ntb_list_add(&qp->ntb_rx_free_q_lock, &entry->entry,
-				  &qp->rx_free_q);
+			     &qp->rx_free_q);
 	}
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
@@ -1176,7 +1175,7 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 			goto err2;
 
 		ntb_list_add(&qp->ntb_tx_free_q_lock, &entry->entry,
-				  &qp->tx_free_q);
+			     &qp->tx_free_q);
 	}
 
 	tasklet_init(&qp->rx_work, ntb_transport_rx, (unsigned long) qp);
@@ -1193,12 +1192,10 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 err3:
 	tasklet_disable(&qp->rx_work);
 err2:
-	while ((entry =
-		ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
+	while ((entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
 		kfree(entry);
 err1:
-	while ((entry =
-		ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
+	while ((entry = ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
 		kfree(entry);
 	set_bit(free_queue, &nt->qp_bitmap);
 err:
@@ -1225,18 +1222,15 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	ntb_unregister_db_callback(qp->ndev, qp->qp_num);
 	tasklet_disable(&qp->rx_work);
 
-	while ((entry =
-		ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
+	while ((entry = ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
 		kfree(entry);
 
-	while ((entry =
-		ntb_list_rm(&qp->ntb_rx_pend_q_lock, &qp->rx_pend_q))) {
+	while ((entry = ntb_list_rm(&qp->ntb_rx_pend_q_lock, &qp->rx_pend_q))) {
 		dev_warn(&pdev->dev, "Freeing item from a non-empty queue\n");
 		kfree(entry);
 	}
 
-	while ((entry =
-		ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
+	while ((entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
 		kfree(entry);
 
 	set_bit(qp->qp_num, &qp->transport->qp_bitmap);
@@ -1270,8 +1264,7 @@ void *ntb_transport_rx_remove(struct ntb_transport_qp *qp, unsigned int *len)
 	buf = entry->cb_data;
 	*len = entry->len;
 
-	ntb_list_add(&qp->ntb_rx_free_q_lock, &entry->entry,
-			  &qp->rx_free_q);
+	ntb_list_add(&qp->ntb_rx_free_q_lock, &entry->entry, &qp->rx_free_q);
 
 	return buf;
 }
@@ -1305,8 +1298,7 @@ int ntb_transport_rx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	entry->buf = data;
 	entry->len = len;
 
-	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-			  &qp->rx_pend_q);
+	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry, &qp->rx_pend_q);
 
 	return 0;
 }
