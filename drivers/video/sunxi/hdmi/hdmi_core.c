@@ -343,7 +343,11 @@ __s32 video_config(__s32 vic)
 	else
 		reg_val |= 0x28; /* 16 : 9 */
 	HDMI_WUINT8(0x085, reg_val); /* Data Byte 2 */
-	HDMI_WUINT8(0x086, 0x00);
+#ifdef YUV_COLORSPACE /* Fix me */
+	HDMI_WUINT8(0x086, 0x80);
+#else
+	HDMI_WUINT8(0x086, 0x88);
+#endif
 	HDMI_WUINT8(0x087, (video_timing[vic_tab].VIC >=
 					HDMI_NON_CEA861D_START) ?
 			   0 : video_timing[vic_tab].VIC);
