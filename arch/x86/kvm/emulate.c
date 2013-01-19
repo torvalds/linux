@@ -478,6 +478,15 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	ON64(FOP2E(op##q, rax, rbx)) \
 	FOP_END
 
+/* 2 operand, src is CL */
+#define FASTOP2CL(op) \
+	FOP_START(op) \
+	FOP2E(op##b, al, cl) \
+	FOP2E(op##w, ax, cl) \
+	FOP2E(op##l, eax, cl) \
+	ON64(FOP2E(op##q, rax, cl)) \
+	FOP_END
+
 #define FOP3E(op,  dst, src, src2) \
 	FOP_ALIGN #op " %" #src2 ", %" #src ", %" #dst " \n\t" FOP_RET
 
@@ -2046,37 +2055,16 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_grp2(struct x86_emulate_ctxt *ctxt)
-{
-	switch (ctxt->modrm_reg) {
-	case 0:	/* rol */
-		emulate_2op_SrcB(ctxt, "rol");
-		break;
-	case 1:	/* ror */
-		emulate_2op_SrcB(ctxt, "ror");
-		break;
-	case 2:	/* rcl */
-		emulate_2op_SrcB(ctxt, "rcl");
-		break;
-	case 3:	/* rcr */
-		emulate_2op_SrcB(ctxt, "rcr");
-		break;
-	case 4:	/* sal/shl */
-	case 6:	/* sal/shl */
-		emulate_2op_SrcB(ctxt, "sal");
-		break;
-	case 5:	/* shr */
-		emulate_2op_SrcB(ctxt, "shr");
-		break;
-	case 7:	/* sar */
-		emulate_2op_SrcB(ctxt, "sar");
-		break;
-	}
-	return X86EMUL_CONTINUE;
-}
-
 FASTOP1(not);
 FASTOP1(neg);
+
+FASTOP2CL(rol);
+FASTOP2CL(ror);
+FASTOP2CL(rcl);
+FASTOP2CL(rcr);
+FASTOP2CL(shl);
+FASTOP2CL(shr);
+FASTOP2CL(sar);
 
 static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
 {
@@ -3726,6 +3714,17 @@ static const struct opcode group1A[] = {
 	I(DstMem | SrcNone | Mov | Stack, em_pop), N, N, N, N, N, N, N,
 };
 
+static const struct opcode group2[] = {
+	F(DstMem | ModRM, em_rol),
+	F(DstMem | ModRM, em_ror),
+	F(DstMem | ModRM, em_rcl),
+	F(DstMem | ModRM, em_rcr),
+	F(DstMem | ModRM, em_shl),
+	F(DstMem | ModRM, em_shr),
+	F(DstMem | ModRM, em_shl),
+	F(DstMem | ModRM, em_sar),
+};
+
 static const struct opcode group3[] = {
 	F(DstMem | SrcImm | NoWrite, em_test),
 	F(DstMem | SrcImm | NoWrite, em_test),
@@ -3949,7 +3948,7 @@ static const struct opcode opcode_table[256] = {
 	/* 0xB8 - 0xBF */
 	X8(I(DstReg | SrcImm64 | Mov, em_mov)),
 	/* 0xC0 - 0xC7 */
-	D2bv(DstMem | SrcImmByte | ModRM),
+	G(ByteOp | Src2ImmByte, group2), G(Src2ImmByte, group2),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	I(ImplicitOps | Stack, em_ret),
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2ES, em_lseg),
@@ -3961,7 +3960,8 @@ static const struct opcode opcode_table[256] = {
 	D(ImplicitOps), DI(SrcImmByte, intn),
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
-	D2bv(DstMem | SrcOne | ModRM), D2bv(DstMem | ModRM),
+	G(Src2One | ByteOp, group2), G(Src2One, group2),
+	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
 	N, I(DstAcc | SrcImmByte | No64, em_aad), N, N,
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
@@ -4713,9 +4713,6 @@ special_insn:
 		case 8: ctxt->dst.val = (s32)ctxt->dst.val; break;
 		}
 		break;
-	case 0xc0 ... 0xc1:
-		rc = em_grp2(ctxt);
-		break;
 	case 0xcc:		/* int3 */
 		rc = emulate_int(ctxt, 3);
 		break;
@@ -4725,13 +4722,6 @@ special_insn:
 	case 0xce:		/* into */
 		if (ctxt->eflags & EFLG_OF)
 			rc = emulate_int(ctxt, 4);
-		break;
-	case 0xd0 ... 0xd1:	/* Grp2 */
-		rc = em_grp2(ctxt);
-		break;
-	case 0xd2 ... 0xd3:	/* Grp2 */
-		ctxt->src.val = reg_read(ctxt, VCPU_REGS_RCX);
-		rc = em_grp2(ctxt);
 		break;
 	case 0xe9: /* jmp rel */
 	case 0xeb: /* jmp rel short */
