@@ -972,6 +972,41 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+FASTOP2(add);
+FASTOP2(or);
+FASTOP2(adc);
+FASTOP2(sbb);
+FASTOP2(and);
+FASTOP2(sub);
+FASTOP2(xor);
+FASTOP2(cmp);
+FASTOP2(test);
+
+FASTOP3WCL(shld);
+FASTOP3WCL(shrd);
+
+FASTOP2W(imul);
+
+FASTOP1(not);
+FASTOP1(neg);
+FASTOP1(inc);
+FASTOP1(dec);
+
+FASTOP2CL(rol);
+FASTOP2CL(ror);
+FASTOP2CL(rcl);
+FASTOP2CL(rcr);
+FASTOP2CL(shl);
+FASTOP2CL(shr);
+FASTOP2CL(sar);
+
+FASTOP2W(bsf);
+FASTOP2W(bsr);
+FASTOP2W(bt);
+FASTOP2W(bts);
+FASTOP2W(btr);
+FASTOP2W(btc);
+
 static u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
@@ -2064,26 +2099,6 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-FASTOP1(not);
-FASTOP1(neg);
-FASTOP1(inc);
-FASTOP1(dec);
-
-FASTOP2CL(rol);
-FASTOP2CL(ror);
-FASTOP2CL(rcl);
-FASTOP2CL(rcr);
-FASTOP2CL(shl);
-FASTOP2CL(shr);
-FASTOP2CL(sar);
-
-FASTOP2W(bsf);
-FASTOP2W(bsr);
-FASTOP2W(bt);
-FASTOP2W(bts);
-FASTOP2W(btr);
-FASTOP2W(btc);
-
 static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
 {
 	u8 ex = 0;
@@ -3039,21 +3054,6 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	rsp_increment(ctxt, ctxt->src.val);
 	return X86EMUL_CONTINUE;
 }
-
-FASTOP2(add);
-FASTOP2(or);
-FASTOP2(adc);
-FASTOP2(sbb);
-FASTOP2(and);
-FASTOP2(sub);
-FASTOP2(xor);
-FASTOP2(cmp);
-FASTOP2(test);
-
-FASTOP3WCL(shld);
-FASTOP3WCL(shrd);
-
-FASTOP2W(imul);
 
 static int em_xchg(struct x86_emulate_ctxt *ctxt)
 {
