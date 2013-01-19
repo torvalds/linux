@@ -305,7 +305,7 @@ void __init ltq_soc_init(void)
 
 	/* check if all the core register ranges are available */
 	if (!np_pmu || !np_cgu || !np_ebu)
-		panic("Failed to load core nodess from devicetree");
+		panic("Failed to load core nodes from devicetree");
 
 	if (of_address_to_resource(np_pmu, 0, &res_pmu) ||
 			of_address_to_resource(np_cgu, 0, &res_cgu) ||
