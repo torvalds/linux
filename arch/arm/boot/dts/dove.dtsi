@@ -117,6 +117,7 @@
 		pinctrl: pinctrl@d0200 {
 			compatible = "marvell,dove-pinctrl";
 			reg = <0xd0200 0x10>;
+			clocks = <&gate_clk 22>;
 		};
 
 		spi0: spi@10600 {

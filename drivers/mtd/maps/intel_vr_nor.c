@@ -189,8 +189,7 @@ static void vr_nor_pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static int
-vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct vr_nor_mtd *p = NULL;
 	unsigned int exp_timing_cs0;

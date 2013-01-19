@@ -1361,13 +1361,16 @@ static int mv_xor_probe(struct platform_device *pdev)
 err_channel_add:
 	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++)
 		if (xordev->channels[i]) {
+			mv_xor_channel_remove(xordev->channels[i]);
 			if (pdev->dev.of_node)
 				irq_dispose_mapping(xordev->channels[i]->irq);
-			mv_xor_channel_remove(xordev->channels[i]);
 		}
 
-	clk_disable_unprepare(xordev->clk);
-	clk_put(xordev->clk);
+	if (!IS_ERR(xordev->clk)) {
+		clk_disable_unprepare(xordev->clk);
+		clk_put(xordev->clk);
+	}
+
 	return ret;
 }
 

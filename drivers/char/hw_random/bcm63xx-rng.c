@@ -61,7 +61,7 @@ static int bcm63xx_rng_data_read(struct hwrng *rng, u32 *data)
 	return 4;
 }
 
-static int __devinit bcm63xx_rng_probe(struct platform_device *pdev)
+static int bcm63xx_rng_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	struct clk *clk;
@@ -161,7 +161,7 @@ static int bcm63xx_rng_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_rng_driver = {
 	.probe		= bcm63xx_rng_probe,
-	.remove		= __devexit_p(bcm63xx_rng_remove),
+	.remove		= bcm63xx_rng_remove,
 	.driver		= {
 		.name	= "bcm63xx-rng",
 		.owner	= THIS_MODULE,

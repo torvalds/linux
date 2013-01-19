@@ -365,7 +365,7 @@ static int gpio_regulator_remove(struct platform_device *pdev)
 }
 
 #if defined(CONFIG_OF)
-static const struct of_device_id regulator_gpio_of_match[] __devinitconst = {
+static const struct of_device_id regulator_gpio_of_match[] = {
 	{ .compatible = "regulator-gpio", },
 	{},
 };

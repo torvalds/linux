@@ -444,7 +444,7 @@ static struct mvebu_pinctrl_soc_info mv98dx4122_info = {
 	.ngpioranges = ARRAY_SIZE(mv88f628x_gpio_ranges),
 };
 
-static struct of_device_id kirkwood_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id kirkwood_pinctrl_of_match[] = {
 	{ .compatible = "marvell,88f6180-pinctrl", .data = &mv88f6180_info },
 	{ .compatible = "marvell,88f6190-pinctrl", .data = &mv88f6190_info },
 	{ .compatible = "marvell,88f6192-pinctrl", .data = &mv88f6192_info },
@@ -454,7 +454,7 @@ static struct of_device_id kirkwood_pinctrl_of_match[] __devinitdata = {
 	{ }
 };
 
-static int __devinit kirkwood_pinctrl_probe(struct platform_device *pdev)
+static int kirkwood_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(kirkwood_pinctrl_of_match, &pdev->dev);
@@ -462,7 +462,7 @@ static int __devinit kirkwood_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit kirkwood_pinctrl_remove(struct platform_device *pdev)
+static int kirkwood_pinctrl_remove(struct platform_device *pdev)
 {
 	return mvebu_pinctrl_remove(pdev);
 }
@@ -474,7 +474,7 @@ static struct platform_driver kirkwood_pinctrl_driver = {
 		.of_match_table = of_match_ptr(kirkwood_pinctrl_of_match),
 	},
 	.probe = kirkwood_pinctrl_probe,
-	.remove = __devexit_p(kirkwood_pinctrl_remove),
+	.remove = kirkwood_pinctrl_remove,
 };
 
 module_platform_driver(kirkwood_pinctrl_driver);

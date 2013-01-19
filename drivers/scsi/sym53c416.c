@@ -581,7 +581,7 @@ static int sym53c416_test(int base)
 }
 
 
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
 	{	ISAPNP_ANY_ID, ISAPNP_ANY_ID,
 		ISAPNP_VENDOR('S','L','I'), ISAPNP_FUNCTION(0x4161), 0 },
 	{	ISAPNP_ANY_ID, ISAPNP_ANY_ID,

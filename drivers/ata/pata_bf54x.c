@@ -1538,7 +1538,7 @@ static unsigned short atapi_io_port[] = {
  *		- IRQ	   (IORESOURCE_IRQ)
  *
  */
-static int __devinit bfin_atapi_probe(struct platform_device *pdev)
+static int bfin_atapi_probe(struct platform_device *pdev)
 {
 	int board_idx = 0;
 	struct resource *res;
@@ -1608,7 +1608,7 @@ static int __devinit bfin_atapi_probe(struct platform_device *pdev)
  *	A bfin atapi device has been unplugged. Perform the needed
  *	cleanup. Also called on module unload for any active devices.
  */
-static int __devexit bfin_atapi_remove(struct platform_device *pdev)
+static int bfin_atapi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -1654,7 +1654,7 @@ static int bfin_atapi_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_atapi_driver = {
 	.probe			= bfin_atapi_probe,
-	.remove			= __devexit_p(bfin_atapi_remove),
+	.remove			= bfin_atapi_remove,
 	.suspend		= bfin_atapi_suspend,
 	.resume			= bfin_atapi_resume,
 	.driver = {

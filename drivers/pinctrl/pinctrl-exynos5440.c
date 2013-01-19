@@ -842,7 +842,7 @@ static int __init exynos5440_gpiolib_unregister(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit exynos5440_pinctrl_probe(struct platform_device *pdev)
+static int exynos5440_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos5440_pinctrl_priv_data *priv;

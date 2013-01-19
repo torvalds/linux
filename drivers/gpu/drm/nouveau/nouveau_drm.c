@@ -189,8 +189,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	nouveau_bo_move_init(drm);
 }
 
-static int __devinit
-nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
+static int nouveau_drm_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *pent)
 {
 	struct nouveau_device *device;
 	struct apertures_struct *aper;
