@@ -29,6 +29,7 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
+#include <mach/iomux.h>
 #include "rk3188_lcdc.h"
 
 
@@ -231,7 +232,39 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
    	}
 	
 	rk3188_lcdc_clk_enable(lcdc_dev);
-	
+
+	if(lcdc_dev->id == 1) //iomux for lcdc1
+	{
+		iomux_set(LCDC1_DCLK);
+		iomux_set(LCDC1_DEN);
+		iomux_set(LCDC1_HSYNC);
+		iomux_set(LCDC1_VSYNC);
+		iomux_set(LCDC1_D0);
+		iomux_set(LCDC1_D1);
+		iomux_set(LCDC1_D2);
+		iomux_set(LCDC1_D3);
+		iomux_set(LCDC1_D4);
+		iomux_set(LCDC1_D5);
+		iomux_set(LCDC1_D6);
+		iomux_set(LCDC1_D7);
+		iomux_set(LCDC1_D8);
+		iomux_set(LCDC1_D9);
+		iomux_set(LCDC1_D10);
+		iomux_set(LCDC1_D11);
+		iomux_set(LCDC1_D12);
+		iomux_set(LCDC1_D13);
+		iomux_set(LCDC1_D14);
+		iomux_set(LCDC1_D15);
+		iomux_set(LCDC1_D16);
+		iomux_set(LCDC1_D17);
+		iomux_set(LCDC1_D18);
+		iomux_set(LCDC1_D19);
+		iomux_set(LCDC1_D20);
+		iomux_set(LCDC1_D21);
+		iomux_set(LCDC1_D22);
+		iomux_set(LCDC1_D23);
+		
+	}
 	lcdc_set_bit(lcdc_dev,SYS_CTRL,m_AUTO_GATING_EN);//eanble axi-clk auto gating for low power
         if(dev_drv->cur_screen->dsp_lut)
         {
