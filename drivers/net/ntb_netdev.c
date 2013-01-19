@@ -373,7 +373,7 @@ err:
 	return rc;
 }
 
-static void __exit ntb_netdev_remove(struct pci_dev *pdev)
+static void ntb_netdev_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev;
 	struct ntb_netdev *dev;
