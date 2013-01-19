@@ -454,6 +454,8 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 #define FOP_END \
 	    ".popsection")
 
+#define FOPNOP() FOP_ALIGN FOP_RET
+
 #define FOP1E(op,  dst) \
 	FOP_ALIGN #op " %" #dst " \n\t" FOP_RET
 
@@ -474,6 +476,18 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	FOP2E(op##w, ax, bx) \
 	FOP2E(op##l, eax, ebx) \
 	ON64(FOP2E(op##q, rax, rbx)) \
+	FOP_END
+
+#define FOP3E(op,  dst, src, src2) \
+	FOP_ALIGN #op " %" #src2 ", %" #src ", %" #dst " \n\t" FOP_RET
+
+/* 3-operand, word-only, src2=cl */
+#define FASTOP3WCL(op) \
+	FOP_START(op) \
+	FOPNOP() \
+	FOP3E(op##w, ax, bx, cl) \
+	FOP3E(op##l, eax, ebx, cl) \
+	ON64(FOP3E(op##q, rax, rbx, cl)) \
 	FOP_END
 
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
@@ -3036,6 +3050,9 @@ FASTOP2(xor);
 FASTOP2(cmp);
 FASTOP2(test);
 
+FASTOP3WCL(shld);
+FASTOP3WCL(shrd);
+
 static int em_xchg(struct x86_emulate_ctxt *ctxt)
 {
 	/* Write back the register source. */
@@ -4015,14 +4032,14 @@ static const struct opcode twobyte_table[256] = {
 	/* 0xA0 - 0xA7 */
 	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
 	II(ImplicitOps, em_cpuid, cpuid), I(DstMem | SrcReg | ModRM | BitOp, em_bt),
-	D(DstMem | SrcReg | Src2ImmByte | ModRM),
-	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
+	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shld),
+	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
 	DI(ImplicitOps, rsm),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
-	D(DstMem | SrcReg | Src2ImmByte | ModRM),
-	D(DstMem | SrcReg | Src2CL | ModRM),
+	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
+	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
@@ -4833,14 +4850,6 @@ twobyte_insn:
 		break;
 	case 0x90 ... 0x9f:     /* setcc r/m8 */
 		ctxt->dst.val = test_cc(ctxt->b, ctxt->eflags);
-		break;
-	case 0xa4: /* shld imm8, r, r/m */
-	case 0xa5: /* shld cl, r, r/m */
-		emulate_2op_cl(ctxt, "shld");
-		break;
-	case 0xac: /* shrd imm8, r, r/m */
-	case 0xad: /* shrd cl, r, r/m */
-		emulate_2op_cl(ctxt, "shrd");
 		break;
 	case 0xae:              /* clflush */
 		break;
