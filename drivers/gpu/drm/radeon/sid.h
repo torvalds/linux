@@ -61,6 +61,14 @@
 #define DMIF_ADDR_CONFIG  				0xBD4
 
 #define	SRBM_STATUS				        0xE50
+#define		GRBM_RQ_PENDING 			(1 << 5)
+#define		VMC_BUSY 				(1 << 8)
+#define		MCB_BUSY 				(1 << 9)
+#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCC_BUSY 				(1 << 11)
+#define		MCD_BUSY 				(1 << 12)
+#define		SEM_BUSY 				(1 << 14)
+#define		IH_BUSY 				(1 << 17)
 
 #define	SRBM_SOFT_RESET				        0x0E60
 #define		SOFT_RESET_BIF				(1 << 1)
@@ -80,6 +88,10 @@
 
 #define	CC_SYS_RB_BACKEND_DISABLE			0xe80
 #define	GC_USER_SYS_RB_BACKEND_DISABLE			0xe84
+
+#define	SRBM_STATUS2				        0x0EC4
+#define		DMA_BUSY 				(1 << 5)
+#define		DMA1_BUSY 				(1 << 6)
 
 #define VM_L2_CNTL					0x1400
 #define		ENABLE_L2_CACHE					(1 << 0)
