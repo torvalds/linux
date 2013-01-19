@@ -441,6 +441,8 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 		}							\
 	} while (0)
 
+static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
+
 #define FOP_ALIGN ".align " __stringify(FASTOP_SIZE) " \n\t"
 #define FOP_RET   "ret \n\t"
 
@@ -3051,6 +3053,8 @@ FASTOP2(test);
 FASTOP3WCL(shld);
 FASTOP3WCL(shrd);
 
+FASTOP2W(imul);
+
 static int em_xchg(struct x86_emulate_ctxt *ctxt)
 {
 	/* Write back the register source. */
@@ -3063,16 +3067,10 @@ static int em_xchg(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_imul(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_2op_SrcV_nobyte(ctxt, "imul");
-	return X86EMUL_CONTINUE;
-}
-
 static int em_imul_3op(struct x86_emulate_ctxt *ctxt)
 {
 	ctxt->dst.val = ctxt->src2.val;
-	return em_imul(ctxt);
+	return fastop(ctxt, em_imul);
 }
 
 static int em_cwd(struct x86_emulate_ctxt *ctxt)
@@ -4010,7 +4008,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
-	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
+	D(ModRM), F(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
