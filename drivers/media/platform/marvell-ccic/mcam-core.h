@@ -15,15 +15,15 @@
  * Create our own symbols for the supported buffer modes, but, for now,
  * base them entirely on which videobuf2 options have been selected.
  */
-#if defined(CONFIG_VIDEOBUF2_VMALLOC) || defined(CONFIG_VIDEOBUF2_VMALLOC_MODULE)
+#if IS_ENABLED(CONFIG_VIDEOBUF2_VMALLOC)
 #define MCAM_MODE_VMALLOC 1
 #endif
 
-#if defined(CONFIG_VIDEOBUF2_DMA_CONTIG) || defined(CONFIG_VIDEOBUF2_DMA_CONTIG_MODULE)
+#if IS_ENABLED(CONFIG_VIDEOBUF2_DMA_CONTIG)
 #define MCAM_MODE_DMA_CONTIG 1
 #endif
 
-#if defined(CONFIG_VIDEOBUF2_DMA_SG) || defined(CONFIG_VIDEOBUF2_DMA_SG_MODULE)
+#if IS_ENABLED(CONFIG_VIDEOBUF2_DMA_SG)
 #define MCAM_MODE_DMA_SG 1
 #endif
 
