@@ -1989,6 +1989,14 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_disable_device(udev, 0);
 	usb_hcd_synchronize_unlinks(udev);
 
+	if (udev->parent) {
+		struct usb_port	*port_dev =
+			hdev_to_hub(udev->parent)->ports[udev->portnum - 1];
+
+		sysfs_remove_link(&udev->dev.kobj, "port");
+		sysfs_remove_link(&port_dev->dev.kobj, "device");
+	}
+
 	usb_remove_ep_devs(&udev->ep0);
 	usb_unlock_device(udev);
 
@@ -2279,6 +2287,24 @@ int usb_new_device(struct usb_device *udev)
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
+	}
+
+	/* Create link files between child device and usb port device. */
+	if (udev->parent) {
+		struct usb_port *port_dev =
+			hdev_to_hub(udev->parent)->ports[udev->portnum - 1];
+
+		err = sysfs_create_link(&udev->dev.kobj,
+				&port_dev->dev.kobj, "port");
+		if (err)
+			goto fail;
+
+		err = sysfs_create_link(&port_dev->dev.kobj,
+				&udev->dev.kobj, "device");
+		if (err) {
+			sysfs_remove_link(&udev->dev.kobj, "port");
+			goto fail;
+		}
 	}
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
