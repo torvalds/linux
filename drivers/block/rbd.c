@@ -1415,6 +1415,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	case CEPH_OSD_OP_WRITE:
 		rbd_osd_write_callback(obj_request, op);
 		break;
+	case CEPH_OSD_OP_CALL:
 	case CEPH_OSD_OP_NOTIFY_ACK:
 	case CEPH_OSD_OP_WATCH:
 		rbd_osd_trivial_callback(obj_request, op);
@@ -1904,6 +1905,82 @@ done:
 	return ret;
 }
 
+/*
+ * Synchronous osd object method call
+ */
+static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
+			     const char *object_name,
+			     const char *class_name,
+			     const char *method_name,
+			     const char *outbound,
+			     size_t outbound_size,
+			     char *inbound,
+			     size_t inbound_size,
+			     u64 *version)
+{
+	struct rbd_obj_request *obj_request;
+	struct ceph_osd_client *osdc;
+	struct ceph_osd_req_op *op;
+	struct page **pages;
+	u32 page_count;
+	int ret;
+
+	/*
+	 * Method calls are ultimately read operations but they
+	 * don't involve object data (so no offset or length).
+	 * The result should placed into the inbound buffer
+	 * provided.  They also supply outbound data--parameters for
+	 * the object method.  Currently if this is present it will
+	 * be a snapshot id.
+	 */
+	page_count = (u32) calc_pages_for(0, inbound_size);
+	pages = ceph_alloc_page_vector(page_count, GFP_KERNEL);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	ret = -ENOMEM;
+	obj_request = rbd_obj_request_create(object_name, 0, 0,
+							OBJ_REQUEST_PAGES);
+	if (!obj_request)
+		goto out;
+
+	obj_request->pages = pages;
+	obj_request->page_count = page_count;
+
+	op = rbd_osd_req_op_create(CEPH_OSD_OP_CALL, class_name,
+					method_name, outbound, outbound_size);
+	if (!op)
+		goto out;
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false,
+						obj_request, op);
+	rbd_osd_req_op_destroy(op);
+	if (!obj_request->osd_req)
+		goto out;
+
+	osdc = &rbd_dev->rbd_client->client->osdc;
+	ret = rbd_obj_request_submit(osdc, obj_request);
+	if (ret)
+		goto out;
+	ret = rbd_obj_request_wait(obj_request);
+	if (ret)
+		goto out;
+
+	ret = obj_request->result;
+	if (ret < 0)
+		goto out;
+	ret = ceph_copy_from_page_vector(pages, inbound, 0,
+					obj_request->xferred);
+	if (version)
+		*version = obj_request->version;
+out:
+	if (obj_request)
+		rbd_obj_request_put(obj_request);
+	else
+		ceph_release_page_vector(pages, page_count);
+
+	return ret;
+}
+
 static void rbd_request_fn(struct request_queue *q)
 {
 	struct rbd_device *rbd_dev = q->queuedata;
@@ -2054,7 +2131,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 
 	ret = -ENOMEM;
 	obj_request = rbd_obj_request_create(object_name, offset, length,
-						OBJ_REQUEST_PAGES);
+							OBJ_REQUEST_PAGES);
 	if (!obj_request)
 		goto out;
 
@@ -2754,11 +2831,12 @@ static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 		__le64 size;
 	} __attribute__ ((packed)) size_buf = { 0 };
 
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	(void) rbd_req_sync_exec;	/* Avoid a warning */
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_size",
 				(char *) &snapid, sizeof (snapid),
 				(char *) &size_buf, sizeof (size_buf), NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
 
@@ -2789,14 +2867,14 @@ static int rbd_dev_v2_object_prefix(struct rbd_device *rbd_dev)
 	if (!reply_buf)
 		return -ENOMEM;
 
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_object_prefix",
 				NULL, 0,
 				reply_buf, RBD_OBJ_PREFIX_LEN_MAX, NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
-	ret = 0;    /* rbd_req_sync_exec() can return positive */
+	ret = 0;    /* rbd_obj_method_sync() can return positive */
 
 	p = reply_buf;
 	rbd_dev->header.object_prefix = ceph_extract_encoded_string(&p,
@@ -2827,12 +2905,12 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 	u64 incompat;
 	int ret;
 
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_features",
 				(char *) &snapid, sizeof (snapid),
 				(char *) &features_buf, sizeof (features_buf),
 				NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
 
@@ -2883,11 +2961,11 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	}
 
 	snapid = cpu_to_le64(CEPH_NOSNAP);
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_parent",
 				(char *) &snapid, sizeof (snapid),
 				(char *) reply_buf, size, NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out_err;
 
@@ -2954,7 +3032,7 @@ static char *rbd_dev_image_name(struct rbd_device *rbd_dev)
 	if (!reply_buf)
 		goto out;
 
-	ret = rbd_req_sync_exec(rbd_dev, RBD_DIRECTORY,
+	ret = rbd_obj_method_sync(rbd_dev, RBD_DIRECTORY,
 				"rbd", "dir_get_name",
 				image_id, image_id_size,
 				(char *) reply_buf, size, NULL);
@@ -3060,11 +3138,11 @@ static int rbd_dev_v2_snap_context(struct rbd_device *rbd_dev, u64 *ver)
 	if (!reply_buf)
 		return -ENOMEM;
 
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapcontext",
 				NULL, 0,
 				reply_buf, size, ver);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
 
@@ -3129,11 +3207,11 @@ static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 		return ERR_PTR(-ENOMEM);
 
 	snap_id = cpu_to_le64(rbd_dev->header.snapc->snaps[which]);
-	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapshot_name",
 				(char *) &snap_id, sizeof (snap_id),
 				reply_buf, size, NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
 
@@ -3721,14 +3799,14 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 		goto out;
 	}
 
-	ret = rbd_req_sync_exec(rbd_dev, object_name,
+	ret = rbd_obj_method_sync(rbd_dev, object_name,
 				"rbd", "get_id",
 				NULL, 0,
 				response, RBD_IMAGE_ID_LEN_MAX, NULL);
-	dout("%s: rbd_req_sync_exec returned %d\n", __func__, ret);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
-	ret = 0;    /* rbd_req_sync_exec() can return positive */
+	ret = 0;    /* rbd_obj_method_sync() can return positive */
 
 	p = response;
 	rbd_dev->spec->image_id = ceph_extract_encoded_string(&p,
