@@ -42,7 +42,7 @@
 #include <media/videobuf-dma-sg.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
-#if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 #include <media/videobuf-dvb.h>
 #endif
 
@@ -644,7 +644,7 @@ struct saa7134_dev {
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 
-#if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
