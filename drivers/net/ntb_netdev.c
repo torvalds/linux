@@ -152,7 +152,7 @@ static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
 	struct ntb_netdev *dev = netdev_priv(ndev);
 	int rc;
 
-	netdev_dbg(ndev, "ntb_transport_tx_enqueue\n");
+	netdev_dbg(ndev, "%s: skb len %d\n", __func__, skb->len);
 
 	rc = ntb_transport_tx_enqueue(dev->qp, skb, skb->data, skb->len);
 	if (rc)
@@ -353,7 +353,7 @@ static int ntb_netdev_probe(struct pci_dev *pdev)
 		goto err1;
 
 	list_add(&dev->list, &dev_list);
-	pr_info("%s: %s created\n", KBUILD_MODNAME, ndev->name);
+	dev_info(&pdev->dev, "%s created\n", ndev->name);
 	return 0;
 
 err1:
@@ -404,6 +404,5 @@ static void __exit ntb_netdev_exit_module(void)
 {
 	ntb_unregister_client(&ntb_netdev_client);
 	ntb_unregister_client_dev(KBUILD_MODNAME);
-	pr_info("%s: Driver removed\n", KBUILD_MODNAME);
 }
 module_exit(ntb_netdev_exit_module);
