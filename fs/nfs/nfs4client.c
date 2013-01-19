@@ -440,14 +440,17 @@ int nfs41_walk_client_list(struct nfs_client *new,
 				nfs_put_client(prev);
 			prev = pos;
 
+			nfs4_schedule_lease_recovery(pos);
 			status = nfs_wait_client_init_complete(pos);
 			if (status < 0) {
 				nfs_put_client(pos);
 				spin_lock(&nn->nfs_client_lock);
 				continue;
 			}
-
+			status = pos->cl_cons_state;
 			spin_lock(&nn->nfs_client_lock);
+			if (status < 0)
+				continue;
 		}
 
 		if (pos->rpc_ops != new->rpc_ops)
