@@ -49,6 +49,16 @@
 #define		RINGID(x)					(((x) & 0x3) << 0)
 #define		VMID(x)						(((x) & 0x7) << 0)
 #define	SRBM_STATUS				        0x0E50
+#define		RLC_RQ_PENDING 				(1 << 3)
+#define		GRBM_RQ_PENDING 			(1 << 5)
+#define		VMC_BUSY 				(1 << 8)
+#define		MCB_BUSY 				(1 << 9)
+#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCC_BUSY 				(1 << 11)
+#define		MCD_BUSY 				(1 << 12)
+#define		SEM_BUSY 				(1 << 14)
+#define		RLC_BUSY 				(1 << 15)
+#define		IH_BUSY 				(1 << 17)
 
 #define	SRBM_SOFT_RESET				        0x0E60
 #define		SOFT_RESET_BIF				(1 << 1)
@@ -67,6 +77,10 @@
 #define		SOFT_RESET_TST				(1 << 21)
 #define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
+
+#define	SRBM_STATUS2				        0x0EC4
+#define		DMA_BUSY 				(1 << 5)
+#define		DMA1_BUSY 				(1 << 6)
 
 #define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
 #define		REQUEST_TYPE(x)					(((x) & 0xf) << 0)

@@ -2349,9 +2349,13 @@ void evergreen_print_gpu_status_regs(struct radeon_device *rdev)
 		RREG32(CP_STAT));
 	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
 		RREG32(DMA_STATUS_REG));
+	if (rdev->family >= CHIP_CAYMAN) {
+		dev_info(rdev->dev, "  R_00D834_DMA_STATUS_REG   = 0x%08X\n",
+			 RREG32(DMA_STATUS_REG + 0x800));
+	}
 }
 
-static bool evergreen_is_display_hung(struct radeon_device *rdev)
+bool evergreen_is_display_hung(struct radeon_device *rdev)
 {
 	u32 crtc_hung = 0;
 	u32 crtc_status[6];
