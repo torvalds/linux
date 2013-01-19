@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2008-2013 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -31,14 +31,12 @@
 /* hash class keys */
 static struct lock_class_key batadv_vis_hash_lock_class_key;
 
-static void batadv_start_vis_timer(struct batadv_priv *bat_priv);
-
 /* free the info */
 static void batadv_free_info(struct kref *ref)
 {
 	struct batadv_vis_info *info;
 	struct batadv_priv *bat_priv;
-	struct batadv_recvlist_node *entry, *tmp;
+	struct batadv_vis_recvlist_node *entry, *tmp;
 
 	info = container_of(ref, struct batadv_vis_info, refcount);
 	bat_priv = info->bat_priv;
@@ -129,7 +127,7 @@ static void batadv_vis_data_insert_interface(const uint8_t *interface,
 					     struct hlist_head *if_list,
 					     bool primary)
 {
-	struct batadv_if_list_entry *entry;
+	struct batadv_vis_if_list_entry *entry;
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
@@ -149,7 +147,7 @@ static void batadv_vis_data_insert_interface(const uint8_t *interface,
 static void batadv_vis_data_read_prim_sec(struct seq_file *seq,
 					  const struct hlist_head *if_list)
 {
-	struct batadv_if_list_entry *entry;
+	struct batadv_vis_if_list_entry *entry;
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
@@ -199,7 +197,7 @@ static void batadv_vis_data_read_entries(struct seq_file *seq,
 					 struct batadv_vis_info_entry *entries)
 {
 	int i;
-	struct batadv_if_list_entry *entry;
+	struct batadv_vis_if_list_entry *entry;
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(entry, pos, list, list) {
@@ -225,7 +223,7 @@ static void batadv_vis_seq_print_text_bucket(struct seq_file *seq,
 	struct batadv_vis_packet *packet;
 	uint8_t *entries_pos;
 	struct batadv_vis_info_entry *entries;
-	struct batadv_if_list_entry *entry;
+	struct batadv_vis_if_list_entry *entry;
 	struct hlist_node *pos, *n;
 
 	HLIST_HEAD(vis_if_list);
@@ -307,7 +305,7 @@ static void batadv_send_list_del(struct batadv_vis_info *info)
 static void batadv_recv_list_add(struct batadv_priv *bat_priv,
 				 struct list_head *recv_list, const char *mac)
 {
-	struct batadv_recvlist_node *entry;
+	struct batadv_vis_recvlist_node *entry;
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
@@ -324,7 +322,7 @@ static int batadv_recv_list_is_in(struct batadv_priv *bat_priv,
 				  const struct list_head *recv_list,
 				  const char *mac)
 {
-	const struct batadv_recvlist_node *entry;
+	const struct batadv_vis_recvlist_node *entry;
 
 	spin_lock_bh(&bat_priv->vis.list_lock);
 	list_for_each_entry(entry, recv_list, list) {
@@ -830,7 +828,9 @@ static void batadv_send_vis_packets(struct work_struct *work)
 		kref_put(&info->refcount, batadv_free_info);
 	}
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-	batadv_start_vis_timer(bat_priv);
+
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
+			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
 }
 
 /* init the vis server. this may only be called when if_list is already
@@ -900,7 +900,11 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 	}
 
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-	batadv_start_vis_timer(bat_priv);
+
+	INIT_DELAYED_WORK(&bat_priv->vis.work, batadv_send_vis_packets);
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
+			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
+
 	return 0;
 
 free_info:
@@ -936,12 +940,4 @@ void batadv_vis_quit(struct batadv_priv *bat_priv)
 	bat_priv->vis.hash = NULL;
 	bat_priv->vis.my_info = NULL;
 	spin_unlock_bh(&bat_priv->vis.hash_lock);
-}
-
-/* schedule packets for (re)transmission */
-static void batadv_start_vis_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->vis.work, batadv_send_vis_packets);
-	queue_delayed_work(batadv_event_workqueue, &bat_priv->vis.work,
-			   msecs_to_jiffies(BATADV_VIS_INTERVAL));
 }

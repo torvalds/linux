@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -34,13 +34,6 @@ static struct lock_class_key batadv_orig_hash_lock_class_key;
 
 static void batadv_purge_orig(struct work_struct *work);
 
-static void batadv_start_purge_timer(struct batadv_priv *bat_priv)
-{
-	INIT_DELAYED_WORK(&bat_priv->orig_work, batadv_purge_orig);
-	queue_delayed_work(batadv_event_workqueue,
-			   &bat_priv->orig_work, msecs_to_jiffies(1000));
-}
-
 /* returns 1 if they are the same originator */
 static int batadv_compare_orig(const struct hlist_node *node, const void *data2)
 {
@@ -63,7 +56,11 @@ int batadv_originator_init(struct batadv_priv *bat_priv)
 	batadv_hash_set_lock_class(bat_priv->orig_hash,
 				   &batadv_orig_hash_lock_class_key);
 
-	batadv_start_purge_timer(bat_priv);
+	INIT_DELAYED_WORK(&bat_priv->orig_work, batadv_purge_orig);
+	queue_delayed_work(batadv_event_workqueue,
+			   &bat_priv->orig_work,
+			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
+
 	return 0;
 
 err:
@@ -396,7 +393,9 @@ static void batadv_purge_orig(struct work_struct *work)
 	delayed_work = container_of(work, struct delayed_work, work);
 	bat_priv = container_of(delayed_work, struct batadv_priv, orig_work);
 	_batadv_purge_orig(bat_priv);
-	batadv_start_purge_timer(bat_priv);
+	queue_delayed_work(batadv_event_workqueue,
+			   &bat_priv->orig_work,
+			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
 }
 
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv)

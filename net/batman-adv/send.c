@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -155,8 +155,6 @@ _batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
 	/* start timer for this packet */
-	INIT_DELAYED_WORK(&forw_packet->delayed_work,
-			  batadv_send_outstanding_bcast_packet);
 	queue_delayed_work(batadv_event_workqueue, &forw_packet->delayed_work,
 			   send_time);
 }
@@ -209,6 +207,9 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
+
+	INIT_DELAYED_WORK(&forw_packet->delayed_work,
+			  batadv_send_outstanding_bcast_packet);
 
 	_batadv_add_bcast_packet_to_list(bat_priv, forw_packet, delay);
 	return NETDEV_TX_OK;
