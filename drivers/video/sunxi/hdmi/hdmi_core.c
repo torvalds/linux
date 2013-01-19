@@ -329,15 +329,13 @@ __s32 video_config(__s32 vic)
 	HDMI_WUINT8(0x082, 0x0d);
 	HDMI_WUINT8(0x083, 0x00);
 #ifdef YUV_COLORSPACE /* Fix me */
-	/* 4:4:4 YCbCr */
-	HDMI_WUINT8(0x084, 0x50); /* Data Byte 1 */
+	HDMI_WUINT8(0x084, 0x52); /* Data Byte 1: 4:4:4 YCbCr */
 	if (video_timing[vic_tab].PCLK < 74250000) /* 4:3 601 */
 		HDMI_WUINT8(0x085, 0x58); /* Data Byte 2 */
 	else /* 16:9 709 */
 		HDMI_WUINT8(0x085, 0xa8); /* Data Byte 2 */
 #else
-	/* RGB */
-	HDMI_WUINT8(0x084, 0x1E); /* Data Byte 1 */
+	HDMI_WUINT8(0x084, 0x12); /* Data Byte 1: RGB */
 	/* 4:3 601 */
 	HDMI_WUINT8(0x085, 0x58); /* Data Byte 2 */
 #endif
