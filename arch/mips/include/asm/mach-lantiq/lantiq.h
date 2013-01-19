@@ -34,6 +34,7 @@ extern spinlock_t ebu_lock;
 extern void ltq_disable_irq(struct irq_data *data);
 extern void ltq_mask_and_ack_irq(struct irq_data *data);
 extern void ltq_enable_irq(struct irq_data *data);
+extern int ltq_eiu_get_irq(int exin);
 
 /* clock handling */
 extern int clk_activate(struct clk *clk);
