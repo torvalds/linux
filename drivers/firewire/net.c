@@ -520,7 +520,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	dev = netdev_priv(net);
 	/* Write metadata, and then pass to the receive level */
 	skb->dev = net;
-	skb->ip_summed = CHECKSUM_UNNECESSARY;  /* don't check it */
+	skb->ip_summed = CHECKSUM_NONE;
 
 	/*
 	 * Parse the encapsulation header. This actually does the job of
