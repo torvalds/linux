@@ -1144,9 +1144,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			/* Enable the port */
 			result = hfa384x_drvr_enable(hw, 0);
 			if (result) {
-				pr_debug
-				("failed to enable port to presniff setting, result=%d\n",
-				     result);
+				pr_debug("failed to enable port to presniff setting, result=%d\n",
+					 result);
 				goto failed;
 			}
 		} else {
@@ -1186,18 +1185,16 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				hfa384x_drvr_stop(hw);
 				result = hfa384x_drvr_start(hw);
 				if (result) {
-					pr_debug
-					    ("failed to restart the card for sniffing, result=%d\n",
-					     result);
+					pr_debug("failed to restart the card for sniffing, result=%d\n",
+						 result);
 					goto failed;
 				}
 			} else {
 				/* Disable the port */
 				result = hfa384x_drvr_disable(hw, 0);
 				if (result) {
-					pr_debug
-					    ("failed to enable port for sniffing, result=%d\n",
-					     result);
+					pr_debug("failed to enable port for sniffing, result=%d\n",
+						 result);
 					goto failed;
 				}
 			}
