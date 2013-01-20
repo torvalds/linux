@@ -104,7 +104,6 @@ struct ath9k_ani_default {
 };
 
 struct ar5416AniState {
-	struct ath9k_channel *c;
 	u8 noiseImmunityLevel;
 	u8 ofdmNoiseImmunityLevel;
 	u8 cckNoiseImmunityLevel;
@@ -113,15 +112,9 @@ struct ar5416AniState {
 	u8 spurImmunityLevel;
 	u8 firstepLevel;
 	u8 ofdmWeakSigDetect;
-	u8 cckWeakSigThreshold;
 	u32 listenTime;
-	int32_t rssiThrLow;
-	int32_t rssiThrHigh;
 	u32 ofdmPhyErrCount;
 	u32 cckPhyErrCount;
-	int16_t pktRssi[2];
-	int16_t ofdmErrRssi[2];
-	int16_t cckErrRssi[2];
 	struct ath9k_ani_default iniDef;
 };
 

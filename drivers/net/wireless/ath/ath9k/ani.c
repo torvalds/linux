@@ -152,7 +152,8 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 	ath_dbg(common, ANI, "**** ofdmlevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->ofdmNoiseImmunityLevel,
 		immunityLevel, BEACON_RSSI(ah),
-		aniState->rssiThrLow, aniState->rssiThrHigh);
+		ATH9K_ANI_RSSI_THR_LOW,
+		ATH9K_ANI_RSSI_THR_HIGH);
 
 	if (!scan)
 		aniState->ofdmNoiseImmunityLevel = immunityLevel;
@@ -173,7 +174,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 
 	weak_sig = entry_ofdm->ofdm_weak_signal_on;
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
-	    BEACON_RSSI(ah) <= aniState->rssiThrHigh)
+	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_HIGH)
 		weak_sig = true;
 
 	if (aniState->ofdmWeakSigDetect != weak_sig)
@@ -216,11 +217,11 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel,
 
 	ath_dbg(common, ANI, "**** ccklevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->cckNoiseImmunityLevel, immunityLevel,
-		BEACON_RSSI(ah), aniState->rssiThrLow,
-		aniState->rssiThrHigh);
+		BEACON_RSSI(ah), ATH9K_ANI_RSSI_THR_LOW,
+		ATH9K_ANI_RSSI_THR_HIGH);
 
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
-	    BEACON_RSSI(ah) <= aniState->rssiThrLow &&
+	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_LOW &&
 	    immunityLevel > ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI)
 		immunityLevel = ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI;
 
@@ -514,8 +515,6 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 		ani->ofdmsTurn = true;
 
-		ani->rssiThrHigh = ATH9K_ANI_RSSI_THR_HIGH;
-		ani->rssiThrLow = ATH9K_ANI_RSSI_THR_LOW;
 		ani->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
 		ani->cckNoiseImmunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 		ani->ofdmNoiseImmunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;
