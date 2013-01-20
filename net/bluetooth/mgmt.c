@@ -1526,6 +1526,14 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("%s debug_keys %u key_count %u", hdev->name, cp->debug_keys,
 	       key_count);
 
+	for (i = 0; i < key_count; i++) {
+		struct mgmt_link_key_info *key = &cp->keys[i];
+
+		if (key->addr.type != BDADDR_BREDR)
+			return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
+					  MGMT_STATUS_INVALID_PARAMS);
+	}
+
 	hci_dev_lock(hdev);
 
 	hci_link_keys_clear(hdev);
@@ -1573,11 +1581,16 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct hci_conn *conn;
 	int err;
 
-	hci_dev_lock(hdev);
-
 	memset(&rp, 0, sizeof(rp));
 	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
 	rp.addr.type = cp->addr.type;
+
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
+
+	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
@@ -1642,6 +1655,10 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 	int err;
 
 	BT_DBG("");
+
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
@@ -1946,6 +1963,11 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	memset(&rp, 0, sizeof(rp));
 	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
 	rp.addr.type = cp->addr.type;
+
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
 
 	hci_dev_lock(hdev);
 
@@ -2564,6 +2586,10 @@ static int block_device(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("%s", hdev->name);
 
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_status(sk, hdev->id, MGMT_OP_BLOCK_DEVICE,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	err = hci_blacklist_add(hdev, &cp->addr.bdaddr, cp->addr.type);
@@ -2588,6 +2614,10 @@ static int unblock_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	int err;
 
 	BT_DBG("%s", hdev->name);
+
+	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_status(sk, hdev->id, MGMT_OP_UNBLOCK_DEVICE,
+				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
@@ -2706,6 +2736,8 @@ static bool ltk_is_valid(struct mgmt_ltk_info *key)
 	if (key->authenticated != 0x00 && key->authenticated != 0x01)
 		return false;
 	if (key->master != 0x00 && key->master != 0x01)
+		return false;
+	if (!bdaddr_type_is_le(key->addr.type))
 		return false;
 	return true;
 }
