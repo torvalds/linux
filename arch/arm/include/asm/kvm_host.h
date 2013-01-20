@@ -21,6 +21,7 @@
 
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_mmio.h>
 #include <asm/fpstate.h>
 
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
@@ -98,6 +99,9 @@ struct kvm_vcpu_arch {
 	/* dcache set/way operation pending */
 	int last_pcpu;
 	cpumask_t require_dcache_flush;
+
+	/* IO related fields */
+	struct kvm_decode mmio_decode;
 
 	/* Interrupt related fields */
 	u32 irq_lines;		/* IRQ and FIQ levels */

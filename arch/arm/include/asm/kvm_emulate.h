@@ -21,6 +21,7 @@
 
 #include <linux/kvm_host.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_mmio.h>
 
 u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 u32 *vcpu_spsr(struct kvm_vcpu *vcpu);
@@ -51,6 +52,11 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 {
 	unsigned long cpsr_mode = vcpu->arch.regs.usr_regs.ARM_cpsr & MODE_MASK;
 	return cpsr_mode > USR_MODE;;
+}
+
+static inline bool kvm_vcpu_reg_is_pc(struct kvm_vcpu *vcpu, int reg)
+{
+	return reg == 15;
 }
 
 #endif /* __ARM_KVM_EMULATE_H__ */
