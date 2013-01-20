@@ -449,9 +449,9 @@ static void dev_lastclose(struct drm_device *dev)
 		}
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 	if (ret)
 		DBG("failed to restore crtc mode");
 }

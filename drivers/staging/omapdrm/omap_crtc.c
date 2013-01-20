@@ -278,13 +278,13 @@ static void page_flip_worker(struct work_struct *work)
 	struct drm_display_mode *mode = &crtc->mode;
 	struct drm_gem_object *bo;
 
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			crtc->x << 16, crtc->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
 			vblank_cb, crtc);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	bo = omap_framebuffer_bo(crtc->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
@@ -417,7 +417,7 @@ static void apply_worker(struct work_struct *work)
 	 * the callbacks and list modification all serialized
 	 * with respect to modesetting ioctls from userspace.
 	 */
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	dispc_runtime_get();
 
 	/*
@@ -462,7 +462,7 @@ static void apply_worker(struct work_struct *work)
 
 out:
 	dispc_runtime_put();
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 }
 
 int omap_crtc_apply(struct drm_crtc *crtc,
