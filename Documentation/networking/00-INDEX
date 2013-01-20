@@ -70,8 +70,6 @@ e1000e.txt
 	- README for the Intel Gigabit Ethernet Driver (e1000e).
 eql.txt
 	- serial IP load balancing
-ewrk3.txt
-	- the Digital EtherWORKS 3 DE203/4/5 Ethernet driver
 fib_trie.txt
 	- Level Compressed Trie (LC-trie) notes: a structure for routing.
 filter.txt

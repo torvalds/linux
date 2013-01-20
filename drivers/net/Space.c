@@ -43,7 +43,6 @@ extern struct net_device *wd_probe(int unit);
 extern struct net_device *ne_probe(int unit);
 extern struct net_device *fmv18x_probe(int unit);
 extern struct net_device *i82596_probe(int unit);
-extern struct net_device *ewrk3_probe(int unit);
 extern struct net_device *ni65_probe(int unit);
 extern struct net_device *sonic_probe(int unit);
 extern struct net_device *seeq8005_probe(int unit);
@@ -121,9 +120,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifndef CONFIG_CS89x0_PLATFORM
  	{cs89x0_probe, 0},
 #endif
-#endif
-#ifdef CONFIG_EWRK3             /* DEC EtherWORKS 3 */
-    	{ewrk3_probe, 0},
 #endif
 #if defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel I82596 */
 	{i82596_probe, 0},
