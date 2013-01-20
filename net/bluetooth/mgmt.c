@@ -1654,6 +1654,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		      u16 len)
 {
 	struct mgmt_cp_disconnect *cp = data;
+	struct mgmt_rp_disconnect rp;
 	struct hci_cp_disconnect dc;
 	struct pending_cmd *cmd;
 	struct hci_conn *conn;
@@ -1661,21 +1662,26 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("");
 
+	memset(&rp, 0, sizeof(rp));
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
+
 	if (!bdaddr_type_is_valid(cp->addr.type))
-		return cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
-				  MGMT_STATUS_INVALID_PARAMS);
+		return cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
 
 	hci_dev_lock(hdev);
 
 	if (!test_bit(HCI_UP, &hdev->flags)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
-				 MGMT_STATUS_NOT_POWERED);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
+				   MGMT_STATUS_NOT_POWERED, &rp, sizeof(rp));
 		goto failed;
 	}
 
 	if (mgmt_pending_find(MGMT_OP_DISCONNECT, hdev)) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
-				 MGMT_STATUS_BUSY);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
+				   MGMT_STATUS_BUSY, &rp, sizeof(rp));
 		goto failed;
 	}
 
@@ -1686,8 +1692,8 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
 
 	if (!conn || conn->state == BT_OPEN || conn->state == BT_CLOSED) {
-		err = cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
-				 MGMT_STATUS_NOT_CONNECTED);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
+				   MGMT_STATUS_NOT_CONNECTED, &rp, sizeof(rp));
 		goto failed;
 	}
 
