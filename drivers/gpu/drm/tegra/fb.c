@@ -39,10 +39,6 @@ int tegra_drm_fb_init(struct drm_device *drm)
 	if (IS_ERR(fbdev))
 		return PTR_ERR(fbdev);
 
-#ifndef CONFIG_FRAMEBUFFER_CONSOLE
-	drm_fbdev_cma_restore_mode(fbdev);
-#endif
-
 	host1x->fbdev = fbdev;
 
 	return 0;
