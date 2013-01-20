@@ -54,5 +54,25 @@
 #define ARM_EXCEPTION_DATA_ABORT  4
 #define ARM_EXCEPTION_IRQ	  5
 #define ARM_EXCEPTION_FIQ	  6
+#define ARM_EXCEPTION_HVC	  7
+
+#ifndef __ASSEMBLY__
+struct kvm_vcpu;
+
+extern char __kvm_hyp_init[];
+extern char __kvm_hyp_init_end[];
+
+extern char __kvm_hyp_exit[];
+extern char __kvm_hyp_exit_end[];
+
+extern char __kvm_hyp_vector[];
+
+extern char __kvm_hyp_code_start[];
+extern char __kvm_hyp_code_end[];
+
+extern void __kvm_flush_vm_context(void);
+
+extern int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
+#endif
 
 #endif /* __ARM_KVM_ASM_H__ */
