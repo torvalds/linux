@@ -1519,6 +1519,10 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 				  MGMT_STATUS_INVALID_PARAMS);
 	}
 
+	if (cp->debug_keys != 0x00 && cp->debug_keys != 0x01)
+		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	BT_DBG("%s debug_keys %u key_count %u", hdev->name, cp->debug_keys,
 	       key_count);
 
