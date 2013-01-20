@@ -1156,6 +1156,7 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 }
 
 static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);

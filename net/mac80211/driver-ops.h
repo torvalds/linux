@@ -845,11 +845,12 @@ static inline void drv_set_rekey_data(struct ieee80211_local *local,
 }
 
 static inline void drv_rssi_callback(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
 				     const enum ieee80211_rssi_event event)
 {
-	trace_drv_rssi_callback(local, event);
+	trace_drv_rssi_callback(local, sdata, event);
 	if (local->ops->rssi_callback)
-		local->ops->rssi_callback(&local->hw, event);
+		local->ops->rssi_callback(&local->hw, &sdata->vif, event);
 	trace_drv_return_void(local);
 }
 
