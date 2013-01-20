@@ -415,11 +415,14 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 			break;
 
 #define REQBASICRATE(N) \
-	if ((count >= N) && DOT11_RATE5_ISBASIC_GET(item->supprates[(N)-1])) { \
-		req->basicrate ## N .data = item->supprates[(N)-1]; \
-		req->basicrate ## N .status = \
-			P80211ENUM_msgitem_status_data_ok; \
-	}
+	do { \
+		if ((count >= N) && DOT11_RATE5_ISBASIC_GET( \
+			item->supprates[(N)-1])) { \
+			req->basicrate ## N .data = item->supprates[(N)-1]; \
+			req->basicrate ## N .status = \
+				P80211ENUM_msgitem_status_data_ok; \
+		} \
+	} while (0)
 
 	REQBASICRATE(1);
 	REQBASICRATE(2);
@@ -431,11 +434,13 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	REQBASICRATE(8);
 
 #define REQSUPPRATE(N) \
-	if (count >= N) { \
-		req->supprate ## N .data = item->supprates[(N)-1]; \
-		req->supprate ## N .status = \
-			P80211ENUM_msgitem_status_data_ok; \
-	}
+	do { \
+		if (count >= N) { \
+			req->supprate ## N .data = item->supprates[(N)-1]; \
+			req->supprate ## N .status = \
+				P80211ENUM_msgitem_status_data_ok; \
+		} \
+	} while (0)
 
 	REQSUPPRATE(1);
 	REQSUPPRATE(2);
