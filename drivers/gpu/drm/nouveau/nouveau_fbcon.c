@@ -491,6 +491,9 @@ nouveau_fbcon_init(struct drm_device *dev)
 	else
 		preferred_bpp = 32;
 
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);
 	return 0;
 }

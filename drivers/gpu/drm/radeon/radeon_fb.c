@@ -379,6 +379,10 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(rdev->ddev);
+
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;
 }

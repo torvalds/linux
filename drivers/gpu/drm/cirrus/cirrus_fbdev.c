@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <linux/fb.h>
 
@@ -291,6 +292,9 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 		return ret;
 	}
 	drm_fb_helper_single_add_all_connectors(&gfbdev->helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(cdev->dev);
 	drm_fb_helper_initial_config(&gfbdev->helper, bpp_sel);
 
 	return 0;

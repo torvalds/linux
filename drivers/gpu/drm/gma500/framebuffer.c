@@ -616,6 +616,10 @@ int psb_fbdev_init(struct drm_device *dev)
 							INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(&fbdev->psb_fb_helper, 32);
 	return 0;
 }

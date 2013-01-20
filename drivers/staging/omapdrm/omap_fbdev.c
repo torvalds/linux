@@ -369,6 +369,10 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(helper, 32);
 
 	priv->fbdev = helper;
