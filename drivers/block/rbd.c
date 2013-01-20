@@ -1242,12 +1242,6 @@ done_err:
 	return ret;
 }
 
-static void rbd_simple_req_cb(struct ceph_osd_request *osd_req,
-				struct ceph_msg *msg)
-{
-	ceph_osdc_put_request(osd_req);
-}
-
 /*
  * Do a synchronous ceph osd operation
  */
@@ -1321,32 +1315,6 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 		obj_request->callback(obj_request);
 	else
 		complete_all(&obj_request->completion);
-}
-
-/*
- * Request sync osd watch
- */
-static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
-				   u64 ver,
-				   u64 notify_id)
-{
-	struct ceph_osd_req_op *op;
-	int ret;
-
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver);
-	if (!op)
-		return -ENOMEM;
-
-	ret = rbd_do_request(NULL, rbd_dev, NULL, CEPH_NOSNAP,
-			  rbd_dev->header_name, 0, 0, NULL,
-			  NULL, 0,
-			  CEPH_OSD_FLAG_READ,
-			  op,
-			  rbd_simple_req_cb, NULL);
-
-	rbd_osd_req_op_destroy(op);
-
-	return ret;
 }
 
 /*
@@ -1867,7 +1835,6 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 		rbd_warn(rbd_dev, "got notification but failed to "
 			   " update snaps: %d\n", rc);
 
-	(void) rbd_req_sync_notify_ack;	/* avoid a warning */
 	rbd_obj_notify_ack_sync(rbd_dev, hver, notify_id);
 }
 
