@@ -419,9 +419,6 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 		return;
 
 	aniState = &ah->curchan->ani;
-	if (WARN_ON(!aniState))
-		return;
-
 	if (!ath9k_hw_ani_read_counters(ah))
 		return;
 
