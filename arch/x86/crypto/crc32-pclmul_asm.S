@@ -84,7 +84,6 @@
 #define LEN     %rsi
 #define CRC     %edx
 #else
-#warning Using 32bit code support
 #define BUF     %eax
 #define LEN     %edx
 #define CRC     %ecx
