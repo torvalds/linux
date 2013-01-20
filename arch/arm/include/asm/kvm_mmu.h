@@ -35,4 +35,16 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 phys_addr_t kvm_mmu_get_httbr(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
+
+static inline bool kvm_is_write_fault(unsigned long hsr)
+{
+	unsigned long hsr_ec = hsr >> HSR_EC_SHIFT;
+	if (hsr_ec == HSR_EC_IABT)
+		return false;
+	else if ((hsr & HSR_ISV) && !(hsr & HSR_WNR))
+		return false;
+	else
+		return true;
+}
+
 #endif /* __ARM_KVM_MMU_H__ */

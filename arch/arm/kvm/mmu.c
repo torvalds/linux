@@ -21,9 +21,11 @@
 #include <linux/io.h>
 #include <asm/idmap.h>
 #include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_emulate.h>
 #include <asm/mach/map.h>
 #include <trace/events/kvm.h>
 
@@ -488,9 +490,158 @@ out:
 	return ret;
 }
 
+static void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
+{
+	/*
+	 * If we are going to insert an instruction page and the icache is
+	 * either VIPT or PIPT, there is a potential problem where the host
+	 * (or another VM) may have used the same page as this guest, and we
+	 * read incorrect data from the icache.  If we're using a PIPT cache,
+	 * we can invalidate just that page, but if we are using a VIPT cache
+	 * we need to invalidate the entire icache - damn shame - as written
+	 * in the ARM ARM (DDI 0406C.b - Page B3-1393).
+	 *
+	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
+	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
+	 */
+	if (icache_is_pipt()) {
+		unsigned long hva = gfn_to_hva(kvm, gfn);
+		__cpuc_coherent_user_range(hva, hva + PAGE_SIZE);
+	} else if (!icache_is_vivt_asid_tagged()) {
+		/* any kind of VIPT cache */
+		__flush_icache_all();
+	}
+}
+
+static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
+			  gfn_t gfn, struct kvm_memory_slot *memslot,
+			  unsigned long fault_status)
+{
+	pte_t new_pte;
+	pfn_t pfn;
+	int ret;
+	bool write_fault, writable;
+	unsigned long mmu_seq;
+	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
+
+	write_fault = kvm_is_write_fault(vcpu->arch.hsr);
+	if (fault_status == FSC_PERM && !write_fault) {
+		kvm_err("Unexpected L2 read permission error\n");
+		return -EFAULT;
+	}
+
+	/* We need minimum second+third level pages */
+	ret = mmu_topup_memory_cache(memcache, 2, KVM_NR_MEM_OBJS);
+	if (ret)
+		return ret;
+
+	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	/*
+	 * Ensure the read of mmu_notifier_seq happens before we call
+	 * gfn_to_pfn_prot (which calls get_user_pages), so that we don't risk
+	 * the page we just got a reference to gets unmapped before we have a
+	 * chance to grab the mmu_lock, which ensure that if the page gets
+	 * unmapped afterwards, the call to kvm_unmap_hva will take it away
+	 * from us again properly. This smp_rmb() interacts with the smp_wmb()
+	 * in kvm_mmu_notifier_invalidate_<page|range_end>.
+	 */
+	smp_rmb();
+
+	pfn = gfn_to_pfn_prot(vcpu->kvm, gfn, write_fault, &writable);
+	if (is_error_pfn(pfn))
+		return -EFAULT;
+
+	new_pte = pfn_pte(pfn, PAGE_S2);
+	coherent_icache_guest_page(vcpu->kvm, gfn);
+
+	spin_lock(&vcpu->kvm->mmu_lock);
+	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
+		goto out_unlock;
+	if (writable) {
+		pte_val(new_pte) |= L_PTE_S2_RDWR;
+		kvm_set_pfn_dirty(pfn);
+	}
+	stage2_set_pte(vcpu->kvm, memcache, fault_ipa, &new_pte, false);
+
+out_unlock:
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	kvm_release_pfn_clean(pfn);
+	return 0;
+}
+
+/**
+ * kvm_handle_guest_abort - handles all 2nd stage aborts
+ * @vcpu:	the VCPU pointer
+ * @run:	the kvm_run structure
+ *
+ * Any abort that gets to the host is almost guaranteed to be caused by a
+ * missing second stage translation table entry, which can mean that either the
+ * guest simply needs more memory and we must allocate an appropriate page or it
+ * can mean that the guest tried to access I/O memory, which is emulated by user
+ * space. The distinction is based on the IPA causing the fault and whether this
+ * memory region has been registered as standard RAM by user space.
+ */
 int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	return -EINVAL;
+	unsigned long hsr_ec;
+	unsigned long fault_status;
+	phys_addr_t fault_ipa;
+	struct kvm_memory_slot *memslot;
+	bool is_iabt;
+	gfn_t gfn;
+	int ret, idx;
+
+	hsr_ec = vcpu->arch.hsr >> HSR_EC_SHIFT;
+	is_iabt = (hsr_ec == HSR_EC_IABT);
+	fault_ipa = ((phys_addr_t)vcpu->arch.hpfar & HPFAR_MASK) << 8;
+
+	trace_kvm_guest_fault(*vcpu_pc(vcpu), vcpu->arch.hsr,
+			      vcpu->arch.hxfar, fault_ipa);
+
+	/* Check the stage-2 fault is trans. fault or write fault */
+	fault_status = (vcpu->arch.hsr & HSR_FSC_TYPE);
+	if (fault_status != FSC_FAULT && fault_status != FSC_PERM) {
+		kvm_err("Unsupported fault status: EC=%#lx DFCS=%#lx\n",
+			hsr_ec, fault_status);
+		return -EFAULT;
+	}
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	gfn = fault_ipa >> PAGE_SHIFT;
+	if (!kvm_is_visible_gfn(vcpu->kvm, gfn)) {
+		if (is_iabt) {
+			/* Prefetch Abort on I/O address */
+			kvm_inject_pabt(vcpu, vcpu->arch.hxfar);
+			ret = 1;
+			goto out_unlock;
+		}
+
+		if (fault_status != FSC_FAULT) {
+			kvm_err("Unsupported fault status on io memory: %#lx\n",
+				fault_status);
+			ret = -EFAULT;
+			goto out_unlock;
+		}
+
+		kvm_pr_unimpl("I/O address abort...");
+		ret = 0;
+		goto out_unlock;
+	}
+
+	memslot = gfn_to_memslot(vcpu->kvm, gfn);
+	if (!memslot->user_alloc) {
+		kvm_err("non user-alloc memslots not supported\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	ret = user_mem_abort(vcpu, fault_ipa, gfn, memslot, fault_status);
+	if (ret == 0)
+		ret = 1;
+out_unlock:
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	return ret;
 }
 
 static void handle_hva_to_gpa(struct kvm *kvm,
