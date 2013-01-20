@@ -28,7 +28,7 @@ struct tda829x_config {
 #define TDA829X_DONT_PROBE  1
 };
 
-#if defined(CONFIG_MEDIA_TUNER_TDA8290) || (defined(CONFIG_MEDIA_TUNER_TDA8290_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA8290)
 extern int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr);
 
 extern struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,

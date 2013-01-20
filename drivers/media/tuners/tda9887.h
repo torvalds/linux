@@ -21,7 +21,7 @@
 #include "dvb_frontend.h"
 
 /* ------------------------------------------------------------------------ */
-#if defined(CONFIG_MEDIA_TUNER_TDA9887) || (defined(CONFIG_MEDIA_TUNER_TDA9887_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA9887)
 extern struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 					   struct i2c_adapter *i2c_adap,
 					   u8 i2c_addr);
