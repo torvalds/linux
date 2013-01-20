@@ -2091,6 +2091,12 @@ config S5P_DP
 	---help---
 	  This enables support for DP device.
 
+config ODROID_UMP
+	bool "Enable ODROID UMP IOCTL's for MALI"
+	default n
+	---help---
+		This enables UMP IOCTL's on Framebuffer
+
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
 	depends on FB && ARCH_S3C2410
