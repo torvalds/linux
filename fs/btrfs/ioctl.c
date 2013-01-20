@@ -1340,7 +1340,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
 		mnt_drop_write_file(file);
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -2192,7 +2192,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 	ret = mnt_want_write_file(file);
 	if (ret) {
@@ -2266,7 +2266,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -2303,7 +2303,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
 		mnt_drop_write_file(file);
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
