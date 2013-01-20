@@ -433,6 +433,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 		nouveau_fb->nvbo = NULL;
 	}
 	drm_fb_helper_fini(&fbcon->helper);
+	drm_framebuffer_unregister_private(&nouveau_fb->base);
 	drm_framebuffer_cleanup(&nouveau_fb->base);
 	return 0;
 }

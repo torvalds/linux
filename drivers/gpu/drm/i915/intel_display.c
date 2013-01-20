@@ -6415,6 +6415,8 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
 
+		mutex_lock(&crtc->mutex);
+
 		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
 
@@ -6444,6 +6446,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		return false;
 	}
 
+	mutex_lock(&crtc->mutex);
 	intel_encoder->new_crtc = to_intel_crtc(crtc);
 	to_intel_connector(connector)->new_encoder = intel_encoder;
 
@@ -6471,6 +6474,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
+		mutex_unlock(&crtc->mutex);
 		return false;
 	}
 
@@ -6478,6 +6482,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
+		mutex_unlock(&crtc->mutex);
 		return false;
 	}
 
@@ -6492,20 +6497,21 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_crtc *crtc = encoder->crtc;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector),
 		      encoder->base.id, drm_get_encoder_name(encoder));
 
 	if (old->load_detect_temp) {
-		struct drm_crtc *crtc = encoder->crtc;
-
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_set_mode(crtc, NULL, 0, 0, NULL);
 
-		if (old->release_fb)
-			old->release_fb->funcs->destroy(old->release_fb);
+		if (old->release_fb) {
+			drm_framebuffer_unregister_private(old->release_fb);
+			drm_framebuffer_unreference(old->release_fb);
+		}
 
 		return;
 	}
@@ -6513,6 +6519,8 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	/* Switch crtc and encoder back off if necessary */
 	if (old->dpms_mode != DRM_MODE_DPMS_ON)
 		connector->funcs->dpms(connector, old->dpms_mode);
+
+	mutex_unlock(&crtc->mutex);
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
@@ -8318,19 +8326,30 @@ int intel_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-	if (obj->tiling_mode == I915_TILING_Y)
+	if (obj->tiling_mode == I915_TILING_Y) {
+		DRM_DEBUG("hardware does not support tiling Y\n");
 		return -EINVAL;
+	}
 
-	if (mode_cmd->pitches[0] & 63)
+	if (mode_cmd->pitches[0] & 63) {
+		DRM_DEBUG("pitch (%d) must be at least 64 byte aligned\n",
+			  mode_cmd->pitches[0]);
 		return -EINVAL;
+	}
 
 	/* FIXME <= Gen4 stride limits are bit unclear */
-	if (mode_cmd->pitches[0] > 32768)
+	if (mode_cmd->pitches[0] > 32768) {
+		DRM_DEBUG("pitch (%d) must be at less than 32768\n",
+			  mode_cmd->pitches[0]);
 		return -EINVAL;
+	}
 
 	if (obj->tiling_mode != I915_TILING_NONE &&
-	    mode_cmd->pitches[0] != obj->stride)
+	    mode_cmd->pitches[0] != obj->stride) {
+		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
+			  mode_cmd->pitches[0], obj->stride);
 		return -EINVAL;
+	}
 
 	/* Reject formats not supported by any plane early. */
 	switch (mode_cmd->pixel_format) {
@@ -8341,8 +8360,10 @@ int intel_framebuffer_init(struct drm_device *dev,
 		break;
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_ARGB1555:
-		if (INTEL_INFO(dev)->gen > 3)
+		if (INTEL_INFO(dev)->gen > 3) {
+			DRM_DEBUG("invalid format: 0x%08x\n", mode_cmd->pixel_format);
 			return -EINVAL;
+		}
 		break;
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
@@ -8350,18 +8371,22 @@ int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_ARGB2101010:
 	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_ABGR2101010:
-		if (INTEL_INFO(dev)->gen < 4)
+		if (INTEL_INFO(dev)->gen < 4) {
+			DRM_DEBUG("invalid format: 0x%08x\n", mode_cmd->pixel_format);
 			return -EINVAL;
+		}
 		break;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
-		if (INTEL_INFO(dev)->gen < 6)
+		if (INTEL_INFO(dev)->gen < 5) {
+			DRM_DEBUG("invalid format: 0x%08x\n", mode_cmd->pixel_format);
 			return -EINVAL;
+		}
 		break;
 	default:
-		DRM_DEBUG_KMS("unsupported pixel format 0x%08x\n", mode_cmd->pixel_format);
+		DRM_DEBUG("unsupported pixel format 0x%08x\n", mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 
@@ -8369,14 +8394,15 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
+	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
+	intel_fb->obj = obj;
+
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
 	}
 
-	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
-	intel_fb->obj = obj;
 	return 0;
 }
 

@@ -85,17 +85,17 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	if (!fb_cma)
 		return ERR_PTR(-ENOMEM);
 
+	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
+
+	for (i = 0; i < num_planes; i++)
+		fb_cma->obj[i] = obj[i];
+
 	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initalize framebuffer: %d\n", ret);
 		kfree(fb_cma);
 		return ERR_PTR(ret);
 	}
-
-	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
-
-	for (i = 0; i < num_planes; i++)
-		fb_cma->obj[i] = obj[i];
 
 	return fb_cma;
 }
@@ -266,6 +266,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_drm_fb_cma_destroy:
+	drm_framebuffer_unregister_private(fb);
 	drm_fb_cma_destroy(fb);
 err_framebuffer_release:
 	framebuffer_release(fbi);
@@ -370,8 +371,10 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 		framebuffer_release(info);
 	}
 
-	if (fbdev_cma->fb)
+	if (fbdev_cma->fb) {
+		drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
 		drm_fb_cma_destroy(&fbdev_cma->fb->fb);
+	}
 
 	drm_fb_helper_fini(&fbdev_cma->fb_helper);
 	kfree(fbdev_cma);

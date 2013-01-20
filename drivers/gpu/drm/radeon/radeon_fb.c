@@ -293,6 +293,7 @@ out_unref:
 	}
 	if (fb && ret) {
 		drm_gem_object_unreference(gobj);
+		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
 	}
@@ -339,6 +340,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 		rfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
+	drm_framebuffer_unregister_private(&rfb->base);
 	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;

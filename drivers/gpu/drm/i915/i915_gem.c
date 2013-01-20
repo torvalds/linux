@@ -1720,7 +1720,8 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 }
 
 static long
-i915_gem_purge(struct drm_i915_private *dev_priv, long target)
+__i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
+		  bool purgeable_only)
 {
 	struct drm_i915_gem_object *obj, *next;
 	long count = 0;
@@ -1728,7 +1729,7 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.unbound_list,
 				 gtt_list) {
-		if (i915_gem_object_is_purgeable(obj) &&
+		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
 		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
 			if (count >= target)
@@ -1739,7 +1740,7 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.inactive_list,
 				 mm_list) {
-		if (i915_gem_object_is_purgeable(obj) &&
+		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
 		    i915_gem_object_unbind(obj) == 0 &&
 		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
@@ -1749,6 +1750,12 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 	}
 
 	return count;
+}
+
+static long
+i915_gem_purge(struct drm_i915_private *dev_priv, long target)
+{
+	return __i915_gem_shrink(dev_priv, target, true);
 }
 
 static void
@@ -3545,13 +3552,14 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	obj->user_pin_count++;
-	obj->pin_filp = file;
-	if (obj->user_pin_count == 1) {
+	if (obj->user_pin_count == 0) {
 		ret = i915_gem_object_pin(obj, args->alignment, true, false);
 		if (ret)
 			goto out;
 	}
+
+	obj->user_pin_count++;
+	obj->pin_filp = file;
 
 	/* XXX - flush the CPU caches for pinned objects
 	 * as the X server doesn't manage domains yet
@@ -4382,6 +4390,9 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	if (nr_to_scan) {
 		nr_to_scan -= i915_gem_purge(dev_priv, nr_to_scan);
 		if (nr_to_scan > 0)
+			nr_to_scan -= __i915_gem_shrink(dev_priv, nr_to_scan,
+							false);
+		if (nr_to_scan > 0)
 			i915_gem_shrink_all(dev_priv);
 	}
 
@@ -4389,7 +4400,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
 		if (obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, gtt_list)
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 

@@ -1440,28 +1440,31 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	ifbdev = dev_priv->fbdev;
 	fb = to_intel_framebuffer(ifbdev->helper.fb);
 
-	seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, obj ",
+	seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, refcount %d, obj ",
 		   fb->base.width,
 		   fb->base.height,
 		   fb->base.depth,
-		   fb->base.bits_per_pixel);
+		   fb->base.bits_per_pixel,
+		   atomic_read(&fb->base.refcount.refcount));
 	describe_obj(m, fb->obj);
 	seq_printf(m, "\n");
+	mutex_unlock(&dev->mode_config.mutex);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
 		if (&fb->base == ifbdev->helper.fb)
 			continue;
 
-		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, obj ",
+		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, refcount %d, obj ",
 			   fb->base.width,
 			   fb->base.height,
 			   fb->base.depth,
-			   fb->base.bits_per_pixel);
+			   fb->base.bits_per_pixel,
+			   atomic_read(&fb->base.refcount.refcount));
 		describe_obj(m, fb->obj);
 		seq_printf(m, "\n");
 	}
-
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }

@@ -364,7 +364,7 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 				.crtc = crtc,
 			};
 
-			crtc->funcs->set_config(&modeset);
+			drm_mode_set_config_internal(&modeset);
 		}
 	}
 

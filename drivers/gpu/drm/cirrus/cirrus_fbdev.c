@@ -258,6 +258,7 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 
 	vfree(gfbdev->sysram);
 	drm_fb_helper_fini(&gfbdev->helper);
+	drm_framebuffer_unregister_private(&gfb->base);
 	drm_framebuffer_cleanup(&gfb->base);
 
 	return 0;

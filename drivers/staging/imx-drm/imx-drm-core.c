@@ -584,7 +584,6 @@ int imx_drm_add_encoder(struct drm_encoder *encoder,
 
 	ret = imx_drm_encoder_register(imx_drm_encoder);
 	if (ret) {
-		kfree(imx_drm_encoder);
 		ret = -ENOMEM;
 		goto err_register;
 	}

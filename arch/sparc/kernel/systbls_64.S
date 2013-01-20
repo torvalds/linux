@@ -86,7 +86,7 @@ sys_call_table32:
 	.word compat_sys_pwritev, compat_sys_rt_tgsigqueueinfo, sys_perf_event_open, compat_sys_recvmmsg, sys_fanotify_init
 /*330*/	.word sys32_fanotify_mark, sys_prlimit64, sys_name_to_handle_at, compat_sys_open_by_handle_at, compat_sys_clock_adjtime
 	.word sys_syncfs, compat_sys_sendmmsg, sys_setns, compat_sys_process_vm_readv, compat_sys_process_vm_writev
-/*340*/	.word sys_kern_features, sys_kcmp
+/*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module
 
 #endif /* CONFIG_COMPAT */
 
@@ -164,4 +164,4 @@ sys_call_table:
 	.word sys_pwritev, sys_rt_tgsigqueueinfo, sys_perf_event_open, sys_recvmmsg, sys_fanotify_init
 /*330*/	.word sys_fanotify_mark, sys_prlimit64, sys_name_to_handle_at, sys_open_by_handle_at, sys_clock_adjtime
 	.word sys_syncfs, sys_sendmmsg, sys_setns, sys_process_vm_readv, sys_process_vm_writev
-/*340*/	.word sys_kern_features, sys_kcmp
+/*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module

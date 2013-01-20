@@ -72,6 +72,7 @@ static int fb_show(struct seq_file *m, void *arg)
 	seq_printf(m, "fbcon ");
 	omap_framebuffer_describe(priv->fbdev->fb, m);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
 		if (fb == priv->fbdev->fb)
 			continue;
@@ -79,6 +80,7 @@ static int fb_show(struct seq_file *m, void *arg)
 		seq_printf(m, "user ");
 		omap_framebuffer_describe(fb, m);
 	}
+	mutex_unlock(&dev->mode_config.fb_lock);
 
 	mutex_unlock(&dev->struct_mutex);
 	mutex_unlock(&dev->mode_config.mutex);

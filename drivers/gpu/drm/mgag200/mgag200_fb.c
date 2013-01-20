@@ -247,6 +247,7 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	}
 	drm_fb_helper_fini(&mfbdev->helper);
 	vfree(mfbdev->sysram);
+	drm_framebuffer_unregister_private(&mfb->base);
 	drm_framebuffer_cleanup(&mfb->base);
 
 	return 0;

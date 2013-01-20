@@ -149,6 +149,16 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 
 static void psb_lastclose(struct drm_device *dev)
 {
+	int ret;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_fbdev *fbdev = dev_priv->fbdev;
+
+	drm_modeset_lock_all(dev);
+	ret = drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
+	if (ret)
+		DRM_DEBUG("failed to restore crtc mode\n");
+	drm_modeset_unlock_all(dev);
+
 	return;
 }
 
@@ -476,7 +486,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 	case PSB_MODE_OPERATION_MODE_VALID:
 		umode = &arg->mode;
 
-		mutex_lock(&dev->mode_config.mutex);
+		drm_modeset_lock_all(dev);
 
 		obj = drm_mode_object_find(dev, obj_id,
 					DRM_MODE_OBJECT_CONNECTOR);
@@ -525,7 +535,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		if (mode)
 			drm_mode_destroy(dev, mode);
 mode_op_out:
-		mutex_unlock(&dev->mode_config.mutex);
+		drm_modeset_unlock_all(dev);
 		return ret;
 
 	default:

@@ -260,13 +260,13 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	default:
 		return -EINVAL;
 	}
+	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
-	fb->gtt = gt;
 	return 0;
 }
 
@@ -590,6 +590,7 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 		framebuffer_release(info);
 	}
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
+	drm_framebuffer_unregister_private(&psbfb->base);
 	drm_framebuffer_cleanup(&psbfb->base);
 
 	if (psbfb->gtt)
@@ -668,30 +669,6 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	struct gtt_range *r = psbfb->gtt;
-	struct drm_device *dev = fb->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_fbdev *fbdev = dev_priv->fbdev;
-	struct drm_crtc *crtc;
-	int reset = 0;
-
-	/* Should never get stolen memory for a user fb */
-	WARN_ON(r->stolen);
-
-	/* Check if we are erroneously live */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		if (crtc->fb == fb)
-			reset = 1;
-
-	if (reset)
-		/*
-		 * Now force a sane response before we permit the DRM CRTC
-		 * layer to do stupid things like blank the display. Instead
-		 * we reset this framebuffer as if the user had forced a reset.
-		 * We must do this before the cleanup so that the DRM layer
-		 * doesn't get a chance to stick its oar in where it isn't
-		 * wanted.
-		 */
-		drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
 
 	/* Let DRM do its clean up */
 	drm_framebuffer_cleanup(fb);
