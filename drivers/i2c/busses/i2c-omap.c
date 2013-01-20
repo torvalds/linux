@@ -803,7 +803,7 @@ static int errata_omap3_i462(struct omap_i2c_dev *dev)
 			if (stat & OMAP_I2C_STAT_AL) {
 				dev_err(dev->dev, "Arbitration lost\n");
 				dev->cmd_err |= OMAP_I2C_STAT_AL;
-				omap_i2c_ack_stat(dev, OMAP_I2C_STAT_NACK);
+				omap_i2c_ack_stat(dev, OMAP_I2C_STAT_AL);
 			}
 
 			return -EIO;
