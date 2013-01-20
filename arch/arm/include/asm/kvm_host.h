@@ -21,6 +21,7 @@
 
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
+#include <asm/fpstate.h>
 
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
 #define KVM_MEMORY_SLOTS 32
@@ -85,6 +86,14 @@ struct kvm_vcpu_arch {
 	u32 hxfar;		/* Hyp Data/Inst Fault Address Register */
 	u32 hpfar;		/* Hyp IPA Fault Address Register */
 
+	/* Floating point registers (VFP and Advanced SIMD/NEON) */
+	struct vfp_hard_struct vfp_guest;
+	struct vfp_hard_struct *vfp_host;
+
+	/*
+	 * Anything that is not used directly from assembly code goes
+	 * here.
+	 */
 	/* Interrupt related fields */
 	u32 irq_lines;		/* IRQ and FIQ levels */
 
@@ -93,6 +102,9 @@ struct kvm_vcpu_arch {
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
+
+	/* Detect first run of a vcpu */
+	bool has_run_once;
 };
 
 struct kvm_vm_stat {
@@ -112,6 +124,7 @@ struct kvm_one_reg;
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 u64 kvm_call_hyp(void *hypfn, ...);
+void force_vm_exit(const cpumask_t *mask);
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 struct kvm;

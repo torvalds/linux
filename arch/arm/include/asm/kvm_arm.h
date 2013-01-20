@@ -98,6 +98,18 @@
 #define TTBCR_T0SZ	3
 #define HTCR_MASK	(TTBCR_T0SZ | TTBCR_IRGN0 | TTBCR_ORGN0 | TTBCR_SH0)
 
+/* Hyp System Trap Register */
+#define HSTR_T(x)	(1 << x)
+#define HSTR_TTEE	(1 << 16)
+#define HSTR_TJDBX	(1 << 17)
+
+/* Hyp Coprocessor Trap Register */
+#define HCPTR_TCP(x)	(1 << x)
+#define HCPTR_TCP_MASK	(0x3fff)
+#define HCPTR_TASE	(1 << 15)
+#define HCPTR_TTA	(1 << 20)
+#define HCPTR_TCPAC	(1 << 31)
+
 /* Hyp Debug Configuration Register bits */
 #define HDCR_TDRA	(1 << 11)
 #define HDCR_TDOSA	(1 << 10)
@@ -144,6 +156,45 @@
 #else
 #define VTTBR_X		(5 - KVM_T0SZ)
 #endif
+#define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
+#define VTTBR_BADDR_MASK  (((1LLU << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_VMID_SHIFT  (48LLU)
+#define VTTBR_VMID_MASK	  (0xffLLU << VTTBR_VMID_SHIFT)
 
+/* Hyp Syndrome Register (HSR) bits */
+#define HSR_EC_SHIFT	(26)
+#define HSR_EC		(0x3fU << HSR_EC_SHIFT)
+#define HSR_IL		(1U << 25)
+#define HSR_ISS		(HSR_IL - 1)
+#define HSR_ISV_SHIFT	(24)
+#define HSR_ISV		(1U << HSR_ISV_SHIFT)
+#define HSR_FSC		(0x3f)
+#define HSR_FSC_TYPE	(0x3c)
+#define HSR_WNR		(1 << 6)
+
+#define FSC_FAULT	(0x04)
+#define FSC_PERM	(0x0c)
+
+/* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
+#define HPFAR_MASK	(~0xf)
+
+#define HSR_EC_UNKNOWN	(0x00)
+#define HSR_EC_WFI	(0x01)
+#define HSR_EC_CP15_32	(0x03)
+#define HSR_EC_CP15_64	(0x04)
+#define HSR_EC_CP14_MR	(0x05)
+#define HSR_EC_CP14_LS	(0x06)
+#define HSR_EC_CP_0_13	(0x07)
+#define HSR_EC_CP10_ID	(0x08)
+#define HSR_EC_JAZELLE	(0x09)
+#define HSR_EC_BXJ	(0x0A)
+#define HSR_EC_CP14_64	(0x0C)
+#define HSR_EC_SVC_HYP	(0x11)
+#define HSR_EC_HVC	(0x12)
+#define HSR_EC_SMC	(0x13)
+#define HSR_EC_IABT	(0x20)
+#define HSR_EC_IABT_HYP	(0x21)
+#define HSR_EC_DABT	(0x24)
+#define HSR_EC_DABT_HYP	(0x25)
 
 #endif /* __ARM_KVM_ARM_H__ */

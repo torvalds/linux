@@ -40,6 +40,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_emulate.h>
 
 #ifdef REQUIRES_VIRT
 __asm__(".arch_extension	virt");
@@ -49,6 +50,10 @@ static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 static struct vfp_hard_struct __percpu *kvm_host_vfp_state;
 static unsigned long hyp_default_vectors;
 
+/* The VMID used in the VTTBR */
+static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
+static u8 kvm_next_vmid;
+static DEFINE_SPINLOCK(kvm_vmid_lock);
 
 int kvm_arch_hardware_enable(void *garbage)
 {
@@ -276,6 +281,8 @@ int __attribute_const__ kvm_target_cpu(void)
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	/* Force users to call KVM_ARM_VCPU_INIT */
+	vcpu->arch.target = -1;
 	return 0;
 }
 
@@ -286,6 +293,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
+	vcpu->arch.vfp_host = this_cpu_ptr(kvm_host_vfp_state);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -316,9 +324,199 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 	return 0;
 }
 
+/* Just ensure a guest exit from a particular CPU */
+static void exit_vm_noop(void *info)
+{
+}
+
+void force_vm_exit(const cpumask_t *mask)
+{
+	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+}
+
+/**
+ * need_new_vmid_gen - check that the VMID is still valid
+ * @kvm: The VM's VMID to checkt
+ *
+ * return true if there is a new generation of VMIDs being used
+ *
+ * The hardware supports only 256 values with the value zero reserved for the
+ * host, so we check if an assigned value belongs to a previous generation,
+ * which which requires us to assign a new value. If we're the first to use a
+ * VMID for the new generation, we must flush necessary caches and TLBs on all
+ * CPUs.
+ */
+static bool need_new_vmid_gen(struct kvm *kvm)
+{
+	return unlikely(kvm->arch.vmid_gen != atomic64_read(&kvm_vmid_gen));
+}
+
+/**
+ * update_vttbr - Update the VTTBR with a valid VMID before the guest runs
+ * @kvm	The guest that we are about to run
+ *
+ * Called from kvm_arch_vcpu_ioctl_run before entering the guest to ensure the
+ * VM has a valid VMID, otherwise assigns a new one and flushes corresponding
+ * caches and TLBs.
+ */
+static void update_vttbr(struct kvm *kvm)
+{
+	phys_addr_t pgd_phys;
+	u64 vmid;
+
+	if (!need_new_vmid_gen(kvm))
+		return;
+
+	spin_lock(&kvm_vmid_lock);
+
+	/*
+	 * We need to re-check the vmid_gen here to ensure that if another vcpu
+	 * already allocated a valid vmid for this vm, then this vcpu should
+	 * use the same vmid.
+	 */
+	if (!need_new_vmid_gen(kvm)) {
+		spin_unlock(&kvm_vmid_lock);
+		return;
+	}
+
+	/* First user of a new VMID generation? */
+	if (unlikely(kvm_next_vmid == 0)) {
+		atomic64_inc(&kvm_vmid_gen);
+		kvm_next_vmid = 1;
+
+		/*
+		 * On SMP we know no other CPUs can use this CPU's or each
+		 * other's VMID after force_vm_exit returns since the
+		 * kvm_vmid_lock blocks them from reentry to the guest.
+		 */
+		force_vm_exit(cpu_all_mask);
+		/*
+		 * Now broadcast TLB + ICACHE invalidation over the inner
+		 * shareable domain to make sure all data structures are
+		 * clean.
+		 */
+		kvm_call_hyp(__kvm_flush_vm_context);
+	}
+
+	kvm->arch.vmid_gen = atomic64_read(&kvm_vmid_gen);
+	kvm->arch.vmid = kvm_next_vmid;
+	kvm_next_vmid++;
+
+	/* update vttbr to be used with the new vmid */
+	pgd_phys = virt_to_phys(kvm->arch.pgd);
+	vmid = ((u64)(kvm->arch.vmid) << VTTBR_VMID_SHIFT) & VTTBR_VMID_MASK;
+	kvm->arch.vttbr = pgd_phys & VTTBR_BADDR_MASK;
+	kvm->arch.vttbr |= vmid;
+
+	spin_unlock(&kvm_vmid_lock);
+}
+
+/*
+ * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
+ * proper exit to QEMU.
+ */
+static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
+		       int exception_index)
+{
+	run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	return 0;
+}
+
+static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
+{
+	if (likely(vcpu->arch.has_run_once))
+		return 0;
+
+	vcpu->arch.has_run_once = true;
+	return 0;
+}
+
+/**
+ * kvm_arch_vcpu_ioctl_run - the main VCPU run function to execute guest code
+ * @vcpu:	The VCPU pointer
+ * @run:	The kvm_run structure pointer used for userspace state exchange
+ *
+ * This function is called through the VCPU_RUN ioctl called from user space. It
+ * will execute VM code in a loop until the time slice for the process is used
+ * or some emulation is needed from user space in which case the function will
+ * return with return value 0 and with the kvm_run structure filled in with the
+ * required data for the requested emulation.
+ */
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	return -EINVAL;
+	int ret;
+	sigset_t sigsaved;
+
+	/* Make sure they initialize the vcpu with KVM_ARM_VCPU_INIT */
+	if (unlikely(vcpu->arch.target < 0))
+		return -ENOEXEC;
+
+	ret = kvm_vcpu_first_run_init(vcpu);
+	if (ret)
+		return ret;
+
+	if (vcpu->sigset_active)
+		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
+
+	ret = 1;
+	run->exit_reason = KVM_EXIT_UNKNOWN;
+	while (ret > 0) {
+		/*
+		 * Check conditions before entering the guest
+		 */
+		cond_resched();
+
+		update_vttbr(vcpu->kvm);
+
+		local_irq_disable();
+
+		/*
+		 * Re-check atomic conditions
+		 */
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			run->exit_reason = KVM_EXIT_INTR;
+		}
+
+		if (ret <= 0 || need_new_vmid_gen(vcpu->kvm)) {
+			local_irq_enable();
+			continue;
+		}
+
+		/**************************************************************
+		 * Enter the guest
+		 */
+		trace_kvm_entry(*vcpu_pc(vcpu));
+		kvm_guest_enter();
+		vcpu->mode = IN_GUEST_MODE;
+
+		ret = kvm_call_hyp(__kvm_vcpu_run, vcpu);
+
+		vcpu->mode = OUTSIDE_GUEST_MODE;
+		kvm_guest_exit();
+		trace_kvm_exit(*vcpu_pc(vcpu));
+		/*
+		 * We may have taken a host interrupt in HYP mode (ie
+		 * while executing the guest). This interrupt is still
+		 * pending, as we haven't serviced it yet!
+		 *
+		 * We're now back in SVC mode, with interrupts
+		 * disabled.  Enabling the interrupts now will have
+		 * the effect of taking the interrupt again, in SVC
+		 * mode this time.
+		 */
+		local_irq_enable();
+
+		/*
+		 * Back from guest
+		 *************************************************************/
+
+		ret = handle_exit(vcpu, run, ret);
+	}
+
+	if (vcpu->sigset_active)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	return ret;
 }
 
 static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
