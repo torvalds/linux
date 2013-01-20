@@ -1262,6 +1262,16 @@ static void __init rx51_init_lirc(void)
 }
 #endif
 
+static struct platform_device madc_hwmon = {
+	.name	= "twl4030_madc_hwmon",
+	.id	= -1,
+};
+
+static void __init rx51_init_twl4030_hwmon(void)
+{
+	platform_device_register(&madc_hwmon);
+}
+
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
@@ -1281,5 +1291,6 @@ void __init rx51_peripherals_init(void)
 		omap_hsmmc_init(mmc);
 
 	rx51_charger_init();
+	rx51_init_twl4030_hwmon();
 }
 
