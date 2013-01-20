@@ -26,6 +26,7 @@
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
+#include <asm/kvm_coproc.h>
 
 #define VM_STAT(x) { #x, offsetof(struct kvm, stat.x), KVM_STAT_VM }
 #define VCPU_STAT(x) { #x, offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU }
@@ -119,7 +120,7 @@ static unsigned long num_core_regs(void)
  */
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu)
 {
-	return num_core_regs();
+	return num_core_regs() + kvm_arm_num_coproc_regs(vcpu);
 }
 
 /**
@@ -138,7 +139,7 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 		uindices++;
 	}
 
-	return 0;
+	return kvm_arm_copy_coproc_indices(vcpu, uindices);
 }
 
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
@@ -151,7 +152,7 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_CORE)
 		return get_core_reg(vcpu, reg);
 
-	return -EINVAL;
+	return kvm_arm_coproc_get_reg(vcpu, reg);
 }
 
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
@@ -164,7 +165,7 @@ int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_CORE)
 		return set_core_reg(vcpu, reg);
 
-	return -EINVAL;
+	return kvm_arm_coproc_set_reg(vcpu, reg);
 }
 
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,

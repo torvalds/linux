@@ -27,6 +27,7 @@
 #define KVM_MEMORY_SLOTS 32
 #define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_HAVE_ONE_REG
 
 #define KVM_VCPU_MAX_FEATURES 0
 
@@ -136,6 +137,9 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_unmap_hva_range(struct kvm *kvm,
 			unsigned long start, unsigned long end);
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+
+unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
+int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 
 /* We do not have shadow page tables, hence the empty hooks */
 static inline int kvm_age_hva(struct kvm *kvm, unsigned long hva)

@@ -1799,6 +1799,11 @@ is the register group type, or coprocessor number:
 ARM core registers have the following id bit patterns:
   0x4002 0000 0010 <index into the kvm_regs struct:16>
 
+ARM 32-bit CP15 registers have the following id bit patterns:
+  0x4002 0000 000F <zero:1> <crn:4> <crm:4> <opc1:4> <opc2:3>
+
+ARM 64-bit CP15 registers have the following id bit patterns:
+  0x4003 0000 000F <zero:1> <zero:4> <crm:4> <opc1:4> <zero:3>
 
 
 4.69 KVM_GET_ONE_REG
