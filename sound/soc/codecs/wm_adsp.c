@@ -324,7 +324,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 
 		if (reg) {
 			buf = kmemdup(region->data, le32_to_cpu(region->len),
-				      GFP_KERNEL);
+				      GFP_KERNEL | GFP_DMA);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
 				return -ENOMEM;
@@ -439,7 +439,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 
 		if (reg) {
 			buf = kmemdup(blk->data, le32_to_cpu(blk->len),
-				      GFP_KERNEL);
+				      GFP_KERNEL | GFP_DMA);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
 				return -ENOMEM;
