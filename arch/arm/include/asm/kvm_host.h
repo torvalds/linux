@@ -30,7 +30,7 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HAVE_ONE_REG
 
-#define KVM_VCPU_MAX_FEATURES 0
+#define KVM_VCPU_MAX_FEATURES 1
 
 /* We don't currently support large pages. */
 #define KVM_HPAGE_GFN_SHIFT(x)	0
@@ -99,6 +99,9 @@ struct kvm_vcpu_arch {
 	/* dcache set/way operation pending */
 	int last_pcpu;
 	cpumask_t require_dcache_flush;
+
+	/* Don't run the guest on this vcpu */
+	bool pause;
 
 	/* IO related fields */
 	struct kvm_decode mmio_decode;

@@ -2185,6 +2185,10 @@ return ENOEXEC for that vcpu.
 Note that because some registers reflect machine topology, all vcpus
 should be created before this ioctl is invoked.
 
+Possible features:
+	- KVM_ARM_VCPU_POWER_OFF: Starts the CPU in a power-off state.
+	  Depends on KVM_CAP_ARM_PSCI.
+
 
 4.78 KVM_GET_REG_LIST
 

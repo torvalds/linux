@@ -32,6 +32,11 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
 
+static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 static inline u32 *vcpu_pc(struct kvm_vcpu *vcpu)
 {
 	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_pc;
@@ -40,6 +45,11 @@ static inline u32 *vcpu_pc(struct kvm_vcpu *vcpu)
 static inline u32 *vcpu_cpsr(struct kvm_vcpu *vcpu)
 {
 	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_cpsr;
+}
+
+static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
+{
+	*vcpu_cpsr(vcpu) |= PSR_T_BIT;
 }
 
 static inline bool mode_has_spsr(struct kvm_vcpu *vcpu)

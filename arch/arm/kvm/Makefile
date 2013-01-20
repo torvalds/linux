@@ -18,4 +18,4 @@ kvm-arm-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
 obj-y += kvm-arm.o init.o interrupts.o
 obj-y += arm.o guest.o mmu.o emulate.o reset.o
-obj-y += coproc.o coproc_a15.o mmio.o
+obj-y += coproc.o coproc_a15.o mmio.o psci.o

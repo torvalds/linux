@@ -636,6 +636,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_IRQFD_RESAMPLE 82
 #define KVM_CAP_PPC_BOOKE_WATCHDOG 83
 #define KVM_CAP_PPC_HTAB_FD 84
+#define KVM_CAP_ARM_PSCI 87
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
