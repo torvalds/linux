@@ -44,6 +44,7 @@
 #define PMD_SECT_XN		(_AT(pmdval_t, 1) << 54)
 #define PMD_SECT_AP_WRITE	(_AT(pmdval_t, 0))
 #define PMD_SECT_AP_READ	(_AT(pmdval_t, 0))
+#define PMD_SECT_AP1		(_AT(pmdval_t, 1) << 6)
 #define PMD_SECT_TEX(x)		(_AT(pmdval_t, 0))
 
 /*
