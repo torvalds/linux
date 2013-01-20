@@ -1271,7 +1271,7 @@ static void __request_acpi_cpufreq(void)
 static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
-	int rv;
+	int ret;
 
 	if (static_cpu_has(X86_FEATURE_HW_PSTATE)) {
 		__request_acpi_cpufreq();
@@ -1281,24 +1281,27 @@ static int __cpuinit powernowk8_init(void)
 	if (!x86_match_cpu(powernow_k8_ids))
 		return -ENODEV;
 
+	get_online_cpus();
 	for_each_online_cpu(i) {
-		int rc;
-		smp_call_function_single(i, check_supported_cpu, &rc, 1);
-		if (rc == 0)
+		smp_call_function_single(i, check_supported_cpu, &ret, 1);
+		if (!ret)
 			supported_cpus++;
 	}
 
-	if (supported_cpus != num_online_cpus())
+	if (supported_cpus != num_online_cpus()) {
+		put_online_cpus();
 		return -ENODEV;
+	}
+	put_online_cpus();
 
-	rv = cpufreq_register_driver(&cpufreq_amd64_driver);
+	ret = cpufreq_register_driver(&cpufreq_amd64_driver);
+	if (ret)
+		return ret;
 
-	if (!rv)
-		pr_info(PFX "Found %d %s (%d cpu cores) (" VERSION ")\n",
-			num_online_nodes(), boot_cpu_data.x86_model_id,
-			supported_cpus);
+	pr_info(PFX "Found %d %s (%d cpu cores) (" VERSION ")\n",
+		num_online_nodes(), boot_cpu_data.x86_model_id, supported_cpus);
 
-	return rv;
+	return ret;
 }
 
 /* driver entry point for term */
