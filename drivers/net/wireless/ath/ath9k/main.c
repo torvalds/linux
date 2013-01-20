@@ -196,10 +196,10 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
-	if (!ath_stoprecv(sc))
+	if (!ath_drain_all_txq(sc, retry_tx))
 		ret = false;
 
-	if (!ath_drain_all_txq(sc, retry_tx))
+	if (!ath_stoprecv(sc))
 		ret = false;
 
 	if (!flush) {
