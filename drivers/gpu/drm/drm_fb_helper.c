@@ -287,7 +287,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
-int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
+static int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
 	/*
@@ -300,7 +300,6 @@ int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 	pr_err("panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 }
-EXPORT_SYMBOL(drm_fb_helper_panic);
 
 static struct notifier_block paniced = {
 	.notifier_call = drm_fb_helper_panic,
