@@ -768,7 +768,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			break;
 
 		default:
-			adsp_err(dsp, "Unknown region type %x\n", type);
+			adsp_err(dsp, "%s.%d: Unknown region type %x at %d\n",
+				 file, blocks, type, pos);
 			break;
 		}
 
