@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
+#include <linux/kvm.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
@@ -284,6 +285,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	vcpu->cpu = cpu;
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -317,6 +319,69 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	return -EINVAL;
+}
+
+static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
+{
+	int bit_index;
+	bool set;
+	unsigned long *ptr;
+
+	if (number == KVM_ARM_IRQ_CPU_IRQ)
+		bit_index = __ffs(HCR_VI);
+	else /* KVM_ARM_IRQ_CPU_FIQ */
+		bit_index = __ffs(HCR_VF);
+
+	ptr = (unsigned long *)&vcpu->arch.irq_lines;
+	if (level)
+		set = test_and_set_bit(bit_index, ptr);
+	else
+		set = test_and_clear_bit(bit_index, ptr);
+
+	/*
+	 * If we didn't change anything, no need to wake up or kick other CPUs
+	 */
+	if (set == level)
+		return 0;
+
+	/*
+	 * The vcpu irq_lines field was updated, wake up sleeping VCPUs and
+	 * trigger a world-switch round on the running physical CPU to set the
+	 * virtual IRQ/FIQ fields in the HCR appropriately.
+	 */
+	kvm_vcpu_kick(vcpu);
+
+	return 0;
+}
+
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level)
+{
+	u32 irq = irq_level->irq;
+	unsigned int irq_type, vcpu_idx, irq_num;
+	int nrcpus = atomic_read(&kvm->online_vcpus);
+	struct kvm_vcpu *vcpu = NULL;
+	bool level = irq_level->level;
+
+	irq_type = (irq >> KVM_ARM_IRQ_TYPE_SHIFT) & KVM_ARM_IRQ_TYPE_MASK;
+	vcpu_idx = (irq >> KVM_ARM_IRQ_VCPU_SHIFT) & KVM_ARM_IRQ_VCPU_MASK;
+	irq_num = (irq >> KVM_ARM_IRQ_NUM_SHIFT) & KVM_ARM_IRQ_NUM_MASK;
+
+	trace_kvm_irq_line(irq_type, vcpu_idx, irq_num, irq_level->level);
+
+	if (irq_type != KVM_ARM_IRQ_TYPE_CPU)
+		return -EINVAL;
+
+	if (vcpu_idx >= nrcpus)
+		return -EINVAL;
+
+	vcpu = kvm_get_vcpu(kvm, vcpu_idx);
+	if (!vcpu)
+		return -EINVAL;
+
+	if (irq_num > KVM_ARM_IRQ_CPU_FIQ)
+		return -EINVAL;
+
+	return vcpu_interrupt_line(vcpu, irq_num, level);
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp,

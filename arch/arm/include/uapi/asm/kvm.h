@@ -23,6 +23,7 @@
 #include <asm/ptrace.h>
 
 #define __KVM_HAVE_GUEST_DEBUG
+#define __KVM_HAVE_IRQ_LINE
 
 #define KVM_REG_SIZE(id)						\
 	(1U << (((id) & KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT))
@@ -102,5 +103,25 @@ struct kvm_arch_memory_slot {
 /* Normal registers are mapped as coprocessor 16. */
 #define KVM_REG_ARM_CORE		(0x0010 << KVM_REG_ARM_COPROC_SHIFT)
 #define KVM_REG_ARM_CORE_REG(name)	(offsetof(struct kvm_regs, name) / 4)
+
+/* KVM_IRQ_LINE irq field index values */
+#define KVM_ARM_IRQ_TYPE_SHIFT		24
+#define KVM_ARM_IRQ_TYPE_MASK		0xff
+#define KVM_ARM_IRQ_VCPU_SHIFT		16
+#define KVM_ARM_IRQ_VCPU_MASK		0xff
+#define KVM_ARM_IRQ_NUM_SHIFT		0
+#define KVM_ARM_IRQ_NUM_MASK		0xffff
+
+/* irq_type field */
+#define KVM_ARM_IRQ_TYPE_CPU		0
+#define KVM_ARM_IRQ_TYPE_SPI		1
+#define KVM_ARM_IRQ_TYPE_PPI		2
+
+/* out-of-kernel GIC cpu interrupt injection irq_number field */
+#define KVM_ARM_IRQ_CPU_IRQ		0
+#define KVM_ARM_IRQ_CPU_FIQ		1
+
+/* Highest supported SPI, from VGIC_NR_IRQS */
+#define KVM_ARM_IRQ_GIC_MAX		127
 
 #endif /* __ARM_KVM_H__ */

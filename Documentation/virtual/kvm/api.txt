@@ -615,15 +615,32 @@ created.
 4.25 KVM_IRQ_LINE
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64
+Architectures: x86, ia64, arm
 Type: vm ioctl
 Parameters: struct kvm_irq_level
 Returns: 0 on success, -1 on error
 
 Sets the level of a GSI input to the interrupt controller model in the kernel.
-Requires that an interrupt controller model has been previously created with
-KVM_CREATE_IRQCHIP.  Note that edge-triggered interrupts require the level
-to be set to 1 and then back to 0.
+On some architectures it is required that an interrupt controller model has
+been previously created with KVM_CREATE_IRQCHIP.  Note that edge-triggered
+interrupts require the level to be set to 1 and then back to 0.
+
+ARM can signal an interrupt either at the CPU level, or at the in-kernel irqchip
+(GIC), and for in-kernel irqchip can tell the GIC to use PPIs designated for
+specific cpus.  The irq field is interpreted like this:
+
+  bits:  | 31 ... 24 | 23  ... 16 | 15    ...    0 |
+  field: | irq_type  | vcpu_index |     irq_id     |
+
+The irq_type field has the following values:
+- irq_type[0]: out-of-kernel GIC: irq_id 0 is IRQ, irq_id 1 is FIQ
+- irq_type[1]: in-kernel GIC: SPI, irq_id between 32 and 1019 (incl.)
+               (the vcpu_index field is ignored)
+- irq_type[2]: in-kernel GIC: PPI, irq_id between 16 and 31 (incl.)
+
+(The irq_id field thus corresponds nicely to the IRQ ID in the ARM GIC specs)
+
+In both cases, level is used to raise/lower the line.
 
 struct kvm_irq_level {
 	union {
