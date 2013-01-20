@@ -490,7 +490,7 @@ static void __ndisc_send(struct net_device *dev,
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 			  const struct in6_addr *daddr,
 			  const struct in6_addr *solicited_addr,
-			  int router, int solicited, int override, int inc_opt)
+			  bool router, bool solicited, bool override, bool inc_opt)
 {
 	struct in6_addr tmpaddr;
 	struct inet6_ifaddr *ifp;
@@ -776,11 +776,11 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	}
 
 	if (is_router < 0)
-		is_router = !!idev->cnf.forwarding;
+		is_router = idev->cnf.forwarding;
 
 	if (dad) {
 		ndisc_send_na(dev, NULL, &in6addr_linklocal_allnodes, &msg->target,
-			      is_router, 0, (ifp != NULL), 1);
+			      !!is_router, false, (ifp != NULL), true);
 		goto out;
 	}
 
@@ -801,8 +801,8 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			     NEIGH_UPDATE_F_OVERRIDE);
 	if (neigh || !dev->header_ops) {
 		ndisc_send_na(dev, neigh, saddr, &msg->target,
-			      is_router,
-			      1, (ifp != NULL && inc), inc);
+			      !!is_router,
+			      true, (ifp != NULL && inc), inc);
 		if (neigh)
 			neigh_release(neigh);
 	}
