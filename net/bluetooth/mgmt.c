@@ -1590,6 +1590,11 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 				    MGMT_STATUS_INVALID_PARAMS,
 				    &rp, sizeof(rp));
 
+	if (cp->disconnect != 0x00 && cp->disconnect != 0x01)
+		return cmd_complete(sk, hdev->id, MGMT_OP_UNPAIR_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
+
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
