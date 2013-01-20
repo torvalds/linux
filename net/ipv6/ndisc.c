@@ -685,11 +685,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	 * RFC2461 7.1.1:
 	 * DAD has to be destined for solicited node multicast address.
 	 */
-	if (dad &&
-	    !(daddr->s6_addr32[0] == htonl(0xff020000) &&
-	      daddr->s6_addr32[1] == htonl(0x00000000) &&
-	      daddr->s6_addr32[2] == htonl(0x00000001) &&
-	      daddr->s6_addr [12] == 0xff )) {
+	if (dad && !ipv6_addr_is_solict_mult(daddr)) {
 		ND_PRINTK(2, warn, "NS: bad DAD packet (wrong destination)\n");
 		return;
 	}
