@@ -112,4 +112,22 @@ struct kvm_one_reg;
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 u64 kvm_call_hyp(void *hypfn, ...);
+
+#define KVM_ARCH_WANT_MMU_NOTIFIER
+struct kvm;
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+int kvm_unmap_hva_range(struct kvm *kvm,
+			unsigned long start, unsigned long end);
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+
+/* We do not have shadow page tables, hence the empty hooks */
+static inline int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	return 0;
+}
+
+static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	return 0;
+}
 #endif /* __ARM_KVM_HOST_H__ */

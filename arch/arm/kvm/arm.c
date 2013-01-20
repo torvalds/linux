@@ -81,12 +81,33 @@ void kvm_arch_sync_events(struct kvm *kvm)
 {
 }
 
+/**
+ * kvm_arch_init_vm - initializes a VM data structure
+ * @kvm:	pointer to the KVM struct
+ */
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	int ret = 0;
+
 	if (type)
 		return -EINVAL;
 
-	return 0;
+	ret = kvm_alloc_stage2_pgd(kvm);
+	if (ret)
+		goto out_fail_alloc;
+
+	ret = create_hyp_mappings(kvm, kvm + 1);
+	if (ret)
+		goto out_free_stage2_pgd;
+
+	/* Mark the initial VMID generation invalid */
+	kvm->arch.vmid_gen = 0;
+
+	return ret;
+out_free_stage2_pgd:
+	kvm_free_stage2_pgd(kvm);
+out_fail_alloc:
+	return ret;
 }
 
 int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
@@ -104,9 +125,15 @@ int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 	return 0;
 }
 
+/**
+ * kvm_arch_destroy_vm - destroy the VM data structure
+ * @kvm:	pointer to the KVM struct
+ */
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	int i;
+
+	kvm_free_stage2_pgd(kvm);
 
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		if (kvm->vcpus[i]) {
@@ -196,7 +223,13 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_vcpu;
 
+	err = create_hyp_mappings(vcpu, vcpu + 1);
+	if (err)
+		goto vcpu_uninit;
+
 	return vcpu;
+vcpu_uninit:
+	kvm_vcpu_uninit(vcpu);
 free_vcpu:
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
@@ -210,6 +243,8 @@ int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	kvm_mmu_free_memory_caches(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)

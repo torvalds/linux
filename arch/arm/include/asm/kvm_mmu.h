@@ -23,6 +23,15 @@ int create_hyp_mappings(void *from, void *to);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
 void free_hyp_pmds(void);
 
+int kvm_alloc_stage2_pgd(struct kvm *kvm);
+void kvm_free_stage2_pgd(struct kvm *kvm);
+int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
+			  phys_addr_t pa, unsigned long size);
+
+int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
+
+void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
+
 phys_addr_t kvm_mmu_get_httbr(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
