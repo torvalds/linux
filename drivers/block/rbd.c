@@ -1315,29 +1315,6 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 }
 
 /*
- * Synchronously read a range from an object into a provided buffer
- */
-static int rbd_req_sync_read(struct rbd_device *rbd_dev,
-			  const char *object_name,
-			  u64 ofs, u64 len,
-			  char *buf,
-			  u64 *ver)
-{
-	struct ceph_osd_req_op *op;
-	int ret;
-
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_READ, ofs, len);
-	if (!op)
-		return -ENOMEM;
-
-	ret = rbd_req_sync_op(rbd_dev, CEPH_OSD_FLAG_READ,
-			       op, object_name, ofs, len, buf, ver);
-	rbd_osd_req_op_destroy(op);
-
-	return ret;
-}
-
-/*
  * Request sync osd watch
  */
 static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
@@ -2112,7 +2089,6 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev, u64 *version)
 		if (!ondisk)
 			return ERR_PTR(-ENOMEM);
 
-		(void) rbd_req_sync_read;	/* avoid a warning */
 		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_name,
 				       0, size,
 				       (char *) ondisk, version);
