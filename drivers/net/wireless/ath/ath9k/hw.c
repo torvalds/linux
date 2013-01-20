@@ -203,7 +203,7 @@ void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 	udelay(hw_delay + BASE_ACTIVATE_DELAY);
 }
 
-void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt)
 {
 	int r;

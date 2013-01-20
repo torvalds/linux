@@ -1013,7 +1013,7 @@ void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 			  int hw_delay);
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
-void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
