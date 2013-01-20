@@ -264,6 +264,10 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode);
 
+/*
+ * restore fbcon display for all kms driver's using this helper, used for sysrq
+ * and panic handling.
+ */
 static bool drm_fb_helper_force_kernel_mode(void)
 {
 	bool ret, error = false;
@@ -302,20 +306,6 @@ static struct notifier_block paniced = {
 	.notifier_call = drm_fb_helper_panic,
 };
 
-/**
- * drm_fb_helper_restore - restore the framebuffer console (kernel) config
- *
- * Restore's the kernel's fbcon mode, used for lastclose & panic paths.
- */
-void drm_fb_helper_restore(void)
-{
-	bool ret;
-	ret = drm_fb_helper_force_kernel_mode();
-	if (ret == true)
-		DRM_ERROR("Failed to restore crtc configuration\n");
-}
-EXPORT_SYMBOL(drm_fb_helper_restore);
-
 static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -337,7 +327,10 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 #ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
-	drm_fb_helper_restore();
+	bool ret;
+	ret = drm_fb_helper_force_kernel_mode();
+	if (ret == true)
+		DRM_ERROR("Failed to restore crtc configuration\n");
 }
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
