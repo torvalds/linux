@@ -82,9 +82,6 @@ struct drm_fb_helper {
 	bool delayed_hotplug;
 };
 
-int drm_fb_helper_single_fb_probe(struct drm_fb_helper *helper,
-				  int preferred_bpp);
-
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *helper, int crtc_count,
 		       int max_conn);

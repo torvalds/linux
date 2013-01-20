@@ -754,8 +754,8 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
-int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
-				  int preferred_bpp)
+static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
+					 int preferred_bpp)
 {
 	int new_fb = 0;
 	int crtc_count = 0;
@@ -870,7 +870,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_fb_helper_single_fb_probe);
 
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth)
