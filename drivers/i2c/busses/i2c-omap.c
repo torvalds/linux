@@ -963,7 +963,7 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 				i2c_omap_errata_i207(dev, stat);
 
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RDR);
-			break;
+			continue;
 		}
 
 		if (stat & OMAP_I2C_STAT_RRDY) {
@@ -989,7 +989,7 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 				break;
 
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_XDR);
-			break;
+			continue;
 		}
 
 		if (stat & OMAP_I2C_STAT_XRDY) {
