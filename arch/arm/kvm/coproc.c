@@ -35,6 +35,12 @@
  * Co-processor emulation
  *****************************************************************************/
 
+/* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
+static u32 cache_levels;
+
+/* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
+#define CSSELR_MAX 12
+
 int kvm_handle_cp10_id(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	kvm_inject_undefined(vcpu);
@@ -548,10 +554,112 @@ static int set_invariant_cp15(u64 id, void __user *uaddr)
 	return 0;
 }
 
+static bool is_valid_cache(u32 val)
+{
+	u32 level, ctype;
+
+	if (val >= CSSELR_MAX)
+		return -ENOENT;
+
+	/* Bottom bit is Instruction or Data bit.  Next 3 bits are level. */
+        level = (val >> 1);
+        ctype = (cache_levels >> (level * 3)) & 7;
+
+	switch (ctype) {
+	case 0: /* No cache */
+		return false;
+	case 1: /* Instruction cache only */
+		return (val & 1);
+	case 2: /* Data cache only */
+	case 4: /* Unified cache */
+		return !(val & 1);
+	case 3: /* Separate instruction and data caches */
+		return true;
+	default: /* Reserved: we can't know instruction or data. */
+		return false;
+	}
+}
+
+/* Which cache CCSIDR represents depends on CSSELR value. */
+static u32 get_ccsidr(u32 csselr)
+{
+	u32 ccsidr;
+
+	/* Make sure noone else changes CSSELR during this! */
+	local_irq_disable();
+	/* Put value into CSSELR */
+	asm volatile("mcr p15, 2, %0, c0, c0, 0" : : "r" (csselr));
+	isb();
+	/* Read result out of CCSIDR */
+	asm volatile("mrc p15, 1, %0, c0, c0, 0" : "=r" (ccsidr));
+	local_irq_enable();
+
+	return ccsidr;
+}
+
+static int demux_c15_get(u64 id, void __user *uaddr)
+{
+	u32 val;
+	u32 __user *uval = uaddr;
+
+	/* Fail if we have unknown bits set. */
+	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
+		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
+		return -ENOENT;
+
+	switch (id & KVM_REG_ARM_DEMUX_ID_MASK) {
+	case KVM_REG_ARM_DEMUX_ID_CCSIDR:
+		if (KVM_REG_SIZE(id) != 4)
+			return -ENOENT;
+		val = (id & KVM_REG_ARM_DEMUX_VAL_MASK)
+			>> KVM_REG_ARM_DEMUX_VAL_SHIFT;
+		if (!is_valid_cache(val))
+			return -ENOENT;
+
+		return put_user(get_ccsidr(val), uval);
+	default:
+		return -ENOENT;
+	}
+}
+
+static int demux_c15_set(u64 id, void __user *uaddr)
+{
+	u32 val, newval;
+	u32 __user *uval = uaddr;
+
+	/* Fail if we have unknown bits set. */
+	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
+		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
+		return -ENOENT;
+
+	switch (id & KVM_REG_ARM_DEMUX_ID_MASK) {
+	case KVM_REG_ARM_DEMUX_ID_CCSIDR:
+		if (KVM_REG_SIZE(id) != 4)
+			return -ENOENT;
+		val = (id & KVM_REG_ARM_DEMUX_VAL_MASK)
+			>> KVM_REG_ARM_DEMUX_VAL_SHIFT;
+		if (!is_valid_cache(val))
+			return -ENOENT;
+
+		if (get_user(newval, uval))
+			return -EFAULT;
+
+		/* This is also invariant: you can't change it. */
+		if (newval != get_ccsidr(val))
+			return -EINVAL;
+		return 0;
+	default:
+		return -ENOENT;
+	}
+}
+
 int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
+
+	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
+		return demux_c15_get(reg->id, uaddr);
 
 	r = index_to_coproc_reg(vcpu, reg->id);
 	if (!r)
@@ -566,12 +674,42 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	const struct coproc_reg *r;
 	void __user *uaddr = (void __user *)(long)reg->addr;
 
+	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
+		return demux_c15_set(reg->id, uaddr);
+
 	r = index_to_coproc_reg(vcpu, reg->id);
 	if (!r)
 		return set_invariant_cp15(reg->id, uaddr);
 
 	/* Note: copies two regs if size is 64 bit */
 	return reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+}
+
+static unsigned int num_demux_regs(void)
+{
+	unsigned int i, count = 0;
+
+	for (i = 0; i < CSSELR_MAX; i++)
+		if (is_valid_cache(i))
+			count++;
+
+	return count;
+}
+
+static int write_demux_regids(u64 __user *uindices)
+{
+	u64 val = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX;
+	unsigned int i;
+
+	val |= KVM_REG_ARM_DEMUX_ID_CCSIDR;
+	for (i = 0; i < CSSELR_MAX; i++) {
+		if (!is_valid_cache(i))
+			continue;
+		if (put_user(val | i, uindices))
+			return -EFAULT;
+		uindices++;
+	}
+	return 0;
 }
 
 static u64 cp15_to_index(const struct coproc_reg *reg)
@@ -649,6 +787,7 @@ static int walk_cp15(struct kvm_vcpu *vcpu, u64 __user *uind)
 unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu)
 {
 	return ARRAY_SIZE(invariant_cp15)
+		+ num_demux_regs()
 		+ walk_cp15(vcpu, (u64 __user *)NULL);
 }
 
@@ -665,9 +804,11 @@ int kvm_arm_copy_coproc_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 	}
 
 	err = walk_cp15(vcpu, uindices);
-	if (err > 0)
-		err = 0;
-	return err;
+	if (err < 0)
+		return err;
+	uindices += err;
+
+	return write_demux_regids(uindices);
 }
 
 void kvm_coproc_table_init(void)
@@ -681,6 +822,23 @@ void kvm_coproc_table_init(void)
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_cp15); i++)
 		invariant_cp15[i].reset(NULL, &invariant_cp15[i]);
+
+	/*
+	 * CLIDR format is awkward, so clean it up.  See ARM B4.1.20:
+	 *
+	 *   If software reads the Cache Type fields from Ctype1
+	 *   upwards, once it has seen a value of 0b000, no caches
+	 *   exist at further-out levels of the hierarchy. So, for
+	 *   example, if Ctype3 is the first Cache Type field with a
+	 *   value of 0b000, the values of Ctype4 to Ctype7 must be
+	 *   ignored.
+	 */
+	asm volatile("mrc p15, 1, %0, c0, c0, 1" : "=r" (cache_levels));
+	for (i = 0; i < 7; i++)
+		if (((cache_levels >> (i*3)) & 7) == 0)
+			break;
+	/* Clear all higher bits. */
+	cache_levels &= (1 << (i*3))-1;
 }
 
 /**

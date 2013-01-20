@@ -1805,6 +1805,8 @@ ARM 32-bit CP15 registers have the following id bit patterns:
 ARM 64-bit CP15 registers have the following id bit patterns:
   0x4003 0000 000F <zero:1> <zero:4> <crm:4> <opc1:4> <zero:3>
 
+ARM CCSIDR registers are demultiplexed by CSSELR value:
+  0x4002 0000 0011 00 <csselr:8>
 
 4.69 KVM_GET_ONE_REG
 
