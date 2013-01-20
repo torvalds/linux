@@ -1369,47 +1369,6 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	rbd_req_sync_notify_ack(rbd_dev, hver, notify_id);
 }
 
-/*
- * Request sync osd watch/unwatch.  The value of "start" determines
- * whether a watch request is being initiated or torn down.
- */
-static int rbd_req_sync_watch(struct rbd_device *rbd_dev, int start)
-{
-	struct ceph_osd_req_op *op;
-	int ret = 0;
-
-	rbd_assert(start ^ !!rbd_dev->watch_event);
-	rbd_assert(start ^ !!rbd_dev->watch_request);
-
-	if (start) {
-		struct ceph_osd_client *osdc;
-
-		osdc = &rbd_dev->rbd_client->client->osdc;
-		ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0, rbd_dev,
-						&rbd_dev->watch_event);
-		if (ret < 0)
-			return ret;
-	}
-
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_WATCH,
-				rbd_dev->watch_event->cookie,
-				rbd_dev->header.obj_version, start);
-	if (op)
-		ret = rbd_req_sync_op(rbd_dev,
-			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			      op, rbd_dev->header_name,
-			      0, 0, NULL, NULL);
-
-	/* Cancel the event if we're tearing down, or on error */
-
-	if (!start || !op || ret < 0) {
-		ceph_osdc_cancel_event(rbd_dev->watch_event);
-		rbd_dev->watch_event = NULL;
-	}
-	rbd_osd_req_op_destroy(op);
-
-	return ret;
-}
 
 /*
  * Synchronous osd object method call
@@ -3961,7 +3920,6 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_bus;
 
-	(void) rbd_req_sync_watch;	/* avoid a warning */
 	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
 	if (ret)
 		goto err_out_bus;
