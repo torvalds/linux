@@ -2716,7 +2716,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		BT_ERR("load_keys: expected %u bytes, got %u bytes",
 		       len, expected_len);
 		return cmd_status(sk, hdev->id, MGMT_OP_LOAD_LONG_TERM_KEYS,
-				  EINVAL);
+				  MGMT_STATUS_INVALID_PARAMS);
 	}
 
 	BT_DBG("%s key_count %u", hdev->name, key_count);
