@@ -1446,8 +1446,8 @@ out_free:
 	kfree(vol_args);
 out:
 	mutex_unlock(&root->fs_info->volume_mutex);
-	mnt_drop_write_file(file);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
