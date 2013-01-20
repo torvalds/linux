@@ -136,6 +136,7 @@ void vtime_account_system(struct task_struct *tsk)
 
 	account_system_time(tsk, 0, delta, delta);
 }
+EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
