@@ -2598,8 +2598,9 @@ static int block_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("%s", hdev->name);
 
 	if (!bdaddr_type_is_valid(cp->addr.type))
-		return cmd_status(sk, hdev->id, MGMT_OP_BLOCK_DEVICE,
-				  MGMT_STATUS_INVALID_PARAMS);
+		return cmd_complete(sk, hdev->id, MGMT_OP_BLOCK_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &cp->addr, sizeof(cp->addr));
 
 	hci_dev_lock(hdev);
 
@@ -2627,8 +2628,9 @@ static int unblock_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("%s", hdev->name);
 
 	if (!bdaddr_type_is_valid(cp->addr.type))
-		return cmd_status(sk, hdev->id, MGMT_OP_UNBLOCK_DEVICE,
-				  MGMT_STATUS_INVALID_PARAMS);
+		return cmd_complete(sk, hdev->id, MGMT_OP_UNBLOCK_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &cp->addr, sizeof(cp->addr));
 
 	hci_dev_lock(hdev);
 
