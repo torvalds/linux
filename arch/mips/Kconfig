@@ -437,6 +437,22 @@ config POWERTV
 	help
 	  This enables support for the Cisco PowerTV Platform.
 
+config RALINK
+	bool "Ralink based machines"
+	select CEVT_R4K
+	select CSRC_R4K
+	select BOOT_RAW
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select USE_OF
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+	select HAVE_MACH_CLKDEV
+	select CLKDEV_LOOKUP
+
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select FW_ARC
@@ -849,6 +865,7 @@ source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/powertv/Kconfig"
+source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"

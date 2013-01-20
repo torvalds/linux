@@ -1,0 +1,10 @@
+#
+# Ralink SoC common stuff
+#
+core-$(CONFIG_RALINK)		+= arch/mips/ralink/
+cflags-$(CONFIG_RALINK)		+= -I$(srctree)/arch/mips/include/asm/mach-ralink
+
+#
+# Ralink RT305x
+#
+load-$(CONFIG_SOC_RT305X)	+= 0xffffffff80000000
