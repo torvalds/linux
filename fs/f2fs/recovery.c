@@ -173,10 +173,9 @@ out:
 static void destroy_fsync_dnodes(struct f2fs_sb_info *sbi,
 					struct list_head *head)
 {
-	struct list_head *this;
-	struct fsync_inode_entry *entry;
-	list_for_each(this, head) {
-		entry = list_entry(this, struct fsync_inode_entry, list);
+	struct fsync_inode_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, head, list) {
 		iput(entry->inode);
 		list_del(&entry->list);
 		kmem_cache_free(fsync_entry_slab, entry);
