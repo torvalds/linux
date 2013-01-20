@@ -864,10 +864,6 @@ struct ath_hw {
 	/* ANI */
 	u32 proc_phyerr;
 	u32 aniperiod;
-	int totalSizeDesired[5];
-	int coarse_high[5];
-	int coarse_low[5];
-	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 	u32 ani_skip_count;
 

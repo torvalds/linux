@@ -489,23 +489,6 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
 
-void ath9k_hw_ani_setup(struct ath_hw *ah)
-{
-	int i;
-
-	static const int totalSizeDesired[] = { -55, -55, -55, -55, -62 };
-	static const int coarseHigh[] = { -14, -14, -14, -14, -12 };
-	static const int coarseLow[] = { -64, -64, -64, -64, -70 };
-	static const int firpwr[] = { -78, -78, -78, -78, -80 };
-
-	for (i = 0; i < 5; i++) {
-		ah->totalSizeDesired[i] = totalSizeDesired[i];
-		ah->coarse_high[i] = coarseHigh[i];
-		ah->coarse_low[i] = coarseLow[i];
-		ah->firpwr[i] = firpwr[i];
-	}
-}
-
 void ath9k_hw_ani_init(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);

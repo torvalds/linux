@@ -549,10 +549,8 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ah->eep_ops->get_eeprom_ver(ah),
 		ah->eep_ops->get_eeprom_rev(ah));
 
-	if (ah->config.enable_ani) {
-		ath9k_hw_ani_setup(ah);
+	if (ah->config.enable_ani)
 		ath9k_hw_ani_init(ah);
-	}
 
 	return 0;
 }
