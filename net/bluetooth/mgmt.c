@@ -2721,6 +2721,15 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s key_count %u", hdev->name, key_count);
 
+	for (i = 0; i < key_count; i++) {
+		struct mgmt_ltk_info *key = &cp->keys[i];
+
+		if (key->master != 0x00 && key->master != 0x01)
+			return cmd_status(sk, hdev->id,
+					  MGMT_OP_LOAD_LONG_TERM_KEYS,
+					  MGMT_STATUS_INVALID_PARAMS);
+	}
+
 	hci_dev_lock(hdev);
 
 	hci_smp_ltks_clear(hdev);
