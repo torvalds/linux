@@ -3718,10 +3718,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	intel_crtc_update_sarea(crtc, enable);
 }
 
-static void intel_crtc_noop(struct drm_crtc *crtc)
-{
-}
-
 static void intel_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3768,10 +3764,6 @@ void intel_modeset_disable(struct drm_device *dev)
 		if (crtc->enabled)
 			intel_crtc_disable(crtc);
 	}
-}
-
-void intel_encoder_noop(struct drm_encoder *encoder)
-{
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -7277,7 +7269,6 @@ free_work:
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
-	.disable = intel_crtc_noop,
 };
 
 bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
