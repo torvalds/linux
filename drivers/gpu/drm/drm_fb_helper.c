@@ -239,10 +239,21 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+/**
+ * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
+ * @fb_helper: fbcon to restore
+ *
+ * This should be called from driver's drm->lastclose callback when implementing
+ * an fbcon on top of kms using this helper. This ensures that the user isn't
+ * greeted with a black screen when e.g. X dies.
+ */
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	bool error = false;
 	int i, ret;
+
+	drm_warn_on_modeset_not_all_locked(fb_helper->dev);
+
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 		ret = drm_mode_set_config_internal(mode_set);

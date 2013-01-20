@@ -389,8 +389,10 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_fini);
  */
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma)
 {
+	drm_modeset_lock_all(dev);
 	if (fbdev_cma)
 		drm_fb_helper_restore_fbdev_mode(&fbdev_cma->fb_helper);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_restore_mode);
 

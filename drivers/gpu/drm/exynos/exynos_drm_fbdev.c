@@ -376,5 +376,7 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 	if (!private || !private->fb_helper)
 		return;
 
+	drm_modeset_lock_all(dev);
 	drm_fb_helper_restore_fbdev_mode(private->fb_helper);
+	drm_modeset_unlock_all(dev);
 }
