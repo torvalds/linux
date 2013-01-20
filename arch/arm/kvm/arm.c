@@ -36,11 +36,14 @@
 #include <asm/mman.h>
 #include <asm/cputype.h>
 #include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 #include <asm/virt.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_emulate.h>
+#include <asm/kvm_coproc.h>
+#include <asm/opcodes.h>
 
 #ifdef REQUIRES_VIRT
 __asm__(".arch_extension	virt");
@@ -294,6 +297,15 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
 	vcpu->arch.vfp_host = this_cpu_ptr(kvm_host_vfp_state);
+
+	/*
+	 * Check whether this vcpu requires the cache to be flushed on
+	 * this physical CPU. This is a consequence of doing dcache
+	 * operations by set/way on this vcpu. We do it here to be in
+	 * a non-preemptible section.
+	 */
+	if (cpumask_test_and_clear_cpu(cpu, &vcpu->arch.require_dcache_flush))
+		flush_cache_all(); /* We'd really want v7_flush_dcache_all() */
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -319,9 +331,16 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+/**
+ * kvm_arch_vcpu_runnable - determine if the vcpu can be scheduled
+ * @v:		The VCPU pointer
+ *
+ * If the guest CPU is not waiting for interrupts or an interrupt line is
+ * asserted, the CPU is by definition runnable.
+ */
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return 0;
+	return !!v->arch.irq_lines;
 }
 
 /* Just ensure a guest exit from a particular CPU */
@@ -411,6 +430,110 @@ static void update_vttbr(struct kvm *kvm)
 	spin_unlock(&kvm_vmid_lock);
 }
 
+static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	/* SVC called from Hyp mode should never get here */
+	kvm_debug("SVC called from Hyp mode shouldn't go here\n");
+	BUG();
+	return -EINVAL; /* Squash warning */
+}
+
+static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
+		      vcpu->arch.hsr & HSR_HVC_IMM_MASK);
+
+	kvm_inject_undefined(vcpu);
+	return 1;
+}
+
+static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	/* We don't support SMC; don't do that. */
+	kvm_debug("smc: at %08x", *vcpu_pc(vcpu));
+	kvm_inject_undefined(vcpu);
+	return 1;
+}
+
+static int handle_pabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	/* The hypervisor should never cause aborts */
+	kvm_err("Prefetch Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
+		vcpu->arch.hxfar, vcpu->arch.hsr);
+	return -EFAULT;
+}
+
+static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	/* This is either an error in the ws. code or an external abort */
+	kvm_err("Data Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
+		vcpu->arch.hxfar, vcpu->arch.hsr);
+	return -EFAULT;
+}
+
+typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
+static exit_handle_fn arm_exit_handlers[] = {
+	[HSR_EC_WFI]		= kvm_handle_wfi,
+	[HSR_EC_CP15_32]	= kvm_handle_cp15_32,
+	[HSR_EC_CP15_64]	= kvm_handle_cp15_64,
+	[HSR_EC_CP14_MR]	= kvm_handle_cp14_access,
+	[HSR_EC_CP14_LS]	= kvm_handle_cp14_load_store,
+	[HSR_EC_CP14_64]	= kvm_handle_cp14_access,
+	[HSR_EC_CP_0_13]	= kvm_handle_cp_0_13_access,
+	[HSR_EC_CP10_ID]	= kvm_handle_cp10_id,
+	[HSR_EC_SVC_HYP]	= handle_svc_hyp,
+	[HSR_EC_HVC]		= handle_hvc,
+	[HSR_EC_SMC]		= handle_smc,
+	[HSR_EC_IABT]		= kvm_handle_guest_abort,
+	[HSR_EC_IABT_HYP]	= handle_pabt_hyp,
+	[HSR_EC_DABT]		= kvm_handle_guest_abort,
+	[HSR_EC_DABT_HYP]	= handle_dabt_hyp,
+};
+
+/*
+ * A conditional instruction is allowed to trap, even though it
+ * wouldn't be executed.  So let's re-implement the hardware, in
+ * software!
+ */
+static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
+{
+	unsigned long cpsr, cond, insn;
+
+	/*
+	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
+	 * catch undefined instructions, and then we won't get past
+	 * the arm_exit_handlers test anyway.
+	 */
+	BUG_ON(((vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT) == 0);
+
+	/* Top two bits non-zero?  Unconditional. */
+	if (vcpu->arch.hsr >> 30)
+		return true;
+
+	cpsr = *vcpu_cpsr(vcpu);
+
+	/* Is condition field valid? */
+	if ((vcpu->arch.hsr & HSR_CV) >> HSR_CV_SHIFT)
+		cond = (vcpu->arch.hsr & HSR_COND) >> HSR_COND_SHIFT;
+	else {
+		/* This can happen in Thumb mode: examine IT state. */
+		unsigned long it;
+
+		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
+
+		/* it == 0 => unconditional. */
+		if (it == 0)
+			return true;
+
+		/* The cond for this insn works out as the top 4 bits. */
+		cond = (it >> 4);
+	}
+
+	/* Shift makes it look like an ARM-mode instruction */
+	insn = cond << 28;
+	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
+}
+
 /*
  * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
  * proper exit to QEMU.
@@ -418,8 +541,46 @@ static void update_vttbr(struct kvm *kvm)
 static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		       int exception_index)
 {
-	run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-	return 0;
+	unsigned long hsr_ec;
+
+	switch (exception_index) {
+	case ARM_EXCEPTION_IRQ:
+		return 1;
+	case ARM_EXCEPTION_UNDEFINED:
+		kvm_err("Undefined exception in Hyp mode at: %#08x\n",
+			vcpu->arch.hyp_pc);
+		BUG();
+		panic("KVM: Hypervisor undefined exception!\n");
+	case ARM_EXCEPTION_DATA_ABORT:
+	case ARM_EXCEPTION_PREF_ABORT:
+	case ARM_EXCEPTION_HVC:
+		hsr_ec = (vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT;
+
+		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
+		    || !arm_exit_handlers[hsr_ec]) {
+			kvm_err("Unkown exception class: %#08lx, "
+				"hsr: %#08x\n", hsr_ec,
+				(unsigned int)vcpu->arch.hsr);
+			BUG();
+		}
+
+		/*
+		 * See ARM ARM B1.14.1: "Hyp traps on instructions
+		 * that fail their condition code check"
+		 */
+		if (!kvm_condition_valid(vcpu)) {
+			bool is_wide = vcpu->arch.hsr & HSR_IL;
+			kvm_skip_instr(vcpu, is_wide);
+			return 1;
+		}
+
+		return arm_exit_handlers[hsr_ec](vcpu, run);
+	default:
+		kvm_pr_unimpl("Unsupported exception type: %d",
+			      exception_index);
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return 0;
+	}
 }
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
@@ -493,6 +654,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		ret = kvm_call_hyp(__kvm_vcpu_run, vcpu);
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
+		vcpu->arch.last_pcpu = smp_processor_id();
 		kvm_guest_exit();
 		trace_kvm_exit(*vcpu_pc(vcpu));
 		/*
@@ -801,6 +963,7 @@ int kvm_arch_init(void *opaque)
 	if (err)
 		goto out_err;
 
+	kvm_coproc_table_init();
 	return 0;
 out_err:
 	return err;

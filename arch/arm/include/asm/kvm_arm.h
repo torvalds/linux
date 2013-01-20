@@ -70,6 +70,11 @@
 			HCR_SWIO | HCR_TIDCP)
 #define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
 
+/* System Control Register (SCTLR) bits */
+#define SCTLR_TE	(1 << 30)
+#define SCTLR_EE	(1 << 25)
+#define SCTLR_V		(1 << 13)
+
 /* Hyp System Control Register (HSCTLR) bits */
 #define HSCTLR_TE	(1 << 30)
 #define HSCTLR_EE	(1 << 25)
@@ -171,6 +176,10 @@
 #define HSR_FSC		(0x3f)
 #define HSR_FSC_TYPE	(0x3c)
 #define HSR_WNR		(1 << 6)
+#define HSR_CV_SHIFT	(24)
+#define HSR_CV		(1U << HSR_CV_SHIFT)
+#define HSR_COND_SHIFT	(20)
+#define HSR_COND	(0xfU << HSR_COND_SHIFT)
 
 #define FSC_FAULT	(0x04)
 #define FSC_PERM	(0x0c)
@@ -196,5 +205,7 @@
 #define HSR_EC_IABT_HYP	(0x21)
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
+
+#define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
 
 #endif /* __ARM_KVM_ARM_H__ */
