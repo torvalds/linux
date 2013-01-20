@@ -2701,6 +2701,13 @@ done:
 	return err;
 }
 
+static bool ltk_is_valid(struct mgmt_ltk_info *key)
+{
+	if (key->master != 0x00 && key->master != 0x01)
+		return false;
+	return true;
+}
+
 static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			       void *cp_data, u16 len)
 {
@@ -2724,7 +2731,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_ltk_info *key = &cp->keys[i];
 
-		if (key->master != 0x00 && key->master != 0x01)
+		if (!ltk_is_valid(key))
 			return cmd_status(sk, hdev->id,
 					  MGMT_OP_LOAD_LONG_TERM_KEYS,
 					  MGMT_STATUS_INVALID_PARAMS);
