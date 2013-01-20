@@ -52,9 +52,36 @@ static LIST_HEAD(kernel_fb_helper_list);
  * mode setting driver. They can be used mostly independantely from the crtc
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
+ *
+ * Initialization is done as a three-step process with drm_fb_helper_init(),
+ * drm_fb_helper_single_add_all_connectors() and drm_fb_helper_initial_config().
+ * Drivers with fancier requirements than the default beheviour can override the
+ * second step with their own code.  Teardown is done with drm_fb_helper_fini().
+ *
+ * At runtime drivers should restore the fbdev console by calling
+ * drm_fb_helper_restore_fbdev_mode() from their ->lastclose callback. They
+ * should also notify the fb helper code from updates to the output
+ * configuration by calling drm_fb_helper_hotplug_event(). For easier
+ * integration with the output polling code in drm_crtc_helper.c the modeset
+ * code proves a ->output_poll_changed callback.
+ *
+ * All other functions exported by the fb helper library can be used to
+ * implement the fbdev driver interface by the driver.
  */
 
-/* simple single crtc case helper function */
+/**
+ * drm_fb_helper_single_add_all_connectors() - add all connectors to fbdev
+ * 					       emulation helper
+ * @fb_helper: fbdev initialized with drm_fb_helper_init
+ *
+ * This functions adds all the available connectors for use with the given
+ * fb_helper. This is a separate step to allow drivers to freely assign
+ * connectors to the fbdev, e.g. if some are reserved for special purposes or
+ * not adequate to be used for the fbcon.
+ *
+ * Since this is part of the initial setup before the fbdev is published, no
+ * locking is required.
+ */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -163,6 +190,10 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
 }
 
+/**
+ * drm_fb_helper_debug_enter - implementation for ->fb_debug_enter
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_debug_enter(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
@@ -208,6 +239,10 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 	return NULL;
 }
 
+/**
+ * drm_fb_helper_debug_leave - implementation for ->fb_debug_leave
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_debug_leave(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
@@ -243,9 +278,9 @@ EXPORT_SYMBOL(drm_fb_helper_debug_leave);
  * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
  * @fb_helper: fbcon to restore
  *
- * This should be called from driver's drm->lastclose callback when implementing
- * an fbcon on top of kms using this helper. This ensures that the user isn't
- * greeted with a black screen when e.g. X dies.
+ * This should be called from driver's drm ->lastclose callback
+ * when implementing an fbcon on top of kms using this helper. This ensures that
+ * the user isn't greeted with a black screen when e.g. X dies.
  */
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
@@ -381,6 +416,11 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 	drm_modeset_unlock_all(dev);
 }
 
+/**
+ * drm_fb_helper_blank - implementation for ->fb_blank
+ * @blank: desired blanking state
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
 	switch (blank) {
@@ -424,6 +464,24 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	kfree(helper->crtc_info);
 }
 
+/**
+ * drm_fb_helper_init - initialize a drm_fb_helper structure
+ * @dev: drm device
+ * @fb_helper: driver-allocated fbdev helper structure to initialize
+ * @crtc_count: maximum number of crtcs to support in this fbdev emulation
+ * @max_conn_count: max connector count
+ *
+ * This allocates the structures for the fbdev helper with the given limits.
+ * Note that this won't yet touch the hardware (through the driver interfaces)
+ * nor register the fbdev. This is only done in drm_fb_helper_initial_config()
+ * to allow driver writes more control over the exact init sequence.
+ *
+ * Drivers must set fb_helper->funcs before calling
+ * drm_fb_helper_initial_config().
+ *
+ * RETURNS:
+ * Zero if everything went ok, nonzero otherwise.
+ */
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper,
 		       int crtc_count, int max_conn_count)
@@ -552,6 +610,11 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 	return 0;
 }
 
+/**
+ * drm_fb_helper_setcmap - implementation for ->fb_setcmap
+ * @cmap: cmap to set
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
@@ -591,6 +654,11 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
+/**
+ * drm_fb_helper_check_var - implementation for ->fb_check_var
+ * @var: screeninfo to check
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info)
 {
@@ -683,7 +751,14 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 }
 EXPORT_SYMBOL(drm_fb_helper_check_var);
 
-/* this will let fbcon do the mode init */
+/**
+ * drm_fb_helper_set_par - implementation for ->fb_set_par
+ * @info: fbdev registered by the helper
+ *
+ * This will let fbcon do the mode init and is called at initialization time by
+ * the fbdev core when registering the driver, and later on through the hotplug
+ * callback.
+ */
 int drm_fb_helper_set_par(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
@@ -715,6 +790,11 @@ int drm_fb_helper_set_par(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
 
+/**
+ * drm_fb_helper_pan_display - implementation for ->fb_pan_display
+ * @var: updated screen information
+ * @info: fbdev registered by the helper
+ */
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
@@ -753,8 +833,9 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
 /*
- * Allocates the backing storage through the ->fb_probe callback and then
- * registers the fbdev and sets up the panic notifier.
+ * Allocates the backing storage and sets up the fbdev info structure through
+ * the ->fb_probe callback and then registers the fbdev and sets up the panic
+ * notifier.
  */
 static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 					 int preferred_bpp)
@@ -876,6 +957,19 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	return 0;
 }
 
+/**
+ * drm_fb_helper_fill_fix - initializes fixed fbdev information
+ * @info: fbdev registered by the helper
+ * @pitch: desired pitch
+ * @depth: desired depth
+ *
+ * Helper to fill in the fixed fbdev information useful for a non-accelerated
+ * fbdev emulations. Drivers which support acceleration methods which impose
+ * additional constraints need to set up their own limits.
+ *
+ * Drivers should call this (or their equivalent setup code) from their
+ * ->fb_probe callback.
+ */
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth)
 {
@@ -896,6 +990,20 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 
+/**
+ * drm_fb_helper_fill_var - initalizes variable fbdev information
+ * @info: fbdev instance to set up
+ * @fb_helper: fb helper instance to use as template
+ * @fb_width: desired fb width
+ * @fb_height: desired fb height
+ *
+ * Sets up the variable fbdev metainformation from the given fb helper instance
+ * and the drm framebuffer allocated in fb_helper->fb.
+ *
+ * Drivers should call this (or their equivalent setup code) from their
+ * ->fb_probe callback after having allocated the fbdev backing
+ * storage framebuffer.
+ */
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
 {
@@ -1358,17 +1466,22 @@ out:
 }
 
 /**
- * drm_helper_initial_config - setup a sane initial connector configuration
+ * drm_fb_helper_initial_config - setup a sane initial connector configuration
  * @fb_helper: fb_helper device struct
  * @bpp_sel: bpp value to use for the framebuffer configuration
- *
- * LOCKING:
- * Called at init time by the driver to set up the @fb_helper initial
- * configuration, must take the mode config lock.
  *
  * Scans the CRTCs and connectors and tries to put together an initial setup.
  * At the moment, this is a cloned configuration across all heads with
  * a new framebuffer object as the backing store.
+ *
+ * Note that this also registers the fbdev and so allows userspace to call into
+ * the driver through the fbdev interfaces.
+ *
+ * This function will call down into the ->fb_probe callback to let
+ * the driver allocate and initialize the fbdev info structure and the drm
+ * framebuffer used to back the fbdev. drm_fb_helper_fill_var() and
+ * drm_fb_helper_fill_fix() are provided as helpers to setup simple default
+ * values for the fbdev info structure.
  *
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
@@ -1400,11 +1513,16 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  *                               probing all the outputs attached to the fb
  * @fb_helper: the drm_fb_helper
  *
- * LOCKING:
- * Called at runtime, must take mode config lock.
- *
  * Scan the connectors attached to the fb_helper and try to put together a
  * setup after *notification of a change in output configuration.
+ *
+ * Called at runtime, takes the mode config locks to be able to check/change the
+ * modeset configuration. Must be run from process context (which usually means
+ * either the output polling work or a work item launched from the driver's
+ * hotplug interrupt).
+ *
+ * Note that the driver must ensure that this is only called _after_ the fb has
+ * been fully set up, i.e. after the call to drm_fb_helper_initial_config.
  *
  * RETURNS:
  * 0 on success and a non-zero error code otherwise.

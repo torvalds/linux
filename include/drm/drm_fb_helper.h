@@ -48,6 +48,18 @@ struct drm_fb_helper_surface_size {
 	u32 surface_depth;
 };
 
+/**
+ * struct drm_fb_helper_funcs - driver callbacks for the fbdev emulation library
+ * @gamma_set: - Set the given gamma lut register on the given crtc.
+ * @gamma_get: - Read the given gamma lut register on the given crtc, used to
+ * 		 save the current lut when force-restoring the fbdev for e.g.
+ * 		 kdbg.
+ * @fb_probe: - Driver callback to allocate and initialize the fbdev info
+ * 		structure. Futhermore it also needs to allocate the drm
+ * 		framebuffer used to back the fbdev.
+ *
+ * Driver callbacks used by the fbdev emulation helper library.
+ */
 struct drm_fb_helper_funcs {
 	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
 			  u16 blue, int regno);
