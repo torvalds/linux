@@ -26,6 +26,8 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <trace/events/kvm.h>
+#include <asm/vfp.h>
+#include "../vfp/vfpinstr.h"
 
 #include "trace.h"
 #include "coproc.h"
@@ -653,6 +655,170 @@ static int demux_c15_set(u64 id, void __user *uaddr)
 	}
 }
 
+#ifdef CONFIG_VFPv3
+static const int vfp_sysregs[] = { KVM_REG_ARM_VFP_FPEXC,
+				   KVM_REG_ARM_VFP_FPSCR,
+				   KVM_REG_ARM_VFP_FPINST,
+				   KVM_REG_ARM_VFP_FPINST2,
+				   KVM_REG_ARM_VFP_MVFR0,
+				   KVM_REG_ARM_VFP_MVFR1,
+				   KVM_REG_ARM_VFP_FPSID };
+
+static unsigned int num_fp_regs(void)
+{
+	if (((fmrx(MVFR0) & MVFR0_A_SIMD_MASK) >> MVFR0_A_SIMD_BIT) == 2)
+		return 32;
+	else
+		return 16;
+}
+
+static unsigned int num_vfp_regs(void)
+{
+	/* Normal FP regs + control regs. */
+	return num_fp_regs() + ARRAY_SIZE(vfp_sysregs);
+}
+
+static int copy_vfp_regids(u64 __user *uindices)
+{
+	unsigned int i;
+	const u64 u32reg = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP;
+	const u64 u64reg = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
+
+	for (i = 0; i < num_fp_regs(); i++) {
+		if (put_user((u64reg | KVM_REG_ARM_VFP_BASE_REG) + i,
+			     uindices))
+			return -EFAULT;
+		uindices++;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vfp_sysregs); i++) {
+		if (put_user(u32reg | vfp_sysregs[i], uindices))
+			return -EFAULT;
+		uindices++;
+	}
+
+	return num_vfp_regs();
+}
+
+static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
+{
+	u32 vfpid = (id & KVM_REG_ARM_VFP_MASK);
+	u32 val;
+
+	/* Fail if we have unknown bits set. */
+	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
+		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
+		return -ENOENT;
+
+	if (vfpid < num_fp_regs()) {
+		if (KVM_REG_SIZE(id) != 8)
+			return -ENOENT;
+		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpregs[vfpid],
+				   id);
+	}
+
+	/* FP control registers are all 32 bit. */
+	if (KVM_REG_SIZE(id) != 4)
+		return -ENOENT;
+
+	switch (vfpid) {
+	case KVM_REG_ARM_VFP_FPEXC:
+		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpexc, id);
+	case KVM_REG_ARM_VFP_FPSCR:
+		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpscr, id);
+	case KVM_REG_ARM_VFP_FPINST:
+		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst, id);
+	case KVM_REG_ARM_VFP_FPINST2:
+		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst2, id);
+	case KVM_REG_ARM_VFP_MVFR0:
+		val = fmrx(MVFR0);
+		return reg_to_user(uaddr, &val, id);
+	case KVM_REG_ARM_VFP_MVFR1:
+		val = fmrx(MVFR1);
+		return reg_to_user(uaddr, &val, id);
+	case KVM_REG_ARM_VFP_FPSID:
+		val = fmrx(FPSID);
+		return reg_to_user(uaddr, &val, id);
+	default:
+		return -ENOENT;
+	}
+}
+
+static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
+{
+	u32 vfpid = (id & KVM_REG_ARM_VFP_MASK);
+	u32 val;
+
+	/* Fail if we have unknown bits set. */
+	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
+		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
+		return -ENOENT;
+
+	if (vfpid < num_fp_regs()) {
+		if (KVM_REG_SIZE(id) != 8)
+			return -ENOENT;
+		return reg_from_user(&vcpu->arch.vfp_guest.fpregs[vfpid],
+				     uaddr, id);
+	}
+
+	/* FP control registers are all 32 bit. */
+	if (KVM_REG_SIZE(id) != 4)
+		return -ENOENT;
+
+	switch (vfpid) {
+	case KVM_REG_ARM_VFP_FPEXC:
+		return reg_from_user(&vcpu->arch.vfp_guest.fpexc, uaddr, id);
+	case KVM_REG_ARM_VFP_FPSCR:
+		return reg_from_user(&vcpu->arch.vfp_guest.fpscr, uaddr, id);
+	case KVM_REG_ARM_VFP_FPINST:
+		return reg_from_user(&vcpu->arch.vfp_guest.fpinst, uaddr, id);
+	case KVM_REG_ARM_VFP_FPINST2:
+		return reg_from_user(&vcpu->arch.vfp_guest.fpinst2, uaddr, id);
+	/* These are invariant. */
+	case KVM_REG_ARM_VFP_MVFR0:
+		if (reg_from_user(&val, uaddr, id))
+			return -EFAULT;
+		if (val != fmrx(MVFR0))
+			return -EINVAL;
+		return 0;
+	case KVM_REG_ARM_VFP_MVFR1:
+		if (reg_from_user(&val, uaddr, id))
+			return -EFAULT;
+		if (val != fmrx(MVFR1))
+			return -EINVAL;
+		return 0;
+	case KVM_REG_ARM_VFP_FPSID:
+		if (reg_from_user(&val, uaddr, id))
+			return -EFAULT;
+		if (val != fmrx(FPSID))
+			return -EINVAL;
+		return 0;
+	default:
+		return -ENOENT;
+	}
+}
+#else /* !CONFIG_VFPv3 */
+static unsigned int num_vfp_regs(void)
+{
+	return 0;
+}
+
+static int copy_vfp_regids(u64 __user *uindices)
+{
+	return 0;
+}
+
+static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
+{
+	return -ENOENT;
+}
+
+static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
+{
+	return -ENOENT;
+}
+#endif /* !CONFIG_VFPv3 */
+
 int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	const struct coproc_reg *r;
@@ -660,6 +826,9 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(reg->id, uaddr);
+
+	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_VFP)
+		return vfp_get_reg(vcpu, reg->id, uaddr);
 
 	r = index_to_coproc_reg(vcpu, reg->id);
 	if (!r)
@@ -676,6 +845,9 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(reg->id, uaddr);
+
+	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_VFP)
+		return vfp_set_reg(vcpu, reg->id, uaddr);
 
 	r = index_to_coproc_reg(vcpu, reg->id);
 	if (!r)
@@ -788,6 +960,7 @@ unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu)
 {
 	return ARRAY_SIZE(invariant_cp15)
 		+ num_demux_regs()
+		+ num_vfp_regs()
 		+ walk_cp15(vcpu, (u64 __user *)NULL);
 }
 
@@ -804,6 +977,11 @@ int kvm_arm_copy_coproc_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 	}
 
 	err = walk_cp15(vcpu, uindices);
+	if (err < 0)
+		return err;
+	uindices += err;
+
+	err = copy_vfp_regids(uindices);
 	if (err < 0)
 		return err;
 	uindices += err;

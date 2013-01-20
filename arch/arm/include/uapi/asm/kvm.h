@@ -112,6 +112,18 @@ struct kvm_arch_memory_slot {
 #define KVM_REG_ARM_DEMUX_VAL_MASK	0x00000000000000FF
 #define KVM_REG_ARM_DEMUX_VAL_SHIFT	0
 
+/* VFP registers: we could overload CP10 like ARM does, but that's ugly. */
+#define KVM_REG_ARM_VFP			(0x0012 << KVM_REG_ARM_COPROC_SHIFT)
+#define KVM_REG_ARM_VFP_MASK		0x000000000000FFFF
+#define KVM_REG_ARM_VFP_BASE_REG	0x0
+#define KVM_REG_ARM_VFP_FPSID		0x1000
+#define KVM_REG_ARM_VFP_FPSCR		0x1001
+#define KVM_REG_ARM_VFP_MVFR1		0x1006
+#define KVM_REG_ARM_VFP_MVFR0		0x1007
+#define KVM_REG_ARM_VFP_FPEXC		0x1008
+#define KVM_REG_ARM_VFP_FPINST		0x1009
+#define KVM_REG_ARM_VFP_FPINST2		0x100A
+
 
 /* KVM_IRQ_LINE irq field index values */
 #define KVM_ARM_IRQ_TYPE_SHIFT		24

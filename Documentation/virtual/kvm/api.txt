@@ -1808,6 +1808,12 @@ ARM 64-bit CP15 registers have the following id bit patterns:
 ARM CCSIDR registers are demultiplexed by CSSELR value:
   0x4002 0000 0011 00 <csselr:8>
 
+ARM 32-bit VFP control registers have the following id bit patterns:
+  0x4002 0000 0012 1 <regno:12>
+
+ARM 64-bit FP registers have the following id bit patterns:
+  0x4002 0000 0012 0 <regno:12>
+
 4.69 KVM_GET_ONE_REG
 
 Capability: KVM_CAP_ONE_REG
