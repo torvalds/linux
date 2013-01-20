@@ -69,7 +69,6 @@
 			(NAME_MAX - (sizeof (RBD_SNAP_DEV_NAME_PREFIX) - 1))
 
 #define RBD_MAX_SNAP_COUNT	510	/* allows max snapc to fit in 4KB */
-#define RBD_MAX_OPT_LEN		1024
 
 #define RBD_SNAP_HEAD_NAME	"-"
 
@@ -95,8 +94,6 @@
  */
 #define DEV_NAME_LEN		32
 #define MAX_INT_FORMAT_WIDTH	((5 * sizeof (int)) / 2 + 1)
-
-#define RBD_READ_ONLY_DEFAULT		false
 
 /*
  * block device image metadata (in-memory version)
@@ -154,10 +151,6 @@ struct rbd_spec {
 	char		*snap_name;
 
 	struct kref	kref;
-};
-
-struct rbd_options {
-	bool	read_only;
 };
 
 /*
@@ -475,6 +468,12 @@ static match_table_t rbd_opts_tokens = {
 	{-1, NULL}
 };
 
+struct rbd_options {
+	bool	read_only;
+};
+
+#define RBD_READ_ONLY_DEFAULT	false
+
 static int parse_rbd_opts_token(char *c, void *private)
 {
 	struct rbd_options *rbd_opts = private;
@@ -773,7 +772,7 @@ static void rbd_header_free(struct rbd_image_header *header)
 	header->snapc = NULL;
 }
 
-static char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
+static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 {
 	char *name;
 	u64 segment;
@@ -1338,7 +1337,7 @@ static int rbd_do_op(struct request *rq,
 		     struct rbd_req_coll *coll,
 		     int coll_index)
 {
-	char *seg_name;
+	const char *seg_name;
 	u64 seg_ofs;
 	u64 seg_len;
 	int ret;
