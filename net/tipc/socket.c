@@ -129,19 +129,6 @@ static void advance_rx_queue(struct sock *sk)
 }
 
 /**
- * discard_rx_queue - discard all buffers in socket receive queue
- *
- * Caller must hold socket lock
- */
-static void discard_rx_queue(struct sock *sk)
-{
-	struct sk_buff *buf;
-
-	while ((buf = __skb_dequeue(&sk->sk_receive_queue)))
-		kfree_skb(buf);
-}
-
-/**
  * reject_rx_queue - reject all buffers in socket receive queue
  *
  * Caller must hold socket lock
@@ -292,7 +279,7 @@ static int release(struct socket *sock)
 	res = tipc_deleteport(tport->ref);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
-	discard_rx_queue(sk);
+	__skb_queue_purge(&sk->sk_receive_queue);
 
 	/* Reject any messages that accumulated in backlog queue */
 	sock->state = SS_DISCONNECTING;
@@ -1637,7 +1624,7 @@ restart:
 	case SS_DISCONNECTING:
 
 		/* Discard any unreceived messages */
-		discard_rx_queue(sk);
+		__skb_queue_purge(&sk->sk_receive_queue);
 
 		/* Wake up anyone sleeping in poll */
 		sk->sk_state_change(sk);
