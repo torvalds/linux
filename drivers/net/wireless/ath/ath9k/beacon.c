@@ -198,7 +198,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 		if (sc->nvifs > 1) {
 			ath_dbg(common, BEACON,
 				"Flushing previous cabq traffic\n");
-			ath_draintxq(sc, cabq, false);
+			ath_draintxq(sc, cabq);
 		}
 	}
 

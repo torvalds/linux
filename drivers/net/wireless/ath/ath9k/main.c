@@ -182,7 +182,7 @@ static void ath_restart_work(struct ath_softc *sc)
 	ath_start_ani(sc);
 }
 
-static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
+static bool ath_prepare_reset(struct ath_softc *sc, bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	bool ret = true;
@@ -196,7 +196,7 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
-	if (!ath_drain_all_txq(sc, retry_tx))
+	if (!ath_drain_all_txq(sc))
 		ret = false;
 
 	if (!ath_stoprecv(sc))
@@ -255,8 +255,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	return true;
 }
 
-static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
-			      bool retry_tx)
+static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -280,7 +279,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		hchan = ah->curchan;
 	}
 
-	if (!ath_prepare_reset(sc, retry_tx, flush))
+	if (!ath_prepare_reset(sc, flush))
 		fastcc = false;
 
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
@@ -319,7 +318,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return -EIO;
 
-	r = ath_reset_internal(sc, hchan, false);
+	r = ath_reset_internal(sc, hchan);
 
 	return r;
 }
@@ -549,23 +548,21 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static int ath_reset(struct ath_softc *sc, bool retry_tx)
+static int ath_reset(struct ath_softc *sc)
 {
-	int r;
+	int i, r;
 
 	ath9k_ps_wakeup(sc);
 
-	r = ath_reset_internal(sc, NULL, retry_tx);
+	r = ath_reset_internal(sc, NULL);
 
-	if (retry_tx) {
-		int i;
-		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-			if (ATH_TXQ_SETUP(sc, i)) {
-				spin_lock_bh(&sc->tx.txq[i].axq_lock);
-				ath_txq_schedule(sc, &sc->tx.txq[i]);
-				spin_unlock_bh(&sc->tx.txq[i].axq_lock);
-			}
-		}
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		spin_lock_bh(&sc->tx.txq[i].axq_lock);
+		ath_txq_schedule(sc, &sc->tx.txq[i]);
+		spin_unlock_bh(&sc->tx.txq[i].axq_lock);
 	}
 
 	ath9k_ps_restore(sc);
@@ -586,7 +583,7 @@ void ath_reset_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, hw_reset_work);
 
-	ath_reset(sc, true);
+	ath_reset(sc);
 }
 
 /**********************/
@@ -804,7 +801,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 	}
 
-	ath_prepare_reset(sc, false, true);
+	ath_prepare_reset(sc, true);
 
 	if (sc->rx.frag) {
 		dev_kfree_skb_any(sc->rx.frag);
@@ -1816,11 +1813,11 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	if (drop) {
 		ath9k_ps_wakeup(sc);
 		spin_lock_bh(&sc->sc_pcu_lock);
-		drain_txq = ath_drain_all_txq(sc, false);
+		drain_txq = ath_drain_all_txq(sc);
 		spin_unlock_bh(&sc->sc_pcu_lock);
 
 		if (!drain_txq)
-			ath_reset(sc, false);
+			ath_reset(sc);
 
 		ath9k_ps_restore(sc);
 		ieee80211_wake_queues(hw);

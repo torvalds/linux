@@ -334,9 +334,8 @@ void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
-bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
-void ath_draintxq(struct ath_softc *sc,
-		     struct ath_txq *txq, bool retry_tx);
+bool ath_drain_all_txq(struct ath_softc *sc);
+void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);

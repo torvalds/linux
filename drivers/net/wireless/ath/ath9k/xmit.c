@@ -378,7 +378,7 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 
 static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				 struct ath_buf *bf, struct list_head *bf_q,
-				 struct ath_tx_status *ts, int txok, bool retry)
+				 struct ath_tx_status *ts, int txok)
 {
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
@@ -490,7 +490,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		} else if (!isaggr && txok) {
 			/* transmit completion */
 			acked_cnt++;
-		} else if ((tid->state & AGGR_CLEANUP) || !retry) {
+		} else if (tid->state & AGGR_CLEANUP) {
 			/*
 			 * cleanup in progress, just fail
 			 * the un-acked sub-frames
@@ -1331,23 +1331,6 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 /* Queue Management */
 /********************/
 
-static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
-					  struct ath_txq *txq)
-{
-	struct ath_atx_ac *ac, *ac_tmp;
-	struct ath_atx_tid *tid, *tid_tmp;
-
-	list_for_each_entry_safe(ac, ac_tmp, &txq->axq_acq, list) {
-		list_del(&ac->list);
-		ac->sched = false;
-		list_for_each_entry_safe(tid, tid_tmp, &ac->tid_q, list) {
-			list_del(&tid->list);
-			tid->sched = false;
-			ath_tid_drain(sc, txq, tid);
-		}
-	}
-}
-
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -1477,7 +1460,7 @@ static bool bf_is_ampdu_not_probing(struct ath_buf *bf)
 }
 
 static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
-			       struct list_head *list, bool retry_tx)
+			       struct list_head *list)
 {
 	struct ath_buf *bf, *lastbf;
 	struct list_head bf_head;
@@ -1505,8 +1488,7 @@ static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
 			txq->axq_ampdu_depth--;
 
 		if (bf_isampdu(bf))
-			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, 0,
-					     retry_tx);
+			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, 0);
 		else
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
 	}
@@ -1518,7 +1500,7 @@ static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
  * This assumes output has been stopped and
  * we do not need to block ath_tx_tasklet.
  */
-void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
+void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	ath_txq_lock(sc, txq);
 
@@ -1526,8 +1508,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 		int idx = txq->txq_tailidx;
 
 		while (!list_empty(&txq->txq_fifo[idx])) {
-			ath_drain_txq_list(sc, txq, &txq->txq_fifo[idx],
-					   retry_tx);
+			ath_drain_txq_list(sc, txq, &txq->txq_fifo[idx]);
 
 			INCR(idx, ATH_TXFIFO_DEPTH);
 		}
@@ -1536,16 +1517,12 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 
 	txq->axq_link = NULL;
 	txq->axq_tx_inprogress = false;
-	ath_drain_txq_list(sc, txq, &txq->axq_q, retry_tx);
-
-	/* flush any pending frames if aggregation is enabled */
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && !retry_tx)
-		ath_txq_drain_pending_buffers(sc, txq);
+	ath_drain_txq_list(sc, txq, &txq->axq_q);
 
 	ath_txq_unlock_complete(sc, txq);
 }
 
-bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
+bool ath_drain_all_txq(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -1581,7 +1558,7 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		 */
 		txq = &sc->tx.txq[i];
 		txq->stopped = false;
-		ath_draintxq(sc, txq, retry_tx);
+		ath_draintxq(sc, txq);
 	}
 
 	return !npend;
@@ -2191,7 +2168,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 		ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok);
 	} else
-		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok, true);
+		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_txq_schedule(sc, txq);
