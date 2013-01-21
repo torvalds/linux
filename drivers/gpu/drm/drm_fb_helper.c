@@ -859,8 +859,6 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
 				info->node, info->fix.id);
 
-	} else {
-		drm_fb_helper_set_par(info);
 	}
 
 	/* Switch back to kernel console on panic */
@@ -1436,7 +1434,9 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	drm_setup_crtcs(fb_helper);
 	drm_modeset_unlock_all(dev);
 
-	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
+	drm_fb_helper_set_par(fb_helper->fbdev);
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 
