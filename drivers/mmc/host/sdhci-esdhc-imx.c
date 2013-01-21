@@ -36,6 +36,9 @@
 #define  ESDHC_VENDOR_SPEC_SDIO_QUIRK	(1 << 1)
 #define ESDHC_WTMK_LVL			0x44
 #define ESDHC_MIX_CTRL			0x48
+#define  ESDHC_MIX_CTRL_AC23EN		(1 << 7)
+/* Bits 3 and 6 are not SDHCI standard definitions */
+#define  ESDHC_MIX_CTRL_SDHCI_MASK	0xb7
 
 /*
  * There is an INT DMA ERR mis-match between eSDHC and STD SDHC SPEC:
@@ -251,7 +254,12 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 
 		if (is_imx6q_usdhc(imx_data)) {
 			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			m = val | (m & 0xffff0000);
+			/* Swap AC23 bit */
+			if (val & SDHCI_TRNS_AUTO_CMD23) {
+				val &= ~SDHCI_TRNS_AUTO_CMD23;
+				val |= ESDHC_MIX_CTRL_AC23EN;
+			}
+			m = val | (m & ~ESDHC_MIX_CTRL_SDHCI_MASK);
 			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
 		} else {
 			/*
