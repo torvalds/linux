@@ -384,20 +384,20 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 		return NULL;
 	}
 
+	skb->protocol = htons(ETH_P_IPV6);
+	skb->dev = dev;
+
 	skb_reserve(skb, hlen);
 
 	return skb;
 }
 
-static void ip6_nd_hdr(struct sk_buff *skb, struct net_device *dev,
+static void ip6_nd_hdr(struct sk_buff *skb,
 		       const struct in6_addr *saddr,
 		       const struct in6_addr *daddr,
 		       int hop_limit, int len)
 {
 	struct ipv6hdr *hdr;
-
-	skb->protocol = htons(ETH_P_IPV6);
-	skb->dev = dev;
 
 	skb_reset_network_header(skb);
 	skb_put(skb, sizeof(struct ipv6hdr));
@@ -438,7 +438,7 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (!skb)
 		return NULL;
 
-	ip6_nd_hdr(skb, dev, saddr, daddr, inet6_sk(sk)->hop_limit, len);
+	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, len);
 
 	skb->transport_header = skb->tail;
 	skb_put(skb, len);
@@ -1479,7 +1479,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	ip6_nd_hdr(buff, dev, &saddr_buf, &ipv6_hdr(skb)->saddr,
+	ip6_nd_hdr(buff, &saddr_buf, &ipv6_hdr(skb)->saddr,
 		   inet6_sk(sk)->hop_limit, len);
 
 	skb_set_transport_header(buff, skb_tail_pointer(buff) - buff->data);
