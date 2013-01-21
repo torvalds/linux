@@ -851,20 +851,23 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
 		ctrl = nv_rd32(priv, 0x610b5c + (i * 8));
 
-	if (nv_device(priv)->chipset  < 0x90 ||
-	    nv_device(priv)->chipset == 0x92 ||
-	    nv_device(priv)->chipset == 0xa0) {
-		for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
-			ctrl = nv_rd32(priv, 0x610b74 + (i * 8));
-		i += 3;
-	} else {
-		for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
-			ctrl = nv_rd32(priv, 0x610798 + (i * 8));
-		i += 3;
+	if (!(ctrl & (1 << head))) {
+		if (nv_device(priv)->chipset  < 0x90 ||
+		    nv_device(priv)->chipset == 0x92 ||
+		    nv_device(priv)->chipset == 0xa0) {
+			for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
+				ctrl = nv_rd32(priv, 0x610b74 + (i * 8));
+			i += 4;
+		} else {
+			for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
+				ctrl = nv_rd32(priv, 0x610798 + (i * 8));
+			i += 4;
+		}
 	}
 
 	if (!(ctrl & (1 << head)))
 		return false;
+	i--;
 
 	data = exec_lookup(priv, head, i, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info);
 	if (data) {
@@ -898,20 +901,23 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
 		ctrl = nv_rd32(priv, 0x610b58 + (i * 8));
 
-	if (nv_device(priv)->chipset  < 0x90 ||
-	    nv_device(priv)->chipset == 0x92 ||
-	    nv_device(priv)->chipset == 0xa0) {
-		for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
-			ctrl = nv_rd32(priv, 0x610b70 + (i * 8));
-		i += 3;
-	} else {
-		for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
-			ctrl = nv_rd32(priv, 0x610794 + (i * 8));
-		i += 3;
+	if (!(ctrl & (1 << head))) {
+		if (nv_device(priv)->chipset  < 0x90 ||
+		    nv_device(priv)->chipset == 0x92 ||
+		    nv_device(priv)->chipset == 0xa0) {
+			for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
+				ctrl = nv_rd32(priv, 0x610b70 + (i * 8));
+			i += 4;
+		} else {
+			for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
+				ctrl = nv_rd32(priv, 0x610794 + (i * 8));
+			i += 4;
+		}
 	}
 
 	if (!(ctrl & (1 << head)))
 		return 0x0000;
+	i--;
 
 	data = exec_lookup(priv, head, i, ctrl, outp, &ver, &hdr, &cnt, &len, &info1);
 	if (!data)

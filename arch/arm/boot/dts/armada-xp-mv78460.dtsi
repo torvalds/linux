@@ -100,5 +100,13 @@
 			#interrupts-cells = <2>;
 			interrupts = <24>;
 		};
+
+		ethernet@d0034000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0034000 0x2500>;
+				interrupts = <14>;
+				clocks = <&gateclk 1>;
+				status = "disabled";
+		};
 	};
  };

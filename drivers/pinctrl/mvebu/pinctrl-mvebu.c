@@ -478,8 +478,7 @@ static struct pinctrl_ops mvebu_pinctrl_ops = {
 	.dt_free_map = mvebu_pinctrl_dt_free_map,
 };
 
-static int __devinit _add_function(struct mvebu_pinctrl_function *funcs,
-				   const char *name)
+static int _add_function(struct mvebu_pinctrl_function *funcs, const char *name)
 {
 	while (funcs->num_groups) {
 		/* function already there */
@@ -494,8 +493,8 @@ static int __devinit _add_function(struct mvebu_pinctrl_function *funcs,
 	return 0;
 }
 
-static int __devinit mvebu_pinctrl_build_functions(struct platform_device *pdev,
-						   struct mvebu_pinctrl *pctl)
+static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
+					 struct mvebu_pinctrl *pctl)
 {
 	struct mvebu_pinctrl_function *funcs;
 	int num = 0;
@@ -568,7 +567,7 @@ static int __devinit mvebu_pinctrl_build_functions(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
+int mvebu_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
@@ -745,7 +744,7 @@ int __devinit mvebu_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int __devexit mvebu_pinctrl_remove(struct platform_device *pdev)
+int mvebu_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl *pctl = platform_get_drvdata(pdev);
 	pinctrl_unregister(pctl->pctldev);

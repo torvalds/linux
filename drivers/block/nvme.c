@@ -975,8 +975,8 @@ static int queue_request_irq(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 				IRQF_DISABLED | IRQF_SHARED, name, nvmeq);
 }
 
-static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
-					int qid, int cq_size, int vector)
+static struct nvme_queue *nvme_create_queue(struct nvme_dev *dev, int qid,
+					    int cq_size, int vector)
 {
 	int result;
 	struct nvme_queue *nvmeq = nvme_alloc_queue(dev, qid, cq_size, vector);
@@ -1011,7 +1011,7 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 	return ERR_PTR(result);
 }
 
-static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
+static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result = 0;
 	u32 aqa;
@@ -1408,7 +1408,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	return min(result & 0xffff, result >> 16) + 1;
 }
 
-static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
+static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	int result, cpu, i, nr_io_queues, db_bar_size, q_depth;
 
@@ -1481,7 +1481,7 @@ static void nvme_free_queues(struct nvme_dev *dev)
 		nvme_free_queue(dev, i);
 }
 
-static int __devinit nvme_dev_add(struct nvme_dev *dev)
+static int nvme_dev_add(struct nvme_dev *dev)
 {
 	int res, nn, i;
 	struct nvme_ns *ns, *next;
@@ -1619,8 +1619,7 @@ static void nvme_release_instance(struct nvme_dev *dev)
 	spin_unlock(&dev_list_lock);
 }
 
-static int __devinit nvme_probe(struct pci_dev *pdev,
-						const struct pci_device_id *id)
+static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int bars, result = -ENOMEM;
 	struct nvme_dev *dev;
@@ -1702,7 +1701,7 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	return result;
 }
 
-static void __devexit nvme_remove(struct pci_dev *pdev)
+static void nvme_remove(struct pci_dev *pdev)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
 	nvme_dev_remove(dev);
@@ -1747,7 +1746,7 @@ static struct pci_driver nvme_driver = {
 	.name		= "nvme",
 	.id_table	= nvme_id_table,
 	.probe		= nvme_probe,
-	.remove		= __devexit_p(nvme_remove),
+	.remove		= nvme_remove,
 	.suspend	= nvme_suspend,
 	.resume		= nvme_resume,
 	.err_handler	= &nvme_err_handler,

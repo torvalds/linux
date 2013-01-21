@@ -881,7 +881,7 @@ int f2fs_sync_fs(struct super_block *, int);
 /*
  * hash.c
  */
-f2fs_hash_t f2fs_dentry_hash(const char *, int);
+f2fs_hash_t f2fs_dentry_hash(const char *, size_t);
 
 /*
  * node.c

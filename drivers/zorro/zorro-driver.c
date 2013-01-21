@@ -142,7 +142,6 @@ static int zorro_bus_match(struct device *dev, struct device_driver *drv)
 
 static int zorro_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-#ifdef CONFIG_HOTPLUG
 	struct zorro_dev *z;
 
 	if (!dev)
@@ -159,9 +158,6 @@ static int zorro_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return -ENOMEM;
 
 	return 0;
-#else /* !CONFIG_HOTPLUG */
-	return -ENODEV;
-#endif /* !CONFIG_HOTPLUG */
 }
 
 struct bus_type zorro_bus_type = {

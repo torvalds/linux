@@ -319,8 +319,8 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 	return 0;
 }
 
-static int
-acquire_register_block(struct gpmi_nand_data *this, const char *res_name)
+static int acquire_register_block(struct gpmi_nand_data *this,
+				  const char *res_name)
 {
 	struct platform_device *pdev = this->pdev;
 	struct resources *res = &this->resources;
@@ -360,8 +360,7 @@ static void release_register_block(struct gpmi_nand_data *this)
 	res->bch_regs = NULL;
 }
 
-static int
-acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
+static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 {
 	struct platform_device *pdev = this->pdev;
 	struct resources *res = &this->resources;

@@ -261,6 +261,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	const struct wm_adsp_region *mem;
 	const char *region_name;
 	char *file, *text;
+	void *buf;
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type, sizes;
@@ -415,8 +416,18 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			ret = regmap_raw_write(regmap, reg, region->data,
+			buf = kmemdup(region->data, le32_to_cpu(region->len),
+				      GFP_KERNEL | GFP_DMA);
+			if (!buf) {
+				adsp_err(dsp, "Out of memory\n");
+				return -ENOMEM;
+			}
+
+			ret = regmap_raw_write(regmap, reg, buf,
 					       le32_to_cpu(region->len));
+
+			kfree(buf);
+
 			if (ret != 0) {
 				adsp_err(dsp,
 					"%s.%d: Failed to write %d bytes at %d in %s: %d\n",
@@ -664,6 +675,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	const char *region_name;
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
+	void *buf;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
@@ -774,6 +786,13 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
+			buf = kmemdup(blk->data, le32_to_cpu(blk->len),
+				      GFP_KERNEL | GFP_DMA);
+			if (!buf) {
+				adsp_err(dsp, "Out of memory\n");
+				return -ENOMEM;
+			}
+
 			ret = regmap_raw_write(regmap, reg, blk->data,
 					       le32_to_cpu(blk->len));
 			if (ret != 0) {
@@ -781,6 +800,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 					"%s.%d: Failed to write to %x in %s\n",
 					file, blocks, reg, region_name);
 			}
+
+			kfree(buf);
 		}
 
 		pos += le32_to_cpu(blk->len) + sizeof(*blk);

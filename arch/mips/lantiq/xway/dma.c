@@ -210,7 +210,7 @@ ltq_dma_init_port(int p)
 }
 EXPORT_SYMBOL_GPL(ltq_dma_init_port);
 
-static int __devinit
+static int
 ltq_dma_init(struct platform_device *pdev)
 {
 	struct clk *clk;
