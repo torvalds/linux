@@ -344,6 +344,23 @@ static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.nway_reset = usbnet_nway_reset,
 };
 
+/* return first slave interface if an IAD matches the given master */
+static struct usb_interface *get_iad_slave(struct usb_device *udev,
+					   struct usb_interface *master) {
+	int i;
+	struct usb_interface_assoc_descriptor *iad;
+	u8 mnum = master->cur_altsetting->desc.bInterfaceNumber;
+
+	for (i = 0; i < USB_MAXIADS; i++) {
+		iad = udev->actconfig->intf_assoc[i];
+		if (!iad)
+			break;
+		if (iad->bFirstInterface == mnum && iad->bInterfaceCount == 2)
+			return usb_ifnum_to_if(udev, mnum + 1);
+	}
+	return NULL;
+}
+
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting)
 {
 	struct cdc_ncm_ctx *ctx;
@@ -433,6 +450,16 @@ advance:
 		temp = buf[0];
 		buf += temp;
 		len -= temp;
+	}
+
+	/* some buggy devices have an IAD but no CDC Union */
+	if (!ctx->union_desc) {
+		dev_dbg(&intf->dev, "missing CDC Union descriptor\n");
+		ctx->data = get_iad_slave(dev->udev, intf);
+		if (ctx->data) {
+			ctx->control = intf;
+			dev_dbg(&intf->dev, "got slave from IAD\n");
+		}
 	}
 
 	/* check if we got everything */
