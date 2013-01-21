@@ -375,6 +375,13 @@ config MMC_DAVINCI
           If you have an DAVINCI board with a Multimedia Card slot,
           say Y or M here.  If unsure, say N.
 
+config MMC_GOLDFISH
+	tristate "goldfish qemu Multimedia Card Interface support"
+	depends on GOLDFISH
+	help
+	  This selects the Goldfish Multimedia card Interface emulation
+	  found on the Goldfish Android virtual device emulation.
+
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
 	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
