@@ -3116,8 +3116,9 @@ int __save_altstack(stack_t __user *uss, unsigned long sp)
 
 #ifdef CONFIG_COMPAT
 #ifdef CONFIG_GENERIC_SIGALTSTACK
-asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
-				       compat_stack_t __user *uoss_ptr)
+COMPAT_SYSCALL_DEFINE2(sigaltstack,
+			const compat_stack_t __user *, uss_ptr,
+			compat_stack_t __user *, uoss_ptr)
 {
 	stack_t uss, uoss;
 	int ret;

@@ -55,6 +55,7 @@ static inline unsigned long bug_addr(const struct bug_entry *bug)
 }
 
 #ifdef CONFIG_MODULES
+/* Updates are protected by module mutex */
 static LIST_HEAD(module_bug_list);
 
 static const struct bug_entry *module_find_bug(unsigned long bugaddr)
