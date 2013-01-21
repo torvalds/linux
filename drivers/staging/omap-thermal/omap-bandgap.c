@@ -820,15 +820,12 @@ static struct omap_bandgap *omap_bandgap_build(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res)
 			break;
-		chunk = devm_request_and_ioremap(&pdev->dev, res);
+		chunk = devm_ioremap_resource(&pdev->dev, res);
 		if (i == 0)
 			bg_ptr->base = chunk;
-		if (!chunk) {
-			dev_err(&pdev->dev,
-				"failed to request the IO (%d:%pR).\n",
-				i, res);
-			return ERR_PTR(-EADDRNOTAVAIL);
-		}
+		if (IS_ERR(chunk))
+			return ERR_CAST(chunk);
+		
 		i++;
 	} while (res);
 

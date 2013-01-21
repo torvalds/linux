@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -487,9 +488,9 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Grab the memory area */
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lradc->dev = &pdev->dev;
-	lradc->base = devm_request_and_ioremap(dev, iores);
-	if (!lradc->base) {
-		ret = -EADDRNOTAVAIL;
+	lradc->base = devm_ioremap_resource(dev, iores);
+	if (IS_ERR(lradc->base)) {
+		ret = PTR_ERR(lradc->base);
 		goto err_addr;
 	}
 
