@@ -45,14 +45,6 @@
 #include "comedidev.h"
 #include "comedi_internal.h"
 
-static int postconfig(struct comedi_device *dev);
-static int insn_rw_emulate_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static void *comedi_recognize(struct comedi_driver *driv, const char *name);
-static void comedi_report_boards(struct comedi_driver *driv);
-static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
-
 struct comedi_driver *comedi_drivers;
 
 int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
@@ -131,6 +123,133 @@ void comedi_device_detach(struct comedi_device *dev)
 	__comedi_device_detach(dev);
 }
 
+static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	return -EINVAL;
+}
+
+int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
+	       struct comedi_insn *insn, unsigned int *data)
+{
+	return -EINVAL;
+}
+
+static int insn_rw_emulate_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
+{
+	struct comedi_insn new_insn;
+	int ret;
+	static const unsigned channels_per_bitfield = 32;
+
+	unsigned chan = CR_CHAN(insn->chanspec);
+	const unsigned base_bitfield_channel =
+	    (chan < channels_per_bitfield) ? 0 : chan;
+	unsigned int new_data[2];
+	memset(new_data, 0, sizeof(new_data));
+	memset(&new_insn, 0, sizeof(new_insn));
+	new_insn.insn = INSN_BITS;
+	new_insn.chanspec = base_bitfield_channel;
+	new_insn.n = 2;
+	new_insn.subdev = insn->subdev;
+
+	if (insn->insn == INSN_WRITE) {
+		if (!(s->subdev_flags & SDF_WRITABLE))
+			return -EINVAL;
+		new_data[0] = 1 << (chan - base_bitfield_channel); /* mask */
+		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel))
+			      : 0; /* bits */
+	}
+
+	ret = s->insn_bits(dev, s, &new_insn, new_data);
+	if (ret < 0)
+		return ret;
+
+	if (insn->insn == INSN_READ)
+		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
+
+	return 1;
+}
+
+static int postconfig(struct comedi_device *dev)
+{
+	int i;
+	struct comedi_subdevice *s;
+	struct comedi_async *async = NULL;
+	int ret;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+
+		if (s->type == COMEDI_SUBD_UNUSED)
+			continue;
+
+		if (s->len_chanlist == 0)
+			s->len_chanlist = 1;
+
+		if (s->do_cmd) {
+			unsigned int buf_size;
+
+			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
+						   SDF_CMD_WRITE)) == 0);
+			BUG_ON(!s->do_cmdtest);
+
+			async =
+			    kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
+			if (async == NULL) {
+				dev_warn(dev->class_dev,
+					 "failed to allocate async struct\n");
+				return -ENOMEM;
+			}
+			init_waitqueue_head(&async->wait_head);
+			async->subdevice = s;
+			s->async = async;
+
+			async->max_bufsize =
+				comedi_default_buf_maxsize_kb * 1024;
+			buf_size = comedi_default_buf_size_kb * 1024;
+			if (buf_size > async->max_bufsize)
+				buf_size = async->max_bufsize;
+
+			async->prealloc_buf = NULL;
+			async->prealloc_bufsz = 0;
+			if (comedi_buf_alloc(dev, s, buf_size) < 0) {
+				dev_warn(dev->class_dev,
+					 "Buffer allocation failed\n");
+				return -ENOMEM;
+			}
+			if (s->buf_change) {
+				ret = s->buf_change(dev, s, buf_size);
+				if (ret < 0)
+					return ret;
+			}
+			comedi_alloc_subdevice_minor(dev, s);
+		}
+
+		if (!s->range_table && !s->range_table_list)
+			s->range_table = &range_unknown;
+
+		if (!s->insn_read && s->insn_bits)
+			s->insn_read = insn_rw_emulate_bits;
+		if (!s->insn_write && s->insn_bits)
+			s->insn_write = insn_rw_emulate_bits;
+
+		if (!s->insn_read)
+			s->insn_read = insn_inval;
+		if (!s->insn_write)
+			s->insn_write = insn_inval;
+		if (!s->insn_bits)
+			s->insn_bits = insn_inval;
+		if (!s->insn_config)
+			s->insn_config = insn_inval;
+
+		if (!s->poll)
+			s->poll = poll_invalid;
+	}
+
+	return 0;
+}
+
 /* do a little post-config cleanup */
 /* called with module refcount incremented, decrements it */
 static int comedi_device_postconfig(struct comedi_device *dev)
@@ -148,6 +267,64 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 	smp_wmb();
 	dev->attached = 1;
 	return 0;
+}
+
+/*
+ * Generic recognize function for drivers that register their supported
+ * board names.
+ *
+ * 'driv->board_name' points to a 'const char *' member within the
+ * zeroth element of an array of some private board information
+ * structure, say 'struct foo_board' containing a member 'const char
+ * *board_name' that is initialized to point to a board name string that
+ * is one of the candidates matched against this function's 'name'
+ * parameter.
+ *
+ * 'driv->offset' is the size of the private board information
+ * structure, say 'sizeof(struct foo_board)', and 'driv->num_names' is
+ * the length of the array of private board information structures.
+ *
+ * If one of the board names in the array of private board information
+ * structures matches the name supplied to this function, the function
+ * returns a pointer to the pointer to the board name, otherwise it
+ * returns NULL.  The return value ends up in the 'board_ptr' member of
+ * a 'struct comedi_device' that the low-level comedi driver's
+ * 'attach()' hook can convert to a point to a particular element of its
+ * array of private board information structures by subtracting the
+ * offset of the member that points to the board name.  (No subtraction
+ * is required if the board name pointer is the first member of the
+ * private board information structure, which is generally the case.)
+ */
+static void *comedi_recognize(struct comedi_driver *driv, const char *name)
+{
+	char **name_ptr = (char **)driv->board_name;
+	int i;
+
+	for (i = 0; i < driv->num_names; i++) {
+		if (strcmp(*name_ptr, name) == 0)
+			return name_ptr;
+		name_ptr = (void *)name_ptr + driv->offset;
+	}
+
+	return NULL;
+}
+
+static void comedi_report_boards(struct comedi_driver *driv)
+{
+	unsigned int i;
+	const char *const *name_ptr;
+
+	pr_info("comedi: valid board names for %s driver are:\n",
+		driv->driver_name);
+
+	name_ptr = driv->board_name;
+	for (i = 0; i < driv->num_names; i++) {
+		pr_info(" %s\n", *name_ptr);
+		name_ptr = (const char **)((char *)name_ptr + driv->offset);
+	}
+
+	if (driv->num_names == 0)
+		pr_info(" %s\n", driv->driver_name);
 }
 
 int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -246,191 +423,6 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(comedi_driver_unregister);
-
-static int postconfig(struct comedi_device *dev)
-{
-	int i;
-	struct comedi_subdevice *s;
-	struct comedi_async *async = NULL;
-	int ret;
-
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-
-		if (s->type == COMEDI_SUBD_UNUSED)
-			continue;
-
-		if (s->len_chanlist == 0)
-			s->len_chanlist = 1;
-
-		if (s->do_cmd) {
-			unsigned int buf_size;
-
-			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
-						   SDF_CMD_WRITE)) == 0);
-			BUG_ON(!s->do_cmdtest);
-
-			async =
-			    kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
-			if (async == NULL) {
-				dev_warn(dev->class_dev,
-					 "failed to allocate async struct\n");
-				return -ENOMEM;
-			}
-			init_waitqueue_head(&async->wait_head);
-			async->subdevice = s;
-			s->async = async;
-
-			async->max_bufsize =
-				comedi_default_buf_maxsize_kb * 1024;
-			buf_size = comedi_default_buf_size_kb * 1024;
-			if (buf_size > async->max_bufsize)
-				buf_size = async->max_bufsize;
-
-			async->prealloc_buf = NULL;
-			async->prealloc_bufsz = 0;
-			if (comedi_buf_alloc(dev, s, buf_size) < 0) {
-				dev_warn(dev->class_dev,
-					 "Buffer allocation failed\n");
-				return -ENOMEM;
-			}
-			if (s->buf_change) {
-				ret = s->buf_change(dev, s, buf_size);
-				if (ret < 0)
-					return ret;
-			}
-			comedi_alloc_subdevice_minor(dev, s);
-		}
-
-		if (!s->range_table && !s->range_table_list)
-			s->range_table = &range_unknown;
-
-		if (!s->insn_read && s->insn_bits)
-			s->insn_read = insn_rw_emulate_bits;
-		if (!s->insn_write && s->insn_bits)
-			s->insn_write = insn_rw_emulate_bits;
-
-		if (!s->insn_read)
-			s->insn_read = insn_inval;
-		if (!s->insn_write)
-			s->insn_write = insn_inval;
-		if (!s->insn_bits)
-			s->insn_bits = insn_inval;
-		if (!s->insn_config)
-			s->insn_config = insn_inval;
-
-		if (!s->poll)
-			s->poll = poll_invalid;
-	}
-
-	return 0;
-}
-
-/*
- * Generic recognize function for drivers that register their supported
- * board names.
- *
- * 'driv->board_name' points to a 'const char *' member within the
- * zeroth element of an array of some private board information
- * structure, say 'struct foo_board' containing a member 'const char
- * *board_name' that is initialized to point to a board name string that
- * is one of the candidates matched against this function's 'name'
- * parameter.
- *
- * 'driv->offset' is the size of the private board information
- * structure, say 'sizeof(struct foo_board)', and 'driv->num_names' is
- * the length of the array of private board information structures.
- *
- * If one of the board names in the array of private board information
- * structures matches the name supplied to this function, the function
- * returns a pointer to the pointer to the board name, otherwise it
- * returns NULL.  The return value ends up in the 'board_ptr' member of
- * a 'struct comedi_device' that the low-level comedi driver's
- * 'attach()' hook can convert to a point to a particular element of its
- * array of private board information structures by subtracting the
- * offset of the member that points to the board name.  (No subtraction
- * is required if the board name pointer is the first member of the
- * private board information structure, which is generally the case.)
- */
-static void *comedi_recognize(struct comedi_driver *driv, const char *name)
-{
-	char **name_ptr = (char **)driv->board_name;
-	int i;
-
-	for (i = 0; i < driv->num_names; i++) {
-		if (strcmp(*name_ptr, name) == 0)
-			return name_ptr;
-		name_ptr = (void *)name_ptr + driv->offset;
-	}
-
-	return NULL;
-}
-
-static void comedi_report_boards(struct comedi_driver *driv)
-{
-	unsigned int i;
-	const char *const *name_ptr;
-
-	pr_info("comedi: valid board names for %s driver are:\n",
-		driv->driver_name);
-
-	name_ptr = driv->board_name;
-	for (i = 0; i < driv->num_names; i++) {
-		pr_info(" %s\n", *name_ptr);
-		name_ptr = (const char **)((char *)name_ptr + driv->offset);
-	}
-
-	if (driv->num_names == 0)
-		pr_info(" %s\n", driv->driver_name);
-}
-
-static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	return -EINVAL;
-}
-
-int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
-	       struct comedi_insn *insn, unsigned int *data)
-{
-	return -EINVAL;
-}
-
-static int insn_rw_emulate_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct comedi_insn new_insn;
-	int ret;
-	static const unsigned channels_per_bitfield = 32;
-
-	unsigned chan = CR_CHAN(insn->chanspec);
-	const unsigned base_bitfield_channel =
-	    (chan < channels_per_bitfield) ? 0 : chan;
-	unsigned int new_data[2];
-	memset(new_data, 0, sizeof(new_data));
-	memset(&new_insn, 0, sizeof(new_insn));
-	new_insn.insn = INSN_BITS;
-	new_insn.chanspec = base_bitfield_channel;
-	new_insn.n = 2;
-	new_insn.subdev = insn->subdev;
-
-	if (insn->insn == INSN_WRITE) {
-		if (!(s->subdev_flags & SDF_WRITABLE))
-			return -EINVAL;
-		new_data[0] = 1 << (chan - base_bitfield_channel); /* mask */
-		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel))
-			      : 0; /* bits */
-	}
-
-	ret = s->insn_bits(dev, s, &new_insn, new_data);
-	if (ret < 0)
-		return ret;
-
-	if (insn->insn == INSN_READ)
-		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
-
-	return 1;
-}
 
 int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context)
