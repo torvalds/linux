@@ -177,9 +177,14 @@ int pci_bus_add_device(struct pci_dev *dev)
 	if (retval)
 		return retval;
 
+	dev->match_driver = false;
 	retval = device_add(&dev->dev);
 	if (retval)
 		return retval;
+
+	dev->match_driver = true;
+	retval = device_attach(&dev->dev);
+	WARN_ON(retval < 0);
 
 	dev->is_added = 1;
 	pci_proc_attach_device(dev);
