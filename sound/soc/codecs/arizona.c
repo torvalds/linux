@@ -474,6 +474,10 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	case 147456000:
 		val |= 6 << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
+	case 0:
+		dev_dbg(arizona->dev, "%s cleared\n", name);
+		*clk = freq;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -691,6 +695,9 @@ static int arizona_startup(struct snd_pcm_substream *substream,
 	default:
 		return 0;
 	}
+
+	if (base_rate == 0)
+		return 0;
 
 	if (base_rate % 8000)
 		constraint = &arizona_44k1_constraint;
