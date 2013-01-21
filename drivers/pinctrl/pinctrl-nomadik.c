@@ -1367,9 +1367,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 		goto out;
 	}
 
-	base = devm_request_and_ioremap(&dev->dev, res);
-	if (!base) {
-		ret = -ENOMEM;
+	base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
 		goto out;
 	}
 

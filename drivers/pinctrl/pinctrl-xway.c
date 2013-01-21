@@ -9,6 +9,7 @@
  *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
  */
 
+#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -687,11 +688,9 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get resource\n");
 		return -ENOENT;
 	}
-	xway_info.membase[0] = devm_request_and_ioremap(&pdev->dev, res);
-	if (!xway_info.membase[0]) {
-		dev_err(&pdev->dev, "Failed to remap resource\n");
-		return -ENOMEM;
-	}
+	xway_info.membase[0] = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(xway_info.membase[0]))
+		return PTR_ERR(xway_info.membase[0]);
 
 	match = of_match_device(xway_match, &pdev->dev);
 	if (match)

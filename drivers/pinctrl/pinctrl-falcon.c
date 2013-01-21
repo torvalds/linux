@@ -411,14 +411,11 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 			dev_err(&ppdev->dev, "failed to get clock\n");
 			return PTR_ERR(falcon_info.clk[*bank]);
 		}
-		falcon_info.membase[*bank] =
-				devm_request_and_ioremap(&pdev->dev, &res);
-		if (!falcon_info.membase[*bank]) {
-			dev_err(&pdev->dev,
-				"Failed to remap memory for bank %d\n",
-				*bank);
-			return -ENOMEM;
-		}
+		falcon_info.membase[*bank] = devm_ioremap_resource(&pdev->dev,
+								   &res);
+		if (IS_ERR(falcon_info.membase[*bank]))
+			return PTR_ERR(falcon_info.membase[*bank]);
+		
 		avail = pad_r32(falcon_info.membase[*bank],
 					LTQ_PADC_AVAIL);
 		pins = fls(avail);

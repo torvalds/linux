@@ -917,11 +917,9 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	drvdata->virt_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!drvdata->virt_base) {
-		dev_err(dev, "ioremap failed\n");
-		return -ENODEV;
-	}
+	drvdata->virt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(drvdata->virt_base))
+		return PTR_ERR(drvdata->virt_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res)

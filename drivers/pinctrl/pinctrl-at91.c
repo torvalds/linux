@@ -1503,10 +1503,9 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!at91_chip->regbase) {
-		dev_err(&pdev->dev, "failed to map registers, ignoring.\n");
-		ret = -EBUSY;
+	at91_chip->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(at91_chip->regbase)) {
+		ret = PTR_ERR(at91_chip->regbase);
 		goto err;
 	}
 
