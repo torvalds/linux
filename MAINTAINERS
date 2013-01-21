@@ -1262,6 +1262,14 @@ S:	Maintained
 F:	arch/arm/mach-pxa/z2.c
 F:	arch/arm/mach-pxa/include/mach/z2.h
 
+ARM/ZYNQ ARCHITECTURE
+M:	Michal Simek <michal.simek@xilinx.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://wiki.xilinx.com
+T:	git git://git.xilinx.com/linux-xlnx.git
+S:	Supported
+F:	arch/arm/mach-zynq/
+
 ARM64 PORT (AARCH64 ARCHITECTURE)
 M:	Catalin Marinas <catalin.marinas@arm.com>
 M:	Will Deacon <will.deacon@arm.com>
