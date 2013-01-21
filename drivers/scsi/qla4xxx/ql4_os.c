@@ -6110,7 +6110,6 @@ qla4xxx_pci_mmio_enabled(struct pci_dev *pdev)
 static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 {
 	uint32_t rval = QLA_ERROR;
-	uint32_t ret = 0;
 	int fn;
 	struct pci_dev *other_pdev = NULL;
 
@@ -6196,16 +6195,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_STATE, 0);
 			qla4_8xxx_set_drv_active(ha);
 			ha->isp_ops->idc_unlock(ha);
-			ret = qla4xxx_request_irqs(ha);
-			if (ret) {
-				ql4_printk(KERN_WARNING, ha, "Failed to "
-				    "reserve interrupt %d already in use.\n",
-				    ha->pdev->irq);
-				rval = QLA_ERROR;
-			} else {
-				ha->isp_ops->enable_intrs(ha);
-				rval = QLA_SUCCESS;
-			}
+			ha->isp_ops->enable_intrs(ha);
 		}
 	} else {
 		ql4_printk(KERN_INFO, ha, "scsi%ld: %s: devfn 0x%x is not "
@@ -6215,18 +6205,9 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		     QLA8XXX_DEV_READY)) {
 			clear_bit(AF_FW_RECOVERY, &ha->flags);
 			rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
-			if (rval == QLA_SUCCESS) {
-				ret = qla4xxx_request_irqs(ha);
-				if (ret) {
-					ql4_printk(KERN_WARNING, ha, "Failed to"
-					    " reserve interrupt %d already in"
-					    " use.\n", ha->pdev->irq);
-					rval = QLA_ERROR;
-				} else {
-					ha->isp_ops->enable_intrs(ha);
-					rval = QLA_SUCCESS;
-				}
-			}
+			if (rval == QLA_SUCCESS)
+				ha->isp_ops->enable_intrs(ha);
+
 			ha->isp_ops->idc_lock(ha);
 			qla4_8xxx_set_drv_active(ha);
 			ha->isp_ops->idc_unlock(ha);
