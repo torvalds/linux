@@ -58,7 +58,7 @@
 #include <linux/ntb.h>
 #include "ntb_hw.h"
 
-#define NTB_TRANSPORT_VERSION	1
+#define NTB_TRANSPORT_VERSION	2
 
 static unsigned int transport_mtu = 0x401E;
 module_param(transport_mtu, uint, 0644);
@@ -91,14 +91,14 @@ struct ntb_transport_qp {
 	bool qp_link;
 	u8 qp_num;	/* Only 64 QP's are allowed.  0-63 */
 
-	struct ntb_rx_info *rx_info;
+	struct ntb_rx_info __iomem *rx_info;
 	struct ntb_rx_info *remote_rx_info;
 
 	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
 			    void *data, int len);
 	struct list_head tx_free_q;
 	spinlock_t ntb_tx_free_q_lock;
-	void *tx_mw;
+	void __iomem *tx_mw;
 	unsigned int tx_index;
 	unsigned int tx_max_entry;
 	unsigned int tx_max_frame;
@@ -166,7 +166,7 @@ enum {
 };
 
 struct ntb_payload_header {
-	u64 ver;
+	unsigned int ver;
 	unsigned int len;
 	unsigned int flags;
 };
@@ -474,7 +474,7 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 	u8 mw_num = QP_TO_MW(qp_num);
 	unsigned int i;
 
-	WARN_ON(nt->mw[mw_num].virt_addr == 0);
+	WARN_ON(nt->mw[mw_num].virt_addr == NULL);
 
 	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
 		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
@@ -933,7 +933,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 	entry = ntb_list_rm(&qp->ntb_rx_pend_q_lock, &qp->rx_pend_q);
 	if (!entry) {
 		dev_dbg(&ntb_query_pdev(qp->ndev)->dev,
-			"no buffer - HDR ver %llu, len %d, flags %x\n",
+			"no buffer - HDR ver %u, len %d, flags %x\n",
 			hdr->ver, hdr->len, hdr->flags);
 		qp->rx_err_no_buf++;
 		return -ENOMEM;
@@ -946,9 +946,9 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 		return -EAGAIN;
 	}
 
-	if (hdr->ver != qp->rx_pkts) {
+	if (hdr->ver != (u32) qp->rx_pkts) {
 		dev_dbg(&ntb_query_pdev(qp->ndev)->dev,
-			"qp %d: version mismatch, expected %llu - got %llu\n",
+			"qp %d: version mismatch, expected %llu - got %u\n",
 			qp->qp_num, qp->rx_pkts, hdr->ver);
 		ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
 			     &qp->rx_pend_q);
@@ -965,7 +965,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 	}
 
 	dev_dbg(&ntb_query_pdev(qp->ndev)->dev,
-		"rx offset %u, ver %llu - %d payload received, buf size %d\n",
+		"rx offset %u, ver %u - %d payload received, buf size %d\n",
 		qp->rx_index, hdr->ver, hdr->len, entry->len);
 
 	if (hdr->len <= entry->len) {
@@ -988,7 +988,7 @@ out:
 	/* Ensure that the data is fully copied out before clearing the flag */
 	wmb();
 	hdr->flags = 0;
-	qp->rx_info->entry = qp->rx_index;
+	iowrite32(qp->rx_index, &qp->rx_info->entry);
 
 	qp->rx_index++;
 	qp->rx_index %= qp->rx_max_entry;
@@ -1018,19 +1018,19 @@ static void ntb_transport_rxc_db(void *data, int db_num)
 
 static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
 			     struct ntb_queue_entry *entry,
-			     void *offset)
+			     void __iomem *offset)
 {
-	struct ntb_payload_header *hdr;
+	struct ntb_payload_header __iomem *hdr;
 
 	memcpy_toio(offset, entry->buf, entry->len);
 
 	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
-	hdr->len = entry->len;
-	hdr->ver = qp->tx_pkts;
+	iowrite32(entry->len, &hdr->len);
+	iowrite32((u32) qp->tx_pkts, &hdr->ver);
 
 	/* Ensure that the data is fully copied out before setting the flag */
 	wmb();
-	hdr->flags = entry->flags | DESC_DONE_FLAG;
+	iowrite32(entry->flags | DESC_DONE_FLAG, &hdr->flags);
 
 	ntb_ring_sdb(qp->ndev, qp->qp_num);
 
@@ -1052,7 +1052,7 @@ static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
 static int ntb_process_tx(struct ntb_transport_qp *qp,
 			  struct ntb_queue_entry *entry)
 {
-	void *offset;
+	void __iomem *offset;
 
 	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 

@@ -104,7 +104,7 @@ MODULE_DEVICE_TABLE(pci, ntb_pci_tbl);
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
 int ntb_register_event_callback(struct ntb_device *ndev,
-				void (*func)(void *handle, unsigned int event))
+			    void (*func)(void *handle, enum ntb_hw_event event))
 {
 	if (ndev->event_cb)
 		return -EINVAL;
@@ -343,7 +343,7 @@ int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val)
  *
  * RETURNS: pointer to virtual address, or NULL on error.
  */
-void *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
+void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
 {
 	if (mw > NTB_NUM_MW)
 		return NULL;

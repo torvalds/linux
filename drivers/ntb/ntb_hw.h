@@ -165,14 +165,14 @@ int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
 void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx);
 int ntb_register_event_callback(struct ntb_device *ndev,
 				void (*event_cb_func) (void *handle,
-						       unsigned int event));
+						      enum ntb_hw_event event));
 void ntb_unregister_event_callback(struct ntb_device *ndev);
 int ntb_get_max_spads(struct ntb_device *ndev);
 int ntb_write_local_spad(struct ntb_device *ndev, unsigned int idx, u32 val);
 int ntb_read_local_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
 int ntb_write_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 val);
 int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
-void *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw);
+void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw);
 resource_size_t ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw);
 void ntb_ring_sdb(struct ntb_device *ndev, unsigned int idx);
 void *ntb_find_transport(struct pci_dev *pdev);
