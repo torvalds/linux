@@ -1605,19 +1605,20 @@ static int max1363_probe(struct i2c_client *client,
 
 	return 0;
 error_free_irq:
-	free_irq(st->client->irq, indio_dev);
+	if (client->irq)
+		free_irq(st->client->irq, indio_dev);
 error_uninit_buffer:
 	iio_buffer_unregister(indio_dev);
 error_cleanup_buffer:
 	max1363_buffer_cleanup(indio_dev);
 error_free_available_scan_masks:
 	kfree(indio_dev->available_scan_masks);
-error_unregister_map:
-	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 error_disable_reg:
 	regulator_disable(st->reg);
 error_put_reg:
 	regulator_put(st->reg);
+error_unregister_map:
+	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 error_free_device:
 	iio_device_free(indio_dev);
 error_out:
@@ -1635,10 +1636,8 @@ static int max1363_remove(struct i2c_client *client)
 	iio_buffer_unregister(indio_dev);
 	max1363_buffer_cleanup(indio_dev);
 	kfree(indio_dev->available_scan_masks);
-	if (!IS_ERR(st->reg)) {
-		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
+	regulator_disable(st->reg);
+	regulator_put(st->reg);
 	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 	iio_device_free(indio_dev);
 
