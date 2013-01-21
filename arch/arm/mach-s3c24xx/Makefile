@@ -36,6 +36,8 @@ obj-$(CONFIG_CPU_S3C2442)	+= s3c2442.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o irq-s3c244x.o clock-s3c244x.o
 obj-$(CONFIG_S3C2440_CPUFREQ)	+= cpufreq-s3c2440.o
 obj-$(CONFIG_S3C2440_DMA)	+= dma-s3c2440.o
+obj-$(CONFIG_S3C2440_PLL_12000000) += pll-s3c2440-12000000.o
+obj-$(CONFIG_S3C2440_PLL_16934400) += pll-s3c2440-16934400.o
 
 obj-$(CONFIG_CPU_S3C2443)	+= s3c2443.o irq-s3c2443.o clock-s3c2443.o
 
