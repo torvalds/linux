@@ -1449,7 +1449,8 @@ static int qeth_l3_start_ipassists(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 3, "strtipas");
 
-	qeth_set_access_ctrl_online(card);	/* go on*/
+	if (qeth_set_access_ctrl_online(card, 0))
+		return -EIO;
 	qeth_l3_start_ipa_arp_processing(card);	/* go on*/
 	qeth_l3_start_ipa_ip_fragmentation(card);	/* go on*/
 	qeth_l3_start_ipa_source_mac(card);	/* go on*/
@@ -3388,8 +3389,10 @@ contin:
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
 	if (!card->options.sniffer) {
 		rc = qeth_l3_start_ipassists(card);
-		if (rc)
+		if (rc) {
 			QETH_DBF_TEXT_(SETUP, 2, "3err%d", rc);
+			goto out_remove;
+		}
 		rc = qeth_l3_setrouting_v4(card);
 		if (rc)
 			QETH_DBF_TEXT_(SETUP, 2, "4err%d", rc);
@@ -3511,12 +3514,9 @@ static int qeth_l3_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		if (rtnl_trylock()) {
-			dev_close(card->dev);
-			rtnl_unlock();
-			dev_warn(&card->gdev->dev, "The qeth device driver "
+		qeth_close_dev(card);
+		dev_warn(&card->gdev->dev, "The qeth device driver "
 				"failed to recover an error on the device\n");
-		}
 	}
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
