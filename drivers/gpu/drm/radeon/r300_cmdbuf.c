@@ -29,6 +29,8 @@
  *
  * Authors:
  *    Nicolai Haehnle <prefect_@gmx.net>
+ *
+ * ------------------------ This file is DEPRECATED! -------------------------
  */
 
 #include <drm/drmP.h>
