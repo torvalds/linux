@@ -305,14 +305,19 @@ static void sccnxp_handle_rx(struct uart_port *port)
 		if (unlikely(sr)) {
 			if (sr & SR_BRK) {
 				port->icount.brk++;
+				sccnxp_port_write(port, SCCNXP_CR_REG,
+						  CR_CMD_BREAK_RESET);
 				if (uart_handle_break(port))
 					continue;
 			} else if (sr & SR_PE)
 				port->icount.parity++;
 			else if (sr & SR_FE)
 				port->icount.frame++;
-			else if (sr & SR_OVR)
+			else if (sr & SR_OVR) {
 				port->icount.overrun++;
+				sccnxp_port_write(port, SCCNXP_CR_REG,
+						  CR_CMD_STATUS_RESET);
+			}
 
 			sr &= port->read_status_mask;
 			if (sr & SR_BRK)
