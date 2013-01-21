@@ -1187,6 +1187,7 @@ static int ad1986a_parse_auto_config(struct hda_codec *codec)
 	/* AD1986A has the inverted EAPD implementation */
 	codec->inv_eapd = 1;
 
+	spec->gen.mixer_nid = 0x07;
 	spec->beep_dev_nid = 0x19;
 	set_beep_amp(spec, 0x18, 0, HDA_OUTPUT);
 
@@ -1950,6 +1951,7 @@ static int ad1981_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
 
+	spec->gen.mixer_nid = 0x0e;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x0d, 0, HDA_OUTPUT);
 	return ad198x_parse_auto_config(codec);
@@ -2825,6 +2827,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
 
+	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 	return ad198x_parse_auto_config(codec);
@@ -3172,6 +3175,7 @@ static int ad1884_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
 
+	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 	return ad198x_parse_auto_config(codec);
@@ -4632,6 +4636,7 @@ static int ad1882_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
 
+	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 	return ad198x_parse_auto_config(codec);
