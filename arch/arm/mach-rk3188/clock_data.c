@@ -1226,7 +1226,7 @@ static struct clk aclk_core = {
 	CRU_DIV_SET(0x7, 3, 8),
 };
 
-static struct clk *clk_cpu_div_parents[2] = {&arm_pll_clk, &clk_core_gpll_path};
+static struct clk *clk_cpu_div_parents[2] = {&arm_pll_clk, &general_pll_clk};
 static struct clk clk_cpu_div = {
 	.name		= "cpu_div",
 	.parent		= &arm_pll_clk,
@@ -3167,7 +3167,6 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	rk30_clk_dump_regs();
 
 	CLKDATA_DBG("%s clks register dbg end\n", __func__);
-	while(1);
 #endif
 	/*
 	 * Disable any unused clocks left on by the bootloader
