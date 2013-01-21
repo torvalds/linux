@@ -1337,18 +1337,18 @@ static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
 					      sess->password_in, BIDI_CHAP,
 					      &idx);
 		if (rval)
-			return -EINVAL;
-
-		len = sprintf(buf, "%hu\n", idx);
+			len = sprintf(buf, "\n");
+		else
+			len = sprintf(buf, "%hu\n", idx);
 		break;
 	case ISCSI_PARAM_CHAP_OUT_IDX:
 		rval = qla4xxx_get_chap_index(ha, sess->username,
 					      sess->password, LOCAL_CHAP,
 					      &idx);
 		if (rval)
-			return -EINVAL;
-
-		len = sprintf(buf, "%hu\n", idx);
+			len = sprintf(buf, "\n");
+		else
+			len = sprintf(buf, "%hu\n", idx);
 		break;
 	default:
 		return iscsi_session_get_param(cls_sess, param, buf);
