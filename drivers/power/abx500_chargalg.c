@@ -1654,6 +1654,25 @@ static int abx500_chargalg_get_property(struct power_supply *psy,
 /* Exposure to the sysfs interface */
 
 /**
+ * abx500_chargalg_sysfs_show() - sysfs show operations
+ * @kobj:      pointer to the struct kobject
+ * @attr:      pointer to the struct attribute
+ * @buf:       buffer that holds the parameter to send to userspace
+ *
+ * Returns a buffer to be displayed in user space
+ */
+static ssize_t abx500_chargalg_sysfs_show(struct kobject *kobj,
+					  struct attribute *attr, char *buf)
+{
+	struct abx500_chargalg *di = container_of(kobj,
+               struct abx500_chargalg, chargalg_kobject);
+
+	return sprintf(buf, "%d\n",
+		       di->susp_status.ac_suspended &&
+		       di->susp_status.usb_suspended);
+}
+
+/**
  * abx500_chargalg_sysfs_charger() - sysfs store operations
  * @kobj:      pointer to the struct kobject
  * @attr:      pointer to the struct attribute
@@ -1721,7 +1740,7 @@ static ssize_t abx500_chargalg_sysfs_charger(struct kobject *kobj,
 static struct attribute abx500_chargalg_en_charger = \
 {
 	.name = "chargalg",
-	.mode = S_IWUSR,
+	.mode = S_IRUGO | S_IWUSR,
 };
 
 static struct attribute *abx500_chargalg_chg[] = {
@@ -1730,6 +1749,7 @@ static struct attribute *abx500_chargalg_chg[] = {
 };
 
 static const struct sysfs_ops abx500_chargalg_sysfs_ops = {
+	.show = abx500_chargalg_sysfs_show,
 	.store = abx500_chargalg_sysfs_charger,
 };
 
