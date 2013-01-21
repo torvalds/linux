@@ -1481,18 +1481,14 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	skb_put(buff, sizeof(*msg));
-	msg = (struct rd_msg *)icmp6_hdr(buff);
-
-	memset(&msg->icmph, 0, sizeof(struct icmp6hdr));
-	msg->icmph.icmp6_type = NDISC_REDIRECT;
-
-	/*
-	 *	copy target and destination addresses
-	 */
-
-	msg->target = *target;
-	msg->dest = ipv6_hdr(skb)->daddr;
+	msg = (struct rd_msg *)skb_put(buff, sizeof(*msg));
+	*msg = (struct rd_msg) {
+		.icmph = {
+			.icmp6_type = NDISC_REDIRECT,
+		},
+		.target = *target,
+		.dest = ipv6_hdr(skb)->daddr,
+	};
 
 	/*
 	 *	include target_address option
