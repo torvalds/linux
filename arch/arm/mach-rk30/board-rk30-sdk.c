@@ -77,6 +77,9 @@
 #include <linux/gps.h>
 #endif
 
+#if defined(CONFIG_DP501)   //for display port transmitter dp501
+#include<linux/dp501.h>
+#endif
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
@@ -234,7 +237,7 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_MUX_NAME      GPIO0A3_PWM0_NAME
 #define PWM_MUX_MODE      GPIO0A_PWM0
 #define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
-#define PWM_GPIO 	  RK30_PIN0_PA3
+#define PWM_GPIO         RK30_PIN0_PA3
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
@@ -799,6 +802,67 @@ static struct platform_device device_lcdc1 = {
 		.platform_data = &lcdc1_screen_info,
 	},
 };
+#endif
+
+#if defined(CONFIG_DP501)
+	#define DVDD33_EN_PIN 		RK30_PIN6_PB4
+	#define DVDD33_EN_VALUE 	GPIO_LOW
+
+	#define DVDD12_EN_PIN 		RK30_PIN4_PC7
+	#define DVDD12_EN_VALUE 	GPIO_HIGH
+
+	#define EDP_RST_PIN 		RK30_PIN2_PC4
+	static int rk_edp_power_ctl(void)
+	{
+		int ret;
+		ret = gpio_request(DVDD33_EN_PIN, "dvdd33_en_pin");
+		if (ret != 0)
+		{
+			gpio_free(DVDD33_EN_PIN);
+			printk(KERN_ERR "request dvdd33 en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(DVDD33_EN_PIN, DVDD33_EN_VALUE);
+		}
+
+		ret = gpio_request(DVDD12_EN_PIN, "dvdd18_en_pin");
+		if (ret != 0)
+		{
+			gpio_free(DVDD12_EN_PIN);
+			printk(KERN_ERR "request dvdd18 en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(DVDD12_EN_PIN, DVDD12_EN_VALUE);
+		}
+
+		ret = gpio_request(EDP_RST_PIN, "edp_rst_pin");
+		if (ret != 0)
+		{
+			gpio_free(EDP_RST_PIN);
+			printk(KERN_ERR "request rst pin fail!\n");
+			return -1;
+		}
+		else
+		{	
+			gpio_direction_output(EDP_RST_PIN, GPIO_LOW);
+			msleep(10);
+			gpio_direction_output(EDP_RST_PIN, GPIO_HIGH);
+		}
+		return 0;
+
+	}
+	static struct dp501_platform_data dp501_platform_data = {
+		.power_ctl 	= rk_edp_power_ctl,
+		.dvdd33_en_pin 	= DVDD33_EN_PIN,
+		.dvdd33_en_val 	= DVDD33_EN_VALUE,
+		.dvdd18_en_pin 	= DVDD12_EN_PIN,
+		.dvdd18_en_val 	= DVDD12_EN_VALUE,
+		.edp_rst_pin   	= EDP_RST_PIN,
+	};
 #endif
 
 #if defined(CONFIG_MFD_RK610)
@@ -1628,6 +1692,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.addr          = 0x10,
 		.flags         = 0,
 		.platform_data = &cm3217_info,
+	},
+#endif
+
+#if defined(CONFIG_DP501)
+	{
+		.type = "dp501",
+		.addr = 0x30,
+		.flags = 0,
+		.platform_data = &dp501_platform_data,
 	},
 #endif
 };

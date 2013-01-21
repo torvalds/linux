@@ -18,5 +18,8 @@ config TC358768_RGB2MIPI
 
 config DP_ANX6345
 	bool "RGB to Display Port transmitter anx6345,anx9804,anx9805 support"
+
+config DP501
+	bool"RGB to Display Port transmitter dp501 support"
 	
 endchoice
