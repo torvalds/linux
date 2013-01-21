@@ -26,6 +26,7 @@
 #define MRT_ASSERT	(MRT_BASE+7)	/* Activate PIM assert mode		*/
 #define MRT_PIM		(MRT_BASE+8)	/* enable PIM code			*/
 #define MRT_TABLE	(MRT_BASE+9)	/* Specify mroute table ID		*/
+#define MRT_MAX		(MRT_BASE+9)
 
 #define SIOCGETVIFCNT	SIOCPROTOPRIVATE	/* IP protocol privates */
 #define SIOCGETSGCNT	(SIOCPROTOPRIVATE+1)
