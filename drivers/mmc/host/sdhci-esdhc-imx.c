@@ -239,10 +239,6 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 
 	switch (reg) {
 	case SDHCI_TRANSFER_MODE:
-		/*
-		 * Postpone this write, we must do it together with a
-		 * command write that is down below.
-		 */
 		if ((imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
 				&& (host->cmd->opcode == SD_IO_RW_EXTENDED)
 				&& (host->cmd->data->blocks > 1)
@@ -252,7 +248,18 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			v |= ESDHC_VENDOR_SPEC_SDIO_QUIRK;
 			writel(v, host->ioaddr + ESDHC_VENDOR_SPEC);
 		}
-		imx_data->scratchpad = val;
+
+		if (is_imx6q_usdhc(imx_data)) {
+			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			m = val | (m & 0xffff0000);
+			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
+		} else {
+			/*
+			 * Postpone this write, we must do it together with a
+			 * command write that is down below.
+			 */
+			imx_data->scratchpad = val;
+		}
 		return;
 	case SDHCI_COMMAND:
 		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION ||
@@ -260,16 +267,12 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 	            (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
 			val |= SDHCI_CMD_ABORTCMD;
 
-		if (is_imx6q_usdhc(imx_data)) {
-			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			m = imx_data->scratchpad | (m & 0xffff0000);
-			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
+		if (is_imx6q_usdhc(imx_data))
 			writel(val << 16,
 			       host->ioaddr + SDHCI_TRANSFER_MODE);
-		} else {
+		else
 			writel(val << 16 | imx_data->scratchpad,
 			       host->ioaddr + SDHCI_TRANSFER_MODE);
-		}
 		return;
 	case SDHCI_BLOCK_SIZE:
 		val &= ~SDHCI_MAKE_BLKSZ(0x7, 0);
