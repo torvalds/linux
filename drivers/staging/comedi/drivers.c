@@ -536,10 +536,6 @@ int comedi_pci_driver_register(struct comedi_driver *comedi_driver,
 	if (ret < 0)
 		return ret;
 
-	/* FIXME: Remove this test after auditing all comedi pci drivers */
-	if (!pci_driver->name)
-		pci_driver->name = comedi_driver->driver_name;
-
 	ret = pci_register_driver(pci_driver);
 	if (ret < 0) {
 		comedi_driver_unregister(comedi_driver);
