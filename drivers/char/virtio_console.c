@@ -1763,8 +1763,11 @@ static void in_intr(struct virtqueue *vq)
 	 * tty is spawned) and the host sends out data to console
 	 * ports.  For generic serial ports, the host won't
 	 * (shouldn't) send data till the guest is connected.
+	 * However a remote device might send data before the port is
+	 * connected. So don't remove data from a rproc_serial device.
 	 */
-	if (!port->guest_connected)
+
+	if (!port->guest_connected && !is_rproc_serial(port->portdev->vdev))
 		discard_port_data(port);
 
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
