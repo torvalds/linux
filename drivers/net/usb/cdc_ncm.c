@@ -524,7 +524,8 @@ advance:
 error2:
 	usb_set_intfdata(ctx->control, NULL);
 	usb_set_intfdata(ctx->data, NULL);
-	usb_driver_release_interface(driver, ctx->data);
+	if (ctx->data != ctx->control)
+		usb_driver_release_interface(driver, ctx->data);
 error:
 	cdc_ncm_free((struct cdc_ncm_ctx *)dev->data[0]);
 	dev->data[0] = 0;
