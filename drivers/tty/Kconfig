@@ -400,4 +400,10 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 	  there simply will be no early console output.  This is true also
 	  if you don't boot under a hypervisor at all.
 
+config GOLDFISH_TTY
+	tristate "Goldfish TTY Driver"
+	depends on GOLDFISH
+	help
+	  Console and system TTY driver for the Goldfish virtual platform.
+
 endif # TTY
