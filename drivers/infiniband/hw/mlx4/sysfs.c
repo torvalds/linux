@@ -732,7 +732,7 @@ int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *dev)
 	dev->ports_parent =
 		kobject_create_and_add("ports",
 				       kobject_get(dev->iov_parent));
-	if (!dev->iov_parent) {
+	if (!dev->ports_parent) {
 		ret = -ENOMEM;
 		goto err_ports;
 	}
