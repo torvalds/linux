@@ -32,6 +32,12 @@
 #include "../comedidev.h"
 
 /*
+ * PCI device ids supported by this driver
+ */
+#define PCI_DEVICE_ID_APCI1648		0x1009
+#define PCI_DEVICE_ID_APCI1696		0x100a
+
+/*
  * Register I/O map
  */
 #define APCI16XX_IN_REG(x)		(((x) * 4) + 0x08)
@@ -49,12 +55,12 @@ static const struct apci16xx_boardinfo apci16xx_boardtypes[] = {
 	{
 		.name		= "apci1648",
 		.vendor		= PCI_VENDOR_ID_ADDIDATA,
-		.device		= 0x1009,
+		.device		= PCI_DEVICE_ID_APCI1648,
 		.n_chan		= 48,		/* 2 subdevices */
 	}, {
 		.name		= "apci1696",
 		.vendor		= PCI_VENDOR_ID_ADDIDATA,
-		.device		= 0x100A,
+		.device		= PCI_DEVICE_ID_APCI1696,
 		.n_chan		= 96,		/* 3 subdevices */
 	},
 };
@@ -228,8 +234,8 @@ static void apci16xx_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci16xx_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1009) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x100a) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1648) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1696) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci16xx_pci_table);
