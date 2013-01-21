@@ -61,6 +61,7 @@ config BFIN_RX_DESC_NUM
 
 config BFIN_MAC_USE_HWSTAMP
 	bool "Use IEEE 1588 hwstamp"
+	depends on BFIN_MAC && BF518
 	select PTP_1588_CLOCK
 	default y
 	---help---

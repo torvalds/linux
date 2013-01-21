@@ -88,13 +88,6 @@
 				interrupts = <1 4 7>;
 			};
 
-			ssc0: ssc@f0010000 {
-				compatible = "atmel,at91sam9g45-ssc";
-				reg = <0xf0010000 0x4000>;
-				interrupts = <28 4 5>;
-				status = "disabled";
-			};
-
 			tcb0: timer@f8008000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf8008000 0x100>;
@@ -290,6 +283,22 @@
 					};
 				};
 
+				ssc0 {
+					pinctrl_ssc0_tx: ssc0_tx-0 {
+						atmel,pins =
+							<0 24 0x2 0x0	/* PA24 periph B */
+							 0 25 0x2 0x0	/* PA25 periph B */
+							 0 26 0x2 0x0>;	/* PA26 periph B */
+					};
+
+					pinctrl_ssc0_rx: ssc0_rx-0 {
+						atmel,pins =
+							<0 27 0x2 0x0	/* PA27 periph B */
+							 0 28 0x2 0x0	/* PA28 periph B */
+							 0 29 0x2 0x0>;	/* PA29 periph B */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -331,6 +340,15 @@
 					interrupt-controller;
 					#interrupt-cells = <2>;
 				};
+			};
+
+			ssc0: ssc@f0010000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf0010000 0x4000>;
+				interrupts = <28 4 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
+				status = "disabled";
 			};
 
 			mmc0: mmc@f0008000 {

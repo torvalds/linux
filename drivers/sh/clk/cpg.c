@@ -126,6 +126,12 @@ static int sh_clk_div_set_rate(struct clk *clk, unsigned long rate)
 
 static int sh_clk_div_enable(struct clk *clk)
 {
+	if (clk->div_mask == SH_CLK_DIV6_MSK) {
+		int ret = sh_clk_div_set_rate(clk, clk->rate);
+		if (ret < 0)
+			return ret;
+	}
+
 	sh_clk_write(sh_clk_read(clk) & ~CPG_CKSTP_BIT, clk);
 	return 0;
 }

@@ -139,7 +139,7 @@ void __ptrace_unlink(struct task_struct *child)
  * RETURNS:
  * 0 on success, -ESRCH if %child is not ready.
  */
-int ptrace_check_attach(struct task_struct *child, bool ignore_state)
+static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 {
 	int ret = -ESRCH;
 
