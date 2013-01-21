@@ -76,7 +76,24 @@
  */
 #define LRADC_TS_SAMPLE_AMOUNT		4
 
-static const char * const mxs_lradc_irq_name[] = {
+enum mxs_lradc_id {
+	IMX23_LRADC,
+	IMX28_LRADC,
+};
+
+static const char * const mx23_lradc_irq_names[] = {
+	"mxs-lradc-touchscreen",
+	"mxs-lradc-channel0",
+	"mxs-lradc-channel1",
+	"mxs-lradc-channel2",
+	"mxs-lradc-channel3",
+	"mxs-lradc-channel4",
+	"mxs-lradc-channel5",
+	"mxs-lradc-channel6",
+	"mxs-lradc-channel7",
+};
+
+static const char * const mx28_lradc_irq_names[] = {
 	"mxs-lradc-touchscreen",
 	"mxs-lradc-thresh0",
 	"mxs-lradc-thresh1",
@@ -90,6 +107,22 @@ static const char * const mxs_lradc_irq_name[] = {
 	"mxs-lradc-channel7",
 	"mxs-lradc-button0",
 	"mxs-lradc-button1",
+};
+
+struct mxs_lradc_of_config {
+	const int		irq_count;
+	const char * const	*irq_name;
+};
+
+static const struct mxs_lradc_of_config const mxs_lradc_of_config[] = {
+	[IMX23_LRADC] = {
+		.irq_count	= ARRAY_SIZE(mx23_lradc_irq_names),
+		.irq_name	= mx23_lradc_irq_names,
+	},
+	[IMX28_LRADC] = {
+		.irq_count	= ARRAY_SIZE(mx28_lradc_irq_names),
+		.irq_name	= mx28_lradc_irq_names,
+	},
 };
 
 enum mxs_lradc_ts {
@@ -857,8 +890,19 @@ static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
 		writel(0, lradc->base + LRADC_DELAY(i));
 }
 
+static const struct of_device_id mxs_lradc_dt_ids[] = {
+	{ .compatible = "fsl,imx23-lradc", .data = (void *)IMX23_LRADC, },
+	{ .compatible = "fsl,imx28-lradc", .data = (void *)IMX28_LRADC, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_lradc_dt_ids);
+
 static int mxs_lradc_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+		of_match_device(mxs_lradc_dt_ids, &pdev->dev);
+	const struct mxs_lradc_of_config *of_cfg =
+		&mxs_lradc_of_config[(enum mxs_lradc_id)of_id->data];
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct mxs_lradc *lradc;
@@ -902,7 +946,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 				ts_wires);
 
 	/* Grab all IRQ sources */
-	for (i = 0; i < 13; i++) {
+	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
 		if (lradc->irq[i] < 0) {
 			ret = -EINVAL;
@@ -911,7 +955,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
-					mxs_lradc_irq_name[i], iio);
+					of_cfg->irq_name[i], iio);
 		if (ret)
 			goto err_addr;
 	}
@@ -982,12 +1026,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id mxs_lradc_dt_ids[] = {
-	{ .compatible = "fsl,imx28-lradc", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, mxs_lradc_dt_ids);
 
 static struct platform_driver mxs_lradc_driver = {
 	.driver	= {
