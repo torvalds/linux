@@ -3743,6 +3743,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
+	spec->gen.mixer_nid = 0x1d;
 
 	num_dacs = snd_hda_get_num_conns(codec, 0x0a) - 1;
 	if (num_dacs < 3 || num_dacs > 5) {
@@ -3840,6 +3841,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
+	spec->gen.mixer_nid = 0x1b;
 
 	spec->digbeep_nid = 0x21;
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
@@ -3882,6 +3884,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
+	spec->gen.mixer_nid = 0x17;
 
 	codec->patch_ops = stac_patch_ops;
 
