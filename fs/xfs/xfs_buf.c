@@ -1505,6 +1505,8 @@ restart:
 	while (!list_empty(&btp->bt_lru)) {
 		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
 		if (atomic_read(&bp->b_hold) > 1) {
+			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+			list_move_tail(&bp->b_lru, &btp->bt_lru);
 			spin_unlock(&btp->bt_lru_lock);
 			delay(100);
 			goto restart;
