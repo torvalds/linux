@@ -142,6 +142,14 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
+	{
+		.name = "ceph.dir.layout",
+		.name_size = sizeof("ceph.dir.layout"),
+		.getxattr_cb = ceph_vxattrcb_layout,
+		.readonly = false,
+		.hidden = false,
+		.exists_cb = ceph_vxattrcb_layout_exists,
+	},
 	XATTR_NAME_CEPH(dir, entries),
 	XATTR_NAME_CEPH(dir, files),
 	XATTR_NAME_CEPH(dir, subdirs),
