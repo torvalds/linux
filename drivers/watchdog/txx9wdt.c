@@ -121,9 +121,9 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	txx9wdt_reg = devm_request_and_ioremap(&dev->dev, res);
-	if (!txx9wdt_reg) {
-		ret = -EBUSY;
+	txx9wdt_reg = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(txx9wdt_reg)) {
+		ret = PTR_ERR(txx9wdt_reg);
 		goto exit;
 	}
 

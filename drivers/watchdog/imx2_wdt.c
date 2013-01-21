@@ -262,11 +262,9 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	imx2_wdt.base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!imx2_wdt.base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	imx2_wdt.base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(imx2_wdt.base))
+		return PTR_ERR(imx2_wdt.base);
 
 	imx2_wdt.clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imx2_wdt.clk)) {

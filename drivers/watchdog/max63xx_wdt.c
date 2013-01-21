@@ -14,6 +14,7 @@
  * another interface, some abstraction will have to be introduced.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -198,9 +199,9 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 	heartbeat = current_timeout->twd;
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_request_and_ioremap(&pdev->dev, wdt_mem);
-	if (!wdt_base)
-		return -ENOMEM;
+	wdt_base = devm_ioremap_resource(&pdev->dev, wdt_mem);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	max63xx_wdt_dev.timeout = heartbeat;
 	watchdog_set_nowayout(&max63xx_wdt_dev, nowayout);
