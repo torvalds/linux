@@ -723,9 +723,9 @@ static int at91_twi_probe(struct platform_device *pdev)
 	if (!dev->pdata)
 		return -ENODEV;
 
-	dev->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dev->base)
-		return -EBUSY;
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0)

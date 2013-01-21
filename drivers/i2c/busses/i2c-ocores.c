@@ -12,6 +12,7 @@
  * kind, whether express or implied.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -364,9 +365,9 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!i2c->base)
-		return -EADDRNOTAVAIL;
+	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c->base))
+		return PTR_ERR(i2c->base);
 
 	pdata = pdev->dev.platform_data;
 	if (pdata) {

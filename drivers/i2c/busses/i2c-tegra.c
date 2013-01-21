@@ -669,11 +669,9 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base) {
-		dev_err(&pdev->dev, "Cannot request/ioremap I2C registers\n");
-		return -EADDRNOTAVAIL;
-	}
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
