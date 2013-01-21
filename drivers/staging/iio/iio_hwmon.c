@@ -93,7 +93,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	while (st->channels[st->num_channels].indio_dev)
 		st->num_channels++;
 
-	st->attrs = kzalloc(sizeof(st->attrs) * (st->num_channels + 1),
+	st->attrs = kzalloc(sizeof(*st->attrs) * (st->num_channels + 1),
 			    GFP_KERNEL);
 	if (st->attrs == NULL) {
 		ret = -ENOMEM;
