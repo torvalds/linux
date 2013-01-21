@@ -569,12 +569,16 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 	if (!ceph_is_valid_xattr(name))
 		return -ENODATA;
 
-	/* let's see if a virtual xattr was requested */
-	vxattr = ceph_match_vxattr(inode, name);
-
 	spin_lock(&ci->i_ceph_lock);
 	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
+
+	/* let's see if a virtual xattr was requested */
+	vxattr = ceph_match_vxattr(inode, name);
+	if (vxattr && !(vxattr->exists_cb && !vxattr->exists_cb(ci))) {
+		err = vxattr->getxattr_cb(ci, value, size);
+		goto out;
+	}
 
 	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
 	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
@@ -589,11 +593,6 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 
 	spin_lock(&ci->i_ceph_lock);
 
-	if (vxattr && vxattr->readonly) {
-		err = vxattr->getxattr_cb(ci, value, size);
-		goto out;
-	}
-
 	err = __build_xattrs(inode);
 	if (err < 0)
 		goto out;
@@ -601,11 +600,8 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 get_xattr:
 	err = -ENODATA;  /* == ENOATTR */
 	xattr = __get_xattr(ci, name);
-	if (!xattr) {
-		if (vxattr)
-			err = vxattr->getxattr_cb(ci, value, size);
+	if (!xattr)
 		goto out;
-	}
 
 	err = -ERANGE;
 	if (size && size < xattr->val_len)
