@@ -1297,9 +1297,9 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 		return 0;
 	}
 
-	outb(0x67, (pVBInfo->BaseAddr + 0x12)); /* 3c2 <- 67 ,ynlai */
-
 	XGIRegInit(pVBInfo, xgifb_info->vga_base);
+
+	outb(0x67, pVBInfo->P3c2);
 
 	if (HwDeviceExtension->jChipType < XG20)
 		/* Run XGI_GetVBType before InitTo330Pointer */
