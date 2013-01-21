@@ -80,6 +80,8 @@ struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
 	const struct hda_pcm_stream *stream_analog_capture;
+
+	char stream_name_alt_analog[32]; /* alternative analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_alt_playback;
 	const struct hda_pcm_stream *stream_analog_alt_capture;
 

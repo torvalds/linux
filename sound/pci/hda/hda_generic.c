@@ -4531,9 +4531,12 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		!spec->dyn_adc_switch && !spec->auto_mic;
 	/* Additional Analaog capture for index #2 */
 	if (spec->alt_dac_nid || have_multi_adcs) {
+		fill_pcm_stream_name(spec->stream_name_alt_analog,
+				     sizeof(spec->stream_name_alt_analog),
+			     " Alt Analog", codec->chip_name);
 		codec->num_pcms = 3;
 		info = spec->pcm_rec + 2;
-		info->name = spec->stream_name_analog;
+		info->name = spec->stream_name_alt_analog;
 		if (spec->alt_dac_nid) {
 			p = spec->stream_analog_alt_playback;
 			if (!p)
