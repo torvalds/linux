@@ -219,6 +219,34 @@ struct fb_deferred_io {
 };
 #endif
 
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+struct fb_image32 {
+	__u32 dx;			/* Where to place image */
+	__u32 dy;
+	__u32 width;			/* Size of image */
+	__u32 height;
+	__u32 fg_color;			/* Only used when a mono bitmap */
+	__u32 bg_color;
+	__u8  depth;			/* Depth of the image */
+	const compat_uptr_t data;	/* Pointer to image data */
+	struct fb_cmap32 cmap;		/* color map info */
+};
+
+#define fb_image_from_compat(to, from) \
+	(to).dx       = (from).dx; \
+	(to).dy       = (from).dy; \
+	(to).width    = (from).width; \
+	(to).height   = (from).height; \
+	(to).fg_color = (from).fg_color; \
+	(to).bg_color = (from).bg_color; \
+	(to).depth    = (from).depth; \
+	(to).data     = compat_ptr((from).data); \
+	fb_cmap_from_compat((to).cmap, (from).cmap)
+
+#endif /* CONFIG_COMPAT */
+#endif /* __KERNEL__ */
+
 /*
  * Frame buffer operations
  *
@@ -489,6 +517,9 @@ struct fb_info {
 #define FBINFO_STATE_SUSPENDED	1
 	u32 state;			/* Hardware state i.e suspend */
 	void *fbcon_par;                /* fbcon use-only private area */
+
+	struct fb_image bgdecor;
+
 	/* From here on everything is device dependent */
 	void *par;
 	/* we need the PCI or similar aperture base/size not

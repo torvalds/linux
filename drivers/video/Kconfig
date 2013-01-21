@@ -1229,7 +1229,6 @@ config FB_MATROX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB_TILEBLITTING
 	select FB_MACMODES if PPC_PMAC
 	---help---
 	  Say Y here if you have a Matrox Millennium, Matrox Millennium II,

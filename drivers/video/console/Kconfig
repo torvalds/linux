@@ -124,6 +124,19 @@ config FRAMEBUFFER_CONSOLE_ROTATION
          such that other users of the framebuffer will remain normally
          oriented.
 
+config FB_CON_DECOR
+	bool "Support for the Framebuffer Console Decorations"
+	depends on FRAMEBUFFER_CONSOLE=y && !FB_TILEBLITTING
+	default n
+	---help---
+	  This option enables support for framebuffer console decorations which
+	  makes it possible to display images in the background of the system
+	  consoles.  Note that userspace utilities are necessary in order to take 
+	  advantage of these features. Refer to Documentation/fb/fbcondecor.txt 
+	  for more information.
+
+	  If unsure, say N.
+
 config STI_CONSOLE
         bool "STI text console"
         depends on PARISC

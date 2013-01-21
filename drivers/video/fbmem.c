@@ -1233,15 +1233,6 @@ struct fb_fix_screeninfo32 {
 	u16			reserved[3];
 };
 
-struct fb_cmap32 {
-	u32			start;
-	u32			len;
-	compat_caddr_t	red;
-	compat_caddr_t	green;
-	compat_caddr_t	blue;
-	compat_caddr_t	transp;
-};
-
 static int fb_getput_cmap(struct fb_info *info, unsigned int cmd,
 			  unsigned long arg)
 {
