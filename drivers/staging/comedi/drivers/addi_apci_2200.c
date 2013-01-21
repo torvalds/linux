@@ -84,7 +84,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int ret;
 
 	dev->board_name = dev->driver->driver_name;
 
@@ -94,21 +94,12 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 1);
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
+	/* Initialize the digital input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 8;
@@ -116,8 +107,8 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci2200_di_insn_bits;
 
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
+	/* Initialize the digital output subdevice */
+	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 16;
@@ -125,19 +116,11 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci2200_do_insn_bits;
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
+	/* Initialize the watchdog subdevice */
+	s = &dev->subdevices[2];
 	ret = addi_watchdog_init(s, dev->iobase + APCI2200_WDOG_REG);
 	if (ret)
 		return ret;
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
 
 	apci2200_reset(dev);
 	return 0;
@@ -150,7 +133,7 @@ static void apci2200_detach(struct comedi_device *dev)
 	if (dev->iobase)
 		apci2200_reset(dev);
 	if (dev->subdevices)
-		addi_watchdog_cleanup(&dev->subdevices[4]);
+		addi_watchdog_cleanup(&dev->subdevices[2]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
