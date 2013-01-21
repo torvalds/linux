@@ -48,7 +48,7 @@ static struct ata_port_operations palmld_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 };
 
-static __devinit int palmld_pata_probe(struct platform_device *pdev)
+static int palmld_pata_probe(struct platform_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
@@ -109,7 +109,7 @@ err1:
 	return ret;
 }
 
-static __devexit int palmld_pata_remove(struct platform_device *dev)
+static int palmld_pata_remove(struct platform_device *dev)
 {
 	ata_platform_remove_one(dev);
 
@@ -127,7 +127,7 @@ static struct platform_driver palmld_pata_platform_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe		= palmld_pata_probe,
-	.remove		= __devexit_p(palmld_pata_remove),
+	.remove		= palmld_pata_remove,
 };
 
 module_platform_driver(palmld_pata_platform_driver);

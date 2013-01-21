@@ -2015,7 +2015,7 @@ static struct of_device_id spear1340_pinctrl_of_match[] = {
 	{},
 };
 
-static int __devinit spear1340_pinctrl_probe(struct platform_device *pdev)
+static int spear1340_pinctrl_probe(struct platform_device *pdev)
 {
 	return spear_pinctrl_probe(pdev, &spear1340_machdata);
 }

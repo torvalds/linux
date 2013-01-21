@@ -132,6 +132,11 @@ extern int radeon_lockup_timeout;
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 
+/* reset flags */
+#define RADEON_RESET_GFX			(1 << 0)
+#define RADEON_RESET_COMPUTE			(1 << 1)
+#define RADEON_RESET_DMA			(1 << 2)
+
 /*
  * Errata workarounds.
  */

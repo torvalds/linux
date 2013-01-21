@@ -799,7 +799,7 @@ static int mpc_dma_probe(struct platform_device *op)
 	return retval;
 }
 
-static int __devexit mpc_dma_remove(struct platform_device *op)
+static int mpc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mpc_dma *mdma = dev_get_drvdata(dev);

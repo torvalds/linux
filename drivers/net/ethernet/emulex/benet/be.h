@@ -190,6 +190,7 @@ struct be_eq_obj {
 
 	u8 idx;			/* array index */
 	u16 tx_budget;
+	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
 } ____cacheline_aligned_in_smp;

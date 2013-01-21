@@ -1140,9 +1140,9 @@ static struct radeon_asic rv770_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = &r600_copy_dma,
+		.dma = &rv770_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.copy = &r600_copy_dma,
+		.copy = &rv770_copy_dma,
 		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
 	},
 	.surface = {

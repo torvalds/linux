@@ -66,6 +66,6 @@ struct i2c_driver ddc_driver = {
 	},
 	.id_table	= ddc_idtable,
 	.probe		= s5p_ddc_probe,
-	.remove		= __devexit_p(s5p_ddc_remove),
+	.remove		= s5p_ddc_remove,
 	.command		= NULL,
 };

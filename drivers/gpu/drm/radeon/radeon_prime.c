@@ -194,6 +194,7 @@ struct drm_gem_object *radeon_gem_prime_import(struct drm_device *dev,
 		bo = dma_buf->priv;
 		if (bo->gem_base.dev == dev) {
 			drm_gem_object_reference(&bo->gem_base);
+			dma_buf_put(dma_buf);
 			return &bo->gem_base;
 		}
 	}

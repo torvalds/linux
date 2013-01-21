@@ -897,6 +897,25 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 }
 
 /**
+ * radeon_switcheroo_quirk_long_wakeup - return true if longer d3 delay is
+ * needed for waking up.
+ *
+ * @pdev: pci dev pointer
+ */
+static bool radeon_switcheroo_quirk_long_wakeup(struct pci_dev *pdev)
+{
+
+	/* 6600m in a macbook pro */
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE &&
+	    pdev->subsystem_device == 0x00e2) {
+		printk(KERN_INFO "radeon: quirking longer d3 wakeup delay\n");
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * radeon_switcheroo_set_state - set switcheroo state
  *
  * @pdev: pci dev pointer
@@ -910,10 +929,19 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
+		unsigned d3_delay = dev->pdev->d3_delay;
+
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
+
+		if (d3_delay < 20 && radeon_switcheroo_quirk_long_wakeup(pdev))
+			dev->pdev->d3_delay = 20;
+
 		radeon_resume_kms(dev);
+
+		dev->pdev->d3_delay = d3_delay;
+
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
 	} else {

@@ -1990,7 +1990,7 @@ static int wl1273_fm_radio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit wl1273_fm_radio_probe(struct platform_device *pdev)
+static int wl1273_fm_radio_probe(struct platform_device *pdev)
 {
 	struct wl1273_core **core = pdev->dev.platform_data;
 	struct wl1273_device *radio;
@@ -2145,7 +2145,7 @@ pdata_err:
 
 static struct platform_driver wl1273_fm_radio_driver = {
 	.probe		= wl1273_fm_radio_probe,
-	.remove		= __devexit_p(wl1273_fm_radio_remove),
+	.remove		= wl1273_fm_radio_remove,
 	.driver		= {
 		.name	= "wl1273_fm_radio",
 		.owner	= THIS_MODULE,

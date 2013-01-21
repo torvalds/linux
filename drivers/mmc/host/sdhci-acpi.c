@@ -111,7 +111,7 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid)
 	return NULL;
 }
 
-static int __devinit sdhci_acpi_probe(struct platform_device *pdev)
+static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	acpi_handle handle = ACPI_HANDLE(dev);
@@ -214,7 +214,7 @@ err_free:
 	return err;
 }
 
-static int __devexit sdhci_acpi_remove(struct platform_device *pdev)
+static int sdhci_acpi_remove(struct platform_device *pdev)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -302,7 +302,7 @@ static struct platform_driver sdhci_acpi_driver = {
 		.pm			= &sdhci_acpi_pm_ops,
 	},
 	.probe	= sdhci_acpi_probe,
-	.remove	= __devexit_p(sdhci_acpi_remove),
+	.remove	= sdhci_acpi_remove,
 };
 
 module_platform_driver(sdhci_acpi_driver);

@@ -123,7 +123,7 @@ static const struct of_device_id memc_ids[] = {
 	{}
 };
 
-static int __devinit sirfsoc_memc_probe(struct platform_device *op)
+static int sirfsoc_memc_probe(struct platform_device *op)
 {
 	struct device_node *np = op->dev.of_node;
 

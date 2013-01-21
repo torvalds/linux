@@ -1656,7 +1656,7 @@ static struct ccw_driver tape_3590_driver = {
 	.set_offline = tape_generic_offline,
 	.set_online = tape_3590_online,
 	.freeze = tape_generic_pm_suspend,
-	.int_class = IOINT_TAP,
+	.int_class = IRQIO_TAP,
 };
 
 /*

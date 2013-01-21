@@ -777,7 +777,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timers_active);
  * Called by driver framework at the end of device registration for all
  * timer devices.
  */
-static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
+static int omap_dm_timer_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct omap_dm_timer *timer;
@@ -864,7 +864,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
  * In addition to freeing platform resources it also deletes the timer
  * entry from the local list.
  */
-static int __devexit omap_dm_timer_remove(struct platform_device *pdev)
+static int omap_dm_timer_remove(struct platform_device *pdev)
 {
 	struct omap_dm_timer *timer;
 	unsigned long flags;
@@ -891,7 +891,7 @@ MODULE_DEVICE_TABLE(of, omap_timer_match);
 
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
-	.remove = __devexit_p(omap_dm_timer_remove),
+	.remove = omap_dm_timer_remove,
 	.driver = {
 		.name   = "omap_timer",
 		.of_match_table = of_match_ptr(omap_timer_match),

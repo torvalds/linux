@@ -425,8 +425,8 @@ static void iguanair_close(struct rc_dev *rdev)
 	mutex_unlock(&ir->lock);
 }
 
-static int __devinit iguanair_probe(struct usb_interface *intf,
-						const struct usb_device_id *id)
+static int iguanair_probe(struct usb_interface *intf,
+			  const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct iguanair *ir;
@@ -538,7 +538,7 @@ out:
 	return ret;
 }
 
-static void __devexit iguanair_disconnect(struct usb_interface *intf)
+static void iguanair_disconnect(struct usb_interface *intf)
 {
 	struct iguanair *ir = usb_get_intfdata(intf);
 
@@ -604,7 +604,7 @@ static const struct usb_device_id iguanair_table[] = {
 static struct usb_driver iguanair_driver = {
 	.name =	DRIVER_NAME,
 	.probe = iguanair_probe,
-	.disconnect = __devexit_p(iguanair_disconnect),
+	.disconnect = iguanair_disconnect,
 	.suspend = iguanair_suspend,
 	.resume = iguanair_resume,
 	.reset_resume = iguanair_resume,

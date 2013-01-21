@@ -153,8 +153,8 @@ static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 }
 
 static int fun_chip_init(struct fsl_upm_nand *fun,
-				   const struct device_node *upm_np,
-				   const struct resource *io_res)
+			 const struct device_node *upm_np,
+			 const struct resource *io_res)
 {
 	int ret;
 	struct device_node *flash_np;

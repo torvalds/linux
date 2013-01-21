@@ -686,7 +686,7 @@ static struct pxa3xx_pinmux_info mmp2_info = {
 	.ds_shift	= MMP2_DS_SHIFT,
 };
 
-static int __devinit mmp2_pinmux_probe(struct platform_device *pdev)
+static int mmp2_pinmux_probe(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_register(pdev, &mmp2_info);
 }
