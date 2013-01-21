@@ -108,7 +108,7 @@ static bool drm_hdmi_is_connected(struct device *dev)
 	return false;
 }
 
-struct edid *drm_hdmi_get_edid(struct device *dev,
+static struct edid *drm_hdmi_get_edid(struct device *dev,
 			struct drm_connector *connector)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
