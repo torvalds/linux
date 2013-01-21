@@ -58,7 +58,7 @@ MODULE_PARM_DESC(comedi_debug,
 		);
 #endif
 
-bool comedi_autoconfig = 1;
+bool comedi_autoconfig = true;
 module_param(comedi_autoconfig, bool, S_IRUGO);
 MODULE_PARM_DESC(comedi_autoconfig,
 		 "enable drivers to auto-configure comedi devices (default 1)");
@@ -2437,7 +2437,7 @@ static int __init comedi_init(void)
 	 * comedi_num_legacy_minors are zero, so we might as well adjust the
 	 * defaults in that case
 	 */
-	if (comedi_autoconfig == 0 && comedi_num_legacy_minors == 0)
+	if (!comedi_autoconfig && comedi_num_legacy_minors == 0)
 		comedi_num_legacy_minors = 16;
 
 	memset(comedi_file_info_table, 0,
