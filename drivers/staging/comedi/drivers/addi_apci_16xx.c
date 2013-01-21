@@ -1,9 +1,12 @@
 #include "../comedidev.h"
 #include "comedi_fc.h"
 
-#include "addi-data/addi_common.h"
-
-#include "addi-data/hwdrv_apci16xx.c"
+/*
+ * Register I/O map
+ */
+#define APCI16XX_IN_REG(x)		(((x) * 4) + 0x08)
+#define APCI16XX_OUT_REG(x)		(((x) * 4) + 0x14)
+#define APCI16XX_DIR_REG(x)		(((x) * 4) + 0x20)
 
 struct apci16xx_boardinfo {
 	const char *name;
@@ -17,14 +20,77 @@ static const struct apci16xx_boardinfo apci16xx_boardtypes[] = {
 		.name		= "apci1648",
 		.vendor		= PCI_VENDOR_ID_ADDIDATA,
 		.device		= 0x1009,
-		.n_chan		= 48,
+		.n_chan		= 48,		/* 2 subdevices */
 	}, {
 		.name		= "apci1696",
 		.vendor		= PCI_VENDOR_ID_ADDIDATA,
 		.device		= 0x100A,
-		.n_chan		= 96,
+		.n_chan		= 96,		/* 3 subdevices */
 	},
 };
+
+static int apci16xx_insn_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
+	unsigned int bits;
+
+	/*
+	 * Each 8-bit "port" is configurable as either input or
+	 * output. Changing the configuration of any channel in
+	 * a port changes the entire port.
+	 */
+	if (chan_mask & 0x000000ff)
+		bits = 0x000000ff;
+	else if (chan_mask & 0x0000ff00)
+		bits = 0x0000ff00;
+	else if (chan_mask & 0x00ff0000)
+		bits = 0x00ff0000;
+	else
+		bits = 0xff000000;
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_INPUT : COMEDI_OUTPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+	}
+
+	outl(s->io_bits, dev->iobase + APCI16XX_DIR_REG(s->index));
+
+	return insn->n;
+}
+
+static int apci16xx_dio_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	/* Only update the channels configured as outputs */
+	mask &= s->io_bits;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outl(s->state, dev->iobase + APCI16XX_OUT_REG(s->index));
+	}
+
+	data[1] = inl(dev->iobase + APCI16XX_IN_REG(s->index));
+
+	return insn->n;
+}
 
 static const void *apci16xx_find_boardinfo(struct comedi_device *dev,
 					   struct pci_dev *pcidev)
@@ -46,8 +112,10 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct apci16xx_boardinfo *board;
-	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int n_subdevs;
+	unsigned int last;
+	int i;
 	int ret;
 
 	board = apci16xx_find_boardinfo(dev, pcidev);
@@ -56,34 +124,44 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 0);
 
-	ret = comedi_alloc_subdevices(dev, 1);
+	/*
+	 * Work out the nubmer of subdevices needed to support all the
+	 * digital i/o channels on the board. Each subdevice supports
+	 * up to 32 channels.
+	 */
+	n_subdevs = board->n_chan / 32;
+	if ((n_subdevs * 32) < board->n_chan) {
+		last = board->n_chan - (n_subdevs * 32);
+		n_subdevs++;
+	} else {
+		last = 0;
+	}
+
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret)
 		return ret;
 
-	/* Initialize the TTL digital i/o */
-	s = &dev->subdevices[0];
-	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
-	s->n_chan	= board->n_chan;
-	s->maxdata	= 1;
-	s->io_bits	= 0;	/* all bits input */
-	s->len_chanlist	= board->n_chan;
-	s->range_table	= &range_digital;
-	s->insn_config	= i_APCI16XX_InsnConfigInitTTLIO;
-	s->insn_bits	= i_APCI16XX_InsnBitsReadTTLIO;
-	s->insn_read	= i_APCI16XX_InsnReadTTLIOAllPortValue;
-	s->insn_write	= i_APCI16XX_InsnBitsWriteTTLIO;
+	/* Initialize the TTL digital i/o subdevices */
+	for (i = 0; i < n_subdevs; i++) {
+		s = &dev->subdevices[i];
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
+		s->n_chan	= ((i * 32) < board->n_chan) ? 32 : last;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_config	= apci16xx_insn_config;
+		s->insn_bits	= apci16xx_dio_insn_bits;
+
+		/* Default all channels to inputs */
+		s->io_bits	= 0;
+		outl(s->io_bits, dev->iobase + APCI16XX_DIR_REG(i));
+	}
 
 	return 0;
 }
