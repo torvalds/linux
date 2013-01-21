@@ -33,6 +33,7 @@
  *   interrupts.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
@@ -544,11 +545,10 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.of_node = np;
 
 	spin_lock_init(&mvchip->lock);
-	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (! mvchip->membase) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
+	mvchip->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mvchip->membase)) {
 		kfree(mvchip->chip.label);
-		return -ENOMEM;
+		return PTR_ERR(mvchip->membase);
 	}
 
 	/* The Armada XP has a second range of registers for the
@@ -561,11 +561,11 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		mvchip->percpu_membase = devm_request_and_ioremap(&pdev->dev, res);
-		if (! mvchip->percpu_membase) {
-			dev_err(&pdev->dev, "Cannot ioremap\n");
+		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
+							       res);
+		if (IS_ERR(mvchip->percpu_membase)) {
 			kfree(mvchip->chip.label);
-			return -ENOMEM;
+			return PTR_ERR(mvchip->percpu_membase);
 		}
 	}
 

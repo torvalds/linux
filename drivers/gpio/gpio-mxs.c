@@ -20,6 +20,7 @@
  * MA  02110-1301, USA.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -253,12 +254,14 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 			parent = of_get_parent(np);
 			base = of_iomap(parent, 0);
 			of_node_put(parent);
+			if (!base)
+				return -EADDRNOTAVAIL;
 		} else {
 			iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-			base = devm_request_and_ioremap(&pdev->dev, iores);
+			base = devm_ioremap_resource(&pdev->dev, iores);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
 		}
-		if (!base)
-			return -EADDRNOTAVAIL;
 	}
 	port->base = base;
 

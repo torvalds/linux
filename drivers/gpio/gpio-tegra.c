@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -450,11 +451,9 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!regs) {
-		dev_err(&pdev->dev, "Couldn't ioremap regs\n");
-		return -ENODEV;
-	}
+	regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	for (i = 0; i < tegra_gpio_bank_count; i++) {
 		for (j = 0; j < 4; j++) {
