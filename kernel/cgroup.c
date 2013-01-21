@@ -921,13 +921,17 @@ static void remove_dir(struct dentry *d)
 	dput(parent);
 }
 
-static int cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
+static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 {
 	struct cfent *cfe;
 
 	lockdep_assert_held(&cgrp->dentry->d_inode->i_mutex);
 	lockdep_assert_held(&cgroup_mutex);
 
+	/*
+	 * If we're doing cleanup due to failure of cgroup_create(),
+	 * the corresponding @cfe may not exist.
+	 */
 	list_for_each_entry(cfe, &cgrp->files, node) {
 		struct dentry *d = cfe->dentry;
 
@@ -940,9 +944,8 @@ static int cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 		list_del_init(&cfe->node);
 		dput(d);
 
-		return 0;
+		break;
 	}
-	return -ENOENT;
 }
 
 /**
@@ -2758,14 +2761,14 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgrp->parent)
 			continue;
 
-		if (is_add)
+		if (is_add) {
 			err = cgroup_add_file(cgrp, subsys, cft);
-		else
-			err = cgroup_rm_file(cgrp, cft);
-		if (err) {
-			pr_warning("cgroup_addrm_files: failed to %s %s, err=%d\n",
-				   is_add ? "add" : "remove", cft->name, err);
+			if (err)
+				pr_warn("cgroup_addrm_files: failed to add %s, err=%d\n",
+					cft->name, err);
 			ret = err;
+		} else {
+			cgroup_rm_file(cgrp, cft);
 		}
 	}
 	return ret;
