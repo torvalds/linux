@@ -2,6 +2,7 @@
 #define _LINUX_LINKAGE_H
 
 #include <linux/compiler.h>
+#include <linux/stringify.h>
 #include <asm/linkage.h>
 
 #ifdef __cplusplus
@@ -12,6 +13,26 @@
 
 #ifndef asmlinkage
 #define asmlinkage CPP_ASMLINKAGE
+#endif
+
+#ifndef SYMBOL_NAME
+#ifdef CONFIG_SYMBOL_PREFIX
+#define SYMBOL_NAME(x) CONFIG_SYMBOL_PREFIX ## x
+#else
+#define SYMBOL_NAME(x) x
+#endif
+#endif
+#define __SYMBOL_NAME(x) __stringify(SYMBOL_NAME(x))
+
+#ifndef cond_syscall
+#define cond_syscall(x) asm(".weak\t" __SYMBOL_NAME(x) \
+	"\n\t.set\t" __SYMBOL_NAME(x) "," __SYMBOL_NAME(sys_ni_syscall));
+#endif
+
+#ifndef SYSCALL_ALIAS
+#define SYSCALL_ALIAS(alias, name)				\
+	asm ("\t.globl " __SYMBOL_NAME(alias)			\
+	"\n\t.set\t" __SYMBOL_NAME(alias) "," __SYMBOL_NAME(name))
 #endif
 
 #define __page_aligned_data	__section(.data..page_aligned) __aligned(PAGE_SIZE)

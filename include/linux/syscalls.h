@@ -183,20 +183,6 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 #define SYSCALL_DEFINE5(name, ...) SYSCALL_DEFINEx(5, _##name, __VA_ARGS__)
 #define SYSCALL_DEFINE6(name, ...) SYSCALL_DEFINEx(6, _##name, __VA_ARGS__)
 
-#ifdef CONFIG_PPC64
-#define SYSCALL_ALIAS(alias, name)					\
-	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name "\n"	\
-	     "\t.globl ." #alias "\n\t.set ." #alias ", ." #name)
-#else
-#if defined(CONFIG_ALPHA) || defined(CONFIG_MIPS)
-#define SYSCALL_ALIAS(alias, name)					\
-	asm ( #alias " = " #name "\n\t.globl " #alias)
-#else
-#define SYSCALL_ALIAS(alias, name)					\
-	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name)
-#endif
-#endif
-
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define SYSCALL_DEFINEx(x, sname, ...)				\
 	static const char *types_##sname[] = {			\
