@@ -1348,6 +1348,7 @@ void nf_conntrack_cleanup_end(void)
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	nf_ct_extend_unregister(&nf_ct_zone_extend);
 #endif
+	nf_conntrack_proto_fini();
 	nf_conntrack_labels_fini();
 	nf_conntrack_helper_fini();
 	nf_conntrack_timeout_fini();
@@ -1378,7 +1379,7 @@ void nf_conntrack_cleanup_net(struct net *net)
 	}
 
 	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
-	nf_conntrack_proto_fini(net);
+	nf_conntrack_proto_pernet_fini(net);
 	nf_conntrack_helper_pernet_fini(net);
 	nf_conntrack_ecache_pernet_fini(net);
 	nf_conntrack_tstamp_pernet_fini(net);
@@ -1540,6 +1541,10 @@ int nf_conntrack_init_start(void)
 	if (ret < 0)
 		goto err_extend;
 #endif
+	ret = nf_conntrack_proto_init();
+	if (ret < 0)
+		goto err_proto;
+
 	/* Set up fake conntrack: to never be deleted, not in any hashes */
 	for_each_possible_cpu(cpu) {
 		struct nf_conn *ct = &per_cpu(nf_conntrack_untracked, cpu);
@@ -1550,10 +1555,12 @@ int nf_conntrack_init_start(void)
 	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
 	return 0;
 
+err_proto:
 #ifdef CONFIG_NF_CONNTRACK_ZONES
+	nf_ct_extend_unregister(&nf_ct_zone_extend);
 err_extend:
-	nf_conntrack_labels_fini();
 #endif
+	nf_conntrack_labels_fini();
 err_labels:
 	nf_conntrack_helper_fini();
 err_helper:
@@ -1638,7 +1645,7 @@ int nf_conntrack_init_net(struct net *net)
 	ret = nf_conntrack_helper_pernet_init(net);
 	if (ret < 0)
 		goto err_helper;
-	ret = nf_conntrack_proto_init(net);
+	ret = nf_conntrack_proto_pernet_init(net);
 	if (ret < 0)
 		goto err_proto;
 	return 0;
