@@ -7,6 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -115,9 +116,9 @@ static int __init tx4939_rng_probe(struct platform_device *dev)
 	rngdev = devm_kzalloc(&dev->dev, sizeof(*rngdev), GFP_KERNEL);
 	if (!rngdev)
 		return -ENOMEM;
-	rngdev->base = devm_request_and_ioremap(&dev->dev, r);
-	if (!rngdev->base)
-		return -EBUSY;
+	rngdev->base = devm_ioremap_resource(&dev->dev, r);
+	if (IS_ERR(rngdev->base))
+		return PTR_ERR(rngdev->base);
 
 	rngdev->rng.name = dev_name(&dev->dev);
 	rngdev->rng.data_present = tx4939_rng_data_present;
