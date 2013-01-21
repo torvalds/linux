@@ -538,7 +538,7 @@ struct device_info {
 	int port_num;
 };
 
-static int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
+int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;
 	uint32_t dev_part, dev_part1, dev_part2;
