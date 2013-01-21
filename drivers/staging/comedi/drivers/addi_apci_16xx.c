@@ -30,7 +30,6 @@
  */
 
 #include "../comedidev.h"
-#include "comedi_fc.h"
 
 /*
  * Register I/O map
