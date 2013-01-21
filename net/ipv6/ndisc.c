@@ -143,17 +143,12 @@ struct neigh_table nd_tbl = {
 	.gc_thresh3 =	1024,
 };
 
-static inline int ndisc_opt_addr_space(struct net_device *dev)
-{
-	return NDISC_OPT_SPACE(dev->addr_len + ndisc_addr_option_pad(dev->type));
-}
-
 static u8 *ndisc_fill_addr_option(u8 *opt, int type, void *data,
 				  struct net_device *dev)
 {
 	int pad   = ndisc_addr_option_pad(dev->type);
 	int data_len = dev->addr_len;
-	int space = NDISC_OPT_SPACE(data_len + pad);
+	int space = ndisc_opt_addr_space(dev);
 
 	opt[0] = type;
 	opt[1] = space>>3;
