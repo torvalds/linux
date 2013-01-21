@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/cpu-freq.c
- *
+/*
  * Copyright (c) 2006-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -81,7 +80,7 @@ static int s3c2410_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 	cfg->divs.p_divisor = pdiv;
 	cfg->divs.h_divisor = hdiv;
 
-	return 0      ;
+	return 0;
 }
 
 static struct s3c_cpufreq_info s3c2410_cpufreq_info = {
@@ -131,7 +130,6 @@ static int __init s3c2410_cpufreq_init(void)
 {
 	return subsys_interface_register(&s3c2410_cpufreq_interface);
 }
-
 arch_initcall(s3c2410_cpufreq_init);
 
 static int s3c2410a_cpufreq_add(struct device *dev,
@@ -159,5 +157,4 @@ static int __init s3c2410a_cpufreq_init(void)
 {
 	return subsys_interface_register(&s3c2410a_cpufreq_interface);
 }
-
 arch_initcall(s3c2410a_cpufreq_init);

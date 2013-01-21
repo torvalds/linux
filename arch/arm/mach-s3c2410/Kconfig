@@ -4,13 +4,6 @@
 
 # cpu frequency scaling support
 
-config S3C2410_CPUFREQ
-	bool
-	depends on CPU_FREQ_S3C24XX && CPU_S3C2410
-	select S3C2410_CPUFREQ_UTILS
-	help
-	  CPU Frequency scaling support for S3C2410
-
 config S3C2410_PLLTABLE
 	bool
 	depends on S3C2410_CPUFREQ && CPU_FREQ_S3C24XX_PLL
