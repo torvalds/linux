@@ -31,8 +31,6 @@
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 
-#define ARIZONA_DEFAULT_HP 32
-
 #define ARIZONA_NUM_BUTTONS 6
 
 #define ARIZONA_ACCDET_MODE_MIC 0
@@ -208,7 +206,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		if (!(val & ARIZONA_HP_DONE)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
 				val);
-			val = ARIZONA_DEFAULT_HP;
+			return -EAGAIN;
 		}
 
 		val &= ARIZONA_HP_LVL_MASK;
@@ -218,14 +216,14 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		if (!(val & ARIZONA_HP_DONE_B)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
 				val);
-			return ARIZONA_DEFAULT_HP;
+			return -EAGAIN;
 		}
 
 		ret = regmap_read(arizona->regmap, ARIZONA_HP_DACVAL, &val);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to read HP value: %d\n",
 				ret);
-			return ARIZONA_DEFAULT_HP;
+			return -EAGAIN;
 		}
 
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
@@ -267,7 +265,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		if (!(val & ARIZONA_HP_DONE_B)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
 				val);
-			return ARIZONA_DEFAULT_HP;
+			return -EAGAIN;
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
