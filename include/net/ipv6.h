@@ -661,13 +661,6 @@ extern int			ip6_xmit(struct sock *sk,
 					 struct ipv6_txoptions *opt,
 					 int tclass);
 
-extern int			ip6_nd_hdr(struct sock *sk,
-					   struct sk_buff *skb,
-					   struct net_device *dev,
-					   const struct in6_addr *saddr,
-					   const struct in6_addr *daddr,
-					   int proto, int len);
-
 extern int			ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 
 extern int			ip6_append_data(struct sock *sk,
