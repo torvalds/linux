@@ -424,7 +424,11 @@ next_step:
 }
 
 /*
- * Calculate start block index that this node page contains
+ * Calculate start block index indicating the given node offset.
+ * Be careful, caller should give this node offset only indicating direct node
+ * blocks. If any node offsets, which point the other types of node blocks such
+ * as indirect or double indirect node blocks, are given, it must be a caller's
+ * bug.
  */
 block_t start_bidx_of_node(unsigned int node_ofs)
 {
