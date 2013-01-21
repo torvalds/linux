@@ -136,6 +136,7 @@
 #define RESPONSE_QUEUE_DEPTH		64
 #define QUEUE_SIZE			64
 #define DMA_BUFFER_SIZE			512
+#define IOCB_HIWAT_CUSHION		4
 
 /*
  * Misc
@@ -540,6 +541,7 @@ struct scsi_qla_host {
 	uint32_t tot_ddbs;
 
 	uint16_t iocb_cnt;
+	uint16_t iocb_hiwat;
 
 	/* SRB cache. */
 #define SRB_MIN_REQ	128

@@ -697,8 +697,24 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		return QLA_ERROR;
 	}
 
-	ql4_printk(KERN_INFO, ha, "%ld firmware IOCBs available (%d).\n",
-	    ha->host_no, mbox_sts[2]);
+	/* High-water mark of IOCBs */
+	ha->iocb_hiwat = mbox_sts[2];
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: firmware IOCBs available = %d\n", __func__,
+			  ha->iocb_hiwat));
+
+	if (ha->iocb_hiwat > IOCB_HIWAT_CUSHION)
+		ha->iocb_hiwat -= IOCB_HIWAT_CUSHION;
+
+	/* Ideally, we should not enter this code, as the # of firmware
+	 * IOCBs is hard-coded in the firmware. We set a default
+	 * iocb_hiwat here just in case */
+	if (ha->iocb_hiwat == 0) {
+		ha->iocb_hiwat = REQUEST_QUEUE_DEPTH / 4;
+		DEBUG2(ql4_printk(KERN_WARNING, ha,
+				  "%s: Setting IOCB's to = %d\n", __func__,
+				  ha->iocb_hiwat));
+	}
 
 	return QLA_SUCCESS;
 }
