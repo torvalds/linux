@@ -654,7 +654,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req->mp_resp_bd = dma_alloc_coherent(&hba->pcidev->dev, sz,
 						 &mp_req->mp_resp_bd_dma,
 						 GFP_ATOMIC);
-	if (!mp_req->mp_req_bd) {
+	if (!mp_req->mp_resp_bd) {
 		printk(KERN_ERR PFX "unable to alloc MP resp bd\n");
 		bnx2fc_free_mp_resc(io_req);
 		return FAILED;
