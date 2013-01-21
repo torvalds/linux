@@ -1414,6 +1414,16 @@ static struct kobj_attribute dump_type_attr =
 
 static struct kset *dump_kset;
 
+static void diag308_dump(void *dump_block)
+{
+	diag308(DIAG308_SET, dump_block);
+	while (1) {
+		if (diag308(DIAG308_DUMP, NULL) != 0x302)
+			break;
+		udelay_simple(USEC_PER_SEC);
+	}
+}
+
 static void __dump_run(void *unused)
 {
 	struct ccw_dev_id devid;
@@ -1432,12 +1442,10 @@ static void __dump_run(void *unused)
 		__cpcmd(buf, NULL, 0, NULL);
 		break;
 	case DUMP_METHOD_CCW_DIAG:
-		diag308(DIAG308_SET, dump_block_ccw);
-		diag308(DIAG308_DUMP, NULL);
+		diag308_dump(dump_block_ccw);
 		break;
 	case DUMP_METHOD_FCP_DIAG:
-		diag308(DIAG308_SET, dump_block_fcp);
-		diag308(DIAG308_DUMP, NULL);
+		diag308_dump(dump_block_fcp);
 		break;
 	default:
 		break;
