@@ -7978,14 +7978,9 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	BUG_ON(!set->crtc);
 	BUG_ON(!set->crtc->helper_private);
 
-	if (!set->mode)
-		set->fb = NULL;
-
-	/* The fb helper likes to play gross jokes with ->mode_set_config.
-	 * Unfortunately the crtc helper doesn't do much at all for this case,
-	 * so we have to cope with this madness until the fb helper is fixed up. */
-	if (set->fb && set->num_connectors == 0)
-		return 0;
+	/* Enforce sane interface api - has been abused by the fb helper. */
+	BUG_ON(!set->mode && set->fb);
+	BUG_ON(set->fb && set->num_connectors == 0);
 
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",

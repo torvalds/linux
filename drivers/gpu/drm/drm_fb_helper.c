@@ -689,7 +689,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct fb_var_screeninfo *var = &info->var;
-	struct drm_crtc *crtc;
 	int ret;
 	int i;
 
@@ -700,7 +699,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 	drm_modeset_lock_all(dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 		ret = drm_mode_set_config_internal(&fb_helper->crtc_info[i].mode_set);
 		if (ret) {
 			drm_modeset_unlock_all(dev);
@@ -841,9 +839,17 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	info = fb_helper->fbdev;
 
-	/* set the fb pointer */
+	/*
+	 * Set the fb pointer - usually drm_setup_crtcs does this for hotplug
+	 * events, but at init time drm_setup_crtcs needs to be called before
+	 * the fb is allocated (since we need to figure out the desired size of
+	 * the fb before we can allocate it ...). Hence we need to fix things up
+	 * here again.
+	 */
 	for (i = 0; i < fb_helper->crtc_count; i++)
-		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
+		if (fb_helper->crtc_info[i].mode_set.num_connectors)
+			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
+
 
 	if (new_fb) {
 		info->var.pixclock = 0;
@@ -1314,6 +1320,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		modeset = &fb_helper->crtc_info[i].mode_set;
 		modeset->num_connectors = 0;
+		modeset->fb = NULL;
 	}
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -1330,9 +1337,21 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
 			modeset->connectors[modeset->num_connectors++] = fb_helper->connector_info[i]->connector;
+			modeset->fb = fb_helper->fb;
 		}
 	}
 
+	/* Clear out any old modes if there are no more connected outputs. */
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		modeset = &fb_helper->crtc_info[i].mode_set;
+		if (modeset->num_connectors == 0) {
+			BUG_ON(modeset->fb);
+			BUG_ON(modeset->num_connectors);
+			if (modeset->mode)
+				drm_mode_destroy(dev, modeset->mode);
+			modeset->mode = NULL;
+		}
+	}
 out:
 	kfree(crtcs);
 	kfree(modes);
