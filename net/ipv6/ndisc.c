@@ -465,8 +465,7 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 
 static void ndisc_send_skb(struct sk_buff *skb,
 			   const struct in6_addr *daddr,
-			   const struct in6_addr *saddr,
-			   struct icmp6hdr *icmp6h)
+			   const struct in6_addr *saddr)
 {
 	struct flowi6 fl6;
 	struct dst_entry *dst;
@@ -474,6 +473,7 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	struct sock *sk = net->ipv6.ndisc_sk;
 	struct inet6_dev *idev;
 	int err;
+	struct icmp6hdr *icmp6h = icmp6_hdr(skb);
 	u8 type;
 
 	type = icmp6h->icmp6_type;
@@ -516,7 +516,7 @@ static void __ndisc_send(struct net_device *dev,
 	if (!skb)
 		return;
 
-	ndisc_send_skb(skb, daddr, saddr, icmp6h);
+	ndisc_send_skb(skb, daddr, saddr);
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
