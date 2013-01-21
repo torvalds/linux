@@ -806,7 +806,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			    " removed\n",  ha->host_no, mbox_sts[0]));
 			break;
 
-		case MBOX_ASTS_IDC_NOTIFY:
+		case MBOX_ASTS_IDC_REQUEST_NOTIFICATION:
 		{
 			uint32_t opcode;
 			if (is_qla8032(ha)) {
