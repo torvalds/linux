@@ -239,9 +239,7 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, freq_table);
 }
 
-uint32_t ddr_set_rate(uint32_t nMHz);
-
-int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
+static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
 {
 	#if defined (CONFIG_DDR_FREQ)
 	ddr_set_rate(rate/(1000*1000));
