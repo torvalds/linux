@@ -420,8 +420,6 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 				       const struct in6_addr *target,
 				       int llinfo)
 {
-	struct net *net = dev_net(dev);
-	struct sock *sk = net->ipv6.ndisc_sk;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
 	int len;
@@ -453,13 +451,6 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (llinfo)
 		ndisc_fill_addr_option(skb, llinfo, dev->dev_addr);
 
-	hdr->icmp6_cksum = csum_ipv6_magic(saddr, daddr, skb->len,
-					   IPPROTO_ICMPV6,
-					   csum_partial(hdr,
-							skb->len, 0));
-
-	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, skb->len);
-
 	return skb;
 }
 
@@ -469,6 +460,7 @@ static void ndisc_send_skb(struct sk_buff *skb,
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net *net = dev_net(skb->dev);
+	struct sock *sk = net->ipv6.ndisc_sk;
 	struct inet6_dev *idev;
 	int err;
 	struct icmp6hdr *icmp6h = icmp6_hdr(skb);
@@ -489,6 +481,13 @@ static void ndisc_send_skb(struct sk_buff *skb,
 
 		skb_dst_set(skb, dst);
 	}
+
+	icmp6h->icmp6_cksum = csum_ipv6_magic(saddr, daddr, skb->len,
+					      IPPROTO_ICMPV6,
+					      csum_partial(icmp6h,
+							   skb->len, 0));
+
+	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, skb->len);
 
 	rcu_read_lock();
 	idev = __in6_dev_get(dst->dev);
@@ -1507,13 +1506,6 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 
 	if (rd_len)
 		ndisc_fill_redirect_hdr_option(buff, skb, rd_len);
-
-	msg->icmph.icmp6_cksum = csum_ipv6_magic(&saddr_buf, &ipv6_hdr(skb)->saddr,
-						 buff->len, IPPROTO_ICMPV6,
-						 csum_partial(msg, buff->len, 0));
-
-	ip6_nd_hdr(buff, &saddr_buf, &ipv6_hdr(skb)->saddr,
-		   inet6_sk(sk)->hop_limit, buff->len);
 
 	skb_dst_set(buff, dst);
 	ndisc_send_skb(buff, &ipv6_hdr(skb)->saddr, &saddr_buf);
