@@ -713,11 +713,9 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (dev->regs == NULL) {
-			dev_err(&pdev->dev, "Failed to obtain io memory\n");
-			return -ENOENT;
-	}
+	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs))
+		return PTR_ERR(dev->regs);
 
 	dev->clk = clk_get(&pdev->dev, "sclk_fimg2d");
 	if (IS_ERR(dev->clk)) {

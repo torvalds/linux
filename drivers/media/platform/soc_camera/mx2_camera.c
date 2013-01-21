@@ -1444,9 +1444,9 @@ static int mx27_camera_emma_init(struct platform_device *pdev)
 		goto out;
 	}
 
-	pcdev->base_emma = devm_request_and_ioremap(pcdev->dev, res_emma);
-	if (!pcdev->base_emma) {
-		err = -EADDRNOTAVAIL;
+	pcdev->base_emma = devm_ioremap_resource(pcdev->dev, res_emma);
+	if (IS_ERR(pcdev->base_emma)) {
+		err = PTR_ERR(pcdev->base_emma);
 		goto out;
 	}
 
@@ -1547,9 +1547,9 @@ static int mx2_camera_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pcdev->discard);
 	spin_lock_init(&pcdev->lock);
 
-	pcdev->base_csi = devm_request_and_ioremap(&pdev->dev, res_csi);
-	if (!pcdev->base_csi) {
-		err = -EADDRNOTAVAIL;
+	pcdev->base_csi = devm_ioremap_resource(&pdev->dev, res_csi);
+	if (IS_ERR(pcdev->base_csi)) {
+		err = PTR_ERR(pcdev->base_csi);
 		goto exit;
 	}
 

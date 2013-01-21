@@ -434,11 +434,9 @@ static int s3c_camif_probe(struct platform_device *pdev)
 
 	mres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	camif->io_base = devm_request_and_ioremap(dev, mres);
-	if (!camif->io_base) {
-		dev_err(dev, "failed to obtain I/O memory\n");
-		return -ENOENT;
-	}
+	camif->io_base = devm_ioremap_resource(dev, mres);
+	if (IS_ERR(camif->io_base))
+		return PTR_ERR(camif->io_base);
 
 	ret = camif_request_irqs(pdev, camif);
 	if (ret < 0)

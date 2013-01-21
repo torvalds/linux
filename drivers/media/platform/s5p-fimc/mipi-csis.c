@@ -733,11 +733,9 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	state->regs = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (state->regs == NULL) {
-		dev_err(&pdev->dev, "Failed to request and remap io memory\n");
-		return -ENXIO;
-	}
+	state->regs = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(state->regs))
+		return PTR_ERR(state->regs);
 
 	state->irq = platform_get_irq(pdev, 0);
 	if (state->irq < 0) {

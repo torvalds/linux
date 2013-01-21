@@ -1099,11 +1099,9 @@ static int gsc_probe(struct platform_device *pdev)
 	gsc->clock = ERR_PTR(-EINVAL);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gsc->regs = devm_request_and_ioremap(dev, res);
-	if (!gsc->regs) {
-		dev_err(dev, "failed to map registers\n");
-		return -ENOENT;
-	}
+	gsc->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(gsc->regs))
+		return PTR_ERR(gsc->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
