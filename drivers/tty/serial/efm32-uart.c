@@ -81,6 +81,7 @@ struct efm32_uart_port {
 	struct uart_port port;
 	unsigned int txirq;
 	struct clk *clk;
+	struct efm32_uart_pdata pdata;
 };
 #define to_efm_port(_port) container_of(_port, struct efm32_uart_port, port)
 #define efm_debug(efm_port, format, arg...)			\
@@ -293,12 +294,7 @@ static irqreturn_t efm32_uart_txirq(int irq, void *data)
 static int efm32_uart_startup(struct uart_port *port)
 {
 	struct efm32_uart_port *efm_port = to_efm_port(port);
-	u32 location = 0;
-	struct efm32_uart_pdata *pdata = dev_get_platdata(port->dev);
 	int ret;
-
-	if (pdata)
-		location = UARTn_ROUTE_LOCATION(pdata->location);
 
 	ret = clk_enable(efm_port->clk);
 	if (ret) {
@@ -308,7 +304,9 @@ static int efm32_uart_startup(struct uart_port *port)
 	port->uartclk = clk_get_rate(efm_port->clk);
 
 	/* Enable pins at configured location */
-	efm32_uart_write32(efm_port, location | UARTn_ROUTE_RXPEN | UARTn_ROUTE_TXPEN,
+	efm32_uart_write32(efm_port,
+			UARTn_ROUTE_LOCATION(efm_port->pdata.location) |
+			UARTn_ROUTE_RXPEN | UARTn_ROUTE_TXPEN,
 			UARTn_ROUTE);
 
 	ret = request_irq(port->irq, efm32_uart_rxirq, 0,
@@ -667,10 +665,23 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 		struct efm32_uart_port *efm_port)
 {
 	struct device_node *np = pdev->dev.of_node;
+	u32 location;
 	int ret;
 
 	if (!np)
 		return 1;
+
+	ret = of_property_read_u32(np, "location", &location);
+	if (!ret) {
+		if (location > 5) {
+			dev_err(&pdev->dev, "invalid location\n");
+			return -EINVAL;
+		}
+		efm_debug(efm_port, "using location %u\n", location);
+		efm_port->pdata.location = location;
+	} else {
+		efm_debug(efm_port, "fall back to location 0\n");
+	}
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
@@ -731,9 +742,15 @@ static int efm32_uart_probe(struct platform_device *pdev)
 	efm_port->port.flags = UPF_BOOT_AUTOCONF;
 
 	ret = efm32_uart_probe_dt(pdev, efm_port);
-	if (ret > 0)
+	if (ret > 0) {
 		/* not created by device tree */
+		const struct efm32_uart_pdata *pdata = dev_get_platdata(&pdev->dev);
+
 		efm_port->port.line = pdev->id;
+
+		if (pdata)
+			efm_port->pdata = *pdata;
+	}
 
 	if (efm_port->port.line >= 0 &&
 			efm_port->port.line < ARRAY_SIZE(efm32_uart_ports))
