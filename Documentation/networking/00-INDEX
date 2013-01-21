@@ -126,8 +126,6 @@ ltpc.txt
 	- the Apple or Farallon LocalTalk PC card driver
 mac80211-injection.txt
 	- HOWTO use packet injection with mac80211
-multicast.txt
-	- Behaviour of cards under Multicast
 multiqueue.txt
 	- HOWTO for multiqueue network device support.
 netconsole.txt
