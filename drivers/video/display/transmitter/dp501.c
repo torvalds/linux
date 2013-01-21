@@ -184,16 +184,26 @@ static const struct file_operations edp_reg_fops = {
 	.release	= single_release,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 static void dp501_early_suspend(struct early_suspend *h)
 {
+	struct dp501 *dp501 = container_of(h, struct dp501, early_suspend);
+	gpio_set_value(dp501->pdata->dvdd33_en_pin,!dp501->pdata->dvdd33_en_val);
+	gpio_set_value(dp501->pdata->dvdd18_en_pin,!dp501->pdata->dvdd18_en_val);
 	
 }
 
 static void dp501_late_resume(struct early_suspend *h)
 {
-
+	struct dp501 *dp501 = container_of(h, struct dp501, early_suspend);
+	gpio_set_value(dp501->pdata->dvdd33_en_pin,dp501->pdata->dvdd33_en_val);
+	gpio_set_value(dp501->pdata->dvdd18_en_pin,dp501->pdata->dvdd18_en_val);
+	gpio_set_value(dp501->pdata->edp_rst_pin,0);
+	msleep(10);
+	gpio_set_value(dp501->pdata->edp_rst_pin,1);
+	dp501->edp_init(dp501->client);
 }
-
+#endif
 static int dp501_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
