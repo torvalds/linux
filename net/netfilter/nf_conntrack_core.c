@@ -1334,8 +1334,14 @@ static int untrack_refs(void)
 	return cnt;
 }
 
-static void nf_conntrack_cleanup_init_net(void)
+void nf_conntrack_cleanup_start(void)
 {
+	RCU_INIT_POINTER(ip_ct_attach, NULL);
+}
+
+void nf_conntrack_cleanup_end(void)
+{
+	RCU_INIT_POINTER(nf_ct_destroy, NULL);
 	while (untrack_refs() > 0)
 		schedule();
 
@@ -1344,8 +1350,18 @@ static void nf_conntrack_cleanup_init_net(void)
 #endif
 }
 
-static void nf_conntrack_cleanup_net(struct net *net)
+/*
+ * Mishearing the voices in his head, our hero wonders how he's
+ * supposed to kill the mall.
+ */
+void nf_conntrack_cleanup_net(struct net *net)
 {
+	/*
+	 * This makes sure all current packets have passed through
+	 *  netfilter framework.  Roll on, two-stage module
+	 *  delete...
+	 */
+	synchronize_net();
  i_see_dead_people:
 	nf_ct_iterate_cleanup(net, kill_all, NULL);
 	nf_ct_release_dying_list(net);
@@ -1355,6 +1371,7 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	}
 
 	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
+	nf_conntrack_proto_fini(net);
 	nf_conntrack_labels_fini(net);
 	nf_conntrack_helper_fini(net);
 	nf_conntrack_timeout_fini(net);
@@ -1365,27 +1382,6 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
 	kfree(net->ct.slabname);
 	free_percpu(net->ct.stat);
-}
-
-/* Mishearing the voices in his head, our hero wonders how he's
-   supposed to kill the mall. */
-void nf_conntrack_cleanup(struct net *net)
-{
-	if (net_eq(net, &init_net))
-		RCU_INIT_POINTER(ip_ct_attach, NULL);
-
-	/* This makes sure all current packets have passed through
-	   netfilter framework.  Roll on, two-stage module
-	   delete... */
-	synchronize_net();
-	nf_conntrack_proto_fini(net);
-	nf_conntrack_cleanup_net(net);
-}
-
-void nf_conntrack_cleanup_end(void)
-{
-	RCU_INIT_POINTER(nf_ct_destroy, NULL);
-	nf_conntrack_cleanup_init_net();
 }
 
 void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
@@ -1478,7 +1474,7 @@ void nf_ct_untracked_status_or(unsigned long bits)
 }
 EXPORT_SYMBOL_GPL(nf_ct_untracked_status_or);
 
-static int nf_conntrack_init_init_net(void)
+int nf_conntrack_init_start(void)
 {
 	int max_factor = 8;
 	int ret, cpu;
@@ -1526,6 +1522,16 @@ err_extend:
 	return ret;
 }
 
+void nf_conntrack_init_end(void)
+{
+	/* For use by REJECT target */
+	RCU_INIT_POINTER(ip_ct_attach, nf_conntrack_attach);
+	RCU_INIT_POINTER(nf_ct_destroy, destroy_conntrack);
+
+	/* Howto get NAT offsets */
+	RCU_INIT_POINTER(nf_ct_nat_offset, NULL);
+}
+
 /*
  * We need to use special "null" values, not used in hash table
  */
@@ -1533,7 +1539,7 @@ err_extend:
 #define DYING_NULLS_VAL		((1<<30)+1)
 #define TEMPLATE_NULLS_VAL	((1<<30)+2)
 
-static int nf_conntrack_init_net(struct net *net)
+int nf_conntrack_init_net(struct net *net)
 {
 	int ret;
 
@@ -1592,8 +1598,13 @@ static int nf_conntrack_init_net(struct net *net)
 	if (ret < 0)
 		goto err_labels;
 
+	ret = nf_conntrack_proto_init(net);
+	if (ret < 0)
+		goto err_proto;
 	return 0;
 
+err_proto:
+	nf_conntrack_labels_fini(net);
 err_labels:
 	nf_conntrack_helper_fini(net);
 err_helper:
@@ -1622,38 +1633,3 @@ s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			enum ip_conntrack_dir dir,
 			u32 seq);
 EXPORT_SYMBOL_GPL(nf_ct_nat_offset);
-
-int nf_conntrack_init(struct net *net)
-{
-	int ret;
-
-	if (net_eq(net, &init_net)) {
-		ret = nf_conntrack_init_init_net();
-		if (ret < 0)
-			goto out_init_net;
-	}
-	ret = nf_conntrack_proto_init(net);
-	if (ret < 0)
-		goto out_proto;
-	ret = nf_conntrack_init_net(net);
-	if (ret < 0)
-		goto out_net;
-
-	if (net_eq(net, &init_net)) {
-		/* For use by REJECT target */
-		RCU_INIT_POINTER(ip_ct_attach, nf_conntrack_attach);
-		RCU_INIT_POINTER(nf_ct_destroy, destroy_conntrack);
-
-		/* Howto get NAT offsets */
-		RCU_INIT_POINTER(nf_ct_nat_offset, NULL);
-	}
-	return 0;
-
-out_net:
-	nf_conntrack_proto_fini(net);
-out_proto:
-	if (net_eq(net, &init_net))
-		nf_conntrack_cleanup_init_net();
-out_init_net:
-	return ret;
-}
