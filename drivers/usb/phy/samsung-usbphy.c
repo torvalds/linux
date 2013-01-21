@@ -769,7 +769,7 @@ static inline const struct samsung_usbphy_drvdata
 				platform_get_device_id(pdev)->driver_data;
 }
 
-static int __devinit samsung_usbphy_probe(struct platform_device *pdev)
+static int samsung_usbphy_probe(struct platform_device *pdev)
 {
 	struct samsung_usbphy *sphy;
 	struct usb_otg *otg;
@@ -847,7 +847,7 @@ static int __devinit samsung_usbphy_probe(struct platform_device *pdev)
 	return usb_add_phy(&sphy->phy, USB_PHY_TYPE_USB2);
 }
 
-static int __exit samsung_usbphy_remove(struct platform_device *pdev)
+static int samsung_usbphy_remove(struct platform_device *pdev)
 {
 	struct samsung_usbphy *sphy = platform_get_drvdata(pdev);
 
@@ -913,7 +913,7 @@ MODULE_DEVICE_TABLE(platform, samsung_usbphy_driver_ids);
 
 static struct platform_driver samsung_usbphy_driver = {
 	.probe		= samsung_usbphy_probe,
-	.remove		= __devexit_p(samsung_usbphy_remove),
+	.remove		= samsung_usbphy_remove,
 	.id_table	= samsung_usbphy_driver_ids,
 	.driver		= {
 		.name	= "samsung-usbphy",
