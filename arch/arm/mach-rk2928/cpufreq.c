@@ -31,6 +31,7 @@
 #include <linux/earlysuspend.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
+#include <mach/ddr.h>
 #ifdef DEBUG
 #define FREQ_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args)
 #define FREQ_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
