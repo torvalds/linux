@@ -117,7 +117,7 @@ void __ptrace_unlink(struct task_struct *child)
 	 * TASK_KILLABLE sleeps.
 	 */
 	if (child->jobctl & JOBCTL_STOP_PENDING || task_is_traced(child))
-		signal_wake_up(child, task_is_traced(child));
+		ptrace_signal_wake_up(child, true);
 
 	spin_unlock(&child->sighand->siglock);
 }
@@ -311,7 +311,7 @@ static int ptrace_attach(struct task_struct *task, long request,
 	 */
 	if (task_is_stopped(task) &&
 	    task_set_jobctl_pending(task, JOBCTL_TRAP_STOP | JOBCTL_TRAPPING))
-		signal_wake_up(task, 1);
+		signal_wake_up_state(task, __TASK_STOPPED);
 
 	spin_unlock(&task->sighand->siglock);
 
@@ -728,7 +728,7 @@ int ptrace_request(struct task_struct *child, long request,
 		 * tracee into STOP.
 		 */
 		if (likely(task_set_jobctl_pending(child, JOBCTL_TRAP_STOP)))
-			signal_wake_up(child, child->jobctl & JOBCTL_LISTENING);
+			ptrace_signal_wake_up(child, child->jobctl & JOBCTL_LISTENING);
 
 		unlock_task_sighand(child, &flags);
 		ret = 0;
@@ -754,7 +754,7 @@ int ptrace_request(struct task_struct *child, long request,
 			 * start of this trap and now.  Trigger re-trap.
 			 */
 			if (child->jobctl & JOBCTL_TRAP_NOTIFY)
-				signal_wake_up(child, true);
+				ptrace_signal_wake_up(child, true);
 			ret = 0;
 		}
 		unlock_task_sighand(child, &flags);
