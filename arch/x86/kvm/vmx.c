@@ -4035,9 +4035,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	ret = 0;
 
-	/* HACK: Don't enable emulation on guest boot/reset */
-	vmx->emulation_required = 0;
-
 	return ret;
 }
 
