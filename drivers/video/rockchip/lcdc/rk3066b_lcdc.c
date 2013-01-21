@@ -72,7 +72,8 @@ static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
    	}
 	clk_enable(lcdc_dev->pd);
 	clk_enable(lcdc_dev->hclk);  //enable aclk and hclk for register config
-	clk_enable(lcdc_dev->aclk);  
+	clk_enable(lcdc_dev->aclk);
+	clk_enable(lcdc_dev->dclk);
 	lcdc_dev->clk_on = 1;
 
 	if(lcdc_dev->id == 1) //iomux for lcdc1
@@ -254,7 +255,7 @@ static int rk3066b_load_screen(struct rk_lcdc_device_driver *dev_drv, bool inits
         	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
 	}
     	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
-	clk_enable(lcdc_dev->dclk);
+	
 	
 	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
 		(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
