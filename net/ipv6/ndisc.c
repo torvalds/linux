@@ -389,11 +389,10 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 	return skb;
 }
 
-static void ip6_nd_hdr(struct sock *sk,
-		       struct sk_buff *skb, struct net_device *dev,
+static void ip6_nd_hdr(struct sk_buff *skb, struct net_device *dev,
 		       const struct in6_addr *saddr,
 		       const struct in6_addr *daddr,
-		       int proto, int len)
+		       int hop_limit, int len)
 {
 	struct ipv6hdr *hdr;
 
@@ -407,8 +406,8 @@ static void ip6_nd_hdr(struct sock *sk,
 	ip6_flow_hdr(hdr, 0, 0);
 
 	hdr->payload_len = htons(len);
-	hdr->nexthdr = proto;
-	hdr->hop_limit = inet6_sk(sk)->hop_limit;
+	hdr->nexthdr = IPPROTO_ICMPV6;
+	hdr->hop_limit = hop_limit;
 
 	hdr->saddr = *saddr;
 	hdr->daddr = *daddr;
@@ -439,7 +438,7 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (!skb)
 		return NULL;
 
-	ip6_nd_hdr(sk, skb, dev, saddr, daddr, IPPROTO_ICMPV6, len);
+	ip6_nd_hdr(skb, dev, saddr, daddr, inet6_sk(sk)->hop_limit, len);
 
 	skb->transport_header = skb->tail;
 	skb_put(skb, len);
@@ -1480,8 +1479,8 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	ip6_nd_hdr(sk, buff, dev, &saddr_buf, &ipv6_hdr(skb)->saddr,
-		   IPPROTO_ICMPV6, len);
+	ip6_nd_hdr(buff, dev, &saddr_buf, &ipv6_hdr(skb)->saddr,
+		   inet6_sk(sk)->hop_limit, len);
 
 	skb_set_transport_header(buff, skb_tail_pointer(buff) - buff->data);
 	skb_put(buff, len);
