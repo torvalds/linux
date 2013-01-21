@@ -1,25 +1,21 @@
 #include "../comedidev.h"
+#include "addi_watchdog.h"
 #include "comedi_fc.h"
 
 #include "addi-data/addi_common.h"
-
-#include "addi-data/hwdrv_apci2200.c"
 
 /*
  * I/O Register Map
  */
 #define APCI2200_DI_REG			0x00
 #define APCI2200_DO_REG			0x04
+#define APCI2200_WDOG_REG		0x08
 
 static const struct addi_board apci2200_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci2200",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1005,
-		.i_Timer		= 1,
-		.timer_config		= i_APCI2200_ConfigWatchdog,
-		.timer_write		= i_APCI2200_StartStopWriteWatchdog,
-		.timer_read		= i_APCI2200_ReadWatchdog,
 	},
 };
 
@@ -57,12 +53,8 @@ static int apci2200_do_insn_bits(struct comedi_device *dev,
 static int apci2200_reset(struct comedi_device *dev)
 {
 	outw(0x0, dev->iobase + APCI2200_DO_REG);
-	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_ENABLEDISABLE);
-	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_RELOAD_VALUE);
-	outw(0x0, dev->iobase + APCI2200_WATCHDOG +
-			APCI2200_WATCHDOG_RELOAD_VALUE + 2);
+
+	addi_watchdog_reset(dev->iobase + APCI2200_WDOG_REG);
 
 	return 0;
 }
@@ -143,21 +135,9 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
-	if (this_board->i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	ret = addi_watchdog_init(s, dev->iobase + APCI2200_WDOG_REG);
+	if (ret)
+		return ret;
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
@@ -180,6 +160,8 @@ static void apci2200_detach(struct comedi_device *dev)
 		if (dev->iobase)
 			apci2200_reset(dev);
 	}
+	if (dev->subdevices)
+		addi_watchdog_cleanup(&dev->subdevices[4]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
