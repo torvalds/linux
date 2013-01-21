@@ -6573,9 +6573,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_eeprom;
 
-	if (err)
-		goto out_free_eeprom;
-
 	/* extract MAC Address */
 	il4965_eeprom_get_mac(il, il->addresses[0].addr);
 	D_INFO("MAC address: %pM\n", il->addresses[0].addr);
