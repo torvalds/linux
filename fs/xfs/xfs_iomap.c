@@ -351,6 +351,15 @@ xfs_iomap_prealloc_size(
 		}
 		if (shift)
 			alloc_blocks >>= shift;
+
+		/*
+		 * If we are still trying to allocate more space than is
+		 * available, squash the prealloc hard. This can happen if we
+		 * have a large file on a small filesystem and the above
+		 * lowspace thresholds are smaller than MAXEXTLEN.
+		 */
+		while (alloc_blocks >= freesp)
+			alloc_blocks >>= 4;
 	}
 
 	if (alloc_blocks < mp->m_writeio_blocks)
