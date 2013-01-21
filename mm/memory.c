@@ -716,7 +716,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 		print_symbol(KERN_ALERT "vma->vm_file->f_op->mmap: %s\n",
 				(unsigned long)vma->vm_file->f_op->mmap);
 	dump_stack();
-	add_taint(TAINT_BAD_PAGE);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
 
 static inline bool is_cow_mapping(vm_flags_t flags)

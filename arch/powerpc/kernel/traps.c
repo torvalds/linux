@@ -138,7 +138,7 @@ static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
 {
 	bust_spinlocks(0);
 	die_owner = -1;
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	die_nest_count--;
 	oops_exit();
 	printk("\n");

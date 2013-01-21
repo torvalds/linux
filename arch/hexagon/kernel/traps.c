@@ -225,7 +225,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	do_show_stack(current, &regs->r30, pt_elr(regs));
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 
 	spin_unlock_irq(&die.lock);
 
