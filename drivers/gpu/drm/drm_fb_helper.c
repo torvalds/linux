@@ -752,10 +752,14 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
+/*
+ * Allocates the backing storage through the ->fb_probe callback and then
+ * registers the fbdev and sets up the panic notifier.
+ */
 static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 					 int preferred_bpp)
 {
-	int new_fb = 0;
+	int ret = 0;
 	int crtc_count = 0;
 	int i;
 	struct fb_info *info;
@@ -833,9 +837,9 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	/* push down into drivers */
-	new_fb = (*fb_helper->funcs->fb_probe)(fb_helper, &sizes);
-	if (new_fb < 0)
-		return new_fb;
+	ret = (*fb_helper->funcs->fb_probe)(fb_helper, &sizes);
+	if (ret < 0)
+		return ret;
 
 	info = fb_helper->fbdev;
 
@@ -851,15 +855,12 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 
 
-	if (new_fb) {
-		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0)
-			return -EINVAL;
+	info->var.pixclock = 0;
+	if (register_framebuffer(info) < 0)
+		return -EINVAL;
 
-		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
-				info->node, info->fix.id);
-
-	}
+	dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
+			info->node, info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
@@ -869,8 +870,8 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
-	if (new_fb)
-		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
+
+	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 
 	return 0;
 }
