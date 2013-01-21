@@ -492,10 +492,10 @@ static void rt6_probe(struct rt6_info *rt)
 		struct in6_addr mcaddr;
 		struct in6_addr *target;
 
-		neigh->updated = jiffies;
-
-		if (neigh)
+		if (neigh) {
+			neigh->updated = jiffies;
 			write_unlock(&neigh->lock);
+		}
 
 		target = (struct in6_addr *)&rt->rt6i_gateway;
 		addrconf_addr_solict_mult(target, &mcaddr);
