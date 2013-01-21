@@ -388,6 +388,7 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 	skb->dev = dev;
 
 	skb_reserve(skb, hlen + sizeof(struct ipv6hdr));
+	skb_reset_transport_header(skb);
 
 	return skb;
 }
@@ -438,7 +439,6 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (!skb)
 		return NULL;
 
-	skb->transport_header = skb->tail;
 	skb_put(skb, len);
 
 	hdr = (struct icmp6hdr *)skb_transport_header(skb);
@@ -1479,7 +1479,6 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	skb_set_transport_header(buff, skb_tail_pointer(buff) - buff->data);
 	skb_put(buff, len);
 	msg = (struct rd_msg *)icmp6_hdr(buff);
 
