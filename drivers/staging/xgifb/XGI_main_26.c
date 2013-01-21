@@ -233,7 +233,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	return 1;
 }
 
-static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
+void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
 	XGI_Pr->P3c4 = BaseAddr + 0x14;
 	XGI_Pr->P3d4 = BaseAddr + 0x24;
