@@ -2817,6 +2817,10 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	fix_pmode_dataseg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
 	fix_pmode_dataseg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
+
+	/* CPL is always 0 when CPU enters protected mode */
+	__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
+	vmx->cpl = 0;
 }
 
 static gva_t rmode_tss_base(struct kvm *kvm)
@@ -3228,14 +3232,6 @@ static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 	if (!is_long_mode(vcpu)
 	    && (kvm_get_rflags(vcpu) & X86_EFLAGS_VM)) /* if virtual 8086 */
 		return 3;
-
-	/*
-	 * If we enter real mode with cs.sel & 3 != 0, the normal CPL calculations
-	 * fail; use the cache instead.
-	 */
-	if (unlikely(vmx->emulation_required && emulate_invalid_guest_state)) {
-		return vmx->cpl;
-	}
 
 	if (!test_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail)) {
 		__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
