@@ -2,22 +2,12 @@
 #include "addi_watchdog.h"
 #include "comedi_fc.h"
 
-#include "addi-data/addi_common.h"
-
 /*
  * I/O Register Map
  */
 #define APCI2200_DI_REG			0x00
 #define APCI2200_DO_REG			0x04
 #define APCI2200_WDOG_REG		0x08
-
-static const struct addi_board apci2200_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci2200",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1005,
-	},
-};
 
 static int apci2200_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -59,36 +49,14 @@ static int apci2200_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
-	}
-	return NULL;
-}
-
 static int apci2200_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -164,9 +132,6 @@ static struct comedi_driver apci2200_driver = {
 	.module		= THIS_MODULE,
 	.auto_attach	= apci2200_auto_attach,
 	.detach		= apci2200_detach,
-	.num_names	= ARRAY_SIZE(apci2200_boardtypes),
-	.board_name	= &apci2200_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci2200_pci_probe(struct pci_dev *dev,
