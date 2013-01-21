@@ -1076,11 +1076,9 @@ static int exynos_dp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dp->reg_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!dp->reg_base) {
-		dev_err(&pdev->dev, "failed to ioremap\n");
-		return -ENOMEM;
-	}
+	dp->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dp->reg_base))
+		return PTR_ERR(dp->reg_base);
 
 	dp->irq = platform_get_irq(pdev, 0);
 	if (dp->irq == -ENXIO) {

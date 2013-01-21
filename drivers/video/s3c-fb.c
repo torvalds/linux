@@ -1421,10 +1421,9 @@ static int s3c_fb_probe(struct platform_device *pdev)
 	pm_runtime_enable(sfb->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sfb->regs = devm_request_and_ioremap(dev, res);
-	if (!sfb->regs) {
-		dev_err(dev, "failed to map registers\n");
-		ret = -ENXIO;
+	sfb->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(sfb->regs)) {
+		ret = PTR_ERR(sfb->regs);
 		goto err_lcd_clk;
 	}
 
