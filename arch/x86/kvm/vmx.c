@@ -2759,6 +2759,11 @@ static __exit void hardware_unsetup(void)
 	free_kvm_area();
 }
 
+static bool emulation_required(struct kvm_vcpu *vcpu)
+{
+	return emulate_invalid_guest_state && !guest_state_valid(vcpu);
+}
+
 static void fix_pmode_seg(struct kvm_vcpu *vcpu, int seg,
 		struct kvm_segment *save)
 {
@@ -2794,7 +2799,6 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_SS], VCPU_SREG_SS);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_CS], VCPU_SREG_CS);
 
-	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 0;
 
 	vmx_segment_cache_clear(vmx);
@@ -2885,7 +2889,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_SS], VCPU_SREG_SS);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_CS], VCPU_SREG_CS);
 
-	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
 
 	/*
@@ -3111,6 +3114,9 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0, hw_cr0);
 	vcpu->arch.cr0 = cr0;
+
+	/* depends on vcpu->arch.cr0 to be set to a new value */
+	vmx->emulation_required = emulation_required(vcpu);
 }
 
 static u64 construct_eptp(unsigned long root_hpa)
@@ -3298,8 +3304,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(var));
 
 out:
-	if (!vmx->emulation_required)
-		vmx->emulation_required = !guest_state_valid(vcpu);
+	vmx->emulation_required |= emulation_required(vcpu);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -5027,7 +5032,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 			schedule();
 	}
 
-	vmx->emulation_required = !guest_state_valid(vcpu);
+	vmx->emulation_required = emulation_required(vcpu);
 out:
 	return ret;
 }
@@ -5970,7 +5975,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	u32 vectoring_info = vmx->idt_vectoring_info;
 
 	/* If guest state is invalid, start emulating */
-	if (vmx->emulation_required && emulate_invalid_guest_state)
+	if (vmx->emulation_required)
 		return handle_invalid_guest_state(vcpu);
 
 	/*
@@ -6253,7 +6258,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* Don't enter VMX if guest state is invalid, let the exit handler
 	   start emulation until we arrive back to a valid state */
-	if (vmx->emulation_required && emulate_invalid_guest_state)
+	if (vmx->emulation_required)
 		return;
 
 	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
