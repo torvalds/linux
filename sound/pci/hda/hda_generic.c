@@ -1352,7 +1352,6 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i, err, badness;
-	unsigned int val;
 
 	/* set num_dacs once to full for look_for_dac() */
 	spec->multiout.num_dacs = cfg->line_outs;
@@ -1489,20 +1488,6 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				   spec->multiout.extra_out_nid,
 				   spec->speaker_paths);
 
-	/* set initial pinctl targets */
-	if (spec->prefer_hp_amp || cfg->line_out_type == AUTO_PIN_HP_OUT)
-		val = PIN_HP;
-	else
-		val = PIN_OUT;
-	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins, val);
-	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
-		set_pin_targets(codec, cfg->hp_outs, cfg->hp_pins, PIN_HP);
-	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
-		val = spec->prefer_hp_amp ? PIN_HP : PIN_OUT;
-		set_pin_targets(codec, cfg->speaker_outs,
-				cfg->speaker_pins, val);
-	}
-
 	return badness;
 }
 
@@ -1604,6 +1589,7 @@ static int parse_output_paths(struct hda_codec *codec)
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	struct auto_pin_cfg *best_cfg;
+	unsigned int val;
 	int best_badness = INT_MAX;
 	int badness;
 	bool fill_hardwired = true, fill_mio_first = true;
@@ -1691,6 +1677,20 @@ static int parse_output_paths(struct hda_codec *codec)
 		if (spec->vmaster_nid)
 			snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 						HDA_OUTPUT, spec->vmaster_tlv);
+	}
+
+	/* set initial pinctl targets */
+	if (spec->prefer_hp_amp || cfg->line_out_type == AUTO_PIN_HP_OUT)
+		val = PIN_HP;
+	else
+		val = PIN_OUT;
+	set_pin_targets(codec, cfg->line_outs, cfg->line_out_pins, val);
+	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
+		set_pin_targets(codec, cfg->hp_outs, cfg->hp_pins, PIN_HP);
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		val = spec->prefer_hp_amp ? PIN_HP : PIN_OUT;
+		set_pin_targets(codec, cfg->speaker_outs,
+				cfg->speaker_pins, val);
 	}
 
 	kfree(best_cfg);
