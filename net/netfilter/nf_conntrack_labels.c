@@ -101,15 +101,12 @@ static struct nf_ct_ext_type labels_extend __read_mostly = {
 	.id     = NF_CT_EXT_LABELS,
 };
 
-int nf_conntrack_labels_init(struct net *net)
+int nf_conntrack_labels_init(void)
 {
-	if (net_eq(net, &init_net))
-		return nf_ct_extend_register(&labels_extend);
-	return 0;
+	return nf_ct_extend_register(&labels_extend);
 }
 
-void nf_conntrack_labels_fini(struct net *net)
+void nf_conntrack_labels_fini(void)
 {
-	if (net_eq(net, &init_net))
-		nf_ct_extend_unregister(&labels_extend);
+	nf_ct_extend_unregister(&labels_extend);
 }
