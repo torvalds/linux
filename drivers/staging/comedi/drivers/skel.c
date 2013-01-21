@@ -713,6 +713,7 @@ static void skel_pci_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver skel_pci_driver = {
+	.name = "dummy",
 	.id_table = skel_pci_table,
 	.probe = &skel_pci_probe,
 	.remove = &skel_pci_remove
