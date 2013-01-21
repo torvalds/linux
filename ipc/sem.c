@@ -1156,13 +1156,11 @@ SYSCALL_DEFINE(semctl)(int semid, int semnum, int cmd, union semun arg)
 		return -EINVAL;
 	}
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
 asmlinkage long SyS_semctl(int semid, int semnum, int cmd, union semun arg)
 {
 	return SYSC_semctl((int) semid, (int) semnum, (int) cmd, arg);
 }
 SYSCALL_ALIAS(sys_semctl, SyS_semctl);
-#endif
 
 /* If the task doesn't already have a undo_list, then allocate one
  * here.  We guarantee there is only one thread using this undo list,
