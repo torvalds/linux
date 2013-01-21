@@ -1325,11 +1325,9 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	/* memory-mapped registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	jpeg->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (jpeg->regs == NULL) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -ENOENT;
-	}
+	jpeg->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(jpeg->regs))
+		return PTR_ERR(jpeg->regs);
 
 	/* interrupt service routine registration */
 	jpeg->irq = ret = platform_get_irq(pdev, 0);
