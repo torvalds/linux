@@ -866,11 +866,9 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	data->base = devm_request_and_ioremap(&pdev->dev, data->mem);
-	if (!data->base) {
-		dev_err(&pdev->dev, "Failed to ioremap memory\n");
-		return -ENODEV;
-	}
+	data->base = devm_ioremap_resource(&pdev->dev, data->mem);
+	if (IS_ERR(data->base))
+		return PTR_ERR(data->base);
 
 	ret = devm_request_irq(&pdev->dev, data->irq, exynos_tmu_irq,
 		IRQF_TRIGGER_RISING, "exynos-tmu", data);
