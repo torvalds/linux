@@ -178,8 +178,16 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 	unsigned int buf_size;
 	int ret;
 
-	BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
-	BUG_ON(!s->do_cmdtest);
+	if ((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0) {
+		dev_warn(dev->class_dev,
+			 "async subdevices must support SDF_CMD_READ or SDF_CMD_WRITE\n");
+		return -EINVAL;
+	}
+	if (!s->do_cmdtest) {
+		dev_warn(dev->class_dev,
+			 "async subdevices must have a do_cmdtest() function\n");
+		return -EINVAL;
+	}
 
 	async = kzalloc(sizeof(*async), GFP_KERNEL);
 	if (!async) {
