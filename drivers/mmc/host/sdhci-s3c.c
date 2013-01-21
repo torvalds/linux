@@ -651,10 +651,9 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 #endif
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->ioaddr) {
-		dev_err(dev, "failed to map registers\n");
-		ret = -ENXIO;
+	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->ioaddr)) {
+		ret = PTR_ERR(host->ioaddr);
 		goto err_req_regs;
 	}
 
