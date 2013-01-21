@@ -111,11 +111,10 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 
 /* connection state */
 #define ZSAU_NONE			0
-#define ZSAU_DISCONNECT_IND		4
-#define ZSAU_OUTGOING_CALL_PROCEEDING	1
 #define ZSAU_PROCEEDING			1
 #define ZSAU_CALL_DELIVERED		2
 #define ZSAU_ACTIVE			3
+#define ZSAU_DISCONNECT_IND		4
 #define ZSAU_NULL			5
 #define ZSAU_DISCONNECT_REQ		6
 #define ZSAU_UNKNOWN			-1
@@ -183,18 +182,22 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_NUM		7
 
 /* variables in struct at_state_t */
+/* - numeric */
 #define VAR_ZSAU	0
 #define VAR_ZDLE	1
 #define VAR_ZCTP	2
+/* total number */
 #define VAR_NUM		3
-
+/* - string */
 #define STR_NMBR	0
 #define STR_ZCPN	1
 #define STR_ZCON	2
 #define STR_ZBC		3
 #define STR_ZHLC	4
+/* total number */
 #define STR_NUM		5
 
+/* event types */
 #define EV_TIMEOUT	-105
 #define EV_IF_VER	-106
 #define EV_PROC_CIDMODE	-107
