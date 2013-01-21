@@ -179,14 +179,12 @@ static int sccnxp_update_best_err(int a, int b, int *besterr)
 	return 1;
 }
 
-struct baud_table {
+static const struct {
 	u8	csr;
 	u8	acr;
 	u8	mr0;
 	int	baud;
-};
-
-const struct baud_table baud_std[] = {
+} baud_std[] = {
 	{ 0,	ACR_BAUD0,	MR0_BAUD_NORMAL,	50, },
 	{ 0,	ACR_BAUD1,	MR0_BAUD_NORMAL,	75, },
 	{ 1,	ACR_BAUD0,	MR0_BAUD_NORMAL,	110, },
