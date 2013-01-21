@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -1236,12 +1237,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	tdma->base_addr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!tdma->base_addr) {
-		dev_err(&pdev->dev,
-			"Cannot request memregion/iomap dma address\n");
-		return -EADDRNOTAVAIL;
-	}
+	tdma->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(tdma->base_addr))
+		return PTR_ERR(tdma->base_addr);
 
 	tdma->dma_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tdma->dma_clk)) {
