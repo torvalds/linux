@@ -1,7 +1,8 @@
 config COMEDI
 	tristate "Data acquisition support (comedi)"
 	depends on m
-	depends on BROKEN || FRV || M32R || MN10300 || SUPERH || TILE || X86
+	depends on BROKEN || FRV || M32R || MN10300 || SUPERH || TILE || \
+		   X86 || ARM
 	---help---
 	  Enable support a wide range of data acquisition devices
 	  for Linux.
