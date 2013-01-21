@@ -892,6 +892,10 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 	if (vxattr && vxattr->readonly)
 		return -EOPNOTSUPP;
 
+	/* pass any unhandled ceph.* xattrs through to the MDS */
+	if (!strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN))
+		goto do_sync_unlocked;
+
 	err = -ENOMEM;
 	spin_lock(&ci->i_ceph_lock);
 retry:
@@ -931,6 +935,7 @@ retry:
 	return err;
 do_sync:
 	spin_unlock(&ci->i_ceph_lock);
+do_sync_unlocked:
 	err = ceph_send_removexattr(dentry, name);
 out:
 	return err;
