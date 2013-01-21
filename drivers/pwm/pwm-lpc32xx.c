@@ -110,9 +110,9 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	lpc32xx->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!lpc32xx->base)
-		return -EADDRNOTAVAIL;
+	lpc32xx->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(lpc32xx->base))
+		return PTR_ERR(lpc32xx->base);
 
 	lpc32xx->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(lpc32xx->clk))

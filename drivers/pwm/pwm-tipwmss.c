@@ -75,9 +75,9 @@ static int pwmss_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!info->mmio_base)
-		return -EADDRNOTAVAIL;
+	info->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(info->mmio_base))
+		return PTR_ERR(info->mmio_base);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);

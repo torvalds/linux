@@ -238,9 +238,9 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pc->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pc->mmio_base)
-		return -EADDRNOTAVAIL;
+	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pc->mmio_base))
+		return PTR_ERR(pc->mmio_base);
 
 	ret = pwmchip_add(&pc->chip);
 	if (ret < 0) {
