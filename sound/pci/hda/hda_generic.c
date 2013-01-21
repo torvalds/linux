@@ -1105,14 +1105,17 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 			else
 				badness += bad->no_dac;
 		}
+		if (!dac)
+			continue;
 		path = snd_hda_add_new_path(codec, dac, pin, -spec->mixer_nid);
 		if (!path && !i && spec->mixer_nid) {
 			/* try with aamix */
 			path = snd_hda_add_new_path(codec, dac, pin, 0);
 		}
-		if (!path)
+		if (!path) {
 			dac = dacs[i] = 0;
-		else {
+			badness += bad->no_dac;
+		} else {
 			/* print_nid_path("output", path); */
 			path->active = true;
 			path_idx[i] = snd_hda_get_path_idx(codec, path);
