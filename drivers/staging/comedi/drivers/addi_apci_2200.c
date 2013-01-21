@@ -81,7 +81,6 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct addi_board *this_board;
-	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 
@@ -90,11 +89,6 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->pc_DriverName;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -154,12 +148,9 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 static void apci2200_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			apci2200_reset(dev);
-	}
+	if (dev->iobase)
+		apci2200_reset(dev);
 	if (dev->subdevices)
 		addi_watchdog_cleanup(&dev->subdevices[4]);
 	if (pcidev) {
