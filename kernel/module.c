@@ -3192,8 +3192,13 @@ again:
 
 #ifdef CONFIG_MODULE_SIG
 	mod->sig_ok = info->sig_ok;
-	if (!mod->sig_ok)
+	if (!mod->sig_ok) {
+		printk_once(KERN_NOTICE
+			    "%s: module verification failed: signature and/or"
+			    " required key missing - tainting kernel\n",
+			    mod->name);
 		add_taint_module(mod, TAINT_FORCED_MODULE);
+	}
 #endif
 
 	/* Now module is in final location, initialize linked lists, etc. */
