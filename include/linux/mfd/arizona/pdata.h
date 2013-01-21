@@ -111,6 +111,12 @@ struct arizona_pdata {
 	/** Mic detect ramp rate */
 	int micd_bias_start_time;
 
+	/** Mic detect sample rate */
+	int micd_rate;
+
+	/** Mic detect debounce level */
+	int micd_dbtime;
+
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
 	int num_micd_configs;
