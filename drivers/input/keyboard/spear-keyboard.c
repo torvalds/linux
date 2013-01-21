@@ -228,11 +228,9 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
-	kbd->io_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!kbd->io_base) {
-		dev_err(&pdev->dev, "request-ioremap failed for kbd_region\n");
-		return -ENOMEM;
-	}
+	kbd->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(kbd->io_base))
+		return PTR_ERR(kbd->io_base);
 
 	kbd->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(kbd->clk))
