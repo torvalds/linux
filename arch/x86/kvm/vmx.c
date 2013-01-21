@@ -2759,7 +2759,7 @@ static __exit void hardware_unsetup(void)
 	free_kvm_area();
 }
 
-static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg,
+static void fix_pmode_seg(struct kvm_vcpu *vcpu, int seg,
 		struct kvm_segment *save)
 {
 	if (!emulate_invalid_guest_state) {
@@ -2811,12 +2811,12 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 	update_exception_bitmap(vcpu);
 
-	fix_pmode_dataseg(vcpu, VCPU_SREG_CS, &vmx->rmode.segs[VCPU_SREG_CS]);
-	fix_pmode_dataseg(vcpu, VCPU_SREG_SS, &vmx->rmode.segs[VCPU_SREG_SS]);
-	fix_pmode_dataseg(vcpu, VCPU_SREG_ES, &vmx->rmode.segs[VCPU_SREG_ES]);
-	fix_pmode_dataseg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
-	fix_pmode_dataseg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
-	fix_pmode_dataseg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
+	fix_pmode_seg(vcpu, VCPU_SREG_CS, &vmx->rmode.segs[VCPU_SREG_CS]);
+	fix_pmode_seg(vcpu, VCPU_SREG_SS, &vmx->rmode.segs[VCPU_SREG_SS]);
+	fix_pmode_seg(vcpu, VCPU_SREG_ES, &vmx->rmode.segs[VCPU_SREG_ES]);
+	fix_pmode_seg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
+	fix_pmode_seg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
+	fix_pmode_seg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
 
 	/* CPL is always 0 when CPU enters protected mode */
 	__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
