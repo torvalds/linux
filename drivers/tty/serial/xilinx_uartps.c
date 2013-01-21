@@ -17,6 +17,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/console.h>
+#include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -936,16 +937,18 @@ static int xuartps_probe(struct platform_device *pdev)
 	int rc;
 	struct uart_port *port;
 	struct resource *res, *res2;
-	int clk = 0;
+	struct clk *clk;
 
-	const unsigned int *prop;
-
-	prop = of_get_property(pdev->dev.of_node, "clock", NULL);
-	if (prop)
-		clk = be32_to_cpup(prop);
-	if (!clk) {
+	clk = of_clk_get(pdev->dev.of_node, 0);
+	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "no clock specified\n");
-		return -ENODEV;
+		return PTR_ERR(clk);
+	}
+
+	rc = clk_prepare_enable(clk);
+	if (rc) {
+		dev_err(&pdev->dev, "could not enable clock\n");
+		return -EBUSY;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -970,7 +973,8 @@ static int xuartps_probe(struct platform_device *pdev)
 		port->mapbase = res->start;
 		port->irq = res2->start;
 		port->dev = &pdev->dev;
-		port->uartclk = clk;
+		port->uartclk = clk_get_rate(clk);
+		port->private_data = clk;
 		dev_set_drvdata(&pdev->dev, port);
 		rc = uart_add_one_port(&xuartps_uart_driver, port);
 		if (rc) {
@@ -992,14 +996,14 @@ static int xuartps_probe(struct platform_device *pdev)
 static int xuartps_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = dev_get_drvdata(&pdev->dev);
-	int rc = 0;
+	struct clk *clk = port->private_data;
+	int rc;
 
 	/* Remove the xuartps port from the serial core */
-	if (port) {
-		rc = uart_remove_one_port(&xuartps_uart_driver, port);
-		dev_set_drvdata(&pdev->dev, NULL);
-		port->mapbase = 0;
-	}
+	rc = uart_remove_one_port(&xuartps_uart_driver, port);
+	dev_set_drvdata(&pdev->dev, NULL);
+	port->mapbase = 0;
+	clk_disable_unprepare(clk);
 	return rc;
 }
 
