@@ -1693,6 +1693,11 @@ static void process_command_flags(struct cardstate *cs)
 	for (i = 0; i < cs->channels; ++i) {
 		bcs = cs->bcs + i;
 		if (bcs->at_state.pending_commands & PC_HUP) {
+			if (cs->dle) {
+				cs->curchannel = bcs->channel;
+				schedule_sequence(cs, &cs->at_state, SEQ_DLE0);
+				return;
+			}
 			bcs->at_state.pending_commands &= ~PC_HUP;
 			if (bcs->at_state.pending_commands & PC_CID) {
 				/* not yet dialing: PC_NOCID is sufficient */
