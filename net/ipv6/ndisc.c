@@ -1509,7 +1509,7 @@ int ndisc_rcv(struct sk_buff *skb)
 {
 	struct nd_msg *msg;
 
-	if (!pskb_may_pull(skb, skb->len))
+	if (skb_linearize(skb))
 		return 0;
 
 	msg = (struct nd_msg *)skb_transport_header(skb);
