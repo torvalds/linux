@@ -1416,28 +1416,6 @@ void  acpiphp_glue_exit(void)
 	acpi_pci_unregister_driver(&acpi_pci_hp_driver);
 }
 
-
-/**
- * acpiphp_get_num_slots - count number of slots in a system
- */
-int __init acpiphp_get_num_slots(void)
-{
-	struct acpiphp_bridge *bridge;
-	int num_slots = 0;
-
-	list_for_each_entry(bridge, &bridge_list, list) {
-		dbg("Bus %04x:%02x has %d slot%s\n",
-				pci_domain_nr(bridge->pci_bus),
-				bridge->pci_bus->number, bridge->nr_slots,
-				bridge->nr_slots == 1 ? "" : "s");
-		num_slots += bridge->nr_slots;
-	}
-
-	dbg("Total %d slots\n", num_slots);
-	return num_slots;
-}
-
-
 /**
  * acpiphp_enable_slot - power on slot
  * @slot: ACPI PHP slot
