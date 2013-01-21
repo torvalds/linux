@@ -197,10 +197,7 @@ out:
 
 SYSCALL_DEFINE2(ftruncate, unsigned int, fd, unsigned long, length)
 {
-	long ret = do_sys_ftruncate(fd, length, 1);
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(2, ret, fd, length);
-	return ret;
+	return do_sys_ftruncate(fd, length, 1);
 }
 
 #ifdef CONFIG_COMPAT
@@ -219,10 +216,7 @@ SYSCALL_DEFINE2(truncate64, const char __user *, path, loff_t, length)
 
 SYSCALL_DEFINE2(ftruncate64, unsigned int, fd, loff_t, length)
 {
-	long ret = do_sys_ftruncate(fd, length, 0);
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(2, ret, fd, length);
-	return ret;
+	return do_sys_ftruncate(fd, length, 0);
 }
 #endif /* BITS_PER_LONG == 32 */
 
@@ -961,29 +955,19 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 
 SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
 {
-	long ret;
-
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
-	ret = do_sys_open(AT_FDCWD, filename, flags, mode);
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(3, ret, filename, flags, mode);
-	return ret;
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
 
 SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
 		umode_t, mode)
 {
-	long ret;
-
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
-	ret = do_sys_open(dfd, filename, flags, mode);
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(4, ret, dfd, filename, flags, mode);
-	return ret;
+	return do_sys_open(dfd, filename, flags, mode);
 }
 
 #ifndef __alpha__

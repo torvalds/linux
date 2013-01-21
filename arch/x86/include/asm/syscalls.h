@@ -27,8 +27,8 @@ asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 long sys_rt_sigreturn(void);
 
 /* kernel/tls.c */
-asmlinkage int sys_set_thread_area(struct user_desc __user *);
-asmlinkage int sys_get_thread_area(struct user_desc __user *);
+asmlinkage long sys_set_thread_area(struct user_desc __user *);
+asmlinkage long sys_get_thread_area(struct user_desc __user *);
 
 /* X86_32 only */
 #ifdef CONFIG_X86_32
