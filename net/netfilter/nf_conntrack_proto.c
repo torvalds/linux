@@ -212,8 +212,7 @@ static void nf_ct_l3proto_unregister_sysctl(struct net *net,
 #endif
 }
 
-static int
-nf_conntrack_l3proto_register_net(struct nf_conntrack_l3proto *proto)
+int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
 	struct nf_conntrack_l3proto *old;
@@ -242,8 +241,9 @@ out_unlock:
 	return ret;
 
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 
-int nf_conntrack_l3proto_register(struct net *net,
+int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
@@ -254,22 +254,11 @@ int nf_conntrack_l3proto_register(struct net *net,
 			return ret;
 	}
 
-	ret = nf_ct_l3proto_register_sysctl(net, proto);
-	if (ret < 0)
-		return ret;
-
-	if (net == &init_net) {
-		ret = nf_conntrack_l3proto_register_net(proto);
-		if (ret < 0)
-			nf_ct_l3proto_unregister_sysctl(net, proto);
-	}
-
-	return ret;
+	return nf_ct_l3proto_register_sysctl(net, proto);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_register);
 
-static void
-nf_conntrack_l3proto_unregister_net(struct nf_conntrack_l3proto *proto)
+void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
 	BUG_ON(proto->l3proto >= AF_MAX);
 
@@ -283,19 +272,17 @@ nf_conntrack_l3proto_unregister_net(struct nf_conntrack_l3proto *proto)
 
 	synchronize_rcu();
 }
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_unregister);
 
-void nf_conntrack_l3proto_unregister(struct net *net,
+void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto)
 {
-	if (net == &init_net)
-		nf_conntrack_l3proto_unregister_net(proto);
-
 	nf_ct_l3proto_unregister_sysctl(net, proto);
 
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(net, kill_l3proto, proto);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
+EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_unregister);
 
 static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 					      struct nf_conntrack_l4proto *l4proto)

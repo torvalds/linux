@@ -439,10 +439,9 @@ static int ipv6_net_init(struct net *net)
 		printk(KERN_ERR "nf_conntrack_l4proto_icmp6: protocol register failed\n");
 		goto cleanup_udp6;
 	}
-	ret = nf_conntrack_l3proto_register(net,
-					    &nf_conntrack_l3proto_ipv6);
+	ret = nf_ct_l3proto_pernet_register(net, &nf_conntrack_l3proto_ipv6);
 	if (ret < 0) {
-		printk(KERN_ERR "nf_conntrack_l3proto_ipv6: protocol register failed\n");
+		pr_err("nf_conntrack_ipv6: pernet registration failed.\n");
 		goto cleanup_icmpv6;
 	}
 	return 0;
@@ -461,8 +460,7 @@ static int ipv6_net_init(struct net *net)
 
 static void ipv6_net_exit(struct net *net)
 {
-	nf_conntrack_l3proto_unregister(net,
-					&nf_conntrack_l3proto_ipv6);
+	nf_ct_l3proto_pernet_unregister(net, &nf_conntrack_l3proto_ipv6);
 	nf_conntrack_l4proto_unregister(net,
 					&nf_conntrack_l4proto_icmpv6);
 	nf_conntrack_l4proto_unregister(net,
@@ -491,19 +489,28 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 
 	ret = register_pernet_subsys(&ipv6_net_ops);
 	if (ret < 0)
-		goto cleanup_pernet;
+		goto cleanup_sockopt;
+
 	ret = nf_register_hooks(ipv6_conntrack_ops,
 				ARRAY_SIZE(ipv6_conntrack_ops));
 	if (ret < 0) {
 		pr_err("nf_conntrack_ipv6: can't register pre-routing defrag "
 		       "hook.\n");
-		goto cleanup_ipv6;
+		goto cleanup_pernet;
+	}
+
+	ret = nf_ct_l3proto_register(&nf_conntrack_l3proto_ipv6);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv6: can't register ipv6 proto.\n");
+		goto cleanup_hooks;
 	}
 	return ret;
 
- cleanup_ipv6:
-	unregister_pernet_subsys(&ipv6_net_ops);
+ cleanup_hooks:
+	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
  cleanup_pernet:
+	unregister_pernet_subsys(&ipv6_net_ops);
+ cleanup_sockopt:
 	nf_unregister_sockopt(&so_getorigdst6);
 	return ret;
 }
@@ -511,6 +518,7 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	synchronize_net();
+	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
 	unregister_pernet_subsys(&ipv6_net_ops);
 	nf_unregister_sockopt(&so_getorigdst6);

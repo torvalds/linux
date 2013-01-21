@@ -438,10 +438,9 @@ static int ipv4_net_init(struct net *net)
 		pr_err("nf_conntrack_l4proto_icmp4 :protocol register failed\n");
 		goto out_icmp;
 	}
-	ret = nf_conntrack_l3proto_register(net,
-					    &nf_conntrack_l3proto_ipv4);
+	ret = nf_ct_l3proto_pernet_register(net, &nf_conntrack_l3proto_ipv4);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l3proto_ipv4 :protocol register failed\n");
+		pr_err("nf_conntrack_ipv4: pernet registration failed\n");
 		goto out_ipv4;
 	}
 	return 0;
@@ -460,8 +459,7 @@ out_tcp:
 
 static void ipv4_net_exit(struct net *net)
 {
-	nf_conntrack_l3proto_unregister(net,
-					&nf_conntrack_l3proto_ipv4);
+	nf_ct_l3proto_pernet_unregister(net, &nf_conntrack_l3proto_ipv4);
 	nf_conntrack_l4proto_unregister(net,
 					&nf_conntrack_l4proto_icmp);
 	nf_conntrack_l4proto_unregister(net,
@@ -500,16 +498,25 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		pr_err("nf_conntrack_ipv4: can't register hooks.\n");
 		goto cleanup_pernet;
 	}
+
+	ret = nf_ct_l3proto_register(&nf_conntrack_l3proto_ipv4);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv4: can't register ipv4 proto.\n");
+		goto cleanup_hooks;
+	}
+
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	ret = nf_conntrack_ipv4_compat_init();
 	if (ret < 0)
-		goto cleanup_hooks;
+		goto cleanup_proto;
 #endif
 	return ret;
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+ cleanup_proto:
+	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+#endif
  cleanup_hooks:
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
-#endif
  cleanup_pernet:
 	unregister_pernet_subsys(&ipv4_net_ops);
  cleanup_sockopt:
@@ -523,6 +530,7 @@ static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	nf_conntrack_ipv4_compat_fini();
 #endif
+	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 	unregister_pernet_subsys(&ipv4_net_ops);
 	nf_unregister_sockopt(&so_getorigdst);
