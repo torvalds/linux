@@ -3196,8 +3196,6 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->limit = vmx_read_guest_seg_limit(vmx, seg);
 	var->selector = vmx_read_guest_seg_selector(vmx, seg);
 	ar = vmx_read_guest_seg_ar(vmx, seg);
-	if ((ar & AR_UNUSABLE_MASK) && !emulate_invalid_guest_state)
-		ar = 0;
 	var->type = ar & 15;
 	var->s = (ar >> 4) & 1;
 	var->dpl = (ar >> 5) & 3;
