@@ -27,12 +27,6 @@
 #define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
 #endif
 
-#define __SC_CCAST1(t1, a1)      __SC_DELOUSE(t1,a1)
-#define __SC_CCAST2(t2, a2, ...) __SC_DELOUSE(t2,a2), __SC_CCAST1(__VA_ARGS__)
-#define __SC_CCAST3(t3, a3, ...) __SC_DELOUSE(t3,a3), __SC_CCAST2(__VA_ARGS__)
-#define __SC_CCAST4(t4, a4, ...) __SC_DELOUSE(t4,a4), __SC_CCAST3(__VA_ARGS__)
-#define __SC_CCAST5(t5, a5, ...) __SC_DELOUSE(t5,a5), __SC_CCAST4(__VA_ARGS__)
-#define __SC_CCAST6(t6, a6, ...) __SC_DELOUSE(t6,a6), __SC_CCAST5(__VA_ARGS__)
 #define COMPAT_SYSCALL_DEFINE1(name, ...) \
         COMPAT_SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
 #define COMPAT_SYSCALL_DEFINE2(name, ...) \
@@ -49,19 +43,19 @@
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)				\
-	asmlinkage long compat_sys##name(__SC_DECL##x(__VA_ARGS__));	\
-	static inline long C_SYSC##name(__SC_DECL##x(__VA_ARGS__));	\
-	asmlinkage long compat_SyS##name(__SC_LONG##x(__VA_ARGS__))	\
+	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
+	static inline long C_SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
+	asmlinkage long compat_SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))\
 	{								\
-		return (long) C_SYSC##name(__SC_CCAST##x(__VA_ARGS__));	\
+		return C_SYSC##name(__MAP(x,__SC_DELOUSE,__VA_ARGS__));	\
 	}								\
 	SYSCALL_ALIAS(compat_sys##name, compat_SyS##name);		\
-	static inline long C_SYSC##name(__SC_DECL##x(__VA_ARGS__))
+	static inline long C_SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 #else /* CONFIG_HAVE_SYSCALL_WRAPPERS */
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)				\
-	asmlinkage long compat_sys##name(__SC_DECL##x(__VA_ARGS__))
+	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 #endif /* CONFIG_HAVE_SYSCALL_WRAPPERS */
 
