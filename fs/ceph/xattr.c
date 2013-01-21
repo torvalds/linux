@@ -77,6 +77,46 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	return ret;
 }
 
+static size_t ceph_vxattrcb_layout_stripe_unit(struct ceph_inode_info *ci,
+					       char *val, size_t size)
+{
+	return snprintf(val, size, "%lld",
+			(unsigned long long)ceph_file_layout_su(ci->i_layout));
+}
+
+static size_t ceph_vxattrcb_layout_stripe_count(struct ceph_inode_info *ci,
+						char *val, size_t size)
+{
+	return snprintf(val, size, "%lld",
+	       (unsigned long long)ceph_file_layout_stripe_count(ci->i_layout));
+}
+
+static size_t ceph_vxattrcb_layout_object_size(struct ceph_inode_info *ci,
+					       char *val, size_t size)
+{
+	return snprintf(val, size, "%lld",
+	       (unsigned long long)ceph_file_layout_object_size(ci->i_layout));
+}
+
+static size_t ceph_vxattrcb_layout_pool(struct ceph_inode_info *ci,
+					char *val, size_t size)
+{
+	int ret;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+	struct ceph_osd_client *osdc = &fsc->client->osdc;
+	s64 pool = ceph_file_layout_pg_pool(ci->i_layout);
+	const char *pool_name;
+
+	down_read(&osdc->map_sem);
+	pool_name = ceph_pg_pool_name_by_id(osdc->osdmap, pool);
+	if (pool_name)
+		ret = snprintf(val, size, "%s", pool_name);
+	else
+		ret = snprintf(val, size, "%lld", (unsigned long long)pool);
+	up_read(&osdc->map_sem);
+	return ret;
+}
+
 /* directories */
 
 static size_t ceph_vxattrcb_dir_entries(struct ceph_inode_info *ci, char *val,
@@ -130,6 +170,8 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 
 
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
+#define CEPH_XATTR_NAME2(_type, _name, _name2)	\
+	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
 
 #define XATTR_NAME_CEPH(_type, _name)					\
 	{								\
@@ -139,6 +181,15 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 		.readonly = true,				\
 		.hidden = false,				\
 		.exists_cb = NULL,			\
+	}
+#define XATTR_LAYOUT_FIELD(_type, _name, _field)			\
+	{								\
+		.name = CEPH_XATTR_NAME2(_type, _name, _field),	\
+		.name_size = sizeof (CEPH_XATTR_NAME2(_type, _name, _field)), \
+		.getxattr_cb = ceph_vxattrcb_ ## _name ## _ ## _field, \
+		.readonly = false,				\
+		.hidden = true,			\
+		.exists_cb = ceph_vxattrcb_layout_exists,	\
 	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
@@ -150,6 +201,10 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 		.hidden = false,
 		.exists_cb = ceph_vxattrcb_layout_exists,
 	},
+	XATTR_LAYOUT_FIELD(dir, layout, stripe_unit),
+	XATTR_LAYOUT_FIELD(dir, layout, stripe_count),
+	XATTR_LAYOUT_FIELD(dir, layout, object_size),
+	XATTR_LAYOUT_FIELD(dir, layout, pool),
 	XATTR_NAME_CEPH(dir, entries),
 	XATTR_NAME_CEPH(dir, files),
 	XATTR_NAME_CEPH(dir, subdirs),
@@ -173,6 +228,10 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 		.hidden = false,
 		.exists_cb = ceph_vxattrcb_layout_exists,
 	},
+	XATTR_LAYOUT_FIELD(file, layout, stripe_unit),
+	XATTR_LAYOUT_FIELD(file, layout, stripe_count),
+	XATTR_LAYOUT_FIELD(file, layout, object_size),
+	XATTR_LAYOUT_FIELD(file, layout, pool),
 	{ 0 }	/* Required table terminator */
 };
 static size_t ceph_file_vxattrs_name_size;	/* total size of all names */
