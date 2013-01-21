@@ -830,6 +830,8 @@ static const char *section_white_list[] =
 	".toc*",
 	".xt.prop",				 /* xtensa */
 	".xt.lit",         /* xtensa */
+	".arcextmap*",			/* arc */
+	".gnu.linkonce.arcext*",	/* arc : modules */
 	NULL
 };
 
