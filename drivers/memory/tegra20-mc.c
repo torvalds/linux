@@ -17,6 +17,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
@@ -216,9 +217,9 @@ static int tegra20_mc_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res)
 			return -ENODEV;
-		mc->regs[i] = devm_request_and_ioremap(&pdev->dev, res);
-		if (!mc->regs[i])
-			return -EBUSY;
+		mc->regs[i] = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(mc->regs[i]))
+			return PTR_ERR(mc->regs[i]);
 	}
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
