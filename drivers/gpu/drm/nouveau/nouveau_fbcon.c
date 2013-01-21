@@ -251,9 +251,10 @@ nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 }
 
 static int
-nouveau_fbcon_create(struct nouveau_fbdev *fbcon,
+nouveau_fbcon_create(struct drm_fb_helper *helper,
 		     struct drm_fb_helper_surface_size *sizes)
 {
+	struct nouveau_fbdev *fbcon = (struct nouveau_fbdev *)helper;
 	struct drm_device *dev = fbcon->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
@@ -388,23 +389,6 @@ out:
 	return ret;
 }
 
-static int
-nouveau_fbcon_find_or_create_single(struct drm_fb_helper *helper,
-				    struct drm_fb_helper_surface_size *sizes)
-{
-	struct nouveau_fbdev *fbcon = (struct nouveau_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = nouveau_fbcon_create(fbcon, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
 void
 nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 {
@@ -450,7 +434,7 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.gamma_set = nouveau_fbcon_gamma_set,
 	.gamma_get = nouveau_fbcon_gamma_get,
-	.fb_probe = nouveau_fbcon_find_or_create_single,
+	.fb_probe = nouveau_fbcon_create,
 };
 
 

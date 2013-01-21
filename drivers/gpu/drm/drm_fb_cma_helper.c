@@ -275,23 +275,8 @@ err_drm_gem_cma_free_object:
 	return ret;
 }
 
-static int drm_fbdev_cma_probe(struct drm_fb_helper *helper,
-	struct drm_fb_helper_surface_size *sizes)
-{
-	int ret = 0;
-
-	if (!helper->fb) {
-		ret = drm_fbdev_cma_create(helper, sizes);
-		if (ret < 0)
-			return ret;
-		ret = 1;
-	}
-
-	return ret;
-}
-
 static struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
-	.fb_probe = drm_fbdev_cma_probe,
+	.fb_probe = drm_fbdev_cma_create,
 };
 
 /**

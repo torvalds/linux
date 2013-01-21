@@ -545,9 +545,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
 	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int new_fb = 0;
 	int bytespp;
-	int ret;
 
 	bytespp = sizes->surface_bpp / 8;
 	if (bytespp == 3)	/* no 24bit packed */
@@ -562,13 +560,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
                 sizes->surface_depth = 16;
         }
 
-	if (!helper->fb) {
-		ret = psbfb_create(psb_fbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
+	return psbfb_create(psb_fbdev, sizes);
 }
 
 static struct drm_fb_helper_funcs psb_fb_helper_funcs = {

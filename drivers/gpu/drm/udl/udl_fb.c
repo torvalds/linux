@@ -476,9 +476,10 @@ udl_framebuffer_init(struct drm_device *dev,
 }
 
 
-static int udlfb_create(struct udl_fbdev *ufbdev,
+static int udlfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
+	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
 	struct device *device = &dev->usbdev->dev;
@@ -556,27 +557,10 @@ out:
 	return ret;
 }
 
-static int udl_fb_find_or_create_single(struct drm_fb_helper *helper,
-					struct drm_fb_helper_surface_size *sizes)
-{
-	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = udlfb_create(ufbdev, sizes);
-		if (ret)
-			return ret;
-
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
 static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
 	.gamma_set = udl_crtc_fb_gamma_set,
 	.gamma_get = udl_crtc_fb_gamma_get,
-	.fb_probe = udl_fb_find_or_create_single,
+	.fb_probe = udlfb_create,
 };
 
 static void udl_fbdev_destroy(struct drm_device *dev,

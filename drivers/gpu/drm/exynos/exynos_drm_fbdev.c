@@ -226,36 +226,8 @@ out:
 	return ret;
 }
 
-static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
-				   struct drm_fb_helper_surface_size *sizes)
-{
-	int ret = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	/*
-	 * with !helper->fb, it means that this funcion is called first time
-	 * and after that, the helper->fb would be used as clone mode.
-	 */
-	if (!helper->fb) {
-		ret = exynos_drm_fbdev_create(helper, sizes);
-		if (ret < 0) {
-			DRM_ERROR("failed to create fbdev.\n");
-			return ret;
-		}
-
-		/*
-		 * fb_helper expects a value more than 1 if succeed
-		 * because register_framebuffer() should be called.
-		 */
-		ret = 1;
-	}
-
-	return ret;
-}
-
 static struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
-	.fb_probe =	exynos_drm_fbdev_probe,
+	.fb_probe =	exynos_drm_fbdev_create,
 };
 
 int exynos_drm_fbdev_init(struct drm_device *dev)

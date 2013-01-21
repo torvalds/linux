@@ -121,9 +121,10 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 	return ret;
 }
 
-static int cirrusfb_create(struct cirrus_fbdev *gfbdev,
+static int cirrusfb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
 {
+	struct cirrus_fbdev *gfbdev = (struct cirrus_fbdev *)helper;
 	struct drm_device *dev = gfbdev->helper.dev;
 	struct cirrus_device *cdev = gfbdev->helper.dev->dev_private;
 	struct fb_info *info;
@@ -220,23 +221,6 @@ out_iounmap:
 	return ret;
 }
 
-static int cirrus_fb_find_or_create_single(struct drm_fb_helper *helper,
-					   struct drm_fb_helper_surface_size
-					   *sizes)
-{
-	struct cirrus_fbdev *gfbdev = (struct cirrus_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = cirrusfb_create(gfbdev, sizes);
-		if (ret)
-			return ret;
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
 static int cirrus_fbdev_destroy(struct drm_device *dev,
 				struct cirrus_fbdev *gfbdev)
 {
@@ -268,7 +252,7 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 static struct drm_fb_helper_funcs cirrus_fb_helper_funcs = {
 	.gamma_set = cirrus_crtc_fb_gamma_set,
 	.gamma_get = cirrus_crtc_fb_gamma_get,
-	.fb_probe = cirrus_fb_find_or_create_single,
+	.fb_probe = cirrusfb_create,
 };
 
 int cirrus_fbdev_init(struct cirrus_device *cdev)
