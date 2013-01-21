@@ -842,96 +842,6 @@ copyback:
 	return 0;
 }
 
-static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
-		      unsigned int *data, void *file);
-/*
- *	COMEDI_INSNLIST
- *	synchronous instructions
- *
- *	arg:
- *		pointer to sync cmd structure
- *
- *	reads:
- *		sync cmd struct at arg
- *		instruction list
- *		data (for writes)
- *
- *	writes:
- *		data (for reads)
- */
-/* arbitrary limits */
-#define MAX_SAMPLES 256
-static int do_insnlist_ioctl(struct comedi_device *dev,
-			     struct comedi_insnlist __user *arg, void *file)
-{
-	struct comedi_insnlist insnlist;
-	struct comedi_insn *insns = NULL;
-	unsigned int *data = NULL;
-	int i = 0;
-	int ret = 0;
-
-	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
-		return -EFAULT;
-
-	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
-	if (!data) {
-		DPRINTK("kmalloc failed\n");
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
-	if (!insns) {
-		DPRINTK("kmalloc failed\n");
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	if (copy_from_user(insns, insnlist.insns,
-			   sizeof(*insns) * insnlist.n_insns)) {
-		DPRINTK("copy_from_user failed\n");
-		ret = -EFAULT;
-		goto error;
-	}
-
-	for (i = 0; i < insnlist.n_insns; i++) {
-		if (insns[i].n > MAX_SAMPLES) {
-			DPRINTK("number of samples too large\n");
-			ret = -EINVAL;
-			goto error;
-		}
-		if (insns[i].insn & INSN_MASK_WRITE) {
-			if (copy_from_user(data, insns[i].data,
-					   insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_from_user failed\n");
-				ret = -EFAULT;
-				goto error;
-			}
-		}
-		ret = parse_insn(dev, insns + i, data, file);
-		if (ret < 0)
-			goto error;
-		if (insns[i].insn & INSN_MASK_READ) {
-			if (copy_to_user(insns[i].data, data,
-					 insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_to_user failed\n");
-				ret = -EFAULT;
-				goto error;
-			}
-		}
-		if (need_resched())
-			schedule();
-	}
-
-error:
-	kfree(insns);
-	kfree(data);
-
-	if (ret < 0)
-		return ret;
-	return i;
-}
-
 static int check_insn_config_length(struct comedi_insn *insn,
 				    unsigned int *data)
 {
@@ -1160,6 +1070,94 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 
 out:
 	return ret;
+}
+
+/*
+ *	COMEDI_INSNLIST
+ *	synchronous instructions
+ *
+ *	arg:
+ *		pointer to sync cmd structure
+ *
+ *	reads:
+ *		sync cmd struct at arg
+ *		instruction list
+ *		data (for writes)
+ *
+ *	writes:
+ *		data (for reads)
+ */
+/* arbitrary limits */
+#define MAX_SAMPLES 256
+static int do_insnlist_ioctl(struct comedi_device *dev,
+			     struct comedi_insnlist __user *arg, void *file)
+{
+	struct comedi_insnlist insnlist;
+	struct comedi_insn *insns = NULL;
+	unsigned int *data = NULL;
+	int i = 0;
+	int ret = 0;
+
+	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
+		return -EFAULT;
+
+	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
+	if (!data) {
+		DPRINTK("kmalloc failed\n");
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
+	if (!insns) {
+		DPRINTK("kmalloc failed\n");
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	if (copy_from_user(insns, insnlist.insns,
+			   sizeof(*insns) * insnlist.n_insns)) {
+		DPRINTK("copy_from_user failed\n");
+		ret = -EFAULT;
+		goto error;
+	}
+
+	for (i = 0; i < insnlist.n_insns; i++) {
+		if (insns[i].n > MAX_SAMPLES) {
+			DPRINTK("number of samples too large\n");
+			ret = -EINVAL;
+			goto error;
+		}
+		if (insns[i].insn & INSN_MASK_WRITE) {
+			if (copy_from_user(data, insns[i].data,
+					   insns[i].n * sizeof(unsigned int))) {
+				DPRINTK("copy_from_user failed\n");
+				ret = -EFAULT;
+				goto error;
+			}
+		}
+		ret = parse_insn(dev, insns + i, data, file);
+		if (ret < 0)
+			goto error;
+		if (insns[i].insn & INSN_MASK_READ) {
+			if (copy_to_user(insns[i].data, data,
+					 insns[i].n * sizeof(unsigned int))) {
+				DPRINTK("copy_to_user failed\n");
+				ret = -EFAULT;
+				goto error;
+			}
+		}
+		if (need_resched())
+			schedule();
+	}
+
+error:
+	kfree(insns);
+	kfree(data);
+
+	if (ret < 0)
+		return ret;
+	return i;
 }
 
 /*
