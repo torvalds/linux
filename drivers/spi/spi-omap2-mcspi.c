@@ -1204,10 +1204,9 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	r->end += regs_offset;
 	mcspi->phys = r->start;
 
-	mcspi->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!mcspi->base) {
-		dev_dbg(&pdev->dev, "can't ioremap MCSPI\n");
-		status = -ENOMEM;
+	mcspi->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(mcspi->base)) {
+		status = PTR_ERR(mcspi->base);
 		goto free_master;
 	}
 

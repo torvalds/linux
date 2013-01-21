@@ -1276,10 +1276,9 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	sdd->regs = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (sdd->regs == NULL) {
-		dev_err(&pdev->dev, "Unable to remap IO\n");
-		ret = -ENXIO;
+	sdd->regs = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(sdd->regs)) {
+		ret = PTR_ERR(sdd->regs);
 		goto err1;
 	}
 

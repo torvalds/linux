@@ -508,11 +508,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto exit_free_master;
 	}
-	tsd->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!tsd->base) {
-		dev_err(&pdev->dev,
-			"Cannot request memregion/iomap dma address\n");
-		ret = -EADDRNOTAVAIL;
+	tsd->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(tsd->base)) {
+		ret = PTR_ERR(tsd->base);
 		goto exit_free_master;
 	}
 

@@ -538,9 +538,9 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	if (!iores || irq_err < 0 || irq_dma < 0)
 		return -EINVAL;
 
-	base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!base)
-		return -EADDRNOTAVAIL;
+	base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))
