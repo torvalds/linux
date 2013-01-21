@@ -181,6 +181,7 @@
 #define DISABLE_ACB_TOV			30
 #define IP_CONFIG_TOV			30
 #define LOGIN_TOV			12
+#define BOOT_LOGIN_RESP_TOV		60
 
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
@@ -315,6 +316,7 @@ struct ql4_tuple_ddb {
  * DDB flags.
  */
 #define DF_RELOGIN		0	/* Relogin to device */
+#define DF_BOOT_TGT		1	/* Boot target entry */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
