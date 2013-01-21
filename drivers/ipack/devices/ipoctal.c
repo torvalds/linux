@@ -289,7 +289,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->mem8_space =
 		devm_ioremap_nocache(&ipoctal->dev->dev,
 				     region->start, 0x8000);
-	if (!addr) {
+	if (!ipoctal->mem8_space) {
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] MEM8 space!\n",
 			bus_nr, slot);
