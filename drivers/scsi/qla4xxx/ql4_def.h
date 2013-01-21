@@ -501,6 +501,7 @@ struct scsi_qla_host {
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */
+#define AF_LOOPBACK			9 /* 0x00000200 */
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
 #define AF_HA_REMOVAL			12 /* 0x00001000 */
@@ -840,7 +841,8 @@ static inline int is_aer_supported(struct scsi_qla_host *ha)
 static inline int adapter_up(struct scsi_qla_host *ha)
 {
 	return (test_bit(AF_ONLINE, &ha->flags) != 0) &&
-		(test_bit(AF_LINK_UP, &ha->flags) != 0);
+	       (test_bit(AF_LINK_UP, &ha->flags) != 0) &&
+	       (!test_bit(AF_LOOPBACK, &ha->flags));
 }
 
 static inline struct scsi_qla_host* to_qla_host(struct Scsi_Host *shost)

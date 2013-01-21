@@ -522,6 +522,10 @@ struct qla_flt_region {
 #define FLASH_OPT_COMMIT	2
 #define FLASH_OPT_RMW_COMMIT	3
 
+/* Loopback type */
+#define ENABLE_INTERNAL_LOOPBACK	0x04
+#define ENABLE_EXTERNAL_LOOPBACK	0x08
+
 /*************************************************************************/
 
 /* Host Adapter Initialization Control Block (from host) */

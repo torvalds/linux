@@ -2242,6 +2242,7 @@ static int qla4xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	    test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags) ||
 	    !test_bit(AF_ONLINE, &ha->flags) ||
 	    !test_bit(AF_LINK_UP, &ha->flags) ||
+	    test_bit(AF_LOOPBACK, &ha->flags) ||
 	    test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags))
 		goto qc_host_busy;
 
@@ -3480,7 +3481,8 @@ dpc_post_reset_ha:
 	}
 
 	/* ---- link change? --- */
-	if (test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
+	if (!test_bit(AF_LOOPBACK, &ha->flags) &&
+	    test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
 		if (!test_bit(AF_LINK_UP, &ha->flags)) {
 			/* ---- link down? --- */
 			qla4xxx_mark_all_devices_missing(ha);
