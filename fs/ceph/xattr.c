@@ -30,6 +30,7 @@ struct ceph_vxattr {
 	size_t (*getxattr_cb)(struct ceph_inode_info *ci, char *val,
 			      size_t size);
 	bool readonly, hidden;
+	bool (*exists_cb)(struct ceph_inode_info *ci);
 };
 
 /* directories */
@@ -92,6 +93,7 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
 		.readonly = true,				\
 		.hidden = false,				\
+		.exists_cb = NULL,			\
 	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
