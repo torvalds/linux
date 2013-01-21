@@ -414,10 +414,13 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 	CP_FM_USR(&uuid_obj, args->args_mgr_registerobject.uuid_obj, status, 1);
 	if (status)
 		goto func_end;
-	/* path_size is increased by 1 to accommodate NULL */
 	path_size = strlen_user((char *)
-				args->args_mgr_registerobject.sz_path_name) +
-	    1;
+				args->args_mgr_registerobject.sz_path_name);
+	if (!path_size) {
+		status = -EINVAL;
+		goto func_end;
+	}
+
 	psz_path_name = kmalloc(path_size, GFP_KERNEL);
 	if (!psz_path_name) {
 		status = -ENOMEM;
