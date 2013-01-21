@@ -168,11 +168,9 @@ static int omap_usb2_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
-	phy->control_dev = devm_request_and_ioremap(&pdev->dev, res);
-	if (phy->control_dev == NULL) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -ENXIO;
-	}
+	phy->control_dev = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(phy->control_dev))
+		return PTR_ERR(phy->control_dev);
 
 	phy->is_suspended	= 1;
 	omap_usb_phy_power(phy, 0);

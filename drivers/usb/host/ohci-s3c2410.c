@@ -351,10 +351,9 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 	hcd->rsrc_start = dev->resource[0].start;
 	hcd->rsrc_len	= resource_size(&dev->resource[0]);
 
-	hcd->regs = devm_request_and_ioremap(&dev->dev, &dev->resource[0]);
-	if (!hcd->regs) {
-		dev_err(&dev->dev, "devm_request_and_ioremap failed\n");
-		retval = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&dev->dev, &dev->resource[0]);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
 		goto err_put;
 	}
 

@@ -306,10 +306,9 @@ static int usb_hcd_nxp_probe(struct platform_device *pdev)
 		goto out8;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to devm_request_and_ioremap\n");
-		ret =  -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
 		goto out8;
 	}
 	hcd->rsrc_start = res->start;

@@ -3525,10 +3525,9 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	hsotg->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hsotg->regs) {
-		dev_err(dev, "cannot map registers\n");
-		ret = -ENXIO;
+	hsotg->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsotg->regs)) {
+		ret = PTR_ERR(hsotg->regs);
 		goto err_clk;
 	}
 
