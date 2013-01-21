@@ -1341,6 +1341,19 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
 }
 
+static u8 *ndisc_fill_redirect_hdr_option(u8 *opt, struct sk_buff *orig_skb,
+					  int rd_len)
+{
+	memset(opt, 0, 8);
+	*(opt++) = ND_OPT_REDIRECT_HDR;
+	*(opt++) = (rd_len >> 3);
+	opt += 6;
+
+	memcpy(opt, ipv6_hdr(orig_skb), rd_len - 8);
+
+	return opt + rd_len - 8;
+}
+
 void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 {
 	struct net_device *dev = skb->dev;
@@ -1470,12 +1483,8 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	 *	build redirect option and copy skb over to the new packet.
 	 */
 
-	memset(opt, 0, 8);
-	*(opt++) = ND_OPT_REDIRECT_HDR;
-	*(opt++) = (rd_len >> 3);
-	opt += 6;
-
-	memcpy(opt, ipv6_hdr(skb), rd_len - 8);
+	if (rd_len)
+		opt = ndisc_fill_redirect_hdr_option(opt, skb, rd_len);
 
 	msg->icmph.icmp6_cksum = csum_ipv6_magic(&saddr_buf, &ipv6_hdr(skb)->saddr,
 						 len, IPPROTO_ICMPV6,
