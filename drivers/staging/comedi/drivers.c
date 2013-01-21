@@ -171,12 +171,50 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	return 1;
 }
 
-static int postconfig(struct comedi_device *dev)
+static int __comedi_device_postconfig_async(struct comedi_device *dev,
+					    struct comedi_subdevice *s)
 {
-	int i;
-	struct comedi_subdevice *s;
-	struct comedi_async *async = NULL;
+	struct comedi_async *async;
+	unsigned int buf_size;
 	int ret;
+
+	BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
+	BUG_ON(!s->do_cmdtest);
+
+	async = kzalloc(sizeof(*async), GFP_KERNEL);
+	if (!async) {
+		dev_warn(dev->class_dev, "failed to allocate async struct\n");
+		return -ENOMEM;
+	}
+	init_waitqueue_head(&async->wait_head);
+	async->subdevice = s;
+	s->async = async;
+
+	async->max_bufsize = comedi_default_buf_maxsize_kb * 1024;
+	buf_size = comedi_default_buf_size_kb * 1024;
+	if (buf_size > async->max_bufsize)
+		buf_size = async->max_bufsize;
+
+	if (comedi_buf_alloc(dev, s, buf_size) < 0) {
+		dev_warn(dev->class_dev, "Buffer allocation failed\n");
+		return -ENOMEM;
+	}
+	if (s->buf_change) {
+		ret = s->buf_change(dev, s, buf_size);
+		if (ret < 0)
+			return ret;
+	}
+
+	comedi_alloc_subdevice_minor(dev, s);
+
+	return 0;
+}
+
+static int __comedi_device_postconfig(struct comedi_device *dev)
+{
+	struct comedi_subdevice *s;
+	int ret;
+	int i;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
@@ -188,42 +226,9 @@ static int postconfig(struct comedi_device *dev)
 			s->len_chanlist = 1;
 
 		if (s->do_cmd) {
-			unsigned int buf_size;
-
-			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
-						   SDF_CMD_WRITE)) == 0);
-			BUG_ON(!s->do_cmdtest);
-
-			async =
-			    kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
-			if (async == NULL) {
-				dev_warn(dev->class_dev,
-					 "failed to allocate async struct\n");
-				return -ENOMEM;
-			}
-			init_waitqueue_head(&async->wait_head);
-			async->subdevice = s;
-			s->async = async;
-
-			async->max_bufsize =
-				comedi_default_buf_maxsize_kb * 1024;
-			buf_size = comedi_default_buf_size_kb * 1024;
-			if (buf_size > async->max_bufsize)
-				buf_size = async->max_bufsize;
-
-			async->prealloc_buf = NULL;
-			async->prealloc_bufsz = 0;
-			if (comedi_buf_alloc(dev, s, buf_size) < 0) {
-				dev_warn(dev->class_dev,
-					 "Buffer allocation failed\n");
-				return -ENOMEM;
-			}
-			if (s->buf_change) {
-				ret = s->buf_change(dev, s, buf_size);
-				if (ret < 0)
-					return ret;
-			}
-			comedi_alloc_subdevice_minor(dev, s);
+			ret = __comedi_device_postconfig_async(dev, s);
+			if (ret)
+				return ret;
 		}
 
 		if (!s->range_table && !s->range_table_list)
@@ -254,7 +259,7 @@ static int postconfig(struct comedi_device *dev)
 /* called with module refcount incremented, decrements it */
 static int comedi_device_postconfig(struct comedi_device *dev)
 {
-	int ret = postconfig(dev);
+	int ret = __comedi_device_postconfig(dev);
 	module_put(dev->driver->module);
 	if (ret < 0) {
 		__comedi_device_detach(dev);
