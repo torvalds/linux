@@ -318,8 +318,15 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 	 * circuit relies on.  To work around it, we turn the clocks on back
 	 * to keep card detection circuit functional.
 	 */
-	if ((reg == SDHCI_SOFTWARE_RESET) && (val & 1))
+	if ((reg == SDHCI_SOFTWARE_RESET) && (val & 1)) {
 		esdhc_clrset_le(host, 0x7, 0x7, ESDHC_SYSTEM_CONTROL);
+		/*
+		 * The reset on usdhc fails to clear MIX_CTRL register.
+		 * Do it manually here.
+		 */
+		if (is_imx6q_usdhc(imx_data))
+			writel(0, host->ioaddr + ESDHC_MIX_CTRL);
+	}
 }
 
 static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
