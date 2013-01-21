@@ -1286,14 +1286,8 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	pVBInfo->BaseAddr = xgifb_info->vga_base;
-
 	if (pVBInfo->FBAddr == NULL) {
 		dev_dbg(&pdev->dev, "pVBInfo->FBAddr == 0\n");
-		return 0;
-	}
-	if (pVBInfo->BaseAddr == 0) {
-		dev_dbg(&pdev->dev, "pVBInfo->BaseAddr == 0\n");
 		return 0;
 	}
 

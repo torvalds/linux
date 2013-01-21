@@ -156,7 +156,6 @@ struct vb_device_info {
 	unsigned short   SelectCRT2Rate;
 
 	void __iomem *FBAddr;
-	unsigned long BaseAddr;
 
 	unsigned char const (*SR15)[8];
 	unsigned char const (*CR40)[8];
