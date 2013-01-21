@@ -3488,6 +3488,9 @@ static bool cs_ss_rpl_check(struct kvm_vcpu *vcpu)
  */
 static bool guest_state_valid(struct kvm_vcpu *vcpu)
 {
+	if (enable_unrestricted_guest)
+		return true;
+
 	/* real mode guest state checks */
 	if (!is_protmode(vcpu)) {
 		if (!rmode_segment_valid(vcpu, VCPU_SREG_CS))
