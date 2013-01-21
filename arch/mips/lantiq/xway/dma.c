@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 
 #include <lantiq_soc.h>
 #include <xway_dma.h>
@@ -223,8 +224,8 @@ ltq_dma_init(struct platform_device *pdev)
 		panic("Failed to get dma resource");
 
 	/* remap dma register range */
-	ltq_dma_membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ltq_dma_membase)
+	ltq_dma_membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ltq_dma_membase))
 		panic("Failed to remap dma resource");
 
 	/* power up and reset the dma engine */
