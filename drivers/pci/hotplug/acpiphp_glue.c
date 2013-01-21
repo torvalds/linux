@@ -543,10 +543,13 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 	acpi_status status;
 	acpi_handle handle = bridge->handle;
 
-	status = acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+	if (bridge->type != BRIDGE_TYPE_HOST) {
+		status = acpi_remove_notify_handler(handle,
+					    ACPI_SYSTEM_NOTIFY,
 					    handle_hotplug_event_bridge);
-	if (ACPI_FAILURE(status))
-		err("failed to remove notify handler\n");
+		if (ACPI_FAILURE(status))
+			err("failed to remove notify handler\n");
+	}
 
 	if ((bridge->type != BRIDGE_TYPE_HOST) &&
 	    ((bridge->flags & BRIDGE_HAS_EJ0) && bridge->func)) {
@@ -630,9 +633,6 @@ static void remove_bridge(struct acpi_pci_root *root)
 	bridge = acpiphp_handle_to_bridge(handle);
 	if (bridge)
 		cleanup_bridge(bridge);
-	else
-		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					   handle_hotplug_event_bridge);
 }
 
 static int power_on_slot(struct acpiphp_slot *slot)
@@ -1123,18 +1123,12 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 }
 
 /* Program resources in newly inserted bridge */
-static int acpiphp_configure_bridge (acpi_handle handle)
+static int acpiphp_configure_p2p_bridge(acpi_handle handle)
 {
-	struct pci_bus *bus;
+	struct pci_dev *pdev = acpi_get_pci_dev(handle);
+	struct pci_bus *bus = pdev->subordinate;
 
-	if (acpi_is_root_bridge(handle)) {
-		struct acpi_pci_root *root = acpi_pci_find_root(handle);
-		bus = root->bus;
-	} else {
-		struct pci_dev *pdev = acpi_get_pci_dev(handle);
-		bus = pdev->subordinate;
-		pci_dev_put(pdev);
-	}
+	pci_dev_put(pdev);
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
@@ -1144,7 +1138,7 @@ static int acpiphp_configure_bridge (acpi_handle handle)
 	return 0;
 }
 
-static void handle_bridge_insertion(acpi_handle handle, u32 type)
+static void handle_p2p_bridge_insertion(acpi_handle handle, u32 type)
 {
 	struct acpi_device *device;
 
@@ -1162,8 +1156,8 @@ static void handle_bridge_insertion(acpi_handle handle, u32 type)
 		err("ACPI device object missing\n");
 		return;
 	}
-	if (!acpiphp_configure_bridge(handle))
-		add_bridge(handle);
+	if (!acpiphp_configure_p2p_bridge(handle))
+		add_p2p_bridge(handle);
 	else
 		err("cannot configure and start bridge\n");
 
@@ -1221,7 +1215,7 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 
 	if (acpi_bus_get_device(handle, &device)) {
 		/* This bridge must have just been physically inserted */
-		handle_bridge_insertion(handle, type);
+		handle_p2p_bridge_insertion(handle, type);
 		goto out;
 	}
 
@@ -1396,21 +1390,6 @@ static void handle_hotplug_event_func(acpi_handle handle, u32 type,
 	alloc_acpi_hp_work(handle, type, context, _handle_hotplug_event_func);
 }
 
-static acpi_status
-find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	int *count = (int *)context;
-
-	if (!acpi_is_root_bridge(handle))
-		return AE_OK;
-
-	(*count)++;
-	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-				    handle_hotplug_event_bridge, NULL);
-
-	return AE_OK ;
-}
-
 static struct acpi_pci_driver acpi_pci_hp_driver = {
 	.add =		add_bridge,
 	.remove =	remove_bridge,
@@ -1421,15 +1400,7 @@ static struct acpi_pci_driver acpi_pci_hp_driver = {
  */
 int __init acpiphp_glue_init(void)
 {
-	int num = 0;
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
-
-	if (num <= 0)
-		return -1;
-	else
-		acpi_pci_register_driver(&acpi_pci_hp_driver);
+	acpi_pci_register_driver(&acpi_pci_hp_driver);
 
 	return 0;
 }

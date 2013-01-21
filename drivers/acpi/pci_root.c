@@ -673,3 +673,127 @@ int __init acpi_pci_root_init(void)
 
 	return 0;
 }
+/* Support root bridge hotplug */
+
+static void handle_root_bridge_insertion(acpi_handle handle)
+{
+	struct acpi_device *device;
+
+	if (!acpi_bus_get_device(handle, &device)) {
+		printk(KERN_DEBUG "acpi device exists...\n");
+		return;
+	}
+
+	if (acpi_bus_scan(handle))
+		printk(KERN_ERR "cannot add bridge to acpi list\n");
+}
+
+static void handle_root_bridge_removal(struct acpi_device *device)
+{
+	struct acpi_eject_event *ej_event;
+
+	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
+	if (!ej_event) {
+		/* Inform firmware the hot-remove operation has error */
+		(void) acpi_evaluate_hotplug_ost(device->handle,
+					ACPI_NOTIFY_EJECT_REQUEST,
+					ACPI_OST_SC_NON_SPECIFIC_FAILURE,
+					NULL);
+		return;
+	}
+
+	ej_event->device = device;
+	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
+
+	acpi_bus_hot_remove_device(ej_event);
+}
+
+static void _handle_hotplug_event_root(struct work_struct *work)
+{
+	struct acpi_pci_root *root;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER };
+	struct acpi_hp_work *hp_work;
+	acpi_handle handle;
+	u32 type;
+
+	hp_work = container_of(work, struct acpi_hp_work, work);
+	handle = hp_work->handle;
+	type = hp_work->type;
+
+	root = acpi_pci_find_root(handle);
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+
+	switch (type) {
+	case ACPI_NOTIFY_BUS_CHECK:
+		/* bus enumerate */
+		printk(KERN_DEBUG "%s: Bus check notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (!root)
+			handle_root_bridge_insertion(handle);
+
+		break;
+
+	case ACPI_NOTIFY_DEVICE_CHECK:
+		/* device check */
+		printk(KERN_DEBUG "%s: Device check notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (!root)
+			handle_root_bridge_insertion(handle);
+		break;
+
+	case ACPI_NOTIFY_EJECT_REQUEST:
+		/* request device eject */
+		printk(KERN_DEBUG "%s: Device eject notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (root)
+			handle_root_bridge_removal(root->device);
+		break;
+	default:
+		printk(KERN_WARNING "notify_handler: unknown event type 0x%x for %s\n",
+				 type, (char *)buffer.pointer);
+		break;
+	}
+
+	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
+	kfree(buffer.pointer);
+}
+
+static void handle_hotplug_event_root(acpi_handle handle, u32 type,
+					void *context)
+{
+	alloc_acpi_hp_work(handle, type, context,
+				_handle_hotplug_event_root);
+}
+
+static acpi_status __init
+find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	char objname[64];
+	struct acpi_buffer buffer = { .length = sizeof(objname),
+				      .pointer = objname };
+	int *count = (int *)context;
+
+	if (!acpi_is_root_bridge(handle))
+		return AE_OK;
+
+	(*count)++;
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+
+	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+				handle_hotplug_event_root, NULL);
+	printk(KERN_DEBUG "acpi root: %s notify handler installed\n", objname);
+
+	return AE_OK;
+}
+
+void __init acpi_pci_root_hp_init(void)
+{
+	int num = 0;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+		ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
+
+	printk(KERN_DEBUG "Found %d acpi root devices\n", num);
+}
