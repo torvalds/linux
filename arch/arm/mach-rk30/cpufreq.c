@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ROCKCHIP, Inc.
+ * Copyright (C) 2012-2013 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -73,7 +73,7 @@ static DEFINE_MUTEX(cpufreq_mutex);
 
 static struct clk *gpu_clk;
 static struct clk *ddr_clk;
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !defined(CONFIG_ARCH_RK3066B) && !defined(CONFIG_ARCH_RK3188)
 #define GPU_MAX_RATE 350*1000*1000
 #endif
 
@@ -100,7 +100,7 @@ static bool rk30_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
 }
 
 /**********************thermal limit**************************/
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !defined(CONFIG_ARCH_RK3066B) && !defined(CONFIG_ARCH_RK3188)
 #define CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 #endif
 
@@ -286,8 +286,12 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		clk_enable_dvfs(cpu_clk);
 
 #if !defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3188)
+		dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
+#else
 		/* Limit gpu frequency between 133M to 400M */
 		dvfs_clk_enable_limit(gpu_clk, 133000000, 400000000);
+#endif
 #endif
 
 		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
@@ -547,7 +551,7 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 	if (!is_ondemand)
 		goto out;
 
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !defined(CONFIG_ARCH_RK3066B) && !defined(CONFIG_ARCH_RK3188)
 	if (is_booting && target_freq >= 1600 * 1000) {
 		s64 boottime_ms = ktime_to_ms(ktime_get_boottime());
 		if (boottime_ms > 30 * MSEC_PER_SEC) {
