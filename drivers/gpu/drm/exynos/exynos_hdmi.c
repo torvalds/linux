@@ -2526,11 +2526,9 @@ static int hdmi_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hdata->regs) {
-		DRM_ERROR("failed to map registers\n");
-		return -ENXIO;
-	}
+	hdata->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hdata->regs))
+		return PTR_ERR(hdata->regs);
 
 	ret = devm_gpio_request(&pdev->dev, hdata->hpd_gpio, "HPD");
 	if (ret) {
