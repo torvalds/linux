@@ -565,6 +565,10 @@ int rt3261_headset_mic_detect(int jack_insert)
 	int sclk_src;
 #endif
 
+	if(rt3261_codec == NULL){
+		return -1;
+	}
+
 	if(jack_insert) {
 		if (SND_SOC_BIAS_OFF == rt3261_codec->dapm.bias_level) {
 			snd_soc_write(rt3261_codec, RT3261_PWR_ANLG1, 0x2004);

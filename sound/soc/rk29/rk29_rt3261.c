@@ -258,7 +258,11 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
+		#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)    
+			.cpu_dai_name = "rk29_i2s.0",
+		#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+			.cpu_dai_name = "rk29_i2s.1",
+		#endif
 		.codec_dai_name = "rt3261-aif1",
 		.init = rk29_rt3261_init,
 		.ops = &rk29_ops,
@@ -268,7 +272,11 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "RT3261 PCM",
 		.codec_name = "rt3261.0-001c",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
+		#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)    
+			.cpu_dai_name = "rk29_i2s.0",
+		#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+			.cpu_dai_name = "rk29_i2s.1",
+		#endif 
 		.codec_dai_name = "rt3261-aif2",
 		.ops = &rt3261_voice_ops,
 	},
