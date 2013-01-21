@@ -212,6 +212,7 @@ struct hda_gen_spec {
 	unsigned int no_analog:1; /* digital I/O only */
 	unsigned int dyn_adc_switch:1; /* switch ADCs (for ALC275) */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
+	unsigned int have_aamix_ctl:1;
 
 	/* loopback mixing mode */
 	bool aamix_mode;

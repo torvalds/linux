@@ -1845,6 +1845,10 @@ static int indep_hp_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
+			       int nomix_path_idx, int mix_path_idx,
+			       int out_type);
+
 static int indep_hp_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
@@ -1860,11 +1864,31 @@ static int indep_hp_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (spec->indep_hp_enabled != select) {
+		hda_nid_t *dacp;
+		if (spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)
+			dacp = &spec->private_dac_nids[0];
+		else
+			dacp = &spec->multiout.hp_out_nid[0];
+
+		/* update HP aamix paths in case it conflicts with indep HP */
+		if (spec->have_aamix_ctl) {
+			if (spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)
+				update_aamix_paths(codec, spec->aamix_mode,
+						   spec->out_paths[0],
+						   spec->aamix_out_paths[0],
+						   spec->autocfg.line_out_type);
+			else
+				update_aamix_paths(codec, spec->aamix_mode,
+						   spec->hp_paths[0],
+						   spec->aamix_out_paths[1],
+						   AUTO_PIN_HP_OUT);
+		}
+
 		spec->indep_hp_enabled = select;
 		if (spec->indep_hp_enabled)
-			spec->multiout.hp_out_nid[0] = 0;
+			*dacp = 0;
 		else
-			spec->multiout.hp_out_nid[0] = spec->alt_dac_nid;
+			*dacp = spec->alt_dac_nid;
 		ret = 1;
 	}
  unlock:
@@ -1884,16 +1908,21 @@ static const struct snd_kcontrol_new indep_hp_ctl = {
 static int create_indep_hp_ctls(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	hda_nid_t dac;
 
 	if (!spec->indep_hp)
 		return 0;
-	if (!spec->multiout.hp_out_nid[0]) {
+	if (spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)
+		dac = spec->multiout.dac_nids[0];
+	else
+		dac = spec->multiout.hp_out_nid[0];
+	if (!dac) {
 		spec->indep_hp = 0;
 		return 0;
 	}
 
 	spec->indep_hp_enabled = false;
-	spec->alt_dac_nid = spec->multiout.hp_out_nid[0];
+	spec->alt_dac_nid = dac;
 	if (!snd_hda_gen_add_kctl(spec, NULL, &indep_hp_ctl))
 		return -ENOMEM;
 	return 0;
@@ -2026,14 +2055,24 @@ static int loopback_mixing_get(struct snd_kcontrol *kcontrol,
 }
 
 static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
-			       int nomix_path_idx, int mix_path_idx)
+			       int nomix_path_idx, int mix_path_idx,
+			       int out_type)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	struct nid_path *nomix_path, *mix_path;
 
 	nomix_path = snd_hda_get_path_from_idx(codec, nomix_path_idx);
 	mix_path = snd_hda_get_path_from_idx(codec, mix_path_idx);
 	if (!nomix_path || !mix_path)
 		return;
+
+	/* if HP aamix path is driven from a different DAC and the
+	 * independent HP mode is ON, can't turn on aamix path
+	 */
+	if (out_type == AUTO_PIN_HP_OUT && spec->indep_hp_enabled &&
+	    mix_path->path[0] != spec->alt_dac_nid)
+		do_mix = false;
+
 	if (do_mix) {
 		snd_hda_activate_path(codec, nomix_path, false, true);
 		snd_hda_activate_path(codec, mix_path, true, true);
@@ -2054,11 +2093,14 @@ static int loopback_mixing_put(struct snd_kcontrol *kcontrol,
 		return 0;
 	spec->aamix_mode = val;
 	update_aamix_paths(codec, val, spec->out_paths[0],
-			   spec->aamix_out_paths[0]);
+			   spec->aamix_out_paths[0],
+			   spec->autocfg.line_out_type);
 	update_aamix_paths(codec, val, spec->hp_paths[0],
-			   spec->aamix_out_paths[1]);
+			   spec->aamix_out_paths[1],
+			   AUTO_PIN_HP_OUT);
 	update_aamix_paths(codec, val, spec->speaker_paths[0],
-			   spec->aamix_out_paths[2]);
+			   spec->aamix_out_paths[2],
+			   AUTO_PIN_SPEAKER_OUT);
 	return 1;
 }
 
@@ -2081,6 +2123,7 @@ static int create_loopback_mixing_ctl(struct hda_codec *codec)
 		return 0;
 	if (!snd_hda_gen_add_kctl(spec, NULL, &loopback_mixing_enum))
 		return -ENOMEM;
+	spec->have_aamix_ctl = 1;
 	return 0;
 }
 
