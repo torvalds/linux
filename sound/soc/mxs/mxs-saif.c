@@ -724,11 +724,9 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!saif->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENODEV;
-	}
+	saif->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(saif->base))
+		return PTR_ERR(saif->base);
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmares) {

@@ -361,9 +361,9 @@ static int jz4740_codec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!base)
-		return -EBUSY;
+	base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	jz4740_codec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					    &jz4740_codec_regmap_config);
