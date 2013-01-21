@@ -486,11 +486,9 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	s3c_rtc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (s3c_rtc_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap memory region\n");
-		return -EINVAL;
-	}
+	s3c_rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(s3c_rtc_base))
+		return PTR_ERR(s3c_rtc_base);
 
 	rtc_clk = devm_clk_get(&pdev->dev, "rtc");
 	if (IS_ERR(rtc_clk)) {

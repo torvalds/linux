@@ -327,11 +327,9 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	info->rtc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->rtc_base) {
-		dev_err(&pdev->dev, "Unable to request mem region and grab IOs for device.\n");
-		return -EBUSY;
-	}
+	info->rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->rtc_base))
+		return PTR_ERR(info->rtc_base);
 
 	info->tegra_rtc_irq = platform_get_irq(pdev, 0);
 	if (info->tegra_rtc_irq <= 0)
