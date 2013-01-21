@@ -463,14 +463,14 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	return skb;
 }
 
-static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
+static void ndisc_send_skb(struct sk_buff *skb,
 			   const struct in6_addr *daddr,
 			   const struct in6_addr *saddr,
 			   struct icmp6hdr *icmp6h)
 {
 	struct flowi6 fl6;
 	struct dst_entry *dst;
-	struct net *net = dev_net(dev);
+	struct net *net = dev_net(skb->dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	struct inet6_dev *idev;
 	int err;
@@ -478,8 +478,8 @@ static void ndisc_send_skb(struct sk_buff *skb, struct net_device *dev,
 
 	type = icmp6h->icmp6_type;
 
-	icmpv6_flow_init(sk, &fl6, type, saddr, daddr, dev->ifindex);
-	dst = icmp6_dst_alloc(dev, &fl6);
+	icmpv6_flow_init(sk, &fl6, type, saddr, daddr, skb->dev->ifindex);
+	dst = icmp6_dst_alloc(skb->dev, &fl6);
 	if (IS_ERR(dst)) {
 		kfree_skb(skb);
 		return;
@@ -516,7 +516,7 @@ static void __ndisc_send(struct net_device *dev,
 	if (!skb)
 		return;
 
-	ndisc_send_skb(skb, dev, daddr, saddr, icmp6h);
+	ndisc_send_skb(skb, daddr, saddr, icmp6h);
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
