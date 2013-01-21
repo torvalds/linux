@@ -81,8 +81,8 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 
 
 struct pcmcia_dynid {
-	struct list_head 		node;
-	struct pcmcia_device_id 	id;
+	struct list_head		node;
+	struct pcmcia_device_id		id;
 };
 
 /**
@@ -566,7 +566,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 			c->io[i].name = p_dev->devname;
 			c->io[i].flags = IORESOURCE_IO;
 		}
-		for (i = 0; i< MAX_WIN; i++) {
+		for (i = 0; i < MAX_WIN; i++) {
 			c->mem[i].name = p_dev->devname;
 			c->mem[i].flags = IORESOURCE_MEM;
 		}
@@ -651,7 +651,7 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 }
 
 
-static int pcmcia_requery_callback(struct device *dev, void * _data)
+static int pcmcia_requery_callback(struct device *dev, void *_data)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	if (!p_dev->dev.driver) {
@@ -729,7 +729,7 @@ static void pcmcia_requery(struct pcmcia_socket *s)
  * the one provided by the card is broken. The firmware files reside in
  * /lib/firmware/ in userspace.
  */
-static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+static int pcmcia_load_firmware(struct pcmcia_device *dev, char *filename)
 {
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
@@ -781,7 +781,8 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 
 #else /* !CONFIG_PCMCIA_LOAD_CIS */
 
-static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
+static inline int pcmcia_load_firmware(struct pcmcia_device *dev,
+				       char *filename)
 {
 	return -ENODEV;
 }
@@ -1206,7 +1207,7 @@ static int pcmcia_dev_resume(struct device *dev)
 }
 
 
-static int pcmcia_bus_suspend_callback(struct device *dev, void * _data)
+static int pcmcia_bus_suspend_callback(struct device *dev, void *_data)
 {
 	struct pcmcia_socket *skt = _data;
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
@@ -1217,7 +1218,7 @@ static int pcmcia_bus_suspend_callback(struct device *dev, void * _data)
 	return runtime_suspend(dev);
 }
 
-static int pcmcia_bus_resume_callback(struct device *dev, void * _data)
+static int pcmcia_bus_resume_callback(struct device *dev, void *_data)
 {
 	struct pcmcia_socket *skt = _data;
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
