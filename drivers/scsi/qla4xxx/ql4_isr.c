@@ -1124,17 +1124,18 @@ irqreturn_t qla4_83xx_intr_handler(int irq, void *dev_id)
 
 	/* Legacy interrupt is valid if bit31 of leg_int_ptr is set */
 	if (!(leg_int_ptr & LEG_INT_PTR_B31)) {
-		ql4_printk(KERN_ERR, ha,
-			   "%s: Legacy Interrupt Bit 31 not set, spurious interrupt!\n",
-			   __func__);
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Legacy Interrupt Bit 31 not set, spurious interrupt!\n",
+				  __func__));
 		return IRQ_NONE;
 	}
 
 	/* Validate the PCIE function ID set in leg_int_ptr bits [19..16] */
 	if ((leg_int_ptr & PF_BITS_MASK) != ha->pf_bit) {
-		ql4_printk(KERN_ERR, ha,
-			   "%s: Incorrect function ID 0x%x in legacy interrupt register, ha->pf_bit = 0x%x\n",
-			   __func__, (leg_int_ptr & PF_BITS_MASK), ha->pf_bit);
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s: Incorrect function ID 0x%x in legacy interrupt register, ha->pf_bit = 0x%x\n",
+				  __func__, (leg_int_ptr & PF_BITS_MASK),
+				  ha->pf_bit));
 		return IRQ_NONE;
 	}
 
