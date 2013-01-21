@@ -1513,6 +1513,8 @@ static int hub_configure(struct usb_hub *hub,
 			dev_err(hub->intfdev,
 				"couldn't create port%d device.\n", i + 1);
 
+	usb_hub_adjust_deviceremovable(hdev, hub->descriptor);
+
 	hub_activate(hub, HUB_INIT);
 	return 0;
 
@@ -5217,6 +5219,47 @@ usb_get_hub_port_connect_type(struct usb_device *hdev, int port1)
 	struct usb_hub *hub = hdev_to_hub(hdev);
 
 	return hub->ports[port1 - 1]->connect_type;
+}
+
+void usb_hub_adjust_deviceremovable(struct usb_device *hdev,
+		struct usb_hub_descriptor *desc)
+{
+	enum usb_port_connect_type connect_type;
+	int i;
+
+	if (!hub_is_superspeed(hdev)) {
+		for (i = 1; i <= hdev->maxchild; i++) {
+			connect_type = usb_get_hub_port_connect_type(hdev, i);
+
+			if (connect_type == USB_PORT_CONNECT_TYPE_HARD_WIRED) {
+				u8 mask = 1 << (i%8);
+
+				if (!(desc->u.hs.DeviceRemovable[i/8] & mask)) {
+					dev_dbg(&hdev->dev, "usb port%d's DeviceRemovable is changed to 1 according to platform information.\n",
+						i);
+					desc->u.hs.DeviceRemovable[i/8]	|= mask;
+				}
+			}
+		}
+	} else {
+		u16 port_removable = le16_to_cpu(desc->u.ss.DeviceRemovable);
+
+		for (i = 1; i <= hdev->maxchild; i++) {
+			connect_type = usb_get_hub_port_connect_type(hdev, i);
+
+			if (connect_type == USB_PORT_CONNECT_TYPE_HARD_WIRED) {
+				u16 mask = 1 << i;
+
+				if (!(port_removable & mask)) {
+					dev_dbg(&hdev->dev, "usb port%d's DeviceRemovable is changed to 1 according to platform information.\n",
+						i);
+					port_removable |= mask;
+				}
+			}
+		}
+
+		desc->u.ss.DeviceRemovable = cpu_to_le16(port_removable);
+	}
 }
 
 #ifdef CONFIG_ACPI

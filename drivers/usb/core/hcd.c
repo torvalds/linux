@@ -619,6 +619,10 @@ nongeneric:
 		status = hcd->driver->hub_control (hcd,
 			typeReq, wValue, wIndex,
 			tbuf, wLength);
+
+		if (typeReq == GetHubDescriptor)
+			usb_hub_adjust_deviceremovable(hcd->self.root_hub,
+				(struct usb_hub_descriptor *)tbuf);
 		break;
 error:
 		/* "protocol stall" on error */
