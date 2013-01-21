@@ -387,6 +387,14 @@ endif	# CPU_S3C2416
 
 if CPU_S3C2440
 
+config S3C2440_CPUFREQ
+	bool "S3C2440/S3C2442 CPU Frequency scaling support"
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2440 || CPU_S3C2442)
+	default y
+	select S3C2410_CPUFREQ_UTILS
+	help
+	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
+
 config S3C2440_DMA
 	bool
 	help
