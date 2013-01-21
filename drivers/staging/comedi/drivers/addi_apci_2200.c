@@ -1,6 +1,5 @@
 #include "../comedidev.h"
 #include "addi_watchdog.h"
-#include "comedi_fc.h"
 
 /*
  * I/O Register Map
