@@ -623,6 +623,7 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 {
 	struct pci_bus *child;
 	int i;
+	int ret;
 
 	/*
 	 * Allocate a new bus, and inherit stuff from the parent..
@@ -637,8 +638,7 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	child->bus_flags = parent->bus_flags;
 
 	/* initialize some portions of the bus device, but don't register it
-	 * now as the parent is not properly set up yet.  This device will get
-	 * registered later in pci_bus_add_devices()
+	 * now as the parent is not properly set up yet.
 	 */
 	child->dev.class = &pcibus_class;
 	dev_set_name(&child->dev, "%04x:%02x", pci_domain_nr(child), busnr);
@@ -651,11 +651,14 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	child->primary = parent->busn_res.start;
 	child->busn_res.end = 0xff;
 
-	if (!bridge)
-		return child;
+	if (!bridge) {
+		child->dev.parent = parent->bridge;
+		goto add_dev;
+	}
 
 	child->self = bridge;
 	child->bridge = get_device(&bridge->dev);
+	child->dev.parent = child->bridge;
 	pci_set_bus_of_node(child);
 	pci_set_bus_speed(child);
 
@@ -665,6 +668,13 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 		child->resource[i]->name = child->name;
 	}
 	bridge->subordinate = child;
+
+add_dev:
+	ret = device_register(&child->dev);
+	WARN_ON(ret < 0);
+
+	/* Create legacy_io and legacy_mem files for this bus */
+	pci_create_legacy_files(child);
 
 	return child;
 }
@@ -1296,6 +1306,8 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 {
+	int ret;
+
 	device_initialize(&dev->dev);
 	dev->dev.release = pci_release_dev;
 
@@ -1326,6 +1338,17 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	down_write(&pci_bus_sem);
 	list_add_tail(&dev->bus_list, &bus->devices);
 	up_write(&pci_bus_sem);
+
+	pci_fixup_device(pci_fixup_final, dev);
+	ret = pcibios_add_device(dev);
+	WARN_ON(ret < 0);
+
+	/* Notifier could use PCI capabilities */
+	dev->match_driver = false;
+	ret = device_add(&dev->dev);
+	WARN_ON(ret < 0);
+
+	pci_proc_attach_device(dev);
 }
 
 struct pci_dev *__ref pci_scan_single_device(struct pci_bus *bus, int devfn)
@@ -1644,13 +1667,13 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	char bus_addr[64];
 	char *fmt;
 
-
 	b = pci_alloc_bus();
 	if (!b)
 		return NULL;
 
 	b->sysdata = sysdata;
 	b->ops = ops;
+	b->number = b->busn_res.start = bus;
 	b2 = pci_find_bus(pci_domain_nr(b), bus);
 	if (b2) {
 		/* If we already got to this bus through a different bridge, ignore it */
@@ -1684,8 +1707,6 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(b);
-
-	b->number = b->busn_res.start = bus;
 
 	if (parent)
 		dev_info(parent, "PCI host bridge to bus %s\n", dev_name(&b->dev));
