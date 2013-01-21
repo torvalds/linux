@@ -76,7 +76,7 @@ int __init board_usb_detect_init(unsigned gpio)
 	return 0;
 }
 
-#if defined(CONFIG_ARCH_RK2928)
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 #include <linux/io.h>
 #include <mach/iomux.h>
 
@@ -85,10 +85,12 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	/* clear irq */
 #ifdef CONFIG_ARCH_RK2928
 	writel_relaxed((1 << 31) | (1 << 15), RK2928_GRF_BASE + GRF_UOC0_CON5);
+#ifdef CONFIG_RK_USB_UART
+	/* usb otg dp/dm switch to usb phy */
+	writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON4);
 #endif
-#ifdef CONFIG_RK_USB_UART 
-    /* usb otg dp/dm switch to usb phy */
-    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON4);
+#elif defined(CONFIG_ARCH_RK3188)
+	writel_relaxed((1 << 31) | (1 << 15), RK30_GRF_BASE + GRF_UOC0_CON3);
 #endif
 
 	wake_lock_timeout(&usb_wakelock, WAKE_LOCK_TIMEOUT);
@@ -121,6 +123,8 @@ static int __init bvalid_init(void)
 	/* clear & enable bvalid irq */
 #ifdef CONFIG_ARCH_RK2928
 	writel_relaxed((3 << 30) | (3 << 14), RK2928_GRF_BASE + GRF_UOC0_CON5);
+#elif defined(CONFIG_ARCH_RK3188)
+	writel_relaxed((3 << 30) | (3 << 14), RK30_GRF_BASE + GRF_UOC0_CON3);
 #endif
 
 	enable_irq_wake(irq);
