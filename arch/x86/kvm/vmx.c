@@ -2877,9 +2877,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (enable_unrestricted_guest)
-		return;
-
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_DS], VCPU_SREG_DS);
@@ -3086,14 +3083,15 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if (enable_unrestricted_guest)
 		hw_cr0 = (cr0 & ~KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST)
 			| KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST;
-	else
+	else {
 		hw_cr0 = (cr0 & ~KVM_GUEST_CR0_MASK) | KVM_VM_CR0_ALWAYS_ON;
 
-	if (vmx->rmode.vm86_active && (cr0 & X86_CR0_PE))
-		enter_pmode(vcpu);
+		if (vmx->rmode.vm86_active && (cr0 & X86_CR0_PE))
+			enter_pmode(vcpu);
 
-	if (!vmx->rmode.vm86_active && !(cr0 & X86_CR0_PE))
-		enter_rmode(vcpu);
+		if (!vmx->rmode.vm86_active && !(cr0 & X86_CR0_PE))
+			enter_rmode(vcpu);
+	}
 
 #ifdef CONFIG_X86_64
 	if (vcpu->arch.efer & EFER_LME) {
