@@ -387,7 +387,7 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
 
-	skb_reserve(skb, hlen);
+	skb_reserve(skb, hlen + sizeof(struct ipv6hdr));
 
 	return skb;
 }
@@ -399,8 +399,8 @@ static void ip6_nd_hdr(struct sk_buff *skb,
 {
 	struct ipv6hdr *hdr;
 
+	skb_push(skb, sizeof(*hdr));
 	skb_reset_network_header(skb);
-	skb_put(skb, sizeof(struct ipv6hdr));
 	hdr = ipv6_hdr(skb);
 
 	ip6_flow_hdr(hdr, 0, 0);
@@ -438,8 +438,6 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (!skb)
 		return NULL;
 
-	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, len);
-
 	skb->transport_header = skb->tail;
 	skb_put(skb, len);
 
@@ -455,10 +453,12 @@ static struct sk_buff *ndisc_build_skb(struct net_device *dev,
 	if (llinfo)
 		ndisc_fill_addr_option(opt, llinfo, dev->dev_addr, dev);
 
-	hdr->icmp6_cksum = csum_ipv6_magic(saddr, daddr, len,
+	hdr->icmp6_cksum = csum_ipv6_magic(saddr, daddr, skb->len,
 					   IPPROTO_ICMPV6,
 					   csum_partial(hdr,
-							len, 0));
+							skb->len, 0));
+
+	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, skb->len);
 
 	return skb;
 }
@@ -1479,9 +1479,6 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	ip6_nd_hdr(buff, &saddr_buf, &ipv6_hdr(skb)->saddr,
-		   inet6_sk(sk)->hop_limit, len);
-
 	skb_set_transport_header(buff, skb_tail_pointer(buff) - buff->data);
 	skb_put(buff, len);
 	msg = (struct rd_msg *)icmp6_hdr(buff);
@@ -1513,8 +1510,11 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 		opt = ndisc_fill_redirect_hdr_option(opt, skb, rd_len);
 
 	msg->icmph.icmp6_cksum = csum_ipv6_magic(&saddr_buf, &ipv6_hdr(skb)->saddr,
-						 len, IPPROTO_ICMPV6,
-						 csum_partial(msg, len, 0));
+						 buff->len, IPPROTO_ICMPV6,
+						 csum_partial(msg, buff->len, 0));
+
+	ip6_nd_hdr(buff, &saddr_buf, &ipv6_hdr(skb)->saddr,
+		   inet6_sk(sk)->hop_limit, buff->len);
 
 	skb_dst_set(buff, dst);
 	rcu_read_lock();
