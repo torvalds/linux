@@ -60,7 +60,8 @@ static int _disp_get_ump_secure_id(struct fb_info *info, unsigned long arg, int 
 	if (info->var.yres * 2 == info->var.yres_virtual)
 		buf_len = buf_len >> 1;	
 	else
-
+		pr_warn("HardkernelUMP: Double buffer disabled!\n");
+	
 	u32 __user *psecureid = (u32 __user *) arg;
 	ump_secure_id secure_id;
 	ump_dd_physical_block ump_memory_description;
