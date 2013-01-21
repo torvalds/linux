@@ -376,7 +376,7 @@ void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
  *
  * RETURNS: the size of the memory window or zero on error
  */
-resource_size_t ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw)
+u64 ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw)
 {
 	if (mw >= ntb_max_mw(ndev))
 		return 0;
@@ -1257,7 +1257,7 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		    ioremap_wc(pci_resource_start(pdev, MW_TO_BAR(i)),
 			       ndev->mw[i].bar_sz);
 		dev_info(&pdev->dev, "MW %d size %llu\n", i,
-			 pci_resource_len(pdev, MW_TO_BAR(i)));
+			 (unsigned long long) ndev->mw[i].bar_sz);
 		if (!ndev->mw[i].vbase) {
 			dev_warn(&pdev->dev, "Cannot remap BAR %d\n",
 				 MW_TO_BAR(i));

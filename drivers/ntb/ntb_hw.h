@@ -62,6 +62,21 @@
 
 #define msix_table_size(control)	((control & PCI_MSIX_FLAGS_QSIZE)+1)
 
+#ifndef readq
+static inline u64 readq(void __iomem *addr)
+{
+	return readl(addr) | (((u64) readl(addr + 4)) << 32LL);
+}
+#endif
+
+#ifndef writeq
+static inline void writeq(u64 val, void __iomem *addr)
+{
+	writel(val & 0xffffffff, addr);
+	writel(val >> 32, addr + 4);
+}
+#endif
+
 #define NTB_BAR_MMIO		0
 #define NTB_BAR_23		2
 #define NTB_BAR_45		4
@@ -226,7 +241,7 @@ int ntb_read_local_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
 int ntb_write_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 val);
 int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
 void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw);
-resource_size_t ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw);
+u64 ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw);
 void ntb_ring_sdb(struct ntb_device *ndev, unsigned int idx);
 void *ntb_find_transport(struct pci_dev *pdev);
 
