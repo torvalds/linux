@@ -29,7 +29,6 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
-#include <linux/sort.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"

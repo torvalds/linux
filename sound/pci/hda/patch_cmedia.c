@@ -22,7 +22,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/module.h>

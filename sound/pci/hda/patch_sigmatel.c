@@ -31,7 +31,6 @@
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/asoundef.h>
 #include <sound/jack.h>
 #include <sound/tlv.h>
 #include "hda_codec.h"
