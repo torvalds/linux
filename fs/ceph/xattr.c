@@ -657,23 +657,30 @@ list_xattr:
 	vir_namelen = ceph_vxattrs_name_size(vxattrs);
 
 	/* adding 1 byte per each variable due to the null termination */
-	namelen = vir_namelen + ci->i_xattrs.names_size + ci->i_xattrs.count;
+	namelen = ci->i_xattrs.names_size + ci->i_xattrs.count;
 	err = -ERANGE;
-	if (size && namelen > size)
+	if (size && vir_namelen + namelen > size)
 		goto out;
 
-	err = namelen;
+	err = namelen + vir_namelen;
 	if (size == 0)
 		goto out;
 
 	names = __copy_xattr_names(ci, names);
 
 	/* virtual xattr names, too */
-	if (vxattrs)
+	err = namelen;
+	if (vxattrs) {
 		for (i = 0; vxattrs[i].name; i++) {
-			len = sprintf(names, "%s", vxattrs[i].name);
-			names += len + 1;
+			if (!vxattrs[i].hidden &&
+			    !(vxattrs[i].exists_cb &&
+			      !vxattrs[i].exists_cb(ci))) {
+				len = sprintf(names, "%s", vxattrs[i].name);
+				names += len + 1;
+				err += len + 1;
+			}
 		}
+	}
 
 out:
 	spin_unlock(&ci->i_ceph_lock);
