@@ -3199,6 +3199,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 
 }
 
+int rk30_dvfs_init(void);
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
 	_rk30_clock_data_init(gpll, cpll, flags);

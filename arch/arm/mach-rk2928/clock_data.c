@@ -2728,11 +2728,11 @@ void __init _rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,int fl
 	CLKDATA_DBG("%s clks init finish\n", __func__);
 }
 
-
+int rk292x_dvfs_init(void);
 void __init rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags)
 {
 	printk("%s version:	2012-8-14\n", __func__);
 	_rk2928_clock_data_init(gpll,cpll,flags);
-	rk30_dvfs_init();
+	rk292x_dvfs_init();
 }
 
