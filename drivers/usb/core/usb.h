@@ -191,7 +191,13 @@ extern int usb_acpi_register(void);
 extern void usb_acpi_unregister(void);
 extern acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
 	int port1);
+extern int usb_acpi_register_power_resources(struct device *dev);
+extern void usb_acpi_unregister_power_resources(struct device *dev);
 #else
 static inline int usb_acpi_register(void) { return 0; };
 static inline void usb_acpi_unregister(void) { };
+static inline int usb_acpi_register_power_resources(struct device *dev)
+	{ return 0; };
+static inline void usb_acpi_unregister_power_resources(struct device *dev)
+	{ };
 #endif

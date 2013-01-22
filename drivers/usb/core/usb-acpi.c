@@ -216,6 +216,24 @@ static struct acpi_bus_type usb_acpi_bus = {
 	.find_device = usb_acpi_find_device,
 };
 
+int usb_acpi_register_power_resources(struct device *dev)
+{
+	acpi_handle port_handle = DEVICE_ACPI_HANDLE(dev);
+
+	if (!port_handle)
+		return -ENODEV;
+
+	return acpi_power_resource_register_device(dev, port_handle);
+}
+
+void usb_acpi_unregister_power_resources(struct device *dev)
+{
+	acpi_handle port_handle = DEVICE_ACPI_HANDLE(dev);
+
+	if (port_handle)
+		acpi_power_resource_unregister_device(dev, port_handle);
+}
+
 int usb_acpi_register(void)
 {
 	return register_acpi_bus_type(&usb_acpi_bus);
