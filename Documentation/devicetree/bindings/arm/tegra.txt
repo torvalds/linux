@@ -30,3 +30,4 @@ board-specific compatible values:
   nvidia,seaboard
   nvidia,ventana
   nvidia,whistler
+  toradex,colibri_t20-512
