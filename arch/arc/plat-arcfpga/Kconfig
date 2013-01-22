@@ -6,13 +6,21 @@
 # published by the Free Software Foundation.
 #
 
-if ARC_PLAT_FPGA_LEGACY
+menuconfig ARC_PLAT_FPGA_LEGACY
+	bool "\"Legacy\" ARC FPGA dev Boards"
+	select ISS_SMP_EXTN if SMP
+	help
+	  Support for ARC development boards, provided by Synopsys.
+	  These are based on FPGA or ISS. e.g.
+	  - ARCAngel4
+	  - ML509
+	  - MetaWare ISS
 
-menu "FPGA Board"
+if ARC_PLAT_FPGA_LEGACY
 
 config ARC_BOARD_ANGEL4
 	bool "ARC Angel4"
-	select ISS_SMP_EXTN if SMP
+	default y
 	help
 	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
 
@@ -33,8 +41,6 @@ config ISS_SMP_EXTN
 	  -IDU (Interrupt Distribution Unit)
 	  -XTL (To enable CPU start/stop/set-PC for another CPU)
 	  It doesn't provide coherent Caches and/or Atomic Ops (LLOCK/SCOND)
-
-endmenu
 
 config ARC_SERIAL_BAUD
 	int "UART Baud rate"

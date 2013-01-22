@@ -82,18 +82,11 @@ source "kernel/Kconfig.freezer"
 
 menu "ARC Architecture Configuration"
 
-menu "ARC Platform/SoC"
+menu "ARC Platform/SoC/Board"
 
-config ARC_PLAT_FPGA_LEGACY
-	bool "\"Legacy\" ARC FPGA dev platform"
-	help
-	  Support for ARC development platforms, provided by Synopsys.
-	  These are based on FPGA or ISS. e.g.
-	  - ARCAngel4
-	  - ML509
-	  - MetaWare ISS
-
+source "arch/arc/plat-arcfpga/Kconfig"
 #New platform adds here
+
 endmenu
 
 menu "ARC CPU Configuration"
@@ -338,12 +331,6 @@ config ARC_HAS_RTSC
 
 endmenu   # "ARC CPU Configuration"
 
-menu "Platform Board Configuration"
-
-source "arch/arc/plat-arcfpga/Kconfig"
-
-#New platform adds here
-
 config LINUX_LINK_BASE
 	hex "Linux Link Address"
 	default "0x80000000"
@@ -356,8 +343,6 @@ config LINUX_LINK_BASE
 	  However some customers have peripherals mapped at this addr, so
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
-
-endmenu # "Platform Board Configuration"
 
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
