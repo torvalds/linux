@@ -2004,6 +2004,13 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_log_status);
 
+int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd)
+{
+	v4l2_ctrl_handler_log_status(sd->ctrl_handler, sd->name);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subdev_log_status);
+
 /* Call s_ctrl for all controls owned by the handler */
 int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 {

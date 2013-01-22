@@ -659,4 +659,7 @@ int v4l2_subdev_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				     struct v4l2_event_subscription *sub);
 
+/* Log all controls owned by subdev's control handler. */
+int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
+
 #endif
