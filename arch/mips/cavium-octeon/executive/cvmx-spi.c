@@ -69,7 +69,7 @@ static cvmx_spi_callbacks_t cvmx_spi_callbacks = {
 /**
  * Get current SPI4 initialization callbacks
  *
- * @callbacks:  Pointer to the callbacks structure.to fill
+ * @callbacks:	Pointer to the callbacks structure.to fill
  *
  * Returns Pointer to cvmx_spi_callbacks_t structure.
  */
@@ -92,11 +92,11 @@ void cvmx_spi_set_callbacks(cvmx_spi_callbacks_t *new_callbacks)
  * Initialize and start the SPI interface.
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @timeout:   Timeout to wait for clock synchronization in seconds
  * @num_ports: Number of SPI ports to configure
  *
@@ -138,11 +138,11 @@ int cvmx_spi_start_interface(int interface, cvmx_spi_mode_t mode, int timeout,
  * with its correspondent system.
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @timeout:   Timeout to wait for clock synchronization in seconds
  *
  * Returns Zero on success, negative of failure.
@@ -160,7 +160,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
 	INVOKE_CB(cvmx_spi_callbacks.reset_cb, interface, mode);
 
 	/* NOTE: Calendar setup is not performed during restart */
-	/*       Refer to cvmx_spi_start_interface() for the full sequence */
+	/*	 Refer to cvmx_spi_start_interface() for the full sequence */
 
 	/* Callback to perform clock detection */
 	INVOKE_CB(cvmx_spi_callbacks.clock_detect_cb, interface, mode, timeout);
@@ -182,11 +182,11 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
  * Callback to perform SPI4 reset
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  *
  * Returns Zero on success, non-zero error code on failure (will cause
  * SPI initialization to abort)
@@ -297,11 +297,11 @@ int cvmx_spi_reset_cb(int interface, cvmx_spi_mode_t mode)
  * Callback to setup calendar and miscellaneous settings before clock detection
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @num_ports: Number of ports to configure on SPI
  *
  * Returns Zero on success, non-zero error code on failure (will cause
@@ -382,7 +382,7 @@ int cvmx_spi_calendar_setup_cb(int interface, cvmx_spi_mode_t mode,
 		stxx_spi4_dat.u64 = 0;
 		/*Minimum needed by dynamic alignment */
 		stxx_spi4_dat.s.alpha = 32;
-		stxx_spi4_dat.s.max_t = 0xFFFF;	/*Minimum interval is 0x20 */
+		stxx_spi4_dat.s.max_t = 0xFFFF; /*Minimum interval is 0x20 */
 		cvmx_write_csr(CVMX_STXX_SPI4_DAT(interface),
 			       stxx_spi4_dat.u64);
 
@@ -416,11 +416,11 @@ int cvmx_spi_calendar_setup_cb(int interface, cvmx_spi_mode_t mode,
  * Callback to perform clock detection
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @timeout:   Timeout to wait for clock synchronization in seconds
  *
  * Returns Zero on success, non-zero error code on failure (will cause
@@ -494,11 +494,11 @@ int cvmx_spi_clock_detect_cb(int interface, cvmx_spi_mode_t mode, int timeout)
  * Callback to perform link training
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @timeout:   Timeout to wait for link to be trained (in seconds)
  *
  * Returns Zero on success, non-zero error code on failure (will cause
@@ -563,11 +563,11 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
  * Callback to perform calendar data synchronization
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  * @timeout:   Timeout to wait for calendar data in seconds
  *
  * Returns Zero on success, non-zero error code on failure (will cause
@@ -620,11 +620,11 @@ int cvmx_spi_calendar_sync_cb(int interface, cvmx_spi_mode_t mode, int timeout)
  * Callback to handle interface up
  *
  * @interface: The identifier of the packet interface to configure and
- *                  use as a SPI interface.
+ *		    use as a SPI interface.
  * @mode:      The operating mode for the SPI interface. The interface
- *                  can operate as a full duplex (both Tx and Rx data paths
- *                  active) or as a halfplex (either the Tx data path is
- *                  active or the Rx data path is active, but not both).
+ *		    can operate as a full duplex (both Tx and Rx data paths
+ *		    active) or as a halfplex (either the Tx data path is
+ *		    active or the Rx data path is active, but not both).
  *
  * Returns Zero on success, non-zero error code on failure (will cause
  * SPI initialization to abort)

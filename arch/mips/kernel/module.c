@@ -79,7 +79,7 @@ static int apply_r_mips_26_rel(struct module *me, u32 *location, Elf_Addr v)
 	}
 
 	*location = (*location & ~0x03ffffff) |
-	            ((*location + (v >> 2)) & 0x03ffffff);
+		    ((*location + (v >> 2)) & 0x03ffffff);
 
 	return 0;
 }
@@ -122,7 +122,7 @@ static int apply_r_mips_lo16_rel(struct module *me, u32 *location, Elf_Addr v)
 	struct mips_hi16 *l;
 	Elf_Addr val, vallo;
 
-	/* Sign extend the addend we extract from the lo insn.  */
+	/* Sign extend the addend we extract from the lo insn.	*/
 	vallo = ((insnlo & 0xffff) ^ 0x8000) - 0x8000;
 
 	if (me->arch.r_mips_hi16_list != NULL) {
@@ -165,7 +165,7 @@ static int apply_r_mips_lo16_rel(struct module *me, u32 *location, Elf_Addr v)
 	}
 
 	/*
-	 * Ok, we're done with the HI16 relocs.  Now deal with the LO16.
+	 * Ok, we're done with the HI16 relocs.	 Now deal with the LO16.
 	 */
 	val = v + vallo;
 	insnlo = (insnlo & ~0xffff) | (val & 0xffff);
@@ -230,7 +230,7 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 	}
 
 	/*
-	 * Normally the hi16 list should be deallocated at this point.  A
+	 * Normally the hi16 list should be deallocated at this point.	A
 	 * malformed binary however could contain a series of R_MIPS_HI16
 	 * relocations not followed by a R_MIPS_LO16 relocation.  In that
 	 * case, free up the list and return an error.
@@ -261,7 +261,7 @@ const struct exception_table_entry *search_module_dbetables(unsigned long addr)
 	spin_unlock_irqrestore(&dbe_lock, flags);
 
 	/* Now, if we found one, we are running inside it now, hence
-           we cannot unload the module, hence no refcnt needed. */
+	   we cannot unload the module, hence no refcnt needed. */
 	return e;
 }
 

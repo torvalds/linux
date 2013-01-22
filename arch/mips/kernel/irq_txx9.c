@@ -1,12 +1,12 @@
 /*
  * Based on linux/arch/mips/jmr3927/rbhma3100/irq.c,
- *          linux/arch/mips/tx4927/common/tx4927_irq.c,
- *          linux/arch/mips/tx4938/common/irq.c
+ *	    linux/arch/mips/tx4927/common/tx4927_irq.c,
+ *	    linux/arch/mips/tx4938/common/irq.c
  *
  * Copyright 2001, 2003-2005 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
- *         ahennessy@mvista.com
- *         source@mvista.com
+ *	   ahennessy@mvista.com
+ *	   source@mvista.com
  * Copyright (C) 2000-2001 Toshiba Corporation
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -122,7 +122,7 @@ static int txx9_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	switch (flow_type & IRQF_TRIGGER_MASK) {
 	case IRQF_TRIGGER_RISING:	mode = TXx9_IRCR_UP;	break;
 	case IRQF_TRIGGER_FALLING:	mode = TXx9_IRCR_DOWN;	break;
-	case IRQF_TRIGGER_HIGH:	mode = TXx9_IRCR_HIGH;	break;
+	case IRQF_TRIGGER_HIGH: mode = TXx9_IRCR_HIGH;	break;
 	case IRQF_TRIGGER_LOW:	mode = TXx9_IRCR_LOW;	break;
 	default:
 		return -EINVAL;

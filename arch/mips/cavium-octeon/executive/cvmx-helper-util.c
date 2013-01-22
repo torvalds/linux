@@ -96,9 +96,9 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 	uint8_t *end_of_data;
 
 	cvmx_dprintf("Packet Length:   %u\n", work->len);
-	cvmx_dprintf("    Input Port:  %u\n", work->ipprt);
-	cvmx_dprintf("    QoS:         %u\n", work->qos);
-	cvmx_dprintf("    Buffers:     %u\n", work->word2.s.bufs);
+	cvmx_dprintf("	  Input Port:  %u\n", work->ipprt);
+	cvmx_dprintf("	  QoS:	       %u\n", work->qos);
+	cvmx_dprintf("	  Buffers:     %u\n", work->word2.s.bufs);
 
 	if (work->word2.s.bufs == 0) {
 		union cvmx_ipd_wqe_fpa_queue wqe_pool;
@@ -132,14 +132,14 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 	while (remaining_bytes) {
 		start_of_buffer =
 		    ((buffer_ptr.s.addr >> 7) - buffer_ptr.s.back) << 7;
-		cvmx_dprintf("    Buffer Start:%llx\n",
+		cvmx_dprintf("	  Buffer Start:%llx\n",
 			     (unsigned long long)start_of_buffer);
-		cvmx_dprintf("    Buffer I   : %u\n", buffer_ptr.s.i);
-		cvmx_dprintf("    Buffer Back: %u\n", buffer_ptr.s.back);
-		cvmx_dprintf("    Buffer Pool: %u\n", buffer_ptr.s.pool);
-		cvmx_dprintf("    Buffer Data: %llx\n",
+		cvmx_dprintf("	  Buffer I   : %u\n", buffer_ptr.s.i);
+		cvmx_dprintf("	  Buffer Back: %u\n", buffer_ptr.s.back);
+		cvmx_dprintf("	  Buffer Pool: %u\n", buffer_ptr.s.pool);
+		cvmx_dprintf("	  Buffer Data: %llx\n",
 			     (unsigned long long)buffer_ptr.s.addr);
-		cvmx_dprintf("    Buffer Size: %u\n", buffer_ptr.s.size);
+		cvmx_dprintf("	  Buffer Size: %u\n", buffer_ptr.s.size);
 
 		cvmx_dprintf("\t\t");
 		data_address = (uint8_t *) cvmx_phys_to_ptr(buffer_ptr.s.addr);
@@ -172,11 +172,11 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
  *
  * @queue:  Input queue to setup RED on (0-7)
  * @pass_thresh:
- *               Packets will begin slowly dropping when there are less than
- *               this many packet buffers free in FPA 0.
+ *		 Packets will begin slowly dropping when there are less than
+ *		 this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
- *               than this many free packet buffers in FPA 0.
+ *		 All incomming packets will be dropped when there are less
+ *		 than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
 int cvmx_helper_setup_red_queue(int queue, int pass_thresh, int drop_thresh)
@@ -207,11 +207,11 @@ int cvmx_helper_setup_red_queue(int queue, int pass_thresh, int drop_thresh)
  * Setup Random Early Drop to automatically begin dropping packets.
  *
  * @pass_thresh:
- *               Packets will begin slowly dropping when there are less than
- *               this many packet buffers free in FPA 0.
+ *		 Packets will begin slowly dropping when there are less than
+ *		 this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
- *               than this many free packet buffers in FPA 0.
+ *		 All incomming packets will be dropped when there are less
+ *		 than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
 int cvmx_helper_setup_red(int pass_thresh, int drop_thresh)

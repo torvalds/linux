@@ -41,9 +41,9 @@
 
 /*
  * For historic reasons the pipe(2) syscall on MIPS has an unusual calling
- * convention.  It returns results in registers $v0 / $v1 which means there
+ * convention.	It returns results in registers $v0 / $v1 which means there
  * is no need for it to do verify the validity of a userspace pointer
- * argument.  Historically that used to be expensive in Linux.  These days
+ * argument.  Historically that used to be expensive in Linux.	These days
  * the performance advantage is negligible.
  */
 asmlinkage int sysm_pipe(nabi_no_regargs volatile struct pt_regs regs)
@@ -124,7 +124,7 @@ _sys_clone(nabi_no_regargs struct pt_regs regs)
 	child_tidptr = (int __user *) regs.regs[8];
 #endif
 	return do_fork(clone_flags, newsp, 0,
-	               parent_tidptr, child_tidptr);
+		       parent_tidptr, child_tidptr);
 }
 
 SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)

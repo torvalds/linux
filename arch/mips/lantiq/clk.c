@@ -145,9 +145,9 @@ static inline u32 get_counter_resolution(void)
 	u32 res;
 
 	__asm__ __volatile__(
-		".set   push\n"
-		".set   mips32r2\n"
-		"rdhwr  %0, $3\n"
+		".set	push\n"
+		".set	mips32r2\n"
+		"rdhwr	%0, $3\n"
 		".set pop\n"
 		: "=&r" (res)
 		: /* no input */

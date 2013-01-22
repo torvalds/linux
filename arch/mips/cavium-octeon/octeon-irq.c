@@ -1542,7 +1542,7 @@ static bool octeon_irq_ciu2_is_edge(unsigned int line, unsigned int bit)
 
 	if (line == 3) /* MIO */
 		switch (bit) {
-		case 2:  /* IPD_DRP */
+		case 2:	 /* IPD_DRP */
 		case 8 ... 11: /* Timers */
 		case 48: /* PTP */
 			edge = true;
@@ -1553,7 +1553,7 @@ static bool octeon_irq_ciu2_is_edge(unsigned int line, unsigned int bit)
 	else if (line == 6) /* PKT */
 		switch (bit) {
 		case 52 ... 53: /* ILK_DRP */
-		case 8 ... 12:  /* GMX_DRP */
+		case 8 ... 12:	/* GMX_DRP */
 			edge = true;
 			break;
 		default:

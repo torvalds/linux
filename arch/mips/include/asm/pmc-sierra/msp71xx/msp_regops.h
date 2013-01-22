@@ -233,4 +233,4 @@ static inline u32 blocking_read_reg32(volatile u32 *const addr)
 	: "=&r" (tmp), "=m" (*address)				\
 	: "0" (tmp), "m" (*address))
 
-#endif  /* __ASM_REGOPS_H__ */
+#endif	/* __ASM_REGOPS_H__ */

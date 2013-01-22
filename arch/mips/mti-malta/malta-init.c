@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Technologies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -110,20 +110,20 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 
 int get_ethernet_addr(char *ethernet_addr)
 {
-        char *ethaddr_str;
+	char *ethaddr_str;
 
-        ethaddr_str = prom_getenv("ethaddr");
+	ethaddr_str = prom_getenv("ethaddr");
 	if (!ethaddr_str) {
-	        printk("ethaddr not set in boot prom\n");
+		printk("ethaddr not set in boot prom\n");
 		return -1;
 	}
 	str2eaddr(ethernet_addr, ethaddr_str);
 
 	if (init_debug > 1) {
-	        int i;
+		int i;
 		printk("get_ethernet_addr: ");
-	        for (i=0; i<5; i++)
-		        printk("%02x:", (unsigned char)*(ethernet_addr+i));
+		for (i=0; i<5; i++)
+			printk("%02x:", (unsigned char)*(ethernet_addr+i));
 		printk("%02x\n", *(ethernet_addr+i));
 	}
 

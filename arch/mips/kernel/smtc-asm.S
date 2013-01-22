@@ -65,7 +65,7 @@ FEXPORT(__smtc_ipi_vector)
 1:
 	/*
 	 * The IPI sender has put some information on the anticipated
-	 * kernel stack frame.  If we were in user mode, this will be
+	 * kernel stack frame.	If we were in user mode, this will be
 	 * built above the saved kernel SP.  If we were already in the
 	 * kernel, it will be built above the current CPU SP.
 	 *

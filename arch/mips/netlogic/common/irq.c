@@ -69,7 +69,7 @@
 #else
 #define SMP_IRQ_MASK	0
 #endif
-#define PERCPU_IRQ_MASK	(SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
+#define PERCPU_IRQ_MASK (SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
 				(1ull << IRQ_FMN))
 
 struct nlm_pic_irq {
@@ -107,7 +107,7 @@ static void xlp_pic_mask_ack(struct irq_data *d)
 	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
 	uint64_t mask = 1ull << pd->picirq;
 
-	write_c0_eirr(mask);            /* ack by writing EIRR */
+	write_c0_eirr(mask);		/* ack by writing EIRR */
 }
 
 static void xlp_pic_unmask(struct irq_data *d)

@@ -14,8 +14,8 @@
 
 extern unsigned int smtc_status;
 
-#define SMTC_TLB_SHARED	0x00000001
-#define SMTC_MTC_ACTIVE	0x00000002
+#define SMTC_TLB_SHARED 0x00000001
+#define SMTC_MTC_ACTIVE 0x00000002
 
 /*
  * TLB/ASID Management information

@@ -41,9 +41,9 @@ static inline void sec_int_dispatch(void)  { do_IRQ(MSP_INT_SEC);  }
 
 /*
  * The PMC-Sierra MSP interrupts are arranged in a 3 level cascaded
- * hierarchical system.  The first level are the direct MIPS interrupts
+ * hierarchical system.	 The first level are the direct MIPS interrupts
  * and are assigned the interrupt range 0-7.  The second level is the SLM
- * interrupt controller and is assigned the range 8-39.  The third level
+ * interrupt controller and is assigned the range 8-39.	 The third level
  * comprises the Peripherial block, the PCI block, the PCI MSI block and
  * the SLP.  The PCI interrupts and the SLP errors are handled by the
  * relevant subsystems so the core interrupt code needs only concern

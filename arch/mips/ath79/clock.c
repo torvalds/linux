@@ -198,7 +198,7 @@ static void __init ar934x_clocks_init(void)
 	dpll_base = ioremap(AR934X_SRIF_BASE, AR934X_SRIF_SIZE);
 
 	bootstrap = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
-	if (bootstrap &	AR934X_BOOTSTRAP_REF_CLK_40)
+	if (bootstrap & AR934X_BOOTSTRAP_REF_CLK_40)
 		ath79_ref_clk.rate = 40 * 1000 * 1000;
 	else
 		ath79_ref_clk.rate = 25 * 1000 * 1000;

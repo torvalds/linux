@@ -116,7 +116,7 @@
 #define PIC_TIMER_COUNT_0_BASE		0x120
 #define PIC_TIMER_COUNT_1_BASE		0x130
 
-#define PIC_IRT_0(picintr)      (PIC_IRT_0_BASE + (picintr))
+#define PIC_IRT_0(picintr)	(PIC_IRT_0_BASE + (picintr))
 #define PIC_IRT_1(picintr)	(PIC_IRT_1_BASE + (picintr))
 
 #define PIC_TIMER_MAXVAL_0(i)	(PIC_TIMER_MAXVAL_0_BASE + (i))
@@ -130,9 +130,9 @@
  * 8-39. This leaves the IRQ 0-7 for cpu interrupts like
  * count/compare and FMN
  */
-#define PIC_IRQ_BASE            8
-#define PIC_INTR_TO_IRQ(i)      (PIC_IRQ_BASE + (i))
-#define PIC_IRQ_TO_INTR(i)      ((i) - PIC_IRQ_BASE)
+#define PIC_IRQ_BASE		8
+#define PIC_INTR_TO_IRQ(i)	(PIC_IRQ_BASE + (i))
+#define PIC_IRQ_TO_INTR(i)	((i) - PIC_IRQ_BASE)
 
 #define PIC_IRT_FIRST_IRQ	PIC_IRQ_BASE
 #define PIC_WD_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_WD_INDEX)
@@ -168,7 +168,7 @@
 #define PIC_BRIDGE_AERR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_INDEX)
 #define PIC_BRIDGE_BERR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_BERR_INDEX)
 #define PIC_BRIDGE_TB_XLR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_TB_XLR_INDEX)
-#define PIC_BRIDGE_AERR_NMI_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_NMI_INDEX)
+#define PIC_BRIDGE_AERR_NMI_IRQ PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_NMI_INDEX)
 /* XLS defines */
 #define PIC_GMAC_4_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_GMAC4_INDEX)
 #define PIC_GMAC_5_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_GMAC5_INDEX)

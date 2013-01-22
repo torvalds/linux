@@ -40,7 +40,7 @@
 #define MSP_USB0_HS_END		(MSP_USB0_BASE + 0x401FF)
 
 /* Register spaces for USB host 1 */
-#define	MSP_USB1_MAB_START	(MSP_USB1_BASE + 0x0)
+#define MSP_USB1_MAB_START	(MSP_USB1_BASE + 0x0)
 #define MSP_USB1_MAB_END	(MSP_USB1_BASE + 0x17)
 #define MSP_USB1_ID_START	(MSP_USB1_BASE + 0x40000)
 #define MSP_USB1_ID_END		(MSP_USB1_BASE + 0x4008f)

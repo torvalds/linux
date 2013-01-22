@@ -49,7 +49,7 @@
  */
 #define write_c0_eimr(val)						\
 do {									\
-	if (sizeof(unsigned long) == 4)	{				\
+	if (sizeof(unsigned long) == 4) {				\
 		unsigned long __flags;					\
 									\
 		local_irq_save(__flags);				\
@@ -208,7 +208,7 @@ do {									\
 			".set\tmips0\n\t"				\
 			: : "Jr" (value));				\
 	else								\
-		__asm__ __volatile__(                                   \
+		__asm__ __volatile__(					\
 			".set\tmips32\n\t"				\
 			"mtc2\t%z0, " #reg ", " #sel "\n\t"		\
 			".set\tmips0\n\t"				\

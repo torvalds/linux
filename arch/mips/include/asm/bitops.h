@@ -26,15 +26,15 @@
 #define SZLONG_MASK 31UL
 #define __LL		"ll	"
 #define __SC		"sc	"
-#define __INS		"ins    "
-#define __EXT		"ext    "
+#define __INS		"ins	"
+#define __EXT		"ext	"
 #elif _MIPS_SZLONG == 64
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL		"lld	"
 #define __SC		"scd	"
-#define __INS		"dins    "
-#define __EXT		"dext    "
+#define __INS		"dins	 "
+#define __EXT		"dext	 "
 #endif
 
 /*
@@ -357,7 +357,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	xor	%2, %3					\n"
-		"	" __SC 	"%2, %1					\n"
+		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 		"	.set	mips0					\n"
@@ -371,10 +371,10 @@ static inline int test_and_clear_bit(unsigned long nr,
 
 		do {
 			__asm__ __volatile__(
-			"	" __LL	"%0, %1	# test_and_clear_bit	\n"
+			"	" __LL	"%0, %1 # test_and_clear_bit	\n"
 			"	" __EXT "%2, %0, %3, 1			\n"
-			"	" __INS	"%0, $0, %3, 1			\n"
-			"	" __SC 	"%0, %1				\n"
+			"	" __INS "%0, $0, %3, 1			\n"
+			"	" __SC	"%0, %1				\n"
 			: "=&r" (temp), "+m" (*m), "=&r" (res)
 			: "ir" (bit)
 			: "memory");
@@ -387,10 +387,10 @@ static inline int test_and_clear_bit(unsigned long nr,
 		do {
 			__asm__ __volatile__(
 			"	.set	mips3				\n"
-			"	" __LL	"%0, %1	# test_and_clear_bit	\n"
+			"	" __LL	"%0, %1 # test_and_clear_bit	\n"
 			"	or	%2, %0, %3			\n"
 			"	xor	%2, %3				\n"
-			"	" __SC 	"%2, %1				\n"
+			"	" __SC	"%2, %1				\n"
 			"	.set	mips0				\n"
 			: "=&r" (temp), "+m" (*m), "=&r" (res)
 			: "r" (1UL << bit)
@@ -444,7 +444,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		do {
 			__asm__ __volatile__(
 			"	.set	mips3				\n"
-			"	" __LL	"%0, %1	# test_and_change_bit	\n"
+			"	" __LL	"%0, %1 # test_and_change_bit	\n"
 			"	xor	%2, %0, %3			\n"
 			"	" __SC	"\t%2, %1			\n"
 			"	.set	mips0				\n"

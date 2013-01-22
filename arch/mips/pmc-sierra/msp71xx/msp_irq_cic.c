@@ -3,8 +3,8 @@
  *
  * This file define the irq handler for MSP CIC subsystem interrupts.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -171,7 +171,7 @@ void __init msp_cic_irq_init(void)
 	/* Mask/clear interrupts. */
 	*CIC_VPE0_MSK_REG = 0x00000000;
 	*CIC_VPE1_MSK_REG = 0x00000000;
-	*CIC_STS_REG      = 0xFFFFFFFF;
+	*CIC_STS_REG	  = 0xFFFFFFFF;
 	/*
 	* The MSP7120 RG and EVBD boards use IRQ[6:4] for PCI.
 	* These inputs map to EXT_INT_POL[6:4] inside the CIC.

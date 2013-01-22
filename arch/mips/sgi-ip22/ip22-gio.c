@@ -15,7 +15,7 @@ static struct bus_type gio_bus_type;
 
 static struct {
 	const char *name;
-	__u8       id;
+	__u8	   id;
 } gio_name_table[] = {
 	{ .name = "SGI Impact", .id = 0x10 },
 	{ .name = "Phobos G160", .id = 0x35 },
@@ -376,15 +376,15 @@ static void ip22_check_gio(int slotno, unsigned long addr)
 }
 
 static struct bus_type gio_bus_type = {
-	.name      = "gio",
+	.name	   = "gio",
 	.dev_attrs = gio_dev_attrs,
-	.match     = gio_bus_match,
-	.probe     = gio_device_probe,
-	.remove    = gio_device_remove,
+	.match	   = gio_bus_match,
+	.probe	   = gio_device_probe,
+	.remove	   = gio_device_remove,
 	.suspend   = gio_device_suspend,
-	.resume    = gio_device_resume,
+	.resume	   = gio_device_resume,
 	.shutdown  = gio_device_shutdown,
-	.uevent    = gio_device_uevent,
+	.uevent	   = gio_device_uevent,
 };
 
 static struct resource gio_bus_resource = {

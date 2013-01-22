@@ -177,22 +177,22 @@ static struct pci_ops ar724x_pci_ops = {
 };
 
 static struct resource ar724x_io_resource = {
-	.name   = "PCI IO space",
-	.start  = 0,
-	.end    = 0,
-	.flags  = IORESOURCE_IO,
+	.name	= "PCI IO space",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_IO,
 };
 
 static struct resource ar724x_mem_resource = {
-	.name   = "PCI memory space",
-	.start  = AR724X_PCI_MEM_BASE,
-	.end    = AR724X_PCI_MEM_BASE + AR724X_PCI_MEM_SIZE - 1,
-	.flags  = IORESOURCE_MEM,
+	.name	= "PCI memory space",
+	.start	= AR724X_PCI_MEM_BASE,
+	.end	= AR724X_PCI_MEM_BASE + AR724X_PCI_MEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
 };
 
 static struct pci_controller ar724x_pci_controller = {
-	.pci_ops        = &ar724x_pci_ops,
-	.io_resource    = &ar724x_io_resource,
+	.pci_ops	= &ar724x_pci_ops,
+	.io_resource	= &ar724x_io_resource,
 	.mem_resource	= &ar724x_mem_resource,
 };
 

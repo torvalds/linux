@@ -28,7 +28,7 @@ $(obj)/head.o: $(obj)/head.S $(KERNEL_IMAGE)
 
 OBJECTS = head.o kImage.o
 
-rom.sw:	$(obj)/rom.sw
+rom.sw: $(obj)/rom.sw
 rom.bin:	$(obj)/rom.bin
 
 $(obj)/rom.sw:	$(obj)/rom.bin

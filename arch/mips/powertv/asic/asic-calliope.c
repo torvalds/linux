@@ -17,10 +17,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
+ * Author:	 Ken Eppinett
+ *		 David Schleef <ds@schleef.org>
  *
- * Description:  Defines the platform resources for the SA settop.
+ * Description:	 Defines the platform resources for the SA settop.
  */
 
 #include <linux/init.h>
@@ -90,12 +90,12 @@ const struct register_map calliope_register_map __initconst = {
 	.usb2_stbus_mess_size = {.phys = CALLIOPE_ADDR(0x9BFF04)},
 	.usb2_stbus_chunk_size = {.phys = CALLIOPE_ADDR(0x9BFF08)},
 
-	.pcie_regs = {.phys = 0x000000},      	/* -doesn't exist- */
+	.pcie_regs = {.phys = 0x000000},	/* -doesn't exist- */
 	.tim_ch = {.phys = CALLIOPE_ADDR(0xA02C10)},
 	.tim_cl = {.phys = CALLIOPE_ADDR(0xA02C14)},
 	.gpio_dout = {.phys = CALLIOPE_ADDR(0xA02c20)},
 	.gpio_din = {.phys = CALLIOPE_ADDR(0xA02c24)},
 	.gpio_dir = {.phys = CALLIOPE_ADDR(0xA02c2C)},
 	.watchdog = {.phys = CALLIOPE_ADDR(0xA02c30)},
-	.front_panel = {.phys = 0x000000},    	/* -not used- */
+	.front_panel = {.phys = 0x000000},	/* -not used- */
 };

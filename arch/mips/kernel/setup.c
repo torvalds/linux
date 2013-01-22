@@ -8,7 +8,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 99, 2000, 01, 02, 03  Ralf Baechle
  * Copyright (C) 1996 Stoned Elipot
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2000, 2001, 2002, 2007  Maciej W. Rozycki
+ * Copyright (C) 2000, 2001, 2002, 2007	 Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -449,7 +449,7 @@ static void __init bootmem_init(void)
  * At this stage the bootmem allocator is ready to use.
  *
  * NOTE: historically plat_mem_setup did the entire platform initialization.
- *       This was rather impractical because it meant plat_mem_setup had to
+ *	 This was rather impractical because it meant plat_mem_setup had to
  * get away without any kind of memory allocator.  To keep old code from
  * breaking plat_setup was just renamed to plat_setup and a second platform
  * initialization hook for anything else was introduced.
@@ -469,7 +469,7 @@ static int __init early_parse_mem(char *p)
 	if (usermem == 0) {
 		boot_mem_map.nr_map = 0;
 		usermem = 1;
- 	}
+	}
 	start = 0;
 	size = memparse(p, &p);
 	if (*p == '@')
@@ -571,7 +571,7 @@ static void __init mips_parse_crashkernel(void)
 		return;
 
 	crashk_res.start = crash_base;
-	crashk_res.end   = crash_base + crash_size - 1;
+	crashk_res.end	 = crash_base + crash_size - 1;
 }
 
 static void __init request_crashkernel(struct resource *res)
@@ -585,7 +585,7 @@ static void __init request_crashkernel(struct resource *res)
 				crashk_res.start + 1) >> 20),
 			(unsigned long)(crashk_res.start  >> 20));
 }
-#else /* !defined(CONFIG_KEXEC)  */
+#else /* !defined(CONFIG_KEXEC)	 */
 static void __init mips_parse_crashkernel(void)
 {
 }

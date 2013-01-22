@@ -14,25 +14,25 @@
 
 #include "op_impl.h"
 
-#define M_PERFCTL_EXL			(1UL      <<  0)
-#define M_PERFCTL_KERNEL		(1UL      <<  1)
-#define M_PERFCTL_SUPERVISOR		(1UL      <<  2)
-#define M_PERFCTL_USER			(1UL      <<  3)
-#define M_PERFCTL_INTERRUPT_ENABLE	(1UL      <<  4)
+#define M_PERFCTL_EXL			(1UL	  <<  0)
+#define M_PERFCTL_KERNEL		(1UL	  <<  1)
+#define M_PERFCTL_SUPERVISOR		(1UL	  <<  2)
+#define M_PERFCTL_USER			(1UL	  <<  3)
+#define M_PERFCTL_INTERRUPT_ENABLE	(1UL	  <<  4)
 #define M_PERFCTL_EVENT(event)		(((event) & 0x3ff)  << 5)
-#define M_PERFCTL_VPEID(vpe)		((vpe)    << 16)
+#define M_PERFCTL_VPEID(vpe)		((vpe)	  << 16)
 #define M_PERFCTL_MT_EN(filter)		((filter) << 20)
-#define    M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
-#define    M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
-#define    M_TC_EN_TC			M_PERFCTL_MT_EN(2)
-#define M_PERFCTL_TCID(tcid)		((tcid)   << 22)
-#define M_PERFCTL_WIDE			(1UL      << 30)
-#define M_PERFCTL_MORE			(1UL      << 31)
+#define	   M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
+#define	   M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
+#define	   M_TC_EN_TC			M_PERFCTL_MT_EN(2)
+#define M_PERFCTL_TCID(tcid)		((tcid)	  << 22)
+#define M_PERFCTL_WIDE			(1UL	  << 30)
+#define M_PERFCTL_MORE			(1UL	  << 31)
 
-#define M_COUNTER_OVERFLOW		(1UL      << 31)
+#define M_COUNTER_OVERFLOW		(1UL	  << 31)
 
 /* Netlogic XLR specific, count events in all threads in a core */
-#define M_PERFCTL_COUNT_ALL_THREADS	(1UL      << 13)
+#define M_PERFCTL_COUNT_ALL_THREADS	(1UL	  << 13)
 
 static int (*save_perf_irq)(void);
 
@@ -143,7 +143,7 @@ static struct mipsxx_register_config {
 	unsigned int counter[4];
 } reg;
 
-/* Compute all of the registers in preparation for enabling profiling.  */
+/* Compute all of the registers in preparation for enabling profiling.	*/
 
 static void mipsxx_reg_setup(struct op_counter_config *ctr)
 {
@@ -159,7 +159,7 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 			continue;
 
 		reg.control[i] = M_PERFCTL_EVENT(ctr[i].event) |
-		                 M_PERFCTL_INTERRUPT_ENABLE;
+				 M_PERFCTL_INTERRUPT_ENABLE;
 		if (ctr[i].kernel)
 			reg.control[i] |= M_PERFCTL_KERNEL;
 		if (ctr[i].user)
@@ -172,7 +172,7 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 	}
 }
 
-/* Program all of the registers in preparation for enabling profiling.  */
+/* Program all of the registers in preparation for enabling profiling.	*/
 
 static void mipsxx_cpu_setup(void *args)
 {

@@ -59,7 +59,7 @@ void __init plat_mem_setup(void)
 		/* Clear to obtain best system bus performance */
 		clear_c0_config(1 << 19); /* Clear Config[OD] */
 
-	board_setup();  /* board specific setup */
+	board_setup();	/* board specific setup */
 
 	/* IO/MEM resources. */
 	set_io_port_base(0);

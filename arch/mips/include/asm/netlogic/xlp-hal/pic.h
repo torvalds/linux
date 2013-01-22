@@ -36,7 +36,7 @@
 #define _NLM_HAL_PIC_H
 
 /* PIC Specific registers */
-#define PIC_CTRL                0x00
+#define PIC_CTRL		0x00
 
 /* PIC control register defines */
 #define PIC_CTRL_ITV		32 /* interrupt timeout value */
@@ -71,41 +71,41 @@
 #define PIC_IRT_DB		16 /* Destination base */
 #define PIC_IRT_DTE		0  /* Destination thread enables */
 
-#define PIC_BYTESWAP            0x02
-#define PIC_STATUS              0x04
+#define PIC_BYTESWAP		0x02
+#define PIC_STATUS		0x04
 #define PIC_INTR_TIMEOUT	0x06
 #define PIC_ICI0_INTR_TIMEOUT	0x08
 #define PIC_ICI1_INTR_TIMEOUT	0x0a
 #define PIC_ICI2_INTR_TIMEOUT	0x0c
 #define PIC_IPI_CTL		0x0e
-#define PIC_INT_ACK             0x10
-#define PIC_INT_PENDING0        0x12
-#define PIC_INT_PENDING1        0x14
-#define PIC_INT_PENDING2        0x16
+#define PIC_INT_ACK		0x10
+#define PIC_INT_PENDING0	0x12
+#define PIC_INT_PENDING1	0x14
+#define PIC_INT_PENDING2	0x16
 
-#define PIC_WDOG0_MAXVAL        0x18
-#define PIC_WDOG0_COUNT         0x1a
-#define PIC_WDOG0_ENABLE0       0x1c
-#define PIC_WDOG0_ENABLE1       0x1e
-#define PIC_WDOG0_BEATCMD       0x20
-#define PIC_WDOG0_BEAT0         0x22
-#define PIC_WDOG0_BEAT1         0x24
+#define PIC_WDOG0_MAXVAL	0x18
+#define PIC_WDOG0_COUNT		0x1a
+#define PIC_WDOG0_ENABLE0	0x1c
+#define PIC_WDOG0_ENABLE1	0x1e
+#define PIC_WDOG0_BEATCMD	0x20
+#define PIC_WDOG0_BEAT0		0x22
+#define PIC_WDOG0_BEAT1		0x24
 
-#define PIC_WDOG1_MAXVAL        0x26
-#define PIC_WDOG1_COUNT         0x28
-#define PIC_WDOG1_ENABLE0       0x2a
-#define PIC_WDOG1_ENABLE1       0x2c
-#define PIC_WDOG1_BEATCMD       0x2e
-#define PIC_WDOG1_BEAT0         0x30
-#define PIC_WDOG1_BEAT1         0x32
+#define PIC_WDOG1_MAXVAL	0x26
+#define PIC_WDOG1_COUNT		0x28
+#define PIC_WDOG1_ENABLE0	0x2a
+#define PIC_WDOG1_ENABLE1	0x2c
+#define PIC_WDOG1_BEATCMD	0x2e
+#define PIC_WDOG1_BEAT0		0x30
+#define PIC_WDOG1_BEAT1		0x32
 
-#define PIC_WDOG_MAXVAL(i)      (PIC_WDOG0_MAXVAL + ((i) ? 7 : 0))
-#define PIC_WDOG_COUNT(i)       (PIC_WDOG0_COUNT + ((i) ? 7 : 0))
-#define PIC_WDOG_ENABLE0(i)     (PIC_WDOG0_ENABLE0 + ((i) ? 7 : 0))
-#define PIC_WDOG_ENABLE1(i)     (PIC_WDOG0_ENABLE1 + ((i) ? 7 : 0))
-#define PIC_WDOG_BEATCMD(i)     (PIC_WDOG0_BEATCMD + ((i) ? 7 : 0))
-#define PIC_WDOG_BEAT0(i)       (PIC_WDOG0_BEAT0 + ((i) ? 7 : 0))
-#define PIC_WDOG_BEAT1(i)       (PIC_WDOG0_BEAT1 + ((i) ? 7 : 0))
+#define PIC_WDOG_MAXVAL(i)	(PIC_WDOG0_MAXVAL + ((i) ? 7 : 0))
+#define PIC_WDOG_COUNT(i)	(PIC_WDOG0_COUNT + ((i) ? 7 : 0))
+#define PIC_WDOG_ENABLE0(i)	(PIC_WDOG0_ENABLE0 + ((i) ? 7 : 0))
+#define PIC_WDOG_ENABLE1(i)	(PIC_WDOG0_ENABLE1 + ((i) ? 7 : 0))
+#define PIC_WDOG_BEATCMD(i)	(PIC_WDOG0_BEATCMD + ((i) ? 7 : 0))
+#define PIC_WDOG_BEAT0(i)	(PIC_WDOG0_BEAT0 + ((i) ? 7 : 0))
+#define PIC_WDOG_BEAT1(i)	(PIC_WDOG0_BEAT1 + ((i) ? 7 : 0))
 
 #define PIC_TIMER0_MAXVAL    0x34
 #define PIC_TIMER1_MAXVAL    0x36
@@ -127,28 +127,28 @@
 #define PIC_TIMER7_COUNT     0x52
 #define PIC_TIMER_COUNT(i)   (PIC_TIMER0_COUNT + ((i) * 2))
 
-#define PIC_ITE0_N0_N1          0x54
-#define PIC_ITE1_N0_N1          0x58
-#define PIC_ITE2_N0_N1          0x5c
-#define PIC_ITE3_N0_N1          0x60
-#define PIC_ITE4_N0_N1          0x64
-#define PIC_ITE5_N0_N1          0x68
-#define PIC_ITE6_N0_N1          0x6c
-#define PIC_ITE7_N0_N1          0x70
-#define PIC_ITE_N0_N1(i)        (PIC_ITE0_N0_N1 + ((i) * 4))
+#define PIC_ITE0_N0_N1		0x54
+#define PIC_ITE1_N0_N1		0x58
+#define PIC_ITE2_N0_N1		0x5c
+#define PIC_ITE3_N0_N1		0x60
+#define PIC_ITE4_N0_N1		0x64
+#define PIC_ITE5_N0_N1		0x68
+#define PIC_ITE6_N0_N1		0x6c
+#define PIC_ITE7_N0_N1		0x70
+#define PIC_ITE_N0_N1(i)	(PIC_ITE0_N0_N1 + ((i) * 4))
 
-#define PIC_ITE0_N2_N3          0x56
-#define PIC_ITE1_N2_N3          0x5a
-#define PIC_ITE2_N2_N3          0x5e
-#define PIC_ITE3_N2_N3          0x62
-#define PIC_ITE4_N2_N3          0x66
-#define PIC_ITE5_N2_N3          0x6a
-#define PIC_ITE6_N2_N3          0x6e
-#define PIC_ITE7_N2_N3          0x72
-#define PIC_ITE_N2_N3(i)        (PIC_ITE0_N2_N3 + ((i) * 4))
+#define PIC_ITE0_N2_N3		0x56
+#define PIC_ITE1_N2_N3		0x5a
+#define PIC_ITE2_N2_N3		0x5e
+#define PIC_ITE3_N2_N3		0x62
+#define PIC_ITE4_N2_N3		0x66
+#define PIC_ITE5_N2_N3		0x6a
+#define PIC_ITE6_N2_N3		0x6e
+#define PIC_ITE7_N2_N3		0x72
+#define PIC_ITE_N2_N3(i)	(PIC_ITE0_N2_N3 + ((i) * 4))
 
-#define PIC_IRT0                0x74
-#define PIC_IRT(i)              (PIC_IRT0 + ((i) * 2))
+#define PIC_IRT0		0x74
+#define PIC_IRT(i)		(PIC_IRT0 + ((i) * 2))
 
 #define TIMER_CYCLES_MAXVAL	0xffffffffffffffffULL
 

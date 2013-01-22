@@ -60,8 +60,8 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 
 #define NVRAM_READ_VAL(type)						\
 static void nvram_read_ ## type (const char *prefix,			\
-				 const char *postfix, const char *name,	\
-				 type *val, type allset, bool fallback)	\
+				 const char *postfix, const char *name, \
+				 type *val, type allset, bool fallback) \
 {									\
 	char buf[100];							\
 	int err;							\

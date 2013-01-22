@@ -163,7 +163,7 @@ static void prom_add_memory(void)
 {
 	struct nlm_boot_mem_map *bootm;
 	u64 start, size;
-	u64 pref_backup = 512;  /* avoid pref walking beyond end */
+	u64 pref_backup = 512;	/* avoid pref walking beyond end */
 	int i;
 
 	bootm = (void *)(long)nlm_prom_info.psb_mem_map;

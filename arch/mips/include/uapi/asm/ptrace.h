@@ -49,8 +49,8 @@ struct pt_regs {
 	unsigned long cp0_tcstatus;
 #endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-	unsigned long long mpl[3];        /* MTM{0,1,2} */
-	unsigned long long mtp[3];        /* MTP{0,1,2} */
+	unsigned long long mpl[3];	  /* MTM{0,1,2} */
+	unsigned long long mtp[3];	  /* MTP{0,1,2} */
 #endif
 } __attribute__ ((aligned (8)));
 
@@ -67,14 +67,14 @@ struct pt_regs {
 #define PTRACE_GET_THREAD_AREA	25
 #define PTRACE_SET_THREAD_AREA	26
 
-/* Calls to trace a 64bit program from a 32bit program.  */
+/* Calls to trace a 64bit program from a 32bit program.	 */
 #define PTRACE_PEEKTEXT_3264	0xc0
 #define PTRACE_PEEKDATA_3264	0xc1
 #define PTRACE_POKETEXT_3264	0xc2
 #define PTRACE_POKEDATA_3264	0xc3
 #define PTRACE_GET_THREAD_AREA_3264	0xc4
 
-/* Read and write watchpoint registers.  */
+/* Read and write watchpoint registers.	 */
 enum pt_watch_style {
 	pt_watch_style_mips32,
 	pt_watch_style_mips64

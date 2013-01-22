@@ -164,8 +164,8 @@ static void setup_cpu_fmninfo(struct xlr_fmn_info *cpu, int num_core)
 	int i, j;
 
 	for (i = 0; i < num_core; i++) {
-		cpu[i].start_stn_id     = (8 * i);
-		cpu[i].end_stn_id       = (8 * i + 8);
+		cpu[i].start_stn_id	= (8 * i);
+		cpu[i].end_stn_id	= (8 * i + 8);
 
 		for (j = cpu[i].start_stn_id; j < cpu[i].end_stn_id; j++)
 			xlr_board_fmn_config.bucket_size[j] = 32;

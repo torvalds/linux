@@ -88,7 +88,7 @@
 #define bcm_mpi_readl(o)	bcm_rset_readl(RSET_MPI, (o))
 #define bcm_mpi_writel(v, o)	bcm_rset_writel(RSET_MPI, (v), (o))
 #define bcm_pcmcia_readl(o)	bcm_rset_readl(RSET_PCMCIA, (o))
-#define bcm_pcmcia_writel(v, o)	bcm_rset_writel(RSET_PCMCIA, (v), (o))
+#define bcm_pcmcia_writel(v, o) bcm_rset_writel(RSET_PCMCIA, (v), (o))
 #define bcm_pcie_readl(o)	bcm_rset_readl(RSET_PCIE, (o))
 #define bcm_pcie_writel(v, o)	bcm_rset_writel(RSET_PCIE, (v), (o))
 #define bcm_sdram_readl(o)	bcm_rset_readl(RSET_SDRAM, (o))

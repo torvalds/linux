@@ -39,9 +39,9 @@ extern int get_ethernet_addr(char *ethernet_addr);
 /* Memory descriptor management. */
 #define PROM_MAX_PMEMBLOCKS    32
 struct prom_pmemblock {
-        unsigned long base; /* Within KSEG0. */
-        unsigned int size;  /* In bytes. */
-        unsigned int type;  /* free or prom memory */
+	unsigned long base; /* Within KSEG0. */
+	unsigned int size;  /* In bytes. */
+	unsigned int type;  /* free or prom memory */
 };
 
 #endif /* !(_MIPS_PROM_H) */

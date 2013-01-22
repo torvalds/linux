@@ -20,7 +20,7 @@ static struct bcsr_reg {
 	spinlock_t lock;
 } bcsr_regs[BCSR_CNT];
 
-static void __iomem *bcsr_virt;	/* KSEG1 addr of BCSR base */
+static void __iomem *bcsr_virt; /* KSEG1 addr of BCSR base */
 static int bcsr_csc_base;	/* linux-irq of first cascaded irq */
 
 void __init bcsr_init(unsigned long bcsr1_phys, unsigned long bcsr2_phys)

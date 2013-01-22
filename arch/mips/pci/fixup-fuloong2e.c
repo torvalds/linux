@@ -6,9 +6,9 @@
  * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
+ *  This program is free software; you can redistribute	 it and/or modify it
+ *  under  the terms of	 the GNU General  Public License as published by the
+ *  Free Software Foundation;  either version 2 of the	License, or (at your
  *  option) any later version.
  */
 #include <linux/init.h>
@@ -152,7 +152,7 @@ static void loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 	/* disable read prefetch/write post buffers */
 	pci_write_config_byte(pdev, 0x41, 0x02);
 
-	/* use 3/4 as fifo thresh hold  */
+	/* use 3/4 as fifo thresh hold	*/
 	pci_write_config_byte(pdev, 0x43, 0x0a);
 	pci_write_config_byte(pdev, 0x44, 0x00);
 

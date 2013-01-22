@@ -56,7 +56,7 @@
 
 static void *pci_config_base;
 
-#define	pci_cfg_addr(bus, devfn, off) (((bus) << 16) | ((devfn) << 8) | (off))
+#define pci_cfg_addr(bus, devfn, off) (((bus) << 16) | ((devfn) << 8) | (off))
 
 /* PCI ops */
 static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
@@ -136,26 +136,26 @@ struct pci_ops nlm_pci_ops = {
 };
 
 static struct resource nlm_pci_mem_resource = {
-	.name           = "XLR PCI MEM",
-	.start          = 0xd0000000UL,	/* 256MB PCI mem @ 0xd000_0000 */
-	.end            = 0xdfffffffUL,
-	.flags          = IORESOURCE_MEM,
+	.name		= "XLR PCI MEM",
+	.start		= 0xd0000000UL, /* 256MB PCI mem @ 0xd000_0000 */
+	.end		= 0xdfffffffUL,
+	.flags		= IORESOURCE_MEM,
 };
 
 static struct resource nlm_pci_io_resource = {
-	.name           = "XLR IO MEM",
-	.start          = 0x10000000UL,	/* 16MB PCI IO @ 0x1000_0000 */
-	.end            = 0x100fffffUL,
-	.flags          = IORESOURCE_IO,
+	.name		= "XLR IO MEM",
+	.start		= 0x10000000UL, /* 16MB PCI IO @ 0x1000_0000 */
+	.end		= 0x100fffffUL,
+	.flags		= IORESOURCE_IO,
 };
 
 struct pci_controller nlm_pci_controller = {
-	.index          = 0,
-	.pci_ops        = &nlm_pci_ops,
-	.mem_resource   = &nlm_pci_mem_resource,
-	.mem_offset     = 0x00000000UL,
-	.io_resource    = &nlm_pci_io_resource,
-	.io_offset      = 0x00000000UL,
+	.index		= 0,
+	.pci_ops	= &nlm_pci_ops,
+	.mem_resource	= &nlm_pci_mem_resource,
+	.mem_offset	= 0x00000000UL,
+	.io_resource	= &nlm_pci_io_resource,
+	.io_offset	= 0x00000000UL,
 };
 
 /*
@@ -259,7 +259,7 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 		MSI_ADDR_REDIRECTION_CPU;
 
 	msg.data = MSI_DATA_TRIGGER_EDGE |
-		MSI_DATA_LEVEL_ASSERT    |
+		MSI_DATA_LEVEL_ASSERT	 |
 		MSI_DATA_DELIVERY_FIXED;
 
 	ret = irq_set_msi_desc(irq, desc);
@@ -344,7 +344,7 @@ static int __init pcibios_init(void)
 	pci_config_base = ioremap(DEFAULT_PCI_CONFIG_BASE, 16 << 20);
 
 	/* Extend IO port for memory mapped io */
-	ioport_resource.start =  0;
+	ioport_resource.start =	 0;
 	ioport_resource.end   = ~0;
 
 	set_io_port_base(CKSEG1);

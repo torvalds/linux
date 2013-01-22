@@ -19,7 +19,7 @@
 #define BRK_KERNELBP	1	/* Break in the kernel */
 #define BRK_ABORT	2	/* Sometimes used by abort(3) to SIGIOT */
 #define BRK_BD_TAKEN	3	/* For bd slot emulation - not implemented */
-#define BRK_BD_NOTTAKEN	4	/* For bd slot emulation - not implemented */
+#define BRK_BD_NOTTAKEN 4	/* For bd slot emulation - not implemented */
 #define BRK_SSTEPBP	5	/* User bp (used by debuggers) */
 #define BRK_OVERFLOW	6	/* Overflow check */
 #define BRK_DIVZERO	7	/* Divide by zero check */

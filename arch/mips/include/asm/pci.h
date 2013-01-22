@@ -12,7 +12,7 @@
 
 /*
  * This file essentially defines the interface between board
- * specific PCI code and MIPS common PCI code.  Should potentially put
+ * specific PCI code and MIPS common PCI code.	Should potentially put
  * into include/asm/pci.h file.
  */
 
@@ -20,7 +20,7 @@
 #include <linux/of.h>
 
 /*
- * Each pci channel is a top-level PCI bus seem by CPU.  A machine  with
+ * Each pci channel is a top-level PCI bus seem by CPU.	 A machine  with
  * multiple PCI channels may have multiple PCI host controllers or a
  * single controller supporting multiple channels.
  */
@@ -99,7 +99,7 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 struct pci_dev;
 
 /*
- * The PCI address space does equal the physical memory address space.  The
+ * The PCI address space does equal the physical memory address space.	The
  * networking and block device layers use this boolean for bounce buffer
  * decisions.  This is set if any hose does not have an IOMMU.
  */

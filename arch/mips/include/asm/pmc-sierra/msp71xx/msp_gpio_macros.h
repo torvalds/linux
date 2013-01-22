@@ -54,7 +54,7 @@ enum msp_gpio_mode {
 	MSP_GPIO_UART_OUTPUT	= 0x9,	/* Only GPIO 2 or 3 */
 	MSP_GPIO_PERIF_TIMERA	= 0x9,	/* Only GPIO 0 or 1 */
 	MSP_GPIO_PERIF_TIMERB	= 0xa,	/* Only GPIO 0 or 1 */
-	MSP_GPIO_UNKNOWN	= 0xb,  /* No such GPIO or mode */
+	MSP_GPIO_UNKNOWN	= 0xb,	/* No such GPIO or mode */
 };
 
 /* -- Static Tables -- */
@@ -148,7 +148,7 @@ static unsigned int MSP_GPIO_MODE_ALLOWED[] = {
 	BASIC_MODE_REG_VALUE(mode, OFFSET_GPIO_NUMBER(gpio))
 #define BASIC_MODE_SHIFT(gpio)	\
 	BASIC_MODE_REG_SHIFT(OFFSET_GPIO_NUMBER(gpio))
-#define BASIC_MODE_FROM_REG(data, gpio)	\
+#define BASIC_MODE_FROM_REG(data, gpio) \
 	BASIC_MODE_REG_FROM_REG(data, OFFSET_GPIO_NUMBER(gpio))
 
 /*

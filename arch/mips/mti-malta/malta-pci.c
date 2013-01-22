@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Technologies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -127,7 +127,7 @@ void __init mips_pcibios_init(void)
 			map = map1;
 		}
 		mask = ~(start ^ end);
-                /* We don't support remapping with a discontiguous mask.  */
+		/* We don't support remapping with a discontiguous mask.  */
 		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_mem_resource.start = start;
@@ -144,7 +144,7 @@ void __init mips_pcibios_init(void)
 		map = GT_READ(GT_PCI0IOREMAP_OFS);
 		end = (end & GT_PCI_HD_MSK) | (start & ~GT_PCI_HD_MSK);
 		mask = ~(start ^ end);
-                /* We don't support remapping with a discontiguous mask.  */
+		/* We don't support remapping with a discontiguous mask.  */
 		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_io_resource.start = map & mask;

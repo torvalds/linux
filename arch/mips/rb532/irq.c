@@ -21,7 +21,7 @@
  *
  * Copyright 2002 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
- *              stevel@mvista.com or source@mvista.com
+ *		stevel@mvista.com or source@mvista.com
  */
 
 #include <linux/bitops.h>
@@ -51,7 +51,7 @@ struct intr_group {
 	volatile u32 *base_addr;
 };
 
-#define RC32434_NR_IRQS  (GROUP4_IRQ_BASE + 32)
+#define RC32434_NR_IRQS	 (GROUP4_IRQ_BASE + 32)
 
 #if (NR_IRQS < RC32434_NR_IRQS)
 #error Too little irqs defined. Did you override <asm/irq.h> ?

@@ -99,7 +99,7 @@ void cvmx_pko_initialize_global(void)
  * be called after the FPA has been initialized and filled with pages.
  *
  * Returns 0 on success
- *         !0 on failure
+ *	   !0 on failure
  */
 int cvmx_pko_initialize_local(void)
 {
@@ -186,19 +186,19 @@ void cvmx_pko_shutdown(void)
 /**
  * Configure a output port and the associated queues for use.
  *
- * @port:       Port to configure.
+ * @port:	Port to configure.
  * @base_queue: First queue number to associate with this port.
  * @num_queues: Number of queues to associate with this port
- * @priority:   Array of priority levels for each queue. Values are
- *                   allowed to be 0-8. A value of 8 get 8 times the traffic
- *                   of a value of 1.  A value of 0 indicates that no rounds
- *                   will be participated in. These priorities can be changed
- *                   on the fly while the pko is enabled. A priority of 9
- *                   indicates that static priority should be used.  If static
- *                   priority is used all queues with static priority must be
- *                   contiguous starting at the base_queue, and lower numbered
- *                   queues have higher priority than higher numbered queues.
- *                   There must be num_queues elements in the array.
+ * @priority:	Array of priority levels for each queue. Values are
+ *		     allowed to be 0-8. A value of 8 get 8 times the traffic
+ *		     of a value of 1.  A value of 0 indicates that no rounds
+ *		     will be participated in. These priorities can be changed
+ *		     on the fly while the pko is enabled. A priority of 9
+ *		     indicates that static priority should be used.  If static
+ *		     priority is used all queues with static priority must be
+ *		     contiguous starting at the base_queue, and lower numbered
+ *		     queues have higher priority than higher numbered queues.
+ *		     There must be num_queues elements in the array.
  */
 cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 				       uint64_t num_queues,
@@ -440,7 +440,7 @@ void cvmx_pko_show_queue_map()
  * @port:      Port to rate limit
  * @packets_s: Maximum packet/sec
  * @burst:     Maximum number of packets to burst in a row before rate
- *                  limiting cuts in.
+ *		    limiting cuts in.
  *
  * Returns Zero on success, negative on failure
  */
@@ -473,7 +473,7 @@ int cvmx_pko_rate_limit_packets(int port, int packets_s, int burst)
  * @port:   Port to rate limit
  * @bits_s: PKO rate limit in bits/sec
  * @burst:  Maximum number of bits to burst before rate
- *               limiting cuts in.
+ *		 limiting cuts in.
  *
  * Returns Zero on success, negative on failure
  */

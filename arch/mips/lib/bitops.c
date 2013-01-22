@@ -56,7 +56,7 @@ EXPORT_SYMBOL(__mips_clear_bit);
 
 
 /**
- * __mips_change_bit - Toggle a bit in memory.  This is called by change_bit()
+ * __mips_change_bit - Toggle a bit in memory.	This is called by change_bit()
  * if it cannot find a faster solution.
  * @nr: Bit to change
  * @addr: Address to start counting from
@@ -155,7 +155,7 @@ EXPORT_SYMBOL(__mips_test_and_clear_bit);
 
 
 /**
- * __mips_test_and_change_bit - Change a bit and return its old value.  This is
+ * __mips_test_and_change_bit - Change a bit and return its old value.	This is
  * called by test_and_change_bit() if it cannot find a faster solution.
  * @nr: Bit to change
  * @addr: Address to count from

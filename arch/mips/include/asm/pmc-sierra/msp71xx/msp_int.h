@@ -1,7 +1,7 @@
 /*
  * Defines for the MSP interrupt handlers.
  *
- * Copyright (C) 2005, PMC-Sierra, Inc.  All rights reserved.
+ * Copyright (C) 2005, PMC-Sierra, Inc.	 All rights reserved.
  * Author: Andrew Hughes, Andrew_Hughes@pmc-sierra.com
  *
  * ########################################################################
@@ -28,7 +28,7 @@
 /*
  * The PMC-Sierra MSP product line has at least two different interrupt
  * controllers, the SLP register based scheme and the CIC interrupt
- * controller block mechanism.  This file distinguishes between them
+ * controller block mechanism.	This file distinguishes between them
  * so that devices see a uniform interface.
  */
 

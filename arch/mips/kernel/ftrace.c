@@ -125,21 +125,21 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
  *
  * 2.1 For KBUILD_MCOUNT_RA_ADDRESS and CONFIG_32BIT
  *
- * lui v1, hi_16bit_of_mcount        --> b 1f (0x10000005)
+ * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000005)
  * addiu v1, v1, low_16bit_of_mcount
  * move at, ra
  * move $12, ra_address
  * jalr v1
  *  sub sp, sp, 8
- *                                  1: offset = 5 instructions
+ *				    1: offset = 5 instructions
  * 2.2 For the Other situations
  *
- * lui v1, hi_16bit_of_mcount        --> b 1f (0x10000004)
+ * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000004)
  * addiu v1, v1, low_16bit_of_mcount
  * move at, ra
  * jalr v1
  *  nop | move $12, ra_address | sub sp, sp, 8
- *                                  1: offset = 4 instructions
+ *				    1: offset = 4 instructions
  */
 
 #define INSN_B_1F (0x10000000 | MCOUNT_OFFSET_INSNS)
@@ -228,8 +228,8 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 #ifndef KBUILD_MCOUNT_RA_ADDRESS
 
-#define S_RA_SP	(0xafbf << 16)	/* s{d,w} ra, offset(sp) */
-#define S_R_SP	(0xafb0 << 16)  /* s{d,w} R, offset(sp) */
+#define S_RA_SP (0xafbf << 16)	/* s{d,w} ra, offset(sp) */
+#define S_R_SP	(0xafb0 << 16)	/* s{d,w} R, offset(sp) */
 #define OFFSET_MASK	0xffff	/* stack offset range: 0 ~ PT_SIZE */
 
 unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long

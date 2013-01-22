@@ -17,11 +17,11 @@
 static int force_fire_and_forget = 1;
 
 /**
- * hub_pio_map  -  establish a HUB PIO mapping
+ * hub_pio_map	-  establish a HUB PIO mapping
  *
  * @hub:	hub to perform PIO mapping on
  * @widget:	widget ID to perform PIO mapping for
- * @xtalk_addr:	xtalk_address that needs to be mapped
+ * @xtalk_addr: xtalk_address that needs to be mapped
  * @size:	size of the PIO mapping
  *
  **/
@@ -78,8 +78,8 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
 /*
  * hub_setup_prb(nasid, prbnum, credits, conveyor)
  *
- * 	Put a PRB into fire-and-forget mode if conveyor isn't set.  Otherwise,
- * 	put it into conveyor belt mode with the specified number of credits.
+ *	Put a PRB into fire-and-forget mode if conveyor isn't set.  Otherwise,
+ *	put it into conveyor belt mode with the specified number of credits.
  */
 static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
 {
@@ -125,12 +125,12 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
  * so we turn off access to all widgets for the duration of the function.
  *
  * XXX - This code should really check what kind of widget we're talking
- * to.  Bridges can only handle three requests, but XG will do more.
+ * to.	Bridges can only handle three requests, but XG will do more.
  * How many can crossbow handle to widget 0?  We're assuming 1.
  *
  * XXX - There is a bug in the crossbow that link reset PIOs do not
  * return write responses.  The easiest solution to this problem is to
- * leave widget 0 (xbow) in fire-and-forget mode at all times.  This
+ * leave widget 0 (xbow) in fire-and-forget mode at all times.	This
  * only affects pio's to xbow registers, which should be rare.
  **/
 static void hub_set_piomode(nasid_t nasid)
@@ -167,7 +167,7 @@ static void hub_set_piomode(nasid_t nasid)
 }
 
 /*
- * hub_pio_init  -  PIO-related hub initialization
+ * hub_pio_init	 -  PIO-related hub initialization
  *
  * @hub:	hubinfo structure for our hub
  */

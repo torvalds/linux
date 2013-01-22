@@ -26,7 +26,7 @@
 #ifndef _MSP_PCI_H_
 #define _MSP_PCI_H_
 
-#define MSP_HAS_PCI(ID)	(((u32)(ID) <= 0x4236) && ((u32)(ID) >= 0x4220))
+#define MSP_HAS_PCI(ID) (((u32)(ID) <= 0x4236) && ((u32)(ID) >= 0x4220))
 
 /*
  * It is convenient to program the OATRAN register so that
@@ -96,24 +96,24 @@ enum
     config_status_command, /* 1 */
     config_class_revision, /* 2 */
     config_BIST_header_latency_cache, /* 3 */
-    config_BAR0,           /* 4 */
-    config_BAR1,           /* 5 */
-    config_BAR2,           /* 6 */
-    config_not_used7,      /* 7 */
-    config_not_used8,      /* 8 */
-    config_not_used9,      /* 9 */
-    config_CIS,            /* 10 */
-    config_subsystem,      /* 11 */
-    config_not_used12,     /* 12 */
+    config_BAR0,	   /* 4 */
+    config_BAR1,	   /* 5 */
+    config_BAR2,	   /* 6 */
+    config_not_used7,	   /* 7 */
+    config_not_used8,	   /* 8 */
+    config_not_used9,	   /* 9 */
+    config_CIS,		   /* 10 */
+    config_subsystem,	   /* 11 */
+    config_not_used12,	   /* 12 */
     config_capabilities,   /* 13 */
-    config_not_used14,     /* 14 */
+    config_not_used14,	   /* 14 */
     config_lat_grant_irq,  /* 15 */
     config_message_control,/* 16 */
     config_message_addr,   /* 17 */
     config_message_data,   /* 18 */
-    config_VPD_addr,       /* 19 */
-    config_VPD_data,       /* 20 */
-    config_maxregs         /* 21 - number of registers */
+    config_VPD_addr,	   /* 19 */
+    config_VPD_data,	   /* 20 */
+    config_maxregs	   /* 21 - number of registers */
 };
 
 struct msp_pci_regs
@@ -132,15 +132,15 @@ struct msp_pci_regs
     pcireg hop_unused_2C; /* +0x2C */
     pcireg hop_unused_30; /* +0x30 */
     pcireg hop_unused_34; /* +0x34 */
-    pcireg if_control;    /* +0x38 */
-    pcireg oatran;        /* +0x3C */
-    pcireg reset_ctl;     /* +0x40 */
-    pcireg config_addr;   /* +0x44 */
+    pcireg if_control;	  /* +0x38 */
+    pcireg oatran;	  /* +0x3C */
+    pcireg reset_ctl;	  /* +0x40 */
+    pcireg config_addr;	  /* +0x44 */
     pcireg hop_unused_48; /* +0x48 */
     pcireg msg_signaled_int_status; /* +0x4C */
     pcireg msg_signaled_int_mask;   /* +0x50 */
-    pcireg if_status;     /* +0x54 */
-    pcireg if_mask;       /* +0x58 */
+    pcireg if_status;	  /* +0x54 */
+    pcireg if_mask;	  /* +0x58 */
     pcireg hop_unused_5C; /* +0x5C */
     pcireg hop_unused_60; /* +0x60 */
     pcireg hop_unused_64; /* +0x64 */
@@ -190,9 +190,9 @@ struct msp_pci_regs
 #define BPCI_IFSTATUS_PEI  (1<<30) /* Parity error as initiator */
 #define BPCI_IFSTATUS_PET  (1<<31) /* Parity error as target */
 
-#define BPCI_RESETCTL_PR (1<<0)    /* True if reset asserted */
-#define BPCI_RESETCTL_RT (1<<4)    /* Release time */
-#define BPCI_RESETCTL_CT (1<<8)    /* Config time */
+#define BPCI_RESETCTL_PR (1<<0)	   /* True if reset asserted */
+#define BPCI_RESETCTL_RT (1<<4)	   /* Release time */
+#define BPCI_RESETCTL_CT (1<<8)	   /* Config time */
 #define BPCI_RESETCTL_PE (1<<12)   /* PCI enabled */
 #define BPCI_RESETCTL_HM (1<<13)   /* PCI host mode */
 #define BPCI_RESETCTL_RI (1<<14)   /* PCI reset in */

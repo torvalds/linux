@@ -49,12 +49,12 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 #include <asm/netlogic/xlp-hal/cpucontrol.h>
 
-#define	CP0_EBASE	$15
+#define CP0_EBASE	$15
 #define SYS_CPU_COHERENT_BASE(node)	CKSEG1ADDR(XLP_DEFAULT_IO_BASE) + \
 			XLP_IO_SYS_OFFSET(node) + XLP_IO_PCI_HDRSZ + \
 			SYS_CPU_NONCOHERENT_MODE * 4
 
-#define	XLP_AX_WORKAROUND	/* enable Ax silicon workarounds */
+#define XLP_AX_WORKAROUND	/* enable Ax silicon workarounds */
 
 /* Enable XLP features and workarounds in the LSU */
 .macro xlp_config_lsu
@@ -85,7 +85,7 @@
 	li	t0, LSU_DEBUG_DATA0
 	li	t1, LSU_DEBUG_ADDR
 	li	t2, 0		/* index */
-	li 	t3, 0x1000	/* loop count */
+	li	t3, 0x1000	/* loop count */
 1:
 	sll	v0, t2, 5
 	mtcr	zero, t0
@@ -134,7 +134,7 @@ FEXPORT(nlm_reset_entry)
 	and	k1, k0, k1
 	beqz	k1, 1f		/* go to real reset entry */
 	nop
-	li	k1, CKSEG1ADDR(RESET_DATA_PHYS)	/* NMI */
+	li	k1, CKSEG1ADDR(RESET_DATA_PHYS) /* NMI */
 	ld	k0, BOOT_NMI_HANDLER(k1)
 	jr	k0
 	nop
@@ -235,7 +235,7 @@ EXPORT(nlm_reset_entry_end)
 
 FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
 	xlp_config_lsu
-	dmtc0   sp, $4, 2		/* SP saved in UserLocal */
+	dmtc0	sp, $4, 2		/* SP saved in UserLocal */
 	SAVE_ALL
 	sync
 	/* find the location to which nlm_boot_siblings was relocated */
@@ -301,13 +301,13 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	 */
 	li	t0, 0x400
 	mfcr	t1, t0
-	li	t2, 6 		/* XLR thread mode mask */
+	li	t2, 6		/* XLR thread mode mask */
 	nor	t3, t2, zero
 	and	t2, t1, t2	/* t2 - current thread mode */
 	li	v0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	v1, BOOT_THREAD_MODE(v0) /* v1 - new thread mode */
 	sll	v1, 1
-	beq	v1, t2, 1f 	/* same as request value */
+	beq	v1, t2, 1f	/* same as request value */
 	nop			/* nothing to do */
 
 	and	t2, t1, t3	/* mask out old thread mode */

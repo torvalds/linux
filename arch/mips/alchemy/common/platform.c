@@ -53,7 +53,7 @@ static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 		.irq		= _irq,				\
 		.regshift	= 2,				\
 		.iotype		= UPIO_AU,			\
-		.flags		= UPF_SKIP_TEST | UPF_IOREMAP |	\
+		.flags		= UPF_SKIP_TEST | UPF_IOREMAP | \
 				  UPF_FIXED_TYPE,		\
 		.type		= PORT_16550A,			\
 		.pm		= alchemy_8250_pm,		\
@@ -137,7 +137,7 @@ static void alchemy_ehci_power_off(struct platform_device *pdev)
 }
 
 static struct usb_ehci_pdata alchemy_ehci_pdata = {
-	.no_io_watchdog	= 1,
+	.no_io_watchdog = 1,
 	.power_on	= alchemy_ehci_power_on,
 	.power_off	= alchemy_ehci_power_off,
 	.power_suspend	= alchemy_ehci_power_off,

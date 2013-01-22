@@ -31,8 +31,8 @@
 #include <asm/sn/sn_private.h>
 
 
-#define SLOT_PFNSHIFT           (SLOT_SHIFT - PAGE_SHIFT)
-#define PFN_NASIDSHFT           (NASID_SHFT - PAGE_SHIFT)
+#define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
+#define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)
 
 struct node_data *__node_data[MAX_COMPACT_NODES];
 
@@ -43,7 +43,7 @@ static int fine_mode;
 static int is_fine_dirmode(void)
 {
 	return (((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK)
-	        >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE);
+		>> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE);
 }
 
 static hubreg_t get_region(cnodeid_t cnode)
@@ -66,7 +66,7 @@ static void gen_region_mask(hubreg_t *region_mask)
 	}
 }
 
-#define	rou_rflag	rou_flags
+#define rou_rflag	rou_flags
 
 static int router_distance;
 
@@ -412,7 +412,7 @@ static void __init node_mem_init(cnodeid_t node)
 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
 			       sizeof(struct hub_data));
 
-  	bootmap_size = init_bootmem_node(NODE_DATA(node), slot_freepfn,
+	bootmap_size = init_bootmem_node(NODE_DATA(node), slot_freepfn,
 					start_pfn, end_pfn);
 	free_bootmem_with_active_regions(node, end_pfn);
 	reserve_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
@@ -422,7 +422,7 @@ static void __init node_mem_init(cnodeid_t node)
 }
 
 /*
- * A node with nothing.  We use it to avoid any special casing in
+ * A node with nothing.	 We use it to avoid any special casing in
  * cpumask_of_node
  */
 static struct node_data null_node = {

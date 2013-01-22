@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       David VomLehn
+ * Author:	 David VomLehn
  */
 
 #include <linux/init.h>
@@ -33,22 +33,22 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x24000000,
-		.end    = 0x241FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_MEM,
+		.name	= "ST231aImage",	/* Delta-Mu 1 image and ram */
+		.start	= 0x24000000,
+		.end	= 0x241FFFFF,		/* 2MiB */
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ST231aMonitor",	/* 8KiB block ST231a monitor */
-		.start  = 0x24200000,
-		.end    = 0x24201FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ST231aMonitor",	/* 8KiB block ST231a monitor */
+		.start	= 0x24200000,
+		.end	= 0x24201FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "MediaMemory1",
-		.start  = 0x24202000,
-		.end    = 0x25FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_MEM,
+		.name	= "MediaMemory1",
+		.start	= 0x24202000,
+		.end	= 0x25FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -56,22 +56,22 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "ST231bImage",	/* Delta-Mu 2 image and ram */
-		.start  = 0x60000000,
-		.end    = 0x601FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_IO,
+		.name	= "ST231bImage",	/* Delta-Mu 2 image and ram */
+		.start	= 0x60000000,
+		.end	= 0x601FFFFF,		/* 2MiB */
+		.flags	= IORESOURCE_IO,
 	},
 	{
-		.name   = "ST231bMonitor",	/* 8KiB block ST231b monitor */
-		.start  = 0x60200000,
-		.end    = 0x60201FFF,
-		.flags  = IORESOURCE_IO,
+		.name	= "ST231bMonitor",	/* 8KiB block ST231b monitor */
+		.start	= 0x60200000,
+		.end	= 0x60201FFF,
+		.flags	= IORESOURCE_IO,
 	},
 	{
-		.name   = "MediaMemory2",
-		.start  = 0x60202000,
-		.end    = 0x61FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_IO,
+		.name	= "MediaMemory2",
+		.start	= 0x60202000,
+		.end	= 0x61FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -87,28 +87,28 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "DSP_Image_Buff",
+		.start	= 0x00000000,
+		.end	= 0x000FFFFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_CPU_PCM_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00009FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_AUX_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00003FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_Main_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00003FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -119,16 +119,16 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 * Arbitrary Based Buffers:
 	 *  This memory area is used for allocating buffers for Video decoding
 	 *  purposes.  Allocation/De-allocation within this buffer is managed
-	 *  by the STAVMEM driver of the STAPI.  They could be Decimated
+	 *  by the STAVMEM driver of the STAPI.	 They could be Decimated
 	 *  Picture Buffers, Intermediate Buffers, as deemed necessary for
 	 *  video decoding purposes, for any video decoders on Zeus.
 	 *
 	 */
 	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x63580000,
-		.end    = 0x64180000 - 1,  /* 12 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "AVMEMPartition0",
+		.start	= 0x63580000,
+		.end	= 0x64180000 - 1,  /* 12 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -141,10 +141,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "Docsis",
-		.start  = 0x62000000,
-		.end    = 0x62700000 - 1,	/* 7 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "Docsis",
+		.start	= 0x62000000,
+		.end	= 0x62700000 - 1,	/* 7 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -157,10 +157,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "GraphicsHeap",
-		.start  = 0x62700000,
-		.end    = 0x63500000 - 1,	/* 14 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "GraphicsHeap",
+		.start	= 0x62700000,
+		.end	= 0x63500000 - 1,	/* 14 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -173,10 +173,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "MulticomSHM",
-		.start  = 0x26000000,
-		.end    = 0x26020000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "MulticomSHM",
+		.start	= 0x26000000,
+		.end	= 0x26020000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -189,10 +189,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x00280000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "BMM_Buffer",
+		.start	= 0x00000000,
+		.end	= 0x00280000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -205,10 +205,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,		/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
+		.name	= "DisplayBins0",
+		.start	= 0x00000000,
+		.end	= 0x00000FFF,		/* 4 KB total */
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -221,10 +221,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DisplayBins1",
-		.start  = 0x64AD4000,
-		.end    = 0x64AD5000 - 1,  /* 4 KB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "DisplayBins1",
+		.start	= 0x64AD4000,
+		.end	= 0x64AD5000 - 1,  /* 4 KB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -237,11 +237,11 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "ITFS",
-		.start  = 0x64180000,
+		.name	= "ITFS",
+		.start	= 0x64180000,
 		/* 815,104 bytes each for 2 ITFS partitions. */
-		.end    = 0x6430DFFF,
-		.flags  = IORESOURCE_IO,
+		.end	= 0x6430DFFF,
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -254,17 +254,17 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x6430E000,
+		.name	= "AvfsDmaMem",
+		.start	= 0x6430E000,
 		/* (945K * 8) = (128K *3) 5 playbacks / 3 server */
-		.end    = 0x64AD0000 - 1,
-		.flags  = IORESOURCE_IO,
+		.end	= 0x64AD0000 - 1,
+		.flags	= IORESOURCE_IO,
 	},
 	{
-		.name   = "AvfsFileSys",
-		.start  = 0x64AD0000,
-		.end    = 0x64AD1000 - 1,  /* 4K */
-		.flags  = IORESOURCE_IO,
+		.name	= "AvfsFileSys",
+		.start	= 0x64AD0000,
+		.end	= 0x64AD1000 - 1,  /* 4K */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -277,10 +277,10 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "SmartCardInfo",
-		.start  = 0x64AD1000,
-		.end    = 0x64AD3800 - 1,
-		.flags  = IORESOURCE_IO,
+		.name	= "SmartCardInfo",
+		.start	= 0x64AD1000,
+		.end	= 0x64AD3800 - 1,
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -290,22 +290,22 @@ struct resource dvr_gaia_resources[] __initdata = {
 	 *	   NP IPC - must be video bank 2
 	 */
 	{
-		.name   = "NP_Reset_Vector",
-		.start  = 0x27c00000,
-		.end    = 0x27c01000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "NP_Reset_Vector",
+		.start	= 0x27c00000,
+		.end	= 0x27c01000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "NP_Image",
-		.start  = 0x27020000,
-		.end    = 0x27060000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "NP_Image",
+		.start	= 0x27020000,
+		.end	= 0x27060000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "NP_IPC",
-		.start  = 0x63500000,
-		.end    = 0x63580000 - 1,
-		.flags  = IORESOURCE_IO,
+		.name	= "NP_IPC",
+		.start	= 0x63500000,
+		.end	= 0x63580000 - 1,
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 * Add other resources here
@@ -323,22 +323,22 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x24000000,
-		.end    = 0x241FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_MEM,
+		.name	= "ST231aImage",	/* Delta-Mu 1 image and ram */
+		.start	= 0x24000000,
+		.end	= 0x241FFFFF,		/* 2MiB */
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ST231aMonitor",	/* 8KiB block ST231a monitor */
-		.start  = 0x24200000,
-		.end    = 0x24201FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ST231aMonitor",	/* 8KiB block ST231a monitor */
+		.start	= 0x24200000,
+		.end	= 0x24201FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "MediaMemory1",
-		.start  = 0x24202000,
-		.end    = 0x25FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_MEM,
+		.name	= "MediaMemory1",
+		.start	= 0x24202000,
+		.end	= 0x25FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -346,22 +346,22 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "ST231bImage",	/* Delta-Mu 2 image and ram */
-		.start  = 0x60000000,
-		.end    = 0x601FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_IO,
+		.name	= "ST231bImage",	/* Delta-Mu 2 image and ram */
+		.start	= 0x60000000,
+		.end	= 0x601FFFFF,		/* 2MiB */
+		.flags	= IORESOURCE_IO,
 	},
 	{
-		.name   = "ST231bMonitor",	/* 8KiB block ST231b monitor */
-		.start  = 0x60200000,
-		.end    = 0x60201FFF,
-		.flags  = IORESOURCE_IO,
+		.name	= "ST231bMonitor",	/* 8KiB block ST231b monitor */
+		.start	= 0x60200000,
+		.end	= 0x60201FFF,
+		.flags	= IORESOURCE_IO,
 	},
 	{
-		.name   = "MediaMemory2",
-		.start  = 0x60202000,
-		.end    = 0x61FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_IO,
+		.name	= "MediaMemory2",
+		.start	= 0x60202000,
+		.end	= 0x61FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -377,28 +377,28 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "DSP_Image_Buff",
+		.start	= 0x00000000,
+		.end	= 0x000FFFFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_CPU_PCM_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00009FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_AUX_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00003FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
+		.name	= "ADSC_Main_Buff",
+		.start	= 0x00000000,
+		.end	= 0x00003FFF,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -409,16 +409,16 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 * Arbitrary Based Buffers:
 	 *  This memory area is used for allocating buffers for Video decoding
 	 *  purposes.  Allocation/De-allocation within this buffer is managed
-	 *  by the STAVMEM driver of the STAPI.  They could be Decimated
+	 *  by the STAVMEM driver of the STAPI.	 They could be Decimated
 	 *  Picture Buffers, Intermediate Buffers, as deemed necessary for
 	 *  video decoding purposes, for any video decoders on Zeus.
 	 *
 	 */
 	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x63580000,
-		.end    = 0x64180000 - 1,  /* 12 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "AVMEMPartition0",
+		.start	= 0x63580000,
+		.end	= 0x64180000 - 1,  /* 12 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -431,10 +431,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "Docsis",
-		.start  = 0x62000000,
-		.end    = 0x62700000 - 1,	/* 7 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "Docsis",
+		.start	= 0x62000000,
+		.end	= 0x62700000 - 1,	/* 7 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -447,10 +447,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "GraphicsHeap",
-		.start  = 0x62700000,
-		.end    = 0x63500000 - 1,	/* 14 MB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "GraphicsHeap",
+		.start	= 0x62700000,
+		.end	= 0x63500000 - 1,	/* 14 MB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -463,10 +463,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "MulticomSHM",
-		.start  = 0x26000000,
-		.end    = 0x26020000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "MulticomSHM",
+		.start	= 0x26000000,
+		.end	= 0x26020000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -479,10 +479,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x000AA000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "BMM_Buffer",
+		.start	= 0x00000000,
+		.end	= 0x000AA000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -495,10 +495,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,		/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
+		.name	= "DisplayBins0",
+		.start	= 0x00000000,
+		.end	= 0x00000FFF,		/* 4 KB total */
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -511,10 +511,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DisplayBins1",
-		.start  = 0x64AD4000,
-		.end    = 0x64AD5000 - 1,  /* 4 KB total */
-		.flags  = IORESOURCE_IO,
+		.name	= "DisplayBins1",
+		.start	= 0x64AD4000,
+		.end	= 0x64AD5000 - 1,  /* 4 KB total */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -523,10 +523,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x6430E000,
-		.end    = 0x645D2C00 - 1,  /* 945K * 3 for playback */
-		.flags  = IORESOURCE_IO,
+		.name	= "AvfsDmaMem",
+		.start	= 0x6430E000,
+		.end	= 0x645D2C00 - 1,  /* 945K * 3 for playback */
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -539,10 +539,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "DiagPersistentMemory",
+		.start	= 0x00000000,
+		.end	= 0x10000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	/*
 	 *
@@ -555,10 +555,10 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *
 	 */
 	{
-		.name   = "SmartCardInfo",
-		.start  = 0x64AD1000,
-		.end    = 0x64AD3800 - 1,
-		.flags  = IORESOURCE_IO,
+		.name	= "SmartCardInfo",
+		.start	= 0x64AD1000,
+		.end	= 0x64AD3800 - 1,
+		.flags	= IORESOURCE_IO,
 	},
 	/*
 	 *
@@ -568,22 +568,22 @@ struct resource non_dvr_gaia_resources[] __initdata = {
 	 *	   NP IPC - must be video bank 2
 	 */
 	{
-		.name   = "NP_Reset_Vector",
-		.start  = 0x27c00000,
-		.end    = 0x27c01000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "NP_Reset_Vector",
+		.start	= 0x27c00000,
+		.end	= 0x27c01000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "NP_Image",
-		.start  = 0x27020000,
-		.end    = 0x27060000 - 1,
-		.flags  = IORESOURCE_MEM,
+		.name	= "NP_Image",
+		.start	= 0x27020000,
+		.end	= 0x27060000 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name   = "NP_IPC",
-		.start  = 0x63500000,
-		.end    = 0x63580000 - 1,
-		.flags  = IORESOURCE_IO,
+		.name	= "NP_IPC",
+		.start	= 0x63500000,
+		.end	= 0x63580000 - 1,
+		.flags	= IORESOURCE_IO,
 	},
 	{ },
 };

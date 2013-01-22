@@ -40,14 +40,14 @@
 #if defined(CONFIG_USB_EHCI_HCD)
 static struct resource msp_usbhost0_resources[] = {
 	[0] = { /* EHCI-HS operational and capabilities registers */
-		.start  = MSP_USB0_HS_START,
-		.end    = MSP_USB0_HS_END,
-		.flags  = IORESOURCE_MEM,
+		.start	= MSP_USB0_HS_START,
+		.end	= MSP_USB0_HS_END,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = MSP_INT_USB,
-		.end    = MSP_INT_USB,
-		.flags  = IORESOURCE_IRQ,
+		.start	= MSP_INT_USB,
+		.end	= MSP_INT_USB,
+		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = { /* MSBus-to-AMBA bridge register space */
 		.start	= MSP_USB0_MAB_START,
@@ -71,8 +71,8 @@ static struct mspusb_device msp_usbhost0_device = {
 			.dma_mask = &msp_usbhost0_dma_mask,
 			.coherent_dma_mask = 0xffffffffUL,
 		},
-		.num_resources  = ARRAY_SIZE(msp_usbhost0_resources),
-		.resource       = msp_usbhost0_resources,
+		.num_resources	= ARRAY_SIZE(msp_usbhost0_resources),
+		.resource	= msp_usbhost0_resources,
 	},
 };
 
@@ -121,14 +121,14 @@ static struct mspusb_device msp_usbhost1_device = {
 #if defined(CONFIG_USB_GADGET)
 static struct resource msp_usbdev0_resources[] = {
 	[0] = { /* EHCI-HS operational and capabilities registers */
-		.start  = MSP_USB0_HS_START,
-		.end    = MSP_USB0_HS_END,
-		.flags  = IORESOURCE_MEM,
+		.start	= MSP_USB0_HS_START,
+		.end	= MSP_USB0_HS_END,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = MSP_INT_USB,
-		.end    = MSP_INT_USB,
-		.flags  = IORESOURCE_IRQ,
+		.start	= MSP_INT_USB,
+		.end	= MSP_INT_USB,
+		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = { /* MSBus-to-AMBA bridge register space */
 		.start	= MSP_USB0_MAB_START,
@@ -153,22 +153,22 @@ static struct mspusb_device msp_usbdev0_device = {
 			.dma_mask = &msp_usbdev_dma_mask,
 			.coherent_dma_mask = 0xffffffffUL,
 		},
-		.num_resources  = ARRAY_SIZE(msp_usbdev0_resources),
-		.resource       = msp_usbdev0_resources,
+		.num_resources	= ARRAY_SIZE(msp_usbdev0_resources),
+		.resource	= msp_usbdev0_resources,
 	},
 };
 
 #ifdef CONFIG_MSP_HAS_DUAL_USB
 static struct resource msp_usbdev1_resources[] = {
 	[0] = { /* EHCI-HS operational and capabilities registers */
-		.start  = MSP_USB1_HS_START,
-		.end    = MSP_USB1_HS_END,
-		.flags  = IORESOURCE_MEM,
+		.start	= MSP_USB1_HS_START,
+		.end	= MSP_USB1_HS_END,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = MSP_INT_USB,
-		.end    = MSP_INT_USB,
-		.flags  = IORESOURCE_IRQ,
+		.start	= MSP_INT_USB,
+		.end	= MSP_INT_USB,
+		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = { /* MSBus-to-AMBA bridge register space */
 		.start	= MSP_USB1_MAB_START,
@@ -191,8 +191,8 @@ static struct mspusb_device msp_usbdev1_device = {
 			.dma_mask = &msp_usbdev_dma_mask,
 			.coherent_dma_mask = 0xffffffffUL,
 		},
-		.num_resources  = ARRAY_SIZE(msp_usbdev1_resources),
-		.resource       = msp_usbdev1_resources,
+		.num_resources	= ARRAY_SIZE(msp_usbdev1_resources),
+		.resource	= msp_usbdev1_resources,
 	},
 };
 
@@ -211,7 +211,7 @@ static int __init msp_usb_setup(void)
 	/*
 	 * Could this perhaps be integrated into the "features" env var?
 	 * Use the features key "U", and follow with "H" for host-mode,
-	 * "D" for device-mode.  If it works for Ethernet, why not USB...
+	 * "D" for device-mode.	 If it works for Ethernet, why not USB...
 	 *  -- hammtrev, 2007/03/22
 	 */
 	snprintf((char *)&envstr[0], sizeof(envstr), "usbmode");
@@ -237,7 +237,7 @@ static int __init msp_usb_setup(void)
 #endif
 #else
 		ppfinit("%s: echi_hcd not supported\n", __FILE__);
-#endif  /* CONFIG_USB_EHCI_HCD */
+#endif	/* CONFIG_USB_EHCI_HCD */
 	} else {
 #if defined(CONFIG_USB_GADGET)
 		/* get device mode structure */
@@ -251,7 +251,7 @@ static int __init msp_usb_setup(void)
 #endif
 #else
 		ppfinit("%s: usb_gadget not supported\n", __FILE__);
-#endif  /* CONFIG_USB_GADGET */
+#endif	/* CONFIG_USB_GADGET */
 	}
 	/* add device */
 	platform_add_devices(msp_devs, ARRAY_SIZE(msp_devs));

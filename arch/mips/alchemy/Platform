@@ -1,7 +1,7 @@
 #
 # Core Alchemy code
 #
-platform-$(CONFIG_MIPS_ALCHEMY)	+= alchemy/common/
+platform-$(CONFIG_MIPS_ALCHEMY) += alchemy/common/
 
 
 #
@@ -45,7 +45,7 @@ load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 #
 # MyCable eval board
 #
-platform-$(CONFIG_MIPS_XXS1500)	+= alchemy/
+platform-$(CONFIG_MIPS_XXS1500) += alchemy/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 #
@@ -56,7 +56,7 @@ load-$(CONFIG_MIPS_GPR)		+= 0xffffffff80100000
 
 # boards can specify their own <gpio.h> in one of their include dirs.
 # If they do, placing this line here at the end will make sure the
-# compiler picks the board one.  If they don't, it will make sure
+# compiler picks the board one.	 If they don't, it will make sure
 # the alchemy generic gpio header is picked up.
 
 cflags-$(CONFIG_MIPS_ALCHEMY)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00

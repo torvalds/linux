@@ -66,7 +66,7 @@
 
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
- * when needed.  This is necessary only on R4000 / R4400 SC and MC versions
+ * when needed.	 This is necessary only on R4000 / R4400 SC and MC versions
  * where we have to avoid VCED / VECI exceptions for good performance at
  * any price.  Since page is never written to after the initialization we
  * don't have to care about aliases on other CPUs.
@@ -380,7 +380,7 @@ void __init mem_init(void)
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
 	totalram_pages += free_all_bootmem();
-	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages.  */
+	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages.	*/
 
 	reservedpages = ram = 0;
 	for (tmp = 0; tmp < max_low_pfn; tmp++)

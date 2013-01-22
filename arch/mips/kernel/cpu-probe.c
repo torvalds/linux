@@ -4,7 +4,7 @@
  * Copyright (C) xxxx  the Anonymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012  MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -69,12 +69,12 @@ void r4k_wait_irqoff(void)
 			"	wait			\n"
 			"	.set	pop		\n");
 	local_irq_enable();
-	__asm__(" 	.globl __pastwait	\n"
+	__asm__("	.globl __pastwait	\n"
 		"__pastwait:			\n");
 }
 
 /*
- * The RM7000 variant has to handle erratum 38.  The workaround is to not
+ * The RM7000 variant has to handle erratum 38.	 The workaround is to not
  * have any pending stores when the WAIT instruction is executed.
  */
 static void rm7k_wait_irqoff(void)
@@ -469,7 +469,7 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
 	ok = decode_config0(c);			/* Read Config registers.  */
-	BUG_ON(!ok);				/* Arch spec violation!  */
+	BUG_ON(!ok);				/* Arch spec violation!	 */
 	if (ok)
 		ok = decode_config1(c);
 	if (ok)
@@ -710,12 +710,12 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_LLSC;
 		/*
-		 * Undocumented RM7000:  Bit 29 in the info register of
+		 * Undocumented RM7000:	 Bit 29 in the info register of
 		 * the RM7000 v2.0 indicates if the TLB has 48 or 64
 		 * entries.
 		 *
-		 * 29      1 =>    64 entry JTLB
-		 *         0 =>    48 entry JTLB
+		 * 29	   1 =>	   64 entry JTLB
+		 *	   0 =>	   48 entry JTLB
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
 		break;
@@ -729,8 +729,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 * Bit 29 in the info register of the RM9000
 		 * indicates if the TLB has 48 or 64 entries.
 		 *
-		 * 29      1 =>    64 entry JTLB
-		 *         0 =>    48 entry JTLB
+		 * 29	   1 =>	   64 entry JTLB
+		 *	   0 =>	   48 entry JTLB
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
 		break;
@@ -1053,12 +1053,12 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 		return;
 	}
 
-	c->options = (MIPS_CPU_TLB       |
-			MIPS_CPU_4KEX    |
+	c->options = (MIPS_CPU_TLB	 |
+			MIPS_CPU_4KEX	 |
 			MIPS_CPU_COUNTER |
-			MIPS_CPU_DIVEC   |
-			MIPS_CPU_WATCH   |
-			MIPS_CPU_EJTAG   |
+			MIPS_CPU_DIVEC	 |
+			MIPS_CPU_WATCH	 |
+			MIPS_CPU_EJTAG	 |
 			MIPS_CPU_LLSC);
 
 	switch (c->processor_id & 0xff00) {
@@ -1129,7 +1129,7 @@ __cpuinit void cpu_probe(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
 
-	c->processor_id	= PRID_IMP_UNKNOWN;
+	c->processor_id = PRID_IMP_UNKNOWN;
 	c->fpu_id	= FPIR_IMP_NONE;
 	c->cputype	= CPU_UNKNOWN;
 

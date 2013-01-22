@@ -99,7 +99,7 @@ static inline int str2eaddr(unsigned char *ea, unsigned char *str)
 		}
 	}
 
-	if (index == 5)	{
+	if (index == 5) {
 		ea[index++] = num;
 		return 0;
 	} else
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(identify_revision);
 char *prom_getenv(char *env_name)
 {
 	/*
-	 * Return a pointer to the given environment variable.  prom_envp
+	 * Return a pointer to the given environment variable.	prom_envp
 	 * points to a null terminated array of pointers to variables.
 	 * Environment variables are stored in the form of "memsize=64"
 	 */

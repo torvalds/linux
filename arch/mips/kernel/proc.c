@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1995, 1996, 2001  Ralf Baechle
  *  Copyright (C) 2001, 2004  MIPS Technologies, Inc.
- *  Copyright (C) 2004  Maciej W. Rozycki
+ *  Copyright (C) 2004	Maciej W. Rozycki
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>

@@ -30,11 +30,11 @@
 
 /* Generic bus chip selects */
 #ifdef CONFIG_SIBYTE_RHONE
-#define LEDS_CS         6
-#define LEDS_PHYS       0x1d0a0000
+#define LEDS_CS		6
+#define LEDS_PHYS	0x1d0a0000
 #endif
 
 /* GPIOs */
-#define K_GPIO_DBG_LED  0
+#define K_GPIO_DBG_LED	0
 
 #endif /* __ASM_SIBYTE_SENTOSA_H */

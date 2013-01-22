@@ -276,7 +276,7 @@ static void db1100_mmcled_set(struct led_classdev *led, enum led_brightness b)
 }
 
 static struct led_classdev db1100_mmc_led = {
-	.brightness_set	= db1100_mmcled_set,
+	.brightness_set = db1100_mmcled_set,
 };
 
 static int db1100_mmc1_card_readonly(void *mmc_host)
@@ -314,7 +314,7 @@ static void db1100_mmc1led_set(struct led_classdev *led, enum led_brightness b)
 }
 
 static struct led_classdev db1100_mmc1_led = {
-	.brightness_set	= db1100_mmc1led_set,
+	.brightness_set = db1100_mmc1led_set,
 };
 
 static struct au1xmmc_platform_data db1100_mmc_platdata[2] = {
@@ -357,7 +357,7 @@ static struct resource au1100_mmc0_resources[] = {
 	}
 };
 
-static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
+static u64 au1xxx_mmc_dmamask =	 DMA_BIT_MASK(32);
 
 static struct platform_device db1100_mmc0_dev = {
 	.name		= "au1xxx-mmc",
@@ -482,7 +482,7 @@ static struct spi_board_info db1100_spi_info[] __initdata = {
 		.mode		 = 0,
 		.irq		 = AU1100_GPIO21_INT,
 		.platform_data	 = &db1100_touch_pd,
-		.controller_data = (void *)210,	/* for spi_gpio: CS# GPIO210 */
+		.controller_data = (void *)210, /* for spi_gpio: CS# GPIO210 */
 	},
 };
 
@@ -572,7 +572,7 @@ static int __init db1000_dev_init(void)
 		irq_set_irq_type(AU1500_GPIO204_INT, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(AU1500_GPIO205_INT, IRQ_TYPE_LEVEL_LOW);
 		/* EPSON S1D13806 0x1b000000
-		 * SRAM 1MB/2MB   0x1a000000
+		 * SRAM 1MB/2MB	  0x1a000000
 		 * DS1693 RTC	  0x0c000000
 		 */
 	} else if (board == BCSR_WHOAMI_PB1100) {
@@ -586,7 +586,7 @@ static int __init db1000_dev_init(void)
 		irq_set_irq_type(AU1100_GPIO12_INT, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(AU1100_GPIO13_INT, IRQ_TYPE_LEVEL_LOW);
 		/* EPSON S1D13806 0x1b000000
-		 * SRAM 1MB/2MB   0x1a000000
+		 * SRAM 1MB/2MB	  0x1a000000
 		 * DiskOnChip	  0x0d000000
 		 * DS1693 RTC	  0x0c000000
 		 */
@@ -605,7 +605,7 @@ static int __init db1000_dev_init(void)
 		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
 		AU1000_PCMCIA_IO_PHYS_ADDR,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
-		c0, d0,	/*s0*/0, 0, 0);
+		c0, d0, /*s0*/0, 0, 0);
 
 	if (twosocks) {
 		irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
@@ -619,7 +619,7 @@ static int __init db1000_dev_init(void)
 			AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
 			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
 			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-			c1, d1,	/*s1*/0, 0, 1);
+			c1, d1, /*s1*/0, 0, 1);
 	}
 
 	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));

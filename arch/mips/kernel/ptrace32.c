@@ -124,7 +124,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		case FPC_CSR:
 			tmp = child->thread.fpu.fcr31;
 			break;
-		case FPC_EIR: {	/* implementation / version register */
+		case FPC_EIR: { /* implementation / version register */
 			unsigned int flags;
 #ifdef CONFIG_MIPS_MT_SMTC
 			unsigned int irqflags;

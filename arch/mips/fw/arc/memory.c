@@ -1,6 +1,6 @@
 /*
  * memory.c: PROM library functions for acquiring/using memory descriptors
- *           given to us from the ARCS firmware.
+ *	     given to us from the ARCS firmware.
  *
  * Copyright (C) 1996 by David S. Miller
  * Copyright (C) 1999, 2000, 2001 by Ralf Baechle

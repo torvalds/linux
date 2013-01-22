@@ -90,8 +90,8 @@ static int msp_serial_handle_irq(struct uart_port *p)
 
 void __init msp_serial_setup(void)
 {
-	char    *s;
-	char    *endp;
+	char	*s;
+	char	*endp;
 	struct uart_port up;
 	unsigned int uartclk;
 
@@ -104,19 +104,19 @@ void __init msp_serial_setup(void)
 	ppfinit("UART clock set to %d\n", uartclk);
 
 	/* Initialize first serial port */
-	up.mapbase      = MSP_UART0_BASE;
-	up.membase      = ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
-	up.irq          = MSP_INT_UART0;
-	up.uartclk      = uartclk;
-	up.regshift     = 2;
-	up.iotype       = UPIO_MEM;
-	up.flags        = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
-	up.type         = PORT_16550A;
-	up.line         = 0;
+	up.mapbase	= MSP_UART0_BASE;
+	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.irq		= MSP_INT_UART0;
+	up.uartclk	= uartclk;
+	up.regshift	= 2;
+	up.iotype	= UPIO_MEM;
+	up.flags	= ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	up.type		= PORT_16550A;
+	up.line		= 0;
 	up.serial_out	= msp_serial_out;
 	up.serial_in	= msp_serial_in;
 	up.handle_irq	= msp_serial_handle_irq;
-	up.private_data	= kzalloc(sizeof(struct msp_uart_data), GFP_KERNEL);
+	up.private_data = kzalloc(sizeof(struct msp_uart_data), GFP_KERNEL);
 	if (!up.private_data) {
 		pr_err("failed to allocate uart private data\n");
 		return;
@@ -142,10 +142,10 @@ void __init msp_serial_setup(void)
 			return; /* No second serial port, good-bye. */
 	}
 
-	up.mapbase      = MSP_UART1_BASE;
-	up.membase      = ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
-	up.irq          = MSP_INT_UART1;
-	up.line         = 1;
+	up.mapbase	= MSP_UART1_BASE;
+	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.irq		= MSP_INT_UART1;
+	up.line		= 1;
 	up.private_data		= (void*)UART1_STATUS_REG;
 	if (early_serial_setup(&up)) {
 		kfree(up.private_data);

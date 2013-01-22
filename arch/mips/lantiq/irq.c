@@ -344,7 +344,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
 		/* find out how many external irq sources we have */
 		const __be32 *count = of_get_property(node,
-							"lantiq,count",	NULL);
+							"lantiq,count", NULL);
 
 		if (count)
 			exin_avail = *count;

@@ -45,7 +45,7 @@ static int tim_installed;
 
 void __init plat_time_init(void)
 {
-	char    *endp, *s;
+	char	*endp, *s;
 	unsigned long cpu_rate = 0;
 
 	if (cpu_rate == 0) {

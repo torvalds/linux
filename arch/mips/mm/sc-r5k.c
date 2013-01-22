@@ -58,7 +58,7 @@ static void r5k_dma_cache_inv_sc(unsigned long addr, unsigned long size)
 
 static void r5k_sc_enable(void)
 {
-        unsigned long flags;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	set_c0_config(R5K_CONF_SE);
@@ -68,7 +68,7 @@ static void r5k_sc_enable(void)
 
 static void r5k_sc_disable(void)
 {
-        unsigned long flags;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	blast_r5000_scache();

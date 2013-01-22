@@ -96,11 +96,11 @@ enum rt_op {
  * rs field of cop opcodes.
  */
 enum cop_op {
-	mfc_op        = 0x00, dmfc_op       = 0x01,
-	cfc_op        = 0x02, mtc_op        = 0x04,
-	dmtc_op       = 0x05, ctc_op        = 0x06,
-	bc_op         = 0x08, cop_op        = 0x10,
-	copm_op       = 0x18
+	mfc_op	      = 0x00, dmfc_op	    = 0x01,
+	cfc_op	      = 0x02, mtc_op	    = 0x04,
+	dmtc_op	      = 0x05, ctc_op	    = 0x06,
+	bc_op	      = 0x08, cop_op	    = 0x10,
+	copm_op	      = 0x18
 };
 
 /*
@@ -114,18 +114,18 @@ enum bcop_op {
  * func field of cop0 coi opcodes.
  */
 enum cop0_coi_func {
-	tlbr_op       = 0x01, tlbwi_op      = 0x02,
-	tlbwr_op      = 0x06, tlbp_op       = 0x08,
-	rfe_op        = 0x10, eret_op       = 0x18
+	tlbr_op	      = 0x01, tlbwi_op	    = 0x02,
+	tlbwr_op      = 0x06, tlbp_op	    = 0x08,
+	rfe_op	      = 0x10, eret_op	    = 0x18
 };
 
 /*
  * func field of cop0 com opcodes.
  */
 enum cop0_com_func {
-	tlbr1_op      = 0x01, tlbw_op       = 0x02,
-	tlbp1_op      = 0x08, dctr_op       = 0x09,
-	dctw_op       = 0x0a
+	tlbr1_op      = 0x01, tlbw_op	    = 0x02,
+	tlbp1_op      = 0x08, dctr_op	    = 0x09,
+	dctw_op	      = 0x0a
 };
 
 /*
@@ -140,43 +140,43 @@ enum cop1_fmt {
  * func field of cop1 instructions using d, s or w format.
  */
 enum cop1_sdw_func {
-	fadd_op      =  0x00, fsub_op      =  0x01,
-	fmul_op      =  0x02, fdiv_op      =  0x03,
-	fsqrt_op     =  0x04, fabs_op      =  0x05,
-	fmov_op      =  0x06, fneg_op      =  0x07,
-	froundl_op   =  0x08, ftruncl_op   =  0x09,
-	fceill_op    =  0x0a, ffloorl_op   =  0x0b,
-	fround_op    =  0x0c, ftrunc_op    =  0x0d,
-	fceil_op     =  0x0e, ffloor_op    =  0x0f,
-	fmovc_op     =  0x11, fmovz_op     =  0x12,
-	fmovn_op     =  0x13, frecip_op    =  0x15,
-	frsqrt_op    =  0x16, fcvts_op     =  0x20,
-	fcvtd_op     =  0x21, fcvte_op     =  0x22,
-	fcvtw_op     =  0x24, fcvtl_op     =  0x25,
-	fcmp_op      =  0x30
+	fadd_op	     =	0x00, fsub_op	   =  0x01,
+	fmul_op	     =	0x02, fdiv_op	   =  0x03,
+	fsqrt_op     =	0x04, fabs_op	   =  0x05,
+	fmov_op	     =	0x06, fneg_op	   =  0x07,
+	froundl_op   =	0x08, ftruncl_op   =  0x09,
+	fceill_op    =	0x0a, ffloorl_op   =  0x0b,
+	fround_op    =	0x0c, ftrunc_op	   =  0x0d,
+	fceil_op     =	0x0e, ffloor_op	   =  0x0f,
+	fmovc_op     =	0x11, fmovz_op	   =  0x12,
+	fmovn_op     =	0x13, frecip_op	   =  0x15,
+	frsqrt_op    =	0x16, fcvts_op	   =  0x20,
+	fcvtd_op     =	0x21, fcvte_op	   =  0x22,
+	fcvtw_op     =	0x24, fcvtl_op	   =  0x25,
+	fcmp_op	     =	0x30
 };
 
 /*
  * func field of cop1x opcodes (MIPS IV).
  */
 enum cop1x_func {
-	lwxc1_op     =  0x00, ldxc1_op     =  0x01,
-	pfetch_op    =  0x07, swxc1_op     =  0x08,
-	sdxc1_op     =  0x09, madd_s_op    =  0x20,
-	madd_d_op    =  0x21, madd_e_op    =  0x22,
-	msub_s_op    =  0x28, msub_d_op    =  0x29,
-	msub_e_op    =  0x2a, nmadd_s_op   =  0x30,
-	nmadd_d_op   =  0x31, nmadd_e_op   =  0x32,
-	nmsub_s_op   =  0x38, nmsub_d_op   =  0x39,
-	nmsub_e_op   =  0x3a
+	lwxc1_op     =	0x00, ldxc1_op	   =  0x01,
+	pfetch_op    =	0x07, swxc1_op	   =  0x08,
+	sdxc1_op     =	0x09, madd_s_op	   =  0x20,
+	madd_d_op    =	0x21, madd_e_op	   =  0x22,
+	msub_s_op    =	0x28, msub_d_op	   =  0x29,
+	msub_e_op    =	0x2a, nmadd_s_op   =  0x30,
+	nmadd_d_op   =	0x31, nmadd_e_op   =  0x32,
+	nmsub_s_op   =	0x38, nmsub_d_op   =  0x39,
+	nmsub_e_op   =	0x3a
 };
 
 /*
  * func field for mad opcodes (MIPS IV).
  */
 enum mad_func {
-	madd_fp_op      = 0x08, msub_fp_op      = 0x0a,
-	nmadd_fp_op     = 0x0c, nmsub_fp_op     = 0x0e
+	madd_fp_op	= 0x08, msub_fp_op	= 0x0a,
+	nmadd_fp_op	= 0x0c, nmsub_fp_op	= 0x0e
 };
 
 /*
@@ -185,10 +185,10 @@ enum mad_func {
 enum lx_func {
 	lwx_op	= 0x00,
 	lhx_op	= 0x04,
-	lbux_op	= 0x06,
+	lbux_op = 0x06,
 	ldx_op	= 0x08,
-	lwux_op	= 0x10,
-	lhux_op	= 0x14,
+	lwux_op = 0x10,
+	lhux_op = 0x14,
 	lbx_op	= 0x16,
 };
 
@@ -211,7 +211,7 @@ enum lx_func {
 #endif
 
 struct j_format {
-	BITFIELD_FIELD(unsigned int opcode : 6,	/* Jump format */
+	BITFIELD_FIELD(unsigned int opcode : 6, /* Jump format */
 	BITFIELD_FIELD(unsigned int target : 26,
 	;))
 };
@@ -261,7 +261,7 @@ struct p_format {		/* Performance counter format (R10000) */
 	;))))))
 };
 
-struct f_format { 			/* FPU register format */
+struct f_format {			/* FPU register format */
 	BITFIELD_FIELD(unsigned int opcode : 6,
 	BITFIELD_FIELD(unsigned int : 1,
 	BITFIELD_FIELD(unsigned int fmt : 4,

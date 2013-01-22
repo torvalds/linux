@@ -10,7 +10,7 @@
  *
  * Hairy, the userspace application uses a different argument passing
  * convention than the kernel, so we have to translate things from o32
- * to ABI64 calling convention.  64-bit syscalls are also processed
+ * to ABI64 calling convention.	 64-bit syscalls are also processed
  * here for now.
  */
 #include <linux/errno.h>
@@ -24,7 +24,7 @@
 #include <asm/unistd.h>
 #include <asm/sysmips.h>
 
-	.align  5
+	.align	5
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
@@ -185,7 +185,7 @@ LEAF(sys32_syscall)
 	jr	t2
 	/* Unreached */
 
-einval:	li	v0, -ENOSYS
+einval: li	v0, -ENOSYS
 	jr	ra
 	END(sys32_syscall)
 
@@ -329,7 +329,7 @@ sys_call_table:
 	PTR	sys_bdflush
 	PTR	sys_sysfs			/* 4135 */
 	PTR	sys_32_personality
-	PTR	sys_ni_syscall	 		/* for afs_syscall */
+	PTR	sys_ni_syscall			/* for afs_syscall */
 	PTR	sys_setfsuid
 	PTR	sys_setfsgid
 	PTR	sys_32_llseek			/* 4140 */
@@ -352,12 +352,12 @@ sys_call_table:
 	PTR	sys_munlockall
 	PTR	sys_sched_setparam
 	PTR	sys_sched_getparam
-	PTR	sys_sched_setscheduler 		/* 4160 */
+	PTR	sys_sched_setscheduler		/* 4160 */
 	PTR	sys_sched_getscheduler
 	PTR	sys_sched_yield
 	PTR	sys_sched_get_priority_max
 	PTR	sys_sched_get_priority_min
-	PTR	sys_32_sched_rr_get_interval 	/* 4165 */
+	PTR	sys_32_sched_rr_get_interval	/* 4165 */
 	PTR	compat_sys_nanosleep
 	PTR	sys_mremap
 	PTR	sys_accept
@@ -387,7 +387,7 @@ sys_call_table:
 	PTR	sys_prctl
 	PTR	sys32_rt_sigreturn
 	PTR	sys_32_rt_sigaction
-	PTR	sys_32_rt_sigprocmask 		/* 4195 */
+	PTR	sys_32_rt_sigprocmask		/* 4195 */
 	PTR	sys_32_rt_sigpending
 	PTR	compat_sys_rt_sigtimedwait
 	PTR	sys_32_rt_sigqueueinfo

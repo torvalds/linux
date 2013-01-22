@@ -126,7 +126,7 @@ int plat_set_irq_affinity(struct irq_data *d, const struct cpumask *affinity,
 	 * to the CPU daughterboard, and on the CoreFPGA2/3 34K models,
 	 * that signal is brought to IP2 of both VPEs. To avoid racing
 	 * concurrent interrupt service events, IP2 is enabled only on
-	 * one VPE, by convention VPE0.  So long as no bits are ever
+	 * one VPE, by convention VPE0.	 So long as no bits are ever
 	 * cleared in the affinity mask, there will never be any
 	 * interrupt forwarding.  But as soon as a program or operator
 	 * sets affinity for one of the related IRQs, we need to make

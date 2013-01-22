@@ -301,7 +301,7 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 	unsigned int ch_mask = 0;
 	__u64 pcfg = __raw_readq(&tx4939_ccfgptr->pcfg);
 
-	cts_mask |= ~1;	/* only SIO0 have RTS/CTS */
+	cts_mask |= ~1; /* only SIO0 have RTS/CTS */
 	if ((pcfg & TX4939_PCFG_SIO2MODE_MASK) != TX4939_PCFG_SIO2MODE_SIO0)
 		cts_mask |= 1 << 0; /* disable SIO0 RTS/CTS by PCFG setting */
 	if ((pcfg & TX4939_PCFG_SIO2MODE_MASK) != TX4939_PCFG_SIO2MODE_SIO2)
@@ -378,7 +378,7 @@ void __init tx4939_mtd_init(int ch)
 	unsigned long size = txx9_ce_res[ch].end - start + 1;
 
 	if (!(TX4939_EBUSC_CR(ch) & 0x8))
-		return;	/* disabled */
+		return; /* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }
 

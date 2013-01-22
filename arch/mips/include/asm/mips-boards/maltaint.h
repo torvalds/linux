@@ -4,8 +4,8 @@
  * for more details.
  *
  * Copyright (C) 2000,2012 MIPS Technologies, Inc.  All rights reserved.
- *      Carsten Langgaard <carstenl@mips.com>
- *      Steven J. Hill <sjhill@mips.com>
+ *	Carsten Langgaard <carstenl@mips.com>
+ *	Steven J. Hill <sjhill@mips.com>
  */
 #ifndef _MIPS_MALTAINT_H
 #define _MIPS_MALTAINT_H
@@ -24,9 +24,9 @@
 #define MIPSCPU_INT_I8259A	MIPSCPU_INT_MB0
 #define MIPSCPU_INT_MB1		3
 #define MIPSCPU_INT_SMI		MIPSCPU_INT_MB1
-#define MIPSCPU_INT_IPI0	MIPSCPU_INT_MB1	/* GIC IPI */
+#define MIPSCPU_INT_IPI0	MIPSCPU_INT_MB1 /* GIC IPI */
 #define MIPSCPU_INT_MB2		4
-#define MIPSCPU_INT_IPI1	MIPSCPU_INT_MB2	/* GIC IPI */
+#define MIPSCPU_INT_IPI1	MIPSCPU_INT_MB2 /* GIC IPI */
 #define MIPSCPU_INT_MB3		5
 #define MIPSCPU_INT_COREHI	MIPSCPU_INT_MB3
 #define MIPSCPU_INT_MB4		6

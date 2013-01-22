@@ -1,7 +1,7 @@
 /*
  *  DS1287 clockevent driver
  *
- *  Copyright (C) 2008  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2008	Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ static void ds1287_event_handler(struct clock_event_device *dev)
 static struct clock_event_device ds1287_clockevent = {
 	.name		= "ds1287",
 	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.set_next_event	= ds1287_set_next_event,
+	.set_next_event = ds1287_set_next_event,
 	.set_mode	= ds1287_set_mode,
 	.event_handler	= ds1287_event_handler,
 };

@@ -59,11 +59,11 @@ typedef struct sigaltstack32 {
 } stack32_t;
 
 struct ucontextn32 {
-	u32                 uc_flags;
-	s32                 uc_link;
-	stack32_t           uc_stack;
+	u32		    uc_flags;
+	s32		    uc_link;
+	stack32_t	    uc_stack;
 	struct sigcontext   uc_mcontext;
-	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t	    uc_sigmask;	  /* mask last for extensibility */
 };
 
 struct rt_sigframe_n32 {
@@ -162,16 +162,16 @@ static int setup_rt_frame_n32(void *sig_return, struct k_sigaction *ka,
 	/* Create siginfo.  */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
 
-	/* Create the ucontext.  */
+	/* Create the ucontext.	 */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
 	sp = (int) (long) current->sas_ss_sp;
 	err |= __put_user(sp,
-	                  &frame->rs_uc.uc_stack.ss_sp);
+			  &frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[29]),
-	                  &frame->rs_uc.uc_stack.ss_flags);
+			  &frame->rs_uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size,
-	                  &frame->rs_uc.uc_stack.ss_size);
+			  &frame->rs_uc.uc_stack.ss_size);
 	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
 	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
@@ -207,7 +207,7 @@ give_sigsegv:
 }
 
 struct mips_abi mips_abi_n32 = {
-	.setup_rt_frame	= setup_rt_frame_n32,
+	.setup_rt_frame = setup_rt_frame_n32,
 	.rt_signal_return_offset =
 		offsetof(struct mips_vdso, n32_rt_signal_trampoline),
 	.restart	= __NR_N32_restart_syscall

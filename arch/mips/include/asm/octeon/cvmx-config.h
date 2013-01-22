@@ -31,13 +31,13 @@
 
 /* Pools in use */
 /* Packet buffers */
-#define CVMX_FPA_PACKET_POOL                (0)
-#define CVMX_FPA_PACKET_POOL_SIZE           CVMX_FPA_POOL_0_SIZE
+#define CVMX_FPA_PACKET_POOL		    (0)
+#define CVMX_FPA_PACKET_POOL_SIZE	    CVMX_FPA_POOL_0_SIZE
 /* Work queue entrys */
-#define CVMX_FPA_WQE_POOL                   (1)
-#define CVMX_FPA_WQE_POOL_SIZE              CVMX_FPA_POOL_1_SIZE
+#define CVMX_FPA_WQE_POOL		    (1)
+#define CVMX_FPA_WQE_POOL_SIZE		    CVMX_FPA_POOL_1_SIZE
 /* PKO queue command buffers */
-#define CVMX_FPA_OUTPUT_BUFFER_POOL         (2)
+#define CVMX_FPA_OUTPUT_BUFFER_POOL	    (2)
 #define CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE    CVMX_FPA_POOL_2_SIZE
 
 /*************************  FAU allocation ********************************/
@@ -45,7 +45,7 @@
  * in order of descending size so that all alignment constraints are
  * automatically met.  The enums are linked so that the following enum
  * continues allocating where the previous one left off, so the
- * numbering within each enum always starts with zero.  The macros
+ * numbering within each enum always starts with zero.	The macros
  * take care of the address increment size, so the values entered
  * always increase by 1.  FAU registers are accessed with byte
  * addresses.
@@ -90,9 +90,9 @@ typedef enum {
  * be taken into account.
  */
 /* Generic scratch iobdma area */
-#define CVMX_SCR_SCRATCH               (0)
+#define CVMX_SCR_SCRATCH	       (0)
 /* First location available after cvmx-config.h allocated region. */
-#define CVMX_SCR_REG_AVAIL_BASE        (8)
+#define CVMX_SCR_REG_AVAIL_BASE	       (8)
 
 /*
  * CVMX_HELPER_FIRST_MBUFF_SKIP is the number of bytes to reserve
@@ -145,14 +145,14 @@ typedef enum {
  * 1: include
  */
 #define CVMX_HELPER_INPUT_TAG_IPV6_SRC_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_DST_IP   	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_PORT 	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_DST_PORT 	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_NEXT_HEADER 	0
+#define CVMX_HELPER_INPUT_TAG_IPV6_DST_IP	0
+#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_PORT	0
+#define CVMX_HELPER_INPUT_TAG_IPV6_DST_PORT	0
+#define CVMX_HELPER_INPUT_TAG_IPV6_NEXT_HEADER	0
 #define CVMX_HELPER_INPUT_TAG_IPV4_SRC_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_DST_IP   	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_PORT 	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_DST_PORT 	0
+#define CVMX_HELPER_INPUT_TAG_IPV4_DST_IP	0
+#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_PORT	0
+#define CVMX_HELPER_INPUT_TAG_IPV4_DST_PORT	0
 #define CVMX_HELPER_INPUT_TAG_IPV4_PROTOCOL	0
 #define CVMX_HELPER_INPUT_TAG_INPUT_PORT	1
 

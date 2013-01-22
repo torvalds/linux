@@ -117,7 +117,7 @@ static unsigned get_rounding(int sn, unsigned xm)
 				xm += 0x8;
 			break;
 		case IEEE754_RD:	/* toward -Infinity */
-			if (sn)	/* ?? */
+			if (sn) /* ?? */
 				xm += 0x8;
 			break;
 		}

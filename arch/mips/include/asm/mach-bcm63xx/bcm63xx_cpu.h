@@ -182,7 +182,7 @@ enum bcm63xx_regs_set {
 #define BCM_6328_PERF_BASE		(0xb0000000)
 #define BCM_6328_TIMER_BASE		(0xb0000040)
 #define BCM_6328_WDT_BASE		(0xb000005c)
-#define BCM_6328_UART0_BASE             (0xb0000100)
+#define BCM_6328_UART0_BASE		(0xb0000100)
 #define BCM_6328_UART1_BASE		(0xb0000120)
 #define BCM_6328_GPIO_BASE		(0xb0000080)
 #define BCM_6328_SPI_BASE		(0xdeadbeef)

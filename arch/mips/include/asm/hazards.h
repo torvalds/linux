@@ -25,7 +25,7 @@ static inline void name(void)						\
 }
 
 /*
- * MIPS R2 instruction hazard barrier.   Needs to be called as a subroutine.
+ * MIPS R2 instruction hazard barrier.	 Needs to be called as a subroutine.
  */
 extern void mips_ihb(void);
 
@@ -68,7 +68,7 @@ ASMMACRO(back_to_back_c0_hazard,
 	)
 /*
  * gcc has a tradition of misscompiling the previous construct using the
- * address of a label as argument to inline assembler.  Gas otoh has the
+ * address of a label as argument to inline assembler.	Gas otoh has the
  * annoying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
  * The alterantive is switching the assembler to 64-bit code which happens
@@ -114,7 +114,7 @@ ASMMACRO(back_to_back_c0_hazard,
 	)
 /*
  * gcc has a tradition of misscompiling the previous construct using the
- * address of a label as argument to inline assembler.  Gas otoh has the
+ * address of a label as argument to inline assembler.	Gas otoh has the
  * annoying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
  * The alterantive is switching the assembler to 64-bit code which happens

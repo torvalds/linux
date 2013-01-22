@@ -6,7 +6,7 @@
  * Copyright (C) 1994 - 1999, 2000, 03, 04 Ralf Baechle
  * Copyright (C) 2000, 2002  Maciej W. Rozycki
  * Copyright (C) 1990, 1999, 2000 Silicon Graphics, Inc.
- * 2004	pf
+ * 2004 pf
  */
 #ifndef _ASM_MACH_IP28_SPACES_H
 #define _ASM_MACH_IP28_SPACES_H

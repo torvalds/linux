@@ -4,8 +4,8 @@
  * Copyright 2005-2007 PMC-Sierra, Inc,
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -168,7 +168,7 @@ void __init prom_init(void)
 	family = identify_family();
 	revision = identify_revision();
 
-	switch (family)	{
+	switch (family) {
 	case FAMILY_FPGA:
 		if (FPGA_IS_MSP4200(revision)) {
 			/* Old-style revision ID */
@@ -219,7 +219,7 @@ void __init prom_init(void)
 
 	/*
 	 * Sub-system setup follows.
-	 * Setup functions can  either be called here or using the
+	 * Setup functions can	either be called here or using the
 	 * subsys_initcall mechanism (i.e. see msp_pci_setup). The
 	 * order in which they are called can be changed by using the
 	 * link order in arch/mips/pmc-sierra/msp71xx/Makefile.

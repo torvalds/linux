@@ -173,23 +173,23 @@ static struct mtd_partition mtx1_mtd_partitions[] = {
 	{
 		.name	= "filesystem",
 		.size	= 0x01C00000,
-		.offset	= 0,
+		.offset = 0,
 	},
 	{
 		.name	= "yamon",
 		.size	= 0x00100000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	{
 		.name	= "kernel",
 		.size	= 0x002c0000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 	{
 		.name	= "yamon env",
 		.size	= 0x00040000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 };
 

@@ -33,7 +33,7 @@ process_entry:
 	b		process_entry
 
 1:
-	/* indirection page, update s0  */
+	/* indirection page, update s0	*/
 	and		s3, s2, 0x2
 	beq		s3, zero, 1f
 	and		s0, s2, ~0x2
@@ -69,7 +69,7 @@ done:
 	   of kexec_flag.  */
 
 	bal		1f
- 1: 	move		t1,ra;
+ 1:	move		t1,ra;
 	PTR_LA		t2,1b
 	PTR_LA		t0,kexec_flag
 	PTR_SUB		t0,t0,t2;
@@ -158,10 +158,10 @@ arg3:	PTR		0x0
  */
 secondary_kexec_args:
 	EXPORT(secondary_kexec_args)
-s_arg0:	PTR		0x0
-s_arg1:	PTR		0x0
-s_arg2:	PTR		0x0
-s_arg3:	PTR		0x0
+s_arg0: PTR		0x0
+s_arg1: PTR		0x0
+s_arg2: PTR		0x0
+s_arg3: PTR		0x0
 	.size	secondary_kexec_args,PTRSIZE*4
 kexec_flag:
 	LONG		0x1

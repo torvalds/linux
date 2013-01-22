@@ -55,7 +55,7 @@
 
 static void *pci_config_base;
 
-#define	pci_cfg_addr(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
+#define pci_cfg_addr(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
 
 /* PCI ops */
 static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
@@ -135,26 +135,26 @@ struct pci_ops nlm_pci_ops = {
 };
 
 static struct resource nlm_pci_mem_resource = {
-	.name           = "XLP PCI MEM",
-	.start          = 0xd0000000UL,	/* 256MB PCI mem @ 0xd000_0000 */
-	.end            = 0xdfffffffUL,
-	.flags          = IORESOURCE_MEM,
+	.name		= "XLP PCI MEM",
+	.start		= 0xd0000000UL, /* 256MB PCI mem @ 0xd000_0000 */
+	.end		= 0xdfffffffUL,
+	.flags		= IORESOURCE_MEM,
 };
 
 static struct resource nlm_pci_io_resource = {
-	.name           = "XLP IO MEM",
-	.start          = 0x14000000UL,	/* 64MB PCI IO @ 0x1000_0000 */
-	.end            = 0x17ffffffUL,
-	.flags          = IORESOURCE_IO,
+	.name		= "XLP IO MEM",
+	.start		= 0x14000000UL, /* 64MB PCI IO @ 0x1000_0000 */
+	.end		= 0x17ffffffUL,
+	.flags		= IORESOURCE_IO,
 };
 
 struct pci_controller nlm_pci_controller = {
-	.index          = 0,
-	.pci_ops        = &nlm_pci_ops,
-	.mem_resource   = &nlm_pci_mem_resource,
-	.mem_offset     = 0x00000000UL,
-	.io_resource    = &nlm_pci_io_resource,
-	.io_offset      = 0x00000000UL,
+	.index		= 0,
+	.pci_ops	= &nlm_pci_ops,
+	.mem_resource	= &nlm_pci_mem_resource,
+	.mem_offset	= 0x00000000UL,
+	.io_resource	= &nlm_pci_io_resource,
+	.io_offset	= 0x00000000UL,
 };
 
 static int get_irq_vector(const struct pci_dev *dev)
@@ -232,7 +232,7 @@ static int __init pcibios_init(void)
 	pci_config_base = ioremap(XLP_DEFAULT_PCI_ECFG_BASE, 64 << 20);
 
 	/* Extend IO port for memory mapped io */
-	ioport_resource.start =  0;
+	ioport_resource.start =	 0;
 	ioport_resource.end   = ~0;
 
 	xlp_enable_pci_bswap();

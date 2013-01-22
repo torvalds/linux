@@ -252,12 +252,12 @@ int rtlx_release(int index)
 
 unsigned int rtlx_read_poll(int index, int can_sleep)
 {
- 	struct rtlx_channel *chan;
+	struct rtlx_channel *chan;
 
- 	if (rtlx == NULL)
- 		return 0;
+	if (rtlx == NULL)
+		return 0;
 
- 	chan = &rtlx->channel[index];
+	chan = &rtlx->channel[index];
 
 	/* data available to read? */
 	if (chan->lx_read == chan->lx_write) {
@@ -451,8 +451,8 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 			return -EAGAIN;
 
 		__wait_event_interruptible(channel_wqs[minor].rt_queue,
-		                           rtlx_write_poll(minor),
-		                           ret);
+					   rtlx_write_poll(minor),
+					   ret);
 		if (ret)
 			return ret;
 	}
@@ -462,11 +462,11 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 
 static const struct file_operations rtlx_fops = {
 	.owner =   THIS_MODULE,
-	.open =    file_open,
+	.open =	   file_open,
 	.release = file_release,
 	.write =   file_write,
-	.read =    file_read,
-	.poll =    file_poll,
+	.read =	   file_read,
+	.poll =	   file_poll,
 	.llseek =  noop_llseek,
 };
 

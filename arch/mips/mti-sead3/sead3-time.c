@@ -43,11 +43,11 @@ static unsigned int __init estimate_cpu_frequency(void)
 
 	local_irq_save(flags);
 
-	orig = readl(status_reg) & 0x2;               /* get original sample */
+	orig = readl(status_reg) & 0x2;		      /* get original sample */
 	/* wait for transition */
 	while ((readl(status_reg) & 0x2) == orig)
 		;
-	orig = orig ^ 0x2;                            /* flip the bit */
+	orig = orig ^ 0x2;			      /* flip the bit */
 
 	write_c0_count(0);
 
@@ -56,7 +56,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 		/* wait for transition */
 		while ((readl(status_reg) & 0x2) == orig)
 			;
-		orig = orig ^ 0x2;                            /* flip the bit */
+		orig = orig ^ 0x2;			      /* flip the bit */
 		tick++;
 	}
 
@@ -71,7 +71,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 		(prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
 		freq *= 2;
 
-	freq += 5000;        /* rounding */
+	freq += 5000;	     /* rounding */
 	freq -= freq%10000;
 
 	return freq ;

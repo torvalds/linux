@@ -146,7 +146,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	mips3				\n"	\
-		"1:	" ld "	%0, %2		# __cmpxchg_asm	\n"	\
+		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	mips0				\n"	\
 		"	move	$1, %z4				\n"	\
@@ -163,7 +163,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	mips3				\n"	\
-		"1:	" ld "	%0, %2		# __cmpxchg_asm	\n"	\
+		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
 		"	.set	mips0				\n"	\
 		"	move	$1, %z4				\n"	\
@@ -205,7 +205,7 @@ extern void __cmpxchg_called_with_bad_pointer(void);
 									\
 	switch (sizeof(*(__ptr))) {					\
 	case 4:								\
-		__res = __cmpxchg_asm("ll", "sc", __ptr, __old, __new);	\
+		__res = __cmpxchg_asm("ll", "sc", __ptr, __old, __new); \
 		break;							\
 	case 8:								\
 		if (sizeof(long) == 8) {				\

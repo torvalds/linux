@@ -235,7 +235,7 @@ static void smtc_configure_tlb(void)
 		    mips_ihb();
 		    /* No need to un-Halt - that happens later anyway */
 		    for (i=0; i < vpes; i++) {
-		    	write_tc_c0_tcbind(i);
+			write_tc_c0_tcbind(i);
 			/*
 			 * To be 100% sure we're really getting the right
 			 * information, we exit the configuration state
@@ -286,7 +286,7 @@ static void smtc_configure_tlb(void)
 
 /*
  * Incrementally build the CPU map out of constituent MIPS MT cores,
- * using the specified available VPEs and TCs.  Plaform code needs
+ * using the specified available VPEs and TCs.	Plaform code needs
  * to ensure that each MIPS MT core invokes this routine on reset,
  * one at a time(!).
  *
@@ -348,7 +348,7 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	{
 		/*
 		 * FIXME: Multi-core SMTC hasn't been tested and the
-		 *        maximum number of VPEs may change.
+		 *	  maximum number of VPEs may change.
 		 */
 		cp1contexts[0] = smtc_nconf1[0] - 1;
 		cp1contexts[1] = smtc_nconf1[1];
@@ -761,9 +761,9 @@ void smtc_forward_irq(struct irq_data *d)
 	 * mask has been purged of bits corresponding to nonexistent and
 	 * offline "CPUs", and to TCs bound to VPEs other than the VPE
 	 * connected to the physical interrupt input for the interrupt
-	 * in question.  Otherwise we have a nasty problem with interrupt
+	 * in question.	 Otherwise we have a nasty problem with interrupt
 	 * mask management.  This is best handled in non-performance-critical
-	 * platform IRQ affinity setting code,  to minimize interrupt-time
+	 * platform IRQ affinity setting code,	to minimize interrupt-time
 	 * checks.
 	 */
 
@@ -899,10 +899,10 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 		mips_ihb();
 
 		/*
-	 	 * Inspect TCStatus - if IXMT is set, we have to queue
+		 * Inspect TCStatus - if IXMT is set, we have to queue
 		 * a message. Otherwise, we set up the "interrupt"
 		 * of the other TC
-	 	 */
+		 */
 		tcstatus = read_tc_c0_tcstatus();
 
 		if ((tcstatus & TCSTATUS_IXMT) != 0) {
@@ -964,7 +964,7 @@ static void post_direct_ipi(int cpu, struct smtc_ipi *pipi)
 	 * CU bit of Status is indicator that TC was
 	 * already running on a kernel stack...
 	 */
-	if (tcstatus & ST0_CU0)  {
+	if (tcstatus & ST0_CU0)	 {
 		/* Note that this "- 1" is pointer arithmetic */
 		kstack = ((struct pt_regs *)read_tc_gpr_sp()) - 1;
 	} else {
@@ -1288,7 +1288,7 @@ void smtc_idle_loop_hook(void)
 			for (tc = 0; tc < hook_ntcs; tc++) {
 				tcnoprog[tc] = 0;
 				clock_hang_reported[tc] = 0;
-	    		}
+			}
 			for (vpe = 0; vpe < 2; vpe++)
 				for (im = 0; im < 8; im++)
 					imstuckcount[vpe][im] = 0;
@@ -1485,7 +1485,7 @@ static int halt_state_save[NR_CPUS];
 
 /*
  * To really, really be sure that nothing is being done
- * by other TCs, halt them all.  This code assumes that
+ * by other TCs, halt them all.	 This code assumes that
  * a DVPE has already been done, so while their Halted
  * state is theoretically architecturally unstable, in
  * practice, it's not going to change while we're looking

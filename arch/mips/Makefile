@@ -191,7 +191,7 @@ endif
 include $(srctree)/arch/mips/Kbuild.platforms
 
 ifdef CONFIG_PHYSICAL_START
-load-y                                  = $(CONFIG_PHYSICAL_START)
+load-y					= $(CONFIG_PHYSICAL_START)
 endif
 
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic

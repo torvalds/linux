@@ -249,7 +249,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
  * @nr_pages:	number of pages from start to pin
  * @write:	whether pages will be written to
  * @pages:	array that receives pointers to the pages pinned.
- * 		Should be at least nr_pages long.
+ *		Should be at least nr_pages long.
  *
  * Attempt to pin user pages in memory without taking mm->mmap_sem.
  * If not successful, it will fall back to taking the lock and

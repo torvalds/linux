@@ -25,21 +25,21 @@
 int bcm63xx_pci_enabled;
 
 static struct resource bcm_pci_mem_resource = {
-	.name   = "bcm63xx PCI memory space",
-	.start  = BCM_PCI_MEM_BASE_PA,
-	.end    = BCM_PCI_MEM_END_PA,
-	.flags  = IORESOURCE_MEM
+	.name	= "bcm63xx PCI memory space",
+	.start	= BCM_PCI_MEM_BASE_PA,
+	.end	= BCM_PCI_MEM_END_PA,
+	.flags	= IORESOURCE_MEM
 };
 
 static struct resource bcm_pci_io_resource = {
-	.name   = "bcm63xx PCI IO space",
-	.start  = BCM_PCI_IO_BASE_PA,
+	.name	= "bcm63xx PCI IO space",
+	.start	= BCM_PCI_IO_BASE_PA,
 #ifdef CONFIG_CARDBUS
-	.end    = BCM_PCI_IO_HALF_PA,
+	.end	= BCM_PCI_IO_HALF_PA,
 #else
-	.end    = BCM_PCI_IO_END_PA,
+	.end	= BCM_PCI_IO_END_PA,
 #endif
-	.flags  = IORESOURCE_IO
+	.flags	= IORESOURCE_IO
 };
 
 struct pci_controller bcm63xx_controller = {
@@ -55,17 +55,17 @@ struct pci_controller bcm63xx_controller = {
  */
 #ifdef CONFIG_CARDBUS
 static struct resource bcm_cb_mem_resource = {
-	.name   = "bcm63xx Cardbus memory space",
-	.start  = BCM_CB_MEM_BASE_PA,
-	.end    = BCM_CB_MEM_END_PA,
-	.flags  = IORESOURCE_MEM
+	.name	= "bcm63xx Cardbus memory space",
+	.start	= BCM_CB_MEM_BASE_PA,
+	.end	= BCM_CB_MEM_END_PA,
+	.flags	= IORESOURCE_MEM
 };
 
 static struct resource bcm_cb_io_resource = {
-	.name   = "bcm63xx Cardbus IO space",
-	.start  = BCM_PCI_IO_HALF_PA + 1,
-	.end    = BCM_PCI_IO_END_PA,
-	.flags  = IORESOURCE_IO
+	.name	= "bcm63xx Cardbus IO space",
+	.start	= BCM_PCI_IO_HALF_PA + 1,
+	.end	= BCM_PCI_IO_END_PA,
+	.flags	= IORESOURCE_IO
 };
 
 struct pci_controller bcm63xx_cb_controller = {
@@ -76,17 +76,17 @@ struct pci_controller bcm63xx_cb_controller = {
 #endif
 
 static struct resource bcm_pcie_mem_resource = {
-	.name   = "bcm63xx PCIe memory space",
-	.start  = BCM_PCIE_MEM_BASE_PA,
-	.end    = BCM_PCIE_MEM_END_PA,
-	.flags  = IORESOURCE_MEM,
+	.name	= "bcm63xx PCIe memory space",
+	.start	= BCM_PCIE_MEM_BASE_PA,
+	.end	= BCM_PCIE_MEM_END_PA,
+	.flags	= IORESOURCE_MEM,
 };
 
 static struct resource bcm_pcie_io_resource = {
-	.name   = "bcm63xx PCIe IO space",
-	.start  = 0,
-	.end    = 0,
-	.flags  = 0,
+	.name	= "bcm63xx PCIe IO space",
+	.start	= 0,
+	.end	= 0,
+	.flags	= 0,
 };
 
 struct pci_controller bcm63xx_pcie_controller = {
@@ -111,7 +111,7 @@ static void bcm63xx_int_cfg_writel(u32 val, u32 reg)
 	u32 tmp;
 
 	tmp = reg & MPI_PCICFGCTL_CFGADDR_MASK;
-	tmp |=  MPI_PCICFGCTL_WRITEEN_MASK;
+	tmp |=	MPI_PCICFGCTL_WRITEEN_MASK;
 	bcm_mpi_writel(tmp, MPI_PCICFGCTL_REG);
 	bcm_mpi_writel(val, MPI_PCICFGDATA_REG);
 }
@@ -211,7 +211,7 @@ static int __init bcm63xx_register_pci(void)
 	 * first bytes to access it from CPU.
 	 *
 	 * this means that  no io access from CPU  should happen while
-	 * we do a configuration cycle,  but there's no way we can add
+	 * we do a configuration cycle,	 but there's no way we can add
 	 * a spinlock for each io access, so this is currently kind of
 	 * broken on SMP.
 	 */
@@ -244,9 +244,9 @@ static int __init bcm63xx_register_pci(void)
 	bcm_mpi_writel(0, MPI_L2PMEMREMAP2_REG);
 #endif
 
-	/* setup local bus  to PCI access (IO memory),  we have only 1
-	 * IO window  for both PCI  and cardbus, but it  cannot handle
-	 * both  at the  same time,  assume standard  PCI for  now, if
+	/* setup local bus  to PCI access (IO memory),	we have only 1
+	 * IO window  for both PCI  and cardbus, but it	 cannot handle
+	 * both	 at the	 same time,  assume standard  PCI for  now, if
 	 * cardbus card has  IO zone, PCI fixup will  change window to
 	 * cardbus */
 	val = BCM_PCI_IO_BASE_PA & MPI_L2P_BASE_MASK;
@@ -284,7 +284,7 @@ static int __init bcm63xx_register_pci(void)
 		bcm_mpi_writel(0, MPI_SP1_RANGE_REG);
 	}
 
-	/* change  host bridge  retry  counter to  infinite number  of
+	/* change  host bridge	retry  counter to  infinite number  of
 	 * retry,  needed for  some broadcom  wifi cards  with Silicon
 	 * Backplane bus where access to srom seems very slow  */
 	val = bcm63xx_int_cfg_readl(BCMPCI_REG_TIMERS);

@@ -162,18 +162,18 @@ int xls_platform_usb_init(void)
 	nlm_write_reg(usb_mmio, 50, 0x1f000000);
 
 	/* Enable ports */
-	nlm_write_reg(usb_mmio,  1, 0x07000500);
+	nlm_write_reg(usb_mmio,	 1, 0x07000500);
 
 	val = nlm_read_reg(gpio_mmio, 21);
 	if (((val >> 22) & 0x01) == 0) {
 		pr_info("Detected USB Device mode - Not supported!\n");
-		nlm_write_reg(usb_mmio,  0, 0x01000000);
+		nlm_write_reg(usb_mmio,	 0, 0x01000000);
 		return 0;
 	}
 
 	pr_info("Detected USB Host mode - Adding XLS USB devices.\n");
 	/* Clear reset, host mode */
-	nlm_write_reg(usb_mmio,  0, 0x02000000);
+	nlm_write_reg(usb_mmio,	 0, 0x02000000);
 
 	/* Memory resource for various XLS usb ports */
 	usb_mmio = nlm_mmio_base(NETLOGIC_IO_USB_0_OFFSET);
@@ -221,8 +221,8 @@ static struct resource i2c_resources[] = {
 };
 
 static struct platform_device nlm_xlr_i2c_1 = {
-	.name           = "xlr-i2cbus",
-	.id             = 1,
+	.name		= "xlr-i2cbus",
+	.id		= 1,
 	.num_resources	= 1,
 	.resource	= i2c_resources,
 };

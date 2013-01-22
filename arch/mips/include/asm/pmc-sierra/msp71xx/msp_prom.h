@@ -40,7 +40,7 @@
 		(((revision >= 0xb0) && (revision < 0xd0)))
 #define FPGA_IS_5000(revision) \
 		((revision >= 0x80) && (revision <= 0x90))
-#define	FPGA_IS_ZEUS(revision)		((revision < 0x7f))
+#define FPGA_IS_ZEUS(revision)		((revision < 0x7f))
 #define FPGA_IS_DUET(revision) \
 		(((revision >= 0xa0) && (revision < 0xb0)))
 #define FPGA_IS_MSP4200(revision)	((revision >= 0xd0))
@@ -48,7 +48,7 @@
 
 #define MACHINE_TYPE_POLO		"POLO"
 #define MACHINE_TYPE_DUET		"DUET"
-#define	MACHINE_TYPE_ZEUS		"ZEUS"
+#define MACHINE_TYPE_ZEUS		"ZEUS"
 #define MACHINE_TYPE_MSP2000REVB	"MSP2000REVB"
 #define MACHINE_TYPE_MSP5000		"MSP5000"
 #define MACHINE_TYPE_MSP4200		"MSP4200"
@@ -58,7 +58,7 @@
 
 #define MACHINE_TYPE_POLO_FPGA		"POLO-FPGA"
 #define MACHINE_TYPE_DUET_FPGA		"DUET-FPGA"
-#define	MACHINE_TYPE_ZEUS_FPGA		"ZEUS_FPGA"
+#define MACHINE_TYPE_ZEUS_FPGA		"ZEUS_FPGA"
 #define MACHINE_TYPE_MSP2000REVB_FPGA	"MSP2000REVB-FPGA"
 #define MACHINE_TYPE_MSP5000_FPGA	"MSP5000-FPGA"
 #define MACHINE_TYPE_MSP4200_FPGA	"MSP4200-FPGA"
@@ -95,7 +95,7 @@
 #define ENET_MII		'M'
 #define ENET_RMII		'R'
 
-#define	ENETTXD_FALLING		'F'
+#define ENETTXD_FALLING		'F'
 #define ENETTXD_RISING		'R'
 
 #define PCI_HOST		'H'

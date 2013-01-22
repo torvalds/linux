@@ -52,7 +52,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs, unsigned long writ
 
 #ifdef CONFIG_KPROBES
 	/*
-	 * This is to notify the fault handler of the kprobes.  The
+	 * This is to notify the fault handler of the kprobes.	The
 	 * exception code is redundant as it is also carried in REGS,
 	 * but we pass it anyhow.
 	 */
@@ -216,7 +216,7 @@ bad_area_nosemaphore:
 	}
 
 no_context:
-	/* Are we prepared to handle this kernel fault?  */
+	/* Are we prepared to handle this kernel fault?	 */
 	if (fixup_exception(regs)) {
 		current->thread.cp0_baduaddr = address;
 		return;

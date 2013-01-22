@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2009 Lemote Inc.
  * Author: Hu Hongbing <huhb@lemote.com>
- *         Wu Zhangjin <wuzhangjin@gmail.com>
+ *	   Wu Zhangjin <wuzhangjin@gmail.com>
  */
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>
