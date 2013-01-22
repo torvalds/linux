@@ -19,12 +19,94 @@
 #ifndef __ASM_ARM_KVM_VGIC_H
 #define __ASM_ARM_KVM_VGIC_H
 
+#include <linux/kernel.h>
+#include <linux/kvm.h>
+#include <linux/kvm_host.h>
+#include <linux/irqreturn.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 #include <linux/irqchip/arm-gic.h>
 
+#define VGIC_NR_IRQS		128
+#define VGIC_NR_SGIS		16
+#define VGIC_NR_PPIS		16
+#define VGIC_NR_PRIVATE_IRQS	(VGIC_NR_SGIS + VGIC_NR_PPIS)
+#define VGIC_NR_SHARED_IRQS	(VGIC_NR_IRQS - VGIC_NR_PRIVATE_IRQS)
+#define VGIC_MAX_CPUS		KVM_MAX_VCPUS
+
+/* Sanity checks... */
+#if (VGIC_MAX_CPUS > 8)
+#error	Invalid number of CPU interfaces
+#endif
+
+#if (VGIC_NR_IRQS & 31)
+#error "VGIC_NR_IRQS must be a multiple of 32"
+#endif
+
+#if (VGIC_NR_IRQS > 1024)
+#error "VGIC_NR_IRQS must be <= 1024"
+#endif
+
+/*
+ * The GIC distributor registers describing interrupts have two parts:
+ * - 32 per-CPU interrupts (SGI + PPI)
+ * - a bunch of shared interrupts (SPI)
+ */
+struct vgic_bitmap {
+	union {
+		u32 reg[VGIC_NR_PRIVATE_IRQS / 32];
+		DECLARE_BITMAP(reg_ul, VGIC_NR_PRIVATE_IRQS);
+	} percpu[VGIC_MAX_CPUS];
+	union {
+		u32 reg[VGIC_NR_SHARED_IRQS / 32];
+		DECLARE_BITMAP(reg_ul, VGIC_NR_SHARED_IRQS);
+	} shared;
+};
+
+struct vgic_bytemap {
+	u32 percpu[VGIC_MAX_CPUS][VGIC_NR_PRIVATE_IRQS / 4];
+	u32 shared[VGIC_NR_SHARED_IRQS  / 4];
+};
+
 struct vgic_dist {
+#ifdef CONFIG_KVM_ARM_VGIC
+	spinlock_t		lock;
+
+	/* Virtual control interface mapping */
+	void __iomem		*vctrl_base;
+
 	/* Distributor and vcpu interface mapping in the guest */
 	phys_addr_t		vgic_dist_base;
 	phys_addr_t		vgic_cpu_base;
+
+	/* Distributor enabled */
+	u32			enabled;
+
+	/* Interrupt enabled (one bit per IRQ) */
+	struct vgic_bitmap	irq_enabled;
+
+	/* Interrupt 'pin' level */
+	struct vgic_bitmap	irq_state;
+
+	/* Level-triggered interrupt in progress */
+	struct vgic_bitmap	irq_active;
+
+	/* Interrupt priority. Not used yet. */
+	struct vgic_bytemap	irq_priority;
+
+	/* Level/edge triggered */
+	struct vgic_bitmap	irq_cfg;
+
+	/* Source CPU per SGI and target CPU */
+	u8			irq_sgi_sources[VGIC_MAX_CPUS][VGIC_NR_SGIS];
+
+	/* Target CPU for each IRQ */
+	u8			irq_spi_cpu[VGIC_NR_SHARED_IRQS];
+	struct vgic_bitmap	irq_spi_target[VGIC_MAX_CPUS];
+
+	/* Bitmap indicating which CPU has something pending */
+	unsigned long		irq_pending_on_cpu;
+#endif
 };
 
 struct vgic_cpu {
