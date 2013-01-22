@@ -1819,11 +1819,11 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	rx_local->local_psr_full = 0;
 
 	for (id = 0; id < NUM_FBRS; id++) {
-		u32 *num_des;
-		u32 *full_offset;
-		u32 *min_des;
-		u32 *base_hi;
-		u32 *base_lo;
+		u32 __iomem *num_des;
+		u32 __iomem *full_offset;
+		u32 __iomem *min_des;
+		u32 __iomem *base_hi;
+		u32 __iomem *base_lo;
 
 		if (id == 0) {
 			num_des = &rx_dma->fbr0_num_des;
@@ -2516,7 +2516,7 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	 * need to clean up OOB data
 	 */
 	if (buff_index < rx_local->fbr[ring_index]->num_entries) {
-		u32 *offset;
+		u32 __iomem *offset;
 		struct fbr_desc *next;
 
 		spin_lock_irqsave(&adapter->fbr_lock, flags);
@@ -4037,7 +4037,7 @@ static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
  *
  * Returns a value indicating if the interrupt was handled.
  */
-irqreturn_t et131x_isr(int irq, void *dev_id)
+static irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
 	struct net_device *netdev = (struct net_device *)dev_id;
