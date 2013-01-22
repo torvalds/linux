@@ -181,13 +181,13 @@ static struct dgrp_proc_entry dgrp_dpa_table[] = {
 
 void dgrp_unregister_proc(void)
 {
-	unregister_proc_table(dgrp_table, dgrp_proc_dir_entry);
 	net_entry_pointer = NULL;
 	mon_entry_pointer = NULL;
 	dpa_entry_pointer = NULL;
 	ports_entry_pointer = NULL;
 
 	if (dgrp_proc_dir_entry) {
+		unregister_proc_table(dgrp_table, dgrp_proc_dir_entry);
 		remove_proc_entry(dgrp_proc_dir_entry->name,
 				  dgrp_proc_dir_entry->parent);
 		dgrp_proc_dir_entry = NULL;
@@ -230,6 +230,8 @@ static void register_proc_table(struct dgrp_proc_entry *table,
 	mode_t mode;
 
 	if (table == NULL)
+		return;
+	if (root == NULL)
 		return;
 
 	for (; table->id; table++) {
