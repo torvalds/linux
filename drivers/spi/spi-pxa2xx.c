@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -113,6 +114,9 @@ struct driver_data {
 	u32 int_cr1;
 	u32 clear_sr;
 	u32 mask_sr;
+
+	/* Maximun clock rate */
+	unsigned long max_clk_rate;
 
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
@@ -891,9 +895,12 @@ static int set_dma_burst_and_threshold(struct chip_data *chip,
 	return retval;
 }
 
-static unsigned int ssp_get_clk_div(struct ssp_device *ssp, int rate)
+static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 {
-	unsigned long ssp_clk = clk_get_rate(ssp->clk);
+	unsigned long ssp_clk = drv_data->max_clk_rate;
+	const struct ssp_device *ssp = drv_data->ssp;
+
+	rate = min_t(int, ssp_clk, rate);
 
 	if (ssp->type == PXA25x_SSP || ssp->type == CE4100_SSP)
 		return ((ssp_clk / (2 * rate) - 1) & 0xff) << 8;
@@ -908,7 +915,6 @@ static void pump_transfers(unsigned long data)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip = NULL;
-	struct ssp_device *ssp = drv_data->ssp;
 	void __iomem *reg = drv_data->ioaddr;
 	u32 clk_div = 0;
 	u8 bits = 0;
@@ -1005,7 +1011,7 @@ static void pump_transfers(unsigned long data)
 		if (transfer->bits_per_word)
 			bits = transfer->bits_per_word;
 
-		clk_div = ssp_get_clk_div(ssp, speed);
+		clk_div = ssp_get_clk_div(drv_data, speed);
 
 		if (bits <= 8) {
 			drv_data->n_bytes = 1;
@@ -1214,7 +1220,6 @@ static int setup(struct spi_device *spi)
 	struct pxa2xx_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
-	struct ssp_device *ssp = drv_data->ssp;
 	unsigned int clk_div;
 	uint tx_thres = TX_THRESH_DFLT;
 	uint rx_thres = RX_THRESH_DFLT;
@@ -1296,7 +1301,7 @@ static int setup(struct spi_device *spi)
 		}
 	}
 
-	clk_div = ssp_get_clk_div(ssp, spi->max_speed_hz);
+	clk_div = ssp_get_clk_div(drv_data, spi->max_speed_hz);
 	chip->speed_hz = spi->max_speed_hz;
 
 	chip->cr0 = clk_div
@@ -1312,12 +1317,12 @@ static int setup(struct spi_device *spi)
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (!pxa25x_ssp_comp(drv_data))
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-			clk_get_rate(ssp->clk)
+			drv_data->max_clk_rate
 				/ (1 + ((chip->cr0 & SSCR0_SCR(0xfff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 	else
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-			clk_get_rate(ssp->clk) / 2
+			drv_data->max_clk_rate / 2
 				/ (1 + ((chip->cr0 & SSCR0_SCR(0x0ff)) >> 8)),
 			chip->enable_dma ? "DMA" : "PIO");
 
@@ -1470,7 +1475,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Enable SOC clock */
-	clk_enable(ssp->clk);
+	clk_prepare_enable(ssp->clk);
+
+	drv_data->max_clk_rate = clk_get_rate(ssp->clk);
 
 	/* Load default SSP configuration */
 	write_SSCR0(0, drv_data->ioaddr);
@@ -1499,7 +1506,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	return status;
 
 out_error_clock_enabled:
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 out_error_dma_alloc:
 	if (drv_data->tx_channel != -1)
@@ -1527,7 +1534,7 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 
 	/* Disable the SSP at the peripheral and SOC level */
 	write_SSCR0(0, drv_data->ioaddr);
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 	/* Release DMA */
 	if (drv_data->master_info->enable_dma) {
@@ -1571,7 +1578,7 @@ static int pxa2xx_spi_suspend(struct device *dev)
 	if (status != 0)
 		return status;
 	write_SSCR0(0, drv_data->ioaddr);
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 
 	return 0;
 }
@@ -1590,7 +1597,7 @@ static int pxa2xx_spi_resume(struct device *dev)
 			DRCMR_MAPVLD | drv_data->tx_channel;
 
 	/* Enable the SSP clock */
-	clk_enable(ssp->clk);
+	clk_prepare_enable(ssp->clk);
 
 	/* Start the queue running */
 	status = spi_master_resume(drv_data->master);
