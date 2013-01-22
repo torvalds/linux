@@ -20,6 +20,7 @@
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
 #include "tilcdc_tfp410.h"
+#include "tilcdc_slave.h"
 
 #include "drm_fb_helper.h"
 
@@ -587,6 +588,7 @@ static int __init tilcdc_drm_init(void)
 {
 	DBG("init");
 	tilcdc_tfp410_init();
+	tilcdc_slave_init();
 	return platform_driver_register(&tilcdc_platform_driver);
 }
 
@@ -594,10 +596,11 @@ static void __exit tilcdc_drm_fini(void)
 {
 	DBG("fini");
 	tilcdc_tfp410_fini();
+	tilcdc_slave_fini();
 	platform_driver_unregister(&tilcdc_platform_driver);
 }
 
-module_init(tilcdc_drm_init);
+late_initcall(tilcdc_drm_init);
 module_exit(tilcdc_drm_fini);
 
 MODULE_AUTHOR("Rob Clark <robdclark@gmail.com");
