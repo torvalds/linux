@@ -72,6 +72,7 @@ struct vgic_bytemap {
 struct vgic_dist {
 #ifdef CONFIG_KVM_ARM_VGIC
 	spinlock_t		lock;
+	bool			ready;
 
 	/* Virtual control interface mapping */
 	void __iomem		*vctrl_base;
@@ -145,6 +146,10 @@ struct kvm_exit_mmio;
 
 #ifdef CONFIG_KVM_ARM_VGIC
 int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr);
+int kvm_vgic_hyp_init(void);
+int kvm_vgic_init(struct kvm *kvm);
+int kvm_vgic_create(struct kvm *kvm);
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
@@ -154,6 +159,7 @@ bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.vctrl_base))
+#define vgic_initialized(k)	((k)->arch.vgic.ready)
 
 #else
 static inline int kvm_vgic_hyp_init(void)
@@ -204,6 +210,11 @@ static inline bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 static inline int irqchip_in_kernel(struct kvm *kvm)
 {
 	return 0;
+}
+
+static inline bool vgic_initialized(struct kvm *kvm)
+{
+	return true;
 }
 #endif
 

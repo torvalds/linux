@@ -642,6 +642,17 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.has_run_once = true;
 
 	/*
+	 * Initialize the VGIC before running a vcpu the first time on
+	 * this VM.
+	 */
+	if (irqchip_in_kernel(vcpu->kvm) &&
+	    unlikely(!vgic_initialized(vcpu->kvm))) {
+		int ret = kvm_vgic_init(vcpu->kvm);
+		if (ret)
+			return ret;
+	}
+
+	/*
 	 * Handle the "start in power-off" case by calling into the
 	 * PSCI code.
 	 */
@@ -1084,6 +1095,10 @@ static int init_hyp_mode(void)
 	err = kvm_vgic_hyp_init();
 	if (err)
 		goto out_free_vfp;
+
+#ifdef CONFIG_KVM_ARM_VGIC
+		vgic_present = true;
+#endif
 
 	kvm_info("Hyp mode initialized successfully\n");
 	return 0;
