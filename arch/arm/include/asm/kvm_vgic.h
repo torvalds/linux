@@ -147,6 +147,8 @@ struct kvm_exit_mmio;
 int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
+int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
+			bool level);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
 bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
@@ -181,6 +183,12 @@ static inline int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 
 static inline void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu) {}
 static inline void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu) {}
+
+static inline int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid,
+				      unsigned int irq_num, bool level)
+{
+	return 0;
+}
 
 static inline int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 {

@@ -810,20 +810,49 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level)
 
 	trace_kvm_irq_line(irq_type, vcpu_idx, irq_num, irq_level->level);
 
-	if (irq_type != KVM_ARM_IRQ_TYPE_CPU)
-		return -EINVAL;
+	switch (irq_type) {
+	case KVM_ARM_IRQ_TYPE_CPU:
+		if (irqchip_in_kernel(kvm))
+			return -ENXIO;
 
-	if (vcpu_idx >= nrcpus)
-		return -EINVAL;
+		if (vcpu_idx >= nrcpus)
+			return -EINVAL;
 
-	vcpu = kvm_get_vcpu(kvm, vcpu_idx);
-	if (!vcpu)
-		return -EINVAL;
+		vcpu = kvm_get_vcpu(kvm, vcpu_idx);
+		if (!vcpu)
+			return -EINVAL;
 
-	if (irq_num > KVM_ARM_IRQ_CPU_FIQ)
-		return -EINVAL;
+		if (irq_num > KVM_ARM_IRQ_CPU_FIQ)
+			return -EINVAL;
 
-	return vcpu_interrupt_line(vcpu, irq_num, level);
+		return vcpu_interrupt_line(vcpu, irq_num, level);
+	case KVM_ARM_IRQ_TYPE_PPI:
+		if (!irqchip_in_kernel(kvm))
+			return -ENXIO;
+
+		if (vcpu_idx >= nrcpus)
+			return -EINVAL;
+
+		vcpu = kvm_get_vcpu(kvm, vcpu_idx);
+		if (!vcpu)
+			return -EINVAL;
+
+		if (irq_num < VGIC_NR_SGIS || irq_num >= VGIC_NR_PRIVATE_IRQS)
+			return -EINVAL;
+
+		return kvm_vgic_inject_irq(kvm, vcpu->vcpu_id, irq_num, level);
+	case KVM_ARM_IRQ_TYPE_SPI:
+		if (!irqchip_in_kernel(kvm))
+			return -ENXIO;
+
+		if (irq_num < VGIC_NR_PRIVATE_IRQS ||
+		    irq_num > KVM_ARM_IRQ_GIC_MAX)
+			return -EINVAL;
+
+		return kvm_vgic_inject_irq(kvm, 0, irq_num, level);
+	}
+
+	return -EINVAL;
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp,
@@ -904,6 +933,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 
 	switch (ioctl) {
+	case KVM_CREATE_IRQCHIP: {
+		if (vgic_present)
+			return kvm_vgic_create(kvm);
+		else
+			return -ENXIO;
+	}
 	case KVM_ARM_SET_DEVICE_ADDR: {
 		struct kvm_arm_device_addr dev_addr;
 
