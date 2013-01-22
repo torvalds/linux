@@ -44,6 +44,7 @@ struct pxa2xx_spi_master {
  */
 struct pxa2xx_spi_chip {
 	u8 tx_threshold;
+	u8 tx_hi_threshold;
 	u8 rx_threshold;
 	u8 dma_burst_size;
 	u32 timeout;

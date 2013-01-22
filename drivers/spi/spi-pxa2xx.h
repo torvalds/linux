@@ -86,6 +86,8 @@ struct driver_data {
 	int (*read)(struct driver_data *drv_data);
 	irqreturn_t (*transfer_handler)(struct driver_data *drv_data);
 	void (*cs_control)(u32 command);
+
+	void __iomem *lpss_base;
 };
 
 struct chip_data {
@@ -97,6 +99,8 @@ struct chip_data {
 	u32 dma_burst_size;
 	u32 threshold;
 	u32 dma_threshold;
+	u16 lpss_rx_threshold;
+	u16 lpss_tx_threshold;
 	u8 enable_dma;
 	u8 bits_per_word;
 	u32 speed_hz;
@@ -124,6 +128,8 @@ DEFINE_SSP_REG(SSITR, 0x0c)
 DEFINE_SSP_REG(SSDR, 0x10)
 DEFINE_SSP_REG(SSTO, 0x28)
 DEFINE_SSP_REG(SSPSP, 0x2c)
+DEFINE_SSP_REG(SSITF, SSITF)
+DEFINE_SSP_REG(SSIRF, SSIRF)
 
 #define START_STATE ((void *)0)
 #define RUNNING_STATE ((void *)1)

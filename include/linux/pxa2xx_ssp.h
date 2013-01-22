@@ -155,6 +155,14 @@
 #define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
 #define SSACD_SCDX8		(1 << 7)	/* SYSCLK division ratio select */
 
+/* LPSS SSP */
+#define SSITF			0x44		/* TX FIFO trigger level */
+#define SSITF_TxLoThresh(x)	(((x) - 1) << 8)
+#define SSITF_TxHiThresh(x)	((x) - 1)
+
+#define SSIRF			0x48		/* RX FIFO trigger level */
+#define SSIRF_RxThresh(x)	((x) - 1)
+
 enum pxa_ssp_type {
 	SSP_UNDEFINED = 0,
 	PXA25x_SSP,  /* pxa 210, 250, 255, 26x */
@@ -164,6 +172,7 @@ enum pxa_ssp_type {
 	PXA168_SSP,
 	PXA910_SSP,
 	CE4100_SSP,
+	LPSS_SSP,
 };
 
 struct ssp_device {
