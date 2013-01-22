@@ -1889,6 +1889,13 @@ static int indep_hp_put(struct snd_kcontrol *kcontrol,
 			*dacp = 0;
 		else
 			*dacp = spec->alt_dac_nid;
+
+		/* update HP auto-mute state too */
+		if (spec->hp_automute_hook)
+			spec->hp_automute_hook(codec, NULL);
+		else
+			snd_hda_gen_hp_automute(codec, NULL);
+
 		ret = 1;
 	}
  unlock:
@@ -3467,10 +3474,16 @@ static void call_update_outputs(struct hda_codec *codec)
 void snd_hda_gen_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	hda_nid_t *pins = spec->autocfg.hp_pins;
+	int num_pins = ARRAY_SIZE(spec->autocfg.hp_pins);
 
-	spec->hp_jack_present =
-		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
-			     spec->autocfg.hp_pins);
+	/* No detection for the first HP jack during indep-HP mode */
+	if (spec->indep_hp_enabled) {
+		pins++;
+		num_pins--;
+	}
+
+	spec->hp_jack_present = detect_jacks(codec, num_pins, pins);
 	if (!spec->detect_hp || (!spec->automute_speaker && !spec->automute_lo))
 		return;
 	call_update_outputs(codec);
