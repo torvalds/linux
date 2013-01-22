@@ -157,7 +157,7 @@ static int wm831x_status_blink_set(struct led_classdev *led_cdev,
 	return ret;
 }
 
-static const char *led_src_texts[] = {
+static const char * const led_src_texts[] = {
 	"otp",
 	"power",
 	"charger",
