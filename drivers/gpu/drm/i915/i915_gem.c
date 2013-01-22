@@ -3941,8 +3941,6 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	i915_gem_init_swizzling(dev);
 
-	dev_priv->next_seqno = dev_priv->last_seqno = (u32)~0 - 0x1000;
-
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
 		return ret;
@@ -3958,6 +3956,10 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret)
 			goto cleanup_bsd_ring;
 	}
+
+	ret = i915_gem_set_seqno(dev, ((u32)~0 - 0x1000));
+	if (ret)
+		return ret;
 
 	/*
 	 * XXX: There was some w/a described somewhere suggesting loading

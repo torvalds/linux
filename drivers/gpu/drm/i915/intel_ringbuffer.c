@@ -1223,8 +1223,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
-	intel_ring_init_seqno(ring, dev_priv->last_seqno);
-
 	return 0;
 
 err_unmap:
