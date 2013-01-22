@@ -819,8 +819,8 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 	if((dev_drv->first_frame))  //this is the first frame of the system ,enable frame start interrupt
 	{
 		dev_drv->first_frame = 0;
-		//lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR |m_FRM_START_INT_EN ,
-		//	  v_FRM_START_INT_CLEAR(1) | v_FRM_START_INT_EN(1));
+		lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR |m_FRM_START_INT_EN ,
+			  v_FRM_START_INT_CLEAR(1) | v_FRM_START_INT_EN(1));
 		lcdc_cfg_done(lcdc_dev);  // write any value to  REG_CFG_DONE let config become effective
 		 
 	}
