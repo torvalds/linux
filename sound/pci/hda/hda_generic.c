@@ -261,6 +261,7 @@ int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path)
 		return 0;
 	return idx + 1;
 }
+EXPORT_SYMBOL_HDA(snd_hda_get_path_idx);
 
 /* get the path instance corresponding to the given index number */
 struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx)
@@ -271,6 +272,7 @@ struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx)
 		return NULL;
 	return snd_array_elem(&spec->paths, idx - 1);
 }
+EXPORT_SYMBOL_HDA(snd_hda_get_path_from_idx);
 
 /* check whether the given DAC is already found in any existing paths */
 static bool is_dac_already_used(struct hda_codec *codec, hda_nid_t nid)
