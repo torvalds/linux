@@ -64,6 +64,7 @@
  */
 
 struct v4l2_fh;
+struct v4l2_subdev;
 struct v4l2_subscribed_event;
 struct video_device;
 
@@ -129,5 +130,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 			   const struct v4l2_event_subscription *sub);
 void v4l2_event_unsubscribe_all(struct v4l2_fh *fh);
-
+int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				  struct v4l2_event_subscription *sub);
 #endif /* V4L2_EVENT_H */
