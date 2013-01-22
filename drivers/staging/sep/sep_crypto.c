@@ -3908,13 +3908,9 @@ int sep_crypto_setup(void)
 		return -ENOMEM;
 	}
 
-	i = 0;
-	j = 0;
-
 	spin_lock_init(&queue_lock);
 
 	err = 0;
-
 	for (i = 0; i < ARRAY_SIZE(hash_algs); i++) {
 		err = crypto_register_ahash(&hash_algs[i]);
 		if (err)
