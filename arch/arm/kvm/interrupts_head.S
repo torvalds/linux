@@ -1,3 +1,5 @@
+#include <linux/irqchip/arm-gic.h>
+
 #define VCPU_USR_REG(_reg_nr)	(VCPU_USR_REGS + (_reg_nr * 4))
 #define VCPU_USR_SP		(VCPU_USR_REG(13))
 #define VCPU_USR_LR		(VCPU_USR_REG(14))
@@ -369,6 +371,49 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro save_vgic_state
+#ifdef CONFIG_KVM_ARM_VGIC
+	/* Get VGIC VCTRL base into r2 */
+	ldr	r2, [vcpu, #VCPU_KVM]
+	ldr	r2, [r2, #KVM_VGIC_VCTRL]
+	cmp	r2, #0
+	beq	2f
+
+	/* Compute the address of struct vgic_cpu */
+	add	r11, vcpu, #VCPU_VGIC_CPU
+
+	/* Save all interesting registers */
+	ldr	r3, [r2, #GICH_HCR]
+	ldr	r4, [r2, #GICH_VMCR]
+	ldr	r5, [r2, #GICH_MISR]
+	ldr	r6, [r2, #GICH_EISR0]
+	ldr	r7, [r2, #GICH_EISR1]
+	ldr	r8, [r2, #GICH_ELRSR0]
+	ldr	r9, [r2, #GICH_ELRSR1]
+	ldr	r10, [r2, #GICH_APR]
+
+	str	r3, [r11, #VGIC_CPU_HCR]
+	str	r4, [r11, #VGIC_CPU_VMCR]
+	str	r5, [r11, #VGIC_CPU_MISR]
+	str	r6, [r11, #VGIC_CPU_EISR]
+	str	r7, [r11, #(VGIC_CPU_EISR + 4)]
+	str	r8, [r11, #VGIC_CPU_ELRSR]
+	str	r9, [r11, #(VGIC_CPU_ELRSR + 4)]
+	str	r10, [r11, #VGIC_CPU_APR]
+
+	/* Clear GICH_HCR */
+	mov	r5, #0
+	str	r5, [r2, #GICH_HCR]
+
+	/* Save list registers */
+	add	r2, r2, #GICH_LR0
+	add	r3, r11, #VGIC_CPU_LR
+	ldr	r4, [r11, #VGIC_CPU_NR_LR]
+1:	ldr	r6, [r2], #4
+	str	r6, [r3], #4
+	subs	r4, r4, #1
+	bne	1b
+2:
+#endif
 .endm
 
 /*
@@ -377,6 +422,35 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro restore_vgic_state
+#ifdef CONFIG_KVM_ARM_VGIC
+	/* Get VGIC VCTRL base into r2 */
+	ldr	r2, [vcpu, #VCPU_KVM]
+	ldr	r2, [r2, #KVM_VGIC_VCTRL]
+	cmp	r2, #0
+	beq	2f
+
+	/* Compute the address of struct vgic_cpu */
+	add	r11, vcpu, #VCPU_VGIC_CPU
+
+	/* We only restore a minimal set of registers */
+	ldr	r3, [r11, #VGIC_CPU_HCR]
+	ldr	r4, [r11, #VGIC_CPU_VMCR]
+	ldr	r8, [r11, #VGIC_CPU_APR]
+
+	str	r3, [r2, #GICH_HCR]
+	str	r4, [r2, #GICH_VMCR]
+	str	r8, [r2, #GICH_APR]
+
+	/* Restore list registers */
+	add	r2, r2, #GICH_LR0
+	add	r3, r11, #VGIC_CPU_LR
+	ldr	r4, [r11, #VGIC_CPU_NR_LR]
+1:	ldr	r6, [r3], #4
+	str	r6, [r2], #4
+	subs	r4, r4, #1
+	bne	1b
+2:
+#endif
 .endm
 
 .equ vmentry,	0
