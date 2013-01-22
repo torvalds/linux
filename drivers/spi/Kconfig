@@ -297,6 +297,12 @@ config SPI_PPC4xx
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
 
+config SPI_PXA2XX_PXADMA
+	bool "PXA2xx SSP legacy PXA DMA API support"
+	depends on SPI_PXA2XX && ARCH_PXA
+	help
+	  Enable PXA private legacy DMA API support.
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on ARCH_PXA || PCI
