@@ -100,10 +100,16 @@ static int get_dp_chip_id(struct i2c_client *client)
 static int dp501_init(struct i2c_client *client)
 {
 	char val,val1;
-	dp501_write_reg(client,2,0x24,0x02);
+
+	dp501_write_reg(client,2,0x00,0x6C);
+	dp501_write_reg(client,2,0x01,0x68);
+	dp501_write_reg(client,2,0x02,0x28);
+	dp501_write_reg(client,2,0x03,0x2A);
+	dp501_write_reg(client,2,0x16,0x50);
+	dp501_write_reg(client,2,0x24,0x22);
 	dp501_write_reg(client,2,0x25,0x04);
 	dp501_write_reg(client,2,0x26,0x10); //PIO setting
-	 
+	
 	dp501_write_reg(client,0,0x0a,0x0c); //block 74 & 76
 	dp501_write_reg(client,0,0x27,0x30); //auto detect CRTC 
 	dp501_write_reg(client,0,0x2f,0x82); //reset tpfifo at v blank 
@@ -115,6 +121,7 @@ static int dp501_init(struct i2c_client *client)
 	dp501_write_reg(client,0,0x72,0xa9); //DPCD readable
 	dp501_write_reg(client,0,0x60,0x00); //Scramble on
 	dp501_write_reg(client,0,0x8f,0x02); //debug select, read P0.0x8d[2] can check HPD
+
 
 	//second, set up training
 	dp501_write_reg(client,0,0x5d,0x0A); //training link rate(2.7Gbps)
