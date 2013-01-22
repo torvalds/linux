@@ -299,6 +299,21 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 	char unit;
 	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = self->stats.total_period;
+	struct perf_evsel *evsel = hists_to_evsel(self);
+	char buf[512];
+	size_t size = sizeof(buf);
+
+	if (symbol_conf.event_group && evsel->nr_members > 1) {
+		struct perf_evsel *pos;
+
+		perf_evsel__group_desc(evsel, buf, size);
+		evname = buf;
+
+		for_each_group_member(pos, evsel) {
+			nr_samples += pos->hists.stats.nr_events[PERF_RECORD_SAMPLE];
+			nr_events += pos->hists.stats.total_period;
+		}
+	}
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
