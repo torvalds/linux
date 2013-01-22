@@ -650,8 +650,93 @@ static int mb86a20s_reset_counters(struct dvb_frontend *fe)
 	if (rc < 0)
 		goto err;
 
+	goto ok;
 err:
+	dev_err(&state->i2c->dev,
+		"%s: Can't reset FE statistics (error %d).\n",
+		__func__, rc);
+ok:
 	return rc;
+}
+
+static int mb86a20s_get_ber_before_vterbi(struct dvb_frontend *fe,
+					  unsigned layer,
+					  u32 *error, u32 *count)
+{
+	struct mb86a20s_state *state = fe->demodulator_priv;
+	int rc;
+
+	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
+
+	if (layer >= 3)
+		return -EINVAL;
+
+	/* Check if the BER measures are already available */
+	rc = mb86a20s_readreg(state, 0x54);
+	if (rc < 0)
+		return rc;
+
+	/* Check if data is available for that layer */
+	if (!(rc & (1 << layer))) {
+		dev_dbg(&state->i2c->dev,
+			"%s: BER for layer %c is not available yet.\n",
+			__func__, 'A' + layer);
+		return -EBUSY;
+	}
+
+	/* Read Bit Error Count */
+	rc = mb86a20s_readreg(state, 0x55 + layer * 3);
+	if (rc < 0)
+		return rc;
+	*error = rc << 16;
+	rc = mb86a20s_readreg(state, 0x56 + layer * 3);
+	if (rc < 0)
+		return rc;
+	*error |= rc << 8;
+	rc = mb86a20s_readreg(state, 0x57 + layer * 3);
+	if (rc < 0)
+		return rc;
+	*error |= rc;
+
+	dev_dbg(&state->i2c->dev,
+		"%s: bit error before Viterbi for layer %c: %d.\n",
+		__func__, 'A' + layer, *error);
+
+	/* Read Bit Count */
+	rc = mb86a20s_writereg(state, 0x50, 0xa7 + layer * 3);
+	if (rc < 0)
+		return rc;
+	rc = mb86a20s_readreg(state, 0x51);
+	if (rc < 0)
+		return rc;
+	*count = rc << 16;
+	rc = mb86a20s_writereg(state, 0x50, 0xa8 + layer * 3);
+	if (rc < 0)
+		return rc;
+	rc = mb86a20s_readreg(state, 0x51);
+	if (rc < 0)
+		return rc;
+	*count |= rc << 8;
+	rc = mb86a20s_writereg(state, 0x50, 0xa9 + layer * 3);
+	if (rc < 0)
+		return rc;
+	rc = mb86a20s_readreg(state, 0x51);
+	if (rc < 0)
+		return rc;
+	*count |= rc;
+
+	dev_dbg(&state->i2c->dev,
+		"%s: bit count before Viterbi for layer %c: %d.\n",
+		__func__, 'A' + layer, *count);
+
+
+	/* Reset counter to collect new data */
+	rc = mb86a20s_writereg(state, 0x53, 0x07 & ~(1 << layer));
+	if (rc < 0)
+		return rc;
+	rc = mb86a20s_writereg(state, 0x53, 0x07);
+
+	return 0;
 }
 
 static void mb86a20s_stats_not_ready(struct dvb_frontend *fe)
@@ -688,6 +773,72 @@ static void mb86a20s_stats_not_ready(struct dvb_frontend *fe)
 	}
 }
 
+static int mb86a20s_get_stats(struct dvb_frontend *fe)
+{
+	struct mb86a20s_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int rc = 0, i;
+	u32 bit_error = 0, bit_count = 0;
+	u32 t_pre_bit_error = 0, t_pre_bit_count = 0;
+	int active_layers = 0, ber_layers = 0;
+
+	/* Get per-layer stats */
+	for (i = 0; i < 3; i++) {
+		if (c->isdbt_layer_enabled & (1 << i)) {
+			/* Layer is active and has rc segments */
+			active_layers++;
+
+			/* Read per-layer BER */
+			/* Handle BER before vterbi */
+			rc = mb86a20s_get_ber_before_vterbi(fe, i,
+							&bit_error,
+							&bit_count);
+			if (rc >= 0) {
+				c->pre_bit_error.stat[1 + i].scale = FE_SCALE_COUNTER;
+				c->pre_bit_error.stat[1 + i].uvalue += bit_error;
+				c->pre_bit_count.stat[1 + i].scale = FE_SCALE_COUNTER;
+				c->pre_bit_count.stat[1 + i].uvalue += bit_count;
+			} else if (rc != -EBUSY) {
+				/*
+					* If an I/O error happened,
+					* measures are now unavailable
+					*/
+				c->pre_bit_error.stat[1 + i].scale = FE_SCALE_NOT_AVAILABLE;
+				c->pre_bit_count.stat[1 + i].scale = FE_SCALE_NOT_AVAILABLE;
+				dev_err(&state->i2c->dev,
+					"%s: Can't get BER for layer %c (error %d).\n",
+					__func__, 'A' + i, rc);
+			}
+
+			if (c->block_error.stat[1 + i].scale != FE_SCALE_NOT_AVAILABLE)
+				ber_layers++;
+
+			/* Update total BER */
+			t_pre_bit_error += c->pre_bit_error.stat[1 + i].uvalue;
+			t_pre_bit_count += c->pre_bit_count.stat[1 + i].uvalue;
+		}
+	}
+
+	/*
+	 * Start showing global count if at least one error count is
+	 * available.
+	 */
+	if (ber_layers) {
+		/*
+		 * At least one per-layer BER measure was read. We can now
+		 * calculate the total BER
+		 *
+		 * Total Bit Error/Count is calculated as the sum of the
+		 * bit errors on all active layers.
+		 */
+		c->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->pre_bit_error.stat[0].uvalue = t_pre_bit_error;
+		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->pre_bit_count.stat[0].uvalue = t_pre_bit_count;
+	}
+
+	return rc;
+}
 
 /*
  * The functions below are called via DVB callbacks, so they need to
@@ -797,14 +948,21 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 		mb86a20s_stats_not_ready(fe);
 		mb86a20s_reset_frontend_cache(fe);
 	}
-	if (rc < 0)
+	if (rc < 0) {
+		dev_err(&state->i2c->dev,
+			"%s: Can't read frontend lock status\n", __func__);
 		goto error;
+	}
 
 	/* Get signal strength */
 	rc = mb86a20s_read_signal_strength(fe);
 	if (rc < 0) {
+		dev_err(&state->i2c->dev,
+			"%s: Can't reset VBER registers.\n", __func__);
 		mb86a20s_stats_not_ready(fe);
 		mb86a20s_reset_frontend_cache(fe);
+
+		rc = 0;		/* Status is OK */
 		goto error;
 	}
 	/* Fill signal strength */
@@ -813,15 +971,32 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (*status & FE_HAS_LOCK) {
 		/* Get TMCC info*/
 		rc = mb86a20s_get_frontend(fe);
-		if (rc < 0)
+		if (rc < 0) {
+			dev_err(&state->i2c->dev,
+				"%s: Can't get FE TMCC data.\n", __func__);
+			rc = 0;		/* Status is OK */
 			goto error;
-	}
+		}
 
+		/* Get statistics */
+		rc = mb86a20s_get_stats(fe);
+		if (rc < 0 && rc != -EBUSY) {
+			dev_err(&state->i2c->dev,
+				"%s: Can't get FE statistics.\n", __func__);
+			rc = 0;
+			goto error;
+		}
+		rc = 0;	/* Don't return EBUSY to userspace */
+	}
+	goto ok;
+
+error:
 	mb86a20s_stats_not_ready(fe);
 
+ok:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-error:
+
 	return rc;
 }
 
