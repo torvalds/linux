@@ -481,7 +481,6 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 	unsigned char *tx_buffer;
 
 	tx_buffer = ifx_dev->tx_buffer;
-	memset(tx_buffer, 0, IFX_SPI_TRANSFER_SIZE);
 
 	/* make room for required SPI header */
 	tx_buffer += IFX_SPI_HEADER_OVERHEAD;
