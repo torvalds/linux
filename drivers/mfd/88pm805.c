@@ -257,7 +257,7 @@ static int pm805_probe(struct i2c_client *client,
 		pdata->plat_config(chip, pdata);
 
 err_805_init:
-	pm80x_deinit(client);
+	pm80x_deinit();
 out_init:
 	return ret;
 }
@@ -269,7 +269,7 @@ static int pm805_remove(struct i2c_client *client)
 	mfd_remove_devices(chip->dev);
 	device_irq_exit_805(chip);
 
-	pm80x_deinit(client);
+	pm80x_deinit();
 
 	return 0;
 }
