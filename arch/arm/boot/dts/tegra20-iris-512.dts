@@ -1,0 +1,89 @@
+/dts-v1/;
+
+/include/ "tegra20-colibri-512.dtsi"
+
+/ {
+	model = "Toradex Colibri T20 512MB on Iris";
+	compatible = "toradex,iris", "toradex,colibri_t20-512", "nvidia,tegra20";
+
+	host1x {
+		hdmi {
+			status = "okay";
+		};
+	};
+
+	pinmux {
+		state_default: pinmux {
+			hdint {
+				nvidia,tristate = <0>;
+			};
+
+			i2cddc {
+				nvidia,tristate = <0>;
+			};
+
+			sdio4 {
+				nvidia,tristate = <0>;
+			};
+
+			uarta {
+				nvidia,tristate = <0>;
+			};
+
+			uartd {
+				nvidia,tristate = <0>;
+			};
+		};
+	};
+
+	usb@c5000000 {
+		status = "okay";
+		dr_mode = "otg";
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	serial@70006000 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+	};
+
+	i2c_ddc: i2c@7000c400 {
+		status = "okay";
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		bus-width = <4>;
+		vmmc-supply = <&vcc_sd_reg>;
+		vqmmc-supply = <&vcc_sd_reg>;
+	};
+
+	regulators {
+		regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb_host_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-boot-on;
+			regulator-always-on;
+			gpio = <&gpio 178 0>;
+		};
+
+		vcc_sd_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "vcc_sd";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+	};
+};

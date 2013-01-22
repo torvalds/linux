@@ -31,3 +31,4 @@ board-specific compatible values:
   nvidia,ventana
   nvidia,whistler
   toradex,colibri_t20-512
+  toradex,iris
