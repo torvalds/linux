@@ -1232,7 +1232,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
 
 	if (bNeedEncryption && pTransmitKey->pvKeyTable) {
-		if (((PSKeyTable)&pTransmitKey->pvKeyTable)->bSoftWEP == TRUE)
+		if (((PSKeyTable)pTransmitKey->pvKeyTable)->bSoftWEP == TRUE)
 			bSoftWEP = TRUE; /* WEP 256 */
 	}
 
