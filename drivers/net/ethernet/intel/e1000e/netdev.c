@@ -2024,7 +2024,6 @@ static void e1000_configure_msix(struct e1000_adapter *adapter)
 	ctrl_ext |= E1000_CTRL_EXT_PBA_CLR;
 
 	/* Auto-Mask Other interrupts upon ICR read */
-#define E1000_EIAC_MASK_82574   0x01F00000
 	ew32(IAM, ~E1000_EIAC_MASK_82574 | E1000_IMS_OTHER);
 	ctrl_ext |= E1000_CTRL_EXT_EIAME;
 	ew32(CTRL_EXT, ctrl_ext);

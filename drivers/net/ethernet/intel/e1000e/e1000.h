@@ -579,9 +579,6 @@ extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 
 extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 
-extern bool e1000e_get_laa_state_82571(struct e1000_hw *hw);
-extern void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state);
-
 extern void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw);
 extern void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
@@ -703,7 +700,6 @@ extern s32 e1000_get_phy_info_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_ife(struct e1000_hw *hw);
 extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
-extern bool e1000_check_phy_82574(struct e1000_hw *hw);
 extern s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
 extern void e1000e_ptp_init(struct e1000_adapter *adapter);
 extern void e1000e_ptp_remove(struct e1000_adapter *adapter);

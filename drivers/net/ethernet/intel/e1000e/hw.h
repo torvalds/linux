@@ -54,12 +54,9 @@ enum e1e_registers {
 	E1000_ICS      = 0x000C8, /* Interrupt Cause Set - WO */
 	E1000_IMS      = 0x000D0, /* Interrupt Mask Set - RW */
 	E1000_IMC      = 0x000D8, /* Interrupt Mask Clear - WO */
-	E1000_EIAC_82574 = 0x000DC, /* Ext. Interrupt Auto Clear - RW */
 	E1000_IAM      = 0x000E0, /* Interrupt Acknowledge Auto Mask */
 	E1000_IVAR     = 0x000E4, /* Interrupt Vector Allocation - RW */
 	E1000_FEXTNVM7  = 0x000E4, /* Future Extended NVM 7 - RW */
-	E1000_EITR_82574_BASE = 0x000E8, /* Interrupt Throttling - RW */
-#define E1000_EITR_82574(_n) (E1000_EITR_82574_BASE + (_n << 2))
 	E1000_LPIC     = 0x000FC, /* Low Power Idle Control - RW */
 	E1000_RCTL     = 0x00100, /* Rx Control - RW */
 	E1000_FCTTV    = 0x00170, /* Flow Control Transmit Timer Value - RW */
@@ -1004,5 +1001,7 @@ struct e1000_hw {
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
 };
+
+#include "82571.h"
 
 #endif

@@ -606,8 +606,6 @@
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
 
-#define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
-
 #define E1000_NVM_CFG_DONE_PORT_0  0x40000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x80000 /* ...for second port */
 
