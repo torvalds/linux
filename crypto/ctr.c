@@ -334,9 +334,8 @@ static struct crypto_instance *crypto_rfc3686_alloc(struct rtattr **tb)
 
 	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_BLKCIPHER,
 				  CRYPTO_ALG_TYPE_MASK);
-	err = PTR_ERR(alg);
 	if (IS_ERR(alg))
-		return ERR_PTR(err);
+		return ERR_CAST(alg);
 
 	/* We only support 16-byte blocks. */
 	err = -EINVAL;

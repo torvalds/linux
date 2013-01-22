@@ -749,12 +749,10 @@ struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
 				    u32 type, u32 mask)
 {
 	const char *name;
-	int err;
 
 	name = crypto_attr_alg_name(rta);
-	err = PTR_ERR(name);
 	if (IS_ERR(name))
-		return ERR_PTR(err);
+		return ERR_CAST(name);
 
 	return crypto_find_alg(name, frontend, type, mask);
 }
