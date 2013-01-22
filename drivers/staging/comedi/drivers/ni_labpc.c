@@ -2116,16 +2116,11 @@ static int labpc_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &labpc_driver);
 }
 
-static void labpc_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver labpc_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = labpc_pci_table,
 	.probe = labpc_pci_probe,
-	.remove = labpc_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
 #else

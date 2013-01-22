@@ -444,11 +444,6 @@ static int apci3501_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3501_driver);
 }
 
-static void apci3501_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci3501_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001) },
 	{ 0 }
@@ -459,7 +454,7 @@ static struct pci_driver apci3501_pci_driver = {
 	.name		= "addi_apci_3501",
 	.id_table	= apci3501_pci_table,
 	.probe		= apci3501_pci_probe,
-	.remove		= apci3501_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci3501_driver, apci3501_pci_driver);
 

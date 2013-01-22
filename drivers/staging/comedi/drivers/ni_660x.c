@@ -1327,11 +1327,6 @@ static int ni_660x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_660x_driver);
 }
 
-static void ni_660x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c60)},
 	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1310)},
@@ -1345,7 +1340,7 @@ static struct pci_driver ni_660x_pci_driver = {
 	.name		= "ni_660x",
 	.id_table	= ni_660x_pci_table,
 	.probe		= ni_660x_pci_probe,
-	.remove		= ni_660x_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_660x_driver, ni_660x_pci_driver);
 

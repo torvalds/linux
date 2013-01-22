@@ -799,11 +799,6 @@ static int daqboard2000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &daqboard2000_driver);
 }
 
-static void daqboard2000_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
@@ -814,7 +809,7 @@ static struct pci_driver daqboard2000_pci_driver = {
 	.name		= "daqboard2000",
 	.id_table	= daqboard2000_pci_table,
 	.probe		= daqboard2000_pci_probe,
-	.remove		= daqboard2000_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 

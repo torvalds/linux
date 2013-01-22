@@ -302,11 +302,6 @@ static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver);
 }
 
-static void adl_pci7x3x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7x3x_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7233) },
@@ -322,7 +317,7 @@ static struct pci_driver adl_pci7x3x_pci_driver = {
 	.name		= "adl_pci7x3x",
 	.id_table	= adl_pci7x3x_pci_table,
 	.probe		= adl_pci7x3x_pci_probe,
-	.remove		= adl_pci7x3x_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci7x3x_driver, adl_pci7x3x_pci_driver);
 

@@ -1734,11 +1734,6 @@ static int me4000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me4000_driver);
 }
 
-static void me4000_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4650)},
 	{PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, PCI_DEVICE_ID_MEILHAUS_ME4660)},
@@ -1761,7 +1756,7 @@ static struct pci_driver me4000_pci_driver = {
 	.name		= "me4000",
 	.id_table	= me4000_pci_table,
 	.probe		= me4000_pci_probe,
-	.remove		= me4000_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(me4000_driver, me4000_pci_driver);
 

@@ -844,11 +844,6 @@ static int jr3_pci_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &jr3_pci_driver);
 }
 
-static void jr3_pci_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW) },
@@ -863,7 +858,7 @@ static struct pci_driver jr3_pci_pci_driver = {
 	.name		= "jr3_pci",
 	.id_table	= jr3_pci_pci_table,
 	.probe		= jr3_pci_pci_probe,
-	.remove		= jr3_pci_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(jr3_pci_driver, jr3_pci_pci_driver);
 

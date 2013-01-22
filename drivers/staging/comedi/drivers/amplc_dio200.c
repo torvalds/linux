@@ -2078,16 +2078,11 @@ static int amplc_dio200_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_dio200_driver);
 }
 
-static void amplc_dio200_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver amplc_dio200_pci_driver = {
 	.name = DIO200_DRIVER_NAME,
 	.id_table = dio200_pci_table,
 	.probe = &amplc_dio200_pci_probe,
-	.remove = &amplc_dio200_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_dio200_driver, amplc_dio200_pci_driver);
 #else

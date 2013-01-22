@@ -376,11 +376,6 @@ static int apci2032_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci2032_driver);
 }
 
-static void apci2032_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci2032_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1004) },
 	{ 0 }
@@ -391,7 +386,7 @@ static struct pci_driver apci2032_pci_driver = {
 	.name		= "addi_apci_2032",
 	.id_table	= apci2032_pci_table,
 	.probe		= apci2032_pci_probe,
-	.remove		= apci2032_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci2032_driver, apci2032_pci_driver);
 

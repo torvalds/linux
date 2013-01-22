@@ -314,11 +314,6 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &pci_8255_driver);
 }
 
-static void pci_8255_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7248) },
@@ -342,7 +337,7 @@ static struct pci_driver pci_8255_pci_driver = {
 	.name		= "8255_pci",
 	.id_table	= pci_8255_pci_table,
 	.probe		= pci_8255_pci_probe,
-	.remove		= pci_8255_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(pci_8255_driver, pci_8255_pci_driver);
 

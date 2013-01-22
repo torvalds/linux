@@ -1420,11 +1420,6 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &rtd520_driver);
 }
 
-static void rtd520_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x7520) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x4520) },
@@ -1436,7 +1431,7 @@ static struct pci_driver rtd520_pci_driver = {
 	.name		= "rtd520",
 	.id_table	= rtd520_pci_table,
 	.probe		= rtd520_pci_probe,
-	.remove		= rtd520_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(rtd520_driver, rtd520_pci_driver);
 

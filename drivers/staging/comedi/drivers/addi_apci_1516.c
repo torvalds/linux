@@ -323,11 +323,6 @@ static int apci1516_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1516_driver);
 }
 
-static void apci1516_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1016) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1516) },
@@ -340,7 +335,7 @@ static struct pci_driver apci1516_pci_driver = {
 	.name		= "addi_apci_1516",
 	.id_table	= apci1516_pci_table,
 	.probe		= apci1516_pci_probe,
-	.remove		= apci1516_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1516_driver, apci1516_pci_driver);
 

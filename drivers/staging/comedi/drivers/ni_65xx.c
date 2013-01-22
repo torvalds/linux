@@ -787,16 +787,11 @@ static int ni_65xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_65xx_driver);
 }
 
-static void ni_65xx_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver ni_65xx_pci_driver = {
 	.name = "ni_65xx",
 	.id_table = ni_65xx_pci_table,
 	.probe = ni_65xx_pci_probe,
-	.remove = ni_65xx_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_65xx_driver, ni_65xx_pci_driver);
 

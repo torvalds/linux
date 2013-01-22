@@ -963,11 +963,6 @@ static int pci9111_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
 }
 
-static void pci9111_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID) },
 	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
@@ -979,7 +974,7 @@ static struct pci_driver adl_pci9111_pci_driver = {
 	.name		= "adl_pci9111",
 	.id_table	= pci9111_pci_table,
 	.probe		= pci9111_pci_probe,
-	.remove		= pci9111_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 

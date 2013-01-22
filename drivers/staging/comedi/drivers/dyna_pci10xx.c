@@ -276,11 +276,6 @@ static int dyna_pci10xx_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &dyna_pci10xx_driver);
 }
 
-static void dyna_pci10xx_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, 0x1050) },
 	{ 0 }
@@ -291,7 +286,7 @@ static struct pci_driver dyna_pci10xx_pci_driver = {
 	.name		= "dyna_pci10xx",
 	.id_table	= dyna_pci10xx_pci_table,
 	.probe		= dyna_pci10xx_pci_probe,
-	.remove		= dyna_pci10xx_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(dyna_pci10xx_driver, dyna_pci10xx_pci_driver);
 

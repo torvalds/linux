@@ -2863,11 +2863,6 @@ static int amplc_pci230_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_pci230_driver);
 }
 
-static void amplc_pci230_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(amplc_pci230_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI230) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI260) },
@@ -2879,7 +2874,7 @@ static struct pci_driver amplc_pci230_pci_driver = {
 	.name		= "amplc_pci230",
 	.id_table	= amplc_pci230_pci_table,
 	.probe		= amplc_pci230_pci_probe,
-	.remove		= amplc_pci230_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pci230_driver, amplc_pci230_pci_driver);
 

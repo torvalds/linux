@@ -299,11 +299,6 @@ static int cb_pcimdas_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &cb_pcimdas_driver);
 }
 
-static void cb_pcimdas_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0056) },
 	{ 0 }
@@ -314,7 +309,7 @@ static struct pci_driver cb_pcimdas_pci_driver = {
 	.name		= "cb_pcimdas",
 	.id_table	= cb_pcimdas_pci_table,
 	.probe		= cb_pcimdas_pci_probe,
-	.remove		= cb_pcimdas_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(cb_pcimdas_driver, cb_pcimdas_pci_driver);
 

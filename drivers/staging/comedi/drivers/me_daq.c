@@ -619,11 +619,6 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me_daq_driver);
 }
 
-static void me_daq_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
@@ -635,7 +630,7 @@ static struct pci_driver me_daq_pci_driver = {
 	.name		= "me_daq",
 	.id_table	= me_daq_pci_table,
 	.probe		= me_daq_pci_probe,
-	.remove		= me_daq_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 
