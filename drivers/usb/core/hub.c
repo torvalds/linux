@@ -715,6 +715,27 @@ static void hub_tt_work(struct work_struct *work)
 }
 
 /**
+ * usb_hub_set_port_power - control hub port's power state
+ * @hdev: target hub
+ * @port1: port index
+ * @set: expected status
+ *
+ * call this function to control port's power via setting or
+ * clearing the port's PORT_POWER feature.
+ */
+int usb_hub_set_port_power(struct usb_device *hdev, int port1,
+		bool set)
+{
+	int ret;
+
+	if (set)
+		ret = set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
+	else
+		ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
+	return ret;
+}
+
+/**
  * usb_hub_clear_tt_buffer - clear control/bulk TT state in high speed hub
  * @urb: an URB associated with the failed or incomplete split transaction
  *
@@ -1569,6 +1590,7 @@ static void hub_disconnect(struct usb_interface *intf)
 	kfree(hub->status);
 	kfree(hub->buffer);
 
+	pm_suspend_ignore_children(&intf->dev, false);
 	kref_put(&hub->kref, hub_release);
 }
 
@@ -1671,6 +1693,7 @@ descriptor_error:
 
 	usb_set_intfdata (intf, hub);
 	intf->needs_remote_wakeup = 1;
+	pm_suspend_ignore_children(&intf->dev, true);
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs++;
@@ -1997,6 +2020,8 @@ void usb_disconnect(struct usb_device **pdev)
 
 		sysfs_remove_link(&udev->dev.kobj, "port");
 		sysfs_remove_link(&port_dev->dev.kobj, "device");
+
+		pm_runtime_put(&port_dev->dev);
 	}
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -2307,6 +2332,8 @@ int usb_new_device(struct usb_device *udev)
 			sysfs_remove_link(&udev->dev.kobj, "port");
 			goto fail;
 		}
+
+		pm_runtime_get_sync(&port_dev->dev);
 	}
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);

@@ -17,6 +17,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/pm_qos.h>
 
 #include "hub.h"
 
@@ -70,9 +71,50 @@ static void usb_port_device_release(struct device *dev)
 	kfree(port_dev);
 }
 
+#ifdef CONFIG_USB_SUSPEND
+static int usb_port_runtime_resume(struct device *dev)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	struct usb_device *hdev = to_usb_device(dev->parent->parent);
+	struct usb_interface *intf = to_usb_interface(dev->parent);
+	int retval;
+
+	usb_autopm_get_interface(intf);
+	retval = usb_hub_set_port_power(hdev, port_dev->portnum, true);
+	usb_autopm_put_interface(intf);
+	return retval;
+}
+
+static int usb_port_runtime_suspend(struct device *dev)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	struct usb_device *hdev = to_usb_device(dev->parent->parent);
+	struct usb_interface *intf = to_usb_interface(dev->parent);
+	int retval;
+
+	if (dev_pm_qos_flags(&port_dev->dev, PM_QOS_FLAG_NO_POWER_OFF)
+			== PM_QOS_FLAGS_ALL)
+		return -EAGAIN;
+
+	usb_autopm_get_interface(intf);
+	retval = usb_hub_set_port_power(hdev, port_dev->portnum, false);
+	usb_autopm_put_interface(intf);
+	return retval;
+}
+#endif
+
+static const struct dev_pm_ops usb_port_pm_ops = {
+#ifdef CONFIG_USB_SUSPEND
+	.runtime_suspend =	usb_port_runtime_suspend,
+	.runtime_resume =	usb_port_runtime_resume,
+	.runtime_idle =		pm_generic_runtime_idle,
+#endif
+};
+
 struct device_type usb_port_device_type = {
 	.name =		"usb_port",
 	.release =	usb_port_device_release,
+	.pm =		&usb_port_pm_ops,
 };
 
 int usb_hub_create_port_device(struct usb_hub *hub, int port1)
@@ -87,6 +129,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	}
 
 	hub->ports[port1 - 1] = port_dev;
+	port_dev->portnum = port1;
 	port_dev->dev.parent = hub->intfdev;
 	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
@@ -95,6 +138,9 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	retval = device_register(&port_dev->dev);
 	if (retval)
 		goto error_register;
+
+	pm_runtime_set_active(&port_dev->dev);
+	pm_runtime_enable(&port_dev->dev);
 
 	retval = usb_acpi_register_power_resources(&port_dev->dev);
 	if (retval && retval != -ENODEV)

@@ -79,12 +79,14 @@ struct usb_hub {
  * @dev: generic device interface
  * @port_owner: port's owner
  * @connect_type: port's connect type
+ * @portnum: port index num based one
  */
 struct usb_port {
 	struct usb_device *child;
 	struct device dev;
 	struct dev_state *port_owner;
 	enum usb_port_connect_type connect_type;
+	u8 portnum;
 };
 
 #define to_usb_port(_dev) \
@@ -94,4 +96,6 @@ extern int usb_hub_create_port_device(struct usb_hub *hub,
 		int port1);
 extern void usb_hub_remove_port_device(struct usb_hub *hub,
 		int port1);
+extern int usb_hub_set_port_power(struct usb_device *hdev,
+		int port1, bool set);
 
