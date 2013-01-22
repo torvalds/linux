@@ -12,7 +12,7 @@
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_H
 
 #define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
 #define CONFIG_SENSOR_240X160_FPS_FIXED_0   15000
@@ -214,19 +214,20 @@ static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
 static int sensor_init_flags = 0;
 static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
-
         if(sensor_init_flags == 0){
-                rk30_mux_api_set(CONFIG_SENSOR_FALSH_EN_MUX_0, 0);
                 rk30_mux_api_set(CONFIG_SENSOR_FALSH_MODE_MUX_0, 0);
-                gpio_request(CONFIG_SENSOR_FALSH_EN_PIN_0, "camera_flash_en");
-                gpio_request(CONFIG_SENSOR_FALSH_MODE_PIN_0, "camera_flash_mode");
-                gpio_direction_output(CONFIG_SENSOR_FALSH_EN_PIN_0, 0);
+                int ret = gpio_request(CONFIG_SENSOR_FALSH_MODE_PIN_0, "camera_flash_mode");
+                if (ret != 0) {
+                    printk(">>>>gpio request camera_flash_mode faile !!\n");
+                }
+                
                 gpio_direction_output(CONFIG_SENSOR_FALSH_MODE_PIN_0, 0);
+                sensor_init_flags = 1 ;
         }
         switch (on) {
 		case Flash_Off: {
 			gpio_set_value(CONFIG_SENSOR_FALSH_EN_PIN_0, 0);
-			gpio_set_value(CONFIG_SENSOR_FALSH_MODE_PIN_0, 1);
+			gpio_set_value(CONFIG_SENSOR_FALSH_MODE_PIN_0, 0);
 			break;
 		}
 
