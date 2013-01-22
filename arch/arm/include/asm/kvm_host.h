@@ -158,4 +158,14 @@ static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 {
 	return 0;
 }
+
+struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
+struct kvm_vcpu __percpu **kvm_get_running_vcpus(void);
+
+int kvm_arm_copy_coproc_indices(struct kvm_vcpu *vcpu, u64 __user *uindices);
+unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu);
+struct kvm_one_reg;
+int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+
 #endif /* __ARM_KVM_HOST_H__ */
