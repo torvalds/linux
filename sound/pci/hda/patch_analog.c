@@ -40,6 +40,7 @@ struct ad198x_spec {
 	/* for auto parser */
 	int smux_paths[4];
 	unsigned int cur_smux;
+	hda_nid_t eapd_nid;
 
 	unsigned int beep_amp;	/* beep amp value, set via set_beep_amp() */
 	hda_nid_t beep_dev_nid;
@@ -1196,6 +1197,34 @@ static int alloc_ad_spec(struct hda_codec *codec)
 }
 
 /*
+ * AD1986A fixup codes
+ */
+
+/* Lenovo N100 seems to report the reversed bit for HP jack-sensing */
+static void ad_fixup_inv_jack_detect(struct hda_codec *codec,
+				     const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		codec->inv_jack_detect = 1;
+}
+
+enum {
+	AD1986A_FIXUP_INV_JACK_DETECT,
+};
+
+static const struct hda_fixup ad1986a_fixups[] = {
+	[AD1986A_FIXUP_INV_JACK_DETECT] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad_fixup_inv_jack_detect,
+	},
+};
+
+static const struct snd_pci_quirk ad1986a_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_FIXUP_INV_JACK_DETECT),
+	{}
+};
+
+/*
  */
 static int ad1986a_parse_auto_config(struct hda_codec *codec)
 {
@@ -1222,11 +1251,16 @@ static int ad1986a_parse_auto_config(struct hda_codec *codec)
 	 */
 	spec->gen.multiout.no_share_stream = 1;
 
+	snd_hda_pick_fixup(codec, NULL, ad1986a_fixup_tbl, ad1986a_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
 	err = ad198x_parse_auto_config(codec);
 	if (err < 0) {
 		ad198x_free(codec);
 		return err;
 	}
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
 }
@@ -2068,6 +2102,68 @@ static const struct snd_pci_quirk ad1981_cfg_tbl[] = {
 #endif /* ENABLE_AD_STATIC_QUIRKS */
 
 
+/* follow EAPD via vmaster hook */
+static void ad_vmaster_eapd_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct ad198x_spec *spec = codec->spec;
+	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
+				   AC_VERB_SET_EAPD_BTLENABLE,
+				   enabled ? 0x02 : 0x00);
+}
+
+static void ad1981_fixup_hp_eapd(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		spec->eapd_nid = 0x05;
+	}
+}
+
+/* set the upper-limit for mixer amp to 0dB for avoiding the possible
+ * damage by overloading
+ */
+static void ad1981_fixup_amp_override(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
+}
+
+enum {
+	AD1981_FIXUP_AMP_OVERRIDE,
+	AD1981_FIXUP_HP_EAPD,
+};
+
+static const struct hda_fixup ad1981_fixups[] = {
+	[AD1981_FIXUP_AMP_OVERRIDE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1981_fixup_amp_override,
+	},
+	[AD1981_FIXUP_HP_EAPD] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1981_fixup_hp_eapd,
+		.chained = true,
+		.chain_id = AD1981_FIXUP_AMP_OVERRIDE,
+	},
+};
+
+static const struct snd_pci_quirk ad1981_fixup_tbl[] = {
+	SND_PCI_QUIRK_VENDOR(0x1014, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
+	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1981_FIXUP_HP_EAPD),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
+	/* HP nx6320 (reversed SSID, H/W bug) */
+	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_FIXUP_HP_EAPD),
+	{}
+};
+
 static int ad1981_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -2081,12 +2177,19 @@ static int ad1981_parse_auto_config(struct hda_codec *codec)
 	spec->gen.mixer_nid = 0x0e;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x0d, 0, HDA_OUTPUT);
+
+	snd_hda_pick_fixup(codec, NULL, ad1981_fixup_tbl, ad1981_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
 	err = ad198x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 	err = ad1983_add_spdif_mux_ctl(codec);
 	if (err < 0)
 		goto error;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+
 	return 0;
 
  error:
@@ -3466,6 +3569,60 @@ static const char * const ad1884_models[AD1884_MODELS] = {
 };
 #endif /* ENABLE_AD_STATIC_QUIRKS */
 
+
+/* set the upper-limit for mixer amp to 0dB for avoiding the possible
+ * damage by overloading
+ */
+static void ad1884_fixup_amp_override(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		snd_hda_override_amp_caps(codec, 0x20, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
+}
+
+static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
+			spec->eapd_nid = spec->gen.autocfg.line_out_pins[0];
+		else
+			spec->eapd_nid = spec->gen.autocfg.speaker_pins[0];
+		if (spec->eapd_nid)
+			spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+	}
+}
+
+enum {
+	AD1884_FIXUP_AMP_OVERRIDE,
+	AD1884_FIXUP_HP_EAPD,
+};
+
+static const struct hda_fixup ad1884_fixups[] = {
+	[AD1884_FIXUP_AMP_OVERRIDE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1884_fixup_amp_override,
+	},
+	[AD1884_FIXUP_HP_EAPD] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1884_fixup_hp_eapd,
+		.chained = true,
+		.chain_id = AD1884_FIXUP_AMP_OVERRIDE,
+	},
+};
+
+static const struct snd_pci_quirk ad1884_fixup_tbl[] = {
+	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1884_FIXUP_HP_EAPD),
+	{}
+};
+
+
 static int ad1884_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -3479,12 +3636,19 @@ static int ad1884_parse_auto_config(struct hda_codec *codec)
 	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
+
+	snd_hda_pick_fixup(codec, NULL, ad1884_fixup_tbl, ad1884_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
 	err = ad198x_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 	err = ad1983_add_spdif_mux_ctl(codec);
 	if (err < 0)
 		goto error;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+
 	return 0;
 
  error:
