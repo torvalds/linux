@@ -286,7 +286,7 @@ nocache:
 		else
 			fle->genid--;
 	} else {
-		if (flo && !IS_ERR(flo))
+		if (!IS_ERR_OR_NULL(flo))
 			flo->ops->delete(flo);
 	}
 ret_object:
