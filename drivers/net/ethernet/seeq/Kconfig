@@ -6,7 +6,6 @@ config NET_VENDOR_SEEQ
 	bool "SEEQ devices"
 	default y
 	depends on HAS_IOMEM
-	depends on (ARM && ARCH_ACORN) || SGI_HAS_SEEQ || EXPERIMENTAL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -27,8 +26,7 @@ config ARM_ETHER3
 	  should say Y to this option if you wish to use it with Linux.
 
 config SEEQ8005
-	tristate "SEEQ8005 support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "SEEQ8005 support"
 	---help---
 	  This is a driver for the SEEQ 8005 network (Ethernet) card.  If this
 	  is for you, read the Ethernet-HOWTO, available from
