@@ -1274,6 +1274,12 @@ static int patch_ad1986a(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, AD1986A_MODELS,
 						  ad1986a_models,
 						  ad1986a_cfg_tbl);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1986A_AUTO;
+	}
+
 	if (board_config == AD1986A_AUTO)
 		return ad1986a_parse_auto_config(codec);
 
@@ -1691,6 +1697,12 @@ static int patch_ad1983(struct hda_codec *codec)
 
 	board_config = snd_hda_check_board_config(codec, AD1983_MODELS,
 						  ad1983_models, NULL);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1983_AUTO;
+	}
+
 	if (board_config == AD1983_AUTO)
 		return ad1983_parse_auto_config(codec);
 
@@ -2206,6 +2218,12 @@ static int patch_ad1981(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, AD1981_MODELS,
 						  ad1981_models,
 						  ad1981_cfg_tbl);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1981_AUTO;
+	}
+
 	if (board_config == AD1981_AUTO)
 		return ad1981_parse_auto_config(codec);
 
@@ -3710,6 +3728,12 @@ static int patch_ad1884(struct hda_codec *codec)
 
 	board_config = snd_hda_check_board_config(codec, AD1884_MODELS,
 						  ad1884_models, NULL);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1884_AUTO;
+	}
+
 	if (board_config == AD1884_AUTO)
 		return ad1884_parse_auto_config(codec);
 	else
@@ -3922,6 +3946,12 @@ static int patch_ad1984(struct hda_codec *codec)
 
 	board_config = snd_hda_check_board_config(codec, AD1984_MODELS,
 						  ad1984_models, ad1984_cfg_tbl);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1984_AUTO;
+	}
+
 	if (board_config == AD1984_AUTO)
 		return ad1884_parse_auto_config(codec);
 
@@ -4693,7 +4723,13 @@ static int patch_ad1884a(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, AD1884A_MODELS,
 						  ad1884a_models,
 						  ad1884a_cfg_tbl);
-	if (board_config == AD1884_AUTO)
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1884A_AUTO;
+	}
+
+	if (board_config == AD1884A_AUTO)
 		return ad1884_parse_auto_config(codec);
 
 	err = alloc_ad_spec(codec);
@@ -5140,6 +5176,12 @@ static int patch_ad1882(struct hda_codec *codec)
 
 	board_config = snd_hda_check_board_config(codec, AD1882_MODELS,
 						  ad1882_models, NULL);
+	if (board_config < 0) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = AD1882_AUTO;
+	}
+
 	if (board_config == AD1882_AUTO)
 		return ad1882_parse_auto_config(codec);
 
