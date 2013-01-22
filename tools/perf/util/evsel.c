@@ -1389,7 +1389,27 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 			struct perf_attr_details *details, FILE *fp)
 {
 	bool first = true;
-	int printed = fprintf(fp, "%s", perf_evsel__name(evsel));
+	int printed = 0;
+
+	if (symbol_conf.event_group) {
+		struct perf_evsel *pos;
+
+		if (!perf_evsel__is_group_leader(evsel))
+			return 0;
+
+		if (evsel->nr_members > 1)
+			printed += fprintf(fp, "%s{", evsel->group_name ?: "");
+
+		printed += fprintf(fp, "%s", perf_evsel__name(evsel));
+		for_each_group_member(pos, evsel)
+			printed += fprintf(fp, ",%s", perf_evsel__name(pos));
+
+		if (evsel->nr_members > 1)
+			printed += fprintf(fp, "}");
+		goto out;
+	}
+
+	printed += fprintf(fp, "%s", perf_evsel__name(evsel));
 
 	if (details->verbose || details->freq) {
 		printed += comma_fprintf(fp, &first, " sample_freq=%" PRIu64,
@@ -1430,7 +1450,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(bp_type);
 		if_print(branch_sample_type);
 	}
-
+out:
 	fputc('\n', fp);
 	return ++printed;
 }
