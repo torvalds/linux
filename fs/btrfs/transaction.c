@@ -1451,9 +1451,9 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	 * it here and no for sure that nothing new will be added
 	 * to the list
 	 */
-	btrfs_run_ordered_operations(root, 1);
+	ret = btrfs_run_ordered_operations(root, 1);
 
-	return 0;
+	return ret;
 }
 
 /*
