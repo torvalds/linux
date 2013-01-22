@@ -62,8 +62,10 @@
  *****************************************************************************/
 
 #include <linux/etherdevice.h>
+#include <linux/ip.h>
 #include <net/cfg80211.h>
 #include <net/ipv6.h>
+#include <net/tcp.h>
 #include "iwl-modparams.h"
 #include "fw-api.h"
 #include "mvm.h"
@@ -402,6 +404,233 @@ static int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 				    sizeof(cmd), &cmd);
 }
 
+enum iwl_mvm_tcp_packet_type {
+	MVM_TCP_TX_SYN,
+	MVM_TCP_RX_SYNACK,
+	MVM_TCP_TX_DATA,
+	MVM_TCP_RX_ACK,
+	MVM_TCP_RX_WAKE,
+	MVM_TCP_TX_FIN,
+};
+
+static __le16 pseudo_hdr_check(int len, __be32 saddr, __be32 daddr)
+{
+	__sum16 check = tcp_v4_check(len, saddr, daddr, 0);
+	return cpu_to_le16(be16_to_cpu((__force __be16)check));
+}
+
+static void iwl_mvm_build_tcp_packet(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     struct cfg80211_wowlan_tcp *tcp,
+				     void *_pkt, u8 *mask,
+				     __le16 *pseudo_hdr_csum,
+				     enum iwl_mvm_tcp_packet_type ptype)
+{
+	struct {
+		struct ethhdr eth;
+		struct iphdr ip;
+		struct tcphdr tcp;
+		u8 data[];
+	} __packed *pkt = _pkt;
+	u16 ip_tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr);
+	int i;
+
+	pkt->eth.h_proto = cpu_to_be16(ETH_P_IP),
+	pkt->ip.version = 4;
+	pkt->ip.ihl = 5;
+	pkt->ip.protocol = IPPROTO_TCP;
+
+	switch (ptype) {
+	case MVM_TCP_TX_SYN:
+	case MVM_TCP_TX_DATA:
+	case MVM_TCP_TX_FIN:
+		memcpy(pkt->eth.h_dest, tcp->dst_mac, ETH_ALEN);
+		memcpy(pkt->eth.h_source, vif->addr, ETH_ALEN);
+		pkt->ip.ttl = 128;
+		pkt->ip.saddr = tcp->src;
+		pkt->ip.daddr = tcp->dst;
+		pkt->tcp.source = cpu_to_be16(tcp->src_port);
+		pkt->tcp.dest = cpu_to_be16(tcp->dst_port);
+		/* overwritten for TX SYN later */
+		pkt->tcp.doff = sizeof(struct tcphdr) / 4;
+		pkt->tcp.window = cpu_to_be16(65000);
+		break;
+	case MVM_TCP_RX_SYNACK:
+	case MVM_TCP_RX_ACK:
+	case MVM_TCP_RX_WAKE:
+		memcpy(pkt->eth.h_dest, vif->addr, ETH_ALEN);
+		memcpy(pkt->eth.h_source, tcp->dst_mac, ETH_ALEN);
+		pkt->ip.saddr = tcp->dst;
+		pkt->ip.daddr = tcp->src;
+		pkt->tcp.source = cpu_to_be16(tcp->dst_port);
+		pkt->tcp.dest = cpu_to_be16(tcp->src_port);
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	switch (ptype) {
+	case MVM_TCP_TX_SYN:
+		/* firmware assumes 8 option bytes - 8 NOPs for now */
+		memset(pkt->data, 0x01, 8);
+		ip_tot_len += 8;
+		pkt->tcp.doff = (sizeof(struct tcphdr) + 8) / 4;
+		pkt->tcp.syn = 1;
+		break;
+	case MVM_TCP_TX_DATA:
+		ip_tot_len += tcp->payload_len;
+		memcpy(pkt->data, tcp->payload, tcp->payload_len);
+		pkt->tcp.psh = 1;
+		pkt->tcp.ack = 1;
+		break;
+	case MVM_TCP_TX_FIN:
+		pkt->tcp.fin = 1;
+		pkt->tcp.ack = 1;
+		break;
+	case MVM_TCP_RX_SYNACK:
+		pkt->tcp.syn = 1;
+		pkt->tcp.ack = 1;
+		break;
+	case MVM_TCP_RX_ACK:
+		pkt->tcp.ack = 1;
+		break;
+	case MVM_TCP_RX_WAKE:
+		ip_tot_len += tcp->wake_len;
+		pkt->tcp.psh = 1;
+		pkt->tcp.ack = 1;
+		memcpy(pkt->data, tcp->wake_data, tcp->wake_len);
+		break;
+	}
+
+	switch (ptype) {
+	case MVM_TCP_TX_SYN:
+	case MVM_TCP_TX_DATA:
+	case MVM_TCP_TX_FIN:
+		pkt->ip.tot_len = cpu_to_be16(ip_tot_len);
+		pkt->ip.check = ip_fast_csum(&pkt->ip, pkt->ip.ihl);
+		break;
+	case MVM_TCP_RX_WAKE:
+		for (i = 0; i < DIV_ROUND_UP(tcp->wake_len, 8); i++) {
+			u8 tmp = tcp->wake_mask[i];
+			mask[i + 6] |= tmp << 6;
+			if (i + 1 < DIV_ROUND_UP(tcp->wake_len, 8))
+				mask[i + 7] = tmp >> 2;
+		}
+		/* fall through for ethernet/IP/TCP headers mask */
+	case MVM_TCP_RX_SYNACK:
+	case MVM_TCP_RX_ACK:
+		mask[0] = 0xff; /* match ethernet */
+		/*
+		 * match ethernet, ip.version, ip.ihl
+		 * the ip.ihl half byte is really masked out by firmware
+		 */
+		mask[1] = 0x7f;
+		mask[2] = 0x80; /* match ip.protocol */
+		mask[3] = 0xfc; /* match ip.saddr, ip.daddr */
+		mask[4] = 0x3f; /* match ip.daddr, tcp.source, tcp.dest */
+		mask[5] = 0x80; /* match tcp flags */
+		/* leave rest (0 or set for MVM_TCP_RX_WAKE) */
+		break;
+	};
+
+	*pseudo_hdr_csum = pseudo_hdr_check(ip_tot_len - sizeof(struct iphdr),
+					    pkt->ip.saddr, pkt->ip.daddr);
+}
+
+static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct cfg80211_wowlan_tcp *tcp)
+{
+	struct iwl_wowlan_remote_wake_config *cfg;
+	struct iwl_host_cmd cmd = {
+		.id = REMOTE_WAKE_CONFIG_CMD,
+		.len = { sizeof(*cfg), },
+		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+		.flags = CMD_SYNC,
+	};
+	int ret;
+
+	if (!tcp)
+		return 0;
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+	cmd.data[0] = cfg;
+
+	cfg->max_syn_retries = 10;
+	cfg->max_data_retries = 10;
+	cfg->tcp_syn_ack_timeout = 1; /* seconds */
+	cfg->tcp_ack_timeout = 1; /* seconds */
+
+	/* SYN (TX) */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->syn_tx.data, NULL,
+		&cfg->syn_tx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_TX_SYN);
+	cfg->syn_tx.info.tcp_payload_length = 0;
+
+	/* SYN/ACK (RX) */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->synack_rx.data, cfg->synack_rx.rx_mask,
+		&cfg->synack_rx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_RX_SYNACK);
+	cfg->synack_rx.info.tcp_payload_length = 0;
+
+	/* KEEPALIVE/ACK (TX) */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->keepalive_tx.data, NULL,
+		&cfg->keepalive_tx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_TX_DATA);
+	cfg->keepalive_tx.info.tcp_payload_length =
+		cpu_to_le16(tcp->payload_len);
+	cfg->sequence_number_offset = tcp->payload_seq.offset;
+	/* length must be 0..4, the field is little endian */
+	cfg->sequence_number_length = tcp->payload_seq.len;
+	cfg->initial_sequence_number = cpu_to_le32(tcp->payload_seq.start);
+	cfg->keepalive_interval = cpu_to_le16(tcp->data_interval);
+	if (tcp->payload_tok.len) {
+		cfg->token_offset = tcp->payload_tok.offset;
+		cfg->token_length = tcp->payload_tok.len;
+		cfg->num_tokens =
+			cpu_to_le16(tcp->tokens_size % tcp->payload_tok.len);
+		memcpy(cfg->tokens, tcp->payload_tok.token_stream,
+		       tcp->tokens_size);
+	} else {
+		/* set tokens to max value to almost never run out */
+		cfg->num_tokens = cpu_to_le16(65535);
+	}
+
+	/* ACK (RX) */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->keepalive_ack_rx.data,
+		cfg->keepalive_ack_rx.rx_mask,
+		&cfg->keepalive_ack_rx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_RX_ACK);
+	cfg->keepalive_ack_rx.info.tcp_payload_length = 0;
+
+	/* WAKEUP (RX) */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->wake_rx.data, cfg->wake_rx.rx_mask,
+		&cfg->wake_rx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_RX_WAKE);
+	cfg->wake_rx.info.tcp_payload_length =
+		cpu_to_le16(tcp->wake_len);
+
+	/* FIN */
+	iwl_mvm_build_tcp_packet(
+		mvm, vif, tcp, cfg->fin_tx.data, NULL,
+		&cfg->fin_tx.info.tcp_pseudo_header_checksum,
+		MVM_TCP_TX_FIN);
+	cfg->fin_tx.info.tcp_payload_length = 0;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	kfree(cfg);
+
+	return ret;
+}
+
 struct iwl_d3_iter_data {
 	struct iwl_mvm *mvm;
 	struct ieee80211_vif *vif;
@@ -640,6 +869,22 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		d3_cfg_cmd.wakeup_flags |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
 
+	if (wowlan->tcp) {
+		/*
+		 * The firmware currently doesn't really look at these, only
+		 * the IWL_WOWLAN_WAKEUP_LINK_CHANGE bit. We have to set that
+		 * reason bit since losing the connection to the AP implies
+		 * losing the TCP connection.
+		 * Set the flags anyway as long as they exist, in case this
+		 * will be changed in the firmware.
+		 */
+		wowlan_config_cmd.wakeup_filter |=
+			cpu_to_le32(IWL_WOWLAN_WAKEUP_REMOTE_LINK_LOSS |
+				    IWL_WOWLAN_WAKEUP_REMOTE_SIGNATURE_TABLE |
+				    IWL_WOWLAN_WAKEUP_REMOTE_WAKEUP_PACKET |
+				    IWL_WOWLAN_WAKEUP_LINK_CHANGE);
+	}
+
 	iwl_mvm_cancel_scan(mvm);
 
 	iwl_trans_stop_device(mvm->trans);
@@ -752,6 +997,10 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		goto out;
 
 	ret = iwl_mvm_send_proto_offload(mvm, vif);
+	if (ret)
+		goto out;
+
+	ret = iwl_mvm_send_remote_wake_cfg(mvm, vif, wowlan->tcp);
 	if (ret)
 		goto out;
 
@@ -873,6 +1122,15 @@ static void iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_FOUR_WAY_HANDSHAKE)
 		wakeup.four_way_handshake = true;
+
+	if (reasons & IWL_WOWLAN_WAKEUP_BY_REM_WAKE_LINK_LOSS)
+		wakeup.tcp_connlost = true;
+
+	if (reasons & IWL_WOWLAN_WAKEUP_BY_REM_WAKE_SIGNATURE_TABLE)
+		wakeup.tcp_nomoretokens = true;
+
+	if (reasons & IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET)
+		wakeup.tcp_match = true;
 
 	if (status->wake_packet_bufsize) {
 		int pktsize = le32_to_cpu(status->wake_packet_bufsize);
