@@ -8,8 +8,7 @@
 
 #define MAX_COLUMNS			32
 
-static int perf_gtk__percent_color_snprintf(char *buf, size_t size,
-					    double percent)
+static int __percent_color_snprintf(char *buf, size_t size, double percent)
 {
 	int ret = 0;
 	const char *markup;
@@ -18,7 +17,7 @@ static int perf_gtk__percent_color_snprintf(char *buf, size_t size,
 	if (markup)
 		ret += scnprintf(buf, size, markup);
 
-	ret += scnprintf(buf + ret, size - ret, "%6.2f%%", percent);
+	ret += scnprintf(buf + ret, size - ret, " %6.2f%%", percent);
 
 	if (markup)
 		ret += scnprintf(buf + ret, size - ret, "</span>");
@@ -37,7 +36,55 @@ static int __hpp__color_fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	if (hists->stats.total_period)
 		percent = 100.0 * get_field(he) / hists->stats.total_period;
 
-	ret = perf_gtk__percent_color_snprintf(hpp->buf, hpp->size, percent);
+	ret = __percent_color_snprintf(hpp->buf, hpp->size, percent);
+
+	if (symbol_conf.event_group) {
+		int prev_idx, idx_delta;
+		struct perf_evsel *evsel = hists_to_evsel(hists);
+		struct hist_entry *pair;
+		int nr_members = evsel->nr_members;
+
+		if (nr_members <= 1)
+			return ret;
+
+		prev_idx = perf_evsel__group_idx(evsel);
+
+		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
+			u64 period = get_field(pair);
+			u64 total = pair->hists->stats.total_period;
+
+			evsel = hists_to_evsel(pair->hists);
+			idx_delta = perf_evsel__group_idx(evsel) - prev_idx - 1;
+
+			while (idx_delta--) {
+				/*
+				 * zero-fill group members in the middle which
+				 * have no sample
+				 */
+				ret += __percent_color_snprintf(hpp->buf + ret,
+								hpp->size - ret,
+								0.0);
+			}
+
+			percent = 100.0 * period / total;
+			ret += __percent_color_snprintf(hpp->buf + ret,
+							hpp->size - ret,
+							percent);
+
+			prev_idx = perf_evsel__group_idx(evsel);
+		}
+
+		idx_delta = nr_members - prev_idx - 1;
+
+		while (idx_delta--) {
+			/*
+			 * zero-fill group members at last which have no sample
+			 */
+			ret += __percent_color_snprintf(hpp->buf + ret,
+							hpp->size - ret,
+							0.0);
+		}
+	}
 	return ret;
 }
 
@@ -96,6 +143,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 	struct perf_hpp hpp = {
 		.buf		= s,
 		.size		= sizeof(s),
+		.ptr		= hists_to_evsel(hists),
 	};
 
 	nr_cols = 0;
