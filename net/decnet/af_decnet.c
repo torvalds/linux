@@ -909,6 +909,7 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	struct dn_scp *scp = DN_SK(sk);
 	int err = -EISCONN;
 	struct flowidn fld;
+	struct dst_entry *dst;
 
 	if (sock->state == SS_CONNECTED)
 		goto out;
@@ -955,10 +956,11 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	fld.flowidn_proto = DNPROTO_NSP;
 	if (dn_route_output_sock(&sk->sk_dst_cache, &fld, sk, flags) < 0)
 		goto out;
-	sk->sk_route_caps = sk->sk_dst_cache->dev->features;
+	dst = __sk_dst_get(sk);
+	sk->sk_route_caps = dst->dev->features;
 	sock->state = SS_CONNECTING;
 	scp->state = DN_CI;
-	scp->segsize_loc = dst_metric_advmss(sk->sk_dst_cache);
+	scp->segsize_loc = dst_metric_advmss(dst);
 
 	dn_nsp_send_conninit(sk, NSP_CI);
 	err = -EINPROGRESS;
