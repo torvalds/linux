@@ -896,7 +896,8 @@ static void pump_transfers(unsigned long data)
 			chip->tmode = SPI_TMOD_TO;
 
 		cr0 &= ~(0x3 << SPI_MODE_OFFSET);		
-		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
+		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);	
+		cr0 |= (spi->mode << SPI_MODE_OFFSET);
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	} 
 
@@ -1105,7 +1106,8 @@ static void dma_transfer(struct rk29xx_spi *dws)
 			chip->tmode = SPI_TMOD_TO;
 
 		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
-		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
+		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);		
+		cr0 |= (chip->mode << SPI_MODE_OFFSET);
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	}
 
@@ -1527,6 +1529,8 @@ static int rk29xx_pump_transfers(struct rk29xx_spi *dws, int mode)
 			chip->tmode = SPI_TMOD_TO;
 
 		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
+		cr0 &= ~(0x3 << SPI_TMOD_OFFSET);
+		cr0 |= (spi->mode << SPI_MODE_OFFSET);
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	}
 	
