@@ -385,16 +385,6 @@ config NXP_STB225
 	help
 	 Support for NXP Semiconductors STB225 Development Board.
 
-config PNX8550_JBS
-	bool "NXP PNX8550 based JBS board"
-	select PNX8550
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config PNX8550_STB810
-	bool "NXP PNX8550 based STB810 board"
-	select PNX8550
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
 config PMC_MSP
 	bool "PMC-Sierra MSP chipsets"
 	depends on EXPERIMENTAL
@@ -1112,19 +1102,6 @@ config SOC_PNX833X
 config SOC_PNX8335
 	bool
 	select SOC_PNX833X
-
-config PNX8550
-	bool
-	select SOC_PNX8550
-
-config SOC_PNX8550
-	bool
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
 	bool
