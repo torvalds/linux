@@ -2885,6 +2885,15 @@ int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
 }
 EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
 
+int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				     struct v4l2_event_subscription *sub)
+{
+	if (!sd->ctrl_handler)
+		return -EINVAL;
+	return v4l2_ctrl_subscribe_event(fh, sub);
+}
+EXPORT_SYMBOL(v4l2_ctrl_subdev_subscribe_event);
+
 unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2_fh *fh = file->private_data;
