@@ -91,6 +91,7 @@ enum pm_qos_flags_status dev_pm_qos_flags(struct device *dev, s32 mask)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dev_pm_qos_flags);
 
 /**
  * __dev_pm_qos_read_value - Get PM QoS constraint for a given device.
