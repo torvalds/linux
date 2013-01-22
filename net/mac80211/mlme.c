@@ -3525,8 +3525,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 
 	ifmgd->flags = 0;
 	ifmgd->powersave = sdata->wdev.ps;
-	ifmgd->uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
-	ifmgd->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
+	ifmgd->uapsd_queues = sdata->local->hw.uapsd_queues;
+	ifmgd->uapsd_max_sp_len = sdata->local->hw.uapsd_max_sp_len;
 	ifmgd->p2p_noa_index = -1;
 
 	mutex_init(&ifmgd->mtx);

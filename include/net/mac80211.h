@@ -1534,6 +1534,17 @@ enum ieee80211_hw_flags {
  * @netdev_features: netdev features to be set in each netdev created
  *	from this HW. Note only HW checksum features are currently
  *	compatible with mac80211. Other feature bits will be rejected.
+ *
+ * @uapsd_queues: This bitmap is included in (re)association frame to indicate
+ *	for each access category if it is uAPSD trigger-enabled and delivery-
+ *	enabled. Use IEEE80211_WMM_IE_STA_QOSINFO_AC_* to set this bitmap.
+ *	Each bit corresponds to different AC. Value '1' in specific bit means
+ *	that corresponding AC is both trigger- and delivery-enabled. '0' means
+ *	neither enabled.
+ *
+ * @uapsd_max_sp_len: maximum number of total buffered frames the WMM AP may
+ *	deliver to a WMM STA during any Service Period triggered by the WMM STA.
+ *	Use IEEE80211_WMM_IE_STA_QOSINFO_SP_* for correct values.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1559,6 +1570,8 @@ struct ieee80211_hw {
 	u8 radiotap_mcs_details;
 	u16 radiotap_vht_details;
 	netdev_features_t netdev_features;
+	u8 uapsd_queues;
+	u8 uapsd_max_sp_len;
 };
 
 /**
