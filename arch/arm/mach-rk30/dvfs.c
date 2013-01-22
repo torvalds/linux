@@ -365,7 +365,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 			goto out;
 		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new,
 				g_logic_high_arm, g_arm_high_logic, g_logic_high_arm, g_arm_high_logic);
-		goto out;
+		if (ret < 0)
+			goto out;
 	}
 
 	return ret;
