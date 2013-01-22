@@ -53,44 +53,6 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_igp_2_cable_length_table)
 
-#define BM_PHY_REG_PAGE(offset) \
-	((u16)(((offset) >> PHY_PAGE_SHIFT) & 0xFFFF))
-#define BM_PHY_REG_NUM(offset) \
-	((u16)(((offset) & MAX_PHY_REG_ADDRESS) |\
-	 (((offset) >> (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)) &\
-		~MAX_PHY_REG_ADDRESS)))
-
-#define HV_INTC_FC_PAGE_START             768
-#define I82578_ADDR_REG                   29
-#define I82577_ADDR_REG                   16
-#define I82577_CFG_REG                    22
-#define I82577_CFG_ASSERT_CRS_ON_TX       (1 << 15)
-#define I82577_CFG_ENABLE_DOWNSHIFT       (3 << 10) /* auto downshift 100/10 */
-#define I82577_CTRL_REG                   23
-
-/* 82577 specific PHY registers */
-#define I82577_PHY_CTRL_2            18
-#define I82577_PHY_STATUS_2          26
-#define I82577_PHY_DIAG_STATUS       31
-
-/* I82577 PHY Status 2 */
-#define I82577_PHY_STATUS2_REV_POLARITY   0x0400
-#define I82577_PHY_STATUS2_MDIX           0x0800
-#define I82577_PHY_STATUS2_SPEED_MASK     0x0300
-#define I82577_PHY_STATUS2_SPEED_1000MBPS 0x0200
-
-/* I82577 PHY Control 2 */
-#define I82577_PHY_CTRL2_MANUAL_MDIX      0x0200
-#define I82577_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
-#define I82577_PHY_CTRL2_MDIX_CFG_MASK    0x0600
-
-/* I82577 PHY Diagnostics Status */
-#define I82577_DSTATUS_CABLE_LENGTH       0x03FC
-#define I82577_DSTATUS_CABLE_LENGTH_SHIFT 2
-
-/* BM PHY Copper Specific Control 1 */
-#define BM_CS_CTRL1                       16
-
 /**
  *  e1000e_check_reset_block_generic - Check if PHY reset is blocked
  *  @hw: pointer to the HW structure

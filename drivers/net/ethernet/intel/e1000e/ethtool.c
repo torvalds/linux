@@ -1355,7 +1355,6 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1e_rphy(hw, PHY_REG(776, 18), &phy_reg);
 		e1e_wphy(hw, PHY_REG(776, 18), phy_reg | 1);
 		/* Enable loopback on the PHY */
-#define I82577_PHY_LBK_CTRL          19
 		e1e_wphy(hw, I82577_PHY_LBK_CTRL, 0x8001);
 		break;
 	default:

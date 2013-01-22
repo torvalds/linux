@@ -95,29 +95,6 @@ struct e1000_info;
 
 #define DEFAULT_JUMBO			9234
 
-/* BM/HV Specific Registers */
-#define BM_PORT_CTRL_PAGE                 769
-
-#define PHY_UPPER_SHIFT                   21
-#define BM_PHY_REG(page, reg) \
-	(((reg) & MAX_PHY_REG_ADDRESS) |\
-	 (((page) & 0xFFFF) << PHY_PAGE_SHIFT) |\
-	 (((reg) & ~MAX_PHY_REG_ADDRESS) << (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)))
-
-/* BM PHY Copper Specific Status */
-#define BM_CS_STATUS                      17
-#define BM_CS_STATUS_LINK_UP              0x0400
-#define BM_CS_STATUS_RESOLVED             0x0800
-#define BM_CS_STATUS_SPEED_MASK           0xC000
-#define BM_CS_STATUS_SPEED_1000           0x8000
-
-/* 82577 Mobile Phy Status Register */
-#define HV_M_STATUS                       26
-#define HV_M_STATUS_AUTONEG_COMPLETE      0x1000
-#define HV_M_STATUS_SPEED_MASK            0x0300
-#define HV_M_STATUS_SPEED_1000            0x0200
-#define HV_M_STATUS_LINK_UP               0x0040
-
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
 #define LINK_TIMEOUT		100
 
@@ -538,79 +515,7 @@ extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 
 extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 
-extern s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw);
-extern s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw);
 extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
-extern s32 e1000e_setup_copper_link(struct e1000_hw *hw);
-extern s32 e1000e_get_phy_id(struct e1000_hw *hw);
-extern s32 e1000e_check_reset_block_generic(struct e1000_hw *hw);
-extern s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw);
-extern s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw);
-extern s32 e1000e_get_phy_info_igp(struct e1000_hw *hw);
-extern s32 e1000_set_page_igp(struct e1000_hw *hw, u16 page);
-extern s32 e1000e_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000e_read_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset,
-                                          u16 *data);
-extern s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw);
-extern s32 e1000e_set_d3_lplu_state(struct e1000_hw *hw, bool active);
-extern s32 e1000e_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000e_write_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset,
-                                           u16 data);
-extern s32 e1000e_phy_sw_reset(struct e1000_hw *hw);
-extern s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw);
-extern s32 e1000e_get_cfg_done_generic(struct e1000_hw *hw);
-extern s32 e1000e_get_cable_length_m88(struct e1000_hw *hw);
-extern s32 e1000e_get_phy_info_m88(struct e1000_hw *hw);
-extern s32 e1000e_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000e_write_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000e_phy_init_script_igp3(struct e1000_hw *hw);
-extern enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id);
-extern s32 e1000e_determine_phy_address(struct e1000_hw *hw);
-extern s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000_enable_phy_wakeup_reg_access_bm(struct e1000_hw *hw,
-						 u16 *phy_reg);
-extern s32 e1000_disable_phy_wakeup_reg_access_bm(struct e1000_hw *hw,
-						  u16 *phy_reg);
-extern s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data);
-extern void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl);
-extern s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset,
-                                        u16 data);
-extern s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000e_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset,
-                                       u16 *data);
-extern s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
-			       u32 usec_interval, bool *success);
-extern s32 e1000e_phy_reset_dsp(struct e1000_hw *hw);
-extern void e1000_power_up_phy_copper(struct e1000_hw *hw);
-extern void e1000_power_down_phy_copper(struct e1000_hw *hw);
-extern s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000e_check_downshift(struct e1000_hw *hw);
-extern s32 e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data);
-extern s32 e1000_read_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset,
-                                        u16 *data);
-extern s32 e1000_read_phy_reg_page_hv(struct e1000_hw *hw, u32 offset,
-				      u16 *data);
-extern s32 e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data);
-extern s32 e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset,
-                                         u16 data);
-extern s32 e1000_write_phy_reg_page_hv(struct e1000_hw *hw, u32 offset,
-				       u16 data);
-extern s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw);
-extern s32 e1000_copper_link_setup_82577(struct e1000_hw *hw);
-extern s32 e1000_check_polarity_82577(struct e1000_hw *hw);
-extern s32 e1000_get_phy_info_82577(struct e1000_hw *hw);
-extern s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw);
-extern s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
-
-extern s32 e1000_check_polarity_m88(struct e1000_hw *hw);
-extern s32 e1000_get_phy_info_ife(struct e1000_hw *hw);
-extern s32 e1000_check_polarity_ife(struct e1000_hw *hw);
-extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
-extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
 extern void e1000e_ptp_init(struct e1000_adapter *adapter);
 extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
 
