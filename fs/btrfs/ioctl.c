@@ -1339,6 +1339,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
+		mnt_drop_write_file(file);
 		return -EINPROGRESS;
 	}
 
@@ -1362,6 +1363,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		printk(KERN_INFO "btrfs: resizing devid %llu\n",
 		       (unsigned long long)devid);
 	}
+
 	device = btrfs_find_device(root->fs_info, devid, NULL, NULL);
 	if (!device) {
 		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
@@ -1369,9 +1371,10 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		ret = -EINVAL;
 		goto out_free;
 	}
-	if (device->fs_devices && device->fs_devices->seeding) {
+
+	if (!device->writeable) {
 		printk(KERN_INFO "btrfs: resizer unable to apply on "
-		       "seeding device %llu\n",
+		       "readonly device %llu\n",
 		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_free;
@@ -2095,12 +2098,12 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		err = inode_permission(inode, MAY_WRITE | MAY_EXEC);
 		if (err)
 			goto out_dput;
-
-		/* check if subvolume may be deleted by a non-root user */
-		err = btrfs_may_delete(dir, dentry, 1);
-		if (err)
-			goto out_dput;
 	}
+
+	/* check if subvolume may be deleted by a user */
+	err = btrfs_may_delete(dir, dentry, 1);
+	if (err)
+		goto out_dput;
 
 	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
 		err = -EINVAL;
@@ -3696,6 +3699,11 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 	if (IS_ERR(sa)) {
 		ret = PTR_ERR(sa);
 		goto drop_write;
+	}
+
+	if (!sa->qgroupid) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	trans = btrfs_join_transaction(root);

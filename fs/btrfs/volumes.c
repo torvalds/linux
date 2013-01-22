@@ -1431,7 +1431,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		}
 	} else {
 		ret = btrfs_get_bdev_and_sb(device_path,
-					    FMODE_READ | FMODE_EXCL,
+					    FMODE_WRITE | FMODE_EXCL,
 					    root->fs_info->bdev_holder, 0,
 					    &bdev, &bh);
 		if (ret)
