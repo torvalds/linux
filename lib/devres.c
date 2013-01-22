@@ -1,3 +1,4 @@
+#include <linux/err.h>
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
