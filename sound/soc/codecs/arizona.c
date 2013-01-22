@@ -685,7 +685,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	}
 	sr_val = i;
 
-	lrclk = snd_soc_params_to_bclk(params) / params_rate(params);
+	lrclk = rates[bclk] / params_rate(params);
 
 	arizona_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
@@ -1081,6 +1081,9 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		dev_err(arizona->dev, "Failed to get FLL%d clock OK IRQ: %d\n",
 			id, ret);
 	}
+
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   ARIZONA_FLL1_FREERUN, 0);
 
 	return 0;
 }
