@@ -382,8 +382,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 
 		c = &wiphy->iface_combinations[i];
 
-		/* Combinations with just one interface aren't real */
-		if (WARN_ON(c->max_interfaces < 2))
+		/*
+		 * Combinations with just one interface aren't real,
+		 * however we make an exception for DFS.
+		 */
+		if (WARN_ON((c->max_interfaces < 2) && !c->radar_detect_widths))
 			return -EINVAL;
 
 		/* Need at least one channel */
@@ -396,6 +399,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 		 */
 		if (WARN_ON(c->num_different_channels >
 				CFG80211_MAX_NUM_DIFFERENT_CHANNELS))
+			return -EINVAL;
+
+		/* DFS only works on one channel. */
+		if (WARN_ON(c->radar_detect_widths &&
+			    (c->num_different_channels > 1)))
 			return -EINVAL;
 
 		if (WARN_ON(!c->n_limits))

@@ -303,16 +303,15 @@ static void setup_ht_cap(struct ath_softc *sc,
 	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 }
 
-static int ath9k_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void ath9k_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
-	int ret;
 
-	ret = ath_reg_notifier_apply(wiphy, request, reg);
+	ath_reg_notifier_apply(wiphy, request, reg);
 
 	/* Set tx power */
 	if (ah->curchan) {
@@ -322,8 +321,6 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 		ath9k_ps_restore(sc);
 	}
-
-	return ret;
 }
 
 /*

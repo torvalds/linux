@@ -425,7 +425,8 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 enum nl80211_iftype iftype,
 				 struct ieee80211_channel *chan,
-				 enum cfg80211_chan_mode chanmode);
+				 enum cfg80211_chan_mode chanmode,
+				 u8 radar_detect);
 
 static inline int
 cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
@@ -433,7 +434,7 @@ cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 			      enum nl80211_iftype iftype)
 {
 	return cfg80211_can_use_iftype_chan(rdev, wdev, iftype, NULL,
-					    CHAN_MODE_UNDEFINED);
+					    CHAN_MODE_UNDEFINED, 0);
 }
 
 static inline int
@@ -450,7 +451,7 @@ cfg80211_can_use_chan(struct cfg80211_registered_device *rdev,
 		      enum cfg80211_chan_mode chanmode)
 {
 	return cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
-					    chan, chanmode);
+					    chan, chanmode, 0);
 }
 
 void

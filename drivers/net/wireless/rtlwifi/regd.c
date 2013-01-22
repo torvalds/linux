@@ -298,9 +298,9 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
-				   struct regulatory_request *request,
-				   struct rtl_regulatory *reg)
+static void _rtl_reg_notifier_apply(struct wiphy *wiphy,
+				    struct regulatory_request *request,
+				    struct rtl_regulatory *reg)
 {
 	/* We always apply this */
 	_rtl_reg_apply_radar_flags(wiphy);
@@ -314,8 +314,6 @@ static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 		_rtl_reg_apply_world_flags(wiphy, request->initiator, reg);
 		break;
 	}
-
-	return 0;
 }
 
 static const struct ieee80211_regdomain *_rtl_regdomain_select(
@@ -348,9 +346,9 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 
 static int _rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 				struct wiphy *wiphy,
-				int (*reg_notifier) (struct wiphy *wiphy,
-						     struct regulatory_request *
-						     request))
+				void (*reg_notifier) (struct wiphy *wiphy,
+						      struct regulatory_request *
+						      request))
 {
 	const struct ieee80211_regdomain *regd;
 
@@ -379,7 +377,7 @@ static struct country_code_to_enum_rd *_rtl_regd_find_country(u16 countrycode)
 }
 
 int rtl_regd_init(struct ieee80211_hw *hw,
-		  int (*reg_notifier) (struct wiphy *wiphy,
+		  void (*reg_notifier) (struct wiphy *wiphy,
 				       struct regulatory_request *request))
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -421,12 +419,12 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 	return 0;
 }
 
-int rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	RT_TRACE(rtlpriv, COMP_REGD, DBG_LOUD, "\n");
 
-	return _rtl_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
+	_rtl_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
 }

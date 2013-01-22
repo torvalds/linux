@@ -192,7 +192,8 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    prev_bssid,
 					    params->ssid, params->ssid_len,
 					    params->ie, params->ie_len,
-					    false, &params->crypto,
+					    params->mfp != NL80211_MFP_NO,
+					    &params->crypto,
 					    params->flags, &params->ht_capa,
 					    &params->ht_capa_mask);
 		if (err)

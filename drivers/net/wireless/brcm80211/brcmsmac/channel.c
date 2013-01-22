@@ -702,8 +702,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	}
 }
 
-static int brcms_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void brcms_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct brcms_info *wl = hw->priv;
@@ -744,8 +744,6 @@ static int brcms_reg_notifier(struct wiphy *wiphy,
 	if (wlc->pub->_nbands > 1 || wlc->band->bandtype == BRCM_BAND_2G)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 					brcms_c_japan_ccode(request->alpha2));
-
-	return 0;
 }
 
 void brcms_c_regd_init(struct brcms_c_info *wlc)

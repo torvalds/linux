@@ -1358,6 +1358,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_chanctx *ctx;
 	struct sta_info *sta;
 	int res, i;
+	bool reconfig_due_to_wowlan = false;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1377,6 +1378,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 * res is 1, which means the driver requested
 		 * to go through a regular reset on wakeup.
 		 */
+		reconfig_due_to_wowlan = true;
 	}
 #endif
 	/* everything else happens only if HW was up & running */
@@ -1527,7 +1529,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_TXPOWER;
 
 #ifdef CONFIG_PM
-		if (local->resuming)
+		if (local->resuming && !reconfig_due_to_wowlan)
 			sdata->vif.bss_conf = sdata->suspend_bss_conf;
 #endif
 
@@ -1654,10 +1656,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended) {
+	if (!local->suspended || reconfig_due_to_wowlan)
 		drv_restart_complete(local);
+
+	if (!local->suspended)
 		return 0;
-	}
 
 #ifdef CONFIG_PM
 	/* first set suspended false, then resuming */

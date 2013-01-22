@@ -191,8 +191,6 @@ struct mesh_rmc {
 #define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 
-#define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
-
 #define MESH_PATH_EXPIRE (600 * HZ)
 
 /* Default maximum number of plinks per interface */
@@ -306,6 +304,20 @@ extern int mesh_paths_generation;
 
 #ifdef CONFIG_MAC80211_MESH
 extern int mesh_allocated;
+
+static inline
+u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
+{
+	atomic_inc(&sdata->u.mesh.estab_plinks);
+	return mesh_accept_plinks_update(sdata);
+}
+
+static inline
+u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
+{
+	atomic_dec(&sdata->u.mesh.estab_plinks);
+	return mesh_accept_plinks_update(sdata);
+}
 
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 {

@@ -1123,7 +1123,9 @@ static bool is_ht40_allowed(struct ieee80211_channel *chan)
 	if (chan->flags & IEEE80211_CHAN_DISABLED)
 		return false;
 	/* This would happen when regulatory rules disallow HT40 completely */
-	return !(chan->flags & IEEE80211_CHAN_NO_HT40);
+	if ((chan->flags & IEEE80211_CHAN_NO_HT40) == IEEE80211_CHAN_NO_HT40)
+		return false;
+	return true;
 }
 
 static void reg_process_ht_flags_channel(struct wiphy *wiphy,
