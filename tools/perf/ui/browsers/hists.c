@@ -602,6 +602,63 @@ static int __hpp__color_fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	ret += scnprintf(hpp->buf, hpp->size, "%6.2f%%", percent);
 	slsmg_printf("%s", hpp->buf);
 
+	if (symbol_conf.event_group) {
+		int prev_idx, idx_delta;
+		struct perf_evsel *evsel = hists_to_evsel(hists);
+		struct hist_entry *pair;
+		int nr_members = evsel->nr_members;
+
+		if (nr_members <= 1)
+			goto out;
+
+		prev_idx = perf_evsel__group_idx(evsel);
+
+		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
+			u64 period = get_field(pair);
+			u64 total = pair->hists->stats.total_period;
+
+			if (!total)
+				continue;
+
+			evsel = hists_to_evsel(pair->hists);
+			idx_delta = perf_evsel__group_idx(evsel) - prev_idx - 1;
+
+			while (idx_delta--) {
+				/*
+				 * zero-fill group members in the middle which
+				 * have no sample
+				 */
+				ui_browser__set_percent_color(arg->b, 0.0,
+							arg->current_entry);
+				ret += scnprintf(hpp->buf, hpp->size,
+						 " %6.2f%%", 0.0);
+				slsmg_printf("%s", hpp->buf);
+			}
+
+			percent = 100.0 * period / total;
+			ui_browser__set_percent_color(arg->b, percent,
+						      arg->current_entry);
+			ret += scnprintf(hpp->buf, hpp->size,
+					 " %6.2f%%", percent);
+			slsmg_printf("%s", hpp->buf);
+
+			prev_idx = perf_evsel__group_idx(evsel);
+		}
+
+		idx_delta = nr_members - prev_idx - 1;
+
+		while (idx_delta--) {
+			/*
+			 * zero-fill group members at last which have no sample
+			 */
+			ui_browser__set_percent_color(arg->b, 0.0,
+						      arg->current_entry);
+			ret += scnprintf(hpp->buf, hpp->size,
+					 " %6.2f%%", 0.0);
+			slsmg_printf("%s", hpp->buf);
+		}
+	}
+out:
 	if (!arg->current_entry || !arg->b->navkeypressed)
 		ui_browser__set_color(arg->b, HE_COLORSET_NORMAL);
 
