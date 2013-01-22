@@ -3958,8 +3958,12 @@ static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
 {
 	int ret = 0;
 #if !defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    rk29_sdmmc_enable_irq(host,false);
+    #if !(!!SDMMC_USE_NEW_IOMUX_API)
     rk29_mux_api_set(host->det_pin.iomux.name, host->det_pin.iomux.fgpio);
+    #endif
 	gpio_request(host->det_pin.io, "sd_detect");
+	gpio_direction_output(host->det_pin.io, GPIO_HIGH);
 	gpio_direction_input(host->det_pin.io);
 
 	host->gpio_irq = gpio_to_irq(host->det_pin.io);
@@ -3980,7 +3984,12 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	disable_irq_wake(host->gpio_irq);
 	free_irq(host->gpio_irq,host);
 	gpio_free(host->det_pin.io);
+	#if SDMMC_USE_NEW_IOMUX_API
+	iomux_set(MMC0_DETN);
+	#else
     rk29_mux_api_set(host->det_pin.iomux.name, host->det_pin.iomux.fmux);
+    #endif
+    rk29_sdmmc_enable_irq(host, true);
 #endif
 }
 
