@@ -92,7 +92,7 @@
 #define NOTICE(__dev, __msg, __args...) \
 	DEBUG_PRINTK(__dev, KERN_NOTICE, "Notice", __msg, ##__args)
 #define INFO(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_INFO, "Info", __msg, ##__args)
+	DEBUG_PRINTK_MSG(__dev, KERN_INFO, "Info", __msg, ##__args)
 #define DEBUG(__dev, __msg, __args...) \
 	DEBUG_PRINTK(__dev, KERN_DEBUG, "Debug", __msg, ##__args)
 #define EEPROM(__dev, __msg, __args...) \
