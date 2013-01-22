@@ -17,6 +17,7 @@
 #define __ARCH_ARM_MACH_RK30_FB_H
 
 #include <linux/fb.h>
+#include <linux/platform_device.h>
 #include<linux/completion.h>
 #include<linux/spinlock.h>
 #include<asm/atomic.h>
@@ -281,5 +282,82 @@ static int inline rk_fb_calc_fps(rk_screen *screen,u32 pixclock)
 	do_div(hz,pixclock);		/* divide by pixclock with rounding */
 
 	return  hz;
+}
+
+static int inline __rk_platform_add_display_devices(struct platform_device *fb,
+	struct platform_device *lcdc0,struct platform_device *lcdc1,
+	struct platform_device *bl)
+{
+	struct rk29fb_info *lcdc0_screen_info = NULL;
+	struct rk29fb_info *lcdc1_screen_info = NULL;
+	struct platform_device *prmry_lcdc = NULL;
+	struct platform_device *extend_lcdc = NULL;
+	
+	if(!fb)
+	{
+		printk(KERN_ERR "warning:no rockchip fb device!\n");
+	}
+	else
+	{
+		platform_device_register(fb);
+	}
+
+	if((!lcdc0)&&(!lcdc1))
+	{
+		printk(KERN_ERR "warning:no lcdc device!\n");
+	}
+	else
+	{
+		if(lcdc0)
+		{
+			lcdc0_screen_info = lcdc0->dev.platform_data;
+			if(lcdc0_screen_info->prop == PRMRY)
+			{
+				prmry_lcdc = lcdc0;
+				printk(KERN_INFO "lcdc0 is used as primary display device contoller!\n");
+			}
+			else
+			{
+				extend_lcdc = lcdc0;
+				printk(KERN_INFO "lcdc0 is used as external display device contoller!\n");
+			}
+				
+			
+		}
+		else
+		{
+			printk(KERN_INFO "warning:lcdc0 not add to system!\n");
+		}
+		
+		if(lcdc1)
+		{
+			lcdc1_screen_info = lcdc1->dev.platform_data;
+			if(lcdc1_screen_info->prop == PRMRY)
+			{
+				prmry_lcdc = lcdc1;
+				printk(KERN_INFO "lcdc1 is used as primary display device controller!\n");
+			}
+			else
+			{
+				extend_lcdc = lcdc1;
+				printk(KERN_INFO "lcdc1 is used as external display device controller!\n");
+			}
+				
+			
+		}
+		else
+		{
+			printk(KERN_INFO "warning:lcdc1 not add to system!\n");
+		}
+	}
+
+	if(prmry_lcdc)
+		platform_device_register(prmry_lcdc);
+	if(extend_lcdc)
+		platform_device_register(extend_lcdc);
+	if(bl)
+		platform_device_register(bl);
+
+	return 0;
 }
 #endif

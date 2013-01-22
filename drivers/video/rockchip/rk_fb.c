@@ -1155,10 +1155,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	        fb_inf->num_fb++;	
 	}
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
-
-#if !defined(CONFIG_MACH_RK3168_DS1006H)
-    if(id == 0)
-#endif 
+    if(dev_drv->screen_ctr_info->prop == PRMRY) //show logo for primary display device
     {
 	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
 	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
