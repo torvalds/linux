@@ -3,8 +3,10 @@
  *
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
+#include <linux/ftrace_event.h>
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
+#include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -21,7 +23,6 @@
 #include <linux/fs.h>
 
 #include <asm/local.h>
-#include "trace.h"
 
 static void update_pages_handler(struct work_struct *work);
 
