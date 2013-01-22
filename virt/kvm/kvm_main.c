@@ -1694,6 +1694,7 @@ bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
 {
 	struct pid *pid;
 	struct task_struct *task = NULL;
+	bool ret = false;
 
 	rcu_read_lock();
 	pid = rcu_dereference(target->pid);
@@ -1701,17 +1702,15 @@ bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
 		task = get_pid_task(target->pid, PIDTYPE_PID);
 	rcu_read_unlock();
 	if (!task)
-		return false;
+		return ret;
 	if (task->flags & PF_VCPU) {
 		put_task_struct(task);
-		return false;
+		return ret;
 	}
-	if (yield_to(task, 1)) {
-		put_task_struct(task);
-		return true;
-	}
+	ret = yield_to(task, 1);
 	put_task_struct(task);
-	return false;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
 
@@ -1752,12 +1751,14 @@ bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 	return eligible;
 }
 #endif
+
 void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
 	int last_boosted_vcpu = me->kvm->last_boosted_vcpu;
 	int yielded = 0;
+	int try = 3;
 	int pass;
 	int i;
 
@@ -1769,7 +1770,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	 * VCPU is holding the lock that we need and will release it.
 	 * We approximate round-robin by starting at the last boosted VCPU.
 	 */
-	for (pass = 0; pass < 2 && !yielded; pass++) {
+	for (pass = 0; pass < 2 && !yielded && try; pass++) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (!pass && i <= last_boosted_vcpu) {
 				i = last_boosted_vcpu;
@@ -1782,10 +1783,15 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;
-			if (kvm_vcpu_yield_to(vcpu)) {
+
+			yielded = kvm_vcpu_yield_to(vcpu);
+			if (yielded > 0) {
 				kvm->last_boosted_vcpu = i;
-				yielded = 1;
 				break;
+			} else if (yielded < 0) {
+				try--;
+				if (!try)
+					break;
 			}
 		}
 	}
