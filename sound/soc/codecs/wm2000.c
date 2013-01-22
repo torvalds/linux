@@ -717,6 +717,9 @@ static bool wm2000_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM2000_REG_SYS_START:
+	case WM2000_REG_ANC_GAIN_CTRL:
+	case WM2000_REG_MSE_TH1:
+	case WM2000_REG_MSE_TH2:
 	case WM2000_REG_SPEECH_CLARITY:
 	case WM2000_REG_SYS_WATCHDOG:
 	case WM2000_REG_ANA_VMID_PD_TIME:
