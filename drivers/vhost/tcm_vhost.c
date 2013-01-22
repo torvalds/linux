@@ -479,11 +479,9 @@ static int vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 	 * Find out how long sglist needs to be
 	 */
 	sgl_count = 0;
-	for (i = 0; i < niov; i++) {
-		sgl_count += (((uintptr_t)iov[i].iov_base + iov[i].iov_len +
-				PAGE_SIZE - 1) >> PAGE_SHIFT) -
-				((uintptr_t)iov[i].iov_base >> PAGE_SHIFT);
-	}
+	for (i = 0; i < niov; i++)
+		sgl_count += iov_num_pages(&iov[i]);
+
 	/* TODO overflow checking */
 
 	sg = kmalloc(sizeof(tv_cmd->tvc_sgl[0]) * sgl_count, GFP_ATOMIC);
