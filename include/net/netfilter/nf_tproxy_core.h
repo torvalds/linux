@@ -152,6 +152,7 @@ nf_tproxy_get_sock_v6(struct net *net, const u8 protocol,
 			break;
 		case NFT_LOOKUP_LISTENER:
 			sk = inet6_lookup_listener(net, &tcp_hashinfo,
+						   saddr, sport,
 						   daddr, ntohs(dport),
 						   in->ifindex);
 
