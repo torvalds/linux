@@ -709,10 +709,14 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (!current_trace->use_max_tr) {
-		WARN_ON_ONCE(1);
+
+	/* If we disabled the tracer, stop now */
+	if (current_trace == &nop_trace)
 		return;
-	}
+
+	if (WARN_ON_ONCE(!current_trace->use_max_tr))
+		return;
+
 	arch_spin_lock(&ftrace_max_lock);
 
 	tr->buffer = max_tr.buffer;
@@ -3185,6 +3189,7 @@ static int tracing_set_tracer(const char *buf)
 	static struct trace_option_dentry *topts;
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
+	bool had_max_tr;
 	int ret = 0;
 
 	mutex_lock(&trace_types_lock);
@@ -3211,7 +3216,19 @@ static int tracing_set_tracer(const char *buf)
 	trace_branch_disable();
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
-	if (current_trace && current_trace->use_max_tr) {
+
+	had_max_tr = current_trace && current_trace->use_max_tr;
+	current_trace = &nop_trace;
+
+	if (had_max_tr && !t->use_max_tr) {
+		/*
+		 * We need to make sure that the update_max_tr sees that
+		 * current_trace changed to nop_trace to keep it from
+		 * swapping the buffers after we resize it.
+		 * The update_max_tr is called from interrupts disabled
+		 * so a synchronized_sched() is sufficient.
+		 */
+		synchronize_sched();
 		/*
 		 * We don't free the ring buffer. instead, resize it because
 		 * The max_tr ring buffer has some state (e.g. ring->clock) and
@@ -3222,10 +3239,8 @@ static int tracing_set_tracer(const char *buf)
 	}
 	destroy_trace_option_files(topts);
 
-	current_trace = &nop_trace;
-
 	topts = create_trace_option_files(t);
-	if (t->use_max_tr) {
+	if (t->use_max_tr && !had_max_tr) {
 		/* we need to make per cpu buffer sizes equivalent */
 		ret = resize_buffer_duplicate_size(&max_tr, &global_trace,
 						   RING_BUFFER_ALL_CPUS);
