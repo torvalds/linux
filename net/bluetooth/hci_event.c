@@ -609,6 +609,9 @@ static void le_setup(struct hci_dev *hdev)
 	/* Read LE Buffer Size */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 
+	/* Read LE Local Supported Features */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_LOCAL_FEATURES, 0, NULL);
+
 	/* Read LE Advertising Channel TX Power */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
 }
@@ -1088,6 +1091,19 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	BT_DBG("%s le mtu %d:%d", hdev->name, hdev->le_mtu, hdev->le_pkts);
 
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
+}
+
+static void hci_cc_le_read_local_features(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_le_read_local_features *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (!rp->status)
+		memcpy(hdev->le_features, rp->features, 8);
+
+	hci_req_complete(hdev, HCI_OP_LE_READ_LOCAL_FEATURES, rp->status);
 }
 
 static void hci_cc_le_read_adv_tx_power(struct hci_dev *hdev,
@@ -2626,6 +2642,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:
 		hci_cc_le_read_buffer_size(hdev, skb);
+		break;
+
+	case HCI_OP_LE_READ_LOCAL_FEATURES:
+		hci_cc_le_read_local_features(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_ADV_TX_POWER:

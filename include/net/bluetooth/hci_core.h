@@ -152,6 +152,7 @@ struct hci_dev {
 	__u8		minor_class;
 	__u8		features[8];
 	__u8		host_features[8];
+	__u8		le_features[8];
 	__u8		commands[64];
 	__u8		hci_ver;
 	__u16		hci_rev;
