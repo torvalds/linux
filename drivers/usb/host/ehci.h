@@ -38,6 +38,10 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
+#ifdef DEBUG
+#define EHCI_STATS
+#endif
+
 struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
