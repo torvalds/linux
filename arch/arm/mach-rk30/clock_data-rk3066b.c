@@ -1266,12 +1266,49 @@ static struct clk atclk_cpu = {
 	.gate_idx	= CLK_GATE_ATCLK_CPU,
 };
 
-/* GPU setting */
+/* GPU setting test */
+#if 0   //for gpu rate test
+
 static int clk_gpu_set_rate(struct clk *clk, unsigned long rate)
 {
-	unsigned long max_rate = rate / 100 * 105;	/* +5% */
-	return clkset_rate_freediv_autosel_parents(clk, max_rate);
+	printk("gpu dbg clk %s set %lu\n",clk->name,rate);
+	return clksel_set_rate_freediv(clk, rate);
 };
+
+#define clk_gpu_set_rate_callback clk_gpu_set_rate
+#else
+#define clk_gpu_set_rate(clk,rate) clksel_set_rate_freediv((clk),(rate))
+#define clk_gpu_set_rate_callback clksel_set_rate_freediv
+#endif
+
+#define   GPU_CORE_ACLK_CTR_TOGETHER
+
+#ifdef GPU_CORE_ACLK_CTR_TOGETHER
+static struct clk aclk_gpu;
+static struct clk clk_gpu;
+
+static int clk_gpu_ref_set_rate(struct clk *clk, unsigned long rate)
+{
+	int ret = 0;
+	ret=clk_gpu_set_rate(clk, rate);
+	if(ret<0)
+		return ret;
+	ret=clk_set_rate_nolock(&aclk_gpu, rate); 
+	return ret;
+};
+static long clk_gpu_ref_round_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long rate_gpu;
+	rate_gpu=clksel_freediv_round_rate(clk,rate);
+/*
+	if(rate_gpu!=clksel_freediv_round_rate(&aclk_gpu,rate))
+	{
+		CLKDATA_ERR("gpu rate is not equal ack gpu rate in %s\n",__FUNCTION__);	
+	}	
+*/	
+	return rate_gpu;
+}
+#endif
 
 static struct clk *gpu_parents[2] = {&codec_pll_clk, &general_pll_clk};
 
@@ -1279,8 +1316,13 @@ static struct clk clk_gpu = {
 	.name		= "gpu",
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
-	.round_rate	= clk_freediv_round_autosel_parents_rate,
-	.set_rate	= clksel_set_rate_freediv,
+#ifdef GPU_CORE_ACLK_CTR_TOGETHER	
+	.round_rate	= clk_gpu_ref_round_rate,
+	.set_rate		= clk_gpu_ref_set_rate,
+#else
+	.round_rate	= clksel_freediv_round_rate,
+	.set_rate		= clk_gpu_set_rate_callback,
+#endif	
 	.clksel_con 	= CRU_CLKSELS_CON(33),
 	.gate_idx	= CLK_GATE_CLK_GPU,
 	CRU_DIV_SET(0x1f, 0, 32),
@@ -1289,18 +1331,40 @@ static struct clk clk_gpu = {
 };
 #ifdef ARCH_RK31
 static struct clk *gpu_aclk_parents[2] = {&codec_pll_clk, &general_pll_clk};
-
 static struct clk aclk_gpu = {
 	.name		= "aclk_gpu",
 	.recalc		= clksel_recalc_div,
-	.round_rate	= clk_freediv_round_autosel_parents_rate,
-	.set_rate	= clksel_set_rate_freediv,
+	.round_rate	= clksel_freediv_round_rate,
+	.set_rate		= clk_gpu_set_rate_callback,
 	.clksel_con 	= CRU_CLKSELS_CON(34),
 	CRU_DIV_SET(0x1f, 0, 32),
 	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(gpu_parents),
 };
 
+#ifdef GPU_CORE_ACLK_CTR_TOGETHER	
+static int clk_aclk_gpu_null_set_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+};
+
+static long clk_aclk_gpu_null_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk->parent->round_rate(clk->parent,rate);
+}
+static unsigned long  clk_aclk_gpu_null_recalc_div(struct clk *clk)
+{
+		return clk->parent->rate;
+}
+//gpu and gpu together ctr,this clk is following aclk gpu.
+static struct clk aclk_gpu_null = {
+	.name		= "aclk_gpu_null",	
+	.parent		= &aclk_gpu,
+	.recalc		= clk_aclk_gpu_null_recalc_div,
+	.round_rate	= clk_aclk_gpu_null_round_rate,
+	.set_rate	= clk_aclk_gpu_null_set_rate,
+};
+#endif
 static struct clk aclk_gpu_slv = {
 	.name		= "aclk_gpu_slv",
 	.parent		= &aclk_gpu,
@@ -2524,7 +2588,12 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "ahb2apb_cpu", &ahb2apb_cpu),
 
 	CLK1(gpu),
+	#ifdef GPU_CORE_ACLK_CTR_TOGETHER
+	CLK(NULL, "aclk_gpu_real",&aclk_gpu),
+	CLK(NULL, "aclk_gpu",	  &aclk_gpu_null),	
+	#else
 	CLK(NULL, "aclk_gpu", 	&aclk_gpu),
+	#endif
 	CLK(NULL, "gpu_slv", 	&aclk_gpu_slv),
 	CLK(NULL, "gpu_mst", 	&aclk_gpu_mst),
 
