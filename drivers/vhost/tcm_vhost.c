@@ -430,40 +430,47 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
  * Returns the number of scatterlist entries used or -errno on error.
  */
 static int vhost_scsi_map_to_sgl(struct scatterlist *sgl,
-	unsigned int sgl_count, void __user *ptr, size_t len, int write)
+	unsigned int sgl_count, struct iovec *iov, int write)
 {
+	unsigned int npages = 0, pages_nr, offset, nbytes;
 	struct scatterlist *sg = sgl;
-	unsigned int npages = 0;
-	int ret;
+	void __user *ptr = iov->iov_base;
+	size_t len = iov->iov_len;
+	struct page **pages;
+	int ret, i;
+
+	pages_nr = iov_num_pages(iov);
+	if (pages_nr > sgl_count)
+		return -ENOBUFS;
+
+	pages = kmalloc(pages_nr * sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	ret = get_user_pages_fast((unsigned long)ptr, pages_nr, write, pages);
+	/* No pages were pinned */
+	if (ret < 0)
+		goto out;
+	/* Less pages pinned than wanted */
+	if (ret != pages_nr) {
+		for (i = 0; i < ret; i++)
+			put_page(pages[i]);
+		ret = -EFAULT;
+		goto out;
+	}
 
 	while (len > 0) {
-		struct page *page;
-		unsigned int offset = (uintptr_t)ptr & ~PAGE_MASK;
-		unsigned int nbytes = min_t(unsigned int,
-				PAGE_SIZE - offset, len);
-
-		if (npages == sgl_count) {
-			ret = -ENOBUFS;
-			goto err;
-		}
-
-		ret = get_user_pages_fast((unsigned long)ptr, 1, write, &page);
-		BUG_ON(ret == 0); /* we should either get our page or fail */
-		if (ret < 0)
-			goto err;
-
-		sg_set_page(sg, page, nbytes, offset);
+		offset = (uintptr_t)ptr & ~PAGE_MASK;
+		nbytes = min_t(unsigned int, PAGE_SIZE - offset, len);
+		sg_set_page(sg, pages[npages], nbytes, offset);
 		ptr += nbytes;
 		len -= nbytes;
 		sg++;
 		npages++;
 	}
-	return npages;
 
-err:
-	/* Put pages that we hold */
-	for (sg = sgl; sg != &sgl[npages]; sg++)
-		put_page(sg_page(sg));
+out:
+	kfree(pages);
 	return ret;
 }
 
@@ -496,8 +503,7 @@ static int vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 
 	pr_debug("Mapping %u iovecs for %u pages\n", niov, sgl_count);
 	for (i = 0; i < niov; i++) {
-		ret = vhost_scsi_map_to_sgl(sg, sgl_count, iov[i].iov_base,
-					iov[i].iov_len, write);
+		ret = vhost_scsi_map_to_sgl(sg, sgl_count, &iov[i], write);
 		if (ret < 0) {
 			for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
 				put_page(sg_page(&tv_cmd->tvc_sgl[i]));
