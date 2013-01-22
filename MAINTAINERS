@@ -2974,11 +2974,6 @@ S:	Maintained
 F:	include/linux/netfilter_bridge/
 F:	net/bridge/
 
-ETHERTEAM 16I DRIVER
-M:	Mika Kuoppala <miku@iki.fi>
-S:	Maintained
-F:	drivers/net/ethernet/fujitsu/eth16i.c
-
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
@@ -5369,13 +5364,6 @@ F:	include/linux/nfs*
 F:	include/linux/sunrpc/
 F:	include/uapi/linux/nfs*
 F:	include/uapi/linux/sunrpc/
-
-NI5010 NETWORK DRIVER
-M:	Jan-Pascal van Best <janpascal@vanbest.org>
-M:	Andreas Mohr <andi@lisas.de>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/racal/ni5010.*
 
 NILFS2 FILESYSTEM
 M:	KONISHI Ryusuke <konishi.ryusuke@lab.ntt.co.jp>

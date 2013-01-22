@@ -21,18 +21,6 @@ config NET_VENDOR_8390
 
 if NET_VENDOR_8390
 
-config EL2
-	tristate "3c503 \"EtherLink II\" support"
-	depends on ISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c503.
-
 config PCMCIA_AXNET
 	tristate "Asix AX88190 PCMCIA support"
 	depends on PCMCIA
@@ -61,42 +49,6 @@ config AX88796_93CX6
 	select EEPROM_93CX6
 	---help---
 	  Select this if your platform comes with an external 93CX6 eeprom.
-
-config E2100
-	tristate "Cabletron E21xx support"
-	depends on ISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called e2100.
-
-config HPLAN_PLUS
-	tristate "HP PCLAN+ (27247B and 27252A) support"
-	depends on ISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called hp-plus.
-
-config HPLAN
-	tristate "HP PCLAN (27245 and other 27xxx series) support"
-	depends on ISA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called hp.
 
 config HYDRA
 	tristate "Hydra support"

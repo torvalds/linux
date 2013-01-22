@@ -40,26 +40,11 @@
 extern struct net_device *hp100_probe(int unit);
 extern struct net_device *ultra_probe(int unit);
 extern struct net_device *wd_probe(int unit);
-extern struct net_device *el2_probe(int unit);
 extern struct net_device *ne_probe(int unit);
-extern struct net_device *hp_probe(int unit);
-extern struct net_device *hp_plus_probe(int unit);
-extern struct net_device *express_probe(int unit);
-extern struct net_device *eepro_probe(int unit);
-extern struct net_device *at1700_probe(int unit);
 extern struct net_device *fmv18x_probe(int unit);
-extern struct net_device *eth16i_probe(int unit);
 extern struct net_device *i82596_probe(int unit);
-extern struct net_device *ewrk3_probe(int unit);
-extern struct net_device *el1_probe(int unit);
-extern struct net_device *el16_probe(int unit);
-extern struct net_device *elplus_probe(int unit);
-extern struct net_device *e2100_probe(int unit);
-extern struct net_device *ni5010_probe(int unit);
-extern struct net_device *ni52_probe(int unit);
 extern struct net_device *ni65_probe(int unit);
 extern struct net_device *sonic_probe(int unit);
-extern struct net_device *seeq8005_probe(int unit);
 extern struct net_device *smc_init(int unit);
 extern struct net_device *atarilance_probe(int unit);
 extern struct net_device *sun3lance_probe(int unit);
@@ -73,9 +58,6 @@ extern struct net_device *mac8390_probe(int unit);
 extern struct net_device *mac89x0_probe(int unit);
 extern struct net_device *cops_probe(int unit);
 extern struct net_device *ltpc_probe(void);
-
-/* Detachable devices ("pocket adaptors") */
-extern struct net_device *de620_probe(int unit);
 
 /* Fibre Channel adapters */
 extern int iph5526_probe(struct net_device *dev);
@@ -120,18 +102,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_WD80x3
 	{wd_probe, 0},
 #endif
-#ifdef CONFIG_EL2 		/* 3c503 */
-	{el2_probe, 0},
-#endif
-#ifdef CONFIG_HPLAN
-	{hp_probe, 0},
-#endif
-#ifdef CONFIG_HPLAN_PLUS
-	{hp_plus_probe, 0},
-#endif
-#ifdef CONFIG_E2100		/* Cabletron E21xx series. */
-	{e2100_probe, 0},
-#endif
 #if defined(CONFIG_NE2000) || \
     defined(CONFIG_NE_H8300)  /* ISA (use ne2k-pci for PCI cards) */
 	{ne_probe, 0},
@@ -142,56 +112,16 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_SMC9194
 	{smc_init, 0},
 #endif
-#ifdef CONFIG_SEEQ8005
-	{seeq8005_probe, 0},
-#endif
 #ifdef CONFIG_CS89x0
 #ifndef CONFIG_CS89x0_PLATFORM
  	{cs89x0_probe, 0},
 #endif
 #endif
-#ifdef CONFIG_AT1700
-	{at1700_probe, 0},
-#endif
-#ifdef CONFIG_ETH16I
-	{eth16i_probe, 0},	/* ICL EtherTeam 16i/32 */
-#endif
-#ifdef CONFIG_EEXPRESS		/* Intel EtherExpress */
-	{express_probe, 0},
-#endif
-#ifdef CONFIG_EEXPRESS_PRO	/* Intel EtherExpress Pro/10 */
-	{eepro_probe, 0},
-#endif
-#ifdef CONFIG_EWRK3             /* DEC EtherWORKS 3 */
-    	{ewrk3_probe, 0},
-#endif
-#if defined(CONFIG_APRICOT) || defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel I82596 */
+#if defined(CONFIG_MVME16x_NET) || defined(CONFIG_BVME6000_NET)	/* Intel I82596 */
 	{i82596_probe, 0},
-#endif
-#ifdef CONFIG_EL1		/* 3c501 */
-	{el1_probe, 0},
-#endif
-#ifdef CONFIG_EL16		/* 3c507 */
-	{el16_probe, 0},
-#endif
-#ifdef CONFIG_ELPLUS		/* 3c505 */
-	{elplus_probe, 0},
-#endif
-#ifdef CONFIG_NI5010
-	{ni5010_probe, 0},
-#endif
-#ifdef CONFIG_NI52
-	{ni52_probe, 0},
 #endif
 #ifdef CONFIG_NI65
 	{ni65_probe, 0},
-#endif
-	{NULL, 0},
-};
-
-static struct devprobe2 parport_probes[] __initdata = {
-#ifdef CONFIG_DE620		/* D-Link DE-620 adapter */
-	{de620_probe, 0},
 #endif
 	{NULL, 0},
 };
@@ -234,8 +164,7 @@ static void __init ethif_probe2(int unit)
 		return;
 
 	(void)(	probe_list2(unit, m68k_probes, base_addr == 0) &&
-		probe_list2(unit, isa_probes, base_addr == 0) &&
-		probe_list2(unit, parport_probes, base_addr == 0));
+		probe_list2(unit, isa_probes, base_addr == 0));
 }
 
 /*  Statically configured drivers -- order matters here. */
