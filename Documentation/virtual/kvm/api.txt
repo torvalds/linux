@@ -2222,6 +2222,7 @@ Errors:
   ENXIO:  Device not supported on current system
   EEXIST: Address already set
   E2BIG:  Address outside guest physical address space
+  EBUSY:  Address overlaps with other device range
 
 struct kvm_arm_device_addr {
 	__u64 id;

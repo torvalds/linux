@@ -22,6 +22,9 @@
 #include <linux/irqchip/arm-gic.h>
 
 struct vgic_dist {
+	/* Distributor and vcpu interface mapping in the guest */
+	phys_addr_t		vgic_dist_base;
+	phys_addr_t		vgic_cpu_base;
 };
 
 struct vgic_cpu {
@@ -33,11 +36,17 @@ struct kvm_run;
 struct kvm_exit_mmio;
 
 #ifdef CONFIG_KVM_ARM_VGIC
+int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr);
 bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
 
 #else
 static inline int kvm_vgic_hyp_init(void)
+{
+	return 0;
+}
+
+static inline int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
 {
 	return 0;
 }
