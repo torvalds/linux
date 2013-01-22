@@ -23,6 +23,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/prom.h>
+#include <asm/unwind.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -105,6 +106,8 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 
+	arc_unwind_init();
+	arc_unwind_setup();
 }
 
 /*

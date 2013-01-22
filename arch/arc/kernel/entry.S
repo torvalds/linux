@@ -815,3 +815,12 @@ ARC_ENTRY sys_clone_wrapper
 
 	b ret_from_system_call
 ARC_EXIT sys_clone_wrapper
+
+#ifdef CONFIG_ARC_DW2_UNWIND
+; Workaround for bug 94179 (STAR ):
+; Despite -fasynchronous-unwind-tables, linker is not making dwarf2 unwinder
+; section (.debug_frame) as loadable. So we force it here.
+; This also fixes STAR 9000487933 where the prev-workaround (objcopy --setflag)
+; would not work after a clean build due to kernel build system dependencies.
+.section .debug_frame, "wa",@progbits
+#endif

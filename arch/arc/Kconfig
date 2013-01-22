@@ -25,6 +25,7 @@ config ARC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_MEMBLOCK
+	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
 	select HAVE_OPROFILE
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
@@ -343,6 +344,20 @@ config HZ
 menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
+
+config ARC_DW2_UNWIND
+	bool "Enable DWARF specific kernel stack unwind"
+	depends on ARC_DBG
+	default y
+	select KALLSYMS
+	help
+	  Compiles the kernel with DWARF unwind information and can be used
+	  to get stack backtraces.
+
+	  If you say Y here the resulting kernel image will be slightly larger
+	  but not slower, and it will give very useful debugging information.
+	  If you don't debug the kernel, you can say N, but we may not be able
+	  to solve problems without frame unwind information
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"

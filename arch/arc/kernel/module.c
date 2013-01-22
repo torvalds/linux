@@ -14,11 +14,48 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <asm/unwind.h>
 
 static inline void arc_write_me(unsigned short *addr, unsigned long value)
 {
 	*addr = (value & 0xffff0000) >> 16;
 	*(addr + 1) = (value & 0xffff);
+}
+
+/* ARC specific section quirks - before relocation loop in generic loader
+ *
+ * For dwarf unwinding out of modules, this needs to
+ * 1. Ensure the .debug_frame is allocatable (ARC Linker bug: despite
+ *    -fasynchronous-unwind-tables it doesn't).
+ * 2. Since we are iterating thru sec hdr tbl anyways, make a note of
+ *    the exact section index, for later use.
+ */
+int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+			      char *secstr, struct module *mod)
+{
+#ifdef CONFIG_ARC_DW2_UNWIND
+	int i;
+
+	mod->arch.unw_sec_idx = 0;
+	mod->arch.unw_info = NULL;
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		if (strcmp(secstr+sechdrs[i].sh_name, ".debug_frame") == 0) {
+			sechdrs[i].sh_flags |= SHF_ALLOC;
+			mod->arch.unw_sec_idx = i;
+			break;
+		}
+	}
+#endif
+    return 0;
+}
+
+void module_arch_cleanup(struct module *mod)
+{
+#ifdef CONFIG_ARC_DW2_UNWIND
+	if (mod->arch.unw_info)
+		unwind_remove_table(mod->arch.unw_info, 0);
+#endif
 }
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,
@@ -84,4 +121,25 @@ relo_err:
 		module->name, ELF32_R_TYPE(rel_entry[i].r_info));
 	return -ENOEXEC;
 
+}
+
+/* Just before lift off: After sections have been relocated, we add the
+ * dwarf section to unwinder table pool
+ * This couldn't be done in module_frob_arch_sections() because
+ * relocations had not been applied by then
+ */
+int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
+		    struct module *mod)
+{
+#ifdef CONFIG_ARC_DW2_UNWIND
+	void *unw;
+	int unwsec = mod->arch.unw_sec_idx;
+
+	if (unwsec) {
+		unw = unwind_add_table(mod, (void *)sechdrs[unwsec].sh_addr,
+				       sechdrs[unwsec].sh_size);
+		mod->arch.unw_info = unw;
+	}
+#endif
+    return 0;
 }
