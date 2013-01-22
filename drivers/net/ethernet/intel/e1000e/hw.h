@@ -244,28 +244,6 @@ enum e1e_registers {
 	E1000_RXUDP     = 0x0B638, /* Timesync Rx UDP Port - RW */
 };
 
-/* manage.c */
-#define E1000_VFTA_ENTRY_SHIFT		5
-#define E1000_VFTA_ENTRY_MASK		0x7F
-#define E1000_VFTA_ENTRY_BIT_SHIFT_MASK	0x1F
-
-#define E1000_HICR_EN			0x01  /* Enable bit - RO */
-/* Driver sets this bit when done to put command in RAM */
-#define E1000_HICR_C			0x02
-#define E1000_HICR_FW_RESET_ENABLE	0x40
-#define E1000_HICR_FW_RESET		0x80
-
-#define E1000_FWSM_MODE_MASK		0xE
-#define E1000_FWSM_MODE_SHIFT		1
-
-#define E1000_MNG_IAMT_MODE		0x3
-#define E1000_MNG_DHCP_COOKIE_LENGTH	0x10
-#define E1000_MNG_DHCP_COOKIE_OFFSET	0x6F0
-#define E1000_MNG_DHCP_COMMAND_TIMEOUT	10
-#define E1000_MNG_DHCP_TX_PAYLOAD_CMD	64
-#define E1000_MNG_DHCP_COOKIE_STATUS_PARSING	0x1
-#define E1000_MNG_DHCP_COOKIE_STATUS_VLAN	0x2
-
 #define E1000_DEV_ID_82571EB_COPPER		0x105E
 #define E1000_DEV_ID_82571EB_FIBER		0x105F
 #define E1000_DEV_ID_82571EB_SERDES		0x1060
@@ -675,6 +653,7 @@ struct e1000_host_mng_command_info {
 #include "mac.h"
 #include "phy.h"
 #include "nvm.h"
+#include "manage.h"
 
 /* Function pointers for the MAC. */
 struct e1000_mac_operations {

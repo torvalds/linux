@@ -510,8 +510,6 @@ extern const struct e1000_info e1000_pch2_info;
 extern const struct e1000_info e1000_pch_lpt_info;
 extern const struct e1000_info e1000_es2_info;
 
-extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
-
 extern void e1000e_ptp_init(struct e1000_adapter *adapter);
 extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
 
@@ -574,10 +572,6 @@ static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 {
 	return hw->phy.ops.get_info(hw);
 }
-
-extern bool e1000e_check_mng_mode_generic(struct e1000_hw *hw);
-extern bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw);
-extern s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 
 static inline u32 __er32(struct e1000_hw *hw, unsigned long reg)
 {
