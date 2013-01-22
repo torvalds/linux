@@ -1051,7 +1051,7 @@ retry:
 		ipv6_add_addr(idev, &addr, tmp_plen,
 			      ipv6_addr_type(&addr)&IPV6_ADDR_SCOPE_MASK,
 			      addr_flags) : NULL;
-	if (!ift || IS_ERR(ift)) {
+	if (IS_ERR_OR_NULL(ift)) {
 		in6_ifa_put(ifp);
 		in6_dev_put(idev);
 		pr_info("%s: retry temporary address regeneration\n", __func__);
@@ -2079,7 +2079,7 @@ ok:
 						    addr_type&IPV6_ADDR_SCOPE_MASK,
 						    addr_flags);
 
-			if (!ifp || IS_ERR(ifp)) {
+			if (IS_ERR_OR_NULL(ifp)) {
 				in6_dev_put(in6_dev);
 				return;
 			}
