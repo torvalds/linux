@@ -309,6 +309,9 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 				return;
 			}
 
+			IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id,
+				     txq->q.write_ptr);
+
 			iwl_write_direct32(trans, HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
 
@@ -615,7 +618,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	if (txq->q.n_bd) {
 		dma_free_coherent(dev, sizeof(struct iwl_tfd) *
 				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
-		memset(&txq->q.dma_addr, 0, sizeof(txq->q.dma_addr));
+		txq->q.dma_addr = 0;
 	}
 
 	kfree(txq->entries);
@@ -641,9 +644,11 @@ static void iwl_pcie_txq_set_sched(struct iwl_trans *trans, u32 mask)
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 a;
+	int nq = trans->cfg->base_params->num_of_queues;
 	int chan;
 	u32 reg_val;
+	int clear_dwords = (SCD_TRANS_TBL_OFFSET_QUEUE(nq) -
+				SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(u32);
 
 	/* make sure all queue are not stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
@@ -655,20 +660,10 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	WARN_ON(scd_base_addr != 0 &&
 		scd_base_addr != trans_pcie->scd_base_addr);
 
-	a = trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
-	/* reset conext data memory */
-	for (; a < trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
-	/* reset tx status memory */
-	for (; a < trans_pcie->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
-		a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
-	for (; a < trans_pcie->scd_base_addr +
-	       SCD_TRANS_TBL_OFFSET_QUEUE(
-				trans->cfg->base_params->num_of_queues);
-	       a += 4)
-		iwl_trans_write_mem32(trans, a, 0);
+	/* reset context data, TX status and translation data */
+	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
+				   SCD_CONTEXT_MEM_LOWER_BOUND,
+			    NULL, clear_dwords);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
@@ -698,6 +693,29 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	/* Enable L1-Active */
 	iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
 			    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+}
+
+void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int txq_id;
+
+	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
+	     txq_id++) {
+		struct iwl_txq *txq = &trans_pcie->txq[txq_id];
+
+		iwl_write_direct32(trans, FH_MEM_CBBC_QUEUE(txq_id),
+				   txq->q.dma_addr >> 8);
+		iwl_pcie_txq_unmap(trans, txq_id);
+		txq->q.read_ptr = 0;
+		txq->q.write_ptr = 0;
+	}
+
+	/* Tell NIC where to find the "keep warm" buffer */
+	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
+			   trans_pcie->kw.dma >> 4);
+
+	iwl_pcie_tx_start(trans, trans_pcie->scd_base_addr);
 }
 
 /*
@@ -1644,10 +1662,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
-
-	IWL_DEBUG_TX(trans, "sequence nr = 0X%x\n",
-		     le16_to_cpu(dev_cmd->hdr.sequence));
-	IWL_DEBUG_TX(trans, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));

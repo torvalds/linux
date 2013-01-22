@@ -206,7 +206,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
-	    priv->trans->ops->wowlan_suspend &&
+	    priv->trans->ops->d3_suspend &&
+	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
@@ -426,7 +427,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	iwl_trans_wowlan_suspend(priv->trans);
+	iwl_trans_d3_suspend(priv->trans);
 
 	goto out;
 
@@ -519,9 +520,6 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw,
 			  struct sk_buff *skb)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-
-	IWL_DEBUG_TX(priv, "dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (iwlagn_tx_skb(priv, control->sta, skb))
 		ieee80211_free_txskb(hw, skb);

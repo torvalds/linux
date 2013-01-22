@@ -308,6 +308,16 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 #define IWL_FRAME_LIMIT	64
 
 /**
+ * enum iwl_wowlan_status - WoWLAN image/device status
+ * @IWL_D3_STATUS_ALIVE: firmware is still running after resume
+ * @IWL_D3_STATUS_RESET: device was reset while suspended
+ */
+enum iwl_d3_status {
+	IWL_D3_STATUS_ALIVE,
+	IWL_D3_STATUS_RESET,
+};
+
+/**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
@@ -363,9 +373,12 @@ struct iwl_trans;
  *	May sleep
  * @stop_device:stops the whole device (embedded CPU put to reset)
  *	May sleep
- * @wowlan_suspend: put the device into the correct mode for WoWLAN during
+ * @d3_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
+ * @d3_resume: resume the device after WoWLAN, enabling the opmode to
+ *	talk to the WoWLAN image to get its status. This is optional, if not
+ *	implemented WoWLAN will not be supported. This callback may sleep.
  * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
  *	If RFkill is asserted in the middle of a SYNC host command, it must
  *	return -ERFKILL straight away.
@@ -391,7 +404,8 @@ struct iwl_trans;
  * @read_prph: read a DWORD from a periphery register
  * @write_prph: write a DWORD to a periphery register
  * @read_mem: read device's SRAM in DWORD
- * @write_mem: write device's SRAM in DWORD
+ * @write_mem: write device's SRAM in DWORD. If %buf is %NULL, then the memory
+ *	will be zeroed.
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
@@ -408,7 +422,8 @@ struct iwl_trans_ops {
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
-	void (*wowlan_suspend)(struct iwl_trans *trans);
+	void (*d3_suspend)(struct iwl_trans *trans);
+	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -561,10 +576,17 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_wowlan_suspend(struct iwl_trans *trans)
+static inline void iwl_trans_d3_suspend(struct iwl_trans *trans)
 {
 	might_sleep();
-	trans->ops->wowlan_suspend(trans);
+	trans->ops->d3_suspend(trans);
+}
+
+static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
+				      enum iwl_d3_status *status)
+{
+	might_sleep();
+	return trans->ops->d3_resume(trans, status);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
