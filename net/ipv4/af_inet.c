@@ -1333,7 +1333,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		segs = ops->callbacks.gso_segment(skb, features);
 	rcu_read_unlock();
 
-	if (!segs || IS_ERR(segs))
+	if (IS_ERR_OR_NULL(segs))
 		goto out;
 
 	skb = segs;

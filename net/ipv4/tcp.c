@@ -3243,7 +3243,7 @@ __tcp_alloc_md5sig_pool(struct sock *sk)
 		struct crypto_hash *hash;
 
 		hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-		if (!hash || IS_ERR(hash))
+		if (IS_ERR_OR_NULL(hash))
 			goto out_free;
 
 		per_cpu_ptr(pool, cpu)->md5_desc.tfm = hash;

@@ -971,7 +971,7 @@ back_from_confirm:
 				  sizeof(struct udphdr), &ipc, &rt,
 				  msg->msg_flags);
 		err = PTR_ERR(skb);
-		if (skb && !IS_ERR(skb))
+		if (!IS_ERR_OR_NULL(skb))
 			err = udp_send_skb(skb, fl4);
 		goto out;
 	}
