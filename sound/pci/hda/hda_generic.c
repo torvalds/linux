@@ -2840,6 +2840,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	codec->cached_write = 0;
 	mutex_unlock(&codec->control_mutex);
 	snd_hda_codec_flush_amp_cache(codec); /* flush the updates */
+	snd_hda_codec_flush_cmd_cache(codec);
 	if (err >= 0 && spec->cap_sync_hook)
 		spec->cap_sync_hook(codec, ucontrol);
 	return err;
