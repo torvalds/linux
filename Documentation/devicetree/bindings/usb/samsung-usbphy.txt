@@ -1,12 +1,20 @@
 * Samsung's usb phy transceiver
 
-The Samsung's phy transceiver is used for controlling usb otg phy for
-s3c-hsotg usb device controller.
+The Samsung's phy transceiver is used for controlling usb phy for
+s3c-hsotg as well as ehci-s5p and ohci-exynos usb controllers
+across Samsung SOCs.
 TODO: Adding the PHY binding with controller(s) according to the under
 developement generic PHY driver.
 
 Required properties:
+
+Exynos4210:
 - compatible : should be "samsung,exynos4210-usbphy"
+- reg : base physical address of the phy registers and length of memory mapped
+	region.
+
+Exynos5250:
+- compatible : should be "samsung,exynos5250-usbphy"
 - reg : base physical address of the phy registers and length of memory mapped
 	region.
 
