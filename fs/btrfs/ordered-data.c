@@ -626,14 +626,10 @@ int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
 
 	mutex_lock(&root->fs_info->ordered_operations_mutex);
 	spin_lock(&root->fs_info->ordered_extent_lock);
-again:
 	list_splice_init(&root->fs_info->ordered_operations, &splice);
-
 	while (!list_empty(&splice)) {
-
 		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
 				   ordered_operations);
-
 		inode = &btrfs_inode->vfs_inode;
 
 		list_del_init(&btrfs_inode->ordered_operations);
@@ -642,22 +638,20 @@ again:
 		 * the inode may be getting freed (in sys_unlink path).
 		 */
 		inode = igrab(inode);
-
-		if (!wait && inode) {
-			list_add_tail(&BTRFS_I(inode)->ordered_operations,
-			      &root->fs_info->ordered_operations);
-		}
-
 		if (!inode)
 			continue;
+
+		if (!wait)
+			list_add_tail(&BTRFS_I(inode)->ordered_operations,
+				      &root->fs_info->ordered_operations);
 		spin_unlock(&root->fs_info->ordered_extent_lock);
 
 		work = btrfs_alloc_delalloc_work(inode, wait, 1);
 		if (!work) {
+			spin_lock(&root->fs_info->ordered_extent_lock);
 			if (list_empty(&BTRFS_I(inode)->ordered_operations))
 				list_add_tail(&btrfs_inode->ordered_operations,
 					      &splice);
-			spin_lock(&root->fs_info->ordered_extent_lock);
 			list_splice_tail(&splice,
 					 &root->fs_info->ordered_operations);
 			spin_unlock(&root->fs_info->ordered_extent_lock);
@@ -671,9 +665,6 @@ again:
 		cond_resched();
 		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
-	if (wait && !list_empty(&root->fs_info->ordered_operations))
-		goto again;
-
 	spin_unlock(&root->fs_info->ordered_extent_lock);
 out:
 	list_for_each_entry_safe(work, next, &works, list) {
