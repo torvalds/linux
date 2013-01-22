@@ -254,14 +254,43 @@ struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk)
 	return table;
 }
 
+
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table)
 {
 	struct clk_node *info = clk_get_dvfs_info(clk);
-	if (!table || !info)
+	int i=0;
+
+	if (!info)
+		return -1;	
+	if (!table)
+	{		
+		info->min_rate=0;	
+		info->max_rate=0;	
 		return -1;
+	}
 
 	mutex_lock(&mutex);
 	info->dvfs_table = table;
+	if(table[0].frequency!= CPUFREQ_TABLE_END)
+	{
+
+		info->min_rate=(table[0].frequency/1000)*1000*1000;//to hz
+	}
+	else
+	{
+		info->min_rate=0;	
+		info->max_rate=0;	
+		return -1;
+	}
+
+	for(i=0;table[i].frequency!= CPUFREQ_TABLE_END;i++)
+	{
+	
+	}	
+	info->max_rate=(table[i-1].frequency/1000)*1000*1000;
+
+	DVFS_DBG("%s,clk %s,limit max=%lu,min=%lu\n",__FUNCTION__,info->name,info->max_rate,info->min_rate);
+
 	mutex_unlock(&mutex);
 	return 0;
 }

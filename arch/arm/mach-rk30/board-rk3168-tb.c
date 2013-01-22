@@ -1978,13 +1978,18 @@ static struct cpufreq_frequency_table dvfs_arm_table[] = {
         {.frequency = CPUFREQ_TABLE_END},
 };
 
-static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-        {.frequency = 100 * 1000,       .index = 900 * 1000},
-        {.frequency = 200 * 1000,       .index = 950 * 1000},
-        {.frequency = 266 * 1000,       .index = 950 * 1000},
-        {.frequency = 300 * 1000,       .index = 950 * 1000},
-        {.frequency = 400 * 1000,       .index = 1000 * 1000},
-        {.frequency = 600 * 1000,       .index = 1100 * 1000},
+static struct cpufreq_frequency_table dvfs_gpu_table[] = {	
+#if defined(CONFIG_ARCH_RK3188)
+        {.frequency = 133 * 1000,       .index = 900 * 1000},//the mininum rate is limited 133M for rk3188
+#elif defined(CONFIG_ARCH_RK3066B)
+	{.frequency = 100 * 1000, 	.index = 900 * 1000},//the minimum rate is no limit for rk3168 rk3066B
+#endif
+
+	{.frequency = 200 * 1000,       .index = 950 * 1000},
+	{.frequency = 266 * 1000,       .index = 950 * 1000},
+	{.frequency = 300 * 1000,       .index = 950 * 1000},
+	{.frequency = 400 * 1000,       .index = 1000 * 1000},
+	{.frequency = 600 * 1000,       .index = 1100 * 1000},
         {.frequency = CPUFREQ_TABLE_END},
 };
 

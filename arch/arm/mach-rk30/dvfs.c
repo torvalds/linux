@@ -170,13 +170,13 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	}
 
 	/* Check limit rate */
-	if (dvfs_clk->freq_limit_en) {
+	//if (dvfs_clk->freq_limit_en) {
 		if (rate_hz < dvfs_clk->min_rate) {
 			rate_hz = dvfs_clk->min_rate;
 		} else if (rate_hz > dvfs_clk->max_rate) {
 			rate_hz = dvfs_clk->max_rate;
 		}
-	}
+	//}
 
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
@@ -303,13 +303,13 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	}
 
 	/* Check limit rate */
-	if (dvfs_clk->freq_limit_en) {
+	//if (dvfs_clk->freq_limit_en) {
 		if (rate_hz < dvfs_clk->min_rate) {
 			rate_hz = dvfs_clk->min_rate;
 		} else if (rate_hz > dvfs_clk->max_rate) {
 			rate_hz = dvfs_clk->max_rate;
 		}
-	}
+	//}
 
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
