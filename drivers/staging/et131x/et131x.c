@@ -3456,6 +3456,7 @@ static void et131x_get_regs(struct net_device *netdev,
 	struct address_map __iomem *aregs = adapter->regs;
 	u32 *regs_buff = regs_data;
 	u32 num = 0;
+	u16 tmp;
 
 	memset(regs_data, 0, et131x_get_regs_len(netdev));
 
@@ -3463,44 +3464,68 @@ static void et131x_get_regs(struct net_device *netdev,
 			adapter->pdev->device;
 
 	/* PHY regs */
-	et131x_mii_read(adapter, MII_BMCR, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_BMSR, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_PHYSID1, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_PHYSID2, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_ADVERTISE, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_LPA, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_EXPANSION, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, MII_BMCR, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_BMSR, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_PHYSID1, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_PHYSID2, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_ADVERTISE, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_LPA, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_EXPANSION, &tmp);
+	regs_buff[num++] = tmp;
 	/* Autoneg next page transmit reg */
-	et131x_mii_read(adapter, 0x07, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x07, &tmp);
+	regs_buff[num++] = tmp;
 	/* Link partner next page reg */
-	et131x_mii_read(adapter, 0x08, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_CTRL1000, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_STAT1000, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, 0x0b, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, 0x0c, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_MMD_CTRL, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_MMD_DATA, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_ESTATUS, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x08, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_CTRL1000, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_STAT1000, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, 0x0b, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, 0x0c, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_MMD_CTRL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_MMD_DATA, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_ESTATUS, &tmp);
+	regs_buff[num++] = tmp;
 
-	et131x_mii_read(adapter, PHY_INDEX_REG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_DATA_REG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL+1,
-			(u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, PHY_INDEX_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_DATA_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL + 1, &tmp);
+	regs_buff[num++] = tmp;
 
-	et131x_mii_read(adapter, PHY_REGISTER_MGMT_CONTROL,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_CONFIG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_PHY_CONTROL, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_PHY_STATUS, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LED_1, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LED_2, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, PHY_REGISTER_MGMT_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_CONFIG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_PHY_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_PHY_STATUS, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LED_1, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LED_2, &tmp);
+	regs_buff[num++] = tmp;
 
 	/* Global regs */
 	regs_buff[num++] = readl(&aregs->global.txq_start_addr);
