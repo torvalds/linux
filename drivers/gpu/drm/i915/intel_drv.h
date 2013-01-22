@@ -211,6 +211,7 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
+	bool eld_vld;
 	bool primary_disabled; /* is the crtc obscured by a plane? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
