@@ -32,6 +32,31 @@
 #define GIC_DIST_CONFIG			0xc00
 #define GIC_DIST_SOFTINT		0xf00
 
+#define GICH_HCR			0x0
+#define GICH_VTR			0x4
+#define GICH_VMCR			0x8
+#define GICH_MISR			0x10
+#define GICH_EISR0 			0x20
+#define GICH_EISR1 			0x24
+#define GICH_ELRSR0 			0x30
+#define GICH_ELRSR1 			0x34
+#define GICH_APR			0xf0
+#define GICH_LR0			0x100
+
+#define GICH_HCR_EN			(1 << 0)
+#define GICH_HCR_UIE			(1 << 1)
+
+#define GICH_LR_VIRTUALID		(0x3ff << 0)
+#define GICH_LR_PHYSID_CPUID_SHIFT	(10)
+#define GICH_LR_PHYSID_CPUID		(7 << GICH_LR_PHYSID_CPUID_SHIFT)
+#define GICH_LR_STATE			(3 << 28)
+#define GICH_LR_PENDING_BIT		(1 << 28)
+#define GICH_LR_ACTIVE_BIT		(1 << 29)
+#define GICH_LR_EOI			(1 << 19)
+
+#define GICH_MISR_EOI			(1 << 0)
+#define GICH_MISR_U			(1 << 1)
+
 struct device_node;
 
 extern struct irq_chip gic_arch_extn;
