@@ -100,6 +100,8 @@ ifneq ($(platform-y),)
 core-y		+= arch/arc/plat-$(PLATFORM)/
 endif
 
+drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
+
 libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 #default target for make without any arguements.
