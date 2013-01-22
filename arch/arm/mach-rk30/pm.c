@@ -200,7 +200,7 @@ static noinline void rk30_pm_dump_irq(void)
 	DUMP_GPIO_INT_STATUS(1);
 	DUMP_GPIO_INT_STATUS(2);
 	DUMP_GPIO_INT_STATUS(3);
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
 	DUMP_GPIO_INT_STATUS(4);
 	DUMP_GPIO_INT_STATUS(6);
 #endif
@@ -223,7 +223,7 @@ static noinline void rk30_pm_dump_inten(void)
 	DUMP_GPIO_INTEN(1);
 	DUMP_GPIO_INTEN(2);
 	DUMP_GPIO_INTEN(3);
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
 	DUMP_GPIO_INTEN(4);
 	DUMP_GPIO_INTEN(6);
 #endif
@@ -232,7 +232,8 @@ static noinline void rk30_pm_dump_inten(void)
 static void pm_pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4] = { 1, 0, 2, 3 };
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+
 	u32 bit = 0x20u << pll_state[pll_idx];
 #else
 	u32 bit = 0x10u << pll_state[pll_idx];
@@ -259,7 +260,7 @@ static void pm_pll_wait_lock(int pll_idx)
 	}
 }
 
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define power_on_pll(id) \
 	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((id), 3));\
 	pm_pll_wait_lock((id))
@@ -327,7 +328,9 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK30_DDR_PUBL_BASE);
 	readl_relaxed(RK30_I2C1_BASE+SZ_4K);
 	readl_relaxed(RK30_GPIO0_BASE);
+#if defined(RK30_GPIO6_BASE)
 	readl_relaxed(RK30_GPIO6_BASE);
+#endif
 }
 
 static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_pwrdn_st)
@@ -337,7 +340,7 @@ static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_p
 
 static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 {
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
 	if (pm_pmu_power_domain_is_on(PD_DBG, pmu_pwrdn_st))
 		pmu_set_power_domain(PD_DBG, state);
 #endif
@@ -355,6 +358,16 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_MST) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SLV) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_CLK_GPU) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+#elif defined(CONFIG_ARCH_RK3188)
+		u32 gate[2];
+		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SRC));
+		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SRC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+		pmu_set_power_domain(PD_GPU, state);
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SRC) | gate[0],
+				CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
 #else
 		u32 gate[2];
 		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
@@ -371,14 +384,20 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		u32 gate[3];
 		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
 		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+#if !defined(CONFIG_ARCH_RK3188)
 		gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+#endif
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+#if !defined(CONFIG_ARCH_RK3188)
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+#endif
 		pmu_set_power_domain(PD_VIDEO, state);
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+#if !defined(CONFIG_ARCH_RK3188)
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+#endif
 	}
 
 	if (pm_pmu_power_domain_is_on(PD_VIO, pmu_pwrdn_st)) {
@@ -456,7 +475,7 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_ACLK_CORE)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x01) == 0x01){
 #else
 	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
@@ -473,7 +492,12 @@ static void __sramfunc rk30_sram_suspend(void)
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
+#if !defined(CONFIG_ARCH_RK3188)
 			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
+#else
+			  | (1 << CLK_GATE_HCLK_IMEM1 % 16)
+			  | (1 << CLK_GATE_HCLK_IMEM0 % 16)
+#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -551,7 +575,7 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	// dump GPIO INTEN for debug
 	rk30_pm_dump_inten();
-#if !defined(CONFIG_ARCH_RK3066B)
+#if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
 	//gpio6_b7
 	grf_writel(0xc0004000, 0x10c);
 	cru_writel(0x07000000, CRU_MISC_CON);
@@ -580,7 +604,7 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CORE_PERIPH)
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 			  | (1 << CLK_GATE_CPU_GPLL_PATH)
 			  | (1 << CLK_GATE_ACLK_CORE)
 #endif
@@ -608,7 +632,12 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_HCLK_CPUBUS % 16)
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
+#if !defined(CONFIG_ARCH_RK3188)
 			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
+#else
+			  | (1 << CLK_GATE_HCLK_IMEM1 % 16)
+			  | (1 << CLK_GATE_HCLK_IMEM0 % 16)
+#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -651,7 +680,9 @@ static int rk30_pm_enter(suspend_state_t state)
 		   | CPU_SEL_PLL_W_MSK | CPU_SEL_APLL
 		   , CRU_CLKSELS_CON(0));
 	cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
+#if !defined(CONFIG_ARCH_RK3188)
 		   | CPU_ACLK_W_MSK | CPU_ACLK_11
+#endif
 		   | ACLK_HCLK_W_MSK | ACLK_HCLK_11
 		   | ACLK_PCLK_W_MSK | ACLK_PCLK_11
 		   | AHB2APB_W_MSK | AHB2APB_11
