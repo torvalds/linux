@@ -282,3 +282,18 @@ int local_timer_ack(void)
 	return 0;
 }
 #endif
+
+/*
+ * Scheduler clock - returns current time in nanosec units.
+ */
+unsigned long long notrace sched_clock(void)
+{
+	const struct clocksource *cs = &rk_timer_clocksource;
+	cycle_t cyc;
+
+	if (!timer.cs_base)
+		return 0;
+
+	cyc = ~rk_timer_read_current_value(timer.cs_base);
+	return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
+}
