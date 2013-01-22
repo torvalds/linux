@@ -264,8 +264,11 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	if (result)
 		goto end;
 
-	if (cut_power)
-		result = acpi_power_transition(device, ACPI_STATE_D3_COLD);
+	if (cut_power) {
+		device->power.state = state;
+		state = ACPI_STATE_D3_COLD;
+		result = acpi_power_transition(device, state);
+	}
 
  end:
 	if (result) {
