@@ -4873,6 +4873,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	if (!has_vga)
 		return;
 
+	mutex_lock(&dev_priv->dpio_lock);
+
 	/* XXX: Rip out SDV support once Haswell ships for real. */
 	if (IS_HASWELL(dev) && (dev->pci_device & 0xFF00) == 0x0C00)
 		is_sdv = true;
@@ -5015,6 +5017,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
 	tmp |= SBI_DBUFF0_ENABLE;
 	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 /*
