@@ -8,6 +8,7 @@
 #include "builtin.h"
 
 #include "util/util.h"
+#include "util/cache.h"
 
 #include "util/annotate.h"
 #include "util/color.h"
@@ -53,6 +54,16 @@ struct perf_report {
 	const char		*symbol_filter_str;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
+
+static int perf_report_config(const char *var, const char *value, void *cb)
+{
+	if (!strcmp(var, "report.group")) {
+		symbol_conf.event_group = perf_config_bool(var, value);
+		return 0;
+	}
+
+	return perf_default_config(var, value, cb);
+}
 
 static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 					struct addr_location *al,
@@ -676,6 +687,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_END()
 	};
+
+	perf_config(perf_report_config, NULL);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
