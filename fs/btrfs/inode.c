@@ -7614,7 +7614,7 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 
 	INIT_LIST_HEAD(&works);
 	INIT_LIST_HEAD(&splice);
-again:
+
 	spin_lock(&root->fs_info->delalloc_lock);
 	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
 	while (!list_empty(&splice)) {
@@ -7649,13 +7649,6 @@ again:
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
 	}
-
-	spin_lock(&root->fs_info->delalloc_lock);
-	if (!list_empty(&root->fs_info->delalloc_inodes)) {
-		spin_unlock(&root->fs_info->delalloc_lock);
-		goto again;
-	}
-	spin_unlock(&root->fs_info->delalloc_lock);
 
 	/* the filemap_flush will queue IO into the worker threads, but
 	 * we have to make sure the IO is actually started and that
