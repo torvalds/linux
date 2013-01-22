@@ -22,7 +22,6 @@
 static int mx5_cpu_rev = -1;
 
 #define IIM_SREV 0x24
-#define MX50_HW_ADADIG_DIGPROG	0xB0
 
 static int get_mx51_srev(void)
 {
@@ -108,41 +107,3 @@ int mx53_revision(void)
 	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx53_revision);
-
-static int get_mx50_srev(void)
-{
-	void __iomem *anatop = ioremap(MX50_ANATOP_BASE_ADDR, SZ_8K);
-	u32 rev;
-
-	if (!anatop) {
-		mx5_cpu_rev = -EINVAL;
-		return 0;
-	}
-
-	rev = readl(anatop + MX50_HW_ADADIG_DIGPROG);
-	rev &= 0xff;
-
-	iounmap(anatop);
-	if (rev == 0x0)
-		return IMX_CHIP_REVISION_1_0;
-	else if (rev == 0x1)
-		return IMX_CHIP_REVISION_1_1;
-	return 0;
-}
-
-/*
- * Returns:
- *	the silicon revision of the cpu
- *	-EINVAL - not a mx50
- */
-int mx50_revision(void)
-{
-	if (!cpu_is_mx50())
-		return -EINVAL;
-
-	if (mx5_cpu_rev == -1)
-		mx5_cpu_rev = get_mx50_srev();
-
-	return mx5_cpu_rev;
-}
-EXPORT_SYMBOL(mx50_revision);

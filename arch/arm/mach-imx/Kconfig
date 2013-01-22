@@ -95,9 +95,6 @@ config MACH_MX27
 config ARCH_MX5
 	bool
 
-config ARCH_MX50
-	bool
-
 config ARCH_MX51
 	bool
 
@@ -163,11 +160,6 @@ config SOC_IMX5
 	select COMMON_CLK
 	select CPU_V7
 	select MXC_TZIC
-
-config SOC_IMX50
-	bool
-	select ARCH_MX50
-	select SOC_IMX5
 
 config	SOC_IMX51
 	bool
@@ -737,20 +729,6 @@ config MACH_VPR200
 endif
 
 if ARCH_MULTI_V7
-
-comment "i.MX5 platforms:"
-
-config MACH_MX50_RDP
-	bool "Support MX50 reference design platform"
-	depends on BROKEN
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select SOC_IMX50
-	help
-	  Include support for MX50 reference design platform (RDP) board. This
-	  includes specific configurations for the board and its peripherals.
 
 comment "i.MX51 machines:"
 
