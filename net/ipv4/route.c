@@ -985,6 +985,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	struct flowi4 fl4;
 	struct rtable *rt;
 	struct dst_entry *dst;
+	bool new = false;
 
 	bh_lock_sock(sk);
 	rt = (struct rtable *) __sk_dst_get(sk);
@@ -1000,20 +1001,26 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 		if (IS_ERR(rt))
 			goto out;
+
+		new = true;
 	}
 
 	__ip_rt_update_pmtu((struct rtable *) rt->dst.path, &fl4, mtu);
 
 	dst = dst_check(&rt->dst, 0);
 	if (!dst) {
+		if (new)
+			dst_release(&rt->dst);
+
 		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 		if (IS_ERR(rt))
 			goto out;
 
-		dst = &rt->dst;
+		new = true;
 	}
 
-	 __sk_dst_set(sk, dst);
+	if (new)
+		__sk_dst_set(sk, &rt->dst);
 
 out:
 	bh_unlock_sock(sk);
