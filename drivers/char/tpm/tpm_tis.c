@@ -534,6 +534,7 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	}
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
+	chip->vendor.manufacturer_id = vendor;
 
 	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
