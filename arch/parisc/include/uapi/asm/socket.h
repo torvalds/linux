@@ -13,7 +13,7 @@
 #define SO_BROADCAST	0x0020
 #define SO_LINGER	0x0080
 #define SO_OOBINLINE	0x0100
-/* To add :#define SO_REUSEPORT 0x0200 */
+#define SO_REUSEPORT	0x0200
 #define SO_SNDBUF	0x1001
 #define SO_RCVBUF	0x1002
 #define SO_SNDBUFFORCE	0x100a
