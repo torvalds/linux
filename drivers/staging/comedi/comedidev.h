@@ -484,10 +484,7 @@ static inline int comedi_pci_auto_config(struct pci_dev *pcidev,
 	return comedi_auto_config(&pcidev->dev, driver, 0);
 }
 
-static inline void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
-{
-	comedi_auto_unconfig(&pcidev->dev);
-}
+void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
 static inline int comedi_usb_auto_config(struct usb_interface *intf,
 					 struct comedi_driver *driver)

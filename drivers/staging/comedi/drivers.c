@@ -558,6 +558,12 @@ void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
 }
 EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
 
+void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
+{
+	comedi_auto_unconfig(&pcidev->dev);
+}
+EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
+
 #if IS_ENABLED(CONFIG_PCMCIA)
 int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,
 		struct pcmcia_driver *pcmcia_driver)
