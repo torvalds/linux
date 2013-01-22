@@ -81,16 +81,13 @@ bool vmci_guest_code_active(void)
 u32 vmci_get_vm_context_id(void)
 {
 	if (vm_context_id == VMCI_INVALID_ID) {
-		int result;
 		struct vmci_datagram get_cid_msg;
 		get_cid_msg.dst =
 		    vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
 				     VMCI_GET_CONTEXT_ID);
 		get_cid_msg.src = VMCI_ANON_SRC_HANDLE;
 		get_cid_msg.payload_size = 0;
-		result = vmci_send_datagram(&get_cid_msg);
-		if (result >= 0)
-			vm_context_id = result;
+		vm_context_id = vmci_send_datagram(&get_cid_msg);
 	}
 	return vm_context_id;
 }
