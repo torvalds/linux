@@ -148,10 +148,8 @@ void snd_usb_release_substream_urbs(struct snd_usb_substream *subs, int force)
 	int i;
 
 	/* stop urbs (to be sure) */
-	if (!subs->stream->chip->shutdown) {
-		deactivate_urbs(subs, force, 1);
-		wait_clear_urbs(subs);
-	}
+	deactivate_urbs(subs, force, 1);
+	wait_clear_urbs(subs);
 
 	for (i = 0; i < MAX_URBS; i++)
 		release_urb_ctx(&subs->dataurb[i]);
