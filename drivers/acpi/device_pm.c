@@ -330,13 +330,23 @@ int acpi_bus_init_power(struct acpi_device *device)
 	if (result)
 		return result;
 
-	if (device->power.flags.power_resources)
+	if (state < ACPI_STATE_D3_COLD && device->power.flags.power_resources) {
 		result = acpi_power_on_resources(device, state);
+		if (result)
+			return result;
 
-	if (!result)
-		device->power.state = state;
+		if (device->power.states[state].flags.explicit_set) {
+			char method[5] = { '_', 'P', 'S', '0' + state, '\0' };
+			acpi_status status;
 
-	return result;
+			status = acpi_evaluate_object(device->handle, method,
+						      NULL, NULL);
+			if (ACPI_FAILURE(status))
+				return -ENODEV;
+		}
+	}
+	device->power.state = state;
+	return 0;
 }
 
 int acpi_bus_update_power(acpi_handle handle, int *state_p)
