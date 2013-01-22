@@ -37,6 +37,8 @@
 #define KVM_NR_PAGE_SIZES	1
 #define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
 
+#include <asm/kvm_vgic.h>
+
 struct kvm_vcpu;
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
 int kvm_target_cpu(void);
@@ -58,6 +60,9 @@ struct kvm_arch {
 
 	/* Stage-2 page table */
 	pgd_t *pgd;
+
+	/* Interrupt controller */
+	struct vgic_dist	vgic;
 };
 
 #define KVM_NR_MEM_OBJS     40
@@ -91,6 +96,9 @@ struct kvm_vcpu_arch {
 	/* Floating point registers (VFP and Advanced SIMD/NEON) */
 	struct vfp_hard_struct vfp_guest;
 	struct vfp_hard_struct *vfp_host;
+
+	/* VGIC state */
+	struct vgic_cpu vgic_cpu;
 
 	/*
 	 * Anything that is not used directly from assembly code goes
