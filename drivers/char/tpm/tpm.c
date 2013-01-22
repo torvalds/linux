@@ -1102,12 +1102,28 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 }
 EXPORT_SYMBOL_GPL(tpm_store_cancel);
 
+static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask, bool check_cancel,
+				   bool *canceled)
+{
+	u8 status = chip->vendor.status(chip);
+
+	*canceled = false;
+	if ((status & mask) == mask)
+		return true;
+	if (check_cancel && chip->vendor.req_canceled(chip, status)) {
+		*canceled = true;
+		return true;
+	}
+	return false;
+}
+
 int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
-			 wait_queue_head_t *queue)
+		      wait_queue_head_t *queue, bool check_cancel)
 {
 	unsigned long stop;
 	long rc;
 	u8 status;
+	bool canceled = false;
 
 	/* check current status */
 	status = chip->vendor.status(chip);
@@ -1122,11 +1138,14 @@ again:
 		if ((long)timeout <= 0)
 			return -ETIME;
 		rc = wait_event_interruptible_timeout(*queue,
-						      ((chip->vendor.status(chip)
-						      & mask) == mask),
-						      timeout);
-		if (rc > 0)
+			wait_for_tpm_stat_cond(chip, mask, check_cancel,
+					       &canceled),
+			timeout);
+		if (rc > 0) {
+			if (canceled)
+				return -ECANCELED;
 			return 0;
+		}
 		if (rc == -ERESTARTSYS && freezing(current)) {
 			clear_thread_flag(TIF_SIGPENDING);
 			goto again;

@@ -338,7 +338,7 @@ extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
-			     wait_queue_head_t *);
+			     wait_queue_head_t *, bool);
 
 #ifdef CONFIG_ACPI
 extern int tpm_add_ppi(struct kobject *);
