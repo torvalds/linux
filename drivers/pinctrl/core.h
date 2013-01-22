@@ -9,6 +9,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/pinctrl/pinconf.h>
@@ -58,6 +59,7 @@ struct pinctrl_dev {
  * @state: the current state
  * @dt_maps: the mapping table chunks dynamically parsed from device tree for
  *	this device, if any
+ * @users: reference count
  */
 struct pinctrl {
 	struct list_head node;
@@ -65,6 +67,7 @@ struct pinctrl {
 	struct list_head states;
 	struct pinctrl_state *state;
 	struct list_head dt_maps;
+	struct kref users;
 };
 
 /**
