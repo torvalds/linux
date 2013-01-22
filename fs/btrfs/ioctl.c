@@ -1340,7 +1340,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
 		mnt_drop_write_file(file);
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -1446,8 +1446,8 @@ out_free:
 	kfree(vol_args);
 out:
 	mutex_unlock(&root->fs_info->volume_mutex);
-	mnt_drop_write_file(file);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -2186,19 +2186,20 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 	struct btrfs_ioctl_defrag_range_args *range;
 	int ret;
 
-	if (btrfs_root_readonly(root))
-		return -EROFS;
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
 
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		return -EINPROGRESS;
+		mnt_drop_write_file(file);
+		return -EINVAL;
 	}
-	ret = mnt_want_write_file(file);
-	if (ret) {
-		atomic_set(&root->fs_info->mutually_exclusive_operation_running,
-			   0);
-		return ret;
+
+	if (btrfs_root_readonly(root)) {
+		ret = -EROFS;
+		goto out;
 	}
 
 	switch (inode->i_mode & S_IFMT) {
@@ -2250,8 +2251,8 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 		ret = -EINVAL;
 	}
 out:
-	mnt_drop_write_file(file);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -2266,7 +2267,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -2303,7 +2304,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 			1)) {
 		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
 		mnt_drop_write_file(file);
-		return -EINPROGRESS;
+		return -EINVAL;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -2319,8 +2320,8 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	kfree(vol_args);
 out:
 	mutex_unlock(&root->fs_info->volume_mutex);
-	mnt_drop_write_file(file);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -3440,8 +3441,8 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_ioctl_balance_args *bargs;
 	struct btrfs_balance_control *bctl;
+	bool need_unlock; /* for mut. excl. ops lock */
 	int ret;
-	int need_to_clear_lock = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -3450,14 +3451,61 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	mutex_lock(&fs_info->volume_mutex);
+again:
+	if (!atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1)) {
+		mutex_lock(&fs_info->volume_mutex);
+		mutex_lock(&fs_info->balance_mutex);
+		need_unlock = true;
+		goto locked;
+	}
+
+	/*
+	 * mut. excl. ops lock is locked.  Three possibilites:
+	 *   (1) some other op is running
+	 *   (2) balance is running
+	 *   (3) balance is paused -- special case (think resume)
+	 */
 	mutex_lock(&fs_info->balance_mutex);
+	if (fs_info->balance_ctl) {
+		/* this is either (2) or (3) */
+		if (!atomic_read(&fs_info->balance_running)) {
+			mutex_unlock(&fs_info->balance_mutex);
+			if (!mutex_trylock(&fs_info->volume_mutex))
+				goto again;
+			mutex_lock(&fs_info->balance_mutex);
+
+			if (fs_info->balance_ctl &&
+			    !atomic_read(&fs_info->balance_running)) {
+				/* this is (3) */
+				need_unlock = false;
+				goto locked;
+			}
+
+			mutex_unlock(&fs_info->balance_mutex);
+			mutex_unlock(&fs_info->volume_mutex);
+			goto again;
+		} else {
+			/* this is (2) */
+			mutex_unlock(&fs_info->balance_mutex);
+			ret = -EINPROGRESS;
+			goto out;
+		}
+	} else {
+		/* this is (1) */
+		mutex_unlock(&fs_info->balance_mutex);
+		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+locked:
+	BUG_ON(!atomic_read(&fs_info->mutually_exclusive_operation_running));
 
 	if (arg) {
 		bargs = memdup_user(arg, sizeof(*bargs));
 		if (IS_ERR(bargs)) {
 			ret = PTR_ERR(bargs);
-			goto out;
+			goto out_unlock;
 		}
 
 		if (bargs->flags & BTRFS_BALANCE_RESUME) {
@@ -3477,13 +3525,10 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 		bargs = NULL;
 	}
 
-	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
-			1)) {
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
+	if (fs_info->balance_ctl) {
 		ret = -EINPROGRESS;
 		goto out_bargs;
 	}
-	need_to_clear_lock = 1;
 
 	bctl = kzalloc(sizeof(*bctl), GFP_NOFS);
 	if (!bctl) {
@@ -3504,11 +3549,17 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	}
 
 do_balance:
-	ret = btrfs_balance(bctl, bargs);
 	/*
-	 * bctl is freed in __cancel_balance or in free_fs_info if
-	 * restriper was paused all the way until unmount
+	 * Ownership of bctl and mutually_exclusive_operation_running
+	 * goes to to btrfs_balance.  bctl is freed in __cancel_balance,
+	 * or, if restriper was paused all the way until unmount, in
+	 * free_fs_info.  mutually_exclusive_operation_running is
+	 * cleared in __cancel_balance.
 	 */
+	need_unlock = false;
+
+	ret = btrfs_balance(bctl, bargs);
+
 	if (arg) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
 			ret = -EFAULT;
@@ -3516,12 +3567,12 @@ do_balance:
 
 out_bargs:
 	kfree(bargs);
-out:
-	if (need_to_clear_lock)
-		atomic_set(&root->fs_info->mutually_exclusive_operation_running,
-			   0);
+out_unlock:
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
+	if (need_unlock)
+		atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+out:
 	mnt_drop_write_file(file);
 	return ret;
 }
