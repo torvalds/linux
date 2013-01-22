@@ -3180,6 +3180,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	//cru_writel(0x07000000,CRU_MISC_CON);
 
 }
+extern int rk30_dvfs_init(void);
 
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
