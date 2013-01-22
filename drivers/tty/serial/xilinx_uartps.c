@@ -1044,7 +1044,7 @@ MODULE_DEVICE_TABLE(of, xuartps_of_match);
 
 static struct platform_driver xuartps_platform_driver = {
 	.probe   = xuartps_probe,		/* Probe method */
-	.remove  = __exit_p(xuartps_remove),	/* Detach method */
+	.remove  = xuartps_remove,		/* Detach method */
 	.suspend = xuartps_suspend,		/* Suspend */
 	.resume  = xuartps_resume,		/* Resume after a suspend */
 	.driver  = {
