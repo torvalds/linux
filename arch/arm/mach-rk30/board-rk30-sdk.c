@@ -40,7 +40,6 @@
 #include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
-#include <linux/fb.h>
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
@@ -1436,20 +1435,6 @@ static struct platform_device device_mt6622 = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_FB_ROCKCHIP
-	&device_fb,
-#endif
-#if defined(CONFIG_LCDC0_RK30)
-	&device_lcdc0,
-#endif
-#if defined(CONFIG_LCDC1_RK30)
-	&device_lcdc1,
-#endif
-
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-	&rk29_device_backlight,
-#endif
-
 #ifdef CONFIG_ION
 	&device_ion,
 #endif
@@ -1496,6 +1481,33 @@ static struct platform_device *devices[] __initdata = {
 #endif
 };
 
+
+static int rk_platform_add_display_devices(void)
+{
+	struct platform_device *fb = NULL;  //fb
+	struct platform_device *lcdc0 = NULL; //lcdc0
+	struct platform_device *lcdc1 = NULL; //lcdc1
+	struct platform_device *bl = NULL; //backlight
+#ifdef CONFIG_FB_ROCKCHIP
+	fb = &device_fb;
+#endif
+
+#if defined(CONFIG_LCDC0_RK30)
+	lcdc0 = &device_lcdc0,
+#endif
+
+#if defined(CONFIG_LCDC1_RK30)
+	lcdc1 = &device_lcdc1,
+#endif
+
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	bl = &rk29_device_backlight,
+#endif
+	__rk_platform_add_display_devices(fb,lcdc0,lcdc1,bl);
+
+	return 0;
+	
+}
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
@@ -1813,6 +1825,7 @@ static void __init machine_rk30_board_init(void)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	rk_platform_add_display_devices();
 	board_usb_detect_init(RK30_PIN6_PA3);
 
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
