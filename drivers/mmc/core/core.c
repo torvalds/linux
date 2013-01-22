@@ -350,6 +350,7 @@ static int __mmc_start_data_req(struct mmc_host *host, struct mmc_request *mrq)
 	mrq->host = host;
 	if (mmc_card_removed(host->card)) {
 		mrq->cmd->error = -ENOMEDIUM;
+		mmc_wait_data_done(mrq);
 		return -ENOMEDIUM;
 	}
 	mmc_start_request(host, mrq);
