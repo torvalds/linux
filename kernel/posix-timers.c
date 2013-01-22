@@ -269,6 +269,12 @@ static __init int init_posix_timers(void)
 	struct k_clock clock_tai = {
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_get_tai,
+		.nsleep		= common_nsleep,
+		.nsleep_restart	= hrtimer_nanosleep_restart,
+		.timer_create	= common_timer_create,
+		.timer_set	= common_timer_set,
+		.timer_get	= common_timer_get,
+		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_boottime = {
 		.clock_getres	= hrtimer_get_res,

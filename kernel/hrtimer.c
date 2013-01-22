@@ -83,6 +83,12 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 			.get_time = &ktime_get_boottime,
 			.resolution = KTIME_LOW_RES,
 		},
+		{
+			.index = HRTIMER_BASE_TAI,
+			.clockid = CLOCK_TAI,
+			.get_time = &ktime_get_clocktai,
+			.resolution = KTIME_LOW_RES,
+		},
 	}
 };
 
@@ -90,6 +96,7 @@ static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
 	[CLOCK_REALTIME]	= HRTIMER_BASE_REALTIME,
 	[CLOCK_MONOTONIC]	= HRTIMER_BASE_MONOTONIC,
 	[CLOCK_BOOTTIME]	= HRTIMER_BASE_BOOTTIME,
+	[CLOCK_TAI]		= HRTIMER_BASE_TAI,
 };
 
 static inline int hrtimer_clockid_to_base(clockid_t clock_id)
@@ -106,8 +113,10 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 {
 	ktime_t xtim, mono, boot;
 	struct timespec xts, tom, slp;
+	s32 tai_offset;
 
 	get_xtime_and_monotonic_and_sleep_offset(&xts, &tom, &slp);
+	tai_offset = timekeeping_get_tai_offset();
 
 	xtim = timespec_to_ktime(xts);
 	mono = ktime_add(xtim, timespec_to_ktime(tom));
@@ -115,6 +124,8 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 	base->clock_base[HRTIMER_BASE_REALTIME].softirq_time = xtim;
 	base->clock_base[HRTIMER_BASE_MONOTONIC].softirq_time = mono;
 	base->clock_base[HRTIMER_BASE_BOOTTIME].softirq_time = boot;
+	base->clock_base[HRTIMER_BASE_TAI].softirq_time =
+				ktime_add(xtim,	ktime_set(tai_offset, 0));
 }
 
 /*
@@ -651,8 +662,9 @@ static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 {
 	ktime_t *offs_real = &base->clock_base[HRTIMER_BASE_REALTIME].offset;
 	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
+	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
 
-	return ktime_get_update_offsets(offs_real, offs_boot);
+	return ktime_get_update_offsets(offs_real, offs_boot, offs_tai);
 }
 
 /*

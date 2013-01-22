@@ -67,6 +67,7 @@ static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec wtm)
 	tk->wall_to_monotonic = wtm;
 	set_normalized_timespec(&tmp, -wtm.tv_sec, -wtm.tv_nsec);
 	tk->offs_real = timespec_to_ktime(tmp);
+	tk->offs_tai = ktime_sub(tk->offs_real, ktime_set(tk->tai_offset, 0));
 }
 
 static void tk_set_sleep_time(struct timekeeper *tk, struct timespec t)
@@ -409,6 +410,20 @@ void timekeeping_clocktai(struct timespec *ts)
 EXPORT_SYMBOL(timekeeping_clocktai);
 
 
+/**
+ * ktime_get_clocktai - Returns the TAI time of day in a ktime
+ *
+ * Returns the time of day in a ktime.
+ */
+ktime_t ktime_get_clocktai(void)
+{
+	struct timespec ts;
+
+	timekeeping_clocktai(&ts);
+	return timespec_to_ktime(ts);
+}
+EXPORT_SYMBOL(ktime_get_clocktai);
+
 #ifdef CONFIG_NTP_PPS
 
 /**
@@ -569,6 +584,7 @@ s32 timekeeping_get_tai_offset(void)
 void __timekeeping_set_tai_offset(struct timekeeper *tk, s32 tai_offset)
 {
 	tk->tai_offset = tai_offset;
+	tk->offs_tai = ktime_sub(tk->offs_real, ktime_set(tai_offset, 0));
 }
 
 /**
@@ -1539,7 +1555,8 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
  * Returns current monotonic time and updates the offsets
  * Called from hrtimer_interupt() or retrigger_next_event()
  */
-ktime_t ktime_get_update_offsets(ktime_t *offs_real, ktime_t *offs_boot)
+ktime_t ktime_get_update_offsets(ktime_t *offs_real, ktime_t *offs_boot,
+							ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &timekeeper;
 	ktime_t now;
@@ -1554,6 +1571,7 @@ ktime_t ktime_get_update_offsets(ktime_t *offs_real, ktime_t *offs_boot)
 
 		*offs_real = tk->offs_real;
 		*offs_boot = tk->offs_boot;
+		*offs_tai = tk->offs_tai;
 	} while (read_seqretry(&tk->lock, seq));
 
 	now = ktime_add_ns(ktime_set(secs, 0), nsecs);
