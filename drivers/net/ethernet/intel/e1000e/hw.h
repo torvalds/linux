@@ -266,9 +266,6 @@ enum e1e_registers {
 #define E1000_MNG_DHCP_COOKIE_STATUS_PARSING	0x1
 #define E1000_MNG_DHCP_COOKIE_STATUS_VLAN	0x2
 
-/* nvm.c */
-#define E1000_STM_OPCODE  0xDB00
-
 #define E1000_DEV_ID_82571EB_COPPER		0x105E
 #define E1000_DEV_ID_82571EB_FIBER		0x105F
 #define E1000_DEV_ID_82571EB_SERDES		0x1060
@@ -677,6 +674,7 @@ struct e1000_host_mng_command_info {
 
 #include "mac.h"
 #include "phy.h"
+#include "nvm.h"
 
 /* Function pointers for the MAC. */
 struct e1000_mac_operations {
