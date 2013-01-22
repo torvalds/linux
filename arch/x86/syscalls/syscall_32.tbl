@@ -123,7 +123,7 @@
 114	i386	wait4			sys_wait4			compat_sys_wait4
 115	i386	swapoff			sys_swapoff
 116	i386	sysinfo			sys_sysinfo			compat_sys_sysinfo
-117	i386	ipc			sys_ipc				sys32_ipc
+117	i386	ipc			sys_ipc				compat_sys_ipc
 118	i386	fsync			sys_fsync
 119	i386	sigreturn		sys_sigreturn			stub32_sigreturn
 120	i386	clone			sys_clone			stub32_clone

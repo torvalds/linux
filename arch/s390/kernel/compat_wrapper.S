@@ -388,14 +388,6 @@ ENTRY(compat_sys_sysinfo_wrapper)
 	llgtr	%r2,%r2			# struct sysinfo_emu31 *
 	jg	compat_sys_sysinfo	# branch to system call
 
-ENTRY(sys32_ipc_wrapper)
-	llgfr	%r2,%r2			# uint
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	lgfr	%r5,%r5			# int
-	llgfr	%r6,%r6			# u32
-	jg	sys32_ipc		# branch to system call
-
 ENTRY(sys32_fsync_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_fsync		# branch to system call

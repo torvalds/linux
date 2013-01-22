@@ -309,7 +309,7 @@ sys_call_table:
 	PTR	compat_sys_wait4
 	PTR	sys_swapoff			/* 4115 */
 	PTR	compat_sys_sysinfo
-	PTR	sys_32_ipc
+	PTR	compat_sys_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
 	PTR	__sys_clone			/* 4120 */

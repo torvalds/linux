@@ -318,6 +318,7 @@ long compat_sys_msgrcv(int first, int second, int msgtyp, int third,
 		int version, void __user *uptr);
 long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 		void __user *uptr);
+asmlinkage long compat_sys_ipc(u32, int, int, u32, compat_uptr_t, u32);
 #else
 long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
 long compat_sys_msgsnd(int msqid, struct compat_msgbuf __user *msgp,

@@ -288,51 +288,13 @@ asmlinkage long sys32_getegid16(void)
 	return high2lowgid(from_kgid_munged(current_user_ns(), current_egid()));
 }
 
-/*
- * sys32_ipc() is the de-multiplexer for the SysV IPC calls in 32bit emulation.
- *
- * This is really horribly ugly.
- */
 #ifdef CONFIG_SYSVIPC
-asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
+COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
+		unsigned long, third, compat_uptr_t, ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;
-	switch (call) {
-	case SEMTIMEDOP:
-		return compat_sys_semtimedop(first, compat_ptr(ptr),
-					     second, compat_ptr(third));
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		return sys_semtimedop(first, compat_ptr(ptr),
-				      second, NULL);
-	case SEMGET:
-		return sys_semget(first, second, third);
-	case SEMCTL:
-		return compat_sys_semctl(first, second, third,
-					 compat_ptr(ptr));
-	case MSGSND:
-		return compat_sys_msgsnd(first, second, third,
-					 compat_ptr(ptr));
-	case MSGRCV:
-		return compat_sys_msgrcv(first, second, 0, third,
-					 0, compat_ptr(ptr));
-	case MSGGET:
-		return sys_msgget((key_t) first, second);
-	case MSGCTL:
-		return compat_sys_msgctl(first, second, compat_ptr(ptr));
-	case SHMAT:
-		return compat_sys_shmat(first, second, third,
-					0, compat_ptr(ptr));
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		return sys_shmget(first, (unsigned)second, third);
-	case SHMCTL:
-		return compat_sys_shmctl(first, second, compat_ptr(ptr));
-	}
-
-	return -ENOSYS;
+	return compat_sys_ipc(call, first, second, third, ptr, third);
 }
 #endif
 

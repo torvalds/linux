@@ -57,9 +57,6 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 asmlinkage long sys32_sigreturn(void);
 asmlinkage long sys32_rt_sigreturn(void);
 
-/* ia32/ipc32.c */
-asmlinkage long sys32_ipc(u32, int, int, int, compat_uptr_t, u32);
-
 asmlinkage long sys32_fanotify_mark(int, unsigned int, u32, u32, int,
 				    const char __user *);
 

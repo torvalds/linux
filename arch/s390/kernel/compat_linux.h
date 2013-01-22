@@ -94,7 +94,6 @@ long sys32_getuid16(void);
 long sys32_geteuid16(void);
 long sys32_getgid16(void);
 long sys32_getegid16(void);
-long sys32_ipc(u32 call, int first, int second, int third, u32 ptr);
 long sys32_truncate64(const char __user * path, unsigned long high,
 		      unsigned long low);
 long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
