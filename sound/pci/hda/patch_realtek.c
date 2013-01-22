@@ -621,7 +621,7 @@ static void alc_inv_dmic_sync_adc(struct hda_codec *codec, int adc_idx)
 		(dir == HDA_OUTPUT ? AC_AMP_SET_OUTPUT : AC_AMP_SET_INPUT);
 
 	/* flush all cached amps at first */
-	snd_hda_codec_flush_amp_cache(codec);
+	snd_hda_codec_flush_cache(codec);
 
 	/* we care only right channel */
 	val = snd_hda_codec_amp_read(codec, nid, 1, dir, 0);

@@ -2839,8 +2839,7 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
  error:
 	codec->cached_write = 0;
 	mutex_unlock(&codec->control_mutex);
-	snd_hda_codec_flush_amp_cache(codec); /* flush the updates */
-	snd_hda_codec_flush_cmd_cache(codec);
+	snd_hda_codec_flush_cache(codec); /* flush the updates */
 	if (err >= 0 && spec->cap_sync_hook)
 		spec->cap_sync_hook(codec, ucontrol);
 	return err;
@@ -4773,8 +4772,7 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	/* call init functions of standard auto-mute helpers */
 	update_automute_all(codec);
 
-	snd_hda_codec_flush_amp_cache(codec);
-	snd_hda_codec_flush_cmd_cache(codec);
+	snd_hda_codec_flush_cache(codec);
 
 	if (spec->vmaster_mute.sw_kctl && spec->vmaster_mute.hook)
 		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);

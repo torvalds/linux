@@ -3637,6 +3637,17 @@ void snd_hda_sequence_write_cache(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_sequence_write_cache);
 
+/**
+ * snd_hda_codec_flush_cache - Execute all pending (cached) amps / verbs
+ * @codec: HD-audio codec
+ */
+void snd_hda_codec_flush_cache(struct hda_codec *codec)
+{
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_flush_cache);
+
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state,
 				    bool eapd_workaround)
