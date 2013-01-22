@@ -1427,7 +1427,9 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	}
 
 	if (flush_on_commit || snap_pending) {
-		btrfs_start_delalloc_inodes(root, 1);
+		ret = btrfs_start_delalloc_inodes(root, 1);
+		if (ret)
+			return ret;
 		btrfs_wait_ordered_extents(root, 1);
 	}
 
