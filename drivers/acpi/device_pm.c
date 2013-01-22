@@ -186,6 +186,19 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	return 0;
 }
 
+static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
+{
+	if (adev->power.states[state].flags.explicit_set) {
+		char method[5] = { '_', 'P', 'S', '0' + state, '\0' };
+		acpi_status status;
+
+		status = acpi_evaluate_object(adev->handle, method, NULL, NULL);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+	}
+	return 0;
+}
+
 /**
  * acpi_device_set_power - Set power state of an ACPI device.
  * @device: Device to set the power state of.
@@ -197,8 +210,6 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 int acpi_device_set_power(struct acpi_device *device, int state)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
-	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
 	bool cut_power = false;
 
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
@@ -228,7 +239,6 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	if (state == ACPI_STATE_D3_COLD
 	    && device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible) {
 		state = ACPI_STATE_D3_HOT;
-		object_name[3] = '3';
 		cut_power = true;
 	}
 
@@ -251,23 +261,14 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			if (result)
 				goto end;
 		}
-		if (device->power.states[state].flags.explicit_set) {
-			status = acpi_evaluate_object(device->handle,
-						      object_name, NULL, NULL);
-			if (ACPI_FAILURE(status)) {
-				result = -ENODEV;
-				goto end;
-			}
-		}
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			goto end;
 	} else {
-		if (device->power.states[state].flags.explicit_set) {
-			status = acpi_evaluate_object(device->handle,
-						      object_name, NULL, NULL);
-			if (ACPI_FAILURE(status)) {
-				result = -ENODEV;
-				goto end;
-			}
-		}
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			goto end;
+
 		if (device->power.flags.power_resources) {
 			result = acpi_power_transition(device, state);
 			if (result)
@@ -335,15 +336,9 @@ int acpi_bus_init_power(struct acpi_device *device)
 		if (result)
 			return result;
 
-		if (device->power.states[state].flags.explicit_set) {
-			char method[5] = { '_', 'P', 'S', '0' + state, '\0' };
-			acpi_status status;
-
-			status = acpi_evaluate_object(device->handle, method,
-						      NULL, NULL);
-			if (ACPI_FAILURE(status))
-				return -ENODEV;
-		}
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			return result;
 	}
 	device->power.state = state;
 	return 0;
