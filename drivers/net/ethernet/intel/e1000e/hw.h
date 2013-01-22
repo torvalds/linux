@@ -200,10 +200,6 @@ enum e1e_registers {
 #define E1000_RA        (E1000_RAL(0))
 	E1000_RAH_BASE = 0x05404, /* Receive Address High - RW */
 #define E1000_RAH(_n)   (E1000_RAH_BASE + ((_n) * 8))
-	E1000_SHRAL_PCH_LPT_BASE = 0x05408,
-#define E1000_SHRAL_PCH_LPT(_n)   (E1000_SHRAL_PCH_LPT_BASE + ((_n) * 8))
-	E1000_SHRAH_PCH_LTP_BASE = 0x0540C,
-#define E1000_SHRAH_PCH_LPT(_n)   (E1000_SHRAH_PCH_LTP_BASE + ((_n) * 8))
 	E1000_SHRAL_BASE = 0x05438, /* Shared Receive Address Low - RW */
 #define E1000_SHRAL(_n)   (E1000_SHRAL_BASE + ((_n) * 8))
 	E1000_SHRAH_BASE = 0x0543C, /* Shared Receive Address High - RW */
@@ -215,6 +211,7 @@ enum e1e_registers {
 	E1000_MRQC     = 0x05818, /* Multiple Receive Control - RW */
 	E1000_MANC     = 0x05820, /* Management Control - RW */
 	E1000_FFLT     = 0x05F00, /* Flexible Filter Length Table - RW Array */
+	E1000_CRC_OFFSET = 0x05F50, /* CRC Offset register */
 	E1000_HOST_IF  = 0x08800, /* Host Interface */
 
 	E1000_KMRNCTRLSTA = 0x00034, /* MAC-PHY interface - RW */
@@ -233,9 +230,6 @@ enum e1e_registers {
 	E1000_RSSRK_BASE = 0x05C80, /* RSS Random Key - RW */
 #define E1000_RSSRK(_n)	(E1000_RSSRK_BASE + ((_n) * 4))
 	E1000_FFLT_DBG  = 0x05F04, /* Debug Register */
-	E1000_PCH_RAICC_BASE = 0x05F50, /* Receive Address Initial CRC */
-#define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
-#define E1000_CRC_OFFSET	E1000_PCH_RAICC_BASE
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 	E1000_SYSTIML   = 0x0B600, /* System time register Low - RO */
 	E1000_SYSTIMH   = 0x0B604, /* System time register High - RO */
@@ -271,10 +265,6 @@ enum e1e_registers {
 #define BM_WUC_ENABLE_BIT		(1 << 2)
 #define BM_WUC_HOST_WU_BIT		(1 << 4)
 #define BM_WUC_ME_WU_BIT		(1 << 5)
-
-#define BM_WUC	PHY_REG(BM_WUC_PAGE, 1)
-#define BM_WUFC PHY_REG(BM_WUC_PAGE, 2)
-#define BM_WUS	PHY_REG(BM_WUC_PAGE, 3)
 
 #define IGP01E1000_PHY_PCS_INIT_REG	0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK	0x0078
@@ -1004,5 +994,6 @@ struct e1000_hw {
 
 #include "82571.h"
 #include "80003es2lan.h"
+#include "ich8lan.h"
 
 #endif

@@ -104,44 +104,6 @@ struct e1000_info;
 	 (((page) & 0xFFFF) << PHY_PAGE_SHIFT) |\
 	 (((reg) & ~MAX_PHY_REG_ADDRESS) << (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)))
 
-/* PHY Wakeup Registers and defines */
-#define BM_PORT_GEN_CFG PHY_REG(BM_PORT_CTRL_PAGE, 17)
-#define BM_RCTL         PHY_REG(BM_WUC_PAGE, 0)
-#define BM_WUC          PHY_REG(BM_WUC_PAGE, 1)
-#define BM_WUFC         PHY_REG(BM_WUC_PAGE, 2)
-#define BM_WUS          PHY_REG(BM_WUC_PAGE, 3)
-#define BM_RAR_L(_i)    (BM_PHY_REG(BM_WUC_PAGE, 16 + ((_i) << 2)))
-#define BM_RAR_M(_i)    (BM_PHY_REG(BM_WUC_PAGE, 17 + ((_i) << 2)))
-#define BM_RAR_H(_i)    (BM_PHY_REG(BM_WUC_PAGE, 18 + ((_i) << 2)))
-#define BM_RAR_CTRL(_i) (BM_PHY_REG(BM_WUC_PAGE, 19 + ((_i) << 2)))
-#define BM_MTA(_i)      (BM_PHY_REG(BM_WUC_PAGE, 128 + ((_i) << 1)))
-
-#define BM_RCTL_UPE           0x0001          /* Unicast Promiscuous Mode */
-#define BM_RCTL_MPE           0x0002          /* Multicast Promiscuous Mode */
-#define BM_RCTL_MO_SHIFT      3               /* Multicast Offset Shift */
-#define BM_RCTL_MO_MASK       (3 << 3)        /* Multicast Offset Mask */
-#define BM_RCTL_BAM           0x0020          /* Broadcast Accept Mode */
-#define BM_RCTL_PMCF          0x0040          /* Pass MAC Control Frames */
-#define BM_RCTL_RFCE          0x0080          /* Rx Flow Control Enable */
-
-#define HV_STATS_PAGE	778
-#define HV_SCC_UPPER	PHY_REG(HV_STATS_PAGE, 16) /* Single Collision Count */
-#define HV_SCC_LOWER	PHY_REG(HV_STATS_PAGE, 17)
-#define HV_ECOL_UPPER	PHY_REG(HV_STATS_PAGE, 18) /* Excessive Coll. Count */
-#define HV_ECOL_LOWER	PHY_REG(HV_STATS_PAGE, 19)
-#define HV_MCC_UPPER	PHY_REG(HV_STATS_PAGE, 20) /* Multiple Coll. Count */
-#define HV_MCC_LOWER	PHY_REG(HV_STATS_PAGE, 21)
-#define HV_LATECOL_UPPER PHY_REG(HV_STATS_PAGE, 23) /* Late Collision Count */
-#define HV_LATECOL_LOWER PHY_REG(HV_STATS_PAGE, 24)
-#define HV_COLC_UPPER	PHY_REG(HV_STATS_PAGE, 25) /* Collision Count */
-#define HV_COLC_LOWER	PHY_REG(HV_STATS_PAGE, 26)
-#define HV_DC_UPPER	PHY_REG(HV_STATS_PAGE, 27) /* Defer Count */
-#define HV_DC_LOWER	PHY_REG(HV_STATS_PAGE, 28)
-#define HV_TNCRS_UPPER	PHY_REG(HV_STATS_PAGE, 29) /* Transmit with no CRS */
-#define HV_TNCRS_LOWER	PHY_REG(HV_STATS_PAGE, 30)
-
-#define E1000_FCRTV_PCH     0x05F40 /* PCH Flow Control Refresh Timer Value */
-
 /* BM PHY Copper Specific Status */
 #define BM_CS_STATUS                      17
 #define BM_CS_STATUS_LINK_UP              0x0400
@@ -155,9 +117,6 @@ struct e1000_info;
 #define HV_M_STATUS_SPEED_MASK            0x0300
 #define HV_M_STATUS_SPEED_1000            0x0200
 #define HV_M_STATUS_LINK_UP               0x0040
-
-#define E1000_ICH_FWSM_PCIM2PCI		0x01000000 /* ME PCIm-to-PCI active */
-#define E1000_ICH_FWSM_PCIM2PCI_COUNT	2000
 
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
 #define LINK_TIMEOUT		100
@@ -579,17 +538,6 @@ extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 
 extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 
-extern void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw);
-extern void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
-						 bool state);
-extern void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
-extern void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
-extern void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
-extern void e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
-extern s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
-extern s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
-extern void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
-
 extern s32 e1000e_check_for_copper_link(struct e1000_hw *hw);
 extern s32 e1000e_check_for_fiber_link(struct e1000_hw *hw);
 extern s32 e1000e_check_for_serdes_link(struct e1000_hw *hw);
@@ -700,7 +648,6 @@ extern s32 e1000_get_phy_info_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_ife(struct e1000_hw *hw);
 extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
-extern s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
 extern void e1000e_ptp_init(struct e1000_adapter *adapter);
 extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
 

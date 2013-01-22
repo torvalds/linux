@@ -91,10 +91,6 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 /* BM PHY Copper Specific Control 1 */
 #define BM_CS_CTRL1                       16
 
-#define HV_MUX_DATA_CTRL               PHY_REG(776, 16)
-#define HV_MUX_DATA_CTRL_GEN_TO_MAC    0x0400
-#define HV_MUX_DATA_CTRL_FORCE_SPEED   0x0004
-
 /**
  *  e1000e_check_reset_block_generic - Check if PHY reset is blocked
  *  @hw: pointer to the HW structure

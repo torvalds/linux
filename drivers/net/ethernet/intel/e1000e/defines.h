@@ -749,38 +749,6 @@
 /* BME1000 PHY Specific Control Register */
 #define BME1000_PSCR_ENABLE_DOWNSHIFT   0x0800 /* 1 = enable downshift */
 
-/* PHY Low Power Idle Control */
-#define I82579_LPI_CTRL				PHY_REG(772, 20)
-#define I82579_LPI_CTRL_100_ENABLE		0x2000
-#define I82579_LPI_CTRL_1000_ENABLE		0x4000
-#define I82579_LPI_CTRL_ENABLE_MASK		0x6000
-#define I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT	0x80
-
-/* Extended Management Interface (EMI) Registers */
-#define I82579_EMI_ADDR		0x10
-#define I82579_EMI_DATA		0x11
-#define I82579_LPI_UPDATE_TIMER	0x4805	/* in 40ns units + 40 ns base value */
-#define I82579_MSE_THRESHOLD	0x084F	/* 82579 Mean Square Error Threshold */
-#define I82577_MSE_THRESHOLD	0x0887	/* 82577 Mean Square Error Threshold */
-#define I82579_MSE_LINK_DOWN	0x2411	/* MSE count before dropping link */
-#define I82579_EEE_PCS_STATUS	0x182D	/* IEEE MMD Register 3.1 >> 8 */
-#define I82579_EEE_CAPABILITY	0x0410	/* IEEE MMD Register 3.20 */
-#define I82579_EEE_ADVERTISEMENT	0x040E	/* IEEE MMD Register 7.60 */
-#define I82579_EEE_LP_ABILITY		0x040F	/* IEEE MMD Register 7.61 */
-#define I82579_EEE_100_SUPPORTED	(1 << 1) /* 100BaseTx EEE supported */
-#define I82579_EEE_1000_SUPPORTED	(1 << 2) /* 1000BaseTx EEE supported */
-#define I217_EEE_PCS_STATUS	0x9401	/* IEEE MMD Register 3.1 */
-#define I217_EEE_CAPABILITY	0x8000	/* IEEE MMD Register 3.20 */
-#define I217_EEE_ADVERTISEMENT	0x8001	/* IEEE MMD Register 7.60 */
-#define I217_EEE_LP_ABILITY	0x8002	/* IEEE MMD Register 7.61 */
-
-#define E1000_EEE_RX_LPI_RCVD	0x0400	/* Tx LP idle received */
-#define E1000_EEE_TX_LPI_RCVD	0x0800	/* Rx LP idle received */
-
-#define PHY_PAGE_SHIFT 5
-#define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
-                           ((reg) & MAX_PHY_REG_ADDRESS))
-
 /* Bits...
  * 15-5: page
  * 4-0: register offset
@@ -826,9 +794,5 @@
 
 /* SerDes Control */
 #define E1000_GEN_POLL_TIMEOUT          640
-
-/* FW Semaphore */
-#define E1000_FWSM_WLOCK_MAC_MASK	0x0380
-#define E1000_FWSM_WLOCK_MAC_SHIFT	7
 
 #endif /* _E1000_DEFINES_H_ */
