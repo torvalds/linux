@@ -115,7 +115,7 @@ const char *acpi_power_state_string(int state)
 	case ACPI_STATE_D3_HOT:
 		return "D3hot";
 	case ACPI_STATE_D3_COLD:
-		return "D3";
+		return "D3cold";
 	default:
 		return "(unknown)";
 	}
