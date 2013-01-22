@@ -2333,6 +2333,41 @@ TRACE_EVENT(cfg80211_return_u32,
 	TP_printk("ret: %u", __entry->ret)
 );
 
+TRACE_EVENT(cfg80211_report_wowlan_wakeup,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 struct cfg80211_wowlan_wakeup *wakeup),
+	TP_ARGS(wiphy, wdev, wakeup),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+		__field(bool, disconnect)
+		__field(bool, magic_pkt)
+		__field(bool, gtk_rekey_failure)
+		__field(bool, eap_identity_req)
+		__field(bool, four_way_handshake)
+		__field(bool, rfkill_release)
+		__field(s32, pattern_idx)
+		__field(u32, packet_len)
+		__dynamic_array(u8, packet, wakeup->packet_present_len)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+		__entry->disconnect = wakeup->disconnect;
+		__entry->magic_pkt = wakeup->magic_pkt;
+		__entry->gtk_rekey_failure = wakeup->gtk_rekey_failure;
+		__entry->eap_identity_req = wakeup->eap_identity_req;
+		__entry->four_way_handshake = wakeup->four_way_handshake;
+		__entry->rfkill_release = wakeup->rfkill_release;
+		__entry->pattern_idx = wakeup->pattern_idx;
+		__entry->packet_len = wakeup->packet_len;
+		if (wakeup->packet && wakeup->packet_present_len)
+			memcpy(__get_dynamic_array(packet), wakeup->packet,
+			       wakeup->packet_present_len);
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT, WIPHY_PR_ARG, WDEV_PR_ARG)
+);
+
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

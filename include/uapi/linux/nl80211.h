@@ -513,6 +513,12 @@
  *	command with the %NL80211_ATTR_WOWLAN_TRIGGERS attribute. For
  *	more background information, see
  *	http://wireless.kernel.org/en/users/Documentation/WoWLAN.
+ *	The @NL80211_CMD_SET_WOWLAN command can also be used as a notification
+ *	from the driver reporting the wakeup reason. In this case, the
+ *	@NL80211_ATTR_WOWLAN_TRIGGERS attribute will contain the reason
+ *	for the wakeup, if it was caused by wireless. If it is not present
+ *	in the wakeup notification, the wireless device didn't cause the
+ *	wakeup but reports that it was woken up.
  *
  * @NL80211_CMD_SET_REKEY_OFFLOAD: This command is used give the driver
  *	the necessary information for supporting GTK rekey offload. This
@@ -2947,6 +2953,10 @@ struct nl80211_wowlan_pattern_support {
  *
  *	In %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED, it is a binary attribute
  *	carrying a &struct nl80211_wowlan_pattern_support.
+ *
+ *	When reporting wakeup. it is a u32 attribute containing the 0-based
+ *	index of the pattern that caused the wakeup, in the patterns passed
+ *	to the kernel when configuring.
  * @NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED: Not a real trigger, and cannot be
  *	used when setting, used only to indicate that GTK rekeying is supported
  *	by the device (flag)
@@ -2957,8 +2967,25 @@ struct nl80211_wowlan_pattern_support {
  * @NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE: wake up on 4-way handshake (flag)
  * @NL80211_WOWLAN_TRIG_RFKILL_RELEASE: wake up when rfkill is released
  *	(on devices that have rfkill in the device) (flag)
+ * @NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211: For wakeup reporting only, contains
+ *	the 802.11 packet that caused the wakeup, e.g. a deauth frame. The frame
+ *	may be truncated, the @NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211_LEN
+ *	attribute contains the original length.
+ * @NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211_LEN: Original length of the 802.11
+ *	packet, may be bigger than the @NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211
+ *	attribute if the packet was truncated somewhere.
+ * @NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023: For wakeup reporting only, contains the
+ *	802.11 packet that caused the wakeup, e.g. a magic packet. The frame may
+ *	be truncated, the @NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023_LEN attribute
+ *	contains the original length.
+ * @NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023_LEN: Original length of the 802.3
+ *	packet, may be bigger than the @NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023
+ *	attribute if the packet was truncated somewhere.
  * @NUM_NL80211_WOWLAN_TRIG: number of wake on wireless triggers
  * @MAX_NL80211_WOWLAN_TRIG: highest wowlan trigger attribute number
+ *
+ * These nested attributes are used to configure the wakeup triggers and
+ * to report the wakeup reason(s).
  */
 enum nl80211_wowlan_triggers {
 	__NL80211_WOWLAN_TRIG_INVALID,
@@ -2971,6 +2998,10 @@ enum nl80211_wowlan_triggers {
 	NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST,
 	NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE,
 	NL80211_WOWLAN_TRIG_RFKILL_RELEASE,
+	NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211,
+	NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211_LEN,
+	NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023,
+	NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023_LEN,
 
 	/* keep last */
 	NUM_NL80211_WOWLAN_TRIG,
