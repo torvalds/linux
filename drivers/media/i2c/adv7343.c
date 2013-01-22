@@ -43,6 +43,7 @@ MODULE_PARM_DESC(debug, "Debug level 0-1");
 struct adv7343_state {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler hdl;
+	const struct adv7343_platform_data *pdata;
 	u8 reg00;
 	u8 reg01;
 	u8 reg02;
@@ -215,12 +216,23 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 	/* Enable Appropriate DAC */
 	val = state->reg00 & 0x03;
 
-	if (output_type == ADV7343_COMPOSITE_ID)
-		val |= ADV7343_COMPOSITE_POWER_VALUE;
-	else if (output_type == ADV7343_COMPONENT_ID)
-		val |= ADV7343_COMPONENT_POWER_VALUE;
+	/* configure default configuration */
+	if (!state->pdata)
+		if (output_type == ADV7343_COMPOSITE_ID)
+			val |= ADV7343_COMPOSITE_POWER_VALUE;
+		else if (output_type == ADV7343_COMPONENT_ID)
+			val |= ADV7343_COMPONENT_POWER_VALUE;
+		else
+			val |= ADV7343_SVIDEO_POWER_VALUE;
 	else
-		val |= ADV7343_SVIDEO_POWER_VALUE;
+		val = state->pdata->mode_config.sleep_mode << 0 |
+		      state->pdata->mode_config.pll_control << 1 |
+		      state->pdata->mode_config.dac_3 << 2 |
+		      state->pdata->mode_config.dac_2 << 3 |
+		      state->pdata->mode_config.dac_1 << 4 |
+		      state->pdata->mode_config.dac_6 << 5 |
+		      state->pdata->mode_config.dac_5 << 6 |
+		      state->pdata->mode_config.dac_4 << 7;
 
 	err = adv7343_write(sd, ADV7343_POWER_MODE_REG, val);
 	if (err < 0)
@@ -238,6 +250,17 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 
 	/* configure SD DAC Output 2 and SD DAC Output 1 bit to zero */
 	val = state->reg82 & (SD_DAC_1_DI & SD_DAC_2_DI);
+
+	if (state->pdata && state->pdata->sd_config.sd_dac_out1)
+		val = val | (state->pdata->sd_config.sd_dac_out1 << 1);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out1)
+		val = val & ~(state->pdata->sd_config.sd_dac_out1 << 1);
+
+	if (state->pdata && state->pdata->sd_config.sd_dac_out2)
+		val = val | (state->pdata->sd_config.sd_dac_out2 << 2);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out2)
+		val = val & ~(state->pdata->sd_config.sd_dac_out2 << 2);
+
 	err = adv7343_write(sd, ADV7343_SD_MODE_REG2, val);
 	if (err < 0)
 		goto setoutput_exit;
@@ -401,6 +424,9 @@ static int adv7343_probe(struct i2c_client *client,
 			     GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
+
+	/* Copy board specific information here */
+	state->pdata = client->dev.platform_data;
 
 	state->reg00	= 0x80;
 	state->reg01	= 0x00;
