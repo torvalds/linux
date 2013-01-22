@@ -186,6 +186,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 			PM_QOS_FLAG_NO_POWER_OFF))
 		pm_runtime_enable(&port_dev->dev);
 
+	device_enable_async_suspend(&port_dev->dev);
 
 	retval = usb_acpi_register_power_resources(&port_dev->dev);
 	if (retval && retval != -ENODEV)
