@@ -1272,7 +1272,7 @@ struct net_device {
 	void (*destructor)(struct net_device *dev);
 
 #ifdef CONFIG_NETPOLL
-	struct netpoll_info	*npinfo;
+	struct netpoll_info __rcu	*npinfo;
 #endif
 
 #ifdef CONFIG_NET_NS
