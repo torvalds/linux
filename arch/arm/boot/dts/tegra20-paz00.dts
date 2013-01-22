@@ -244,12 +244,10 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	serial@70006200 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	i2c@7000c000 {
