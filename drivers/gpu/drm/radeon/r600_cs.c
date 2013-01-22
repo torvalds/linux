@@ -2476,8 +2476,10 @@ static void r600_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->relocs);
 	for (i = 0; i < parser->nchunks; i++) {
 		kfree(parser->chunks[i].kdata);
-		kfree(parser->chunks[i].kpage[0]);
-		kfree(parser->chunks[i].kpage[1]);
+		if (parser->rdev && (parser->rdev->flags & RADEON_IS_AGP)) {
+			kfree(parser->chunks[i].kpage[0]);
+			kfree(parser->chunks[i].kpage[1]);
+		}
 	}
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
@@ -2561,16 +2563,16 @@ int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 	struct radeon_cs_chunk *relocs_chunk;
 	unsigned idx;
 
+	*cs_reloc = NULL;
 	if (p->chunk_relocs_idx == -1) {
 		DRM_ERROR("No relocation chunk !\n");
 		return -EINVAL;
 	}
-	*cs_reloc = NULL;
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
 	idx = p->dma_reloc_idx;
-	if (idx >= relocs_chunk->length_dw) {
+	if (idx >= p->nrelocs) {
 		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
-			  idx, relocs_chunk->length_dw);
+			  idx, p->nrelocs);
 		return -EINVAL;
 	}
 	*cs_reloc = p->relocs_ptr[idx];

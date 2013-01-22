@@ -1534,7 +1534,6 @@ init_io(struct nvbios_init *init)
 		mdelay(10);
 		init_wr32(init, 0x614100, 0x10000018);
 		init_wr32(init, 0x614900, 0x10000018);
-		return;
 	}
 
 	value = init_rdport(init, port) & mask;

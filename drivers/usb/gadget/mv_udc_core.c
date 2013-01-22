@@ -1012,7 +1012,7 @@ static void udc_clock_enable(struct mv_udc *udc)
 	unsigned int i;
 
 	for (i = 0; i < udc->clknum; i++)
-		clk_enable(udc->clk[i]);
+		clk_prepare_enable(udc->clk[i]);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
@@ -1020,7 +1020,7 @@ static void udc_clock_disable(struct mv_udc *udc)
 	unsigned int i;
 
 	for (i = 0; i < udc->clknum; i++)
-		clk_disable(udc->clk[i]);
+		clk_disable_unprepare(udc->clk[i]);
 }
 
 static void udc_stop(struct mv_udc *udc)
