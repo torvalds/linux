@@ -1,7 +1,7 @@
 #ifndef _RK610_TV_H
 #define _RK610_TV_H
 #include <linux/display-sys.h>
-#include <linux/fb.h>
+#include <linux/rk_fb.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #ifdef CONFIG_ARCH_RK29
