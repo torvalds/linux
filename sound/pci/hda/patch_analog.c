@@ -35,6 +35,10 @@
 struct ad198x_spec {
 	struct hda_gen_spec gen;
 
+	/* for auto parser */
+	int smux_paths[4];
+	unsigned int cur_smux;
+
 	const struct snd_kcontrol_new *mixers[6];
 	int num_mixers;
 	unsigned int beep_amp;	/* beep amp value, set via set_beep_amp() */
@@ -1519,13 +1523,94 @@ static const char * const ad1983_models[AD1983_MODELS] = {
 	[AD1983_BASIC]		= "basic",
 };
 
+/*
+ * SPDIF mux control for AD1983 auto-parser
+ */
+static int ad1983_auto_smux_enum_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+	static const char * const texts2[] = { "PCM", "ADC" };
+	static const char * const texts3[] = { "PCM", "ADC1", "ADC2" };
+	hda_nid_t dig_out = spec->gen.multiout.dig_out_nid;
+	int num_conns = snd_hda_get_num_conns(codec, dig_out);
+
+	if (num_conns == 2)
+		return snd_hda_enum_helper_info(kcontrol, uinfo, 2, texts2);
+	else if (num_conns == 3)
+		return snd_hda_enum_helper_info(kcontrol, uinfo, 3, texts3);
+	else
+		return -EINVAL;
+}
+
+static int ad1983_auto_smux_enum_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->cur_smux;
+	return 0;
+}
+
+static int ad1983_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+	unsigned int val = ucontrol->value.enumerated.item[0];
+	hda_nid_t dig_out = spec->gen.multiout.dig_out_nid;
+	int num_conns = snd_hda_get_num_conns(codec, dig_out);
+
+	if (val >= num_conns)
+		return -EINVAL;
+	if (spec->cur_smux == val)
+		return 0;
+	spec->cur_smux = val;
+	snd_hda_codec_write_cache(codec, dig_out, 0,
+				  AC_VERB_SET_CONNECT_SEL, val);
+	return 1;
+}
+
+static struct snd_kcontrol_new ad1983_auto_smux_mixer = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Playback Source",
+	.info = ad1983_auto_smux_enum_info,
+	.get = ad1983_auto_smux_enum_get,
+	.put = ad1983_auto_smux_enum_put,
+};
+
+static int ad1983_add_spdif_mux_ctl(struct hda_codec *codec)
+{
+	struct ad198x_spec *spec = codec->spec;
+	hda_nid_t dig_out = spec->gen.multiout.dig_out_nid;
+	int num_conns;
+
+	if (!dig_out)
+		return 0;
+	num_conns = snd_hda_get_num_conns(codec, dig_out);
+	if (num_conns != 2 && num_conns != 3)
+		return 0;
+	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1983_auto_smux_mixer))
+		return -ENOMEM;
+	return 0;
+}
+
 static int ad1983_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int err;
 
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
-	return ad198x_parse_auto_config(codec);
+	err = ad198x_parse_auto_config(codec);
+	if (err < 0)
+		return err;
+	err = ad1983_add_spdif_mux_ctl(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int patch_ad1983(struct hda_codec *codec)
@@ -1950,11 +2035,18 @@ static const struct snd_pci_quirk ad1981_cfg_tbl[] = {
 static int ad1981_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int err;
 
 	spec->gen.mixer_nid = 0x0e;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x0d, 0, HDA_OUTPUT);
-	return ad198x_parse_auto_config(codec);
+	err = ad198x_parse_auto_config(codec);
+	if (err < 0)
+		return err;
+	err = ad1983_add_spdif_mux_ctl(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int patch_ad1981(struct hda_codec *codec)
@@ -2820,17 +2912,167 @@ static const struct hda_amp_list ad1988_loopbacks[] = {
 };
 #endif
 
+static int ad1988_auto_smux_enum_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	static const char * const texts[] = {
+		"PCM", "ADC1", "ADC2", "ADC3",
+	};
+	int num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
+	if (num_conns > 4)
+		num_conns = 4;
+	return snd_hda_enum_helper_info(kcontrol, uinfo, num_conns, texts);
+}
+
+static int ad1988_auto_smux_enum_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->cur_smux;
+	return 0;
+}
+
+static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+	unsigned int val = ucontrol->value.enumerated.item[0];
+	struct nid_path *path;
+	int num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
+
+	if (val >= num_conns)
+		return -EINVAL;
+	if (spec->cur_smux == val)
+		return 0;
+
+	mutex_lock(&codec->control_mutex);
+	codec->cached_write = 1;
+	path = snd_hda_get_path_from_idx(codec,
+					 spec->smux_paths[spec->cur_smux]);
+	if (path)
+		snd_hda_activate_path(codec, path, false, true);
+	path = snd_hda_get_path_from_idx(codec, spec->smux_paths[val]);
+	if (path)
+		snd_hda_activate_path(codec, path, true, true);
+	spec->cur_smux = val;
+	codec->cached_write = 0;
+	mutex_unlock(&codec->control_mutex);
+	snd_hda_codec_flush_cache(codec); /* flush the updates */
+	return 1;
+}
+
+static struct snd_kcontrol_new ad1988_auto_smux_mixer = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Playback Source",
+	.info = ad1988_auto_smux_enum_info,
+	.get = ad1988_auto_smux_enum_get,
+	.put = ad1988_auto_smux_enum_put,
+};
+
+static int ad1988_auto_init(struct hda_codec *codec)
+{
+	struct ad198x_spec *spec = codec->spec;
+	int i, err;
+
+	err = snd_hda_gen_init(codec);
+	if (err < 0)
+		return err;
+	if (!spec->gen.autocfg.dig_outs)
+		return 0;
+
+	for (i = 0; i < 4; i++) {
+		struct nid_path *path;
+		path = snd_hda_get_path_from_idx(codec, spec->smux_paths[i]);
+		if (path)
+			snd_hda_activate_path(codec, path, path->active, false);
+	}
+
+	return 0;
+}
+
+static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
+{
+	struct ad198x_spec *spec = codec->spec;
+	int i, num_conns;
+	/* we create four static faked paths, since AD codecs have odd
+	 * widget connections regarding the SPDIF out source
+	 */
+	static struct nid_path fake_paths[4] = {
+		{
+			.depth = 3,
+			.path = { 0x02, 0x1d, 0x1b },
+			.idx = { 0, 0, 0 },
+			.multi = { 0, 0, 0 },
+		},
+		{
+			.depth = 4,
+			.path = { 0x08, 0x0b, 0x1d, 0x1b },
+			.idx = { 0, 0, 1, 0 },
+			.multi = { 0, 1, 0, 0 },
+		},
+		{
+			.depth = 4,
+			.path = { 0x09, 0x0b, 0x1d, 0x1b },
+			.idx = { 0, 1, 1, 0 },
+			.multi = { 0, 1, 0, 0 },
+		},
+		{
+			.depth = 4,
+			.path = { 0x0f, 0x0b, 0x1d, 0x1b },
+			.idx = { 0, 2, 1, 0 },
+			.multi = { 0, 1, 0, 0 },
+		},
+	};
+
+	/* SPDIF source mux appears to be present only on AD1988A */
+	if (!spec->gen.autocfg.dig_outs ||
+	    get_wcaps_type(get_wcaps(codec, 0x1d)) != AC_WID_AUD_MIX)
+		return 0;
+
+	num_conns = snd_hda_get_num_conns(codec, 0x0b) + 1;
+	if (num_conns != 3 && num_conns != 4)
+		return 0;
+
+	for (i = 0; i < num_conns; i++) {
+		struct nid_path *path = snd_array_new(&spec->gen.paths);
+		if (!path)
+			return -ENOMEM;
+		*path = fake_paths[i];
+		if (!i)
+			path->active = 1;
+		spec->smux_paths[i] = snd_hda_get_path_idx(codec, path);
+	}
+
+	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1988_auto_smux_mixer))
+		return -ENOMEM;
+
+	codec->patch_ops.init = ad1988_auto_init;
+
+	return 0;
+}
+
 /*
  */
 
 static int ad1988_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int err;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
-	return ad198x_parse_auto_config(codec);
+	err = ad198x_parse_auto_config(codec);
+	if (err < 0)
+		return err;
+	err = ad1988_add_spdif_mux_ctl(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /*
@@ -3174,11 +3416,18 @@ static const char * const ad1884_models[AD1884_MODELS] = {
 static int ad1884_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int err;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
-	return ad198x_parse_auto_config(codec);
+	err = ad198x_parse_auto_config(codec);
+	if (err < 0)
+		return err;
+	err = ad1983_add_spdif_mux_ctl(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int patch_ad1884_auto(struct hda_codec *codec)
@@ -4635,11 +4884,18 @@ static const char * const ad1882_models[AD1986A_MODELS] = {
 static int ad1882_parse_auto_config(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int err;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->beep_dev_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
-	return ad198x_parse_auto_config(codec);
+	err = ad198x_parse_auto_config(codec);
+	if (err < 0)
+		return err;
+	err = ad1988_add_spdif_mux_ctl(codec);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int patch_ad1882(struct hda_codec *codec)
