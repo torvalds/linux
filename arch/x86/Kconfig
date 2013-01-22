@@ -1699,7 +1699,7 @@ config HOTPLUG_CPU
 config BOOTPARAM_HOTPLUG_CPU0
 	bool "Set default setting of cpu0_hotpluggable"
 	default n
-	depends on HOTPLUG_CPU && EXPERIMENTAL
+	depends on HOTPLUG_CPU
 	---help---
 	  Set whether default state of cpu0_hotpluggable is on or off.
 
@@ -1728,7 +1728,7 @@ config BOOTPARAM_HOTPLUG_CPU0
 config DEBUG_HOTPLUG_CPU0
 	def_bool n
 	prompt "Debug CPU0 hotplug"
-	depends on HOTPLUG_CPU && EXPERIMENTAL
+	depends on HOTPLUG_CPU
 	---help---
 	  Enabling this option offlines CPU0 (if CPU0 can be offlined) as
 	  soon as possible and boots up userspace with CPU0 offlined. User
