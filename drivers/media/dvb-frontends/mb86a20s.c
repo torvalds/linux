@@ -175,6 +175,10 @@ static struct regdata mb86a20s_reset_reception[] = {
 	{ 0x08, 0x00 },
 };
 
+/*
+ * I2C read/write functions and macros
+ */
+
 static int mb86a20s_i2c_writereg(struct mb86a20s_state *state,
 			     u8 i2c_addr, int reg, int data)
 {
@@ -236,45 +240,36 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
 	mb86a20s_i2c_writeregdata(state, state->config->demod_address, \
 	regdata, ARRAY_SIZE(regdata))
 
-static int mb86a20s_initfe(struct dvb_frontend *fe)
+static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
-	int rc;
-	u8  regD5 = 1;
+	int val;
 
 	dprintk("\n");
+	*status = 0;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+	val = mb86a20s_readreg(state, 0x0a) & 0xf;
+	if (val < 0)
+		return val;
 
-	/* Initialize the frontend */
-	rc = mb86a20s_writeregdata(state, mb86a20s_init);
-	if (rc < 0)
-		goto err;
+	if (val >= 2)
+		*status |= FE_HAS_SIGNAL;
 
-	if (!state->config->is_serial) {
-		regD5 &= ~1;
+	if (val >= 4)
+		*status |= FE_HAS_CARRIER;
 
-		rc = mb86a20s_writereg(state, 0x50, 0xd5);
-		if (rc < 0)
-			goto err;
-		rc = mb86a20s_writereg(state, 0x51, regD5);
-		if (rc < 0)
-			goto err;
-	}
+	if (val >= 5)
+		*status |= FE_HAS_VITERBI;
 
-err:
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (val >= 7)
+		*status |= FE_HAS_SYNC;
 
-	if (rc < 0) {
-		state->need_init = true;
-		printk(KERN_INFO "mb86a20s: Init failed. Will try again later\n");
-	} else {
-		state->need_init = false;
-		dprintk("Initialization succeeded.\n");
-	}
-	return rc;
+	if (val >= 8)				/* Maybe 9? */
+		*status |= FE_HAS_LOCK;
+
+	dprintk("val = %d, status = 0x%02x\n", val, *status);
+
+	return 0;
 }
 
 static int mb86a20s_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
@@ -315,82 +310,6 @@ static int mb86a20s_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	return 0;
-}
-
-static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
-{
-	struct mb86a20s_state *state = fe->demodulator_priv;
-	int val;
-
-	dprintk("\n");
-	*status = 0;
-
-	val = mb86a20s_readreg(state, 0x0a) & 0xf;
-	if (val < 0)
-		return val;
-
-	if (val >= 2)
-		*status |= FE_HAS_SIGNAL;
-
-	if (val >= 4)
-		*status |= FE_HAS_CARRIER;
-
-	if (val >= 5)
-		*status |= FE_HAS_VITERBI;
-
-	if (val >= 7)
-		*status |= FE_HAS_SYNC;
-
-	if (val >= 8)				/* Maybe 9? */
-		*status |= FE_HAS_LOCK;
-
-	dprintk("val = %d, status = 0x%02x\n", val, *status);
-
-	return 0;
-}
-
-static int mb86a20s_set_frontend(struct dvb_frontend *fe)
-{
-	struct mb86a20s_state *state = fe->demodulator_priv;
-	int rc;
-#if 0
-	/*
-	 * FIXME: Properly implement the set frontend properties
-	 */
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-#endif
-
-	dprintk("\n");
-
-	/*
-	 * Gate should already be opened, but it doesn't hurt to
-	 * double-check
-	 */
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	dprintk("Calling tuner set parameters\n");
-	fe->ops.tuner_ops.set_params(fe);
-
-	/*
-	 * Make it more reliable: if, for some reason, the initial
-	 * device initialization doesn't happen, initialize it when
-	 * a SBTVD parameters are adjusted.
-	 *
-	 * Unfortunately, due to a hard to track bug at tda829x/tda18271,
-	 * the agc callback logic is not called during DVB attach time,
-	 * causing mb86a20s to not be initialized with Kworld SBTVD.
-	 * So, this hack is needed, in order to make Kworld SBTVD to work.
-	 */
-	if (state->need_init)
-		mb86a20s_initfe(fe);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	rc = mb86a20s_writeregdata(state, mb86a20s_reset_reception);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	return rc;
 }
 
 static int mb86a20s_get_modulation(struct mb86a20s_state *state,
@@ -632,6 +551,92 @@ error:
 	return rc;
 
 }
+
+static int mb86a20s_initfe(struct dvb_frontend *fe)
+{
+	struct mb86a20s_state *state = fe->demodulator_priv;
+	int rc;
+	u8  regD5 = 1;
+
+	dprintk("\n");
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	/* Initialize the frontend */
+	rc = mb86a20s_writeregdata(state, mb86a20s_init);
+	if (rc < 0)
+		goto err;
+
+	if (!state->config->is_serial) {
+		regD5 &= ~1;
+
+		rc = mb86a20s_writereg(state, 0x50, 0xd5);
+		if (rc < 0)
+			goto err;
+		rc = mb86a20s_writereg(state, 0x51, regD5);
+		if (rc < 0)
+			goto err;
+	}
+
+err:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	if (rc < 0) {
+		state->need_init = true;
+		printk(KERN_INFO "mb86a20s: Init failed. Will try again later\n");
+	} else {
+		state->need_init = false;
+		dprintk("Initialization succeeded.\n");
+	}
+	return rc;
+}
+
+static int mb86a20s_set_frontend(struct dvb_frontend *fe)
+{
+	struct mb86a20s_state *state = fe->demodulator_priv;
+	int rc;
+#if 0
+	/*
+	 * FIXME: Properly implement the set frontend properties
+	 */
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+#endif
+
+	dprintk("\n");
+
+	/*
+	 * Gate should already be opened, but it doesn't hurt to
+	 * double-check
+	 */
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+	dprintk("Calling tuner set parameters\n");
+	fe->ops.tuner_ops.set_params(fe);
+
+	/*
+	 * Make it more reliable: if, for some reason, the initial
+	 * device initialization doesn't happen, initialize it when
+	 * a SBTVD parameters are adjusted.
+	 *
+	 * Unfortunately, due to a hard to track bug at tda829x/tda18271,
+	 * the agc callback logic is not called during DVB attach time,
+	 * causing mb86a20s to not be initialized with Kworld SBTVD.
+	 * So, this hack is needed, in order to make Kworld SBTVD to work.
+	 */
+	if (state->need_init)
+		mb86a20s_initfe(fe);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+	rc = mb86a20s_writeregdata(state, mb86a20s_reset_reception);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	return rc;
+}
+
 
 static int mb86a20s_read_status_gate(struct dvb_frontend *fe,
 				     fe_status_t *status)
