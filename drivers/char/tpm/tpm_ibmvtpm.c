@@ -398,6 +398,11 @@ static int tpm_ibmvtpm_resume(struct device *dev)
 	return rc;
 }
 
+static bool tpm_ibmvtpm_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == 0);
+}
+
 static const struct file_operations ibmvtpm_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -441,7 +446,7 @@ static const struct tpm_vendor_specific tpm_ibmvtpm = {
 	.status = tpm_ibmvtpm_status,
 	.req_complete_mask = 0,
 	.req_complete_val = 0,
-	.req_canceled = 0,
+	.req_canceled = tpm_ibmvtpm_req_canceled,
 	.attr_group = &ibmvtpm_attr_grp,
 	.miscdev = { .fops = &ibmvtpm_ops, },
 };

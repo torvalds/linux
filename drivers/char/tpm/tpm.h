@@ -78,7 +78,7 @@ struct tpm_chip;
 struct tpm_vendor_specific {
 	const u8 req_complete_mask;
 	const u8 req_complete_val;
-	const u8 req_canceled;
+	bool (*req_canceled)(struct tpm_chip *chip, u8 status);
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
 
@@ -112,6 +112,8 @@ struct tpm_vendor_specific {
 #define TPM_VPRIV(c)	(c)->vendor.priv
 
 #define TPM_VID_INTEL    0x8086
+#define TPM_VID_WINBOND  0x1050
+#define TPM_VID_STM      0x104A
 
 struct tpm_chip {
 	struct device *dev;	/* Device stuff */

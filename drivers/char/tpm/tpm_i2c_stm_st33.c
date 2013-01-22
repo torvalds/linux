@@ -587,6 +587,11 @@ out:
 	return size;
 }
 
+static bool tpm_st33_i2c_req_canceled(struct tpm_chip *chip, u8 status)
+{
+       return (status == TPM_STS_COMMAND_READY);
+}
+
 static const struct file_operations tpm_st33_i2c_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -627,7 +632,7 @@ static struct tpm_vendor_specific st_i2c_tpm = {
 	.status = tpm_stm_i2c_status,
 	.req_complete_mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
-	.req_canceled = TPM_STS_COMMAND_READY,
+	.req_canceled = tpm_st33_i2c_req_canceled,
 	.attr_group = &stm_tpm_attr_grp,
 	.miscdev = {.fops = &tpm_st33_i2c_fops,},
 };
