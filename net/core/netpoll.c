@@ -1140,6 +1140,7 @@ int netpoll_setup(struct netpoll *np)
 #else
 			np_err(np, "IPv6 is not supported %s, aborting\n",
 			       np->dev_name);
+			err = -EINVAL;
 			goto put;
 #endif
 		}
