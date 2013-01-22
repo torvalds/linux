@@ -225,6 +225,9 @@ struct ehci_hcd {			/* one per controller */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
 #endif
+
+	/* platform-specific data -- must come last */
+	unsigned long		priv[0] __aligned(sizeof(s64));
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
