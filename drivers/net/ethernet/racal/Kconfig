@@ -19,8 +19,8 @@ config NET_VENDOR_RACAL
 if NET_VENDOR_RACAL
 
 config NI5010
-	tristate "NI5010 support (EXPERIMENTAL)"
-	depends on ISA && EXPERIMENTAL && BROKEN_ON_SMP
+	tristate "NI5010 support"
+	depends on ISA && BROKEN_ON_SMP
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
