@@ -19,12 +19,12 @@
 
 struct sram_gpio_data {
        void __iomem *base;
-       uint offset;
+       unsigned int offset;
 };
 
 extern struct sram_gpio_data __sramdata pmic_sleep,pmic_vsel;
 int sram_gpio_init(int gpio, struct sram_gpio_data *data);
-void __sramfunc sram_gpio_set_value(struct sram_gpio_data data, uint value);
+void __sramfunc sram_gpio_set_value(struct sram_gpio_data data, unsigned int value);
 
 int __init rk29_sram_init(void);
 
