@@ -1210,11 +1210,13 @@ EXPORT_SYMBOL_GPL(ntb_transport_create_queue);
  */
 void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 {
-	struct pci_dev *pdev = ntb_query_pdev(qp->ndev);
+	struct pci_dev *pdev;
 	struct ntb_queue_entry *entry;
 
 	if (!qp)
 		return;
+
+	pdev = ntb_query_pdev(qp->ndev);
 
 	cancel_delayed_work_sync(&qp->link_work);
 
@@ -1371,12 +1373,13 @@ EXPORT_SYMBOL_GPL(ntb_transport_link_up);
  */
 void ntb_transport_link_down(struct ntb_transport_qp *qp)
 {
-	struct pci_dev *pdev = ntb_query_pdev(qp->ndev);
+	struct pci_dev *pdev;
 	int rc, val;
 
 	if (!qp)
 		return;
 
+	pdev = ntb_query_pdev(qp->ndev);
 	qp->client_ready = NTB_LINK_DOWN;
 
 	rc = ntb_read_local_spad(qp->ndev, QP_LINKS, &val);
@@ -1408,6 +1411,9 @@ EXPORT_SYMBOL_GPL(ntb_transport_link_down);
  */
 bool ntb_transport_link_query(struct ntb_transport_qp *qp)
 {
+	if (!qp)
+		return false;
+
 	return qp->qp_link == NTB_LINK_UP;
 }
 EXPORT_SYMBOL_GPL(ntb_transport_link_query);
@@ -1422,6 +1428,9 @@ EXPORT_SYMBOL_GPL(ntb_transport_link_query);
  */
 unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp)
 {
+	if (!qp)
+		return 0;
+
 	return qp->qp_num;
 }
 EXPORT_SYMBOL_GPL(ntb_transport_qp_num);
@@ -1436,6 +1445,9 @@ EXPORT_SYMBOL_GPL(ntb_transport_qp_num);
  */
 unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp)
 {
+	if (!qp)
+		return 0;
+
 	return qp->tx_max_frame - sizeof(struct ntb_payload_header);
 }
 EXPORT_SYMBOL_GPL(ntb_transport_max_size);
