@@ -36,8 +36,6 @@
 
 extern void tegra_secondary_startup(void);
 
-static void __iomem *scu_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE);
-
 #define EVP_CPU_RESET_VECTOR \
 	(IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE) + 0x100)
 
@@ -151,7 +149,8 @@ static void __init tegra_smp_init_cpus(void)
 static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 {
 	tegra_cpu_reset_handler_init();
-	scu_enable(scu_base);
+	if (scu_a9_has_base())
+		scu_enable(IO_ADDRESS(scu_a9_get_base()));
 }
 
 struct smp_operations tegra_smp_ops __initdata = {
