@@ -651,52 +651,70 @@ static struct sensor_platform_data light_stk3171_info = {
 #endif
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_CS_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
 #define LCD_CS_PIN         RK30_PIN4_PC7
 #define LCD_CS_VALUE       GPIO_HIGH
 
-#define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
 #define LCD_EN_PIN         RK30_PIN6_PB4
 #define LCD_EN_VALUE       GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
-	rk30_mux_api_set(LCD_CS_MUX_NAME, GPIO4C_GPIO4C7);
-	ret = gpio_request(LCD_CS_PIN, NULL);
-	if (ret != 0)
+
+	if(LCD_CS_PIN != INVALID_GPIO)
 	{
-		gpio_free(LCD_CS_PIN);
-		printk(KERN_ERR "request lcd cs pin fail!\n");
-		return -1;
+		ret = gpio_request(LCD_CS_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_CS_PIN);
+			printk(KERN_ERR "request lcd cs pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
+		}
 	}
-	else
+
+	if(LCD_EN_PIN != INVALID_GPIO)
 	{
-		gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
-	}
-	ret = gpio_request(LCD_EN_PIN, NULL);
-	if (ret != 0)
-	{
-		gpio_free(LCD_EN_PIN);
-		printk(KERN_ERR "request lcd en pin fail!\n");
-		return -1;
-	}
-	else
-	{
-		gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		ret = gpio_request(LCD_EN_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_EN_PIN);
+			printk(KERN_ERR "request lcd en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		}
 	}
 	return 0;
 }
 static int rk_fb_io_disable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
+	if(LCD_CS_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, !LCD_CS_VALUE);
+	}
+
+	if(LCD_EN_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, !LCD_EN_VALUE);
+	}
 	return 0;
 }
 static int rk_fb_io_enable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	if(LCD_CS_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
+	}
+	if(LCD_EN_PIN != INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
 	return 0;
 }
 
