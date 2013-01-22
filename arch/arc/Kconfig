@@ -119,6 +119,10 @@ config CPU_BIG_ENDIAN
 	help
 	  Build kernel for Big Endian Mode of ARC CPU
 
+# If a platform can't work with 0x8000_0000 based dma_addr_t
+config ARC_PLAT_NEEDS_CPU_TO_DMA
+	bool
+
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default n

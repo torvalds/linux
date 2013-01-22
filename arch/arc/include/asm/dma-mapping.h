@@ -13,7 +13,23 @@
 
 #include <asm-generic/dma-coherent.h>
 #include <asm/cacheflush.h>
+
+#ifndef CONFIG_ARC_PLAT_NEEDS_CPU_TO_DMA
+/*
+ * dma_map_* API take cpu addresses, which is kernel logical address in the
+ * untranslated address space (0x8000_0000) based. The dma address (bus addr)
+ * ideally needs to be 0x0000_0000 based hence these glue routines.
+ * However given that intermediate bus bridges can ignore the high bit, we can
+ * do with these routines being no-ops.
+ * If a platform/device comes up which sriclty requires 0 based bus addr
+ * (e.g. AHB-PCI bridge on Angel4 board), then it can provide it's own versions
+ */
+#define plat_dma_addr_to_kernel(dev, addr) ((unsigned long)(addr))
+#define plat_kernel_addr_to_dma(dev, ptr) ((dma_addr_t)(ptr))
+
+#else
 #include <plat/dma_addr.h>
+#endif
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t gfp);
