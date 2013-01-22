@@ -29,6 +29,12 @@ struct pxa2xx_spi_master {
 	u16 num_chipselect;
 	u8 enable_dma;
 
+	/* DMA engine specific config */
+	int rx_chan_id;
+	int tx_chan_id;
+	int rx_slave_id;
+	int tx_slave_id;
+
 	/* For non-PXA arches */
 	struct ssp_device ssp;
 };

@@ -10,11 +10,15 @@
 #ifndef SPI_PXA2XX_H
 #define SPI_PXA2XX_H
 
+#include <linux/atomic.h>
+#include <linux/dmaengine.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pxa2xx_ssp.h>
+#include <linux/scatterlist.h>
+#include <linux/sizes.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 
@@ -52,6 +56,16 @@ struct driver_data {
 
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
+
+	/* DMA engine support */
+	struct dma_chan *rx_chan;
+	struct dma_chan *tx_chan;
+	struct sg_table rx_sgt;
+	struct sg_table tx_sgt;
+	int rx_nents;
+	int tx_nents;
+	void *dummy;
+	atomic_t dma_running;
 
 	/* Current message transfer state info */
 	struct spi_message *cur_msg;
@@ -116,7 +130,6 @@ DEFINE_SSP_REG(SSPSP, 0x2c)
 #define DONE_STATE ((void *)2)
 #define ERROR_STATE ((void *)-1)
 
-#define MAX_DMA_LEN		8191
 #define IS_DMA_ALIGNED(x)	IS_ALIGNED((unsigned long)(x), DMA_ALIGNMENT)
 #define DMA_ALIGNMENT		8
 
@@ -142,7 +155,24 @@ static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 extern int pxa2xx_spi_flush(struct driver_data *drv_data);
 extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 
+/*
+ * Select the right DMA implementation.
+ */
 #if defined(CONFIG_SPI_PXA2XX_PXADMA)
+#define SPI_PXA2XX_USE_DMA	1
+#define MAX_DMA_LEN		8191
+#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE)
+#elif defined(CONFIG_SPI_PXA2XX_DMA)
+#define SPI_PXA2XX_USE_DMA	1
+#define MAX_DMA_LEN		SZ_64K
+#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
+#else
+#undef SPI_PXA2XX_USE_DMA
+#define MAX_DMA_LEN		0
+#define DEFAULT_DMA_CR1		0
+#endif
+
+#ifdef SPI_PXA2XX_USE_DMA
 extern bool pxa2xx_spi_dma_is_possible(size_t len);
 extern int pxa2xx_spi_map_dma_buffers(struct driver_data *drv_data);
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);

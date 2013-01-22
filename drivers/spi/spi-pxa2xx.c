@@ -928,7 +928,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		drv_data->mask_sr = SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	} else {
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE;
-		drv_data->dma_cr1 = SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE;
+		drv_data->dma_cr1 = DEFAULT_DMA_CR1;
 		drv_data->clear_sr = SSSR_ROR | SSSR_TINT;
 		drv_data->mask_sr = SSSR_TINT | SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	}
