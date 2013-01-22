@@ -177,6 +177,7 @@ struct sigmatel_spec {
 	unsigned int headset_jack:1; /* 4-pin headset jack (hp + mono mic) */
 	unsigned int volknob_init:1; /* special volume-knob initialization */
 	unsigned int powerdown_adcs:1;
+	unsigned int have_spdif_mux:1;
 
 	/* gpio lines */
 	unsigned int eapd_mask;
@@ -211,6 +212,11 @@ struct sigmatel_spec {
 	/* beep widgets */
 	hda_nid_t anabeep_nid;
 	hda_nid_t digbeep_nid;
+
+	/* SPDIF-out mux */
+	const char * const *spdif_labels;
+	struct hda_input_mux spdif_mux;
+	unsigned int cur_smux[2];
 };
 
 #define AC_VERB_IDT_SET_POWER_MAP	0x7ec
@@ -883,6 +889,85 @@ static int stac_beep_switch_ctl(struct hda_codec *codec)
 	return 0;
 }
 #endif
+
+/*
+ * SPDIF-out mux controls
+ */
+
+static int stac_smux_enum_info(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_input_mux_info(&spec->spdif_mux, uinfo);
+}
+
+static int stac_smux_enum_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	unsigned int smux_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	ucontrol->value.enumerated.item[0] = spec->cur_smux[smux_idx];
+	return 0;
+}
+
+static int stac_smux_enum_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	unsigned int smux_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	return snd_hda_input_mux_put(codec, &spec->spdif_mux, ucontrol,
+				     spec->gen.autocfg.dig_out_pins[smux_idx],
+				     &spec->cur_smux[smux_idx]);
+}
+
+static struct snd_kcontrol_new stac_smux_mixer = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Playback Source",
+	/* count set later */
+	.info = stac_smux_enum_info,
+	.get = stac_smux_enum_get,
+	.put = stac_smux_enum_put,
+};
+
+static const char * const stac_spdif_labels[] = {
+	"Digital Playback", "Analog Mux 1", "Analog Mux 2", NULL
+};
+
+static int stac_create_spdif_mux_ctls(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
+	const char * const *labels = spec->spdif_labels;
+	struct snd_kcontrol_new *kctl;
+	int i, num_cons;
+
+	if (cfg->dig_outs < 1)
+		return 0;
+
+	num_cons = snd_hda_get_num_conns(codec, cfg->dig_out_pins[0]);
+	if (num_cons <= 1)
+		return 0;
+
+	if (!labels)
+		labels = stac_spdif_labels;
+	for (i = 0; i < num_cons; i++) {
+		if (snd_BUG_ON(!labels[i]))
+			return -EINVAL;
+		snd_hda_add_imux_item(&spec->spdif_mux, labels[i], i, NULL);
+	}
+
+	kctl = snd_hda_gen_add_kctl(&spec->gen, NULL, &stac_smux_mixer);
+	if (!kctl)
+		return -ENOMEM;
+	kctl->count = cfg->dig_outs;
+
+	return 0;
+}
 
 /*
  */
@@ -3475,6 +3560,12 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 			return -ENOMEM;
 	}
 
+	if (spec->have_spdif_mux) {
+		err = stac_create_spdif_mux_ctls(codec);
+		if (err < 0)
+			return err;
+	}
+
 	stac_init_power_map(codec);
 
 	return 0;
@@ -3744,6 +3835,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
 	spec->gen.mixer_nid = 0x1d;
+	spec->have_spdif_mux = 1;
 
 	num_dacs = snd_hda_get_num_conns(codec, 0x0a) - 1;
 	if (num_dacs < 3 || num_dacs > 5) {
@@ -3885,6 +3977,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.mixer_nid = 0x17;
+	spec->have_spdif_mux = 1;
 
 	codec->patch_ops = stac_patch_ops;
 
@@ -3988,6 +4081,11 @@ static int patch_stac922x(struct hda_codec *codec)
 	return 0;
 }
 
+static const char * const stac927x_spdif_labels[] = {
+	"Digital Playback", "ADAT", "Analog Mux 1",
+	"Analog Mux 2", "Analog Mux 3", NULL
+};
+
 static int patch_stac927x(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
@@ -4000,6 +4098,8 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
+	spec->have_spdif_mux = 1;
+	spec->spdif_labels = stac927x_spdif_labels;
 
 	spec->digbeep_nid = 0x23;
 
@@ -4058,6 +4158,7 @@ static int patch_stac9205(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 1;
 	spec->gen.own_eapd_ctl = 1;
+	spec->have_spdif_mux = 1;
 
 	spec->digbeep_nid = 0x23;
 
