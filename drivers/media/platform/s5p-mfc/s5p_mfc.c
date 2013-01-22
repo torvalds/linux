@@ -582,8 +582,7 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx,
 
 	clear_work_bit(ctx);
 
-	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-		WARN_ON(1);
+	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 
 	s5p_mfc_clock_off();
 	wake_up(&ctx->queue);
