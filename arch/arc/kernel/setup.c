@@ -13,6 +13,8 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/of_fdt.h>
+#include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
 #include <asm/cache.h>
@@ -20,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/arcregs.h>
+#include <asm/prom.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -57,6 +60,8 @@ void __init __attribute__((weak)) arc_platform_early_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	int rc;
+
 #ifdef CONFIG_CMDLINE_UBOOT
 	/* Make sure that a whitespace is inserted before */
 	strlcat(command_line, " ", sizeof(command_line));
@@ -71,6 +76,8 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
+	rc = setup_machine_fdt(__dtb_start);
+
 	/* To force early parsing of things like mem=xxx */
 	parse_early_param();
 
@@ -80,6 +87,8 @@ void __init setup_arch(char **cmdline_p)
 	setup_processor();
 
 	setup_arch_memory();
+
+	unflatten_device_tree();
 
 	/* Can be issue if someone passes cmd line arg "ro"
 	 * But that is unlikely so keeping it as it is

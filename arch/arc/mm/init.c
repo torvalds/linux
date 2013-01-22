@@ -39,6 +39,11 @@ static int __init setup_mem_sz(char *str)
 }
 early_param("mem", setup_mem_sz);
 
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+	pr_err("%s(%llx, %llx)\n", __func__, base, size);
+}
+
 /*
  * First memory setup routine called from setup_arch()
  * 1. setup swapper's mm @init_mm
@@ -169,3 +174,11 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 	free_init_pages("initrd memory", start, end);
 }
 #endif
+
+#ifdef CONFIG_OF_FLATTREE
+void __init early_init_dt_setup_initrd_arch(unsigned long start,
+					    unsigned long end)
+{
+	pr_err("%s(%lx, %lx)\n", __func__, start, end);
+}
+#endif /* CONFIG_OF_FLATTREE */
