@@ -622,11 +622,8 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 
 int acpi_power_on_resources(struct acpi_device *device, int state)
 {
-	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3_COLD)
+	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3_HOT)
 		return -EINVAL;
-
-	if (state == ACPI_STATE_D3_COLD)
-		return 0;
 
 	return acpi_power_on_list(&device->power.states[state].resources);
 }
