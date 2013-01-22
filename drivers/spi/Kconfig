@@ -310,7 +310,7 @@ config SPI_PXA2XX_DMA
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA || PCI
+	depends on ARCH_PXA || PCI || ACPI
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
