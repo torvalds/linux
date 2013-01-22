@@ -1133,7 +1133,7 @@ static struct comedi_driver dt9812_comedi_driver = {
 
 static int __init usb_dt9812_init(void)
 {
-	int result, i;
+	int i;
 
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
@@ -1144,30 +1144,13 @@ static int __init usb_dt9812_init(void)
 	}
 	dt9812[12].serial = 0x0;
 
-	/* register with the USB subsystem */
-	result = usb_register(&dt9812_usb_driver);
-	if (result) {
-		pr_err("usb_register failed. Error number %d\n", result);
-		return result;
-	}
-	/* register with comedi */
-	result = comedi_driver_register(&dt9812_comedi_driver);
-	if (result) {
-		usb_deregister(&dt9812_usb_driver);
-		pr_err("comedi_driver_register failed. Error number %d\n",
-		       result);
-	}
-
-	return result;
+	return comedi_usb_driver_register(&dt9812_comedi_driver,
+						&dt9812_usb_driver);
 }
 
 static void __exit usb_dt9812_exit(void)
 {
-	/* unregister with comedi */
-	comedi_driver_unregister(&dt9812_comedi_driver);
-
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&dt9812_usb_driver);
+	comedi_usb_driver_unregister(&dt9812_comedi_driver, &dt9812_usb_driver);
 }
 
 module_init(usb_dt9812_init);
