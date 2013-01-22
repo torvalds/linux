@@ -497,9 +497,8 @@ void __kprobes set_reg(int reg, long val, struct pt_regs *regs,
  * @pc +2/4/6 (ARCompact ISA allows free intermixing of 16/32 bit insns).
  *
  * If @pc is a branch
- * 	-@tgt_if_br is set to branch target.
- * 	-If branch has delay slot, @next_pc updated with actual next PC.
- *
+ *	-@tgt_if_br is set to branch target.
+ *	-If branch has delay slot, @next_pc updated with actual next PC.
  */
 int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 			     struct callee_regs *cregs,

@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
+#include <asm/kprobes.h>
 
 void __init trap_init(void)
 {
@@ -90,6 +91,7 @@ void do_machine_check_fault(unsigned long cause, unsigned long address,
 	die("Machine Check Exception", regs, address, cause);
 }
 
+
 /*
  * Entry point for traps induced by ARCompact TRAP_S <n> insn
  * This is same family as TRAP0/SWI insn (use the same vector).
@@ -109,6 +111,10 @@ void do_non_swi_trap(unsigned long cause, unsigned long address,
 		trap_is_brkpt(cause, address, regs);
 		break;
 
+	case 2:
+		trap_is_kprobe(param, address, regs);
+		break;
+
 	default:
 		break;
 	}
@@ -116,10 +122,17 @@ void do_non_swi_trap(unsigned long cause, unsigned long address,
 
 /*
  * Entry point for Instruction Error Exception
+ *  -For a corner case, ARC kprobes implementation resorts to using
+ *   this exception, hence the check
  */
 void do_insterror_or_kprobe(unsigned long cause,
 				       unsigned long address,
 				       struct pt_regs *regs)
 {
+	/* Check if this exception is caused by kprobes */
+	if (notify_die(DIE_IERR, "kprobe_ierr", regs, address,
+		       cause, SIGILL) == NOTIFY_STOP)
+		return;
+
 	insterror_is_error(cause, address, regs);
 }

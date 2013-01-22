@@ -111,6 +111,11 @@ struct callee_regs {
 	(struct pt_regs *)(pg_start + THREAD_SIZE - 4) - 1;	\
 })
 
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->r0;
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #define orig_r8_IS_SCALL		0x0001
