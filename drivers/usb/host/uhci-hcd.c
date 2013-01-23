@@ -462,8 +462,8 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 					"very bad!\n");
 				if (debug > 1 && errbuf) {
 					/* Print the schedule for debugging */
-					uhci_sprint_schedule(uhci,
-							errbuf, ERRBUF_LEN);
+					uhci_sprint_schedule(uhci, errbuf,
+						ERRBUF_LEN - EXTRA_SPACE);
 					lprintk(errbuf);
 				}
 				uhci_hc_died(uhci);
