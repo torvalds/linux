@@ -1631,7 +1631,6 @@ int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf)
 	dma_addr_t pf_addr = BP_VF_BULLETIN_DMA(bp)->mapping +
 		vf * BULLETIN_CONTENT_SIZE;
 	dma_addr_t vf_addr = bnx2x_vf(bp, vf, bulletin_map);
-	u32 len = BULLETIN_CONTENT_SIZE;
 	int rc;
 
 	/* can only update vf after init took place */
@@ -1641,11 +1640,12 @@ int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf)
 
 	/* increment bulletin board version and compute crc */
 	bulletin->version++;
+	bulletin->length = BULLETIN_CONTENT_SIZE;
 	bulletin->crc = bnx2x_crc_vf_bulletin(bp, bulletin);
 
 	/* propagate bulletin board via dmae to vm memory */
 	rc = bnx2x_copy32_vf_dmae(bp, false, pf_addr,
 				  bnx2x_vf(bp, vf, abs_vfid), U64_HI(vf_addr),
-				  U64_LO(vf_addr), len/4);
+				  U64_LO(vf_addr), bulletin->length / 4);
 	return rc;
 }

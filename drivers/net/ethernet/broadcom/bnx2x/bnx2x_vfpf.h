@@ -318,7 +318,8 @@ struct pf_vf_bulletin_content {
 	u32 crc;			/* crc of structure to ensure is not in
 					 * mid-update
 					 */
-	u32 version;
+	u16 version;
+	u16 length;
 
 	aligned_u64 valid_bitmap;	/* bitmap indicating which fields
 					 * hold valid values

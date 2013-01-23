@@ -3124,7 +3124,7 @@ u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
 {
 	return crc32(BULLETIN_CRC_SEED,
 		 ((u8 *)bulletin) + sizeof(bulletin->crc),
-		 BULLETIN_CONTENT_SIZE - sizeof(bulletin->crc));
+		 bulletin->length - sizeof(bulletin->crc));
 }
 
 /* Check for new posts on the bulletin board */
