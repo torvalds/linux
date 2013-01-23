@@ -563,10 +563,14 @@ static int __init nf_conntrack_standalone_init(void)
 	if (ret < 0)
 		goto out_start;
 
+#ifdef CONFIG_SYSCTL
 	nf_ct_netfilter_header =
 		register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
-	if (!nf_ct_netfilter_header)
+	if (!nf_ct_netfilter_header) {
+		pr_err("nf_conntrack: can't register to sysctl.\n");
 		goto out_sysctl;
+	}
+#endif
 
 	ret = register_pernet_subsys(&nf_conntrack_net_ops);
 	if (ret < 0)
@@ -576,9 +580,10 @@ static int __init nf_conntrack_standalone_init(void)
 	return 0;
 
 out_pernet:
+#ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(nf_ct_netfilter_header);
 out_sysctl:
-	pr_err("nf_conntrack: can't register to sysctl.\n");
+#endif
 	nf_conntrack_cleanup_end();
 out_start:
 	return ret;
@@ -588,7 +593,9 @@ static void __exit nf_conntrack_standalone_fini(void)
 {
 	nf_conntrack_cleanup_start();
 	unregister_pernet_subsys(&nf_conntrack_net_ops);
+#ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(nf_ct_netfilter_header);
+#endif
 	nf_conntrack_cleanup_end();
 }
 
