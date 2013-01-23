@@ -21,16 +21,12 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.i_NbrDiChannel		= 2,
 		.i_NbrDoChannel		= 2,
 		.i_DoMaxdata		= 0x3,
-		.i_Timer		= 1,
 		.interrupt		= v_APCI3501_Interrupt,
 		.reset			= i_APCI3501_Reset,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
 		.di_bits		= apci3501_di_insn_bits,
 		.do_bits		= apci3501_do_insn_bits,
-		.timer_config		= i_APCI3501_ConfigTimerCounterWatchdog,
-		.timer_write		= i_APCI3501_StartStopWriteTimerCounterWatchdog,
-		.timer_read		= i_APCI3501_ReadTimerCounterWatchdog,
 	},
 };
 
@@ -139,7 +135,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
 	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
 	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
-	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 		this_board->ui_MinAcquisitiontimeNs;
 	devpriv->s_EeParameters.ui_MinDelaytimeNs =
@@ -269,21 +264,15 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
-	if (devpriv->s_EeParameters.i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 1;
+	s->maxdata = 0;
+	s->len_chanlist = 1;
+	s->range_table = &range_digital;
+	s->insn_write = i_APCI3501_StartStopWriteTimerCounterWatchdog;
+	s->insn_read = i_APCI3501_ReadTimerCounterWatchdog;
+	s->insn_config = i_APCI3501_ConfigTimerCounterWatchdog;
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
