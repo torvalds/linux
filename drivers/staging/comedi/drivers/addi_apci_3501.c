@@ -26,18 +26,6 @@
 #define EEPROM_WATCHDOG			5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
-static const struct addi_board apci3501_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci3501",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x3001,
-		.i_IorangeBase0		= 64,
-		.i_IorangeBase1		= APCI3501_ADDRESS_RANGE,
-		.i_PCIEeprom		= ADDIDATA_EEPROM,
-		.pc_EepromChip		= ADDIDATA_S5933,
-	},
-};
-
 static int apci3501_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -230,38 +218,16 @@ static int apci3501_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
-	}
-	return NULL;
-}
-
 static int apci3501_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ao_n_chan;
 	int ret, n_subdevices;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -375,9 +341,6 @@ static struct comedi_driver apci3501_driver = {
 	.module		= THIS_MODULE,
 	.auto_attach	= apci3501_auto_attach,
 	.detach		= apci3501_detach,
-	.num_names	= ARRAY_SIZE(apci3501_boardtypes),
-	.board_name	= &apci3501_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci3501_pci_probe(struct pci_dev *dev,
