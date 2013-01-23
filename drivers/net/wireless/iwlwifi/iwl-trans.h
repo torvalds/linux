@@ -274,6 +274,7 @@ struct iwl_rx_cmd_buffer {
 	struct page *_page;
 	int _offset;
 	bool _page_stolen;
+	u32 _rx_page_order;
 	unsigned int truesize;
 };
 
@@ -292,6 +293,11 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 	r->_page_stolen = true;
 	get_page(r->_page);
 	return r->_page;
+}
+
+static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
+{
+	__free_pages(r->_page, r->_rx_page_order);
 }
 
 #define MAX_NO_RECLAIM_CMDS	6

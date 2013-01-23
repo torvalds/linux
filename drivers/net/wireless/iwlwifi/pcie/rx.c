@@ -594,6 +594,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		int index, cmd_index, err, len;
 		struct iwl_rx_cmd_buffer rxcb = {
 			._offset = offset,
+			._rx_page_order = trans_pcie->rx_page_order,
 			._page = rxb->page,
 			._page_stolen = false,
 			.truesize = max_len,
