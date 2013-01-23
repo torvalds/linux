@@ -19,7 +19,6 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.i_AoMaxdata		= 16383,
 		.pr_AoRangelist		= &range_apci3501_ao,
 		.interrupt		= v_APCI3501_Interrupt,
-		.reset			= i_APCI3501_Reset,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
 	},
@@ -85,11 +84,39 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
+static int apci3501_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
+	int i_Count = 0, i_temp = 0;
+	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
 
-	this_board->reset(dev);
+	outl(0x0, devpriv->iobase + APCI3501_DIGITAL_OP);
+	outl(1, devpriv->iobase + APCI3501_ANALOG_OUTPUT +
+		APCI3501_AO_VOLT_MODE);
+
+	ul_Polarity = 0x80000000;
+
+	for (i_Count = 0; i_Count <= 7; i_Count++) {
+		ul_DAC_Ready = inl(devpriv->iobase + APCI3501_ANALOG_OUTPUT);
+
+		while (ul_DAC_Ready == 0) {
+			ul_DAC_Ready =
+				inl(devpriv->iobase + APCI3501_ANALOG_OUTPUT);
+			ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
+		}
+
+		if (ul_DAC_Ready) {
+			/*  Output the Value on the output channels. */
+			ul_Command1 =
+				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
+				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
+				(unsigned int) (ul_Polarity));
+			outl(ul_Command1,
+				devpriv->iobase + APCI3501_ANALOG_OUTPUT +
+				APCI3501_AO_PROG);
+		}
+	}
+
 	return 0;
 }
 
@@ -256,7 +283,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	i_ADDI_Reset(dev);
+	apci3501_reset(dev);
 	return 0;
 }
 
@@ -267,7 +294,7 @@ static void apci3501_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			apci3501_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
