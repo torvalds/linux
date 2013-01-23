@@ -17,5 +17,8 @@ config MACH_RK3188_FPGA
 	bool "RK3188 FPGA board"
 	select RK_FPGA
 
+config MACH_RK3188_LR097
+        bool "RK3188 LR097 JC21CA board"
+
 endchoice
 endif

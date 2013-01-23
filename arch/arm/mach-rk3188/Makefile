@@ -21,3 +21,4 @@ obj-$(CONFIG_DVFS) += dvfs.o
 
 obj-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
 obj-$(CONFIG_MACH_RK3188_TB) += ../mach-rk30/board-rk3168-tb.o
+obj-$(CONFIG_MACH_RK3188_LR097) += ../mach-rk30/board-rk3168-LR097.o
