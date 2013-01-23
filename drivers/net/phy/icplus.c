@@ -139,11 +139,6 @@ static int ip1001_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	/* INTR pin used: speed/link/duplex will cause an interrupt */
-	c = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, IP101A_G_IRQ_DEFAULT);
-	if (c < 0)
-		return c;
-
 	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
@@ -175,6 +170,11 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 	int c;
 
 	c = ip1xx_reset(phydev);
+	if (c < 0)
+		return c;
+
+	/* INTR pin used: speed/link/duplex will cause an interrupt */
+	c = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, IP101A_G_IRQ_DEFAULT);
 	if (c < 0)
 		return c;
 
