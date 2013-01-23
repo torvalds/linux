@@ -300,6 +300,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	str	r11, [vcpu, #CP15_OFFSET(c6_IFAR)]
 	str	r12, [vcpu, #CP15_OFFSET(c12_VBAR)]
 	.endif
+
+	mrc	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+
+	.if \store_to_vcpu == 0
+	push	{r2}
+	.else
+	str	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	.endif
 .endm
 
 /*
@@ -310,6 +318,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro write_cp15_state read_from_vcpu
+	.if \read_from_vcpu == 0
+	pop	{r2}
+	.else
+	ldr	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	.endif
+
+	mcr	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+
 	.if \read_from_vcpu == 0
 	pop	{r2-r12}
 	.else
@@ -461,8 +477,28 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * for the host.
  *
  * Assumes vcpu pointer in vcpu reg
+ * Clobbers r2-r5
  */
 .macro save_timer_state
+#ifdef CONFIG_KVM_ARM_TIMER
+	ldr	r4, [vcpu, #VCPU_KVM]
+	ldr	r2, [r4, #KVM_TIMER_ENABLED]
+	cmp	r2, #0
+	beq	1f
+
+	mrc	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+	str	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
+	bic	r2, #1			@ Clear ENABLE
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+	isb
+
+	mrrc	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	ldr	r4, =VCPU_TIMER_CNTV_CVAL
+	add	r5, vcpu, r4
+	strd	r2, r3, [r5]
+
+1:
+#endif
 	@ Allow physical timer/counter access for the host
 	mrc	p15, 4, r2, c14, c1, 0	@ CNTHCTL
 	orr	r2, r2, #(CNTHCTL_PL1PCEN | CNTHCTL_PL1PCTEN)
@@ -474,6 +510,7 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * for the host.
  *
  * Assumes vcpu pointer in vcpu reg
+ * Clobbers r2-r5
  */
 .macro restore_timer_state
 	@ Disallow physical timer access for the guest
@@ -482,6 +519,28 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	orr	r2, r2, #CNTHCTL_PL1PCTEN
 	bic	r2, r2, #CNTHCTL_PL1PCEN
 	mcr	p15, 4, r2, c14, c1, 0	@ CNTHCTL
+
+#ifdef CONFIG_KVM_ARM_TIMER
+	ldr	r4, [vcpu, #VCPU_KVM]
+	ldr	r2, [r4, #KVM_TIMER_ENABLED]
+	cmp	r2, #0
+	beq	1f
+
+	ldr	r2, [r4, #KVM_TIMER_CNTVOFF]
+	ldr	r3, [r4, #(KVM_TIMER_CNTVOFF + 4)]
+	mcrr	p15, 4, r2, r3, c14	@ CNTVOFF
+
+	ldr	r4, =VCPU_TIMER_CNTV_CVAL
+	add	r5, vcpu, r4
+	ldrd	r2, r3, [r5]
+	mcrr	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	isb
+
+	ldr	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
+	and	r2, r2, #3
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+1:
+#endif
 .endm
 
 .equ vmentry,	0
