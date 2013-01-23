@@ -253,7 +253,7 @@ struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk)
 	mutex_unlock(&mutex);
 	return table;
 }
-
+EXPORT_SYMBOL(dvfs_get_freq_volt_table);
 
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table)
 {
@@ -294,6 +294,7 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 	mutex_unlock(&mutex);
 	return 0;
 }
+EXPORT_SYMBOL(dvfs_set_freq_volt_table);
 
 int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table)
 {
@@ -984,7 +985,7 @@ void avs_init_val_get(int index, int vol, char *s)
 }
 int avs_set_scal_val(u8 avs_base)
 {
-
+	return 0;
 }
 
 /*************************interface to get avs value and dvfs tree*************************/
