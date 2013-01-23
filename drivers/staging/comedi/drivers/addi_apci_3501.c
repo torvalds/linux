@@ -13,15 +13,6 @@
 #define APCI3501_DO_REG				0x40
 #define APCI3501_DI_REG				0x50
 
-struct apci3501_private {
-	int i_IobaseAmcc;
-	struct task_struct *tsk_Current;
-	unsigned char b_TimerSelectMode;
-	unsigned char b_InterruptMode;
-};
-
-#include "addi-data/hwdrv_apci3501.c"
-
 /*
  * AMCC S5933 NVRAM
  */
@@ -41,6 +32,15 @@ struct apci3501_private {
 #define EEPROM_TIMER			4
 #define EEPROM_WATCHDOG			5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
+
+struct apci3501_private {
+	int i_IobaseAmcc;
+	struct task_struct *tsk_Current;
+	unsigned char b_TimerSelectMode;
+	unsigned char b_InterruptMode;
+};
+
+#include "addi-data/hwdrv_apci3501.c"
 
 static int apci3501_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
