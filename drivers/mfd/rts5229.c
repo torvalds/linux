@@ -144,6 +144,7 @@ static const struct pcr_ops rts5229_pcr_ops = {
 	.card_power_off = rts5229_card_power_off,
 	.switch_output_voltage = rts5229_switch_output_voltage,
 	.cd_deglitch = NULL,
+	.conv_clk_and_div_n = NULL,
 };
 
 /* SD Pull Control Enable:

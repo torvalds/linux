@@ -178,6 +178,18 @@ static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
 	return card_exist;
 }
 
+static int rtl8411_conv_clk_and_div_n(int input, int dir)
+{
+	int output;
+
+	if (dir == CLK_TO_DIV_N)
+		output = input * 4 / 5 - 2;
+	else
+		output = (input + 2) * 5 / 4;
+
+	return output;
+}
+
 static const struct pcr_ops rtl8411_pcr_ops = {
 	.extra_init_hw = rtl8411_extra_init_hw,
 	.optimize_phy = NULL,
@@ -189,6 +201,7 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.card_power_off = rtl8411_card_power_off,
 	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
+	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
 };
 
 /* SD Pull Control Enable:

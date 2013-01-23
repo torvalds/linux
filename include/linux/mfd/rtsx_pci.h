@@ -704,6 +704,7 @@ struct pcr_ops {
 	int		(*switch_output_voltage)(struct rtsx_pcr *pcr,
 						u8 voltage);
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
+	int		(*conv_clk_and_div_n)(int clk, int dir);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};

@@ -630,7 +630,10 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	if (clk == pcr->cur_clock)
 		return 0;
 
-	N = (u8)(clk - 2);
+	if (pcr->ops->conv_clk_and_div_n)
+		N = (u8)pcr->ops->conv_clk_and_div_n(clk, CLK_TO_DIV_N);
+	else
+		N = (u8)(clk - 2);
 	if ((clk <= 2) || (N > max_N))
 		return -EINVAL;
 
@@ -641,7 +644,14 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	/* Make sure that the SSC clock div_n is equal or greater than min_N */
 	div = CLK_DIV_1;
 	while ((N < min_N) && (div < max_div)) {
-		N = (N + 2) * 2 - 2;
+		if (pcr->ops->conv_clk_and_div_n) {
+			int dbl_clk = pcr->ops->conv_clk_and_div_n(N,
+					DIV_N_TO_CLK) * 2;
+			N = (u8)pcr->ops->conv_clk_and_div_n(dbl_clk,
+					CLK_TO_DIV_N);
+		} else {
+			N = (N + 2) * 2 - 2;
+		}
 		div++;
 	}
 	dev_dbg(&(pcr->pci->dev), "N = %d, div = %d\n", N, div);
