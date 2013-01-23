@@ -1442,7 +1442,7 @@ static int bnx2x_complete_vlan_mac(struct bnx2x *bp,
 	if (cqe->message.error)
 		return -EINVAL;
 
-	/* Run the next bulk of pending commands if requeted */
+	/* Run the next bulk of pending commands if requested */
 	if (test_bit(RAMROD_CONT, ramrod_flags)) {
 		rc = bnx2x_exe_queue_step(bp, &o->exe_queue, ramrod_flags);
 		if (rc < 0)
@@ -2103,7 +2103,7 @@ static inline void __storm_memset_mac_filters(struct bnx2x *bp,
 static int bnx2x_set_rx_mode_e1x(struct bnx2x *bp,
 				 struct bnx2x_rx_mode_ramrod_params *p)
 {
-	/* update the bp MAC filter structure  */
+	/* update the bp MAC filter structure */
 	u32 mask = (1 << p->cl_id);
 
 	struct tstorm_eth_mac_filter_config *mac_filters =
@@ -2166,7 +2166,7 @@ static int bnx2x_set_rx_mode_e1x(struct bnx2x *bp,
 		mac_filters->unmatched_unicast & ~mask;
 
 	DP(BNX2X_MSG_SP, "drop_ucast 0x%x\ndrop_mcast 0x%x\n accp_ucast 0x%x\n"
-					 "accp_mcast 0x%x\naccp_bcast 0x%x\n",
+			 "accp_mcast 0x%x\naccp_bcast 0x%x\n",
 	   mac_filters->ucast_drop_all, mac_filters->mcast_drop_all,
 	   mac_filters->ucast_accept_all, mac_filters->mcast_accept_all,
 	   mac_filters->bcast_accept_all);
@@ -2790,7 +2790,7 @@ static inline void bnx2x_mcast_hdl_add(struct bnx2x *bp,
 		cnt++;
 
 		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-				 mlist_pos->mac);
+		   mlist_pos->mac);
 	}
 
 	*line_idx = cnt;
@@ -3085,7 +3085,7 @@ static inline void bnx2x_mcast_hdl_add_e1h(struct bnx2x *bp,
 		BNX2X_57711_SET_MC_FILTER(mc_filter, bit);
 
 		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC, bin %d\n",
-				 mlist_pos->mac, bit);
+		   mlist_pos->mac, bit);
 
 		/* bookkeeping... */
 		BIT_VEC64_SET_BIT(o->registry.aprox_match.vec,
@@ -3319,7 +3319,7 @@ static inline int bnx2x_mcast_handle_restore_cmd_e1(
 		i++;
 
 		  DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-				   cfg_data.mac);
+		     cfg_data.mac);
 	}
 
 	*rdata_idx = i;
@@ -3355,7 +3355,7 @@ static inline int bnx2x_mcast_handle_pending_cmds_e1(
 			cnt++;
 
 			DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-					 pmac_pos->mac);
+			   pmac_pos->mac);
 		}
 		break;
 
@@ -5652,9 +5652,9 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	memset(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
-	rdata->function_mode = (u8)start_params->mf_mode;
-	rdata->sd_vlan_tag   = cpu_to_le16(start_params->sd_vlan_tag);
-	rdata->path_id       = BP_PATH(bp);
+	rdata->function_mode    = (u8)start_params->mf_mode;
+	rdata->sd_vlan_tag      = cpu_to_le16(start_params->sd_vlan_tag);
+	rdata->path_id          = BP_PATH(bp);
 	rdata->network_cos_mode = start_params->network_cos_mode;
 
 	/*

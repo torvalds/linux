@@ -234,7 +234,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if ((bp->state == BNX2X_STATE_OPEN) && bp->link_vars.link_up &&
 	    !(bp->flags & MF_FUNC_DIS)) {
-			cmd->duplex = bp->link_vars.duplex;
+		cmd->duplex = bp->link_vars.duplex;
 
 		if (IS_MF(bp) && !BP_NOMCP(bp))
 			ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
@@ -400,7 +400,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		DP(BNX2X_MSG_ETHTOOL, "Unsupported port type\n");
 		return -EINVAL;
 	}
-	/* Save new config in case command complete successully */
+	/* Save new config in case command complete successfully */
 	new_multi_phy_config = bp->link_params.multi_phy_config;
 	/* Get the new cfg_idx */
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
@@ -751,11 +751,10 @@ static bool bnx2x_is_wreg_in_chip(struct bnx2x *bp,
  * @bp		device handle
  * @p		output buffer
  *
- * Reads "paged" memories: memories that may only be read by
- * first writing to a specific address ("write address") and
- * then reading from a specific address ("read address"). There
- * may be more than one write address per "page" and more than
- * one read address per write address.
+ * Reads "paged" memories: memories that may only be read by first writing to a
+ * specific address ("write address") and then reading from a specific address
+ * ("read address"). There may be more than one write address per "page" and
+ * more than one read address per write address.
  */
 static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p, u32 preset)
 {
@@ -1082,13 +1081,13 @@ static int bnx2x_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (wol->wolopts & ~WAKE_MAGIC) {
-		DP(BNX2X_MSG_ETHTOOL, "WOL not supproted\n");
+		DP(BNX2X_MSG_ETHTOOL, "WOL not supported\n");
 		return -EINVAL;
 	}
 
 	if (wol->wolopts & WAKE_MAGIC) {
 		if (bp->flags & NO_WOL_FLAG) {
-			DP(BNX2X_MSG_ETHTOOL, "WOL not supproted\n");
+			DP(BNX2X_MSG_ETHTOOL, "WOL not supported\n");
 			return -EINVAL;
 		}
 		bp->wol = 1;
@@ -1161,7 +1160,7 @@ static int bnx2x_get_eeprom_len(struct net_device *dev)
  * Pf B takes the lock and proceeds to perform it's own access.
  * pf A unlocks the per port lock, while pf B is still working (!).
  * mcp takes the per port lock and corrupts pf B's access (and/or has it's own
- * acess corrupted by pf B).*
+ * access corrupted by pf B)
  */
 static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 {
@@ -1970,7 +1969,6 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
-
 enum {
 	BNX2X_CHIP_E1_OFST = 0,
 	BNX2X_CHIP_E1H_OFST,
@@ -2621,6 +2619,7 @@ static void bnx2x_self_test(struct net_device *dev,
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
+
 	DP(BNX2X_MSG_ETHTOOL,
 	   "Self-test command parameters: offline = %d, external_lb = %d\n",
 	   (etest->flags & ETH_TEST_FL_OFFLINE),
@@ -2976,15 +2975,14 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			DP(BNX2X_MSG_ETHTOOL,
 			   "Command parameters not supported\n");
 			return -EINVAL;
-		} else {
-			return 0;
 		}
+		return 0;
 
 	case UDP_V4_FLOW:
 	case UDP_V6_FLOW:
 		/* For UDP either 2-tupple hash or 4-tupple hash is supported */
 		if (info->data == (RXH_IP_SRC | RXH_IP_DST |
-				 RXH_L4_B_0_1 | RXH_L4_B_2_3))
+				   RXH_L4_B_0_1 | RXH_L4_B_2_3))
 			udp_rss_requested = 1;
 		else if (info->data == (RXH_IP_SRC | RXH_IP_DST))
 			udp_rss_requested = 0;

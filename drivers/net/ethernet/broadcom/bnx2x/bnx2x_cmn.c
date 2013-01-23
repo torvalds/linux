@@ -237,7 +237,7 @@ int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata)
 		   txdata->txq_index, hw_cons, sw_cons, pkt_cons);
 
 		bd_cons = bnx2x_free_tx_pkt(bp, txdata, pkt_cons,
-		    &pkts_compl, &bytes_compl);
+					    &pkts_compl, &bytes_compl);
 
 		sw_cons++;
 	}
@@ -343,14 +343,14 @@ static inline void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
 	   fp->last_max_sge, fp->rx_sge_prod);
 }
 
-/* Set Toeplitz hash value in the skb using the value from the
+/* Get Toeplitz hash value in the skb using the value from the
  * CQE (calculated by HW).
  */
 static u32 bnx2x_get_rxhash(const struct bnx2x *bp,
 			    const struct eth_fast_path_rx_cqe *cqe,
 			    bool *l4_rxhash)
 {
-	/* Set Toeplitz hash from CQE */
+	/* Get Toeplitz hash from CQE */
 	if ((bp->dev->features & NETIF_F_RXHASH) &&
 	    (cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG)) {
 		enum eth_rss_hash_type htype;
@@ -449,7 +449,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
  *
  * Approximate value of the MSS for this aggregation calculated using
  * the first packet of it.
- * Compute number of aggregated segments, and gso_type
+ * Compute number of aggregated segments, and gso_type.
  */
 static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
 				 u16 len_on_bd, unsigned int pkt_len)
@@ -618,7 +618,6 @@ static void *bnx2x_frag_alloc(const struct bnx2x_fastpath *fp)
 
 	return kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
 }
-
 
 #ifdef CONFIG_INET
 static void bnx2x_gro_ip_csum(struct bnx2x *bp, struct sk_buff *skb)
@@ -1827,7 +1826,6 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return __skb_tx_hash(dev, skb, BNX2X_NUM_ETH_QUEUES(bp));
 }
 
-
 void bnx2x_set_num_queues(struct bnx2x *bp)
 {
 	/* RSS queues */
@@ -2483,7 +2481,6 @@ load_error_cnic0:
 #endif /* ! BNX2X_STOP_ON_ERROR */
 }
 
-
 /* must be called with rtnl_lock */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 {
@@ -3064,7 +3061,6 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
 				bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
 
-
 		if (bnx2x_has_rx_work(fp)) {
 			work_done += bnx2x_rx_int(fp, budget - work_done);
 
@@ -3337,12 +3333,12 @@ static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
  * 57712 related
  */
 static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
-	u32 *parsing_data, u32 xmit_type)
+					u32 *parsing_data, u32 xmit_type)
 {
 	*parsing_data |=
-			((((u8 *)skb_transport_header(skb) - skb->data) >> 1) <<
-			ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT) &
-			ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W;
+		((((u8 *)skb_transport_header(skb) - skb->data) >> 1) <<
+		ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT) &
+		ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W;
 
 	if (xmit_type & XMIT_CSUM_TCP) {
 		*parsing_data |= ((tcp_hdrlen(skb) / 4) <<
@@ -3488,8 +3484,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
-			bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
-			netif_tx_stop_queue(txq);
+		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
+		netif_tx_stop_queue(txq);
 		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
 
 		return NETDEV_TX_BUSY;
@@ -4254,7 +4250,7 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 
 	/*
 	 * The biggest MSI-X table we might need is as a maximum number of fast
-	 * path IGU SBs plus default SB (for PF).
+	 * path IGU SBs plus default SB (for PF only).
 	 */
 	msix_table_size = bp->igu_sb_cnt;
 	if (IS_PF(bp))
@@ -4364,7 +4360,7 @@ int bnx2x_get_link_cfg_idx(struct bnx2x *bp)
 {
 	u32 sel_phy_idx = bnx2x_get_cur_phy_idx(bp);
 	/*
-	 * The selected actived PHY is always after swapping (in case PHY
+	 * The selected activated PHY is always after swapping (in case PHY
 	 * swapping is enabled). So when swapping is enabled, we need to reverse
 	 * the configuration
 	 */

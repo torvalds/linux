@@ -975,7 +975,6 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	return bnx2x_func_state_change(bp, &func_params);
 }
 
-
 /**
  * bnx2x_set_fw_mac_addr - fill in a MAC address in FW format
  *
@@ -1391,7 +1390,7 @@ static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
 }
 
 /**
- * bnx2x_fill_fw_str - Fill buffer with FW version string.
+ * bnx2x_fill_fw_str - Fill buffer with FW version string
  *
  * @bp:        driver handle
  * @buf:       character buffer to fill with the fw name

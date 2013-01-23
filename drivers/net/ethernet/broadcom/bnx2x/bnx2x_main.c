@@ -782,12 +782,16 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 	printk("%s" "begin fw dump (mark 0x%x)\n", lvl, mark);
 
 	printk("%s", lvl);
+
+	/* dump buffer after the mark */
 	for (offset = mark; offset <= trace_shmem_base; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, offset + 4*word));
 		data[8] = 0x0;
 		pr_cont("%s", (char *)data);
 	}
+
+	/* dump buffer before the mark */
 	for (offset = addr + 4; offset <= mark; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, offset + 4*word));
@@ -1683,11 +1687,11 @@ static int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
 }
 
 /**
- * bnx2x_trylock_leader_lock- try to aquire a leader lock.
+ * bnx2x_trylock_leader_lock- try to acquire a leader lock.
  *
  * @bp: driver handle
  *
- * Tries to aquire a leader lock for current engine.
+ * Tries to acquire a leader lock for current engine.
  */
 static bool bnx2x_trylock_leader_lock(struct bnx2x *bp)
 {
@@ -1804,7 +1808,7 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		 * mark pending ACK to MCP bit.
 		 * prevent case that both bits are cleared.
 		 * At the end of load/unload driver checks that
-		 * sp_state is cleaerd, and this order prevents
+		 * sp_state is cleared, and this order prevents
 		 * races
 		 */
 		smp_mb__before_clear_bit();
@@ -3083,7 +3087,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 
 	/* Maximum number or simultaneous TPA aggregation for this Queue.
 	 *
-	 * For PF Clients it should be the maximum avaliable number.
+	 * For PF Clients it should be the maximum available number.
 	 * VF driver(s) may want to define it to a smaller value.
 	 */
 	rxq_init->max_tpa_queues = MAX_AGG_QS(bp);
@@ -3796,7 +3800,7 @@ static void bnx2x_fan_failure(struct bnx2x *bp)
 			    "Please contact OEM Support for assistance\n");
 
 	/*
-	 * Scheudle device reset (unload)
+	 * Schedule device reset (unload)
 	 * This is due to some boards consuming sufficient power when driver is
 	 * up to overheat if fan fails.
 	 */
@@ -4894,7 +4898,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 	struct bnx2x_queue_update_params *q_update_params =
 		&queue_params.params.update;
 
-	/* Send Q update command with afex vlan removal values	for all Qs */
+	/* Send Q update command with afex vlan removal values for all Qs */
 	queue_params.cmd = BNX2X_Q_CMD_UPDATE;
 
 	/* set silent vlan removal values according to vlan mode */
@@ -4995,7 +4999,6 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 
 	for (; sw_cons != hw_cons;
 	      sw_prod = NEXT_EQ_IDX(sw_prod), sw_cons = NEXT_EQ_IDX(sw_cons)) {
-
 
 		elem = &bp->eq_ring[EQ_DESC(sw_cons)];
 
@@ -6480,7 +6483,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	DP(NETIF_MSG_HW, "starting common init  func %d\n", BP_ABS_FUNC(bp));
 
 	/*
-	 * take the UNDI lock to protect undi_unload flow from accessing
+	 * take the RESET lock to protect undi_unload flow from accessing
 	 * registers while we're resetting the chip
 	 */
 	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
@@ -6610,7 +6613,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
  *		    queues with "old" ILT addresses.
  *		c.  PF enable in the PGLC.
  *		d.  Clear the was_error of the PF in the PGLC. (could have
- *		    occured while driver was down)
+ *		    occurred while driver was down)
  *		e.  PF enable in the CFC (WEAK + STRONG)
  *		f.  Timers scan enable
  *	3.  PF driver unload flow:
@@ -6651,7 +6654,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		/* Step 1: set zeroes to all ilt page entries with valid bit on
 		 * Step 2: set the timers first/last ilt entry to point
 		 * to the entire range to prevent ILT range error for 3rd/4th
-		 * vnic	(this code assumes existance of the vnic)
+		 * vnic	(this code assumes existence of the vnic)
 		 *
 		 * both steps performed by call to bnx2x_ilt_client_init_op()
 		 * with dummy TM client
@@ -6667,7 +6670,6 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		REG_WR(bp, PXP2_REG_RQ_DRAM_ALIGN_RD, BNX2X_PXP_DRAM_ALIGN);
 		REG_WR(bp, PXP2_REG_RQ_DRAM_ALIGN_SEL, 1);
 	}
-
 
 	REG_WR(bp, PXP2_REG_RQ_DISABLE_INPUTS, 0);
 	REG_WR(bp, PXP2_REG_RD_DISABLE_INPUTS, 0);
@@ -7150,7 +7152,6 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 			REG_WR(bp, NIG_REG_PAUSE_ENABLE_0 + port*4, 1);
 		}
 	}
-
 
 	/* If SPIO5 is set to generate interrupts, enable it for this port */
 	val = REG_RD(bp, MISC_REG_SPIO_EVENT_EN);
@@ -8335,8 +8336,8 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 
 	/* SP SB */
 	REG_WR8(bp, BAR_CSTRORM_INTMEM +
-		   CSTORM_SP_STATUS_BLOCK_DATA_STATE_OFFSET(func),
-		   SB_DISABLED);
+		CSTORM_SP_STATUS_BLOCK_DATA_STATE_OFFSET(func),
+		SB_DISABLED);
 
 	for (i = 0; i < XSTORM_SPQ_DATA_SIZE / 4; i++)
 		REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_SPQ_DATA_OFFSET(func),
@@ -9078,8 +9079,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	int cnt = 1000;
 	u32 val = 0;
 	u32 sr_cnt, blk_cnt, port_is_idle_0, port_is_idle_1, pgl_exp_rom2;
-		u32 tags_63_32 = 0;
-
+	u32 tags_63_32 = 0;
 
 	/* Empty the Tetris buffer, wait for 1s */
 	do {
@@ -9974,7 +9974,6 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 		REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, 0);
 	}
 
-
 	do {
 		/* Lock MCP using an unload request */
 		fw = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS, 0);
@@ -10694,21 +10693,21 @@ static void bnx2x_get_fcoe_info(struct bnx2x *bp)
 		/* Port info */
 		bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_port_name_upper);
 		bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_port_name_lower);
 
 		/* Node info */
 		bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_upper);
 		bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_lower);
 	} else if (!IS_MF_SD(bp)) {
 		/*
@@ -11611,7 +11610,6 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 	return rc;
 }
 
-
 /* If bp->state is OPEN, should be called with netif_addr_lock_bh() */
 void bnx2x_set_rx_mode(struct net_device *dev)
 {
@@ -11899,13 +11897,14 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	 * support Physical Device Assignment where kernel BDF maybe arbitrary
 	 * (depending on hypervisor).
 	 */
-	if (chip_is_e1x)
+	if (chip_is_e1x) {
 		bp->pf_num = PCI_FUNC(pdev->devfn);
-	else {/* chip is E2/3*/
+	} else {
+		/* chip is E2/3*/
 		pci_read_config_dword(bp->pdev,
 				      PCICFG_ME_REGISTER, &pci_cfg_dword);
 		bp->pf_num = (u8)((pci_cfg_dword & ME_REG_ABS_PF_NUM) >>
-		    ME_REG_ABS_PF_NUM_SHIFT);
+				  ME_REG_ABS_PF_NUM_SHIFT);
 	}
 	BNX2X_DEV_INFO("me reg PF num: %d\n", bp->pf_num);
 
@@ -12426,7 +12425,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	BNX2X_DEV_INFO("Cnic support is %s\n", CNIC_SUPPORT(bp) ? "on" : "off");
 	BNX2X_DEV_INFO("Max num of status blocks %d\n", max_non_def_sbs);
 	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
-			  tx_count, rx_count);
+		       tx_count, rx_count);
 
 	rc = bnx2x_init_bp(bp);
 	if (rc)
