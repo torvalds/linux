@@ -696,19 +696,17 @@ static void set_pin_targets(struct hda_codec *codec,
 		snd_hda_set_pin_ctl_cache(codec, cfg->nid, cfg->val);
 }
 
-void snd_hda_apply_fixup(struct hda_codec *codec, int action)
+static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 {
-	int id = codec->fixup_id;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	const char *modelname = codec->fixup_name;
 #endif
-	int depth = 0;
-
-	if (!codec->fixup_list)
-		return;
 
 	while (id >= 0) {
 		const struct hda_fixup *fix = codec->fixup_list + id;
+
+		if (fix->chained_before)
+			apply_fixup(codec, fix->chain_id, action, depth + 1);
 
 		switch (fix->type) {
 		case HDA_FIXUP_PINS:
@@ -749,12 +747,18 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 				   codec->chip_name, fix->type);
 			break;
 		}
-		if (!fix->chained)
+		if (!fix->chained || fix->chained_before)
 			break;
 		if (++depth > 10)
 			break;
 		id = fix->chain_id;
 	}
+}
+
+void snd_hda_apply_fixup(struct hda_codec *codec, int action)
+{
+	if (codec->fixup_list)
+		apply_fixup(codec, codec->fixup_id, action, 0);
 }
 EXPORT_SYMBOL_HDA(snd_hda_apply_fixup);
 

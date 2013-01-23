@@ -401,7 +401,8 @@ struct hda_model_fixup {
 
 struct hda_fixup {
 	int type;
-	bool chained;
+	bool chained:1;		/* call the chained fixup(s) after this */
+	bool chained_before:1;	/* call the chained fixup(s) before this */
 	int chain_id;
 	union {
 		const struct hda_pintbl *pins;
