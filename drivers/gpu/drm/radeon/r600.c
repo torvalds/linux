@@ -1397,11 +1397,6 @@ static void r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 
 	r600_print_gpu_status_regs(rdev);
 
-	rv515_mc_stop(rdev, &save);
-	if (r600_mc_wait_for_idle(rdev)) {
-		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
-	}
-
 	/* Disable CP parsing/prefetching */
 	if (rdev->family >= CHIP_RV770)
 		WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1) | S_0086D8_CP_PFP_HALT(1));
@@ -1419,6 +1414,11 @@ static void r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	}
 
 	mdelay(50);
+
+	rv515_mc_stop(rdev, &save);
+	if (r600_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
 
 	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE)) {
 		if (rdev->family >= CHIP_RV770)
