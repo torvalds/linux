@@ -59,11 +59,6 @@
 
 //#define RK2928L_TB_OLD
 
-#ifdef  CONFIG_THREE_FB_BUFFER
-#define RK30_FB0_MEM_SIZE 12*SZ_1M
-#else
-#define RK30_FB0_MEM_SIZE 8*SZ_1M
-#endif
 
 int __sramdata g_pmic_type =  0;
 
@@ -1063,8 +1058,8 @@ static void __init rk2928_reserve(void)
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
 #endif
 #ifdef CONFIG_FB_ROCKCHIP
-	resource_fb[0].start = board_mem_reserve_add("fb0", RK30_FB0_MEM_SIZE);
-	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
+	resource_fb[0].start = board_mem_reserve_add("fb0", get_fb_size());
+	resource_fb[0].end = resource_fb[0].start + get_fb_size()- 1;
 #endif
 #ifdef CONFIG_VIDEO_RK29
 	rk30_camera_request_reserve_mem();
