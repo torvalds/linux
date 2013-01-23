@@ -983,8 +983,8 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
  * @fw_lo:	pointer to lower part
  * @mac:	pointer to MAC address
  */
-static inline void bnx2x_set_fw_mac_addr(u16 *fw_hi, u16 *fw_mid, u16 *fw_lo,
-					 u8 *mac)
+static inline void bnx2x_set_fw_mac_addr(__le16 *fw_hi, __le16 *fw_mid,
+					 __le16 *fw_lo, u8 *mac)
 {
 	((u8 *)fw_hi)[0]  = mac[1];
 	((u8 *)fw_hi)[1]  = mac[0];

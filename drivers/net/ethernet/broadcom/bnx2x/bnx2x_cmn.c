@@ -3128,17 +3128,21 @@ static noinline u16 bnx2x_tx_split(struct bnx2x *bp,
 	return bd_prod;
 }
 
-static inline u16 bnx2x_csum_fix(unsigned char *t_header, u16 csum, s8 fix)
+#define bswab32(b32) ((__force __le32) swab32((__force __u32) (b32)))
+#define bswab16(b16) ((__force __le16) swab16((__force __u16) (b16)))
+static inline __le16 bnx2x_csum_fix(unsigned char *t_header, u16 csum, s8 fix)
 {
+	__sum16 tsum = (__force __sum16) csum;
+
 	if (fix > 0)
-		csum = (u16) ~csum_fold(csum_sub(csum,
-				csum_partial(t_header - fix, fix, 0)));
+		tsum = ~csum_fold(csum_sub((__force __wsum) csum,
+				  csum_partial(t_header - fix, fix, 0)));
 
 	else if (fix < 0)
-		csum = (u16) ~csum_fold(csum_add(csum,
-				csum_partial(t_header, -fix, 0)));
+		tsum = ~csum_fold(csum_add((__force __wsum) csum,
+				  csum_partial(t_header, -fix, 0)));
 
-	return swab16(csum);
+	return bswab16(csum);
 }
 
 static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
@@ -3272,23 +3276,24 @@ static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
 				     u32 xmit_type)
 {
 	pbd->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
-	pbd->tcp_send_seq = swab32(tcp_hdr(skb)->seq);
+	pbd->tcp_send_seq = bswab32(tcp_hdr(skb)->seq);
 	pbd->tcp_flags = pbd_tcp_flags(skb);
 
 	if (xmit_type & XMIT_GSO_V4) {
-		pbd->ip_id = swab16(ip_hdr(skb)->id);
+		pbd->ip_id = bswab16(ip_hdr(skb)->id);
 		pbd->tcp_pseudo_csum =
-			swab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
-						  ip_hdr(skb)->daddr,
-						  0, IPPROTO_TCP, 0));
+			bswab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr,
+						   0, IPPROTO_TCP, 0));
 
 	} else
 		pbd->tcp_pseudo_csum =
-			swab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						&ipv6_hdr(skb)->daddr,
-						0, IPPROTO_TCP, 0));
+			bswab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr,
+						 0, IPPROTO_TCP, 0));
 
-	pbd->global_data |= ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN;
+	pbd->global_data |=
+		cpu_to_le16(ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN);
 }
 
 /**
@@ -3354,8 +3359,9 @@ static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 
 	/* for now NS flag is not used in Linux */
 	pbd->global_data =
-		(hlen | ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
-			 ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
+		cpu_to_le16(hlen |
+			    ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
+			     ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
 
 	pbd->ip_hlen_w = (skb_transport_header(skb) -
 			skb_network_header(skb)) >> 1;
@@ -3372,7 +3378,7 @@ static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 	hlen = hlen*2;
 
 	if (xmit_type & XMIT_CSUM_TCP) {
-		pbd->tcp_pseudo_csum = swab16(tcp_hdr(skb)->check);
+		pbd->tcp_pseudo_csum = bswab16(tcp_hdr(skb)->check);
 
 	} else {
 		s8 fix = SKB_CS_OFF(skb); /* signed! */

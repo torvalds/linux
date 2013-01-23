@@ -1310,7 +1310,7 @@ void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 
 int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 {
-	struct sdm_op_gen op_gen = {0};
+	u32 op_gen_command = 0;
 
 	u32 comp_addr = BAR_CSTRORM_INTMEM +
 			CSTORM_FINAL_CLEANUP_COMPLETE_OFFSET(clnup_func);
@@ -1321,13 +1321,13 @@ int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 		return 1;
 	}
 
-	op_gen.command |= OP_GEN_PARAM(XSTORM_AGG_INT_FINAL_CLEANUP_INDEX);
-	op_gen.command |= OP_GEN_TYPE(XSTORM_AGG_INT_FINAL_CLEANUP_COMP_TYPE);
-	op_gen.command |= OP_GEN_AGG_VECT(clnup_func);
-	op_gen.command |= 1 << SDM_OP_GEN_AGG_VECT_IDX_VALID_SHIFT;
+	op_gen_command |= OP_GEN_PARAM(XSTORM_AGG_INT_FINAL_CLEANUP_INDEX);
+	op_gen_command |= OP_GEN_TYPE(XSTORM_AGG_INT_FINAL_CLEANUP_COMP_TYPE);
+	op_gen_command |= OP_GEN_AGG_VECT(clnup_func);
+	op_gen_command |= 1 << SDM_OP_GEN_AGG_VECT_IDX_VALID_SHIFT;
 
 	DP(BNX2X_MSG_SP, "sending FW Final cleanup\n");
-	REG_WR(bp, XSDM_REG_OPERATION_GEN, op_gen.command);
+	REG_WR(bp, XSDM_REG_OPERATION_GEN, op_gen_command);
 
 	if (bnx2x_flr_clnup_reg_poll(bp, comp_addr, 1, poll_cnt) != 1) {
 		BNX2X_ERR("FW final cleanup did not succeed\n");
@@ -2641,7 +2641,7 @@ void bnx2x__link_status_update(struct bnx2x *bp)
 static int bnx2x_afex_func_update(struct bnx2x *bp, u16 vifid,
 				  u16 vlan_val, u8 allowed_prio)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_afex_update_params *f_update_params =
 		&func_params.params.afex_update;
 
@@ -2666,7 +2666,7 @@ static int bnx2x_afex_func_update(struct bnx2x *bp, u16 vifid,
 static int bnx2x_afex_handle_vif_list_cmd(struct bnx2x *bp, u8 cmd_type,
 					  u16 vif_index, u8 func_bit_map)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_afex_viflists_params *update_params =
 		&func_params.params.afex_viflists;
 	int rc;
@@ -2682,7 +2682,7 @@ static int bnx2x_afex_handle_vif_list_cmd(struct bnx2x *bp, u8 cmd_type,
 
 	/* set parameters according to cmd_type */
 	update_params->afex_vif_list_command = cmd_type;
-	update_params->vif_list_index = cpu_to_le16(vif_index);
+	update_params->vif_list_index = vif_index;
 	update_params->func_bit_map =
 		(cmd_type == VIF_LIST_RULE_GET) ? 0 : func_bit_map;
 	update_params->func_to_clear = 0;
@@ -3189,7 +3189,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	if (bp->port.pmf)
 		storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
 
-	/* init Event Queue */
+	/* init Event Queue - PCI bus guarantees correct endianity*/
 	eq_data.base_addr.hi = U64_HI(bp->eq_mapping);
 	eq_data.base_addr.lo = U64_LO(bp->eq_mapping);
 	eq_data.producer = bp->eq_prod;
@@ -3279,65 +3279,75 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 		struct fcoe_statistics_params *fw_fcoe_stat =
 			&bp->fw_stats_data->fcoe;
 
-		ADD_64(fcoe_stat->rx_bytes_hi, 0, fcoe_stat->rx_bytes_lo,
-		       fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi, LE32_0,
+			  fcoe_stat->rx_bytes_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_ucast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_bcast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_pkts);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_mcast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_pkts);
 
-		ADD_64(fcoe_stat->tx_bytes_hi, 0, fcoe_stat->tx_bytes_lo,
-		       fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi, LE32_0,
+			  fcoe_stat->tx_bytes_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->ucast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->ucast_pkts_sent);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->bcast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->bcast_pkts_sent);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->mcast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->mcast_pkts_sent);
 	}
 
 	/* ask L5 driver to add data to the struct */
@@ -4829,7 +4839,8 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 	/* Always push next commands out, don't wait here */
 	__set_bit(RAMROD_CONT, &ramrod_flags);
 
-	switch (elem->message.data.eth_event.echo >> BNX2X_SWCID_SHIFT) {
+	switch (le32_to_cpu((__force __le32)elem->message.data.eth_event.echo)
+			    >> BNX2X_SWCID_SHIFT) {
 	case BNX2X_FILTER_MAC_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MAC completions\n");
 		if (CNIC_LOADED(bp) && (cid == BNX2X_ISCSI_ETH_CID(bp)))
@@ -5016,9 +5027,11 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			   rc);
 			goto next_spqe;
 		}
-		cid = SW_CID(elem->message.data.cfc_del_event.cid);
-		opcode = elem->message.opcode;
 
+		/* elem CID originates from FW; actually LE */
+		cid = SW_CID((__force __le32)
+			     elem->message.data.cfc_del_event.cid);
+		opcode = elem->message.opcode;
 
 		/* handle eq element */
 		switch (opcode) {
@@ -5537,7 +5550,7 @@ void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 
 	DP(NETIF_MSG_IFUP, "Init FW SB %d\n", fw_sb_id);
 
-	/* write indecies to HW */
+	/* write indices to HW - PCI guarantees endianity of regpairs */
 	bnx2x_wr_fp_sb_data(bp, fw_sb_id, sb_data_p, data_size);
 }
 
@@ -5625,6 +5638,7 @@ static void bnx2x_init_def_sb(struct bnx2x *bp)
 
 	bnx2x_zero_sp_sb(bp);
 
+	/* PCI guarantees endianity of regpairs */
 	sp_sb_data.state		= SB_ENABLED;
 	sp_sb_data.host_sb_addr.lo	= U64_LO(section);
 	sp_sb_data.host_sb_addr.hi	= U64_HI(section);
@@ -5722,9 +5736,9 @@ int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
 	return 0;
 }
 
-int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
-			    unsigned long *rx_accept_flags,
-			    unsigned long *tx_accept_flags)
+static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
+				   unsigned long *rx_accept_flags,
+				   unsigned long *tx_accept_flags)
 {
 	/* Clear the flags first */
 	*rx_accept_flags = 0;
@@ -10541,10 +10555,10 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 
 static void bnx2x_set_mac_buf(u8 *mac_buf, u32 mac_lo, u16 mac_hi)
 {
-	mac_hi = cpu_to_be16(mac_hi);
-	mac_lo = cpu_to_be32(mac_lo);
-	memcpy(mac_buf, &mac_hi, sizeof(mac_hi));
-	memcpy(mac_buf + sizeof(mac_hi), &mac_lo, sizeof(mac_lo));
+	__be16 mac_hi_be = cpu_to_be16(mac_hi);
+	__be32 mac_lo_be = cpu_to_be32(mac_lo);
+	memcpy(mac_buf, &mac_hi_be, sizeof(mac_hi_be));
+	memcpy(mac_buf + sizeof(mac_hi_be), &mac_lo_be, sizeof(mac_lo_be));
 }
 
 static void bnx2x_get_port_hwinfo(struct bnx2x *bp)
@@ -12005,7 +12019,7 @@ static int bnx2x_check_firmware(struct bnx2x *bp)
 	struct bnx2x_fw_file_hdr *fw_hdr;
 	struct bnx2x_fw_file_section *sections;
 	u32 offset, len, num_ops;
-	u16 *ops_offsets;
+	__be16 *ops_offsets;
 	int i;
 	const u8 *fw_ver;
 
@@ -12030,7 +12044,7 @@ static int bnx2x_check_firmware(struct bnx2x *bp)
 
 	/* Likewise for the init_ops offsets */
 	offset = be32_to_cpu(fw_hdr->init_ops_offsets.offset);
-	ops_offsets = (u16 *)(firmware->data + offset);
+	ops_offsets = (__force __be16 *)(firmware->data + offset);
 	num_ops = be32_to_cpu(fw_hdr->init_ops.len) / sizeof(struct raw_op);
 
 	for (i = 0; i < be32_to_cpu(fw_hdr->init_ops_offsets.len) / 2; i++) {
