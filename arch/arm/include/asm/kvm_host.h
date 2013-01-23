@@ -23,6 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/fpstate.h>
+#include <asm/kvm_arch_timer.h>
 
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
 #define KVM_MEMORY_SLOTS 32
@@ -48,6 +49,9 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu);
 struct kvm_arch {
 	/* VTTBR value associated with below pgd and vmid */
 	u64    vttbr;
+
+	/* Timer */
+	struct arch_timer_kvm	timer;
 
 	/*
 	 * Anything that is not used directly from assembly code goes
@@ -99,6 +103,7 @@ struct kvm_vcpu_arch {
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
+	struct arch_timer_cpu timer_cpu;
 
 	/*
 	 * Anything that is not used directly from assembly code goes

@@ -95,6 +95,7 @@ ENTRY(__kvm_vcpu_run)
 	save_host_regs
 
 	restore_vgic_state
+	restore_timer_state
 
 	@ Store hardware CP15 state and load guest state
 	read_cp15_state store_to_vcpu = 0
@@ -189,6 +190,7 @@ after_vfp_restore:
 	read_cp15_state store_to_vcpu = 1
 	write_cp15_state read_from_vcpu = 0
 
+	save_timer_state
 	save_vgic_state
 
 	restore_host_regs
