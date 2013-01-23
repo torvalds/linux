@@ -167,6 +167,8 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
+	case KVM_CAP_ARM_SET_DEVICE_ADDR:
+		r = 1;
 	case KVM_CAP_NR_VCPUS:
 		r = num_online_cpus();
 		break;
@@ -827,10 +829,29 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 	return -EINVAL;
 }
 
+static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,
+					struct kvm_arm_device_addr *dev_addr)
+{
+	return -ENODEV;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
-	return -EINVAL;
+	struct kvm *kvm = filp->private_data;
+	void __user *argp = (void __user *)arg;
+
+	switch (ioctl) {
+	case KVM_ARM_SET_DEVICE_ADDR: {
+		struct kvm_arm_device_addr dev_addr;
+
+		if (copy_from_user(&dev_addr, argp, sizeof(dev_addr)))
+			return -EFAULT;
+		return kvm_vm_ioctl_set_device_addr(kvm, &dev_addr);
+	}
+	default:
+		return -EINVAL;
+	}
 }
 
 static void cpu_init_hyp_mode(void *vector)

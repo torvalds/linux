@@ -2210,6 +2210,43 @@ This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
 
+4.80 KVM_ARM_SET_DEVICE_ADDR
+
+Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
+Architectures: arm
+Type: vm ioctl
+Parameters: struct kvm_arm_device_address (in)
+Returns: 0 on success, -1 on error
+Errors:
+  ENODEV: The device id is unknown
+  ENXIO:  Device not supported on current system
+  EEXIST: Address already set
+  E2BIG:  Address outside guest physical address space
+
+struct kvm_arm_device_addr {
+	__u64 id;
+	__u64 addr;
+};
+
+Specify a device address in the guest's physical address space where guests
+can access emulated or directly exposed devices, which the host kernel needs
+to know about. The id field is an architecture specific identifier for a
+specific device.
+
+ARM divides the id field into two parts, a device id and an address type id
+specific to the individual device.
+
+  bits:  | 63        ...       32 | 31    ...    16 | 15    ...    0 |
+  field: |        0x00000000      |     device id   |  addr type id  |
+
+ARM currently only require this when using the in-kernel GIC support for the
+hardware VGIC features, using KVM_ARM_DEVICE_VGIC_V2 as the device id.  When
+setting the base address for the guest's mapping of the VGIC virtual CPU
+and distributor interface, the ioctl must be called after calling
+KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
+this ioctl twice for any of the base addresses will return -EEXIST.
+
+
 5. The kvm_run structure
 ------------------------
 
