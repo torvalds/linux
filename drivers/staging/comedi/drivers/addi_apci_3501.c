@@ -18,14 +18,24 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_S5933,
 		.i_AoMaxdata		= 16383,
 		.pr_AoRangelist		= &range_apci3501_ao,
-		.i_NbrDiChannel		= 2,
 		.interrupt		= v_APCI3501_Interrupt,
 		.reset			= i_APCI3501_Reset,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
-		.di_bits		= apci3501_di_insn_bits,
 	},
 };
+
+static int apci3501_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+
+	data[1] = inl(devpriv->iobase + APCI3501_DIGITAL_IP) & 0x3;
+
+	return insn->n;
+}
 
 static int apci3501_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -150,7 +160,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
 	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
 	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
 	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 		this_board->ui_MinAcquisitiontimeNs;
@@ -241,22 +250,12 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	}
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci3501_di_insn_bits;
 
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[3];

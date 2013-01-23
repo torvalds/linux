@@ -84,18 +84,6 @@ static struct comedi_lrange range_apci3501_ao = {
 	}
 };
 
-static int apci3501_di_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inl(devpriv->iobase + APCI3501_DIGITAL_IP) & 0x3;
-
-	return insn->n;
-}
-
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigAnalogOutput                      |
