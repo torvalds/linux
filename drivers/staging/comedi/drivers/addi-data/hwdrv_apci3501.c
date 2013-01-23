@@ -96,28 +96,6 @@ static int apci3501_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int apci3501_do_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	s->state = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
-		outl(s->state, devpriv->iobase + APCI3501_DIGITAL_OP);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigAnalogOutput                      |

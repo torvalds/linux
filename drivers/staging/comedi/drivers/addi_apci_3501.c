@@ -19,16 +19,35 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.i_AoMaxdata		= 16383,
 		.pr_AoRangelist		= &range_apci3501_ao,
 		.i_NbrDiChannel		= 2,
-		.i_NbrDoChannel		= 2,
-		.i_DoMaxdata		= 0x3,
 		.interrupt		= v_APCI3501_Interrupt,
 		.reset			= i_APCI3501_Reset,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
 		.di_bits		= apci3501_di_insn_bits,
-		.do_bits		= apci3501_do_insn_bits,
 	},
 };
+
+static int apci3501_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	s->state = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outl(s->state, devpriv->iobase + APCI3501_DIGITAL_OP);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
 
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
@@ -132,8 +151,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
 	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
 	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
-	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
-	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
 	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 		this_board->ui_MinAcquisitiontimeNs;
@@ -240,27 +257,15 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
-	if (devpriv->s_EeParameters.i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDoChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
 
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	/* Initialize the digital output subdevice */
+	s = &dev->subdevices[3];
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci3501_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
