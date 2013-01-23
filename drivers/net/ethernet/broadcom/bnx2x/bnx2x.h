@@ -1702,6 +1702,8 @@ struct bnx2x {
 
 	/* priority to cos mapping */
 	u8					prio_to_cos[8];
+
+	int fp_array_size;
 	u32 dump_preset_idx;
 };
 
