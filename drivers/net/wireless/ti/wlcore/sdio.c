@@ -280,7 +280,7 @@ static int wl1271_probe(struct sdio_func *func,
 	else
 		chip_family = "wl12xx";
 
-	glue->core = platform_device_alloc(chip_family, -1);
+	glue->core = platform_device_alloc(chip_family, PLATFORM_DEVID_AUTO);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
 		ret = -ENOMEM;
