@@ -325,7 +325,7 @@ static inline int bnx2x_state_wait(struct bnx2x *bp, int state,
 			return 0;
 		}
 
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 
 		if (bp->panic)
 			return -EIO;
@@ -1407,7 +1407,7 @@ static int bnx2x_wait_vlan_mac(struct bnx2x *bp,
 
 		/* Wait until there are no pending commands */
 		if (!bnx2x_exe_queue_empty(exeq))
-			usleep_range(1000, 1000);
+			usleep_range(1000, 2000);
 		else
 			return 0;
 	}

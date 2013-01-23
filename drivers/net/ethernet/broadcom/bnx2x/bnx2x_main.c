@@ -8654,7 +8654,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/* Give HW time to discard old tx messages */
-	usleep_range(1000, 1000);
+	usleep_range(1000, 2000);
 
 	/* Clean all ETH MACs */
 	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_ETH_MAC,
@@ -9078,7 +9078,7 @@ static int bnx2x_er_poll_igu_vq(struct bnx2x *bp)
 		if (pend_bits == 0)
 			break;
 
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -9113,7 +9113,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 		    (pgl_exp_rom2 == 0xffffffff) &&
 		    (!CHIP_IS_E3(bp) || (tags_63_32 == 0xffffffff)))
 			break;
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -9146,7 +9146,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	/* Wait for 1ms to empty GLUE and PCI-E core queues,
 	 * PSWHST, GRC and PSWRD Tetris buffer.
 	 */
-	usleep_range(1000, 1000);
+	usleep_range(1000, 2000);
 
 	/* Prepare to chip reset: */
 	/* MCP */
@@ -10917,7 +10917,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 			while (tout && REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
 				tout--;
-				usleep_range(1000, 1000);
+				usleep_range(1000, 2000);
 			}
 
 			if (REG_RD(bp, IGU_REG_RESET_MEMORIES)) {

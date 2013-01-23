@@ -212,7 +212,7 @@ static int bnx2x_stats_comp(struct bnx2x *bp)
 			break;
 		}
 		cnt--;
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	}
 	return 1;
 }
