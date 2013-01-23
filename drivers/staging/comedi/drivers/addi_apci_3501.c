@@ -40,6 +40,13 @@ struct apci3501_private {
 	unsigned char b_InterruptMode;
 };
 
+static struct comedi_lrange apci3501_ao_range = {
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
+};
+
 #include "addi-data/hwdrv_apci3501.c"
 
 static int apci3501_di_insn_bits(struct comedi_device *dev,
@@ -274,7 +281,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= ao_n_chan;
 		s->maxdata	= 0x3fff;
-		s->range_table	= &range_apci3501_ao;
+		s->range_table	= &apci3501_ao_range;
 		s->insn_config	= i_APCI3501_ConfigAnalogOutput;
 		s->insn_write	= i_APCI3501_WriteAnalogOutput;
 	} else {

@@ -64,14 +64,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define ADDIDATA_TIMER			0
 #define ADDIDATA_WATCHDOG		2
 
-/* ANALOG OUTPUT RANGE */
-static struct comedi_lrange range_apci3501_ao = {
-	2, {
-		BIP_RANGE(10),
-		UNI_RANGE(10)
-	}
-};
-
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI3501_ConfigAnalogOutput                      |
