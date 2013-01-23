@@ -209,7 +209,8 @@ struct efx_tx_queue {
  * @page: The associated page buffer.
  *	Will be %NULL if the buffer slot is currently free.
  * @page_offset: Offset within page
- * @len: Buffer length, in bytes.
+ * @len: If pending: length for DMA descriptor.
+ *	If completed: received length, excluding hash prefix.
  * @flags: Flags for buffer and packet state.
  */
 struct efx_rx_buffer {
@@ -668,7 +669,8 @@ struct vfdi_status;
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
- * @rx_buffer_len: RX buffer length
+ * @rx_buffer_len: RX buffer length, including start alignment but excluding
+ *	any metadata
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
