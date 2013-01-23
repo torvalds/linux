@@ -9,6 +9,9 @@
 #define APCI3501_AO_CTRL_BIPOLAR		(1 << 0)
 #define APCI3501_AO_STATUS_READY		(1 << 8)
 #define APCI3501_AO_DATA_REG			0x04
+#define APCI3501_AO_DATA_CHAN(x)		((x) << 0)
+#define APCI3501_AO_DATA_VAL(x)			((x) << 8)
+#define APCI3501_AO_DATA_BIPOLAR		(1 << 31)
 #define APCI3501_AO_TRIG_SCS_REG		0x08
 #define APCI3501_DO_REG				0x40
 #define APCI3501_DI_REG				0x50
@@ -219,28 +222,28 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 static int apci3501_reset(struct comedi_device *dev)
 {
-	int i_Count = 0, i_temp = 0;
-	unsigned int ul_Command1 = 0, ul_Polarity;
+	unsigned int val;
+	int chan;
 	int ret;
 
+	/* Reset all digital outputs to "0" */
 	outl(0x0, dev->iobase + APCI3501_DO_REG);
-	outl(1, dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 
-	ul_Polarity = 0x80000000;
+	/* Default all analog outputs to 0V (bipolar) */
+	outl(APCI3501_AO_CTRL_BIPOLAR,
+	     dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
+	val = APCI3501_AO_DATA_BIPOLAR | APCI3501_AO_DATA_VAL(0);
 
-	for (i_Count = 0; i_Count <= 7; i_Count++) {
+	/* Set all analog output channels */
+	for (chan = 0; chan < 8; chan++) {
 		ret = apci3501_wait_for_dac(dev);
 		if (ret) {
 			dev_warn(dev->class_dev,
 				 "%s: DAC not-ready for channel %i\n",
-				 __func__, i_Count);
+				 __func__, chan);
 		} else {
-			/*  Output the Value on the output channels. */
-			ul_Command1 =
-				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
-				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
-				(unsigned int) (ul_Polarity));
-			outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
+			outl(val | APCI3501_AO_DATA_CHAN(chan),
+			     dev->iobase + APCI3501_AO_DATA_REG);
 		}
 	}
 
