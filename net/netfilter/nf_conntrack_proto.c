@@ -363,8 +363,7 @@ void nf_ct_l4proto_unregister_sysctl(struct net *net,
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
    them. --RR */
-static int
-nf_conntrack_l4proto_register_net(struct nf_conntrack_l4proto *l4proto)
+int nf_ct_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 
@@ -418,8 +417,9 @@ out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_register);
 
-int nf_conntrack_l4proto_register(struct net *net,
+int nf_ct_l4proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
@@ -439,22 +439,13 @@ int nf_conntrack_l4proto_register(struct net *net,
 	if (ret < 0)
 		goto out;
 
-	if (net == &init_net) {
-		ret = nf_conntrack_l4proto_register_net(l4proto);
-		if (ret < 0) {
-			nf_ct_l4proto_unregister_sysctl(net, pn, l4proto);
-			goto out;
-		}
-	}
-
 	pn->users++;
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register);
 
-static void
-nf_conntrack_l4proto_unregister_net(struct nf_conntrack_l4proto *l4proto)
+void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 {
 	BUG_ON(l4proto->l3proto >= PF_MAX);
 
@@ -469,14 +460,12 @@ nf_conntrack_l4proto_unregister_net(struct nf_conntrack_l4proto *l4proto)
 
 	synchronize_rcu();
 }
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister);
 
-void nf_conntrack_l4proto_unregister(struct net *net,
+void nf_ct_l4proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l4proto *l4proto)
 {
 	struct nf_proto_net *pn = NULL;
-
-	if (net == &init_net)
-		nf_conntrack_l4proto_unregister_net(l4proto);
 
 	pn = nf_ct_l4proto_net(net, l4proto);
 	if (pn == NULL)
@@ -488,7 +477,7 @@ void nf_conntrack_l4proto_unregister(struct net *net,
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(net, kill_l4proto, l4proto);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_unregister);
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister);
 
 int nf_conntrack_proto_pernet_init(struct net *net)
 {
