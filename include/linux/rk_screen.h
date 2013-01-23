@@ -154,6 +154,7 @@ struct rk29fb_info {
 static inline void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info) {}
 #else
 extern void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
+extern size_t get_fb_size(void);
 #endif
 extern void set_tv_info(struct rk29fb_screen *screen);
 extern void set_hdmi_info(struct rk29fb_screen *screen);

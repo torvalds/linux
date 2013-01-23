@@ -117,3 +117,15 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     screen->standby = NULL;
     screen->dsp_lut = dsp_lut;
 }
+
+size_t get_fb_size(void)
+{
+	size_t size = 0;
+	#if defined(CONFIG_THREE_FB_BUFFER)
+		size = ((H_VD)*(V_VD)<<2)* 3; //three buffer
+	#else
+		size = ((H_VD)*(V_VD)<<2)<<1; //two buffer
+	#endif
+	return ALIGN(size,SZ_1M);
+}
+
