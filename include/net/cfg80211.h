@@ -19,6 +19,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
+#include <linux/net.h>
 #include <net/regulatory.h>
 
 /**
@@ -1588,6 +1589,41 @@ struct cfg80211_wowlan_trig_pkt_pattern {
 };
 
 /**
+ * struct cfg80211_wowlan_tcp - TCP connection parameters
+ *
+ * @sock: (internal) socket for source port allocation
+ * @src: source IP address
+ * @dst: destination IP address
+ * @dst_mac: destination MAC address
+ * @src_port: source port
+ * @dst_port: destination port
+ * @payload_len: data payload length
+ * @payload: data payload buffer
+ * @payload_seq: payload sequence stamping configuration
+ * @data_interval: interval at which to send data packets
+ * @wake_len: wakeup payload match length
+ * @wake_data: wakeup payload match data
+ * @wake_mask: wakeup payload match mask
+ * @tokens_size: length of the tokens buffer
+ * @payload_tok: payload token usage configuration
+ */
+struct cfg80211_wowlan_tcp {
+	struct socket *sock;
+	__be32 src, dst;
+	u16 src_port, dst_port;
+	u8 dst_mac[ETH_ALEN];
+	int payload_len;
+	const u8 *payload;
+	struct nl80211_wowlan_tcp_data_seq payload_seq;
+	u32 data_interval;
+	u32 wake_len;
+	const u8 *wake_data, *wake_mask;
+	u32 tokens_size;
+	/* must be last, variable member */
+	struct nl80211_wowlan_tcp_data_token payload_tok;
+};
+
+/**
  * struct cfg80211_wowlan - Wake on Wireless-LAN support info
  *
  * This structure defines the enabled WoWLAN triggers for the device.
@@ -1601,12 +1637,15 @@ struct cfg80211_wowlan_trig_pkt_pattern {
  * @eap_identity_req: wake up on EAP identity request packet
  * @four_way_handshake: wake up on 4-way handshake
  * @rfkill_release: wake up when rfkill is released
+ * @tcp: TCP connection establishment/wakeup parameters, see nl80211.h.
+ *	NULL if not configured.
  */
 struct cfg80211_wowlan {
 	bool any, disconnect, magic_pkt, gtk_rekey_failure,
 	     eap_identity_req, four_way_handshake,
 	     rfkill_release;
 	struct cfg80211_wowlan_trig_pkt_pattern *patterns;
+	struct cfg80211_wowlan_tcp *tcp;
 	int n_patterns;
 };
 
@@ -1626,11 +1665,15 @@ struct cfg80211_wowlan {
  *	frame triggers an 802.3 frame should be reported, for
  *	disconnect due to deauth 802.11 frame. This indicates which
  *	it is.
+ * @tcp_match: TCP wakeup packet received
+ * @tcp_connlost: TCP connection lost or failed to establish
+ * @tcp_nomoretokens: TCP data ran out of tokens
  */
 struct cfg80211_wowlan_wakeup {
 	bool disconnect, magic_pkt, gtk_rekey_failure,
 	     eap_identity_req, four_way_handshake,
-	     rfkill_release, packet_80211;
+	     rfkill_release, packet_80211,
+	     tcp_match, tcp_connlost, tcp_nomoretokens;
 	s32 pattern_idx;
 	u32 packet_present_len, packet_len;
 	const void *packet;
@@ -2285,6 +2328,14 @@ enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_RFKILL_RELEASE	= BIT(7),
 };
 
+struct wiphy_wowlan_tcp_support {
+	const struct nl80211_wowlan_tcp_data_token_feature *tok;
+	u32 data_payload_max;
+	u32 data_interval_max;
+	u32 wake_payload_max;
+	bool seq;
+};
+
 /**
  * struct wiphy_wowlan_support - WoWLAN support data
  * @flags: see &enum wiphy_wowlan_support_flags
@@ -2293,6 +2344,7 @@ enum wiphy_wowlan_support_flags {
  * @pattern_max_len: maximum length of each pattern
  * @pattern_min_len: minimum length of each pattern
  * @max_pkt_offset: maximum Rx packet offset
+ * @tcp: TCP wakeup support information
  */
 struct wiphy_wowlan_support {
 	u32 flags;
@@ -2300,6 +2352,7 @@ struct wiphy_wowlan_support {
 	int pattern_max_len;
 	int pattern_min_len;
 	int max_pkt_offset;
+	const struct wiphy_wowlan_tcp_support *tcp;
 };
 
 /**
