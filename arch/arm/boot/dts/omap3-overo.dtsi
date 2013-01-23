@@ -14,12 +14,13 @@
 /include/ "omap3.dtsi"
 
 / {
-	leds {
-		compatible = "gpio-leds";
+	pwmleds {
+		compatible = "pwm-leds";
+
 		overo {
 			label = "overo:blue:COM";
-			gpios = <&twl_gpio 19 0>;
-			linux,default-trigger = "mmc0";
+			pwms = <&twl_pwmled 1 7812500>;
+			max-brightness = <127>;
 		};
 	};
 };
