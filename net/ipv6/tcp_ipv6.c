@@ -834,7 +834,8 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 		 * no RST generated if md5 hash doesn't match.
 		 */
 		sk1 = inet6_lookup_listener(dev_net(skb_dst(skb)->dev),
-					   &tcp_hashinfo, &ipv6h->daddr,
+					   &tcp_hashinfo, &ipv6h->saddr,
+					   th->source, &ipv6h->daddr,
 					   ntohs(th->source), inet6_iif(skb));
 		if (!sk1)
 			return;
@@ -1598,6 +1599,7 @@ do_time_wait:
 		struct sock *sk2;
 
 		sk2 = inet6_lookup_listener(dev_net(skb->dev), &tcp_hashinfo,
+					    &ipv6_hdr(skb)->saddr, th->source,
 					    &ipv6_hdr(skb)->daddr,
 					    ntohs(th->dest), inet6_iif(skb));
 		if (sk2 != NULL) {

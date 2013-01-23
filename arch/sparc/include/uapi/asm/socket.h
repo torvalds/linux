@@ -15,7 +15,7 @@
 #define SO_PEERCRED	0x0040
 #define SO_LINGER	0x0080
 #define SO_OOBINLINE	0x0100
-/* To add :#define SO_REUSEPORT 0x0200 */
+#define SO_REUSEPORT	0x0200
 #define SO_BSDCOMPAT    0x0400
 #define SO_RCVLOWAT     0x0800
 #define SO_SNDLOWAT     0x1000

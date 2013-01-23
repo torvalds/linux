@@ -28,8 +28,7 @@
 #define SO_LINGER	0x0080	/* Block on close of a reliable
 				   socket to transmit pending data.  */
 #define SO_OOBINLINE 0x0100	/* Receive out-of-band data in-band.  */
-#if 0
-To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
+#define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #endif
 
 #define SO_TYPE		0x1008	/* Compatible name for SO_STYLE.  */

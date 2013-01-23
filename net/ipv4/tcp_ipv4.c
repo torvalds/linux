@@ -657,7 +657,8 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 		 * no RST generated if md5 hash doesn't match.
 		 */
 		sk1 = __inet_lookup_listener(dev_net(skb_dst(skb)->dev),
-					     &tcp_hashinfo, ip_hdr(skb)->daddr,
+					     &tcp_hashinfo, ip_hdr(skb)->saddr,
+					     th->source, ip_hdr(skb)->daddr,
 					     ntohs(th->source), inet_iif(skb));
 		/* don't send rst if it can't find key */
 		if (!sk1)
@@ -2074,6 +2075,7 @@ do_time_wait:
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(dev_net(skb->dev),
 							&tcp_hashinfo,
+							iph->saddr, th->source,
 							iph->daddr, th->dest,
 							inet_iif(skb));
 		if (sk2) {
