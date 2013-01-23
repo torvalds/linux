@@ -193,9 +193,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	/* Initialize parameters that can be overridden in EEPROM */
 	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
 	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
-
-	/* ## */
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3501_interrupt, IRQF_SHARED,
