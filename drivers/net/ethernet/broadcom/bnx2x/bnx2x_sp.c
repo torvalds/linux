@@ -4241,11 +4241,16 @@ int bnx2x_queue_state_change(struct bnx2x *bp,
 	unsigned long *pending = &o->pending;
 
 	/* Check that the requested transition is legal */
-	if (o->check_transition(bp, o, params))
+	rc = o->check_transition(bp, o, params);
+	if (rc) {
+		BNX2X_ERR("check transition returned an error. rc %d\n", rc);
 		return -EINVAL;
+	}
 
 	/* Set "pending" bit */
+	DP(BNX2X_MSG_SP, "pending bit was=%lx\n", o->pending);
 	pending_bit = o->set_pending(o, params);
+	DP(BNX2X_MSG_SP, "pending bit now=%lx\n", o->pending);
 
 	/* Don't send a command if only driver cleanup was requested */
 	if (test_bit(RAMROD_DRV_CLR_ONLY, &params->ramrod_flags))
@@ -5029,8 +5034,11 @@ static int bnx2x_queue_chk_transition(struct bnx2x *bp,
 	 * Don't allow a next state transition if we are in the middle of
 	 * the previous one.
 	 */
-	if (o->pending)
+	if (o->pending) {
+		BNX2X_ERR("Blocking transition since pending was %lx\n",
+			  o->pending);
 		return -EBUSY;
+	}
 
 	switch (state) {
 	case BNX2X_Q_STATE_RESET:

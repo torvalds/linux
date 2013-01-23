@@ -1731,6 +1731,10 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	DP(BNX2X_MSG_ETHTOOL,
+	   "set ring params command parameters: rx_pending = %d, tx_pending = %d\n",
+	   ering->rx_pending, ering->tx_pending);
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		DP(BNX2X_MSG_ETHTOOL,
 		   "Handling parity error recovery. Try again later\n");

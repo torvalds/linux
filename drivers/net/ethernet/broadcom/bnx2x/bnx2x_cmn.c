@@ -3486,9 +3486,10 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	DP(NETIF_MSG_TX_QUEUED,
-	   "queue[%d]: SKB: summed %x  protocol %x protocol(%x,%x) gso type %x  xmit_type %x\n",
+	   "queue[%d]: SKB: summed %x  protocol %x protocol(%x,%x) gso type %x  xmit_type %x len %d\n",
 	   txq_index, skb->ip_summed, skb->protocol, ipv6_hdr(skb)->nexthdr,
-	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
+	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type,
+	   skb->len);
 
 	eth = (struct ethhdr *)skb->data;
 
@@ -4077,6 +4078,8 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 		bp->rx_ring_size = rx_ring_size;
 	} else /* if rx_ring_size specified - use it */
 		rx_ring_size = bp->rx_ring_size;
+
+	DP(BNX2X_MSG_SP, "calculated rx_ring_size %d\n", rx_ring_size);
 
 	/* Common */
 	sb = &bnx2x_fp(bp, index, status_blk);

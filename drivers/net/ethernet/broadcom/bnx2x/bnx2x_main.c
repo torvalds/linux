@@ -1027,6 +1027,17 @@ void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 	}
 
 #ifdef BNX2X_STOP_ON_ERROR
+
+	/* event queue */
+	for (i = 0; i < NUM_EQ_DESC; i++) {
+		u32 *data = (u32 *)&bp->eq_ring[i].message.data;
+
+		BNX2X_ERR("event queue [%d]: header: opcode %d, error %d\n",
+			  i, bp->eq_ring[i].message.opcode,
+			  bp->eq_ring[i].message.error);
+		BNX2X_ERR("data: %x %x %x\n", data[0], data[1], data[2]);
+	}
+
 	/* Rings */
 	/* Rx */
 	for_each_valid_rx_queue(bp, i) {
@@ -7395,8 +7406,10 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	/* FLR cleanup - hmmm */
 	if (!CHIP_IS_E1x(bp)) {
 		rc = bnx2x_pf_flr_clnup(bp);
-		if (rc)
+		if (rc) {
+			bnx2x_fw_dump(bp);
 			return rc;
+		}
 	}
 
 	/* set MSI reconfigure capability */
@@ -9782,6 +9795,8 @@ static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	if (bnx2x_prev_is_path_marked(bp))
 		return bnx2x_prev_mcp_done(bp);
 
+	BNX2X_DEV_INFO("Path is unmarked\n");
+
 	/* If function has FLR capabilities, and existing FW version matches
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
@@ -9917,7 +9932,8 @@ static void bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
 	if (!CHIP_IS_E1x(bp)) {
 		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
 		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
-			BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
+			DP(BNX2X_MSG_SP,
+			   "'was error' bit was found to be set in pglueb upon startup. Clearing\n");
 			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
 			       1 << BP_FUNC(bp));
 		}
@@ -12488,6 +12504,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Cannot set interrupts\n");
 		goto init_one_exit;
 	}
+	BNX2X_DEV_INFO("set interrupts successfully\n");
 
 	/* register the net device */
 	rc = register_netdev(dev);
