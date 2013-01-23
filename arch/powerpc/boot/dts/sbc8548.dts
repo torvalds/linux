@@ -28,23 +28,25 @@
 			  0x3 0x0 0xf0000000 0x04000000		/*64MB SDRAM*/
 			  0x4 0x0 0xf4000000 0x04000000 	/*64MB SDRAM*/
 			  0x5 0x0 0xf8000000 0x00b10000		/* EPLD */
-			  0x6 0x0 0xfb800000 0x04000000>;	/*64MB Flash*/
+			  0x6 0x0 0xec000000 0x04000000>;	/*64MB Flash*/
 
 
 		flash@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "cfi-flash";
+			compatible = "intel,JS28F640", "cfi-flash";
 			reg = <0x0 0x0 0x800000>;
 			bank-width = <1>;
 			device-width = <1>;
 			partition@0x0 {
 				label = "space";
-				reg = <0x00000000 0x00100000>;
+				/* FF800000 -> FFF9FFFF */
+				reg = <0x00000000 0x007a0000>;
 			};
-			partition@0x100000 {
+			partition@0x7a0000 {
 				label = "bootloader";
-				reg = <0x00100000 0x00700000>;
+				/* FFFA0000 -> FFFFFFFF */
+				reg = <0x007a0000 0x00060000>;
 				read-only;
 			};
 		};
@@ -87,25 +89,19 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x6 0x0 0x04000000>;
-			compatible = "cfi-flash";
+			compatible = "intel,JS28F128", "cfi-flash";
 			bank-width = <4>;
 			device-width = <1>;
 			partition@0x0 {
-				label = "bootloader";
-				reg = <0x00000000 0x00100000>;
-				read-only;
-			};
-			partition@0x00100000 {
-				label = "file-system";
-				reg = <0x00100000 0x01f00000>;
-			};
-			partition@0x02000000 {
-				label = "boot-config";
-				reg = <0x02000000 0x00100000>;
-			};
-			partition@0x02100000 {
 				label = "space";
-				reg = <0x02100000 0x01f00000>;
+				/* EC000000 -> EFEFFFFF */
+				reg = <0x00000000 0x03f00000>;
+			};
+			partition@0x03f00000 {
+				label = "bootloader";
+				/* EFF00000 -> EFFFFFFF */
+				reg = <0x03f00000 0x00100000>;
+				read-only;
 			};
                 };
         };
