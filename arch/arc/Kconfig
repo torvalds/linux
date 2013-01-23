@@ -336,6 +336,17 @@ config ARC_CURR_IN_REG
 	  This reserved Register R25 to point to Current Task in
 	  kernel mode. This saves memory access for each such access
 
+
+config ARC_MISALIGN_ACCESS
+	bool "Emulate unaligned memory access (userspace only)"
+	default N
+	select SYSCTL_ARCH_UNALIGN_NO_WARN
+	select SYSCTL_ARCH_UNALIGN_ALLOW
+	help
+	  This enables misaligned 16 & 32 bit memory access from user space.
+	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
+	  potential bugs in code
+
 config ARC_STACK_NONEXEC
 	bool "Make stack non-executable"
 	default n

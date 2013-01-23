@@ -97,6 +97,9 @@ struct callee_regs {
 	sp;			\
 })
 
+/* return 1 if PC in delay slot */
+#define delay_mode(regs) ((regs->status32 & STATUS_DE_MASK) == STATUS_DE_MASK)
+
 #define in_syscall(regs)    (regs->event & orig_r8_IS_SCALL)
 #define in_brkpt_trap(regs) (regs->event & orig_r8_IS_BRKPT)
 

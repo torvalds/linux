@@ -52,7 +52,6 @@ generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += types.h
 generic-y += ucontext.h
-generic-y += unaligned.h
 generic-y += user.h
 generic-y += vga.h
 generic-y += xor.h

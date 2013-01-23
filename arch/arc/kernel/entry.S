@@ -7,6 +7,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * vineetg: May 2011
+ *  -Userspace unaligned access emulation
+ *
  * vineetg: Feb 2011 (ptrace low level code fixes)
  *  -traced syscall return code (r0) was not saved into pt_regs for restoring
  *   into user reg-file when traded task rets to user space.
@@ -387,7 +390,17 @@ ARC_ENTRY EV_TLBProtV
 	mov r1, r4              ; faulting address
 	mov r2, sp              ; pt_regs
 
+#ifdef  CONFIG_ARC_MISALIGN_ACCESS
+	SAVE_CALLEE_SAVED_USER
+	mov r3, sp              ; callee_regs
+#endif
+
 	bl  do_misaligned_access
+
+#ifdef  CONFIG_ARC_MISALIGN_ACCESS
+	DISCARD_CALLEE_SAVED_USER
+#endif
+
 	b   ret_from_exception
 
 ARC_EXIT EV_TLBProtV

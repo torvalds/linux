@@ -7,6 +7,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * vineetg: May 2011
+ *  -user-space unaligned access emulation
+ *
  * Rahul Trivedi: Codito Technologies 2004
  */
 
@@ -16,6 +19,7 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/kprobes.h>
+#include <asm/unaligned.h>
 
 void __init trap_init(void)
 {
@@ -79,7 +83,29 @@ DO_ERROR_INFO(SIGILL, "Illegal Insn (or Seq)", insterror_is_error, ILL_ILLOPC)
 DO_ERROR_INFO(SIGBUS, "Invalid Mem Access", do_memory_error, BUS_ADRERR)
 DO_ERROR_INFO(SIGTRAP, "Breakpoint Set", trap_is_brkpt, TRAP_BRKPT)
 
+#ifdef CONFIG_ARC_MISALIGN_ACCESS
+/*
+ * Entry Point for Misaligned Data access Exception, for emulating in software
+ */
+int do_misaligned_access(unsigned long cause, unsigned long address,
+			 struct pt_regs *regs, struct callee_regs *cregs)
+{
+	if (misaligned_fixup(address, regs, cause, cregs) != 0) {
+		siginfo_t info;
+
+		info.si_signo = SIGBUS;
+		info.si_errno = 0;
+		info.si_code = BUS_ADRALN;
+		info.si_addr = (void __user *)address;
+		return handle_exception(cause, "Misaligned Access", regs,
+					  &info);
+	}
+	return 0;
+}
+
+#else
 DO_ERROR_INFO(SIGSEGV, "Misaligned Access", do_misaligned_access, SEGV_ACCERR)
+#endif
 
 /*
  * Entry point for miscll errors such as Nested Exceptions

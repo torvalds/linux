@@ -15,7 +15,7 @@
 #include <asm/disasm.h>
 #include <asm/uaccess.h>
 
-#if defined(CONFIG_KGDB) || defined(CONFIG_MISALIGN_ACCESS) || \
+#if defined(CONFIG_KGDB) || defined(CONFIG_ARC_MISALIGN_ACCESS) || \
 	defined(CONFIG_KPROBES)
 
 /* disasm_instr: Analyses instruction at addr, stores
