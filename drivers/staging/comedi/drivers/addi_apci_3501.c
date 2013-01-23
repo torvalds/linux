@@ -50,7 +50,7 @@ static int apci3501_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
+static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
@@ -256,15 +256,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
-	if (this_board->i_PCIEeprom) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 256;
-		s->maxdata = 0xffff;
-		s->insn_read = i_ADDIDATA_InsnReadEeprom;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_MEMORY;
+	s->subdev_flags	= SDF_READABLE | SDF_INTERNAL;
+	s->n_chan	= 256;
+	s->maxdata	= 0xffff;
+	s->insn_read	= apci3501_eeprom_insn_read;
 
 	apci3501_reset(dev);
 	return 0;
