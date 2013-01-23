@@ -698,12 +698,12 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 	struct mb86a20s_state *state;
 	u8	rev;
 
+	dev_dbg(&i2c->dev, "%s called.\n", __func__);
+
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct mb86a20s_state), GFP_KERNEL);
-
-	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
 	if (state == NULL) {
-		dev_err(&state->i2c->dev,
+		dev_err(&i2c->dev,
 			"%s: unable to allocate memory for state\n", __func__);
 		goto error;
 	}
@@ -721,10 +721,10 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 	rev = mb86a20s_readreg(state, 0);
 
 	if (rev == 0x13) {
-		dev_info(&state->i2c->dev,
+		dev_info(&i2c->dev,
 			 "Detected a Fujitsu mb86a20s frontend\n");
 	} else {
-		dev_dbg(&state->i2c->dev,
+		dev_dbg(&i2c->dev,
 			"Frontend revision %d is unknown - aborting.\n",
 		       rev);
 		goto error;
