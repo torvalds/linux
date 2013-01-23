@@ -5,7 +5,7 @@
 #include <mach/iomux.h>
 #include <mach/board.h>
 #include "../../rockchip/hdmi/rk_hdmi.h"
-#include "screen.h"
+
 
 #ifdef CONFIG_RK610_LVDS
 #include "../transmitter/rk610_lcd.h"
@@ -45,7 +45,13 @@
 #define DCLK_POL	0
 #endif
 
-#define SWAP_RB			0   
+#define DEN_POL		0
+#define VSYNC_POL	0
+#define HSYNC_POL	0
+
+#define SWAP_RB		0
+#define SWAP_RG		0
+#define SWAP_GB		0  
 
 int dsp_lut[256] ={
 		0x00000000, 0x00010101, 0x00020202, 0x00030303, 0x00040404, 0x00050505, 0x00060606, 0x00070707, 
@@ -286,22 +292,22 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
     /* screen type & face */
-    screen->type = OUT_TYPE;
+ 	screen->type = OUT_TYPE;
 #ifdef CONFIG_RK610_LVDS
 	screen->hw_format = OUT_FORMAT;
 #endif
-    screen->face = OUT_FACE;
+	screen->face = OUT_FACE;
 
-    /* Screen size */
-    screen->x_res = H_VD;
-    screen->y_res = V_VD;
+	/* Screen size */
+	screen->x_res = H_VD;
+	screen->y_res = V_VD;
 
-    screen->width = LCD_WIDTH;
-    screen->height = LCD_HEIGHT;
+	screen->width = LCD_WIDTH;
+	screen->height = LCD_HEIGHT;
 
     /* Timing */
-    screen->lcdc_aclk = LCDC_ACLK;
-    screen->pixclock = OUT_CLK;
+	screen->lcdc_aclk = LCDC_ACLK;
+	screen->pixclock = OUT_CLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;
@@ -310,27 +316,37 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->vsync_len = V_PW;
 
 	/* Pin polarity */
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	screen->pin_den = 0;
+	screen->pin_hsync = HSYNC_POL;
+	screen->pin_vsync = VSYNC_POL;
+	screen->pin_den = DEN_POL;
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
-    screen->swap_rb = SWAP_RB;
-    screen->swap_rg = 0;
-    screen->swap_gb = 0;
-    screen->swap_delta = 0;
-    screen->swap_dumy = 0;
+	screen->swap_rb = SWAP_RB;
+	screen->swap_rg = SWAP_RG;
+	screen->swap_gb = SWAP_GB;
+	screen->swap_delta = 0;
+	screen->swap_dumy = 0;
 
     /* Operation function*/
-    screen->init = NULL;
+	screen->init = NULL;
 	screen->standby = NULL;
 	screen->dsp_lut = dsp_lut;
-	    screen->sscreen_get = set_scaler_info;
+	screen->sscreen_get = set_scaler_info;
 #ifdef CONFIG_RK610_LVDS
     	screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
 }
 
+size_t get_fb_size(void)
+{
+	size_t size = 0;
+	#if defined(CONFIG_THREE_FB_BUFFER)
+		size = ((H_VD)*(V_VD)<<2)* 3; //three buffer
+	#else
+		size = ((H_VD)*(V_VD)<<2)<<1; //two buffer
+	#endif
+	return ALIGN(size,SZ_1M);
+}
 
 
