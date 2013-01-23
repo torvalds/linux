@@ -44,6 +44,14 @@
 #define APCI3501_AO_DATA_VAL(x)			((x) << 8)
 #define APCI3501_AO_DATA_BIPOLAR		(1 << 31)
 #define APCI3501_AO_TRIG_SCS_REG		0x08
+#define APCI3501_TIMER_SYNC_REG			0x20
+#define APCI3501_TIMER_RELOAD_REG		0x24
+#define APCI3501_TIMER_TIMEBASE_REG		0x28
+#define APCI3501_TIMER_CTRL_REG			0x2c
+#define APCI3501_TIMER_STATUS_REG		0x30
+#define APCI3501_TIMER_IRQ_REG			0x34
+#define APCI3501_TIMER_WARN_RELOAD_REG		0x38
+#define APCI3501_TIMER_WARN_TIMEBASE_REG	0x3c
 #define APCI3501_DO_REG				0x40
 #define APCI3501_DI_REG				0x50
 
@@ -268,17 +276,11 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	int i_temp;
 
 	/*  Disable Interrupt */
-	ul_Command1 =
-		inl(dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
-
+	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul);
-	outl(ul_Command1,
-		dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
-	ui_Timer_AOWatchdog =
-		inl(dev->iobase + APCI3501_WATCHDOG +
-		APCI3501_TCW_IRQ) & 0x1;
-
+	ui_Timer_AOWatchdog = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
 	if ((!ui_Timer_AOWatchdog)) {
 		comedi_error(dev, "IRQ from unknown source");
 		return IRQ_NONE;
@@ -286,13 +288,10 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
-	ul_Command1 =
-		inl(dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
-	outl(ul_Command1,
-		dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
-	i_temp = inl(dev->iobase + APCI3501_WATCHDOG +
-		APCI3501_TCW_TRIG_STATUS) & 0x1;
+	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	i_temp = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
 
 	return IRQ_HANDLED;
 }
