@@ -1657,8 +1657,8 @@ exit_nfc_init:
 	release_resources(this);
 exit_acquire_resources:
 	platform_set_drvdata(pdev, NULL);
-	kfree(this);
 	dev_err(this->dev, "driver registration failed: %d\n", ret);
+	kfree(this);
 
 	return ret;
 }
