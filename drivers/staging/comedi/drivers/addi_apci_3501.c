@@ -225,7 +225,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ao_n_chan;
-	int ret, n_subdevices;
+	int ret;
 
 	dev->board_name = dev->driver->driver_name;
 
@@ -250,17 +250,12 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
+	/* Initialize the analog output subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
 	if (ao_n_chan) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -273,8 +268,8 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
+	/* Initialize the digital input subdevice */
+	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 2;
@@ -283,7 +278,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= apci3501_di_insn_bits;
 
 	/* Initialize the digital output subdevice */
-	s = &dev->subdevices[3];
+	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 2;
@@ -291,8 +286,8 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci3501_do_insn_bits;
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
+	/* Initialize the timer/watchdog subdevice */
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_TIMER;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 1;
@@ -303,12 +298,8 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s->insn_read = i_APCI3501_ReadTimerCounterWatchdog;
 	s->insn_config = i_APCI3501_ConfigTimerCounterWatchdog;
 
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
+	/* Initialize the eeprom subdevice */
+	s = &dev->subdevices[4];
 	s->type		= COMEDI_SUBD_MEMORY;
 	s->subdev_flags	= SDF_READABLE | SDF_INTERNAL;
 	s->n_chan	= 256;
