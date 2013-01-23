@@ -700,8 +700,7 @@ void xfrm_probe_algs(void)
 	}
 
 	for (i = 0; i < ealg_entries(); i++) {
-		status = crypto_has_blkcipher(ealg_list[i].name, 0,
-					      CRYPTO_ALG_ASYNC);
+		status = crypto_has_ablkcipher(ealg_list[i].name, 0, 0);
 		if (ealg_list[i].available != status)
 			ealg_list[i].available = status;
 	}
