@@ -1479,6 +1479,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		tvp->u.st = c->block_count;
 		break;
 	default:
+		dev_dbg(fe->dvb->device,
+			"%s: FE property %d doesn't exist\n",
+			__func__, tvp->cmd);
 		return -EINVAL;
 	}
 
