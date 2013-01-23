@@ -16,7 +16,6 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.i_IorangeBase1		= APCI3501_ADDRESS_RANGE,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5933,
-		.i_AoMaxdata		= 16383,
 		.pr_AoRangelist		= &range_apci3501_ao,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
@@ -190,7 +189,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	/* Initialize parameters that can be overridden in EEPROM */
 	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3501_interrupt, IRQF_SHARED,
@@ -216,7 +214,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
+		s->maxdata = 0x3fff;
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrAoChannel;
 		s->range_table = this_board->pr_AoRangelist;
