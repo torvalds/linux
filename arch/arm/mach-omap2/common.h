@@ -119,6 +119,14 @@ static inline void omap2xxx_restart(char mode, const char *cmd)
 }
 #endif
 
+#ifdef CONFIG_SOC_AM33XX
+void am33xx_restart(char mode, const char *cmd);
+#else
+static inline void am33xx_restart(char mode, const char *cmd)
+{
+}
+#endif
+
 #ifdef CONFIG_ARCH_OMAP3
 void omap3xxx_restart(char mode, const char *cmd);
 #else
