@@ -405,18 +405,24 @@
 		reg = <0xc5000400 0x3c00>;
 		phy_type = "utmi";
 		nvidia,has-legacy-mode;
+		clocks = <&tegra_car 22>, <&tegra_car 127>;
+		clock-names = "phy", "pll_u";
 	};
 
 	phy2: usb-phy@c5004400 {
 		compatible = "nvidia,tegra20-usb-phy";
 		reg = <0xc5004400 0x3c00>;
 		phy_type = "ulpi";
+		clocks = <&tegra_car 94>, <&tegra_car 127>;
+		clock-names = "phy", "pll_u";
 	};
 
 	phy3: usb-phy@c5008400 {
 		compatible = "nvidia,tegra20-usb-phy";
 		reg = <0xc5008400 0x3C00>;
 		phy_type = "utmi";
+		clocks = <&tegra_car 22>, <&tegra_car 127>;
+		clock-names = "phy", "pll_u";
 	};
 
 	usb@c5000000 {
