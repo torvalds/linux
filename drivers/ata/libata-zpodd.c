@@ -178,10 +178,15 @@ bool zpodd_zpready(struct ata_device *dev)
  * Enable runtime wake capability through ACPI and set the powered_off flag,
  * this flag will be used during resume to decide what operations are needed
  * to take.
+ *
+ * Also, media poll needs to be silenced, so that it doesn't bring the ODD
+ * back to full power state every few seconds.
  */
 void zpodd_enable_run_wake(struct ata_device *dev)
 {
 	struct zpodd *zpodd = dev->zpodd;
+
+	sdev_disable_disk_events(dev->sdev);
 
 	zpodd->powered_off = true;
 	device_set_run_wake(&dev->sdev->sdev_gendev, true);
@@ -231,6 +236,8 @@ void zpodd_post_poweron(struct ata_device *dev)
 
 	zpodd->zp_sampled = false;
 	zpodd->zp_ready = false;
+
+	sdev_enable_disk_events(dev->sdev);
 }
 
 static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)

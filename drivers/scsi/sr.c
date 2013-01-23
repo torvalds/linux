@@ -602,9 +602,13 @@ static unsigned int sr_block_check_events(struct gendisk *disk,
 	struct scsi_cd *cd = scsi_cd(disk);
 	unsigned int ret;
 
-	scsi_autopm_get_device(cd->device);
-	ret = cdrom_check_events(&cd->cdi, clearing);
-	scsi_autopm_put_device(cd->device);
+	if (atomic_read(&cd->device->disk_events_disable_depth) == 0) {
+		scsi_autopm_get_device(cd->device);
+		ret = cdrom_check_events(&cd->cdi, clearing);
+		scsi_autopm_put_device(cd->device);
+	} else {
+		ret = 0;
+	}
 
 	return ret;
 }
