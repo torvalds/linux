@@ -156,15 +156,9 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
 	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
 	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
 	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
-	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-		this_board->ui_MinAcquisitiontimeNs;
-	devpriv->s_EeParameters.ui_MinDelaytimeNs =
-		this_board->ui_MinDelaytimeNs;
 
 	/* ## */
 
@@ -199,39 +193,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AI Subdevice Structures */
 	s = &dev->subdevices[0];
-	if ((devpriv->s_EeParameters.i_NbrAiChannel)
-		|| (this_board->i_NbrAiChannelDiff)) {
-		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags =
-			SDF_READABLE | SDF_COMMON | SDF_GROUND
-			| SDF_DIFF;
-		if (devpriv->s_EeParameters.i_NbrAiChannel) {
-			s->n_chan =
-				devpriv->s_EeParameters.i_NbrAiChannel;
-			devpriv->b_SingelDiff = 0;
-		} else {
-			s->n_chan = this_board->i_NbrAiChannelDiff;
-			devpriv->b_SingelDiff = 1;
-		}
-		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
-		s->len_chanlist = this_board->i_AiChannelList;
-		s->range_table = this_board->pr_AiRangelist;
-
-		/* Set the initialisation flag */
-		devpriv->b_AiInitialisation = 1;
-
-		s->insn_config = this_board->ai_config;
-		s->insn_read = this_board->ai_read;
-		s->insn_write = this_board->ai_write;
-		s->insn_bits = this_board->ai_bits;
-		s->do_cmdtest = this_board->ai_cmdtest;
-		s->do_cmd = this_board->ai_cmd;
-		s->cancel = this_board->ai_cancel;
-
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
