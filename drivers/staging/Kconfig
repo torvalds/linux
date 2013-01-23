@@ -140,4 +140,6 @@ source "drivers/staging/fwserial/Kconfig"
 
 source "drivers/staging/zcache/Kconfig"
 
+source "drivers/staging/goldfish/Kconfig"
+
 endif # STAGING
