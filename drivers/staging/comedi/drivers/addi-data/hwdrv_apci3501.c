@@ -115,7 +115,7 @@ static int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev,
 					 struct comedi_insn *insn,
 					 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 
 	outl(data[0],
 		dev->iobase + APCI3501_ANALOG_OUTPUT +
@@ -157,7 +157,7 @@ static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
 					struct comedi_insn *insn,
 					unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
@@ -234,7 +234,7 @@ static int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 						 struct comedi_insn *insn,
 						 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 
 	devpriv->tsk_Current = current;
@@ -339,7 +339,7 @@ static int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *d
 							 struct comedi_insn *insn,
 							 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 	int i_Temp;
 
@@ -445,7 +445,7 @@ static int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 					       struct comedi_insn *insn,
 					       unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		data[0] =

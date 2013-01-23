@@ -2,7 +2,12 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
-#include "addi-data/addi_common.h"
+struct apci3501_private {
+	int i_IobaseAmcc;
+	struct task_struct *tsk_Current;
+	unsigned char b_TimerSelectMode;
+	unsigned char b_InterruptMode;
+};
 
 #include "addi-data/hwdrv_apci3501.c"
 
@@ -107,7 +112,7 @@ static unsigned short apci3501_eeprom_readw(unsigned long iobase,
 
 static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned long iobase = devpriv->i_IobaseAmcc;
 	unsigned char nfuncs;
 	int i;
@@ -137,7 +142,7 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned short addr = CR_CHAN(insn->chanspec);
 
 	data[0] = apci3501_eeprom_readw(devpriv->i_IobaseAmcc, 2 * addr);
@@ -148,7 +153,7 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 static irqreturn_t apci3501_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci3501_private *devpriv = dev->private;
 	unsigned int ui_Timer_AOWatchdog;
 	unsigned long ul_Command1;
 	int i_temp;
@@ -222,7 +227,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv;
+	struct apci3501_private *devpriv;
 	struct comedi_subdevice *s;
 	int ao_n_chan;
 	int ret;
@@ -313,14 +318,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 static void apci3501_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			apci3501_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
+	if (dev->iobase)
+		apci3501_reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
