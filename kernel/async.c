@@ -64,13 +64,13 @@ static async_cookie_t next_cookie = 1;
 #define MAX_WORK		32768
 #define ASYNC_COOKIE_MAX	ULLONG_MAX	/* infinity cookie */
 
+static LIST_HEAD(async_global_pending);	/* pending from all registered doms */
 static ASYNC_DOMAIN(async_dfl_domain);
-static LIST_HEAD(async_domains);
 static DEFINE_SPINLOCK(async_lock);
-static DEFINE_MUTEX(async_register_mutex);
 
 struct async_entry {
-	struct list_head	list;
+	struct list_head	domain_list;
+	struct list_head	global_list;
 	struct work_struct	work;
 	async_cookie_t		cookie;
 	async_func_ptr		*func;
@@ -84,15 +84,25 @@ static atomic_t entry_count;
 
 static async_cookie_t lowest_in_progress(struct async_domain *domain)
 {
+	struct async_entry *first = NULL;
 	async_cookie_t ret = ASYNC_COOKIE_MAX;
 	unsigned long flags;
 
 	spin_lock_irqsave(&async_lock, flags);
-	if (!list_empty(&domain->pending)) {
-		struct async_entry *first = list_first_entry(&domain->pending,
-						struct async_entry, list);
-		ret = first->cookie;
+
+	if (domain) {
+		if (!list_empty(&domain->pending))
+			first = list_first_entry(&domain->pending,
+					struct async_entry, domain_list);
+	} else {
+		if (!list_empty(&async_global_pending))
+			first = list_first_entry(&async_global_pending,
+					struct async_entry, global_list);
 	}
+
+	if (first)
+		ret = first->cookie;
+
 	spin_unlock_irqrestore(&async_lock, flags);
 	return ret;
 }
@@ -106,7 +116,6 @@ static void async_run_entry_fn(struct work_struct *work)
 		container_of(work, struct async_entry, work);
 	unsigned long flags;
 	ktime_t uninitialized_var(calltime), delta, rettime;
-	struct async_domain *domain = entry->domain;
 
 	/* 1) run (and print duration) */
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
@@ -127,9 +136,8 @@ static void async_run_entry_fn(struct work_struct *work)
 
 	/* 2) remove self from the pending queues */
 	spin_lock_irqsave(&async_lock, flags);
-	list_del(&entry->list);
-	if (domain->registered && list_empty(&domain->pending))
-		list_del_init(&domain->node);
+	list_del_init(&entry->domain_list);
+	list_del_init(&entry->global_list);
 
 	/* 3) free the entry */
 	kfree(entry);
@@ -170,10 +178,14 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct a
 	entry->domain = domain;
 
 	spin_lock_irqsave(&async_lock, flags);
+
+	/* allocate cookie and queue */
 	newcookie = entry->cookie = next_cookie++;
-	if (domain->registered && list_empty(&domain->pending))
-		list_add_tail(&domain->node, &async_domains);
-	list_add_tail(&entry->list, &domain->pending);
+
+	list_add_tail(&entry->domain_list, &domain->pending);
+	if (domain->registered)
+		list_add_tail(&entry->global_list, &async_global_pending);
+
 	atomic_inc(&entry_count);
 	spin_unlock_irqrestore(&async_lock, flags);
 
@@ -226,18 +238,7 @@ EXPORT_SYMBOL_GPL(async_schedule_domain);
  */
 void async_synchronize_full(void)
 {
-	mutex_lock(&async_register_mutex);
-	do {
-		struct async_domain *domain = NULL;
-
-		spin_lock_irq(&async_lock);
-		if (!list_empty(&async_domains))
-			domain = list_first_entry(&async_domains, typeof(*domain), node);
-		spin_unlock_irq(&async_lock);
-
-		async_synchronize_cookie_domain(ASYNC_COOKIE_MAX, domain);
-	} while (!list_empty(&async_domains));
-	mutex_unlock(&async_register_mutex);
+	async_synchronize_full_domain(NULL);
 }
 EXPORT_SYMBOL_GPL(async_synchronize_full);
 
@@ -252,13 +253,10 @@ EXPORT_SYMBOL_GPL(async_synchronize_full);
  */
 void async_unregister_domain(struct async_domain *domain)
 {
-	mutex_lock(&async_register_mutex);
 	spin_lock_irq(&async_lock);
-	WARN_ON(!domain->registered || !list_empty(&domain->node) ||
-		!list_empty(&domain->pending));
+	WARN_ON(!domain->registered || !list_empty(&domain->pending));
 	domain->registered = 0;
 	spin_unlock_irq(&async_lock);
-	mutex_unlock(&async_register_mutex);
 }
 EXPORT_SYMBOL_GPL(async_unregister_domain);
 
@@ -278,7 +276,7 @@ EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
 /**
  * async_synchronize_cookie_domain - synchronize asynchronous function calls within a certain domain with cookie checkpointing
  * @cookie: async_cookie_t to use as checkpoint
- * @domain: the domain to synchronize
+ * @domain: the domain to synchronize (%NULL for all registered domains)
  *
  * This function waits until all asynchronous function calls for the
  * synchronization domain specified by @domain submitted prior to @cookie
@@ -287,9 +285,6 @@ EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
 void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain *domain)
 {
 	ktime_t uninitialized_var(starttime), delta, endtime;
-
-	if (!domain)
-		return;
 
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		printk(KERN_DEBUG "async_waiting @ %i\n", task_pid_nr(current));
