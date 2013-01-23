@@ -688,7 +688,7 @@ static void activate_amp_in(struct hda_codec *codec, struct nid_path *path,
 	 * when aa-mixer is available, we need to enable the path as well
 	 */
 	for (n = 0; n < nums; n++) {
-		if (n != idx && (!add_aamix || conn[n] != spec->mixer_nid))
+		if (n != idx && (!add_aamix || conn[n] != spec->mixer_merge_nid))
 			continue;
 		activate_amp(codec, nid, HDA_INPUT, n, idx, enable);
 	}
@@ -2492,6 +2492,19 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 
 	path->active = true;
 	add_loopback_list(spec, mix_nid, idx);
+
+	if (spec->mixer_nid != spec->mixer_merge_nid &&
+	    !spec->loopback_merge_path) {
+		path = snd_hda_add_new_path(codec, spec->mixer_nid,
+					    spec->mixer_merge_nid, 0);
+		if (path) {
+			print_nid_path("loopback-merge", path);
+			path->active = true;
+			spec->loopback_merge_path =
+				snd_hda_get_path_idx(codec, path);
+		}
+	}
+
 	return 0;
 }
 
@@ -3847,6 +3860,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 
 	parse_user_hints(codec);
 
+	if (spec->mixer_nid && !spec->mixer_merge_nid)
+		spec->mixer_merge_nid = spec->mixer_nid;
+
 	if (cfg != &spec->autocfg) {
 		spec->autocfg = *cfg;
 		cfg = &spec->autocfg;
@@ -4673,6 +4689,11 @@ static void init_analog_input(struct hda_codec *codec)
 			if (path)
 				snd_hda_activate_path(codec, path,
 						      path->active, false);
+			path = snd_hda_get_path_from_idx(codec,
+							 spec->loopback_merge_path);
+			if (path)
+				snd_hda_activate_path(codec, path, path->active,
+						      false);
 		}
 	}
 }

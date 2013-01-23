@@ -107,6 +107,7 @@ struct hda_gen_spec {
 	hda_nid_t adc_nids[AUTO_CFG_MAX_INS];
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 	hda_nid_t mixer_nid;		/* analog-mixer NID */
+	hda_nid_t mixer_merge_nid;	/* aamix merge-point NID (optional) */
 	const char *input_labels[HDA_MAX_NUM_INPUTS];
 	int input_label_idxs[HDA_MAX_NUM_INPUTS];
 
@@ -163,6 +164,7 @@ struct hda_gen_spec {
 	int digout_paths[AUTO_CFG_MAX_OUTS];
 	int input_paths[HDA_MAX_NUM_INPUTS][AUTO_CFG_MAX_INS];
 	int loopback_paths[HDA_MAX_NUM_INPUTS];
+	int loopback_merge_path;
 	int digin_path;
 
 	/* auto-mic stuff */
