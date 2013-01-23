@@ -19,7 +19,7 @@ typedef u64 async_cookie_t;
 typedef void (async_func_ptr) (void *data, async_cookie_t cookie);
 struct async_domain {
 	struct list_head node;
-	struct list_head domain;
+	struct list_head running;
 	int count;
 	unsigned registered:1;
 };
@@ -29,7 +29,7 @@ struct async_domain {
  */
 #define ASYNC_DOMAIN(_name) \
 	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
-				      .domain = LIST_HEAD_INIT(_name.domain), \
+				      .running = LIST_HEAD_INIT(_name.running), \
 				      .count = 0, \
 				      .registered = 1 }
 
@@ -39,7 +39,7 @@ struct async_domain {
  */
 #define ASYNC_DOMAIN_EXCLUSIVE(_name) \
 	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
-				      .domain = LIST_HEAD_INIT(_name.domain), \
+				      .running = LIST_HEAD_INIT(_name.running), \
 				      .count = 0, \
 				      .registered = 0 }
 
