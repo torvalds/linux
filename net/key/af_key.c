@@ -203,7 +203,6 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 	}
 	if (*skb2 != NULL) {
 		if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf) {
-			skb_orphan(*skb2);
 			skb_set_owner_r(*skb2, sk);
 			skb_queue_tail(&sk->sk_receive_queue, *skb2);
 			sk->sk_data_ready(sk, (*skb2)->len);
