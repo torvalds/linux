@@ -140,11 +140,11 @@ static unsigned int default_mode[] = {
 	#endif
 
 	#ifdef CONFIG_SPIM0_RK29
-        SPI0_CLK, SPI0_TXD, SPI0_RXD, SPI0_CSN0,
+        SPI0_CLK, SPI0_TXD, SPI0_RXD, SPI0_CS0,
 	#endif
 
 	#ifdef CONFIG_SPIM1_RK29
-        SPI1_CLK, SPI1_TXD, SPI1_RXD, SPI1_CSN0,
+        SPI1_CLK, SPI1_TXD, SPI1_RXD, SPI1_CS0,
 	#endif
 
 	#ifdef CONFIG_I2C0_RK30

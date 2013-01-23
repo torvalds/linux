@@ -483,6 +483,7 @@ static int spi_io_resume_leakage_bug(void)
  */
 #ifdef CONFIG_SPIM0_RK29
 static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+#if 0
 	{
 		.name = "spi0 cs0",
 		.cs_gpio = RK2928_PIN1_PB3,
@@ -495,6 +496,7 @@ static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
 		.cs_iomux_name = GPIO1B4_SPI_CSN1_UART1_CTSN_NAME,//if no iomux,set it NULL
 		.cs_iomux_mode = GPIO1B_SPI_CSN1,
 	},
+#endif
 };
 
 static struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
