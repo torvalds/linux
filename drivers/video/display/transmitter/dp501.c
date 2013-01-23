@@ -111,6 +111,7 @@ static int dp501_init(struct i2c_client *client)
 	dp501_write_reg(client,2,0x26,0x10); //PIO setting
 	
 	dp501_write_reg(client,0,0x0a,0x0c); //block 74 & 76
+	dp501_write_reg(client,0,0x20,0x00); 
 	dp501_write_reg(client,0,0x27,0x30); //auto detect CRTC 
 	dp501_write_reg(client,0,0x2f,0x82); //reset tpfifo at v blank 
 	dp501_write_reg(client,0,0x24,0xc0); //DVO mapping ; crtc follow mode
@@ -124,7 +125,7 @@ static int dp501_init(struct i2c_client *client)
 
 
 	//second, set up training
-	dp501_write_reg(client,0,0x5d,0x0A); //training link rate(2.7Gbps)
+	dp501_write_reg(client,0,0x5d,0x06); //training link rate(2.7Gbps)
 	dp501_write_reg(client,0,0x5e,0x84); //training lane count(4Lanes),
 	dp501_write_reg(client,0,0x74,0x00); //idle pattern
 	dp501_write_reg(client,0,0x5f,0x0d); //trigger training
