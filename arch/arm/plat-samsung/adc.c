@@ -416,7 +416,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit s3c_adc_remove(struct platform_device *pdev)
+static int s3c_adc_remove(struct platform_device *pdev)
 {
 	struct adc_device *adc = platform_get_drvdata(pdev);
 
@@ -516,7 +516,7 @@ static struct platform_driver s3c_adc_driver = {
 		.pm	= &adc_pm_ops,
 	},
 	.probe		= s3c_adc_probe,
-	.remove		= __devexit_p(s3c_adc_remove),
+	.remove		= s3c_adc_remove,
 };
 
 static int __init adc_init(void)

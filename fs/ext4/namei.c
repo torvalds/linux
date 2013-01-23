@@ -722,7 +722,7 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 			ext4_warning(dir->i_sb, "Node failed checksum");
 			brelse(bh);
 			*err = ERR_BAD_DX_DIR;
-			goto fail;
+			goto fail2;
 		}
 		set_buffer_verified(bh);
 
@@ -2368,7 +2368,6 @@ static int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 	}
 
 	inode->i_size = EXT4_I(inode)->i_disksize = blocksize;
-	dir_block = ext4_bread(handle, inode, 0, 1, &err);
 	if (!(dir_block = ext4_bread(handle, inode, 0, 1, &err))) {
 		if (!err) {
 			err = -EIO;
@@ -2648,7 +2647,8 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	if (!EXT4_SB(inode->i_sb)->s_journal)
+	if ((!EXT4_SB(inode->i_sb)->s_journal) &&
+	    !(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ORPHAN_FS))
 		return 0;
 
 	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);

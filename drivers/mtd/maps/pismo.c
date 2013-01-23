@@ -66,8 +66,8 @@ static unsigned int pismo_width_to_bytes(unsigned int width)
 	return 1 << width;
 }
 
-static int pismo_eeprom_read(struct i2c_client *client, void *buf,
-	u8 addr, size_t size)
+static int pismo_eeprom_read(struct i2c_client *client, void *buf, u8 addr,
+			     size_t size)
 {
 	int ret;
 	struct i2c_msg msg[] = {
@@ -89,7 +89,8 @@ static int pismo_eeprom_read(struct i2c_client *client, void *buf,
 }
 
 static int pismo_add_device(struct pismo_data *pismo, int i,
-	struct pismo_mem *region, const char *name, void *pdata, size_t psize)
+			    struct pismo_mem *region, const char *name,
+			    void *pdata, size_t psize)
 {
 	struct platform_device *dev;
 	struct resource res = { };
@@ -130,7 +131,7 @@ static int pismo_add_device(struct pismo_data *pismo, int i,
 }
 
 static int pismo_add_nor(struct pismo_data *pismo, int i,
-	struct pismo_mem *region)
+			 struct pismo_mem *region)
 {
 	struct physmap_flash_data data = {
 		.width = region->width,
@@ -144,7 +145,7 @@ static int pismo_add_nor(struct pismo_data *pismo, int i,
 }
 
 static int pismo_add_sram(struct pismo_data *pismo, int i,
-	struct pismo_mem *region)
+			  struct pismo_mem *region)
 {
 	struct platdata_mtd_ram data = {
 		.bankwidth = region->width,
@@ -155,7 +156,7 @@ static int pismo_add_sram(struct pismo_data *pismo, int i,
 }
 
 static void pismo_add_one(struct pismo_data *pismo, int i,
-	const struct pismo_cs_block *cs, phys_addr_t base)
+			  const struct pismo_cs_block *cs, phys_addr_t base)
 {
 	struct device *dev = &pismo->client->dev;
 	struct pismo_mem region;
@@ -211,7 +212,7 @@ static int pismo_remove(struct i2c_client *client)
 }
 
 static int pismo_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+		       const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct pismo_pdata *pdata = client->dev.platform_data;

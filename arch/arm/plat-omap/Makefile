@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := sram.o dma.o fb.o counter_32k.o
+obj-y := sram.o dma.o counter_32k.o
 obj-m :=
 obj-n :=
 obj-  :=

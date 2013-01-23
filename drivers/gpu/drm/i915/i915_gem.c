@@ -1517,9 +1517,11 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	if (obj->base.map_list.map)
 		return 0;
 
+	dev_priv->mm.shrinker_no_lock_stealing = true;
+
 	ret = drm_gem_create_mmap_offset(&obj->base);
 	if (ret != -ENOSPC)
-		return ret;
+		goto out;
 
 	/* Badly fragmented mmap space? The only way we can recover
 	 * space is by destroying unwanted objects. We can't randomly release
@@ -1531,10 +1533,14 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	i915_gem_purge(dev_priv, obj->base.size >> PAGE_SHIFT);
 	ret = drm_gem_create_mmap_offset(&obj->base);
 	if (ret != -ENOSPC)
-		return ret;
+		goto out;
 
 	i915_gem_shrink_all(dev_priv);
-	return drm_gem_create_mmap_offset(&obj->base);
+	ret = drm_gem_create_mmap_offset(&obj->base);
+out:
+	dev_priv->mm.shrinker_no_lock_stealing = false;
+
+	return ret;
 }
 
 static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
@@ -2890,7 +2896,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_mm_node *free_space;
+	struct drm_mm_node *node;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
 	int ret;
@@ -2936,66 +2942,54 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (node == NULL) {
+		i915_gem_object_unpin_pages(obj);
+		return -ENOMEM;
+	}
+
  search_free:
 	if (map_and_fenceable)
-		free_space = drm_mm_search_free_in_range_color(&dev_priv->mm.gtt_space,
-							       size, alignment, obj->cache_level,
-							       0, dev_priv->mm.gtt_mappable_end,
-							       false);
+		ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space, node,
+							  size, alignment, obj->cache_level,
+							  0, dev_priv->mm.gtt_mappable_end);
 	else
-		free_space = drm_mm_search_free_color(&dev_priv->mm.gtt_space,
-						      size, alignment, obj->cache_level,
-						      false);
-
-	if (free_space != NULL) {
-		if (map_and_fenceable)
-			free_space =
-				drm_mm_get_block_range_generic(free_space,
-							       size, alignment, obj->cache_level,
-							       0, dev_priv->mm.gtt_mappable_end,
-							       false);
-		else
-			free_space =
-				drm_mm_get_block_generic(free_space,
-							 size, alignment, obj->cache_level,
-							 false);
-	}
-	if (free_space == NULL) {
+		ret = drm_mm_insert_node_generic(&dev_priv->mm.gtt_space, node,
+						 size, alignment, obj->cache_level);
+	if (ret) {
 		ret = i915_gem_evict_something(dev, size, alignment,
 					       obj->cache_level,
 					       map_and_fenceable,
 					       nonblocking);
-		if (ret) {
-			i915_gem_object_unpin_pages(obj);
-			return ret;
-		}
+		if (ret == 0)
+			goto search_free;
 
-		goto search_free;
-	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(dev,
-					      free_space,
-					      obj->cache_level))) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(free_space);
+		kfree(node);
+		return ret;
+	}
+	if (WARN_ON(!i915_gem_valid_gtt_space(dev, node, obj->cache_level))) {
+		i915_gem_object_unpin_pages(obj);
+		drm_mm_put_block(node);
 		return -EINVAL;
 	}
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(free_space);
+		drm_mm_put_block(node);
 		return ret;
 	}
 
 	list_move_tail(&obj->gtt_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
-	obj->gtt_space = free_space;
-	obj->gtt_offset = free_space->start;
+	obj->gtt_space = node;
+	obj->gtt_offset = node->start;
 
 	fenceable =
-		free_space->size == fence_size &&
-		(free_space->start & (fence_alignment - 1)) == 0;
+		node->size == fence_size &&
+		(node->start & (fence_alignment - 1)) == 0;
 
 	mappable =
 		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
@@ -4390,6 +4384,9 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 
 	if (!mutex_trylock(&dev->struct_mutex)) {
 		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+			return 0;
+
+		if (dev_priv->mm.shrinker_no_lock_stealing)
 			return 0;
 
 		unlock = false;

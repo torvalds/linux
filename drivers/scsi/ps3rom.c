@@ -359,7 +359,7 @@ static struct scsi_host_template ps3rom_host_template = {
 };
 
 
-static int __devinit ps3rom_probe(struct ps3_system_bus_device *_dev)
+static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	int error;

@@ -34,7 +34,7 @@ static int ab9540_reg_clks(struct device *dev)
 	return 0;
 }
 
-static int __devinit abx500_clk_probe(struct platform_device *pdev)
+static int abx500_clk_probe(struct platform_device *pdev)
 {
 	struct ab8500 *parent = dev_get_drvdata(pdev->dev.parent);
 	int ret;

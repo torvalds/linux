@@ -333,9 +333,8 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
-					 struct platform_device *dev,
-					 int offset, int irq_index)
+static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
+			       int offset, int irq_index)
 {
 	struct fsl_msi_cascade_data *cascade_data = NULL;
 	int virt_msir;
@@ -363,7 +362,7 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 }
 
 static const struct of_device_id fsl_of_msi_ids[];
-static int __devinit fsl_of_msi_probe(struct platform_device *dev)
+static int fsl_of_msi_probe(struct platform_device *dev)
 {
 	const struct of_device_id *match;
 	struct fsl_msi *msi;

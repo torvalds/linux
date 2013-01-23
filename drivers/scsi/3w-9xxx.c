@@ -2029,7 +2029,7 @@ static struct scsi_host_template driver_template = {
 };
 
 /* This function will probe and initialize a card */
-static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
+static int twa_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct Scsi_Host *host = NULL;
 	TW_Device_Extension *tw_dev;
@@ -2305,7 +2305,7 @@ out_disable_device:
 #endif
 
 /* PCI Devices supported by this driver */
-static struct pci_device_id twa_pci_tbl[] __devinitdata = {
+static struct pci_device_id twa_pci_tbl[] = {
 	{ PCI_VENDOR_ID_3WARE, PCI_DEVICE_ID_3WARE_9000,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_3WARE, PCI_DEVICE_ID_3WARE_9550SX,
