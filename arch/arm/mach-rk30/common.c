@@ -178,9 +178,6 @@ void __init rk30_map_io(void)
 
 static __init u32 rk30_get_ddr_size(void)
 {
-#ifdef CONFIG_ARCH_RK3188
-	return SZ_2G;
-#endif
 	u32 size;
 	u32 v[3], a[3];
 	u32 pgtbl = PAGE_OFFSET + TEXT_OFFSET - 0x4000;

@@ -3321,7 +3321,11 @@ uint32 ddr_get_cap(void)
             break;
     }
     row = ddr_cfg_2_rbc[i].row;
+#ifdef CONFIG_ARCH_RK3188
+    if (1)
+#else
     if(*(volatile uint32_t *)(ROM_CHIP_ID_ADDR+0x0c)  == 0x56313030)
+#endif
     {
         if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
         {
