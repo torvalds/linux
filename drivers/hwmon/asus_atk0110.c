@@ -190,7 +190,7 @@ struct atk_acpi_input_buf {
 };
 
 static int atk_add(struct acpi_device *device);
-static int atk_remove(struct acpi_device *device, int type);
+static int atk_remove(struct acpi_device *device);
 static void atk_print_sensor(struct atk_data *data, union acpi_object *obj);
 static int atk_read_value(struct atk_sensor_data *sensor, u64 *value);
 static void atk_free_sensors(struct atk_data *data);
@@ -1416,7 +1416,7 @@ out:
 	return err;
 }
 
-static int atk_remove(struct acpi_device *device, int type)
+static int atk_remove(struct acpi_device *device)
 {
 	struct atk_data *data = device->driver_data;
 	dev_dbg(&device->dev, "removing...\n");

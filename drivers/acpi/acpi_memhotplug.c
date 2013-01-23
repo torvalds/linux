@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 #define MEMORY_POWER_OFF_STATE	2
 
 static int acpi_memory_device_add(struct acpi_device *device);
-static int acpi_memory_device_remove(struct acpi_device *device, int type);
+static int acpi_memory_device_remove(struct acpi_device *device);
 
 static const struct acpi_device_id memory_device_ids[] = {
 	{ACPI_MEMORY_DEVICE_HID, 0},
@@ -415,7 +415,7 @@ static int acpi_memory_device_add(struct acpi_device *device)
 	return result;
 }
 
-static int acpi_memory_device_remove(struct acpi_device *device, int type)
+static int acpi_memory_device_remove(struct acpi_device *device)
 {
 	struct acpi_memory_device *mem_device = NULL;
 	int result;

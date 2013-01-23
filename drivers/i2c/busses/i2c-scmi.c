@@ -406,7 +406,7 @@ err:
 	return -EIO;
 }
 
-static int acpi_smbus_cmi_remove(struct acpi_device *device, int type)
+static int acpi_smbus_cmi_remove(struct acpi_device *device)
 {
 	struct acpi_smbus_cmi *smbus_cmi = acpi_driver_data(device);
 

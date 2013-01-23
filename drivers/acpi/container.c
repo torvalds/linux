@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("ACPI container driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_container_add(struct acpi_device *device);
-static int acpi_container_remove(struct acpi_device *device, int type);
+static int acpi_container_remove(struct acpi_device *device);
 
 static const struct acpi_device_id container_device_ids[] = {
 	{"ACPI0004", 0},
@@ -125,7 +125,7 @@ static int acpi_container_add(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_container_remove(struct acpi_device *device, int type)
+static int acpi_container_remove(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
 	struct acpi_container *pc = NULL;

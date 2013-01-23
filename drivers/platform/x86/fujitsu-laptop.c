@@ -733,7 +733,7 @@ err_stop:
 	return result;
 }
 
-static int acpi_fujitsu_remove(struct acpi_device *device, int type)
+static int acpi_fujitsu_remove(struct acpi_device *device)
 {
 	struct fujitsu_t *fujitsu = acpi_driver_data(device);
 	struct input_dev *input = fujitsu->input;
@@ -938,7 +938,7 @@ err_stop:
 	return result;
 }
 
-static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
+static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 {
 	struct fujitsu_hotkey_t *fujitsu_hotkey = acpi_driver_data(device);
 	struct input_dev *input = fujitsu_hotkey->input;

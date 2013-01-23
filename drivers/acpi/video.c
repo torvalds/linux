@@ -88,7 +88,7 @@ module_param(use_bios_initial_backlight, bool, 0644);
 
 static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
-static int acpi_video_bus_remove(struct acpi_device *device, int type);
+static int acpi_video_bus_remove(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id video_device_ids[] = {
@@ -1740,7 +1740,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	return error;
 }
 
-static int acpi_video_bus_remove(struct acpi_device *device, int type)
+static int acpi_video_bus_remove(struct acpi_device *device)
 {
 	struct acpi_video_bus *video = NULL;
 

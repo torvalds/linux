@@ -140,8 +140,7 @@ static int acpi_pad_add(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_pad_remove(struct acpi_device *device,
-	int type)
+static int acpi_pad_remove(struct acpi_device *device)
 {
 	mutex_lock(&xen_cpu_lock);
 	xen_acpi_pad_idle_cpus(0);

@@ -89,7 +89,7 @@ struct acpi_device;
  */
 
 typedef int (*acpi_op_add) (struct acpi_device * device);
-typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
+typedef int (*acpi_op_remove) (struct acpi_device * device);
 typedef int (*acpi_op_start) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
 

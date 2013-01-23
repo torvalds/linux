@@ -46,7 +46,7 @@ ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
 static int acpi_pci_root_add(struct acpi_device *device);
-static int acpi_pci_root_remove(struct acpi_device *device, int type);
+static int acpi_pci_root_remove(struct acpi_device *device);
 
 #define ACPI_PCIE_REQ_SUPPORT (OSC_EXT_PCI_CONFIG_SUPPORT \
 				| OSC_ACTIVE_STATE_PWR_SUPPORT \
@@ -627,7 +627,7 @@ end:
 	return result;
 }
 
-static int acpi_pci_root_remove(struct acpi_device *device, int type)
+static int acpi_pci_root_remove(struct acpi_device *device)
 {
 	acpi_status status;
 	acpi_handle handle;

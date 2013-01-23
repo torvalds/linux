@@ -157,7 +157,7 @@ add_err:
 	return -ENODEV;
 }
 
-static int acpi_topstar_remove(struct acpi_device *device, int type)
+static int acpi_topstar_remove(struct acpi_device *device)
 {
 	struct topstar_hkey *tps_hkey = acpi_driver_data(device);
 
