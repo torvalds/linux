@@ -174,12 +174,12 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 #define cru_writel_frac(v,offset) cru_writel((v),(offset))
 #endif
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
-//#define CLKDATA_DBG(fmt, args...) printk(KERN_DEBUG "CLKDATA_DBG:\t"fmt, ##args)
-//#define CLKDATA_LOG(fmt, args...) printk(KERN_INFO "CLKDATA_LOG:\t"fmt, ##args)
-#define CLKDATA_DBG(fmt, args...) printk("CLKDATA_DBG:\t"fmt, ##args)
-#define CLKDATA_LOG(fmt, args...) printk("CLKDATA_LOG:\t"fmt, ##args)
+#define CLKDATA_DBG(fmt, args...) printk(KERN_DEBUG "CLKDATA_DBG:\t"fmt, ##args)
+#define CLKDATA_LOG(fmt, args...) printk(KERN_INFO "CLKDATA_LOG:\t"fmt, ##args)
+//#define CLKDATA_DBG(fmt, args...) printk("CLKDATA_DBG:\t"fmt, ##args)
+//#define CLKDATA_LOG(fmt, args...) printk("CLKDATA_LOG:\t"fmt, ##args)
 #else
 #define CLKDATA_DBG(fmt, args...) do {} while(0)
 #define CLKDATA_LOG(fmt, args...) do {} while(0)
@@ -3160,7 +3160,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	 * enable other clocks as necessary
 	 */
 	rk30_init_enable_clocks();
-#if 1
+#if 0
 	// print loader config
 	CLKDATA_DBG("%s clks register dbg start\n", __func__);
 	rk_dump_clock_info();
