@@ -320,7 +320,7 @@ config LEDS_DAC124S085
 config LEDS_PWM
 	tristate "PWM driven LED Support"
 	depends on LEDS_CLASS
-	depends on HAVE_PWM
+	depends on PWM
 	help
 	  This option enables support for pwm driven LEDs
 
