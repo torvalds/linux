@@ -703,6 +703,15 @@ int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card)
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_card_power_off);
 
+int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	if (pcr->ops->switch_output_voltage)
+		return pcr->ops->switch_output_voltage(pcr, voltage);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rtsx_pci_switch_output_voltage);
+
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr)
 {
 	unsigned int val;

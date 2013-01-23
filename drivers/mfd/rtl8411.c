@@ -112,6 +112,21 @@ static int rtl8411_card_power_off(struct rtsx_pcr *pcr, int card)
 			BPP_LDO_POWB, BPP_LDO_SUSPEND);
 }
 
+static int rtl8411_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	u8 mask, val;
+
+	mask = (BPP_REG_TUNED18 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_MASK;
+	if (voltage == OUTPUT_3V3)
+		val = (BPP_ASIC_3V3 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_3V3;
+	else if (voltage == OUTPUT_1V8)
+		val = (BPP_ASIC_1V8 << BPP_TUNED18_SHIFT_8411) | BPP_PAD_1V8;
+	else
+		return -EINVAL;
+
+	return rtsx_pci_write_register(pcr, LDO_CTL, mask, val);
+}
+
 static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
 {
 	unsigned int card_exist;
@@ -172,6 +187,7 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.disable_auto_blink = rtl8411_disable_auto_blink,
 	.card_power_on = rtl8411_card_power_on,
 	.card_power_off = rtl8411_card_power_off,
+	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
 };
 
