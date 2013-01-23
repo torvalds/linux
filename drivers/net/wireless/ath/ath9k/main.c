@@ -1099,45 +1099,34 @@ int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_spec_scan param;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
 		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
 		return -1;
 	}
 
-	/* NOTE: this will generate a few samples ...
-	 *
-	 * TODO: review default parameters, and/or define an interface to set
-	 * them.
-	 */
-	param.enabled = 1;
-	param.short_repeat = true;
-	param.count = 8;
-	param.endless = false;
-	param.period = 0xFF;
-	param.fft_period = 0xF;
-
 	switch (spectral_mode) {
 	case SPECTRAL_DISABLED:
-		param.enabled = 0;
+		sc->spec_config.enabled = 0;
 		break;
 	case SPECTRAL_BACKGROUND:
 		/* send endless samples.
 		 * TODO: is this really useful for "background"?
 		 */
-		param.endless = 1;
+		sc->spec_config.endless = 1;
+		sc->spec_config.enabled = 1;
 		break;
 	case SPECTRAL_CHANSCAN:
-		break;
 	case SPECTRAL_MANUAL:
+		sc->spec_config.endless = 0;
+		sc->spec_config.enabled = 1;
 		break;
 	default:
 		return -1;
 	}
 
 	ath9k_ps_wakeup(sc);
-	ath9k_hw_ops(ah)->spectral_scan_config(ah, &param);
+	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_config);
 	ath9k_ps_restore(sc);
 
 	sc->spectral_mode = spectral_mode;

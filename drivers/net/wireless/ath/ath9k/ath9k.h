@@ -754,6 +754,7 @@ struct ath_softc {
 	/* relay(fs) channel for spectral scan */
 	struct rchan *rfs_chan_spec_scan;
 	enum spectral_mode spectral_mode;
+	struct ath_spec_scan spec_config;
 	int scanning;
 
 #ifdef CONFIG_PM_SLEEP
