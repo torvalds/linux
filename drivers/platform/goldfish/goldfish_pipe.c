@@ -300,6 +300,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		int status, wakeBit;
 
 		/* Ensure that the corresponding page is properly mapped */
+		/* FIXME: this isn't safe or sufficient - use get_user_pages */
 		if (is_write) {
 			char c;
 			/* Ensure that the page is mapped and readable */
