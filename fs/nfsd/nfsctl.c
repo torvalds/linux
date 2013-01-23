@@ -534,7 +534,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			else
 				num = simple_strtol(vers, &minorp, 0);
 			if (*minorp == '.') {
-				if (num < 4)
+				if (num != 4)
 					return -EINVAL;
 				minor = simple_strtoul(minorp+1, NULL, 0);
 				if (minor == 0)
