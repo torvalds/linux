@@ -1246,11 +1246,6 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_fsl_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_MXC
-#include "ehci-mxc.c"
-#define PLATFORM_DRIVER		ehci_mxc_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_SH
 #include "ehci-sh.c"
 #define PLATFORM_DRIVER		ehci_hcd_sh_driver
@@ -1349,6 +1344,7 @@ MODULE_LICENSE ("GPL");
 #if !IS_ENABLED(CONFIG_USB_EHCI_PCI) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_HCD_PLATFORM) && \
 	!IS_ENABLED(CONFIG_USB_CHIPIDEA_HOST) && \
+	!IS_ENABLED(CONFIG_USB_EHCI_MXC) && \
 	!defined(PLATFORM_DRIVER) && \
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(OF_PLATFORM_DRIVER) && \
