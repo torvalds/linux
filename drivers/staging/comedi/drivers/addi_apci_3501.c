@@ -28,9 +28,7 @@ static int apci3501_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inl(devpriv->iobase + APCI3501_DIGITAL_IP) & 0x3;
+	data[1] = inl(dev->iobase + APCI3501_DIGITAL_IP) & 0x3;
 
 	return insn->n;
 }
@@ -40,16 +38,15 @@ static int apci3501_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
+	s->state = inl(dev->iobase + APCI3501_DIGITAL_OP);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outl(s->state, devpriv->iobase + APCI3501_DIGITAL_OP);
+		outl(s->state, dev->iobase + APCI3501_DIGITAL_OP);
 	}
 
 	data[1] = s->state;
@@ -84,14 +81,14 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/*  Disable Interrupt */
 	ul_Command1 =
-		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+		inl(dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
 
 	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul);
 	outl(ul_Command1,
-		devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+		dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
 
 	ui_Timer_AOWatchdog =
-		inl(devpriv->iobase + APCI3501_WATCHDOG +
+		inl(dev->iobase + APCI3501_WATCHDOG +
 		APCI3501_TCW_IRQ) & 0x1;
 
 	if ((!ui_Timer_AOWatchdog)) {
@@ -102,11 +99,11 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
 	ul_Command1 =
-		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+		inl(dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
 	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
 	outl(ul_Command1,
-		devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
-	i_temp = inl(devpriv->iobase + APCI3501_WATCHDOG +
+		dev->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+	i_temp = inl(dev->iobase + APCI3501_WATCHDOG +
 		APCI3501_TCW_TRIG_STATUS) & 0x1;
 
 	return IRQ_HANDLED;
@@ -114,22 +111,21 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 static int apci3501_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
 	int i_Count = 0, i_temp = 0;
 	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
 
-	outl(0x0, devpriv->iobase + APCI3501_DIGITAL_OP);
-	outl(1, devpriv->iobase + APCI3501_ANALOG_OUTPUT +
+	outl(0x0, dev->iobase + APCI3501_DIGITAL_OP);
+	outl(1, dev->iobase + APCI3501_ANALOG_OUTPUT +
 		APCI3501_AO_VOLT_MODE);
 
 	ul_Polarity = 0x80000000;
 
 	for (i_Count = 0; i_Count <= 7; i_Count++) {
-		ul_DAC_Ready = inl(devpriv->iobase + APCI3501_ANALOG_OUTPUT);
+		ul_DAC_Ready = inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
 
 		while (ul_DAC_Ready == 0) {
 			ul_DAC_Ready =
-				inl(devpriv->iobase + APCI3501_ANALOG_OUTPUT);
+				inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
 			ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
 		}
 
@@ -140,7 +136,7 @@ static int apci3501_reset(struct comedi_device *dev)
 				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
 				(unsigned int) (ul_Polarity));
 			outl(ul_Command1,
-				devpriv->iobase + APCI3501_ANALOG_OUTPUT +
+				dev->iobase + APCI3501_ANALOG_OUTPUT +
 				APCI3501_AO_PROG);
 		}
 	}
@@ -190,7 +186,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
