@@ -864,7 +864,7 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
  * interface.
  */
 enum ath_fft_sample_type {
-	ATH_FFT_SAMPLE_HT20 = 0,
+	ATH_FFT_SAMPLE_HT20 = 1,
 };
 
 struct fft_sample_tlv {
@@ -876,7 +876,7 @@ struct fft_sample_tlv {
 struct fft_sample_ht20 {
 	struct fft_sample_tlv tlv;
 
-	u8 __alignment;
+	u8 max_exp;
 
 	u16 freq;
 	s8 rssi;
@@ -888,7 +888,7 @@ struct fft_sample_ht20 {
 
 	u64 tsf;
 
-	u16 data[SPECTRAL_HT20_NUM_BINS];
+	u8 data[SPECTRAL_HT20_NUM_BINS];
 } __packed;
 
 void ath9k_tasklet(unsigned long data);

@@ -1236,11 +1236,13 @@ static int remove_buf_file_handler(struct dentry *dentry)
 void ath_debug_send_fft_sample(struct ath_softc *sc,
 			       struct fft_sample_tlv *fft_sample_tlv)
 {
+	int length;
 	if (!sc->rfs_chan_spec_scan)
 		return;
 
-	relay_write(sc->rfs_chan_spec_scan, fft_sample_tlv,
-		    fft_sample_tlv->length + sizeof(*fft_sample_tlv));
+	length = __be16_to_cpu(fft_sample_tlv->length) +
+		 sizeof(*fft_sample_tlv);
+	relay_write(sc->rfs_chan_spec_scan, fft_sample_tlv, length);
 }
 
 static struct rchan_callbacks rfs_spec_scan_cb = {
