@@ -184,6 +184,7 @@ typedef uint32_t uint32;
 #define idle_req_gpu_cfg    (1<<3)
 #define idle_req_video_cfg  (1<<4)
 #define idle_req_vio_cfg    (1<<5)
+#define idle_req_dma_cfg    (1<<16)
 
 //PMU_PWRDN_ST
 #define idle_cpu    (1<<26)
@@ -191,6 +192,7 @@ typedef uint32_t uint32;
 #define idle_gpu    (1<<24)
 #define idle_video  (1<<23)
 #define idle_vio    (1<<22)
+#define idle_dma    (1<<14)
 
 #define pd_a9_0_pwr_st    (1<<0)
 #define pd_a9_1_pwr_st    (1<<1)
@@ -2989,9 +2991,15 @@ void __sramlocalfunc idle_port(void)
 
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
     {
+        #ifdef CONFIG_ARCH_RK3188
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_dma_cfg;
+        dsb();
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_dma) == 0 );
+        #else
         pPMU_Reg->PMU_MISC_CON1 |= idle_req_cpu_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) == 0 );
+        #endif
     }
 
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
@@ -3042,9 +3050,16 @@ void __sramlocalfunc deidle_port(void)
 
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
     {
+
+        #ifdef CONFIG_ARCH_RK3188
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_dma_cfg;
+        dsb();
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_dma) != 0 );
+        #else
         pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_cpu_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) != 0 );
+        #endif
     }
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
     {
