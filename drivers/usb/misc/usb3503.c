@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/usb3503.h>
 
@@ -181,8 +182,10 @@ err_hubmode:
 static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct usb3503_platform_data *pdata = i2c->dev.platform_data;
+	struct device_node *np = i2c->dev.of_node;
 	struct usb3503 *hub;
 	int err = -ENOMEM;
+	u32 mode;
 
 	hub = kzalloc(sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub) {
@@ -193,14 +196,23 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	i2c_set_clientdata(i2c, hub);
 	hub->client = i2c;
 
-	if (!pdata) {
-		dev_dbg(&i2c->dev, "missing platform data\n");
-		goto err_out;
-	} else {
+	if (pdata) {
 		hub->gpio_intn		= pdata->gpio_intn;
 		hub->gpio_connect	= pdata->gpio_connect;
 		hub->gpio_reset		= pdata->gpio_reset;
 		hub->mode		= pdata->initial_mode;
+	} else if (np) {
+		hub->gpio_intn	= of_get_named_gpio(np, "connect-gpios", 0);
+		if (hub->gpio_intn == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		hub->gpio_connect = of_get_named_gpio(np, "intn-gpios", 0);
+		if (hub->gpio_connect == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		hub->gpio_reset	= of_get_named_gpio(np, "reset-gpios", 0);
+		if (hub->gpio_reset == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		of_property_read_u32(np, "initial-mode", &mode);
+		hub->mode = mode;
 	}
 
 	if (gpio_is_valid(hub->gpio_intn)) {
@@ -236,7 +248,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		}
 	}
 
-	usb3503_switch_mode(hub, pdata->initial_mode);
+	usb3503_switch_mode(hub, hub->mode);
 
 	dev_info(&i2c->dev, "%s: probed on  %s mode\n", __func__,
 			(hub->mode == USB3503_MODE_HUB) ? "hub" : "standby");
@@ -277,9 +289,18 @@ static const struct i2c_device_id usb3503_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, usb3503_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id usb3503_of_match[] = {
+	{ .compatible = "smsc,usb3503", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, usb3503_of_match);
+#endif
+
 static struct i2c_driver usb3503_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
+		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
 	.probe		= usb3503_probe,
 	.remove		= usb3503_remove,
