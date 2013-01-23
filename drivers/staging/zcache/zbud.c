@@ -103,8 +103,8 @@ struct zbudpage {
 		struct {
 			unsigned long space_for_flags;
 			struct {
-				unsigned zbud0_size:12;
-				unsigned zbud1_size:12;
+				unsigned zbud0_size: PAGE_SHIFT;
+				unsigned zbud1_size: PAGE_SHIFT;
 				unsigned unevictable:2;
 			};
 			struct list_head budlist;
@@ -112,6 +112,9 @@ struct zbudpage {
 		};
 	};
 };
+#if (PAGE_SHIFT * 2) + 2 > BITS_PER_LONG
+#error "zbud won't work for this arch, PAGE_SIZE is too large"
+#endif
 
 struct zbudref {
 	union {
