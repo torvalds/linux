@@ -122,6 +122,8 @@ do {								 \
 		dev_info(&bp->pdev->dev, fmt, ##__VA_ARGS__);	 \
 } while (0)
 
+/* Error handling */
+void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int);
 #ifdef BNX2X_STOP_ON_ERROR
 #define bnx2x_panic()				\
 do {						\

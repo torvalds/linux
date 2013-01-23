@@ -479,8 +479,6 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state);
  */
 void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value);
 /* Error handling */
-void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int);
-
 void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl);
 
 /* validate currect fw is loaded */
