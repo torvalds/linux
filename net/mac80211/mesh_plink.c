@@ -292,7 +292,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
-	u32 rates, basic_rates = 0;
+	u32 rates, basic_rates = 0, changed = 0;
 
 	sband = local->hw.wiphy->bands[band];
 	rates = ieee80211_sta_get_rates(local, elems, band, &basic_rates);
@@ -304,6 +304,8 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	if (sta->plink_state == NL80211_PLINK_ESTAB)
 		goto out;
 
+	if (sta->sta.supp_rates[band] != rates)
+		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
 	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem &&
 	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
@@ -322,11 +324,15 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
 					     elems->ht_operation, &chandef);
+		if (sta->ch_width != chandef.width)
+			changed |= IEEE80211_RC_BW_CHANGED;
 		sta->ch_width = chandef.width;
 	}
 
 	if (insert)
 		rate_control_rate_init(sta);
+	else
+		rate_control_rate_update(local, sband, sta, changed);
 out:
 	spin_unlock_bh(&sta->lock);
 }
