@@ -1215,7 +1215,7 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 static int atmel_of_init_port(struct atmel_nand_host *host,
 			      struct device_node *np)
 {
-	u32 val, table_offset;
+	u32 val;
 	u32 offset[2];
 	int ecc_mode;
 	struct atmel_nand_data *board = &host->board;
@@ -1288,13 +1288,12 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 		dev_err(host->dev, "Cannot get PMECC lookup table offset\n");
 		return -EINVAL;
 	}
-	table_offset = host->pmecc_sector_size == 512 ? offset[0] : offset[1];
-
-	if (!table_offset) {
+	if (!offset[0] && !offset[1]) {
 		dev_err(host->dev, "Invalid PMECC lookup table offset\n");
 		return -EINVAL;
 	}
-	host->pmecc_lookup_table_offset = table_offset;
+	host->pmecc_lookup_table_offset =
+		(host->pmecc_sector_size == 512) ? offset[0] : offset[1];
 
 	return 0;
 }
