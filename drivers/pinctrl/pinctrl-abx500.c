@@ -157,7 +157,7 @@ static int abx500_gpio_set_bits(struct gpio_chip *chip, u8 reg,
 
 	reg += offset / 8;
 	ret = abx500_mask_and_set_register_interruptible(pct->dev,
-				AB8500_MISC, reg, 1 << pos, val << pos);
+				AB8500_MISC, reg, BIT(pos), val << pos);
 	if (ret < 0)
 		dev_err(pct->dev, "%s write failed\n", __func__);
 	return ret;
