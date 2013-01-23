@@ -1012,6 +1012,8 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	 */
 	ret = !batadv_is_my_client(bat_priv, hw_dst);
 out:
+	if (ret)
+		kfree_skb(skb);
 	/* if ret == false -> packet has to be delivered to the interface */
 	return ret;
 }
