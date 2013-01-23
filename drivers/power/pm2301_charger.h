@@ -493,6 +493,7 @@ struct pm2xxx_charger {
 	int old_vbat;
 	int failure_case;
 	int failure_input_ovv;
+	unsigned int lpn_pin;
 	struct pm2xxx_interrupts *pm2_int;
 	struct ab8500_gpadc *gpadc;
 	struct regulator *regu;

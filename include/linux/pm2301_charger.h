@@ -49,6 +49,7 @@ struct pm2xxx_charger_platform_data {
 	int i2c_bus;
 	const char *label;
 	int irq_number;
+	unsigned int lpn_gpio;
 	int irq_type;
 };
 

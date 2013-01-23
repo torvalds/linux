@@ -28,6 +28,7 @@
 #include <linux/mfd/abx500/ab8500-gpadc.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/pm2301_charger.h>
+#include <linux/gpio.h>
 
 #include "pm2301_charger.h"
 
@@ -110,9 +111,35 @@ static const struct i2c_device_id pm2xxx_ident[] = {
 	{ }
 };
 
+static void set_lpn_pin(struct pm2xxx_charger *pm2)
+{
+	if (pm2->ac.charger_connected)
+		return;
+	gpio_set_value(pm2->lpn_pin, 1);
+
+	return;
+}
+
+static void clear_lpn_pin(struct pm2xxx_charger *pm2)
+{
+	if (pm2->ac.charger_connected)
+		return;
+	gpio_set_value(pm2->lpn_pin, 0);
+
+	return;
+}
+
 static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 {
 	int ret;
+	/*
+	 * When AC adaptor is unplugged, the host
+	 * must put LPN high to be able to
+	 * communicate by I2C with PM2301
+	 * and receive I2C "acknowledge" from PM2301.
+	 */
+	mutex_lock(&pm2->lock);
+	set_lpn_pin(pm2);
 
 	ret = i2c_smbus_read_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, val);
@@ -120,6 +147,8 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 		dev_err(pm2->dev, "Error reading register at 0x%x\n", reg);
 	else
 		ret = 0;
+	clear_lpn_pin(pm2);
+	mutex_unlock(&pm2->lock);
 
 	return ret;
 }
@@ -127,6 +156,14 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 {
 	int ret;
+	/*
+	 * When AC adaptor is unplugged, the host
+	 * must put LPN high to be able to
+	 * communicate by I2C with PM2301
+	 * and receive I2C "acknowledge" from PM2301.
+	 */
+	mutex_lock(&pm2->lock);
+	set_lpn_pin(pm2);
 
 	ret = i2c_smbus_write_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, &val);
@@ -134,6 +171,8 @@ static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 		dev_err(pm2->dev, "Error writing register at 0x%x\n", reg);
 	else
 		ret = 0;
+	clear_lpn_pin(pm2);
+	mutex_unlock(&pm2->lock);
 
 	return ret;
 }
@@ -850,6 +889,14 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	pm2->bat = pl_data->battery;
 
+	/*get lpn GPIO from platform data*/
+	if (!pm2->pdata->lpn_gpio) {
+		dev_err(pm2->dev, "no lpn gpio data supplied\n");
+		ret = -EINVAL;
+		goto free_device_info;
+	}
+	pm2->lpn_pin = pm2->pdata->lpn_gpio;
+
 	if (!i2c_check_functionality(i2c_client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA |
 			I2C_FUNC_SMBUS_READ_WORD_DATA)) {
@@ -929,10 +976,25 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		goto unregister_pm2xxx_charger;
 	}
 
+	/*Initialize lock*/
+	mutex_init(&pm2->lock);
+
 	/*
-	 * I2C Read/Write will fail, if AC adaptor is not connected.
-	 * fix the charger detection mechanism.
+	 * Charger detection mechanism requires pulling up the LPN pin
+	 * while i2c communication if Charger is not connected
+	 * LPN pin of PM2301 is GPIO60 of AB9540
 	 */
+	ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
+	if (ret < 0) {
+		dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
+		goto unregister_pm2xxx_charger;
+	}
+	ret = gpio_direction_output(pm2->lpn_pin, 0);
+	if (ret < 0) {
+		dev_err(pm2->dev, "pm2301_lpm_gpio direction failed\n");
+		goto free_gpio;
+	}
+
 	ret = pm2xxx_charger_detection(pm2, &val);
 
 	if ((ret == 0) && val) {
@@ -944,6 +1006,8 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	return 0;
 
+free_gpio:
+	gpio_free(pm2->lpn_pin);
 unregister_pm2xxx_charger:
 	/* unregister power supply */
 	power_supply_unregister(&pm2->ac_chg.psy);
@@ -976,6 +1040,9 @@ static int __devexit pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 	regulator_put(pm2->regu);
 
 	power_supply_unregister(&pm2->ac_chg.psy);
+
+	/*Free GPIO60*/
+	gpio_free(pm2->lpn_pin);
 
 	kfree(pm2);
 
