@@ -37,7 +37,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
+#include <mach/cru.h>
 #include <mach/iomux.h>
 #include <mach/cpu.h>
 #include <linux/clk.h>
@@ -229,50 +229,49 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 //				rk2928_write(codec, CODEC_REG_DAC_GAIN, v_GAIN_DAC(DAC_GAIN_3DB_P));
-				if(!rk2928_data.hdmi_enable) {
-					data = rk2928_read(codec, CODEC_REG_POWER);
-					if(soc_is_rk2928g()){
-						if( (data & m_PD_ADC) == 0) {
-							data &= ~m_PD_ADC;
-							data |= v_PD_ADC(1);
-							pd_adc = 1;
-						}
-						else
-							pd_adc = 0;
+				data = rk2928_read(codec, CODEC_REG_POWER);
+				if(soc_is_rk2928g()){
+					if( (data & m_PD_ADC) == 0) {
+						data &= ~m_PD_ADC;
+						data |= v_PD_ADC(1);
+						pd_adc = 1;
 					}
-					else{
-						if( (data & m_PD_ADC_R) == 0) {
-							data &= ~m_PD_ADC_R;
-							data |= v_PD_ADC_R(1);
-							pd_adc = 1;
-						}
-						else
-							pd_adc = 0;
+					else
+						pd_adc = 0;
+				}
+				else{
+					if( (data & m_PD_ADC_R) == 0) {
+						data &= ~m_PD_ADC_R;
+						data |= v_PD_ADC_R(1);
+						pd_adc = 1;
 					}
-					if(pd_adc == 1) {
-						DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
-						writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
-						udelay(100);						
-					}
-					rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
+					else
+						pd_adc = 0;
+				}
+				if(pd_adc == 1) {
+					DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
+					writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
+					udelay(100);						
+				}
+				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x03);
+				udelay(100);
+				rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
+				
+				if(pd_adc == 1) {
 					udelay(100);
-					rk2928_write(codec, CODEC_REG_ADC_SOURCE, 0x00);
-					
-					if(pd_adc == 1) {
-						udelay(100);
-						data = rk2928_read(codec, CODEC_REG_POWER);
-						if( soc_is_rk2928g() ) {
-							data &= ~m_PD_ADC;
-							data |= v_PD_ADC(0);
-						}
-						else {
-							data &= ~m_PD_ADC_R;
-							data |= v_PD_ADC_R(0);
-						}
-						DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
-						writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
+					data = rk2928_read(codec, CODEC_REG_POWER);
+					if( soc_is_rk2928g() ) {
+						data &= ~m_PD_ADC;
+						data |= v_PD_ADC(0);
 					}
-					
+					else {
+						data &= ~m_PD_ADC_R;
+						data |= v_PD_ADC_R(0);
+					}
+					DBG("%s reg 0x%02x value 0x%02x", __FUNCTION__, CODEC_REG_POWER, data);
+					writel(data, rk2928_data.regbase + CODEC_REG_POWER*4);
+				}
+				if(!rk2928_data.hdmi_enable) {
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 					if(rk2928_data.spkctl != INVALID_GPIO && rk2928_data.headset_status == HP_OUT) {
 						gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
@@ -346,6 +345,14 @@ static int rk2928_set_bias_level(struct snd_soc_codec *codec,
 	}
 	codec->dapm.bias_level = level;
 	return 0;
+}
+
+static void rk2929_codec_reset(void)
+{
+	// Reset Codec
+	cru_set_soft_reset(SOFT_RST_ACODEC, true);
+	udelay(1000);
+	cru_set_soft_reset(SOFT_RST_ACODEC, false);
 }
 
 static int rk2928_probe(struct snd_soc_codec *codec)
