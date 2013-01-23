@@ -1875,14 +1875,12 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		if (status & (mask | 0x1)) {
 			struct cnic_ops *c_ops = NULL;
 
-			if (likely(bp->state == BNX2X_STATE_OPEN)) {
-				rcu_read_lock();
-				c_ops = rcu_dereference(bp->cnic_ops);
-				if (c_ops)
-					c_ops->cnic_handler(bp->cnic_data,
-							    NULL);
-				rcu_read_unlock();
-			}
+			rcu_read_lock();
+			c_ops = rcu_dereference(bp->cnic_ops);
+			if (c_ops && (bp->cnic_eth_dev.drv_state &
+				      CNIC_DRV_STATE_HANDLES_IRQ))
+				c_ops->cnic_handler(bp->cnic_data, NULL);
+			rcu_read_unlock();
 
 			status &= ~mask;
 		}

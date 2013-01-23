@@ -4816,6 +4816,8 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		return err;
 	}
 
+	ethdev->drv_state |= CNIC_DRV_STATE_HANDLES_IRQ;
+
 	return 0;
 }
 
@@ -5136,6 +5138,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	if (ret)
 		return ret;
 
+	ethdev->drv_state |= CNIC_DRV_STATE_HANDLES_IRQ;
 	return 0;
 }
 
@@ -5387,6 +5390,7 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 		}
 		cnic_shutdown_rings(dev);
 		cp->stop_cm(dev);
+		cp->ethdev->drv_state &= ~CNIC_DRV_STATE_HANDLES_IRQ;
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
 		RCU_INIT_POINTER(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
