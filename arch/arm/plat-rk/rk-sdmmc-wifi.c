@@ -368,16 +368,22 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
-    #if !defined(CONFIG_MT5931) && !defined(CONFIG_MT5931_MT6622)  
+    #if !defined(CONFIG_MT5931) && !defined(CONFIG_MT5931_MT6622)
+    #if !(!!SDMMC_USE_NEW_IOMUX_API)
     rk29_mux_api_set(rksdmmc1_gpio_init.data1_gpio.iomux.name, rksdmmc1_gpio_init.data1_gpio.iomux.fgpio);
+    #endif
     gpio_request(rksdmmc1_gpio_init.data1_gpio.io, "mmc1-data1");
     gpio_direction_output(rksdmmc1_gpio_init.data1_gpio.io,GPIO_LOW);//set mmc1-data1 to low.
 
+    #if !(!!SDMMC_USE_NEW_IOMUX_API)
     rk29_mux_api_set(rksdmmc1_gpio_init.data2_gpio.iomux.name, rksdmmc1_gpio_init.data2_gpio.iomux.fgpio);
+    #endif
     gpio_request(rksdmmc1_gpio_init.data2_gpio.io, "mmc1-data2");
     gpio_direction_output(rksdmmc1_gpio_init.data2_gpio.io,GPIO_LOW);//set mmc1-data2 to low.
 
+    #if !(!!SDMMC_USE_NEW_IOMUX_API)
     rk29_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name,  rksdmmc1_gpio_init.data3_gpio.iomux.fgpio);
+    #endif
     gpio_request(rksdmmc1_gpio_init.data3_gpio.io, "mmc1-data3");
     gpio_direction_output(rksdmmc1_gpio_init.data3_gpio.io,GPIO_LOW);//set mmc1-data3 to low.
     #endif
@@ -561,7 +567,7 @@ static int rk29sdk_wifi_combo_module_gpio_init(void)
         rk30_mux_api_set(rk_platform_wifi_gpio.ANTSEL3.iomux.name, rk_platform_wifi_gpio.ANTSEL3.iomux.fgpio);
         #endif
     gpio_request(rk_platform_wifi_gpio.ANTSEL3.io, "combo-ANTSEL3");
-    gpio_direction_output(rk_platform_wifi_gpio.ANTSEL3.io, rk_platform_wifi_gpio.ANTSEL3.enable);
+    gpio_direction_output(rk_platform_wifi_gpio.ANTSEL3.io, !(rk_platform_wifi_gpio.ANTSEL3.enable));
     #endif
 
     //GPS_LAN
@@ -583,6 +589,18 @@ int rk29sdk_wifi_combo_module_power(int on)
 {
      if(on)
     {
+        #ifdef RK30SDK_WIFI_GPIO_ANTSEL2
+        gpio_direction_output(rk_platform_wifi_gpio.ANTSEL2.io, rk_platform_wifi_gpio.ANTSEL2.enable);
+        #endif
+
+        #ifdef RK30SDK_WIFI_GPIO_ANTSEL3
+        gpio_direction_output(rk_platform_wifi_gpio.ANTSEL3.io, rk_platform_wifi_gpio.ANTSEL3.enable);
+        #endif
+
+        #ifdef RK30SDK_WIFI_GPIO_GPS_LAN
+        gpio_direction_output(rk_platform_wifi_gpio.GPS_LAN.io, rk_platform_wifi_gpio.GPS_LAN.enable);
+        #endif
+    
     #ifdef RK30SDK_WIFI_GPIO_VCCIO_WL
         gpio_set_value(rk_platform_wifi_gpio.vddio.io, rk_platform_wifi_gpio.vddio.enable);
         mdelay(10);
@@ -596,6 +614,19 @@ int rk29sdk_wifi_combo_module_power(int on)
     {
         gpio_set_value(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable) );        
         mdelay(10);
+
+        #ifdef RK30SDK_WIFI_GPIO_ANTSEL2
+        //Because the foot is pulled low, therefore, continue to remain low
+        gpio_direction_output(rk_platform_wifi_gpio.ANTSEL2.io, rk_platform_wifi_gpio.ANTSEL2.enable);
+        #endif
+
+        #ifdef RK30SDK_WIFI_GPIO_ANTSEL3
+        gpio_direction_output(rk_platform_wifi_gpio.ANTSEL3.io, !(rk_platform_wifi_gpio.ANTSEL3.enable));
+        #endif
+        
+        #ifdef RK30SDK_WIFI_GPIO_GPS_LAN
+        gpio_direction_output(rk_platform_wifi_gpio.GPS_LAN.io, !(rk_platform_wifi_gpio.GPS_LAN.enable));
+        #endif
 
 	 #ifdef RK30SDK_WIFI_GPIO_VCCIO_WL	
         gpio_set_value(rk_platform_wifi_gpio.vddio.io, !(rk_platform_wifi_gpio.vddio.enable));

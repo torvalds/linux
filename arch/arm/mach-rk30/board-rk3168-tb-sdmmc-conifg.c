@@ -41,10 +41,9 @@
 
 /*
 * define the card-detect-pin.
-* define reset-pin
 */
 #define RK29SDK_SD_CARD_DETECT_N                RK30_PIN3_PB0  //According to your own project to set the value of card-detect-pin.
-#define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
+#define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW       // set the voltage of insert-card. Please pay attention to the default setting.
 
 /*
 * Define wifi module's power and reset gpio, and gpio sensitive level.
@@ -85,7 +84,9 @@
 	#endif
 
 #elif defined(CONFIG_MT6620)
-    #define COMBO_MODULE_MT6620_CDT    1  //- 1--use Cdtech chip; 0--unuse CDT chip
+    #define COMBO_MODULE_MT6620_CDT    1  // to control antsel2,antsel3 and gps_lan foot when using AcSip or Cdtech chip. 
+	                                      //- 1--use Cdtech chip; 0--unuse CDT chip
+
     //power, PMU_EN
     #define RK30SDK_WIFI_GPIO_POWER_N                   RK30_PIN3_PC7            
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE        GPIO_HIGH        
