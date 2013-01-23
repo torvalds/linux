@@ -846,8 +846,8 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 
 		card->tx_buf_list[wrdoneidx] = NULL;
 		card->txbd_ring[wrdoneidx]->paddr = 0;
-		card->rxbd_ring[wrdoneidx]->len = 0;
-		card->rxbd_ring[wrdoneidx]->flags = 0;
+		card->txbd_ring[wrdoneidx]->len = 0;
+		card->txbd_ring[wrdoneidx]->flags = 0;
 		card->txbd_rdptr++;
 
 		if ((card->txbd_rdptr & MWIFIEX_TXBD_MASK) == num_tx_buffs)
