@@ -22,11 +22,17 @@
 
 static void __init rk30_cpu_axi_init(void)
 {
-#ifndef CONFIG_ARCH_RK3188
+#ifdef CONFIG_ARCH_RK3188
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x1008);	// dmac1
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2008);	// cpu0
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2088);	// cpu1r
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2108);	// cpu1w
+#else
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0108);	// dmac1
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0188);	// cpu1r
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0388);	// cpu1w
+#endif
 #ifdef CONFIG_RK29_VMAC
 	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x4008);	// peri
 #else
@@ -44,7 +50,6 @@ static void __init rk30_cpu_axi_init(void)
 #endif
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
-#endif
 }
 
 static void __init rk30_io_drive_strength_init(void)
