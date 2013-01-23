@@ -40,7 +40,6 @@ struct apci3501_private {
 	int i_IobaseAmcc;
 	struct task_struct *tsk_Current;
 	unsigned char b_TimerSelectMode;
-	unsigned char b_InterruptMode;
 };
 
 static struct comedi_lrange apci3501_ao_range = {
@@ -59,6 +58,53 @@ static int apci3501_wait_for_dac(struct comedi_device *dev)
 	} while (!(status & APCI3501_AO_STATUS_READY));
 
 	return 0;
+}
+
+static int apci3501_ao_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = 0;
+	int i;
+	int ret;
+
+	/*
+	 * All analog output channels have the same output range.
+	 *	14-bit bipolar: 0-10V
+	 *	13-bit unipolar: +/-10V
+	 * Changing the range of one channel changes all of them!
+	 */
+	if (range) {
+		outl(0, dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
+	} else {
+		val |= APCI3501_AO_DATA_BIPOLAR;
+		outl(APCI3501_AO_CTRL_BIPOLAR,
+		     dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
+	}
+
+	val |= APCI3501_AO_DATA_CHAN(chan);
+
+	for (i = 0; i < insn->n; i++) {
+		if (range == 1) {
+			if (data[i] > 0x1fff) {
+				dev_err(dev->class_dev,
+					"Unipolar resolution is only 13-bits\n");
+				return -EINVAL;
+			}
+		}
+
+		ret = apci3501_wait_for_dac(dev);
+		if (ret)
+			return ret;
+
+		outl(val | APCI3501_AO_DATA_VAL(data[i]),
+		     dev->iobase + APCI3501_AO_DATA_REG);
+	}
+
+	return insn->n;
 }
 
 #include "addi-data/hwdrv_apci3501.c"
@@ -294,8 +340,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->n_chan	= ao_n_chan;
 		s->maxdata	= 0x3fff;
 		s->range_table	= &apci3501_ao_range;
-		s->insn_config	= i_APCI3501_ConfigAnalogOutput;
-		s->insn_write	= i_APCI3501_WriteAnalogOutput;
+		s->insn_write	= apci3501_ao_insn_write;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

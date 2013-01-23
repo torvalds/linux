@@ -46,10 +46,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/* Analog Output related Defines */
-#define MODE0				0
-#define MODE1				1
-
 /* Watchdog Related Defines */
 
 #define APCI3501_WATCHDOG		0x20
@@ -63,115 +59,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI3501_TCW_WARN_TIMEBASE	28
 #define ADDIDATA_TIMER			0
 #define ADDIDATA_WATCHDOG		2
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ConfigAnalogOutput                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Analog Output Subdevice                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     struct comedi_insn *insn       : Insn Structure Pointer       |
-|                     unsigned int *data          : Data Pointer contains        |
-|                                          configuration parameters as below |
-|                                                                            |
-|					data[0]            : Voltage Mode                |
-|                                                0:Mode 0                    |
-|                                                1:Mode 1                    |
-|                                                                            |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
-{
-	struct apci3501_private *devpriv = dev->private;
-
-	outl(data[0], dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
-
-	if (data[0]) {
-		devpriv->b_InterruptMode = MODE1;
-	} else {
-		devpriv->b_InterruptMode = MODE0;
-	}
-	return insn->n;
-}
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_WriteAnalogOutput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Writes To the Selected Anlog Output Channel            |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     struct comedi_insn *insn       : Insn Structure Pointer       |
-|                     unsigned int *data          : Data Pointer contains        |
-|                                          configuration parameters as below |
-|                                                                            |
-|                                                                            |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	struct apci3501_private *devpriv = dev->private;
-	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity;
-	int ret;
-
-	ul_Channel_no = CR_CHAN(insn->chanspec);
-
-	if (devpriv->b_InterruptMode == MODE1) {
-		ul_Polarity = 0x80000000;
-		if ((*data < 0) || (*data > 16384)) {
-			printk("\nIn WriteAnalogOutput :: Not Valid Data\n");
-		}
-
-	}			/*  end if(devpriv->b_InterruptMode==MODE1) */
-	else {
-		ul_Polarity = 0;
-		if ((*data < 0) || (*data > 8192)) {
-			printk("\nIn WriteAnalogOutput :: Not Valid Data\n");
-		}
-
-	}			/*  end else */
-
-	if ((ul_Channel_no < 0) || (ul_Channel_no > 7)) {
-		printk("\nIn WriteAnalogOutput :: Not Valid Channel\n");
-	}			/*  end if((ul_Channel_no<0)||(ul_Channel_no>7)) */
-
-	ret = apci3501_wait_for_dac(dev);
-	if (ret)
-		return ret;
-
-	/* Output the Value on the output channels. */
-	ul_Command1 = (unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
-			(unsigned int) ((*data << 0x8) & 0x7FFFFF00L) |
-			(unsigned int) (ul_Polarity));
-	outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
-
-	return insn->n;
-}
 
 /*
 +----------------------------------------------------------------------------+
