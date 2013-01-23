@@ -843,9 +843,11 @@ struct bnx2x_common {
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
 					 CHIP_IS_57711E(bp))
 #define CHIP_IS_E2(bp)			(CHIP_IS_57712(bp) || \
-					 CHIP_IS_57712_MF(bp))
+					 CHIP_IS_57712_MF(bp) || \
+					 CHIP_IS_57712_VF(bp))
 #define CHIP_IS_E3(bp)			(CHIP_IS_57800(bp) || \
 					 CHIP_IS_57800_MF(bp) || \
+					 CHIP_IS_57800_VF(bp) || \
 					 CHIP_IS_57810(bp) || \
 					 CHIP_IS_57810_MF(bp) || \
 					 CHIP_IS_57810_VF(bp) || \
