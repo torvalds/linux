@@ -2729,12 +2729,13 @@ static void alc271_hp_gate_mic_jack(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (snd_BUG_ON(!spec->gen.am_entry[1].pin ||
-		       !spec->gen.autocfg.hp_pins[0]))
-		return;
-	if (action == HDA_FIXUP_ACT_PROBE)
+	if (action == HDA_FIXUP_ACT_PROBE) {
+		if (snd_BUG_ON(!spec->gen.am_entry[1].pin ||
+			       !spec->gen.autocfg.hp_pins[0]))
+			return;
 		snd_hda_jack_set_gating_jack(codec, spec->gen.am_entry[1].pin,
 					     spec->gen.autocfg.hp_pins[0]);
+	}
 }
 
 enum {
