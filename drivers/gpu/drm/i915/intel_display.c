@@ -6513,6 +6513,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 			drm_framebuffer_unreference(old->release_fb);
 		}
 
+		mutex_unlock(&crtc->mutex);
 		return;
 	}
 
