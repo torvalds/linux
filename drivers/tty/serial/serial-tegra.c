@@ -43,7 +43,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 
 #define TEGRA_UART_TYPE				"TEGRA_UART"
 #define TX_EMPTY_STATUS				(UART_LSR_TEMT | UART_LSR_THRE)
