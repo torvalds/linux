@@ -7751,7 +7751,7 @@ igb_get_i2c_client(struct igb_adapter *adapter, u8 dev_addr)
 	}
 
 	/* no client_list found, create a new one */
-	client_list = kzalloc(sizeof(*client_list), GFP_KERNEL);
+	client_list = kzalloc(sizeof(*client_list), GFP_ATOMIC);
 	if (client_list == NULL)
 		goto exit;
 
