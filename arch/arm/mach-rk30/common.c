@@ -22,6 +22,7 @@
 
 static void __init rk30_cpu_axi_init(void)
 {
+#ifndef CONFIG_ARCH_RK3188
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0108);	// dmac1
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0188);	// cpu1r
@@ -43,6 +44,7 @@ static void __init rk30_cpu_axi_init(void)
 #endif
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
+#endif
 }
 
 static void __init rk30_io_drive_strength_init(void)
@@ -163,7 +165,9 @@ void __init rk30_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
+#ifndef CONFIG_ARCH_RK3188
 	ddr_init(DDR_TYPE, DDR_FREQ);
+#endif
 	clk_disable_unused();
 	rk30_iomux_init();
 	rk30_boot_mode_init();
@@ -171,6 +175,9 @@ void __init rk30_map_io(void)
 
 static __init u32 rk30_get_ddr_size(void)
 {
+#ifdef CONFIG_ARCH_RK3188
+	return SZ_2G;
+#endif
 	u32 size;
 	u32 v[3], a[3];
 	u32 pgtbl = PAGE_OFFSET + TEXT_OFFSET - 0x4000;
