@@ -333,7 +333,7 @@ nv50_disp_sync_ctor(struct nouveau_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*data) || args->head > 1)
+	if (size < sizeof(*args) || args->head > 1)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
@@ -372,7 +372,7 @@ nv50_disp_ovly_ctor(struct nouveau_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*data) || args->head > 1)
+	if (size < sizeof(*args) || args->head > 1)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
