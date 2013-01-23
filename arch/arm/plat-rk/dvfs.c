@@ -59,6 +59,16 @@ int dvfs_regulator_set_voltage_readback(struct regulator *regulator, int min_uV,
 	}
 	return ret;
 }
+// for clk enable case to get vd regulator info
+void clk_enable_dvfs_regulator_check(struct vd_node *vd)
+{
+	vd->cur_volt = dvfs_regulator_get_voltage(vd->regulator);
+	if(vd->cur_volt<=0)
+	{
+		vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
+	}
+	vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
+}
 
 struct regulator *dvfs_get_regulator(char *regulator_name) 
 {
@@ -348,6 +358,9 @@ int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table,
 	return 0;
 }
 
+
+
+
 int clk_enable_dvfs(struct clk *clk)
 {
 	struct clk_node *dvfs_clk;
@@ -369,7 +382,7 @@ int clk_enable_dvfs(struct clk *clk)
 				dvfs_clk->vd->regulator = dvfs_regulator_get(NULL, dvfs_clk->vd->regulator_name);
 			if (!IS_ERR_OR_NULL(dvfs_clk->vd->regulator)) {
 				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
-				dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+				clk_enable_dvfs_regulator_check(dvfs_clk->vd);
 			} else {
 				//dvfs_clk->vd->regulator = NULL;
 				dvfs_clk->enable_dvfs = 0;
@@ -377,7 +390,7 @@ int clk_enable_dvfs(struct clk *clk)
 				return -1;
 			}
 		} else {
-			dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+			     clk_enable_dvfs_regulator_check(dvfs_clk->vd);
 			// DVFS_DBG("%s(%s) vd volt=%u\n",__func__,dvfs_clk->name,dvfs_clk->vd->cur_volt);
 		}
 
@@ -390,13 +403,14 @@ int clk_enable_dvfs(struct clk *clk)
 				dvfs_clk->enable_dvfs = 0;
 				return -1;
 			} else {
-				DVFS_ERR("WARNING: %s table all value are smaller than default, use default, just enable dvfs\n", __func__);
+				DVFS_WARNING("%s table all value are smaller than default, use default, just enable dvfs\n", __func__);
 				dvfs_clk->enable_dvfs++;
 				return 0;
 			}
 		}
 
 		dvfs_clk->set_volt = clk_fv.index;
+		dvfs_vd_get_newvolt_byclk(dvfs_clk);
 		// DVFS_DBG("%s,%s,freq%u(ref vol %u)\n",__func__,dvfs_clk->name,
 		//	 dvfs_clk->set_freq,dvfs_clk->set_volt);
 #if 0
@@ -405,7 +419,7 @@ int clk_enable_dvfs(struct clk *clk)
 			clk_notifier_register(clk, dvfs_clk->dvfs_nb);
 		}
 #endif
-		dvfs_vd_get_newvolt_byclk(dvfs_clk);
+
 #if 0
 		if(dvfs_clk->vd->cur_volt < dvfs_clk->set_volt) {
 			int ret;
@@ -819,12 +833,12 @@ int dvfs_reset_volt(struct vd_node *dvfs_vd)
 		return -1;
 	}
 	if (flag_set_volt_correct <= 0) {
-		DVFS_ERR("%s (clk:%s), try to reload arm_volt error %d!!! stop scaling\n",
+		DVFS_ERR("%s (vd:%s), try to reload volt ,by it is error again(%d)!!! stop scaling\n",
 				__func__, dvfs_vd->name, flag_set_volt_correct);
 		return -1;
 	}
 	dvfs_vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
-	DVFS_ERR("%s (clk:%s), try to reload arm_volt! arm_volt_correct = %d\n",
+	DVFS_WARNING("%s (vd:%s), try to reload volt = %d\n",
 			__func__, dvfs_vd->name, flag_set_volt_correct);
 
 	/* Reset vd's voltage */

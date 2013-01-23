@@ -154,6 +154,8 @@ struct dvfs_arm_table {
 
 #define DVFS_ERR(fmt, args...) printk(KERN_ERR "DVFS ERR:\t"fmt, ##args)
 #define DVFS_LOG(fmt, args...) printk(KERN_DEBUG "DVFS LOG:\t"fmt, ##args)
+#define DVFS_WARNING(fmt, args...) printk(KERN_WARNING "DVFS WARNING:\t"fmt, ##args)
+
 
 
 #define DVFS_SET_VOLT_FAILURE 	1
