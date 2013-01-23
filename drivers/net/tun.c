@@ -109,11 +109,10 @@ struct tap_filter {
 	unsigned char	addr[FLT_EXACT_COUNT][ETH_ALEN];
 };
 
-/* 1024 is probably a high enough limit: modern hypervisors seem to support on
- * the order of 100-200 CPUs so this leaves us some breathing space if we want
- * to match a queue per guest CPU.
- */
-#define MAX_TAP_QUEUES 1024
+/* DEFAULT_MAX_NUM_RSS_QUEUES were choosed to let the rx/tx queues allocated for
+ * the netdevice to be fit in one page. So we can make sure the success of
+ * memory allocation. TODO: increase the limit. */
+#define MAX_TAP_QUEUES DEFAULT_MAX_NUM_RSS_QUEUES
 
 #define TUN_FLOW_EXPIRE (3 * HZ)
 
@@ -1583,6 +1582,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else {
 		char *name;
 		unsigned long flags = 0;
+		int queues = ifr->ifr_flags & IFF_MULTI_QUEUE ?
+			     MAX_TAP_QUEUES : 1;
 
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
@@ -1606,8 +1607,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			name = ifr->ifr_name;
 
 		dev = alloc_netdev_mqs(sizeof(struct tun_struct), name,
-				       tun_setup,
-				       MAX_TAP_QUEUES, MAX_TAP_QUEUES);
+				       tun_setup, queues, queues);
+
 		if (!dev)
 			return -ENOMEM;
 
