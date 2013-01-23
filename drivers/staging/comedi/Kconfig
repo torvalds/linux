@@ -599,6 +599,7 @@ config COMEDI_ADDI_APCI_1500
 
 config COMEDI_ADDI_APCI_1516
 	tristate "ADDI-DATA APCI-1016/1516/2016 support"
+	select COMEDI_ADDI_WATCHDOG
 	---help---
 	  Enable support for ADDI-DATA APCI-1016, APCI-1516 and APCI-2016 boards.
 	  These are 16 channel, optically isolated, digital I/O boards. The 1516
