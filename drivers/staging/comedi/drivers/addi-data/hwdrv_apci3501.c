@@ -46,19 +46,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/* Card Specific information */
-#define APCI3501_ADDRESS_RANGE		255
-
-#define APCI3501_DIGITAL_IP		0x50
-#define APCI3501_DIGITAL_OP		0x40
-#define APCI3501_ANALOG_OUTPUT		0x00
-
 /* Analog Output related Defines */
-#define APCI3501_AO_VOLT_MODE		0
-#define APCI3501_AO_PROG		4
-#define APCI3501_AO_TRIG_SCS		8
-#define UNIPOLAR			0
-#define BIPOLAR				1
 #define MODE0				0
 #define MODE1				1
 
@@ -117,9 +105,7 @@ static int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 
-	outl(data[0],
-		dev->iobase + APCI3501_ANALOG_OUTPUT +
-		APCI3501_AO_VOLT_MODE);
+	outl(data[0], dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 
 	if (data[0]) {
 		devpriv->b_InterruptMode = MODE1;
@@ -181,10 +167,10 @@ static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
 		printk("\nIn WriteAnalogOutput :: Not Valid Channel\n");
 	}			/*  end if((ul_Channel_no<0)||(ul_Channel_no>7)) */
 
-	ul_DAC_Ready = inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
+	ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 
 	while (ul_DAC_Ready == 0) {
-		ul_DAC_Ready = inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
+		ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 		ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
 	}
 
@@ -194,9 +180,7 @@ static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
 			(unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
 			(unsigned int) ((*data << 0x8) & 0x7FFFFF00L) |
 			(unsigned int) (ul_Polarity));
-		outl(ul_Command1,
-			dev->iobase + APCI3501_ANALOG_OUTPUT +
-			APCI3501_AO_PROG);
+		outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
 	}
 
 	return insn->n;

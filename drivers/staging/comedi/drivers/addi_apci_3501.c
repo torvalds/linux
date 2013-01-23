@@ -2,6 +2,17 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
+/*
+ * PCI bar 1 register I/O map
+ */
+#define APCI3501_AO_CTRL_STATUS_REG		0x00
+#define APCI3501_AO_CTRL_BIPOLAR		(1 << 0)
+#define APCI3501_AO_STATUS_READY		(1 << 8)
+#define APCI3501_AO_DATA_REG			0x04
+#define APCI3501_AO_TRIG_SCS_REG		0x08
+#define APCI3501_DO_REG				0x40
+#define APCI3501_DI_REG				0x50
+
 struct apci3501_private {
 	int i_IobaseAmcc;
 	struct task_struct *tsk_Current;
@@ -36,7 +47,7 @@ static int apci3501_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	data[1] = inl(dev->iobase + APCI3501_DIGITAL_IP) & 0x3;
+	data[1] = inl(dev->iobase + APCI3501_DI_REG) & 0x3;
 
 	return insn->n;
 }
@@ -49,12 +60,12 @@ static int apci3501_do_insn_bits(struct comedi_device *dev,
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inl(dev->iobase + APCI3501_DIGITAL_OP);
+	s->state = inl(dev->iobase + APCI3501_DO_REG);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outl(s->state, dev->iobase + APCI3501_DIGITAL_OP);
+		outl(s->state, dev->iobase + APCI3501_DO_REG);
 	}
 
 	data[1] = s->state;
@@ -193,18 +204,17 @@ static int apci3501_reset(struct comedi_device *dev)
 	int i_Count = 0, i_temp = 0;
 	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
 
-	outl(0x0, dev->iobase + APCI3501_DIGITAL_OP);
-	outl(1, dev->iobase + APCI3501_ANALOG_OUTPUT +
-		APCI3501_AO_VOLT_MODE);
+	outl(0x0, dev->iobase + APCI3501_DO_REG);
+	outl(1, dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 
 	ul_Polarity = 0x80000000;
 
 	for (i_Count = 0; i_Count <= 7; i_Count++) {
-		ul_DAC_Ready = inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
+		ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 
 		while (ul_DAC_Ready == 0) {
 			ul_DAC_Ready =
-				inl(dev->iobase + APCI3501_ANALOG_OUTPUT);
+				inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 			ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
 		}
 
@@ -214,9 +224,7 @@ static int apci3501_reset(struct comedi_device *dev)
 				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
 				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
 				(unsigned int) (ul_Polarity));
-			outl(ul_Command1,
-				dev->iobase + APCI3501_ANALOG_OUTPUT +
-				APCI3501_AO_PROG);
+			outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
 		}
 	}
 
