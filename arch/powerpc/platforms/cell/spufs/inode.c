@@ -368,7 +368,7 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 			return ERR_PTR(-EINVAL);
 
 		neighbor = get_spu_context(
-				SPUFS_I(filp->f_dentry->d_inode)->i_ctx);
+				SPUFS_I(file_inode(filp))->i_ctx);
 
 		if (!list_empty(&neighbor->aff_list) && !(neighbor->aff_head) &&
 		    !list_is_last(&neighbor->aff_list, &gang->aff_list_head) &&

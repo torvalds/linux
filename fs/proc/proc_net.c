@@ -163,7 +163,7 @@ static int proc_tgid_net_readdir(struct file *filp, void *dirent,
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(filp->f_path.dentry->d_inode);
+	net = get_proc_task_net(file_inode(filp));
 	if (net != NULL) {
 		ret = proc_readdir_de(net->proc_net, filp, dirent, filldir);
 		put_net(net);

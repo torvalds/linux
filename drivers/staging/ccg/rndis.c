@@ -1065,7 +1065,7 @@ static int rndis_proc_show(struct seq_file *m, void *v)
 static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	rndis_params *p = PDE(file->f_path.dentry->d_inode)->data;
+	rndis_params *p = PDE(file_inode(file))->data;
 	u32 speed = 0;
 	int i, fl_speed = 0;
 

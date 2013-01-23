@@ -625,7 +625,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			return -EBUSY;
 		file = fget(arg);
 		if (file) {
-			struct inode *inode = file->f_path.dentry->d_inode;
+			struct inode *inode = file_inode(file);
 			if (S_ISSOCK(inode->i_mode)) {
 				nbd->file = file;
 				nbd->sock = SOCKET_I(inode);

@@ -163,7 +163,7 @@ EXPORT_SYMBOL(no_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	loff_t retval;
 
 	mutex_lock(&inode->i_mutex);
@@ -290,7 +290,7 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	loff_t pos;
 	int retval = -EINVAL;
 
-	inode = file->f_path.dentry->d_inode;
+	inode = file_inode(file);
 	if (unlikely((ssize_t) count < 0))
 		return retval;
 	pos = *ppos;
@@ -901,8 +901,8 @@ ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
 	if (!(out.file->f_mode & FMODE_WRITE))
 		goto fput_out;
 	retval = -EINVAL;
-	in_inode = in.file->f_path.dentry->d_inode;
-	out_inode = out.file->f_path.dentry->d_inode;
+	in_inode = file_inode(in.file);
+	out_inode = file_inode(out.file);
 	retval = rw_verify_area(WRITE, out.file, &out.file->f_pos, count);
 	if (retval < 0)
 		goto fput_out;

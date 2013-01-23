@@ -1655,7 +1655,7 @@ EXPORT_SYMBOL(file_remove_suid);
 
 int file_update_time(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct timespec now;
 	int sync_it = 0;
 	int ret;

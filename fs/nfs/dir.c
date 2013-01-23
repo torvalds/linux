@@ -281,7 +281,7 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 
 	for (i = 0; i < array->size; i++) {
 		if (array->array[i].cookie == *desc->dir_cookie) {
-			struct nfs_inode *nfsi = NFS_I(desc->file->f_path.dentry->d_inode);
+			struct nfs_inode *nfsi = NFS_I(file_inode(desc->file));
 			struct nfs_open_dir_context *ctx = desc->file->private_data;
 
 			new_pos = desc->current_index + i;
@@ -629,7 +629,7 @@ out:
 static
 int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 {
-	struct inode	*inode = desc->file->f_path.dentry->d_inode;
+	struct inode	*inode = file_inode(desc->file);
 	int ret;
 
 	ret = nfs_readdir_xdr_to_array(desc, page, inode);
@@ -660,7 +660,7 @@ void cache_page_release(nfs_readdir_descriptor_t *desc)
 static
 struct page *get_cache_page(nfs_readdir_descriptor_t *desc)
 {
-	return read_cache_page(desc->file->f_path.dentry->d_inode->i_mapping,
+	return read_cache_page(file_inode(desc->file)->i_mapping,
 			desc->page_index, (filler_t *)nfs_readdir_filler, desc);
 }
 
@@ -764,7 +764,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 {
 	struct page	*page = NULL;
 	int		status;
-	struct inode *inode = desc->file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(desc->file);
 	struct nfs_open_dir_context *ctx = desc->file->private_data;
 
 	dfprintk(DIRCACHE, "NFS: uncached_readdir() searching for cookie %Lu\n",

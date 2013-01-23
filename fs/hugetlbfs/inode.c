@@ -97,7 +97,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
 
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	loff_t len, vma_len;
 	int ret;
 	struct hstate *h = hstate_file(file);

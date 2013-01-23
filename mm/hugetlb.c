@@ -127,7 +127,7 @@ static inline struct hugepage_subpool *subpool_inode(struct inode *inode)
 
 static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
 {
-	return subpool_inode(vma->vm_file->f_dentry->d_inode);
+	return subpool_inode(file_inode(vma->vm_file));
 }
 
 /*
@@ -2482,7 +2482,7 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
 	address = address & huge_page_mask(h);
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
 			vma->vm_pgoff;
-	mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
+	mapping = file_inode(vma->vm_file)->i_mapping;
 
 	/*
 	 * Take the mapping lock for the duration of the table walk. As

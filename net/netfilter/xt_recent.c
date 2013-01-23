@@ -540,7 +540,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	const struct proc_dir_entry *pde = PDE(file_inode(file));
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];

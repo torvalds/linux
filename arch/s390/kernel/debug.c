@@ -611,7 +611,7 @@ debug_open(struct inode *inode, struct file *file)
 	debug_info_t *debug_info, *debug_info_snapshot;
 
 	mutex_lock(&debug_mutex);
-	debug_info = file->f_path.dentry->d_inode->i_private;
+	debug_info = file_inode(file)->i_private;
 	/* find debug view */
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!debug_info->views[i])

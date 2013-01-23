@@ -1949,7 +1949,7 @@ out:
 int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 			    struct ocfs2_space_resv *sr)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int ret;
 
@@ -1977,7 +1977,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 static long ocfs2_fallocate(struct file *file, int mode, loff_t offset,
 			    loff_t len)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_space_resv sr;
 	int change_size = 1;
@@ -2232,7 +2232,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	loff_t old_size, *ppos = &iocb->ki_pos;
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
@@ -2516,7 +2516,7 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 				      unsigned int flags)
 {
 	int ret = 0, lock_level = 0;
-	struct inode *inode = in->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(in);
 
 	trace_ocfs2_file_splice_read(inode, in, in->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2546,7 +2546,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 {
 	int ret = 0, rw_level = -1, have_alloc_sem = 0, lock_level = 0;
 	struct file *filp = iocb->ki_filp;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	trace_ocfs2_file_aio_read(inode, filp, filp->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,

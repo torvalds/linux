@@ -108,7 +108,7 @@ out:
  * This function is to be called with the minors_lock mutex held */
 static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, size_t count, unsigned char report_type)
 {
-	unsigned int minor = iminor(file->f_path.dentry->d_inode);
+	unsigned int minor = iminor(file_inode(file));
 	struct hid_device *dev;
 	__u8 *buf;
 	int ret = 0;
@@ -176,7 +176,7 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
  *  mutex held. */
 static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t count, unsigned char report_type)
 {
-	unsigned int minor = iminor(file->f_path.dentry->d_inode);
+	unsigned int minor = iminor(file_inode(file));
 	struct hid_device *dev;
 	__u8 *buf;
 	int ret = 0, len;
@@ -340,7 +340,7 @@ unlock:
 static long hidraw_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	unsigned int minor = iminor(inode);
 	long ret = 0;
 	struct hidraw *dev;

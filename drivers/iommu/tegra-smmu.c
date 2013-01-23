@@ -964,7 +964,6 @@ static ssize_t smmu_debugfs_stats_write(struct file *file,
 {
 	struct smmu_debugfs_info *info;
 	struct smmu_device *smmu;
-	struct dentry *dent;
 	int i;
 	enum {
 		_OFF = 0,
@@ -992,8 +991,7 @@ static ssize_t smmu_debugfs_stats_write(struct file *file,
 	if (i == ARRAY_SIZE(command))
 		return -EINVAL;
 
-	dent = file->f_dentry;
-	info = dent->d_inode->i_private;
+	info = file_inode(file)->i_private;
 	smmu = info->smmu;
 
 	offs = SMMU_CACHE_CONFIG(info->cache);

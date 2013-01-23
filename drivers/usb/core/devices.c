@@ -658,7 +658,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -674,7 +674,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 

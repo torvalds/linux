@@ -291,7 +291,7 @@ int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file->f_file->f_path.dentry->d_inode;
+	return file_inode(file->f_file);
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)

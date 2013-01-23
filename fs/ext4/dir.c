@@ -110,7 +110,7 @@ static int ext4_readdir(struct file *filp,
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
@@ -133,7 +133,7 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+		ext4_clear_inode_flag(file_inode(filp),
 				      EXT4_INODE_INDEX);
 	}
 	stored = 0;
@@ -494,7 +494,7 @@ static int call_filldir(struct file *filp, void *dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb;
 	int error;
 
@@ -526,7 +526,7 @@ static int ext4_dx_readdir(struct file *filp,
 			 void *dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 

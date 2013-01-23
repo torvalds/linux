@@ -447,7 +447,7 @@ void mark_files_ro(struct super_block *sb)
 
 	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, f) {
-		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
+		if (!S_ISREG(file_inode(f)->i_mode))
 		       continue;
 		if (!file_count(f))
 			continue;

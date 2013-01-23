@@ -1298,7 +1298,7 @@ int ext4_read_inline_dir(struct file *filp,
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
 	struct super_block *sb;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret, inline_size = 0;
 	struct ext4_iloc iloc;
 	void *dir_buf = NULL;

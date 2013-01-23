@@ -40,7 +40,7 @@ struct page **_drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 	int i, npages;
 
 	/* This is the shared memory object that backs the GEM resource */
-	inode = obj->filp->f_path.dentry->d_inode;
+	inode = file_inode(obj->filp);
 	mapping = inode->i_mapping;
 
 	npages = obj->size >> PAGE_SHIFT;

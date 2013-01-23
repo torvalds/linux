@@ -4542,7 +4542,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	send_root = BTRFS_I(fdentry(mnt_file)->d_inode)->root;
+	send_root = BTRFS_I(file_inode(mnt_file))->root;
 	fs_info = send_root->fs_info;
 
 	arg = memdup_user(arg_, sizeof(*arg));

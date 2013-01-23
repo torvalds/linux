@@ -505,7 +505,7 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
 
 	if (cifsInfo->time == 0)
@@ -778,7 +778,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	switch ((int) file->f_pos) {
 	case 0:
 		if (filldir(direntry, ".", 1, file->f_pos,
-		     file->f_path.dentry->d_inode->i_ino, DT_DIR) < 0) {
+		     file_inode(file)->i_ino, DT_DIR) < 0) {
 			cERROR(1, "Filldir for current dir failed");
 			rc = -ENOMEM;
 			break;

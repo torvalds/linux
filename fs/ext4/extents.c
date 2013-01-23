@@ -4386,7 +4386,7 @@ static void ext4_falloc_update_inode(struct inode *inode,
  */
 long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	handle_t *handle;
 	loff_t new_size;
 	unsigned int max_blocks;
@@ -4643,7 +4643,7 @@ static int ext4_xattr_fiemap(struct inode *inode,
  */
 int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	ext4_lblk_t first_block, stop_block;
 	struct address_space *mapping = inode->i_mapping;

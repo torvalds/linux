@@ -42,7 +42,7 @@ static ssize_t
 __proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
-	struct inode * inode = file->f_path.dentry->d_inode;
+	struct inode * inode = file_inode(file);
 	char 	*page;
 	ssize_t	retval=0;
 	int	eof=0;
@@ -188,7 +188,7 @@ static ssize_t
 proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 
 	spin_lock(&pde->pde_unload_lock);
@@ -209,7 +209,7 @@ static ssize_t
 proc_file_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 
 	if (pde->write_proc) {
@@ -460,7 +460,7 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 {
 	unsigned int ino;
 	int i;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret = 0;
 
 	ino = inode->i_ino;
@@ -522,7 +522,7 @@ out:
 
 int proc_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	return proc_readdir_de(PDE(inode), filp, dirent, filldir);
 }

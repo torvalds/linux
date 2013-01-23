@@ -2778,7 +2778,7 @@ retry_lookup:
 			goto out;
 
 		if ((*opened & FILE_CREATED) ||
-		    !S_ISREG(file->f_path.dentry->d_inode->i_mode))
+		    !S_ISREG(file_inode(file)->i_mode))
 			will_truncate = false;
 
 		audit_inode(name, file->f_path.dentry, 0);

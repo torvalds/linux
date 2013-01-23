@@ -900,7 +900,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		  pgoff_t orig_page_offset, int data_offset_in_page,
 		  int block_len_in_page, int uninit, int *err)
 {
-	struct inode *orig_inode = o_filp->f_dentry->d_inode;
+	struct inode *orig_inode = file_inode(o_filp);
 	struct page *pagep[2] = {NULL, NULL};
 	handle_t *handle;
 	ext4_lblk_t orig_blk_offset;
@@ -1279,8 +1279,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		 __u64 orig_start, __u64 donor_start, __u64 len,
 		 __u64 *moved_len)
 {
-	struct inode *orig_inode = o_filp->f_dentry->d_inode;
-	struct inode *donor_inode = d_filp->f_dentry->d_inode;
+	struct inode *orig_inode = file_inode(o_filp);
+	struct inode *donor_inode = file_inode(d_filp);
 	struct ext4_ext_path *orig_path = NULL, *holecheck_path = NULL;
 	struct ext4_extent *ext_prev, *ext_cur, *ext_dummy;
 	ext4_lblk_t block_start = orig_start;

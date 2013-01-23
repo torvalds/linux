@@ -941,7 +941,7 @@ static int validate_mmap_request(struct file *file,
 		 */
 		mapping = file->f_mapping;
 		if (!mapping)
-			mapping = file->f_path.dentry->d_inode->i_mapping;
+			mapping = file_inode(file)->i_mapping;
 
 		capabilities = 0;
 		if (mapping && mapping->backing_dev_info)
@@ -950,7 +950,7 @@ static int validate_mmap_request(struct file *file,
 		if (!capabilities) {
 			/* no explicit capabilities set, so assume some
 			 * defaults */
-			switch (file->f_path.dentry->d_inode->i_mode & S_IFMT) {
+			switch (file_inode(file)->i_mode & S_IFMT) {
 			case S_IFREG:
 			case S_IFBLK:
 				capabilities = BDI_CAP_MAP_COPY;
@@ -985,11 +985,11 @@ static int validate_mmap_request(struct file *file,
 			    !(file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (IS_APPEND(file->f_path.dentry->d_inode) &&
+			if (IS_APPEND(file_inode(file)) &&
 			    (file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (locks_verify_locked(file->f_path.dentry->d_inode))
+			if (locks_verify_locked(file_inode(file)))
 				return -EAGAIN;
 
 			if (!(capabilities & BDI_CAP_MAP_DIRECT))
@@ -1322,8 +1322,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 				continue;
 
 			/* search for overlapping mappings on the same file */
-			if (pregion->vm_file->f_path.dentry->d_inode !=
-			    file->f_path.dentry->d_inode)
+			if (file_inode(pregion->vm_file) !=
+			    file_inode(file))
 				continue;
 
 			if (pregion->vm_pgoff >= pgend)

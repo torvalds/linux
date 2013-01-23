@@ -937,7 +937,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 
 	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
-	dir = dir_file->f_path.dentry->d_inode;
+	dir = file_inode(dir_file);
 	if (!(ext4_test_inode_flag(dir, EXT4_INODE_INDEX))) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
 		if (hinfo.hash_version <= DX_HASH_TEA)
