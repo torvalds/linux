@@ -6585,9 +6585,7 @@ F:	drivers/media/platform/s3c-camif/
 F:	include/media/s3c_camif.h
 
 SERIAL DRIVERS
-M:	Alan Cox <alan@linux.intel.com>
 L:	linux-serial@vger.kernel.org
-S:	Maintained
 F:	drivers/tty/serial
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
