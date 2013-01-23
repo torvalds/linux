@@ -36,7 +36,7 @@ struct ssd1307fb_par {
 	int reset;
 };
 
-static struct fb_fix_screeninfo ssd1307fb_fix __devinitdata = {
+static struct fb_fix_screeninfo ssd1307fb_fix = {
 	.id		= "Solomon SSD1307",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_MONO10,
@@ -47,7 +47,7 @@ static struct fb_fix_screeninfo ssd1307fb_fix __devinitdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo ssd1307fb_var __devinitdata = {
+static struct fb_var_screeninfo ssd1307fb_var = {
 	.xres		= SSD1307FB_WIDTH,
 	.yres		= SSD1307FB_HEIGHT,
 	.xres_virtual	= SSD1307FB_WIDTH,
@@ -145,8 +145,8 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 				u32 page_length = SSD1307FB_WIDTH * i;
 				u32 index = page_length + (SSD1307FB_WIDTH * k + j) / 8;
 				u8 byte = *(vmem + index);
-				u8 bit = byte & (1 << (7 - (j % 8)));
-				bit = bit >> (7 - (j % 8));
+				u8 bit = byte & (1 << (j % 8));
+				bit = bit >> (j % 8);
 				buf |= bit << k;
 			}
 			ssd1307fb_write_data(par->client, buf);
@@ -227,7 +227,8 @@ static struct fb_deferred_io ssd1307fb_defio = {
 	.deferred_io	= ssd1307fb_deferred_io,
 };
 
-static int __devinit ssd1307fb_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ssd1307fb_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct fb_info *info;
 	u32 vmem_size = SSD1307FB_WIDTH * SSD1307FB_HEIGHT / 8;
@@ -352,7 +353,7 @@ fb_alloc_error:
 	return ret;
 }
 
-static int __devexit ssd1307fb_remove(struct i2c_client *client)
+static int ssd1307fb_remove(struct i2c_client *client)
 {
 	struct fb_info *info = i2c_get_clientdata(client);
 	struct ssd1307fb_par *par = info->par;
@@ -380,7 +381,7 @@ MODULE_DEVICE_TABLE(of, ssd1307fb_of_match);
 
 static struct i2c_driver ssd1307fb_driver = {
 	.probe = ssd1307fb_probe,
-	.remove = __devexit_p(ssd1307fb_remove),
+	.remove = ssd1307fb_remove,
 	.id_table = ssd1307fb_i2c_id,
 	.driver = {
 		.name = "ssd1307fb",

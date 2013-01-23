@@ -1689,15 +1689,41 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_rx_compl_info *rxcp;
+	struct be_adapter *adapter = rxo->adapter;
+	int flush_wait = 0;
 	u16 tail;
 
-	/* First cleanup pending rx completions */
-	while ((rxcp = be_rx_compl_get(rxo)) != NULL) {
-		be_rx_compl_discard(rxo, rxcp);
-		be_cq_notify(rxo->adapter, rx_cq->id, false, 1);
+	/* Consume pending rx completions.
+	 * Wait for the flush completion (identified by zero num_rcvd)
+	 * to arrive. Notify CQ even when there are no more CQ entries
+	 * for HW to flush partially coalesced CQ entries.
+	 * In Lancer, there is no need to wait for flush compl.
+	 */
+	for (;;) {
+		rxcp = be_rx_compl_get(rxo);
+		if (rxcp == NULL) {
+			if (lancer_chip(adapter))
+				break;
+
+			if (flush_wait++ > 10 || be_hw_error(adapter)) {
+				dev_warn(&adapter->pdev->dev,
+					 "did not receive flush compl\n");
+				break;
+			}
+			be_cq_notify(adapter, rx_cq->id, true, 0);
+			mdelay(1);
+		} else {
+			be_rx_compl_discard(rxo, rxcp);
+			be_cq_notify(adapter, rx_cq->id, true, 1);
+			if (rxcp->num_rcvd == 0)
+				break;
+		}
 	}
 
-	/* Then free posted rx buffer that were not used */
+	/* After cleanup, leave the CQ in unarmed state */
+	be_cq_notify(adapter, rx_cq->id, false, 0);
+
+	/* Then free posted rx buffers that were not used */
 	tail = (rxq->head + rxq->len - atomic_read(&rxq->used)) % rxq->len;
 	for (; atomic_read(&rxq->used) > 0; index_inc(&tail, rxq->len)) {
 		page_info = get_rx_page_info(rxo, tail);
@@ -2000,19 +2026,30 @@ static irqreturn_t be_intx(int irq, void *dev)
 	struct be_adapter *adapter = eqo->adapter;
 	int num_evts = 0;
 
-	/* On Lancer, clear-intr bit of the EQ DB does not work.
-	 * INTx is de-asserted only on notifying num evts.
+	/* IRQ is not expected when NAPI is scheduled as the EQ
+	 * will not be armed.
+	 * But, this can happen on Lancer INTx where it takes
+	 * a while to de-assert INTx or in BE2 where occasionaly
+	 * an interrupt may be raised even when EQ is unarmed.
+	 * If NAPI is already scheduled, then counting & notifying
+	 * events will orphan them.
 	 */
-	if (lancer_chip(adapter))
+	if (napi_schedule_prep(&eqo->napi)) {
 		num_evts = events_get(eqo);
-
-	/* The EQ-notify may not de-assert INTx rightaway, causing
-	 * the ISR to be invoked again. So, return HANDLED even when
-	 * num_evts is zero.
-	 */
+		__napi_schedule(&eqo->napi);
+		if (num_evts)
+			eqo->spurious_intr = 0;
+	}
 	be_eq_notify(adapter, eqo->q.id, false, true, num_evts);
-	napi_schedule(&eqo->napi);
-	return IRQ_HANDLED;
+
+	/* Return IRQ_HANDLED only for the the first spurious intr
+	 * after a valid intr to stop the kernel from branding
+	 * this irq as a bad one!
+	 */
+	if (num_evts || eqo->spurious_intr++ == 0)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
 }
 
 static irqreturn_t be_msix(int irq, void *dev)
@@ -2157,7 +2194,7 @@ void be_detect_error(struct be_adapter *adapter)
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
 	u32 i;
 
-	if (be_crit_error(adapter))
+	if (be_hw_error(adapter))
 		return;
 
 	if (lancer_chip(adapter)) {
@@ -2398,13 +2435,22 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	be_async_mcc_disable(adapter);
-
 	if (!lancer_chip(adapter))
 		be_intr_set(adapter, false);
 
-	for_all_evt_queues(adapter, eqo, i) {
+	for_all_evt_queues(adapter, eqo, i)
 		napi_disable(&eqo->napi);
+
+	be_async_mcc_disable(adapter);
+
+	/* Wait for all pending tx completions to arrive so that
+	 * all tx skbs are freed.
+	 */
+	be_tx_compl_clean(adapter);
+
+	be_rx_qs_destroy(adapter);
+
+	for_all_evt_queues(adapter, eqo, i) {
 		if (msix_enabled(adapter))
 			synchronize_irq(be_msix_vec_get(adapter, eqo));
 		else
@@ -2414,12 +2460,6 @@ static int be_close(struct net_device *netdev)
 
 	be_irq_unregister(adapter);
 
-	/* Wait for all pending tx completions to arrive so that
-	 * all tx skbs are freed.
-	 */
-	be_tx_compl_clean(adapter);
-
-	be_rx_qs_destroy(adapter);
 	return 0;
 }
 

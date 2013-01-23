@@ -307,6 +307,7 @@ struct mddev {
 	 * REQUEST:  user-space has requested a sync (used with SYNC)
 	 * CHECK:    user-space request for check-only, no repair
 	 * RESHAPE:  A reshape is happening
+	 * ERROR:    sync-action interrupted because io-error
 	 *
 	 * If neither SYNC or RESHAPE are set, then it is a recovery.
 	 */
@@ -320,6 +321,7 @@ struct mddev {
 #define	MD_RECOVERY_CHECK	7
 #define MD_RECOVERY_RESHAPE	8
 #define	MD_RECOVERY_FROZEN	9
+#define	MD_RECOVERY_ERROR	10
 
 	unsigned long			recovery;
 	/* If a RAID personality determines that recovery (of a particular

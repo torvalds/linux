@@ -40,8 +40,6 @@
 #define IRQ_HWERR		5	/* Hardware Error */
 #define IRQ_CORETMR		6	/* Core timer */
 
-#define BFIN_IRQ(x)		((x) + 7)
-
 #define IVG7			7
 #define IVG8			8
 #define IVG9			9
@@ -51,6 +49,9 @@
 #define IVG13			13
 #define IVG14			14
 #define IVG15			15
+
+#define BFIN_IRQ(x)		((x) + IVG7)
+#define BFIN_SYSIRQ(x)		((x) - IVG7)
 
 #define NR_IRQS			(NR_MACH_IRQS + NR_SPARE_IRQS)
 

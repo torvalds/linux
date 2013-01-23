@@ -133,6 +133,13 @@ static inline bool user_64bit_mode(struct pt_regs *regs)
 	return regs->cs == __USER_CS || regs->cs == pv_info.extra_user_64bit_cs;
 #endif
 }
+
+#define current_user_stack_pointer()	this_cpu_read(old_rsp)
+/* ia32 vs. x32 difference */
+#define compat_user_stack_pointer()	\
+	(test_thread_flag(TIF_IA32) 	\
+	 ? current_pt_regs()->sp 	\
+	 : this_cpu_read(old_rsp))
 #endif
 
 #ifdef CONFIG_X86_32

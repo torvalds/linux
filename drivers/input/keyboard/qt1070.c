@@ -91,7 +91,7 @@ static int qt1070_write(struct i2c_client *client, u8 reg, u8 data)
 	return ret;
 }
 
-static bool __devinit qt1070_identify(struct i2c_client *client)
+static bool qt1070_identify(struct i2c_client *client)
 {
 	int id, ver;
 
@@ -140,7 +140,7 @@ static irqreturn_t qt1070_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit qt1070_probe(struct i2c_client *client,
+static int qt1070_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct qt1070_data *data;
@@ -230,7 +230,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit qt1070_remove(struct i2c_client *client)
+static int qt1070_remove(struct i2c_client *client)
 {
 	struct qt1070_data *data = i2c_get_clientdata(client);
 
@@ -256,7 +256,7 @@ static struct i2c_driver qt1070_driver = {
 	},
 	.id_table	= qt1070_id,
 	.probe		= qt1070_probe,
-	.remove		= __devexit_p(qt1070_remove),
+	.remove		= qt1070_remove,
 };
 
 module_i2c_driver(qt1070_driver);

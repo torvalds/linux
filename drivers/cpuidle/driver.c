@@ -19,34 +19,9 @@ DEFINE_SPINLOCK(cpuidle_driver_lock);
 static void __cpuidle_set_cpu_driver(struct cpuidle_driver *drv, int cpu);
 static struct cpuidle_driver * __cpuidle_get_cpu_driver(int cpu);
 
-static void set_power_states(struct cpuidle_driver *drv)
-{
-	int i;
-
-	/*
-	 * cpuidle driver should set the drv->power_specified bit
-	 * before registering if the driver provides
-	 * power_usage numbers.
-	 *
-	 * If power_specified is not set,
-	 * we fill in power_usage with decreasing values as the
-	 * cpuidle code has an implicit assumption that state Cn
-	 * uses less power than C(n-1).
-	 *
-	 * With CONFIG_ARCH_HAS_CPU_RELAX, C0 is already assigned
-	 * an power value of -1.  So we use -2, -3, etc, for other
-	 * c-states.
-	 */
-	for (i = CPUIDLE_DRIVER_STATE_START; i < drv->state_count; i++)
-		drv->states[i].power_usage = -1 - i;
-}
-
 static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 {
 	drv->refcnt = 0;
-
-	if (!drv->power_specified)
-		set_power_states(drv);
 }
 
 static int __cpuidle_register_driver(struct cpuidle_driver *drv, int cpu)
@@ -235,16 +210,10 @@ EXPORT_SYMBOL_GPL(cpuidle_get_driver);
  */
 struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev)
 {
-	struct cpuidle_driver *drv;
-
 	if (!dev)
 		return NULL;
 
-	spin_lock(&cpuidle_driver_lock);
-	drv = __cpuidle_get_cpu_driver(dev->cpu);
-	spin_unlock(&cpuidle_driver_lock);
-
-	return drv;
+	return __cpuidle_get_cpu_driver(dev->cpu);
 }
 EXPORT_SYMBOL_GPL(cpuidle_get_cpu_driver);
 

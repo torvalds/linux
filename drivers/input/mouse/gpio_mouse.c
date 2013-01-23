@@ -46,7 +46,7 @@ static void gpio_mouse_scan(struct input_polled_dev *dev)
 	input_sync(input);
 }
 
-static int __devinit gpio_mouse_probe(struct platform_device *pdev)
+static int gpio_mouse_probe(struct platform_device *pdev)
 {
 	struct gpio_mouse_platform_data *pdata = pdev->dev.platform_data;
 	struct input_polled_dev *input_poll;
@@ -150,7 +150,7 @@ static int __devinit gpio_mouse_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit gpio_mouse_remove(struct platform_device *pdev)
+static int gpio_mouse_remove(struct platform_device *pdev)
 {
 	struct input_polled_dev *input = platform_get_drvdata(pdev);
 	struct gpio_mouse_platform_data *pdata = input->private;
@@ -172,7 +172,7 @@ static int __devexit gpio_mouse_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_mouse_device_driver = {
 	.probe		= gpio_mouse_probe,
-	.remove		= __devexit_p(gpio_mouse_remove),
+	.remove		= gpio_mouse_remove,
 	.driver		= {
 		.name	= "gpio_mouse",
 		.owner	= THIS_MODULE,

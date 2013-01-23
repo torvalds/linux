@@ -1624,14 +1624,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_unc:
 			string = vol->UNC;
 			vol->UNC = match_strdup(args);
-			if (vol->UNC == NULL) {
-				kfree(string);
+			if (vol->UNC == NULL)
 				goto out_nomem;
-			}
 
 			convert_delimiter(vol->UNC, '\\');
 			if (vol->UNC[0] != '\\' || vol->UNC[1] != '\\') {
-				kfree(string);
 				printk(KERN_ERR "CIFS: UNC Path does not "
 						"begin with // or \\\\\n");
 				goto cifs_parse_mount_err;
@@ -1687,10 +1684,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			string = vol->prepath;
 			vol->prepath = match_strdup(args);
-			if (vol->prepath == NULL) {
-				kfree(string);
+			if (vol->prepath == NULL)
 				goto out_nomem;
-			}
 			/* Compare old prefixpath= option to new one */
 			if (!string || strcmp(string, vol->prepath))
 				printk(KERN_WARNING "CIFS: the value of the "

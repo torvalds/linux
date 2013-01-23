@@ -326,6 +326,7 @@ static struct resource stmpe_keypad_resources[] = {
 
 static struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
+	.of_compatible  = "st,stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_keypad_resources),
 };
@@ -409,6 +410,7 @@ static struct resource stmpe_ts_resources[] = {
 
 static struct mfd_cell stmpe_ts_cell = {
 	.name		= "stmpe-ts",
+	.of_compatible	= "st,stmpe-ts",
 	.resources	= stmpe_ts_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_ts_resources),
 };
@@ -890,8 +892,7 @@ static struct irq_domain_ops stmpe_irq_ops = {
         .xlate  = irq_domain_xlate_twocell,
 };
 
-static int __devinit stmpe_irq_init(struct stmpe *stmpe,
-				struct device_node *np)
+static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
 {
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
@@ -909,7 +910,7 @@ static int __devinit stmpe_irq_init(struct stmpe *stmpe,
 	return 0;
 }
 
-static int __devinit stmpe_chip_init(struct stmpe *stmpe)
+static int stmpe_chip_init(struct stmpe *stmpe)
 {
 	unsigned int irq_trigger = stmpe->pdata->irq_trigger;
 	int autosleep_timeout = stmpe->pdata->autosleep_timeout;
@@ -968,14 +969,13 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	return stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_ICR_LSB], icr);
 }
 
-static int __devinit stmpe_add_device(struct stmpe *stmpe,
-				      struct mfd_cell *cell)
+static int stmpe_add_device(struct stmpe *stmpe, struct mfd_cell *cell)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
 			       NULL, stmpe->irq_base, stmpe->domain);
 }
 
-static int __devinit stmpe_devices_init(struct stmpe *stmpe)
+static int stmpe_devices_init(struct stmpe *stmpe)
 {
 	struct stmpe_variant_info *variant = stmpe->variant;
 	unsigned int platform_blocks = stmpe->pdata->blocks;
@@ -1011,8 +1011,7 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
-void __devinit stmpe_of_probe(struct stmpe_platform_data *pdata,
-			struct device_node *np)
+void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
 {
 	struct device_node *child;
 
@@ -1042,7 +1041,7 @@ void __devinit stmpe_of_probe(struct stmpe_platform_data *pdata,
 }
 
 /* Called from client specific probe routines */
-int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
+int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct device_node *np = ci->dev->of_node;

@@ -4761,7 +4761,7 @@ static void transmit_cleanup(struct dev_info *hw_priv, int normal)
 	struct ksz_dma_buf *dma_buf;
 	struct net_device *dev = NULL;
 
-	spin_lock(&hw_priv->hwlock);
+	spin_lock_irq(&hw_priv->hwlock);
 	last = info->last;
 
 	while (info->avail < info->alloc) {
@@ -4795,7 +4795,7 @@ static void transmit_cleanup(struct dev_info *hw_priv, int normal)
 		info->avail++;
 	}
 	info->last = last;
-	spin_unlock(&hw_priv->hwlock);
+	spin_unlock_irq(&hw_priv->hwlock);
 
 	/* Notify the network subsystem that the packet has been sent. */
 	if (dev)
@@ -5259,11 +5259,15 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
 
+	spin_lock(&hw_priv->hwlock);
+
 	hw_read_intr(hw, &int_enable);
 
 	/* Not our interrupt! */
-	if (!int_enable)
+	if (!int_enable) {
+		spin_unlock(&hw_priv->hwlock);
 		return IRQ_NONE;
+	}
 
 	do {
 		hw_ack_intr(hw, int_enable);
@@ -5309,6 +5313,8 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 	} while (0);
 
 	hw_ena_intr(hw);
+
+	spin_unlock(&hw_priv->hwlock);
 
 	return IRQ_HANDLED;
 }

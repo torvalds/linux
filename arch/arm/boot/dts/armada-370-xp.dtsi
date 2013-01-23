@@ -50,17 +50,19 @@
 		ranges;
 
 		serial@d0012000 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012000 0x100>;
 				reg-shift = <2>;
 				interrupts = <41>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 		serial@d0012100 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012100 0x100>;
 				reg-shift = <2>;
 				interrupts = <42>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 

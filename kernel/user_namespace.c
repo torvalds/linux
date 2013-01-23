@@ -799,7 +799,7 @@ static int userns_install(struct nsproxy *nsproxy, void *ns)
 	if (user_ns == current_user_ns())
 		return -EINVAL;
 
-	/* Threaded many not enter a different user namespace */
+	/* Threaded processes may not enter a different user namespace */
 	if (atomic_read(&current->mm->mm_users) > 1)
 		return -EINVAL;
 

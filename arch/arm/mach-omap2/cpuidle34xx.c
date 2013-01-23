@@ -40,6 +40,8 @@ struct omap3_idle_statedata {
 	u32 core_state;
 };
 
+static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
+
 static struct omap3_idle_statedata omap3_idle_data[] = {
 	{
 		.mpu_state = PWRDM_POWER_ON,
@@ -71,7 +73,7 @@ static struct omap3_idle_statedata omap3_idle_data[] = {
 	},
 };
 
-static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
+/* Private functions */
 
 static int __omap3_enter_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
@@ -260,11 +262,11 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	return ret;
 }
 
-DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
+static DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 
-struct cpuidle_driver omap3_idle_driver = {
-	.name = 	"omap3_idle",
-	.owner = 	THIS_MODULE,
+static struct cpuidle_driver omap3_idle_driver = {
+	.name =		"omap3_idle",
+	.owner =	THIS_MODULE,
 	.states = {
 		{
 			.enter		  = omap3_enter_idle_bm,
@@ -326,6 +328,8 @@ struct cpuidle_driver omap3_idle_driver = {
 	.state_count = ARRAY_SIZE(omap3_idle_data),
 	.safe_state_index = 0,
 };
+
+/* Public functions */
 
 /**
  * omap3_idle_init - Init routine for OMAP3 idle

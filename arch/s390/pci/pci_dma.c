@@ -13,8 +13,6 @@
 #include <linux/pci.h>
 #include <asm/pci_dma.h>
 
-static enum zpci_ioat_dtype zpci_ioat_dt = ZPCI_IOTA_RTTO;
-
 static struct kmem_cache *dma_region_table_cache;
 static struct kmem_cache *dma_page_table_cache;
 
@@ -291,8 +289,10 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 	if (direction == DMA_NONE || direction == DMA_TO_DEVICE)
 		flags |= ZPCI_TABLE_PROTECTED;
 
-	if (!dma_update_trans(zdev, pa, dma_addr, size, flags))
+	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
+		atomic64_add(nr_pages, (atomic64_t *) &zdev->fmb->mapped_pages);
 		return dma_addr + offset;
+	}
 
 out_free:
 	dma_free_iommu(zdev, iommu_page_index, nr_pages);
@@ -315,6 +315,7 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 			     ZPCI_TABLE_PROTECTED | ZPCI_PTE_INVALID))
 		dev_err(dev, "Failed to unmap addr: %Lx\n", dma_addr);
 
+	atomic64_add(npages, (atomic64_t *) &zdev->fmb->unmapped_pages);
 	iommu_page_index = (dma_addr - zdev->start_dma) >> PAGE_SHIFT;
 	dma_free_iommu(zdev, iommu_page_index, npages);
 }
@@ -323,6 +324,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t flag,
 			    struct dma_attrs *attrs)
 {
+	struct zpci_dev *zdev = get_zdev(container_of(dev, struct pci_dev, dev));
 	struct page *page;
 	unsigned long pa;
 	dma_addr_t map;
@@ -331,6 +333,8 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 	page = alloc_pages(flag, get_order(size));
 	if (!page)
 		return NULL;
+
+	atomic64_add(size / PAGE_SIZE, (atomic64_t *) &zdev->fmb->allocated_pages);
 	pa = page_to_phys(page);
 	memset((void *) pa, 0, size);
 

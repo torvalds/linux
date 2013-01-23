@@ -503,14 +503,6 @@ struct zone {
 	 * rarely used fields:
 	 */
 	const char		*name;
-#ifdef CONFIG_MEMORY_ISOLATION
-	/*
-	 * the number of MIGRATE_ISOLATE *pageblock*.
-	 * We need this for free page counting. Look at zone_watermark_ok_safe.
-	 * It's protected by zone->lock
-	 */
-	int		nr_pageblock_isolate;
-#endif
 } ____cacheline_internodealigned_in_smp;
 
 typedef enum {

@@ -141,7 +141,7 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 
 static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 {
-	BUG_ON(req->a_args.lock.fl.fl_ops != NULL);
+	WARN_ON_ONCE(req->a_args.lock.fl.fl_ops != NULL);
 }
 
 /**
@@ -465,7 +465,6 @@ static const struct file_lock_operations nlmclnt_lock_ops = {
 
 static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *host)
 {
-	BUG_ON(fl->fl_ops != NULL);
 	fl->fl_u.nfs_fl.state = 0;
 	fl->fl_u.nfs_fl.owner = nlm_find_lockowner(host, fl->fl_owner);
 	INIT_LIST_HEAD(&fl->fl_u.nfs_fl.list);

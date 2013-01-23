@@ -23,6 +23,61 @@
 #define COMPAT_USE_64BIT_TIME 0
 #endif
 
+#ifndef __SC_DELOUSE
+#define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
+#endif
+
+#define __SC_CCAST1(t1, a1)      __SC_DELOUSE(t1,a1)
+#define __SC_CCAST2(t2, a2, ...) __SC_DELOUSE(t2,a2), __SC_CCAST1(__VA_ARGS__)
+#define __SC_CCAST3(t3, a3, ...) __SC_DELOUSE(t3,a3), __SC_CCAST2(__VA_ARGS__)
+#define __SC_CCAST4(t4, a4, ...) __SC_DELOUSE(t4,a4), __SC_CCAST3(__VA_ARGS__)
+#define __SC_CCAST5(t5, a5, ...) __SC_DELOUSE(t5,a5), __SC_CCAST4(__VA_ARGS__)
+#define __SC_CCAST6(t6, a6, ...) __SC_DELOUSE(t6,a6), __SC_CCAST5(__VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE1(name, ...) \
+        COMPAT_SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE2(name, ...) \
+	COMPAT_SYSCALL_DEFINEx(2, _##name, __VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE3(name, ...) \
+	COMPAT_SYSCALL_DEFINEx(3, _##name, __VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE4(name, ...) \
+	COMPAT_SYSCALL_DEFINEx(4, _##name, __VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE5(name, ...) \
+	COMPAT_SYSCALL_DEFINEx(5, _##name, __VA_ARGS__)
+#define COMPAT_SYSCALL_DEFINE6(name, ...) \
+	COMPAT_SYSCALL_DEFINEx(6, _##name, __VA_ARGS__)
+
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+
+#define COMPAT_SYSCALL_DEFINEx(x, name, ...)				\
+	asmlinkage long compat_sys##name(__SC_DECL##x(__VA_ARGS__));	\
+	static inline long C_SYSC##name(__SC_DECL##x(__VA_ARGS__));	\
+	asmlinkage long compat_SyS##name(__SC_LONG##x(__VA_ARGS__))	\
+	{								\
+		return (long) C_SYSC##name(__SC_CCAST##x(__VA_ARGS__));	\
+	}								\
+	SYSCALL_ALIAS(compat_sys##name, compat_SyS##name);		\
+	static inline long C_SYSC##name(__SC_DECL##x(__VA_ARGS__))
+
+#else /* CONFIG_HAVE_SYSCALL_WRAPPERS */
+
+#define COMPAT_SYSCALL_DEFINEx(x, name, ...)				\
+	asmlinkage long compat_sys##name(__SC_DECL##x(__VA_ARGS__))
+
+#endif /* CONFIG_HAVE_SYSCALL_WRAPPERS */
+
+#ifndef compat_user_stack_pointer
+#define compat_user_stack_pointer() current_user_stack_pointer()
+#endif
+#ifdef CONFIG_GENERIC_SIGALTSTACK
+#ifndef compat_sigaltstack	/* we'll need that for MIPS */
+typedef struct compat_sigaltstack {
+	compat_uptr_t			ss_sp;
+	int				ss_flags;
+	compat_size_t			ss_size;
+} compat_stack_t;
+#endif
+#endif
+
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
 
@@ -587,6 +642,13 @@ asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
 
 asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
 				    compat_off_t __user *offset, compat_size_t count);
+#ifdef CONFIG_GENERIC_SIGALTSTACK
+asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
+				       compat_stack_t __user *uoss_ptr);
+
+int compat_restore_altstack(const compat_stack_t __user *uss);
+int __compat_save_altstack(compat_stack_t __user *, unsigned long);
+#endif
 
 asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 						 struct compat_timespec __user *interval);

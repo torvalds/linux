@@ -1188,14 +1188,25 @@ static inline int queue_discard_alignment(struct request_queue *q)
 
 static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
 {
-	sector_t alignment = sector << 9;
-	alignment = sector_div(alignment, lim->discard_granularity);
+	unsigned int alignment, granularity, offset;
 
 	if (!lim->max_discard_sectors)
 		return 0;
 
-	alignment = lim->discard_granularity + lim->discard_alignment - alignment;
-	return sector_div(alignment, lim->discard_granularity);
+	/* Why are these in bytes, not sectors? */
+	alignment = lim->discard_alignment >> 9;
+	granularity = lim->discard_granularity >> 9;
+	if (!granularity)
+		return 0;
+
+	/* Offset of the partition start in 'granularity' sectors */
+	offset = sector_div(sector, granularity);
+
+	/* And why do we do this modulus *again* in blkdev_issue_discard()? */
+	offset = (granularity + alignment - offset) % granularity;
+
+	/* Turn it back into bytes, gaah */
+	return offset << 9;
 }
 
 static inline int bdev_discard_alignment(struct block_device *bdev)

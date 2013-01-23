@@ -370,7 +370,7 @@ void mei_watchdog_register(struct mei_device *dev)
 
 void mei_watchdog_unregister(struct mei_device *dev)
 {
-	if (test_bit(WDOG_UNREGISTERED, &amt_wd_dev.status))
+	if (watchdog_get_drvdata(&amt_wd_dev) == NULL)
 		return;
 
 	watchdog_set_drvdata(&amt_wd_dev, NULL);

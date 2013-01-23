@@ -69,6 +69,7 @@ struct usbnet {
 #		define EVENT_DEV_ASLEEP 6
 #		define EVENT_DEV_OPEN	7
 #		define EVENT_DEVICE_REPORT_IDLE	8
+#		define EVENT_NO_RUNTIME_PM	9
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -239,5 +240,7 @@ extern u32 usbnet_get_msglevel(struct net_device *);
 extern void usbnet_set_msglevel(struct net_device *, u32);
 extern void usbnet_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 extern int usbnet_nway_reset(struct net_device *net);
+
+extern int usbnet_manage_power(struct usbnet *, int);
 
 #endif /* __LINUX_USB_USBNET_H */

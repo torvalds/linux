@@ -573,9 +573,12 @@ enum {
 #define AZX_DCAPS_PM_RUNTIME	(1 << 26)	/* runtime PM support */
 
 /* quirks for Intel PCH */
-#define AZX_DCAPS_INTEL_PCH \
+#define AZX_DCAPS_INTEL_PCH_NOPM \
 	(AZX_DCAPS_SCH_SNOOP | AZX_DCAPS_BUFSIZE | \
-	 AZX_DCAPS_COUNT_LPIB_DELAY | AZX_DCAPS_PM_RUNTIME)
+	 AZX_DCAPS_COUNT_LPIB_DELAY)
+
+#define AZX_DCAPS_INTEL_PCH \
+	(AZX_DCAPS_INTEL_PCH_NOPM | AZX_DCAPS_PM_RUNTIME)
 
 /* quirks for ATI SB / AMD Hudson */
 #define AZX_DCAPS_PRESET_ATI_SB \
@@ -2876,7 +2879,7 @@ static int azx_free(struct azx *chip)
 	azx_notifier_unregister(chip);
 
 	chip->init_failed = 1; /* to be sure */
-	complete(&chip->probe_wait);
+	complete_all(&chip->probe_wait);
 
 	if (use_vga_switcheroo(chip)) {
 		if (chip->disabled && chip->bus)
@@ -3504,7 +3507,7 @@ static int azx_probe(struct pci_dev *pci,
 		pm_runtime_put_noidle(&pci->dev);
 
 	dev++;
-	complete(&chip->probe_wait);
+	complete_all(&chip->probe_wait);
 	return 0;
 
 out_free:
@@ -3586,13 +3589,13 @@ static void azx_remove(struct pci_dev *pci)
 static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	/* CPT */
 	{ PCI_DEVICE(0x8086, 0x1c20),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH_NOPM },
 	/* PBG */
 	{ PCI_DEVICE(0x8086, 0x1d20),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH_NOPM },
 	/* Panther Point */
 	{ PCI_DEVICE(0x8086, 0x1e20),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH_NOPM },
 	/* Lynx Point */
 	{ PCI_DEVICE(0x8086, 0x8c20),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },

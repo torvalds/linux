@@ -41,8 +41,7 @@
 #include <linux/of.h>
 #include <linux/gpio.h>
 #include <linux/pinctrl/consumer.h>
-
-#include <plat/omap-serial.h>
+#include <linux/platform_data/serial-omap.h>
 
 #define OMAP_MAX_HSUART_PORTS	6
 

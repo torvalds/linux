@@ -424,11 +424,18 @@ static void __init exynos5_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
 
+	/* EXYNOS5440 can support only common clock framework */
+
+	if (soc_is_exynos5440())
+		return;
+
+#ifdef CONFIG_SOC_EXYNOS5250
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
 
 	exynos5_register_clocks();
 	exynos5_setup_clocks();
+#endif
 }
 
 #define COMBINER_ENABLE_SET	0x0
@@ -679,7 +686,8 @@ void __init exynos5_init_irq(void)
 	 * Theses parameters should be NULL and 0 because EXYNOS4
 	 * uses GIC instead of VIC.
 	 */
-	s5p_init_irq(NULL, 0);
+	if (!of_machine_is_compatible("samsung,exynos5440"))
+		s5p_init_irq(NULL, 0);
 
 	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }

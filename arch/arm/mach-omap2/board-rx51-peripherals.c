@@ -256,6 +256,11 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 	},
 };
 
+static struct platform_device rx51_battery_device = {
+	.name	= "rx51-battery",
+	.id	= -1,
+};
+
 static void rx51_charger_set_power(bool on)
 {
 	gpio_set_value(RX51_USB_TRANSCEIVER_RST_GPIO, on);
@@ -277,6 +282,7 @@ static void __init rx51_charger_init(void)
 	WARN_ON(gpio_request_one(RX51_USB_TRANSCEIVER_RST_GPIO,
 		GPIOF_OUT_INIT_HIGH, "isp1704_reset"));
 
+	platform_device_register(&rx51_battery_device);
 	platform_device_register(&rx51_charger_device);
 }
 

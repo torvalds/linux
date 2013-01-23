@@ -1708,7 +1708,7 @@ static bool spacc_is_compatible(struct platform_device *pdev,
 	return false;
 }
 
-static int __devinit spacc_probe(struct platform_device *pdev)
+static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret = -EINVAL;
 	struct resource *mem, *irq;
@@ -1841,7 +1841,7 @@ static int __devinit spacc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit spacc_remove(struct platform_device *pdev)
+static int spacc_remove(struct platform_device *pdev)
 {
 	struct spacc_alg *alg, *next;
 	struct spacc_engine *engine = platform_get_drvdata(pdev);
@@ -1868,7 +1868,7 @@ static const struct platform_device_id spacc_id_table[] = {
 
 static struct platform_driver spacc_driver = {
 	.probe		= spacc_probe,
-	.remove		= __devexit_p(spacc_remove),
+	.remove		= spacc_remove,
 	.driver		= {
 		.name	= "picochip,spacc",
 #ifdef CONFIG_PM

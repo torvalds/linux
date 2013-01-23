@@ -1634,7 +1634,7 @@ static int dw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit dw_remove(struct platform_device *pdev)
+static int dw_remove(struct platform_device *pdev)
 {
 	struct dw_dma		*dw = platform_get_drvdata(pdev);
 	struct dw_dma_chan	*dwc, *_dwc;

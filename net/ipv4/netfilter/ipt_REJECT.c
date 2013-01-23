@@ -81,6 +81,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	niph->saddr	= oiph->daddr;
 	niph->daddr	= oiph->saddr;
 
+	skb_reset_transport_header(nskb);
 	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
 	memset(tcph, 0, sizeof(*tcph));
 	tcph->source	= oth->dest;

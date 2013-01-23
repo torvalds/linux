@@ -472,8 +472,7 @@ static void edac_delete_csrow_objects(struct mem_ctl_info *mci)
 			device_remove_file(&csrow->dev,
 						dynamic_csrow_ce_count_attr[chan]);
 		}
-		put_device(&mci->csrows[i]->dev);
-		device_del(&mci->csrows[i]->dev);
+		device_unregister(&mci->csrows[i]->dev);
 	}
 }
 #endif
@@ -1055,11 +1054,9 @@ fail:
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 	return err;
@@ -1086,16 +1083,14 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (dimm->nr_pages == 0)
 			continue;
 		edac_dbg(0, "removing device %s\n", dev_name(&dimm->dev));
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
 }
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 }
@@ -1159,8 +1154,6 @@ int __init edac_mc_sysfs_init(void)
 
 void __exit edac_mc_sysfs_exit(void)
 {
-	put_device(mci_pdev);
-	device_del(mci_pdev);
+	device_unregister(mci_pdev);
 	edac_put_sysfs_subsys();
-	kfree(mci_pdev);
 }

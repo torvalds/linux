@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/platform_device.h>
+
 #define MMU_REG_SIZE		256
 
 /**
@@ -42,8 +44,11 @@ struct omap_mmu_dev_attr {
 
 struct iommu_platform_data {
 	const char *name;
-	const char *clk_name;
-	const int nr_tlb_entries;
+	const char *reset_name;
+	int nr_tlb_entries;
 	u32 da_start;
 	u32 da_end;
+
+	int (*assert_reset)(struct platform_device *pdev, const char *name);
+	int (*deassert_reset)(struct platform_device *pdev, const char *name);
 };

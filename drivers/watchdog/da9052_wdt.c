@@ -53,10 +53,6 @@ static const struct {
 
 static void da9052_wdt_release_resources(struct kref *r)
 {
-	struct da9052_wdt_data *driver_data =
-		container_of(r, struct da9052_wdt_data, kref);
-
-	kfree(driver_data);
 }
 
 static int da9052_wdt_set_timeout(struct watchdog_device *wdt_dev,

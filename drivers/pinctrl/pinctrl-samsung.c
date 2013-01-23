@@ -37,7 +37,7 @@
 #define FSUFFIX_LEN		sizeof(FUNCTION_SUFFIX)
 
 /* list of all possible config options supported */
-struct pin_config {
+static struct pin_config {
 	char		*prop_cfg;
 	unsigned int	cfg_type;
 } pcfgs[] = {
@@ -549,9 +549,11 @@ static int samsung_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
  * Parse the pin names listed in the 'samsung,pins' property and convert it
  * into a list of gpio numbers are create a pin group from it.
  */
-static int __devinit samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
-			struct device_node *cfg_np, struct pinctrl_desc *pctl,
-			unsigned int **pin_list, unsigned int *npins)
+static int samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
+					 struct device_node *cfg_np,
+					 struct pinctrl_desc *pctl,
+					 unsigned int **pin_list,
+					 unsigned int *npins)
 {
 	struct device *dev = &pdev->dev;
 	struct property *prop;
@@ -596,8 +598,8 @@ static int __devinit samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
  * from device node of the pin-controller. A pin group is formed with all
  * the pins listed in the "samsung,pins" property.
  */
-static int __devinit samsung_pinctrl_parse_dt(struct platform_device *pdev,
-				struct samsung_pinctrl_drv_data *drvdata)
+static int samsung_pinctrl_parse_dt(struct platform_device *pdev,
+				    struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dev_np = dev->of_node;
@@ -691,8 +693,8 @@ static int __devinit samsung_pinctrl_parse_dt(struct platform_device *pdev,
 }
 
 /* register the pinctrl interface with the pinctrl subsystem */
-static int __devinit samsung_pinctrl_register(struct platform_device *pdev,
-				struct samsung_pinctrl_drv_data *drvdata)
+static int samsung_pinctrl_register(struct platform_device *pdev,
+				    struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct pinctrl_desc *ctrldesc = &drvdata->pctl;
 	struct pinctrl_pin_desc *pindesc, *pdesc;
@@ -778,8 +780,8 @@ static const struct gpio_chip samsung_gpiolib_chip = {
 };
 
 /* register the gpiolib interface with the gpiolib subsystem */
-static int __devinit samsung_gpiolib_register(struct platform_device *pdev,
-				struct samsung_pinctrl_drv_data *drvdata)
+static int samsung_gpiolib_register(struct platform_device *pdev,
+				    struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
 	struct samsung_pin_bank *bank = ctrl->pin_banks;
@@ -816,8 +818,8 @@ fail:
 }
 
 /* unregister the gpiolib interface with the gpiolib subsystem */
-static int __devinit samsung_gpiolib_unregister(struct platform_device *pdev,
-				struct samsung_pinctrl_drv_data *drvdata)
+static int samsung_gpiolib_unregister(struct platform_device *pdev,
+				      struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
 	struct samsung_pin_bank *bank = ctrl->pin_banks;
@@ -881,7 +883,7 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 	return ctrl;
 }
 
-static int __devinit samsung_pinctrl_probe(struct platform_device *pdev)
+static int samsung_pinctrl_probe(struct platform_device *pdev)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
 	struct device *dev = &pdev->dev;

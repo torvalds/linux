@@ -11,7 +11,7 @@
 
 
 
-#define NR_syscalls			311 /* length of syscall table */
+#define NR_syscalls			312 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
@@ -29,7 +29,6 @@
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#define __ARCH_WANT_SYS_EXECVE
 
 #if !defined(__ASSEMBLY__) && !defined(ASSEMBLER)
 

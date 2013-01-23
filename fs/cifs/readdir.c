@@ -78,6 +78,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	struct dentry *dentry, *alias;
 	struct inode *inode;
 	struct super_block *sb = parent->d_inode->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	cFYI(1, "%s: for %s", __func__, name->name);
 
@@ -91,10 +92,20 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		int err;
 
 		inode = dentry->d_inode;
-		/* update inode in place if i_ino didn't change */
-		if (inode && CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
-			cifs_fattr_to_inode(inode, fattr);
-			goto out;
+		if (inode) {
+			/*
+			 * If we're generating inode numbers, then we don't
+			 * want to clobber the existing one with the one that
+			 * the readdir code created.
+			 */
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
+				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
+
+			/* update inode in place if i_ino didn't change */
+			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+				cifs_fattr_to_inode(inode, fattr);
+				goto out;
+			}
 		}
 		err = d_invalidate(dentry);
 		dput(dentry);

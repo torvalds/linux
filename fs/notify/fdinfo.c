@@ -27,13 +27,13 @@ static int show_fdinfo(struct seq_file *m, struct file *f,
 	struct fsnotify_mark *mark;
 	int ret = 0;
 
-	spin_lock(&group->mark_lock);
+	mutex_lock(&group->mark_mutex);
 	list_for_each_entry(mark, &group->marks_list, g_list) {
 		ret = show(m, mark);
 		if (ret)
 			break;
 	}
-	spin_unlock(&group->mark_lock);
+	mutex_unlock(&group->mark_mutex);
 	return ret;
 }
 

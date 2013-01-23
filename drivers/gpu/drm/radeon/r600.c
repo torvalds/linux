@@ -1258,9 +1258,8 @@ void r600_vram_scratch_fini(struct radeon_device *rdev)
  * reset, it's up to the caller to determine if the GPU needs one. We
  * might add an helper function to check that.
  */
-static int r600_gpu_soft_reset(struct radeon_device *rdev)
+static void r600_gpu_soft_reset_gfx(struct radeon_device *rdev)
 {
-	struct rv515_mc_save save;
 	u32 grbm_busy_mask = S_008010_VC_BUSY(1) | S_008010_VGT_BUSY_NO_DMA(1) |
 				S_008010_VGT_BUSY(1) | S_008010_TA03_BUSY(1) |
 				S_008010_TC_BUSY(1) | S_008010_SX_BUSY(1) |
@@ -1280,14 +1279,13 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	u32 tmp;
 
 	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		return 0;
+		return;
 
-	dev_info(rdev->dev, "GPU softreset \n");
-	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
-	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
+	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
 		RREG32(R_008014_GRBM_STATUS2));
-	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS      = 0x%08X\n",
 		RREG32(R_000E50_SRBM_STATUS));
 	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
 		RREG32(CP_STALLED_STAT1));
@@ -1297,12 +1295,10 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
-	rv515_mc_stop(rdev, &save);
-	if (r600_mc_wait_for_idle(rdev)) {
-		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
-	}
+
 	/* Disable CP parsing/prefetching */
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
+
 	/* Check if any of the rendering block is busy and reset it */
 	if ((RREG32(R_008010_GRBM_STATUS) & grbm_busy_mask) ||
 	    (RREG32(R_008014_GRBM_STATUS2) & grbm2_busy_mask)) {
@@ -1332,13 +1328,12 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 	RREG32(R_008020_GRBM_SOFT_RESET);
 	mdelay(15);
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
-	/* Wait a little for things to settle down */
-	mdelay(1);
-	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
+
+	dev_info(rdev->dev, "  R_008010_GRBM_STATUS      = 0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
-	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
+	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2     = 0x%08X\n",
 		RREG32(R_008014_GRBM_STATUS2));
-	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS=0x%08X\n",
+	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS      = 0x%08X\n",
 		RREG32(R_000E50_SRBM_STATUS));
 	dev_info(rdev->dev, "  R_008674_CP_STALLED_STAT1 = 0x%08X\n",
 		RREG32(CP_STALLED_STAT1));
@@ -1348,6 +1343,66 @@ static int r600_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(CP_BUSY_STAT));
 	dev_info(rdev->dev, "  R_008680_CP_STAT          = 0x%08X\n",
 		RREG32(CP_STAT));
+
+}
+
+static void r600_gpu_soft_reset_dma(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
+		return;
+
+	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
+
+	/* Disable DMA */
+	tmp = RREG32(DMA_RB_CNTL);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL, tmp);
+
+	/* Reset dma */
+	if (rdev->family >= CHIP_RV770)
+		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
+	else
+		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
+	RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
+
+	dev_info(rdev->dev, "  R_00D034_DMA_STATUS_REG   = 0x%08X\n",
+		RREG32(DMA_STATUS_REG));
+}
+
+static int r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
+{
+	struct rv515_mc_save save;
+
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE);
+
+	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
+		reset_mask &= ~RADEON_RESET_DMA;
+
+	if (reset_mask == 0)
+		return 0;
+
+	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
+
+	rv515_mc_stop(rdev, &save);
+	if (r600_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+
+	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE))
+		r600_gpu_soft_reset_gfx(rdev);
+
+	if (reset_mask & RADEON_RESET_DMA)
+		r600_gpu_soft_reset_dma(rdev);
+
+	/* Wait a little for things to settle down */
+	mdelay(1);
+
 	rv515_mc_resume(rdev, &save);
 	return 0;
 }
@@ -1395,7 +1450,9 @@ bool r600_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 
 int r600_asic_reset(struct radeon_device *rdev)
 {
-	return r600_gpu_soft_reset(rdev);
+	return r600_gpu_soft_reset(rdev, (RADEON_RESET_GFX |
+					  RADEON_RESET_COMPUTE |
+					  RADEON_RESET_DMA));
 }
 
 u32 r6xx_remap_render_backend(struct radeon_device *rdev,
@@ -2595,7 +2652,7 @@ int r600_copy_blit(struct radeon_device *rdev,
  * @num_gpu_pages: number of GPU pages to xfer
  * @fence: radeon fence object
  *
- * Copy GPU paging using the DMA engine (r6xx-r7xx).
+ * Copy GPU paging using the DMA engine (r6xx).
  * Used by the radeon ttm implementation to move pages if
  * registered as the asic copy callback.
  */
@@ -2618,8 +2675,8 @@ int r600_copy_dma(struct radeon_device *rdev,
 	}
 
 	size_in_dw = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT) / 4;
-	num_loops = DIV_ROUND_UP(size_in_dw, 0xffff);
-	r = radeon_ring_lock(rdev, ring, num_loops * 5 + 8);
+	num_loops = DIV_ROUND_UP(size_in_dw, 0xFFFE);
+	r = radeon_ring_lock(rdev, ring, num_loops * 4 + 8);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
 		radeon_semaphore_free(rdev, &sem, NULL);
@@ -2636,14 +2693,14 @@ int r600_copy_dma(struct radeon_device *rdev,
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_dw = size_in_dw;
-		if (cur_size_in_dw > 0xFFFF)
-			cur_size_in_dw = 0xFFFF;
+		if (cur_size_in_dw > 0xFFFE)
+			cur_size_in_dw = 0xFFFE;
 		size_in_dw -= cur_size_in_dw;
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 0, 0, cur_size_in_dw));
 		radeon_ring_write(ring, dst_offset & 0xfffffffc);
 		radeon_ring_write(ring, src_offset & 0xfffffffc);
-		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
-		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xff);
+		radeon_ring_write(ring, (((upper_32_bits(dst_offset) & 0xff) << 16) |
+					 (upper_32_bits(src_offset) & 0xff)));
 		src_offset += cur_size_in_dw * 4;
 		dst_offset += cur_size_in_dw * 4;
 	}

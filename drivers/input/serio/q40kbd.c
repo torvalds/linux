@@ -122,7 +122,7 @@ static void q40kbd_close(struct serio *port)
 	q40kbd_flush(q40kbd);
 }
 
-static int __devinit q40kbd_probe(struct platform_device *pdev)
+static int q40kbd_probe(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd;
 	struct serio *port;
@@ -168,7 +168,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit q40kbd_remove(struct platform_device *pdev)
+static int q40kbd_remove(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd = platform_get_drvdata(pdev);
 
@@ -190,7 +190,7 @@ static struct platform_driver q40kbd_driver = {
 		.name	= "q40kbd",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(q40kbd_remove),
+	.remove		= q40kbd_remove,
 };
 
 static int __init q40kbd_init(void)

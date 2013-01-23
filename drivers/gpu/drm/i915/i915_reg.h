@@ -512,11 +512,14 @@
 #define GEN7_ERR_INT	0x44040
 #define   ERR_INT_MMIO_UNCLAIMED (1<<13)
 
+#define DERRMR		0x44050
+
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
  * the enables for writing to the corresponding low bit.
  */
 #define _3D_CHICKEN	0x02084
+#define  _3D_CHICKEN_HIZ_PLANE_DISABLE_MSAA_4X_SNB	(1 << 10)
 #define _3D_CHICKEN2	0x0208c
 /* Disables pipelining of read flushes past the SF-WIZ interface.
  * Required on all Ironlake steppings according to the B-Spec, but the
@@ -532,7 +535,8 @@
 # define MI_FLUSH_ENABLE				(1 << 12)
 
 #define GEN6_GT_MODE	0x20d0
-#define   GEN6_GT_MODE_HI	(1 << 9)
+#define   GEN6_GT_MODE_HI				(1 << 9)
+#define   GEN6_TD_FOUR_ROW_DISPATCH_DISABLE		(1 << 5)
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c

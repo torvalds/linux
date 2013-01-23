@@ -25,9 +25,6 @@ asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/signal.c */
 long sys_rt_sigreturn(struct pt_regs *);
-long sys_sigaltstack(const stack_t __user *, stack_t __user *,
-		     struct pt_regs *);
-
 
 /* kernel/tls.c */
 asmlinkage int sys_set_thread_area(struct user_desc __user *);

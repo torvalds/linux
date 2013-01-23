@@ -1118,8 +1118,7 @@ static struct omap_hwmod_class i2c_class = {
 };
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags = OMAP_I2C_FLAG_BUS_SHIFT_NONE |
-		  OMAP_I2C_FLAG_RESET_REGS_POSTIDLE,
+	.flags = OMAP_I2C_FLAG_BUS_SHIFT_NONE,
 };
 
 /* i2c1 */
@@ -2071,7 +2070,7 @@ static struct omap_hwmod_irq_info am33xx_usbss_mpu_irqs[] = {
 	{ .name = "usbss-irq", .irq = 17 + OMAP_INTC_START, },
 	{ .name = "musb0-irq", .irq = 18 + OMAP_INTC_START, },
 	{ .name = "musb1-irq", .irq = 19 + OMAP_INTC_START, },
-	{ .irq = -1 + OMAP_INTC_START, },
+	{ .irq = -1, },
 };
 
 static struct omap_hwmod am33xx_usbss_hwmod = {
@@ -2516,7 +2515,7 @@ static struct omap_hwmod_ocp_if am33xx_l4_hs__cpgmac0 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
+static struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
 	{
 		.pa_start	= 0x4A101000,
 		.pa_end		= 0x4A101000 + SZ_256 - 1,
@@ -2524,7 +2523,7 @@ struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
 	{ }
 };
 
-struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
+static struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
 	.master		= &am33xx_cpgmac0_hwmod,
 	.slave		= &am33xx_mdio_hwmod,
 	.addr		= am33xx_mdio_addr_space,

@@ -284,7 +284,7 @@ struct vm_area_struct;
 
 static inline int
 ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr,
-    			  pte_t *ptep)
+			  pte_t *ptep)
 {
 	pte_t pte = *ptep;
 	if (!pte_young(pte))
@@ -304,8 +304,8 @@ ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 static inline void
 ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-  	pte_t pte = *ptep;
-  	update_pte(ptep, pte_wrprotect(pte));
+	pte_t pte = *ptep;
+	update_pte(ptep, pte_wrprotect(pte));
 }
 
 /* to find an entry in a kernel page-table-directory */
@@ -399,7 +399,7 @@ extern  void update_mmu_cache(struct vm_area_struct * vma,
  */
 
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
-                remap_pfn_range(vma, from, pfn, size, prot)
+	remap_pfn_range(vma, from, pfn, size, prot)
 
 typedef pte_t *pte_addr_t;
 

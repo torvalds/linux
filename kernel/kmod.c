@@ -228,9 +228,9 @@ static int ____call_usermodehelper(void *data)
 
 	commit_creds(new);
 
-	retval = kernel_execve(sub_info->path,
-			       (const char *const *)sub_info->argv,
-			       (const char *const *)sub_info->envp);
+	retval = do_execve(sub_info->path,
+			   (const char __user *const __user *)sub_info->argv,
+			   (const char __user *const __user *)sub_info->envp);
 	if (!retval)
 		return 0;
 
