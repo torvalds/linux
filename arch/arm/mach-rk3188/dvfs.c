@@ -76,6 +76,106 @@ static int rk_dvfs_clk_notifier_event(struct notifier_block *this,
 static struct notifier_block rk_dvfs_clk_notifier = {
 	.notifier_call = rk_dvfs_clk_notifier_event,
 };
+
+#define NO_VOLT_DIFF
+#ifdef NO_VOLT_DIFF
+
+int dvfs_target(struct clk *clk, unsigned long rate_hz)
+{
+	struct clk_node *dvfs_clk;
+	int volt_new = 0, clk_volt_store = 0;
+	struct cpufreq_frequency_table clk_fv;
+	int ret = 0;
+	unsigned long rate_new, rate_old;
+
+	if (!clk) {
+		DVFS_ERR("%s is not a clk\n", __func__);
+		return -1;
+	}
+	dvfs_clk = clk_get_dvfs_info(clk);
+	DVFS_DBG("enter %s: clk(%s) rate = %lu Hz\n", __func__, dvfs_clk->name, rate_hz);
+
+	if (!dvfs_clk || dvfs_clk->vd == NULL || IS_ERR_OR_NULL(dvfs_clk->vd->regulator)) {
+		DVFS_ERR("dvfs(%s) is not register regulator\n", dvfs_clk->name);
+		return -1;
+	}
+
+	if (dvfs_clk->vd->volt_set_flag == DVFS_SET_VOLT_FAILURE) {
+		/* It means the last time set voltage error */
+		ret = dvfs_reset_volt(dvfs_clk->vd);
+		if (ret < 0) {
+			return -1;
+		}
+	}
+
+	/* Check limit rate */
+	//if (dvfs_clk->freq_limit_en) {
+		if (rate_hz < dvfs_clk->min_rate) {
+			rate_hz = dvfs_clk->min_rate;
+		} else if (rate_hz > dvfs_clk->max_rate) {
+			rate_hz = dvfs_clk->max_rate;
+		}
+	//}
+
+	/* need round rate */
+	rate_old = clk_get_rate(clk);
+	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	if(rate_new == rate_old)
+		return 0;
+
+	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu) old (%lu)\n",
+			dvfs_clk->name, rate_hz, rate_new, rate_old);
+
+	/* find the clk corresponding voltage */
+	if (0 != dvfs_clk_get_ref_volt(dvfs_clk, rate_new / 1000, &clk_fv)) {
+		DVFS_ERR("dvfs(%s) rate %luhz is larger,not support\n", dvfs_clk->name, rate_hz);
+		return -1;
+	}
+	clk_volt_store = dvfs_clk->set_volt;
+	dvfs_clk->set_volt = clk_fv.index;
+	volt_new = dvfs_vd_get_newvolt_byclk(dvfs_clk);
+	DVFS_DBG("%s,%s,new rate=%lu(was=%lu),new volt=%lu,(was=%d)\n",__FUNCTION__,dvfs_clk->name,rate_new,
+				rate_old,volt_new,dvfs_clk->vd->cur_volt);
+
+	/* if up the rate */
+	if (rate_new > rate_old) {
+		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+		if (ret < 0)
+			goto fail_roll_back;
+	}
+
+	/* scale rate */
+	if (dvfs_clk->clk_dvfs_target) {
+		ret = dvfs_clk->clk_dvfs_target(clk, rate_new, clk_set_rate_locked);
+	} else {
+		ret = clk_set_rate_locked(clk, rate_new);
+	}
+
+	if (ret < 0) {
+		DVFS_ERR("%s set rate err\n", __func__);
+		goto fail_roll_back;
+	}
+	dvfs_clk->set_freq	= rate_new / 1000;
+
+	DVFS_DBG("dvfs %s set rate %lu ok\n", dvfs_clk->name, clk_get_rate(clk));
+
+	/* if down the rate */
+	if (rate_new < rate_old) {
+		ret = ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+		if (ret < 0)
+			goto out;
+	}
+
+	return ret;
+fail_roll_back:
+	dvfs_clk->set_volt = clk_volt_store;
+out:
+	return -1;
+}
+
+
+#else
+
 #ifdef CONFIG_ARCH_RK3188
 static int g_arm_high_logic = 50 * 1000;
 static int g_logic_high_arm = 100 * 1000;
@@ -381,6 +481,8 @@ out:
 	return -1;
 }
 
+
+#endif
 /*****************************init**************************/
 /**
  * rate must be raising sequence
@@ -439,14 +541,23 @@ static struct vd_node vd_cpu = {
 	.name 		= "vd_cpu",
 	.regulator_name	= "vdd_cpu",
 	.volt_set_flag		= DVFS_SET_VOLT_FAILURE,
+#ifdef NO_VOLT_DIFF
+	.vd_dvfs_target	= dvfs_target,
+#else
 	.vd_dvfs_target	= dvfs_target_cpu,
+#endif
 };
 
 static struct vd_node vd_core = {
 	.name 		= "vd_core",
 	.regulator_name = "vdd_core",
 	.volt_set_flag		= DVFS_SET_VOLT_FAILURE,
+#ifdef NO_VOLT_DIFF
+	.vd_dvfs_target	= dvfs_target,
+#else
 	.vd_dvfs_target	= dvfs_target_core,
+#endif
+
 };
 
 static struct vd_node vd_rtc = {
@@ -609,7 +720,9 @@ int rk3188_dvfs_init(void)
 		rk_regist_depends(&rk30_depends[i]);
 	}
 	#endif
+#ifndef NO_VOLT_DIFF
 	dvfs_clk_cpu = dvfs_get_dvfs_clk_byname("cpu");
+#endif
 	//avs_board_init(&rk30_avs_ctr);
 	return 0;
 }
