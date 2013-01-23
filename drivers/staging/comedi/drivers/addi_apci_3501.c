@@ -173,7 +173,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
-	unsigned int dw_Dummy;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -224,22 +223,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	/*  Read eepeom and fill addi_board Structure */
-
-	if (this_board->i_PCIEeprom) {
-		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035")))
-				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			else
-				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-
-			/*  Enable the interrupt for the controller */
-			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-		}
-		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
-	}
+	addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
