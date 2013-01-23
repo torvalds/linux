@@ -138,16 +138,17 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 	dir = dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT : AC_AMP_GET_INPUT;
 	for (i = 0; i < indices; i++) {
 		snd_iprintf(buffer, " [");
+		val = snd_hda_codec_read(codec, nid, 0,
+					 AC_VERB_GET_AMP_GAIN_MUTE,
+					 AC_AMP_GET_LEFT | dir | i);
+		snd_iprintf(buffer, "0x%02x", val);
 		if (stereo) {
 			val = snd_hda_codec_read(codec, nid, 0,
 						 AC_VERB_GET_AMP_GAIN_MUTE,
-						 AC_AMP_GET_LEFT | dir | i);
-			snd_iprintf(buffer, "0x%02x ", val);
+						 AC_AMP_GET_RIGHT | dir | i);
+			snd_iprintf(buffer, " 0x%02x", val);
 		}
-		val = snd_hda_codec_read(codec, nid, 0,
-					 AC_VERB_GET_AMP_GAIN_MUTE,
-					 AC_AMP_GET_RIGHT | dir | i);
-		snd_iprintf(buffer, "0x%02x]", val);
+		snd_iprintf(buffer, "]");
 	}
 	snd_iprintf(buffer, "\n");
 }

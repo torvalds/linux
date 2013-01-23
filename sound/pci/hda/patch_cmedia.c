@@ -22,7 +22,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/module.h>
@@ -30,6 +29,9 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_auto_parser.h"
+#include "hda_jack.h"
+#include "hda_generic.h"
+
 #define NUM_PINS	11
 
 
@@ -45,6 +47,10 @@ enum {
 };
 
 struct cmi_spec {
+	struct hda_gen_spec gen;
+
+	/* below are only for static models */
+
 	int board_config;
 	unsigned int no_line_in: 1;	/* no line-in (5-jack) */
 	unsigned int front_panel: 1;	/* has front-panel 2-jack */
@@ -356,77 +362,6 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
-/* fill in the multi_dac_nids table, which will decide
-   which audio widget to use for each channel */
-static int cmi9880_fill_multi_dac_nids(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
-{
-	struct cmi_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int assigned[4];
-	int i, j;
-
-	/* clear the table, only one c-media dac assumed here */
-	memset(spec->dac_nids, 0, sizeof(spec->dac_nids));
-	memset(assigned, 0, sizeof(assigned));
-	/* check the pins we found */
-	for (i = 0; i < cfg->line_outs; i++) {
-		nid = cfg->line_out_pins[i];
-		/* nid 0x0b~0x0e is hardwired to audio widget 0x3~0x6 */
-		if (nid >= 0x0b && nid <= 0x0e) {
-			spec->dac_nids[i] = (nid - 0x0b) + 0x03;
-			assigned[nid - 0x0b] = 1;
-		}
-	}
-	/* left pin can be connect to any audio widget */
-	for (i = 0; i < cfg->line_outs; i++) {
-		nid = cfg->line_out_pins[i];
-		if (nid <= 0x0e)
-			continue;
-		/* search for an empty channel */
-		for (j = 0; j < cfg->line_outs; j++) {
-			if (! assigned[j]) {
-				spec->dac_nids[i] = j + 0x03;
-				assigned[j] = 1;
-				break;
-			}
-		}
-	}
-	spec->num_dacs = cfg->line_outs;
-	return 0;
-}
-
-/* create multi_init table, which is used for multichannel initialization */
-static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
-{
-	struct cmi_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int i, j, k;
-
-	/* clear the table, only one c-media dac assumed here */
-	memset(spec->multi_init, 0, sizeof(spec->multi_init));
-	for (j = 0, i = 0; i < cfg->line_outs; i++) {
-		nid = cfg->line_out_pins[i];
-		/* set as output */
-		spec->multi_init[j].nid = nid;
-		spec->multi_init[j].verb = AC_VERB_SET_PIN_WIDGET_CONTROL;
-		spec->multi_init[j].param = PIN_OUT;
-		j++;
-		if (nid > 0x0e) {
-			/* set connection */
-			spec->multi_init[j].nid = nid;
-			spec->multi_init[j].verb = AC_VERB_SET_CONNECT_SEL;
-			spec->multi_init[j].param = 0;
-			/* find the index in connect list */
-			k = snd_hda_get_conn_index(codec, nid,
-						   spec->dac_nids[i], 0);
-			if (k >= 0)
-				spec->multi_init[j].param = k;
-			j++;
-		}
-	}
-	return 0;
-}
-
 static int cmi9880_init(struct hda_codec *codec)
 {
 	struct cmi_spec *spec = codec->spec;
@@ -632,6 +567,36 @@ static const struct hda_codec_ops cmi9880_patch_ops = {
 	.free = cmi9880_free,
 };
 
+/*
+ * stuff for auto-parser
+ */
+static const struct hda_codec_ops cmi_auto_patch_ops = {
+	.build_controls = snd_hda_gen_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = snd_hda_gen_init,
+	.free = snd_hda_gen_free,
+	.unsol_event = snd_hda_jack_unsol_event,
+};
+
+static int cmi_parse_auto_config(struct hda_codec *codec)
+{
+	struct cmi_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
+	int err;
+
+	snd_hda_gen_spec_init(&spec->gen);
+
+	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
+	if (err < 0)
+		return err;
+	err = snd_hda_gen_parse_auto_config(codec, cfg);
+	if (err < 0)
+		return err;
+
+	codec->patch_ops = cmi_auto_patch_ops;
+	return 0;
+}
+
 static int patch_cmi9880(struct hda_codec *codec)
 {
 	struct cmi_spec *spec;
@@ -648,6 +613,15 @@ static int patch_cmi9880(struct hda_codec *codec)
 		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
 			    codec->chip_name);
 		spec->board_config = CMI_AUTO; /* try everything */
+	}
+
+	if (spec->board_config == CMI_AUTO) {
+		int err = cmi_parse_auto_config(codec);
+		if (err < 0) {
+			snd_hda_gen_free(codec);
+			return err;
+		}
+		return 0;
 	}
 
 	/* copy default DAC NIDs */
@@ -678,59 +652,13 @@ static int patch_cmi9880(struct hda_codec *codec)
 		}
 		break;
 	case CMI_ALLOUT:
+	default:
 		spec->front_panel = 1;
 		spec->multiout.max_channels = 8;
 		spec->no_line_in = 1;
 		spec->input_mux = &cmi9880_no_line_mux;
 		spec->multiout.dig_out_nid = CMI_DIG_OUT_NID;
 		break;
-	case CMI_AUTO:
-		{
-		unsigned int port_e, port_f, port_g, port_h;
-		unsigned int port_spdifi, port_spdifo;
-		struct auto_pin_cfg cfg;
-
-		/* collect pin default configuration */
-		port_e = snd_hda_codec_get_pincfg(codec, 0x0f);
-		port_f = snd_hda_codec_get_pincfg(codec, 0x10);
-		spec->front_panel = 1;
-		if (get_defcfg_connect(port_e) == AC_JACK_PORT_NONE ||
-		    get_defcfg_connect(port_f) == AC_JACK_PORT_NONE) {
-			port_g = snd_hda_codec_get_pincfg(codec, 0x1f);
-			port_h = snd_hda_codec_get_pincfg(codec, 0x20);
-			spec->channel_modes = cmi9880_channel_modes;
-			/* no front panel */
-			if (get_defcfg_connect(port_g) == AC_JACK_PORT_NONE ||
-			    get_defcfg_connect(port_h) == AC_JACK_PORT_NONE) {
-				/* no optional rear panel */
-				spec->board_config = CMI_MINIMAL;
-				spec->front_panel = 0;
-				spec->num_channel_modes = 2;
-			} else {
-				spec->board_config = CMI_MIN_FP;
-				spec->num_channel_modes = 3;
-			}
-			spec->input_mux = &cmi9880_basic_mux;
-			spec->multiout.max_channels = cmi9880_channel_modes[0].channels;
-		} else {
-			spec->input_mux = &cmi9880_basic_mux;
-			port_spdifi = snd_hda_codec_get_pincfg(codec, 0x13);
-			port_spdifo = snd_hda_codec_get_pincfg(codec, 0x12);
-			if (get_defcfg_connect(port_spdifo) != AC_JACK_PORT_NONE)
-				spec->multiout.dig_out_nid = CMI_DIG_OUT_NID;
-			if (get_defcfg_connect(port_spdifi) != AC_JACK_PORT_NONE)
-				spec->dig_in_nid = CMI_DIG_IN_NID;
-			spec->multiout.max_channels = 8;
-		}
-		snd_hda_parse_pin_def_config(codec, &cfg, NULL);
-		if (cfg.line_outs) {
-			spec->multiout.max_channels = cfg.line_outs * 2;
-			cmi9880_fill_multi_dac_nids(codec, &cfg);
-			cmi9880_fill_multi_init(codec, &cfg);
-		} else
-			snd_printd("patch_cmedia: cannot detect association in defcfg\n");
-		break;
-		}
 	}
 
 	spec->multiout.num_dacs = spec->num_dacs;

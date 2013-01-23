@@ -719,9 +719,10 @@ struct hda_codec_ops {
 
 /* record for amp information cache */
 struct hda_cache_head {
-	u32 key;		/* hash key */
+	u32 key:31;		/* hash key */
+	u32 dirty:1;
 	u16 val;		/* assigned value */
-	u16 next;		/* next link; -1 = terminal */
+	u16 next;
 };
 
 struct hda_amp_info {
@@ -830,7 +831,7 @@ struct hda_codec {
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
-	struct snd_array conn_lists;	/* connection-list array */
+	struct list_head conn_list;	/* linked-list of connection-list */
 
 	struct mutex spdif_mutex;
 	struct mutex control_mutex;
@@ -844,6 +845,7 @@ struct hda_codec {
 	struct snd_array cvt_setups;	/* audio convert setups */
 
 #ifdef CONFIG_SND_HDA_HWDEP
+	struct mutex user_mutex;
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 	struct snd_array init_verbs;	/* additional init verbs */
 	struct snd_array hints;		/* additional hints */
@@ -865,8 +867,11 @@ struct hda_codec {
 	unsigned int pins_shutup:1;	/* pins are shut up */
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
+	unsigned int inv_eapd:1; /* broken h/w: inverted EAPD control */
+	unsigned int inv_jack_detect:1;	/* broken h/w: inverted detection bit */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int epss:1;		/* supporting EPSS? */
+	unsigned int cached_write:1;	/* write only to caches */
 #ifdef CONFIG_PM
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
@@ -894,6 +899,14 @@ struct hda_codec {
 	/* jack detection */
 	struct snd_array jacks;
 #endif
+
+	/* fix-up list */
+	int fixup_id;
+	const struct hda_fixup *fixup_list;
+	const char *fixup_name;
+
+	/* additional init verbs */
+	struct snd_array verbs;
 };
 
 /* direction */
@@ -932,6 +945,8 @@ snd_hda_get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 }
 int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
+int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
+			  const hda_nid_t **listp);
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
 			  const hda_nid_t *list);
 int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
@@ -952,7 +967,6 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
 
 /* cached write */
-#ifdef CONFIG_PM
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
@@ -960,17 +974,14 @@ void snd_hda_sequence_write_cache(struct hda_codec *codec,
 int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
-#else
-#define snd_hda_codec_write_cache	snd_hda_codec_write
-#define snd_hda_codec_update_cache	snd_hda_codec_write
-#define snd_hda_sequence_write_cache	snd_hda_sequence_write
-#endif
+/* both for cmd & amp caches */
+void snd_hda_codec_flush_cache(struct hda_codec *codec);
 
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;
-	unsigned char ctrl;	/* current pin control value */
-	unsigned char pad;	/* reserved */
+	unsigned char ctrl;	/* original pin control value */
+	unsigned char target;	/* target pin control value */
 	unsigned int cfg;	/* default configuration */
 };
 
