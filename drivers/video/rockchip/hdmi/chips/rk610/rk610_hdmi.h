@@ -2,7 +2,11 @@
 #define __RK610_HDMI_H__
 #include "../../rk_hdmi.h"
 
+#if defined(CONFIG_MACH_RK3168_DS1006H)
+#define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC1
+#else
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
+#endif
 //#define HDMI_USE_IRQ
 
 struct rk610_hdmi_pdata {
