@@ -773,6 +773,7 @@ static inline void bnx2x_vf_mbx(struct bnx2x *bp,
 static inline int bnx2x_iov_init_ilt(struct bnx2x *bp, u16 line) {return line; }
 static inline void bnx2x_iov_init_dq(struct bnx2x *bp) {}
 static inline int bnx2x_iov_alloc_mem(struct bnx2x *bp) {return 0; }
+static inline void bnx2x_iov_free_mem(struct bnx2x *bp) {}
 static inline int bnx2x_iov_chip_cleanup(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_iov_init_dmae(struct bnx2x *bp) {}
 static inline int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,

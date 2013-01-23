@@ -7738,10 +7738,6 @@ void bnx2x_free_mem(struct bnx2x *bp)
 {
 	int i;
 
-	/* fastpath */
-	bnx2x_free_fp_mem(bp);
-	/* end of fastpath */
-
 	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
 		       sizeof(struct host_sp_status_block));
 
@@ -7762,6 +7758,8 @@ void bnx2x_free_mem(struct bnx2x *bp)
 
 	BNX2X_PCI_FREE(bp->eq_ring, bp->eq_mapping,
 		       BCM_PAGE_SIZE * NUM_EQ_PAGES);
+
+	bnx2x_iov_free_mem(bp);
 }
 
 
