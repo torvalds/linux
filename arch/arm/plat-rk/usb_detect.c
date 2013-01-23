@@ -76,7 +76,7 @@ int __init board_usb_detect_init(unsigned gpio)
 	return 0;
 }
 
-#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
+#ifdef IRQ_OTG_BVALID
 #include <linux/io.h>
 #include <mach/iomux.h>
 
@@ -93,8 +93,10 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	writel_relaxed((1 << 31) | (1 << 15), RK30_GRF_BASE + GRF_UOC0_CON3);
 #endif
 
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 	wake_lock_timeout(&usb_wakelock, WAKE_LOCK_TIMEOUT);
 	rk28_send_wakeup_key();
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -104,15 +106,19 @@ static int __init bvalid_init(void)
 	int ret;
 	int irq = IRQ_OTG_BVALID;
 
+#ifndef CONFIG_RK_USB_UART
 	if (detect_gpio != INVALID_GPIO) {
 		printk("usb detect inited by board_usb_detect_init, disable detect by bvalid irq\n");
 		return 0;
 	}
+#endif
 
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 	if (!wakelock_inited) {
 		wake_lock_init(&usb_wakelock, WAKE_LOCK_SUSPEND, "usb_detect");
 		wakelock_inited = true;
 	}
+#endif
 
 	ret = request_irq(irq, bvalid_irq_handler, 0, "bvalid", NULL);
 	if (ret < 0) {
@@ -127,7 +133,9 @@ static int __init bvalid_init(void)
 	writel_relaxed((3 << 30) | (3 << 14), RK30_GRF_BASE + GRF_UOC0_CON3);
 #endif
 
+#ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 	enable_irq_wake(irq);
+#endif
 
 	return 0;
 }
