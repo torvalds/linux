@@ -151,6 +151,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	}
 	spin_lock_init(&blkif->pending_free_lock);
 	init_waitqueue_head(&blkif->pending_free_wq);
+	init_waitqueue_head(&blkif->shutdown_wq);
 
 	return blkif;
 
@@ -231,6 +232,7 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
+		wake_up(&blkif->shutdown_wq);
 		blkif->xenblkd = NULL;
 	}
 
