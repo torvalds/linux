@@ -90,7 +90,6 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <408000000>;
 	};
 
 	i2c@7000c000 {

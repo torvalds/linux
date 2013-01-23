@@ -120,13 +120,11 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <408000000>;
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
-		clock-frequency = <408000000>;
 	};
 
 	i2c@7000c000 {
