@@ -44,7 +44,6 @@ struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
-	struct clk *emc_clk;
 	struct usb_phy *transceiver;
 	int host_resumed;
 	int port_resuming;
@@ -56,7 +55,6 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
-	clk_prepare_enable(tegra->emc_clk);
 	clk_prepare_enable(tegra->clk);
 	usb_phy_set_suspend(&tegra->phy->u_phy, 0);
 	tegra->host_resumed = 1;
@@ -69,7 +67,6 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd)
 	tegra->host_resumed = 0;
 	usb_phy_set_suspend(&tegra->phy->u_phy, 1);
 	clk_disable_unprepare(tegra->clk);
-	clk_disable_unprepare(tegra->emc_clk);
 }
 
 static int tegra_ehci_internal_port_reset(
@@ -694,16 +691,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_clk;
 
-	tegra->emc_clk = devm_clk_get(&pdev->dev, "emc");
-	if (IS_ERR(tegra->emc_clk)) {
-		dev_err(&pdev->dev, "Can't get emc clock\n");
-		err = PTR_ERR(tegra->emc_clk);
-		goto fail_emc_clk;
-	}
-
-	clk_prepare_enable(tegra->emc_clk);
-	clk_set_rate(tegra->emc_clk, 400000000);
-
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
 
@@ -813,8 +800,6 @@ fail:
 #endif
 	usb_phy_shutdown(&tegra->phy->u_phy);
 fail_io:
-	clk_disable_unprepare(tegra->emc_clk);
-fail_emc_clk:
 	clk_disable_unprepare(tegra->clk);
 fail_clk:
 	usb_put_hcd(hcd);
@@ -841,8 +826,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	usb_phy_shutdown(&tegra->phy->u_phy);
 
 	clk_disable_unprepare(tegra->clk);
-
-	clk_disable_unprepare(tegra->emc_clk);
 
 	return 0;
 }
