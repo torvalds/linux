@@ -110,6 +110,8 @@ struct idu_irq_status {
 extern void idu_irq_set_tgtcpu(uint8_t irq, uint32_t mask);
 extern void idu_irq_set_mode(uint8_t irq, uint8_t dest_mode, uint8_t trig_mode);
 
+extern void iss_model_init_smp(unsigned int cpu);
+
 #endif	/* CONFIG_SMP */
 
 #endif

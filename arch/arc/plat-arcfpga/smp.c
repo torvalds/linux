@@ -63,10 +63,8 @@ void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc)
  * -Master      : init_IRQ()
  * -Other(s)    : start_kernel_secondary()
  */
-void arc_platform_smp_init_cpu(void)
+void iss_model_init_smp(unsigned int cpu)
 {
-	int cpu = smp_processor_id();
-
 	/* Check if CPU is configured for more than 16 interrupts */
 	if (NR_IRQS <= 16 || get_hw_config_num_irq() <= 16)
 		panic("[arcfpga] IRQ system can't support IDU IPI\n");

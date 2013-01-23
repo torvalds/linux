@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 
-void __init plat_init_IRQ(void)
+void __init plat_fpga_init_IRQ(void)
 {
 	/*
 	 * SMP Hack because UART IRQ hardwired to cpu0 (boot-cpu) but if the

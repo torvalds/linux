@@ -124,7 +124,6 @@ void __init init_onchip_IRQ(void)
 void __init init_IRQ(void)
 {
 	init_onchip_IRQ();
-	plat_init_IRQ();
 
 	/* Any external intc can be setup here */
 	if (machine_desc->init_irq)
@@ -132,7 +131,6 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */
-	arc_platform_smp_init_cpu();
 	if (machine_desc->init_smp)
 		machine_desc->init_smp(smp_processor_id());
 #endif

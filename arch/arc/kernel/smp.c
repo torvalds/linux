@@ -127,7 +127,6 @@ void __cpuinit start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
-	arc_platform_smp_init_cpu();
 	if (machine_desc->init_smp)
 		machine_desc->init_smp(smp_processor_id());
 

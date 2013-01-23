@@ -319,10 +319,6 @@ void __init setup_processor(void)
 	arc_chk_fpu();
 }
 
-void __init __attribute__((weak)) arc_platform_early_init(void)
-{
-}
-
 void __init setup_arch(char **cmdline_p)
 {
 #ifdef CONFIG_CMDLINE_UBOOT
@@ -347,7 +343,6 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	/* Platform/board specific: e.g. early console registration */
-	arc_platform_early_init();
 	if (machine_desc->init_early)
 		machine_desc->init_early();
 
