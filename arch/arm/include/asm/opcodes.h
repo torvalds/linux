@@ -10,6 +10,7 @@
 #define __ASM_ARM_OPCODES_H
 
 #ifndef __ASSEMBLY__
+#include <linux/linkage.h>
 extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 #endif
 
