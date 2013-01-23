@@ -136,7 +136,8 @@ static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
 					unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;
+	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity;
+	int ret;
 
 	ul_Channel_no = CR_CHAN(insn->chanspec);
 
@@ -159,21 +160,15 @@ static int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev,
 		printk("\nIn WriteAnalogOutput :: Not Valid Channel\n");
 	}			/*  end if((ul_Channel_no<0)||(ul_Channel_no>7)) */
 
-	ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
+	ret = apci3501_wait_for_dac(dev);
+	if (ret)
+		return ret;
 
-	while (ul_DAC_Ready == 0) {
-		ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
-		ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
-	}
-
-	if (ul_DAC_Ready) {
-/* Output the Value on the output channels. */
-		ul_Command1 =
-			(unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
+	/* Output the Value on the output channels. */
+	ul_Command1 = (unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
 			(unsigned int) ((*data << 0x8) & 0x7FFFFF00L) |
 			(unsigned int) (ul_Polarity));
-		outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
-	}
+	outl(ul_Command1, dev->iobase + APCI3501_AO_DATA_REG);
 
 	return insn->n;
 }

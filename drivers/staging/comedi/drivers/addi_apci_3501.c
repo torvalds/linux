@@ -47,6 +47,17 @@ static struct comedi_lrange apci3501_ao_range = {
 	}
 };
 
+static int apci3501_wait_for_dac(struct comedi_device *dev)
+{
+	unsigned int status;
+
+	do {
+		status = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
+	} while (!(status & APCI3501_AO_STATUS_READY));
+
+	return 0;
+}
+
 #include "addi-data/hwdrv_apci3501.c"
 
 static int apci3501_di_insn_bits(struct comedi_device *dev,
@@ -209,7 +220,8 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 static int apci3501_reset(struct comedi_device *dev)
 {
 	int i_Count = 0, i_temp = 0;
-	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;
+	unsigned int ul_Command1 = 0, ul_Polarity;
+	int ret;
 
 	outl(0x0, dev->iobase + APCI3501_DO_REG);
 	outl(1, dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
@@ -217,15 +229,12 @@ static int apci3501_reset(struct comedi_device *dev)
 	ul_Polarity = 0x80000000;
 
 	for (i_Count = 0; i_Count <= 7; i_Count++) {
-		ul_DAC_Ready = inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
-
-		while (ul_DAC_Ready == 0) {
-			ul_DAC_Ready =
-				inl(dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
-			ul_DAC_Ready = (ul_DAC_Ready >> 8) & 1;
-		}
-
-		if (ul_DAC_Ready) {
+		ret = apci3501_wait_for_dac(dev);
+		if (ret) {
+			dev_warn(dev->class_dev,
+				 "%s: DAC not-ready for channel %i\n",
+				 __func__, i_Count);
+		} else {
 			/*  Output the Value on the output channels. */
 			ul_Command1 =
 				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
