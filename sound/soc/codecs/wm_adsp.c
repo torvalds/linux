@@ -768,9 +768,10 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 					    &dsp->alg_regions, list) {
 				if (le32_to_cpu(blk->id) == alg_region->alg &&
 				    type == alg_region->type) {
-					reg = alg_region->base + offset;
+					reg = alg_region->base;
 					reg = wm_adsp_region_to_reg(mem,
 								    reg);
+					reg += offset;
 				}
 			}
 
