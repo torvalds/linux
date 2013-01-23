@@ -788,7 +788,7 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 			/* Commit the changes. */
-			ret_val = e1000e_commit_phy(hw);
+			ret_val = phy->ops.commit(hw);
 			if (ret_val) {
 				e_dbg("Error committing the PHY changes\n");
 				return ret_val;
@@ -844,10 +844,12 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	}
 
 	/* Commit the changes. */
-	ret_val = e1000e_commit_phy(hw);
-	if (ret_val) {
-		e_dbg("Error committing the PHY changes\n");
-		return ret_val;
+	if (phy->ops.commit) {
+		ret_val = phy->ops.commit(hw);
+		if (ret_val) {
+			e_dbg("Error committing the PHY changes\n");
+			return ret_val;
+		}
 	}
 
 	if (phy->type == e1000_phy_82578) {
@@ -1324,9 +1326,11 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 		return ret_val;
 
 	/* Reset the phy to commit changes. */
-	ret_val = e1000e_commit_phy(hw);
-	if (ret_val)
-		return ret_val;
+	if (hw->phy.ops.commit) {
+		ret_val = hw->phy.ops.commit(hw);
+		if (ret_val)
+			return ret_val;
+	}
 
 	if (phy->autoneg_wait_to_complete) {
 		e_dbg("Waiting for forced speed/duplex link on M88 phy.\n");
@@ -2769,21 +2773,6 @@ void e1000_power_down_phy_copper(struct e1000_hw *hw)
 	mii_reg |= MII_CR_POWER_DOWN;
 	e1e_wphy(hw, PHY_CONTROL, mii_reg);
 	usleep_range(1000, 2000);
-}
-
-/**
- *  e1000e_commit_phy - Soft PHY reset
- *  @hw: pointer to the HW structure
- *
- *  Performs a soft PHY reset on those that apply. This is a function pointer
- *  entry point called by drivers.
- **/
-s32 e1000e_commit_phy(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.commit)
-		return hw->phy.ops.commit(hw);
-
-	return 0;
 }
 
 /**
