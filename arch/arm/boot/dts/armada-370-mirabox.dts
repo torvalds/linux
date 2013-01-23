@@ -62,5 +62,13 @@
 			 * Wifi/Bluetooth chip
 			 */
 		};
+
+		usb@d0050000 {
+			status = "okay";
+		};
+
+		usb@d0051000 {
+			status = "okay";
+		};
 	};
 };
