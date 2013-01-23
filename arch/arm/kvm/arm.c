@@ -289,6 +289,7 @@ int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	kvm_mmu_free_memory_caches(vcpu);
+	kvm_timer_vcpu_terminate(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
@@ -329,6 +330,9 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	ret = kvm_vgic_vcpu_init(vcpu);
 	if (ret)
 		return ret;
+
+	/* Set up the timer */
+	kvm_timer_vcpu_init(vcpu);
 
 	return 0;
 }
@@ -1102,6 +1106,13 @@ static int init_hyp_mode(void)
 #ifdef CONFIG_KVM_ARM_VGIC
 		vgic_present = true;
 #endif
+
+	/*
+	 * Init HYP architected timer support
+	 */
+	err = kvm_timer_hyp_init();
+	if (err)
+		goto out_free_mappings;
 
 	kvm_info("Hyp mode initialized successfully\n");
 	return 0;
