@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/rk_screen.h>
 #include <plat/sram.h>
 
 struct adc_platform_data {
