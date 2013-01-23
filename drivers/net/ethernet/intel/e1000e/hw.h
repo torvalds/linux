@@ -79,6 +79,7 @@ enum e1e_registers {
 #define E1000_POEMB	E1000_PHY_CTRL	/* PHY OEM Bits */
 	E1000_PBA      = 0x01000, /* Packet Buffer Allocation - RW */
 	E1000_PBS      = 0x01008, /* Packet Buffer Size */
+	E1000_PBECCSTS = 0x0100C, /* Packet Buffer ECC Status - RW */
 	E1000_EEMNGCTL = 0x01010, /* MNG EEprom Control */
 	E1000_EEWR     = 0x0102C, /* EEPROM Write Register - RW */
 	E1000_FLOP     = 0x0103C, /* FLASH Opcode Register */

@@ -312,6 +312,8 @@ struct e1000_adapter {
 
 	struct napi_struct napi;
 
+	unsigned int uncorr_errors;	/* uncorrectable ECC errors */
+	unsigned int corr_errors;	/* correctable ECC errors */
 	unsigned int restart_queue;
 	u32 txd_cmd;
 
