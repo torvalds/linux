@@ -4,32 +4,18 @@
 #define ADDIDATA_WATCHDOG		2
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ConfigTimerCounterWatchdog              |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Timer , Counter or Watchdog             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Configure As Timer      |
-|										   1 Configure As Counter    |
-|										   2 Configure As Watchdog   |
-|					  data[1]            : 1 Enable  Interrupt       |
-|										   0 Disable Interrupt 	     |
-|					  data[2]            : Time Unit                 |
-|					  data[3]			 : Reload Value			     |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
+ * (*insn_config) for the timer subdevice
+ *
+ * Configures The Timer, Counter or Watchdog
+ * Data Pointer contains configuration parameters as below
+ *	data[0] : 0 Configure As Timer
+ *		  1 Configure As Counter
+ *		  2 Configure As Watchdog
+ *	data[1] : 1 Enable  Interrupt
+ *		  0 Disable Interrupt
+ *	data[2] : Time Unit
+ *	data[3] : Reload Value
+ */
 static int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 						 struct comedi_subdevice *s,
 						 struct comedi_insn *insn,
@@ -89,30 +75,17 @@ static int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_StartStopWriteTimerCounterWatchdog      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Start / Stop The Selected Timer , Counter or Watchdog  |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Timer                   |
-|										   1 Counter                 |
-|										   2 Watchdog          		 |                             |            				 data[1]            : 1 Start                   |
-|										   0 Stop      				 |									                                              2 Trigger                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
+ * (*insn_write) for the timer subdevice
+ *
+ * Start / Stop The Selected Timer , Counter or Watchdog
+ * Data Pointer contains configuration parameters as below
+ *	data[0] : 0 Timer
+ *		  1 Counter
+ *		  2 Watchdog
+ *	data[1] : 1 Start
+ *		  0 Stop
+ *		  2 Trigger
+ */
 static int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 							 struct comedi_subdevice *s,
 							 struct comedi_insn *insn,
@@ -171,29 +144,15 @@ static int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *d
 }
 
 /*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ReadTimerCounterWatchdog                |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read The Selected Timer , Counter or Watchdog          |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|					  data[0]            : 0 Timer                   |
-|										   1 Counter                 |
-|										   2 Watchdog                |                             |					  data[1]             : Timer Counter Watchdog Number   |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
+ * (*insn_read) for the timer subdevice
+ *
+ * Read The Selected Timer, Counter or Watchdog
+ * Data Pointer contains configuration parameters as below
+ *	data[0] : 0 Timer
+ *		  1 Counter
+ *		  2 Watchdog
+ *	data[1] : Timer Counter Watchdog Number
+ */
 static int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
 					       struct comedi_subdevice *s,
 					       struct comedi_insn *insn,
