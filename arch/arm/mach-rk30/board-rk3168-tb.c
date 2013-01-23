@@ -582,7 +582,11 @@ static struct resource resource_lcdc0[] = {
 };
 
 static struct platform_device device_lcdc0 = {
+#ifdef CONFIG_LCDC0_RK3188
+	.name		  = "rk3188-lcdc",
+#else
 	.name		  = "rk30-lcdc",
+#endif
 	.id		  = 0,
 	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
 	.resource	  = resource_lcdc0,
@@ -608,7 +612,11 @@ static struct resource resource_lcdc1[] = {
 };
 
 static struct platform_device device_lcdc1 = {
+#ifdef CONFIG_LCDC1_RK3188
+	.name		  = "rk3188-lcdc",
+#else
 	.name		  = "rk30-lcdc",
+#endif
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
 	.resource	  = resource_lcdc1,
