@@ -212,10 +212,6 @@ struct uhci_qh {
 #define TD_CTRL_BITSTUFF	(1 << 17)	/* Bit Stuff Error */
 #define TD_CTRL_ACTLEN_MASK	0x7FF	/* actual length, encoded as n - 1 */
 
-#define TD_CTRL_ANY_ERROR	(TD_CTRL_STALLED | TD_CTRL_DBUFERR | \
-				 TD_CTRL_BABBLE | TD_CTRL_CRCTIME | \
-				 TD_CTRL_BITSTUFF)
-
 #define uhci_maxerr(err)		((err) << TD_CTRL_C_ERR_SHIFT)
 #define uhci_status_bits(ctrl_sts)	((ctrl_sts) & 0xF60000)
 #define uhci_actual_length(ctrl_sts)	(((ctrl_sts) + 1) & \
