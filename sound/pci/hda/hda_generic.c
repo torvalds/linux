@@ -735,6 +735,14 @@ static void set_pin_eapd(struct hda_codec *codec, hda_nid_t pin, bool enable)
 				   enable ? 0x02 : 0x00);
 }
 
+/* re-initialize the path specified by the given path index */
+static void resume_path_from_idx(struct hda_codec *codec, int path_idx)
+{
+	struct nid_path *path = snd_hda_get_path_from_idx(codec, path_idx);
+	if (path)
+		snd_hda_activate_path(codec, path, path->active, false);
+}
+
 
 /*
  * Helper functions for creating mixer ctl elements
@@ -4684,16 +4692,8 @@ static void init_analog_input(struct hda_codec *codec)
 
 		/* init loopback inputs */
 		if (spec->mixer_nid) {
-			struct nid_path *path;
-			path = snd_hda_get_path_from_idx(codec, spec->loopback_paths[i]);
-			if (path)
-				snd_hda_activate_path(codec, path,
-						      path->active, false);
-			path = snd_hda_get_path_from_idx(codec,
-							 spec->loopback_merge_path);
-			if (path)
-				snd_hda_activate_path(codec, path, path->active,
-						      false);
+			resume_path_from_idx(codec, spec->loopback_paths[i]);
+			resume_path_from_idx(codec, spec->loopback_merge_path);
 		}
 	}
 }
@@ -4741,11 +4741,8 @@ static void init_digital(struct hda_codec *codec)
 		set_output_and_unmute(codec, spec->digout_paths[i]);
 	pin = spec->autocfg.dig_in_pin;
 	if (pin) {
-		struct nid_path *path;
 		restore_pin_ctl(codec, pin);
-		path = snd_hda_get_path_from_idx(codec, spec->digin_path);
-		if (path)
-			snd_hda_activate_path(codec, path, path->active, false);
+		resume_path_from_idx(codec, spec->digin_path);
 	}
 }
 
