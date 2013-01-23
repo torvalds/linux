@@ -1023,9 +1023,9 @@ static s8 fix_rssi_inv_only(u8 rssi_val)
 	return (s8) rssi_val;
 }
 
-
-static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
-			    struct ath_rx_status *rs, u64 tsf)
+/* returns 1 if this was a spectral frame, even if not handled. */
+static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
+			   struct ath_rx_status *rs, u64 tsf)
 {
 #ifdef CONFIG_ATH_DEBUG
 	struct ath_hw *ah = sc->sc_ah;
@@ -1044,7 +1044,14 @@ static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 	if (rs->rs_phyerr != ATH9K_PHYERR_RADAR &&
 	    rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT &&
 	    rs->rs_phyerr != ATH9K_PHYERR_SPECTRAL)
-		return;
+		return 0;
+
+	/* check if spectral scan bit is set. This does not have to be checked
+	 * if received through a SPECTRAL phy error, but shouldn't hurt.
+	 */
+	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
+	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
+		return 0;
 
 	/* Variation in the data length is possible and will be fixed later.
 	 * Note that we only support HT20 for now.
@@ -1053,14 +1060,7 @@ static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 	 */
 	if ((len > SPECTRAL_HT20_TOTAL_DATA_LEN + 2) ||
 	    (len < SPECTRAL_HT20_TOTAL_DATA_LEN - 1))
-		return;
-
-	/* check if spectral scan bit is set. This does not have to be checked
-	 * if received through a SPECTRAL phy error, but shouldn't hurt.
-	 */
-	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
-	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
-		return;
+		return 1;
 
 	fft_sample.tlv.type = ATH_FFT_SAMPLE_HT20;
 	fft_sample.tlv.length = sizeof(fft_sample) - sizeof(fft_sample.tlv);
@@ -1093,7 +1093,7 @@ static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 		memcpy(&bins[32], &vdata[33], SPECTRAL_HT20_NUM_BINS - 32);
 		break;
 	default:
-		return;
+		return 1;
 	}
 
 	/* DC value (value in the middle) is the blind spot of the spectral
@@ -1115,6 +1115,9 @@ static void ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 	fft_sample.tsf = tsf;
 
 	ath_debug_send_fft_sample(sc, &fft_sample.tlv);
+	return 1;
+#else
+	return 0;
 #endif
 }
 
@@ -1202,8 +1205,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
 			rxs->mactime += 0x100000000ULL;
 
-		if ((rs.rs_status & ATH9K_RXERR_PHY))
-			ath_process_fft(sc, hdr, &rs, rxs->mactime);
+		if (rs.rs_status & ATH9K_RXERR_PHY) {
+			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {
+				RX_STAT_INC(rx_spectral);
+				goto requeue_drop_frag;
+			}
+		}
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
 						 rxs, &decrypt_error);

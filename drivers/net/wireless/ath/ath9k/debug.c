@@ -895,6 +895,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	RXS_ERR("RX-Bytes-All", rx_bytes_all);
 	RXS_ERR("RX-Beacons", rx_beacons);
 	RXS_ERR("RX-Frags", rx_frags);
+	RXS_ERR("RX-Spectral", rx_spectral);
 
 	if (len > size)
 		len = size;
