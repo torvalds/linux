@@ -2191,7 +2191,7 @@ static inline void bnx2x_rx_mode_set_rdata_hdr_e2(u32 cid,
 }
 
 static inline void bnx2x_rx_mode_set_cmd_state_e2(struct bnx2x *bp,
-				unsigned long accept_flags,
+				unsigned long *accept_flags,
 				struct eth_filter_rules_cmd *cmd,
 				bool clear_accept_all)
 {
@@ -2201,32 +2201,32 @@ static inline void bnx2x_rx_mode_set_cmd_state_e2(struct bnx2x *bp,
 	state = ETH_FILTER_RULES_CMD_UCAST_DROP_ALL |
 		ETH_FILTER_RULES_CMD_MCAST_DROP_ALL;
 
-	if (accept_flags) {
-		if (test_bit(BNX2X_ACCEPT_UNICAST, &accept_flags))
-			state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
+	if (test_bit(BNX2X_ACCEPT_UNICAST, accept_flags))
+		state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
 
-		if (test_bit(BNX2X_ACCEPT_MULTICAST, &accept_flags))
-			state &= ~ETH_FILTER_RULES_CMD_MCAST_DROP_ALL;
+	if (test_bit(BNX2X_ACCEPT_MULTICAST, accept_flags))
+		state &= ~ETH_FILTER_RULES_CMD_MCAST_DROP_ALL;
 
-		if (test_bit(BNX2X_ACCEPT_ALL_UNICAST, &accept_flags)) {
-			state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
-			state |= ETH_FILTER_RULES_CMD_UCAST_ACCEPT_ALL;
-		}
-
-		if (test_bit(BNX2X_ACCEPT_ALL_MULTICAST, &accept_flags)) {
-			state |= ETH_FILTER_RULES_CMD_MCAST_ACCEPT_ALL;
-			state &= ~ETH_FILTER_RULES_CMD_MCAST_DROP_ALL;
-		}
-		if (test_bit(BNX2X_ACCEPT_BROADCAST, &accept_flags))
-			state |= ETH_FILTER_RULES_CMD_BCAST_ACCEPT_ALL;
-
-		if (test_bit(BNX2X_ACCEPT_UNMATCHED, &accept_flags)) {
-			state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
-			state |= ETH_FILTER_RULES_CMD_UCAST_ACCEPT_UNMATCHED;
-		}
-		if (test_bit(BNX2X_ACCEPT_ANY_VLAN, &accept_flags))
-			state |= ETH_FILTER_RULES_CMD_ACCEPT_ANY_VLAN;
+	if (test_bit(BNX2X_ACCEPT_ALL_UNICAST, accept_flags)) {
+		state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
+		state |= ETH_FILTER_RULES_CMD_UCAST_ACCEPT_ALL;
 	}
+
+	if (test_bit(BNX2X_ACCEPT_ALL_MULTICAST, accept_flags)) {
+		state |= ETH_FILTER_RULES_CMD_MCAST_ACCEPT_ALL;
+		state &= ~ETH_FILTER_RULES_CMD_MCAST_DROP_ALL;
+	}
+
+	if (test_bit(BNX2X_ACCEPT_BROADCAST, accept_flags))
+		state |= ETH_FILTER_RULES_CMD_BCAST_ACCEPT_ALL;
+
+	if (test_bit(BNX2X_ACCEPT_UNMATCHED, accept_flags)) {
+		state &= ~ETH_FILTER_RULES_CMD_UCAST_DROP_ALL;
+		state |= ETH_FILTER_RULES_CMD_UCAST_ACCEPT_UNMATCHED;
+	}
+
+	if (test_bit(BNX2X_ACCEPT_ANY_VLAN, accept_flags))
+		state |= ETH_FILTER_RULES_CMD_ACCEPT_ANY_VLAN;
 
 	/* Clear ACCEPT_ALL_XXX flags for FCoE L2 Queue */
 	if (clear_accept_all) {
@@ -2260,8 +2260,9 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 		data->rules[rule_idx].cmd_general_data =
 			ETH_FILTER_RULES_CMD_TX_CMD;
 
-		bnx2x_rx_mode_set_cmd_state_e2(bp, p->tx_accept_flags,
-			&(data->rules[rule_idx++]), false);
+		bnx2x_rx_mode_set_cmd_state_e2(bp, &p->tx_accept_flags,
+					       &(data->rules[rule_idx++]),
+					       false);
 	}
 
 	/* Rx */
@@ -2272,8 +2273,9 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 		data->rules[rule_idx].cmd_general_data =
 			ETH_FILTER_RULES_CMD_RX_CMD;
 
-		bnx2x_rx_mode_set_cmd_state_e2(bp, p->rx_accept_flags,
-			&(data->rules[rule_idx++]), false);
+		bnx2x_rx_mode_set_cmd_state_e2(bp, &p->rx_accept_flags,
+					       &(data->rules[rule_idx++]),
+					       false);
 	}
 
 
@@ -2293,9 +2295,10 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 			data->rules[rule_idx].cmd_general_data =
 						ETH_FILTER_RULES_CMD_TX_CMD;
 
-			bnx2x_rx_mode_set_cmd_state_e2(bp, p->tx_accept_flags,
-						     &(data->rules[rule_idx++]),
+			bnx2x_rx_mode_set_cmd_state_e2(bp, &p->tx_accept_flags,
+						       &(data->rules[rule_idx]),
 						       true);
+			rule_idx++;
 		}
 
 		/* Rx */
@@ -2306,9 +2309,10 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 			data->rules[rule_idx].cmd_general_data =
 						ETH_FILTER_RULES_CMD_RX_CMD;
 
-			bnx2x_rx_mode_set_cmd_state_e2(bp, p->rx_accept_flags,
-						     &(data->rules[rule_idx++]),
+			bnx2x_rx_mode_set_cmd_state_e2(bp, &p->rx_accept_flags,
+						       &(data->rules[rule_idx]),
 						       true);
+			rule_idx++;
 		}
 	}
 

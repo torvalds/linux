@@ -3002,9 +3002,9 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
 			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
-		} else {
-			return 0;
 		}
+		return 0;
+
 	case IPV4_FLOW:
 	case IPV6_FLOW:
 		/* For IP only 2-tupple hash is supported */
@@ -3012,9 +3012,9 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			DP(BNX2X_MSG_ETHTOOL,
 			   "Command parameters not supported\n");
 			return -EINVAL;
-		} else {
-			return 0;
 		}
+		return 0;
+
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
 	case AH_V4_FLOW:
@@ -3030,9 +3030,9 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 			DP(BNX2X_MSG_ETHTOOL,
 			   "Command parameters not supported\n");
 			return -EINVAL;
-		} else {
-			return 0;
 		}
+		return 0;
+
 	default:
 		return -EINVAL;
 	}

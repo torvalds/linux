@@ -417,8 +417,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe, &tpa_info->l4_rxhash);
 	if (fp->mode == TPA_MODE_GRO) {
 		u16 gro_size = le16_to_cpu(cqe->pkt_len_or_gro_seg_len);
-		tpa_info->full_page =
-			SGE_PAGE_SIZE * PAGES_PER_SGE / gro_size * gro_size;
+		tpa_info->full_page = SGE_PAGES / gro_size * gro_size;
 		tpa_info->gro_size = gro_size;
 	}
 
@@ -499,7 +498,7 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 	}
 
 	mapping = dma_map_page(&bp->pdev->dev, page, 0,
-			       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
+			       SGE_PAGES, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
 		BNX2X_ERR("Can't map sge\n");
@@ -541,7 +540,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 				     le16_to_cpu(cqe->pkt_len));
 
 #ifdef BNX2X_STOP_ON_ERROR
-	if (pages > min_t(u32, 8, MAX_SKB_FRAGS)*SGE_PAGE_SIZE*PAGES_PER_SGE) {
+	if (pages > min_t(u32, 8, MAX_SKB_FRAGS) * SGE_PAGES) {
 		BNX2X_ERR("SGL length is too long: %d. CQE index is %d\n",
 			  pages, cqe_idx);
 		BNX2X_ERR("cqe->pkt_len = %d\n", cqe->pkt_len);
@@ -559,8 +558,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		if (fp->mode == TPA_MODE_GRO)
 			frag_len = min_t(u32, frag_size, (u32)full_page);
 		else /* LRO */
-			frag_len = min_t(u32, frag_size,
-					 (u32)(SGE_PAGE_SIZE * PAGES_PER_SGE));
+			frag_len = min_t(u32, frag_size, (u32)SGE_PAGES);
 
 		rx_pg = &fp->rx_page_ring[sge_idx];
 		old_rx_pg = *rx_pg;
@@ -576,7 +574,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		/* Unmap the page as we r going to pass it to the stack */
 		dma_unmap_page(&bp->pdev->dev,
 			       dma_unmap_addr(&old_rx_pg, mapping),
-			       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
+			       SGE_PAGES, DMA_FROM_DEVICE);
 		/* Add one frag and update the appropriate fields in the skb */
 		if (fp->mode == TPA_MODE_LRO)
 			skb_fill_page_desc(skb, j, old_rx_pg.page, 0, frag_len);
@@ -594,7 +592,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		}
 
 		skb->data_len += frag_len;
-		skb->truesize += SGE_PAGE_SIZE * PAGES_PER_SGE;
+		skb->truesize += SGE_PAGES;
 		skb->len += frag_len;
 
 		frag_size -= frag_len;
@@ -2500,12 +2498,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bp->state = BNX2X_STATE_OPENING_WAIT4_LOAD;
 
-	/* Set the initial link reported state to link down */
-	bnx2x_acquire_phy_lock(bp);
 	memset(&bp->last_reported_link, 0, sizeof(bp->last_reported_link));
 	__set_bit(BNX2X_LINK_REPORT_LINK_DOWN,
 		&bp->last_reported_link.link_report_flags);
-	bnx2x_release_phy_lock(bp);
 
 	if (IS_PF(bp))
 		/* must be called before memory allocation and HW init */
@@ -3346,12 +3341,11 @@ static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
 			ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW;
 
 		return skb_transport_header(skb) + tcp_hdrlen(skb) - skb->data;
-	} else
-		/* We support checksum offload for TCP and UDP only.
-		 * No need to pass the UDP header length - it's a constant.
-		 */
-		return skb_transport_header(skb) +
-				sizeof(struct udphdr) - skb->data;
+	}
+	/* We support checksum offload for TCP and UDP only.
+	 * No need to pass the UDP header length - it's a constant.
+	 */
+	return skb_transport_header(skb) + sizeof(struct udphdr) - skb->data;
 }
 
 static inline void bnx2x_set_sbd_csum(struct bnx2x *bp, struct sk_buff *skb,

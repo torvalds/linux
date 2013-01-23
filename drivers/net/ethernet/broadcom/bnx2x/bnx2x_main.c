@@ -3034,15 +3034,12 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 				pause->sge_th_hi + FW_PREFETCH_CNT >
 				MAX_RX_SGE_CNT * NUM_RX_SGE_PAGES);
 
-		tpa_agg_size = min_t(u32,
-			(min_t(u32, 8, MAX_SKB_FRAGS) *
-			SGE_PAGE_SIZE * PAGES_PER_SGE), 0xffff);
+		tpa_agg_size = TPA_AGG_SIZE;
 		max_sge = SGE_PAGE_ALIGN(bp->dev->mtu) >>
 			SGE_PAGE_SHIFT;
 		max_sge = ((max_sge + PAGES_PER_SGE - 1) &
 			  (~(PAGES_PER_SGE-1))) >> PAGES_PER_SGE_SHIFT;
-		sge_sz = (u16)min_t(u32, SGE_PAGE_SIZE * PAGES_PER_SGE,
-				    0xffff);
+		sge_sz = (u16)min_t(u32, SGE_PAGES, 0xffff);
 	}
 
 	/* pause - not for e1 */
@@ -5673,13 +5670,12 @@ static void bnx2x_init_eq_ring(struct bnx2x *bp)
 		min_t(int, MAX_SP_DESC_CNT - MAX_SPQ_PENDING, NUM_EQ_DESC) - 1);
 }
 
-
 /* called with netif_addr_lock_bh() */
-void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
-			 unsigned long rx_mode_flags,
-			 unsigned long rx_accept_flags,
-			 unsigned long tx_accept_flags,
-			 unsigned long ramrod_flags)
+int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
+			unsigned long rx_mode_flags,
+			unsigned long rx_accept_flags,
+			unsigned long tx_accept_flags,
+			unsigned long ramrod_flags)
 {
 	struct bnx2x_rx_mode_ramrod_params ramrod_param;
 	int rc;
@@ -5709,22 +5705,21 @@ void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
 	rc = bnx2x_config_rx_mode(bp, &ramrod_param);
 	if (rc < 0) {
 		BNX2X_ERR("Set rx_mode %d failed\n", bp->rx_mode);
-		return;
+		return rc;
 	}
+
+	return 0;
 }
 
-/* called with netif_addr_lock_bh() */
-void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
+int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
+			    unsigned long *rx_accept_flags,
+			    unsigned long *tx_accept_flags)
 {
-	unsigned long rx_mode_flags = 0, ramrod_flags = 0;
-	unsigned long rx_accept_flags = 0, tx_accept_flags = 0;
+	/* Clear the flags first */
+	*rx_accept_flags = 0;
+	*tx_accept_flags = 0;
 
-	if (!NO_FCOE(bp))
-
-		/* Configure rx_mode of FCoE Queue */
-		__set_bit(BNX2X_RX_MODE_FCOE_ETH, &rx_mode_flags);
-
-	switch (bp->rx_mode) {
+	switch (rx_mode) {
 	case BNX2X_RX_MODE_NONE:
 		/*
 		 * 'drop all' supersedes any accept flags that may have been
@@ -5732,25 +5727,25 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		 */
 		break;
 	case BNX2X_RX_MODE_NORMAL:
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 	case BNX2X_RX_MODE_ALLMULTI:
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 	case BNX2X_RX_MODE_PROMISC:
@@ -5758,36 +5753,57 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		 * should receive matched and unmatched (in resolution of port)
 		 * unicast packets.
 		 */
-		__set_bit(BNX2X_ACCEPT_UNMATCHED, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNMATCHED, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		if (IS_MF_SI(bp))
-			__set_bit(BNX2X_ACCEPT_ALL_UNICAST, &tx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_ALL_UNICAST, tx_accept_flags);
 		else
-			__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
 
 		break;
 	default:
-		BNX2X_ERR("Unknown rx_mode: %d\n", bp->rx_mode);
-		return;
+		BNX2X_ERR("Unknown rx_mode: %d\n", rx_mode);
+		return -EINVAL;
 	}
 
+	/* Set ACCEPT_ANY_VLAN as we do not enable filtering by VLAN */
 	if (bp->rx_mode != BNX2X_RX_MODE_NONE) {
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
 	}
+
+	return 0;
+}
+
+/* called with netif_addr_lock_bh() */
+int bnx2x_set_storm_rx_mode(struct bnx2x *bp)
+{
+	unsigned long rx_mode_flags = 0, ramrod_flags = 0;
+	unsigned long rx_accept_flags = 0, tx_accept_flags = 0;
+	int rc;
+
+	if (!NO_FCOE(bp))
+		/* Configure rx_mode of FCoE Queue */
+		__set_bit(BNX2X_RX_MODE_FCOE_ETH, &rx_mode_flags);
+
+	rc = bnx2x_fill_accept_flags(bp, bp->rx_mode, &rx_accept_flags,
+				     &tx_accept_flags);
+	if (rc)
+		return rc;
 
 	__set_bit(RAMROD_RX, &ramrod_flags);
 	__set_bit(RAMROD_TX, &ramrod_flags);
 
-	bnx2x_set_q_rx_mode(bp, bp->fp->cl_id, rx_mode_flags, rx_accept_flags,
-			    tx_accept_flags, ramrod_flags);
+	return bnx2x_set_q_rx_mode(bp, bp->fp->cl_id, rx_mode_flags,
+				   rx_accept_flags, tx_accept_flags,
+				   ramrod_flags);
 }
 
 static void bnx2x_init_internal_common(struct bnx2x *bp)
@@ -9539,36 +9555,6 @@ u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 	return base + (BP_ABS_FUNC(bp)) * stride;
 }
 
-static void bnx2x_undi_int_disable_e1h(struct bnx2x *bp)
-{
-	u32 reg = bnx2x_get_pretend_reg(bp);
-
-	/* Flush all outstanding writes */
-	mmiowb();
-
-	/* Pretend to be function 0 */
-	REG_WR(bp, reg, 0);
-	REG_RD(bp, reg);	/* Flush the GRC transaction (in the chip) */
-
-	/* From now we are in the "like-E1" mode */
-	bnx2x_int_disable(bp);
-
-	/* Flush all outstanding writes */
-	mmiowb();
-
-	/* Restore the original function */
-	REG_WR(bp, reg, BP_ABS_FUNC(bp));
-	REG_RD(bp, reg);
-}
-
-static inline void bnx2x_undi_int_disable(struct bnx2x *bp)
-{
-	if (CHIP_IS_E1(bp))
-		bnx2x_int_disable(bp);
-	else
-		bnx2x_undi_int_disable_e1h(bp);
-}
-
 static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 					struct bnx2x_mac_vals *vals)
 {
@@ -9856,7 +9842,6 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 		/* Check if the UNDI driver was previously loaded
 		 * UNDI driver initializes CID offset for normal bell to 0x7
 		 */
-		reset_reg = REG_RD(bp, MISC_REG_RESET_REG_1);
 		if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_DORQ) {
 			tmp_reg = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
 			if (tmp_reg == 0x7) {

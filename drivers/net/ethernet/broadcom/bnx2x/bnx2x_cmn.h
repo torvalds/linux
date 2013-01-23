@@ -403,7 +403,7 @@ void bnx2x_set_rx_mode(struct net_device *dev);
  * If bp->state is OPEN, should be called with
  * netif_addr_lock_bh().
  */
-void bnx2x_set_storm_rx_mode(struct bnx2x *bp);
+int bnx2x_set_storm_rx_mode(struct bnx2x *bp);
 
 /**
  * bnx2x_set_q_rx_mode - configures rx_mode for a single queue.
@@ -415,11 +415,11 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp);
  * @tx_accept_flags:	tx accept configuration (tx switch)
  * @ramrod_flags:	ramrod configuration
  */
-void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
-			 unsigned long rx_mode_flags,
-			 unsigned long rx_accept_flags,
-			 unsigned long tx_accept_flags,
-			 unsigned long ramrod_flags);
+int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
+			unsigned long rx_mode_flags,
+			unsigned long rx_accept_flags,
+			unsigned long tx_accept_flags,
+			unsigned long ramrod_flags);
 
 /* Parity errors related */
 void bnx2x_set_pf_load(struct bnx2x *bp);
@@ -821,7 +821,7 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 		return;
 
 	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
-		       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
+		       SGE_PAGES, DMA_FROM_DEVICE);
 	__free_pages(page, PAGES_PER_SGE_SHIFT);
 
 	sw_buf->page = NULL;
