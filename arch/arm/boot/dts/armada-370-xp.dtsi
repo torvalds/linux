@@ -145,6 +145,21 @@
 			clocks = <&gateclk 17>;
 			status = "disabled";
 		};
+
+		usb@d0050000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0050000 0x500>;
+			interrupts = <45>;
+			status = "disabled";
+		};
+
+		usb@d0051000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0051000 0x500>;
+			interrupts = <46>;
+			status = "disabled";
+		};
+
 	};
 };
 

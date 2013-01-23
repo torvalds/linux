@@ -144,5 +144,14 @@
 				dmacap,memset;
 			};
 		};
+
+		usb@d0050000 {
+			clocks = <&coreclk 0>;
+		};
+
+		usb@d0051000 {
+			clocks = <&coreclk 0>;
+		};
+
 	};
 };
