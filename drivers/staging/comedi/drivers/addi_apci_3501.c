@@ -189,24 +189,10 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	if (!this_board->pc_EepromChip ||
-	    strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
-		/* board does not have an eeprom or is not ADDIDATA_9054 */
-		if (this_board->i_IorangeBase1)
-			dev->iobase = pci_resource_start(pcidev, 1);
-		else
-			dev->iobase = pci_resource_start(pcidev, 0);
-
-		devpriv->iobase = dev->iobase;
-		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
-		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	} else {
-		/* board has an ADDIDATA_9054 eeprom */
-		dev->iobase = pci_resource_start(pcidev, 2);
-		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-					     this_board->i_IorangeBase3);
-	}
+	dev->iobase = pci_resource_start(pcidev, 1);
+	devpriv->iobase = dev->iobase;
+	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
@@ -309,8 +295,6 @@ static void apci3501_detach(struct comedi_device *dev)
 			apci3501_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
 	}
 	if (pcidev) {
 		if (dev->iobase)
