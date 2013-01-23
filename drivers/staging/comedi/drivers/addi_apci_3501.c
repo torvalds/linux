@@ -18,7 +18,6 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_S5933,
 		.i_AoMaxdata		= 16383,
 		.pr_AoRangelist		= &range_apci3501_ao,
-		.interrupt		= v_APCI3501_Interrupt,
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
 	},
@@ -75,13 +74,42 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 	return insn->n;
 }
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
+static irqreturn_t apci3501_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_Timer_AOWatchdog;
+	unsigned long ul_Command1;
+	int i_temp;
 
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
+	/*  Disable Interrupt */
+	ul_Command1 =
+		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+
+	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul);
+	outl(ul_Command1,
+		devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+
+	ui_Timer_AOWatchdog =
+		inl(devpriv->iobase + APCI3501_WATCHDOG +
+		APCI3501_TCW_IRQ) & 0x1;
+
+	if ((!ui_Timer_AOWatchdog)) {
+		comedi_error(dev, "IRQ from unknown source");
+		return IRQ_NONE;
+	}
+
+	/* Enable Interrupt Send a signal to from kernel to user space */
+	send_sig(SIGIO, devpriv->tsk_Current, 0);
+	ul_Command1 =
+		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
+	outl(ul_Command1,
+		devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
+	i_temp = inl(devpriv->iobase + APCI3501_WATCHDOG +
+		APCI3501_TCW_TRIG_STATUS) & 0x1;
+
+	return IRQ_HANDLED;
 }
 
 static int apci3501_reset(struct comedi_device *dev)
@@ -190,7 +218,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	/* ## */
 
 	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
+		ret = request_irq(pcidev->irq, apci3501_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
