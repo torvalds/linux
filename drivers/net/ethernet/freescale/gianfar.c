@@ -355,6 +355,10 @@ static void gfar_init_mac(struct net_device *ndev)
 		gfar_write(&regs->rir0, DEFAULT_RIR0);
 	}
 
+	/* Restore PROMISC mode */
+	if (ndev->flags & IFF_PROMISC)
+		rctrl |= RCTRL_PROM;
+
 	if (ndev->features & NETIF_F_RXCSUM)
 		rctrl |= RCTRL_CHECKSUMMING;
 
