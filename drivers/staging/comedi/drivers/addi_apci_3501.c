@@ -4,8 +4,27 @@
 
 #include "addi-data/addi_common.h"
 
-#include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3501.c"
+
+/*
+ * AMCC S5933 NVRAM
+ */
+#define NVRAM_USER_DATA_START	0x100
+
+#define NVCMD_BEGIN_READ	(0x7 << 5)
+#define NVCMD_LOAD_LOW		(0x4 << 5)
+#define NVCMD_LOAD_HIGH		(0x5 << 5)
+
+/*
+ * Function types stored in the eeprom
+ */
+#define EEPROM_DIGITALINPUT		0
+#define EEPROM_DIGITALOUTPUT		1
+#define EEPROM_ANALOGINPUT		2
+#define EEPROM_ANALOGOUTPUT		3
+#define EEPROM_TIMER			4
+#define EEPROM_WATCHDOG			5
+#define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
 static const struct addi_board apci3501_boardtypes[] = {
 	{
@@ -50,19 +69,90 @@ static int apci3501_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void apci3501_eeprom_wait(unsigned long iobase)
+{
+	unsigned char val;
+
+	do {
+		val = inb(iobase + AMCC_OP_REG_MCSR_NVCMD);
+	} while (val & 0x80);
+}
+
+static unsigned short apci3501_eeprom_readw(unsigned long iobase,
+					    unsigned short addr)
+{
+	unsigned short val = 0;
+	unsigned char tmp;
+	unsigned char i;
+
+	/* Add the offset to the start of the user data */
+	addr += NVRAM_USER_DATA_START;
+
+	for (i = 0; i < 2; i++) {
+		/* Load the low 8 bit address */
+		outb(NVCMD_LOAD_LOW, iobase + AMCC_OP_REG_MCSR_NVCMD);
+		apci3501_eeprom_wait(iobase);
+		outb((addr + i) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
+		apci3501_eeprom_wait(iobase);
+
+		/* Load the high 8 bit address */
+		outb(NVCMD_LOAD_HIGH, iobase + AMCC_OP_REG_MCSR_NVCMD);
+		apci3501_eeprom_wait(iobase);
+		outb(((addr + i) >> 8) & 0xff,
+			iobase + AMCC_OP_REG_MCSR_NVDATA);
+		apci3501_eeprom_wait(iobase);
+
+		/* Read the eeprom data byte */
+		outb(NVCMD_BEGIN_READ, iobase + AMCC_OP_REG_MCSR_NVCMD);
+		apci3501_eeprom_wait(iobase);
+		tmp = inb(iobase + AMCC_OP_REG_MCSR_NVDATA);
+		apci3501_eeprom_wait(iobase);
+
+		if (i == 0)
+			val |= tmp;
+		else
+			val |= (tmp << 8);
+	}
+
+	return val;
+}
+
+static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned long iobase = devpriv->i_IobaseAmcc;
+	unsigned char nfuncs;
+	int i;
+
+	nfuncs = apci3501_eeprom_readw(iobase, 10) & 0xff;
+
+	/* Read functionality details */
+	for (i = 0; i < nfuncs; i++) {
+		unsigned short offset = i * 4;
+		unsigned short addr;
+		unsigned char func;
+		unsigned short val;
+
+		func = apci3501_eeprom_readw(iobase, 12 + offset) & 0x3f;
+		addr = apci3501_eeprom_readw(iobase, 14 + offset);
+
+		if (func == EEPROM_ANALOGOUTPUT) {
+			val = apci3501_eeprom_readw(iobase, addr + 10);
+			return (val >> 4) & 0x3ff;
+		}
+	}
+	return 0;
+}
+
 static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
-	unsigned short w_Address = CR_CHAN(insn->chanspec);
-	unsigned short w_Data;
+	unsigned short addr = CR_CHAN(insn->chanspec);
 
-	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
-		this_board->pc_EepromChip, 2 * w_Address);
-	data[0] = w_Data;
+	data[0] = apci3501_eeprom_readw(devpriv->i_IobaseAmcc, 2 * addr);
 
 	return insn->n;
 }
@@ -164,6 +254,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
+	int ao_n_chan;
 	int ret, n_subdevices;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
@@ -184,8 +275,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 
-	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
+	ao_n_chan = apci3501_eeprom_get_ao_n_chan(dev);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3501_interrupt, IRQF_SHARED,
@@ -193,8 +283,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		if (ret == 0)
 			dev->irq = pcidev->irq;
 	}
-
-	addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
@@ -207,19 +295,18 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_NbrAoChannel) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->maxdata = 0x3fff;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->range_table = &range_apci3501_ao;
-		s->insn_config = i_APCI3501_ConfigAnalogOutput;
-		s->insn_write = i_APCI3501_WriteAnalogOutput;
+	if (ao_n_chan) {
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan	= ao_n_chan;
+		s->maxdata	= 0x3fff;
+		s->range_table	= &range_apci3501_ao;
+		s->insn_config	= i_APCI3501_ConfigAnalogOutput;
+		s->insn_write	= i_APCI3501_WriteAnalogOutput;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
+
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
