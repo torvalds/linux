@@ -412,8 +412,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
 	u32 status = 0;
-	u32 mcr;
-	u32 irq_mask = 0;
+	u32 mcr, irq_mask;
 	int timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
@@ -482,8 +481,7 @@ static void fill_tx_fifo(struct nmk_i2c_dev *dev, int no_bytes)
 static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
 	u32 status = 0;
-	u32 mcr;
-	u32 irq_mask = 0;
+	u32 mcr, irq_mask;
 	int timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
@@ -731,8 +729,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	struct nmk_i2c_dev *dev = arg;
 	u32 tft, rft;
 	u32 count;
-	u32 misr;
-	u32 src = 0;
+	u32 misr, src;
 
 	/* load Tx FIFO and Rx FIFO threshold values */
 	tft = readl(dev->virtbase + I2C_TFTR);
