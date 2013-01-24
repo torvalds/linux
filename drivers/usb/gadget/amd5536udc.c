@@ -3080,7 +3080,6 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	if (dev->active)
 		pci_disable_device(pdev);
 
-	device_unregister(&dev->gadget.dev);
 	pci_set_drvdata(pdev, NULL);
 
 	udc_remove(dev);
@@ -3276,6 +3275,7 @@ static int udc_probe(struct udc *dev)
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
+	dev->gadget.register_my_device = true;
 
 	/* init registers, interrupts, ... */
 	startup_registers(dev);
@@ -3300,13 +3300,6 @@ static int udc_probe(struct udc *dev)
 	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
 	if (retval)
 		goto finished;
-
-	retval = device_register(&dev->gadget.dev);
-	if (retval) {
-		usb_del_gadget_udc(&dev->gadget);
-		put_device(&dev->gadget.dev);
-		goto finished;
-	}
 
 	/* timer init */
 	init_timer(&udc_timer);
