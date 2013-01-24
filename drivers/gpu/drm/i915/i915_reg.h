@@ -3269,41 +3269,41 @@
 #define  FDI_PLL_FREQ_DISABLE_COUNT_LIMIT_MASK  0xff
 
 
-#define _PIPEA_DATA_M1           0x60030
+#define _PIPEA_DATA_M1           (dev_priv->info->display_mmio_offset + 0x60030)
 #define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
 #define  TU_SIZE_MASK           0x7e000000
 #define  PIPE_DATA_M1_OFFSET    0
-#define _PIPEA_DATA_N1           0x60034
+#define _PIPEA_DATA_N1           (dev_priv->info->display_mmio_offset + 0x60034)
 #define  PIPE_DATA_N1_OFFSET    0
 
-#define _PIPEA_DATA_M2           0x60038
+#define _PIPEA_DATA_M2           (dev_priv->info->display_mmio_offset + 0x60038)
 #define  PIPE_DATA_M2_OFFSET    0
-#define _PIPEA_DATA_N2           0x6003c
+#define _PIPEA_DATA_N2           (dev_priv->info->display_mmio_offset + 0x6003c)
 #define  PIPE_DATA_N2_OFFSET    0
 
-#define _PIPEA_LINK_M1           0x60040
+#define _PIPEA_LINK_M1           (dev_priv->info->display_mmio_offset + 0x60040)
 #define  PIPE_LINK_M1_OFFSET    0
-#define _PIPEA_LINK_N1           0x60044
+#define _PIPEA_LINK_N1           (dev_priv->info->display_mmio_offset + 0x60044)
 #define  PIPE_LINK_N1_OFFSET    0
 
-#define _PIPEA_LINK_M2           0x60048
+#define _PIPEA_LINK_M2           (dev_priv->info->display_mmio_offset + 0x60048)
 #define  PIPE_LINK_M2_OFFSET    0
-#define _PIPEA_LINK_N2           0x6004c
+#define _PIPEA_LINK_N2           (dev_priv->info->display_mmio_offset + 0x6004c)
 #define  PIPE_LINK_N2_OFFSET    0
 
 /* PIPEB timing regs are same start from 0x61000 */
 
-#define _PIPEB_DATA_M1           0x61030
-#define _PIPEB_DATA_N1           0x61034
+#define _PIPEB_DATA_M1           (dev_priv->info->display_mmio_offset + 0x61030)
+#define _PIPEB_DATA_N1           (dev_priv->info->display_mmio_offset + 0x61034)
 
-#define _PIPEB_DATA_M2           0x61038
-#define _PIPEB_DATA_N2           0x6103c
+#define _PIPEB_DATA_M2           (dev_priv->info->display_mmio_offset + 0x61038)
+#define _PIPEB_DATA_N2           (dev_priv->info->display_mmio_offset + 0x6103c)
 
-#define _PIPEB_LINK_M1           0x61040
-#define _PIPEB_LINK_N1           0x61044
+#define _PIPEB_LINK_M1           (dev_priv->info->display_mmio_offset + 0x61040)
+#define _PIPEB_LINK_N1           (dev_priv->info->display_mmio_offset + 0x61044)
 
-#define _PIPEB_LINK_M2           0x61048
-#define _PIPEB_LINK_N2           0x6104c
+#define _PIPEB_LINK_M2           (dev_priv->info->display_mmio_offset + 0x61048)
+#define _PIPEB_LINK_N2           (dev_priv->info->display_mmio_offset + 0x6104c)
 
 #define PIPE_DATA_M1(tran) _TRANSCODER(tran, _PIPEA_DATA_M1, _PIPEB_DATA_M1)
 #define PIPE_DATA_N1(tran) _TRANSCODER(tran, _PIPEA_DATA_N1, _PIPEB_DATA_N1)
