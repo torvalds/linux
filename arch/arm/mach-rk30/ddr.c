@@ -2990,7 +2990,7 @@ void __sramlocalfunc idle_port(void)
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_dma) == 0 );
 #else
-        pPMU_Reg->PMU_MISC_CON1 |= idle_req_cup_cfg;
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_cpu_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) == 0 );
 #endif
