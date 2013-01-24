@@ -1205,7 +1205,7 @@ static struct platform_driver rk3188_lcdc_driver = {
 	.probe		= rk3188_lcdc_probe,
 	.remove		= __devexit_p(rk3188_lcdc_remove),
 	.driver		= {
-		.name 	= "rk3188-lcdc",
+		.name 	= "rk30-lcdc",
 		.owner  = THIS_MODULE,
 	},
 	.suspend 	= rk3188_lcdc_suspend,
