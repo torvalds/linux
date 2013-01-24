@@ -515,6 +515,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 	if (HAS_PCH_SPLIT(dev))
 		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
+	else if (IS_VALLEYVIEW(dev))
+		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else
 		dev_priv->gpio_mmio_base = 0;
 
