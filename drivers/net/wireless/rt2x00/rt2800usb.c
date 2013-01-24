@@ -540,9 +540,9 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
 
 	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
-		WARNING(entry->queue->rt2x00dev,
-			"TX status report missed for queue %d entry %d\n",
-			entry->queue->qid, entry->entry_idx);
+		DEBUG(entry->queue->rt2x00dev,
+		      "TX status report missed for queue %d entry %d\n",
+		      entry->queue->qid, entry->entry_idx);
 		return TXDONE_UNKNOWN;
 	}
 
