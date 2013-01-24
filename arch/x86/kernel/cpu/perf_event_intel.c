@@ -163,6 +163,7 @@ static struct extra_reg intel_snb_extra_regs[] __read_mostly = {
 
 EVENT_ATTR_STR(mem-loads, mem_ld_nhm, "event=0x0b,umask=0x10,ldlat=3");
 EVENT_ATTR_STR(mem-loads, mem_ld_snb, "event=0xcd,umask=0x1,ldlat=3");
+EVENT_ATTR_STR(mem-stores, mem_st_snb, "event=0xcd,umask=0x2");
 
 struct attribute *nhm_events_attrs[] = {
 	EVENT_PTR(mem_ld_nhm),
@@ -171,6 +172,7 @@ struct attribute *nhm_events_attrs[] = {
 
 struct attribute *snb_events_attrs[] = {
 	EVENT_PTR(mem_ld_snb),
+	EVENT_PTR(mem_st_snb),
 	NULL,
 };
 
