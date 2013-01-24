@@ -2138,16 +2138,9 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
 
-	device_initialize(&dev->gadget.dev);
 	dev->gadget.dev.parent = &pdev->dev;
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
-	retval = device_add(&dev->gadget.dev);
-	if (retval) {
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		goto err_device_add;
-	}
+	dev->gadget.register_my_device = true;
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
@@ -2199,8 +2192,6 @@ lubbock_fail0:
 	free_irq(irq, dev);
 #endif
  err_irq1:
-	device_unregister(&dev->gadget.dev);
- err_device_add:
 	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
@@ -2226,7 +2217,6 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 		return -EBUSY;
 
 	usb_del_gadget_udc(&dev->gadget);
-	device_unregister(&dev->gadget.dev);
 	dev->pullup = 0;
 	pullup(dev);
 
