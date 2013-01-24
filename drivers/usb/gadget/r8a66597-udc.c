@@ -1919,7 +1919,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	r8a66597->gadget.dev.release = pdev->dev.release;
 	r8a66597->gadget.name = udc_name;
-	r8a66597->gadget.register_my_device = true;
 
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;

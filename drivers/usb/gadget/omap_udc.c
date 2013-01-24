@@ -2634,7 +2634,6 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 
 	udc->gadget.dev.release = omap_udc_release;
 	udc->gadget.dev.parent = &odev->dev;
-	udc->gadget.register_my_device = true;
 	if (use_dma)
 		udc->gadget.dev.dma_mask = odev->dev.dma_mask;
 

@@ -981,7 +981,6 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
-	gpriv->gadget.register_my_device = true;
 
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 

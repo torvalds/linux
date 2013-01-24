@@ -3573,7 +3573,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->gadget.dev.parent = dev;
 	hsotg->gadget.dev.dma_mask = dev->dma_mask;
 	hsotg->gadget.dev.release = s3c_hsotg_release;
-	hsotg->gadget.register_my_device = true;
 
 	/* reset the system */
 

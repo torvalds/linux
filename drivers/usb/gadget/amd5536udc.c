@@ -3275,7 +3275,6 @@ static int udc_probe(struct udc *dev)
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
-	dev->gadget.register_my_device = true;
 
 	/* init registers, interrupts, ... */
 	startup_registers(dev);

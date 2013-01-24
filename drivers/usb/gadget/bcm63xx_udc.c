@@ -2374,7 +2374,6 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	udc->gadget.dev.parent = dev;
 	udc->gadget.dev.release = bcm63xx_udc_gadget_release;
 	udc->gadget.dev.dma_mask = dev->dma_mask;
-	udc->gadget.register_my_device = true;
 
 	if (!pd->use_fullspeed && !use_fullspeed)
 		udc->gadget.max_speed = USB_SPEED_HIGH;

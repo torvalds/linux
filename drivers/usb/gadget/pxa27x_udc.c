@@ -2457,7 +2457,6 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.dev.dma_mask = NULL;
-	udc->gadget.register_my_device = true;
 	udc->vbus_sensed = 0;
 
 	the_controller = udc;

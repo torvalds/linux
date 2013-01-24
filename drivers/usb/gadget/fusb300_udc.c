@@ -1427,7 +1427,6 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	fusb300->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	fusb300->gadget.dev.release = pdev->dev.release;
 	fusb300->gadget.name = udc_name;
-	fusb300->gadget.register_my_device = true;
 	fusb300->reg = reg;
 
 	ret = request_irq(ires->start, fusb300_irq, IRQF_SHARED,

@@ -1758,7 +1758,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = driver_name;
-	dev->gadget.register_my_device = true;
 
 	/* now all the pci goodies ... */
 	retval = pci_enable_device(pdev);

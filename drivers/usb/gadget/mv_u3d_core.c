@@ -1959,7 +1959,6 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->gadget.dev.dma_mask = dev->dev.dma_mask;
 	u3d->gadget.dev.release = mv_u3d_gadget_release;
 	u3d->gadget.name = driver_name;		/* gadget name */
-	u3d->gadget.register_my_device = true;
 
 	mv_u3d_eps_init(u3d);
 

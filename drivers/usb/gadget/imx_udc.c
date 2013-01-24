@@ -1461,7 +1461,6 @@ static int __init imx_udc_probe(struct platform_device *pdev)
 	imx_usb->clk = clk;
 	imx_usb->dev = &pdev->dev;
 
-	imx_usb->gadget.register_my_device = true;
 	imx_usb->gadget.dev.parent = &pdev->dev;
 	imx_usb->gadget.dev.dma_mask = pdev->dev.dma_mask;
 

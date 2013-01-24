@@ -2140,7 +2140,6 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 	dev->gadget.dev.parent = &pdev->dev;
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	dev->gadget.register_my_device = true;
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);

@@ -1891,7 +1891,6 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.dev.dma_mask = musb->controller->dma_mask;
 	musb->g.dev.release = musb_gadget_release;
 	musb->g.name = musb_driver_name;
-	musb->g.register_my_device = true;
 	musb->g.is_otg = 1;
 
 	musb_g_init_endpoints(musb);

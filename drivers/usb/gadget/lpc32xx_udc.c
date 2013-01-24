@@ -3090,7 +3090,6 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 
 	/* init software state */
 	udc->gadget.dev.parent = dev;
-	udc->gadget.register_my_device = true;
 	udc->pdev = pdev;
 	udc->dev = &pdev->dev;
 	udc->enabled = 0;

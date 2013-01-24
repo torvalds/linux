@@ -3198,7 +3198,6 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = KBUILD_MODNAME;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
-	dev->gadget.register_my_device = true;
 
 	/* Put the device in disconnected state till a driver is bound */
 	pch_udc_set_disconnect(dev);

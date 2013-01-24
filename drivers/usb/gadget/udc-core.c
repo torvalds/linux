@@ -173,13 +173,11 @@ int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 	if (!udc)
 		goto err1;
 
-	if (gadget->register_my_device) {
-		dev_set_name(&gadget->dev, "gadget");
+	dev_set_name(&gadget->dev, "gadget");
 
-		ret = device_register(&gadget->dev);
-		if (ret)
-			goto err2;
-	}
+	ret = device_register(&gadget->dev);
+	if (ret)
+		goto err2;
 
 	device_initialize(&udc->dev);
 	udc->dev.release = usb_udc_release;
@@ -211,8 +209,8 @@ err3:
 	put_device(&udc->dev);
 
 err2:
-	if (gadget->register_my_device)
-		put_device(&gadget->dev);
+	put_device(&gadget->dev);
+
 err1:
 	return ret;
 }
@@ -266,9 +264,7 @@ found:
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	device_unregister(&udc->dev);
-
-	if (gadget->register_my_device)
-		device_unregister(&gadget->dev);
+	device_unregister(&gadget->dev);
 }
 EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 

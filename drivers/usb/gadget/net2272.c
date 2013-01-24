@@ -2239,7 +2239,6 @@ static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 	ret->gadget.dev.dma_mask = dev->dma_mask;
 	ret->gadget.dev.release = net2272_gadget_release;
 	ret->gadget.name = driver_name;
-	ret->gadget.register_my_device = true;
 
 	return ret;
 }

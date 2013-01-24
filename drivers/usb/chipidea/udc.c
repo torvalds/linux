@@ -1721,7 +1721,6 @@ static int udc_start(struct ci13xxx *ci)
 	ci->gadget.dev.coherent_dma_mask = dev->coherent_dma_mask;
 	ci->gadget.dev.parent   = dev;
 	ci->gadget.dev.release  = udc_release;
-	ci->gadget.register_my_device = true;
 
 	/* alloc resources */
 	ci->qh_pool = dma_pool_create("ci13xxx_qh", dev,

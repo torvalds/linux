@@ -1726,7 +1726,6 @@ static int at91udc_probe(struct platform_device *pdev)
 
 	/* init software state */
 	udc = &controller;
-	udc->gadget.register_my_device = true;
 	udc->gadget.dev.parent = dev;
 	if (pdev->dev.of_node)
 		at91udc_of_init(udc, pdev->dev.of_node);

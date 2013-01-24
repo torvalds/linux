@@ -2499,7 +2499,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	dwc->gadget.dev.dma_parms	= dwc->dev->dma_parms;
 	dwc->gadget.dev.dma_mask	= dwc->dev->dma_mask;
 	dwc->gadget.dev.release		= dwc3_gadget_release;
-	dwc->gadget.register_my_device	= true;
 	dwc->gadget.name		= "dwc3-gadget";
 
 	/*

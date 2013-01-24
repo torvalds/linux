@@ -1902,7 +1902,6 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	udc->gadget.register_my_device = true;
 
 	platform_set_drvdata(pdev, udc);
 

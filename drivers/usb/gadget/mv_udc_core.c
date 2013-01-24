@@ -2313,7 +2313,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	udc->gadget.dev.release = gadget_release;
 	udc->gadget.name = driver_name;		/* gadget name */
-	udc->gadget.register_my_device = true;
 
 	eps_init(udc);
 

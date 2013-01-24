@@ -2525,7 +2525,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	udc->gadget.name = driver_name;
 	udc->gadget.dev.release = qe_udc_release;
 	udc->gadget.dev.parent = &ofdev->dev;
-	udc->gadget.register_my_device = true;
 
 	/* initialize qe_ep struct */
 	for (i = 0; i < USB_MAX_ENDPOINTS ; i++) {
