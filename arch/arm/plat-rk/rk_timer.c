@@ -77,6 +77,7 @@ struct rk_timer {
 
 	void __iomem *ce_base[NR_CPUS];
 	struct irqaction ce_irq[NR_CPUS];
+	bool ce_irq_disabled[NR_CPUS];
 	struct clk *ce_clk[NR_CPUS];
 	struct clk *ce_pclk[NR_CPUS];
 	char ce_name[NR_CPUS][16];
@@ -92,10 +93,12 @@ static const char *platform_get_string_byname(struct platform_device *dev, const
 
 static int rk_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
-	void __iomem *base = timer.ce_base[smp_processor_id()];
+	unsigned int cpu = smp_processor_id();
+	void __iomem *base = timer.ce_base[cpu];
 
 	rk_timer_disable(base);
 	writel_relaxed(cycles, base + TIMER_LOAD_COUNT0);
+	writel_relaxed(0, base + TIMER_LOAD_COUNT1);
 	dsb();
 	rk_timer_enable(base, TIMER_MODE_USER_DEFINED_COUNT | TIMER_INT_UNMASK);
 	return 0;
@@ -103,7 +106,9 @@ static int rk_timer_set_next_event(unsigned long cycles, struct clock_event_devi
 
 static void rk_timer_set_mode(enum clock_event_mode mode, struct clock_event_device *evt)
 {
-	void __iomem *base = timer.ce_base[smp_processor_id()];
+	unsigned int cpu = smp_processor_id();
+	void __iomem *base = timer.ce_base[cpu];
+	int irq = timer.ce_irq[cpu].irq;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -111,21 +116,29 @@ static void rk_timer_set_mode(enum clock_event_mode mode, struct clock_event_dev
 		writel_relaxed(24000000 / HZ - 1, base + TIMER_LOAD_COUNT0);
 		dsb();
 		rk_timer_enable(base, TIMER_MODE_FREE_RUNNING | TIMER_INT_UNMASK);
-		break;
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
+		if (timer.ce_irq_disabled[cpu]) {
+			enable_irq(irq);
+			timer.ce_irq_disabled[cpu] = false;
+		}
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		rk_timer_disable(base);
+		if (!timer.ce_irq_disabled[cpu]) {
+			disable_irq(irq);
+			timer.ce_irq_disabled[cpu] = true;
+		}
 		break;
 	}
 }
 
 static irqreturn_t rk_timer_clockevent_interrupt(int irq, void *dev_id)
 {
+	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = dev_id;
-	void __iomem *base = timer.ce_base[smp_processor_id()];
+	void __iomem *base = timer.ce_base[cpu];
 
 	/* clear interrupt */
 	writel_relaxed(1, base + TIMER_INT_STATUS);
@@ -151,6 +164,7 @@ static __cpuinit int rk_timer_init_clockevent(struct clock_event_device *ce, uns
 	ce->irq = irq->irq;
 	ce->cpumask = cpumask_of(cpu);
 
+	writel_relaxed(1, base + TIMER_INT_STATUS);
 	rk_timer_disable(base);
 
 	irq->dev_id = ce;
@@ -227,7 +241,7 @@ static int __init rk_timer_probe(struct platform_device *pdev)
 		snprintf(name, sizeof(name), "ce_irq%d", cpu);
 		irq->irq = platform_get_irq_byname(pdev, name);
 		irq->name = timer.ce_name[cpu];
-		irq->flags =  IRQF_DISABLED | IRQF_TIMER | IRQF_NOBALANCING;
+		irq->flags = IRQF_DISABLED | IRQF_TIMER | IRQF_NOBALANCING | IRQF_PERCPU;
 		irq->handler = rk_timer_clockevent_interrupt;
 
 		clk_enable(timer.ce_pclk[cpu]);
@@ -240,7 +254,7 @@ static int __init rk_timer_probe(struct platform_device *pdev)
 	rk_timer_init_clockevent(&rk_timer_clockevent, 0);
 #endif
 
-	printk("rk_timer: version 1.0\n");
+	printk("rk_timer: version 1.1\n");
 	return 0;
 }
 
