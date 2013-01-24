@@ -17,6 +17,7 @@
 #include <mach/system.h>
 
 #include "axp-cfg.h"
+#include "axp15-mfd.h"
 #include "axp18-mfd.h"
 #include "axp19-mfd.h"
 #include "axp20-mfd.h"
@@ -75,12 +76,20 @@ static struct axp_mfd_chip_ops axp_mfd_ops[] = {
 		.disable_irqs = axp20_disable_irqs,
 		.read_irqs    = axp20_read_irqs,
 	},
+	[3] = {
+		.init_chip    = axp15_init_chip,
+		.enable_irqs  = axp15_enable_irqs,
+		.disable_irqs = axp15_disable_irqs,
+		.read_irqs    = axp15_read_irqs,
+	},
+
 };
 
 static const struct i2c_device_id axp_mfd_id_table[] = {
 	{ "axp18_mfd", 0 },
 	{ "axp19_mfd", 1 },
 	{ "axp20_mfd", 2 },
+	{ "axp15_mfd", 3 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, axp_mfd_id_table);
@@ -88,6 +97,14 @@ MODULE_DEVICE_TABLE(i2c, axp_mfd_id_table);
 int axp_mfd_create_attrs(struct axp_mfd_chip *chip)
 {
 	int j,ret;
+	if(chip->type ==  AXP15){
+		for (j = 0; j < ARRAY_SIZE(axp15_mfd_attrs); j++) {
+			ret = device_create_file(chip->dev,&axp15_mfd_attrs[j]);
+			if (ret)
+				goto sysfs_failed;
+		}
+	}
+
 	if(chip->type ==  AXP19){
 		for (j = 0; j < ARRAY_SIZE(axp19_mfd_attrs); j++) {
 			ret = device_create_file(chip->dev,&axp19_mfd_attrs[j]);
@@ -193,6 +210,11 @@ failed:
 static void axp_power_off(void)
 {
 	uint8_t val;
+
+#if defined (CONFIG_AW_AXP15)
+	axp_set_bits(&axp->dev, POWER15_OFF_CTL , 0x80);
+#endif
+
 
 #if defined (CONFIG_AW_AXP18)
 	axp_set_bits(&axp->dev, POWER18_ONOFF, 0x80);
