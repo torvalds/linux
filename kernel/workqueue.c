@@ -144,16 +144,6 @@ struct worker_pool {
 
 	struct mutex		assoc_mutex;	/* protect POOL_DISASSOCIATED */
 	struct ida		worker_ida;	/* L: for worker IDs */
-};
-
-/*
- * Global per-cpu workqueue.  There's one and only one for each cpu
- * and all works are queued and processed here regardless of their
- * target workqueues.
- */
-struct global_cwq {
-	struct worker_pool	pools[NR_STD_WORKER_POOLS];
-						/* normal and highpri pools */
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -250,8 +240,8 @@ EXPORT_SYMBOL_GPL(system_freezable_wq);
 #include <trace/events/workqueue.h>
 
 #define for_each_std_worker_pool(pool, cpu)				\
-	for ((pool) = &get_gcwq((cpu))->pools[0];			\
-	     (pool) < &get_gcwq((cpu))->pools[NR_STD_WORKER_POOLS]; (pool)++)
+	for ((pool) = &std_worker_pools(cpu)[0];			\
+	     (pool) < &std_worker_pools(cpu)[NR_STD_WORKER_POOLS]; (pool)++)
 
 #define for_each_busy_worker(worker, i, pos, pool)			\
 	hash_for_each(pool->busy_hash, i, pos, worker, hentry)
@@ -427,19 +417,19 @@ static LIST_HEAD(workqueues);
 static bool workqueue_freezing;		/* W: have wqs started freezing? */
 
 /*
- * The almighty global cpu workqueues.  nr_running is the only field
- * which is expected to be used frequently by other cpus via
- * try_to_wake_up().  Put it in a separate cacheline.
+ * The CPU standard worker pools.  nr_running is the only field which is
+ * expected to be used frequently by other cpus via try_to_wake_up().  Put
+ * it in a separate cacheline.
  */
-static DEFINE_PER_CPU(struct global_cwq, global_cwq);
+static DEFINE_PER_CPU(struct worker_pool [NR_STD_WORKER_POOLS],
+		      cpu_std_worker_pools);
 static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, pool_nr_running[NR_STD_WORKER_POOLS]);
 
 /*
- * Global cpu workqueue and nr_running counter for unbound gcwq.  The pools
- * for online CPUs have POOL_DISASSOCIATED set, and all their workers have
- * WORKER_UNBOUND set.
+ * Standard worker pools and nr_running counter for unbound CPU.  The pools
+ * have POOL_DISASSOCIATED set, and all workers have WORKER_UNBOUND set.
  */
-static struct global_cwq unbound_global_cwq;
+static struct worker_pool unbound_std_worker_pools[NR_STD_WORKER_POOLS];
 static atomic_t unbound_pool_nr_running[NR_STD_WORKER_POOLS] = {
 	[0 ... NR_STD_WORKER_POOLS - 1]	= ATOMIC_INIT(0),	/* always 0 */
 };
@@ -450,17 +440,17 @@ static DEFINE_IDR(worker_pool_idr);
 
 static int worker_thread(void *__worker);
 
-static struct global_cwq *get_gcwq(unsigned int cpu)
+static struct worker_pool *std_worker_pools(int cpu)
 {
 	if (cpu != WORK_CPU_UNBOUND)
-		return &per_cpu(global_cwq, cpu);
+		return per_cpu(cpu_std_worker_pools, cpu);
 	else
-		return &unbound_global_cwq;
+		return unbound_std_worker_pools;
 }
 
 static int std_worker_pool_pri(struct worker_pool *pool)
 {
-	return pool - get_gcwq(pool->cpu)->pools;
+	return pool - std_worker_pools(pool->cpu);
 }
 
 /* allocate ID and assign it to @pool */
@@ -487,9 +477,9 @@ static struct worker_pool *worker_pool_by_id(int pool_id)
 
 static struct worker_pool *get_std_worker_pool(int cpu, bool highpri)
 {
-	struct global_cwq *gcwq = get_gcwq(cpu);
+	struct worker_pool *pools = std_worker_pools(cpu);
 
-	return &gcwq->pools[highpri];
+	return &pools[highpri];
 }
 
 static atomic_t *get_pool_nr_running(struct worker_pool *pool)
@@ -3269,11 +3259,9 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 
 	for_each_cwq_cpu(cpu, wq) {
 		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
-		struct global_cwq *gcwq = get_gcwq(cpu);
-		int pool_idx = (bool)(flags & WQ_HIGHPRI);
 
 		BUG_ON((unsigned long)cwq & WORK_STRUCT_FLAG_MASK);
-		cwq->pool = &gcwq->pools[pool_idx];
+		cwq->pool = get_std_worker_pool(cpu, flags & WQ_HIGHPRI);
 		cwq->wq = wq;
 		cwq->flush_color = -1;
 		cwq->max_active = max_active;
