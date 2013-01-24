@@ -731,6 +731,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	struct kvm_memory_slot *slot;
 	struct kvm_memory_slot old, new;
 	struct kvm_memslots *slots = NULL, *old_memslots;
+	bool old_iommu_mapped;
 
 	r = check_memory_region_flags(mem);
 	if (r)
@@ -771,6 +772,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	new.base_gfn = base_gfn;
 	new.npages = npages;
 	new.flags = mem->flags;
+
+	old_iommu_mapped = old.npages;
 
 	/*
 	 * Disallow changing a memory slot's size or changing anything about
@@ -835,6 +838,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		/* slot was deleted or moved, clear iommu mapping */
 		kvm_iommu_unmap_pages(kvm, &old);
+		old_iommu_mapped = false;
 		/* From this point no new shadow pages pointing to a deleted,
 		 * or moved, memslot will be created.
 		 *
@@ -863,11 +867,27 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			goto out_free;
 	}
 
-	/* map new memory slot into the iommu */
+	/*
+	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
+	 * un-mapped and re-mapped if their base changes or if flags that the
+	 * iommu cares about change (read-only).  Base change unmapping is
+	 * handled above with slot deletion, so we only unmap incompatible
+	 * flags here.  Anything else the iommu might care about for existing
+	 * slots (size changes, userspace addr changes) is disallowed above,
+	 * so any other attribute changes getting here can be skipped.
+	 */
 	if (npages) {
-		r = kvm_iommu_map_pages(kvm, &new);
-		if (r)
-			goto out_slots;
+		if (old_iommu_mapped &&
+		    ((new.flags ^ old.flags) & KVM_MEM_READONLY)) {
+			kvm_iommu_unmap_pages(kvm, &old);
+			old_iommu_mapped = false;
+		}
+
+		if (!old_iommu_mapped) {
+			r = kvm_iommu_map_pages(kvm, &new);
+			if (r)
+				goto out_slots;
+		}
 	}
 
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
