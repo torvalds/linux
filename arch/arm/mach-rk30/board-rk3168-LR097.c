@@ -2129,6 +2129,8 @@ static void __init machine_rk30_board_init(void)
 
 static void __init rk30_reserve(void)
 {
+	int ump_mem_phy_size=512*1024*1024; 
+	board_mem_reserve_add("ump buf", ump_mem_phy_size); 
 #ifdef CONFIG_ION
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
 #endif
