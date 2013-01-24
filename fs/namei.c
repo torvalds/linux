@@ -1802,8 +1802,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		}
 
+		nd->last = this;
+		nd->last_type = type;
+
 		if (!name[len])
-			goto last_component;
+			return 0;
 		/*
 		 * If it wasn't NUL, we know it was '/'. Skip that
 		 * slash, and continue until no more slashes.
@@ -1812,7 +1815,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			len++;
 		} while (unlikely(name[len] == '/'));
 		if (!name[len])
-			goto last_component;
+			return 0;
+
 		name += len;
 
 		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
@@ -1824,16 +1828,10 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			if (err)
 				return err;
 		}
-		if (can_lookup(nd->inode))
-			continue;
-		err = -ENOTDIR; 
-		break;
-		/* here ends the main loop */
-
-last_component:
-		nd->last = this;
-		nd->last_type = type;
-		return 0;
+		if (!can_lookup(nd->inode)) {
+			err = -ENOTDIR; 
+			break;
+		}
 	}
 	terminate_walk(nd);
 	return err;
