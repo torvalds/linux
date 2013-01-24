@@ -554,6 +554,9 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		perf_evsel__set_sample_bit(evsel, CPU);
 	}
 
+	if (opts->sample_address)
+		attr->sample_type	|= PERF_SAMPLE_DATA_SRC;
+
 	if (opts->no_delay) {
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
