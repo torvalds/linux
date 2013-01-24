@@ -73,13 +73,21 @@ enum {
 
 	WORK_OFFQ_CANCELING	= (1 << WORK_OFFQ_FLAG_BASE),
 
+	/*
+	 * When a work item is off queue, its high bits point to the last
+	 * cpu it was on.  Cap at 31 bits and use the highest number to
+	 * indicate that no cpu is associated.
+	 */
 	WORK_OFFQ_FLAG_BITS	= 1,
 	WORK_OFFQ_CPU_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_CPU_SHIFT,
+	WORK_OFFQ_CPU_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
+	WORK_OFFQ_CPU_NONE	= (1LU << WORK_OFFQ_CPU_BITS) - 1,
 
 	/* convenience constants */
 	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
 	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
-	WORK_STRUCT_NO_CPU	= (unsigned long)WORK_CPU_NONE << WORK_OFFQ_CPU_SHIFT,
+	WORK_STRUCT_NO_CPU	= (unsigned long)WORK_OFFQ_CPU_NONE << WORK_OFFQ_CPU_SHIFT,
 
 	/* bit mask for work_busy() return values */
 	WORK_BUSY_PENDING	= 1 << 0,

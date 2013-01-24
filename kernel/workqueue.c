@@ -573,7 +573,7 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 			(data & WORK_STRUCT_WQ_DATA_MASK))->pool->gcwq;
 
 	cpu = data >> WORK_OFFQ_CPU_SHIFT;
-	if (cpu == WORK_CPU_NONE)
+	if (cpu == WORK_OFFQ_CPU_NONE)
 		return NULL;
 
 	BUG_ON(cpu >= nr_cpu_ids && cpu != WORK_CPU_UNBOUND);
@@ -583,7 +583,7 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 static void mark_work_canceling(struct work_struct *work)
 {
 	struct global_cwq *gcwq = get_work_gcwq(work);
-	unsigned long cpu = gcwq ? gcwq->cpu : WORK_CPU_NONE;
+	unsigned long cpu = gcwq ? gcwq->cpu : WORK_OFFQ_CPU_NONE;
 
 	set_work_data(work, (cpu << WORK_OFFQ_CPU_SHIFT) | WORK_OFFQ_CANCELING,
 		      WORK_STRUCT_PENDING);
