@@ -993,14 +993,15 @@ static int goku_get_frame(struct usb_gadget *_gadget)
 	return -EOPNOTSUPP;
 }
 
-static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int goku_stop(struct usb_gadget_driver *driver);
+static int goku_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int goku_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops goku_ops = {
 	.get_frame	= goku_get_frame,
-	.start		= goku_start,
-	.stop		= goku_stop,
+	.udc_start	= goku_udc_start,
+	.udc_stop	= goku_udc_stop,
 	// no remote wakeup
 	// not selfpowered
 };
@@ -1339,50 +1340,28 @@ static void udc_enable(struct goku_udc *dev)
  * - one function driver, initted second
  */
 
-static struct goku_udc	*the_controller;
-
 /* when a driver is successfully registered, it will receive
  * control requests including set_configuration(), which enables
  * non-control requests.  then usb traffic follows until a
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int goku_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct goku_udc	*dev = the_controller;
-	int			retval;
-
-	if (!driver
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind
-			|| !driver->disconnect
-			|| !driver->setup)
-		return -EINVAL;
-	if (!dev)
-		return -ENODEV;
-	if (dev->driver)
-		return -EBUSY;
+	struct goku_udc	*dev = to_goku_udc(g);
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
-	retval = bind(&dev->gadget, driver);
-	if (retval) {
-		DBG(dev, "bind to driver %s --> error %d\n",
-				driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
 
-	/* then enable host detection and ep0; and we're ready
+	/*
+	 * then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
 	udc_enable(dev);
 
-	DBG(dev, "registered gadget driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
@@ -1400,35 +1379,23 @@ stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
 	udc_reset (dev);
 	for (i = 0; i < 4; i++)
 		nuke(&dev->ep [i], -ESHUTDOWN);
-	if (driver) {
-		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-	}
 
 	if (dev->driver)
 		udc_enable(dev);
 }
 
-static int goku_stop(struct usb_gadget_driver *driver)
+static int goku_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct goku_udc	*dev = the_controller;
+	struct goku_udc	*dev = to_goku_udc(g);
 	unsigned long	flags;
-
-	if (!dev)
-		return -ENODEV;
-	if (!driver || driver != dev->driver || !driver->unbind)
-		return -EINVAL;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->driver = NULL;
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
-
-	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 
-	DBG(dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
@@ -1754,7 +1721,6 @@ static void goku_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
-	the_controller = NULL;
 
 	INFO(dev, "unbind\n");
 }
@@ -1770,13 +1736,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem		*base = NULL;
 	int			retval;
 
-	/* if you want to support more than one controller in a system,
-	 * usb_gadget_driver_{register,unregister}() must change.
-	 */
-	if (the_controller) {
-		pr_warning("ignoring %s\n", pci_name(pdev));
-		return -EBUSY;
-	}
 	if (!pdev->irq) {
 		printk(KERN_ERR "Check PCI %s IRQ setup!\n", pci_name(pdev));
 		retval = -ENODEV;
@@ -1851,7 +1810,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	create_proc_read_entry(proc_node_name, 0, NULL, udc_proc_read, dev);
 #endif
 
-	the_controller = dev;
 	retval = device_register(&dev->gadget.dev);
 	if (retval) {
 		put_device(&dev->gadget.dev);
