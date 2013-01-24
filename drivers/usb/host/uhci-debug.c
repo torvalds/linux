@@ -151,8 +151,8 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp,
 		}
 	}
 	if (nactive + ninactive > 0)
-		out += sprintf(out, "%*s[skipped %d inactive and %d active "
-				"TDs]\n",
+		out += sprintf(out,
+				"%*s[skipped %d inactive and %d active TDs]\n",
 				space, "", ninactive, nactive);
 done:
 	if (out - buf > len)
@@ -182,8 +182,8 @@ static int uhci_show_qh(struct uhci_hcd *uhci,
 			hc32_to_cpu(uhci, qh->link),
 			hc32_to_cpu(uhci, element));
 	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		out += sprintf(out, "%*s    period %d phase %d load %d us, "
-				"frame %x desc [%p]\n",
+		out += sprintf(out,
+				"%*s    period %d phase %d load %d us, frame %x desc [%p]\n",
 				space, "", qh->period, qh->phase, qh->load,
 				qh->iso_frame, qh->iso_packet_desc);
 	else if (qh->type == USB_ENDPOINT_XFER_INT)
@@ -434,8 +434,8 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 			tmp = tmp->next;
 			if (link != LINK_TO_TD(uhci, td)) {
 				if (nframes > 0) {
-					out += sprintf(out, "    link does "
-						"not match list entry!\n");
+					out += sprintf(out,
+						"    link does not match list entry!\n");
 					if (out - buf > len)
 						goto done;
 				} else
@@ -460,8 +460,8 @@ check_link:
 						i, hc32_to_cpu(uhci, link));
 					j = 1;
 				}
-				out += sprintf(out, "   link does not match "
-					"QH (%08x)!\n",
+				out += sprintf(out,
+					"   link does not match QH (%08x)!\n",
 					hc32_to_cpu(uhci, qh_dma));
 				if (out - buf > len)
 					goto done;
@@ -483,7 +483,7 @@ check_link:
 		int cnt = 0;
 
 		qh = uhci->skelqh[i];
-		out += sprintf(out, "- skel_%s_qh\n", qh_names[i]); \
+		out += sprintf(out, "- skel_%s_qh\n", qh_names[i]);
 		out += uhci_show_qh(uhci, qh, out, len - (out - buf), 4);
 		if (out - buf > len)
 			goto tail;
@@ -491,7 +491,8 @@ check_link:
 		/* Last QH is the Terminating QH, it's different */
 		if (i == SKEL_TERM) {
 			if (qh_element(qh) != LINK_TO_TD(uhci, uhci->term_td)) {
-				out += sprintf(out, "    skel_term_qh element is not set to term_td!\n");
+				out += sprintf(out,
+					"    skel_term_qh element is not set to term_td!\n");
 				if (out - buf > len)
 					goto done;
 			}
@@ -530,7 +531,8 @@ check_link:
 			link = LINK_TO_QH(uhci, uhci->skel_term_qh);
 check_qh_link:
 		if (qh->link != link)
-			out += sprintf(out, "    last QH not linked to next skeleton!\n");
+			out += sprintf(out,
+				"    last QH not linked to next skeleton!\n");
 
 		if (out - buf > len)
 			goto done;
@@ -587,7 +589,9 @@ static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
 
 	up = file->private_data;
 
-	/* XXX: atomic 64bit seek access, but that needs to be fixed in the VFS */
+	/*
+	 * XXX: atomic 64bit seek access, but that needs to be fixed in the VFS
+	 */
 	switch (whence) {
 	case 0:
 		new = off;
