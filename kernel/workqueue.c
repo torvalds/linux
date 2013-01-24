@@ -47,11 +47,6 @@
 
 enum {
 	/*
-	 * global_cwq flags
-	 */
-	GCWQ_FREEZING		= 1 << 1,	/* freeze in progress */
-
-	/*
 	 * worker_pool flags
 	 *
 	 * A bound pool is either associated or disassociated with its CPU.
@@ -70,6 +65,7 @@ enum {
 	POOL_MANAGE_WORKERS	= 1 << 0,	/* need to manage workers */
 	POOL_MANAGING_WORKERS   = 1 << 1,       /* managing workers */
 	POOL_DISASSOCIATED	= 1 << 2,	/* cpu can't serve workers */
+	POOL_FREEZING		= 1 << 3,	/* freeze in progress */
 
 	/* worker flags */
 	WORKER_STARTED		= 1 << 0,	/* started */
@@ -152,7 +148,6 @@ struct worker_pool {
 struct global_cwq {
 	spinlock_t		lock;		/* the gcwq lock */
 	unsigned int		cpu;		/* I: the associated cpu */
-	unsigned int		flags;		/* L: GCWQ_* flags */
 
 	/* workers are chained either in busy_hash or pool idle_list */
 	DECLARE_HASHTABLE(busy_hash, BUSY_WORKER_HASH_ORDER);
@@ -3380,13 +3375,15 @@ void workqueue_set_max_active(struct workqueue_struct *wq, int max_active)
 	wq->saved_max_active = max_active;
 
 	for_each_cwq_cpu(cpu, wq) {
-		struct global_cwq *gcwq = get_gcwq(cpu);
+		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
+		struct worker_pool *pool = cwq->pool;
+		struct global_cwq *gcwq = pool->gcwq;
 
 		spin_lock_irq(&gcwq->lock);
 
 		if (!(wq->flags & WQ_FREEZABLE) ||
-		    !(gcwq->flags & GCWQ_FREEZING))
-			cwq_set_max_active(get_cwq(gcwq->cpu, wq), max_active);
+		    !(pool->flags & POOL_FREEZING))
+			cwq_set_max_active(cwq, max_active);
 
 		spin_unlock_irq(&gcwq->lock);
 	}
@@ -3676,12 +3673,15 @@ void freeze_workqueues_begin(void)
 
 	for_each_gcwq_cpu(cpu) {
 		struct global_cwq *gcwq = get_gcwq(cpu);
+		struct worker_pool *pool;
 		struct workqueue_struct *wq;
 
 		spin_lock_irq(&gcwq->lock);
 
-		BUG_ON(gcwq->flags & GCWQ_FREEZING);
-		gcwq->flags |= GCWQ_FREEZING;
+		for_each_worker_pool(pool, gcwq) {
+			WARN_ON_ONCE(pool->flags & POOL_FREEZING);
+			pool->flags |= POOL_FREEZING;
+		}
 
 		list_for_each_entry(wq, &workqueues, list) {
 			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
@@ -3767,8 +3767,10 @@ void thaw_workqueues(void)
 
 		spin_lock_irq(&gcwq->lock);
 
-		BUG_ON(!(gcwq->flags & GCWQ_FREEZING));
-		gcwq->flags &= ~GCWQ_FREEZING;
+		for_each_worker_pool(pool, gcwq) {
+			WARN_ON_ONCE(!(pool->flags & POOL_FREEZING));
+			pool->flags &= ~POOL_FREEZING;
+		}
 
 		list_for_each_entry(wq, &workqueues, list) {
 			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
