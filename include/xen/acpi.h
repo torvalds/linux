@@ -47,6 +47,13 @@
 int xen_stub_memory_device_init(void);
 void xen_stub_memory_device_exit(void);
 
+#define ACPI_PROCESSOR_CLASS            "processor"
+#define ACPI_PROCESSOR_DEVICE_HID       "ACPI0007"
+#define ACPI_PROCESSOR_DEVICE_NAME      "Processor"
+
+int xen_stub_processor_init(void);
+void xen_stub_processor_exit(void);
+
 int xen_acpi_notify_hypervisor_state(u8 sleep_state,
 				     u32 pm1a_cnt, u32 pm1b_cnd);
 
