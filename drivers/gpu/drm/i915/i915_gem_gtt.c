@@ -182,7 +182,8 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
 	 * now. */
-	first_pd_entry_in_global_pt = dev_priv->mm.gtt->gtt_total_entries - I915_PPGTT_PD_ENTRIES;
+	first_pd_entry_in_global_pt =
+		gtt_total_entries(dev_priv->gtt) - I915_PPGTT_PD_ENTRIES;
 
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
@@ -473,7 +474,7 @@ static void gen6_ggtt_clear_range(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
 	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
-	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
+	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
 
 	if (WARN(num_entries > max_entries,
@@ -634,7 +635,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	unsigned long gtt_size, mappable_size;
 	int ret;
 
-	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
+	gtt_size = dev_priv->gtt.total;
 	mappable_size = dev_priv->gtt.mappable_end;
 
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
@@ -778,7 +779,6 @@ void gen6_gmch_remove(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	iounmap(dev_priv->gtt.gsm);
 	teardown_scratch_page(dev_priv->dev);
-	kfree(dev_priv->mm.gtt);
 }
 
 static int i915_gmch_probe(struct drm_device *dev,
@@ -788,22 +788,13 @@ static int i915_gmch_probe(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	/* This is a temporary hack to make the code cleaner in
-	 * i915_gem_gtt_init. I promise it will go away very shortly. */
-	kfree(dev_priv->mm.gtt);
-
 	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->dev->pdev, NULL);
 	if (!ret) {
 		DRM_ERROR("failed to set up gmch\n");
 		return -EIO;
 	}
 
-	dev_priv->mm.gtt = intel_gtt_get();
-	if (!dev_priv->mm.gtt) {
-		DRM_ERROR("Failed to initialize GTT\n");
-		intel_gmch_remove();
-		return -ENODEV;
-	}
+	intel_gtt_get(gtt_total, stolen);
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
 	dev_priv->gtt.gtt_clear_range = i915_ggtt_clear_range;
@@ -824,10 +815,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	unsigned long gtt_size;
 	int ret;
 
-	dev_priv->mm.gtt = kzalloc(sizeof(*dev_priv->mm.gtt), GFP_KERNEL);
-	if (!dev_priv->mm.gtt)
-		return -ENOMEM;
-
 	gtt->mappable_base = pci_resource_start(dev->pdev, 2);
 	gtt->mappable_end = pci_resource_len(dev->pdev, 2);
 
@@ -841,13 +828,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 
 	ret = dev_priv->gtt.gtt_probe(dev, &dev_priv->gtt.total,
 				     &dev_priv->gtt.stolen_size);
-	if (ret) {
-		kfree(dev_priv->mm.gtt);
+	if (ret)
 		return ret;
-	}
-
-	dev_priv->mm.gtt->gtt_total_entries = dev_priv->gtt.total >> PAGE_SHIFT;
-	dev_priv->mm.gtt->stolen_size = dev_priv->gtt.stolen_size;
 
 	gtt_size = (dev_priv->gtt.total >> PAGE_SHIFT) * sizeof(gtt_pte_t);
 

@@ -60,7 +60,6 @@ struct intel_gtt_driver {
 };
 
 static struct _intel_private {
-	struct intel_gtt base;
 	const struct intel_gtt_driver *driver;
 	struct pci_dev *pcidev;	/* device one */
 	struct pci_dev *bridge_dev;
@@ -80,6 +79,13 @@ static struct _intel_private {
 	/* Whether i915 needs to use the dmar apis or not. */
 	unsigned int needs_dmar : 1;
 	phys_addr_t gma_bus_addr;
+	/*  Size of memory reserved for graphics by the BIOS */
+	unsigned int stolen_size;
+	/* Total number of gtt entries. */
+	unsigned int gtt_total_entries;
+	/* Part of the gtt that is mappable by the cpu, for those chips where
+	 * this is not the full gtt. */
+	unsigned int gtt_mappable_entries;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -510,7 +516,7 @@ static unsigned int intel_gtt_total_entries(void)
 		/* On previous hardware, the GTT size was just what was
 		 * required to map the aperture.
 		 */
-		return intel_private.base.gtt_mappable_entries;
+		return intel_private.gtt_mappable_entries;
 	}
 }
 
@@ -576,8 +582,8 @@ static int intel_gtt_init(void)
 	if (ret != 0)
 		return ret;
 
-	intel_private.base.gtt_mappable_entries = intel_gtt_mappable_entries();
-	intel_private.base.gtt_total_entries = intel_gtt_total_entries();
+	intel_private.gtt_mappable_entries = intel_gtt_mappable_entries();
+	intel_private.gtt_total_entries = intel_gtt_total_entries();
 
 	/* save the PGETBL reg for resume */
 	intel_private.PGETBL_save =
@@ -589,10 +595,10 @@ static int intel_gtt_init(void)
 
 	dev_info(&intel_private.bridge_dev->dev,
 			"detected gtt size: %dK total, %dK mappable\n",
-			intel_private.base.gtt_total_entries * 4,
-			intel_private.base.gtt_mappable_entries * 4);
+			intel_private.gtt_total_entries * 4,
+			intel_private.gtt_mappable_entries * 4);
 
-	gtt_map_size = intel_private.base.gtt_total_entries * 4;
+	gtt_map_size = intel_private.gtt_total_entries * 4;
 
 	intel_private.gtt = NULL;
 	if (INTEL_GTT_GEN < 6 && INTEL_GTT_GEN > 2)
@@ -609,7 +615,7 @@ static int intel_gtt_init(void)
 
 	global_cache_flush();   /* FIXME: ? */
 
-	intel_private.base.stolen_size = intel_gtt_stolen_size();
+	intel_private.stolen_size = intel_gtt_stolen_size();
 
 	intel_private.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
 
@@ -637,8 +643,7 @@ static int intel_fake_agp_fetch_size(void)
 	unsigned int aper_size;
 	int i;
 
-	aper_size = (intel_private.base.gtt_mappable_entries << PAGE_SHIFT)
-		    / MB(1);
+	aper_size = (intel_private.gtt_mappable_entries << PAGE_SHIFT) / MB(1);
 
 	for (i = 0; i < num_sizes; i++) {
 		if (aper_size == intel_fake_agp_sizes[i].size) {
@@ -845,8 +850,8 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	int ret = -EINVAL;
 
 	if (intel_private.clear_fake_agp) {
-		int start = intel_private.base.stolen_size / PAGE_SIZE;
-		int end = intel_private.base.gtt_mappable_entries;
+		int start = intel_private.stolen_size / PAGE_SIZE;
+		int end = intel_private.gtt_mappable_entries;
 		intel_gtt_clear_range(start, end - start);
 		intel_private.clear_fake_agp = false;
 	}
@@ -857,7 +862,7 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	if (mem->page_count == 0)
 		goto out;
 
-	if (pg_start + mem->page_count > intel_private.base.gtt_total_entries)
+	if (pg_start + mem->page_count > intel_private.gtt_total_entries)
 		goto out_err;
 
 	if (type != mem->type)
@@ -1366,9 +1371,10 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
-struct intel_gtt *intel_gtt_get(void)
+void intel_gtt_get(size_t *gtt_total, size_t *stolen_size)
 {
-	return &intel_private.base;
+	*gtt_total = intel_private.gtt_total_entries << PAGE_SHIFT;
+	*stolen_size = intel_private.stolen_size;
 }
 EXPORT_SYMBOL(intel_gtt_get);
 

@@ -187,11 +187,11 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
-	DRM_DEBUG_KMS("found %d bytes of stolen memory at %08lx\n",
-		      dev_priv->mm.gtt->stolen_size, dev_priv->mm.stolen_base);
+	DRM_DEBUG_KMS("found %zd bytes of stolen memory at %08lx\n",
+		      dev_priv->gtt.stolen_size, dev_priv->mm.stolen_base);
 
 	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->mm.gtt->stolen_size);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size);
 
 	return 0;
 }
@@ -205,7 +205,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct scatterlist *sg;
 
 	DRM_DEBUG_DRIVER("offset=0x%x, size=%d\n", offset, size);
-	BUG_ON(offset > dev_priv->mm.gtt->stolen_size - size);
+	BUG_ON(offset > dev_priv->gtt.stolen_size - size);
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake

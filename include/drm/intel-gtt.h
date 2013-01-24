@@ -3,15 +3,7 @@
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
 
-struct intel_gtt {
-	/* Size of memory reserved for graphics by the BIOS */
-	unsigned int stolen_size;
-	/* Total number of gtt entries. */
-	unsigned int gtt_total_entries;
-	/* Part of the gtt that is mappable by the cpu, for those chips where
-	 * this is not the full gtt. */
-	unsigned int gtt_mappable_entries;
-} *intel_gtt_get(void);
+void intel_gtt_get(size_t *gtt_total, size_t *stolen_size);
 
 int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		     struct agp_bridge_data *bridge);
