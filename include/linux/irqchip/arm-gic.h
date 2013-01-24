@@ -57,6 +57,8 @@
 #define GICH_MISR_EOI			(1 << 0)
 #define GICH_MISR_U			(1 << 1)
 
+#ifndef __ASSEMBLY__
+
 struct device_node;
 
 extern struct irq_chip gic_arch_extn;
@@ -71,5 +73,7 @@ static inline void gic_init(unsigned int nr, int start,
 {
 	gic_init_bases(nr, start, dist, cpu, 0, NULL);
 }
+
+#endif /* __ASSEMBLY */
 
 #endif
