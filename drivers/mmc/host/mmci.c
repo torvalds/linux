@@ -90,6 +90,14 @@ static struct variant_data variant_arm_extended_fifo = {
 	.pwrreg_powerup		= MCI_PWR_UP,
 };
 
+static struct variant_data variant_arm_extended_fifo_hwfc = {
+	.fifosize		= 128 * 4,
+	.fifohalfsize		= 64 * 4,
+	.clkreg_enable		= MCI_ARM_HWFCEN,
+	.datalength_bits	= 16,
+	.pwrreg_powerup		= MCI_PWR_UP,
+};
+
 static struct variant_data variant_u300 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
@@ -1670,6 +1678,11 @@ static struct amba_id mmci_ids[] = {
 		.id	= 0x01041180,
 		.mask	= 0xff0fffff,
 		.data	= &variant_arm_extended_fifo,
+	},
+	{
+		.id	= 0x02041180,
+		.mask	= 0xff0fffff,
+		.data	= &variant_arm_extended_fifo_hwfc,
 	},
 	{
 		.id	= 0x00041181,
