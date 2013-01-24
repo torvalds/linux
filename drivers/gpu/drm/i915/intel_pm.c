@@ -4250,7 +4250,8 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 }
 
 static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
@@ -4267,7 +4268,8 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-	POSTING_READ(ECOBUS); /* something from same cacheline, but !FORCEWAKE */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 
 	if (wait_for_atomic((I915_READ_NOTRACE(forcewake_ack) & 1),
 			    FORCEWAKE_ACK_TIMEOUT_MS))
@@ -4304,14 +4306,16 @@ void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
 static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* gen6_gt_check_fifodbg doubles as the POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_MT */
+	POSTING_READ(ECOBUS);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
@@ -4351,6 +4355,8 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(0xffff));
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 }
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
@@ -4371,7 +4377,8 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* The below doubles as a POSTING_READ */
+	/* something from same cacheline, but !FORCEWAKE_VLV */
+	POSTING_READ(FORCEWAKE_ACK_VLV);
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
