@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/sort.h>
+#include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
@@ -153,6 +154,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "add_in_jack_modes");
 	if (val >= 0)
 		spec->add_in_jack_modes = !!val;
+	val = snd_hda_get_bool_hint(codec, "power_down_unused");
+	if (val >= 0)
+		spec->power_down_unused = !!val;
 
 	if (!snd_hda_get_int_hint(codec, "mixer_nid", &val))
 		spec->mixer_nid = val;
@@ -700,14 +704,23 @@ static void activate_amp_in(struct hda_codec *codec, struct nid_path *path,
 void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 			   bool enable, bool add_aamix)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
 	if (!enable)
 		path->active = false;
 
 	for (i = path->depth - 1; i >= 0; i--) {
+		hda_nid_t nid = path->path[i];
+		if (enable && spec->power_down_unused) {
+			/* make sure the widget is powered up */
+			if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D0))
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_POWER_STATE,
+						    AC_PWRST_D0);
+		}
 		if (enable && path->multi[i])
-			snd_hda_codec_write_cache(codec, path->path[i], 0,
+			snd_hda_codec_write_cache(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
 					    path->idx[i]);
 		if (has_amp_in(codec, path, i))
@@ -720,6 +733,33 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		path->active = true;
 }
 EXPORT_SYMBOL_HDA(snd_hda_activate_path);
+
+/* if the given path is inactive, put widgets into D3 (only if suitable) */
+static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	bool changed;
+	int i;
+
+	if (!spec->power_down_unused || path->active)
+		return;
+
+	for (i = 0; i < path->depth; i++) {
+		hda_nid_t nid = path->path[i];
+		if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D3)) {
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_POWER_STATE,
+					    AC_PWRST_D3);
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		msleep(10);
+		snd_hda_codec_read(codec, path->path[0], 0,
+				   AC_VERB_GET_POWER_STATE, 0);
+	}
+}
 
 /* turn on/off EAPD on the given pin */
 static void set_pin_eapd(struct hda_codec *codec, hda_nid_t pin, bool enable)
@@ -2007,6 +2047,7 @@ static int set_multi_io(struct hda_codec *codec, int idx, bool output)
 		set_pin_eapd(codec, nid, false);
 		snd_hda_activate_path(codec, path, false, true);
 		set_pin_target(codec, nid, spec->multi_io[idx].ctl_in, true);
+		path_power_down_sync(codec, path);
 	}
 
 	/* update jack retasking in case it modifies any of them */
@@ -2093,9 +2134,11 @@ static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
 	if (do_mix) {
 		snd_hda_activate_path(codec, nomix_path, false, true);
 		snd_hda_activate_path(codec, mix_path, true, true);
+		path_power_down_sync(codec, nomix_path);
 	} else {
 		snd_hda_activate_path(codec, mix_path, false, true);
 		snd_hda_activate_path(codec, nomix_path, true, true);
+		path_power_down_sync(codec, mix_path);
 	}
 }
 
@@ -3356,7 +3399,7 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 {
 	struct hda_gen_spec *spec = codec->spec;
 	const struct hda_input_mux *imux;
-	struct nid_path *path;
+	struct nid_path *old_path, *path;
 
 	imux = &spec->input_mux;
 	if (!imux->num_items)
@@ -3367,11 +3410,11 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	if (spec->cur_mux[adc_idx] == idx)
 		return 0;
 
-	path = get_input_path(codec, adc_idx, spec->cur_mux[adc_idx]);
-	if (!path)
+	old_path = get_input_path(codec, adc_idx, spec->cur_mux[adc_idx]);
+	if (!old_path)
 		return 0;
-	if (path->active)
-		snd_hda_activate_path(codec, path, false, false);
+	if (old_path->active)
+		snd_hda_activate_path(codec, old_path, false, false);
 
 	spec->cur_mux[adc_idx] = idx;
 
@@ -3389,6 +3432,7 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	snd_hda_activate_path(codec, path, true, false);
 	if (spec->cap_sync_hook)
 		spec->cap_sync_hook(codec, NULL);
+	path_power_down_sync(codec, old_path);
 	return 1;
 }
 
@@ -3853,6 +3897,20 @@ static int check_auto_mic_availability(struct hda_codec *codec)
 	return 0;
 }
 
+/* power_filter hook; make inactive widgets into power down */
+static unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
+						  hda_nid_t nid,
+						  unsigned int power_state)
+{
+	if (power_state != AC_PWRST_D0)
+		return power_state;
+	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
+		return power_state;
+	if (is_active_nid(codec, nid, HDA_OUTPUT, 0))
+		return power_state;
+	return AC_PWRST_D3;
+}
+
 
 /*
  * Parse the given BIOS configuration and set up the hda_gen_spec
@@ -3979,6 +4037,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 
  dig_only:
 	parse_digital(codec);
+
+	if (spec->power_down_unused)
+		codec->power_filter = snd_hda_gen_path_power_filter;
 
 	return 1;
 }
