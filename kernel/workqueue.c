@@ -124,6 +124,7 @@ enum {
 
 struct worker_pool {
 	struct global_cwq	*gcwq;		/* I: the owning gcwq */
+	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* X: flags */
 
 	struct list_head	worklist;	/* L: list of pending works */
@@ -445,6 +446,10 @@ static atomic_t unbound_pool_nr_running[NR_STD_WORKER_POOLS] = {
 	[0 ... NR_STD_WORKER_POOLS - 1]	= ATOMIC_INIT(0),	/* always 0 */
 };
 
+/* idr of all pools */
+static DEFINE_MUTEX(worker_pool_idr_mutex);
+static DEFINE_IDR(worker_pool_idr);
+
 static int worker_thread(void *__worker);
 static unsigned int work_cpu(struct work_struct *work);
 
@@ -459,6 +464,19 @@ static struct global_cwq *get_gcwq(unsigned int cpu)
 		return &per_cpu(global_cwq, cpu);
 	else
 		return &unbound_global_cwq;
+}
+
+/* allocate ID and assign it to @pool */
+static int worker_pool_assign_id(struct worker_pool *pool)
+{
+	int ret;
+
+	mutex_lock(&worker_pool_idr_mutex);
+	idr_pre_get(&worker_pool_idr, GFP_KERNEL);
+	ret = idr_get_new(&worker_pool_idr, pool, &pool->id);
+	mutex_unlock(&worker_pool_idr_mutex);
+
+	return ret;
 }
 
 static atomic_t *get_pool_nr_running(struct worker_pool *pool)
@@ -3830,6 +3848,9 @@ static int __init init_workqueues(void)
 
 			mutex_init(&pool->assoc_mutex);
 			ida_init(&pool->worker_ida);
+
+			/* alloc pool ID */
+			BUG_ON(worker_pool_assign_id(pool));
 		}
 	}
 
