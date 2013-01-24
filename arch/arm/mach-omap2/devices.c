@@ -639,7 +639,7 @@ static int count_ocp2scp_devices(struct omap_ocp2scp_dev *ocp2scp_dev)
 	return cnt;
 }
 
-static void omap_init_ocp2scp(void)
+static void __init omap_init_ocp2scp(void)
 {
 	struct omap_hwmod	*oh;
 	struct platform_device	*pdev;
