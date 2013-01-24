@@ -238,8 +238,8 @@
 #define WIN0_ACT_INFO		(0x34)
 #define m_ACT_WIDTH       	(0x1fff<<0)
 #define m_ACT_HEIGHT      	(0x1fff<<16)
-#define v_ACT_WIDTH(x)       	(((x)&0x1fff)<<0)
-#define v_ACT_HEIGHT(x)      	(((x)&0x1fff)<<16)
+#define v_ACT_WIDTH(x)       	(((x-1)&0x1fff)<<0)
+#define v_ACT_HEIGHT(x)      	(((x-1)&0x1fff)<<16)
 
 #define WIN0_DSP_INFO		(0x38)
 #define v_DSP_WIDTH(x)     	(((x-1)&0x7ff)<<0)
