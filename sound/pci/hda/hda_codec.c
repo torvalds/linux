@@ -3765,6 +3765,37 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
 	return state;
 }
 
+/* sync power states of all widgets;
+ * this is called at the end of codec parsing
+ */
+static void sync_power_up_states(struct hda_codec *codec)
+{
+	hda_nid_t nid = codec->start_nid;
+	int i;
+
+	/* don't care if no or standard filter is used */
+	if (!codec->power_filter || codec->power_filter == default_power_filter)
+		return;
+
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		unsigned int wcaps = get_wcaps(codec, nid);
+		unsigned int state, target;
+		if (!(wcaps & AC_WCAP_POWER))
+			continue;
+		target = codec->power_filter(codec, nid, AC_PWRST_D0);
+		if (target == AC_PWRST_D0)
+			continue;
+		state = snd_hda_codec_read(codec, nid, 0,
+					   AC_VERB_GET_POWER_STATE, 0);
+		if (state & AC_PWRST_ERROR)
+			continue;
+		state = (state >> 4) & 0x0f;
+		if (state != target)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_POWER_STATE, target);
+	}
+}
+
 #ifdef CONFIG_SND_HDA_HWDEP
 /* execute additional init verbs */
 static void hda_exec_init_verbs(struct hda_codec *codec)
@@ -3952,6 +3983,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec)
 		hda_jackpoll_work(&codec->jackpoll_work.work);
 	else
 		snd_hda_jack_report_sync(codec); /* call at the last init point */
+	sync_power_up_states(codec);
 	return 0;
 }
 
