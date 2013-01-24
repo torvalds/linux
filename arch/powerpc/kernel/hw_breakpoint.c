@@ -142,7 +142,7 @@ int arch_bp_generic_fields(int type, int *gen_bp_type)
  */
 int arch_validate_hwbkpt_settings(struct perf_event *bp)
 {
-	int ret = -EINVAL;
+	int ret = -EINVAL, length_max;
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
 	if (!bp)
@@ -171,8 +171,16 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * HW_BREAKPOINT_ALIGN by rounding off to the lower address, the
 	 * 'symbolsize' should satisfy the check below.
 	 */
+	length_max = 8; /* DABR */
+	if (cpu_has_feature(CPU_FTR_DAWR)) {
+		length_max = 512 ; /* 64 doublewords */
+		/* DAWR region can't cross 512 boundary */
+		if ((bp->attr.bp_addr >> 10) != 
+		    ((bp->attr.bp_addr + bp->attr.bp_len) >> 10))
+			return -EINVAL;
+	}
 	if (info->len >
-	    (HW_BREAKPOINT_LEN - (info->address & HW_BREAKPOINT_ALIGN)))
+	    (length_max - (info->address & HW_BREAKPOINT_ALIGN)))
 		return -EINVAL;
 	return 0;
 }

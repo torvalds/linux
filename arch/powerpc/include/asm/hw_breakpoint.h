@@ -57,8 +57,6 @@ struct pmu;
 struct perf_sample_data;
 
 #define HW_BREAKPOINT_ALIGN 0x7
-/* Maximum permissible length of any HW Breakpoint */
-#define HW_BREAKPOINT_LEN 0x8
 
 extern int hw_breakpoint_slots(int type);
 extern int arch_bp_generic_fields(int type, int *gen_bp_type);
