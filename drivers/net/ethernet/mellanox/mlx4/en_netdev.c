@@ -977,12 +977,12 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
 
-	err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
-	if (err)
-		en_dbg(HW, priv, "Could not update stats\n");
-
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
+		err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
+		if (err)
+			en_dbg(HW, priv, "Could not update stats\n");
+
 		if (priv->port_up)
 			mlx4_en_auto_moderation(priv);
 
