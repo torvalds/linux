@@ -1,0 +1,48 @@
+perf-mem(1)
+===========
+
+NAME
+----
+perf-mem - Profile memory accesses
+
+SYNOPSIS
+--------
+[verse]
+'perf mem' [<options>] (record [<command>] | report)
+
+DESCRIPTION
+-----------
+"perf mem -t <TYPE> record" runs a command and gathers memory operation data
+from it, into perf.data. Perf record options are accepted and are passed through.
+
+"perf mem -t <TYPE> report" displays the result. It invokes perf report with the
+right set of options to display a memory access profile.
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-t::
+--type=::
+	Select the memory operation type: load or store (default: load)
+
+-D::
+--dump-raw-samples=::
+	Dump the raw decoded samples on the screen in a format that is easy to parse with
+	one sample per line.
+
+-x::
+--field-separator::
+	Specify the field separator used when dump raw samples (-D option). By default,
+	The separator is the space character.
+
+-C::
+--cpu-list::
+	Restrict dump of raw samples to those provided via this option. Note that the same
+	option can be passed in record mode. It will be interpreted the same way as perf
+	record.
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-report[1]
