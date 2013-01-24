@@ -1717,11 +1717,11 @@ static int udc_start(struct ci13xxx *ci)
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 
-	dev_set_name(&ci->gadget.dev, "gadget");
 	ci->gadget.dev.dma_mask = dev->dma_mask;
 	ci->gadget.dev.coherent_dma_mask = dev->coherent_dma_mask;
 	ci->gadget.dev.parent   = dev;
 	ci->gadget.dev.release  = udc_release;
+	ci->gadget.register_my_device = true;
 
 	/* alloc resources */
 	ci->qh_pool = dma_pool_create("ci13xxx_qh", dev,
@@ -1761,15 +1761,9 @@ static int udc_start(struct ci13xxx *ci)
 		hw_enable_vbus_intr(ci);
 	}
 
-	retval = device_register(&ci->gadget.dev);
-	if (retval) {
-		put_device(&ci->gadget.dev);
-		goto put_transceiver;
-	}
-
 	retval = dbg_create_files(ci->dev);
 	if (retval)
-		goto unreg_device;
+		goto put_transceiver;
 
 	if (!IS_ERR_OR_NULL(ci->transceiver)) {
 		retval = otg_set_peripheral(ci->transceiver->otg,
@@ -1797,8 +1791,6 @@ remove_trans:
 	dev_err(dev, "error = %i\n", retval);
 remove_dbg:
 	dbg_remove_files(ci->dev);
-unreg_device:
-	device_unregister(&ci->gadget.dev);
 put_transceiver:
 	if (!IS_ERR_OR_NULL(ci->transceiver) && ci->global_phy)
 		usb_put_phy(ci->transceiver);
@@ -1837,7 +1829,6 @@ static void udc_stop(struct ci13xxx *ci)
 			usb_put_phy(ci->transceiver);
 	}
 	dbg_remove_files(ci->dev);
-	device_unregister(&ci->gadget.dev);
 	/* my kobject is dynamic, I swear! */
 	memset(&ci->gadget, 0, sizeof(ci->gadget));
 }
