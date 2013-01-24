@@ -61,7 +61,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 	struct trace_array *tr = func_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	unsigned int bit;
+	int bit;
 	int cpu;
 	int pc;
 
