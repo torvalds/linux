@@ -588,7 +588,21 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(ring->tx_queue);
 		priv->port_stats.queue_stopped++;
 
-		return NETDEV_TX_BUSY;
+		/* If queue was emptied after the if, and before the
+		 * stop_queue - need to wake the queue, or else it will remain
+		 * stopped forever.
+		 * Need a memory barrier to make sure ring->cons was not
+		 * updated before queue was stopped.
+		 */
+		wmb();
+
+		if (unlikely(((int)(ring->prod - ring->cons)) <=
+			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
+			netif_tx_wake_queue(ring->tx_queue);
+			priv->port_stats.wake_queue++;
+		} else {
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	/* Track current inflight packets for performance analysis */
