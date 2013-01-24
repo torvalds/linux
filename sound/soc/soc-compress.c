@@ -33,6 +33,8 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->open) {
 		ret = platform->driver->compr_ops->open(cstream);
 		if (ret < 0) {
@@ -61,12 +63,15 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	codec_dai->active++;
 	rtd->codec->active++;
 
+	mutex_unlock(&rtd->pcm_mutex);
+
 	return 0;
 
 machine_err:
 	if (platform->driver->compr_ops && platform->driver->compr_ops->free)
 		platform->driver->compr_ops->free(cstream);
 out:
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -77,6 +82,8 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = rtd->codec;
+
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
 		cpu_dai->playback_active--;
@@ -124,6 +131,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 			SND_SOC_DAPM_STREAM_STOP);
 	}
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return 0;
 }
 
@@ -135,10 +143,12 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->trigger) {
 		ret = platform->driver->compr_ops->trigger(cstream, cmd);
 		if (ret < 0)
-			return ret;
+			goto out;
 	}
 
 	if (cmd == SNDRV_PCM_TRIGGER_START)
@@ -146,6 +156,8 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	else if (cmd == SNDRV_PCM_TRIGGER_STOP)
 		snd_soc_dai_digital_mute(codec_dai, 1);
 
+out:
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -156,6 +168,8 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	/* first we call set_params for the platform driver
 	 * this should configure the soc side
 	 * if the machine has compressed ops then we call that as well
@@ -165,18 +179,20 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	if (platform->driver->compr_ops && platform->driver->compr_ops->set_params) {
 		ret = platform->driver->compr_ops->set_params(cstream, params);
 		if (ret < 0)
-			return ret;
+			goto out;
 	}
 
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->set_params) {
 		ret = rtd->dai_link->compr_ops->set_params(cstream);
 		if (ret < 0)
-			return ret;
+			goto out;
 	}
 
 	snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
 				SND_SOC_DAPM_STREAM_START);
 
+out:
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -187,9 +203,12 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->get_params)
 		ret = platform->driver->compr_ops->get_params(cstream, params);
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -200,9 +219,12 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->get_caps)
 		ret = platform->driver->compr_ops->get_caps(cstream, caps);
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -213,9 +235,12 @@ static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->get_codec_caps)
 		ret = platform->driver->compr_ops->get_codec_caps(cstream, codec);
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -225,9 +250,12 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 	struct snd_soc_platform *platform = rtd->platform;
 	int ret = 0;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->ack)
 		ret = platform->driver->compr_ops->ack(cstream, bytes);
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
 
@@ -237,9 +265,12 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
 
+	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
 	if (platform->driver->compr_ops && platform->driver->compr_ops->pointer)
 		 platform->driver->compr_ops->pointer(cstream, tstamp);
 
+	mutex_unlock(&rtd->pcm_mutex);
 	return 0;
 }
 
