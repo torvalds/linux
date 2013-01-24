@@ -59,6 +59,7 @@ u32 tegra_uart_config[4] = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id tegra_dt_irq_match[] __initconst = {
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init },
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
 	{ }
 };
