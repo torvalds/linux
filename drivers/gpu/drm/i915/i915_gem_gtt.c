@@ -707,14 +707,14 @@ static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 	return snb_gmch_ctl << 20;
 }
 
-static inline unsigned int gen6_get_stolen_size(u16 snb_gmch_ctl)
+static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
 	return snb_gmch_ctl << 25; /* 32 MB units */
 }
 
-static inline unsigned int gen7_get_stolen_size(u16 snb_gmch_ctl)
+static inline size_t gen7_get_stolen_size(u16 snb_gmch_ctl)
 {
 	static const int stolen_decoder[] = {
 		0, 0, 0, 0, 0, 32, 48, 64, 128, 256, 96, 160, 224, 352};
@@ -723,109 +723,141 @@ static inline unsigned int gen7_get_stolen_size(u16 snb_gmch_ctl)
 	return stolen_decoder[snb_gmch_ctl] << 20;
 }
 
-int i915_gem_gtt_init(struct drm_device *dev)
+static int gen6_gmch_probe(struct drm_device *dev,
+			   size_t *gtt_total,
+			   size_t *stolen)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	phys_addr_t gtt_bus_addr;
+	unsigned int gtt_size;
 	u16 snb_gmch_ctl;
 	int ret;
 
-	dev_priv->gtt.mappable_base = pci_resource_start(dev->pdev, 2);
-	dev_priv->gtt.mappable_end = pci_resource_len(dev->pdev, 2);
-
-	/* On modern platforms we need not worry ourself with the legacy
-	 * hostbridge query stuff. Skip it entirely
+	/* 64/512MB is the current min/max we actually know of, but this is just
+	 * a coarse sanity check.
 	 */
-	if (INTEL_INFO(dev)->gen < 6) {
-		ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
-		if (!ret) {
-			DRM_ERROR("failed to set up gmch\n");
-			return -EIO;
-		}
-
-		dev_priv->mm.gtt = intel_gtt_get();
-		if (!dev_priv->mm.gtt) {
-			DRM_ERROR("Failed to initialize GTT\n");
-			intel_gmch_remove();
-			return -ENODEV;
-		}
-
-		dev_priv->gtt.do_idle_maps = needs_idle_maps(dev);
-
-		dev_priv->gtt.gtt_clear_range = i915_ggtt_clear_range;
-		dev_priv->gtt.gtt_insert_entries = i915_ggtt_insert_entries;
-
-		return 0;
+	if ((dev_priv->gtt.mappable_end < (64<<20) ||
+	     (dev_priv->gtt.mappable_end > (512<<20)))) {
+		DRM_ERROR("Unknown GMADR size (%lx)\n",
+			  dev_priv->gtt.mappable_end);
+		return -ENXIO;
 	}
 
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
+	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
+
+	if (IS_GEN7(dev))
+		*stolen = gen7_get_stolen_size(snb_gmch_ctl);
+	else
+		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
+
+	*gtt_total = (gtt_size / sizeof(gtt_pte_t)) << PAGE_SHIFT;
+
+	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
+	if (!dev_priv->gtt.gsm) {
+		DRM_ERROR("Failed to map the gtt page table\n");
+		return -ENOMEM;
+	}
+
+	ret = setup_scratch_page(dev);
+	if (ret)
+		DRM_ERROR("Scratch setup failed\n");
+
+	dev_priv->gtt.gtt_clear_range = gen6_ggtt_clear_range;
+	dev_priv->gtt.gtt_insert_entries = gen6_ggtt_insert_entries;
+
+	return ret;
+}
+
+void gen6_gmch_remove(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	iounmap(dev_priv->gtt.gsm);
+	teardown_scratch_page(dev_priv->dev);
+	kfree(dev_priv->mm.gtt);
+}
+
+static int i915_gmch_probe(struct drm_device *dev,
+			   size_t *gtt_total,
+			   size_t *stolen)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* This is a temporary hack to make the code cleaner in
+	 * i915_gem_gtt_init. I promise it will go away very shortly. */
+	kfree(dev_priv->mm.gtt);
+
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->dev->pdev, NULL);
+	if (!ret) {
+		DRM_ERROR("failed to set up gmch\n");
+		return -EIO;
+	}
+
+	dev_priv->mm.gtt = intel_gtt_get();
+	if (!dev_priv->mm.gtt) {
+		DRM_ERROR("Failed to initialize GTT\n");
+		intel_gmch_remove();
+		return -ENODEV;
+	}
+
+	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
+	dev_priv->gtt.gtt_clear_range = i915_ggtt_clear_range;
+	dev_priv->gtt.gtt_insert_entries = i915_ggtt_insert_entries;
+
+	return 0;
+}
+
+static void i915_gmch_remove(struct drm_device *dev)
+{
+	intel_gmch_remove();
+}
+
+int i915_gem_gtt_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_gtt *gtt = &dev_priv->gtt;
+	unsigned long gtt_size;
+	int ret;
 
 	dev_priv->mm.gtt = kzalloc(sizeof(*dev_priv->mm.gtt), GFP_KERNEL);
 	if (!dev_priv->mm.gtt)
 		return -ENOMEM;
 
-	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+	gtt->mappable_base = pci_resource_start(dev->pdev, 2);
+	gtt->mappable_end = pci_resource_len(dev->pdev, 2);
 
-	/* i9xx_setup */
-	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-	dev_priv->mm.gtt->gtt_total_entries =
-		gen6_get_total_gtt_size(snb_gmch_ctl) / sizeof(gtt_pte_t);
-	if (INTEL_INFO(dev)->gen < 7)
-		dev_priv->mm.gtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
-	else
-		dev_priv->mm.gtt->stolen_size = gen7_get_stolen_size(snb_gmch_ctl);
-
-	/* 64/512MB is the current min/max we actually know of, but this is just a
-	 * coarse sanity check.
-	 */
-	if ((dev_priv->gtt.mappable_end < (64<<20) ||
-	    (dev_priv->gtt.mappable_end > (512<<20)))) {
-		DRM_ERROR("Unknown GMADR size (%lx)\n",
-			  dev_priv->gtt.mappable_end);
-		ret = -ENXIO;
-		goto err_out;
+	if (INTEL_INFO(dev)->gen <= 5) {
+		dev_priv->gtt.gtt_probe = i915_gmch_probe;
+		dev_priv->gtt.gtt_remove = i915_gmch_remove;
+	} else {
+		dev_priv->gtt.gtt_probe = gen6_gmch_probe;
+		dev_priv->gtt.gtt_remove = gen6_gmch_remove;
 	}
 
-	ret = setup_scratch_page(dev);
+	ret = dev_priv->gtt.gtt_probe(dev, &dev_priv->gtt.total,
+				     &dev_priv->gtt.stolen_size);
 	if (ret) {
-		DRM_ERROR("Scratch setup failed\n");
-		goto err_out;
+		kfree(dev_priv->mm.gtt);
+		return ret;
 	}
 
-	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr,
-				       dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
-	if (!dev_priv->gtt.gsm) {
-		DRM_ERROR("Failed to map the gtt page table\n");
-		teardown_scratch_page(dev);
-		ret = -ENOMEM;
-		goto err_out;
-	}
+	dev_priv->mm.gtt->gtt_total_entries = dev_priv->gtt.total >> PAGE_SHIFT;
+	dev_priv->mm.gtt->stolen_size = dev_priv->gtt.stolen_size;
 
-	/* GMADR is the PCI aperture used by SW to access tiled GFX surfaces in a linear fashion. */
-	DRM_INFO("Memory usable by graphics device = %dM\n", dev_priv->mm.gtt->gtt_total_entries >> 8);
-	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", dev_priv->gtt.mappable_end >> 20);
-	DRM_DEBUG_DRIVER("GTT stolen size = %dM\n", dev_priv->mm.gtt->stolen_size >> 20);
+	gtt_size = (dev_priv->gtt.total >> PAGE_SHIFT) * sizeof(gtt_pte_t);
 
-	dev_priv->gtt.gtt_clear_range = gen6_ggtt_clear_range;
-	dev_priv->gtt.gtt_insert_entries = gen6_ggtt_insert_entries;
+	/* GMADR is the PCI mmio aperture into the global GTT. */
+	DRM_INFO("Memory usable by graphics device = %zdM\n",
+		 dev_priv->gtt.total >> 20);
+	DRM_DEBUG_DRIVER("GMADR size = %ldM\n",
+			 dev_priv->gtt.mappable_end >> 20);
+	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n",
+			 dev_priv->gtt.stolen_size >> 20);
 
 	return 0;
-
-err_out:
-	kfree(dev_priv->mm.gtt);
-	if (INTEL_INFO(dev)->gen < 6)
-		intel_gmch_remove();
-	return ret;
-}
-
-void i915_gem_gtt_fini(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	iounmap(dev_priv->gtt.gsm);
-	teardown_scratch_page(dev);
-	if (INTEL_INFO(dev)->gen < 6)
-		intel_gmch_remove();
-	kfree(dev_priv->mm.gtt);
 }

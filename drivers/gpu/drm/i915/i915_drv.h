@@ -381,6 +381,7 @@ enum i915_cache_level {
 struct i915_gtt {
 	unsigned long start;		/* Start offset of used GTT */
 	size_t total;			/* Total size GTT can map */
+	size_t stolen_size;		/* Total size of stolen memory */
 
 	unsigned long mappable_end;	/* End offset that we can CPU map */
 	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
@@ -394,6 +395,9 @@ struct i915_gtt {
 	struct page *scratch_page;
 
 	/* global gtt ops */
+	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
+			  size_t *stolen);
+	void (*gtt_remove)(struct drm_device *dev);
 	void (*gtt_clear_range)(struct drm_device *dev,
 				unsigned int first_entry,
 				unsigned int num_entries);
@@ -1689,7 +1693,6 @@ void i915_gem_init_global_gtt(struct drm_device *dev);
 void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
 			       unsigned long mappable_end, unsigned long end);
 int i915_gem_gtt_init(struct drm_device *dev);
-void i915_gem_gtt_fini(struct drm_device *dev);
 static inline void i915_gem_chipset_flush(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)

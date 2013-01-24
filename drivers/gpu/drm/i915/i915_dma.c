@@ -1665,7 +1665,7 @@ out_mtrrfree:
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_gmch:
-	i915_gem_gtt_fini(dev);
+	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
