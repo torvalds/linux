@@ -471,12 +471,6 @@ struct usb_gadget_ops {
 			struct usb_gadget_driver *);
 	int	(*udc_stop)(struct usb_gadget *,
 			struct usb_gadget_driver *);
-
-	/* Those two are deprecated */
-	int	(*start)(struct usb_gadget_driver *,
-			int (*bind)(struct usb_gadget *,
-				struct usb_gadget_driver *driver));
-	int	(*stop)(struct usb_gadget_driver *);
 };
 
 /**
