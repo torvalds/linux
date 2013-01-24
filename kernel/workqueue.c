@@ -80,7 +80,7 @@ enum {
 	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_UNBOUND |
 				  WORKER_CPU_INTENSIVE,
 
-	NR_WORKER_POOLS		= 2,		/* # worker pools per gcwq */
+	NR_STD_WORKER_POOLS	= 2,		/* # standard pools per cpu */
 
 	BUSY_WORKER_HASH_ORDER	= 6,		/* 64 pointers */
 
@@ -156,7 +156,7 @@ struct global_cwq {
 	DECLARE_HASHTABLE(busy_hash, BUSY_WORKER_HASH_ORDER);
 						/* L: hash of busy workers */
 
-	struct worker_pool	pools[NR_WORKER_POOLS];
+	struct worker_pool	pools[NR_STD_WORKER_POOLS];
 						/* normal and highpri pools */
 } ____cacheline_aligned_in_smp;
 
@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(system_freezable_wq);
 
 #define for_each_worker_pool(pool, gcwq)				\
 	for ((pool) = &(gcwq)->pools[0];				\
-	     (pool) < &(gcwq)->pools[NR_WORKER_POOLS]; (pool)++)
+	     (pool) < &(gcwq)->pools[NR_STD_WORKER_POOLS]; (pool)++)
 
 #define for_each_busy_worker(worker, i, pos, gcwq)			\
 	hash_for_each(gcwq->busy_hash, i, pos, worker, hentry)
@@ -436,7 +436,7 @@ static bool workqueue_freezing;		/* W: have wqs started freezing? */
  * try_to_wake_up().  Put it in a separate cacheline.
  */
 static DEFINE_PER_CPU(struct global_cwq, global_cwq);
-static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, pool_nr_running[NR_WORKER_POOLS]);
+static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, pool_nr_running[NR_STD_WORKER_POOLS]);
 
 /*
  * Global cpu workqueue and nr_running counter for unbound gcwq.  The
@@ -444,14 +444,14 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, pool_nr_running[NR_WORKER_POOLS])
  * workers have WORKER_UNBOUND set.
  */
 static struct global_cwq unbound_global_cwq;
-static atomic_t unbound_pool_nr_running[NR_WORKER_POOLS] = {
-	[0 ... NR_WORKER_POOLS - 1]	= ATOMIC_INIT(0),	/* always 0 */
+static atomic_t unbound_pool_nr_running[NR_STD_WORKER_POOLS] = {
+	[0 ... NR_STD_WORKER_POOLS - 1]	= ATOMIC_INIT(0),	/* always 0 */
 };
 
 static int worker_thread(void *__worker);
 static unsigned int work_cpu(struct work_struct *work);
 
-static int worker_pool_pri(struct worker_pool *pool)
+static int std_worker_pool_pri(struct worker_pool *pool)
 {
 	return pool - pool->gcwq->pools;
 }
@@ -467,7 +467,7 @@ static struct global_cwq *get_gcwq(unsigned int cpu)
 static atomic_t *get_pool_nr_running(struct worker_pool *pool)
 {
 	int cpu = pool->gcwq->cpu;
-	int idx = worker_pool_pri(pool);
+	int idx = std_worker_pool_pri(pool);
 
 	if (cpu != WORK_CPU_UNBOUND)
 		return &per_cpu(pool_nr_running, cpu)[idx];
@@ -1688,7 +1688,7 @@ static void rebind_workers(struct global_cwq *gcwq)
 		 * wq doesn't really matter but let's keep @worker->pool
 		 * and @cwq->pool consistent for sanity.
 		 */
-		if (worker_pool_pri(worker->pool))
+		if (std_worker_pool_pri(worker->pool))
 			wq = system_highpri_wq;
 		else
 			wq = system_wq;
@@ -1731,7 +1731,7 @@ static struct worker *alloc_worker(void)
 static struct worker *create_worker(struct worker_pool *pool)
 {
 	struct global_cwq *gcwq = pool->gcwq;
-	const char *pri = worker_pool_pri(pool) ? "H" : "";
+	const char *pri = std_worker_pool_pri(pool) ? "H" : "";
 	struct worker *worker = NULL;
 	int id = -1;
 
@@ -1761,7 +1761,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (IS_ERR(worker->task))
 		goto fail;
 
-	if (worker_pool_pri(pool))
+	if (std_worker_pool_pri(pool))
 		set_user_nice(worker->task, HIGHPRI_NICE_LEVEL);
 
 	/*
