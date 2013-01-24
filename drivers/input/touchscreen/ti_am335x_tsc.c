@@ -33,6 +33,13 @@
 #define SEQ_SETTLE		275
 #define MAX_12BIT		((1 << 12) - 1)
 
+static const int config_pins[] = {
+	STEPCONFIG_XPP,
+	STEPCONFIG_XNN,
+	STEPCONFIG_YPP,
+	STEPCONFIG_YNN,
+};
+
 struct titsc {
 	struct input_dev	*input;
 	struct ti_tscadc_dev	*mfd_tscadc;
@@ -41,6 +48,9 @@ struct titsc {
 	unsigned int		x_plate_resistance;
 	bool			pen_down;
 	int			steps_to_configure;
+	u32			config_inp[4];
+	u32			bit_xp, bit_xn, bit_yp, bit_yn;
+	u32			inp_xp, inp_xn, inp_yp, inp_yn;
 };
 
 static unsigned int titsc_readl(struct titsc *ts, unsigned int reg)
@@ -54,6 +64,58 @@ static void titsc_writel(struct titsc *tsc, unsigned int reg,
 	writel(val, tsc->mfd_tscadc->tscadc_base + reg);
 }
 
+static int titsc_config_wires(struct titsc *ts_dev)
+{
+	u32 analog_line[4];
+	u32 wire_order[4];
+	int i, bit_cfg;
+
+	for (i = 0; i < 4; i++) {
+		/*
+		 * Get the order in which TSC wires are attached
+		 * w.r.t. each of the analog input lines on the EVM.
+		 */
+		analog_line[i] = (ts_dev->config_inp[i] & 0xF0) >> 4;
+		wire_order[i] = ts_dev->config_inp[i] & 0x0F;
+		if (WARN_ON(analog_line[i] > 7))
+			return -EINVAL;
+		if (WARN_ON(wire_order[i] > ARRAY_SIZE(config_pins)))
+			return -EINVAL;
+	}
+
+	for (i = 0; i < 4; i++) {
+		int an_line;
+		int wi_order;
+
+		an_line = analog_line[i];
+		wi_order = wire_order[i];
+		bit_cfg = config_pins[wi_order];
+		if (bit_cfg == 0)
+			return -EINVAL;
+		switch (wi_order) {
+		case 0:
+			ts_dev->bit_xp = bit_cfg;
+			ts_dev->inp_xp = an_line;
+			break;
+
+		case 1:
+			ts_dev->bit_xn = bit_cfg;
+			ts_dev->inp_xn = an_line;
+			break;
+
+		case 2:
+			ts_dev->bit_yp = bit_cfg;
+			ts_dev->inp_yp = an_line;
+			break;
+		case 3:
+			ts_dev->bit_yn = bit_cfg;
+			ts_dev->inp_yn = an_line;
+			break;
+		}
+	}
+	return 0;
+}
+
 static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
@@ -64,18 +126,18 @@ static void titsc_step_config(struct titsc *ts_dev)
 	total_steps = 2 * ts_dev->steps_to_configure;
 
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_AVG_16 | STEPCONFIG_XPP;
+			STEPCONFIG_AVG_16 | ts_dev->bit_xp;
 	switch (ts_dev->wires) {
 	case 4:
-		config |= STEPCONFIG_INP_AN2 | STEPCONFIG_XNN;
+		config |= STEPCONFIG_INP(ts_dev->inp_yp) | ts_dev->bit_xn;
 		break;
 	case 5:
-		config |= STEPCONFIG_YNN |
-				STEPCONFIG_INP_AN4 | STEPCONFIG_XNN |
-				STEPCONFIG_YPP;
+		config |= ts_dev->bit_yn |
+				STEPCONFIG_INP_AN4 | ts_dev->bit_xn |
+				ts_dev->bit_yp;
 		break;
 	case 8:
-		config |= STEPCONFIG_INP_AN2 | STEPCONFIG_XNN;
+		config |= STEPCONFIG_INP(ts_dev->inp_yp) | ts_dev->bit_xn;
 		break;
 	}
 
@@ -86,18 +148,18 @@ static void titsc_step_config(struct titsc *ts_dev)
 
 	config = 0;
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_AVG_16 | STEPCONFIG_YNN |
+			STEPCONFIG_AVG_16 | ts_dev->bit_yn |
 			STEPCONFIG_INM_ADCREFM | STEPCONFIG_FIFO1;
 	switch (ts_dev->wires) {
 	case 4:
-		config |= STEPCONFIG_YPP;
+		config |= ts_dev->bit_yp | STEPCONFIG_INP(ts_dev->inp_xp);
 		break;
 	case 5:
-		config |= STEPCONFIG_XPP | STEPCONFIG_INP_AN4 |
-				STEPCONFIG_XNP | STEPCONFIG_YPN;
+		config |= ts_dev->bit_xp | STEPCONFIG_INP_AN4 |
+				ts_dev->bit_xn | ts_dev->bit_yp;
 		break;
 	case 8:
-		config |= STEPCONFIG_YPP;
+		config |= ts_dev->bit_yp | STEPCONFIG_INP(ts_dev->inp_xp);
 		break;
 	}
 
@@ -108,9 +170,9 @@ static void titsc_step_config(struct titsc *ts_dev)
 
 	config = 0;
 	/* Charge step configuration */
-	config = STEPCONFIG_XPP | STEPCONFIG_YNN |
+	config = ts_dev->bit_xp | ts_dev->bit_yn |
 			STEPCHARGE_RFP_XPUL | STEPCHARGE_RFM_XNUR |
-			STEPCHARGE_INM_AN1 | STEPCHARGE_INP_AN1;
+			STEPCHARGE_INM_AN1 | STEPCHARGE_INP(ts_dev->inp_yp);
 
 	titsc_writel(ts_dev, REG_CHARGECONFIG, config);
 	titsc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
@@ -118,13 +180,14 @@ static void titsc_step_config(struct titsc *ts_dev)
 	config = 0;
 	/* Configure to calculate pressure */
 	config = STEPCONFIG_MODE_HWSYNC |
-			STEPCONFIG_AVG_16 | STEPCONFIG_YPP |
-			STEPCONFIG_XNN | STEPCONFIG_INM_ADCREFM;
+			STEPCONFIG_AVG_16 | ts_dev->bit_yp |
+			ts_dev->bit_xn | STEPCONFIG_INM_ADCREFM |
+			STEPCONFIG_INP(ts_dev->inp_xp);
 	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 1), config);
 	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 1),
 			STEPCONFIG_OPENDLY);
 
-	config |= STEPCONFIG_INP_AN3 | STEPCONFIG_FIFO1;
+	config |= STEPCONFIG_INP(ts_dev->inp_yn) | STEPCONFIG_FIFO1;
 	titsc_writel(ts_dev, REG_STEPCONFIG(total_steps + 2), config);
 	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
 			STEPCONFIG_OPENDLY);
@@ -292,6 +355,8 @@ static int titsc_probe(struct platform_device *pdev)
 	ts_dev->wires = pdata->tsc_init->wires;
 	ts_dev->x_plate_resistance = pdata->tsc_init->x_plate_resistance;
 	ts_dev->steps_to_configure = pdata->tsc_init->steps_to_configure;
+	memcpy(ts_dev->config_inp, pdata->tsc_init->wire_config,
+			sizeof(pdata->tsc_init->wire_config));
 
 	err = request_irq(ts_dev->irq, titsc_irq,
 			  0, pdev->dev.driver->name, ts_dev);
@@ -301,6 +366,11 @@ static int titsc_probe(struct platform_device *pdev)
 	}
 
 	titsc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
+	err = titsc_config_wires(ts_dev);
+	if (err) {
+		dev_err(&pdev->dev, "wrong i/p wire configuration\n");
+		goto err_free_irq;
+	}
 	titsc_step_config(ts_dev);
 	titsc_writel(ts_dev, REG_FIFO0THR, ts_dev->steps_to_configure);
 
