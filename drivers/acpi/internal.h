@@ -40,10 +40,11 @@ static inline void acpi_debugfs_init(void) { return; }
 #define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
 			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
 
-int acpi_device_register(struct acpi_device *device,
-			 void (*release)(struct device *));
+int acpi_device_add(struct acpi_device *device,
+		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
+void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_ids(struct acpi_device *device);
 
 /* --------------------------------------------------------------------------

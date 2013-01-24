@@ -721,13 +721,14 @@ int acpi_add_power_resource(acpi_handle handle)
 	       acpi_device_bid(device), state ? "on" : "off");
 
 	device->flags.match_driver = true;
-	result = acpi_device_register(device, acpi_release_power_resource);
+	result = acpi_device_add(device, acpi_release_power_resource);
 	if (result)
 		goto err;
 
 	mutex_lock(&power_resource_list_lock);
 	list_add(&resource->list_node, &acpi_power_resource_list);
 	mutex_unlock(&power_resource_list_lock);
+	acpi_device_add_finalize(device);
 	return 0;
 
  err:
