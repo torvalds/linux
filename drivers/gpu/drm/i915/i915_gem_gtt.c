@@ -77,7 +77,7 @@ static inline gtt_pte_t pte_encode(struct drm_device *dev,
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */
-static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
+static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
@@ -108,7 +108,51 @@ static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	}
 }
 
-int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
+				      struct sg_table *pages,
+				      unsigned first_entry,
+				      enum i915_cache_level cache_level)
+{
+	gtt_pte_t *pt_vaddr;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned i, j, m, segment_len;
+	dma_addr_t page_addr;
+	struct scatterlist *sg;
+
+	/* init sg walking */
+	sg = pages->sgl;
+	i = 0;
+	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+	m = 0;
+
+	while (i < pages->nents) {
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+
+		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
+			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+			pt_vaddr[j] = pte_encode(ppgtt->dev, page_addr,
+						 cache_level);
+
+			/* grab the next page */
+			if (++m == segment_len) {
+				if (++i == pages->nents)
+					break;
+
+				sg = sg_next(sg);
+				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+				m = 0;
+			}
+		}
+
+		kunmap_atomic(pt_vaddr);
+
+		first_pte = 0;
+		act_pd++;
+	}
+}
+
+static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt;
@@ -127,6 +171,8 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	ppgtt->dev = dev;
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
+	ppgtt->clear_range = gen6_ppgtt_clear_range;
+	ppgtt->insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
 				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
@@ -159,8 +205,8 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
-	i915_ppgtt_clear_range(ppgtt, 0,
-			       ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
+	ppgtt->clear_range(ppgtt, 0,
+			   ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
 	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
 
@@ -209,66 +255,21 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	kfree(ppgtt);
 }
 
-static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
-					 const struct sg_table *pages,
-					 unsigned first_entry,
-					 enum i915_cache_level cache_level)
-{
-	gtt_pte_t *pt_vaddr;
-	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
-	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
-	unsigned i, j, m, segment_len;
-	dma_addr_t page_addr;
-	struct scatterlist *sg;
-
-	/* init sg walking */
-	sg = pages->sgl;
-	i = 0;
-	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-	m = 0;
-
-	while (i < pages->nents) {
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
-
-		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
-			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			pt_vaddr[j] = pte_encode(ppgtt->dev, page_addr,
-						 cache_level);
-
-			/* grab the next page */
-			if (++m == segment_len) {
-				if (++i == pages->nents)
-					break;
-
-				sg = sg_next(sg);
-				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-				m = 0;
-			}
-		}
-
-		kunmap_atomic(pt_vaddr);
-
-		first_pte = 0;
-		act_pd++;
-	}
-}
-
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-	i915_ppgtt_insert_sg_entries(ppgtt,
-				     obj->pages,
-				     obj->gtt_space->start >> PAGE_SHIFT,
-				     cache_level);
+	ppgtt->insert_entries(ppgtt, obj->pages,
+			      obj->gtt_space->start >> PAGE_SHIFT,
+			      cache_level);
 }
 
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj)
 {
-	i915_ppgtt_clear_range(ppgtt,
-			       obj->gtt_space->start >> PAGE_SHIFT,
-			       obj->base.size >> PAGE_SHIFT);
+	ppgtt->clear_range(ppgtt,
+			   obj->gtt_space->start >> PAGE_SHIFT,
+			   obj->base.size >> PAGE_SHIFT);
 }
 
 void i915_gem_init_ppgtt(struct drm_device *dev)

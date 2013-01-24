@@ -412,6 +412,15 @@ struct i915_hw_ppgtt {
 	uint32_t pd_offset;
 	dma_addr_t *pt_dma_addr;
 	dma_addr_t scratch_page_dma_addr;
+
+	/* pte functions, mirroring the interface of the global gtt. */
+	void (*clear_range)(struct i915_hw_ppgtt *ppgtt,
+			    unsigned int first_entry,
+			    unsigned int num_entries);
+	void (*insert_entries)(struct i915_hw_ppgtt *ppgtt,
+			       struct sg_table *st,
+			       unsigned int pg_start,
+			       enum i915_cache_level cache_level);
 };
 
 
@@ -1662,7 +1671,6 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
 
 /* i915_gem_gtt.c */
-int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev);
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
