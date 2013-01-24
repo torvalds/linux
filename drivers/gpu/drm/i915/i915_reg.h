@@ -2982,7 +2982,7 @@
 #define CURPOS_IVB(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS_IVB)
 
 /* Display A control */
-#define _DSPACNTR                0x70180
+#define _DSPACNTR                (dev_priv->info->display_mmio_offset + 0x70180)
 #define   DISPLAY_PLANE_ENABLE			(1<<31)
 #define   DISPLAY_PLANE_DISABLE			0
 #define   DISPPLANE_GAMMA_ENABLE		(1<<30)
@@ -3015,14 +3015,14 @@
 #define   DISPPLANE_STEREO_POLARITY_SECOND	(1<<18)
 #define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* Ironlake */
 #define   DISPPLANE_TILED			(1<<10)
-#define _DSPAADDR		0x70184
-#define _DSPASTRIDE		0x70188
-#define _DSPAPOS			0x7018C /* reserved */
-#define _DSPASIZE		0x70190
-#define _DSPASURF		0x7019C /* 965+ only */
-#define _DSPATILEOFF		0x701A4 /* 965+ only */
-#define _DSPAOFFSET		0x701A4 /* HSW */
-#define _DSPASURFLIVE		0x701AC
+#define _DSPAADDR		(dev_priv->info->display_mmio_offset + 0x70184)
+#define _DSPASTRIDE		(dev_priv->info->display_mmio_offset + 0x70188)
+#define _DSPAPOS		(dev_priv->info->display_mmio_offset + 0x7018C) /* reserved */
+#define _DSPASIZE		(dev_priv->info->display_mmio_offset + 0x70190)
+#define _DSPASURF		(dev_priv->info->display_mmio_offset + 0x7019C) /* 965+ only */
+#define _DSPATILEOFF		(dev_priv->info->display_mmio_offset + 0x701A4) /* 965+ only */
+#define _DSPAOFFSET		(dev_priv->info->display_mmio_offset + 0x701A4) /* HSW */
+#define _DSPASURFLIVE		(dev_priv->info->display_mmio_offset + 0x701AC)
 
 #define DSPCNTR(plane) _PIPE(plane, _DSPACNTR, _DSPBCNTR)
 #define DSPADDR(plane) _PIPE(plane, _DSPAADDR, _DSPBADDR)
@@ -3068,19 +3068,19 @@
 
 
 /* Display B control */
-#define _DSPBCNTR		0x71180
+#define _DSPBCNTR		(dev_priv->info->display_mmio_offset + 0x71180)
 #define   DISPPLANE_ALPHA_TRANS_ENABLE		(1<<15)
 #define   DISPPLANE_ALPHA_TRANS_DISABLE		0
 #define   DISPPLANE_SPRITE_ABOVE_DISPLAY	0
 #define   DISPPLANE_SPRITE_ABOVE_OVERLAY	(1)
-#define _DSPBADDR		0x71184
-#define _DSPBSTRIDE		0x71188
-#define _DSPBPOS			0x7118C
-#define _DSPBSIZE		0x71190
-#define _DSPBSURF		0x7119C
-#define _DSPBTILEOFF		0x711A4
-#define _DSPBOFFSET		0x711A4
-#define _DSPBSURFLIVE		0x711AC
+#define _DSPBADDR		(dev_priv->info->display_mmio_offset + 0x71184)
+#define _DSPBSTRIDE		(dev_priv->info->display_mmio_offset + 0x71188)
+#define _DSPBPOS		(dev_priv->info->display_mmio_offset + 0x7118C)
+#define _DSPBSIZE		(dev_priv->info->display_mmio_offset + 0x71190)
+#define _DSPBSURF		(dev_priv->info->display_mmio_offset + 0x7119C)
+#define _DSPBTILEOFF		(dev_priv->info->display_mmio_offset + 0x711A4)
+#define _DSPBOFFSET		(dev_priv->info->display_mmio_offset + 0x711A4)
+#define _DSPBSURFLIVE		(dev_priv->info->display_mmio_offset + 0x711AC)
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
