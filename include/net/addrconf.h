@@ -15,6 +15,10 @@
 
 #define IPV6_MAX_ADDRESSES		16
 
+#define ADDRCONF_TIMER_FUZZ_MINUS	(HZ > 50 ? HZ / 50 : 1)
+#define ADDRCONF_TIMER_FUZZ		(HZ / 4)
+#define ADDRCONF_TIMER_FUZZ_MAX		(HZ)
+
 #include <linux/in.h>
 #include <linux/in6.h>
 
