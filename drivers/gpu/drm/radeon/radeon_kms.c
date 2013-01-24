@@ -185,11 +185,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (info->request == RADEON_INFO_TIMESTAMP) {
 		if (rdev->family >= CHIP_R600) {
 			value_ptr64 = (uint64_t*)((unsigned long)info->value);
-			if (rdev->family >= CHIP_TAHITI) {
-				value64 = si_get_gpu_clock(rdev);
-			} else {
-				value64 = r600_get_gpu_clock(rdev);
-			}
+			value64 = radeon_get_gpu_clock_counter(rdev);
 
 			if (DRM_COPY_TO_USER(value_ptr64, &value64, sizeof(value64))) {
 				DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);

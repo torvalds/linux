@@ -1181,6 +1181,8 @@ struct radeon_asic {
 	int (*mc_wait_for_idle)(struct radeon_device *rdev);
 	/* get the reference clock */
 	u32 (*get_xclk)(struct radeon_device *rdev);
+	/* get the gpu clock counter */
+	uint64_t (*get_gpu_clock_counter)(struct radeon_device *rdev);
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
@@ -1863,6 +1865,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
+#define radeon_get_gpu_clock_counter(rdev) (rdev)->asic->get_gpu_clock_counter((rdev))
 
 /* Common functions */
 /* AGP */
