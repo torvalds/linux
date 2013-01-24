@@ -809,6 +809,7 @@ do {									\
 struct perf_pmu_events_attr {
 	struct device_attribute attr;
 	u64 id;
+	const char *event_str;
 };
 
 #define PMU_EVENT_ATTR(_name, _var, _id, _show)				\
