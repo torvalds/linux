@@ -7,6 +7,9 @@ Required properties :
  - reg : Address and length of the register set for the USB PHY interface.
  - phy_type : Should be one of "ulpi" or "utmi".
 
+Required properties for phy_type == ulpi:
+  - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
+
 Optional properties:
   - nvidia,has-legacy-mode : boolean indicates whether this controller can
     operate in legacy mode (as APX 2500 / 2600). In legacy mode some

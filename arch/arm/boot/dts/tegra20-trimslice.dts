@@ -310,6 +310,10 @@
 		status = "okay";
 	};
 
+	usb-phy@c5004400 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	};
+
 	sdhci@c8000000 {
 		status = "okay";
 		bus-width = <4>;
