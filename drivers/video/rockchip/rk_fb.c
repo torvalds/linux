@@ -811,6 +811,8 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		{
 			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!",__func__);
 		}
+	#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+		info->fbops->fb_pan_display(hdmi_var,info);
 	#endif 
 
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
