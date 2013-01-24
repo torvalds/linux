@@ -109,5 +109,7 @@ extern const struct iwl_cfg iwl6035_2agn_cfg;
 extern const struct iwl_cfg iwl105_bgn_cfg;
 extern const struct iwl_cfg iwl105_bgn_d_cfg;
 extern const struct iwl_cfg iwl135_bgn_cfg;
+extern const struct iwl_cfg iwl7260_2ac_cfg;
+extern const struct iwl_cfg iwl3160_ac_cfg;
 
 #endif /* __iwl_pci_h__ */

@@ -255,6 +255,12 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_bgn_cfg)},
 
+/* 7000 Series */
+	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC070, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0070, iwl3160_ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8070, iwl3160_ac_cfg)},
+
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);

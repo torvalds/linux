@@ -414,6 +414,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
  *	uCode/driver must write "1" in order to clear this flag
  */
 #define FH_TSSR_TX_ERROR_REG		(FH_TSSR_LOWER_BOUND + 0x018)
+#define FH_TSSR_TX_MSG_CONFIG_REG	(FH_TSSR_LOWER_BOUND + 0x008)
 
 #define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) ((1 << (_chnl)) << 16)
 

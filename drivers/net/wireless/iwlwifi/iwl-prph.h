@@ -97,6 +97,9 @@
 
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS		(0x00000800)
 
+/* Device system time */
+#define DEVICE_SYSTEM_TIME_REG 0xA0206C
+
 /**
  * Tx Scheduler
  *
