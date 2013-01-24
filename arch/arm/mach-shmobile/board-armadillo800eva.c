@@ -708,9 +708,9 @@ static int mt9t111_power(struct device *dev, int mode)
 		/* video1 (= CON1 camera) expect 24MHz */
 		clk_set_rate(mclk, clk_round_rate(mclk, 24000000));
 		clk_enable(mclk);
-		gpio_direction_output(GPIO_PORT158, 1);
+		gpio_set_value(GPIO_PORT158, 1);
 	} else {
-		gpio_direction_output(GPIO_PORT158, 0);
+		gpio_set_value(GPIO_PORT158, 0);
 		clk_disable(mclk);
 	}
 
