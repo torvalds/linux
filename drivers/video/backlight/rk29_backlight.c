@@ -142,7 +142,15 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 			rk29_bl_info->pwm_resume();
 		clk_enable(pwm_clk);
 		msleep(1);
+		div_total = read_pwm_reg(PWM_REG_LRC);
+		if (ref) {
+			divh = div_total*brightness/BL_STEP;
+		} else {
+			divh = div_total*(BL_STEP-brightness)/BL_STEP;
+		}
+		rk_pwm_setup(id, PWM_DIV, divh, div_total);
 	}
+
 
 
 	DBG("%s:line=%d,brightness = %d, div_total = %d, divh = %d state=%x \n",__FUNCTION__,__LINE__,brightness, div_total, divh,bl->props.state);
