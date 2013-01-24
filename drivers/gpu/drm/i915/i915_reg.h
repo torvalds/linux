@@ -1612,7 +1612,7 @@
 
 
 /* Hotplug control (945+ only) */
-#define PORT_HOTPLUG_EN		0x61110
+#define PORT_HOTPLUG_EN		(dev_priv->info->display_mmio_offset + 0x61110)
 #define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
 #define   DPB_HOTPLUG_INT_EN			(1 << 29)
 #define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
@@ -1639,7 +1639,7 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 
-#define PORT_HOTPLUG_STAT	0x61114
+#define PORT_HOTPLUG_STAT	(dev_priv->info->display_mmio_offset + 0x61114)
 /* HDMI/DP bits are gen4+ */
 #define   DPB_HOTPLUG_LIVE_STATUS               (1 << 29)
 #define   DPC_HOTPLUG_LIVE_STATUS               (1 << 28)
