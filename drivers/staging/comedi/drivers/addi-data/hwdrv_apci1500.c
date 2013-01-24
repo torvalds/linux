@@ -45,7 +45,105 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   |          |           |                                                |
   +----------+-----------+------------------------------------------------+
 */
-#include "hwdrv_apci1500.h"
+
+/*********      Definitions for APCI-1500 card  *****/
+
+/* Card Specific information */
+#define APCI1500_ADDRESS_RANGE		4
+
+/* DIGITAL INPUT-OUTPUT DEFINE */
+
+#define APCI1500_DIGITAL_OP		2
+#define APCI1500_DIGITAL_IP		0
+#define APCI1500_AND			2
+#define APCI1500_OR			4
+#define APCI1500_OR_PRIORITY		6
+#define APCI1500_CLK_SELECT		0
+#define COUNTER1			0
+#define COUNTER2			1
+#define COUNTER3			2
+#define APCI1500_COUNTER		0x20
+#define APCI1500_TIMER			0
+#define APCI1500_WATCHDOG		0
+#define APCI1500_SINGLE			0
+#define APCI1500_CONTINUOUS		0x80
+#define APCI1500_DISABLE		0
+#define APCI1500_ENABLE			1
+#define APCI1500_SOFTWARE_TRIGGER	0x4
+#define APCI1500_HARDWARE_TRIGGER	0x10
+#define APCI1500_SOFTWARE_GATE		0
+#define APCI1500_HARDWARE_GATE		0x8
+#define START				0
+#define STOP				1
+#define TRIGGER				2
+
+/*
+ * Zillog I/O enumeration
+ */
+enum {
+	APCI1500_Z8536_PORT_C,
+	APCI1500_Z8536_PORT_B,
+	APCI1500_Z8536_PORT_A,
+	APCI1500_Z8536_CONTROL_REGISTER
+};
+
+/*
+ * Z8536 CIO Internal Address
+ */
+enum {
+	APCI1500_RW_MASTER_INTERRUPT_CONTROL,
+	APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
+	APCI1500_RW_PORT_A_INTERRUPT_CONTROL,
+	APCI1500_RW_PORT_B_INTERRUPT_CONTROL,
+	APCI1500_RW_TIMER_COUNTER_INTERRUPT_VECTOR,
+	APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY,
+	APCI1500_RW_PORT_C_DATA_DIRECTION,
+	APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL,
+
+	APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
+	APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
+	APCI1500_RW_CPT_TMR1_CMD_STATUS,
+	APCI1500_RW_CPT_TMR2_CMD_STATUS,
+	APCI1500_RW_CPT_TMR3_CMD_STATUS,
+	APCI1500_RW_PORT_A_DATA,
+	APCI1500_RW_PORT_B_DATA,
+	APCI1500_RW_PORT_C_DATA,
+
+	APCI1500_R_CPT_TMR1_VALUE_HIGH,
+	APCI1500_R_CPT_TMR1_VALUE_LOW,
+	APCI1500_R_CPT_TMR2_VALUE_HIGH,
+	APCI1500_R_CPT_TMR2_VALUE_LOW,
+	APCI1500_R_CPT_TMR3_VALUE_HIGH,
+	APCI1500_R_CPT_TMR3_VALUE_LOW,
+	APCI1500_RW_CPT_TMR1_TIME_CST_HIGH,
+	APCI1500_RW_CPT_TMR1_TIME_CST_LOW,
+	APCI1500_RW_CPT_TMR2_TIME_CST_HIGH,
+	APCI1500_RW_CPT_TMR2_TIME_CST_LOW,
+	APCI1500_RW_CPT_TMR3_TIME_CST_HIGH,
+	APCI1500_RW_CPT_TMR3_TIME_CST_LOW,
+	APCI1500_RW_CPT_TMR1_MODE_SPECIFICATION,
+	APCI1500_RW_CPT_TMR2_MODE_SPECIFICATION,
+	APCI1500_RW_CPT_TMR3_MODE_SPECIFICATION,
+	APCI1500_R_CURRENT_VECTOR,
+
+	APCI1500_RW_PORT_A_SPECIFICATION,
+	APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION,
+	APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY,
+	APCI1500_RW_PORT_A_DATA_DIRECTION,
+	APCI1500_RW_PORT_A_SPECIAL_IO_CONTROL,
+	APCI1500_RW_PORT_A_PATTERN_POLARITY,
+	APCI1500_RW_PORT_A_PATTERN_TRANSITION,
+	APCI1500_RW_PORT_A_PATTERN_MASK,
+
+	APCI1500_RW_PORT_B_SPECIFICATION,
+	APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION,
+	APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY,
+	APCI1500_RW_PORT_B_DATA_DIRECTION,
+	APCI1500_RW_PORT_B_SPECIAL_IO_CONTROL,
+	APCI1500_RW_PORT_B_PATTERN_POLARITY,
+	APCI1500_RW_PORT_B_PATTERN_TRANSITION,
+	APCI1500_RW_PORT_B_PATTERN_MASK
+};
 
 static int i_TimerCounter1Init = 0;
 static int i_TimerCounter2Init = 0;
@@ -141,6 +239,7 @@ static int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device *dev,
 					      struct comedi_insn *insn,
 					      unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
 	int i_PatternTransitionCount = 0, i_RegValue;
@@ -525,8 +624,10 @@ static int i_APCI1500_StartStopInputEvent(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
+
 	switch (data[0]) {
 	case START:
 	      /*************************/
@@ -792,7 +893,9 @@ static int i_APCI1500_Initialisation(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_DummyRead = 0;
+
     /******************/
 	/* Software reset */
     /******************/
@@ -939,82 +1042,15 @@ static int i_APCI1500_Initialisation(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1500_ReadMoreDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the Requested digital inputs      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
-|                      unsigned int *data             : Data Pointer
-|                      data[0]                 : 0 Read a single channel
-|                                                1 read a port value
-|                      data[1]                 : port value
-+----------------------------------------------------------------------------+
-| Output Parameters :	--	data[0]    :The read status value
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI1500_ReadMoreDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
+static int apci1500_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_PortValue = data[1];
-	unsigned int ui_Mask = 0;
-	unsigned int ui_Channel;
-	unsigned int ui_TmpValue = 0;
-	ui_Channel = CR_CHAN(insn->chanspec);
+	struct addi_private *devpriv = dev->private;
 
-	switch (data[0]) {
-	case 0:
-		if (ui_Channel <= 15) {
-			ui_TmpValue =
-				(unsigned int) inw(devpriv->i_IobaseAddon +
-				APCI1500_DIGITAL_IP);
-			*data = (ui_TmpValue >> ui_Channel) & 0x1;
-		}		/* if(ui_Channel >= 0 && ui_Channel <=15) */
-		else {
-			printk("\nThe channel specification are in error\n");
-			return -EINVAL;	/*  "sorry channel spec wrong " */
-		}		/* else if(ui_Channel >= 0 && ui_Channel <=15) */
-		break;
-	case 1:
+	data[1] = inw(devpriv->i_IobaseAddon + APCI1500_DIGITAL_IP);
 
-		*data = (unsigned int) inw(devpriv->i_IobaseAddon +
-			APCI1500_DIGITAL_IP);
-		switch (ui_Channel) {
-		case 2:
-			ui_Mask = 3;
-			*data = (*data >> (2 * ui_PortValue)) & ui_Mask;
-			break;
-		case 4:
-			ui_Mask = 15;
-			*data = (*data >> (4 * ui_PortValue)) & ui_Mask;
-			break;
-		case 8:
-			ui_Mask = 255;
-			*data = (*data >> (8 * ui_PortValue)) & ui_Mask;
-			break;
-		case 15:
-			break;
-
-		default:
-			printk("\nSpecified channel cannot be read \n");
-			return -EINVAL;	/*  "sorry channel spec wrong " */
-			break;
-		}		/* switch(ui_Channel) */
-		break;
-	default:
-		printk("\nThe specified functionality does not exist\n");
-		return -EINVAL;
-	}			/* switch(data[0]) */
 	return insn->n;
 }
 
@@ -1051,6 +1087,8 @@ static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(struct comedi_device *de
 							struct comedi_insn *insn,
 							unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
 }
@@ -1079,9 +1117,9 @@ static int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev,
 					 struct comedi_insn *insn,
 					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	static unsigned int ui_Temp = 0;
 	unsigned int ui_Temp1;
-
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
 	if (!devpriv->b_OutputMemoryStatus) {
@@ -1274,6 +1312,7 @@ static int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
 						 struct comedi_insn *insn,
 						 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_TimerCounterMode, i_MasterConfiguration;
 
 	devpriv->tsk_Current = current;
@@ -1875,6 +1914,7 @@ static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device 
 							   struct comedi_insn *insn,
 							   unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -2198,7 +2238,9 @@ static int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device *dev,
 					       struct comedi_insn *insn,
 					       unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
+
 	switch (data[0]) {
 	case COUNTER1:
 		/* Read counter/timer1 */
@@ -2421,9 +2463,11 @@ static int i_APCI1500_ConfigureInterrupt(struct comedi_device *dev,
 					 struct comedi_insn *insn,
 					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
+
 	devpriv->tsk_Current = current;
 	outl(0x0, devpriv->i_IobaseAmcc + 0x38);
 	if (data[0] == 1) {
@@ -2597,6 +2641,7 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_InterruptStatus = 0;
 	int i_RegValue = 0;
 	i_InterruptMask = 0;
@@ -2840,7 +2885,9 @@ static void v_APCI1500_Interrupt(int irq, void *d)
 */
 static int i_APCI1500_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_DummyRead = 0;
+
 	i_TimerCounter1Init = 0;
 	i_TimerCounter2Init = 0;
 	i_WatchdogCounter3Init = 0;

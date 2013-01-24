@@ -426,8 +426,7 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 			_ASM_EXTABLE(1b, 3b)				\
 			: "=m" ((ctxt)->eflags), "=&r" (_tmp),		\
 			  "+a" (*rax), "+d" (*rdx), "+qm"(_ex)		\
-			: "i" (EFLAGS_MASK), "m" ((ctxt)->src.val),	\
-			  "a" (*rax), "d" (*rdx));			\
+			: "i" (EFLAGS_MASK), "m" ((ctxt)->src.val));	\
 	} while (0)
 
 /* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
@@ -677,8 +676,9 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 						addr.seg);
 		if (!usable)
 			goto bad;
-		/* code segment or read-only data segment */
-		if (((desc.type & 8) || !(desc.type & 2)) && write)
+		/* code segment in protected mode or read-only data segment */
+		if ((((ctxt->mode != X86EMUL_MODE_REAL) && (desc.type & 8))
+					|| !(desc.type & 2)) && write)
 			goto bad;
 		/* unreadable code segment */
 		if (!fetch && (desc.type & 8) && !(desc.type & 2))

@@ -688,3 +688,8 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 		cvmx_spinlock_unlock((cvmx_spinlock_t *)&(cvmx_bootmem_desc->lock));
 	return addr_allocated;
 }
+
+struct cvmx_bootmem_desc *cvmx_bootmem_get_desc(void)
+{
+	return cvmx_bootmem_desc;
+}

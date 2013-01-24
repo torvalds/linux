@@ -30,9 +30,13 @@
 			pinctrl-0 = <&state_default>;
 
 			state_default: pinmux {
-				i2c0-pmx {
+				i2c0 {
 					st,pins = "i2c0_grp";
 					st,function = "i2c0";
+				};
+				i2s0 {
+					st,pins = "i2s0_grp";
+					st,function = "i2s0";
 				};
 				i2s1 {
 					st,pins = "i2s1_grp";
@@ -41,6 +45,10 @@
 				gpio {
 					st,pins = "arm_gpio_grp";
 					st,function = "arm_gpio";
+				};
+				clcd {
+					st,pins = "clcd_grp" , "clcd_high_res";
+					st,function = "clcd";
 				};
 				eth {
 					st,pins = "gmii_grp";
@@ -74,11 +82,6 @@
 					st,pins = "i2c_1_2_grp";
 					st,function = "i2c_1_2";
 				};
-				pci {
-					st,pins = "pcie0_grp","pcie1_grp",
-						"pcie2_grp";
-					st,function = "pci";
-				};
 				smii {
 					st,pins = "smii_0_1_2_grp";
 					st,function = "smii_0_1_2";
@@ -87,6 +90,14 @@
 					st,pins = "nand_8bit_grp",
 						"nand_16bit_grp";
 					st,function = "nand";
+				};
+				sata {
+					st,pins = "sata0_grp";
+					st,function = "sata";
+				};
+				pcie {
+					st,pins = "pcie1_grp", "pcie2_grp";
+					st,function = "pci_express";
 				};
 			};
 		};
@@ -109,9 +120,49 @@
 
 		fsmc: flash@b0000000 {
 			status = "okay";
+
+			partition@0 {
+				label = "xloader";
+				reg = <0x0 0x80000>;
+			};
+			partition@80000 {
+				label = "u-boot";
+				reg = <0x80000 0x140000>;
+			};
+			partition@1C0000 {
+				label = "environment";
+				reg = <0x1C0000 0x40000>;
+			};
+			partition@200000 {
+				label = "dtb";
+				reg = <0x200000 0x40000>;
+			};
+			partition@240000 {
+				label = "linux";
+				reg = <0x240000 0xC00000>;
+			};
+			partition@E40000 {
+				label = "rootfs";
+				reg = <0xE40000 0x0>;
+			};
+		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			button@1 {
+				label = "wakeup";
+				linux,code = <0x100>;
+				gpios = <&gpio0 7 0x4>;
+				debounce-interval = <20>;
+				gpio-key,wakeup = <1>;
+			};
 		};
 
 		gmac0: eth@e2000000 {
+			phy-mode = "gmii";
 			status = "okay";
 		};
 
@@ -135,21 +186,25 @@
 				};
 				partition@10000 {
 					label = "u-boot";
-					reg = <0x10000 0x40000>;
+					reg = <0x10000 0x50000>;
 				};
-				partition@50000 {
+				partition@60000 {
+					label = "environment";
+					reg = <0x60000 0x10000>;
+				};
+				partition@70000 {
+					label = "dtb";
+					reg = <0x70000 0x10000>;
+				};
+				partition@80000 {
 					label = "linux";
-					reg = <0x50000 0x2c0000>;
+					reg = <0x80000 0x310000>;
 				};
-				partition@310000 {
+				partition@390000 {
 					label = "rootfs";
-					reg = <0x310000 0x4f0000>;
+					reg = <0x390000 0x0>;
 				};
 			};
-		};
-
-		spi0: spi@e0100000 {
-			status = "okay";
 		};
 
 		ehci@e4800000 {
@@ -181,11 +236,11 @@
 			       status = "okay";
 			};
 
-			i2c0: i2c@e0280000 {
+			gpio@d8400000 {
 			       status = "okay";
 			};
 
-			i2c1: i2c@5cd00000 {
+			i2c0: i2c@e0280000 {
 			       status = "okay";
 			};
 
@@ -273,6 +328,7 @@
 						 0x08080052 >;
 			       autorepeat;
 			       st,mode = <0>;
+			       suspended_rate = <2000000>;
 			       status = "okay";
 			};
 
@@ -282,6 +338,81 @@
 
 			serial@e0000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			spi0: spi@e0100000 {
+				status = "okay";
+				num-cs = <3>;
+				cs-gpios = <&gpio1 7 0>, <&spics 0>, <&spics 1>;
+
+				stmpe610@0 {
+					compatible = "st,stmpe610";
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					spi-max-frequency = <1000000>;
+					spi-cpha;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x7>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+					interrupts = <6 0x4>;
+					interrupt-parent = <&gpio1>;
+					irq-trigger = <0x2>;
+
+					stmpe_touchscreen {
+						compatible = "st,stmpe-ts";
+						ts,sample-time = <4>;
+						ts,mod-12b = <1>;
+						ts,ref-sel = <0>;
+						ts,adc-freq = <1>;
+						ts,ave-ctrl = <1>;
+						ts,touch-det-delay = <2>;
+						ts,settling = <2>;
+						ts,fraction-z = <7>;
+						ts,i-drive = <1>;
+					};
+				};
+
+				m25p80@1 {
+					compatible = "st,m25p80";
+					reg = <1>;
+					spi-max-frequency = <12000000>;
+					spi-cpol;
+					spi-cpha;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0x2>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x11>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+				};
+
+				spidev@2 {
+					compatible = "spidev";
+					reg = <2>;
+					spi-max-frequency = <25000000>;
+					spi-cpha;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0x2>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x11>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+				};
 			};
 
 			wdt@ec800620 {

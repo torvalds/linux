@@ -1027,7 +1027,7 @@ static struct snd_pcm_ops snd_es1938_capture_ops = {
 	.copy =		snd_es1938_capture_copy,
 };
 
-static int __devinit snd_es1938_new_pcm(struct es1938 *chip, int device)
+static int snd_es1938_new_pcm(struct es1938 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1539,7 +1539,7 @@ static SIMPLE_DEV_PM_OPS(es1938_pm, es1938_suspend, es1938_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_es1938_create_gameport(struct es1938 *chip)
+static int snd_es1938_create_gameport(struct es1938 *chip)
 {
 	struct gameport *gp;
 
@@ -1594,9 +1594,9 @@ static int snd_es1938_dev_free(struct snd_device *device)
 	return snd_es1938_free(chip);
 }
 
-static int __devinit snd_es1938_create(struct snd_card *card,
-				    struct pci_dev * pci,
-				    struct es1938 ** rchip)
+static int snd_es1938_create(struct snd_card *card,
+			     struct pci_dev *pci,
+			     struct es1938 **rchip)
 {
 	struct es1938 *chip;
 	int err;
@@ -1754,7 +1754,7 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 
 #define ES1938_DMA_SIZE 64
 
-static int __devinit snd_es1938_mixer(struct es1938 *chip)
+static int snd_es1938_mixer(struct es1938 *chip)
 {
 	struct snd_card *card;
 	unsigned int idx;
@@ -1792,8 +1792,8 @@ static int __devinit snd_es1938_mixer(struct es1938 *chip)
 }
        
 
-static int __devinit snd_es1938_probe(struct pci_dev *pci,
-				      const struct pci_device_id *pci_id)
+static int snd_es1938_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1878,7 +1878,7 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_es1938_remove(struct pci_dev *pci)
+static void snd_es1938_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1888,7 +1888,7 @@ static struct pci_driver es1938_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
-	.remove = __devexit_p(snd_es1938_remove),
+	.remove = snd_es1938_remove,
 	.driver = {
 		.pm = ES1938_PM_OPS,
 	},

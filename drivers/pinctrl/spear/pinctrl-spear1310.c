@@ -25,8 +25,8 @@ static const struct pinctrl_pin_desc spear1310_pins[] = {
 };
 
 /* registers */
-#define PERIP_CFG					0x32C
-	#define MCIF_SEL_SHIFT				3
+#define PERIP_CFG					0x3B0
+	#define MCIF_SEL_SHIFT				5
 	#define MCIF_SEL_SD				(0x1 << MCIF_SEL_SHIFT)
 	#define MCIF_SEL_CF				(0x2 << MCIF_SEL_SHIFT)
 	#define MCIF_SEL_XD				(0x3 << MCIF_SEL_SHIFT)
@@ -164,6 +164,10 @@ static const struct pinctrl_pin_desc spear1310_pins[] = {
 	#define PMX_SSP0_CS0_MASK			(1 << 29)
 	#define PMX_SSP0_CS1_2_MASK			(1 << 30)
 
+#define PAD_DIRECTION_SEL_0				0x65C
+#define PAD_DIRECTION_SEL_1				0x660
+#define PAD_DIRECTION_SEL_2				0x664
+
 /* combined macros */
 #define PMX_GMII_MASK		(PMX_GMIICLK_MASK |			\
 				PMX_GMIICOL_CRS_XFERER_MIITXCLK_MASK |	\
@@ -237,6 +241,10 @@ static struct spear_muxreg i2c0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_I2C0_MASK,
 		.val = PMX_I2C0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_I2C0_MASK,
+		.val = PMX_I2C0_MASK,
 	},
 };
 
@@ -269,6 +277,10 @@ static struct spear_muxreg ssp0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_SSP0_MASK,
 		.val = PMX_SSP0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_SSP0_MASK,
+		.val = PMX_SSP0_MASK,
 	},
 };
 
@@ -294,6 +306,10 @@ static struct spear_muxreg ssp0_cs0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_SSP0_CS0_MASK,
 		.val = PMX_SSP0_CS0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_SSP0_CS0_MASK,
+		.val = PMX_SSP0_CS0_MASK,
 	},
 };
 
@@ -317,6 +333,10 @@ static const unsigned ssp0_cs1_2_pins[] = { 94, 95 };
 static struct spear_muxreg ssp0_cs1_2_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_2,
+		.mask = PMX_SSP0_CS1_2_MASK,
+		.val = PMX_SSP0_CS1_2_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
 		.mask = PMX_SSP0_CS1_2_MASK,
 		.val = PMX_SSP0_CS1_2_MASK,
 	},
@@ -352,6 +372,10 @@ static struct spear_muxreg i2s0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_I2S0_MASK,
 		.val = PMX_I2S0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_I2S0_MASK,
+		.val = PMX_I2S0_MASK,
 	},
 };
 
@@ -382,6 +406,10 @@ static const unsigned i2s1_pins[] = { 0, 1, 2, 3 };
 static struct spear_muxreg i2s1_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_I2S1_MASK,
+		.val = PMX_I2S1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_I2S1_MASK,
 		.val = PMX_I2S1_MASK,
 	},
@@ -418,6 +446,10 @@ static struct spear_muxreg clcd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_CLCD1_MASK,
 		.val = PMX_CLCD1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_CLCD1_MASK,
+		.val = PMX_CLCD1_MASK,
 	},
 };
 
@@ -443,6 +475,10 @@ static struct spear_muxreg clcd_high_res_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_CLCD2_MASK,
 		.val = PMX_CLCD2_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_CLCD2_MASK,
+		.val = PMX_CLCD2_MASK,
 	},
 };
 
@@ -461,7 +497,7 @@ static struct spear_pingroup clcd_high_res_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(clcd_high_res_modemux),
 };
 
-static const char *const clcd_grps[] = { "clcd_grp", "clcd_high_res" };
+static const char *const clcd_grps[] = { "clcd_grp", "clcd_high_res_grp" };
 static struct spear_function clcd_function = {
 	.name = "clcd",
 	.groups = clcd_grps,
@@ -477,6 +513,14 @@ static struct spear_muxreg arm_gpio_muxreg[] = {
 		.val = PMX_EGPIO_0_GRP_MASK,
 	}, {
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_EGPIO_1_GRP_MASK,
+		.val = PMX_EGPIO_1_GRP_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_EGPIO_0_GRP_MASK,
+		.val = PMX_EGPIO_0_GRP_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_EGPIO_1_GRP_MASK,
 		.val = PMX_EGPIO_1_GRP_MASK,
 	},
@@ -511,6 +555,10 @@ static struct spear_muxreg smi_2_chips_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_SMI_MASK,
 		.val = PMX_SMI_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_SMI_MASK,
+		.val = PMX_SMI_MASK,
 	},
 };
 
@@ -537,6 +585,14 @@ static struct spear_muxreg smi_4_chips_muxreg[] = {
 		.val = PMX_SMI_MASK,
 	}, {
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_SMINCS2_MASK | PMX_SMINCS3_MASK,
+		.val = PMX_SMINCS2_MASK | PMX_SMINCS3_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_SMI_MASK,
+		.val = PMX_SMI_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_SMINCS2_MASK | PMX_SMINCS3_MASK,
 		.val = PMX_SMINCS2_MASK | PMX_SMINCS3_MASK,
 	},
@@ -571,6 +627,10 @@ static const unsigned gmii_pins[] = { 173, 174, 175, 176, 177, 178, 179, 180,
 static struct spear_muxreg gmii_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_0,
+		.mask = PMX_GMII_MASK,
+		.val = PMX_GMII_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
 		.mask = PMX_GMII_MASK,
 		.val = PMX_GMII_MASK,
 	},
@@ -615,6 +675,18 @@ static struct spear_muxreg rgmii_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_RGMII_REG2_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_RGMII_REG0_MASK,
+		.val = PMX_RGMII_REG0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_RGMII_REG1_MASK,
+		.val = PMX_RGMII_REG1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_RGMII_REG2_MASK,
+		.val = PMX_RGMII_REG2_MASK,
 	},
 };
 
@@ -649,6 +721,10 @@ static struct spear_muxreg smii_0_1_2_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_SMII_0_1_2_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_SMII_0_1_2_MASK,
+		.val = PMX_SMII_0_1_2_MASK,
 	},
 };
 
@@ -681,6 +757,10 @@ static struct spear_muxreg ras_mii_txclk_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_NFCE2_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_NFCE2_MASK,
+		.val = PMX_NFCE2_MASK,
 	},
 };
 
@@ -721,6 +801,14 @@ static struct spear_muxreg nand_8bit_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_NAND8BIT_1_MASK,
 		.val = PMX_NAND8BIT_1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_NAND8BIT_0_MASK,
+		.val = PMX_NAND8BIT_0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_NAND8BIT_1_MASK,
+		.val = PMX_NAND8BIT_1_MASK,
 	},
 };
 
@@ -747,6 +835,10 @@ static struct spear_muxreg nand_16bit_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_NAND16BIT_1_MASK,
 		.val = PMX_NAND16BIT_1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_NAND16BIT_1_MASK,
+		.val = PMX_NAND16BIT_1_MASK,
 	},
 };
 
@@ -770,6 +862,10 @@ static const unsigned nand_4_chips_pins[] = { 205, 206, 211, 212 };
 static struct spear_muxreg nand_4_chips_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_NAND_4CHIPS_MASK,
+		.val = PMX_NAND_4CHIPS_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_NAND_4CHIPS_MASK,
 		.val = PMX_NAND_4CHIPS_MASK,
 	},
@@ -833,6 +929,10 @@ static struct spear_muxreg keyboard_rowcol6_8_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_KBD_ROWCOL68_MASK,
 		.val = PMX_KBD_ROWCOL68_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_KBD_ROWCOL68_MASK,
+		.val = PMX_KBD_ROWCOL68_MASK,
 	},
 };
 
@@ -866,6 +966,10 @@ static struct spear_muxreg uart0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_UART0_MASK,
 		.val = PMX_UART0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_UART0_MASK,
+		.val = PMX_UART0_MASK,
 	},
 };
 
@@ -889,6 +993,10 @@ static const unsigned uart0_modem_pins[] = { 12, 13, 14, 15, 16, 17 };
 static struct spear_muxreg uart0_modem_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_UART0_MODEM_MASK,
+		.val = PMX_UART0_MODEM_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_UART0_MODEM_MASK,
 		.val = PMX_UART0_MODEM_MASK,
 	},
@@ -923,6 +1031,10 @@ static struct spear_muxreg gpt0_tmr0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_GPT0_TMR0_MASK,
 		.val = PMX_GPT0_TMR0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_GPT0_TMR0_MASK,
+		.val = PMX_GPT0_TMR0_MASK,
 	},
 };
 
@@ -946,6 +1058,10 @@ static const unsigned gpt0_tmr1_pins[] = { 8, 9 };
 static struct spear_muxreg gpt0_tmr1_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_GPT0_TMR1_MASK,
+		.val = PMX_GPT0_TMR1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_GPT0_TMR1_MASK,
 		.val = PMX_GPT0_TMR1_MASK,
 	},
@@ -980,6 +1096,10 @@ static struct spear_muxreg gpt1_tmr0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_GPT1_TMR0_MASK,
 		.val = PMX_GPT1_TMR0_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_GPT1_TMR0_MASK,
+		.val = PMX_GPT1_TMR0_MASK,
 	},
 };
 
@@ -1003,6 +1123,10 @@ static const unsigned gpt1_tmr1_pins[] = { 4, 5 };
 static struct spear_muxreg gpt1_tmr1_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_GPT1_TMR1_MASK,
+		.val = PMX_GPT1_TMR1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
 		.mask = PMX_GPT1_TMR1_MASK,
 		.val = PMX_GPT1_TMR1_MASK,
 	},
@@ -1047,6 +1171,20 @@ static const unsigned mcif_pins[] = { 86, 87, 88, 89, 90, 91, 92, 93, 213, 214,
 		.val = PMX_MCIFALL_1_MASK,			\
 	}, {							\
 		.reg = PAD_FUNCTION_EN_2,			\
+		.mask = PMX_MCIFALL_2_MASK,			\
+		.val = PMX_MCIFALL_2_MASK,			\
+	}, {							\
+		.reg = PAD_DIRECTION_SEL_0,			\
+		.mask = PMX_MCI_DATA8_15_MASK,			\
+		.val = PMX_MCI_DATA8_15_MASK,			\
+	}, {							\
+		.reg = PAD_DIRECTION_SEL_1,			\
+		.mask = PMX_MCIFALL_1_MASK | PMX_NFWPRT1_MASK |	\
+			PMX_NFWPRT2_MASK,			\
+		.val = PMX_MCIFALL_1_MASK | PMX_NFWPRT1_MASK |  \
+			PMX_NFWPRT2_MASK,			\
+	}, {							\
+		.reg = PAD_DIRECTION_SEL_2,			\
 		.mask = PMX_MCIFALL_2_MASK,			\
 		.val = PMX_MCIFALL_2_MASK,			\
 	}
@@ -1154,6 +1292,10 @@ static struct spear_muxreg touch_xy_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_TOUCH_XY_MASK,
 		.val = PMX_TOUCH_XY_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_TOUCH_XY_MASK,
+		.val = PMX_TOUCH_XY_MASK,
 	},
 };
 
@@ -1187,6 +1329,10 @@ static struct spear_muxreg uart1_dis_i2c_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_I2C0_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_I2C0_MASK,
+		.val = PMX_I2C0_MASK,
 	},
 };
 
@@ -1213,6 +1359,12 @@ static struct spear_muxreg uart1_dis_sd_muxreg[] = {
 		.mask = PMX_MCIDATA1_MASK |
 			PMX_MCIDATA2_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_MCIDATA1_MASK |
+			PMX_MCIDATA2_MASK,
+		.val = PMX_MCIDATA1_MASK |
+			PMX_MCIDATA2_MASK,
 	},
 };
 
@@ -1246,6 +1398,10 @@ static struct spear_muxreg uart2_3_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_I2S0_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_I2S0_MASK,
+		.val = PMX_I2S0_MASK,
 	},
 };
 
@@ -1278,6 +1434,10 @@ static struct spear_muxreg uart4_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_I2S0_MASK | PMX_CLCD1_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_I2S0_MASK | PMX_CLCD1_MASK,
+		.val = PMX_I2S0_MASK | PMX_CLCD1_MASK,
 	},
 };
 
@@ -1310,6 +1470,10 @@ static struct spear_muxreg uart5_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_CLCD1_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_CLCD1_MASK,
+		.val = PMX_CLCD1_MASK,
 	},
 };
 
@@ -1344,6 +1508,10 @@ static struct spear_muxreg rs485_0_1_tdm_0_1_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_CLCD1_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_CLCD1_MASK,
+		.val = PMX_CLCD1_MASK,
 	},
 };
 
@@ -1376,6 +1544,10 @@ static struct spear_muxreg i2c_1_2_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_CLCD1_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_CLCD1_MASK,
+		.val = PMX_CLCD1_MASK,
 	},
 };
 
@@ -1409,6 +1581,10 @@ static struct spear_muxreg i2c3_dis_smi_clcd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_CLCD1_MASK | PMX_SMI_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_CLCD1_MASK | PMX_SMI_MASK,
+		.val = PMX_CLCD1_MASK | PMX_SMI_MASK,
 	},
 };
 
@@ -1435,6 +1611,10 @@ static struct spear_muxreg i2c3_dis_sd_i2s0_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_I2S1_MASK | PMX_MCIDATA3_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_I2S1_MASK | PMX_MCIDATA3_MASK,
+		.val = PMX_I2S1_MASK | PMX_MCIDATA3_MASK,
 	},
 };
 
@@ -1469,6 +1649,10 @@ static struct spear_muxreg i2c_4_5_dis_smi_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_SMI_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_SMI_MASK,
+		.val = PMX_SMI_MASK,
 	},
 };
 
@@ -1499,6 +1683,14 @@ static struct spear_muxreg i2c4_dis_sd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_MCIDATA5_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_MCIDATA4_MASK,
+		.val = PMX_MCIDATA4_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCIDATA5_MASK,
+		.val = PMX_MCIDATA5_MASK,
 	},
 };
 
@@ -1526,6 +1718,12 @@ static struct spear_muxreg i2c5_dis_sd_muxreg[] = {
 		.mask = PMX_MCIDATA6_MASK |
 			PMX_MCIDATA7_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCIDATA6_MASK |
+			PMX_MCIDATA7_MASK,
+		.val = PMX_MCIDATA6_MASK |
+			PMX_MCIDATA7_MASK,
 	},
 };
 
@@ -1560,6 +1758,10 @@ static struct spear_muxreg i2c_6_7_dis_kbd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_KBD_ROWCOL25_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_KBD_ROWCOL25_MASK,
+		.val = PMX_KBD_ROWCOL25_MASK,
 	},
 };
 
@@ -1587,6 +1789,12 @@ static struct spear_muxreg i2c6_dis_sd_muxreg[] = {
 		.mask = PMX_MCIIORDRE_MASK |
 			PMX_MCIIOWRWE_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCIIORDRE_MASK |
+			PMX_MCIIOWRWE_MASK,
+		.val = PMX_MCIIORDRE_MASK |
+			PMX_MCIIOWRWE_MASK,
 	},
 };
 
@@ -1613,6 +1821,12 @@ static struct spear_muxreg i2c7_dis_sd_muxreg[] = {
 		.mask = PMX_MCIRESETCF_MASK |
 			PMX_MCICS0CE_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCIRESETCF_MASK |
+			PMX_MCICS0CE_MASK,
+		.val = PMX_MCIRESETCF_MASK |
+			PMX_MCICS0CE_MASK,
 	},
 };
 
@@ -1651,6 +1865,14 @@ static struct spear_muxreg can0_dis_nor_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_NFRSTPWDWN3_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_NFRSTPWDWN2_MASK,
+		.val = PMX_NFRSTPWDWN2_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_NFRSTPWDWN3_MASK,
+		.val = PMX_NFRSTPWDWN3_MASK,
 	},
 };
 
@@ -1677,6 +1899,10 @@ static struct spear_muxreg can0_dis_sd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_MCICFINTR_MASK | PMX_MCIIORDY_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCICFINTR_MASK | PMX_MCIIORDY_MASK,
+		.val = PMX_MCICFINTR_MASK | PMX_MCIIORDY_MASK,
 	},
 };
 
@@ -1711,6 +1937,10 @@ static struct spear_muxreg can1_dis_sd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_2,
 		.mask = PMX_MCICS1_MASK | PMX_MCIDMAACK_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCICS1_MASK | PMX_MCIDMAACK_MASK,
+		.val = PMX_MCICS1_MASK | PMX_MCIDMAACK_MASK,
 	},
 };
 
@@ -1737,6 +1967,10 @@ static struct spear_muxreg can1_dis_kbd_muxreg[] = {
 		.reg = PAD_FUNCTION_EN_1,
 		.mask = PMX_KBD_ROWCOL25_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_KBD_ROWCOL25_MASK,
+		.val = PMX_KBD_ROWCOL25_MASK,
 	},
 };
 
@@ -1763,29 +1997,64 @@ static struct spear_function can1_function = {
 	.ngroups = ARRAY_SIZE(can1_grps),
 };
 
-/* Pad multiplexing for pci device */
-static const unsigned pci_sata_pins[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18,
+/* Pad multiplexing for (ras-ip) pci device */
+static const unsigned pci_pins[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18,
 	19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
 	37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
 	55, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99 };
-#define PCI_SATA_MUXREG				\
-	{					\
-		.reg = PAD_FUNCTION_EN_0,	\
-		.mask = PMX_MCI_DATA8_15_MASK,	\
-		.val = 0,			\
-	}, {					\
-		.reg = PAD_FUNCTION_EN_1,	\
-		.mask = PMX_PCI_REG1_MASK,	\
-		.val = 0,			\
-	}, {					\
-		.reg = PAD_FUNCTION_EN_2,	\
-		.mask = PMX_PCI_REG2_MASK,	\
-		.val = 0,			\
-	}
 
-/* pad multiplexing for pcie0 device */
+static struct spear_muxreg pci_muxreg[] = {
+	{
+		.reg = PAD_FUNCTION_EN_0,
+		.mask = PMX_MCI_DATA8_15_MASK,
+		.val = 0,
+	}, {
+		.reg = PAD_FUNCTION_EN_1,
+		.mask = PMX_PCI_REG1_MASK,
+		.val = 0,
+	}, {
+		.reg = PAD_FUNCTION_EN_2,
+		.mask = PMX_PCI_REG2_MASK,
+		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_0,
+		.mask = PMX_MCI_DATA8_15_MASK,
+		.val = PMX_MCI_DATA8_15_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_PCI_REG1_MASK,
+		.val = PMX_PCI_REG1_MASK,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_PCI_REG2_MASK,
+		.val = PMX_PCI_REG2_MASK,
+	},
+};
+
+static struct spear_modemux pci_modemux[] = {
+	{
+		.muxregs = pci_muxreg,
+		.nmuxregs = ARRAY_SIZE(pci_muxreg),
+	},
+};
+
+static struct spear_pingroup pci_pingroup = {
+	.name = "pci_grp",
+	.pins = pci_pins,
+	.npins = ARRAY_SIZE(pci_pins),
+	.modemuxs = pci_modemux,
+	.nmodemuxs = ARRAY_SIZE(pci_modemux),
+};
+
+static const char *const pci_grps[] = { "pci_grp" };
+static struct spear_function pci_function = {
+	.name = "pci",
+	.groups = pci_grps,
+	.ngroups = ARRAY_SIZE(pci_grps),
+};
+
+/* pad multiplexing for (fix-part) pcie0 device */
 static struct spear_muxreg pcie0_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = PCIE_CFG_VAL(0),
@@ -1802,15 +2071,12 @@ static struct spear_modemux pcie0_modemux[] = {
 
 static struct spear_pingroup pcie0_pingroup = {
 	.name = "pcie0_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = pcie0_modemux,
 	.nmodemuxs = ARRAY_SIZE(pcie0_modemux),
 };
 
-/* pad multiplexing for pcie1 device */
+/* pad multiplexing for (fix-part) pcie1 device */
 static struct spear_muxreg pcie1_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = PCIE_CFG_VAL(1),
@@ -1827,15 +2093,12 @@ static struct spear_modemux pcie1_modemux[] = {
 
 static struct spear_pingroup pcie1_pingroup = {
 	.name = "pcie1_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = pcie1_modemux,
 	.nmodemuxs = ARRAY_SIZE(pcie1_modemux),
 };
 
-/* pad multiplexing for pcie2 device */
+/* pad multiplexing for (fix-part) pcie2 device */
 static struct spear_muxreg pcie2_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = PCIE_CFG_VAL(2),
@@ -1852,22 +2115,20 @@ static struct spear_modemux pcie2_modemux[] = {
 
 static struct spear_pingroup pcie2_pingroup = {
 	.name = "pcie2_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = pcie2_modemux,
 	.nmodemuxs = ARRAY_SIZE(pcie2_modemux),
 };
 
-static const char *const pci_grps[] = { "pcie0_grp", "pcie1_grp", "pcie2_grp" };
-static struct spear_function pci_function = {
-	.name = "pci",
-	.groups = pci_grps,
-	.ngroups = ARRAY_SIZE(pci_grps),
+static const char *const pcie_grps[] = { "pcie0_grp", "pcie1_grp", "pcie2_grp"
+};
+static struct spear_function pcie_function = {
+	.name = "pci_express",
+	.groups = pcie_grps,
+	.ngroups = ARRAY_SIZE(pcie_grps),
 };
 
 /* pad multiplexing for sata0 device */
 static struct spear_muxreg sata0_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = SATA_CFG_VAL(0),
@@ -1884,15 +2145,12 @@ static struct spear_modemux sata0_modemux[] = {
 
 static struct spear_pingroup sata0_pingroup = {
 	.name = "sata0_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = sata0_modemux,
 	.nmodemuxs = ARRAY_SIZE(sata0_modemux),
 };
 
 /* pad multiplexing for sata1 device */
 static struct spear_muxreg sata1_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = SATA_CFG_VAL(1),
@@ -1909,15 +2167,12 @@ static struct spear_modemux sata1_modemux[] = {
 
 static struct spear_pingroup sata1_pingroup = {
 	.name = "sata1_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = sata1_modemux,
 	.nmodemuxs = ARRAY_SIZE(sata1_modemux),
 };
 
 /* pad multiplexing for sata2 device */
 static struct spear_muxreg sata2_muxreg[] = {
-	PCI_SATA_MUXREG,
 	{
 		.reg = PCIE_SATA_CFG,
 		.mask = SATA_CFG_VAL(2),
@@ -1934,8 +2189,6 @@ static struct spear_modemux sata2_modemux[] = {
 
 static struct spear_pingroup sata2_pingroup = {
 	.name = "sata2_grp",
-	.pins = pci_sata_pins,
-	.npins = ARRAY_SIZE(pci_sata_pins),
 	.modemuxs = sata2_modemux,
 	.nmodemuxs = ARRAY_SIZE(sata2_modemux),
 };
@@ -1957,6 +2210,14 @@ static struct spear_muxreg ssp1_dis_kbd_muxreg[] = {
 			PMX_KBD_COL0_MASK | PMX_NFIO8_15_MASK | PMX_NFCE1_MASK |
 			PMX_NFCE2_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_1,
+		.mask = PMX_KBD_ROWCOL25_MASK | PMX_KBD_COL1_MASK |
+			PMX_KBD_COL0_MASK | PMX_NFIO8_15_MASK | PMX_NFCE1_MASK |
+			PMX_NFCE2_MASK,
+		.val = PMX_KBD_ROWCOL25_MASK | PMX_KBD_COL1_MASK |
+			PMX_KBD_COL0_MASK | PMX_NFIO8_15_MASK | PMX_NFCE1_MASK |
+			PMX_NFCE2_MASK,
 	},
 };
 
@@ -1983,6 +2244,12 @@ static struct spear_muxreg ssp1_dis_sd_muxreg[] = {
 		.mask = PMX_MCIADDR0ALE_MASK | PMX_MCIADDR2_MASK |
 			PMX_MCICECF_MASK | PMX_MCICEXD_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCIADDR0ALE_MASK | PMX_MCIADDR2_MASK |
+			PMX_MCICECF_MASK | PMX_MCICEXD_MASK,
+		.val = PMX_MCIADDR0ALE_MASK | PMX_MCIADDR2_MASK |
+			PMX_MCICECF_MASK | PMX_MCICEXD_MASK,
 	},
 };
 
@@ -2017,6 +2284,12 @@ static struct spear_muxreg gpt64_muxreg[] = {
 		.mask = PMX_MCICDCF1_MASK | PMX_MCICDCF2_MASK | PMX_MCICDXD_MASK
 			| PMX_MCILEDS_MASK,
 		.val = 0,
+	}, {
+		.reg = PAD_DIRECTION_SEL_2,
+		.mask = PMX_MCICDCF1_MASK | PMX_MCICDCF2_MASK | PMX_MCICDXD_MASK
+			| PMX_MCILEDS_MASK,
+		.val = PMX_MCICDCF1_MASK | PMX_MCICDCF2_MASK | PMX_MCICDXD_MASK
+			| PMX_MCILEDS_MASK,
 	},
 };
 
@@ -2093,6 +2366,7 @@ static struct spear_pingroup *spear1310_pingroups[] = {
 	&can0_dis_sd_pingroup,
 	&can1_dis_sd_pingroup,
 	&can1_dis_kbd_pingroup,
+	&pci_pingroup,
 	&pcie0_pingroup,
 	&pcie1_pingroup,
 	&pcie2_pingroup,
@@ -2138,9 +2412,272 @@ static struct spear_function *spear1310_functions[] = {
 	&can0_function,
 	&can1_function,
 	&pci_function,
+	&pcie_function,
 	&sata_function,
 	&ssp1_function,
 	&gpt64_function,
+};
+
+static const unsigned pin18[] = { 18, };
+static const unsigned pin19[] = { 19, };
+static const unsigned pin20[] = { 20, };
+static const unsigned pin21[] = { 21, };
+static const unsigned pin22[] = { 22, };
+static const unsigned pin23[] = { 23, };
+static const unsigned pin54[] = { 54, };
+static const unsigned pin55[] = { 55, };
+static const unsigned pin56[] = { 56, };
+static const unsigned pin57[] = { 57, };
+static const unsigned pin58[] = { 58, };
+static const unsigned pin59[] = { 59, };
+static const unsigned pin60[] = { 60, };
+static const unsigned pin61[] = { 61, };
+static const unsigned pin62[] = { 62, };
+static const unsigned pin63[] = { 63, };
+static const unsigned pin143[] = { 143, };
+static const unsigned pin144[] = { 144, };
+static const unsigned pin145[] = { 145, };
+static const unsigned pin146[] = { 146, };
+static const unsigned pin147[] = { 147, };
+static const unsigned pin148[] = { 148, };
+static const unsigned pin149[] = { 149, };
+static const unsigned pin150[] = { 150, };
+static const unsigned pin151[] = { 151, };
+static const unsigned pin152[] = { 152, };
+static const unsigned pin205[] = { 205, };
+static const unsigned pin206[] = { 206, };
+static const unsigned pin211[] = { 211, };
+static const unsigned pin212[] = { 212, };
+static const unsigned pin213[] = { 213, };
+static const unsigned pin214[] = { 214, };
+static const unsigned pin215[] = { 215, };
+static const unsigned pin216[] = { 216, };
+static const unsigned pin217[] = { 217, };
+static const unsigned pin218[] = { 218, };
+static const unsigned pin219[] = { 219, };
+static const unsigned pin220[] = { 220, };
+static const unsigned pin221[] = { 221, };
+static const unsigned pin222[] = { 222, };
+static const unsigned pin223[] = { 223, };
+static const unsigned pin224[] = { 224, };
+static const unsigned pin225[] = { 225, };
+static const unsigned pin226[] = { 226, };
+static const unsigned pin227[] = { 227, };
+static const unsigned pin228[] = { 228, };
+static const unsigned pin229[] = { 229, };
+static const unsigned pin230[] = { 230, };
+static const unsigned pin231[] = { 231, };
+static const unsigned pin232[] = { 232, };
+static const unsigned pin233[] = { 233, };
+static const unsigned pin234[] = { 234, };
+static const unsigned pin235[] = { 235, };
+static const unsigned pin236[] = { 236, };
+static const unsigned pin237[] = { 237, };
+static const unsigned pin238[] = { 238, };
+static const unsigned pin239[] = { 239, };
+static const unsigned pin240[] = { 240, };
+static const unsigned pin241[] = { 241, };
+static const unsigned pin242[] = { 242, };
+static const unsigned pin243[] = { 243, };
+static const unsigned pin244[] = { 244, };
+static const unsigned pin245[] = { 245, };
+
+static const unsigned pin_grp0[] = { 173, 174, };
+static const unsigned pin_grp1[] = { 175, 185, 188, 197, 198, };
+static const unsigned pin_grp2[] = { 176, 177, 178, 179, 184, 186, 187, 189,
+	190, 191, 192, };
+static const unsigned pin_grp3[] = { 180, 181, 182, 183, 193, 194, 195, 196, };
+static const unsigned pin_grp4[] = { 199, 200, };
+static const unsigned pin_grp5[] = { 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
+	75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, };
+static const unsigned pin_grp6[] = { 86, 87, 88, 89, 90, 91, 92, 93, };
+static const unsigned pin_grp7[] = { 98, 99, };
+static const unsigned pin_grp8[] = { 158, 159, 160, 161, 162, 163, 164, 165,
+	166, 167, 168, 169, 170, 171, 172, };
+
+/* Define muxreg arrays */
+DEFINE_2_MUXREG(i2c0_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_I2C0_MASK, 0, 1);
+DEFINE_2_MUXREG(ssp0_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_SSP0_MASK, 0, 1);
+DEFINE_2_MUXREG(ssp0_cs0_pins, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_SSP0_CS0_MASK, 0, 1);
+DEFINE_2_MUXREG(ssp0_cs1_2_pins, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_SSP0_CS1_2_MASK, 0, 1);
+DEFINE_2_MUXREG(i2s0_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_I2S0_MASK, 0, 1);
+DEFINE_2_MUXREG(i2s1_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_I2S1_MASK, 0, 1);
+DEFINE_2_MUXREG(clcd_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_CLCD1_MASK, 0, 1);
+DEFINE_2_MUXREG(clcd_high_res_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_CLCD2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin18, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO15_MASK, 0, 1);
+DEFINE_2_MUXREG(pin19, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO14_MASK, 0, 1);
+DEFINE_2_MUXREG(pin20, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO13_MASK, 0, 1);
+DEFINE_2_MUXREG(pin21, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO12_MASK, 0, 1);
+DEFINE_2_MUXREG(pin22, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO11_MASK, 0, 1);
+DEFINE_2_MUXREG(pin23, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO10_MASK, 0, 1);
+DEFINE_2_MUXREG(pin143, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO00_MASK, 0, 1);
+DEFINE_2_MUXREG(pin144, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO01_MASK, 0, 1);
+DEFINE_2_MUXREG(pin145, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO02_MASK, 0, 1);
+DEFINE_2_MUXREG(pin146, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO03_MASK, 0, 1);
+DEFINE_2_MUXREG(pin147, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO04_MASK, 0, 1);
+DEFINE_2_MUXREG(pin148, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO05_MASK, 0, 1);
+DEFINE_2_MUXREG(pin149, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO06_MASK, 0, 1);
+DEFINE_2_MUXREG(pin150, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO07_MASK, 0, 1);
+DEFINE_2_MUXREG(pin151, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO08_MASK, 0, 1);
+DEFINE_2_MUXREG(pin152, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_EGPIO09_MASK, 0, 1);
+DEFINE_2_MUXREG(smi_2_chips_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_SMI_MASK, 0, 1);
+DEFINE_2_MUXREG(pin54, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_SMINCS3_MASK, 0, 1);
+DEFINE_2_MUXREG(pin55, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_SMINCS2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin56, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_NFRSTPWDWN3_MASK, 0, 1);
+DEFINE_2_MUXREG(pin57, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFRSTPWDWN2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin58, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFRSTPWDWN1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin59, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFRSTPWDWN0_MASK, 0, 1);
+DEFINE_2_MUXREG(pin60, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFWPRT3_MASK, 0, 1);
+DEFINE_2_MUXREG(pin61, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFCE3_MASK, 0, 1);
+DEFINE_2_MUXREG(pin62, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFAD25_MASK, 0, 1);
+DEFINE_2_MUXREG(pin63, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFAD24_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp0, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_GMIICLK_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp1, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_GMIICOL_CRS_XFERER_MIITXCLK_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp2, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_RXCLK_RDV_TXEN_D03_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp3, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_GMIID47_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp4, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_MDC_MDIO_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp5, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_NFAD23_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp6, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_MCI_DATA8_15_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp7, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_NFCE2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin_grp8, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_NAND8_MASK, 0, 1);
+DEFINE_2_MUXREG(nand_16bit_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_NAND16BIT_1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin205, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_KBD_COL1_MASK | PMX_NFCE1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin206, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_KBD_COL0_MASK | PMX_NFCE2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin211, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_KBD_ROW1_MASK | PMX_NFWPRT1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin212, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_KBD_ROW0_MASK | PMX_NFWPRT2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin213, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_MCIDATA0_MASK, 0, 1);
+DEFINE_2_MUXREG(pin214, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_MCIDATA1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin215, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_MCIDATA2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin216, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_MCIDATA3_MASK, 0, 1);
+DEFINE_2_MUXREG(pin217, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_MCIDATA4_MASK, 0, 1);
+DEFINE_2_MUXREG(pin218, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA5_MASK, 0, 1);
+DEFINE_2_MUXREG(pin219, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA6_MASK, 0, 1);
+DEFINE_2_MUXREG(pin220, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA7_MASK, 0, 1);
+DEFINE_2_MUXREG(pin221, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA1SD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin222, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA2SD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin223, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATA3SD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin224, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIADDR0ALE_MASK, 0, 1);
+DEFINE_2_MUXREG(pin225, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIADDR1CLECLK_MASK, 0, 1);
+DEFINE_2_MUXREG(pin226, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIADDR2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin227, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICECF_MASK, 0, 1);
+DEFINE_2_MUXREG(pin228, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICEXD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin229, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICESDMMC_MASK, 0, 1);
+DEFINE_2_MUXREG(pin230, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICDCF1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin231, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICDCF2_MASK, 0, 1);
+DEFINE_2_MUXREG(pin232, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICDXD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin233, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICDSDMMC_MASK, 0, 1);
+DEFINE_2_MUXREG(pin234, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDATADIR_MASK, 0, 1);
+DEFINE_2_MUXREG(pin235, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDMARQWP_MASK, 0, 1);
+DEFINE_2_MUXREG(pin236, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIIORDRE_MASK, 0, 1);
+DEFINE_2_MUXREG(pin237, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIIOWRWE_MASK, 0, 1);
+DEFINE_2_MUXREG(pin238, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIRESETCF_MASK, 0, 1);
+DEFINE_2_MUXREG(pin239, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICS0CE_MASK, 0, 1);
+DEFINE_2_MUXREG(pin240, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICFINTR_MASK, 0, 1);
+DEFINE_2_MUXREG(pin241, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIIORDY_MASK, 0, 1);
+DEFINE_2_MUXREG(pin242, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCICS1_MASK, 0, 1);
+DEFINE_2_MUXREG(pin243, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCIDMAACK_MASK, 0, 1);
+DEFINE_2_MUXREG(pin244, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCISDCMD_MASK, 0, 1);
+DEFINE_2_MUXREG(pin245, PAD_FUNCTION_EN_2, PAD_DIRECTION_SEL_2, PMX_MCILEDS_MASK, 0, 1);
+DEFINE_2_MUXREG(keyboard_rowcol6_8_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_KBD_ROWCOL68_MASK, 0, 1);
+DEFINE_2_MUXREG(uart0_pins, PAD_FUNCTION_EN_0, PAD_DIRECTION_SEL_0, PMX_UART0_MASK, 0, 1);
+DEFINE_2_MUXREG(uart0_modem_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_UART0_MODEM_MASK, 0, 1);
+DEFINE_2_MUXREG(gpt0_tmr0_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_GPT0_TMR0_MASK, 0, 1);
+DEFINE_2_MUXREG(gpt0_tmr1_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_GPT0_TMR1_MASK, 0, 1);
+DEFINE_2_MUXREG(gpt1_tmr0_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_GPT1_TMR0_MASK, 0, 1);
+DEFINE_2_MUXREG(gpt1_tmr1_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_GPT1_TMR1_MASK, 0, 1);
+DEFINE_2_MUXREG(touch_xy_pins, PAD_FUNCTION_EN_1, PAD_DIRECTION_SEL_1, PMX_TOUCH_XY_MASK, 0, 1);
+
+static struct spear_gpio_pingroup spear1310_gpio_pingroup[] = {
+	GPIO_PINGROUP(i2c0_pins),
+	GPIO_PINGROUP(ssp0_pins),
+	GPIO_PINGROUP(ssp0_cs0_pins),
+	GPIO_PINGROUP(ssp0_cs1_2_pins),
+	GPIO_PINGROUP(i2s0_pins),
+	GPIO_PINGROUP(i2s1_pins),
+	GPIO_PINGROUP(clcd_pins),
+	GPIO_PINGROUP(clcd_high_res_pins),
+	GPIO_PINGROUP(pin18),
+	GPIO_PINGROUP(pin19),
+	GPIO_PINGROUP(pin20),
+	GPIO_PINGROUP(pin21),
+	GPIO_PINGROUP(pin22),
+	GPIO_PINGROUP(pin23),
+	GPIO_PINGROUP(pin143),
+	GPIO_PINGROUP(pin144),
+	GPIO_PINGROUP(pin145),
+	GPIO_PINGROUP(pin146),
+	GPIO_PINGROUP(pin147),
+	GPIO_PINGROUP(pin148),
+	GPIO_PINGROUP(pin149),
+	GPIO_PINGROUP(pin150),
+	GPIO_PINGROUP(pin151),
+	GPIO_PINGROUP(pin152),
+	GPIO_PINGROUP(smi_2_chips_pins),
+	GPIO_PINGROUP(pin54),
+	GPIO_PINGROUP(pin55),
+	GPIO_PINGROUP(pin56),
+	GPIO_PINGROUP(pin57),
+	GPIO_PINGROUP(pin58),
+	GPIO_PINGROUP(pin59),
+	GPIO_PINGROUP(pin60),
+	GPIO_PINGROUP(pin61),
+	GPIO_PINGROUP(pin62),
+	GPIO_PINGROUP(pin63),
+	GPIO_PINGROUP(pin_grp0),
+	GPIO_PINGROUP(pin_grp1),
+	GPIO_PINGROUP(pin_grp2),
+	GPIO_PINGROUP(pin_grp3),
+	GPIO_PINGROUP(pin_grp4),
+	GPIO_PINGROUP(pin_grp5),
+	GPIO_PINGROUP(pin_grp6),
+	GPIO_PINGROUP(pin_grp7),
+	GPIO_PINGROUP(pin_grp8),
+	GPIO_PINGROUP(nand_16bit_pins),
+	GPIO_PINGROUP(pin205),
+	GPIO_PINGROUP(pin206),
+	GPIO_PINGROUP(pin211),
+	GPIO_PINGROUP(pin212),
+	GPIO_PINGROUP(pin213),
+	GPIO_PINGROUP(pin214),
+	GPIO_PINGROUP(pin215),
+	GPIO_PINGROUP(pin216),
+	GPIO_PINGROUP(pin217),
+	GPIO_PINGROUP(pin218),
+	GPIO_PINGROUP(pin219),
+	GPIO_PINGROUP(pin220),
+	GPIO_PINGROUP(pin221),
+	GPIO_PINGROUP(pin222),
+	GPIO_PINGROUP(pin223),
+	GPIO_PINGROUP(pin224),
+	GPIO_PINGROUP(pin225),
+	GPIO_PINGROUP(pin226),
+	GPIO_PINGROUP(pin227),
+	GPIO_PINGROUP(pin228),
+	GPIO_PINGROUP(pin229),
+	GPIO_PINGROUP(pin230),
+	GPIO_PINGROUP(pin231),
+	GPIO_PINGROUP(pin232),
+	GPIO_PINGROUP(pin233),
+	GPIO_PINGROUP(pin234),
+	GPIO_PINGROUP(pin235),
+	GPIO_PINGROUP(pin236),
+	GPIO_PINGROUP(pin237),
+	GPIO_PINGROUP(pin238),
+	GPIO_PINGROUP(pin239),
+	GPIO_PINGROUP(pin240),
+	GPIO_PINGROUP(pin241),
+	GPIO_PINGROUP(pin242),
+	GPIO_PINGROUP(pin243),
+	GPIO_PINGROUP(pin244),
+	GPIO_PINGROUP(pin245),
+	GPIO_PINGROUP(keyboard_rowcol6_8_pins),
+	GPIO_PINGROUP(uart0_pins),
+	GPIO_PINGROUP(uart0_modem_pins),
+	GPIO_PINGROUP(gpt0_tmr0_pins),
+	GPIO_PINGROUP(gpt0_tmr1_pins),
+	GPIO_PINGROUP(gpt1_tmr0_pins),
+	GPIO_PINGROUP(gpt1_tmr1_pins),
+	GPIO_PINGROUP(touch_xy_pins),
 };
 
 static struct spear_pinctrl_machdata spear1310_machdata = {
@@ -2150,22 +2687,24 @@ static struct spear_pinctrl_machdata spear1310_machdata = {
 	.ngroups = ARRAY_SIZE(spear1310_pingroups),
 	.functions = spear1310_functions,
 	.nfunctions = ARRAY_SIZE(spear1310_functions),
+	.gpio_pingroups = spear1310_gpio_pingroup,
+	.ngpio_pingroups = ARRAY_SIZE(spear1310_gpio_pingroup),
 	.modes_supported = false,
 };
 
-static struct of_device_id spear1310_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear1310_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear1310-pinmux",
 	},
 	{},
 };
 
-static int __devinit spear1310_pinctrl_probe(struct platform_device *pdev)
+static int spear1310_pinctrl_probe(struct platform_device *pdev)
 {
 	return spear_pinctrl_probe(pdev, &spear1310_machdata);
 }
 
-static int __devexit spear1310_pinctrl_remove(struct platform_device *pdev)
+static int spear1310_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -2177,7 +2716,7 @@ static struct platform_driver spear1310_pinctrl_driver = {
 		.of_match_table = spear1310_pinctrl_of_match,
 	},
 	.probe = spear1310_pinctrl_probe,
-	.remove = __devexit_p(spear1310_pinctrl_remove),
+	.remove = spear1310_pinctrl_remove,
 };
 
 static int __init spear1310_pinctrl_init(void)

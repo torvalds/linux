@@ -206,4 +206,7 @@ config XEN_MCE_LOG
 	  Allow kernel fetching MCE error from Xen platform and
 	  converting it into Linux mcelog format for mcelog tools
 
+config XEN_HAVE_PVMMU
+       bool
+
 endmenu

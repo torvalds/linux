@@ -64,7 +64,7 @@ static int kirkwood_init_cpuidle(void)
 
 	cpuidle_register_driver(&kirkwood_idle_driver);
 	if (cpuidle_register_device(device)) {
-		printk(KERN_ERR "kirkwood_init_cpuidle: Failed registering\n");
+		pr_err("kirkwood_init_cpuidle: Failed registering\n");
 		return -EIO;
 	}
 	return 0;

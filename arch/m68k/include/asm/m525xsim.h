@@ -12,6 +12,11 @@
 #define m525xsim_h
 /****************************************************************************/
 
+/*
+ *	This header supports ColdFire 5249, 5251 and 5253. There are a few
+ *	little differences between them, but most of the peripheral support
+ *	can be used by all of them.
+ */
 #define CPU_NAME		"COLDFIRE(m525x)"
 #define CPU_INSTR_PER_JIFFY	3
 #define MCF_BUSCLK		(MCF_CLK / 2)
@@ -65,6 +70,8 @@
 #define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
 #define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM 0 Addr/Ctrl */
 #define MCFSIM_DMR0		(MCF_MBAR + 0x10c)	/* DRAM 0 Mask */
+#define MCFSIM_DACR1		(MCF_MBAR + 0x110)	/* DRAM 1 Addr/Ctrl */
+#define MCFSIM_DMR1		(MCF_MBAR + 0x114)	/* DRAM 1 Mask */
 
 /*
  * Secondary Interrupt Controller (in MBAR2)
@@ -101,11 +108,17 @@
 #define MCFQSPI_BASE		(MCF_MBAR + 0x300)	/* Base address QSPI */
 #define MCFQSPI_SIZE		0x40			/* Register set size */
 
-
+#ifdef CONFIG_M5249
+#define MCFQSPI_CS0		29
+#define MCFQSPI_CS1		24
+#define MCFQSPI_CS2		21
+#define MCFQSPI_CS3		22
+#else
 #define MCFQSPI_CS0		15
 #define MCFQSPI_CS1		16
 #define MCFQSPI_CS2		24
 #define MCFQSPI_CS3		28
+#endif
 
 /*
  *	I2C module.
@@ -115,6 +128,7 @@
 
 #define MCFI2C_BASE1		(MCF_MBAR2 + 0x440)	/* Base addreess I2C1 */
 #define MCFI2C_SIZE1		0x20			/* Register set size */
+
 /*
  *	DMA unit base addresses.
  */
@@ -163,6 +177,7 @@
 #define MCF_IRQ_GPIO4		(MCFINTC2_VECBASE + 36)
 #define MCF_IRQ_GPIO5		(MCFINTC2_VECBASE + 37)
 #define MCF_IRQ_GPIO6		(MCFINTC2_VECBASE + 38)
+#define MCF_IRQ_GPIO7		(MCFINTC2_VECBASE + 39)
 
 #define MCF_IRQ_USBWUP		(MCFINTC2_VECBASE + 40)
 #define MCF_IRQ_I2C1		(MCFINTC2_VECBASE + 62)
@@ -183,12 +198,111 @@
 #define MCFSIM2_GPIOINTCLEAR	(MCF_MBAR2 + 0xc0)	/* GPIO intr clear */
 #define MCFSIM2_GPIOINTENABLE	(MCF_MBAR2 + 0xc4)	/* GPIO intr enable */
 
+#define MCFSIM2_DMAROUTE	(MCF_MBAR2 + 0x188)     /* DMA routing */
+#define MCFSIM2_IDECONFIG1	(MCF_MBAR2 + 0x18c)	/* IDEconfig1 */
+#define MCFSIM2_IDECONFIG2	(MCF_MBAR2 + 0x190)	/* IDEconfig2 */
+
 /*
  * Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX		64
+#ifdef CONFIG_M5249
+#define MCFGPIO_IRQ_MAX		-1
+#define MCFGPIO_IRQ_VECBASE	-1
+#else
 #define MCFGPIO_IRQ_MAX		7
 #define MCFGPIO_IRQ_VECBASE	MCF_IRQ_GPIO0
+#endif
 
+/****************************************************************************/
+
+#ifdef __ASSEMBLER__
+#ifdef CONFIG_M5249C3
+/*
+ *	The M5249C3 board needs a little help getting all its SIM devices
+ *	initialized at kernel start time. dBUG doesn't set much up, so
+ *	we need to do it manually.
+ */
+.macro m5249c3_setup
+	/*
+	 *	Set MBAR1 and MBAR2, just incase they are not set.
+	 */
+	movel	#0x10000001,%a0
+	movec	%a0,%MBAR			/* map MBAR region */
+	subql	#1,%a0				/* get MBAR address in a0 */
+
+	movel	#0x80000001,%a1
+	movec	%a1,#3086			/* map MBAR2 region */
+	subql	#1,%a1				/* get MBAR2 address in a1 */
+
+	/*
+	 *      Move secondary interrupts to their base (128).
+	 */
+	moveb	#MCFINTC2_VECBASE,%d0
+	moveb	%d0,0x16b(%a1)			/* interrupt base register */
+
+	/*
+	 *      Work around broken CSMR0/DRAM vector problem.
+	 */
+	movel	#0x001F0021,%d0			/* disable C/I bit */
+	movel	%d0,0x84(%a0)			/* set CSMR0 */
+
+	/*
+	 *	Disable the PLL firstly. (Who knows what state it is
+	 *	in here!).
+	 */
+	movel	0x180(%a1),%d0			/* get current PLL value */
+	andl	#0xfffffffe,%d0			/* PLL bypass first */
+	movel	%d0,0x180(%a1)			/* set PLL register */
+	nop
+
+#if CONFIG_CLOCK_FREQ == 140000000
+	/*
+	 *	Set initial clock frequency. This assumes M5249C3 board
+	 *	is fitted with 11.2896MHz crystal. It will program the
+	 *	PLL for 140MHz. Lets go fast :-)
+	 */
+	movel	#0x125a40f0,%d0			/* set for 140MHz */
+	movel	%d0,0x180(%a1)			/* set PLL register */
+	orl	#0x1,%d0
+	movel	%d0,0x180(%a1)			/* set PLL register */
+#endif
+
+	/*
+	 *	Setup CS1 for ethernet controller.
+	 *	(Setup as per M5249C3 doco).
+	 */
+	movel  #0xe0000000,%d0			/* CS1 mapped at 0xe0000000 */
+	movel  %d0,0x8c(%a0)
+	movel  #0x001f0021,%d0			/* CS1 size of 1Mb */
+	movel  %d0,0x90(%a0)
+	movew  #0x0080,%d0			/* CS1 = 16bit port, AA */
+	movew  %d0,0x96(%a0)
+
+	/*
+	 *	Setup CS2 for IDE interface.
+	 */
+	movel	#0x50000000,%d0			/* CS2 mapped at 0x50000000 */
+	movel	%d0,0x98(%a0)
+	movel	#0x001f0001,%d0			/* CS2 size of 1MB */
+	movel	%d0,0x9c(%a0)
+	movew	#0x0080,%d0			/* CS2 = 16bit, TA */
+	movew	%d0,0xa2(%a0)
+
+	movel	#0x00107000,%d0			/* IDEconfig1 */
+	movel	%d0,0x18c(%a1)
+	movel	#0x000c0400,%d0			/* IDEconfig2 */
+	movel	%d0,0x190(%a1)
+
+	movel	#0x00080000,%d0			/* GPIO19, IDE reset bit */
+	orl	%d0,0xc(%a1)			/* function GPIO19 */
+	orl	%d0,0x8(%a1)			/* enable GPIO19 as output */
+        orl	%d0,0x4(%a1)			/* de-assert IDE reset */
+.endm
+
+#define	PLATFORM_SETUP	m5249c3_setup
+
+#endif /* CONFIG_M5249C3 */
+#endif /* __ASSEMBLER__ */
 /****************************************************************************/
 #endif	/* m525xsim_h */

@@ -43,6 +43,7 @@
 #include <asm/dcr.h>
 #include <asm/ftrace.h>
 #include <asm/switch_to.h>
+#include <asm/epapr_hcalls.h>
 
 #ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);
@@ -190,4 +191,8 @@ EXPORT_SYMBOL(__arch_hweight64);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
+#endif
+
+#ifdef CONFIG_EPAPR_PARAVIRT
+EXPORT_SYMBOL(epapr_hypercall_start);
 #endif

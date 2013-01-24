@@ -47,6 +47,7 @@ struct ipv6_devconf {
 	__s32		disable_ipv6;
 	__s32		accept_dad;
 	__s32		force_tllao;
+	__s32           ndisc_notify;
 	void		*sysctl;
 };
 
@@ -64,6 +65,11 @@ extern struct ipv6_params ipv6_defaults;
 static inline struct ipv6hdr *ipv6_hdr(const struct sk_buff *skb)
 {
 	return (struct ipv6hdr *)skb_network_header(skb);
+}
+
+static inline struct ipv6hdr *inner_ipv6_hdr(const struct sk_buff *skb)
+{
+	return (struct ipv6hdr *)skb_inner_network_header(skb);
 }
 
 static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
@@ -363,20 +369,22 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 #define inet_v6_ipv6only(__sk)		0
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 
-#define INET6_MATCH(__sk, __net, __hash, __saddr, __daddr, __ports, __dif)\
-	(((__sk)->sk_hash == (__hash)) && sock_net((__sk)) == (__net)	&& \
-	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports)) && \
-	 ((__sk)->sk_family		== AF_INET6)		&& \
-	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&& \
-	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&& \
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET6_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	\
+	((inet_sk(__sk)->inet_portpair == (__ports))		&&	\
+	 ((__sk)->sk_family == AF_INET6)			&&	\
+	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&&	\
+	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&&	\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 		&&	\
+	 net_eq(sock_net(__sk), (__net)))
 
-#define INET6_TW_MATCH(__sk, __net, __hash, __saddr, __daddr, __ports, __dif) \
-	(((__sk)->sk_hash == (__hash)) && sock_net((__sk)) == (__net)	&& \
-	 (*((__portpair *)&(inet_twsk(__sk)->tw_dport)) == (__ports))	&& \
-	 ((__sk)->sk_family	       == PF_INET6)			&& \
-	 (ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_daddr, (__saddr)))	&& \
-	 (ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_rcv_saddr, (__daddr))) && \
-	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
+#define INET6_TW_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	   \
+	((inet_twsk(__sk)->tw_portpair == (__ports))			&& \
+	 ((__sk)->sk_family == AF_INET6)				&& \
+	 ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_daddr, (__saddr))	&& \
+	 ipv6_addr_equal(&inet6_twsk(__sk)->tw_v6_rcv_saddr, (__daddr)) && \
+	 (!(__sk)->sk_bound_dev_if	||				   \
+	  ((__sk)->sk_bound_dev_if == (__dif)))				&& \
+	 net_eq(sock_net(__sk), (__net)))
 
 #endif /* _IPV6_H */

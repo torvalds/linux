@@ -17,15 +17,15 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/regulator/of_regulator.h>
-#include <linux/regulator/machine.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
@@ -94,12 +94,25 @@ static const struct tps6586x_irq_data tps6586x_irqs[] = {
 	[TPS6586X_INT_RTC_ALM2] = TPS6586X_IRQ(TPS6586X_INT_MASK4, 1 << 1),
 };
 
+static struct resource tps6586x_rtc_resources[] = {
+	{
+		.start  = TPS6586X_INT_RTC_ALM1,
+		.end	= TPS6586X_INT_RTC_ALM1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell tps6586x_cell[] = {
 	{
 		.name = "tps6586x-gpio",
 	},
 	{
+		.name = "tps6586x-pmic",
+	},
+	{
 		.name = "tps6586x-rtc",
+		.num_resources = ARRAY_SIZE(tps6586x_rtc_resources),
+		.resources = &tps6586x_rtc_resources[0],
 	},
 	{
 		.name = "tps6586x-onkey",
@@ -116,6 +129,7 @@ struct tps6586x {
 	int			irq_base;
 	u32			irq_en;
 	u8			mask_reg[5];
+	struct irq_domain	*irq_domain;
 };
 
 static inline struct tps6586x *dev_to_tps6586x(struct device *dev)
@@ -184,6 +198,14 @@ int tps6586x_update(struct device *dev, int reg, uint8_t val, uint8_t mask)
 }
 EXPORT_SYMBOL_GPL(tps6586x_update);
 
+int tps6586x_irq_get_virq(struct device *dev, int irq)
+{
+	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
+
+	return irq_create_mapping(tps6586x->irq_domain, irq);
+}
+EXPORT_SYMBOL_GPL(tps6586x_irq_get_virq);
+
 static int __remove_subdev(struct device *dev, void *unused)
 {
 	platform_device_unregister(to_platform_device(dev));
@@ -205,7 +227,7 @@ static void tps6586x_irq_lock(struct irq_data *data)
 static void tps6586x_irq_enable(struct irq_data *irq_data)
 {
 	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
-	unsigned int __irq = irq_data->irq - tps6586x->irq_base;
+	unsigned int __irq = irq_data->hwirq;
 	const struct tps6586x_irq_data *data = &tps6586x_irqs[__irq];
 
 	tps6586x->mask_reg[data->mask_reg] &= ~data->mask_mask;
@@ -216,7 +238,7 @@ static void tps6586x_irq_disable(struct irq_data *irq_data)
 {
 	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
 
-	unsigned int __irq = irq_data->irq - tps6586x->irq_base;
+	unsigned int __irq = irq_data->hwirq;
 	const struct tps6586x_irq_data *data = &tps6586x_irqs[__irq];
 
 	tps6586x->mask_reg[data->mask_reg] |= data->mask_mask;
@@ -239,6 +261,39 @@ static void tps6586x_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&tps6586x->irq_lock);
 }
 
+static struct irq_chip tps6586x_irq_chip = {
+	.name = "tps6586x",
+	.irq_bus_lock = tps6586x_irq_lock,
+	.irq_bus_sync_unlock = tps6586x_irq_sync_unlock,
+	.irq_disable = tps6586x_irq_disable,
+	.irq_enable = tps6586x_irq_enable,
+};
+
+static int tps6586x_irq_map(struct irq_domain *h, unsigned int virq,
+				irq_hw_number_t hw)
+{
+	struct tps6586x *tps6586x = h->host_data;
+
+	irq_set_chip_data(virq, tps6586x);
+	irq_set_chip_and_handler(virq, &tps6586x_irq_chip, handle_simple_irq);
+	irq_set_nested_thread(virq, 1);
+
+	/* ARM needs us to explicitly flag the IRQ as valid
+	 * and will set them noprobe when we do so. */
+#ifdef CONFIG_ARM
+	set_irq_flags(virq, IRQF_VALID);
+#else
+	irq_set_noprobe(virq);
+#endif
+
+	return 0;
+}
+
+static struct irq_domain_ops tps6586x_domain_ops = {
+	.map    = tps6586x_irq_map,
+	.xlate  = irq_domain_xlate_twocell,
+};
+
 static irqreturn_t tps6586x_irq(int irq, void *data)
 {
 	struct tps6586x *tps6586x = data;
@@ -259,7 +314,8 @@ static irqreturn_t tps6586x_irq(int irq, void *data)
 		int i = __ffs(acks);
 
 		if (tps6586x->irq_en & (1 << i))
-			handle_nested_irq(tps6586x->irq_base + i);
+			handle_nested_irq(
+				irq_find_mapping(tps6586x->irq_domain, i));
 
 		acks &= ~(1 << i);
 	}
@@ -267,16 +323,13 @@ static irqreturn_t tps6586x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
+static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 				       int irq_base)
 {
 	int i, ret;
 	u8 tmp[4];
-
-	if (!irq_base) {
-		dev_warn(tps6586x->dev, "No interrupt support on IRQ base\n");
-		return -EINVAL;
-	}
+	int new_irq_base;
+	int irq_num = ARRAY_SIZE(tps6586x_irqs);
 
 	mutex_init(&tps6586x->irq_lock);
 	for (i = 0; i < 5; i++) {
@@ -286,25 +339,24 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 
 	tps6586x_reads(tps6586x->dev, TPS6586X_INT_ACK1, sizeof(tmp), tmp);
 
-	tps6586x->irq_base = irq_base;
-
-	tps6586x->irq_chip.name = "tps6586x";
-	tps6586x->irq_chip.irq_enable = tps6586x_irq_enable;
-	tps6586x->irq_chip.irq_disable = tps6586x_irq_disable;
-	tps6586x->irq_chip.irq_bus_lock = tps6586x_irq_lock;
-	tps6586x->irq_chip.irq_bus_sync_unlock = tps6586x_irq_sync_unlock;
-
-	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
-		int __irq = i + tps6586x->irq_base;
-		irq_set_chip_data(__irq, tps6586x);
-		irq_set_chip_and_handler(__irq, &tps6586x->irq_chip,
-					 handle_simple_irq);
-		irq_set_nested_thread(__irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(__irq, IRQF_VALID);
-#endif
+	if  (irq_base > 0) {
+		new_irq_base = irq_alloc_descs(irq_base, 0, irq_num, -1);
+		if (new_irq_base < 0) {
+			dev_err(tps6586x->dev,
+				"Failed to alloc IRQs: %d\n", new_irq_base);
+			return new_irq_base;
+		}
+	} else {
+		new_irq_base = 0;
 	}
 
+	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_node,
+				irq_num, new_irq_base, &tps6586x_domain_ops,
+				tps6586x);
+	if (!tps6586x->irq_domain) {
+		dev_err(tps6586x->dev, "Failed to create IRQ domain\n");
+		return -ENOMEM;
+	}
 	ret = request_threaded_irq(irq, NULL, tps6586x_irq, IRQF_ONESHOT,
 				   "tps6586x", tps6586x);
 
@@ -316,7 +368,7 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	return ret;
 }
 
-static int __devinit tps6586x_add_subdevs(struct tps6586x *tps6586x,
+static int tps6586x_add_subdevs(struct tps6586x *tps6586x,
 					  struct tps6586x_platform_data *pdata)
 {
 	struct tps6586x_subdev_info *subdev;
@@ -350,80 +402,19 @@ failed:
 }
 
 #ifdef CONFIG_OF
-static struct of_regulator_match tps6586x_matches[] = {
-	{ .name = "sys",     .driver_data = (void *)TPS6586X_ID_SYS     },
-	{ .name = "sm0",     .driver_data = (void *)TPS6586X_ID_SM_0    },
-	{ .name = "sm1",     .driver_data = (void *)TPS6586X_ID_SM_1    },
-	{ .name = "sm2",     .driver_data = (void *)TPS6586X_ID_SM_2    },
-	{ .name = "ldo0",    .driver_data = (void *)TPS6586X_ID_LDO_0   },
-	{ .name = "ldo1",    .driver_data = (void *)TPS6586X_ID_LDO_1   },
-	{ .name = "ldo2",    .driver_data = (void *)TPS6586X_ID_LDO_2   },
-	{ .name = "ldo3",    .driver_data = (void *)TPS6586X_ID_LDO_3   },
-	{ .name = "ldo4",    .driver_data = (void *)TPS6586X_ID_LDO_4   },
-	{ .name = "ldo5",    .driver_data = (void *)TPS6586X_ID_LDO_5   },
-	{ .name = "ldo6",    .driver_data = (void *)TPS6586X_ID_LDO_6   },
-	{ .name = "ldo7",    .driver_data = (void *)TPS6586X_ID_LDO_7   },
-	{ .name = "ldo8",    .driver_data = (void *)TPS6586X_ID_LDO_8   },
-	{ .name = "ldo9",    .driver_data = (void *)TPS6586X_ID_LDO_9   },
-	{ .name = "ldo_rtc", .driver_data = (void *)TPS6586X_ID_LDO_RTC },
-};
-
 static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
 {
-	const unsigned int num = ARRAY_SIZE(tps6586x_matches);
 	struct device_node *np = client->dev.of_node;
 	struct tps6586x_platform_data *pdata;
-	struct tps6586x_subdev_info *devs;
-	struct device_node *regs;
-	const char *sys_rail_name = NULL;
-	unsigned int count;
-	unsigned int i, j;
-	int err;
-
-	regs = of_find_node_by_name(np, "regulators");
-	if (!regs)
-		return NULL;
-
-	err = of_regulator_match(&client->dev, regs, tps6586x_matches, num);
-	if (err < 0) {
-		of_node_put(regs);
-		return NULL;
-	}
-
-	of_node_put(regs);
-	count = err;
-
-	devs = devm_kzalloc(&client->dev, count * sizeof(*devs), GFP_KERNEL);
-	if (!devs)
-		return NULL;
-
-	for (i = 0, j = 0; i < num && j < count; i++) {
-		struct regulator_init_data *reg_idata;
-
-		if (!tps6586x_matches[i].init_data)
-			continue;
-
-		reg_idata  = tps6586x_matches[i].init_data;
-		devs[j].name = "tps6586x-regulator";
-		devs[j].platform_data = tps6586x_matches[i].init_data;
-		devs[j].id = (int)tps6586x_matches[i].driver_data;
-		if (devs[j].id == TPS6586X_ID_SYS)
-			sys_rail_name = reg_idata->constraints.name;
-
-		if ((devs[j].id == TPS6586X_ID_LDO_5) ||
-			(devs[j].id == TPS6586X_ID_LDO_RTC))
-			reg_idata->supply_regulator = sys_rail_name;
-
-		devs[j].of_node = tps6586x_matches[i].of_node;
-		j++;
-	}
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
+	if (!pdata) {
+		dev_err(&client->dev, "Memory allocation failed\n");
 		return NULL;
+	}
 
-	pdata->num_subdevs = count;
-	pdata->subdevs = devs;
+	pdata->num_subdevs = 0;
+	pdata->subdevs = NULL;
 	pdata->gpio_base = -1;
 	pdata->irq_base = -1;
 	pdata->pm_off = of_property_read_bool(np, "ti,system-power-controller");
@@ -468,7 +459,7 @@ static void tps6586x_power_off(void)
 	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
 }
 
-static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
+static int tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps6586x_platform_data *pdata = client->dev.platform_data;
@@ -521,7 +512,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 	ret = mfd_add_devices(tps6586x->dev, -1,
 			      tps6586x_cell, ARRAY_SIZE(tps6586x_cell),
-			      NULL, 0, NULL);
+			      NULL, 0, tps6586x->irq_domain);
 	if (ret < 0) {
 		dev_err(&client->dev, "mfd_add_devices failed: %d\n", ret);
 		goto err_mfd_add;
@@ -548,7 +539,7 @@ err_mfd_add:
 	return ret;
 }
 
-static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
+static int tps6586x_i2c_remove(struct i2c_client *client)
 {
 	struct tps6586x *tps6586x = i2c_get_clientdata(client);
 
@@ -572,7 +563,7 @@ static struct i2c_driver tps6586x_driver = {
 		.of_match_table = of_match_ptr(tps6586x_of_match),
 	},
 	.probe		= tps6586x_i2c_probe,
-	.remove		= __devexit_p(tps6586x_i2c_remove),
+	.remove		= tps6586x_i2c_remove,
 	.id_table	= tps6586x_id_table,
 };
 

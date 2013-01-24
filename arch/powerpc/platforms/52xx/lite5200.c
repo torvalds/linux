@@ -4,7 +4,7 @@
  * Written by: Grant Likely <grant.likely@secretlab.ca>
  *
  * Copyright (C) Secret Lab Technologies Ltd. 2006. All rights reserved.
- * Copyright (C) Freescale Semicondutor, Inc. 2006. All rights reserved.
+ * Copyright 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Description:
  * This program is free software; you can redistribute  it and/or modify it

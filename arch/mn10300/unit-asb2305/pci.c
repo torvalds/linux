@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 #include <asm/io.h>
 #include "pci-asb2305.h"
 
@@ -281,7 +282,7 @@ static int __init pci_check_direct(void)
 	return -ENODEV;
 }
 
-static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
+static int is_valid_resource(struct pci_dev *dev, int idx)
 {
 	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
 	struct resource *devr = &dev->resource[idx], *busr;
@@ -301,11 +302,9 @@ static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 	return 0;
 }
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+static void pcibios_fixup_device_resources(struct pci_dev *dev)
 {
-	struct pci_bus_region region;
-	int i;
-	int limit;
+	int limit, i;
 
 	if (dev->bus->number != 0)
 		return;
@@ -326,7 +325,7 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 

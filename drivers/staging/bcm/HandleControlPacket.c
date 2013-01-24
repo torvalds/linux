@@ -226,7 +226,7 @@ INT flushAllAppQ(void)
 		pTarang->AppCtrlQueueLen = 0;
 		/* dropped contrl packet statistics also should be reset. */
 		memset((PVOID)&pTarang->stDroppedAppCntrlMsgs, 0,
-			sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
+			sizeof(struct bcm_mibs_dropped_cntrl_msg));
 
 	}
 	return STATUS_SUCCESS;

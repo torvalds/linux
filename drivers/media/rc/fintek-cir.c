@@ -541,7 +541,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	/* Set up the rc device */
 	rdev->priv = fintek;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_TYPE_ALL;
+	rdev->allowed_protos = RC_BIT_ALL;
 	rdev->open = fintek_open;
 	rdev->close = fintek_close;
 	rdev->input_name = FINTEK_DESCRIPTION;
@@ -590,7 +590,7 @@ failure:
 	return ret;
 }
 
-static void __devexit fintek_remove(struct pnp_dev *pdev)
+static void fintek_remove(struct pnp_dev *pdev)
 {
 	struct fintek_dev *fintek = pnp_get_drvdata(pdev);
 	unsigned long flags;
@@ -678,18 +678,18 @@ static struct pnp_driver fintek_driver = {
 	.id_table	= fintek_ids,
 	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
 	.probe		= fintek_probe,
-	.remove		= __devexit_p(fintek_remove),
+	.remove		= fintek_remove,
 	.suspend	= fintek_suspend,
 	.resume		= fintek_resume,
 	.shutdown	= fintek_shutdown,
 };
 
-int fintek_init(void)
+static int fintek_init(void)
 {
 	return pnp_register_driver(&fintek_driver);
 }
 
-void fintek_exit(void)
+static void fintek_exit(void)
 {
 	pnp_unregister_driver(&fintek_driver);
 }

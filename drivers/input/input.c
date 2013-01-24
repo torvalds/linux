@@ -534,8 +534,11 @@ EXPORT_SYMBOL(input_grab_device);
 static void __input_release_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
+	struct input_handle *grabber;
 
-	if (dev->grab == handle) {
+	grabber = rcu_dereference_protected(dev->grab,
+					    lockdep_is_held(&dev->mutex));
+	if (grabber == handle) {
 		rcu_assign_pointer(dev->grab, NULL);
 		/* Make sure input_pass_event() notices that grab is gone */
 		synchronize_rcu();
@@ -1723,7 +1726,7 @@ EXPORT_SYMBOL_GPL(input_class);
 /**
  * input_allocate_device - allocate memory for new input device
  *
- * Returns prepared struct input_dev or NULL.
+ * Returns prepared struct input_dev or %NULL.
  *
  * NOTE: Use input_free_device() to free devices that have not been
  * registered; input_unregister_device() should be used for already
@@ -1750,6 +1753,70 @@ struct input_dev *input_allocate_device(void)
 }
 EXPORT_SYMBOL(input_allocate_device);
 
+struct input_devres {
+	struct input_dev *input;
+};
+
+static int devm_input_device_match(struct device *dev, void *res, void *data)
+{
+	struct input_devres *devres = res;
+
+	return devres->input == data;
+}
+
+static void devm_input_device_release(struct device *dev, void *res)
+{
+	struct input_devres *devres = res;
+	struct input_dev *input = devres->input;
+
+	dev_dbg(dev, "%s: dropping reference to %s\n",
+		__func__, dev_name(&input->dev));
+	input_put_device(input);
+}
+
+/**
+ * devm_input_allocate_device - allocate managed input device
+ * @dev: device owning the input device being created
+ *
+ * Returns prepared struct input_dev or %NULL.
+ *
+ * Managed input devices do not need to be explicitly unregistered or
+ * freed as it will be done automatically when owner device unbinds from
+ * its driver (or binding fails). Once managed input device is allocated,
+ * it is ready to be set up and registered in the same fashion as regular
+ * input device. There are no special devm_input_device_[un]register()
+ * variants, regular ones work with both managed and unmanaged devices.
+ *
+ * NOTE: the owner device is set up as parent of input device and users
+ * should not override it.
+ */
+
+struct input_dev *devm_input_allocate_device(struct device *dev)
+{
+	struct input_dev *input;
+	struct input_devres *devres;
+
+	devres = devres_alloc(devm_input_device_release,
+			      sizeof(struct input_devres), GFP_KERNEL);
+	if (!devres)
+		return NULL;
+
+	input = input_allocate_device();
+	if (!input) {
+		devres_free(devres);
+		return NULL;
+	}
+
+	input->dev.parent = dev;
+	input->devres_managed = true;
+
+	devres->input = input;
+	devres_add(dev, devres);
+
+	return input;
+}
+EXPORT_SYMBOL(devm_input_allocate_device);
+
 /**
  * input_free_device - free memory occupied by input_dev structure
  * @dev: input device to free
@@ -1766,8 +1833,14 @@ EXPORT_SYMBOL(input_allocate_device);
  */
 void input_free_device(struct input_dev *dev)
 {
-	if (dev)
+	if (dev) {
+		if (dev->devres_managed)
+			WARN_ON(devres_destroy(dev->dev.parent,
+						devm_input_device_release,
+						devm_input_device_match,
+						dev));
 		input_put_device(dev);
+	}
 }
 EXPORT_SYMBOL(input_free_device);
 
@@ -1888,6 +1961,38 @@ static void input_cleanse_bitmasks(struct input_dev *dev)
 	INPUT_CLEANSE_BITMASK(dev, SW, sw);
 }
 
+static void __input_unregister_device(struct input_dev *dev)
+{
+	struct input_handle *handle, *next;
+
+	input_disconnect_device(dev);
+
+	mutex_lock(&input_mutex);
+
+	list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
+		handle->handler->disconnect(handle);
+	WARN_ON(!list_empty(&dev->h_list));
+
+	del_timer_sync(&dev->timer);
+	list_del_init(&dev->node);
+
+	input_wakeup_procfs_readers();
+
+	mutex_unlock(&input_mutex);
+
+	device_del(&dev->dev);
+}
+
+static void devm_input_device_unregister(struct device *dev, void *res)
+{
+	struct input_devres *devres = res;
+	struct input_dev *input = devres->input;
+
+	dev_dbg(dev, "%s: unregistering device %s\n",
+		__func__, dev_name(&input->dev));
+	__input_unregister_device(input);
+}
+
 /**
  * input_register_device - register device with input core
  * @dev: device to be registered
@@ -1903,10 +2008,20 @@ static void input_cleanse_bitmasks(struct input_dev *dev)
 int input_register_device(struct input_dev *dev)
 {
 	static atomic_t input_no = ATOMIC_INIT(0);
+	struct input_devres *devres = NULL;
 	struct input_handler *handler;
 	unsigned int packet_size;
 	const char *path;
 	int error;
+
+	if (dev->devres_managed) {
+		devres = devres_alloc(devm_input_device_unregister,
+				      sizeof(struct input_devres), GFP_KERNEL);
+		if (!devres)
+			return -ENOMEM;
+
+		devres->input = dev;
+	}
 
 	/* Every input device generates EV_SYN/SYN_REPORT events. */
 	__set_bit(EV_SYN, dev->evbit);
@@ -1923,8 +2038,10 @@ int input_register_device(struct input_dev *dev)
 
 	dev->max_vals = max(dev->hint_events_per_packet, packet_size) + 2;
 	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
-	if (!dev->vals)
-		return -ENOMEM;
+	if (!dev->vals) {
+		error = -ENOMEM;
+		goto err_devres_free;
+	}
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
@@ -1949,7 +2066,7 @@ int input_register_device(struct input_dev *dev)
 
 	error = device_add(&dev->dev);
 	if (error)
-		return error;
+		goto err_free_vals;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	pr_info("%s as %s\n",
@@ -1958,10 +2075,8 @@ int input_register_device(struct input_dev *dev)
 	kfree(path);
 
 	error = mutex_lock_interruptible(&input_mutex);
-	if (error) {
-		device_del(&dev->dev);
-		return error;
-	}
+	if (error)
+		goto err_device_del;
 
 	list_add_tail(&dev->node, &input_dev_list);
 
@@ -1972,7 +2087,21 @@ int input_register_device(struct input_dev *dev)
 
 	mutex_unlock(&input_mutex);
 
+	if (dev->devres_managed) {
+		dev_dbg(dev->dev.parent, "%s: registering %s with devres.\n",
+			__func__, dev_name(&dev->dev));
+		devres_add(dev->dev.parent, devres);
+	}
 	return 0;
+
+err_device_del:
+	device_del(&dev->dev);
+err_free_vals:
+	kfree(dev->vals);
+	dev->vals = NULL;
+err_devres_free:
+	devres_free(devres);
+	return error;
 }
 EXPORT_SYMBOL(input_register_device);
 
@@ -1985,24 +2114,20 @@ EXPORT_SYMBOL(input_register_device);
  */
 void input_unregister_device(struct input_dev *dev)
 {
-	struct input_handle *handle, *next;
-
-	input_disconnect_device(dev);
-
-	mutex_lock(&input_mutex);
-
-	list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
-		handle->handler->disconnect(handle);
-	WARN_ON(!list_empty(&dev->h_list));
-
-	del_timer_sync(&dev->timer);
-	list_del_init(&dev->node);
-
-	input_wakeup_procfs_readers();
-
-	mutex_unlock(&input_mutex);
-
-	device_unregister(&dev->dev);
+	if (dev->devres_managed) {
+		WARN_ON(devres_destroy(dev->dev.parent,
+					devm_input_device_unregister,
+					devm_input_device_match,
+					dev));
+		__input_unregister_device(dev);
+		/*
+		 * We do not do input_put_device() here because it will be done
+		 * when 2nd devres fires up.
+		 */
+	} else {
+		__input_unregister_device(dev);
+		input_put_device(dev);
+	}
 }
 EXPORT_SYMBOL(input_unregister_device);
 

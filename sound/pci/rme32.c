@@ -1332,7 +1332,7 @@ snd_rme32_free_adat_pcm(struct snd_pcm *pcm)
 	rme32->adat_pcm = NULL;
 }
 
-static int __devinit snd_rme32_create(struct rme32 * rme32)
+static int snd_rme32_create(struct rme32 *rme32)
 {
 	struct pci_dev *pci = rme32->pci;
 	int err;
@@ -1554,7 +1554,7 @@ snd_rme32_proc_read(struct snd_info_entry * entry, struct snd_info_buffer *buffe
 	}
 }
 
-static void __devinit snd_rme32_proc_init(struct rme32 * rme32)
+static void snd_rme32_proc_init(struct rme32 *rme32)
 {
 	struct snd_info_entry *entry;
 
@@ -1922,7 +1922,7 @@ static void snd_rme32_card_free(struct snd_card *card)
 	snd_rme32_free(card->private_data);
 }
 
-static int __devinit
+static int
 snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -1978,7 +1978,7 @@ snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	return 0;
 }
 
-static void __devexit snd_rme32_remove(struct pci_dev *pci)
+static void snd_rme32_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1988,7 +1988,7 @@ static struct pci_driver rme32_driver = {
 	.name =		KBUILD_MODNAME,
 	.id_table =	snd_rme32_ids,
 	.probe =	snd_rme32_probe,
-	.remove =	__devexit_p(snd_rme32_remove),
+	.remove =	snd_rme32_remove,
 };
 
 module_pci_driver(rme32_driver);

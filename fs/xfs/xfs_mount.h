@@ -51,8 +51,6 @@ typedef struct xfs_trans_reservations {
 
 #else /* __KERNEL__ */
 
-#include "xfs_sync.h"
-
 struct xlog;
 struct xfs_inode;
 struct xfs_mru_cache;
@@ -197,9 +195,9 @@ typedef struct xfs_mount {
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
-	struct delayed_work	m_sync_work;	/* background sync work */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
-	struct work_struct	m_flush_work;	/* background inode flush */
+	struct delayed_work	m_eofblocks_work; /* background eof blocks
+						     trimming */
 	__int64_t		m_update_flags;	/* sb flags we need to update
 						   on the next remount,rw */
 	struct shrinker		m_inode_shrink;	/* inode reclaim shrinker */
@@ -209,6 +207,9 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
+	struct workqueue_struct	*m_reclaim_workqueue;
+	struct workqueue_struct	*m_log_workqueue;
+	struct workqueue_struct *m_eofblocks_workqueue;
 } xfs_mount_t;
 
 /*
@@ -387,7 +388,9 @@ extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 extern void	xfs_mod_sb(struct xfs_trans *, __int64_t);
 extern int	xfs_initialize_perag(struct xfs_mount *, xfs_agnumber_t,
 					xfs_agnumber_t *);
-extern void	xfs_sb_from_disk(struct xfs_mount *, struct xfs_dsb *);
+extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
 extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
+
+extern const struct xfs_buf_ops xfs_sb_buf_ops;
 
 #endif	/* __XFS_MOUNT_H__ */

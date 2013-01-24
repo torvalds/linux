@@ -28,12 +28,11 @@ if IP_VS
 config	IP_VS_IPV6
 	bool "IPv6 support for IPVS"
 	depends on IPV6 = y || IP_VS = IPV6
+	select IP6_NF_IPTABLES
 	---help---
-	  Add IPv6 support to IPVS. This is incomplete and might be dangerous.
+	  Add IPv6 support to IPVS.
 
-	  See http://www.mindbasket.com/ipvs for more information.
-
-	  Say N if unsure.
+	  Say Y if unsure.
 
 config	IP_VS_DEBUG
 	bool "IP virtual server debugging"

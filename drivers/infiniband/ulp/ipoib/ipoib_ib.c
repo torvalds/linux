@@ -615,8 +615,9 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
-		skb_orphan(skb);
 
+		skb_orphan(skb);
+		skb_dst_drop(skb);
 	}
 
 	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))

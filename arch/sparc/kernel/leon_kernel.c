@@ -56,11 +56,13 @@ static inline unsigned int leon_eirq_get(int cpu)
 static void leon_handle_ext_irq(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int eirq;
+	struct irq_bucket *p;
 	int cpu = sparc_leon3_cpuid();
 
 	eirq = leon_eirq_get(cpu);
-	if ((eirq & 0x10) && irq_map[eirq]->irq) /* bit4 tells if IRQ happened */
-		generic_handle_irq(irq_map[eirq]->irq);
+	p = irq_map[eirq];
+	if ((eirq & 0x10) && p && p->irq) /* bit4 tells if IRQ happened */
+		generic_handle_irq(p->irq);
 }
 
 /* The extended IRQ controller has been found, this function registers it */

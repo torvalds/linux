@@ -193,7 +193,7 @@ faster.
    or maybe swap-over-nbd/NFS)?
 
 No.  First, the existing swap subsystem doesn't allow for any kind of
-swap hierarchy.  Perhaps it could be rewritten to accomodate a hierarchy,
+swap hierarchy.  Perhaps it could be rewritten to accommodate a hierarchy,
 but this would require fairly drastic changes.  Even if it were
 rewritten, the existing swap subsystem uses the block I/O layer which
 assumes a swap device is fixed size and any page in it is linearly

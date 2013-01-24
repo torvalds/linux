@@ -27,8 +27,6 @@ struct da9052_tsi {
 	struct input_dev *dev;
 	struct delayed_work ts_pen_work;
 	struct mutex mutex;
-	unsigned int irq_pendwn;
-	unsigned int irq_datardy;
 	bool stopped;
 	bool adc_on;
 };
@@ -45,8 +43,8 @@ static irqreturn_t da9052_ts_pendwn_irq(int irq, void *data)
 
 	if (!tsi->stopped) {
 		/* Mask PEN_DOWN event and unmask TSI_READY event */
-		disable_irq_nosync(tsi->irq_pendwn);
-		enable_irq(tsi->irq_datardy);
+		da9052_disable_irq_nosync(tsi->da9052, DA9052_IRQ_PENDOWN);
+		da9052_enable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
 
 		da9052_ts_adc_toggle(tsi, true);
 
@@ -137,13 +135,13 @@ static void da9052_ts_pen_work(struct work_struct *work)
 				return;
 
 			/* Mask TSI_READY event and unmask PEN_DOWN event */
-			disable_irq(tsi->irq_datardy);
-			enable_irq(tsi->irq_pendwn);
+			da9052_disable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
+			da9052_enable_irq(tsi->da9052, DA9052_IRQ_PENDOWN);
 		}
 	}
 }
 
-static int __devinit da9052_ts_configure_gpio(struct da9052 *da9052)
+static int da9052_ts_configure_gpio(struct da9052 *da9052)
 {
 	int error;
 
@@ -162,7 +160,7 @@ static int __devinit da9052_ts_configure_gpio(struct da9052 *da9052)
 	return 0;
 }
 
-static int __devinit da9052_configure_tsi(struct da9052_tsi *tsi)
+static int da9052_configure_tsi(struct da9052_tsi *tsi)
 {
 	int error;
 
@@ -197,7 +195,7 @@ static int da9052_ts_input_open(struct input_dev *input_dev)
 	mb();
 
 	/* Unmask PEN_DOWN event */
-	enable_irq(tsi->irq_pendwn);
+	da9052_enable_irq(tsi->da9052, DA9052_IRQ_PENDOWN);
 
 	/* Enable Pen Detect Circuit */
 	return da9052_reg_update(tsi->da9052, DA9052_TSI_CONT_A_REG,
@@ -210,11 +208,11 @@ static void da9052_ts_input_close(struct input_dev *input_dev)
 
 	tsi->stopped = true;
 	mb();
-	disable_irq(tsi->irq_pendwn);
+	da9052_disable_irq(tsi->da9052, DA9052_IRQ_PENDOWN);
 	cancel_delayed_work_sync(&tsi->ts_pen_work);
 
 	if (tsi->adc_on) {
-		disable_irq(tsi->irq_datardy);
+		da9052_disable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
 		da9052_ts_adc_toggle(tsi, false);
 
 		/*
@@ -222,32 +220,23 @@ static void da9052_ts_input_close(struct input_dev *input_dev)
 		 * twice and we need to enable it to keep enable/disable
 		 * counter balanced. IRQ is still off though.
 		 */
-		enable_irq(tsi->irq_pendwn);
+		da9052_enable_irq(tsi->da9052, DA9052_IRQ_PENDOWN);
 	}
 
 	/* Disable Pen Detect Circuit */
 	da9052_reg_update(tsi->da9052, DA9052_TSI_CONT_A_REG, 1 << 1, 0);
 }
 
-static int __devinit da9052_ts_probe(struct platform_device *pdev)
+static int da9052_ts_probe(struct platform_device *pdev)
 {
 	struct da9052 *da9052;
 	struct da9052_tsi *tsi;
 	struct input_dev *input_dev;
-	int irq_pendwn;
-	int irq_datardy;
 	int error;
 
 	da9052 = dev_get_drvdata(pdev->dev.parent);
 	if (!da9052)
 		return -EINVAL;
-
-	irq_pendwn = platform_get_irq_byname(pdev, "PENDWN");
-	irq_datardy = platform_get_irq_byname(pdev, "TSIRDY");
-	if (irq_pendwn < 0 || irq_datardy < 0) {
-		dev_err(da9052->dev, "Unable to determine device interrupts\n");
-		return -ENXIO;
-	}
 
 	tsi = kzalloc(sizeof(struct da9052_tsi), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -258,8 +247,6 @@ static int __devinit da9052_ts_probe(struct platform_device *pdev)
 
 	tsi->da9052 = da9052;
 	tsi->dev = input_dev;
-	tsi->irq_pendwn = da9052->irq_base + irq_pendwn;
-	tsi->irq_datardy = da9052->irq_base + irq_datardy;
 	tsi->stopped = true;
 	INIT_DELAYED_WORK(&tsi->ts_pen_work, da9052_ts_pen_work);
 
@@ -287,31 +274,25 @@ static int __devinit da9052_ts_probe(struct platform_device *pdev)
 	/* Disable ADC */
 	da9052_ts_adc_toggle(tsi, false);
 
-	error = request_threaded_irq(tsi->irq_pendwn,
-				     NULL, da9052_ts_pendwn_irq,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "PENDWN", tsi);
+	error = da9052_request_irq(tsi->da9052, DA9052_IRQ_PENDOWN,
+				"pendown-irq", da9052_ts_pendwn_irq, tsi);
 	if (error) {
 		dev_err(tsi->da9052->dev,
-			"Failed to register PENDWN IRQ %d, error = %d\n",
-			tsi->irq_pendwn, error);
+			"Failed to register PENDWN IRQ: %d\n", error);
 		goto err_free_mem;
 	}
 
-	error = request_threaded_irq(tsi->irq_datardy,
-				     NULL, da9052_ts_datardy_irq,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "TSIRDY", tsi);
+	error = da9052_request_irq(tsi->da9052, DA9052_IRQ_TSIREADY,
+				"tsiready-irq", da9052_ts_datardy_irq, tsi);
 	if (error) {
 		dev_err(tsi->da9052->dev,
-			"Failed to register TSIRDY IRQ %d, error = %d\n",
-			tsi->irq_datardy, error);
+			"Failed to register TSIRDY IRQ :%d\n", error);
 		goto err_free_pendwn_irq;
 	}
 
 	/* Mask PEN_DOWN and TSI_READY events */
-	disable_irq(tsi->irq_pendwn);
-	disable_irq(tsi->irq_datardy);
+	da9052_disable_irq(tsi->da9052, DA9052_IRQ_PENDOWN);
+	da9052_disable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
 
 	error = da9052_configure_tsi(tsi);
 	if (error)
@@ -326,9 +307,9 @@ static int __devinit da9052_ts_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_datardy_irq:
-	free_irq(tsi->irq_datardy, tsi);
+	da9052_free_irq(tsi->da9052, DA9052_IRQ_TSIREADY, tsi);
 err_free_pendwn_irq:
-	free_irq(tsi->irq_pendwn, tsi);
+	da9052_free_irq(tsi->da9052, DA9052_IRQ_PENDOWN, tsi);
 err_free_mem:
 	kfree(tsi);
 	input_free_device(input_dev);
@@ -336,14 +317,14 @@ err_free_mem:
 	return error;
 }
 
-static int  __devexit da9052_ts_remove(struct platform_device *pdev)
+static int  da9052_ts_remove(struct platform_device *pdev)
 {
 	struct da9052_tsi *tsi = platform_get_drvdata(pdev);
 
 	da9052_reg_write(tsi->da9052, DA9052_LDO9_REG, 0x19);
 
-	free_irq(tsi->irq_pendwn, tsi);
-	free_irq(tsi->irq_datardy, tsi);
+	da9052_free_irq(tsi->da9052, DA9052_IRQ_TSIREADY, tsi);
+	da9052_free_irq(tsi->da9052, DA9052_IRQ_PENDOWN, tsi);
 
 	input_unregister_device(tsi->dev);
 	kfree(tsi);
@@ -355,7 +336,7 @@ static int  __devexit da9052_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_tsi_driver = {
 	.probe	= da9052_ts_probe,
-	.remove	= __devexit_p(da9052_ts_remove),
+	.remove	= da9052_ts_remove,
 	.driver	= {
 		.name	= "da9052-tsi",
 		.owner	= THIS_MODULE,

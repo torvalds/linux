@@ -947,8 +947,7 @@ static void rtc_wake_off(struct device *dev)
  */
 static struct cmos_rtc_board_info acpi_rtc_info;
 
-static void __devinit
-cmos_wake_setup(struct device *dev)
+static void cmos_wake_setup(struct device *dev)
 {
 	if (acpi_disabled)
 		return;
@@ -980,8 +979,7 @@ cmos_wake_setup(struct device *dev)
 
 #else
 
-static void __devinit
-cmos_wake_setup(struct device *dev)
+static void cmos_wake_setup(struct device *dev)
 {
 }
 
@@ -991,8 +989,7 @@ cmos_wake_setup(struct device *dev)
 
 #include <linux/pnp.h>
 
-static int __devinit
-cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
+static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
 	cmos_wake_setup(&pnp->dev);
 

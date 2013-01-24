@@ -340,7 +340,7 @@ static int ep93xx_gpio_add_bank(struct bgpio_chip *bgc, struct device *dev,
 	return gpiochip_add(&bgc->gc);
 }
 
-static int __devinit ep93xx_gpio_probe(struct platform_device *pdev)
+static int ep93xx_gpio_probe(struct platform_device *pdev)
 {
 	struct ep93xx_gpio *ep93xx_gpio;
 	struct resource *res;

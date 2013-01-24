@@ -47,7 +47,8 @@ void kirkwood_i2c_init(void);
 void kirkwood_uart0_init(void);
 void kirkwood_uart1_init(void);
 void kirkwood_nand_init(struct mtd_partition *parts, int nr_parts, int delay);
-void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts, int (*dev_ready)(struct mtd_info *));
+void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts,
+			    int (*dev_ready)(struct mtd_info *));
 void kirkwood_audio_init(void);
 void kirkwood_restart(char, const char *);
 void kirkwood_clk_init(void);
@@ -110,6 +111,40 @@ static inline void iomega_ix2_200_init(void) {};
 void km_kirkwood_init(void);
 #else
 static inline void km_kirkwood_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_MPLCEC4_DT
+void mplcec4_init(void);
+#else
+static inline void mplcec4_init(void) {};
+#endif
+
+#if defined(CONFIG_MACH_INETSPACE_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_MAX_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_LITE_V2_DT) || \
+	defined(CONFIG_MACH_NETSPACE_MINI_V2_DT)
+void ns2_init(void);
+#else
+static inline void ns2_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_NSA310_DT
+void nsa310_init(void);
+#else
+static inline void nsa310_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_OPENBLOCKS_A6_DT
+void openblocks_a6_init(void);
+#else
+static inline void openblocks_a6_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_TOPKICK_DT
+void usi_topkick_init(void);
+#else
+static inline void usi_topkick_init(void) {};
 #endif
 
 /* early init functions not converted to fdt yet */

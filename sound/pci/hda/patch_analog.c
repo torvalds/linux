@@ -545,6 +545,7 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	if (spec->multiout.dig_out_nid) {
 		info++;
 		codec->num_pcms++;
+		codec->spdif_status_reset = 1;
 		info->name = "AD198x Digital";
 		info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = ad198x_pcm_digital_playback;
@@ -635,7 +636,6 @@ static void ad198x_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
-	ad198x_shutup(codec);
 	ad198x_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -1246,16 +1246,27 @@ static int is_jack_available(struct hda_codec *codec, hda_nid_t nid)
 	return get_defcfg_connect(conf) != AC_JACK_PORT_NONE;
 }
 
+static int alloc_ad_spec(struct hda_codec *codec)
+{
+	struct ad198x_spec *spec;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	codec->spec = spec;
+	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
+	return 0;
+}
+
 static int patch_ad1986a(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
 	int err, board_config;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x19);
 	if (err < 0) {
@@ -1548,11 +1559,10 @@ static int patch_ad1983(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x10);
 	if (err < 0) {
@@ -1954,11 +1964,10 @@ static int patch_ad1981(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err, board_config;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
+	err = alloc_ad_spec(codec);
+	if (err < 0)
 		return -ENOMEM;
-
-	codec->spec = spec;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x10);
 	if (err < 0) {
@@ -2836,7 +2845,6 @@ static int add_control(struct ad198x_spec *spec, int type, const char *name,
 {
 	struct snd_kcontrol_new *knew;
 
-	snd_array_init(&spec->kctls, sizeof(*knew), 32);
 	knew = snd_array_new(&spec->kctls);
 	if (!knew)
 		return -ENOMEM;
@@ -3254,11 +3262,10 @@ static int patch_ad1988(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err, board_config;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	if (is_rev2(codec))
 		snd_printk(KERN_INFO "patch_analog: AD1988A rev.2 is detected, enable workarounds\n");
@@ -3574,11 +3581,10 @@ static int patch_ad1884(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x10);
 	if (err < 0) {
@@ -4574,11 +4580,10 @@ static int patch_ad1884a(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err, board_config;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x10);
 	if (err < 0) {
@@ -4987,11 +4992,10 @@ static int patch_ad1882(struct hda_codec *codec)
 	struct ad198x_spec *spec;
 	int err, board_config;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	err = snd_hda_attach_beep_device(codec, 0x10);
 	if (err < 0) {

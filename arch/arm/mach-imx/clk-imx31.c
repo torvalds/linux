@@ -22,12 +22,11 @@
 #include <linux/err.h>
 #include <linux/of.h>
 
-#include <mach/hardware.h>
-#include <mach/mx31.h>
-#include <mach/common.h>
-
 #include "clk.h"
+#include "common.h"
 #include "crmregs-imx3.h"
+#include "hardware.h"
+#include "mx31.h"
 
 static const char *mcu_main_sel[] = { "spll", "mpll", };
 static const char *per_sel[] = { "per_div", "ipg", };
@@ -124,10 +123,10 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[cspi3_gate], NULL, "imx31-cspi.2");
 	clk_register_clkdev(clk[pwm_gate], "pwm", NULL);
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[rtc_gate], NULL, "mxc_rtc");
+	clk_register_clkdev(clk[rtc_gate], NULL, "imx21-rtc");
 	clk_register_clkdev(clk[epit1_gate], "epit", NULL);
 	clk_register_clkdev(clk[epit2_gate], "epit", NULL);
-	clk_register_clkdev(clk[nfc], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc], NULL, "imx27-nand.0");
 	clk_register_clkdev(clk[ipu_gate], NULL, "ipu-core");
 	clk_register_clkdev(clk[ipu_gate], NULL, "mx3_sdc_fb");
 	clk_register_clkdev(clk[kpp_gate], NULL, "imx-keypad");
@@ -155,12 +154,12 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.3");
 	clk_register_clkdev(clk[uart5_gate], "per", "imx21-uart.4");
 	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.4");
-	clk_register_clkdev(clk[i2c1_gate], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c2_gate], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c3_gate], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c1_gate], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
-	clk_register_clkdev(clk[sdhc1_gate], NULL, "mxc-mmc.0");
-	clk_register_clkdev(clk[sdhc2_gate], NULL, "mxc-mmc.1");
+	clk_register_clkdev(clk[sdhc1_gate], NULL, "imx31-mmc.0");
+	clk_register_clkdev(clk[sdhc2_gate], NULL, "imx31-mmc.1");
 	clk_register_clkdev(clk[ssi1_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[firi_gate], "firi", NULL);

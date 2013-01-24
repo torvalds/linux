@@ -112,10 +112,37 @@ void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 	*m = extif_read32(extif, SSB_EXTIF_CLOCK_SB);
 }
 
-void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
-				  u32 ticks)
+u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks)
 {
+	struct ssb_extif *extif = bcm47xx_wdt_get_drvdata(wdt);
+
+	return ssb_extif_watchdog_timer_set(extif, ticks);
+}
+
+u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms)
+{
+	struct ssb_extif *extif = bcm47xx_wdt_get_drvdata(wdt);
+	u32 ticks = (SSB_EXTIF_WATCHDOG_CLK / 1000) * ms;
+
+	ticks = ssb_extif_watchdog_timer_set(extif, ticks);
+
+	return (ticks * 1000) / SSB_EXTIF_WATCHDOG_CLK;
+}
+
+u32 ssb_extif_watchdog_timer_set(struct ssb_extif *extif, u32 ticks)
+{
+	if (ticks > SSB_EXTIF_WATCHDOG_MAX_TIMER)
+		ticks = SSB_EXTIF_WATCHDOG_MAX_TIMER;
 	extif_write32(extif, SSB_EXTIF_WATCHDOG, ticks);
+
+	return ticks;
+}
+
+void ssb_extif_init(struct ssb_extif *extif)
+{
+	if (!extif->dev)
+		return; /* We don't have a Extif core */
+	spin_lock_init(&extif->gpio_lock);
 }
 
 u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
@@ -125,22 +152,50 @@ u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
 
 u32 ssb_extif_gpio_out(struct ssb_extif *extif, u32 mask, u32 value)
 {
-	return extif_write32_masked(extif, SSB_EXTIF_GPIO_OUT(0),
+	unsigned long flags;
+	u32 res = 0;
+
+	spin_lock_irqsave(&extif->gpio_lock, flags);
+	res = extif_write32_masked(extif, SSB_EXTIF_GPIO_OUT(0),
 				   mask, value);
+	spin_unlock_irqrestore(&extif->gpio_lock, flags);
+
+	return res;
 }
 
 u32 ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask, u32 value)
 {
-	return extif_write32_masked(extif, SSB_EXTIF_GPIO_OUTEN(0),
+	unsigned long flags;
+	u32 res = 0;
+
+	spin_lock_irqsave(&extif->gpio_lock, flags);
+	res = extif_write32_masked(extif, SSB_EXTIF_GPIO_OUTEN(0),
 				   mask, value);
+	spin_unlock_irqrestore(&extif->gpio_lock, flags);
+
+	return res;
 }
 
 u32 ssb_extif_gpio_polarity(struct ssb_extif *extif, u32 mask, u32 value)
 {
-	return extif_write32_masked(extif, SSB_EXTIF_GPIO_INTPOL, mask, value);
+	unsigned long flags;
+	u32 res = 0;
+
+	spin_lock_irqsave(&extif->gpio_lock, flags);
+	res = extif_write32_masked(extif, SSB_EXTIF_GPIO_INTPOL, mask, value);
+	spin_unlock_irqrestore(&extif->gpio_lock, flags);
+
+	return res;
 }
 
 u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask, u32 value)
 {
-	return extif_write32_masked(extif, SSB_EXTIF_GPIO_INTMASK, mask, value);
+	unsigned long flags;
+	u32 res = 0;
+
+	spin_lock_irqsave(&extif->gpio_lock, flags);
+	res = extif_write32_masked(extif, SSB_EXTIF_GPIO_INTMASK, mask, value);
+	spin_unlock_irqrestore(&extif->gpio_lock, flags);
+
+	return res;
 }

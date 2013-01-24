@@ -152,7 +152,7 @@ EXPORT_SYMBOL(__krealloc);
  *
  * The contents of the object pointed to are preserved up to the
  * lesser of the new and old sizes.  If @p is %NULL, krealloc()
- * behaves exactly like kmalloc().  If @size is 0 and @p is not a
+ * behaves exactly like kmalloc().  If @new_size is 0 and @p is not a
  * %NULL pointer, the object pointed to is freed.
  */
 void *krealloc(const void *p, size_t new_size, gfp_t flags)

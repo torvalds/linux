@@ -25,6 +25,40 @@
 		gpio2 = &gpio2;
 	};
 
+
+	cpus {
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+
+	    cpu@0 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <0>;
+		clocks = <&cpuclk 0>;
+	    };
+
+	    cpu@1 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <1>;
+		clocks = <&cpuclk 1>;
+	    };
+
+	    cpu@2 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <2>;
+		clocks = <&cpuclk 2>;
+	    };
+
+	    cpu@3 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <3>;
+		clocks = <&cpuclk 3>;
+	    };
+	};
+
 	soc {
 		pinctrl {
 			compatible = "marvell,mv78460-pinctrl";
@@ -65,6 +99,14 @@
 			interrupt-controller;
 			#interrupts-cells = <2>;
 			interrupts = <24>;
+		};
+
+		ethernet@d0034000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0034000 0x2500>;
+				interrupts = <14>;
+				clocks = <&gateclk 1>;
+				status = "disabled";
 		};
 	};
  };

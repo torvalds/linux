@@ -22,8 +22,6 @@
 
 #include <linux/atomic.h>
 
-#include <plat/cpu.h>
-
 #include "voltage.h"
 
 /* Powerdomain basic power states */

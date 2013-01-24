@@ -965,8 +965,10 @@ static struct platform_device_id gsc_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, gsc_driver_ids);
 
 static const struct of_device_id exynos_gsc_match[] = {
-	{ .compatible = "samsung,exynos5250-gsc",
-	.data = &gsc_v_100_drvdata, },
+	{
+		.compatible = "samsung,exynos5-gsc",
+		.data = &gsc_v_100_drvdata,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_gsc_match);
@@ -980,7 +982,7 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 		match = of_match_node(of_match_ptr(exynos_gsc_match),
 					pdev->dev.of_node);
 		if (match)
-			driver_data =  match->data;
+			driver_data = (struct gsc_driverdata *)match->data;
 	} else {
 		driver_data = (struct gsc_driverdata *)
 			platform_get_device_id(pdev)->driver_data;
@@ -1149,7 +1151,7 @@ err_clk:
 	return ret;
 }
 
-static int __devexit gsc_remove(struct platform_device *pdev)
+static int gsc_remove(struct platform_device *pdev)
 {
 	struct gsc_dev *gsc = platform_get_drvdata(pdev);
 
@@ -1235,7 +1237,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 
 static struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove	= __devexit_p(gsc_remove),
+	.remove		= gsc_remove,
 	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,

@@ -30,7 +30,7 @@
 #include <asm/cacheflush.h>
 #include <asm/a.out-core.h>
 
-static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
+static int load_aout_binary(struct linux_binprm *);
 static int load_aout_library(struct file*);
 
 #ifdef CONFIG_COREDUMP
@@ -201,8 +201,9 @@ static unsigned long __user *create_aout_tables(char __user *p, struct linux_bin
  * libraries.  There is no binary dependent code anywhere else.
  */
 
-static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
+static int load_aout_binary(struct linux_binprm * bprm)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct exec ex;
 	unsigned long error;
 	unsigned long fd_offset;

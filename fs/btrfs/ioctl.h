@@ -30,6 +30,8 @@ struct btrfs_ioctl_vol_args {
 	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
+#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+
 #define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
@@ -123,7 +125,48 @@ struct btrfs_ioctl_scrub_args {
 	__u64 unused[(1024-32-sizeof(struct btrfs_scrub_progress))/8];
 };
 
-#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+#define BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS	0
+#define BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID	1
+struct btrfs_ioctl_dev_replace_start_params {
+	__u64 srcdevid;	/* in, if 0, use srcdev_name instead */
+	__u64 cont_reading_from_srcdev_mode;	/* in, see #define
+						 * above */
+	__u8 srcdev_name[BTRFS_DEVICE_PATH_NAME_MAX + 1];	/* in */
+	__u8 tgtdev_name[BTRFS_DEVICE_PATH_NAME_MAX + 1];	/* in */
+};
+
+#define BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED	0
+#define BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED		1
+#define BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED		2
+#define BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED		3
+#define BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED		4
+struct btrfs_ioctl_dev_replace_status_params {
+	__u64 replace_state;	/* out, see #define above */
+	__u64 progress_1000;	/* out, 0 <= x <= 1000 */
+	__u64 time_started;	/* out, seconds since 1-Jan-1970 */
+	__u64 time_stopped;	/* out, seconds since 1-Jan-1970 */
+	__u64 num_write_errors;	/* out */
+	__u64 num_uncorrectable_read_errors;	/* out */
+};
+
+#define BTRFS_IOCTL_DEV_REPLACE_CMD_START			0
+#define BTRFS_IOCTL_DEV_REPLACE_CMD_STATUS			1
+#define BTRFS_IOCTL_DEV_REPLACE_CMD_CANCEL			2
+#define BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR			0
+#define BTRFS_IOCTL_DEV_REPLACE_RESULT_NOT_STARTED		1
+#define BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED		2
+struct btrfs_ioctl_dev_replace_args {
+	__u64 cmd;	/* in */
+	__u64 result;	/* out */
+
+	union {
+		struct btrfs_ioctl_dev_replace_start_params start;
+		struct btrfs_ioctl_dev_replace_status_params status;
+	};	/* in/out */
+
+	__u64 spare[64];
+};
+
 struct btrfs_ioctl_dev_info_args {
 	__u64 devid;				/* in/out */
 	__u8 uuid[BTRFS_UUID_SIZE];		/* in/out */
@@ -453,4 +496,7 @@ struct btrfs_ioctl_send_args {
 			       struct btrfs_ioctl_qgroup_limit_args)
 #define BTRFS_IOC_GET_DEV_STATS _IOWR(BTRFS_IOCTL_MAGIC, 52, \
 				      struct btrfs_ioctl_get_dev_stats)
+#define BTRFS_IOC_DEV_REPLACE _IOWR(BTRFS_IOCTL_MAGIC, 53, \
+				    struct btrfs_ioctl_dev_replace_args)
+
 #endif

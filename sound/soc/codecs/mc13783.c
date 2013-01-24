@@ -779,7 +779,7 @@ static struct platform_driver mc13783_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = mc13783_codec_probe,
-	.remove = __devexit_p(mc13783_codec_remove),
+	.remove = mc13783_codec_remove,
 };
 
 module_platform_driver(mc13783_codec_driver);

@@ -997,7 +997,6 @@ static __u16 sctp_ulpq_renege_frags(struct sctp_ulpq *ulpq, __u16 needed)
 
 /* Partial deliver the first message as there is pressure on rwnd. */
 void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
-				struct sctp_chunk *chunk,
 				gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
@@ -1060,7 +1059,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		sctp_tsnmap_mark(&asoc->peer.tsn_map, tsn, chunk->transport);
 		sctp_ulpq_tail_data(ulpq, chunk, gfp);
 
-		sctp_ulpq_partial_delivery(ulpq, chunk, gfp);
+		sctp_ulpq_partial_delivery(ulpq, gfp);
 	}
 
 	sk_mem_reclaim(asoc->base.sk);

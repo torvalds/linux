@@ -3078,7 +3078,7 @@ static void set_nqsets(struct adapter *adap)
 	}
 }
 
-static int __devinit cxgb_enable_msix(struct adapter *adap)
+static int cxgb_enable_msix(struct adapter *adap)
 {
 	struct msix_entry entries[SGE_QSETS + 1];
 	int vectors;
@@ -3108,8 +3108,7 @@ static int __devinit cxgb_enable_msix(struct adapter *adap)
 	return err;
 }
 
-static void __devinit print_port_info(struct adapter *adap,
-				      const struct adapter_info *ai)
+static void print_port_info(struct adapter *adap, const struct adapter_info *ai)
 {
 	static const char *pci_variant[] = {
 		"PCI", "PCI-X", "PCI-X ECC", "PCI-X 266", "PCI Express"
@@ -3165,7 +3164,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 #endif
 };
 
-static void __devinit cxgb3_init_iscsi_mac(struct net_device *dev)
+static void cxgb3_init_iscsi_mac(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 
@@ -3176,8 +3175,7 @@ static void __devinit cxgb3_init_iscsi_mac(struct net_device *dev)
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 			NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
-static int __devinit init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
 
@@ -3381,7 +3379,7 @@ out:
 	return err;
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
@@ -3425,7 +3423,7 @@ static struct pci_driver driver = {
 	.name = DRV_NAME,
 	.id_table = cxgb3_pci_tbl,
 	.probe = init_one,
-	.remove = __devexit_p(remove_one),
+	.remove = remove_one,
 	.err_handler = &t3_err_handler,
 };
 

@@ -799,7 +799,7 @@ static int mbcs_remove(struct cx_dev *dev)
 	return 0;
 }
 
-static const struct cx_device_id __devinitconst mbcs_id_table[] = {
+static const struct cx_device_id mbcs_id_table[] = {
 	{
 	 .part_num = MBCS_PART_NUM,
 	 .mfg_num = MBCS_MFG_NUM,

@@ -325,17 +325,6 @@ static struct i2c_driver wis_tw9903_driver = {
 	.id_table	= wis_tw9903_id,
 };
 
-static int __init wis_tw9903_init(void)
-{
-	return i2c_add_driver(&wis_tw9903_driver);
-}
-
-static void __exit wis_tw9903_cleanup(void)
-{
-	i2c_del_driver(&wis_tw9903_driver);
-}
-
-module_init(wis_tw9903_init);
-module_exit(wis_tw9903_cleanup);
+module_i2c_driver(wis_tw9903_driver);
 
 MODULE_LICENSE("GPL v2");

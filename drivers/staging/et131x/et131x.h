@@ -1538,10 +1538,6 @@ struct address_map {
  *	0:	int_en
  */
 
-#define ET_PHY_INT_MASK_AUTONEGSTAT	0x0100
-#define ET_PHY_INT_MASK_LINKSTAT	0x0004
-#define ET_PHY_INT_MASK_ENABLE		0x0001
-
 /* MI Register 25: Interrupt Status Reg(0x19)
  *	15-10:	reserved
  *	9:	mdio_sync_lost

@@ -26,7 +26,7 @@
 
 #include <linux/dma-mapping.h>
 
-#include <plat/cpu.h>
+#include <video/omapdss.h>
 
 #include "omap_voutlib.h"
 
@@ -124,7 +124,7 @@ int omap_vout_new_window(struct v4l2_rect *crop,
 	win->chromakey = new_win->chromakey;
 
 	/* Adjust the cropping window to allow for resizing limitation */
-	if (cpu_is_omap24xx()) {
+	if (omap_vout_dss_omap24xx()) {
 		/* For 24xx limit is 8x to 1/2x scaling. */
 		if ((crop->height/win->w.height) >= 2)
 			crop->height = win->w.height * 2;
@@ -140,7 +140,7 @@ int omap_vout_new_window(struct v4l2_rect *crop,
 			if (crop->height != win->w.height)
 				crop->width = 768;
 		}
-	} else if (cpu_is_omap34xx()) {
+	} else if (omap_vout_dss_omap34xx()) {
 		/* For 34xx limit is 8x to 1/4x scaling. */
 		if ((crop->height/win->w.height) >= 4)
 			crop->height = win->w.height * 4;
@@ -196,7 +196,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 	if (try_crop.width <= 0 || try_crop.height <= 0)
 		return -EINVAL;
 
-	if (cpu_is_omap24xx()) {
+	if (omap_vout_dss_omap24xx()) {
 		if (try_crop.height != win->w.height) {
 			/* If we're resizing vertically, we can't support a
 			 * crop width wider than 768 pixels.
@@ -207,9 +207,9 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 	}
 	/* vertical resizing */
 	vresize = (1024 * try_crop.height) / win->w.height;
-	if (cpu_is_omap24xx() && (vresize > 2048))
+	if (omap_vout_dss_omap24xx() && (vresize > 2048))
 		vresize = 2048;
-	else if (cpu_is_omap34xx() && (vresize > 4096))
+	else if (omap_vout_dss_omap34xx() && (vresize > 4096))
 		vresize = 4096;
 
 	win->w.height = ((1024 * try_crop.height) / vresize) & ~1;
@@ -226,9 +226,9 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 	}
 	/* horizontal resizing */
 	hresize = (1024 * try_crop.width) / win->w.width;
-	if (cpu_is_omap24xx() && (hresize > 2048))
+	if (omap_vout_dss_omap24xx() && (hresize > 2048))
 		hresize = 2048;
-	else if (cpu_is_omap34xx() && (hresize > 4096))
+	else if (omap_vout_dss_omap34xx() && (hresize > 4096))
 		hresize = 4096;
 
 	win->w.width = ((1024 * try_crop.width) / hresize) & ~1;
@@ -243,7 +243,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 		if (try_crop.width == 0)
 			try_crop.width = 2;
 	}
-	if (cpu_is_omap24xx()) {
+	if (omap_vout_dss_omap24xx()) {
 		if ((try_crop.height/win->w.height) >= 2)
 			try_crop.height = win->w.height * 2;
 
@@ -258,7 +258,7 @@ int omap_vout_new_crop(struct v4l2_pix_format *pix,
 			if (try_crop.height != win->w.height)
 				try_crop.width = 768;
 		}
-	} else if (cpu_is_omap34xx()) {
+	} else if (omap_vout_dss_omap34xx()) {
 		if ((try_crop.height/win->w.height) >= 4)
 			try_crop.height = win->w.height * 4;
 
@@ -336,4 +336,22 @@ void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
 		size -= PAGE_SIZE;
 	}
 	free_pages((unsigned long) virtaddr, order);
+}
+
+bool omap_vout_dss_omap24xx(void)
+{
+	return omapdss_get_version() == OMAPDSS_VER_OMAP24xx;
+}
+
+bool omap_vout_dss_omap34xx(void)
+{
+	switch (omapdss_get_version()) {
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+	case OMAPDSS_VER_OMAP3630:
+	case OMAPDSS_VER_AM35xx:
+		return true;
+	default:
+		return false;
+	}
 }

@@ -289,7 +289,7 @@ error_unlock:
 	return error;
 }
 
-static int __devinit ti_ssp_spi_probe(struct platform_device *pdev)
+static int ti_ssp_spi_probe(struct platform_device *pdev)
 {
 	const struct ti_ssp_spi_data *pdata;
 	struct ti_ssp_spi *hw;
@@ -357,7 +357,7 @@ error_wq:
 	return error;
 }
 
-static int __devexit ti_ssp_spi_remove(struct platform_device *pdev)
+static int ti_ssp_spi_remove(struct platform_device *pdev)
 {
 	struct ti_ssp_spi *hw = platform_get_drvdata(pdev);
 	int error;
@@ -378,7 +378,7 @@ static int __devexit ti_ssp_spi_remove(struct platform_device *pdev)
 
 static struct platform_driver ti_ssp_spi_driver = {
 	.probe		= ti_ssp_spi_probe,
-	.remove		= __devexit_p(ti_ssp_spi_remove),
+	.remove		= ti_ssp_spi_remove,
 	.driver		= {
 		.name	= "ti-ssp-spi",
 		.owner	= THIS_MODULE,

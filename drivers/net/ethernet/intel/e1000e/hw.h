@@ -85,8 +85,7 @@ enum e1e_registers {
 	E1000_FCRTL    = 0x02160, /* Flow Control Receive Threshold Low - RW */
 	E1000_FCRTH    = 0x02168, /* Flow Control Receive Threshold High - RW */
 	E1000_PSRCTL   = 0x02170, /* Packet Split Receive Control - RW */
-/*
- * Convenience macros
+/* Convenience macros
  *
  * Note: "_n" is the queue number of the register to be written to.
  *
@@ -800,8 +799,7 @@ struct e1000_mac_operations {
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
-/*
- * When to use various PHY register access functions:
+/* When to use various PHY register access functions:
  *
  *                 Func   Caller
  *   Function      Does   Does    When to use

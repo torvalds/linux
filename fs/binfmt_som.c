@@ -35,7 +35,7 @@
 
 #include <linux/elf.h>
 
-static int load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs);
+static int load_som_binary(struct linux_binprm * bprm);
 static int load_som_library(struct file *);
 
 /*
@@ -180,13 +180,14 @@ out:
  */
 
 static int
-load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs)
+load_som_binary(struct linux_binprm * bprm)
 {
 	int retval;
 	unsigned int size;
 	unsigned long som_entry;
 	struct som_hdr *som_ex;
 	struct som_exec_auxhdr *hpuxhdr;
+	struct pt_regs *regs = current_pt_regs();
 
 	/* Get the exec-header */
 	som_ex = (struct som_hdr *) bprm->buf;

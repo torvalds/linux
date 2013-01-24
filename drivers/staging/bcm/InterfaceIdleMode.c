@@ -156,7 +156,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 
 	int 	lenwritten = 0;
 	unsigned char aucAbortPattern[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-	PS_INTERFACE_ADAPTER psInterfaceAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *psInterfaceAdapter = Adapter->pvInterfaceAdapter;
 
 	//Abort Bus suspend if its already suspended
 	if((TRUE == psInterfaceAdapter->bSuspended) && (TRUE == Adapter->bDoSuspend))

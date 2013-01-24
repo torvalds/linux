@@ -50,13 +50,11 @@ static u64 ath79_ehci_dmamask = DMA_BIT_MASK(32);
 
 static struct usb_ehci_pdata ath79_ehci_pdata_v1 = {
 	.has_synopsys_hc_bug	= 1,
-	.port_power_off		= 1,
 };
 
 static struct usb_ehci_pdata ath79_ehci_pdata_v2 = {
 	.caps_offset		= 0x100,
 	.has_tt			= 1,
-	.port_power_off		= 1,
 };
 
 static struct platform_device ath79_ehci_device = {

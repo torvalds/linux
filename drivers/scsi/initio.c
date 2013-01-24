@@ -2992,7 +2992,7 @@ static struct pci_driver initio_pci_driver = {
 	.name		= "initio",
 	.id_table	= initio_pci_tbl,
 	.probe		= initio_probe_one,
-	.remove		= __devexit_p(initio_remove_one),
+	.remove		= initio_remove_one,
 };
 
 static int __init initio_init_driver(void)

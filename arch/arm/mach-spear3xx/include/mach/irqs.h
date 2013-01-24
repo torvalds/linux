@@ -14,14 +14,6 @@
 #ifndef __MACH_IRQS_H
 #define __MACH_IRQS_H
 
-/* FIXME: probe all these from DT */
-#define SPEAR3XX_IRQ_INTRCOMM_RAS_ARM		1
-#define SPEAR3XX_IRQ_GEN_RAS_1			28
-#define SPEAR3XX_IRQ_GEN_RAS_2			29
-#define SPEAR3XX_IRQ_GEN_RAS_3			30
-#define SPEAR3XX_IRQ_VIC_END			32
-#define SPEAR3XX_VIRQ_START			SPEAR3XX_IRQ_VIC_END
-
-#define NR_IRQS			160
+#define NR_IRQS			256
 
 #endif /* __MACH_IRQS_H */

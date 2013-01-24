@@ -66,7 +66,7 @@ static void mlx4_ib_cq_event(struct mlx4_cq *cq, enum mlx4_event type)
 
 static void *get_cqe_from_buf(struct mlx4_ib_cq_buf *buf, int n)
 {
-	return mlx4_buf_offset(&buf->buf, n * sizeof (struct mlx4_cqe));
+	return mlx4_buf_offset(&buf->buf, n * buf->entry_size);
 }
 
 static void *get_cqe(struct mlx4_ib_cq *cq, int n)
@@ -77,8 +77,9 @@ static void *get_cqe(struct mlx4_ib_cq *cq, int n)
 static void *get_sw_cqe(struct mlx4_ib_cq *cq, int n)
 {
 	struct mlx4_cqe *cqe = get_cqe(cq, n & cq->ibcq.cqe);
+	struct mlx4_cqe *tcqe = ((cq->buf.entry_size == 64) ? (cqe + 1) : cqe);
 
-	return (!!(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK) ^
+	return (!!(tcqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK) ^
 		!!(n & (cq->ibcq.cqe + 1))) ? NULL : cqe;
 }
 
@@ -99,12 +100,13 @@ static int mlx4_ib_alloc_cq_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq_buf *
 {
 	int err;
 
-	err = mlx4_buf_alloc(dev->dev, nent * sizeof(struct mlx4_cqe),
+	err = mlx4_buf_alloc(dev->dev, nent * dev->dev->caps.cqe_size,
 			     PAGE_SIZE * 2, &buf->buf);
 
 	if (err)
 		goto out;
 
+	buf->entry_size = dev->dev->caps.cqe_size;
 	err = mlx4_mtt_init(dev->dev, buf->buf.npages, buf->buf.page_shift,
 				    &buf->mtt);
 	if (err)
@@ -120,8 +122,7 @@ err_mtt:
 	mlx4_mtt_cleanup(dev->dev, &buf->mtt);
 
 err_buf:
-	mlx4_buf_free(dev->dev, nent * sizeof(struct mlx4_cqe),
-			      &buf->buf);
+	mlx4_buf_free(dev->dev, nent * buf->entry_size, &buf->buf);
 
 out:
 	return err;
@@ -129,7 +130,7 @@ out:
 
 static void mlx4_ib_free_cq_buf(struct mlx4_ib_dev *dev, struct mlx4_ib_cq_buf *buf, int cqe)
 {
-	mlx4_buf_free(dev->dev, (cqe + 1) * sizeof(struct mlx4_cqe), &buf->buf);
+	mlx4_buf_free(dev->dev, (cqe + 1) * buf->entry_size, &buf->buf);
 }
 
 static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *context,
@@ -137,8 +138,9 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *cont
 			       u64 buf_addr, int cqe)
 {
 	int err;
+	int cqe_size = dev->dev->caps.cqe_size;
 
-	*umem = ib_umem_get(context, buf_addr, cqe * sizeof (struct mlx4_cqe),
+	*umem = ib_umem_get(context, buf_addr, cqe * cqe_size,
 			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
@@ -331,16 +333,23 @@ static void mlx4_ib_cq_resize_copy_cqes(struct mlx4_ib_cq *cq)
 {
 	struct mlx4_cqe *cqe, *new_cqe;
 	int i;
+	int cqe_size = cq->buf.entry_size;
+	int cqe_inc = cqe_size == 64 ? 1 : 0;
 
 	i = cq->mcq.cons_index;
 	cqe = get_cqe(cq, i & cq->ibcq.cqe);
+	cqe += cqe_inc;
+
 	while ((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) != MLX4_CQE_OPCODE_RESIZE) {
 		new_cqe = get_cqe_from_buf(&cq->resize_buf->buf,
 					   (i + 1) & cq->resize_buf->cqe);
-		memcpy(new_cqe, get_cqe(cq, i & cq->ibcq.cqe), sizeof(struct mlx4_cqe));
+		memcpy(new_cqe, get_cqe(cq, i & cq->ibcq.cqe), cqe_size);
+		new_cqe += cqe_inc;
+
 		new_cqe->owner_sr_opcode = (cqe->owner_sr_opcode & ~MLX4_CQE_OWNER_MASK) |
 			(((i + 1) & (cq->resize_buf->cqe + 1)) ? MLX4_CQE_OWNER_MASK : 0);
 		cqe = get_cqe(cq, ++i & cq->ibcq.cqe);
+		cqe += cqe_inc;
 	}
 	++cq->mcq.cons_index;
 }
@@ -438,6 +447,7 @@ err_buf:
 
 out:
 	mutex_unlock(&cq->resize_mutex);
+
 	return err;
 }
 
@@ -585,6 +595,9 @@ repoll:
 	cqe = next_cqe_sw(cq);
 	if (!cqe)
 		return -EAGAIN;
+
+	if (cq->buf.entry_size == 64)
+		cqe++;
 
 	++cq->mcq.cons_index;
 
@@ -807,6 +820,7 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 	int nfreed = 0;
 	struct mlx4_cqe *cqe, *dest;
 	u8 owner_bit;
+	int cqe_inc = cq->buf.entry_size == 64 ? 1 : 0;
 
 	/*
 	 * First we need to find the current producer index, so we
@@ -825,12 +839,16 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 	 */
 	while ((int) --prod_index - (int) cq->mcq.cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
+		cqe += cqe_inc;
+
 		if ((be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK) == qpn) {
 			if (srq && !(cqe->owner_sr_opcode & MLX4_CQE_IS_SEND_MASK))
 				mlx4_ib_free_srq_wqe(srq, be16_to_cpu(cqe->wqe_index));
 			++nfreed;
 		} else if (nfreed) {
 			dest = get_cqe(cq, (prod_index + nfreed) & cq->ibcq.cqe);
+			dest += cqe_inc;
+
 			owner_bit = dest->owner_sr_opcode & MLX4_CQE_OWNER_MASK;
 			memcpy(dest, cqe, sizeof *cqe);
 			dest->owner_sr_opcode = owner_bit |

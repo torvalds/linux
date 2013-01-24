@@ -315,12 +315,13 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	struct mlx4_cqe *buf = cq->buf;
 	u32 packets = 0;
 	u32 bytes = 0;
+	int factor = priv->cqe_factor;
 
 	if (!priv->port_up)
 		return;
 
 	index = cons_index & size_mask;
-	cqe = &buf[index];
+	cqe = &buf[(index << factor) + factor];
 	ring_index = ring->cons & size_mask;
 
 	/* Process all completed CQEs */
@@ -349,7 +350,7 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 
 		++cons_index;
 		index = cons_index & size_mask;
-		cqe = &buf[index];
+		cqe = &buf[(index << factor) + factor];
 	}
 
 
@@ -523,7 +524,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	u16 rings_p_up = priv->mdev->profile.num_tx_rings_p_up;
+	u16 rings_p_up = priv->num_tx_rings_p_up;
 	u8 up = 0;
 
 	if (dev->num_tc)

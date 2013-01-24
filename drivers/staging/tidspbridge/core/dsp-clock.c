@@ -121,9 +121,13 @@ void dsp_clk_exit(void)
 	for (i = 0; i < DM_TIMER_CLOCKS; i++)
 		omap_dm_timer_free(timer[i]);
 
+	clk_unprepare(iva2_clk);
 	clk_put(iva2_clk);
+	clk_unprepare(ssi.sst_fck);
 	clk_put(ssi.sst_fck);
+	clk_unprepare(ssi.ssr_fck);
 	clk_put(ssi.ssr_fck);
+	clk_unprepare(ssi.ick);
 	clk_put(ssi.ick);
 }
 
@@ -145,14 +149,21 @@ void dsp_clk_init(void)
 	iva2_clk = clk_get(&dspbridge_device.dev, "iva2_ck");
 	if (IS_ERR(iva2_clk))
 		dev_err(bridge, "failed to get iva2 clock %p\n", iva2_clk);
+	else
+		clk_prepare(iva2_clk);
 
 	ssi.sst_fck = clk_get(&dspbridge_device.dev, "ssi_sst_fck");
 	ssi.ssr_fck = clk_get(&dspbridge_device.dev, "ssi_ssr_fck");
 	ssi.ick = clk_get(&dspbridge_device.dev, "ssi_ick");
 
-	if (IS_ERR(ssi.sst_fck) || IS_ERR(ssi.ssr_fck) || IS_ERR(ssi.ick))
+	if (IS_ERR(ssi.sst_fck) || IS_ERR(ssi.ssr_fck) || IS_ERR(ssi.ick)) {
 		dev_err(bridge, "failed to get ssi: sst %p, ssr %p, ick %p\n",
 					ssi.sst_fck, ssi.ssr_fck, ssi.ick);
+	} else {
+		clk_prepare(ssi.sst_fck);
+		clk_prepare(ssi.ssr_fck);
+		clk_prepare(ssi.ick);
+	}
 }
 
 /**

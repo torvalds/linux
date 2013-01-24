@@ -151,7 +151,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit davinci_vc_remove(struct platform_device *pdev)
+static int davinci_vc_remove(struct platform_device *pdev)
 {
 	struct davinci_vc *davinci_vc = platform_get_drvdata(pdev);
 
@@ -174,7 +174,7 @@ static struct platform_driver davinci_vc_driver = {
 		.name = "davinci_voicecodec",
 		.owner = THIS_MODULE,
 	},
-	.remove	= __devexit_p(davinci_vc_remove),
+	.remove	= davinci_vc_remove,
 };
 
 static int __init davinci_vc_init(void)

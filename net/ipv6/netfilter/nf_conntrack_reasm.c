@@ -85,7 +85,7 @@ static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{ }
 };
 
-static int __net_init nf_ct_frag6_sysctl_register(struct net *net)
+static int nf_ct_frag6_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -127,7 +127,7 @@ static void __net_exit nf_ct_frags6_sysctl_unregister(struct net *net)
 }
 
 #else
-static int __net_init nf_ct_frag6_sysctl_register(struct net *net)
+static int nf_ct_frag6_sysctl_register(struct net *net)
 {
 	return 0;
 }
@@ -311,7 +311,10 @@ found:
 	else
 		fq->q.fragments = skb;
 
-	skb->dev = NULL;
+	if (skb->dev) {
+		fq->iif = skb->dev->ifindex;
+		skb->dev = NULL;
+	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
 	if (payload_len > fq->q.max_size)

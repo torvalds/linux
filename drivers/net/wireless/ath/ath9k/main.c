@@ -131,7 +131,8 @@ void ath9k_ps_restore(struct ath_softc *sc)
 		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 				     PS_WAIT_FOR_CAB |
 				     PS_WAIT_FOR_PSPOLL_DATA |
-				     PS_WAIT_FOR_TX_ACK))) {
+				     PS_WAIT_FOR_TX_ACK |
+				     PS_WAIT_FOR_ANI))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
 		if (ath9k_hw_btcoex_is_enabled(sc->sc_ah))
 			ath9k_btcoex_stop_gen_timer(sc);
@@ -292,6 +293,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		goto out;
 	}
 
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah) &&
+	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		ath9k_mci_set_txpower(sc, true, false);
+
 	if (!ath_complete_reset(sc, true))
 		r = -EIO;
 
@@ -326,11 +331,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	u8 density;
 	an = (struct ath_node *)sta->drv_priv;
 
-#ifdef CONFIG_ATH9K_DEBUGFS
-	spin_lock(&sc->nodes_lock);
-	list_add(&an->list, &sc->nodes);
-	spin_unlock(&sc->nodes_lock);
-#endif
+	an->sc = sc;
 	an->sta = sta;
 	an->vif = vif;
 
@@ -346,13 +347,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-	spin_lock(&sc->nodes_lock);
-	list_del(&an->list);
-	spin_unlock(&sc->nodes_lock);
-	an->sta = NULL;
-#endif
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_tx_node_cleanup(sc, an);
@@ -489,17 +483,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & SCHED_INTR)
 		sched = true;
 
-#ifdef CONFIG_PM_SLEEP
-	if (status & ATH9K_INT_BMISS) {
-		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
-			atomic_inc(&sc->wow_got_bmiss_intr);
-			atomic_dec(&sc->wow_sleep_proc_intr);
-		}
-	ath_dbg(common, INTERRUPT, "beacon miss interrupt\n");
-	}
-#endif
-
 	/*
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
@@ -518,7 +501,15 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 		goto chip_reset;
 	}
-
+#ifdef CONFIG_PM_SLEEP
+	if (status & ATH9K_INT_BMISS) {
+		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
+			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
+			atomic_inc(&sc->wow_got_bmiss_intr);
+			atomic_dec(&sc->wow_sleep_proc_intr);
+		}
+	}
+#endif
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 
@@ -680,9 +671,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_cmn_init_crypto(sc->sc_ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
-
-	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
-		common->bus_ops->extn_synch_en(common);
 
 	mutex_unlock(&sc->mutex);
 
@@ -919,8 +907,9 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 		ath9k_vif_iter(iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
-						   iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_vif_iter, iter_data);
 }
 
 /* Called with sc->mutex held. */
@@ -970,8 +959,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    old_opmode == NL80211_IFTYPE_AP &&
 	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_sta_vif_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_sta_vif_iter, sc);
 	}
 }
 
@@ -1324,7 +1314,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	txq = sc->tx.txq_map[queue];
@@ -1449,6 +1439,9 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+		ath9k_mci_update_wlan_channels(sc, false);
+
 	ath_dbg(common, CONFIG,
 		"Primary Station interface: %pM, BSSID: %pM\n",
 		vif->addr, common->curbssid);
@@ -1497,14 +1490,17 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				clear_bit(SC_OP_BEACONS, &sc->sc_flags);
 		}
 
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_bss_assoc_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_bss_assoc_iter, sc);
 
 		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags) &&
 		    ah->opmode == NL80211_IFTYPE_STATION) {
 			memset(common->curbssid, 0, ETH_ALEN);
 			common->curaid = 0;
 			ath9k_hw_write_associd(sc->sc_ah);
+			if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+				ath9k_mci_update_wlan_channels(sc, true);
 		}
 	}
 
@@ -1886,134 +1882,6 @@ static int ath9k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	*rx_ant = sc->ant_rx;
 	return 0;
 }
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-
-/* Ethtool support for get-stats */
-
-#define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
-static const char ath9k_gstrings_stats[][ETH_GSTRING_LEN] = {
-	"tx_pkts_nic",
-	"tx_bytes_nic",
-	"rx_pkts_nic",
-	"rx_bytes_nic",
-	AMKSTR(d_tx_pkts),
-	AMKSTR(d_tx_bytes),
-	AMKSTR(d_tx_mpdus_queued),
-	AMKSTR(d_tx_mpdus_completed),
-	AMKSTR(d_tx_mpdu_xretries),
-	AMKSTR(d_tx_aggregates),
-	AMKSTR(d_tx_ampdus_queued_hw),
-	AMKSTR(d_tx_ampdus_queued_sw),
-	AMKSTR(d_tx_ampdus_completed),
-	AMKSTR(d_tx_ampdu_retries),
-	AMKSTR(d_tx_ampdu_xretries),
-	AMKSTR(d_tx_fifo_underrun),
-	AMKSTR(d_tx_op_exceeded),
-	AMKSTR(d_tx_timer_expiry),
-	AMKSTR(d_tx_desc_cfg_err),
-	AMKSTR(d_tx_data_underrun),
-	AMKSTR(d_tx_delim_underrun),
-
-	"d_rx_decrypt_crc_err",
-	"d_rx_phy_err",
-	"d_rx_mic_err",
-	"d_rx_pre_delim_crc_err",
-	"d_rx_post_delim_crc_err",
-	"d_rx_decrypt_busy_err",
-
-	"d_rx_phyerr_radar",
-	"d_rx_phyerr_ofdm_timing",
-	"d_rx_phyerr_cck_timing",
-
-};
-#define ATH9K_SSTATS_LEN ARRAY_SIZE(ath9k_gstrings_stats)
-
-static void ath9k_get_et_strings(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 u32 sset, u8 *data)
-{
-	if (sset == ETH_SS_STATS)
-		memcpy(data, *ath9k_gstrings_stats,
-		       sizeof(ath9k_gstrings_stats));
-}
-
-static int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif, int sset)
-{
-	if (sset == ETH_SS_STATS)
-		return ATH9K_SSTATS_LEN;
-	return 0;
-}
-
-#define PR_QNUM(_n) (sc->tx.txq_map[_n]->axq_qnum)
-#define AWDATA(elem)							\
-	do {								\
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].elem; \
-	} while (0)
-
-#define AWDATA_RX(elem)						\
-	do {							\
-		data[i++] = sc->debug.stats.rxstats.elem;	\
-	} while (0)
-
-static void ath9k_get_et_stats(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct ethtool_stats *stats, u64 *data)
-{
-	struct ath_softc *sc = hw->priv;
-	int i = 0;
-
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_pkts_all);
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_bytes_all);
-	AWDATA_RX(rx_pkts_all);
-	AWDATA_RX(rx_bytes_all);
-
-	AWDATA(tx_pkts_all);
-	AWDATA(tx_bytes_all);
-	AWDATA(queued);
-	AWDATA(completed);
-	AWDATA(xretries);
-	AWDATA(a_aggr);
-	AWDATA(a_queued_hw);
-	AWDATA(a_queued_sw);
-	AWDATA(a_completed);
-	AWDATA(a_retries);
-	AWDATA(a_xretries);
-	AWDATA(fifo_underrun);
-	AWDATA(xtxop);
-	AWDATA(timer_exp);
-	AWDATA(desc_cfg_err);
-	AWDATA(data_underrun);
-	AWDATA(delim_underrun);
-
-	AWDATA_RX(decrypt_crc_err);
-	AWDATA_RX(phy_err);
-	AWDATA_RX(mic_err);
-	AWDATA_RX(pre_delim_crc_err);
-	AWDATA_RX(post_delim_crc_err);
-	AWDATA_RX(decrypt_busy_err);
-
-	AWDATA_RX(phy_err_stats[ATH9K_PHYERR_RADAR]);
-	AWDATA_RX(phy_err_stats[ATH9K_PHYERR_OFDM_TIMING]);
-	AWDATA_RX(phy_err_stats[ATH9K_PHYERR_CCK_TIMING]);
-
-	WARN_ON(i != ATH9K_SSTATS_LEN);
-}
-
-/* End of ethtool get-stats functions */
-
-#endif
-
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -2408,7 +2276,12 @@ struct ieee80211_ops ath9k_ops = {
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	.get_et_sset_count  = ath9k_get_et_sset_count,
-	.get_et_stats  = ath9k_get_et_stats,
-	.get_et_strings  = ath9k_get_et_strings,
+	.get_et_stats       = ath9k_get_et_stats,
+	.get_et_strings     = ath9k_get_et_strings,
+#endif
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+	.sta_add_debugfs    = ath9k_sta_add_debugfs,
+	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
 };

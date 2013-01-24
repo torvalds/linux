@@ -5,7 +5,7 @@
 config NET_VENDOR_MELLANOX
 	bool "Mellanox devices"
 	default y
-	depends on PCI && INET
+	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from

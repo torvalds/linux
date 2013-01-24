@@ -50,6 +50,7 @@ struct picodlp_i2c_data {
 
 static struct i2c_device_id picodlp_i2c_id[] = {
 	{ "picodlp_i2c_driver", 0 },
+	{ }
 };
 
 struct picodlp_i2c_command {
@@ -503,47 +504,6 @@ static void picodlp_panel_disable(struct omap_dss_device *dssdev)
 	dev_dbg(&dssdev->dev, "disabling picodlp panel\n");
 }
 
-static int picodlp_panel_suspend(struct omap_dss_device *dssdev)
-{
-	struct picodlp_data *picod = dev_get_drvdata(&dssdev->dev);
-
-	mutex_lock(&picod->lock);
-	/* Turn off DLP Power */
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		mutex_unlock(&picod->lock);
-		dev_err(&dssdev->dev, "unable to suspend picodlp panel,"
-					" panel is not ACTIVE\n");
-		return -EINVAL;
-	}
-
-	picodlp_panel_power_off(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	mutex_unlock(&picod->lock);
-
-	dev_dbg(&dssdev->dev, "suspending picodlp panel\n");
-	return 0;
-}
-
-static int picodlp_panel_resume(struct omap_dss_device *dssdev)
-{
-	struct picodlp_data *picod = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	mutex_lock(&picod->lock);
-	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
-		mutex_unlock(&picod->lock);
-		dev_err(&dssdev->dev, "unable to resume picodlp panel,"
-			" panel is not ACTIVE\n");
-		return -EINVAL;
-	}
-
-	r = picodlp_panel_power_on(dssdev);
-	mutex_unlock(&picod->lock);
-	dev_dbg(&dssdev->dev, "resuming picodlp panel\n");
-	return r;
-}
-
 static void picodlp_get_resolution(struct omap_dss_device *dssdev,
 					u16 *xres, u16 *yres)
 {
@@ -559,9 +519,6 @@ static struct omap_dss_driver picodlp_driver = {
 	.disable	= picodlp_panel_disable,
 
 	.get_resolution	= picodlp_get_resolution,
-
-	.suspend	= picodlp_panel_suspend,
-	.resume		= picodlp_panel_resume,
 
 	.driver		= {
 		.name	= "picodlp_panel",

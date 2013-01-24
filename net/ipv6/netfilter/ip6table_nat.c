@@ -127,19 +127,28 @@ nf_nat_ipv6_fn(unsigned int hooknum,
 			ret = nf_nat_rule_find(skb, hooknum, in, out, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
-		} else
+		} else {
 			pr_debug("Already setup manip %s for ct %p\n",
 				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
 				 ct);
+			if (nf_nat_oif_changed(hooknum, ctinfo, nat, out))
+				goto oif_changed;
+		}
 		break;
 
 	default:
 		/* ESTABLISHED */
 		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
 			     ctinfo == IP_CT_ESTABLISHED_REPLY);
+		if (nf_nat_oif_changed(hooknum, ctinfo, nat, out))
+			goto oif_changed;
 	}
 
 	return nf_nat_packet(ct, ctinfo, hooknum, skb);
+
+oif_changed:
+	nf_ct_kill_acct(ct, ctinfo, skb);
+	return NF_DROP;
 }
 
 static unsigned int
@@ -186,7 +195,8 @@ nf_nat_ipv6_out(unsigned int hooknum,
 
 		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3,
 				      &ct->tuplehash[!dir].tuple.dst.u3) ||
-		    (ct->tuplehash[dir].tuple.src.u.all !=
+		    (ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
+		     ct->tuplehash[dir].tuple.src.u.all !=
 		     ct->tuplehash[!dir].tuple.dst.u.all))
 			if (nf_xfrm_me_harder(skb, AF_INET6) < 0)
 				ret = NF_DROP;
@@ -222,6 +232,7 @@ nf_nat_ipv6_local_fn(unsigned int hooknum,
 		}
 #ifdef CONFIG_XFRM
 		else if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
+			 ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMPV6 &&
 			 ct->tuplehash[dir].tuple.dst.u.all !=
 			 ct->tuplehash[!dir].tuple.src.u.all)
 			if (nf_xfrm_me_harder(skb, AF_INET6))
@@ -275,9 +286,7 @@ static int __net_init ip6table_nat_net_init(struct net *net)
 		return -ENOMEM;
 	net->ipv6.ip6table_nat = ip6t_register_table(net, &nf_nat_ipv6_table, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv6.ip6table_nat))
-		return PTR_ERR(net->ipv6.ip6table_nat);
-	return 0;
+	return PTR_RET(net->ipv6.ip6table_nat);
 }
 
 static void __net_exit ip6table_nat_net_exit(struct net *net)

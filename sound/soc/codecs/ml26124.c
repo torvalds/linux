@@ -626,8 +626,8 @@ static const struct regmap_config ml26124_i2c_regmap = {
 	.write_flag_mask = 0x01,
 };
 
-static __devinit int ml26124_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int ml26124_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct ml26124_priv *priv;
 	int ret;
@@ -649,7 +649,7 @@ static __devinit int ml26124_i2c_probe(struct i2c_client *i2c,
 			&soc_codec_dev_ml26124, &ml26124_dai, 1);
 }
 
-static __devexit int ml26124_i2c_remove(struct i2c_client *client)
+static int ml26124_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -667,7 +667,7 @@ static struct i2c_driver ml26124_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ml26124_i2c_probe,
-	.remove = __devexit_p(ml26124_i2c_remove),
+	.remove = ml26124_i2c_remove,
 	.id_table = ml26124_i2c_id,
 };
 

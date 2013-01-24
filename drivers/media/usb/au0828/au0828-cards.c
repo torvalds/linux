@@ -25,7 +25,7 @@
 #include "media/tuner.h"
 #include "media/v4l2-common.h"
 
-void hvr950q_cs5340_audio(void *priv, int enable)
+static void hvr950q_cs5340_audio(void *priv, int enable)
 {
 	/* Because the HVR-950q shares an i2s bus between the cs5340 and the
 	   au8522, we need to hold cs5340 in reset when using the au8522 */

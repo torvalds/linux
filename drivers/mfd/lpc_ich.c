@@ -196,7 +196,7 @@ enum lpc_chipsets {
 	LPC_LPT_LP,	/* Lynx Point-LP */
 };
 
-struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
+struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_ICH] = {
 		.name = "ICH",
 		.iTCO_version = 1,
@@ -672,7 +672,7 @@ static void lpc_ich_restore_config_space(struct pci_dev *dev)
 	}
 }
 
-static void __devinit lpc_ich_enable_acpi_space(struct pci_dev *dev)
+static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 {
 	u8 reg_save;
 
@@ -681,7 +681,7 @@ static void __devinit lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	lpc_ich_acpi_save = reg_save;
 }
 
-static void __devinit lpc_ich_enable_gpio_space(struct pci_dev *dev)
+static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
 {
 	u8 reg_save;
 
@@ -690,7 +690,7 @@ static void __devinit lpc_ich_enable_gpio_space(struct pci_dev *dev)
 	lpc_ich_gpio_save = reg_save;
 }
 
-static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
+static void lpc_ich_finalize_cell(struct mfd_cell *cell,
 					const struct pci_device_id *id)
 {
 	cell->platform_data = &lpc_chipset_info[id->driver_data];
@@ -702,7 +702,7 @@ static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
  * GPIO groups and it's enough to have access to one of these to instantiate
  * the device.
  */
-static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
+static int lpc_ich_check_conflict_gpio(struct resource *res)
 {
 	int ret;
 	u8 use_gpio = 0;
@@ -721,7 +721,7 @@ static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
 	return use_gpio ? use_gpio : ret;
 }
 
-static int __devinit lpc_ich_init_gpio(struct pci_dev *dev,
+static int lpc_ich_init_gpio(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u32 base_addr_cfg;
@@ -734,7 +734,7 @@ static int __devinit lpc_ich_init_gpio(struct pci_dev *dev,
 	pci_read_config_dword(dev, ACPIBASE, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_err(&dev->dev, "I/O space for ACPI uninitialized\n");
+		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
 		lpc_ich_cells[LPC_GPIO].num_resources--;
 		goto gpe0_done;
 	}
@@ -760,7 +760,7 @@ gpe0_done:
 	pci_read_config_dword(dev, GPIOBASE, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_err(&dev->dev, "I/O space for GPIO uninitialized\n");
+		dev_notice(&dev->dev, "I/O space for GPIO uninitialized\n");
 		ret = -ENODEV;
 		goto gpio_done;
 	}
@@ -798,7 +798,7 @@ gpio_done:
 	return ret;
 }
 
-static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
+static int lpc_ich_init_wdt(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u32 base_addr_cfg;
@@ -810,7 +810,7 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	pci_read_config_dword(dev, ACPIBASE, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_err(&dev->dev, "I/O space for ACPI uninitialized\n");
+		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
 		ret = -ENODEV;
 		goto wdt_done;
 	}
@@ -830,12 +830,15 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	 * we have to read RCBA from PCI Config space 0xf0 and use
 	 * it as base. GCS = RCBA + ICH6_GCS(0x3410).
 	 */
-	if (lpc_chipset_info[id->driver_data].iTCO_version == 2) {
+	if (lpc_chipset_info[id->driver_data].iTCO_version == 1) {
+		/* Don't register iomem for TCO ver 1 */
+		lpc_ich_cells[LPC_WDT].num_resources--;
+	} else {
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
-			pr_err("RCBA is disabled by hardware/BIOS, "
-					"device disabled\n");
+			dev_notice(&dev->dev, "RCBA is disabled by "
+					"hardware/BIOS, device disabled\n");
 			ret = -ENODEV;
 			goto wdt_done;
 		}
@@ -852,7 +855,7 @@ wdt_done:
 	return ret;
 }
 
-static int __devinit lpc_ich_probe(struct pci_dev *dev,
+static int lpc_ich_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	int ret;
@@ -871,6 +874,7 @@ static int __devinit lpc_ich_probe(struct pci_dev *dev,
 	 * successfully.
 	 */
 	if (!cell_added) {
+		dev_warn(&dev->dev, "No MFD cells added\n");
 		lpc_ich_restore_config_space(dev);
 		return -ENODEV;
 	}
@@ -878,7 +882,7 @@ static int __devinit lpc_ich_probe(struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit lpc_ich_remove(struct pci_dev *dev)
+static void lpc_ich_remove(struct pci_dev *dev)
 {
 	mfd_remove_devices(&dev->dev);
 	lpc_ich_restore_config_space(dev);
@@ -888,7 +892,7 @@ static struct pci_driver lpc_ich_driver = {
 	.name		= "lpc_ich",
 	.id_table	= lpc_ich_ids,
 	.probe		= lpc_ich_probe,
-	.remove		= __devexit_p(lpc_ich_remove),
+	.remove		= lpc_ich_remove,
 };
 
 static int __init lpc_ich_init(void)

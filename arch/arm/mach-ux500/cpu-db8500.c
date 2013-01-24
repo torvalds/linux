@@ -17,18 +17,27 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/regulator/machine.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
+#include <linux/random.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
-#include <plat/gpio-nomadik.h>
+#include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
+
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
-#include <linux/platform_data/usb-musb-ux500.h>
 #include <mach/db8500-regs.h>
+#include <mach/irqs.h>
 
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
+#include "board-mop500.h"
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_uart_io_desc[] __initdata = {
@@ -158,7 +167,7 @@ static void __init db8500_add_gpios(struct device *parent)
 
 	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
-	dbx500_add_pinctrl(parent, "pinctrl-db8500");
+	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }
 
 static int usb_db8500_rx_dma_cfg[] = {
@@ -187,6 +196,8 @@ static const char *db8500_read_soc_id(void)
 {
 	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
 
+	/* Throw these device-specific numbers into the entropy pool */
+	add_device_randomness(uid, 0x14);
 	return kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
 			 readl((u32 *)uid+1),
 			 readl((u32 *)uid+1), readl((u32 *)uid+2),
@@ -214,9 +225,6 @@ struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 	db8500_add_gpios(parent);
 	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
-	platform_device_register_data(parent,
-		"cpufreq-u8500", -1, NULL, 0);
-
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
 
@@ -227,17 +235,14 @@ struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 	return parent;
 }
 
-/* TODO: Once all pieces are DT:ed, remove completely. */
-struct device * __init u8500_of_init_devices(void)
-{
-	struct device *parent;
+#ifdef CONFIG_MACH_UX500_DT
 
-	parent = db8500_soc_device_init();
+/* TODO: Once all pieces are DT:ed, remove completely. */
+static struct device * __init u8500_of_init_devices(void)
+{
+	struct device *parent = db8500_soc_device_init();
 
 	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
-
-	platform_device_register_data(parent,
-		"cpufreq-u8500", -1, NULL, 0);
 
 	u8500_dma40_device.dev.parent = parent;
 
@@ -251,3 +256,96 @@ struct device * __init u8500_of_init_devices(void)
 
 	return parent;
 }
+
+static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
+	/* Requires call-back bindings. */
+	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
+	/* Requires DMA bindings. */
+	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
+	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", &uart1_plat),
+	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
+	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  &mop500_sdi0_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80118000, "sdi1",  &mop500_sdi1_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80005000, "sdi2",  &mop500_sdi2_data),
+	OF_DEV_AUXDATA("arm,pl18x", 0x80114000, "sdi4",  &mop500_sdi4_data),
+	/* Requires clock name bindings. */
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e000, "gpio.0", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8012e080, "gpio.1", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e000, "gpio.2", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e080, "gpio.3", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e100, "gpio.4", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8000e180, "gpio.5", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e000, "gpio.6", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e080, "gpio.7", NULL),
+	OF_DEV_AUXDATA("st,nomadik-gpio", 0xa03fe000, "gpio.8", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80004000, "nmk-i2c.0", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80122000, "nmk-i2c.1", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80128000, "nmk-i2c.2", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x80110000, "nmk-i2c.3", NULL),
+	OF_DEV_AUXDATA("st,nomadik-i2c", 0x8012a000, "nmk-i2c.4", NULL),
+	/* Requires device name bindings. */
+	OF_DEV_AUXDATA("stericsson,nmk_pinctrl", U8500_PRCMU_BASE,
+		"pinctrl-db8500", NULL),
+	/* Requires clock name and DMA bindings. */
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
+		"ux500-msp-i2s.0", &msp0_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
+		"ux500-msp-i2s.1", &msp1_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80117000,
+		"ux500-msp-i2s.2", &msp2_platform_data),
+	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
+		"ux500-msp-i2s.3", &msp3_platform_data),
+	{},
+};
+
+static const struct of_device_id u8500_local_bus_nodes[] = {
+	/* only create devices below soc node */
+	{ .compatible = "stericsson,db8500", },
+	{ .compatible = "stericsson,db8500-prcmu", },
+	{ .compatible = "simple-bus"},
+	{ },
+};
+
+static void __init u8500_init_machine(void)
+{
+	struct device *parent = NULL;
+
+	/* Pinmaps must be in place before devices register */
+	if (of_machine_is_compatible("st-ericsson,mop500"))
+		mop500_pinmaps_init();
+	else if (of_machine_is_compatible("calaosystems,snowball-a9500"))
+		snowball_pinmaps_init();
+	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
+		hrefv60_pinmaps_init();
+	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
+		/* TODO: Add pinmaps for ccu9540 board. */
+
+	/* TODO: Export SoC, USB, cpu-freq and DMA40 */
+	parent = u8500_of_init_devices();
+
+	/* automatically probe child nodes of db8500 device */
+	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
+}
+
+static const char * stericsson_dt_platform_compat[] = {
+	"st-ericsson,u8500",
+	"st-ericsson,u8540",
+	"st-ericsson,u9500",
+	"st-ericsson,u9540",
+	NULL,
+};
+
+DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
+	.smp            = smp_ops(ux500_smp_ops),
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
+	/* we re-use nomadik timer here */
+	.timer		= &ux500_timer,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= u8500_init_machine,
+	.init_late	= NULL,
+	.dt_compat      = stericsson_dt_platform_compat,
+MACHINE_END
+
+#endif

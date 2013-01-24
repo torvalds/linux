@@ -49,16 +49,15 @@
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/gpio.h>
+#include <asm/netlogic/xlr/fmn.h>
 
 uint64_t nlm_io_base = DEFAULT_NETLOGIC_IO_BASE;
-uint64_t nlm_pic_base;
 struct psb_info nlm_prom_info;
 
-unsigned long nlm_common_ebase = 0x0;
-
 /* default to uniprocessor */
-uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
-int  nlm_threads_per_core = 1;
+unsigned int  nlm_threads_per_core = 1;
+struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 
 static void __init nlm_early_serial_setup(void)
 {
@@ -111,6 +110,12 @@ unsigned int nlm_get_cpu_frequency(void)
 void __init prom_free_prom_memory(void)
 {
 	/* Nothing yet */
+}
+
+void nlm_percpu_init(int hwcpuid)
+{
+	if (hwcpuid % 4 == 0)
+		xlr_percpu_fmn_init();
 }
 
 static void __init build_arcs_cmdline(int *argv)
@@ -176,9 +181,19 @@ static void prom_add_memory(void)
 	}
 }
 
+static void nlm_init_node(void)
+{
+	struct nlm_soc_info *nodep;
+
+	nodep = nlm_current_node();
+	nodep->picbase = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	spin_lock_init(&nodep->piclock);
+}
+
 void __init prom_init(void)
 {
-	int *argv, *envp;		/* passed as 32 bit ptrs */
+	int i, *argv, *envp;		/* passed as 32 bit ptrs */
 	struct psb_info *prom_infop;
 
 	/* truncate to 32 bit and sign extend all args */
@@ -187,15 +202,19 @@ void __init prom_init(void)
 	prom_infop = (struct psb_info *)(long)(int)fw_arg3;
 
 	nlm_prom_info = *prom_infop;
-	nlm_pic_base = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nlm_init_node();
 
 	nlm_early_serial_setup();
 	build_arcs_cmdline(argv);
-	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 	prom_add_memory();
 
 #ifdef CONFIG_SMP
-	nlm_wakeup_secondary_cpus(nlm_prom_info.online_cpu_map);
+	for (i = 0; i < 32; i++)
+		if (nlm_prom_info.online_cpu_map & (1 << i))
+			cpumask_set_cpu(i, &nlm_cpumask);
+	nlm_wakeup_secondary_cpus();
 	register_smp_ops(&nlm_smp_ops);
 #endif
+	xlr_board_info_setup();
+	xlr_percpu_fmn_init();
 }

@@ -19,9 +19,6 @@
 #include <linux/export.h>
 #include "br_private.h"
 
-/* Bridge group multicast address 802.1d (pg 51). */
-const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
-
 /* Hook for brouter */
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
@@ -127,18 +124,6 @@ static int br_handle_local_finish(struct sk_buff *skb)
 	return 0;	 /* process further */
 }
 
-/* Does address match the link local multicast address.
- * 01:80:c2:00:00:0X
- */
-static inline int is_link_local(const unsigned char *dest)
-{
-	__be16 *a = (__be16 *)dest;
-	static const __be16 *b = (const __be16 *)br_group_address;
-	static const __be16 m = cpu_to_be16(0xfff0);
-
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
-}
-
 /*
  * Return NULL if skb is handled
  * note: already called with rcu_read_lock
@@ -162,7 +147,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 	p = br_port_get_rcu(skb->dev);
 
-	if (unlikely(is_link_local(dest))) {
+	if (unlikely(is_link_local_ether_addr(dest))) {
 		/*
 		 * See IEEE 802.1D Table 7-10 Reserved addresses
 		 *

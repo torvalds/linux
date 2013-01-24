@@ -193,6 +193,8 @@ static void acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
+
+	return_VOID;
 }
 
 /*******************************************************************************
@@ -226,9 +228,9 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		/*
 		 * Mutex debug code, for internal debugging only.
 		 *
-		 * Deadlock prevention.  Check if this thread owns any mutexes of value
-		 * greater than or equal to this one.  If so, the thread has violated
-		 * the mutex ordering rule.  This indicates a coding error somewhere in
+		 * Deadlock prevention. Check if this thread owns any mutexes of value
+		 * greater than or equal to this one. If so, the thread has violated
+		 * the mutex ordering rule. This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < ACPI_NUM_MUTEX; i++) {
@@ -319,9 +321,9 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 		/*
 		 * Mutex debug code, for internal debugging only.
 		 *
-		 * Deadlock prevention.  Check if this thread owns any mutexes of value
-		 * greater than this one.  If so, the thread has violated the mutex
-		 * ordering rule.  This indicates a coding error somewhere in
+		 * Deadlock prevention. Check if this thread owns any mutexes of value
+		 * greater than this one. If so, the thread has violated the mutex
+		 * ordering rule. This indicates a coding error somewhere in
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < ACPI_NUM_MUTEX; i++) {

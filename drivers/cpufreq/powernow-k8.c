@@ -5,7 +5,7 @@
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Maintainer:
- *  Andreas Herrmann <andreas.herrmann3@amd.com>
+ *  Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
@@ -1186,7 +1186,7 @@ err_out:
 	return -ENODEV;
 }
 
-static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
+static int powernowk8_cpu_exit(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 
@@ -1242,7 +1242,7 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 	.target		= powernowk8_target,
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= powernowk8_cpu_init,
-	.exit		= __devexit_p(powernowk8_cpu_exit),
+	.exit		= powernowk8_cpu_exit,
 	.get		= powernowk8_get,
 	.name		= "powernow-k8",
 	.owner		= THIS_MODULE,

@@ -113,7 +113,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/dmi.h>
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
 	"v1.10-LK" DRV_VERSION " " DRV_RELDATE " Written by Donald Becker";
 
 /* This driver was written to use PCI memory space. Some early versions
@@ -657,7 +657,7 @@ static void enable_mmio(long pioaddr, u32 quirks)
  * Loads bytes 0x00-0x05, 0x6E-0x6F, 0x78-0x7B from EEPROM
  * (plus 0x6C for Rhine-I/II)
  */
-static void __devinit rhine_reload_eeprom(long pioaddr, struct net_device *dev)
+static void rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -823,7 +823,7 @@ static int rhine_napipoll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void __devinit rhine_hw_init(struct net_device *dev, long pioaddr)
+static void rhine_hw_init(struct net_device *dev, long pioaddr)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -856,8 +856,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 #endif
 };
 
-static int __devinit rhine_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct rhine_private *rp;
@@ -2232,7 +2231,7 @@ static int rhine_close(struct net_device *dev)
 }
 
 
-static void __devexit rhine_remove_one(struct pci_dev *pdev)
+static void rhine_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rhine_private *rp = netdev_priv(dev);
@@ -2359,7 +2358,7 @@ static struct pci_driver rhine_driver = {
 	.name		= DRV_NAME,
 	.id_table	= rhine_pci_tbl,
 	.probe		= rhine_init_one,
-	.remove		= __devexit_p(rhine_remove_one),
+	.remove		= rhine_remove_one,
 	.shutdown	= rhine_shutdown,
 	.driver.pm	= RHINE_PM_OPS,
 };

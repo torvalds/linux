@@ -1849,6 +1849,8 @@ err_unregister:
 		kfree(info->fax);
 #endif
 		kfree(info->port.xmit_buf - 4);
+		info->port.xmit_buf = NULL;
+		tty_port_destroy(&info->port);
 	}
 	tty_unregister_driver(m->tty_modem);
 err:
@@ -1870,6 +1872,8 @@ isdn_tty_exit(void)
 		kfree(info->fax);
 #endif
 		kfree(info->port.xmit_buf - 4);
+		info->port.xmit_buf = NULL;
+		tty_port_destroy(&info->port);
 	}
 	tty_unregister_driver(dev->mdm.tty_modem);
 	put_tty_driver(dev->mdm.tty_modem);

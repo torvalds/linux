@@ -2237,7 +2237,7 @@ static void hw_write_20kx(struct hw *hw, u32 reg, u32 data)
 	writel(data, (void *)(hw->mem_base + reg));
 }
 
-static struct hw ct20k2_preset __devinitdata = {
+static struct hw ct20k2_preset = {
 	.irq = -1,
 
 	.card_init = hw_card_init,
@@ -2345,7 +2345,7 @@ static struct hw ct20k2_preset __devinitdata = {
 	.get_wc = get_wc,
 };
 
-int __devinit create_20k2_hw_obj(struct hw **rhw)
+int create_20k2_hw_obj(struct hw **rhw)
 {
 	struct hw20k2 *hw20k2;
 

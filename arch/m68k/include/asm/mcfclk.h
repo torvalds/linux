@@ -8,7 +8,6 @@
 
 struct clk;
 
-#ifdef MCFPM_PPMCR0
 struct clk_ops {
 	void (*enable)(struct clk *);
 	void (*disable)(struct clk *);
@@ -23,6 +22,8 @@ struct clk {
 };
 
 extern struct clk *mcf_clks[];
+
+#ifdef MCFPM_PPMCR0
 extern struct clk_ops clk_ops0;
 #ifdef MCFPM_PPMCR1
 extern struct clk_ops clk_ops1;
@@ -38,6 +39,12 @@ static struct clk __clk_##clk_bank##_##clk_slot = { \
 
 void __clk_init_enabled(struct clk *);
 void __clk_init_disabled(struct clk *);
+#else
+#define DEFINE_CLK(clk_ref, clk_name, clk_rate) \
+        static struct clk clk_##clk_ref = { \
+                .name = clk_name, \
+                .rate = clk_rate, \
+        }
 #endif /* MCFPM_PPMCR0 */
 
 #endif /* mcfclk_h */

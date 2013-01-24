@@ -125,7 +125,7 @@ static void hwdep_free(struct snd_hwdep *hwdep)
 	clear_hwdep_elements(hwdep->private_data);
 }
 
-int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
+int snd_hda_create_hwdep(struct hda_codec *codec)
 {
 	char hwname[16];
 	struct snd_hwdep *hwdep;

@@ -784,7 +784,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
 	if (chan->channel == 2484)
-		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
+		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
 
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
 		REG_WRITE(ah, AR_GLB_SWREG_DISCONT_MODE,

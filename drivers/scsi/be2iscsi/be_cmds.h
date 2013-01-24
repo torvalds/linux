@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2012 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -57,6 +57,16 @@ struct be_mcc_wrb {
 #define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
 #define CQE_STATUS_EXTD_MASK 0xFFFF
 #define CQE_STATUS_EXTD_SHIFT 16		/* bits 0 - 15 */
+#define CQE_STATUS_ADDL_MASK	0xFF00
+#define CQE_STATUS_MASK	0xFF
+#define CQE_STATUS_ADDL_SHIFT	0x08
+#define CQE_STATUS_WRB_MASK	0xFF0000
+#define CQE_STATUS_WRB_SHIFT	16
+#define BEISCSI_HOST_MBX_TIMEOUT (110 * 1000)
+#define BEISCSI_FW_MBX_TIMEOUT	100
+
+/* MBOX Command VER */
+#define MBX_CMD_VER2	0x02
 
 struct be_mcc_compl {
 	u32 status;		/* dword 0 */
@@ -183,7 +193,8 @@ struct be_cmd_req_hdr {
 	u8 domain;		/* dword 0 */
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
-	u32 rsvd0;		/* dword 3 */
+	u8 version;		/* dword 3 */
+	u8 rsvd0[3];		/* dword 3 */
 };
 
 struct be_cmd_resp_hdr {
@@ -483,10 +494,28 @@ struct amap_cq_context {
 	u8 rsvd5[32];		/* dword 3 */
 } __packed;
 
+struct amap_cq_context_v2 {
+	u8 rsvd0[12];   /* dword 0 */
+	u8 coalescwm[2];    /* dword 0 */
+	u8 nodelay;     /* dword 0 */
+	u8 rsvd1[12];   /* dword 0 */
+	u8 count[2];    /* dword 0 */
+	u8 valid;       /* dword 0 */
+	u8 rsvd2;       /* dword 0 */
+	u8 eventable;   /* dword 0 */
+	u8 eqid[16];    /* dword 1 */
+	u8 rsvd3[15];   /* dword 1 */
+	u8 armed;       /* dword 1 */
+	u8 cqecount[16];/* dword 2 */
+	u8 rsvd4[16];   /* dword 2 */
+	u8 rsvd5[32];   /* dword 3 */
+};
+
 struct be_cmd_req_cq_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
-	u16 rsvd0;
+	u8 page_size;
+	u8 rsvd0;
 	u8 context[sizeof(struct amap_cq_context) / 8];
 	struct phys_addr pages[4];
 } __packed;
@@ -663,6 +692,9 @@ unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
+
+int beiscsi_mccq_compl(struct beiscsi_hba *phba,
+			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 
@@ -804,6 +836,59 @@ struct amap_sol_cqe_ring {
 	u8 valid;		/* dword 3 */
 } __packed;
 
+struct amap_sol_cqe_v2 {
+	u8 hw_sts[8];   /* dword 0 */
+	u8 i_sts[8];    /* dword 0 */
+	u8 wrb_index[16];   /* dword 0 */
+	u8 i_exp_cmd_sn[32];    /* dword 1 */
+	u8 code[6]; /* dword 2 */
+	u8 cmd_cmpl;    /* dword 2 */
+	u8 rsvd0;   /* dword 2 */
+	u8 i_cmd_wnd[8];    /* dword 2 */
+	u8 cid[13]; /* dword 2 */
+	u8 u;   /* dword 2 */
+	u8 o;   /* dword 2 */
+	u8 s;   /* dword 2 */
+	u8 i_res_cnt[31];   /* dword 3 */
+	u8 valid;   /* dword 3 */
+} __packed;
+
+struct common_sol_cqe {
+	u32 exp_cmdsn;
+	u32 res_cnt;
+	u16 wrb_index;
+	u16 cid;
+	u8 hw_sts;
+	u8 cmd_wnd;
+	u8 res_flag; /* the s feild of structure */
+	u8 i_resp; /* for skh if cmd_complete is set then i_sts is response */
+	u8 i_flags; /* for skh or the u and o feilds */
+	u8 i_sts; /* for skh if cmd_complete is not-set then i_sts is status */
+};
+
+/*** iSCSI ack/driver message completions ***/
+struct amap_it_dmsg_cqe {
+	u8 ack_num[32]; /* DWORD 0 */
+	u8 pdu_bytes_rcvd[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 cid[10]; /* DWORD 2 */
+	u8 wrb_idx[8];  /* DWORD 2 */
+	u8 rsvd0[8];    /* DWORD 2*/
+	u8 rsvd1[31];   /* DWORD 3*/
+	u8 valid;   /* DWORD 3 */
+} __packed;
+
+struct amap_it_dmsg_cqe_v2 {
+	u8 ack_num[32]; /* DWORD 0 */
+	u8 pdu_bytes_rcvd[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 rsvd0[10];   /* DWORD 2 */
+	u8 wrb_idx[16]; /* DWORD 2 */
+	u8 rsvd1[16];   /* DWORD 3 */
+	u8 cid[13]; /* DWORD 3 */
+	u8 rsvd2[2];    /* DWORD 3 */
+	u8 valid;   /* DWORD 3 */
+} __packed;
 
 
 /**
@@ -991,8 +1076,6 @@ struct be_cmd_get_all_if_id_req {
 						 */
 #define CONNECTION_UPLOAD_ABORT_WITH_SEQ 4	/* Abortive upload with reset,
 						 * sequence number by driver  */
-
-/* Returns byte size of given field with a structure. */
 
 /* Returns the number of items in the field array. */
 #define BE_NUMBER_OF_FIELD(_type_, _field_)	\

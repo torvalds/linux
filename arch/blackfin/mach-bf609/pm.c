@@ -174,7 +174,6 @@ void bfin_hibernate_syscontrol(void)
 	bfin_write32(DPM0_RESTORE5, bfin_read32(DPM0_RESTORE5) | 4);
 }
 
-#define IRQ_SID(irq)   ((irq) - IVG15)
 asmlinkage void enter_deepsleep(void);
 
 __attribute__((l1_text))
@@ -311,7 +310,7 @@ static irqreturn_t test_isr(int irq, void *dev_id)
 {
 	printk(KERN_DEBUG "gpio irq %d\n", irq);
 	if (irq == 231)
-		bfin_sec_raise_irq(IRQ_SID(IRQ_SOFT1));
+		bfin_sec_raise_irq(BFIN_SYSIRQ(IRQ_SOFT1));
 	return IRQ_HANDLED;
 }
 

@@ -44,7 +44,7 @@ MODULE_LICENSE("GPL");
 static int _intr_msk = FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF |
 			FLD_AUD_SRC_SYNC | FLD_AUD_SRC_OPC_ERR;
 
-int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
+static int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
 					      struct sram_channel *ch,
 					      unsigned int bpl, u32 risc)
 {
@@ -133,7 +133,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 	return rp;
 }
 
-int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
+static int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 				       struct pci_dev *pci,
 				       unsigned int bpl, unsigned int lines)
 {
@@ -197,7 +197,7 @@ int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 	return 0;
 }
 
-void cx25821_free_memory_audio(struct cx25821_dev *dev)
+static void cx25821_free_memory_audio(struct cx25821_dev *dev)
 {
 	if (dev->_risc_virt_addr) {
 		pci_free_consistent(dev->pci, dev->_audiorisc_size,
@@ -256,7 +256,7 @@ void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev)
 	cx25821_free_memory_audio(dev);
 }
 
-int cx25821_get_audio_data(struct cx25821_dev *dev,
+static int cx25821_get_audio_data(struct cx25821_dev *dev,
 			   struct sram_channel *sram_ch)
 {
 	struct file *myfile;
@@ -351,7 +351,7 @@ static void cx25821_audioups_handler(struct work_struct *work)
 			sram_channels);
 }
 
-int cx25821_openfile_audio(struct cx25821_dev *dev,
+static int cx25821_openfile_audio(struct cx25821_dev *dev,
 			   struct sram_channel *sram_ch)
 {
 	struct file *myfile;
@@ -490,7 +490,7 @@ error:
 	return ret;
 }
 
-int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
+static int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 			       u32 status)
 {
 	int i = 0;
@@ -634,8 +634,8 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 
 }
 
-int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
-				     struct sram_channel *sram_ch)
+static int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
+					    struct sram_channel *sram_ch)
 {
 	u32 tmp = 0;
 	int err = 0;
@@ -700,9 +700,7 @@ fail_irq:
 int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 {
 	struct sram_channel *sram_ch;
-	int retval = 0;
 	int err = 0;
-	int str_length = 0;
 
 	if (dev->_audio_is_running) {
 		pr_warn("Audio Channel is still running so return!\n");
@@ -731,27 +729,29 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	_line_size = AUDIO_LINE_SIZE;
 
 	if (dev->input_audiofilename) {
-		str_length = strlen(dev->input_audiofilename);
-		dev->_audiofilename = kmemdup(dev->input_audiofilename,
-					      str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kstrdup(dev->input_audiofilename,
+					      GFP_KERNEL);
 
-		if (!dev->_audiofilename)
+		if (!dev->_audiofilename) {
+			err = -ENOMEM;
 			goto error;
+		}
 
 		/* Default if filename is empty string */
 		if (strcmp(dev->input_audiofilename, "") == 0)
 			dev->_audiofilename = "/root/audioGOOD.wav";
 	} else {
-		str_length = strlen(_defaultAudioName);
-		dev->_audiofilename = kmemdup(_defaultAudioName,
-					      str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kstrdup(_defaultAudioName,
+					      GFP_KERNEL);
 
-		if (!dev->_audiofilename)
+		if (!dev->_audiofilename) {
+			err = -ENOMEM;
 			goto error;
+		}
 	}
 
-	retval = cx25821_sram_channel_setup_upstream_audio(dev, sram_ch,
-							_line_size, 0);
+	cx25821_sram_channel_setup_upstream_audio(dev, sram_ch,
+						  _line_size, 0);
 
 	dev->audio_upstream_riscbuf_size =
 		AUDIO_RISC_DMA_BUF_SIZE * NUM_AUDIO_PROGS +
@@ -759,9 +759,9 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	dev->audio_upstream_databuf_size = AUDIO_DATA_BUF_SZ * NUM_AUDIO_PROGS;
 
 	/* Allocating buffers and prepare RISC program */
-	retval = cx25821_audio_upstream_buffer_prepare(dev, sram_ch,
+	err = cx25821_audio_upstream_buffer_prepare(dev, sram_ch,
 							_line_size);
-	if (retval < 0) {
+	if (err < 0) {
 		pr_err("%s: Failed to set up Audio upstream buffers!\n",
 			dev->name);
 		goto error;

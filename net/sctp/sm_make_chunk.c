@@ -804,10 +804,11 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 				 gabs);
 
 	/* Add the duplicate TSN information.  */
-	if (num_dup_tsns)
+	if (num_dup_tsns) {
+		aptr->stats.idupchunks += num_dup_tsns;
 		sctp_addto_chunk(retval, sizeof(__u32) * num_dup_tsns,
 				 sctp_tsnmap_get_dups(map));
-
+	}
 	/* Once we have a sack generated, check to see what our sack
 	 * generation is, if its 0, reset the transports to 0, and reset
 	 * the association generation to 1
@@ -1085,6 +1086,25 @@ struct sctp_chunk *sctp_make_violation_paramlen(
 			sizeof(error) + sizeof(sctp_paramhdr_t));
 	sctp_addto_chunk(retval, sizeof(error), error);
 	sctp_addto_param(retval, sizeof(sctp_paramhdr_t), param);
+
+nodata:
+	return retval;
+}
+
+struct sctp_chunk *sctp_make_violation_max_retrans(
+	const struct sctp_association *asoc,
+	const struct sctp_chunk *chunk)
+{
+	struct sctp_chunk *retval;
+	static const char error[] = "Association exceeded its max_retans count";
+	size_t payload_len = sizeof(error) + sizeof(sctp_errhdr_t);
+
+	retval = sctp_make_abort(asoc, chunk, payload_len);
+	if (!retval)
+		goto nodata;
+
+	sctp_init_cause(retval, SCTP_ERROR_PROTO_VIOLATION, sizeof(error));
+	sctp_addto_chunk(retval, sizeof(error), error);
 
 nodata:
 	return retval;

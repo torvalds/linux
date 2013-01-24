@@ -28,8 +28,7 @@
 #include <linux/types.h>
 #include <linux/serial_reg.h>
 
-#include <mach/iomap.h>
-#include <mach/irammap.h>
+#include "../../iomap.h"
 
 #define BIT(x) (1 << (x))
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -50,17 +49,6 @@ static void putc(int c)
 
 static inline void flush(void)
 {
-}
-
-static inline void save_uart_address(void)
-{
-	u32 *buf = (u32 *)(TEGRA_IRAM_BASE + TEGRA_IRAM_DEBUG_UART_OFFSET);
-
-	if (uart) {
-		buf[0] = TEGRA_IRAM_DEBUG_UART_COOKIE;
-		buf[1] = (u32)uart;
-	} else
-		buf[0] = 0;
 }
 
 static const struct {
@@ -139,51 +127,19 @@ int auto_odmdata(void)
 }
 #endif
 
-#ifdef CONFIG_TEGRA_DEBUG_UART_AUTO_SCRATCH
-int auto_scratch(void)
-{
-	int i;
-
-	/*
-	 * Look for the first UART that:
-	 * a) Is not in reset.
-	 * b) Is clocked.
-	 * c) Has a 'D' in the scratchpad register.
-	 *
-	 * Note that on Tegra30, the first two conditions are required, since
-	 * if not true, accesses to the UART scratch register will hang.
-	 * Tegra20 doesn't have this issue.
-	 *
-	 * The intent is that the bootloader will tell the kernel which UART
-	 * to use by setting up those conditions. If nothing found, we'll fall
-	 * back to what's specified in TEGRA_DEBUG_UART_BASE.
-	 */
-	for (i = 0; i < ARRAY_SIZE(uarts); i++) {
-		if (!uart_clocked(i))
-			continue;
-
-		uart = (volatile u8 *)uarts[i].base;
-		if (uart[UART_SCR << DEBUG_UART_SHIFT] != 'D')
-			continue;
-
-		return i;
-	}
-
-	return -1;
-}
-#endif
-
 /*
  * Setup before decompression.  This is where we do UART selection for
  * earlyprintk and init the uart_base register.
  */
 static inline void arch_decomp_setup(void)
 {
-	int uart_id, auto_uart_id;
+	int uart_id;
 	volatile u32 *apb_misc = (volatile u32 *)TEGRA_APB_MISC_BASE;
 	u32 chip, div;
 
-#if defined(CONFIG_TEGRA_DEBUG_UARTA)
+#if defined(CONFIG_TEGRA_DEBUG_UART_AUTO_ODMDATA)
+	uart_id = auto_odmdata();
+#elif defined(CONFIG_TEGRA_DEBUG_UARTA)
 	uart_id = 0;
 #elif defined(CONFIG_TEGRA_DEBUG_UARTB)
 	uart_id = 1;
@@ -193,19 +149,7 @@ static inline void arch_decomp_setup(void)
 	uart_id = 3;
 #elif defined(CONFIG_TEGRA_DEBUG_UARTE)
 	uart_id = 4;
-#else
-	uart_id = -1;
 #endif
-
-#if defined(CONFIG_TEGRA_DEBUG_UART_AUTO_ODMDATA)
-	auto_uart_id = auto_odmdata();
-#elif defined(CONFIG_TEGRA_DEBUG_UART_AUTO_SCRATCH)
-	auto_uart_id = auto_scratch();
-#else
-	auto_uart_id = -1;
-#endif
-	if (auto_uart_id != -1)
-		uart_id = auto_uart_id;
 
 	if (uart_id < 0 || uart_id >= ARRAY_SIZE(uarts) ||
 	    !uart_clocked(uart_id))
@@ -213,7 +157,6 @@ static inline void arch_decomp_setup(void)
 	else
 		uart = (volatile u8 *)uarts[uart_id].base;
 
-	save_uart_address();
 	if (uart == NULL)
 		return;
 

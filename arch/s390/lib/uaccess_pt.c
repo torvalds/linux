@@ -39,7 +39,7 @@ static __always_inline unsigned long follow_table(struct mm_struct *mm,
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd))
 		return -0x10UL;
-	if (pmd_huge(*pmd)) {
+	if (pmd_large(*pmd)) {
 		if (write && (pmd_val(*pmd) & _SEGMENT_ENTRY_RO))
 			return -0x04UL;
 		return (pmd_val(*pmd) & HPAGE_MASK) + (addr & ~HPAGE_MASK);

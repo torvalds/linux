@@ -116,7 +116,11 @@
 /* NPE mailbox_status value for reset */
 #define RESET_MBOX_STAT			0x0000F0F0
 
-const char *npe_names[] = { "NPE-A", "NPE-B", "NPE-C" };
+#define NPE_A_FIRMWARE "NPE-A"
+#define NPE_B_FIRMWARE "NPE-B"
+#define NPE_C_FIRMWARE "NPE-C"
+
+const char *npe_names[] = { NPE_A_FIRMWARE, NPE_B_FIRMWARE, NPE_C_FIRMWARE };
 
 #define print_npe(pri, npe, fmt, ...)					\
 	printk(pri "%s: " fmt, npe_name(npe), ## __VA_ARGS__)
@@ -724,6 +728,9 @@ module_exit(npe_cleanup_module);
 
 MODULE_AUTHOR("Krzysztof Halasa");
 MODULE_LICENSE("GPL v2");
+MODULE_FIRMWARE(NPE_A_FIRMWARE);
+MODULE_FIRMWARE(NPE_B_FIRMWARE);
+MODULE_FIRMWARE(NPE_C_FIRMWARE);
 
 EXPORT_SYMBOL(npe_names);
 EXPORT_SYMBOL(npe_running);

@@ -11,7 +11,7 @@ struct nouveau_gpio {
 	struct nouveau_subdev base;
 
 	/* hardware interfaces */
-	void (*reset)(struct nouveau_gpio *);
+	void (*reset)(struct nouveau_gpio *, u8 func);
 	int  (*drive)(struct nouveau_gpio *, int line, int dir, int out);
 	int  (*sense)(struct nouveau_gpio *, int line);
 	void (*irq_enable)(struct nouveau_gpio *, int line, bool);

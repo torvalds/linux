@@ -104,6 +104,8 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *chunk)
 	 * on the BH related data structures.
 	 */
 	list_add_tail(&chunk->list, &q->in_chunk_list);
+	if (chunk->asoc)
+		chunk->asoc->stats.ipackets++;
 	q->immediate.func(&q->immediate);
 }
 

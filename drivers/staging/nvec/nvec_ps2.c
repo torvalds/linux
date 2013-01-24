@@ -93,7 +93,7 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int __devinit nvec_mouse_probe(struct platform_device *pdev)
+static int nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev;
@@ -123,7 +123,7 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit nvec_mouse_remove(struct platform_device *pdev)
+static int nvec_mouse_remove(struct platform_device *pdev)
 {
 	serio_unregister_port(ps2_dev.ser_dev);
 
@@ -164,7 +164,7 @@ static const SIMPLE_DEV_PM_OPS(nvec_mouse_pm_ops, nvec_mouse_suspend,
 
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
-	.remove = __devexit_p(nvec_mouse_remove),
+	.remove = nvec_mouse_remove,
 	.driver = {
 		.name = "nvec-mouse",
 		.owner = THIS_MODULE,

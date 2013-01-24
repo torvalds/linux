@@ -303,7 +303,7 @@ static struct snd_soc_card corgi = {
 	.num_dapm_routes = ARRAY_SIZE(corgi_audio_map),
 };
 
-static int __devinit corgi_probe(struct platform_device *pdev)
+static int corgi_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &corgi;
 	int ret;
@@ -317,7 +317,7 @@ static int __devinit corgi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit corgi_remove(struct platform_device *pdev)
+static int corgi_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -331,7 +331,7 @@ static struct platform_driver corgi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= corgi_probe,
-	.remove		= __devexit_p(corgi_remove),
+	.remove		= corgi_remove,
 };
 
 module_platform_driver(corgi_driver);

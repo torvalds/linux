@@ -75,7 +75,7 @@ static struct card_info {
 	zorro_id id;
 	const char *name;
 	unsigned int offset;
-} cards[] __devinitdata = {
+} cards[] = {
 	{ ZORRO_PROD_VILLAGE_TRONIC_ARIADNE2, "Ariadne II", 0x0600 },
 	{ ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, "X-Surf", 0x8600 },
 };
@@ -254,7 +254,7 @@ static int zorro8390_close(struct net_device *dev)
 	return 0;
 }
 
-static void __devexit zorro8390_remove_one(struct zorro_dev *z)
+static void zorro8390_remove_one(struct zorro_dev *z)
 {
 	struct net_device *dev = zorro_get_drvdata(z);
 
@@ -264,7 +264,7 @@ static void __devexit zorro8390_remove_one(struct zorro_dev *z)
 	free_netdev(dev);
 }
 
-static struct zorro_device_id zorro8390_zorro_tbl[] __devinitdata = {
+static struct zorro_device_id zorro8390_zorro_tbl[] = {
 	{ ZORRO_PROD_VILLAGE_TRONIC_ARIADNE2, },
 	{ ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, },
 	{ 0 }
@@ -286,9 +286,8 @@ static const struct net_device_ops zorro8390_netdev_ops = {
 #endif
 };
 
-static int __devinit zorro8390_init(struct net_device *dev,
-				    unsigned long board, const char *name,
-				    unsigned long ioaddr)
+static int zorro8390_init(struct net_device *dev, unsigned long board,
+			  const char *name, unsigned long ioaddr)
 {
 	int i;
 	int err;
@@ -396,8 +395,8 @@ static int __devinit zorro8390_init(struct net_device *dev,
 	return 0;
 }
 
-static int __devinit zorro8390_init_one(struct zorro_dev *z,
-					const struct zorro_device_id *ent)
+static int zorro8390_init_one(struct zorro_dev *z,
+			      const struct zorro_device_id *ent)
 {
 	struct net_device *dev;
 	unsigned long board, ioaddr;
@@ -432,7 +431,7 @@ static struct zorro_driver zorro8390_driver = {
 	.name		= "zorro8390",
 	.id_table	= zorro8390_zorro_tbl,
 	.probe		= zorro8390_init_one,
-	.remove		= __devexit_p(zorro8390_remove_one),
+	.remove		= zorro8390_remove_one,
 };
 
 static int __init zorro8390_init_module(void)

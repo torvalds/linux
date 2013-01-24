@@ -3219,6 +3219,9 @@ struct wqe_common {
 #define wqe_dif_SHIFT         0
 #define wqe_dif_MASK          0x00000003
 #define wqe_dif_WORD          word7
+#define LPFC_WQE_DIF_PASSTHRU	1
+#define LPFC_WQE_DIF_STRIP	2
+#define LPFC_WQE_DIF_INSERT	3
 #define wqe_ct_SHIFT          2
 #define wqe_ct_MASK           0x00000003
 #define wqe_ct_WORD           word7

@@ -3722,12 +3722,12 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.ngroups = ARRAY_SIZE(tegra30_groups),
 };
 
-static int __devinit tegra30_pinctrl_probe(struct platform_device *pdev)
+static int tegra30_pinctrl_probe(struct platform_device *pdev)
 {
 	return tegra_pinctrl_probe(pdev, &tegra30_pinctrl);
 }
 
-static struct of_device_id tegra30_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id tegra30_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra30-pinmux", },
 	{ },
 };
@@ -3739,7 +3739,7 @@ static struct platform_driver tegra30_pinctrl_driver = {
 		.of_match_table = tegra30_pinctrl_of_match,
 	},
 	.probe = tegra30_pinctrl_probe,
-	.remove = __devexit_p(tegra_pinctrl_remove),
+	.remove = tegra_pinctrl_remove,
 };
 
 static int __init tegra30_pinctrl_init(void)

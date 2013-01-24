@@ -39,6 +39,7 @@
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -76,6 +77,10 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* Then ACPI style match */
+	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	driver = to_i2c_driver(drv);
@@ -539,6 +544,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
+	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
 
 	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),

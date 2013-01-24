@@ -2,6 +2,7 @@
 #include <net/cfg80211.h>
 #include "core.h"
 #include "ethtool.h"
+#include "rdev-ops.h"
 
 static void cfg80211_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
@@ -47,9 +48,8 @@ static void cfg80211_get_ringparam(struct net_device *dev,
 	memset(rp, 0, sizeof(*rp));
 
 	if (rdev->ops->get_ringparam)
-		rdev->ops->get_ringparam(wdev->wiphy,
-					 &rp->tx_pending, &rp->tx_max_pending,
-					 &rp->rx_pending, &rp->rx_max_pending);
+		rdev_get_ringparam(rdev, &rp->tx_pending, &rp->tx_max_pending,
+				   &rp->rx_pending, &rp->rx_max_pending);
 }
 
 static int cfg80211_set_ringparam(struct net_device *dev,
@@ -62,8 +62,7 @@ static int cfg80211_set_ringparam(struct net_device *dev,
 		return -EINVAL;
 
 	if (rdev->ops->set_ringparam)
-		return rdev->ops->set_ringparam(wdev->wiphy,
-						rp->tx_pending, rp->rx_pending);
+		return rdev_set_ringparam(rdev, rp->tx_pending, rp->rx_pending);
 
 	return -ENOTSUPP;
 }
@@ -73,7 +72,7 @@ static int cfg80211_get_sset_count(struct net_device *dev, int sset)
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	if (rdev->ops->get_et_sset_count)
-		return rdev->ops->get_et_sset_count(wdev->wiphy, dev, sset);
+		return rdev_get_et_sset_count(rdev, dev, sset);
 	return -EOPNOTSUPP;
 }
 
@@ -83,7 +82,7 @@ static void cfg80211_get_stats(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	if (rdev->ops->get_et_stats)
-		rdev->ops->get_et_stats(wdev->wiphy, dev, stats, data);
+		rdev_get_et_stats(rdev, dev, stats, data);
 }
 
 static void cfg80211_get_strings(struct net_device *dev, u32 sset, u8 *data)
@@ -91,7 +90,7 @@ static void cfg80211_get_strings(struct net_device *dev, u32 sset, u8 *data)
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	if (rdev->ops->get_et_strings)
-		rdev->ops->get_et_strings(wdev->wiphy, dev, sset, data);
+		rdev_get_et_strings(rdev, dev, sset, data);
 }
 
 const struct ethtool_ops cfg80211_ethtool_ops = {

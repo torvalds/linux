@@ -1047,7 +1047,7 @@ static struct attribute_group apds990x_attribute_group[] = {
 	{.attrs = sysfs_attrs_ctrl },
 };
 
-static int __devinit apds990x_probe(struct i2c_client *client,
+static int apds990x_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct apds990x_chip *chip;
@@ -1181,7 +1181,7 @@ fail1:
 	return err;
 }
 
-static int __devexit apds990x_remove(struct i2c_client *client)
+static int apds990x_remove(struct i2c_client *client)
 {
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
@@ -1275,7 +1275,7 @@ static struct i2c_driver apds990x_driver = {
 		.pm	= &apds990x_pm_ops,
 	},
 	.probe	  = apds990x_probe,
-	.remove	  = __devexit_p(apds990x_remove),
+	.remove	  = apds990x_remove,
 	.id_table = apds990x_id,
 };
 

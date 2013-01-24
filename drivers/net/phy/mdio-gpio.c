@@ -103,9 +103,9 @@ static struct mdiobb_ops mdio_gpio_ops = {
 	.get_mdio_data = mdio_get,
 };
 
-static struct mii_bus * __devinit mdio_gpio_bus_init(struct device *dev,
-					struct mdio_gpio_platform_data *pdata,
-					int bus_id)
+static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
+					  struct mdio_gpio_platform_data *pdata,
+					  int bus_id)
 {
 	struct mii_bus *new_bus;
 	struct mdio_gpio_info *bitbang;
@@ -173,7 +173,7 @@ static void mdio_gpio_bus_deinit(struct device *dev)
 	kfree(bitbang);
 }
 
-static void __devexit mdio_gpio_bus_destroy(struct device *dev)
+static void mdio_gpio_bus_destroy(struct device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(dev);
 
@@ -181,21 +181,24 @@ static void __devexit mdio_gpio_bus_destroy(struct device *dev)
 	mdio_gpio_bus_deinit(dev);
 }
 
-static int __devinit mdio_gpio_probe(struct platform_device *pdev)
+static int mdio_gpio_probe(struct platform_device *pdev)
 {
 	struct mdio_gpio_platform_data *pdata;
 	struct mii_bus *new_bus;
-	int ret;
+	int ret, bus_id;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		pdata = mdio_gpio_of_get_data(pdev);
-	else
+		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
+	} else {
 		pdata = pdev->dev.platform_data;
+		bus_id = pdev->id;
+	}
 
 	if (!pdata)
 		return -ENODEV;
 
-	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, pdev->id);
+	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, bus_id);
 	if (!new_bus)
 		return -ENODEV;
 
@@ -210,7 +213,7 @@ static int __devinit mdio_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit mdio_gpio_remove(struct platform_device *pdev)
+static int mdio_gpio_remove(struct platform_device *pdev)
 {
 	mdio_gpio_bus_destroy(&pdev->dev);
 
@@ -224,7 +227,7 @@ static struct of_device_id mdio_gpio_of_match[] = {
 
 static struct platform_driver mdio_gpio_driver = {
 	.probe = mdio_gpio_probe,
-	.remove = __devexit_p(mdio_gpio_remove),
+	.remove = mdio_gpio_remove,
 	.driver		= {
 		.name	= "mdio-gpio",
 		.owner	= THIS_MODULE,

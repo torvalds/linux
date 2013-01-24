@@ -659,7 +659,7 @@ static struct mt2063_config terratec_mt2063_config[] = {
 	},
 };
 
-int netup_altera_fpga_rw(void *device, int flag, int data, int read)
+static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 {
 	struct cx23885_dev *dev = (struct cx23885_dev *)device;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1);

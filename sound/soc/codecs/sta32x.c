@@ -995,8 +995,8 @@ static const struct regmap_config sta32x_regmap = {
 	.volatile_reg =		sta32x_reg_is_volatile,
 };
 
-static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int sta32x_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct sta32x_priv *sta32x;
 	int ret, i;
@@ -1033,7 +1033,7 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int sta32x_i2c_remove(struct i2c_client *client)
+static int sta32x_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1053,7 +1053,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    sta32x_i2c_probe,
-	.remove =   __devexit_p(sta32x_i2c_remove),
+	.remove =   sta32x_i2c_remove,
 	.id_table = sta32x_i2c_id,
 };
 

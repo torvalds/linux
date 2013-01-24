@@ -276,7 +276,7 @@ void ivtv_init_mpeg_decoder(struct ivtv *itv)
 }
 
 /* Try to restart the card & restore previous settings */
-int ivtv_firmware_restart(struct ivtv *itv)
+static int ivtv_firmware_restart(struct ivtv *itv)
 {
 	int rc = 0;
 	v4l2_std_id std;

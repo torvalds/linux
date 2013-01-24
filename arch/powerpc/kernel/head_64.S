@@ -422,7 +422,7 @@ _STATIC(__after_prom_start)
 	tovirt(r6,r6)			/* on booke, we already run at PAGE_OFFSET */
 #endif
 
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_RELOCATABLE
 /*
  * Check if the kernel has to be running as relocatable kernel based on the
  * variable __run_at_load, if it is set the kernel is treated as relocatable
@@ -432,7 +432,8 @@ _STATIC(__after_prom_start)
 	cmplwi	cr0,r7,1
 	bne	3f
 
-	li	r5,__end_interrupts - _stext	/* just copy interrupts */
+	/* just copy interrupts */
+	LOAD_REG_IMMEDIATE(r5, __end_interrupts - _stext)
 	b	5f
 3:
 #endif
@@ -703,6 +704,7 @@ _INIT_STATIC(start_here_multiplatform)
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_OPAL
 	/* Setup OPAL entry */
+	LOAD_REG_ADDR(r11, opal)
 	std	r28,0(r11);
 	std	r29,8(r11);
 #endif

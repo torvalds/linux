@@ -173,6 +173,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return adtfn(set, &nip, timeout, flags);
 	}
 
+	ip_to = ip;
 	if (tb[IPSET_ATTR_IP_TO]) {
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &ip_to);
 		if (ret)
@@ -185,8 +186,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (!cidr || cidr > 32)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
-	} else
-		ip_to = ip;
+	}
 
 	hosts = h->netmask == 32 ? 1 : 2 << (32 - h->netmask - 1);
 

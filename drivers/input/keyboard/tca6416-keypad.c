@@ -166,7 +166,7 @@ static void tca6416_keys_close(struct input_dev *dev)
 		disable_irq(chip->irqnum);
 }
 
-static int __devinit tca6416_setup_registers(struct tca6416_keypad_chip *chip)
+static int tca6416_setup_registers(struct tca6416_keypad_chip *chip)
 {
 	int error;
 
@@ -197,7 +197,7 @@ static int __devinit tca6416_setup_registers(struct tca6416_keypad_chip *chip)
 	return 0;
 }
 
-static int __devinit tca6416_keypad_probe(struct i2c_client *client,
+static int tca6416_keypad_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct tca6416_keys_platform_data *pdata;
@@ -313,7 +313,7 @@ fail1:
 	return error;
 }
 
-static int __devexit tca6416_keypad_remove(struct i2c_client *client)
+static int tca6416_keypad_remove(struct i2c_client *client)
 {
 	struct tca6416_keypad_chip *chip = i2c_get_clientdata(client);
 
@@ -361,7 +361,7 @@ static struct i2c_driver tca6416_keypad_driver = {
 		.pm	= &tca6416_keypad_dev_pm_ops,
 	},
 	.probe		= tca6416_keypad_probe,
-	.remove		= __devexit_p(tca6416_keypad_remove),
+	.remove		= tca6416_keypad_remove,
 	.id_table	= tca6416_id,
 };
 

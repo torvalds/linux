@@ -176,21 +176,8 @@ static const struct iio_info als_info = {
 /* Function to push data to buffer */
 static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
-	int datum_sz;
-
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	if (!buffer) {
-		dev_err(&indio_dev->dev, "Buffer == NULL\n");
-		return;
-	}
-	datum_sz = buffer->access->get_bytes_per_datum(buffer);
-	if (len > datum_sz) {
-		dev_err(&indio_dev->dev, "Datum size mismatch %d:%d\n", len,
-				datum_sz);
-		return;
-	}
-	iio_push_to_buffer(buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 }
 
 /* Callback handler to send event after all samples are received and captured */
@@ -258,7 +245,7 @@ static int als_parse_report(struct platform_device *pdev,
 }
 
 /* Function to initialize the processing for usage id */
-static int __devinit hid_als_probe(struct platform_device *pdev)
+static int hid_als_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	static const char *name = "als";
@@ -285,10 +272,9 @@ static int __devinit hid_als_probe(struct platform_device *pdev)
 		goto error_free_dev;
 	}
 
-	channels = kmemdup(als_channels,
-					sizeof(als_channels),
-					GFP_KERNEL);
+	channels = kmemdup(als_channels, sizeof(als_channels), GFP_KERNEL);
 	if (!channels) {
+		ret = -ENOMEM;
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		goto error_free_dev;
 	}
@@ -355,7 +341,7 @@ error_ret:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int __devinit hid_als_remove(struct platform_device *pdev)
+static int hid_als_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);

@@ -31,7 +31,7 @@ const struct regmap_config pm80x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(pm80x_regmap_config);
 
-int __devinit pm80x_init(struct i2c_client *client,
+int pm80x_init(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
 	struct pm80x_chip *chip;

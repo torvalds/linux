@@ -31,8 +31,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/restart.h>
-
 #include "common.h"
 
 #define LEGACY_GPIO_BASE	0xD8110000
@@ -194,5 +192,6 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.timer		= &vt8500_timer,
 	.init_machine	= vt8500_init,
 	.restart	= vt8500_restart,
+	.handle_irq	= vt8500_handle_irq,
 MACHINE_END
 

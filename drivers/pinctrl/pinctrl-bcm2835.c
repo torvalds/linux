@@ -372,7 +372,7 @@ static int bcm2835_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_linear_revmap(pc->irq_domain, offset);
 }
 
-static struct gpio_chip bcm2835_gpio_chip __devinitconst = {
+static struct gpio_chip bcm2835_gpio_chip = {
 	.label = MODULE_NAME,
 	.owner = THIS_MODULE,
 	.request = bcm2835_gpio_request,
@@ -916,7 +916,7 @@ static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-struct pinconf_ops bcm2835_pinconf_ops = {
+static struct pinconf_ops bcm2835_pinconf_ops = {
 	.pin_config_get = bcm2835_pinconf_get,
 	.pin_config_set = bcm2835_pinconf_set,
 };
@@ -931,12 +931,12 @@ static struct pinctrl_desc bcm2835_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static struct pinctrl_gpio_range bcm2835_pinctrl_gpio_range __devinitconst = {
+static struct pinctrl_gpio_range bcm2835_pinctrl_gpio_range = {
 	.name = MODULE_NAME,
 	.npins = BCM2835_NUM_GPIOS,
 };
 
-static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
+static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -1042,7 +1042,7 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bcm2835_pinctrl_remove(struct platform_device *pdev)
+static int bcm2835_pinctrl_remove(struct platform_device *pdev)
 {
 	struct bcm2835_pinctrl *pc = platform_get_drvdata(pdev);
 
@@ -1052,7 +1052,7 @@ static int __devexit bcm2835_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id bcm2835_pinctrl_match[] __devinitconst = {
+static struct of_device_id bcm2835_pinctrl_match[] = {
 	{ .compatible = "brcm,bcm2835-gpio" },
 	{}
 };

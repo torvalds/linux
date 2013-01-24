@@ -10,9 +10,6 @@
  */
 
 #include <linux/smp.h>
-
-#ifndef CONFIG_S390
-
 #include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
@@ -746,8 +743,11 @@ static inline void irq_gc_lock(struct irq_chip_generic *gc) { }
 static inline void irq_gc_unlock(struct irq_chip_generic *gc) { }
 #endif
 
-#endif /* CONFIG_GENERIC_HARDIRQS */
+#else /* !CONFIG_GENERIC_HARDIRQS */
 
-#endif /* !CONFIG_S390 */
+extern struct msi_desc *irq_get_msi_desc(unsigned int irq);
+extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
+
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* _LINUX_IRQ_H */

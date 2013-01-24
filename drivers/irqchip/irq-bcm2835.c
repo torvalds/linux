@@ -168,7 +168,8 @@ static int __init armctrl_of_init(struct device_node *node,
 }
 
 static struct of_device_id irq_of_match[] __initconst = {
-	{ .compatible = "brcm,bcm2835-armctrl-ic", .data = armctrl_of_init }
+	{ .compatible = "brcm,bcm2835-armctrl-ic", .data = armctrl_of_init },
+	{ }
 };
 
 void __init bcm2835_init_irq(void)

@@ -6,27 +6,14 @@
 
 #define SERPENT_PARALLEL_BLOCKS 8
 
-asmlinkage void __serpent_enc_blk_8way_avx(struct serpent_ctx *ctx, u8 *dst,
-					   const u8 *src, bool xor);
-asmlinkage void serpent_dec_blk_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+asmlinkage void serpent_ecb_enc_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+					 const u8 *src);
+asmlinkage void serpent_ecb_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
 					 const u8 *src);
 
-static inline void serpent_enc_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-				   const u8 *src)
-{
-	__serpent_enc_blk_8way_avx(ctx, dst, src, false);
-}
-
-static inline void serpent_enc_blk_xway_xor(struct serpent_ctx *ctx, u8 *dst,
-				       const u8 *src)
-{
-	__serpent_enc_blk_8way_avx(ctx, dst, src, true);
-}
-
-static inline void serpent_dec_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-				   const u8 *src)
-{
-	serpent_dec_blk_8way_avx(ctx, dst, src);
-}
+asmlinkage void serpent_cbc_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+					 const u8 *src);
+asmlinkage void serpent_ctr_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+				     const u8 *src, le128 *iv);
 
 #endif

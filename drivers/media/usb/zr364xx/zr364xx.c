@@ -1007,8 +1007,7 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 
-	if (purb->actual_length < 0 ||
-	    purb->actual_length > pipe_info->transfer_size) {
+	if (purb->actual_length > pipe_info->transfer_size) {
 		dev_err(&cam->udev->dev, "wrong number of bytes\n");
 		return;
 	}

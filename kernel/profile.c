@@ -8,9 +8,10 @@
  *  Scheduler profiling support, Arjan van de Ven and Ingo Molnar,
  *	Red Hat, July 2004
  *  Consolidation of architecture support code for profiling,
- *	William Irwin, Oracle, July 2004
+ *	Nadia Yvette Chambers, Oracle, July 2004
  *  Amortized hit count accounting via per-cpu open-addressed hashtables
- *	to resolve timer interrupt livelocks, William Irwin, Oracle, 2004
+ *	to resolve timer interrupt livelocks, Nadia Yvette Chambers,
+ *	Oracle, 2004
  */
 
 #include <linux/export.h>
@@ -256,7 +257,7 @@ EXPORT_SYMBOL_GPL(unregister_timer_hook);
  * pagetable hash functions, but uses a full hashtable full of finite
  * collision chains, not just pairs of them.
  *
- * -- wli
+ * -- nyc
  */
 static void __profile_flip_buffers(void *unused)
 {

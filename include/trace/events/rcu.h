@@ -549,6 +549,7 @@ TRACE_EVENT(rcu_torture_read,
  *	"EarlyExit": rcu_barrier_callback() piggybacked, thus early exit.
  *	"Inc1": rcu_barrier_callback() piggyback check counter incremented.
  *	"Offline": rcu_barrier_callback() found offline CPU
+ *	"OnlineNoCB": rcu_barrier_callback() found online no-CBs CPU.
  *	"OnlineQ": rcu_barrier_callback() found online CPU with callbacks.
  *	"OnlineNQ": rcu_barrier_callback() found online CPU, no callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.

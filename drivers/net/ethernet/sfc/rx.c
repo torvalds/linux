@@ -187,7 +187,6 @@ static int efx_init_rx_buffers_page(struct efx_rx_queue *rx_queue)
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_rx_buffer *rx_buf;
 	struct page *page;
-	void *page_addr;
 	struct efx_rx_page_state *state;
 	dma_addr_t dma_addr;
 	unsigned index, count;
@@ -207,12 +206,10 @@ static int efx_init_rx_buffers_page(struct efx_rx_queue *rx_queue)
 			__free_pages(page, efx->rx_buffer_order);
 			return -EIO;
 		}
-		page_addr = page_address(page);
-		state = page_addr;
+		state = page_address(page);
 		state->refcnt = 0;
 		state->dma_addr = dma_addr;
 
-		page_addr += sizeof(struct efx_rx_page_state);
 		dma_addr += sizeof(struct efx_rx_page_state);
 
 	split:
@@ -230,7 +227,6 @@ static int efx_init_rx_buffers_page(struct efx_rx_queue *rx_queue)
 			/* Use the second half of the page */
 			get_page(page);
 			dma_addr += (PAGE_SIZE >> 1);
-			page_addr += (PAGE_SIZE >> 1);
 			++count;
 			goto split;
 		}

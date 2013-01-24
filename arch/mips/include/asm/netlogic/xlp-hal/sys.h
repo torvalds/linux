@@ -124,6 +124,5 @@
 #define	nlm_get_sys_pcibase(node) nlm_pcicfg_base(XLP_IO_SYS_OFFSET(node))
 #define	nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
-extern uint64_t nlm_sys_base;
 #endif
 #endif

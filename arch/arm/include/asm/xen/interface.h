@@ -49,6 +49,7 @@ DEFINE_GUEST_HANDLE(void);
 DEFINE_GUEST_HANDLE(uint64_t);
 DEFINE_GUEST_HANDLE(uint32_t);
 DEFINE_GUEST_HANDLE(xen_pfn_t);
+DEFINE_GUEST_HANDLE(xen_ulong_t);
 
 /* Maximum number of virtual CPUs in multi-processor guests. */
 #define MAX_VIRT_CPUS 1

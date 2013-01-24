@@ -688,15 +688,4 @@ static struct i2c_driver s2250_driver = {
 	.id_table	= s2250_id,
 };
 
-static __init int init_s2250(void)
-{
-	return i2c_add_driver(&s2250_driver);
-}
-
-static __exit void exit_s2250(void)
-{
-	i2c_del_driver(&s2250_driver);
-}
-
-module_init(init_s2250);
-module_exit(exit_s2250);
+module_i2c_driver(s2250_driver);

@@ -25,7 +25,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/export.h>
 #include <linux/etherdevice.h>
 
 #include <net/bluetooth/bluetooth.h>

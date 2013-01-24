@@ -315,7 +315,7 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 
 	pT00->T00_tx_packet_id = pDes->Descriptor_ID; /* Set packet ID */
 	pT00->T00_header_length = 24; /* Set header length */
-	pT01->T01_retry_abort_ebable = 1; /* 921013 931130.5.h */
+	pT01->T01_retry_abort_enable = 1; /* 921013 931130.5.h */
 
 	/* Key ID setup */
 	pT01->T01_wep_id = 0;
@@ -476,11 +476,8 @@ Mds_Tx(struct wbsoft_priv *adapter)
 			/* 931130.5.b */
 			FragmentCount = PacketSize/FragmentThreshold + 1;
 			stmp = PacketSize + FragmentCount*32 + 8; /* 931130.5.c 8:MIC */
-			if ((XmitBufSize + stmp) >= MAX_USB_TX_BUFFER) {
-				printk("[Mds_Tx] Excess max tx buffer.\n");
+			if ((XmitBufSize + stmp) >= MAX_USB_TX_BUFFER)
 				break; /* buffer is not enough */
-			}
-
 
 			/*
 			 * Start transmitting

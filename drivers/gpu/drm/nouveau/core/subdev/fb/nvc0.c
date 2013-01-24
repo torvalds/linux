@@ -62,6 +62,65 @@ nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 }
 
 static int
+nvc0_fb_vram_init(struct nouveau_fb *pfb)
+{
+	struct nouveau_bios *bios = nouveau_bios(pfb);
+	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	u32 parts = nv_rd32(pfb, 0x022438);
+	u32 pmask = nv_rd32(pfb, 0x022554);
+	u32 bsize = nv_rd32(pfb, 0x10f20c);
+	u32 offset, length;
+	bool uniform = true;
+	int ret, part;
+
+	nv_debug(pfb, "0x100800: 0x%08x\n", nv_rd32(pfb, 0x100800));
+	nv_debug(pfb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
+
+	pfb->ram.type = nouveau_fb_bios_memtype(bios);
+	pfb->ram.ranks = (nv_rd32(pfb, 0x10f200) & 0x00000004) ? 2 : 1;
+
+	/* read amount of vram attached to each memory controller */
+	for (part = 0; part < parts; part++) {
+		if (!(pmask & (1 << part))) {
+			u32 psize = nv_rd32(pfb, 0x11020c + (part * 0x1000));
+			if (psize != bsize) {
+				if (psize < bsize)
+					bsize = psize;
+				uniform = false;
+			}
+
+			nv_debug(pfb, "%d: mem_amount 0x%08x\n", part, psize);
+			pfb->ram.size += (u64)psize << 20;
+		}
+	}
+
+	/* if all controllers have the same amount attached, there's no holes */
+	if (uniform) {
+		offset = rsvd_head;
+		length = (pfb->ram.size >> 12) - rsvd_head - rsvd_tail;
+		return nouveau_mm_init(&pfb->vram, offset, length, 1);
+	}
+
+	/* otherwise, address lowest common amount from 0GiB */
+	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (bsize << 8) * parts, 1);
+	if (ret)
+		return ret;
+
+	/* and the rest starting from (8GiB + common_size) */
+	offset = (0x0200000000ULL >> 12) + (bsize << 8);
+	length = (pfb->ram.size >> 12) - (bsize << 8) - rsvd_tail;
+
+	ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
+	if (ret) {
+		nouveau_mm_fini(&pfb->vram);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
 nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		 u32 memtype, struct nouveau_mem **pmem)
 {
@@ -86,14 +145,14 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	mem->memtype = type;
 	mem->size = size;
 
-	mutex_lock(&mm->mutex);
+	mutex_lock(&pfb->base.mutex);
 	do {
 		if (back)
 			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
 		else
 			ret = nouveau_mm_head(mm, 1, size, ncmin, align, &r);
 		if (ret) {
-			mutex_unlock(&mm->mutex);
+			mutex_unlock(&pfb->base.mutex);
 			pfb->ram.put(pfb, &mem);
 			return ret;
 		}
@@ -101,7 +160,7 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		list_add_tail(&r->rl_entry, &mem->regions);
 		size -= r->length;
 	} while (size);
-	mutex_unlock(&mm->mutex);
+	mutex_unlock(&pfb->base.mutex);
 
 	r = list_first_entry(&mem->regions, struct nouveau_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << 12;
@@ -139,66 +198,6 @@ nvc0_fb_dtor(struct nouveau_object *object)
 }
 
 static int
-nvc0_vram_detect(struct nvc0_fb_priv *priv)
-{
-	struct nouveau_bios *bios = nouveau_bios(priv);
-	struct nouveau_fb *pfb = &priv->base;
-	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
-	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 parts = nv_rd32(priv, 0x022438);
-	u32 pmask = nv_rd32(priv, 0x022554);
-	u32 bsize = nv_rd32(priv, 0x10f20c);
-	u32 offset, length;
-	bool uniform = true;
-	int ret, part;
-
-	nv_debug(priv, "0x100800: 0x%08x\n", nv_rd32(priv, 0x100800));
-	nv_debug(priv, "parts 0x%08x mask 0x%08x\n", parts, pmask);
-
-	priv->base.ram.type = nouveau_fb_bios_memtype(bios);
-	priv->base.ram.ranks = (nv_rd32(priv, 0x10f200) & 0x00000004) ? 2 : 1;
-
-	/* read amount of vram attached to each memory controller */
-	for (part = 0; part < parts; part++) {
-		if (!(pmask & (1 << part))) {
-			u32 psize = nv_rd32(priv, 0x11020c + (part * 0x1000));
-			if (psize != bsize) {
-				if (psize < bsize)
-					bsize = psize;
-				uniform = false;
-			}
-
-			nv_debug(priv, "%d: mem_amount 0x%08x\n", part, psize);
-			priv->base.ram.size += (u64)psize << 20;
-		}
-	}
-
-	/* if all controllers have the same amount attached, there's no holes */
-	if (uniform) {
-		offset = rsvd_head;
-		length = (priv->base.ram.size >> 12) - rsvd_head - rsvd_tail;
-		return nouveau_mm_init(&pfb->vram, offset, length, 1);
-	}
-
-	/* otherwise, address lowest common amount from 0GiB */
-	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (bsize << 8) * parts, 1);
-	if (ret)
-		return ret;
-
-	/* and the rest starting from (8GiB + common_size) */
-	offset = (0x0200000000ULL >> 12) + (bsize << 8);
-	length = (priv->base.ram.size >> 12) - (bsize << 8) - rsvd_tail;
-
-	ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
-	if (ret) {
-		nouveau_mm_fini(&pfb->vram);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int
 nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
@@ -213,12 +212,9 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.memtype_valid = nvc0_fb_memtype_valid;
+	priv->base.ram.init = nvc0_fb_vram_init;
 	priv->base.ram.get = nvc0_fb_vram_new;
 	priv->base.ram.put = nv50_fb_vram_del;
-
-	ret = nvc0_vram_detect(priv);
-	if (ret)
-		return ret;
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!priv->r100c10_page)
@@ -229,7 +225,7 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (pci_dma_mapping_error(device->pdev, priv->r100c10))
 		return -EFAULT;
 
-	return nouveau_fb_created(&priv->base);
+	return nouveau_fb_preinit(&priv->base);
 }
 
 

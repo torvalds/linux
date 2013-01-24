@@ -578,7 +578,7 @@ static int snd_lx6464es_dev_free(struct snd_device *device)
 }
 
 /* reset the dsp during initialization */
-static int __devinit lx_init_xilinx_reset(struct lx6464es *chip)
+static int lx_init_xilinx_reset(struct lx6464es *chip)
 {
 	int i;
 	u32 plx_reg = lx_plx_reg_read(chip, ePLX_CHIPSC);
@@ -620,7 +620,7 @@ static int __devinit lx_init_xilinx_reset(struct lx6464es *chip)
 	return 0;
 }
 
-static int __devinit lx_init_xilinx_test(struct lx6464es *chip)
+static int lx_init_xilinx_test(struct lx6464es *chip)
 {
 	u32 reg;
 
@@ -650,7 +650,7 @@ static int __devinit lx_init_xilinx_test(struct lx6464es *chip)
 }
 
 /* initialize ethersound */
-static int __devinit lx_init_ethersound_config(struct lx6464es *chip)
+static int lx_init_ethersound_config(struct lx6464es *chip)
 {
 	int i;
 	u32 orig_conf_es = lx_dsp_reg_read(chip, eReg_CONFES);
@@ -690,7 +690,7 @@ static int __devinit lx_init_ethersound_config(struct lx6464es *chip)
 	return 0;
 }
 
-static int __devinit lx_init_get_version_features(struct lx6464es *chip)
+static int lx_init_get_version_features(struct lx6464es *chip)
 {
 	u32 dsp_version;
 
@@ -759,7 +759,7 @@ static int lx_set_granularity(struct lx6464es *chip, u32 gran)
 }
 
 /* initialize and test the xilinx dsp chip */
-static int __devinit lx_init_dsp(struct lx6464es *chip)
+static int lx_init_dsp(struct lx6464es *chip)
 {
 	int err;
 	int i;
@@ -835,7 +835,7 @@ static struct snd_pcm_ops lx_ops_capture = {
 	.pointer   = lx_pcm_stream_pointer,
 };
 
-static int __devinit lx_pcm_create(struct lx6464es *chip)
+static int lx_pcm_create(struct lx6464es *chip)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -907,7 +907,7 @@ static int lx_control_playback_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new lx_control_playback_switch __devinitdata = {
+static struct snd_kcontrol_new lx_control_playback_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,
@@ -954,7 +954,7 @@ static void lx_proc_levels_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "\n");
 }
 
-static int __devinit lx_proc_create(struct snd_card *card, struct lx6464es *chip)
+static int lx_proc_create(struct snd_card *card, struct lx6464es *chip)
 {
 	struct snd_info_entry *entry;
 	int err = snd_card_proc_new(card, "levels", &entry);
@@ -966,9 +966,9 @@ static int __devinit lx_proc_create(struct snd_card *card, struct lx6464es *chip
 }
 
 
-static int __devinit snd_lx6464es_create(struct snd_card *card,
-					 struct pci_dev *pci,
-					 struct lx6464es **rchip)
+static int snd_lx6464es_create(struct snd_card *card,
+			       struct pci_dev *pci,
+			       struct lx6464es **rchip)
 {
 	struct lx6464es *chip;
 	int err;
@@ -1082,8 +1082,8 @@ alloc_failed:
 	return err;
 }
 
-static int __devinit snd_lx6464es_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+static int snd_lx6464es_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1136,7 +1136,7 @@ out_free:
 
 }
 
-static void __devexit snd_lx6464es_remove(struct pci_dev *pci)
+static void snd_lx6464es_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1147,7 +1147,7 @@ static struct pci_driver lx6464es_driver = {
 	.name =     KBUILD_MODNAME,
 	.id_table = snd_lx6464es_ids,
 	.probe =    snd_lx6464es_probe,
-	.remove = __devexit_p(snd_lx6464es_remove),
+	.remove = snd_lx6464es_remove,
 };
 
 module_pci_driver(lx6464es_driver);

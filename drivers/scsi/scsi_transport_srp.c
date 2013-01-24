@@ -38,7 +38,7 @@ struct srp_host_attrs {
 #define to_srp_host_attrs(host)	((struct srp_host_attrs *)(host)->shost_data)
 
 #define SRP_HOST_ATTRS 0
-#define SRP_RPORT_ATTRS 2
+#define SRP_RPORT_ATTRS 3
 
 struct srp_internal {
 	struct scsi_transport_template t;
@@ -47,7 +47,6 @@ struct srp_internal {
 	struct device_attribute *host_attrs[SRP_HOST_ATTRS + 1];
 
 	struct device_attribute *rport_attrs[SRP_RPORT_ATTRS + 1];
-	struct device_attribute private_rport_attrs[SRP_RPORT_ATTRS];
 	struct transport_container rport_attr_cont;
 };
 
@@ -71,24 +70,6 @@ static DECLARE_TRANSPORT_CLASS(srp_host_class, "srp_host", srp_host_setup,
 
 static DECLARE_TRANSPORT_CLASS(srp_rport_class, "srp_remote_ports",
 			       NULL, NULL, NULL);
-
-#define SETUP_TEMPLATE(attrb, field, perm, test, ro_test, ro_perm)	\
-	i->private_##attrb[count] = dev_attr_##field;		\
-	i->private_##attrb[count].attr.mode = perm;			\
-	if (ro_test) {							\
-		i->private_##attrb[count].attr.mode = ro_perm;		\
-		i->private_##attrb[count].store = NULL;			\
-	}								\
-	i->attrb[count] = &i->private_##attrb[count];			\
-	if (test)							\
-		count++
-
-#define SETUP_RPORT_ATTRIBUTE_RD(field)					\
-	SETUP_TEMPLATE(rport_attrs, field, S_IRUGO, 1, 0, 0)
-
-#define SETUP_RPORT_ATTRIBUTE_RW(field)					\
-	SETUP_TEMPLATE(rport_attrs, field, S_IRUGO | S_IWUSR,		\
-		       1, 1, S_IRUGO)
 
 #define SRP_PID(p) \
 	(p)->port_id[0], (p)->port_id[1], (p)->port_id[2], (p)->port_id[3], \
@@ -134,6 +115,24 @@ show_srp_rport_roles(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(roles, S_IRUGO, show_srp_rport_roles, NULL);
+
+static ssize_t store_srp_rport_delete(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct srp_rport *rport = transport_class_to_srp_rport(dev);
+	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct srp_internal *i = to_srp_internal(shost->transportt);
+
+	if (i->f->rport_delete) {
+		i->f->rport_delete(rport);
+		return count;
+	} else {
+		return -ENOSYS;
+	}
+}
+
+static DEVICE_ATTR(delete, S_IWUSR, NULL, store_srp_rport_delete);
 
 static void srp_rport_release(struct device *dev)
 {
@@ -324,12 +323,16 @@ srp_attach_transport(struct srp_function_template *ft)
 	i->rport_attr_cont.ac.attrs = &i->rport_attrs[0];
 	i->rport_attr_cont.ac.class = &srp_rport_class.class;
 	i->rport_attr_cont.ac.match = srp_rport_match;
-	transport_container_register(&i->rport_attr_cont);
 
 	count = 0;
-	SETUP_RPORT_ATTRIBUTE_RD(port_id);
-	SETUP_RPORT_ATTRIBUTE_RD(roles);
-	i->rport_attrs[count] = NULL;
+	i->rport_attrs[count++] = &dev_attr_port_id;
+	i->rport_attrs[count++] = &dev_attr_roles;
+	if (ft->rport_delete)
+		i->rport_attrs[count++] = &dev_attr_delete;
+	i->rport_attrs[count++] = NULL;
+	BUG_ON(count > ARRAY_SIZE(i->rport_attrs));
+
+	transport_container_register(&i->rport_attr_cont);
 
 	i->f = ft;
 

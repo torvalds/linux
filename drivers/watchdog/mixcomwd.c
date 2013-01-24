@@ -73,7 +73,7 @@
 static struct {
 	int ioport;
 	int id;
-} mixcomwd_io_info[] __devinitdata = {
+} mixcomwd_io_info[] = {
 	/* The Mixcom cards */
 	{0x0d90, MIXCOM_ID},
 	{0x0e90, MIXCOM_ID},

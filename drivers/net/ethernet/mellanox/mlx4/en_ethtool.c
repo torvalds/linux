@@ -43,6 +43,34 @@
 #define EN_ETHTOOL_SHORT_MASK cpu_to_be16(0xffff)
 #define EN_ETHTOOL_WORD_MASK  cpu_to_be32(0xffffffff)
 
+static int mlx4_en_moderation_update(struct mlx4_en_priv *priv)
+{
+	int i;
+	int err = 0;
+
+	for (i = 0; i < priv->tx_ring_num; i++) {
+		priv->tx_cq[i].moder_cnt = priv->tx_frames;
+		priv->tx_cq[i].moder_time = priv->tx_usecs;
+		err = mlx4_en_set_cq_moder(priv, &priv->tx_cq[i]);
+		if (err)
+			return err;
+	}
+
+	if (priv->adaptive_rx_coal)
+		return 0;
+
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		priv->rx_cq[i].moder_cnt = priv->rx_frames;
+		priv->rx_cq[i].moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
+		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
 static void
 mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
@@ -381,7 +409,6 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int err, i;
 
 	priv->rx_frames = (coal->rx_max_coalesced_frames ==
 			   MLX4_EN_AUTO_CONF) ?
@@ -397,14 +424,6 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 	    coal->tx_max_coalesced_frames != priv->tx_frames) {
 		priv->tx_usecs = coal->tx_coalesce_usecs;
 		priv->tx_frames = coal->tx_max_coalesced_frames;
-		for (i = 0; i < priv->tx_ring_num; i++) {
-			priv->tx_cq[i].moder_cnt = priv->tx_frames;
-			priv->tx_cq[i].moder_time = priv->tx_usecs;
-			if (mlx4_en_set_cq_moder(priv, &priv->tx_cq[i])) {
-				en_warn(priv, "Failed changing moderation "
-					      "for TX cq %d\n", i);
-			}
-		}
 	}
 
 	/* Set adaptive coalescing params */
@@ -414,18 +433,8 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 	priv->rx_usecs_high = coal->rx_coalesce_usecs_high;
 	priv->sample_interval = coal->rate_sample_interval;
 	priv->adaptive_rx_coal = coal->use_adaptive_rx_coalesce;
-	if (priv->adaptive_rx_coal)
-		return 0;
 
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->rx_cq[i].moder_cnt = priv->rx_frames;
-		priv->rx_cq[i].moder_time = priv->rx_usecs;
-		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
-		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
-		if (err)
-			return err;
-	}
-	return 0;
+	return mlx4_en_moderation_update(priv);
 }
 
 static int mlx4_en_set_pauseparam(struct net_device *dev,
@@ -466,7 +475,6 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	u32 rx_size, tx_size;
 	int port_up = 0;
 	int err = 0;
-	int i;
 
 	if (param->rx_jumbo_pending || param->rx_mini_pending)
 		return -EINVAL;
@@ -505,14 +513,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 			en_err(priv, "Failed starting port\n");
 	}
 
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->rx_cq[i].moder_cnt = priv->rx_frames;
-		priv->rx_cq[i].moder_time = priv->rx_usecs;
-		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
-		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
-		if (err)
-			goto out;
-	}
+	err = mlx4_en_moderation_update(priv);
 
 out:
 	mutex_unlock(&mdev->state_lock);
@@ -612,13 +613,17 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 	struct ethtool_usrip4_spec *l3_mask;
 	struct ethtool_tcpip4_spec *l4_mask;
 	struct ethhdr *eth_mask;
-	u64 full_mac = ~0ull;
-	u64 zero_mac = 0;
 
 	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES)
 		return -EINVAL;
 
-	switch (cmd->fs.flow_type & ~FLOW_EXT) {
+	if (cmd->fs.flow_type & FLOW_MAC_EXT) {
+		/* dest mac mask must be ff:ff:ff:ff:ff:ff */
+		if (!is_broadcast_ether_addr(cmd->fs.m_ext.h_dest))
+			return -EINVAL;
+	}
+
+	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		if (cmd->fs.m_u.tcp_ip4_spec.tos)
@@ -643,11 +648,11 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 	case ETHER_FLOW:
 		eth_mask = &cmd->fs.m_u.ether_spec;
 		/* source mac mask must not be set */
-		if (memcmp(eth_mask->h_source, &zero_mac, ETH_ALEN))
+		if (!is_zero_ether_addr(eth_mask->h_source))
 			return -EINVAL;
 
 		/* dest mac mask must be ff:ff:ff:ff:ff:ff */
-		if (memcmp(eth_mask->h_dest, &full_mac, ETH_ALEN))
+		if (!is_broadcast_ether_addr(eth_mask->h_dest))
 			return -EINVAL;
 
 		if (!all_zeros_or_all_ones(eth_mask->h_proto))
@@ -746,7 +751,6 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 					     struct list_head *rule_list_h)
 {
 	int err;
-	u64 mac;
 	__be64 be_mac;
 	struct ethhdr *eth_spec;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -761,12 +765,16 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 	if (!spec_l2)
 		return -ENOMEM;
 
-	mac = priv->mac & MLX4_MAC_MASK;
-	be_mac = cpu_to_be64(mac << 16);
+	if (cmd->fs.flow_type & FLOW_MAC_EXT) {
+		memcpy(&be_mac, cmd->fs.h_ext.h_dest, ETH_ALEN);
+	} else {
+		u64 mac = priv->mac & MLX4_MAC_MASK;
+		be_mac = cpu_to_be64(mac << 16);
+	}
 
 	spec_l2->id = MLX4_NET_TRANS_RULE_ID_ETH;
 	memcpy(spec_l2->eth.dst_mac_msk, &mac_msk, ETH_ALEN);
-	if ((cmd->fs.flow_type & ~FLOW_EXT) != ETHER_FLOW)
+	if ((cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) != ETHER_FLOW)
 		memcpy(spec_l2->eth.dst_mac, &be_mac, ETH_ALEN);
 
 	if ((cmd->fs.flow_type & FLOW_EXT) && cmd->fs.m_ext.vlan_tci) {
@@ -776,7 +784,7 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 
 	list_add_tail(&spec_l2->list, rule_list_h);
 
-	switch (cmd->fs.flow_type & ~FLOW_EXT) {
+	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case ETHER_FLOW:
 		eth_spec = &cmd->fs.h_u.ether_spec;
 		memcpy(&spec_l2->eth.dst_mac, eth_spec->h_dest, ETH_ALEN);
@@ -998,6 +1006,73 @@ static int mlx4_en_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return err;
 }
 
+static void mlx4_en_get_channels(struct net_device *dev,
+				 struct ethtool_channels *channel)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	memset(channel, 0, sizeof(*channel));
+
+	channel->max_rx = MAX_RX_RINGS;
+	channel->max_tx = MLX4_EN_MAX_TX_RING_P_UP;
+
+	channel->rx_count = priv->rx_ring_num;
+	channel->tx_count = priv->tx_ring_num / MLX4_EN_NUM_UP;
+}
+
+static int mlx4_en_set_channels(struct net_device *dev,
+				struct ethtool_channels *channel)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int port_up;
+	int err = 0;
+
+	if (channel->other_count || channel->combined_count ||
+	    channel->tx_count > MLX4_EN_MAX_TX_RING_P_UP ||
+	    channel->rx_count > MAX_RX_RINGS ||
+	    !channel->tx_count || !channel->rx_count)
+		return -EINVAL;
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev);
+	}
+
+	mlx4_en_free_resources(priv);
+
+	priv->num_tx_rings_p_up = channel->tx_count;
+	priv->tx_ring_num = channel->tx_count * MLX4_EN_NUM_UP;
+	priv->rx_ring_num = channel->rx_count;
+
+	err = mlx4_en_alloc_resources(priv);
+	if (err) {
+		en_err(priv, "Failed reallocating port resources\n");
+		goto out;
+	}
+
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
+	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
+
+	mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+
+	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num);
+	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);
+
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err)
+			en_err(priv, "Failed starting port\n");
+	}
+
+	err = mlx4_en_moderation_update(priv);
+
+out:
+	mutex_unlock(&mdev->state_lock);
+	return err;
+}
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -1022,6 +1097,8 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
 	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
 	.set_rxfh_indir = mlx4_en_set_rxfh_indir,
+	.get_channels = mlx4_en_get_channels,
+	.set_channels = mlx4_en_set_channels,
 };
 
 

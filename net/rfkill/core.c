@@ -676,7 +676,7 @@ static ssize_t rfkill_soft_store(struct device *dev,
 	rfkill_set_block(rfkill, state);
 	mutex_unlock(&rfkill_global_mutex);
 
-	return err ?: count;
+	return count;
 }
 
 static u8 user_state_from_blocked(unsigned long state)
@@ -721,7 +721,7 @@ static ssize_t rfkill_state_store(struct device *dev,
 	rfkill_set_block(rfkill, state == RFKILL_USER_STATE_SOFT_BLOCKED);
 	mutex_unlock(&rfkill_global_mutex);
 
-	return err ?: count;
+	return count;
 }
 
 static ssize_t rfkill_claim_show(struct device *dev,

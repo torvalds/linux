@@ -47,6 +47,10 @@ extern struct mid_q_entry *smb2_setup_request(struct cifs_ses *ses,
 			      struct smb_rqst *rqst);
 extern struct mid_q_entry *smb2_setup_async_request(
 			struct TCP_Server_Info *server, struct smb_rqst *rqst);
+extern int smb2_calc_signature(struct smb_rqst *rqst,
+				struct TCP_Server_Info *server);
+extern int smb3_calc_signature(struct smb_rqst *rqst,
+				struct TCP_Server_Info *server);
 extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
 extern __u8 smb2_map_lease_to_oplock(__le32 lease_state);

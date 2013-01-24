@@ -228,7 +228,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_sh_bucket *tbl;
 	struct ip_vs_iphdr iph;
 
-	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
+	ip_vs_fill_iph_addr_only(svc->af, skb, &iph);
 
 	IP_VS_DBG(6, "ip_vs_sh_schedule(): Scheduling...\n");
 

@@ -50,7 +50,7 @@
 #define SMSSDIO_INT		0x04
 #define SMSSDIO_BLOCK_SIZE	128
 
-static const struct sdio_device_id smssdio_ids[] __devinitconst = {
+static const struct sdio_device_id smssdio_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_STELLAR),
 	 .driver_data = SMS1XXX_BOARD_SIANO_STELLAR},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_NOVA_A0),
@@ -224,7 +224,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	smscore_onresponse(smsdev->coredev, cb);
 }
 
-static int __devinit smssdio_probe(struct sdio_func *func,
+static int smssdio_probe(struct sdio_func *func,
 			 const struct sdio_device_id *id)
 {
 	int ret;

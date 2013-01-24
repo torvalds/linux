@@ -320,7 +320,6 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 					   int (*func)(void))
 {
 	int save_ftrace_enabled = ftrace_enabled;
-	int save_tracer_enabled = tracer_enabled;
 	unsigned long count;
 	char *func_name;
 	int ret;
@@ -331,7 +330,6 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
 	/* enable tracing, and record the filter function */
 	ftrace_enabled = 1;
-	tracer_enabled = 1;
 
 	/* passed in by parameter to fool gcc from optimizing */
 	func();
@@ -395,7 +393,6 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
  out:
 	ftrace_enabled = save_ftrace_enabled;
-	tracer_enabled = save_tracer_enabled;
 
 	/* Enable tracing on all functions again */
 	ftrace_set_global_filter(NULL, 0, 1);
@@ -452,7 +449,6 @@ static int
 trace_selftest_function_recursion(void)
 {
 	int save_ftrace_enabled = ftrace_enabled;
-	int save_tracer_enabled = tracer_enabled;
 	char *func_name;
 	int len;
 	int ret;
@@ -465,7 +461,6 @@ trace_selftest_function_recursion(void)
 
 	/* enable tracing, and record the filter function */
 	ftrace_enabled = 1;
-	tracer_enabled = 1;
 
 	/* Handle PPC64 '.' name */
 	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
@@ -534,7 +529,6 @@ trace_selftest_function_recursion(void)
 	ret = 0;
 out:
 	ftrace_enabled = save_ftrace_enabled;
-	tracer_enabled = save_tracer_enabled;
 
 	return ret;
 }
@@ -569,7 +563,6 @@ static int
 trace_selftest_function_regs(void)
 {
 	int save_ftrace_enabled = ftrace_enabled;
-	int save_tracer_enabled = tracer_enabled;
 	char *func_name;
 	int len;
 	int ret;
@@ -586,7 +579,6 @@ trace_selftest_function_regs(void)
 
 	/* enable tracing, and record the filter function */
 	ftrace_enabled = 1;
-	tracer_enabled = 1;
 
 	/* Handle PPC64 '.' name */
 	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
@@ -648,7 +640,6 @@ trace_selftest_function_regs(void)
 	ret = 0;
 out:
 	ftrace_enabled = save_ftrace_enabled;
-	tracer_enabled = save_tracer_enabled;
 
 	return ret;
 }
@@ -662,7 +653,6 @@ int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
 	int save_ftrace_enabled = ftrace_enabled;
-	int save_tracer_enabled = tracer_enabled;
 	unsigned long count;
 	int ret;
 
@@ -671,7 +661,6 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	/* start the tracing */
 	ftrace_enabled = 1;
-	tracer_enabled = 1;
 
 	ret = tracer_init(trace, tr);
 	if (ret) {
@@ -708,7 +697,6 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	ret = trace_selftest_function_regs();
  out:
 	ftrace_enabled = save_ftrace_enabled;
-	tracer_enabled = save_tracer_enabled;
 
 	/* kill ftrace totally if we failed */
 	if (ret)
@@ -1106,6 +1094,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
+	printk("ret = %d\n", ret);
 	if (!ret)
 		ret = trace_test_buffer(&max_tr, &count);
 

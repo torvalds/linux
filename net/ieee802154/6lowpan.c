@@ -1047,7 +1047,8 @@ static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto error;
 	}
 
-	if (skb->len <= IEEE802154_MTU) {
+	/* Send directly if less than the MTU minus the 2 checksum bytes. */
+	if (skb->len <= IEEE802154_MTU - IEEE802154_MFR_SIZE) {
 		err = dev_queue_xmit(skb);
 		goto out;
 	}

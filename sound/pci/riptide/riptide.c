@@ -1706,7 +1706,7 @@ static struct snd_pcm_ops snd_riptide_capture_ops = {
 	.pointer = snd_riptide_pointer,
 };
 
-static int __devinit
+static int
 snd_riptide_pcm(struct snd_riptide *chip, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
@@ -1857,7 +1857,7 @@ static int snd_riptide_dev_free(struct snd_device *device)
 	return snd_riptide_free(chip);
 }
 
-static int __devinit
+static int
 snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 		   struct snd_riptide **rchip)
 {
@@ -1993,7 +1993,7 @@ snd_riptide_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "\n");
 }
 
-static void __devinit snd_riptide_proc_init(struct snd_riptide *chip)
+static void snd_riptide_proc_init(struct snd_riptide *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -2001,7 +2001,7 @@ static void __devinit snd_riptide_proc_init(struct snd_riptide *chip)
 		snd_info_set_text_ops(entry, chip, snd_riptide_proc_read);
 }
 
-static int __devinit snd_riptide_mixer(struct snd_riptide *chip)
+static int snd_riptide_mixer(struct snd_riptide *chip)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
@@ -2027,7 +2027,7 @@ static int __devinit snd_riptide_mixer(struct snd_riptide *chip)
 
 #ifdef SUPPORT_JOYSTICK
 
-static int __devinit
+static int
 snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
 	static int dev;
@@ -2060,7 +2060,7 @@ snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	return 0;
 }
 
-static void __devexit snd_riptide_joystick_remove(struct pci_dev *pci)
+static void snd_riptide_joystick_remove(struct pci_dev *pci)
 {
 	struct gameport *gameport = pci_get_drvdata(pci);
 	if (gameport) {
@@ -2071,7 +2071,7 @@ static void __devexit snd_riptide_joystick_remove(struct pci_dev *pci)
 }
 #endif
 
-static int __devinit
+static int
 snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -2176,7 +2176,7 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	return err;
 }
 
-static void __devexit snd_card_riptide_remove(struct pci_dev *pci)
+static void snd_card_riptide_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2186,7 +2186,7 @@ static struct pci_driver driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_riptide_ids,
 	.probe = snd_card_riptide_probe,
-	.remove = __devexit_p(snd_card_riptide_remove),
+	.remove = snd_card_riptide_remove,
 	.driver = {
 		.pm = RIPTIDE_PM_OPS,
 	},
@@ -2197,7 +2197,7 @@ static struct pci_driver joystick_driver = {
 	.name = KBUILD_MODNAME "-joystick",
 	.id_table = snd_riptide_joystick_ids,
 	.probe = snd_riptide_joystick_probe,
-	.remove = __devexit_p(snd_riptide_joystick_remove),
+	.remove = snd_riptide_joystick_remove,
 };
 #endif
 

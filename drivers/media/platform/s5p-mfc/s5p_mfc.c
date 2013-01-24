@@ -381,11 +381,8 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		ctx->consumed_stream += s5p_mfc_hw_call(dev->mfc_ops,
 						get_consumed_stream, dev);
 		if (ctx->codec_mode != S5P_MFC_CODEC_H264_DEC &&
-			s5p_mfc_hw_call(dev->mfc_ops,
-				get_dec_frame_type, dev) ==
-					S5P_FIMV_DECODE_FRAME_P_FRAME
-					&& ctx->consumed_stream + STUFF_BYTE <
-					src_buf->b->v4l2_planes[0].bytesused) {
+			ctx->consumed_stream + STUFF_BYTE <
+			src_buf->b->v4l2_planes[0].bytesused) {
 			/* Run MFC again on the same buffer */
 			mfc_debug(2, "Running again the same buffer\n");
 			ctx->after_packed_pb = 1;
@@ -1206,7 +1203,7 @@ err_res:
 }
 
 /* Remove the driver */
-static int __devexit s5p_mfc_remove(struct platform_device *pdev)
+static int s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
 
@@ -1371,7 +1368,7 @@ MODULE_DEVICE_TABLE(platform, mfc_driver_ids);
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove		= __devexit_p(s5p_mfc_remove),
+	.remove		= s5p_mfc_remove,
 	.id_table	= mfc_driver_ids,
 	.driver	= {
 		.name	= S5P_MFC_NAME,

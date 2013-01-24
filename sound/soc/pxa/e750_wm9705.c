@@ -126,7 +126,7 @@ static struct gpio e750_audio_gpios[] = {
 	{ GPIO_E750_SPK_AMP_OFF, GPIOF_OUT_INIT_HIGH, "Speaker amp" },
 };
 
-static int __devinit e750_probe(struct platform_device *pdev)
+static int e750_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &e750;
 	int ret;
@@ -147,7 +147,7 @@ static int __devinit e750_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit e750_remove(struct platform_device *pdev)
+static int e750_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -162,7 +162,7 @@ static struct platform_driver e750_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= e750_probe,
-	.remove		= __devexit_p(e750_remove),
+	.remove		= e750_remove,
 };
 
 module_platform_driver(e750_driver);

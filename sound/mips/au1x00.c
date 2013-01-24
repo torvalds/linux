@@ -439,7 +439,7 @@ static struct snd_pcm_ops snd_card_au1000_capture_ops = {
 	.pointer		= snd_au1000_pointer,
 };
 
-static int __devinit
+static int
 snd_au1000_pcm_new(struct snd_au1000 *au1000)
 {
 	struct snd_pcm *pcm;
@@ -552,7 +552,7 @@ get the interrupt driven case to work efficiently */
 	spin_unlock(&au1000->ac97_lock);
 }
 
-static int __devinit
+static int
 snd_au1000_ac97_new(struct snd_au1000 *au1000)
 {
 	int err;

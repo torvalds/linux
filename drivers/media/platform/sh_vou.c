@@ -935,9 +935,10 @@ static int sh_vou_g_crop(struct file *file, void *fh, struct v4l2_crop *a)
 /* Assume a dull encoder, do all the work ourselves. */
 static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 {
+	struct v4l2_crop a_writable = *a;
 	struct video_device *vdev = video_devdata(file);
 	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct v4l2_crop sd_crop = {.type = V4L2_BUF_TYPE_VIDEO_OUTPUT};
 	struct v4l2_pix_format *pix = &vou_dev->pix;
 	struct sh_vou_geometry geo;
@@ -1325,7 +1326,7 @@ static const struct video_device sh_vou_video_template = {
 	.vfl_dir	= VFL_DIR_TX,
 };
 
-static int __devinit sh_vou_probe(struct platform_device *pdev)
+static int sh_vou_probe(struct platform_device *pdev)
 {
 	struct sh_vou_pdata *vou_pdata = pdev->dev.platform_data;
 	struct v4l2_rect *rect;
@@ -1460,7 +1461,7 @@ ereqmemreg:
 	return ret;
 }
 
-static int __devexit sh_vou_remove(struct platform_device *pdev)
+static int sh_vou_remove(struct platform_device *pdev)
 {
 	int irq = platform_get_irq(pdev, 0);
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
@@ -1486,7 +1487,7 @@ static int __devexit sh_vou_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata sh_vou = {
-	.remove  = __devexit_p(sh_vou_remove),
+	.remove  = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
 		.owner	= THIS_MODULE,

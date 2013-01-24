@@ -83,21 +83,8 @@ static const struct chan_ops not_configged_ops = {
 
 static void tty_receive_char(struct tty_struct *tty, char ch)
 {
-	if (tty == NULL)
-		return;
-
-	if (I_IXON(tty) && !I_IXOFF(tty) && !tty->raw) {
-		if (ch == STOP_CHAR(tty)) {
-			stop_tty(tty);
-			return;
-		}
-		else if (ch == START_CHAR(tty)) {
-			start_tty(tty);
-			return;
-		}
-	}
-
-	tty_insert_flip_char(tty, ch, TTY_NORMAL);
+	if (tty)
+		tty_insert_flip_char(tty, ch, TTY_NORMAL);
 }
 
 static int open_one_chan(struct chan *chan)

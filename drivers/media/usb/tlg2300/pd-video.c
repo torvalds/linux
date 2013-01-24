@@ -888,7 +888,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *in)
 {
 	struct front_face *front = fh;
 
-	if (in->index < 0 || in->index >= POSEIDON_INPUTS)
+	if (in->index >= POSEIDON_INPUTS)
 		return -EINVAL;
 	strcpy(in->name, pd_inputs[in->index].name);
 	in->type  = V4L2_INPUT_TYPE_TUNER;
@@ -923,7 +923,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int i)
 	struct poseidon *pd = front->pd;
 	s32 ret, cmd_status;
 
-	if (i < 0 || i >= POSEIDON_INPUTS)
+	if (i >= POSEIDON_INPUTS)
 		return -EINVAL;
 	ret = send_set_req(pd, SGNL_SRC_SEL,
 			pd_inputs[i].tlg_src, &cmd_status);

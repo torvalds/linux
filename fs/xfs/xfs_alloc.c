@@ -430,6 +430,60 @@ xfs_alloc_fixup_trees(
 	return 0;
 }
 
+static void
+xfs_agfl_verify(
+	struct xfs_buf	*bp)
+{
+#ifdef WHEN_CRCS_COME_ALONG
+	/*
+	 * we cannot actually do any verification of the AGFL because mkfs does
+	 * not initialise the AGFL to zero or NULL. Hence the only valid part of
+	 * the AGFL is what the AGF says is active. We can't get to the AGF, so
+	 * we can't verify just those entries are valid.
+	 *
+	 * This problem goes away when the CRC format change comes along as that
+	 * requires the AGFL to be initialised by mkfs. At that point, we can
+	 * verify the blocks in the agfl -active or not- lie within the bounds
+	 * of the AG. Until then, just leave this check ifdef'd out.
+	 */
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agfl	*agfl = XFS_BUF_TO_AGFL(bp);
+	int		agfl_ok = 1;
+
+	int		i;
+
+	for (i = 0; i < XFS_AGFL_SIZE(mp); i++) {
+		if (be32_to_cpu(agfl->agfl_bno[i]) == NULLAGBLOCK ||
+		    be32_to_cpu(agfl->agfl_bno[i]) >= mp->m_sb.sb_agblocks)
+			agfl_ok = 0;
+	}
+
+	if (!agfl_ok) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agfl);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+#endif
+}
+
+static void
+xfs_agfl_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agfl_verify(bp);
+}
+
+static void
+xfs_agfl_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agfl_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_agfl_buf_ops = {
+	.verify_read = xfs_agfl_read_verify,
+	.verify_write = xfs_agfl_write_verify,
+};
+
 /*
  * Read in the allocation group free block array.
  */
@@ -447,7 +501,7 @@ xfs_alloc_read_agfl(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, &bp);
+			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
@@ -1866,6 +1920,7 @@ xfs_alloc_fix_freelist(
 	/*
 	 * Initialize the args structure.
 	 */
+	memset(&targs, 0, sizeof(targs));
 	targs.tp = tp;
 	targs.mp = mp;
 	targs.agbp = agbp;
@@ -2090,6 +2145,63 @@ xfs_alloc_put_freelist(
 	return 0;
 }
 
+static void
+xfs_agf_verify(
+	struct xfs_buf	*bp)
+ {
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agf	*agf;
+	int		agf_ok;
+
+	agf = XFS_BUF_TO_AGF(bp);
+
+	agf_ok = agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
+		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
+		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
+		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp);
+
+	/*
+	 * during growfs operations, the perag is not fully initialised,
+	 * so we can't use it for any useful checking. growfs ensures we can't
+	 * use it by using uncached buffers that don't have the perag attached
+	 * so we can detect and avoid this problem.
+	 */
+	if (bp->b_pag)
+		agf_ok = agf_ok && be32_to_cpu(agf->agf_seqno) ==
+						bp->b_pag->pag_agno;
+
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
+						be32_to_cpu(agf->agf_length);
+
+	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
+			XFS_RANDOM_ALLOC_READ_AGF))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agf);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+}
+
+static void
+xfs_agf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agf_verify(bp);
+}
+
+static void
+xfs_agf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agf_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_agf_buf_ops = {
+	.verify_read = xfs_agf_read_verify,
+	.verify_write = xfs_agf_write_verify,
+};
+
 /*
  * Read in the allocation group header (free/alloc section).
  */
@@ -2101,44 +2213,19 @@ xfs_read_agf(
 	int			flags,	/* XFS_BUF_ */
 	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
 {
-	struct xfs_agf	*agf;		/* ag freelist header */
-	int		agf_ok;		/* set if agf is consistent */
 	int		error;
 
 	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), flags, bpp);
+			XFS_FSS_TO_BB(mp, 1), flags, bpp, &xfs_agf_buf_ops);
 	if (error)
 		return error;
 	if (!*bpp)
 		return 0;
 
 	ASSERT(!(*bpp)->b_error);
-	agf = XFS_BUF_TO_AGF(*bpp);
-
-	/*
-	 * Validate the magic number of the agf block.
-	 */
-	agf_ok =
-		agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
-		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
-		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
-		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_seqno) == agno;
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
-		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
-						be32_to_cpu(agf->agf_length);
-	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
-			XFS_RANDOM_ALLOC_READ_AGF))) {
-		XFS_CORRUPTION_ERROR("xfs_alloc_read_agf",
-				     XFS_ERRLEVEL_LOW, mp, agf);
-		xfs_trans_brelse(tp, *bpp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
 	xfs_buf_set_ref(*bpp, XFS_AGF_REF);
 	return 0;
 }
@@ -2207,7 +2294,7 @@ xfs_alloc_read_agf(
  * group or loop over the allocation groups to find the result.
  */
 int				/* error */
-__xfs_alloc_vextent(
+xfs_alloc_vextent(
 	xfs_alloc_arg_t	*args)	/* allocation argument structure */
 {
 	xfs_agblock_t	agsize;	/* allocation group size */
@@ -2415,46 +2502,6 @@ __xfs_alloc_vextent(
 error0:
 	xfs_perag_put(args->pag);
 	return error;
-}
-
-static void
-xfs_alloc_vextent_worker(
-	struct work_struct	*work)
-{
-	struct xfs_alloc_arg	*args = container_of(work,
-						struct xfs_alloc_arg, work);
-	unsigned long		pflags;
-
-	/* we are in a transaction context here */
-	current_set_flags_nested(&pflags, PF_FSTRANS);
-
-	args->result = __xfs_alloc_vextent(args);
-	complete(args->done);
-
-	current_restore_flags_nested(&pflags, PF_FSTRANS);
-}
-
-/*
- * Data allocation requests often come in with little stack to work on. Push
- * them off to a worker thread so there is lots of stack to use. Metadata
- * requests, OTOH, are generally from low stack usage paths, so avoid the
- * context switch overhead here.
- */
-int
-xfs_alloc_vextent(
-	struct xfs_alloc_arg	*args)
-{
-	DECLARE_COMPLETION_ONSTACK(done);
-
-	if (!args->userdata)
-		return __xfs_alloc_vextent(args);
-
-
-	args->done = &done;
-	INIT_WORK_ONSTACK(&args->work, xfs_alloc_vextent_worker);
-	queue_work(xfs_alloc_wq, &args->work);
-	wait_for_completion(&done);
-	return args->result;
 }
 
 /*

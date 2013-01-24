@@ -1427,7 +1427,7 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 	}
 }
 
-int netup_jtag_io(void *device, int tms, int tdi, int read_tdo)
+static int netup_jtag_io(void *device, int tms, int tdi, int read_tdo)
 {
 	int data;
 	int tdo = 0;

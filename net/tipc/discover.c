@@ -243,7 +243,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	if ((type == DSC_REQ_MSG) && !link_fully_up && !b_ptr->blocked) {
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
 		if (rbuf) {
-			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
+			tipc_bearer_send(b_ptr, rbuf, &media_addr);
 			kfree_skb(rbuf);
 		}
 	}

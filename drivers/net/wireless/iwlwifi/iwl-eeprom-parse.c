@@ -116,6 +116,24 @@ struct iwl_eeprom_calib_hdr {
 #define EEPROM_KELVIN_TEMPERATURE	((2*0x12A) | EEPROM_CALIB_ALL)
 #define EEPROM_RAW_TEMPERATURE		((2*0x12B) | EEPROM_CALIB_ALL)
 
+/* SKU Capabilities (actual values from EEPROM definition) */
+enum eeprom_sku_bits {
+	EEPROM_SKU_CAP_BAND_24GHZ	= BIT(4),
+	EEPROM_SKU_CAP_BAND_52GHZ	= BIT(5),
+	EEPROM_SKU_CAP_11N_ENABLE	= BIT(6),
+	EEPROM_SKU_CAP_AMT_ENABLE	= BIT(7),
+	EEPROM_SKU_CAP_IPAN_ENABLE	= BIT(8)
+};
+
+/* radio config bits (actual values from EEPROM definition) */
+#define EEPROM_RF_CFG_TYPE_MSK(x)   (x & 0x3)         /* bits 0-1   */
+#define EEPROM_RF_CFG_STEP_MSK(x)   ((x >> 2)  & 0x3) /* bits 2-3   */
+#define EEPROM_RF_CFG_DASH_MSK(x)   ((x >> 4)  & 0x3) /* bits 4-5   */
+#define EEPROM_RF_CFG_PNUM_MSK(x)   ((x >> 6)  & 0x3) /* bits 6-7   */
+#define EEPROM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
+#define EEPROM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
+
+
 /*
  * EEPROM bands
  * These are the channel numbers from each band in the order
@@ -251,7 +269,7 @@ static const u8 *iwl_eeprom_query_addr(const u8 *eeprom, size_t eeprom_size,
 }
 
 static int iwl_eeprom_read_calib(const u8 *eeprom, size_t eeprom_size,
-				 struct iwl_eeprom_data *data)
+				 struct iwl_nvm_data *data)
 {
 	struct iwl_eeprom_calib_hdr *hdr;
 
@@ -330,7 +348,7 @@ struct iwl_eeprom_enhanced_txpwr {
 	s8 mimo3_max;
 } __packed;
 
-static s8 iwl_get_max_txpwr_half_dbm(const struct iwl_eeprom_data *data,
+static s8 iwl_get_max_txpwr_half_dbm(const struct iwl_nvm_data *data,
 				     struct iwl_eeprom_enhanced_txpwr *txp)
 {
 	s8 result = 0; /* (.5 dBm) */
@@ -364,7 +382,7 @@ static s8 iwl_get_max_txpwr_half_dbm(const struct iwl_eeprom_data *data,
 	((txp->flags & IWL_EEPROM_ENH_TXP_FL_##x) ? # x " " : "")
 
 static void
-iwl_eeprom_enh_txp_read_element(struct iwl_eeprom_data *data,
+iwl_eeprom_enh_txp_read_element(struct iwl_nvm_data *data,
 				struct iwl_eeprom_enhanced_txpwr *txp,
 				int n_channels, s8 max_txpower_avg)
 {
@@ -392,7 +410,7 @@ iwl_eeprom_enh_txp_read_element(struct iwl_eeprom_data *data,
 }
 
 static void iwl_eeprom_enhanced_txpower(struct device *dev,
-					struct iwl_eeprom_data *data,
+					struct iwl_nvm_data *data,
 					const u8 *eeprom, size_t eeprom_size,
 					int n_channels)
 {
@@ -504,7 +522,7 @@ static void iwl_init_band_reference(const struct iwl_cfg *cfg,
 	((eeprom_ch->flags & EEPROM_CHANNEL_##x) ? # x " " : "")
 
 static void iwl_mod_ht40_chan_info(struct device *dev,
-				   struct iwl_eeprom_data *data, int n_channels,
+				   struct iwl_nvm_data *data, int n_channels,
 				   enum ieee80211_band band, u16 channel,
 				   const struct iwl_eeprom_channel *eeprom_ch,
 				   u8 clear_ht40_extension_channel)
@@ -547,7 +565,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 	((eeprom_ch_info[ch_idx].flags & EEPROM_CHANNEL_##x) ? # x " " : "")
 
 static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
-				struct iwl_eeprom_data *data,
+				struct iwl_nvm_data *data,
 				const u8 *eeprom, size_t eeprom_size)
 {
 	int band, ch_idx;
@@ -685,7 +703,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	return n_channels;
 }
 
-static int iwl_init_sband_channels(struct iwl_eeprom_data *data,
+static int iwl_init_sband_channels(struct iwl_nvm_data *data,
 				   struct ieee80211_supported_band *sband,
 				   int n_channels, enum ieee80211_band band)
 {
@@ -711,7 +729,7 @@ static int iwl_init_sband_channels(struct iwl_eeprom_data *data,
 #define MAX_BIT_RATE_20_MHZ	72 /* Mbps */
 
 static void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
-				 struct iwl_eeprom_data *data,
+				 struct iwl_nvm_data *data,
 				 struct ieee80211_sta_ht_cap *ht_info,
 				 enum ieee80211_band band)
 {
@@ -725,7 +743,7 @@ static void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 	else
 		rx_chains = hweight8(data->valid_rx_ant);
 
-	if (!(data->sku & EEPROM_SKU_CAP_11N_ENABLE) || !cfg->ht_params) {
+	if (!(data->sku_cap_11n_enable) || !cfg->ht_params) {
 		ht_info->ht_supported = false;
 		return;
 	}
@@ -773,7 +791,7 @@ static void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 }
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-			    struct iwl_eeprom_data *data,
+			    struct iwl_nvm_data *data,
 			    const u8 *eeprom, size_t eeprom_size)
 {
 	int n_channels = iwl_init_channel_map(dev, cfg, data,
@@ -804,12 +822,13 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 
 /* EEPROM data functions */
 
-struct iwl_eeprom_data *
+struct iwl_nvm_data *
 iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size)
 {
-	struct iwl_eeprom_data *data;
+	struct iwl_nvm_data *data;
 	const void *tmp;
+	u16 radio_cfg, sku;
 
 	if (WARN_ON(!cfg || !cfg->eeprom_params))
 		return NULL;
@@ -849,18 +868,27 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->kelvin_temperature = *(__le16 *)tmp;
 	data->kelvin_voltage = *((__le16 *)tmp + 1);
 
-	data->radio_cfg = iwl_eeprom_query16(eeprom, eeprom_size,
+	radio_cfg = iwl_eeprom_query16(eeprom, eeprom_size,
 					     EEPROM_RADIO_CONFIG);
-	data->sku = iwl_eeprom_query16(eeprom, eeprom_size,
-				       EEPROM_SKU_CAP);
+	data->radio_cfg_dash = EEPROM_RF_CFG_DASH_MSK(radio_cfg);
+	data->radio_cfg_pnum = EEPROM_RF_CFG_PNUM_MSK(radio_cfg);
+	data->radio_cfg_step = EEPROM_RF_CFG_STEP_MSK(radio_cfg);
+	data->radio_cfg_type = EEPROM_RF_CFG_TYPE_MSK(radio_cfg);
+	data->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+	data->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+
+	sku = iwl_eeprom_query16(eeprom, eeprom_size,
+				 EEPROM_SKU_CAP);
+	data->sku_cap_11n_enable = sku & EEPROM_SKU_CAP_11N_ENABLE;
+	data->sku_cap_amt_enable = sku & EEPROM_SKU_CAP_AMT_ENABLE;
+	data->sku_cap_band_24GHz_enable = sku & EEPROM_SKU_CAP_BAND_24GHZ;
+	data->sku_cap_band_52GHz_enable = sku & EEPROM_SKU_CAP_BAND_52GHZ;
+	data->sku_cap_ipan_enable = sku & EEPROM_SKU_CAP_IPAN_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
-		data->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
+		data->sku_cap_11n_enable = false;
 
-	data->eeprom_version = iwl_eeprom_query16(eeprom, eeprom_size,
-						  EEPROM_VERSION);
-
-	data->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(data->radio_cfg);
-	data->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(data->radio_cfg);
+	data->nvm_version = iwl_eeprom_query16(eeprom, eeprom_size,
+					       EEPROM_VERSION);
 
 	/* check overrides (some devices have wrong EEPROM) */
 	if (cfg->valid_tx_ant)
@@ -884,20 +912,20 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 EXPORT_SYMBOL_GPL(iwl_parse_eeprom_data);
 
 /* helper functions */
-int iwl_eeprom_check_version(struct iwl_eeprom_data *data,
+int iwl_nvm_check_version(struct iwl_nvm_data *data,
 			     struct iwl_trans *trans)
 {
-	if (data->eeprom_version >= trans->cfg->eeprom_ver ||
-	    data->calib_version >= trans->cfg->eeprom_calib_ver) {
-		IWL_INFO(trans, "device EEPROM VER=0x%x, CALIB=0x%x\n",
-			 data->eeprom_version, data->calib_version);
+	if (data->nvm_version >= trans->cfg->nvm_ver ||
+	    data->calib_version >= trans->cfg->nvm_calib_ver) {
+		IWL_DEBUG_INFO(trans, "device EEPROM VER=0x%x, CALIB=0x%x\n",
+			       data->nvm_version, data->calib_version);
 		return 0;
 	}
 
 	IWL_ERR(trans,
 		"Unsupported (too old) EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
-		data->eeprom_version, trans->cfg->eeprom_ver,
-		data->calib_version,  trans->cfg->eeprom_calib_ver);
+		data->nvm_version, trans->cfg->nvm_ver,
+		data->calib_version,  trans->cfg->nvm_calib_ver);
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(iwl_eeprom_check_version);
+EXPORT_SYMBOL_GPL(iwl_nvm_check_version);

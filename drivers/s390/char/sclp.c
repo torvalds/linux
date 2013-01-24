@@ -400,7 +400,7 @@ static void sclp_interrupt_handler(struct ext_code ext_code,
 	u32 finished_sccb;
 	u32 evbuf_pending;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
+	inc_irq_stat(IRQEXT_SCP);
 	spin_lock(&sclp_lock);
 	finished_sccb = param32 & 0xfffffff8;
 	evbuf_pending = param32 & 0x3;
@@ -813,7 +813,7 @@ static void sclp_check_handler(struct ext_code ext_code,
 {
 	u32 finished_sccb;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
+	inc_irq_stat(IRQEXT_SCP);
 	finished_sccb = param32 & 0xfffffff8;
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)

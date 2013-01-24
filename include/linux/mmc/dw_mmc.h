@@ -137,7 +137,7 @@ struct dw_mci {
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
-	struct dw_mci_dma_ops	*dma_ops;
+	const struct dw_mci_dma_ops	*dma_ops;
 #ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int		ring_size;
 #else
@@ -162,7 +162,7 @@ struct dw_mci {
 	u16			data_offset;
 	struct device		*dev;
 	struct dw_mci_board	*pdata;
-	struct dw_mci_drv_data	*drv_data;
+	const struct dw_mci_drv_data	*drv_data;
 	void			*priv;
 	struct clk		*biu_clk;
 	struct clk		*ciu_clk;
@@ -186,7 +186,7 @@ struct dw_mci {
 
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
-	unsigned int		irq;
+	int			irq;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -229,8 +229,9 @@ struct dw_mci_board {
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
 
-	unsigned int caps;	/* Capabilities */
-	unsigned int caps2;	/* More capabilities */
+	u32 caps;	/* Capabilities */
+	u32 caps2;	/* More capabilities */
+	u32 pm_caps;	/* PM capabilities */
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
 	 * but note that this may not be reliable after a bootloader has used

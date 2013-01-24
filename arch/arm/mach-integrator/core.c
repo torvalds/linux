@@ -18,10 +18,10 @@
 #include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
+#include <linux/stat.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -46,10 +46,10 @@ static AMBA_APB_DEVICE(rtc, "rtc", 0,
 	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
 
 static AMBA_APB_DEVICE(uart0, "uart0", 0,
-	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, &integrator_uart_data);
+	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, NULL);
 
 static AMBA_APB_DEVICE(uart1, "uart1", 0,
-	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, &integrator_uart_data);
+	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, NULL);
 
 static AMBA_APB_DEVICE(kmi0, "kmi0", 0, KMI0_BASE, KMI0_IRQ, NULL);
 static AMBA_APB_DEVICE(kmi1, "kmi1", 0, KMI1_BASE, KMI1_IRQ, NULL);
@@ -77,6 +77,8 @@ int __init integrator_init(bool is_cp)
 		uart1_device.periphid	= 0x00041010;
 		kmi0_device.periphid	= 0x00041050;
 		kmi1_device.periphid	= 0x00041050;
+		uart0_device.dev.platform_data = &ap_uart_data;
+		uart1_device.dev.platform_data = &ap_uart_data;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -88,49 +90,6 @@ int __init integrator_init(bool is_cp)
 }
 
 #endif
-
-/*
- * On the Integrator platform, the port RTS and DTR are provided by
- * bits in the following SC_CTRLS register bits:
- *        RTS  DTR
- *  UART0  7    6
- *  UART1  5    4
- */
-#define SC_CTRLC	__io_address(INTEGRATOR_SC_CTRLC)
-#define SC_CTRLS	__io_address(INTEGRATOR_SC_CTRLS)
-
-static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
-{
-	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
-	u32 phybase = dev->res.start;
-
-	if (phybase == INTEGRATOR_UART0_BASE) {
-		/* UART0 */
-		rts_mask = 1 << 4;
-		dtr_mask = 1 << 5;
-	} else {
-		/* UART1 */
-		rts_mask = 1 << 6;
-		dtr_mask = 1 << 7;
-	}
-
-	if (mctrl & TIOCM_RTS)
-		ctrlc |= rts_mask;
-	else
-		ctrls |= rts_mask;
-
-	if (mctrl & TIOCM_DTR)
-		ctrlc |= dtr_mask;
-	else
-		ctrls |= dtr_mask;
-
-	__raw_writel(ctrls, SC_CTRLS);
-	__raw_writel(ctrlc, SC_CTRLC);
-}
-
-struct amba_pl010_data integrator_uart_data = {
-	.set_mctrl = integrator_uart_set_mctrl,
-};
 
 static DEFINE_RAW_SPINLOCK(cm_lock);
 
@@ -168,4 +127,94 @@ void __init integrator_reserve(void)
 void integrator_restart(char mode, const char *cmd)
 {
 	cm_control(CM_CTRL_RESET, CM_CTRL_RESET);
+}
+
+static u32 integrator_id;
+
+static ssize_t intcp_get_manf(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return sprintf(buf, "%02x\n", integrator_id >> 24);
+}
+
+static struct device_attribute intcp_manf_attr =
+	__ATTR(manufacturer,  S_IRUGO, intcp_get_manf,  NULL);
+
+static ssize_t intcp_get_arch(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	const char *arch;
+
+	switch ((integrator_id >> 16) & 0xff) {
+	case 0x00:
+		arch = "ASB little-endian";
+		break;
+	case 0x01:
+		arch = "AHB little-endian";
+		break;
+	case 0x03:
+		arch = "AHB-Lite system bus, bi-endian";
+		break;
+	case 0x04:
+		arch = "AHB";
+		break;
+	default:
+		arch = "Unknown";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", arch);
+}
+
+static struct device_attribute intcp_arch_attr =
+	__ATTR(architecture,  S_IRUGO, intcp_get_arch,  NULL);
+
+static ssize_t intcp_get_fpga(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	const char *fpga;
+
+	switch ((integrator_id >> 12) & 0xf) {
+	case 0x01:
+		fpga = "XC4062";
+		break;
+	case 0x02:
+		fpga = "XC4085";
+		break;
+	case 0x04:
+		fpga = "EPM7256AE (Altera PLD)";
+		break;
+	default:
+		fpga = "Unknown";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", fpga);
+}
+
+static struct device_attribute intcp_fpga_attr =
+	__ATTR(fpga,  S_IRUGO, intcp_get_fpga,  NULL);
+
+static ssize_t intcp_get_build(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	return sprintf(buf, "%02x\n", (integrator_id >> 4) & 0xFF);
+}
+
+static struct device_attribute intcp_build_attr =
+	__ATTR(build,  S_IRUGO, intcp_get_build,  NULL);
+
+
+
+void integrator_init_sysfs(struct device *parent, u32 id)
+{
+	integrator_id = id;
+	device_create_file(parent, &intcp_manf_attr);
+	device_create_file(parent, &intcp_arch_attr);
+	device_create_file(parent, &intcp_fpga_attr);
+	device_create_file(parent, &intcp_build_attr);
 }

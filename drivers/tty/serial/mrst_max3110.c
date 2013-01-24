@@ -773,7 +773,7 @@ static int serial_m3110_resume(struct spi_device *spi)
 #define serial_m3110_resume	NULL
 #endif
 
-static int __devinit serial_m3110_probe(struct spi_device *spi)
+static int serial_m3110_probe(struct spi_device *spi)
 {
 	struct uart_max3110 *max;
 	void *buffer;
@@ -855,7 +855,7 @@ err_get_page:
 	return ret;
 }
 
-static int __devexit serial_m3110_remove(struct spi_device *dev)
+static int serial_m3110_remove(struct spi_device *dev)
 {
 	struct uart_max3110 *max = spi_get_drvdata(dev);
 
@@ -879,7 +879,7 @@ static struct spi_driver uart_max3110_driver = {
 			.owner	= THIS_MODULE,
 	},
 	.probe		= serial_m3110_probe,
-	.remove		= __devexit_p(serial_m3110_remove),
+	.remove		= serial_m3110_remove,
 	.suspend	= serial_m3110_suspend,
 	.resume		= serial_m3110_resume,
 };

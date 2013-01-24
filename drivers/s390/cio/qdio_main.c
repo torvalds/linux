@@ -129,7 +129,6 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	int rc, tmp_count = count, tmp_start = start, nr = q->nr, retried = 0;
 	unsigned int ccq = 0;
 
-	BUG_ON(!q->irq_ptr->sch_token);
 	qperf_inc(q, eqbs);
 
 	if (!q->is_input_q)
@@ -147,7 +146,6 @@ again:
 	}
 
 	if (rc == 2) {
-		BUG_ON(tmp_count == count);
 		qperf_inc(q, eqbs_partial);
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
@@ -189,8 +187,6 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 
 	if (!count)
 		return 0;
-
-	BUG_ON(!q->irq_ptr->sch_token);
 	qperf_inc(q, sqbs);
 
 	if (!q->is_input_q)
@@ -199,7 +195,7 @@ again:
 	ccq = do_sqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count);
 	rc = qdio_check_ccq(q, ccq);
 	if (!rc) {
-		WARN_ON(tmp_count);
+		WARN_ON_ONCE(tmp_count);
 		return count - tmp_count;
 	}
 
@@ -223,9 +219,6 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 {
 	unsigned char __state = 0;
 	int i;
-
-	BUG_ON(bufnr > QDIO_MAX_BUFFERS_MASK);
-	BUG_ON(count > QDIO_MAX_BUFFERS_PER_Q);
 
 	if (is_qebsm(q))
 		return qdio_do_eqbs(q, state, bufnr, count, auto_ack);
@@ -257,9 +250,6 @@ static inline int set_buf_states(struct qdio_q *q, int bufnr,
 				 unsigned char state, int count)
 {
 	int i;
-
-	BUG_ON(bufnr > QDIO_MAX_BUFFERS_MASK);
-	BUG_ON(count > QDIO_MAX_BUFFERS_PER_Q);
 
 	if (is_qebsm(q))
 		return qdio_do_sqbs(q, state, bufnr, count);
@@ -345,7 +335,6 @@ again:
 
 	/* hipersocket busy condition */
 	if (unlikely(*busy_bit)) {
-		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
 		retries++;
 
 		if (!start_time) {
@@ -559,7 +548,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop");
 		break;
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
 	}
 out:
 	return q->first_to_check;
@@ -678,12 +667,10 @@ static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)
 			if (aob == NULL)
 				continue;
 
-			BUG_ON(q->u.out.sbal_state == NULL);
 			q->u.out.sbal_state[b].flags |=
 				QDIO_OUTBUF_STATE_FLAG_PENDING;
 			q->u.out.aobs[b] = NULL;
 		} else if (state == SLSB_P_OUTPUT_EMPTY) {
-			BUG_ON(q->u.out.sbal_state == NULL);
 			q->u.out.sbal_state[b].aob = NULL;
 		}
 		b = next_buf(b);
@@ -703,12 +690,11 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 		q->aobs[bufnr] = aob;
 	}
 	if (q->aobs[bufnr]) {
-		BUG_ON(q->sbal_state == NULL);
 		q->sbal_state[bufnr].flags = QDIO_OUTBUF_STATE_FLAG_NONE;
 		q->sbal_state[bufnr].aob = q->aobs[bufnr];
 		q->aobs[bufnr]->user1 = (u64) q->sbal_state[bufnr].user;
 		phys_aob = virt_to_phys(q->aobs[bufnr]);
-		BUG_ON(phys_aob & 0xFF);
+		WARN_ON_ONCE(phys_aob & 0xFF);
 	}
 
 out:
@@ -809,8 +795,6 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 		goto out;
 
 	switch (state) {
-	case SLSB_P_OUTPUT_PENDING:
-		BUG();
 	case SLSB_P_OUTPUT_EMPTY:
 		/* the adapter got it */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr,
@@ -840,7 +824,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_OUTPUT_HALTED:
 		break;
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
 	}
 
 out:
@@ -912,7 +896,7 @@ retry:
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
 	qperf_inc(q, tasklet_outbound);
-	BUG_ON(atomic_read(&q->nr_buf_used) < 0);
+	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
 
 	if (qdio_outbound_q_moved(q))
 		qdio_kick_handler(q);
@@ -1138,16 +1122,10 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		irq_ptr->perf_stat.qdio_int++;
 
 	if (IS_ERR(irb)) {
-		switch (PTR_ERR(irb)) {
-		case -EIO:
-			DBF_ERROR("%4x IO error", irq_ptr->schid.sch_no);
-			qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
-			wake_up(&cdev->private->wait_q);
-			return;
-		default:
-			WARN_ON(1);
-			return;
-		}
+		DBF_ERROR("%4x IO error", irq_ptr->schid.sch_no);
+		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
+		wake_up(&cdev->private->wait_q);
+		return;
 	}
 	qdio_irq_check_sense(irq_ptr, irb);
 	cstat = irb->scsw.cmd.cstat;
@@ -1173,7 +1151,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	case QDIO_IRQ_STATE_STOPPED:
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 	}
 	wake_up(&cdev->private->wait_q);
 }
@@ -1227,7 +1205,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	if (!irq_ptr)
 		return -ENODEV;
 
-	BUG_ON(irqs_disabled());
+	WARN_ON_ONCE(irqs_disabled());
 	DBF_EVENT("qshutdown:%4x", cdev->private->schid.sch_no);
 
 	mutex_lock(&irq_ptr->setup_mutex);
@@ -1358,7 +1336,6 @@ int qdio_allocate(struct qdio_initialize *init_data)
 	irq_ptr->qdr = (struct qdr *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr->qdr)
 		goto out_rel;
-	WARN_ON((unsigned long)irq_ptr->qdr & 0xfff);
 
 	if (qdio_allocate_qs(irq_ptr, init_data->no_input_qs,
 			     init_data->no_output_qs))
@@ -1597,9 +1574,7 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 
 set:
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
-
 	used = atomic_add_return(count, &q->nr_buf_used) - count;
-	BUG_ON(used + count > QDIO_MAX_BUFFERS_PER_Q);
 
 	if (need_siga_in(q))
 		return qdio_siga_input(q);
@@ -1624,7 +1599,6 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 
 	count = set_buf_states(q, bufnr, SLSB_CU_OUTPUT_PRIMED, count);
 	used = atomic_add_return(count, &q->nr_buf_used);
-	BUG_ON(used > QDIO_MAX_BUFFERS_PER_Q);
 
 	if (used == QDIO_MAX_BUFFERS_PER_Q)
 		qperf_inc(q, outbound_queue_full);
@@ -1678,7 +1652,6 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 {
 	struct qdio_irq *irq_ptr;
 
-
 	if (bufnr >= QDIO_MAX_BUFFERS_PER_Q || count > QDIO_MAX_BUFFERS_PER_Q)
 		return -EINVAL;
 
@@ -1720,8 +1693,6 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	if (!irq_ptr)
 		return -ENODEV;
 	q = irq_ptr->input_qs[nr];
-
-	WARN_ON(queue_irqs_enabled(q));
 
 	clear_nonshared_ind(irq_ptr);
 	qdio_stop_polling(q);
@@ -1769,7 +1740,6 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 	if (!irq_ptr)
 		return -ENODEV;
 	q = irq_ptr->input_qs[nr];
-	WARN_ON(queue_irqs_enabled(q));
 
 	/*
 	 * Cannot rely on automatic sync after interrupt since queues may

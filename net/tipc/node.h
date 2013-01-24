@@ -67,8 +67,6 @@
  * @permit_changeover: non-zero if node has redundant links to this system
  * @signature: node instance identifier
  * @bclink: broadcast-related info
- *    @supportable: non-zero if node supports TIPC b'cast link capability
- *    @supported: non-zero if node supports TIPC b'cast capability
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
  *    @last_sent: sequence # of last b'cast message sent by node
@@ -77,6 +75,7 @@
  *    @deferred_head: oldest OOS b'cast message received from node
  *    @deferred_tail: newest OOS b'cast message received from node
  *    @defragm: list of partially reassembled b'cast message fragments from node
+ *    @recv_permitted: true if node is allowed to receive b'cast messages
  */
 struct tipc_node {
 	u32 addr;
@@ -92,8 +91,6 @@ struct tipc_node {
 	int permit_changeover;
 	u32 signature;
 	struct {
-		u8 supportable;
-		u8 supported;
 		u32 acked;
 		u32 last_in;
 		u32 last_sent;
@@ -102,6 +99,7 @@ struct tipc_node {
 		struct sk_buff *deferred_head;
 		struct sk_buff *deferred_tail;
 		struct sk_buff *defragm;
+		bool recv_permitted;
 	} bclink;
 };
 

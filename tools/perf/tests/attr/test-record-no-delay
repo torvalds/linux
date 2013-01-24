@@ -1,0 +1,9 @@
+[config]
+command = record
+args    = -D kill >/dev/null 2>&1
+
+[event:base-record]
+sample_period=4000
+sample_type=263
+watermark=0
+wakeup_events=1

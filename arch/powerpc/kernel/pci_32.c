@@ -208,12 +208,12 @@ pci_create_OF_bus_map(void)
 		of_prop->name = "pci-OF-bus-map";
 		of_prop->length = 256;
 		of_prop->value = &of_prop[1];
-		prom_add_property(dn, of_prop);
+		of_add_property(dn, of_prop);
 		of_node_put(dn);
 	}
 }
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	unsigned long io_offset;
 	struct resource *res = &hose->io_resource;

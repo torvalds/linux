@@ -219,7 +219,7 @@ static int platram_probe(struct platform_device *pdev)
 
 	platram_setrw(info, PLATRAM_RW);
 
-	/* check to see if there are any available partitions, or wether
+	/* check to see if there are any available partitions, or whether
 	 * to add this device whole */
 
 	err = mtd_device_parse_register(info->mtd, pdata->probes, NULL,

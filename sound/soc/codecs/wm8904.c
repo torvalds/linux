@@ -2111,8 +2111,8 @@ static const struct regmap_config wm8904_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8904_reg_defaults),
 };
 
-static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8904_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8904_priv *wm8904;
 	unsigned int val;
@@ -2247,7 +2247,7 @@ err_enable:
 	return ret;
 }
 
-static __devexit int wm8904_i2c_remove(struct i2c_client *client)
+static int wm8904_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -2267,7 +2267,7 @@ static struct i2c_driver wm8904_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8904_i2c_probe,
-	.remove =   __devexit_p(wm8904_i2c_remove),
+	.remove =   wm8904_i2c_remove,
 	.id_table = wm8904_i2c_id,
 };
 

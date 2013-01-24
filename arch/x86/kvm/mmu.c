@@ -2382,12 +2382,20 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	    || (!vcpu->arch.mmu.direct_map && write_fault
 		&& !is_write_protection(vcpu) && !user_fault)) {
 
+		/*
+		 * There are two cases:
+		 * - the one is other vcpu creates new sp in the window
+		 *   between mapping_level() and acquiring mmu-lock.
+		 * - the another case is the new sp is created by itself
+		 *   (page-fault path) when guest uses the target gfn as
+		 *   its page table.
+		 * Both of these cases can be fixed by allowing guest to
+		 * retry the access, it will refault, then we can establish
+		 * the mapping by using small page.
+		 */
 		if (level > PT_PAGE_TABLE_LEVEL &&
-		    has_wrprotected_page(vcpu->kvm, gfn, level)) {
-			ret = 1;
-			drop_spte(vcpu->kvm, sptep);
+		    has_wrprotected_page(vcpu->kvm, gfn, level))
 			goto done;
-		}
 
 		spte |= PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE;
 
@@ -2505,6 +2513,14 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 	mmu_free_roots(vcpu);
 }
 
+static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
+{
+	int bit7;
+
+	bit7 = (gpte >> 7) & 1;
+	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
+}
+
 static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 				     bool no_dirty_log)
 {
@@ -2515,6 +2531,26 @@ static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 		return KVM_PFN_ERR_FAULT;
 
 	return gfn_to_pfn_memslot_atomic(slot, gfn);
+}
+
+static bool prefetch_invalid_gpte(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu_page *sp, u64 *spte,
+				  u64 gpte)
+{
+	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
+		goto no_present;
+
+	if (!is_present_gpte(gpte))
+		goto no_present;
+
+	if (!(gpte & PT_ACCESSED_MASK))
+		goto no_present;
+
+	return false;
+
+no_present:
+	drop_spte(vcpu->kvm, spte);
+	return true;
 }
 
 static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
@@ -2671,7 +2707,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
 	 * here.
 	 */
-	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
+	if (!is_error_noslot_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
 	    level == PT_PAGE_TABLE_LEVEL &&
 	    PageTransCompound(pfn_to_page(pfn)) &&
 	    !has_wrprotected_page(vcpu->kvm, gfn, PT_DIRECTORY_LEVEL)) {
@@ -2699,18 +2735,13 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool mmu_invalid_pfn(pfn_t pfn)
-{
-	return unlikely(is_invalid_pfn(pfn));
-}
-
 static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 				pfn_t pfn, unsigned access, int *ret_val)
 {
 	bool ret = true;
 
 	/* The pfn is invalid, report the error! */
-	if (unlikely(is_invalid_pfn(pfn))) {
+	if (unlikely(is_error_pfn(pfn))) {
 		*ret_val = kvm_handle_bad_page(vcpu, gfn, pfn);
 		goto exit;
 	}
@@ -2862,7 +2893,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 		return r;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-	if (mmu_notifier_retry(vcpu, mmu_seq))
+	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	if (likely(!force_pt_level))
@@ -3331,7 +3362,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 		return r;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-	if (mmu_notifier_retry(vcpu, mmu_seq))
+	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	if (likely(!force_pt_level))
@@ -3397,14 +3428,6 @@ static void inject_page_fault(struct kvm_vcpu *vcpu,
 static void paging_free(struct kvm_vcpu *vcpu)
 {
 	nonpaging_free(vcpu);
-}
-
-static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
-{
-	int bit7;
-
-	bit7 = (gpte >> 7) & 1;
-	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
 }
 
 static inline void protect_clean_gpte(unsigned *access, unsigned gpte)

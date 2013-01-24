@@ -320,7 +320,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 					XR = 0;
 				else if (freg < 16)
 					XR = regs->u_regs[freg];
-				else if (test_thread_flag(TIF_32BIT)) {
+				else if (!test_thread_64bit_stack(regs->u_regs[UREG_FP])) {
 					struct reg_window32 __user *win32;
 					flushw_user ();
 					win32 = (struct reg_window32 __user *)((unsigned long)((u32)regs->u_regs[UREG_FP]));

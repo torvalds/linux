@@ -38,6 +38,11 @@ static const unsigned int VIO_VSEL_table[] = {
 
 /* VSEL tables for TPS65910 specific LDOs and dcdc's */
 
+/* supported VRTC voltages in microvolts */
+static const unsigned int VRTC_VSEL_table[] = {
+	1800000,
+};
+
 /* supported VDD3 voltages in microvolts */
 static const unsigned int VDD3_VSEL_table[] = {
 	5000000,
@@ -95,6 +100,8 @@ static struct tps_info tps65910_regs[] = {
 	{
 		.name = "vrtc",
 		.vin_name = "vcc7",
+		.n_voltages = ARRAY_SIZE(VRTC_VSEL_table),
+		.voltage_table = VRTC_VSEL_table,
 		.enable_time_us = 2200,
 	},
 	{
@@ -1026,7 +1033,7 @@ static inline struct tps65910_board *tps65910_parse_dt_reg_data(
 }
 #endif
 
-static __devinit int tps65910_probe(struct platform_device *pdev)
+static int tps65910_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
@@ -1184,7 +1191,7 @@ err_unregister_regulator:
 	return err;
 }
 
-static int __devexit tps65910_remove(struct platform_device *pdev)
+static int tps65910_remove(struct platform_device *pdev)
 {
 	struct tps65910_reg *pmic = platform_get_drvdata(pdev);
 	int i;
@@ -1231,7 +1238,7 @@ static struct platform_driver tps65910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
-	.remove = __devexit_p(tps65910_remove),
+	.remove = tps65910_remove,
 	.shutdown = tps65910_shutdown,
 };
 

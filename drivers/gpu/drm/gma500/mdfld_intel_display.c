@@ -820,7 +820,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(map->pos, 0);
 
 	if (psb_intel_encoder)
-		drm_connector_property_get_value(connector,
+		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {

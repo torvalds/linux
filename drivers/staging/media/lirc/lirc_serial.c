@@ -841,7 +841,7 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static int __devinit lirc_serial_probe(struct platform_device *dev)
+static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
@@ -927,7 +927,7 @@ exit_free_irq:
 	return result;
 }
 
-static int __devexit lirc_serial_remove(struct platform_device *dev)
+static int lirc_serial_remove(struct platform_device *dev)
 {
 	free_irq(irq, (void *)&hardware);
 
@@ -1148,7 +1148,7 @@ static int lirc_serial_resume(struct platform_device *dev)
 
 static struct platform_driver lirc_serial_driver = {
 	.probe		= lirc_serial_probe,
-	.remove		= __devexit_p(lirc_serial_remove),
+	.remove		= lirc_serial_remove,
 	.suspend	= lirc_serial_suspend,
 	.resume		= lirc_serial_resume,
 	.driver		= {
@@ -1239,6 +1239,10 @@ static int __init lirc_serial_init_module(void)
 		}
 	}
 
+	/* make sure sense is either -1, 0, or 1 */
+	if (sense != -1)
+		sense = !!sense;
+
 	result = lirc_serial_init();
 	if (result)
 		return result;
@@ -1298,7 +1302,7 @@ MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 module_param(share_irq, bool, S_IRUGO);
 MODULE_PARM_DESC(share_irq, "Share interrupts (0 = off, 1 = on)");
 
-module_param(sense, bool, S_IRUGO);
+module_param(sense, int, S_IRUGO);
 MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit"
 		 " (0 = active high, 1 = active low )");
 

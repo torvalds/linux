@@ -66,7 +66,7 @@ struct ops_list {
 	/* operators */
 	struct snd_seq_dev_ops ops;
 
-	/* registred devices */
+	/* registered devices */
 	struct list_head dev_list;	/* list of devices */
 	int num_devices;	/* number of associated devices */
 	int num_init_devices;	/* number of initialized devices */
