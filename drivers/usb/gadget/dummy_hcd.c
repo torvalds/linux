@@ -983,16 +983,10 @@ static int dummy_udc_probe(struct platform_device *pdev)
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.max_speed = USB_SPEED_SUPER;
+	dum->gadget.register_my_device = true;
 
-	dev_set_name(&dum->gadget.dev, "gadget");
 	dum->gadget.dev.parent = &pdev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
-	rc = device_register(&dum->gadget.dev);
-	if (rc < 0) {
-		put_device(&dum->gadget.dev);
-		return rc;
-	}
-
 	init_dummy_udc_hw(dum);
 
 	rc = usb_add_gadget_udc(&pdev->dev, &dum->gadget);
@@ -1008,7 +1002,6 @@ static int dummy_udc_probe(struct platform_device *pdev)
 err_dev:
 	usb_del_gadget_udc(&dum->gadget);
 err_udc:
-	device_unregister(&dum->gadget.dev);
 	return rc;
 }
 
@@ -1019,7 +1012,6 @@ static int dummy_udc_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&dum->gadget);
 	platform_set_drvdata(pdev, NULL);
 	device_remove_file(&dum->gadget.dev, &dev_attr_function);
-	device_unregister(&dum->gadget.dev);
 	return 0;
 }
 
