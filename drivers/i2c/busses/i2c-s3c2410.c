@@ -1000,8 +1000,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	i2c->pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!i2c->pdata) {
-		ret = -ENOMEM;
-		goto err_noclk;
+		dev_err(&pdev->dev, "no memory for platform data\n");
+		return -ENOMEM;
 	}
 
 	i2c->quirks = s3c24xx_get_device_quirks(pdev);
@@ -1025,8 +1025,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->clk = clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = -ENOENT;
-		goto err_noclk;
+		return -ENOENT;
 	}
 
 	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
@@ -1133,8 +1132,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
  err_clk:
 	clk_disable_unprepare(i2c->clk);
 	clk_put(i2c->clk);
-
- err_noclk:
 	return ret;
 }
 
