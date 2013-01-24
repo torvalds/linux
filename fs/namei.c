@@ -1342,7 +1342,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
  *  small and for now I'd prefer to have fast path as straight as possible.
  *  It _is_ time-critical.
  */
-static int lookup_fast(struct nameidata *nd, struct qstr *name,
+static int lookup_fast(struct nameidata *nd,
 		       struct path *path, struct inode **inode)
 {
 	struct vfsmount *mnt = nd->path.mnt;
@@ -1358,7 +1358,7 @@ static int lookup_fast(struct nameidata *nd, struct qstr *name,
 	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
-		dentry = __d_lookup_rcu(parent, name, &seq, nd->inode);
+		dentry = __d_lookup_rcu(parent, &nd->last, &seq, nd->inode);
 		if (!dentry)
 			goto unlazy;
 
@@ -1400,7 +1400,7 @@ unlazy:
 		if (unlazy_walk(nd, dentry))
 			return -ECHILD;
 	} else {
-		dentry = __d_lookup(parent, name);
+		dentry = __d_lookup(parent, &nd->last);
 	}
 
 	if (unlikely(!dentry))
@@ -1530,7 +1530,7 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 	 */
 	if (unlikely(nd->last_type != LAST_NORM))
 		return handle_dots(nd, nd->last_type);
-	err = lookup_fast(nd, &nd->last, path, &inode);
+	err = lookup_fast(nd, path, &inode);
 	if (unlikely(err)) {
 		if (err < 0)
 			goto out_err;
@@ -2728,7 +2728,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
 			symlink_ok = true;
 		/* we _can_ be in RCU mode here */
-		error = lookup_fast(nd, &nd->last, path, &inode);
+		error = lookup_fast(nd, path, &inode);
 		if (likely(!error))
 			goto finish_lookup;
 
