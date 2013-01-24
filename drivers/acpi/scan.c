@@ -178,6 +178,32 @@ err_out:
 }
 EXPORT_SYMBOL(acpi_bus_hot_remove_device);
 
+static ssize_t real_power_state_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+	int state;
+	int ret;
+
+	ret = acpi_device_get_power(adev, &state);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%s\n", acpi_power_state_string(state));
+}
+
+static DEVICE_ATTR(real_power_state, 0444, real_power_state_show, NULL);
+
+static ssize_t power_state_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+
+	return sprintf(buf, "%s\n", acpi_power_state_string(adev->power.state));
+}
+
+static DEVICE_ATTR(power_state, 0444, power_state_show, NULL);
+
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -369,8 +395,22 @@ static int acpi_device_setup_files(struct acpi_device *dev)
          * hot-removal function from userland.
          */
 	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
-	if (ACPI_SUCCESS(status))
+	if (ACPI_SUCCESS(status)) {
 		result = device_create_file(&dev->dev, &dev_attr_eject);
+		if (result)
+			return result;
+	}
+
+	if (dev->flags.power_manageable) {
+		result = device_create_file(&dev->dev, &dev_attr_power_state);
+		if (result)
+			return result;
+
+		if (dev->power.flags.power_resources)
+			result = device_create_file(&dev->dev,
+						    &dev_attr_real_power_state);
+	}
+
 end:
 	return result;
 }
@@ -379,6 +419,13 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 {
 	acpi_status status;
 	acpi_handle temp;
+
+	if (dev->flags.power_manageable) {
+		device_remove_file(&dev->dev, &dev_attr_power_state);
+		if (dev->power.flags.power_resources)
+			device_remove_file(&dev->dev,
+					   &dev_attr_real_power_state);
+	}
 
 	/*
 	 * If device has _STR, remove 'description' file
