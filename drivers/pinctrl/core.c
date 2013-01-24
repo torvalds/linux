@@ -812,7 +812,7 @@ static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
  * pinctrl_release() - release the pinctrl handle
  * @kref: the kref in the pinctrl being released
  */
-void pinctrl_release(struct kref *kref)
+static void pinctrl_release(struct kref *kref)
 {
 	struct pinctrl *p = container_of(kref, struct pinctrl, users);
 
