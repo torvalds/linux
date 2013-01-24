@@ -1534,23 +1534,49 @@ int cayman_asic_reset(struct radeon_device *rdev)
 }
 
 /**
+ * cayman_gfx_is_lockup - Check if the GFX engine is locked up
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if the GFX engine is locked up.
+ * Returns true if the engine appears to be locked up, false if not.
+ */
+bool cayman_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	u32 reset_mask = cayman_gpu_check_soft_reset(rdev);
+
+	if (!(reset_mask & (RADEON_RESET_GFX |
+			    RADEON_RESET_COMPUTE |
+			    RADEON_RESET_CP))) {
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	/* force CP activities */
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
+}
+
+/**
  * cayman_dma_is_lockup - Check if the DMA engine is locked up
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
  *
- * Check if the async DMA engine is locked up (cayman-SI).
+ * Check if the async DMA engine is locked up.
  * Returns true if the engine appears to be locked up, false if not.
  */
 bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	u32 dma_status_reg;
+	u32 reset_mask = cayman_gpu_check_soft_reset(rdev);
+	u32 mask;
 
 	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
-		dma_status_reg = RREG32(DMA_STATUS_REG + DMA0_REGISTER_OFFSET);
+		mask = RADEON_RESET_DMA;
 	else
-		dma_status_reg = RREG32(DMA_STATUS_REG + DMA1_REGISTER_OFFSET);
-	if (dma_status_reg & DMA_IDLE) {
+		mask = RADEON_RESET_DMA1;
+
+	if (!(reset_mask & mask)) {
 		radeon_ring_lockup_update(ring);
 		return false;
 	}

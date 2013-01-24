@@ -2308,25 +2308,6 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	u32 srbm_status;
-	u32 grbm_status;
-	u32 grbm_status_se0, grbm_status_se1;
-
-	srbm_status = RREG32(SRBM_STATUS);
-	grbm_status = RREG32(GRBM_STATUS);
-	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
-	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
-	if (!(grbm_status & GUI_ACTIVE)) {
-		radeon_ring_lockup_update(ring);
-		return false;
-	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
-	return radeon_ring_test_lockup(rdev, ring);
-}
-
 void evergreen_print_gpu_status_regs(struct radeon_device *rdev)
 {
 	dev_info(rdev->dev, "  GRBM_STATUS               = 0x%08X\n",
@@ -2576,6 +2557,52 @@ int evergreen_asic_reset(struct radeon_device *rdev)
 		r600_set_bios_scratch_engine_hung(rdev, false);
 
 	return 0;
+}
+
+/**
+ * evergreen_gfx_is_lockup - Check if the GFX engine is locked up
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if the GFX engine is locked up.
+ * Returns true if the engine appears to be locked up, false if not.
+ */
+bool evergreen_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	u32 reset_mask = evergreen_gpu_check_soft_reset(rdev);
+
+	if (!(reset_mask & (RADEON_RESET_GFX |
+			    RADEON_RESET_COMPUTE |
+			    RADEON_RESET_CP))) {
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	/* force CP activities */
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
+}
+
+/**
+ * evergreen_dma_is_lockup - Check if the DMA engine is locked up
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if the async DMA engine is locked up.
+ * Returns true if the engine appears to be locked up, false if not.
+ */
+bool evergreen_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	u32 reset_mask = evergreen_gpu_check_soft_reset(rdev);
+
+	if (!(reset_mask & RADEON_RESET_DMA)) {
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	/* force ring activities */
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 /* Interrupts */

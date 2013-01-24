@@ -1537,16 +1537,22 @@ int r600_asic_reset(struct radeon_device *rdev)
 	return 0;
 }
 
-bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+/**
+ * r600_gfx_is_lockup - Check if the GFX engine is locked up
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if the GFX engine is locked up.
+ * Returns true if the engine appears to be locked up, false if not.
+ */
+bool r600_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	u32 srbm_status;
-	u32 grbm_status;
-	u32 grbm_status2;
+	u32 reset_mask = r600_gpu_check_soft_reset(rdev);
 
-	srbm_status = RREG32(R_000E50_SRBM_STATUS);
-	grbm_status = RREG32(R_008010_GRBM_STATUS);
-	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
-	if (!G_008010_GUI_ACTIVE(grbm_status)) {
+	if (!(reset_mask & (RADEON_RESET_GFX |
+			    RADEON_RESET_COMPUTE |
+			    RADEON_RESET_CP))) {
 		radeon_ring_lockup_update(ring);
 		return false;
 	}
@@ -1561,15 +1567,14 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
  *
- * Check if the async DMA engine is locked up (r6xx-evergreen).
+ * Check if the async DMA engine is locked up.
  * Returns true if the engine appears to be locked up, false if not.
  */
 bool r600_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	u32 dma_status_reg;
+	u32 reset_mask = r600_gpu_check_soft_reset(rdev);
 
-	dma_status_reg = RREG32(DMA_STATUS_REG);
-	if (dma_status_reg & DMA_IDLE) {
+	if (!(reset_mask & RADEON_RESET_DMA)) {
 		radeon_ring_lockup_update(ring);
 		return false;
 	}
