@@ -759,30 +759,38 @@ err0:
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_open);
 
-void tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
+void tegra_usb_phy_preresume(struct usb_phy *x)
 {
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+
 	if (!phy->is_ulpi_phy)
 		utmi_phy_preresume(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_preresume);
 
-void tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
+void tegra_usb_phy_postresume(struct usb_phy *x)
 {
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+
 	if (!phy->is_ulpi_phy)
 		utmi_phy_postresume(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_postresume);
 
-void tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
+void tegra_ehci_phy_restore_start(struct usb_phy *x,
 				 enum tegra_usb_phy_port_speed port_speed)
 {
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+
 	if (!phy->is_ulpi_phy)
 		utmi_phy_restore_start(phy, port_speed);
 }
 EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_start);
 
-void tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
+void tegra_ehci_phy_restore_end(struct usb_phy *x)
 {
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+
 	if (!phy->is_ulpi_phy)
 		utmi_phy_restore_end(phy);
 }

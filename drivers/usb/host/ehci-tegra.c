@@ -56,7 +56,7 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd)
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
 	clk_prepare_enable(tegra->clk);
-	usb_phy_set_suspend(&tegra->phy->u_phy, 0);
+	usb_phy_set_suspend(hcd->phy, 0);
 	tegra->host_resumed = 1;
 }
 
@@ -65,7 +65,7 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd)
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
 	tegra->host_resumed = 0;
-	usb_phy_set_suspend(&tegra->phy->u_phy, 1);
+	usb_phy_set_suspend(hcd->phy, 1);
 	clk_disable_unprepare(tegra->clk);
 }
 
@@ -159,7 +159,7 @@ static int tegra_ehci_hub_control(
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND)) {
 			/* Resume completed, re-enable disconnect detection */
 			tegra->port_resuming = 0;
-			tegra_usb_phy_postresume(tegra->phy);
+			tegra_usb_phy_postresume(hcd->phy);
 		}
 	}
 
@@ -212,7 +212,7 @@ static int tegra_ehci_hub_control(
 			goto done;
 
 		/* Disable disconnect detection during port resume */
-		tegra_usb_phy_preresume(tegra->phy);
+		tegra_usb_phy_preresume(hcd->phy);
 
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
 
@@ -476,7 +476,7 @@ static int controller_resume(struct device *dev)
 	}
 
 	/* Force the phy to keep data lines in suspend state */
-	tegra_ehci_phy_restore_start(tegra->phy, tegra->port_speed);
+	tegra_ehci_phy_restore_start(hcd->phy, tegra->port_speed);
 
 	/* Enable host mode */
 	tdi_reset(ehci);
@@ -543,17 +543,17 @@ static int controller_resume(struct device *dev)
 		}
 	}
 
-	tegra_ehci_phy_restore_end(tegra->phy);
+	tegra_ehci_phy_restore_end(hcd->phy);
 	goto done;
 
  restart:
 	if (tegra->port_speed <= TEGRA_USB_PHY_PORT_SPEED_HIGH)
-		tegra_ehci_phy_restore_end(tegra->phy);
+		tegra_ehci_phy_restore_end(hcd->phy);
 
 	tegra_ehci_restart(hcd);
 
  done:
-	tegra_usb_phy_preresume(tegra->phy);
+	tegra_usb_phy_preresume(hcd->phy);
 	tegra->port_resuming = 1;
 	return 0;
 }
@@ -740,9 +740,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	usb_phy_init(&tegra->phy->u_phy);
-
 	hcd->phy = u_phy = &tegra->phy->u_phy;
+	usb_phy_init(hcd->phy);
+
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
@@ -752,7 +752,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
-	err = usb_phy_set_suspend(&tegra->phy->u_phy, 0);
+	err = usb_phy_set_suspend(hcd->phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
 		goto fail;
@@ -798,7 +798,7 @@ fail:
 	if (!IS_ERR_OR_NULL(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
 #endif
-	usb_phy_shutdown(&tegra->phy->u_phy);
+	usb_phy_shutdown(hcd->phy);
 fail_io:
 	clk_disable_unprepare(tegra->clk);
 fail_clk:
@@ -820,10 +820,9 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 		otg_set_host(tegra->transceiver->otg, NULL);
 #endif
 
+	usb_phy_shutdown(hcd->phy);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-
-	usb_phy_shutdown(&tegra->phy->u_phy);
 
 	clk_disable_unprepare(tegra->clk);
 
