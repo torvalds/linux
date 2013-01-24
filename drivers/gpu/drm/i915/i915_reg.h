@@ -1858,7 +1858,7 @@
 #define PP_DIVISOR	0x61210
 
 /* Panel fitting */
-#define PFIT_CONTROL	0x61230
+#define PFIT_CONTROL	(dev_priv->info->display_mmio_offset + 0x61230)
 #define   PFIT_ENABLE		(1 << 31)
 #define   PFIT_PIPE_MASK	(3 << 29)
 #define   PFIT_PIPE_SHIFT	29
@@ -1876,7 +1876,7 @@
 #define   PFIT_SCALING_PROGRAMMED (1 << 26)
 #define   PFIT_SCALING_PILLAR	(2 << 26)
 #define   PFIT_SCALING_LETTER	(3 << 26)
-#define PFIT_PGM_RATIOS	0x61234
+#define PFIT_PGM_RATIOS	(dev_priv->info->display_mmio_offset + 0x61234)
 /* Pre-965 */
 #define		PFIT_VERT_SCALE_SHIFT		20
 #define		PFIT_VERT_SCALE_MASK		0xfff00000
@@ -1888,7 +1888,7 @@
 #define		PFIT_HORIZ_SCALE_SHIFT_965	0
 #define		PFIT_HORIZ_SCALE_MASK_965	0x00001fff
 
-#define PFIT_AUTO_RATIOS 0x61238
+#define PFIT_AUTO_RATIOS (dev_priv->info->display_mmio_offset + 0x61238)
 
 /* Backlight control */
 #define BLC_PWM_CTL2		0x61250 /* 965+ only */
