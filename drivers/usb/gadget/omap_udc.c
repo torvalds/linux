@@ -1314,7 +1314,7 @@ static int omap_udc_start(struct usb_gadget *g,
 static int omap_udc_stop(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 
-static struct usb_gadget_ops omap_gadget_ops = {
+static const struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
 	.wakeup			= omap_wakeup,
 	.set_selfpowered	= omap_set_selfpowered,

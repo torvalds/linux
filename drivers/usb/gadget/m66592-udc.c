@@ -1526,7 +1526,7 @@ static int m66592_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops m66592_gadget_ops = {
+static const struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
 	.udc_start		= m66592_udc_start,
 	.udc_stop		= m66592_udc_stop,

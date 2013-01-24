@@ -1254,7 +1254,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
-static struct usb_gadget_ops s3c_hsudc_gadget_ops = {
+static const struct usb_gadget_ops s3c_hsudc_gadget_ops = {
 	.get_frame	= s3c_hsudc_gadget_getframe,
 	.udc_start	= s3c_hsudc_start,
 	.udc_stop	= s3c_hsudc_stop,

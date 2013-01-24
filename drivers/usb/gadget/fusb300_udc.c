@@ -1341,7 +1341,7 @@ static int fusb300_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static struct usb_gadget_ops fusb300_gadget_ops = {
+static const struct usb_gadget_ops fusb300_gadget_ops = {
 	.pullup		= fusb300_udc_pullup,
 	.udc_start	= fusb300_udc_start,
 	.udc_stop	= fusb300_udc_stop,

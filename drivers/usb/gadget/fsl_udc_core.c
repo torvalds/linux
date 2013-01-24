@@ -1259,7 +1259,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 static int fsl_udc_stop(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 /* defined in gadget.h */
-static struct usb_gadget_ops fsl_gadget_ops = {
+static const struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
 /*	.set_selfpowered = fsl_set_selfpowered,	*/ /* Always selfpowered */
