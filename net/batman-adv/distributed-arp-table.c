@@ -777,7 +777,9 @@ static uint16_t batadv_arp_get_type(struct batadv_priv *bat_priv,
 	ip_src = batadv_arp_ip_src(skb, hdr_size);
 	ip_dst = batadv_arp_ip_dst(skb, hdr_size);
 	if (ipv4_is_loopback(ip_src) || ipv4_is_multicast(ip_src) ||
-	    ipv4_is_loopback(ip_dst) || ipv4_is_multicast(ip_dst))
+	    ipv4_is_loopback(ip_dst) || ipv4_is_multicast(ip_dst) ||
+	    ipv4_is_zeronet(ip_src) || ipv4_is_lbcast(ip_src) ||
+	    ipv4_is_zeronet(ip_dst) || ipv4_is_lbcast(ip_dst))
 		goto out;
 
 	type = ntohs(arphdr->ar_op);
