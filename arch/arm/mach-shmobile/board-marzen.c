@@ -44,7 +44,6 @@
 #include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/traps.h>
 
 /* Fixed 3.3V regulator to be used by SDHI0 */
@@ -382,7 +381,6 @@ MACHINE_START(MARZEN, "marzen")
 	.init_early	= r8a7779_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= marzen_init,
 	.init_late	= marzen_init_late,
 	.timer		= &shmobile_timer,

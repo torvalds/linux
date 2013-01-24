@@ -29,7 +29,6 @@
 #include <linux/platform_data/usb-exynos.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
@@ -814,7 +813,6 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= origen_map_io,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= origen_machine_init,
 	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,

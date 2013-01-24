@@ -22,7 +22,6 @@
 
 #include <mach/hardware.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
@@ -246,7 +245,6 @@ MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	.atag_offset	= 0x100,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= ts72xx_init_machine,
 	.init_late	= ep93xx_init_late,

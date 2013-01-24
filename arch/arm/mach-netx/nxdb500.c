@@ -28,7 +28,6 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/vic.h>
 #include <mach/netx-regs.h>
 #include <linux/platform_data/eth-netx.h>
 
@@ -204,7 +203,6 @@ MACHINE_START(NXDB500, "Hilscher nxdb500")
 	.atag_offset	= 0x100,
 	.map_io		= netx_map_io,
 	.init_irq	= netx_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.timer		= &netx_timer,
 	.init_machine	= nxdb500_init,
 	.restart	= netx_restart,

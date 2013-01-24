@@ -21,10 +21,9 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/of_irq.h>
+#include <linux/irqchip.h>
 
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 
 #include <mach/powergate.h>
 
@@ -57,15 +56,10 @@ u32 tegra_uart_config[4] = {
 };
 
 #ifdef CONFIG_OF
-static const struct of_device_id tegra_dt_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
-	{ }
-};
-
 void __init tegra_dt_init_irq(void)
 {
 	tegra_init_irq();
-	of_irq_init(tegra_dt_irq_match);
+	irqchip_init();
 }
 #endif
 

@@ -16,12 +16,11 @@
 #include <linux/amba/pl08x.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <asm/hardware/pl080.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
@@ -425,20 +424,9 @@ static const char *spear600_dt_board_compat[] = {
 	NULL
 };
 
-static const struct of_device_id vic_of_match[] __initconst = {
-	{ .compatible = "arm,pl190-vic", .data = vic_of_init, },
-	{ /* Sentinel */ }
-};
-
-static void __init spear6xx_dt_init_irq(void)
-{
-	of_irq_init(vic_of_match);
-}
-
 DT_MACHINE_START(SPEAR600_DT, "ST SPEAr600 (Flattened Device Tree)")
 	.map_io		=	spear6xx_map_io,
-	.init_irq	=	spear6xx_dt_init_irq,
-	.handle_irq	=	vic_handle_irq,
+	.init_irq	=	irqchip_init,
 	.timer		=	&spear6xx_timer,
 	.init_machine	=	spear600_dt_init,
 	.restart	=	spear_restart,

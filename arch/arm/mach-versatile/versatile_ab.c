@@ -26,7 +26,6 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
@@ -39,7 +38,6 @@ MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	.map_io		= versatile_map_io,
 	.init_early	= versatile_init_early,
 	.init_irq	= versatile_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.timer		= &versatile_timer,
 	.init_machine	= versatile_init,
 	.restart	= versatile_restart,

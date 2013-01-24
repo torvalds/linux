@@ -15,8 +15,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
-
-#include <asm/hardware/vic.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <plat/regs-irqtype.h>
 

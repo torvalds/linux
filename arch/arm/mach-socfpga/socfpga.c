@@ -15,12 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/dw_apb_timer.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -62,11 +62,6 @@ static void __init socfpga_map_io(void)
 	early_printk("Early printk initialized\n");
 }
 
-const static struct of_device_id irq_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
-
 void __init socfpga_sysmgr_init(void)
 {
 	struct device_node *np;
@@ -78,9 +73,9 @@ void __init socfpga_sysmgr_init(void)
 	rst_manager_base_addr = of_iomap(np, 0);
 }
 
-static void __init gic_init_irq(void)
+static void __init socfpga_init_irq(void)
 {
-	of_irq_init(irq_match);
+	irqchip_init();
 	socfpga_sysmgr_init();
 }
 
@@ -105,8 +100,7 @@ static const char *altera_dt_match[] = {
 DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.smp		= smp_ops(socfpga_smp_ops),
 	.map_io		= socfpga_map_io,
-	.init_irq	= gic_init_irq,
-	.handle_irq     = gic_handle_irq,
+	.init_irq	= socfpga_init_irq,
 	.timer		= &dw_apb_timer,
 	.init_machine	= socfpga_cyclone5_init,
 	.restart	= socfpga_cyclone5_restart,
