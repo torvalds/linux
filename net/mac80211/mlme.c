@@ -2555,7 +2555,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 		ifmgd->assoc_data->have_beacon = true;
-		ifmgd->assoc_data->sent_assoc = false;
 		/* continue assoc process */
 		ifmgd->assoc_data->timeout = jiffies;
 		run_again(ifmgd, ifmgd->assoc_data->timeout);
@@ -3967,13 +3966,11 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				ifmgd->dtim_period = tim->dtim_period;
 			}
 			assoc_data->have_beacon = true;
-			assoc_data->sent_assoc = false;
 			assoc_data->timeout = jiffies;
 		}
 		rcu_read_unlock();
 	} else {
 		assoc_data->have_beacon = true;
-		assoc_data->sent_assoc = false;
 		assoc_data->timeout = jiffies;
 	}
 	run_again(ifmgd, assoc_data->timeout);

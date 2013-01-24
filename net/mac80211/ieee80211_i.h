@@ -400,7 +400,6 @@ struct ieee80211_mgd_assoc_data {
 	u8 supp_rates_len;
 	bool wmm, uapsd;
 	bool have_beacon;
-	bool sent_assoc;
 	bool synced;
 
 	u8 ap_ht_param;
