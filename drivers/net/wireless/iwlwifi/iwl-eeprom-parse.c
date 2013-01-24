@@ -703,9 +703,9 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	return n_channels;
 }
 
-static int iwl_init_sband_channels(struct iwl_nvm_data *data,
-				   struct ieee80211_supported_band *sband,
-				   int n_channels, enum ieee80211_band band)
+int iwl_init_sband_channels(struct iwl_nvm_data *data,
+			    struct ieee80211_supported_band *sband,
+			    int n_channels, enum ieee80211_band band)
 {
 	struct ieee80211_channel *chan = &data->channels[0];
 	int n = 0, idx = 0;
@@ -728,10 +728,10 @@ static int iwl_init_sband_channels(struct iwl_nvm_data *data,
 #define MAX_BIT_RATE_40_MHZ	150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ	72 /* Mbps */
 
-static void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
-				 struct iwl_nvm_data *data,
-				 struct ieee80211_sta_ht_cap *ht_info,
-				 enum ieee80211_band band)
+void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
+			  struct iwl_nvm_data *data,
+			  struct ieee80211_sta_ht_cap *ht_info,
+			  enum ieee80211_band band)
 {
 	int max_bit_rate = 0;
 	u8 rx_chains;

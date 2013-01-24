@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,81 +58,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
-#ifndef __iwl_eeprom_parse_h__
-#define __iwl_eeprom_parse_h__
+
+#ifndef __IWL_PHYDB_H__
+#define __IWL_PHYDB_H__
 
 #include <linux/types.h>
-#include <linux/if_ether.h>
+
+#include "iwl-op-mode.h"
 #include "iwl-trans.h"
 
-struct iwl_nvm_data {
-	int n_hw_addrs;
-	u8 hw_addr[ETH_ALEN];
+struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans);
 
-	u8 calib_version;
-	__le16 calib_voltage;
+void iwl_phy_db_free(struct iwl_phy_db *phy_db);
 
-	__le16 raw_temperature;
-	__le16 kelvin_temperature;
-	__le16 kelvin_voltage;
-	__le16 xtal_calib[2];
+int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
+			   gfp_t alloc_ctx);
 
-	bool sku_cap_band_24GHz_enable;
-	bool sku_cap_band_52GHz_enable;
-	bool sku_cap_11n_enable;
-	bool sku_cap_amt_enable;
-	bool sku_cap_ipan_enable;
 
-	u8 radio_cfg_type;
-	u8 radio_cfg_step;
-	u8 radio_cfg_dash;
-	u8 radio_cfg_pnum;
-	u8 valid_tx_ant, valid_rx_ant;
+int iwl_send_phy_db_data(struct iwl_phy_db *phy_db);
 
-	u16 nvm_version;
-	s8 max_tx_pwr_half_dbm;
-
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
-	struct ieee80211_channel channels[];
-};
-
-/**
- * iwl_parse_eeprom_data - parse EEPROM data and return values
- *
- * @dev: device pointer we're parsing for, for debug only
- * @cfg: device configuration for parsing and overrides
- * @eeprom: the EEPROM data
- * @eeprom_size: length of the EEPROM data
- *
- * This function parses all EEPROM values we need and then
- * returns a (newly allocated) struct containing all the
- * relevant values for driver use. The struct must be freed
- * later with iwl_free_nvm_data().
- */
-struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
-		      const u8 *eeprom, size_t eeprom_size);
-
-/**
- * iwl_free_nvm_data - free NVM data
- * @data: the data to free
- */
-static inline void iwl_free_nvm_data(struct iwl_nvm_data *data)
-{
-	kfree(data);
-}
-
-int iwl_nvm_check_version(struct iwl_nvm_data *data,
-			  struct iwl_trans *trans);
-
-int iwl_init_sband_channels(struct iwl_nvm_data *data,
-			    struct ieee80211_supported_band *sband,
-			    int n_channels, enum ieee80211_band band);
-
-void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
-			  struct iwl_nvm_data *data,
-			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band);
-
-#endif /* __iwl_eeprom_parse_h__ */
+#endif /* __IWL_PHYDB_H__ */
