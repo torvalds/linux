@@ -184,6 +184,7 @@ typedef uint32_t uint32;
 #define idle_req_gpu_cfg    (1<<3)
 #define idle_req_video_cfg  (1<<4)
 #define idle_req_vio_cfg    (1<<5)
+#define idle_req_core_cfg    (1<<14)
 #define idle_req_dma_cfg    (1<<16)
 
 //PMU_PWRDN_ST
@@ -192,6 +193,7 @@ typedef uint32_t uint32;
 #define idle_gpu    (1<<24)
 #define idle_video  (1<<23)
 #define idle_vio    (1<<22)
+#define idle_core    (1<<15)
 #define idle_dma    (1<<14)
 
 #define pd_a9_0_pwr_st    (1<<0)
@@ -1021,7 +1023,6 @@ uint32_t __sramdata ddr3_tRC_tFAW[22]={
 };
 
 __sramdata uint32_t mem_type;    // 0:LPDDR, 1:DDR, 2:DDR2, 3:DDR3, 4:LPDDR2
-__sramdata bool chip_rk3066b_flag=false;    
 static __sramdata uint32_t ddr_speed_bin;    // used for ddr3 only
 static __sramdata uint32_t ddr_capability_per_die;  // one chip cs capability
 static __sramdata uint32_t ddr_freq;
@@ -1038,12 +1039,14 @@ static __sramdata volatile uint32_t loops_per_us;
 #define LPJ_100MHZ  999456UL
 
 /*static*/ void __sramlocalfunc ddr_delayus(uint32_t us)
-{   
-    volatile uint32_t count;
-     
-    count = loops_per_us*us;
-    while(count--)  // 3 cycles
+{
+    do
+    {
+        unsigned int i = (loops_per_us*us);
+        if (i < 7) i = 7;
         barrier();
+        asm volatile(".align 4; 1: subs %0, %0, #1; bne 1b;" : "+r" (i));
+    } while (0);
 }
 
 __sramfunc void ddr_copy(uint32 *pDest, uint32 *pSrc, uint32 words)
@@ -1063,20 +1066,17 @@ uint32 ddr_get_row(void)
 
     i = *(volatile uint32*)SysSrv_DdrConf;
     row = ddr_cfg_2_rbc[i].row;
-    if(chip_rk3066b_flag == true)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
     {
-        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
-        {
-            row += 1;
-        }
+        row += 1;
     }
-    else
+#else
+    if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
     {
-        if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
-        {
-            row += 1;
-        }
+        row += 1;
     }
+#endif
     return row;
 }
 
@@ -2744,7 +2744,7 @@ out:
 
 uint32_t __sramlocalfunc ddr_update_timing(void)
 {
-    uint32_t i,bl_tmp;
+    uint32_t i,bl_tmp=0;
     PCTL_TIMING_T *p_pctl_timing=&(ddr_reg.pctl.pctl_timing);
     PHY_TIMING_T  *p_publ_timing=&(ddr_reg.publ.phy_timing);
     NOC_TIMING_T  *p_noc_timing=&(ddr_reg.noc_timing);
@@ -2926,34 +2926,28 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
-    if(chip_rk3066b_flag == true)
-    {
-        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
-    }
-    else
-    {
-        n= pGRF_Reg->GRF_SOC_STATUS0;
-    }
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+#else
+    n= pGRF_Reg->GRF_SOC_STATUS0;
+#endif
     dsb();
     
     //enter config state
     ddr_move_to_Config_state();
 
     //extend capability for debug
-    if(chip_rk3066b_flag == true)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] & (0x1<<1))
     {
-        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] & (0x1<<1))
-        {
-            pGRF_Reg_RK3066B->GRF_SOC_CON[2] = rank_to_row15_en;
-        }
+        pGRF_Reg_RK3066B->GRF_SOC_CON[2] = rank_to_row15_en;
     }
-    else
+#else
+    if(pGRF_Reg->GRF_SOC_CON[2] & (0x1<<1))
     {
-        if(pGRF_Reg->GRF_SOC_CON[2] & (0x1<<1))
-        {
-            pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
-        }
+        pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
     }
+#endif
 
     //set data training address
     pPHY_Reg->DTAR = value;
@@ -2991,15 +2985,15 @@ void __sramlocalfunc idle_port(void)
 
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
     {
-        #ifdef CONFIG_ARCH_RK3188
+#ifdef CONFIG_ARCH_RK3188
         pPMU_Reg->PMU_MISC_CON1 |= idle_req_dma_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_dma) == 0 );
-        #else
-        pPMU_Reg->PMU_MISC_CON1 |= idle_req_cpu_cfg;
+#else
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_cup_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) == 0 );
-        #endif
+#endif
     }
 
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
@@ -3051,15 +3045,15 @@ void __sramlocalfunc deidle_port(void)
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
     {
 
-        #ifdef CONFIG_ARCH_RK3188
+#ifdef CONFIG_ARCH_RK3188
         pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_dma_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_dma) != 0 );
-        #else
+#else
         pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_cpu_cfg;
         dsb();
         while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) != 0 );
-        #endif
+#endif
     }
     if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
     {
@@ -3158,38 +3152,36 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
         
     loops_per_us = LPJ_100MHZ*freq / 1000000;
 
-    if(chip_rk3066b_flag == true)
-        ret=ddr_set_pll_rk3600b(nMHz,0);
-    else
-        ret=ddr_set_pll(nMHz,0);
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    ret=ddr_set_pll_rk3600b(nMHz,0);
+#else
+    ret=ddr_set_pll(nMHz,0);
+#endif
     ddr_get_parameter(ret);
 
     /** 1. Make sure there is no host access */
     local_irq_save(flags);
-	local_fiq_disable();
+    local_fiq_disable();
     flush_cache_all();
-	outer_flush_all();
-	flush_tlb_all();
-	isb();
-	DDR_SAVE_SP(save_sp);
-	for(i=0;i<16;i++)
-	{
-	    n=temp[1024*i];
-        barrier();
-	}
+    outer_flush_all();
+    flush_tlb_all();
+    isb();
+    DDR_SAVE_SP(save_sp);
+    for(i=0;i<16;i++)
+    {
+    n=temp[1024*i];
+    barrier();
+    }
     n= pDDR_Reg->SCFG.d32;
     n= pPHY_Reg->RIDR;
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
-    if(chip_rk3066b_flag == true)
-    {
-        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
-    }
-    else
-    {
-        n= pGRF_Reg->GRF_SOC_STATUS0;
-    }
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+#else
+    n= pGRF_Reg->GRF_SOC_STATUS0;
+#endif
     dsb();
 
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
@@ -3197,17 +3189,18 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     ddr_selfrefresh_enter(ret);
 
     /** 3. change frequence  */
-    if(chip_rk3066b_flag == true)
-        ddr_set_pll_rk3600b(ret,1);
-    else
-        ddr_set_pll(ret,1);
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    ddr_set_pll_rk3600b(ret,1);
+#else
+    ddr_set_pll(ret,1);
+#endif
     ddr_freq = ret;
     
     /** 5. Issues a Mode Exit command   */
     ddr_selfrefresh_exit();
     deidle_port();
 
-	dsb();
+    dsb();
     DDR_RESTORE_SP(save_sp);
     local_fiq_enable();
     local_irq_restore(flags);
@@ -3244,14 +3237,11 @@ void __sramfunc ddr_suspend(void)
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
-    if(chip_rk3066b_flag == true)
-    {
-        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
-    }
-    else
-    {
-        n= pGRF_Reg->GRF_SOC_STATUS0;
-    }
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+#else
+    n= pGRF_Reg->GRF_SOC_STATUS0;
+#endif
     dsb();
     
     ddr_selfrefresh_enter(0);
@@ -3277,19 +3267,16 @@ void __sramfunc ddr_resume(void)
     dsb();
     while (delay > 0) 
     {
-	    ddr_delayus(1);
-        if(chip_rk3066b_flag == true)
-        {
-            if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (0x1<<5))
-                break;
-        }
-        else
-        {
-            if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
-                break;
-        }
+	ddr_delayus(1);
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+        if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (0x1<<5))
+            break;
+#else
+        if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
+            break;
+#endif
         delay--;
-	}
+    }
     
     pCRU_Reg->CRU_MODE_CON = (0x3<<((1*4) +  16))  | (0x1<<(1*4));   //PLL normal
     dsb();
@@ -3321,24 +3308,18 @@ uint32 ddr_get_cap(void)
             break;
     }
     row = ddr_cfg_2_rbc[i].row;
-#ifdef CONFIG_ARCH_RK3188
-    if (1)
+ 
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
+    {
+        row += 1;
+    }
 #else
-    if(*(volatile uint32_t *)(ROM_CHIP_ID_ADDR+0x0c)  == 0x56313030)
+    if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+    {
+        row += 1;
+    }
 #endif
-    {
-        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
-        {
-            row += 1;
-        }
-    }
-    else
-    {
-        if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
-        {
-            row += 1;
-        }
-    }
 
     return (1 << (row+(ddr_cfg_2_rbc[i].col)+(ddr_cfg_2_rbc[i].bank)+2))*cs;
 }
@@ -3433,15 +3414,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20120903 \n");
-
-    if(*(volatile uint32_t *)(ROM_CHIP_ID_ADDR+0x0c)  == 0x56313030)
-    {
-        chip_rk3066b_flag=true;
-        ddr_print("RK3066B \n");
-    }
-    else
-        chip_rk3066b_flag=false;
+    ddr_print("version 1.00 20130124 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
