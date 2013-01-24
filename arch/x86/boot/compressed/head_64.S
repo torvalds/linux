@@ -37,6 +37,12 @@
 	__HEAD
 	.code32
 ENTRY(startup_32)
+	/*
+	 * 32bit entry is 0 and it is ABI so immutable!
+	 * If we come here directly from a bootloader,
+	 * kernel(text+data+bss+brk) ramdisk, zero_page, command line
+	 * all need to be under the 4G limit.
+	 */
 	cld
 	/*
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
@@ -182,20 +188,18 @@ ENTRY(startup_32)
 	lret
 ENDPROC(startup_32)
 
-	/*
-	 * Be careful here startup_64 needs to be at a predictable
-	 * address so I can export it in an ELF header.  Bootloaders
-	 * should look at the ELF header to find this address, as
-	 * it may change in the future.
-	 */
 	.code64
 	.org 0x200
 ENTRY(startup_64)
 	/*
+	 * 64bit entry is 0x200 and it is ABI so immutable!
 	 * We come here either from startup_32 or directly from a
-	 * 64bit bootloader.  If we come here from a bootloader we depend on
-	 * an identity mapped page table being provied that maps our
-	 * entire text+data+bss and hopefully all of memory.
+	 * 64bit bootloader.
+	 * If we come here from a bootloader, kernel(text+data+bss+brk),
+	 * ramdisk, zero_page, command line could be above 4G.
+	 * We depend on an identity mapped page table being provided
+	 * that maps our entire kernel(text+data+bss+brk), zero page
+	 * and command line.
 	 */
 #ifdef CONFIG_EFI_STUB
 	/*
