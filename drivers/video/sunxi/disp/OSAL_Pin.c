@@ -21,7 +21,7 @@
 #include "OSAL_Pin.h"
 
 #ifdef CONFIG_ARCH_SUN5I
-#include "../../../../power/axp_power/axp-gpio.h"
+#include "../../../power/axp_power/axp-gpio.h"
 #endif
 
 __hdle OSAL_GPIO_Request(user_gpio_set_t *gpio_list, __u32 group_count_max)
