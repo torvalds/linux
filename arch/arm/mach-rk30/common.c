@@ -54,7 +54,7 @@ static void __init rk30_cpu_axi_init(void)
 
 static void __init rk30_io_drive_strength_init(void)
 {
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 	writel_relaxed(0x11001100, RK30_GRF_BASE + GRF_IO_CON4);
 #endif
 }
