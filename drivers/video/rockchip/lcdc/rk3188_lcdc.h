@@ -229,9 +229,9 @@
 #define v_RGB888_VIRWIDTH(x) 	(((((x*3)>>2)+((x)%3))&0x1fff)<<0)
 #define v_RGB565_VIRWIDTH(x) 	 ((DIV_ROUND_UP(x,2)&0x1fff)<<0)
 #define v_YUV_VIRWIDTH(x)    	 ((DIV_ROUND_UP(x,4)&0x1fff)<<0)
-#define v_WIN1_ARGB888_VIRWIDTH(x) 	(((x)&0x1fff)<<0)
-#define v_WIN1_RGB888_VIRWIDTH(x) 	(((((x*3)>>2)+((x)%3))&0x1fff)<<0)
-#define v_WIN1_RGB565_VIRWIDTH(x) 	 ((DIV_ROUND_UP(x,2)&0x1fff)<<0)
+#define v_WIN1_ARGB888_VIRWIDTH(x) 	(((x)&0x1fff)<<16)
+#define v_WIN1_RGB888_VIRWIDTH(x) 	(((((x*3)>>2)+((x)%3))&0x1fff)<<16)
+#define v_WIN1_RGB565_VIRWIDTH(x) 	 ((DIV_ROUND_UP(x,2)&0x1fff)<<16)
 
 
 
