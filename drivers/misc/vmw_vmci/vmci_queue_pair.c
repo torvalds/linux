@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/wait.h>
+#include <linux/vmalloc.h>
 
 #include "vmci_handle_array.h"
 #include "vmci_queue_pair.h"
