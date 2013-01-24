@@ -1532,26 +1532,26 @@
  */
 
 /* Pipe A timing regs */
-#define _HTOTAL_A	0x60000
-#define _HBLANK_A	0x60004
-#define _HSYNC_A		0x60008
-#define _VTOTAL_A	0x6000c
-#define _VBLANK_A	0x60010
-#define _VSYNC_A		0x60014
-#define _PIPEASRC	0x6001c
-#define _BCLRPAT_A	0x60020
-#define _VSYNCSHIFT_A	0x60028
+#define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
+#define _HBLANK_A	(dev_priv->info->display_mmio_offset + 0x60004)
+#define _HSYNC_A	(dev_priv->info->display_mmio_offset + 0x60008)
+#define _VTOTAL_A	(dev_priv->info->display_mmio_offset + 0x6000c)
+#define _VBLANK_A	(dev_priv->info->display_mmio_offset + 0x60010)
+#define _VSYNC_A	(dev_priv->info->display_mmio_offset + 0x60014)
+#define _PIPEASRC	(dev_priv->info->display_mmio_offset + 0x6001c)
+#define _BCLRPAT_A	(dev_priv->info->display_mmio_offset + 0x60020)
+#define _VSYNCSHIFT_A	(dev_priv->info->display_mmio_offset + 0x60028)
 
 /* Pipe B timing regs */
-#define _HTOTAL_B	0x61000
-#define _HBLANK_B	0x61004
-#define _HSYNC_B		0x61008
-#define _VTOTAL_B	0x6100c
-#define _VBLANK_B	0x61010
-#define _VSYNC_B		0x61014
-#define _PIPEBSRC	0x6101c
-#define _BCLRPAT_B	0x61020
-#define _VSYNCSHIFT_B	0x61028
+#define _HTOTAL_B	(dev_priv->info->display_mmio_offset + 0x61000)
+#define _HBLANK_B	(dev_priv->info->display_mmio_offset + 0x61004)
+#define _HSYNC_B	(dev_priv->info->display_mmio_offset + 0x61008)
+#define _VTOTAL_B	(dev_priv->info->display_mmio_offset + 0x6100c)
+#define _VBLANK_B	(dev_priv->info->display_mmio_offset + 0x61010)
+#define _VSYNC_B	(dev_priv->info->display_mmio_offset + 0x61014)
+#define _PIPEBSRC	(dev_priv->info->display_mmio_offset + 0x6101c)
+#define _BCLRPAT_B	(dev_priv->info->display_mmio_offset + 0x61020)
+#define _VSYNCSHIFT_B	(dev_priv->info->display_mmio_offset + 0x61028)
 
 
 #define HTOTAL(trans) _TRANSCODER(trans, _HTOTAL_A, _HTOTAL_B)
