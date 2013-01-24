@@ -3567,17 +3567,13 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 
 	dev_info(dev, "regs %p, irq %d\n", hsotg->regs, hsotg->irq);
 
-	device_initialize(&hsotg->gadget.dev);
-
-	dev_set_name(&hsotg->gadget.dev, "gadget");
-
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
-
 	hsotg->gadget.dev.parent = dev;
 	hsotg->gadget.dev.dma_mask = dev->dma_mask;
 	hsotg->gadget.dev.release = s3c_hsotg_release;
+	hsotg->gadget.register_my_device = true;
 
 	/* reset the system */
 
@@ -3658,12 +3654,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 
 	s3c_hsotg_phy_disable(hsotg);
 
-	ret = device_add(&hsotg->gadget.dev);
-	if (ret) {
-		put_device(&hsotg->gadget.dev);
-		goto err_ep_mem;
-	}
-
 	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
 	if (ret)
 		goto err_ep_mem;
@@ -3702,10 +3692,8 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	}
 
 	s3c_hsotg_phy_disable(hsotg);
-
 	clk_disable_unprepare(hsotg->clk);
 
-	device_unregister(&hsotg->gadget.dev);
 	return 0;
 }
 
