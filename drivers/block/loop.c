@@ -1139,7 +1139,7 @@ loop_get_status(struct loop_device *lo, struct loop_info64 *info)
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
-	error = vfs_getattr(file->f_path.mnt, file->f_path.dentry, &stat);
+	error = vfs_getattr(&file->f_path, &stat);
 	if (error)
 		return error;
 	memset(info, 0, sizeof(*info));
