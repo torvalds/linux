@@ -421,6 +421,7 @@ struct i915_hw_ppgtt {
 			       struct sg_table *st,
 			       unsigned int pg_start,
 			       enum i915_cache_level cache_level);
+	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 
 

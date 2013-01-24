@@ -153,10 +153,28 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 	}
 }
 
-static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+static void gen6_ppgtt_cleanup(struct i915_hw_ppgtt *ppgtt)
 {
+	int i;
+
+	if (ppgtt->pt_dma_addr) {
+		for (i = 0; i < ppgtt->num_pd_entries; i++)
+			pci_unmap_page(ppgtt->dev->pdev,
+				       ppgtt->pt_dma_addr[i],
+				       4096, PCI_DMA_BIDIRECTIONAL);
+	}
+
+	kfree(ppgtt->pt_dma_addr);
+	for (i = 0; i < ppgtt->num_pd_entries; i++)
+		__free_page(ppgtt->pt_pages[i]);
+	kfree(ppgtt->pt_pages);
+	kfree(ppgtt);
+}
+
+static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
+{
+	struct drm_device *dev = ppgtt->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_hw_ppgtt *ppgtt;
 	unsigned first_pd_entry_in_global_pt;
 	int i;
 	int ret = -ENOMEM;
@@ -166,18 +184,14 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	 * now. */
 	first_pd_entry_in_global_pt = dev_priv->mm.gtt->gtt_total_entries - I915_PPGTT_PD_ENTRIES;
 
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return ret;
-
-	ppgtt->dev = dev;
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
 	ppgtt->insert_entries = gen6_ppgtt_insert_entries;
+	ppgtt->cleanup = gen6_ppgtt_cleanup;
 	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
 				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
-		goto err_ppgtt;
+		return -ENOMEM;
 
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
@@ -211,8 +225,6 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
 
-	dev_priv->mm.aliasing_ppgtt = ppgtt;
-
 	return 0;
 
 err_pd_pin:
@@ -228,8 +240,27 @@ err_pt_alloc:
 			__free_page(ppgtt->pt_pages[i]);
 	}
 	kfree(ppgtt->pt_pages);
-err_ppgtt:
-	kfree(ppgtt);
+
+	return ret;
+}
+
+static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
+	int ret;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return -ENOMEM;
+
+	ppgtt->dev = dev;
+
+	ret = gen6_ppgtt_init(ppgtt);
+	if (ret)
+		kfree(ppgtt);
+	else
+		dev_priv->mm.aliasing_ppgtt = ppgtt;
 
 	return ret;
 }
@@ -238,22 +269,11 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	int i;
 
 	if (!ppgtt)
 		return;
 
-	if (ppgtt->pt_dma_addr) {
-		for (i = 0; i < ppgtt->num_pd_entries; i++)
-			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
-				       4096, PCI_DMA_BIDIRECTIONAL);
-	}
-
-	kfree(ppgtt->pt_dma_addr);
-	for (i = 0; i < ppgtt->num_pd_entries; i++)
-		__free_page(ppgtt->pt_pages[i]);
-	kfree(ppgtt->pt_pages);
-	kfree(ppgtt);
+	ppgtt->cleanup(ppgtt);
 }
 
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
