@@ -193,11 +193,11 @@ struct iwl_rx_packet {
  * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
  */
 enum CMD_MODE {
-	CMD_SYNC = 0,
-	CMD_ASYNC = BIT(0),
-	CMD_WANT_SKB = BIT(1),
-	CMD_WANT_HCMD = BIT(2),
-	CMD_ON_DEMAND = BIT(3),
+	CMD_SYNC		= 0,
+	CMD_ASYNC		= BIT(0),
+	CMD_WANT_SKB		= BIT(1),
+	CMD_WANT_HCMD		= BIT(2),
+	CMD_ON_DEMAND		= BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
