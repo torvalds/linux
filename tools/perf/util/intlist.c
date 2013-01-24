@@ -59,9 +59,14 @@ void intlist__remove(struct intlist *ilist, struct int_node *node)
 
 struct int_node *intlist__find(struct intlist *ilist, int i)
 {
-	struct int_node *node = NULL;
-	struct rb_node *rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
+	struct int_node *node;
+	struct rb_node *rb_node;
 
+	if (ilist == NULL)
+		return NULL;
+
+	node = NULL;
+	rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
 	if (rb_node)
 		node = container_of(rb_node, struct int_node, rb_node);
 
