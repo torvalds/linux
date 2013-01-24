@@ -40,6 +40,13 @@
 #include <xen/xen.h>
 #include <linux/acpi.h>
 
+#define ACPI_MEMORY_DEVICE_CLASS        "memory"
+#define ACPI_MEMORY_DEVICE_HID          "PNP0C80"
+#define ACPI_MEMORY_DEVICE_NAME         "Hotplug Mem Device"
+
+int xen_stub_memory_device_init(void);
+void xen_stub_memory_device_exit(void);
+
 int xen_acpi_notify_hypervisor_state(u8 sleep_state,
 				     u32 pm1a_cnt, u32 pm1b_cnd);
 

@@ -180,6 +180,17 @@ config XEN_PRIVCMD
 	depends on XEN
 	default m
 
+config XEN_STUB
+	bool "Xen stub drivers"
+	depends on XEN && X86_64
+	default n
+	help
+	  Allow kernel to install stub drivers, to reserve space for Xen drivers,
+	  i.e. memory hotplug and cpu hotplug, and to block native drivers loaded,
+	  so that real Xen drivers can be modular.
+
+	  To enable Xen features like cpu and memory hotplug, select Y here.
+
 config XEN_ACPI_PROCESSOR
 	tristate "Xen ACPI processor"
 	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
