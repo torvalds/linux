@@ -337,6 +337,7 @@ struct drm_i915_gt_funcs {
 	DEV_INFO_FLAG(has_llc)
 
 struct intel_device_info {
+	u32 display_mmio_offset;
 	u8 gen;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
