@@ -50,8 +50,15 @@ nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
 		u32 tmp = freq * *P * M;
 		N  = tmp / info->refclk;
 		fN = tmp % info->refclk;
-		if (!pfN && fN >= info->refclk / 2)
-			N++;
+
+		if (!pfN) {
+			if (fN >= info->refclk / 2)
+				N++;
+		} else {
+			if (fN <  info->refclk / 2)
+				N--;
+			fN = tmp - (N * info->refclk);
+		}
 
 		if (N < info->vco1.min_n)
 			continue;
@@ -66,7 +73,8 @@ nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
 		}
 
 		if (pfN) {
-			*pfN = (((fN << 13) / info->refclk) - 4096) & 0xffff;
+			*pfN = ((fN << 13) + info->refclk / 2) / info->refclk;
+			*pfN = (*pfN - 4096) & 0xffff;
 			return freq;
 		}
 	}
