@@ -176,14 +176,6 @@ ENTRY(startup_32)
 	lret
 ENDPROC(startup_32)
 
-no_longmode:
-	/* This isn't an x86-64 CPU so hang */
-1:
-	hlt
-	jmp     1b
-
-#include "../../kernel/verify_cpu.S"
-
 	/*
 	 * Be careful here startup_64 needs to be at a predictable
 	 * address so I can export it in an ELF header.  Bootloaders
@@ -348,6 +340,15 @@ relocated:
  * Jump to the decompressed kernel.
  */
 	jmp	*%rbp
+
+	.code32
+no_longmode:
+	/* This isn't an x86-64 CPU so hang */
+1:
+	hlt
+	jmp     1b
+
+#include "../../kernel/verify_cpu.S"
 
 	.data
 gdt:
