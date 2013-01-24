@@ -44,9 +44,9 @@ typedef uint32_t gtt_pte_t;
 #define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 
-static inline gtt_pte_t pte_encode(struct drm_device *dev,
-				   dma_addr_t addr,
-				   enum i915_cache_level level)
+static inline gtt_pte_t gen6_pte_encode(struct drm_device *dev,
+					dma_addr_t addr,
+					enum i915_cache_level level)
 {
 	gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -87,8 +87,9 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
-	scratch_pte = pte_encode(ppgtt->dev, ppgtt->scratch_page_dma_addr,
-				 I915_CACHE_LLC);
+	scratch_pte = gen6_pte_encode(ppgtt->dev,
+				      ppgtt->scratch_page_dma_addr,
+				      I915_CACHE_LLC);
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -131,8 +132,8 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 
 		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
 			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			pt_vaddr[j] = pte_encode(ppgtt->dev, page_addr,
-						 cache_level);
+			pt_vaddr[j] = gen6_pte_encode(ppgtt->dev, page_addr,
+						      cache_level);
 
 			/* grab the next page */
 			if (++m == segment_len) {
@@ -421,7 +422,8 @@ static void gen6_ggtt_insert_entries(struct drm_device *dev,
 		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		for (m = 0; m < len; m++) {
 			addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			iowrite32(pte_encode(dev, addr, level), &gtt_entries[i]);
+			iowrite32(gen6_pte_encode(dev, addr, level),
+				  &gtt_entries[i]);
 			i++;
 		}
 	}
@@ -433,7 +435,8 @@ static void gen6_ggtt_insert_entries(struct drm_device *dev,
 	 * hardware should work, we must keep this posting read for paranoia.
 	 */
 	if (i != 0)
-		WARN_ON(readl(&gtt_entries[i-1]) != pte_encode(dev, addr, level));
+		WARN_ON(readl(&gtt_entries[i-1])
+			!= gen6_pte_encode(dev, addr, level));
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -458,7 +461,8 @@ static void gen6_ggtt_clear_range(struct drm_device *dev,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = pte_encode(dev, dev_priv->gtt.scratch_page_dma, I915_CACHE_LLC);
+	scratch_pte = gen6_pte_encode(dev, dev_priv->gtt.scratch_page_dma,
+				      I915_CACHE_LLC);
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
