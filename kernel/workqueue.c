@@ -423,14 +423,15 @@ static bool workqueue_freezing;		/* W: have wqs started freezing? */
  */
 static DEFINE_PER_CPU(struct worker_pool [NR_STD_WORKER_POOLS],
 		      cpu_std_worker_pools);
-static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t, pool_nr_running[NR_STD_WORKER_POOLS]);
+static DEFINE_PER_CPU_SHARED_ALIGNED(atomic_t [NR_STD_WORKER_POOLS],
+				     cpu_std_pool_nr_running);
 
 /*
  * Standard worker pools and nr_running counter for unbound CPU.  The pools
  * have POOL_DISASSOCIATED set, and all workers have WORKER_UNBOUND set.
  */
 static struct worker_pool unbound_std_worker_pools[NR_STD_WORKER_POOLS];
-static atomic_t unbound_pool_nr_running[NR_STD_WORKER_POOLS] = {
+static atomic_t unbound_std_pool_nr_running[NR_STD_WORKER_POOLS] = {
 	[0 ... NR_STD_WORKER_POOLS - 1]	= ATOMIC_INIT(0),	/* always 0 */
 };
 
@@ -488,9 +489,9 @@ static atomic_t *get_pool_nr_running(struct worker_pool *pool)
 	int idx = std_worker_pool_pri(pool);
 
 	if (cpu != WORK_CPU_UNBOUND)
-		return &per_cpu(pool_nr_running, cpu)[idx];
+		return &per_cpu(cpu_std_pool_nr_running, cpu)[idx];
 	else
-		return &unbound_pool_nr_running[idx];
+		return &unbound_std_pool_nr_running[idx];
 }
 
 static struct cpu_workqueue_struct *get_cwq(unsigned int cpu,
