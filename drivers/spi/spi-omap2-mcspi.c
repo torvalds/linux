@@ -1020,7 +1020,7 @@ static void omap2_mcspi_work(struct omap2_mcspi *mcspi, struct spi_message *m)
 }
 
 static int omap2_mcspi_transfer_one_message(struct spi_master *master,
-						struct spi_message *m)
+		struct spi_message *m)
 {
 	struct omap2_mcspi	*mcspi;
 	struct spi_transfer	*t;
@@ -1041,7 +1041,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 				|| (len && !(rx_buf || tx_buf))
 				|| (t->bits_per_word &&
 					(  t->bits_per_word < 4
-					|| t->bits_per_word > 32))) {
+					   || t->bits_per_word > 32))) {
 			dev_dbg(mcspi->dev, "transfer: %d Hz, %d %s%s, %d bpw\n",
 					t->speed_hz,
 					len,
@@ -1052,8 +1052,8 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 		}
 		if (t->speed_hz && t->speed_hz < (OMAP2_MCSPI_MAX_FREQ >> 15)) {
 			dev_dbg(mcspi->dev, "speed_hz %d below minimum %d Hz\n",
-				t->speed_hz,
-				OMAP2_MCSPI_MAX_FREQ >> 15);
+					t->speed_hz,
+					OMAP2_MCSPI_MAX_FREQ >> 15);
 			return -EINVAL;
 		}
 
@@ -1099,7 +1099,7 @@ static int omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
 		return ret;
 
 	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE,
-				OMAP2_MCSPI_WAKEUPENABLE_WKEN);
+			OMAP2_MCSPI_WAKEUPENABLE_WKEN);
 	ctx->wakeupenable = OMAP2_MCSPI_WAKEUPENABLE_WKEN;
 
 	omap2_mcspi_set_master_mode(master);
@@ -1228,7 +1228,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 
 		sprintf(dma_ch_name, "rx%d", i);
 		dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA,
-							dma_ch_name);
+				dma_ch_name);
 		if (!dma_res) {
 			dev_dbg(&pdev->dev, "cannot get DMA RX channel\n");
 			status = -ENODEV;
@@ -1238,7 +1238,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		mcspi->dma_channels[i].dma_rx_sync_dev = dma_res->start;
 		sprintf(dma_ch_name, "tx%d", i);
 		dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA,
-							dma_ch_name);
+				dma_ch_name);
 		if (!dma_res) {
 			dev_dbg(&pdev->dev, "cannot get DMA TX channel\n");
 			status = -ENODEV;
@@ -1254,7 +1254,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))
 		dev_warn(&pdev->dev,
-			"pins are not configured from the driver\n");
+				"pins are not configured from the driver\n");
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
