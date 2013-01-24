@@ -48,6 +48,32 @@ static const struct regmap_config tscadc_regmap_config = {
 	.val_bits = 32,
 };
 
+void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc)
+{
+	tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_update);
+
+void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val)
+{
+	spin_lock(&tsadc->reg_lock);
+	tsadc->reg_se_cache |= val;
+	spin_unlock(&tsadc->reg_lock);
+
+	am335x_tsc_se_update(tsadc);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_set);
+
+void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val)
+{
+	spin_lock(&tsadc->reg_lock);
+	tsadc->reg_se_cache &= ~val;
+	spin_unlock(&tsadc->reg_lock);
+
+	am335x_tsc_se_update(tsadc);
+}
+EXPORT_SYMBOL_GPL(am335x_tsc_se_clr);
+
 static void tscadc_idle_config(struct ti_tscadc_dev *config)
 {
 	unsigned int idleconfig;
@@ -129,6 +155,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		goto ret;
 	}
 
+	spin_lock_init(&tscadc->reg_lock);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -239,7 +266,7 @@ static int tscadc_resume(struct device *dev)
 			CNTRLREG_STEPID | CNTRLREG_4WIRE;
 	tscadc_writel(tscadc_dev, REG_CTRL, ctrl);
 	tscadc_idle_config(tscadc_dev);
-	tscadc_writel(tscadc_dev, REG_SE, STPENB_STEPENB);
+	am335x_tsc_se_update(tscadc_dev);
 	restore = tscadc_readl(tscadc_dev, REG_CTRL);
 	tscadc_writel(tscadc_dev, REG_CTRL,
 			(restore | CNTRLREG_TSCSSENB));

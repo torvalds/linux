@@ -42,10 +42,20 @@ static void tiadc_writel(struct tiadc_device *adc, unsigned int reg,
 	writel(val, adc->mfd_tscadc->tscadc_base + reg);
 }
 
+static u32 get_adc_step_mask(struct tiadc_device *adc_dev)
+{
+	u32 step_en;
+
+	step_en = ((1 << adc_dev->channels) - 1);
+	step_en <<= TOTAL_STEPS - adc_dev->channels + 1;
+	return step_en;
+}
+
 static void tiadc_step_config(struct tiadc_device *adc_dev)
 {
 	unsigned int stepconfig;
 	int i, channels = 0, steps;
+	u32 step_en;
 
 	/*
 	 * There are 16 configurable steps and 8 analog input
@@ -69,7 +79,8 @@ static void tiadc_step_config(struct tiadc_device *adc_dev)
 				STEPCONFIG_OPENDLY);
 		channels++;
 	}
-	tiadc_writel(adc_dev, REG_SE, STPENB_STEPENB);
+	step_en = get_adc_step_mask(adc_dev);
+	am335x_tsc_se_set(adc_dev->mfd_tscadc, step_en);
 }
 
 static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
@@ -127,7 +138,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 		if (i == chan->channel)
 			*val = readx1 & 0xfff;
 	}
-	tiadc_writel(adc_dev, REG_SE, STPENB_STEPENB);
+	am335x_tsc_se_update(adc_dev->mfd_tscadc);
 
 	return IIO_VAL_INT;
 }
@@ -191,9 +202,14 @@ err_ret:
 static int tiadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	u32 step_en;
 
 	iio_device_unregister(indio_dev);
 	tiadc_channels_remove(indio_dev);
+
+	step_en = get_adc_step_mask(adc_dev);
+	am335x_tsc_se_clr(adc_dev->mfd_tscadc, step_en);
 
 	iio_device_free(indio_dev);
 

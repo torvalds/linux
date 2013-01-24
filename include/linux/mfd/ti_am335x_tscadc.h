@@ -46,8 +46,6 @@
 /* Step Enable */
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
-#define STPENB_STEPENB		STEPENB(0x1FFFF)
-#define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
@@ -141,6 +139,8 @@ struct ti_tscadc_dev {
 	void __iomem *tscadc_base;
 	int irq;
 	struct mfd_cell cells[TSCADC_CELLS];
+	u32 reg_se_cache;
+	spinlock_t reg_lock;
 
 	/* tsc device */
 	struct titsc *tsc;
@@ -155,5 +155,9 @@ static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
 
 	return *tscadc_dev;
 }
+
+void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc);
+void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val);
 
 #endif

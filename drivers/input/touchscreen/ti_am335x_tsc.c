@@ -57,6 +57,7 @@ static void titsc_writel(struct titsc *tsc, unsigned int reg,
 static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
+	unsigned int	stepenable = 0;
 	int i, total_steps;
 
 	/* Configure the Step registers */
@@ -128,7 +129,9 @@ static void titsc_step_config(struct titsc *ts_dev)
 	titsc_writel(ts_dev, REG_STEPDELAY(total_steps + 2),
 			STEPCONFIG_OPENDLY);
 
-	titsc_writel(ts_dev, REG_SE, STPENB_STEPENB_TC);
+	/* The steps1 … end and bit 0 for TS_Charge */
+	stepenable = (1 << (total_steps + 2)) - 1;
+	am335x_tsc_se_set(ts_dev->mfd_tscadc, stepenable);
 }
 
 static void titsc_read_coordinates(struct titsc *ts_dev,
@@ -250,7 +253,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 
 	titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
 
-	titsc_writel(ts_dev, REG_SE, STPENB_STEPENB_TC);
+	am335x_tsc_se_update(ts_dev->mfd_tscadc);
 	return IRQ_HANDLED;
 }
 
@@ -333,6 +336,11 @@ static int titsc_remove(struct platform_device *pdev)
 	u32 steps;
 
 	free_irq(ts_dev->irq, ts_dev);
+
+	/* total steps followed by the enable mask */
+	steps = 2 * ts_dev->steps_to_configure + 2;
+	steps = (1 << steps) - 1;
+	am335x_tsc_se_clr(ts_dev->mfd_tscadc, steps);
 
 	input_unregister_device(ts_dev->input);
 
