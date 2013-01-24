@@ -162,6 +162,15 @@ struct rk_fb_rgb {
 	struct fb_bitfield	transp;
 };
 
+struct rk_fb_vsync {
+	wait_queue_head_t	wait;
+	ktime_t			timestamp;
+	bool			active;
+	int			irq_refcount;
+	struct mutex		irq_lock;
+	struct task_struct	*thread;
+};
+
 typedef enum _TRSP_MODE
 {
     TRSP_CLOSE = 0,
