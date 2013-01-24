@@ -1779,7 +1779,7 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	.map_io		= u300_map_io,
 	.nr_irqs	= 0,
 	.init_irq	= u300_init_irq,
-	.timer		= &u300_timer,
+	.init_time	= u300_timer_init,
 	.init_machine	= u300_init_machine,
 	.restart	= u300_restart,
 MACHINE_END

@@ -38,7 +38,7 @@ MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	.map_io		= versatile_map_io,
 	.init_early	= versatile_init_early,
 	.init_irq	= versatile_init_irq,
-	.timer		= &versatile_timer,
+	.init_time	= versatile_timer_init,
 	.init_machine	= versatile_init,
 	.restart	= versatile_restart,
 MACHINE_END

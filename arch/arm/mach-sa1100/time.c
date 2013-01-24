@@ -69,12 +69,45 @@ sa1100_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *c)
 	}
 }
 
+#ifdef CONFIG_PM
+unsigned long osmr[4], oier;
+
+static void sa1100_timer_suspend(struct clock_event_device *cedev)
+{
+	osmr[0] = readl_relaxed(OSMR0);
+	osmr[1] = readl_relaxed(OSMR1);
+	osmr[2] = readl_relaxed(OSMR2);
+	osmr[3] = readl_relaxed(OSMR3);
+	oier = readl_relaxed(OIER);
+}
+
+static void sa1100_timer_resume(struct clock_event_device *cedev)
+{
+	writel_relaxed(0x0f, OSSR);
+	writel_relaxed(osmr[0], OSMR0);
+	writel_relaxed(osmr[1], OSMR1);
+	writel_relaxed(osmr[2], OSMR2);
+	writel_relaxed(osmr[3], OSMR3);
+	writel_relaxed(oier, OIER);
+
+	/*
+	 * OSMR0 is the system timer: make sure OSCR is sufficiently behind
+	 */
+	writel_relaxed(OSMR0 - LATCH, OSCR);
+}
+#else
+#define sa1100_timer_suspend NULL
+#define sa1100_timer_resume NULL
+#endif
+
 static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 200,
 	.set_next_event	= sa1100_osmr0_set_next_event,
 	.set_mode	= sa1100_osmr0_set_mode,
+	.suspend	= sa1100_timer_suspend,
+	.resume		= sa1100_timer_resume,
 };
 
 static struct irqaction sa1100_timer_irq = {
@@ -84,7 +117,7 @@ static struct irqaction sa1100_timer_irq = {
 	.dev_id		= &ckevt_sa1100_osmr0,
 };
 
-static void __init sa1100_timer_init(void)
+void __init sa1100_timer_init(void)
 {
 	writel_relaxed(0, OIER);
 	writel_relaxed(OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3, OSSR);
@@ -104,40 +137,3 @@ static void __init sa1100_timer_init(void)
 		clocksource_mmio_readl_up);
 	clockevents_register_device(&ckevt_sa1100_osmr0);
 }
-
-#ifdef CONFIG_PM
-unsigned long osmr[4], oier;
-
-static void sa1100_timer_suspend(void)
-{
-	osmr[0] = readl_relaxed(OSMR0);
-	osmr[1] = readl_relaxed(OSMR1);
-	osmr[2] = readl_relaxed(OSMR2);
-	osmr[3] = readl_relaxed(OSMR3);
-	oier = readl_relaxed(OIER);
-}
-
-static void sa1100_timer_resume(void)
-{
-	writel_relaxed(0x0f, OSSR);
-	writel_relaxed(osmr[0], OSMR0);
-	writel_relaxed(osmr[1], OSMR1);
-	writel_relaxed(osmr[2], OSMR2);
-	writel_relaxed(osmr[3], OSMR3);
-	writel_relaxed(oier, OIER);
-
-	/*
-	 * OSMR0 is the system timer: make sure OSCR is sufficiently behind
-	 */
-	writel_relaxed(OSMR0 - LATCH, OSCR);
-}
-#else
-#define sa1100_timer_suspend NULL
-#define sa1100_timer_resume NULL
-#endif
-
-struct sys_timer sa1100_timer = {
-	.init		= sa1100_timer_init,
-	.suspend	= sa1100_timer_suspend,
-	.resume		= sa1100_timer_resume,
-};

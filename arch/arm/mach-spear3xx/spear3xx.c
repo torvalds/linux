@@ -84,7 +84,7 @@ void __init spear3xx_map_io(void)
 	iotable_init(spear3xx_io_desc, ARRAY_SIZE(spear3xx_io_desc));
 }
 
-static void __init spear3xx_timer_init(void)
+void __init spear3xx_timer_init(void)
 {
 	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
@@ -112,7 +112,3 @@ static void __init spear3xx_timer_init(void)
 
 	spear_setup_of_timer();
 }
-
-struct sys_timer spear3xx_timer = {
-	.init = spear3xx_timer_init,
-};

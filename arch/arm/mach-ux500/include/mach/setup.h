@@ -28,8 +28,7 @@ extern struct device *ux500_soc_device_init(const char *soc_id);
 struct amba_device;
 extern void __init amba_add_devices(struct amba_device *devs[], int num);
 
-struct sys_timer;
-extern struct sys_timer ux500_timer;
+extern void ux500_timer_init(void);
 
 #define __IO_DEV_DESC(x, sz)	{		\
 	.virtual	= IO_ADDRESS(x),	\

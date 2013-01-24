@@ -89,6 +89,6 @@ DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_irq	= sunxi_init_irq,
 	.handle_irq	= sunxi_handle_irq,
 	.restart	= sunxi_restart,
-	.timer		= &sunxi_timer,
+	.init_time	= &sunxi_timer_init,
 	.dt_compat	= sunxi_board_dt_compat,
 MACHINE_END

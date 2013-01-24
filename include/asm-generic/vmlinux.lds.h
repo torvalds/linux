@@ -149,6 +149,15 @@
 #define TRACE_SYSCALLS()
 #endif
 
+#ifdef CONFIG_CLKSRC_OF
+#define CLKSRC_OF_TABLES() . = ALIGN(8);				\
+			   VMLINUX_SYMBOL(__clksrc_of_table) = .;	\
+			   *(__clksrc_of_table)				\
+			   *(__clksrc_of_table_end)
+#else
+#define CLKSRC_OF_TABLES()
+#endif
+
 #ifdef CONFIG_IRQCHIP
 #define IRQCHIP_OF_MATCH_TABLE()					\
 	. = ALIGN(8);							\
@@ -502,6 +511,7 @@
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)					\
+	CLKSRC_OF_TABLES()						\
 	KERNEL_DTB()							\
 	IRQCHIP_OF_MATCH_TABLE()
 

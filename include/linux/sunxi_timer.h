@@ -19,6 +19,6 @@
 
 #include <asm/mach/time.h>
 
-extern struct sys_timer sunxi_timer;
+void sunxi_timer_init(void);
 
 #endif

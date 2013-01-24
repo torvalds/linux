@@ -24,10 +24,6 @@ static void timer_init(void)
 {
 }
 
-static struct sys_timer timer = {
-	.init = timer_init,
-};
-
 static void __init board_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL,
@@ -38,7 +34,7 @@ static const char * const bcm11351_dt_compat[] = { "bcm,bcm11351", NULL, };
 
 DT_MACHINE_START(BCM11351_DT, "Broadcom Application Processor")
 	.init_irq = irqchip_init,
-	.timer = &timer,
+	.init_time = timer_init,
 	.init_machine = board_init,
 	.dt_compat = bcm11351_dt_compat,
 MACHINE_END

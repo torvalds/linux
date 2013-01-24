@@ -552,5 +552,5 @@ MACHINE_START(KOTA2, "kota2")
 	.init_irq	= sh73a0_init_irq,
 	.init_machine	= kota2_init,
 	.init_late	= shmobile_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh73a0_earlytimer_init,
 MACHINE_END
