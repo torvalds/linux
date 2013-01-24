@@ -74,10 +74,6 @@ static const char	hcd_name [] = "ehci_hcd";
 #undef VERBOSE_DEBUG
 #undef EHCI_URB_TRACE
 
-#ifdef DEBUG
-#define EHCI_STATS
-#endif
-
 /* magic numbers that can affect system performance */
 #define	EHCI_TUNE_CERR		3	/* 0-3 qtd retries; 0 == don't stop */
 #define	EHCI_TUNE_RL_HS		4	/* nak throttle; see 4.9 */
@@ -1250,11 +1246,6 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_fsl_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_MXC
-#include "ehci-mxc.c"
-#define PLATFORM_DRIVER		ehci_mxc_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_SH
 #include "ehci-sh.c"
 #define PLATFORM_DRIVER		ehci_hcd_sh_driver
@@ -1352,7 +1343,8 @@ MODULE_LICENSE ("GPL");
 
 #if !IS_ENABLED(CONFIG_USB_EHCI_PCI) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_HCD_PLATFORM) && \
-	!defined(CONFIG_USB_CHIPIDEA_HOST) && \
+	!IS_ENABLED(CONFIG_USB_CHIPIDEA_HOST) && \
+	!IS_ENABLED(CONFIG_USB_EHCI_MXC) && \
 	!defined(PLATFORM_DRIVER) && \
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(OF_PLATFORM_DRIVER) && \
