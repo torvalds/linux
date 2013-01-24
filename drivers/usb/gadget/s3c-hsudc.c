@@ -1303,18 +1303,16 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&hsudc->lock);
 
-	dev_set_name(&hsudc->gadget.dev, "gadget");
-
 	hsudc->gadget.max_speed = USB_SPEED_HIGH;
 	hsudc->gadget.ops = &s3c_hsudc_gadget_ops;
 	hsudc->gadget.name = dev_name(dev);
 	hsudc->gadget.dev.parent = dev;
 	hsudc->gadget.dev.dma_mask = dev->dma_mask;
 	hsudc->gadget.ep0 = &hsudc->ep[0].ep;
-
 	hsudc->gadget.is_otg = 0;
 	hsudc->gadget.is_a_peripheral = 0;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
+	hsudc->gadget.register_my_device = true;
 
 	s3c_hsudc_setup_ep(hsudc);
 
@@ -1345,12 +1343,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	disable_irq(hsudc->irq);
 	local_irq_enable();
 
-	ret = device_register(&hsudc->gadget.dev);
-	if (ret) {
-		put_device(&hsudc->gadget.dev);
-		goto err_add_device;
-	}
-
 	ret = usb_add_gadget_udc(&pdev->dev, &hsudc->gadget);
 	if (ret)
 		goto err_add_udc;
@@ -1359,7 +1351,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	return 0;
 err_add_udc:
-	device_unregister(&hsudc->gadget.dev);
 err_add_device:
 	clk_disable(hsudc->uclk);
 err_res:
