@@ -3654,6 +3654,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	hda_set_power_state(codec, AC_PWRST_D0);
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
+	snd_hda_jack_set_dirty_all(codec);
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
 	else {
@@ -3665,10 +3666,8 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 
 	if (codec->jackpoll_interval)
 		hda_jackpoll_work(&codec->jackpoll_work.work);
-	else {
-		snd_hda_jack_set_dirty_all(codec);
+	else
 		snd_hda_jack_report_sync(codec);
-	}
 
 	codec->in_pm = 0;
 	snd_hda_power_down(codec); /* flag down before returning */
