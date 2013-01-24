@@ -150,6 +150,13 @@ extern int radeon_fastfb;
 #define RADEON_RESET_MC				(1 << 10)
 #define RADEON_RESET_DISPLAY			(1 << 11)
 
+/* max cursor sizes (in pixels) */
+#define CURSOR_WIDTH 64
+#define CURSOR_HEIGHT 64
+
+#define CIK_CURSOR_WIDTH 128
+#define CIK_CURSOR_HEIGHT 128
+
 /*
  * Errata workarounds.
  */
