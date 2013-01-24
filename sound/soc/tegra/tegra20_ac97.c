@@ -457,7 +457,7 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra20_ac97_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_ac97_of_match[] = {
 	{ .compatible = "nvidia,tegra20-ac97", },
 	{},
 };
