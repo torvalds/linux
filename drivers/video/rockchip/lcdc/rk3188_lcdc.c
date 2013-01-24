@@ -73,6 +73,33 @@ static int rk3188_lcdc_clk_disable(struct rk3188_lcdc_device *lcdc_dev)
 	return 0;
 }
 
+
+
+static void rk3188_lcdc_reg_dump(struct rk3188_lcdc_device *lcdc_dev)
+{
+       int *cbase =  (int *)lcdc_dev->regs;
+       int *regsbak = (int*)lcdc_dev->regsbak;
+       int i,j;
+
+       printk("back up reg:\n");
+       for(i=0; i<=(0x90>>4);i++)
+       {
+               for(j=0;j<4;j++)
+                       printk("%08x  ",*(regsbak+i*4 +j));
+               printk("\n");
+       }
+
+       printk("lcdc reg:\n");
+       for(i=0; i<=(0x90>>4);i++)
+       {
+               for(j=0;j<4;j++)
+                       printk("%08x  ",readl_relaxed(cbase+i*4 +j));
+               printk("\n");
+       }
+       
+}
+
+
 static int rk3188_lcdc_reg_resume(struct rk3188_lcdc_device *lcdc_dev)
 {
 	memcpy((u8*)lcdc_dev->regs, (u8*)lcdc_dev->regsbak, 0x84);
