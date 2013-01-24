@@ -387,10 +387,11 @@ static int sanity_check_raw_super(struct super_block *sb,
 	return 0;
 }
 
-static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
-				struct f2fs_checkpoint *ckpt)
+static int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 {
 	unsigned int total, fsmeta;
+	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 
 	total = le32_to_cpu(raw_super->segment_count);
 	fsmeta = le32_to_cpu(raw_super->segment_count_ckpt);
@@ -401,6 +402,11 @@ static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
 
 	if (fsmeta >= total)
 		return 1;
+
+	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "A bug case: need to run fsck");
+		return 1;
+	}
 	return 0;
 }
 
@@ -525,7 +531,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* sanity checking of checkpoint */
 	err = -EINVAL;
-	if (sanity_check_ckpt(raw_super, sbi->ckpt)) {
+	if (sanity_check_ckpt(sbi)) {
 		f2fs_msg(sb, KERN_ERR, "Invalid F2FS checkpoint");
 		goto free_cp;
 	}

@@ -72,22 +72,22 @@ static int f2fs_write_meta_page(struct page *page,
 {
 	struct inode *inode = page->mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	int err;
+
+	/* Should not write any meta pages, if any IO error was occurred */
+	if (wbc->for_reclaim ||
+			is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ERROR_FLAG)) {
+		dec_page_count(sbi, F2FS_DIRTY_META);
+		wbc->pages_skipped++;
+		set_page_dirty(page);
+		return AOP_WRITEPAGE_ACTIVATE;
+	}
 
 	wait_on_page_writeback(page);
 
-	err = write_meta_page(sbi, page, wbc);
-	if (err) {
-		wbc->pages_skipped++;
-		set_page_dirty(page);
-	}
-
+	write_meta_page(sbi, page);
 	dec_page_count(sbi, F2FS_DIRTY_META);
-
-	/* In this case, we should not unlock this page */
-	if (err != AOP_WRITEPAGE_ACTIVATE)
-		unlock_page(page);
-	return err;
+	unlock_page(page);
+	return 0;
 }
 
 static int f2fs_write_meta_pages(struct address_space *mapping,
@@ -138,7 +138,10 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 			BUG_ON(page->mapping != mapping);
 			BUG_ON(!PageDirty(page));
 			clear_page_dirty_for_io(page);
-			f2fs_write_meta_page(page, &wbc);
+			if (f2fs_write_meta_page(page, &wbc)) {
+				unlock_page(page);
+				break;
+			}
 			if (nwritten++ >= nr_to_write)
 				break;
 		}
@@ -717,13 +720,12 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	sbi->alloc_valid_block_count = 0;
 
 	/* Here, we only have one bio having CP pack */
-	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))
-		sbi->sb->s_flags |= MS_RDONLY;
-	else
-		sync_meta_pages(sbi, META_FLUSH, LONG_MAX);
+	sync_meta_pages(sbi, META_FLUSH, LONG_MAX);
 
-	clear_prefree_segments(sbi);
-	F2FS_RESET_SB_DIRT(sbi);
+	if (!is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+		clear_prefree_segments(sbi);
+		F2FS_RESET_SB_DIRT(sbi);
+	}
 }
 
 /*

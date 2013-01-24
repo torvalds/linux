@@ -600,6 +600,7 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 			if (page->mapping)
 				set_bit(AS_EIO, &page->mapping->flags);
 			set_ckpt_flags(p->sbi->ckpt, CP_ERROR_FLAG);
+			p->sbi->sb->s_flags |= MS_RDONLY;
 		}
 		end_page_writeback(page);
 		dec_page_count(p->sbi, F2FS_WRITEBACK);
@@ -815,15 +816,10 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
-int write_meta_page(struct f2fs_sb_info *sbi, struct page *page,
-			struct writeback_control *wbc)
+void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 {
-	if (wbc->for_reclaim)
-		return AOP_WRITEPAGE_ACTIVATE;
-
 	set_page_writeback(page);
 	submit_write_page(sbi, page, page->index, META);
-	return 0;
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
