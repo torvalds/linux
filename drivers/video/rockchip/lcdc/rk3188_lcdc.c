@@ -428,7 +428,8 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
-
+	u8 fmt_cfg =0 ; //data format register config value
+	
 	xact = par->xact;			    //active (origin) picture window width/height		
 	yact = par->yact;
 	xvir = par->xvir;			   // virtual resolution		
@@ -441,15 +442,28 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	ScaleYrgbY = CalScale(yact, par->ysize);
 	switch (par->format)
 	{
+	case ARGB888:
+	case XRGB888:
+	     	fmt_cfg = 0;
+		break;
+	case RGB888:
+		fmt_cfg = 1;
+		break;
+	case RGB565:
+		fmt_cfg = 2;
+		break;
 	case YUV422:// yuv422
+		fmt_cfg = 5;
 		ScaleCbrX = CalScale((xact/2), par->xsize);
 		ScaleCbrY = CalScale(yact, par->ysize);
 		break;
 	case YUV420: // yuv420
+		fmt_cfg = 4;
 		ScaleCbrX = CalScale(xact/2, par->xsize);
 		ScaleCbrY = CalScale(yact/2, par->ysize);
 		break;
 	case YUV444:// yuv444
+		fmt_cfg = 6;
 		ScaleCbrX = CalScale(xact, par->xsize);
 		ScaleCbrY = CalScale(yact, par->ysize);
 		break;
@@ -465,7 +479,7 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	{
 		lcdc_writel(lcdc_dev,WIN0_SCL_FACTOR_YRGB,v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
 		lcdc_writel(lcdc_dev,WIN0_SCL_FACTOR_CBR,v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN0_FORMAT,v_WIN0_FORMAT(par->format));		//(inf->video_mode==0)
+		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN0_FORMAT,v_WIN0_FORMAT(fmt_cfg));		//(inf->video_mode==0)
 		lcdc_writel(lcdc_dev,WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
 		lcdc_writel(lcdc_dev,WIN0_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		lcdc_writel(lcdc_dev,WIN0_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
@@ -473,24 +487,33 @@ static  int win0_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 		
 		switch(par->format) 
 		{
-		case ARGB888:
+		case XRGB888:
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN,v_WIN0_ALPHA_EN(0));
+			break;
+		case ARGB888:
+			lcdc_msk_reg(lcdc_dev,WIN_VIR,m_WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN,v_WIN0_ALPHA_EN(1));
+			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN0_ALPHA_MODE,v_WIN0_ALPHA_MODE(1));//default set to per-pixel alpha
 			//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
 			break;
 		case RGB888:  //rgb888
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN,v_WIN0_ALPHA_EN(0));
 			//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
 			break;
 		case RGB565:  //rgb565
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN0_VIR,v_RGB565_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN,v_WIN0_ALPHA_EN(0));
 			break;
 		case YUV422:
 		case YUV420:
 		case YUV444:
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN0_VIR,v_YUV_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN0_ALPHA_EN,v_WIN0_ALPHA_EN(0));
 			break;
 		default:
-			dev_err(lcdc_dev->driver.dev,"un supported format!\n");
+			dev_err(lcdc_dev->driver.dev,"%s:un supported format!\n",__func__);
 			break;
 		}
 
@@ -505,6 +528,7 @@ static int win1_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 			   struct layer_par *par )
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
+	u8 fmt_cfg;
 
 	xact = par->xact;			
 	yact = par->yact;
@@ -521,28 +545,41 @@ static int win1_set_par(struct rk3188_lcdc_device *lcdc_dev,rk_screen *screen,
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN1_FORMAT, v_WIN1_FORMAT(par->format));
+		
 		lcdc_writel(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
 		lcdc_writel(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		// disable win1 color key and set the color to black(rgb=0)
 		lcdc_msk_reg(lcdc_dev, WIN1_COLOR_KEY,m_COLOR_KEY_EN,v_COLOR_KEY_EN(0));
 		switch(par->format)
 		{
-		case ARGB888:
+		case XRGB888:
+			fmt_cfg = 0;
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN1_VIR,v_WIN1_ARGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN1_ALPHA_EN,v_WIN1_ALPHA_EN(0));
+			break;
+		case ARGB888:
+			fmt_cfg = 0;
+			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN1_VIR,v_WIN1_ARGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN1_ALPHA_EN,v_WIN1_ALPHA_EN(1));
+			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN1_ALPHA_MODE,v_WIN1_ALPHA_MODE(1));//default set to per-pixel alpha
 			//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
 			break;
 		case RGB888:  //rgb888
+			fmt_cfg = 1;
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN1_VIR,v_WIN1_RGB888_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN1_ALPHA_EN,v_WIN1_ALPHA_EN(0));
 			// lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
 			break;
 		case RGB565:  //rgb565
+			fmt_cfg = 2;
 			lcdc_msk_reg(lcdc_dev, WIN_VIR,m_WIN1_VIR,v_WIN1_RGB565_VIRWIDTH(xvir));
+			lcdc_msk_reg(lcdc_dev,ALPHA_CTRL,m_WIN1_ALPHA_EN,v_WIN1_ALPHA_EN(0));
 			break;
 		default:
-			dev_err(lcdc_dev->driver.dev,"un supported format!\n");
+			dev_err(lcdc_dev->driver.dev,"%s:un supported format!\n",__func__);
 			break;
 		}
+		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN1_FORMAT, v_WIN1_FORMAT(fmt_cfg));
 
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
