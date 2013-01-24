@@ -1276,6 +1276,8 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
+static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
+					 unsigned int power_state);
 
 /**
  * snd_hda_codec_new - create a HDA codec
@@ -1396,6 +1398,7 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
+	codec->power_filter = default_power_filter;
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -3649,29 +3652,23 @@ void snd_hda_codec_flush_cache(struct hda_codec *codec)
 EXPORT_SYMBOL_HDA(snd_hda_codec_flush_cache);
 
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
-				    unsigned int power_state,
-				    bool eapd_workaround)
+				    unsigned int power_state)
 {
 	hda_nid_t nid = codec->start_nid;
 	int i;
 
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		unsigned int wcaps = get_wcaps(codec, nid);
+		unsigned int state = power_state;
 		if (!(wcaps & AC_WCAP_POWER))
 			continue;
-		/* don't power down the widget if it controls eapd and
-		 * EAPD_BTLENABLE is set.
-		 */
-		if (eapd_workaround && power_state == AC_PWRST_D3 &&
-		    get_wcaps_type(wcaps) == AC_WID_PIN &&
-		    (snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD)) {
-			int eapd = snd_hda_codec_read(codec, nid, 0,
-						AC_VERB_GET_EAPD_BTLENABLE, 0);
-			if (eapd & 0x02)
+		if (codec->power_filter) {
+			state = codec->power_filter(codec, nid, power_state);
+			if (state != power_state && power_state == AC_PWRST_D3)
 				continue;
 		}
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE,
-				    power_state);
+				    state);
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_set_power_to_all);
@@ -3718,6 +3715,21 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 	return state;
 }
 
+/* don't power down the widget if it controls eapd and EAPD_BTLENABLE is set */
+static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
+					 unsigned int power_state)
+{
+	if (power_state == AC_PWRST_D3 &&
+	    get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_PIN &&
+	    (snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD)) {
+		int eapd = snd_hda_codec_read(codec, nid, 0,
+					      AC_VERB_GET_EAPD_BTLENABLE, 0);
+		if (eapd & 0x02)
+			return AC_PWRST_D0;
+	}
+	return power_state;
+}
+
 /*
  * set power state of the codec, and return the power state
  */
@@ -3743,8 +3755,7 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
 			snd_hda_codec_read(codec, fg, 0,
 					   AC_VERB_SET_POWER_STATE,
 					   power_state);
-			snd_hda_codec_set_power_to_all(codec, fg, power_state,
-						       true);
+			snd_hda_codec_set_power_to_all(codec, fg, power_state);
 		}
 		state = hda_sync_power_state(codec, fg, power_state);
 		if (!(state & AC_PWRST_ERROR))

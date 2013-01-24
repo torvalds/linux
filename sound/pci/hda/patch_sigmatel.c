@@ -3724,7 +3724,7 @@ static void stac_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	}
 	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			afg_power_state);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 #else
 #define stac_suspend		NULL

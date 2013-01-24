@@ -435,7 +435,7 @@ static void conexant_set_power(struct hda_codec *codec, hda_nid_t fg,
 	/* partial workaround for "azx_get_response timeout" */
 	if (power_state == AC_PWRST_D0)
 		msleep(10);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 
 static int conexant_init(struct hda_codec *codec)
