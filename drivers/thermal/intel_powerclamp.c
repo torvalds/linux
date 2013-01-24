@@ -504,7 +504,7 @@ static int start_power_clamp(void)
 		return -EINVAL;
 	}
 
-	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO);
+	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO - 1);
 	/* prevent cpu hotplug */
 	get_online_cpus();
 
