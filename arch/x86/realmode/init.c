@@ -84,10 +84,12 @@ void __init setup_real_mode(void)
 }
 
 /*
- * set_real_mode_permissions() gets called very early, to guarantee the
- * availability of low memory.  This is before the proper kernel page
+ * setup_real_mode() gets called very early, to guarantee the
+ * availability of low memory. This is before the proper kernel page
  * tables are set up, so we cannot set page permissions in that
- * function.  Thus, we use an arch_initcall instead.
+ * function. Also trampoline code will be executed by APs so we
+ * need to mark it executable at do_pre_smp_initcalls() at least,
+ * thus run it as a early_initcall().
  */
 static int __init set_real_mode_permissions(void)
 {
@@ -111,5 +113,4 @@ static int __init set_real_mode_permissions(void)
 
 	return 0;
 }
-
-arch_initcall(set_real_mode_permissions);
+early_initcall(set_real_mode_permissions);
