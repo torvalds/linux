@@ -51,6 +51,9 @@
 #define FBIOSET_OVERLAY_STATE     	0x5018
 #define FBIOSET_ENABLE			0x5019	
 #define FBIOGET_ENABLE			0x5020
+#define RK_FBIOSET_CONFIG_DONE		0x4628
+#define RK_FBIOSET_VSYNC_ENABLE		0x4629
+
 
 /********************************************************************
 **          display output interface supported by rockchip lcdc                       *
