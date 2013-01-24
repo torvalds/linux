@@ -785,12 +785,12 @@ ok:
 	return rc;
 }
 
-static int mb86a20s_get_ber_before_vterbi(struct dvb_frontend *fe,
-					  unsigned layer,
-					  u32 *error, u32 *count)
+static int mb86a20s_get_pre_ber(struct dvb_frontend *fe,
+				unsigned layer,
+				u32 *error, u32 *count)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
-	int rc;
+	int rc, val;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
 
@@ -805,7 +805,7 @@ static int mb86a20s_get_ber_before_vterbi(struct dvb_frontend *fe,
 	/* Check if data is available for that layer */
 	if (!(rc & (1 << layer))) {
 		dev_dbg(&state->i2c->dev,
-			"%s: BER for layer %c is not available yet.\n",
+			"%s: preBER for layer %c is not available yet.\n",
 			__func__, 'A' + layer);
 		return -EBUSY;
 	}
@@ -866,8 +866,13 @@ static int mb86a20s_get_ber_before_vterbi(struct dvb_frontend *fe,
 	if (state->estimated_rate[layer]
 	    && state->estimated_rate[layer] != *count) {
 		dev_dbg(&state->i2c->dev,
-			"%s: updating layer %c counter to %d.\n",
+			"%s: updating layer %c preBER counter to %d.\n",
 			__func__, 'A' + layer, state->estimated_rate[layer]);
+
+		/* Turn off BER before Viterbi */
+		rc = mb86a20s_writereg(state, 0x52, 0x00);
+
+		/* Update counter for this layer */
 		rc = mb86a20s_writereg(state, 0x50, 0xa7 + layer * 3);
 		if (rc < 0)
 			return rc;
@@ -889,16 +894,39 @@ static int mb86a20s_get_ber_before_vterbi(struct dvb_frontend *fe,
 				       state->estimated_rate[layer]);
 		if (rc < 0)
 			return rc;
+
+		/* Turn on BER before Viterbi */
+		rc = mb86a20s_writereg(state, 0x52, 0x01);
+
+		/* Reset all preBER counters */
+		rc = mb86a20s_writereg(state, 0x53, 0x00);
+		if (rc < 0)
+			return rc;
+		rc = mb86a20s_writereg(state, 0x53, 0x07);
+	} else {
+		/* Reset counter to collect new data */
+		rc = mb86a20s_readreg(state, 0x53);
+		if (rc < 0)
+			return rc;
+		val = rc;
+		rc = mb86a20s_writereg(state, 0x53, val & ~(1 << layer));
+		if (rc < 0)
+			return rc;
+		rc = mb86a20s_writereg(state, 0x53, val | (1 << layer));
 	}
 
 
 	/* Reset counter to collect new data */
-	rc = mb86a20s_writereg(state, 0x53, 0x07 & ~(1 << layer));
+	rc = mb86a20s_readreg(state, 0x5f);
 	if (rc < 0)
 		return rc;
-	rc = mb86a20s_writereg(state, 0x53, 0x07);
+	val = rc;
+	rc = mb86a20s_writereg(state, 0x5f, val & ~(1 << layer));
+	if (rc < 0)
+		return rc;
+	rc = mb86a20s_writereg(state, 0x5f, val);
 
-	return 0;
+	return rc;
 }
 
 static int mb86a20s_get_blk_error(struct dvb_frontend *fe,
@@ -1401,9 +1429,8 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 
 			/* Read per-layer BER */
 			/* Handle BER before vterbi */
-			rc = mb86a20s_get_ber_before_vterbi(fe, i,
-							&bit_error,
-							&bit_count);
+			rc = mb86a20s_get_pre_ber(fe, i,
+						  &bit_error, &bit_count);
 			if (rc >= 0) {
 				c->pre_bit_error.stat[1 + i].scale = FE_SCALE_COUNTER;
 				c->pre_bit_error.stat[1 + i].uvalue += bit_error;
