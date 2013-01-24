@@ -27,11 +27,73 @@
 #include <asm/bios_ebda.h>
 #include <asm/bootparam_utils.h>
 
-static void __init zap_identity_mappings(void)
+/*
+ * Manage page tables very early on.
+ */
+extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
+static unsigned int __initdata next_early_pgt = 2;
+
+/* Wipe all early page tables except for the kernel symbol map */
+static void __init reset_early_page_tables(void)
 {
-	pgd_t *pgd = pgd_offset_k(0UL);
-	pgd_clear(pgd);
-	__flush_tlb_all();
+	unsigned long i;
+
+	for (i = 0; i < PTRS_PER_PGD-1; i++)
+		early_level4_pgt[i].pgd = 0;
+
+	next_early_pgt = 0;
+
+	write_cr3(__pa(early_level4_pgt));
+}
+
+/* Create a new PMD entry */
+int __init early_make_pgtable(unsigned long address)
+{
+	unsigned long physaddr = address - __PAGE_OFFSET;
+	unsigned long i;
+	pgdval_t pgd, *pgd_p;
+	pudval_t *pud_p;
+	pmdval_t pmd, *pmd_p;
+
+	/* Invalid address or early pgt is done ?  */
+	if (physaddr >= MAXMEM || read_cr3() != __pa(early_level4_pgt))
+		return -1;
+
+	i = (address >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1);
+	pgd_p = &early_level4_pgt[i].pgd;
+	pgd = *pgd_p;
+
+	/*
+	 * The use of __START_KERNEL_map rather than __PAGE_OFFSET here is
+	 * critical -- __PAGE_OFFSET would point us back into the dynamic
+	 * range and we might end up looping forever...
+	 */
+	if (pgd && next_early_pgt < EARLY_DYNAMIC_PAGE_TABLES) {
+		pud_p = (pudval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+	} else {
+		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES-1)
+			reset_early_page_tables();
+
+		pud_p = (pudval_t *)early_dynamic_pgts[next_early_pgt++];
+		for (i = 0; i < PTRS_PER_PUD; i++)
+			pud_p[i] = 0;
+
+		*pgd_p = (pgdval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
+	}
+	i = (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
+	pud_p += i;
+
+	pmd_p = (pmdval_t *)early_dynamic_pgts[next_early_pgt++];
+	pmd = (physaddr & PUD_MASK) + (__PAGE_KERNEL_LARGE & ~_PAGE_GLOBAL);
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		pmd_p[i] = pmd;
+		pmd += PMD_SIZE;
+	}
+
+	*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
+
+	return 0;
 }
 
 /* Don't add a printk in there. printk relies on the PDA which is not initialized 
@@ -72,12 +134,13 @@ void __init x86_64_start_kernel(char * real_mode_data)
 				(__START_KERNEL & PGDIR_MASK)));
 	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
+	/* Kill off the identity-map trampoline */
+	reset_early_page_tables();
+
 	/* clear bss before set_intr_gate with early_idt_handler */
 	clear_bss();
 
-	/* Make NULL pointers segfault */
-	zap_identity_mappings();
-
+	/* XXX - this is wrong... we need to build page tables from scratch */
 	max_pfn_mapped = KERNEL_IMAGE_SIZE >> PAGE_SHIFT;
 
 	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++) {
@@ -93,6 +156,10 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
+
+	clear_page(init_level4_pgt);
+	/* set init_level4_pgt kernel high mapping*/
+	init_level4_pgt[511] = early_level4_pgt[511];
 
 	x86_64_start_reservations(real_mode_data);
 }

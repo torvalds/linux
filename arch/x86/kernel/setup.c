@@ -1005,6 +1005,8 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mem_mapping();
 
+	early_trap_pf_init();
+
 	setup_real_mode();
 
 	memblock.current_limit = get_max_mapped();

@@ -446,9 +446,10 @@ void __init init_mem_mapping(void)
 	}
 #else
 	early_ioremap_page_table_range_init();
+#endif
+
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
-#endif
 
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
