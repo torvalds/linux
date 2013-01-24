@@ -152,7 +152,7 @@ static int tegra_wm9712_driver_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_wm9712_of_match[] __devinitconst = {
+static const struct of_device_id tegra_wm9712_of_match[] = {
 	{ .compatible = "nvidia,tegra-audio-wm9712", },
 	{},
 };
