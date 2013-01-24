@@ -300,15 +300,15 @@ static int __init sunxi_leds_init(void)
 	char pin[16];
 	char name[16];
 
-	/* parse script.bin for [leds] section
+	/* parse script.bin for [leds_para] section
 	   leds_used/leds_num/leds_pin_x/leds_name_x */
 
 	pr_info("sunxi_leds driver init\n");
-	err = script_parser_fetch("leds", "leds_used", &sunxi_leds_used,
+	err = script_parser_fetch("leds_para", "leds_used", &sunxi_leds_used,
 					sizeof(sunxi_leds_used)/sizeof(int));
 	if (err) {
 		/* Not error - just info */
-		pr_info("sunxi leds can't find script data '[leds]' 'leds_used'\n");
+		pr_info("sunxi leds can't find script data '[leds_para]' 'leds_used'\n");
 		return err;
 	}
 
@@ -319,10 +319,10 @@ static int __init sunxi_leds_init(void)
 		return err;
 	}
 
-	err = script_parser_fetch("leds", "leds_num", &sunxi_leds_num,
+	err = script_parser_fetch("leds_para", "leds_num", &sunxi_leds_num,
 					sizeof(sunxi_leds_num)/sizeof(int));
 	if (err) {
-		pr_err("%s script_parser_fetch '[leds]' 'leds_num' error\n",
+		pr_err("%s script_parser_fetch '[leds_para]' 'leds_num' error\n",
 			__func__);
 		return err;
 	}
@@ -359,29 +359,30 @@ static int __init sunxi_leds_init(void)
 		sprintf(name, "leds_name_%d", i+1);
 
 		/* fetch next led gpio information */
-		err = script_parser_fetch("leds", pin,
+		err = script_parser_fetch("leds_para", pin,
 					(int *)&leds_i->info,
 					sizeof(script_gpio_set_t));
 
 		if (err) {
-			pr_err("%s script_parser_fetch '[leds]' '%s' error\n",
+			pr_err("%s script_parser_fetch '[leds_para]' '%s' error\n",
 				__func__, pin);
 			break;
 		}
 
 		/* fetch next led name */
-		err = script_parser_fetch("leds", name, (int *)leds_i->led_name,
-					sizeof(leds_i->led_name)/sizeof(int));
+		err = script_parser_fetch("leds_para", name,
+					  (int *)leds_i->led_name,
+					  sizeof(leds_i->led_name)/sizeof(int));
 		if (err) {
-			pr_err("%s script_parser_fetch '[leds]' '%s' error\n",
+			pr_err("%s script_parser_fetch '[leds_para]' '%s' error\n",
 				__func__, name);
 			goto exit;
 		}
 
 		/* reserve gpio for led */
-		leds_i->gpio_handler = gpio_request_ex("leds", pin);
+		leds_i->gpio_handler = gpio_request_ex("leds_para", pin);
 		if (!leds_i->gpio_handler) {
-			pr_err("%s can't request '[leds]' '%s', already used ?",
+			pr_err("%s can't request '[leds_para]' '%s', already used ?",
 				__func__, pin);
 			break;
 		}
