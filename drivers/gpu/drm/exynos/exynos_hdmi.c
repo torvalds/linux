@@ -2163,6 +2163,13 @@ static void hdmi_commit(void *ctx)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
+	mutex_lock(&hdata->hdmi_mutex);
+	if (!hdata->powered) {
+		mutex_unlock(&hdata->hdmi_mutex);
+		return;
+	}
+	mutex_unlock(&hdata->hdmi_mutex);
+
 	hdmi_conf_apply(hdata);
 }
 

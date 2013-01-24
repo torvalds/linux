@@ -776,6 +776,13 @@ static void mixer_win_commit(void *ctx, int win)
 
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
+	mutex_lock(&mixer_ctx->mixer_mutex);
+	if (!mixer_ctx->powered) {
+		mutex_unlock(&mixer_ctx->mixer_mutex);
+		return;
+	}
+	mutex_unlock(&mixer_ctx->mixer_mutex);
+
 	if (win > 1 && mixer_ctx->vp_enabled)
 		vp_video_buffer(mixer_ctx, win);
 	else
