@@ -183,7 +183,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_dwc3_match[] = {
-	{ .compatible = "samsung,exynos-dwc3" },
+	{ .compatible = "samsung,exynos5250-dwusb3" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
