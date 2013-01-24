@@ -24,17 +24,7 @@ static void gtk_helpline_push(const char *msg)
 			   pgctx->statbar_ctx_id, msg);
 }
 
-static struct ui_helpline gtk_helpline_fns = {
-	.pop	= gtk_helpline_pop,
-	.push	= gtk_helpline_push,
-};
-
-void perf_gtk__init_helpline(void)
-{
-	helpline_fns = &gtk_helpline_fns;
-}
-
-int perf_gtk__show_helpline(const char *fmt, va_list ap)
+static int gtk_helpline_show(const char *fmt, va_list ap)
 {
 	int ret;
 	char *ptr;
@@ -53,4 +43,15 @@ int perf_gtk__show_helpline(const char *fmt, va_list ap)
 	}
 
 	return ret;
+}
+
+static struct ui_helpline gtk_helpline_fns = {
+	.pop	= gtk_helpline_pop,
+	.push	= gtk_helpline_push,
+	.show	= gtk_helpline_show,
+};
+
+void perf_gtk__init_helpline(void)
+{
+	helpline_fns = &gtk_helpline_fns;
 }

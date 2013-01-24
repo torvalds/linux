@@ -22,10 +22,6 @@ specified perf.data files.
 
 OPTIONS
 -------
--M::
---displacement::
-        Show position displacement relative to baseline.
-
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.

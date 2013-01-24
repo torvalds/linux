@@ -268,14 +268,18 @@ static int hpp__width_delta(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_delta(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%7.7s";
 	char buf[32] = " ";
-	double diff;
+	double diff = 0.0;
 
-	if (he->diff.computed)
-		diff = he->diff.period_ratio_delta;
-	else
-		diff = perf_diff__compute_delta(he);
+	if (pair) {
+		if (he->diff.computed)
+			diff = he->diff.period_ratio_delta;
+		else
+			diff = perf_diff__compute_delta(he, pair);
+	} else
+		diff = perf_diff__period_percent(he, he->stat.period);
 
 	if (fabs(diff) >= 0.01)
 		scnprintf(buf, sizeof(buf), "%+4.2F%%", diff);
@@ -297,14 +301,17 @@ static int hpp__width_ratio(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_ratio(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
 	char buf[32] = " ";
-	double ratio;
+	double ratio = 0.0;
 
-	if (he->diff.computed)
-		ratio = he->diff.period_ratio;
-	else
-		ratio = perf_diff__compute_ratio(he);
+	if (pair) {
+		if (he->diff.computed)
+			ratio = he->diff.period_ratio;
+		else
+			ratio = perf_diff__compute_ratio(he, pair);
+	}
 
 	if (ratio > 0.0)
 		scnprintf(buf, sizeof(buf), "%+14.6F", ratio);
@@ -326,41 +333,20 @@ static int hpp__width_wdiff(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_wdiff(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
 	char buf[32] = " ";
-	s64 wdiff;
+	s64 wdiff = 0;
 
-	if (he->diff.computed)
-		wdiff = he->diff.wdiff;
-	else
-		wdiff = perf_diff__compute_wdiff(he);
+	if (pair) {
+		if (he->diff.computed)
+			wdiff = he->diff.wdiff;
+		else
+			wdiff = perf_diff__compute_wdiff(he, pair);
+	}
 
 	if (wdiff != 0)
 		scnprintf(buf, sizeof(buf), "%14ld", wdiff);
-
-	return scnprintf(hpp->buf, hpp->size, fmt, buf);
-}
-
-static int hpp__header_displ(struct perf_hpp *hpp)
-{
-	return scnprintf(hpp->buf, hpp->size, "Displ.");
-}
-
-static int hpp__width_displ(struct perf_hpp *hpp __maybe_unused)
-{
-	return 6;
-}
-
-static int hpp__entry_displ(struct perf_hpp *hpp,
-			    struct hist_entry *he)
-{
-	struct hist_entry *pair = hist_entry__next_pair(he);
-	long displacement = pair ? pair->position - he->position : 0;
-	const char *fmt = symbol_conf.field_sep ? "%s" : "%6.6s";
-	char buf[32] = " ";
-
-	if (displacement)
-		scnprintf(buf, sizeof(buf), "%+4ld", displacement);
 
 	return scnprintf(hpp->buf, hpp->size, fmt, buf);
 }
@@ -379,40 +365,48 @@ static int hpp__width_formula(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_formula(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%-70s";
 	char buf[96] = " ";
 
-	perf_diff__formula(buf, sizeof(buf), he);
+	if (pair)
+		perf_diff__formula(he, pair, buf, sizeof(buf));
+
 	return scnprintf(hpp->buf, hpp->size, fmt, buf);
 }
 
-#define HPP__COLOR_PRINT_FNS(_name)		\
-	.header	= hpp__header_ ## _name,		\
-	.width	= hpp__width_ ## _name,		\
-	.color	= hpp__color_ ## _name,		\
-	.entry	= hpp__entry_ ## _name
+#define HPP__COLOR_PRINT_FNS(_name)			\
+	{						\
+		.header	= hpp__header_ ## _name,	\
+		.width	= hpp__width_ ## _name,		\
+		.color	= hpp__color_ ## _name,		\
+		.entry	= hpp__entry_ ## _name		\
+	}
 
-#define HPP__PRINT_FNS(_name)			\
-	.header	= hpp__header_ ## _name,		\
-	.width	= hpp__width_ ## _name,		\
-	.entry	= hpp__entry_ ## _name
+#define HPP__PRINT_FNS(_name)				\
+	{						\
+		.header	= hpp__header_ ## _name,	\
+		.width	= hpp__width_ ## _name,		\
+		.entry	= hpp__entry_ ## _name		\
+	}
 
 struct perf_hpp_fmt perf_hpp__format[] = {
-	{ .cond = false, HPP__COLOR_PRINT_FNS(baseline) },
-	{ .cond = true,  HPP__COLOR_PRINT_FNS(overhead) },
-	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_sys) },
-	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_us) },
-	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_guest_sys) },
-	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_guest_us) },
-	{ .cond = false, HPP__PRINT_FNS(samples) },
-	{ .cond = false, HPP__PRINT_FNS(period) },
-	{ .cond = false, HPP__PRINT_FNS(period_baseline) },
-	{ .cond = false, HPP__PRINT_FNS(delta) },
-	{ .cond = false, HPP__PRINT_FNS(ratio) },
-	{ .cond = false, HPP__PRINT_FNS(wdiff) },
-	{ .cond = false, HPP__PRINT_FNS(displ) },
-	{ .cond = false, HPP__PRINT_FNS(formula) }
+	HPP__COLOR_PRINT_FNS(baseline),
+	HPP__COLOR_PRINT_FNS(overhead),
+	HPP__COLOR_PRINT_FNS(overhead_sys),
+	HPP__COLOR_PRINT_FNS(overhead_us),
+	HPP__COLOR_PRINT_FNS(overhead_guest_sys),
+	HPP__COLOR_PRINT_FNS(overhead_guest_us),
+	HPP__PRINT_FNS(samples),
+	HPP__PRINT_FNS(period),
+	HPP__PRINT_FNS(period_baseline),
+	HPP__PRINT_FNS(delta),
+	HPP__PRINT_FNS(ratio),
+	HPP__PRINT_FNS(wdiff),
+	HPP__PRINT_FNS(formula)
 };
+
+LIST_HEAD(perf_hpp__list);
 
 #undef HPP__COLOR_PRINT_FNS
 #undef HPP__PRINT_FNS
@@ -420,26 +414,31 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 void perf_hpp__init(void)
 {
 	if (symbol_conf.show_cpu_utilization) {
-		perf_hpp__format[PERF_HPP__OVERHEAD_SYS].cond = true;
-		perf_hpp__format[PERF_HPP__OVERHEAD_US].cond = true;
+		perf_hpp__column_enable(PERF_HPP__OVERHEAD_SYS);
+		perf_hpp__column_enable(PERF_HPP__OVERHEAD_US);
 
 		if (perf_guest) {
-			perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_SYS].cond = true;
-			perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_US].cond = true;
+			perf_hpp__column_enable(PERF_HPP__OVERHEAD_GUEST_SYS);
+			perf_hpp__column_enable(PERF_HPP__OVERHEAD_GUEST_US);
 		}
 	}
 
 	if (symbol_conf.show_nr_samples)
-		perf_hpp__format[PERF_HPP__SAMPLES].cond = true;
+		perf_hpp__column_enable(PERF_HPP__SAMPLES);
 
 	if (symbol_conf.show_total_period)
-		perf_hpp__format[PERF_HPP__PERIOD].cond = true;
+		perf_hpp__column_enable(PERF_HPP__PERIOD);
 }
 
-void perf_hpp__column_enable(unsigned col, bool enable)
+void perf_hpp__column_register(struct perf_hpp_fmt *format)
+{
+	list_add_tail(&format->list, &perf_hpp__list);
+}
+
+void perf_hpp__column_enable(unsigned col)
 {
 	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	perf_hpp__format[col].cond = enable;
+	perf_hpp__column_register(&perf_hpp__format[col]);
 }
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
@@ -452,27 +451,29 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 				bool color)
 {
 	const char *sep = symbol_conf.field_sep;
+	struct perf_hpp_fmt *fmt;
 	char *start = hpp->buf;
-	int i, ret;
+	int ret;
 	bool first = true;
 
 	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
 
-	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-		if (!perf_hpp__format[i].cond)
-			continue;
-
+	perf_hpp__for_each_format(fmt) {
+		/*
+		 * If there's no field_sep, we still need
+		 * to display initial '  '.
+		 */
 		if (!sep || !first) {
 			ret = scnprintf(hpp->buf, hpp->size, "%s", sep ?: "  ");
 			advance_hpp(hpp, ret);
+		} else
 			first = false;
-		}
 
-		if (color && perf_hpp__format[i].color)
-			ret = perf_hpp__format[i].color(hpp, he);
+		if (color && fmt->color)
+			ret = fmt->color(hpp, he);
 		else
-			ret = perf_hpp__format[i].entry(hpp, he);
+			ret = fmt->entry(hpp, he);
 
 		advance_hpp(hpp, ret);
 	}
@@ -504,16 +505,15 @@ int hist_entry__sort_snprintf(struct hist_entry *he, char *s, size_t size,
  */
 unsigned int hists__sort_list_width(struct hists *hists)
 {
+	struct perf_hpp_fmt *fmt;
 	struct sort_entry *se;
-	int i, ret = 0;
+	int i = 0, ret = 0;
 
-	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-		if (!perf_hpp__format[i].cond)
-			continue;
+	perf_hpp__for_each_format(fmt) {
 		if (i)
 			ret += 2;
 
-		ret += perf_hpp__format[i].width(NULL);
+		ret += fmt->width(NULL);
 	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list)

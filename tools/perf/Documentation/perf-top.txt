@@ -60,7 +60,7 @@ Default is to monitor all CPUS.
 
 -i::
 --inherit::
-	Child tasks inherit counters, only makes sens with -p option.
+	Child tasks do not inherit counters.
 
 -k <path>::
 --vmlinux=<path>::

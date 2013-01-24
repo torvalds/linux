@@ -16,7 +16,6 @@
 #include "cpumap.h"
 #include "event-parse.h"
 #include "perf_regs.h"
-#include "unwind.h"
 #include "vdso.h"
 
 static int perf_session__open(struct perf_session *self, bool force)
@@ -128,15 +127,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out;
 
 	memcpy(self->filename, filename, len);
-	/*
-	 * On 64bit we can mmap the data file in one go. No need for tiny mmap
-	 * slices. On 32bit we use 32MB.
-	 */
-#if BITS_PER_LONG == 64
-	self->mmap_window = ULLONG_MAX;
-#else
-	self->mmap_window = 32 * 1024 * 1024ULL;
-#endif
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
@@ -171,32 +161,9 @@ out_delete:
 	return NULL;
 }
 
-static void machine__delete_dead_threads(struct machine *machine)
-{
-	struct thread *n, *t;
-
-	list_for_each_entry_safe(t, n, &machine->dead_threads, node) {
-		list_del(&t->node);
-		thread__delete(t);
-	}
-}
-
 static void perf_session__delete_dead_threads(struct perf_session *session)
 {
 	machine__delete_dead_threads(&session->host_machine);
-}
-
-static void machine__delete_threads(struct machine *self)
-{
-	struct rb_node *nd = rb_first(&self->threads);
-
-	while (nd) {
-		struct thread *t = rb_entry(nd, struct thread, rb_node);
-
-		rb_erase(&t->rb_node, &self->threads);
-		nd = rb_next(nd);
-		thread__delete(t);
-	}
 }
 
 static void perf_session__delete_threads(struct perf_session *session)
@@ -204,201 +171,32 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->host_machine);
 }
 
+static void perf_session_env__delete(struct perf_session_env *env)
+{
+	free(env->hostname);
+	free(env->os_release);
+	free(env->version);
+	free(env->arch);
+	free(env->cpu_desc);
+	free(env->cpuid);
+
+	free(env->cmdline);
+	free(env->sibling_cores);
+	free(env->sibling_threads);
+	free(env->numa_nodes);
+	free(env->pmu_mappings);
+}
+
 void perf_session__delete(struct perf_session *self)
 {
 	perf_session__destroy_kernel_maps(self);
 	perf_session__delete_dead_threads(self);
 	perf_session__delete_threads(self);
+	perf_session_env__delete(&self->header.env);
 	machine__exit(&self->host_machine);
 	close(self->fd);
 	free(self);
 	vdso__exit();
-}
-
-void machine__remove_thread(struct machine *self, struct thread *th)
-{
-	self->last_match = NULL;
-	rb_erase(&th->rb_node, &self->threads);
-	/*
-	 * We may have references to this thread, for instance in some hist_entry
-	 * instances, so just move them to a separate list.
-	 */
-	list_add_tail(&th->node, &self->dead_threads);
-}
-
-static bool symbol__match_parent_regex(struct symbol *sym)
-{
-	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
-		return 1;
-
-	return 0;
-}
-
-static const u8 cpumodes[] = {
-	PERF_RECORD_MISC_USER,
-	PERF_RECORD_MISC_KERNEL,
-	PERF_RECORD_MISC_GUEST_USER,
-	PERF_RECORD_MISC_GUEST_KERNEL
-};
-#define NCPUMODES (sizeof(cpumodes)/sizeof(u8))
-
-static void ip__resolve_ams(struct machine *self, struct thread *thread,
-			    struct addr_map_symbol *ams,
-			    u64 ip)
-{
-	struct addr_location al;
-	size_t i;
-	u8 m;
-
-	memset(&al, 0, sizeof(al));
-
-	for (i = 0; i < NCPUMODES; i++) {
-		m = cpumodes[i];
-		/*
-		 * We cannot use the header.misc hint to determine whether a
-		 * branch stack address is user, kernel, guest, hypervisor.
-		 * Branches may straddle the kernel/user/hypervisor boundaries.
-		 * Thus, we have to try consecutively until we find a match
-		 * or else, the symbol is unknown
-		 */
-		thread__find_addr_location(thread, self, m, MAP__FUNCTION,
-				ip, &al, NULL);
-		if (al.sym)
-			goto found;
-	}
-found:
-	ams->addr = ip;
-	ams->al_addr = al.addr;
-	ams->sym = al.sym;
-	ams->map = al.map;
-}
-
-struct branch_info *machine__resolve_bstack(struct machine *self,
-					    struct thread *thr,
-					    struct branch_stack *bs)
-{
-	struct branch_info *bi;
-	unsigned int i;
-
-	bi = calloc(bs->nr, sizeof(struct branch_info));
-	if (!bi)
-		return NULL;
-
-	for (i = 0; i < bs->nr; i++) {
-		ip__resolve_ams(self, thr, &bi[i].to, bs->entries[i].to);
-		ip__resolve_ams(self, thr, &bi[i].from, bs->entries[i].from);
-		bi[i].flags = bs->entries[i].flags;
-	}
-	return bi;
-}
-
-static int machine__resolve_callchain_sample(struct machine *machine,
-					     struct thread *thread,
-					     struct ip_callchain *chain,
-					     struct symbol **parent)
-
-{
-	u8 cpumode = PERF_RECORD_MISC_USER;
-	unsigned int i;
-	int err;
-
-	callchain_cursor_reset(&callchain_cursor);
-
-	if (chain->nr > PERF_MAX_STACK_DEPTH) {
-		pr_warning("corrupted callchain. skipping...\n");
-		return 0;
-	}
-
-	for (i = 0; i < chain->nr; i++) {
-		u64 ip;
-		struct addr_location al;
-
-		if (callchain_param.order == ORDER_CALLEE)
-			ip = chain->ips[i];
-		else
-			ip = chain->ips[chain->nr - i - 1];
-
-		if (ip >= PERF_CONTEXT_MAX) {
-			switch (ip) {
-			case PERF_CONTEXT_HV:
-				cpumode = PERF_RECORD_MISC_HYPERVISOR;
-				break;
-			case PERF_CONTEXT_KERNEL:
-				cpumode = PERF_RECORD_MISC_KERNEL;
-				break;
-			case PERF_CONTEXT_USER:
-				cpumode = PERF_RECORD_MISC_USER;
-				break;
-			default:
-				pr_debug("invalid callchain context: "
-					 "%"PRId64"\n", (s64) ip);
-				/*
-				 * It seems the callchain is corrupted.
-				 * Discard all.
-				 */
-				callchain_cursor_reset(&callchain_cursor);
-				return 0;
-			}
-			continue;
-		}
-
-		al.filtered = false;
-		thread__find_addr_location(thread, machine, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
-		if (al.sym != NULL) {
-			if (sort__has_parent && !*parent &&
-			    symbol__match_parent_regex(al.sym))
-				*parent = al.sym;
-			if (!symbol_conf.use_callchain)
-				break;
-		}
-
-		err = callchain_cursor_append(&callchain_cursor,
-					      ip, al.map, al.sym);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int unwind_entry(struct unwind_entry *entry, void *arg)
-{
-	struct callchain_cursor *cursor = arg;
-	return callchain_cursor_append(cursor, entry->ip,
-				       entry->map, entry->sym);
-}
-
-int machine__resolve_callchain(struct machine *machine,
-			       struct perf_evsel *evsel,
-			       struct thread *thread,
-			       struct perf_sample *sample,
-			       struct symbol **parent)
-
-{
-	int ret;
-
-	callchain_cursor_reset(&callchain_cursor);
-
-	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent);
-	if (ret)
-		return ret;
-
-	/* Can we do dwarf post unwind? */
-	if (!((evsel->attr.sample_type & PERF_SAMPLE_REGS_USER) &&
-	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
-		return 0;
-
-	/* Bail out if nothing was captured. */
-	if ((!sample->user_regs.regs) ||
-	    (!sample->user_stack.size))
-		return 0;
-
-	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
-				   thread, evsel->attr.sample_regs_user,
-				   sample);
-
 }
 
 static int process_event_synth_tracing_data_stub(union perf_event *event
@@ -1369,6 +1167,18 @@ fetch_mmaped_event(struct perf_session *session,
 	return event;
 }
 
+/*
+ * On 64bit we can mmap the data file in one go. No need for tiny mmap
+ * slices. On 32bit we use 32MB.
+ */
+#if BITS_PER_LONG == 64
+#define MMAP_SIZE ULLONG_MAX
+#define NUM_MMAPS 1
+#else
+#define MMAP_SIZE (32 * 1024 * 1024ULL)
+#define NUM_MMAPS 128
+#endif
+
 int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size,
 				   u64 file_size, struct perf_tool *tool)
@@ -1376,7 +1186,7 @@ int __perf_session__process_events(struct perf_session *session,
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
 	size_t	mmap_size;
-	char *buf, *mmaps[8];
+	char *buf, *mmaps[NUM_MMAPS];
 	union perf_event *event;
 	uint32_t size;
 
@@ -1391,7 +1201,7 @@ int __perf_session__process_events(struct perf_session *session,
 
 	progress_next = file_size / 16;
 
-	mmap_size = session->mmap_window;
+	mmap_size = MMAP_SIZE;
 	if (mmap_size > file_size)
 		mmap_size = file_size;
 
@@ -1532,10 +1342,10 @@ size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
 }
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
-					  bool with_hits)
+					  bool (skip)(struct dso *dso, int parm), int parm)
 {
-	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, with_hits);
-	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
+	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, skip, parm);
+	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
 }
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)

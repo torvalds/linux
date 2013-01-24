@@ -54,10 +54,10 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-static size_t thread__fprintf(struct thread *self, FILE *fp)
+size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
-	return fprintf(fp, "Thread %d %s\n", self->pid, self->comm) +
-	       map_groups__fprintf(&self->mg, verbose, fp);
+	return fprintf(fp, "Thread %d %s\n", thread->pid, thread->comm) +
+	       map_groups__fprintf(&thread->mg, verbose, fp);
 }
 
 void thread__insert_map(struct thread *self, struct map *map)
@@ -83,18 +83,4 @@ int thread__fork(struct thread *self, struct thread *parent)
 		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
 			return -ENOMEM;
 	return 0;
-}
-
-size_t machine__fprintf(struct machine *machine, FILE *fp)
-{
-	size_t ret = 0;
-	struct rb_node *nd;
-
-	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
-		struct thread *pos = rb_entry(nd, struct thread, rb_node);
-
-		ret += thread__fprintf(pos, fp);
-	}
-
-	return ret;
 }

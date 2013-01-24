@@ -230,14 +230,7 @@ static int perf_record__open(struct perf_record *rec)
 	struct perf_record_opts *opts = &rec->opts;
 	int rc = 0;
 
-	/*
-	 * Set the evsel leader links before we configure attributes,
-	 * since some might depend on this info.
-	 */
-	if (opts->group)
-		perf_evlist__set_leader(evlist);
-
-	perf_evlist__config_attrs(evlist, opts);
+	perf_evlist__config(evlist, opts);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;
@@ -286,7 +279,7 @@ try_again:
 					 */
 					opts->sample_id_all_missing = true;
 					if (!opts->sample_time && !opts->raw_samples && !time_needed)
-						attr->sample_type &= ~PERF_SAMPLE_TIME;
+						perf_evsel__reset_sample_bit(pos, TIME);
 
 					goto retry_sample_id;
 				}
@@ -875,11 +868,10 @@ static int get_stack_size(char *str, unsigned long *_size)
 }
 #endif /* LIBUNWIND_SUPPORT */
 
-static int
-parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
-		    int unset)
+int record_parse_callchain_opt(const struct option *opt,
+			       const char *arg, int unset)
 {
-	struct perf_record *rec = (struct perf_record *)opt->value;
+	struct perf_record_opts *opts = opt->value;
 	char *tok, *name, *saveptr = NULL;
 	char *buf;
 	int ret = -1;
@@ -905,7 +897,7 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 		/* Framepointer style */
 		if (!strncmp(name, "fp", sizeof("fp"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
-				rec->opts.call_graph = CALLCHAIN_FP;
+				opts->call_graph = CALLCHAIN_FP;
 				ret = 0;
 			} else
 				pr_err("callchain: No more arguments "
@@ -918,20 +910,20 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 			const unsigned long default_stack_dump_size = 8192;
 
 			ret = 0;
-			rec->opts.call_graph = CALLCHAIN_DWARF;
-			rec->opts.stack_dump_size = default_stack_dump_size;
+			opts->call_graph = CALLCHAIN_DWARF;
+			opts->stack_dump_size = default_stack_dump_size;
 
 			tok = strtok_r(NULL, ",", &saveptr);
 			if (tok) {
 				unsigned long size = 0;
 
 				ret = get_stack_size(tok, &size);
-				rec->opts.stack_dump_size = size;
+				opts->stack_dump_size = size;
 			}
 
 			if (!ret)
 				pr_debug("callchain: stack dump size %d\n",
-					 rec->opts.stack_dump_size);
+					 opts->stack_dump_size);
 #endif /* LIBUNWIND_SUPPORT */
 		} else {
 			pr_err("callchain: Unknown -g option "
@@ -944,7 +936,7 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 	free(buf);
 
 	if (!ret)
-		pr_debug("callchain: type %d\n", rec->opts.call_graph);
+		pr_debug("callchain: type %d\n", opts->call_graph);
 
 	return ret;
 }
@@ -982,9 +974,9 @@ static struct perf_record record = {
 #define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
 
 #ifdef LIBUNWIND_SUPPORT
-static const char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
 #else
-static const char callchain_help[] = CALLCHAIN_HELP "[fp]";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp]";
 #endif
 
 /*
@@ -1028,9 +1020,9 @@ const struct option record_options[] = {
 		     "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &record, "mode[,dump_size]",
-			     callchain_help, &parse_callchain_opt,
-			     "fp"),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &record.opts,
+			     "mode[,dump_size]", record_callchain_help,
+			     &record_parse_callchain_opt, "fp"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),

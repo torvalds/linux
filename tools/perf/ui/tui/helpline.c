@@ -8,6 +8,8 @@
 #include "../ui.h"
 #include "../libslang.h"
 
+char ui_helpline__last_msg[1024];
+
 static void tui_helpline__pop(void)
 {
 }
@@ -23,20 +25,7 @@ static void tui_helpline__push(const char *msg)
 	strncpy(ui_helpline__current, msg, sz)[sz - 1] = '\0';
 }
 
-struct ui_helpline tui_helpline_fns = {
-	.pop	= tui_helpline__pop,
-	.push	= tui_helpline__push,
-};
-
-void ui_helpline__init(void)
-{
-	helpline_fns = &tui_helpline_fns;
-	ui_helpline__puts(" ");
-}
-
-char ui_helpline__last_msg[1024];
-
-int ui_helpline__show_help(const char *format, va_list ap)
+static int tui_helpline__show(const char *format, va_list ap)
 {
 	int ret;
 	static int backlog;
@@ -54,4 +43,16 @@ int ui_helpline__show_help(const char *format, va_list ap)
 	pthread_mutex_unlock(&ui__lock);
 
 	return ret;
+}
+
+struct ui_helpline tui_helpline_fns = {
+	.pop	= tui_helpline__pop,
+	.push	= tui_helpline__push,
+	.show	= tui_helpline__show,
+};
+
+void ui_helpline__init(void)
+{
+	helpline_fns = &tui_helpline_fns;
+	ui_helpline__puts(" ");
 }

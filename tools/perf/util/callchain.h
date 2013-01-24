@@ -143,4 +143,9 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 	cursor->curr = cursor->curr->next;
 	cursor->pos++;
 }
+
+struct option;
+
+int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
+extern const char record_callchain_help[];
 #endif	/* __PERF_CALLCHAIN_H */

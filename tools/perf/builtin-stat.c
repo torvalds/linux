@@ -153,7 +153,7 @@ retry:
 	}
 
 	if (!perf_target__has_task(&target) &&
-	    !perf_evsel__is_group_member(evsel)) {
+	    perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}

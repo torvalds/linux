@@ -587,6 +587,8 @@ HPP__COLOR_FN(overhead_guest_us, period_guest_us)
 
 void hist_browser__init_hpp(void)
 {
+	perf_hpp__column_enable(PERF_HPP__OVERHEAD);
+
 	perf_hpp__init();
 
 	perf_hpp__format[PERF_HPP__OVERHEAD].color =
@@ -607,12 +609,13 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 {
 	char s[256];
 	double percent;
-	int i, printed = 0;
+	int printed = 0;
 	int width = browser->b.width;
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
 	off_t row_offset = entry->row_offset;
 	bool first = true;
+	struct perf_hpp_fmt *fmt;
 
 	if (current_entry) {
 		browser->he_selection = entry;
@@ -629,12 +632,11 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.buf		= s,
 			.size		= sizeof(s),
 		};
+		int i = 0;
 
 		ui_browser__gotorc(&browser->b, row, 0);
 
-		for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
-			if (!perf_hpp__format[i].cond)
-				continue;
+		perf_hpp__for_each_format(fmt) {
 
 			if (!first) {
 				slsmg_printf("  ");
@@ -642,14 +644,14 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			}
 			first = false;
 
-			if (perf_hpp__format[i].color) {
+			if (fmt->color) {
 				hpp.ptr = &percent;
 				/* It will set percent for us. See HPP__COLOR_FN above. */
-				width -= perf_hpp__format[i].color(&hpp, entry);
+				width -= fmt->color(&hpp, entry);
 
 				ui_browser__set_percent_color(&browser->b, percent, current_entry);
 
-				if (i == PERF_HPP__OVERHEAD && symbol_conf.use_callchain) {
+				if (!i && symbol_conf.use_callchain) {
 					slsmg_printf("%c ", folded_sign);
 					width -= 2;
 				}
@@ -659,9 +661,11 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 				if (!current_entry || !browser->b.navkeypressed)
 					ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
 			} else {
-				width -= perf_hpp__format[i].entry(&hpp, entry);
+				width -= fmt->entry(&hpp, entry);
 				slsmg_printf("%s", s);
 			}
+
+			i++;
 		}
 
 		/* The scroll bar isn't being used */

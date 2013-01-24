@@ -61,8 +61,9 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
+void machine__delete_dead_threads(struct machine *machine);
+void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
-
 
 struct branch_info *machine__resolve_bstack(struct machine *machine,
 					    struct thread *thread,
@@ -129,11 +130,11 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 			       symbol_filter_t filter);
 
-size_t machine__fprintf_dsos_buildid(struct machine *machine,
-				     FILE *fp, bool with_hits);
+size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
 size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp);
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits);
+size_t machines__fprintf_dsos_buildid(struct rb_root *machines, FILE *fp,
+				     bool (skip)(struct dso *dso, int parm), int parm);
 
 void machine__destroy_kernel_maps(struct machine *machine);
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);
