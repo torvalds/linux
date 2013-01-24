@@ -358,7 +358,6 @@ struct pch_udc_dev {
 			prot_stall:1,
 			irq_registered:1,
 			mem_region:1,
-			registered:1,
 			suspended:1,
 			connected:1,
 			vbus_session:1,
@@ -3078,8 +3077,6 @@ static void pch_udc_remove(struct pci_dev *pdev)
 				   pci_resource_len(pdev, PCH_UDC_PCI_BAR));
 	if (dev->active)
 		pci_disable_device(pdev);
-	if (dev->registered)
-		device_unregister(&dev->gadget.dev);
 	kfree(dev);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -3196,17 +3193,12 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	if (retval)
 		goto finished;
 
-	dev_set_name(&dev->gadget.dev, "gadget");
 	dev->gadget.dev.parent = &pdev->dev;
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = KBUILD_MODNAME;
 	dev->gadget.max_speed = USB_SPEED_HIGH;
-
-	retval = device_register(&dev->gadget.dev);
-	if (retval)
-		goto finished;
-	dev->registered = 1;
+	dev->gadget.register_my_device = true;
 
 	/* Put the device in disconnected state till a driver is bound */
 	pch_udc_set_disconnect(dev);
