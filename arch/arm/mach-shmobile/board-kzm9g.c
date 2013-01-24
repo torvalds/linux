@@ -672,8 +672,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_CS4_, NULL); /* CS4 */
 
 	/* SMSC */
-	gpio_request(GPIO_PORT224, NULL); /* IRQ3 */
-	gpio_direction_input(GPIO_PORT224);
+	gpio_request_one(GPIO_PORT224, GPIOF_IN, NULL); /* IRQ3 */
 
 	/* LCDC */
 	gpio_request(GPIO_FN_LCDD23,	NULL);
@@ -703,14 +702,11 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_LCDDISP,	NULL);
 	gpio_request(GPIO_FN_LCDDCK,	NULL);
 
-	gpio_request(GPIO_PORT222,	NULL); /* LCDCDON */
-	gpio_request(GPIO_PORT226,	NULL); /* SC */
-	gpio_direction_output(GPIO_PORT222, 1);
-	gpio_direction_output(GPIO_PORT226, 1);
+	gpio_request_one(GPIO_PORT222, GPIOF_OUT_INIT_HIGH, NULL); /* LCDCDON */
+	gpio_request_one(GPIO_PORT226, GPIOF_OUT_INIT_HIGH, NULL); /* SC */
 
 	/* Touchscreen */
-	gpio_request(GPIO_PORT223, NULL); /* IRQ8 */
-	gpio_direction_input(GPIO_PORT223);
+	gpio_request_one(GPIO_PORT223, GPIOF_IN, NULL); /* IRQ8 */
 
 	/* enable MMCIF */
 	gpio_request(GPIO_FN_MMCCLK0,		NULL);
@@ -734,8 +730,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_SDHID0_1,		NULL);
 	gpio_request(GPIO_FN_SDHID0_0,		NULL);
 	gpio_request(GPIO_FN_SDHI0_VCCQ_MC0_ON,	NULL);
-	gpio_request(GPIO_PORT15, NULL);
-	gpio_direction_output(GPIO_PORT15, 1); /* power */
+	gpio_request_one(GPIO_PORT15, GPIOF_OUT_INIT_HIGH, NULL); /* power */
 
 	/* enable Micro SD */
 	gpio_request(GPIO_FN_SDHID2_0,		NULL);
@@ -744,8 +739,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_SDHID2_3,		NULL);
 	gpio_request(GPIO_FN_SDHICMD2,		NULL);
 	gpio_request(GPIO_FN_SDHICLK2,		NULL);
-	gpio_request(GPIO_PORT14, NULL);
-	gpio_direction_output(GPIO_PORT14, 1); /* power */
+	gpio_request_one(GPIO_PORT14, GPIOF_OUT_INIT_HIGH, NULL); /* power */
 
 	/* I2C 3 */
 	gpio_request(GPIO_FN_PORT27_I2C_SCL3, NULL);
