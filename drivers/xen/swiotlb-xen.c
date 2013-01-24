@@ -231,7 +231,9 @@ retry:
 	}
 	start_dma_addr = xen_virt_to_bus(xen_io_tlb_start);
 	if (early) {
-		swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs, verbose);
+		if (swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs,
+			 verbose))
+			panic("Cannot allocate SWIOTLB buffer");
 		rc = 0;
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
