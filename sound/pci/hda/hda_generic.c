@@ -569,7 +569,7 @@ static bool has_amp_out(struct hda_codec *codec, struct nid_path *path, int idx)
 
 /* check whether the given (nid,dir,idx) is active */
 static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
-			  unsigned int idx, unsigned int dir)
+			  unsigned int dir, unsigned int idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int i, n;
@@ -642,7 +642,7 @@ static void activate_amp(struct hda_codec *codec, hda_nid_t nid, int dir,
 	unsigned int caps;
 	unsigned int mask, val;
 
-	if (!enable && is_active_nid(codec, nid, dir, idx))
+	if (!enable && is_active_nid(codec, nid, dir, idx_to_check))
 		return;
 
 	caps = query_amp_caps(codec, nid, dir);
