@@ -3274,8 +3274,8 @@ again:
 	/* module_bug_cleanup needs module_mutex protection */
 	mutex_lock(&module_mutex);
 	module_bug_cleanup(mod);
-	mutex_unlock(&module_mutex);
  ddebug_cleanup:
+	mutex_unlock(&module_mutex);
 	dynamic_debug_remove(info->debug);
 	synchronize_sched();
 	kfree(mod->args);

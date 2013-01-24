@@ -657,8 +657,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			ret = uvc_ctrl_get(chain, ctrl);
 			if (ret < 0) {
 				uvc_ctrl_rollback(handle);
-				ctrls->error_idx = ret == -ENOENT
-						 ? ctrls->count : i;
+				ctrls->error_idx = i;
 				return ret;
 			}
 		}
@@ -686,8 +685,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			ret = uvc_ctrl_set(chain, ctrl);
 			if (ret < 0) {
 				uvc_ctrl_rollback(handle);
-				ctrls->error_idx = (ret == -ENOENT &&
-						    cmd == VIDIOC_S_EXT_CTRLS)
+				ctrls->error_idx = cmd == VIDIOC_S_EXT_CTRLS
 						 ? ctrls->count : i;
 				return ret;
 			}
