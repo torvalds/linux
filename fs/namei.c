@@ -1519,7 +1519,7 @@ static inline int should_follow_link(struct inode *inode, int follow)
 }
 
 static inline int walk_component(struct nameidata *nd, struct path *path,
-		struct qstr *name, int type, int follow)
+		int follow)
 {
 	struct inode *inode;
 	int err;
@@ -1528,14 +1528,14 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 	 * to be able to know about the current root directory and
 	 * parent relationships.
 	 */
-	if (unlikely(type != LAST_NORM))
-		return handle_dots(nd, type);
-	err = lookup_fast(nd, name, path, &inode);
+	if (unlikely(nd->last_type != LAST_NORM))
+		return handle_dots(nd, nd->last_type);
+	err = lookup_fast(nd, &nd->last, path, &inode);
 	if (unlikely(err)) {
 		if (err < 0)
 			goto out_err;
 
-		err = lookup_slow(nd, name, path);
+		err = lookup_slow(nd, &nd->last, path);
 		if (err < 0)
 			goto out_err;
 
@@ -1594,8 +1594,7 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 		res = follow_link(&link, nd, &cookie);
 		if (res)
 			break;
-		res = walk_component(nd, path, &nd->last,
-				     nd->last_type, LOOKUP_FOLLOW);
+		res = walk_component(nd, path, LOOKUP_FOLLOW);
 		put_link(nd, &link, cookie);
 	} while (res > 0);
 
@@ -1819,7 +1818,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 		name += len;
 
-		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
+		err = walk_component(nd, &next, LOOKUP_FOLLOW);
 		if (err < 0)
 			return err;
 
@@ -1930,8 +1929,7 @@ static inline int lookup_last(struct nameidata *nd, struct path *path)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd, path, &nd->last, nd->last_type,
-					nd->flags & LOOKUP_FOLLOW);
+	return walk_component(nd, path, nd->flags & LOOKUP_FOLLOW);
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
