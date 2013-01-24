@@ -240,10 +240,7 @@ static void set_widgets_power_state(struct hda_codec *codec)
 static void update_power_state(struct hda_codec *codec, hda_nid_t nid,
 			       unsigned int parm)
 {
-	unsigned int state = snd_hda_codec_read(codec, nid, 0,
-						AC_VERB_GET_POWER_STATE, 0);
-	state = (state >> 4) & 0x0f;
-	if (state == parm)
+	if (snd_hda_check_power_state(codec, nid, parm))
 		return;
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE, parm);
 }
@@ -253,10 +250,8 @@ static void update_conv_power_state(struct hda_codec *codec, hda_nid_t nid,
 {
 	struct via_spec *spec = codec->spec;
 	unsigned int format;
-	unsigned int state = snd_hda_codec_read(codec, nid, 0,
-						AC_VERB_GET_POWER_STATE, 0);
-	state = (state >> 4) & 0x0f;
-	if (state == parm)
+
+	if (snd_hda_check_power_state(codec, nid, parm))
 		return;
 	format = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
 	if (format && (spec->dac_stream_tag[index] != format))

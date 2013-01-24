@@ -657,6 +657,19 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 struct hda_loopback_check *check,
 				 hda_nid_t nid);
 
+/* check whether the actual power state matches with the target state */
+static inline bool
+snd_hda_check_power_state(struct hda_codec *codec, hda_nid_t nid,
+			  unsigned int target_state)
+{
+	unsigned int state = snd_hda_codec_read(codec, nid, 0,
+						AC_VERB_GET_POWER_STATE, 0);
+	if (state & AC_PWRST_ERROR)
+		return true;
+	state = (state >> 4) & 0x0f;
+	return (state != target_state);
+}
+
 /*
  * AMP control callbacks
  */
