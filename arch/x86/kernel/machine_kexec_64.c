@@ -56,6 +56,25 @@ out:
 	return result;
 }
 
+static int ident_mapping_init(struct kimage *image, pgd_t *level4p,
+				unsigned long mstart, unsigned long mend)
+{
+	int result;
+
+	mstart = round_down(mstart, PMD_SIZE);
+	mend   = round_up(mend - 1, PMD_SIZE);
+
+	while (mstart < mend) {
+		result = init_one_level2_page(image, level4p, mstart);
+		if (result)
+			return result;
+
+		mstart += PMD_SIZE;
+	}
+
+	return 0;
+}
+
 static void init_level2_page(pmd_t *level2p, unsigned long addr)
 {
 	unsigned long end_addr;
@@ -184,22 +203,34 @@ err:
 	return result;
 }
 
-
 static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 {
+	unsigned long mstart, mend;
 	pgd_t *level4p;
 	int result;
+	int i;
+
 	level4p = (pgd_t *)__va(start_pgtable);
 	result = init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
 	if (result)
 		return result;
+
 	/*
-	 * image->start may be outside 0 ~ max_pfn, for example when
-	 * jump back to original kernel from kexeced kernel
+	 * segments's mem ranges could be outside 0 ~ max_pfn,
+	 * for example when jump back to original kernel from kexeced kernel.
+	 * or first kernel is booted with user mem map, and second kernel
+	 * could be loaded out of that range.
 	 */
-	result = init_one_level2_page(image, level4p, image->start);
-	if (result)
-		return result;
+	for (i = 0; i < image->nr_segments; i++) {
+		mstart = image->segment[i].mem;
+		mend   = mstart + image->segment[i].memsz;
+
+		result = ident_mapping_init(image, level4p, mstart, mend);
+
+		if (result)
+			return result;
+	}
+
 	return init_transition_pgtable(image, level4p);
 }
 
