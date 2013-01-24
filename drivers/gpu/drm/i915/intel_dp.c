@@ -2291,16 +2291,17 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	uint32_t bit;
 
-	switch (intel_dp->output_reg) {
-	case DP_B:
+	switch (intel_dig_port->port) {
+	case PORT_B:
 		bit = DPB_HOTPLUG_LIVE_STATUS;
 		break;
-	case DP_C:
+	case PORT_C:
 		bit = DPC_HOTPLUG_LIVE_STATUS;
 		break;
-	case DP_D:
+	case PORT_D:
 		bit = DPD_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
