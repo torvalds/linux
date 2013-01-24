@@ -1,4 +1,6 @@
 
+
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -42,7 +44,12 @@ static ssize_t wifi_chip_read(struct class *cls, char *_buf)
     count = sprintf(_buf, "%s", "RK903");
     printk("Current WiFi chip is RK903.\n");
 #endif
-    
+
+#ifdef CONFIG_MTK_COMBO
+	count = sprintf(_buf, "%s", "MT6620");
+	printk("Current WiFi chip is MT6620.\n");
+#endif
+
 #ifdef CONFIG_RT5370
     count = sprintf(_buf, "%s", "RT5370");
     printk("Current WiFi chip is RT5370.\n");
@@ -120,9 +127,37 @@ static ssize_t wifi_p2p_read(struct class *cls, char *_buf)
 	return count;
 }
 
+int wifi_pcba_test = 0;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t wifi_pcba_read(struct class *cls, struct class_attribute *attr, char *_buf)
+#else
+static ssize_t wifi_pcba_read(struct class *cls, char *_buf)
+#endif
+{
+        int count = 0;
+
+        count = sprintf(_buf, "%d", wifi_pcba_test);
+        return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t wifi_pcba_write(struct class *cls, struct class_attribute *attr, char *_buf, size_t _count)
+#else
+static ssize_t wifi_pcba_write(struct class *cls, char *_buf, size_t _count)
+#endif 
+{
+        wifi_pcba_test = simple_strtol(_buf, NULL, 10);
+        if(wifi_pcba_test > 0) {
+            wifi_pcba_test = 1;
+        }
+        return _count;
+}
+
 static struct class *rkwifi_class = NULL;
 static CLASS_ATTR(chip, 0664, wifi_chip_read, NULL);
 static CLASS_ATTR(p2p, 0664, wifi_p2p_read, NULL);
+static CLASS_ATTR(pcba, 0664, wifi_pcba_read, wifi_pcba_write);
 
 int rkwifi_sysif_init(void)
 {
@@ -141,6 +176,7 @@ int rkwifi_sysif_init(void)
     
     ret =  class_create_file(rkwifi_class, &class_attr_chip);
     ret =  class_create_file(rkwifi_class, &class_attr_p2p);
+    ret =  class_create_file(rkwifi_class, &class_attr_pcba);
     
     return 0;
 }
@@ -149,6 +185,8 @@ void rkwifi_sysif_exit(void)
 {
     // need to remove the sys files and class
     class_remove_file(rkwifi_class, &class_attr_chip);
+    class_remove_file(rkwifi_class, &class_attr_p2p);
+    class_remove_file(rkwifi_class, &class_attr_pcba);
     class_destroy(rkwifi_class);
     
     rkwifi_class = NULL;

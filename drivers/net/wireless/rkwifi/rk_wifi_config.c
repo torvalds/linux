@@ -54,5 +54,12 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 	return 0;
 }
 
+extern int wifi_pcba_test;
+int rkwifi_pcba_status(void) 
+{
+    return wifi_pcba_test;
+}
+
 EXPORT_SYMBOL(rkwifi_set_country_code);
 EXPORT_SYMBOL(rkwifi_set_firmware);
+EXPORT_SYMBOL(rkwifi_pcba_status);
