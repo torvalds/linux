@@ -417,34 +417,52 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		consume_skb(skb);
 }
 
+/*
+ * flush_hold_queue - empty the hold queue if auditd appears
+ *
+ * If auditd just started, drain the queue of messages already
+ * sent to syslog/printk.  Remember loss here is ok.  We already
+ * called audit_log_lost() if it didn't go out normally.  so the
+ * race between the skb_dequeue and the next check for audit_pid
+ * doesn't matter.
+ *
+ * If you ever find kauditd to be too slow we can get a perf win
+ * by doing our own locking and keeping better track if there
+ * are messages in this queue.  I don't see the need now, but
+ * in 5 years when I want to play with this again I'll see this
+ * note and still have no friggin idea what i'm thinking today.
+ */
+static void flush_hold_queue(void)
+{
+	struct sk_buff *skb;
+
+	if (!audit_default || !audit_pid)
+		return;
+
+	skb = skb_dequeue(&audit_skb_hold_queue);
+	if (likely(!skb))
+		return;
+
+	while (skb && audit_pid) {
+		kauditd_send_skb(skb);
+		skb = skb_dequeue(&audit_skb_hold_queue);
+	}
+
+	/*
+	 * if auditd just disappeared but we
+	 * dequeued an skb we need to drop ref
+	 */
+	if (skb)
+		consume_skb(skb);
+}
+
 static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 
 	set_freezable();
 	while (!kthread_should_stop()) {
-		/*
-		 * if auditd just started drain the queue of messages already
-		 * sent to syslog/printk.  remember loss here is ok.  we already
-		 * called audit_log_lost() if it didn't go out normally.  so the
-		 * race between the skb_dequeue and the next check for audit_pid
-		 * doesn't matter.
-		 *
-		 * if you ever find kauditd to be too slow we can get a perf win
-		 * by doing our own locking and keeping better track if there
-		 * are messages in this queue.  I don't see the need now, but
-		 * in 5 years when I want to play with this again I'll see this
-		 * note and still have no friggin idea what i'm thinking today.
-		 */
-		if (audit_default && audit_pid) {
-			skb = skb_dequeue(&audit_skb_hold_queue);
-			if (unlikely(skb)) {
-				while (skb && audit_pid) {
-					kauditd_send_skb(skb);
-					skb = skb_dequeue(&audit_skb_hold_queue);
-				}
-			}
-		}
+		flush_hold_queue();
 
 		skb = skb_dequeue(&audit_skb_queue);
 		wake_up(&audit_backlog_wait);
