@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/iio/iio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 #include <linux/platform_data/ti_am335x_adc.h>
@@ -152,11 +154,12 @@ static int tiadc_probe(struct platform_device *pdev)
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
 	struct ti_tscadc_dev	*tscadc_dev = ti_tscadc_dev_get(pdev);
-	struct mfd_tscadc_board	*pdata;
+	struct mfd_tscadc_board	*pdata = tscadc_dev->dev->platform_data;
+	struct device_node	*node = pdev->dev.of_node;
 	int			err;
+	u32			val32;
 
-	pdata = tscadc_dev->dev->platform_data;
-	if (!pdata || !pdata->adc_init) {
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "Could not find platform data\n");
 		return -EINVAL;
 	}
@@ -169,8 +172,17 @@ static int tiadc_probe(struct platform_device *pdev)
 	}
 	adc_dev = iio_priv(indio_dev);
 
-	adc_dev->mfd_tscadc = tscadc_dev;
-	adc_dev->channels = pdata->adc_init->adc_channels;
+	adc_dev->mfd_tscadc = ti_tscadc_dev_get(pdev);
+
+	if (pdata)
+		adc_dev->channels = pdata->adc_init->adc_channels;
+	else {
+		err = of_property_read_u32(node,
+				"ti,adc-channels", &val32);
+		if (err < 0)
+			goto err_free_device;
+		adc_dev->channels = val32;
+	}
 
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
@@ -260,11 +272,18 @@ static const struct dev_pm_ops tiadc_pm_ops = {
 #define TIADC_PM_OPS NULL
 #endif
 
+static const struct of_device_id ti_adc_dt_ids[] = {
+	{ .compatible = "ti,am3359-adc", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
+
 static struct platform_driver tiadc_driver = {
 	.driver = {
 		.name   = "tiadc",
 		.owner	= THIS_MODULE,
 		.pm	= TIADC_PM_OPS,
+		.of_match_table = of_match_ptr(ti_adc_dt_ids),
 	},
 	.probe	= tiadc_probe,
 	.remove	= tiadc_remove,
