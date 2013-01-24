@@ -290,15 +290,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 			goto out_entries;
 	}
 
-	if (tbl->entry_size)
-		n = kzalloc(tbl->entry_size, GFP_ATOMIC);
-	else {
-		int sz = sizeof(*n) + tbl->key_len;
-
-		sz = ALIGN(sz, NEIGH_PRIV_ALIGN);
-		sz += dev->neigh_priv_len;
-		n = kzalloc(sz, GFP_ATOMIC);
-	}
+	n = kzalloc(tbl->entry_size + dev->neigh_priv_len, GFP_ATOMIC);
 	if (!n)
 		goto out_entries;
 
@@ -1545,6 +1537,12 @@ static void neigh_table_init_no_netlink(struct neigh_table *tbl)
 
 	if (!tbl->nht || !tbl->phash_buckets)
 		panic("cannot allocate neighbour cache hashes");
+
+	if (!tbl->entry_size)
+		tbl->entry_size = ALIGN(offsetof(struct neighbour, primary_key) +
+					tbl->key_len, NEIGH_PRIV_ALIGN);
+	else
+		WARN_ON(tbl->entry_size % NEIGH_PRIV_ALIGN);
 
 	rwlock_init(&tbl->lock);
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);

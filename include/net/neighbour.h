@@ -184,7 +184,7 @@ struct neigh_table {
 
 static inline void *neighbour_priv(const struct neighbour *n)
 {
-	return (char *)n + ALIGN(sizeof(*n) + n->tbl->key_len, NEIGH_PRIV_ALIGN);
+	return (char *)n + n->tbl->entry_size;
 }
 
 /* flags for neigh_update() */
