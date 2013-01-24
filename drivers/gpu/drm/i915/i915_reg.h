@@ -2618,10 +2618,10 @@
 /* Display & cursor control */
 
 /* Pipe A */
-#define _PIPEADSL		0x70000
+#define _PIPEADSL		(dev_priv->info->display_mmio_offset + 0x70000)
 #define   DSL_LINEMASK_GEN2	0x00000fff
 #define   DSL_LINEMASK_GEN3	0x00001fff
-#define _PIPEACONF		0x70008
+#define _PIPEACONF		(dev_priv->info->display_mmio_offset + 0x70008)
 #define   PIPECONF_ENABLE	(1<<31)
 #define   PIPECONF_DISABLE	0
 #define   PIPECONF_DOUBLE_WIDE	(1<<30)
@@ -2662,7 +2662,7 @@
 #define   PIPECONF_DITHER_TYPE_ST1 (1<<2)
 #define   PIPECONF_DITHER_TYPE_ST2 (2<<2)
 #define   PIPECONF_DITHER_TYPE_TEMP (3<<2)
-#define _PIPEASTAT		0x70024
+#define _PIPEASTAT		(dev_priv->info->display_mmio_offset + 0x70024)
 #define   PIPE_FIFO_UNDERRUN_STATUS		(1UL<<31)
 #define   SPRITE1_FLIPDONE_INT_EN_VLV		(1UL<<30)
 #define   PIPE_CRC_ERROR_ENABLE			(1UL<<29)
@@ -2923,10 +2923,10 @@
  *  } while (high1 != high2);
  *  frame = (high1 << 8) | low1;
  */
-#define _PIPEAFRAMEHIGH          0x70040
+#define _PIPEAFRAMEHIGH          (dev_priv->info->display_mmio_offset + 0x70040)
 #define   PIPE_FRAME_HIGH_MASK    0x0000ffff
 #define   PIPE_FRAME_HIGH_SHIFT   0
-#define _PIPEAFRAMEPIXEL         0x70044
+#define _PIPEAFRAMEPIXEL         (dev_priv->info->display_mmio_offset + 0x70044)
 #define   PIPE_FRAME_LOW_MASK     0xff000000
 #define   PIPE_FRAME_LOW_SHIFT    24
 #define   PIPE_PIXEL_MASK         0x00ffffff
@@ -3058,11 +3058,11 @@
 #define SWF32			0x7241c
 
 /* Pipe B */
-#define _PIPEBDSL		0x71000
-#define _PIPEBCONF		0x71008
-#define _PIPEBSTAT		0x71024
-#define _PIPEBFRAMEHIGH		0x71040
-#define _PIPEBFRAMEPIXEL		0x71044
+#define _PIPEBDSL		(dev_priv->info->display_mmio_offset + 0x71000)
+#define _PIPEBCONF		(dev_priv->info->display_mmio_offset + 0x71008)
+#define _PIPEBSTAT		(dev_priv->info->display_mmio_offset + 0x71024)
+#define _PIPEBFRAMEHIGH		(dev_priv->info->display_mmio_offset + 0x71040)
+#define _PIPEBFRAMEPIXEL	(dev_priv->info->display_mmio_offset + 0x71044)
 #define _PIPEB_FRMCOUNT_GM45	0x71040
 #define _PIPEB_FLIPCOUNT_GM45	0x71044
 
