@@ -14,7 +14,6 @@ config HEXAGON
 	# select HAVE_CLK
 	# select IRQ_PER_CPU
 	# select GENERIC_PENDING_IRQ if SMP
-	select HAVE_IRQ_WORK
 	select GENERIC_ATOMIC64
 	select HAVE_PERF_EVENTS
 	select HAVE_GENERIC_HARDIRQS
