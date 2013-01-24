@@ -1159,7 +1159,7 @@
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
-#define FW_BLC_SELF_VLV		0x6500
+#define FW_BLC_SELF_VLV		(VLV_DISPLAY_BASE + 0x6500)
 #define  FW_CSPWRDWNEN		(1<<15)
 
 /*
