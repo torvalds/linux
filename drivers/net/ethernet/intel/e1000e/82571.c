@@ -1534,7 +1534,6 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
-
 		/* Receiver is synchronized with no invalid bits.  */
 		switch (mac->serdes_link_state) {
 		case e1000_serdes_link_autoneg_complete:

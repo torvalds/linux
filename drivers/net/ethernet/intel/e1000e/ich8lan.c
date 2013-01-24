@@ -3991,7 +3991,6 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 		 * The SMBus release must also be disabled on LCD reset.
 		 */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-
 			/* Enable proxy to reset only on power good. */
 			e1e_rphy_locked(hw, I217_PROXY_CTRL, &phy_reg);
 			phy_reg |= I217_PROXY_CTRL_AUTO_DISABLE;

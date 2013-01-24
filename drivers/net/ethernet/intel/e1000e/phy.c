@@ -2474,7 +2474,6 @@ s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.addr = 1;
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
-
 		/* Page is shifted left, PHY expects (page x 32) */
 		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
 						    page);

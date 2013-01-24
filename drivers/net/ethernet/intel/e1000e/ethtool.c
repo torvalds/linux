@@ -130,7 +130,6 @@ static int e1000_get_settings(struct net_device *netdev,
 	u32 speed;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
-
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
 				   SUPPORTED_100baseT_Half |
@@ -328,12 +327,12 @@ static int e1000_set_settings(struct net_device *netdev,
 	}
 
 	/* reset the link */
-
 	if (netif_running(adapter->netdev)) {
 		e1000e_down(adapter);
 		e1000e_up(adapter);
-	} else
+	} else {
 		e1000e_reset(adapter);
+	}
 
 	clear_bit(__E1000_RESETTING, &adapter->state);
 	return 0;

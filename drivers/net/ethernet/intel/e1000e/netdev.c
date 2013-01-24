@@ -87,7 +87,6 @@ struct e1000_reg_info {
 };
 
 static const struct e1000_reg_info e1000_reg_info_tbl[] = {
-
 	/* General Registers */
 	{E1000_CTRL, "CTRL"},
 	{E1000_STATUS, "STATUS"},
@@ -6394,7 +6393,6 @@ static void e1000_io_resume(struct pci_dev *pdev)
 	 */
 	if (!(adapter->flags & FLAG_HAS_AMT))
 		e1000e_get_hw_control(adapter);
-
 }
 
 static void e1000_print_device_info(struct e1000_adapter *adapter)
