@@ -63,6 +63,8 @@
 #ifndef __iwl_op_mode_h__
 #define __iwl_op_mode_h__
 
+#include <linux/debugfs.h>
+
 struct iwl_op_mode;
 struct iwl_trans;
 struct sk_buff;
