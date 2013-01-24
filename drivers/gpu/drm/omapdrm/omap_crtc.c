@@ -274,17 +274,16 @@ static void page_flip_worker(struct work_struct *work)
 	struct omap_crtc *omap_crtc =
 			container_of(work, struct omap_crtc, page_flip_work);
 	struct drm_crtc *crtc = &omap_crtc->base;
-	struct drm_device *dev = crtc->dev;
 	struct drm_display_mode *mode = &crtc->mode;
 	struct drm_gem_object *bo;
 
-	drm_modeset_lock_all(dev);
+	mutex_lock(&crtc->mutex);
 	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			crtc->x << 16, crtc->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
 			vblank_cb, crtc);
-	drm_modeset_unlock_all(dev);
+	mutex_unlock(&crtc->mutex);
 
 	bo = omap_framebuffer_bo(crtc->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
@@ -417,7 +416,7 @@ static void apply_worker(struct work_struct *work)
 	 * the callbacks and list modification all serialized
 	 * with respect to modesetting ioctls from userspace.
 	 */
-	drm_modeset_lock_all(dev);
+	mutex_lock(&crtc->mutex);
 	dispc_runtime_get();
 
 	/*
@@ -462,16 +461,15 @@ static void apply_worker(struct work_struct *work)
 
 out:
 	dispc_runtime_put();
-	drm_modeset_unlock_all(dev);
+	mutex_unlock(&crtc->mutex);
 }
 
 int omap_crtc_apply(struct drm_crtc *crtc,
 		struct omap_drm_apply *apply)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	WARN_ON(!mutex_is_locked(&crtc->mutex));
 
 	/* no need to queue it again if it is already queued: */
 	if (apply->queued)
