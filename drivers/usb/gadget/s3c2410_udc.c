@@ -1824,16 +1824,9 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		goto err_mem;
 	}
 
-	device_initialize(&udc->gadget.dev);
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
-	/* Bind the driver */
-	retval = device_add(&udc->gadget.dev);
-	if (retval) {
-		dev_err(&udc->gadget.dev, "Error in device_add() : %d\n", retval);
-		goto err_device_add;
-	}
+	udc->gadget.register_my_device = true;
 
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
@@ -1923,8 +1916,6 @@ err_gpio_claim:
 err_int:
 	free_irq(IRQ_USBD, udc);
 err_map:
-	device_unregister(&udc->gadget.dev);
-err_device_add:
 	iounmap(base_addr);
 err_mem:
 	release_mem_region(rsrc_start, rsrc_len);
@@ -1946,7 +1937,6 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 		return -EBUSY;
 
 	usb_del_gadget_udc(&udc->gadget);
-	device_unregister(&udc->gadget.dev);
 	debugfs_remove(udc->regs_info);
 
 	if (udc_info && !udc_info->udc_command &&
