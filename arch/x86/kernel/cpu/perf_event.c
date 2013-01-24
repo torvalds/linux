@@ -1363,7 +1363,7 @@ static __init struct attribute **merge_attr(struct attribute **a, struct attribu
 	return new;
 }
 
-static ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page)
 {
 	struct perf_pmu_events_attr *pmu_attr = \
@@ -1493,6 +1493,9 @@ static int __init init_hw_perf_events(void)
 
 	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
+
+	if (x86_pmu.event_attrs)
+		x86_pmu_events_group.attrs = x86_pmu.event_attrs;
 
 	if (!x86_pmu.events_sysfs_show)
 		x86_pmu_events_group.attrs = &empty_attrs;
