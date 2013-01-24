@@ -250,8 +250,7 @@ struct goku_udc {
 					got_region:1,
 					req_config:1,
 					configured:1,
-					enabled:1,
-					registered:1;
+					enabled:1;
 
 	/* pci state used to access those endpoints */
 	struct pci_dev			*pdev;
