@@ -23,6 +23,7 @@ static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	memcpy_fromio(buf, (void __iomem *)KSEG0ADDR(b47s->window + from),
 		      len);
+	*retlen = len;
 
 	return len;
 }
