@@ -205,6 +205,7 @@ struct rbd_obj_request {
 enum img_req_flags {
 	IMG_REQ_WRITE,		/* I/O direction: read = 0, write = 1 */
 	IMG_REQ_CHILD,		/* initiator: block = 0, child image = 1 */
+	IMG_REQ_LAYERED,	/* ENOENT handling: normal = 0, layered = 1 */
 };
 
 struct rbd_img_request {
@@ -1247,6 +1248,18 @@ static bool img_request_child_test(struct rbd_img_request *img_request)
 	return test_bit(IMG_REQ_CHILD, &img_request->flags) != 0;
 }
 
+static void img_request_layered_set(struct rbd_img_request *img_request)
+{
+	set_bit(IMG_REQ_LAYERED, &img_request->flags);
+	smp_mb();
+}
+
+static bool img_request_layered_test(struct rbd_img_request *img_request)
+{
+	smp_mb();
+	return test_bit(IMG_REQ_LAYERED, &img_request->flags) != 0;
+}
+
 static void
 rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
 {
@@ -1549,6 +1562,8 @@ static struct rbd_img_request *rbd_img_request_create(
 	}
 	if (child_request)
 		img_request_child_set(img_request);
+	if (rbd_dev->parent_spec)
+		img_request_layered_set(img_request);
 	spin_lock_init(&img_request->completion_lock);
 	img_request->next_completion = 0;
 	img_request->callback = NULL;
@@ -1557,6 +1572,7 @@ static struct rbd_img_request *rbd_img_request_create(
 	INIT_LIST_HEAD(&img_request->obj_requests);
 	kref_init(&img_request->kref);
 
+	(void) img_request_layered_test(img_request);	/* Avoid a warning */
 	rbd_img_request_get(img_request);	/* Avoid a warning */
 	rbd_img_request_put(img_request);	/* TEMPORARY */
 
