@@ -139,6 +139,19 @@ struct fw_img {
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
+/*
+ * Calibration control struct.
+ * Sent as part of the phy configuration command.
+ * @flow_trigger: bitmap for which calibrations to perform according to
+ *		flow triggers.
+ * @event_trigger: bitmap for which calibrations to perform according to
+ *		event triggers.
+ */
+struct iwl_tlv_calib_ctrl {
+	__le32 flow_trigger;
+	__le32 event_trigger;
+} __packed;
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -168,7 +181,7 @@ struct iwl_fw {
 	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-	u64 default_calib[IWL_UCODE_TYPE_MAX];
+	struct iwl_tlv_calib_ctrl default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
 
 	bool mvm_fw;

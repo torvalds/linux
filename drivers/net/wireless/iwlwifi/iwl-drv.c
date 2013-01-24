@@ -268,7 +268,7 @@ struct fw_sec_parsing {
  */
 struct iwl_tlv_calib_data {
 	__le32 ucode_type;
-	__le64 calib;
+	struct iwl_tlv_calib_ctrl calib;
 } __packed;
 
 struct iwl_firmware_pieces {
@@ -358,7 +358,11 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 			ucode_type);
 		return -EINVAL;
 	}
-	drv->fw.default_calib[ucode_type] = le64_to_cpu(def_calib->calib);
+	drv->fw.default_calib[ucode_type].flow_trigger =
+		def_calib->calib.flow_trigger;
+	drv->fw.default_calib[ucode_type].event_trigger =
+		def_calib->calib.event_trigger;
+
 	return 0;
 }
 
