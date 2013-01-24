@@ -184,9 +184,11 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		 */
 		if (te_data->vif->type == NL80211_IFTYPE_STATION &&
 		    (!te_data->vif->bss_conf.assoc ||
-		     !te_data->vif->bss_conf.dtim_period))
+		     !te_data->vif->bss_conf.dtim_period)) {
 			IWL_ERR(mvm,
 				"No assocation and the time event is over already...\n");
+			ieee80211_connection_loss(te_data->vif);
+		}
 
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) == TE_NOTIF_HOST_START) {

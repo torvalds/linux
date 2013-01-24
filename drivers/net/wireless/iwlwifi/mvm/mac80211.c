@@ -114,7 +114,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_QUEUE_CONTROL |
 		    IEEE80211_HW_WANT_MONITOR_VIF |
 		    IEEE80211_HW_SCAN_WHILE_IDLE |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
 		    IEEE80211_HW_SUPPORTS_PS |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
 		    IEEE80211_HW_AMPDU_AGGREGATION;
@@ -671,8 +670,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
 			}
-			iwl_mvm_remove_time_event(mvm, mvmvif,
-						  &mvmvif->time_event_data);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
@@ -684,6 +681,13 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
+	} else if (changes & BSS_CHANGED_DTIM_PERIOD) {
+		/*
+		 * We received a beacon _after_ association so
+		 * remove the session protection.
+		 */
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
 	} else if (changes & BSS_CHANGED_PS) {
 		/*
 		 * TODO: remove this temporary code.
