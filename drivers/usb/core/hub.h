@@ -31,7 +31,7 @@ struct usb_hub {
 	struct urb		*urb;		/* for interrupt polling pipe */
 
 	/* buffer for urb ... with extra space in case of babble */
-	char			(*buffer)[8];
+	u8			(*buffer)[8];
 	union {
 		struct usb_hub_status	hub;
 		struct usb_port_status	port;
