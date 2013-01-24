@@ -1871,7 +1871,6 @@ static int pxa27x_udc_stop(struct usb_gadget *g,
 
 	udc->driver = NULL;
 
-
 	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return otg_set_peripheral(udc->transceiver->otg, NULL);
 	return 0;
@@ -2456,9 +2455,9 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 		goto err_map;
 	}
 
-	device_initialize(&udc->gadget.dev);
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.dev.dma_mask = NULL;
+	udc->gadget.register_my_device = true;
 	udc->vbus_sensed = 0;
 
 	the_controller = udc;
@@ -2475,12 +2474,6 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	retval = device_add(&udc->gadget.dev);
-	if (retval) {
-		dev_err(udc->dev, "device_add error %d\n", retval);
-		goto err_dev_add;
-	}
-
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
 		goto err_add_udc;
@@ -2490,8 +2483,6 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
-	device_unregister(&udc->gadget.dev);
-err_dev_add:
 	free_irq(udc->irq, udc);
 err_irq:
 	iounmap(udc->regs);
@@ -2512,7 +2503,6 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	int gpio = udc->mach->gpio_pullup;
 
 	usb_del_gadget_udc(&udc->gadget);
-	device_del(&udc->gadget.dev);
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);
