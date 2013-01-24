@@ -2500,8 +2500,10 @@ static void evergreen_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	if (reset_mask & RADEON_RESET_VMC)
 		srbm_soft_reset |= SOFT_RESET_VMC;
 
-	if (reset_mask & RADEON_RESET_MC)
-		srbm_soft_reset |= SOFT_RESET_MC;
+	if (!(rdev->flags & RADEON_IS_IGP)) {
+		if (reset_mask & RADEON_RESET_MC)
+			srbm_soft_reset |= SOFT_RESET_MC;
+	}
 
 	if (grbm_soft_reset) {
 		tmp = RREG32(GRBM_SOFT_RESET);

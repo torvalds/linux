@@ -1475,8 +1475,10 @@ static void r600_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	if (reset_mask & RADEON_RESET_GRBM)
 		srbm_soft_reset |= S_000E60_SOFT_RESET_GRBM(1);
 
-	if (reset_mask & RADEON_RESET_MC)
-		srbm_soft_reset |= S_000E60_SOFT_RESET_MC(1);
+	if (!(rdev->flags & RADEON_IS_IGP)) {
+		if (reset_mask & RADEON_RESET_MC)
+			srbm_soft_reset |= S_000E60_SOFT_RESET_MC(1);
+	}
 
 	if (reset_mask & RADEON_RESET_VMC)
 		srbm_soft_reset |= S_000E60_SOFT_RESET_VMC(1);
