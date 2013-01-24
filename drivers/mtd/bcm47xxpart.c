@@ -59,10 +59,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	uint32_t *buf;
 	size_t bytes_read;
 	uint32_t offset;
-	uint32_t blocksize = 0x10000;
+	uint32_t blocksize = master->erasesize;
 	struct trx_header *trx;
 	int trx_part = -1;
 	int last_trx_part = -1;
+
+	if (blocksize <= 0x10000)
+		blocksize = 0x10000;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
