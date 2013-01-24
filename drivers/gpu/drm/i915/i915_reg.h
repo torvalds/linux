@@ -336,17 +336,19 @@
  *  0x801c/3c: core clock bits
  *  0x8048/68: low pass filter coefficients
  *  0x8100: fast clock controls
+ *
+ * DPIO is VLV only.
  */
-#define DPIO_PKT			0x2100
+#define DPIO_PKT			(VLV_DISPLAY_BASE + 0x2100)
 #define  DPIO_RID			(0<<24)
 #define  DPIO_OP_WRITE			(1<<16)
 #define  DPIO_OP_READ			(0<<16)
 #define  DPIO_PORTID			(0x12<<8)
 #define  DPIO_BYTE			(0xf<<4)
 #define  DPIO_BUSY			(1<<0) /* status only */
-#define DPIO_DATA			0x2104
-#define DPIO_REG			0x2108
-#define DPIO_CTL			0x2110
+#define DPIO_DATA			(VLV_DISPLAY_BASE + 0x2104)
+#define DPIO_REG			(VLV_DISPLAY_BASE + 0x2108)
+#define DPIO_CTL			(VLV_DISPLAY_BASE + 0x2110)
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
 #define  DPIO_SFR_BYPASS		(1<<1)
