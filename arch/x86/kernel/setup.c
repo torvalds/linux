@@ -702,6 +702,27 @@ static void __init trim_bios_range(void)
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
 
+/* called before trim_bios_range() to spare extra sanitize */
+static void __init e820_add_kernel_range(void)
+{
+	u64 start = __pa_symbol(_text);
+	u64 size = __pa_symbol(_end) - start;
+
+	/*
+	 * Complain if .text .data and .bss are not marked as E820_RAM and
+	 * attempt to fix it by adding the range. We may have a confused BIOS,
+	 * or the user may have used memmap=exactmap or memmap=xxM$yyM to
+	 * exclude kernel range. If we really are running on top non-RAM,
+	 * we will crash later anyways.
+	 */
+	if (e820_all_mapped(start, start + size, E820_RAM))
+		return;
+
+	pr_warn(".text .data .bss are not marked as E820_RAM!\n");
+	e820_remove_range(start, size, E820_RAM, 0);
+	e820_add_region(start, size, E820_RAM);
+}
+
 static int __init parse_reservelow(char *p)
 {
 	unsigned long long size;
@@ -897,20 +918,7 @@ void __init setup_arch(char **cmdline_p)
 	insert_resource(&iomem_resource, &data_resource);
 	insert_resource(&iomem_resource, &bss_resource);
 
-	/*
-	 * Complain if .text .data and .bss are not marked as E820_RAM and
-	 * attempt to fix it by adding the range. We may have a confused BIOS,
-	 * or the user may have incorrectly supplied it via memmap=exactmap. If
-	 * we really are running on top non-RAM, we will crash later anyways.
-	 */
-	if (!e820_all_mapped(code_resource.start, __pa(__brk_limit), E820_RAM)) {
-		pr_warn(".text .data .bss are not marked as E820_RAM!\n");
-
-		e820_add_region(code_resource.start,
-				__pa(__brk_limit) - code_resource.start + 1,
-				E820_RAM);
-	}
-
+	e820_add_kernel_range();
 	trim_bios_range();
 #ifdef CONFIG_X86_32
 	if (ppro_with_ram_bug()) {
