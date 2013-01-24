@@ -372,7 +372,8 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	u32 reg = VIDEO_DIP_CTL;
 	u32 val = I915_READ(reg);
 	u32 port;
@@ -399,11 +400,11 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		return;
 	}
 
-	switch (intel_hdmi->sdvox_reg) {
-	case SDVOB:
+	switch (intel_dig_port->port) {
+	case PORT_B:
 		port = VIDEO_DIP_PORT_B;
 		break;
-	case SDVOC:
+	case PORT_C:
 		port = VIDEO_DIP_PORT_C;
 		break;
 	default:
@@ -436,7 +437,8 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 	u32 port;
@@ -455,14 +457,14 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		return;
 	}
 
-	switch (intel_hdmi->sdvox_reg) {
-	case HDMIB:
+	switch (intel_dig_port->port) {
+	case PORT_B:
 		port = VIDEO_DIP_PORT_B;
 		break;
-	case HDMIC:
+	case PORT_C:
 		port = VIDEO_DIP_PORT_C;
 		break;
-	case HDMID:
+	case PORT_D:
 		port = VIDEO_DIP_PORT_D;
 		break;
 	default:
@@ -795,13 +797,14 @@ static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = hdmi_to_dig_port(intel_hdmi);
 	uint32_t bit;
 
-	switch (intel_hdmi->sdvox_reg) {
-	case SDVOB:
+	switch (intel_dig_port->port) {
+	case PORT_B:
 		bit = HDMIB_HOTPLUG_LIVE_STATUS;
 		break;
-	case SDVOC:
+	case PORT_C:
 		bit = HDMIC_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
