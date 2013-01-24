@@ -4298,7 +4298,7 @@
 #define GEN7_ROW_CHICKEN2_GT2		0xf4f4
 #define   DOP_CLOCK_GATING_DISABLE	(1<<0)
 
-#define G4X_AUD_VID_DID			0x62020
+#define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
 #define INTEL_AUDIO_DEVBLC		0x80862801
 #define INTEL_AUDIO_DEVCTG		0x80862802
