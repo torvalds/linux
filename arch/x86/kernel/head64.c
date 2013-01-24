@@ -89,6 +89,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	}
 	load_idt((const struct desc_ptr *)&idt_descr);
 
+	copy_bootdata(__va(real_mode_data));
+
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
 
@@ -97,7 +99,9 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 void __init x86_64_start_reservations(char *real_mode_data)
 {
-	copy_bootdata(__va(real_mode_data));
+	/* version is always not zero if it is copied */
+	if (!boot_params.hdr.version)
+		copy_bootdata(__va(real_mode_data));
 
 	memblock_reserve(__pa_symbol(&_text),
 			 __pa_symbol(&__bss_stop) - __pa_symbol(&_text));
