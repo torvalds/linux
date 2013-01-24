@@ -57,17 +57,6 @@ static int fb_show(struct seq_file *m, void *arg)
 	struct drm_device *dev = node->minor->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (ret)
-		return ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret) {
-		mutex_unlock(&dev->mode_config.mutex);
-		return ret;
-	}
 
 	seq_printf(m, "fbcon ");
 	omap_framebuffer_describe(priv->fbdev->fb, m);
@@ -81,9 +70,6 @@ static int fb_show(struct seq_file *m, void *arg)
 		omap_framebuffer_describe(fb, m);
 	}
 	mutex_unlock(&dev->mode_config.fb_lock);
-
-	mutex_unlock(&dev->struct_mutex);
-	mutex_unlock(&dev->mode_config.mutex);
 
 	return 0;
 }
