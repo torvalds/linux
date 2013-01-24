@@ -43,28 +43,6 @@
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
-/* uart */
-static struct plat_serial8250_port debug_uart_platform_data[] = {
-	{
-		.membase	= (void __iomem *)SW_VA_UART0_IO_BASE,
-		.irq		= SW_INT_IRQNO_UART0,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM32,
-		.regshift	= 2,
-		.uartclk	= 24000000,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device debug_uart = {
-	.name = "serial8250",
-	.id = PLAT8250_DEV_PLATFORM,
-	.dev = {
-		.platform_data = debug_uart_platform_data,
-	},
-};
-
 /* dma */
 static struct platform_device sw_pdev_dmac = {
 	.name = "sw_dmac",
@@ -192,7 +170,6 @@ struct platform_device sun5i_pmu_device = {
 };
 
 static struct platform_device *sw_pdevs[] __initdata = {
-	&debug_uart,
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
 	&sun5i_twi0_device,
