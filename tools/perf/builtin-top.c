@@ -694,7 +694,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		static struct intlist *seen;
 
 		if (!seen)
-			seen = intlist__new();
+			seen = intlist__new(NULL);
 
 		if (!intlist__has_entry(seen, event->ip.pid)) {
 			pr_err("Can't find guest [%d]'s kernel information\n",

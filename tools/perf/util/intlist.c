@@ -73,7 +73,26 @@ struct int_node *intlist__find(struct intlist *ilist, int i)
 	return node;
 }
 
-struct intlist *intlist__new(void)
+static int intlist__parse_list(struct intlist *ilist, const char *s)
+{
+	char *sep;
+	int err;
+
+	do {
+		long value = strtol(s, &sep, 10);
+		err = -EINVAL;
+		if (*sep != ',' && *sep != '\0')
+			break;
+		err = intlist__add(ilist, value);
+		if (err)
+			break;
+		s = sep + 1;
+	} while (*sep != '\0');
+
+	return err;
+}
+
+struct intlist *intlist__new(const char *slist)
 {
 	struct intlist *ilist = malloc(sizeof(*ilist));
 
@@ -82,9 +101,15 @@ struct intlist *intlist__new(void)
 		ilist->rblist.node_cmp    = intlist__node_cmp;
 		ilist->rblist.node_new    = intlist__node_new;
 		ilist->rblist.node_delete = intlist__node_delete;
+
+		if (slist && intlist__parse_list(ilist, slist))
+			goto out_delete;
 	}
 
 	return ilist;
+out_delete:
+	intlist__delete(ilist);
+	return NULL;
 }
 
 void intlist__delete(struct intlist *ilist)
