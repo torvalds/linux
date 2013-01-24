@@ -2368,13 +2368,13 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&udc->lock);
 	INIT_WORK(&udc->ep0_wq, bcm63xx_ep0_process);
-	dev_set_name(&udc->gadget.dev, "gadget");
 
 	udc->gadget.ops = &bcm63xx_udc_ops;
 	udc->gadget.name = dev_name(dev);
 	udc->gadget.dev.parent = dev;
 	udc->gadget.dev.release = bcm63xx_udc_gadget_release;
 	udc->gadget.dev.dma_mask = dev->dma_mask;
+	udc->gadget.register_my_device = true;
 
 	if (!pd->use_fullspeed && !use_fullspeed)
 		udc->gadget.max_speed = USB_SPEED_HIGH;
@@ -2414,17 +2414,12 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rc = device_register(&udc->gadget.dev);
-	if (rc)
-		goto out_uninit;
-
 	bcm63xx_udc_init_debugfs(udc);
 	rc = usb_add_gadget_udc(dev, &udc->gadget);
 	if (!rc)
 		return 0;
 
 	bcm63xx_udc_cleanup_debugfs(udc);
-	device_unregister(&udc->gadget.dev);
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
@@ -2440,7 +2435,6 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 
 	bcm63xx_udc_cleanup_debugfs(udc);
 	usb_del_gadget_udc(&udc->gadget);
-	device_unregister(&udc->gadget.dev);
 	BUG_ON(udc->driver);
 
 	platform_set_drvdata(pdev, NULL);
