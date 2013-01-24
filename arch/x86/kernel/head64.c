@@ -53,15 +53,15 @@ int __init early_make_pgtable(unsigned long address)
 	unsigned long physaddr = address - __PAGE_OFFSET;
 	unsigned long i;
 	pgdval_t pgd, *pgd_p;
-	pudval_t *pud_p;
+	pudval_t pud, *pud_p;
 	pmdval_t pmd, *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
 	if (physaddr >= MAXMEM || read_cr3() != __pa(early_level4_pgt))
 		return -1;
 
-	i = (address >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1);
-	pgd_p = &early_level4_pgt[i].pgd;
+again:
+	pgd_p = &early_level4_pgt[pgd_index(address)].pgd;
 	pgd = *pgd_p;
 
 	/*
@@ -69,29 +69,37 @@ int __init early_make_pgtable(unsigned long address)
 	 * critical -- __PAGE_OFFSET would point us back into the dynamic
 	 * range and we might end up looping forever...
 	 */
-	if (pgd && next_early_pgt < EARLY_DYNAMIC_PAGE_TABLES) {
+	if (pgd)
 		pud_p = (pudval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
-	} else {
-		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES-1)
+	else {
+		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES) {
 			reset_early_page_tables();
+			goto again;
+		}
 
 		pud_p = (pudval_t *)early_dynamic_pgts[next_early_pgt++];
 		for (i = 0; i < PTRS_PER_PUD; i++)
 			pud_p[i] = 0;
-
 		*pgd_p = (pgdval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
-	i = (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
-	pud_p += i;
+	pud_p += pud_index(address);
+	pud = *pud_p;
 
-	pmd_p = (pmdval_t *)early_dynamic_pgts[next_early_pgt++];
-	pmd = (physaddr & PUD_MASK) + (__PAGE_KERNEL_LARGE & ~_PAGE_GLOBAL);
-	for (i = 0; i < PTRS_PER_PMD; i++) {
-		pmd_p[i] = pmd;
-		pmd += PMD_SIZE;
+	if (pud)
+		pmd_p = (pmdval_t *)((pud & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+	else {
+		if (next_early_pgt >= EARLY_DYNAMIC_PAGE_TABLES) {
+			reset_early_page_tables();
+			goto again;
+		}
+
+		pmd_p = (pmdval_t *)early_dynamic_pgts[next_early_pgt++];
+		for (i = 0; i < PTRS_PER_PMD; i++)
+			pmd_p[i] = 0;
+		*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
-
-	*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
+	pmd = (physaddr & PMD_MASK) + (__PAGE_KERNEL_LARGE & ~_PAGE_GLOBAL);
+	pmd_p[pmd_index(address)] = pmd;
 
 	return 0;
 }
