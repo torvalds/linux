@@ -426,7 +426,6 @@ extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
 				     int max_active);
 extern bool workqueue_congested(unsigned int cpu, struct workqueue_struct *wq);
-extern unsigned int work_cpu(struct work_struct *work);
 extern unsigned int work_busy(struct work_struct *work);
 
 /*
