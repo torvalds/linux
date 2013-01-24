@@ -25,6 +25,8 @@ static unsigned long __initdata pgt_buf_top;
 
 static unsigned long min_pfn_mapped;
 
+static bool __initdata can_use_brk_pgt = true;
+
 /*
  * Pages returned are already directly mapped.
  *
@@ -47,7 +49,7 @@ __ref void *alloc_low_pages(unsigned int num)
 						__GFP_ZERO, order);
 	}
 
-	if ((pgt_buf_end + num) >= pgt_buf_top) {
+	if ((pgt_buf_end + num) > pgt_buf_top || !can_use_brk_pgt) {
 		unsigned long ret;
 		if (min_pfn_mapped >= max_pfn_mapped)
 			panic("alloc_low_page: ran out of memory");
@@ -61,6 +63,8 @@ __ref void *alloc_low_pages(unsigned int num)
 	} else {
 		pfn = pgt_buf_end;
 		pgt_buf_end += num;
+		printk(KERN_DEBUG "BRK [%#010lx, %#010lx] PGTABLE\n",
+			pfn << PAGE_SHIFT, (pgt_buf_end << PAGE_SHIFT) - 1);
 	}
 
 	for (i = 0; i < num; i++) {
@@ -370,8 +374,15 @@ static unsigned long __init init_range_memory_mapping(
 		if (start >= end)
 			continue;
 
+		/*
+		 * if it is overlapping with brk pgt, we need to
+		 * alloc pgt buf from memblock instead.
+		 */
+		can_use_brk_pgt = max(start, (u64)pgt_buf_end<<PAGE_SHIFT) >=
+				    min(end, (u64)pgt_buf_top<<PAGE_SHIFT);
 		init_memory_mapping(start, end);
 		mapped_ram_size += end - start;
+		can_use_brk_pgt = true;
 	}
 
 	return mapped_ram_size;
