@@ -380,7 +380,7 @@ static int elm_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id elm_of_match[] = {
-	{ .compatible = "ti,am33xx-elm" },
+	{ .compatible = "ti,am3352-elm" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, elm_of_match);

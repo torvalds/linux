@@ -10,7 +10,7 @@ Optional properties:
 
 Example:
 elm: elm@0 {
-	compatible	= "ti,am33xx-elm";
+	compatible = "ti,am3352-elm";
 	reg = <0x48080000 0x2000>;
 	interrupts = <4>;
 };
