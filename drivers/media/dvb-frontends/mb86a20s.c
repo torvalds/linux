@@ -1604,7 +1604,6 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 					"%s: Can't get BER for layer %c (error %d).\n",
 					__func__, 'A' + i, rc);
 			}
-
 			if (c->block_error.stat[1 + i].scale != FE_SCALE_NOT_AVAILABLE)
 				pre_ber_layers++;
 
@@ -1627,7 +1626,6 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 					"%s: Can't get BER for layer %c (error %d).\n",
 					__func__, 'A' + i, rc);
 			}
-
 			if (c->block_error.stat[1 + i].scale != FE_SCALE_NOT_AVAILABLE)
 				post_ber_layers++;
 
@@ -1652,7 +1650,6 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 					__func__, 'A' + i, rc);
 
 			}
-
 			if (c->block_error.stat[1 + i].scale != FE_SCALE_NOT_AVAILABLE)
 				per_layers++;
 
@@ -1686,6 +1683,9 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 		c->pre_bit_error.stat[0].uvalue = t_pre_bit_error;
 		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->pre_bit_count.stat[0].uvalue = t_pre_bit_count;
+	} else {
+		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
 	/*
@@ -1704,6 +1704,9 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 		c->post_bit_error.stat[0].uvalue = t_post_bit_error;
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[0].uvalue = t_post_bit_count;
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
 	if (per_layers) {
@@ -1718,6 +1721,9 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe)
 		c->block_error.stat[0].uvalue = t_block_error;
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_count.stat[0].uvalue = t_block_count;
+	} else {
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
 	return rc;
