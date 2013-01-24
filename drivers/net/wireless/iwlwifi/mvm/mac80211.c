@@ -1329,6 +1329,15 @@ static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 	return iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm_sta->vif);
 }
 
+static void iwl_mvm_mac_rssi_callback(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum ieee80211_rssi_event rssi_event)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	iwl_mvm_bt_rssi_event(mvm, vif, rssi_event);
+}
+
 struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -1352,6 +1361,7 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.update_tkip_key = iwl_mvm_mac_update_tkip_key,
 	.remain_on_channel = iwl_mvm_roc,
 	.cancel_remain_on_channel = iwl_mvm_cancel_roc,
+	.rssi_callback = iwl_mvm_mac_rssi_callback,
 
 	.add_chanctx = iwl_mvm_add_chanctx,
 	.remove_chanctx = iwl_mvm_remove_chanctx,

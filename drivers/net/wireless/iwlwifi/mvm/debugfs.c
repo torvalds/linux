@@ -333,9 +333,18 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 				 mvmvif->queue_params[i].uapsd);
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION)
-		pos += scnprintf(buf+pos, bufsz-pos, "ap_sta_id %d\n",
-				 ap_sta_id);
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    ap_sta_id != IWL_MVM_STATION_COUNT) {
+		struct ieee80211_sta *sta;
+		struct iwl_mvm_sta *mvm_sta;
+
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[ap_sta_id],
+						lockdep_is_held(&mvm->mutex));
+		mvm_sta = (void *)sta->drv_priv;
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "ap_sta_id %d - reduced Tx power %d\n",
+				 ap_sta_id, mvm_sta->bt_reduced_txpower);
+	}
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(vif->chanctx_conf);
