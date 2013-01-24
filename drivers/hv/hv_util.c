@@ -49,6 +49,16 @@ static struct hv_util_service util_kvp = {
 	.util_deinit = hv_kvp_deinit,
 };
 
+static void perform_shutdown(struct work_struct *dummy)
+{
+	orderly_poweroff(true);
+}
+
+/*
+ * Perform the shutdown operation in a thread context.
+ */
+static DECLARE_WORK(shutdown_work, perform_shutdown);
+
 static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
@@ -106,7 +116,7 @@ static void shutdown_onchannelcallback(void *context)
 	}
 
 	if (execute_shutdown == true)
-		orderly_poweroff(true);
+		schedule_work(&shutdown_work);
 }
 
 /*
