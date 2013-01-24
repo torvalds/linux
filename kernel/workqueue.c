@@ -123,7 +123,6 @@ enum {
 /* struct worker is defined in workqueue_internal.h */
 
 struct worker_pool {
-	struct global_cwq	*gcwq;		/* I: the owning gcwq */
 	spinlock_t		lock;		/* the pool lock */
 	unsigned int		cpu;		/* I: the associated cpu */
 	int			id;		/* I: pool ID */
@@ -451,17 +450,17 @@ static DEFINE_IDR(worker_pool_idr);
 
 static int worker_thread(void *__worker);
 
-static int std_worker_pool_pri(struct worker_pool *pool)
-{
-	return pool - pool->gcwq->pools;
-}
-
 static struct global_cwq *get_gcwq(unsigned int cpu)
 {
 	if (cpu != WORK_CPU_UNBOUND)
 		return &per_cpu(global_cwq, cpu);
 	else
 		return &unbound_global_cwq;
+}
+
+static int std_worker_pool_pri(struct worker_pool *pool)
+{
+	return pool - get_gcwq(pool->cpu)->pools;
 }
 
 /* allocate ID and assign it to @pool */
@@ -3818,7 +3817,6 @@ static int __init init_workqueues(void)
 		struct worker_pool *pool;
 
 		for_each_std_worker_pool(pool, cpu) {
-			pool->gcwq = get_gcwq(cpu);
 			spin_lock_init(&pool->lock);
 			pool->cpu = cpu;
 			pool->flags |= POOL_DISASSOCIATED;
