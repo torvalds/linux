@@ -89,6 +89,7 @@ static int bcm47xxsflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bcma_sflash_driver = {
+	.probe	= bcm47xxsflash_probe,
 	.remove = bcm47xxsflash_remove,
 	.driver = {
 		.name = "bcma_sflash",
@@ -100,7 +101,7 @@ static int __init bcm47xxsflash_init(void)
 {
 	int err;
 
-	err = platform_driver_probe(&bcma_sflash_driver, bcm47xxsflash_probe);
+	err = platform_driver_register(&bcma_sflash_driver);
 	if (err)
 		pr_err("Failed to register BCMA serial flash driver: %d\n",
 		       err);
