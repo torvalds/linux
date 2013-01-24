@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/input/ti_am335x_tsc.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 
@@ -47,7 +49,7 @@ struct titsc {
 	unsigned int		wires;
 	unsigned int		x_plate_resistance;
 	bool			pen_down;
-	int			steps_to_configure;
+	int			coordinate_readouts;
 	u32			config_inp[4];
 	u32			bit_xp, bit_xn, bit_yp, bit_yn;
 	u32			inp_xp, inp_xn, inp_yp, inp_yn;
@@ -123,7 +125,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 	int i, total_steps;
 
 	/* Configure the Step registers */
-	total_steps = 2 * ts_dev->steps_to_configure;
+	total_steps = 2 * ts_dev->coordinate_readouts;
 
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_xp;
@@ -141,7 +143,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	for (i = 1; i <= ts_dev->steps_to_configure; i++) {
+	for (i = 1; i <= ts_dev->coordinate_readouts; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -163,7 +165,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	for (i = (ts_dev->steps_to_configure + 1); i <= total_steps; i++) {
+	for (i = (ts_dev->coordinate_readouts + 1); i <= total_steps; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -218,7 +220,7 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 		read = titsc_readl(ts_dev, REG_FIFO0);
 		channel = read & 0xf0000;
 		channel = channel >> 0x10;
-		if ((channel >= 0) && (channel < ts_dev->steps_to_configure)) {
+		if ((channel >= 0) && (channel < ts_dev->coordinate_readouts)) {
 			read &= 0xfff;
 			diff = abs(read - prev_val_x);
 			if (diff < prev_diff_x) {
@@ -231,8 +233,8 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 		read = titsc_readl(ts_dev, REG_FIFO1);
 		channel = read & 0xf0000;
 		channel = channel >> 0x10;
-		if ((channel >= ts_dev->steps_to_configure) &&
-			(channel < (2 * ts_dev->steps_to_configure - 1))) {
+		if ((channel >= ts_dev->coordinate_readouts) &&
+			(channel < (2 * ts_dev->coordinate_readouts - 1))) {
 			read &= 0xfff;
 			diff = abs(read - prev_val_y);
 			if (diff < prev_diff_y) {
@@ -310,6 +312,59 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int titsc_parse_dt(struct platform_device *pdev,
+					struct titsc *ts_dev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	int err;
+
+	if (!node)
+		return -EINVAL;
+
+	err = of_property_read_u32(node, "ti,wires", &ts_dev->wires);
+	if (err < 0)
+		return err;
+	switch (ts_dev->wires) {
+	case 4:
+	case 5:
+	case 8:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = of_property_read_u32(node, "ti,x-plate-resistance",
+			&ts_dev->x_plate_resistance);
+	if (err < 0)
+		return err;
+
+	err = of_property_read_u32(node, "ti,coordiante-readouts",
+			&ts_dev->coordinate_readouts);
+	if (err < 0)
+		return err;
+
+	return of_property_read_u32_array(node, "ti,wire-config",
+			ts_dev->config_inp, ARRAY_SIZE(ts_dev->config_inp));
+}
+
+static int titsc_parse_pdata(struct ti_tscadc_dev *tscadc_dev,
+					struct titsc *ts_dev)
+{
+	struct mfd_tscadc_board	*pdata = tscadc_dev->dev->platform_data;
+
+	if (!pdata)
+		return -EINVAL;
+
+	ts_dev->wires = pdata->tsc_init->wires;
+	ts_dev->x_plate_resistance =
+		pdata->tsc_init->x_plate_resistance;
+	ts_dev->steps_to_configure =
+		pdata->tsc_init->steps_to_configure;
+	memcpy(ts_dev->config_inp, pdata->tsc_init->wire_config,
+		sizeof(pdata->tsc_init->wire_config));
+	return 0;
+}
+
 /*
  * The functions for inserting/removing driver as a module.
  */
@@ -319,15 +374,7 @@ static int titsc_probe(struct platform_device *pdev)
 	struct titsc *ts_dev;
 	struct input_dev *input_dev;
 	struct ti_tscadc_dev *tscadc_dev = ti_tscadc_dev_get(pdev);
-	struct mfd_tscadc_board	*pdata;
 	int err;
-
-	pdata = tscadc_dev->dev->platform_data;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "Could not find platform data\n");
-		return -EINVAL;
-	}
 
 	/* Allocate memory for device */
 	ts_dev = kzalloc(sizeof(struct titsc), GFP_KERNEL);
@@ -342,11 +389,16 @@ static int titsc_probe(struct platform_device *pdev)
 	ts_dev->mfd_tscadc = tscadc_dev;
 	ts_dev->input = input_dev;
 	ts_dev->irq = tscadc_dev->irq;
-	ts_dev->wires = pdata->tsc_init->wires;
-	ts_dev->x_plate_resistance = pdata->tsc_init->x_plate_resistance;
-	ts_dev->steps_to_configure = pdata->tsc_init->steps_to_configure;
-	memcpy(ts_dev->config_inp, pdata->tsc_init->wire_config,
-			sizeof(pdata->tsc_init->wire_config));
+
+	if (tscadc_dev->dev->platform_data)
+		err = titsc_parse_pdata(tscadc_dev, ts_dev);
+	else
+		err = titsc_parse_dt(pdev, ts_dev);
+
+	if (err) {
+		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+		goto err_free_mem;
+	}
 
 	err = request_irq(ts_dev->irq, titsc_irq,
 			  0, pdev->dev.driver->name, ts_dev);
@@ -362,7 +414,7 @@ static int titsc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 	titsc_step_config(ts_dev);
-	titsc_writel(ts_dev, REG_FIFO0THR, ts_dev->steps_to_configure);
+	titsc_writel(ts_dev, REG_FIFO0THR, ts_dev->coordinate_readouts);
 
 	input_dev->name = "ti-tsc";
 	input_dev->dev.parent = &pdev->dev;
@@ -398,7 +450,7 @@ static int titsc_remove(struct platform_device *pdev)
 	free_irq(ts_dev->irq, ts_dev);
 
 	/* total steps followed by the enable mask */
-	steps = 2 * ts_dev->steps_to_configure + 2;
+	steps = 2 * ts_dev->coordinate_readouts + 2;
 	steps = (1 << steps) - 1;
 	am335x_tsc_se_clr(ts_dev->mfd_tscadc, steps);
 
@@ -439,7 +491,7 @@ static int titsc_resume(struct device *dev)
 	}
 	titsc_step_config(ts_dev);
 	titsc_writel(ts_dev, REG_FIFO0THR,
-			ts_dev->steps_to_configure);
+			ts_dev->coordinate_readouts);
 	return 0;
 }
 
@@ -452,6 +504,12 @@ static const struct dev_pm_ops titsc_pm_ops = {
 #define TITSC_PM_OPS NULL
 #endif
 
+static const struct of_device_id ti_tsc_dt_ids[] = {
+	{ .compatible = "ti,am3359-tsc", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ti_tsc_dt_ids);
+
 static struct platform_driver ti_tsc_driver = {
 	.probe	= titsc_probe,
 	.remove	= titsc_remove,
@@ -459,6 +517,7 @@ static struct platform_driver ti_tsc_driver = {
 		.name   = "tsc",
 		.owner	= THIS_MODULE,
 		.pm	= TITSC_PM_OPS,
+		.of_match_table = of_match_ptr(ti_tsc_dt_ids),
 	},
 };
 module_platform_driver(ti_tsc_driver);

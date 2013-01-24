@@ -203,6 +203,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	/* TSC Cell */
 	cell = &tscadc->cells[TSC_CELL];
 	cell->name = "tsc";
+	cell->of_compatible = "ti,am3359-tsc";
 	cell->platform_data = &tscadc;
 	cell->pdata_size = sizeof(tscadc);
 
