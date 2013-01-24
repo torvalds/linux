@@ -156,6 +156,12 @@ struct branch_info {
 	struct branch_flags flags;
 };
 
+struct mem_info {
+	struct addr_map_symbol iaddr;
+	struct addr_map_symbol daddr;
+	union perf_mem_data_src data_src;
+};
+
 struct addr_location {
 	struct thread *thread;
 	struct map    *map;

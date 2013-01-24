@@ -1177,6 +1177,12 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
+	data->data_src = PERF_MEM_DATA_SRC_NONE;
+	if (type & PERF_SAMPLE_DATA_SRC) {
+		data->data_src = *array;
+		array++;
+	}
+
 	return 0;
 }
 

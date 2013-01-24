@@ -1097,6 +1097,38 @@ found:
 	ams->map = al.map;
 }
 
+static void ip__resolve_data(struct machine *machine, struct thread *thread,
+			     u8 m, struct addr_map_symbol *ams, u64 addr)
+{
+	struct addr_location al;
+
+	memset(&al, 0, sizeof(al));
+
+	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr, &al,
+				   NULL);
+	ams->addr = addr;
+	ams->al_addr = al.addr;
+	ams->sym = al.sym;
+	ams->map = al.map;
+}
+
+struct mem_info *machine__resolve_mem(struct machine *machine,
+				      struct thread *thr,
+				      struct perf_sample *sample,
+				      u8 cpumode)
+{
+	struct mem_info *mi = zalloc(sizeof(*mi));
+
+	if (!mi)
+		return NULL;
+
+	ip__resolve_ams(machine, thr, &mi->iaddr, sample->ip);
+	ip__resolve_data(machine, thr, cpumode, &mi->daddr, sample->addr);
+	mi->data_src.val = sample->data_src;
+
+	return mi;
+}
+
 struct branch_info *machine__resolve_bstack(struct machine *machine,
 					    struct thread *thr,
 					    struct branch_stack *bs)
