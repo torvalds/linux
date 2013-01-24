@@ -3609,14 +3609,6 @@ static int stac_init(struct hda_codec *codec)
 		}
 	}
 
-	/* power down unused DACs */
-	for (i = 0; i < spec->gen.num_all_dacs; i++) {
-		if (!snd_hda_get_nid_path(codec, spec->gen.all_dacs[i], 0))
-			snd_hda_codec_write(codec, spec->gen.all_dacs[i], 0,
-					    AC_VERB_SET_POWER_STATE,
-					    AC_PWRST_D3);
-	}
-
 	return 0;
 }
 
@@ -3871,6 +3863,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 	spec->pwr_nids = stac92hd73xx_pwr_nids;
 
 	spec->gen.own_eapd_ctl = 1;
+	spec->gen.power_down_unused = 1;
 
 	codec->patch_ops = stac_patch_ops;
 
@@ -3933,6 +3926,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
+	spec->gen.power_down_unused = 1;
 	spec->gen.mixer_nid = 0x1b;
 
 	spec->digbeep_nid = 0x21;
@@ -3976,6 +3970,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
+	spec->gen.power_down_unused = 1;
 	spec->gen.mixer_nid = 0x17;
 	spec->have_spdif_mux = 1;
 
