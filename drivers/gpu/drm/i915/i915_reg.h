@@ -1166,8 +1166,8 @@
  * Palette regs
  */
 
-#define _PALETTE_A		0x0a000
-#define _PALETTE_B		0x0a800
+#define _PALETTE_A		(dev_priv->info->display_mmio_offset + 0xa000)
+#define _PALETTE_B		(dev_priv->info->display_mmio_offset + 0xa800)
 #define PALETTE(pipe) _PIPE(pipe, _PALETTE_A, _PALETTE_B)
 
 /* MCH MMIO space */
