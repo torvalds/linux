@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c.h>
@@ -10,7 +11,7 @@
 #include <linux/mfd/axp-mfd.h>
 #include <linux/input.h>
 #include <linux/delay.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include "axp-cfg.h"
 //#include "axp-sply.h"
 

@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c.h>

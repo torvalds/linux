@@ -29,7 +29,7 @@
 #include <linux/mfd/axp-mfd.h>
 #include <asm/div64.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>

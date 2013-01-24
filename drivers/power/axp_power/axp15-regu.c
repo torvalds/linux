@@ -41,8 +41,8 @@ static inline int check_range(struct axp_regulator_info *info,
 
 
 /* AXP common operations */
-static int axp_set_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+static int axp_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+			   unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -132,7 +132,8 @@ static int axp_list_voltage(struct regulator_dev *rdev, unsigned selector)
 }
 
 static int axp_set_ldo0_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				int min_uV, int max_uV,
+				unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -156,7 +157,8 @@ static int axp_set_ldo0_voltage(struct regulator_dev *rdev,
 }
 
 static int axp_set_dcdc1_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				 int min_uV, int max_uV,
+				 unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -180,7 +182,8 @@ static int axp_set_dcdc1_voltage(struct regulator_dev *rdev,
 }
 
 static int axp_set_aldo12_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,
+				  unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -286,37 +289,37 @@ printk("%s,%d\n", __func__, __LINE__);
 
 	case AXP15_ID_LDO0:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_ldo0_voltage(rdev, uV, uV);
+		return axp_set_ldo0_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDO2:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_aldo12_voltage(rdev, uV, uV);
+		return axp_set_aldo12_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDO3:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_aldo12_voltage(rdev, uV, uV);
+		return axp_set_aldo12_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDO4:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDO5:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_DCDC1:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_dcdc1_voltage(rdev, uV, uV);
+		return axp_set_dcdc1_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_DCDC2:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_DCDC3:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_DCDC4:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDO1:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	case AXP15_ID_LDOIO0:
 		printk("%s,line:%d\n", __func__, __LINE__);
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV, NULL);
 	default:
 		return -EINVAL;
 	}
@@ -650,7 +653,7 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 		}
 
 	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdev->dev.platform_data, ri);
+				  pdev->dev.platform_data, ri, NULL);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);
