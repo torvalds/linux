@@ -330,22 +330,19 @@ void __init mpc512x_init_IRQ(void)
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .compatible = "fsl,mpc5121-immr", },
 	{ .compatible = "fsl,mpc5121-localbus", },
+	{ .compatible = "fsl,mpc5121-mbx", },
+	{ .compatible = "fsl,mpc5121-nfc", },
+	{ .compatible = "fsl,mpc5121-sram", },
+	{ .compatible = "fsl,mpc5121-pci", },
+	{ .compatible = "gpio-leds", },
 	{},
 };
 
 void __init mpc512x_declare_of_platform_devices(void)
 {
-	struct device_node *np;
-
 	if (of_platform_bus_probe(NULL, of_bus_ids, NULL))
 		printk(KERN_ERR __FILE__ ": "
 			"Error while probing of_platform bus\n");
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-nfc");
-	if (np) {
-		of_platform_device_create(np, NULL, NULL);
-		of_node_put(np);
-	}
 }
 
 #define DEFAULT_FIFO_SIZE 16
