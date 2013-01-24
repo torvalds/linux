@@ -284,7 +284,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
  		case FBIOPUT_FBPHYADD:
 			return info->fix.smem_start;
 		case FBIOSET_YUV_ADDR:   //when in video mode, buff alloc by android
-			if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
+			//if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
 			{
 				if (copy_from_user(yuv_phy, argp, 8))
 					return -EFAULT;
