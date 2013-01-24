@@ -280,6 +280,7 @@ struct acpi_device {
 	struct mutex physical_node_lock;
 	DECLARE_BITMAP(physical_node_id_bitmap, ACPI_MAX_PHYSICAL_NODE);
 	struct list_head power_dependent;
+	void (*remove)(struct acpi_device *);
 };
 
 static inline void *acpi_driver_data(struct acpi_device *d)

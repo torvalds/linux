@@ -87,6 +87,12 @@ static DEFINE_MUTEX(power_resource_list_lock);
                              Power Resource Management
    -------------------------------------------------------------------------- */
 
+static inline
+struct acpi_power_resource *to_power_resource(struct acpi_device *device)
+{
+	return container_of(device, struct acpi_power_resource, device);
+}
+
 static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 {
 	struct acpi_device *device;
@@ -94,7 +100,7 @@ static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 	if (acpi_bus_get_device(handle, &device))
 		return NULL;
 
-	return container_of(device, struct acpi_power_resource, device);
+	return to_power_resource(device);
 }
 
 static int acpi_power_resources_list_add(acpi_handle handle,
@@ -678,6 +684,21 @@ static void acpi_release_power_resource(struct device *dev)
 	kfree(resource);
 }
 
+static ssize_t acpi_power_in_use_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf) {
+	struct acpi_power_resource *resource;
+
+	resource = to_power_resource(to_acpi_device(dev));
+	return sprintf(buf, "%u\n", !!resource->ref_count);
+}
+static DEVICE_ATTR(resource_in_use, 0444, acpi_power_in_use_show, NULL);
+
+static void acpi_power_sysfs_remove(struct acpi_device *device)
+{
+	device_remove_file(&device->dev, &dev_attr_resource_in_use);
+}
+
 int acpi_add_power_resource(acpi_handle handle)
 {
 	struct acpi_power_resource *resource;
@@ -724,6 +745,9 @@ int acpi_add_power_resource(acpi_handle handle)
 	result = acpi_device_add(device, acpi_release_power_resource);
 	if (result)
 		goto err;
+
+	if (!device_create_file(&device->dev, &dev_attr_resource_in_use))
+		device->remove = acpi_power_sysfs_remove;
 
 	mutex_lock(&power_resource_list_lock);
 	list_add(&resource->list_node, &acpi_power_resource_list);

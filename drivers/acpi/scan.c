@@ -791,6 +791,9 @@ static void acpi_device_unregister(struct acpi_device *device)
 
 	acpi_power_add_remove_device(device, false);
 	acpi_device_remove_files(device);
+	if (device->remove)
+		device->remove(device);
+
 	device_del(&device->dev);
 	/*
 	 * Drop the reference counts of all power resources the device depends
