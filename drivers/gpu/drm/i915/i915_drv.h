@@ -365,6 +365,12 @@ struct intel_device_info {
 	u8 has_llc:1;
 };
 
+enum i915_cache_level {
+	I915_CACHE_NONE = 0,
+	I915_CACHE_LLC,
+	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
+};
+
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
  * collateral associated with any va->pa translations GEN hardware also has a
@@ -386,6 +392,15 @@ struct i915_gtt {
 	bool do_idle_maps;
 	dma_addr_t scratch_page_dma;
 	struct page *scratch_page;
+
+	/* global gtt ops */
+	void (*gtt_clear_range)(struct drm_device *dev,
+				unsigned int first_entry,
+				unsigned int num_entries);
+	void (*gtt_insert_entries)(struct drm_device *dev,
+				   struct sg_table *st,
+				   unsigned int pg_start,
+				   enum i915_cache_level cache_level);
 };
 
 #define I915_PPGTT_PD_ENTRIES 512
@@ -1021,12 +1036,6 @@ enum hdmi_force_audio {
 	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
 	HDMI_AUDIO_AUTO,		/* trust EDID */
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
-};
-
-enum i915_cache_level {
-	I915_CACHE_NONE = 0,
-	I915_CACHE_LLC,
-	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
 
 #define I915_GTT_RESERVED ((struct drm_mm_node *)0x1)

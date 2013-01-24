@@ -367,40 +367,14 @@ static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 		dev_priv->mm.interruptible = interruptible;
 }
 
-static void i915_ggtt_clear_range(struct drm_device *dev,
-				 unsigned first_entry,
-				 unsigned num_entries)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	gtt_pte_t scratch_pte;
-	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
-	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
-	int i;
-
-	if (INTEL_INFO(dev)->gen < 6) {
-		intel_gtt_clear_range(first_entry, num_entries);
-		return;
-	}
-
-	if (WARN(num_entries > max_entries,
-		 "First entry = %d; Num entries = %d (max=%d)\n",
-		 first_entry, num_entries, max_entries))
-		num_entries = max_entries;
-
-	scratch_pte = pte_encode(dev, dev_priv->gtt.scratch_page_dma, I915_CACHE_LLC);
-	for (i = 0; i < num_entries; i++)
-		iowrite32(scratch_pte, &gtt_base[i]);
-	readl(gtt_base);
-}
-
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	/* First fill our portion of the GTT with scratch pages */
-	i915_ggtt_clear_range(dev, dev_priv->gtt.start / PAGE_SIZE,
-			      dev_priv->gtt.total / PAGE_SIZE);
+	dev_priv->gtt.gtt_clear_range(dev, dev_priv->gtt.start / PAGE_SIZE,
+				      dev_priv->gtt.total / PAGE_SIZE);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		i915_gem_clflush_object(obj);
@@ -429,15 +403,13 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
  * within the global GTT as well as accessible by the GPU through the GMADR
  * mapped BAR (dev_priv->mm.gtt->gtt).
  */
-static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
-				  enum i915_cache_level level)
+static void gen6_ggtt_insert_entries(struct drm_device *dev,
+				     struct sg_table *st,
+				     unsigned int first_entry,
+				     enum i915_cache_level level)
 {
-	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct sg_table *st = obj->pages;
 	struct scatterlist *sg = st->sgl;
-	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
-	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	gtt_pte_t __iomem *gtt_entries =
 		(gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
 	int unused, i = 0;
@@ -452,9 +424,6 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 			i++;
 		}
 	}
-
-	BUG_ON(i > max_entries);
-	BUG_ON(i != obj->base.size / PAGE_SIZE);
 
 	/* XXX: This serves as a posting read to make sure that the PTE has
 	 * actually been updated. There is some concern that even though
@@ -473,28 +442,69 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
 
+static void gen6_ggtt_clear_range(struct drm_device *dev,
+				  unsigned int first_entry,
+				  unsigned int num_entries)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	gtt_pte_t scratch_pte;
+	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
+	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
+	int i;
+
+	if (WARN(num_entries > max_entries,
+		 "First entry = %d; Num entries = %d (max=%d)\n",
+		 first_entry, num_entries, max_entries))
+		num_entries = max_entries;
+
+	scratch_pte = pte_encode(dev, dev_priv->gtt.scratch_page_dma, I915_CACHE_LLC);
+	for (i = 0; i < num_entries; i++)
+		iowrite32(scratch_pte, &gtt_base[i]);
+	readl(gtt_base);
+}
+
+
+static void i915_ggtt_insert_entries(struct drm_device *dev,
+				     struct sg_table *st,
+				     unsigned int pg_start,
+				     enum i915_cache_level cache_level)
+{
+	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
+		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
+
+	intel_gtt_insert_sg_entries(st, pg_start, flags);
+
+}
+
+static void i915_ggtt_clear_range(struct drm_device *dev,
+				  unsigned int first_entry,
+				  unsigned int num_entries)
+{
+	intel_gtt_clear_range(first_entry, num_entries);
+}
+
+
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 			      enum i915_cache_level cache_level)
 {
 	struct drm_device *dev = obj->base.dev;
-	if (INTEL_INFO(dev)->gen < 6) {
-		unsigned int flags = (cache_level == I915_CACHE_NONE) ?
-			AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
-		intel_gtt_insert_sg_entries(obj->pages,
-					    obj->gtt_space->start >> PAGE_SHIFT,
-					    flags);
-	} else {
-		gen6_ggtt_bind_object(obj, cache_level);
-	}
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->gtt.gtt_insert_entries(dev, obj->pages,
+					 obj->gtt_space->start >> PAGE_SHIFT,
+					 cache_level);
 
 	obj->has_global_gtt_mapping = 1;
 }
 
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
-	i915_ggtt_clear_range(obj->base.dev,
-			      obj->gtt_space->start >> PAGE_SHIFT,
-			      obj->base.size >> PAGE_SHIFT);
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->gtt.gtt_clear_range(obj->base.dev,
+				      obj->gtt_space->start >> PAGE_SHIFT,
+				      obj->base.size >> PAGE_SHIFT);
 
 	obj->has_global_gtt_mapping = 0;
 }
@@ -570,13 +580,12 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 			     hole_start, hole_end) {
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
 			      hole_start, hole_end);
-		i915_ggtt_clear_range(dev,
-				      hole_start / PAGE_SIZE,
-				      (hole_end-hole_start) / PAGE_SIZE);
+		dev_priv->gtt.gtt_clear_range(dev, hole_start / PAGE_SIZE,
+					      (hole_end-hole_start) / PAGE_SIZE);
 	}
 
 	/* And finally clear the reserved guard page */
-	i915_ggtt_clear_range(dev, end / PAGE_SIZE - 1, 1);
+	dev_priv->gtt.gtt_clear_range(dev, end / PAGE_SIZE - 1, 1);
 }
 
 static bool
@@ -718,6 +727,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 
 		dev_priv->gtt.do_idle_maps = needs_idle_maps(dev);
 
+		dev_priv->gtt.gtt_clear_range = i915_ggtt_clear_range;
+		dev_priv->gtt.gtt_insert_entries = i915_ggtt_insert_entries;
+
 		return 0;
 	}
 
@@ -770,6 +782,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	DRM_INFO("Memory usable by graphics device = %dM\n", dev_priv->mm.gtt->gtt_total_entries >> 8);
 	DRM_DEBUG_DRIVER("GMADR size = %ldM\n", dev_priv->gtt.mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %dM\n", dev_priv->mm.gtt->stolen_size >> 20);
+
+	dev_priv->gtt.gtt_clear_range = gen6_ggtt_clear_range;
+	dev_priv->gtt.gtt_insert_entries = gen6_ggtt_insert_entries;
 
 	return 0;
 
