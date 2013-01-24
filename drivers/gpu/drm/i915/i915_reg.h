@@ -554,7 +554,7 @@
 #define IIR		0x020a4
 #define IMR		0x020a8
 #define ISR		0x020ac
-#define VLV_GUNIT_CLOCK_GATE	0x182060
+#define VLV_GUNIT_CLOCK_GATE	(VLV_DISPLAY_BASE + 0x2060)
 #define   GCFG_DIS		(1<<8)
 #define VLV_IIR_RW	0x182084
 #define VLV_IER		0x1820a0
