@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
- *  Copyright (C) 2013 Altera Corporation <www.altera.com>
-=======
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
->>>>>>> FogBugz #82783:Add dts file for SOCFPGA running on VT
+ *  Copyright (C) 2012-2013 Altera Corporation <www.altera.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
