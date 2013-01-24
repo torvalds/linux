@@ -3686,25 +3686,22 @@ void freeze_workqueues_begin(void)
 		struct worker_pool *pool;
 		struct workqueue_struct *wq;
 
-		local_irq_disable();
-
 		for_each_worker_pool(pool, gcwq) {
-			spin_lock_nested(&pool->lock, pool - gcwq->pools);
+			spin_lock_irq(&pool->lock);
 
 			WARN_ON_ONCE(pool->flags & POOL_FREEZING);
 			pool->flags |= POOL_FREEZING;
+
+			list_for_each_entry(wq, &workqueues, list) {
+				struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
+
+				if (cwq && cwq->pool == pool &&
+				    (wq->flags & WQ_FREEZABLE))
+					cwq->max_active = 0;
+			}
+
+			spin_unlock_irq(&pool->lock);
 		}
-
-		list_for_each_entry(wq, &workqueues, list) {
-			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
-
-			if (cwq && wq->flags & WQ_FREEZABLE)
-				cwq->max_active = 0;
-		}
-
-		for_each_worker_pool(pool, gcwq)
-			spin_unlock(&pool->lock);
-		local_irq_enable();
 	}
 
 	spin_unlock(&workqueue_lock);
@@ -3779,30 +3776,27 @@ void thaw_workqueues(void)
 		struct worker_pool *pool;
 		struct workqueue_struct *wq;
 
-		local_irq_disable();
-
 		for_each_worker_pool(pool, gcwq) {
-			spin_lock_nested(&pool->lock, pool - gcwq->pools);
+			spin_lock_irq(&pool->lock);
 
 			WARN_ON_ONCE(!(pool->flags & POOL_FREEZING));
 			pool->flags &= ~POOL_FREEZING;
-		}
 
-		list_for_each_entry(wq, &workqueues, list) {
-			struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
+			list_for_each_entry(wq, &workqueues, list) {
+				struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 
-			if (!cwq || !(wq->flags & WQ_FREEZABLE))
-				continue;
+				if (!cwq || cwq->pool != pool ||
+				    !(wq->flags & WQ_FREEZABLE))
+					continue;
 
-			/* restore max_active and repopulate worklist */
-			cwq_set_max_active(cwq, wq->saved_max_active);
-		}
+				/* restore max_active and repopulate worklist */
+				cwq_set_max_active(cwq, wq->saved_max_active);
+			}
 
-		for_each_worker_pool(pool, gcwq) {
 			wake_up_worker(pool);
-			spin_unlock(&pool->lock);
+
+			spin_unlock_irq(&pool->lock);
 		}
-		local_irq_enable();
 	}
 
 	workqueue_freezing = false;
