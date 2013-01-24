@@ -458,10 +458,11 @@ static void flush_hold_queue(void)
 
 static int kauditd_thread(void *dummy)
 {
-	struct sk_buff *skb;
-
 	set_freezable();
 	while (!kthread_should_stop()) {
+		struct sk_buff *skb;
+		DECLARE_WAITQUEUE(wait, current);
+
 		flush_hold_queue();
 
 		skb = skb_dequeue(&audit_skb_queue);
@@ -471,19 +472,18 @@ static int kauditd_thread(void *dummy)
 				kauditd_send_skb(skb);
 			else
 				audit_printk_skb(skb);
-		} else {
-			DECLARE_WAITQUEUE(wait, current);
-			set_current_state(TASK_INTERRUPTIBLE);
-			add_wait_queue(&kauditd_wait, &wait);
-
-			if (!skb_queue_len(&audit_skb_queue)) {
-				try_to_freeze();
-				schedule();
-			}
-
-			__set_current_state(TASK_RUNNING);
-			remove_wait_queue(&kauditd_wait, &wait);
+			continue;
 		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		add_wait_queue(&kauditd_wait, &wait);
+
+		if (!skb_queue_len(&audit_skb_queue)) {
+			try_to_freeze();
+			schedule();
+		}
+
+		__set_current_state(TASK_RUNNING);
+		remove_wait_queue(&kauditd_wait, &wait);
 	}
 	return 0;
 }
