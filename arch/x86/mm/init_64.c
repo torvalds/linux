@@ -530,9 +530,7 @@ kernel_physical_mapping_init(unsigned long start,
 		pgd_t *pgd = pgd_offset_k(start);
 		pud_t *pud;
 
-		next = (start + PGDIR_SIZE) & PGDIR_MASK;
-		if (next > end)
-			next = end;
+		next = (start & PGDIR_MASK) + PGDIR_SIZE;
 
 		if (pgd_val(*pgd)) {
 			pud = (pud_t *)pgd_page_vaddr(*pgd);
@@ -542,7 +540,7 @@ kernel_physical_mapping_init(unsigned long start,
 		}
 
 		pud = alloc_low_page();
-		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next),
+		last_map_addr = phys_pud_init(pud, __pa(start), __pa(end),
 						 page_size_mask);
 
 		spin_lock(&init_mm.page_table_lock);
