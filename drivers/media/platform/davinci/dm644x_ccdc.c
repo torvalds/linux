@@ -957,7 +957,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int __devinit dm644x_ccdc_probe(struct platform_device *pdev)
+static int dm644x_ccdc_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	int status = 0;
@@ -1078,7 +1078,7 @@ static struct platform_driver dm644x_ccdc_driver = {
 		.owner = THIS_MODULE,
 		.pm = &dm644x_ccdc_pm_ops,
 	},
-	.remove = __devexit_p(dm644x_ccdc_remove),
+	.remove = dm644x_ccdc_remove,
 	.probe = dm644x_ccdc_probe,
 };
 

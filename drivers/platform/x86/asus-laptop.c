@@ -1763,7 +1763,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	return AE_OK;
 }
 
-static int __devinit asus_acpi_init(struct asus_laptop *asus)
+static int asus_acpi_init(struct asus_laptop *asus)
 {
 	int result = 0;
 
@@ -1823,7 +1823,7 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	return result;
 }
 
-static void __devinit asus_dmi_check(void)
+static void asus_dmi_check(void)
 {
 	const char *model;
 
@@ -1839,7 +1839,7 @@ static void __devinit asus_dmi_check(void)
 
 static bool asus_device_present;
 
-static int __devinit asus_acpi_add(struct acpi_device *device)
+static int asus_acpi_add(struct acpi_device *device)
 {
 	struct asus_laptop *asus;
 	int result;

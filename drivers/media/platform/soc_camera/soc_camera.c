@@ -1535,7 +1535,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 	return 0;
 }
 
-static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
+static int soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_desc *sdesc = pdev->dev.platform_data;
 	struct soc_camera_subdev_desc *ssdd = &sdesc->subdev_desc;
@@ -1570,7 +1570,7 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
  * hot-pluggable. Now we know, that all our users - hosts and devices have
  * been unloaded already
  */
-static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
+static int soc_camera_pdrv_remove(struct platform_device *pdev)
 {
 	struct soc_camera_device *icd = platform_get_drvdata(pdev);
 
@@ -1584,7 +1584,7 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 
 static struct platform_driver __refdata soc_camera_pdrv = {
 	.probe = soc_camera_pdrv_probe,
-	.remove  = __devexit_p(soc_camera_pdrv_remove),
+	.remove  = soc_camera_pdrv_remove,
 	.driver  = {
 		.name	= "soc-camera-pdrv",
 		.owner	= THIS_MODULE,

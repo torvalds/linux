@@ -72,20 +72,21 @@ static int da9055_wdt_set_timeout(struct watchdog_device *wdt_dev,
 					DA9055_TWDSCALE_MASK,
 					da9055_wdt_maps[i].reg_val <<
 					DA9055_TWDSCALE_SHIFT);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(da9055->dev,
 			"Failed to update timescale bit, %d\n", ret);
+		return ret;
+	}
 
 	wdt_dev->timeout = timeout;
 
-	return ret;
+	return 0;
 }
 
 static int da9055_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct da9055_wdt_data *driver_data = watchdog_get_drvdata(wdt_dev);
 	struct da9055 *da9055 = driver_data->da9055;
-	int ret;
 
 	/*
 	 * We have a minimum time for watchdog window called TWDMIN. A write
@@ -94,18 +95,12 @@ static int da9055_wdt_ping(struct watchdog_device *wdt_dev)
 	mdelay(DA9055_TWDMIN);
 
 	/* Reset the watchdog timer */
-	ret = da9055_reg_update(da9055, DA9055_REG_CONTROL_E,
-				DA9055_WATCHDOG_MASK, 1);
-
-	return ret;
+	return da9055_reg_update(da9055, DA9055_REG_CONTROL_E,
+				 DA9055_WATCHDOG_MASK, 1);
 }
 
 static void da9055_wdt_release_resources(struct kref *r)
 {
-	struct da9055_wdt_data *driver_data =
-		container_of(r, struct da9055_wdt_data, kref);
-
-	kfree(driver_data);
 }
 
 static void da9055_wdt_ref(struct watchdog_device *wdt_dev)

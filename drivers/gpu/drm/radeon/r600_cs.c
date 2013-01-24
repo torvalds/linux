@@ -2294,6 +2294,35 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			ib[idx+4] = upper_32_bits(offset) & 0xff;
 		}
 		break;
+	case PACKET3_MEM_WRITE:
+	{
+		u64 offset;
+
+		if (pkt->count != 3) {
+			DRM_ERROR("bad MEM_WRITE (invalid count)\n");
+			return -EINVAL;
+		}
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("bad MEM_WRITE (missing reloc)\n");
+			return -EINVAL;
+		}
+		offset = radeon_get_ib_value(p, idx+0);
+		offset += ((u64)(radeon_get_ib_value(p, idx+1) & 0xff)) << 32UL;
+		if (offset & 0x7) {
+			DRM_ERROR("bad MEM_WRITE (address not qwords aligned)\n");
+			return -EINVAL;
+		}
+		if ((offset + 8) > radeon_bo_size(reloc->robj)) {
+			DRM_ERROR("bad MEM_WRITE bo too small: 0x%llx, 0x%lx\n",
+				  offset + 8, radeon_bo_size(reloc->robj));
+			return -EINVAL;
+		}
+		offset += reloc->lobj.gpu_offset;
+		ib[idx+0] = offset;
+		ib[idx+1] = upper_32_bits(offset) & 0xff;
+		break;
+	}
 	case PACKET3_COPY_DW:
 		if (pkt->count != 4) {
 			DRM_ERROR("bad COPY_DW (invalid count)\n");
@@ -2648,16 +2677,29 @@ int r600_dma_cs_parse(struct radeon_cs_parser *p)
 				}
 				p->idx += 7;
 			} else {
-				src_offset = ib[idx+2];
-				src_offset |= ((u64)(ib[idx+4] & 0xff)) << 32;
-				dst_offset = ib[idx+1];
-				dst_offset |= ((u64)(ib[idx+3] & 0xff)) << 32;
+				if (p->family >= CHIP_RV770) {
+					src_offset = ib[idx+2];
+					src_offset |= ((u64)(ib[idx+4] & 0xff)) << 32;
+					dst_offset = ib[idx+1];
+					dst_offset |= ((u64)(ib[idx+3] & 0xff)) << 32;
 
-				ib[idx+1] += (u32)(dst_reloc->lobj.gpu_offset & 0xfffffffc);
-				ib[idx+2] += (u32)(src_reloc->lobj.gpu_offset & 0xfffffffc);
-				ib[idx+3] += upper_32_bits(dst_reloc->lobj.gpu_offset) & 0xff;
-				ib[idx+4] += upper_32_bits(src_reloc->lobj.gpu_offset) & 0xff;
-				p->idx += 5;
+					ib[idx+1] += (u32)(dst_reloc->lobj.gpu_offset & 0xfffffffc);
+					ib[idx+2] += (u32)(src_reloc->lobj.gpu_offset & 0xfffffffc);
+					ib[idx+3] += upper_32_bits(dst_reloc->lobj.gpu_offset) & 0xff;
+					ib[idx+4] += upper_32_bits(src_reloc->lobj.gpu_offset) & 0xff;
+					p->idx += 5;
+				} else {
+					src_offset = ib[idx+2];
+					src_offset |= ((u64)(ib[idx+3] & 0xff)) << 32;
+					dst_offset = ib[idx+1];
+					dst_offset |= ((u64)(ib[idx+3] & 0xff0000)) << 16;
+
+					ib[idx+1] += (u32)(dst_reloc->lobj.gpu_offset & 0xfffffffc);
+					ib[idx+2] += (u32)(src_reloc->lobj.gpu_offset & 0xfffffffc);
+					ib[idx+3] += upper_32_bits(src_reloc->lobj.gpu_offset) & 0xff;
+					ib[idx+3] += (upper_32_bits(dst_reloc->lobj.gpu_offset) & 0xff) << 16;
+					p->idx += 4;
+				}
 			}
 			if ((src_offset + (count * 4)) > radeon_bo_size(src_reloc->robj)) {
 				dev_warn(p->dev, "DMA copy src buffer too small (%llu %lu)\n",

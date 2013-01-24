@@ -70,7 +70,7 @@ static struct pci_device_id fcpci_ids[] = {
 MODULE_DEVICE_TABLE(pci, fcpci_ids);
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id fcpnp_ids[] __devinitdata = {
+static struct pnp_device_id fcpnp_ids[] = {
 	{
 		.id		= "AVM0900",
 		.driver_data	= (unsigned long) "Fritz!Card PnP",
@@ -712,7 +712,7 @@ static inline void fcpci_init(struct fritz_adapter *adapter)
 
 // ----------------------------------------------------------------------
 
-static int __devinit fcpcipnp_setup(struct fritz_adapter *adapter)
+static int fcpcipnp_setup(struct fritz_adapter *adapter)
 {
 	u32 val = 0;
 	int retval;
@@ -825,7 +825,7 @@ err:
 	return retval;
 }
 
-static void __devexit fcpcipnp_release(struct fritz_adapter *adapter)
+static void fcpcipnp_release(struct fritz_adapter *adapter)
 {
 	DBG(1, "");
 
@@ -836,8 +836,7 @@ static void __devexit fcpcipnp_release(struct fritz_adapter *adapter)
 
 // ----------------------------------------------------------------------
 
-static struct fritz_adapter * __devinit
-new_adapter(void)
+static struct fritz_adapter *new_adapter(void)
 {
 	struct fritz_adapter *adapter;
 	struct hisax_b_if *b_if[2];
@@ -876,8 +875,7 @@ static void delete_adapter(struct fritz_adapter *adapter)
 	kfree(adapter);
 }
 
-static int __devinit fcpci_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int fcpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct fritz_adapter *adapter;
 	int retval;
@@ -917,7 +915,7 @@ err:
 }
 
 #ifdef CONFIG_PNP
-static int __devinit fcpnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
+static int fcpnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 {
 	struct fritz_adapter *adapter;
 	int retval;
@@ -959,7 +957,7 @@ err:
 	return retval;
 }
 
-static void __devexit fcpnp_remove(struct pnp_dev *pdev)
+static void fcpnp_remove(struct pnp_dev *pdev)
 {
 	struct fritz_adapter *adapter = pnp_get_drvdata(pdev);
 
@@ -973,12 +971,12 @@ static void __devexit fcpnp_remove(struct pnp_dev *pdev)
 static struct pnp_driver fcpnp_driver = {
 	.name		= "fcpnp",
 	.probe		= fcpnp_probe,
-	.remove		= __devexit_p(fcpnp_remove),
+	.remove		= fcpnp_remove,
 	.id_table	= fcpnp_ids,
 };
 #endif
 
-static void __devexit fcpci_remove(struct pci_dev *pdev)
+static void fcpci_remove(struct pci_dev *pdev)
 {
 	struct fritz_adapter *adapter = pci_get_drvdata(pdev);
 
@@ -990,7 +988,7 @@ static void __devexit fcpci_remove(struct pci_dev *pdev)
 static struct pci_driver fcpci_driver = {
 	.name		= "fcpci",
 	.probe		= fcpci_probe,
-	.remove		= __devexit_p(fcpci_remove),
+	.remove		= fcpci_remove,
 	.id_table	= fcpci_ids,
 };
 

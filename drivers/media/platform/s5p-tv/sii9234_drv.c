@@ -315,8 +315,8 @@ static const struct v4l2_subdev_ops sii9234_ops = {
 	.video = &sii9234_video_ops,
 };
 
-static int __devinit sii9234_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int sii9234_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct sii9234_platform_data *pdata = dev->platform_data;
@@ -377,7 +377,7 @@ fail:
 	return ret;
 }
 
-static int __devexit sii9234_remove(struct i2c_client *client)
+static int sii9234_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 
@@ -402,7 +402,7 @@ static struct i2c_driver sii9234_driver = {
 		.pm = &sii9234_pm_ops,
 	},
 	.probe		= sii9234_probe,
-	.remove		= __devexit_p(sii9234_remove),
+	.remove		= sii9234_remove,
 	.id_table = sii9234_id,
 };
 

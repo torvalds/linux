@@ -696,7 +696,7 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit s5pcsis_probe(struct platform_device *pdev)
+static int s5pcsis_probe(struct platform_device *pdev)
 {
 	struct s5p_platform_mipi_csis *pdata;
 	struct resource *mem_res;
@@ -893,7 +893,7 @@ static int s5pcsis_runtime_resume(struct device *dev)
 }
 #endif
 
-static int __devexit s5pcsis_remove(struct platform_device *pdev)
+static int s5pcsis_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csis_state *state = sd_to_csis_state(sd);
@@ -918,7 +918,7 @@ static const struct dev_pm_ops s5pcsis_pm_ops = {
 
 static struct platform_driver s5pcsis_driver = {
 	.probe		= s5pcsis_probe,
-	.remove		= __devexit_p(s5pcsis_remove),
+	.remove		= s5pcsis_remove,
 	.driver		= {
 		.name	= CSIS_DRIVER_NAME,
 		.owner	= THIS_MODULE,

@@ -1649,7 +1649,7 @@ sh_mobile_lcdc_overlay_fb_unregister(struct sh_mobile_lcdc_overlay *ovl)
 	unregister_framebuffer(ovl->info);
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_overlay_fb_register(struct sh_mobile_lcdc_overlay *ovl)
 {
 	struct sh_mobile_lcdc_priv *lcdc = ovl->channel->lcdc;
@@ -1688,7 +1688,7 @@ sh_mobile_lcdc_overlay_fb_cleanup(struct sh_mobile_lcdc_overlay *ovl)
 	framebuffer_release(info);
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 {
 	struct sh_mobile_lcdc_priv *priv = ovl->channel->lcdc;
@@ -2137,7 +2137,7 @@ sh_mobile_lcdc_channel_fb_unregister(struct sh_mobile_lcdc_chan *ch)
 		unregister_framebuffer(ch->info);
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_channel_fb_register(struct sh_mobile_lcdc_chan *ch)
 {
 	struct fb_info *info = ch->info;
@@ -2185,7 +2185,7 @@ sh_mobile_lcdc_channel_fb_cleanup(struct sh_mobile_lcdc_chan *ch)
 	framebuffer_release(info);
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 			       const struct fb_videomode *modes,
 			       unsigned int num_modes)
@@ -2417,7 +2417,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
  * Probe/remove and driver init/exit
  */
 
-static const struct fb_videomode default_720p __devinitconst = {
+static const struct fb_videomode default_720p = {
 	.name = "HDMI 720p",
 	.xres = 1280,
 	.yres = 720,
@@ -2496,7 +2496,7 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *ch)
+static int sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *ch)
 {
 	int interface_type = ch->cfg->interface_type;
 
@@ -2536,7 +2536,7 @@ static int __devinit sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *
 	return 0;
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_overlay_init(struct sh_mobile_lcdc_overlay *ovl)
 {
 	const struct sh_mobile_lcdc_format_info *format;
@@ -2591,7 +2591,7 @@ sh_mobile_lcdc_overlay_init(struct sh_mobile_lcdc_overlay *ovl)
 	return 0;
 }
 
-static int __devinit
+static int
 sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch)
 {
 	const struct sh_mobile_lcdc_format_info *format;
@@ -2695,7 +2695,7 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch)
 	return sh_mobile_lcdc_channel_fb_init(ch, mode, num_modes);
 }
 
-static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
+static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_lcdc_info *pdata = pdev->dev.platform_data;
 	struct sh_mobile_lcdc_priv *priv;

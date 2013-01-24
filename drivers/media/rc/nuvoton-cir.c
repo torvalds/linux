@@ -1114,7 +1114,7 @@ exit_free_dev_rdev:
 	return ret;
 }
 
-static void __devexit nvt_remove(struct pnp_dev *pdev)
+static void nvt_remove(struct pnp_dev *pdev)
 {
 	struct nvt_dev *nvt = pnp_get_drvdata(pdev);
 	unsigned long flags;
@@ -1212,7 +1212,7 @@ static struct pnp_driver nvt_driver = {
 	.id_table	= nvt_ids,
 	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
 	.probe		= nvt_probe,
-	.remove		= __devexit_p(nvt_remove),
+	.remove		= nvt_remove,
 	.suspend	= nvt_suspend,
 	.resume		= nvt_resume,
 	.shutdown	= nvt_shutdown,

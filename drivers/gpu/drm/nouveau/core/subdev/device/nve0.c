@@ -109,6 +109,34 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		break;
+	case 0xe6:
+		device->cname = "GK106";
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
+		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
+		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nve0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
+		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
+		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] = &nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nve0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] = &nve0_disp_oclass;
+		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
+		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
+		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
+		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		break;
 	default:
 		nv_fatal(device, "unknown Kepler chipset\n");
 		return -EINVAL;

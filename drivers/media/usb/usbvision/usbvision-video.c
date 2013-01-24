@@ -1364,7 +1364,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 }
 
 /* register video4linux devices */
-static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
+static int usbvision_register_video(struct usb_usbvision *usbvision)
 {
 	/* Video Device: */
 	usbvision->vdev = usbvision_vdev_init(usbvision,
@@ -1511,8 +1511,8 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
  * if it looks like USBVISION video device
  *
  */
-static int __devinit usbvision_probe(struct usb_interface *intf,
-				     const struct usb_device_id *devid)
+static int usbvision_probe(struct usb_interface *intf,
+			   const struct usb_device_id *devid)
 {
 	struct usb_device *dev = usb_get_dev(interface_to_usbdev(intf));
 	struct usb_interface *uif;
@@ -1620,7 +1620,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
  * with no ill consequences.
  *
  */
-static void __devexit usbvision_disconnect(struct usb_interface *intf)
+static void usbvision_disconnect(struct usb_interface *intf)
 {
 	struct usb_usbvision *usbvision = to_usbvision(usb_get_intfdata(intf));
 
@@ -1665,7 +1665,7 @@ static struct usb_driver usbvision_driver = {
 	.name		= "usbvision",
 	.id_table	= usbvision_table,
 	.probe		= usbvision_probe,
-	.disconnect	= __devexit_p(usbvision_disconnect),
+	.disconnect	= usbvision_disconnect,
 };
 
 /*

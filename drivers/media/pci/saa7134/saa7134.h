@@ -741,7 +741,7 @@ extern int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 
 extern struct saa7134_board saa7134_boards[];
 extern const unsigned int saa7134_bcount;
-extern struct pci_device_id __devinitdata saa7134_pci_tbl[];
+extern struct pci_device_id saa7134_pci_tbl[];
 
 extern int saa7134_board_init1(struct saa7134_dev *dev);
 extern int saa7134_board_init2(struct saa7134_dev *dev);

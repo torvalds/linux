@@ -2154,7 +2154,7 @@ qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 /*
  * PCI driver interface
  */
-static int __devinit
+static int
 qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;

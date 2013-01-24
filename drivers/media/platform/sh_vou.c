@@ -1327,7 +1327,7 @@ static const struct video_device sh_vou_video_template = {
 	.vfl_dir	= VFL_DIR_TX,
 };
 
-static int __devinit sh_vou_probe(struct platform_device *pdev)
+static int sh_vou_probe(struct platform_device *pdev)
 {
 	struct sh_vou_pdata *vou_pdata = pdev->dev.platform_data;
 	struct v4l2_rect *rect;
@@ -1462,7 +1462,7 @@ ereqmemreg:
 	return ret;
 }
 
-static int __devexit sh_vou_remove(struct platform_device *pdev)
+static int sh_vou_remove(struct platform_device *pdev)
 {
 	int irq = platform_get_irq(pdev, 0);
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
@@ -1488,7 +1488,7 @@ static int __devexit sh_vou_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata sh_vou = {
-	.remove  = __devexit_p(sh_vou_remove),
+	.remove  = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
 		.owner	= THIS_MODULE,

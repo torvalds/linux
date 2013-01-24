@@ -292,8 +292,8 @@ int __init omap3_twl_set_sr_bit(bool enable)
 	if (twl_sr_enable_autoinit)
 		pr_warning("%s: unexpected multiple calls\n", __func__);
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &temp,
-					TWL4030_DCDC_GLOBAL_CFG);
+	ret = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &temp,
+			      TWL4030_DCDC_GLOBAL_CFG);
 	if (ret)
 		goto err;
 
@@ -302,8 +302,8 @@ int __init omap3_twl_set_sr_bit(bool enable)
 	else
 		temp &= ~SMARTREFLEX_ENABLE;
 
-	ret = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, temp,
-				TWL4030_DCDC_GLOBAL_CFG);
+	ret = twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, temp,
+			       TWL4030_DCDC_GLOBAL_CFG);
 	if (!ret) {
 		twl_sr_enable_autoinit = true;
 		return 0;

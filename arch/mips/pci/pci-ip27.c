@@ -143,7 +143,7 @@ int __cpuinit bridge_probe(nasid_t nasid, int widget_id, int masterwid)
  * A given PCI device, in general, should be able to intr any of the cpus
  * on any one of the hubs connected to its xbow.
  */
-int __devinit pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return 0;
 }
@@ -212,7 +212,7 @@ static inline void pci_enable_swapping(struct pci_dev *dev)
 	bridge->b_widget.w_tflush;	/* Flush */
 }
 
-static void __devinit pci_fixup_ioc3(struct pci_dev *d)
+static void pci_fixup_ioc3(struct pci_dev *d)
 {
 	pci_disable_swapping(d);
 }

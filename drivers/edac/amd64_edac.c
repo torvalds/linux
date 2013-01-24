@@ -2563,8 +2563,8 @@ err_ret:
 	return ret;
 }
 
-static int __devinit amd64_probe_one_instance(struct pci_dev *pdev,
-					     const struct pci_device_id *mc_type)
+static int amd64_probe_one_instance(struct pci_dev *pdev,
+				    const struct pci_device_id *mc_type)
 {
 	u8 nid = get_node_id(pdev);
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
@@ -2612,7 +2612,7 @@ err_out:
 	return ret;
 }
 
-static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
+static void amd64_remove_one_instance(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
@@ -2686,7 +2686,7 @@ MODULE_DEVICE_TABLE(pci, amd64_pci_table);
 static struct pci_driver amd64_pci_driver = {
 	.name		= EDAC_MOD_STR,
 	.probe		= amd64_probe_one_instance,
-	.remove		= __devexit_p(amd64_remove_one_instance),
+	.remove		= amd64_remove_one_instance,
 	.id_table	= amd64_pci_table,
 };
 

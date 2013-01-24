@@ -132,6 +132,11 @@ extern int radeon_lockup_timeout;
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 
+/* reset flags */
+#define RADEON_RESET_GFX			(1 << 0)
+#define RADEON_RESET_COMPUTE			(1 << 1)
+#define RADEON_RESET_DMA			(1 << 2)
+
 /*
  * Errata workarounds.
  */
@@ -225,12 +230,13 @@ struct radeon_fence {
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
 int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
+void radeon_fence_driver_force_completion(struct radeon_device *rdev);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
 int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring);
-void radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
+int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_any(struct radeon_device *rdev,
 			  struct radeon_fence **fences,
 			  bool intr);

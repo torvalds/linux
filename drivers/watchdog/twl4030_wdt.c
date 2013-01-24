@@ -131,14 +131,21 @@ static int twl4030_wdt_resume(struct platform_device *pdev)
 #define twl4030_wdt_resume         NULL
 #endif
 
+static const struct of_device_id twl_wdt_of_match[] = {
+	{ .compatible = "ti,twl4030-wdt", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl_wdt_of_match);
+
 static struct platform_driver twl4030_wdt_driver = {
 	.probe		= twl4030_wdt_probe,
 	.remove		= twl4030_wdt_remove,
 	.suspend	= twl4030_wdt_suspend,
 	.resume		= twl4030_wdt_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= "twl4030_wdt",
+		.owner		= THIS_MODULE,
+		.name		= "twl4030_wdt",
+		.of_match_table	= twl_wdt_of_match,
 	},
 };
 

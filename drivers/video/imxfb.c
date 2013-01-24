@@ -917,7 +917,7 @@ failed_init:
 	return ret;
 }
 
-static int __devexit imxfb_remove(struct platform_device *pdev)
+static int imxfb_remove(struct platform_device *pdev)
 {
 	struct imx_fb_platform_data *pdata;
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -959,7 +959,7 @@ void  imxfb_shutdown(struct platform_device * dev)
 static struct platform_driver imxfb_driver = {
 	.suspend	= imxfb_suspend,
 	.resume		= imxfb_resume,
-	.remove		= __devexit_p(imxfb_remove),
+	.remove		= imxfb_remove,
 	.shutdown	= imxfb_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

@@ -757,7 +757,7 @@ err_probe:
 
 #ifdef CONFIG_OF
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+				     struct device_node *np)
 {
 	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *pp = NULL;
@@ -800,7 +800,7 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+				     struct device_node *np)
 {
 	return -ENOSYS;
 }

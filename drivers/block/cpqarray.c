@@ -320,7 +320,7 @@ static void release_io_mem(ctlr_info_t *c)
 	c->io_mem_length = 0;
 }
 
-static void __devexit cpqarray_remove_one(int i)
+static void cpqarray_remove_one(int i)
 {
 	int j;
 	char buff[4];
@@ -352,7 +352,7 @@ static void __devexit cpqarray_remove_one(int i)
 	free_hba(i);
 }
 
-static void __devexit cpqarray_remove_one_pci (struct pci_dev *pdev)
+static void cpqarray_remove_one_pci(struct pci_dev *pdev)
 {
 	int i;
 	ctlr_info_t *tmp_ptr;
@@ -377,7 +377,7 @@ static void __devexit cpqarray_remove_one_pci (struct pci_dev *pdev)
 /* removing an instance that was not removed automatically..
  * must be an eisa card.
  */
-static void __devexit cpqarray_remove_one_eisa (int i)
+static void cpqarray_remove_one_eisa(int i)
 {
 	if (hba[i] == NULL) {
 		printk(KERN_ERR "cpqarray: controller %d appears to have"
@@ -388,7 +388,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 }
 
 /* pdev is NULL for eisa */
-static int __devinit cpqarray_register_ctlr( int i, struct pci_dev *pdev)
+static int cpqarray_register_ctlr(int i, struct pci_dev *pdev)
 {
 	struct request_queue *q;
 	int j;
@@ -505,8 +505,8 @@ Enomem4:
 	return -1;
 }
 
-static int __devinit cpqarray_init_one( struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int cpqarray_init_one(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	int i;
 
@@ -536,7 +536,7 @@ static int __devinit cpqarray_init_one( struct pci_dev *pdev,
 static struct pci_driver cpqarray_pci_driver = {
 	.name = "cpqarray",
 	.probe = cpqarray_init_one,
-	.remove = __devexit_p(cpqarray_remove_one_pci),
+	.remove = cpqarray_remove_one_pci,
 	.id_table = cpqarray_pci_device_id,
 };
 
@@ -742,7 +742,7 @@ __setup("smart2=", cpqarray_setup);
 /*
  * Find an EISA controller's signature.  Set up an hba if we find it.
  */
-static int __devinit cpqarray_eisa_detect(void)
+static int cpqarray_eisa_detect(void)
 {
 	int i=0, j;
 	__u32 board_id;

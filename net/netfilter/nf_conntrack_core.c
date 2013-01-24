@@ -1526,6 +1526,7 @@ err_extend:
  */
 #define UNCONFIRMED_NULLS_VAL	((1<<30)+0)
 #define DYING_NULLS_VAL		((1<<30)+1)
+#define TEMPLATE_NULLS_VAL	((1<<30)+2)
 
 static int nf_conntrack_init_net(struct net *net)
 {
@@ -1534,6 +1535,7 @@ static int nf_conntrack_init_net(struct net *net)
 	atomic_set(&net->ct.count, 0);
 	INIT_HLIST_NULLS_HEAD(&net->ct.unconfirmed, UNCONFIRMED_NULLS_VAL);
 	INIT_HLIST_NULLS_HEAD(&net->ct.dying, DYING_NULLS_VAL);
+	INIT_HLIST_NULLS_HEAD(&net->ct.tmpl, TEMPLATE_NULLS_VAL);
 	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
 	if (!net->ct.stat) {
 		ret = -ENOMEM;

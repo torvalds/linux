@@ -226,16 +226,6 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	struct acpi_memory_info *info;
 	int node;
 
-
-	/* Get the range from the _CRS */
-	result = acpi_memory_get_device_resources(mem_device);
-	if (result) {
-		dev_err(&mem_device->device->dev,
-			"get_device_resources failed\n");
-		mem_device->state = MEMORY_INVALID_STATE;
-		return result;
-	}
-
 	node = acpi_get_node(mem_device->device->handle);
 	/*
 	 * Tell the VM there is more memory here...
@@ -339,14 +329,6 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 					  "\nReceived DEVICE CHECK notification for device\n"));
 		if (acpi_memory_get_device(handle, &mem_device)) {
 			acpi_handle_err(handle, "Cannot find driver data\n");
-			break;
-		}
-
-		if (acpi_memory_check_device(mem_device))
-			break;
-
-		if (acpi_memory_enable_device(mem_device)) {
-			acpi_handle_err(handle,"Cannot enable memory device\n");
 			break;
 		}
 

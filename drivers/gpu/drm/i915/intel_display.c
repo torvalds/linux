@@ -8144,10 +8144,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			config->mode_changed = true;
 		}
-
-		/* Disable all disconnected encoders. */
-		if (connector->base.status == connector_status_disconnected)
-			connector->new_encoder = NULL;
 	}
 	/* connector->new_encoder is now updated for all connectors. */
 
@@ -9167,6 +9163,23 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
+static void i915_redisable_vga(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 vga_reg;
+
+	if (HAS_PCH_SPLIT(dev))
+		vga_reg = CPU_VGACNTRL;
+	else
+		vga_reg = VGACNTRL;
+
+	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
+		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
+		I915_WRITE(vga_reg, VGA_DISP_DISABLE);
+		POSTING_READ(vga_reg);
+	}
+}
+
 /* Scan out the current hw modeset state, sanitizes it and maps it into the drm
  * and i915 state tracking structures. */
 void intel_modeset_setup_hw_state(struct drm_device *dev,
@@ -9275,6 +9288,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			intel_set_mode(&crtc->base, &crtc->base.mode,
 				       crtc->base.x, crtc->base.y, crtc->base.fb);
 		}
+
+		i915_redisable_vga(dev);
 	} else {
 		intel_modeset_update_staged_output_state(dev);
 	}

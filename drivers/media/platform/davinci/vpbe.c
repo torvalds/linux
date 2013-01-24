@@ -805,7 +805,7 @@ static struct vpbe_device_ops vpbe_dev_ops = {
 	.set_mode = vpbe_set_mode,
 };
 
-static __devinit int vpbe_probe(struct platform_device *pdev)
+static int vpbe_probe(struct platform_device *pdev)
 {
 	struct vpbe_device *vpbe_dev;
 	struct vpbe_config *cfg;

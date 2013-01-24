@@ -321,8 +321,7 @@ static struct scsi_host_template rdc_sht = {
  *	Zero on success, or -ERRNO value.
  */
 
-static int __devinit rdc_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];

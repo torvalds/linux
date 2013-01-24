@@ -1035,7 +1035,7 @@ static int fimc_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int __devexit fimc_remove(struct platform_device *pdev)
+static int fimc_remove(struct platform_device *pdev)
 {
 	struct fimc_dev *fimc = platform_get_drvdata(pdev);
 
@@ -1278,7 +1278,7 @@ static const struct dev_pm_ops fimc_pm_ops = {
 
 static struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
-	.remove		= __devexit_p(fimc_remove),
+	.remove		= fimc_remove,
 	.id_table	= fimc_driver_ids,
 	.driver = {
 		.name	= FIMC_MODULE_NAME,

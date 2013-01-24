@@ -490,8 +490,7 @@ static struct agp_device_ids ati_agp_device_ids[] =
 	{ }, /* dummy final entry, always present */
 };
 
-static int __devinit agp_ati_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int agp_ati_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct agp_device_ids *devs = ati_agp_device_ids;
 	struct agp_bridge_data *bridge;

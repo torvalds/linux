@@ -1620,7 +1620,7 @@ exit_free_dev_rdev:
 	return ret;
 }
 
-static void __devexit ite_remove(struct pnp_dev *pdev)
+static void ite_remove(struct pnp_dev *pdev)
 {
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
@@ -1702,7 +1702,7 @@ static struct pnp_driver ite_driver = {
 	.name		= ITE_DRIVER_NAME,
 	.id_table	= ite_ids,
 	.probe		= ite_probe,
-	.remove		= __devexit_p(ite_remove),
+	.remove		= ite_remove,
 	.suspend	= ite_suspend,
 	.resume		= ite_resume,
 	.shutdown	= ite_shutdown,

@@ -53,7 +53,7 @@ static const struct ide_port_ops netcell_port_ops = {
 		.udma_mask	= ATA_UDMA6, \
 	}
 
-static const struct ide_port_info generic_chipsets[] __devinitconst = {
+static const struct ide_port_info generic_chipsets[] = {
 	/*  0: Unknown */
 	DECLARE_GENERIC_PCI_DEV(0),
 
@@ -103,7 +103,7 @@ static const struct ide_port_info generic_chipsets[] __devinitconst = {
  *	finds a device matching our IDE device tables.
  */
 
-static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &generic_chipsets[id->driver_data];
 	int ret = -ENODEV;

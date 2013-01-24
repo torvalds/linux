@@ -294,7 +294,7 @@ static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
 	.video	= &sh_csi2_subdev_video_ops,
 };
 
-static __devinit int sh_csi2_probe(struct platform_device *pdev)
+static int sh_csi2_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	unsigned int irq;
@@ -355,7 +355,7 @@ esdreg:
 	return ret;
 }
 
-static __devexit int sh_csi2_remove(struct platform_device *pdev)
+static int sh_csi2_remove(struct platform_device *pdev)
 {
 	struct sh_csi2 *priv = platform_get_drvdata(pdev);
 
@@ -367,7 +367,7 @@ static __devexit int sh_csi2_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata sh_csi2_pdrv = {
-	.remove	= __devexit_p(sh_csi2_remove),
+	.remove	= sh_csi2_remove,
 	.probe	= sh_csi2_probe,
 	.driver	= {
 		.name	= "sh-mobile-csi2",
