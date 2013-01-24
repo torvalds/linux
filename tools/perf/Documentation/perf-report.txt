@@ -59,7 +59,7 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, srcline.
+	pid, comm, dso, symbol, parent, cpu, srcline, weight, local_weight.
 
 	Each key has following meaning:
 
