@@ -430,6 +430,23 @@ static int act8846_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 
 
 }
+static int act8846_dcdc_set_voltage_time_sel(struct regulator_dev *dev,   unsigned int old_selector,
+				     unsigned int new_selector)
+{
+	struct act8846 *act8846 = rdev_get_drvdata(dev);
+	int ret =0,old_volt, new_volt;
+	
+	old_volt = act8846_dcdc_list_voltage(dev, old_selector);
+	if (old_volt < 0)
+		return old_volt;
+	
+	new_volt = act8846_dcdc_list_voltage(dev, new_selector);
+	if (new_volt < 0)
+		return new_volt;
+
+	return DIV_ROUND_UP(abs(old_volt - new_volt)*2, 25000);
+}
+
 static struct regulator_ops act8846_dcdc_ops = { 
 	.set_voltage = act8846_dcdc_set_voltage,
 	.get_voltage = act8846_dcdc_get_voltage,
@@ -440,6 +457,7 @@ static struct regulator_ops act8846_dcdc_ops = {
 	.get_mode = act8846_dcdc_get_mode,
 	.set_mode = act8846_dcdc_set_mode,
 	.set_suspend_voltage = act8846_dcdc_set_sleep_voltage,
+	.set_voltage_time_sel = act8846_dcdc_set_voltage_time_sel,
 };
 static struct regulator_desc regulators[] = {
 
@@ -725,6 +743,12 @@ static int __devinit act8846_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	if ((ret < 0) || (ret == 0xff)){
 		printk("The device is not act8846 \n");
 		return 0;
+	}
+
+	ret = act8846_set_bits(act8846, 0xf4,(0x1<<7),(0x0<<7));
+	if (ret < 0) {
+		printk("act8846 set 0xf4 error!\n");
+		goto err;
 	}
 	
 	if (pdata) {
