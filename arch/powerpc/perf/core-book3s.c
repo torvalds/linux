@@ -880,8 +880,16 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	cpuhw->events[n0] = event->hw.config;
 	cpuhw->flags[n0] = event->hw.event_base;
 
+	/*
+	 * This event may have been disabled/stopped in record_and_restart()
+	 * because we exceeded the ->event_limit. If re-starting the event,
+	 * clear the ->hw.state (STOPPED and UPTODATE flags), so the user
+	 * notification is re-enabled.
+	 */
 	if (!(ef_flags & PERF_EF_START))
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	else
+		event->hw.state = 0;
 
 	/*
 	 * If group events scheduling transaction was started,
