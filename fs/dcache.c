@@ -1919,7 +1919,7 @@ EXPORT_SYMBOL(d_lookup);
  *
  * __d_lookup callers must be commented.
  */
-struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
+struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 {
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
