@@ -32,4 +32,25 @@ const char *usb_speed_string(enum usb_device_speed speed)
 }
 EXPORT_SYMBOL_GPL(usb_speed_string);
 
+const char *usb_state_string(enum usb_device_state state)
+{
+	static const char *const names[] = {
+		[USB_STATE_NOTATTACHED] = "not attached",
+		[USB_STATE_ATTACHED] = "attached",
+		[USB_STATE_POWERED] = "powered",
+		[USB_STATE_RECONNECTING] = "reconnecting",
+		[USB_STATE_UNAUTHENTICATED] = "unauthenticated",
+		[USB_STATE_DEFAULT] = "default",
+		[USB_STATE_ADDRESS] = "addresssed",
+		[USB_STATE_CONFIGURED] = "configured",
+		[USB_STATE_SUSPENDED] = "suspended",
+	};
+
+	if (state < 0 || state >= ARRAY_SIZE(names))
+		return "UNKNOWN";
+
+	return names[state];
+}
+EXPORT_SYMBOL_GPL(usb_state_string);
+
 MODULE_LICENSE("GPL");
