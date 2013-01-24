@@ -2020,7 +2020,7 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 	trace_ocfs2_readdir((unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	error = ocfs2_inode_lock_atime(inode, filp->f_vfsmnt, &lock_level);
+	error = ocfs2_inode_lock_atime(inode, filp->f_path.mnt, &lock_level);
 	if (lock_level && error >= 0) {
 		/* We release EX lock which used to update atime
 		 * and get PR lock again to reduce contention

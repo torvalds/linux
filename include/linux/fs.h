@@ -769,7 +769,6 @@ struct file {
 	} f_u;
 	struct path		f_path;
 #define f_dentry	f_path.dentry
-#define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
 
 	/*
