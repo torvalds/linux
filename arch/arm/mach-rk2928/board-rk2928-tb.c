@@ -1105,8 +1105,9 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1125 * 1000},
+        {.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,       .index = 1050 * 1000},
+	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,	.index = 1125 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 

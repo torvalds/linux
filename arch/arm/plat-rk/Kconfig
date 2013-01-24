@@ -82,13 +82,18 @@ config DDR_TYPE_DDR3_DEFAULT
 
 endchoice
 
+config DDR_INIT_CHANGE_FREQ
+	bool "Enable change DDR frequence when ddr_init"
+	default y
+
 config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
+	depends on DDR_INIT_CHANGE_FREQ
 	default 400
 
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
-	select RK_SRAM_DMA if ARCH_RK30
+	select RK_SRAM_DMA if ARCH_RK30XX
 
 config DDR_TEST
 	bool "DDR Test"

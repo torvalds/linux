@@ -101,7 +101,6 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 		cpu = clk_get(NULL, "cpu");
 	if (!gpu)
 		gpu = clk_get(NULL, "gpu");
-
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
 	if (ddr.suspend_rate && (s & (1 << SYS_STATUS_SUSPEND))) {
 		ddrfreq_mode(true, &ddr.suspend_rate, "suspend");
@@ -309,6 +308,12 @@ CLK_NOTIFIER(pd_rga, RGA);
 CLK_NOTIFIER(pd_cif0, CIF0);
 CLK_NOTIFIER(pd_cif1, CIF1);
 
+static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
+{
+        ddr_set_rate(rate/(1000*1000));
+        return 0;
+}
+
 static int ddrfreq_init(void)
 {
 	int i, ret;
@@ -327,6 +332,7 @@ static int ddrfreq_init(void)
 		pr_err("failed to get ddr clk, error %d\n", ret);
 		return ret;
 	}
+    dvfs_clk_register_set_rate_callback(ddr.clk, ddr_scale_rate_for_dvfs);
 
 	ddr.normal_rate = clk_get_rate(ddr.clk);
 

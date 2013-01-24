@@ -3414,11 +3414,16 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130124 \n");
+    ddr_print("version 1.00 20130124-2 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
-    ddr_freq = freq;
+
+    if(freq != 0)
+        ddr_freq = freq;
+    else
+        ddr_freq = clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000;
+
     ddr_sr_idle = 0;
     switch(mem_type)
     {
@@ -3463,9 +3468,13 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
 
-    value=ddr_change_freq(freq);
+    if(freq != 0)
+        value=ddr_change_freq(freq);
+    else
+        value=ddr_change_freq(clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
+
     clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
-    ddr_print("init success!!! freq=%dMHz\n", value);
+    ddr_print("init success!!! freq=%dMHz\n", clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
 
     for(value=0;value<4;value++)
     {

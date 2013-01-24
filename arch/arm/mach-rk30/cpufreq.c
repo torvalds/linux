@@ -238,15 +238,6 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 		return -EINVAL;
 	return cpufreq_frequency_table_verify(policy, freq_table);
 }
-
-static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
-{
-	#if defined (CONFIG_DDR_FREQ)
-	ddr_set_rate(rate/(1000*1000));
-	#endif
-	return 0;
-}
-
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu == 0) {
@@ -258,11 +249,7 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 
 		ddr_clk = clk_get(NULL, "ddr");
 		if (!IS_ERR(ddr_clk))
-		{
-			dvfs_clk_register_set_rate_callback(ddr_clk, ddr_scale_rate_for_dvfs);
 			clk_enable_dvfs(ddr_clk);
-			//clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)-1);
-		}
 		
 		cpu_clk = clk_get(NULL, "cpu");
 		
