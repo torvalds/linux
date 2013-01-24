@@ -265,36 +265,17 @@ enum {
 };
 
 /*
- * This is an array of channels (devices) that are performance critical.
+ * This is an array of device_ids (device types) that are performance critical.
  * We attempt to distribute the interrupt load for these devices across
  * all available CPUs.
  */
-static const uuid_le hp_devs[] = {
-	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
+static const struct hv_vmbus_device_id hp_devs[] = {
 	/* IDE */
-	{
-		.b = {
-			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
-			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
-		}
-	},
-	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
+	{ HV_IDE_GUID, },
 	/* Storage - SCSI */
-	{
-		.b  = {
-			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
-		}
-	},
-	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
+	{ HV_SCSI_GUID, },
 	/* Network */
-	{
-		.b = {
-			0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
-			0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
-		}
-	},
-
+	{ HV_NIC_GUID, },
 };
 
 
@@ -320,7 +301,7 @@ static u32 get_vp_index(uuid_le *type_guid)
 	u32 max_cpus = num_online_cpus();
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
-		if (!memcmp(type_guid->b, hp_devs[i].b,
+		if (!memcmp(type_guid->b, hp_devs[i].guid,
 				 sizeof(uuid_le))) {
 			perf_chn = true;
 			break;
