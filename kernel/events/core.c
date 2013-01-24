@@ -982,6 +982,9 @@ static void perf_event__header_size(struct perf_event *event)
 	if (sample_type & PERF_SAMPLE_READ)
 		size += event->read_size;
 
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		size += sizeof(data->data_src.val);
+
 	event->header_size = size;
 }
 
@@ -4199,6 +4202,9 @@ void perf_output_sample(struct perf_output_handle *handle,
 
 	if (sample_type & PERF_SAMPLE_WEIGHT)
 		perf_output_put(handle, data->weight);
+
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		perf_output_put(handle, data->data_src.val);
 }
 
 void perf_prepare_sample(struct perf_event_header *header,
