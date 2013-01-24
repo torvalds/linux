@@ -3410,13 +3410,13 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		em = list_entry(extents.next, struct extent_map, list);
 
 		list_del_init(&em->list);
-		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 
 		/*
 		 * If we had an error we just need to delete everybody from our
 		 * private list.
 		 */
 		if (ret) {
+			clear_em_logging(tree, em);
 			free_extent_map(em);
 			continue;
 		}
@@ -3424,8 +3424,9 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		write_unlock(&tree->lock);
 
 		ret = log_one_extent(trans, inode, root, em, path);
-		free_extent_map(em);
 		write_lock(&tree->lock);
+		clear_em_logging(tree, em);
+		free_extent_map(em);
 	}
 	WARN_ON(!list_empty(&extents));
 	write_unlock(&tree->lock);
