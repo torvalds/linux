@@ -65,7 +65,7 @@ static int addi_watchdog_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_ARM:
 		spriv->wdog_ctrl = ADDI_WDOG_CTRL_ENABLE;
 		reload = data[1] & s->maxdata;
-		outw(reload, spriv->iobase + ADDI_WDOG_RELOAD_REG);
+		outl(reload, spriv->iobase + ADDI_WDOG_RELOAD_REG);
 
 		/* Time base is 20ms, let the user know the timeout */
 		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
@@ -78,7 +78,7 @@ static int addi_watchdog_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	outw(spriv->wdog_ctrl, spriv->iobase + ADDI_WDOG_CTRL_REG);
+	outl(spriv->wdog_ctrl, spriv->iobase + ADDI_WDOG_CTRL_REG);
 
 	return insn->n;
 }
@@ -112,7 +112,7 @@ static int addi_watchdog_insn_write(struct comedi_device *dev,
 
 	/* "ping" the watchdog */
 	for (i = 0; i < insn->n; i++) {
-		outw(spriv->wdog_ctrl | ADDI_WDOG_CTRL_SW_TRIG,
+		outl(spriv->wdog_ctrl | ADDI_WDOG_CTRL_SW_TRIG,
 		     spriv->iobase + ADDI_WDOG_CTRL_REG);
 	}
 
