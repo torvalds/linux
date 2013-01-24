@@ -139,8 +139,10 @@ struct iwl_drv {
 #endif
 };
 
-#define DVM_OP_MODE	0
-#define MVM_OP_MODE	1
+enum {
+	DVM_OP_MODE =	0,
+	MVM_OP_MODE =	1,
+};
 
 /* Protects the table contents, i.e. the ops pointer & drv list */
 static struct mutex iwlwifi_opmode_table_mtx;
@@ -149,8 +151,8 @@ static struct iwlwifi_opmode_table {
 	const struct iwl_op_mode_ops *ops;	/* pointer to op_mode ops */
 	struct list_head drv;		/* list of devices using this op_mode */
 } iwlwifi_opmode_table[] = {		/* ops set when driver is initialized */
-	{ .name = "iwldvm", .ops = NULL },
-	{ .name = "iwlmvm", .ops = NULL },
+	[DVM_OP_MODE] = { .name = "iwldvm", .ops = NULL },
+	[MVM_OP_MODE] = { .name = "iwlmvm", .ops = NULL },
 };
 
 /*
@@ -963,7 +965,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 
 	mutex_lock(&iwlwifi_opmode_table_mtx);
-	op = &iwlwifi_opmode_table[DVM_OP_MODE];
+	if (fw->mvm_fw)
+		op = &iwlwifi_opmode_table[MVM_OP_MODE];
+	else
+		op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);

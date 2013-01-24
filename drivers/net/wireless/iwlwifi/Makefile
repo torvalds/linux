@@ -17,5 +17,6 @@ ccflags-y += -D__CHECK_ENDIAN__ -I$(src)
 
 
 obj-$(CONFIG_IWLDVM)	+= dvm/
+obj-$(CONFIG_IWLMVM)	+= mvm/
 
 CFLAGS_iwl-devtrace.o := -I$(src)

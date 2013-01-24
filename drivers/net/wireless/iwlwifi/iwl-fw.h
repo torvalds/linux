@@ -166,6 +166,7 @@ struct iwl_tlv_calib_ctrl {
  * @inst_evtlog_ptr: event log offset for runtime ucode.
  * @inst_evtlog_size: event log size for runtime ucode.
  * @inst_errlog_ptr: error log offfset for runtime ucode.
+ * @mvm_fw: indicates this is MVM firmware
  */
 struct iwl_fw {
 	u32 ucode_ver;
