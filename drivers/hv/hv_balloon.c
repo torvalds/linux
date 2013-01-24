@@ -1005,9 +1005,7 @@ static int balloon_remove(struct hv_device *dev)
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Dynamic Memory Class ID */
 	/* 525074DC-8985-46e2-8057-A307DC18A502 */
-	{ VMBUS_DEVICE(0xdc, 0x74, 0x50, 0X52, 0x85, 0x89, 0xe2, 0x46,
-		       0x80, 0x57, 0xa3, 0x07, 0xdc, 0x18, 0xa5, 0x02)
-	},
+	{ HV_DM_GUID, },
 	{ },
 };
 
