@@ -415,7 +415,8 @@ static void trace_selftest_test_recursion_func(unsigned long ip,
 	 * The ftrace infrastructure should provide the recursion
 	 * protection. If not, this will crash the kernel!
 	 */
-	trace_selftest_recursion_cnt++;
+	if (trace_selftest_recursion_cnt++ > 10)
+		return;
 	DYN_FTRACE_TEST_NAME();
 }
 
@@ -452,7 +453,6 @@ trace_selftest_function_recursion(void)
 	char *func_name;
 	int len;
 	int ret;
-	int cnt;
 
 	/* The previous test PASSED */
 	pr_cont("PASSED\n");
@@ -510,19 +510,10 @@ trace_selftest_function_recursion(void)
 
 	unregister_ftrace_function(&test_recsafe_probe);
 
-	/*
-	 * If arch supports all ftrace features, and no other task
-	 * was on the list, we should be fine.
-	 */
-	if (!ftrace_nr_registered_ops() && !FTRACE_FORCE_LIST_FUNC)
-		cnt = 2; /* Should have recursed */
-	else
-		cnt = 1;
-
 	ret = -1;
-	if (trace_selftest_recursion_cnt != cnt) {
-		pr_cont("*callback not called expected %d times (%d)* ",
-			cnt, trace_selftest_recursion_cnt);
+	if (trace_selftest_recursion_cnt != 2) {
+		pr_cont("*callback not called expected 2 times (%d)* ",
+			trace_selftest_recursion_cnt);
 		goto out;
 	}
 
@@ -568,7 +559,7 @@ trace_selftest_function_regs(void)
 	int ret;
 	int supported = 0;
 
-#ifdef ARCH_SUPPORTS_FTRACE_SAVE_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 	supported = 1;
 #endif
 

@@ -709,10 +709,14 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (!current_trace->use_max_tr) {
-		WARN_ON_ONCE(1);
+
+	/* If we disabled the tracer, stop now */
+	if (current_trace == &nop_trace)
 		return;
-	}
+
+	if (WARN_ON_ONCE(!current_trace->use_max_tr))
+		return;
+
 	arch_spin_lock(&ftrace_max_lock);
 
 	tr->buffer = max_tr.buffer;
@@ -922,6 +926,9 @@ void tracing_reset(struct trace_array *tr, int cpu)
 {
 	struct ring_buffer *buffer = tr->buffer;
 
+	if (!buffer)
+		return;
+
 	ring_buffer_record_disable(buffer);
 
 	/* Make sure all commits have finished */
@@ -935,6 +942,9 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 {
 	struct ring_buffer *buffer = tr->buffer;
 	int cpu;
+
+	if (!buffer)
+		return;
 
 	ring_buffer_record_disable(buffer);
 
@@ -1167,7 +1177,6 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
-	entry->padding			= 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -1517,7 +1526,6 @@ static struct trace_buffer_struct *trace_percpu_nmi_buffer;
 static char *get_trace_buf(void)
 {
 	struct trace_buffer_struct *percpu_buffer;
-	struct trace_buffer_struct *buffer;
 
 	/*
 	 * If we have allocated per cpu buffers, then we do not
@@ -1535,9 +1543,7 @@ static char *get_trace_buf(void)
 	if (!percpu_buffer)
 		return NULL;
 
-	buffer = per_cpu_ptr(percpu_buffer, smp_processor_id());
-
-	return buffer->buffer;
+	return this_cpu_ptr(&percpu_buffer->buffer[0]);
 }
 
 static int alloc_percpu_trace_buffer(void)
@@ -3183,6 +3189,7 @@ static int tracing_set_tracer(const char *buf)
 	static struct trace_option_dentry *topts;
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
+	bool had_max_tr;
 	int ret = 0;
 
 	mutex_lock(&trace_types_lock);
@@ -3209,7 +3216,19 @@ static int tracing_set_tracer(const char *buf)
 	trace_branch_disable();
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
-	if (current_trace && current_trace->use_max_tr) {
+
+	had_max_tr = current_trace && current_trace->use_max_tr;
+	current_trace = &nop_trace;
+
+	if (had_max_tr && !t->use_max_tr) {
+		/*
+		 * We need to make sure that the update_max_tr sees that
+		 * current_trace changed to nop_trace to keep it from
+		 * swapping the buffers after we resize it.
+		 * The update_max_tr is called from interrupts disabled
+		 * so a synchronized_sched() is sufficient.
+		 */
+		synchronize_sched();
 		/*
 		 * We don't free the ring buffer. instead, resize it because
 		 * The max_tr ring buffer has some state (e.g. ring->clock) and
@@ -3220,10 +3239,8 @@ static int tracing_set_tracer(const char *buf)
 	}
 	destroy_trace_option_files(topts);
 
-	current_trace = &nop_trace;
-
 	topts = create_trace_option_files(t);
-	if (t->use_max_tr) {
+	if (t->use_max_tr && !had_max_tr) {
 		/* we need to make per cpu buffer sizes equivalent */
 		ret = resize_buffer_duplicate_size(&max_tr, &global_trace,
 						   RING_BUFFER_ALL_CPUS);
@@ -4037,8 +4054,7 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 	 * Reset the buffer so that it doesn't have incomparable timestamps.
 	 */
 	tracing_reset_online_cpus(&global_trace);
-	if (max_tr.buffer)
-		tracing_reset_online_cpus(&max_tr);
+	tracing_reset_online_cpus(&max_tr);
 
 	mutex_unlock(&trace_types_lock);
 

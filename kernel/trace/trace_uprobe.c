@@ -258,6 +258,10 @@ static int create_trace_uprobe(int argc, char **argv)
 		goto fail_address_parse;
 
 	inode = igrab(path.dentry->d_inode);
+	if (!S_ISREG(inode->i_mode)) {
+		ret = -EINVAL;
+		goto fail_address_parse;
+	}
 
 	argc -= 2;
 	argv += 2;
@@ -356,7 +360,7 @@ fail_address_parse:
 	if (inode)
 		iput(inode);
 
-	pr_info("Failed to parse address.\n");
+	pr_info("Failed to parse address or file.\n");
 
 	return ret;
 }
