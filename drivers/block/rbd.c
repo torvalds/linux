@@ -1721,6 +1721,10 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	if (start) {
 		rbd_dev->watch_request = obj_request->osd_req;
 		ceph_osdc_set_request_linger(osdc, rbd_dev->watch_request);
+	} else {
+		ceph_osdc_unregister_linger_request(osdc,
+						rbd_dev->watch_request);
+		rbd_dev->watch_request = NULL;
 	}
 	ret = rbd_obj_request_submit(osdc, obj_request);
 	if (ret)
@@ -3995,12 +3999,6 @@ static void rbd_dev_release(struct device *dev)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	if (rbd_dev->watch_request) {
-		struct ceph_client *client = rbd_dev->rbd_client->client;
-
-		ceph_osdc_unregister_linger_request(&client->osdc,
-						    rbd_dev->watch_request);
-	}
 	if (rbd_dev->watch_event)
 		rbd_dev_header_watch_sync(rbd_dev, 0);
 
