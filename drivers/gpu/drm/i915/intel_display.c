@@ -8936,8 +8936,7 @@ void i915_redisable_vga(struct drm_device *dev)
 
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		I915_WRITE(vga_reg, VGA_DISP_DISABLE);
-		POSTING_READ(vga_reg);
+		i915_disable_vga(dev);
 	}
 }
 
