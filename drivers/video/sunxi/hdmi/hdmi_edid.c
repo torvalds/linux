@@ -310,6 +310,14 @@ Parse_DTD_Block(__u8 *pbuf)
 		if (video_timing[video_timing_edid].I) {
 			video_timing[video_timing_edid].INPUTY *= 2;
 			video_timing[video_timing_edid].VT *= 2;
+
+			/* Should VT be VT * 2 + 1, or VT * 2 ? */
+			frame_rate = (frame_rate + 1) / 2;
+			if ((HT * (VT * 2 + 1) * frame_rate) == pclk)
+				video_timing[video_timing_edid].VT++;
+
+			pr_info("Interlaced VT %d\n",
+				video_timing[video_timing_edid].VT);
 		}
 		video_timing[video_timing_edid].HSYNC = Hsync;
 		video_timing[video_timing_edid].VSYNC = Vsync;
