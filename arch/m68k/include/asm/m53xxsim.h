@@ -107,7 +107,7 @@
 /*
  *  QSPI module.
  */
-#define	MCFQSPI_BASE		0xFC058000	/* Base address of QSPI */
+#define	MCFQSPI_BASE		0xFC05C000	/* Base address of QSPI */
 #define	MCFQSPI_SIZE		0x40		/* Size of QSPI region */
 
 #define	MCFQSPI_CS0		84
