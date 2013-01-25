@@ -180,32 +180,6 @@ static const struct comedi_lrange range_daqp_ai = { 4, {
 
 static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
-#ifdef DAQP_DEBUG
-
-static void daqp_dump(struct comedi_device *dev)
-{
-	dev_info(dev->class_dev, "status %02x; aux status %02x\n",
-		 inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
-}
-
-static void hex_dump(char *str, void *ptr, int len)
-{
-	unsigned char *cptr = ptr;
-	int i;
-
-	printk(str);
-
-	for (i = 0; i < len; i++) {
-		if (i % 16 == 0)
-			printk("\n%p:", cptr);
-
-		printk(" %02x", *(cptr++));
-	}
-	printk("\n");
-}
-
-#endif
-
 /* Cancel a running acquisition */
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
