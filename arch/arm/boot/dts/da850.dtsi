@@ -28,6 +28,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x01c00000 0x400000>;
+		interrupt-parent = <&intc>;
 
 		pmx_core: pinmux@1c14120 {
 			compatible = "pinctrl-single";
@@ -62,7 +63,6 @@
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <25>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 		serial1: serial@1d0c000 {
@@ -71,7 +71,6 @@
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <53>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 		serial2: serial@1d0d000 {
@@ -80,7 +79,6 @@
 			clock-frequency = <150000000>;
 			reg-shift = <2>;
 			interrupts = <61>;
-			interrupt-parent = <&intc>;
 			status = "disabled";
 		};
 	};
