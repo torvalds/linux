@@ -1271,9 +1271,10 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 
 	for_each_node_by_name(child, "nand") {
 		ret = gpmc_probe_nand_child(pdev, child);
-		of_node_put(child);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;
