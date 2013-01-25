@@ -3538,7 +3538,10 @@ static int mwl8k_cmd_update_mac_addr(struct ieee80211_hw *hw,
 	mac_type = MWL8K_MAC_TYPE_PRIMARY_AP;
 	if (vif != NULL && vif->type == NL80211_IFTYPE_STATION) {
 		if (mwl8k_vif->macid + 1 == ffs(priv->sta_macids_supported))
-			mac_type = MWL8K_MAC_TYPE_PRIMARY_CLIENT;
+			if (priv->ap_fw)
+				mac_type = MWL8K_MAC_TYPE_SECONDARY_CLIENT;
+			else
+				mac_type = MWL8K_MAC_TYPE_PRIMARY_CLIENT;
 		else
 			mac_type = MWL8K_MAC_TYPE_SECONDARY_CLIENT;
 	} else if (vif != NULL && vif->type == NL80211_IFTYPE_AP) {
