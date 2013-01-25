@@ -417,6 +417,9 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 			gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
 	}
 
+	//Reset Codec
+	rk2929_codec_reset();
+
 	// Select SDI input from internal audio codec
 	writel(0x04000400, RK2928_GRF_BASE + GRF_SOC_CON0);
 	
