@@ -5030,6 +5030,7 @@ __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 	if (disable_tracing)
 		ftrace_kill();
 
+	/* Simulate the iterator */
 	trace_init_global_iter(&iter);
 
 	for_each_tracing_cpu(cpu) {
@@ -5040,10 +5041,6 @@ __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 
 	/* don't look at user memory in panic mode */
 	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
-
-	/* Simulate the iterator */
-	iter.tr = &global_trace;
-	iter.trace = current_trace;
 
 	switch (oops_dump_mode) {
 	case DUMP_ALL:
