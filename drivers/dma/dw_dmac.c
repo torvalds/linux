@@ -282,9 +282,9 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 
 		dwc_initialize(dwc);
 
-		dwc->tx_list = &first->tx_list;
 		dwc->tx_node_active = &first->tx_list;
 
+		/* Submit first block */
 		dwc_do_single_block(dwc, first);
 
 		return;
@@ -402,15 +402,25 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		dma_writel(dw, CLEAR.XFER, dwc->mask);
 
 		if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
-			if (dwc->tx_node_active != dwc->tx_list) {
-				desc = to_dw_desc(dwc->tx_node_active);
+			struct list_head *head, *active = dwc->tx_node_active;
+
+			/*
+			 * We are inside first active descriptor.
+			 * Otherwise something is really wrong.
+			 */
+			desc = dwc_first_active(dwc);
+
+			head = &desc->tx_list;
+			if (active != head) {
+				child = to_dw_desc(active);
 
 				/* Submit next block */
-				dwc_do_single_block(dwc, desc);
-				spin_unlock_irqrestore(&dwc->lock, flags);
+				dwc_do_single_block(dwc, child);
 
+				spin_unlock_irqrestore(&dwc->lock, flags);
 				return;
 			}
+
 			/* We are done here */
 			clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
 		}

@@ -194,7 +194,6 @@ struct dw_dma_chan {
 	bool				initialized;
 
 	/* software emulation of the LLP transfers */
-	struct list_head	*tx_list;
 	struct list_head	*tx_node_active;
 
 	spinlock_t		lock;
