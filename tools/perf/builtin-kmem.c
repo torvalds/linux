@@ -17,6 +17,7 @@
 #include "util/debug.h"
 
 #include <linux/rbtree.h>
+#include <linux/string.h>
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
@@ -618,12 +619,11 @@ static int sort_dimension__add(const char *tok, struct list_head *list)
 
 	for (i = 0; i < NUM_AVAIL_SORTS; i++) {
 		if (!strcmp(avail_sorts[i]->name, tok)) {
-			sort = malloc(sizeof(*sort));
+			sort = memdup(avail_sorts[i], sizeof(*avail_sorts[i]));
 			if (!sort) {
-				pr_err("%s: malloc failed\n", __func__);
+				pr_err("%s: memdup failed\n", __func__);
 				return -1;
 			}
-			memcpy(sort, avail_sorts[i], sizeof(*sort));
 			list_add_tail(&sort->list, list);
 			return 0;
 		}
