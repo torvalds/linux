@@ -339,8 +339,8 @@ returns immediately with an &EAGAIN; when no buffer is available. The
 queues as a side effect. Since there is no notion of doing anything
 "now" on a multitasking system, if an application needs to synchronize
 with another event it should examine the &v4l2-buffer;
-<structfield>timestamp</structfield> of captured buffers, or set the
-field before enqueuing buffers for output.</para>
+<structfield>timestamp</structfield> of captured or outputted buffers.
+</para>
 
     <para>Drivers implementing memory mapping I/O must
 support the <constant>VIDIOC_REQBUFS</constant>,
@@ -457,7 +457,7 @@ queues and unlocks all buffers as a side effect. Since there is no
 notion of doing anything "now" on a multitasking system, if an
 application needs to synchronize with another event it should examine
 the &v4l2-buffer; <structfield>timestamp</structfield> of captured
-buffers, or set the field before enqueuing buffers for output.</para>
+or outputted buffers.</para>
 
     <para>Drivers implementing user pointer I/O must
 support the <constant>VIDIOC_REQBUFS</constant>,
@@ -620,8 +620,7 @@ returns immediately with an &EAGAIN; when no buffer is available. The
 unlocks all buffers as a side effect. Since there is no notion of doing
 anything "now" on a multitasking system, if an application needs to synchronize
 with another event it should examine the &v4l2-buffer;
-<structfield>timestamp</structfield> of captured buffers, or set the field
-before enqueuing buffers for output.</para>
+<structfield>timestamp</structfield> of captured or outputted buffers.</para>
 
     <para>Drivers implementing DMABUF importing I/O must support the
 <constant>VIDIOC_REQBUFS</constant>, <constant>VIDIOC_QBUF</constant>,
@@ -654,38 +653,11 @@ plane, are stored in struct <structname>v4l2_plane</structname> instead.
 In that case, struct <structname>v4l2_buffer</structname> contains an array of
 plane structures.</para>
 
-      <para>Nominally timestamps refer to the first data byte transmitted.
-In practice however the wide range of hardware covered by the V4L2 API
-limits timestamp accuracy. Often an interrupt routine will
-sample the system clock shortly after the field or frame was stored
-completely in memory. So applications must expect a constant
-difference up to one field or frame period plus a small (few scan
-lines) random error. The delay and error can be much
-larger due to compression or transmission over an external bus when
-the frames are not properly stamped by the sender. This is frequently
-the case with USB cameras. Here timestamps refer to the instant the
-field or frame was received by the driver, not the capture time. These
-devices identify by not enumerating any video standards, see <xref
-linkend="standard" />.</para>
-
-      <para>Similar limitations apply to output timestamps. Typically
-the video hardware locks to a clock controlling the video timing, the
-horizontal and vertical synchronization pulses. At some point in the
-line sequence, possibly the vertical blanking, an interrupt routine
-samples the system clock, compares against the timestamp and programs
-the hardware to repeat the previous field or frame, or to display the
-buffer contents.</para>
-
-      <para>Apart of limitations of the video device and natural
-inaccuracies of all clocks, it should be noted system time itself is
-not perfectly stable. It can be affected by power saving cycles,
-warped to insert leap seconds, or even turned back or forth by the
-system administrator affecting long term measurements. <footnote>
-	  <para>Since no other Linux multimedia
-API supports unadjusted time it would be foolish to introduce here. We
-must use a universally supported clock to synchronize different media,
-hence time of day.</para>
-	</footnote></para>
+      <para>For timestamp types that are sampled from the system clock
+(V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) it is guaranteed that the timestamp is
+taken after the complete frame has been received (or transmitted in
+case of video output devices). For other kinds of
+timestamps this may vary depending on the driver.</para>
 
     <table frame="none" pgwide="1" id="v4l2-buffer">
       <title>struct <structname>v4l2_buffer</structname></title>
@@ -745,13 +717,9 @@ applications when an output stream.</entry>
 	    byte was captured, as returned by the
 	    <function>clock_gettime()</function> function for the relevant
 	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
-	    <xref linkend="buffer-flags" />. For output streams the data
-	    will not be displayed before this time, secondary to the nominal
-	    frame rate determined by the current video standard in enqueued
-	    order. Applications can for example zero this field to display
-	    frames as soon as possible. The driver stores the time at which
-	    the first data byte was actually sent out in the
-	    <structfield>timestamp</structfield> field. This permits
+	    <xref linkend="buffer-flags" />. For output streams the driver
+	    stores the time at which the last data byte was actually sent out
+	    in the  <structfield>timestamp</structfield> field. This permits
 	    applications to monitor the drift between the video and system
 	    clock.</para></entry>
 	  </row>
