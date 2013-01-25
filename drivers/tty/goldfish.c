@@ -72,23 +72,18 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 	unsigned long irq_flags;
 	unsigned char *buf;
 	u32 count;
-	struct tty_struct *tty;
 
 	count = readl(base + GOLDFISH_TTY_BYTES_READY);
 	if(count == 0)
 		return IRQ_NONE;
 
-	tty = tty_port_tty_get(&qtty->port);
-	if (tty) {
-		count = tty_prepare_flip_string(tty, &buf, count);
-		spin_lock_irqsave(&qtty->lock, irq_flags);
-		writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
-		writel(count, base + GOLDFISH_TTY_DATA_LEN);
-		writel(GOLDFISH_TTY_CMD_READ_BUFFER, base + GOLDFISH_TTY_CMD);
-		spin_unlock_irqrestore(&qtty->lock, irq_flags);
-		tty_schedule_flip(tty);
-		tty_kref_put(tty);
-	}
+	count = tty_prepare_flip_string(&qtty->port, &buf, count);
+	spin_lock_irqsave(&qtty->lock, irq_flags);
+	writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
+	writel(count, base + GOLDFISH_TTY_DATA_LEN);
+	writel(GOLDFISH_TTY_CMD_READ_BUFFER, base + GOLDFISH_TTY_CMD);
+	spin_unlock_irqrestore(&qtty->lock, irq_flags);
+	tty_schedule_flip(&qtty->port);
 	return IRQ_HANDLED;
 }
 
