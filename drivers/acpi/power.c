@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/sysfs.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include "sleep.h"
@@ -417,21 +418,98 @@ static void acpi_power_remove_dependent(struct acpi_power_resource *resource,
 	}
 }
 
+static struct attribute *attrs[] = {
+	NULL,
+};
+
+static struct attribute_group attr_groups[] = {
+	[ACPI_STATE_D0] = {
+		.name = "power_resources_D0",
+		.attrs = attrs,
+	},
+	[ACPI_STATE_D1] = {
+		.name = "power_resources_D1",
+		.attrs = attrs,
+	},
+	[ACPI_STATE_D2] = {
+		.name = "power_resources_D2",
+		.attrs = attrs,
+	},
+	[ACPI_STATE_D3_HOT] = {
+		.name = "power_resources_D3hot",
+		.attrs = attrs,
+	},
+};
+
+static void acpi_power_hide_list(struct acpi_device *adev, int state)
+{
+	struct acpi_device_power_state *ps = &adev->power.states[state];
+	struct acpi_power_resource_entry *entry;
+
+	if (list_empty(&ps->resources))
+		return;
+
+	list_for_each_entry_reverse(entry, &ps->resources, node) {
+		struct acpi_device *res_dev = &entry->resource->device;
+
+		sysfs_remove_link_from_group(&adev->dev.kobj,
+					     attr_groups[state].name,
+					     dev_name(&res_dev->dev));
+	}
+	sysfs_remove_group(&adev->dev.kobj, &attr_groups[state]);
+}
+
+static void acpi_power_expose_list(struct acpi_device *adev, int state)
+{
+	struct acpi_device_power_state *ps = &adev->power.states[state];
+	struct acpi_power_resource_entry *entry;
+	int ret;
+
+	if (list_empty(&ps->resources))
+		return;
+
+	ret = sysfs_create_group(&adev->dev.kobj, &attr_groups[state]);
+	if (ret)
+		return;
+
+	list_for_each_entry(entry, &ps->resources, node) {
+		struct acpi_device *res_dev = &entry->resource->device;
+
+		ret = sysfs_add_link_to_group(&adev->dev.kobj,
+					      attr_groups[state].name,
+					      &res_dev->dev.kobj,
+					      dev_name(&res_dev->dev));
+		if (ret) {
+			acpi_power_hide_list(adev, state);
+			break;
+		}
+	}
+}
+
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add)
 {
-	if (adev->power.flags.power_resources) {
-		struct acpi_device_power_state *ps;
-		struct acpi_power_resource_entry *entry;
+	struct acpi_device_power_state *ps;
+	struct acpi_power_resource_entry *entry;
+	int state;
 
-		ps = &adev->power.states[ACPI_STATE_D0];
-		list_for_each_entry(entry, &ps->resources, node) {
-			struct acpi_power_resource *resource = entry->resource;
+	if (!adev->power.flags.power_resources)
+		return;
 
-			if (add)
-				acpi_power_add_dependent(resource, adev);
-			else
-				acpi_power_remove_dependent(resource, adev);
-		}
+	ps = &adev->power.states[ACPI_STATE_D0];
+	list_for_each_entry(entry, &ps->resources, node) {
+		struct acpi_power_resource *resource = entry->resource;
+
+		if (add)
+			acpi_power_add_dependent(resource, adev);
+		else
+			acpi_power_remove_dependent(resource, adev);
+	}
+
+	for (state = ACPI_STATE_D0; state <= ACPI_STATE_D3_HOT; state++) {
+		if (add)
+			acpi_power_expose_list(adev, state);
+		else
+			acpi_power_hide_list(adev, state);
 	}
 }
 
