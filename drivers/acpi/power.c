@@ -299,9 +299,22 @@ static int acpi_power_on(struct acpi_power_resource *resource)
 	return result;
 }
 
+static int __acpi_power_off(struct acpi_power_resource *resource)
+{
+	acpi_status status;
+
+	status = acpi_evaluate_object(resource->device.handle, "_OFF",
+				      NULL, NULL);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned off\n",
+			  resource->name));
+	return 0;
+}
+
 static int acpi_power_off(struct acpi_power_resource *resource)
 {
-	acpi_status status = AE_OK;
 	int result = 0;
 
 	mutex_lock(&resource->resource_lock);
@@ -317,16 +330,11 @@ static int acpi_power_off(struct acpi_power_resource *resource)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Power resource [%s] still in use\n",
 				  resource->name));
-		goto unlock;
+	} else {
+		result = __acpi_power_off(resource);
+		if (result)
+			resource->ref_count++;
 	}
-
-	status = acpi_evaluate_object(resource->device.handle, "_OFF", NULL, NULL);
-	if (ACPI_FAILURE(status))
-		result = -ENODEV;
-	else
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Power resource [%s] turned off\n",
-				  resource->name));
 
  unlock:
 	mutex_unlock(&resource->resource_lock);
@@ -851,10 +859,17 @@ void acpi_resume_power_resources(void)
 		mutex_lock(&resource->resource_lock);
 
 		result = acpi_power_get_state(resource->device.handle, &state);
-		if (!result && state == ACPI_POWER_RESOURCE_STATE_OFF
+		if (result)
+			continue;
+
+		if (state == ACPI_POWER_RESOURCE_STATE_OFF
 		    && resource->ref_count) {
 			dev_info(&resource->device.dev, "Turning ON\n");
 			__acpi_power_on(resource);
+		} else if (state == ACPI_POWER_RESOURCE_STATE_ON
+		    && !resource->ref_count) {
+			dev_info(&resource->device.dev, "Turning OFF\n");
+			__acpi_power_off(resource);
 		}
 
 		mutex_unlock(&resource->resource_lock);
