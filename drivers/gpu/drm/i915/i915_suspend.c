@@ -240,9 +240,6 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
 	/* Cursor state */
 	dev_priv->regfile.saveCURACNTR = I915_READ(_CURACNTR);
 	dev_priv->regfile.saveCURAPOS = I915_READ(_CURAPOS);
@@ -410,8 +407,17 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	int dpll_b_reg, fpb0_reg, fpb1_reg;
 	int i;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
+	/* Display port ratios (must be done before clock is set) */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
+		I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
+		I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
+		I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
+		I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->regfile.savePIPEA_DP_LINK_M);
+		I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->regfile.savePIPEB_DP_LINK_M);
+		I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->regfile.savePIPEA_DP_LINK_N);
+		I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->regfile.savePIPEB_DP_LINK_N);
+	}
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
@@ -625,7 +631,8 @@ static void i915_save_display(struct drm_device *dev)
 
 	/* This is only meaningful in non-KMS mode */
 	/* Don't regfile.save them in KMS mode */
-	i915_save_modeset_reg(dev);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_save_modeset_reg(dev);
 
 	/* LVDS state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -711,23 +718,8 @@ static void i915_restore_display(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen <= 4)
 		I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
-		/* Display port ratios (must be done before clock is set) */
-		if (SUPPORTS_INTEGRATED_DP(dev)) {
-			I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
-			I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
-			I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
-			I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
-			I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->regfile.savePIPEA_DP_LINK_M);
-			I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->regfile.savePIPEB_DP_LINK_M);
-			I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->regfile.savePIPEA_DP_LINK_N);
-			I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->regfile.savePIPEB_DP_LINK_N);
-		}
-	}
-
-	/* This is only meaningful in non-KMS mode */
-	/* Don't restore them in KMS mode */
-	i915_restore_modeset_reg(dev);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_restore_modeset_reg(dev);
 
 	/* LVDS state */
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
