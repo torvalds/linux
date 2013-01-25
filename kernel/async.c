@@ -172,6 +172,8 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct a
 		ptr(data, newcookie);
 		return newcookie;
 	}
+	INIT_LIST_HEAD(&entry->domain_list);
+	INIT_LIST_HEAD(&entry->global_list);
 	INIT_WORK(&entry->work, async_run_entry_fn);
 	entry->func = ptr;
 	entry->data = data;
