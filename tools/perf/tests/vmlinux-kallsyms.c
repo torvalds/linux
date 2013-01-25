@@ -44,7 +44,7 @@ int test__vmlinux_matches_kallsyms(void)
 	 */
 	if (machine__create_kernel_maps(&kallsyms) < 0) {
 		pr_debug("machine__create_kernel_maps ");
-		return -1;
+		goto out;
 	}
 
 	/*
@@ -227,5 +227,7 @@ detour:
 			map__fprintf(pos, stderr);
 	}
 out:
+	machine__exit(&kallsyms);
+	machine__exit(&vmlinux);
 	return err;
 }
