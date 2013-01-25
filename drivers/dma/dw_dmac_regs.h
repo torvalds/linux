@@ -296,6 +296,7 @@ struct dw_desc {
 	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
+	size_t				total_len;
 };
 
 #define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)
