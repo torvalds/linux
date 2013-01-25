@@ -470,6 +470,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	intel_set_power_well(dev, true);
+
 	drm_kms_helper_poll_disable(dev);
 
 	pci_save_state(dev->pdev);

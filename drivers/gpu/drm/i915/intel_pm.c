@@ -4043,7 +4043,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 	dev_priv->display.init_clock_gating(dev);
 }
 
-static void intel_set_power_well(struct drm_device *dev, bool enable)
+void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
