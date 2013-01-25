@@ -65,24 +65,6 @@ static int xen_hotadd_memory(int pxm, struct acpi_memory_info *info)
 	return rc;
 }
 
-static int xen_acpi_get_pxm(acpi_handle h)
-{
-	unsigned long long pxm;
-	acpi_status status;
-	acpi_handle handle;
-	acpi_handle phandle = h;
-
-	do {
-		handle = phandle;
-		status = acpi_evaluate_integer(handle, "_PXM", NULL, &pxm);
-		if (ACPI_SUCCESS(status))
-			return pxm;
-		status = acpi_get_parent(handle, &phandle);
-	} while (ACPI_SUCCESS(status));
-
-	return -ENXIO;
-}
-
 static int xen_acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
 	int pxm, result;
