@@ -698,9 +698,7 @@ static void set_pin_targets(struct hda_codec *codec,
 
 static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 {
-#ifdef CONFIG_SND_DEBUG_VERBOSE
 	const char *modelname = codec->fixup_name;
-#endif
 
 	while (id >= 0) {
 		const struct hda_fixup *fix = codec->fixup_list + id;

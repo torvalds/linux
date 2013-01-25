@@ -1179,9 +1179,7 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 		if (!subs->txfr_quirk)
 			bytes = frames * stride;
 		if (bytes % (runtime->sample_bits >> 3) != 0) {
-#ifdef CONFIG_SND_DEBUG_VERBOSE
 			int oldbytes = bytes;
-#endif
 			bytes = frames * stride;
 			snd_printdd(KERN_ERR "Corrected urb data len. %d->%d\n",
 							oldbytes, bytes);
