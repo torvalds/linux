@@ -1985,6 +1985,7 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	card->pci_mmap = pci_iomap(pdev, 0, 0);
 	if (!card->pci_mmap) {
 		dev_err(adapter->dev, "iomap(0) error\n");
+		ret = -EIO;
 		goto err_iomap0;
 	}
 	ret = pci_request_region(pdev, 2, DRV_NAME);
@@ -1995,6 +1996,7 @@ static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
 	card->pci_mmap1 = pci_iomap(pdev, 2, 0);
 	if (!card->pci_mmap1) {
 		dev_err(adapter->dev, "iomap(2) error\n");
+		ret = -EIO;
 		goto err_iomap2;
 	}
 
