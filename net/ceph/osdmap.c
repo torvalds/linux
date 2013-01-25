@@ -13,26 +13,18 @@
 
 char *ceph_osdmap_state_str(char *str, int len, int state)
 {
-	int flag = 0;
-
 	if (!len)
-		goto done;
+		return str;
 
-	*str = '\0';
-	if (state) {
-		if (state & CEPH_OSD_EXISTS) {
-			snprintf(str, len, "exists");
-			flag = 1;
-		}
-		if (state & CEPH_OSD_UP) {
-			snprintf(str, len, "%s%s%s", str, (flag ? ", " : ""),
-				 "up");
-			flag = 1;
-		}
-	} else {
+	if ((state & CEPH_OSD_EXISTS) && (state & CEPH_OSD_UP))
+		snprintf(str, len, "exists, up");
+	else if (state & CEPH_OSD_EXISTS)
+		snprintf(str, len, "exists");
+	else if (state & CEPH_OSD_UP)
+		snprintf(str, len, "up");
+	else
 		snprintf(str, len, "doesn't exist");
-	}
-done:
+
 	return str;
 }
 
