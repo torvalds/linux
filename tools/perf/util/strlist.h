@@ -17,34 +17,34 @@ struct strlist {
 };
 
 struct strlist *strlist__new(bool dupstr, const char *slist);
-void strlist__delete(struct strlist *self);
+void strlist__delete(struct strlist *slist);
 
-void strlist__remove(struct strlist *self, struct str_node *sn);
-int strlist__load(struct strlist *self, const char *filename);
-int strlist__add(struct strlist *self, const char *str);
+void strlist__remove(struct strlist *slist, struct str_node *sn);
+int strlist__load(struct strlist *slist, const char *filename);
+int strlist__add(struct strlist *slist, const char *str);
 
-struct str_node *strlist__entry(const struct strlist *self, unsigned int idx);
-struct str_node *strlist__find(struct strlist *self, const char *entry);
+struct str_node *strlist__entry(const struct strlist *slist, unsigned int idx);
+struct str_node *strlist__find(struct strlist *slist, const char *entry);
 
-static inline bool strlist__has_entry(struct strlist *self, const char *entry)
+static inline bool strlist__has_entry(struct strlist *slist, const char *entry)
 {
-	return strlist__find(self, entry) != NULL;
+	return strlist__find(slist, entry) != NULL;
 }
 
-static inline bool strlist__empty(const struct strlist *self)
+static inline bool strlist__empty(const struct strlist *slist)
 {
-	return rblist__empty(&self->rblist);
+	return rblist__empty(&slist->rblist);
 }
 
-static inline unsigned int strlist__nr_entries(const struct strlist *self)
+static inline unsigned int strlist__nr_entries(const struct strlist *slist)
 {
-	return rblist__nr_entries(&self->rblist);
+	return rblist__nr_entries(&slist->rblist);
 }
 
 /* For strlist iteration */
-static inline struct str_node *strlist__first(struct strlist *self)
+static inline struct str_node *strlist__first(struct strlist *slist)
 {
-	struct rb_node *rn = rb_first(&self->rblist.entries);
+	struct rb_node *rn = rb_first(&slist->rblist.entries);
 	return rn ? rb_entry(rn, struct str_node, rb_node) : NULL;
 }
 static inline struct str_node *strlist__next(struct str_node *sn)
@@ -59,21 +59,21 @@ static inline struct str_node *strlist__next(struct str_node *sn)
 /**
  * strlist_for_each      - iterate over a strlist
  * @pos:	the &struct str_node to use as a loop cursor.
- * @self:	the &struct strlist for loop.
+ * @slist:	the &struct strlist for loop.
  */
-#define strlist__for_each(pos, self)	\
-	for (pos = strlist__first(self); pos; pos = strlist__next(pos))
+#define strlist__for_each(pos, slist)	\
+	for (pos = strlist__first(slist); pos; pos = strlist__next(pos))
 
 /**
  * strlist_for_each_safe - iterate over a strlist safe against removal of
  *                         str_node
  * @pos:	the &struct str_node to use as a loop cursor.
  * @n:		another &struct str_node to use as temporary storage.
- * @self:	the &struct strlist for loop.
+ * @slist:	the &struct strlist for loop.
  */
-#define strlist__for_each_safe(pos, n, self)	\
-	for (pos = strlist__first(self), n = strlist__next(pos); pos;\
+#define strlist__for_each_safe(pos, n, slist)	\
+	for (pos = strlist__first(slist), n = strlist__next(pos); pos;\
 	     pos = n, n = strlist__next(n))
 
-int strlist__parse_list(struct strlist *self, const char *s);
+int strlist__parse_list(struct strlist *slist, const char *s);
 #endif /* __PERF_STRLIST_H */
