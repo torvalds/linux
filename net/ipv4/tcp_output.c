@@ -1133,6 +1133,7 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 static void tcp_set_skb_tso_segs(const struct sock *sk, struct sk_buff *skb,
 				 unsigned int mss_now)
 {
+	skb_shinfo(skb)->gso_type &= SKB_GSO_SHARED_FRAG;
 	if (skb->len <= mss_now || !sk_can_gso(sk) ||
 	    skb->ip_summed == CHECKSUM_NONE) {
 		/* Avoid the costly divide in the normal
@@ -1140,11 +1141,10 @@ static void tcp_set_skb_tso_segs(const struct sock *sk, struct sk_buff *skb,
 		 */
 		skb_shinfo(skb)->gso_segs = 1;
 		skb_shinfo(skb)->gso_size = 0;
-		skb_shinfo(skb)->gso_type = 0;
 	} else {
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss_now);
 		skb_shinfo(skb)->gso_size = mss_now;
-		skb_shinfo(skb)->gso_type = sk->sk_gso_type;
+		skb_shinfo(skb)->gso_type |= sk->sk_gso_type;
 	}
 }
 

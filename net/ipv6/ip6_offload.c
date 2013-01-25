@@ -100,6 +100,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_TCPV6 |
+		       SKB_GSO_SHARED_FRAG |
 		       0)))
 		goto out;
 
