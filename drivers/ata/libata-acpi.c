@@ -836,9 +836,11 @@ void ata_acpi_on_resume(struct ata_port *ap)
 	}
 }
 
-static int ata_acpi_choose_suspend_state(struct ata_device *dev)
+static int ata_acpi_choose_suspend_state(struct ata_device *dev, bool runtime)
 {
 	int d_max_in = ACPI_STATE_D3_COLD;
+	if (!runtime)
+		goto out;
 
 	/*
 	 * For ATAPI, runtime D3 cold is only allowed
@@ -848,8 +850,65 @@ static int ata_acpi_choose_suspend_state(struct ata_device *dev)
 	    !(zpodd_dev_enabled(dev) && zpodd_zpready(dev)))
 		d_max_in = ACPI_STATE_D3_HOT;
 
+out:
 	return acpi_pm_device_sleep_state(&dev->sdev->sdev_gendev,
 					  NULL, d_max_in);
+}
+
+static void sata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	bool runtime = PMSG_IS_AUTO(state);
+	struct ata_device *dev;
+	acpi_handle handle;
+	int acpi_state;
+
+	ata_for_each_dev(dev, &ap->link, ENABLED) {
+		handle = ata_dev_acpi_handle(dev);
+		if (!handle)
+			continue;
+
+		if (!(state.event & PM_EVENT_RESUME)) {
+			acpi_state = ata_acpi_choose_suspend_state(dev, runtime);
+			if (acpi_state == ACPI_STATE_D0)
+				continue;
+			if (runtime && zpodd_dev_enabled(dev) &&
+			    acpi_state == ACPI_STATE_D3_COLD)
+				zpodd_enable_run_wake(dev);
+			acpi_bus_set_power(handle, acpi_state);
+		} else {
+			if (runtime && zpodd_dev_enabled(dev))
+				zpodd_disable_run_wake(dev);
+			acpi_bus_set_power(handle, ACPI_STATE_D0);
+		}
+	}
+}
+
+/* ACPI spec requires _PS0 when IDE power on and _PS3 when power off */
+static void pata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	struct ata_device *dev;
+	acpi_handle port_handle;
+
+	port_handle = ata_ap_acpi_handle(ap);
+	if (!port_handle)
+		return;
+
+	/* channel first and then drives for power on and vica versa
+	   for power off */
+	if (state.event & PM_EVENT_RESUME)
+		acpi_bus_set_power(port_handle, ACPI_STATE_D0);
+
+	ata_for_each_dev(dev, &ap->link, ENABLED) {
+		acpi_handle dev_handle = ata_dev_acpi_handle(dev);
+		if (!dev_handle)
+			continue;
+
+		acpi_bus_set_power(dev_handle, state.event & PM_EVENT_RESUME ?
+						ACPI_STATE_D0 : ACPI_STATE_D3);
+	}
+
+	if (!(state.event & PM_EVENT_RESUME))
+		acpi_bus_set_power(port_handle, ACPI_STATE_D3);
 }
 
 /**
@@ -857,44 +916,15 @@ static int ata_acpi_choose_suspend_state(struct ata_device *dev)
  * @ap: target ATA port
  * @state: state, on/off
  *
- * This function executes the _PS0/_PS3 ACPI method to set the power state.
- * ACPI spec requires _PS0 when IDE power on and _PS3 when power off
+ * This function sets a proper ACPI D state for the device on
+ * system and runtime PM operations.
  */
 void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
 {
-	struct ata_device *dev;
-	acpi_handle handle;
-	int acpi_state;
-
-	/* channel first and then drives for power on and vica versa
-	   for power off */
-	handle = ata_ap_acpi_handle(ap);
-	if (handle && state.event == PM_EVENT_ON)
-		acpi_bus_set_power(handle, ACPI_STATE_D0);
-
-	ata_for_each_dev(dev, &ap->link, ENABLED) {
-		handle = ata_dev_acpi_handle(dev);
-		if (!handle)
-			continue;
-
-		if (state.event != PM_EVENT_ON) {
-			acpi_state = ata_acpi_choose_suspend_state(dev);
-			if (acpi_state == ACPI_STATE_D0)
-				continue;
-			if (zpodd_dev_enabled(dev) &&
-			    acpi_state == ACPI_STATE_D3_COLD)
-				zpodd_enable_run_wake(dev);
-			acpi_bus_set_power(handle, acpi_state);
-		} else {
-			if (zpodd_dev_enabled(dev))
-				zpodd_disable_run_wake(dev);
-			acpi_bus_set_power(handle, ACPI_STATE_D0);
-		}
-	}
-
-	handle = ata_ap_acpi_handle(ap);
-	if (handle && state.event != PM_EVENT_ON)
-		acpi_bus_set_power(handle, ACPI_STATE_D3);
+	if (ap->flags & ATA_FLAG_ACPI_SATA)
+		sata_acpi_set_state(ap, state);
+	else
+		pata_acpi_set_state(ap, state);
 }
 
 /**

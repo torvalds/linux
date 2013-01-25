@@ -5344,7 +5344,7 @@ static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int
 	 *
 	 * http://thread.gmane.org/gmane.linux.ide/46764
 	 */
-	if (mesg.event == PM_EVENT_SUSPEND)
+	if (mesg.event & PM_EVENT_SUSPEND)
 		ehi_flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_NO_RECOVERY;
 
 	rc = ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
@@ -5382,27 +5382,28 @@ static int ata_port_poweroff(struct device *dev)
 	return ata_port_suspend_common(dev, PMSG_HIBERNATE);
 }
 
-static int __ata_port_resume_common(struct ata_port *ap, int *async)
+static int __ata_port_resume_common(struct ata_port *ap, pm_message_t mesg,
+				    int *async)
 {
 	int rc;
 
-	rc = ata_port_request_pm(ap, PMSG_ON, ATA_EH_RESET,
+	rc = ata_port_request_pm(ap, mesg, ATA_EH_RESET,
 		ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, async);
 	return rc;
 }
 
-static int ata_port_resume_common(struct device *dev)
+static int ata_port_resume_common(struct device *dev, pm_message_t mesg)
 {
 	struct ata_port *ap = to_ata_port(dev);
 
-	return __ata_port_resume_common(ap, NULL);
+	return __ata_port_resume_common(ap, mesg, NULL);
 }
 
 static int ata_port_resume(struct device *dev)
 {
 	int rc;
 
-	rc = ata_port_resume_common(dev);
+	rc = ata_port_resume_common(dev, PMSG_RESUME);
 	if (!rc) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
@@ -5436,6 +5437,16 @@ static int ata_port_runtime_idle(struct device *dev)
 	return pm_runtime_suspend(dev);
 }
 
+static int ata_port_runtime_suspend(struct device *dev)
+{
+	return ata_port_suspend_common(dev, PMSG_AUTO_SUSPEND);
+}
+
+static int ata_port_runtime_resume(struct device *dev)
+{
+	return ata_port_resume_common(dev, PMSG_AUTO_RESUME);
+}
+
 static const struct dev_pm_ops ata_port_pm_ops = {
 	.suspend = ata_port_suspend,
 	.resume = ata_port_resume,
@@ -5444,8 +5455,8 @@ static const struct dev_pm_ops ata_port_pm_ops = {
 	.poweroff = ata_port_poweroff,
 	.restore = ata_port_resume,
 
-	.runtime_suspend = ata_port_suspend,
-	.runtime_resume = ata_port_resume_common,
+	.runtime_suspend = ata_port_runtime_suspend,
+	.runtime_resume = ata_port_runtime_resume,
 	.runtime_idle = ata_port_runtime_idle,
 };
 
@@ -5462,7 +5473,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_async_suspend);
 
 int ata_sas_port_async_resume(struct ata_port *ap, int *async)
 {
-	return __ata_port_resume_common(ap, async);
+	return __ata_port_resume_common(ap, PMSG_RESUME, async);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_async_resume);
 
