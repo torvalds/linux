@@ -200,7 +200,7 @@ static uint32_t _ddr_change_freq(uint32_t nMHz)
 }
 #endif
 
-uint32_t ddr_set_rate(uint32_t nMHz)
+static uint32_t ddr_set_rate(uint32_t nMHz)
 {
 	nMHz = _ddr_change_freq(nMHz);
 	clk_set_rate(ddr.pll, 0);
