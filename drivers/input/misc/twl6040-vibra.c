@@ -361,19 +361,13 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 		}
 	}
 
-	info->workqueue = alloc_workqueue("twl6040-vibra", 0, 0);
-	if (info->workqueue == NULL) {
-		dev_err(info->dev, "couldn't create workqueue\n");
-		ret = -ENOMEM;
-		goto err_regulator;
-	}
 	INIT_WORK(&info->play_work, vibra_play_work);
 
 	info->input_dev = input_allocate_device();
 	if (info->input_dev == NULL) {
 		dev_err(info->dev, "couldn't allocate input device\n");
 		ret = -ENOMEM;
-		goto err_wq;
+		goto err_regulator;
 	}
 
 	input_set_drvdata(info->input_dev, info);
@@ -404,8 +398,6 @@ err_iff:
 	input_ff_destroy(info->input_dev);
 err_ialloc:
 	input_free_device(info->input_dev);
-err_wq:
-	destroy_workqueue(info->workqueue);
 err_regulator:
 	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
 	return ret;
@@ -417,7 +409,6 @@ static int twl6040_vibra_remove(struct platform_device *pdev)
 
 	input_unregister_device(info->input_dev);
 	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
-	destroy_workqueue(info->workqueue);
 
 	return 0;
 }
