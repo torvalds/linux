@@ -973,6 +973,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
 	struct tcphdr *th;
 	bool push, timestamp;
 	int index, l2_hdr_offset, l4_hdr_offset;
@@ -1016,12 +1017,21 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
-	iph = (struct iphdr *)skb->data;
-	th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
-	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
-	iph->tot_len = htons(length);
-	iph->check = 0;
-	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+
+	if (htons(skb->protocol) == ETH_P_IPV6) {
+		ipv6h = (struct ipv6hdr *)skb->data;
+		th = (struct tcphdr *)(skb->data + sizeof(struct ipv6hdr));
+		length = (th->doff << 2) + lro_length;
+		ipv6h->payload_len = htons(length);
+	} else {
+		iph = (struct iphdr *)skb->data;
+		th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+		length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+		iph->tot_len = htons(length);
+		iph->check = 0;
+		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+	}
+
 	th->psh = push;
 	th->seq = htonl(seq_number);
 	length = skb->len;

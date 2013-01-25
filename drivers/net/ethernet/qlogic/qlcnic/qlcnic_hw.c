@@ -687,6 +687,11 @@ void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
 			"Could not send interrupt coalescing parameters\n");
 }
 
+#define QLCNIC_ENABLE_IPV4_LRO		1
+#define QLCNIC_ENABLE_IPV6_LRO		2
+#define QLCNIC_NO_DEST_IPV4_CHECK	(1 << 8)
+#define QLCNIC_NO_DEST_IPV6_CHECK	(2 << 8)
+
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 {
 	struct qlcnic_nic_req req;
@@ -703,7 +708,15 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	word = QLCNIC_H2C_OPCODE_CONFIG_HW_LRO | ((u64)adapter->portnum << 16);
 	req.req_hdr = cpu_to_le64(word);
 
-	req.words[0] = cpu_to_le64(enable);
+	word = 0;
+	if (enable) {
+		word = QLCNIC_ENABLE_IPV4_LRO | QLCNIC_NO_DEST_IPV4_CHECK;
+		if (adapter->ahw->capabilities2 & QLCNIC_FW_CAP2_HW_LRO_IPV6)
+			word |= QLCNIC_ENABLE_IPV6_LRO |
+				QLCNIC_NO_DEST_IPV6_CHECK;
+	}
+
+	req.words[0] = cpu_to_le64(word);
 
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)

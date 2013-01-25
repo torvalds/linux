@@ -781,6 +781,12 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 	adapter->ahw->max_tx_ques = nic_info.max_tx_ques;
 	adapter->ahw->max_rx_ques = nic_info.max_rx_ques;
 	adapter->ahw->capabilities = nic_info.capabilities;
+
+	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
+		u32 temp;
+		temp = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
+		adapter->ahw->capabilities2 = temp;
+	}
 	adapter->ahw->max_mac_filters = nic_info.max_mac_filters;
 	adapter->ahw->max_mtu = nic_info.max_mtu;
 

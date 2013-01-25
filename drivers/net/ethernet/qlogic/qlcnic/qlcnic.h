@@ -436,6 +436,7 @@ struct qlcnic_hardware_context {
 	u16 act_pci_func;
 
 	u32 capabilities;
+	u32 capabilities2;
 	u32 temp;
 	u32 int_vec_bit;
 	u32 fw_hal_version;
@@ -798,6 +799,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_MORE_CAPS		BIT_31
 
 #define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
+#define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_2_OCBB		BIT_5
 
 /* module types */
