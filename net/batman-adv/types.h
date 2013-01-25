@@ -275,6 +275,10 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_DAT_PUT_RX: received dht PUT traffic packet counter
  * @BATADV_CNT_DAT_CACHED_REPLY_TX: transmitted dat cache reply traffic packet
  *  counter
+ * @BATADV_CNT_NC_CODE: transmitted nc-combined traffic packet counter
+ * @BATADV_CNT_NC_CODE_BYTES: transmitted nc-combined traffic bytes counter
+ * @BATADV_CNT_NC_RECODE: transmitted nc-recombined traffic packet counter
+ * @BATADV_CNT_NC_RECODE_BYTES: transmitted nc-recombined traffic bytes counter
  * @BATADV_CNT_NUM: number of traffic counters
  */
 enum batadv_counters {
@@ -301,6 +305,12 @@ enum batadv_counters {
 	BATADV_CNT_DAT_PUT_TX,
 	BATADV_CNT_DAT_PUT_RX,
 	BATADV_CNT_DAT_CACHED_REPLY_TX,
+#endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	BATADV_CNT_NC_CODE,
+	BATADV_CNT_NC_CODE_BYTES,
+	BATADV_CNT_NC_RECODE,
+	BATADV_CNT_NC_RECODE_BYTES,
 #endif
 	BATADV_CNT_NUM,
 };
@@ -794,6 +804,16 @@ struct batadv_nc_packet {
 	struct batadv_neigh_node *neigh_node;
 	struct sk_buff *skb;
 	struct batadv_nc_path *nc_path;
+};
+
+/**
+ * batadv_skb_cb - control buffer structure used to store private data relevant
+ *  to batman-adv in the skb->cb buffer in skbs.
+ * @decoded: Marks a skb as decoded, which is checked when searching for coding
+ *  opportunities in network-coding.c
+ */
+struct batadv_skb_cb {
+	bool decoded;
 };
 
 /**

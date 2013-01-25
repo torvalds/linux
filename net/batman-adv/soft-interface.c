@@ -665,6 +665,12 @@ static const struct {
 	{ "dat_put_rx" },
 	{ "dat_cached_reply_tx" },
 #endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	{ "nc_code" },
+	{ "nc_code_bytes" },
+	{ "nc_recode" },
+	{ "nc_recode_bytes" },
+#endif
 };
 
 static void batadv_get_strings(struct net_device *dev, uint32_t stringset,

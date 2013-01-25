@@ -798,6 +798,403 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_nc_random_weight_tq - scale the receivers TQ-value to avoid unfair
+ *  selection of a receiver with slightly lower TQ than the other
+ * @tq: to be weighted tq value
+ */
+static uint8_t batadv_nc_random_weight_tq(uint8_t tq)
+{
+	uint8_t rand_val, rand_tq;
+
+	get_random_bytes(&rand_val, sizeof(rand_val));
+
+	/* randomize the estimated packet loss (max TQ - estimated TQ) */
+	rand_tq = rand_val * (BATADV_TQ_MAX_VALUE - tq);
+
+	/* normalize the randomized packet loss */
+	rand_tq /= BATADV_TQ_MAX_VALUE;
+
+	/* convert to (randomized) estimated tq again */
+	return BATADV_TQ_MAX_VALUE - rand_tq;
+}
+
+/**
+ * batadv_nc_memxor - XOR destination with source
+ * @dst: byte array to XOR into
+ * @src: byte array to XOR from
+ * @len: length of destination array
+ */
+static void batadv_nc_memxor(char *dst, const char *src, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; ++i)
+		dst[i] ^= src[i];
+}
+
+/**
+ * batadv_nc_code_packets - code a received unicast_packet with an nc packet
+ *  into a coded_packet and send it
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: data skb to forward
+ * @ethhdr: pointer to the ethernet header inside the skb
+ * @nc_packet: structure containing the packet to the skb can be coded with
+ * @neigh_node: next hop to forward packet to
+ *
+ * Returns true if both packets are consumed, false otherwise.
+ */
+static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
+				   struct sk_buff *skb,
+				   struct ethhdr *ethhdr,
+				   struct batadv_nc_packet *nc_packet,
+				   struct batadv_neigh_node *neigh_node)
+{
+	uint8_t tq_weighted_neigh, tq_weighted_coding;
+	struct sk_buff *skb_dest, *skb_src;
+	struct batadv_unicast_packet *packet1;
+	struct batadv_unicast_packet *packet2;
+	struct batadv_coded_packet *coded_packet;
+	struct batadv_neigh_node *neigh_tmp, *router_neigh;
+	struct batadv_neigh_node *router_coding = NULL;
+	uint8_t *first_source, *first_dest, *second_source, *second_dest;
+	__be32 packet_id1, packet_id2;
+	size_t count;
+	bool res = false;
+	int coding_len;
+	int unicast_size = sizeof(*packet1);
+	int coded_size = sizeof(*coded_packet);
+	int header_add = coded_size - unicast_size;
+
+	router_neigh = batadv_orig_node_get_router(neigh_node->orig_node);
+	if (!router_neigh)
+		goto out;
+
+	neigh_tmp = nc_packet->neigh_node;
+	router_coding = batadv_orig_node_get_router(neigh_tmp->orig_node);
+	if (!router_coding)
+		goto out;
+
+	tq_weighted_neigh = batadv_nc_random_weight_tq(router_neigh->tq_avg);
+	tq_weighted_coding = batadv_nc_random_weight_tq(router_coding->tq_avg);
+
+	/* Select one destination for the MAC-header dst-field based on
+	 * weighted TQ-values.
+	 */
+	if (tq_weighted_neigh >= tq_weighted_coding) {
+		/* Destination from nc_packet is selected for MAC-header */
+		first_dest = nc_packet->nc_path->next_hop;
+		first_source = nc_packet->nc_path->prev_hop;
+		second_dest = neigh_node->addr;
+		second_source = ethhdr->h_source;
+		packet1 = (struct batadv_unicast_packet *)nc_packet->skb->data;
+		packet2 = (struct batadv_unicast_packet *)skb->data;
+		packet_id1 = nc_packet->packet_id;
+		packet_id2 = batadv_skb_crc32(skb,
+					      skb->data + sizeof(*packet2));
+	} else {
+		/* Destination for skb is selected for MAC-header */
+		first_dest = neigh_node->addr;
+		first_source = ethhdr->h_source;
+		second_dest = nc_packet->nc_path->next_hop;
+		second_source = nc_packet->nc_path->prev_hop;
+		packet1 = (struct batadv_unicast_packet *)skb->data;
+		packet2 = (struct batadv_unicast_packet *)nc_packet->skb->data;
+		packet_id1 = batadv_skb_crc32(skb,
+					      skb->data + sizeof(*packet1));
+		packet_id2 = nc_packet->packet_id;
+	}
+
+	/* Instead of zero padding the smallest data buffer, we
+	 * code into the largest.
+	 */
+	if (skb->len <= nc_packet->skb->len) {
+		skb_dest = nc_packet->skb;
+		skb_src = skb;
+	} else {
+		skb_dest = skb;
+		skb_src = nc_packet->skb;
+	}
+
+	/* coding_len is used when decoding the packet shorter packet */
+	coding_len = skb_src->len - unicast_size;
+
+	if (skb_linearize(skb_dest) < 0 || skb_linearize(skb_src) < 0)
+		goto out;
+
+	skb_push(skb_dest, header_add);
+
+	coded_packet = (struct batadv_coded_packet *)skb_dest->data;
+	skb_reset_mac_header(skb_dest);
+
+	coded_packet->header.packet_type = BATADV_CODED;
+	coded_packet->header.version = BATADV_COMPAT_VERSION;
+	coded_packet->header.ttl = packet1->header.ttl;
+
+	/* Info about first unicast packet */
+	memcpy(coded_packet->first_source, first_source, ETH_ALEN);
+	memcpy(coded_packet->first_orig_dest, packet1->dest, ETH_ALEN);
+	coded_packet->first_crc = packet_id1;
+	coded_packet->first_ttvn = packet1->ttvn;
+
+	/* Info about second unicast packet */
+	memcpy(coded_packet->second_dest, second_dest, ETH_ALEN);
+	memcpy(coded_packet->second_source, second_source, ETH_ALEN);
+	memcpy(coded_packet->second_orig_dest, packet2->dest, ETH_ALEN);
+	coded_packet->second_crc = packet_id2;
+	coded_packet->second_ttl = packet2->header.ttl;
+	coded_packet->second_ttvn = packet2->ttvn;
+	coded_packet->coded_len = htons(coding_len);
+
+	/* This is where the magic happens: Code skb_src into skb_dest */
+	batadv_nc_memxor(skb_dest->data + coded_size,
+			 skb_src->data + unicast_size, coding_len);
+
+	/* Update counters accordingly */
+	if (BATADV_SKB_CB(skb_src)->decoded &&
+	    BATADV_SKB_CB(skb_dest)->decoded) {
+		/* Both packets are recoded */
+		count = skb_src->len + ETH_HLEN;
+		count += skb_dest->len + ETH_HLEN;
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_RECODE, 2);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_RECODE_BYTES, count);
+	} else if (!BATADV_SKB_CB(skb_src)->decoded &&
+		   !BATADV_SKB_CB(skb_dest)->decoded) {
+		/* Both packets are newly coded */
+		count = skb_src->len + ETH_HLEN;
+		count += skb_dest->len + ETH_HLEN;
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_CODE, 2);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_CODE_BYTES, count);
+	} else if (BATADV_SKB_CB(skb_src)->decoded &&
+		   !BATADV_SKB_CB(skb_dest)->decoded) {
+		/* skb_src recoded and skb_dest is newly coded */
+		batadv_inc_counter(bat_priv, BATADV_CNT_NC_RECODE);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_RECODE_BYTES,
+				   skb_src->len + ETH_HLEN);
+		batadv_inc_counter(bat_priv, BATADV_CNT_NC_CODE);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_CODE_BYTES,
+				   skb_dest->len + ETH_HLEN);
+	} else if (!BATADV_SKB_CB(skb_src)->decoded &&
+		   BATADV_SKB_CB(skb_dest)->decoded) {
+		/* skb_src is newly coded and skb_dest is recoded */
+		batadv_inc_counter(bat_priv, BATADV_CNT_NC_CODE);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_CODE_BYTES,
+				   skb_src->len + ETH_HLEN);
+		batadv_inc_counter(bat_priv, BATADV_CNT_NC_RECODE);
+		batadv_add_counter(bat_priv, BATADV_CNT_NC_RECODE_BYTES,
+				   skb_dest->len + ETH_HLEN);
+	}
+
+	/* skb_src is now coded into skb_dest, so free it */
+	kfree_skb(skb_src);
+
+	/* avoid duplicate free of skb from nc_packet */
+	nc_packet->skb = NULL;
+	batadv_nc_packet_free(nc_packet);
+
+	/* Send the coded packet and return true */
+	batadv_send_skb_packet(skb_dest, neigh_node->if_incoming, first_dest);
+	res = true;
+out:
+	if (router_neigh)
+		batadv_neigh_node_free_ref(router_neigh);
+	if (router_coding)
+		batadv_neigh_node_free_ref(router_coding);
+	return res;
+}
+
+/**
+ * batadv_nc_skb_coding_possible - true if a decoded skb is available at dst.
+ * @skb: data skb to forward
+ * @dst: destination mac address of the other skb to code with
+ * @src: source mac address of skb
+ *
+ * Whenever we network code a packet we have to check whether we received it in
+ * a network coded form. If so, we may not be able to use it for coding because
+ * some neighbors may also have received (overheard) the packet in the network
+ * coded form without being able to decode it. It is hard to know which of the
+ * neighboring nodes was able to decode the packet, therefore we can only
+ * re-code the packet if the source of the previous encoded packet is involved.
+ * Since the source encoded the packet we can be certain it has all necessary
+ * decode information.
+ *
+ * Returns true if coding of a decoded packet is allowed.
+ */
+static bool batadv_nc_skb_coding_possible(struct sk_buff *skb,
+					  uint8_t *dst, uint8_t *src)
+{
+	if (BATADV_SKB_CB(skb)->decoded && !batadv_compare_eth(dst, src))
+		return false;
+	else
+		return true;
+}
+
+/**
+ * batadv_nc_path_search - Find the coding path matching in_nc_node and
+ *  out_nc_node to retrieve a buffered packet that can be used for coding.
+ * @bat_priv: the bat priv with all the soft interface information
+ * @in_nc_node: pointer to skb next hop's neighbor nc node
+ * @out_nc_node: pointer to skb source's neighbor nc node
+ * @skb: data skb to forward
+ * @eth_dst: next hop mac address of skb
+ *
+ * Returns true if coding of a decoded skb is allowed.
+ */
+static struct batadv_nc_packet *
+batadv_nc_path_search(struct batadv_priv *bat_priv,
+		      struct batadv_nc_node *in_nc_node,
+		      struct batadv_nc_node *out_nc_node,
+		      struct sk_buff *skb,
+		      uint8_t *eth_dst)
+{
+	struct batadv_nc_path *nc_path, nc_path_key;
+	struct batadv_nc_packet *nc_packet_out = NULL;
+	struct batadv_nc_packet *nc_packet, *nc_packet_tmp;
+	struct batadv_hashtable *hash = bat_priv->nc.coding_hash;
+	int idx;
+
+	if (!hash)
+		return NULL;
+
+	/* Create almost path key */
+	batadv_nc_hash_key_gen(&nc_path_key, in_nc_node->addr,
+			       out_nc_node->addr);
+	idx = batadv_nc_hash_choose(&nc_path_key, hash->size);
+
+	/* Check for coding opportunities in this nc_path */
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(nc_path, &hash->table[idx], hash_entry) {
+		if (!batadv_compare_eth(nc_path->prev_hop, in_nc_node->addr))
+			continue;
+
+		if (!batadv_compare_eth(nc_path->next_hop, out_nc_node->addr))
+			continue;
+
+		spin_lock_bh(&nc_path->packet_list_lock);
+		if (list_empty(&nc_path->packet_list)) {
+			spin_unlock_bh(&nc_path->packet_list_lock);
+			continue;
+		}
+
+		list_for_each_entry_safe(nc_packet, nc_packet_tmp,
+					 &nc_path->packet_list, list) {
+			if (!batadv_nc_skb_coding_possible(nc_packet->skb,
+							   eth_dst,
+							   in_nc_node->addr))
+				continue;
+
+			/* Coding opportunity is found! */
+			list_del(&nc_packet->list);
+			nc_packet_out = nc_packet;
+			break;
+		}
+
+		spin_unlock_bh(&nc_path->packet_list_lock);
+		break;
+	}
+	rcu_read_unlock();
+
+	return nc_packet_out;
+}
+
+/**
+ * batadv_nc_skb_src_search - Loops through the list of neighoring nodes of the
+ *  skb's sender (may be equal to the originator).
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: data skb to forward
+ * @eth_dst: next hop mac address of skb
+ * @eth_src: source mac address of skb
+ * @in_nc_node: pointer to skb next hop's neighbor nc node
+ *
+ * Returns an nc packet if a suitable coding packet was found, NULL otherwise.
+ */
+static struct batadv_nc_packet *
+batadv_nc_skb_src_search(struct batadv_priv *bat_priv,
+			 struct sk_buff *skb,
+			 uint8_t *eth_dst,
+			 uint8_t *eth_src,
+			 struct batadv_nc_node *in_nc_node)
+{
+	struct batadv_orig_node *orig_node;
+	struct batadv_nc_node *out_nc_node;
+	struct batadv_nc_packet *nc_packet = NULL;
+
+	orig_node = batadv_orig_hash_find(bat_priv, eth_src);
+	if (!orig_node)
+		return NULL;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(out_nc_node,
+				&orig_node->out_coding_list, list) {
+		/* Check if the skb is decoded and if recoding is possible */
+		if (!batadv_nc_skb_coding_possible(skb,
+						   out_nc_node->addr, eth_src))
+			continue;
+
+		/* Search for an opportunity in this nc_path */
+		nc_packet = batadv_nc_path_search(bat_priv, in_nc_node,
+						  out_nc_node, skb, eth_dst);
+		if (nc_packet)
+			break;
+	}
+	rcu_read_unlock();
+
+	batadv_orig_node_free_ref(orig_node);
+	return nc_packet;
+}
+
+/**
+ * batadv_nc_skb_dst_search - Loops through list of neighboring nodes to dst.
+ * @skb: data skb to forward
+ * @neigh_node: next hop to forward packet to
+ * @ethhdr: pointer to the ethernet header inside the skb
+ *
+ * Loops through list of neighboring nodes the next hop has a good connection to
+ * (receives OGMs with a sufficient quality). We need to find a neighbor of our
+ * next hop that potentially sent a packet which our next hop also received
+ * (overheard) and has stored for later decoding.
+ *
+ * Returns true if the skb was consumed (encoded packet sent) or false otherwise
+ */
+static bool batadv_nc_skb_dst_search(struct sk_buff *skb,
+				     struct batadv_neigh_node *neigh_node,
+				     struct ethhdr *ethhdr)
+{
+	struct net_device *netdev = neigh_node->if_incoming->soft_iface;
+	struct batadv_priv *bat_priv = netdev_priv(netdev);
+	struct batadv_orig_node *orig_node = neigh_node->orig_node;
+	struct batadv_nc_node *nc_node;
+	struct batadv_nc_packet *nc_packet = NULL;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(nc_node, &orig_node->in_coding_list, list) {
+		/* Search for coding opportunity with this in_nc_node */
+		nc_packet = batadv_nc_skb_src_search(bat_priv, skb,
+						     neigh_node->addr,
+						     ethhdr->h_source, nc_node);
+
+		/* Opportunity was found, so stop searching */
+		if (nc_packet)
+			break;
+	}
+	rcu_read_unlock();
+
+	if (!nc_packet)
+		return false;
+
+	/* Code and send packets */
+	if (batadv_nc_code_packets(bat_priv, skb, ethhdr, nc_packet,
+				   neigh_node))
+		return true;
+
+	/* out of mem ? Coding failed - we have to free the buffered packet
+	 * to avoid memleaks. The skb passed as argument will be dealt with
+	 * by the calling function.
+	 */
+	batadv_nc_send_packet(nc_packet);
+	return false;
+}
+
+/**
  * batadv_nc_skb_add_to_path - buffer skb for later encoding / decoding
  * @skb: skb to add to path
  * @nc_path: path to add skb to
@@ -861,6 +1258,10 @@ bool batadv_nc_skb_forward(struct sk_buff *skb,
 	packet = (struct batadv_unicast_packet *)payload;
 	if (packet->header.packet_type != BATADV_UNICAST)
 		goto out;
+
+	/* Try to find a coding opportunity and send the skb if one is found */
+	if (batadv_nc_skb_dst_search(skb, neigh_node, ethhdr))
+		return true;
 
 	/* Find or create a nc_path for this src-dst pair */
 	nc_path = batadv_nc_get_path(bat_priv,
