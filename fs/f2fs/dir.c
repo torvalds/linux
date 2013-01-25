@@ -287,7 +287,7 @@ static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
 		int err;
-		err = new_inode_page(inode, dentry);
+		err = new_inode_page(inode, &dentry->d_name);
 		if (err)
 			return err;
 
