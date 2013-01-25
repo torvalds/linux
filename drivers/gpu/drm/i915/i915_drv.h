@@ -1730,9 +1730,9 @@ void i915_debugfs_cleanup(struct drm_minor *minor);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
-/* i915_suspend.c */
-extern int i915_save_state(struct drm_device *dev);
-extern int i915_restore_state(struct drm_device *dev);
+/* i915_ums.c */
+void i915_save_display_reg(struct drm_device *dev);
+void i915_restore_display_reg(struct drm_device *dev);
 
 /* i915_sysfs.c */
 void i915_setup_sysfs(struct drm_device *dev_priv);
