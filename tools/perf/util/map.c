@@ -11,6 +11,7 @@
 #include "strlist.h"
 #include "vdso.h"
 #include "build-id.h"
+#include <linux/string.h>
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -213,12 +214,7 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 
 struct map *map__clone(struct map *map)
 {
-	struct map *clone = malloc(sizeof(*clone));
-
-	if (clone != NULL)
-		memcpy(clone, map, sizeof(*clone));
-
-	return clone;
+	return memdup(map, sizeof(*map));
 }
 
 int map__overlap(struct map *l, struct map *r)
