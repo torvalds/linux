@@ -1045,13 +1045,13 @@ static const struct pcmcia_device_id daqp_cs_id_table[] = {
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
 
 static struct pcmcia_driver daqp_cs_driver = {
-	.probe = daqp_cs_attach,
-	.remove = daqp_cs_detach,
-	.suspend = daqp_cs_suspend,
-	.resume = daqp_cs_resume,
-	.id_table = daqp_cs_id_table,
-	.owner = THIS_MODULE,
-	.name = "quatech_daqp_cs",
+	.name		= "quatech_daqp_cs",
+	.owner		= THIS_MODULE,
+	.id_table	= daqp_cs_id_table,
+	.probe		= daqp_cs_attach,
+	.remove		= daqp_cs_detach,
+	.suspend	= daqp_cs_suspend,
+	.resume		= daqp_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_daqp, daqp_cs_driver);
 
