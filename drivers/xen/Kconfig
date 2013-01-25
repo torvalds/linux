@@ -202,6 +202,18 @@ config XEN_ACPI_HOTPLUG_MEMORY
 	  to hot-add memory at runtime (the hot-added memory cannot be
 	  removed until machine stop), select Y/M here, otherwise select N.
 
+config XEN_ACPI_HOTPLUG_CPU
+	tristate "Xen ACPI cpu hotplug"
+	depends on XEN_DOM0 && XEN_STUB && ACPI
+	select ACPI_CONTAINER
+	default n
+	help
+	  Xen ACPI cpu enumerating and hotplugging
+
+	  For hotplugging, currently Xen only support ACPI cpu hotadd.
+	  If you want to hotadd cpu at runtime (the hotadded cpu cannot
+	  be removed until machine stop), select Y/M here.
+
 config XEN_ACPI_PROCESSOR
 	tristate "Xen ACPI processor"
 	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
