@@ -799,10 +799,10 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #ifdef CONFIG_SDMMC_RK29_OLD
 	iomux_set(MMC0_CMD);
 	iomux_set(MMC0_CLKOUT);
-	iomux_set(MMC0_DATA0);
-	iomux_set(MMC0_DATA1);
-	iomux_set(MMC0_DATA2);
-	iomux_set(MMC0_DATA3);
+	iomux_set(MMC0_D0);
+	iomux_set(MMC0_D1);
+	iomux_set(MMC0_D2);
+	iomux_set(MMC0_D3);
 
 	iomux_set_gpio_mode(iomux_mode_to_gpio(MMC0_DETN));
 

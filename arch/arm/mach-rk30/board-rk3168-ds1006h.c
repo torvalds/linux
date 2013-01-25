@@ -567,7 +567,9 @@ static struct platform_device device_ion = {
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk30-sdk-sdmmc.c"
+#include "board-rk3168-ds1006h-sdmmc-config.c"
+#include "../plat-rk/rk-sdmmc-ops.c"
+#include "../plat-rk/rk-sdmmc-wifi.c"
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
 #ifdef CONFIG_SDMMC0_RK29
@@ -580,7 +582,8 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	iomux_set(MMC0_D1);
 	iomux_set(MMC0_D2);
 	iomux_set(MMC0_D3);
-	iomux_set(MMC0_DETN);
+
+	iomux_set_gpio_mode(iomux_mode_to_gpio(MMC0_DETN));
 
 	gpio_request(RK30_PIN3_PA7, "sdmmc-power");
 	gpio_direction_output(RK30_PIN3_PA7, GPIO_LOW);
@@ -589,9 +592,17 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_sdmmc_set_iomux(0, 0xFFFF);
 
     #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+        #if SDMMC_USE_NEW_IOMUX_API
+        iomux_set_gpio_mode(iomux_gpio_to_mode(RK29SDK_SD_CARD_DETECT_N));
+        #else
         rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO);
+        #endif
     #else
-	    rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FMUX);
+        #if SDMMC_USE_NEW_IOMUX_API       
+        iomux_set(MMC0_DETN);
+        #else
+        rk30_mux_api_set(RK29SDK_SD_CARD_DETECT_PIN_NAME, RK29SDK_SD_CARD_DETECT_IOMUX_FMUX);
+        #endif
     #endif	
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
@@ -675,12 +686,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 static int rk29_sdmmc1_cfg_gpio(void)
 {
 #if defined(CONFIG_SDMMC_RK29_OLD)
-	iomux_set(MMC0_CMD);
-	iomux_set(MMC0_CLKOUT);
-	iomux_set(MMC0_D0);
-	iomux_set(MMC0_D1);
-	iomux_set(MMC0_D2);
-	iomux_set(MMC0_D3);
+	iomux_set(MMC1_CMD);
+	iomux_set(MMC1_CLKOUT);
+	iomux_set(MMC1_D0);
+	iomux_set(MMC1_D1);
+	iomux_set(MMC1_D2);
+	iomux_set(MMC1_D3);
 #else
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
