@@ -84,8 +84,8 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
-static bool __read_mostly enable_apicv_reg = 1;
-module_param(enable_apicv_reg, bool, S_IRUGO);
+static bool __read_mostly enable_apicv_reg_vid = 1;
+module_param(enable_apicv_reg_vid, bool, S_IRUGO);
 
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
@@ -779,6 +779,12 @@ static inline bool cpu_has_vmx_apic_register_virt(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_APIC_REGISTER_VIRT;
+}
+
+static inline bool cpu_has_vmx_virtual_intr_delivery(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
 }
 
 static inline bool cpu_has_vmx_flexpriority(void)
@@ -2571,7 +2577,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_PAUSE_LOOP_EXITING |
 			SECONDARY_EXEC_RDTSCP |
 			SECONDARY_EXEC_ENABLE_INVPCID |
-			SECONDARY_EXEC_APIC_REGISTER_VIRT;
+			SECONDARY_EXEC_APIC_REGISTER_VIRT |
+			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -2586,7 +2593,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	if (!(_cpu_based_exec_control & CPU_BASED_TPR_SHADOW))
 		_cpu_based_2nd_exec_control &= ~(
 				SECONDARY_EXEC_APIC_REGISTER_VIRT |
-				SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE);
+				SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+				SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 
 	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
 		/* CR3 accesses and invlpg don't need to cause VM Exits when EPT
@@ -2785,8 +2793,14 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_ple())
 		ple_gap = 0;
 
-	if (!cpu_has_vmx_apic_register_virt())
-		enable_apicv_reg = 0;
+	if (!cpu_has_vmx_apic_register_virt() ||
+				!cpu_has_vmx_virtual_intr_delivery())
+		enable_apicv_reg_vid = 0;
+
+	if (enable_apicv_reg_vid)
+		kvm_x86_ops->update_cr8_intercept = NULL;
+	else
+		kvm_x86_ops->hwapic_irr_update = NULL;
 
 	if (nested)
 		nested_vmx_setup_ctls_msrs();
@@ -3928,6 +3942,11 @@ static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 	return exec_control;
 }
 
+static int vmx_vm_has_apicv(struct kvm *kvm)
+{
+	return enable_apicv_reg_vid && irqchip_in_kernel(kvm);
+}
+
 static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_2nd_exec_ctrl;
@@ -3945,8 +3964,9 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
 	if (!ple_gap)
 		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
-	if (!enable_apicv_reg || !irqchip_in_kernel(vmx->vcpu.kvm))
-		exec_control &= ~SECONDARY_EXEC_APIC_REGISTER_VIRT;
+	if (!vmx_vm_has_apicv(vmx->vcpu.kvm))
+		exec_control &= ~(SECONDARY_EXEC_APIC_REGISTER_VIRT |
+				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 	exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE;
 	return exec_control;
 }
@@ -3990,6 +4010,15 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	if (cpu_has_secondary_exec_ctrls()) {
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 				vmx_secondary_exec_control(vmx));
+	}
+
+	if (enable_apicv_reg_vid) {
+		vmcs_write64(EOI_EXIT_BITMAP0, 0);
+		vmcs_write64(EOI_EXIT_BITMAP1, 0);
+		vmcs_write64(EOI_EXIT_BITMAP2, 0);
+		vmcs_write64(EOI_EXIT_BITMAP3, 0);
+
+		vmcs_write16(GUEST_INTR_STATUS, 0);
 	}
 
 	if (ple_gap) {
@@ -4904,6 +4933,16 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 		}
 	}
 	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+}
+
+static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	int vector = exit_qualification & 0xff;
+
+	/* EOI-induced VM exit is trap-like and thus no need to adjust IP */
+	kvm_apic_set_eoi_accelerated(vcpu, vector);
+	return 1;
 }
 
 static int handle_apic_write(struct kvm_vcpu *vcpu)
@@ -5851,6 +5890,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
 	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
 	[EXIT_REASON_APIC_WRITE]              = handle_apic_write,
+	[EXIT_REASON_EOI_INDUCED]             = handle_apic_eoi_induced,
 	[EXIT_REASON_WBINVD]                  = handle_wbinvd,
 	[EXIT_REASON_XSETBV]                  = handle_xsetbv,
 	[EXIT_REASON_TASK_SWITCH]             = handle_task_switch,
@@ -6208,7 +6248,8 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	 * There is not point to enable virtualize x2apic without enable
 	 * apicv
 	 */
-	if (!cpu_has_vmx_virtualize_x2apic_mode() || !enable_apicv_reg)
+	if (!cpu_has_vmx_virtualize_x2apic_mode() ||
+				!vmx_vm_has_apicv(vcpu->kvm))
 		return;
 
 	if (!vm_need_tpr_shadow(vcpu->kvm))
@@ -6226,6 +6267,56 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, sec_exec_control);
 
 	vmx_set_msr_bitmap(vcpu);
+}
+
+static void vmx_hwapic_isr_update(struct kvm *kvm, int isr)
+{
+	u16 status;
+	u8 old;
+
+	if (!vmx_vm_has_apicv(kvm))
+		return;
+
+	if (isr == -1)
+		isr = 0;
+
+	status = vmcs_read16(GUEST_INTR_STATUS);
+	old = status >> 8;
+	if (isr != old) {
+		status &= 0xff;
+		status |= isr << 8;
+		vmcs_write16(GUEST_INTR_STATUS, status);
+	}
+}
+
+static void vmx_set_rvi(int vector)
+{
+	u16 status;
+	u8 old;
+
+	status = vmcs_read16(GUEST_INTR_STATUS);
+	old = (u8)status & 0xff;
+	if ((u8)vector != old) {
+		status &= ~0xff;
+		status |= (u8)vector;
+		vmcs_write16(GUEST_INTR_STATUS, status);
+	}
+}
+
+static void vmx_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
+{
+	if (max_irr == -1)
+		return;
+
+	vmx_set_rvi(max_irr);
+}
+
+static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+{
+	vmcs_write64(EOI_EXIT_BITMAP0, eoi_exit_bitmap[0]);
+	vmcs_write64(EOI_EXIT_BITMAP1, eoi_exit_bitmap[1]);
+	vmcs_write64(EOI_EXIT_BITMAP2, eoi_exit_bitmap[2]);
+	vmcs_write64(EOI_EXIT_BITMAP3, eoi_exit_bitmap[3]);
 }
 
 static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
@@ -7492,6 +7583,10 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_x2apic_mode = vmx_set_virtual_x2apic_mode,
+	.vm_has_apicv = vmx_vm_has_apicv,
+	.load_eoi_exitmap = vmx_load_eoi_exitmap,
+	.hwapic_irr_update = vmx_hwapic_irr_update,
+	.hwapic_isr_update = vmx_hwapic_isr_update,
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,
@@ -7594,7 +7689,7 @@ static int __init vmx_init(void)
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
 
-	if (enable_apicv_reg) {
+	if (enable_apicv_reg_vid) {
 		for (msr = 0x800; msr <= 0x8ff; msr++)
 			vmx_disable_intercept_msr_read_x2apic(msr);
 
@@ -7606,6 +7701,10 @@ static int __init vmx_init(void)
 		vmx_enable_intercept_msr_read_x2apic(0x839);
 		/* TPR */
 		vmx_disable_intercept_msr_write_x2apic(0x808);
+		/* EOI */
+		vmx_disable_intercept_msr_write_x2apic(0x80b);
+		/* SELF-IPI */
+		vmx_disable_intercept_msr_write_x2apic(0x83f);
 	}
 
 	if (enable_ept) {
