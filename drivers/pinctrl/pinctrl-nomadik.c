@@ -2111,6 +2111,10 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 		.compatible = "stericsson,nmk-pinctrl",
 		.data = (void *)PINCTRL_NMK_DB8500,
 	},
+	{
+		.compatible = "stericsson,nmk-pinctrl-db8540",
+		.data = (void *)PINCTRL_NMK_DB8540,
+	},
 	{},
 };
 
