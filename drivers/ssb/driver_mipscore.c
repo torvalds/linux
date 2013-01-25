@@ -10,6 +10,7 @@
 
 #include <linux/ssb/ssb.h>
 
+#include <linux/mtd/physmap.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -17,6 +18,25 @@
 
 #include "ssb_private.h"
 
+static const char *part_probes[] = { "bcm47xxpart", NULL };
+
+static struct physmap_flash_data ssb_pflash_data = {
+	.part_probe_types	= part_probes,
+};
+
+static struct resource ssb_pflash_resource = {
+	.name	= "ssb_pflash",
+	.flags  = IORESOURCE_MEM,
+};
+
+struct platform_device ssb_pflash_dev = {
+	.name		= "physmap-flash",
+	.dev		= {
+		.platform_data  = &ssb_pflash_data,
+	},
+	.resource	= &ssb_pflash_resource,
+	.num_resources	= 1,
+};
 
 static inline u32 mips_read32(struct ssb_mipscore *mcore,
 			      u16 offset)
@@ -197,7 +217,7 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 		pflash->buswidth = 2;
 		pflash->window = SSB_FLASH1;
 		pflash->window_size = SSB_FLASH1_SZ;
-		return;
+		goto ssb_pflash;
 	}
 
 	/* There is ChipCommon, so use it to read info about flash */
@@ -218,6 +238,13 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 		else
 			pflash->buswidth = 2;
 		break;
+	}
+
+ssb_pflash:
+	if (pflash->present) {
+		ssb_pflash_data.width = pflash->buswidth;
+		ssb_pflash_resource.start = pflash->window;
+		ssb_pflash_resource.end = pflash->window + pflash->window_size;
 	}
 }
 
