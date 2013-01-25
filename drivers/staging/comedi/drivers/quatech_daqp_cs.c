@@ -733,15 +733,16 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 
 static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	int ret;
-	struct local_info_t *local = dev_table[it->options[0]];
+	struct local_info_t *local;
 	struct comedi_subdevice *s;
+	int ret;
 
-	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
-		dev_err(dev->class_dev, "No such daqp device %d\n",
-			it->options[0]);
-		return -EIO;
-	}
+	if (it->options[0] < 0 || it->options[0] >= MAX_DEV)
+		return -ENODEV;
+
+	local = dev_table[it->options[0]];
+	if (!local)
+		return -ENODEV;
 
 	/* Typically brittle code that I don't completely understand,
 	 * but "it works on my card".  The intent is to pull the model
