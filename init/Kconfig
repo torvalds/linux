@@ -1697,6 +1697,15 @@ config MODULE_SIG_SHA512
 
 endchoice
 
+config MODULE_SIG_HASH
+	string
+	depends on MODULE_SIG
+	default "sha1" if MODULE_SIG_SHA1
+	default "sha224" if MODULE_SIG_SHA224
+	default "sha256" if MODULE_SIG_SHA256
+	default "sha384" if MODULE_SIG_SHA384
+	default "sha512" if MODULE_SIG_SHA512
+
 endif # MODULES
 
 config INIT_ALL_POSSIBLE

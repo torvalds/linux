@@ -153,23 +153,7 @@ kernel/modsign_certificate.o: signing_key.x509 extra_certificates
 # fail and that the kernel may be used afterwards.
 #
 ###############################################################################
-sign_key_with_hash :=
-ifeq ($(CONFIG_MODULE_SIG_SHA1),y)
-sign_key_with_hash := -sha1
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA224),y)
-sign_key_with_hash := -sha224
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA256),y)
-sign_key_with_hash := -sha256
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA384),y)
-sign_key_with_hash := -sha384
-endif
-ifeq ($(CONFIG_MODULE_SIG_SHA512),y)
-sign_key_with_hash := -sha512
-endif
-ifeq ($(sign_key_with_hash),)
+ifndef CONFIG_MODULE_SIG_HASH
 $(error Could not determine digest type to use from kernel config)
 endif
 
@@ -182,8 +166,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "### needs to be run as root, and uses a hardware random"
 	@echo "### number generator if one is available."
 	@echo "###"
-	openssl req -new -nodes -utf8 $(sign_key_with_hash) -days 36500 -batch \
-		-x509 -config x509.genkey \
+	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+		-batch -x509 -config x509.genkey \
 		-outform DER -out signing_key.x509 \
 		-keyout signing_key.priv
 	@echo "###"
