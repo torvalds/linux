@@ -5799,6 +5799,7 @@ fail:
 
 static const struct ieee80211_iface_limit ap_if_limits[] = {
 	{ .max = 8,	.types = BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_STATION) },
 };
 
 static const struct ieee80211_iface_combination ap_if_comb = {
@@ -5891,6 +5892,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	if (priv->ap_macids_supported || priv->device_info->fw_image_ap) {
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
 		hw->wiphy->iface_combinations = &ap_if_comb;
 		hw->wiphy->n_iface_combinations = 1;
 	}
