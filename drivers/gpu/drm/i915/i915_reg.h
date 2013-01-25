@@ -4422,10 +4422,10 @@
 #define   AUDIO_CP_READY_C		(1<<9)
 
 /* HSW Power Wells */
-#define HSW_PWR_WELL_CTL1			0x45400 /* BIOS */
-#define HSW_PWR_WELL_CTL2			0x45404 /* Driver */
-#define HSW_PWR_WELL_CTL3			0x45408 /* KVMR */
-#define HSW_PWR_WELL_CTL4			0x4540C /* Debug */
+#define HSW_PWR_WELL_BIOS			0x45400 /* CTL1 */
+#define HSW_PWR_WELL_DRIVER			0x45404 /* CTL2 */
+#define HSW_PWR_WELL_KVMR			0x45408 /* CTL3 */
+#define HSW_PWR_WELL_DEBUG			0x4540C /* CTL4 */
 #define   HSW_PWR_WELL_ENABLE			(1<<31)
 #define   HSW_PWR_WELL_STATE			(1<<30)
 #define HSW_PWR_WELL_CTL5			0x45410
