@@ -84,6 +84,9 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
+static bool __read_mostly enable_apicv_reg = 1;
+module_param(enable_apicv_reg, bool, S_IRUGO);
+
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
@@ -762,6 +765,12 @@ static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+}
+
+static inline bool cpu_has_vmx_apic_register_virt(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_APIC_REGISTER_VIRT;
 }
 
 static inline bool cpu_has_vmx_flexpriority(void)
@@ -2540,7 +2549,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_UNRESTRICTED_GUEST |
 			SECONDARY_EXEC_PAUSE_LOOP_EXITING |
 			SECONDARY_EXEC_RDTSCP |
-			SECONDARY_EXEC_ENABLE_INVPCID;
+			SECONDARY_EXEC_ENABLE_INVPCID |
+			SECONDARY_EXEC_APIC_REGISTER_VIRT;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -2551,6 +2561,11 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
 		_cpu_based_exec_control &= ~CPU_BASED_TPR_SHADOW;
 #endif
+
+	if (!(_cpu_based_exec_control & CPU_BASED_TPR_SHADOW))
+		_cpu_based_2nd_exec_control &= ~(
+				SECONDARY_EXEC_APIC_REGISTER_VIRT);
+
 	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
 		/* CR3 accesses and invlpg don't need to cause VM Exits when EPT
 		   enabled */
@@ -2747,6 +2762,9 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_ple())
 		ple_gap = 0;
+
+	if (!cpu_has_vmx_apic_register_virt())
+		enable_apicv_reg = 0;
 
 	if (nested)
 		nested_vmx_setup_ctls_msrs();
@@ -3829,6 +3847,8 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
 	if (!ple_gap)
 		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+	if (!enable_apicv_reg || !irqchip_in_kernel(vmx->vcpu.kvm))
+		exec_control &= ~SECONDARY_EXEC_APIC_REGISTER_VIRT;
 	return exec_control;
 }
 
@@ -4787,6 +4807,16 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 	return emulate_instruction(vcpu, 0) == EMULATE_DONE;
 }
 
+static int handle_apic_write(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	u32 offset = exit_qualification & 0xfff;
+
+	/* APIC-write VM exit is trap-like and thus no need to adjust IP */
+	kvm_apic_write_nodecode(vcpu, offset);
+	return 1;
+}
+
 static int handle_task_switch(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -5721,6 +5751,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_VMON]                    = handle_vmon,
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
 	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
+	[EXIT_REASON_APIC_WRITE]              = handle_apic_write,
 	[EXIT_REASON_WBINVD]                  = handle_wbinvd,
 	[EXIT_REASON_XSETBV]                  = handle_xsetbv,
 	[EXIT_REASON_TASK_SWITCH]             = handle_task_switch,

@@ -1212,6 +1212,21 @@ void kvm_lapic_set_eoi(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 
+/* emulate APIC access in a trap manner */
+void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset)
+{
+	u32 val = 0;
+
+	/* hw has done the conditional check and inst decode */
+	offset &= 0xff0;
+
+	apic_reg_read(vcpu->arch.apic, offset, 4, &val);
+
+	/* TODO: optimize to just emulate side effect w/o one more write */
+	apic_reg_write(vcpu->arch.apic, offset, val);
+}
+EXPORT_SYMBOL_GPL(kvm_apic_write_nodecode);
+
 void kvm_free_lapic(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
