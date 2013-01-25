@@ -1114,7 +1114,7 @@ uint32 ddr_get_col(void)
     return col;
 }
 
-__sramlocalfunc uint32 ddr_get_bw(void)
+uint32 ddr_get_bw(void)
 {
     uint32 bw;
 
