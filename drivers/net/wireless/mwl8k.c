@@ -4814,12 +4814,6 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 				goto out;
 		}
 
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
-		if (rc)
-			wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
-		if (rc)
-			wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
 
 	} else {
 		rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
@@ -5708,6 +5702,15 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		wiphy_err(hw->wiphy, "Cannot clear MAC address\n");
 		goto err_free_irq;
 	}
+
+	/* Configure Antennas */
+	rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
+	if (rc)
+		wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
+	rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+	if (rc)
+		wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
+
 
 	/* Disable interrupts */
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
