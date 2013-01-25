@@ -153,6 +153,8 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
 
+	mode %= info->num_micd_modes;
+
 	if (arizona->pdata.micd_pol_gpio > 0)
 		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
 					info->micd_modes[mode].gpio);
@@ -783,7 +785,7 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 	 * impedence then give up and report headphones.
 	 */
 	if (info->detecting && (val & 0x3f8)) {
-		if (info->jack_flips >= info->micd_num_modes) {
+		if (info->jack_flips >= info->micd_num_modes * 10) {
 			dev_dbg(arizona->dev, "Detected HP/line\n");
 			arizona_identify_headphone(info);
 
