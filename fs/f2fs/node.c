@@ -790,7 +790,7 @@ int new_inode_page(struct inode *inode, struct dentry *dentry)
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
 	mutex_lock_op(sbi, NODE_NEW);
 	page = new_node_page(&dn, 0);
-	init_dent_inode(dentry, page);
+	init_dent_inode(&dentry->d_name, page);
 	mutex_unlock_op(sbi, NODE_NEW);
 	if (IS_ERR(page))
 		return PTR_ERR(page);

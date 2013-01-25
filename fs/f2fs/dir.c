@@ -265,7 +265,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	mutex_unlock_op(sbi, DENTRY_OPS);
 }
 
-void init_dent_inode(struct dentry *dentry, struct page *ipage)
+void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
 	struct f2fs_node *rn;
 
@@ -274,10 +274,10 @@ void init_dent_inode(struct dentry *dentry, struct page *ipage)
 
 	wait_on_page_writeback(ipage);
 
-	/* copy dentry info. to this inode page */
+	/* copy name info. to this inode page */
 	rn = (struct f2fs_node *)page_address(ipage);
-	rn->i.i_namelen = cpu_to_le32(dentry->d_name.len);
-	memcpy(rn->i.i_name, dentry->d_name.name, dentry->d_name.len);
+	rn->i.i_namelen = cpu_to_le32(name->len);
+	memcpy(rn->i.i_name, name->name, name->len);
 	set_page_dirty(ipage);
 }
 
@@ -310,7 +310,7 @@ static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
 		if (IS_ERR(ipage))
 			return PTR_ERR(ipage);
 		set_cold_node(inode, ipage);
-		init_dent_inode(dentry, ipage);
+		init_dent_inode(&dentry->d_name, ipage);
 		f2fs_put_page(ipage, 1);
 	}
 	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
