@@ -3238,6 +3238,8 @@
 # define VGA_2X_MODE				(1 << 30)
 # define VGA_PIPE_B_SELECT			(1 << 29)
 
+#define VLV_VGACNTRL		(VLV_DISPLAY_BASE + 0x71400)
+
 /* Ironlake */
 
 #define CPU_VGACNTRL	0x41000

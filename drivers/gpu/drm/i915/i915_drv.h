@@ -1887,4 +1887,14 @@ __i915_write(64, q)
 #define INTEL_BROADCAST_RGB_FULL 1
 #define INTEL_BROADCAST_RGB_LIMITED 2
 
+static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
+{
+	if (HAS_PCH_SPLIT(dev))
+		return CPU_VGACNTRL;
+	else if (IS_VALLEYVIEW(dev))
+		return VLV_VGACNTRL;
+	else
+		return VGACNTRL;
+}
+
 #endif

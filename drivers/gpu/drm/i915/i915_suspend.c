@@ -73,10 +73,7 @@ static void i915_save_vga(struct drm_device *dev)
 	dev_priv->regfile.saveVGA0 = I915_READ(VGA0);
 	dev_priv->regfile.saveVGA1 = I915_READ(VGA1);
 	dev_priv->regfile.saveVGA_PD = I915_READ(VGA_PD);
-	if (HAS_PCH_SPLIT(dev))
-		dev_priv->regfile.saveVGACNTRL = I915_READ(CPU_VGACNTRL);
-	else
-		dev_priv->regfile.saveVGACNTRL = I915_READ(VGACNTRL);
+	dev_priv->regfile.saveVGACNTRL = I915_READ(i915_vgacntrl_reg(dev));
 
 	/* VGA color palette registers */
 	dev_priv->regfile.saveDACMASK = I915_READ8(VGA_DACMASK);
@@ -137,10 +134,7 @@ static void i915_restore_vga(struct drm_device *dev)
 	u16 cr_index, cr_data, st01;
 
 	/* VGA state */
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(CPU_VGACNTRL, dev_priv->regfile.saveVGACNTRL);
-	else
-		I915_WRITE(VGACNTRL, dev_priv->regfile.saveVGACNTRL);
+	I915_WRITE(i915_vgacntrl_reg(dev), dev_priv->regfile.saveVGACNTRL);
 
 	I915_WRITE(VGA0, dev_priv->regfile.saveVGA0);
 	I915_WRITE(VGA1, dev_priv->regfile.saveVGA1);

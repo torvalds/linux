@@ -8670,12 +8670,7 @@ static void i915_disable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u8 sr1;
-	u32 vga_reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		vga_reg = CPU_VGACNTRL;
-	else
-		vga_reg = VGACNTRL;
+	u32 vga_reg = i915_vgacntrl_reg(dev);
 
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
 	outb(SR01, VGA_SR_INDEX);
@@ -8937,12 +8932,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 void i915_redisable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 vga_reg;
-
-	if (HAS_PCH_SPLIT(dev))
-		vga_reg = CPU_VGACNTRL;
-	else
-		vga_reg = VGACNTRL;
+	u32 vga_reg = i915_vgacntrl_reg(dev);
 
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
