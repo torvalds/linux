@@ -280,6 +280,12 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_NC_RECODE: transmitted nc-recombined traffic packet counter
  * @BATADV_CNT_NC_RECODE_BYTES: transmitted nc-recombined traffic bytes counter
  * @BATADV_CNT_NC_BUFFER: counter for packets buffered for later nc decoding
+ * @BATADV_CNT_NC_DECODE: received and nc-decoded traffic packet counter
+ * @BATADV_CNT_NC_DECODE_BYTES: received and nc-decoded traffic bytes counter
+ * @BATADV_CNT_NC_DECODE_FAILED: received and decode-failed traffic packet
+ *  counter
+ * @BATADV_CNT_NC_SNIFFED: counter for nc-decoded packets received in promisc
+ *  mode.
  * @BATADV_CNT_NUM: number of traffic counters
  */
 enum batadv_counters {
@@ -313,6 +319,10 @@ enum batadv_counters {
 	BATADV_CNT_NC_RECODE,
 	BATADV_CNT_NC_RECODE_BYTES,
 	BATADV_CNT_NC_BUFFER,
+	BATADV_CNT_NC_DECODE,
+	BATADV_CNT_NC_DECODE_BYTES,
+	BATADV_CNT_NC_DECODE_FAILED,
+	BATADV_CNT_NC_SNIFFED,
 #endif
 	BATADV_CNT_NUM,
 };
