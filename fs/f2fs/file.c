@@ -387,12 +387,17 @@ const struct inode_operations f2fs_file_inode_operations = {
 static void fill_zero(struct inode *inode, pgoff_t index,
 					loff_t start, loff_t len)
 {
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 
 	if (!len)
 		return;
 
+	f2fs_balance_fs(sbi);
+
+	mutex_lock_op(sbi, DATA_NEW);
 	page = get_new_data_page(inode, index, false);
+	mutex_unlock_op(sbi, DATA_NEW);
 
 	if (!IS_ERR(page)) {
 		wait_on_page_writeback(page);
