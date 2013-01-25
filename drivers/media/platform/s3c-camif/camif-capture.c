@@ -1153,6 +1153,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct camif_buffer);
 	q->drv_priv = vp;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret)

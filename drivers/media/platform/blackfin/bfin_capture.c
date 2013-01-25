@@ -1029,6 +1029,7 @@ static int bcap_probe(struct platform_device *pdev)
 	q->buf_struct_size = sizeof(struct bcap_buffer);
 	q->ops = &bcap_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	vb2_queue_init(q);
 

@@ -1429,6 +1429,7 @@ static int __init vivi_create_instance(int inst)
 	q->buf_struct_size = sizeof(struct vivi_buffer);
 	q->ops = &vivi_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret)

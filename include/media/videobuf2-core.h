@@ -326,6 +326,7 @@ struct vb2_queue {
 	const struct vb2_mem_ops	*mem_ops;
 	void				*drv_priv;
 	unsigned int			buf_struct_size;
+	u32				timestamp_type;
 
 /* private: internal use only */
 	enum v4l2_memory		memory;
