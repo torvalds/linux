@@ -756,7 +756,10 @@ int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 }
 
 
-#define RSS_HASHTYPE_IP_TCP	0x3
+#define QLCNIC_RSS_HASHTYPE_IP_TCP	0x3
+#define QLCNIC_ENABLE_TYPE_C_RSS	BIT_10
+#define QLCNIC_RSS_FEATURE_FLAG	(1ULL << 63)
+#define QLCNIC_RSS_IND_TABLE_MASK	0x7ULL
 
 int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int enable)
 {
@@ -783,13 +786,19 @@ int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int enable)
 	 *	7-6: hash_type_ipv6
 	 *	  8: enable
 	 *        9: use indirection table
-	 *    47-10: reserved
-	 *    63-48: indirection table mask
+	 *       10: type-c rss
+	 *	 11: udp rss
+	 *    47-12: reserved
+	 *    62-48: indirection table mask
+	 *	 63: feature flag
 	 */
-	word =  ((u64)(RSS_HASHTYPE_IP_TCP & 0x3) << 4) |
-		((u64)(RSS_HASHTYPE_IP_TCP & 0x3) << 6) |
+	word =  ((u64)(QLCNIC_RSS_HASHTYPE_IP_TCP & 0x3) << 4) |
+		((u64)(QLCNIC_RSS_HASHTYPE_IP_TCP & 0x3) << 6) |
 		((u64)(enable & 0x1) << 8) |
-		((0x7ULL) << 48);
+		((u64)QLCNIC_RSS_IND_TABLE_MASK << 48) |
+		(u64)QLCNIC_ENABLE_TYPE_C_RSS |
+		(u64)QLCNIC_RSS_FEATURE_FLAG;
+
 	req.words[0] = cpu_to_le64(word);
 	for (i = 0; i < 5; i++)
 		req.words[i+1] = cpu_to_le64(key[i]);
