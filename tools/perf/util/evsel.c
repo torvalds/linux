@@ -640,6 +640,11 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
+void perf_evsel__free_counts(struct perf_evsel *evsel)
+{
+	free(evsel->counts);
+}
+
 void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));

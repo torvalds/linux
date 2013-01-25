@@ -1372,6 +1372,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 out_free_fd:
 	list_for_each_entry(pos, &evsel_list->entries, node) {
 		perf_evsel__free_stat_priv(pos);
+		perf_evsel__free_counts(pos);
 		perf_evsel__free_prev_raw_counts(pos);
 	}
 	perf_evlist__delete_maps(evsel_list);
