@@ -1,6 +1,3 @@
-#include <libelf.h>
-#include <gelf.h>
-#include <elf.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>

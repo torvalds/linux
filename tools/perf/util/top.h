@@ -29,8 +29,6 @@ struct perf_top {
 	bool		   sort_has_symbols;
 	bool		   kptr_restrict_warned;
 	bool		   vmlinux_warned;
-	bool		   sample_id_all_missing;
-	bool		   exclude_guest_missing;
 	bool		   dump_symtab;
 	struct hist_entry  *sym_filter_entry;
 	struct perf_evsel  *sym_evsel;

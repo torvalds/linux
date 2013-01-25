@@ -68,28 +68,6 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-void get_term_dimensions(struct winsize *ws)
-{
-	char *s = getenv("LINES");
-
-	if (s != NULL) {
-		ws->ws_row = atoi(s);
-		s = getenv("COLUMNS");
-		if (s != NULL) {
-			ws->ws_col = atoi(s);
-			if (ws->ws_row && ws->ws_col)
-				return;
-		}
-	}
-#ifdef TIOCGWINSZ
-	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
-	    ws->ws_row && ws->ws_col)
-		return;
-#endif
-	ws->ws_row = 25;
-	ws->ws_col = 80;
-}
-
 static void perf_top__update_print_entries(struct perf_top *top)
 {
 	if (top->print_entries > 9)
@@ -716,7 +694,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		static struct intlist *seen;
 
 		if (!seen)
-			seen = intlist__new();
+			seen = intlist__new(NULL);
 
 		if (!intlist__has_entry(seen, event->ip.pid)) {
 			pr_err("Can't find guest [%d]'s kernel information\n",
@@ -728,7 +706,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (!machine) {
 		pr_err("%u unprocessable samples recorded.\n",
-		       top->session->hists.stats.nr_unprocessable_samples++);
+		       top->session->stats.nr_unprocessable_samples++);
 		return;
 	}
 
@@ -847,13 +825,13 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			++top->us_samples;
 			if (top->hide_user_symbols)
 				continue;
-			machine = perf_session__find_host_machine(session);
+			machine = &session->machines.host;
 			break;
 		case PERF_RECORD_MISC_KERNEL:
 			++top->kernel_samples;
 			if (top->hide_kernel_symbols)
 				continue;
-			machine = perf_session__find_host_machine(session);
+			machine = &session->machines.host;
 			break;
 		case PERF_RECORD_MISC_GUEST_KERNEL:
 			++top->guest_kernel_samples;
@@ -878,7 +856,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			hists__inc_nr_events(&evsel->hists, event->header.type);
 			machine__process_event(machine, event);
 		} else
-			++session->hists.stats.nr_unknown_events;
+			++session->stats.nr_unknown_events;
 	}
 }
 
@@ -892,6 +870,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
+	char msg[512];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct perf_record_opts *opts = &top->record_opts;
@@ -899,77 +878,18 @@ static void perf_top__start_counters(struct perf_top *top)
 	perf_evlist__config(evlist, opts);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
-		struct perf_event_attr *attr = &counter->attr;
-
-fallback_missing_features:
-		if (top->exclude_guest_missing)
-			attr->exclude_guest = attr->exclude_host = 0;
-retry_sample_id:
-		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
-			int err = errno;
-
-			if (err == EPERM || err == EACCES) {
-				ui__error_paranoid();
-				goto out_err;
-			} else if (err == EINVAL) {
-				if (!top->exclude_guest_missing &&
-				    (attr->exclude_guest || attr->exclude_host)) {
-					pr_debug("Old kernel, cannot exclude "
-						 "guest or host samples.\n");
-					top->exclude_guest_missing = true;
-					goto fallback_missing_features;
-				} else if (!top->sample_id_all_missing) {
-					/*
-					 * Old kernel, no attr->sample_id_type_all field
-					 */
-					top->sample_id_all_missing = true;
-					goto retry_sample_id;
-				}
-			}
-			/*
-			 * If it's cycles then fall back to hrtimer
-			 * based cpu-clock-tick sw counter, which
-			 * is always available even if no PMU support:
-			 */
-			if ((err == ENOENT || err == ENXIO) &&
-			    (attr->type == PERF_TYPE_HARDWARE) &&
-			    (attr->config == PERF_COUNT_HW_CPU_CYCLES)) {
-
+			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
 				if (verbose)
-					ui__warning("Cycles event not supported,\n"
-						    "trying to fall back to cpu-clock-ticks\n");
-
-				attr->type = PERF_TYPE_SOFTWARE;
-				attr->config = PERF_COUNT_SW_CPU_CLOCK;
-				if (counter->name) {
-					free(counter->name);
-					counter->name = NULL;
-				}
+					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 
-			if (err == ENOENT) {
-				ui__error("The %s event is not supported.\n",
-					  perf_evsel__name(counter));
-				goto out_err;
-			} else if (err == EMFILE) {
-				ui__error("Too many events are opened.\n"
-					    "Try again after reducing the number of events\n");
-				goto out_err;
-			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
-				ui__error("\'precise\' request may not be supported. "
-					  "Try removing 'p' modifier\n");
-				goto out_err;
-			}
-
-			ui__error("The sys_perf_event_open() syscall "
-				    "returned with %d (%s).  /bin/dmesg "
-				    "may provide additional information.\n"
-				    "No CONFIG_PERF_EVENTS=y kernel support "
-				    "configured?\n", err, strerror(err));
+			perf_evsel__open_strerror(counter, &opts->target,
+						  errno, msg, sizeof(msg));
+			ui__error("%s\n", msg);
 			goto out_err;
 		}
 	}
@@ -1024,10 +944,10 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_target__has_task(&opts->target))
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
-						  &top->session->host_machine);
+						  &top->session->machines.host);
 	else
 		perf_event__synthesize_threads(&top->tool, perf_event__process,
-					       &top->session->host_machine);
+					       &top->session->machines.host);
 	perf_top__start_counters(top);
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);

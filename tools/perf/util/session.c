@@ -86,13 +86,12 @@ void perf_session__set_id_hdr_size(struct perf_session *session)
 {
 	u16 id_hdr_size = perf_evlist__id_hdr_size(session->evlist);
 
-	session->host_machine.id_hdr_size = id_hdr_size;
 	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
-	int ret = machine__create_kernel_maps(&self->host_machine);
+	int ret = machine__create_kernel_maps(&self->machines.host);
 
 	if (ret >= 0)
 		ret = machines__create_guest_kernel_maps(&self->machines);
@@ -101,8 +100,7 @@ int perf_session__create_kernel_maps(struct perf_session *self)
 
 static void perf_session__destroy_kernel_maps(struct perf_session *self)
 {
-	machine__destroy_kernel_maps(&self->host_machine);
-	machines__destroy_guest_kernel_maps(&self->machines);
+	machines__destroy_kernel_maps(&self->machines);
 }
 
 struct perf_session *perf_session__new(const char *filename, int mode,
@@ -127,13 +125,11 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out;
 
 	memcpy(self->filename, filename, len);
-	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
 	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
 	INIT_LIST_HEAD(&self->ordered_samples.to_free);
-	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
-	hists__init(&self->hists);
+	machines__init(&self->machines);
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -163,12 +159,12 @@ out_delete:
 
 static void perf_session__delete_dead_threads(struct perf_session *session)
 {
-	machine__delete_dead_threads(&session->host_machine);
+	machine__delete_dead_threads(&session->machines.host);
 }
 
 static void perf_session__delete_threads(struct perf_session *session)
 {
-	machine__delete_threads(&session->host_machine);
+	machine__delete_threads(&session->machines.host);
 }
 
 static void perf_session_env__delete(struct perf_session_env *env)
@@ -193,7 +189,7 @@ void perf_session__delete(struct perf_session *self)
 	perf_session__delete_dead_threads(self);
 	perf_session__delete_threads(self);
 	perf_session_env__delete(&self->header.env);
-	machine__exit(&self->host_machine);
+	machines__exit(&self->machines);
 	close(self->fd);
 	free(self);
 	vdso__exit();
@@ -825,7 +821,7 @@ static struct machine *
 		return perf_session__findnew_machine(session, pid);
 	}
 
-	return perf_session__find_host_machine(session);
+	return &session->machines.host;
 }
 
 static int perf_session_deliver_event(struct perf_session *session,
@@ -863,11 +859,11 @@ static int perf_session_deliver_event(struct perf_session *session,
 	case PERF_RECORD_SAMPLE:
 		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
-			++session->hists.stats.nr_unknown_id;
+			++session->stats.nr_unknown_id;
 			return 0;
 		}
 		if (machine == NULL) {
-			++session->hists.stats.nr_unprocessable_samples;
+			++session->stats.nr_unprocessable_samples;
 			return 0;
 		}
 		return tool->sample(tool, event, sample, evsel, machine);
@@ -881,7 +877,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 		return tool->exit(tool, event, sample, machine);
 	case PERF_RECORD_LOST:
 		if (tool->lost == perf_event__process_lost)
-			session->hists.stats.total_lost += event->lost.lost;
+			session->stats.total_lost += event->lost.lost;
 		return tool->lost(tool, event, sample, machine);
 	case PERF_RECORD_READ:
 		return tool->read(tool, event, sample, evsel, machine);
@@ -890,7 +886,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	default:
-		++session->hists.stats.nr_unknown_events;
+		++session->stats.nr_unknown_events;
 		return -1;
 	}
 }
@@ -904,8 +900,8 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 
 	if (!ip_callchain__valid(sample->callchain, event)) {
 		pr_debug("call-chain problem with event, skipping it.\n");
-		++session->hists.stats.nr_invalid_chains;
-		session->hists.stats.total_invalid_chains += sample->period;
+		++session->stats.nr_invalid_chains;
+		session->stats.total_invalid_chains += sample->period;
 		return -EINVAL;
 	}
 	return 0;
@@ -963,7 +959,7 @@ static int perf_session__process_event(struct perf_session *session,
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;
 
-	hists__inc_nr_events(&session->hists, event->header.type);
+	events_stats__inc(&session->stats, event->header.type);
 
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
 		return perf_session__process_user_event(session, event, tool, file_offset);
@@ -999,7 +995,7 @@ void perf_event_header__bswap(struct perf_event_header *self)
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 {
-	return machine__findnew_thread(&session->host_machine, pid);
+	return machine__findnew_thread(&session->machines.host, pid);
 }
 
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
@@ -1018,39 +1014,39 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 					    const struct perf_tool *tool)
 {
 	if (tool->lost == perf_event__process_lost &&
-	    session->hists.stats.nr_events[PERF_RECORD_LOST] != 0) {
+	    session->stats.nr_events[PERF_RECORD_LOST] != 0) {
 		ui__warning("Processed %d events and lost %d chunks!\n\n"
 			    "Check IO/CPU overload!\n\n",
-			    session->hists.stats.nr_events[0],
-			    session->hists.stats.nr_events[PERF_RECORD_LOST]);
+			    session->stats.nr_events[0],
+			    session->stats.nr_events[PERF_RECORD_LOST]);
 	}
 
-	if (session->hists.stats.nr_unknown_events != 0) {
+	if (session->stats.nr_unknown_events != 0) {
 		ui__warning("Found %u unknown events!\n\n"
 			    "Is this an older tool processing a perf.data "
 			    "file generated by a more recent tool?\n\n"
 			    "If that is not the case, consider "
 			    "reporting to linux-kernel@vger.kernel.org.\n\n",
-			    session->hists.stats.nr_unknown_events);
+			    session->stats.nr_unknown_events);
 	}
 
-	if (session->hists.stats.nr_unknown_id != 0) {
+	if (session->stats.nr_unknown_id != 0) {
 		ui__warning("%u samples with id not present in the header\n",
-			    session->hists.stats.nr_unknown_id);
+			    session->stats.nr_unknown_id);
 	}
 
- 	if (session->hists.stats.nr_invalid_chains != 0) {
+ 	if (session->stats.nr_invalid_chains != 0) {
  		ui__warning("Found invalid callchains!\n\n"
  			    "%u out of %u events were discarded for this reason.\n\n"
  			    "Consider reporting to linux-kernel@vger.kernel.org.\n\n",
- 			    session->hists.stats.nr_invalid_chains,
- 			    session->hists.stats.nr_events[PERF_RECORD_SAMPLE]);
+ 			    session->stats.nr_invalid_chains,
+ 			    session->stats.nr_events[PERF_RECORD_SAMPLE]);
  	}
 
-	if (session->hists.stats.nr_unprocessable_samples != 0) {
+	if (session->stats.nr_unprocessable_samples != 0) {
 		ui__warning("%u unprocessable samples recorded.\n"
 			    "Do you have a KVM guest running and not using 'perf kvm'?\n",
-			    session->hists.stats.nr_unprocessable_samples);
+			    session->stats.nr_unprocessable_samples);
 	}
 }
 
@@ -1336,16 +1332,13 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
 {
-	return __dsos__fprintf(&self->host_machine.kernel_dsos, fp) +
-	       __dsos__fprintf(&self->host_machine.user_dsos, fp) +
-	       machines__fprintf_dsos(&self->machines, fp);
+	return machines__fprintf_dsos(&self->machines, fp);
 }
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
 					  bool (skip)(struct dso *dso, int parm), int parm)
 {
-	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, skip, parm);
-	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
+	return machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
 }
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
@@ -1353,11 +1346,11 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	struct perf_evsel *pos;
 	size_t ret = fprintf(fp, "Aggregated stats:\n");
 
-	ret += hists__fprintf_nr_events(&session->hists, fp);
+	ret += events_stats__fprintf(&session->stats, fp);
 
 	list_for_each_entry(pos, &session->evlist->entries, node) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
-		ret += hists__fprintf_nr_events(&pos->hists, fp);
+		ret += events_stats__fprintf(&pos->hists.stats, fp);
 	}
 
 	return ret;
@@ -1369,7 +1362,7 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 	 * FIXME: Here we have to actually print all the machines in this
 	 * session, not just the host...
 	 */
-	return machine__fprintf(&session->host_machine, fp);
+	return machine__fprintf(&session->machines.host, fp);
 }
 
 void perf_session__remove_thread(struct perf_session *session,
@@ -1378,10 +1371,10 @@ void perf_session__remove_thread(struct perf_session *session,
 	/*
 	 * FIXME: This one makes no sense, we need to remove the thread from
 	 * the machine it belongs to, perf_session can have many machines, so
-	 * doing it always on ->host_machine is wrong.  Fix when auditing all
+	 * doing it always on ->machines.host is wrong.  Fix when auditing all
 	 * the 'perf kvm' code.
 	 */
-	machine__remove_thread(&session->host_machine, th);
+	machine__remove_thread(&session->machines.host, th);
 }
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,

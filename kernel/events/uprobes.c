@@ -901,8 +901,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 	}
 
 	mutex_unlock(uprobes_hash(inode));
-	if (uprobe)
-		put_uprobe(uprobe);
+	put_uprobe(uprobe);
 }
 
 static struct rb_node *

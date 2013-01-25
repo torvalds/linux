@@ -122,18 +122,22 @@ static inline void hist_entry__add_pair(struct hist_entry *he,
 }
 
 enum sort_type {
+	/* common sort keys */
 	SORT_PID,
 	SORT_COMM,
 	SORT_DSO,
 	SORT_SYM,
 	SORT_PARENT,
 	SORT_CPU,
-	SORT_DSO_FROM,
+	SORT_SRCLINE,
+
+	/* branch stack specific sort keys */
+	__SORT_BRANCH_STACK,
+	SORT_DSO_FROM = __SORT_BRANCH_STACK,
 	SORT_DSO_TO,
 	SORT_SYM_FROM,
 	SORT_SYM_TO,
 	SORT_MISPREDICT,
-	SORT_SRCLINE,
 };
 
 /*

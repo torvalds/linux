@@ -3,6 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "sysfs.h"
+#include "debugfs.h"
 #include "tests.h"
 #include <linux/hw_breakpoint.h>
 
@@ -463,10 +464,10 @@ static int test__checkevent_pmu_events(struct perf_evlist *evlist)
 
 static int test__checkterms_simple(struct list_head *terms)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	/* config=10 */
-	term = list_entry(terms->next, struct parse_events__term, list);
+	term = list_entry(terms->next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG);
 	TEST_ASSERT_VAL("wrong type val",
@@ -475,7 +476,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* config1 */
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG1);
 	TEST_ASSERT_VAL("wrong type val",
@@ -484,7 +485,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* config2=3 */
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG2);
 	TEST_ASSERT_VAL("wrong type val",
@@ -493,7 +494,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	TEST_ASSERT_VAL("wrong config", !term->config);
 
 	/* umask=1*/
-	term = list_entry(term->list.next, struct parse_events__term, list);
+	term = list_entry(term->list.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
 	TEST_ASSERT_VAL("wrong type val",
@@ -782,13 +783,70 @@ static int test__group5(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-struct test__event_st {
+static int count_tracepoints(void)
+{
+	char events_path[PATH_MAX];
+	struct dirent *events_ent;
+	DIR *events_dir;
+	int cnt = 0;
+
+	scnprintf(events_path, PATH_MAX, "%s/tracing/events",
+		  debugfs_find_mountpoint());
+
+	events_dir = opendir(events_path);
+
+	TEST_ASSERT_VAL("Can't open events dir", events_dir);
+
+	while ((events_ent = readdir(events_dir))) {
+		char sys_path[PATH_MAX];
+		struct dirent *sys_ent;
+		DIR *sys_dir;
+
+		if (!strcmp(events_ent->d_name, ".")
+		    || !strcmp(events_ent->d_name, "..")
+		    || !strcmp(events_ent->d_name, "enable")
+		    || !strcmp(events_ent->d_name, "header_event")
+		    || !strcmp(events_ent->d_name, "header_page"))
+			continue;
+
+		scnprintf(sys_path, PATH_MAX, "%s/%s",
+			  events_path, events_ent->d_name);
+
+		sys_dir = opendir(sys_path);
+		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);
+
+		while ((sys_ent = readdir(sys_dir))) {
+			if (!strcmp(sys_ent->d_name, ".")
+			    || !strcmp(sys_ent->d_name, "..")
+			    || !strcmp(sys_ent->d_name, "enable")
+			    || !strcmp(sys_ent->d_name, "filter"))
+				continue;
+
+			cnt++;
+		}
+
+		closedir(sys_dir);
+	}
+
+	closedir(events_dir);
+	return cnt;
+}
+
+static int test__all_tracepoints(struct perf_evlist *evlist)
+{
+	TEST_ASSERT_VAL("wrong events count",
+			count_tracepoints() == evlist->nr_entries);
+
+	return test__checkevent_tracepoint_multi(evlist);
+}
+
+struct evlist_test {
 	const char *name;
 	__u32 type;
 	int (*check)(struct perf_evlist *evlist);
 };
 
-static struct test__event_st test__events[] = {
+static struct evlist_test test__events[] = {
 	[0] = {
 		.name  = "syscalls:sys_enter_open",
 		.check = test__checkevent_tracepoint,
@@ -921,9 +979,13 @@ static struct test__event_st test__events[] = {
 		.name  = "{cycles,instructions}:G,{cycles:G,instructions:G},cycles",
 		.check = test__group5,
 	},
+	[33] = {
+		.name  = "*:*",
+		.check = test__all_tracepoints,
+	},
 };
 
-static struct test__event_st test__events_pmu[] = {
+static struct evlist_test test__events_pmu[] = {
 	[0] = {
 		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
 		.check = test__checkevent_pmu,
@@ -934,20 +996,20 @@ static struct test__event_st test__events_pmu[] = {
 	},
 };
 
-struct test__term {
+struct terms_test {
 	const char *str;
 	__u32 type;
 	int (*check)(struct list_head *terms);
 };
 
-static struct test__term test__terms[] = {
+static struct terms_test test__terms[] = {
 	[0] = {
 		.str   = "config=10,config1,config2=3,umask=1",
 		.check = test__checkterms_simple,
 	},
 };
 
-static int test_event(struct test__event_st *e)
+static int test_event(struct evlist_test *e)
 {
 	struct perf_evlist *evlist;
 	int ret;
@@ -956,7 +1018,7 @@ static int test_event(struct test__event_st *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
-	ret = parse_events(evlist, e->name, 0);
+	ret = parse_events(evlist, e->name);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);
@@ -969,13 +1031,13 @@ static int test_event(struct test__event_st *e)
 	return ret;
 }
 
-static int test_events(struct test__event_st *events, unsigned cnt)
+static int test_events(struct evlist_test *events, unsigned cnt)
 {
 	int ret1, ret2 = 0;
 	unsigned i;
 
 	for (i = 0; i < cnt; i++) {
-		struct test__event_st *e = &events[i];
+		struct evlist_test *e = &events[i];
 
 		pr_debug("running test %d '%s'\n", i, e->name);
 		ret1 = test_event(e);
@@ -986,7 +1048,7 @@ static int test_events(struct test__event_st *events, unsigned cnt)
 	return ret2;
 }
 
-static int test_term(struct test__term *t)
+static int test_term(struct terms_test *t)
 {
 	struct list_head *terms;
 	int ret;
@@ -1010,13 +1072,13 @@ static int test_term(struct test__term *t)
 	return ret;
 }
 
-static int test_terms(struct test__term *terms, unsigned cnt)
+static int test_terms(struct terms_test *terms, unsigned cnt)
 {
 	int ret = 0;
 	unsigned i;
 
 	for (i = 0; i < cnt; i++) {
-		struct test__term *t = &terms[i];
+		struct terms_test *t = &terms[i];
 
 		pr_debug("running test %d '%s'\n", i, t->str);
 		ret = test_term(t);
@@ -1067,7 +1129,7 @@ static int test_pmu_events(void)
 
 	while (!ret && (ent = readdir(dir))) {
 #define MAX_NAME 100
-		struct test__event_st e;
+		struct evlist_test e;
 		char name[MAX_NAME];
 
 		if (!strcmp(ent->d_name, ".") ||

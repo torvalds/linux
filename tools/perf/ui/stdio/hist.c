@@ -459,7 +459,7 @@ out:
 	return ret;
 }
 
-size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp)
 {
 	int i;
 	size_t ret = 0;
@@ -467,7 +467,7 @@ size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
 		const char *name;
 
-		if (hists->stats.nr_events[i] == 0)
+		if (stats->nr_events[i] == 0)
 			continue;
 
 		name = perf_event__name(i);
@@ -475,7 +475,7 @@ size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
 			continue;
 
 		ret += fprintf(fp, "%16s events: %10d\n", name,
-			       hists->stats.nr_events[i]);
+			       stats->nr_events[i]);
 	}
 
 	return ret;

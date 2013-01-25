@@ -91,10 +91,22 @@ void machine__delete(struct machine *machine)
 	free(machine);
 }
 
-struct machine *machines__add(struct rb_root *machines, pid_t pid,
+void machines__init(struct machines *machines)
+{
+	machine__init(&machines->host, "", HOST_KERNEL_ID);
+	machines->guests = RB_ROOT;
+}
+
+void machines__exit(struct machines *machines)
+{
+	machine__exit(&machines->host);
+	/* XXX exit guest */
+}
+
+struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir)
 {
-	struct rb_node **p = &machines->rb_node;
+	struct rb_node **p = &machines->guests.rb_node;
 	struct rb_node *parent = NULL;
 	struct machine *pos, *machine = malloc(sizeof(*machine));
 
@@ -116,17 +128,20 @@ struct machine *machines__add(struct rb_root *machines, pid_t pid,
 	}
 
 	rb_link_node(&machine->rb_node, parent, p);
-	rb_insert_color(&machine->rb_node, machines);
+	rb_insert_color(&machine->rb_node, &machines->guests);
 
 	return machine;
 }
 
-struct machine *machines__find(struct rb_root *machines, pid_t pid)
+struct machine *machines__find(struct machines *machines, pid_t pid)
 {
-	struct rb_node **p = &machines->rb_node;
+	struct rb_node **p = &machines->guests.rb_node;
 	struct rb_node *parent = NULL;
 	struct machine *machine;
 	struct machine *default_machine = NULL;
+
+	if (pid == HOST_KERNEL_ID)
+		return &machines->host;
 
 	while (*p != NULL) {
 		parent = *p;
@@ -144,7 +159,7 @@ struct machine *machines__find(struct rb_root *machines, pid_t pid)
 	return default_machine;
 }
 
-struct machine *machines__findnew(struct rb_root *machines, pid_t pid)
+struct machine *machines__findnew(struct machines *machines, pid_t pid)
 {
 	char path[PATH_MAX];
 	const char *root_dir = "";
@@ -178,12 +193,12 @@ out:
 	return machine;
 }
 
-void machines__process(struct rb_root *machines,
-		       machine__process_t process, void *data)
+void machines__process_guests(struct machines *machines,
+			      machine__process_t process, void *data)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		process(pos, data);
 	}
@@ -203,12 +218,14 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size)
 	return bf;
 }
 
-void machines__set_id_hdr_size(struct rb_root *machines, u16 id_hdr_size)
+void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
 {
 	struct rb_node *node;
 	struct machine *machine;
 
-	for (node = rb_first(machines); node; node = rb_next(node)) {
+	machines->host.id_hdr_size = id_hdr_size;
+
+	for (node = rb_first(&machines->guests); node; node = rb_next(node)) {
 		machine = rb_entry(node, struct machine, rb_node);
 		machine->id_hdr_size = id_hdr_size;
 	}
@@ -313,12 +330,13 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	return map;
 }
 
-size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp)
+size_t machines__fprintf_dsos(struct machines *machines, FILE *fp)
 {
 	struct rb_node *nd;
-	size_t ret = 0;
+	size_t ret = __dsos__fprintf(&machines->host.kernel_dsos, fp) +
+		     __dsos__fprintf(&machines->host.user_dsos, fp);
 
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret += __dsos__fprintf(&pos->kernel_dsos, fp);
 		ret += __dsos__fprintf(&pos->user_dsos, fp);
@@ -334,13 +352,13 @@ size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
 	       __dsos__fprintf_buildid(&machine->user_dsos, fp, skip, parm);
 }
 
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines, FILE *fp,
+size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
 				     bool (skip)(struct dso *dso, int parm), int parm)
 {
 	struct rb_node *nd;
-	size_t ret = 0;
+	size_t ret = machine__fprintf_dsos_buildid(&machines->host, fp, skip, parm);
 
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret += machine__fprintf_dsos_buildid(pos, fp, skip, parm);
 	}
@@ -511,7 +529,7 @@ void machine__destroy_kernel_maps(struct machine *machine)
 	}
 }
 
-int machines__create_guest_kernel_maps(struct rb_root *machines)
+int machines__create_guest_kernel_maps(struct machines *machines)
 {
 	int ret = 0;
 	struct dirent **namelist = NULL;
@@ -560,20 +578,22 @@ failure:
 	return ret;
 }
 
-void machines__destroy_guest_kernel_maps(struct rb_root *machines)
+void machines__destroy_kernel_maps(struct machines *machines)
 {
-	struct rb_node *next = rb_first(machines);
+	struct rb_node *next = rb_first(&machines->guests);
+
+	machine__destroy_kernel_maps(&machines->host);
 
 	while (next) {
 		struct machine *pos = rb_entry(next, struct machine, rb_node);
 
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, machines);
+		rb_erase(&pos->rb_node, &machines->guests);
 		machine__delete(pos);
 	}
 }
 
-int machines__create_kernel_maps(struct rb_root *machines, pid_t pid)
+int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 {
 	struct machine *machine = machines__findnew(machines, pid);
 

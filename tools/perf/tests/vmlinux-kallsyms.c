@@ -101,7 +101,8 @@ int test__vmlinux_matches_kallsyms(void)
 	 */
 	if (machine__load_vmlinux_path(&vmlinux, type,
 				       vmlinux_matches_kallsyms_filter) <= 0) {
-		pr_debug("machine__load_vmlinux_path ");
+		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
+		err = TEST_SKIP;
 		goto out;
 	}
 

@@ -692,7 +692,7 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 			    const char *arg, int unset __maybe_unused)
 {
 	char *tok;
-	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
+	int i, imax = ARRAY_SIZE(all_output_options);
 	int j;
 	int rc = 0;
 	char *str = strdup(arg);
@@ -907,18 +907,6 @@ static const char *ends_with(const char *str, const char *suffix)
 	}
 
 	return NULL;
-}
-
-static char *ltrim(char *str)
-{
-	int len = strlen(str);
-
-	while (len && isspace(*str)) {
-		len--;
-		str++;
-	}
-
-	return str;
 }
 
 static int read_script_info(struct script_desc *desc, const char *filename)
@@ -1487,7 +1475,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			return -1;
 	}
 
-	perf_session__fprintf_info(session, stdout, show_full_info);
+	if (!script_name && !generate_script_lang)
+		perf_session__fprintf_info(session, stdout, show_full_info);
 
 	if (!no_callchain)
 		symbol_conf.use_callchain = true;

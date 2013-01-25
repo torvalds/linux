@@ -22,6 +22,11 @@
 #include <linux/perf_event.h>
 #include "perf_regs.h"
 
+static struct {
+	bool sample_id_all;
+	bool exclude_guest;
+} perf_missing_features;
+
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
 static int __perf_evsel__sample_size(u64 sample_type)
@@ -463,7 +468,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
+	attr->sample_id_all = perf_missing_features.sample_id_all ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 
 	perf_evsel__set_sample_bit(evsel, IP);
@@ -513,7 +518,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	if (opts->period)
 		perf_evsel__set_sample_bit(evsel, PERIOD);
 
-	if (!opts->sample_id_all_missing &&
+	if (!perf_missing_features.sample_id_all &&
 	    (opts->sample_time || !opts->no_inherit ||
 	     perf_target__has_cpu(&opts->target)))
 		perf_evsel__set_sample_bit(evsel, TIME);
@@ -761,6 +766,13 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		pid = evsel->cgrp->fd;
 	}
 
+fallback_missing_features:
+	if (perf_missing_features.exclude_guest)
+		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
+retry_sample_id:
+	if (perf_missing_features.sample_id_all)
+		evsel->attr.sample_id_all = 0;
+
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < threads->nr; thread++) {
@@ -777,12 +789,25 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0) {
 				err = -errno;
-				goto out_close;
+				goto try_fallback;
 			}
 		}
 	}
 
 	return 0;
+
+try_fallback:
+	if (err != -EINVAL || cpu > 0 || thread > 0)
+		goto out_close;
+
+	if (!perf_missing_features.exclude_guest &&
+	    (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
+		perf_missing_features.exclude_guest = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.sample_id_all) {
+		perf_missing_features.sample_id_all = true;
+		goto retry_sample_id;
+	}
 
 out_close:
 	do {
@@ -1352,4 +1377,81 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 	fputc('\n', fp);
 	return ++printed;
+}
+
+bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
+			  char *msg, size_t msgsize)
+{
+	if ((err == ENOENT || err == ENXIO) &&
+	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
+	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
+		/*
+		 * If it's cycles then fall back to hrtimer based
+		 * cpu-clock-tick sw counter, which is always available even if
+		 * no PMU support.
+		 *
+		 * PPC returns ENXIO until 2.6.37 (behavior changed with commit
+		 * b0a873e).
+		 */
+		scnprintf(msg, msgsize, "%s",
+"The cycles event is not supported, trying to fall back to cpu-clock-ticks");
+
+		evsel->attr.type   = PERF_TYPE_SOFTWARE;
+		evsel->attr.config = PERF_COUNT_SW_CPU_CLOCK;
+
+		free(evsel->name);
+		evsel->name = NULL;
+		return true;
+	}
+
+	return false;
+}
+
+int perf_evsel__open_strerror(struct perf_evsel *evsel,
+			      struct perf_target *target,
+			      int err, char *msg, size_t size)
+{
+	switch (err) {
+	case EPERM:
+	case EACCES:
+		return scnprintf(msg, size, "%s",
+		 "You may not have permission to collect %sstats.\n"
+		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
+		 " -1 - Not paranoid at all\n"
+		 "  0 - Disallow raw tracepoint access for unpriv\n"
+		 "  1 - Disallow cpu events for unpriv\n"
+		 "  2 - Disallow kernel profiling for unpriv",
+				 target->system_wide ? "system-wide " : "");
+	case ENOENT:
+		return scnprintf(msg, size, "The %s event is not supported.",
+				 perf_evsel__name(evsel));
+	case EMFILE:
+		return scnprintf(msg, size, "%s",
+			 "Too many events are opened.\n"
+			 "Try again after reducing the number of events.");
+	case ENODEV:
+		if (target->cpu_list)
+			return scnprintf(msg, size, "%s",
+	 "No such device - did you specify an out-of-range profile CPU?\n");
+		break;
+	case EOPNOTSUPP:
+		if (evsel->attr.precise_ip)
+			return scnprintf(msg, size, "%s",
+	"\'precise\' request may not be supported. Try removing 'p' modifier.");
+#if defined(__i386__) || defined(__x86_64__)
+		if (evsel->attr.type == PERF_TYPE_HARDWARE)
+			return scnprintf(msg, size, "%s",
+	"No hardware sampling interrupt available.\n"
+	"No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.");
+#endif
+		break;
+	default:
+		break;
+	}
+
+	return scnprintf(msg, size,
+	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).  \n"
+	"/bin/dmesg may provide additional information.\n"
+	"No CONFIG_PERF_EVENTS=y kernel support configured?\n",
+			 err, strerror(err), perf_evsel__name(evsel));
 }
