@@ -1468,7 +1468,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		goto cleanup_transaction;
 	}
 
-	if (cur_trans->aborted) {
+	/* Stop the commit early if ->aborted is set */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
 		ret = cur_trans->aborted;
 		goto cleanup_transaction;
 	}
@@ -1574,6 +1575,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	wait_event(cur_trans->writer_wait,
 		   atomic_read(&cur_trans->num_writers) == 1);
 
+	/* ->aborted might be set after the previous check, so check it */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
+		ret = cur_trans->aborted;
+		goto cleanup_transaction;
+	}
 	/*
 	 * the reloc mutex makes sure that we stop
 	 * the balancing code from coming in and moving
@@ -1652,6 +1658,17 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	ret = commit_cowonly_roots(trans, root);
 	if (ret) {
+		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
+		goto cleanup_transaction;
+	}
+
+	/*
+	 * The tasks which save the space cache and inode cache may also
+	 * update ->aborted, check it.
+	 */
+	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
+		ret = cur_trans->aborted;
 		mutex_unlock(&root->fs_info->tree_log_mutex);
 		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
