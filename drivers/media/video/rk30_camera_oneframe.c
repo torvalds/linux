@@ -311,7 +311,6 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define RK30_CAM_FRAME_MEASURE  5
 extern void videobuf_dma_contig_free(struct videobuf_queue *q, struct videobuf_buffer *buf);
 extern dma_addr_t videobuf_to_dma_contig(struct videobuf_buffer *buf);
-
 /* buffer for one video frame */
 struct rk_camera_buffer
 {
@@ -630,7 +629,35 @@ fail:
 out:
     return ret;
 }
-
+static void rk_camera_store_register(struct rk_camera_dev *pcdev)
+{
+#if defined(CONFIG_ARCH_RK3188)
+	pcdev->reginfo_suspend.cifCtrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
+	pcdev->reginfo_suspend.cifCrop = read_cif_reg(pcdev->base,CIF_CIF_CROP);
+	pcdev->reginfo_suspend.cifFs = read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE);
+	pcdev->reginfo_suspend.cifIntEn = read_cif_reg(pcdev->base,CIF_CIF_INTEN);
+	pcdev->reginfo_suspend.cifFmt= read_cif_reg(pcdev->base,CIF_CIF_FOR);
+	pcdev->reginfo_suspend.cifVirWidth = read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH);
+	pcdev->reginfo_suspend.cifScale= read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL);
+	
+	cru_set_soft_reset(SOFT_RST_CIF0, true);
+	udelay(5);
+	cru_set_soft_reset(SOFT_RST_CIF0, false);
+	
+#endif
+}
+static void rk_camera_restore_register(struct rk_camera_dev *pcdev)
+{
+#if defined(CONFIG_ARCH_RK3188)
+	write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
+	write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
+	write_cif_reg(pcdev->base,CIF_CIF_CROP, pcdev->reginfo_suspend.cifCrop);
+	write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, pcdev->reginfo_suspend.cifFs);
+	write_cif_reg(pcdev->base,CIF_CIF_FOR, pcdev->reginfo_suspend.cifFmt);
+	write_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH,pcdev->reginfo_suspend.cifVirWidth);
+	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL, pcdev->reginfo_suspend.cifScale);
+#endif
+}
 static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_camera_dev *rk_pcdev)
 {
 	unsigned int y_addr,uv_addr;
@@ -649,11 +676,18 @@ static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_came
 			y_addr = vb->boff;
 			uv_addr = y_addr + vb->width * vb->height;
 		}
+#if defined(CONFIG_ARCH_RK3188)
+		rk_camera_store_register(pcdev);
+		rk_camera_restore_register(pcdev);
+#endif
         write_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_Y, y_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV, uv_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRM1_ADDR_Y, y_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRM1_ADDR_UV, uv_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS,  0x00000002);//frame1 has been ready to receive data,frame 2 is not used
+#if defined(CONFIG_ARCH_RK3188)	
+		write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL) | ENABLE_CAPTURE));
+#endif
     }
 }
 /* Locking: Caller holds q->irqlock */
@@ -1814,6 +1848,13 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
         		cru_set_soft_reset(SOFT_RST_CIF1, false);
         //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
             }
+#else defined(CONFIG_ARCH_RK3188)
+//		pmu_set_idle_request(IDLE_REQ_VIO, true);
+		cru_set_soft_reset(SOFT_RST_CIF0, true);
+		udelay(5);
+		cru_set_soft_reset(SOFT_RST_CIF0, false);
+//		pmu_set_idle_request(IDLE_REQ_VIO, false);
+
 #endif
         }
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
@@ -2360,26 +2401,6 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
     cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 
     return 0;
-}
-static void rk_camera_store_register(struct rk_camera_dev *pcdev)
-{
-	pcdev->reginfo_suspend.cifCtrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
-	pcdev->reginfo_suspend.cifCrop = read_cif_reg(pcdev->base,CIF_CIF_CROP);
-	pcdev->reginfo_suspend.cifFs = read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE);
-	pcdev->reginfo_suspend.cifIntEn = read_cif_reg(pcdev->base,CIF_CIF_INTEN);
-	pcdev->reginfo_suspend.cifFmt= read_cif_reg(pcdev->base,CIF_CIF_FOR);
-	pcdev->reginfo_suspend.cifVirWidth = read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH);
-	pcdev->reginfo_suspend.cifScale= read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL);
-}
-static void rk_camera_restore_register(struct rk_camera_dev *pcdev)
-{
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
-	write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
-	write_cif_reg(pcdev->base,CIF_CIF_CROP, pcdev->reginfo_suspend.cifCrop);
-	write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, pcdev->reginfo_suspend.cifFs);
-	write_cif_reg(pcdev->base,CIF_CIF_FOR, pcdev->reginfo_suspend.cifFmt);
-	write_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH,pcdev->reginfo_suspend.cifVirWidth);
-	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL, pcdev->reginfo_suspend.cifScale);
 }
 static int rk_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 {
