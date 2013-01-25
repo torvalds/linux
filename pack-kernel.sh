@@ -3,7 +3,7 @@ set -e
 
 # ---------------------------------------------------------------------------
 usage() {
-	echo "usage: $0 [rk2928|rk30|rk3066b]"
+	echo "usage: $0 [rk2928|rk30|rk3066b|rk3188]"
 	echo "example: $0 rk3066b"
 	exit
 }
@@ -29,6 +29,12 @@ if [ "$arch" == "rk30" ]; then
 EXCLUDES=(
 arch/arm/mach-rk30/*rk3066b*
 arch/arm/mach-rk30/include/mach/*rk3066b*
+
+arch/arm/mach-rk3188/*.c
+arch/arm/mach-rk3188/*.h
+arch/arm/mach-rk3188/Makefile*
+arch/arm/mach-rk3188/include
+arch/arm/configs/rk3188_*
 
 arch/arm/mach-rk29*/*.c
 arch/arm/mach-rk29*/*.h
@@ -56,6 +62,12 @@ arch/arm/mach-rk30/Makefile*
 arch/arm/mach-rk30/include
 arch/arm/configs/rk30*
 
+arch/arm/mach-rk3188/*.c
+arch/arm/mach-rk3188/*.h
+arch/arm/mach-rk3188/Makefile*
+arch/arm/mach-rk3188/include
+arch/arm/configs/rk3188_*
+
 drivers/video/rockchip/lcdc/rk30*
 drivers/video/rockchip/hdmi/chips/rk30/rk30*
 drivers/video/rockchip/hdmi/chips/rk30/hdcp/rk30*
@@ -72,7 +84,7 @@ arch/arm/configs/rk2928_phonepad_defconfig
 
 defconfig=rk2928_sdk_defconfig
 
-elif [ "$arch" == "rk3066b" ]; then
+elif [ "$arch" == "rk3066b" -o "$arch" == "rk3188" ]; then
 
 EXCLUDES=(
 arch/arm/mach-rk30/clock_data.c
@@ -95,7 +107,11 @@ arch/arm/mach-rk29*/include
 arch/arm/configs/rk29*
 )
 
-defconfig=rk3168_tb_defconfig
+if [ "$arch" == "rk3066b" ]; then
+	defconfig=rk3168_tb_defconfig
+else
+	defconfig=rk3188_tb_defconfig
+fi
 
 else
 	echo "unknown arch" && usage
@@ -110,21 +126,14 @@ drivers/staging/rk29/vivante
 drivers/staging/rk29/ipp/rk29-ipp.c
 drivers/*rk28*.c
 include/*rk28*
-arch/arm/mach-rk3188/*.c
-arch/arm/mach-rk3188/*.h
-arch/arm/mach-rk3188/Makefile*
-arch/arm/mach-rk3188/include
 arch/arm/mach-rk29/*.c
 arch/arm/mach-rk29/*.h
 arch/arm/mach-rk29/*.S
 arch/arm/mach-rk29/Makefile*
 arch/arm/mach-rk29/include
 arch/arm/mach-rk*/*-fpga*
-arch/arm/mach-rk*/*-tb*
-arch/arm/configs/rk3188_*
 arch/arm/configs/rk29_*
 arch/arm/configs/*_fpga_*
-arch/arm/configs/*_tb_*
 )
 # ---------------------------------------------------------------------------
 
