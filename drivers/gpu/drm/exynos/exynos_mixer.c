@@ -600,7 +600,7 @@ static void vp_win_reset(struct mixer_context *ctx)
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;
-		mdelay(10);
+		usleep_range(10000, 12000);
 	}
 	WARN(tries == 0, "failed to reset Video Processor\n");
 }
@@ -775,6 +775,13 @@ static void mixer_win_commit(void *ctx, int win)
 	struct mixer_context *mixer_ctx = ctx;
 
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
+
+	mutex_lock(&mixer_ctx->mixer_mutex);
+	if (!mixer_ctx->powered) {
+		mutex_unlock(&mixer_ctx->mixer_mutex);
+		return;
+	}
+	mutex_unlock(&mixer_ctx->mixer_mutex);
 
 	if (win > 1 && mixer_ctx->vp_enabled)
 		vp_video_buffer(mixer_ctx, win);

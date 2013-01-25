@@ -324,7 +324,7 @@ out:
 	g2d_userptr = NULL;
 }
 
-dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 					unsigned long userptr,
 					unsigned long size,
 					struct drm_file *filp,

@@ -869,7 +869,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	}
 }
 
-void ipp_handle_cmd_work(struct device *dev,
+static void ipp_handle_cmd_work(struct device *dev,
 		struct exynos_drm_ippdrv *ippdrv,
 		struct drm_exynos_ipp_cmd_work *cmd_work,
 		struct drm_exynos_ipp_cmd_node *c_node)
