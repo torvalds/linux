@@ -5333,9 +5333,6 @@ static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 
 static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int *async)
 {
-	unsigned int ehi_flags = ATA_EHI_QUIET;
-	int rc;
-
 	/*
 	 * On some hardware, device fails to respond after spun down
 	 * for suspend.  As the device won't be used before being
@@ -5344,11 +5341,9 @@ static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int
 	 *
 	 * http://thread.gmane.org/gmane.linux.ide/46764
 	 */
-	if (mesg.event & PM_EVENT_SUSPEND)
-		ehi_flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_NO_RECOVERY;
-
-	rc = ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
-	return rc;
+	unsigned int ehi_flags = ATA_EHI_QUIET | ATA_EHI_NO_AUTOPSY |
+				 ATA_EHI_NO_RECOVERY;
+	return ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
 }
 
 static int ata_port_suspend_common(struct device *dev, pm_message_t mesg)
@@ -5369,16 +5364,13 @@ static int ata_port_suspend(struct device *dev)
 static int ata_port_do_freeze(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
-		pm_runtime_resume(dev);
+		return 0;
 
 	return ata_port_suspend_common(dev, PMSG_FREEZE);
 }
 
 static int ata_port_poweroff(struct device *dev)
 {
-	if (pm_runtime_suspended(dev))
-		return 0;
-
 	return ata_port_suspend_common(dev, PMSG_HIBERNATE);
 }
 
