@@ -150,10 +150,10 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
-#define WM_ADSP_NUM_FW 3
+#define WM_ADSP_NUM_FW 4
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
-	"MBC/VSS", "Tx", "Rx ANC"
+	"MBC/VSS", "Tx", "Tx Speaker", "Rx ANC"
 };
 
 static struct {
@@ -161,6 +161,7 @@ static struct {
 } wm_adsp_fw[WM_ADSP_NUM_FW] = {
 	{ .file = "mbc-vss" },
 	{ .file = "tx" },
+	{ .file = "tx-spk" },
 	{ .file = "rx-anc" },
 };
 
