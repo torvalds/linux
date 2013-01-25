@@ -19,14 +19,26 @@
 #ifndef __DRIVERS_OMAP_USB2_H
 #define __DRIVERS_OMAP_USB2_H
 
+#include <linux/io.h>
 #include <linux/usb/otg.h>
+
+struct usb_dpll_params {
+	u16	m;
+	u8	n;
+	u8	freq:3;
+	u8	sd;
+	u32	mf;
+};
 
 struct omap_usb {
 	struct usb_phy		phy;
 	struct phy_companion	*comparator;
+	void __iomem		*pll_ctrl_base;
 	struct device		*dev;
 	struct device		*control_dev;
 	struct clk		*wkupclk;
+	struct clk		*sys_clk;
+	struct clk		*optclk;
 	u8			is_suspended:1;
 };
 
@@ -40,5 +52,16 @@ static inline int omap_usb2_set_comparator(struct phy_companion *comparator)
 	return -ENODEV;
 }
 #endif
+
+static inline u32 omap_usb_readl(void __iomem *addr, unsigned offset)
+{
+	return __raw_readl(addr + offset);
+}
+
+static inline void omap_usb_writel(void __iomem *addr, unsigned offset,
+	u32 data)
+{
+	__raw_writel(data, addr + offset);
+}
 
 #endif /* __DRIVERS_OMAP_USB_H */

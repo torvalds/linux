@@ -15,6 +15,16 @@ config OMAP_USB2
 	  The USB OTG controller communicates with the comparator using this
 	  driver.
 
+config OMAP_USB3
+	tristate "OMAP USB3 PHY Driver"
+	select USB_OTG_UTILS
+	select OMAP_CONTROL_USB
+	help
+	  Enable this to support the USB3 PHY that is part of SOC. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  This driver interacts with the "OMAP Control USB Driver" to power
+	  on/off the PHY.
+
 config OMAP_CONTROL_USB
 	tristate "OMAP CONTROL USB Driver"
 	depends on ARCH_OMAP2PLUS
