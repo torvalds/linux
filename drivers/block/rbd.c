@@ -272,7 +272,7 @@ struct rbd_device {
 	struct ceph_file_layout	layout;
 
 	struct ceph_osd_event   *watch_event;
-	struct ceph_osd_request *watch_request;
+	struct rbd_obj_request	*watch_request;
 
 	struct rbd_spec		*parent_spec;
 	u64			parent_overlap;
@@ -1719,11 +1719,11 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 		goto out_cancel;
 
 	if (start) {
-		rbd_dev->watch_request = obj_request->osd_req;
-		ceph_osdc_set_request_linger(osdc, rbd_dev->watch_request);
+		ceph_osdc_set_request_linger(osdc, obj_request->osd_req);
+		rbd_dev->watch_request = obj_request;
 	} else {
 		ceph_osdc_unregister_linger_request(osdc,
-						rbd_dev->watch_request);
+					rbd_dev->watch_request->osd_req);
 		rbd_dev->watch_request = NULL;
 	}
 	ret = rbd_obj_request_submit(osdc, obj_request);
