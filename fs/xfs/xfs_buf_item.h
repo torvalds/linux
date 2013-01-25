@@ -104,7 +104,7 @@ typedef struct xfs_buf_log_item {
 #endif
 	int			bli_format_count;	/* count of headers */
 	struct xfs_buf_log_format *bli_formats;	/* array of in-log header ptrs */
-	struct xfs_buf_log_format bli_format;	/* embedded in-log header */
+	struct xfs_buf_log_format __bli_format;	/* embedded in-log header */
 } xfs_buf_log_item_t;
 
 void	xfs_buf_item_init(struct xfs_buf *, struct xfs_mount *);

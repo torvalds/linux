@@ -692,8 +692,6 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	struct page *oldpage = *pagep;
 	struct page *newpage;
 	struct pipe_buffer *buf = cs->pipebufs;
-	struct address_space *mapping;
-	pgoff_t index;
 
 	unlock_request(cs->fc, cs->req);
 	fuse_copy_finish(cs);
@@ -723,9 +721,6 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	if (fuse_check_page(newpage) != 0)
 		goto out_fallback_unlock;
-
-	mapping = oldpage->mapping;
-	index = oldpage->index;
 
 	/*
 	 * This is a new and locked page, it shouldn't be mapped or

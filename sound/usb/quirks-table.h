@@ -2289,7 +2289,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.rate_table = (unsigned int[]) {
 							44100, 48000, 88200, 96000
 					},
-					.clock = 0x81,
+					.clock = 0x80,
 				}
 			},
 			/* Capture */
@@ -2315,7 +2315,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.rate_table = (unsigned int[]) {
 						44100, 48000, 88200, 96000
 					},
-					.clock = 0x81,
+					.clock = 0x80,
 				}
 			},
 			/* MIDI */
