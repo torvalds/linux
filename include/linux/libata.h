@@ -546,7 +546,6 @@ struct ata_host {
 	void			*private_data;
 	struct ata_port_operations *ops;
 	unsigned long		flags;
-	unsigned int            host_id; /* user visible host ID */
 
 	struct mutex		eh_mutex;
 	struct task_struct	*eh_owner;

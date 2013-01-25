@@ -284,7 +284,7 @@ int ata_tport_add(struct device *parent,
 
 	dev->parent = get_device(parent);
 	dev->release = ata_tport_release;
-	dev_set_name(dev, "ata%d.%d", ap->host->host_id, ap->print_id);
+	dev_set_name(dev, "ata%d", ap->print_id);
 	transport_setup_device(dev);
 	error = device_add(dev);
 	if (error) {
