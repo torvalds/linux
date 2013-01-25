@@ -128,6 +128,10 @@ struct batadv_hard_iface {
  * @bond_list: list of bonding candidates
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
+ * @in_coding_list: list of nodes this orig can hear
+ * @out_coding_list: list of nodes that can hear this orig
+ * @in_coding_list_lock: protects in_coding_list
+ * @out_coding_list_lock: protects out_coding_list
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -171,6 +175,12 @@ struct batadv_orig_node {
 	struct list_head bond_list;
 	atomic_t refcount;
 	struct rcu_head rcu;
+#ifdef CONFIG_BATMAN_ADV_NC
+	struct list_head in_coding_list;
+	struct list_head out_coding_list;
+	spinlock_t in_coding_list_lock; /* Protects in_coding_list */
+	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
+#endif
 };
 
 /**
@@ -430,9 +440,13 @@ struct batadv_priv_dat {
 /**
  * struct batadv_priv_nc - per mesh interface network coding private data
  * @work: work queue callback item for cleanup
+ * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
+ * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
  */
 struct batadv_priv_nc {
 	struct delayed_work work;
+	struct dentry *debug_dir;
+	u8 min_tq;
 };
 
 /**
@@ -713,6 +727,24 @@ struct batadv_tt_roam_node {
 	atomic_t counter;
 	unsigned long first_time;
 	struct list_head list;
+};
+
+/**
+ * struct batadv_nc_node - network coding node
+ * @list: next and prev pointer for the list handling
+ * @addr: the node's mac address
+ * @refcount: number of contexts the object is used by
+ * @rcu: struct used for freeing in an RCU-safe manner
+ * @orig_node: pointer to corresponding orig node struct
+ * @last_seen: timestamp of last ogm received from this node
+ */
+struct batadv_nc_node {
+	struct list_head list;
+	uint8_t addr[ETH_ALEN];
+	atomic_t refcount;
+	struct rcu_head rcu;
+	struct batadv_orig_node *orig_node;
+	unsigned long last_seen;
 };
 
 /**
