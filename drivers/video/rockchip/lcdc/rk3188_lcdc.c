@@ -45,10 +45,10 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 static int  rk3188_lcdc_clk_enable(struct rk3188_lcdc_device *lcdc_dev)
 {
 
-	clk_enable(lcdc_dev->pd);
 	clk_enable(lcdc_dev->hclk);
 	clk_enable(lcdc_dev->dclk);
 	clk_enable(lcdc_dev->aclk);
+	clk_enable(lcdc_dev->pd);
 
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_dev->clk_on = 1;
