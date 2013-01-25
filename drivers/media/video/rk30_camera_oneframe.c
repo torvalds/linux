@@ -286,8 +286,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.1d: 
 *         1. add mv9335+ov5650 driver;
 *         2. fix 2928 digitzoom erro(arm crop scale) of selected zone;
+*v0.x.1f:
+*         1. support rk3188; Must soft reset cif controller after each frame irq;
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1d)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1f)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\

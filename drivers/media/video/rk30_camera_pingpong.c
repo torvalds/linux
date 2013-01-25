@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30) ||defined(CONFIG_ARCH_RK3188)
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -40,7 +40,7 @@
 #include <plat/ipp.h>
 #include <plat/vpu_service.h>
 #include "../../video/rockchip/rga/rga.h"
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK3188)
 #include <mach/rk30_camera.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
@@ -48,6 +48,9 @@
 
 #if defined(CONFIG_ARCH_RK2928)
 #include <mach/rk2928_camera.h>
+#include <mach/cru.h>
+#include <mach/pmu.h>
+#define SOFT_RST_CIF1 (SOFT_RST_MAX+1)
 #endif
 #include <asm/cacheflush.h>
 static int debug;
@@ -160,7 +163,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
 #define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
 
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 //CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
 #define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<24)|(0x1<<8))
@@ -179,7 +182,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
 #endif
 
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 //GRF_IO_CON3                        0x100
 #define CIF_DRIVER_STRENGTH_2MA            (0x00 << 12)
 #define CIF_DRIVER_STRENGTH_4MA            (0x01 << 12)
@@ -288,8 +291,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.1d: 
 *         1. add mv9335+ov5650 driver;
 *         2. fix 2928 digitzoom erro(arm crop scale) of selected zone;
+*v0.x.1f:
+*         1. support rk3188
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 4, 0x1d)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 4, 0x1f)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -949,7 +954,7 @@ static int rk_camera_scale_crop_rga(struct work_struct *work){
 }
 
 #endif
-#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+#if ((defined(CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_ON)) && (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP))
 
 static int rk_camera_scale_crop_ipp(struct work_struct *work)
 {
@@ -1342,12 +1347,14 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
             break;
     }
 #endif
+
+    #if 0   /* ddl@rock-chips.com: this wait operation is not nessary, invalidate in v0.x.1f */
 	if (vb == pcdev->active0 || vb == pcdev->active1) {
 		RKCAMERA_DG("%s Wait for this video buf(0x%x) write finished!\n ",__FUNCTION__,(unsigned int)vb);
 		interruptible_sleep_on_timeout(&vb->done, msecs_to_jiffies(500));
 		RKCAMERA_DG("%s This video buf(0x%x) write finished, release now!!\n",__FUNCTION__,(unsigned int)vb);
 	}
-
+    #endif
     flush_workqueue(pcdev->camera_wq); 
 #if CAMERA_VIDEOBUF_ARM_ACCESS
     if (pcdev->vbinfo) {
@@ -1447,7 +1454,6 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
     #endif
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_PINGPONG|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
 
-    write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
     RKCAMERA_DG("%s..%d.. CIF_CIF_CTRL = 0x%x\n",__FUNCTION__,__LINE__,read_cif_reg(pcdev->base, CIF_CIF_CTRL));
     return 0;
@@ -1842,7 +1848,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     }
 #if 1
         {
-#ifdef CONFIG_ARCH_RK30
+#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928))
            mdelay(100);
             if(IS_CIF0()){
         //		pmu_set_idle_request(IDLE_REQ_VIO, true);
@@ -1858,6 +1864,13 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
         		cru_set_soft_reset(SOFT_RST_CIF1, false);
         //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
             }
+#else defined(CONFIG_ARCH_RK3188)
+//		pmu_set_idle_request(IDLE_REQ_VIO, true);
+		cru_set_soft_reset(SOFT_RST_CIF0, true);
+		udelay(5);
+		cru_set_soft_reset(SOFT_RST_CIF0, false);
+//		pmu_set_idle_request(IDLE_REQ_VIO, false);
+
 #endif
         }
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_PINGPONG|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
@@ -2932,19 +2945,19 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
 };
 static void rk_camera_cif_iomux(int cif_index)
 {
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     switch(cif_index){
         case 0:
-            rk30_mux_api_set(GPIO3B3_CIFCLKOUT_NAME, GPIO3B_CIFCLKOUT);
+		iomux_set(CIF0_CLKOUT);
             write_grf_reg(GRF_IO_CON3, (CIF_DRIVER_STRENGTH_MASK|CIF_DRIVER_STRENGTH_8MA));
             write_grf_reg(GRF_IO_CON4, (CIF_CLKOUT_AMP_MASK|CIF_CLKOUT_AMP_1V8));
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
-	        rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME, GPIO3B_CIFDATA0);
-	        rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME, GPIO3B_CIFDATA1);
+	        iomux_set(CIF0_D0);
+	        iomux_set(CIF0_D1);
             #endif
             #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & RK_CAM_INPUT_FMT_RAW12)
-	        rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME, GPIO3B_CIFDATA10);
-	        rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME, GPIO3B_CIFDATA11);
+	        iomux_set(CIF0_D10);
+	        iomux_set(CIF0_D11);
             RKCAMERA_TR("%s(%d): WARNING: Cif 0 is configurated that support RAW 12bit, so I2C3 is invalidate!!\n",__FUNCTION__,__LINE__);
             #endif
             
@@ -3159,8 +3172,7 @@ static int rk_camera_probe(struct platform_device *pdev)
 	hrtimer_init(&(pcdev->fps_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pcdev->fps_timer.timer.function = rk_camera_fps_func;
     pcdev->icd_cb.sensor_cb = NULL;
-
-#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+#if ((defined(CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_ON)) && (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP))
     pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_ipp;
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
     pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_arm;
