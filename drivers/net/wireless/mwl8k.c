@@ -2519,7 +2519,7 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 		priv->hw_rev = cmd->hw_rev;
 		mwl8k_set_caps(hw, le32_to_cpu(cmd->caps));
 		priv->ap_macids_supported = 0x000000ff;
-		priv->sta_macids_supported = 0x00000000;
+		priv->sta_macids_supported = 0x00000100;
 		priv->num_ampdu_queues = le32_to_cpu(cmd->num_of_ampdu_queues);
 		if (priv->num_ampdu_queues > MWL8K_MAX_AMPDU_QUEUES) {
 			wiphy_warn(hw->wiphy, "fw reported %d ampdu queues"
@@ -4669,12 +4669,18 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (priv->ap_fw && di->fw_image_sta) {
-			/* we must load the sta fw to meet this request */
-			if (!list_empty(&priv->vif_list))
-				return -EBUSY;
-			rc = mwl8k_reload_firmware(hw, di->fw_image_sta);
-			if (rc)
-				return rc;
+			if (!list_empty(&priv->vif_list)) {
+				wiphy_warn(hw->wiphy, "AP interface is running.\n"
+					   "Adding STA interface for WDS");
+			} else {
+				/* we must load the sta fw to
+				 * meet this request.
+				 */
+				rc = mwl8k_reload_firmware(hw,
+							   di->fw_image_sta);
+				if (rc)
+					return rc;
+			}
 		}
 		macids_supported = priv->sta_macids_supported;
 		break;
