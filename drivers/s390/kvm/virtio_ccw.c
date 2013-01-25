@@ -244,9 +244,9 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 	int err;
-	struct virtqueue *vq;
+	struct virtqueue *vq = NULL;
 	struct virtio_ccw_vq_info *info;
-	unsigned long size;
+	unsigned long size = 0; /* silence the compiler */
 	unsigned long flags;
 
 	/* Allocate queue. */
@@ -279,11 +279,8 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 		/* For now, we fail if we can't get the requested size. */
 		dev_warn(&vcdev->cdev->dev, "no vq\n");
 		err = -ENOMEM;
-		free_pages_exact(info->queue, size);
 		goto out_err;
 	}
-	info->vq = vq;
-	vq->priv = info;
 
 	/* Register it with the host. */
 	info->info_block->queue = (__u64)info->queue;
@@ -297,11 +294,11 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 	err = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_VQ | i);
 	if (err) {
 		dev_warn(&vcdev->cdev->dev, "SET_VQ failed\n");
-		free_pages_exact(info->queue, size);
-		info->vq = NULL;
-		vq->priv = NULL;
 		goto out_err;
 	}
+
+	info->vq = vq;
+	vq->priv = info;
 
 	/* Save it to our list. */
 	spin_lock_irqsave(&vcdev->lock, flags);
@@ -311,8 +308,13 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 	return vq;
 
 out_err:
-	if (info)
+	if (vq)
+		vring_del_virtqueue(vq);
+	if (info) {
+		if (info->queue)
+			free_pages_exact(info->queue, size);
 		kfree(info->info_block);
+	}
 	kfree(info);
 	return ERR_PTR(err);
 }
