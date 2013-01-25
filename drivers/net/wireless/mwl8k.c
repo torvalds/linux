@@ -4984,11 +4984,9 @@ static void
 mwl8k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mwl8k_priv *priv = hw->priv;
-
-	if (!priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_STATION)
 		mwl8k_bss_info_changed_sta(hw, vif, info, changed);
-	else
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_bss_info_changed_ap(hw, vif, info, changed);
 }
 
