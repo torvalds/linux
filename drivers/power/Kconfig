@@ -346,6 +346,12 @@ config AB8500_BM
 	help
 	  Say Y to include support for AB8500 battery management.
 
+config BATTERY_GOLDFISH
+	tristate "Goldfish battery driver"
+	help
+	  Say Y to enable support for the battery and AC power in the
+	  Goldfish emulator.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
