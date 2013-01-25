@@ -21,6 +21,31 @@
 #define SDMMC_USE_NEW_IOMUX_API 0
 #endif
 
+//Currently, for the time being does not use this setting.Later, there is a need, then start to use. 
+//Noted by Michael Xie,at 2013-01-25
+#if 0//defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+//GRF_IO_CON2                        0x0FC
+#define SDMMC0_DRIVER_STRENGTH_2MA            (0x00 << 6)
+#define SDMMC0_DRIVER_STRENGTH_4MA            (0x00 << 6)
+#define SDMMC0_DRIVER_STRENGTH_8MA            (0x00 << 6)
+#define SDMMC0_DRIVER_STRENGTH_12MA           (0x00 << 6)
+
+//GRF_IO_CON3                        0x100
+#define SDMMC1_DRIVER_STRENGTH_2MA            (0x00 << 2)
+#define SDMMC1_DRIVER_STRENGTH_4MA            (0x01 << 2)
+#define SDMMC1_DRIVER_STRENGTH_8MA            (0x10 << 2)
+#define SDMMC1_DRIVER_STRENGTH_12MA           (0x11 << 2)
+
+#define SDMMC_write_grf_reg(addr, val)  __raw_writel(val, addr+RK30_GRF_BASE)
+#define SDMMC_read_grf_reg(addr) __raw_readl(addr+RK30_GRF_BASE)
+#define SDMMC_mask_grf_reg(addr, msk, val)	write_grf_reg(addr,(val)|((~(msk))&read_grf_reg(addr)))
+#else
+#define SDMMC_write_grf_reg(addr, val)  
+#define SDMMC_read_grf_reg(addr)
+#define SDMMC_mask_grf_reg(addr, msk, val)	
+#endif
+
+
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 /*
@@ -748,6 +773,9 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
         	rk30_mux_api_set(rksdmmc0_gpio_init.data0_gpio.iomux.name, rksdmmc0_gpio_init.data0_gpio.iomux.fmux);
         	#endif
 
+            //sdmmc drive strength control
+            SDMMC_write_grf_reg(GRF_IO_CON2, (SDMMC0_DRIVER_STRENGTH_12MA));
+            
             #if !(!!SDMMC_USE_NEW_IOMUX_API)
             rk30_mux_api_set(rksdmmc0_gpio_init.data1_gpio.iomux.name, rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
             #endif
@@ -787,6 +815,10 @@ static void rk29_sdmmc_set_iomux_mmc1(unsigned int bus_width)
     rk30_mux_api_set(rksdmmc1_gpio_init.data2_gpio.iomux.name, rksdmmc1_gpio_init.data2_gpio.iomux.fmux);
     rk30_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name, rksdmmc1_gpio_init.data3_gpio.iomux.fmux);
     #endif
+
+    //sdmmc1 drive strength control
+    SDMMC_write_grf_reg(GRF_IO_CON3, (SDMMC1_DRIVER_STRENGTH_12MA));
+    
 }
 
 static void rk29_sdmmc_set_iomux_mmc2(unsigned int bus_width)
