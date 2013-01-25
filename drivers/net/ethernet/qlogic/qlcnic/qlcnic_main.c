@@ -2142,7 +2142,7 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 	}
 
 	head = kcalloc(adapter->fhash.fbucket_size,
-		       sizeof(struct hlist_head), GFP_KERNEL);
+		       sizeof(struct hlist_head), GFP_ATOMIC);
 
 	if (!head)
 		return;
