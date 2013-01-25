@@ -3998,7 +3998,7 @@ static int ftrace_module_notify(struct notifier_block *self,
 
 struct notifier_block ftrace_module_nb = {
 	.notifier_call = ftrace_module_notify,
-	.priority = 0,
+	.priority = INT_MAX,	/* Run before anything that can use kprobes */
 };
 
 extern unsigned long __start_mcount_loc[];

@@ -251,9 +251,9 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
+	clk_register_clkdev(clk[usbotg_gate], "ahb", "imx-udc-mx27");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[nfc_div], NULL, "imx25-nand.0");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
