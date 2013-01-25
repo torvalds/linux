@@ -39,6 +39,7 @@
 #include "omap_device.h"
 #include "gpmc.h"
 #include "gpmc-nand.h"
+#include "gpmc-onenand.h"
 
 #define	DEVICE_NAME		"omap-gpmc"
 
@@ -1263,6 +1264,43 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 }
 #endif
 
+#ifdef CONFIG_MTD_ONENAND
+static int gpmc_probe_onenand_child(struct platform_device *pdev,
+				 struct device_node *child)
+{
+	u32 val;
+	struct omap_onenand_platform_data *gpmc_onenand_data;
+
+	if (of_property_read_u32(child, "reg", &val) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	gpmc_onenand_data = devm_kzalloc(&pdev->dev, sizeof(*gpmc_onenand_data),
+					 GFP_KERNEL);
+	if (!gpmc_onenand_data)
+		return -ENOMEM;
+
+	gpmc_onenand_data->cs = val;
+	gpmc_onenand_data->of_node = child;
+	gpmc_onenand_data->dma_channel = -1;
+
+	if (!of_property_read_u32(child, "dma-channel", &val))
+		gpmc_onenand_data->dma_channel = val;
+
+	gpmc_onenand_init(gpmc_onenand_data);
+
+	return 0;
+}
+#else
+static int gpmc_probe_onenand_child(struct platform_device *pdev,
+				    struct device_node *child)
+{
+	return 0;
+}
+#endif
+
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
 	int ret;
@@ -1281,6 +1319,13 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		}
 	}
 
+	for_each_node_by_name(child, "onenand") {
+		ret = gpmc_probe_onenand_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
 	return 0;
 }
 #else
