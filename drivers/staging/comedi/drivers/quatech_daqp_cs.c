@@ -210,7 +210,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 
 	if (local->stop)
 		return -EIO;
@@ -237,7 +237,7 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
  */
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
-	struct local_info_t *local = (struct local_info_t *)dev_id;
+	struct local_info_t *local = dev_id;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	int loop_limit = 10000;
@@ -265,7 +265,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if ((struct local_info_t *)s->private != local) {
+	if (s->private != local) {
 		pr_warn("invalid comedi_subdevice.\n");
 		return IRQ_NONE;
 	}
@@ -335,7 +335,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 	int i;
 	int v;
 	int counter = 10000;
@@ -528,7 +528,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter;
 	int scanlist_start_on_every_entry;
@@ -730,7 +730,7 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 	int d;
 	unsigned int chan;
 
@@ -757,7 +757,7 @@ static int daqp_di_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 
 	if (local->stop)
 		return -EIO;
@@ -773,7 +773,7 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct local_info_t *local = s->private;
 
 	if (local->stop)
 		return -EIO;
