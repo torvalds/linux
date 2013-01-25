@@ -684,9 +684,8 @@ static int imxdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			break;
 		}
 
-		imxdmac->hw_chaining = 1;
-		if (!imxdma_hw_chain(imxdmac))
-			return -EINVAL;
+		imxdmac->hw_chaining = 0;
+
 		imxdmac->ccr_from_device = (mode | IMX_DMA_TYPE_FIFO) |
 			((IMX_DMA_MEMSIZE_32 | IMX_DMA_TYPE_LINEAR) << 2) |
 			CCR_REN;

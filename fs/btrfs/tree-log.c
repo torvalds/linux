@@ -3357,6 +3357,11 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	if (skip_csum)
 		return 0;
 
+	if (em->compress_type) {
+		csum_offset = 0;
+		csum_len = block_len;
+	}
+
 	/* block start is already adjusted for the file extent offset. */
 	ret = btrfs_lookup_csums_range(log->fs_info->csum_root,
 				       em->block_start + csum_offset,
@@ -3410,13 +3415,13 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		em = list_entry(extents.next, struct extent_map, list);
 
 		list_del_init(&em->list);
-		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 
 		/*
 		 * If we had an error we just need to delete everybody from our
 		 * private list.
 		 */
 		if (ret) {
+			clear_em_logging(tree, em);
 			free_extent_map(em);
 			continue;
 		}
@@ -3424,8 +3429,9 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		write_unlock(&tree->lock);
 
 		ret = log_one_extent(trans, inode, root, em, path);
-		free_extent_map(em);
 		write_lock(&tree->lock);
+		clear_em_logging(tree, em);
+		free_extent_map(em);
 	}
 	WARN_ON(!list_empty(&extents));
 	write_unlock(&tree->lock);

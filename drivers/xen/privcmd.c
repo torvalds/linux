@@ -199,9 +199,6 @@ static long privcmd_ioctl_mmap(void __user *udata)
 	LIST_HEAD(pagelist);
 	struct mmap_mfn_state state;
 
-	if (!xen_initial_domain())
-		return -EPERM;
-
 	/* We only support privcmd_ioctl_mmap_batch for auto translated. */
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return -ENOSYS;
@@ -261,11 +258,12 @@ struct mmap_batch_state {
 	 *      -ENOENT if at least 1 -ENOENT has happened.
 	 */
 	int global_error;
-	/* An array for individual errors */
-	int *err;
+	int version;
 
 	/* User-space mfn array to store errors in the second pass for V1. */
 	xen_pfn_t __user *user_mfn;
+	/* User-space int array to store errors in the second pass for V2. */
+	int __user *user_err;
 };
 
 /* auto translated dom0 note: if domU being created is PV, then mfn is
@@ -288,7 +286,19 @@ static int mmap_batch_fn(void *data, void *state)
 					 &cur_page);
 
 	/* Store error code for second pass. */
-	*(st->err++) = ret;
+	if (st->version == 1) {
+		if (ret < 0) {
+			/*
+			 * V1 encodes the error codes in the 32bit top nibble of the
+			 * mfn (with its known limitations vis-a-vis 64 bit callers).
+			 */
+			*mfnp |= (ret == -ENOENT) ?
+						PRIVCMD_MMAPBATCH_PAGED_ERROR :
+						PRIVCMD_MMAPBATCH_MFN_ERROR;
+		}
+	} else { /* st->version == 2 */
+		*((int *) mfnp) = ret;
+	}
 
 	/* And see if it affects the global_error. */
 	if (ret < 0) {
@@ -305,20 +315,25 @@ static int mmap_batch_fn(void *data, void *state)
 	return 0;
 }
 
-static int mmap_return_errors_v1(void *data, void *state)
+static int mmap_return_errors(void *data, void *state)
 {
-	xen_pfn_t *mfnp = data;
 	struct mmap_batch_state *st = state;
-	int err = *(st->err++);
 
-	/*
-	 * V1 encodes the error codes in the 32bit top nibble of the
-	 * mfn (with its known limitations vis-a-vis 64 bit callers).
-	 */
-	*mfnp |= (err == -ENOENT) ?
-				PRIVCMD_MMAPBATCH_PAGED_ERROR :
-				PRIVCMD_MMAPBATCH_MFN_ERROR;
-	return __put_user(*mfnp, st->user_mfn++);
+	if (st->version == 1) {
+		xen_pfn_t mfnp = *((xen_pfn_t *) data);
+		if (mfnp & PRIVCMD_MMAPBATCH_MFN_ERROR)
+			return __put_user(mfnp, st->user_mfn++);
+		else
+			st->user_mfn++;
+	} else { /* st->version == 2 */
+		int err = *((int *) data);
+		if (err)
+			return __put_user(err, st->user_err++);
+		else
+			st->user_err++;
+	}
+
+	return 0;
 }
 
 /* Allocate pfns that are then mapped with gmfns from foreign domid. Update
@@ -357,11 +372,7 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 	struct vm_area_struct *vma;
 	unsigned long nr_pages;
 	LIST_HEAD(pagelist);
-	int *err_array = NULL;
 	struct mmap_batch_state state;
-
-	if (!xen_initial_domain())
-		return -EPERM;
 
 	switch (version) {
 	case 1:
@@ -396,10 +407,12 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 		goto out;
 	}
 
-	err_array = kcalloc(m.num, sizeof(int), GFP_KERNEL);
-	if (err_array == NULL) {
-		ret = -ENOMEM;
-		goto out;
+	if (version == 2) {
+		/* Zero error array now to only copy back actual errors. */
+		if (clear_user(m.err, sizeof(int) * m.num)) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
 	down_write(&mm->mmap_sem);
@@ -427,7 +440,7 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 	state.va            = m.addr;
 	state.index         = 0;
 	state.global_error  = 0;
-	state.err           = err_array;
+	state.version       = version;
 
 	/* mmap_batch_fn guarantees ret == 0 */
 	BUG_ON(traverse_pages(m.num, sizeof(xen_pfn_t),
@@ -435,21 +448,14 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 
 	up_write(&mm->mmap_sem);
 
-	if (version == 1) {
-		if (state.global_error) {
-			/* Write back errors in second pass. */
-			state.user_mfn = (xen_pfn_t *)m.arr;
-			state.err      = err_array;
-			ret = traverse_pages(m.num, sizeof(xen_pfn_t),
-					     &pagelist, mmap_return_errors_v1, &state);
-		} else
-			ret = 0;
-
-	} else if (version == 2) {
-		ret = __copy_to_user(m.err, err_array, m.num * sizeof(int));
-		if (ret)
-			ret = -EFAULT;
-	}
+	if (state.global_error) {
+		/* Write back errors in second pass. */
+		state.user_mfn = (xen_pfn_t *)m.arr;
+		state.user_err = m.err;
+		ret = traverse_pages(m.num, sizeof(xen_pfn_t),
+							 &pagelist, mmap_return_errors, &state);
+	} else
+		ret = 0;
 
 	/* If we have not had any EFAULT-like global errors then set the global
 	 * error to -ENOENT if necessary. */
@@ -457,7 +463,6 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 		ret = -ENOENT;
 
 out:
-	kfree(err_array);
 	free_page_list(&pagelist);
 
 	return ret;

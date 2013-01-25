@@ -3997,7 +3997,7 @@ again:
 	 * We make the other tasks wait for the flush only when we can flush
 	 * all things.
 	 */
-	if (ret && flush == BTRFS_RESERVE_FLUSH_ALL) {
+	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
 		flushing = true;
 		space_info->flush = 1;
 	}
@@ -5560,7 +5560,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	int empty_cluster = 2 * 1024 * 1024;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
-	int index = 0;
+	int index = __get_raid_index(data);
 	int alloc_type = (data & BTRFS_BLOCK_GROUP_DATA) ?
 		RESERVE_ALLOC_NO_ACCOUNT : RESERVE_ALLOC;
 	bool found_uncached_bg = false;
@@ -6788,11 +6788,13 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 						       &wc->flags[level]);
 			if (ret < 0) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
+				path->locks[level] = 0;
 				return ret;
 			}
 			BUG_ON(wc->refs[level] == 0);
 			if (wc->refs[level] == 1) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
+				path->locks[level] = 0;
 				return 1;
 			}
 		}

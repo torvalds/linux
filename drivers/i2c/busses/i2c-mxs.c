@@ -127,7 +127,7 @@ struct mxs_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct completion cmd_complete;
-	u32 cmd_err;
+	int cmd_err;
 	struct i2c_adapter adapter;
 	const struct mxs_i2c_speed_config *speed;
 
@@ -316,7 +316,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	if (msg->len == 0)
 		return -EINVAL;
 
-	init_completion(&i2c->cmd_complete);
+	INIT_COMPLETION(i2c->cmd_complete);
 	i2c->cmd_err = 0;
 
 	ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
@@ -472,6 +472,8 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = dev;
 	i2c->speed = &mxs_i2c_95kHz_config;
+
+	init_completion(&i2c->cmd_complete);
 
 	if (dev->of_node) {
 		err = mxs_i2c_get_ofdata(i2c);
