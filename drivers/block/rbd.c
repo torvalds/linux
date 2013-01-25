@@ -1707,6 +1707,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 						&rbd_dev->watch_event);
 		if (ret < 0)
 			return ret;
+		rbd_assert(rbd_dev->watch_event != NULL);
 	}
 
 	ret = -ENOMEM;
@@ -1726,32 +1727,43 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	if (!obj_request->osd_req)
 		goto out_cancel;
 
-	if (start) {
+	if (start)
 		ceph_osdc_set_request_linger(osdc, obj_request->osd_req);
-		rbd_dev->watch_request = obj_request;
-	} else {
+	else
 		ceph_osdc_unregister_linger_request(osdc,
 					rbd_dev->watch_request->osd_req);
-		rbd_dev->watch_request = NULL;
-	}
 	ret = rbd_obj_request_submit(osdc, obj_request);
 	if (ret)
 		goto out_cancel;
 	ret = rbd_obj_request_wait(obj_request);
 	if (ret)
 		goto out_cancel;
-
 	ret = obj_request->result;
 	if (ret)
 		goto out_cancel;
 
-	if (start)
-		goto done;	/* Done if setting up the watch request */
+	/*
+	 * A watch request is set to linger, so the underlying osd
+	 * request won't go away until we unregister it.  We retain
+	 * a pointer to the object request during that time (in
+	 * rbd_dev->watch_request), so we'll keep a reference to
+	 * it.  We'll drop that reference (below) after we've
+	 * unregistered it.
+	 */
+	if (start) {
+		rbd_dev->watch_request = obj_request;
+
+		return 0;
+	}
+
+	/* We have successfully torn down the watch request */
+
+	rbd_obj_request_put(rbd_dev->watch_request);
+	rbd_dev->watch_request = NULL;
 out_cancel:
 	/* Cancel the event if we're tearing down, or on error */
 	ceph_osdc_cancel_event(rbd_dev->watch_event);
 	rbd_dev->watch_event = NULL;
-done:
 	if (obj_request)
 		rbd_obj_request_put(obj_request);
 
