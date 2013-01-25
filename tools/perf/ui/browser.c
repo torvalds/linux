@@ -273,6 +273,8 @@ void ui_browser__hide(struct ui_browser *browser __maybe_unused)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
+	free(browser->helpline);
+	browser->helpline = NULL;
 	pthread_mutex_unlock(&ui__lock);
 }
 
