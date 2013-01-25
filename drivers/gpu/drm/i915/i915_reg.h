@@ -921,8 +921,8 @@
 #define   VGA1_PD_P1_DIV_2	(1 << 13)
 #define   VGA1_PD_P1_SHIFT	8
 #define   VGA1_PD_P1_MASK	(0x1f << 8)
-#define _DPLL_A	0x06014
-#define _DPLL_B	0x06018
+#define _DPLL_A	(dev_priv->info->display_mmio_offset + 0x6014)
+#define _DPLL_B	(dev_priv->info->display_mmio_offset + 0x6018)
 #define DPLL(pipe) _PIPE(pipe, _DPLL_A, _DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
 #define   DPLL_DVO_HIGH_SPEED		(1 << 30)
@@ -981,7 +981,7 @@
 #define   SDVO_MULTIPLIER_MASK			0x000000ff
 #define   SDVO_MULTIPLIER_SHIFT_HIRES		4
 #define   SDVO_MULTIPLIER_SHIFT_VGA		0
-#define _DPLL_A_MD 0x0601c /* 965+ only */
+#define _DPLL_A_MD (dev_priv->info->display_mmio_offset + 0x601c) /* 965+ only */
 /*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
  *
@@ -1018,7 +1018,7 @@
  */
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
-#define _DPLL_B_MD 0x06020 /* 965+ only */
+#define _DPLL_B_MD (dev_priv->info->display_mmio_offset + 0x6020) /* 965+ only */
 #define DPLL_MD(pipe) _PIPE(pipe, _DPLL_A_MD, _DPLL_B_MD)
 
 #define _FPA0	0x06040
