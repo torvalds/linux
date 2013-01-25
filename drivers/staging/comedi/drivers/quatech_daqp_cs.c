@@ -936,13 +936,6 @@ static int daqp_cs_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static void daqp_cs_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "daqp_cs_release\n");
-
-	pcmcia_disable_device(link);
-}
-
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
 	if (p_dev->config_index == 0)
@@ -976,7 +969,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	daqp_cs_release(link);
+	pcmcia_disable_device(link);
 }
 
 static int daqp_cs_attach(struct pcmcia_device *link)
@@ -1014,7 +1007,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 	struct local_info_t *dev = link->priv;
 
 	dev->stop = 1;
-	daqp_cs_release(link);
+	pcmcia_disable_device(link);
 
 	/* Unlink device structure, and free it */
 	dev_table[dev->table_index] = NULL;
