@@ -25,12 +25,10 @@ struct omap_usb {
 	struct usb_phy		phy;
 	struct phy_companion	*comparator;
 	struct device		*dev;
-	u32 __iomem		*control_dev;
+	struct device		*control_dev;
 	struct clk		*wkupclk;
 	u8			is_suspended:1;
 };
-
-#define	PHY_PD	0x1
 
 #define	phy_to_omapusb(x)	container_of((x), struct omap_usb, phy)
 

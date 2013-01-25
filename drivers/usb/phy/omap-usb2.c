@@ -27,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
+#include <linux/usb/omap_control_usb.h>
 
 /**
  * omap_usb2_set_comparator - links the comparator present in the sytem with
@@ -51,29 +52,6 @@ int omap_usb2_set_comparator(struct phy_companion *comparator)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_usb2_set_comparator);
-
-/**
- * omap_usb_phy_power - power on/off the phy using control module reg
- * @phy: struct omap_usb *
- * @on: 0 or 1, based on powering on or off the PHY
- *
- * XXX: Remove this function once control module driver gets merged
- */
-static void omap_usb_phy_power(struct omap_usb *phy, int on)
-{
-	u32 val;
-
-	if (on) {
-		val = readl(phy->control_dev);
-		if (val & PHY_PD) {
-			writel(~PHY_PD, phy->control_dev);
-			/* XXX: add proper documentation for this delay */
-			mdelay(200);
-		}
-	} else {
-		writel(PHY_PD, phy->control_dev);
-	}
-}
 
 static int omap_usb_set_vbus(struct usb_otg *otg, bool enabled)
 {
@@ -124,7 +102,7 @@ static int omap_usb2_suspend(struct usb_phy *x, int suspend)
 	struct omap_usb *phy = phy_to_omapusb(x);
 
 	if (suspend && !phy->is_suspended) {
-		omap_usb_phy_power(phy, 0);
+		omap_control_usb_phy_power(phy->control_dev, 0);
 		pm_runtime_put_sync(phy->dev);
 		phy->is_suspended = 1;
 	} else if (!suspend && phy->is_suspended) {
@@ -134,7 +112,7 @@ static int omap_usb2_suspend(struct usb_phy *x, int suspend)
 									ret);
 			return ret;
 		}
-		omap_usb_phy_power(phy, 1);
+		omap_control_usb_phy_power(phy->control_dev, 1);
 		phy->is_suspended = 0;
 	}
 
@@ -145,7 +123,6 @@ static int omap_usb2_probe(struct platform_device *pdev)
 {
 	struct omap_usb			*phy;
 	struct usb_otg			*otg;
-	struct resource			*res;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
@@ -166,16 +143,14 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	phy->phy.set_suspend	= omap_usb2_suspend;
 	phy->phy.otg		= otg;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-
-	phy->control_dev = devm_request_and_ioremap(&pdev->dev, res);
-	if (phy->control_dev == NULL) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -ENXIO;
+	phy->control_dev = omap_get_control_dev();
+	if (IS_ERR(phy->control_dev)) {
+		dev_dbg(&pdev->dev, "Failed to get control device\n");
+		return -ENODEV;
 	}
 
 	phy->is_suspended	= 1;
-	omap_usb_phy_power(phy, 0);
+	omap_control_usb_phy_power(phy->control_dev, 0);
 
 	otg->set_host		= omap_usb_set_host;
 	otg->set_peripheral	= omap_usb_set_peripheral;
