@@ -1724,6 +1724,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct qlcnic_adapter *adapter = NULL;
 	struct qlcnic_hardware_context *ahw;
 	int err, pci_using_dac = -1;
+	u32 capab2;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN];
 
 	err = pci_enable_device(pdev);
@@ -1848,6 +1849,14 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
 	if (err)
 		goto err_out_disable_mbx_intr;
+
+	if (qlcnic_82xx_check(adapter)) {
+		if (ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
+			capab2 = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
+			if (capab2 & QLCNIC_FW_CAPABILITY_2_OCBB)
+				qlcnic_fw_cmd_set_drv_version(adapter);
+		}
+	}
 
 	pci_set_drvdata(pdev, adapter);
 

@@ -160,6 +160,37 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	return cmd->rsp.arg[0];
 }
 
+int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_cmd_args cmd;
+	u32 arg1, arg2, arg3;
+	char drv_string[12];
+	int err = 0;
+
+	memset(drv_string, 0, sizeof(drv_string));
+	snprintf(drv_string, sizeof(drv_string), "%d"".""%d"".""%d",
+		 _QLCNIC_LINUX_MAJOR, _QLCNIC_LINUX_MINOR,
+		 _QLCNIC_LINUX_SUBVERSION);
+
+	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_SET_DRV_VER);
+	memcpy(&arg1, drv_string, sizeof(u32));
+	memcpy(&arg2, drv_string + 4, sizeof(u32));
+	memcpy(&arg3, drv_string + 8, sizeof(u32));
+
+	cmd.req.arg[1] = arg1;
+	cmd.req.arg[2] = arg2;
+	cmd.req.arg[3] = arg3;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err) {
+		dev_info(&adapter->pdev->dev,
+			 "Failed to set driver version in firmware\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int
 qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu)
 {
