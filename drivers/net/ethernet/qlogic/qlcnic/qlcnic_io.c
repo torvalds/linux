@@ -521,7 +521,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb)))
 		goto unwind_buff;
 
-	if (adapter->mac_learn)
+	if (adapter->drv_mac_learn)
 		qlcnic_send_filter(adapter, first_desc, skb);
 
 	adapter->stats.txbytes += skb->len;

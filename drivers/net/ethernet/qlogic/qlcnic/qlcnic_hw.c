@@ -446,7 +446,29 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }
 
-static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
+int qlcnic_nic_del_mac(struct qlcnic_adapter *adapter, const u8 *addr)
+{
+	struct list_head *head;
+	struct qlcnic_mac_list_s *cur;
+	int err = -EINVAL;
+
+	/* Delete MAC from the existing list */
+	list_for_each(head, &adapter->mac_list) {
+		cur = list_entry(head, struct qlcnic_mac_list_s, list);
+		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0) {
+			err = qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
+							0, QLCNIC_MAC_DEL);
+			if (err)
+				return err;
+			list_del(&cur->list);
+			kfree(cur);
+			return err;
+		}
+	}
+	return err;
+}
+
+int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 {
 	struct list_head *head;
 	struct qlcnic_mac_list_s *cur;
@@ -510,11 +532,11 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 send_fw_cmd:
-	if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
+	if (mode == VPORT_MISS_MODE_ACCEPT_ALL && !adapter->fdb_mac_learn) {
 		qlcnic_alloc_lb_filters_mem(adapter);
-		adapter->mac_learn = 1;
+		adapter->drv_mac_learn = true;
 	} else {
-		adapter->mac_learn = 0;
+		adapter->drv_mac_learn = false;
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);

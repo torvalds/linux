@@ -32,7 +32,8 @@ static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
 
 static int qlcnic_mac_learn;
 module_param(qlcnic_mac_learn, int, 0444);
-MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
+MODULE_PARM_DESC(qlcnic_mac_learn,
+		 "Mac Filter (0=learning is disabled, 1=Driver learning is enabled, 2=FDB learning is enabled)");
 
 int qlcnic_use_msi = 1;
 MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
@@ -246,6 +247,77 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static int qlcnic_fdb_del(struct ndmsg *ndm, struct net_device *netdev,
+			const unsigned char *addr)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int err = -EOPNOTSUPP;
+
+	if (!adapter->fdb_mac_learn) {
+		pr_info("%s: Driver mac learn is enabled, FDB operation not allowed\n",
+			__func__);
+		return err;
+	}
+
+	if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
+		if (is_unicast_ether_addr(addr))
+			err = qlcnic_nic_del_mac(adapter, addr);
+		else if (is_multicast_ether_addr(addr))
+			err = dev_mc_del(netdev, addr);
+		else
+			err =  -EINVAL;
+	}
+	return err;
+}
+
+static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *netdev,
+			const unsigned char *addr, u16 flags)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int err = 0;
+
+	if (!adapter->fdb_mac_learn) {
+		pr_info("%s: Driver mac learn is enabled, FDB operation not allowed\n",
+			__func__);
+		return -EOPNOTSUPP;
+	}
+
+	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+		pr_info("%s: FDB e-switch is not enabled\n", __func__);
+		return -EOPNOTSUPP;
+	}
+
+	if (ether_addr_equal(addr, adapter->mac_addr))
+		return err;
+
+	if (is_unicast_ether_addr(addr))
+		err = qlcnic_nic_add_mac(adapter, addr);
+	else if (is_multicast_ether_addr(addr))
+		err = dev_mc_add_excl(netdev, addr);
+	else
+		err = -EINVAL;
+
+	return err;
+}
+
+static int qlcnic_fdb_dump(struct sk_buff *skb, struct netlink_callback *ncb,
+			struct net_device *netdev, int idx)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+
+	if (!adapter->fdb_mac_learn) {
+		pr_info("%s: Driver mac learn is enabled, FDB operation not allowed\n",
+			__func__);
+		return -EOPNOTSUPP;
+	}
+
+	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
+		idx = ndo_dflt_fdb_dump(skb, ncb, netdev, idx);
+
+	return idx;
+}
+
 static void qlcnic_82xx_cancel_idc_work(struct qlcnic_adapter *adapter)
 {
 	while (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
@@ -268,6 +340,9 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_tx_timeout	   = qlcnic_tx_timeout,
 	.ndo_vlan_rx_add_vid	= qlcnic_vlan_rx_add,
 	.ndo_vlan_rx_kill_vid	= qlcnic_vlan_rx_del,
+	.ndo_fdb_add		= qlcnic_fdb_add,
+	.ndo_fdb_del		= qlcnic_fdb_del,
+	.ndo_fdb_dump		= qlcnic_fdb_dump,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -1802,7 +1877,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->dev_rst_time = jiffies;
 	adapter->ahw->revision_id = pdev->revision;
-	adapter->mac_learn = qlcnic_mac_learn;
+	if (qlcnic_mac_learn == FDB_MAC_LEARN)
+		adapter->fdb_mac_learn = true;
+	else if (qlcnic_mac_learn == DRV_MAC_LEARN)
+		adapter->drv_mac_learn = true;
 	adapter->max_drv_tx_rings = 1;
 
 	rwlock_init(&adapter->ahw->crb_lock);
@@ -1893,7 +1971,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (qlcnic_get_act_pci_func(adapter))
 		goto err_out_disable_mbx_intr;
 
-	if (adapter->mac_learn)
+	if (adapter->drv_mac_learn)
 		qlcnic_alloc_lb_filters_mem(adapter);
 
 	qlcnic_add_sysfs(adapter);
