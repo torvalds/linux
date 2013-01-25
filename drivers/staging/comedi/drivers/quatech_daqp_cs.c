@@ -944,11 +944,29 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static void daqp_cs_config(struct pcmcia_device *link)
+static int daqp_cs_attach(struct pcmcia_device *link)
 {
+	struct local_info_t *local;
 	int ret;
+	int i;
 
-	dev_dbg(&link->dev, "daqp_cs_config\n");
+	for (i = 0; i < MAX_DEV; i++)
+		if (dev_table[i] == NULL)
+			break;
+	if (i == MAX_DEV) {
+		dev_notice(&link->dev, "no devices available\n");
+		return -ENODEV;
+	}
+
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(*local), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+
+	local->table_index = i;
+	dev_table[i] = local;
+	local->link = link;
+	link->priv = local;
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
@@ -966,40 +984,11 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	return;
+	return 0;
 
 failed:
 	pcmcia_disable_device(link);
-}
-
-static int daqp_cs_attach(struct pcmcia_device *link)
-{
-	struct local_info_t *local;
-	int i;
-
-	dev_dbg(&link->dev, "daqp_cs_attach()\n");
-
-	for (i = 0; i < MAX_DEV; i++)
-		if (dev_table[i] == NULL)
-			break;
-	if (i == MAX_DEV) {
-		dev_notice(&link->dev, "no devices available\n");
-		return -ENODEV;
-	}
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-
-	local->table_index = i;
-	dev_table[i] = local;
-	local->link = link;
-	link->priv = local;
-
-	daqp_cs_config(link);
-
-	return 0;
+	return ret;
 }
 
 static void daqp_cs_detach(struct pcmcia_device *link)
