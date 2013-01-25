@@ -1063,22 +1063,29 @@ static void rbd_img_request_put(struct rbd_img_request *img_request)
 static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 					struct rbd_obj_request *obj_request)
 {
+	rbd_assert(obj_request->img_request == NULL);
+
 	rbd_obj_request_get(obj_request);
 	obj_request->img_request = img_request;
-	list_add_tail(&obj_request->links, &img_request->obj_requests);
-	obj_request->which = img_request->obj_request_count++;
+	obj_request->which = img_request->obj_request_count;
 	rbd_assert(obj_request->which != BAD_WHICH);
+	img_request->obj_request_count++;
+	list_add_tail(&obj_request->links, &img_request->obj_requests);
 }
 
 static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 					struct rbd_obj_request *obj_request)
 {
 	rbd_assert(obj_request->which != BAD_WHICH);
-	obj_request->which = BAD_WHICH;
+
 	list_del(&obj_request->links);
+	rbd_assert(img_request->obj_request_count > 0);
+	img_request->obj_request_count--;
+	rbd_assert(obj_request->which == img_request->obj_request_count);
+	obj_request->which = BAD_WHICH;
 	rbd_assert(obj_request->img_request == img_request);
-	obj_request->callback = NULL;
 	obj_request->img_request = NULL;
+	obj_request->callback = NULL;
 	rbd_obj_request_put(obj_request);
 }
 
@@ -1472,6 +1479,7 @@ static void rbd_img_request_destroy(struct kref *kref)
 
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
 		rbd_img_obj_request_del(img_request, obj_request);
+	rbd_assert(img_request->obj_request_count == 0);
 
 	if (img_request->write_request)
 		ceph_put_snap_context(img_request->snapc);
