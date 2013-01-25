@@ -29,7 +29,6 @@
 				   socket to transmit pending data.  */
 #define SO_OOBINLINE 0x0100	/* Receive out-of-band data in-band.  */
 #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
-#endif
 
 #define SO_TYPE		0x1008	/* Compatible name for SO_STYLE.  */
 #define SO_STYLE	SO_TYPE	/* Synonym */
