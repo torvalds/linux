@@ -140,11 +140,6 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
 
-static inline int apic_x2apic_mode(struct kvm_lapic *apic)
-{
-	return apic->vcpu->arch.apic_base & X2APIC_ENABLE;
-}
-
 static inline int kvm_apic_id(struct kvm_lapic *apic)
 {
 	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
@@ -1303,6 +1298,7 @@ u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 
 void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 {
+	u64 old_value = vcpu->arch.apic_base;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	if (!apic) {
@@ -1324,11 +1320,16 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 		value &= ~MSR_IA32_APICBASE_BSP;
 
 	vcpu->arch.apic_base = value;
-	if (apic_x2apic_mode(apic)) {
-		u32 id = kvm_apic_id(apic);
-		u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
-		kvm_apic_set_ldr(apic, ldr);
+	if ((old_value ^ value) & X2APIC_ENABLE) {
+		if (value & X2APIC_ENABLE) {
+			u32 id = kvm_apic_id(apic);
+			u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+			kvm_apic_set_ldr(apic, ldr);
+			kvm_x86_ops->set_virtual_x2apic_mode(vcpu, true);
+		} else
+			kvm_x86_ops->set_virtual_x2apic_mode(vcpu, false);
 	}
+
 	apic->base_address = apic->vcpu->arch.apic_base &
 			     MSR_IA32_APICBASE_BASE;
 

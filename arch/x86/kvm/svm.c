@@ -3571,6 +3571,11 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
+static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
+{
+	return;
+}
+
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4290,6 +4295,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
+	.set_virtual_x2apic_mode = svm_set_virtual_x2apic_mode,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
