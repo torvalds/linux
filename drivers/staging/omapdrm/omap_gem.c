@@ -1267,12 +1267,12 @@ int omap_gem_set_sync_object(struct drm_gem_object *obj, void *syncobj)
 
 	if ((omap_obj->flags & OMAP_BO_EXT_SYNC) && !syncobj) {
 		/* clearing a previously set syncobj */
-		syncobj = kzalloc(sizeof(*omap_obj->sync), GFP_ATOMIC);
+		syncobj = kmemdup(omap_obj->sync, sizeof(*omap_obj->sync),
+				  GFP_ATOMIC);
 		if (!syncobj) {
 			ret = -ENOMEM;
 			goto unlock;
 		}
-		memcpy(syncobj, omap_obj->sync, sizeof(*omap_obj->sync));
 		omap_obj->flags &= ~OMAP_BO_EXT_SYNC;
 		omap_obj->sync = syncobj;
 	} else if (syncobj && !(omap_obj->flags & OMAP_BO_EXT_SYNC)) {
