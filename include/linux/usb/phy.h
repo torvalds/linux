@@ -106,6 +106,21 @@ struct usb_phy {
 			enum usb_device_speed speed);
 };
 
+/**
+ * struct usb_phy_bind - represent the binding for the phy
+ * @dev_name: the device name of the device that will bind to the phy
+ * @phy_dev_name: the device name of the phy
+ * @index: used if a single controller uses multiple phys
+ * @phy: reference to the phy
+ * @list: to maintain a linked list of the binding information
+ */
+struct usb_phy_bind {
+	const char	*dev_name;
+	const char	*phy_dev_name;
+	u8		index;
+	struct usb_phy	*phy;
+	struct list_head list;
+};
 
 /* for board-specific init logic */
 extern int usb_add_phy(struct usb_phy *, enum usb_phy_type type);
@@ -151,6 +166,8 @@ extern struct usb_phy *devm_usb_get_phy(struct device *dev,
 	enum usb_phy_type type);
 extern void usb_put_phy(struct usb_phy *);
 extern void devm_usb_put_phy(struct device *dev, struct usb_phy *x);
+extern int usb_bind_phy(const char *dev_name, u8 index,
+				const char *phy_dev_name);
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 {
@@ -171,6 +188,11 @@ static inline void devm_usb_put_phy(struct device *dev, struct usb_phy *x)
 {
 }
 
+static inline int usb_bind_phy(const char *dev_name, u8 index,
+				const char *phy_dev_name)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 static inline int

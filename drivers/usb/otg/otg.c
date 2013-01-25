@@ -18,6 +18,7 @@
 #include <linux/usb/otg.h>
 
 static LIST_HEAD(phy_list);
+static LIST_HEAD(phy_bind_list);
 static DEFINE_SPINLOCK(phy_lock);
 
 static struct usb_phy *__usb_find_phy(struct list_head *list,
@@ -200,6 +201,42 @@ void usb_remove_phy(struct usb_phy *x)
 	spin_unlock_irqrestore(&phy_lock, flags);
 }
 EXPORT_SYMBOL(usb_remove_phy);
+
+/**
+ * usb_bind_phy - bind the phy and the controller that uses the phy
+ * @dev_name: the device name of the device that will bind to the phy
+ * @index: index to specify the port number
+ * @phy_dev_name: the device name of the phy
+ *
+ * Fills the phy_bind structure with the dev_name and phy_dev_name. This will
+ * be used when the phy driver registers the phy and when the controller
+ * requests this phy.
+ *
+ * To be used by platform specific initialization code.
+ */
+int __init usb_bind_phy(const char *dev_name, u8 index,
+				const char *phy_dev_name)
+{
+	struct usb_phy_bind *phy_bind;
+	unsigned long flags;
+
+	phy_bind = kzalloc(sizeof(*phy_bind), GFP_KERNEL);
+	if (!phy_bind) {
+		pr_err("phy_bind(): No memory for phy_bind");
+		return -ENOMEM;
+	}
+
+	phy_bind->dev_name = dev_name;
+	phy_bind->phy_dev_name = phy_dev_name;
+	phy_bind->index = index;
+
+	spin_lock_irqsave(&phy_lock, flags);
+	list_add_tail(&phy_bind->list, &phy_bind_list);
+	spin_unlock_irqrestore(&phy_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_bind_phy);
 
 const char *otg_state_string(enum usb_otg_state state)
 {
