@@ -3055,7 +3055,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
+static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
@@ -3572,7 +3572,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
 		hsotg->supplies[i].supply = s3c_hsotg_supply_names[i];
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
 				 hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
@@ -3662,8 +3662,6 @@ err_ep_mem:
 	kfree(eps);
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
 
@@ -3688,7 +3686,6 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	}
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable_unprepare(hsotg->clk);
 

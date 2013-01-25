@@ -15,6 +15,13 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
 
+#define MAX_U_SERIAL_PORTS	4
+
+struct f_serial_opts {
+	struct usb_function_instance func_inst;
+	u8 port_num;
+};
+
 /*
  * One non-multiplexed "serial" I/O port ... there can be several of these
  * on any given USB peripheral device, if it provides enough endpoints.
@@ -49,9 +56,9 @@ struct gserial {
 struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t flags);
 void gs_free_req(struct usb_ep *, struct usb_request *req);
 
-/* port setup/teardown is handled by gadget driver */
-int gserial_setup(struct usb_gadget *g, unsigned n_ports);
-void gserial_cleanup(void);
+/* management of individual TTY ports */
+int gserial_alloc_line(unsigned char *port_line);
+void gserial_free_line(unsigned char port_line);
 
 /* connect/disconnect is handled by individual functions */
 int gserial_connect(struct gserial *, u8 port_num);
