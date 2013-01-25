@@ -7911,9 +7911,10 @@ F:	drivers/net/wireless/ath/ar5523/
 USB ATTACHED SCSI
 M:	Matthew Wilcox <willy@linux.intel.com>
 M:	Sarah Sharp <sarah.a.sharp@linux.intel.com>
+M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	linux-usb@vger.kernel.org
 L:	linux-scsi@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/usb/storage/uas.c
 
 USB CDC ETHERNET DRIVER
