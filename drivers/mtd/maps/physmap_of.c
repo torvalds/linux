@@ -68,9 +68,6 @@ static int of_flash_remove(struct platform_device *dev)
 			kfree(info->list[i].res);
 		}
 	}
-
-	kfree(info);
-
 	return 0;
 }
 
@@ -199,8 +196,9 @@ static int of_flash_probe(struct platform_device *dev)
 	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
 
 	err = -ENOMEM;
-	info = kzalloc(sizeof(struct of_flash) +
-		       sizeof(struct of_flash_list) * count, GFP_KERNEL);
+	info = devm_kzalloc(&dev->dev,
+			    sizeof(struct of_flash) +
+			    sizeof(struct of_flash_list) * count, GFP_KERNEL);
 	if (!info)
 		goto err_flash_remove;
 
