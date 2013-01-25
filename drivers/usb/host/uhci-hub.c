@@ -116,6 +116,7 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 		}
 	}
 	clear_bit(port, &uhci->resuming_ports);
+	usb_hcd_end_port_resume(&uhci_to_hcd(uhci)->self, port);
 }
 
 /* Wait for the UHCI controller in HP's iLO2 server management chip.
@@ -167,6 +168,8 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 				set_bit(port, &uhci->resuming_ports);
 				uhci->ports_timeout = jiffies +
 						msecs_to_jiffies(25);
+				usb_hcd_start_port_resume(
+						&uhci_to_hcd(uhci)->self, port);
 
 				/* Make sure we see the port again
 				 * after the resuming period is over. */
