@@ -13,7 +13,9 @@
 #include <linux/export.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <linux/usb/otg.h>
 
@@ -49,6 +51,20 @@ static struct usb_phy *__usb_find_phy_dev(struct device *dev,
 			else
 				return ERR_PTR(-EPROBE_DEFER);
 		}
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+
+static struct usb_phy *__of_usb_find_phy(struct device_node *node)
+{
+	struct usb_phy  *phy;
+
+	list_for_each_entry(phy, &phy_list, head) {
+		if (node != phy->dev->of_node)
+			continue;
+
+		return phy;
 	}
 
 	return ERR_PTR(-ENODEV);
@@ -128,6 +144,70 @@ err0:
 	return phy;
 }
 EXPORT_SYMBOL(usb_get_phy);
+
+ /**
+ * devm_usb_get_phy_by_phandle - find the USB PHY by phandle
+ * @dev - device that requests this phy
+ * @phandle - name of the property holding the phy phandle value
+ * @index - the index of the phy
+ *
+ * Returns the phy driver associated with the given phandle value,
+ * after getting a refcount to it, -ENODEV if there is no such phy or
+ * -EPROBE_DEFER if there is a phandle to the phy, but the device is
+ * not yet loaded. While at that, it also associates the device with
+ * the phy using devres. On driver detach, release function is invoked
+ * on the devres data, then, devres data is freed.
+ *
+ * For use by USB host and peripheral drivers.
+ */
+struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
+	const char *phandle, u8 index)
+{
+	struct usb_phy	*phy = ERR_PTR(-ENOMEM), **ptr;
+	unsigned long	flags;
+	struct device_node *node;
+
+	if (!dev->of_node) {
+		dev_dbg(dev, "device does not have a device node entry\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	node = of_parse_phandle(dev->of_node, phandle, index);
+	if (!node) {
+		dev_dbg(dev, "failed to get %s phandle in %s node\n", phandle,
+			dev->of_node->full_name);
+		return ERR_PTR(-ENODEV);
+	}
+
+	ptr = devres_alloc(devm_usb_phy_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr) {
+		dev_dbg(dev, "failed to allocate memory for devres\n");
+		goto err0;
+	}
+
+	spin_lock_irqsave(&phy_lock, flags);
+
+	phy = __of_usb_find_phy(node);
+	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
+		phy = ERR_PTR(-EPROBE_DEFER);
+		devres_free(ptr);
+		goto err1;
+	}
+
+	*ptr = phy;
+	devres_add(dev, ptr);
+
+	get_device(phy->dev);
+
+err1:
+	spin_unlock_irqrestore(&phy_lock, flags);
+
+err0:
+	of_node_put(node);
+
+	return phy;
+}
+EXPORT_SYMBOL(devm_usb_get_phy_by_phandle);
 
 /**
  * usb_get_phy_dev - find the USB PHY
