@@ -8,10 +8,15 @@ Required properties:
 add the address of control module dev conf register until a driver for
 control module is added
 
+Optional properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
 This is usually a subnode of ocp2scp to which it is connected.
 
 usb2phy@4a0ad080 {
 	compatible = "ti,omap-usb2";
 	reg = <0x4a0ad080 0x58>,
 	      <0x4a002300 0x4>;
+	ctrl-module = <&omap_control_usb>;
 };
