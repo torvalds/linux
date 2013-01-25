@@ -4265,8 +4265,9 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 	u8 encr_type;
 	u8 *addr;
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+	struct mwl8k_priv *priv = hw->priv;
 
-	if (vif->type == NL80211_IFTYPE_STATION)
+	if (vif->type == NL80211_IFTYPE_STATION && !priv->ap_fw)
 		return -EOPNOTSUPP;
 
 	if (sta == NULL)
