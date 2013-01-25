@@ -3004,7 +3004,7 @@ static int fbcon_unbind(void)
 {
 	int ret;
 
-	ret = unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
+	ret = do_unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
 				fbcon_is_default);
 
 	if (!ret)
@@ -3077,7 +3077,7 @@ static int fbcon_fb_unregistered(struct fb_info *info)
 		primary_device = -1;
 
 	if (!num_registered_fb)
-		unregister_con_driver(&fb_con);
+		do_unregister_con_driver(&fb_con);
 
 	return 0;
 }
