@@ -8903,7 +8903,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
-static void i915_redisable_vga(struct drm_device *dev)
+void i915_redisable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 vga_reg;

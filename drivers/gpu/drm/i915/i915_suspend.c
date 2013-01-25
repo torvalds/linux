@@ -69,6 +69,15 @@ static void i915_save_vga(struct drm_device *dev)
 	int i;
 	u16 cr_index, cr_data, st01;
 
+	/* VGA state */
+	dev_priv->regfile.saveVGA0 = I915_READ(VGA0);
+	dev_priv->regfile.saveVGA1 = I915_READ(VGA1);
+	dev_priv->regfile.saveVGA_PD = I915_READ(VGA_PD);
+	if (HAS_PCH_SPLIT(dev))
+		dev_priv->regfile.saveVGACNTRL = I915_READ(CPU_VGACNTRL);
+	else
+		dev_priv->regfile.saveVGACNTRL = I915_READ(VGACNTRL);
+
 	/* VGA color palette registers */
 	dev_priv->regfile.saveDACMASK = I915_READ8(VGA_DACMASK);
 
@@ -126,6 +135,18 @@ static void i915_restore_vga(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 	u16 cr_index, cr_data, st01;
+
+	/* VGA state */
+	if (HAS_PCH_SPLIT(dev))
+		I915_WRITE(CPU_VGACNTRL, dev_priv->regfile.saveVGACNTRL);
+	else
+		I915_WRITE(VGACNTRL, dev_priv->regfile.saveVGACNTRL);
+
+	I915_WRITE(VGA0, dev_priv->regfile.saveVGA0);
+	I915_WRITE(VGA1, dev_priv->regfile.saveVGA1);
+	I915_WRITE(VGA_PD, dev_priv->regfile.saveVGA_PD);
+	POSTING_READ(VGA_PD);
+	udelay(150);
 
 	/* MSR bits */
 	I915_WRITE8(VGA_MSR_WRITE, dev_priv->regfile.saveMSR);
@@ -251,16 +272,8 @@ static void i915_save_display(struct drm_device *dev)
 		}
 	}
 
-	/* VGA state */
-	dev_priv->regfile.saveVGA0 = I915_READ(VGA0);
-	dev_priv->regfile.saveVGA1 = I915_READ(VGA1);
-	dev_priv->regfile.saveVGA_PD = I915_READ(VGA_PD);
-	if (HAS_PCH_SPLIT(dev))
-		dev_priv->regfile.saveVGACNTRL = I915_READ(CPU_VGACNTRL);
-	else
-		dev_priv->regfile.saveVGACNTRL = I915_READ(VGACNTRL);
-
-	i915_save_vga(dev);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_save_vga(dev);
 }
 
 static void i915_restore_display(struct drm_device *dev)
@@ -334,19 +347,10 @@ static void i915_restore_display(struct drm_device *dev)
 			I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 		}
 	}
-	/* VGA state */
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(CPU_VGACNTRL, dev_priv->regfile.saveVGACNTRL);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_restore_vga(dev);
 	else
-		I915_WRITE(VGACNTRL, dev_priv->regfile.saveVGACNTRL);
-
-	I915_WRITE(VGA0, dev_priv->regfile.saveVGA0);
-	I915_WRITE(VGA1, dev_priv->regfile.saveVGA1);
-	I915_WRITE(VGA_PD, dev_priv->regfile.saveVGA_PD);
-	POSTING_READ(VGA_PD);
-	udelay(150);
-
-	i915_restore_vga(dev);
+		i915_redisable_vga(dev);
 }
 
 int i915_save_state(struct drm_device *dev)
