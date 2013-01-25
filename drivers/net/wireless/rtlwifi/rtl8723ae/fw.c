@@ -252,7 +252,7 @@ static void _rtl8723ae_fill_h2c_command(struct ieee80211_hw *hw,
 	u16 box_reg = 0, box_extreg = 0;
 	u8 u1tmp;
 	bool isfw_rd = false;
-	bool bwrite_sucess = false;
+	bool bwrite_success = false;
 	u8 wait_h2c_limmit = 100;
 	u8 wait_writeh2c_limmit = 100;
 	u8 boxcontent[4], boxextcontent[2];
@@ -291,7 +291,7 @@ static void _rtl8723ae_fill_h2c_command(struct ieee80211_hw *hw,
 		}
 	}
 
-	while (!bwrite_sucess) {
+	while (!bwrite_success) {
 		wait_writeh2c_limmit--;
 		if (wait_writeh2c_limmit == 0) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -429,7 +429,7 @@ static void _rtl8723ae_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		}
 
-		bwrite_sucess = true;
+		bwrite_success = true;
 
 		rtlhal->last_hmeboxnum = boxnum + 1;
 		if (rtlhal->last_hmeboxnum == 4)
