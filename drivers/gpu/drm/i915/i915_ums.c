@@ -254,6 +254,22 @@ void i915_save_display_reg(struct drm_device *dev)
 	else
 		dev_priv->regfile.saveADPA = I915_READ(ADPA);
 
+	/* Display Port state */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		dev_priv->regfile.saveDP_B = I915_READ(DP_B);
+		dev_priv->regfile.saveDP_C = I915_READ(DP_C);
+		dev_priv->regfile.saveDP_D = I915_READ(DP_D);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_GMCH_DATA_M);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_GMCH_DATA_M);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_GMCH_DATA_N);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_GMCH_DATA_N);
+		dev_priv->regfile.savePIPEA_DP_LINK_M = I915_READ(_PIPEA_DP_LINK_M);
+		dev_priv->regfile.savePIPEB_DP_LINK_M = I915_READ(_PIPEB_DP_LINK_M);
+		dev_priv->regfile.savePIPEA_DP_LINK_N = I915_READ(_PIPEA_DP_LINK_N);
+		dev_priv->regfile.savePIPEB_DP_LINK_N = I915_READ(_PIPEB_DP_LINK_N);
+	}
+	/* FIXME: regfile.save TV & SDVO state */
+
 	return;
 }
 
@@ -474,6 +490,14 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(PCH_ADPA, dev_priv->regfile.saveADPA);
 	else
 		I915_WRITE(ADPA, dev_priv->regfile.saveADPA);
+
+	/* Display Port state */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		I915_WRITE(DP_B, dev_priv->regfile.saveDP_B);
+		I915_WRITE(DP_C, dev_priv->regfile.saveDP_C);
+		I915_WRITE(DP_D, dev_priv->regfile.saveDP_D);
+	}
+	/* FIXME: restore TV & SDVO state */
 
 	return;
 }
