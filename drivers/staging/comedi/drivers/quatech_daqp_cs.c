@@ -163,20 +163,14 @@ static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 #define DAQP_AUX_FIFO_NEARFULL		0x02
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
-/* These range structures tell COMEDI how the sample values map to
- * voltages.  The A/D converter has four	.ranges = +/- 10V through
- * +/- 1.25V, and the D/A converter has only	.one = +/- 5V.
- */
-
-static const struct comedi_lrange range_daqp_ai = { 4, {
-							BIP_RANGE(10),
-							BIP_RANGE(5),
-							BIP_RANGE(2.5),
-							BIP_RANGE(1.25)
-							}
+static const struct comedi_lrange range_daqp_ai = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
 };
-
-static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /* Cancel a running acquisition */
 
@@ -797,7 +791,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 2;
 	s->len_chanlist = 1;
 	s->maxdata = 0x0fff;
-	s->range_table = &range_daqp_ao;
+	s->range_table = &range_bipolar5;
 	s->insn_write = daqp_ao_insn_write;
 
 	s = &dev->subdevices[2];
