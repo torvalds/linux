@@ -216,7 +216,7 @@ Parse_DTD_Block(__u8 *pbuf)
 	__u32 dummy, pclk, sizex, Hblanking, sizey, Vblanking, Hsync_offset,
 		Hsync_pulsew, Vsync_offset, Vsync_pulsew, H_image_size,
 		V_image_size, H_Border, V_Border, pixels_total, frame_rate,
-		Hsync, Vsync;
+		Hsync, Vsync, HT, VT;
 	pclk = (((__u32) pbuf[1] << 8) + pbuf[0]) * 10000;
 	sizex = (((__u32) pbuf[4] << 4) & 0x0f00) + pbuf[2];
 	Hblanking = (((__u32) pbuf[4] << 8) & 0x0f00) + pbuf[3];
@@ -232,8 +232,10 @@ Parse_DTD_Block(__u8 *pbuf)
 	V_Border = pbuf[16];
 	Hsync = (pbuf[17] & 0x02) >> 1;
 	Vsync = (pbuf[17] & 0x04) >> 2;
+	HT = sizex + Hblanking;
+	VT = sizey + Vblanking;
 
-	pixels_total = (sizex + Hblanking) * (sizey + Vblanking);
+	pixels_total = HT * VT;
 
 	if ((pbuf[0] == 0) && (pbuf[1] == 0) && (pbuf[2] == 0))
 		return 0;
@@ -282,9 +284,9 @@ Parse_DTD_Block(__u8 *pbuf)
 
 	pr_info("PCLK=%d X %d %d %d %d Y %d %d %d %d fr %d %s%s\n", pclk,
 		sizex, sizex + Hsync_offset,
-		sizex + Hsync_offset + Hsync_pulsew, sizex + Hblanking,
+		sizex + Hsync_offset + Hsync_pulsew, HT,
 		sizey, sizey + Vsync_offset,
-		sizey + Vsync_offset + Vsync_pulsew, sizey + Vblanking,
+		sizey + Vsync_offset + Vsync_pulsew, VT,
 		frame_rate, Hsync ? "P" : "N", Vsync ? "P" : "N");
 
 	/* Pick the first mode with a width which is a multiple of 8 and
@@ -296,11 +298,11 @@ Parse_DTD_Block(__u8 *pbuf)
 		video_timing[video_timing_edid].AVI_PR = 0;
 		video_timing[video_timing_edid].INPUTX = sizex;
 		video_timing[video_timing_edid].INPUTY = sizey;
-		video_timing[video_timing_edid].HT = sizex + Hblanking;
+		video_timing[video_timing_edid].HT = HT;
 		video_timing[video_timing_edid].HBP = Hblanking - Hsync_offset;
 		video_timing[video_timing_edid].HFP = Hsync_offset;
 		video_timing[video_timing_edid].HPSW = Hsync_pulsew;
-		video_timing[video_timing_edid].VT = sizey + Vblanking;
+		video_timing[video_timing_edid].VT = VT;
 		video_timing[video_timing_edid].VBP = Vblanking - Vsync_offset;
 		video_timing[video_timing_edid].VFP = Vsync_offset;
 		video_timing[video_timing_edid].VPSW = Vsync_pulsew;
