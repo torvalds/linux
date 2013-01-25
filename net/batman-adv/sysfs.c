@@ -442,6 +442,9 @@ static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
+#ifdef CONFIG_BATMAN_ADV_NC
+BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR, NULL);
+#endif
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -463,6 +466,9 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_gw_bandwidth,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 	&batadv_attr_log_level,
+#endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	&batadv_attr_network_coding,
 #endif
 	NULL,
 };

@@ -37,6 +37,7 @@
 #include <linux/if_ether.h>
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
+#include "network-coding.h"
 
 
 static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
@@ -543,6 +544,8 @@ struct net_device *batadv_softif_create(const char *name)
 	ret = batadv_algo_select(bat_priv, batadv_routing_algo);
 	if (ret < 0)
 		goto unreg_soft_iface;
+
+	batadv_nc_init_bat_priv(bat_priv);
 
 	ret = batadv_sysfs_add_meshif(soft_iface);
 	if (ret < 0)

@@ -428,6 +428,14 @@ struct batadv_priv_dat {
 #endif
 
 /**
+ * struct batadv_priv_nc - per mesh interface network coding private data
+ * @work: work queue callback item for cleanup
+ */
+struct batadv_priv_nc {
+	struct delayed_work work;
+};
+
+/**
  * struct batadv_priv - per mesh interface data
  * @mesh_state: current status of the mesh (inactive/active/deactivating)
  * @soft_iface: net device which holds this struct as private data
@@ -470,6 +478,8 @@ struct batadv_priv_dat {
  * @tt: translation table data
  * @vis: vis data
  * @dat: distributed arp table data
+ * @network_coding: bool indicating whether network coding is enabled
+ * @batadv_priv_nc: network coding data
  */
 struct batadv_priv {
 	atomic_t mesh_state;
@@ -522,6 +532,10 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
 #endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	atomic_t network_coding;
+	struct batadv_priv_nc nc;
+#endif /* CONFIG_BATMAN_ADV_NC */
 };
 
 /**
