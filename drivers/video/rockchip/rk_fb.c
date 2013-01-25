@@ -214,8 +214,9 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 	switch (par->format)
     	{
-    		case XRGB888:
+    		case XBGR888:
 		case ARGB888:
+		case ABGR888:
 			par->y_offset = (yoffset*xvir + xoffset)*4;
 			break;
 		case  RGB888:
@@ -471,12 +472,17 @@ static int rk_fb_set_par(struct fb_info *info)
 	{
 		case HAL_PIXEL_FORMAT_RGBX_8888: 
 		#if defined(CONFIG_ARCH_RK3188)
-			par->format = XRGB888;
+			par->format = XBGR888;
 			fix->line_length = 4 * xvir;
 			par->y_offset = (yoffset*xvir + xoffset)*4;
 			break;
 		#endif
 		case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
+			par->format = ABGR888;
+			fix->line_length = 4 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*4;
+			break;
+		case HAL_PIXEL_FORMAT_BGRA_8888 :      // rgb
 			par->format = ARGB888;
 			fix->line_length = 4 * xvir;
 			par->y_offset = (yoffset*xvir + xoffset)*4;

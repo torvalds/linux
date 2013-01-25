@@ -144,6 +144,8 @@ enum data_format{
 	YUV422,
 	YUV444,
 	XRGB888,
+	XBGR888,
+	ABGR888,
 };
 
 enum fb_win_map_order{
