@@ -767,51 +767,46 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "attaching daqp%d (io 0x%04lx)\n",
-		 it->options[0], dev->iobase);
-
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-	s->private = local;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 2048;
-	s->maxdata = 0xffff;
-	s->range_table = &range_daqp_ai;
-	s->insn_read = daqp_ai_insn_read;
-	s->do_cmdtest = daqp_ai_cmdtest;
-	s->do_cmd = daqp_ai_cmd;
-	s->cancel = daqp_ai_cancel;
+	s->private	= local;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan	= 8;
+	s->len_chanlist	= 2048;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_daqp_ai;
+	s->insn_read	= daqp_ai_insn_read;
+	s->do_cmdtest	= daqp_ai_cmdtest;
+	s->do_cmd	= daqp_ai_cmd;
+	s->cancel	= daqp_ai_cancel;
 
 	s = &dev->subdevices[1];
 	dev->write_subdev = s;
-	s->private = local;
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 2;
-	s->len_chanlist = 1;
-	s->maxdata = 0x0fff;
-	s->range_table = &range_bipolar5;
-	s->insn_write = daqp_ao_insn_write;
+	s->private	= local;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= daqp_ao_insn_write;
 
 	s = &dev->subdevices[2];
-	s->private = local;
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 1;
-	s->len_chanlist = 1;
-	s->insn_read = daqp_di_insn_read;
+	s->private	= local;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 1;
+	s->insn_read	= daqp_di_insn_read;
 
 	s = &dev->subdevices[3];
-	s->private = local;
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 1;
-	s->len_chanlist = 1;
-	s->insn_write = daqp_do_insn_write;
+	s->private	= local;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 1;
+	s->len_chanlist	= 1;
+	s->insn_write	= daqp_do_insn_write;
 
-	return 1;
+	return 0;
 }
 
 static void daqp_detach(struct comedi_device *dev)
