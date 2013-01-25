@@ -112,10 +112,12 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 	/* The default for the length of Galois Field. */
 	geo->gf_len = 13;
 
-	/* The default for chunk size. There is no oobsize greater then 512. */
+	/* The default for chunk size. */
 	geo->ecc_chunk_size = 512;
-	while (geo->ecc_chunk_size < mtd->oobsize)
+	while (geo->ecc_chunk_size < mtd->oobsize) {
 		geo->ecc_chunk_size *= 2; /* keep C >= O */
+		geo->gf_len = 14;
+	}
 
 	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunk_size;
 

@@ -237,6 +237,7 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	unsigned int metadata_size;
 	unsigned int ecc_strength;
 	unsigned int page_size;
+	unsigned int gf_len;
 	int ret;
 
 	if (common_nfc_set_geometry(this))
@@ -247,6 +248,7 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	metadata_size = bch_geo->metadata_size;
 	ecc_strength  = bch_geo->ecc_strength >> 1;
 	page_size     = bch_geo->page_size;
+	gf_len        = bch_geo->gf_len;
 
 	ret = gpmi_enable_clk(this);
 	if (ret)
@@ -268,11 +270,13 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	writel(BF_BCH_FLASH0LAYOUT0_NBLOCKS(block_count)
 			| BF_BCH_FLASH0LAYOUT0_META_SIZE(metadata_size)
 			| BF_BCH_FLASH0LAYOUT0_ECC0(ecc_strength, this)
+			| BF_BCH_FLASH0LAYOUT0_GF(gf_len, this)
 			| BF_BCH_FLASH0LAYOUT0_DATA0_SIZE(block_size, this),
 			r->bch_regs + HW_BCH_FLASH0LAYOUT0);
 
 	writel(BF_BCH_FLASH0LAYOUT1_PAGE_SIZE(page_size)
 			| BF_BCH_FLASH0LAYOUT1_ECCN(ecc_strength, this)
+			| BF_BCH_FLASH0LAYOUT1_GF(gf_len, this)
 			| BF_BCH_FLASH0LAYOUT1_DATAN_SIZE(block_size, this),
 			r->bch_regs + HW_BCH_FLASH0LAYOUT1);
 
