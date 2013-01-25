@@ -34,15 +34,18 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
+	u32 phyaddr;
 
 	if (!np)
 		return -ENODEV;
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
-	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
+	if (NULL == plat->mdio_bus_data) {
+		plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
+	}
 
 	/*
 	 * Currently only the properties needed on SPEAr600
@@ -54,6 +57,17 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		of_device_is_compatible(np, "snps,dwmac")) {
 		plat->has_gmac = 1;
 		plat->pmt = 1;
+	}
+
+	if (0 == of_property_read_u32(np, "phy-addr", &phyaddr)) {
+		if ((-1 == phyaddr) ||
+			((phyaddr >= 0) && (phyaddr < PHY_MAX_ADDR))) {
+			plat->phy_addr = phyaddr;
+		} else {
+			pr_err("%s: ERROR: bad phy address: %d\n",
+				__func__, phyaddr);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -92,10 +106,14 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
+	plat_dat = pdev->dev.platform_data;
+
 	if (pdev->dev.of_node) {
-		plat_dat = devm_kzalloc(&pdev->dev,
+		if (NULL == plat_dat) {
+			plat_dat = devm_kzalloc(&pdev->dev,
 					sizeof(struct plat_stmmacenet_data),
 					GFP_KERNEL);
+		}
 		if (!plat_dat) {
 			pr_err("%s: ERROR: no memory", __func__);
 			return  -ENOMEM;
@@ -106,8 +124,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 			pr_err("%s: main dt probe failed", __func__);
 			return ret;
 		}
-	} else {
-		plat_dat = pdev->dev.platform_data;
 	}
 
 	/* Custom initialisation (if needed)*/

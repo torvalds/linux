@@ -38,6 +38,15 @@ extern void socfpga_secondary_startup(void);
 #define RSTMGR_CTRL_SWCOLDRSTREQ	0x1	/* Cold Reset */
 #define RSTMGR_CTRL_SWWARMRSTREQ	0x2	/* Warm Reset */
 
+#define SYSMGR_EMACGRP_CTRL_OFFSET 0x60
+#define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
+#define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1
+#define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RMII 0x2
+#define SYSMGR_EMACGRP_CTRL_PHYSEL_WIDTH 2
+
+#define SYSMGR_EMACGRP_CTRL_PHYSEL_MASK 0x00000003
+
+extern void secondary_startup(void);
 extern void __iomem *socfpga_scu_base_addr;
 extern void __iomem *sys_manager_base_addr;
 extern void __iomem *rst_manager_base_addr;

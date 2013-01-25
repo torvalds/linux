@@ -26,10 +26,11 @@
 		bootargs = "console=ttyS0,57600";
 	};
 
-	memory {
-		name = "memory";
-		device_type = "memory";
-		reg = <0xC0000000 0x20000000>; /* 512MB */
+	aliases {
+		/* this allow the ethaddr uboot environmnet variable contents
+		 * to be added to the gmac1 device tree blob.
+		 */
+		ethernet0 = &gmac1;
 	};
 
 	soc {
@@ -67,6 +68,12 @@
 
 		sysmgr@ffd08000 {
 			cpu1-start-addr = <0xffd080c4>;
+		};
+
+		stmmac@ff702000 {
+			phy-mode = "rgmii";
+			phy-addr = <0xffffffff>; /* probe for phy addr */
+			status = "okay";
 		};
 
 		qspi: spi@ff705000 {

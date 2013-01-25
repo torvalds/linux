@@ -23,6 +23,7 @@
 
 	aliases {
 		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		timer0 = &timer0;
@@ -99,13 +100,23 @@
 				reg = <0xffd04000 0x1000>;
 			};
 
+
 		gmac0: stmmac@ff700000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
 			reg = <0xff700000 0x2000>;
 			interrupts = <0 115 4>;
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
-			phy-mode = "gmii";
+			status = "disabled";
+		};
+
+		gmac1: stmmac@ff702000 {
+			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
+			reg = <0xff702000 0x2000>;
+			interrupts = <0 120 4>;
+			interrupt-names = "macirq";
+			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
+			status = "disabled";
 		};
 
 		gpio0: gpio@ff708000 {

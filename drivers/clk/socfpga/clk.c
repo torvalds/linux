@@ -104,80 +104,84 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	clk = clk_register_fixed_rate(NULL, "main_pll_clk", NULL, CLK_IS_ROOT,
 			SOCFPGA_MAIN_PLL_CLK);
 	clk_register_clkdev(clk, "main_pll_clk", NULL);
-	
+
 	clk = clk_register_fixed_rate(NULL, "per_pll_clk", NULL, CLK_IS_ROOT,
 			SOCFPGA_PER_PLL_CLK);
 	clk_register_clkdev(clk, "per_pll_clk", NULL);
-	
+
 	clk = clk_register_fixed_rate(NULL, "sdram_pll_clk", NULL, CLK_IS_ROOT,
 			SOCFPGA_SDRAM_PLL_CLK);
 	clk_register_clkdev(clk, "sdram_pll_clk", NULL);
-	
-	clk = clk_register_fixed_rate(NULL, "osc1_clk", NULL, CLK_IS_ROOT, SOCFPGA_OSC1_CLK);
+
+	clk = clk_register_fixed_rate(NULL, "osc1_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_OSC1_CLK);
 	clk_register_clkdev(clk, "osc1_clk", NULL);
 
-	if (strcmp(clk_name, "main_pll") || strcmp(clk_name, "periph_pll") ||
-			strcmp(clk_name, "sdram_pll")) {
-		socfpga_clk->hw.bit_idx = SOCFPGA_PLL_EXT_ENA;
-		clk_pll_ops.enable = clk_gate_ops.enable;
-		clk_pll_ops.disable = clk_gate_ops.disable;
-	}
+	clk = clk_register_fixed_rate(NULL, "mpu_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_MPU_CLK);
+	clk_register_clkdev(clk, "mpu_clk", NULL);
 
-	clk = clk_register(NULL, &socfpga_clk->hw.hw);
-	if (WARN_ON(IS_ERR(clk))) {
-		kfree(socfpga_clk);
-		return NULL;
-	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	return clk;
-}
+	clk = clk_register_fixed_rate(NULL, "main_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_MPU_CLK/2);
+	clk_register_clkdev(clk, "main_clk", NULL);
 
-static void __init socfpga_pll_init(struct device_node *node)
-{
-	socfpga_clk_init(node, &clk_pll_ops);
-}
-CLK_OF_DECLARE(socfpga_pll, "altr,socfpga-pll-clock", socfpga_pll_init);
+	clk = clk_register_fixed_rate(NULL, "dbg_base_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_MPU_CLK/2);
+	clk_register_clkdev(clk, "dbg_base_clk", NULL);
 
-static void __init socfpga_periph_init(struct device_node *node)
-{
-	socfpga_clk_init(node, &periclk_ops);
-}
-CLK_OF_DECLARE(socfpga_periph, "altr,socfpga-perip-clk", socfpga_periph_init);
+	clk = clk_register_fixed_rate(NULL, "smp_twd", NULL, CLK_IS_ROOT,
+			SOCFPGA_MPU_CLK/4);
+	clk_register_clkdev(clk, NULL, "smp_twd");
 
-void __init socfpga_init_clocks(void)
-{
-	struct clk *clk;
-	int ret;
+	clk = clk_register_fixed_rate(NULL, "main_qspi_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_MAIN_QSPI_CLK);
+	clk_register_clkdev(clk, "main_qspi_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT, SOCFPGA_S2F_USR_CLK);
+	clk = clk_register_fixed_rate(NULL, "main_nand_sdmmc_clk", NULL,
+			CLK_IS_ROOT, SOCFPGA_MAIN_NAND_SDMMC_CLK);
+	clk_register_clkdev(clk, "main_nand_sdmmc_clk", NULL);
+
+	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT,
+			SOCFPGA_S2F_USR_CLK);
 	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
-	
-	clk = clk_register_gate(NULL, "gmac_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+
+	clk = clk_register_gate(NULL, "gmac0_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_EMAC0_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff700000.stmmac");
 
-	clk = clk_register_gate(NULL, "spi0_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+	clk = clk_register_gate(NULL, "gmac1_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_EMAC1_CLK_EN, 0, &_lock);
+	clk_register_clkdev(clk, NULL, "ff702000.stmmac");
+
+	clk = clk_register_gate(NULL, "spi0_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "fff00000.spi");
 
-	clk = clk_register_gate(NULL, "spi1_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+	clk = clk_register_gate(NULL, "spi1_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_SPI_M_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "fff01000.spi");
 
-	clk = clk_register_gate(NULL, "gpio0_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+	clk = clk_register_gate(NULL, "gpio0_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_GPIO_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff708000.gpio");
 
-	clk = clk_register_gate(NULL, "gpio1_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+	clk = clk_register_gate(NULL, "gpio1_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_GPIO_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff709000.gpio");
 
-	clk = clk_register_gate(NULL, "gpio2_clk", "per_pll_clk", 0, clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+	clk = clk_register_gate(NULL, "gpio2_clk", "per_pll_clk", 0,
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
 			CLKMGR_GPIO_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff70a000.gpio");
 
 	clk = clk_register_gate(NULL, "nand_clk", "main_nand_sdmmc_clk", 0,
-			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN, CLKMGR_NAND_CLK_EN, 0,
-			 &_lock);
+			clk_mgr_base_addr + CLKMGR_PERPLLGRP_EN,
+			CLKMGR_NAND_CLK_EN, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "ff900000.nand");
 }

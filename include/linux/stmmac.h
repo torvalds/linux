@@ -27,6 +27,8 @@
 #define __STMMAC_PLATFORM_DATA
 
 #include <linux/platform_device.h>
+#include <linux/mii.h>
+#include <linux/phy.h>
 
 #define STMMAC_RX_COE_NONE	0
 #define STMMAC_RX_COE_TYPE1	1
@@ -77,6 +79,7 @@
 
 struct stmmac_mdio_bus_data {
 	int (*phy_reset)(void *priv);
+	int (*phy_reset_mii)(struct mii_bus *bus, int phyaddr);
 	unsigned int phy_mask;
 	int *irqs;
 	int probed_phy_irq;

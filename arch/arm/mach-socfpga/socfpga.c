@@ -21,6 +21,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_net.h>
+#include <linux/stmmac.h>
+#include <linux/phy.h>
+#include <linux/micrel_phy.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
@@ -37,7 +41,26 @@ void __iomem *rst_manager_base_addr;
 
 unsigned long	cpu1start_addr;
 
+static int socfpga_phy_reset_mii(struct mii_bus *bus, int phyaddr);
+static int stmmac_plat_init(struct platform_device *pdev);
+
+static struct stmmac_mdio_bus_data stmmacenet_mdio_bus_data = {
+	.phy_reset_mii = socfpga_phy_reset_mii,
+};
+
+static struct plat_stmmacenet_data stmmacenet0_data = {
+	.mdio_bus_data = &stmmacenet_mdio_bus_data,
+	.init = &stmmac_plat_init,
+};
+
+static struct plat_stmmacenet_data stmmacenet1_data = {
+	.mdio_bus_data = &stmmacenet_mdio_bus_data,
+	.init = &stmmac_plat_init,
+};
+
 static const struct of_dev_auxdata socfpga_auxdata_lookup[] __initconst = {
+	OF_DEV_AUXDATA("snps,dwmac-3.70a", 0xff700000, NULL, &stmmacenet0_data),
+	OF_DEV_AUXDATA("snps,dwmac-3.70a", 0xff702000, NULL, &stmmacenet1_data),
 	{ /* sentinel */ }
 };
 
@@ -88,6 +111,116 @@ static void __init enable_periphs(void)
 
 	/* Release all FPGA bridges from reset.*/
 	__raw_writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_BRGMODRST);
+}
+
+static int stmmac_mdio_write_null(struct mii_bus *bus, int phyaddr, int phyreg,
+			     u16 phydata)
+{
+	return 0;
+}
+
+#define MICREL_KSZ9021_EXTREG_CTRL 11
+#define MICREL_KSZ9021_EXTREG_DATA_WRITE 12
+#define MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW 260
+#define MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW 261
+
+static int stmmac_emdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
+			     u16 phydata)
+{
+	int ret = (bus->write)(bus, phyaddr,
+		MICREL_KSZ9021_EXTREG_CTRL, 0x8000|phyreg);
+	if (ret) {
+		pr_warn("stmmac_emdio_write write1 failed %d\n", ret);
+		return ret;
+	}
+
+	ret = (bus->write)(bus, phyaddr,
+		MICREL_KSZ9021_EXTREG_DATA_WRITE, phydata);
+	if (ret) {
+		pr_warn("stmmac_emdio_write write2 failed %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int socfpga_phy_reset_mii(struct mii_bus *bus, int phyaddr)
+{
+	struct phy_device *phydev;
+
+	if (of_machine_is_compatible("altr,socfpga-vt"))
+		return 0;
+
+	phydev = bus->phy_map[phyaddr];
+
+	if (NULL == phydev) {
+		pr_err("%s no phydev found\n", __func__);
+		return -EINVAL;
+	}
+
+	if (PHY_ID_KSZ9021RLRN != phydev->phy_id) {
+		pr_err("%s unexpected PHY ID %08x\n", __func__, phydev->phy_id);
+		return -EINVAL;
+	}
+
+	pr_info("%s writing extended registers to phyaddr %d\n",
+		__func__, phyaddr);
+
+	/* add 2 ns of RXC PAD Skew and 2.6 ns of TXC PAD Skew */
+	stmmac_emdio_write(bus, phyaddr,
+		MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW, 0xa0d0);
+
+	/* set no PAD skew for data */
+	stmmac_emdio_write(bus, phyaddr,
+		MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW, 0x0000);
+
+	bus->write = &stmmac_mdio_write_null;
+	return 0;
+}
+
+static int stmmac_plat_init(struct platform_device *pdev)
+{
+	u32 ctrl, val, shift;
+	int phymode;
+
+	if (of_machine_is_compatible("altr,socfpga-vt"))
+		return 0;
+
+	phymode = of_get_phy_mode(pdev->dev.of_node);
+
+	switch (phymode) {
+	case PHY_INTERFACE_MODE_RGMII:
+		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_MII:
+	case PHY_INTERFACE_MODE_GMII:
+		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
+		break;
+	default:
+		pr_err("%s bad phy mode %d", __func__, phymode);
+		return -EINVAL;
+	}
+
+	if (&stmmacenet1_data == pdev->dev.platform_data)
+		shift = SYSMGR_EMACGRP_CTRL_PHYSEL_WIDTH;
+	else if (&stmmacenet0_data == pdev->dev.platform_data)
+		shift = 0;
+	else {
+		pr_err("%s unexpected platform data pointer\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl =  __raw_readl(sys_manager_base_addr +
+		SYSMGR_EMACGRP_CTRL_OFFSET);
+
+	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << shift);
+
+	ctrl |= (val << shift);
+
+	__raw_writel(ctrl, (sys_manager_base_addr +
+		SYSMGR_EMACGRP_CTRL_OFFSET));
+
+	return 0;
 }
 
 static void __init socfpga_sysmgr_init(void)
