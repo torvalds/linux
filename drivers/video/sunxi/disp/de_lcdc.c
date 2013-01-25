@@ -556,6 +556,9 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
 	if (gdisp.init_para.hdmi_get_video_timing(mode, &video_timing) != 0)
 		return 0;
 
+	if (video_timing.I)
+		video_timing.INPUTY /= 2;
+
 	cfg.b_interlace = video_timing.I;
 	cfg.src_x = video_timing.INPUTX;
 	cfg.src_y = video_timing.INPUTY;
