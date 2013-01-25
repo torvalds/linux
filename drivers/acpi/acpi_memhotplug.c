@@ -157,36 +157,24 @@ static int
 acpi_memory_get_device(acpi_handle handle,
 		       struct acpi_memory_device **mem_device)
 {
-	acpi_status status;
-	acpi_handle phandle;
 	struct acpi_device *device = NULL;
-	struct acpi_device *pdevice = NULL;
 	int result;
-
 
 	if (!acpi_bus_get_device(handle, &device) && device)
 		goto end;
-
-	status = acpi_get_parent(handle, &phandle);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Cannot find acpi parent"));
-		return -EINVAL;
-	}
-
-	/* Get the parent device */
-	result = acpi_bus_get_device(phandle, &pdevice);
-	if (result) {
-		acpi_handle_warn(phandle, "Cannot get acpi bus device\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * Now add the notified device.  This creates the acpi_device
 	 * and invokes .add function
 	 */
-	result = acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE);
+	result = acpi_bus_scan(handle);
 	if (result) {
 		acpi_handle_warn(handle, "Cannot add acpi bus\n");
+		return -EINVAL;
+	}
+	result = acpi_bus_get_device(handle, &device);
+	if (result) {
+		acpi_handle_warn(handle, "Missing device object\n");
 		return -EINVAL;
 	}
 
@@ -355,7 +343,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 			break;
 		}
 
-		ej_event->handle = handle;
+		ej_event->device = device;
 		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
 					(void *)ej_event);

@@ -677,28 +677,6 @@ static int is_processor_present(acpi_handle handle)
 	return 0;
 }
 
-static
-int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
-{
-	acpi_handle phandle;
-	struct acpi_device *pdev;
-
-
-	if (acpi_get_parent(handle, &phandle)) {
-		return -ENODEV;
-	}
-
-	if (acpi_bus_get_device(phandle, &pdev)) {
-		return -ENODEV;
-	}
-
-	if (acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_PROCESSOR)) {
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static void acpi_processor_hotplug_notify(acpi_handle handle,
 					  u32 event, void *data)
 {
@@ -721,12 +699,16 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		if (!acpi_bus_get_device(handle, &device))
 			break;
 
-		result = acpi_processor_device_add(handle, &device);
+		result = acpi_bus_scan(handle);
 		if (result) {
 			acpi_handle_err(handle, "Unable to add the device\n");
 			break;
 		}
-
+		result = acpi_bus_get_device(handle, &device);
+		if (result) {
+			acpi_handle_err(handle, "Missing device object\n");
+			break;
+		}
 		ost_code = ACPI_OST_SC_SUCCESS;
 		break;
 
@@ -751,7 +733,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 			break;
 		}
 
-		ej_event->handle = handle;
+		ej_event->device = device;
 		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
 					(void *)ej_event);
