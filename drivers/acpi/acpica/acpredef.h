@@ -345,8 +345,8 @@ static const union acpi_predefined_info predefined_names[] = {
 	{{"_MBM", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (8 Int) */
 	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 8, 0}, 0, 0}},
 
-	{{"_MLS", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each (2 Str) */
-			  {{{ACPI_PTYPE2, ACPI_RTYPE_STRING, 2,0}, 0,0}},
+	{{"_MLS", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (Pkgs) each (1 Str/1 Buf) */
+	{{{ACPI_PTYPE2, ACPI_RTYPE_STRING, 1, ACPI_RTYPE_BUFFER}, 1, 0}},
 
 	{{"_MSG", 1, 0}},
 	{{"_MSM", 4, ACPI_RTYPE_INTEGER}},
