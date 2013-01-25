@@ -185,7 +185,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	struct device_node *np = i2c->dev.of_node;
 	struct usb3503 *hub;
 	int err = -ENOMEM;
-	u32 mode;
+	u32 mode = USB3503_MODE_UNKNOWN;
 
 	hub = kzalloc(sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub) {
