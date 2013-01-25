@@ -125,12 +125,12 @@ int dsp_lut[256] ={
 #define S2_H_FP			59
 
 #define S2_V_PW			6
-#define S2_V_BP			25
+#define S2_V_BP			5
 #define S2_V_VD			800
 #define S2_V_FP			2
 
 #define S2_H_ST			495
-#define S2_V_ST			5
+#define S2_V_ST			15
 
 //1280*720*50
 
@@ -141,12 +141,12 @@ int dsp_lut[256] ={
 #define S3_H_FP			59
 
 #define S3_V_PW			6
-#define S3_V_BP			25
+#define S3_V_BP			5
 #define S3_V_VD			800
 #define S3_V_FP			2
 
 #define S3_H_ST			540
-#define S3_V_ST			3
+#define S3_V_ST			14
 
 //720*576*50
 #define S4_OUT_CLK		SCALE_RATE(27000000,70312500)  //m=75 n=4 no=8
