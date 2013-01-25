@@ -47,8 +47,6 @@ Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
