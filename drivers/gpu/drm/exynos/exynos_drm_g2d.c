@@ -429,7 +429,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	g2d_userptr->pages = pages;
 
-	sgt = kzalloc(sizeof *sgt, GFP_KERNEL);
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
 		DRM_ERROR("failed to allocate sg table.\n");
 		ret = -ENOMEM;
