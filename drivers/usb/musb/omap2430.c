@@ -255,11 +255,11 @@ static inline void omap2430_low_level_init(struct musb *musb)
 void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
-	struct musb		*musb = glue_to_musb(glue);
 
-	glue->status = status;
-	if (!musb) {
-		dev_err(glue->dev, "musb core is not yet ready\n");
+	if (glue && glue_to_musb(glue)) {
+		glue->status = status;
+	} else {
+		pr_err("%s: musb core is not yet ready\n", __func__);
 		return;
 	}
 
@@ -369,7 +369,7 @@ static int omap2430_musb_init(struct musb *musb)
 	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	musb->isr = omap2430_musb_interrupt;
@@ -532,20 +532,18 @@ static int omap2430_probe(struct platform_device *pdev)
 		if (!pdata) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb platfrom data\n");
-			ret = -ENOMEM;
 			goto err2;
 		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 		if (!data) {
 			dev_err(&pdev->dev,
-					"failed to allocate musb board data\n");
-			ret = -ENOMEM;
+				"failed to allocate musb board data\n");
 			goto err2;
 		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!data) {
+		if (!config) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb hdrc config\n");
 			goto err2;
