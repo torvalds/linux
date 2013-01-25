@@ -65,7 +65,7 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 	unsigned int arm_volt, safe_arm_volt = 0;
 	unsigned int mpll_freq_khz = exynos_info->mpll_freq_khz;
-	unsigned int index, old_index;
+	int index, old_index;
 	int ret = 0;
 
 	freqs.old = policy->cur;
