@@ -4708,7 +4708,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	/* Set the mac address.  */
 	mwl8k_cmd_set_mac_addr(hw, vif, vif->addr);
 
-	if (priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_cmd_set_new_stn_add_self(hw, vif);
 
 	priv->macids_used |= 1 << mwl8k_vif->macid;
@@ -4733,7 +4733,7 @@ static void mwl8k_remove_interface(struct ieee80211_hw *hw,
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
 
-	if (priv->ap_fw)
+	if (vif->type == NL80211_IFTYPE_AP)
 		mwl8k_cmd_set_new_stn_del(hw, vif, vif->addr);
 
 	mwl8k_cmd_del_mac_addr(hw, vif, vif->addr);
