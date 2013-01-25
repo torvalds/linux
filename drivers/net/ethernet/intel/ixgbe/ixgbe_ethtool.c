@@ -2113,13 +2113,17 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_q_vector *q_vector;
 	int i;
-	u16 tx_itr_param, rx_itr_param;
+	u16 tx_itr_param, rx_itr_param, tx_itr_prev;
 	bool need_reset = false;
 
-	/* don't accept tx specific changes if we've got mixed RxTx vectors */
-	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count
-	    && ec->tx_coalesce_usecs)
-		return -EINVAL;
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count) {
+		/* reject Tx specific changes in case of mixed RxTx vectors */
+		if (ec->tx_coalesce_usecs)
+			return -EINVAL;
+		tx_itr_prev = adapter->rx_itr_setting;
+	} else {
+		tx_itr_prev = adapter->tx_itr_setting;
+	}
 
 	if ((ec->rx_coalesce_usecs > (IXGBE_MAX_EITR >> 2)) ||
 	    (ec->tx_coalesce_usecs > (IXGBE_MAX_EITR >> 2)))
@@ -2145,8 +2149,25 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	else
 		tx_itr_param = adapter->tx_itr_setting;
 
+	/* mixed Rx/Tx */
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
+		adapter->tx_itr_setting = adapter->rx_itr_setting;
+
+#if IS_ENABLED(CONFIG_BQL)
+	/* detect ITR changes that require update of TXDCTL.WTHRESH */
+	if ((adapter->tx_itr_setting > 1) &&
+	    (adapter->tx_itr_setting < IXGBE_100K_ITR)) {
+		if ((tx_itr_prev == 1) ||
+		    (tx_itr_prev > IXGBE_100K_ITR))
+			need_reset = true;
+	} else {
+		if ((tx_itr_prev > 1) &&
+		    (tx_itr_prev < IXGBE_100K_ITR))
+			need_reset = true;
+	}
+#endif
 	/* check the old value and enable RSC if necessary */
-	need_reset = ixgbe_update_rsc(adapter);
+	need_reset |= ixgbe_update_rsc(adapter);
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		q_vector = adapter->q_vector[i];

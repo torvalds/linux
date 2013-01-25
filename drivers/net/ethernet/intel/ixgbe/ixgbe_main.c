@@ -2786,13 +2786,19 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 
 	/*
 	 * set WTHRESH to encourage burst writeback, it should not be set
-	 * higher than 1 when ITR is 0 as it could cause false TX hangs
+	 * higher than 1 when:
+	 * - ITR is 0 as it could cause false TX hangs
+	 * - ITR is set to > 100k int/sec and BQL is enabled
 	 *
 	 * In order to avoid issues WTHRESH + PTHRESH should always be equal
 	 * to or less than the number of on chip descriptors, which is
 	 * currently 40.
 	 */
+#if IS_ENABLED(CONFIG_BQL)
+	if (!ring->q_vector || (ring->q_vector->itr < IXGBE_100K_ITR))
+#else
 	if (!ring->q_vector || (ring->q_vector->itr < 8))
+#endif
 		txdctl |= (1 << 16);	/* WTHRESH = 1 */
 	else
 		txdctl |= (8 << 16);	/* WTHRESH = 8 */
