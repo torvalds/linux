@@ -442,11 +442,19 @@ struct batadv_priv_dat {
  * @work: work queue callback item for cleanup
  * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
  * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
+ * @max_fwd_delay: maximum packet forward delay to allow coding of packets
+ * @timestamp_fwd_flush: timestamp of last forward packet queue flush
+ * @coding_hash: Hash table used to buffer skbs while waiting for another
+ *  incoming skb to code it with. Skbs are added to the buffer just before being
+ *  forwarded in routing.c
  */
 struct batadv_priv_nc {
 	struct delayed_work work;
 	struct dentry *debug_dir;
 	u8 min_tq;
+	u32 max_fwd_delay;
+	unsigned long timestamp_fwd_flush;
+	struct batadv_hashtable *coding_hash;
 };
 
 /**
@@ -745,6 +753,47 @@ struct batadv_nc_node {
 	struct rcu_head rcu;
 	struct batadv_orig_node *orig_node;
 	unsigned long last_seen;
+};
+
+/**
+ * struct batadv_nc_path - network coding path
+ * @hash_entry: next and prev pointer for the list handling
+ * @rcu: struct used for freeing in an RCU-safe manner
+ * @refcount: number of contexts the object is used by
+ * @packet_list: list of buffered packets for this path
+ * @packet_list_lock: access lock for packet list
+ * @next_hop: next hop (destination) of path
+ * @prev_hop: previous hop (source) of path
+ * @last_valid: timestamp for last validation of path
+ */
+struct batadv_nc_path {
+	struct hlist_node hash_entry;
+	struct rcu_head rcu;
+	atomic_t refcount;
+	struct list_head packet_list;
+	spinlock_t packet_list_lock; /* Protects packet_list */
+	uint8_t next_hop[ETH_ALEN];
+	uint8_t prev_hop[ETH_ALEN];
+	unsigned long last_valid;
+};
+
+/**
+ * struct batadv_nc_packet - network coding packet used when coding and
+ *  decoding packets
+ * @list: next and prev pointer for the list handling
+ * @packet_id: crc32 checksum of skb data
+ * @timestamp: field containing the info when the packet was added to path
+ * @neigh_node: pointer to original next hop neighbor of skb
+ * @skb: skb which can be encoded or used for decoding
+ * @nc_path: pointer to path this nc packet is attached to
+ */
+struct batadv_nc_packet {
+	struct list_head list;
+	__be32 packet_id;
+	unsigned long timestamp;
+	struct batadv_neigh_node *neigh_node;
+	struct sk_buff *skb;
+	struct batadv_nc_path *nc_path;
 };
 
 /**

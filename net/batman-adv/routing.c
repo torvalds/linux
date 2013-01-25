@@ -29,6 +29,7 @@
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
+#include "network-coding.h"
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
@@ -860,14 +861,17 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	/* decrement ttl */
 	unicast_packet->header.ttl--;
 
-	/* Update stats counter */
-	batadv_inc_counter(bat_priv, BATADV_CNT_FORWARD);
-	batadv_add_counter(bat_priv, BATADV_CNT_FORWARD_BYTES,
-			   skb->len + ETH_HLEN);
-
-	/* route it */
-	if (batadv_send_skb_to_orig(skb, orig_node, recv_if))
+	/* network code packet if possible */
+	if (batadv_nc_skb_forward(skb, neigh_node, ethhdr)) {
 		ret = NET_RX_SUCCESS;
+	} else if (batadv_send_skb_to_orig(skb, orig_node, recv_if)) {
+		ret = NET_RX_SUCCESS;
+
+		/* Update stats counter */
+		batadv_inc_counter(bat_priv, BATADV_CNT_FORWARD);
+		batadv_add_counter(bat_priv, BATADV_CNT_FORWARD_BYTES,
+				   skb->len + ETH_HLEN);
+	}
 
 out:
 	if (neigh_node)
