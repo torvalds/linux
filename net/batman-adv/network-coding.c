@@ -27,6 +27,7 @@
 #include "hard-interface.h"
 
 static struct lock_class_key batadv_nc_coding_hash_lock_class_key;
+static struct lock_class_key batadv_nc_decoding_hash_lock_class_key;
 
 static void batadv_nc_worker(struct work_struct *work);
 
@@ -47,8 +48,9 @@ static void batadv_nc_start_timer(struct batadv_priv *bat_priv)
 int batadv_nc_init(struct batadv_priv *bat_priv)
 {
 	bat_priv->nc.timestamp_fwd_flush = jiffies;
+	bat_priv->nc.timestamp_sniffed_purge = jiffies;
 
-	if (bat_priv->nc.coding_hash)
+	if (bat_priv->nc.coding_hash || bat_priv->nc.decoding_hash)
 		return 0;
 
 	bat_priv->nc.coding_hash = batadv_hash_new(128);
@@ -57,6 +59,13 @@ int batadv_nc_init(struct batadv_priv *bat_priv)
 
 	batadv_hash_set_lock_class(bat_priv->nc.coding_hash,
 				   &batadv_nc_coding_hash_lock_class_key);
+
+	bat_priv->nc.decoding_hash = batadv_hash_new(128);
+	if (!bat_priv->nc.decoding_hash)
+		goto err;
+
+	batadv_hash_set_lock_class(bat_priv->nc.coding_hash,
+				   &batadv_nc_decoding_hash_lock_class_key);
 
 	INIT_DELAYED_WORK(&bat_priv->nc.work, batadv_nc_worker);
 	batadv_nc_start_timer(bat_priv);
@@ -76,6 +85,7 @@ void batadv_nc_init_bat_priv(struct batadv_priv *bat_priv)
 	atomic_set(&bat_priv->network_coding, 1);
 	bat_priv->nc.min_tq = 200;
 	bat_priv->nc.max_fwd_delay = 10;
+	bat_priv->nc.max_buffer_time = 200;
 }
 
 /**
@@ -173,6 +183,26 @@ static bool batadv_nc_to_purge_nc_path_coding(struct batadv_priv *bat_priv,
 	 */
 	return batadv_has_timed_out(nc_path->last_valid,
 				    bat_priv->nc.max_fwd_delay * 10);
+}
+
+/**
+ * batadv_nc_to_purge_nc_path_decoding - checks whether an nc path has timed out
+ * @bat_priv: the bat priv with all the soft interface information
+ * @nc_path: the nc path to check
+ *
+ * Returns true if the entry has to be purged now, false otherwise
+ */
+static bool batadv_nc_to_purge_nc_path_decoding(struct batadv_priv *bat_priv,
+						struct batadv_nc_path *nc_path)
+{
+	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
+		return true;
+
+	/* purge the path when no packets has been added for 10 times the
+	 * max_buffer time
+	 */
+	return batadv_has_timed_out(nc_path->last_valid,
+				    bat_priv->nc.max_buffer_time*10);
 }
 
 /**
@@ -441,6 +471,43 @@ static void batadv_nc_send_packet(struct batadv_nc_packet *nc_packet)
 }
 
 /**
+ * batadv_nc_sniffed_purge - Checks timestamp of given sniffed nc_packet.
+ * @bat_priv: the bat priv with all the soft interface information
+ * @nc_path: the nc path the packet belongs to
+ * @nc_packet: the nc packet to be checked
+ *
+ * Checks whether the given sniffed (overheard) nc_packet has hit its buffering
+ * timeout. If so, the packet is no longer kept and the entry deleted from the
+ * queue. Has to be called with the appropriate locks.
+ *
+ * Returns false as soon as the entry in the fifo queue has not been timed out
+ * yet and true otherwise.
+ */
+static bool batadv_nc_sniffed_purge(struct batadv_priv *bat_priv,
+				    struct batadv_nc_path *nc_path,
+				    struct batadv_nc_packet *nc_packet)
+{
+	unsigned long timeout = bat_priv->nc.max_buffer_time;
+	bool res = false;
+
+	/* Packets are added to tail, so the remaining packets did not time
+	 * out and we can stop processing the current queue
+	 */
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE &&
+	    !batadv_has_timed_out(nc_packet->timestamp, timeout))
+		goto out;
+
+	/* purge nc packet */
+	list_del(&nc_packet->list);
+	batadv_nc_packet_free(nc_packet);
+
+	res = true;
+
+out:
+	return res;
+}
+
+/**
  * batadv_nc_fwd_flush - Checks the timestamp of the given nc packet.
  * @bat_priv: the bat priv with all the soft interface information
  * @nc_path: the nc path the packet belongs to
@@ -540,6 +607,8 @@ static void batadv_nc_worker(struct work_struct *work)
 	batadv_nc_purge_orig_hash(bat_priv);
 	batadv_nc_purge_paths(bat_priv, bat_priv->nc.coding_hash,
 			      batadv_nc_to_purge_nc_path_coding);
+	batadv_nc_purge_paths(bat_priv, bat_priv->nc.decoding_hash,
+			      batadv_nc_to_purge_nc_path_decoding);
 
 	timeout = bat_priv->nc.max_fwd_delay;
 
@@ -547,6 +616,13 @@ static void batadv_nc_worker(struct work_struct *work)
 		batadv_nc_process_nc_paths(bat_priv, bat_priv->nc.coding_hash,
 					   batadv_nc_fwd_flush);
 		bat_priv->nc.timestamp_fwd_flush = jiffies;
+	}
+
+	if (batadv_has_timed_out(bat_priv->nc.timestamp_sniffed_purge,
+				 bat_priv->nc.max_buffer_time)) {
+		batadv_nc_process_nc_paths(bat_priv, bat_priv->nc.decoding_hash,
+					   batadv_nc_sniffed_purge);
+		bat_priv->nc.timestamp_sniffed_purge = jiffies;
 	}
 
 	/* Schedule a new check */
@@ -1143,6 +1219,41 @@ batadv_nc_skb_src_search(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_nc_skb_store_before_coding - set the ethernet src and dst of the
+ *  unicast skb before it is stored for use in later decoding
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: data skb to store
+ * @eth_dst_new: new destination mac address of skb
+ */
+static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
+					      struct sk_buff *skb,
+					      uint8_t *eth_dst_new)
+{
+	struct ethhdr *ethhdr;
+
+	/* Copy skb header to change the mac header */
+	skb = pskb_copy(skb, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	/* Set the mac header as if we actually sent the packet uncoded */
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	memcpy(ethhdr->h_source, ethhdr->h_dest, ETH_ALEN);
+	memcpy(ethhdr->h_dest, eth_dst_new, ETH_ALEN);
+
+	/* Set data pointer to MAC header to mimic packets from our tx path */
+	skb_push(skb, ETH_HLEN);
+
+	/* Add the packet to the decoding packet pool */
+	batadv_nc_skb_store_for_decoding(bat_priv, skb);
+
+	/* batadv_nc_skb_store_for_decoding() clones the skb, so we must free
+	 * our ref
+	 */
+	kfree_skb(skb);
+}
+
+/**
  * batadv_nc_skb_dst_search - Loops through list of neighboring nodes to dst.
  * @skb: data skb to forward
  * @neigh_node: next hop to forward packet to
@@ -1180,6 +1291,12 @@ static bool batadv_nc_skb_dst_search(struct sk_buff *skb,
 
 	if (!nc_packet)
 		return false;
+
+	/* Save packets for later decoding */
+	batadv_nc_skb_store_before_coding(bat_priv, skb,
+					  neigh_node->addr);
+	batadv_nc_skb_store_before_coding(bat_priv, nc_packet->skb,
+					  nc_packet->neigh_node->addr);
 
 	/* Code and send packets */
 	if (batadv_nc_code_packets(bat_priv, skb, ethhdr, nc_packet,
@@ -1288,14 +1405,98 @@ out:
 }
 
 /**
+ * batadv_nc_skb_store_for_decoding - save a clone of the skb which can be used
+ *  when decoding coded packets
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: data skb to store
+ */
+void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb)
+{
+	struct batadv_unicast_packet *packet;
+	struct batadv_nc_path *nc_path;
+	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	__be32 packet_id;
+	u8 *payload;
+
+	/* Check if network coding is enabled */
+	if (!atomic_read(&bat_priv->network_coding))
+		goto out;
+
+	/* Check for supported packet type */
+	payload = skb_network_header(skb);
+	packet = (struct batadv_unicast_packet *)payload;
+	if (packet->header.packet_type != BATADV_UNICAST)
+		goto out;
+
+	/* Find existing nc_path or create a new */
+	nc_path = batadv_nc_get_path(bat_priv,
+				     bat_priv->nc.decoding_hash,
+				     ethhdr->h_source,
+				     ethhdr->h_dest);
+
+	if (!nc_path)
+		goto out;
+
+	/* Clone skb and adjust skb->data to point at batman header */
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		goto free_nc_path;
+
+	if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
+		goto free_skb;
+
+	if (unlikely(!skb_pull_rcsum(skb, ETH_HLEN)))
+		goto free_skb;
+
+	/* Add skb to nc_path */
+	packet_id = batadv_skb_crc32(skb, payload + sizeof(*packet));
+	if (!batadv_nc_skb_add_to_path(skb, nc_path, NULL, packet_id))
+		goto free_skb;
+
+	batadv_inc_counter(bat_priv, BATADV_CNT_NC_BUFFER);
+	return;
+
+free_skb:
+	kfree_skb(skb);
+free_nc_path:
+	batadv_nc_path_free_ref(nc_path);
+out:
+	return;
+}
+
+/**
+ * batadv_nc_skb_store_sniffed_unicast - check if a received unicast packet
+ *  should be saved in the decoding buffer and, if so, store it there
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: unicast skb to store
+ */
+void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb)
+{
+	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+	if (batadv_is_my_mac(ethhdr->h_dest))
+		return;
+
+	/* Set data pointer to MAC header to mimic packets from our tx path */
+	skb_push(skb, ETH_HLEN);
+
+	batadv_nc_skb_store_for_decoding(bat_priv, skb);
+}
+
+/**
  * batadv_nc_free - clean up network coding memory
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_nc_free(struct batadv_priv *bat_priv)
 {
 	cancel_delayed_work_sync(&bat_priv->nc.work);
+
 	batadv_nc_purge_paths(bat_priv, bat_priv->nc.coding_hash, NULL);
 	batadv_hash_destroy(bat_priv->nc.coding_hash);
+	batadv_nc_purge_paths(bat_priv, bat_priv->nc.decoding_hash, NULL);
+	batadv_hash_destroy(bat_priv->nc.decoding_hash);
 }
 
 /**
@@ -1373,6 +1574,11 @@ int batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
 
 	file = debugfs_create_u32("max_fwd_delay", S_IRUGO | S_IWUSR, nc_dir,
 				  &bat_priv->nc.max_fwd_delay);
+	if (!file)
+		goto out;
+
+	file = debugfs_create_u32("max_buffer_time", S_IRUGO | S_IWUSR, nc_dir,
+				  &bat_priv->nc.max_buffer_time);
 	if (!file)
 		goto out;
 

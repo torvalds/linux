@@ -279,6 +279,7 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_NC_CODE_BYTES: transmitted nc-combined traffic bytes counter
  * @BATADV_CNT_NC_RECODE: transmitted nc-recombined traffic packet counter
  * @BATADV_CNT_NC_RECODE_BYTES: transmitted nc-recombined traffic bytes counter
+ * @BATADV_CNT_NC_BUFFER: counter for packets buffered for later nc decoding
  * @BATADV_CNT_NUM: number of traffic counters
  */
 enum batadv_counters {
@@ -311,6 +312,7 @@ enum batadv_counters {
 	BATADV_CNT_NC_CODE_BYTES,
 	BATADV_CNT_NC_RECODE,
 	BATADV_CNT_NC_RECODE_BYTES,
+	BATADV_CNT_NC_BUFFER,
 #endif
 	BATADV_CNT_NUM,
 };
@@ -453,18 +455,27 @@ struct batadv_priv_dat {
  * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
  * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
  * @max_fwd_delay: maximum packet forward delay to allow coding of packets
+ * @max_buffer_time: buffer time for sniffed packets used to decoding
  * @timestamp_fwd_flush: timestamp of last forward packet queue flush
+ * @timestamp_sniffed_purge: timestamp of last sniffed packet queue purge
  * @coding_hash: Hash table used to buffer skbs while waiting for another
  *  incoming skb to code it with. Skbs are added to the buffer just before being
  *  forwarded in routing.c
+ * @decoding_hash: Hash table used to buffer skbs that might be needed to decode
+ *  a received coded skb. The buffer is used for 1) skbs arriving on the
+ *  soft-interface; 2) skbs overheard on the hard-interface; and 3) skbs
+ *  forwarded by batman-adv.
  */
 struct batadv_priv_nc {
 	struct delayed_work work;
 	struct dentry *debug_dir;
 	u8 min_tq;
 	u32 max_fwd_delay;
+	u32 max_buffer_time;
 	unsigned long timestamp_fwd_flush;
+	unsigned long timestamp_sniffed_purge;
 	struct batadv_hashtable *coding_hash;
+	struct batadv_hashtable *decoding_hash;
 };
 
 /**

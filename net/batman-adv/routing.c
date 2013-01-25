@@ -1047,7 +1047,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
 	uint8_t *orig_addr;
 	struct batadv_orig_node *orig_node = NULL;
-	int hdr_size = sizeof(*unicast_packet);
+	int check, hdr_size = sizeof(*unicast_packet);
 	bool is4addr;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
@@ -1058,7 +1058,16 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	if (is4addr)
 		hdr_size = sizeof(*unicast_4addr_packet);
 
-	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
+	/* function returns -EREMOTE for promiscuous packets */
+	check = batadv_check_unicast_packet(skb, hdr_size);
+
+	/* Even though the packet is not for us, we might save it to use for
+	 * decoding a later received coded packet
+	 */
+	if (check == -EREMOTE)
+		batadv_nc_skb_store_sniffed_unicast(bat_priv, skb);
+
+	if (check < 0)
 		return NET_RX_DROP;
 
 	if (!batadv_check_unicast_ttvn(bat_priv, skb))

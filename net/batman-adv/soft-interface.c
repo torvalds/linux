@@ -670,6 +670,7 @@ static const struct {
 	{ "nc_code_bytes" },
 	{ "nc_recode" },
 	{ "nc_recode_bytes" },
+	{ "nc_buffer" },
 #endif
 };
 

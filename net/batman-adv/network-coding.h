@@ -38,6 +38,10 @@ void batadv_nc_init_orig(struct batadv_orig_node *orig_node);
 bool batadv_nc_skb_forward(struct sk_buff *skb,
 			   struct batadv_neigh_node *neigh_node,
 			   struct ethhdr *ethhdr);
+void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb);
+void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb);
 int batadv_nc_nodes_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_nc_init_debugfs(struct batadv_priv *bat_priv);
 
@@ -87,6 +91,20 @@ static inline bool batadv_nc_skb_forward(struct sk_buff *skb,
 					 struct ethhdr *ethhdr)
 {
 	return false;
+}
+
+static inline void
+batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
+				 struct sk_buff *skb)
+{
+	return;
+}
+
+static inline void
+batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb)
+{
+	return;
 }
 
 static inline int batadv_nc_nodes_seq_print_text(struct seq_file *seq,
