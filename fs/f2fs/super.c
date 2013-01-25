@@ -198,7 +198,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noacl");
 #endif
 	if (test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		seq_puts(seq, ",disable_ext_indentify");
+		seq_puts(seq, ",disable_ext_identify");
 
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
