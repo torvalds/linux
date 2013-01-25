@@ -180,19 +180,6 @@ static const struct comedi_lrange range_daqp_ai = { 4, {
 
 static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
-/*====================================================================*/
-
-/* comedi interface code */
-
-static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void daqp_detach(struct comedi_device *dev);
-static struct comedi_driver driver_daqp = {
-	.driver_name = "quatech_daqp_cs",
-	.module = THIS_MODULE,
-	.attach = daqp_attach,
-	.detach = daqp_detach,
-};
-
 #ifdef DAQP_DEBUG
 
 static void daqp_dump(struct comedi_device *dev)
@@ -889,6 +876,13 @@ static void daqp_detach(struct comedi_device *dev)
 	/* Nothing to cleanup */
 }
 
+static struct comedi_driver driver_daqp = {
+	.driver_name	= "quatech_daqp_cs",
+	.module		= THIS_MODULE,
+	.attach		= daqp_attach,
+	.detach		= daqp_detach,
+};
+
 /*====================================================================
 
     PCMCIA interface code
@@ -924,55 +918,29 @@ static void daqp_detach(struct comedi_device *dev)
 
 ======================================================================*/
 
-static void daqp_cs_config(struct pcmcia_device *link);
-static void daqp_cs_release(struct pcmcia_device *link);
-static int daqp_cs_suspend(struct pcmcia_device *p_dev);
-static int daqp_cs_resume(struct pcmcia_device *p_dev);
-
-static int daqp_cs_attach(struct pcmcia_device *);
-static void daqp_cs_detach(struct pcmcia_device *);
-
-static int daqp_cs_attach(struct pcmcia_device *link)
+static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
-	int i;
+	struct local_info_t *local = link->priv;
 
-	dev_dbg(&link->dev, "daqp_cs_attach()\n");
+	/* Mark the device as stopped, to block IO until later */
+	local->stop = 1;
+	return 0;
+}
 
-	for (i = 0; i < MAX_DEV; i++)
-		if (dev_table[i] == NULL)
-			break;
-	if (i == MAX_DEV) {
-		dev_notice(&link->dev, "no devices available\n");
-		return -ENODEV;
-	}
+static int daqp_cs_resume(struct pcmcia_device *link)
+{
+	struct local_info_t *local = link->priv;
 
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-
-	local->table_index = i;
-	dev_table[i] = local;
-	local->link = link;
-	link->priv = local;
-
-	daqp_cs_config(link);
+	local->stop = 0;
 
 	return 0;
-}				/* daqp_cs_attach */
+}
 
-static void daqp_cs_detach(struct pcmcia_device *link)
+static void daqp_cs_release(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
+	dev_dbg(&link->dev, "daqp_cs_release\n");
 
-	dev->stop = 1;
-	daqp_cs_release(link);
-
-	/* Unlink device structure, and free it */
-	dev_table[dev->table_index] = NULL;
-	kfree(dev);
-
+	pcmcia_disable_device(link);
 }
 
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
@@ -1009,32 +977,48 @@ static void daqp_cs_config(struct pcmcia_device *link)
 
 failed:
 	daqp_cs_release(link);
+}
 
-}				/* daqp_cs_config */
-
-static void daqp_cs_release(struct pcmcia_device *link)
+static int daqp_cs_attach(struct pcmcia_device *link)
 {
-	dev_dbg(&link->dev, "daqp_cs_release\n");
+	struct local_info_t *local;
+	int i;
 
-	pcmcia_disable_device(link);
-}				/* daqp_cs_release */
+	dev_dbg(&link->dev, "daqp_cs_attach()\n");
 
-static int daqp_cs_suspend(struct pcmcia_device *link)
-{
-	struct local_info_t *local = link->priv;
+	for (i = 0; i < MAX_DEV; i++)
+		if (dev_table[i] == NULL)
+			break;
+	if (i == MAX_DEV) {
+		dev_notice(&link->dev, "no devices available\n");
+		return -ENODEV;
+	}
 
-	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+
+	local->table_index = i;
+	dev_table[i] = local;
+	local->link = link;
+	link->priv = local;
+
+	daqp_cs_config(link);
+
 	return 0;
 }
 
-static int daqp_cs_resume(struct pcmcia_device *link)
+static void daqp_cs_detach(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
+	struct local_info_t *dev = link->priv;
 
-	local->stop = 0;
+	dev->stop = 1;
+	daqp_cs_release(link);
 
-	return 0;
+	/* Unlink device structure, and free it */
+	dev_table[dev->table_index] = NULL;
+	kfree(dev);
 }
 
 /*====================================================================*/
