@@ -2,7 +2,7 @@
 #define __RK610_HDMI_H__
 #include "../../rk_hdmi.h"
 
-#if defined(CONFIG_MACH_RK3168_DS1006H) || defined(CONFIG_MACH_RK3188_DS1006H)
+#if defined(CONFIG_HDMI_SOURCE_LCDC1)
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC1
 #else
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0

@@ -3,8 +3,11 @@
 
 #include "../../rk_hdmi.h"
 
-/* default HDMI video source */
-#define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC1
+#if defined(CONFIG_HDMI_SOURCE_LCDC1)
+#define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC1
+#else
+#define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
+#endif
 
 extern int rk30_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 					 void (*hdcp_irq_cb)(int status),

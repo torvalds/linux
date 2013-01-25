@@ -28,3 +28,10 @@ if HDMI_RK610
 source "drivers/video/rockchip/hdmi/chips/rk610/Kconfig"
 endif
 
+choice
+	prompt "HDMI Source LCDC select"
+config HDMI_SOURCE_LCDC0
+	bool "lcdc0"
+config HDMI_SOURCE_LCDC1
+	bool "lcdc1"
+endchoice
