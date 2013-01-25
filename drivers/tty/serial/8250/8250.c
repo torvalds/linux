@@ -317,9 +317,9 @@ static void default_serial_dl_write(struct uart_8250_port *up, int value)
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
 }
 
-#ifdef CONFIG_MIPS_ALCHEMY
+#if defined(CONFIG_MIPS_ALCHEMY) || defined(CONFIG_SERIAL_8250_RT288X)
 
-/* Au1x00 UART hardware has a weird register layout */
+/* Au1x00/RT288x UART hardware has a weird register layout */
 static const u8 au_io_in_map[] = {
 	[UART_RX]  = 0,
 	[UART_IER] = 2,
@@ -440,7 +440,7 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_out = mem32_serial_out;
 		break;
 
-#ifdef CONFIG_MIPS_ALCHEMY
+#if defined(CONFIG_MIPS_ALCHEMY) || defined(CONFIG_SERIAL_8250_RT288X)
 	case UPIO_AU:
 		p->serial_in = au_serial_in;
 		p->serial_out = au_serial_out;
