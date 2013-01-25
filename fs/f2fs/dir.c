@@ -281,13 +281,12 @@ void init_dent_inode(const struct qstr *name, struct page *ipage)
 	set_page_dirty(ipage);
 }
 
-static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
+static int init_inode_metadata(struct inode *inode,
+		struct inode *dir, const struct qstr *name)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
-
 	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
 		int err;
-		err = new_inode_page(inode, &dentry->d_name);
+		err = new_inode_page(inode, name);
 		if (err)
 			return err;
 
@@ -310,7 +309,7 @@ static int init_inode_metadata(struct inode *inode, struct dentry *dentry)
 		if (IS_ERR(ipage))
 			return PTR_ERR(ipage);
 		set_cold_node(inode, ipage);
-		init_dent_inode(&dentry->d_name, ipage);
+		init_dent_inode(name, ipage);
 		f2fs_put_page(ipage, 1);
 	}
 	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
@@ -433,7 +432,7 @@ start:
 	++level;
 	goto start;
 add_dentry:
-	err = init_inode_metadata(inode, dentry);
+	err = init_inode_metadata(inode, dir, &dentry->d_name);
 	if (err)
 		goto fail;
 
