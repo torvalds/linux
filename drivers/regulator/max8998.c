@@ -65,7 +65,7 @@ static const struct voltage_map_desc ldo9_voltage_map_desc = {
 	.min = 2800000,	.step = 100000,	.max = 3100000,
 };
 static const struct voltage_map_desc ldo10_voltage_map_desc = {
-	.min = 95000,	.step = 50000,	.max = 1300000,
+	.min = 950000,	.step = 50000,	.max = 1300000,
 };
 static const struct voltage_map_desc ldo1213_voltage_map_desc = {
 	.min = 800000,	.step = 100000,	.max = 3300000,
