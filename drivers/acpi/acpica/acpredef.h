@@ -214,9 +214,8 @@ static const union acpi_predefined_info predefined_names[] = {
 	{{"_BCT", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BDN", 0, ACPI_RTYPE_INTEGER}},
 	{{"_BFS", 1, 0}},
-	{{"_BIF", 0, ACPI_RTYPE_PACKAGE} }, /* Fixed-length (9 Int),(4 Str/Buf) */
-			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 9,
-			     ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER}, 4, 0} },
+	{{"_BIF", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (9 Int),(4 Str) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 9, ACPI_RTYPE_STRING}, 4, 0}},
 
 	{{"_BIX", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (16 Int),(4 Str) */
 	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16, ACPI_RTYPE_STRING}, 4,
@@ -238,7 +237,8 @@ static const union acpi_predefined_info predefined_names[] = {
 	{{"_CBA", 0, ACPI_RTYPE_INTEGER}}, /* See PCI firmware spec 3.0 */
 	{{"_CDM", 0, ACPI_RTYPE_INTEGER}},
 	{{"_CID", 0, ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_PACKAGE}}, /* Variable-length (Ints/Strs) */
-			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING, 0,0}, 0,0}},
+	{{{ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING, 0, 0}, 0,
+	  0}},
 
 	{{"_CLS", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (3 Int) */
 	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 3, 0}, 0, 0}},
@@ -253,7 +253,8 @@ static const union acpi_predefined_info predefined_names[] = {
 			  {{{ACPI_PTYPE2_COUNT, ACPI_RTYPE_INTEGER, 0,0}, 0,0}},
 
 	{{"_CST", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (1 Int(n), n Pkg (1 Buf/3 Int) */
-			  {{{ACPI_PTYPE2_PKG_COUNT,ACPI_RTYPE_BUFFER, 1, ACPI_RTYPE_INTEGER}, 3,0}},
+	{{{ACPI_PTYPE2_PKG_COUNT, ACPI_RTYPE_BUFFER, 1, ACPI_RTYPE_INTEGER}, 3,
+	  0}},
 
 	{{"_CWS", 1, ACPI_RTYPE_INTEGER}},
 	{{"_DCK", 1, ACPI_RTYPE_INTEGER}},
