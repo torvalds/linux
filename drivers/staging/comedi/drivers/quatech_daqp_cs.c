@@ -1042,11 +1042,7 @@ static const struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
-MODULE_AUTHOR("Brent Baccala <baccala@freesoft.org>");
-MODULE_DESCRIPTION("Comedi driver for Quatech DAQP PCMCIA data capture cards");
-MODULE_LICENSE("GPL");
 
 static struct pcmcia_driver daqp_cs_driver = {
 	.probe = daqp_cs_attach,
@@ -1057,5 +1053,8 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.owner = THIS_MODULE,
 	.name = "quatech_daqp_cs",
 };
-
 module_comedi_pcmcia_driver(driver_daqp, daqp_cs_driver);
+
+MODULE_DESCRIPTION("Comedi driver for Quatech DAQP PCMCIA data capture cards");
+MODULE_AUTHOR("Brent Baccala <baccala@freesoft.org>");
+MODULE_LICENSE("GPL");
