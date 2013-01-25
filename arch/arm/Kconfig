@@ -862,7 +862,6 @@ config ARCH_OMAP
 config ARCH_RK29
 	bool "Rockchip RK29xx"
 	select PLAT_RK
-	select HAVE_SCHED_CLOCK
 	select CPU_V7
 	select ARM_GIC
 	select PL330
@@ -875,7 +874,6 @@ config ARCH_RK29
 config ARCH_RK2928
 	bool "Rockchip RK2928"
 	select PLAT_RK
-	select HAVE_SCHED_CLOCK
 	select CPU_V7
 	select ARM_GIC
 	select RK_PL330_DMA
@@ -888,7 +886,6 @@ config ARCH_RK2928
 config ARCH_RK30
 	bool "Rockchip RK30xx/RK3108/RK3168"
 	select PLAT_RK
-	select HAVE_SCHED_CLOCK
 	select CPU_V7
 	select ARM_GIC
 	select RK_PL330_DMA
@@ -1090,6 +1087,7 @@ config PLAT_PXA
 config PLAT_RK
 	bool
 	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
