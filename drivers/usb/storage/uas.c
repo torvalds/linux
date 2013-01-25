@@ -991,6 +991,8 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	shost->max_cmd_len = 16 + 252;
 	shost->max_id = 1;
+	shost->max_lun = 256;
+	shost->max_channel = 0;
 	shost->sg_tablesize = udev->bus->sg_tablesize;
 
 	devinfo->intf = intf;
