@@ -238,37 +238,13 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
 	struct local_info_t *local = dev_id;
-	struct comedi_device *dev;
-	struct comedi_subdevice *s;
+	struct comedi_device *dev = local ? local->dev : NULL;
+	struct comedi_subdevice *s = local ? local->s : NULL;
 	int loop_limit = 10000;
 	int status;
 
-	if (local == NULL) {
-		pr_warn("irq %d for unknown device.\n", irq);
+	if (!dev || !dev->attached || !s || s->private != local)
 		return IRQ_NONE;
-	}
-
-	dev = local->dev;
-	if (dev == NULL) {
-		pr_warn("NULL comedi_device.\n");
-		return IRQ_NONE;
-	}
-
-	if (!dev->attached) {
-		pr_warn("struct comedi_device not yet attached.\n");
-		return IRQ_NONE;
-	}
-
-	s = local->s;
-	if (s == NULL) {
-		pr_warn("NULL comedi_subdevice.\n");
-		return IRQ_NONE;
-	}
-
-	if (s->private != local) {
-		pr_warn("invalid comedi_subdevice.\n");
-		return IRQ_NONE;
-	}
 
 	switch (local->interrupt_mode) {
 
