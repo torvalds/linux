@@ -815,7 +815,7 @@ static int pwm_voltage_map[] = {
 
 static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
 	{
-		.supply = "vdd_core",
+		.supply = "vdd_cpu",
 	}
 };
 
@@ -1358,9 +1358,9 @@ static struct pmu_info  wm8326_ldo_info[] = {
 
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
-		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.name          = "vdd_core",   //logic
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
 		.name          = "vdd2",    //ddr
@@ -1376,9 +1376,9 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 };
 static  struct pmu_info  tps65910_ldo_info[] = {
 	{
-		.name          = "vpll",   //vcc25
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.name          = "vpll",   //vdd10
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 	},
 	{
 		.name          = "vdig1",    //vcc18_cif
@@ -1386,14 +1386,14 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 1800000,
 	},
 	{
-		.name          = "vdig2",   //vdd11
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.name          = "vdig2",   //vdd_jetta
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
-		.name          = "vaux1",   //vcc25_hdmi
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
 	},
 	{
 		.name          = "vaux2",   //vcca33
@@ -1406,12 +1406,12 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 3300000,
 	},
 	{
-		.name          = "vmmc",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
+		.name          = "vmmc",   //vcc30
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
 	},
 	{
-		.name          = "vdac",   //vccio_wl
+		.name          = "vdac",   //vcc18
 		.min_uv          = 1800000,
 		.max_uv         = 1800000,
 	},
