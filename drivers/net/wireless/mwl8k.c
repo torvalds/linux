@@ -285,6 +285,9 @@ struct mwl8k_priv {
 	char *fw_pref;
 	char *fw_alt;
 	struct completion firmware_loading_complete;
+
+	/* bitmap of running BSSes */
+	u32 running_bsses;
 };
 
 #define MAX_WEP_KEY_LEN         13
@@ -2156,6 +2159,8 @@ static void mwl8k_fw_unlock(struct ieee80211_hw *hw)
 	}
 }
 
+static void mwl8k_enable_bsses(struct ieee80211_hw *hw, bool enable,
+			       u32 bitmap);
 
 /*
  * Command processing.
@@ -2174,6 +2179,34 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	int rc;
 	unsigned long timeout = 0;
 	u8 buf[32];
+	u32 bitmap = 0;
+
+	wiphy_dbg(hw->wiphy, "Posting %s [%d]\n",
+		  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)), cmd->macid);
+
+	/* Before posting firmware commands that could change the hardware
+	 * characteristics, make sure that all BSSes are stopped temporary.
+	 * Enable these stopped BSSes after completion of the commands
+	 */
+
+	rc = mwl8k_fw_lock(hw);
+	if (rc)
+		return rc;
+
+	if (priv->ap_fw && priv->running_bsses) {
+		switch (le16_to_cpu(cmd->code)) {
+		case MWL8K_CMD_SET_RF_CHANNEL:
+		case MWL8K_CMD_RADIO_CONTROL:
+		case MWL8K_CMD_RF_TX_POWER:
+		case MWL8K_CMD_TX_POWER:
+		case MWL8K_CMD_RF_ANTENNA:
+		case MWL8K_CMD_RTS_THRESHOLD:
+		case MWL8K_CMD_MIMO_CONFIG:
+			bitmap = priv->running_bsses;
+			mwl8k_enable_bsses(hw, false, bitmap);
+			break;
+		}
+	}
 
 	cmd->result = (__force __le16) 0xffff;
 	dma_size = le16_to_cpu(cmd->length);
@@ -2181,13 +2214,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 				  PCI_DMA_BIDIRECTIONAL);
 	if (pci_dma_mapping_error(priv->pdev, dma_addr))
 		return -ENOMEM;
-
-	rc = mwl8k_fw_lock(hw);
-	if (rc) {
-		pci_unmap_single(priv->pdev, dma_addr, dma_size,
-						PCI_DMA_BIDIRECTIONAL);
-		return rc;
-	}
 
 	priv->hostcmd_wait = &cmd_wait;
 	iowrite32(dma_addr, regs + MWL8K_HIU_GEN_PTR);
@@ -2201,7 +2227,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 	priv->hostcmd_wait = NULL;
 
-	mwl8k_fw_unlock(hw);
 
 	pci_unmap_single(priv->pdev, dma_addr, dma_size,
 					PCI_DMA_BIDIRECTIONAL);
@@ -2227,6 +2252,11 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 						    buf, sizeof(buf)),
 				     ms);
 	}
+
+	if (bitmap)
+		mwl8k_enable_bsses(hw, true, bitmap);
+
+	mwl8k_fw_unlock(hw);
 
 	return rc;
 }
@@ -3680,7 +3710,15 @@ static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif, int enable)
 {
 	struct mwl8k_cmd_bss_start *cmd;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+	struct mwl8k_priv *priv = hw->priv;
 	int rc;
+
+	if (enable && (priv->running_bsses & (1 << mwl8k_vif->macid)))
+		return 0;
+
+	if (!enable && !(priv->running_bsses & (1 << mwl8k_vif->macid)))
+		return 0;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
@@ -3693,9 +3731,31 @@ static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 	kfree(cmd);
 
+	if (!rc) {
+		if (enable)
+			priv->running_bsses |= (1 << mwl8k_vif->macid);
+		else
+			priv->running_bsses &= ~(1 << mwl8k_vif->macid);
+	}
 	return rc;
 }
 
+static void mwl8k_enable_bsses(struct ieee80211_hw *hw, bool enable, u32 bitmap)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_vif *mwl8k_vif, *tmp_vif;
+	struct ieee80211_vif *vif;
+
+	list_for_each_entry_safe(mwl8k_vif, tmp_vif, &priv->vif_list, list) {
+		vif = mwl8k_vif->vif;
+
+		if (!(bitmap & (1 << mwl8k_vif->macid)))
+			continue;
+
+		if (vif->type == NL80211_IFTYPE_AP)
+			mwl8k_cmd_bss_start(hw, vif, enable);
+	}
+}
 /*
  * CMD_BASTREAM.
  */
@@ -5947,6 +6007,8 @@ static int mwl8k_probe(struct pci_dev *pdev,
 		goto err_stop_firmware;
 
 	priv->hw_restart_in_progress = false;
+
+	priv->running_bsses = 0;
 
 	return rc;
 
