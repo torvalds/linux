@@ -4881,7 +4881,8 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		rcu_read_unlock();
 	}
 
-	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc) {
+	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
+	    !priv->ap_fw) {
 		rc = mwl8k_cmd_set_rate(hw, vif, ap_legacy_rates, ap_mcs_rates);
 		if (rc)
 			goto out;
@@ -4889,6 +4890,25 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		rc = mwl8k_cmd_use_fixed_rate_sta(hw);
 		if (rc)
 			goto out;
+	} else {
+		if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
+		    priv->ap_fw) {
+			int idx;
+			int rate;
+
+			/* Use AP firmware specific rate command.
+			 */
+			idx = ffs(vif->bss_conf.basic_rates);
+			if (idx)
+				idx--;
+
+			if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+				rate = mwl8k_rates_24[idx].hw_value;
+			else
+				rate = mwl8k_rates_50[idx].hw_value;
+
+			mwl8k_cmd_use_fixed_rate_ap(hw, rate, rate);
+		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -4898,13 +4918,13 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			goto out;
 	}
 
-	if (changed & BSS_CHANGED_ERP_SLOT) {
+	if ((changed & BSS_CHANGED_ERP_SLOT) && !priv->ap_fw)  {
 		rc = mwl8k_cmd_set_slot(hw, vif->bss_conf.use_short_slot);
 		if (rc)
 			goto out;
 	}
 
-	if (vif->bss_conf.assoc &&
+	if (vif->bss_conf.assoc && !priv->ap_fw &&
 	    (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_ERP_CTS_PROT |
 			BSS_CHANGED_HT))) {
 		rc = mwl8k_cmd_set_aid(hw, vif, ap_legacy_rates);
