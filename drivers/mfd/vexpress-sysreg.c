@@ -313,7 +313,7 @@ static void vexpress_sysreg_config_complete(unsigned long data)
 }
 
 
-void __init vexpress_sysreg_setup(struct device_node *node)
+void vexpress_sysreg_setup(struct device_node *node)
 {
 	if (WARN_ON(!vexpress_sysreg_base))
 		return;
