@@ -127,13 +127,8 @@ void acpi_bus_hot_remove_device(void *context)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
-	if (acpi_bus_trim(device)) {
-		printk(KERN_ERR PREFIX
-				"Removing device failed\n");
-		goto err_out;
-	}
-
-	/* device has been freed */
+	acpi_bus_trim(device);
+	/* Device node has been released. */
 	device = NULL;
 
 	/* power off device */
@@ -1631,7 +1626,7 @@ static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
 	return AE_OK;
 }
 
-int acpi_bus_trim(struct acpi_device *start)
+void acpi_bus_trim(struct acpi_device *start)
 {
 	/*
 	 * Execute acpi_bus_device_detach() as a post-order callback to detach
@@ -1647,7 +1642,6 @@ int acpi_bus_trim(struct acpi_device *start)
 	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
 			    acpi_bus_remove, NULL, NULL);
 	acpi_bus_remove(start->handle, 0, NULL, NULL);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 

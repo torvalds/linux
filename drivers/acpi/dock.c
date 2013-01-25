@@ -336,13 +336,9 @@ static struct acpi_device * dock_create_acpi_device(acpi_handle handle)
 static void dock_remove_acpi_device(acpi_handle handle)
 {
 	struct acpi_device *device;
-	int ret;
 
-	if (!acpi_bus_get_device(handle, &device)) {
-		ret = acpi_bus_trim(device);
-		if (ret)
-			pr_debug("error removing bus, %x\n", -ret);
-	}
+	if (!acpi_bus_get_device(handle, &device))
+		acpi_bus_trim(device);
 }
 
 /**
