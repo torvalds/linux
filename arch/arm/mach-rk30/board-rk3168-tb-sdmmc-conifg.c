@@ -52,9 +52,7 @@
 * Well, you just own engineering module to set the value in the corresponding module branch.
 * Otherwise, you do not define this macro, eliminate it.
 *
-*/     
-#define WIFI_HOST_WAKE RK30_PIN3_PD2 //If you do not select this function, leave it alone.
-     
+*/          
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
     #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        

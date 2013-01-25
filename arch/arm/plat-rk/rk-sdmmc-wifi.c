@@ -481,6 +481,7 @@ int rk29sdk_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
+#define WIFI_HOST_WAKE RK30_PIN3_PD2
 
 static struct resource resources[] = {
 	{
