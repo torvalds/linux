@@ -1017,11 +1017,10 @@ static int zcache_frontswap_unuse(void)
 		unuse_ret = frontswap_unuse(type, offset,
 				newpage2 != NULL ? newpage2 : evictpage2,
 				ZCACHE_GFP_MASK);
-		if (unuse_ret != 0) {
+		if (unuse_ret != 0)
 			goto free_and_out;
-		} else if (evictpage2 != NULL) {
+		else if (evictpage2 != NULL)
 			zcache_unacct_page();
-		}
 	}
 	ret = 0;
 	goto out;
