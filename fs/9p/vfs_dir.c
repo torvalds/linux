@@ -52,10 +52,9 @@
  */
 
 struct p9_rdir {
-	struct mutex mutex;
 	int head;
 	int tail;
-	uint8_t *buf;
+	uint8_t buf[];
 };
 
 /**
@@ -93,33 +92,12 @@ static void p9stat_init(struct p9_wstat *stbuf)
  *
  */
 
-static int v9fs_alloc_rdir_buf(struct file *filp, int buflen)
+static struct p9_rdir *v9fs_alloc_rdir_buf(struct file *filp, int buflen)
 {
-	struct p9_rdir *rdir;
-	struct p9_fid *fid;
-	int err = 0;
-
-	fid = filp->private_data;
-	if (!fid->rdir) {
-		rdir = kmalloc(sizeof(struct p9_rdir) + buflen, GFP_KERNEL);
-
-		if (rdir == NULL) {
-			err = -ENOMEM;
-			goto exit;
-		}
-		spin_lock(&filp->f_dentry->d_lock);
-		if (!fid->rdir) {
-			rdir->buf = (uint8_t *)rdir + sizeof(struct p9_rdir);
-			mutex_init(&rdir->mutex);
-			rdir->head = rdir->tail = 0;
-			fid->rdir = (void *) rdir;
-			rdir = NULL;
-		}
-		spin_unlock(&filp->f_dentry->d_lock);
-		kfree(rdir);
-	}
-exit:
-	return err;
+	struct p9_fid *fid = filp->private_data;
+	if (!fid->rdir)
+		fid->rdir = kzalloc(sizeof(struct p9_rdir) + buflen, GFP_KERNEL);
+	return fid->rdir;
 }
 
 /**
@@ -145,20 +123,16 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	buflen = fid->clnt->msize - P9_IOHDRSZ;
 
-	err = v9fs_alloc_rdir_buf(filp, buflen);
-	if (err)
-		goto exit;
-	rdir = (struct p9_rdir *) fid->rdir;
+	rdir = v9fs_alloc_rdir_buf(filp, buflen);
+	if (!rdir)
+		return -ENOMEM;
 
-	err = mutex_lock_interruptible(&rdir->mutex);
-	if (err)
-		return err;
-	while (err == 0) {
+	while (1) {
 		if (rdir->tail == rdir->head) {
 			err = v9fs_file_readn(filp, rdir->buf, NULL,
 							buflen, filp->f_pos);
 			if (err <= 0)
-				goto unlock_and_exit;
+				return err;
 
 			rdir->head = 0;
 			rdir->tail = err;
@@ -169,9 +143,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					  rdir->tail - rdir->head, &st);
 			if (err) {
 				p9_debug(P9_DEBUG_VFS, "returned %d\n", err);
-				err = -EIO;
 				p9stat_free(&st);
-				goto unlock_and_exit;
+				return -EIO;
 			}
 			reclen = st.size+2;
 
@@ -180,19 +153,13 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 			p9stat_free(&st);
 
-			if (over) {
-				err = 0;
-				goto unlock_and_exit;
-			}
+			if (over)
+				return 0;
+
 			rdir->head += reclen;
 			filp->f_pos += reclen;
 		}
 	}
-
-unlock_and_exit:
-	mutex_unlock(&rdir->mutex);
-exit:
-	return err;
 }
 
 /**
@@ -218,21 +185,16 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 
 	buflen = fid->clnt->msize - P9_READDIRHDRSZ;
 
-	err = v9fs_alloc_rdir_buf(filp, buflen);
-	if (err)
-		goto exit;
-	rdir = (struct p9_rdir *) fid->rdir;
+	rdir = v9fs_alloc_rdir_buf(filp, buflen);
+	if (!rdir)
+		return -ENOMEM;
 
-	err = mutex_lock_interruptible(&rdir->mutex);
-	if (err)
-		return err;
-
-	while (err == 0) {
+	while (1) {
 		if (rdir->tail == rdir->head) {
 			err = p9_client_readdir(fid, rdir->buf, buflen,
 						filp->f_pos);
 			if (err <= 0)
-				goto unlock_and_exit;
+				return err;
 
 			rdir->head = 0;
 			rdir->tail = err;
@@ -245,8 +207,7 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 					    &curdirent);
 			if (err < 0) {
 				p9_debug(P9_DEBUG_VFS, "returned %d\n", err);
-				err = -EIO;
-				goto unlock_and_exit;
+				return -EIO;
 			}
 
 			/* d_off in dirent structure tracks the offset into
@@ -261,20 +222,13 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 					curdirent.d_type);
 			oldoffset = curdirent.d_off;
 
-			if (over) {
-				err = 0;
-				goto unlock_and_exit;
-			}
+			if (over)
+				return 0;
 
 			filp->f_pos = curdirent.d_off;
 			rdir->head += err;
 		}
 	}
-
-unlock_and_exit:
-	mutex_unlock(&rdir->mutex);
-exit:
-	return err;
 }
 
 
