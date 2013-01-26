@@ -36,6 +36,10 @@ struct linux_logo {
 extern const struct linux_logo logo_linux_mono;
 extern const struct linux_logo logo_linux_vga16;
 extern const struct linux_logo logo_linux_clut224;
+
+#ifdef CONFIG_LOGO_PIPO_CLUT224
+extern const struct linux_logo logo_pipo_clut224;
+#endif
 extern const struct linux_logo logo_blackfin_vga16;
 extern const struct linux_logo logo_blackfin_clut224;
 extern const struct linux_logo logo_dec_clut224;
