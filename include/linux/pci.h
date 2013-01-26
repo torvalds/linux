@@ -1707,7 +1707,7 @@ static inline u16 pcie_caps_reg(const struct pci_dev *dev)
  */
 static inline int pci_pcie_type(const struct pci_dev *dev)
 {
-	return (dev->pcie_flags_reg & PCI_EXP_FLAGS_TYPE) >> 4;
+	return (pcie_caps_reg(dev) & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
 void pci_request_acs(void);
