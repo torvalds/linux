@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/spinlock.h>
 #include <trace/events/power.h>
 
 #include "cm2xxx_3xxx.h"
@@ -111,6 +112,7 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	pwrdm->voltdm.ptr = voltdm;
 	INIT_LIST_HEAD(&pwrdm->voltdm_node);
 	voltdm_add_pwrdm(voltdm, pwrdm);
+	spin_lock_init(&pwrdm->_lock);
 
 	list_add(&pwrdm->node, &pwrdm_list);
 
@@ -241,7 +243,7 @@ static u8 _pwrdm_save_clkdm_state_and_activate(struct powerdomain *pwrdm,
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
 			*hwsup = clkdm_in_hwsup(pwrdm->pwrdm_clkdms[0]);
-			clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
+			clkdm_wakeup_nolock(pwrdm->pwrdm_clkdms[0]);
 			sleep_switch = FORCEWAKEUP_SWITCH;
 		}
 	} else {
@@ -271,15 +273,15 @@ static void _pwrdm_restore_clkdm_state(struct powerdomain *pwrdm,
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
 		if (hwsup)
-			clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+			clkdm_allow_idle_nolock(pwrdm->pwrdm_clkdms[0]);
 		else
-			clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
+			clkdm_sleep_nolock(pwrdm->pwrdm_clkdms[0]);
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		if (pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE &&
 		    arch_pwrdm->pwrdm_set_lowpwrstchange)
 			arch_pwrdm->pwrdm_set_lowpwrstchange(pwrdm);
-		pwrdm_state_switch(pwrdm);
+		pwrdm_state_switch_nolock(pwrdm);
 		break;
 	}
 }
@@ -357,6 +359,30 @@ int pwrdm_complete_init(void)
 		pwrdm_set_next_pwrst(temp_p, PWRDM_POWER_ON);
 
 	return 0;
+}
+
+/**
+ * pwrdm_lock - acquire a Linux spinlock on a powerdomain
+ * @pwrdm: struct powerdomain * to lock
+ *
+ * Acquire the powerdomain spinlock on @pwrdm.  No return value.
+ */
+void pwrdm_lock(struct powerdomain *pwrdm)
+	__acquires(&pwrdm->_lock)
+{
+	spin_lock_irqsave(&pwrdm->_lock, pwrdm->_lock_flags);
+}
+
+/**
+ * pwrdm_unlock - release a Linux spinlock on a powerdomain
+ * @pwrdm: struct powerdomain * to unlock
+ *
+ * Release the powerdomain spinlock on @pwrdm.  No return value.
+ */
+void pwrdm_unlock(struct powerdomain *pwrdm)
+	__releases(&pwrdm->_lock)
+{
+	spin_unlock_irqrestore(&pwrdm->_lock, pwrdm->_lock_flags);
 }
 
 /**
@@ -1005,7 +1031,7 @@ bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm)
 	return (pwrdm && pwrdm->flags & PWRDM_HAS_HDWR_SAR) ? 1 : 0;
 }
 
-int pwrdm_state_switch(struct powerdomain *pwrdm)
+int pwrdm_state_switch_nolock(struct powerdomain *pwrdm)
 {
 	int ret;
 
@@ -1015,6 +1041,17 @@ int pwrdm_state_switch(struct powerdomain *pwrdm)
 	ret = arch_pwrdm->pwrdm_wait_transition(pwrdm);
 	if (!ret)
 		ret = _pwrdm_state_switch(pwrdm, PWRDM_STATE_NOW);
+
+	return ret;
+}
+
+int __deprecated pwrdm_state_switch(struct powerdomain *pwrdm)
+{
+	int ret;
+
+	pwrdm_lock(pwrdm);
+	ret = pwrdm_state_switch_nolock(pwrdm);
+	pwrdm_unlock(pwrdm);
 
 	return ret;
 }
@@ -1067,15 +1104,19 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 		pwrst--;
 	}
 
+	pwrdm_lock(pwrdm);
+
 	curr_pwrst = pwrdm_read_pwrst(pwrdm);
 	next_pwrst = pwrdm_read_next_pwrst(pwrdm);
 	if (curr_pwrst == pwrst && next_pwrst == pwrst)
-		return ret;
+		goto osps_out;
 
 	sleep_switch = _pwrdm_save_clkdm_state_and_activate(pwrdm, curr_pwrst,
 							    pwrst, &hwsup);
-	if (sleep_switch == ERROR_SWITCH)
-		return -EINVAL;
+	if (sleep_switch == ERROR_SWITCH) {
+		ret = -EINVAL;
+		goto osps_out;
+	}
 
 	ret = pwrdm_set_next_pwrst(pwrdm, pwrst);
 	if (ret)
@@ -1083,6 +1124,9 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 		       __func__, pwrdm->name);
 
 	_pwrdm_restore_clkdm_state(pwrdm, sleep_switch, hwsup);
+
+osps_out:
+	pwrdm_unlock(pwrdm);
 
 	return ret;
 }

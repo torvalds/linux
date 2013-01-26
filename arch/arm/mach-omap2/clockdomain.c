@@ -92,8 +92,6 @@ static int _clkdm_register(struct clockdomain *clkdm)
 
 	pwrdm_add_clkdm(pwrdm, clkdm);
 
-	spin_lock_init(&clkdm->lock);
-
 	pr_debug("clockdomain: registered %s\n", clkdm->name);
 
 	return 0;
@@ -734,18 +732,17 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 }
 
 /**
- * clkdm_sleep - force clockdomain sleep transition
+ * clkdm_sleep_nolock - force clockdomain sleep transition (lockless)
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a sleep transition on the specified
- * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if
- * clockdomain does not support software-initiated sleep; 0 upon
- * success.
+ * clockdomain @clkdm.  Only for use by the powerdomain code.  Returns
+ * -EINVAL if @clkdm is NULL or if clockdomain does not support
+ * software-initiated sleep; 0 upon success.
  */
-int clkdm_sleep(struct clockdomain *clkdm)
+int clkdm_sleep_nolock(struct clockdomain *clkdm)
 {
 	int ret;
-	unsigned long flags;
 
 	if (!clkdm)
 		return -EINVAL;
@@ -761,27 +758,45 @@ int clkdm_sleep(struct clockdomain *clkdm)
 
 	pr_debug("clockdomain: forcing sleep on %s\n", clkdm->name);
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 	ret = arch_clkdm->clkdm_sleep(clkdm);
-	ret |= pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	ret |= pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+
 	return ret;
 }
 
 /**
- * clkdm_wakeup - force clockdomain wakeup transition
+ * clkdm_sleep - force clockdomain sleep transition
+ * @clkdm: struct clockdomain *
+ *
+ * Instruct the CM to force a sleep transition on the specified
+ * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if
+ * clockdomain does not support software-initiated sleep; 0 upon
+ * success.
+ */
+int clkdm_sleep(struct clockdomain *clkdm)
+{
+	int ret;
+
+	pwrdm_lock(clkdm->pwrdm.ptr);
+	ret = clkdm_sleep_nolock(clkdm);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
+
+	return ret;
+}
+
+/**
+ * clkdm_wakeup_nolock - force clockdomain wakeup transition (lockless)
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a wakeup transition on the specified
- * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if the
- * clockdomain does not support software-controlled wakeup; 0 upon
- * success.
+ * clockdomain @clkdm.  Only for use by the powerdomain code.  Returns
+ * -EINVAL if @clkdm is NULL or if the clockdomain does not support
+ * software-controlled wakeup; 0 upon success.
  */
-int clkdm_wakeup(struct clockdomain *clkdm)
+int clkdm_wakeup_nolock(struct clockdomain *clkdm)
 {
 	int ret;
-	unsigned long flags;
 
 	if (!clkdm)
 		return -EINVAL;
@@ -797,28 +812,46 @@ int clkdm_wakeup(struct clockdomain *clkdm)
 
 	pr_debug("clockdomain: forcing wakeup on %s\n", clkdm->name);
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 	ret = arch_clkdm->clkdm_wakeup(clkdm);
-	ret |= pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	ret |= pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+
 	return ret;
 }
 
 /**
- * clkdm_allow_idle - enable hwsup idle transitions for clkdm
+ * clkdm_wakeup - force clockdomain wakeup transition
  * @clkdm: struct clockdomain *
  *
- * Allow the hardware to automatically switch the clockdomain @clkdm into
- * active or idle states, as needed by downstream clocks.  If the
+ * Instruct the CM to force a wakeup transition on the specified
+ * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if the
+ * clockdomain does not support software-controlled wakeup; 0 upon
+ * success.
+ */
+int clkdm_wakeup(struct clockdomain *clkdm)
+{
+	int ret;
+
+	pwrdm_lock(clkdm->pwrdm.ptr);
+	ret = clkdm_wakeup_nolock(clkdm);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
+
+	return ret;
+}
+
+/**
+ * clkdm_allow_idle_nolock - enable hwsup idle transitions for clkdm
+ * @clkdm: struct clockdomain *
+ *
+ * Allow the hardware to automatically switch the clockdomain @clkdm
+ * into active or idle states, as needed by downstream clocks.  If the
  * clockdomain has any downstream clocks enabled in the clock
  * framework, wkdep/sleepdep autodependencies are added; this is so
- * device drivers can read and write to the device.  No return value.
+ * device drivers can read and write to the device.  Only for use by
+ * the powerdomain code.  No return value.
  */
-void clkdm_allow_idle(struct clockdomain *clkdm)
+void clkdm_allow_idle_nolock(struct clockdomain *clkdm)
 {
-	unsigned long flags;
-
 	if (!clkdm)
 		return;
 
@@ -834,11 +867,26 @@ void clkdm_allow_idle(struct clockdomain *clkdm)
 	pr_debug("clockdomain: enabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	clkdm->_flags |= _CLKDM_FLAG_HWSUP_ENABLED;
 	arch_clkdm->clkdm_allow_idle(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+}
+
+/**
+ * clkdm_allow_idle - enable hwsup idle transitions for clkdm
+ * @clkdm: struct clockdomain *
+ *
+ * Allow the hardware to automatically switch the clockdomain @clkdm into
+ * active or idle states, as needed by downstream clocks.  If the
+ * clockdomain has any downstream clocks enabled in the clock
+ * framework, wkdep/sleepdep autodependencies are added; this is so
+ * device drivers can read and write to the device.  No return value.
+ */
+void clkdm_allow_idle(struct clockdomain *clkdm)
+{
+	pwrdm_lock(clkdm->pwrdm.ptr);
+	clkdm_allow_idle_nolock(clkdm);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
 }
 
 /**
@@ -848,12 +896,11 @@ void clkdm_allow_idle(struct clockdomain *clkdm)
  * Prevent the hardware from automatically switching the clockdomain
  * @clkdm into inactive or idle states.  If the clockdomain has
  * downstream clocks enabled in the clock framework, wkdep/sleepdep
- * autodependencies are removed.  No return value.
+ * autodependencies are removed.  Only for use by the powerdomain
+ * code.  No return value.
  */
-void clkdm_deny_idle(struct clockdomain *clkdm)
+void clkdm_deny_idle_nolock(struct clockdomain *clkdm)
 {
-	unsigned long flags;
-
 	if (!clkdm)
 		return;
 
@@ -869,11 +916,25 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
 	pr_debug("clockdomain: disabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 	arch_clkdm->clkdm_deny_idle(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+}
+
+/**
+ * clkdm_deny_idle - disable hwsup idle transitions for clkdm
+ * @clkdm: struct clockdomain *
+ *
+ * Prevent the hardware from automatically switching the clockdomain
+ * @clkdm into inactive or idle states.  If the clockdomain has
+ * downstream clocks enabled in the clock framework, wkdep/sleepdep
+ * autodependencies are removed.  No return value.
+ */
+void clkdm_deny_idle(struct clockdomain *clkdm)
+{
+	pwrdm_lock(clkdm->pwrdm.ptr);
+	clkdm_deny_idle_nolock(clkdm);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
 }
 
 /**
@@ -890,14 +951,11 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
 bool clkdm_in_hwsup(struct clockdomain *clkdm)
 {
 	bool ret;
-	unsigned long flags;
 
 	if (!clkdm)
 		return false;
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	ret = (clkdm->_flags & _CLKDM_FLAG_HWSUP_ENABLED) ? true : false;
-	spin_unlock_irqrestore(&clkdm->lock, flags);
 
 	return ret;
 }
@@ -923,12 +981,10 @@ bool clkdm_missing_idle_reporting(struct clockdomain *clkdm)
 
 static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 {
-	unsigned long flags;
-
 	if (!clkdm || !arch_clkdm || !arch_clkdm->clkdm_clk_enable)
 		return -EINVAL;
 
-	spin_lock_irqsave(&clkdm->lock, flags);
+	pwrdm_lock(clkdm->pwrdm.ptr);
 
 	/*
 	 * For arch's with no autodeps, clkcm_clk_enable
@@ -936,13 +992,13 @@ static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 	 * enabled, so the clkdm can be force woken up.
 	 */
 	if ((atomic_inc_return(&clkdm->usecount) > 1) && autodeps) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
+		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}
 
 	arch_clkdm->clkdm_clk_enable(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
 
 	pr_debug("clockdomain: %s: enabled\n", clkdm->name);
 
@@ -991,12 +1047,10 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  */
 int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {
-	unsigned long flags;
-
 	if (!clkdm || !clk || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
-	spin_lock_irqsave(&clkdm->lock, flags);
+	pwrdm_lock(clkdm->pwrdm.ptr);
 
 	/* corner case: disabling unused clocks */
 	if ((__clk_get_enable_count(clk) == 0) &&
@@ -1004,23 +1058,23 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 		goto ccd_exit;
 
 	if (atomic_read(&clkdm->usecount) == 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
+		pwrdm_unlock(clkdm->pwrdm.ptr);
 		WARN_ON(1); /* underflow */
 		return -ERANGE;
 	}
 
 	if (atomic_dec_return(&clkdm->usecount) > 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
+		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}
 
 	arch_clkdm->clkdm_clk_disable(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
+	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
 
 	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
 
 ccd_exit:
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
 
 	return 0;
 }
@@ -1073,8 +1127,6 @@ int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh)
  */
 int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 {
-	unsigned long flags;
-
 	/* The clkdm attribute does not exist yet prior OMAP4 */
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return 0;
@@ -1087,22 +1139,22 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 	if (!clkdm || !oh || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
-	spin_lock_irqsave(&clkdm->lock, flags);
+	pwrdm_lock(clkdm->pwrdm.ptr);
 
 	if (atomic_read(&clkdm->usecount) == 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
+		pwrdm_unlock(clkdm->pwrdm.ptr);
 		WARN_ON(1); /* underflow */
 		return -ERANGE;
 	}
 
 	if (atomic_dec_return(&clkdm->usecount) > 0) {
-		spin_unlock_irqrestore(&clkdm->lock, flags);
+		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}
 
 	arch_clkdm->clkdm_clk_disable(clkdm);
-	pwrdm_state_switch(clkdm->pwrdm.ptr);
-	spin_unlock_irqrestore(&clkdm->lock, flags);
+	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
+	pwrdm_unlock(clkdm->pwrdm.ptr);
 
 	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
 

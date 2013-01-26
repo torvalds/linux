@@ -19,8 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-
-#include <linux/atomic.h>
+#include <linux/spinlock.h>
 
 #include "voltage.h"
 
@@ -103,6 +102,8 @@ struct powerdomain;
  * @state_counter:
  * @timer:
  * @state_timer:
+ * @_lock: spinlock used to serialize powerdomain and some clockdomain ops
+ * @_lock_flags: stored flags when @_lock is taken
  *
  * @prcm_partition possible values are defined in mach-omap2/prcm44xx.h.
  */
@@ -127,7 +128,8 @@ struct powerdomain {
 	unsigned state_counter[PWRDM_MAX_PWRSTS];
 	unsigned ret_logic_off_counter;
 	unsigned ret_mem_off_counter[PWRDM_MAX_MEM_BANKS];
-
+	spinlock_t _lock;
+	unsigned long _lock_flags;
 	const u8 pwrstctrl_offs;
 	const u8 pwrstst_offs;
 	const u32 logicretstate_mask;
@@ -235,6 +237,7 @@ int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm);
 int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm);
 bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm);
 
+int pwrdm_state_switch_nolock(struct powerdomain *pwrdm);
 int pwrdm_state_switch(struct powerdomain *pwrdm);
 int pwrdm_pre_transition(struct powerdomain *pwrdm);
 int pwrdm_post_transition(struct powerdomain *pwrdm);
@@ -262,5 +265,7 @@ extern u32 omap2_pwrdm_get_mem_bank_stst_mask(u8 bank);
 extern struct powerdomain wkup_omap2_pwrdm;
 extern struct powerdomain gfx_omap2_pwrdm;
 
+extern void pwrdm_lock(struct powerdomain *pwrdm);
+extern void pwrdm_unlock(struct powerdomain *pwrdm);
 
 #endif
