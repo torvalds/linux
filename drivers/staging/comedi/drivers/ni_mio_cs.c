@@ -245,73 +245,38 @@ static int ni_getboardtype(struct comedi_device *dev,
 	return 0;
 }
 
-static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int mio_cs_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it)
 {
 	struct ni_private *devpriv;
 	struct pcmcia_device *link;
-	unsigned int irq;
 	int ret;
-
-	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n", dev, it);
 
 	link = cur_dev;		/* XXX hack */
 	if (!link)
 		return -EIO;
 
+	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
+	dev->board_name = boardtype.name;
 	dev->iobase = link->resource[0]->start;
 
-	irq = link->irq;
-
-	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
-
-#if 0
-	{
-		int i;
-
-		printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
-		       dev->minor, dev->driver->driver_name, dev->iobase, irq);
-
-		printk(" board fingerprint:");
-		for (i = 0; i < 32; i += 2) {
-			printk(" %04x %02x", inw(dev->iobase + i),
-			       inb(dev->iobase + i + 1));
-		}
-		printk("\n");
-		printk(" board fingerprint (windowed):");
-		for (i = 0; i < 10; i++)
-			printk(" 0x%04x", win_in(i));
-		printk("\n");
-
-		printk("boardtype.name: %s\n", boardtype.name);
-	}
-#endif
-
-	dev->board_name = boardtype.name;
-
-	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-			  "ni_mio_cs", dev);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "irq not available\n");
-		return -EINVAL;
-	}
-	dev->irq = irq;
+	ret = request_irq(link->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+			  dev->board_name, dev);
+	if (ret < 0)
+		return ret;
+	dev->irq = link->irq;
 
 	ret = ni_alloc_private(dev);
 	if (ret)
 		return ret;
+
 	devpriv = dev->private;
+	devpriv->stc_writew	= mio_cs_win_out;
+	devpriv->stc_readw	= mio_cs_win_in;
+	devpriv->stc_writel	= win_out2;
+	devpriv->stc_readl	= win_in2;
 
-	devpriv->stc_writew = &mio_cs_win_out;
-	devpriv->stc_readw = &mio_cs_win_in;
-	devpriv->stc_writel = &win_out2;
-	devpriv->stc_readl = &win_in2;
-
-	ret = ni_E_init(dev);
-
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ni_E_init(dev);
 }
 
 static void mio_cs_detach(struct comedi_device *dev)
