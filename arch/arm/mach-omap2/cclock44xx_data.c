@@ -17,10 +17,9 @@
  * is added for discriminating clocks by ES level, these should be added back
  * in.
  *
- * XXX All of the CLK_OMAP_MUX_GATE entries with MODULEMODE registers should
- * be split into separate mux and gate nodes, then the gates should be removed
- * (handled by hwmod).  Also all of the other remaining MODULEMODE entries
- * should be removed once the drivers are updated to use pm_runtime.
+ * XXX All of the remaining MODULEMODE clock nodes should be removed
+ * once the drivers are updated to use pm_runtime or to use the appropriate
+ * upstream clock node for rate/parent selection.
  */
 
 #include <linux/kernel.h>
@@ -320,7 +319,7 @@ DEFINE_CLK_DIVIDER(dpll_abe_m2_ck, "dpll_abe_ck", &dpll_abe_ck, 0x0,
 		   OMAP4430_CM_DIV_M2_DPLL_ABE, OMAP4430_DPLL_CLKOUT_DIV_SHIFT,
 		   OMAP4430_DPLL_CLKOUT_DIV_WIDTH, CLK_DIVIDER_ONE_BASED, NULL);
 
-static const struct clk_ops dmic_fck_ops = {
+static const struct clk_ops dpll_hsd_ops = {
 	.enable		= &omap2_dflt_clk_enable,
 	.disable	= &omap2_dflt_clk_disable,
 	.is_enabled	= &omap2_dflt_clk_is_enabled,
@@ -328,6 +327,12 @@ static const struct clk_ops dmic_fck_ops = {
 	.get_parent	= &omap2_clksel_find_parent_index,
 	.set_parent	= &omap2_clksel_set_parent,
 	.init		= &omap2_init_clk_clkdm,
+};
+
+static const struct clk_ops func_dmic_abe_gfclk_ops = {
+	.recalc_rate	= &omap2_clksel_recalc,
+	.get_parent	= &omap2_clksel_find_parent_index,
+	.set_parent	= &omap2_clksel_set_parent,
 };
 
 static const char *dpll_core_m3x2_ck_parents[] = {
@@ -345,7 +350,7 @@ DEFINE_CLK_OMAP_MUX_GATE(dpll_core_m3x2_ck, NULL, dpll_core_m3x2_div,
 			 OMAP4430_DPLL_CLKOUTHIF_DIV_MASK,
 			 OMAP4430_CM_DIV_M3_DPLL_CORE,
 			 OMAP4430_DPLL_CLKOUTHIF_GATE_CTRL_SHIFT, NULL,
-			 dpll_core_m3x2_ck_parents, dmic_fck_ops);
+			 dpll_core_m3x2_ck_parents, dpll_hsd_ops);
 
 DEFINE_CLK_OMAP_HSDIVIDER(dpll_core_m7x2_ck, "dpll_core_x2_ck",
 			  &dpll_core_x2_ck, 0x0, OMAP4430_CM_DIV_M7_DPLL_CORE,
@@ -552,7 +557,7 @@ DEFINE_CLK_OMAP_MUX_GATE(dpll_per_m3x2_ck, NULL, dpll_per_m3x2_div,
 			 OMAP4430_DPLL_CLKOUTHIF_DIV_MASK,
 			 OMAP4430_CM_DIV_M3_DPLL_PER,
 			 OMAP4430_DPLL_CLKOUTHIF_GATE_CTRL_SHIFT, NULL,
-			 dpll_per_m3x2_ck_parents, dmic_fck_ops);
+			 dpll_per_m3x2_ck_parents, dpll_hsd_ops);
 
 DEFINE_CLK_OMAP_HSDIVIDER(dpll_per_m4x2_ck, "dpll_per_x2_ck", &dpll_per_x2_ck,
 			  0x0, OMAP4430_CM_DIV_M4_DPLL_PER,
@@ -791,19 +796,13 @@ static const struct clksel func_dmic_abe_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *dmic_fck_parents[] = {
+static const char *func_dmic_abe_gfclk_parents[] = {
 	"dmic_sync_mux_ck", "pad_clks_ck", "slimbus_clk",
 };
 
-/* Merged func_dmic_abe_gfclk into dmic */
-static struct clk dmic_fck;
-
-DEFINE_CLK_OMAP_MUX_GATE(dmic_fck, "abe_clkdm", func_dmic_abe_gfclk_sel,
-			 OMAP4430_CM1_ABE_DMIC_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_MASK,
-			 OMAP4430_CM1_ABE_DMIC_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 dmic_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(func_dmic_abe_gfclk, "abe_clkdm", func_dmic_abe_gfclk_sel,
+		    OMAP4430_CM1_ABE_DMIC_CLKCTRL, OMAP4430_CLKSEL_SOURCE_MASK,
+		    func_dmic_abe_gfclk_parents, func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_GATE(dss_sys_clk, "syc_clk_div_ck", &syc_clk_div_ck, 0x0,
 		OMAP4430_CM_DSS_DSS_CLKCTRL,
@@ -859,17 +858,13 @@ static const struct clksel sgx_clk_mux_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *gpu_fck_parents[] = {
+static const char *sgx_clk_mux_parents[] = {
 	"dpll_core_m7x2_ck", "dpll_per_m7x2_ck",
 };
 
-/* Merged sgx_clk_mux into gpu */
-DEFINE_CLK_OMAP_MUX_GATE(gpu_fck, "l3_gfx_clkdm", sgx_clk_mux_sel,
-			 OMAP4430_CM_GFX_GFX_CLKCTRL,
-			 OMAP4430_CLKSEL_SGX_FCLK_MASK,
-			 OMAP4430_CM_GFX_GFX_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 gpu_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(sgx_clk_mux, "l3_gfx_clkdm", sgx_clk_mux_sel,
+		    OMAP4430_CM_GFX_GFX_CLKCTRL, OMAP4430_CLKSEL_SGX_FCLK_MASK,
+		    sgx_clk_mux_parents, func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_DIVIDER(hsi_fck, "dpll_per_m2x2_ck", &dpll_per_m2x2_ck, 0x0,
 		   OMAP4430_CM_L3INIT_HSI_CLKCTRL, OMAP4430_CLKSEL_24_25_SHIFT,
@@ -892,17 +887,13 @@ static const struct clksel func_mcasp_abe_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mcasp_fck_parents[] = {
+static const char *func_mcasp_abe_gfclk_parents[] = {
 	"mcasp_sync_mux_ck", "pad_clks_ck", "slimbus_clk",
 };
 
-/* Merged func_mcasp_abe_gfclk into mcasp */
-DEFINE_CLK_OMAP_MUX_GATE(mcasp_fck, "abe_clkdm", func_mcasp_abe_gfclk_sel,
-			 OMAP4430_CM1_ABE_MCASP_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_MASK,
-			 OMAP4430_CM1_ABE_MCASP_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mcasp_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(func_mcasp_abe_gfclk, "abe_clkdm", func_mcasp_abe_gfclk_sel,
+		    OMAP4430_CM1_ABE_MCASP_CLKCTRL, OMAP4430_CLKSEL_SOURCE_MASK,
+		    func_mcasp_abe_gfclk_parents, func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_MUX(mcbsp1_sync_mux_ck, dmic_sync_mux_ck_parents, NULL, 0x0,
 	       OMAP4430_CM1_ABE_MCBSP1_CLKCTRL,
@@ -916,17 +907,14 @@ static const struct clksel func_mcbsp1_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mcbsp1_fck_parents[] = {
+static const char *func_mcbsp1_gfclk_parents[] = {
 	"mcbsp1_sync_mux_ck", "pad_clks_ck", "slimbus_clk",
 };
 
-/* Merged func_mcbsp1_gfclk into mcbsp1 */
-DEFINE_CLK_OMAP_MUX_GATE(mcbsp1_fck, "abe_clkdm", func_mcbsp1_gfclk_sel,
-			 OMAP4430_CM1_ABE_MCBSP1_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_MASK,
-			 OMAP4430_CM1_ABE_MCBSP1_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mcbsp1_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(func_mcbsp1_gfclk, "abe_clkdm", func_mcbsp1_gfclk_sel,
+		    OMAP4430_CM1_ABE_MCBSP1_CLKCTRL,
+		    OMAP4430_CLKSEL_SOURCE_MASK, func_mcbsp1_gfclk_parents,
+		    func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_MUX(mcbsp2_sync_mux_ck, dmic_sync_mux_ck_parents, NULL, 0x0,
 	       OMAP4430_CM1_ABE_MCBSP2_CLKCTRL,
@@ -940,17 +928,14 @@ static const struct clksel func_mcbsp2_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mcbsp2_fck_parents[] = {
+static const char *func_mcbsp2_gfclk_parents[] = {
 	"mcbsp2_sync_mux_ck", "pad_clks_ck", "slimbus_clk",
 };
 
-/* Merged func_mcbsp2_gfclk into mcbsp2 */
-DEFINE_CLK_OMAP_MUX_GATE(mcbsp2_fck, "abe_clkdm", func_mcbsp2_gfclk_sel,
-			 OMAP4430_CM1_ABE_MCBSP2_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_MASK,
-			 OMAP4430_CM1_ABE_MCBSP2_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mcbsp2_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(func_mcbsp2_gfclk, "abe_clkdm", func_mcbsp2_gfclk_sel,
+		    OMAP4430_CM1_ABE_MCBSP2_CLKCTRL,
+		    OMAP4430_CLKSEL_SOURCE_MASK, func_mcbsp2_gfclk_parents,
+		    func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_MUX(mcbsp3_sync_mux_ck, dmic_sync_mux_ck_parents, NULL, 0x0,
 	       OMAP4430_CM1_ABE_MCBSP3_CLKCTRL,
@@ -964,17 +949,14 @@ static const struct clksel func_mcbsp3_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mcbsp3_fck_parents[] = {
+static const char *func_mcbsp3_gfclk_parents[] = {
 	"mcbsp3_sync_mux_ck", "pad_clks_ck", "slimbus_clk",
 };
 
-/* Merged func_mcbsp3_gfclk into mcbsp3 */
-DEFINE_CLK_OMAP_MUX_GATE(mcbsp3_fck, "abe_clkdm", func_mcbsp3_gfclk_sel,
-			 OMAP4430_CM1_ABE_MCBSP3_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_MASK,
-			 OMAP4430_CM1_ABE_MCBSP3_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mcbsp3_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(func_mcbsp3_gfclk, "abe_clkdm", func_mcbsp3_gfclk_sel,
+		    OMAP4430_CM1_ABE_MCBSP3_CLKCTRL,
+		    OMAP4430_CLKSEL_SOURCE_MASK, func_mcbsp3_gfclk_parents,
+		    func_dmic_abe_gfclk_ops);
 
 static const char *mcbsp4_sync_mux_ck_parents[] = {
 	"func_96m_fclk", "per_abe_nc_fclk",
@@ -991,17 +973,14 @@ static const struct clksel per_mcbsp4_gfclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mcbsp4_fck_parents[] = {
+static const char *per_mcbsp4_gfclk_parents[] = {
 	"mcbsp4_sync_mux_ck", "pad_clks_ck",
 };
 
-/* Merged per_mcbsp4_gfclk into mcbsp4 */
-DEFINE_CLK_OMAP_MUX_GATE(mcbsp4_fck, "l4_per_clkdm", per_mcbsp4_gfclk_sel,
-			 OMAP4430_CM_L4PER_MCBSP4_CLKCTRL,
-			 OMAP4430_CLKSEL_SOURCE_24_24_MASK,
-			 OMAP4430_CM_L4PER_MCBSP4_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mcbsp4_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(per_mcbsp4_gfclk, "l4_per_clkdm", per_mcbsp4_gfclk_sel,
+		    OMAP4430_CM_L4PER_MCBSP4_CLKCTRL,
+		    OMAP4430_CLKSEL_SOURCE_24_24_MASK, per_mcbsp4_gfclk_parents,
+		    func_dmic_abe_gfclk_ops);
 
 static const struct clksel hsmmc1_fclk_sel[] = {
 	{ .parent = &func_64m_fclk, .rates = div_1_0_rates },
@@ -1009,23 +988,17 @@ static const struct clksel hsmmc1_fclk_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *mmc1_fck_parents[] = {
+static const char *hsmmc1_fclk_parents[] = {
 	"func_64m_fclk", "func_96m_fclk",
 };
 
-/* Merged hsmmc1_fclk into mmc1 */
-DEFINE_CLK_OMAP_MUX_GATE(mmc1_fck, "l3_init_clkdm", hsmmc1_fclk_sel,
-			 OMAP4430_CM_L3INIT_MMC1_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L3INIT_MMC1_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mmc1_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(hsmmc1_fclk, "l3_init_clkdm", hsmmc1_fclk_sel,
+		    OMAP4430_CM_L3INIT_MMC1_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    hsmmc1_fclk_parents, func_dmic_abe_gfclk_ops);
 
-/* Merged hsmmc2_fclk into mmc2 */
-DEFINE_CLK_OMAP_MUX_GATE(mmc2_fck, "l3_init_clkdm", hsmmc1_fclk_sel,
-			 OMAP4430_CM_L3INIT_MMC2_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L3INIT_MMC2_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 mmc1_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(hsmmc2_fclk, "l3_init_clkdm", hsmmc1_fclk_sel,
+		    OMAP4430_CM_L3INIT_MMC2_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    hsmmc1_fclk_parents, func_dmic_abe_gfclk_ops);
 
 DEFINE_CLK_GATE(sha2md5_fck, "l3_div_ck", &l3_div_ck, 0x0,
 		OMAP4430_CM_L4SEC_SHA2MD51_CLKCTRL,
@@ -1078,52 +1051,35 @@ static const struct clksel dmt1_clk_mux_sel[] = {
 	{ .parent = NULL },
 };
 
-/* Merged dmt1_clk_mux into timer1 */
-DEFINE_CLK_OMAP_MUX_GATE(timer1_fck, "l4_wkup_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_WKUP_TIMER1_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_WKUP_TIMER1_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(dmt1_clk_mux, "l4_wkup_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_WKUP_TIMER1_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm10_mux into timer10 */
-DEFINE_CLK_OMAP_MUX_GATE(timer10_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER10_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER10_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm10_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER10_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm11_mux into timer11 */
-DEFINE_CLK_OMAP_MUX_GATE(timer11_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER11_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER11_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm11_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER11_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm2_mux into timer2 */
-DEFINE_CLK_OMAP_MUX_GATE(timer2_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER2_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER2_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm2_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER2_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm3_mux into timer3 */
-DEFINE_CLK_OMAP_MUX_GATE(timer3_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER3_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER3_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm3_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER3_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm4_mux into timer4 */
-DEFINE_CLK_OMAP_MUX_GATE(timer4_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER4_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER4_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm4_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER4_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
 static const struct clksel timer5_sync_mux_sel[] = {
 	{ .parent = &syc_clk_div_ck, .rates = div_1_0_rates },
@@ -1131,45 +1087,30 @@ static const struct clksel timer5_sync_mux_sel[] = {
 	{ .parent = NULL },
 };
 
-static const char *timer5_fck_parents[] = {
+static const char *timer5_sync_mux_parents[] = {
 	"syc_clk_div_ck", "sys_32k_ck",
 };
 
-/* Merged timer5_sync_mux into timer5 */
-DEFINE_CLK_OMAP_MUX_GATE(timer5_fck, "abe_clkdm", timer5_sync_mux_sel,
-			 OMAP4430_CM1_ABE_TIMER5_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM1_ABE_TIMER5_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 timer5_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(timer5_sync_mux, "abe_clkdm", timer5_sync_mux_sel,
+		    OMAP4430_CM1_ABE_TIMER5_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    timer5_sync_mux_parents, func_dmic_abe_gfclk_ops);
 
-/* Merged timer6_sync_mux into timer6 */
-DEFINE_CLK_OMAP_MUX_GATE(timer6_fck, "abe_clkdm", timer5_sync_mux_sel,
-			 OMAP4430_CM1_ABE_TIMER6_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM1_ABE_TIMER6_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 timer5_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(timer6_sync_mux, "abe_clkdm", timer5_sync_mux_sel,
+		    OMAP4430_CM1_ABE_TIMER6_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    timer5_sync_mux_parents, func_dmic_abe_gfclk_ops);
 
-/* Merged timer7_sync_mux into timer7 */
-DEFINE_CLK_OMAP_MUX_GATE(timer7_fck, "abe_clkdm", timer5_sync_mux_sel,
-			 OMAP4430_CM1_ABE_TIMER7_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM1_ABE_TIMER7_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 timer5_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(timer7_sync_mux, "abe_clkdm", timer5_sync_mux_sel,
+		    OMAP4430_CM1_ABE_TIMER7_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    timer5_sync_mux_parents, func_dmic_abe_gfclk_ops);
 
-/* Merged timer8_sync_mux into timer8 */
-DEFINE_CLK_OMAP_MUX_GATE(timer8_fck, "abe_clkdm", timer5_sync_mux_sel,
-			 OMAP4430_CM1_ABE_TIMER8_CLKCTRL, OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM1_ABE_TIMER8_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 timer5_fck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(timer8_sync_mux, "abe_clkdm", timer5_sync_mux_sel,
+		    OMAP4430_CM1_ABE_TIMER8_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    timer5_sync_mux_parents, func_dmic_abe_gfclk_ops);
 
-/* Merged cm2_dm9_mux into timer9 */
-DEFINE_CLK_OMAP_MUX_GATE(timer9_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
-			 OMAP4430_CM_L4PER_DMTIMER9_CLKCTRL,
-			 OMAP4430_CLKSEL_MASK,
-			 OMAP4430_CM_L4PER_DMTIMER9_CLKCTRL,
-			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
-			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
+DEFINE_CLK_OMAP_MUX(cm2_dm9_mux, "l4_per_clkdm", dmt1_clk_mux_sel,
+		    OMAP4430_CM_L4PER_DMTIMER9_CLKCTRL, OMAP4430_CLKSEL_MASK,
+		    abe_dpll_bypass_clk_mux_ck_parents,
+		    func_dmic_abe_gfclk_ops);
 
 static struct clk usb_host_fs_fck;
 
@@ -1557,7 +1498,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"div_ts_ck",			&div_ts_ck,	CK_446X),
 	CLK(NULL,	"bandgap_ts_fclk",		&bandgap_ts_fclk,	CK_446X),
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
+	CLK(NULL,	"func_dmic_abe_gfclk",			&func_dmic_abe_gfclk,	CK_443X),
 	CLK(NULL,	"dss_sys_clk",			&dss_sys_clk,	CK_443X),
 	CLK(NULL,	"dss_tv_clk",			&dss_tv_clk,	CK_443X),
 	CLK(NULL,	"dss_dss_clk",			&dss_dss_clk,	CK_443X),
@@ -1571,21 +1512,21 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"gpio4_dbclk",			&gpio4_dbclk,	CK_443X),
 	CLK(NULL,	"gpio5_dbclk",			&gpio5_dbclk,	CK_443X),
 	CLK(NULL,	"gpio6_dbclk",			&gpio6_dbclk,	CK_443X),
-	CLK(NULL,	"gpu_fck",			&gpu_fck,	CK_443X),
+	CLK(NULL,	"sgx_clk_mux",			&sgx_clk_mux,	CK_443X),
 	CLK(NULL,	"hsi_fck",			&hsi_fck,	CK_443X),
 	CLK(NULL,	"iss_ctrlclk",			&iss_ctrlclk,	CK_443X),
 	CLK(NULL,	"mcasp_sync_mux_ck",		&mcasp_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"mcasp_fck",			&mcasp_fck,	CK_443X),
+	CLK(NULL,	"func_mcasp_abe_gfclk",			&func_mcasp_abe_gfclk,	CK_443X),
 	CLK(NULL,	"mcbsp1_sync_mux_ck",		&mcbsp1_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"mcbsp1_fck",			&mcbsp1_fck,	CK_443X),
+	CLK(NULL,	"func_mcbsp1_gfclk",			&func_mcbsp1_gfclk,	CK_443X),
 	CLK(NULL,	"mcbsp2_sync_mux_ck",		&mcbsp2_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"mcbsp2_fck",			&mcbsp2_fck,	CK_443X),
+	CLK(NULL,	"func_mcbsp2_gfclk",			&func_mcbsp2_gfclk,	CK_443X),
 	CLK(NULL,	"mcbsp3_sync_mux_ck",		&mcbsp3_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"mcbsp3_fck",			&mcbsp3_fck,	CK_443X),
+	CLK(NULL,	"func_mcbsp3_gfclk",			&func_mcbsp3_gfclk,	CK_443X),
 	CLK(NULL,	"mcbsp4_sync_mux_ck",		&mcbsp4_sync_mux_ck,	CK_443X),
-	CLK(NULL,	"mcbsp4_fck",			&mcbsp4_fck,	CK_443X),
-	CLK(NULL,	"mmc1_fck",			&mmc1_fck,	CK_443X),
-	CLK(NULL,	"mmc2_fck",			&mmc2_fck,	CK_443X),
+	CLK(NULL,	"per_mcbsp4_gfclk",			&per_mcbsp4_gfclk,	CK_443X),
+	CLK(NULL,	"hsmmc1_fclk",			&hsmmc1_fclk,	CK_443X),
+	CLK(NULL,	"hsmmc2_fclk",			&hsmmc2_fclk,	CK_443X),
 	CLK(NULL,	"sha2md5_fck",			&sha2md5_fck,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_1",		&slimbus1_fclk_1,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_0",		&slimbus1_fclk_0,	CK_443X),
@@ -1597,17 +1538,17 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"smartreflex_core_fck",		&smartreflex_core_fck,	CK_443X),
 	CLK(NULL,	"smartreflex_iva_fck",		&smartreflex_iva_fck,	CK_443X),
 	CLK(NULL,	"smartreflex_mpu_fck",		&smartreflex_mpu_fck,	CK_443X),
-	CLK(NULL,	"timer1_fck",			&timer1_fck,	CK_443X),
-	CLK(NULL,	"timer10_fck",			&timer10_fck,	CK_443X),
-	CLK(NULL,	"timer11_fck",			&timer11_fck,	CK_443X),
-	CLK(NULL,	"timer2_fck",			&timer2_fck,	CK_443X),
-	CLK(NULL,	"timer3_fck",			&timer3_fck,	CK_443X),
-	CLK(NULL,	"timer4_fck",			&timer4_fck,	CK_443X),
-	CLK(NULL,	"timer5_fck",			&timer5_fck,	CK_443X),
-	CLK(NULL,	"timer6_fck",			&timer6_fck,	CK_443X),
-	CLK(NULL,	"timer7_fck",			&timer7_fck,	CK_443X),
-	CLK(NULL,	"timer8_fck",			&timer8_fck,	CK_443X),
-	CLK(NULL,	"timer9_fck",			&timer9_fck,	CK_443X),
+	CLK(NULL,	"dmt1_clk_mux",			&dmt1_clk_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm10_mux",			&cm2_dm10_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm11_mux",			&cm2_dm11_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm2_mux",			&cm2_dm2_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm3_mux",			&cm2_dm3_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm4_mux",			&cm2_dm4_mux,	CK_443X),
+	CLK(NULL,	"timer5_sync_mux",		&timer5_sync_mux,	CK_443X),
+	CLK(NULL,	"timer6_sync_mux",			&timer6_sync_mux,	CK_443X),
+	CLK(NULL,	"timer7_sync_mux",			&timer7_sync_mux,	CK_443X),
+	CLK(NULL,	"timer8_sync_mux",			&timer8_sync_mux,	CK_443X),
+	CLK(NULL,	"cm2_dm9_mux",			&cm2_dm9_mux,	CK_443X),
 	CLK(NULL,	"usb_host_fs_fck",		&usb_host_fs_fck,	CK_443X),
 	CLK("usbhs_omap",	"fs_fck",		&usb_host_fs_fck,	CK_443X),
 	CLK(NULL,	"utmi_p1_gfclk",		&utmi_p1_gfclk,	CK_443X),
