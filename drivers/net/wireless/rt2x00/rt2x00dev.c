@@ -1446,7 +1446,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 #ifdef CONFIG_PM
 int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 {
-	NOTICE(rt2x00dev, "Going to sleep.\n");
+	DEBUG(rt2x00dev, "Going to sleep.\n");
 
 	/*
 	 * Prevent mac80211 from accessing driver while suspended.
@@ -1486,7 +1486,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_suspend);
 
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 {
-	NOTICE(rt2x00dev, "Waking up.\n");
+	DEBUG(rt2x00dev, "Waking up.\n");
 
 	/*
 	 * Restore/enable extra components.
