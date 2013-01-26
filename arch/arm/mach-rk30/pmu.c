@@ -40,6 +40,10 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	unsigned long flags;
 
 	spin_lock_irqsave(&pmu_pd_lock, flags);
+	if (pmu_power_domain_is_on(pd) == on) {
+		spin_unlock_irqrestore(&pmu_pd_lock, flags);
+		return;
+	}
 	if (!on) {
 		/* if power down, idle request to NIU first */
 		if (pd == PD_VIO)
@@ -69,6 +73,8 @@ void pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 {
 	u32 idle_mask = 1 << (26 - req);
 	u32 idle_target = idle << (26 - req);
+	u32 ack_mask = 1 << (31 - req);
+	u32 ack_target = idle << (31 - req);
 	u32 mask = 1 << (req + 1);
 	u32 val;
 	unsigned long flags;
@@ -77,9 +83,13 @@ void pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 	if (req == IDLE_REQ_CORE) {
 		idle_mask = 1 << 15;
 		idle_target = idle << 15;
+		ack_mask = 1 << 18;
+		ack_target = idle << 18;
 	} else if (req == IDLE_REQ_DMA) {
 		idle_mask = 1 << 14;
 		idle_target = idle << 14;
+		ack_mask = 1 << 17;
+		ack_target = idle << 17;
 	}
 #endif
 
@@ -92,6 +102,8 @@ void pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 	writel_relaxed(val, RK30_PMU_BASE + PMU_MISC_CON1);
 	dsb();
 
+	while ((readl_relaxed(RK30_PMU_BASE + PMU_PWRDN_ST) & ack_mask) != ack_target)
+		;
 	while ((readl_relaxed(RK30_PMU_BASE + PMU_PWRDN_ST) & idle_mask) != idle_target)
 		;
 	spin_unlock_irqrestore(&pmu_misc_con1_lock, flags);
