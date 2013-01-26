@@ -577,7 +577,7 @@ static struct depend_lookup rk30_depends[] = {
 };
 static struct avs_ctr_st rk30_avs_ctr;
 
-int rk30_dvfs_init(void)
+int rk_dvfs_init(void)
 {
 	int i = 0;
 	for (i = 0; i < ARRAY_SIZE(rk30_vds); i++) {

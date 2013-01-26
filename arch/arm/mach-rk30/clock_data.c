@@ -3422,12 +3422,12 @@ void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,int flag
 	//cru_writel(0x07000000,CRU_MISC_CON);
 	
 }
-int rk30_dvfs_init(void);
+int rk_dvfs_init(void);
 
 void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags)
 {
 	_rk30_clock_data_init(gpll,cpll,flags);
-	rk30_dvfs_init();
+	rk_dvfs_init();
 }
 
 /*

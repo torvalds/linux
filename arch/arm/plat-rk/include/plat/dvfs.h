@@ -238,12 +238,12 @@ static inline int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_
 static inline struct regulator* dvfs_get_regulator(char *regulator_name){ return NULL; }
 static inline int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate){ return 0; }
 static inline int dvfs_clk_disable_limit(struct clk *clk){ return 0; };
-int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new){};
+static inline int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new){ return 0; };
 
 static inline void avs_init(void){};
 static inline void avs_init_val_get(int index, int vol, char *s){};
 static inline int avs_set_scal_val(u8 avs_base){ return 0; };
-void avs_board_init(struct avs_ctr_st *data){};
+static inline void avs_board_init(struct avs_ctr_st *data){};
 #endif
 
 #endif
