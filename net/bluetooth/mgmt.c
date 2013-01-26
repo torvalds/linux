@@ -435,28 +435,6 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 #define PNP_INFO_SVCLASS_ID		0x1200
 
-static u8 bluetooth_base_uuid[] = {
-			0xFB, 0x34, 0x9B, 0x5F, 0x80, 0x00, 0x00, 0x80,
-			0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-static u16 get_uuid16(u8 *uuid128)
-{
-	u32 val;
-	int i;
-
-	for (i = 0; i < 12; i++) {
-		if (bluetooth_base_uuid[i] != uuid128[i])
-			return 0;
-	}
-
-	val = get_unaligned_le32(&uuid128[12]);
-	if (val > 0xffff)
-		return 0;
-
-	return (u16) val;
-}
-
 static void create_eir(struct hci_dev *hdev, u8 *data)
 {
 	u8 *ptr = data;
@@ -513,10 +491,10 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 	list_for_each_entry(uuid, &hdev->uuids, list) {
 		u16 uuid16;
 
-		uuid16 = get_uuid16(uuid->uuid);
-		if (uuid16 == 0)
-			return;
+		if (uuid->size != 16)
+			continue;
 
+		uuid16 = get_unaligned_le16(&uuid->uuid[12]);
 		if (uuid16 < 0x1100)
 			continue;
 
@@ -1304,6 +1282,25 @@ unlock:
 	return err;
 }
 
+static const u8 bluetooth_base_uuid[] = {
+			0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
+			0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static u8 get_uuid_size(const u8 *uuid)
+{
+	u32 val;
+
+	if (memcmp(uuid, bluetooth_base_uuid, 12))
+		return 128;
+
+	val = get_unaligned_le32(&uuid[12]);
+	if (val > 0xffff)
+		return 32;
+
+	return 16;
+}
+
 static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_cp_add_uuid *cp = data;
@@ -1329,6 +1326,7 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	memcpy(uuid->uuid, cp->uuid, 16);
 	uuid->svc_hint = cp->svc_hint;
+	uuid->size = get_uuid_size(cp->uuid);
 
 	list_add_tail(&uuid->list, &hdev->uuids);
 
