@@ -124,8 +124,7 @@ static int __init omap_init_wdt(void)
 	pdata.read_reset_sources = prm_read_reset_sources;
 
 	pdev = omap_device_build(dev_name, id, oh, &pdata,
-				 sizeof(struct omap_wd_timer_platform_data),
-				 NULL, 0, 0);
+				 sizeof(struct omap_wd_timer_platform_data));
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 	     dev_name, oh->name);
 	return 0;

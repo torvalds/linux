@@ -46,8 +46,7 @@ static int __init hwspinlocks_init(void)
 		return -EINVAL;
 
 	pdev = omap_device_build(dev_name, 0, oh, &omap_hwspinlock_pdata,
-				sizeof(struct hwspinlock_pdata),
-				NULL, 0, false);
+				sizeof(struct hwspinlock_pdata));
 	if (IS_ERR(pdev)) {
 		pr_err("Can't build omap_device for %s:%s\n", dev_name,
 								oh_name);

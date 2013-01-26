@@ -101,7 +101,7 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		count++;
 	}
 	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
-				sizeof(*pdata), NULL, 0, false);
+				    sizeof(*pdata));
 	kfree(pdata);
 	if (IS_ERR(pdev))  {
 		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,

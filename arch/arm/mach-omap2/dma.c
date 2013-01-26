@@ -248,7 +248,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	p->errata		= configure_dma_errata();
 
-	pdev = omap_device_build(name, 0, oh, p, sizeof(*p), NULL, 0, 0);
+	pdev = omap_device_build(name, 0, oh, p, sizeof(*p));
 	kfree(p);
 	if (IS_ERR(pdev)) {
 		pr_err("%s: Can't build omap_device for %s:%s.\n",

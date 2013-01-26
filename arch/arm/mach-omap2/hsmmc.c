@@ -522,7 +522,7 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	}
 	dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
 
-	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
+	od = omap_device_alloc(pdev, ohs, 1);
 	if (IS_ERR(od)) {
 		pr_err("Could not allocate od for %s\n", name);
 		goto put_pdev;

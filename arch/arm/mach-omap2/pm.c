@@ -32,8 +32,6 @@
 #include "pm.h"
 #include "twl-common.h"
 
-static struct omap_device_pm_latency *pm_lats;
-
 /*
  * omap_pm_suspend: points to a function that does the SoC-specific
  * suspend work
@@ -82,7 +80,7 @@ static int __init _init_omap_device(char *name)
 		 __func__, name))
 		return -ENODEV;
 
-	pdev = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
+	pdev = omap_device_build(oh->name, 0, oh, NULL, 0);
 	if (WARN(IS_ERR(pdev), "%s: could not build omap_device for %s\n",
 		 __func__, name))
 		return -ENODEV;
