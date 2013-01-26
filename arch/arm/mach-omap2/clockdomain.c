@@ -210,7 +210,8 @@ static int _clkdm_add_wkdep(struct clockdomain *clkdm1,
 		return ret;
 	}
 
-	if (atomic_inc_return(&cd->wkdep_usecount) == 1) {
+	cd->wkdep_usecount++;
+	if (cd->wkdep_usecount == 1) {
 		pr_debug("clockdomain: hardware will wake up %s when %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 
@@ -252,7 +253,8 @@ static int _clkdm_del_wkdep(struct clockdomain *clkdm1,
 		return ret;
 	}
 
-	if (atomic_dec_return(&cd->wkdep_usecount) == 0) {
+	cd->wkdep_usecount--;
+	if (cd->wkdep_usecount == 0) {
 		pr_debug("clockdomain: hardware will no longer wake up %s after %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 
@@ -296,7 +298,8 @@ static int _clkdm_add_sleepdep(struct clockdomain *clkdm1,
 		return ret;
 	}
 
-	if (atomic_inc_return(&cd->sleepdep_usecount) == 1) {
+	cd->sleepdep_usecount++;
+	if (cd->sleepdep_usecount == 1) {
 		pr_debug("clockdomain: will prevent %s from sleeping if %s is active\n",
 			 clkdm1->name, clkdm2->name);
 
@@ -340,7 +343,8 @@ static int _clkdm_del_sleepdep(struct clockdomain *clkdm1,
 		return ret;
 	}
 
-	if (atomic_dec_return(&cd->sleepdep_usecount) == 0) {
+	cd->sleepdep_usecount--;
+	if (cd->sleepdep_usecount == 0) {
 		pr_debug("clockdomain: will no longer prevent %s from sleeping if %s is active\n",
 			 clkdm1->name, clkdm2->name);
 
@@ -567,7 +571,21 @@ struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm)
  */
 int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
-	return _clkdm_add_wkdep(clkdm1, clkdm2);
+	struct clkdm_dep *cd;
+	int ret;
+
+	if (!clkdm1 || !clkdm2)
+		return -EINVAL;
+
+	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
+	if (IS_ERR(cd))
+		return PTR_ERR(cd);
+
+	pwrdm_lock(cd->clkdm->pwrdm.ptr);
+	ret = _clkdm_add_wkdep(clkdm1, clkdm2);
+	pwrdm_unlock(cd->clkdm->pwrdm.ptr);
+
+	return ret;
 }
 
 /**
@@ -582,7 +600,21 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
  */
 int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
-	return _clkdm_del_wkdep(clkdm1, clkdm2);
+	struct clkdm_dep *cd;
+	int ret;
+
+	if (!clkdm1 || !clkdm2)
+		return -EINVAL;
+
+	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
+	if (IS_ERR(cd))
+		return PTR_ERR(cd);
+
+	pwrdm_lock(cd->clkdm->pwrdm.ptr);
+	ret = _clkdm_del_wkdep(clkdm1, clkdm2);
+	pwrdm_unlock(cd->clkdm->pwrdm.ptr);
+
+	return ret;
 }
 
 /**
@@ -620,7 +652,7 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		return ret;
 	}
 
-	/* XXX It's faster to return the atomic wkdep_usecount */
+	/* XXX It's faster to return the wkdep_usecount */
 	return arch_clkdm->clkdm_read_wkdep(clkdm1, clkdm2);
 }
 
@@ -659,7 +691,21 @@ int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
  */
 int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
-	return _clkdm_add_sleepdep(clkdm1, clkdm2);
+	struct clkdm_dep *cd;
+	int ret;
+
+	if (!clkdm1 || !clkdm2)
+		return -EINVAL;
+
+	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
+	if (IS_ERR(cd))
+		return PTR_ERR(cd);
+
+	pwrdm_lock(cd->clkdm->pwrdm.ptr);
+	ret = _clkdm_add_sleepdep(clkdm1, clkdm2);
+	pwrdm_unlock(cd->clkdm->pwrdm.ptr);
+
+	return ret;
 }
 
 /**
@@ -676,7 +722,21 @@ int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
  */
 int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
-	return _clkdm_del_sleepdep(clkdm1, clkdm2);
+	struct clkdm_dep *cd;
+	int ret;
+
+	if (!clkdm1 || !clkdm2)
+		return -EINVAL;
+
+	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
+	if (IS_ERR(cd))
+		return PTR_ERR(cd);
+
+	pwrdm_lock(cd->clkdm->pwrdm.ptr);
+	ret = _clkdm_del_sleepdep(clkdm1, clkdm2);
+	pwrdm_unlock(cd->clkdm->pwrdm.ptr);
+
+	return ret;
 }
 
 /**
@@ -716,7 +776,7 @@ int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		return ret;
 	}
 
-	/* XXX It's faster to return the atomic sleepdep_usecount */
+	/* XXX It's faster to return the sleepdep_usecount */
 	return arch_clkdm->clkdm_read_sleepdep(clkdm1, clkdm2);
 }
 
@@ -1063,7 +1123,8 @@ static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 	 * should be called for every clock instance or hwmod that is
 	 * enabled, so the clkdm can be force woken up.
 	 */
-	if ((atomic_inc_return(&clkdm->usecount) > 1) && autodeps) {
+	clkdm->usecount++;
+	if (clkdm->usecount > 1 && autodeps) {
 		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}
@@ -1125,17 +1186,17 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	pwrdm_lock(clkdm->pwrdm.ptr);
 
 	/* corner case: disabling unused clocks */
-	if ((__clk_get_enable_count(clk) == 0) &&
-	    (atomic_read(&clkdm->usecount) == 0))
+	if ((__clk_get_enable_count(clk) == 0) && clkdm->usecount == 0)
 		goto ccd_exit;
 
-	if (atomic_read(&clkdm->usecount) == 0) {
+	if (clkdm->usecount == 0) {
 		pwrdm_unlock(clkdm->pwrdm.ptr);
 		WARN_ON(1); /* underflow */
 		return -ERANGE;
 	}
 
-	if (atomic_dec_return(&clkdm->usecount) > 0) {
+	clkdm->usecount--;
+	if (clkdm->usecount > 0) {
 		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}
@@ -1213,13 +1274,14 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 
 	pwrdm_lock(clkdm->pwrdm.ptr);
 
-	if (atomic_read(&clkdm->usecount) == 0) {
+	if (clkdm->usecount == 0) {
 		pwrdm_unlock(clkdm->pwrdm.ptr);
 		WARN_ON(1); /* underflow */
 		return -ERANGE;
 	}
 
-	if (atomic_dec_return(&clkdm->usecount) > 0) {
+	clkdm->usecount--;
+	if (clkdm->usecount > 0) {
 		pwrdm_unlock(clkdm->pwrdm.ptr);
 		return 0;
 	}

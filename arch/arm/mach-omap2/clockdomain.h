@@ -91,8 +91,8 @@ struct clkdm_autodep {
 struct clkdm_dep {
 	const char *clkdm_name;
 	struct clockdomain *clkdm;
-	atomic_t wkdep_usecount;
-	atomic_t sleepdep_usecount;
+	s16 wkdep_usecount;
+	s16 sleepdep_usecount;
 };
 
 /* Possible flags for struct clockdomain._flags */
@@ -136,7 +136,7 @@ struct clockdomain {
 	const u16 clkdm_offs;
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
-	atomic_t usecount;
+	int usecount;
 	struct list_head node;
 };
 
