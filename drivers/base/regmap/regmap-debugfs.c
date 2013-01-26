@@ -121,8 +121,6 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 		c->max = p - 1;
 		list_add_tail(&c->list,
 			      &map->debugfs_off_cache);
-	} else {
-		return base;
 	}
 
 	/*

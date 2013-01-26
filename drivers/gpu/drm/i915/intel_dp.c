@@ -2579,7 +2579,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 static void
 intel_dp_init_panel_power_sequencer(struct drm_device *dev,
-				    struct intel_dp *intel_dp)
+				    struct intel_dp *intel_dp,
+				    struct edp_power_seq *out)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_power_seq cur, vbt, spec, final;
@@ -2650,16 +2651,35 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	intel_dp->panel_power_cycle_delay = get_delay(t11_t12);
 #undef get_delay
 
+	DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
+		      intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
+		      intel_dp->panel_power_cycle_delay);
+
+	DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
+		      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
+
+	if (out)
+		*out = final;
+}
+
+static void
+intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
+					      struct intel_dp *intel_dp,
+					      struct edp_power_seq *seq)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_on, pp_off, pp_div;
+
 	/* And finally store the new values in the power sequencer. */
-	pp_on = (final.t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
-		(final.t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
-	pp_off = (final.t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
-		 (final.t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
+	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
+		(seq->t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
+	pp_off = (seq->t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
+		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
 	pp_div = ((100 * intel_pch_rawclk(dev))/2 - 1)
 			<< PP_REFERENCE_DIVIDER_SHIFT;
-	pp_div |= (DIV_ROUND_UP(final.t11_t12, 1000)
+	pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
 			<< PANEL_POWER_CYCLE_DELAY_SHIFT);
 
 	/* Haswell doesn't have any port selection bits for the panel
@@ -2674,14 +2694,6 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	I915_WRITE(PCH_PP_ON_DELAYS, pp_on);
 	I915_WRITE(PCH_PP_OFF_DELAYS, pp_off);
 	I915_WRITE(PCH_PP_DIVISOR, pp_div);
-
-
-	DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
-		      intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
-		      intel_dp->panel_power_cycle_delay);
-
-	DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
-		      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
 
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		      I915_READ(PCH_PP_ON_DELAYS),
@@ -2699,6 +2711,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *fixed_mode = NULL;
+	struct edp_power_seq power_seq = { 0 };
 	enum port port = intel_dig_port->port;
 	const char *name = NULL;
 	int type;
@@ -2771,7 +2784,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (is_edp(intel_dp))
-		intel_dp_init_panel_power_sequencer(dev, intel_dp);
+		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
@@ -2797,6 +2810,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			intel_dp_destroy(connector);
 			return;
 		}
+
+		/* We now know it's not a ghost, init power sequence regs. */
+		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
+							      &power_seq);
 
 		ironlake_edp_panel_vdd_on(intel_dp);
 		edid = drm_get_edid(connector, &intel_dp->adapter);

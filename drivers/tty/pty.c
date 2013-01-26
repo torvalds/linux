@@ -441,6 +441,8 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 		return pty_get_pktmode(tty, (int __user *)arg);
 	case TIOCSIG:    /* Send signal to other side of pty */
 		return pty_signal(tty, (int) arg);
+	case TIOCGPTN: /* TTY returns ENOTTY, but glibc expects EINVAL here */
+		return -EINVAL;
 	}
 	return -ENOIOCTLCMD;
 }

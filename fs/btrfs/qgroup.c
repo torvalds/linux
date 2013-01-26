@@ -379,6 +379,13 @@ next1:
 
 		ret = add_relation_rb(fs_info, found_key.objectid,
 				      found_key.offset);
+		if (ret == -ENOENT) {
+			printk(KERN_WARNING
+				"btrfs: orphan qgroup relation 0x%llx->0x%llx\n",
+				(unsigned long long)found_key.objectid,
+				(unsigned long long)found_key.offset);
+			ret = 0;	/* ignore the error */
+		}
 		if (ret)
 			goto out;
 next2:
@@ -956,17 +963,28 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info, u64 qgroupid)
 {
 	struct btrfs_root *quota_root;
+	struct btrfs_qgroup *qgroup;
 	int ret = 0;
 
 	quota_root = fs_info->quota_root;
 	if (!quota_root)
 		return -EINVAL;
 
+	/* check if there are no relations to this qgroup */
+	spin_lock(&fs_info->qgroup_lock);
+	qgroup = find_qgroup_rb(fs_info, qgroupid);
+	if (qgroup) {
+		if (!list_empty(&qgroup->groups) || !list_empty(&qgroup->members)) {
+			spin_unlock(&fs_info->qgroup_lock);
+			return -EBUSY;
+		}
+	}
+	spin_unlock(&fs_info->qgroup_lock);
+
 	ret = del_qgroup_item(trans, quota_root, qgroupid);
 
 	spin_lock(&fs_info->qgroup_lock);
 	del_qgroup_rb(quota_root->fs_info, qgroupid);
-
 	spin_unlock(&fs_info->qgroup_lock);
 
 	return ret;

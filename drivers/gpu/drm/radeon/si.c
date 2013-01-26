@@ -2215,6 +2215,12 @@ static int si_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 {
 	struct evergreen_mc_save save;
 
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		reset_mask &= ~(RADEON_RESET_GFX | RADEON_RESET_COMPUTE);
+
+	if (RREG32(DMA_STATUS_REG) & DMA_IDLE)
+		reset_mask &= ~RADEON_RESET_DMA;
+
 	if (reset_mask == 0)
 		return 0;
 
