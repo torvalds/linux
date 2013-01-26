@@ -1369,8 +1369,8 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 	},
 	{
 		.name          = "vio",   //vcc_io
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
 	},
 	
 };
