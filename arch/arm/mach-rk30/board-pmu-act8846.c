@@ -273,7 +273,7 @@ static struct regulator_init_data act8846_ldo3 = {
 /* */
 static struct regulator_init_data act8846_ldo4 = {
 	.constraints = {
-		.name           = "ACT_LDO1",
+		.name           = "ACT_LDO4",
 		.min_uV			= 600000,
 		.max_uV			= 3900000,
 		.apply_uV		= 1,
