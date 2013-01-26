@@ -43,18 +43,20 @@
 #define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | PWRSTS_ON)
 
 
-/* Powerdomain flags */
-#define PWRDM_HAS_HDWR_SAR	(1 << 0) /* hardware save-and-restore support */
-#define PWRDM_HAS_MPU_QUIRK	(1 << 1) /* MPU pwr domain has MEM bank 0 bits
-					  * in MEM bank 1 position. This is
-					  * true for OMAP3430
-					  */
-#define PWRDM_HAS_LOWPOWERSTATECHANGE	(1 << 2) /*
-						  * support to transition from a
-						  * sleep state to a lower sleep
-						  * state without waking up the
-						  * powerdomain
-						  */
+/*
+ * Powerdomain flags (struct powerdomain.flags)
+ *
+ * PWRDM_HAS_HDWR_SAR - powerdomain has hardware save-and-restore support
+ *
+ * PWRDM_HAS_MPU_QUIRK - MPU pwr domain has MEM bank 0 bits in MEM
+ * bank 1 position. This is true for OMAP3430
+ *
+ * PWRDM_HAS_LOWPOWERSTATECHANGE - can transition from a sleep state
+ * to a lower sleep state without waking up the powerdomain
+ */
+#define PWRDM_HAS_HDWR_SAR		BIT(0)
+#define PWRDM_HAS_MPU_QUIRK		BIT(1)
+#define PWRDM_HAS_LOWPOWERSTATECHANGE	BIT(2)
 
 /*
  * Number of memory banks that are power-controllable.	On OMAP4430, the
