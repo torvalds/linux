@@ -741,6 +741,7 @@
 #define   GEN7_FF_TS_SCHED_HS0		(0x3<<16)
 #define   GEN7_FF_TS_SCHED_LOAD_BALANCE	(0x1<<16)
 #define   GEN7_FF_TS_SCHED_HW		(0x0<<16) /* Default */
+#define   GEN7_FF_VS_REF_CNT_FFME	(1 << 15)
 #define   GEN7_FF_VS_SCHED_HS1		(0x5<<12)
 #define   GEN7_FF_VS_SCHED_HS0		(0x3<<12)
 #define   GEN7_FF_VS_SCHED_LOAD_BALANCE	(0x1<<12) /* Default */

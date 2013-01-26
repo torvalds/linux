@@ -3680,6 +3680,10 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
 
+	/* WaVSRefCountFullforceMissDisable */
+	if (IS_HASWELL(dev_priv->dev))
+		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
+
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
 
