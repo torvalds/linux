@@ -36,40 +36,53 @@
 
 /* Mach specific information to be recorded in the C-state driver_data */
 struct omap3_idle_statedata {
-	u32 mpu_state;
-	u32 core_state;
+	u8 mpu_state;
+	u8 core_state;
+	u8 per_min_state;
 };
 
 static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 
+/*
+ * Prevent PER OFF if CORE is not in RETention or OFF as this would
+ * disable PER wakeups completely.
+ */
 static struct omap3_idle_statedata omap3_idle_data[] = {
 	{
 		.mpu_state = PWRDM_POWER_ON,
 		.core_state = PWRDM_POWER_ON,
+		/* In C1 do not allow PER state lower than CORE state */
+		.per_min_state = PWRDM_POWER_ON,
 	},
 	{
 		.mpu_state = PWRDM_POWER_ON,
 		.core_state = PWRDM_POWER_ON,
+		.per_min_state = PWRDM_POWER_RET,
 	},
 	{
 		.mpu_state = PWRDM_POWER_RET,
 		.core_state = PWRDM_POWER_ON,
+		.per_min_state = PWRDM_POWER_RET,
 	},
 	{
 		.mpu_state = PWRDM_POWER_OFF,
 		.core_state = PWRDM_POWER_ON,
+		.per_min_state = PWRDM_POWER_RET,
 	},
 	{
 		.mpu_state = PWRDM_POWER_RET,
 		.core_state = PWRDM_POWER_RET,
+		.per_min_state = PWRDM_POWER_OFF,
 	},
 	{
 		.mpu_state = PWRDM_POWER_OFF,
 		.core_state = PWRDM_POWER_RET,
+		.per_min_state = PWRDM_POWER_OFF,
 	},
 	{
 		.mpu_state = PWRDM_POWER_OFF,
 		.core_state = PWRDM_POWER_OFF,
+		.per_min_state = PWRDM_POWER_OFF,
 	},
 };
 
@@ -209,10 +222,9 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 			       struct cpuidle_driver *drv,
 			       int index)
 {
-	int new_state_idx;
-	u32 core_next_state, per_next_state = 0, per_saved_state = 0;
+	int new_state_idx, ret;
+	u8 per_next_state, per_saved_state;
 	struct omap3_idle_statedata *cx;
-	int ret;
 
 	/*
 	 * Use only C1 if CAM is active.
@@ -233,25 +245,13 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 
 	/* Program PER state */
 	cx = &omap3_idle_data[new_state_idx];
-	core_next_state = cx->core_state;
-	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
-	if (new_state_idx == 0) {
-		/* In C1 do not allow PER state lower than CORE state */
-		if (per_next_state < core_next_state)
-			per_next_state = core_next_state;
-	} else {
-		/*
-		 * Prevent PER OFF if CORE is not in RETention or OFF as this
-		 * would disable PER wakeups completely.
-		 */
-		if ((per_next_state == PWRDM_POWER_OFF) &&
-		    (core_next_state > PWRDM_POWER_RET))
-			per_next_state = PWRDM_POWER_RET;
-	}
 
-	/* Are we changing PER target state? */
-	if (per_next_state != per_saved_state)
+	per_next_state = pwrdm_read_next_pwrst(per_pd);
+	per_saved_state = per_next_state;
+	if (per_next_state < cx->per_min_state) {
+		per_next_state = cx->per_min_state;
 		pwrdm_set_next_pwrst(per_pd, per_next_state);
+	}
 
 	ret = omap3_enter_idle(dev, drv, new_state_idx);
 
