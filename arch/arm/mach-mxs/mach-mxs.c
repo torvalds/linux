@@ -395,6 +395,12 @@ static void __init cfa10049_init(void)
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
+static void __init cfa10037_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+}
+
 static void __init apf28_init(void)
 {
 	enable_clk_enet_out();
@@ -415,6 +421,8 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
+		cfa10037_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
