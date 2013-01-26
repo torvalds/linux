@@ -108,13 +108,9 @@ static const struct labpc_board_struct labpc_cs_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct labpc_board_struct *)dev->board_ptr)
-
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct labpc_board_struct *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
