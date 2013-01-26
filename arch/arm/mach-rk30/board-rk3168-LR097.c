@@ -2015,7 +2015,7 @@ static struct rk29_keys_button key_button[] = {
         {
                 .desc   = "vol-",
                 .code   = KEY_VOLUMEDOWN,
-		.adc_value      = 170,
+		.adc_value      = 145,
                 .gpio   = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
@@ -2090,7 +2090,18 @@ static void rk30_pm_power_off(void)
 	#if defined(CONFIG_REGULATOR_ACT8846)
         if(pmic_is_act8846())
         {
-               act8846_device_shutdown();
+               printk("enter dcdet:");
+               if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
+               {
+                       printk("with dc:enter restart system\n");
+                       arm_pm_restart(0, NULL);
+               }
+			   else
+				{
+					printk("without dc,shutdown system\n");
+					act8846_device_shutdown();
+					while(1);
+			   }
         }
 	#endif
 	
