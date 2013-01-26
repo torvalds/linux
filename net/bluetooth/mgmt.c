@@ -1330,7 +1330,7 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	memcpy(uuid->uuid, cp->uuid, 16);
 	uuid->svc_hint = cp->svc_hint;
 
-	list_add(&uuid->list, &hdev->uuids);
+	list_add_tail(&uuid->list, &hdev->uuids);
 
 	err = update_class(hdev);
 	if (err < 0)
