@@ -1372,7 +1372,7 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_remove_uuid *cp = data;
 	struct pending_cmd *cmd;
-	struct list_head *p, *n;
+	struct bt_uuid *match, *tmp;
 	u8 bt_uuid_any[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	int err, found;
 
@@ -1400,9 +1400,7 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	found = 0;
 
-	list_for_each_safe(p, n, &hdev->uuids) {
-		struct bt_uuid *match = list_entry(p, struct bt_uuid, list);
-
+	list_for_each_entry_safe(match, tmp, &hdev->uuids, list) {
 		if (memcmp(match->uuid, cp->uuid, 16) != 0)
 			continue;
 
