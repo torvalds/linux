@@ -350,32 +350,24 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 	return -ENODEV;
 }
 
-static void mio_cs_config(struct pcmcia_device *link)
+static int cs_attach(struct pcmcia_device *link)
 {
 	int ret;
 
-	DPRINTK("mio_cs_config(link=%p)\n", link);
+	cur_dev = link;
+
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
-		return;
+		return ret;
 	}
 
 	if (!link->irq)
 		dev_info(&link->dev, "no IRQ available\n");
 
-	ret = pcmcia_enable_device(link);
-}
-
-static int cs_attach(struct pcmcia_device *link)
-{
-	cur_dev = link;
-
-	mio_cs_config(link);
-
-	return 0;
+	return pcmcia_enable_device(link);
 }
 
 static void cs_detach(struct pcmcia_device *link)
