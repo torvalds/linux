@@ -128,10 +128,8 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	 * allocate and we should never be in this code if there are
 	 * no registers at all.
 	 */
-	if (list_empty(&map->debugfs_off_cache)) {
-		WARN_ON(list_empty(&map->debugfs_off_cache));
-		return base;
-	}
+	WARN_ON(list_empty(&map->debugfs_off_cache));
+	ret = base;
 
 	/* Find the relevant block */
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
