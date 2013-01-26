@@ -16,6 +16,11 @@
  * XXX Some of the ES1 clocks have been removed/changed; once support
  * is added for discriminating clocks by ES level, these should be added back
  * in.
+ *
+ * XXX All of the CLK_OMAP_MUX_GATE entries with MODULEMODE registers should
+ * be split into separate mux and gate nodes, then the gates should be removed
+ * (handled by hwmod).  Also all of the other remaining MODULEMODE entries
+ * should be removed once the drivers are updated to use pm_runtime.
  */
 
 #include <linux/kernel.h>
@@ -749,10 +754,6 @@ DEFINE_CLK_GATE(aes2_fck, "l3_div_ck", &l3_div_ck, 0x0,
 		OMAP4430_CM_L4SEC_AES2_CLKCTRL,
 		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
 
-DEFINE_CLK_GATE(aess_fck, "aess_fclk", &aess_fclk, 0x0,
-		OMAP4430_CM1_ABE_AESS_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
-
 DEFINE_CLK_GATE(bandgap_fclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_WKUP_BANDGAP_CLKCTRL,
 		OMAP4430_OPTFCLKEN_BGAP_32K_SHIFT, 0x0, NULL);
@@ -772,11 +773,6 @@ DEFINE_CLK_DIVIDER_TABLE(div_ts_ck, "l4_wkup_clk_mux_ck", &l4_wkup_clk_mux_ck,
 DEFINE_CLK_GATE(bandgap_ts_fclk, "div_ts_ck", &div_ts_ck, 0x0,
 		OMAP4430_CM_WKUP_BANDGAP_CLKCTRL,
 		OMAP4460_OPTFCLKEN_TS_FCLK_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(des3des_fck, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4SEC_DES3DES_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT,
 		0x0, NULL);
 
 static const char *dmic_sync_mux_ck_parents[] = {
@@ -809,10 +805,6 @@ DEFINE_CLK_OMAP_MUX_GATE(dmic_fck, "abe_clkdm", func_dmic_abe_gfclk_sel,
 			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
 			 dmic_fck_parents, dmic_fck_ops);
 
-DEFINE_CLK_GATE(dsp_fck, "dpll_iva_m4x2_ck", &dpll_iva_m4x2_ck, 0x0,
-		OMAP4430_CM_TESLA_TESLA_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(dss_sys_clk, "syc_clk_div_ck", &syc_clk_div_ck, 0x0,
 		OMAP4430_CM_DSS_DSS_CLKCTRL,
 		OMAP4430_OPTFCLKEN_SYS_CLK_SHIFT, 0x0, NULL);
@@ -833,76 +825,32 @@ DEFINE_CLK_GATE(dss_fck, "l3_div_ck", &l3_div_ck, 0x0,
 		OMAP4430_CM_DSS_DSS_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
 		0x0, NULL);
 
-DEFINE_CLK_GATE(efuse_ctrl_cust_fck, "sys_clkin_ck", &sys_clkin_ck, 0x0,
-		OMAP4430_CM_CEFUSE_CEFUSE_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(emif1_fck, "ddrphy_ck", &ddrphy_ck, 0x0,
-		OMAP4430_CM_MEMIF_EMIF_1_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(emif2_fck, "ddrphy_ck", &ddrphy_ck, 0x0,
-		OMAP4430_CM_MEMIF_EMIF_2_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_DIVIDER(fdif_fck, "dpll_per_m4x2_ck", &dpll_per_m4x2_ck, 0x0,
 		   OMAP4430_CM_CAM_FDIF_CLKCTRL, OMAP4430_CLKSEL_FCLK_SHIFT,
 		   OMAP4430_CLKSEL_FCLK_WIDTH, CLK_DIVIDER_POWER_OF_TWO, NULL);
-
-DEFINE_CLK_GATE(fpka_fck, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4SEC_PKAEIP29_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
 
 DEFINE_CLK_GATE(gpio1_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_WKUP_GPIO1_CLKCTRL,
 		OMAP4430_OPTFCLKEN_DBCLK_SHIFT,	0x0, NULL);
 
-DEFINE_CLK_GATE(gpio1_ick, "l4_wkup_clk_mux_ck", &l4_wkup_clk_mux_ck, 0x0,
-		OMAP4430_CM_WKUP_GPIO1_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(gpio2_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_L4PER_GPIO2_CLKCTRL, OMAP4430_OPTFCLKEN_DBCLK_SHIFT,
 		0x0, NULL);
-
-DEFINE_CLK_GATE(gpio2_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_GPIO2_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
 
 DEFINE_CLK_GATE(gpio3_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_L4PER_GPIO3_CLKCTRL,
 		OMAP4430_OPTFCLKEN_DBCLK_SHIFT, 0x0, NULL);
 
-DEFINE_CLK_GATE(gpio3_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_GPIO3_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(gpio4_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_L4PER_GPIO4_CLKCTRL, OMAP4430_OPTFCLKEN_DBCLK_SHIFT,
 		0x0, NULL);
-
-DEFINE_CLK_GATE(gpio4_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_GPIO4_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
 
 DEFINE_CLK_GATE(gpio5_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_L4PER_GPIO5_CLKCTRL, OMAP4430_OPTFCLKEN_DBCLK_SHIFT,
 		0x0, NULL);
 
-DEFINE_CLK_GATE(gpio5_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_GPIO5_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(gpio6_dbclk, "sys_32k_ck", &sys_32k_ck, 0x0,
 		OMAP4430_CM_L4PER_GPIO6_CLKCTRL, OMAP4430_OPTFCLKEN_DBCLK_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(gpio6_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_GPIO6_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(gpmc_ick, "l3_div_ck", &l3_div_ck, 0x0,
-		OMAP4430_CM_L3_2_GPMC_CLKCTRL, OMAP4430_MODULEMODE_HWCTRL_SHIFT,
 		0x0, NULL);
 
 static const struct clksel sgx_clk_mux_sel[] = {
@@ -923,86 +871,14 @@ DEFINE_CLK_OMAP_MUX_GATE(gpu_fck, "l3_gfx_clkdm", sgx_clk_mux_sel,
 			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
 			 gpu_fck_parents, dmic_fck_ops);
 
-DEFINE_CLK_GATE(hdq1w_fck, "func_12m_fclk", &func_12m_fclk, 0x0,
-		OMAP4430_CM_L4PER_HDQ1W_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_DIVIDER(hsi_fck, "dpll_per_m2x2_ck", &dpll_per_m2x2_ck, 0x0,
 		   OMAP4430_CM_L3INIT_HSI_CLKCTRL, OMAP4430_CLKSEL_24_25_SHIFT,
 		   OMAP4430_CLKSEL_24_25_WIDTH, CLK_DIVIDER_POWER_OF_TWO,
 		   NULL);
 
-DEFINE_CLK_GATE(i2c1_fck, "func_96m_fclk", &func_96m_fclk, 0x0,
-		OMAP4430_CM_L4PER_I2C1_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(i2c2_fck, "func_96m_fclk", &func_96m_fclk, 0x0,
-		OMAP4430_CM_L4PER_I2C2_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(i2c3_fck, "func_96m_fclk", &func_96m_fclk, 0x0,
-		OMAP4430_CM_L4PER_I2C3_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(i2c4_fck, "func_96m_fclk", &func_96m_fclk, 0x0,
-		OMAP4430_CM_L4PER_I2C4_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(ipu_fck, "ducati_clk_mux_ck", &ducati_clk_mux_ck, 0x0,
-		OMAP4430_CM_DUCATI_DUCATI_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(iss_ctrlclk, "func_96m_fclk", &func_96m_fclk, 0x0,
 		OMAP4430_CM_CAM_ISS_CLKCTRL, OMAP4430_OPTFCLKEN_CTRLCLK_SHIFT,
 		0x0, NULL);
-
-DEFINE_CLK_GATE(iss_fck, "ducati_clk_mux_ck", &ducati_clk_mux_ck, 0x0,
-		OMAP4430_CM_CAM_ISS_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(iva_fck, "dpll_iva_m5x2_ck", &dpll_iva_m5x2_ck, 0x0,
-		OMAP4430_CM_IVAHD_IVAHD_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(kbd_fck, "sys_32k_ck", &sys_32k_ck, 0x0,
-		OMAP4430_CM_WKUP_KEYBOARD_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-static struct clk l3_instr_ick;
-
-static const char *l3_instr_ick_parent_names[] = {
-	"l3_div_ck",
-};
-
-static const struct clk_ops l3_instr_ick_ops = {
-	.enable		= &omap2_dflt_clk_enable,
-	.disable	= &omap2_dflt_clk_disable,
-	.is_enabled	= &omap2_dflt_clk_is_enabled,
-	.init		= &omap2_init_clk_clkdm,
-};
-
-static struct clk_hw_omap l3_instr_ick_hw = {
-	.hw = {
-		.clk = &l3_instr_ick,
-	},
-	.enable_reg	= OMAP4430_CM_L3INSTR_L3_INSTR_CLKCTRL,
-	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-	.clkdm_name	= "l3_instr_clkdm",
-};
-
-DEFINE_STRUCT_CLK(l3_instr_ick, l3_instr_ick_parent_names, l3_instr_ick_ops);
-
-static struct clk l3_main_3_ick;
-static struct clk_hw_omap l3_main_3_ick_hw = {
-	.hw = {
-		.clk = &l3_main_3_ick,
-	},
-	.enable_reg	= OMAP4430_CM_L3INSTR_L3_3_CLKCTRL,
-	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-	.clkdm_name	= "l3_instr_clkdm",
-};
-
-DEFINE_STRUCT_CLK(l3_main_3_ick, l3_instr_ick_parent_names, l3_instr_ick_ops);
 
 DEFINE_CLK_MUX(mcasp_sync_mux_ck, dmic_sync_mux_ck_parents, NULL, 0x0,
 	       OMAP4430_CM1_ABE_MCASP_CLKCTRL,
@@ -1127,26 +1003,6 @@ DEFINE_CLK_OMAP_MUX_GATE(mcbsp4_fck, "l4_per_clkdm", per_mcbsp4_gfclk_sel,
 			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
 			 mcbsp4_fck_parents, dmic_fck_ops);
 
-DEFINE_CLK_GATE(mcpdm_fck, "pad_clks_ck", &pad_clks_ck, 0x0,
-		OMAP4430_CM1_ABE_PDM_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(mcspi1_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MCSPI1_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(mcspi2_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MCSPI2_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(mcspi3_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MCSPI3_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(mcspi4_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MCSPI4_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
 static const struct clksel hsmmc1_fclk_sel[] = {
 	{ .parent = &func_64m_fclk, .rates = div_1_0_rates },
 	{ .parent = &func_96m_fclk, .rates = div_1_1_rates },
@@ -1171,50 +1027,9 @@ DEFINE_CLK_OMAP_MUX_GATE(mmc2_fck, "l3_init_clkdm", hsmmc1_fclk_sel,
 			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
 			 mmc1_fck_parents, dmic_fck_ops);
 
-DEFINE_CLK_GATE(mmc3_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MMCSD3_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(mmc4_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MMCSD4_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(mmc5_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_MMCSD5_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(ocp2scp_usb_phy_phy_48m, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L3INIT_USBPHYOCP2SCP_CLKCTRL,
-		OMAP4430_OPTFCLKEN_PHY_48M_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(ocp2scp_usb_phy_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L3INIT_USBPHYOCP2SCP_CLKCTRL,
-		OMAP4430_MODULEMODE_HWCTRL_SHIFT, 0x0, NULL);
-
-static struct clk ocp_wp_noc_ick;
-
-static struct clk_hw_omap ocp_wp_noc_ick_hw = {
-	.hw = {
-		.clk = &ocp_wp_noc_ick,
-	},
-	.enable_reg	= OMAP4430_CM_L3INSTR_OCP_WP1_CLKCTRL,
-	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-	.clkdm_name	= "l3_instr_clkdm",
-};
-
-DEFINE_STRUCT_CLK(ocp_wp_noc_ick, l3_instr_ick_parent_names, l3_instr_ick_ops);
-
-DEFINE_CLK_GATE(rng_ick, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4SEC_RNG_CLKCTRL, OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-		0x0, NULL);
-
 DEFINE_CLK_GATE(sha2md5_fck, "l3_div_ck", &l3_div_ck, 0x0,
 		OMAP4430_CM_L4SEC_SHA2MD51_CLKCTRL,
 		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(sl2if_ick, "dpll_iva_m5x2_ck", &dpll_iva_m5x2_ck, 0x0,
-		OMAP4430_CM_IVAHD_SL2_CLKCTRL, OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-		0x0, NULL);
 
 DEFINE_CLK_GATE(slimbus1_fclk_1, "func_24m_clk", &func_24m_clk, 0x0,
 		OMAP4430_CM1_ABE_SLIMBUS_CLKCTRL,
@@ -1232,10 +1047,6 @@ DEFINE_CLK_GATE(slimbus1_slimbus_clk, "slimbus_clk", &slimbus_clk, 0x0,
 		OMAP4430_CM1_ABE_SLIMBUS_CLKCTRL,
 		OMAP4430_OPTFCLKEN_SLIMBUS_CLK_11_11_SHIFT, 0x0, NULL);
 
-DEFINE_CLK_GATE(slimbus1_fck, "ocp_abe_iclk", &ocp_abe_iclk, 0x0,
-		OMAP4430_CM1_ABE_SLIMBUS_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
 DEFINE_CLK_GATE(slimbus2_fclk_1, "per_abe_24m_fclk", &per_abe_24m_fclk, 0x0,
 		OMAP4430_CM_L4PER_SLIMBUS2_CLKCTRL,
 		OMAP4430_OPTFCLKEN_PERABE24M_GFCLK_SHIFT, 0x0, NULL);
@@ -1248,10 +1059,6 @@ DEFINE_CLK_GATE(slimbus2_slimbus_clk, "pad_slimbus_core_clks_ck",
 		&pad_slimbus_core_clks_ck, 0x0,
 		OMAP4430_CM_L4PER_SLIMBUS2_CLKCTRL,
 		OMAP4430_OPTFCLKEN_SLIMBUS_CLK_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(slimbus2_fck, "l4_div_ck", &l4_div_ck, 0x0,
-		OMAP4430_CM_L4PER_SLIMBUS2_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
 
 DEFINE_CLK_GATE(smartreflex_core_fck, "l4_wkup_clk_mux_ck", &l4_wkup_clk_mux_ck,
 		0x0, OMAP4430_CM_ALWON_SR_CORE_CLKCTRL,
@@ -1363,22 +1170,6 @@ DEFINE_CLK_OMAP_MUX_GATE(timer9_fck, "l4_per_clkdm", dmt1_clk_mux_sel,
 			 OMAP4430_CM_L4PER_DMTIMER9_CLKCTRL,
 			 OMAP4430_MODULEMODE_SWCTRL_SHIFT, NULL,
 			 abe_dpll_bypass_clk_mux_ck_parents, dmic_fck_ops);
-
-DEFINE_CLK_GATE(uart1_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_UART1_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(uart2_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_UART2_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(uart3_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_UART3_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
-
-DEFINE_CLK_GATE(uart4_fck, "func_48m_fclk", &func_48m_fclk, 0x0,
-		OMAP4430_CM_L4PER_UART4_CLKCTRL,
-		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
 
 static struct clk usb_host_fs_fck;
 
@@ -1510,18 +1301,6 @@ DEFINE_CLK_DIVIDER_TABLE(usim_ck, "dpll_per_m4x2_ck", &dpll_per_m4x2_ck, 0x0,
 
 DEFINE_CLK_GATE(usim_fclk, "usim_ck", &usim_ck, 0x0,
 		OMAP4430_CM_WKUP_USIM_CLKCTRL, OMAP4430_OPTFCLKEN_FCLK_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(usim_fck, "sys_32k_ck", &sys_32k_ck, 0x0,
-		OMAP4430_CM_WKUP_USIM_CLKCTRL, OMAP4430_MODULEMODE_HWCTRL_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(wd_timer2_fck, "sys_32k_ck", &sys_32k_ck, 0x0,
-		OMAP4430_CM_WKUP_WDT2_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
-		0x0, NULL);
-
-DEFINE_CLK_GATE(wd_timer3_fck, "sys_32k_ck", &sys_32k_ck, 0x0,
-		OMAP4430_CM1_ABE_WDT3_CLKCTRL, OMAP4430_MODULEMODE_SWCTRL_SHIFT,
 		0x0, NULL);
 
 /* Remaining optional clocks */
@@ -1774,52 +1553,27 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"syc_clk_div_ck",		&syc_clk_div_ck,	CK_443X),
 	CLK(NULL,	"aes1_fck",			&aes1_fck,	CK_443X),
 	CLK(NULL,	"aes2_fck",			&aes2_fck,	CK_443X),
-	CLK(NULL,	"aess_fck",			&aess_fck,	CK_443X),
 	CLK(NULL,	"bandgap_fclk",			&bandgap_fclk,	CK_443X),
 	CLK(NULL,	"div_ts_ck",			&div_ts_ck,	CK_446X),
 	CLK(NULL,	"bandgap_ts_fclk",		&bandgap_ts_fclk,	CK_446X),
-	CLK(NULL,	"des3des_fck",			&des3des_fck,	CK_443X),
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
-	CLK(NULL,	"dsp_fck",			&dsp_fck,	CK_443X),
 	CLK(NULL,	"dss_sys_clk",			&dss_sys_clk,	CK_443X),
 	CLK(NULL,	"dss_tv_clk",			&dss_tv_clk,	CK_443X),
 	CLK(NULL,	"dss_dss_clk",			&dss_dss_clk,	CK_443X),
 	CLK(NULL,	"dss_48mhz_clk",		&dss_48mhz_clk,	CK_443X),
 	CLK(NULL,	"dss_fck",			&dss_fck,	CK_443X),
 	CLK("omapdss_dss",	"ick",			&dss_fck,	CK_443X),
-	CLK(NULL,	"efuse_ctrl_cust_fck",		&efuse_ctrl_cust_fck,	CK_443X),
-	CLK(NULL,	"emif1_fck",			&emif1_fck,	CK_443X),
-	CLK(NULL,	"emif2_fck",			&emif2_fck,	CK_443X),
 	CLK(NULL,	"fdif_fck",			&fdif_fck,	CK_443X),
-	CLK(NULL,	"fpka_fck",			&fpka_fck,	CK_443X),
 	CLK(NULL,	"gpio1_dbclk",			&gpio1_dbclk,	CK_443X),
-	CLK(NULL,	"gpio1_ick",			&gpio1_ick,	CK_443X),
 	CLK(NULL,	"gpio2_dbclk",			&gpio2_dbclk,	CK_443X),
-	CLK(NULL,	"gpio2_ick",			&gpio2_ick,	CK_443X),
 	CLK(NULL,	"gpio3_dbclk",			&gpio3_dbclk,	CK_443X),
-	CLK(NULL,	"gpio3_ick",			&gpio3_ick,	CK_443X),
 	CLK(NULL,	"gpio4_dbclk",			&gpio4_dbclk,	CK_443X),
-	CLK(NULL,	"gpio4_ick",			&gpio4_ick,	CK_443X),
 	CLK(NULL,	"gpio5_dbclk",			&gpio5_dbclk,	CK_443X),
-	CLK(NULL,	"gpio5_ick",			&gpio5_ick,	CK_443X),
 	CLK(NULL,	"gpio6_dbclk",			&gpio6_dbclk,	CK_443X),
-	CLK(NULL,	"gpio6_ick",			&gpio6_ick,	CK_443X),
-	CLK(NULL,	"gpmc_ick",			&gpmc_ick,	CK_443X),
 	CLK(NULL,	"gpu_fck",			&gpu_fck,	CK_443X),
-	CLK(NULL,	"hdq1w_fck",			&hdq1w_fck,	CK_443X),
 	CLK(NULL,	"hsi_fck",			&hsi_fck,	CK_443X),
-	CLK(NULL,	"i2c1_fck",			&i2c1_fck,	CK_443X),
-	CLK(NULL,	"i2c2_fck",			&i2c2_fck,	CK_443X),
-	CLK(NULL,	"i2c3_fck",			&i2c3_fck,	CK_443X),
-	CLK(NULL,	"i2c4_fck",			&i2c4_fck,	CK_443X),
-	CLK(NULL,	"ipu_fck",			&ipu_fck,	CK_443X),
 	CLK(NULL,	"iss_ctrlclk",			&iss_ctrlclk,	CK_443X),
-	CLK(NULL,	"iss_fck",			&iss_fck,	CK_443X),
-	CLK(NULL,	"iva_fck",			&iva_fck,	CK_443X),
-	CLK(NULL,	"kbd_fck",			&kbd_fck,	CK_443X),
-	CLK(NULL,	"l3_instr_ick",			&l3_instr_ick,	CK_443X),
-	CLK(NULL,	"l3_main_3_ick",		&l3_main_3_ick,	CK_443X),
 	CLK(NULL,	"mcasp_sync_mux_ck",		&mcasp_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"mcasp_fck",			&mcasp_fck,	CK_443X),
 	CLK(NULL,	"mcbsp1_sync_mux_ck",		&mcbsp1_sync_mux_ck,	CK_443X),
@@ -1830,32 +1584,16 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"mcbsp3_fck",			&mcbsp3_fck,	CK_443X),
 	CLK(NULL,	"mcbsp4_sync_mux_ck",		&mcbsp4_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"mcbsp4_fck",			&mcbsp4_fck,	CK_443X),
-	CLK(NULL,	"mcpdm_fck",			&mcpdm_fck,	CK_443X),
-	CLK(NULL,	"mcspi1_fck",			&mcspi1_fck,	CK_443X),
-	CLK(NULL,	"mcspi2_fck",			&mcspi2_fck,	CK_443X),
-	CLK(NULL,	"mcspi3_fck",			&mcspi3_fck,	CK_443X),
-	CLK(NULL,	"mcspi4_fck",			&mcspi4_fck,	CK_443X),
 	CLK(NULL,	"mmc1_fck",			&mmc1_fck,	CK_443X),
 	CLK(NULL,	"mmc2_fck",			&mmc2_fck,	CK_443X),
-	CLK(NULL,	"mmc3_fck",			&mmc3_fck,	CK_443X),
-	CLK(NULL,	"mmc4_fck",			&mmc4_fck,	CK_443X),
-	CLK(NULL,	"mmc5_fck",			&mmc5_fck,	CK_443X),
-	CLK(NULL,	"ocp2scp_usb_phy_phy_48m",	&ocp2scp_usb_phy_phy_48m,	CK_443X),
-	CLK(NULL,	"ocp2scp_usb_phy_ick",		&ocp2scp_usb_phy_ick,	CK_443X),
-	CLK(NULL,	"ocp_wp_noc_ick",		&ocp_wp_noc_ick,	CK_443X),
-	CLK(NULL,	"rng_ick",			&rng_ick,	CK_443X),
-	CLK("omap_rng",	"ick",				&rng_ick,	CK_443X),
 	CLK(NULL,	"sha2md5_fck",			&sha2md5_fck,	CK_443X),
-	CLK(NULL,	"sl2if_ick",			&sl2if_ick,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_1",		&slimbus1_fclk_1,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_0",		&slimbus1_fclk_0,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_2",		&slimbus1_fclk_2,	CK_443X),
 	CLK(NULL,	"slimbus1_slimbus_clk",		&slimbus1_slimbus_clk,	CK_443X),
-	CLK(NULL,	"slimbus1_fck",			&slimbus1_fck,	CK_443X),
 	CLK(NULL,	"slimbus2_fclk_1",		&slimbus2_fclk_1,	CK_443X),
 	CLK(NULL,	"slimbus2_fclk_0",		&slimbus2_fclk_0,	CK_443X),
 	CLK(NULL,	"slimbus2_slimbus_clk",		&slimbus2_slimbus_clk,	CK_443X),
-	CLK(NULL,	"slimbus2_fck",			&slimbus2_fck,	CK_443X),
 	CLK(NULL,	"smartreflex_core_fck",		&smartreflex_core_fck,	CK_443X),
 	CLK(NULL,	"smartreflex_iva_fck",		&smartreflex_iva_fck,	CK_443X),
 	CLK(NULL,	"smartreflex_mpu_fck",		&smartreflex_mpu_fck,	CK_443X),
@@ -1870,10 +1608,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"timer7_fck",			&timer7_fck,	CK_443X),
 	CLK(NULL,	"timer8_fck",			&timer8_fck,	CK_443X),
 	CLK(NULL,	"timer9_fck",			&timer9_fck,	CK_443X),
-	CLK(NULL,	"uart1_fck",			&uart1_fck,	CK_443X),
-	CLK(NULL,	"uart2_fck",			&uart2_fck,	CK_443X),
-	CLK(NULL,	"uart3_fck",			&uart3_fck,	CK_443X),
-	CLK(NULL,	"uart4_fck",			&uart4_fck,	CK_443X),
 	CLK(NULL,	"usb_host_fs_fck",		&usb_host_fs_fck,	CK_443X),
 	CLK("usbhs_omap",	"fs_fck",		&usb_host_fs_fck,	CK_443X),
 	CLK(NULL,	"utmi_p1_gfclk",		&utmi_p1_gfclk,	CK_443X),
@@ -1901,9 +1635,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("usbhs_tll",	"usbtll_ick",		&usb_tll_hs_ick,	CK_443X),
 	CLK(NULL,	"usim_ck",			&usim_ck,	CK_443X),
 	CLK(NULL,	"usim_fclk",			&usim_fclk,	CK_443X),
-	CLK(NULL,	"usim_fck",			&usim_fck,	CK_443X),
-	CLK(NULL,	"wd_timer2_fck",		&wd_timer2_fck,	CK_443X),
-	CLK(NULL,	"wd_timer3_fck",		&wd_timer3_fck,	CK_443X),
 	CLK(NULL,	"pmd_stm_clock_mux_ck",		&pmd_stm_clock_mux_ck,	CK_443X),
 	CLK(NULL,	"pmd_trace_clk_mux_ck",		&pmd_trace_clk_mux_ck,	CK_443X),
 	CLK(NULL,	"stm_clk_div_ck",		&stm_clk_div_ck,	CK_443X),
@@ -1980,15 +1711,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"cpufreq_ck",	&dpll_mpu_ck,	CK_443X),
 };
 
-static const char *enable_init_clks[] = {
-	"emif1_fck",
-	"emif2_fck",
-	"gpmc_ick",
-	"l3_instr_ick",
-	"l3_main_3_ick",
-	"ocp_wp_noc_ick",
-};
-
 int __init omap4xxx_clk_init(void)
 {
 	u32 cpu_clkflg;
@@ -2018,9 +1740,6 @@ int __init omap4xxx_clk_init(void)
 	}
 
 	omap2_clk_disable_autoidle_all();
-
-	omap2_clk_enable_init_clocks(enable_init_clks,
-				     ARRAY_SIZE(enable_init_clks));
 
 	/*
 	 * On OMAP4460 the ABE DPLL fails to turn on if in idle low-power
