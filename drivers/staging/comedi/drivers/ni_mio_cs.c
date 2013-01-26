@@ -272,20 +272,6 @@ static void cs_detach(struct pcmcia_device *link)
 	cs_release(link);
 }
 
-static int mio_cs_suspend(struct pcmcia_device *link)
-{
-	DPRINTK("pm suspend\n");
-
-	return 0;
-}
-
-static int mio_cs_resume(struct pcmcia_device *link)
-{
-	DPRINTK("pm resume\n");
-	return 0;
-}
-
-
 static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int base, ret;
@@ -423,8 +409,6 @@ static struct pcmcia_driver ni_mio_cs_driver = {
 	.id_table	= ni_mio_cs_ids,
 	.probe		= cs_attach,
 	.remove		= cs_detach,
-	.suspend	= mio_cs_suspend,
-	.resume		= mio_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_ni_mio_cs, ni_mio_cs_driver);
 
