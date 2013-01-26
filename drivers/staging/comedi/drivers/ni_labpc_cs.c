@@ -155,7 +155,6 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static void labpc_config(struct pcmcia_device *link);
-static void labpc_release(struct pcmcia_device *link);
 static int labpc_cs_suspend(struct pcmcia_device *p_dev);
 static int labpc_cs_resume(struct pcmcia_device *p_dev);
 
@@ -191,7 +190,7 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 static void labpc_cs_detach(struct pcmcia_device *link)
 {
 	((struct local_info_t *)link->priv)->stop = 1;
-	labpc_release(link);
+	pcmcia_disable_device(link);
 
 	/* This points to the parent local_info_t struct (may be null) */
 	kfree(link->priv);
@@ -233,16 +232,8 @@ static void labpc_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	labpc_release(link);
-
-}				/* labpc_config */
-
-static void labpc_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "labpc_release\n");
-
 	pcmcia_disable_device(link);
-}				/* labpc_release */
+}
 
 static int labpc_cs_suspend(struct pcmcia_device *link)
 {
