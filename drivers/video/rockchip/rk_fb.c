@@ -95,7 +95,6 @@ static int rk_fb_open(struct fb_info *info,int user)
     else
     {
     	dev_drv->open(dev_drv,layer_id,1);
-	dev_drv->load_screen(dev_drv,1);
     }
     
     return 0;
@@ -1173,6 +1172,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     if(dev_drv->screen_ctr_info->prop == PRMRY) //show logo for primary display device
     {
 	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
+	    dev_drv->load_screen(dev_drv,1);
 	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
 
 #if  defined(CONFIG_LOGO_LINUX_BMP)
