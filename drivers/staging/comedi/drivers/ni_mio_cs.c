@@ -247,66 +247,7 @@ static void mio_cs_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 }
 
-static void mio_cs_config(struct pcmcia_device *link);
-static void cs_release(struct pcmcia_device *link);
-static void cs_detach(struct pcmcia_device *);
-
 static struct pcmcia_device *cur_dev;
-
-static int cs_attach(struct pcmcia_device *link)
-{
-	cur_dev = link;
-
-	mio_cs_config(link);
-
-	return 0;
-}
-
-static void cs_release(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-}
-
-static void cs_detach(struct pcmcia_device *link)
-{
-	cs_release(link);
-}
-
-static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
-{
-	int base, ret;
-
-	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-
-	for (base = 0x000; base < 0x400; base += 0x20) {
-		p_dev->resource[0]->start = base;
-		ret = pcmcia_request_io(p_dev);
-		if (!ret)
-			return 0;
-	}
-	return -ENODEV;
-}
-
-
-static void mio_cs_config(struct pcmcia_device *link)
-{
-	int ret;
-
-	DPRINTK("mio_cs_config(link=%p)\n", link);
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		return;
-	}
-
-	if (!link->irq)
-		dev_info(&link->dev, "no IRQ available\n");
-
-	ret = pcmcia_enable_device(link);
-}
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -391,6 +332,60 @@ static int ni_getboardtype(struct comedi_device *dev,
 		"unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
+}
+
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
+{
+	int base, ret;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+
+	for (base = 0x000; base < 0x400; base += 0x20) {
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
+		if (!ret)
+			return 0;
+	}
+	return -ENODEV;
+}
+
+static void mio_cs_config(struct pcmcia_device *link)
+{
+	int ret;
+
+	DPRINTK("mio_cs_config(link=%p)\n", link);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
+	if (ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		return;
+	}
+
+	if (!link->irq)
+		dev_info(&link->dev, "no IRQ available\n");
+
+	ret = pcmcia_enable_device(link);
+}
+
+static int cs_attach(struct pcmcia_device *link)
+{
+	cur_dev = link;
+
+	mio_cs_config(link);
+
+	return 0;
+}
+
+static void cs_release(struct pcmcia_device *link)
+{
+	pcmcia_disable_device(link);
+}
+
+static void cs_detach(struct pcmcia_device *link)
+{
+	cs_release(link);
 }
 
 static const struct pcmcia_device_id ni_mio_cs_ids[] = {
