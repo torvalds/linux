@@ -23,6 +23,7 @@
 #include <mach/cru.h>
 #include <mach/ddr.h>
 #include <mach/debug_uart.h>
+#include <mach/cpu_axi.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -402,6 +403,8 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 
 	if (pm_pmu_power_domain_is_on(PD_VIO, pmu_pwrdn_st)) {
 		u32 gate[10];
+		static u32 lcdc0_qos[CPU_AXI_QOS_NUM_REGS];
+		static u32 lcdc1_qos[CPU_AXI_QOS_NUM_REGS];
 		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
 		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
 		gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
@@ -422,7 +425,15 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_IPP), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_RGA), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
+		if (!state) {
+			CPU_AXI_SAVE_QOS(lcdc0_qos, LCDC0);
+			CPU_AXI_SAVE_QOS(lcdc1_qos, LCDC0);
+		}
 		pmu_set_power_domain(PD_VIO, state);
+		if (state) {
+			CPU_AXI_RESTORE_QOS(lcdc0_qos, LCDC0);
+			CPU_AXI_RESTORE_QOS(lcdc1_qos, LCDC0);
+		}
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0_SRC) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1_SRC) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));

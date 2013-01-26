@@ -19,35 +19,22 @@
 #include <mach/loader.h>
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
+#include <mach/cpu_axi.h>
 
 static void __init rk30_cpu_axi_init(void)
 {
-#ifdef CONFIG_ARCH_RK3188
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x1008);	// dmac1
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2008);	// cpu0
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2088);	// cpu1r
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x2108);	// cpu1w
-#else
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0108);	// dmac1
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0188);	// cpu1r
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0388);	// cpu1w
-#endif
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, DMAC);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU0);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1R);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1W);
 #ifdef CONFIG_RK29_VMAC
-	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x4008);	// peri
+	CPU_AXI_SET_QOS_PRIORITY(2, 2, PERI);
 #else
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x4008);	// peri
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, PERI);
 #endif
-#if 0
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x5008);	// gpu
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x6008);	// vpu
-	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7008);	// lcdc0
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7088);	// cif0
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7108);	// ipp
-	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7188);	// lcdc1
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7208);	// cif1
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7288);	// rga
-#endif
+	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC0);
+	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC1);
+
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
 }

@@ -2,6 +2,7 @@
 #include <linux/spinlock.h>
 #include <mach/pmu.h>
 #include <mach/sram.h>
+#include <mach/cpu_axi.h>
 
 static void __sramfunc pmu_set_power_domain_sram(enum pmu_power_domain pd, bool on)
 {
@@ -34,6 +35,8 @@ static noinline void do_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
  *  change dramatically which will affect the chip function.
  */
 static DEFINE_SPINLOCK(pmu_pd_lock);
+static u32 lcdc0_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 lcdc1_qos[CPU_AXI_QOS_NUM_REGS];
 
 void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
@@ -46,9 +49,11 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	}
 	if (!on) {
 		/* if power down, idle request to NIU first */
-		if (pd == PD_VIO)
+		if (pd == PD_VIO) {
+			CPU_AXI_SAVE_QOS(lcdc0_qos, LCDC0);
+			CPU_AXI_SAVE_QOS(lcdc1_qos, LCDC1);
 			pmu_set_idle_request(IDLE_REQ_VIO, true);
-		else if (pd == PD_VIDEO)
+		} else if (pd == PD_VIDEO)
 			pmu_set_idle_request(IDLE_REQ_VIDEO, true);
 		else if (pd == PD_GPU)
 			pmu_set_idle_request(IDLE_REQ_GPU, true);
@@ -56,9 +61,11 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	do_pmu_set_power_domain(pd, on);
 	if (on) {
 		/* if power up, idle request release to NIU */
-		if (pd == PD_VIO)
+		if (pd == PD_VIO) {
 			pmu_set_idle_request(IDLE_REQ_VIO, false);
-		else if (pd == PD_VIDEO)
+			CPU_AXI_RESTORE_QOS(lcdc0_qos, LCDC0);
+			CPU_AXI_RESTORE_QOS(lcdc1_qos, LCDC1);
+		} else if (pd == PD_VIDEO)
 			pmu_set_idle_request(IDLE_REQ_VIDEO, false);
 		else if (pd == PD_GPU)
 			pmu_set_idle_request(IDLE_REQ_GPU, false);
