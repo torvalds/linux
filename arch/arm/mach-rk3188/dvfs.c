@@ -161,7 +161,7 @@ int dvfs_target(struct clk *clk, unsigned long rate_hz)
 
 	/* if down the rate */
 	if (rate_new < rate_old) {
-		ret = ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
 		if (ret < 0)
 			goto out;
 	}
