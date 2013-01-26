@@ -1850,7 +1850,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
         		cru_set_soft_reset(SOFT_RST_CIF1, false);
         //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
             }
-#else defined(CONFIG_ARCH_RK3188)
+#elif defined(CONFIG_ARCH_RK3188)
 //		pmu_set_idle_request(IDLE_REQ_VIO, true);
 		cru_set_soft_reset(SOFT_RST_CIF0, true);
 		udelay(5);
