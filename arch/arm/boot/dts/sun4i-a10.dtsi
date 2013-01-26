@@ -16,4 +16,13 @@
 	memory {
 		reg = <0x40000000 0x80000000>;
 	};
+
+	soc {
+		pinctrl@01c20800 {
+			compatible = "allwinner,sun4i-a10-pinctrl";
+			reg = <0x01c20800 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
 };
