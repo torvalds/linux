@@ -378,14 +378,9 @@ static int cs_attach(struct pcmcia_device *link)
 	return 0;
 }
 
-static void cs_release(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-}
-
 static void cs_detach(struct pcmcia_device *link)
 {
-	cs_release(link);
+	pcmcia_disable_device(link);
 }
 
 static const struct pcmcia_device_id ni_mio_cs_ids[] = {
