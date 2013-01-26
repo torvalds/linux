@@ -52,7 +52,8 @@
 				      &pmx_sw_left2
 				      &pmx_led_wifi_yellow
 				      &pmx_uart0
-				      &pmx_nand >;
+				      &pmx_nand
+				      &pmx_twsi0 >;
 			pinctrl-names = "default";
 
 			pmx_led_disk_yellow: pmx-led-disk-yellow {
@@ -143,6 +144,10 @@
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
+		};
+
+		i2c@11000 {
+			status = "ok";
 		};
 	};
 
