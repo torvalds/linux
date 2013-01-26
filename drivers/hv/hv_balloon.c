@@ -529,15 +529,21 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 static void post_status(struct hv_dynmem_device *dm)
 {
 	struct dm_status status;
+	struct sysinfo val;
 
-
+	si_meminfo(&val);
 	memset(&status, 0, sizeof(struct dm_status));
 	status.hdr.type = DM_STATUS_REPORT;
 	status.hdr.size = sizeof(struct dm_status);
 	status.hdr.trans_id = atomic_inc_return(&trans_id);
 
-
-	status.num_committed = vm_memory_committed();
+	/*
+	 * The host expects the guest to report free memory.
+	 * Further, the host expects the pressure information to
+	 * include the ballooned out pages.
+	 */
+	status.num_avail = val.freeram;
+	status.num_committed = vm_memory_committed() + dm->num_pages_ballooned;
 
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
