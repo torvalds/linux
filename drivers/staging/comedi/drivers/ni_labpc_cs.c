@@ -59,8 +59,6 @@ NI manuals:
 
 */
 
-#undef LABPC_DEBUG  /* debugging messages */
-
 #include "../comedidev.h"
 
 #include <linux/delay.h>
