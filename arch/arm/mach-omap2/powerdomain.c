@@ -112,7 +112,7 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	for (i = 0; i < pwrdm->banks; i++)
 		pwrdm->ret_mem_off_counter[i] = 0;
 
-	pwrdm_wait_transition(pwrdm);
+	arch_pwrdm->pwrdm_wait_transition(pwrdm);
 	pwrdm->state = pwrdm_read_pwrst(pwrdm);
 	pwrdm->state_counter[pwrdm->state] = 1;
 
@@ -950,34 +950,14 @@ int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
 	return ret;
 }
 
-/**
- * pwrdm_wait_transition - wait for powerdomain power transition to finish
- * @pwrdm: struct powerdomain * to wait for
- *
- * If the powerdomain @pwrdm is in the process of a state transition,
- * spin until it completes the power transition, or until an iteration
- * bailout value is reached. Returns -EINVAL if the powerdomain
- * pointer is null, -EAGAIN if the bailout value was reached, or
- * returns 0 upon success.
- */
-int pwrdm_wait_transition(struct powerdomain *pwrdm)
-{
-	int ret = -EINVAL;
-
-	if (!pwrdm)
-		return -EINVAL;
-
-	if (arch_pwrdm && arch_pwrdm->pwrdm_wait_transition)
-		ret = arch_pwrdm->pwrdm_wait_transition(pwrdm);
-
-	return ret;
-}
-
 int pwrdm_state_switch(struct powerdomain *pwrdm)
 {
 	int ret;
 
-	ret = pwrdm_wait_transition(pwrdm);
+	if (!pwrdm || !arch_pwrdm)
+		return -EINVAL;
+
+	ret = arch_pwrdm->pwrdm_wait_transition(pwrdm);
 	if (!ret)
 		ret = _pwrdm_state_switch(pwrdm, PWRDM_STATE_NOW);
 

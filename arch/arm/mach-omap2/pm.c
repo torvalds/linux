@@ -171,7 +171,6 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 pwrst)
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);
-		pwrdm_wait_transition(pwrdm);
 		pwrdm_state_switch(pwrdm);
 		break;
 	}
