@@ -225,16 +225,6 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 	return ret;
 }
 
-static int mio_cs_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static void mio_cs_detach(struct comedi_device *dev);
-static struct comedi_driver driver_ni_mio_cs = {
-	.driver_name = "ni_mio_cs",
-	.module = THIS_MODULE,
-	.attach = mio_cs_attach,
-	.detach = mio_cs_detach,
-};
-
 #include "ni_mio_common.c"
 
 static int ni_getboardtype(struct comedi_device *dev,
@@ -333,6 +323,13 @@ static int ni_getboardtype(struct comedi_device *dev,
 
 	return 0;
 }
+
+static struct comedi_driver driver_ni_mio_cs = {
+	.driver_name	= "ni_mio_cs",
+	.module		= THIS_MODULE,
+	.attach		= mio_cs_attach,
+	.detach		= mio_cs_detach,
+};
 
 static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
