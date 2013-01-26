@@ -335,7 +335,6 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!link)
 		return -EIO;
 
-	dev->driver = &driver_ni_mio_cs;
 	dev->iobase = link->resource[0]->start;
 
 	irq = link->irq;
