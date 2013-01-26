@@ -77,8 +77,6 @@ NI manuals:
 
 static struct pcmcia_device *pcmcia_cur_dev;
 
-static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
 	 .name = "daqcard-1200",
@@ -115,16 +113,6 @@ static const struct labpc_board_struct labpc_cs_boards[] = {
  */
 #define thisboard ((const struct labpc_board_struct *)dev->board_ptr)
 
-static struct comedi_driver driver_labpc_cs = {
-	.driver_name = "ni_labpc_cs",
-	.module = THIS_MODULE,
-	.attach = &labpc_attach,
-	.detach = &labpc_common_detach,
-	.num_names = ARRAY_SIZE(labpc_cs_boards),
-	.board_name = &labpc_cs_boards[0].name,
-	.offset = sizeof(struct labpc_board_struct),
-};
-
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct labpc_private *devpriv;
@@ -153,6 +141,16 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	return labpc_common_attach(dev, iobase, irq, 0);
 }
+
+static struct comedi_driver driver_labpc_cs = {
+	.driver_name	= "ni_labpc_cs",
+	.module		= THIS_MODULE,
+	.attach		= labpc_attach,
+	.detach		= labpc_common_detach,
+	.num_names	= ARRAY_SIZE(labpc_cs_boards),
+	.board_name	= &labpc_cs_boards[0].name,
+	.offset		= sizeof(struct labpc_board_struct),
+};
 
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
