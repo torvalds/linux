@@ -1693,6 +1693,15 @@ static inline bool pci_is_pcie(struct pci_dev *dev)
 }
 
 /**
+ * pcie_caps_reg - get the PCIe Capabilities Register
+ * @dev: PCI device
+ */
+static inline u16 pcie_caps_reg(const struct pci_dev *dev)
+{
+	return dev->pcie_flags_reg;
+}
+
+/**
  * pci_pcie_type - get the PCIe device/port type
  * @dev: PCI device
  */
