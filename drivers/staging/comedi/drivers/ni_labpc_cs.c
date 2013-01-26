@@ -168,11 +168,18 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static void labpc_config(struct pcmcia_device *link)
+static int labpc_cs_attach(struct pcmcia_device *link)
 {
+	struct local_info_t *local;
 	int ret;
 
-	dev_dbg(&link->dev, "labpc_config\n");
+	local = kzalloc(sizeof(*local), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+	local->link = link;
+	link->priv = local;
+
+	pcmcia_cur_dev = link;
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
 		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
@@ -190,30 +197,11 @@ static void labpc_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	return;
+	return 0;
 
 failed:
 	pcmcia_disable_device(link);
-}
-
-static int labpc_cs_attach(struct pcmcia_device *link)
-{
-	struct local_info_t *local;
-
-	dev_dbg(&link->dev, "labpc_cs_attach()\n");
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
-
-	pcmcia_cur_dev = link;
-
-	labpc_config(link);
-
-	return 0;
+	return ret;
 }
 
 static void labpc_cs_detach(struct pcmcia_device *link)
