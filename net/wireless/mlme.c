@@ -514,7 +514,7 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)
 		return -ENOTCONN;
 
-	if (WARN_ON(!wdev->current_bss))
+	if (WARN(!wdev->current_bss, "sme_state=%d\n", wdev->sme_state))
 		return -ENOTCONN;
 
 	memset(&req, 0, sizeof(req));
