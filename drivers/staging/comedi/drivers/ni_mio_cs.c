@@ -230,13 +230,6 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 static int ni_getboardtype(struct comedi_device *dev,
 			   struct pcmcia_device *link);
 
-static void mio_cs_detach(struct comedi_device *dev)
-{
-	mio_common_detach(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-}
-
 static struct pcmcia_device *cur_dev;
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -322,6 +315,13 @@ static int ni_getboardtype(struct comedi_device *dev,
 		"unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
+}
+
+static void mio_cs_detach(struct comedi_device *dev)
+{
+	mio_common_detach(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver driver_ni_mio_cs = {
