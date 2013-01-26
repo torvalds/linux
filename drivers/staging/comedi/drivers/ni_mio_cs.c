@@ -419,13 +419,13 @@ static const struct pcmcia_device_id ni_mio_cs_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
 
 static struct pcmcia_driver ni_mio_cs_driver = {
-	.probe = &cs_attach,
-	.remove = &cs_detach,
-	.suspend = &mio_cs_suspend,
-	.resume = &mio_cs_resume,
-	.id_table = ni_mio_cs_ids,
-	.owner = THIS_MODULE,
-	.name = "ni_mio_cs",
+	.name		= "ni_mio_cs",
+	.owner		= THIS_MODULE,
+	.id_table	= ni_mio_cs_ids,
+	.probe		= cs_attach,
+	.remove		= cs_detach,
+	.suspend	= mio_cs_suspend,
+	.resume		= mio_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_ni_mio_cs, ni_mio_cs_driver);
 
