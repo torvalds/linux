@@ -373,7 +373,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		goto err_i2c;
 
 	/* sent power fault detection event to specific regulator */
-	for (icnt = 0; icnt < 6; icnt++)
+	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		if ((flag0 & (0x4 << icnt))
 		    && (pchip->irqmask & (0x04 << icnt))
 		    && (pchip->rdev[icnt] != NULL))
@@ -508,7 +508,7 @@ err_irq:
 
 err_regulator:
 	/* output disable */
-	for (icnt = 0; icnt < 0x06; icnt++)
+	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		lp8755_write(pchip, icnt, 0x00);
 
 	return ret;
@@ -522,7 +522,7 @@ static int lp8755_remove(struct i2c_client *client)
 	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++)
 		regulator_unregister(pchip->rdev[icnt]);
 
-	for (icnt = 0; icnt < 0x06; icnt++)
+	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		lp8755_write(pchip, icnt, 0x00);
 
 	if (pchip->irq != 0)
