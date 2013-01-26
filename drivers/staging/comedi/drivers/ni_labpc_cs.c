@@ -155,8 +155,6 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static void labpc_config(struct pcmcia_device *link);
-static int labpc_cs_suspend(struct pcmcia_device *p_dev);
-static int labpc_cs_resume(struct pcmcia_device *p_dev);
 
 static int labpc_cs_attach(struct pcmcia_device *);
 static void labpc_cs_detach(struct pcmcia_device *);
@@ -233,16 +231,6 @@ failed:
 	pcmcia_disable_device(link);
 }
 
-static int labpc_cs_suspend(struct pcmcia_device *link)
-{
-	return 0;
-}				/* labpc_cs_suspend */
-
-static int labpc_cs_resume(struct pcmcia_device *link)
-{
-	return 0;
-}				/* labpc_cs_resume */
-
 static const struct pcmcia_device_id labpc_cs_ids[] = {
 	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103),	/* daqcard-1200 */
@@ -256,8 +244,6 @@ static struct pcmcia_driver labpc_cs_driver = {
 	.id_table	= labpc_cs_ids,
 	.probe		= labpc_cs_attach,
 	.remove		= labpc_cs_detach,
-	.suspend	= labpc_cs_suspend,
-	.resume		= labpc_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_labpc_cs, labpc_cs_driver);
 
