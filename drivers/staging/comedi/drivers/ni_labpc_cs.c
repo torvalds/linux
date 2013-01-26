@@ -268,9 +268,6 @@ static const struct pcmcia_device_id labpc_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
-MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
-MODULE_DESCRIPTION("Comedi driver for National Instruments Lab-PC");
-MODULE_LICENSE("GPL");
 
 static struct pcmcia_driver labpc_cs_driver = {
 	.probe = labpc_cs_attach,
@@ -281,5 +278,8 @@ static struct pcmcia_driver labpc_cs_driver = {
 	.owner = THIS_MODULE,
 	.name = "daqcard-1200",
 };
-
 module_comedi_pcmcia_driver(driver_labpc_cs, labpc_cs_driver);
+
+MODULE_DESCRIPTION("Comedi driver for National Instruments Lab-PC");
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_LICENSE("GPL");
