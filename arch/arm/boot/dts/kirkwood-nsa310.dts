@@ -16,6 +16,105 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = < &pmx_led_esata_green
+				      &pmx_led_esata_red
+				      &pmx_led_usb_green
+				      &pmx_led_usb_red
+				      &pmx_usb_power_off
+				      &pmx_led_sys_green
+				      &pmx_led_sys_red
+				      &pmx_btn_reset
+				      &pmx_btn_copy
+				      &pmx_led_copy_green
+				      &pmx_led_copy_red
+				      &pmx_led_hdd_green
+				      &pmx_led_hdd_red
+				      &pmx_unknown
+				      &pmx_btn_power
+				      &pmx_pwr_off >;
+			pinctrl-names = "default";
+
+			pmx_led_esata_green: pmx-led-esata-green {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_esata_red: pmx-led-esata-red {
+				marvell,pins = "mpp13";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_usb_green: pmx-led-usb-green {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_usb_red: pmx-led-usb-red {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+
+			pmx_usb_power_off: pmx-usb-power-off {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_green: pmx-led-sys-green {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_red: pmx-led-sys-red {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_reset: pmx-btn-reset {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_copy: pmx-btn-copy {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_green: pmx-led-copy-green {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_red: pmx-led-copy-red {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd_green: pmx-led-hdd-green {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd_red: pmx-led-hdd-red {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+
+			pmx_unknown: pmx-unknown {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_power: pmx-btn-power {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+
+			pmx_pwr_off: pmx-pwr-off {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+		};
 
 		serial@12000 {
 			clock-frequency = <200000000>;

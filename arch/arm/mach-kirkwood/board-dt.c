@@ -144,9 +144,6 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("usi,topkick"))
 		usi_topkick_init();
 
-	if (of_machine_is_compatible("zyxel,nsa310"))
-		nsa310_init();
-
 	of_platform_populate(NULL, kirkwood_dt_match_table, NULL, NULL);
 }
 
