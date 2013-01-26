@@ -51,7 +51,7 @@ static bool ip6t_npt_map_pfx(const struct ip6t_npt_tginfo *npt,
 
 		idx = i / 32;
 		addr->s6_addr32[idx] &= mask;
-		addr->s6_addr32[idx] |= npt->dst_pfx.in6.s6_addr32[idx];
+		addr->s6_addr32[idx] |= ~mask & npt->dst_pfx.in6.s6_addr32[idx];
 	}
 
 	if (pfx_len <= 48)
