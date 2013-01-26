@@ -30,7 +30,7 @@ static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 				(__force __wsum)npt->dst_pfx.in6.s6_addr16[i]);
 	}
 
-	npt->adjustment = (__force __sum16) csum_sub(src_sum, dst_sum);
+	npt->adjustment = ~csum_fold(csum_sub(src_sum, dst_sum));
 	return 0;
 }
 
@@ -66,8 +66,8 @@ static bool ip6t_npt_map_pfx(const struct ip6t_npt_tginfo *npt,
 			return false;
 	}
 
-	sum = (__force __sum16) csum_add((__force __wsum)addr->s6_addr16[idx],
-			 npt->adjustment);
+	sum = ~csum_fold(csum_add(csum_unfold((__force __sum16)addr->s6_addr16[idx]),
+				  csum_unfold(npt->adjustment)));
 	if (sum == CSUM_MANGLED_0)
 		sum = 0;
 	*(__force __sum16 *)&addr->s6_addr16[idx] = sum;
