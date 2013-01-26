@@ -18,6 +18,7 @@
 #define USBOTG_SIZE	RK30_USBOTG20_SIZE
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0xac)
+#define USBGRF_UOC0_CON0	(GRF_REG_BASE+0x10c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x114)
 #define USBGRF_UOC0_CON3	(GRF_REG_BASE+0x118)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
@@ -228,7 +229,27 @@ int usb20otg_get_status(int id)
         }
         return ret;
 }
- 
+
+#ifdef CONFIG_RK_USB_UART
+void dwc_otg_uart_mode(void* pdata, int enter_usb_uart_mode)
+{
+	unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON0);
+	      
+	if(1 == enter_usb_uart_mode){  //enter uart mode
+		/*note: can't disable otg here! If otg disable, the ID change
+		*interrupt can't be triggered when otg cable connect without
+		*device.At the same time, uart can't be used normally 
+		*/
+		//*otg_phy_con1 = (0x10 | (0x10 << 16));//otg disable
+		*otg_phy_con1 = (0x0300 | (0x0300 << 16));//bypass dm       
+	}
+	if(0 == enter_usb_uart_mode){  //enter usb mode 
+		*otg_phy_con1 = (0x0300 << 16); //bypass dm disable
+		//*otg_phy_con1 = (0x10 << 16);//otg enable		
+	}
+}
+#endif
+
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 void usb20otg_power_enable(int enable)
 { 
@@ -257,7 +278,10 @@ struct dwc_otg_platform_data usb20otg_pdata = {
     .get_status=usb20otg_get_status,
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
     .power_enable=usb20otg_power_enable,
-#endif    
+#endif
+#ifdef CONFIG_RK_USB_UART
+    .dwc_otg_uart_mode=dwc_otg_uart_mode,
+#endif
 };
 
 struct platform_device device_usb20_otg = {

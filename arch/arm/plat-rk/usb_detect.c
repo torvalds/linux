@@ -91,6 +91,10 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 #endif
 #elif defined(CONFIG_ARCH_RK3188)
 	writel_relaxed((1 << 31) | (1 << 15), RK30_GRF_BASE + GRF_UOC0_CON3);
+#ifdef CONFIG_RK_USB_UART
+	/* usb otg dp/dm switch to usb phy */
+	writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
+#endif
 #endif
 
 #ifdef CONFIG_RK_USB_DETECT_BY_OTG_BVALID

@@ -1050,10 +1050,15 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	 * and make uart controller enter infinite fiq loop 
 	 */
 #ifdef CONFIG_RK_USB_UART
-	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10))) //id low    
-	{         
+#ifdef CONFIG_ARCH_RK2928
+	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10))){//id low          
 		writel_relaxed(0x34000000, RK2928_GRF_BASE + 0x190);   //enter usb phy    
 	}
+#elif defined(CONFIG_ARCH_RK3188)
+	if(!(readl_relaxed(RK30_GRF_BASE + 0x00ac) & (1 << 13))){//id low          
+		writel_relaxed((0x0300 << 16), RK30_GRF_BASE + 0x010c);   //enter usb phy    
+	}
+#endif
 #endif
 	need_irq = debug_handle_uart_interrupt(state, this_cpu, regs, svc_sp);
 	if (need_irq)
