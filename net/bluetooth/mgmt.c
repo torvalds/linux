@@ -439,7 +439,6 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 {
 	u8 *ptr = data;
 	u8 *uuids_start;
-	u16 eir_len = 0;
 	struct bt_uuid *uuid;
 	size_t name_len;
 
@@ -458,7 +457,6 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 
 		memcpy(ptr + 2, hdev->dev_name, name_len);
 
-		eir_len += (name_len + 2);
 		ptr += (name_len + 2);
 	}
 
@@ -467,7 +465,6 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 		ptr[1] = EIR_TX_POWER;
 		ptr[2] = (u8) hdev->inq_tx_power;
 
-		eir_len += 3;
 		ptr += 3;
 	}
 
@@ -480,7 +477,6 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 		put_unaligned_le16(hdev->devid_product, ptr + 6);
 		put_unaligned_le16(hdev->devid_version, ptr + 8);
 
-		eir_len += 10;
 		ptr += 10;
 	}
 
@@ -505,18 +501,16 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 			uuids_start[0] = 1;
 			uuids_start[1] = EIR_UUID16_ALL;
 			ptr += 2;
-			eir_len += 2;
 		}
 
 		/* Stop if not enough space to put next UUID */
-		if (eir_len + 2 + sizeof(u16) > HCI_MAX_EIR_LENGTH) {
+		if ((ptr - data) + 2 + sizeof(u16) > HCI_MAX_EIR_LENGTH) {
 			uuids_start[1] = EIR_UUID16_SOME;
 			break;
 		}
 
 		*ptr++ = (uuid16 & 0x00ff);
 		*ptr++ = (uuid16 & 0xff00) >> 8;
-		eir_len += sizeof(uuid16);
 		uuids_start[0] += sizeof(uuid16);
 	}
 }
