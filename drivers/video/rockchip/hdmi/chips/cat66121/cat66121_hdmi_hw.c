@@ -134,17 +134,16 @@ SYS_STATUS HDMITX_SetI2C_Byte(BYTE Reg,BYTE Mask,BYTE Value)
 int cat66121_hdmi_sys_init(void)
 {
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
-	rk30_mux_api_set(GPIO0C1_FLASHDATA9_NAME, GPIO0C_GPIO0C1);
-	if (gpio_request(RK30_PIN0_PC1, NULL)) {
+#if 0
+	if (gpio_request(RK30_PIN3_PB2, NULL)) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(RK30_PIN0_PC1, GPIO_LOW);
-	gpio_set_value(RK30_PIN0_PC1, GPIO_LOW);
+	gpio_direction_output(RK30_PIN3_PB2, GPIO_LOW);
+	gpio_set_value(RK30_PIN3_PB2, GPIO_LOW);
 	msleep(200);
-	gpio_set_value(RK30_PIN0_PC1, GPIO_HIGH);
-	msleep(200);
-
+	gpio_set_value(RK30_PIN3_PB2, GPIO_HIGH);
+#endif
 	mdelay(5);
 	VideoPixelClock = 0;
 	pixelrep = 0;
@@ -173,8 +172,6 @@ int cat66121_hdmi_sys_detect_hpd(void)
 	//sysstat = HDMITX_ReadI2C_Byte(REG_SYS_STATUS) ;   
 	//*hpdstatus = ((sysstat & B_HPDETECT) == B_HPDETECT)?TRUE:FALSE ;
 	hdmi_status = HDMITX_DevLoopProc();
-;
-		return HDMI_HPD_ACTIVED;
 	if(hdmi_status)
 		return HDMI_HPD_ACTIVED;
 	else
@@ -196,8 +193,6 @@ static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, in
 
 int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 {
-	printk( "[%s]\n", __FUNCTION__);
-	printk( "[%s]\n", __FUNCTION__);
     HDMITX_ChangeDisplayOption(vpara->vic,HDMI_RGB444) ;
 
 	return HDMI_ERROR_SUCESS;

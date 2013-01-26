@@ -474,6 +474,8 @@ int HDMITX_DevLoopProc()
 					bOutputColorMode &= ~F_MODE_CLRMOD_MASK ;
 					bOutputColorMode |= F_MODE_YUV422 ;
 				}
+				bOutputColorMode = F_MODE_RGB444;
+
 
             #ifdef IT6615
                 if(RxCapability.dc.uc & (HDMI_DC_SUPPORT_36|HDMI_DC_SUPPORT_30))

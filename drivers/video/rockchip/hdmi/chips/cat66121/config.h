@@ -17,7 +17,7 @@
 #endif // EXTERN_HDCPROM
 
 #define SUPPORT_EDID
-#define SUPPORT_HDCP
+//#define SUPPORT_HDCP
 //#define SUPPORT_SHA
 //#define SUPPORT_AUDIO_MONITOR
 #define AudioOutDelayCnt 250
