@@ -1573,6 +1573,14 @@ static struct i2c_board_info __initdata i2c1_info[] = {
     	.platform_data = &tps65910_data,
 	},
 #endif
+#if defined(CONFIG_HDMI_CAT66121)
+	{
+	.type			= "cat66121_hdmi",
+	.addr			= 0x4c,
+	.flags			= 0,
+	.irq			= RK30_PIN1_PB7,
+	},
+#endif
 };
 #endif
 

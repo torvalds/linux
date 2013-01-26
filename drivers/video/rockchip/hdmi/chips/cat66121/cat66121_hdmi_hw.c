@@ -1,0 +1,236 @@
+#include <linux/delay.h>
+#include "cat66121_hdmi.h"
+#include "cat66121_hdmi_hw.h"
+#include <asm/atomic.h>
+#include <mach/io.h>
+#include <mach/gpio.h>
+#include <mach/iomux.h>
+
+#define HDMITX_INPUT_SIGNAL_TYPE 0  // for default(Sync Sep Mode)
+#define INPUT_SPDIF_ENABLE	0
+extern int CAT66121_Interrupt_Process(void);
+/*******************************
+ * Global Data
+ ******************************/
+static _XDATA AVI_InfoFrame AviInfo;
+static _XDATA Audio_InfoFrame AudioInfo;
+static unsigned long VideoPixelClock;
+static unsigned int pixelrep;
+
+/* I2C read/write funcs */
+BYTE HDMITX_ReadI2C_Byte(BYTE RegAddr)
+{
+	struct i2c_msg msgs[2];
+	SYS_STATUS ret = -1;
+	BYTE buf[1];
+
+	buf[0] = RegAddr;
+
+	/* Write device addr fisrt */
+	msgs[0].addr	= cat66121_hdmi->client->addr;
+	msgs[0].flags	= !I2C_M_RD;
+	msgs[0].len		= 1;
+	msgs[0].buf		= &buf[0];
+	msgs[0].scl_rate= 100*1000;
+	/* Then, begin to read data */
+	msgs[1].addr	= cat66121_hdmi->client->addr;
+	msgs[1].flags	= I2C_M_RD;
+	msgs[1].len		= 1;
+	msgs[1].buf		= &buf[0];
+	msgs[1].scl_rate= 100*1000;
+	
+	ret = i2c_transfer(cat66121_hdmi->client->adapter, msgs, 2);
+	if(ret != 2)
+		printk("I2C transfer Error! ret = %d\n", ret);
+
+	//ErrorF("Reg%02xH: 0x%02x\n", RegAddr, buf[0]);
+	return buf[0];
+}
+
+SYS_STATUS HDMITX_WriteI2C_Byte(BYTE RegAddr, BYTE data)
+{
+	struct i2c_msg msg;
+	SYS_STATUS ret = -1;
+	BYTE buf[2];
+
+	buf[0] = RegAddr;
+	buf[1] = data;
+
+	msg.addr	= cat66121_hdmi->client->addr;
+	msg.flags	= !I2C_M_RD;
+	msg.len		= 2;
+	msg.buf		= buf;		
+	msg.scl_rate= 100*1000;
+	
+	ret = i2c_transfer(cat66121_hdmi->client->adapter, &msg, 1);
+	if(ret != 1)
+		printk("I2C transfer Error!\n");
+
+	return ret;
+}
+
+SYS_STATUS HDMITX_ReadI2C_ByteN(BYTE RegAddr, BYTE *pData, int N)
+{
+	struct i2c_msg msgs[2];
+	SYS_STATUS ret = -1;
+
+	pData[0] = RegAddr;
+
+	msgs[0].addr	= cat66121_hdmi->client->addr;
+	msgs[0].flags	= !I2C_M_RD;
+	msgs[0].len		= 1;
+	msgs[0].buf		= &pData[0];
+	msgs[0].scl_rate= 100*1000;
+
+	msgs[1].addr	= cat66121_hdmi->client->addr;
+	msgs[1].flags	= I2C_M_RD;
+	msgs[1].len		= N;
+	msgs[1].buf		= pData;
+	msgs[1].scl_rate= 100*1000;
+	
+	ret = i2c_transfer(cat66121_hdmi->client->adapter, msgs, 2);
+	if(ret != 2)
+		printk("I2C transfer Error! ret = %d\n", ret);
+
+	return ret;
+}
+
+SYS_STATUS HDMITX_WriteI2C_ByteN(BYTE RegAddr, BYTE *pData, int N)
+{
+	struct i2c_msg msg;
+	SYS_STATUS ret = -1;
+	BYTE buf[N + 1];
+
+	buf[0] = RegAddr;
+    memcpy(&buf[1], pData, N);
+
+	msg.addr	= cat66121_hdmi->client->addr;
+	msg.flags	= !I2C_M_RD;
+	msg.len		= N + 1;
+	msg.buf		= buf;		// gModify.Exp."Include RegAddr"
+	msg.scl_rate= 100*1000;
+	
+	ret = i2c_transfer(cat66121_hdmi->client->adapter, &msg, 1);
+	if(ret != 1)
+		printk("I2C transfer Error! ret = %d\n", ret);
+
+	return ret;
+}
+SYS_STATUS HDMITX_SetI2C_Byte(BYTE Reg,BYTE Mask,BYTE Value)
+{
+    BYTE Temp;
+    if( Mask != 0xFF )
+    {
+        Temp=HDMITX_ReadI2C_Byte(Reg);
+        Temp&=(~Mask);
+        Temp|=Value&Mask;
+    }
+    else
+    {
+        Temp=Value;
+    }
+    return HDMITX_WriteI2C_Byte(Reg,Temp);
+}
+int cat66121_hdmi_sys_init(void)
+{
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	rk30_mux_api_set(GPIO0C1_FLASHDATA9_NAME, GPIO0C_GPIO0C1);
+	if (gpio_request(RK30_PIN0_PC1, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	gpio_direction_output(RK30_PIN0_PC1, GPIO_LOW);
+	gpio_set_value(RK30_PIN0_PC1, GPIO_LOW);
+	msleep(200);
+	gpio_set_value(RK30_PIN0_PC1, GPIO_HIGH);
+	msleep(200);
+
+	mdelay(5);
+	VideoPixelClock = 0;
+	pixelrep = 0;
+    InitHDMITX_Variable();
+    InitHDMITX();
+	msleep(100);
+	return HDMI_ERROR_SUCESS;
+}
+
+void cat66121_hdmi_interrupt()
+{
+	char interrupt = 0;
+
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	if(hdmi->state == HDMI_SLEEP)
+		hdmi->state = WAIT_HOTPLUG;
+	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+}
+
+int cat66121_hdmi_sys_detect_hpd(void)
+{
+	char hdmi_status = 0;
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	//	BYTE sysstat;
+
+	//sysstat = HDMITX_ReadI2C_Byte(REG_SYS_STATUS) ;   
+	//*hpdstatus = ((sysstat & B_HPDETECT) == B_HPDETECT)?TRUE:FALSE ;
+	hdmi_status = HDMITX_DevLoopProc();
+;
+		return HDMI_HPD_ACTIVED;
+	if(hdmi_status)
+		return HDMI_HPD_ACTIVED;
+	else
+		return HDMI_HPD_REMOVED;
+}
+
+int cat66121_hdmi_sys_read_edid(int block, unsigned char *buff)
+{
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	return (getHDMITX_EDIDBlock(block, buff) == TRUE)?HDMI_ERROR_SUCESS:HDMI_ERROR_FALSE;
+}
+
+static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, int Colorimetry, int pixelrep)
+{
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+//     AVI_InfoFrame AviInfo;
+
+}
+
+int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
+{
+	printk( "[%s]\n", __FUNCTION__);
+	printk( "[%s]\n", __FUNCTION__);
+    HDMITX_ChangeDisplayOption(vpara->vic,HDMI_RGB444) ;
+
+	return HDMI_ERROR_SUCESS;
+}
+
+static void cat66121_hdmi_config_aai(void)
+{
+	printk( "[%s]\n", __FUNCTION__);
+}
+
+int cat66121_hdmi_sys_config_audio(struct hdmi_audio *audio)
+{
+	printk( "[%s]\n", __FUNCTION__);
+	return HDMI_ERROR_SUCESS;
+}
+
+void cat66121_hdmi_sys_enalbe_output(int enable)
+{
+	
+	printk( "[%s]\n", __FUNCTION__);
+}
+
+int cat66121_hdmi_sys_insert(void)
+{
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	printk( "[%s]\n", __FUNCTION__);
+	return 0;
+}
+
+int cat66121_hdmi_sys_remove(void)
+{
+	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+//	printk( "[%s]\n", __FUNCTION__);
+
+	return 0;
+}
