@@ -266,17 +266,16 @@ static const struct pcmcia_device_id labpc_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103),	/* daqcard-1200 */
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
 
 static struct pcmcia_driver labpc_cs_driver = {
-	.probe = labpc_cs_attach,
-	.remove = labpc_cs_detach,
-	.suspend = labpc_cs_suspend,
-	.resume = labpc_cs_resume,
-	.id_table = labpc_cs_ids,
-	.owner = THIS_MODULE,
-	.name = "daqcard-1200",
+	.name		= "daqcard-1200",
+	.owner		= THIS_MODULE,
+	.id_table	= labpc_cs_ids,
+	.probe		= labpc_cs_attach,
+	.remove		= labpc_cs_detach,
+	.suspend	= labpc_cs_suspend,
+	.resume		= labpc_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_labpc_cs, labpc_cs_driver);
 
