@@ -154,44 +154,10 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return labpc_common_attach(dev, iobase, irq, 0);
 }
 
-static void labpc_config(struct pcmcia_device *link);
-
-static int labpc_cs_attach(struct pcmcia_device *);
-static void labpc_cs_detach(struct pcmcia_device *);
-
 struct local_info_t {
 	struct pcmcia_device *link;
 	struct bus_operations *bus;
 };
-
-static int labpc_cs_attach(struct pcmcia_device *link)
-{
-	struct local_info_t *local;
-
-	dev_dbg(&link->dev, "labpc_cs_attach()\n");
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
-
-	pcmcia_cur_dev = link;
-
-	labpc_config(link);
-
-	return 0;
-}				/* labpc_cs_attach */
-
-static void labpc_cs_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-
-	/* This points to the parent local_info_t struct (may be null) */
-	kfree(link->priv);
-
-}
 
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
@@ -201,7 +167,6 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	return pcmcia_request_io(p_dev);
 }
-
 
 static void labpc_config(struct pcmcia_device *link)
 {
@@ -229,6 +194,34 @@ static void labpc_config(struct pcmcia_device *link)
 
 failed:
 	pcmcia_disable_device(link);
+}
+
+static int labpc_cs_attach(struct pcmcia_device *link)
+{
+	struct local_info_t *local;
+
+	dev_dbg(&link->dev, "labpc_cs_attach()\n");
+
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+	local->link = link;
+	link->priv = local;
+
+	pcmcia_cur_dev = link;
+
+	labpc_config(link);
+
+	return 0;
+}
+
+static void labpc_cs_detach(struct pcmcia_device *link)
+{
+	pcmcia_disable_device(link);
+
+	/* This points to the parent local_info_t struct (may be null) */
+	kfree(link->priv);
 }
 
 static const struct pcmcia_device_id labpc_cs_ids[] = {
