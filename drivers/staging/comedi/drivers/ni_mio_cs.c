@@ -416,11 +416,7 @@ static const struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0245),	/* DAQCard-6036E */
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
-MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
-MODULE_DESCRIPTION("Comedi driver for National Instruments DAQCard E series");
-MODULE_LICENSE("GPL");
 
 static struct pcmcia_driver ni_mio_cs_driver = {
 	.probe = &cs_attach,
@@ -431,5 +427,8 @@ static struct pcmcia_driver ni_mio_cs_driver = {
 	.owner = THIS_MODULE,
 	.name = "ni_mio_cs",
 };
-
 module_comedi_pcmcia_driver(driver_ni_mio_cs, ni_mio_cs_driver);
+
+MODULE_DESCRIPTION("Comedi driver for National Instruments DAQCard E series");
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_LICENSE("GPL");
