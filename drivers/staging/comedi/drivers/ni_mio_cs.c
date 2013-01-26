@@ -227,10 +227,23 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(struct comedi_device *dev,
-			   struct pcmcia_device *link);
-
 static struct pcmcia_device *cur_dev;
+
+static int ni_getboardtype(struct comedi_device *dev,
+			   struct pcmcia_device *link)
+{
+	int i;
+
+	for (i = 0; i < n_ni_boards; i++) {
+		if (ni_boards[i].device_id == link->card_id)
+			return i;
+	}
+
+	dev_err(dev->class_dev,
+		"unknown board 0x%04x -- pretend it is a ", link->card_id);
+
+	return 0;
+}
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -297,22 +310,6 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (ret < 0)
 		return ret;
-
-	return 0;
-}
-
-static int ni_getboardtype(struct comedi_device *dev,
-			   struct pcmcia_device *link)
-{
-	int i;
-
-	for (i = 0; i < n_ni_boards; i++) {
-		if (ni_boards[i].device_id == link->card_id)
-			return i;
-	}
-
-	dev_err(dev->class_dev,
-		"unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
 }
