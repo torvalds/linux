@@ -113,6 +113,14 @@ struct pmbus_data {
 	u8 currpage;
 };
 
+void pmbus_clear_cache(struct i2c_client *client)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+
+	data->valid = false;
+}
+EXPORT_SYMBOL_GPL(pmbus_clear_cache);
+
 int pmbus_set_page(struct i2c_client *client, u8 page)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
