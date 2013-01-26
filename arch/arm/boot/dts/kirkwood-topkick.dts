@@ -149,6 +149,13 @@
 		i2c@11000 {
 			status = "ok";
 		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio>;
+			pinctrl-names = "default";
+			status = "okay";
+			/* No CD or WP GPIOs */
+		};
 	};
 
 	gpio-leds {
