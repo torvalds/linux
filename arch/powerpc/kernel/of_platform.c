@@ -37,7 +37,7 @@
  * lacking some bits needed here.
  */
 
-static int __devinit of_pci_phb_probe(struct platform_device *dev)
+static int of_pci_phb_probe(struct platform_device *dev)
 {
 	struct pci_controller *phb;
 

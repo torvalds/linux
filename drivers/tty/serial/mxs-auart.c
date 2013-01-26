@@ -253,7 +253,7 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 	struct circ_buf *xmit = &s->port.state->xmit;
 
 	if (auart_dma_enabled(s)) {
-		int i = 0;
+		u32 i = 0;
 		int size;
 		void *buffer = s->tx_dma_buf;
 
@@ -412,10 +412,12 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 
 	u32 ctrl = readl(u->membase + AUART_CTRL2);
 
-	ctrl &= ~AUART_CTRL2_RTSEN;
+	ctrl &= ~(AUART_CTRL2_RTSEN | AUART_CTRL2_RTS);
 	if (mctrl & TIOCM_RTS) {
 		if (tty_port_cts_enabled(&u->state->port))
 			ctrl |= AUART_CTRL2_RTSEN;
+		else
+			ctrl |= AUART_CTRL2_RTS;
 	}
 
 	s->ctrl = mctrl;

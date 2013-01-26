@@ -191,15 +191,14 @@ struct posix_acl *f2fs_get_acl(struct inode *inode, int type)
 		retval = f2fs_getxattr(inode, name_index, "", value, retval);
 	}
 
-	if (retval < 0) {
-		if (retval == -ENODATA)
-			acl = NULL;
-		else
-			acl = ERR_PTR(retval);
-	} else {
+	if (retval > 0)
 		acl = f2fs_acl_from_disk(value, retval);
-	}
+	else if (retval == -ENODATA)
+		acl = NULL;
+	else
+		acl = ERR_PTR(retval);
 	kfree(value);
+
 	if (!IS_ERR(acl))
 		set_cached_acl(inode, type, acl);
 

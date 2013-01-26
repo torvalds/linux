@@ -5817,6 +5817,9 @@ enum {
 	ALC269_TYPE_ALC269VB,
 	ALC269_TYPE_ALC269VC,
 	ALC269_TYPE_ALC269VD,
+	ALC269_TYPE_ALC280,
+	ALC269_TYPE_ALC282,
+	ALC269_TYPE_ALC284,
 };
 
 /*
@@ -5833,10 +5836,13 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	switch (spec->codec_variant) {
 	case ALC269_TYPE_ALC269VA:
 	case ALC269_TYPE_ALC269VC:
+	case ALC269_TYPE_ALC280:
+	case ALC269_TYPE_ALC284:
 		ssids = alc269va_ssids;
 		break;
 	case ALC269_TYPE_ALC269VB:
 	case ALC269_TYPE_ALC269VD:
+	case ALC269_TYPE_ALC282:
 		ssids = alc269_ssids;
 		break;
 	default:
@@ -5992,6 +5998,30 @@ static void alc269_fixup_quanta_mute(struct hda_codec *codec,
 	spec->automute_hook = alc269_quanta_automute;
 }
 
+/* update mute-LED according to the speaker mute state via mic1 VREF pin */
+static void alc269_fixup_mic1_mute_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	unsigned int pinval = AC_PINCTL_IN_EN + (enabled ?
+			      AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_80);
+	snd_hda_set_pin_ctl_cache(codec, 0x18, pinval);
+}
+
+static void alc269_fixup_mic1_mute(struct hda_codec *codec,
+				   const struct alc_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	switch (action) {
+	case ALC_FIXUP_ACT_BUILD:
+		spec->vmaster_mute.hook = alc269_fixup_mic1_mute_hook;
+		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
+		/* fallthru */
+	case ALC_FIXUP_ACT_INIT:
+		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		break;
+	}
+}
+
 /* update mute-LED according to the speaker mute state via mic2 VREF pin */
 static void alc269_fixup_mic2_mute_hook(void *private_data, int enabled)
 {
@@ -6043,6 +6073,7 @@ enum {
 	ALC269_FIXUP_DMIC,
 	ALC269VB_FIXUP_AMIC,
 	ALC269VB_FIXUP_DMIC,
+	ALC269_FIXUP_MIC1_MUTE_LED,
 	ALC269_FIXUP_MIC2_MUTE_LED,
 	ALC269_FIXUP_INV_DMIC,
 	ALC269_FIXUP_LENOVO_DOCK,
@@ -6171,6 +6202,10 @@ static const struct alc_fixup alc269_fixups[] = {
 			{ }
 		},
 	},
+	[ALC269_FIXUP_MIC1_MUTE_LED] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_mic1_mute,
+	},
 	[ALC269_FIXUP_MIC2_MUTE_LED] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc269_fixup_mic2_mute,
@@ -6215,6 +6250,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x029b, "Acer 1810TZ", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x0349, "Acer AOD260", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_MIC2_MUTE_LED),
+	SND_PCI_QUIRK(0x103c, 0x1972, "HP Pavilion 17", ALC269_FIXUP_MIC1_MUTE_LED),
+	SND_PCI_QUIRK(0x103c, 0x1977, "HP Pavilion 14", ALC269_FIXUP_MIC1_MUTE_LED),
 	SND_PCI_QUIRK(0x1043, 0x1427, "Asus Zenbook UX31E", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1517, "Asus Zenbook UX31A", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
@@ -6229,6 +6266,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK(0x1025, 0x0740, "Acer AO725", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0742, "Acer AO756", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK_VENDOR(0x1025, "Acer Aspire", ALC271_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x10cf, 0x1475, "Lifebook", ALC269_FIXUP_LIFEBOOK),
@@ -6370,7 +6408,8 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	if (codec->vendor_id == 0x10ec0269) {
+	switch (codec->vendor_id) {
+	case 0x10ec0269:
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
 		switch (alc_get_coef0(codec) & 0x00f0) {
 		case 0x0010:
@@ -6395,6 +6434,20 @@ static int patch_alc269(struct hda_codec *codec)
 			goto error;
 		spec->init_hook = alc269_fill_coef;
 		alc269_fill_coef(codec);
+		break;
+
+	case 0x10ec0280:
+	case 0x10ec0290:
+		spec->codec_variant = ALC269_TYPE_ALC280;
+		break;
+	case 0x10ec0282:
+	case 0x10ec0283:
+		spec->codec_variant = ALC269_TYPE_ALC282;
+		break;
+	case 0x10ec0284:
+	case 0x10ec0292:
+		spec->codec_variant = ALC269_TYPE_ALC284;
+		break;
 	}
 
 	/* automatic parse from the BIOS config */
@@ -7099,6 +7152,7 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0280, .name = "ALC280", .patch = patch_alc269 },
 	{ .id = 0x10ec0282, .name = "ALC282", .patch = patch_alc269 },
 	{ .id = 0x10ec0283, .name = "ALC283", .patch = patch_alc269 },
+	{ .id = 0x10ec0284, .name = "ALC284", .patch = patch_alc269 },
 	{ .id = 0x10ec0290, .name = "ALC290", .patch = patch_alc269 },
 	{ .id = 0x10ec0292, .name = "ALC292", .patch = patch_alc269 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",

@@ -203,6 +203,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
 	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
 	ri->i_generation = cpu_to_le32(inode->i_generation);
+	set_cold_node(inode, node_page);
 	set_page_dirty(node_page);
 }
 
@@ -215,6 +216,9 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
 		return 0;
+
+	if (wbc)
+		f2fs_balance_fs(sbi);
 
 	node_page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page))

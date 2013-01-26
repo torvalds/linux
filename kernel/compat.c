@@ -535,9 +535,11 @@ asmlinkage long compat_sys_getrusage(int who, struct compat_rusage __user *ru)
 	return 0;
 }
 
-asmlinkage long
-compat_sys_wait4(compat_pid_t pid, compat_uint_t __user *stat_addr, int options,
-	struct compat_rusage __user *ru)
+COMPAT_SYSCALL_DEFINE4(wait4,
+	compat_pid_t, pid,
+	compat_uint_t __user *, stat_addr,
+	int, options,
+	struct compat_rusage __user *, ru)
 {
 	if (!ru) {
 		return sys_wait4(pid, stat_addr, options, NULL);
@@ -564,9 +566,10 @@ compat_sys_wait4(compat_pid_t pid, compat_uint_t __user *stat_addr, int options,
 	}
 }
 
-asmlinkage long compat_sys_waitid(int which, compat_pid_t pid,
-		struct compat_siginfo __user *uinfo, int options,
-		struct compat_rusage __user *uru)
+COMPAT_SYSCALL_DEFINE5(waitid,
+		int, which, compat_pid_t, pid,
+		struct compat_siginfo __user *, uinfo, int, options,
+		struct compat_rusage __user *, uru)
 {
 	siginfo_t info;
 	struct rusage ru;
@@ -584,7 +587,11 @@ asmlinkage long compat_sys_waitid(int which, compat_pid_t pid,
 		return ret;
 
 	if (uru) {
-		ret = put_compat_rusage(&ru, uru);
+		/* sys_waitid() overwrites everything in ru */
+		if (COMPAT_USE_64BIT_TIME)
+			ret = copy_to_user(uru, &ru, sizeof(ru));
+		else
+			ret = put_compat_rusage(&ru, uru);
 		if (ret)
 			return ret;
 	}
@@ -994,7 +1001,7 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	sigset_from_compat(&s, &s32);
 
 	if (uts) {
-		if (get_compat_timespec(&t, uts))
+		if (compat_get_timespec(&t, uts))
 			return -EFAULT;
 	}
 

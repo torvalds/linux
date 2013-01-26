@@ -139,7 +139,7 @@ extern void vio_unregister_driver(struct vio_driver *drv);
 extern int vio_cmo_entitlement_update(size_t);
 extern void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired);
 
-extern void __devinit vio_unregister_device(struct vio_dev *dev);
+extern void vio_unregister_device(struct vio_dev *dev);
 
 extern int vio_h_cop_sync(struct vio_dev *vdev, struct vio_pfo_op *op);
 

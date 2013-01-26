@@ -259,7 +259,7 @@ static const struct fb_videomode ps3fb_modedb[] = {
 static int ps3fb_mode;
 module_param(ps3fb_mode, int, 0);
 
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 static int ps3fb_cmp_mode(const struct fb_videomode *vmode,
 			  const struct fb_var_screeninfo *var)
@@ -965,7 +965,7 @@ static struct fb_fix_screeninfo ps3fb_fix __initdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
+static int ps3fb_probe(struct ps3_system_bus_device *dev)
 {
 	struct fb_info *info;
 	struct ps3fb_par *par;

@@ -266,6 +266,7 @@ static struct tegra_dma_desc *tegra_dma_desc_get(
 		if (async_tx_test_ack(&dma_desc->txd)) {
 			list_del(&dma_desc->node);
 			spin_unlock_irqrestore(&tdc->lock, flags);
+			dma_desc->txd.flags = 0;
 			return dma_desc;
 		}
 	}
@@ -1050,7 +1051,9 @@ struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 					TEGRA_APBDMA_AHBSEQ_WRAP_SHIFT;
 	ahb_seq |= TEGRA_APBDMA_AHBSEQ_BUS_WIDTH_32;
 
-	csr |= TEGRA_APBDMA_CSR_FLOW | TEGRA_APBDMA_CSR_IE_EOC;
+	csr |= TEGRA_APBDMA_CSR_FLOW;
+	if (flags & DMA_PREP_INTERRUPT)
+		csr |= TEGRA_APBDMA_CSR_IE_EOC;
 	csr |= tdc->dma_sconfig.slave_id << TEGRA_APBDMA_CSR_REQ_SEL_SHIFT;
 
 	apb_seq |= TEGRA_APBDMA_APBSEQ_WRAP_WORD_1;
@@ -1095,7 +1098,8 @@ struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 		mem += len;
 	}
 	sg_req->last_sg = true;
-	dma_desc->txd.flags = 0;
+	if (flags & DMA_CTRL_ACK)
+		dma_desc->txd.flags = DMA_CTRL_ACK;
 
 	/*
 	 * Make sure that mode should not be conflicting with currently
@@ -1184,7 +1188,7 @@ static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.max_dma_count		= 1024UL * 64,
 };
 
-static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
+static const struct of_device_id tegra_dma_of_match[] = {
 	{
 		.compatible = "nvidia,tegra30-apbdma",
 		.data = &tegra30_dma_chip_data,
@@ -1360,7 +1364,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int __devexit tegra_dma_remove(struct platform_device *pdev)
+static int tegra_dma_remove(struct platform_device *pdev)
 {
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 	int i;
@@ -1403,7 +1407,7 @@ static int tegra_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tegra_dma_dev_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend = tegra_dma_runtime_suspend,
 	.runtime_resume = tegra_dma_runtime_resume,

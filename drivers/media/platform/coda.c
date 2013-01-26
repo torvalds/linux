@@ -23,8 +23,8 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
+#include <linux/platform_data/imx-iram.h>
 
-#include <mach/iram.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -1891,7 +1891,7 @@ static const struct of_device_id coda_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, coda_dt_ids);
 #endif
 
-static int __devinit coda_probe(struct platform_device *pdev)
+static int coda_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(of_match_ptr(coda_dt_ids), &pdev->dev);
@@ -2033,7 +2033,7 @@ static int coda_remove(struct platform_device *pdev)
 
 static struct platform_driver coda_driver = {
 	.probe	= coda_probe,
-	.remove	= __devexit_p(coda_remove),
+	.remove	= coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
 		.owner	= THIS_MODULE,

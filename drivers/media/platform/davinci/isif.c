@@ -1032,7 +1032,7 @@ static struct ccdc_hw_device isif_hw_dev = {
 	},
 };
 
-static int __devinit isif_probe(struct platform_device *pdev)
+static int isif_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
@@ -1156,7 +1156,7 @@ static struct platform_driver isif_driver = {
 		.name	= "isif",
 		.owner = THIS_MODULE,
 	},
-	.remove = __devexit_p(isif_remove),
+	.remove = isif_remove,
 	.probe = isif_probe,
 };
 

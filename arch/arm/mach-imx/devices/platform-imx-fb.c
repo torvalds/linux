@@ -54,7 +54,7 @@ struct platform_device *__init imx_add_imx_fb(
 			.flags = IORESOURCE_IRQ,
 		},
 	};
-	return imx_add_platform_device_dmamask("imx-fb", 0,
+	return imx_add_platform_device_dmamask(data->devid, 0,
 			res, ARRAY_SIZE(res),
 			pdata, sizeof(*pdata), DMA_BIT_MASK(32));
 }

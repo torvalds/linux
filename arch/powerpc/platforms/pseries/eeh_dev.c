@@ -49,7 +49,7 @@
  * It will create EEH device according to the given OF node. The function
  * might be called by PCI emunation, DR, PHB hotplug.
  */
-void * __devinit eeh_dev_init(struct device_node *dn, void *data)
+void *eeh_dev_init(struct device_node *dn, void *data)
 {
 	struct pci_controller *phb = data;
 	struct eeh_dev *edev;
@@ -77,7 +77,7 @@ void * __devinit eeh_dev_init(struct device_node *dn, void *data)
  * Scan the PHB OF node and its child association, then create the
  * EEH devices accordingly
  */
-void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb)
+void eeh_dev_phb_init_dynamic(struct pci_controller *phb)
 {
 	struct device_node *dn = phb->dn;
 

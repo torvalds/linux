@@ -1935,6 +1935,8 @@ int __init omap2420_clk_init(void)
 			omap2_init_clk_hw_omap_clocks(c->lk.clk);
 	}
 
+	omap2xxx_clkt_vps_late_init();
+
 	omap2_clk_disable_autoidle_all();
 
 	omap2_clk_enable_init_clocks(enable_init_clks,

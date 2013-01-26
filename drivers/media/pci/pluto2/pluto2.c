@@ -240,7 +240,7 @@ static void pluto_set_dma_addr(struct pluto *pluto)
 	pluto_writereg(pluto, REG_PCAR, pluto->dma_addr);
 }
 
-static int __devinit pluto_dma_map(struct pluto *pluto)
+static int pluto_dma_map(struct pluto *pluto)
 {
 	pluto->dma_addr = pci_map_single(pluto->pdev, pluto->dma_buf,
 			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
@@ -368,7 +368,7 @@ static irqreturn_t pluto_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __devinit pluto_enable_irqs(struct pluto *pluto)
+static void pluto_enable_irqs(struct pluto *pluto)
 {
 	u32 val = pluto_readreg(pluto, REG_TSCR);
 
@@ -394,7 +394,7 @@ static void pluto_disable_irqs(struct pluto *pluto)
 	pluto_write_tscr(pluto, val);
 }
 
-static int __devinit pluto_hw_init(struct pluto *pluto)
+static int pluto_hw_init(struct pluto *pluto)
 {
 	pluto_reset_frontend(pluto, 1);
 
@@ -505,7 +505,7 @@ static int pluto2_request_firmware(struct dvb_frontend *fe,
 	return request_firmware(fw, name, &pluto->pdev->dev);
 }
 
-static struct tda1004x_config pluto2_fe_config __devinitdata = {
+static struct tda1004x_config pluto2_fe_config = {
 	.demod_address = I2C_ADDR_TDA10046 >> 1,
 	.invert = 1,
 	.invert_oclk = 0,
@@ -515,7 +515,7 @@ static struct tda1004x_config pluto2_fe_config __devinitdata = {
 	.request_firmware = pluto2_request_firmware,
 };
 
-static int __devinit frontend_init(struct pluto *pluto)
+static int frontend_init(struct pluto *pluto)
 {
 	int ret;
 
@@ -536,14 +536,14 @@ static int __devinit frontend_init(struct pluto *pluto)
 	return 0;
 }
 
-static void __devinit pluto_read_rev(struct pluto *pluto)
+static void pluto_read_rev(struct pluto *pluto)
 {
 	u32 val = pluto_readreg(pluto, REG_MISC) & MISC_DVR;
 	dev_info(&pluto->pdev->dev, "board revision %d.%d\n",
 			(val >> 12) & 0x0f, (val >> 4) & 0xff);
 }
 
-static void __devinit pluto_read_mac(struct pluto *pluto, u8 *mac)
+static void pluto_read_mac(struct pluto *pluto, u8 *mac)
 {
 	u32 val = pluto_readreg(pluto, REG_MMAC);
 	mac[0] = (val >> 8) & 0xff;
@@ -560,7 +560,7 @@ static void __devinit pluto_read_mac(struct pluto *pluto, u8 *mac)
 	dev_info(&pluto->pdev->dev, "MAC %pM\n", mac);
 }
 
-static int __devinit pluto_read_serial(struct pluto *pluto)
+static int pluto_read_serial(struct pluto *pluto)
 {
 	struct pci_dev *pdev = pluto->pdev;
 	unsigned int i, j;
@@ -588,8 +588,7 @@ out:
 	return 0;
 }
 
-static int __devinit pluto2_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int pluto2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct pluto *pluto;
 	struct dvb_adapter *dvb_adapter;
@@ -742,7 +741,7 @@ err_kfree:
 	goto out;
 }
 
-static void __devexit pluto2_remove(struct pci_dev *pdev)
+static void pluto2_remove(struct pci_dev *pdev)
 {
 	struct pluto *pluto = pci_get_drvdata(pdev);
 	struct dvb_adapter *dvb_adapter = &pluto->dvb_adapter;
@@ -777,7 +776,7 @@ static void __devexit pluto2_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_PLUTO2	0x0001
 #endif
 
-static struct pci_device_id pluto2_id_table[] __devinitdata = {
+static struct pci_device_id pluto2_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_SCM,
 		.device = PCI_DEVICE_ID_PLUTO2,
@@ -794,7 +793,7 @@ static struct pci_driver pluto2_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pluto2_id_table,
 	.probe = pluto2_probe,
-	.remove = __devexit_p(pluto2_remove),
+	.remove = pluto2_remove,
 };
 
 static int __init pluto2_init(void)

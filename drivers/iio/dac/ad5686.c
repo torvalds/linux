@@ -313,7 +313,7 @@ static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
 };
 
 
-static int __devinit ad5686_probe(struct spi_device *spi)
+static int ad5686_probe(struct spi_device *spi)
 {
 	struct ad5686_state *st;
 	struct iio_dev *indio_dev;
@@ -383,7 +383,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad5686_remove(struct spi_device *spi)
+static int ad5686_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5686_state *st = iio_priv(indio_dev);
@@ -412,7 +412,7 @@ static struct spi_driver ad5686_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5686_probe,
-	.remove = __devexit_p(ad5686_remove),
+	.remove = ad5686_remove,
 	.id_table = ad5686_id,
 };
 module_spi_driver(ad5686_driver);

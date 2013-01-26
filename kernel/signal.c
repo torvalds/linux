@@ -680,23 +680,17 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
  * No need to set need_resched since signal event passing
  * goes through ->blocked
  */
-void signal_wake_up(struct task_struct *t, int resume)
+void signal_wake_up_state(struct task_struct *t, unsigned int state)
 {
-	unsigned int mask;
-
 	set_tsk_thread_flag(t, TIF_SIGPENDING);
-
 	/*
-	 * For SIGKILL, we want to wake it up in the stopped/traced/killable
+	 * TASK_WAKEKILL also means wake it up in the stopped/traced/killable
 	 * case. We don't check t->state here because there is a race with it
 	 * executing another processor and just now entering stopped state.
 	 * By using wake_up_state, we ensure the process will wake up and
 	 * handle its death signal.
 	 */
-	mask = TASK_INTERRUPTIBLE;
-	if (resume)
-		mask |= TASK_WAKEKILL;
-	if (!wake_up_state(t, mask))
+	if (!wake_up_state(t, state | TASK_INTERRUPTIBLE))
 		kick_process(t);
 }
 
@@ -844,7 +838,7 @@ static void ptrace_trap_notify(struct task_struct *t)
 	assert_spin_locked(&t->sighand->siglock);
 
 	task_set_jobctl_pending(t, JOBCTL_TRAP_NOTIFY);
-	signal_wake_up(t, t->jobctl & JOBCTL_LISTENING);
+	ptrace_signal_wake_up(t, t->jobctl & JOBCTL_LISTENING);
 }
 
 /*
@@ -1800,6 +1794,10 @@ static inline int may_ptrace_stop(void)
 	 * If SIGKILL was already sent before the caller unlocked
 	 * ->siglock we must see ->core_state != NULL. Otherwise it
 	 * is safe to enter schedule().
+	 *
+	 * This is almost outdated, a task with the pending SIGKILL can't
+	 * block in TASK_TRACED. But PTRACE_EVENT_EXIT can be reported
+	 * after SIGKILL was already dequeued.
 	 */
 	if (unlikely(current->mm->core_state) &&
 	    unlikely(current->mm == current->parent->mm))
@@ -1925,6 +1923,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		if (gstop_done)
 			do_notify_parent_cldstop(current, false, why);
 
+		/* tasklist protects us from ptrace_freeze_traced() */
 		__set_current_state(TASK_RUNNING);
 		if (clear_code)
 			current->exit_code = 0;
@@ -2528,11 +2527,8 @@ static void __set_task_blocked(struct task_struct *tsk, const sigset_t *newset)
  */
 void set_current_blocked(sigset_t *newset)
 {
-	struct task_struct *tsk = current;
 	sigdelsetmask(newset, sigmask(SIGKILL) | sigmask(SIGSTOP));
-	spin_lock_irq(&tsk->sighand->siglock);
-	__set_task_blocked(tsk, newset);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	__set_current_blocked(newset);
 }
 
 void __set_current_blocked(const sigset_t *newset)
@@ -3119,8 +3115,9 @@ int __save_altstack(stack_t __user *uss, unsigned long sp)
 
 #ifdef CONFIG_COMPAT
 #ifdef CONFIG_GENERIC_SIGALTSTACK
-asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
-				       compat_stack_t __user *uoss_ptr)
+COMPAT_SYSCALL_DEFINE2(sigaltstack,
+			const compat_stack_t __user *, uss_ptr,
+			compat_stack_t __user *, uoss_ptr)
 {
 	stack_t uss, uoss;
 	int ret;
@@ -3204,7 +3201,6 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 	if (nset) {
 		if (copy_from_user(&new_set, nset, sizeof(*nset)))
 			return -EFAULT;
-		new_set &= ~(sigmask(SIGKILL) | sigmask(SIGSTOP));
 
 		new_blocked = current->blocked;
 
@@ -3222,7 +3218,7 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 			return -EINVAL;
 		}
 
-		__set_current_blocked(&new_blocked);
+		set_current_blocked(&new_blocked);
 	}
 
 	if (oset) {
@@ -3286,6 +3282,7 @@ SYSCALL_DEFINE1(ssetmask, int, newmask)
 	int old = current->blocked.sig[0];
 	sigset_t newset;
 
+	siginitset(&newset, newmask);
 	set_current_blocked(&newset);
 
 	return old;

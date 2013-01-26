@@ -505,7 +505,7 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 
 static inline bool is_powersaving_dpms(int mode)
 {
-	return (mode != DRM_MODE_DPMS_ON);
+	return mode != DRM_MODE_DPMS_ON && mode != NV_DPMS_CLEARED;
 }
 
 static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)

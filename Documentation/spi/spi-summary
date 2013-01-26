@@ -345,7 +345,7 @@ SPI protocol drivers somewhat resemble platform device drivers:
 		},
 
 		.probe		= CHIP_probe,
-		.remove		= __devexit_p(CHIP_remove),
+		.remove		= CHIP_remove,
 		.suspend	= CHIP_suspend,
 		.resume		= CHIP_resume,
 	};
@@ -355,7 +355,7 @@ device whose board_info gave a modalias of "CHIP".  Your probe() code
 might look like this unless you're creating a device which is managing
 a bus (appearing under /sys/class/spi_master).
 
-	static int __devinit CHIP_probe(struct spi_device *spi)
+	static int CHIP_probe(struct spi_device *spi)
 	{
 		struct CHIP			*chip;
 		struct CHIP_platform_data	*pdata;

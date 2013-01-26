@@ -96,8 +96,9 @@ out:
 }
 
 static const struct vm_operations_struct f2fs_file_vm_ops = {
-	.fault        = filemap_fault,
-	.page_mkwrite = f2fs_vm_page_mkwrite,
+	.fault		= filemap_fault,
+	.page_mkwrite	= f2fs_vm_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 static int need_to_sync_dir(struct f2fs_sb_info *sbi, struct inode *inode)
@@ -137,6 +138,9 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 
+	/* guarantee free sections for fsync */
+	f2fs_balance_fs(sbi);
+
 	mutex_lock(&inode->i_mutex);
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
@@ -160,15 +164,17 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (need_to_sync_dir(sbi, inode))
 		need_cp = true;
 
-	f2fs_write_inode(inode, NULL);
-
 	if (need_cp) {
 		/* all the dirty node pages should be flushed for POR */
 		ret = f2fs_sync_fs(inode->i_sb, 1);
 		clear_inode_flag(F2FS_I(inode), FI_NEED_CP);
 	} else {
-		while (sync_node_pages(sbi, inode->i_ino, &wbc) == 0)
-			f2fs_write_inode(inode, NULL);
+		/* if there is no written node page, write its inode page */
+		while (!sync_node_pages(sbi, inode->i_ino, &wbc)) {
+			ret = f2fs_write_inode(inode, NULL);
+			if (ret)
+				goto out;
+		}
 		filemap_fdatawait_range(sbi->node_inode->i_mapping,
 							0, LONG_MAX);
 	}
@@ -405,6 +411,8 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 		struct dnode_of_data dn;
 		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
+		f2fs_balance_fs(sbi);
+
 		mutex_lock_op(sbi, DATA_TRUNC);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, index, RDONLY_NODE);
@@ -532,7 +540,6 @@ static long f2fs_fallocate(struct file *file, int mode,
 				loff_t offset, loff_t len)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	long ret;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
@@ -543,7 +550,10 @@ static long f2fs_fallocate(struct file *file, int mode,
 	else
 		ret = expand_inode_data(inode, offset, len, mode);
 
-	f2fs_balance_fs(sbi);
+	if (!ret) {
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		mark_inode_dirty(inode);
+	}
 	return ret;
 }
 

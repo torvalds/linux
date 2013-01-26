@@ -887,7 +887,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
-	wake_up_interruptible(&port->port.close_wait);
+	wake_up(&port->port.close_wait);
 exit:
 	spin_unlock_irq(&port->port_lock);
 }

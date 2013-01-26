@@ -1033,7 +1033,7 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 }
 #endif /* CONFIG_OF */
 
-static int __devinit exynos_dp_probe(struct platform_device *pdev)
+static int exynos_dp_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct exynos_dp_device *dp;
@@ -1114,7 +1114,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit exynos_dp_remove(struct platform_device *pdev)
+static int exynos_dp_remove(struct platform_device *pdev)
 {
 	struct exynos_dp_platdata *pdata = pdev->dev.platform_data;
 	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
@@ -1195,7 +1195,7 @@ MODULE_DEVICE_TABLE(of, exynos_dp_match);
 
 static struct platform_driver exynos_dp_driver = {
 	.probe		= exynos_dp_probe,
-	.remove		= __devexit_p(exynos_dp_remove),
+	.remove		= exynos_dp_remove,
 	.driver		= {
 		.name	= "exynos-dp",
 		.owner	= THIS_MODULE,
