@@ -154,11 +154,6 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return labpc_common_attach(dev, iobase, irq, 0);
 }
 
-struct local_info_t {
-	struct pcmcia_device *link;
-	struct bus_operations *bus;
-};
-
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -170,16 +165,7 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static int labpc_cs_attach(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
 	int ret;
-
-	local = kzalloc(sizeof(*local), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
-
-	pcmcia_cur_dev = link;
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
 		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
@@ -197,6 +183,8 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
+	pcmcia_cur_dev = link;
+
 	return 0;
 
 failed:
@@ -207,9 +195,6 @@ failed:
 static void labpc_cs_detach(struct pcmcia_device *link)
 {
 	pcmcia_disable_device(link);
-
-	/* This points to the parent local_info_t struct (may be null) */
-	kfree(link->priv);
 }
 
 static const struct pcmcia_device_id labpc_cs_ids[] = {
