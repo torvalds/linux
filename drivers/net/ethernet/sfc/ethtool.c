@@ -816,6 +816,9 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 /* MAC address mask including only MC flag */
 static const u8 mac_addr_mc_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
 
+#define IP4_ADDR_FULL_MASK	((__force __be32)~0)
+#define PORT_FULL_MASK		((__force __be16)~0)
+
 static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				      struct ethtool_rx_flow_spec *rule)
 {
@@ -865,12 +868,12 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 			&spec, &proto, &ip_entry->ip4dst, &ip_entry->pdst,
 			&ip_entry->ip4src, &ip_entry->psrc);
 		EFX_WARN_ON_PARANOID(rc);
-		ip_mask->ip4src = ~0;
-		ip_mask->psrc = ~0;
+		ip_mask->ip4src = IP4_ADDR_FULL_MASK;
+		ip_mask->psrc = PORT_FULL_MASK;
 	}
 	rule->flow_type = (proto == IPPROTO_TCP) ? TCP_V4_FLOW : UDP_V4_FLOW;
-	ip_mask->ip4dst = ~0;
-	ip_mask->pdst = ~0;
+	ip_mask->ip4dst = IP4_ADDR_FULL_MASK;
+	ip_mask->pdst = PORT_FULL_MASK;
 	return rc;
 }
 
@@ -971,7 +974,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 
 	/* Check for unsupported extensions */
 	if ((rule->flow_type & FLOW_EXT) &&
-	    (rule->m_ext.vlan_etype | rule->m_ext.data[0] |
+	    (rule->m_ext.vlan_etype || rule->m_ext.data[0] ||
 	     rule->m_ext.data[1]))
 		return -EINVAL;
 
@@ -986,16 +989,16 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 			    IPPROTO_TCP : IPPROTO_UDP);
 
 		/* Must match all of destination, */
-		if ((__force u32)~ip_mask->ip4dst |
-		    (__force u16)~ip_mask->pdst)
+		if (!(ip_mask->ip4dst == IP4_ADDR_FULL_MASK &&
+		      ip_mask->pdst == PORT_FULL_MASK))
 			return -EINVAL;
 		/* all or none of source, */
-		if ((ip_mask->ip4src | ip_mask->psrc) &&
-		    ((__force u32)~ip_mask->ip4src |
-		     (__force u16)~ip_mask->psrc))
+		if ((ip_mask->ip4src || ip_mask->psrc) &&
+		    !(ip_mask->ip4src == IP4_ADDR_FULL_MASK &&
+		      ip_mask->psrc == PORT_FULL_MASK))
 			return -EINVAL;
 		/* and nothing else */
-		if (ip_mask->tos | rule->m_ext.vlan_tci)
+		if (ip_mask->tos || rule->m_ext.vlan_tci)
 			return -EINVAL;
 
 		if (ip_mask->ip4src)

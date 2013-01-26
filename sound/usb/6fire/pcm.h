@@ -69,7 +69,7 @@ struct pcm_runtime {
 	bool stream_wait_cond;
 };
 
-int __devinit usb6fire_pcm_init(struct sfire_chip *chip);
+int usb6fire_pcm_init(struct sfire_chip *chip);
 void usb6fire_pcm_abort(struct sfire_chip *chip);
 void usb6fire_pcm_destroy(struct sfire_chip *chip);
 #endif /* USB6FIRE_PCM_H */

@@ -339,8 +339,10 @@ static void raw3215_wakeup(unsigned long data)
 	struct tty_struct *tty;
 
 	tty = tty_port_tty_get(&raw->port);
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 /*
@@ -630,7 +632,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	unsigned long flags;
 
 	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-			(raw->flags & RAW3215_FIXED))
+	    (raw->flags & RAW3215_FIXED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -677,6 +679,7 @@ static void raw3215_free_info(struct raw3215_info *raw)
 {
 	kfree(raw->inbuf);
 	kfree(raw->buffer);
+	tty_port_destroy(&raw->port);
 	kfree(raw);
 }
 
@@ -804,7 +807,7 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.freeze		= &raw3215_pm_stop,
 	.thaw		= &raw3215_pm_start,
 	.restore	= &raw3215_pm_start,
-	.int_class	= IOINT_C15,
+	.int_class	= IRQIO_C15,
 };
 
 #ifdef CONFIG_TN3215_CONSOLE

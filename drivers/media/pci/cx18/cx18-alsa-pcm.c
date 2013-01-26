@@ -37,6 +37,7 @@
 #include "cx18-streams.h"
 #include "cx18-fileops.h"
 #include "cx18-alsa.h"
+#include "cx18-alsa-pcm.h"
 
 static unsigned int pcm_debug;
 module_param(pcm_debug, int, 0644);

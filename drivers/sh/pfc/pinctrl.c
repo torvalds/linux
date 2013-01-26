@@ -328,10 +328,10 @@ static struct pinctrl_desc sh_pfc_pinctrl_desc = {
 	.confops	= &sh_pfc_pinconf_ops,
 };
 
-static inline void __devinit sh_pfc_map_one_gpio(struct sh_pfc *pfc,
-						 struct sh_pfc_pinctrl *pmx,
-						 struct pinmux_gpio *gpio,
-						 unsigned offset)
+static inline void sh_pfc_map_one_gpio(struct sh_pfc *pfc,
+				       struct sh_pfc_pinctrl *pmx,
+				       struct pinmux_gpio *gpio,
+				       unsigned offset)
 {
 	struct pinmux_data_reg *dummy;
 	unsigned long flags;
@@ -351,8 +351,7 @@ static inline void __devinit sh_pfc_map_one_gpio(struct sh_pfc *pfc,
 }
 
 /* pinmux ranges -> pinctrl pin descs */
-static int __devinit sh_pfc_map_gpios(struct sh_pfc *pfc,
-				      struct sh_pfc_pinctrl *pmx)
+static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
 	unsigned long flags;
 	int i;
@@ -396,8 +395,7 @@ static int __devinit sh_pfc_map_gpios(struct sh_pfc *pfc,
 	return 0;
 }
 
-static int __devinit sh_pfc_map_functions(struct sh_pfc *pfc,
-					  struct sh_pfc_pinctrl *pmx)
+static int sh_pfc_map_functions(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
 	unsigned long flags;
 	int i, fn;
@@ -421,7 +419,7 @@ static int __devinit sh_pfc_map_functions(struct sh_pfc *pfc,
 	return 0;
 }
 
-static int __devinit sh_pfc_pinctrl_probe(struct platform_device *pdev)
+static int sh_pfc_pinctrl_probe(struct platform_device *pdev)
 {
 	struct sh_pfc *pfc;
 	int ret;
@@ -465,7 +463,7 @@ free_pads:
 	return ret;
 }
 
-static int __devexit sh_pfc_pinctrl_remove(struct platform_device *pdev)
+static int sh_pfc_pinctrl_remove(struct platform_device *pdev)
 {
 	struct sh_pfc_pinctrl *pmx = platform_get_drvdata(pdev);
 
@@ -482,7 +480,7 @@ static int __devexit sh_pfc_pinctrl_remove(struct platform_device *pdev)
 
 static struct platform_driver sh_pfc_pinctrl_driver = {
 	.probe		= sh_pfc_pinctrl_probe,
-	.remove		= __devexit_p(sh_pfc_pinctrl_remove),
+	.remove		= sh_pfc_pinctrl_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

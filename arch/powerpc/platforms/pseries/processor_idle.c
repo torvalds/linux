@@ -36,7 +36,7 @@ static struct cpuidle_state *cpuidle_state_table;
 static inline void idle_loop_prolog(unsigned long *in_purr, ktime_t *kt_before)
 {
 
-	*kt_before = ktime_get_real();
+	*kt_before = ktime_get();
 	*in_purr = mfspr(SPRN_PURR);
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -50,7 +50,7 @@ static inline  s64 idle_loop_epilog(unsigned long in_purr, ktime_t kt_before)
 	get_lppaca()->wait_state_cycles += mfspr(SPRN_PURR) - in_purr;
 	get_lppaca()->idle = 0;
 
-	return ktime_to_us(ktime_sub(ktime_get_real(), kt_before));
+	return ktime_to_us(ktime_sub(ktime_get(), kt_before));
 }
 
 static int snooze_loop(struct cpuidle_device *dev,

@@ -887,7 +887,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
-	wake_up_interruptible(&port->port.close_wait);
+	wake_up(&port->port.close_wait);
 exit:
 	spin_unlock_irq(&port->port_lock);
 }
@@ -1145,8 +1145,10 @@ int gserial_setup(struct usb_gadget *g, unsigned count)
 
 	return status;
 fail:
-	while (count--)
+	while (count--) {
+		tty_port_destroy(&ports[count].port->port);
 		kfree(ports[count].port);
+	}
 	put_tty_driver(gs_tty_driver);
 	gs_tty_driver = NULL;
 	return status;
@@ -1200,6 +1202,7 @@ void gserial_cleanup(void)
 
 		WARN_ON(port->port_usb != NULL);
 
+		tty_port_destroy(&port->port);
 		kfree(port);
 	}
 	n_ports = 0;

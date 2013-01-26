@@ -453,11 +453,11 @@ out:
 }
 
 /* If a directory is seeked, we have to free saved readdir() state */
-static loff_t ubifs_dir_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ubifs_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	kfree(file->private_data);
 	file->private_data = NULL;
-	return generic_file_llseek(file, offset, origin);
+	return generic_file_llseek(file, offset, whence);
 }
 
 /* Free saved readdir() state when the directory is closed */

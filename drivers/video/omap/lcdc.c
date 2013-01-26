@@ -31,7 +31,7 @@
 #include <linux/gfp.h>
 
 #include <mach/lcdc.h>
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 
 #include <asm/mach-types.h>
 

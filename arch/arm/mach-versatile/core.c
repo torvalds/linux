@@ -32,6 +32,7 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
@@ -51,7 +52,6 @@
 #include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
-#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"

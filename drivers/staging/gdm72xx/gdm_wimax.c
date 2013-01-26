@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/etherdevice.h>
 #include <asm/byteorder.h>
 #include <linux/ip.h>
@@ -166,21 +168,13 @@ static void dump_eth_packet(const char *title, u8 *data, int len)
 		get_ip_protocol_name(ip_protocol),
 		get_port_name(port));
 
-	#if 1
 	if (!(data[0] == 0xff && data[1] == 0xff)) {
 		if (protocol == ETH_P_IP) {
-			printk(KERN_DEBUG "     src=%u.%u.%u.%u\n",
-				NIPQUAD(ih->saddr));
+			printk(KERN_DEBUG "     src=%pI4\n", &ih->saddr);
 		} else if (protocol == ETH_P_IPV6) {
-			#ifdef NIP6
-			printk(KERN_DEBUG "     src=%x:%x:%x:%x:%x:%x:%x:%x\n",
-				NIP6(ih->saddr));
-			#else
 			printk(KERN_DEBUG "     src=%pI6\n", &ih->saddr);
-			#endif
 		}
 	}
-	#endif
 
 	#if (DUMP_PACKET & DUMP_SDU_ALL)
 	printk_hex(data, len);
@@ -271,7 +265,7 @@ static int gdm_wimax_event_init(void)
 		return 0;
 	}
 
-	printk(KERN_ERR "Creating WiMax Event netlink is failed\n");
+	pr_err("Creating WiMax Event netlink is failed\n");
 	return -1;
 }
 
@@ -367,7 +361,7 @@ static int gdm_wimax_event_send(struct net_device *dev, char *buf, int size)
 
 	e = get_event_entry();
 	if (!e) {
-		printk(KERN_ERR "%s: No memory for event\n", __func__);
+		netdev_err(dev, "%s: No memory for event\n", __func__);
 		spin_unlock_irqrestore(&wm_event.evt_lock, flags);
 		return -ENOMEM;
 	}
@@ -433,10 +427,10 @@ static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 
 	#if !defined(LOOPBACK_TEST)
 	if (!fsm)
-		printk(KERN_ERR "ASSERTION ERROR: fsm is NULL!!\n");
+		netdev_err(dev, "ASSERTION ERROR: fsm is NULL!!\n");
 	else if (fsm->m_status != M_CONNECTED) {
-		printk(KERN_EMERG "ASSERTION ERROR: Device is NOT ready. status=%d\n",
-			fsm->m_status);
+		netdev_emerg(dev, "ASSERTION ERROR: Device is NOT ready. status=%d\n",
+			     fsm->m_status);
 		kfree_skb(skb);
 		return 0;
 	}
@@ -622,9 +616,8 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCG_DATA:
 	case SIOCS_DATA:
 		if (req->data_id >= SIOC_DATA_MAX) {
-			printk(KERN_ERR
-				"%s error: data-index(%d) is invalid!!\n",
-				__func__, req->data_id);
+			netdev_err(dev, "%s error: data-index(%d) is invalid!!\n",
+				   __func__, req->data_id);
 			return -EOPNOTSUPP;
 		}
 		if (req->cmd == SIOCG_DATA) {
@@ -646,7 +639,7 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 		break;
 	default:
-		printk(KERN_ERR "%s: %x unknown ioctl\n", __func__, cmd);
+		netdev_err(dev, "%s: %x unknown ioctl\n", __func__, cmd);
 		return -EOPNOTSUPP;
 	}
 
@@ -692,7 +685,7 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	hci->length = H2B(len);
 	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
 
-	printk(KERN_INFO "GDM WiMax Set CAPABILITY: 0x%08X\n", DB2H(val));
+	netdev_info(dev, "GDM WiMax Set CAPABILITY: 0x%08X\n", DB2H(val));
 }
 
 static int gdm_wimax_hci_get_tlv(u8 *buf, u8 *T, u16 *L, u8 **V)
@@ -726,28 +719,28 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 	cmd_len = B2H(*(u16 *)&buf[2]);
 
 	if (len < cmd_len + HCI_HEADER_SIZE) {
-		printk(KERN_ERR "%s: invalid length [%d/%d]\n", __func__,
-			cmd_len + HCI_HEADER_SIZE, len);
+		netdev_err(dev, "%s: invalid length [%d/%d]\n", __func__,
+			   cmd_len + HCI_HEADER_SIZE, len);
 		return -1;
 	}
 
 	if (cmd_evt == WIMAX_GET_INFO_RESULT) {
 		if (cmd_len < 2) {
-			printk(KERN_ERR "%s: len is too short [%x/%d]\n",
-				__func__, cmd_evt, len);
+			netdev_err(dev, "%s: len is too short [%x/%d]\n",
+				   __func__, cmd_evt, len);
 			return -1;
 		}
 
 		pos += gdm_wimax_hci_get_tlv(&buf[pos], &T, &L, &V);
 		if (T == TLV_T(T_MAC_ADDRESS)) {
 			if (L != dev->addr_len) {
-				printk(KERN_ERR
-					"%s Invalid inofrmation result T/L "
-					"[%x/%d]\n", __func__, T, L);
+				netdev_err(dev,
+					   "%s Invalid inofrmation result T/L [%x/%d]\n",
+					   __func__, T, L);
 				return -1;
 			}
-			printk(KERN_INFO "MAC change [%pM]->[%pM]\n",
-				dev->dev_addr, V);
+			netdev_info(dev, "MAC change [%pM]->[%pM]\n",
+				    dev->dev_addr, V);
 			memcpy(dev->dev_addr, V, dev->addr_len);
 			return 1;
 		}
@@ -769,7 +762,7 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 
 	skb = dev_alloc_skb(len + 2);
 	if (!skb) {
-		printk(KERN_ERR "%s: dev_alloc_skb failed!\n", __func__);
+		netdev_err(dev, "%s: dev_alloc_skb failed!\n", __func__);
 		return;
 	}
 	skb_reserve(skb, 2);
@@ -784,7 +777,7 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 
 	ret = in_interrupt() ? netif_rx(skb) : netif_rx_ni(skb);
 	if (ret == NET_RX_DROP)
-		printk(KERN_ERR "%s skb dropped\n", __func__);
+		netdev_err(dev, "%s skb dropped\n", __func__);
 }
 
 static void gdm_wimax_transmit_aggr_pkt(struct net_device *dev, char *buf,
@@ -799,8 +792,8 @@ static void gdm_wimax_transmit_aggr_pkt(struct net_device *dev, char *buf,
 		hci = (struct hci_s *) buf;
 
 		if (B2H(hci->cmd_evt) != WIMAX_RX_SDU) {
-			printk(KERN_ERR "Wrong cmd_evt(0x%04X)\n",
-				B2H(hci->cmd_evt));
+			netdev_err(dev, "Wrong cmd_evt(0x%04X)\n",
+				   B2H(hci->cmd_evt));
 			break;
 		}
 
@@ -834,8 +827,8 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 
 	if (len < cmd_len + HCI_HEADER_SIZE) {
 		if (len)
-			printk(KERN_ERR "%s: invalid length [%d/%d]\n",
-				__func__, cmd_len + HCI_HEADER_SIZE, len);
+			netdev_err(dev, "%s: invalid length [%d/%d]\n",
+				   __func__, cmd_len + HCI_HEADER_SIZE, len);
 		return;
 	}
 
@@ -915,7 +908,8 @@ static void prepare_rx_complete(void *arg, void *data, int len)
 		gdm_wimax_rcv_with_cb(nic, rx_complete, nic);
 	else {
 		if (ret < 0)
-			printk(KERN_ERR "get_prepared_info failed(%d)\n", ret);
+			netdev_err(nic->netdev,
+				   "get_prepared_info failed(%d)\n", ret);
 		gdm_wimax_rcv_with_cb(nic, prepare_rx_complete, nic);
 		#if 0
 		/* Re-prepare WiMax device */
@@ -949,7 +943,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 						"wm%d", ether_setup);
 
 	if (dev == NULL) {
-		printk(KERN_ERR "alloc_etherdev failed\n");
+		pr_err("alloc_etherdev failed\n");
 		return -ENOMEM;
 	}
 
@@ -969,7 +963,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	/* event socket init */
 	ret = gdm_wimax_event_init();
 	if (ret < 0) {
-		printk(KERN_ERR "Cannot create event.\n");
+		pr_err("Cannot create event.\n");
 		goto cleanup;
 	}
 
@@ -996,7 +990,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	return 0;
 
 cleanup:
-	printk(KERN_ERR "register_netdev failed\n");
+	pr_err("register_netdev failed\n");
 	free_netdev(dev);
 	return ret;
 }

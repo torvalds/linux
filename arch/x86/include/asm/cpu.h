@@ -28,6 +28,10 @@ struct x86_cpu {
 #ifdef CONFIG_HOTPLUG_CPU
 extern int arch_register_cpu(int num);
 extern void arch_unregister_cpu(int);
+extern void __cpuinit start_cpu0(void);
+#ifdef CONFIG_DEBUG_HOTPLUG_CPU0
+extern int _debug_hotplug_cpu(int cpu, int action);
+#endif
 #endif
 
 DECLARE_PER_CPU(int, cpu_state);

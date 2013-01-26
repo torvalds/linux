@@ -196,7 +196,7 @@ static int pps_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver pps_gpio_driver = {
 	.probe		= pps_gpio_probe,
-	.remove		=  __devexit_p(pps_gpio_remove),
+	.remove		= pps_gpio_remove,
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
 		.owner	= THIS_MODULE

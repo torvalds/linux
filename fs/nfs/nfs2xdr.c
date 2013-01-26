@@ -195,7 +195,6 @@ static void encode_fhandle(struct xdr_stream *xdr, const struct nfs_fh *fh)
 {
 	__be32 *p;
 
-	BUG_ON(fh->size != NFS2_FHSIZE);
 	p = xdr_reserve_space(xdr, NFS2_FHSIZE);
 	memcpy(p, fh->data, NFS2_FHSIZE);
 }
@@ -388,7 +387,7 @@ static void encode_filename(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	BUG_ON(length > NFS2_MAXNAMLEN);
+	WARN_ON_ONCE(length > NFS2_MAXNAMLEN);
 	p = xdr_reserve_space(xdr, 4 + length);
 	xdr_encode_opaque(p, name, length);
 }
@@ -428,7 +427,6 @@ static void encode_path(struct xdr_stream *xdr, struct page **pages, u32 length)
 {
 	__be32 *p;
 
-	BUG_ON(length > NFS2_MAXPATHLEN);
 	p = xdr_reserve_space(xdr, 4);
 	*p = cpu_to_be32(length);
 	xdr_write_pages(xdr, pages, 0, length);

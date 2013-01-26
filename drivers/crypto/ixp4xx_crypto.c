@@ -750,12 +750,12 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 	}
 	if (cipher_cfg & MOD_AES) {
 		switch (key_len) {
-			case 16: keylen_cfg = MOD_AES128 | KEYLEN_128; break;
-			case 24: keylen_cfg = MOD_AES192 | KEYLEN_192; break;
-			case 32: keylen_cfg = MOD_AES256 | KEYLEN_256; break;
-			default:
-				*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-				return -EINVAL;
+		case 16: keylen_cfg = MOD_AES128; break;
+		case 24: keylen_cfg = MOD_AES192; break;
+		case 32: keylen_cfg = MOD_AES256; break;
+		default:
+			*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+			return -EINVAL;
 		}
 		cipher_cfg |= keylen_cfg;
 	} else if (cipher_cfg & MOD_3DES) {

@@ -296,18 +296,18 @@ EXPORT_SYMBOL(seq_read);
  *	seq_lseek -	->llseek() method for sequential files.
  *	@file: the file in question
  *	@offset: new position
- *	@origin: 0 for absolute, 1 for relative position
+ *	@whence: 0 for absolute, 1 for relative position
  *
  *	Ready-made ->f_op->llseek()
  */
-loff_t seq_lseek(struct file *file, loff_t offset, int origin)
+loff_t seq_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct seq_file *m = file->private_data;
 	loff_t retval = -EINVAL;
 
 	mutex_lock(&m->lock);
 	m->version = file->f_version;
-	switch (origin) {
+	switch (whence) {
 		case 1:
 			offset += file->f_pos;
 		case 0:

@@ -678,3 +678,15 @@ out of dma_debug_entries. These entries are preallocated at boot. The number
 of preallocated entries is defined per architecture. If it is too low for you
 boot with 'dma_debug_entries=<your_desired_number>' to overwrite the
 architectural default.
+
+void debug_dmap_mapping_error(struct device *dev, dma_addr_t dma_addr);
+
+dma-debug interface debug_dma_mapping_error() to debug drivers that fail
+to check dma mapping errors on addresses returned by dma_map_single() and
+dma_map_page() interfaces. This interface clears a flag set by
+debug_dma_map_page() to indicate that dma_mapping_error() has been called by
+the driver. When driver does unmap, debug_dma_unmap() checks the flag and if
+this flag is still set, prints warning message that includes call trace that
+leads up to the unmap. This interface can be called from dma_mapping_error()
+routines to enable dma mapping error check debugging.
+

@@ -521,13 +521,12 @@ int xfrm_init_replay(struct xfrm_state *x)
 		    replay_esn->bmp_len * sizeof(__u32) * 8)
 			return -EINVAL;
 
-	if ((x->props.flags & XFRM_STATE_ESN) && replay_esn->replay_window == 0)
-		return -EINVAL;
-
-	if ((x->props.flags & XFRM_STATE_ESN) && x->replay_esn)
-		x->repl = &xfrm_replay_esn;
-	else
-		x->repl = &xfrm_replay_bmp;
+		if (x->props.flags & XFRM_STATE_ESN) {
+			if (replay_esn->replay_window == 0)
+				return -EINVAL;
+			x->repl = &xfrm_replay_esn;
+		} else
+			x->repl = &xfrm_replay_bmp;
 	} else
 		x->repl = &xfrm_replay_legacy;
 

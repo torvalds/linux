@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2012 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -531,9 +531,9 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 		if (!if_info.dhcp_state)
-			len = sprintf(buf, "static");
+			len = sprintf(buf, "static\n");
 		else
-			len = sprintf(buf, "dhcp");
+			len = sprintf(buf, "dhcp\n");
 		break;
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
 		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.subnet_mask);
@@ -541,7 +541,7 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 		len = sprintf(buf, "%s\n",
 			     (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
-			     ? "Disabled" : "Enabled");
+			     ? "Disabled\n" : "Enabled\n");
 		break;
 	case ISCSI_NET_PARAM_VLAN_ID:
 		if (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
@@ -586,7 +586,7 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 		len = be2iscsi_get_if_param(phba, iface, param, buf);
 		break;
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
-		len = sprintf(buf, "enabled");
+		len = sprintf(buf, "enabled\n");
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
 		memset(&gateway, 0, sizeof(gateway));
@@ -690,11 +690,9 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
 {
 	int rc;
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
+	unsigned int tag;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_hba_name *resp;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
 	tag = be_cmd_get_initname(phba);
 	if (!tag) {
@@ -702,26 +700,16 @@ static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
 			    "BS_%d : Getting Initiator Name Failed\n");
 
 		return -EBUSY;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-				phba->ctrl.mcc_numtag[tag]);
+	}
 
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-
-	if (status || extd_status) {
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BS_%d : MailBox Command Failed with "
-			    "status = %d extd_status = %d\n",
-			    status, extd_status);
-
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EAGAIN;
+			    "BS_%d : Initiator Name MBX Failed\n");
+		return rc;
 	}
-	wrb = queue_get_wrb(mccq, wrb_num);
-	free_mcc_tag(&phba->ctrl, tag);
+
 	resp = embedded_payload(wrb);
 	rc = sprintf(buf, "%s\n", resp->initiator_name);
 	return rc;
@@ -731,7 +719,6 @@ static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
  * beiscsi_get_port_state - Get the Port State
  * @shost : pointer to scsi_host structure
  *
- * returns number of bytes
  */
 static void beiscsi_get_port_state(struct Scsi_Host *shost)
 {
@@ -750,13 +737,12 @@ static void beiscsi_get_port_state(struct Scsi_Host *shost)
  */
 static int beiscsi_get_port_speed(struct Scsi_Host *shost)
 {
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
+	int rc;
+	unsigned int tag;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_ntwk_link_status_resp *resp;
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct iscsi_cls_host *ihost = shost->shost_data;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
 	tag = be_cmd_get_port_speed(phba);
 	if (!tag) {
@@ -764,26 +750,14 @@ static int beiscsi_get_port_speed(struct Scsi_Host *shost)
 			    "BS_%d : Getting Port Speed Failed\n");
 
 		 return -EBUSY;
-	 } else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-				phba->ctrl.mcc_numtag[tag]);
-
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-
-	if (status || extd_status) {
+	}
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BS_%d : MailBox Command Failed with "
-			    "status = %d extd_status = %d\n",
-			    status, extd_status);
-
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EAGAIN;
+			    "BS_%d : Port Speed MBX Failed\n");
+		return rc;
 	}
-	wrb = queue_get_wrb(mccq, wrb_num);
-	free_mcc_tag(&phba->ctrl, tag);
 	resp = embedded_payload(wrb);
 
 	switch (resp->mac_speed) {
@@ -937,6 +911,14 @@ static void  beiscsi_set_params_for_offld(struct beiscsi_conn *beiscsi_conn,
 		      session->initial_r2t_en);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, imd, params,
 		      session->imm_data_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
+		      data_seq_inorder, params,
+		      session->dataseq_inorder_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
+		      pdu_seq_inorder, params,
+		      session->pdu_inorder_en);
+	AMAP_SET_BITS(struct amap_beiscsi_offload_params, max_r2t, params,
+		      session->max_r2t);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, exp_statsn, params,
 		      (conn->exp_statsn - 1));
 }
@@ -1027,12 +1009,10 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 {
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	struct be_mcc_wrb *wrb;
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
-	unsigned short status, extd_status;
 	struct be_dma_mem nonemb_cmd;
-	unsigned int tag, wrb_num;
+	unsigned int tag;
 	int ret = -ENOMEM;
 
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
@@ -1084,35 +1064,26 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 		return -EAGAIN;
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
 	}
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
+
+	ret = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BS_%d : mgmt_open_connection Failed"
-			    " status = %d extd_status = %d\n",
-			    status, extd_status);
+			    "BS_%d : mgmt_open_connection Failed");
 
-		free_mcc_tag(&phba->ctrl, tag);
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 		goto free_ep;
-	} else {
-		wrb = queue_get_wrb(mccq, wrb_num);
-		free_mcc_tag(&phba->ctrl, tag);
-
-		ptcpcnct_out = embedded_payload(wrb);
-		beiscsi_ep = ep->dd_data;
-		beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
-		beiscsi_ep->cid_vld = 1;
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : mgmt_open_connection Success\n");
 	}
+
+	ptcpcnct_out = embedded_payload(wrb);
+	beiscsi_ep = ep->dd_data;
+	beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
+	beiscsi_ep->cid_vld = 1;
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : mgmt_open_connection Success\n");
+
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return 0;
@@ -1150,8 +1121,8 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 	if (phba->state != BE_ADAPTER_UP) {
 		ret = -EBUSY;
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : The Adapter state is Not UP\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BS_%d : The Adapter Port state is Down!!!\n");
 		return ERR_PTR(ret);
 	}
 
@@ -1216,11 +1187,9 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 			    beiscsi_ep->ep_cid);
 
 		ret = -EAGAIN;
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-		free_mcc_tag(&phba->ctrl, tag);
 	}
+
+	ret = beiscsi_mccq_compl(phba, tag, NULL, NULL);
 	return ret;
 }
 
@@ -1281,12 +1250,9 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : mgmt_invalidate_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-		free_mcc_tag(&phba->ctrl, tag);
 	}
 
+	beiscsi_mccq_compl(phba, tag, NULL, NULL);
 	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
 	beiscsi_free_ep(beiscsi_ep);
 	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);

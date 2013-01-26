@@ -273,9 +273,8 @@ xen_bind_early_percpu_irq(void)
  */
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __devinit
-unbind_evtchn_callback(struct notifier_block *nfb,
-		       unsigned long action, void *hcpu)
+static int unbind_evtchn_callback(struct notifier_block *nfb,
+				  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 

@@ -96,8 +96,6 @@ struct dio24_private {
 	int data;		/* number of data points left to be taken */
 };
 
-#define devpriv ((struct dio24_private *)dev->private)
-
 static struct comedi_driver driver_dio24 = {
 	.driver_name = "ni_daq_dio24",
 	.module = THIS_MODULE,
@@ -110,6 +108,7 @@ static struct comedi_driver driver_dio24 = {
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
@@ -118,9 +117,10 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmcia_device *link;
 	int ret;
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
@@ -202,7 +202,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 {
 	struct local_info_t *local;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
 	dev_dbg(&link->dev, "dio24_cs_attach()\n");
 
@@ -242,7 +242,7 @@ static void dio24_config(struct pcmcia_device *link)
 {
 	int ret;
 
-	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
+	dev_info(&link->dev, "ni_daq_dio24: HOLA SOY YO! - config\n");
 
 	dev_dbg(&link->dev, "dio24_config\n");
 
@@ -265,7 +265,7 @@ static void dio24_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	printk(KERN_INFO "Fallo");
+	dev_info(&link->dev, "Fallo");
 	dio24_release(link);
 
 }				/* dio24_config */

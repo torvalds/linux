@@ -209,7 +209,8 @@ repeat:
 		if (!new_transaction)
 			goto alloc_transaction;
 		write_lock(&journal->j_state_lock);
-		if (!journal->j_running_transaction) {
+		if (!journal->j_running_transaction &&
+		    !journal->j_barrier_count) {
 			jbd2_get_transaction(journal, new_transaction);
 			new_transaction = NULL;
 		}
@@ -1207,17 +1208,6 @@ out:
 	return ret;
 }
 
-/*
- * jbd2_journal_release_buffer: undo a get_write_access without any buffer
- * updates, if the update decided in the end that it didn't need access.
- *
- */
-void
-jbd2_journal_release_buffer(handle_t *handle, struct buffer_head *bh)
-{
-	BUFFER_TRACE(bh, "entry");
-}
-
 /**
  * void jbd2_journal_forget() - bforget() for potentially-journaled buffers.
  * @handle: transaction handle
@@ -1261,7 +1251,7 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 		goto not_jbd;
 	}
 
-	/* keep track of wether or not this transaction modified us */
+	/* keep track of whether or not this transaction modified us */
 	was_modified = jh->b_modified;
 
 	/*
@@ -1850,7 +1840,6 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 
 	BUFFER_TRACE(bh, "entry");
 
-retry:
 	/*
 	 * It is safe to proceed here without the j_list_lock because the
 	 * buffers cannot be stolen by try_to_free_buffers as long as we are
@@ -1945,14 +1934,11 @@ retry:
 		 * for commit and try again.
 		 */
 		if (partial_page) {
-			tid_t tid = journal->j_committing_transaction->t_tid;
-
 			jbd2_journal_put_journal_head(jh);
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			write_unlock(&journal->j_state_lock);
-			jbd2_log_wait_commit(journal, tid);
-			goto retry;
+			return -EBUSY;
 		}
 		/*
 		 * OK, buffer won't be reachable after truncate. We just set
@@ -2013,21 +1999,23 @@ zap_buffer_unlocked:
  * @page:    page to flush
  * @offset:  length of page to invalidate.
  *
- * Reap page buffers containing data after offset in page.
- *
+ * Reap page buffers containing data after offset in page. Can return -EBUSY
+ * if buffers are part of the committing transaction and the page is straddling
+ * i_size. Caller then has to wait for current commit and try again.
  */
-void jbd2_journal_invalidatepage(journal_t *journal,
-		      struct page *page,
-		      unsigned long offset)
+int jbd2_journal_invalidatepage(journal_t *journal,
+				struct page *page,
+				unsigned long offset)
 {
 	struct buffer_head *head, *bh, *next;
 	unsigned int curr_off = 0;
 	int may_free = 1;
+	int ret = 0;
 
 	if (!PageLocked(page))
 		BUG();
 	if (!page_has_buffers(page))
-		return;
+		return 0;
 
 	/* We will potentially be playing with lists other than just the
 	 * data lists (especially for journaled data mode), so be
@@ -2041,9 +2029,11 @@ void jbd2_journal_invalidatepage(journal_t *journal,
 		if (offset <= curr_off) {
 			/* This block is wholly outside the truncation point */
 			lock_buffer(bh);
-			may_free &= journal_unmap_buffer(journal, bh,
-							 offset > 0);
+			ret = journal_unmap_buffer(journal, bh, offset > 0);
 			unlock_buffer(bh);
+			if (ret < 0)
+				return ret;
+			may_free &= ret;
 		}
 		curr_off = next_off;
 		bh = next;
@@ -2054,6 +2044,7 @@ void jbd2_journal_invalidatepage(journal_t *journal,
 		if (may_free && try_to_free_buffers(page))
 			J_ASSERT(!page_has_buffers(page));
 	}
+	return 0;
 }
 
 /*

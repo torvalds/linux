@@ -376,7 +376,7 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
    leaving the cpu domain and flushing caches at fault time. Note that all the
    dma_buf files share the same anon inode, hence the exporter needs to replace
    the dma_buf file stored in vma->vm_file with it's own if pte shootdown is
-   requred. This is because the kernel uses the underlying inode's address_space
+   required. This is because the kernel uses the underlying inode's address_space
    for vma tracking (and hence pte tracking at shootdown time with
    unmap_mapping_range).
 
@@ -388,7 +388,7 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
    Exporters that shoot down mappings (for any reasons) shall not do any
    synchronization at fault time with outstanding device operations.
    Synchronization is an orthogonal issue to sharing the backing storage of a
-   buffer and hence should not be handled by dma-buf itself. This is explictly
+   buffer and hence should not be handled by dma-buf itself. This is explicitly
    mentioned here because many people seem to want something like this, but if
    different exporters handle this differently, buffer sharing can fail in
    interesting ways depending upong the exporter (if userspace starts depending

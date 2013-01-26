@@ -25,7 +25,7 @@
 #define DRV_MODULE_VERSION	"1.0"
 #define DRV_MODULE_RELDATE	"June 25, 2007"
 
-static char version[] __devinitdata =
+static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun LDOM virtual network driver");
@@ -937,7 +937,7 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 	}
 }
 
-static int __devinit vnet_port_alloc_tx_bufs(struct vnet_port *port)
+static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
 {
 	struct vio_dring_state *dr;
 	unsigned long len;
@@ -1019,7 +1019,7 @@ static const struct net_device_ops vnet_ops = {
 	.ndo_start_xmit		= vnet_start_xmit,
 };
 
-static struct vnet * __devinit vnet_new(const u64 *local_mac)
+static struct vnet *vnet_new(const u64 *local_mac)
 {
 	struct net_device *dev;
 	struct vnet *vp;
@@ -1067,7 +1067,7 @@ err_out_free_dev:
 	return ERR_PTR(err);
 }
 
-static struct vnet * __devinit vnet_find_or_create(const u64 *local_mac)
+static struct vnet *vnet_find_or_create(const u64 *local_mac)
 {
 	struct vnet *iter, *vp;
 
@@ -1088,7 +1088,7 @@ static struct vnet * __devinit vnet_find_or_create(const u64 *local_mac)
 
 static const char *local_mac_prop = "local-mac-address";
 
-static struct vnet * __devinit vnet_find_parent(struct mdesc_handle *hp,
+static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
 						u64 port_node)
 {
 	const u64 *local_mac = NULL;
@@ -1125,15 +1125,14 @@ static struct vio_driver_ops vnet_vio_ops = {
 	.handshake_complete	= vnet_handshake_complete,
 };
 
-static void __devinit print_version(void)
+static void print_version(void)
 {
 	printk_once(KERN_INFO "%s", version);
 }
 
 const char *remote_macaddr_prop = "remote-mac-address";
 
-static int __devinit vnet_port_probe(struct vio_dev *vdev,
-				     const struct vio_device_id *id)
+static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	struct mdesc_handle *hp;
 	struct vnet_port *port;

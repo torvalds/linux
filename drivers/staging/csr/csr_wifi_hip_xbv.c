@@ -758,7 +758,7 @@ static u32 write_fwdl_to_ptdl(void *buf, const u32 offset, fwreadfn_t readfn,
     while (left)
     {
         /* Calculate amount to be transferred */
-        sec_data_len = CSRMIN(left, PTDL_MAX_SIZE - PTDL_HDR_SIZE);
+        sec_data_len = min_t(u32, left, PTDL_MAX_SIZE - PTDL_HDR_SIZE);
         sec_len = sec_data_len + PTDL_HDR_SIZE;
 
         /* Write PTDL header + entire PTDL size */

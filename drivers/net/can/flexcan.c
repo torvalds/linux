@@ -922,7 +922,7 @@ static const struct net_device_ops flexcan_netdev_ops = {
 	.ndo_start_xmit	= flexcan_start_xmit,
 };
 
-static int __devinit register_flexcandev(struct net_device *dev)
+static int register_flexcandev(struct net_device *dev)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->base;
@@ -968,7 +968,7 @@ static int __devinit register_flexcandev(struct net_device *dev)
 	return err;
 }
 
-static void __devexit unregister_flexcandev(struct net_device *dev)
+static void unregister_flexcandev(struct net_device *dev)
 {
 	unregister_candev(dev);
 }
@@ -979,13 +979,15 @@ static const struct of_device_id flexcan_of_match[] = {
 	{ .compatible = "fsl,imx6q-flexcan", .data = &fsl_imx6q_devtype_data, },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, flexcan_of_match);
 
 static const struct platform_device_id flexcan_id_table[] = {
 	{ .name = "flexcan", .driver_data = (kernel_ulong_t)&fsl_p1010_devtype_data, },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(platform, flexcan_id_table);
 
-static int __devinit flexcan_probe(struct platform_device *pdev)
+static int flexcan_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	const struct flexcan_devtype_data *devtype_data;
@@ -1107,7 +1109,7 @@ static int __devinit flexcan_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit flexcan_remove(struct platform_device *pdev)
+static int flexcan_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct flexcan_priv *priv = netdev_priv(dev);
@@ -1168,7 +1170,7 @@ static struct platform_driver flexcan_driver = {
 		.of_match_table = flexcan_of_match,
 	},
 	.probe = flexcan_probe,
-	.remove = __devexit_p(flexcan_remove),
+	.remove = flexcan_remove,
 	.suspend = flexcan_suspend,
 	.resume = flexcan_resume,
 	.id_table = flexcan_id_table,

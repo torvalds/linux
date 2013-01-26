@@ -93,4 +93,6 @@ extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
 		xfs_agnumber_t, xfs_btnum_t);
 extern int xfs_allocbt_maxrecs(struct xfs_mount *, int, int);
 
+extern const struct xfs_buf_ops xfs_allocbt_buf_ops;
+
 #endif	/* __XFS_ALLOC_BTREE_H__ */

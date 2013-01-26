@@ -6,8 +6,8 @@
  *  Based on Sharp's 2.4 Backlight Driver
  *
  *  Copyright (c) 2008 Marvell International Ltd.
- *  	Converted to SPI device based LCD/Backlight device driver
- *  	by Eric Miao <eric.miao@marvell.com>
+ *	Converted to SPI device based LCD/Backlight device driver
+ *	by Eric Miao <eric.miao@marvell.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -192,7 +192,7 @@ static void lcdtg_set_phadadj(struct corgi_lcd *lcd, int mode)
 {
 	int adj;
 
-	switch(mode) {
+	switch (mode) {
 	case CORGI_LCD_MODE_VGA:
 		/* Setting for VGA */
 		adj = sharpsl_param.phadadj;
@@ -409,10 +409,10 @@ static int corgi_bl_set_intensity(struct corgi_lcd *lcd, int intensity)
 	cont = !!(intensity & 0x20) ^ lcd->gpio_backlight_cont_inverted;
 
 	if (gpio_is_valid(lcd->gpio_backlight_cont))
-		gpio_set_value(lcd->gpio_backlight_cont, cont);
+		gpio_set_value_cansleep(lcd->gpio_backlight_cont, cont);
 
 	if (gpio_is_valid(lcd->gpio_backlight_on))
-		gpio_set_value(lcd->gpio_backlight_on, intensity);
+		gpio_set_value_cansleep(lcd->gpio_backlight_on, intensity);
 
 	if (lcd->kick_battery)
 		lcd->kick_battery();
@@ -495,8 +495,9 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_on,
 					"BL_ON");
 		if (err) {
-			dev_err(&spi->dev, "failed to request GPIO%d for "
-				"backlight_on\n", pdata->gpio_backlight_on);
+			dev_err(&spi->dev,
+				"failed to request GPIO%d for backlight_on\n",
+				pdata->gpio_backlight_on);
 			return err;
 		}
 
@@ -508,8 +509,9 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 		err = devm_gpio_request(&spi->dev, pdata->gpio_backlight_cont,
 					"BL_CONT");
 		if (err) {
-			dev_err(&spi->dev, "failed to request GPIO%d for "
-				"backlight_cont\n", pdata->gpio_backlight_cont);
+			dev_err(&spi->dev,
+				"failed to request GPIO%d for backlight_cont\n",
+				pdata->gpio_backlight_cont);
 			return err;
 		}
 
@@ -529,7 +531,7 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 	return 0;
 }
 
-static int __devinit corgi_lcd_probe(struct spi_device *spi)
+static int corgi_lcd_probe(struct spi_device *spi)
 {
 	struct backlight_properties props;
 	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;
@@ -590,7 +592,7 @@ err_unregister_lcd:
 	return ret;
 }
 
-static int __devexit corgi_lcd_remove(struct spi_device *spi)
+static int corgi_lcd_remove(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
 
@@ -611,7 +613,7 @@ static struct spi_driver corgi_lcd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= corgi_lcd_probe,
-	.remove		= __devexit_p(corgi_lcd_remove),
+	.remove		= corgi_lcd_remove,
 	.suspend	= corgi_lcd_suspend,
 	.resume		= corgi_lcd_resume,
 };

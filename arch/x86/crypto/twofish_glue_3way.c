@@ -62,15 +62,15 @@ void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src)
 }
 EXPORT_SYMBOL_GPL(twofish_dec_blk_cbc_3way);
 
-void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
+void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	be128 ctrblk;
 
 	if (dst != src)
 		*dst = *src;
 
-	u128_to_be128(&ctrblk, iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblk, iv);
+	le128_inc(iv);
 
 	twofish_enc_blk(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
 	u128_xor(dst, dst, (u128 *)&ctrblk);
@@ -78,7 +78,7 @@ void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
 EXPORT_SYMBOL_GPL(twofish_enc_blk_ctr);
 
 void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
-				     u128 *iv)
+			      le128 *iv)
 {
 	be128 ctrblks[3];
 
@@ -88,12 +88,12 @@ void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
 		dst[2] = src[2];
 	}
 
-	u128_to_be128(&ctrblks[0], iv);
-	u128_inc(iv);
-	u128_to_be128(&ctrblks[1], iv);
-	u128_inc(iv);
-	u128_to_be128(&ctrblks[2], iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblks[0], iv);
+	le128_inc(iv);
+	le128_to_be128(&ctrblks[1], iv);
+	le128_inc(iv);
+	le128_to_be128(&ctrblks[2], iv);
+	le128_inc(iv);
 
 	twofish_enc_blk_xor_3way(ctx, (u8 *)dst, (u8 *)ctrblks);
 }

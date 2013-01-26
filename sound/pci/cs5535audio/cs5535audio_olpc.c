@@ -114,7 +114,7 @@ static int olpc_mic_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 	return 1;
 }
 
-static struct snd_kcontrol_new olpc_cs5535audio_ctls[] __devinitdata = {
+static struct snd_kcontrol_new olpc_cs5535audio_ctls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DC Mode Enable",
@@ -133,8 +133,8 @@ static struct snd_kcontrol_new olpc_cs5535audio_ctls[] __devinitdata = {
 },
 };
 
-void __devinit olpc_prequirks(struct snd_card *card,
-		struct snd_ac97_template *ac97)
+void olpc_prequirks(struct snd_card *card,
+		    struct snd_ac97_template *ac97)
 {
 	if (!machine_is_olpc())
 		return;
@@ -144,7 +144,7 @@ void __devinit olpc_prequirks(struct snd_card *card,
 		ac97->scaps |= AC97_SCAP_INV_EAPD;
 }
 
-int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
+int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 {
 	struct snd_ctl_elem_id elem;
 	int i, err;
@@ -185,7 +185,7 @@ int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 	return 0;
 }
 
-void __devexit olpc_quirks_cleanup(void)
+void olpc_quirks_cleanup(void)
 {
 	gpio_free(OLPC_GPIO_MIC_AC);
 }

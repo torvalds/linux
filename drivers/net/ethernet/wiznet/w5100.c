@@ -580,8 +580,6 @@ static int w5100_open(struct net_device *ndev)
 	struct w5100_priv *priv = netdev_priv(ndev);
 
 	netif_info(priv, ifup, ndev, "enabling\n");
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		return -EINVAL;
 	w5100_hw_start(priv);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
@@ -623,7 +621,7 @@ static const struct net_device_ops w5100_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit w5100_hw_probe(struct platform_device *pdev)
+static int w5100_hw_probe(struct platform_device *pdev)
 {
 	struct wiznet_platform_data *data = pdev->dev.platform_data;
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -698,7 +696,7 @@ static int __devinit w5100_hw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit w5100_probe(struct platform_device *pdev)
+static int w5100_probe(struct platform_device *pdev)
 {
 	struct w5100_priv *priv;
 	struct net_device *ndev;
@@ -741,7 +739,7 @@ err_register:
 	return err;
 }
 
-static int __devexit w5100_remove(struct platform_device *pdev)
+static int w5100_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct w5100_priv *priv = netdev_priv(ndev);
@@ -801,7 +799,7 @@ static struct platform_driver w5100_driver = {
 		.pm	= &w5100_pm_ops,
 	},
 	.probe		= w5100_probe,
-	.remove		= __devexit_p(w5100_remove),
+	.remove		= w5100_remove,
 };
 
 module_platform_driver(w5100_driver);

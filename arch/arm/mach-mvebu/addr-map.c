@@ -78,7 +78,7 @@ armada_cfg_base(const struct orion_addr_map_cfg *cfg, int win)
 	if (win < 8)
 		offset = (win << 4);
 	else
-		offset = ARMADA_WINDOW_8_PLUS_OFFSET + (win << 3);
+		offset = ARMADA_WINDOW_8_PLUS_OFFSET + ((win - 8) << 3);
 
 	return cfg->bridge_virt_base + offset;
 }
@@ -107,6 +107,9 @@ static int __init armada_setup_cpu_mbus(void)
 		ARMADA_SDRAM_ADDR_DECODING_OFFSET;
 
 	addr_map_cfg.bridge_virt_base = mbus_unit_addr_decoding_base;
+
+	if (of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric"))
+		addr_map_cfg.hw_io_coherency = 1;
 
 	/*
 	 * Disable, clear and configure windows.

@@ -23,6 +23,11 @@
 
 #include "ath9k.h"
 
+struct ath9k_eeprom_ctx {
+	struct completion complete;
+	struct ath_hw *ah;
+};
+
 static char *dev_info = "ath9k";
 
 MODULE_AUTHOR("Atheros Communications");
@@ -435,7 +440,7 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	for (i = 0; i < WME_NUM_AC; i++) {
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		sc->tx.txq_map[i] = ath_txq_setup(sc, ATH9K_TX_QUEUE_DATA, i);
 		sc->tx.txq_map[i]->mac80211_qnum = i;
 		sc->tx.txq_max_pending[i] = ATH_MAX_QDEPTH;
@@ -506,6 +511,51 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 }
 
+static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,
+				    void *ctx)
+{
+	struct ath9k_eeprom_ctx *ec = ctx;
+
+	if (eeprom_blob)
+		ec->ah->eeprom_blob = eeprom_blob;
+
+	complete(&ec->complete);
+}
+
+static int ath9k_eeprom_request(struct ath_softc *sc, const char *name)
+{
+	struct ath9k_eeprom_ctx ec;
+	struct ath_hw *ah = ah = sc->sc_ah;
+	int err;
+
+	/* try to load the EEPROM content asynchronously */
+	init_completion(&ec.complete);
+	ec.ah = sc->sc_ah;
+
+	err = request_firmware_nowait(THIS_MODULE, 1, name, sc->dev, GFP_KERNEL,
+				      &ec, ath9k_eeprom_request_cb);
+	if (err < 0) {
+		ath_err(ath9k_hw_common(ah),
+			"EEPROM request failed\n");
+		return err;
+	}
+
+	wait_for_completion(&ec.complete);
+
+	if (!ah->eeprom_blob) {
+		ath_err(ath9k_hw_common(ah),
+			"Unable to load EEPROM file %s\n", name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ath9k_eeprom_release(struct ath_softc *sc)
+{
+	release_firmware(sc->sc_ah->eeprom_blob);
+}
+
 static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 			    const struct ath_bus_ops *bus_ops)
 {
@@ -563,10 +613,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
-#ifdef CONFIG_ATH9K_DEBUGFS
-	spin_lock_init(&sc->nodes_lock);
-	INIT_LIST_HEAD(&sc->nodes);
-#endif
 #ifdef CONFIG_ATH9K_MAC_DEBUG
 	spin_lock_init(&sc->debug.samp_lock);
 #endif
@@ -586,6 +632,12 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	 */
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
+
+	if (pdata && pdata->eeprom_name) {
+		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
+		if (ret)
+			goto err_eeprom;
+	}
 
 	/* Initializes the hardware for all supported chipsets */
 	ret = ath9k_hw_init(ah);
@@ -623,7 +675,8 @@ err_btcoex:
 err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
-
+	ath9k_eeprom_release(sc);
+err_eeprom:
 	kfree(ah);
 	sc->sc_ah = NULL;
 
@@ -687,6 +740,7 @@ static const struct ieee80211_iface_combination if_comb = {
 	.n_limits = ARRAY_SIZE(if_limits),
 	.max_interfaces = 2048,
 	.num_different_channels = 1,
+	.beacon_int_infra_match = true,
 };
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
@@ -885,6 +939,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 	if (sc->dfs_detector != NULL)
 		sc->dfs_detector->exit(sc->dfs_detector);
 
+	ath9k_eeprom_release(sc);
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
 }

@@ -226,7 +226,7 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
+static int wm8400_regulator_probe(struct platform_device *pdev)
 {
 	struct wm8400 *wm8400 = container_of(pdev, struct wm8400, regulators[pdev->id]);
 	struct regulator_config config = { };
@@ -246,7 +246,7 @@ static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit wm8400_regulator_remove(struct platform_device *pdev)
+static int wm8400_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
@@ -261,7 +261,7 @@ static struct platform_driver wm8400_regulator_driver = {
 		.name = "wm8400-regulator",
 	},
 	.probe = wm8400_regulator_probe,
-	.remove = __devexit_p(wm8400_regulator_remove),
+	.remove = wm8400_regulator_remove,
 };
 
 /**

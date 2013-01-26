@@ -117,8 +117,8 @@ static int pm860x_backlight_set(struct backlight_device *bl, int brightness)
 	data->current_brightness = value;
 	return 0;
 out:
-	dev_dbg(chip->dev, "set brightness %d failure with return "
-		"value:%d\n", value, ret);
+	dev_dbg(chip->dev, "set brightness %d failure with return value: %d\n",
+		value, ret);
 	return ret;
 }
 
@@ -208,22 +208,19 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "duty cycle");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for duty cycle\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_duty_cycle = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "always on");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resorce for always on\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_always_on = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "current");
 	if (!res) {
 		dev_err(&pdev->dev, "No REG resource for current\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 	data->reg_current = res->start;
 
@@ -231,8 +228,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	sprintf(name, "backlight-%d", pdev->id);
 	data->port = pdev->id;
 	data->chip = chip;
-	data->i2c = (chip->id == CHIP_PM8606) ? chip->client	\
-			: chip->companion;
+	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->current_brightness = MAX_BRIGHTNESS;
 	if (pm860x_backlight_dt_init(pdev, data, name)) {
 		if (pdata) {
@@ -263,8 +259,6 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	return 0;
 out_brt:
 	backlight_device_unregister(bl);
-out:
-	devm_kfree(&pdev->dev, data);
 	return ret;
 }
 

@@ -121,10 +121,17 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
-extern int fscache_cancel_op(struct fscache_operation *);
+extern int fscache_cancel_op(struct fscache_operation *,
+			     void (*)(struct fscache_operation *));
+extern void fscache_cancel_all_ops(struct fscache_object *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
 extern void fscache_operation_gc(struct work_struct *);
+
+/*
+ * page.c
+ */
+extern void fscache_invalidate_writes(struct fscache_cookie *);
 
 /*
  * proc.c
@@ -194,6 +201,7 @@ extern atomic_t fscache_n_store_vmscan_not_storing;
 extern atomic_t fscache_n_store_vmscan_gone;
 extern atomic_t fscache_n_store_vmscan_busy;
 extern atomic_t fscache_n_store_vmscan_cancelled;
+extern atomic_t fscache_n_store_vmscan_wait;
 
 extern atomic_t fscache_n_marks;
 extern atomic_t fscache_n_uncaches;
@@ -204,6 +212,9 @@ extern atomic_t fscache_n_acquires_no_cache;
 extern atomic_t fscache_n_acquires_ok;
 extern atomic_t fscache_n_acquires_nobufs;
 extern atomic_t fscache_n_acquires_oom;
+
+extern atomic_t fscache_n_invalidates;
+extern atomic_t fscache_n_invalidates_run;
 
 extern atomic_t fscache_n_updates;
 extern atomic_t fscache_n_updates_null;
@@ -237,6 +248,7 @@ extern atomic_t fscache_n_cop_alloc_object;
 extern atomic_t fscache_n_cop_lookup_object;
 extern atomic_t fscache_n_cop_lookup_complete;
 extern atomic_t fscache_n_cop_grab_object;
+extern atomic_t fscache_n_cop_invalidate_object;
 extern atomic_t fscache_n_cop_update_object;
 extern atomic_t fscache_n_cop_drop_object;
 extern atomic_t fscache_n_cop_put_object;
@@ -278,6 +290,7 @@ extern const struct file_operations fscache_stats_fops;
 static inline void fscache_raise_event(struct fscache_object *object,
 				       unsigned event)
 {
+	BUG_ON(event >= NR_FSCACHE_OBJECT_EVENTS);
 	if (!test_and_set_bit(event, &object->events) &&
 	    test_bit(event, &object->event_mask))
 		fscache_enqueue_object(object);

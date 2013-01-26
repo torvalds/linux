@@ -352,7 +352,7 @@ static struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
 
-static struct pci_device_id rtl92de_pci_ids[] __devinitdata = {
+static struct pci_device_id rtl92de_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8193, rtl92de_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x002B, rtl92de_hal_cfg)},
 	{},
@@ -378,14 +378,7 @@ MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
-static const struct dev_pm_ops rtlwifi_pm_ops = {
-	.suspend = rtl_pci_suspend,
-	.resume = rtl_pci_resume,
-	.freeze = rtl_pci_suspend,
-	.thaw = rtl_pci_resume,
-	.poweroff = rtl_pci_suspend,
-	.restore = rtl_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
 
 static struct pci_driver rtl92de_driver = {
 	.name = KBUILD_MODNAME,

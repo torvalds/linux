@@ -49,10 +49,6 @@
 #include <linux/usb/serial.h>
 #include "kl5kusb105.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.4"
 #define DRIVER_AUTHOR "Utz-Uwe Haus <haus@uuhaus.de>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "KLSI KL5KUSB105 chipset USB->Serial Converter driver"
 

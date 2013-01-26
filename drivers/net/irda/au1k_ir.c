@@ -760,7 +760,7 @@ static const struct net_device_ops au1k_irda_netdev_ops = {
 	.ndo_do_ioctl		= au1k_irda_ioctl,
 };
 
-static int __devinit au1k_irda_net_init(struct net_device *dev)
+static int au1k_irda_net_init(struct net_device *dev)
 {
 	struct au1k_private *aup = netdev_priv(dev);
 	struct db_dest *pDB, *pDBfree;
@@ -849,7 +849,7 @@ out1:
 	return retval;
 }
 
-static int __devinit au1k_irda_probe(struct platform_device *pdev)
+static int au1k_irda_probe(struct platform_device *pdev)
 {
 	struct au1k_private *aup;
 	struct net_device *dev;
@@ -921,7 +921,7 @@ out:
 	return err;
 }
 
-static int __devexit au1k_irda_remove(struct platform_device *pdev)
+static int au1k_irda_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1k_private *aup = netdev_priv(dev);
@@ -949,7 +949,7 @@ static struct platform_driver au1k_irda_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1k_irda_probe,
-	.remove		= __devexit_p(au1k_irda_remove),
+	.remove		= au1k_irda_remove,
 };
 
 static int __init au1k_irda_load(void)

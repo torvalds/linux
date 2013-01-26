@@ -39,7 +39,8 @@ extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
 extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
 
-extern int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested);
+#define GFS2_AF_ORLOV 1
+extern int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested, u32 flags);
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
 extern int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,

@@ -64,7 +64,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	int	ishost = !net->ipv6.devconf_all->forwarding;
 	int	err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 	if (ipv6_addr_is_multicast(addr))
 		return -EINVAL;
@@ -84,7 +84,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
 		if (rt) {
 			dev = rt->dst.dev;
-			dst_release(&rt->dst);
+			ip6_rt_put(rt);
 		} else if (ishost) {
 			err = -EADDRNOTAVAIL;
 			goto error;
@@ -188,6 +188,9 @@ void ipv6_sock_ac_close(struct sock *sk)
 	struct ipv6_ac_socklist *pac;
 	struct net *net = sock_net(sk);
 	int	prev_index;
+
+	if (!np->ipv6_ac_list)
+		return;
 
 	write_lock_bh(&ipv6_sk_ac_lock);
 	pac = np->ipv6_ac_list;

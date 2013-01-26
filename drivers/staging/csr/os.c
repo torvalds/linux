@@ -412,9 +412,8 @@ dump(void *mem, u16 len)
         return;
     }
     for (i = 0; i < len; i++) {
-        if (col == 0) {
+        if (col == 0)
             printk("0x%02X: ", i);
-        }
 
         printk(" %02X", pdata[i]);
 
@@ -423,9 +422,8 @@ dump(void *mem, u16 len)
             col = 0;
         }
     }
-    if (col) {
+    if (col)
         printk("\n");
-    }
 } /* dump() */
 
 
@@ -438,9 +436,8 @@ dump16(void *mem, u16 len)
     printk("timestamp %s \n", print_time());
 #endif /* ANDROID_TIMESTAMP */
     for (i = 0; i < len; i+=2) {
-        if (col == 0) {
+        if (col == 0)
             printk("0x%02X: ", i);
-        }
 
         printk(" %04X", *p++);
 
@@ -449,9 +446,8 @@ dump16(void *mem, u16 len)
             col = 0;
         }
     }
-    if (col) {
+    if (col)
         printk("\n");
-    }
 }
 
 
@@ -459,7 +455,7 @@ dump16(void *mem, u16 len)
 void
 dump_str(void *mem, u16 len)
 {
-    int i, col = 0;
+    int i;
     unsigned char *pdata = (unsigned char *)mem;
 #ifdef ANDROID_TIMESTAMP
     printk("timestamp %s \n", print_time());
@@ -467,9 +463,7 @@ dump_str(void *mem, u16 len)
     for (i = 0; i < len; i++) {
         printk("%c", pdata[i]);
     }
-    if (col) {
-        printk("\n");
-    }
+	printk("\n");
 
 } /* dump_str() */
 #endif /* CSR_ONLY_NOTES */

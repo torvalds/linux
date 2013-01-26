@@ -326,8 +326,6 @@ static const unsigned int muxonechan[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0
 	0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
 };
 
-#define devpriv ((struct pcl818_private *)dev->private)
-
 /*
 ==============================================================================
 */
@@ -406,6 +404,7 @@ static int pcl818_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl818_private *devpriv = dev->private;
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -419,6 +418,7 @@ static int pcl818_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl818_private *devpriv = dev->private;
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -478,6 +478,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low;
 	int timeout = 50;	/* wait max 50us */
@@ -537,6 +538,7 @@ conv_finish:
 static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
@@ -616,6 +618,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long tmp;
 	unsigned int top1, top2, i, bufptr;
@@ -721,6 +724,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, lo;
 
@@ -795,6 +799,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 static irqreturn_t interrupt_pcl818(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl818_private *devpriv = dev->private;
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
@@ -861,6 +866,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
+	struct pcl818_private *devpriv = dev->private;
 	unsigned int flags;
 	unsigned int bytes;
 
@@ -902,6 +908,7 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 static void pcl818_ai_mode13dma_rtc(int mode, struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
+	struct pcl818_private *devpriv = dev->private;
 	unsigned int flags;
 	short *pole;
 
@@ -943,6 +950,7 @@ static void pcl818_ai_mode13dma_rtc(int mode, struct comedi_device *dev,
 static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
@@ -1063,6 +1071,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 static int pcl818_ao_mode13(int mode, struct comedi_device *dev,
 			    struct comedi_subdevice *s, comedi_trig * it)
 {
+	struct pcl818_private *devpriv = dev->private;
 	int divisor1 = 0, divisor2 = 0;
 
 	if (!dev->irq) {
@@ -1222,6 +1231,7 @@ static void setup_channel_list(struct comedi_device *dev,
 			       unsigned int *chanlist, unsigned int n_chan,
 			       unsigned int seglen)
 {
+	struct pcl818_private *devpriv = dev->private;
 	int i;
 
 	devpriv->act_chanlist_len = seglen;
@@ -1259,6 +1269,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	const struct pcl818_board *board = comedi_board(dev);
+	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
 
@@ -1283,45 +1294,23 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 board->ns_min);
+	else	/* TRIG_EXT */
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < board->ns_min) {
-			cmd->convert_arg = board->ns_min;
-			err++;
-		}
-	} else {		/* TRIG_EXT */
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1358,6 +1347,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 */
 static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
@@ -1397,6 +1387,8 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int pcl818_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pcl818_private *devpriv = dev->private;
+
 	if (devpriv->irq_blocked > 0) {
 		dev_dbg(dev->class_dev, "pcl818_ai_cancel()\n");
 		devpriv->irq_was_now_closed = 1;
@@ -1482,6 +1474,7 @@ static int pcl818_check(unsigned long iobase)
 static void pcl818_reset(struct comedi_device *dev)
 {
 	const struct pcl818_board *board = comedi_board(dev);
+	struct pcl818_private *devpriv = dev->private;
 
 	if (devpriv->usefifo) {	/*  FIFO shutdown */
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
@@ -1552,6 +1545,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 static void rtc_dropped_irq(unsigned long data)
 {
 	struct comedi_device *dev = (void *)data;
+	struct pcl818_private *devpriv = dev->private;
 	unsigned long flags, tmp;
 
 	switch (devpriv->int818_mode) {
@@ -1601,6 +1595,7 @@ static int rtc_setfreq_irq(int freq)
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl818_board *board = comedi_board(dev);
+	struct pcl818_private *devpriv;
 	int ret;
 	unsigned long iobase;
 	unsigned int irq;
@@ -1608,9 +1603,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
-	ret = alloc_private(dev, sizeof(struct pcl818_private));
-	if (ret < 0)
-		return ret;	/* Can't alloc mem */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* claim our I/O space */
 	iobase = it->options[0];
@@ -1892,7 +1888,9 @@ no_dma:
 
 static void pcl818_detach(struct comedi_device *dev)
 {
-	if (dev->private) {
+	struct pcl818_private *devpriv = dev->private;
+
+	if (devpriv) {
 		pcl818_ai_cancel(dev, devpriv->sub_ai);
 		pcl818_reset(dev);
 		if (devpriv->dma)

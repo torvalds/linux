@@ -39,13 +39,31 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x2013 /* MX23_PAD_SSP1_DETECT__GPIO_2_1 */
 						0x0113 /* MX23_PAD_GPMI_ALE__GPIO_0_17 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				led_pin_gpio2_1: led_gpio2_1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2013 /* MX23_PAD_SSP1_DETECT__GPIO_2_1 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
+
+			ssp1: ssp@80034000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx23-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
 			};
 		};
 
@@ -91,11 +109,12 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio2_1>;
 
 		user {
 			label = "green";
-			gpios = <&gpio2 1 0>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio2 1 1>;
 		};
 	};
 };

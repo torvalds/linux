@@ -458,3 +458,22 @@ int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq)
 	return irq_create_mapping(data->domain, irq);
 }
 EXPORT_SYMBOL_GPL(regmap_irq_get_virq);
+
+/**
+ * regmap_irq_get_domain(): Retrieve the irq_domain for the chip
+ *
+ * Useful for drivers to request their own IRQs and for integration
+ * with subsystems.  For ease of integration NULL is accepted as a
+ * domain, allowing devices to just call this even if no domain is
+ * allocated.
+ *
+ * @data: regmap_irq controller to operate on.
+ */
+struct irq_domain *regmap_irq_get_domain(struct regmap_irq_chip_data *data)
+{
+	if (data)
+		return data->domain;
+	else
+		return NULL;
+}
+EXPORT_SYMBOL_GPL(regmap_irq_get_domain);

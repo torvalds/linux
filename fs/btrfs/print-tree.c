@@ -297,6 +297,9 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		case BTRFS_DEV_STATS_KEY:
 			printk(KERN_INFO "\t\tdevice stats\n");
 			break;
+		case BTRFS_DEV_REPLACE_KEY:
+			printk(KERN_INFO "\t\tdev replace\n");
+			break;
 		};
 	}
 }

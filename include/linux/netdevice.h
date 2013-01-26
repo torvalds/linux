@@ -60,6 +60,9 @@ struct wireless_dev;
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
 
+extern void netdev_set_default_ethtool_ops(struct net_device *dev,
+					   const struct ethtool_ops *ops);
+
 /* hardware address assignment types */
 #define NET_ADDR_PERM		0	/* address is permanent (default) */
 #define NET_ADDR_RANDOM		1	/* address is generated randomly */
@@ -369,7 +372,7 @@ typedef enum gro_result gro_result_t;
  *
  * If the rx_handler consider the skb should be ignored, it should return
  * RX_HANDLER_EXACT. The skb will only be delivered to protocol handlers that
- * are registred on exact device (ptype->dev == skb->dev).
+ * are registered on exact device (ptype->dev == skb->dev).
  *
  * If the rx_handler didn't changed skb->dev, but want the skb to be normally
  * delivered, it should return RX_HANDLER_PASS.
@@ -887,6 +890,10 @@ struct netdev_fcoe_hbainfo {
  *		       struct net_device *dev, int idx)
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
+ *
+ * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh)
+ * int (*ndo_bridge_getlink)(struct sk_buff *skb, u32 pid, u32 seq,
+ *			     struct net_device *dev)
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -998,6 +1005,12 @@ struct net_device_ops {
 						struct netlink_callback *cb,
 						struct net_device *dev,
 						int idx);
+
+	int			(*ndo_bridge_setlink)(struct net_device *dev,
+						      struct nlmsghdr *nlh);
+	int			(*ndo_bridge_getlink)(struct sk_buff *skb,
+						      u32 pid, u32 seq,
+						      struct net_device *dev);
 };
 
 /*
@@ -1053,6 +1066,12 @@ struct net_device {
 	netdev_features_t	wanted_features;
 	/* mask of features inheritable by VLAN devices */
 	netdev_features_t	vlan_features;
+	/* mask of features inherited by encapsulating devices
+	 * This field indicates what encapsulation offloads
+	 * the hardware is capable of doing, and drivers will
+	 * need to set them appropriately.
+	 */
+	netdev_features_t	hw_enc_features;
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
@@ -1488,6 +1507,9 @@ struct napi_gro_cb {
 
 	/* Used in ipv6_gro_receive() */
 	int	proto;
+
+	/* used in skb_gro_receive() slow path */
+	struct sk_buff *last;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -1499,16 +1521,25 @@ struct packet_type {
 					 struct net_device *,
 					 struct packet_type *,
 					 struct net_device *);
+	bool			(*id_match)(struct packet_type *ptype,
+					    struct sock *sk);
+	void			*af_packet_priv;
+	struct list_head	list;
+};
+
+struct offload_callbacks {
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						netdev_features_t features);
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb);
-	bool			(*id_match)(struct packet_type *ptype,
-					    struct sock *sk);
-	void			*af_packet_priv;
-	struct list_head	list;
+};
+
+struct packet_offload {
+	__be16			 type;	/* This is really htons(ether_type). */
+	struct offload_callbacks callbacks;
+	struct list_head	 list;
 };
 
 #include <linux/notifier.h>
@@ -1547,6 +1578,8 @@ extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
+
+extern seqcount_t	devnet_rename_seq;	/* Device rename seq */
 
 
 #define for_each_netdev(net, d)		\
@@ -1605,6 +1638,9 @@ extern struct net_device *__dev_getfirstbyhwtype(struct net *net, unsigned short
 extern void		dev_add_pack(struct packet_type *pt);
 extern void		dev_remove_pack(struct packet_type *pt);
 extern void		__dev_remove_pack(struct packet_type *pt);
+extern void		dev_add_offload(struct packet_offload *po);
+extern void		dev_remove_offload(struct packet_offload *po);
+extern void		__dev_remove_offload(struct packet_offload *po);
 
 extern struct net_device	*dev_get_by_flags_rcu(struct net *net, unsigned short flags,
 						      unsigned short mask);
@@ -2129,16 +2165,10 @@ extern void dev_kfree_skb_any(struct sk_buff *skb);
 extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 extern int		netif_receive_skb(struct sk_buff *skb);
-extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
-					struct sk_buff *skb);
-extern gro_result_t	napi_skb_finish(gro_result_t ret, struct sk_buff *skb);
 extern gro_result_t	napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
 extern void		napi_gro_flush(struct napi_struct *napi, bool flush_old);
 extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
-extern gro_result_t	napi_frags_finish(struct napi_struct *napi,
-					  struct sk_buff *skb,
-					  gro_result_t ret);
 extern gro_result_t	napi_gro_frags(struct napi_struct *napi);
 
 static inline void napi_free_frags(struct napi_struct *napi)

@@ -47,6 +47,7 @@ typedef struct xfs_param {
 	xfs_sysctl_val_t rotorstep;	/* inode32 AG rotoring control knob */
 	xfs_sysctl_val_t inherit_nodfrg;/* Inherit the "nodefrag" inode flag. */
 	xfs_sysctl_val_t fstrm_timer;	/* Filestream dir-AG assoc'n timeout. */
+	xfs_sysctl_val_t eofb_timer;	/* Interval between eofb scan wakeups */
 } xfs_param_t;
 
 /*

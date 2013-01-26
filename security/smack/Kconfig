@@ -1,6 +1,10 @@
 config SECURITY_SMACK
 	bool "Simplified Mandatory Access Control Kernel Support"
-	depends on NETLABEL && SECURITY_NETWORK
+	depends on NET
+	depends on INET
+	depends on SECURITY
+	select NETLABEL
+	select SECURITY_NETWORK
 	default n
 	help
 	  This selects the Simplified Mandatory Access Control Kernel.

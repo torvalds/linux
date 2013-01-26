@@ -954,7 +954,7 @@ static struct net_device_stats *s6gmac_stats(struct net_device *dev)
 	return st;
 }
 
-static int __devinit s6gmac_probe(struct platform_device *pdev)
+static int s6gmac_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct s6gmac *pd;
@@ -1030,7 +1030,7 @@ errirq:
 	return res;
 }
 
-static int __devexit s6gmac_remove(struct platform_device *pdev)
+static int s6gmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	if (dev) {
@@ -1046,7 +1046,7 @@ static int __devexit s6gmac_remove(struct platform_device *pdev)
 
 static struct platform_driver s6gmac_driver = {
 	.probe = s6gmac_probe,
-	.remove = __devexit_p(s6gmac_remove),
+	.remove = s6gmac_remove,
 	.driver = {
 		.name = "s6gmac",
 		.owner = THIS_MODULE,

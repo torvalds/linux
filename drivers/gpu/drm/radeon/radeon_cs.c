@@ -43,6 +43,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		return 0;
 	}
 	chunk = &p->chunks[p->chunk_relocs_idx];
+	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
 	p->relocs_ptr = kcalloc(p->nrelocs, sizeof(void *), GFP_KERNEL);
@@ -110,6 +111,18 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 				p->ring = CAYMAN_RING_TYPE_CP2_INDEX;
 		} else
 			p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		break;
+	case RADEON_CS_RING_DMA:
+		if (p->rdev->family >= CHIP_CAYMAN) {
+			if (p->priority > 0)
+				p->ring = R600_RING_TYPE_DMA_INDEX;
+			else
+				p->ring = CAYMAN_RING_TYPE_DMA1_INDEX;
+		} else if (p->rdev->family >= CHIP_R600) {
+			p->ring = R600_RING_TYPE_DMA_INDEX;
+		} else {
+			return -EINVAL;
+		}
 		break;
 	}
 	return 0;
@@ -266,13 +279,13 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				  p->chunks[p->chunk_ib_idx].length_dw);
 			return -EINVAL;
 		}
-		if ((p->rdev->flags & RADEON_IS_AGP)) {
+		if (p->rdev && (p->rdev->flags & RADEON_IS_AGP)) {
 			p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
 			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
-				kfree(p->chunks[i].kpage[0]);
-				kfree(p->chunks[i].kpage[1]);
+				kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
+				kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
 				return -ENOMEM;
 			}
 		}
@@ -570,7 +583,8 @@ static int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
 	int i;
 	int size = PAGE_SIZE;
-	bool copy1 = (p->rdev->flags & RADEON_IS_AGP) ? false : true;
+	bool copy1 = (p->rdev && (p->rdev->flags & RADEON_IS_AGP)) ?
+		false : true;
 
 	for (i = ibc->last_copied_page + 1; i < pg_idx; i++) {
 		if (DRM_COPY_FROM_USER(p->ib.ptr + (i * (PAGE_SIZE/4)),

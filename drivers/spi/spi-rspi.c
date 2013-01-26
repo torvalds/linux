@@ -661,7 +661,7 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 	return ret;
 }
 
-static int __devinit rspi_request_dma(struct rspi_data *rspi,
+static int rspi_request_dma(struct rspi_data *rspi,
 				      struct platform_device *pdev)
 {
 	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
@@ -709,7 +709,7 @@ static int __devinit rspi_request_dma(struct rspi_data *rspi,
 	return 0;
 }
 
-static void __devexit rspi_release_dma(struct rspi_data *rspi)
+static void rspi_release_dma(struct rspi_data *rspi)
 {
 	if (rspi->chan_tx)
 		dma_release_channel(rspi->chan_tx);
@@ -717,7 +717,7 @@ static void __devexit rspi_release_dma(struct rspi_data *rspi)
 		dma_release_channel(rspi->chan_rx);
 }
 
-static int __devexit rspi_remove(struct platform_device *pdev)
+static int rspi_remove(struct platform_device *pdev)
 {
 	struct rspi_data *rspi = dev_get_drvdata(&pdev->dev);
 
@@ -731,7 +731,7 @@ static int __devexit rspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit rspi_probe(struct platform_device *pdev)
+static int rspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct spi_master *master;
@@ -827,7 +827,7 @@ error1:
 
 static struct platform_driver rspi_driver = {
 	.probe =	rspi_probe,
-	.remove =	__devexit_p(rspi_remove),
+	.remove =	rspi_remove,
 	.driver		= {
 		.name = "rspi",
 		.owner	= THIS_MODULE,

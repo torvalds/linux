@@ -213,7 +213,7 @@ static int fimc_pipeline_close(struct fimc_pipeline *p)
  * @pipeline: video pipeline structure
  * @on: passed as the s_stream call argument
  */
-int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
+static int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
 {
 	int i, ret;
 
@@ -343,53 +343,50 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 static int fimc_register_callback(struct device *dev, void *p)
 {
 	struct fimc_dev *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+	struct v4l2_subdev *sd;
 	struct fimc_md *fmd = p;
-	int ret = 0;
+	int ret;
 
-	if (!fimc || !fimc->pdev)
+	if (fimc == NULL || fimc->id >= FIMC_MAX_DEVS)
 		return 0;
 
-	if (fimc->pdev->id < 0 || fimc->pdev->id >= FIMC_MAX_DEVS)
-		return 0;
-
-	fimc->pipeline_ops = &fimc_pipeline_ops;
-	fmd->fimc[fimc->pdev->id] = fimc;
+	sd = &fimc->vid_cap.subdev;
 	sd->grp_id = FIMC_GROUP_ID;
+	v4l2_set_subdev_hostdata(sd, (void *)&fimc_pipeline_ops);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (ret) {
 		v4l2_err(&fmd->v4l2_dev, "Failed to register FIMC.%d (%d)\n",
 			 fimc->id, ret);
+		return ret;
 	}
 
-	return ret;
+	fmd->fimc[fimc->id] = fimc;
+	return 0;
 }
 
 static int fimc_lite_register_callback(struct device *dev, void *p)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->subdev;
 	struct fimc_md *fmd = p;
 	int ret;
 
-	if (fimc == NULL)
+	if (fimc == NULL || fimc->index >= FIMC_LITE_MAX_DEVS)
 		return 0;
 
-	if (fimc->index >= FIMC_LITE_MAX_DEVS)
-		return 0;
+	fimc->subdev.grp_id = FLITE_GROUP_ID;
+	v4l2_set_subdev_hostdata(&fimc->subdev, (void *)&fimc_pipeline_ops);
 
-	fimc->pipeline_ops = &fimc_pipeline_ops;
-	fmd->fimc_lite[fimc->index] = fimc;
-	sd->grp_id = FLITE_GROUP_ID;
-
-	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
+	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, &fimc->subdev);
 	if (ret) {
 		v4l2_err(&fmd->v4l2_dev,
 			 "Failed to register FIMC-LITE.%d (%d)\n",
 			 fimc->index, ret);
+		return ret;
 	}
-	return ret;
+
+	fmd->fimc_lite[fimc->index] = fimc;
+	return 0;
 }
 
 static int csis_register_callback(struct device *dev, void *p)
@@ -407,10 +404,12 @@ static int csis_register_callback(struct device *dev, void *p)
 	v4l2_info(sd, "csis%d sd: %s\n", pdev->id, sd->name);
 
 	id = pdev->id < 0 ? 0 : pdev->id;
-	fmd->csis[id].sd = sd;
 	sd->grp_id = CSIS_GROUP_ID;
+
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
-	if (ret)
+	if (!ret)
+		fmd->csis[id].sd = sd;
+	else
 		v4l2_err(&fmd->v4l2_dev,
 			 "Failed to register CSIS subdevice: %d\n", ret);
 	return ret;
@@ -548,7 +547,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		if (ret)
 			break;
 
-		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]",
+		v4l2_info(&fmd->v4l2_dev, "created link [%s] %c> [%s]\n",
 			  source->name, flags ? '=' : '-', sink->name);
 
 		if (flags == 0 || sensor == NULL)
@@ -594,7 +593,7 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 {
 	struct media_entity *source, *sink;
 	unsigned int flags = MEDIA_LNK_FL_ENABLED;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < FIMC_LITE_MAX_DEVS; i++) {
 		struct fimc_lite *fimc = fmd->fimc_lite[i];
@@ -1001,7 +1000,7 @@ err_md:
 	return ret;
 }
 
-static int __devexit fimc_md_remove(struct platform_device *pdev)
+static int fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
@@ -1016,7 +1015,7 @@ static int __devexit fimc_md_remove(struct platform_device *pdev)
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= __devexit_p(fimc_md_remove),
+	.remove		= fimc_md_remove,
 	.driver = {
 		.name	= "s5p-fimc-md",
 		.owner	= THIS_MODULE,

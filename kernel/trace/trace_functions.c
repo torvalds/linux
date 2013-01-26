@@ -7,7 +7,7 @@
  * Based on code from the latency_tracer, that is:
  *
  *  Copyright (C) 2004-2006 Ingo Molnar
- *  Copyright (C) 2004 William Lee Irwin III
+ *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/ring_buffer.h>
 #include <linux/debugfs.h>
@@ -366,7 +366,7 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	 * We use the callback data field (which is a pointer)
 	 * as our counter.
 	 */
-	ret = strict_strtoul(number, 0, (unsigned long *)&count);
+	ret = kstrtoul(number, 0, (unsigned long *)&count);
 	if (ret)
 		return ret;
 
@@ -411,5 +411,4 @@ static __init int init_function_trace(void)
 	init_func_cmd_traceon();
 	return register_tracer(&function_trace);
 }
-device_initcall(init_function_trace);
-
+core_initcall(init_function_trace);

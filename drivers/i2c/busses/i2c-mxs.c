@@ -127,7 +127,7 @@ struct mxs_i2c_dev {
 	struct device *dev;
 	void __iomem *regs;
 	struct completion cmd_complete;
-	u32 cmd_err;
+	int cmd_err;
 	struct i2c_adapter adapter;
 	const struct mxs_i2c_speed_config *speed;
 
@@ -287,12 +287,14 @@ read_init_dma_fail:
 select_init_dma_fail:
 	dma_unmap_sg(i2c->dev, &i2c->sg_io[0], 1, DMA_TO_DEVICE);
 select_init_pio_fail:
+	dmaengine_terminate_all(i2c->dmach);
 	return -EINVAL;
 
 /* Write failpath. */
 write_init_dma_fail:
 	dma_unmap_sg(i2c->dev, i2c->sg_io, 2, DMA_TO_DEVICE);
 write_init_pio_fail:
+	dmaengine_terminate_all(i2c->dmach);
 	return -EINVAL;
 }
 
@@ -314,7 +316,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	if (msg->len == 0)
 		return -EINVAL;
 
-	init_completion(&i2c->cmd_complete);
+	INIT_COMPLETION(i2c->cmd_complete);
 	i2c->cmd_err = 0;
 
 	ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
@@ -357,7 +359,7 @@ static int mxs_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 mxs_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
@@ -430,7 +432,7 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	return 0;
 }
 
-static int __devinit mxs_i2c_probe(struct platform_device *pdev)
+static int mxs_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxs_i2c_dev *i2c;
@@ -470,6 +472,8 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = dev;
 	i2c->speed = &mxs_i2c_95kHz_config;
+
+	init_completion(&i2c->cmd_complete);
 
 	if (dev->of_node) {
 		err = mxs_i2c_get_ofdata(i2c);
@@ -513,7 +517,7 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mxs_i2c_remove(struct platform_device *pdev)
+static int mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
 	int ret;
@@ -544,7 +548,7 @@ static struct platform_driver mxs_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
-	.remove = __devexit_p(mxs_i2c_remove),
+	.remove = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)

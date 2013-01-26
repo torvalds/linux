@@ -57,6 +57,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
+#include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
 
@@ -66,7 +67,6 @@
 
 const nfs4_stateid zero_stateid;
 static DEFINE_MUTEX(nfs_clid_init_mutex);
-static LIST_HEAD(nfs4_clientid_list);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
@@ -254,22 +254,25 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
 	struct nfs4_slot_table *tbl;
-	int max_slots;
 
 	if (ses == NULL)
 		return;
 	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
-		max_slots = tbl->max_slots;
-		while (max_slots--) {
-			if (rpc_wake_up_first(&tbl->slot_tbl_waitq,
-						nfs4_set_task_privileged,
-						NULL) == NULL)
-				break;
-		}
+		nfs41_wake_slot_table(tbl);
 		spin_unlock(&tbl->slot_tbl_lock);
 	}
+}
+
+/*
+ * Signal state manager thread if session fore channel is drained
+ */
+void nfs4_session_drain_complete(struct nfs4_session *session,
+		struct nfs4_slot_table *tbl)
+{
+	if (nfs4_session_draining(session))
+		complete(&tbl->complete);
 }
 
 static int nfs4_wait_on_slot_tbl(struct nfs4_slot_table *tbl)
@@ -303,7 +306,6 @@ static void nfs41_finish_session_reset(struct nfs_client *clp)
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 	/* create_session negotiated new slot table */
-	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
 	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
 	nfs41_setup_state_renewal(clp);
 }
@@ -1086,7 +1088,6 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
  */
 static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 {
-	BUG_ON(list_first_entry(&seqid->sequence->list, struct nfs_seqid, list) != seqid);
 	switch (status) {
 		case 0:
 			break;
@@ -1208,6 +1209,40 @@ void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 	nfs4_schedule_state_manager(clp);
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_lease_recovery);
+
+int nfs4_wait_clnt_recover(struct nfs_client *clp)
+{
+	int res;
+
+	might_sleep();
+
+	res = wait_on_bit(&clp->cl_state, NFS4CLNT_MANAGER_RUNNING,
+			nfs_wait_bit_killable, TASK_KILLABLE);
+	if (res)
+		return res;
+
+	if (clp->cl_cons_state < 0)
+		return clp->cl_cons_state;
+	return 0;
+}
+
+int nfs4_client_recover_expired_lease(struct nfs_client *clp)
+{
+	unsigned int loop;
+	int ret;
+
+	for (loop = NFS4_MAX_LOOP_ON_RECOVER; loop != 0; loop--) {
+		ret = nfs4_wait_clnt_recover(clp);
+		if (ret != 0)
+			break;
+		if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) &&
+		    !test_bit(NFS4CLNT_CHECK_LEASE,&clp->cl_state))
+			break;
+		nfs4_schedule_state_manager(clp);
+		ret = -EIO;
+	}
+	return ret;
+}
 
 /*
  * nfs40_handle_cb_pathdown - return all delegations after NFS4ERR_CB_PATH_DOWN
@@ -1401,14 +1436,6 @@ restart:
 				/* Mark the file as being 'closed' */
 				state->state = 0;
 				break;
-			case -EKEYEXPIRED:
-				/*
-				 * User RPCSEC_GSS context has expired.
-				 * We cannot recover this stateid now, so
-				 * skip it and allow recovery thread to
-				 * proceed.
-				 */
-				break;
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_BAD_STATEID:
@@ -1561,14 +1588,6 @@ static void nfs4_state_start_reclaim_nograce(struct nfs_client *clp)
 	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_nograce);
 }
 
-static void nfs4_warn_keyexpired(const char *s)
-{
-	printk_ratelimited(KERN_WARNING "Error: state manager"
-			" encountered RPCSEC_GSS session"
-			" expired against NFSv4 server %s.\n",
-			s);
-}
-
 static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 {
 	switch (error) {
@@ -1601,10 +1620,6 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 			break;
 		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			set_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
-			break;
-		case -EKEYEXPIRED:
-			/* Nothing we can do */
-			nfs4_warn_keyexpired(clp->cl_hostname);
 			break;
 		default:
 			dprintk("%s: failed to handle error %d for server %s\n",
@@ -1722,8 +1737,6 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 		dprintk("%s: exit with error %d for server %s\n",
 				__func__, -EPROTONOSUPPORT, clp->cl_hostname);
 		return -EPROTONOSUPPORT;
-	case -EKEYEXPIRED:
-		nfs4_warn_keyexpired(clp->cl_hostname);
 	case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
 				 * in nfs4_exchange_id */
 	default:
@@ -1876,7 +1889,6 @@ again:
 		break;
 
 	case -EKEYEXPIRED:
-		nfs4_warn_keyexpired(clp->cl_hostname);
 	case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
 				 * in nfs4_exchange_id */
 		status = -EKEYEXPIRED;
@@ -1907,12 +1919,21 @@ void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
 
-void nfs41_handle_recall_slot(struct nfs_client *clp)
+static void nfs41_ping_server(struct nfs_client *clp)
 {
-	set_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
-	dprintk("%s: scheduling slot recall for server %s\n", __func__,
-			clp->cl_hostname);
+	/* Use CHECK_LEASE to ping the server with a SEQUENCE */
+	set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
 	nfs4_schedule_state_manager(clp);
+}
+
+void nfs41_server_notify_target_slotid_update(struct nfs_client *clp)
+{
+	nfs41_ping_server(clp);
+}
+
+void nfs41_server_notify_highest_slotid_update(struct nfs_client *clp)
+{
+	nfs41_ping_server(clp);
 }
 
 static void nfs4_reset_all_state(struct nfs_client *clp)
@@ -2024,35 +2045,6 @@ out:
 	return status;
 }
 
-static int nfs4_recall_slot(struct nfs_client *clp)
-{
-	struct nfs4_slot_table *fc_tbl;
-	struct nfs4_slot *new, *old;
-	int i;
-
-	if (!nfs4_has_session(clp))
-		return 0;
-	nfs4_begin_drain_session(clp);
-	fc_tbl = &clp->cl_session->fc_slot_table;
-	new = kmalloc(fc_tbl->target_max_slots * sizeof(struct nfs4_slot),
-		      GFP_NOFS);
-        if (!new)
-		return -ENOMEM;
-
-	spin_lock(&fc_tbl->slot_tbl_lock);
-	for (i = 0; i < fc_tbl->target_max_slots; i++)
-		new[i].seq_nr = fc_tbl->slots[i].seq_nr;
-	old = fc_tbl->slots;
-	fc_tbl->slots = new;
-	fc_tbl->max_slots = fc_tbl->target_max_slots;
-	fc_tbl->target_max_slots = 0;
-	clp->cl_session->fc_attrs.max_reqs = fc_tbl->max_slots;
-	spin_unlock(&fc_tbl->slot_tbl_lock);
-
-	kfree(old);
-	return 0;
-}
-
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
@@ -2083,7 +2075,6 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
 static int nfs4_end_drain_session(struct nfs_client *clp) { return 0; }
-static int nfs4_recall_slot(struct nfs_client *clp) { return 0; }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
@@ -2115,15 +2106,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			continue;
 		}
 
-		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
-			section = "check lease";
-			status = nfs4_check_lease(clp);
-			if (status < 0)
-				goto out_error;
-			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-				continue;
-		}
-
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)) {
 			section = "reset session";
@@ -2144,10 +2126,9 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			continue;
 		}
 
-		/* Recall session slots */
-		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)) {
-			section = "recall slot";
-			status = nfs4_recall_slot(clp);
+		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			section = "check lease";
+			status = nfs4_check_lease(clp);
 			if (status < 0)
 				goto out_error;
 			continue;

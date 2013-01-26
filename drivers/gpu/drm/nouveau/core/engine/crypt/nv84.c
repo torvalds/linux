@@ -34,11 +34,7 @@
 #include <engine/crypt.h>
 
 struct nv84_crypt_priv {
-	struct nouveau_crypt base;
-};
-
-struct nv84_crypt_chan {
-	struct nouveau_crypt_chan base;
+	struct nouveau_engine base;
 };
 
 /*******************************************************************************
@@ -87,34 +83,16 @@ nv84_crypt_sclass[] = {
  * PCRYPT context
  ******************************************************************************/
 
-static int
-nv84_crypt_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
-{
-	struct nv84_crypt_chan *priv;
-	int ret;
-
-	ret = nouveau_crypt_context_create(parent, engine, oclass, NULL, 256,
-					   0, NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_oclass
 nv84_crypt_cclass = {
 	.handle = NV_ENGCTX(CRYPT, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_crypt_context_ctor,
-		.dtor = _nouveau_crypt_context_dtor,
-		.init = _nouveau_crypt_context_init,
-		.fini = _nouveau_crypt_context_fini,
-		.rd32 = _nouveau_crypt_context_rd32,
-		.wr32 = _nouveau_crypt_context_wr32,
+		.ctor = _nouveau_engctx_ctor,
+		.dtor = _nouveau_engctx_dtor,
+		.init = _nouveau_engctx_init,
+		.fini = _nouveau_engctx_fini,
+		.rd32 = _nouveau_engctx_rd32,
+		.wr32 = _nouveau_engctx_wr32,
 	},
 };
 
@@ -157,7 +135,6 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x102130, stat);
 	nv_wr32(priv, 0x10200c, 0x10);
 
-	nv50_fb_trap(nouveau_fb(priv), 1);
 	nouveau_engctx_put(engctx);
 }
 
@@ -176,7 +153,8 @@ nv84_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv84_crypt_priv *priv;
 	int ret;
 
-	ret = nouveau_crypt_create(parent, engine, oclass, &priv);
+	ret = nouveau_engine_create(parent, engine, oclass, true,
+				    "PCRYPT", "crypt", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -195,7 +173,7 @@ nv84_crypt_init(struct nouveau_object *object)
 	struct nv84_crypt_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_crypt_init(&priv->base);
+	ret = nouveau_engine_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -210,8 +188,8 @@ nv84_crypt_oclass = {
 	.handle = NV_ENGINE(CRYPT, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_crypt_ctor,
-		.dtor = _nouveau_crypt_dtor,
+		.dtor = _nouveau_engine_dtor,
 		.init = nv84_crypt_init,
-		.fini = _nouveau_crypt_fini,
+		.fini = _nouveau_engine_fini,
 	},
 };

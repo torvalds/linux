@@ -338,7 +338,7 @@ static int cx24123_set_fec(struct cx24123_state *state, fe_code_rate_t fec)
 {
 	u8 nom_reg = cx24123_readreg(state, 0x0e) & ~0x07;
 
-	if ((fec < FEC_NONE) || (fec > FEC_AUTO))
+	if (((int)fec < FEC_NONE) || (fec > FEC_AUTO))
 		fec = FEC_AUTO;
 
 	/* Set the soft decision threshold */

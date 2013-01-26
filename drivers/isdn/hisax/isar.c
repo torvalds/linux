@@ -1417,7 +1417,7 @@ modeisar(struct BCState *bcs, int mode, int bc)
 						   &bcs->hw.isar.reg->Flags))
 				bcs->hw.isar.dpath = 1;
 			else {
-				printk(KERN_WARNING"isar modeisar both pathes in use\n");
+				printk(KERN_WARNING"isar modeisar both paths in use\n");
 				return (1);
 			}
 			break;

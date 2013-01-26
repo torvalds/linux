@@ -229,6 +229,7 @@ int mxs_saif_put_mclk(unsigned int saif_id)
 	saif->mclk_in_use = 0;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_put_mclk);
 
 /*
  * Get MCLK and set clock rate, then enable it
@@ -282,6 +283,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_get_mclk);
 
 /*
  * SAIF DAI format configuration.
@@ -523,15 +525,23 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
-			 * write a data to saif data register to trigger
-			 * the transfer
+			 * write data to saif data register to trigger
+			 * the transfer.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to write twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_writel(0, saif->base + SAIF_DATA);
 			__raw_writel(0, saif->base + SAIF_DATA);
 		} else {
 			/*
-			 * read a data from saif data register to trigger
-			 * the receive
+			 * read data from saif data register to trigger
+			 * the receive.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to read twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_readl(saif->base + SAIF_DATA);
 			__raw_readl(saif->base + SAIF_DATA);
 		}
 
@@ -647,7 +657,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mxs_saif_probe(struct platform_device *pdev)
+static int mxs_saif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores, *dmares;
@@ -782,7 +792,7 @@ failed_pdev_alloc:
 	return ret;
 }
 
-static int __devexit mxs_saif_remove(struct platform_device *pdev)
+static int mxs_saif_remove(struct platform_device *pdev)
 {
 	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
@@ -798,7 +808,7 @@ MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = __devexit_p(mxs_saif_remove),
+	.remove = mxs_saif_remove,
 
 	.driver = {
 		.name = "mxs-saif",
@@ -812,3 +822,4 @@ module_platform_driver(mxs_saif_driver);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-saif");

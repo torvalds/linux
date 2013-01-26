@@ -282,7 +282,7 @@ static struct ccw_driver claw_ccw_driver = {
 	.ids	= claw_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
-	.int_class = IOINT_CLW,
+	.int_class = IRQIO_CLW,
 };
 
 static ssize_t claw_driver_group_store(struct device_driver *ddrv,
@@ -3018,10 +3018,8 @@ claw_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct claw_privbk *priv;
 
-	BUG_ON(!cgdev);
 	CLAW_DBF_TEXT_(2, setup, "%s", dev_name(&cgdev->dev));
 	priv = dev_get_drvdata(&cgdev->dev);
-	BUG_ON(!priv);
 	dev_info(&cgdev->dev, " will be removed.\n");
 	if (cgdev->state == CCWGROUP_ONLINE)
 		claw_shutdown_device(cgdev);

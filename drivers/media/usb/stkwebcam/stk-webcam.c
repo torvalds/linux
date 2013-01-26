@@ -54,10 +54,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jaime Velasco Juan <jsagarribay@gmail.com> and Nicolas VIVIEN");
 MODULE_DESCRIPTION("Syntek DC1125 webcam driver");
 
-
-/* bool for webcam LED management */
-int first_init = 1;
-
 /* Some cameras have audio interfaces, we aren't interested in those */
 static struct usb_device_id stkwebcam_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x174f, 0xa311, 0xff, 0xff, 0xff) },
@@ -554,6 +550,7 @@ static void stk_free_buffers(struct stk_camera *dev)
 
 static int v4l_stk_open(struct file *fp)
 {
+	static int first_init = 1; /* webcam LED management */
 	struct stk_camera *dev;
 	struct video_device *vdev;
 

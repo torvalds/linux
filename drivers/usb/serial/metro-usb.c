@@ -20,8 +20,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb/serial.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v1.2.0.0"
 #define DRIVER_DESC "Metrologic Instruments Inc. - USB-POS driver"
 
 /* Product information. */

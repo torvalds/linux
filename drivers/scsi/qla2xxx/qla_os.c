@@ -41,7 +41,7 @@ static struct kmem_cache *ctx_cachep;
  */
 int ql_errlev = ql_log_all;
 
-int ql2xenableclass2;
+static int ql2xenableclass2;
 module_param(ql2xenableclass2, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xenableclass2,
 		"Specify if Class 2 operations are supported from the very "
@@ -89,6 +89,8 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"\t\t0x00200000 - AER/EEH.       0x00100000 - Multi Q.\n"
 		"\t\t0x00080000 - P3P Specific.  0x00040000 - Virtual Port.\n"
 		"\t\t0x00020000 - Buffer Dump.   0x00010000 - Misc.\n"
+		"\t\t0x00008000 - Verbose.       0x00004000 - Target.\n"
+		"\t\t0x00002000 - Target Mgmt.   0x00001000 - Target TMF.\n"
 		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
 		"\t\t0x1e400000 - Preferred value for capturing essential "
 		"debug information (equivalent to old "
@@ -494,12 +496,20 @@ qla24xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 		    (BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_8 | BIT_9)) >> 4;
 
 		strcpy(str, "PCIe (");
-		if (lspeed == 1)
+		switch (lspeed) {
+		case 1:
 			strcat(str, "2.5GT/s ");
-		else if (lspeed == 2)
+			break;
+		case 2:
 			strcat(str, "5.0GT/s ");
-		else
+			break;
+		case 3:
+			strcat(str, "8.0GT/s ");
+			break;
+		default:
 			strcat(str, "<unknown> ");
+			break;
+		}
 		snprintf(lwstr, sizeof(lwstr), "x%d)", lwidth);
 		strcat(str, lwstr);
 
@@ -719,7 +729,7 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	rval = ha->isp_ops->start_scsi(sp);
 	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_io, vha, 0x3013,
+		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3013,
 		    "Start scsi failed rval=%d for cmd=%p.\n", rval, cmd);
 		goto qc24_host_busy_free_sp;
 	}
@@ -2144,7 +2154,7 @@ qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 /*
  * PCI driver interface
  */
-static int __devinit
+static int
 qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;
@@ -2357,7 +2367,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Configure PCI I/O space */
 	ret = ha->isp_ops->iospace_config(ha);
 	if (ret)
-		goto probe_hw_failed;
+		goto iospace_config_failed;
 
 	ql_log_pci(ql_log_info, pdev, 0x001d,
 	    "Found an ISP%04X irq %d iobase 0x%p.\n",
@@ -2668,7 +2678,11 @@ probe_hw_failed:
 		qla82xx_idc_lock(ha);
 		qla82xx_clear_drv_active(ha);
 		qla82xx_idc_unlock(ha);
-		iounmap((device_reg_t __iomem *)ha->nx_pcibase);
+	}
+iospace_config_failed:
+	if (IS_QLA82XX(ha)) {
+		if (!ha->nx_pcibase)
+			iounmap((device_reg_t __iomem *)ha->nx_pcibase);
 		if (!ql2xdbwr)
 			iounmap((device_reg_t __iomem *)ha->nxdb_wr_ptr);
 	} else {
@@ -2755,6 +2769,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	ha->flags.host_shutting_down = 1;
 
+	set_bit(UNLOADING, &base_vha->dpc_flags);
 	mutex_lock(&ha->vport_lock);
 	while (ha->cur_vport_count) {
 		struct Scsi_Host *scsi_host;
@@ -2783,8 +2798,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
 			    "Error while clearing DRV-Presence.\n");
 	}
-
-	set_bit(UNLOADING, &base_vha->dpc_flags);
 
 	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
 
@@ -3721,10 +3734,9 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 						if (fcport->flags &
 						    FCF_FCP2_DEVICE)
 							opts |= BIT_1;
-							status2 =
-							    qla2x00_get_port_database(
-								vha, fcport,
-								opts);
+						status2 =
+						    qla2x00_get_port_database(
+							vha, fcport, opts);
 						if (status2 != QLA_SUCCESS)
 							status = 1;
 					}
@@ -3836,7 +3848,7 @@ qla83xx_idc_state_handler_work(struct work_struct *work)
 	qla83xx_idc_unlock(base_vha, 0);
 }
 
-int
+static int
 qla83xx_check_nic_core_fw_alive(scsi_qla_host_t *base_vha)
 {
 	int rval = QLA_SUCCESS;
@@ -3954,7 +3966,7 @@ qla83xx_wait_logic(void)
 	}
 }
 
-int
+static int
 qla83xx_force_lock_recovery(scsi_qla_host_t *base_vha)
 {
 	int rval;
@@ -4013,7 +4025,7 @@ qla83xx_force_lock_recovery(scsi_qla_host_t *base_vha)
 	return rval;
 }
 
-int
+static int
 qla83xx_idc_lock_recovery(scsi_qla_host_t *base_vha)
 {
 	int rval = QLA_SUCCESS;
@@ -4212,7 +4224,7 @@ qla83xx_clear_drv_presence(scsi_qla_host_t *vha)
 	return rval;
 }
 
-void
+static void
 qla83xx_need_reset_handler(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -4224,7 +4236,7 @@ qla83xx_need_reset_handler(scsi_qla_host_t *vha)
 	while (1) {
 		qla83xx_rd_reg(vha, QLA83XX_IDC_DRIVER_ACK, &drv_ack);
 		qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
-		if (drv_ack == drv_presence)
+		if ((drv_ack & drv_presence) == drv_presence)
 			break;
 
 		if (time_after_eq(jiffies, ack_timeout)) {
@@ -4251,7 +4263,7 @@ qla83xx_need_reset_handler(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0xb068, "HW State: COLD/RE-INIT.\n");
 }
 
-int
+static int
 qla83xx_device_bootstrap(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -4505,9 +4517,9 @@ qla2x00_do_dpc(void *data)
 			    "ISP abort end.\n");
 		}
 
-		if (test_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags)) {
+		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED,
+		    &base_vha->dpc_flags)) {
 			qla2x00_update_fcports(base_vha);
-			clear_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		}
 
 		if (test_bit(SCR_PENDING, &base_vha->dpc_flags)) {
@@ -4987,7 +4999,8 @@ qla2xxx_pci_mmio_enabled(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_RECOVERED;
 }
 
-uint32_t qla82xx_error_recovery(scsi_qla_host_t *base_vha)
+static uint32_t
+qla82xx_error_recovery(scsi_qla_host_t *base_vha)
 {
 	uint32_t rval = QLA_FUNCTION_FAILED;
 	uint32_t drv_active = 0;

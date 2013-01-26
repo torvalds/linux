@@ -22,8 +22,20 @@
 				status = "okay";
 			};
 
+			usart0: serial@fffb0000 {
+				status = "okay";
+			};
+
+			usart2: serial@fffb8000 {
+				status = "okay";
+			};
+
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioC 5 0>;
+				status = "okay";
+			};
+
+			watchdog@fffffd40 {
 				status = "okay";
 			};
 		};

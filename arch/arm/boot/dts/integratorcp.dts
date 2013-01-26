@@ -18,6 +18,11 @@
 		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
 	};
 
+	cpcon {
+		/* CP controller registers */
+		reg = <0xcb000000 0x100>;
+	};
+
 	timer0: timer@13000000 {
 		compatible = "arm,sp804", "arm,primecell";
 	};

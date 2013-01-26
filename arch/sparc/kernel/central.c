@@ -33,7 +33,7 @@ struct fhc {
 	struct platform_device	leds_pdev;
 };
 
-static int __devinit clock_board_calc_nslots(struct clock_board *p)
+static int clock_board_calc_nslots(struct clock_board *p)
 {
 	u8 reg = upa_readb(p->clock_regs + CLOCK_STAT1) & 0xc0;
 
@@ -60,7 +60,7 @@ static int __devinit clock_board_calc_nslots(struct clock_board *p)
 	}
 }
 
-static int __devinit clock_board_probe(struct platform_device *op)
+static int clock_board_probe(struct platform_device *op)
 {
 	struct clock_board *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
@@ -157,7 +157,7 @@ static struct platform_driver clock_board_driver = {
 	},
 };
 
-static int __devinit fhc_probe(struct platform_device *op)
+static int fhc_probe(struct platform_device *op)
 {
 	struct fhc *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;

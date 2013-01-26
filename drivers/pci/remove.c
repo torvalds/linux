@@ -111,3 +111,39 @@ void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 	pci_remove_bus_device(dev);
 }
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
+
+void pci_stop_root_bus(struct pci_bus *bus)
+{
+	struct pci_dev *child, *tmp;
+	struct pci_host_bridge *host_bridge;
+
+	if (!pci_is_root_bus(bus))
+		return;
+
+	host_bridge = to_pci_host_bridge(bus->bridge);
+	list_for_each_entry_safe_reverse(child, tmp,
+					 &bus->devices, bus_list)
+		pci_stop_bus_device(child);
+
+	/* stop the host bridge */
+	device_del(&host_bridge->dev);
+}
+
+void pci_remove_root_bus(struct pci_bus *bus)
+{
+	struct pci_dev *child, *tmp;
+	struct pci_host_bridge *host_bridge;
+
+	if (!pci_is_root_bus(bus))
+		return;
+
+	host_bridge = to_pci_host_bridge(bus->bridge);
+	list_for_each_entry_safe(child, tmp,
+				 &bus->devices, bus_list)
+		pci_remove_bus_device(child);
+	pci_remove_bus(bus);
+	host_bridge->bus = NULL;
+
+	/* remove the host bridge */
+	put_device(&host_bridge->dev);
+}

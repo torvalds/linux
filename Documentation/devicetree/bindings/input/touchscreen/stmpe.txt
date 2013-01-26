@@ -1,0 +1,43 @@
+STMPE Touchscreen
+----------------
+
+Required properties:
+ - compatible: "st,stmpe-ts"
+
+Optional properties:
+- st,sample-time: ADC converstion time in number of clock.  (0 -> 36 clocks, 1 ->
+  44 clocks, 2 -> 56 clocks, 3 -> 64 clocks, 4 -> 80 clocks, 5 -> 96 clocks, 6
+  -> 144 clocks), recommended is 4.
+- st,mod-12b: ADC Bit mode (0 -> 10bit ADC, 1 -> 12bit ADC)
+- st,ref-sel: ADC reference source (0 -> internal reference, 1 -> external
+  reference)
+- st,adc-freq: ADC Clock speed (0 -> 1.625 MHz, 1 -> 3.25 MHz, 2 || 3 -> 6.5 MHz)
+- st,ave-ctrl: Sample average control (0 -> 1 sample, 1 -> 2 samples, 2 -> 4
+  samples, 3 -> 8 samples)
+- st,touch-det-delay: Touch detect interrupt delay (0 -> 10 us, 1 -> 50 us, 2 ->
+  100 us, 3 -> 500 us, 4-> 1 ms, 5 -> 5 ms, 6 -> 10 ms, 7 -> 50 ms) recommended
+  is 3
+- st,settling: Panel driver settling time (0 -> 10 us, 1 -> 100 us, 2 -> 500 us, 3
+  -> 1 ms, 4 -> 5 ms, 5 -> 10 ms, 6 for 50 ms, 7 -> 100 ms) recommended is 2
+- st,fraction-z: Length of the fractional part in z (fraction-z ([0..7]) = Count of
+  the fractional part) recommended is 7
+- st,i-drive: current limit value of the touchscreen drivers (0 -> 20 mA typical 35
+  mA max, 1 -> 50 mA typical 80 mA max)
+
+Node name must be stmpe_touchscreen and should be child node of stmpe node to
+which it belongs.
+
+Example:
+
+	stmpe_touchscreen {
+		compatible = "st,stmpe-ts";
+		st,sample-time = <4>;
+		st,mod-12b = <1>;
+		st,ref-sel = <0>;
+		st,adc-freq = <1>;
+		st,ave-ctrl = <1>;
+		st,touch-det-delay = <2>;
+		st,settling = <2>;
+		st,fraction-z = <7>;
+		st,i-drive = <1>;
+	};

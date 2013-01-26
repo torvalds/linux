@@ -235,7 +235,10 @@ enum	_ReasonCode{
 
 
 
-#define aSifsTime	 ((priv->ieee80211->current_network.mode == IEEE_A)||(priv->ieee80211->current_network.mode == IEEE_N_24G)||(priv->ieee80211->current_network.mode == IEEE_N_5G))? 16 : 10
+#define aSifsTime ((priv->ieee80211->current_network.mode == IEEE_A || \
+		    priv->ieee80211->current_network.mode == IEEE_N_24G || \
+		    priv->ieee80211->current_network.mode == IEEE_N_5G) ? \
+		   16 : 10)
 
 #define MGMT_QUEUE_NUM 5
 

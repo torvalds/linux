@@ -49,6 +49,10 @@ config OF_GPIO
 	def_bool y
 	depends on OF
 
+config GPIO_ACPI
+	def_bool y
+	depends on ACPI
+
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL
@@ -86,10 +90,25 @@ config GPIO_DA9052
 	help
 	  Say yes here to enable the GPIO driver for the DA9052 chip.
 
+config GPIO_DA9055
+	tristate "Dialog Semiconductor DA9055 GPIO"
+	depends on MFD_DA9055
+	help
+	  Say yes here to enable the GPIO driver for the DA9055 chip.
+
+	  The Dialog DA9055 PMIC chip has 3 GPIO pins that can be
+	  be controller by this driver.
+
+	  If driver is built as a module it will be called gpio-da9055.
+
 config GPIO_MAX730X
 	tristate
 
 comment "Memory mapped GPIO drivers:"
+
+config GPIO_CLPS711X
+	def_bool y
+	depends on ARCH_CLPS711X
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -152,7 +171,8 @@ config GPIO_MSM_V2
 
 config GPIO_MVEBU
 	def_bool y
-	depends on ARCH_MVEBU
+	depends on PLAT_ORION
+	depends on OF
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
@@ -170,7 +190,7 @@ config GPIO_MXS
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
-	depends on ARM_AMBA
+	depends on ARM && ARM_AMBA
 	select GENERIC_IRQ_CHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
@@ -181,6 +201,13 @@ config GPIO_PXA
 	help
 	  Say yes here to support the PXA GPIO device
 
+config GPIO_SPEAR_SPICS
+	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
+	depends on PLAT_SPEAR
+	select GENERIC_IRQ_CHIP
+	help
+	  Say yes here to support ST SPEAr SPI Chip Select as GPIO device
+
 config GPIO_STA2X11
 	bool "STA2x11/ConneXt GPIO support"
 	depends on MFD_STA2X11
@@ -188,6 +215,14 @@ config GPIO_STA2X11
 	help
 	  Say yes here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
+
+config GPIO_TS5500
+	tristate "TS-5500 DIO blocks and compatibles"
+	help
+	  This driver supports Digital I/O exposed by pin blocks found on some
+	  Technologic Systems platforms. It includes, but is not limited to, 3
+	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
+	  LCD port.
 
 config GPIO_VT8500
 	bool "VIA/Wondermedia SoC GPIO Support"
@@ -466,11 +501,11 @@ config GPIO_ADP5588_IRQ
 
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
-	depends on I2C && OF
+	depends on I2C && OF_GPIO
 	help
 	  This option enables support for N GPIOs found on Avionic Design
 	  I2C GPIO expanders. The register space will be extended by powers
-	  of two, so the controller will need to accomodate for that. For
+	  of two, so the controller will need to accommodate for that. For
 	  example: if a controller provides 48 pins, 6 registers will be
 	  enough to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).
@@ -648,5 +683,18 @@ config GPIO_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
+
+comment "USB GPIO expanders:"
+
+config GPIO_VIPERBOARD
+	tristate "Viperboard GPIO a & b support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the GPIO signals of Nano River
+	  Technologies Viperboard. There are two GPIO chips on the
+	  board: gpioa and gpiob.
+          See viperboard API specification and Nano
+          River Tech's viperboard.h for detailed meaning
+          of the module parameters.
 
 endif

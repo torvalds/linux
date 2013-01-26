@@ -1,0 +1,89 @@
+/*
+ * Copyright 2012 Philippe Reynes <tremyfr@yahoo.fr>
+ * Copyright 2012 Armadeus Systems <support@armadeus.com>
+ *
+ * Based on code which is: Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx27.dtsi"
+
+/ {
+	model = "Armadeus Systems APF27 module";
+	compatible = "armadeus,imx27-apf27", "fsl,imx27";
+
+	memory {
+		reg = <0xa0000000 0x04000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc26m {
+			compatible = "fsl,imx-osc26m", "fixed-clock";
+			clock-frequency = <0>;
+		};
+	};
+
+	soc {
+		aipi@10000000 {
+			serial@1000a000 {
+				status = "okay";
+			};
+
+			ethernet@1002b000 {
+				status = "okay";
+			};
+		};
+
+		nand@d8000000 {
+			status = "okay";
+			nand-bus-width = <16>;
+			nand-ecc-mode = "hw";
+			nand-on-flash-bbt;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x100000>;
+			};
+
+			partition@100000 {
+				label = "env";
+				reg = <0x100000 0x80000>;
+			};
+
+			partition@180000 {
+				label = "env2";
+				reg = <0x180000 0x80000>;
+			};
+
+			partition@200000 {
+				label = "firmware";
+				reg = <0x200000 0x80000>;
+			};
+
+			partition@280000 {
+				label = "dtb";
+				reg = <0x280000 0x80000>;
+			};
+
+			partition@300000 {
+				label = "kernel";
+				reg = <0x300000 0x500000>;
+			};
+
+			partition@800000 {
+				label = "rootfs";
+				reg = <0x800000 0xf800000>;
+			};
+		};
+	};
+};

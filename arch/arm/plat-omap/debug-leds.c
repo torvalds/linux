@@ -17,15 +17,32 @@
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
-
-#include <plat/fpga.h>
 
 /* Many OMAP development platforms reuse the same "debug board"; these
  * platforms include H2, H3, H4, and Perseus2.  There are 16 LEDs on the
  * debug board (all green), accessed through FPGA registers.
  */
+
+/* NOTE:  most boards don't have a static mapping for the FPGA ... */
+struct h2p2_dbg_fpga {
+	/* offset 0x00 */
+	u16		smc91x[8];
+	/* offset 0x10 */
+	u16		fpga_rev;
+	u16		board_rev;
+	u16		gpio_outputs;
+	u16		leds;
+	/* offset 0x18 */
+	u16		misc_inputs;
+	u16		lan_status;
+	u16		lan_reset;
+	u16		reserved0;
+	/* offset 0x20 */
+	u16		ps2_data;
+	u16		ps2_ctrl;
+	/* plus also 4 rs232 ports ... */
+};
 
 static struct h2p2_dbg_fpga __iomem *fpga;
 
@@ -94,7 +111,7 @@ static int fpga_probe(struct platform_device *pdev)
 	if (!iomem)
 		return -ENODEV;
 
-	fpga = ioremap(iomem->start, H2P2_DBG_FPGA_SIZE);
+	fpga = ioremap(iomem->start, resource_size(iomem));
 	__raw_writew(0xff, &fpga->leds);
 
 	for (i = 0; i < ARRAY_SIZE(dbg_leds); i++) {

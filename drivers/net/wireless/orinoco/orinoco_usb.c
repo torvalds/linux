@@ -865,7 +865,7 @@ static int ezusb_firmware_download(struct ezusb_priv *upriv,
 static int ezusb_access_ltv(struct ezusb_priv *upriv,
 			    struct request_context *ctx,
 			    u16 length, const void *data, u16 frame_type,
-			    void *ans_buff, int ans_size, u16 *ans_length)
+			    void *ans_buff, unsigned ans_size, u16 *ans_length)
 {
 	int req_size;
 	int retval = 0;
@@ -933,7 +933,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	}
 	if (ctx->in_rid) {
 		struct ezusb_packet *ans = ctx->buf;
-		int exp_len;
+		unsigned exp_len;
 
 		if (ans->hermes_len != 0)
 			exp_len = le16_to_cpu(ans->hermes_len) * 2 + 12;
@@ -949,8 +949,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 		}
 
 		if (ans_buff)
-			memcpy(ans_buff, ans->data,
-			       min_t(int, exp_len, ans_size));
+			memcpy(ans_buff, ans->data, min(exp_len, ans_size));
 		if (ans_length)
 			*ans_length = le16_to_cpu(ans->hermes_len);
 	}
@@ -995,7 +994,7 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
 
-	if ((bufsize < 0) || (bufsize % 2))
+	if (bufsize % 2)
 		return -EINVAL;
 
 	ctx = ezusb_alloc_ctx(upriv, rid, rid);

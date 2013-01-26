@@ -510,7 +510,7 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] __devinitdata = {
+static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] = {
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Enum", 0),
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Enum", 1),
 	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Enum", 2),
@@ -539,7 +539,7 @@ static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] __devinitdata = {
 
 
 /* 1616(m) cardbus */
-static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] __devinitdata = {
+static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] = {
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Enum", 0),
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Enum", 1),
 	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Enum", 2),
@@ -571,7 +571,7 @@ static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] __devinitdata = {
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] __devinitdata = {
+static struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] = {
 	EMU1010_SOURCE_INPUT("DSP 0 Capture Enum", 0),
 	EMU1010_SOURCE_INPUT("DSP 1 Capture Enum", 1),
 	EMU1010_SOURCE_INPUT("DSP 2 Capture Enum", 2),
@@ -639,7 +639,7 @@ static int snd_emu1010_adc_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_adc_pads[] __devinitdata = {
+static struct snd_kcontrol_new snd_emu1010_adc_pads[] = {
 	EMU1010_ADC_PADS("ADC1 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD1),
 	EMU1010_ADC_PADS("ADC2 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD2),
 	EMU1010_ADC_PADS("ADC3 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD3),
@@ -687,7 +687,7 @@ static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_dac_pads[] __devinitdata = {
+static struct snd_kcontrol_new snd_emu1010_dac_pads[] = {
 	EMU1010_DAC_PADS("DAC1 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD1),
 	EMU1010_DAC_PADS("DAC2 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD2),
 	EMU1010_DAC_PADS("DAC3 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD3),
@@ -989,7 +989,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] __devinitdata = {
+static struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] = {
 	I2C_VOLUME("Mic Capture Volume", 0),
 	I2C_VOLUME("Line Capture Volume", 0)
 };
@@ -1621,7 +1621,7 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1_shared_spdif __devinitdata =
+static struct snd_kcontrol_new snd_emu10k1_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"SB Live Analog/Digital Output Jack",
@@ -1630,7 +1630,7 @@ static struct snd_kcontrol_new snd_emu10k1_shared_spdif __devinitdata =
 	.put =		snd_emu10k1_shared_spdif_put
 };
 
-static struct snd_kcontrol_new snd_audigy_shared_spdif __devinitdata =
+static struct snd_kcontrol_new snd_audigy_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Audigy Analog/Digital Output Jack",
@@ -1668,7 +1668,7 @@ static int snd_audigy_capture_boost_put(struct snd_kcontrol *kcontrol,
 	return snd_ac97_update(emu->ac97, AC97_REC_GAIN, val);
 }
 
-static struct snd_kcontrol_new snd_audigy_capture_boost __devinitdata =
+static struct snd_kcontrol_new snd_audigy_capture_boost =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Analog Capture Boost",
@@ -1716,8 +1716,8 @@ static int rename_ctl(struct snd_card *card, const char *src, const char *dst)
 	return -ENOENT;
 }
 
-int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
-				int pcm_device, int multi_device)
+int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
+		      int pcm_device, int multi_device)
 {
 	int err, pcm;
 	struct snd_kcontrol *kctl;

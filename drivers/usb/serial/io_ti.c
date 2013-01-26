@@ -40,10 +40,6 @@
 #include "io_usbvend.h"
 #include "io_ti.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.7mode043006"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
 
@@ -533,6 +529,9 @@ static void chase_port(struct edgeport_port *port, unsigned long timeout,
 	struct usb_serial *serial = port->port->serial;
 	wait_queue_t wait;
 	unsigned long flags;
+
+	if (!tty)
+		return;
 
 	if (!timeout)
 		timeout = (HZ * EDGE_CLOSING_WAIT)/100;

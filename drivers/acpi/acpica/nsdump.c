@@ -209,14 +209,6 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				      "Invalid ACPI Object Type 0x%08X", type));
 		}
 
-		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {
-			this_node->name.integer =
-			    acpi_ut_repair_name(this_node->name.ascii);
-
-			ACPI_WARNING((AE_INFO, "Invalid ACPI Name %08X",
-				      this_node->name.integer));
-		}
-
 		acpi_os_printf("%4.4s", acpi_ut_get_node_name(this_node));
 	}
 
@@ -700,7 +692,7 @@ void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level)
  *
  * PARAMETERS:  search_base         - Root of subtree to be dumped, or
  *                                    NS_ALL to dump the entire namespace
- *              max_depth           - Maximum depth of dump.  Use INT_MAX
+ *              max_depth           - Maximum depth of dump. Use INT_MAX
  *                                    for an effectively unlimited depth.
  *
  * RETURN:      None

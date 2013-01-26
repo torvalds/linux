@@ -56,8 +56,8 @@
 
 
 /* special size referring to all the remaining space in a partition */
-#define SIZE_REMAINING UINT_MAX
-#define OFFSET_CONTINUOUS UINT_MAX
+#define SIZE_REMAINING ULLONG_MAX
+#define OFFSET_CONTINUOUS ULLONG_MAX
 
 struct cmdline_mtd_partition {
 	struct cmdline_mtd_partition *next;
@@ -89,7 +89,7 @@ static struct mtd_partition * newpart(char *s,
 				      int extra_mem_size)
 {
 	struct mtd_partition *parts;
-	unsigned long size, offset = OFFSET_CONTINUOUS;
+	unsigned long long size, offset = OFFSET_CONTINUOUS;
 	char *name;
 	int name_len;
 	unsigned char *extra_mem;
@@ -104,7 +104,8 @@ static struct mtd_partition * newpart(char *s,
 	} else {
 		size = memparse(s, &s);
 		if (size < PAGE_SIZE) {
-			printk(KERN_ERR ERRP "partition size too small (%lx)\n", size);
+			printk(KERN_ERR ERRP "partition size too small (%llx)\n",
+			       size);
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -296,7 +297,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 				    struct mtd_partition **pparts,
 				    struct mtd_part_parser_data *data)
 {
-	unsigned long offset;
+	unsigned long long offset;
 	int i, err;
 	struct cmdline_mtd_partition *part;
 	const char *mtd_id = master->name;
@@ -308,48 +309,52 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 			return err;
 	}
 
+	/*
+	 * Search for the partition definition matching master->name.
+	 * If master->name is not set, stop at first partition definition.
+	 */
 	for (part = partitions; part; part = part->next) {
-		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id))) {
-			for (i = 0, offset = 0; i < part->num_parts; i++) {
-				if (part->parts[i].offset == OFFSET_CONTINUOUS)
-					part->parts[i].offset = offset;
-				else
-					offset = part->parts[i].offset;
-
-				if (part->parts[i].size == SIZE_REMAINING)
-					part->parts[i].size = master->size - offset;
-
-				if (part->parts[i].size == 0) {
-					printk(KERN_WARNING ERRP
-					       "%s: skipping zero sized partition\n",
-					       part->mtd_id);
-					part->num_parts--;
-					memmove(&part->parts[i],
-						&part->parts[i + 1],
-						sizeof(*part->parts) * (part->num_parts - i));
-					continue;
-				}
-
-				if (offset + part->parts[i].size > master->size) {
-					printk(KERN_WARNING ERRP
-					       "%s: partitioning exceeds flash size, truncating\n",
-					       part->mtd_id);
-					part->parts[i].size = master->size - offset;
-				}
-				offset += part->parts[i].size;
-			}
-
-			*pparts = kmemdup(part->parts,
-					sizeof(*part->parts) * part->num_parts,
-					GFP_KERNEL);
-			if (!*pparts)
-				return -ENOMEM;
-
-			return part->num_parts;
-		}
+		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
+			break;
 	}
 
-	return 0;
+	if (!part)
+		return 0;
+
+	for (i = 0, offset = 0; i < part->num_parts; i++) {
+		if (part->parts[i].offset == OFFSET_CONTINUOUS)
+			part->parts[i].offset = offset;
+		else
+			offset = part->parts[i].offset;
+
+		if (part->parts[i].size == SIZE_REMAINING)
+			part->parts[i].size = master->size - offset;
+
+		if (part->parts[i].size == 0) {
+			printk(KERN_WARNING ERRP
+			       "%s: skipping zero sized partition\n",
+			       part->mtd_id);
+			part->num_parts--;
+			memmove(&part->parts[i], &part->parts[i + 1],
+				sizeof(*part->parts) * (part->num_parts - i));
+			continue;
+		}
+
+		if (offset + part->parts[i].size > master->size) {
+			printk(KERN_WARNING ERRP
+			       "%s: partitioning exceeds flash size, truncating\n",
+			       part->mtd_id);
+			part->parts[i].size = master->size - offset;
+		}
+		offset += part->parts[i].size;
+	}
+
+	*pparts = kmemdup(part->parts, sizeof(*part->parts) * part->num_parts,
+			  GFP_KERNEL);
+	if (!*pparts)
+		return -ENOMEM;
+
+	return part->num_parts;
 }
 
 

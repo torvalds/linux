@@ -345,7 +345,7 @@ int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base)
 	mutex_init(&rc5t583->irq_lock);
 
 	/* Initailize all int register to 0 */
-	for (i = 0; i < RC5T583_MAX_INTERRUPT_MASK_REGS; i++)  {
+	for (i = 0; i < RC5T583_MAX_INTERRUPT_EN_REGS; i++)  {
 		ret = rc5t583_write(rc5t583->dev, irq_en_add[i],
 				rc5t583->irq_en_reg[i]);
 		if (ret < 0)

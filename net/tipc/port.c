@@ -726,7 +726,7 @@ static void port_dispatcher_sigh(void *dummy)
 				if (unlikely(!cb))
 					goto reject;
 				if (unlikely(!connected)) {
-					if (tipc_connect2port(dref, &orig))
+					if (tipc_connect(dref, &orig))
 						goto reject;
 				} else if (peer_invalid)
 					goto reject;
@@ -1036,15 +1036,30 @@ int tipc_withdraw(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	return res;
 }
 
-int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
+int tipc_connect(u32 ref, struct tipc_portid const *peer)
 {
 	struct tipc_port *p_ptr;
-	struct tipc_msg *msg;
-	int res = -EINVAL;
+	int res;
 
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
+	res = __tipc_connect(ref, p_ptr, peer);
+	tipc_port_unlock(p_ptr);
+	return res;
+}
+
+/*
+ * __tipc_connect - connect to a remote peer
+ *
+ * Port must be locked.
+ */
+int __tipc_connect(u32 ref, struct tipc_port *p_ptr,
+			struct tipc_portid const *peer)
+{
+	struct tipc_msg *msg;
+	int res = -EINVAL;
+
 	if (p_ptr->published || p_ptr->connected)
 		goto exit;
 	if (!peer->ref)
@@ -1067,17 +1082,16 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 			  (net_ev_handler)port_handle_node_down);
 	res = 0;
 exit:
-	tipc_port_unlock(p_ptr);
 	p_ptr->max_pkt = tipc_link_get_max_pkt(peer->node, ref);
 	return res;
 }
 
-/**
- * tipc_disconnect_port - disconnect port from peer
+/*
+ * __tipc_disconnect - disconnect port from peer
  *
  * Port must be locked.
  */
-int tipc_disconnect_port(struct tipc_port *tp_ptr)
+int __tipc_disconnect(struct tipc_port *tp_ptr)
 {
 	int res;
 
@@ -1104,7 +1118,7 @@ int tipc_disconnect(u32 ref)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	res = tipc_disconnect_port(p_ptr);
+	res = __tipc_disconnect(p_ptr);
 	tipc_port_unlock(p_ptr);
 	return res;
 }

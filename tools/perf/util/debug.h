@@ -26,6 +26,7 @@ int ui__error(const char *format, ...) __attribute__((format(printf, 1, 2)));
 static inline void ui_progress__update(u64 curr __maybe_unused,
 				       u64 total __maybe_unused,
 				       const char *title __maybe_unused) {}
+static inline void ui_progress__finish(void) {}
 
 #define ui__error(format, arg...) ui__warning(format, ##arg)
 

@@ -18,10 +18,8 @@
 #include <linux/io.h>
 
 #include "common.h"
-#include <plat/clock.h>
-#include <plat/sdrc.h>
-
 #include "sdram-nokia.h"
+#include "sdrc.h"
 
 /* In picoseconds, except for tREF (ns), tXP, tCKE, tWTR (clks) */
 struct sdram_timings {

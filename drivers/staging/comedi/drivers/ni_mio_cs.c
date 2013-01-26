@@ -175,9 +175,7 @@ struct ni_private {
 
 	struct pcmcia_device *link;
 
- NI_PRIVATE_COMMON};
-
-#define devpriv ((struct ni_private *)dev->private)
+NI_PRIVATE_COMMON};
 
 /* How we access registers */
 
@@ -196,6 +194,7 @@ struct ni_private {
 
 static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
@@ -210,6 +209,7 @@ static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 
 static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 {
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 	uint16_t ret;
 
@@ -251,7 +251,7 @@ static void mio_cs_config(struct pcmcia_device *link);
 static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
-static struct pcmcia_device *cur_dev = NULL;
+static struct pcmcia_device *cur_dev;
 
 static int cs_attach(struct pcmcia_device *link)
 {
@@ -324,6 +324,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct ni_private *devpriv;
 	struct pcmcia_device *link;
 	unsigned int irq;
 	int ret;
@@ -339,12 +340,14 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = link->irq;
 
-	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
-	       dev->minor, dev->driver->driver_name, dev->iobase, irq);
+	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
 
 #if 0
 	{
 		int i;
+
+		printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
+		       dev->minor, dev->driver->driver_name, dev->iobase, irq);
 
 		printk(" board fingerprint:");
 		for (i = 0; i < 32; i += 2) {
@@ -356,26 +359,25 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		for (i = 0; i < 10; i++)
 			printk(" 0x%04x", win_in(i));
 		printk("\n");
+
+		printk("boardtype.name: %s\n", boardtype.name);
 	}
 #endif
 
-	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
-
-	printk(" %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
 			  "ni_mio_cs", dev);
 	if (ret < 0) {
-		printk(" irq not available\n");
+		dev_err(dev->class_dev, "irq not available\n");
 		return -EINVAL;
 	}
 	dev->irq = irq;
 
-	/* allocate private area */
 	ret = ni_alloc_private(dev);
-	if (ret < 0)
+	if (ret)
 		return ret;
+	devpriv = dev->private;
 
 	devpriv->stc_writew = &mio_cs_win_out;
 	devpriv->stc_readw = &mio_cs_win_in;
@@ -400,7 +402,8 @@ static int ni_getboardtype(struct comedi_device *dev,
 			return i;
 	}
 
-	printk("unknown board 0x%04x -- pretend it is a ", link->card_id);
+	dev_err(dev->class_dev,
+		"unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
 }

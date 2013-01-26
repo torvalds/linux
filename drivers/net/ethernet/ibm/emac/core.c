@@ -2261,8 +2261,8 @@ struct emac_depentry {
 #define	EMAC_DEP_PREV_IDX	5
 #define	EMAC_DEP_COUNT		6
 
-static int __devinit emac_check_deps(struct emac_instance *dev,
-				     struct emac_depentry *deps)
+static int emac_check_deps(struct emac_instance *dev,
+			   struct emac_depentry *deps)
 {
 	int i, there = 0;
 	struct device_node *np;
@@ -2314,8 +2314,8 @@ static void emac_put_deps(struct emac_instance *dev)
 		of_dev_put(dev->tah_dev);
 }
 
-static int __devinit emac_of_bus_notify(struct notifier_block *nb,
-					unsigned long action, void *data)
+static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
+			      void *data)
 {
 	/* We are only intereted in device addition */
 	if (action == BUS_NOTIFY_BOUND_DRIVER)
@@ -2323,11 +2323,11 @@ static int __devinit emac_of_bus_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block emac_of_bus_notifier __devinitdata = {
+static struct notifier_block emac_of_bus_notifier = {
 	.notifier_call = emac_of_bus_notify
 };
 
-static int __devinit emac_wait_deps(struct emac_instance *dev)
+static int emac_wait_deps(struct emac_instance *dev)
 {
 	struct emac_depentry deps[EMAC_DEP_COUNT];
 	int i, err;
@@ -2367,8 +2367,8 @@ static int __devinit emac_wait_deps(struct emac_instance *dev)
 	return err;
 }
 
-static int __devinit emac_read_uint_prop(struct device_node *np, const char *name,
-					 u32 *val, int fatal)
+static int emac_read_uint_prop(struct device_node *np, const char *name,
+			       u32 *val, int fatal)
 {
 	int len;
 	const u32 *prop = of_get_property(np, name, &len);
@@ -2382,7 +2382,7 @@ static int __devinit emac_read_uint_prop(struct device_node *np, const char *nam
 	return 0;
 }
 
-static int __devinit emac_init_phy(struct emac_instance *dev)
+static int emac_init_phy(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	struct net_device *ndev = dev->ndev;
@@ -2518,7 +2518,7 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 	return 0;
 }
 
-static int __devinit emac_init_config(struct emac_instance *dev)
+static int emac_init_config(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	const void *p;
@@ -2703,7 +2703,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct platform_device *ofdev)
+static int emac_probe(struct platform_device *ofdev)
 {
 	struct net_device *ndev;
 	struct emac_instance *dev;
@@ -2930,7 +2930,7 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int __devexit emac_remove(struct platform_device *ofdev)
+static int emac_remove(struct platform_device *ofdev)
 {
 	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
 

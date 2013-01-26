@@ -56,7 +56,7 @@ static irqreturn_t pm860x_onkey_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pm860x_onkey_probe(struct platform_device *pdev)
+static int pm860x_onkey_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_onkey_info *info;
@@ -121,7 +121,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm860x_onkey_remove(struct platform_device *pdev)
+static int pm860x_onkey_remove(struct platform_device *pdev)
 {
 	struct pm860x_onkey_info *info = platform_get_drvdata(pdev);
 
@@ -161,7 +161,7 @@ static struct platform_driver pm860x_onkey_driver = {
 		.pm	= &pm860x_onkey_pm_ops,
 	},
 	.probe		= pm860x_onkey_probe,
-	.remove		= __devexit_p(pm860x_onkey_remove),
+	.remove		= pm860x_onkey_remove,
 };
 module_platform_driver(pm860x_onkey_driver);
 

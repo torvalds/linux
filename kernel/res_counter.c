@@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
 	return __res_counter_charge(counter, val, limit_fail_at, true);
 }
 
-void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
 {
 	if (WARN_ON(counter->usage < val))
 		val = counter->usage;
 
 	counter->usage -= val;
+	return counter->usage;
 }
 
-void res_counter_uncharge_until(struct res_counter *counter,
-				struct res_counter *top,
-				unsigned long val)
+u64 res_counter_uncharge_until(struct res_counter *counter,
+			       struct res_counter *top,
+			       unsigned long val)
 {
 	unsigned long flags;
 	struct res_counter *c;
+	u64 ret = 0;
 
 	local_irq_save(flags);
 	for (c = counter; c != top; c = c->parent) {
+		u64 r;
 		spin_lock(&c->lock);
-		res_counter_uncharge_locked(c, val);
+		r = res_counter_uncharge_locked(c, val);
+		if (c == counter)
+			ret = r;
 		spin_unlock(&c->lock);
 	}
 	local_irq_restore(flags);
+	return ret;
 }
 
-void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
 {
-	res_counter_uncharge_until(counter, NULL, val);
+	return res_counter_uncharge_until(counter, NULL, val);
 }
 
 static inline unsigned long long *
@@ -190,27 +196,5 @@ int res_counter_memparse_write_strategy(const char *buf,
 		return -EINVAL;
 
 	*res = PAGE_ALIGN(*res);
-	return 0;
-}
-
-int res_counter_write(struct res_counter *counter, int member,
-		      const char *buf, write_strategy_fn write_strategy)
-{
-	char *end;
-	unsigned long flags;
-	unsigned long long tmp, *val;
-
-	if (write_strategy) {
-		if (write_strategy(buf, &tmp))
-			return -EINVAL;
-	} else {
-		tmp = simple_strtoull(buf, &end, 10);
-		if (*end != '\0')
-			return -EINVAL;
-	}
-	spin_lock_irqsave(&counter->lock, flags);
-	val = res_counter_member(counter, member);
-	*val = tmp;
-	spin_unlock_irqrestore(&counter->lock, flags);
 	return 0;
 }

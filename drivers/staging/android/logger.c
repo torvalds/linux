@@ -676,4 +676,25 @@ static int __init logger_init(void)
 out:
 	return ret;
 }
+
+static void __exit logger_exit(void)
+{
+	struct logger_log *current_log, *next_log;
+
+	list_for_each_entry_safe(current_log, next_log, &log_list, logs) {
+		/* we have to delete all the entry inside log_list */
+		misc_deregister(&current_log->misc);
+		vfree(current_log->buffer);
+		kfree(current_log->misc.name);
+		list_del(&current_log->logs);
+		kfree(current_log);
+	}
+}
+
+
 device_initcall(logger_init);
+module_exit(logger_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Robert Love, <rlove@google.com>");
+MODULE_DESCRIPTION("Android Logger");

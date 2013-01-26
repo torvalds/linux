@@ -474,7 +474,7 @@ static const struct backlight_ops ams369fg06_backlight_ops = {
 	.update_status = ams369fg06_set_brightness,
 };
 
-static int __devinit ams369fg06_probe(struct spi_device *spi)
+static int ams369fg06_probe(struct spi_device *spi)
 {
 	int ret = 0;
 	struct ams369fg06 *lcd = NULL;
@@ -548,7 +548,7 @@ out_lcd_unregister:
 	return ret;
 }
 
-static int __devexit ams369fg06_remove(struct spi_device *spi)
+static int ams369fg06_remove(struct spi_device *spi)
 {
 	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
 
@@ -617,7 +617,7 @@ static struct spi_driver ams369fg06_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ams369fg06_probe,
-	.remove		= __devexit_p(ams369fg06_remove),
+	.remove		= ams369fg06_remove,
 	.shutdown	= ams369fg06_shutdown,
 	.suspend	= ams369fg06_suspend,
 	.resume		= ams369fg06_resume,

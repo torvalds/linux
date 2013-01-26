@@ -126,8 +126,6 @@ struct pcl816_board {
 	int i8254_osc_base;	/*  1/frequency of on board oscilator in ns */
 };
 
-#define devpriv ((struct pcl816_private *)dev->private)
-
 #ifdef unused
 static int RTC_lock;	/* RTC lock */
 static int RTC_timer_lock;	/* RTC int lock */
@@ -259,6 +257,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low, hi;
 	int timeout = 50;	/* wait max 50us */
@@ -315,6 +314,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  struct comedi_subdevice *s, short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
+	struct pcl816_private *devpriv = dev->private;
 	int i;
 
 	s->async->events = 0;
@@ -350,6 +350,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
@@ -398,6 +399,8 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl816(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pcl816_private *devpriv = dev->private;
+
 	DPRINTK("<I>");
 
 	if (!dev->attached) {
@@ -481,43 +484,23 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		return 2;
 
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < board->ai_ns_min) {
-			cmd->convert_arg = board->ai_ns_min;
-			err++;
-		}
-	} else {		/* TRIG_EXT */
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 board->ai_ns_min);
+	else	/* TRIG_EXT */
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -554,6 +537,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct pcl816_board *board = comedi_board(dev);
+	struct pcl816_private *devpriv = dev->private;
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int seglen;
@@ -682,6 +666,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pcl816_private *devpriv = dev->private;
 	unsigned long flags;
 	unsigned int top1, top2, i;
 
@@ -727,6 +712,8 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct pcl816_private *devpriv = dev->private;
+
 /* DEBUG(printk("pcl816_ai_cancel()\n");) */
 
 	if (devpriv->irq_blocked > 0) {
@@ -932,6 +919,7 @@ setup_channel_list(struct comedi_device *dev,
 		   struct comedi_subdevice *s, unsigned int *chanlist,
 		   unsigned int seglen)
 {
+	struct pcl816_private *devpriv = dev->private;
 	unsigned int i;
 
 	devpriv->ai_act_chanlist_len = seglen;
@@ -991,6 +979,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
+	struct pcl816_private *devpriv;
 	int ret;
 	unsigned long iobase;
 	unsigned int irq, dma;
@@ -1015,9 +1004,10 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-	ret = alloc_private(dev, sizeof(struct pcl816_private));
-	if (ret < 0)
-		return ret;	/* Can't alloc mem */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_name = board->name;
 
@@ -1216,6 +1206,7 @@ case COMEDI_SUBD_DO:
 static void pcl816_detach(struct comedi_device *dev)
 {
 	const struct pcl816_board *board = comedi_board(dev);
+	struct pcl816_private *devpriv = dev->private;
 
 	if (dev->private) {
 		pcl816_ai_cancel(dev, devpriv->sub_ai);

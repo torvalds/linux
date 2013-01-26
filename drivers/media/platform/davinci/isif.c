@@ -1032,7 +1032,7 @@ static struct ccdc_hw_device isif_hw_dev = {
 	},
 };
 
-static int __devinit isif_probe(struct platform_device *pdev)
+static int isif_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
@@ -1053,7 +1053,7 @@ static int __devinit isif_probe(struct platform_device *pdev)
 		status = PTR_ERR(isif_cfg.mclk);
 		goto fail_mclk;
 	}
-	if (clk_enable(isif_cfg.mclk)) {
+	if (clk_prepare_enable(isif_cfg.mclk)) {
 		status = -ENODEV;
 		goto fail_mclk;
 	}
@@ -1125,6 +1125,7 @@ fail_nobase_res:
 		i--;
 	}
 fail_mclk:
+	clk_disable_unprepare(isif_cfg.mclk);
 	clk_put(isif_cfg.mclk);
 	vpfe_unregister_ccdc_device(&isif_hw_dev);
 	return status;
@@ -1145,6 +1146,8 @@ static int isif_remove(struct platform_device *pdev)
 		i++;
 	}
 	vpfe_unregister_ccdc_device(&isif_hw_dev);
+	clk_disable_unprepare(isif_cfg.mclk);
+	clk_put(isif_cfg.mclk);
 	return 0;
 }
 
@@ -1153,7 +1156,7 @@ static struct platform_driver isif_driver = {
 		.name	= "isif",
 		.owner = THIS_MODULE,
 	},
-	.remove = __devexit_p(isif_remove),
+	.remove = isif_remove,
 	.probe = isif_probe,
 };
 

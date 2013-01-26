@@ -515,14 +515,14 @@ int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	fp->in_ep = ep;
 	ep->driver_data = fp; /* Claim */
 
-	pn_hs_sink_desc.bEndpointAddress =
-		pn_fs_sink_desc.bEndpointAddress;
-	pn_hs_source_desc.bEndpointAddress =
-		pn_fs_source_desc.bEndpointAddress;
+	pn_hs_sink_desc.bEndpointAddress = pn_fs_sink_desc.bEndpointAddress;
+	pn_hs_source_desc.bEndpointAddress = pn_fs_source_desc.bEndpointAddress;
 
 	/* Do not try to bind Phonet twice... */
-	fp->function.descriptors = fs_pn_function;
-	fp->function.hs_descriptors = hs_pn_function;
+	status = usb_assign_descriptors(f, fs_pn_function, hs_pn_function,
+			NULL);
+	if (status)
+		goto err;
 
 	/* Incoming USB requests */
 	status = -ENOMEM;
@@ -531,7 +531,7 @@ int pn_bind(struct usb_configuration *c, struct usb_function *f)
 
 		req = usb_ep_alloc_request(fp->out_ep, GFP_KERNEL);
 		if (!req)
-			goto err;
+			goto err_req;
 
 		req->complete = pn_rx_complete;
 		fp->out_reqv[i] = req;
@@ -540,14 +540,18 @@ int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	/* Outgoing USB requests */
 	fp->in_req = usb_ep_alloc_request(fp->in_ep, GFP_KERNEL);
 	if (!fp->in_req)
-		goto err;
+		goto err_req;
 
 	INFO(cdev, "USB CDC Phonet function\n");
 	INFO(cdev, "using %s, OUT %s, IN %s\n", cdev->gadget->name,
 		fp->out_ep->name, fp->in_ep->name);
 	return 0;
 
+err_req:
+	for (i = 0; i < phonet_rxq_size && fp->out_reqv[i]; i++)
+		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 err:
+	usb_free_all_descriptors(f);
 	if (fp->out_ep)
 		fp->out_ep->driver_data = NULL;
 	if (fp->in_ep)
@@ -569,6 +573,7 @@ pn_unbind(struct usb_configuration *c, struct usb_function *f)
 		if (fp->out_reqv[i])
 			usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 
+	usb_free_all_descriptors(f);
 	kfree(fp);
 }
 

@@ -27,6 +27,8 @@
  *      Dave Airlie <airlied@linux.ie>
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/slab.h>
@@ -42,6 +44,15 @@ MODULE_DESCRIPTION("DRM KMS helper");
 MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
+
+/**
+ * DOC: fbdev helpers
+ *
+ * The fb helper functions are useful to provide an fbdev on top of a drm kernel
+ * mode setting driver. They can be used mostly independantely from the crtc
+ * helper functions used by many drivers to implement the kernel mode setting
+ * interfaces.
+ */
 
 /* simple single crtc case helper function */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
@@ -95,10 +106,16 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 			if (mode->force) {
 				const char *s;
 				switch (mode->force) {
-				case DRM_FORCE_OFF: s = "OFF"; break;
-				case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
+				case DRM_FORCE_OFF:
+					s = "OFF";
+					break;
+				case DRM_FORCE_ON_DIGITAL:
+					s = "ON - dig";
+					break;
 				default:
-				case DRM_FORCE_ON: s = "ON"; break;
+				case DRM_FORCE_ON:
+					s = "ON";
+					break;
 				}
 
 				DRM_INFO("forcing %s connector %s\n",
@@ -265,7 +282,7 @@ int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 	if (panic_timeout < 0)
 		return 0;
 
-	printk(KERN_ERR "panic occurred, switching back to text console\n");
+	pr_err("panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 }
 EXPORT_SYMBOL(drm_fb_helper_panic);
@@ -331,7 +348,7 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 		for (j = 0; j < fb_helper->connector_count; j++) {
 			connector = fb_helper->connector_info[j]->connector;
 			connector->funcs->dpms(connector, dpms_mode);
-			drm_connector_property_set_value(connector,
+			drm_object_property_set_value(&connector->base,
 				dev->mode_config.dpms_property, dpms_mode);
 		}
 	}
@@ -433,7 +450,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			printk(KERN_INFO "drm: unregistered panic notifier\n");
+			pr_info("drm: unregistered panic notifier\n");
 			atomic_notifier_chain_unregister(&panic_notifier_list,
 							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -724,9 +741,9 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	/* if driver picks 8 or 16 by default use that
 	   for both depth/bpp */
-	if (preferred_bpp != sizes.surface_bpp) {
+	if (preferred_bpp != sizes.surface_bpp)
 		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
-	}
+
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_fb_helper_connector *fb_helper_conn = fb_helper->connector_info[i];
@@ -794,18 +811,16 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	info = fb_helper->fbdev;
 
 	/* set the fb pointer */
-	for (i = 0; i < fb_helper->crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++)
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
-	}
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0) {
+		if (register_framebuffer(info) < 0)
 			return -EINVAL;
-		}
 
-		printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-		       info->fix.id);
+		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
+				info->node, info->fix.id);
 
 	} else {
 		drm_fb_helper_set_par(info);
@@ -814,7 +829,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		printk(KERN_INFO "drm: registered panic notifier\n");
+		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -1002,11 +1017,11 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
-	if (strict) {
+	if (strict)
 		enable = connector->status == connector_status_connected;
-	} else {
+	else
 		enable = connector->status != connector_status_disconnected;
-	}
+
 	return enable;
 }
 
@@ -1191,9 +1206,8 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	for (c = 0; c < fb_helper->crtc_count; c++) {
 		crtc = &fb_helper->crtc_info[c];
 
-		if ((encoder->possible_crtcs & (1 << c)) == 0) {
+		if ((encoder->possible_crtcs & (1 << c)) == 0)
 			continue;
-		}
 
 		for (o = 0; o < n; o++)
 			if (best_crtcs[o] == crtc)
@@ -1246,6 +1260,11 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
 	enabled = kcalloc(dev->mode_config.num_connector,
 			  sizeof(bool), GFP_KERNEL);
+	if (!crtcs || !modes || !enabled) {
+		DRM_ERROR("Memory allocation failed\n");
+		goto out;
+	}
+
 
 	drm_enable_connectors(fb_helper, enabled);
 
@@ -1284,6 +1303,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		}
 	}
 
+out:
 	kfree(crtcs);
 	kfree(modes);
 	kfree(enabled);
@@ -1291,12 +1311,14 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 /**
  * drm_helper_initial_config - setup a sane initial connector configuration
- * @dev: DRM device
+ * @fb_helper: fb_helper device struct
+ * @bpp_sel: bpp value to use for the framebuffer configuration
  *
  * LOCKING:
- * Called at init time, must take mode config lock.
+ * Called at init time by the driver to set up the @fb_helper initial
+ * configuration, must take the mode config lock.
  *
- * Scan the CRTCs and connectors and try to put together an initial setup.
+ * Scans the CRTCs and connectors and tries to put together an initial setup.
  * At the moment, this is a cloned configuration across all heads with
  * a new framebuffer object as the backing store.
  *
@@ -1319,9 +1341,9 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	if (count == 0) {
-		printk(KERN_INFO "No connectors reported connected with modes\n");
-	}
+	if (count == 0)
+		dev_info(fb_helper->dev->dev, "No connectors reported connected with modes\n");
+
 	drm_setup_crtcs(fb_helper);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
@@ -1330,7 +1352,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
 /**
  * drm_fb_helper_hotplug_event - respond to a hotplug notification by
- *                               probing all the outputs attached to the fb.
+ *                               probing all the outputs attached to the fb
  * @fb_helper: the drm_fb_helper
  *
  * LOCKING:

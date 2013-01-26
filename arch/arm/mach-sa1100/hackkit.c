@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/cpufreq.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -35,7 +36,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>

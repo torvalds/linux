@@ -1671,7 +1671,7 @@ static void e1000_get_wol(struct net_device *netdev,
 	/* apply any specific unsupported masks here */
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-		/* KSP3 does not suppport UCAST wake-ups */
+		/* KSP3 does not support UCAST wake-ups */
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)

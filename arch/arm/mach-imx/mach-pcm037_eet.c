@@ -11,13 +11,12 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-
 #include <asm/mach-types.h>
 
 #include "pcm037.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "iomux-mx3.h"
 
 static unsigned int pcm037_eet_pins[] = {
 	/* Reserve and hardwire GPIO 57 high - S6E63D6 chipselect */

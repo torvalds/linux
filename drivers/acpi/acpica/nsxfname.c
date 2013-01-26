@@ -53,8 +53,8 @@
 ACPI_MODULE_NAME("nsxfname")
 
 /* Local prototypes */
-static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
-				    struct acpica_device_id *source,
+static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
+				    struct acpi_pnp_device_id *source,
 				    char *string_area);
 
 /******************************************************************************
@@ -69,8 +69,8 @@ static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
  * RETURN:      Status
  *
  * DESCRIPTION: This routine will search for a caller specified name in the
- *              name space.  The caller can restrict the search region by
- *              specifying a non NULL parent.  The parent value is itself a
+ *              name space. The caller can restrict the search region by
+ *              specifying a non NULL parent. The parent value is itself a
  *              namespace handle.
  *
  ******************************************************************************/
@@ -149,7 +149,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_handle)
  * RETURN:      Pointer to a string containing the fully qualified Name.
  *
  * DESCRIPTION: This routine returns the fully qualified name associated with
- *              the Handle parameter.  This and the acpi_pathname_to_handle are
+ *              the Handle parameter. This and the acpi_pathname_to_handle are
  *              complementary functions.
  *
  ******************************************************************************/
@@ -202,8 +202,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
-	ACPI_STRNCPY(buffer->pointer, acpi_ut_get_node_name(node),
-		     ACPI_NAME_SIZE);
+	ACPI_MOVE_NAME(buffer->pointer, acpi_ut_get_node_name(node));
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 	status = AE_OK;
 
@@ -219,20 +218,21 @@ ACPI_EXPORT_SYMBOL(acpi_get_name)
  *
  * FUNCTION:    acpi_ns_copy_device_id
  *
- * PARAMETERS:  dest                - Pointer to the destination DEVICE_ID
- *              source              - Pointer to the source DEVICE_ID
+ * PARAMETERS:  dest                - Pointer to the destination PNP_DEVICE_ID
+ *              source              - Pointer to the source PNP_DEVICE_ID
  *              string_area         - Pointer to where to copy the dest string
  *
  * RETURN:      Pointer to the next string area
  *
- * DESCRIPTION: Copy a single DEVICE_ID, including the string data.
+ * DESCRIPTION: Copy a single PNP_DEVICE_ID, including the string data.
  *
  ******************************************************************************/
-static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
-				    struct acpica_device_id *source,
+static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
+				    struct acpi_pnp_device_id *source,
 				    char *string_area)
 {
-	/* Create the destination DEVICE_ID */
+
+	/* Create the destination PNP_DEVICE_ID */
 
 	dest->string = string_area;
 	dest->length = source->length;
@@ -256,8 +256,8 @@ static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
  *              namespace node and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
- * For Device and Processor objects, run the Device _HID, _UID, _CID, _STA,
- * _ADR, _sx_w, and _sx_d methods.
+ * For Device and Processor objects, run the Device _HID, _UID, _CID, _SUB,
+ * _STA, _ADR, _sx_w, and _sx_d methods.
  *
  * Note: Allocates the return buffer, must be freed by the caller.
  *
@@ -269,9 +269,10 @@ acpi_get_object_info(acpi_handle handle,
 {
 	struct acpi_namespace_node *node;
 	struct acpi_device_info *info;
-	struct acpica_device_id_list *cid_list = NULL;
-	struct acpica_device_id *hid = NULL;
-	struct acpica_device_id *uid = NULL;
+	struct acpi_pnp_device_id_list *cid_list = NULL;
+	struct acpi_pnp_device_id *hid = NULL;
+	struct acpi_pnp_device_id *uid = NULL;
+	struct acpi_pnp_device_id *sub = NULL;
 	char *next_id_string;
 	acpi_object_type type;
 	acpi_name name;
@@ -316,7 +317,7 @@ acpi_get_object_info(acpi_handle handle,
 	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
 		 * Get extra info for ACPI Device/Processor objects only:
-		 * Run the Device _HID, _UID, and _CID methods.
+		 * Run the Device _HID, _UID, _SUB, and _CID methods.
 		 *
 		 * Note: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
@@ -339,6 +340,14 @@ acpi_get_object_info(acpi_handle handle,
 			valid |= ACPI_VALID_UID;
 		}
 
+		/* Execute the Device._SUB method */
+
+		status = acpi_ut_execute_SUB(node, &sub);
+		if (ACPI_SUCCESS(status)) {
+			info_size += sub->length;
+			valid |= ACPI_VALID_SUB;
+		}
+
 		/* Execute the Device._CID method */
 
 		status = acpi_ut_execute_CID(node, &cid_list);
@@ -348,7 +357,7 @@ acpi_get_object_info(acpi_handle handle,
 
 			info_size +=
 			    (cid_list->list_size -
-			     sizeof(struct acpica_device_id_list));
+			     sizeof(struct acpi_pnp_device_id_list));
 			valid |= ACPI_VALID_CID;
 		}
 	}
@@ -418,16 +427,17 @@ acpi_get_object_info(acpi_handle handle,
 	next_id_string = ACPI_CAST_PTR(char, info->compatible_id_list.ids);
 	if (cid_list) {
 
-		/* Point past the CID DEVICE_ID array */
+		/* Point past the CID PNP_DEVICE_ID array */
 
 		next_id_string +=
 		    ((acpi_size) cid_list->count *
-		     sizeof(struct acpica_device_id));
+		     sizeof(struct acpi_pnp_device_id));
 	}
 
 	/*
-	 * Copy the HID, UID, and CIDs to the return buffer. The variable-length
-	 * strings are copied to the reserved area at the end of the buffer.
+	 * Copy the HID, UID, SUB, and CIDs to the return buffer.
+	 * The variable-length strings are copied to the reserved area
+	 * at the end of the buffer.
 	 *
 	 * For HID and CID, check if the ID is a PCI Root Bridge.
 	 */
@@ -443,6 +453,11 @@ acpi_get_object_info(acpi_handle handle,
 	if (uid) {
 		next_id_string = acpi_ns_copy_device_id(&info->unique_id,
 							uid, next_id_string);
+	}
+
+	if (sub) {
+		next_id_string = acpi_ns_copy_device_id(&info->subsystem_id,
+							sub, next_id_string);
 	}
 
 	if (cid_list) {
@@ -480,6 +495,9 @@ acpi_get_object_info(acpi_handle handle,
 	}
 	if (uid) {
 		ACPI_FREE(uid);
+	}
+	if (sub) {
+		ACPI_FREE(sub);
 	}
 	if (cid_list) {
 		ACPI_FREE(cid_list);

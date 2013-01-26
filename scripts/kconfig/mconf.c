@@ -312,7 +312,7 @@ static void set_config_filename(const char *config_filename)
 
 
 struct search_data {
-	struct jk_head *head;
+	struct list_head *head;
 	struct menu **targets;
 	int *keys;
 };
@@ -323,7 +323,7 @@ static void update_text(char *buf, size_t start, size_t end, void *_data)
 	struct jump_key *pos;
 	int k = 0;
 
-	CIRCLEQ_FOREACH(pos, data->head, entries) {
+	list_for_each_entry(pos, data->head, entries) {
 		if (pos->offset >= start && pos->offset < end) {
 			char header[4];
 
@@ -375,7 +375,7 @@ again:
 
 	sym_arr = sym_re_search(dialog_input);
 	do {
-		struct jk_head head = CIRCLEQ_HEAD_INITIALIZER(head);
+		LIST_HEAD(head);
 		struct menu *targets[JUMP_NB];
 		int keys[JUMP_NB + 1], i;
 		struct search_data data = {

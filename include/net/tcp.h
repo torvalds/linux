@@ -369,7 +369,6 @@ extern void tcp_shutdown (struct sock *sk, int how);
 extern void tcp_v4_early_demux(struct sk_buff *skb);
 extern int tcp_v4_rcv(struct sk_buff *skb);
 
-extern struct inet_peer *tcp_v4_get_peer(struct sock *sk);
 extern int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 extern int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		       size_t size);
@@ -525,6 +524,7 @@ static inline __u32 cookie_v6_init_sequence(struct sock *sk,
 extern void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 				      int nonagle);
 extern bool tcp_may_send_now(struct sock *sk);
+extern int __tcp_retransmit_skb(struct sock *, struct sk_buff *);
 extern int tcp_retransmit_skb(struct sock *, struct sk_buff *);
 extern void tcp_retransmit_timer(struct sock *sk);
 extern void tcp_xmit_retransmit_queue(struct sock *);

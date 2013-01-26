@@ -257,7 +257,7 @@ struct snd_soc_platform_driver mmp_soc_platform = {
 	.pcm_free	= mmp_pcm_free_dma_buffers,
 };
 
-static __devinit int mmp_pcm_probe(struct platform_device *pdev)
+static int mmp_pcm_probe(struct platform_device *pdev)
 {
 	struct mmp_audio_platdata *pdata = pdev->dev.platform_data;
 
@@ -274,7 +274,7 @@ static __devinit int mmp_pcm_probe(struct platform_device *pdev)
 	return snd_soc_register_platform(&pdev->dev, &mmp_soc_platform);
 }
 
-static int __devexit mmp_pcm_remove(struct platform_device *pdev)
+static int mmp_pcm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -287,7 +287,7 @@ static struct platform_driver mmp_pcm_driver = {
 	},
 
 	.probe = mmp_pcm_probe,
-	.remove = __devexit_p(mmp_pcm_remove),
+	.remove = mmp_pcm_remove,
 };
 
 module_platform_driver(mmp_pcm_driver);

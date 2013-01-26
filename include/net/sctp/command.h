@@ -130,8 +130,6 @@ typedef union {
 	__be16 err;
 	sctp_state_t state;
 	sctp_event_timeout_t to;
-	unsigned long zero;
-	void *ptr;
 	struct sctp_chunk *chunk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
@@ -154,23 +152,15 @@ typedef union {
  * which takes an __s32 and returns a sctp_arg_t containing the
  * __s32.  So, after foo = SCTP_I32(arg), foo.i32 == arg.
  */
-static inline sctp_arg_t SCTP_NULL(void)
-{
-	sctp_arg_t retval; retval.ptr = NULL; return retval;
-}
-static inline sctp_arg_t SCTP_NOFORCE(void)
-{
-	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 0; return retval;
-}
-static inline sctp_arg_t SCTP_FORCE(void)
-{
-	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 1; return retval;
-}
 
 #define SCTP_ARG_CONSTRUCTOR(name, type, elt) \
 static inline sctp_arg_t	\
 SCTP_## name (type arg)		\
-{ sctp_arg_t retval = {.zero = 0UL}; retval.elt = arg; return retval; }
+{ sctp_arg_t retval;\
+  memset(&retval, 0, sizeof(sctp_arg_t));\
+  retval.elt = arg;\
+  return retval;\
+}
 
 SCTP_ARG_CONSTRUCTOR(I32,	__s32, i32)
 SCTP_ARG_CONSTRUCTOR(U32,	__u32, u32)
@@ -181,7 +171,6 @@ SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
 SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
 SCTP_ARG_CONSTRUCTOR(STATE,	sctp_state_t, state)
 SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
-SCTP_ARG_CONSTRUCTOR(PTR,	void *, ptr)
 SCTP_ARG_CONSTRUCTOR(CHUNK,	struct sctp_chunk *, chunk)
 SCTP_ARG_CONSTRUCTOR(ASOC,	struct sctp_association *, asoc)
 SCTP_ARG_CONSTRUCTOR(TRANSPORT,	struct sctp_transport *, transport)
@@ -191,6 +180,23 @@ SCTP_ARG_CONSTRUCTOR(ULPEVENT,  struct sctp_ulpevent *, ulpevent)
 SCTP_ARG_CONSTRUCTOR(PACKET,	struct sctp_packet *, packet)
 SCTP_ARG_CONSTRUCTOR(SACKH,	sctp_sackhdr_t *, sackh)
 SCTP_ARG_CONSTRUCTOR(DATAMSG,	struct sctp_datamsg *, msg)
+
+static inline sctp_arg_t SCTP_FORCE(void)
+{
+	return SCTP_I32(1);
+}
+
+static inline sctp_arg_t SCTP_NOFORCE(void)
+{
+	return SCTP_I32(0);
+}
+
+static inline sctp_arg_t SCTP_NULL(void)
+{
+	sctp_arg_t retval;
+	memset(&retval, 0, sizeof(sctp_arg_t));
+	return retval;
+}
 
 typedef struct {
 	sctp_arg_t obj;

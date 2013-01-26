@@ -815,7 +815,7 @@ static struct ctl_table dccp_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static int dccp_kmemdup_sysctl_table(struct nf_proto_net *pn,
+static int dccp_kmemdup_sysctl_table(struct net *net, struct nf_proto_net *pn,
 				     struct dccp_net *dn)
 {
 #ifdef CONFIG_SYSCTL
@@ -836,6 +836,10 @@ static int dccp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	pn->ctl_table[5].data = &dn->dccp_timeout[CT_DCCP_CLOSING];
 	pn->ctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
 	pn->ctl_table[7].data = &dn->dccp_loose;
+
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		pn->ctl_table[0].procname = NULL;
 #endif
 	return 0;
 }
@@ -857,7 +861,7 @@ static int dccp_init_net(struct net *net, u_int16_t proto)
 		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
 	}
 
-	return dccp_kmemdup_sysctl_table(pn, dn);
+	return dccp_kmemdup_sysctl_table(net, pn, dn);
 }
 
 static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {

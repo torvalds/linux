@@ -17,15 +17,6 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
 asmlinkage unsigned long sys_mmap2(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long usp,
-		int __user *parent_tidp, void __user *child_threadptr,
-		int __user *child_tidp, int p6, struct pt_regs *regs);
-asmlinkage int sys_fork(unsigned long p1, unsigned long p2,
-		unsigned long p3, unsigned long p4, unsigned long p5,
-		unsigned long p6, struct pt_regs *regs);
-asmlinkage int sys_vfork(unsigned long p1, unsigned long p2,
-		unsigned long p3, unsigned long p4, unsigned long p5,
-		unsigned long p6, struct pt_regs *regs);
 asmlinkage long sys_pipe(int __user *fildes);
 asmlinkage long sys_pipe2(int __user *fildes, int flags);
 asmlinkage long sys_rt_sigaction(int sig,

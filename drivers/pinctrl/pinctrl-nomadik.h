@@ -1,7 +1,7 @@
 #ifndef PINCTRL_PINCTRL_NOMADIK_H
 #define PINCTRL_PINCTRL_NOMADIK_H
 
-#include <plat/gpio-nomadik.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0

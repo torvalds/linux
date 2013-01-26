@@ -43,55 +43,11 @@
 #include <net/ndisc.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/xfrm.h>
 #endif
 
 #include <asm/uaccess.h>
-
-int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
-{
-	const unsigned char *nh = skb_network_header(skb);
-	int packet_len = skb->tail - skb->network_header;
-	struct ipv6_opt_hdr *hdr;
-	int len;
-
-	if (offset + 2 > packet_len)
-		goto bad;
-	hdr = (struct ipv6_opt_hdr *)(nh + offset);
-	len = ((hdr->hdrlen + 1) << 3);
-
-	if (offset + len > packet_len)
-		goto bad;
-
-	offset += 2;
-	len -= 2;
-
-	while (len > 0) {
-		int opttype = nh[offset];
-		int optlen;
-
-		if (opttype == type)
-			return offset;
-
-		switch (opttype) {
-		case IPV6_TLV_PAD1:
-			optlen = 1;
-			break;
-		default:
-			optlen = nh[offset + 1] + 2;
-			if (optlen > len)
-				goto bad;
-			break;
-		}
-		offset += optlen;
-		len -= optlen;
-	}
-	/* not_found */
- bad:
-	return -1;
-}
-EXPORT_SYMBOL_GPL(ipv6_find_tlv);
 
 /*
  *	Parsing tlv encoded headers.
@@ -224,7 +180,7 @@ bad:
   Destination options header.
  *****************************/
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 {
 	struct ipv6_destopt_hao *hao;
@@ -288,7 +244,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 #endif
 
 static const struct tlvtype_proc tlvprocdestopt_lst[] = {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	{
 		.type	= IPV6_TLV_HAO,
 		.func	= ipv6_dest_hao,
@@ -300,7 +256,7 @@ static const struct tlvtype_proc tlvprocdestopt_lst[] = {
 static int ipv6_destopt_rcv(struct sk_buff *skb)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	__u16 dstbuf;
 #endif
 	struct dst_entry *dst = skb_dst(skb);
@@ -315,14 +271,14 @@ static int ipv6_destopt_rcv(struct sk_buff *skb)
 	}
 
 	opt->lastopt = opt->dst1 = skb_network_header_len(skb);
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	dstbuf = opt->dst1;
 #endif
 
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skb)) {
 		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		opt->nhoff = dstbuf;
 #else
 		opt->nhoff = opt->dst1;
@@ -378,7 +334,7 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 looped_back:
 	if (hdr->segments_left == 0) {
 		switch (hdr->type) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		case IPV6_SRCRT_TYPE_2:
 			/* Silently discard type 2 header unless it was
 			 * processed by own
@@ -404,7 +360,7 @@ looped_back:
 	}
 
 	switch (hdr->type) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case IPV6_SRCRT_TYPE_2:
 		if (accept_source_route < 0)
 			goto unknown_rh;
@@ -461,7 +417,7 @@ looped_back:
 	addr += i - 1;
 
 	switch (hdr->type) {
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case IPV6_SRCRT_TYPE_2:
 		if (xfrm6_input_addr(skb, (xfrm_address_t *)addr,
 				     (xfrm_address_t *)&ipv6_hdr(skb)->saddr,
@@ -528,12 +484,12 @@ unknown_rh:
 
 static const struct inet6_protocol rthdr_protocol = {
 	.handler	=	ipv6_rthdr_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
+	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
 static const struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
+	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
 static const struct inet6_protocol nodata_protocol = {
@@ -559,10 +515,10 @@ int __init ipv6_exthdrs_init(void)
 
 out:
 	return ret;
-out_rthdr:
-	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
 out_destopt:
 	inet6_del_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
+out_rthdr:
+	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
 	goto out;
 };
 

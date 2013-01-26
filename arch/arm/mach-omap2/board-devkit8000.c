@@ -39,9 +39,8 @@
 #include <asm/mach/flash.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
@@ -55,7 +54,10 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "board-flash.h"
 #include "common-board-devices.h"
+
+#define	NAND_CS			0
 
 #define OMAP_DM9000_GPIO_IRQ	25
 #define OMAP3_DEVKIT_TS_GPIO	27
@@ -139,6 +141,7 @@ static struct omap_dss_device devkit8000_lcd_device = {
 
 static struct tfp410_platform_data dvi_panel = {
 	.power_down_gpio	= -1,
+	.i2c_bus_num		= 1,
 };
 
 static struct omap_dss_device devkit8000_dvi_device = {
@@ -621,8 +624,9 @@ static void __init devkit8000_init(void)
 
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, devkit8000_nand_partitions,
-			     ARRAY_SIZE(devkit8000_nand_partitions));
+	board_nand_init(devkit8000_nand_partitions,
+			ARRAY_SIZE(devkit8000_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 	omap_twl4030_audio_init("omap3beagle");
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
@@ -640,5 +644,5 @@ MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.init_machine	= devkit8000_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_secure_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -26,6 +26,7 @@
 #include "stf.h"
 #include "channel.h"
 #include "mac80211_if.h"
+#include "debug.h"
 
 /* QDB() macro takes a dB value and converts to a quarter dB value */
 #define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
@@ -336,8 +337,6 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	const char *ccode = sprom->alpha2;
 	int ccode_len = sizeof(sprom->alpha2);
 
-	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
-
 	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
 	if (wlc_cm == NULL)
 		return NULL;
@@ -615,8 +614,8 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, u16 chspec)
 
 	/* check the chanspec */
 	if (brcms_c_chspec_malformed(chspec)) {
-		wiphy_err(wlc->wiphy, "wl%d: malformed chanspec 0x%x\n",
-			wlc->pub->unit, chspec);
+		brcms_err(wlc->hw->d11core, "wl%d: malformed chanspec 0x%x\n",
+			  wlc->pub->unit, chspec);
 		return false;
 	}
 
@@ -738,7 +737,8 @@ static int brcms_reg_notifier(struct wiphy *wiphy,
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 	} else {
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\"\n",
+		brcms_err(wlc->hw->d11core,
+			  "wl%d: %s: no valid channel for \"%s\"\n",
 			  wlc->pub->unit, __func__, request->alpha2);
 	}
 

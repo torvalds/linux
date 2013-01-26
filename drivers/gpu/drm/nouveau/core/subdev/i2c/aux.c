@@ -50,7 +50,7 @@ auxch_init(struct nouveau_i2c *aux, int ch)
 		ctrl = nv_rd32(aux, 0x00e4e4 + (ch * 0x50));
 		udelay(1);
 		if (!timeout--) {
-			AUX_ERR("begin idle timeout 0x%08x", ctrl);
+			AUX_ERR("begin idle timeout 0x%08x\n", ctrl);
 			return -EBUSY;
 		}
 	} while (ctrl & 0x03010000);

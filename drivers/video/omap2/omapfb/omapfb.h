@@ -28,6 +28,8 @@
 #endif
 
 #include <linux/rwsem.h>
+#include <linux/dma-attrs.h>
+#include <linux/dma-mapping.h>
 
 #include <video/omapdss.h>
 
@@ -49,6 +51,9 @@ extern bool omapfb_debug;
 
 struct omapfb2_mem_region {
 	int             id;
+	struct dma_attrs attrs;
+	void		*token;
+	dma_addr_t	dma_handle;
 	u32		paddr;
 	void __iomem	*vaddr;
 	struct vrfb	vrfb;
@@ -124,9 +129,6 @@ void omapfb_remove_sysfs(struct omapfb2_device *fbdev);
 
 int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg);
 
-int omapfb_update_window(struct fb_info *fbi,
-		u32 x, u32 y, u32 w, u32 h);
-
 int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 			struct fb_var_screeninfo *var);
 
@@ -144,16 +146,16 @@ int omapfb_set_update_mode(struct fb_info *fbi, enum omapfb_update_mode mode);
 static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	int i;
+	struct omap_overlay *ovl;
 
 	/* XXX: returns the display connected to first attached overlay */
-	for (i = 0; i < ofbi->num_overlays; i++) {
-		struct omap_overlay *ovl = ofbi->overlays[i];
 
-		return ovl->get_device(ovl);
-	}
+	if (ofbi->num_overlays == 0)
+		return NULL;
 
-	return NULL;
+	ovl = ofbi->overlays[0];
+
+	return ovl->get_device(ovl);
 }
 
 static inline struct omapfb_display_data *get_display_data(

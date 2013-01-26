@@ -16,7 +16,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
@@ -289,6 +289,7 @@ void machine_power_off(void)
  * Dummy power off function.
  */
 void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL_GPL(pm_power_off);
 
 static int __init early_parse_mem(char *p)
 {
@@ -777,40 +778,6 @@ static void __init reserve_crashkernel(void)
 #endif
 }
 
-static void __init init_storage_keys(unsigned long start, unsigned long end)
-{
-	unsigned long boundary, function, size;
-
-	while (start < end) {
-		if (MACHINE_HAS_EDAT2) {
-			/* set storage keys for a 2GB frame */
-			function = 0x22000 | PAGE_DEFAULT_KEY;
-			size = 1UL << 31;
-			boundary = (start + size) & ~(size - 1);
-			if (boundary <= end) {
-				do {
-					start = pfmf(function, start);
-				} while (start < boundary);
-				continue;
-			}
-		}
-		if (MACHINE_HAS_EDAT1) {
-			/* set storage keys for a 1MB frame */
-			function = 0x21000 | PAGE_DEFAULT_KEY;
-			size = 1UL << 20;
-			boundary = (start + size) & ~(size - 1);
-			if (boundary <= end) {
-				do {
-					start = pfmf(function, start);
-				} while (start < boundary);
-				continue;
-			}
-		}
-		page_set_storage_key(start, PAGE_DEFAULT_KEY, 0);
-		start += PAGE_SIZE;
-	}
-}
-
 static void __init setup_memory(void)
 {
         unsigned long bootmap_size;
@@ -889,7 +856,7 @@ static void __init setup_memory(void)
 		memblock_add_node(PFN_PHYS(start_chunk),
 				  PFN_PHYS(end_chunk - start_chunk), 0);
 		pfn = max(start_chunk, start_pfn);
-		init_storage_keys(PFN_PHYS(pfn), PFN_PHYS(end_chunk));
+		storage_key_init_range(PFN_PHYS(pfn), PFN_PHYS(end_chunk));
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
@@ -1039,6 +1006,9 @@ static void __init setup_hwcaps(void)
 	case 0x2817:
 	case 0x2818:
 		strcpy(elf_platform, "z196");
+		break;
+	case 0x2827:
+		strcpy(elf_platform, "zEC12");
 		break;
 	}
 }

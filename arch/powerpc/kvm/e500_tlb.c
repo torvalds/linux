@@ -304,17 +304,13 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 	ref->flags = E500_TLB_VALID;
 
 	if (tlbe_is_writable(gtlbe))
-		ref->flags |= E500_TLB_DIRTY;
+		kvm_set_pfn_dirty(pfn);
 }
 
 static inline void kvmppc_e500_ref_release(struct tlbe_ref *ref)
 {
 	if (ref->flags & E500_TLB_VALID) {
-		if (ref->flags & E500_TLB_DIRTY)
-			kvm_release_pfn_dirty(ref->pfn);
-		else
-			kvm_release_pfn_clean(ref->pfn);
-
+		trace_kvm_booke206_ref_release(ref->pfn, ref->flags);
 		ref->flags = 0;
 	}
 }
@@ -355,6 +351,13 @@ static void clear_tlb_refs(struct kvmppc_vcpu_e500 *vcpu_e500)
 	}
 
 	clear_tlb_privs(vcpu_e500);
+}
+
+void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+	clear_tlb_refs(vcpu_e500);
+	clear_tlb1_bitmap(vcpu_e500);
 }
 
 static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
@@ -412,7 +415,8 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	struct tlbe_ref *ref)
 {
 	struct kvm_memory_slot *slot;
-	unsigned long pfn, hva;
+	unsigned long pfn = 0; /* silence GCC warning */
+	unsigned long hva;
 	int pfnmap = 0;
 	int tsize = BOOK3E_PAGESZ_4K;
 
@@ -521,7 +525,7 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	if (likely(!pfnmap)) {
 		unsigned long tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
-		if (is_error_pfn(pfn)) {
+		if (is_error_noslot_pfn(pfn)) {
 			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
 					(long)gfn);
 			return;
@@ -541,6 +545,9 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	/* Clear i-cache for new pages */
 	kvmppc_mmu_flush_icache(pfn);
+
+	/* Drop refcount on page, so that mmu notifiers can clear it */
+	kvm_release_pfn_clean(pfn);
 }
 
 /* XXX only map the one-one case, for now use TLB0 */
@@ -682,14 +689,11 @@ int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500, ulong value)
 	return EMULATE_DONE;
 }
 
-int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
+int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	unsigned int ia;
 	int esel, tlbsel;
-	gva_t ea;
-
-	ea = ((ra) ? kvmppc_get_gpr(vcpu, ra) : 0) + kvmppc_get_gpr(vcpu, rb);
 
 	ia = (ea >> 2) & 0x1;
 
@@ -716,7 +720,7 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 }
 
 static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
-		       int pid, int rt)
+		       int pid, int type)
 {
 	struct kvm_book3e_206_tlb_entry *tlbe;
 	int tid, esel;
@@ -725,7 +729,7 @@ static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 	for (esel = 0; esel < vcpu_e500->gtlb_params[tlbsel].entries; esel++) {
 		tlbe = get_entry(vcpu_e500, tlbsel, esel);
 		tid = get_tlb_tid(tlbe);
-		if (rt == 0 || tid == pid) {
+		if (type == 0 || tid == pid) {
 			inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
 			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
 		}
@@ -733,14 +737,9 @@ static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 }
 
 static void tlbilx_one(struct kvmppc_vcpu_e500 *vcpu_e500, int pid,
-		       int ra, int rb)
+		       gva_t ea)
 {
 	int tlbsel, esel;
-	gva_t ea;
-
-	ea = kvmppc_get_gpr(&vcpu_e500->vcpu, rb);
-	if (ra)
-		ea += kvmppc_get_gpr(&vcpu_e500->vcpu, ra);
 
 	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
 		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, -1);
@@ -752,16 +751,16 @@ static void tlbilx_one(struct kvmppc_vcpu_e500 *vcpu_e500, int pid,
 	}
 }
 
-int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int rt, int ra, int rb)
+int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int type, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int pid = get_cur_spid(vcpu);
 
-	if (rt == 0 || rt == 1) {
-		tlbilx_all(vcpu_e500, 0, pid, rt);
-		tlbilx_all(vcpu_e500, 1, pid, rt);
-	} else if (rt == 3) {
-		tlbilx_one(vcpu_e500, pid, ra, rb);
+	if (type == 0 || type == 1) {
+		tlbilx_all(vcpu_e500, 0, pid, type);
+		tlbilx_all(vcpu_e500, 1, pid, type);
+	} else if (type == 3) {
+		tlbilx_one(vcpu_e500, pid, ea);
 	}
 
 	return EMULATE_DONE;
@@ -786,16 +785,13 @@ int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
-int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
+int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, gva_t ea)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int as = !!get_cur_sas(vcpu);
 	unsigned int pid = get_cur_spid(vcpu);
 	int esel, tlbsel;
 	struct kvm_book3e_206_tlb_entry *gtlbe = NULL;
-	gva_t ea;
-
-	ea = kvmppc_get_gpr(vcpu, rb);
 
 	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
 		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, as);
@@ -875,6 +871,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 
 	gtlbe->mas1 = vcpu->arch.shared->mas1;
 	gtlbe->mas2 = vcpu->arch.shared->mas2;
+	if (!(vcpu->arch.shared->msr & MSR_CM))
+		gtlbe->mas2 &= 0xffffffffUL;
 	gtlbe->mas7_3 = vcpu->arch.shared->mas7_3;
 
 	trace_kvm_booke206_gtlb_write(vcpu->arch.shared->mas0, gtlbe->mas1,
@@ -1039,8 +1037,12 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 		sesel = 0; /* unused */
 		priv = &vcpu_e500->gtlb_priv[tlbsel][esel];
 
-		kvmppc_e500_setup_stlbe(vcpu, gtlbe, BOOK3E_PAGESZ_4K,
-					&priv->ref, eaddr, &stlbe);
+		/* Only triggers after clear_tlb_refs */
+		if (unlikely(!(priv->ref.flags & E500_TLB_VALID)))
+			kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
+		else
+			kvmppc_e500_setup_stlbe(vcpu, gtlbe, BOOK3E_PAGESZ_4K,
+						&priv->ref, eaddr, &stlbe);
 		break;
 
 	case 1: {
@@ -1059,6 +1061,49 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 
 	write_stlbe(vcpu_e500, gtlbe, &stlbe, stlbsel, sesel);
 }
+
+/************* MMU Notifiers *************/
+
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+{
+	trace_kvm_unmap_hva(hva);
+
+	/*
+	 * Flush all shadow tlb entries everywhere. This is slow, but
+	 * we are 100% sure that we catch the to be unmapped page
+	 */
+	kvm_flush_remote_tlbs(kvm);
+
+	return 0;
+}
+
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	/* kvm_unmap_hva flushes everything anyways */
+	kvm_unmap_hva(kvm, start);
+
+	return 0;
+}
+
+int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+{
+	/* The page will get remapped properly on its next fault */
+	kvm_unmap_hva(kvm, hva);
+}
+
+/*****************************************/
 
 static void free_gtlb(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
@@ -1081,6 +1126,8 @@ static void free_gtlb(struct kvmppc_vcpu_e500 *vcpu_e500)
 		}
 
 		vcpu_e500->num_shared_tlb_pages = 0;
+
+		kfree(vcpu_e500->shared_tlb_pages);
 		vcpu_e500->shared_tlb_pages = NULL;
 	} else {
 		kfree(vcpu_e500->gtlb_arch);
@@ -1178,21 +1225,27 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	}
 
 	virt = vmap(pages, num_pages, VM_MAP, PAGE_KERNEL);
-	if (!virt)
+	if (!virt) {
+		ret = -ENOMEM;
 		goto err_put_page;
+	}
 
 	privs[0] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[0],
 			   GFP_KERNEL);
 	privs[1] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[1],
 			   GFP_KERNEL);
 
-	if (!privs[0] || !privs[1])
-		goto err_put_page;
+	if (!privs[0] || !privs[1]) {
+		ret = -ENOMEM;
+		goto err_privs;
+	}
 
 	g2h_bitmap = kzalloc(sizeof(u64) * params.tlb_sizes[1],
 	                     GFP_KERNEL);
-	if (!g2h_bitmap)
-		goto err_put_page;
+	if (!g2h_bitmap) {
+		ret = -ENOMEM;
+		goto err_privs;
+	}
 
 	free_gtlb(vcpu_e500);
 
@@ -1232,10 +1285,11 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
 
-err_put_page:
+err_privs:
 	kfree(privs[0]);
 	kfree(privs[1]);
 
+err_put_page:
 	for (i = 0; i < num_pages; i++)
 		put_page(pages[i]);
 
@@ -1332,7 +1386,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	if (!vcpu_e500->gtlb_priv[1])
 		goto err;
 
-	vcpu_e500->g2h_tlb1_map = kzalloc(sizeof(unsigned int) *
+	vcpu_e500->g2h_tlb1_map = kzalloc(sizeof(u64) *
 					  vcpu_e500->gtlb_params[1].entries,
 					  GFP_KERNEL);
 	if (!vcpu_e500->g2h_tlb1_map)

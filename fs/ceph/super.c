@@ -403,8 +403,6 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",mount_timeout=%d", opt->mount_timeout);
 	if (opt->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
 		seq_printf(m, ",osd_idle_ttl=%d", opt->osd_idle_ttl);
-	if (opt->osd_timeout != CEPH_OSD_TIMEOUT_DEFAULT)
-		seq_printf(m, ",osdtimeout=%d", opt->osd_timeout);
 	if (opt->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
 		seq_printf(m, ",osdkeepalivetimeout=%d",
 			   opt->osd_keepalive_timeout);
@@ -849,7 +847,7 @@ static int ceph_register_bdi(struct super_block *sb,
 		fsc->backing_dev_info.ra_pages =
 			default_backing_dev_info.ra_pages;
 
-	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%d",
+	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
 			   atomic_long_inc_return(&bdi_seq));
 	if (!err)
 		sb->s_bdi = &fsc->backing_dev_info;

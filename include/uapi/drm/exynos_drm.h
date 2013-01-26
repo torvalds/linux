@@ -6,24 +6,10 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #ifndef _UAPI_EXYNOS_DRM_H_
@@ -133,17 +119,26 @@ struct drm_exynos_g2d_cmd {
 	__u32	data;
 };
 
+enum drm_exynos_g2d_buf_type {
+	G2D_BUF_USERPTR = 1 << 31,
+};
+
 enum drm_exynos_g2d_event_type {
 	G2D_EVENT_NOT,
 	G2D_EVENT_NONSTOP,
 	G2D_EVENT_STOP,		/* not yet */
 };
 
+struct drm_exynos_g2d_userptr {
+	unsigned long userptr;
+	unsigned long size;
+};
+
 struct drm_exynos_g2d_set_cmdlist {
 	__u64					cmd;
-	__u64					cmd_gem;
+	__u64					cmd_buf;
 	__u32					cmd_nr;
-	__u32					cmd_gem_nr;
+	__u32					cmd_buf_nr;
 
 	/* for g2d event */
 	__u64					event_type;
@@ -152,6 +147,172 @@ struct drm_exynos_g2d_set_cmdlist {
 
 struct drm_exynos_g2d_exec {
 	__u64					async;
+};
+
+enum drm_exynos_ops_id {
+	EXYNOS_DRM_OPS_SRC,
+	EXYNOS_DRM_OPS_DST,
+	EXYNOS_DRM_OPS_MAX,
+};
+
+struct drm_exynos_sz {
+	__u32	hsize;
+	__u32	vsize;
+};
+
+struct drm_exynos_pos {
+	__u32	x;
+	__u32	y;
+	__u32	w;
+	__u32	h;
+};
+
+enum drm_exynos_flip {
+	EXYNOS_DRM_FLIP_NONE = (0 << 0),
+	EXYNOS_DRM_FLIP_VERTICAL = (1 << 0),
+	EXYNOS_DRM_FLIP_HORIZONTAL = (1 << 1),
+	EXYNOS_DRM_FLIP_BOTH = EXYNOS_DRM_FLIP_VERTICAL |
+			EXYNOS_DRM_FLIP_HORIZONTAL,
+};
+
+enum drm_exynos_degree {
+	EXYNOS_DRM_DEGREE_0,
+	EXYNOS_DRM_DEGREE_90,
+	EXYNOS_DRM_DEGREE_180,
+	EXYNOS_DRM_DEGREE_270,
+};
+
+enum drm_exynos_planer {
+	EXYNOS_DRM_PLANAR_Y,
+	EXYNOS_DRM_PLANAR_CB,
+	EXYNOS_DRM_PLANAR_CR,
+	EXYNOS_DRM_PLANAR_MAX,
+};
+
+/**
+ * A structure for ipp supported property list.
+ *
+ * @version: version of this structure.
+ * @ipp_id: id of ipp driver.
+ * @count: count of ipp driver.
+ * @writeback: flag of writeback supporting.
+ * @flip: flag of flip supporting.
+ * @degree: flag of degree information.
+ * @csc: flag of csc supporting.
+ * @crop: flag of crop supporting.
+ * @scale: flag of scale supporting.
+ * @refresh_min: min hz of refresh.
+ * @refresh_max: max hz of refresh.
+ * @crop_min: crop min resolution.
+ * @crop_max: crop max resolution.
+ * @scale_min: scale min resolution.
+ * @scale_max: scale max resolution.
+ */
+struct drm_exynos_ipp_prop_list {
+	__u32	version;
+	__u32	ipp_id;
+	__u32	count;
+	__u32	writeback;
+	__u32	flip;
+	__u32	degree;
+	__u32	csc;
+	__u32	crop;
+	__u32	scale;
+	__u32	refresh_min;
+	__u32	refresh_max;
+	__u32	reserved;
+	struct drm_exynos_sz	crop_min;
+	struct drm_exynos_sz	crop_max;
+	struct drm_exynos_sz	scale_min;
+	struct drm_exynos_sz	scale_max;
+};
+
+/**
+ * A structure for ipp config.
+ *
+ * @ops_id: property of operation directions.
+ * @flip: property of mirror, flip.
+ * @degree: property of rotation degree.
+ * @fmt: property of image format.
+ * @sz: property of image size.
+ * @pos: property of image position(src-cropped,dst-scaler).
+ */
+struct drm_exynos_ipp_config {
+	enum drm_exynos_ops_id ops_id;
+	enum drm_exynos_flip	flip;
+	enum drm_exynos_degree	degree;
+	__u32	fmt;
+	struct drm_exynos_sz	sz;
+	struct drm_exynos_pos	pos;
+};
+
+enum drm_exynos_ipp_cmd {
+	IPP_CMD_NONE,
+	IPP_CMD_M2M,
+	IPP_CMD_WB,
+	IPP_CMD_OUTPUT,
+	IPP_CMD_MAX,
+};
+
+/**
+ * A structure for ipp property.
+ *
+ * @config: source, destination config.
+ * @cmd: definition of command.
+ * @ipp_id: id of ipp driver.
+ * @prop_id: id of property.
+ * @refresh_rate: refresh rate.
+ */
+struct drm_exynos_ipp_property {
+	struct drm_exynos_ipp_config config[EXYNOS_DRM_OPS_MAX];
+	enum drm_exynos_ipp_cmd	cmd;
+	__u32	ipp_id;
+	__u32	prop_id;
+	__u32	refresh_rate;
+};
+
+enum drm_exynos_ipp_buf_type {
+	IPP_BUF_ENQUEUE,
+	IPP_BUF_DEQUEUE,
+};
+
+/**
+ * A structure for ipp buffer operations.
+ *
+ * @ops_id: operation directions.
+ * @buf_type: definition of buffer.
+ * @prop_id: id of property.
+ * @buf_id: id of buffer.
+ * @handle: Y, Cb, Cr each planar handle.
+ * @user_data: user data.
+ */
+struct drm_exynos_ipp_queue_buf {
+	enum drm_exynos_ops_id	ops_id;
+	enum drm_exynos_ipp_buf_type	buf_type;
+	__u32	prop_id;
+	__u32	buf_id;
+	__u32	handle[EXYNOS_DRM_PLANAR_MAX];
+	__u32	reserved;
+	__u64	user_data;
+};
+
+enum drm_exynos_ipp_ctrl {
+	IPP_CTRL_PLAY,
+	IPP_CTRL_STOP,
+	IPP_CTRL_PAUSE,
+	IPP_CTRL_RESUME,
+	IPP_CTRL_MAX,
+};
+
+/**
+ * A structure for ipp start/stop operations.
+ *
+ * @prop_id: id of property.
+ * @ctrl: definition of control.
+ */
+struct drm_exynos_ipp_cmd_ctrl {
+	__u32	prop_id;
+	enum drm_exynos_ipp_ctrl	ctrl;
 };
 
 #define DRM_EXYNOS_GEM_CREATE		0x00
@@ -165,6 +326,12 @@ struct drm_exynos_g2d_exec {
 #define DRM_EXYNOS_G2D_GET_VER		0x20
 #define DRM_EXYNOS_G2D_SET_CMDLIST	0x21
 #define DRM_EXYNOS_G2D_EXEC		0x22
+
+/* IPP - Image Post Processing */
+#define DRM_EXYNOS_IPP_GET_PROPERTY	0x30
+#define DRM_EXYNOS_IPP_SET_PROPERTY	0x31
+#define DRM_EXYNOS_IPP_QUEUE_BUF	0x32
+#define DRM_EXYNOS_IPP_CMD_CTRL	0x33
 
 #define DRM_IOCTL_EXYNOS_GEM_CREATE		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_CREATE, struct drm_exynos_gem_create)
@@ -188,8 +355,18 @@ struct drm_exynos_g2d_exec {
 #define DRM_IOCTL_EXYNOS_G2D_EXEC		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_G2D_EXEC, struct drm_exynos_g2d_exec)
 
+#define DRM_IOCTL_EXYNOS_IPP_GET_PROPERTY	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_IPP_GET_PROPERTY, struct drm_exynos_ipp_prop_list)
+#define DRM_IOCTL_EXYNOS_IPP_SET_PROPERTY	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_IPP_SET_PROPERTY, struct drm_exynos_ipp_property)
+#define DRM_IOCTL_EXYNOS_IPP_QUEUE_BUF	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_IPP_QUEUE_BUF, struct drm_exynos_ipp_queue_buf)
+#define DRM_IOCTL_EXYNOS_IPP_CMD_CTRL		DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_IPP_CMD_CTRL, struct drm_exynos_ipp_cmd_ctrl)
+
 /* EXYNOS specific events */
 #define DRM_EXYNOS_G2D_EVENT		0x80000000
+#define DRM_EXYNOS_IPP_EVENT		0x80000001
 
 struct drm_exynos_g2d_event {
 	struct drm_event	base;
@@ -198,6 +375,16 @@ struct drm_exynos_g2d_event {
 	__u32			tv_usec;
 	__u32			cmdlist_no;
 	__u32			reserved;
+};
+
+struct drm_exynos_ipp_event {
+	struct drm_event	base;
+	__u64			user_data;
+	__u32			tv_sec;
+	__u32			tv_usec;
+	__u32			prop_id;
+	__u32			reserved;
+	__u32			buf_id[EXYNOS_DRM_OPS_MAX];
 };
 
 #endif /* _UAPI_EXYNOS_DRM_H_ */

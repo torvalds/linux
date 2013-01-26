@@ -273,7 +273,7 @@ static void tsc2007_close(struct input_dev *input_dev)
 	tsc2007_stop(ts);
 }
 
-static int __devinit tsc2007_probe(struct i2c_client *client,
+static int tsc2007_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct tsc2007 *ts;
@@ -366,7 +366,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit tsc2007_remove(struct i2c_client *client)
+static int tsc2007_remove(struct i2c_client *client)
 {
 	struct tsc2007	*ts = i2c_get_clientdata(client);
 	struct tsc2007_platform_data *pdata = client->dev.platform_data;
@@ -396,7 +396,7 @@ static struct i2c_driver tsc2007_driver = {
 	},
 	.id_table	= tsc2007_idtable,
 	.probe		= tsc2007_probe,
-	.remove		= __devexit_p(tsc2007_remove),
+	.remove		= tsc2007_remove,
 };
 
 module_i2c_driver(tsc2007_driver);

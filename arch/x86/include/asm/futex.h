@@ -55,12 +55,6 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
-#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_BSWAP)
-	/* Real i386 machines can only support FUTEX_OP_SET */
-	if (op != FUTEX_OP_SET && boot_cpu_data.x86 == 3)
-		return -ENOSYS;
-#endif
-
 	pagefault_disable();
 
 	switch (op) {
@@ -117,12 +111,6 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 						u32 oldval, u32 newval)
 {
 	int ret = 0;
-
-#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_BSWAP)
-	/* Real i386 machines have no cmpxchg instruction */
-	if (boot_cpu_data.x86 == 3)
-		return -ENOSYS;
-#endif
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;

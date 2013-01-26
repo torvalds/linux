@@ -471,7 +471,7 @@ static const struct musb_platform_ops da8xx_ops = {
 
 static u64 da8xx_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit da8xx_probe(struct platform_device *pdev)
+static int da8xx_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -480,7 +480,6 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -488,18 +487,10 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	musb = platform_device_alloc("musb-hdrc", musbid);
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err2;
+		goto err1;
 	}
 
 	clk = clk_get(&pdev->dev, "usb20");
@@ -515,7 +506,6 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &da8xx_dmamask;
 	musb->dev.coherent_dma_mask	= da8xx_dmamask;
@@ -558,9 +548,6 @@ err4:
 err3:
 	platform_device_put(musb);
 
-err2:
-	musb_put_id(&pdev->dev, musbid);
-
 err1:
 	kfree(glue);
 
@@ -568,13 +555,11 @@ err0:
 	return ret;
 }
 
-static int __devexit da8xx_remove(struct platform_device *pdev)
+static int da8xx_remove(struct platform_device *pdev)
 {
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
-	musb_put_id(&pdev->dev, glue->musb->id);
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);
@@ -584,7 +569,7 @@ static int __devexit da8xx_remove(struct platform_device *pdev)
 
 static struct platform_driver da8xx_driver = {
 	.probe		= da8xx_probe,
-	.remove		= __devexit_p(da8xx_remove),
+	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
 	},
@@ -593,15 +578,4 @@ static struct platform_driver da8xx_driver = {
 MODULE_DESCRIPTION("DA8xx/OMAP-L1x MUSB Glue Layer");
 MODULE_AUTHOR("Sergei Shtylyov <sshtylyov@ru.mvista.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init da8xx_init(void)
-{
-	return platform_driver_register(&da8xx_driver);
-}
-module_init(da8xx_init);
-
-static void __exit da8xx_exit(void)
-{
-	platform_driver_unregister(&da8xx_driver);
-}
-module_exit(da8xx_exit);
+module_platform_driver(da8xx_driver);

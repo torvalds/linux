@@ -40,6 +40,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "cx23885.h"
+#include "cx23885-input.h"
 
 #define MODULE_NAME "cx23885"
 
@@ -270,21 +271,21 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/* Integrated CX2388[58] IR controller */
 		driver_type = RC_DRIVER_IR_RAW;
-		allowed_protos = RC_TYPE_ALL;
+		allowed_protos = RC_BIT_ALL;
 		/* The grey Hauppauge RC-5 remote */
 		rc_map = RC_MAP_HAUPPAUGE;
 		break;
 	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 		/* Integrated CX23885 IR controller */
 		driver_type = RC_DRIVER_IR_RAW;
-		allowed_protos = RC_TYPE_NEC;
+		allowed_protos = RC_BIT_NEC;
 		/* The grey Terratec remote with orange buttons */
 		rc_map = RC_MAP_NEC_TERRATEC_CINERGY_XS;
 		break;
 	case CX23885_BOARD_TEVII_S470:
 		/* Integrated CX23885 IR controller */
 		driver_type = RC_DRIVER_IR_RAW;
-		allowed_protos = RC_TYPE_ALL;
+		allowed_protos = RC_BIT_ALL;
 		/* A guess at the remote */
 		rc_map = RC_MAP_TEVII_NEC;
 		break;

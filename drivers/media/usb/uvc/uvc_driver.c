@@ -1562,6 +1562,9 @@ static int uvc_scan_device(struct uvc_device *dev)
 		INIT_LIST_HEAD(&chain->entities);
 		mutex_init(&chain->ctrl_mutex);
 		chain->dev = dev;
+		v4l2_prio_init(&chain->prio);
+
+		term->flags |= UVC_ENTITY_FLAG_DEFAULT;
 
 		if (uvc_scan_chain(chain, term) < 0) {
 			kfree(chain);
@@ -1722,6 +1725,8 @@ static int uvc_register_video(struct uvc_device *dev,
 	vdev->v4l2_dev = &dev->vdev;
 	vdev->fops = &uvc_fops;
 	vdev->release = uvc_release;
+	vdev->prio = &stream->chain->prio;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 	if (stream->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		vdev->vfl_dir = VFL_DIR_TX;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);
@@ -1740,6 +1745,11 @@ static int uvc_register_video(struct uvc_device *dev,
 		video_device_release(vdev);
 		return ret;
 	}
+
+	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		stream->chain->caps |= V4L2_CAP_VIDEO_CAPTURE;
+	else
+		stream->chain->caps |= V4L2_CAP_VIDEO_OUTPUT;
 
 	atomic_inc(&dev->nstreams);
 	return 0;

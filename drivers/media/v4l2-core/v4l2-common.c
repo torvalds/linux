@@ -837,7 +837,7 @@ bool v4l2_detect_gtf(unsigned frame_height,
 		struct v4l2_dv_timings *fmt)
 {
 	int pix_clk;
-	int  v_fp, v_bp, h_fp, h_bp, hsync;
+	int  v_fp, v_bp, h_fp, hsync;
 	int frame_width, image_height, image_width;
 	bool default_gtf;
 	int h_blank;
@@ -885,7 +885,6 @@ bool v4l2_detect_gtf(unsigned frame_height,
 	hsync = hsync - hsync % GTF_CELL_GRAN;
 
 	h_fp = h_blank / 2 - hsync;
-	h_bp = h_blank / 2;
 
 	fmt->bt.polarities = polarities;
 	fmt->bt.width = image_width;

@@ -300,14 +300,14 @@ static enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *intp, u32
 {
 	u32 m_div, clk_sel;
 
-	dprintk("%s: Mclk set to %d, Quartz = %d\n", __func__, mclk,
-			intp->quartz);
-
 	if (intp == NULL)
 		return STV0900_INVALID_HANDLE;
 
 	if (intp->errs)
 		return STV0900_I2C_ERROR;
+
+	dprintk("%s: Mclk set to %d, Quartz = %d\n", __func__, mclk,
+			intp->quartz);
 
 	clk_sel = ((stv0900_get_bits(intp, F0900_SELX1RATIO) == 1) ? 4 : 6);
 	m_div = ((clk_sel * mclk) / intp->quartz) - 1;

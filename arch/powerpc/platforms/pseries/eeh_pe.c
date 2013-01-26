@@ -66,7 +66,7 @@ static struct eeh_pe *eeh_pe_alloc(struct pci_controller *phb, int type)
  * The function should be called while the PHB is detected during
  * system boot or PCI hotplug in order to create PHB PE.
  */
-int __devinit eeh_phb_pe_create(struct pci_controller *phb)
+int eeh_phb_pe_create(struct pci_controller *phb)
 {
 	struct eeh_pe *pe;
 
@@ -449,7 +449,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev, int purge_pe)
 			if (list_empty(&pe->edevs)) {
 				cnt = 0;
 				list_for_each_entry(child, &pe->child_list, child) {
-					if (!(pe->type & EEH_PE_INVALID)) {
+					if (!(child->type & EEH_PE_INVALID)) {
 						cnt++;
 						break;
 					}

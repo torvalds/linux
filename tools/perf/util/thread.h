@@ -3,6 +3,7 @@
 
 #include <linux/rbtree.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include "symbol.h"
 
 struct thread {
@@ -22,6 +23,7 @@ struct thread {
 
 struct machine;
 
+struct thread *thread__new(pid_t pid);
 void thread__delete(struct thread *self);
 
 int thread__set_comm(struct thread *self, const char *comm);

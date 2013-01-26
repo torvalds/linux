@@ -389,14 +389,14 @@ static int __init export_htab_values(void)
 	/* remove any stale propertys so ours can be found */
 	prop = of_find_property(node, htab_base_prop.name, NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 	prop = of_find_property(node, htab_size_prop.name, NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 
 	htab_base = __pa(htab_address);
-	prom_add_property(node, &htab_base_prop);
-	prom_add_property(node, &htab_size_prop);
+	of_add_property(node, &htab_base_prop);
+	of_add_property(node, &htab_size_prop);
 
 	of_node_put(node);
 	return 0;

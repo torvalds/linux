@@ -10,6 +10,7 @@
 
 #include <linux/pid.h>
 #include <linux/pid_namespace.h>
+#include <linux/user_namespace.h>
 #include <linux/syscalls.h>
 #include <linux/err.h>
 #include <linux/acct.h>
@@ -71,10 +72,17 @@ err_alloc:
 	return NULL;
 }
 
+static void proc_cleanup_work(struct work_struct *work)
+{
+	struct pid_namespace *ns = container_of(work, struct pid_namespace, proc_work);
+	pid_ns_release_proc(ns);
+}
+
 /* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
 #define MAX_PID_NS_LEVEL 32
 
-static struct pid_namespace *create_pid_namespace(struct pid_namespace *parent_pid_ns)
+static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns,
+	struct pid_namespace *parent_pid_ns)
 {
 	struct pid_namespace *ns;
 	unsigned int level = parent_pid_ns->level + 1;
@@ -99,9 +107,16 @@ static struct pid_namespace *create_pid_namespace(struct pid_namespace *parent_p
 	if (ns->pid_cachep == NULL)
 		goto out_free_map;
 
+	err = proc_alloc_inum(&ns->proc_inum);
+	if (err)
+		goto out_free_map;
+
 	kref_init(&ns->kref);
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
+	ns->user_ns = get_user_ns(user_ns);
+	ns->nr_hashed = PIDNS_HASH_ADDING;
+	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
 	set_bit(0, ns->pidmap[0].page);
 	atomic_set(&ns->pidmap[0].nr_free, BITS_PER_PAGE - 1);
@@ -109,14 +124,8 @@ static struct pid_namespace *create_pid_namespace(struct pid_namespace *parent_p
 	for (i = 1; i < PIDMAP_ENTRIES; i++)
 		atomic_set(&ns->pidmap[i].nr_free, BITS_PER_PAGE);
 
-	err = pid_ns_prepare_proc(ns);
-	if (err)
-		goto out_put_parent_pid_ns;
-
 	return ns;
 
-out_put_parent_pid_ns:
-	put_pid_ns(parent_pid_ns);
 out_free_map:
 	kfree(ns->pidmap[0].page);
 out_free:
@@ -129,18 +138,21 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 {
 	int i;
 
+	proc_free_inum(ns->proc_inum);
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
+	put_user_ns(ns->user_ns);
 	kmem_cache_free(pid_ns_cachep, ns);
 }
 
-struct pid_namespace *copy_pid_ns(unsigned long flags, struct pid_namespace *old_ns)
+struct pid_namespace *copy_pid_ns(unsigned long flags,
+	struct user_namespace *user_ns, struct pid_namespace *old_ns)
 {
 	if (!(flags & CLONE_NEWPID))
 		return get_pid_ns(old_ns);
-	if (flags & (CLONE_THREAD|CLONE_PARENT))
+	if (task_active_pid_ns(current) != old_ns)
 		return ERR_PTR(-EINVAL);
-	return create_pid_namespace(old_ns);
+	return create_pid_namespace(user_ns, old_ns);
 }
 
 static void free_pid_ns(struct kref *kref)
@@ -169,6 +181,9 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	int nr;
 	int rc;
 	struct task_struct *task, *me = current;
+
+	/* Don't allow any more processes into the pid namespace */
+	disable_pid_allocation(pid_ns);
 
 	/* Ignore SIGCHLD causing any terminated children to autoreap */
 	spin_lock_irq(&me->sighand->siglock);
@@ -211,22 +226,15 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 
 	/*
 	 * sys_wait4() above can't reap the TASK_DEAD children.
-	 * Make sure they all go away, see __unhash_process().
+	 * Make sure they all go away, see free_pid().
 	 */
 	for (;;) {
-		bool need_wait = false;
-
-		read_lock(&tasklist_lock);
-		if (!list_empty(&current->children)) {
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-			need_wait = true;
-		}
-		read_unlock(&tasklist_lock);
-
-		if (!need_wait)
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (pid_ns->nr_hashed == 1)
 			break;
 		schedule();
 	}
+	__set_current_state(TASK_RUNNING);
 
 	if (pid_ns->reboot)
 		current->signal->group_exit_code = pid_ns->reboot;
@@ -239,9 +247,10 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct pid_namespace *pid_ns = task_active_pid_ns(current);
 	struct ctl_table tmp = *table;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (write && !ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
@@ -250,7 +259,7 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 	 * it should synchronize its usage with external means.
 	 */
 
-	tmp.data = &current->nsproxy->pid_ns->last_pid;
+	tmp.data = &pid_ns->last_pid;
 	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 }
 
@@ -298,6 +307,68 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 	/* Not reached */
 	return 0;
 }
+
+static void *pidns_get(struct task_struct *task)
+{
+	struct pid_namespace *ns;
+
+	rcu_read_lock();
+	ns = get_pid_ns(task_active_pid_ns(task));
+	rcu_read_unlock();
+
+	return ns;
+}
+
+static void pidns_put(void *ns)
+{
+	put_pid_ns(ns);
+}
+
+static int pidns_install(struct nsproxy *nsproxy, void *ns)
+{
+	struct pid_namespace *active = task_active_pid_ns(current);
+	struct pid_namespace *ancestor, *new = ns;
+
+	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
+	    !nsown_capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * Only allow entering the current active pid namespace
+	 * or a child of the current active pid namespace.
+	 *
+	 * This is required for fork to return a usable pid value and
+	 * this maintains the property that processes and their
+	 * children can not escape their current pid namespace.
+	 */
+	if (new->level < active->level)
+		return -EINVAL;
+
+	ancestor = new;
+	while (ancestor->level > active->level)
+		ancestor = ancestor->parent;
+	if (ancestor != active)
+		return -EINVAL;
+
+	put_pid_ns(nsproxy->pid_ns);
+	nsproxy->pid_ns = get_pid_ns(new);
+	return 0;
+}
+
+static unsigned int pidns_inum(void *ns)
+{
+	struct pid_namespace *pid_ns = ns;
+	return pid_ns->proc_inum;
+}
+
+const struct proc_ns_operations pidns_operations = {
+	.name		= "pid",
+	.type		= CLONE_NEWPID,
+	.get		= pidns_get,
+	.put		= pidns_put,
+	.install	= pidns_install,
+	.inum		= pidns_inum,
+};
 
 static __init int pid_namespaces_init(void)
 {

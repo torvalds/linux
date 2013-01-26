@@ -46,7 +46,6 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_buffer *buffer = indio_dev->buffer;
 	int len = 0;
 	u16 *data;
 
@@ -76,7 +75,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		     i < bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
 		     i++, j++) {
-			j = find_next_bit(buffer->scan_mask,
+			j = find_next_bit(indio_dev->active_scan_mask,
 					  indio_dev->masklength, j);
 			/* random access read from the 'device' */
 			data[i] = fakedata[j];
@@ -87,7 +86,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
-	iio_push_to_buffer(buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 
 	kfree(data);
 

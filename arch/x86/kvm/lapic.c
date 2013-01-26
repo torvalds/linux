@@ -1011,7 +1011,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		local_irq_save(flags);
 
 		now = apic->lapic_timer.timer.base->get_time();
-		guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+		guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu, native_read_tsc());
 		if (likely(tscdeadline > guest_tsc)) {
 			ns = (tscdeadline - guest_tsc) * 1000000ULL;
 			do_div(ns, this_tsc_khz);

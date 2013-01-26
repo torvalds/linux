@@ -13,7 +13,6 @@
 #include "csr_prim_defs.h"
 #include "csr_msgconv.h"
 #include "csr_macro.h"
-#include "csr_lib.h"
 
 void CsrUint8Des(u8 *value, u8 *buffer, size_t *offset)
 {

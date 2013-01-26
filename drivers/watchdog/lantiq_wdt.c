@@ -186,7 +186,7 @@ static struct miscdevice ltq_wdt_miscdev = {
 	.fops	= &ltq_wdt_fops,
 };
 
-static int __devinit
+static int
 ltq_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -220,7 +220,7 @@ ltq_wdt_probe(struct platform_device *pdev)
 	return misc_register(&ltq_wdt_miscdev);
 }
 
-static int __devexit
+static int
 ltq_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ltq_wdt_miscdev);
@@ -236,7 +236,7 @@ MODULE_DEVICE_TABLE(of, ltq_wdt_match);
 
 static struct platform_driver ltq_wdt_driver = {
 	.probe = ltq_wdt_probe,
-	.remove = __devexit_p(ltq_wdt_remove),
+	.remove = ltq_wdt_remove,
 	.driver = {
 		.name = "wdt",
 		.owner = THIS_MODULE,

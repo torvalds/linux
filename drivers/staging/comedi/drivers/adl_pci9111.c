@@ -366,52 +366,29 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (error)
 		return 2;
 
-	/*  Step 3 : make sure arguments are trivialy compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if ((cmd->start_src == TRIG_NOW) && (cmd->start_arg != 0)) {
-		cmd->start_arg = 0;
-		error++;
-	}
+	error |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if ((cmd->convert_src == TRIG_TIMER) &&
-	    (cmd->convert_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
-		cmd->convert_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
-		error++;
-	}
-	if ((cmd->convert_src == TRIG_EXT) && (cmd->convert_arg != 0)) {
-		cmd->convert_arg = 0;
-		error++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		error |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
+	else	/* TRIG_EXT */
+		error |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-	    (cmd->scan_begin_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
-		cmd->scan_begin_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_FOLLOW)
-	    && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_EXT) && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		error |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
+	else	/* TRIG_FOLLOW || TRIG_EXT */
+		error |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if ((cmd->scan_end_src == TRIG_COUNT) &&
-	    (cmd->scan_end_arg != cmd->chanlist_len)) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		error++;
-	}
+	error |= cfc_check_trigger_arg_is(&cmd->scan_end_arg,
+					  cmd->chanlist_len);
 
-	if ((cmd->stop_src == TRIG_COUNT) && (cmd->stop_arg < 1)) {
-		cmd->stop_arg = 1;
-		error++;
-	}
-	if ((cmd->stop_src == TRIG_NONE) && (cmd->stop_arg != 0)) {
-		cmd->stop_arg = 0;
-		error++;
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		error |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		error |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (error)
 		return 3;
@@ -879,20 +856,20 @@ static int pci9111_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int pci9111_attach_pci(struct comedi_device *dev,
-			      struct pci_dev *pcidev)
+static int pci9111_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9111_private_data *dev_private;
 	struct comedi_subdevice *s;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*dev_private));
-	if (ret)
-		return ret;
-	dev_private = dev->private;
+	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	if (!dev_private)
+		return -ENOMEM;
+	dev->private = dev_private;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -976,17 +953,17 @@ static void pci9111_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci9111_driver = {
 	.driver_name	= "adl_pci9111",
 	.module		= THIS_MODULE,
-	.attach_pci	= pci9111_attach_pci,
+	.auto_attach	= pci9111_auto_attach,
 	.detach		= pci9111_detach,
 };
 
-static int __devinit pci9111_pci_probe(struct pci_dev *dev,
+static int pci9111_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
 }
 
-static void __devexit pci9111_pci_remove(struct pci_dev *dev)
+static void pci9111_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -1002,7 +979,7 @@ static struct pci_driver adl_pci9111_pci_driver = {
 	.name		= "adl_pci9111",
 	.id_table	= pci9111_pci_table,
 	.probe		= pci9111_pci_probe,
-	.remove		= __devexit_p(pci9111_pci_remove),
+	.remove		= pci9111_pci_remove,
 };
 module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 

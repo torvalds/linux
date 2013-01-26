@@ -8,7 +8,7 @@
 #define PCID		4
 
 /* This table is filled in by interrogating the PIIX4 chip */
-static char pci_irq[5] __devinitdata = {
+static char pci_irq[5] = {
 };
 
 static char irq_tab[][5] __initdata = {
@@ -50,10 +50,10 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devinit malta_piix_func0_fixup(struct pci_dev *pdev)
+static void malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
-	static int piixirqmap[16] __devinitdata = {  /* PIIX PIRQC[A:D] irq mappings */
+	static int piixirqmap[16] = {  /* PIIX PIRQC[A:D] irq mappings */
 		0,  0, 	0,  3,
 		4,  5,  6,  7,
 		0,  9, 10, 11,
@@ -84,7 +84,7 @@ static void __devinit malta_piix_func0_fixup(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
 	 malta_piix_func0_fixup);
 
-static void __devinit malta_piix_func1_fixup(struct pci_dev *pdev)
+static void malta_piix_func1_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
 
@@ -104,7 +104,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,
 	 malta_piix_func1_fixup);
 
 /* Enable PCI 2.1 compatibility in PIIX4 */
-static void __devinit quirk_dlcsetup(struct pci_dev *dev)
+static void quirk_dlcsetup(struct pci_dev *dev)
 {
 	u8 odlc, ndlc;
 

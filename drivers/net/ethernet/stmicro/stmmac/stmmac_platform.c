@@ -29,9 +29,9 @@
 #include "stmmac.h"
 
 #ifdef CONFIG_OF
-static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
-					    struct plat_stmmacenet_data *plat,
-					    const char **mac)
+static int stmmac_probe_config_dt(struct platform_device *pdev,
+				  struct plat_stmmacenet_data *plat,
+				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
 
@@ -59,9 +59,9 @@ static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
 	return 0;
 }
 #else
-static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
-					    struct plat_stmmacenet_data *plat,
-					    const char **mac)
+static int stmmac_probe_config_dt(struct platform_device *pdev,
+				  struct plat_stmmacenet_data *plat,
+				  const char **mac)
 {
 	return -ENOSYS;
 }
@@ -74,7 +74,7 @@ static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
  * the necessary resources and invokes the main to init
  * the net device, register the mdio bus etc.
  */
-static int __devinit stmmac_pltfr_probe(struct platform_device *pdev)
+static int stmmac_pltfr_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;

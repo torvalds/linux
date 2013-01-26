@@ -17,11 +17,11 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 #include <mach/at91rm9200.h>
-#include <mach/at91_aic.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_st.h>
 #include <mach/cpu.h>
 
+#include "at91_aic.h"
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
@@ -184,9 +184,12 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.1", &tc3_clk),
 	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.1", &tc4_clk),
 	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.1", &tc5_clk),
-	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc0_clk),
-	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
-	CLKDEV_CON_DEV_ID("pclk", "ssc.2", &ssc2_clk),
+	CLKDEV_CON_DEV_ID("pclk", "at91rm9200_ssc.0", &ssc0_clk),
+	CLKDEV_CON_DEV_ID("pclk", "at91rm9200_ssc.1", &ssc1_clk),
+	CLKDEV_CON_DEV_ID("pclk", "at91rm9200_ssc.2", &ssc2_clk),
+	CLKDEV_CON_DEV_ID("pclk", "fffd0000.ssc", &ssc0_clk),
+	CLKDEV_CON_DEV_ID("pclk", "fffd4000.ssc", &ssc1_clk),
+	CLKDEV_CON_DEV_ID("pclk", "fffd8000.ssc", &ssc2_clk),
 	CLKDEV_CON_DEV_ID(NULL, "i2c-at91rm9200.0", &twi_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
@@ -194,6 +197,24 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioB", &pioB_clk),
 	CLKDEV_CON_ID("pioC", &pioC_clk),
 	CLKDEV_CON_ID("pioD", &pioD_clk),
+	/* usart lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("usart", "fffff200.serial", &mck),
+	CLKDEV_CON_DEV_ID("usart", "fffc0000.serial", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "fffc4000.serial", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "fffc8000.serial", &usart2_clk),
+	CLKDEV_CON_DEV_ID("usart", "fffcc000.serial", &usart3_clk),
+	/* tc lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("t0_clk", "fffa0000.timer", &tc0_clk),
+	CLKDEV_CON_DEV_ID("t1_clk", "fffa0000.timer", &tc1_clk),
+	CLKDEV_CON_DEV_ID("t2_clk", "fffa0000.timer", &tc2_clk),
+	CLKDEV_CON_DEV_ID("t0_clk", "fffa4000.timer", &tc3_clk),
+	CLKDEV_CON_DEV_ID("t1_clk", "fffa4000.timer", &tc4_clk),
+	CLKDEV_CON_DEV_ID("t2_clk", "fffa4000.timer", &tc5_clk),
+	CLKDEV_CON_DEV_ID("hclk", "300000.ohci", &ohci_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioA_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioC_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioD_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -361,10 +382,10 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0	/* Advanced Interrupt Controller (IRQ6) */
 };
 
-struct at91_init_soc __initdata at91rm9200_soc = {
+AT91_SOC_START(rm9200)
 	.map_io = at91rm9200_map_io,
 	.default_irq_priority = at91rm9200_default_irq_priority,
 	.ioremap_registers = at91rm9200_ioremap_registers,
 	.register_clocks = at91rm9200_register_clocks,
 	.init = at91rm9200_initialize,
-};
+AT91_SOC_END

@@ -38,7 +38,8 @@
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
 #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
 #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
-#define PMD_SECT_XN		(_AT(pmdval_t, 1) << 54)
+#define PMD_SECT_PXN		(_AT(pmdval_t, 1) << 53)
+#define PMD_SECT_UXN		(_AT(pmdval_t, 1) << 54)
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
@@ -57,7 +58,8 @@
 #define PTE_SHARED		(_AT(pteval_t, 3) << 8)		/* SH[1:0], inner shareable */
 #define PTE_AF			(_AT(pteval_t, 1) << 10)	/* Access Flag */
 #define PTE_NG			(_AT(pteval_t, 1) << 11)	/* nG */
-#define PTE_XN			(_AT(pteval_t, 1) << 54)	/* XN */
+#define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */
+#define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).

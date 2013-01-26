@@ -9,6 +9,10 @@ Required properties (in root node):
 
 FPGA type interrupt controllers, see the versatile-fpga-irq binding doc.
 
+In the root node the Integrator/CP must have a /cpcon node pointing
+to the CP control registers, and the Integrator/AP must have a
+/syscon node pointing to the Integrator/AP system controller.
+
 
 ARM Versatile Application and Platform Baseboards
 -------------------------------------------------

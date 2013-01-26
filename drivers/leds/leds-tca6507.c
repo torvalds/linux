@@ -667,7 +667,7 @@ static void tca6507_remove_gpio(struct tca6507_chip *tca)
 }
 #endif /* CONFIG_GPIOLIB */
 
-static int __devinit tca6507_probe(struct i2c_client *client,
+static int tca6507_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct tca6507_chip *tca;
@@ -730,7 +730,7 @@ exit:
 	return err;
 }
 
-static int __devexit tca6507_remove(struct i2c_client *client)
+static int tca6507_remove(struct i2c_client *client)
 {
 	int i;
 	struct tca6507_chip *tca = i2c_get_clientdata(client);
@@ -752,7 +752,7 @@ static struct i2c_driver tca6507_driver = {
 		.owner   = THIS_MODULE,
 	},
 	.probe    = tca6507_probe,
-	.remove   = __devexit_p(tca6507_remove),
+	.remove   = tca6507_remove,
 	.id_table = tca6507_id,
 };
 

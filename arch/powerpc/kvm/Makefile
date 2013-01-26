@@ -6,7 +6,8 @@ subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 ccflags-y := -Ivirt/kvm -Iarch/powerpc/kvm
 
-common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
+common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o \
+						eventfd.o)
 
 CFLAGS_44x_tlb.o  := -I.
 CFLAGS_e500_tlb.o := -I.
@@ -72,10 +73,12 @@ kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv_rmhandlers.o \
 	book3s_hv_rm_mmu.o \
 	book3s_64_vio_hv.o \
+	book3s_hv_ras.o \
 	book3s_hv_builtin.o
 
 kvm-book3s_64-module-objs := \
 	../../../virt/kvm/kvm_main.o \
+	../../../virt/kvm/eventfd.o \
 	powerpc.o \
 	emulate.o \
 	book3s.o \

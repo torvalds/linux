@@ -413,8 +413,10 @@ struct socket *sockfd_to_socket(unsigned int sockfd)
 
 	inode = file->f_dentry->d_inode;
 
-	if (!inode || !S_ISSOCK(inode->i_mode))
+	if (!inode || !S_ISSOCK(inode->i_mode)) {
+		fput(file);
 		return NULL;
+	}
 
 	socket = SOCKET_I(inode);
 
@@ -439,7 +441,6 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 	 * will be discussed when usbip is ported to other operating systems.
 	 */
 	if (pack) {
-		/* vhci_tx.c */
 		spdu->transfer_flags =
 			tweak_transfer_flags(urb->transfer_flags);
 		spdu->transfer_buffer_length	= urb->transfer_buffer_length;
@@ -447,9 +448,7 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 		spdu->number_of_packets		= urb->number_of_packets;
 		spdu->interval			= urb->interval;
 	} else  {
-		/* stub_rx.c */
 		urb->transfer_flags         = spdu->transfer_flags;
-
 		urb->transfer_buffer_length = spdu->transfer_buffer_length;
 		urb->start_frame            = spdu->start_frame;
 		urb->number_of_packets      = spdu->number_of_packets;
@@ -463,16 +462,12 @@ static void usbip_pack_ret_submit(struct usbip_header *pdu, struct urb *urb,
 	struct usbip_header_ret_submit *rpdu = &pdu->u.ret_submit;
 
 	if (pack) {
-		/* stub_tx.c */
-
 		rpdu->status		= urb->status;
 		rpdu->actual_length	= urb->actual_length;
 		rpdu->start_frame	= urb->start_frame;
 		rpdu->number_of_packets = urb->number_of_packets;
 		rpdu->error_count	= urb->error_count;
 	} else {
-		/* vhci_rx.c */
-
 		urb->status		= rpdu->status;
 		urb->actual_length	= rpdu->actual_length;
 		urb->start_frame	= rpdu->start_frame;
@@ -639,28 +634,26 @@ static void usbip_pack_iso(struct usbip_iso_packet_descriptor *iso,
 }
 
 /* must free buffer */
-void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen)
+struct usbip_iso_packet_descriptor*
+usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen)
 {
-	void *buff;
 	struct usbip_iso_packet_descriptor *iso;
 	int np = urb->number_of_packets;
 	ssize_t size = np * sizeof(*iso);
 	int i;
 
-	buff = kzalloc(size, GFP_KERNEL);
-	if (!buff)
+	iso = kzalloc(size, GFP_KERNEL);
+	if (!iso)
 		return NULL;
 
 	for (i = 0; i < np; i++) {
-		iso = buff + (i * sizeof(*iso));
-
-		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 1);
-		usbip_iso_packet_correct_endian(iso, 1);
+		usbip_pack_iso(&iso[i], &urb->iso_frame_desc[i], 1);
+		usbip_iso_packet_correct_endian(&iso[i], 1);
 	}
 
 	*bufflen = size;
 
-	return buff;
+	return iso;
 }
 EXPORT_SYMBOL_GPL(usbip_alloc_iso_desc_pdu);
 
@@ -680,8 +673,6 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	/* my Bluetooth dongle gets ISO URBs which are np = 0 */
 	if (np == 0) {
-		/* pr_info("iso np == 0\n"); */
-		/* usbip_dump_urb(urb); */
 		return 0;
 	}
 
@@ -703,11 +694,10 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 		return -EPIPE;
 	}
 
+	iso = (struct usbip_iso_packet_descriptor *) buff;
 	for (i = 0; i < np; i++) {
-		iso = buff + (i * sizeof(*iso));
-
-		usbip_iso_packet_correct_endian(iso, 0);
-		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 0);
+		usbip_iso_packet_correct_endian(&iso[i], 0);
+		usbip_pack_iso(&iso[i], &urb->iso_frame_desc[i], 0);
 		total_length += urb->iso_frame_desc[i].actual_length;
 	}
 
@@ -754,7 +744,7 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
 	/*
 	 * if actual_length is transfer_buffer_length then no padding is
 	 * present.
-	*/
+	 */
 	if (urb->actual_length == urb->transfer_buffer_length)
 		return;
 
@@ -778,14 +768,12 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 	int size;
 
 	if (ud->side == USBIP_STUB) {
-		/* stub_rx.c */
 		/* the direction of urb must be OUT. */
 		if (usb_pipein(urb->pipe))
 			return 0;
 
 		size = urb->transfer_buffer_length;
 	} else {
-		/* vhci_rx.c */
 		/* the direction of urb must be IN. */
 		if (usb_pipeout(urb->pipe))
 			return 0;

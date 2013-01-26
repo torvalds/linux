@@ -24,8 +24,6 @@
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
-#include <mach/clk.h>
-#include <mach/iomap.h>
 #include <mach/powergate.h>
 
 #include "fuse.h"
@@ -34,6 +32,7 @@
 #include "tegra_cpu_car.h"
 
 #include "common.h"
+#include "iomap.h"
 
 extern void tegra_secondary_startup(void);
 
