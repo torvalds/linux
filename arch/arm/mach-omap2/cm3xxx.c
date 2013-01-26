@@ -210,7 +210,7 @@ static int omap3xxx_clkdm_wakeup(struct clockdomain *clkdm)
 static void omap3xxx_clkdm_allow_idle(struct clockdomain *clkdm)
 {
 	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_add_autodeps(clkdm);
+		clkdm_add_autodeps(clkdm);
 
 	omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				       clkdm->clktrctrl_mask);
@@ -222,7 +222,7 @@ static void omap3xxx_clkdm_deny_idle(struct clockdomain *clkdm)
 					clkdm->clktrctrl_mask);
 
 	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_del_autodeps(clkdm);
+		clkdm_del_autodeps(clkdm);
 }
 
 static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
@@ -250,7 +250,7 @@ static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 		/* Disable HW transitions when we are changing deps */
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-		_clkdm_add_autodeps(clkdm);
+		clkdm_add_autodeps(clkdm);
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
 	} else {
@@ -287,7 +287,7 @@ static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 		/* Disable HW transitions when we are changing deps */
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-		_clkdm_del_autodeps(clkdm);
+		clkdm_del_autodeps(clkdm);
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
 	} else {

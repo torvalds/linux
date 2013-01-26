@@ -216,8 +216,9 @@ extern void __init omap243x_clockdomains_init(void);
 extern void __init omap3xxx_clockdomains_init(void);
 extern void __init am33xx_clockdomains_init(void);
 extern void __init omap44xx_clockdomains_init(void);
-extern void _clkdm_add_autodeps(struct clockdomain *clkdm);
-extern void _clkdm_del_autodeps(struct clockdomain *clkdm);
+
+extern void clkdm_add_autodeps(struct clockdomain *clkdm);
+extern void clkdm_del_autodeps(struct clockdomain *clkdm);
 
 extern struct clkdm_ops omap2_clkdm_operations;
 extern struct clkdm_ops omap3_clkdm_operations;
