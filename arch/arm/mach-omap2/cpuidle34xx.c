@@ -39,9 +39,21 @@ struct omap3_idle_statedata {
 	u8 mpu_state;
 	u8 core_state;
 	u8 per_min_state;
+	u8 flags;
 };
 
 static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
+
+/*
+ * Possible flag bits for struct omap3_idle_statedata.flags:
+ *
+ * OMAP_CPUIDLE_CX_NO_CLKDM_IDLE: don't allow the MPU clockdomain to go
+ *    inactive.  This in turn prevents the MPU DPLL from entering autoidle
+ *    mode, so wakeup latency is greatly reduced, at the cost of additional
+ *    energy consumption.  This also prevents the CORE clockdomain from
+ *    entering idle.
+ */
+#define OMAP_CPUIDLE_CX_NO_CLKDM_IDLE		BIT(0)
 
 /*
  * Prevent PER OFF if CORE is not in RETention or OFF as this would
@@ -53,6 +65,7 @@ static struct omap3_idle_statedata omap3_idle_data[] = {
 		.core_state = PWRDM_POWER_ON,
 		/* In C1 do not allow PER state lower than CORE state */
 		.per_min_state = PWRDM_POWER_ON,
+		.flags = OMAP_CPUIDLE_CX_NO_CLKDM_IDLE,
 	},
 	{
 		.mpu_state = PWRDM_POWER_ON,
@@ -93,27 +106,25 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 				int index)
 {
 	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
-	u32 mpu_state = cx->mpu_state, core_state = cx->core_state;
 
 	local_fiq_disable();
-
-	pwrdm_set_next_pwrst(mpu_pd, mpu_state);
-	pwrdm_set_next_pwrst(core_pd, core_state);
 
 	if (omap_irq_pending() || need_resched())
 		goto return_sleep_time;
 
 	/* Deny idle for C1 */
-	if (index == 0) {
+	if (cx->flags & OMAP_CPUIDLE_CX_NO_CLKDM_IDLE) {
 		clkdm_deny_idle(mpu_pd->pwrdm_clkdms[0]);
-		clkdm_deny_idle(core_pd->pwrdm_clkdms[0]);
+	} else {
+		pwrdm_set_next_pwrst(mpu_pd, cx->mpu_state);
+		pwrdm_set_next_pwrst(core_pd, cx->core_state);
 	}
 
 	/*
 	 * Call idle CPU PM enter notifier chain so that
 	 * VFP context is saved.
 	 */
-	if (mpu_state == PWRDM_POWER_OFF)
+	if (cx->mpu_state == PWRDM_POWER_OFF)
 		cpu_pm_enter();
 
 	/* Execute ARM wfi */
@@ -123,17 +134,15 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 	 * Call idle CPU PM enter notifier chain to restore
 	 * VFP context.
 	 */
-	if (pwrdm_read_prev_pwrst(mpu_pd) == PWRDM_POWER_OFF)
+	if (cx->mpu_state == PWRDM_POWER_OFF &&
+	    pwrdm_read_prev_pwrst(mpu_pd) == PWRDM_POWER_OFF)
 		cpu_pm_exit();
 
 	/* Re-allow idle for C1 */
-	if (index == 0) {
+	if (cx->flags & OMAP_CPUIDLE_CX_NO_CLKDM_IDLE)
 		clkdm_allow_idle(mpu_pd->pwrdm_clkdms[0]);
-		clkdm_allow_idle(core_pd->pwrdm_clkdms[0]);
-	}
 
 return_sleep_time:
-
 	local_fiq_enable();
 
 	return index;
@@ -198,7 +207,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 	 * Start search from the next (lower) state.
 	 */
 	for (idx = index - 1; idx >= 0; idx--) {
-		cx =  &omap3_idle_data[idx];
+		cx = &omap3_idle_data[idx];
 		if ((cx->mpu_state >= mpu_deepest_state) &&
 		    (cx->core_state >= core_deepest_state)) {
 			next_index = idx;
