@@ -20,6 +20,7 @@
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
 #include <mach/cpu_axi.h>
+#include <mach/debug_uart.h>
 
 static void __init rk30_cpu_axi_init(void)
 {
@@ -148,19 +149,18 @@ void __init rk30_init_irq(void)
 	rk30_gpio_init();
 }
 
-void __init rk30_map_io(void)
+static void usb_uart_init(void)
 {
-	rk30_map_common_io();
-#ifdef DEBUG_UART_BASE
+#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
 #ifdef CONFIG_RK_USB_UART
-	if(!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 13))){//detect id
+	if (!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 13))) { //detect id
 		writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
-	}else{
-		if(!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 10))){//detect vbus
+	} else {
+		if (!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 10))) { //detect vbus
 			writel_relaxed(((0x01 << 2) | ((0x01 << 2) << 16)), RK30_GRF_BASE + GRF_UOC0_CON2); //software control usb phy enable 
-			writel_relaxed((0x2A | (0x3F << 16)), RK30_GRF_BASE + GRF_UOC0_CON3);  //usb phy enter suspend
+			writel_relaxed((0x2A | (0x3F << 16)), RK30_GRF_BASE + GRF_UOC0_CON3); //usb phy enter suspend
 			writel_relaxed((0x0300 | (0x0300 << 16)), RK30_GRF_BASE + GRF_UOC0_CON0);
-		}else{
+		} else {
 			writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
 		}
 	}
@@ -175,6 +175,12 @@ void __init rk30_map_io(void)
 	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
 	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
 #endif
+}
+
+void __init rk30_map_io(void)
+{
+	rk30_map_common_io();
+	usb_uart_init();
 	rk29_setup_early_printk();
 	rk30_cpu_axi_init();
 	rk30_io_drive_strength_init();
