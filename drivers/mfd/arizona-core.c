@@ -115,7 +115,7 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 	if (val & ARIZONA_ADC_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "ADC underclocked\n");
 	if (val & ARIZONA_MIXER_UNDERCLOCKED_STS)
-		dev_err(arizona->dev, "Mixer underclocked\n");
+		dev_err(arizona->dev, "Mixer dropped sample\n");
 
 	return IRQ_HANDLED;
 }
