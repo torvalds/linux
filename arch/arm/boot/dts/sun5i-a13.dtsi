@@ -19,11 +19,13 @@
 	};
 
 	soc {
-		pinctrl@01c20800 {
+		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun5i-a13-pinctrl";
 			reg = <0x01c20800 0x400>;
+			gpio-controller;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#gpio-cells = <3>;
 
 			uart1_pins_a: uart1@0 {
 				allwinner,pins = "PE10", "PE11";
