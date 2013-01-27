@@ -175,7 +175,7 @@ nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
 	return nouveau_therm_fan_set(therm, true, percent);
 }
 
-void
+static void
 nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;

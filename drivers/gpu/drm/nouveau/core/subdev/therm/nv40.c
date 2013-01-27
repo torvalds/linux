@@ -80,7 +80,7 @@ nv40_temp_get(struct nouveau_therm *therm)
 	return core_temp;
 }
 
-int
+static int
 nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
 {
 	u32 mask = enable ? 0x80000000 : 0x0000000;
@@ -93,7 +93,7 @@ nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
 	return 0;
 }
 
-int
+static int
 nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	if (line == 2) {
@@ -119,7 +119,7 @@ nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 	return -EINVAL;
 }
 
-int
+static int
 nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 {
 	if (line == 2) {

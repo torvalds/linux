@@ -30,7 +30,7 @@ nouveau_fannil_get(struct nouveau_therm *therm)
 	return -ENODEV;
 }
 
-int
+static int
 nouveau_fannil_set(struct nouveau_therm *therm, int percent)
 {
 	return -ENODEV;

@@ -398,7 +398,7 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	nouveau_object_debug();
 }
 
-int
+static int
 nouveau_do_suspend(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -469,7 +469,7 @@ int nouveau_pmops_suspend(struct device *dev)
 	return 0;
 }
 
-int
+static int
 nouveau_do_resume(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);

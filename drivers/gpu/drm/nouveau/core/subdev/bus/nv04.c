@@ -29,7 +29,7 @@ struct nv04_bus_priv {
 	struct nouveau_bus base;
 };
 
-void
+static void
 nv04_bus_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_bus *pbus = nouveau_bus(subdev);

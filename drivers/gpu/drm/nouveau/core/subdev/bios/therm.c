@@ -55,7 +55,7 @@ therm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	return therm + nv_ro08(bios, therm + 1);
 }
 
-u16
+static u16
 nvbios_therm_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8 hdr, cnt;

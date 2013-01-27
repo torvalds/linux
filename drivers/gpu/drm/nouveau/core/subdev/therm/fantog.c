@@ -81,7 +81,7 @@ nouveau_fantog_get(struct nouveau_therm *therm)
 	return priv->percent;
 }
 
-int
+static int
 nouveau_fantog_set(struct nouveau_therm *therm, int percent)
 {
 	struct nouveau_therm_priv *tpriv = (void *)therm;
