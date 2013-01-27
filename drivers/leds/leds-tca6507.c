@@ -674,14 +674,10 @@ tca6507_led_dt_init(struct i2c_client *client)
 	struct device_node *np = client->dev.of_node, *child;
 	struct tca6507_platform_data *pdata;
 	struct led_info *tca_leds;
-	int count = 0;
+	int count;
 
-	for_each_child_of_node(np, child)
-		count++;
-	if (!count)
-		return ERR_PTR(-ENODEV);
-
-	if (count > NUM_LEDS)
+	count = of_get_child_count(np);
+	if (!count || count > NUM_LEDS)
 		return ERR_PTR(-ENODEV);
 
 	tca_leds = devm_kzalloc(&client->dev,
