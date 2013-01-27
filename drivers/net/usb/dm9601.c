@@ -45,6 +45,12 @@
 #define DM_MCAST_ADDR	0x16	/* 8 bytes */
 #define DM_GPR_CTRL	0x1e
 #define DM_GPR_DATA	0x1f
+#define DM_CHIP_ID	0x2c
+#define DM_MODE_CTRL	0x91	/* only on dm9620 */
+
+/* chip id values */
+#define ID_DM9601	0
+#define ID_DM9620	1
 
 #define DM_MAX_MCAST	64
 #define DM_MCAST_SIZE	8
@@ -348,7 +354,7 @@ static const struct net_device_ops dm9601_netdev_ops = {
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN], id;
 
 	ret = usbnet_get_endpoints(dev, intf);
 	if (ret)
@@ -387,6 +393,24 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 			"dm9601: No valid MAC address in EEPROM, using %pM\n",
 			dev->net->dev_addr);
 		__dm9601_set_mac_address(dev);
+	}
+
+	if (dm_read_reg(dev, DM_CHIP_ID, &id) < 0) {
+		netdev_err(dev->net, "Error reading chip ID\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	/* put dm9620 devices in dm9601 mode */
+	if (id == ID_DM9620) {
+		u8 mode;
+
+		if (dm_read_reg(dev, DM_MODE_CTRL, &mode) < 0) {
+			netdev_err(dev->net, "Error reading MODE_CTRL\n");
+			ret = -ENODEV;
+			goto out;
+		}
+		dm_write_reg(dev, DM_MODE_CTRL, mode & 0x7f);
 	}
 
 	/* power up phy */
@@ -569,6 +593,10 @@ static const struct usb_device_id products[] = {
 	 },
 	{
 	 USB_DEVICE(0x0a46, 0x9000),	/* DM9000E */
+	 .driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
+	 USB_DEVICE(0x0a46, 0x9620),	/* DM9620 USB to Fast Ethernet Adapter */
 	 .driver_info = (unsigned long)&dm9601_info,
 	 },
 	{},			// END
