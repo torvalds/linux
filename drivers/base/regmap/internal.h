@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 
 struct regmap;
 struct regcache_ops;
@@ -39,6 +40,13 @@ struct regmap_format {
 	unsigned int (*parse_val)(void *buf);
 };
 
+struct regmap_async {
+	struct list_head list;
+	struct work_struct cleanup;
+	struct regmap *map;
+	void *work_buf;
+};
+
 struct regmap {
 	struct mutex mutex;
 	spinlock_t spinlock;
@@ -52,6 +60,11 @@ struct regmap {
 	const struct regmap_bus *bus;
 	void *bus_context;
 	const char *name;
+
+	spinlock_t async_lock;
+	wait_queue_head_t async_waitq;
+	struct list_head async_list;
+	int async_ret;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
@@ -177,6 +190,8 @@ unsigned int regcache_get_val(const void *base, unsigned int idx,
 bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
+
+void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
