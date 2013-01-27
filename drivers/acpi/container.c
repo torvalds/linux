@@ -166,7 +166,7 @@ static void container_notify_cb(acpi_handle handle, u32 type, void *context)
 		if (!ACPI_FAILURE(status) || device)
 			break;
 
-		result = acpi_bus_add(handle);
+		result = acpi_bus_scan(handle);
 		if (result) {
 			acpi_handle_warn(handle, "Failed to add container\n");
 			break;
