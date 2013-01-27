@@ -92,6 +92,8 @@ static void __init kirkwood_dt_init(void)
 
 	kirkwood_l2_init();
 
+	kirkwood_cpufreq_init();
+
 	/* Setup root of clk tree */
 	kirkwood_of_clk_init();
 
