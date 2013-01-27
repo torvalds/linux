@@ -157,8 +157,8 @@ static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 
 	memset(rate1, 0, rate1_size);
 
-	for (i = 0; rate2[i] && i < rate2_size; i++) {
-		for (j = 0; tmp[j] && j < rate1_size; j++) {
+	for (i = 0; i < rate2_size && rate2[i]; i++) {
+		for (j = 0; j < rate1_size && tmp[j]; j++) {
 			/* Check common rate, excluding the bit for
 			   basic rate */
 			if ((rate2[i] & 0x7F) == (tmp[j] & 0x7F)) {
