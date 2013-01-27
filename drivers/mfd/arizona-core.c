@@ -263,10 +263,36 @@ static int arizona_runtime_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int arizona_resume_noirq(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Early resume, disabling IRQ\n");
+	disable_irq(arizona->irq);
+
+	return 0;
+}
+
+static int arizona_resume(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Late resume, reenabling IRQ\n");
+	enable_irq(arizona->irq);
+
+	return 0;
+}
+#endif
+
 const struct dev_pm_ops arizona_pm_ops = {
 	SET_RUNTIME_PM_OPS(arizona_runtime_suspend,
 			   arizona_runtime_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, arizona_resume)
+#ifdef CONFIG_PM_SLEEP
+	.resume_noirq = arizona_resume_noirq,
+#endif
 };
 EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
