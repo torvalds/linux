@@ -552,17 +552,18 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 		return -EINTR;
 
 	utc->cons.handler = uprobe_dispatcher;
-	ret = uprobe_register(tu->inode, tu->offset, &utc->cons);
-	if (ret) {
-		kfree(utc);
-		return ret;
-	}
-
-	tu->flags |= flag;
 	utc->tu = tu;
 	tu->consumer = utc;
+	tu->flags |= flag;
 
-	return 0;
+	ret = uprobe_register(tu->inode, tu->offset, &utc->cons);
+	if (ret) {
+		tu->consumer = NULL;
+		tu->flags &= ~flag;
+		kfree(utc);
+	}
+
+	return ret;
 }
 
 static void probe_event_disable(struct trace_uprobe *tu, int flag)
