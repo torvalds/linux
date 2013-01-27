@@ -72,8 +72,10 @@ enum nvec_msg_category  {
 	NVEC_MSG_TX,
 };
 
-static const unsigned char EC_DISABLE_EVENT_REPORTING[3] = "\x04\x00\x00";
-static const unsigned char EC_ENABLE_EVENT_REPORTING[3]  = "\x04\x00\x01";
+enum nvec_sleep_subcmds {
+	GLOBAL_EVENTS,
+};
+
 static const unsigned char EC_GET_FIRMWARE_VERSION[2]    = "\x07\x15";
 
 static struct nvec_chip *nvec_power_handle;
@@ -316,6 +318,20 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 	return msg;
 }
 EXPORT_SYMBOL(nvec_write_sync);
+
+/**
+ * nvec_toggle_global_events - enables or disables global event reporting
+ * @nvec: nvec handle
+ * @state: true for enable, false for disable
+ *
+ * This switches on/off global event reports by the embedded controller.
+ */
+static void nvec_toggle_global_events(struct nvec_chip *nvec, bool state)
+{
+	unsigned char global_events[] = { NVEC_SLEEP, GLOBAL_EVENTS, state };
+
+	nvec_write_async(nvec, global_events, 3);
+}
 
 /**
  * nvec_request_master - Process outgoing messages
@@ -711,7 +727,7 @@ static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 
 static void nvec_power_off(void)
 {
-	nvec_write_async(nvec_power_handle, EC_DISABLE_EVENT_REPORTING, 3);
+	nvec_toggle_global_events(nvec_power_handle, false);
 	nvec_write_async(nvec_power_handle, "\x04\x01", 2);
 }
 
@@ -815,8 +831,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 
 
 	/* enable event reporting */
-	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING,
-			 sizeof(EC_ENABLE_EVENT_REPORTING));
+	nvec_toggle_global_events(nvec, true);
 
 	nvec->nvec_status_notifier.notifier_call = nvec_status_notifier;
 	nvec_register_notifier(nvec, &nvec->nvec_status_notifier, 0);
@@ -856,7 +871,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
-	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
+	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
@@ -891,7 +906,7 @@ static int nvec_resume(struct device *dev)
 
 	dev_dbg(nvec->dev, "resuming\n");
 	tegra_init_i2c_slave(nvec);
-	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING, 3);
+	nvec_toggle_global_events(nvec, true);
 
 	return 0;
 }
