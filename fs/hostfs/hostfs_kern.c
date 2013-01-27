@@ -861,14 +861,6 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 }
 
 static const struct inode_operations hostfs_iops = {
-	.create		= hostfs_create,
-	.link		= hostfs_link,
-	.unlink		= hostfs_unlink,
-	.symlink	= hostfs_symlink,
-	.mkdir		= hostfs_mkdir,
-	.rmdir		= hostfs_rmdir,
-	.mknod		= hostfs_mknod,
-	.rename		= hostfs_rename,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };
