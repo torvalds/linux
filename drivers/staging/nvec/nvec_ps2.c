@@ -21,12 +21,11 @@
 
 #include "nvec.h"
 
-#define START_STREAMING	{'\x06', '\x03', '\x06'}
-#define STOP_STREAMING	{'\x06', '\x04'}
-#define SEND_COMMAND	{'\x06', '\x01', '\xf4', '\x01'}
+#define PACKET_SIZE	6
 
-#define ENABLE_MOUSE   0xf4
-#define DISABLE_MOUSE  0xf5
+#define ENABLE_MOUSE	0xf4
+#define DISABLE_MOUSE	0xf5
+#define PSMOUSE_RST	0xff
 
 #ifdef NVEC_PS2_DEBUG
 #define NVEC_PHD(str, buf, len) \
@@ -36,7 +35,12 @@
 #define NVEC_PHD(str, buf, len)
 #endif
 
-static const unsigned char MOUSE_RESET[] = {'\x06', '\x01', '\xff', '\x03'};
+enum ps2_subcmds {
+	SEND_COMMAND = 1,
+	RECEIVE_N,
+	AUTO_RECEIVE_N,
+	CANCEL_AUTO_RECEIVE,
+};
 
 struct nvec_ps2 {
 	struct serio *ser_dev;
@@ -48,19 +52,19 @@ static struct nvec_ps2 ps2_dev;
 
 static int ps2_startstreaming(struct serio *ser_dev)
 {
-	unsigned char buf[] = START_STREAMING;
+	unsigned char buf[] = { NVEC_PS2, AUTO_RECEIVE_N, PACKET_SIZE };
 	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static void ps2_stopstreaming(struct serio *ser_dev)
 {
-	unsigned char buf[] = STOP_STREAMING;
+	unsigned char buf[] = { NVEC_PS2, CANCEL_AUTO_RECEIVE };
 	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static int ps2_sendcommand(struct serio *ser_dev, unsigned char cmd)
 {
-	unsigned char buf[] = SEND_COMMAND;
+	unsigned char buf[] = { NVEC_PS2, SEND_COMMAND, ENABLE_MOUSE, 1 };
 
 	buf[2] = cmd & 0xff;
 
@@ -100,6 +104,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev;
+	char mouse_reset[] = { NVEC_PS2, SEND_COMMAND, PSMOUSE_RST, 3 };
 
 	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
 	if (ser_dev == NULL)
@@ -121,7 +126,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	serio_register_port(ser_dev);
 
 	/* mouse reset */
-	nvec_write_async(nvec, MOUSE_RESET, 4);
+	nvec_write_async(nvec, mouse_reset, sizeof(mouse_reset));
 
 	return 0;
 }

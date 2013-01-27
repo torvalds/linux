@@ -76,6 +76,7 @@ enum nvec_msg_type {
 	NVEC_KBD,
 	NVEC_PS2,
 	NVEC_CNTL,
+	NVEC_OEM0 = 0x0d,
 	NVEC_KB_EVT = 0x80,
 	NVEC_PS2_EVT,
 };
