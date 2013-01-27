@@ -6,6 +6,9 @@ choice
 	help
 	  Select Ralink MIPS SoC type.
 
+	config SOC_RT288X
+		bool "RT288x"
+
 	config SOC_RT305X
 		bool "RT305x"
 		select USB_ARCH_HAS_HCD
