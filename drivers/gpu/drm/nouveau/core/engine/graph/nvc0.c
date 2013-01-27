@@ -613,10 +613,8 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 static void
 nvc0_graph_dtor_fw(struct nvc0_graph_fuc *fuc)
 {
-	if (fuc->data) {
-		kfree(fuc->data);
-		fuc->data = NULL;
-	}
+	kfree(fuc->data);
+	fuc->data = NULL;
 }
 
 void
@@ -624,8 +622,7 @@ nvc0_graph_dtor(struct nouveau_object *object)
 {
 	struct nvc0_graph_priv *priv = (void *)object;
 
-	if (priv->data)
-		kfree(priv->data);
+	kfree(priv->data);
 
 	nvc0_graph_dtor_fw(&priv->fuc409c);
 	nvc0_graph_dtor_fw(&priv->fuc409d);
