@@ -820,8 +820,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 	ttl = tiph->ttl;
 	tos = tiph->tos;
-	if (tos == 1) {
-		tos = 0;
+	if (tos & 0x1) {
+		tos &= ~0x1;
 		if (skb->protocol == htons(ETH_P_IP))
 			tos = old_iph->tos;
 		else if (skb->protocol == htons(ETH_P_IPV6))
