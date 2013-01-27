@@ -1,6 +1,31 @@
 #ifndef _ASM_X86_BOOTPARAM_H
 #define _ASM_X86_BOOTPARAM_H
 
+/* setup_data types */
+#define SETUP_NONE			0
+#define SETUP_E820_EXT			1
+#define SETUP_DTB			2
+#define SETUP_PCI			3
+
+/* ram_size flags */
+#define RAMDISK_IMAGE_START_MASK	0x07FF
+#define RAMDISK_PROMPT_FLAG		0x8000
+#define RAMDISK_LOAD_FLAG		0x4000
+
+/* loadflags */
+#define LOADED_HIGH	(1<<0)
+#define QUIET_FLAG	(1<<5)
+#define KEEP_SEGMENTS	(1<<6)
+#define CAN_USE_HEAP	(1<<7)
+
+/* xloadflags */
+#define XLF_KERNEL_64			(1<<0)
+#define XLF_CAN_BE_LOADED_ABOVE_4G	(1<<1)
+#define XLF_EFI_HANDOVER_32		(1<<2)
+#define XLF_EFI_HANDOVER_64		(1<<3)
+
+#ifndef __ASSEMBLY__
+
 #include <linux/types.h>
 #include <linux/screen_info.h>
 #include <linux/apm_bios.h>
@@ -8,12 +33,6 @@
 #include <asm/e820.h>
 #include <asm/ist.h>
 #include <video/edid.h>
-
-/* setup data types */
-#define SETUP_NONE			0
-#define SETUP_E820_EXT			1
-#define SETUP_DTB			2
-#define SETUP_PCI			3
 
 /* extensible setup data list node */
 struct setup_data {
@@ -28,9 +47,6 @@ struct setup_header {
 	__u16	root_flags;
 	__u32	syssize;
 	__u16	ram_size;
-#define RAMDISK_IMAGE_START_MASK	0x07FF
-#define RAMDISK_PROMPT_FLAG		0x8000
-#define RAMDISK_LOAD_FLAG		0x4000
 	__u16	vid_mode;
 	__u16	root_dev;
 	__u16	boot_flag;
@@ -42,10 +58,6 @@ struct setup_header {
 	__u16	kernel_version;
 	__u8	type_of_loader;
 	__u8	loadflags;
-#define LOADED_HIGH	(1<<0)
-#define QUIET_FLAG	(1<<5)
-#define KEEP_SEGMENTS	(1<<6)
-#define CAN_USE_HEAP	(1<<7)
 	__u16	setup_move_size;
 	__u32	code32_start;
 	__u32	ramdisk_image;
@@ -58,7 +70,8 @@ struct setup_header {
 	__u32	initrd_addr_max;
 	__u32	kernel_alignment;
 	__u8	relocatable_kernel;
-	__u8	_pad2[3];
+	__u8	min_alignment;
+	__u16	xloadflags;
 	__u32	cmdline_size;
 	__u32	hardware_subarch;
 	__u64	hardware_subarch_data;
@@ -106,7 +119,10 @@ struct boot_params {
 	__u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
 	struct sys_desc_table sys_desc_table;		/* 0x0a0 */
 	struct olpc_ofw_header olpc_ofw_header;		/* 0x0b0 */
-	__u8  _pad4[128];				/* 0x0c0 */
+	__u32 ext_ramdisk_image;			/* 0x0c0 */
+	__u32 ext_ramdisk_size;				/* 0x0c4 */
+	__u32 ext_cmd_line_ptr;				/* 0x0c8 */
+	__u8  _pad4[116];				/* 0x0cc */
 	struct edid_info edid_info;			/* 0x140 */
 	struct efi_info efi_info;			/* 0x1c0 */
 	__u32 alt_mem_k;				/* 0x1e0 */
@@ -115,7 +131,20 @@ struct boot_params {
 	__u8  eddbuf_entries;				/* 0x1e9 */
 	__u8  edd_mbr_sig_buf_entries;			/* 0x1ea */
 	__u8  kbd_status;				/* 0x1eb */
-	__u8  _pad6[5];					/* 0x1ec */
+	__u8  _pad5[3];					/* 0x1ec */
+	/*
+	 * The sentinel is set to a nonzero value (0xff) in header.S.
+	 *
+	 * A bootloader is supposed to only take setup_header and put
+	 * it into a clean boot_params buffer. If it turns out that
+	 * it is clumsy or too generous with the buffer, it most
+	 * probably will pick up the sentinel variable too. The fact
+	 * that this variable then is still 0xff will let kernel
+	 * know that some variables in boot_params are invalid and
+	 * kernel should zero out certain portions of boot_params.
+	 */
+	__u8  sentinel;					/* 0x1ef */
+	__u8  _pad6[1];					/* 0x1f0 */
 	struct setup_header hdr;    /* setup header */	/* 0x1f1 */
 	__u8  _pad7[0x290-0x1f1-sizeof(struct setup_header)];
 	__u32 edd_mbr_sig_buffer[EDD_MBR_SIG_MAX];	/* 0x290 */
@@ -134,6 +163,6 @@ enum {
 	X86_NR_SUBARCHS,
 };
 
-
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_BOOTPARAM_H */
