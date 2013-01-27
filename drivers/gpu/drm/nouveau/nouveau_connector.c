@@ -399,9 +399,10 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 		struct edid *edid =
 			(struct edid *)nouveau_bios_embedded_edid(dev);
 		if (edid) {
-			nv_connector->edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			*(nv_connector->edid) = *edid;
-			status = connector_status_connected;
+			nv_connector->edid =
+					kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+			if (nv_connector->edid)
+				status = connector_status_connected;
 		}
 	}
 
