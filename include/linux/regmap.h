@@ -127,7 +127,18 @@ typedef void (*regmap_unlock)(void *);
  * @lock_arg:	  this field is passed as the only argument of lock/unlock
  *		  functions (ignored in case regular lock/unlock functions
  *		  are not overridden).
- *
+ * @reg_read:	  Optional callback that if filled will be used to perform
+ *           	  all the reads from the registers. Should only be provided for
+ *		  devices whos read operation cannot be represented as a simple read
+ *		  operation on a bus such as SPI, I2C, etc. Most of the devices do
+ * 		  not need this.
+ * @reg_write:	  Same as above for writing.
+ * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
+ *	     	  to perform locking. This field is ignored if custom lock/unlock
+ *	     	  functions are used (see fields lock/unlock of struct regmap_config).
+ *		  This field is a duplicate of a similar file in
+ *		  'struct regmap_bus' and serves exact same purpose.
+ *		   Use it only for "no-bus" cases.
  * @max_register: Optional, specifies the maximum valid register index.
  * @wr_table:     Optional, points to a struct regmap_access_table specifying
  *                valid ranges for write access.
@@ -176,6 +187,11 @@ struct regmap_config {
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg;
+
+	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
+	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+
+	bool fast_io;
 
 	unsigned int max_register;
 	const struct regmap_access_table *wr_table;

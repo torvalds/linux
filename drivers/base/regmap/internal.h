@@ -77,6 +77,8 @@ struct regmap {
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
 
+	bool defer_caching;
+
 	u8 read_flag_mask;
 	u8 write_flag_mask;
 
