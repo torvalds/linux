@@ -391,11 +391,10 @@ static int rk_fb_io_enable(void)
 
 #if defined(CONFIG_LCDC0_RK3188)
 struct rk29fb_info lcdc0_screen_info = {
-	.prop	   = EXTEND,		//primary display device
-	.io_init   = NULL,
-	.io_disable = NULL,
-	.io_enable = NULL,
-	.set_screen_info = NULL,
+	.prop           = EXTEND,       //extend display device
+       .lcd_info  = NULL,
+       .set_screen_info = hdmi_init_lcdc,
+
 };
 #endif
 
@@ -1174,6 +1173,7 @@ int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_REGULATOR_ACT8846
 #define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define PMU_VSEL RK30_PIN3_PD3
 #define ACT8846_HOST_IRQ                RK30_PIN0_PB3
 
 static struct pmu_info  act8846_dcdc_info[] = {
@@ -1564,6 +1564,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.addr          = 0x10,
 		.flags         = 0,
 		.platform_data = &cm3217_info,
+	},
+#endif
+#if defined(CONFIG_HDMI_CAT66121)
+	{
+	.type			= "cat66121_hdmi",
+	.addr			= 0x4c,
+	.flags			= 0,
+	.irq			= RK30_PIN2_PD6,
 	},
 #endif
 };

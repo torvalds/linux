@@ -68,7 +68,7 @@ static int act8846_set_init(struct act8846 *act8846)
 		printk(KERN_ERR "sram_gpio_init failed\n");
 		return -EINVAL;
 	}
-	rk30_mux_api_set(GPIO3D3_PWM0_NAME,GPIO3D_GPIO3D3);
+//	rk30_mux_api_set(GPIO3D3_PWM0_NAME,GPIO3D_GPIO3D3);
 	gpio_request(PMU_VSEL, "NULL");
 	gpio_direction_output(PMU_VSEL, GPIO_HIGH);
 	#endif
