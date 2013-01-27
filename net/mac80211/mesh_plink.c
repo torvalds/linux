@@ -408,6 +408,8 @@ mesh_sta_info_get(struct ieee80211_sub_if_data *sdata,
 			return NULL;
 		}
 
+		mesh_sta_info_init(sdata, sta, elems, true);
+
 		if (sta_info_insert_rcu(sta))
 			return NULL;
 	}
