@@ -26,5 +26,12 @@ config LS_CM3217
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
+config LS_US5151
+  bool "us5151"
+        depends on LIGHT_SENSOR_DEVICE
+        default n
+        help
+          To have support for your specific gsesnor you will have to
+          select the proper drivers which depend on this option.
 	  
 endif

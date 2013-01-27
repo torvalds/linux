@@ -1112,6 +1112,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &mma8452_info,
 	},
 #endif
+#if defined (CONFIG_LS_US5151)
+        {    
+                .type           = "us5151",
+                .addr           = 0x10,
+                .flags          = 0, 
+        },   
+#endif
 #if defined (CONFIG_GS_LIS3DH)
 	{
 		.type	        = "gs_lis3dh",
