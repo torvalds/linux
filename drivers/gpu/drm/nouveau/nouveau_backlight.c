@@ -84,6 +84,8 @@ nv40_backlight_init(struct drm_connector *connector)
 	props.max_brightness = 31;
 	bd = backlight_device_register("nv_backlight", &connector->kdev, drm,
 				       &nv40_bl_ops, &props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 	drm->backlight = bd;
 	bd->props.brightness = nv40_get_intensity(bd);
 	backlight_update_status(bd);
