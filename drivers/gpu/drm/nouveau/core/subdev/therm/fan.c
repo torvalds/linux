@@ -39,7 +39,7 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 	struct nouveau_timer *ptimer = nouveau_timer(priv);
 	unsigned long flags;
 	int ret = 0;
-	u32 duty;
+	int duty;
 
 	/* update target fan speed, restricting to allowed range */
 	spin_lock_irqsave(&fan->lock, flags);
@@ -64,9 +64,9 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 		 * it is meant to bump the fan speed more incrementally
 		 */
 		if (duty < target)
-			duty = min(duty + 3, (u32) target);
+			duty = min(duty + 3, target);
 		else if (duty > target)
-			duty = max(duty - 3, (u32) target);
+			duty = max(duty - 3, target);
 	} else {
 		duty = target;
 	}
