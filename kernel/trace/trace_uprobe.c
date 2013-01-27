@@ -253,15 +253,17 @@ static int create_trace_uprobe(int argc, char **argv)
 	if (ret)
 		goto fail_address_parse;
 
-	ret = kstrtoul(arg, 0, &offset);
-	if (ret)
-		goto fail_address_parse;
-
 	inode = igrab(path.dentry->d_inode);
+	path_put(&path);
+
 	if (!S_ISREG(inode->i_mode)) {
 		ret = -EINVAL;
 		goto fail_address_parse;
 	}
+
+	ret = kstrtoul(arg, 0, &offset);
+	if (ret)
+		goto fail_address_parse;
 
 	argc -= 2;
 	argv += 2;
