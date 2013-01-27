@@ -120,7 +120,7 @@ struct kvm_shared_msrs {
 };
 
 static struct kvm_shared_msrs_global __read_mostly shared_msrs_global;
-static DEFINE_PER_CPU(struct kvm_shared_msrs, shared_msrs);
+static struct kvm_shared_msrs __percpu *shared_msrs;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pf_fixed", VCPU_STAT(pf_fixed) },
@@ -191,10 +191,10 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 
 static void shared_msr_update(unsigned slot, u32 msr)
 {
-	struct kvm_shared_msrs *smsr;
 	u64 value;
+	unsigned int cpu = smp_processor_id();
+	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
 
-	smsr = &__get_cpu_var(shared_msrs);
 	/* only read, and nobody should modify it at this time,
 	 * so don't need lock */
 	if (slot >= shared_msrs_global.nr) {
@@ -226,7 +226,8 @@ static void kvm_shared_msr_cpu_online(void)
 
 void kvm_set_shared_msr(unsigned slot, u64 value, u64 mask)
 {
-	struct kvm_shared_msrs *smsr = &__get_cpu_var(shared_msrs);
+	unsigned int cpu = smp_processor_id();
+	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
 
 	if (((value ^ smsr->values[slot].curr) & mask) == 0)
 		return;
@@ -242,7 +243,8 @@ EXPORT_SYMBOL_GPL(kvm_set_shared_msr);
 
 static void drop_user_return_notifiers(void *ignore)
 {
-	struct kvm_shared_msrs *smsr = &__get_cpu_var(shared_msrs);
+	unsigned int cpu = smp_processor_id();
+	struct kvm_shared_msrs *smsr = per_cpu_ptr(shared_msrs, cpu);
 
 	if (smsr->registered)
 		kvm_on_user_return(&smsr->urn);
@@ -5233,9 +5235,16 @@ int kvm_arch_init(void *opaque)
 		goto out;
 	}
 
+	r = -ENOMEM;
+	shared_msrs = alloc_percpu(struct kvm_shared_msrs);
+	if (!shared_msrs) {
+		printk(KERN_ERR "kvm: failed to allocate percpu kvm_shared_msrs\n");
+		goto out;
+	}
+
 	r = kvm_mmu_module_init();
 	if (r)
-		goto out;
+		goto out_free_percpu;
 
 	kvm_set_mmio_spte_mask();
 	kvm_init_msr_list();
@@ -5258,6 +5267,8 @@ int kvm_arch_init(void *opaque)
 
 	return 0;
 
+out_free_percpu:
+	free_percpu(shared_msrs);
 out:
 	return r;
 }
@@ -5275,6 +5286,7 @@ void kvm_arch_exit(void)
 #endif
 	kvm_x86_ops = NULL;
 	kvm_mmu_module_exit();
+	free_percpu(shared_msrs);
 }
 
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)

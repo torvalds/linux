@@ -374,10 +374,10 @@ static inline void fwtty_bind_console(struct fwtty_port *port,
  */
 static inline int link_speed_to_max_payload(unsigned speed)
 {
-	static const int max_async[] = { 307, 614, 1229, 2458, 4916, 9832, };
-	BUILD_BUG_ON(ARRAY_SIZE(max_async) - 1 != SCODE_3200);
+	static const int max_async[] = { 307, 614, 1229, 2458, };
+	BUILD_BUG_ON(ARRAY_SIZE(max_async) - 1 != SCODE_800);
 
-	speed = clamp(speed, (unsigned) SCODE_100, (unsigned) SCODE_3200);
+	speed = clamp(speed, (unsigned) SCODE_100, (unsigned) SCODE_800);
 	if (limit_bw)
 		return max_async[speed];
 	else
