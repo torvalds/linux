@@ -786,10 +786,10 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
-	if (card_detect & SD_EXIST)
+	if ((card_detect & SD_EXIST) && pcr->slots[RTSX_SD_CARD].card_event)
 		pcr->slots[RTSX_SD_CARD].card_event(
 				pcr->slots[RTSX_SD_CARD].p_dev);
-	if (card_detect & MS_EXIST)
+	if ((card_detect & MS_EXIST) && pcr->slots[RTSX_MS_CARD].card_event)
 		pcr->slots[RTSX_MS_CARD].card_event(
 				pcr->slots[RTSX_MS_CARD].p_dev);
 }
