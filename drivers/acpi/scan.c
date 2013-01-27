@@ -1706,5 +1706,8 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
+
+	acpi_pci_root_hp_init();
+
 	return 0;
 }
