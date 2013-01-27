@@ -3073,6 +3073,8 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
 	if (powered) {
+		u8 link_sec;
+
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 		    !lmp_host_ssp_capable(hdev)) {
 			u8 ssp = 1;
@@ -3095,6 +3097,11 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 					     HCI_OP_WRITE_LE_HOST_SUPPORTED,
 					     sizeof(cp), &cp);
 		}
+
+		link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+		if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
+			hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE,
+				     sizeof(link_sec), &link_sec);
 
 		if (lmp_bredr_capable(hdev)) {
 			set_bredr_scan(hdev);
