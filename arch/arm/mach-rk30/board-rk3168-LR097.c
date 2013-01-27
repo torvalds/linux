@@ -1108,13 +1108,29 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 **************************************************************************************************/
 
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
+
+static int batt_table[2*11+6] =
+{
+	0x4B434F52,0x7461625F,0x79726574,1,300,82,
+	6800, 7242, 7332, 7404, 7470, 7520, 7610, 7744, 7848, 8016, 8284,//discharge
+	7630, 7754, 7852, 7908, 7956, 8024, 8112, 8220, 8306, 8318, 8458//charge
+};
+
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN0_PB2,
-        .batt_low_pin    = RK30_PIN0_PB1, 
+        .batt_low_pin    = INVALID_GPIO, 
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK30_PIN0_PA6,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+
+		.reference_voltage = 1800,
+		.pull_up_res = 300,     //divider resistance ,  pull-up resistor
+       .pull_down_res = 82, //divider resistance , pull-down resistor
+       .is_reboot_charging = 1,
+        .save_capacity   = 1 ,
+        .use_board_table = 1,
+        .board_batt_table = batt_table,
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -2209,7 +2225,7 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
 //	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
 //	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
-	{.frequency = 396 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
+	{.frequency = 533 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
