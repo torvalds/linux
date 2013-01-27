@@ -175,6 +175,7 @@ int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 	for_each_child_of_node(parent, child)
 		num++;
 
+	of_node_put(parent);
 	return num;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
@@ -197,8 +198,11 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data) * priv->num_regulators,
 			    GFP_KERNEL);
-	if (!data)
+	if (!data) {
+		of_node_put(parent);
 		return NULL;
+	}
+
 	p = data;
 
 	for_each_child_of_node(parent, child) {
@@ -217,6 +221,7 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 			}
 		}
 	}
+	of_node_put(parent);
 
 	*num_parsed = parsed;
 	return data;
