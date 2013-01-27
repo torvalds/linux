@@ -423,44 +423,41 @@ static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.id	= NF_CT_EXT_HELPER,
 };
 
-int nf_conntrack_helper_init(struct net *net)
+int nf_conntrack_helper_pernet_init(struct net *net)
 {
-	int err;
-
 	net->ct.auto_assign_helper_warned = false;
 	net->ct.sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
-
-	if (net_eq(net, &init_net)) {
-		nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
-		nf_ct_helper_hash =
-			nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
-		if (!nf_ct_helper_hash)
-			return -ENOMEM;
-
-		err = nf_ct_extend_register(&helper_extend);
-		if (err < 0)
-			goto err1;
-	}
-
-	err = nf_conntrack_helper_init_sysctl(net);
-	if (err < 0)
-		goto out_sysctl;
-
-	return 0;
-
-out_sysctl:
-	if (net_eq(net, &init_net))
-		nf_ct_extend_unregister(&helper_extend);
-err1:
-	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
-	return err;
+	return nf_conntrack_helper_init_sysctl(net);
 }
 
-void nf_conntrack_helper_fini(struct net *net)
+void nf_conntrack_helper_pernet_fini(struct net *net)
 {
 	nf_conntrack_helper_fini_sysctl(net);
-	if (net_eq(net, &init_net)) {
-		nf_ct_extend_unregister(&helper_extend);
-		nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+}
+
+int nf_conntrack_helper_init(void)
+{
+	int ret;
+	nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
+	nf_ct_helper_hash =
+		nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
+	if (!nf_ct_helper_hash)
+		return -ENOMEM;
+
+	ret = nf_ct_extend_register(&helper_extend);
+	if (ret < 0) {
+		pr_err("nf_ct_helper: Unable to register helper extension.\n");
+		goto out_extend;
 	}
+
+	return 0;
+out_extend:
+	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+	return ret;
+}
+
+void nf_conntrack_helper_fini(void)
+{
+	nf_ct_extend_unregister(&helper_extend);
+	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
 }

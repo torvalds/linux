@@ -43,6 +43,7 @@
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_timestamp.h>
+#include <net/netfilter/nf_conntrack_labels.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_l4proto.h>
@@ -323,6 +324,40 @@ nla_put_failure:
 #define ctnetlink_dump_secctx(a, b) (0)
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+static int ctnetlink_label_size(const struct nf_conn *ct)
+{
+	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
+
+	if (!labels)
+		return 0;
+	return nla_total_size(labels->words * sizeof(long));
+}
+
+static int
+ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
+	unsigned int len, i;
+
+	if (!labels)
+		return 0;
+
+	len = labels->words * sizeof(long);
+	i = 0;
+	do {
+		if (labels->bits[i] != 0)
+			return nla_put(skb, CTA_LABELS, len, labels->bits);
+		i++;
+	} while (i < labels->words);
+
+	return 0;
+}
+#else
+#define ctnetlink_dump_labels(a, b) (0)
+#define ctnetlink_label_size(a)	(0)
+#endif
+
 #define master_tuple(ct) &(ct->master->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 
 static inline int
@@ -463,6 +498,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_secctx(skb, ct) < 0 ||
+	    ctnetlink_dump_labels(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
 	    ctnetlink_dump_master(skb, ct) < 0 ||
@@ -561,6 +597,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_MARK */
 #endif
 	       + ctnetlink_proto_size(ct)
+	       + ctnetlink_label_size(ct)
 	       ;
 }
 
@@ -662,6 +699,9 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		    && ctnetlink_dump_secctx(skb, ct) < 0)
 			goto nla_put_failure;
 #endif
+		if (events & (1 << IPCT_LABEL) &&
+		     ctnetlink_dump_labels(skb, ct) < 0)
+			goto nla_put_failure;
 
 		if (events & (1 << IPCT_RELATED) &&
 		    ctnetlink_dump_master(skb, ct) < 0)
@@ -921,6 +961,7 @@ ctnetlink_parse_help(const struct nlattr *attr, char **helper_name,
 	return 0;
 }
 
+#define __CTA_LABELS_MAX_LENGTH ((XT_CONNLABEL_MAXBIT + 1) / BITS_PER_BYTE)
 static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_TUPLE_ORIG]	= { .type = NLA_NESTED },
 	[CTA_TUPLE_REPLY]	= { .type = NLA_NESTED },
@@ -937,6 +978,10 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_NAT_SEQ_ADJ_REPLY] = { .type = NLA_NESTED },
 	[CTA_ZONE]		= { .type = NLA_U16 },
 	[CTA_MARK_MASK]		= { .type = NLA_U32 },
+	[CTA_LABELS]		= { .type = NLA_BINARY,
+				    .len = __CTA_LABELS_MAX_LENGTH },
+	[CTA_LABELS_MASK]	= { .type = NLA_BINARY,
+				    .len = __CTA_LABELS_MAX_LENGTH },
 };
 
 static int
@@ -1465,6 +1510,31 @@ ctnetlink_change_nat_seq_adj(struct nf_conn *ct,
 #endif
 
 static int
+ctnetlink_attach_labels(struct nf_conn *ct, const struct nlattr * const cda[])
+{
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	size_t len = nla_len(cda[CTA_LABELS]);
+	const void *mask = cda[CTA_LABELS_MASK];
+
+	if (len & (sizeof(u32)-1)) /* must be multiple of u32 */
+		return -EINVAL;
+
+	if (mask) {
+		if (nla_len(cda[CTA_LABELS_MASK]) == 0 ||
+		    nla_len(cda[CTA_LABELS_MASK]) != len)
+			return -EINVAL;
+		mask = nla_data(cda[CTA_LABELS_MASK]);
+	}
+
+	len /= sizeof(u32);
+
+	return nf_connlabels_replace(ct, nla_data(cda[CTA_LABELS]), mask, len);
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int
 ctnetlink_change_conntrack(struct nf_conn *ct,
 			   const struct nlattr * const cda[])
 {
@@ -1510,6 +1580,11 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 			return err;
 	}
 #endif
+	if (cda[CTA_LABELS]) {
+		err = ctnetlink_attach_labels(ct, cda);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
@@ -1598,6 +1673,8 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 	nf_ct_tstamp_ext_add(ct, GFP_ATOMIC);
 	nf_ct_ecache_ext_add(ct, 0, 0, GFP_ATOMIC);
+	nf_ct_labels_ext_add(ct);
+
 	/* we must add conntrack extensions before confirmation. */
 	ct->status |= IPS_CONFIRMED;
 
@@ -1715,6 +1792,10 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 				events = IPCT_RELATED;
 			else
 				events = IPCT_NEW;
+
+			if (cda[CTA_LABELS] &&
+			    ctnetlink_attach_labels(ct, cda) == 0)
+				events |= (1 << IPCT_LABEL);
 
 			nf_conntrack_eventmask_report((1 << IPCT_REPLY) |
 						      (1 << IPCT_ASSURED) |
@@ -1983,6 +2064,8 @@ ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
 	if (ct->mark && ctnetlink_dump_mark(skb, ct) < 0)
 		goto nla_put_failure;
 #endif
+	if (ctnetlink_dump_labels(skb, ct) < 0)
+		goto nla_put_failure;
 	rcu_read_unlock();
 	return 0;
 
@@ -2008,6 +2091,11 @@ ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 	}
 	if (cda[CTA_HELP]) {
 		err = ctnetlink_change_helper(ct, cda);
+		if (err < 0)
+			return err;
+	}
+	if (cda[CTA_LABELS]) {
+		err = ctnetlink_attach_labels(ct, cda);
 		if (err < 0)
 			return err;
 	}
