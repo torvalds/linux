@@ -635,7 +635,7 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
 		list_for_each_entry_safe(np, tmp, &npinfo->rx_np, rx) {
-			if (memcmp(daddr, &np->local_ip, sizeof(*daddr)))
+			if (!ipv6_addr_equal(daddr, &np->local_ip.in6))
 				continue;
 
 			hlen = LL_RESERVED_SPACE(np->dev);
@@ -828,9 +828,9 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 		if (udp6_csum_init(skb, uh, IPPROTO_UDP))
 			goto out;
 		list_for_each_entry_safe(np, tmp, &npinfo->rx_np, rx) {
-			if (memcmp(&np->local_ip.in6, &ip6h->daddr, sizeof(struct in6_addr)) != 0)
+			if (!ipv6_addr_equal(&np->local_ip.in6, &ip6h->daddr))
 				continue;
-			if (memcmp(&np->remote_ip.in6, &ip6h->saddr, sizeof(struct in6_addr)) != 0)
+			if (!ipv6_addr_equal(&np->remote_ip.in6, &ip6h->saddr))
 				continue;
 			if (np->local_port && np->local_port != ntohs(uh->dest))
 				continue;
