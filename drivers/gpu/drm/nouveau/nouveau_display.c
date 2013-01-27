@@ -316,17 +316,13 @@ nouveau_display_create(struct drm_device *dev)
 		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
 	if (gen >= 1) {
+		/* -90..+90 */
 		disp->vibrant_hue_property =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "vibrant hue", 2);
-		disp->vibrant_hue_property->values[0] = 0;
-		disp->vibrant_hue_property->values[1] = 180; /* -90..+90 */
+			drm_property_create_range(dev, 0, "vibrant hue", 0, 180);
 
+		/* -100..+100 */
 		disp->color_vibrance_property =
-			drm_property_create(dev, DRM_MODE_PROP_RANGE,
-					    "color vibrance", 2);
-		disp->color_vibrance_property->values[0] = 0;
-		disp->color_vibrance_property->values[1] = 200; /* -100..+100 */
+			drm_property_create_range(dev, 0, "color vibrance", 0, 200);
 	}
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
