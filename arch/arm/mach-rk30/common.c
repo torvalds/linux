@@ -40,17 +40,6 @@ static void __init rk30_cpu_axi_init(void)
 	dsb();
 }
 
-static void __init rk30_io_drive_strength_init(void)
-{
-//modifyed  by xbw£»at 2013-01-26
-//This voltage value must be set in accordance with the actual situation.
-//so set the value in each driver their own file.
-
-#if 0 //#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-	writel_relaxed(0x11001100, RK30_GRF_BASE + GRF_IO_CON4);
-#endif
-}
-
 #define L2_LY_SP_OFF (0)
 #define L2_LY_SP_MSK (0x7)
 
@@ -187,7 +176,6 @@ void __init rk30_map_io(void)
 	usb_uart_init();
 	rk29_setup_early_printk();
 	rk30_cpu_axi_init();
-	rk30_io_drive_strength_init();
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
