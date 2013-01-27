@@ -15,6 +15,11 @@ choice
 		select USB_ARCH_HAS_OHCI
 		select USB_ARCH_HAS_EHCI
 
+	config SOC_RT3883
+		bool "RT3883"
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
+
 endchoice
 
 choice

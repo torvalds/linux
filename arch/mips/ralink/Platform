@@ -13,3 +13,8 @@ load-$(CONFIG_SOC_RT288X)	+= 0xffffffff88000000
 # Ralink RT305x
 #
 load-$(CONFIG_SOC_RT305X)	+= 0xffffffff80000000
+
+#
+# Ralink RT3883
+#
+load-$(CONFIG_SOC_RT3883)	+= 0xffffffff80000000
