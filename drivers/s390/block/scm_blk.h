@@ -68,19 +68,34 @@ void scm_initiate_cluster_request(struct scm_request *);
 void scm_cluster_request_irq(struct scm_request *);
 bool scm_test_cluster_request(struct scm_request *);
 bool scm_cluster_size_valid(void);
-#else
-#define __scm_free_rq_cluster(scmrq) {}
-#define __scm_alloc_rq_cluster(scmrq) 0
-#define scm_request_cluster_init(scmrq) {}
-#define scm_reserve_cluster(scmrq) true
-#define scm_release_cluster(scmrq) {}
-#define scm_blk_dev_cluster_setup(bdev) {}
-#define scm_need_cluster_request(scmrq) false
-#define scm_initiate_cluster_request(scmrq) {}
-#define scm_cluster_request_irq(scmrq) {}
-#define scm_test_cluster_request(scmrq) false
-#define scm_cluster_size_valid() true
-#endif
+#else /* CONFIG_SCM_BLOCK_CLUSTER_WRITE */
+static inline void __scm_free_rq_cluster(struct scm_request *scmrq) {}
+static inline int __scm_alloc_rq_cluster(struct scm_request *scmrq)
+{
+	return 0;
+}
+static inline void scm_request_cluster_init(struct scm_request *scmrq) {}
+static inline bool scm_reserve_cluster(struct scm_request *scmrq)
+{
+	return true;
+}
+static inline void scm_release_cluster(struct scm_request *scmrq) {}
+static inline void scm_blk_dev_cluster_setup(struct scm_blk_dev *bdev) {}
+static inline bool scm_need_cluster_request(struct scm_request *scmrq)
+{
+	return false;
+}
+static inline void scm_initiate_cluster_request(struct scm_request *scmrq) {}
+static inline void scm_cluster_request_irq(struct scm_request *scmrq) {}
+static inline bool scm_test_cluster_request(struct scm_request *scmrq)
+{
+	return false;
+}
+static inline bool scm_cluster_size_valid(void)
+{
+	return true;
+}
+#endif /* CONFIG_SCM_BLOCK_CLUSTER_WRITE */
 
 extern debug_info_t *scm_debug;
 
