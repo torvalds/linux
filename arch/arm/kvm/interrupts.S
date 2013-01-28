@@ -35,15 +35,18 @@ __kvm_hyp_code_start:
 /********************************************************************
  * Flush per-VMID TLBs
  *
- * void __kvm_tlb_flush_vmid(struct kvm *kvm);
+ * void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
  *
  * We rely on the hardware to broadcast the TLB invalidation to all CPUs
  * inside the inner-shareable domain (which is the case for all v7
  * implementations).  If we come across a non-IS SMP implementation, we'll
  * have to use an IPI based mechanism. Until then, we stick to the simple
  * hardware assisted version.
+ *
+ * As v7 does not support flushing per IPA, just nuke the whole TLB
+ * instead, ignoring the ipa value.
  */
-ENTRY(__kvm_tlb_flush_vmid)
+ENTRY(__kvm_tlb_flush_vmid_ipa)
 	push	{r2, r3}
 
 	add	r0, r0, #KVM_VTTBR
@@ -60,7 +63,7 @@ ENTRY(__kvm_tlb_flush_vmid)
 
 	pop	{r2, r3}
 	bx	lr
-ENDPROC(__kvm_tlb_flush_vmid)
+ENDPROC(__kvm_tlb_flush_vmid_ipa)
 
 /********************************************************************
  * Flush TLBs and instruction caches of all CPUs inside the inner-shareable

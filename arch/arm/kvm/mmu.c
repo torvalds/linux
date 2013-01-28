@@ -34,9 +34,9 @@ extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 
-static void kvm_tlb_flush_vmid(struct kvm *kvm)
+static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
-	kvm_call_hyp(__kvm_tlb_flush_vmid, kvm);
+	kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, kvm, ipa);
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -449,7 +449,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	old_pte = *pte;
 	kvm_set_pte(pte, *new_pte);
 	if (pte_present(old_pte))
-		kvm_tlb_flush_vmid(kvm);
+		kvm_tlb_flush_vmid_ipa(kvm, addr);
 	else
 		get_page(virt_to_page(pte));
 
@@ -666,7 +666,7 @@ static void handle_hva_to_gpa(struct kvm *kvm,
 static void kvm_unmap_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 {
 	unmap_stage2_range(kvm, gpa, PAGE_SIZE);
-	kvm_tlb_flush_vmid(kvm);
+	kvm_tlb_flush_vmid_ipa(kvm, gpa);
 }
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
