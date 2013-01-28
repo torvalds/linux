@@ -98,9 +98,6 @@ static unsigned long treo_pin_config[] __initdata = {
 	GPIO96_KP_MKOUT_6,
 	GPIO93_KP_DKIN_0 | WAKEUP_ON_LEVEL_HIGH,	/* Hotsync button */
 
-	/* LCD */
-	GPIOxx_LCD_TFT_16BPP,
-
 	/* Quick Capture Interface */
 	GPIO84_CIF_FV,
 	GPIO85_CIF_LV,
@@ -140,6 +137,12 @@ static unsigned long treo680_pin_config[] __initdata = {
 	/* MATRIX KEYPAD - different wake up source */
 	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
 	GPIO99_KP_MKIN_5,
+
+	/* LCD... L_BIAS alt fn not configured on Treo680; is GPIO instead */
+	GPIOxx_LCD_16BPP,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
 };
 #endif /* CONFIG_MACH_TREO680 */
 
@@ -155,6 +158,9 @@ static unsigned long centro685_pin_config[] __initdata = {
 	/* MATRIX KEYPAD - different wake up source */
 	GPIO100_KP_MKIN_0,
 	GPIO99_KP_MKIN_5 | WAKEUP_ON_LEVEL_HIGH,
+
+	/* LCD */
+	GPIOxx_LCD_TFT_16BPP,
 };
 #endif /* CONFIG_MACH_CENTRO */
 
@@ -328,7 +334,6 @@ static inline void palmtreo_uhc_init(void) {}
 /******************************************************************************
  * Vibra and LEDs
  ******************************************************************************/
-#ifdef CONFIG_MACH_TREO680
 static struct gpio_led treo680_gpio_leds[] = {
 	{
 		.name			= "treo680:vibra:vibra",
@@ -379,21 +384,17 @@ static struct gpio_led_platform_data centro_gpio_led_info = {
 static struct platform_device palmtreo_leds = {
 	.name   = "leds-gpio",
 	.id     = -1,
-	.dev    = {
-		.platform_data  = &treo680_gpio_led_info,
-	}
 };
 
 static void __init palmtreo_leds_init(void)
 {
 	if (machine_is_centro())
 		palmtreo_leds.dev.platform_data = &centro_gpio_led_info;
+	else if (machine_is_treo680())
+		palmtreo_leds.dev.platform_data = &treo680_gpio_led_info;
 
 	platform_device_register(&palmtreo_leds);
 }
-#else
-static inline void palmtreo_leds_init(void) {}
-#endif
 
 /******************************************************************************
  * Machine init
@@ -424,10 +425,59 @@ static void __init palmphone_common_init(void)
 }
 
 #ifdef CONFIG_MACH_TREO680
+void __init treo680_gpio_init(void)
+{
+	unsigned int gpio;
+
+	/* drive all three lcd gpios high initially */
+	const unsigned long lcd_flags = GPIOF_INIT_HIGH | GPIOF_DIR_OUT;
+
+	/*
+	 * LCD GPIO initialization...
+	 */
+
+	/*
+	 * This is likely the power to the lcd.  Toggling it low/high appears to
+	 * turn the lcd off/on.  Can be toggled after lcd is initialized without
+	 * any apparent adverse effects to the lcd operation.  Note that this
+	 * gpio line is used by the lcd controller as the L_BIAS signal, but
+	 * treo680 configures it as gpio.
+	 */
+	gpio = GPIO_NR_TREO680_LCD_POWER;
+	if (gpio_request_one(gpio, lcd_flags, "LCD power") < 0)
+		goto fail;
+
+	/*
+	 * These two are called "enables", for lack of a better understanding.
+	 * If either of these are toggled after the lcd is initialized, the
+	 * image becomes degraded.  N.B. The IPL shipped with the treo
+	 * configures GPIO_NR_TREO680_LCD_EN_N as output and drives it high.  If
+	 * the IPL is ever reprogrammed, this initialization may be need to be
+	 * revisited.
+	 */
+	gpio = GPIO_NR_TREO680_LCD_EN;
+	if (gpio_request_one(gpio, lcd_flags, "LCD enable") < 0)
+		goto fail;
+	gpio = GPIO_NR_TREO680_LCD_EN_N;
+	if (gpio_request_one(gpio, lcd_flags, "LCD enable_n") < 0)
+		goto fail;
+
+	/* driving this low turns LCD on */
+	gpio_set_value(GPIO_NR_TREO680_LCD_EN_N, 0);
+
+	return;
+ fail:
+	pr_err("gpio %d initialization failed\n", gpio);
+	gpio_free(GPIO_NR_TREO680_LCD_POWER);
+	gpio_free(GPIO_NR_TREO680_LCD_EN);
+	gpio_free(GPIO_NR_TREO680_LCD_EN_N);
+}
+
 static void __init treo680_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
 	palmphone_common_init();
+	treo680_gpio_init();
 	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, GPIO_NR_TREO680_SD_READONLY,
 			GPIO_NR_TREO680_SD_POWER, 0);
 }
