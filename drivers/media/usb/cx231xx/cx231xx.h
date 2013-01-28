@@ -433,25 +433,9 @@ struct cx231xx_fh {
 	struct v4l2_fh fh;
 	struct cx231xx *dev;
 	unsigned int stream_on:1;	/* Locks streams */
-	int radio;
-
-	struct videobuf_queue vb_vidq;
-
 	enum v4l2_buf_type type;
 
-
-
-/*following is copyed from cx23885.h*/
-	u32                        resources;
-
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
-	/* video capture */
-	struct cx23417_fmt         *fmt;
-	unsigned int               width, height;
+	struct videobuf_queue vb_vidq;
 
 	/* vbi capture */
 	struct videobuf_queue      vidq;

@@ -1621,9 +1621,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-	    (fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
-		return -EINVAL;
 	if (type != fh->type)
 		return -EINVAL;
 
@@ -1869,7 +1866,6 @@ static int cx231xx_v4l2_open(struct file *filp)
 		return -ERESTARTSYS;
 	}
 	fh->dev = dev;
-	fh->radio = radio;
 	fh->type = fh_type;
 	filp->private_data = fh;
 	v4l2_fh_init(&fh->fh, vdev);
@@ -1900,7 +1896,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 		dev->video_input = dev->video_input > 2 ? 2 : dev->video_input;
 
 	}
-	if (fh->radio) {
+	if (radio) {
 		cx231xx_videodbg("video_open: setting radio device\n");
 
 		/* cx231xx_start_radio(dev); */
