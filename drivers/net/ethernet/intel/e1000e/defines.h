@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -233,6 +233,7 @@
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
 #define E1000_CTRL_LANPHYPC_OVERRIDE 0x00010000 /* SW control of LANPHYPC */
 #define E1000_CTRL_LANPHYPC_VALUE    0x00020000 /* SW value of LANPHYPC */
+#define E1000_CTRL_MEHE     0x00080000  /* Memory Error Handling Enable */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIO0  0x00400000  /* SWDPIN 0 Input or output */
@@ -394,6 +395,12 @@
 
 #define E1000_PBS_16K E1000_PBA_16K
 
+/* Uncorrectable/correctable ECC Error counts and enable bits */
+#define E1000_PBECCSTS_CORR_ERR_CNT_MASK	0x000000FF
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
+#define E1000_PBECCSTS_ECC_ENABLE		0x00010000
+
 #define IFS_MAX       80
 #define IFS_MIN       40
 #define IFS_RATIO     4
@@ -413,6 +420,7 @@
 #define E1000_ICR_RXSEQ         0x00000008 /* Rx sequence error */
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
+#define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
@@ -448,6 +456,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
+#define E1000_IMS_ECCER     E1000_ICR_ECCER     /* Uncorrectable ECC Error */
 #define E1000_IMS_RXQ0      E1000_ICR_RXQ0      /* Rx Queue 0 Interrupt */
 #define E1000_IMS_RXQ1      E1000_ICR_RXQ1      /* Rx Queue 1 Interrupt */
 #define E1000_IMS_TXQ0      E1000_ICR_TXQ0      /* Tx Queue 0 Interrupt */
@@ -544,8 +553,19 @@
 
 #define E1000_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
 #define E1000_TSYNCRXCTL_TYPE_MASK	0x0000000E /* Rx type mask */
+#define E1000_TSYNCRXCTL_TYPE_L2_V2	0x00
+#define E1000_TSYNCRXCTL_TYPE_L4_V1	0x02
+#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
+#define E1000_TSYNCRXCTL_TYPE_ALL	0x08
+#define E1000_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
 #define E1000_TSYNCRXCTL_ENABLED	0x00000010 /* enable Rx timestamping */
 #define E1000_TSYNCRXCTL_SYSCFI		0x00000020 /* Sys clock frequency */
+
+#define E1000_RXMTRL_PTP_V1_SYNC_MESSAGE	0x00000000
+#define E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE	0x00010000
+
+#define E1000_RXMTRL_PTP_V2_SYNC_MESSAGE	0x00000000
+#define E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE	0x01000000
 
 #define E1000_TIMINCA_INCPERIOD_SHIFT	24
 #define E1000_TIMINCA_INCVALUE_MASK	0x00FFFFFF

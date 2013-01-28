@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -1780,6 +1780,23 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
+	/* Reset on uncorrectable ECC error */
+	if ((icr & E1000_ICR_ECCER) && (hw->mac.type == e1000_pch_lpt)) {
+		u32 pbeccsts = er32(PBECCSTS);
+
+		adapter->corr_errors +=
+		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
+		adapter->uncorr_errors +=
+		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
+		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+
+		/* Do the reset outside of interrupt context */
+		schedule_work(&adapter->reset_task);
+
+		/* return immediately since reset is imminent */
+		return IRQ_HANDLED;
+	}
+
 	if (napi_schedule_prep(&adapter->napi)) {
 		adapter->total_tx_bytes = 0;
 		adapter->total_tx_packets = 0;
@@ -1841,6 +1858,23 @@ static irqreturn_t e1000_intr(int irq, void *data)
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
+	}
+
+	/* Reset on uncorrectable ECC error */
+	if ((icr & E1000_ICR_ECCER) && (hw->mac.type == e1000_pch_lpt)) {
+		u32 pbeccsts = er32(PBECCSTS);
+
+		adapter->corr_errors +=
+		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
+		adapter->uncorr_errors +=
+		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
+		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+
+		/* Do the reset outside of interrupt context */
+		schedule_work(&adapter->reset_task);
+
+		/* return immediately since reset is imminent */
+		return IRQ_HANDLED;
 	}
 
 	if (napi_schedule_prep(&adapter->napi)) {
@@ -2206,6 +2240,8 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
 	if (adapter->msix_entries) {
 		ew32(EIAC_82574, adapter->eiac_mask & E1000_EIAC_MASK_82574);
 		ew32(IMS, adapter->eiac_mask | E1000_IMS_OTHER | E1000_IMS_LSC);
+	} else if (hw->mac.type == e1000_pch_lpt) {
+		ew32(IMS, IMS_ENABLE_MASK | E1000_IMS_ECCER);
 	} else {
 		ew32(IMS, IMS_ENABLE_MASK);
 	}
@@ -3413,7 +3449,7 @@ static void e1000e_setup_rss_hash(struct e1000_adapter *adapter)
  * Get attributes for incrementing the System Time Register SYSTIML/H at
  * the default base frequency, and set the cyclecounter shift value.
  **/
-static s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
+s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 incvalue, incperiod, shift;
@@ -3485,6 +3521,10 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 	struct hwtstamp_config *config = &adapter->hwtstamp_config;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
+	u32 rxmtrl = 0;
+	u16 rxudp = 0;
+	bool is_l4 = false;
+	bool is_l2 = false;
 	u32 regval;
 	s32 ret_val;
 
@@ -3509,7 +3549,69 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
+		rxmtrl = E1000_RXMTRL_PTP_V1_SYNC_MESSAGE;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
+		rxmtrl = E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+		/* Also time stamps V2 L2 Path Delay Request/Response */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_SYNC_MESSAGE;
+		is_l2 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		/* Also time stamps V2 L2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE;
+		is_l2 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+		/* Hardware cannot filter just V2 L4 Sync messages;
+		 * fall-through to V2 (both L2 and L4) Sync.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+		/* Also time stamps V2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_SYNC_MESSAGE;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		/* Hardware cannot filter just V2 L4 Delay Request messages;
+		 * fall-through to V2 (both L2 and L4) Delay Request.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		/* Also time stamps V2 Path Delay Request/Response. */
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		rxmtrl = E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		/* Hardware cannot filter just V2 L4 or L2 Event messages;
+		 * fall-through to all V2 (both L2 and L4) Events.
+		 */
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		is_l2 = true;
+		is_l4 = true;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		/* For V1, the hardware can only filter Sync messages or
+		 * Delay Request messages but not both so fall-through to
+		 * time stamp all packets.
+		 */
 	case HWTSTAMP_FILTER_ALL:
+		is_l2 = true;
+		is_l4 = true;
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
@@ -3541,9 +3643,25 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter)
 		return -EAGAIN;
 	}
 
+	/* L2: define ethertype filter for time stamped packets */
+	if (is_l2)
+		rxmtrl |= ETH_P_1588;
+
+	/* define which PTP packets get time stamped */
+	ew32(RXMTRL, rxmtrl);
+
+	/* Filter by destination port */
+	if (is_l4) {
+		rxudp = PTP_EV_PORT;
+		cpu_to_be16s(&rxudp);
+	}
+	ew32(RXUDP, rxudp);
+
+	e1e_flush();
+
 	/* Clear TSYNCRXCTL_VALID & TSYNCTXCTL_VALID bit */
-	regval = er32(RXSTMPH);
-	regval = er32(TXSTMPH);
+	er32(RXSTMPH);
+	er32(TXSTMPH);
 
 	/* Get and set the System Time Register SYSTIM base frequency */
 	ret_val = e1000e_get_base_timinca(adapter, &regval);
@@ -3724,14 +3842,17 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		break;
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
-		fc->high_water = 0x05C20;
-		fc->low_water = 0x05048;
-		fc->pause_time = 0x0650;
 		fc->refresh_time = 0x0400;
-		if (adapter->netdev->mtu > ETH_DATA_LEN) {
-			pba = 14;
-			ew32(PBA, pba);
+
+		if (adapter->netdev->mtu <= ETH_DATA_LEN) {
+			fc->high_water = 0x05C20;
+			fc->low_water = 0x05048;
+			fc->pause_time = 0x0650;
+			break;
 		}
+
+		fc->high_water = ((pba << 10) * 9 / 10) & E1000_FCRTH_RTH;
+		fc->low_water = ((pba << 10) * 8 / 10) & E1000_FCRTL_RTL;
 		break;
 	}
 
@@ -4534,6 +4655,16 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.mgptc += er32(MGTPTC);
 	adapter->stats.mgprc += er32(MGTPRC);
 	adapter->stats.mgpdc += er32(MGTPDC);
+
+	/* Correctable ECC Errors */
+	if (hw->mac.type == e1000_pch_lpt) {
+		u32 pbeccsts = er32(PBECCSTS);
+		adapter->corr_errors +=
+		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
+		adapter->uncorr_errors +=
+		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
+		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+	}
 }
 
 /**
@@ -5662,6 +5793,24 @@ static int e1000e_hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 
 	config = adapter->hwtstamp_config;
 
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		/* With V2 type filters which specify a Sync or Delay Request,
+		 * Path Delay Request/Response messages are also time stamped
+		 * by hardware so notify the caller the requested packets plus
+		 * some others are time stamped.
+		 */
+		config.rx_filter = HWTSTAMP_FILTER_SOME;
+		break;
+	default:
+		break;
+	}
+
 	return copy_to_user(ifr->ifr_data, &config,
 			    sizeof(config)) ? -EFAULT : 0;
 }
@@ -5685,7 +5834,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 i, mac_reg;
 	u16 phy_reg, wuc_enable;
-	int retval = 0;
+	int retval;
 
 	/* copy MAC RARs to PHY RARs */
 	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
@@ -6669,6 +6818,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	/* init PTP hardware clock */
+	e1000e_ptp_init(adapter);
+
 	e1000_print_device_info(adapter);
 
 	if (pci_dev_run_wake(pdev))
@@ -6716,6 +6868,8 @@ static void e1000_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	bool down = test_bit(__E1000_DOWN, &adapter->state);
+
+	e1000e_ptp_remove(adapter);
 
 	/* The timers may be rescheduled, so explicitly disable them
 	 * from being rescheduled.
@@ -6891,7 +7045,7 @@ static int __init e1000_init_module(void)
 	int ret;
 	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
 		e1000e_driver_version);
-	pr_info("Copyright(c) 1999 - 2012 Intel Corporation.\n");
+	pr_info("Copyright(c) 1999 - 2013 Intel Corporation.\n");
 	ret = pci_register_driver(&e1000_driver);
 
 	return ret;

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -43,7 +43,8 @@
 #include <linux/if_vlan.h>
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
-
+#include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include "hw.h"
 
 struct e1000_info;
@@ -311,6 +312,8 @@ struct e1000_adapter {
 
 	struct napi_struct napi;
 
+	unsigned int uncorr_errors;	/* uncorrectable ECC errors */
+	unsigned int corr_errors;	/* correctable ECC errors */
 	unsigned int restart_queue;
 	u32 txd_cmd;
 
@@ -369,7 +372,7 @@ struct e1000_adapter {
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
 
-	spinlock_t stats64_lock;
+	spinlock_t stats64_lock;	/* protects statistics counters */
 	struct e1000_hw_stats stats;
 	struct e1000_phy_info phy_info;
 	struct e1000_phy_stats phy_stats;
@@ -413,6 +416,8 @@ struct e1000_adapter {
 	spinlock_t systim_lock;	/* protects SYSTIML/H regsters */
 	struct cyclecounter cc;
 	struct timecounter tc;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
 };
 
 struct e1000_info {
@@ -426,6 +431,8 @@ struct e1000_info {
 	const struct e1000_phy_operations *phy_ops;
 	const struct e1000_nvm_operations *nvm_ops;
 };
+
+s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 
 /* The system time is maintained by a 64-bit counter comprised of the 32-bit
  * SYSTIMH and SYSTIML registers.  How the counter increments (and therefore
@@ -555,8 +562,6 @@ extern void e1000e_release_hw_control(struct e1000_adapter *adapter);
 extern void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr);
 
 extern unsigned int copybreak;
-
-extern char *e1000e_get_hw_dev_name(struct e1000_hw *hw);
 
 extern const struct e1000_info e1000_82571_info;
 extern const struct e1000_info e1000_82572_info;
@@ -704,6 +709,8 @@ extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
 extern bool e1000_check_phy_82574(struct e1000_hw *hw);
 extern s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
+extern void e1000e_ptp_init(struct e1000_adapter *adapter);
+extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {

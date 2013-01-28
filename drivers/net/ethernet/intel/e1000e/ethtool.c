@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -109,6 +109,8 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("rx_dma_failed", rx_dma_failed),
 	E1000_STAT("tx_dma_failed", tx_dma_failed),
 	E1000_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	E1000_STAT("uncorr_ecc_errors", uncorr_errors),
+	E1000_STAT("corr_ecc_errors", corr_errors),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -760,8 +762,9 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 				      (test[pat] & write));
 		val = E1000_READ_REG_ARRAY(&adapter->hw, reg, offset);
 		if (val != (test[pat] & write & mask)) {
-			e_err("pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
-			      reg + offset, val, (test[pat] & write & mask));
+			e_err("pattern test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
+			      reg + (offset << 2), val,
+			      (test[pat] & write & mask));
 			*data = reg;
 			return 1;
 		}
@@ -776,7 +779,7 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 	__ew32(&adapter->hw, reg, write & mask);
 	val = __er32(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
-		e_err("set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
+		e_err("set/check test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
 		      reg, (val & mask), (write & mask));
 		*data = reg;
 		return 1;
@@ -884,12 +887,20 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		    E1000_FWSM_WLOCK_MAC_SHIFT;
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
-		/* Cannot test write-protected SHRAL[n] registers */
-		if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
-			continue;
+		if (mac->type == e1000_pch_lpt) {
+			/* Cannot test write-protected SHRAL[n] registers */
+			if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
+				continue;
 
-		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-				       mask, 0xFFFFFFFF);
+			/* SHRAH[9] different than the others */
+			if (i == 10)
+				mask |= (1 << 30);
+			else
+				mask &= ~(1 << 30);
+		}
+
+		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1), mask,
+				       0xFFFFFFFF);
 	}
 
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1394,7 +1405,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl = er32(CTRL);
-	int link = 0;
+	int link;
 
 	/* special requirements for 82571/82572 fiber adapters */
 
@@ -2200,7 +2211,19 @@ static int e1000e_get_ts_info(struct net_device *netdev,
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 
 	info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+			    (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
 			    (1 << HWTSTAMP_FILTER_ALL));
+
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
 
 	return 0;
 }

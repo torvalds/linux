@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -67,9 +67,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 				      u16 words, u16 *data);
 static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
-static s32 e1000_setup_link_82571(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
-static void e1000_clear_vfta_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
@@ -556,15 +554,13 @@ static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 	s32 i = 0;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
-	extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 	do {
+		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
 		extcnf_ctrl = er32(EXTCNF_CTRL);
 
 		if (extcnf_ctrl & E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP)
 			break;
-
-		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
 		usleep_range(2000, 4000);
 		i++;
@@ -937,6 +933,8 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
 		ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG, &data);
+		if (ret_val)
+			return ret_val;
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 		ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG, data);
 		if (ret_val)
@@ -1399,7 +1397,7 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
 	u16 status_1kbt = 0;
 	u16 receive_errors = 0;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	/* Read PHY Receive Error counter first, if its is max - all F's then
 	 * read the Base1000T status register If both are max then PHY is hung.
@@ -1544,7 +1542,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 	status = er32(STATUS);
-	rxcw = er32(RXCW);
+	er32(RXCW);
 	/* SYNCH bit and IV bit are sticky */
 	udelay(10);
 	rxcw = er32(RXCW);
@@ -1799,6 +1797,8 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 			ret_val = e1000e_update_nvm_checksum(hw);
+			if (ret_val)
+				return ret_val;
 		}
 	}
 
@@ -1812,7 +1812,7 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 {
 	if (hw->mac.type == e1000_82571) {
-		s32 ret_val = 0;
+		s32 ret_val;
 
 		/* If there's an alternate MAC address place it in RAR0
 		 * so that it will override the Si installed default perm

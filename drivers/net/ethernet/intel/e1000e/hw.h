@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -79,6 +79,7 @@ enum e1e_registers {
 #define E1000_POEMB	E1000_PHY_CTRL	/* PHY OEM Bits */
 	E1000_PBA      = 0x01000, /* Packet Buffer Allocation - RW */
 	E1000_PBS      = 0x01008, /* Packet Buffer Size */
+	E1000_PBECCSTS = 0x0100C, /* Packet Buffer ECC Status - RW */
 	E1000_EEMNGCTL = 0x01010, /* MNG EEprom Control */
 	E1000_EEWR     = 0x0102C, /* EEPROM Write Register - RW */
 	E1000_FLOP     = 0x0103C, /* FLASH Opcode Register */
@@ -251,6 +252,8 @@ enum e1e_registers {
 	E1000_TSYNCRXCTL = 0x0B620, /* Rx Time Sync Control register - RW */
 	E1000_RXSTMPL   = 0x0B624, /* Rx timestamp Low - RO */
 	E1000_RXSTMPH   = 0x0B628, /* Rx timestamp High - RO */
+	E1000_RXMTRL    = 0x0B634, /* Timesync Rx EtherType and Msg Type - RW */
+	E1000_RXUDP     = 0x0B638, /* Timesync Rx UDP Port - RW */
 };
 
 #define E1000_MAX_PHY_ADDR		4
@@ -537,16 +540,6 @@ enum e1000_serdes_link_state {
 	e1000_serdes_link_autoneg_progress,
 	e1000_serdes_link_autoneg_complete,
 	e1000_serdes_link_forced_up
-};
-
-/* Receive Descriptor */
-struct e1000_rx_desc {
-	__le64 buffer_addr; /* Address of the descriptor's data buffer */
-	__le16 length;      /* Length of data DMAed into data buffer */
-	__le16 csum;	/* Packet checksum */
-	u8  status;      /* Descriptor status */
-	u8  errors;      /* Descriptor Errors */
-	__le16 special;
 };
 
 /* Receive Descriptor - Extended */

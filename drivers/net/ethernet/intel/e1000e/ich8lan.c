@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -237,7 +237,6 @@ union ich8_flash_protected_range {
 	u32 regval;
 };
 
-static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw);
 static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank);
@@ -249,9 +248,7 @@ static s32 e1000_read_flash_word_ich8lan(struct e1000_hw *hw, u32 offset,
 					 u16 *data);
 static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 					 u8 size, u16 *data);
-static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw);
 static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw);
-static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw);
 static s32 e1000_cleanup_led_ich8lan(struct e1000_hw *hw);
 static s32 e1000_led_on_ich8lan(struct e1000_hw *hw);
 static s32 e1000_led_off_ich8lan(struct e1000_hw *hw);
@@ -263,7 +260,7 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw);
 static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
 static void e1000_power_down_phy_copper_ich8lan(struct e1000_hw *hw);
 static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw);
-static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
+static s32 e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
 static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
@@ -363,10 +360,15 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_reg;
 
+	/* Gate automatic PHY configuration by hardware on managed and
+	 * non-managed 82579 and newer adapters.
+	 */
+	e1000_gate_hw_phy_config_ich8lan(hw, true);
+
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
 		e_dbg("Failed to initialize PHY flow\n");
-		return ret_val;
+		goto out;
 	}
 
 	/* The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
@@ -387,13 +389,6 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 
 		/* fall-through */
 	case e1000_pch2lan:
-		/* Gate automatic PHY configuration by hardware on
-		 * non-managed 82579
-		 */
-		if ((hw->mac.type == e1000_pch2lan) &&
-		    !(fwsm & E1000_ICH_FWSM_FW_VALID))
-			e1000_gate_hw_phy_config_ich8lan(hw, true);
-
 		if (e1000_phy_is_accessible_pchlan(hw)) {
 			if (hw->mac.type == e1000_pch_lpt) {
 				/* Unforce SMBus mode in PHY */
@@ -428,6 +423,15 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		mac_reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
 		ew32(FEXTNVM3, mac_reg);
 
+		if (hw->mac.type == e1000_pch_lpt) {
+			/* Toggling LANPHYPC brings the PHY out of SMBus mode
+			 * So ensure that the MAC is also out of SMBus mode
+			 */
+			mac_reg = er32(CTRL_EXT);
+			mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+			ew32(CTRL_EXT, mac_reg);
+		}
+
 		/* Toggle LANPHYPC Value bit */
 		mac_reg = er32(CTRL);
 		mac_reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
@@ -461,6 +465,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_phy_hw_reset_generic(hw);
 
+out:
 	/* Ungate automatic PHY configuration on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
@@ -480,7 +485,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	phy->addr                     = 1;
 	phy->reset_delay_us           = 100;
@@ -763,13 +768,6 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	if (mac->type == e1000_ich8lan)
 		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
 
-	/* Gate automatic PHY configuration by hardware on managed
-	 * 82579 and i217
-	 */
-	if ((mac->type == e1000_pch2lan || mac->type == e1000_pch_lpt) &&
-	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
-		e1000_gate_hw_phy_config_ich8lan(hw, true);
-
 	return 0;
 }
 
@@ -785,7 +783,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 static s32 __e1000_access_emi_reg_locked(struct e1000_hw *hw, u16 address,
 					 u16 *data, bool read)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = e1e_wphy_locked(hw, I82579_EMI_ADDR, address);
 	if (ret_val)
@@ -1389,7 +1387,7 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 	u32 strap = er32(STRAP);
 	u32 freq = (strap & E1000_STRAP_SMT_FREQ_MASK) >>
 	    E1000_STRAP_SMT_FREQ_SHIFT;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	strap &= E1000_STRAP_SMBUS_ADDRESS_MASK;
 
@@ -1625,7 +1623,7 @@ release:
  **/
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 	u32 ctrl_reg = 0;
 	u32 ctrl_ext = 0;
 	u32 reg = 0;
@@ -2286,7 +2284,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 oem_reg;
 
 	ret_val = e1e_rphy(hw, HV_OEM_BITS, &oem_reg);
@@ -2344,6 +2342,8 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
 		ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG, &data);
+		if (ret_val)
+			return ret_val;
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 		ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG, data);
 		if (ret_val)
@@ -3704,6 +3704,17 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 	if (hw->mac.type == e1000_ich8lan)
 		reg |= (E1000_RFCTL_IPV6_EX_DIS | E1000_RFCTL_NEW_IPV6_EXT_DIS);
 	ew32(RFCTL, reg);
+
+	/* Enable ECC on Lynxpoint */
+	if (hw->mac.type == e1000_pch_lpt) {
+		reg = er32(PBECCSTS);
+		reg |= E1000_PBECCSTS_ECC_ENABLE;
+		ew32(PBECCSTS, reg);
+
+		reg = er32(CTRL);
+		reg |= E1000_CTRL_MEHE;
+		ew32(CTRL, reg);
+	}
 }
 
 /**
@@ -4044,8 +4055,7 @@ void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		return;
 	reg_data &= ~E1000_KMRNCTRLSTA_DIAG_NELPBK;
-	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
-				       reg_data);
+	e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET, reg_data);
 }
 
 /**
@@ -4630,7 +4640,7 @@ const struct e1000_info e1000_pch_lpt_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
+	.max_hw_frame_size	= 9018,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
