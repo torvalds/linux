@@ -237,18 +237,7 @@ static void done(struct mv_ep *ep, struct mv_req *req, int status)
 		dma_pool_free(udc->dtd_pool, curr_td, curr_td->td_dma);
 	}
 
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-			req->req.dma, req->req.length,
-			((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-			req->req.dma, req->req.length,
-			((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+	usb_gadget_unmap_request(&udc->gadget, &req->req, ep_dir(ep));
 
 	if (status && (status != -ESHUTDOWN))
 		dev_info(&udc->dev->dev, "complete %s req %p stat %d len %u/%u",
@@ -732,21 +721,9 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	req->ep = ep;
 
 	/* map virtual address to hardware */
-	if (req->req.dma == DMA_ADDR_INVALID) {
-		req->req.dma = dma_map_single(ep->udc->gadget.dev.parent,
-					req->req.buf,
-					req->req.length, ep_dir(ep)
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-		req->mapped = 1;
-	} else {
-		dma_sync_single_for_device(ep->udc->gadget.dev.parent,
-					req->req.dma, req->req.length,
-					ep_dir(ep)
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-		req->mapped = 0;
-	}
+	retval = usb_gadget_map_request(&udc->gadget, _req, ep_dir(ep));
+	if (retval)
+		return retval;
 
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
@@ -780,18 +757,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	return 0;
 
 err_unmap_dma:
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+	usb_gadget_unmap_request(&udc->gadget, _req, ep_dir(ep));
 
 	return retval;
 }
@@ -1528,14 +1494,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	return 0;
 out:
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	}
+	usb_gadget_unmap_request(&udc->gadget, &req->req, ep_dir(ep));
 
 	return retval;
 }
