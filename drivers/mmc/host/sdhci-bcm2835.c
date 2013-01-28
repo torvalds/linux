@@ -51,7 +51,6 @@
 #define BCM2835_SDHCI_WRITE_DELAY	(((2 * 1000000) / MIN_FREQ) + 1)
 
 struct bcm2835_sdhci {
-	struct clk *clk;
 	u32 shadow;
 };
 
@@ -120,25 +119,9 @@ static u8 bcm2835_sdhci_readb(struct sdhci_host *host, int reg)
 	return byte;
 }
 
-static unsigned int bcm2835_sdhci_get_max_clock(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct bcm2835_sdhci *bcm2835_host = pltfm_host->priv;
-
-	return clk_get_rate(bcm2835_host->clk);
-}
-
 unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
 {
 	return MIN_FREQ;
-}
-
-unsigned int bcm2835_sdhci_get_timeout_clock(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct bcm2835_sdhci *bcm2835_host = pltfm_host->priv;
-
-	return clk_get_rate(bcm2835_host->clk);
 }
 
 static struct sdhci_ops bcm2835_sdhci_ops = {
@@ -148,9 +131,9 @@ static struct sdhci_ops bcm2835_sdhci_ops = {
 	.read_l = bcm2835_sdhci_readl,
 	.read_w = bcm2835_sdhci_readw,
 	.read_b = bcm2835_sdhci_readb,
-	.get_max_clock = bcm2835_sdhci_get_max_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
-	.get_timeout_clock = bcm2835_sdhci_get_timeout_clock,
+	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 };
 
 static struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
@@ -180,9 +163,9 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = bcm2835_host;
 
-	bcm2835_host->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(bcm2835_host->clk)) {
-		ret = PTR_ERR(bcm2835_host->clk);
+	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pltfm_host->clk)) {
+		ret = PTR_ERR(pltfm_host->clk);
 		goto err;
 	}
 
