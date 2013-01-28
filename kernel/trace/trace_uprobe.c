@@ -256,7 +256,7 @@ static int create_trace_uprobe(int argc, char **argv)
 	inode = igrab(path.dentry->d_inode);
 	path_put(&path);
 
-	if (!S_ISREG(inode->i_mode)) {
+	if (!inode || !S_ISREG(inode->i_mode)) {
 		ret = -EINVAL;
 		goto fail_address_parse;
 	}
@@ -544,7 +544,7 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 	struct uprobe_trace_consumer *utc;
 	int ret = 0;
 
-	if (!tu->inode || tu->consumer)
+	if (tu->consumer)
 		return -EINTR;
 
 	utc = kzalloc(sizeof(struct uprobe_trace_consumer), GFP_KERNEL);
@@ -568,7 +568,7 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 
 static void probe_event_disable(struct trace_uprobe *tu, int flag)
 {
-	if (!tu->inode || !tu->consumer)
+	if (!tu->consumer)
 		return;
 
 	uprobe_unregister(tu->inode, tu->offset, &tu->consumer->cons);
