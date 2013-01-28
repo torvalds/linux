@@ -1354,7 +1354,6 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 	loff_t size = i_size_read(inode);
 	unsigned int len, block_start;
 	struct buffer_head *bh, *page_bufs = NULL;
-	int journal_data = ext4_should_journal_data(inode);
 	sector_t pblock = 0, cur_logical = 0;
 	struct ext4_io_submit io_submit;
 
@@ -1453,16 +1452,8 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 				block_commit_write(page, 0, len);
 
 			clear_page_dirty_for_io(page);
-			/*
-			 * Delalloc doesn't support data journalling,
-			 * but eventually maybe we'll lift this
-			 * restriction.
-			 */
-			if (unlikely(journal_data && PageChecked(page)))
-				err = __ext4_journalled_writepage(page, len);
-			else
-				err = ext4_bio_write_page(&io_submit, page,
-							  len, mpd->wbc);
+			err = ext4_bio_write_page(&io_submit, page, len,
+						  mpd->wbc);
 			if (!err)
 				mpd->pages_written++;
 			/*
