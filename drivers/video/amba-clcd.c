@@ -405,21 +405,43 @@ static int clcdfb_blank(int blank_mode, struct fb_info *info)
 	}
 	return 0;
 }
+
 int clcdfb_mmap_dma(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return clcdfb_dma_mmap(&fb->dev->dev, vma, fb->fb.screen_base,
-			       fb->fb.fix.smem_start, fb->fb.fix.smem_len);
+	return clcdfb_dma_mmap(&fb->dev->dev, vma,
+			       fb->fb.screen_base,
+			       fb->fb.fix.smem_start,
+			       fb->fb.fix.smem_len);
+}
+
+int clcdfb_mmap_io(struct clcd_fb *fb, struct vm_area_struct *vma)
+{
+	unsigned long user_count, count, pfn, off;
+
+	user_count	= (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	count		= PAGE_ALIGN(fb->fb.fix.smem_len) >> PAGE_SHIFT;
+	pfn		= fb->fb.fix.smem_start >> PAGE_SHIFT;
+	off		= vma->vm_pgoff;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (off < count && user_count <= (count - off))
+		return remap_pfn_range(vma, vma->vm_start, pfn + off,
+				       user_count << PAGE_SHIFT,
+				       vma->vm_page_prot);
+
+	return -ENXIO;
 }
 
 void clcdfb_remove_dma(struct clcd_fb *fb)
 {
-	struct device_node *node = fb->dev->dev.of_node;
-	u32 use_dma = 0;
+	clcdfb_dma_free(&fb->dev->dev, fb->fb.fix.smem_len,
+			fb->fb.screen_base, fb->fb.fix.smem_start);
+}
 
-	of_property_read_u32(node, "use_dma", &use_dma);
-	if (use_dma)
-		clcdfb_dma_free(&fb->dev->dev, fb->fb.fix.smem_len,
-				fb->fb.screen_base, fb->fb.fix.smem_start);
+void clcdfb_remove_io(struct clcd_fb *fb)
+{
+	iounmap(fb->fb.screen_base);
 }
 
 static int clcdfb_mmap(struct fb_info *info,
@@ -750,26 +772,40 @@ static int clcdfb_dt_init(struct clcd_fb *fb)
 		return -EINVAL;
 	fb->fb.fix.smem_len = fb->panel->mode.xres * fb->panel->mode.yres * 2;
 
+	fb->board->name		= "Device Tree CLCD PL111";
+	fb->board->caps		= CLCD_CAP_5551 | CLCD_CAP_565;
+	fb->board->check	= clcdfb_check;
+	fb->board->decode	= clcdfb_decode;
+
 	if (of_property_read_u32(node, "use_dma", &use_dma))
 		use_dma = 0;
+
 	if (use_dma) {
 		fb->fb.screen_base = clcdfb_dma_alloc(&fb->dev->dev,
-			fb->fb.fix.smem_len, &dma, GFP_KERNEL);
+						      fb->fb.fix.smem_len,
+						      &dma, GFP_KERNEL);
 		if (!fb->fb.screen_base) {
 			pr_err("CLCD: unable to map framebuffer\n");
-			err = -ENOMEM;
-		} else
-			fb->fb.fix.smem_start	= dma;
+			return -ENOMEM;
+		}
+
+		fb->fb.fix.smem_start	= dma;
+		fb->board->mmap		= clcdfb_mmap_dma;
+		fb->board->remove	= clcdfb_remove_dma;
 	} else {
 		prop = of_get_property(node, "framebuffer", &len);
 		if (WARN_ON(!prop || len < (na + ns) * sizeof(*prop)))
 			return -EINVAL;
+
 		fb_base = of_read_number(prop, na);
 		fb_size = of_read_number(prop + na, ns);
 
-		fb->fb.fix.smem_start = fb_base;
-		fb->fb.screen_base = ioremap_wc(fb->fb.fix.smem_start, fb_size);
+		fb->fb.fix.smem_start	= fb_base;
+		fb->fb.screen_base	= ioremap_wc(fb_base, fb_size);
+		fb->board->mmap		= clcdfb_mmap_io;
+		fb->board->remove	= clcdfb_remove_io;
 	}
+
 	return err;
 }
 #endif /* CONFIG_OF */
@@ -780,25 +816,17 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 	struct clcd_fb *fb;
 	int ret;
 
+	if (!board) {
 #ifdef CONFIG_OF
-	if (dev->dev.of_node) {
-		if (!board) {
+		if (dev->dev.of_node) {
 			board = kzalloc(sizeof(struct clcd_board), GFP_KERNEL);
 			if (!board)
-				return -EINVAL;
-			board->name    = "Device Tree CLCD PL111";
-			board->caps    = CLCD_CAP_5551 | CLCD_CAP_565;
-			board->check   = clcdfb_check;
-			board->decode  = clcdfb_decode;
+				return -ENOMEM;
 			board->setup   = clcdfb_dt_init;
-			board->mmap    = clcdfb_mmap_dma;
-			board->remove  = clcdfb_remove_dma;
-		}
+		} else
+#endif
+			return -EINVAL;
 	}
-#endif /* CONFIG_OF */
-
-	if (!board)
-		return -EINVAL;
 
 	ret = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (ret)
