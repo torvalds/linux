@@ -463,7 +463,7 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 		goto exit;
 	}
 
-	dev_dbg(&sis630_dev->dev, "ACPI base at 0x%04x\n", acpi_base);
+	dev_dbg(&sis630_dev->dev, "ACPI base at 0x%04hx\n", acpi_base);
 
 	if (supported[i] == PCI_DEVICE_ID_SI_760)
 		smbus_base = acpi_base + 0xE0;
