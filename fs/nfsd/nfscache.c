@@ -150,6 +150,35 @@ nfsd_cache_entry_expired(struct svc_cacherep *rp)
 }
 
 /*
+ * Search the request hash for an entry that matches the given rqstp.
+ * Must be called with cache_lock held. Returns the found entry or
+ * NULL on failure.
+ */
+static struct svc_cacherep *
+nfsd_cache_search(struct svc_rqst *rqstp)
+{
+	struct svc_cacherep	*rp;
+	struct hlist_node	*hn;
+	struct hlist_head 	*rh;
+	__be32			xid = rqstp->rq_xid;
+	u32			proto =  rqstp->rq_prot,
+				vers = rqstp->rq_vers,
+				proc = rqstp->rq_proc;
+
+	rh = &cache_hash[request_hash(xid)];
+	hlist_for_each_entry(rp, hn, rh, c_hash) {
+		if (rp->c_state != RC_UNUSED &&
+		    xid == rp->c_xid && proc == rp->c_proc &&
+		    proto == rp->c_prot && vers == rp->c_vers &&
+		    !nfsd_cache_entry_expired(rp) &&
+		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
+		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr))
+			return rp;
+	}
+	return NULL;
+}
+
+/*
  * Try to find an entry matching the current call in the cache. When none
  * is found, we grab the oldest unlocked entry off the LRU list.
  * Note that no operation within the loop may sleep.
@@ -157,8 +186,6 @@ nfsd_cache_entry_expired(struct svc_cacherep *rp)
 int
 nfsd_cache_lookup(struct svc_rqst *rqstp)
 {
-	struct hlist_node	*hn;
-	struct hlist_head 	*rh;
 	struct svc_cacherep	*rp;
 	__be32			xid = rqstp->rq_xid;
 	u32			proto =  rqstp->rq_prot,
@@ -177,17 +204,10 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	spin_lock(&cache_lock);
 	rtn = RC_DOIT;
 
-	rh = &cache_hash[request_hash(xid)];
-	hlist_for_each_entry(rp, hn, rh, c_hash) {
-		if (rp->c_state != RC_UNUSED &&
-		    xid == rp->c_xid && proc == rp->c_proc &&
-		    proto == rp->c_prot && vers == rp->c_vers &&
-		    !nfsd_cache_entry_expired(rp) &&
-		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
-		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr)) {
-			nfsdstats.rchits++;
-			goto found_entry;
-		}
+	rp = nfsd_cache_search(rqstp);
+	if (rp) {
+		nfsdstats.rchits++;
+		goto found_entry;
 	}
 	nfsdstats.rcmisses++;
 
