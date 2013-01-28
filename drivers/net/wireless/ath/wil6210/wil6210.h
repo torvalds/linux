@@ -329,6 +329,8 @@ int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
 		       const void *mac_addr, int key_len, const void *key);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
+int wmi_rx_chain_del(struct wil6210_priv *wil);
+int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);

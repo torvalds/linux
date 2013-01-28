@@ -484,52 +484,17 @@ void wil_rx_handle(struct wil6210_priv *wil)
 
 int wil_rx_init(struct wil6210_priv *wil)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil->wdev;
 	struct vring *vring = &wil->vring_rx;
 	int rc;
-	struct wmi_cfg_rx_chain_cmd cmd = {
-		.action = WMI_RX_CHAIN_ADD,
-		.rx_sw_ring = {
-			.max_mpdu_size = cpu_to_le16(RX_BUF_LEN),
-		},
-		.mid = 0, /* TODO - what is it? */
-		.decap_trans_type = WMI_DECAP_TYPE_802_3,
-	};
-	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
-		struct wmi_cfg_rx_chain_done_event evt;
-	} __packed evt;
 
 	vring->size = WIL6210_RX_RING_SIZE;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
 		return rc;
 
-	cmd.rx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
-	cmd.rx_sw_ring.ring_size = cpu_to_le16(vring->size);
-	if (wdev->iftype == NL80211_IFTYPE_MONITOR) {
-		struct ieee80211_channel *ch = wdev->preset_chandef.chan;
-
-		cmd.sniffer_cfg.mode = cpu_to_le32(WMI_SNIFFER_ON);
-		if (ch)
-			cmd.sniffer_cfg.channel = ch->hw_value - 1;
-		cmd.sniffer_cfg.phy_info_mode =
-			cpu_to_le32(ndev->type == ARPHRD_IEEE80211_RADIOTAP);
-		cmd.sniffer_cfg.phy_support =
-			cpu_to_le32((wil->monitor_flags & MONITOR_FLAG_CONTROL)
-				    ? WMI_SNIFFER_CP : WMI_SNIFFER_DP);
-	}
-	/* typical time for secure PCP is 840ms */
-	rc = wmi_call(wil, WMI_CFG_RX_CHAIN_CMDID, &cmd, sizeof(cmd),
-		      WMI_CFG_RX_CHAIN_DONE_EVENTID, &evt, sizeof(evt), 2000);
+	rc = wmi_rx_chain_add(wil, vring);
 	if (rc)
 		goto err_free;
-
-	vring->hwtail = le32_to_cpu(evt.evt.rx_ring_tail_ptr);
-
-	wil_dbg_MISC(wil, "Rx init: status %d tail 0x%08x\n",
-		     le32_to_cpu(evt.evt.status), vring->hwtail);
 
 	rc = wil_rx_refill(wil, vring->size);
 	if (rc)
@@ -547,22 +512,7 @@ void wil_rx_fini(struct wil6210_priv *wil)
 	struct vring *vring = &wil->vring_rx;
 
 	if (vring->va) {
-		int rc;
-		struct wmi_cfg_rx_chain_cmd cmd = {
-			.action = cpu_to_le32(WMI_RX_CHAIN_DEL),
-			.rx_sw_ring = {
-				.max_mpdu_size = cpu_to_le16(RX_BUF_LEN),
-			},
-		};
-		struct {
-			struct wil6210_mbox_hdr_wmi wmi;
-			struct wmi_cfg_rx_chain_done_event cfg;
-		} __packed wmi_rx_cfg_reply;
-
-		rc = wmi_call(wil, WMI_CFG_RX_CHAIN_CMDID, &cmd, sizeof(cmd),
-			      WMI_CFG_RX_CHAIN_DONE_EVENTID,
-			      &wmi_rx_cfg_reply, sizeof(wmi_rx_cfg_reply),
-			      100);
+		wmi_rx_chain_del(wil);
 		wil_vring_free(wil, vring, 0);
 	}
 }
