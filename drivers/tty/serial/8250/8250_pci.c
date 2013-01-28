@@ -1565,6 +1565,9 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_COMMTECH_4222PCIE	0x0022
 #define PCI_DEVICE_ID_BROADCOM_TRUMANAGE 0x160a
 
+#define PCI_VENDOR_ID_SUNIX		0x1fd4
+#define PCI_DEVICE_ID_SUNIX_1999	0x1999
+
 
 /* Unknown vendors/cards - this should not be in linux/pci_ids.h */
 #define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
@@ -1958,6 +1961,23 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_ANY_ID,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_timedia_setup,
+	},
+	/*
+	 * SUNIX (Timedia) cards
+	 * Do not "probe" for these cards as there is at least one combination
+	 * card that should be handled by parport_pc that doesn't match the
+	 * rule in pci_timedia_probe.
+	 * It is part number is MIO5079A but its subdevice ID is 0x0102.
+	 * There are some boards with part number SER5037AL that report
+	 * subdevice ID 0x0002.
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_SUNIX,
+		.device		= PCI_DEVICE_ID_SUNIX_1999,
+		.subvendor	= PCI_VENDOR_ID_SUNIX,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_timedia_init,
 		.setup		= pci_timedia_setup,
 	},
 	/*
@@ -4208,6 +4228,19 @@ static struct pci_device_id serial_pci_tbl[] = {
 		pbn_oxsemi },
 	{	PCI_VENDOR_ID_TIMEDIA, PCI_DEVICE_ID_TIMEDIA_1889,
 		PCI_VENDOR_ID_TIMEDIA, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_1_921600 },
+
+	/*
+	 * SUNIX (TIMEDIA)
+	 */
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xffff00,
+		pbn_b0_bt_1_921600 },
+
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_MULTISERIAL << 8, 0xffff00,
 		pbn_b0_bt_1_921600 },
 
 	/*
