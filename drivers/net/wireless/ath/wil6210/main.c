@@ -109,6 +109,15 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static void wil_cache_mbox_regs(struct wil6210_priv *wil)
+{
+	/* make shadow copy of registers that should not change on run time */
+	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
+			     sizeof(struct wil6210_mbox_ctl));
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+}
+
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	wil_dbg_MISC(wil, "%s()\n", __func__);
@@ -138,11 +147,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 		return -EAGAIN;
 	}
 
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+	wil_cache_mbox_regs(wil);
 
 	return 0;
 }
@@ -260,11 +265,7 @@ int wil_reset(struct wil6210_priv *wil)
 	wil->pending_connect_cid = -1;
 	INIT_COMPLETION(wil->wmi_ready);
 
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+	wil_cache_mbox_regs(wil);
 
 	/* TODO: release MAC reset */
 	wil6210_enable_irq(wil);
