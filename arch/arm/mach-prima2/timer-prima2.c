@@ -181,7 +181,7 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-void __init sirfsoc_timer_init(void)
+void __init sirfsoc_prima2_timer_init(void)
 {
 	unsigned long rate;
 	struct clk *clk;
@@ -220,14 +220,14 @@ static struct of_device_id timer_ids[] = {
 	{},
 };
 
-void __init sirfsoc_of_timer_map(void)
+static void __init sirfsoc_of_timer_map(void)
 {
 	struct device_node *np;
 	const unsigned int *intspec;
 
 	np = of_find_matching_node(NULL, timer_ids);
 	if (!np)
-		panic("unable to find compatible timer node in dtb\n");
+		return;
 	sirfsoc_timer_base = of_iomap(np, 0);
 	if (!sirfsoc_timer_base)
 		panic("unable to map timer cpu registers\n");
