@@ -601,8 +601,6 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 
 static int ab8500_gpadc_runtime_idle(struct device *dev)
 {
-	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
-
 	pm_runtime_suspend(dev);
 	return 0;
 }
