@@ -3,9 +3,12 @@
 
 struct netns_frags {
 	int			nqueues;
-	atomic_t		mem;
 	struct list_head	lru_list;
 
+	/* Its important for performance to keep lru_list and mem on
+	 * separate cachelines
+	 */
+	atomic_t		mem ____cacheline_aligned_in_smp;
 	/* sysctls */
 	int			timeout;
 	int			high_thresh;
