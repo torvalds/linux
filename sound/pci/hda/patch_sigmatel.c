@@ -502,6 +502,13 @@ static void stac_line_automute(struct hda_codec *codec,
 	jack_update_power(codec, jack);
 }
 
+static void stac_mic_autoswitch(struct hda_codec *codec,
+				struct hda_jack_tbl *jack)
+{
+	snd_hda_gen_mic_autoswitch(codec, jack);
+	jack_update_power(codec, jack);
+}
+
 static void stac_vref_event(struct hda_codec *codec, struct hda_jack_tbl *event)
 {
 	unsigned int data;
@@ -3509,6 +3516,7 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	spec->gen.automute_hook = stac_update_outputs;
 	spec->gen.hp_automute_hook = stac_hp_automute;
 	spec->gen.line_automute_hook = stac_line_automute;
+	spec->gen.mic_autoswitch_hook = stac_mic_autoswitch;
 
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
