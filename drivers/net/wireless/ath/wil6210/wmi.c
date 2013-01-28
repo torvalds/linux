@@ -459,7 +459,6 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 	wil->sinfo_gen++;
 
 	wil6210_disconnect(wil, evt->bssid);
-	clear_bit(wil_status_dontscan, &wil->status);
 }
 
 static void wmi_evt_notify(struct wil6210_priv *wil, int id, void *d, int len)

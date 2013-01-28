@@ -85,6 +85,8 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
 		wil_vring_fini_tx(wil, i);
+
+	clear_bit(wil_status_dontscan, &wil->status);
 }
 
 static void wil_disconnect_worker(struct work_struct *work)
