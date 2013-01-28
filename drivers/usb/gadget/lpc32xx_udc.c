@@ -1469,23 +1469,7 @@ static void done(struct lpc32xx_ep *ep, struct lpc32xx_request *req, int status)
 		status = req->req.status;
 
 	if (ep->lep) {
-		enum dma_data_direction direction;
-
-		if (ep->is_in)
-			direction = DMA_TO_DEVICE;
-		else
-			direction = DMA_FROM_DEVICE;
-
-		if (req->mapped) {
-			dma_unmap_single(ep->udc->gadget.dev.parent,
-					req->req.dma, req->req.length,
-					direction);
-			req->req.dma = 0;
-			req->mapped = 0;
-		} else
-			dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-						req->req.dma, req->req.length,
-						direction);
+		usb_gadget_unmap_request(&udc->gadget, &req->req, ep->is_in);
 
 		/* Free DDs */
 		udc_dd_free(udc, req->dd_desc_ptr);
@@ -1841,26 +1825,11 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 	}
 
 	if (ep->lep) {
-		enum dma_data_direction direction;
 		struct lpc32xx_usbd_dd_gad *dd;
 
-		/* Map DMA pointer */
-		if (ep->is_in)
-			direction = DMA_TO_DEVICE;
-		else
-			direction = DMA_FROM_DEVICE;
-
-		if (req->req.dma == 0) {
-			req->req.dma = dma_map_single(
-				ep->udc->gadget.dev.parent,
-				req->req.buf, req->req.length, direction);
-			req->mapped = 1;
-		} else {
-			dma_sync_single_for_device(
-				ep->udc->gadget.dev.parent, req->req.dma,
-				req->req.length, direction);
-			req->mapped = 0;
-		}
+		status = usb_gadget_map_request(&udc->gadget, _req, ep->is_in);
+		if (status)
+			return status;
 
 		/* For the request, build a list of DDs */
 		dd = udc_dd_alloc(udc);
