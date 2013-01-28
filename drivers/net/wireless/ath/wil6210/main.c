@@ -250,13 +250,13 @@ int wil_reset(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
-	wmi_event_flush(wil);
-
-	flush_workqueue(wil->wmi_wq);
-	flush_workqueue(wil->wmi_wq_conn);
-
 	wil6210_disable_irq(wil);
 	wil->status = 0;
+
+	wmi_event_flush(wil);
+
+	flush_workqueue(wil->wmi_wq_conn);
+	flush_workqueue(wil->wmi_wq);
 
 	/* TODO: put MAC in reset */
 	wil_target_reset(wil);
