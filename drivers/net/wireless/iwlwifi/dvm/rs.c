@@ -411,8 +411,9 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	 * BT traffic, as they would just be disrupted by BT.
 	 */
 	if (priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH) {
-		IWL_ERR(priv, "BT traffic (%d), no aggregation allowed\n",
-			priv->bt_traffic_load);
+		IWL_DEBUG_COEX(priv,
+			       "BT traffic (%d), no aggregation allowed\n",
+			       priv->bt_traffic_load);
 		return ret;
 	}
 
