@@ -582,6 +582,19 @@ xfs_calc_qm_dqalloc_reservation(
 }
 
 /*
+ * Turning off quotas.
+ *    the xfs_qoff_logitem_t: sizeof(struct xfs_qoff_logitem) * 2
+ *    the superblock for the quota flags: sector size
+ */
+STATIC uint
+xfs_calc_qm_quotaoff_reservation(
+	struct xfs_mount	*mp)
+{
+	return sizeof(struct xfs_qoff_logitem) * 2 +
+		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize);
+}
+
+/*
  * Initialize the precomputed transaction reservation values
  * in the mount structure.
  */
@@ -615,6 +628,7 @@ xfs_trans_init(
 	resp->tr_qm_sbchange = xfs_calc_qm_sbchange_reservation(mp);
 	resp->tr_qm_setqlim = xfs_calc_qm_setqlim_reservation(mp);
 	resp->tr_qm_dqalloc = xfs_calc_qm_dqalloc_reservation(mp);
+	resp->tr_qm_quotaoff = xfs_calc_qm_quotaoff_reservation(mp);
 }
 
 /*
