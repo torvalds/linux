@@ -6,9 +6,6 @@ Interpreted by the OF core:
 - reg: Registers location and length.
 - interrupts: Interrupts used by the MMC controller.
 
-Required properties:
-- bus-width: Number of data lines, can be <1>, <4>, or <8>
-
 Card detection:
 If no property below is supplied, host native card detect is used.
 Only one of the properties in this section should be supplied:
@@ -17,6 +14,8 @@ Only one of the properties in this section should be supplied:
   - non-removable: non-removable slot (like eMMC); assume always present.
 
 Optional properties:
+- bus-width: Number of data lines, can be <1>, <4>, or <8>.  The default
+  will be <1> if the property is absent.
 - wp-gpios: Specify GPIOs for write protection, see gpio binding
 - cd-inverted: when present, polarity on the cd gpio line is inverted
 - wp-inverted: when present, polarity on the wp gpio line is inverted
