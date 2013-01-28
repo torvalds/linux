@@ -1,6 +1,6 @@
 menuconfig CAN_CC770
 	tristate "Bosch CC770 and Intel AN82527 devices"
-	depends on CAN_DEV && HAS_IOMEM
+	depends on HAS_IOMEM
 
 if CAN_CC770
 

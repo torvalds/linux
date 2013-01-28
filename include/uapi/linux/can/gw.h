@@ -44,6 +44,7 @@ enum {
 	CGW_SRC_IF,	/* ifindex of source network interface */
 	CGW_DST_IF,	/* ifindex of destination network interface */
 	CGW_FILTER,	/* specify struct can_filter on source CAN device */
+	CGW_DELETED,	/* number of deleted CAN frames (see max_hops param) */
 	__CGW_MAX
 };
 
@@ -51,6 +52,7 @@ enum {
 
 #define CGW_FLAGS_CAN_ECHO 0x01
 #define CGW_FLAGS_CAN_SRC_TSTAMP 0x02
+#define CGW_FLAGS_CAN_IIF_TX_OK 0x04
 
 #define CGW_MOD_FUNCS 4 /* AND OR XOR SET */
 
