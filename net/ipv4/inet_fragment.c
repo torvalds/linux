@@ -73,7 +73,7 @@ EXPORT_SYMBOL(inet_frags_init);
 void inet_frags_init_net(struct netns_frags *nf)
 {
 	nf->nqueues = 0;
-	atomic_set(&nf->mem, 0);
+	init_frag_mem_limit(nf);
 	INIT_LIST_HEAD(&nf->lru_list);
 }
 EXPORT_SYMBOL(inet_frags_init_net);
@@ -117,12 +117,8 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 EXPORT_SYMBOL(inet_frag_kill);
 
 static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
-		struct sk_buff *skb, int *work)
+		struct sk_buff *skb)
 {
-	if (work)
-		*work -= skb->truesize;
-
-	atomic_sub(skb->truesize, &nf->mem);
 	if (f->skb_free)
 		f->skb_free(skb);
 	kfree_skb(skb);
@@ -133,6 +129,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 {
 	struct sk_buff *fp;
 	struct netns_frags *nf;
+	unsigned int sum, sum_truesize = 0;
 
 	WARN_ON(!(q->last_in & INET_FRAG_COMPLETE));
 	WARN_ON(del_timer(&q->timer) != 0);
@@ -143,13 +140,14 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(nf, f, fp, work);
+		sum_truesize += fp->truesize;
+		frag_kfree_skb(nf, f, fp);
 		fp = xp;
 	}
-
+	sum = sum_truesize + f->qsize;
 	if (work)
-		*work -= f->qsize;
-	atomic_sub(f->qsize, &nf->mem);
+		*work -= sum;
+	sub_frag_mem_limit(q, sum);
 
 	if (f->destructor)
 		f->destructor(q);
@@ -164,11 +162,11 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 	int work, evicted = 0;
 
 	if (!force) {
-		if (atomic_read(&nf->mem) <= nf->high_thresh)
+		if (frag_mem_limit(nf) <= nf->high_thresh)
 			return 0;
 	}
 
-	work = atomic_read(&nf->mem) - nf->low_thresh;
+	work = frag_mem_limit(nf) - nf->low_thresh;
 	while (work > 0) {
 		read_lock(&f->lock);
 		if (list_empty(&nf->lru_list)) {
@@ -250,7 +248,8 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 
 	q->net = nf;
 	f->constructor(q, arg);
-	atomic_add(f->qsize, &nf->mem);
+	add_frag_mem_limit(q, f->qsize);
+
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);

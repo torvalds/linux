@@ -79,4 +79,31 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 		inet_frag_destroy(q, f, NULL);
 }
 
+/* Memory Tracking Functions. */
+
+static inline int frag_mem_limit(struct netns_frags *nf)
+{
+	return atomic_read(&nf->mem);
+}
+
+static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
+{
+	atomic_sub(i, &q->net->mem);
+}
+
+static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
+{
+	atomic_add(i, &q->net->mem);
+}
+
+static inline void init_frag_mem_limit(struct netns_frags *nf)
+{
+	atomic_set(&nf->mem, 0);
+}
+
+static inline int sum_frag_mem_limit(struct netns_frags *nf)
+{
+	return atomic_read(&nf->mem);
+}
+
 #endif

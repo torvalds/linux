@@ -319,7 +319,7 @@ found:
 	fq->q.meat += skb->len;
 	if (payload_len > fq->q.max_size)
 		fq->q.max_size = payload_len;
-	atomic_add(skb->truesize, &fq->q.net->mem);
+	add_frag_mem_limit(&fq->q, skb->truesize);
 
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
@@ -398,7 +398,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 		clone->ip_summed = head->ip_summed;
 
 		NFCT_FRAG6_CB(clone)->orig = NULL;
-		atomic_add(clone->truesize, &fq->q.net->mem);
+		add_frag_mem_limit(&fq->q, clone->truesize);
 	}
 
 	/* We have to remove fragment header from datagram and to relocate
@@ -422,7 +422,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
 	}
-	atomic_sub(head->truesize, &fq->q.net->mem);
+	sub_frag_mem_limit(&fq->q, head->truesize);
 
 	head->local_df = 1;
 	head->next = NULL;
