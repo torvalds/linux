@@ -102,10 +102,20 @@ static void nop_callback(struct ccw_device *cdev, void *data, int rc)
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
 
-	if (rc == 0)
+	switch (rc) {
+	case 0:
 		sch->vpm |= req->lpm;
-	else if (rc != -EACCES)
+		break;
+	case -ETIME:
+		cdev->private->path_noirq_mask |= req->lpm;
+		break;
+	case -EACCES:
+		cdev->private->path_notoper_mask |= req->lpm;
+		break;
+	default:
 		goto err;
+	}
+	/* Continue on the next path. */
 	req->lpm >>= 1;
 	nop_do(cdev);
 	return;
@@ -174,7 +184,12 @@ static void spid_callback(struct ccw_device *cdev, void *data, int rc)
 	case 0:
 		sch->vpm |= req->lpm & sch->opm;
 		break;
+	case -ETIME:
+		cdev->private->flags.pgid_unknown = 1;
+		cdev->private->path_noirq_mask |= req->lpm;
+		break;
 	case -EACCES:
+		cdev->private->path_notoper_mask |= req->lpm;
 		break;
 	case -EOPNOTSUPP:
 		if (cdev->private->flags.mpath) {
@@ -404,10 +419,21 @@ static void snid_callback(struct ccw_device *cdev, void *data, int rc)
 {
 	struct ccw_request *req = &cdev->private->req;
 
-	if (rc == 0)
+	switch (rc) {
+	case 0:
 		cdev->private->pgid_valid_mask |= req->lpm;
-	else if (rc != -EACCES)
+		break;
+	case -ETIME:
+		cdev->private->flags.pgid_unknown = 1;
+		cdev->private->path_noirq_mask |= req->lpm;
+		break;
+	case -EACCES:
+		cdev->private->path_notoper_mask |= req->lpm;
+		break;
+	default:
 		goto err;
+	}
+	/* Continue on the next path. */
 	req->lpm >>= 1;
 	snid_do(cdev);
 	return;
@@ -427,6 +453,13 @@ static void verify_start(struct ccw_device *cdev)
 
 	sch->vpm = 0;
 	sch->lpm = sch->schib.pmcw.pam;
+
+	/* Initialize PGID data. */
+	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
+	cdev->private->pgid_valid_mask = 0;
+	cdev->private->pgid_todo_mask = sch->schib.pmcw.pam;
+	cdev->private->path_notoper_mask = 0;
+
 	/* Initialize request data. */
 	memset(req, 0, sizeof(*req));
 	req->timeout	= PGID_TIMEOUT;
@@ -459,14 +492,8 @@ static void verify_start(struct ccw_device *cdev)
  */
 void ccw_device_verify_start(struct ccw_device *cdev)
 {
-	struct subchannel *sch = to_subchannel(cdev->dev.parent);
-
 	CIO_TRACE_EVENT(4, "vrfy");
 	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
-	/* Initialize PGID data. */
-	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
-	cdev->private->pgid_valid_mask = 0;
-	cdev->private->pgid_todo_mask = sch->schib.pmcw.pam;
 	/*
 	 * Initialize pathgroup and multipath state with target values.
 	 * They may change in the course of path verification.
@@ -474,6 +501,7 @@ void ccw_device_verify_start(struct ccw_device *cdev)
 	cdev->private->flags.pgroup = cdev->private->options.pgroup;
 	cdev->private->flags.mpath = cdev->private->options.mpath;
 	cdev->private->flags.doverify = 0;
+	cdev->private->path_noirq_mask = 0;
 	verify_start(cdev);
 }
 
