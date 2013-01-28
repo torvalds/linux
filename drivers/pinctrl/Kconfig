@@ -37,6 +37,10 @@ config PINCTRL_AB8500
 	bool "AB8500 pin controller driver"
 	depends on PINCTRL_ABX500 && ARCH_U8500
 
+config PINCTRL_AB9540
+	bool "AB9540 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
 config PINCTRL_AB8505
 	bool "AB8505 pin controller driver"
 	depends on PINCTRL_ABX500 && ARCH_U8500
