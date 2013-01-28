@@ -53,7 +53,7 @@
 #include <linux/sched.h>
 
 #include "tpm.h"
-#include "tpm_stm_st33_i2c.h"
+#include "tpm_i2c_stm_st33.h"
 
 enum stm33zp24_access {
 	TPM_ACCESS_VALID = 0x80,
