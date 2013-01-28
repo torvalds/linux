@@ -100,7 +100,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		d->dma.status = TX_DMA_STATUS_DU;
 	}
 
-	wil_dbg_MISC(wil, "vring[%d] 0x%p:0x%016llx 0x%p\n", vring->size,
+	wil_dbg_misc(wil, "vring[%d] 0x%p:0x%016llx 0x%p\n", vring->size,
 		     vring->va, (unsigned long long)vring->pa, vring->ctx);
 
 	return 0;
@@ -353,8 +353,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)
 		wil_rx_add_radiotap_header(wil, skb, d);
 
-	wil_dbg_TXRX(wil, "Rx[%3d] : %d bytes\n", vring->swhead, d->dma.length);
-	wil_hex_dump_TXRX("Rx ", DUMP_PREFIX_NONE, 32, 4,
+	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", vring->swhead, d->dma.length);
+	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	wil_vring_advance_head(vring, 1);
@@ -369,7 +369,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 */
 	ftype = wil_rxdesc_ftype(d) << 2;
 	if (ftype != IEEE80211_FTYPE_DATA) {
-		wil_dbg_TXRX(wil, "Non-data frame ftype 0x%08x\n", ftype);
+		wil_dbg_txrx(wil, "Non-data frame ftype 0x%08x\n", ftype);
 		/* TODO: process it */
 		kfree_skb(skb);
 		return NULL;
@@ -461,9 +461,9 @@ void wil_rx_handle(struct wil6210_priv *wil)
 		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
 		return;
 	}
-	wil_dbg_TXRX(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "%s()\n", __func__);
 	while (NULL != (skb = wil_vring_reap_rx(wil, v))) {
-		wil_hex_dump_TXRX("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
+		wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 				  skb->data, skb_headlen(skb), false);
 
 		if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
@@ -639,7 +639,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	uint i = swhead;
 	dma_addr_t pa;
 
-	wil_dbg_TXRX(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "%s()\n", __func__);
 
 	if (avail < vring->size/8)
 		netif_tx_stop_all_queues(wil_to_ndev(wil));
@@ -656,9 +656,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	pa = dma_map_single(dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
-	wil_dbg_TXRX(wil, "Tx skb %d bytes %p -> %#08llx\n", skb_headlen(skb),
+	wil_dbg_txrx(wil, "Tx skb %d bytes %p -> %#08llx\n", skb_headlen(skb),
 		     skb->data, (unsigned long long)pa);
-	wil_hex_dump_TXRX("Tx ", DUMP_PREFIX_OFFSET, 16, 1,
+	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
 	if (unlikely(dma_mapping_error(dev, pa)))
@@ -687,12 +687,12 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
 	d->dma.d0 |= (vring_index << DMA_CFG_DESC_TX_0_QID_POS);
 
-	wil_hex_dump_TXRX("Tx ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
-	wil_dbg_TXRX(wil, "Tx swhead %d -> %d\n", swhead, vring->swhead);
+	wil_dbg_txrx(wil, "Tx swhead %d -> %d\n", swhead, vring->swhead);
 	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
 	/* hold reference to skb
 	 * to prevent skb release before accounting
@@ -725,7 +725,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct vring *vring;
 	int rc;
 
-	wil_dbg_TXRX(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "%s()\n", __func__);
 	if (!test_bit(wil_status_fwready, &wil->status)) {
 		wil_err(wil, "FW not ready\n");
 		goto drop;
@@ -785,7 +785,7 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		return;
 	}
 
-	wil_dbg_TXRX(wil, "%s(%d)\n", __func__, ringid);
+	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
 
 	while (!wil_vring_is_empty(vring)) {
 		volatile struct vring_tx_desc *d = &vring->va[vring->swtail].tx;
@@ -794,11 +794,11 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		if (!(d->dma.status & TX_DMA_STATUS_DU))
 			break;
 
-		wil_dbg_TXRX(wil,
+		wil_dbg_txrx(wil,
 			     "Tx[%3d] : %d bytes, status 0x%02x err 0x%02x\n",
 			     vring->swtail, d->dma.length, d->dma.status,
 			     d->dma.error);
-		wil_hex_dump_TXRX("TxC ", DUMP_PREFIX_NONE, 32, 4,
+		wil_hex_dump_txrx("TxC ", DUMP_PREFIX_NONE, 32, 4,
 				  (const void *)d, sizeof(*d), false);
 
 		pa = d->dma.addr_low | ((u64)d->dma.addr_high << 32);

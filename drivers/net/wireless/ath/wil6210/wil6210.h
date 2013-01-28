@@ -270,18 +270,18 @@ struct wil6210_priv {
 #define wil_info(wil, fmt, arg...) netdev_info(wil_to_ndev(wil), fmt, ##arg)
 #define wil_err(wil, fmt, arg...) netdev_err(wil_to_ndev(wil), fmt, ##arg)
 
-#define wil_dbg_IRQ(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
-#define wil_dbg_TXRX(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
-#define wil_dbg_WMI(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
-#define wil_dbg_MISC(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
+#define wil_dbg_irq(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
+#define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
+#define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
+#define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
 
-#define wil_hex_dump_TXRX(prefix_str, prefix_type, rowsize,	\
+#define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
 			  wil_print_hex_dump_debug("DBG[TXRX]" prefix_str,\
 					 prefix_type, rowsize,	\
 					 groupsize, buf, len, ascii)
 
-#define wil_hex_dump_WMI(prefix_str, prefix_type, rowsize,	\
+#define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)		\
 			 wil_print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\

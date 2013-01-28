@@ -96,7 +96,7 @@ static void wil6210_mask_irq_misc(struct wil6210_priv *wil)
 
 static void wil6210_mask_irq_pseudo(struct wil6210_priv *wil)
 {
-	wil_dbg_IRQ(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	iowrite32(WIL6210_IRQ_DISABLE, wil->csr +
 		  HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
@@ -127,7 +127,7 @@ static void wil6210_unmask_irq_misc(struct wil6210_priv *wil)
 
 static void wil6210_unmask_irq_pseudo(struct wil6210_priv *wil)
 {
-	wil_dbg_IRQ(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	set_bit(wil_status_irqen, &wil->status);
 
@@ -137,7 +137,7 @@ static void wil6210_unmask_irq_pseudo(struct wil6210_priv *wil)
 
 void wil6210_disable_irq(struct wil6210_priv *wil)
 {
-	wil_dbg_IRQ(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	wil6210_mask_irq_tx(wil);
 	wil6210_mask_irq_rx(wil);
@@ -147,7 +147,7 @@ void wil6210_disable_irq(struct wil6210_priv *wil)
 
 void wil6210_enable_irq(struct wil6210_priv *wil)
 {
-	wil_dbg_IRQ(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	iowrite32(WIL_ICR_ICC_VALUE, wil->csr + HOSTADDR(RGF_DMA_EP_RX_ICR) +
 		  offsetof(struct RGF_ICR, ICC));
@@ -169,7 +169,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_RX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
-	wil_dbg_IRQ(wil, "ISR RX 0x%08x\n", isr);
+	wil_dbg_irq(wil, "ISR RX 0x%08x\n", isr);
 
 	if (!isr) {
 		wil_err(wil, "spurious IRQ: RX\n");
@@ -179,7 +179,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	wil6210_mask_irq_rx(wil);
 
 	if (isr & BIT_DMA_EP_RX_ICR_RX_DONE) {
-		wil_dbg_IRQ(wil, "RX done\n");
+		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
 		wil_rx_handle(wil);
 	}
@@ -199,7 +199,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_TX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
-	wil_dbg_IRQ(wil, "ISR TX 0x%08x\n", isr);
+	wil_dbg_irq(wil, "ISR TX 0x%08x\n", isr);
 
 	if (!isr) {
 		wil_err(wil, "spurious IRQ: TX\n");
@@ -210,13 +210,13 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 	if (isr & BIT_DMA_EP_TX_ICR_TX_DONE) {
 		uint i;
-		wil_dbg_IRQ(wil, "TX done\n");
+		wil_dbg_irq(wil, "TX done\n");
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		for (i = 0; i < 24; i++) {
 			u32 mask = BIT_DMA_EP_TX_ICR_TX_DONE_N(i);
 			if (isr & mask) {
 				isr &= ~mask;
-				wil_dbg_IRQ(wil, "TX done(%i)\n", i);
+				wil_dbg_irq(wil, "TX done(%i)\n", i);
 				wil_tx_complete(wil, i);
 			}
 		}
@@ -248,7 +248,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
-	wil_dbg_IRQ(wil, "ISR MISC 0x%08x\n", isr);
+	wil_dbg_irq(wil, "ISR MISC 0x%08x\n", isr);
 
 	if (!isr) {
 		wil_err(wil, "spurious IRQ: MISC\n");
@@ -258,14 +258,14 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	wil6210_mask_irq_misc(wil);
 
 	if (isr & ISR_MISC_FW_ERROR) {
-		wil_dbg_IRQ(wil, "IRQ: Firmware error\n");
+		wil_dbg_irq(wil, "IRQ: Firmware error\n");
 		clear_bit(wil_status_fwready, &wil->status);
 		wil_notify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
 	}
 
 	if (isr & ISR_MISC_FW_READY) {
-		wil_dbg_IRQ(wil, "IRQ: FW ready\n");
+		wil_dbg_irq(wil, "IRQ: FW ready\n");
 		/**
 		 * Actual FW ready indicated by the
 		 * WMI_FW_READY_EVENTID
@@ -288,10 +288,10 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	struct wil6210_priv *wil = cookie;
 	u32 isr = wil->isr_misc;
 
-	wil_dbg_IRQ(wil, "Thread ISR MISC 0x%08x\n", isr);
+	wil_dbg_irq(wil, "Thread ISR MISC 0x%08x\n", isr);
 
 	if (isr & ISR_MISC_MBOX_EVT) {
-		wil_dbg_IRQ(wil, "MBOX event\n");
+		wil_dbg_irq(wil, "MBOX event\n");
 		wmi_recv_cmd(wil);
 		isr &= ~ISR_MISC_MBOX_EVT;
 	}
@@ -313,7 +313,7 @@ static irqreturn_t wil6210_thread_irq(int irq, void *cookie)
 {
 	struct wil6210_priv *wil = cookie;
 
-	wil_dbg_IRQ(wil, "Thread IRQ\n");
+	wil_dbg_irq(wil, "Thread IRQ\n");
 	/* Discover real IRQ cause */
 	if (wil->isr_misc)
 		wil6210_irq_misc_thread(irq, cookie);
@@ -390,7 +390,7 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	if (wil6210_debug_irq_mask(wil, pseudo_cause))
 		return IRQ_NONE;
 
-	wil_dbg_IRQ(wil, "Pseudo IRQ 0x%08x\n", pseudo_cause);
+	wil_dbg_irq(wil, "Pseudo IRQ 0x%08x\n", pseudo_cause);
 
 	wil6210_mask_irq_pseudo(wil);
 
