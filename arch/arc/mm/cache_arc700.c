@@ -144,23 +144,18 @@ void __init read_decode_cache_bcr(void)
 void __init arc_cache_init(void)
 {
 	unsigned int temp;
-#ifdef CONFIG_ARC_CACHE
 	unsigned int cpu = smp_processor_id();
-#endif
-#ifdef CONFIG_ARC_HAS_ICACHE
-	struct cpuinfo_arc_cache *ic;
-#endif
-#ifdef CONFIG_ARC_HAS_DCACHE
-	struct cpuinfo_arc_cache *dc;
-#endif
+	struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
+	struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
 	int way_pg_ratio = way_pg_ratio;
 	char str[256];
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-#ifdef CONFIG_ARC_HAS_ICACHE
-	ic = &cpuinfo_arc700[cpu].icache;
+	if (!ic->ver)
+		goto chk_dc;
 
+#ifdef CONFIG_ARC_HAS_ICACHE
 	/* 1. Confirm some of I-cache params which Linux assumes */
 	if ((ic->assoc != ARC_ICACHE_WAYS) ||
 	    (ic->line_len != ARC_ICACHE_LINE_LEN)) {
@@ -213,9 +208,11 @@ void __init arc_cache_init(void)
 
 	write_aux_reg(ARC_REG_IC_CTRL, temp);
 
-#ifdef CONFIG_ARC_HAS_DCACHE
-	dc = &cpuinfo_arc700[cpu].dcache;
+chk_dc:
+	if (!dc->ver)
+		return;
 
+#ifdef CONFIG_ARC_HAS_DCACHE
 	if ((dc->assoc != ARC_DCACHE_WAYS) ||
 	    (dc->line_len != ARC_DCACHE_LINE_LEN)) {
 		panic("Cache H/W doesn't match kernel Config");
