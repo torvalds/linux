@@ -29,12 +29,9 @@
 #ifndef _E1000_HW_H_
 #define _E1000_HW_H_
 
-#include <linux/types.h>
+#include "defines.h"
 
 struct e1000_hw;
-struct e1000_adapter;
-
-#include "defines.h"
 
 enum e1e_registers {
 	E1000_CTRL     = 0x00000, /* Device Control - RW */
@@ -391,13 +388,11 @@ enum e1e_registers {
 #define E1000_DEV_ID_82573L			0x109A
 #define E1000_DEV_ID_82574L			0x10D3
 #define E1000_DEV_ID_82574LA			0x10F6
-#define E1000_DEV_ID_82583V                     0x150C
-
+#define E1000_DEV_ID_82583V			0x150C
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT	0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT	0x1098
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT	0x10BA
 #define E1000_DEV_ID_80003ES2LAN_SERDES_SPT	0x10BB
-
 #define E1000_DEV_ID_ICH8_82567V_3		0x1501
 #define E1000_DEV_ID_ICH8_IGP_M_AMT		0x1049
 #define E1000_DEV_ID_ICH8_IGP_AMT		0x104A
@@ -432,12 +427,12 @@ enum e1e_registers {
 #define E1000_DEV_ID_PCH_LPTLP_I218_LM		0x155A
 #define E1000_DEV_ID_PCH_LPTLP_I218_V		0x1559
 
-#define E1000_REVISION_4 4
+#define E1000_REVISION_4	4
 
-#define E1000_FUNC_1 1
+#define E1000_FUNC_1		1
 
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0	0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1	3
 
 enum e1000_mac_type {
 	e1000_82571,
@@ -664,7 +659,7 @@ struct e1000_data_desc {
 		struct {
 			u8 status;     /* Descriptor status */
 			u8 popts;      /* Packet Options */
-			__le16 special;   /* */
+			__le16 special;
 		} fields;
 	} upper;
 };
@@ -760,7 +755,7 @@ struct e1000_host_command_header {
 	u8 checksum;
 };
 
-#define E1000_HI_MAX_DATA_LENGTH     252
+#define E1000_HI_MAX_DATA_LENGTH	252
 struct e1000_host_command_info {
 	struct e1000_host_command_header command_header;
 	u8 command_data[E1000_HI_MAX_DATA_LENGTH];
@@ -775,13 +770,13 @@ struct e1000_host_mng_command_header {
 	u16 command_length;
 };
 
-#define E1000_HI_MAX_MNG_DATA_LENGTH 0x6F8
+#define E1000_HI_MAX_MNG_DATA_LENGTH	0x6F8
 struct e1000_host_mng_command_info {
 	struct e1000_host_mng_command_header command_header;
 	u8 command_data[E1000_HI_MAX_MNG_DATA_LENGTH];
 };
 
-/* Function pointers and static data for the MAC. */
+/* Function pointers for the MAC. */
 struct e1000_mac_operations {
 	s32  (*id_led_init)(struct e1000_hw *);
 	s32  (*blink_led)(struct e1000_hw *);

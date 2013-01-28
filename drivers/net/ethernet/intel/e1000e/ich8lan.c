@@ -4378,7 +4378,7 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	u32 bank = 0;
 	u32 status;
 
-	e1000e_get_cfg_done(hw);
+	e1000e_get_cfg_done_generic(hw);
 
 	/* Wait for indication from h/w that it has completed basic config */
 	if (hw->mac.type >= e1000_ich10lan) {
@@ -4620,7 +4620,7 @@ const struct e1000_info e1000_pch2_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
+	.max_hw_frame_size	= 9018,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,

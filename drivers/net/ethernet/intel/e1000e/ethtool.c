@@ -1321,7 +1321,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		phy_reg |= 0x006;
 		e1e_wphy(hw, PHY_REG(2, 21), phy_reg);
 		/* Assert SW reset for above settings to take effect */
-		e1000e_commit_phy(hw);
+		hw->phy.ops.commit(hw);
 		mdelay(1);
 		/* Force Full Duplex */
 		e1e_rphy(hw, PHY_REG(769, 16), &phy_reg);
@@ -1542,7 +1542,8 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		if (phy_reg & MII_CR_LOOPBACK) {
 			phy_reg &= ~MII_CR_LOOPBACK;
 			e1e_wphy(hw, PHY_CONTROL, phy_reg);
-			e1000e_commit_phy(hw);
+			if (hw->phy.ops.commit)
+				hw->phy.ops.commit(hw);
 		}
 		break;
 	}

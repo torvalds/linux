@@ -1010,7 +1010,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		return ret_val;
 
 	/* SW Reset the PHY so all changes take effect */
-	ret_val = e1000e_commit_phy(hw);
+	ret_val = hw->phy.ops.commit(hw);
 	if (ret_val) {
 		e_dbg("Error Resetting the PHY\n");
 		return ret_val;

@@ -78,9 +78,6 @@ struct e1000_info;
 #define E1000_MIN_ITR_USECS		10 /* 100000 irq/sec */
 #define E1000_MAX_ITR_USECS		10000 /* 100    irq/sec */
 
-/* Early Receive defines */
-#define E1000_ERT_2048			0x100
-
 #define E1000_FC_PAUSE_TIME		0x0680 /* 858 usec */
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
@@ -579,8 +576,6 @@ extern const struct e1000_info e1000_es2_info;
 extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 					 u32 pba_num_size);
 
-extern s32  e1000e_commit_phy(struct e1000_hw *hw);
-
 extern bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 
 extern bool e1000e_get_laa_state_82571(struct e1000_hw *hw);
@@ -654,7 +649,7 @@ extern s32 e1000e_write_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset,
                                            u16 data);
 extern s32 e1000e_phy_sw_reset(struct e1000_hw *hw);
 extern s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw);
-extern s32 e1000e_get_cfg_done(struct e1000_hw *hw);
+extern s32 e1000e_get_cfg_done_generic(struct e1000_hw *hw);
 extern s32 e1000e_get_cable_length_m88(struct e1000_hw *hw);
 extern s32 e1000e_get_phy_info_m88(struct e1000_hw *hw);
 extern s32 e1000e_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data);
@@ -735,11 +730,6 @@ static inline s32 e1e_wphy(struct e1000_hw *hw, u32 offset, u16 data)
 static inline s32 e1e_wphy_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	return hw->phy.ops.write_reg_locked(hw, offset, data);
-}
-
-static inline s32 e1000_get_cable_length(struct e1000_hw *hw)
-{
-	return hw->phy.ops.get_cable_length(hw);
 }
 
 extern s32 e1000e_acquire_nvm(struct e1000_hw *hw);
