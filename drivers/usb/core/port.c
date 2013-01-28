@@ -68,7 +68,6 @@ static void usb_port_device_release(struct device *dev)
 	struct usb_port *port_dev = to_usb_port(dev);
 
 	dev_pm_qos_hide_flags(dev);
-	usb_acpi_unregister_power_resources(dev);
 	kfree(port_dev);
 }
 
@@ -187,11 +186,6 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		pm_runtime_enable(&port_dev->dev);
 
 	device_enable_async_suspend(&port_dev->dev);
-
-	retval = usb_acpi_register_power_resources(&port_dev->dev);
-	if (retval && retval != -ENODEV)
-		dev_warn(&port_dev->dev, "the port can't register its ACPI power resource.\n");
-
 	return 0;
 
 error_register:
