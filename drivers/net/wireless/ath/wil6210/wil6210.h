@@ -36,8 +36,6 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_TX_QUEUES (4)
-
 #define WIL6210_RX_RING_SIZE (128)
 #define WIL6210_TX_RING_SIZE (128)
 #define WIL6210_MAX_TX_RINGS (24)
