@@ -430,6 +430,8 @@ static void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	int rc;
 	unsigned int len = skb->len;
 
+	skb_orphan(skb);
+
 	if (in_interrupt())
 		rc = netif_rx(skb);
 	else
@@ -463,8 +465,6 @@ void wil_rx_handle(struct wil6210_priv *wil)
 	while (NULL != (skb = wil_vring_reap_rx(wil, v))) {
 		wil_hex_dump_TXRX("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 				  skb->data, skb_headlen(skb), false);
-
-		skb_orphan(skb);
 
 		if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 			skb->dev = ndev;
