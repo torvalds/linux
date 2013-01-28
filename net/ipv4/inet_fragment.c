@@ -91,6 +91,8 @@ void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 	local_bh_disable();
 	inet_frag_evictor(nf, f, true);
 	local_bh_enable();
+
+	percpu_counter_destroy(&nf->mem);
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
 

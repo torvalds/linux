@@ -1,14 +1,17 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+#include <linux/percpu_counter.h>
+
 struct netns_frags {
 	int			nqueues;
 	struct list_head	lru_list;
 
-	/* Its important for performance to keep lru_list and mem on
-	 * separate cachelines
+	/* The percpu_counter "mem" need to be cacheline aligned.
+	 *  mem.count must not share cacheline with other writers
 	 */
-	atomic_t		mem ____cacheline_aligned_in_smp;
+	struct percpu_counter   mem ____cacheline_aligned_in_smp;
+
 	/* sysctls */
 	int			timeout;
 	int			high_thresh;
@@ -81,29 +84,36 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 
 /* Memory Tracking Functions. */
 
+/* The default percpu_counter batch size is not big enough to scale to
+ * fragmentation mem acct sizes.
+ * The mem size of a 64K fragment is approx:
+ *  (44 fragments * 2944 truesize) + frag_queue struct(200) = 129736 bytes
+ */
+static unsigned int frag_percpu_counter_batch = 130000;
+
 static inline int frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	return percpu_counter_read(&nf->mem);
 }
 
 static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
-	atomic_sub(i, &q->net->mem);
+	__percpu_counter_add(&q->net->mem, -i, frag_percpu_counter_batch);
 }
 
 static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
-	atomic_add(i, &q->net->mem);
+	__percpu_counter_add(&q->net->mem, i, frag_percpu_counter_batch);
 }
 
 static inline void init_frag_mem_limit(struct netns_frags *nf)
 {
-	atomic_set(&nf->mem, 0);
+	percpu_counter_init(&nf->mem, 0);
 }
 
 static inline int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	return percpu_counter_sum_positive(&nf->mem);
 }
 
 #endif
