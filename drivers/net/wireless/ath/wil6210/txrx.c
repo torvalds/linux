@@ -565,6 +565,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	if (reply.cmd.status != WMI_VRING_CFG_SUCCESS) {
 		wil_err(wil, "Tx config failed, status 0x%02x\n",
 			reply.cmd.status);
+		rc = -EINVAL;
 		goto out_free;
 	}
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
