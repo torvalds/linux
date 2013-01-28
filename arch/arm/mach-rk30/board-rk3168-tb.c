@@ -668,7 +668,7 @@ static struct rk610_codec_platform_data rk610_codec_pdata = {
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
-		.gpio = RK30_PIN0_PC7,  
+		.gpio = INVALID_GPIO,
 		.max_timeout = 1000,
 		.active_low = 0,
 		.adjust_time =20,      //adjust for diff product
@@ -694,7 +694,7 @@ static struct platform_device rk29_device_vibrator = {
 static struct gpio_led rk29_leds[] = {
 	{
 		.name = "button-backlight",
-		.gpio = RK30_PIN2_PB3,
+		.gpio = INVALID_GPIO,
 		.default_trigger = "timer",
 		.active_low = 0,
 		.retain_state_suspended = 0,
@@ -717,7 +717,7 @@ static struct platform_device rk29_device_gpio_leds = {
 #endif
 
 #ifdef CONFIG_RK_IRDA
-#define IRDA_IRQ_PIN           RK30_PIN0_PA3
+#define IRDA_IRQ_PIN           INVALID_GPIO //RK30_PIN0_PA3
 
 static int irda_iomux_init(void)
 {
