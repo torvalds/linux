@@ -1317,7 +1317,26 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 	return ocr;
 }
 
-int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11)
+int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
+{
+	int err = 0;
+	int old_signal_voltage = host->ios.signal_voltage;
+
+	host->ios.signal_voltage = signal_voltage;
+	if (host->ops->start_signal_voltage_switch) {
+		mmc_host_clk_hold(host);
+		err = host->ops->start_signal_voltage_switch(host, &host->ios);
+		mmc_host_clk_release(host);
+	}
+
+	if (err)
+		host->ios.signal_voltage = old_signal_voltage;
+
+	return err;
+
+}
+
+int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 {
 	struct mmc_command cmd = {0};
 	int err = 0;
@@ -1328,7 +1347,7 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 	 * Send CMD11 only if the request is to switch the card to
 	 * 1.8V signalling.
 	 */
-	if ((signal_voltage != MMC_SIGNAL_VOLTAGE_330) && cmd11) {
+	if (signal_voltage != MMC_SIGNAL_VOLTAGE_330) {
 		cmd.opcode = SD_SWITCH_VOLTAGE;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -1341,15 +1360,7 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 			return -EIO;
 	}
 
-	host->ios.signal_voltage = signal_voltage;
-
-	if (host->ops->start_signal_voltage_switch) {
-		mmc_host_clk_hold(host);
-		err = host->ops->start_signal_voltage_switch(host, &host->ios);
-		mmc_host_clk_release(host);
-	}
-
-	return err;
+	return __mmc_set_signal_voltage(host, signal_voltage);
 }
 
 /*
@@ -1412,7 +1423,7 @@ static void mmc_power_up(struct mmc_host *host)
 	mmc_set_ios(host);
 
 	/* Set signal voltage to 3.3V */
-	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, false);
+	__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
 
 	/*
 	 * This delay should be sufficient to allow the power supply
