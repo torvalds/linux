@@ -151,16 +151,13 @@ void ext4_add_complete_io(ext4_io_end_t *io_end)
 	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (list_empty(&ei->i_completed_io_list)) {
-		io_end->flag |= EXT4_IO_END_QUEUED;
-		queue_work(wq, &io_end->work);
-	}
+	if (list_empty(&ei->i_completed_io_list))
+		queue_work(wq, &ei->i_unwritten_work);
 	list_add_tail(&io_end->list, &ei->i_completed_io_list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }
 
-static int ext4_do_flush_completed_IO(struct inode *inode,
-				      ext4_io_end_t *work_io)
+static int ext4_do_flush_completed_IO(struct inode *inode)
 {
 	ext4_io_end_t *io;
 	struct list_head unwritten, complete, to_free;
@@ -191,19 +188,7 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
 	while (!list_empty(&complete)) {
 		io = list_entry(complete.next, ext4_io_end_t, list);
 		io->flag &= ~EXT4_IO_END_UNWRITTEN;
-		/* end_io context can not be destroyed now because it still
-		 * used by queued worker. Worker thread will destroy it later */
-		if (io->flag & EXT4_IO_END_QUEUED)
-			list_del_init(&io->list);
-		else
-			list_move(&io->list, &to_free);
-	}
-	/* If we are called from worker context, it is time to clear queued
-	 * flag, and destroy it's end_io if it was converted already */
-	if (work_io) {
-		work_io->flag &= ~EXT4_IO_END_QUEUED;
-		if (!(work_io->flag & EXT4_IO_END_UNWRITTEN))
-			list_add_tail(&work_io->list, &to_free);
+		list_move(&io->list, &to_free);
 	}
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
@@ -218,10 +203,11 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
 /*
  * work on completed aio dio IO, to convert unwritten extents to extents
  */
-static void ext4_end_io_work(struct work_struct *work)
+void ext4_end_io_work(struct work_struct *work)
 {
-	ext4_io_end_t *io = container_of(work, ext4_io_end_t, work);
-	ext4_do_flush_completed_IO(io->inode, io);
+	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+						  i_unwritten_work);
+	ext4_do_flush_completed_IO(&ei->vfs_inode);
 }
 
 int ext4_flush_unwritten_io(struct inode *inode)
@@ -229,7 +215,7 @@ int ext4_flush_unwritten_io(struct inode *inode)
 	int ret;
 	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex) &&
 		     !(inode->i_state & I_FREEING));
-	ret = ext4_do_flush_completed_IO(inode, NULL);
+	ret = ext4_do_flush_completed_IO(inode);
 	ext4_unwritten_wait(inode);
 	return ret;
 }
@@ -240,7 +226,6 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 	if (io) {
 		atomic_inc(&EXT4_I(inode)->i_ioend_count);
 		io->inode = inode;
-		INIT_WORK(&io->work, ext4_end_io_work);
 		INIT_LIST_HEAD(&io->list);
 	}
 	return io;

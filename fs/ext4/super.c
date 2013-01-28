@@ -960,6 +960,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_datasync_tid = 0;
 	atomic_set(&ei->i_ioend_count, 0);
 	atomic_set(&ei->i_unwritten, 0);
+	INIT_WORK(&ei->i_unwritten_work, ext4_end_io_work);
 
 	return &ei->vfs_inode;
 }
