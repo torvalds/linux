@@ -109,11 +109,11 @@ struct tap_filter {
 	unsigned char	addr[FLT_EXACT_COUNT][ETH_ALEN];
 };
 
-/* 1024 is probably a high enough limit: modern hypervisors seem to support on
- * the order of 100-200 CPUs so this leaves us some breathing space if we want
- * to match a queue per guest CPU.
- */
-#define MAX_TAP_QUEUES 1024
+/* DEFAULT_MAX_NUM_RSS_QUEUES were choosed to let the rx/tx queues allocated for
+ * the netdevice to be fit in one page. So we can make sure the success of
+ * memory allocation. TODO: increase the limit. */
+#define MAX_TAP_QUEUES DEFAULT_MAX_NUM_RSS_QUEUES
+#define MAX_TAP_FLOWS  4096
 
 #define TUN_FLOW_EXPIRE (3 * HZ)
 
@@ -185,6 +185,8 @@ struct tun_struct {
 	unsigned long ageing_time;
 	unsigned int numdisabled;
 	struct list_head disabled;
+	void *security;
+	u32 flow_count;
 };
 
 static inline u32 tun_hashfn(u32 rxhash)
@@ -218,6 +220,7 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 		e->queue_index = queue_index;
 		e->tun = tun;
 		hlist_add_head_rcu(&e->hash_link, head);
+		++tun->flow_count;
 	}
 	return e;
 }
@@ -228,6 +231,7 @@ static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 		  e->rxhash, e->queue_index);
 	hlist_del_rcu(&e->hash_link);
 	kfree_rcu(e, rcu);
+	--tun->flow_count;
 }
 
 static void tun_flow_flush(struct tun_struct *tun)
@@ -317,7 +321,8 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 		e->updated = jiffies;
 	} else {
 		spin_lock_bh(&tun->lock);
-		if (!tun_flow_find(head, rxhash))
+		if (!tun_flow_find(head, rxhash) &&
+		    tun->flow_count < MAX_TAP_FLOWS)
 			tun_flow_create(tun, head, rxhash, queue_index);
 
 		if (!timer_pending(&tun->flow_gc_timer))
@@ -489,6 +494,10 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
 	int err;
+
+	err = security_tun_dev_attach(tfile->socket.sk, tun->security);
+	if (err < 0)
+		goto out;
 
 	err = -EINVAL;
 	if (rtnl_dereference(tfile->tun))
@@ -1373,6 +1382,7 @@ static void tun_free_netdev(struct net_device *dev)
 
 	BUG_ON(!(list_empty(&tun->disabled)));
 	tun_flow_uninit(tun);
+	security_tun_dev_free_security(tun->security);
 	free_netdev(dev);
 }
 
@@ -1562,7 +1572,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (tun_not_capable(tun))
 			return -EPERM;
-		err = security_tun_dev_attach(tfile->socket.sk);
+		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
 
@@ -1577,6 +1587,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else {
 		char *name;
 		unsigned long flags = 0;
+		int queues = ifr->ifr_flags & IFF_MULTI_QUEUE ?
+			     MAX_TAP_QUEUES : 1;
 
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
@@ -1600,8 +1612,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			name = ifr->ifr_name;
 
 		dev = alloc_netdev_mqs(sizeof(struct tun_struct), name,
-				       tun_setup,
-				       MAX_TAP_QUEUES, MAX_TAP_QUEUES);
+				       tun_setup, queues, queues);
+
 		if (!dev)
 			return -ENOMEM;
 
@@ -1619,7 +1631,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		spin_lock_init(&tun->lock);
 
-		security_tun_dev_post_create(&tfile->sk);
+		err = security_tun_dev_alloc_security(&tun->security);
+		if (err < 0)
+			goto err_free_dev;
 
 		tun_net_init(dev);
 
@@ -1789,10 +1803,14 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 
 	if (ifr->ifr_flags & IFF_ATTACH_QUEUE) {
 		tun = tfile->detached;
-		if (!tun)
+		if (!tun) {
 			ret = -EINVAL;
-		else
-			ret = tun_attach(tun, file);
+			goto unlock;
+		}
+		ret = security_tun_dev_attach_queue(tun->security);
+		if (ret < 0)
+			goto unlock;
+		ret = tun_attach(tun, file);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & TUN_TAP_MQ))
@@ -1802,6 +1820,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 	} else
 		ret = -EINVAL;
 
+unlock:
 	rtnl_unlock();
 	return ret;
 }
