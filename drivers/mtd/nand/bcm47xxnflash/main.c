@@ -94,7 +94,8 @@ static int __init bcm47xxnflash_init(void)
 	 */
 	err = platform_driver_probe(&bcm47xxnflash_driver, bcm47xxnflash_probe);
 	if (err)
-		pr_err("Failed to register serial flash driver: %d\n", err);
+		pr_err("Failed to register bcm47xx nand flash driver: %d\n",
+		       err);
 
 	return err;
 }
