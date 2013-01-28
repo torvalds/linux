@@ -286,9 +286,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 		cachv = &rp->c_replvec;
 		cachv->iov_base = kmalloc(len << 2, GFP_KERNEL);
 		if (!cachv->iov_base) {
-			spin_lock(&cache_lock);
 			rp->c_state = RC_UNUSED;
-			spin_unlock(&cache_lock);
 			return;
 		}
 		cachv->iov_len = len << 2;
