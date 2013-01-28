@@ -1280,8 +1280,8 @@ static const match_table_t tokens = {
 	{Opt_stripe, "stripe=%u"},
 	{Opt_delalloc, "delalloc"},
 	{Opt_nodelalloc, "nodelalloc"},
-	{Opt_mblk_io_submit, "mblk_io_submit"},
-	{Opt_nomblk_io_submit, "nomblk_io_submit"},
+	{Opt_removed, "mblk_io_submit"},
+	{Opt_removed, "nomblk_io_submit"},
 	{Opt_block_validity, "block_validity"},
 	{Opt_noblock_validity, "noblock_validity"},
 	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
@@ -1415,8 +1415,6 @@ static const struct mount_opts {
 	{Opt_bsd_df, EXT4_MOUNT_MINIX_DF, MOPT_CLEAR},
 	{Opt_grpid, EXT4_MOUNT_GRPID, MOPT_SET},
 	{Opt_nogrpid, EXT4_MOUNT_GRPID, MOPT_CLEAR},
-	{Opt_mblk_io_submit, EXT4_MOUNT_MBLK_IO_SUBMIT, MOPT_SET},
-	{Opt_nomblk_io_submit, EXT4_MOUNT_MBLK_IO_SUBMIT, MOPT_CLEAR},
 	{Opt_block_validity, EXT4_MOUNT_BLOCK_VALIDITY, MOPT_SET},
 	{Opt_noblock_validity, EXT4_MOUNT_BLOCK_VALIDITY, MOPT_CLEAR},
 	{Opt_dioread_nolock, EXT4_MOUNT_DIOREAD_NOLOCK, MOPT_SET},
@@ -3381,7 +3379,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	set_opt(sb, POSIX_ACL);
 #endif
-	set_opt(sb, MBLK_IO_SUBMIT);
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
 		set_opt(sb, JOURNAL_DATA);
 	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)

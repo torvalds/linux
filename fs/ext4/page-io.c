@@ -73,8 +73,6 @@ void ext4_free_io_end(ext4_io_end_t *io)
 	BUG_ON(!list_empty(&io->list));
 	BUG_ON(io->flag & EXT4_IO_END_UNWRITTEN);
 
-	if (io->page)
-		put_page(io->page);
 	for (i = 0; i < io->num_io_pages; i++)
 		put_io_page(io->pages[i]);
 	io->num_io_pages = 0;
