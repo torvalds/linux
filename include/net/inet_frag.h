@@ -40,18 +40,21 @@ struct inet_frag_queue {
 
 struct inet_frags {
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
-	rwlock_t		lock;
-	u32			rnd;
-	int			qsize;
+	/* This rwlock is a global lock (seperate per IPv4, IPv6 and
+	 * netfilter). Important to keep this on a seperate cacheline.
+	 */
+	rwlock_t		lock ____cacheline_aligned_in_smp;
 	int			secret_interval;
 	struct timer_list	secret_timer;
+	u32			rnd;
+	int			qsize;
 
 	unsigned int		(*hashfn)(struct inet_frag_queue *);
+	bool			(*match)(struct inet_frag_queue *q, void *arg);
 	void			(*constructor)(struct inet_frag_queue *q,
 						void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
 	void			(*skb_free)(struct sk_buff *);
-	bool			(*match)(struct inet_frag_queue *q, void *arg);
 	void			(*frag_expire)(unsigned long data);
 };
 
