@@ -167,8 +167,7 @@ config SSB_DRIVER_GIGE
 
 config SSB_DRIVER_GPIO
 	bool "SSB GPIO driver"
-	depends on SSB
-	select GPIOLIB
+	depends on SSB && GPIOLIB
 	help
 	  Driver to provide access to the GPIO pins on the bus.
 
