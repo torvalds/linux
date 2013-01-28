@@ -27,6 +27,9 @@
 		serial2: serial@1d0d000 {
 			status = "okay";
 		};
+		rtc0: rtc@1c23000 {
+			status = "okay";
+		};
 	};
 	nand_cs3@62000000 {
 		status = "okay";
