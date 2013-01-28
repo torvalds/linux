@@ -195,8 +195,8 @@ static void slc_bump(struct slcan *sl)
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	skb_reserve(skb, sizeof(struct can_skb_priv));
-	((struct can_skb_priv *)(skb->head))->ifindex = sl->dev->ifindex;
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = sl->dev->ifindex;
 
 	memcpy(skb_put(skb, sizeof(struct can_frame)),
 	       &cf, sizeof(struct can_frame));

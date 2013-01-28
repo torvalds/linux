@@ -32,4 +32,14 @@ struct can_skb_priv {
 	struct can_frame cf[0];
 };
 
+static inline struct can_skb_priv *can_skb_prv(struct sk_buff *skb)
+{
+	return (struct can_skb_priv *)(skb->head);
+}
+
+static inline void can_skb_reserve(struct sk_buff *skb)
+{
+	skb_reserve(skb, sizeof(struct can_skb_priv));
+}
+
 #endif /* CAN_SKB_H */

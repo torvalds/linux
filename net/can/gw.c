@@ -381,9 +381,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	/* is sending the skb back to the incoming interface not allowed? */
 	if (!(gwj->flags & CGW_FLAGS_CAN_IIF_TX_OK) &&
-	    skb_headroom(skb) == sizeof(struct can_skb_priv) &&
-	    (((struct can_skb_priv *)(skb->head))->ifindex ==
-	     gwj->dst.dev->ifindex))
+	    can_skb_prv(skb)->ifindex == gwj->dst.dev->ifindex)
 		return;
 
 	/*

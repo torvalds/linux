@@ -261,8 +261,8 @@ static void bcm_can_tx(struct bcm_op *op)
 	if (!skb)
 		goto out;
 
-	skb_reserve(skb, sizeof(struct can_skb_priv));
-	((struct can_skb_priv *)(skb->head))->ifindex = dev->ifindex;
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = dev->ifindex;
 
 	memcpy(skb_put(skb, CFSIZ), cf, CFSIZ);
 
@@ -1207,7 +1207,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 	if (!skb)
 		return -ENOMEM;
 
-	skb_reserve(skb, sizeof(struct can_skb_priv));
+	can_skb_reserve(skb);
 
 	err = memcpy_fromiovec(skb_put(skb, CFSIZ), msg->msg_iov, CFSIZ);
 	if (err < 0) {
@@ -1221,7 +1221,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 		return -ENODEV;
 	}
 
-	((struct can_skb_priv *)(skb->head))->ifindex = dev->ifindex;
+	can_skb_prv(skb)->ifindex = dev->ifindex;
 	skb->dev = dev;
 	skb->sk  = sk;
 	err = can_send(skb, 1); /* send with loopback */

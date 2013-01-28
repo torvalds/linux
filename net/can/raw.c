@@ -705,8 +705,8 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto put_dev;
 
-	skb_reserve(skb, sizeof(struct can_skb_priv));
-	((struct can_skb_priv *)(skb->head))->ifindex = dev->ifindex;
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = dev->ifindex;
 
 	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
 	if (err < 0)
