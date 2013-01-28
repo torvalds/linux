@@ -439,10 +439,13 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 	}
 
 	if (clean) {
-		if (tun && tun->numqueues == 0 && tun->numdisabled == 0 &&
-		    !(tun->flags & TUN_PERSIST))
-			if (tun->dev->reg_state == NETREG_REGISTERED)
+		if (tun && tun->numqueues == 0 && tun->numdisabled == 0) {
+			netif_carrier_off(tun->dev);
+
+			if (!(tun->flags & TUN_PERSIST) &&
+			    tun->dev->reg_state == NETREG_REGISTERED)
 				unregister_netdevice(tun->dev);
+		}
 
 		BUG_ON(!test_bit(SOCK_EXTERNALLY_ALLOCATED,
 				 &tfile->socket.flags));
@@ -1658,9 +1661,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		    device_create_file(&tun->dev->dev, &dev_attr_owner) ||
 		    device_create_file(&tun->dev->dev, &dev_attr_group))
 			pr_err("Failed to create tun sysfs files\n");
-
-		netif_carrier_on(tun->dev);
 	}
+
+	netif_carrier_on(tun->dev);
 
 	tun_debug(KERN_INFO, tun, "tun_set_iff\n");
 
