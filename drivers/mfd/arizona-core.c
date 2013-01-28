@@ -510,6 +510,29 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_reset;
 	}
 
+	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
+		if (!arizona->pdata.micbias[i].mV)
+			continue;
+
+		val = (arizona->pdata.micbias[i].mV - 1500) / 100;
+		val <<= ARIZONA_MICB1_LVL_SHIFT;
+
+		if (arizona->pdata.micbias[i].ext_cap)
+			val |= ARIZONA_MICB1_EXT_CAP;
+
+		if (arizona->pdata.micbias[i].discharge)
+			val |= ARIZONA_MICB1_DISCH;
+
+		if (arizona->pdata.micbias[i].fast_start)
+			val |= ARIZONA_MICB1_RATE;
+
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_MIC_BIAS_CTRL_1 + i,
+				   ARIZONA_MICB1_LVL_MASK |
+				   ARIZONA_MICB1_DISCH |
+				   ARIZONA_MICB1_RATE, val);
+	}
+
 	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {
 		/* Default for both is 0 so noop with defaults */
 		val = arizona->pdata.dmic_ref[i]
