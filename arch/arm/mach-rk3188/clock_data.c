@@ -296,6 +296,23 @@ static int clksel_set_rate_shift_2(struct clk *clk, unsigned long rate)
 	}
 	return -ENOENT;
 }
+
+//for div 1 2 4 2*n
+static int clksel_set_rate_even(struct clk *clk, unsigned long rate)
+{
+	u32 div;
+	for (div = 2; div < clk->div_max; div += 2) {
+		u32 new_rate = clk->parent->rate / div;
+		if (new_rate <= rate) {
+			set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+			clk->rate = new_rate;
+			pr_debug("%s for clock %s to rate %ld (even div = %d)\n", 
+					__func__, clk->name, rate, div);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
 static u32 clk_get_freediv(unsigned long rate_out, unsigned long rate , u32 div_max)
 {
 	u32 div;
@@ -2006,7 +2023,7 @@ static struct clk clk_sdmmc = {
 	.parent		= &hclk_periph,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clksel_set_rate_even,
 	.gate_idx	= CLK_GATE_MMC0_SRC,
 	.clksel_con 	= CRU_CLKSELS_CON(11),
 	CRU_DIV_SET(0x3f, 0, 64),
@@ -2017,7 +2034,7 @@ static struct clk clk_sdio = {
 	.parent		= &hclk_periph,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clksel_set_rate_even,
 	.gate_idx	= CLK_GATE_SDIO_SRC,
 	.clksel_con 	= CRU_CLKSELS_CON(12),
 	CRU_DIV_SET(0x3f, 0, 64),
@@ -3123,6 +3140,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 	
 	clk_set_rate_nolock(&clk_uart0, 49500000);
+	clk_set_rate_nolock(&clk_sdmmc, 24750000);
 
 }
 
