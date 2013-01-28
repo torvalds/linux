@@ -747,7 +747,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
-	int i;
+	int i, flushed;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -772,11 +772,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
-	 * This is relevant only in AP, WDS and mesh modes, since in
-	 * all other modes we've already removed all stations when
-	 * disconnecting etc.
+	 * This is relevant only in WDS mode, in all other modes we've
+	 * already removed all stations when disconnecting or similar,
+	 * so warn otherwise.
+	 *
+	 * We call sta_info_flush_cleanup() later, to combine RCU waits.
 	 */
-	sta_info_flush(local, sdata);
+	flushed = sta_info_flush_defer(sdata);
+	WARN_ON_ONCE((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
+		     (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1));
 
 	/*
 	 * Don't count this interface for promisc/allmulti while it
@@ -859,11 +863,17 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
-		 * Call synchronize_rcu() to wait for the RX path
-		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU.
+		 *
+		 * sta_info_flush_cleanup() requires rcu_barrier()
+		 * first to wait for the station call_rcu() calls
+		 * to complete, here we need at least sychronize_rcu()
+		 * it to wait for the RX path in case it is using the
+		 * interface and enqueuing frames at this very time on
+		 * another CPU.
 		 */
-		synchronize_rcu();
+		rcu_barrier();
+		sta_info_flush_cleanup(sdata);
+
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*
@@ -961,7 +971,6 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
  */
 static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = sdata->local;
 	int flushed;
 	int i;
 
@@ -977,7 +986,7 @@ static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_rmc_free(sdata);
 
-	flushed = sta_info_flush(local, sdata);
+	flushed = sta_info_flush(sdata);
 	WARN_ON(flushed);
 }
 
@@ -1218,6 +1227,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP:
 		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
+		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 		type = NL80211_IFTYPE_STATION;
@@ -1225,9 +1235,11 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.p2p = true;
 		/* fall through */
 	case NL80211_IFTYPE_STATION:
+		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
 		ieee80211_sta_setup_sdata(sdata);
 		break;
 	case NL80211_IFTYPE_ADHOC:
+		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
 		ieee80211_ibss_setup_sdata(sdata);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
@@ -1241,8 +1253,12 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
 	case NL80211_IFTYPE_WDS:
+		sdata->vif.bss_conf.bssid = NULL;
+		break;
 	case NL80211_IFTYPE_AP_VLAN:
+		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
+		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:

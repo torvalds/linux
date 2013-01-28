@@ -117,14 +117,16 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		dev_err(adapter->dev, "mwifiex_write_data_async failed: 0x%X\n",
 			ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);

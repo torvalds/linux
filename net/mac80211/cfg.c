@@ -164,7 +164,17 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			sta = sta_info_get(sdata, mac_addr);
 		else
 			sta = sta_info_get_bss(sdata, mac_addr);
-		if (!sta) {
+		/*
+		 * The ASSOC test makes sure the driver is ready to
+		 * receive the key. When wpa_supplicant has roamed
+		 * using FT, it attempts to set the key before
+		 * association has completed, this rejects that attempt
+		 * so it will set the key again after assocation.
+		 *
+		 * TODO: accept the key if we have a station entry and
+		 *       add it to the device after the station.
+		 */
+		if (!sta || !test_sta_flag(sta, WLAN_STA_ASSOC)) {
 			ieee80211_key_free(sdata->local, key);
 			err = -ENOENT;
 			goto out_unlock;
@@ -510,6 +520,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 				BIT(NL80211_STA_FLAG_WME) |
 				BIT(NL80211_STA_FLAG_MFP) |
 				BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+				BIT(NL80211_STA_FLAG_ASSOCIATED) |
 				BIT(NL80211_STA_FLAG_TDLS_PEER);
 	if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
@@ -521,6 +532,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);
 	if (test_sta_flag(sta, WLAN_STA_AUTH))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
+	if (test_sta_flag(sta, WLAN_STA_ASSOC))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_ASSOCIATED);
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_TDLS_PEER);
 }
@@ -930,6 +943,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 	sdata->vif.bss_conf.dtim_period = params->dtim_period;
+	sdata->vif.bss_conf.enable_beacon = true;
 
 	sdata->vif.bss_conf.ssid_len = params->ssid_len;
 	if (params->ssid_len)
@@ -1010,8 +1024,15 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		kfree_rcu(old_probe_resp, rcu_head);
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		sta_info_flush(local, vlan);
-	sta_info_flush(local, sdata);
+		sta_info_flush_defer(vlan);
+	sta_info_flush_defer(sdata);
+	rcu_barrier();
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		sta_info_flush_cleanup(vlan);
+	sta_info_flush_cleanup(sdata);
+
+	sdata->vif.bss_conf.enable_beacon = false;
+	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
 	drv_stop_ap(sdata->local, sdata);
@@ -1069,6 +1090,58 @@ static void ieee80211_send_layer2_update(struct sta_info *sta)
 	netif_rx_ni(skb);
 }
 
+static int sta_apply_auth_flags(struct ieee80211_local *local,
+				struct sta_info *sta,
+				u32 mask, u32 set)
+{
+	int ret;
+
+	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
+	    set & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
+	    !test_sta_flag(sta, WLAN_STA_AUTH)) {
+		ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
+		if (ret)
+			return ret;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_ASSOCIATED) &&
+	    set & BIT(NL80211_STA_FLAG_ASSOCIATED) &&
+	    !test_sta_flag(sta, WLAN_STA_ASSOC)) {
+		ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+		if (ret)
+			return ret;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
+		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+		else
+			ret = 0;
+		if (ret)
+			return ret;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_ASSOCIATED) &&
+	    !(set & BIT(NL80211_STA_FLAG_ASSOCIATED)) &&
+	    test_sta_flag(sta, WLAN_STA_ASSOC)) {
+		ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
+		if (ret)
+			return ret;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
+	    !(set & BIT(NL80211_STA_FLAG_AUTHENTICATED)) &&
+	    test_sta_flag(sta, WLAN_STA_AUTH)) {
+		ret = sta_info_move_state(sta, IEEE80211_STA_NONE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int sta_apply_parameters(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct station_parameters *params)
@@ -1086,52 +1159,20 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
 
-	/*
-	 * In mesh mode, we can clear AUTHENTICATED flag but must
-	 * also make ASSOCIATED follow appropriately for the driver
-	 * API. See also below, after AUTHORIZED changes.
-	 */
-	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
-		/* cfg80211 should not allow this in non-mesh modes */
-		if (WARN_ON(!ieee80211_vif_is_mesh(&sdata->vif)))
-			return -EINVAL;
-
-		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
-		    !test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
-			if (ret)
-				return ret;
-			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-			if (ret)
-				return ret;
-		}
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		/*
+		 * In mesh mode, ASSOCIATED isn't part of the nl80211
+		 * API but must follow AUTHENTICATED for driver state.
+		 */
+		if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED))
+			mask |= BIT(NL80211_STA_FLAG_ASSOCIATED);
+		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
+			set |= BIT(NL80211_STA_FLAG_ASSOCIATED);
 	}
 
-	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
-		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-			ret = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
-		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-		if (ret)
-			return ret;
-	}
-
-	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
-		/* cfg80211 should not allow this in non-mesh modes */
-		if (WARN_ON(!ieee80211_vif_is_mesh(&sdata->vif)))
-			return -EINVAL;
-
-		if (!(set & BIT(NL80211_STA_FLAG_AUTHENTICATED)) &&
-		    test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
-			if (ret)
-				return ret;
-			ret = sta_info_move_state(sta, IEEE80211_STA_NONE);
-			if (ret)
-				return ret;
-		}
-	}
-
+	ret = sta_apply_auth_flags(local, sta, mask, set);
+	if (ret)
+		return ret;
 
 	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
 		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
@@ -1177,10 +1218,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.aid = params->aid;
 
 	/*
-	 * FIXME: updating the following information is racy when this
-	 *	  function is called from ieee80211_change_station().
-	 *	  However, all this information should be static so
-	 *	  maybe we should just reject attemps to change it.
+	 * Some of the following updates would be racy if called on an
+	 * existing station, via ieee80211_change_station(). However,
+	 * all such changes are rejected by cfg80211 except for updates
+	 * changing the supported rates on an existing but not yet used
+	 * TDLS peer.
 	 */
 
 	if (params->listen_interval >= 0)
@@ -1211,18 +1253,33 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
-		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
+		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED) {
+			u32 changed = 0;
+
 			switch (params->plink_state) {
-			case NL80211_PLINK_LISTEN:
 			case NL80211_PLINK_ESTAB:
+				if (sta->plink_state != NL80211_PLINK_ESTAB)
+					changed = mesh_plink_inc_estab_count(
+							sdata);
+				sta->plink_state = params->plink_state;
+				break;
+			case NL80211_PLINK_LISTEN:
 			case NL80211_PLINK_BLOCKED:
+			case NL80211_PLINK_OPN_SNT:
+			case NL80211_PLINK_OPN_RCVD:
+			case NL80211_PLINK_CNF_RCVD:
+			case NL80211_PLINK_HOLDING:
+				if (sta->plink_state == NL80211_PLINK_ESTAB)
+					changed = mesh_plink_dec_estab_count(
+							sdata);
 				sta->plink_state = params->plink_state;
 				break;
 			default:
 				/*  nothing  */
 				break;
 			}
-		else
+			ieee80211_bss_info_change_notify(sdata, changed);
+		} else {
 			switch (params->plink_action) {
 			case PLINK_ACTION_OPEN:
 				mesh_plink_open(sta);
@@ -1231,6 +1288,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				mesh_plink_block(sta);
 				break;
 			}
+		}
 #endif
 	}
 
@@ -1265,6 +1323,10 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!sta)
 		return -ENOMEM;
 
+	/*
+	 * defaults -- if userspace wants something else we'll
+	 * change it accordingly in sta_apply_parameters()
+	 */
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
 
@@ -1301,7 +1363,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 				 u8 *mac)
 {
-	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -1309,7 +1370,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (mac)
 		return sta_info_destroy_addr_bss(sdata, mac);
 
-	sta_info_flush(local, sdata);
+	sta_info_flush(sdata);
 	return 0;
 }
 
@@ -1614,6 +1675,9 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	/* mcast rate setting in Mesh Node */
 	memcpy(sdata->vif.bss_conf.mcast_rate, setup->mcast_rate,
 						sizeof(setup->mcast_rate));
+
+	sdata->vif.bss_conf.beacon_int = setup->beacon_interval;
+	sdata->vif.bss_conf.dtim_period = setup->dtim_period;
 
 	return 0;
 }
@@ -2197,7 +2261,8 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))

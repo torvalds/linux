@@ -231,13 +231,11 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
-		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
 		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
-		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -355,8 +353,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		}
 	}
 
-	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
-
 	if (sta)
 		sta_priv = (void *)sta->drv_priv;
 
@@ -472,6 +468,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	WARN_ON_ONCE(is_agg &&
 		     priv->queue_to_mac80211[txq_id] != info->hw_queue);
 
+	IWL_DEBUG_TX(priv, "TX to [%d|%d] Q:%d - seq: 0x%x\n", sta_id, tid,
+		     txq_id, seq_number);
+
 	if (iwl_trans_tx(priv->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
@@ -541,9 +540,9 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	spin_lock_bh(&priv->sta_lock);
 
 	tid_data = &priv->tid_data[sta_id][tid];
-	txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
+	txq_id = tid_data->agg.txq_id;
 
-	switch (priv->tid_data[sta_id][tid].agg.state) {
+	switch (tid_data->agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/*
 		* This can happen if the peer stops aggregation
@@ -563,9 +562,9 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	case IWL_AGG_ON:
 		break;
 	default:
-		IWL_WARN(priv, "Stopping AGG while state not ON "
-			 "or starting for %d on %d (%d)\n", sta_id, tid,
-			 priv->tid_data[sta_id][tid].agg.state);
+		IWL_WARN(priv,
+			 "Stopping AGG while state not ON or starting for %d on %d (%d)\n",
+			 sta_id, tid, tid_data->agg.state);
 		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
@@ -578,12 +577,11 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			"stopping AGG on STA/TID %d/%d but hwq %d not used\n",
 			sta_id, tid, txq_id);
 	} else if (tid_data->agg.ssn != tid_data->next_reclaimed) {
-		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
-				    "next_recl = %d\n",
+		IWL_DEBUG_TX_QUEUES(priv,
+				    "Can't proceed: ssn %d, next_recl = %d\n",
 				    tid_data->agg.ssn,
 				    tid_data->next_reclaimed);
-		priv->tid_data[sta_id][tid].agg.state =
-			IWL_EMPTYING_HW_QUEUE_DELBA;
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
@@ -591,8 +589,8 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
 			    tid_data->agg.ssn);
 turn_off:
-	agg_state = priv->tid_data[sta_id][tid].agg.state;
-	priv->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
+	agg_state = tid_data->agg.state;
+	tid_data->agg.state = IWL_AGG_OFF;
 
 	spin_unlock_bh(&priv->sta_lock);
 
@@ -954,12 +952,6 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 		if (status & (AGG_TX_STATE_FEW_BYTES_MSK |
 			      AGG_TX_STATE_ABORT_MSK))
 			continue;
-
-		IWL_DEBUG_TX_REPLY(priv, "status %s (0x%08x), "
-				   "try-count (0x%08x)\n",
-				   iwl_get_agg_tx_fail_reason(fstatus),
-				   fstatus & AGG_TX_STATUS_MSK,
-				   fstatus & AGG_TX_TRY_MSK);
 	}
 }
 
@@ -1078,6 +1070,8 @@ static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct iwlagn_tx_resp *tx_resp)
 {
 	u16 status = le16_to_cpu(tx_resp->status.status);
+
+	info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
 	info->status.rates[0].count = tx_resp->failure_frame + 1;
 	info->flags |= iwl_tx_status_to_mac80211(status);
@@ -1223,15 +1217,26 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 					   next_reclaimed);
 		}
 
-		WARN_ON(!is_agg && freed != 1);
+		if (!is_agg && freed != 1)
+			IWL_ERR(priv, "Q: %d, freed %d\n", txq_id, freed);
 
 		/*
 		 * An offchannel frame can be send only on the AUX queue, where
 		 * there is no aggregation (and reordering) so it only is single
 		 * skb is expected to be processed.
 		 */
-		WARN_ON(is_offchannel_skb && freed != 1);
+		if (is_offchannel_skb && freed != 1)
+			IWL_ERR(priv, "OFFCHANNEL SKB freed %d\n", freed);
 	}
+
+	IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x)\n", txq_id,
+			   iwl_get_tx_fail_reason(status), status);
+
+	IWL_DEBUG_TX_REPLY(priv,
+			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d seq_ctl=0x%x\n",
+			   le32_to_cpu(tx_resp->rate_n_flags),
+			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence), ssn,
+			   le16_to_cpu(tx_resp->seq_ctl));
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 	spin_unlock(&priv->sta_lock);

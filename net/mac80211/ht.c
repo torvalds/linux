@@ -62,6 +62,9 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_40);
 
+	/* Allow user to disable SGI-20 (SGI-40 is handled above) */
+	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_SGI_20);
+
 	/* Allow user to disable the max-AMSDU bit. */
 	__check_htcap_disable(sdata, ht_cap, IEEE80211_HT_CAP_MAX_AMSDU);
 
@@ -117,6 +120,21 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		   IEEE80211_HT_CAP_SGI_20 |
 		   IEEE80211_HT_CAP_SGI_40 |
 		   IEEE80211_HT_CAP_DSSSCCK40));
+
+	/* Unset 40 MHz if we're not using a 40 MHz channel */
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		ht_cap->cap &= ~IEEE80211_HT_CAP_SGI_40;
+		ht_cap->cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		break;
+	}
+
 	/*
 	 * The STBC bits are asymmetric -- if we don't have
 	 * TX then mask out the peer's RX and vice versa.
@@ -179,16 +197,19 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	ieee80211_apply_htcap_overrides(sdata, ht_cap);
 }
 
-void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx)
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
+					 enum ieee80211_agg_stop_reason reason)
 {
 	int i;
 
 	cancel_work_sync(&sta->ampdu_mlme.work);
 
 	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
-		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR, tx);
+		__ieee80211_stop_tx_ba_session(sta, i, reason);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_LEAVE_QBSS, tx);
+					       WLAN_REASON_QSTA_LEAVE_QBSS,
+					       reason != AGG_STOP_DESTROY_STA &&
+					       reason != AGG_STOP_PEER_REQUEST);
 	}
 }
 
@@ -245,8 +266,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
 						 &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_INITIATOR,
-							true);
+							AGG_STOP_LOCAL_REQUEST);
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
@@ -314,8 +334,7 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
 					       true);
 	else
-		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
-					       true);
+		__ieee80211_stop_tx_ba_session(sta, tid, AGG_STOP_PEER_REQUEST);
 }
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,

@@ -16,8 +16,6 @@
 
 /* Toplevel file. Relies on dhd_linux.c to send commands to the dongle. */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <net/cfg80211.h>
@@ -2011,67 +2009,6 @@ done:
 	return err;
 }
 
-static s32
-brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *ndev,
-			     const u8 *addr,
-			     const struct cfg80211_bitrate_mask *mask)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcm_rateset_le rateset_le;
-	s32 rate;
-	s32 val;
-	s32 err_bg;
-	s32 err_a;
-	u32 legacy;
-	s32 err = 0;
-
-	brcmf_dbg(TRACE, "Enter\n");
-	if (!check_vif_up(ifp->vif))
-		return -EIO;
-
-	/* addr param is always NULL. ignore it */
-	/* Get current rateset */
-	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_CURR_RATESET,
-				     &rateset_le, sizeof(rateset_le));
-	if (err) {
-		brcmf_err("could not get current rateset (%d)\n", err);
-		goto done;
-	}
-
-	legacy = ffs(mask->control[IEEE80211_BAND_2GHZ].legacy & 0xFFFF);
-	if (!legacy)
-		legacy = ffs(mask->control[IEEE80211_BAND_5GHZ].legacy &
-			     0xFFFF);
-
-	val = wl_g_rates[legacy - 1].bitrate * 100000;
-
-	if (val < le32_to_cpu(rateset_le.count))
-		/* Select rate by rateset index */
-		rate = rateset_le.rates[val] & 0x7f;
-	else
-		/* Specified rate in bps */
-		rate = val / 500000;
-
-	brcmf_dbg(CONN, "rate %d mbps\n", rate / 2);
-
-	/*
-	 *
-	 *      Set rate override,
-	 *      Since the is a/b/g-blind, both a/bg_rate are enforced.
-	 */
-	err_bg = brcmf_fil_iovar_int_set(ifp, "bg_rate", rate);
-	err_a = brcmf_fil_iovar_int_set(ifp, "a_rate", rate);
-	if (err_bg && err_a) {
-		brcmf_err("could not set fixed rate (%d) (%d)\n", err_bg,
-			  err_a);
-		err = err_bg | err_a;
-	}
-
-done:
-	brcmf_dbg(TRACE, "Exit\n");
-	return err;
-}
-
 static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 				   struct brcmf_bss_info_le *bi)
 {
@@ -3704,7 +3641,6 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.set_default_key = brcmf_cfg80211_config_default_key,
 	.set_default_mgmt_key = brcmf_cfg80211_config_default_mgmt_key,
 	.set_power_mgmt = brcmf_cfg80211_set_power_mgmt,
-	.set_bitrate_mask = brcmf_cfg80211_set_bitrate_mask,
 	.connect = brcmf_cfg80211_connect,
 	.disconnect = brcmf_cfg80211_disconnect,
 	.suspend = brcmf_cfg80211_suspend,
@@ -4330,9 +4266,8 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 }
 
 static s32
-brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
+brcmf_dongle_roam(struct brcmf_if *ifp, u32 roamvar, u32 bcn_timeout)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
 	__le32 roamtrigger[2];
 	__le32 roam_delta[2];
@@ -4383,10 +4318,9 @@ dongle_rom_out:
 }
 
 static s32
-brcmf_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
+brcmf_dongle_scantime(struct brcmf_if *ifp, s32 scan_assoc_time,
 		      s32 scan_unassoc_time, s32 scan_passive_time)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
 
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_CHANNEL_TIME,
@@ -4456,6 +4390,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
+	struct brcmf_if *ifp;
 	s32 power_mode;
 	s32 err = 0;
 
@@ -4464,35 +4399,34 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 
 	ndev = cfg_to_ndev(cfg);
 	wdev = ndev->ieee80211_ptr;
+	ifp = netdev_priv(ndev);
 
-	brcmf_dongle_scantime(ndev, WL_SCAN_CHANNEL_TIME,
-			WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
+	/* make sure RF is ready for work */
+	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
+
+	brcmf_dongle_scantime(ifp, WL_SCAN_CHANNEL_TIME,
+			      WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
 
 	power_mode = cfg->pwr_save ? PM_FAST : PM_OFF;
-	err = brcmf_fil_cmd_int_set(netdev_priv(ndev), BRCMF_C_SET_PM,
-				    power_mode);
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, power_mode);
 	if (err)
 		goto default_conf_out;
 	brcmf_dbg(INFO, "power save set to %s\n",
 		  (power_mode ? "enabled" : "disabled"));
 
-	err = brcmf_dongle_roam(ndev, (cfg->roam_on ? 0 : 1),
-				WL_BEACON_TIMEOUT);
+	err = brcmf_dongle_roam(ifp, (cfg->roam_on ? 0 : 1), WL_BEACON_TIMEOUT);
 	if (err)
 		goto default_conf_out;
 	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
 					  NULL, NULL);
-	if (err && err != -EINPROGRESS)
+	if (err)
 		goto default_conf_out;
 	err = brcmf_dongle_probecap(cfg);
 	if (err)
 		goto default_conf_out;
 
-	/* -EINPROGRESS: Call commit handler */
-
-default_conf_out:
-
 	cfg->dongle_up = true;
+default_conf_out:
 
 	return err;
 
@@ -4501,8 +4435,6 @@ default_conf_out:
 static s32 __brcmf_cfg80211_up(struct brcmf_if *ifp)
 {
 	set_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
-	if (ifp->idx)
-		return 0;
 
 	return brcmf_config_dongle(ifp->drvr->config);
 }

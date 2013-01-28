@@ -89,8 +89,8 @@ static int wl12xx_set_authorized(struct wl1271 *wl,
 	return 0;
 }
 
-static int wl1271_reg_notify(struct wiphy *wiphy,
-			     struct regulatory_request *request)
+static void wl1271_reg_notify(struct wiphy *wiphy,
+			      struct regulatory_request *request)
 {
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
@@ -107,8 +107,6 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 				     IEEE80211_CHAN_PASSIVE_SCAN;
 
 	}
-
-	return 0;
 }
 
 static int wl1271_set_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -4575,7 +4573,9 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 	 * Falling break here on purpose for all TX APDU commands.
 	 */
 	case IEEE80211_AMPDU_TX_START:
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ret = -EINVAL;
 		break;

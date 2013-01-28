@@ -1503,6 +1503,7 @@ static int prism54_get_auth(struct net_device *ndev,
 			case DOT11_AUTH_BOTH:
 			case DOT11_AUTH_SK:
 				param->value = IW_AUTH_ALG_SHARED_KEY;
+				break;
 			case DOT11_AUTH_NONE:
 			default:
 				param->value = 0;

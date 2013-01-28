@@ -41,20 +41,6 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		enum ieee80211_self_protected_actioncode action,
 		u8 *da, __le16 llid, __le16 plid, __le16 reason);
 
-static inline
-u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
-{
-	atomic_inc(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
-}
-
-static inline
-u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
-{
-	atomic_dec(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
-}
-
 /**
  * mesh_plink_fsm_restart - restart a mesh peer link finite state machine
  *

@@ -480,7 +480,7 @@ static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	u8 *praddr;
 	__le16 fc;
 	u16 type, cfc;
-	bool packet_matchbssid, packet_toself, packet_beacon;
+	bool packet_matchbssid, packet_toself, packet_beacon = false;
 
 	tmp_buf = skb->data + pstats->rx_drvinfo_size + pstats->rx_bufshift;
 

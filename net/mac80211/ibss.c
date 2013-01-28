@@ -67,7 +67,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
 	if (!ether_addr_equal(ifibss->bssid, bssid))
-		sta_info_flush(sdata->local, sdata);
+		sta_info_flush(sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
 	if (sdata->vif.bss_conf.ibss_joined) {
@@ -191,6 +191,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	rcu_assign_pointer(ifibss->presp, skb);
 
+	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
 	bss_change = BSS_CHANGED_BEACON_INT;
@@ -425,11 +426,9 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
-				  struct ieee80211_mgmt *mgmt,
-				  size_t len,
+				  struct ieee80211_mgmt *mgmt, size_t len,
 				  struct ieee80211_rx_status *rx_status,
-				  struct ieee802_11_elems *elems,
-				  bool beacon)
+				  struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
 	int freq;
@@ -530,7 +529,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
-					channel, beacon);
+					channel);
 	if (!bss)
 		return;
 
@@ -877,14 +876,21 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb);
 }
 
-static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_mgmt *mgmt,
-					 size_t len,
-					 struct ieee80211_rx_status *rx_status)
+static
+void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_mgmt *mgmt, size_t len,
+				    struct ieee80211_rx_status *rx_status)
 {
 	size_t baselen;
 	struct ieee802_11_elems elems;
 
+	BUILD_BUG_ON(offsetof(typeof(mgmt->u.probe_resp), variable) !=
+		     offsetof(typeof(mgmt->u.beacon), variable));
+
+	/*
+	 * either beacon or probe_resp but the variable field is at the
+	 * same offset
+	 */
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
 		return;
@@ -892,25 +898,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 				&elems);
 
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, false);
-}
-
-static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
-				     struct ieee80211_mgmt *mgmt,
-				     size_t len,
-				     struct ieee80211_rx_status *rx_status)
-{
-	size_t baselen;
-	struct ieee802_11_elems elems;
-
-	/* Process beacon from the current BSS */
-	baselen = (u8 *) mgmt->u.beacon.variable - (u8 *) mgmt;
-	if (baselen > len)
-		return;
-
-	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
-
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 }
 
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
@@ -934,12 +922,9 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_mgmt_probe_req(sdata, skb);
 		break;
 	case IEEE80211_STYPE_PROBE_RESP:
-		ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len,
-					     rx_status);
-		break;
 	case IEEE80211_STYPE_BEACON:
-		ieee80211_rx_mgmt_beacon(sdata, mgmt, skb->len,
-					 rx_status);
+		ieee80211_rx_mgmt_probe_beacon(sdata, mgmt, skb->len,
+					       rx_status);
 		break;
 	case IEEE80211_STYPE_AUTH:
 		ieee80211_rx_mgmt_auth_ibss(sdata, mgmt, skb->len);
@@ -1182,7 +1167,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	memset(ifibss->bssid, 0, ETH_ALEN);
 	ifibss->ssid_len = 0;
 
-	sta_info_flush(sdata->local, sdata);
+	sta_info_flush(sdata);
 
 	spin_lock_bh(&ifibss->incomplete_lock);
 	while (!list_empty(&ifibss->incomplete_stations)) {
@@ -1205,6 +1190,8 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
 	sdata->vif.bss_conf.ibss_joined = false;
 	sdata->vif.bss_conf.ibss_creator = false;
+	sdata->vif.bss_conf.enable_beacon = false;
+	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
 	synchronize_rcu();

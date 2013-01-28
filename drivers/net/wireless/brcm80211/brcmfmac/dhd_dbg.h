@@ -18,21 +18,26 @@
 #define _BRCMF_DBG_H_
 
 /* message levels */
-#define BRCMF_TRACE_VAL	0x0002
-#define BRCMF_INFO_VAL	0x0004
-#define BRCMF_DATA_VAL	0x0008
-#define BRCMF_CTL_VAL	0x0010
-#define BRCMF_TIMER_VAL	0x0020
-#define BRCMF_HDRS_VAL	0x0040
-#define BRCMF_BYTES_VAL	0x0080
-#define BRCMF_INTR_VAL	0x0100
-#define BRCMF_GLOM_VAL	0x0200
-#define BRCMF_EVENT_VAL	0x0400
-#define BRCMF_BTA_VAL	0x0800
-#define BRCMF_FIL_VAL	0x1000
-#define BRCMF_USB_VAL	0x2000
-#define BRCMF_SCAN_VAL	0x4000
-#define BRCMF_CONN_VAL	0x8000
+#define BRCMF_TRACE_VAL	0x00000002
+#define BRCMF_INFO_VAL	0x00000004
+#define BRCMF_DATA_VAL	0x00000008
+#define BRCMF_CTL_VAL	0x00000010
+#define BRCMF_TIMER_VAL	0x00000020
+#define BRCMF_HDRS_VAL	0x00000040
+#define BRCMF_BYTES_VAL	0x00000080
+#define BRCMF_INTR_VAL	0x00000100
+#define BRCMF_GLOM_VAL	0x00000200
+#define BRCMF_EVENT_VAL	0x00000400
+#define BRCMF_BTA_VAL	0x00000800
+#define BRCMF_FIL_VAL	0x00001000
+#define BRCMF_USB_VAL	0x00002000
+#define BRCMF_SCAN_VAL	0x00004000
+#define BRCMF_CONN_VAL	0x00008000
+#define BRCMF_CDC_VAL	0x00010000
+
+/* set default print format */
+#undef pr_fmt
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 /* Macro for error messages. net_ratelimit() is used when driver
  * debugging is not selected. When debugging the driver error

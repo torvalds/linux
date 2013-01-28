@@ -65,12 +65,11 @@ static bool is_uapsd_supported(struct ieee802_11_elems *elems)
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
-			  struct ieee80211_mgmt *mgmt,
-			  size_t len,
+			  struct ieee80211_mgmt *mgmt, size_t len,
 			  struct ieee802_11_elems *elems,
-			  struct ieee80211_channel *channel,
-			  bool beacon)
+			  struct ieee80211_channel *channel)
 {
+	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
 	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	int clen, srlen;
@@ -203,7 +202,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 
 	bss = ieee80211_bss_info_update(local, rx_status,
 					mgmt, skb->len, &elems,
-					channel, beacon);
+					channel);
 	if (bss)
 		ieee80211_rx_bss_put(local, bss);
 }
@@ -292,7 +291,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	if (!was_hw_scan) {
 		ieee80211_configure_filter(local);
 		drv_sw_scan_complete(local);
-		ieee80211_offchannel_return(local, true);
+		ieee80211_offchannel_return(local);
 	}
 
 	ieee80211_recalc_idle(local);
@@ -341,7 +340,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 
-	ieee80211_offchannel_stop_vifs(local, true);
+	ieee80211_offchannel_stop_vifs(local);
 
 	ieee80211_configure_filter(local);
 
@@ -678,12 +677,8 @@ static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 	local->scan_channel = NULL;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
-	/*
-	 * Re-enable vifs and beaconing.  Leave PS
-	 * in off-channel state..will put that back
-	 * on-channel at the end of scanning.
-	 */
-	ieee80211_offchannel_return(local, false);
+	/* disable PS */
+	ieee80211_offchannel_return(local);
 
 	*next_delay = HZ / 5;
 	/* afterwards, resume scan & go to next channel */
@@ -693,8 +688,7 @@ static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 static void ieee80211_scan_state_resume(struct ieee80211_local *local,
 					unsigned long *next_delay)
 {
-	/* PS already is in off-channel mode */
-	ieee80211_offchannel_stop_vifs(local, false);
+	ieee80211_offchannel_stop_vifs(local);
 
 	if (local->ops->flush) {
 		drv_flush(local, false);

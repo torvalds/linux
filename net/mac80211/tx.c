@@ -1673,10 +1673,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 			chanctx_conf =
 				rcu_dereference(tmp_sdata->vif.chanctx_conf);
 	}
-	if (!chanctx_conf)
-		goto fail_rcu;
 
-	chan = chanctx_conf->def.chan;
+	if (chanctx_conf)
+		chan = chanctx_conf->def.chan;
+	else if (!local->use_chanctx)
+		chan = local->_oper_channel;
+	else
+		goto fail_rcu;
 
 	/*
 	 * Frame injection is not allowed if beaconing is not allowed
@@ -2261,9 +2264,8 @@ void ieee80211_tx_pending(unsigned long data)
 
 /* functions for drivers to get certain frames */
 
-static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
-				     struct ps_data *ps,
-				     struct sk_buff *skb)
+static void __ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
+				       struct ps_data *ps, struct sk_buff *skb)
 {
 	u8 *pos, *tim;
 	int aid0 = 0;
@@ -2325,6 +2327,31 @@ static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
+				    struct ps_data *ps, struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	/*
+	 * Not very nice, but we want to allow the driver to call
+	 * ieee80211_beacon_get() as a response to the set_tim()
+	 * callback. That, however, is already invoked under the
+	 * sta_lock to guarantee consistent and race-free update
+	 * of the tim bitmap in mac80211 and the driver.
+	 */
+	if (local->tim_in_locked_section) {
+		__ieee80211_beacon_add_tim(sdata, ps, skb);
+	} else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&local->tim_lock, flags);
+		__ieee80211_beacon_add_tim(sdata, ps, skb);
+		spin_unlock_irqrestore(&local->tim_lock, flags);
+	}
+
+	return 0;
+}
+
 struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 u16 *tim_offset, u16 *tim_length)
@@ -2369,22 +2396,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			memcpy(skb_put(skb, beacon->head_len), beacon->head,
 			       beacon->head_len);
 
-			/*
-			 * Not very nice, but we want to allow the driver to call
-			 * ieee80211_beacon_get() as a response to the set_tim()
-			 * callback. That, however, is already invoked under the
-			 * sta_lock to guarantee consistent and race-free update
-			 * of the tim bitmap in mac80211 and the driver.
-			 */
-			if (local->tim_in_locked_section) {
-				ieee80211_beacon_add_tim(sdata, &ap->ps, skb);
-			} else {
-				unsigned long flags;
-
-				spin_lock_irqsave(&local->tim_lock, flags);
-				ieee80211_beacon_add_tim(sdata, &ap->ps, skb);
-				spin_unlock_irqrestore(&local->tim_lock, flags);
-			}
+			ieee80211_beacon_add_tim(sdata, &ap->ps, skb);
 
 			if (tim_offset)
 				*tim_offset = beacon->head_len;

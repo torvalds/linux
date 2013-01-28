@@ -582,6 +582,48 @@ static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
 		queue->rt2x00dev->ops->lib->kick_queue(queue);
 }
 
+static void rt2x00queue_bar_check(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct ieee80211_bar *bar = (void *) (entry->skb->data +
+				    rt2x00dev->ops->extra_tx_headroom);
+	struct rt2x00_bar_list_entry *bar_entry;
+
+	if (likely(!ieee80211_is_back_req(bar->frame_control)))
+		return;
+
+	bar_entry = kmalloc(sizeof(*bar_entry), GFP_ATOMIC);
+
+	/*
+	 * If the alloc fails we still send the BAR out but just don't track
+	 * it in our bar list. And as a result we will report it to mac80211
+	 * back as failed.
+	 */
+	if (!bar_entry)
+		return;
+
+	bar_entry->entry = entry;
+	bar_entry->block_acked = 0;
+
+	/*
+	 * Copy the relevant parts of the 802.11 BAR into out check list
+	 * such that we can use RCU for less-overhead in the RX path since
+	 * sending BARs and processing the according BlockAck should be
+	 * the exception.
+	 */
+	memcpy(bar_entry->ra, bar->ra, sizeof(bar->ra));
+	memcpy(bar_entry->ta, bar->ta, sizeof(bar->ta));
+	bar_entry->control = bar->control;
+	bar_entry->start_seq_num = bar->start_seq_num;
+
+	/*
+	 * Insert BAR into our BAR check list.
+	 */
+	spin_lock_bh(&rt2x00dev->bar_list_lock);
+	list_add_tail_rcu(&bar_entry->list, &rt2x00dev->bar_list);
+	spin_unlock_bh(&rt2x00dev->bar_list_lock);
+}
+
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 			       bool local)
 {
@@ -679,6 +721,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		ret = -EIO;
 		goto out;
 	}
+
+	/*
+	 * Put BlockAckReqs into our check list for driver BA processing.
+	 */
+	rt2x00queue_bar_check(entry);
 
 	set_bit(ENTRY_DATA_PENDING, &entry->flags);
 

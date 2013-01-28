@@ -207,6 +207,14 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 {
 	might_sleep();
 
+	WARN_ON_ONCE(changed & (BSS_CHANGED_BEACON |
+				BSS_CHANGED_BEACON_ENABLED) &&
+		     sdata->vif.type != NL80211_IFTYPE_AP &&
+		     sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+		     sdata->vif.type != NL80211_IFTYPE_MESH_POINT);
+	WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE &&
+		     changed & ~BSS_CHANGED_IDLE);
+
 	check_sdata_in_driver(sdata);
 
 	trace_drv_bss_info_changed(local, sdata, info, changed);
@@ -913,6 +921,8 @@ static inline int drv_add_chanctx(struct ieee80211_local *local,
 	if (local->ops->add_chanctx)
 		ret = local->ops->add_chanctx(&local->hw, &ctx->conf);
 	trace_drv_return_int(local, ret);
+	if (!ret)
+		ctx->driver_present = true;
 
 	return ret;
 }
@@ -924,6 +934,7 @@ static inline void drv_remove_chanctx(struct ieee80211_local *local,
 	if (local->ops->remove_chanctx)
 		local->ops->remove_chanctx(&local->hw, &ctx->conf);
 	trace_drv_return_void(local);
+	ctx->driver_present = false;
 }
 
 static inline void drv_change_chanctx(struct ieee80211_local *local,
@@ -931,8 +942,10 @@ static inline void drv_change_chanctx(struct ieee80211_local *local,
 				      u32 changed)
 {
 	trace_drv_change_chanctx(local, ctx, changed);
-	if (local->ops->change_chanctx)
+	if (local->ops->change_chanctx) {
+		WARN_ON_ONCE(!ctx->driver_present);
 		local->ops->change_chanctx(&local->hw, &ctx->conf, changed);
+	}
 	trace_drv_return_void(local);
 }
 
@@ -945,10 +958,12 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	trace_drv_assign_vif_chanctx(local, sdata, ctx);
-	if (local->ops->assign_vif_chanctx)
+	if (local->ops->assign_vif_chanctx) {
+		WARN_ON_ONCE(!ctx->driver_present);
 		ret = local->ops->assign_vif_chanctx(&local->hw,
 						     &sdata->vif,
 						     &ctx->conf);
+	}
 	trace_drv_return_int(local, ret);
 
 	return ret;
@@ -961,10 +976,12 @@ static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	trace_drv_unassign_vif_chanctx(local, sdata, ctx);
-	if (local->ops->unassign_vif_chanctx)
+	if (local->ops->unassign_vif_chanctx) {
+		WARN_ON_ONCE(!ctx->driver_present);
 		local->ops->unassign_vif_chanctx(&local->hw,
 						 &sdata->vif,
 						 &ctx->conf);
+	}
 	trace_drv_return_void(local);
 }
 

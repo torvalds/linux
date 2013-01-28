@@ -206,7 +206,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
-	    priv->trans->ops->wowlan_suspend &&
+	    priv->trans->ops->d3_suspend &&
+	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
@@ -426,7 +427,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	iwl_trans_wowlan_suspend(priv->trans);
+	iwl_trans_d3_suspend(priv->trans);
 
 	goto out;
 
@@ -459,11 +460,11 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(priv->trans);
-		if (likely(ret == 0)) {
+		if (iwl_trans_grab_nic_access(priv->trans, true)) {
 			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
 			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(priv->trans);
+			iwl_trans_release_nic_access(priv->trans);
+			ret = 0;
 		}
 		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
@@ -479,7 +480,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 			}
 
 			if (priv->wowlan_sram)
-				_iwl_read_targ_mem_dwords(
+				iwl_trans_read_mem(
 				      priv->trans, 0x800000,
 				      priv->wowlan_sram,
 				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
@@ -519,9 +520,6 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw,
 			  struct sk_buff *skb)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-
-	IWL_DEBUG_TX(priv, "dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (iwlagn_tx_skb(priv, control->sta, skb))
 		ieee80211_free_txskb(hw, skb);
@@ -679,7 +677,9 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
 		if ((ret == 0) && (priv->agg_tids_count > 0)) {
