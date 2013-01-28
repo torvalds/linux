@@ -1343,7 +1343,7 @@ static void shutdown(MGSLPC_INFO * info, struct tty_struct *tty)
 	reset_device(info);
 
  	if (!tty || tty->termios.c_cflag & HUPCL) {
- 		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 	}
 
@@ -1405,12 +1405,12 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 
 	cflag = tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
 
@@ -2301,7 +2301,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 	 	set_signals(info);
 		spin_unlock_irqrestore(&info->lock,flags);
@@ -2464,9 +2464,9 @@ static void dtr_rts(struct tty_port *port, int onoff)
 
 	spin_lock_irqsave(&info->lock,flags);
 	if (onoff)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -3575,8 +3575,8 @@ static void get_signals(MGSLPC_INFO *info)
 {
 	unsigned char status = 0;
 
-	/* preserve DTR and RTS */
-	info->serial_signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* preserve RTS and DTR */
+	info->serial_signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	if (read_reg(info, CHB + VSTR) & BIT7)
 		info->serial_signals |= SerialSignal_DCD;
@@ -3590,7 +3590,7 @@ static void get_signals(MGSLPC_INFO *info)
 		info->serial_signals |= SerialSignal_DSR;
 }
 
-/* Set the state of DTR and RTS based on contents of
+/* Set the state of RTS and DTR based on contents of
  * serial_signals member of device extension.
  */
 static void set_signals(MGSLPC_INFO *info)
@@ -4009,8 +4009,8 @@ static int hdlcdev_open(struct net_device *dev)
 		spin_unlock_irqrestore(&info->netlock, flags);
 		return rc;
 	}
-	/* assert DTR and RTS, apply hardware settings */
-	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	mgslpc_program_hw(info, tty);
 	tty_kref_put(tty);
 

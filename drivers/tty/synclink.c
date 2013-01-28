@@ -1850,7 +1850,7 @@ static void shutdown(struct mgsl_struct * info)
 	usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) | BIT12));
 
 	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
- 		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		usc_set_serial_signals(info);
 	}
 
@@ -1915,12 +1915,12 @@ static void mgsl_change_params(struct mgsl_struct *info)
 			 
 	cflag = info->port.tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 	
 	/* byte size and parity */
 	
@@ -3044,7 +3044,7 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->irq_spinlock,flags);
 	 	usc_set_serial_signals(info);
 		spin_unlock_irqrestore(&info->irq_spinlock,flags);
@@ -3243,9 +3243,9 @@ static void dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&info->irq_spinlock,flags);
 	if (on)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
  	usc_set_serial_signals(info);
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 }
@@ -6239,8 +6239,8 @@ static void usc_get_serial_signals( struct mgsl_struct *info )
 {
 	u16 status;
 
-	/* clear all serial signals except DTR and RTS */
-	info->serial_signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* clear all serial signals except RTS and DTR */
+	info->serial_signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	/* Read the Misc Interrupt status Register (MISR) to get */
 	/* the V24 status signals. */
@@ -6265,7 +6265,7 @@ static void usc_get_serial_signals( struct mgsl_struct *info )
 
 /* usc_set_serial_signals()
  *
- *	Set the state of DTR and RTS based on contents of
+ *	Set the state of RTS and DTR based on contents of
  *	serial_signals member of device extension.
  *	
  * Arguments:		info	pointer to device instance data
@@ -7779,8 +7779,8 @@ static int hdlcdev_open(struct net_device *dev)
 		return rc;
 	}
 
-	/* assert DTR and RTS, apply hardware settings */
-	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	mgsl_program_hw(info);
 
 	/* enable network layer transmit */

@@ -785,7 +785,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 		set_signals(info);
 		spin_unlock_irqrestore(&info->lock,flags);
@@ -1560,8 +1560,8 @@ static int hdlcdev_open(struct net_device *dev)
 		return rc;
 	}
 
-	/* assert DTR and RTS, apply hardware settings */
-	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	program_hw(info);
 
 	/* enable network layer transmit */
@@ -2488,7 +2488,7 @@ static void shutdown(struct slgt_info *info)
 	slgt_irq_off(info, IRQ_ALL | IRQ_MASTER);
 
  	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
- 		info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 	}
 
@@ -2548,12 +2548,12 @@ static void change_params(struct slgt_info *info)
 
 	cflag = info->port.tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
 
@@ -3256,9 +3256,9 @@ static void dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&info->lock,flags);
 	if (on)
-		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
  	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -4119,7 +4119,7 @@ static void reset_port(struct slgt_info *info)
 	tx_stop(info);
 	rx_stop(info);
 
-	info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+	info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 	set_signals(info);
 
 	slgt_irq_off(info, IRQ_ALL | IRQ_MASTER);
@@ -4546,8 +4546,8 @@ static void get_signals(struct slgt_info *info)
 {
 	unsigned short status = rd_reg16(info, SSR);
 
-	/* clear all serial signals except DTR and RTS */
-	info->signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* clear all serial signals except RTS and DTR */
+	info->signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	if (status & BIT3)
 		info->signals |= SerialSignal_DSR;
