@@ -1647,16 +1647,16 @@ submit_io:
  *
  * @mpd->lbh - extent of blocks
  * @logical - logical number of the block in the file
- * @bh - bh of the block (used to access block's state)
+ * @b_state - b_state of the buffer head added
  *
  * the function is used to collect contig. blocks in same state
  */
-static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
-				   sector_t logical, size_t b_size,
+static void mpage_add_bh_to_extent(struct mpage_da_data *mpd, sector_t logical,
 				   unsigned long b_state)
 {
 	sector_t next;
-	int nrblocks = mpd->b_size >> mpd->inode->i_blkbits;
+	int blkbits = mpd->inode->i_blkbits;
+	int nrblocks = mpd->b_size >> blkbits;
 
 	/*
 	 * XXX Don't go larger than mballoc is willing to allocate
@@ -1664,11 +1664,11 @@ static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 	 * mpage_da_submit_io() into this function and then call
 	 * ext4_map_blocks() multiple times in a loop
 	 */
-	if (nrblocks >= 8*1024*1024/mpd->inode->i_sb->s_blocksize)
+	if (nrblocks >= (8*1024*1024 >> blkbits))
 		goto flush_it;
 
-	/* check if thereserved journal credits might overflow */
-	if (!(ext4_test_inode_flag(mpd->inode, EXT4_INODE_EXTENTS))) {
+	/* check if the reserved journal credits might overflow */
+	if (!ext4_test_inode_flag(mpd->inode, EXT4_INODE_EXTENTS)) {
 		if (nrblocks >= EXT4_MAX_TRANS_DATA) {
 			/*
 			 * With non-extent format we are limited by the journal
@@ -1677,16 +1677,6 @@ static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 			 * nrblocks.  So limit nrblocks.
 			 */
 			goto flush_it;
-		} else if ((nrblocks + (b_size >> mpd->inode->i_blkbits)) >
-				EXT4_MAX_TRANS_DATA) {
-			/*
-			 * Adding the new buffer_head would make it cross the
-			 * allowed limit for which we have journal credit
-			 * reserved. So limit the new bh->b_size
-			 */
-			b_size = (EXT4_MAX_TRANS_DATA - nrblocks) <<
-						mpd->inode->i_blkbits;
-			/* we will do mpage_da_submit_io in the next loop */
 		}
 	}
 	/*
@@ -1694,7 +1684,7 @@ static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 	 */
 	if (mpd->b_size == 0) {
 		mpd->b_blocknr = logical;
-		mpd->b_size = b_size;
+		mpd->b_size = 1 << blkbits;
 		mpd->b_state = b_state & BH_FLAGS;
 		return;
 	}
@@ -1704,7 +1694,7 @@ static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 	 * Can we merge the block to our big extent?
 	 */
 	if (logical == next && (b_state & BH_FLAGS) == mpd->b_state) {
-		mpd->b_size += b_size;
+		mpd->b_size += 1 << blkbits;
 		return;
 	}
 
@@ -2156,7 +2146,6 @@ static int write_cache_pages_da(handle_t *handle,
 				 */
 				if (ext4_bh_delay_or_unwritten(NULL, bh)) {
 					mpage_add_bh_to_extent(mpd, logical,
-							       bh->b_size,
 							       bh->b_state);
 					if (mpd->io_done)
 						goto ret_extent_tail;
