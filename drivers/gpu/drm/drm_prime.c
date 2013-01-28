@@ -401,20 +401,16 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 {
 	struct sg_table *sg = NULL;
-	struct scatterlist *iter;
-	int i;
 	int ret;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!sg)
 		goto out;
 
-	ret = sg_alloc_table(sg, nr_pages, GFP_KERNEL);
+	ret = sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
+				nr_pages << PAGE_SHIFT, GFP_KERNEL);
 	if (ret)
 		goto out;
-
-	for_each_sg(sg->sgl, iter, nr_pages, i)
-		sg_set_page(iter, pages[i], PAGE_SIZE, 0);
 
 	return sg;
 out:
