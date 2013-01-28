@@ -129,10 +129,6 @@ static void __init highbank_timer_init(void)
 	arch_timer_sched_clock_init();
 }
 
-static struct sys_timer highbank_timer = {
-	.init = highbank_timer_init,
-};
-
 static void highbank_power_off(void)
 {
 	highbank_set_pwr_shutdown();
@@ -209,7 +205,7 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.smp		= smp_ops(highbank_smp_ops),
 	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
-	.timer		= &highbank_timer,
+	.init_time	= highbank_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,

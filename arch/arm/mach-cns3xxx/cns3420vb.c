@@ -250,7 +250,7 @@ MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
 	.atag_offset	= 0x100,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,
-	.timer		= &cns3xxx_timer,
+	.init_time	= cns3xxx_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= cns3420_init,
 	.restart	= cns3xxx_restart,

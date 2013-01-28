@@ -997,7 +997,7 @@ MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= viper_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= viper_init,
 	.restart	= pxa_restart,
 MACHINE_END

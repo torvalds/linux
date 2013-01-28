@@ -309,17 +309,13 @@ static void __init eukrea_cpuimx27_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer eukrea_cpuimx27_timer = {
-	.init = eukrea_cpuimx27_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &eukrea_cpuimx27_timer,
+	.init_time	= eukrea_cpuimx27_timer_init,
 	.init_machine = eukrea_cpuimx27_init,
 	.restart	= mxc_restart,
 MACHINE_END

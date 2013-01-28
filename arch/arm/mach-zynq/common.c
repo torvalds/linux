@@ -93,13 +93,6 @@ static void __init xilinx_zynq_timer_init(void)
 	xttcpss_timer_init();
 }
 
-/*
- * Instantiate and initialize the system timer structure
- */
-static struct sys_timer xttcpss_sys_timer = {
-	.init		= xilinx_zynq_timer_init,
-};
-
 /**
  * xilinx_map_io() - Create memory mappings needed for early I/O.
  */
@@ -120,6 +113,6 @@ MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.init_irq	= xilinx_irq_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= xilinx_init_machine,
-	.timer		= &xttcpss_sys_timer,
+	.init_time	= xilinx_zynq_timer_init,
 	.dt_compat	= xilinx_dt_match,
 MACHINE_END

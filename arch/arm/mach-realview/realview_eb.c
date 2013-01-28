@@ -418,10 +418,6 @@ static void __init realview_eb_timer_init(void)
 	realview_eb_twd_init();
 }
 
-static struct sys_timer realview_eb_timer = {
-	.init		= realview_eb_timer_init,
-};
-
 static void realview_eb_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
@@ -472,7 +468,7 @@ MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	.map_io		= realview_eb_map_io,
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_eb_timer,
+	.init_time	= realview_eb_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_eb_init,
 #ifdef CONFIG_ZONE_DMA

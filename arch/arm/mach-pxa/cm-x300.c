@@ -854,7 +854,7 @@ MACHINE_START(CM_X300, "CM-X300 module")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= cm_x300_init,
 	.fixup		= cm_x300_fixup,
 	.restart	= pxa_restart,

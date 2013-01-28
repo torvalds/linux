@@ -132,6 +132,6 @@ MACHINE_START(TORBRECK, "TORBRECK")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= torbreck_map_io,
 	.init_machine	= torbreck_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.restart	= s5pv210_restart,
 MACHINE_END

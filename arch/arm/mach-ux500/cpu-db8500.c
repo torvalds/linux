@@ -341,7 +341,7 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &ux500_timer,
+	.init_time	= ux500_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= u8500_init_machine,
 	.init_late	= NULL,
