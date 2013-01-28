@@ -606,6 +606,17 @@ xfs_calc_qm_quotaoff_end_reservation(
 }
 
 /*
+ * Syncing the incore super block changes to disk.
+ *     the super block to reflect the changes: sector size
+ */
+STATIC uint
+xfs_calc_sb_reservation(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize);
+}
+
+/*
  * Initialize the precomputed transaction reservation values
  * in the mount structure.
  */
@@ -641,6 +652,7 @@ xfs_trans_init(
 	resp->tr_qm_dqalloc = xfs_calc_qm_dqalloc_reservation(mp);
 	resp->tr_qm_quotaoff = xfs_calc_qm_quotaoff_reservation(mp);
 	resp->tr_qm_equotaoff = xfs_calc_qm_quotaoff_end_reservation(mp);
+	resp->tr_sb = xfs_calc_sb_reservation(mp);
 }
 
 /*
