@@ -489,23 +489,42 @@ xfs_calc_attrinval_reservation(
 }
 
 /*
- * Setting an attribute.
+ * Setting an attribute at mount time.
  *	the inode getting the attribute
  *	the superblock for allocations
  *	the agfs extents are allocated from
  *	the attribute btree * max depth
  *	the inode allocation btree
  * Since attribute transaction space is dependent on the size of the attribute,
- * the calculation is done partially at mount time and partially at runtime.
+ * the calculation is done partially at mount time and partially at runtime(see
+ * below).
  */
 STATIC uint
-xfs_calc_attrset_reservation(
+xfs_calc_attrsetm_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_inodesize) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(XFS_DA_NODE_MAXDEPTH, XFS_FSB_TO_B(mp, 1));
+}
+
+/*
+ * Setting an attribute at runtime, transaction space unit per block.
+ * 	the superblock for allocations: sector size
+ *	the inode bmap btree could join or split: max depth * block size
+ * Since the runtime attribute transaction space is dependent on the total
+ * blocks needed for the 1st bmap, here we calculate out the space unit for
+ * one block so that the caller could figure out the total space according
+ * to the attibute extent length in blocks by: ext * XFS_ATTRSETRT_LOG_RES(mp).
+ */
+STATIC uint
+xfs_calc_attrsetrt_reservation(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
+		xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK),
+				 XFS_FSB_TO_B(mp, 1));
 }
 
 /*
@@ -641,7 +660,8 @@ xfs_trans_init(
 	resp->tr_writeid = xfs_calc_writeid_reservation(mp);
 	resp->tr_addafork = xfs_calc_addafork_reservation(mp);
 	resp->tr_attrinval = xfs_calc_attrinval_reservation(mp);
-	resp->tr_attrset = xfs_calc_attrset_reservation(mp);
+	resp->tr_attrsetm = xfs_calc_attrsetm_reservation(mp);
+	resp->tr_attrsetrt = xfs_calc_attrsetrt_reservation(mp);
 	resp->tr_attrrm = xfs_calc_attrrm_reservation(mp);
 	resp->tr_clearagi = xfs_calc_clear_agi_bucket_reservation(mp);
 	resp->tr_growrtalloc = xfs_calc_growrtalloc_reservation(mp);

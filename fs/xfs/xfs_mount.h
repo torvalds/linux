@@ -34,7 +34,8 @@ typedef struct xfs_trans_reservations {
 	uint	tr_addafork;	/* cvt inode to attributed trans */
 	uint	tr_writeid;	/* write setuid/setgid file */
 	uint	tr_attrinval;	/* attr fork buffer invalidation */
-	uint	tr_attrset;	/* set/create an attribute */
+	uint	tr_attrsetm;	/* set/create an attribute at mount time */
+	uint	tr_attrsetrt;	/* set/create an attribute at runtime */
 	uint	tr_attrrm;	/* remove an attribute */
 	uint	tr_clearagi;	/* clear bad agi unlinked ino bucket */
 	uint	tr_growrtalloc;	/* grow realtime allocations */

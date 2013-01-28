@@ -300,9 +300,12 @@ xfs_attr_set_int(
 	if (rsvd)
 		args.trans->t_flags |= XFS_TRANS_RESERVE;
 
-	if ((error = xfs_trans_reserve(args.trans, args.total,
-			XFS_ATTRSET_LOG_RES(mp, args.total), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_ATTRSET_LOG_COUNT))) {
+	error = xfs_trans_reserve(args.trans, args.total,
+				  XFS_ATTRSETM_LOG_RES(mp) +
+				  XFS_ATTRSETRT_LOG_RES(mp) * args.total,
+				  0, XFS_TRANS_PERM_LOG_RES,
+				  XFS_ATTRSET_LOG_COUNT);
+	if (error) {
 		xfs_trans_cancel(args.trans, 0);
 		return(error);
 	}
