@@ -738,6 +738,7 @@ static uint16_t batadv_arp_get_type(struct batadv_priv *bat_priv,
 	struct arphdr *arphdr;
 	struct ethhdr *ethhdr;
 	__be32 ip_src, ip_dst;
+	uint8_t *hw_src, *hw_dst;
 	uint16_t type = 0;
 
 	/* pull the ethernet header */
@@ -777,8 +778,22 @@ static uint16_t batadv_arp_get_type(struct batadv_priv *bat_priv,
 	ip_src = batadv_arp_ip_src(skb, hdr_size);
 	ip_dst = batadv_arp_ip_dst(skb, hdr_size);
 	if (ipv4_is_loopback(ip_src) || ipv4_is_multicast(ip_src) ||
-	    ipv4_is_loopback(ip_dst) || ipv4_is_multicast(ip_dst))
+	    ipv4_is_loopback(ip_dst) || ipv4_is_multicast(ip_dst) ||
+	    ipv4_is_zeronet(ip_src) || ipv4_is_lbcast(ip_src) ||
+	    ipv4_is_zeronet(ip_dst) || ipv4_is_lbcast(ip_dst))
 		goto out;
+
+	hw_src = batadv_arp_hw_src(skb, hdr_size);
+	if (is_zero_ether_addr(hw_src) || is_multicast_ether_addr(hw_src))
+		goto out;
+
+	/* we don't care about the destination MAC address in ARP requests */
+	if (arphdr->ar_op != htons(ARPOP_REQUEST)) {
+		hw_dst = batadv_arp_hw_dst(skb, hdr_size);
+		if (is_zero_ether_addr(hw_dst) ||
+		    is_multicast_ether_addr(hw_dst))
+			goto out;
+	}
 
 	type = ntohs(arphdr->ar_op);
 out:
@@ -1012,6 +1027,8 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 	 */
 	ret = !batadv_is_my_client(bat_priv, hw_dst);
 out:
+	if (ret)
+		kfree_skb(skb);
 	/* if ret == false -> packet has to be delivered to the interface */
 	return ret;
 }
