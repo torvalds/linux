@@ -1518,3 +1518,243 @@ out_stop:
 	trace_ext4_truncate_exit(inode);
 }
 
+static int free_hole_blocks(handle_t *handle, struct inode *inode,
+			    struct buffer_head *parent_bh, __le32 *i_data,
+			    int level, ext4_lblk_t first,
+			    ext4_lblk_t count, int max)
+{
+	struct buffer_head *bh = NULL;
+	int addr_per_block = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+	int ret = 0;
+	int i, inc;
+	ext4_lblk_t offset;
+	__le32 blk;
+
+	inc = 1 << ((EXT4_BLOCK_SIZE_BITS(inode->i_sb) - 2) * level);
+	for (i = 0, offset = 0; i < max; i++, i_data++, offset += inc) {
+		if (offset >= count + first)
+			break;
+		if (*i_data == 0 || (offset + inc) <= first)
+			continue;
+		blk = *i_data;
+		if (level > 0) {
+			ext4_lblk_t first2;
+			bh = sb_bread(inode->i_sb, blk);
+			if (!bh) {
+				EXT4_ERROR_INODE_BLOCK(inode, blk,
+						       "Read failure");
+				return -EIO;
+			}
+			first2 = (first > offset) ? first - offset : 0;
+			ret = free_hole_blocks(handle, inode, bh,
+					       (__le32 *)bh->b_data, level - 1,
+					       first2, count - offset,
+					       inode->i_sb->s_blocksize >> 2);
+			if (ret) {
+				brelse(bh);
+				goto err;
+			}
+		}
+		if (level == 0 ||
+		    (bh && all_zeroes((__le32 *)bh->b_data,
+				      (__le32 *)bh->b_data + addr_per_block))) {
+			ext4_free_data(handle, inode, parent_bh, &blk, &blk+1);
+			*i_data = 0;
+		}
+		brelse(bh);
+		bh = NULL;
+	}
+
+err:
+	return ret;
+}
+
+static int ext4_free_hole_blocks(handle_t *handle, struct inode *inode,
+				 ext4_lblk_t first, ext4_lblk_t stop)
+{
+	int addr_per_block = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+	int level, ret = 0;
+	int num = EXT4_NDIR_BLOCKS;
+	ext4_lblk_t count, max = EXT4_NDIR_BLOCKS;
+	__le32 *i_data = EXT4_I(inode)->i_data;
+
+	count = stop - first;
+	for (level = 0; level < 4; level++, max *= addr_per_block) {
+		if (first < max) {
+			ret = free_hole_blocks(handle, inode, NULL, i_data,
+					       level, first, count, num);
+			if (ret)
+				goto err;
+			if (count > max - first)
+				count -= max - first;
+			else
+				break;
+			first = 0;
+		} else {
+			first -= max;
+		}
+		i_data += num;
+		if (level == 0) {
+			num = 1;
+			max = 1;
+		}
+	}
+
+err:
+	return ret;
+}
+
+int ext4_ind_punch_hole(struct file *file, loff_t offset, loff_t length)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct super_block *sb = inode->i_sb;
+	ext4_lblk_t first_block, stop_block;
+	struct address_space *mapping = inode->i_mapping;
+	handle_t *handle = NULL;
+	loff_t first_page, last_page, page_len;
+	loff_t first_page_offset, last_page_offset;
+	int err = 0;
+
+	/*
+	 * Write out all dirty pages to avoid race conditions
+	 * Then release them.
+	 */
+	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+		err = filemap_write_and_wait_range(mapping,
+			offset, offset + length - 1);
+		if (err)
+			return err;
+	}
+
+	mutex_lock(&inode->i_mutex);
+	/* It's not possible punch hole on append only file */
+	if (IS_APPEND(inode) || IS_IMMUTABLE(inode)) {
+		err = -EPERM;
+		goto out_mutex;
+	}
+	if (IS_SWAPFILE(inode)) {
+		err = -ETXTBSY;
+		goto out_mutex;
+	}
+
+	/* No need to punch hole beyond i_size */
+	if (offset >= inode->i_size)
+		goto out_mutex;
+
+	/*
+	 * If the hole extents beyond i_size, set the hole
+	 * to end after the page that contains i_size
+	 */
+	if (offset + length > inode->i_size) {
+		length = inode->i_size +
+		    PAGE_CACHE_SIZE - (inode->i_size & (PAGE_CACHE_SIZE - 1)) -
+		    offset;
+	}
+
+	first_page = (offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	last_page = (offset + length) >> PAGE_CACHE_SHIFT;
+
+	first_page_offset = first_page << PAGE_CACHE_SHIFT;
+	last_page_offset = last_page << PAGE_CACHE_SHIFT;
+
+	/* Now release the pages */
+	if (last_page_offset > first_page_offset) {
+		truncate_pagecache_range(inode, first_page_offset,
+					 last_page_offset - 1);
+	}
+
+	/* Wait all existing dio works, newcomers will block on i_mutex */
+	inode_dio_wait(inode);
+
+	handle = start_transaction(inode);
+	if (IS_ERR(handle))
+		goto out_mutex;
+
+	/*
+	 * Now we need to zero out the non-page-aligned data in the
+	 * pages at the start and tail of the hole, and unmap the buffer
+	 * heads for the block aligned regions of the page that were
+	 * completely zerod.
+	 */
+	if (first_page > last_page) {
+		/*
+		 * If the file space being truncated is contained within a page
+		 * just zero out and unmap the middle of that page
+		 */
+		err = ext4_discard_partial_page_buffers(handle,
+			mapping, offset, length, 0);
+		if (err)
+			goto out;
+	} else {
+		/*
+		 * Zero out and unmap the paritial page that contains
+		 * the start of the hole
+		 */
+		page_len = first_page_offset - offset;
+		if (page_len > 0) {
+			err = ext4_discard_partial_page_buffers(handle, mapping,
+							offset, page_len, 0);
+			if (err)
+				goto out;
+		}
+
+		/*
+		 * Zero out and unmap the partial page that contains
+		 * the end of the hole
+		 */
+		page_len = offset + length - last_page_offset;
+		if (page_len > 0) {
+			err = ext4_discard_partial_page_buffers(handle, mapping,
+						last_page_offset, page_len, 0);
+			if (err)
+				goto out;
+		}
+	}
+
+	/*
+	 * If i_size contained in the last page, we need to
+	 * unmap and zero the paritial page after i_size
+	 */
+	if (inode->i_size >> PAGE_CACHE_SHIFT == last_page &&
+	    inode->i_size % PAGE_CACHE_SIZE != 0) {
+		page_len = PAGE_CACHE_SIZE -
+			(inode->i_size & (PAGE_CACHE_SIZE - 1));
+		if (page_len > 0) {
+			err = ext4_discard_partial_page_buffers(handle,
+				mapping, inode->i_size, page_len, 0);
+			if (err)
+				goto out;
+		}
+	}
+
+	first_block = (offset + sb->s_blocksize - 1) >>
+		EXT4_BLOCK_SIZE_BITS(sb);
+	stop_block = (offset + length) >> EXT4_BLOCK_SIZE_BITS(sb);
+
+	if (first_block >= stop_block)
+		goto out;
+
+	down_write(&EXT4_I(inode)->i_data_sem);
+	ext4_discard_preallocations(inode);
+
+	err = ext4_es_remove_extent(inode, first_block,
+				    stop_block - first_block);
+	err = ext4_free_hole_blocks(handle, inode, first_block, stop_block);
+
+	ext4_discard_preallocations(inode);
+
+	if (IS_SYNC(inode))
+		ext4_handle_sync(handle);
+
+	up_write(&EXT4_I(inode)->i_data_sem);
+
+out:
+	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
+	ext4_mark_inode_dirty(handle, inode);
+	ext4_journal_stop(handle);
+
+out_mutex:
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
+}
