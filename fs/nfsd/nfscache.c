@@ -47,10 +47,34 @@ static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
  */
 static DEFINE_SPINLOCK(cache_lock);
 
-int nfsd_reply_cache_init(void)
+static struct svc_cacherep *
+nfsd_reply_cache_alloc(void)
 {
 	struct svc_cacherep	*rp;
+
+	rp = kmem_cache_alloc(drc_slab, GFP_KERNEL);
+	if (rp) {
+		rp->c_state = RC_UNUSED;
+		rp->c_type = RC_NOCACHE;
+		INIT_LIST_HEAD(&rp->c_lru);
+		INIT_HLIST_NODE(&rp->c_hash);
+	}
+	return rp;
+}
+
+static void
+nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
+{
+	if (rp->c_state == RC_DONE && rp->c_type == RC_REPLBUFF)
+		kfree(rp->c_replvec.iov_base);
+	list_del(&rp->c_lru);
+	kmem_cache_free(drc_slab, rp);
+}
+
+int nfsd_reply_cache_init(void)
+{
 	int			i;
+	struct svc_cacherep	*rp;
 
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
 					0, 0, NULL);
@@ -60,13 +84,10 @@ int nfsd_reply_cache_init(void)
 	INIT_LIST_HEAD(&lru_head);
 	i = CACHESIZE;
 	while (i) {
-		rp = kmem_cache_alloc(drc_slab, GFP_KERNEL);
+		rp = nfsd_reply_cache_alloc();
 		if (!rp)
 			goto out_nomem;
 		list_add(&rp->c_lru, &lru_head);
-		rp->c_state = RC_UNUSED;
-		rp->c_type = RC_NOCACHE;
-		INIT_HLIST_NODE(&rp->c_hash);
 		i--;
 	}
 
@@ -88,10 +109,7 @@ void nfsd_reply_cache_shutdown(void)
 
 	while (!list_empty(&lru_head)) {
 		rp = list_entry(lru_head.next, struct svc_cacherep, c_lru);
-		if (rp->c_state == RC_DONE && rp->c_type == RC_REPLBUFF)
-			kfree(rp->c_replvec.iov_base);
-		list_del(&rp->c_lru);
-		kmem_cache_free(drc_slab, rp);
+		nfsd_reply_cache_free_locked(rp);
 	}
 
 	cache_disabled = 1;
