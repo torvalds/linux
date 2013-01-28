@@ -246,8 +246,7 @@ static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)
 	struct zpodd *zpodd = ata_dev->zpodd;
 	struct device *dev = &ata_dev->sdev->sdev_gendev;
 
-	if (event == ACPI_NOTIFY_DEVICE_WAKE && ata_dev &&
-			pm_runtime_suspended(dev)) {
+	if (event == ACPI_NOTIFY_DEVICE_WAKE && pm_runtime_suspended(dev)) {
 		zpodd->from_notify = true;
 		pm_runtime_resume(dev);
 	}
