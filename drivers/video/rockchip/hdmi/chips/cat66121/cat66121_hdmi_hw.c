@@ -102,7 +102,7 @@ SYS_STATUS HDMITX_WriteI2C_ByteN(BYTE RegAddr, BYTE *pData, int N)
 	BYTE buf[N + 1];
 
 	buf[0] = RegAddr;
-    memcpy(&buf[1], pData, N);
+	memcpy(&buf[1], pData, N);
 
 	msg.addr	= cat66121_hdmi->client->addr;
 	msg.flags	= !I2C_M_RD;
@@ -134,21 +134,10 @@ SYS_STATUS HDMITX_SetI2C_Byte(BYTE Reg,BYTE Mask,BYTE Value)
 int cat66121_hdmi_sys_init(void)
 {
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
-#if 0
-	if (gpio_request(RK30_PIN3_PB2, NULL)) {
-		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
-	}
-	gpio_direction_output(RK30_PIN3_PB2, GPIO_LOW);
-	gpio_set_value(RK30_PIN3_PB2, GPIO_LOW);
-	msleep(200);
-	gpio_set_value(RK30_PIN3_PB2, GPIO_HIGH);
-#endif
-	mdelay(5);
 	VideoPixelClock = 0;
 	pixelrep = 0;
-    InitHDMITX_Variable();
-    InitHDMITX();
+	InitHDMITX_Variable();
+	InitHDMITX();
 	msleep(100);
 	return HDMI_ERROR_SUCESS;
 }
@@ -193,8 +182,7 @@ static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, in
 
 int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 {
-    HDMITX_ChangeDisplayOption(vpara->vic,HDMI_RGB444) ;
-
+	HDMITX_ChangeDisplayOption(vpara->vic,HDMI_RGB444) ;
 	return HDMI_ERROR_SUCESS;
 }
 

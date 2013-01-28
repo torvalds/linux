@@ -539,6 +539,30 @@ static struct rk610_codec_platform_data rk610_codec_pdata = {
 };
 #endif
 
+#ifdef CONFIG_RK_HDMI
+#define RK_HDMI_RST_PIN 			RK30_PIN3_PB2
+static int rk_hdmi_power_init(void)
+{
+	int ret;
+
+	if(RK_HDMI_RST_PIN != INVALID_GPIO)
+	{
+		if (gpio_request(RK_HDMI_RST_PIN, NULL)) {
+			printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+			return -1;
+		}
+		gpio_direction_output(RK_HDMI_RST_PIN, GPIO_LOW);
+		gpio_set_value(RK_HDMI_RST_PIN, GPIO_LOW);
+		msleep(100);
+		gpio_set_value(RK_HDMI_RST_PIN, GPIO_HIGH);
+		msleep(50);
+	}
+	return 0;
+}
+static struct rk_hdmi_platform_data rk_hdmi_pdata = {
+	.io_init = rk_hdmi_power_init,
+};
+#endif
 #ifdef CONFIG_ION
 #define ION_RESERVE_SIZE        (80 * SZ_1M)
 static struct ion_platform_data rk30_ion_pdata = {
@@ -1568,10 +1592,11 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #endif
 #if defined(CONFIG_HDMI_CAT66121)
 	{
-	.type			= "cat66121_hdmi",
-	.addr			= 0x4c,
-	.flags			= 0,
-	.irq			= RK30_PIN2_PD6,
+		.type		= "cat66121_hdmi",
+		.addr		= 0x4c,
+		.flags		= 0,
+		.irq		= RK30_PIN2_PD6,
+		.platform_data 	= &rk_hdmi_pdata,
 	},
 #endif
 };

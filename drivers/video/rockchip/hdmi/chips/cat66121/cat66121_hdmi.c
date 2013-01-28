@@ -97,16 +97,17 @@ static irqreturn_t cat66121_irq(int irq, void *dev_id)
     return IRQ_HANDLED;
 }
 #endif
-static int rk610_read_p0_reg(struct i2c_client *client, char reg, char *val)
+#ifdef HDMI_DEBUG
+static int hdmi_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
 }
 
-static int rk610_write_p0_reg(struct i2c_client *client, char reg, char *val)
+static int hdmi_write_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_send(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
 }
-static ssize_t rk610_show_reg_attrs(struct device *dev,
+static ssize_t hdmi_show_reg_attrs(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
@@ -117,36 +118,36 @@ static ssize_t rk610_show_reg_attrs(struct device *dev,
 
 	for(i=0;i<256;i++)
 	{
-		rk610_read_p0_reg(client, i,  &val);
+		hdmi_read_p0_reg(client, i,  &val);
 		if(i%16==0)
-			size += sprintf(buf+size,"\n>>>rk610_hdmi %x:",i);
+			size += sprintf(buf+size,"\n>>>hdmi_hdmi %x:",i);
 		size += sprintf(buf+size," %2x",val);
 	}
 
 	return size;
 }
-static ssize_t rk610_store_reg_attrs(struct device *dev,
+static ssize_t hdmi_store_reg_attrs(struct device *dev,
 						struct device_attribute *attr,
 			 			const char *buf, size_t size)
 {
 	struct i2c_client *client=NULL;
 	static char val=0,reg=0;
 	client = cat66121_hdmi->client;
-	printk("/**********rk610 reg config******/");
+	printk("/**********hdmi reg config******/");
 
 	sscanf(buf, "%x%x", &val,&reg);
-	printk("reg=%x val=%x\n",reg,val);
-	rk610_write_p0_reg(client, reg,  &val);
-	printk("val=%x\n",val);
+	hdmi_write_p0_reg(client, reg,  &val);
 	return size;
 }
 
-static struct device_attribute rk610_attrs[] = {
-	__ATTR(reg_ctl, 0777,rk610_show_reg_attrs,rk610_store_reg_attrs),
+static struct device_attribute hdmi_attrs[] = {
+	__ATTR(reg_ctl, 0777,hdmi_show_reg_attrs,hdmi_store_reg_attrs),
 };
+#endif
 static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
     int rc = 0;
+	struct rk_hdmi_platform_data *pdata = client->dev.platform_data;
 	
 	cat66121_hdmi = kzalloc(sizeof(struct cat66121_hdmi_pdata), GFP_KERNEL);
 	if(!cat66121_hdmi)
@@ -206,19 +207,13 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	spin_lock_init(&hdmi->irq_lock);
 	mutex_init(&hdmi->enable_mutex);
 	
-	cat66121_hdmi_sys_init();
-	rc = gpio_request(client->irq, "cat66121 rst");
-	if (rc != 0) {
-		gpio_free(client->irq);
-		printk("goodix power error\n");
-		return -EIO;
+	if(pdata->io_init){
+		if(pdata->io_init()<0){
+			dev_err(&client->dev, "fail to rst chip\n");
+			goto err_request_lcdc;
+		}
 	}
-	gpio_direction_output(client->irq, GPIO_HIGH);
-	gpio_set_value(client->irq, GPIO_HIGH);
-	msleep(10);
-	gpio_set_value(client->irq, GPIO_LOW);
-	msleep(200);
-	gpio_set_value(client->irq, GPIO_HIGH);
+	cat66121_hdmi_sys_init();
 #ifdef HDMI_USE_IRQ
 	if(client->irq != INVALID_GPIO) {
 		INIT_WORK(&cat66121_hdmi->irq_work, cat66121_irq_work_func);
@@ -247,7 +242,9 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	}
 #endif
 
-	device_create_file(&(client->dev), &rk610_attrs[0]);
+#ifdef HDMI_DEBUG
+	device_create_file(&(client->dev), &hdmi_attrs[0]);
+#endif
 	dev_info(&client->dev, "cat66121 hdmi i2c probe ok\n");
 	
     return 0;

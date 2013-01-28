@@ -426,6 +426,9 @@ struct rk610_codec_platform_data {
 	int boot_depop;//if found boot pop,set boot_depop 1 test
 };
 
+struct rk_hdmi_platform_data {
+	int (*io_init)(void);
+};
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
 #define BOOT_MODE_RECOVERY		2
