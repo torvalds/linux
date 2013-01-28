@@ -511,10 +511,8 @@ void wil_rx_fini(struct wil6210_priv *wil)
 {
 	struct vring *vring = &wil->vring_rx;
 
-	if (vring->va) {
-		wmi_rx_chain_del(wil);
+	if (vring->va)
 		wil_vring_free(wil, vring, 0);
-	}
 }
 
 int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,

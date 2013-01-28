@@ -902,28 +902,6 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	return rc;
 }
 
-int wmi_rx_chain_del(struct wil6210_priv *wil)
-{
-	int rc;
-	struct wmi_cfg_rx_chain_cmd cmd = {
-		.action = cpu_to_le32(WMI_RX_CHAIN_DEL),
-		.rx_sw_ring = {
-			.max_mpdu_size = cpu_to_le16(RX_BUF_LEN),
-		},
-	};
-	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
-		struct wmi_cfg_rx_chain_done_event cfg;
-	} __packed wmi_rx_cfg_reply;
-
-	rc = wmi_call(wil, WMI_CFG_RX_CHAIN_CMDID, &cmd, sizeof(cmd),
-		      WMI_CFG_RX_CHAIN_DONE_EVENTID,
-		      &wmi_rx_cfg_reply, sizeof(wmi_rx_cfg_reply),
-		      100);
-
-	return rc;
-}
-
 void wmi_event_flush(struct wil6210_priv *wil)
 {
 	struct pending_wmi_event *evt, *t;
