@@ -62,35 +62,35 @@ static void adl_pci8164_insn_read(struct comedi_device *dev,
 				  char *action, unsigned short offset)
 {
 	int axis, axis_reg;
-	char *axisname;
+	char axisname;
 
 	axis = CR_CHAN(insn->chanspec);
 
 	switch (axis) {
 	case 0:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 		break;
 	case 1:
 		axis_reg = PCI8164_AXIS_Y;
-		axisname = "Y";
+		axisname = 'Y';
 		break;
 	case 2:
 		axis_reg = PCI8164_AXIS_Z;
-		axisname = "Z";
+		axisname = 'Z';
 		break;
 	case 3:
 		axis_reg = PCI8164_AXIS_U;
-		axisname = "U";
+		axisname = 'U';
 		break;
 	default:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + offset);
 	dev_dbg(dev->class_dev,
-		"pci8164 %s read -> %04X:%04X on axis %s\n",
+		"pci8164 %s read -> %04X:%04X on axis %c\n",
 		action, data[0], data[1], axisname);
 }
 
@@ -142,36 +142,36 @@ static void adl_pci8164_insn_out(struct comedi_device *dev,
 {
 	unsigned int axis, axis_reg;
 
-	char *axisname;
+	char axisname;
 
 	axis = CR_CHAN(insn->chanspec);
 
 	switch (axis) {
 	case 0:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 		break;
 	case 1:
 		axis_reg = PCI8164_AXIS_Y;
-		axisname = "Y";
+		axisname = 'Y';
 		break;
 	case 2:
 		axis_reg = PCI8164_AXIS_Z;
-		axisname = "Z";
+		axisname = 'Z';
 		break;
 	case 3:
 		axis_reg = PCI8164_AXIS_U;
-		axisname = "U";
+		axisname = 'U';
 		break;
 	default:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 	}
 
 	outw(data[0], dev->iobase + axis_reg + offset);
 
 	dev_dbg(dev->class_dev,
-		"pci8164 %s write -> %04X:%04X on axis %s\n",
+		"pci8164 %s write -> %04X:%04X on axis %c\n",
 		action, data[0], data[1], axisname);
 
 }
