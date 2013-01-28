@@ -652,7 +652,6 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 
 	/* Check whether we have this call in the cache. */
 	switch (nfsd_cache_lookup(rqstp)) {
-	case RC_INTR:
 	case RC_DROPIT:
 		return 0;
 	case RC_REPLY:

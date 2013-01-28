@@ -50,8 +50,7 @@ enum {
 enum {
 	RC_DROPIT,
 	RC_REPLY,
-	RC_DOIT,
-	RC_INTR
+	RC_DOIT
 };
 
 /*
