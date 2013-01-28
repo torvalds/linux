@@ -41,6 +41,7 @@ typedef struct xfs_trans_reservations {
 	uint	tr_growrtzero;	/* grow realtime zeroing */
 	uint	tr_growrtfree;	/* grow realtime freeing */
 	uint	tr_qm_sbchange;	/* change quota flags */
+	uint	tr_qm_setqlim;	/* adjust quota limits */
 } xfs_trans_reservations_t;
 
 #ifndef __KERNEL__
