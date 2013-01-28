@@ -955,6 +955,7 @@ static int write_topo_node(int fd, int node)
 	}
 
 	fclose(fp);
+	fp = NULL;
 
 	ret = do_write(fd, &mem_total, sizeof(u64));
 	if (ret)
@@ -981,7 +982,8 @@ static int write_topo_node(int fd, int node)
 	ret = do_write_string(fd, buf);
 done:
 	free(buf);
-	fclose(fp);
+	if (fp)
+		fclose(fp);
 	return ret;
 }
 
