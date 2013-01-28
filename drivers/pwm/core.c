@@ -733,6 +733,18 @@ void devm_pwm_put(struct device *dev, struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(devm_pwm_put);
 
+/**
+  * pwm_can_sleep() - report whether PWM access will sleep
+  * @pwm: PWM device
+  *
+  * It returns true if accessing the PWM can sleep, false otherwise.
+  */
+bool pwm_can_sleep(struct pwm_device *pwm)
+{
+	return pwm->chip->can_sleep;
+}
+EXPORT_SYMBOL_GPL(pwm_can_sleep);
+
 #ifdef CONFIG_DEBUG_FS
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 {
