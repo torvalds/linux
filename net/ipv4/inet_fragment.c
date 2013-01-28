@@ -75,6 +75,7 @@ void inet_frags_init_net(struct netns_frags *nf)
 	nf->nqueues = 0;
 	init_frag_mem_limit(nf);
 	INIT_LIST_HEAD(&nf->lru_list);
+	spin_lock_init(&nf->lru_lock);
 }
 EXPORT_SYMBOL(inet_frags_init_net);
 
@@ -100,9 +101,9 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 {
 	write_lock(&f->lock);
 	hlist_del(&fq->list);
-	list_del(&fq->lru_list);
 	fq->net->nqueues--;
 	write_unlock(&f->lock);
+	inet_frag_lru_del(fq);
 }
 
 void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
@@ -170,16 +171,17 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 
 	work = frag_mem_limit(nf) - nf->low_thresh;
 	while (work > 0) {
-		read_lock(&f->lock);
+		spin_lock(&nf->lru_lock);
+
 		if (list_empty(&nf->lru_list)) {
-			read_unlock(&f->lock);
+			spin_unlock(&nf->lru_lock);
 			break;
 		}
 
 		q = list_first_entry(&nf->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
-		read_unlock(&f->lock);
+		spin_unlock(&nf->lru_lock);
 
 		spin_lock(&q->lock);
 		if (!(q->last_in & INET_FRAG_COMPLETE))
@@ -233,9 +235,9 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	list_add_tail(&qp->lru_list, &nf->lru_list);
 	nf->nqueues++;
 	write_unlock(&f->lock);
+	inet_frag_lru_add(nf, qp);
 	return qp;
 }
 
