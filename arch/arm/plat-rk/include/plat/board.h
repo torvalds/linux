@@ -384,6 +384,7 @@ struct eeti_egalax_platform_data {
 struct ts_hw_data {
 	int reset_gpio;
 	int touch_en_gpio;
+	int (*init_platform_hw)(void);
 };
 
 #if defined(CONFIG_TOUCHSCREEN_BYD693X)

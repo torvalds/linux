@@ -118,7 +118,44 @@ static struct ct36x_platform_data ct36x_info = {
 	.orientation = {1, 0, 1, 0},
 };
 #endif
-#if defined (CONFIG_TOUCHSCREEN_86V_GT811_IIC)
+
+#if defined(CONFIG_TOUCHSCREEN_GSLX680)
+#define TOUCH_RESET_PIN RK30_PIN0_PB6
+#define TOUCH_EN_PIN NULL
+#define TOUCH_INT_PIN RK30_PIN1_PB7
+
+int gslx680_init_platform_hw(void)
+{
+
+       if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+                gpio_free(TOUCH_RESET_PIN);
+                printk("gslx680_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+        if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+                gpio_free(TOUCH_INT_PIN);
+                printk("gslx680_init_platform_hw  gpio_request error\n");
+                return -EIO;
+        }
+        gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+        msleep(300);
+        return 0;
+
+}
+
+struct ts_hw_data     gslx680_info = {
+	.reset_gpio = TOUCH_RESET_PIN,
+	.touch_en_gpio = TOUCH_INT_PIN,
+	.init_platform_hw = gslx680_init_platform_hw,
+};
+#endif
+
+
+#if defined (CONFIG_TOUCHSCREEN_GT811_IIC)
 #define TOUCH_RESET_PIN  RK30_PIN0_PB6
 #define TOUCH_INT_PIN    RK30_PIN1_PB7
 int gt811_init_platform_hw(void)
@@ -1633,6 +1670,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.flags         = 0,
 		.platform_data = &cm3217_info,
 	},
+#endif
+#if defined (CONFIG_TOUCHSCREEN_GSLX680)
+    {
+        .type           = "gslX680",
+        .addr           = 0x40,
+        .flags          = 0,
+        .platform_data =&gslx680_info,
+    },
 #endif
 #if defined (CONFIG_TOUCHSCREEN_86V_GT811_IIC)	
 {		
