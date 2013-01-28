@@ -101,6 +101,18 @@ MODULE_PARM_DESC(ap_mode_default,
 #define MWL8K_MAX_TX_QUEUES	(MWL8K_TX_WMM_QUEUES + MWL8K_MAX_AMPDU_QUEUES)
 #define mwl8k_tx_queues(priv)	(MWL8K_TX_WMM_QUEUES + (priv)->num_ampdu_queues)
 
+/* txpriorities are mapped with hw queues.
+ * Each hw queue has a txpriority.
+ */
+#define TOTAL_HW_TX_QUEUES	8
+
+/* Each HW queue can have one AMPDU stream.
+ * But, because one of the hw queue is reserved,
+ * maximum AMPDU queues that can be created are
+ * one short of total tx queues.
+ */
+#define MWL8K_NUM_AMPDU_STREAMS	(TOTAL_HW_TX_QUEUES - 1)
+
 struct rxd_ops {
 	int rxd_size;
 	void (*rxd_init)(void *rxd, dma_addr_t next_dma_addr);
@@ -160,7 +172,6 @@ struct mwl8k_ampdu_stream {
 	u8 tid;
 	u8 state;
 	u8 idx;
-	u8 txq_idx; /* index of this stream in priv->txq */
 };
 
 struct mwl8k_priv {
@@ -201,6 +212,8 @@ struct mwl8k_priv {
 	struct task_struct *hw_restart_owner;
 	int fw_mutex_depth;
 	struct completion *hostcmd_wait;
+
+	atomic_t watchdog_event_pending;
 
 	/* lock held over TX and TX reap */
 	spinlock_t tx_lock;
@@ -1516,6 +1529,9 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 			return -EBUSY;
 	}
 
+	if (atomic_read(&priv->watchdog_event_pending))
+		return 0;
+
 	/*
 	 * The TX queues are stopped at this point, so this test
 	 * doesn't need to take ->tx_lock.
@@ -1537,6 +1553,14 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		spin_unlock_bh(&priv->tx_lock);
 		timeout = wait_for_completion_timeout(&tx_wait,
 			    msecs_to_jiffies(MWL8K_TX_WAIT_TIMEOUT_MS));
+
+		if (atomic_read(&priv->watchdog_event_pending)) {
+			spin_lock_bh(&priv->tx_lock);
+			priv->tx_wait = NULL;
+			spin_unlock_bh(&priv->tx_lock);
+			return 0;
+		}
+
 		spin_lock_bh(&priv->tx_lock);
 
 		if (timeout) {
@@ -1564,6 +1588,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 		rc = -ETIMEDOUT;
 	}
+	priv->tx_wait = NULL;
 	spin_unlock_bh(&priv->tx_lock);
 
 	return rc;
@@ -1734,14 +1759,13 @@ mwl8k_add_stream(struct ieee80211_hw *hw, struct ieee80211_sta *sta, u8 tid)
 	struct mwl8k_priv *priv = hw->priv;
 	int i;
 
-	for (i = 0; i < priv->num_ampdu_queues; i++) {
+	for (i = 0; i < MWL8K_NUM_AMPDU_STREAMS; i++) {
 		stream = &priv->ampdu[i];
 		if (stream->state == AMPDU_NO_STREAM) {
 			stream->sta = sta;
 			stream->state = AMPDU_STREAM_NEW;
 			stream->tid = tid;
 			stream->idx = i;
-			stream->txq_idx = MWL8K_TX_WMM_QUEUES + i;
 			wiphy_debug(hw->wiphy, "Added a new stream for %pM %d",
 				    sta->addr, tid);
 			return stream;
@@ -1782,7 +1806,7 @@ mwl8k_lookup_stream(struct ieee80211_hw *hw, u8 *addr, u8 tid)
 	struct mwl8k_priv *priv = hw->priv;
 	int i;
 
-	for (i = 0 ; i < priv->num_ampdu_queues; i++) {
+	for (i = 0; i < MWL8K_NUM_AMPDU_STREAMS; i++) {
 		struct mwl8k_ampdu_stream *stream;
 		stream = &priv->ampdu[i];
 		if (stream->state == AMPDU_NO_STREAM)
@@ -1828,6 +1852,13 @@ static inline void mwl8k_tx_count_packet(struct ieee80211_sta *sta, u8 tid)
 	} else
 		tx_stats->pkts++;
 }
+
+/* The hardware ampdu queues start from 5.
+ * txpriorities for ampdu queues are
+ * 5 6 7 0 1 2 3 4 ie., queue 5 is highest
+ * and queue 3 is lowest (queue 4 is reserved)
+ */
+#define BA_QUEUE		5
 
 static void
 mwl8k_txq_xmit(struct ieee80211_hw *hw,
@@ -1928,8 +1959,13 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 		stream = mwl8k_lookup_stream(hw, sta->addr, tid);
 		if (stream != NULL) {
 			if (stream->state == AMPDU_STREAM_ACTIVE) {
-				txpriority = stream->txq_idx;
-				index = stream->txq_idx;
+				WARN_ON(!(qos & MWL8K_QOS_ACK_POLICY_BLOCKACK));
+				txpriority = (BA_QUEUE + stream->idx) %
+					     TOTAL_HW_TX_QUEUES;
+				if (stream->idx <= 1)
+					index = stream->idx +
+						MWL8K_TX_WMM_QUEUES;
+
 			} else if (stream->state == AMPDU_STREAM_NEW) {
 				/* We get here if the driver sends us packets
 				 * after we've initiated a stream, but before
@@ -1971,6 +2007,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 			}
 		}
 		spin_unlock(&priv->stream_lock);
+	} else {
+		qos &= ~MWL8K_QOS_ACK_POLICY_MASK;
+		qos |= MWL8K_QOS_ACK_POLICY_NORMAL;
 	}
 
 	dma = pci_map_single(priv->pdev, skb->data,
@@ -3578,7 +3617,11 @@ static int mwl8k_cmd_get_watchdog_bitmap(struct ieee80211_hw *hw, u8 *bitmap)
 	return rc;
 }
 
-#define INVALID_BA	0xAA
+#define MWL8K_WMM_QUEUE_NUMBER	3
+
+static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
+			     u8 idx);
+
 static void mwl8k_watchdog_ba_events(struct work_struct *work)
 {
 	int rc;
@@ -3586,24 +3629,41 @@ static void mwl8k_watchdog_ba_events(struct work_struct *work)
 	struct mwl8k_ampdu_stream *streams;
 	struct mwl8k_priv *priv =
 		container_of(work, struct mwl8k_priv, watchdog_ba_handle);
+	struct ieee80211_hw *hw = priv->hw;
+	int i;
+	u32 status = 0;
+
+	mwl8k_fw_lock(hw);
 
 	rc = mwl8k_cmd_get_watchdog_bitmap(priv->hw, &bitmap);
 	if (rc)
-		return;
+		goto done;
 
-	if (bitmap == INVALID_BA)
-		return;
+	spin_lock(&priv->stream_lock);
 
 	/* the bitmap is the hw queue number.  Map it to the ampdu queue. */
-	stream_index = bitmap - MWL8K_TX_WMM_QUEUES;
+	for (i = 0; i < TOTAL_HW_TX_QUEUES; i++) {
+		if (bitmap & (1 << i)) {
+			stream_index = (i + MWL8K_WMM_QUEUE_NUMBER) %
+				       TOTAL_HW_TX_QUEUES;
+			streams = &priv->ampdu[stream_index];
+			if (streams->state == AMPDU_STREAM_ACTIVE) {
+				ieee80211_stop_tx_ba_session(streams->sta,
+							     streams->tid);
+				spin_unlock(&priv->stream_lock);
+				mwl8k_destroy_ba(hw, stream_index);
+				spin_lock(&priv->stream_lock);
+			}
+		}
+	}
 
-	BUG_ON(stream_index >= priv->num_ampdu_queues);
-
-	streams = &priv->ampdu[stream_index];
-
-	if (streams->state == AMPDU_STREAM_ACTIVE)
-		ieee80211_stop_tx_ba_session(streams->sta, streams->tid);
-
+	spin_unlock(&priv->stream_lock);
+done:
+	atomic_dec(&priv->watchdog_event_pending);
+	status = ioread32(priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+	iowrite32((status | MWL8K_A2H_INT_BA_WATCHDOG),
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+	mwl8k_fw_unlock(hw);
 	return;
 }
 
@@ -3763,7 +3823,7 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 }
 
 static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
-			     struct mwl8k_ampdu_stream *stream)
+			     u8 idx)
 {
 	struct mwl8k_cmd_bastream *cmd;
 
@@ -3775,10 +3835,10 @@ static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le32(MWL8K_BA_DESTROY);
 
-	cmd->destroy_params.ba_context = cpu_to_le32(stream->idx);
+	cmd->destroy_params.ba_context = cpu_to_le32(idx);
 	mwl8k_post_cmd(hw, &cmd->header);
 
-	wiphy_debug(hw->wiphy, "Deleted BA stream index %d\n", stream->idx);
+	wiphy_debug(hw->wiphy, "Deleted BA stream index %d\n", idx);
 
 	kfree(cmd);
 }
@@ -3875,7 +3935,30 @@ static int mwl8k_cmd_set_new_stn_del(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, u8 *addr)
 {
 	struct mwl8k_cmd_set_new_stn *cmd;
-	int rc;
+	struct mwl8k_priv *priv = hw->priv;
+	int rc, i;
+	u8 idx;
+
+	spin_lock(&priv->stream_lock);
+	/* Destroy any active ampdu streams for this sta */
+	for (i = 0; i < MWL8K_NUM_AMPDU_STREAMS; i++) {
+		struct mwl8k_ampdu_stream *s;
+		s = &priv->ampdu[i];
+		if (s->state != AMPDU_NO_STREAM) {
+			if (memcmp(s->sta->addr, addr, ETH_ALEN) == 0) {
+				if (s->state == AMPDU_STREAM_ACTIVE) {
+					idx = s->idx;
+					spin_unlock(&priv->stream_lock);
+					mwl8k_destroy_ba(hw, idx);
+					spin_lock(&priv->stream_lock);
+				} else if (s->state == AMPDU_STREAM_NEW) {
+					mwl8k_remove_stream(hw, s);
+				}
+			}
+		}
+	}
+
+	spin_unlock(&priv->stream_lock);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
@@ -4303,6 +4386,10 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 	}
 
 	if (status & MWL8K_A2H_INT_BA_WATCHDOG) {
+		iowrite32(~MWL8K_A2H_INT_BA_WATCHDOG,
+			  priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+
+		atomic_inc(&priv->watchdog_event_pending);
 		status &= ~MWL8K_A2H_INT_BA_WATCHDOG;
 		ieee80211_queue_work(hw, &priv->watchdog_ba_handle);
 	}
@@ -4446,6 +4533,8 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 		priv->irq = -1;
 		tasklet_disable(&priv->poll_tx_task);
 		tasklet_disable(&priv->poll_rx_task);
+	} else {
+		ieee80211_wake_queues(hw);
 	}
 
 	return rc;
@@ -5094,7 +5183,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int i, rc = 0;
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_ampdu_stream *stream;
-	u8 *addr = sta->addr;
+	u8 *addr = sta->addr, idx;
 	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 
 	if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
@@ -5172,11 +5261,14 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 		ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		if (stream) {
 			if (stream->state == AMPDU_STREAM_ACTIVE) {
+				idx = stream->idx;
 				spin_unlock(&priv->stream_lock);
-				mwl8k_destroy_ba(hw, stream);
+				mwl8k_destroy_ba(hw, idx);
 				spin_lock(&priv->stream_lock);
 			}
 			mwl8k_remove_stream(hw, stream);
@@ -5192,8 +5284,9 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (!rc)
 			stream->state = AMPDU_STREAM_ACTIVE;
 		else {
+			idx = stream->idx;
 			spin_unlock(&priv->stream_lock);
-			mwl8k_destroy_ba(hw, stream);
+			mwl8k_destroy_ba(hw, idx);
 			spin_lock(&priv->stream_lock);
 			wiphy_debug(hw->wiphy,
 				"Failed adding stream for sta %pM tid %d\n",
@@ -5256,7 +5349,7 @@ enum {
 	MWL8366,
 };
 
-#define MWL8K_8366_AP_FW_API 2
+#define MWL8K_8366_AP_FW_API 3
 #define _MWL8K_8366_AP_FW(api) "mwl8k/fmimage_8366_ap-" #api ".fw"
 #define MWL8K_8366_AP_FW(api) _MWL8K_8366_AP_FW(api)
 
@@ -5464,6 +5557,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		if (priv->rxd_ops == NULL) {
 			wiphy_err(hw->wiphy,
 				  "Driver does not have AP firmware image support for this hardware\n");
+			rc = -ENOENT;
 			goto err_stop_firmware;
 		}
 	} else {
@@ -5473,6 +5567,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
 	priv->pending_tx_pkts = 0;
+	atomic_set(&priv->watchdog_event_pending, 0);
 
 	rc = mwl8k_rxq_init(hw, 0);
 	if (rc)
@@ -5809,6 +5904,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
 		wiphy_err(hw->wiphy, "Cannot map device SRAM\n");
+		rc = -EIO;
 		goto err_iounmap;
 	}
 
@@ -5821,6 +5917,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
 			wiphy_err(hw->wiphy, "Cannot map device registers\n");
+			rc = -EIO;
 			goto err_iounmap;
 		}
 	}

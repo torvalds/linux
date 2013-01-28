@@ -5712,8 +5712,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	hw->flags =
 	    IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_AMPDU_AGGREGATION |
 	    IEEE80211_HW_NEED_DTIM_PERIOD | IEEE80211_HW_SPECTRUM_MGMT |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
-
+	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | IEEE80211_HW_SUPPORTS_PS |
+	    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 	if (il->cfg->sku & IL_SKU_N)
 		hw->flags |=
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -5968,7 +5968,9 @@ il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		D_HT("start Tx\n");
 		ret = il4965_tx_agg_start(il, vif, sta, tid, ssn);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		D_HT("stop Tx\n");
 		ret = il4965_tx_agg_stop(il, vif, sta, tid);
 		if (test_bit(S_EXIT_PENDING, &il->status))
@@ -6306,6 +6308,7 @@ const struct ieee80211_ops il4965_mac_ops = {
 	.sta_remove = il_mac_sta_remove,
 	.channel_switch = il4965_mac_channel_switch,
 	.tx_last_beacon = il_mac_tx_last_beacon,
+	.flush = il_mac_flush,
 };
 
 static int
@@ -6553,6 +6556,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il4965_prepare_card_hw(il);
 	if (!il->hw_ready) {
 		IL_WARN("Failed, HW not ready\n");
+		err = -EIO;
 		goto out_iounmap;
 	}
 

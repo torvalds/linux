@@ -217,6 +217,17 @@ extern u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt,
 					     u32 ticks);
 extern u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
 
+/* driver_chipcommon_sflash.c */
+#ifdef CONFIG_SSB_SFLASH
+int ssb_sflash_init(struct ssb_chipcommon *cc);
+#else
+static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
+{
+	pr_err("Serial flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_SSB_SFLASH */
+
 #ifdef CONFIG_SSB_DRIVER_EXTIF
 extern u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks);
 extern u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);

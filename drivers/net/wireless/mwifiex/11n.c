@@ -53,7 +53,9 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 	       sizeof(sband->ht_cap.mcs));
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
-	    sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
+	    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	     (priv->adapter->sec_chan_offset !=
+					IEEE80211_HT_PARAM_CHA_SEC_NONE)))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 

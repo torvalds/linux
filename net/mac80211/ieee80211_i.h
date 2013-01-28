@@ -405,6 +405,8 @@ struct ieee80211_mgd_assoc_data {
 
 	u8 ap_ht_param;
 
+	struct ieee80211_vht_cap ap_vht_cap;
+
 	size_t ie_len;
 	u8 ie[];
 };
@@ -659,10 +661,13 @@ enum ieee80211_sub_if_data_flags {
  *	change handling while the interface is up
  * @SDATA_STATE_OFFCHANNEL: This interface is currently in offchannel
  *	mode, so queues are stopped
+ * @SDATA_STATE_OFFCHANNEL_BEACON_STOPPED: Beaconing was stopped due
+ *	to offchannel, reset when offchannel returns
  */
 enum ieee80211_sdata_state_bits {
 	SDATA_STATE_RUNNING,
 	SDATA_STATE_OFFCHANNEL,
+	SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
 };
 
 /**
@@ -685,6 +690,7 @@ struct ieee80211_chanctx {
 
 	enum ieee80211_chanctx_mode mode;
 	int refcount;
+	bool driver_present;
 
 	struct ieee80211_chanctx_conf conf;
 };
@@ -783,6 +789,11 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_mgmt_key;
 	} debugfs;
 #endif
+
+#ifdef CONFIG_PM
+	struct ieee80211_bss_conf suspend_bss_conf;
+#endif
+
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
 };
@@ -1346,8 +1357,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
 			  struct ieee802_11_elems *elems,
-			  struct ieee80211_channel *channel,
-			  bool beacon);
+			  struct ieee80211_channel *channel);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
 
@@ -1358,10 +1368,8 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sched_scan_stopped_work(struct work_struct *work);
 
 /* off-channel helpers */
-void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
-				    bool offchannel_ps_enable);
-void ieee80211_offchannel_return(struct ieee80211_local *local,
-				 bool offchannel_ps_disable);
+void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
+void ieee80211_offchannel_return(struct ieee80211_local *local);
 void ieee80211_roc_setup(struct ieee80211_local *local);
 void ieee80211_start_next_roc(struct ieee80211_local *local);
 void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata);
@@ -1422,7 +1430,8 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     u16 initiator, u16 reason, bool stop);
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason, bool stop);
-void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx);
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
+					 enum ieee80211_agg_stop_reason reason);
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 			     struct sta_info *sta,
 			     struct ieee80211_mgmt *mgmt, size_t len);
@@ -1436,11 +1445,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     size_t len);
 
 int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
-				   enum ieee80211_back_parties initiator,
-				   bool tx);
+				   enum ieee80211_agg_stop_reason reason);
 int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
-				    enum ieee80211_back_parties initiator,
-				    bool tx);
+				    enum ieee80211_agg_stop_reason reason);
 void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
 void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
 void ieee80211_ba_session_work(struct work_struct *work);

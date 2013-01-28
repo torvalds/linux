@@ -104,6 +104,16 @@ static void cleanup_single_sta(struct sta_info *sta)
 	 * neither mac80211 nor the driver can reference this
 	 * sta struct any more except by still existing timers
 	 * associated with this station that we clean up below.
+	 *
+	 * Note though that this still uses the sdata and even
+	 * calls the driver in AP and mesh mode, so interfaces
+	 * of those types mush use call sta_info_flush_cleanup()
+	 * (typically via sta_info_flush()) before deconfiguring
+	 * the driver.
+	 *
+	 * In station mode, nothing happens here so it doesn't
+	 * have to (and doesn't) do that, this is intentional to
+	 * speed up roaming.
 	 */
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
@@ -774,7 +784,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * will be sufficient.
 	 */
 	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-	ieee80211_sta_tear_down_BA_sessions(sta, false);
+	ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
 
 	ret = sta_info_hash_del(local, sta);
 	if (ret)
@@ -885,20 +895,12 @@ void sta_info_init(struct ieee80211_local *local)
 void sta_info_stop(struct ieee80211_local *local)
 {
 	del_timer_sync(&local->sta_cleanup);
-	sta_info_flush(local, NULL);
 }
 
-/**
- * sta_info_flush - flush matching STA entries from the STA table
- *
- * Returns the number of removed STA entries.
- *
- * @local: local interface data
- * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
- */
-int sta_info_flush(struct ieee80211_local *local,
-		   struct ieee80211_sub_if_data *sdata)
+
+int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
 	int ret = 0;
 
@@ -906,28 +908,20 @@ int sta_info_flush(struct ieee80211_local *local,
 
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		if (!sdata || sdata == sta->sdata) {
+		if (sdata == sta->sdata) {
 			WARN_ON(__sta_info_destroy(sta));
 			ret++;
 		}
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	rcu_barrier();
-
-	if (sdata) {
-		ieee80211_cleanup_sdata_stas(sdata);
-		cancel_work_sync(&sdata->cleanup_stations_wk);
-	} else {
-		mutex_lock(&local->iflist_mtx);
-		list_for_each_entry(sdata, &local->interfaces, list) {
-			ieee80211_cleanup_sdata_stas(sdata);
-			cancel_work_sync(&sdata->cleanup_stations_wk);
-		}
-		mutex_unlock(&local->iflist_mtx);
-	}
-
 	return ret;
+}
+
+void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata)
+{
+	ieee80211_cleanup_sdata_stas(sdata);
+	cancel_work_sync(&sdata->cleanup_stations_wk);
 }
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,

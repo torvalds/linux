@@ -1016,6 +1016,26 @@ struct rt2x00_dev {
 	 * Protect the interrupt mask register.
 	 */
 	spinlock_t irqmask_lock;
+
+	/*
+	 * List of BlockAckReq TX entries that need driver BlockAck processing.
+	 */
+	struct list_head bar_list;
+	spinlock_t bar_list_lock;
+};
+
+struct rt2x00_bar_list_entry {
+	struct list_head list;
+	struct rcu_head head;
+
+	struct queue_entry *entry;
+	int block_acked;
+
+	/* Relevant parts of the IEEE80211 BAR header */
+	__u8 ra[6];
+	__u8 ta[6];
+	__le16 control;
+	__le16 start_seq_num;
 };
 
 /*

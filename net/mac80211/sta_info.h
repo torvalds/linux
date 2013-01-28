@@ -92,6 +92,13 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_WANT_START		4
 #define HT_AGG_STATE_WANT_STOP		5
 
+enum ieee80211_agg_stop_reason {
+	AGG_STOP_DECLINED,
+	AGG_STOP_LOCAL_REQUEST,
+	AGG_STOP_PEER_REQUEST,
+	AGG_STOP_DESTROY_STA,
+};
+
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
@@ -548,8 +555,39 @@ void sta_info_recalc_tim(struct sta_info *sta);
 
 void sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
-int sta_info_flush(struct ieee80211_local *local,
-		   struct ieee80211_sub_if_data *sdata);
+int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata);
+
+/**
+ * sta_info_flush_cleanup - flush the sta_info cleanup queue
+ * @sdata: the interface
+ *
+ * Flushes the sta_info cleanup queue for a given interface;
+ * this is necessary before the interface is removed or, for
+ * AP/mesh interfaces, before it is deconfigured.
+ *
+ * Note an rcu_barrier() must precede the function, after all
+ * stations have been flushed/removed to ensure the call_rcu()
+ * calls that add stations to the cleanup queue have completed.
+ */
+void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata);
+
+/**
+ * sta_info_flush - flush matching STA entries from the STA table
+ *
+ * Returns the number of removed STA entries.
+ *
+ * @sdata: sdata to remove all stations from
+ */
+static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
+{
+	int ret = sta_info_flush_defer(sdata);
+
+	rcu_barrier();
+	sta_info_flush_cleanup(sdata);
+
+	return ret;
+}
+
 void sta_set_rate_info_tx(struct sta_info *sta,
 			  const struct ieee80211_tx_rate *rate,
 			  struct rate_info *rinfo);

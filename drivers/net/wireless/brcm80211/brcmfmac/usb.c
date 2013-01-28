@@ -443,14 +443,15 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	struct brcmf_usbreq  *req = (struct brcmf_usbreq *)urb->context;
 	struct brcmf_usbdev_info *devinfo = req->devinfo;
 	struct sk_buff *skb;
-	int ifidx = 0;
+	struct sk_buff_head skbq;
 
 	brcmf_dbg(USB, "Enter, urb->status=%d\n", urb->status);
 	brcmf_usb_del_fromq(devinfo, req);
 	skb = req->skb;
 	req->skb = NULL;
 
-	if (urb->status == 0) {
+	/* zero lenght packets indicate usb "failure". Do not refill */
+	if (urb->status == 0 && urb->actual_length) {
 		devinfo->bus_pub.bus->dstats.rx_packets++;
 	} else {
 		devinfo->bus_pub.bus->dstats.rx_errors++;
@@ -460,13 +461,10 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	}
 
 	if (devinfo->bus_pub.state == BRCMFMAC_USB_STATE_UP) {
+		skb_queue_head_init(&skbq);
+		skb_queue_tail(&skbq, skb);
 		skb_put(skb, urb->actual_length);
-		if (brcmf_proto_hdrpull(devinfo->dev, &ifidx, skb) != 0) {
-			brcmf_err("rx protocol error\n");
-			brcmu_pkt_buf_free_skb(skb);
-			devinfo->bus_pub.bus->dstats.rx_errors++;
-		} else
-			brcmf_rx_packet(devinfo->dev, ifidx, skb);
+		brcmf_rx_frames(devinfo->dev, &skbq);
 		brcmf_usb_rx_refill(devinfo, req);
 	} else {
 		brcmu_pkt_buf_free_skb(skb);
@@ -1520,10 +1518,23 @@ static void brcmf_release_fw(struct list_head *q)
 	}
 }
 
+static int brcmf_usb_reset_device(struct device *dev, void *notused)
+{
+	/* device past is the usb interface so we
+	 * need to use parent here.
+	 */
+	brcmf_dev_reset(dev->parent);
+	return 0;
+}
 
 void brcmf_usb_exit(void)
 {
+	struct device_driver *drv = &brcmf_usbdrvr.drvwrap.driver;
+	int ret;
+
 	brcmf_dbg(USB, "Enter\n");
+	ret = driver_for_each_device(drv, NULL, NULL,
+				     brcmf_usb_reset_device);
 	usb_deregister(&brcmf_usbdrvr);
 	brcmf_release_fw(&fw_image_list);
 }

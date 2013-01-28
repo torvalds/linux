@@ -591,6 +591,12 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 				return -1;
 		}
 	}
+
+	if (adapter->if_ops.init_fw_port) {
+		if (adapter->if_ops.init_fw_port(adapter))
+			return -1;
+	}
+
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
 			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta);

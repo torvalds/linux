@@ -207,75 +207,9 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed)
 {
 	struct ieee80211_local *local = sdata->local;
-	static const u8 zero[ETH_ALEN] = { 0 };
 
 	if (!changed)
 		return;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
-	else if (sdata->vif.type == NL80211_IFTYPE_AP)
-		sdata->vif.bss_conf.bssid = sdata->vif.addr;
-	else if (sdata->vif.type == NL80211_IFTYPE_WDS)
-		sdata->vif.bss_conf.bssid = NULL;
-	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		sdata->vif.bss_conf.bssid = zero;
-	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
-		sdata->vif.bss_conf.bssid = sdata->vif.addr;
-		WARN_ONCE(changed & ~(BSS_CHANGED_IDLE),
-			  "P2P Device BSS changed %#x", changed);
-	} else {
-		WARN_ON(1);
-		return;
-	}
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_WDS:
-	case NL80211_IFTYPE_MESH_POINT:
-		break;
-	default:
-		/* do not warn to simplify caller in scan.c */
-		changed &= ~BSS_CHANGED_BEACON_ENABLED;
-		if (WARN_ON(changed & BSS_CHANGED_BEACON))
-			return;
-		break;
-	}
-
-	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		if (local->quiescing || !ieee80211_sdata_running(sdata) ||
-		    test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state)) {
-			sdata->vif.bss_conf.enable_beacon = false;
-		} else {
-			/*
-			 * Beacon should be enabled, but AP mode must
-			 * check whether there is a beacon configured.
-			 */
-			switch (sdata->vif.type) {
-			case NL80211_IFTYPE_AP:
-				sdata->vif.bss_conf.enable_beacon =
-					!!sdata->u.ap.beacon;
-				break;
-			case NL80211_IFTYPE_ADHOC:
-				sdata->vif.bss_conf.enable_beacon =
-					!!sdata->u.ibss.presp;
-				break;
-#ifdef CONFIG_MAC80211_MESH
-			case NL80211_IFTYPE_MESH_POINT:
-				sdata->vif.bss_conf.enable_beacon =
-					!!sdata->u.mesh.mesh_id_len;
-				break;
-#endif
-			default:
-				/* not reached */
-				WARN_ON(1);
-				break;
-			}
-		}
-	}
 
 	drv_bss_info_changed(local, sdata, &sdata->vif.bss_conf, changed);
 }
@@ -537,6 +471,7 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 
 	.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 				IEEE80211_HT_CAP_MAX_AMSDU |
+				IEEE80211_HT_CAP_SGI_20 |
 				IEEE80211_HT_CAP_SGI_40),
 	.mcs = {
 		.rx_mask = { 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -606,7 +541,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
 			   NL80211_FEATURE_SAE |
 			   NL80211_FEATURE_HT_IBSS |
-			   NL80211_FEATURE_VIF_TXPOWER;
+			   NL80211_FEATURE_VIF_TXPOWER |
+			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |

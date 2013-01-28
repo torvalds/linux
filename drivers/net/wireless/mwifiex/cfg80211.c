@@ -519,8 +519,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
  *      - Set by user
  *      - Set bt Country IE
  */
-static int mwifiex_reg_notifier(struct wiphy *wiphy,
-				struct regulatory_request *request)
+static void mwifiex_reg_notifier(struct wiphy *wiphy,
+				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
@@ -540,8 +540,6 @@ static int mwifiex_reg_notifier(struct wiphy *wiphy,
 		break;
 	}
 	mwifiex_send_domain_info_cmd_fw(wiphy);
-
-	return 0;
 }
 
 /*
@@ -1327,6 +1325,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	}
 
 	mwifiex_set_ht_params(priv, bss_cfg, params);
+	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
 	if (params->inactivity_timeout > 0) {
 		/* sta_ao_timer/ps_sta_ao_timer is in unit of 100ms */
@@ -1459,7 +1458,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
-	u8 is_scanning_required = 0, config_bands = 0;
+	u8 is_scanning_required = 0;
 
 	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
@@ -1477,19 +1476,6 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 
 	/* disconnect before try to associate */
 	mwifiex_deauthenticate(priv, NULL);
-
-	if (channel) {
-		if (mode == NL80211_IFTYPE_STATION) {
-			if (channel->band == IEEE80211_BAND_2GHZ)
-				config_bands = BAND_B | BAND_G | BAND_GN;
-			else
-				config_bands = BAND_A | BAND_AN;
-
-			if (!((config_bands | priv->adapter->fw_bands) &
-			      ~priv->adapter->fw_bands))
-				priv->adapter->config_bands = config_bands;
-		}
-	}
 
 	/* As this is new association, clear locally stored
 	 * keys and security related flags */
@@ -1707,7 +1693,7 @@ static int mwifiex_set_ibss_params(struct mwifiex_private *priv,
 
 		if (cfg80211_get_chandef_type(&params->chandef) !=
 						NL80211_CHAN_NO_HT)
-			config_bands |= BAND_GN;
+			config_bands |= BAND_G | BAND_GN;
 	} else {
 		if (cfg80211_get_chandef_type(&params->chandef) ==
 						NL80211_CHAN_NO_HT)
@@ -2260,6 +2246,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
+			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_CUSTOM_REGULATORY |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 

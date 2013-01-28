@@ -15,8 +15,6 @@
  */
 /* ***** SDIO interface chip backplane handle functions ***** */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mmc/card.h>

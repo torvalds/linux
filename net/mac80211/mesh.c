@@ -20,16 +20,11 @@
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
 
-#ifdef CONFIG_MAC80211_MESH
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
 {
 	return (mgmt->u.action.u.mesh_action.action_code ==
 			WLAN_MESH_ACTION_HWMP_PATH_SELECTION);
 }
-#else
-bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
-{ return false; }
-#endif
 
 void ieee80211s_init(void)
 {
@@ -607,6 +602,12 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
+	u32 changed = BSS_CHANGED_BEACON |
+		      BSS_CHANGED_BEACON_ENABLED |
+		      BSS_CHANGED_HT |
+		      BSS_CHANGED_BASIC_RATES |
+		      BSS_CHANGED_BEACON_INT;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -624,15 +625,16 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_queue_work(&local->hw, &sdata->work);
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
-	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
+	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(sdata->local,
-					  ieee80211_get_sdata_band(sdata));
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
-						BSS_CHANGED_BEACON_ENABLED |
-						BSS_CHANGED_HT |
-						BSS_CHANGED_BASIC_RATES |
-						BSS_CHANGED_BEACON_INT);
+		ieee80211_mandatory_rates(local, band);
+
+	if (band == IEEE80211_BAND_5GHZ) {
+		sdata->vif.bss_conf.use_short_slot = true;
+		changed |= BSS_CHANGED_ERP_SLOT;
+	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(sdata->dev);
 }
@@ -646,10 +648,12 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 
 	/* stop the beacon */
 	ifmsh->mesh_id_len = 0;
+	sdata->vif.bss_conf.enable_beacon = false;
+	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
 	/* flush STAs and mpaths on this iface */
-	sta_info_flush(sdata->local, sdata);
+	sta_info_flush(sdata);
 	mesh_path_flush_by_iface(sdata);
 
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
@@ -805,6 +809,7 @@ void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	static u8 zero_addr[ETH_ALEN] = {};
 
 	setup_timer(&ifmsh->housekeeping_timer,
 		    ieee80211_mesh_housekeeping_timer,
@@ -830,4 +835,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
 	spin_lock_init(&ifmsh->sync_offset_lock);
+
+	sdata->vif.bss_conf.bssid = zero_addr;
 }
