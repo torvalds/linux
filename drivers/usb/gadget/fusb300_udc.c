@@ -938,25 +938,22 @@ IDMA_RESET:
 static void  fusb300_set_idma(struct fusb300_ep *ep,
 			struct fusb300_request *req)
 {
-	dma_addr_t d;
+	int ret;
 
-	d = dma_map_single(NULL, req->req.buf, req->req.length, DMA_TO_DEVICE);
-
-	if (dma_mapping_error(NULL, d)) {
-		printk(KERN_DEBUG "dma_mapping_error\n");
+	ret = usb_gadget_map_request(&ep->fusb300->gadget,
+			&req->req, DMA_TO_DEVICE);
+	if (ret)
 		return;
-	}
-
-	dma_sync_single_for_device(NULL, d, req->req.length, DMA_TO_DEVICE);
 
 	fusb300_enable_bit(ep->fusb300, FUSB300_OFFSET_IGER0,
 		FUSB300_IGER0_EEPn_PRD_INT(ep->epnum));
 
-	fusb300_fill_idma_prdtbl(ep, d, req->req.length);
+	fusb300_fill_idma_prdtbl(ep, req->req.dma, req->req.length);
 	/* check idma is done */
 	fusb300_wait_idma_finished(ep);
 
-	dma_unmap_single(NULL, d, req->req.length, DMA_TO_DEVICE);
+	usb_gadget_unmap_request(&ep->fusb300->gadget,
+			&req->req, DMA_TO_DEVICE);
 }
 
 static void in_ep_fifo_handler(struct fusb300_ep *ep)
