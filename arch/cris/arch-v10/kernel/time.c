@@ -55,9 +55,9 @@ unsigned long get_ns_in_jiffie(void)
 	return ns;
 }
 
-unsigned long do_slow_gettimeoffset(void)
+static u32 cris_v10_gettimeoffset(void)
 {
-	unsigned long count;
+	u32 count;
 
 	/* The timer interrupt comes from Etrax timer 0. In order to get
 	 * better precision, we check the current value. It might have
@@ -65,8 +65,8 @@ unsigned long do_slow_gettimeoffset(void)
 	 */
 	count = *R_TIMER0_DATA;
 
-	/* Convert timer value to usec */
-	return (TIMER0_DIV - count) * ((NSEC_PER_SEC/1000)/HZ)/TIMER0_DIV;
+	/* Convert timer value to nsec */
+	return (TIMER0_DIV - count) * (NSEC_PER_SEC/HZ)/TIMER0_DIV;
 }
 
 /* Excerpt from the Etrax100 HSDD about the built-in watchdog:
@@ -191,6 +191,8 @@ static struct irqaction irq2  = {
 void __init
 time_init(void)
 {	
+	arch_gettimeoffset = cris_v10_gettimeoffset;
+
 	/* probe for the RTC and read it if it exists 
 	 * Before the RTC can be probed the loops_per_usec variable needs 
 	 * to be initialized to make usleep work. A better value for 

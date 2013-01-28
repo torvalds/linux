@@ -43,7 +43,7 @@ extern unsigned long samsung_cpu_id;
 #define EXYNOS4_CPU_MASK	0xFFFE0000
 
 #define EXYNOS5250_SOC_ID	0x43520000
-#define EXYNOS5440_SOC_ID	0x54400000
+#define EXYNOS5440_SOC_ID	0xE5440000
 #define EXYNOS5_SOC_MASK	0xFFFFF000
 
 #define IS_SAMSUNG_CPU(name, id, mask)		\
@@ -194,8 +194,7 @@ extern void s3c24xx_init_uartdevs(char *name,
 
 /* timer for 2410/2440 */
 
-struct sys_timer;
-extern struct sys_timer s3c24xx_timer;
+extern void s3c24xx_timer_init(void);
 
 extern struct syscore_ops s3c2410_pm_syscore_ops;
 extern struct syscore_ops s3c2412_pm_syscore_ops;

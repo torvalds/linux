@@ -291,9 +291,8 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	kfree(cxt->przs);
 }
 
-static int __devinit ramoops_init_przs(struct device *dev,
-				       struct ramoops_context *cxt,
-				       phys_addr_t *paddr, size_t dump_mem_sz)
+static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
+			     phys_addr_t *paddr, size_t dump_mem_sz)
 {
 	int err = -ENOMEM;
 	int i;
@@ -336,10 +335,9 @@ fail_prz:
 	return err;
 }
 
-static int __devinit ramoops_init_prz(struct device *dev,
-				      struct ramoops_context *cxt,
-				      struct persistent_ram_zone **prz,
-				      phys_addr_t *paddr, size_t sz, u32 sig)
+static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
+			    struct persistent_ram_zone **prz,
+			    phys_addr_t *paddr, size_t sz, u32 sig)
 {
 	if (!sz)
 		return 0;
@@ -367,7 +365,7 @@ static int __devinit ramoops_init_prz(struct device *dev,
 	return 0;
 }
 
-static int __devinit ramoops_probe(struct platform_device *pdev)
+static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;

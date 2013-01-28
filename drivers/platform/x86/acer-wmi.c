@@ -335,7 +335,7 @@ static struct quirk_entry quirk_lenovo_ideapad_s205 = {
 };
 
 /* The Aspire One has a dummy ACPI-WMI interface - disable it */
-static struct dmi_system_id __devinitdata acer_blacklist[] = {
+static struct dmi_system_id acer_blacklist[] = {
 	{
 		.ident = "Acer Aspire One (SSD)",
 		.matches = {
@@ -1330,7 +1330,7 @@ static struct led_classdev mail_led = {
 	.brightness_set = mail_led_set,
 };
 
-static int __devinit acer_led_init(struct device *dev)
+static int acer_led_init(struct device *dev)
 {
 	return led_classdev_register(dev, &mail_led);
 }
@@ -1372,7 +1372,7 @@ static const struct backlight_ops acer_bl_ops = {
 	.update_status = update_bl_status,
 };
 
-static int __devinit acer_backlight_init(struct device *dev)
+static int acer_backlight_init(struct device *dev)
 {
 	struct backlight_properties props;
 	struct backlight_device *bd;
@@ -1961,7 +1961,7 @@ static u32 get_wmid_devices(void)
 /*
  * Platform device
  */
-static int __devinit acer_platform_probe(struct platform_device *device)
+static int acer_platform_probe(struct platform_device *device)
 {
 	int err;
 

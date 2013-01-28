@@ -72,7 +72,7 @@ DT_MACHINE_START(ORION5X_DT, "Marvell Orion5x (Flattened Device Tree)")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion_dt_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.init_machine	= orion5x_dt_init,
 	.restart	= orion5x_restart,
 	.dt_compat	= orion5x_dt_compat,

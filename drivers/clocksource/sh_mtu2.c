@@ -321,7 +321,7 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 	return ret;
 }
 
-static int __devinit sh_mtu2_probe(struct platform_device *pdev)
+static int sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
 	struct sh_timer_config *cfg = pdev->dev.platform_data;
@@ -362,14 +362,14 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit sh_mtu2_remove(struct platform_device *pdev)
+static int sh_mtu2_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent */
 }
 
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
-	.remove		= __devexit_p(sh_mtu2_remove),
+	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
 	}

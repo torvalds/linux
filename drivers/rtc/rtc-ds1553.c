@@ -276,7 +276,7 @@ static struct bin_attribute ds1553_nvram_attr = {
 	.write = ds1553_nvram_write,
 };
 
-static int __devinit ds1553_rtc_probe(struct platform_device *pdev)
+static int ds1553_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
@@ -338,7 +338,7 @@ static int __devinit ds1553_rtc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit ds1553_rtc_remove(struct platform_device *pdev)
+static int ds1553_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
@@ -354,7 +354,7 @@ MODULE_ALIAS("platform:rtc-ds1553");
 
 static struct platform_driver ds1553_rtc_driver = {
 	.probe		= ds1553_rtc_probe,
-	.remove		= __devexit_p(ds1553_rtc_remove),
+	.remove		= ds1553_rtc_remove,
 	.driver		= {
 		.name	= "rtc-ds1553",
 		.owner	= THIS_MODULE,

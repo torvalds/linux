@@ -1230,7 +1230,7 @@ static int cyber2000fb_ddc_getsda(void *data)
 	return retval;
 }
 
-static int __devinit cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
+static int cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
 {
 	strlcpy(cfb->ddc_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->ddc_adapter.name));
@@ -1305,7 +1305,7 @@ static int cyber2000fb_i2c_getscl(void *data)
 	return ret;
 }
 
-static int __devinit cyber2000fb_i2c_register(struct cfb_info *cfb)
+static int cyber2000fb_i2c_register(struct cfb_info *cfb)
 {
 	strlcpy(cfb->i2c_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->i2c_adapter.name));
@@ -1336,7 +1336,7 @@ static void cyber2000fb_i2c_unregister(struct cfb_info *cfb)
  * These parameters give
  * 640x480, hsync 31.5kHz, vsync 60Hz
  */
-static struct fb_videomode __devinitdata cyber2000fb_default_mode = {
+static struct fb_videomode cyber2000fb_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -1404,8 +1404,7 @@ static void cyberpro_init_hw(struct cfb_info *cfb)
 	}
 }
 
-static struct cfb_info __devinit *cyberpro_alloc_fb_info(unsigned int id,
-							 char *name)
+static struct cfb_info *cyberpro_alloc_fb_info(unsigned int id, char *name)
 {
 	struct cfb_info *cfb;
 
@@ -1524,7 +1523,7 @@ static int cyber2000fb_setup(char *options)
  *  - memory mapped access to the registers
  *  - initialised mem_ctl1 and mem_ctl2 appropriately.
  */
-static int __devinit cyberpro_common_probe(struct cfb_info *cfb)
+static int cyberpro_common_probe(struct cfb_info *cfb)
 {
 	u_long smem_size;
 	u_int h_sync, v_sync;
@@ -1615,7 +1614,7 @@ failed:
 	return err;
 }
 
-static void __devexit cyberpro_common_remove(struct cfb_info *cfb)
+static void cyberpro_common_remove(struct cfb_info *cfb)
 {
 	unregister_framebuffer(&cfb->fb);
 #ifdef CONFIG_FB_CYBER2000_DDC
@@ -1646,7 +1645,7 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
 
 #include <mach/framebuffer.h>
 
-static int __devinit cyberpro_vl_probe(void)
+static int cyberpro_vl_probe(void)
 {
 	struct cfb_info *cfb;
 	int err = -ENOMEM;
@@ -1780,8 +1779,8 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	return 0;
 }
 
-static int __devinit
-cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int cyberpro_pci_probe(struct pci_dev *dev,
+			      const struct pci_device_id *id)
 {
 	struct cfb_info *cfb;
 	char name[16];
@@ -1863,7 +1862,7 @@ failed_release:
 	return err;
 }
 
-static void __devexit cyberpro_pci_remove(struct pci_dev *dev)
+static void cyberpro_pci_remove(struct pci_dev *dev)
 {
 	struct cfb_info *cfb = pci_get_drvdata(dev);
 
@@ -1923,7 +1922,7 @@ MODULE_DEVICE_TABLE(pci, cyberpro_pci_table);
 static struct pci_driver cyberpro_driver = {
 	.name		= "CyberPro",
 	.probe		= cyberpro_pci_probe,
-	.remove		= __devexit_p(cyberpro_pci_remove),
+	.remove		= cyberpro_pci_remove,
 	.suspend	= cyberpro_pci_suspend,
 	.resume		= cyberpro_pci_resume,
 	.id_table	= cyberpro_pci_table

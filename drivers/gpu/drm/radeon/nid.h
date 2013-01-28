@@ -65,7 +65,7 @@
 #define		SOFT_RESET_VMC				(1 << 17)
 #define		SOFT_RESET_DMA				(1 << 20)
 #define		SOFT_RESET_TST				(1 << 21)
-#define		SOFT_RESET_REGBB		       	(1 << 22)
+#define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
 #define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
@@ -675,4 +675,3 @@
 #define	DMA_PACKET_NOP					  0xf
 
 #endif
-

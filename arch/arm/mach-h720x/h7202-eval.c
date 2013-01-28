@@ -74,7 +74,7 @@ MACHINE_START(H7202, "Hynix HMS30C7202")
 	.atag_offset	= 0x100,
 	.map_io		= h720x_map_io,
 	.init_irq	= h7202_init_irq,
-	.timer		= &h7202_timer,
+	.init_time	= h7202_timer_init,
 	.init_machine	= init_eval_h7202,
 	.dma_zone_size	= SZ_256M,
 	.restart	= h720x_restart,

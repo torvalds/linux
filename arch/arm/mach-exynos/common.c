@@ -22,12 +22,13 @@
 #include <linux/of_irq.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/cacheflush.h>
@@ -424,11 +425,18 @@ static void __init exynos5_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
 
+	/* EXYNOS5440 can support only common clock framework */
+
+	if (soc_is_exynos5440())
+		return;
+
+#ifdef CONFIG_SOC_EXYNOS5250
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
 
 	exynos5_register_clocks();
 	exynos5_setup_clocks();
+#endif
 }
 
 #define COMBINER_ENABLE_SET	0x0
@@ -637,8 +645,6 @@ static int __init combiner_of_init(struct device_node *np,
 }
 
 static const struct of_device_id exynos_dt_irq_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ .compatible = "samsung,exynos4210-combiner",
 			.data = combiner_of_init, },
 	{},
@@ -654,8 +660,10 @@ void __init exynos4_init_irq(void)
 	if (!of_have_populated_dt())
 		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
 #ifdef CONFIG_OF
-	else
+	else {
+		irqchip_init();
 		of_irq_init(exynos_dt_irq_match);
+	}
 #endif
 
 	if (!of_have_populated_dt())
@@ -672,6 +680,7 @@ void __init exynos4_init_irq(void)
 void __init exynos5_init_irq(void)
 {
 #ifdef CONFIG_OF
+	irqchip_init();
 	of_irq_init(exynos_dt_irq_match);
 #endif
 	/*

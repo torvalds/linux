@@ -29,7 +29,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/irq.h>
@@ -291,9 +290,8 @@ MACHINE_START(SMDK6450, "SMDK6450")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s5p6450_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6450_map_io,
 	.init_machine	= smdk6450_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.restart	= s5p64x0_restart,
 MACHINE_END

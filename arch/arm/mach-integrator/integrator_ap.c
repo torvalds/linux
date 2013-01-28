@@ -425,7 +425,7 @@ void __init ap_init_early(void)
 
 #ifdef CONFIG_OF
 
-static void __init ap_init_timer_of(void)
+static void __init ap_of_timer_init(void)
 {
 	struct device_node *node;
 	const char *path;
@@ -463,10 +463,6 @@ static void __init ap_init_timer_of(void)
 	writel(0, base + TIMER_CTRL);
 	integrator_clockevent_init(rate, base, irq);
 }
-
-static struct sys_timer ap_of_timer = {
-	.init		= ap_init_timer_of,
-};
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
 	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
@@ -586,7 +582,7 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &ap_of_timer,
+	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = ap_dt_board_compat,
@@ -638,7 +634,7 @@ static struct platform_device cfi_flash_device = {
 	.resource	= &cfi_flash_resource,
 };
 
-static void __init ap_init_timer(void)
+static void __init ap_timer_init(void)
 {
 	struct clk *clk;
 	unsigned long rate;
@@ -656,10 +652,6 @@ static void __init ap_init_timer(void)
 	integrator_clockevent_init(rate, (void __iomem *)TIMER1_VA_BASE,
 				IRQ_TIMERINT1);
 }
-
-static struct sys_timer ap_timer = {
-	.init		= ap_init_timer,
-};
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
@@ -716,7 +708,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &ap_timer,
+	.init_time	= ap_timer_init,
 	.init_machine	= ap_init,
 	.restart	= integrator_restart,
 MACHINE_END

@@ -68,7 +68,7 @@ config SCTP_DBG_OBJCNT
 	  If unsure, say N
 choice
 	prompt "Default SCTP cookie HMAC encoding"
-	default SCTP_COOKIE_HMAC_MD5
+	default SCTP_DEFAULT_COOKIE_HMAC_MD5
 	help
 	  This option sets the default sctp cookie hmac algorithm
 	  when in doubt select 'md5'

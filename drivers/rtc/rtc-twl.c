@@ -458,7 +458,7 @@ static struct rtc_class_ops twl_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit twl_rtc_probe(struct platform_device *pdev)
+static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	int ret = -EINVAL;
@@ -535,7 +535,7 @@ out1:
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int __devexit twl_rtc_remove(struct platform_device *pdev)
+static int twl_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -597,7 +597,7 @@ MODULE_ALIAS("platform:twl_rtc");
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= __devexit_p(twl_rtc_remove),
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.suspend	= twl_rtc_suspend,
 	.resume		= twl_rtc_resume,

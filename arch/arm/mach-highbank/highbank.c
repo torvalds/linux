@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -32,7 +33,6 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -66,12 +66,6 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
 }
 
-const static struct of_device_id irq_match[] = {
-	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
-
 #ifdef CONFIG_CACHE_L2X0
 static void highbank_l2x0_disable(void)
 {
@@ -82,7 +76,7 @@ static void highbank_l2x0_disable(void)
 
 static void __init highbank_init_irq(void)
 {
-	of_irq_init(irq_match);
+	irqchip_init();
 
 	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
 		highbank_scu_map_io();
@@ -129,13 +123,9 @@ static void __init highbank_timer_init(void)
 	arch_timer_sched_clock_init();
 }
 
-static struct sys_timer highbank_timer = {
-	.init = highbank_timer_init,
-};
-
 static void highbank_power_off(void)
 {
-	hignbank_set_pwr_shutdown();
+	highbank_set_pwr_shutdown();
 
 	while (1)
 		cpu_do_idle();
@@ -209,8 +199,7 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.smp		= smp_ops(highbank_smp_ops),
 	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
-	.timer		= &highbank_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
 	.restart	= highbank_restart,

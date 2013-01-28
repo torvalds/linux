@@ -498,8 +498,7 @@ static struct crypto_alg geode_ecb_alg = {
 	}
 };
 
-static void __devexit
-geode_aes_remove(struct pci_dev *dev)
+static void geode_aes_remove(struct pci_dev *dev)
 {
 	crypto_unregister_alg(&geode_alg);
 	crypto_unregister_alg(&geode_ecb_alg);
@@ -513,8 +512,7 @@ geode_aes_remove(struct pci_dev *dev)
 }
 
 
-static int __devinit
-geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int ret;
 	ret = pci_enable_device(dev);
@@ -582,7 +580,7 @@ static struct pci_driver geode_aes_driver = {
 	.name = "Geode LX AES",
 	.id_table = geode_aes_tbl,
 	.probe = geode_aes_probe,
-	.remove = __devexit_p(geode_aes_remove)
+	.remove = geode_aes_remove,
 };
 
 module_pci_driver(geode_aes_driver);

@@ -171,8 +171,7 @@ static struct regmap_config retu_config = {
 	.val_bits = 16,
 };
 
-static int __devinit retu_probe(struct i2c_client *i2c,
-				const struct i2c_device_id *id)
+static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct retu_dev *rdev;
 	int ret;
@@ -225,7 +224,7 @@ static int __devinit retu_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int __devexit retu_remove(struct i2c_client *i2c)
+static int retu_remove(struct i2c_client *i2c)
 {
 	struct retu_dev *rdev = i2c_get_clientdata(i2c);
 

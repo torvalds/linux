@@ -1785,6 +1785,7 @@ sys_call_table:
 	data8 sys_process_vm_readv
 	data8 sys_process_vm_writev
 	data8 sys_accept4
+	data8 sys_finit_module			// 1335
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
 #endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

@@ -218,7 +218,7 @@ MACHINE_START(TTC_DKB, "PXA910-based TTC_DKB Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= TTCDKB_NR_IRQS,
 	.init_irq       = pxa910_init_irq,
-	.timer          = &pxa910_timer,
+	.init_time	= pxa910_timer_init,
 	.init_machine   = ttc_dkb_init,
 	.restart	= mmp_restart,
 MACHINE_END

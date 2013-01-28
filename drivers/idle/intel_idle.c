@@ -506,7 +506,7 @@ static int intel_idle_cpuidle_driver_init(void)
 			if (*cpuidle_state_table[cstate].name == '\0')
 				pr_debug(PREFIX "unaware of model 0x%x"
 					" MWAIT %d please"
-					" contact lenb@kernel.org",
+					" contact lenb@kernel.org\n",
 				boot_cpu_data.x86_model, cstate);
 			continue;
 		}
