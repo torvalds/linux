@@ -568,6 +568,20 @@ xfs_calc_qm_setqlim_reservation(
 }
 
 /*
+ * Allocating quota on disk if needed.
+ *	the write transaction log space: XFS_WRITE_LOG_RES(mp)
+ *	the unit of quota allocation: one system block size
+ */
+STATIC uint
+xfs_calc_qm_dqalloc_reservation(
+	struct xfs_mount	*mp)
+{
+	return XFS_WRITE_LOG_RES(mp) +
+		xfs_calc_buf_res(1,
+			XFS_FSB_TO_B(mp, XFS_DQUOT_CLUSTER_SIZE_FSB) - 1);
+}
+
+/*
  * Initialize the precomputed transaction reservation values
  * in the mount structure.
  */
@@ -600,6 +614,7 @@ xfs_trans_init(
 	resp->tr_growrtfree = xfs_calc_growrtfree_reservation(mp);
 	resp->tr_qm_sbchange = xfs_calc_qm_sbchange_reservation(mp);
 	resp->tr_qm_setqlim = xfs_calc_qm_setqlim_reservation(mp);
+	resp->tr_qm_dqalloc = xfs_calc_qm_dqalloc_reservation(mp);
 }
 
 /*
