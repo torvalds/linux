@@ -160,13 +160,10 @@ void ext4_add_complete_io(ext4_io_end_t *io_end)
 static int ext4_do_flush_completed_IO(struct inode *inode)
 {
 	ext4_io_end_t *io;
-	struct list_head unwritten, complete, to_free;
+	struct list_head unwritten;
 	unsigned long flags;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	int err, ret = 0;
-
-	INIT_LIST_HEAD(&complete);
-	INIT_LIST_HEAD(&to_free);
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	dump_completed_IO(inode);
@@ -181,20 +178,7 @@ static int ext4_do_flush_completed_IO(struct inode *inode)
 		err = ext4_end_io(io);
 		if (unlikely(!ret && err))
 			ret = err;
-
-		list_add_tail(&io->list, &complete);
-	}
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	while (!list_empty(&complete)) {
-		io = list_entry(complete.next, ext4_io_end_t, list);
 		io->flag &= ~EXT4_IO_END_UNWRITTEN;
-		list_move(&io->list, &to_free);
-	}
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-
-	while (!list_empty(&to_free)) {
-		io = list_entry(to_free.next, ext4_io_end_t, list);
-		list_del_init(&io->list);
 		ext4_free_io_end(io);
 	}
 	return ret;
