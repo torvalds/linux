@@ -1334,8 +1334,8 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	else
 	{
 		printk(KERN_WARNING "no display device on lcdc%d!?\n",lcdc_dev->id);
-		ret =  -ENODEV;
-		goto err4;
+		ret = -ENODEV;
+		goto err3;
 	}
 
 	init_waitqueue_head(&lcdc_dev->vsync_info.wait);
@@ -1359,12 +1359,13 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 		dev_err(dev,"register fb for lcdc%d failed!\n",lcdc_dev->id);
 		goto err4;
 	}
+	
 	printk("rk3188 lcdc%d probe ok!\n",lcdc_dev->id);
 	
 	return 0;
 
 err4:
-	free_irq(lcdc_dev->irq,lcdc_dev);
+	device_remove_file(&pdev->dev, &dev_attr_vsync);
 err3:
 	iounmap(lcdc_dev->regs);
 err2:
@@ -1373,8 +1374,7 @@ err1:
 	kfree(screen);
 err0:
 	platform_set_drvdata(pdev, NULL);
-	kfree(lcdc_dev);
-	
+
 	return ret;
 }
 
