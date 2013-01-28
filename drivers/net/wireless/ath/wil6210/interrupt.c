@@ -390,6 +390,8 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	if (wil6210_debug_irq_mask(wil, pseudo_cause))
 		return IRQ_NONE;
 
+	wil_dbg_IRQ(wil, "Pseudo IRQ 0x%08x\n", pseudo_cause);
+
 	wil6210_mask_irq_pseudo(wil);
 
 	/* Discover real IRQ cause
@@ -420,8 +422,6 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	/* if thread is requested, it will unmask IRQ */
 	if (rc != IRQ_WAKE_THREAD)
 		wil6210_unmask_irq_pseudo(wil);
-
-	wil_dbg_IRQ(wil, "Hard IRQ 0x%08x\n", pseudo_cause);
 
 	return rc;
 }
