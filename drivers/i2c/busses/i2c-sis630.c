@@ -81,6 +81,21 @@
 #define SMB_COUNT		0x07	/* byte count */
 #define SMB_BYTE		0x08	/* ~0x8F data byte field */
 
+/* SMB_STS register */
+#define BYTE_DONE_STS		0x10	/* Byte Done Status / Block Array */
+#define SMBCOL_STS		0x04	/* Collision */
+#define SMBERR_STS		0x02	/* Device error */
+
+/* SMB_CNT register */
+#define MSTO_EN			0x40	/* Host Master Timeout Enable */
+#define SMBCLK_SEL		0x20	/* Host master clock selection */
+#define SMB_PROBE		0x02	/* Bus Probe/Slave busy */
+#define SMB_HOSTBUSY		0x01	/* Host Busy */
+
+/* SMBHOST_CNT register */
+#define SMB_KILL		0x20	/* Kill */
+#define SMB_START		0x10	/* Start */
+
 /* register count for request_region
  * As we don't use SMB_PCOUNT, 20 is ok for SiS630 and SiS964
  */
@@ -140,12 +155,14 @@ static int sis630_transaction_start(struct i2c_adapter *adap, int size, u8 *oldc
         int temp;
 
 	/* Make sure the SMBus host is ready to start transmitting. */
-	if ((temp = sis630_read(SMB_CNT) & 0x03) != 0x00) {
-		dev_dbg(&adap->dev, "SMBus busy (%02x).Resetting...\n",temp);
+	temp = sis630_read(SMB_CNT);
+	if ((temp & (SMB_PROBE | SMB_HOSTBUSY)) != 0x00) {
+		dev_dbg(&adap->dev, "SMBus busy (%02x). Resetting...\n", temp);
 		/* kill smbus transaction */
-		sis630_write(SMBHOST_CNT, 0x20);
+		sis630_write(SMBHOST_CNT, SMB_KILL);
 
-		if ((temp = sis630_read(SMB_CNT) & 0x03) != 0x00) {
+		temp = sis630_read(SMB_CNT);
+		if (temp & (SMB_PROBE | SMB_HOSTBUSY)) {
 			dev_dbg(&adap->dev, "Failed! (%02x)\n", temp);
 			return -EBUSY;
                 } else {
@@ -160,16 +177,16 @@ static int sis630_transaction_start(struct i2c_adapter *adap, int size, u8 *oldc
 
 	/* disable timeout interrupt , set Host Master Clock to 56KHz if requested */
 	if (high_clock)
-		sis630_write(SMB_CNT, 0x20);
+		sis630_write(SMB_CNT, SMBCLK_SEL);
 	else
-		sis630_write(SMB_CNT, (*oldclock & ~0x40));
+		sis630_write(SMB_CNT, (*oldclock & ~MSTO_EN));
 
 	/* clear all sticky bits */
 	temp = sis630_read(SMB_STS);
 	sis630_write(SMB_STS, temp & 0x1e);
 
 	/* start the transaction by setting bit 4 and size */
-	sis630_write(SMBHOST_CNT,0x10 | (size & 0x07));
+	sis630_write(SMBHOST_CNT, SMB_START | (size & 0x07));
 
 	return 0;
 }
@@ -183,7 +200,7 @@ static int sis630_transaction_wait(struct i2c_adapter *adap, int size)
 		msleep(1);
 		temp = sis630_read(SMB_STS);
 		/* check if block transmitted */
-		if (size == SIS630_BLOCK_DATA && (temp & 0x10))
+		if (size == SIS630_BLOCK_DATA && (temp & BYTE_DONE_STS))
 			break;
 	} while (!(temp & 0x0e) && (timeout++ < MAX_TIMEOUT));
 
@@ -193,12 +210,12 @@ static int sis630_transaction_wait(struct i2c_adapter *adap, int size)
 		result = -ETIMEDOUT;
 	}
 
-	if (temp & 0x02) {
+	if (temp & SMBERR_STS) {
 		dev_dbg(&adap->dev, "Error: Failed bus transaction\n");
 		result = -ENXIO;
 	}
 
-	if (temp & 0x04) {
+	if (temp & SMBCOL_STS) {
 		dev_err(&adap->dev, "Bus collision!\n");
 		result = -EAGAIN;
 	}
@@ -217,8 +234,8 @@ static void sis630_transaction_end(struct i2c_adapter *adap, u8 oldclock)
 	 * restore old Host Master Clock if high_clock is set
 	 * and oldclock was not 56KHz
 	 */
-	if (high_clock && !(oldclock & 0x20))
-		sis630_write(SMB_CNT,(sis630_read(SMB_CNT) & ~0x20));
+	if (high_clock && !(oldclock & SMBCLK_SEL))
+		sis630_write(SMB_CNT, sis630_read(SMB_CNT) & ~SMBCLK_SEL);
 
 	dev_dbg(&adap->dev, "SMB_CNT after clock restore 0x%02x\n", sis630_read(SMB_CNT));
 }
@@ -270,7 +287,7 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 					   we must clear sticky bit.
 					   clear SMBARY_STS
 					*/
-					sis630_write(SMB_STS,0x10);
+					sis630_write(SMB_STS, BYTE_DONE_STS);
 				}
 				rc = sis630_transaction_wait(adap,
 						SIS630_BLOCK_DATA);
@@ -312,7 +329,7 @@ static int sis630_block_data(struct i2c_adapter *adap, union i2c_smbus_data *dat
 			dev_dbg(&adap->dev, "clear smbary_sts len=%d i=%d\n",len,i);
 
 			/* clear SMBARY_STS */
-			sis630_write(SMB_STS,0x10);
+			sis630_write(SMB_STS, BYTE_DONE_STS);
 		} while(len < data->block[0]);
 	}
 
