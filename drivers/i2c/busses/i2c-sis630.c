@@ -200,12 +200,7 @@ static int sis630_transaction_wait(struct i2c_adapter *adap, int size)
 
 	if (temp & 0x04) {
 		dev_err(&adap->dev, "Bus collision!\n");
-		result = -EIO;
-		/*
-		  TBD: Datasheet say:
-		  the software should clear this bit and restart SMBUS operation.
-		  Should we do it or user start request again?
-		*/
+		result = -EAGAIN;
 	}
 
 	return result;
