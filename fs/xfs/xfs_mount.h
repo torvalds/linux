@@ -44,6 +44,7 @@ typedef struct xfs_trans_reservations {
 	uint	tr_qm_setqlim;	/* adjust quota limits */
 	uint	tr_qm_dqalloc;	/* allocate quota on disk */
 	uint	tr_qm_quotaoff;	/* turn quota off */
+	uint	tr_qm_equotaoff;/* end of turn quota off */
 } xfs_trans_reservations_t;
 
 #ifndef __KERNEL__

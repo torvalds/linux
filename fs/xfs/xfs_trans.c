@@ -595,6 +595,17 @@ xfs_calc_qm_quotaoff_reservation(
 }
 
 /*
+ * End of turning off quotas.
+ *    the xfs_qoff_logitem_t: sizeof(struct xfs_qoff_logitem) * 2
+ */
+STATIC uint
+xfs_calc_qm_quotaoff_end_reservation(
+	struct xfs_mount	*mp)
+{
+	return sizeof(struct xfs_qoff_logitem) * 2;
+}
+
+/*
  * Initialize the precomputed transaction reservation values
  * in the mount structure.
  */
@@ -629,6 +640,7 @@ xfs_trans_init(
 	resp->tr_qm_setqlim = xfs_calc_qm_setqlim_reservation(mp);
 	resp->tr_qm_dqalloc = xfs_calc_qm_dqalloc_reservation(mp);
 	resp->tr_qm_quotaoff = xfs_calc_qm_quotaoff_reservation(mp);
+	resp->tr_qm_equotaoff = xfs_calc_qm_quotaoff_end_reservation(mp);
 }
 
 /*
