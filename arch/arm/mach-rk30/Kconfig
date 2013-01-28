@@ -124,6 +124,10 @@ config MACH_RK3168_LR097
 config MACH_RK3168_DS1006H
 	bool "RK3168 DS1006h Board"
 
+config MACH_RK3168_86V
+	bool "RK3168 86V Board"
+
+
 endchoice
 endif
 
