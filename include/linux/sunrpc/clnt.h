@@ -263,7 +263,9 @@ static inline bool __rpc_copy_addr6(struct sockaddr *dst,
  * @sap1: first sockaddr
  * @sap2: second sockaddr
  *
- * Just compares the family and address portion. Ignores port, scope, etc.
+ * Just compares the family and address portion. Ignores port, but
+ * compares the scope if it's a link-local address.
+ *
  * Returns true if the addrs are equal, false if they aren't.
  */
 static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
