@@ -65,7 +65,7 @@ nfsd_reply_cache_alloc(void)
 static void
 nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 {
-	if (rp->c_state == RC_DONE && rp->c_type == RC_REPLBUFF)
+	if (rp->c_type == RC_REPLBUFF)
 		kfree(rp->c_replvec.iov_base);
 	list_del(&rp->c_lru);
 	kmem_cache_free(drc_slab, rp);
