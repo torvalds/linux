@@ -26,6 +26,7 @@
 static struct hlist_head *	cache_hash;
 static struct list_head 	lru_head;
 static int			cache_disabled = 1;
+static struct kmem_cache	*drc_slab;
 
 /*
  * Calculate the hash index from an XID.
@@ -51,10 +52,15 @@ int nfsd_reply_cache_init(void)
 	struct svc_cacherep	*rp;
 	int			i;
 
+	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
+					0, 0, NULL);
+	if (!drc_slab)
+		goto out_nomem;
+
 	INIT_LIST_HEAD(&lru_head);
 	i = CACHESIZE;
 	while (i) {
-		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
+		rp = kmem_cache_alloc(drc_slab, GFP_KERNEL);
 		if (!rp)
 			goto out_nomem;
 		list_add(&rp->c_lru, &lru_head);
@@ -85,13 +91,18 @@ void nfsd_reply_cache_shutdown(void)
 		if (rp->c_state == RC_DONE && rp->c_type == RC_REPLBUFF)
 			kfree(rp->c_replvec.iov_base);
 		list_del(&rp->c_lru);
-		kfree(rp);
+		kmem_cache_free(drc_slab, rp);
 	}
 
 	cache_disabled = 1;
 
 	kfree (cache_hash);
 	cache_hash = NULL;
+
+	if (drc_slab) {
+		kmem_cache_destroy(drc_slab);
+		drc_slab = NULL;
+	}
 }
 
 /*
