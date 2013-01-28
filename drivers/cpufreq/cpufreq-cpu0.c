@@ -182,7 +182,11 @@ static int cpu0_cpufreq_driver_init(void)
 	struct device_node *np;
 	int ret;
 
-	np = of_find_node_by_path("/cpus/cpu@0");
+	for_each_child_of_node(of_find_node_by_path("/cpus"), np) {
+		if (of_get_property(np, "operating-points", NULL))
+			break;
+	}
+
 	if (!np) {
 		pr_err("failed to find cpu0 node\n");
 		return -ENOENT;
