@@ -52,7 +52,6 @@
 
 static inline void wil_icr_clear(u32 x, void __iomem *addr)
 {
-
 }
 #else /* defined(CONFIG_WIL6210_ISR_COR) */
 /* configure to Write-1-to-Clear mode */

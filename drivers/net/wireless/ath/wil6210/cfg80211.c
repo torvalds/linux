@@ -204,7 +204,6 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		break;
 	default:
 		return -EOPNOTSUPP;
-
 	}
 
 	/* FW don't support scan after connection attempt */

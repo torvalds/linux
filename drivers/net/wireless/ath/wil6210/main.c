@@ -80,7 +80,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 					GFP_KERNEL);
 		break;
 	default:
-		;
+		break;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
@@ -357,7 +357,7 @@ static int __wil_up(struct wil6210_priv *wil)
 			wmi_set_channel(wil, channel->hw_value);
 		break;
 	default:
-		;
+		break;
 	}
 
 	/* MAC address - pre-requisite for other commands */

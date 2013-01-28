@@ -39,8 +39,8 @@ static const struct net_device_ops wil_netdev_ops = {
 	.ndo_open		= wil_open,
 	.ndo_stop		= wil_stop,
 	.ndo_start_xmit		= wil_start_xmit,
-	.ndo_set_mac_address    = eth_mac_addr,
-	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 void *wil_if_alloc(struct device *dev, void __iomem *csr)

@@ -758,8 +758,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	case -ENOMEM:
 		return NETDEV_TX_BUSY;
 	default:
-		; /* goto drop; */
-		break;
+		break; /* goto drop; */
 	}
  drop:
 	netif_tx_stop_all_queues(ndev);
