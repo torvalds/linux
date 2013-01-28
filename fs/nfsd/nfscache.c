@@ -142,6 +142,13 @@ hash_refile(struct svc_cacherep *rp)
 	hlist_add_head(&rp->c_hash, cache_hash + request_hash(rp->c_xid));
 }
 
+static inline bool
+nfsd_cache_entry_expired(struct svc_cacherep *rp)
+{
+	return rp->c_state != RC_INPROG &&
+	       time_after(jiffies, rp->c_timestamp + RC_EXPIRE);
+}
+
 /*
  * Try to find an entry matching the current call in the cache. When none
  * is found, we grab the oldest unlocked entry off the LRU list.
@@ -175,7 +182,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		if (rp->c_state != RC_UNUSED &&
 		    xid == rp->c_xid && proc == rp->c_proc &&
 		    proto == rp->c_prot && vers == rp->c_vers &&
-		    time_before(jiffies, rp->c_timestamp + 120*HZ) &&
+		    !nfsd_cache_entry_expired(rp) &&
 		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
 		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr)) {
 			nfsdstats.rchits++;

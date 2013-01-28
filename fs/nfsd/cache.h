@@ -70,6 +70,9 @@ enum {
  */
 #define RC_DELAY		(HZ/5)
 
+/* Cache entries expire after this time period */
+#define RC_EXPIRE		(120 * HZ)
+
 int	nfsd_reply_cache_init(void);
 void	nfsd_reply_cache_shutdown(void);
 int	nfsd_cache_lookup(struct svc_rqst *);
