@@ -39,8 +39,6 @@
 
 #include "s3c-hsotg.h"
 
-#define DMA_ADDR_INVALID (~((dma_addr_t)0))
-
 static const char * const s3c_hsotg_supply_names[] = {
 	"vusb_d",		/* digital USB supply, 1.2V */
 	"vusb_a",		/* analog USB supply, 1.1V */
@@ -405,7 +403,6 @@ static struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep,
 
 	INIT_LIST_HEAD(&req->queue);
 
-	req->req.dma = DMA_ADDR_INVALID;
 	return &req->req;
 }
 
@@ -435,24 +432,12 @@ static void s3c_hsotg_unmap_dma(struct s3c_hsotg *hsotg,
 				struct s3c_hsotg_req *hs_req)
 {
 	struct usb_request *req = &hs_req->req;
-	enum dma_data_direction dir;
-
-	dir = hs_ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
 	/* ignore this if we're not moving any data */
 	if (hs_req->req.length == 0)
 		return;
 
-	if (hs_req->mapped) {
-		/* we mapped this, so unmap and remove the dma */
-
-		dma_unmap_single(hsotg->dev, req->dma, req->length, dir);
-
-		req->dma = DMA_ADDR_INVALID;
-		hs_req->mapped = 0;
-	} else {
-		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
-	}
+	usb_gadget_unmap_request(&hsotg->gadget, hs_req, hs_ep->dir_in);
 }
 
 /**
@@ -852,37 +837,16 @@ static int s3c_hsotg_map_dma(struct s3c_hsotg *hsotg,
 			     struct s3c_hsotg_ep *hs_ep,
 			     struct usb_request *req)
 {
-	enum dma_data_direction dir;
 	struct s3c_hsotg_req *hs_req = our_req(req);
-
-	dir = hs_ep->dir_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	int ret;
 
 	/* if the length is zero, ignore the DMA data */
 	if (hs_req->req.length == 0)
 		return 0;
 
-	if (req->dma == DMA_ADDR_INVALID) {
-		dma_addr_t dma;
-
-		dma = dma_map_single(hsotg->dev, req->buf, req->length, dir);
-
-		if (unlikely(dma_mapping_error(hsotg->dev, dma)))
-			goto dma_error;
-
-		if (dma & 3) {
-			dev_err(hsotg->dev, "%s: unaligned dma buffer\n",
-				__func__);
-
-			dma_unmap_single(hsotg->dev, dma, req->length, dir);
-			return -EINVAL;
-		}
-
-		hs_req->mapped = 1;
-		req->dma = dma;
-	} else {
-		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
-		hs_req->mapped = 0;
-	}
+	ret = usb_gadget_map_request(&hsotg->gadget, req, hs_ep->dir_in);
+	if (ret)
+		goto dma_error;
 
 	return 0;
 
