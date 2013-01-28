@@ -2026,14 +2026,13 @@ int __init omap4xxx_clk_init(void)
 	 * On OMAP4460 the ABE DPLL fails to turn on if in idle low-power
 	 * state when turning the ABE clock domain. Workaround this by
 	 * locking the ABE DPLL on boot.
+	 * Lock the ABE DPLL in any case to avoid issues with audio.
 	 */
-	if (cpu_is_omap446x()) {
-		rc = clk_set_parent(&abe_dpll_refclk_mux_ck, &sys_32k_ck);
-		if (!rc)
-			rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
-		if (rc)
-			pr_err("%s: failed to configure ABE DPLL!\n", __func__);
-	}
+	rc = clk_set_parent(&abe_dpll_refclk_mux_ck, &sys_32k_ck);
+	if (!rc)
+		rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
+	if (rc)
+		pr_err("%s: failed to configure ABE DPLL!\n", __func__);
 
 	return 0;
 }

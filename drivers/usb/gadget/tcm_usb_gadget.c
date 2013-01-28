@@ -1794,9 +1794,10 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 	tpg->tpg_nexus = NULL;
 
 	kfree(tv_nexus);
+	ret = 0;
 out:
 	mutex_unlock(&tpg->tpg_mutex);
-	return 0;
+	return ret;
 }
 
 static ssize_t tcm_usbg_tpg_store_nexus(

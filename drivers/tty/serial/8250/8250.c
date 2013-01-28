@@ -300,6 +300,12 @@ static const struct serial8250_config uart_config[] = {
 				  UART_FCR_R_TRIG_00 | UART_FCR_T_TRIG_00,
 		.flags		= UART_CAP_FIFO,
 	},
+	[PORT_BRCM_TRUMANAGE] = {
+		.name		= "TruManage",
+		.fifo_size	= 1,
+		.tx_loadsz	= 1024,
+		.flags		= UART_CAP_HFIFO,
+	},
 	[PORT_8250_CIR] = {
 		.name		= "CIR port"
 	}
@@ -1490,6 +1496,11 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
 			break;
+		if (up->capabilities & UART_CAP_HFIFO) {
+			if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
+			    BOTH_EMPTY)
+				break;
+		}
 	} while (--count > 0);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)

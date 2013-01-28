@@ -503,7 +503,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	}
 
 	if (inode) {
-		inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+		inode->i_ctime = CURRENT_TIME;
 		drop_nlink(inode);
 		if (S_ISDIR(inode->i_mode)) {
 			drop_nlink(inode);

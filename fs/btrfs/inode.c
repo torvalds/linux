@@ -88,7 +88,7 @@ static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFLNK >> S_SHIFT]	= BTRFS_FT_SYMLINK,
 };
 
-static int btrfs_setsize(struct inode *inode, loff_t newsize);
+static int btrfs_setsize(struct inode *inode, struct iattr *attr);
 static int btrfs_truncate(struct inode *inode);
 static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 static noinline int cow_file_range(struct inode *inode,
@@ -2478,6 +2478,18 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
+
+			/* 1 for the orphan item deletion. */
+			trans = btrfs_start_transaction(root, 1);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
+			ret = btrfs_orphan_add(trans, inode);
+			btrfs_end_transaction(trans, root);
+			if (ret)
+				goto out;
+
 			ret = btrfs_truncate(inode);
 		} else {
 			nr_unlink++;
@@ -3665,6 +3677,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				block_end - cur_offset, 0);
 		if (IS_ERR(em)) {
 			err = PTR_ERR(em);
+			em = NULL;
 			break;
 		}
 		last_byte = min(extent_map_end(em), block_end);
@@ -3748,15 +3761,26 @@ next:
 	return err;
 }
 
-static int btrfs_setsize(struct inode *inode, loff_t newsize)
+static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	loff_t oldsize = i_size_read(inode);
+	loff_t newsize = attr->ia_size;
+	int mask = attr->ia_valid;
 	int ret;
 
 	if (newsize == oldsize)
 		return 0;
+
+	/*
+	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
+	 * special case where we need to update the times despite not having
+	 * these flags set.  For all other operations the VFS set these flags
+	 * explicitly if it wants a timestamp update.
+	 */
+	if (newsize != oldsize && (!(mask & (ATTR_CTIME | ATTR_MTIME))))
+		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
 
 	if (newsize > oldsize) {
 		truncate_pagecache(inode, oldsize, newsize);
@@ -3783,9 +3807,34 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 			set_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
 				&BTRFS_I(inode)->runtime_flags);
 
+		/*
+		 * 1 for the orphan item we're going to add
+		 * 1 for the orphan item deletion.
+		 */
+		trans = btrfs_start_transaction(root, 2);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
+		/*
+		 * We need to do this in case we fail at _any_ point during the
+		 * actual truncate.  Once we do the truncate_setsize we could
+		 * invalidate pages which forces any outstanding ordered io to
+		 * be instantly completed which will give us extents that need
+		 * to be truncated.  If we fail to get an orphan inode down we
+		 * could have left over extents that were never meant to live,
+		 * so we need to garuntee from this point on that everything
+		 * will be consistent.
+		 */
+		ret = btrfs_orphan_add(trans, inode);
+		btrfs_end_transaction(trans, root);
+		if (ret)
+			return ret;
+
 		/* we don't support swapfiles, so vmtruncate shouldn't fail */
 		truncate_setsize(inode, newsize);
 		ret = btrfs_truncate(inode);
+		if (ret && inode->i_nlink)
+			btrfs_orphan_del(NULL, inode);
 	}
 
 	return ret;
@@ -3805,7 +3854,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return err;
 
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-		err = btrfs_setsize(inode, attr->ia_size);
+		err = btrfs_setsize(inode, attr);
 		if (err)
 			return err;
 	}
@@ -5572,10 +5621,13 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 		return em;
 	if (em) {
 		/*
-		 * if our em maps to a hole, there might
-		 * actually be delalloc bytes behind it
+		 * if our em maps to
+		 * -  a hole or
+		 * -  a pre-alloc extent,
+		 * there might actually be delalloc bytes behind it.
 		 */
-		if (em->block_start != EXTENT_MAP_HOLE)
+		if (em->block_start != EXTENT_MAP_HOLE &&
+		    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			return em;
 		else
 			hole_em = em;
@@ -5657,6 +5709,8 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 			 */
 			em->block_start = hole_em->block_start;
 			em->block_len = hole_len;
+			if (test_bit(EXTENT_FLAG_PREALLOC, &hole_em->flags))
+				set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
 		} else {
 			em->start = range_start;
 			em->len = found;
@@ -6915,11 +6969,9 @@ static int btrfs_truncate(struct inode *inode)
 
 	/*
 	 * 1 for the truncate slack space
-	 * 1 for the orphan item we're going to add
-	 * 1 for the orphan item deletion
 	 * 1 for updating the inode.
 	 */
-	trans = btrfs_start_transaction(root, 4);
+	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto out;
@@ -6929,12 +6981,6 @@ static int btrfs_truncate(struct inode *inode)
 	ret = btrfs_block_rsv_migrate(&root->fs_info->trans_block_rsv, rsv,
 				      min_size);
 	BUG_ON(ret);
-
-	ret = btrfs_orphan_add(trans, inode);
-	if (ret) {
-		btrfs_end_transaction(trans, root);
-		goto out;
-	}
 
 	/*
 	 * setattr is responsible for setting the ordered_data_close flag,
@@ -7004,12 +7050,6 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_orphan_del(trans, inode);
 		if (ret)
 			err = ret;
-	} else if (ret && inode->i_nlink > 0) {
-		/*
-		 * Failed to do the truncate, remove us from the in memory
-		 * orphan list.
-		 */
-		ret = btrfs_orphan_del(NULL, inode);
 	}
 
 	if (trans) {
@@ -7531,38 +7571,58 @@ void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
  */
 int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 {
-	struct list_head *head = &root->fs_info->delalloc_inodes;
 	struct btrfs_inode *binode;
 	struct inode *inode;
 	struct btrfs_delalloc_work *work, *next;
 	struct list_head works;
+	struct list_head splice;
 	int ret = 0;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
 	INIT_LIST_HEAD(&works);
-
+	INIT_LIST_HEAD(&splice);
+again:
 	spin_lock(&root->fs_info->delalloc_lock);
-	while (!list_empty(head)) {
-		binode = list_entry(head->next, struct btrfs_inode,
+	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
+	while (!list_empty(&splice)) {
+		binode = list_entry(splice.next, struct btrfs_inode,
 				    delalloc_inodes);
+
+		list_del_init(&binode->delalloc_inodes);
+
 		inode = igrab(&binode->vfs_inode);
 		if (!inode)
-			list_del_init(&binode->delalloc_inodes);
+			continue;
+
+		list_add_tail(&binode->delalloc_inodes,
+			      &root->fs_info->delalloc_inodes);
 		spin_unlock(&root->fs_info->delalloc_lock);
-		if (inode) {
-			work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
-			if (!work) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			list_add_tail(&work->list, &works);
-			btrfs_queue_worker(&root->fs_info->flush_workers,
-					   &work->work);
+
+		work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
+		if (unlikely(!work)) {
+			ret = -ENOMEM;
+			goto out;
 		}
+		list_add_tail(&work->list, &works);
+		btrfs_queue_worker(&root->fs_info->flush_workers,
+				   &work->work);
+
 		cond_resched();
 		spin_lock(&root->fs_info->delalloc_lock);
+	}
+	spin_unlock(&root->fs_info->delalloc_lock);
+
+	list_for_each_entry_safe(work, next, &works, list) {
+		list_del_init(&work->list);
+		btrfs_wait_and_free_delalloc_work(work);
+	}
+
+	spin_lock(&root->fs_info->delalloc_lock);
+	if (!list_empty(&root->fs_info->delalloc_inodes)) {
+		spin_unlock(&root->fs_info->delalloc_lock);
+		goto again;
 	}
 	spin_unlock(&root->fs_info->delalloc_lock);
 
@@ -7578,10 +7638,17 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 		    atomic_read(&root->fs_info->async_delalloc_pages) == 0));
 	}
 	atomic_dec(&root->fs_info->async_submit_draining);
+	return 0;
 out:
 	list_for_each_entry_safe(work, next, &works, list) {
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
+	}
+
+	if (!list_empty_careful(&splice)) {
+		spin_lock(&root->fs_info->delalloc_lock);
+		list_splice_tail(&splice, &root->fs_info->delalloc_inodes);
+		spin_unlock(&root->fs_info->delalloc_lock);
 	}
 	return ret;
 }

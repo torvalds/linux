@@ -5817,6 +5817,9 @@ enum {
 	ALC269_TYPE_ALC269VB,
 	ALC269_TYPE_ALC269VC,
 	ALC269_TYPE_ALC269VD,
+	ALC269_TYPE_ALC280,
+	ALC269_TYPE_ALC282,
+	ALC269_TYPE_ALC284,
 };
 
 /*
@@ -5833,10 +5836,13 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	switch (spec->codec_variant) {
 	case ALC269_TYPE_ALC269VA:
 	case ALC269_TYPE_ALC269VC:
+	case ALC269_TYPE_ALC280:
+	case ALC269_TYPE_ALC284:
 		ssids = alc269va_ssids;
 		break;
 	case ALC269_TYPE_ALC269VB:
 	case ALC269_TYPE_ALC269VD:
+	case ALC269_TYPE_ALC282:
 		ssids = alc269_ssids;
 		break;
 	default:
@@ -6245,6 +6251,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0349, "Acer AOD260", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_MIC2_MUTE_LED),
 	SND_PCI_QUIRK(0x103c, 0x1972, "HP Pavilion 17", ALC269_FIXUP_MIC1_MUTE_LED),
+	SND_PCI_QUIRK(0x103c, 0x1977, "HP Pavilion 14", ALC269_FIXUP_MIC1_MUTE_LED),
 	SND_PCI_QUIRK(0x1043, 0x1427, "Asus Zenbook UX31E", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1517, "Asus Zenbook UX31A", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
@@ -6259,6 +6266,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK(0x1025, 0x0740, "Acer AO725", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0742, "Acer AO756", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK_VENDOR(0x1025, "Acer Aspire", ALC271_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x10cf, 0x1475, "Lifebook", ALC269_FIXUP_LIFEBOOK),
@@ -6400,7 +6408,8 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	if (codec->vendor_id == 0x10ec0269) {
+	switch (codec->vendor_id) {
+	case 0x10ec0269:
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
 		switch (alc_get_coef0(codec) & 0x00f0) {
 		case 0x0010:
@@ -6425,6 +6434,20 @@ static int patch_alc269(struct hda_codec *codec)
 			goto error;
 		spec->init_hook = alc269_fill_coef;
 		alc269_fill_coef(codec);
+		break;
+
+	case 0x10ec0280:
+	case 0x10ec0290:
+		spec->codec_variant = ALC269_TYPE_ALC280;
+		break;
+	case 0x10ec0282:
+	case 0x10ec0283:
+		spec->codec_variant = ALC269_TYPE_ALC282;
+		break;
+	case 0x10ec0284:
+	case 0x10ec0292:
+		spec->codec_variant = ALC269_TYPE_ALC284;
+		break;
 	}
 
 	/* automatic parse from the BIOS config */
@@ -7129,6 +7152,7 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0280, .name = "ALC280", .patch = patch_alc269 },
 	{ .id = 0x10ec0282, .name = "ALC282", .patch = patch_alc269 },
 	{ .id = 0x10ec0283, .name = "ALC283", .patch = patch_alc269 },
+	{ .id = 0x10ec0284, .name = "ALC284", .patch = patch_alc269 },
 	{ .id = 0x10ec0290, .name = "ALC290", .patch = patch_alc269 },
 	{ .id = 0x10ec0292, .name = "ALC292", .patch = patch_alc269 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",

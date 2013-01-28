@@ -1166,6 +1166,7 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 		 !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
+	return IRQ_HANDLED;
 
 none:
 	/* re-enable interrupts here since we don't have anything to service. */

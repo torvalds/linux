@@ -174,6 +174,7 @@ typedef unsigned __bitwise__ sense_reason_t;
 
 enum tcm_sense_reason_table {
 #define R(x)	(__force sense_reason_t )(x)
+	TCM_NO_SENSE				= R(0x00),
 	TCM_NON_EXISTENT_LUN			= R(0x01),
 	TCM_UNSUPPORTED_SCSI_OPCODE		= R(0x02),
 	TCM_INCORRECT_AMOUNT_OF_DATA		= R(0x03),

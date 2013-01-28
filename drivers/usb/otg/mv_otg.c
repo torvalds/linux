@@ -240,7 +240,7 @@ static void otg_clock_enable(struct mv_otg *mvotg)
 	unsigned int i;
 
 	for (i = 0; i < mvotg->clknum; i++)
-		clk_enable(mvotg->clk[i]);
+		clk_prepare_enable(mvotg->clk[i]);
 }
 
 static void otg_clock_disable(struct mv_otg *mvotg)
@@ -248,7 +248,7 @@ static void otg_clock_disable(struct mv_otg *mvotg)
 	unsigned int i;
 
 	for (i = 0; i < mvotg->clknum; i++)
-		clk_disable(mvotg->clk[i]);
+		clk_disable_unprepare(mvotg->clk[i]);
 }
 
 static int mv_otg_enable_internal(struct mv_otg *mvotg)
