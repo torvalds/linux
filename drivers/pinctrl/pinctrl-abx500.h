@@ -190,4 +190,17 @@ abx500_pinctrl_ab8500_init(struct abx500_pinctrl_soc_data **soc)
 
 #endif
 
+#ifdef CONFIG_PINCTRL_AB8505
+
+void abx500_pinctrl_ab8505_init(struct abx500_pinctrl_soc_data **soc);
+
+#else
+
+static inline void
+abx500_pinctrl_ab8505_init(struct abx500_pinctrl_soc_data **soc)
+{
+}
+
+#endif
+
 #endif /* PINCTRL_PINCTRL_ABx500_H */
