@@ -752,8 +752,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	switch (rc) {
 	case 0:
-		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += skb->len;
+		/* statistics will be updated on the tx_complete */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	case -ENOMEM:
@@ -777,6 +776,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
  */
 void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 {
+	struct net_device *ndev = wil_to_ndev(wil);
 	struct device *dev = wil_to_dev(wil);
 	struct vring *vring = &wil->vring_tx[ringid];
 
@@ -804,6 +804,13 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		pa = d->dma.addr_low | ((u64)d->dma.addr_high << 32);
 		skb = vring->ctx[vring->swtail];
 		if (skb) {
+			if (d->dma.error == 0) {
+				ndev->stats.tx_packets++;
+				ndev->stats.tx_bytes += skb->len;
+			} else {
+				ndev->stats.tx_errors++;
+			}
+
 			dma_unmap_single(dev, pa, d->dma.length, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			vring->ctx[vring->swtail] = NULL;
