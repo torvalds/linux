@@ -254,8 +254,11 @@
 #define SUNXI_PINCTRL_PIN_PG30	PINCTRL_PIN(PG_BASE + 30, "PG30")
 #define SUNXI_PINCTRL_PIN_PG31	PINCTRL_PIN(PG_BASE + 31, "PG31")
 
+#define SUNXI_PIN_NAME_MAX_LEN	5
+
 #define BANK_MEM_SIZE		0x24
 #define MUX_REGS_OFFSET		0x0
+#define DATA_REGS_OFFSET	0x10
 #define DLEVEL_REGS_OFFSET	0x14
 #define PULL_REGS_OFFSET	0x1c
 
@@ -263,6 +266,9 @@
 #define MUX_PINS_PER_REG	8
 #define MUX_PINS_BITS		4
 #define MUX_PINS_MASK		0x0f
+#define DATA_PINS_PER_REG	32
+#define DATA_PINS_BITS		1
+#define DATA_PINS_MASK		0x01
 #define DLEVEL_PINS_PER_REG	16
 #define DLEVEL_PINS_BITS	2
 #define DLEVEL_PINS_MASK	0x03
@@ -283,6 +289,8 @@ struct sunxi_desc_pin {
 struct sunxi_pinctrl_desc {
 	const struct sunxi_desc_pin	*pins;
 	int				npins;
+	struct pinctrl_gpio_range	*ranges;
+	int				nranges;
 };
 
 struct sunxi_pinctrl_function {
@@ -299,6 +307,7 @@ struct sunxi_pinctrl_group {
 
 struct sunxi_pinctrl {
 	void __iomem			*membase;
+	struct gpio_chip		*chip;
 	struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
 	struct sunxi_pinctrl_function	*functions;
@@ -320,7 +329,6 @@ struct sunxi_pinctrl {
 		.name = _name,					\
 		.muxval = _val,					\
 	}
-
 
 /*
  * The sunXi PIO registers are organized as is:
@@ -352,6 +360,21 @@ static inline u32 sunxi_mux_offset(u16 pin)
 {
 	u32 pin_num = pin % MUX_PINS_PER_REG;
 	return pin_num * MUX_PINS_BITS;
+}
+
+static inline u32 sunxi_data_reg(u16 pin)
+{
+	u8 bank = pin / PINS_PER_BANK;
+	u32 offset = bank * BANK_MEM_SIZE;
+	offset += DATA_REGS_OFFSET;
+	offset += pin % PINS_PER_BANK / DATA_PINS_PER_REG * 0x04;
+	return round_down(offset, 4);
+}
+
+static inline u32 sunxi_data_offset(u16 pin)
+{
+	u32 pin_num = pin % DATA_PINS_PER_REG;
+	return pin_num * DATA_PINS_BITS;
 }
 
 static inline u32 sunxi_dlevel_reg(u16 pin)

@@ -11,6 +11,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -609,17 +610,113 @@ static int sunxi_pmx_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int
+sunxi_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
+			struct pinctrl_gpio_range *range,
+			unsigned offset,
+			bool input)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct sunxi_desc_function *desc;
+	char pin_name[SUNXI_PIN_NAME_MAX_LEN];
+	const char *func;
+	u8 bank, pin;
+	int ret;
+
+	bank = (offset) / PINS_PER_BANK;
+	pin = (offset) % PINS_PER_BANK;
+
+	ret = sprintf(pin_name, "P%c%d", 'A' + bank, pin);
+	if (!ret)
+		goto error;
+
+	if (input)
+		func = "gpio_in";
+	else
+		func = "gpio_out";
+
+	desc = sunxi_pinctrl_desc_find_function_by_name(pctl,
+							pin_name,
+							func);
+	if (!desc) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	sunxi_pmx_set(pctldev, offset, desc->muxval);
+
+	ret = 0;
+
+error:
+	return ret;
+}
+
 static struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.enable			= sunxi_pmx_enable,
+	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
 };
 
 static struct pinctrl_desc sunxi_pctrl_desc = {
 	.confops	= &sunxi_pconf_ops,
 	.pctlops	= &sunxi_pctrl_ops,
 	.pmxops		= &sunxi_pmx_ops,
+};
+
+static int sunxi_pinctrl_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void sunxi_pinctrl_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+}
+
+static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
+					unsigned offset)
+{
+	return pinctrl_gpio_direction_input(chip->base + offset);
+}
+
+static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
+
+	u32 reg = sunxi_data_reg(offset);
+	u8 index = sunxi_data_offset(offset);
+	u32 val = (readl(pctl->membase + reg) >> index) & DATA_PINS_MASK;
+
+	return val;
+}
+
+static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
+					unsigned offset, int value)
+{
+	return pinctrl_gpio_direction_output(chip->base + offset);
+}
+
+static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
+				unsigned offset, int value)
+{
+	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
+	u32 reg = sunxi_data_reg(offset);
+	u8 index = sunxi_data_offset(offset);
+
+	writel((value & DATA_PINS_MASK) << index, pctl->membase + reg);
+}
+
+static struct gpio_chip sunxi_pinctrl_gpio_chip = {
+	.owner			= THIS_MODULE,
+	.request		= sunxi_pinctrl_gpio_request,
+	.free			= sunxi_pinctrl_gpio_free,
+	.direction_input	= sunxi_pinctrl_gpio_direction_input,
+	.direction_output	= sunxi_pinctrl_gpio_direction_output,
+	.get			= sunxi_pinctrl_gpio_get,
+	.set			= sunxi_pinctrl_gpio_set,
+	.can_sleep		= 0,
 };
 
 static struct of_device_id sunxi_pinctrl_match[] = {
@@ -737,7 +834,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	const struct of_device_id *device;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
-	int i, ret;
+	int i, ret, last_pin;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -781,9 +878,42 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dev_info(&pdev->dev, "initialized sunXi pin control driver\n");
+	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
+	if (!pctl->chip) {
+		ret = -ENOMEM;
+		goto pinctrl_error;
+	}
+
+	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
+	pctl->chip = &sunxi_pinctrl_gpio_chip;
+	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK);
+	pctl->chip->label = dev_name(&pdev->dev);
+	pctl->chip->dev = &pdev->dev;
+	pctl->chip->base = 0;
+
+	ret = gpiochip_add(pctl->chip);
+	if (ret)
+		goto pinctrl_error;
+
+	for (i = 0; i < pctl->desc->npins; i++) {
+		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
+
+		ret = gpiochip_add_pin_range(pctl->chip, dev_name(&pdev->dev),
+					     pin->pin.number,
+					     pin->pin.number, 1);
+		if (ret)
+			goto gpiochip_error;
+	}
+
+	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 
 	return 0;
+
+gpiochip_error:
+	ret = gpiochip_remove(pctl->chip);
+pinctrl_error:
+	pinctrl_unregister(pctl->pctl_dev);
+	return ret;
 }
 
 static struct platform_driver sunxi_pinctrl_driver = {
