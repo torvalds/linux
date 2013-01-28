@@ -158,10 +158,9 @@
 #define SG_TRANS_DATA		(0x02 << 4)
 #define SG_LINK_DESC		(0x03 << 4)
 
-/* SD bank voltage */
-#define SD_IO_3V3		0
-#define SD_IO_1V8		1
-
+/* Output voltage */
+#define OUTPUT_3V3		0
+#define OUTPUT_1V8		1
 
 /* Card Clock Enable Register */
 #define SD_CLK_EN			0x04
@@ -201,6 +200,20 @@
 #define CHANGE_CLK			0x01
 
 /* LDO_CTL */
+#define BPP_ASIC_1V7			0x00
+#define BPP_ASIC_1V8			0x01
+#define BPP_ASIC_1V9			0x02
+#define BPP_ASIC_2V0			0x03
+#define BPP_ASIC_2V7			0x04
+#define BPP_ASIC_2V8			0x05
+#define BPP_ASIC_3V2			0x06
+#define BPP_ASIC_3V3			0x07
+#define BPP_REG_TUNED18			0x07
+#define BPP_TUNED18_SHIFT_8402		5
+#define BPP_TUNED18_SHIFT_8411		4
+#define BPP_PAD_MASK			0x04
+#define BPP_PAD_3V3			0x04
+#define BPP_PAD_1V8			0x00
 #define BPP_LDO_POWB			0x03
 #define BPP_LDO_ON			0x00
 #define BPP_LDO_SUSPEND			0x02
@@ -688,7 +701,10 @@ struct pcr_ops {
 	int		(*disable_auto_blink)(struct rtsx_pcr *pcr);
 	int		(*card_power_on)(struct rtsx_pcr *pcr, int card);
 	int		(*card_power_off)(struct rtsx_pcr *pcr, int card);
+	int		(*switch_output_voltage)(struct rtsx_pcr *pcr,
+						u8 voltage);
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
+	int		(*conv_clk_and_div_n)(int clk, int dir);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
@@ -783,6 +799,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk);
 int rtsx_pci_card_power_on(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card);
+int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage);
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr);
 void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);
 
