@@ -249,6 +249,8 @@ struct fec_enet_private {
 	int	bufdesc_ex;
 	int	pause_flag;
 
+	struct	napi_struct napi;
+
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
