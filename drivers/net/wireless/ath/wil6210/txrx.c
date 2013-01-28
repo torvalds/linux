@@ -100,8 +100,8 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		d->dma.status = TX_DMA_STATUS_DU;
 	}
 
-	wil_dbg(wil, "vring[%d] 0x%p:0x%016llx 0x%p\n", vring->size,
-		vring->va, (unsigned long long)vring->pa, vring->ctx);
+	wil_dbg_MISC(wil, "vring[%d] 0x%p:0x%016llx 0x%p\n", vring->size,
+		     vring->va, (unsigned long long)vring->pa, vring->ctx);
 
 	return 0;
 }
@@ -528,8 +528,8 @@ int wil_rx_init(struct wil6210_priv *wil)
 
 	vring->hwtail = le32_to_cpu(evt.evt.rx_ring_tail_ptr);
 
-	wil_dbg(wil, "Rx init: status %d tail 0x%08x\n",
-		le32_to_cpu(evt.evt.status), vring->hwtail);
+	wil_dbg_MISC(wil, "Rx init: status %d tail 0x%08x\n",
+		     le32_to_cpu(evt.evt.status), vring->hwtail);
 
 	rc = wil_rx_refill(wil, vring->size);
 	if (rc)

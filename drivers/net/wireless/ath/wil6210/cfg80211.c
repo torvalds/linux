@@ -228,8 +228,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		}
 		/* 0-based channel indexes */
 		cmd.cmd.channel_list[cmd.cmd.num_channels++].channel = ch - 1;
-		wil_dbg(wil, "Scan for ch %d  : %d MHz\n", ch,
-			request->channels[i]->center_freq);
+		wil_dbg_MISC(wil, "Scan for ch %d  : %d MHz\n", ch,
+			     request->channels[i]->center_freq);
 	}
 
 	return wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
@@ -425,8 +425,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	wil_dbg(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
-		channel->center_freq, info->privacy ? "secure" : "open");
+	wil_dbg_MISC(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
+		     channel->center_freq, info->privacy ? "secure" : "open");
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
 

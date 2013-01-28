@@ -275,6 +275,7 @@ struct wil6210_priv {
 #define wil_dbg_IRQ(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
 #define wil_dbg_TXRX(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
 #define wil_dbg_WMI(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
+#define wil_dbg_MISC(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
 
 #define wil_hex_dump_TXRX(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
