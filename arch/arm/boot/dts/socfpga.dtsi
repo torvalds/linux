@@ -161,6 +161,8 @@
 			interrupts = <0 38 0x04>;
 			cache-unified;
 			cache-level = <2>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <2 1 1>;
 		};
 
 		mmc: dwmmc0@ff704000 {

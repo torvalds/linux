@@ -290,7 +290,10 @@ static void socfpga_cyclone5_restart(char mode, const char *cmd)
 static void __init socfpga_cyclone5_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	l2x0_of_init(0, ~0UL);
+	u32 aux_ctrl = 0;
+	aux_ctrl |= (1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
+			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
+	l2x0_of_init(aux_ctrl, ~0UL);
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table,
 		socfpga_auxdata_lookup, NULL);
