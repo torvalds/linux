@@ -156,6 +156,22 @@
 			status = "disabled";
 		};
 
+		ehci0: usb-host@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <24>;
+			clocks = <&gate_clk 0>;
+			status = "okay";
+		};
+
+		ehci1: usb-host@51000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x51000 0x1000>;
+			interrupts = <25>;
+			clocks = <&gate_clk 1>;
+			status = "okay";
+		};
+
 		sdio0: sdio@92000 {
 			compatible = "marvell,dove-sdhci";
 			reg = <0x92000 0x100>;
