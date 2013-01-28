@@ -213,10 +213,8 @@ static int sis630_transaction_wait(struct i2c_adapter *adap, int size)
 
 static void sis630_transaction_end(struct i2c_adapter *adap, u8 oldclock)
 {
-	int temp = 0;
-
 	/* clear all status "sticky" bits */
-	sis630_write(SMB_STS, temp);
+	sis630_write(SMB_STS, 0xFF);
 
 	dev_dbg(&adap->dev, "SMB_CNT before clock restore 0x%02x\n", sis630_read(SMB_CNT));
 
