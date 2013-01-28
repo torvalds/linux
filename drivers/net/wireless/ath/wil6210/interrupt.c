@@ -38,7 +38,9 @@
 #define WIL6210_IMC_RX		BIT_DMA_EP_RX_ICR_RX_DONE
 #define WIL6210_IMC_TX		(BIT_DMA_EP_TX_ICR_TX_DONE | \
 				BIT_DMA_EP_TX_ICR_TX_DONE_N(0))
-#define WIL6210_IMC_MISC	(ISR_MISC_FW_READY | ISR_MISC_MBOX_EVT)
+#define WIL6210_IMC_MISC	(ISR_MISC_FW_READY | \
+				 ISR_MISC_MBOX_EVT | \
+				 ISR_MISC_FW_ERROR)
 
 #define WIL6210_IRQ_PSEUDO_MASK (u32)(~(BIT_DMA_PSEUDO_CAUSE_RX | \
 					BIT_DMA_PSEUDO_CAUSE_TX | \
@@ -228,6 +230,17 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
+static void wil_notify_fw_error(struct wil6210_priv *wil)
+{
+	struct device *dev = &wil_to_ndev(wil)->dev;
+	char *envp[3] = {
+		[0] = "SOURCE=wil6210",
+		[1] = "EVENT=FW_ERROR",
+		[2] = NULL,
+	};
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
+}
+
 static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 {
 	struct wil6210_priv *wil = cookie;
@@ -243,6 +256,13 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	}
 
 	wil6210_mask_irq_misc(wil);
+
+	if (isr & ISR_MISC_FW_ERROR) {
+		wil_dbg_IRQ(wil, "IRQ: Firmware error\n");
+		clear_bit(wil_status_fwready, &wil->status);
+		wil_notify_fw_error(wil);
+		isr &= ~ISR_MISC_FW_ERROR;
+	}
 
 	if (isr & ISR_MISC_FW_READY) {
 		wil_dbg_IRQ(wil, "IRQ: FW ready\n");

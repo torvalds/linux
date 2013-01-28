@@ -101,8 +101,7 @@ struct RGF_ICR {
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
-	#define BIT_DMA_EP_MISC_ICR_FW_INT0	BIT(28)
-	#define BIT_DMA_EP_MISC_ICR_FW_INT1	BIT(29)
+	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
 /* Interrupt moderation control */
 #define RGF_DMA_ITR_CNT_TRSH		(0x881c5c)
@@ -121,8 +120,9 @@ struct RGF_ICR {
 #define SW_INT_MBOX BIT_USER_USER_ICR_SW_INT_2
 
 /* ISR register bits */
-#define ISR_MISC_FW_READY BIT_DMA_EP_MISC_ICR_FW_INT0
-#define ISR_MISC_MBOX_EVT BIT_DMA_EP_MISC_ICR_FW_INT1
+#define ISR_MISC_FW_READY	BIT_DMA_EP_MISC_ICR_FW_INT(0)
+#define ISR_MISC_MBOX_EVT	BIT_DMA_EP_MISC_ICR_FW_INT(1)
+#define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
 /* Hardware definitions end */
 
