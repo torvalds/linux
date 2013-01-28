@@ -215,7 +215,7 @@ static void __init omap4_smp_init_cpus(void)
 		 * Currently we can't call ioremap here because
 		 * SoC detection won't work until after init_early.
 		 */
-		scu_base =  OMAP2_L4_IO_ADDRESS(OMAP44XX_SCU_BASE);
+		scu_base =  OMAP2_L4_IO_ADDRESS(scu_a9_get_base());
 		BUG_ON(!scu_base);
 		ncores = scu_get_core_count(scu_base);
 	} else if (cpu_id == CPU_CORTEX_A15) {
