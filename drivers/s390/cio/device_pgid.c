@@ -23,6 +23,8 @@
 #define PGID_RETRIES	256
 #define PGID_TIMEOUT	(10 * HZ)
 
+static void verify_start(struct ccw_device *cdev);
+
 /*
  * Process path verification data and report result.
  */
@@ -142,6 +144,48 @@ static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 	req->cp		= cp;
 }
 
+static void pgid_wipeout_callback(struct ccw_device *cdev, void *data, int rc)
+{
+	if (rc) {
+		/* We don't know the path groups' state. Abort. */
+		verify_done(cdev, rc);
+		return;
+	}
+	/*
+	 * Path groups have been reset. Restart path verification but
+	 * leave paths in path_noirq_mask out.
+	 */
+	cdev->private->flags.pgid_unknown = 0;
+	verify_start(cdev);
+}
+
+/*
+ * Reset pathgroups and restart path verification, leave unusable paths out.
+ */
+static void pgid_wipeout_start(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct ccw_dev_id *id = &cdev->private->dev_id;
+	struct ccw_request *req = &cdev->private->req;
+	u8 fn;
+
+	CIO_MSG_EVENT(2, "wipe: device 0.%x.%04x: pvm=%02x nim=%02x\n",
+		      id->ssid, id->devno, cdev->private->pgid_valid_mask,
+		      cdev->private->path_noirq_mask);
+
+	/* Initialize request data. */
+	memset(req, 0, sizeof(*req));
+	req->timeout	= PGID_TIMEOUT;
+	req->maxretries	= PGID_RETRIES;
+	req->lpm	= sch->schib.pmcw.pam;
+	req->callback	= pgid_wipeout_callback;
+	fn = SPID_FUNC_DISBAND;
+	if (cdev->private->flags.mpath)
+		fn |= SPID_FUNC_MULTI_PATH;
+	spid_build_cp(cdev, fn);
+	ccw_request_start(cdev);
+}
+
 /*
  * Perform establish/resign SET PGID on a single path.
  */
@@ -167,10 +211,13 @@ static void spid_do(struct ccw_device *cdev)
 	return;
 
 out_nopath:
+	if (cdev->private->flags.pgid_unknown) {
+		/* At least one SPID could be partially done. */
+		pgid_wipeout_start(cdev);
+		return;
+	}
 	verify_done(cdev, sch->vpm ? 0 : -EACCES);
 }
-
-static void verify_start(struct ccw_device *cdev);
 
 /*
  * Process SET PGID request result for a single path.
@@ -357,6 +404,10 @@ out:
 		      cdev->private->pgid_todo_mask, mismatch, reserved, reset);
 	switch (rc) {
 	case 0:
+		if (cdev->private->flags.pgid_unknown) {
+			pgid_wipeout_start(cdev);
+			return;
+		}
 		/* Anything left to do? */
 		if (cdev->private->pgid_todo_mask == 0) {
 			verify_done(cdev, sch->vpm == 0 ? -EACCES : 0);
@@ -400,6 +451,7 @@ static void snid_do(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
+	int ret;
 
 	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam &
 			      ~cdev->private->path_noirq_mask);
@@ -410,7 +462,13 @@ static void snid_do(struct ccw_device *cdev)
 	return;
 
 out_nopath:
-	snid_done(cdev, cdev->private->pgid_valid_mask ? 0 : -EACCES);
+	if (cdev->private->pgid_valid_mask)
+		ret = 0;
+	else if (cdev->private->path_noirq_mask)
+		ret = -ETIME;
+	else
+		ret = -EACCES;
+	snid_done(cdev, ret);
 }
 
 /*
