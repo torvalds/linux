@@ -2415,11 +2415,11 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	kfree(info);
 }
 
-static void comedi_cleanup_legacy_minors(void)
+static void comedi_cleanup_board_minors(void)
 {
 	unsigned i;
 
-	for (i = 0; i < comedi_num_legacy_minors; i++)
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++)
 		comedi_free_board_minor(i);
 }
 
@@ -2479,7 +2479,7 @@ static int __init comedi_init(void)
 		int minor;
 		minor = comedi_alloc_board_minor(NULL);
 		if (minor < 0) {
-			comedi_cleanup_legacy_minors();
+			comedi_cleanup_board_minors();
 			cdev_del(&comedi_cdev);
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
@@ -2495,7 +2495,7 @@ static void __exit comedi_cleanup(void)
 {
 	int i;
 
-	comedi_cleanup_legacy_minors();
+	comedi_cleanup_board_minors();
 	for (i = 0; i < COMEDI_NUM_MINORS; ++i)
 		BUG_ON(comedi_file_info_table[i]);
 
