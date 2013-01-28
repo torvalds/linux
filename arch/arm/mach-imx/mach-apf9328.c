@@ -137,17 +137,13 @@ static void __init apf9328_timer_init(void)
 	mx1_clocks_init(32768);
 }
 
-static struct sys_timer apf9328_timer = {
-	.init	= apf9328_timer_init,
-};
-
 MACHINE_START(APF9328, "Armadeus APF9328")
 	/* Maintainer: Gwenhael Goavec-Merou, ARMadeus Systems */
 	.map_io       = mx1_map_io,
 	.init_early   = imx1_init_early,
 	.init_irq     = mx1_init_irq,
 	.handle_irq   = imx1_handle_irq,
-	.timer        = &apf9328_timer,
+	.init_time	= apf9328_timer_init,
 	.init_machine = apf9328_init,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -18,7 +18,6 @@
 
 #include <linux/of.h>
 
-void __init vt8500_timer_init(void);
 int __init vt8500_irq_init(struct device_node *node,
 				struct device_node *parent);
 

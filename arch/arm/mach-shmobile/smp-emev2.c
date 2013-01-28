@@ -23,11 +23,11 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/cacheflush.h>
 
 #define EMEV2_SCU_BASE 0x1e000000
@@ -100,7 +100,7 @@ static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *
 	/* Tell ROM loader about our vector (in headsmp.S) */
 	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
 
-	gic_raise_softirq(cpumask_of(cpu), 0);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 	return 0;
 }
 

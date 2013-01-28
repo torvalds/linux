@@ -30,10 +30,29 @@
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-#include <asm/hardware/vic.h>
+
+#include "irqchip.h"
+
+#define VIC_IRQ_STATUS			0x00
+#define VIC_FIQ_STATUS			0x04
+#define VIC_INT_SELECT			0x0c	/* 1 = FIQ, 0 = IRQ */
+#define VIC_INT_SOFT			0x18
+#define VIC_INT_SOFT_CLEAR		0x1c
+#define VIC_PROTECT			0x20
+#define VIC_PL190_VECT_ADDR		0x30	/* PL190 only */
+#define VIC_PL190_DEF_VECT_ADDR		0x34	/* PL190 only */
+
+#define VIC_VECT_ADDR0			0x100	/* 0 to 15 (0..31 PL192) */
+#define VIC_VECT_CNTL0			0x200	/* 0 to 15 (0..31 PL192) */
+#define VIC_ITCR			0x300	/* VIC test control register */
+
+#define VIC_VECT_CNTL_ENABLE		(1 << 5)
+
+#define VIC_PL192_VECT_ADDR		0xF00
 
 /**
  * struct vic_device - VIC PM device
@@ -65,6 +84,8 @@ struct vic_device {
 static struct vic_device vic_devices[CONFIG_ARM_VIC_NR];
 
 static int vic_id;
+
+static void vic_handle_irq(struct pt_regs *regs);
 
 /**
  * vic_init2 - common initialisation code
@@ -182,6 +203,40 @@ static int vic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
+/*
+ * Handle each interrupt in a single VIC.  Returns non-zero if we've
+ * handled at least one interrupt.  This reads the status register
+ * before handling each interrupt, which is necessary given that
+ * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
+ */
+static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
+{
+	u32 stat, irq;
+	int handled = 0;
+
+	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
+		irq = ffs(stat) - 1;
+		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
+		handled = 1;
+	}
+
+	return handled;
+}
+
+/*
+ * Keep iterating over all registered VIC's until there are no pending
+ * interrupts.
+ */
+static asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	int i, handled;
+
+	do {
+		for (i = 0, handled = 0; i < vic_id; ++i)
+			handled |= handle_one_vic(&vic_devices[i], regs);
+	} while (handled);
+}
+
 static struct irq_domain_ops vic_irqdomain_ops = {
 	.map = vic_irqdomain_map,
 	.xlate = irq_domain_xlate_onetwocell,
@@ -218,6 +273,7 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->valid_sources = valid_sources;
 	v->resume_sources = resume_sources;
 	v->irq = irq;
+	set_handle_irq(vic_handle_irq);
 	vic_id++;
 	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
 					  &vic_irqdomain_ops, v);
@@ -427,38 +483,7 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 
 	return 0;
 }
+IRQCHIP_DECLARE(arm_pl190_vic, "arm,pl190-vic", vic_of_init);
+IRQCHIP_DECLARE(arm_pl192_vic, "arm,pl192-vic", vic_of_init);
+IRQCHIP_DECLARE(arm_versatile_vic, "arm,versatile-vic", vic_of_init);
 #endif /* CONFIG OF */
-
-/*
- * Handle each interrupt in a single VIC.  Returns non-zero if we've
- * handled at least one interrupt.  This reads the status register
- * before handling each interrupt, which is necessary given that
- * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
- */
-static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
-{
-	u32 stat, irq;
-	int handled = 0;
-
-	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
-		irq = ffs(stat) - 1;
-		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
-		handled = 1;
-	}
-
-	return handled;
-}
-
-/*
- * Keep iterating over all registered VIC's until there are no pending
- * interrupts.
- */
-asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
-{
-	int i, handled;
-
-	do {
-		for (i = 0, handled = 0; i < vic_id; ++i)
-			handled |= handle_one_vic(&vic_devices[i], regs);
-	} while (handled);
-}

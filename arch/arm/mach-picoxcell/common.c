@@ -9,6 +9,7 @@
  */
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -17,7 +18,6 @@
 #include <linux/dw_apb_timer.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
@@ -70,16 +70,6 @@ static const char *picoxcell_dt_match[] = {
 	NULL
 };
 
-static const struct of_device_id vic_of_match[] __initconst = {
-	{ .compatible = "arm,pl192-vic", .data = vic_of_init, },
-	{ /* Sentinel */ }
-};
-
-static void __init picoxcell_init_irq(void)
-{
-	of_irq_init(vic_of_match);
-}
-
 static void picoxcell_wdt_restart(char mode, const char *cmd)
 {
 	/*
@@ -97,9 +87,8 @@ static void picoxcell_wdt_restart(char mode, const char *cmd)
 DT_MACHINE_START(PICOXCELL, "Picochip picoXcell")
 	.map_io		= picoxcell_map_io,
 	.nr_irqs	= NR_IRQS_LEGACY,
-	.init_irq	= picoxcell_init_irq,
-	.handle_irq	= vic_handle_irq,
-	.timer		= &dw_apb_timer,
+	.init_irq	= irqchip_init,
+	.init_time	= dw_apb_timer_init,
 	.init_machine	= picoxcell_init_machine,
 	.dt_compat	= picoxcell_dt_match,
 	.restart	= picoxcell_wdt_restart,
