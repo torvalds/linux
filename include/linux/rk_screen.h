@@ -78,7 +78,7 @@ typedef enum _MCU_STATUS {
 } MCU_STATUS;
 
 enum rk_disp_prop{       //display device property
-    PRMRY = 0,                     //primary display device ,like LCD screen
+    PRMRY = 1,                     //primary display device ,like LCD screen
     EXTEND,                        //extend display device ,like hdmi ,tv out
 };
 
