@@ -3141,6 +3141,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	
 	clk_set_rate_nolock(&clk_uart0, 49500000);
 	clk_set_rate_nolock(&clk_sdmmc, 24750000);
+	clk_set_rate_nolock(&clk_sdio, 24750000);
 
 }
 
