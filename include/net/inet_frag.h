@@ -16,12 +16,11 @@ struct netns_frags {
 };
 
 struct inet_frag_queue {
-	struct hlist_node	list;
-	struct netns_frags	*net;
-	struct list_head	lru_list;   /* lru list member */
 	spinlock_t		lock;
-	atomic_t		refcnt;
 	struct timer_list	timer;      /* when will this queue expire? */
+	struct list_head	lru_list;   /* lru list member */
+	struct hlist_node	list;
+	atomic_t		refcnt;
 	struct sk_buff		*fragments; /* list of received fragments */
 	struct sk_buff		*fragments_tail;
 	ktime_t			stamp;
@@ -34,6 +33,8 @@ struct inet_frag_queue {
 #define INET_FRAG_LAST_IN	1
 
 	u16			max_size;
+
+	struct netns_frags	*net;
 };
 
 #define INETFRAGS_HASHSZ		64
