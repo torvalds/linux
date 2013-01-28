@@ -41,6 +41,20 @@
    Supports:
 	SIS 630
 	SIS 730
+	SIS 964
+
+   Notable differences between chips:
+	+------------------------+--------------------+-------------------+
+	|                        |     SIS630/730     |      SIS964       |
+	+------------------------+--------------------+-------------------+
+	| Clock                  | 14kHz/56kHz        | 55.56kHz/27.78kHz |
+	| SMBus registers offset | 0x80               | 0xE0              |
+	| SMB_CNT                | Bit 1 = Slave Busy | Bit 1 = Bus probe |
+	|         (not used yet) | Bit 3 is reserved  | Bit 3 = Last byte |
+	| SMB_PCOUNT		 | Offset + 0x06      | Offset + 0x14     |
+	| SMB_COUNT              | 4:0 bits           | 5:0 bits          |
+	+------------------------+--------------------+-------------------+
+	(Other differences don't affect the functions provided by the driver)
 
    Note: we assume there can only be one device, with one SMBus interface.
 */
@@ -55,22 +69,21 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 
-/* SIS630 SMBus registers */
-#define SMB_STS			0x80	/* status */
-#define SMB_EN			0x81	/* status enable */
-#define SMB_CNT			0x82
-#define SMBHOST_CNT		0x83
-#define SMB_ADDR		0x84
-#define SMB_CMD			0x85
-#define SMB_PCOUNT		0x86	/* processed count */
-#define SMB_COUNT		0x87
-#define SMB_BYTE		0x88	/* ~0x8F data byte field */
-#define SMBDEV_ADDR		0x90
-#define SMB_DB0			0x91
-#define SMB_DB1			0x92
-#define SMB_SAA			0x93
+/* SIS964 id is defined here as we are the only file using it */
+#define PCI_DEVICE_ID_SI_964	0x0964
 
-/* register count for request_region */
+/* SIS630/730/964 SMBus registers */
+#define SMB_STS			0x00	/* status */
+#define SMB_CNT			0x02	/* control */
+#define SMBHOST_CNT		0x03	/* host control */
+#define SMB_ADDR		0x04	/* address */
+#define SMB_CMD			0x05	/* command */
+#define SMB_COUNT		0x07	/* byte count */
+#define SMB_BYTE		0x08	/* ~0x8F data byte field */
+
+/* register count for request_region
+ * As we don't use SMB_PCOUNT, 20 is ok for SiS630 and SiS964
+ */
 #define SIS630_SMB_IOREGION	20
 
 /* PCI address constants */
@@ -96,28 +109,30 @@ static struct pci_driver sis630_driver;
 static bool high_clock;
 static bool force;
 module_param(high_clock, bool, 0);
-MODULE_PARM_DESC(high_clock, "Set Host Master Clock to 56KHz (default 14KHz).");
+MODULE_PARM_DESC(high_clock,
+	"Set Host Master Clock to 56KHz (default 14KHz) (SIS630/730 only).");
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Forcibly enable the SIS630. DANGEROUS!");
 
-/* acpi base address */
-static unsigned short acpi_base;
+/* SMBus base adress */
+static unsigned short smbus_base;
 
 /* supported chips */
 static int supported[] = {
 	PCI_DEVICE_ID_SI_630,
 	PCI_DEVICE_ID_SI_730,
+	PCI_DEVICE_ID_SI_760,
 	0 /* terminates the list */
 };
 
 static inline u8 sis630_read(u8 reg)
 {
-	return inb(acpi_base + reg);
+	return inb(smbus_base + reg);
 }
 
 static inline void sis630_write(u8 reg, u8 data)
 {
-	outb(data, acpi_base + reg);
+	outb(data, smbus_base + reg);
 }
 
 static int sis630_transaction_start(struct i2c_adapter *adap, int size, u8 *oldclock)
@@ -394,6 +409,8 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 	unsigned char b;
 	struct pci_dev *dummy = NULL;
 	int retval, i;
+	/* acpi base address */
+	unsigned short acpi_base;
 
 	/* check for supported SiS devices */
 	for (i=0; supported[i] > 0 ; i++) {
@@ -438,16 +455,25 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 
 	dev_dbg(&sis630_dev->dev, "ACPI base at 0x%04x\n", acpi_base);
 
-	retval = acpi_check_region(acpi_base + SMB_STS, SIS630_SMB_IOREGION,
+	if (supported[i] == PCI_DEVICE_ID_SI_760)
+		smbus_base = acpi_base + 0xE0;
+	else
+		smbus_base = acpi_base + 0x80;
+
+	dev_dbg(&sis630_dev->dev, "SMBus base at 0x%04hx\n", smbus_base);
+
+	retval = acpi_check_region(smbus_base + SMB_STS, SIS630_SMB_IOREGION,
 				   sis630_driver.name);
 	if (retval)
 		goto exit;
 
 	/* Everything is happy, let's grab the memory and set things up. */
-	if (!request_region(acpi_base + SMB_STS, SIS630_SMB_IOREGION,
+	if (!request_region(smbus_base + SMB_STS, SIS630_SMB_IOREGION,
 			    sis630_driver.name)) {
-		dev_err(&sis630_dev->dev, "SMBus registers 0x%04x-0x%04x already "
-			"in use!\n", acpi_base + SMB_STS, acpi_base + SMB_SAA);
+		dev_err(&sis630_dev->dev,
+			"I/O Region 0x%04hx-0x%04hx for SMBus already in use.\n",
+			smbus_base + SMB_STS,
+			smbus_base + SMB_STS + SIS630_SMB_IOREGION - 1);
 		retval = -EBUSY;
 		goto exit;
 	}
@@ -456,7 +482,7 @@ static int sis630_setup(struct pci_dev *sis630_dev)
 
 exit:
 	if (retval)
-		acpi_base = 0;
+		smbus_base = 0;
 	return retval;
 }
 
@@ -470,11 +496,13 @@ static struct i2c_adapter sis630_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
+	.retries	= 3
 };
 
 static DEFINE_PCI_DEVICE_TABLE(sis630_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_LPC) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_964) },
 	{ 0, }
 };
 
@@ -491,17 +519,17 @@ static int sis630_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	sis630_adapter.dev.parent = &dev->dev;
 
 	snprintf(sis630_adapter.name, sizeof(sis630_adapter.name),
-		 "SMBus SIS630 adapter at %04x", acpi_base + SMB_STS);
+		 "SMBus SIS630 adapter at %04hx", smbus_base + SMB_STS);
 
 	return i2c_add_adapter(&sis630_adapter);
 }
 
 static void sis630_remove(struct pci_dev *dev)
 {
-	if (acpi_base) {
+	if (smbus_base) {
 		i2c_del_adapter(&sis630_adapter);
-		release_region(acpi_base + SMB_STS, SIS630_SMB_IOREGION);
-		acpi_base = 0;
+		release_region(smbus_base + SMB_STS, SIS630_SMB_IOREGION);
+		smbus_base = 0;
 	}
 }
 

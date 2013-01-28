@@ -197,11 +197,11 @@ config I2C_SIS5595
 	  will be called i2c-sis5595.
 
 config I2C_SIS630
-	tristate "SiS 630/730"
+	tristate "SiS 630/730/964"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the
-	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+	  SiS630, SiS730 and SiS964 SMBus (a subset of I2C) interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis630.
