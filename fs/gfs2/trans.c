@@ -159,7 +159,9 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 }
 
 /**
- * databuf_lo_add - Add a databuf to the transaction.
+ * gfs2_trans_add_data - Add a databuf to the transaction.
+ * @gl: The inode glock associated with the buffer
+ * @bh: The buffer to add
  *
  * This is used in two distinct cases:
  * i) In ordered write mode
@@ -174,33 +176,18 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
  *    blocks, which isn't an enormous overhead but twice as much as
  *    for normal metadata blocks.
  */
-static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_trans *tr = current->journal_info;
-	struct address_space *mapping = bd->bd_bh->b_page->mapping;
-	struct gfs2_inode *ip = GFS2_I(mapping->host);
-
-	if (tr)
-		tr->tr_touched = 1;
-	if (!list_empty(&bd->bd_list))
-		return;
-	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
-	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
-	if (gfs2_is_jdata(ip)) {
-		gfs2_pin(sdp, bd->bd_bh);
-		tr->tr_num_databuf_new++;
-		sdp->sd_log_num_databuf++;
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
-	} else {
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_ordered);
-	}
-}
-
 void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 {
-
+	struct gfs2_trans *tr = current->journal_info;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct address_space *mapping = bh->b_page->mapping;
+	struct gfs2_inode *ip = GFS2_I(mapping->host);
 	struct gfs2_bufdata *bd;
+
+	if (!gfs2_is_jdata(ip)) {
+		gfs2_ordered_add_inode(ip);
+		return;
+	}
 
 	lock_buffer(bh);
 	gfs2_log_lock(sdp);
@@ -214,7 +201,15 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_lock(sdp);
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
-	databuf_lo_add(sdp, bd);
+	tr->tr_touched = 1;
+	if (list_empty(&bd->bd_list)) {
+		set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+		set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
+		gfs2_pin(sdp, bd->bd_bh);
+		tr->tr_num_databuf_new++;
+		sdp->sd_log_num_databuf++;
+		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
+	}
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 }

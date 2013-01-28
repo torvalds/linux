@@ -22,6 +22,7 @@
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
+#include "log.h"
 #include "super.h"
 #include "trans.h"
 #include "dir.h"
@@ -1137,6 +1138,7 @@ static int trunc_end(struct gfs2_inode *ip)
 		ip->i_height = 0;
 		ip->i_goal = ip->i_no_addr;
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
+		gfs2_ordered_del_inode(ip);
 	}
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 	ip->i_diskflags &= ~GFS2_DIF_TRUNC_IN_PROG;
