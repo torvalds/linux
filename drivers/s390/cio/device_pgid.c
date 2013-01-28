@@ -70,8 +70,8 @@ static void nop_do(struct ccw_device *cdev)
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
 
-	/* Adjust lpm. */
-	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam & sch->opm);
+	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam & sch->opm &
+			      ~cdev->private->path_noirq_mask);
 	if (!req->lpm)
 		goto out_nopath;
 	nop_build_cp(cdev);
@@ -345,8 +345,9 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	else {
 		donepm = pgid_to_donepm(cdev);
 		sch->vpm = donepm & sch->opm;
-		cdev->private->pgid_todo_mask &= ~donepm;
 		cdev->private->pgid_reset_mask |= reset;
+		cdev->private->pgid_todo_mask &=
+			~(donepm | cdev->private->path_noirq_mask);
 		pgid_fill(cdev, pgid);
 	}
 out:
@@ -400,8 +401,8 @@ static void snid_do(struct ccw_device *cdev)
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
 
-	/* Adjust lpm if paths are not set in pam. */
-	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam);
+	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam &
+			      ~cdev->private->path_noirq_mask);
 	if (!req->lpm)
 		goto out_nopath;
 	snid_build_cp(cdev);
