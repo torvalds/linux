@@ -11,6 +11,7 @@ endif
 obj-$(CONFIG_GENERIC_PINCONF)	+= pinconf-generic.o
 obj-$(CONFIG_PINCTRL_ABX500)	+= pinctrl-abx500.o
 obj-$(CONFIG_PINCTRL_AB8500)	+= pinctrl-ab8500.o
+obj-$(CONFIG_PINCTRL_AB8540)	+= pinctrl-ab8540.o
 obj-$(CONFIG_PINCTRL_AB9540)	+= pinctrl-ab9540.o
 obj-$(CONFIG_PINCTRL_AB8505)	+= pinctrl-ab8505.o
 obj-$(CONFIG_PINCTRL_AT91)	+= pinctrl-at91.o

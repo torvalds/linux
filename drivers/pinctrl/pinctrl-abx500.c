@@ -1119,6 +1119,9 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	case PINCTRL_AB8500:
 		abx500_pinctrl_ab8500_init(&pct->soc);
 		break;
+	case PINCTRL_AB8540:
+		abx500_pinctrl_ab8540_init(&pct->soc);
+		break;
 	case PINCTRL_AB9540:
 		abx500_pinctrl_ab9540_init(&pct->soc);
 		break;
