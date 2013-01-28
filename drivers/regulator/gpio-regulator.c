@@ -132,7 +132,7 @@ static struct regulator_ops gpio_regulator_voltage_ops = {
 	.list_voltage = gpio_regulator_list_voltage,
 };
 
-struct gpio_regulator_config *
+static struct gpio_regulator_config *
 of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 {
 	struct gpio_regulator_config *config;
