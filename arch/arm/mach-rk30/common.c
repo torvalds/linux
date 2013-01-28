@@ -160,13 +160,6 @@ static void usb_uart_init(void)
 #else
 	writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
 #endif
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);                                                                               
-	writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
-	writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
 #endif
 }
 
