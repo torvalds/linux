@@ -2438,6 +2438,16 @@ int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static int refs_newer(struct btrfs_delayed_ref_root *delayed_refs, int seq,
+		      int count)
+{
+	int val = atomic_read(&delayed_refs->ref_seq);
+
+	if (val < seq || val >= seq + count)
+		return 1;
+	return 0;
+}
+
 /*
  * this starts processing the delayed reference count updates and
  * extent insertions we have queued up so far.  count can be
@@ -2472,6 +2482,44 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
+	if (count == 0) {
+		count = delayed_refs->num_entries * 2;
+		run_most = 1;
+	}
+
+	if (!run_all && !run_most) {
+		int old;
+		int seq = atomic_read(&delayed_refs->ref_seq);
+
+progress:
+		old = atomic_cmpxchg(&delayed_refs->procs_running_refs, 0, 1);
+		if (old) {
+			DEFINE_WAIT(__wait);
+			if (delayed_refs->num_entries < 16348)
+				return 0;
+
+			prepare_to_wait(&delayed_refs->wait, &__wait,
+					TASK_UNINTERRUPTIBLE);
+
+			old = atomic_cmpxchg(&delayed_refs->procs_running_refs, 0, 1);
+			if (old) {
+				schedule();
+				finish_wait(&delayed_refs->wait, &__wait);
+
+				if (!refs_newer(delayed_refs, seq, 256))
+					goto progress;
+				else
+					return 0;
+			} else {
+				finish_wait(&delayed_refs->wait, &__wait);
+				goto again;
+			}
+		}
+
+	} else {
+		atomic_inc(&delayed_refs->procs_running_refs);
+	}
+
 again:
 	loops = 0;
 	spin_lock(&delayed_refs->lock);
@@ -2480,10 +2528,6 @@ again:
 	delayed_refs->run_delayed_start = find_middle(&delayed_refs->root);
 #endif
 
-	if (count == 0) {
-		count = delayed_refs->num_entries * 2;
-		run_most = 1;
-	}
 	while (1) {
 		if (!(run_all || run_most) &&
 		    delayed_refs->num_heads_ready < 64)
@@ -2505,8 +2549,11 @@ again:
 		if (ret < 0) {
 			spin_unlock(&delayed_refs->lock);
 			btrfs_abort_transaction(trans, root, ret);
+			atomic_dec(&delayed_refs->procs_running_refs);
 			return ret;
 		}
+
+		atomic_add(ret, &delayed_refs->ref_seq);
 
 		count -= min_t(unsigned long, ret, count);
 
@@ -2576,6 +2623,11 @@ again:
 		goto again;
 	}
 out:
+	atomic_dec(&delayed_refs->procs_running_refs);
+	smp_mb();
+	if (waitqueue_active(&delayed_refs->wait))
+		wake_up(&delayed_refs->wait);
+
 	spin_unlock(&delayed_refs->lock);
 	assert_qgroups_uptodate(trans);
 	return 0;

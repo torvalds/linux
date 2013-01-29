@@ -156,6 +156,9 @@ loop:
 
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
+	atomic_set(&cur_trans->delayed_refs.procs_running_refs, 0);
+	atomic_set(&cur_trans->delayed_refs.ref_seq, 0);
+	init_waitqueue_head(&cur_trans->delayed_refs.wait);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
@@ -577,7 +580,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
 
-	while (count < 2) {
+	while (count < 1) {
 		unsigned long cur = trans->delayed_ref_updates;
 		trans->delayed_ref_updates = 0;
 		if (cur &&
@@ -589,6 +592,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		}
 		count++;
 	}
+
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
 
