@@ -934,6 +934,8 @@ int cx231xx_register_extension(struct cx231xx_ops *dev);
 void cx231xx_unregister_extension(struct cx231xx_ops *dev);
 void cx231xx_init_extension(struct cx231xx *dev);
 void cx231xx_close_extension(struct cx231xx *dev);
+int cx231xx_querycap(struct file *file, void *priv,
+			   struct v4l2_capability *cap);
 
 /* Provided by cx231xx-cards.c */
 extern void cx231xx_pre_card_setup(struct cx231xx *dev);

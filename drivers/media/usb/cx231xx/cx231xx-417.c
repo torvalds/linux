@@ -1626,24 +1626,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	dprintk(3, "exit vidioc_s_ctrl()\n");
 	return 0;
 }
-static struct v4l2_capability pvr_capability = {
-	.driver         = "cx231xx",
-	.card           = "VideoGrabber",
-	.bus_info       = "usb",
-	.version        = 1,
-	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
-			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
-			 V4L2_CAP_STREAMING | V4L2_CAP_READWRITE),
-};
-static int vidioc_querycap(struct file *file, void  *priv,
-				struct v4l2_capability *cap)
-{
-
-
-
-		memcpy(cap, &pvr_capability, sizeof(struct v4l2_capability));
-	return 0;
-}
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
@@ -2016,7 +1998,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
-	.vidioc_querycap	 = vidioc_querycap,
+	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,

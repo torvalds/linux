@@ -1632,7 +1632,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_querycap(struct file *file, void *priv,
+int cx231xx_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -2186,7 +2186,7 @@ static const struct v4l2_file_operations cx231xx_v4l_fops = {
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
-	.vidioc_querycap               = vidioc_querycap,
+	.vidioc_querycap               = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap       = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap          = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap        = vidioc_try_fmt_vid_cap,
@@ -2237,7 +2237,7 @@ static const struct v4l2_file_operations radio_fops = {
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
-	.vidioc_querycap    = vidioc_querycap,
+	.vidioc_querycap    = cx231xx_querycap,
 	.vidioc_g_tuner     = radio_g_tuner,
 	.vidioc_s_tuner     = radio_s_tuner,
 	.vidioc_g_frequency = vidioc_g_frequency,
