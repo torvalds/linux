@@ -18,11 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
 #include <mach/r8a7740.h>
 #include <mach/irqs.h>
+
+#include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)					\
 	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx),		\
@@ -2579,7 +2579,7 @@ static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(evt2irq(0x33E0), PORT41_FN0,	 PORT167_FN0),	/* IRQ31A */
 };
 
-static struct pinmux_info r8a7740_pinmux_info = {
+struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
 	.reserved_id	= PINMUX_RESERVED,
 	.data		= { PINMUX_DATA_BEGIN,
@@ -2610,8 +2610,3 @@ static struct pinmux_info r8a7740_pinmux_info = {
 	.gpio_irq	= pinmux_irqs,
 	.gpio_irq_size	= ARRAY_SIZE(pinmux_irqs),
 };
-
-void r8a7740_pinmux_init(void)
-{
-	register_pinmux(&r8a7740_pinmux_info);
-}

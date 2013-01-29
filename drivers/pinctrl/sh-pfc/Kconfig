@@ -1,0 +1,116 @@
+#
+# Renesas SH and SH Mobile PINCTRL drivers
+#
+
+if ARCH_SHMOBILE || SUPERH
+
+config PINCTRL_SH_PFC
+	# XXX move off the gpio dependency
+	depends on GENERIC_GPIO
+	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
+	select PINMUX
+	select PINCONF
+	def_bool y
+	help
+	  This enables pin control drivers for SH and SH Mobile platforms
+
+config GPIO_SH_PFC
+	bool "SuperH PFC GPIO support"
+	depends on PINCTRL_SH_PFC && GPIOLIB
+	help
+	  This enables support for GPIOs within the SoC's pin function
+	  controller.
+
+config PINCTRL_PFC_R8A7740
+	def_bool y
+	depends on ARCH_R8A7740
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7779
+	def_bool y
+	depends on ARCH_R8A7779
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7203
+	def_bool y
+	depends on CPU_SUBTYPE_SH7203
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7264
+	def_bool y
+	depends on CPU_SUBTYPE_SH7264
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7269
+	def_bool y
+	depends on CPU_SUBTYPE_SH7269
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7372
+	def_bool y
+	depends on ARCH_SH7372
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH73A0
+	def_bool y
+	depends on ARCH_SH73A0
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7720
+	def_bool y
+	depends on CPU_SUBTYPE_SH7720
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7722
+	def_bool y
+	depends on CPU_SUBTYPE_SH7722
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7723
+	def_bool y
+	depends on CPU_SUBTYPE_SH7723
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7724
+	def_bool y
+	depends on CPU_SUBTYPE_SH7724
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7734
+	def_bool y
+	depends on CPU_SUBTYPE_SH7734
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7757
+	def_bool y
+	depends on CPU_SUBTYPE_SH7757
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7785
+	def_bool y
+	depends on CPU_SUBTYPE_SH7785
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SH7786
+	def_bool y
+	depends on CPU_SUBTYPE_SH7786
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_SHX3
+	def_bool y
+	depends on CPU_SUBTYPE_SHX3
+	depends on GENERIC_GPIO
+	select PINCTRL_SH_PFC
+
+endif

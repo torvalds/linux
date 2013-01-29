@@ -18,11 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sh_pfc.h>
 #include <mach/sh73a0.h>
 #include <mach/irqs.h>
+
+#include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx)				\
 	PORT_10(fn, pfx,    sfx), PORT_10(fn, pfx##1, sfx),	\
@@ -2772,7 +2772,7 @@ static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16L(9), PORT308_FN0),
 };
 
-static struct pinmux_info sh73a0_pinmux_info = {
+struct sh_pfc_soc_info sh73a0_pinmux_info = {
 	.name = "sh73a0_pfc",
 	.reserved_id = PINMUX_RESERVED,
 	.data = { PINMUX_DATA_BEGIN, PINMUX_DATA_END },
@@ -2796,8 +2796,3 @@ static struct pinmux_info sh73a0_pinmux_info = {
 	.gpio_irq = pinmux_irqs,
 	.gpio_irq_size = ARRAY_SIZE(pinmux_irqs),
 };
-
-void sh73a0_pinmux_init(void)
-{
-	register_pinmux(&sh73a0_pinmux_info);
-}
