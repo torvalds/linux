@@ -560,7 +560,7 @@ static int rk_hdmi_power_init(void)
 	return 0;
 }
 static struct rk_hdmi_platform_data rk_hdmi_pdata = {
-	.io_init = rk_hdmi_power_init,
+	//.io_init = rk_hdmi_power_init,
 };
 #endif
 #ifdef CONFIG_ION
