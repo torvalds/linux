@@ -646,7 +646,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 				as->substream[0].need_setup_ep =
 					as->substream[1].need_setup_ep = true;
 			}
- 		}
+		}
 	} else {
 		/*
 		 * otherwise we keep the rest of the system in the dark
