@@ -823,7 +823,7 @@ static struct console siu_console = {
 	.data	= &siu_uart_driver,
 };
 
-static int __devinit siu_console_init(void)
+static int siu_console_init(void)
 {
 	struct uart_port *port;
 	int i;
@@ -867,7 +867,7 @@ static struct uart_driver siu_uart_driver = {
 	.cons		= SERIAL_VR41XX_CONSOLE,
 };
 
-static int __devinit siu_probe(struct platform_device *dev)
+static int siu_probe(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int num, i, retval;
@@ -901,7 +901,7 @@ static int __devinit siu_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit siu_remove(struct platform_device *dev)
+static int siu_remove(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int i;
@@ -952,7 +952,7 @@ static int siu_resume(struct platform_device *dev)
 
 static struct platform_driver siu_device_driver = {
 	.probe		= siu_probe,
-	.remove		= __devexit_p(siu_remove),
+	.remove		= siu_remove,
 	.suspend	= siu_suspend,
 	.resume		= siu_resume,
 	.driver		= {

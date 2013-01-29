@@ -38,6 +38,10 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
+#ifdef DEBUG
+#define EHCI_STATS
+#endif
+
 struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
@@ -143,7 +147,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*intr_unlink_last;
 	unsigned		intr_unlink_cycle;
 	unsigned		now_frame;	/* frame from HC hardware */
-	unsigned		next_frame;	/* scan periodic, start here */
+	unsigned		last_iso_frame;	/* last frame scanned for iso */
 	unsigned		intr_count;	/* intr activity count */
 	unsigned		isoc_count;	/* isoc activity count */
 	unsigned		periodic_count;	/* periodic activity count */
@@ -193,7 +197,6 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_amcc_usb23:1;
 	unsigned		need_io_watchdog:1;
 	unsigned		amd_pll_fix:1;
-	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
 	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
@@ -207,7 +210,6 @@ struct ehci_hcd {			/* one per controller */
 	#define OHCI_HCCTRL_LEN         0x4
 	__hc32			*ohci_hcctrl_reg;
 	unsigned		has_hostpc:1;
-	unsigned		has_lpm:1;  /* support link power management */
 	unsigned		has_ppcd:1; /* support per-port change bits */
 	u8			sbrn;		/* packed release number */
 
@@ -223,6 +225,9 @@ struct ehci_hcd {			/* one per controller */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
 #endif
+
+	/* platform-specific data -- must come last */
+	unsigned long		priv[0] __aligned(sizeof(s64));
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -762,26 +767,41 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_PCI
+#define ehci_dbg(ehci, fmt, args...) \
+	dev_dbg(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
+#define ehci_err(ehci, fmt, args...) \
+	dev_err(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
+#define ehci_info(ehci, fmt, args...) \
+	dev_info(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
+#define ehci_warn(ehci, fmt, args...) \
+	dev_warn(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
 
-/* For working around the MosChip frame-index-register bug */
-static unsigned ehci_read_frame_index(struct ehci_hcd *ehci);
-
+#ifdef VERBOSE_DEBUG
+#	define ehci_vdbg ehci_dbg
 #else
-
-static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
-{
-	return ehci_readl(ehci, &ehci->regs->frame_index);
-}
-
+	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
 #endif
-
-/*-------------------------------------------------------------------------*/
 
 #ifndef DEBUG
 #define STUB_DEBUG_FILES
 #endif	/* DEBUG */
 
 /*-------------------------------------------------------------------------*/
+
+/* Declarations of things exported for use by ehci platform drivers */
+
+struct ehci_driver_overrides {
+	size_t		extra_priv_size;
+	int		(*reset)(struct usb_hcd *hcd);
+};
+
+extern void	ehci_init_driver(struct hc_driver *drv,
+				const struct ehci_driver_overrides *over);
+extern int	ehci_setup(struct usb_hcd *hcd);
+
+#ifdef CONFIG_PM
+extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
+extern int	ehci_resume(struct usb_hcd *hcd, bool hibernated);
+#endif	/* CONFIG_PM */
 
 #endif /* __LINUX_EHCI_HCD_H */

@@ -557,6 +557,7 @@ static bool qlt_check_fcport_exist(struct scsi_qla_host *vha,
 	int pmap_len;
 	fc_port_t *fcport;
 	int global_resets;
+	unsigned long flags;
 
 retry:
 	global_resets = atomic_read(&ha->tgt.qla_tgt->tgt_global_resets_count);
@@ -625,10 +626,10 @@ retry:
 	    sess->s_id.b.area, sess->loop_id, fcport->d_id.b.domain,
 	    fcport->d_id.b.al_pa, fcport->d_id.b.area, fcport->loop_id);
 
-	sess->s_id = fcport->d_id;
-	sess->loop_id = fcport->loop_id;
-	sess->conf_compl_supported = !!(fcport->flags &
-	    FCF_CONF_COMP_SUPPORTED);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+				(fcport->flags & FCF_CONF_COMP_SUPPORTED));
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	res = true;
 
@@ -740,10 +741,9 @@ static struct qla_tgt_sess *qlt_create_sess(
 				qlt_undelete_sess(sess);
 
 			kref_get(&sess->se_sess->sess_kref);
-			sess->s_id = fcport->d_id;
-			sess->loop_id = fcport->loop_id;
-			sess->conf_compl_supported = !!(fcport->flags &
-			    FCF_CONF_COMP_SUPPORTED);
+			ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+						(fcport->flags & FCF_CONF_COMP_SUPPORTED));
+
 			if (sess->local && !local)
 				sess->local = 0;
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -796,8 +796,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 	 */
 	kref_get(&sess->se_sess->sess_kref);
 
-	sess->conf_compl_supported = !!(fcport->flags &
-	    FCF_CONF_COMP_SUPPORTED);
+	sess->conf_compl_supported = (fcport->flags & FCF_CONF_COMP_SUPPORTED);
 	BUILD_BUG_ON(sizeof(sess->port_name) != sizeof(fcport->port_name));
 	memcpy(sess->port_name, fcport->port_name, sizeof(sess->port_name));
 
@@ -869,10 +868,8 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf007,
 			    "Reappeared sess %p\n", sess);
 		}
-		sess->s_id = fcport->d_id;
-		sess->loop_id = fcport->loop_id;
-		sess->conf_compl_supported = !!(fcport->flags &
-		    FCF_CONF_COMP_SUPPORTED);
+		ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+					(fcport->flags & FCF_CONF_COMP_SUPPORTED));
 	}
 
 	if (sess && sess->local) {
@@ -1032,7 +1029,7 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 EXPORT_SYMBOL(qlt_stop_phase2);
 
 /* Called from qlt_remove_target() -> qla2x00_remove_one() */
-void qlt_release(struct qla_tgt *tgt)
+static void qlt_release(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
 
@@ -1267,8 +1264,27 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct qla_tgt_sess *sess)
 {
 	struct qla_hw_data *ha = vha->hw;
+	struct se_session *se_sess = sess->se_sess;
 	struct qla_tgt_mgmt_cmd *mcmd;
+	struct se_cmd *se_cmd;
+	u32 lun = 0;
 	int rc;
+	bool found_lun = false;
+
+	spin_lock(&se_sess->sess_cmd_lock);
+	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
+		struct qla_tgt_cmd *cmd =
+			container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
+		if (cmd->tag == abts->exchange_addr_to_abort) {
+			lun = cmd->unpacked_lun;
+			found_lun = true;
+			break;
+		}
+	}
+	spin_unlock(&se_sess->sess_cmd_lock);
+
+	if (!found_lun)
+		return -ENOENT;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
 	    "qla_target(%d): task abort (tag=%d)\n",
@@ -1286,7 +1302,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, 0, TMR_ABORT_TASK,
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, TMR_ABORT_TASK,
 	    abts->exchange_addr_to_abort);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,

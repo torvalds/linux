@@ -1239,7 +1239,7 @@ static int ccg_create_device(struct ccg_dev *dev)
 }
 
 
-static int __init init(void)
+static int __init ccg_init(void)
 {
 	struct ccg_dev *dev;
 	int err;
@@ -1280,13 +1280,13 @@ static int __init init(void)
 
 	return err;
 }
-module_init(init);
+module_init(ccg_init);
 
-static void __exit cleanup(void)
+static void __exit ccg_exit(void)
 {
 	usb_composite_unregister(&ccg_usb_driver);
 	class_destroy(ccg_class);
 	kfree(_ccg_dev);
 	_ccg_dev = NULL;
 }
-module_exit(cleanup);
+module_exit(ccg_exit);

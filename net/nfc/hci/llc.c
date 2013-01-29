@@ -72,7 +72,7 @@ int nfc_llc_register(const char *name, struct nfc_llc_ops *ops)
 	llc_engine->ops = ops;
 
 	INIT_LIST_HEAD(&llc_engine->entry);
-	list_add_tail (&llc_engine->entry, &llc_engines);
+	list_add_tail(&llc_engine->entry, &llc_engines);
 
 	return 0;
 }

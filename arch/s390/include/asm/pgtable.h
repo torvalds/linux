@@ -35,7 +35,6 @@
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
 extern void vmem_map_init(void);
-extern void fault_init(void);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
@@ -55,16 +54,7 @@ extern unsigned long zero_page_mask;
 #define ZERO_PAGE(vaddr) \
 	(virt_to_page((void *)(empty_zero_page + \
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
-
-#define is_zero_pfn is_zero_pfn
-static inline int is_zero_pfn(unsigned long pfn)
-{
-	extern unsigned long zero_pfn;
-	unsigned long offset_from_zero_pfn = pfn - zero_pfn;
-	return offset_from_zero_pfn <= (zero_page_mask >> PAGE_SHIFT);
-}
-
-#define my_zero_pfn(addr)	page_to_pfn(ZERO_PAGE(addr))
+#define __HAVE_COLOR_ZERO_PAGE
 
 #endif /* !__ASSEMBLY__ */
 
@@ -345,6 +335,8 @@ extern unsigned long MODULES_END;
 #define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INV)
 
+#define _REGION3_ENTRY_LARGE	0x400	/* RTTE-format control, large page  */
+
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
 #define _SEGMENT_ENTRY_RO	0x200	/* page protection bit		    */
@@ -444,6 +436,7 @@ static inline int pgd_bad(pgd_t pgd)     { return 0; }
 
 static inline int pud_present(pud_t pud) { return 1; }
 static inline int pud_none(pud_t pud)	 { return 0; }
+static inline int pud_large(pud_t pud)	 { return 0; }
 static inline int pud_bad(pud_t pud)	 { return 0; }
 
 #else /* CONFIG_64BIT */
@@ -489,6 +482,13 @@ static inline int pud_none(pud_t pud)
 	return (pud_val(pud) & _REGION_ENTRY_INV) != 0UL;
 }
 
+static inline int pud_large(pud_t pud)
+{
+	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) != _REGION_ENTRY_TYPE_R3)
+		return 0;
+	return !!(pud_val(pud) & _REGION3_ENTRY_LARGE);
+}
+
 static inline int pud_bad(pud_t pud)
 {
 	/*
@@ -506,12 +506,15 @@ static inline int pud_bad(pud_t pud)
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN) != 0UL;
+	unsigned long mask = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY_RO;
+	return (pmd_val(pmd) & mask) == _HPAGE_TYPE_NONE ||
+	       !(pmd_val(pmd) & _SEGMENT_ENTRY_INV);
 }
 
 static inline int pmd_none(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_INV) != 0UL;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_INV) &&
+	       !(pmd_val(pmd) & _SEGMENT_ENTRY_RO);
 }
 
 static inline int pmd_large(pmd_t pmd)
@@ -1223,6 +1226,11 @@ static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+#define SEGMENT_NONE	__pgprot(_HPAGE_TYPE_NONE)
+#define SEGMENT_RO	__pgprot(_HPAGE_TYPE_RO)
+#define SEGMENT_RW	__pgprot(_HPAGE_TYPE_RW)
+
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
 extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
 
@@ -1242,16 +1250,15 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 
 static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 {
-	unsigned long pgprot_pmd = 0;
-
-	if (pgprot_val(pgprot) & _PAGE_INVALID) {
-		if (pgprot_val(pgprot) & _PAGE_SWT)
-			pgprot_pmd |= _HPAGE_TYPE_NONE;
-		pgprot_pmd |= _SEGMENT_ENTRY_INV;
-	}
-	if (pgprot_val(pgprot) & _PAGE_RO)
-		pgprot_pmd |= _SEGMENT_ENTRY_RO;
-	return pgprot_pmd;
+	/*
+	 * pgprot is PAGE_NONE, PAGE_RO, or PAGE_RW (see __Pxxx / __Sxxx)
+	 * Convert to segment table entry format.
+	 */
+	if (pgprot_val(pgprot) == pgprot_val(PAGE_NONE))
+		return pgprot_val(SEGMENT_NONE);
+	if (pgprot_val(pgprot) == pgprot_val(PAGE_RO))
+		return pgprot_val(SEGMENT_RO);
+	return pgprot_val(SEGMENT_RW);
 }
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
@@ -1269,7 +1276,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 
 static inline pmd_t pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(pmd) &= ~_SEGMENT_ENTRY_RO;
+	/* Do not clobber _HPAGE_TYPE_NONE pages! */
+	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_INV))
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_RO;
 	return pmd;
 }
 
@@ -1378,10 +1387,7 @@ static inline int has_transparent_hugepage(void)
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
-	if (pmd_trans_huge(pmd))
-		return pmd_val(pmd) >> HPAGE_SHIFT;
-	else
-		return pmd_val(pmd) >> PAGE_SHIFT;
+	return pmd_val(pmd) >> PAGE_SHIFT;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

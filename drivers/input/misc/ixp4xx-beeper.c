@@ -87,7 +87,7 @@ static irqreturn_t ixp4xx_spkr_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ixp4xx_spkr_probe(struct platform_device *dev)
+static int ixp4xx_spkr_probe(struct platform_device *dev)
 {
 	struct input_dev *input_dev;
 	int err;
@@ -132,7 +132,7 @@ static int __devinit ixp4xx_spkr_probe(struct platform_device *dev)
 	return err;
 }
 
-static int __devexit ixp4xx_spkr_remove(struct platform_device *dev)
+static int ixp4xx_spkr_remove(struct platform_device *dev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(dev);
 	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
@@ -165,7 +165,7 @@ static struct platform_driver ixp4xx_spkr_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ixp4xx_spkr_probe,
-	.remove		= __devexit_p(ixp4xx_spkr_remove),
+	.remove		= ixp4xx_spkr_remove,
 	.shutdown	= ixp4xx_spkr_shutdown,
 };
 module_platform_driver(ixp4xx_spkr_platform_driver);

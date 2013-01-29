@@ -34,10 +34,6 @@ struct nv04_dmaeng_priv {
 	struct nouveau_dmaeng base;
 };
 
-struct nv04_dmaobj_priv {
-	struct nouveau_dmaobj base;
-};
-
 static int
 nv04_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		 struct nouveau_object *parent,
@@ -52,6 +48,18 @@ nv04_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 	u64 adjust = dmaobj->start & 0x00000fff;
 	u32 length = dmaobj->limit - dmaobj->start;
 	int ret;
+
+	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
+		switch (nv_mclass(parent->parent)) {
+		case NV03_CHANNEL_DMA_CLASS:
+		case NV10_CHANNEL_DMA_CLASS:
+		case NV17_CHANNEL_DMA_CLASS:
+		case NV40_CHANNEL_DMA_CLASS:
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 
 	if (dmaobj->target == NV_MEM_TARGET_VM) {
 		if (nv_object(vmm)->oclass == &nv04_vmmgr_oclass) {
@@ -106,56 +114,6 @@ nv04_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 }
 
 static int
-nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
-{
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nv04_dmaobj_priv *dmaobj;
-	struct nouveau_gpuobj *gpuobj;
-	int ret;
-
-	ret = nouveau_dmaobj_create(parent, engine, oclass,
-				    data, size, &dmaobj);
-	*pobject = nv_object(dmaobj);
-	if (ret)
-		return ret;
-
-	switch (nv_mclass(parent)) {
-	case NV_DEVICE_CLASS:
-		break;
-	case NV03_CHANNEL_DMA_CLASS:
-	case NV10_CHANNEL_DMA_CLASS:
-	case NV17_CHANNEL_DMA_CLASS:
-	case NV40_CHANNEL_DMA_CLASS:
-		ret = dmaeng->bind(dmaeng, *pobject, &dmaobj->base, &gpuobj);
-		nouveau_object_ref(NULL, pobject);
-		*pobject = nv_object(gpuobj);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static struct nouveau_ofuncs
-nv04_dmaobj_ofuncs = {
-	.ctor = nv04_dmaobj_ctor,
-	.dtor = _nouveau_dmaobj_dtor,
-	.init = _nouveau_dmaobj_init,
-	.fini = _nouveau_dmaobj_fini,
-};
-
-static struct nouveau_oclass
-nv04_dmaobj_sclass[] = {
-	{ 0x0002, &nv04_dmaobj_ofuncs },
-	{ 0x0003, &nv04_dmaobj_ofuncs },
-	{ 0x003d, &nv04_dmaobj_ofuncs },
-	{}
-};
-
-static int
 nv04_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_oclass *oclass, void *data, u32 size,
 		 struct nouveau_object **pobject)
@@ -168,7 +126,7 @@ nv04_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.base.sclass = nv04_dmaobj_sclass;
+	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
 	priv->base.bind = nv04_dmaobj_bind;
 	return 0;
 }

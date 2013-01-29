@@ -136,8 +136,6 @@ fault-injection/
 	- dir with docs about the fault injection capabilities infrastructure.
 fb/
 	- directory with info on the frame buffer graphics abstraction layer.
-feature-removal-schedule.txt
-	- list of files and features that are going to be removed.
 filesystems/
 	- info on the vfs and the various filesystems that Linux supports.
 firmware_class/

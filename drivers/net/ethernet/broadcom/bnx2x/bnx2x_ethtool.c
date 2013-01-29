@@ -62,7 +62,9 @@ static const struct {
 						8, "[%s]: tpa_aggregations" },
 	{ Q_STATS_OFFSET32(total_tpa_aggregated_frames_hi),
 					8, "[%s]: tpa_aggregated_frames"},
-	{ Q_STATS_OFFSET32(total_tpa_bytes_hi),	8, "[%s]: tpa_bytes"}
+	{ Q_STATS_OFFSET32(total_tpa_bytes_hi),	8, "[%s]: tpa_bytes"},
+	{ Q_STATS_OFFSET32(driver_filtered_tx_pkt),
+					4, "[%s]: driver_filtered_tx_pkt" }
 };
 
 #define BNX2X_NUM_Q_STATS ARRAY_SIZE(bnx2x_q_stats_arr)
@@ -177,6 +179,8 @@ static const struct {
 			4, STATS_FLAGS_FUNC, "recoverable_errors" },
 	{ STATS_OFFSET32(unrecoverable_error),
 			4, STATS_FLAGS_FUNC, "unrecoverable_errors" },
+	{ STATS_OFFSET32(driver_filtered_tx_pkt),
+			4, STATS_FLAGS_FUNC, "driver_filtered_tx_pkt" },
 	{ STATS_OFFSET32(eee_tx_lpi),
 			4, STATS_FLAGS_PORT, "Tx LPI entry count"}
 };
@@ -227,18 +231,14 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
 	}
 
-	if ((bp->state == BNX2X_STATE_OPEN) && (bp->link_vars.link_up)) {
-		if (!(bp->flags & MF_FUNC_DIS)) {
-			ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
+	if ((bp->state == BNX2X_STATE_OPEN) && bp->link_vars.link_up &&
+	    !(bp->flags & MF_FUNC_DIS)) {
 			cmd->duplex = bp->link_vars.duplex;
-		} else {
-			ethtool_cmd_speed_set(
-				cmd, bp->link_params.req_line_speed[cfg_idx]);
-			cmd->duplex = bp->link_params.req_duplex[cfg_idx];
-		}
 
 		if (IS_MF(bp) && !BP_NOMCP(bp))
 			ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
+		else
+			ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
 	} else {
 		cmd->duplex = DUPLEX_UNKNOWN;
 		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
@@ -1702,7 +1702,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 				      SHMEM_EEE_ADV_STATUS_SHIFT);
 	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
 		DP(BNX2X_MSG_ETHTOOL,
-		   "Direct manipulation of EEE advertisment is not supported\n");
+		   "Direct manipulation of EEE advertisement is not supported\n");
 		return -EINVAL;
 	}
 
@@ -2660,20 +2660,25 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_ON, SPEED_1000);
+		bnx2x_release_phy_lock(bp);
 		break;
 
 	case ETHTOOL_ID_OFF:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_FRONT_PANEL_OFF, 0);
-
+		bnx2x_release_phy_lock(bp);
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_OPER,
 			      bp->link_vars.line_speed);
+		bnx2x_release_phy_lock(bp);
 	}
 
 	return 0;
@@ -2772,10 +2777,10 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 		} else if ((info->flow_type == UDP_V6_FLOW) &&
 			   (bp->rss_conf_obj.udp_rss_v6 != udp_rss_requested)) {
 			bp->rss_conf_obj.udp_rss_v6 = udp_rss_requested;
-			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
 			DP(BNX2X_MSG_ETHTOOL,
 			   "rss re-configured, UDP 4-tupple %s\n",
 			   udp_rss_requested ? "enabled" : "disabled");
+			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
 		} else {
 			return 0;
 		}
@@ -2901,7 +2906,9 @@ static void bnx2x_get_channels(struct net_device *dev,
 static void bnx2x_change_num_queues(struct bnx2x *bp, int num_rss)
 {
 	bnx2x_disable_msi(bp);
-	BNX2X_NUM_QUEUES(bp) = num_rss + NON_ETH_CONTEXT_USE;
+	bp->num_ethernet_queues = num_rss;
+	bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
+	BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
 	bnx2x_set_int_mode(bp);
 }
 

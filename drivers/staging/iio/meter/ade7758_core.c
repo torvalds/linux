@@ -881,7 +881,7 @@ static const struct iio_info ade7758_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ade7758_probe(struct spi_device *spi)
+static int ade7758_probe(struct spi_device *spi)
 {
 	int ret;
 	struct ade7758_state *st;
@@ -962,7 +962,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ade7758_remove(struct spi_device *spi)
+static int ade7758_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ade7758_state *st = iio_priv(indio_dev);
@@ -992,7 +992,7 @@ static struct spi_driver ade7758_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ade7758_probe,
-	.remove = __devexit_p(ade7758_remove),
+	.remove = ade7758_remove,
 	.id_table = ade7758_id,
 };
 module_spi_driver(ade7758_driver);

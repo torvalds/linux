@@ -137,7 +137,7 @@ struct btrfsic_block {
 	unsigned int never_written:1;	/* block was added because it was
 					 * referenced, not because it was
 					 * written */
-	unsigned int mirror_num:2;	/* large enough to hold
+	unsigned int mirror_num;	/* large enough to hold
 					 * BTRFS_SUPER_MIRROR_MAX */
 	struct btrfsic_dev_state *dev_state;
 	u64 dev_bytenr;		/* key, physical byte num on disk */
@@ -723,7 +723,7 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -903,7 +903,7 @@ static int btrfsic_process_superblock_dev_mirror(
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1287,7 +1287,7 @@ static int btrfsic_create_link_to_next_block(
 	*next_blockp = NULL;
 	if (0 == *num_copiesp) {
 		*num_copiesp =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->metablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1489,7 +1489,7 @@ static int btrfsic_handle_extent_data(
 			chunk_len = num_bytes;
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, state->datablock_size);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -1582,8 +1582,20 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(&state->root->fs_info->mapping_tree, READ,
+	ret = btrfs_map_block(state->root->fs_info, READ,
 			      bytenr, &length, &multi, mirror_num);
+
+	if (ret) {
+		block_ctx_out->start = 0;
+		block_ctx_out->dev_bytenr = 0;
+		block_ctx_out->len = 0;
+		block_ctx_out->dev = NULL;
+		block_ctx_out->datav = NULL;
+		block_ctx_out->pagev = NULL;
+		block_ctx_out->mem_to_free = NULL;
+
+		return ret;
+	}
 
 	device = multi->stripes[0].dev;
 	block_ctx_out->dev = btrfsic_dev_state_lookup(device->bdev);
@@ -1594,8 +1606,7 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	block_ctx_out->pagev = NULL;
 	block_ctx_out->mem_to_free = NULL;
 
-	if (0 == ret)
-		kfree(multi);
+	kfree(multi);
 	if (NULL == block_ctx_out->dev) {
 		ret = -ENXIO;
 		printk(KERN_INFO "btrfsic: error, cannot lookup dev (#1)!\n");
@@ -2463,7 +2474,7 @@ static int btrfsic_process_written_superblock(
 		}
 
 		num_copies =
-		    btrfs_num_copies(&state->root->fs_info->mapping_tree,
+		    btrfs_num_copies(state->root->fs_info,
 				     next_bytenr, BTRFS_SUPER_INFO_SIZE);
 		if (state->print_mask & BTRFSIC_PRINT_MASK_NUM_COPIES)
 			printk(KERN_INFO "num_copies(log_bytenr=%llu) = %d\n",
@@ -2960,7 +2971,7 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 	struct btrfsic_block_data_ctx block_ctx;
 	int match = 0;
 
-	num_copies = btrfs_num_copies(&state->root->fs_info->mapping_tree,
+	num_copies = btrfs_num_copies(state->root->fs_info,
 				      bytenr, state->metablock_size);
 
 	for (mirror_num = 1; mirror_num <= num_copies; mirror_num++) {

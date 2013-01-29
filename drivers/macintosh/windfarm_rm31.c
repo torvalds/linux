@@ -669,7 +669,7 @@ static int wf_rm31_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wf_rm31_remove(struct platform_device *dev)
+static int wf_rm31_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&rm31_events);
 

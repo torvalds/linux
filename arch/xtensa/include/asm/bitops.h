@@ -29,7 +29,6 @@
 #define smp_mb__before_clear_bit()	barrier()
 #define smp_mb__after_clear_bit()	barrier()
 
-#include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/non-atomic.h>
 
 #if XCHAL_HAVE_NSA
@@ -104,6 +103,132 @@ static inline unsigned long __fls(unsigned long word)
 #endif
 
 #include <asm-generic/bitops/fls64.h>
+
+#if XCHAL_HAVE_S32C1I
+
+static inline void set_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       or      %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+}
+
+static inline void clear_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       and     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (~mask), "a" (p)
+			: "memory");
+}
+
+static inline void change_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       xor     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+}
+
+static inline int
+test_and_set_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       or      %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+
+	return tmp & mask;
+}
+
+static inline int
+test_and_clear_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       and     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (~mask), "a" (p)
+			: "memory");
+
+	return tmp & mask;
+}
+
+static inline int
+test_and_change_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32i    %1, %3, 0\n"
+			"       wsr     %1, scompare1\n"
+			"       xor     %0, %1, %2\n"
+			"       s32c1i  %0, %3, 0\n"
+			"       bne     %0, %1, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+
+	return tmp & mask;
+}
+
+#else
+
+#include <asm-generic/bitops/atomic.h>
+
+#endif /* XCHAL_HAVE_S32C1I */
+
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/le.h>
 

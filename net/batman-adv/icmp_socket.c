@@ -42,12 +42,16 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	unsigned int i;
 	struct batadv_socket_client *socket_client;
 
+	if (!try_module_get(THIS_MODULE))
+		return -EBUSY;
+
 	nonseekable_open(inode, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
-
-	if (!socket_client)
+	if (!socket_client) {
+		module_put(THIS_MODULE);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(batadv_socket_client_hash); i++) {
 		if (!batadv_socket_client_hash[i]) {
@@ -59,6 +63,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	if (i == ARRAY_SIZE(batadv_socket_client_hash)) {
 		pr_err("Error - can't add another packet client: maximum number of clients reached\n");
 		kfree(socket_client);
+		module_put(THIS_MODULE);
 		return -EXFULL;
 	}
 
@@ -71,7 +76,6 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	file->private_data = socket_client;
 
-	batadv_inc_module_count();
 	return 0;
 }
 
@@ -96,7 +100,7 @@ static int batadv_socket_release(struct inode *inode, struct file *file)
 	spin_unlock_bh(&socket_client->lock);
 
 	kfree(socket_client);
-	batadv_dec_module_count();
+	module_put(THIS_MODULE);
 
 	return 0;
 }
@@ -173,13 +177,13 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	if (len >= sizeof(struct batadv_icmp_packet_rr))
 		packet_len = sizeof(struct batadv_icmp_packet_rr);
 
-	skb = dev_alloc_skb(packet_len + ETH_HLEN);
+	skb = dev_alloc_skb(packet_len + ETH_HLEN + NET_IP_ALIGN);
 	if (!skb) {
 		len = -ENOMEM;
 		goto out;
 	}
 
-	skb_reserve(skb, ETH_HLEN);
+	skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 	icmp_packet = (struct batadv_icmp_packet_rr *)skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_packet, buff, packet_len)) {

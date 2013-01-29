@@ -37,18 +37,11 @@ static void spear_stop_ehci(struct spear_ehci *ehci)
 static int ehci_spear_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval = 0;
 
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
 
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 0);
-
-	return retval;
+	return ehci_setup(hcd);
 }
 
 static const struct hc_driver ehci_spear_hc_driver = {
@@ -116,8 +109,6 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	struct clk *usbh_clk;
 	const struct hc_driver *driver = &ehci_spear_hc_driver;
 	int irq, retval;
-	char clk_name[20] = "usbh_clk";
-	static int instance = -1;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -125,7 +116,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		retval = irq;
-		goto fail_irq_get;
+		goto fail;
 	}
 
 	/*
@@ -136,47 +127,38 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &spear_ehci_dma_mask;
 
-	/*
-	 * Increment the device instance, when probing via device-tree
-	 */
-	if (pdev->id < 0)
-		instance++;
-	else
-		instance = pdev->id;
-	sprintf(clk_name, "usbh.%01d_clk", instance);
-
-	usbh_clk = clk_get(NULL, clk_name);
+	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
 		dev_err(&pdev->dev, "Error getting interface clock\n");
 		retval = PTR_ERR(usbh_clk);
-		goto fail_get_usbh_clk;
+		goto fail;
 	}
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
-		goto fail_create_hcd;
+		goto fail;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		retval = -ENODEV;
-		goto fail_request_resource;
+		goto err_put_hcd;
 	}
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
+	if (!devm_request_mem_region(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {
 		retval = -EBUSY;
-		goto fail_request_resource;
+		goto err_put_hcd;
 	}
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_ioremap(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len);
 	if (hcd->regs == NULL) {
 		dev_dbg(&pdev->dev, "error mapping memory\n");
 		retval = -ENOMEM;
-		goto fail_ioremap;
+		goto err_put_hcd;
 	}
 
 	ehci = (struct spear_ehci *)hcd_to_ehci(hcd);
@@ -185,21 +167,15 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	spear_start_ehci(ehci);
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
-		goto fail_add_hcd;
+		goto err_stop_ehci;
 
 	return retval;
 
-fail_add_hcd:
+err_stop_ehci:
 	spear_stop_ehci(ehci);
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-fail_request_resource:
+err_put_hcd:
 	usb_put_hcd(hcd);
-fail_create_hcd:
-	clk_put(usbh_clk);
-fail_get_usbh_clk:
-fail_irq_get:
+fail:
 	dev_err(&pdev->dev, "init fail, %d\n", retval);
 
 	return retval ;
@@ -218,17 +194,12 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 
 	if (ehci_p->clk)
 		spear_stop_ehci(ehci_p);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-
-	if (ehci_p->clk)
-		clk_put(ehci_p->clk);
 
 	return 0;
 }
 
-static struct of_device_id spear_ehci_id_table[] __devinitdata = {
+static struct of_device_id spear_ehci_id_table[] = {
 	{ .compatible = "st,spear600-ehci", },
 	{ },
 };

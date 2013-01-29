@@ -327,9 +327,16 @@ out_unmap:
 
 static void newport_init(struct vc_data *vc, int init)
 {
-	vc->vc_cols = newport_xsize / 8;
-	vc->vc_rows = newport_ysize / 16;
+	int cols, rows;
+
+	cols = newport_xsize / 8;
+	rows = newport_ysize / 16;
 	vc->vc_can_do_color = 1;
+	if (init) {
+		vc->vc_cols = cols;
+		vc->vc_rows = rows;
+	} else
+		vc_resize(vc, cols, rows);
 }
 
 static void newport_deinit(struct vc_data *c)

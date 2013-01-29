@@ -45,8 +45,10 @@
 
 #define AUDIO_SRAM_CHANNEL	SRAM_CH07
 
-#define dprintk(level, fmt, arg...)	if (audio_debug >= level) \
-	printk(KERN_INFO "%s: " fmt, chip->dev->name , ## arg)
+#define dprintk(level, fmt, arg...) do {				\
+	if (audio_debug + 1 > level)					\
+		printk(KERN_INFO "%s: " fmt, chip->dev->name , ## arg);	\
+} while(0)
 
 #define dprintk_core(level, fmt, arg...)	if (audio_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt, chip->dev->name , ## arg)

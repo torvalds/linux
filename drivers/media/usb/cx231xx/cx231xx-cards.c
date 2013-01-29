@@ -686,7 +686,7 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 }
 EXPORT_SYMBOL_GPL(cx231xx_tuner_callback);
 
-void cx231xx_reset_out(struct cx231xx *dev)
+static void cx231xx_reset_out(struct cx231xx *dev)
 {
 	cx231xx_set_gpio_value(dev, CX23417_RESET, 1);
 	msleep(200);
@@ -694,11 +694,13 @@ void cx231xx_reset_out(struct cx231xx *dev)
 	msleep(200);
 	cx231xx_set_gpio_value(dev, CX23417_RESET, 1);
 }
-void cx231xx_enable_OSC(struct cx231xx *dev)
+
+static void cx231xx_enable_OSC(struct cx231xx *dev)
 {
 	cx231xx_set_gpio_value(dev, CX23417_OSC_EN, 1);
 }
-void cx231xx_sleep_s5h1432(struct cx231xx *dev)
+
+static void cx231xx_sleep_s5h1432(struct cx231xx *dev)
 {
 	cx231xx_set_gpio_value(dev, SLEEP_S5H1432, 0);
 }

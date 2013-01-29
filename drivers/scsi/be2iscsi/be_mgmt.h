@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2012 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,12 @@
 
 #define IP_V6_LEN	16
 #define IP_V4_LEN	4
+
+/* UE Status and Mask register */
+#define PCICFG_UE_STATUS_LOW            0xA0
+#define PCICFG_UE_STATUS_HIGH           0xA4
+#define PCICFG_UE_STATUS_MASK_LOW       0xA8
+#define PCICFG_UE_STATUS_MASK_HI        0xAC
 
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -301,4 +307,19 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
 
 int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+
+ssize_t beiscsi_drvr_ver_disp(struct device *dev,
+			       struct device_attribute *attr, char *buf);
+
+ssize_t beiscsi_adap_family_disp(struct device *dev,
+				  struct device_attribute *attr, char *buf);
+
+void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle,
+			     struct be_mem_descriptor *mem_descr);
+
+void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle);
+void beiscsi_ue_detect(struct beiscsi_hba *phba);
+
 #endif

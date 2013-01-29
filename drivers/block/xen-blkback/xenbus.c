@@ -105,11 +105,10 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
 
-	blkif = kmem_cache_alloc(xen_blkif_cachep, GFP_KERNEL);
+	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
 		return ERR_PTR(-ENOMEM);
 
-	memset(blkif, 0, sizeof(*blkif));
 	blkif->domid = domid;
 	spin_lock_init(&blkif->blk_ring_lock);
 	atomic_set(&blkif->refcnt, 1);
@@ -118,6 +117,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
+	blkif->persistent_gnts.rb_node = NULL;
 
 	return blkif;
 }
@@ -196,7 +196,7 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 	}
 }
 
-void xen_blkif_free(struct xen_blkif *blkif)
+static void xen_blkif_free(struct xen_blkif *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
@@ -257,7 +257,7 @@ static struct attribute_group xen_vbdstat_group = {
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
 VBD_SHOW(mode, "%s\n", be->mode);
 
-int xenvbd_sysfs_addif(struct xenbus_device *dev)
+static int xenvbd_sysfs_addif(struct xenbus_device *dev)
 {
 	int error;
 
@@ -281,7 +281,7 @@ fail1:	device_remove_file(&dev->dev, &dev_attr_physical_device);
 	return error;
 }
 
-void xenvbd_sysfs_delif(struct xenbus_device *dev)
+static void xenvbd_sysfs_delif(struct xenbus_device *dev)
 {
 	sysfs_remove_group(&dev->dev.kobj, &xen_vbdstat_group);
 	device_remove_file(&dev->dev, &dev_attr_mode);
@@ -673,6 +673,13 @@ again:
 
 	xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
+	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u", 1);
+	if (err) {
+		xenbus_dev_fatal(dev, err, "writing %s/feature-persistent",
+				 dev->nodename);
+		goto abort;
+	}
+
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
 	if (err) {
@@ -721,6 +728,7 @@ static int connect_ring(struct backend_info *be)
 	struct xenbus_device *dev = be->dev;
 	unsigned long ring_ref;
 	unsigned int evtchn;
+	unsigned int pers_grants;
 	char protocol[64] = "";
 	int err;
 
@@ -750,8 +758,18 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -1;
 	}
-	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s)\n",
-		ring_ref, evtchn, be->blkif->blk_protocol, protocol);
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "feature-persistent", "%u",
+			    &pers_grants, NULL);
+	if (err)
+		pers_grants = 0;
+
+	be->blkif->vbd.feature_gnt_persistent = pers_grants;
+	be->blkif->vbd.overflow_max_grants = 0;
+
+	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
+		ring_ref, evtchn, be->blkif->blk_protocol, protocol,
+		pers_grants ? "persistent grants" : "");
 
 	/* Map the shared frame, irq etc. */
 	err = xen_blkif_map(be->blkif, ring_ref, evtchn);

@@ -5350,12 +5350,24 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 		else if ((cmd == BNX2X_F_CMD_AFEX_VIFLISTS) &&
 			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
 			next_state = BNX2X_F_STATE_STARTED;
+
+		/* Switch_update ramrod can be sent in either started or
+		 * tx_stopped state, and it doesn't change the state.
+		 */
+		else if ((cmd == BNX2X_F_CMD_SWITCH_UPDATE) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_STARTED;
+
 		else if (cmd == BNX2X_F_CMD_TX_STOP)
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
 		break;
 	case BNX2X_F_STATE_TX_STOPPED:
-		if (cmd == BNX2X_F_CMD_TX_START)
+		if ((cmd == BNX2X_F_CMD_SWITCH_UPDATE) &&
+		    (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_TX_STOPPED;
+
+		else if (cmd == BNX2X_F_CMD_TX_START)
 			next_state = BNX2X_F_STATE_STARTED;
 
 		break;
@@ -5637,6 +5649,28 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
 }
 
+static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
+					struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct function_update_data *rdata =
+		(struct function_update_data *)o->rdata;
+	dma_addr_t data_mapping = o->rdata_mapping;
+	struct bnx2x_func_switch_update_params *switch_update_params =
+		&params->params.switch_update;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->tx_switch_suspend_change_flg = 1;
+	rdata->tx_switch_suspend = switch_update_params->suspend;
+	rdata->echo = SWITCH_UPDATE;
+
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_UPDATE, 0,
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
+}
+
 static inline int bnx2x_func_send_afex_update(struct bnx2x *bp,
 					 struct bnx2x_func_state_params *params)
 {
@@ -5657,6 +5691,7 @@ static inline int bnx2x_func_send_afex_update(struct bnx2x *bp,
 		cpu_to_le16(afex_update_params->afex_default_vlan);
 	rdata->allowed_priorities_change_flg = 1;
 	rdata->allowed_priorities = afex_update_params->allowed_priorities;
+	rdata->echo = AFEX_UPDATE;
 
 	/*  No need for an explicit memory barrier here as long we would
 	 *  need to ensure the ordering of writing to the SPQ element
@@ -5773,6 +5808,8 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 		return bnx2x_func_send_tx_stop(bp, params);
 	case BNX2X_F_CMD_TX_START:
 		return bnx2x_func_send_tx_start(bp, params);
+	case BNX2X_F_CMD_SWITCH_UPDATE:
+		return bnx2x_func_send_switch_update(bp, params);
 	default:
 		BNX2X_ERR("Unknown command: %d\n", params->cmd);
 		return -EINVAL;
@@ -5818,16 +5855,30 @@ int bnx2x_func_state_change(struct bnx2x *bp,
 			    struct bnx2x_func_state_params *params)
 {
 	struct bnx2x_func_sp_obj *o = params->f_obj;
-	int rc;
+	int rc, cnt = 300;
 	enum bnx2x_func_cmd cmd = params->cmd;
 	unsigned long *pending = &o->pending;
 
 	mutex_lock(&o->one_pending_mutex);
 
 	/* Check that the requested transition is legal */
-	if (o->check_transition(bp, o, params)) {
+	rc = o->check_transition(bp, o, params);
+	if ((rc == -EBUSY) &&
+	    (test_bit(RAMROD_RETRY, &params->ramrod_flags))) {
+		while ((rc == -EBUSY) && (--cnt > 0)) {
+			mutex_unlock(&o->one_pending_mutex);
+			msleep(10);
+			mutex_lock(&o->one_pending_mutex);
+			rc = o->check_transition(bp, o, params);
+		}
+		if (rc == -EBUSY) {
+			mutex_unlock(&o->one_pending_mutex);
+			BNX2X_ERR("timeout waiting for previous ramrod completion\n");
+			return rc;
+		}
+	} else if (rc) {
 		mutex_unlock(&o->one_pending_mutex);
-		return -EINVAL;
+		return rc;
 	}
 
 	/* Set "pending" bit */

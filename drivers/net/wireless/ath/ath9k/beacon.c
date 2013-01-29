@@ -46,7 +46,7 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmax = 0;
 	} else {
 		/* Adhoc mode; important thing is to use 2x cwmin. */
-		txq = sc->tx.txq_map[WME_AC_BE];
+		txq = sc->tx.txq_map[IEEE80211_AC_BE];
 		ath9k_hw_get_txq_props(ah, txq->axq_qnum, &qi_be);
 		qi.tqi_aifs = qi_be.tqi_aifs;
 		if (ah->slottime == ATH9K_SLOT_TIME_20)
@@ -147,6 +147,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_buf_addr = 0;
+		bf->bf_mpdu = NULL;
 	}
 
 	skb = ieee80211_beacon_get(hw, vif);
@@ -359,7 +360,6 @@ void ath9k_beacon_tasklet(unsigned long data)
 		return;
 
 	bf = ath9k_beacon_generate(sc->hw, vif);
-	WARN_ON(!bf);
 
 	if (sc->beacon.bmisscnt != 0) {
 		ath_dbg(common, BSTUCK, "resume beacon xmit after %u misses\n",

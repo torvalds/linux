@@ -1,0 +1,77 @@
+* ARM CPUs binding description
+
+The device tree allows to describe the layout of CPUs in a system through
+the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
+defining properties for every cpu.
+
+Bindings for CPU nodes follow the ePAPR standard, available from:
+
+http://devicetree.org
+
+For the ARM architecture every CPU node must contain the following properties:
+
+- device_type:	must be "cpu"
+- reg:		property matching the CPU MPIDR[23:0] register bits
+		reg[31:24] bits must be set to 0
+- compatible:	should be one of:
+		"arm,arm1020"
+		"arm,arm1020e"
+		"arm,arm1022"
+		"arm,arm1026"
+		"arm,arm720"
+		"arm,arm740"
+		"arm,arm7tdmi"
+		"arm,arm920"
+		"arm,arm922"
+		"arm,arm925"
+		"arm,arm926"
+		"arm,arm940"
+		"arm,arm946"
+		"arm,arm9tdmi"
+		"arm,cortex-a5"
+		"arm,cortex-a7"
+		"arm,cortex-a8"
+		"arm,cortex-a9"
+		"arm,cortex-a15"
+		"arm,arm1136"
+		"arm,arm1156"
+		"arm,arm1176"
+		"arm,arm11mpcore"
+		"faraday,fa526"
+		"intel,sa110"
+		"intel,sa1100"
+		"marvell,feroceon"
+		"marvell,mohawk"
+		"marvell,xsc3"
+		"marvell,xscale"
+
+Example:
+
+	cpus {
+		#size-cells = <0>;
+		#address-cells = <1>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x1>;
+		};
+
+		CPU2: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x100>;
+		};
+
+		CPU3: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x101>;
+		};
+	};

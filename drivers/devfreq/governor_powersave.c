@@ -10,6 +10,7 @@
  */
 
 #include <linux/devfreq.h>
+#include <linux/module.h>
 #include "governor.h"
 
 static int devfreq_powersave_func(struct devfreq *df,
@@ -23,14 +24,41 @@ static int devfreq_powersave_func(struct devfreq *df,
 	return 0;
 }
 
-static int powersave_init(struct devfreq *devfreq)
+static int devfreq_powersave_handler(struct devfreq *devfreq,
+				unsigned int event, void *data)
 {
-	return update_devfreq(devfreq);
+	int ret = 0;
+
+	if (event == DEVFREQ_GOV_START) {
+		mutex_lock(&devfreq->lock);
+		ret = update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+
+	return ret;
 }
 
-const struct devfreq_governor devfreq_powersave = {
+static struct devfreq_governor devfreq_powersave = {
 	.name = "powersave",
-	.init = powersave_init,
 	.get_target_freq = devfreq_powersave_func,
-	.no_central_polling = true,
+	.event_handler = devfreq_powersave_handler,
 };
+
+static int __init devfreq_powersave_init(void)
+{
+	return devfreq_add_governor(&devfreq_powersave);
+}
+subsys_initcall(devfreq_powersave_init);
+
+static void __exit devfreq_powersave_exit(void)
+{
+	int ret;
+
+	ret = devfreq_remove_governor(&devfreq_powersave);
+	if (ret)
+		pr_err("%s: failed remove governor %d\n", __func__, ret);
+
+	return;
+}
+module_exit(devfreq_powersave_exit);
+MODULE_LICENSE("GPL");

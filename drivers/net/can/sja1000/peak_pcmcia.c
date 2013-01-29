@@ -632,7 +632,7 @@ static void pcan_free(struct pcmcia_device *pdev)
 /*
  * setup PCMCIA socket and probe for PEAK-System PC-CARD
  */
-static int __devinit pcan_probe(struct pcmcia_device *pdev)
+static int pcan_probe(struct pcmcia_device *pdev)
 {
 	struct pcan_pccard *card;
 	int err;

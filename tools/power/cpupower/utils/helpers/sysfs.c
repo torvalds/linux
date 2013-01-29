@@ -37,25 +37,6 @@ unsigned int sysfs_read_file(const char *path, char *buf, size_t buflen)
 	return (unsigned int) numread;
 }
 
-static unsigned int sysfs_write_file(const char *path,
-				     const char *value, size_t len)
-{
-	int fd;
-	ssize_t numwrite;
-
-	fd = open(path, O_WRONLY);
-	if (fd == -1)
-		return 0;
-
-	numwrite = write(fd, value, len);
-	if (numwrite < 1) {
-		close(fd);
-		return 0;
-	}
-	close(fd);
-	return (unsigned int) numwrite;
-}
-
 /*
  * Detect whether a CPU is online
  *

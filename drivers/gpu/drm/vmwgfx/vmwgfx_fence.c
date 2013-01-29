@@ -537,7 +537,7 @@ static void vmw_user_fence_destroy(struct vmw_fence_obj *fence)
 		container_of(fence, struct vmw_user_fence, fence);
 	struct vmw_fence_manager *fman = fence->fman;
 
-	kfree(ufence);
+	ttm_base_object_kfree(ufence, base);
 	/*
 	 * Free kernel space accounting.
 	 */

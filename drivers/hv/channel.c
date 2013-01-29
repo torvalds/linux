@@ -33,14 +33,6 @@
 #define NUM_PAGES_SPANNED(addr, len) \
 ((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT))
 
-/* Internal routines */
-static int create_gpadl_header(
-	void *kbuffer,	/* must be phys and virt contiguous */
-	u32 size,	/* page-size multiple */
-	struct vmbus_channel_msginfo **msginfo,
-	u32 *messagecount);
-static void vmbus_setevent(struct vmbus_channel *channel);
-
 /*
  * vmbus_setevent- Trigger an event notification on the specified
  * channel.

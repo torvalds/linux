@@ -76,7 +76,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		int ret;
 		struct urb *urb = priv->urb;
 		struct usbip_header pdu_header;
-		void *iso_buffer = NULL;
+		struct usbip_iso_packet_descriptor *iso_buffer = NULL;
 
 		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));

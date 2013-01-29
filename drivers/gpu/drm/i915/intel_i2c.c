@@ -432,7 +432,7 @@ timeout:
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
-	bus->force_bit = true;
+	bus->force_bit = 1;
 	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 
 out:
@@ -491,7 +491,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 		/* gmbus seems to be broken on i830 */
 		if (IS_I830(dev))
-			bus->force_bit = true;
+			bus->force_bit = 1;
 
 		intel_gpio_setup(bus, port);
 
@@ -532,7 +532,10 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	bus->force_bit = force_bit;
+	bus->force_bit += force_bit ? 1 : -1;
+	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+		      force_bit ? "en" : "dis", adapter->name,
+		      bus->force_bit);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)

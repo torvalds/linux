@@ -1282,7 +1282,7 @@ static inline struct console *SUNZILOG_CONSOLE(void)
 #define SUNZILOG_CONSOLE()	(NULL)
 #endif
 
-static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up)
+static void sunzilog_init_kbdms(struct uart_sunzilog_port *up)
 {
 	int baud, brg;
 
@@ -1302,7 +1302,7 @@ static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up)
 }
 
 #ifdef CONFIG_SERIO
-static void __devinit sunzilog_register_serio(struct uart_sunzilog_port *up)
+static void sunzilog_register_serio(struct uart_sunzilog_port *up)
 {
 	struct serio *serio = &up->serio;
 
@@ -1331,7 +1331,7 @@ static void __devinit sunzilog_register_serio(struct uart_sunzilog_port *up)
 }
 #endif
 
-static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
+static void sunzilog_init_hw(struct uart_sunzilog_port *up)
 {
 	struct zilog_channel __iomem *channel;
 	unsigned long flags;
@@ -1400,7 +1400,7 @@ static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 
 static int zilog_irq;
 
-static int __devinit zs_probe(struct platform_device *op)
+static int zs_probe(struct platform_device *op)
 {
 	static int kbm_inst, uart_inst;
 	int inst;
@@ -1507,7 +1507,7 @@ static int __devinit zs_probe(struct platform_device *op)
 	return 0;
 }
 
-static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
+static void zs_remove_one(struct uart_sunzilog_port *up)
 {
 	if (ZS_IS_KEYB(up) || ZS_IS_MOUSE(up)) {
 #ifdef CONFIG_SERIO
@@ -1517,7 +1517,7 @@ static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
 		uart_remove_one_port(&sunzilog_reg, &up->port);
 }
 
-static int __devexit zs_remove(struct platform_device *op)
+static int zs_remove(struct platform_device *op)
 {
 	struct uart_sunzilog_port *up = dev_get_drvdata(&op->dev);
 	struct zilog_layout __iomem *regs;
@@ -1548,7 +1548,7 @@ static struct platform_driver zs_driver = {
 		.of_match_table = zs_match,
 	},
 	.probe		= zs_probe,
-	.remove		= __devexit_p(zs_remove),
+	.remove		= zs_remove,
 };
 
 static int __init sunzilog_init(void)

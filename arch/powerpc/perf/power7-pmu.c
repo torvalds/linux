@@ -54,8 +54,10 @@
  * Layout of constraint bits:
  * 6666555555555544444444443333333333222222222211111111110000000000
  * 3210987654321098765432109876543210987654321098765432109876543210
- *                                                 [  ><><><><><><>
- *                                                  NC P6P5P4P3P2P1
+ *                                              < ><  ><><><><><><>
+ *                                              L2  NC P6P5P4P3P2P1
+ *
+ * L2 - 16-18 - Required L2SEL value (select field)
  *
  * NC - number of counters
  *     15: NC error 0x8000
@@ -72,7 +74,7 @@
 static int power7_get_constraint(u64 event, unsigned long *maskp,
 				 unsigned long *valp)
 {
-	int pmc, sh;
+	int pmc, sh, unit;
 	unsigned long mask = 0, value = 0;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
@@ -90,6 +92,15 @@ static int power7_get_constraint(u64 event, unsigned long *maskp,
 		mask  |= 0x8000;
 		value |= 0x1000;
 	}
+
+	unit = (event >> PM_UNIT_SH) & PM_UNIT_MSK;
+	if (unit == 6) {
+		/* L2SEL must be identical across events */
+		int l2sel = (event >> PM_L2SEL_SH) & PM_L2SEL_MSK;
+		mask  |= 0x7 << 16;
+		value |= l2sel << 16;
+	}
+
 	*maskp = mask;
 	*valp = value;
 	return 0;

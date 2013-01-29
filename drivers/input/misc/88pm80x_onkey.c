@@ -62,7 +62,7 @@ static irqreturn_t pm80x_onkey_handler(int irq, void *data)
 static SIMPLE_DEV_PM_OPS(pm80x_onkey_pm_ops, pm80x_dev_suspend,
 			 pm80x_dev_resume);
 
-static int __devinit pm80x_onkey_probe(struct platform_device *pdev)
+static int pm80x_onkey_probe(struct platform_device *pdev)
 {
 
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -139,7 +139,7 @@ out:
 	return err;
 }
 
-static int __devexit pm80x_onkey_remove(struct platform_device *pdev)
+static int pm80x_onkey_remove(struct platform_device *pdev)
 {
 	struct pm80x_onkey_info *info = platform_get_drvdata(pdev);
 
@@ -157,7 +157,7 @@ static struct platform_driver pm80x_onkey_driver = {
 		   .pm = &pm80x_onkey_pm_ops,
 		   },
 	.probe = pm80x_onkey_probe,
-	.remove = __devexit_p(pm80x_onkey_remove),
+	.remove = pm80x_onkey_remove,
 };
 
 module_platform_driver(pm80x_onkey_driver);

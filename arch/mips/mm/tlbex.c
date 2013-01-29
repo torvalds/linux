@@ -158,7 +158,7 @@ enum label_id {
 	label_smp_pgtable_change,
 	label_r3000_write_probe_fail,
 	label_large_segbits_fault,
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	label_tlb_huge_update,
 #endif
 };
@@ -177,13 +177,15 @@ UASM_L_LA(_nopage_tlbm)
 UASM_L_LA(_smp_pgtable_change)
 UASM_L_LA(_r3000_write_probe_fail)
 UASM_L_LA(_large_segbits_fault)
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 UASM_L_LA(_tlb_huge_update)
 #endif
 
 static int __cpuinitdata hazard_instance;
 
-static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
+static void __cpuinit uasm_bgezl_hazard(u32 **p,
+					struct uasm_reloc **r,
+					int instance)
 {
 	switch (instance) {
 	case 0 ... 7:
@@ -194,7 +196,9 @@ static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
 	}
 }
 
-static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
+static void __cpuinit uasm_bgezl_label(struct uasm_label **l,
+				       u32 **p,
+				       int instance)
 {
 	switch (instance) {
 	case 0 ... 7:
@@ -206,19 +210,59 @@ static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
 }
 
 /*
- * For debug purposes.
+ * pgtable bits are assigned dynamically depending on processor feature
+ * and statically based on kernel configuration.  This spits out the actual
+ * values the kernel is using.  Required to make sense from disassembled
+ * TLB exception handlers.
  */
-static inline void dump_handler(const u32 *handler, int count)
+static void output_pgtable_bits_defines(void)
+{
+#define pr_define(fmt, ...)					\
+	pr_debug("#define " fmt, ##__VA_ARGS__)
+
+	pr_debug("#include <asm/asm.h>\n");
+	pr_debug("#include <asm/regdef.h>\n");
+	pr_debug("\n");
+
+	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
+	pr_define("_PAGE_READ_SHIFT %d\n", _PAGE_READ_SHIFT);
+	pr_define("_PAGE_WRITE_SHIFT %d\n", _PAGE_WRITE_SHIFT);
+	pr_define("_PAGE_ACCESSED_SHIFT %d\n", _PAGE_ACCESSED_SHIFT);
+	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+#endif
+	if (cpu_has_rixi) {
+#ifdef _PAGE_NO_EXEC_SHIFT
+		pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
+#endif
+#ifdef _PAGE_NO_READ_SHIFT
+		pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
+#endif
+	}
+	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
+	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
+	pr_define("_PAGE_DIRTY_SHIFT %d\n", _PAGE_DIRTY_SHIFT);
+	pr_define("_PFN_SHIFT %d\n", _PFN_SHIFT);
+	pr_debug("\n");
+}
+
+static inline void dump_handler(const char *symbol, const u32 *handler, int count)
 {
 	int i;
+
+	pr_debug("LEAF(%s)\n", symbol);
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
 
 	for (i = 0; i < count; i++)
-		pr_debug("\t%p\t.word 0x%08x\n", &handler[i], handler[i]);
+		pr_debug("\t.word\t0x%08x\t\t# %p\n", handler[i], &handler[i]);
 
-	pr_debug("\t.set pop\n");
+	pr_debug("\t.set\tpop\n");
+
+	pr_debug("\tEND(%s)\n", symbol);
 }
 
 /* The only general purpose registers allowed in TLB handlers. */
@@ -401,7 +445,7 @@ static void __cpuinit build_r3000_tlb_refill_handler(void)
 
 	memcpy((void *)ebase, tlb_handler, 0x80);
 
-	dump_handler((u32 *)ebase, 32);
+	dump_handler("r3000_tlb_refill", (u32 *)ebase, 32);
 }
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
@@ -443,7 +487,6 @@ static void __cpuinit __maybe_unused build_tlb_probe_entry(u32 **p)
 	case CPU_R4600:
 	case CPU_R4700:
 	case CPU_R5000:
-	case CPU_R5000A:
 	case CPU_NEVADA:
 		uasm_i_nop(p);
 		uasm_i_tlbp(p);
@@ -517,7 +560,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		break;
 
 	case CPU_R5000:
-	case CPU_R5000A:
 	case CPU_NEVADA:
 		uasm_i_nop(p); /* QED specifies 2 nops hazard */
 		uasm_i_nop(p); /* QED specifies 2 nops hazard */
@@ -563,24 +605,6 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		uasm_i_nop(p);
 		uasm_i_nop(p);
 		tlbw(p);
-		break;
-
-	case CPU_RM9000:
-		/*
-		 * When the JTLB is updated by tlbwi or tlbwr, a subsequent
-		 * use of the JTLB for instructions should not occur for 4
-		 * cpu cycles and use for data translations should not occur
-		 * for 3 cpu cycles.
-		 */
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		tlbw(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
-		uasm_i_ssnop(p);
 		break;
 
 	case CPU_VR4111:
@@ -629,7 +653,7 @@ static __cpuinit __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 	}
 }
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 
 static __cpuinit void build_restore_pagemask(u32 **p,
 					     struct uasm_reloc **r,
@@ -755,7 +779,7 @@ static __cpuinit void build_huge_handler_tail(u32 **p,
 	build_huge_update_entries(p, pte, ptr);
 	build_huge_tlb_write_entry(p, l, r, pte, tlb_indexed, 0);
 }
-#endif /* CONFIG_HUGETLB_PAGE */
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #ifdef CONFIG_64BIT
 /*
@@ -952,13 +976,6 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 #endif
 	uasm_i_mfc0(p, tmp, C0_BADVADDR); /* get faulting address */
 	uasm_i_lw(p, ptr, uasm_rel_lo(pgdc), ptr);
-
-	if (cpu_has_mips_r2) {
-		uasm_i_ext(p, tmp, tmp, PGDIR_SHIFT, (32 - PGDIR_SHIFT));
-		uasm_i_ins(p, ptr, tmp, PGD_T_LOG2, (32 - PGDIR_SHIFT));
-		return;
-	}
-
 	uasm_i_srl(p, tmp, tmp, PGDIR_SHIFT); /* get pgd only bits */
 	uasm_i_sll(p, tmp, tmp, PGD_T_LOG2);
 	uasm_i_addu(p, ptr, ptr, tmp); /* add in pgd offset */
@@ -994,15 +1011,6 @@ static void __cpuinit build_adjust_context(u32 **p, unsigned int ctx)
 
 static void __cpuinit build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 {
-	if (cpu_has_mips_r2) {
-		/* PTE ptr offset is obtained from BadVAddr */
-		UASM_i_MFC0(p, tmp, C0_BADVADDR);
-		UASM_i_LW(p, ptr, 0, ptr);
-		uasm_i_ext(p, tmp, tmp, PAGE_SHIFT+1, PGDIR_SHIFT-PAGE_SHIFT-1);
-		uasm_i_ins(p, ptr, tmp, PTE_T_LOG2+1, PGDIR_SHIFT-PAGE_SHIFT-1);
-		return;
-	}
-
 	/*
 	 * Bug workaround for the Nevada. It seems as if under certain
 	 * circumstances the move from cp0_context might produce a
@@ -1200,7 +1208,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	/* Adjust the context during the load latency. */
 	build_adjust_context(p, tmp);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_il_bbit1(p, r, scratch, ilog2(_PAGE_HUGE), label_tlb_huge_update);
 	/*
 	 * The in the LWX case we don't want to do the load in the
@@ -1209,7 +1217,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	 */
 	if (use_lwx_insns())
 		uasm_i_nop(p);
-#endif /* CONFIG_HUGETLB_PAGE */
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 
 	/* build_update_entries */
@@ -1312,7 +1320,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		build_get_pgde32(&p, K0, K1); /* get pgd in K1 */
 #endif
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 		build_is_huge_pte(&p, &r, K0, K1, label_tlb_huge_update);
 #endif
 
@@ -1322,7 +1330,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		uasm_l_leave(&l, p);
 		uasm_i_eret(&p); /* return from trap */
 	}
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_l_tlb_huge_update(&l, p);
 	build_huge_update_entries(&p, htlb_info.huge_pte, K1);
 	build_huge_tlb_write_entry(&p, &l, &r, K0, tlb_random,
@@ -1367,7 +1375,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 		uasm_copy_handler(relocs, labels, tlb_handler, p, f);
 		final_len = p - tlb_handler;
 	} else {
-#if defined(CONFIG_HUGETLB_PAGE)
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 		const enum label_id ls = label_tlb_huge_update;
 #else
 		const enum label_id ls = label_vmalloc;
@@ -1436,7 +1444,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 
 	memcpy((void *)ebase, final_handler, 0x100);
 
-	dump_handler((u32 *)ebase, 64);
+	dump_handler("r4000_tlb_refill", (u32 *)ebase, 64);
 }
 
 /*
@@ -1493,7 +1501,8 @@ static void __cpuinit build_r4000_setup_pgd(void)
 	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
 		 (unsigned int)(p - tlbmiss_handler_setup_pgd));
 
-	dump_handler(tlbmiss_handler_setup_pgd,
+	dump_handler("tlbmiss_handler",
+		     tlbmiss_handler_setup_pgd,
 		     ARRAY_SIZE(tlbmiss_handler_setup_pgd));
 }
 #endif
@@ -1763,7 +1772,7 @@ static void __cpuinit build_r3000_tlb_load_handler(void)
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r3000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __cpuinit build_r3000_tlb_store_handler(void)
@@ -1793,7 +1802,7 @@ static void __cpuinit build_r3000_tlb_store_handler(void)
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r3000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __cpuinit build_r3000_tlb_modify_handler(void)
@@ -1823,7 +1832,7 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r3000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
@@ -1842,7 +1851,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 	build_get_pgde32(p, wr.r1, wr.r2); /* get pgd in ptr */
 #endif
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * For huge tlb entries, pmd doesn't contain an address but
 	 * instead contains the tlb pte. Check the PAGE_HUGE bit and
@@ -1958,7 +1967,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	build_make_valid(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when build_r4000_tlbchange_handler_head
 	 * spots a huge page.
@@ -2030,7 +2039,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler(handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r4000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
 }
 
 static void __cpuinit build_r4000_tlb_store_handler(void)
@@ -2051,7 +2060,7 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	build_make_write(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when
 	 * build_r4000_tlbchange_handler_head spots a huge page.
@@ -2077,7 +2086,7 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler(handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r4000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
 }
 
 static void __cpuinit build_r4000_tlb_modify_handler(void)
@@ -2099,7 +2108,7 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	build_make_write(&p, &r, wr.r1, wr.r2);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, wr.r1, wr.r2);
 
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/*
 	 * This is the entry point when
 	 * build_r4000_tlbchange_handler_head spots a huge page.
@@ -2125,7 +2134,7 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r4000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
 
 void __cpuinit build_tlb_refill_handler(void)
@@ -2136,6 +2145,8 @@ void __cpuinit build_tlb_refill_handler(void)
 	 * needed once.
 	 */
 	static int run_once = 0;
+
+	output_pgtable_bits_defines();
 
 #ifdef CONFIG_64BIT
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);

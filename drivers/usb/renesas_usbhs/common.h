@@ -285,6 +285,7 @@ void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data);
  */
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
+void usbhs_sys_function_pullup(struct usbhs_priv *priv, int enable);
 void usbhs_sys_set_test_mode(struct usbhs_priv *priv, u16 mode);
 
 /*

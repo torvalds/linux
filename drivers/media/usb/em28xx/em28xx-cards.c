@@ -1979,6 +1979,15 @@ struct em28xx_board em28xx_boards[] = {
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
+	[EM2884_BOARD_TERRATEC_HTC_USB_XS] = {
+		.name         = "Terratec Cinergy HTC USB XS",
+		.has_dvb      = 1,
+		.ir_codes     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
+		.tuner_type   = TUNER_ABSENT,
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -2057,9 +2066,9 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x0043),
 			.driver_info = EM2870_BOARD_TERRATEC_XS },
 	{ USB_DEVICE(0x0ccd, 0x008e),	/* Cinergy HTC USB XS Rev. 1 */
-			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+			.driver_info = EM2884_BOARD_TERRATEC_HTC_USB_XS },
 	{ USB_DEVICE(0x0ccd, 0x00ac),	/* Cinergy HTC USB XS Rev. 2 */
-			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+			.driver_info = EM2884_BOARD_TERRATEC_HTC_USB_XS },
 	{ USB_DEVICE(0x0ccd, 0x10a2),	/* H5 Rev. 1 */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x10ad),	/* H5 Rev. 2 */
@@ -3297,7 +3306,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	dev->num_alt = interface->num_altsetting;
 
-	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
+	if ((unsigned)card[nr] < em28xx_bcount)
 		dev->model = card[nr];
 
 	/* save our data pointer in this interface device */

@@ -219,6 +219,7 @@ _user_exception:
 
 	j	common_exception
 
+ENDPROC(user_exception)
 
 /*
  * First-level exit handler for kernel exceptions
@@ -371,6 +372,13 @@ common_exception:
 	s32i	a2, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
 
+	/* Save SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	rsr     a2, scompare1
+	s32i    a2, a1, PT_SCOMPARE1
+#endif
+
 	/* Save optional registers. */
 
 	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
@@ -432,6 +440,12 @@ common_exception_return:
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 
+	/* Restore SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	l32i    a2, a1, PT_SCOMPARE1
+	wsr     a2, scompare1
+#endif
 	wsr	a3, ps		/* disable interrupts */
 
 	_bbci.l	a3, PS_UM_BIT, kernel_exception_exit
@@ -641,6 +655,8 @@ common_exception_exit:
 	l32i	a1, a1, PT_AREG1
 	rfde
 
+ENDPROC(kernel_exception)
+
 /*
  * Debug exception handler.
  *
@@ -701,6 +717,7 @@ ENTRY(debug_exception)
 	/* Debug exception while in exception mode. */
 1:	j	1b	// FIXME!!
 
+ENDPROC(debug_exception)
 
 /*
  * We get here in case of an unrecoverable exception.
@@ -751,6 +768,7 @@ ENTRY(unrecoverable_exception)
 
 1:	j	1b
 
+ENDPROC(unrecoverable_exception)
 
 /* -------------------------- FAST EXCEPTION HANDLERS ----------------------- */
 
@@ -856,7 +874,7 @@ ENTRY(fast_alloca)
 
 	_bnei	a0, 1, 1f		# no 'movsp a1, ax': jump
 
-        /* Move the save area. This implies the use of the L32E
+	/* Move the save area. This implies the use of the L32E
 	 * and S32E instructions, because this move must be done with
 	 * the user's PS.RING privilege levels, not with ring 0
 	 * (kernel's) privileges currently active with PS.EXCM
@@ -929,6 +947,7 @@ ENTRY(fast_alloca)
 	l32i	a2, a2, PT_AREG2
 	rfe
 
+ENDPROC(fast_alloca)
 
 /*
  * fast system calls.
@@ -966,6 +985,8 @@ ENTRY(fast_syscall_kernel)
 
 	j	kernel_exception
 
+ENDPROC(fast_syscall_kernel)
+
 ENTRY(fast_syscall_user)
 
 	/* Skip syscall. */
@@ -983,19 +1004,21 @@ ENTRY(fast_syscall_user)
 
 	j	user_exception
 
+ENDPROC(fast_syscall_user)
+
 ENTRY(fast_syscall_unrecoverable)
 
-        /* Restore all states. */
+	/* Restore all states. */
 
-        l32i    a0, a2, PT_AREG0        # restore a0
-        xsr     a2, depc                # restore a2, depc
-        rsr     a3, excsave1
+	l32i    a0, a2, PT_AREG0        # restore a0
+	xsr     a2, depc                # restore a2, depc
+	rsr     a3, excsave1
 
-        wsr     a0, excsave1
-        movi    a0, unrecoverable_exception
-        callx0  a0
+	wsr     a0, excsave1
+	movi    a0, unrecoverable_exception
+	callx0  a0
 
-
+ENDPROC(fast_syscall_unrecoverable)
 
 /*
  * sysxtensa syscall handler
@@ -1101,7 +1124,7 @@ CATCH
 	movi	a2, -EINVAL
 	rfe
 
-
+ENDPROC(fast_syscall_xtensa)
 
 
 /* fast_syscall_spill_registers.
@@ -1159,6 +1182,8 @@ ENTRY(fast_syscall_spill_registers)
 
 	movi	a2, 0
 	rfe
+
+ENDPROC(fast_syscall_spill_registers)
 
 /* Fixup handler.
  *
@@ -1228,9 +1253,9 @@ fast_syscall_spill_registers_fixup:
 
 	movi	a3, exc_table
 	rsr	a0, exccause
-        addx4	a0, a0, a3              	# find entry in table
-        l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
-        jx	a0
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	jx	a0
 
 fast_syscall_spill_registers_fixup_return:
 
@@ -1432,7 +1457,7 @@ ENTRY(_spill_registers)
 	rsr	a0, ps
 	_bbci.l	a0, PS_UM_BIT, 1f
 
- 	/* User space: Setup a dummy frame and kill application.
+	/* User space: Setup a dummy frame and kill application.
 	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
 	 */
 
@@ -1464,6 +1489,8 @@ ENTRY(_spill_registers)
 	callx0	a0		# should not return
 1:	j	1b
 
+ENDPROC(_spill_registers)
+
 #ifdef CONFIG_MMU
 /*
  * We should never get here. Bail out!
@@ -1474,6 +1501,8 @@ ENTRY(fast_second_level_miss_double_kernel)
 1:	movi	a0, unrecoverable_exception
 	callx0	a0		# should not return
 1:	j	1b
+
+ENDPROC(fast_second_level_miss_double_kernel)
 
 /* First-level entry handler for user, kernel, and double 2nd-level
  * TLB miss exceptions.  Note that for now, user and kernel miss
@@ -1682,6 +1711,7 @@ ENTRY(fast_second_level_miss)
 	j	_kernel_exception
 1:	j	_user_exception
 
+ENDPROC(fast_second_level_miss)
 
 /*
  * StoreProhibitedException
@@ -1777,6 +1807,9 @@ ENTRY(fast_store_prohibited)
 	bbsi.l	a2, PS_UM_BIT, 1f
 	j	_kernel_exception
 1:	j	_user_exception
+
+ENDPROC(fast_store_prohibited)
+
 #endif /* CONFIG_MMU */
 
 /*
@@ -1787,6 +1820,7 @@ ENTRY(fast_store_prohibited)
  */
 
 ENTRY(system_call)
+
 	entry	a1, 32
 
 	/* regs->syscall = regs->areg[2] */
@@ -1831,50 +1865,8 @@ ENTRY(system_call)
 	callx4	a4
 	retw
 
+ENDPROC(system_call)
 
-/*
- * Create a kernel thread
- *
- * int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
- * a2                    a2                 a3             a4
- */
-
-ENTRY(kernel_thread)
-	entry	a1, 16
-
-	mov	a5, a2			# preserve fn over syscall
-	mov	a7, a3			# preserve args over syscall
-
-	movi	a3, _CLONE_VM | _CLONE_UNTRACED
-	movi	a2, __NR_clone
-	or	a6, a4, a3		# arg0: flags
-	mov	a3, a1			# arg1: sp
-	syscall
-
-	beq	a3, a1, 1f		# branch if parent
-	mov	a6, a7			# args
-	callx4	a5			# fn(args)
-
-	movi	a2, __NR_exit
-	syscall				# return value of fn(args) still in a6
-
-1:	retw
-
-/*
- * Do a system call from kernel instead of calling sys_execve, so we end up
- * with proper pt_regs.
- *
- * int kernel_execve(const char *fname, char *const argv[], charg *const envp[])
- * a2                        a2               a3                  a4
- */
-
-ENTRY(kernel_execve)
-	entry	a1, 16
-	mov	a6, a2			# arg0 is in a6
-	movi	a2, __NR_execve
-	syscall
-
-	retw
 
 /*
  * Task switch.
@@ -1943,6 +1935,7 @@ ENTRY(_switch_to)
 
 	retw
 
+ENDPROC(_switch_to)
 
 ENTRY(ret_from_fork)
 
@@ -1958,3 +1951,18 @@ ENTRY(ret_from_fork)
 
 	j	common_exception_return
 
+ENDPROC(ret_from_fork)
+
+/*
+ * Kernel thread creation helper
+ * On entry, set up by copy_thread: a2 = thread_fn, a3 = thread_fn arg
+ *           left from _switch_to: a6 = prev
+ */
+ENTRY(ret_from_kernel_thread)
+
+	call4	schedule_tail
+	mov	a6, a3
+	callx4	a2
+	j	common_exception_return
+
+ENDPROC(ret_from_kernel_thread)

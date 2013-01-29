@@ -548,15 +548,6 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
-		spin_lock(&dentry->d_lock);
-		if (!ret) {
-			if ((IS_ROOT(dentry) ||
-			    (autofs_type_indirect(sbi->type) &&
-			     IS_ROOT(dentry->d_parent))) &&
-			    !(dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
-				__managed_dentry_set_automount(dentry);
-		}
-		spin_unlock(&dentry->d_lock);
 		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		dput(dentry);

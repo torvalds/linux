@@ -40,6 +40,8 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_CALL_FUNCTION	0x2
 /* Octeon - Tell another core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
+/* Used by kexec crashdump to save all cpu's state */
+#define SMP_DUMP		0x8
 
 extern volatile cpumask_t cpu_callin_map;
 
@@ -91,4 +93,8 @@ static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }
 
+#if defined(CONFIG_KEXEC)
+extern void (*dump_ipi_function_ptr)(void *);
+void dump_send_ipi(void (*dump_ipi_callback)(void *));
+#endif
 #endif /* __ASM_SMP_H */

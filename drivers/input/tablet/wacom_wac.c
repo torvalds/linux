@@ -467,9 +467,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
-                    (features->type >= INTUOS5S && features->type <= INTUOS5L) ||
-		    (features->type >= WACOM_21UX2 && features->type <= WACOM_24HD)) {
+		if (features->type >= INTUOS4S && features->type <= WACOM_24HD) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
@@ -877,6 +875,11 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	int i;
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
+	int x_offset = 0;
+
+	/* MTTPC does not support Height and Width */
+	if (wacom->features.type == MTTPC)
+		x_offset = -4;
 
 	/*
 	 * First packet resets the counter since only the first
@@ -889,7 +892,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	contacts_to_send = min(5, wacom->num_contacts_left);
 
 	for (i = 0; i < contacts_to_send; i++) {
-		int offset = (WACOM_BYTES_PER_MT_PACKET * i) + 3;
+		int offset = (WACOM_BYTES_PER_MT_PACKET + x_offset) * i + 3;
 		bool touch = data[offset] & 0x1;
 		int id = le16_to_cpup((__le16 *)&data[offset + 1]);
 		int slot = find_slot_from_contactid(wacom, id);
@@ -900,8 +903,8 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 		input_mt_slot(input, slot);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 		if (touch) {
-			int x = le16_to_cpup((__le16 *)&data[offset + 7]);
-			int y = le16_to_cpup((__le16 *)&data[offset + 9]);
+			int x = le16_to_cpup((__le16 *)&data[offset + x_offset + 7]);
+			int y = le16_to_cpup((__le16 *)&data[offset + x_offset + 9]);
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
 		}
@@ -1336,6 +1339,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case TABLETPCE:
 	case TABLETPC2FG:
 	case MTSCREEN:
+	case MTTPC:
 		sync = wacom_tpc_irq(wacom_wac, len);
 		break;
 
@@ -1518,6 +1522,9 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
+
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
 		wacom_setup_cintiq(wacom_wac);
 		break;
 
@@ -1654,6 +1661,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case MTSCREEN:
+	case MTTPC:
 		if (features->device_type == BTN_TOOL_FINGER) {
 			wacom_wac->slots = kmalloc(features->touch_max *
 							sizeof(int),
@@ -2015,6 +2023,15 @@ static const struct wacom_features wacom_features_0xED =
 static const struct wacom_features wacom_features_0xEF =
 	{ "Wacom ISDv4 EF",       WACOM_PKGLEN_GRAPHIRE,  26202, 16325,  255,
 	  0, TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x100 =
+	{ "Wacom ISDv4 100",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
+	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x101 =
+	{ "Wacom ISDv4 101",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
+	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x4001 =
+	{ "Wacom ISDv4 4001",      WACOM_PKGLEN_MTTPC,     26202, 16325,  255,
+	  0, MTTPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8",    WACOM_PKGLEN_INTUOS,    20320, 16240, 1023,
 	  31, INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -2031,7 +2048,8 @@ static const struct wacom_features wacom_features_0xD1 =
 	  .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD2 =
 	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720,  9200, 1023,
-	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD3 =
 	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13700, 1023,
 	  31, BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
@@ -2191,6 +2209,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xEC) },
 	{ USB_DEVICE_WACOM(0xED) },
 	{ USB_DEVICE_WACOM(0xEF) },
+	{ USB_DEVICE_WACOM(0x100) },
+	{ USB_DEVICE_WACOM(0x101) },
+	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },

@@ -2045,7 +2045,7 @@ config FB_S3C_DEBUG_REGWRITE
        bool "Debug register writes"
        depends on FB_S3C
        ---help---
-         Show all register writes via printk(KERN_DEBUG)
+         Show all register writes via pr_debug()
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
@@ -2140,14 +2140,16 @@ config FB_UDL
 	  To compile as a module, choose M here: the module name is udlfb.
 
 config FB_IBM_GXT4500
-	tristate "Framebuffer support for IBM GXT4500P adaptor"
+	tristate "Framebuffer support for IBM GXT4000P/4500P/6000P/6500P adaptors"
 	depends on FB && PPC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
-	  Say Y here to enable support for the IBM GXT4500P display
-	  adaptor, found on some IBM System P (pSeries) machines.
+	  Say Y here to enable support for the IBM GXT4000P/6000P and
+	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
+	  found on some IBM System P (pSeries) machines. This driver
+	  doesn't use Geometry Engine GT1000.
 
 config FB_PS3
 	tristate "PS3 GPU framebuffer driver"
@@ -2441,5 +2443,20 @@ config FB_SH_MOBILE_MERAM
 	  reliable access under heavy main memory bus traffic situations.
 	  Up to 4 memory channels can be configured, allowing 4 RGB or
 	  2 YCbCr framebuffers to be configured.
+
+config FB_SSD1307
+	tristate "Solomon SSD1307 framebuffer support"
+	depends on FB && I2C
+	depends on OF
+	depends on GENERIC_GPIO
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_DEFERRED_IO
+	select PWM
+	help
+	  This driver implements support for the Solomon SSD1307
+	  OLED controller over I2C.
 
 endmenu

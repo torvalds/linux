@@ -127,7 +127,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Pri_Dai",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8994-codec",
 		.init = smdk_wm8994_init_paiftx,
 		.ops = &smdk_ops,
@@ -136,7 +136,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Sec_Dai",
 		.cpu_dai_name = "samsung-i2s.4",
 		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.4",
 		.codec_name = "wm8994-codec",
 		.ops = &smdk_ops,
 	},
@@ -150,7 +150,7 @@ static struct snd_soc_card smdk = {
 };
 
 
-static int __devinit smdk_audio_probe(struct platform_device *pdev)
+static int smdk_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card = &smdk;
@@ -164,7 +164,7 @@ static int __devinit smdk_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit smdk_audio_remove(struct platform_device *pdev)
+static int smdk_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -179,7 +179,7 @@ static struct platform_driver smdk_audio_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= smdk_audio_probe,
-	.remove		= __devexit_p(smdk_audio_remove),
+	.remove		= smdk_audio_remove,
 };
 
 module_platform_driver(smdk_audio_driver);

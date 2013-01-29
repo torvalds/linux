@@ -34,7 +34,6 @@
 #include <linux/ctype.h>
 #include <linux/compat.h>
 #include <linux/eventfd.h>
-#include <linux/vhost.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <asm/unaligned.h>
@@ -415,14 +414,12 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 {
 	struct tcm_vhost_cmd *tv_cmd;
 	struct tcm_vhost_nexus *tv_nexus;
-	struct se_session *se_sess;
 
 	tv_nexus = tv_tpg->tpg_nexus;
 	if (!tv_nexus) {
 		pr_err("Unable to locate active struct tcm_vhost_nexus\n");
 		return ERR_PTR(-EIO);
 	}
-	se_sess = tv_nexus->tvn_se_sess;
 
 	tv_cmd = kzalloc(sizeof(struct tcm_vhost_cmd), GFP_ATOMIC);
 	if (!tv_cmd) {
@@ -541,10 +538,6 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 
 	if (tv_cmd->tvc_sgl_count) {
 		sg_ptr = tv_cmd->tvc_sgl;
-		/*
-		 * For BIDI commands, pass in the extra READ buffer
-		 * to transport_generic_map_mem_to_cmd() below..
-		 */
 /* FIXME: Fix BIDI operation in tcm_vhost_submission_work() */
 #if 0
 		if (se_cmd->se_cmd_flags & SCF_BIDI) {
@@ -895,6 +888,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 		vhost_scsi_clear_endpoint(s, &backend);
 	}
 
+	vhost_dev_stop(&s->dev);
 	vhost_dev_cleanup(&s->dev, false);
 	kfree(s);
 	return 0;
@@ -970,7 +964,10 @@ static long vhost_scsi_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_scsi_set_features(vs, features);
 	default:
 		mutex_lock(&vs->dev.mutex);
-		r = vhost_dev_ioctl(&vs->dev, ioctl, arg);
+		r = vhost_dev_ioctl(&vs->dev, ioctl, argp);
+		/* TODO: flush backend after dev ioctl. */
+		if (r == -ENOIOCTLCMD)
+			r = vhost_vring_ioctl(&vs->dev, ioctl, argp);
 		mutex_unlock(&vs->dev.mutex);
 		return r;
 	}

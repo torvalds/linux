@@ -105,7 +105,7 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 	return 0;
 }
 
-static int __devinit gen_74x164_probe(struct spi_device *spi)
+static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
 	struct gen_74x164_chip_platform_data *pdata;
@@ -153,7 +153,7 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	}
 
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
-	chip->buffer = devm_kzalloc(&spi->dev, chip->gpio_chip.ngpio, GFP_KERNEL);
+	chip->buffer = devm_kzalloc(&spi->dev, chip->registers, GFP_KERNEL);
 	if (!chip->buffer) {
 		ret = -ENOMEM;
 		goto exit_destroy;
@@ -181,7 +181,7 @@ exit_destroy:
 	return ret;
 }
 
-static int __devexit gen_74x164_remove(struct spi_device *spi)
+static int gen_74x164_remove(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
 	int ret;
@@ -215,7 +215,7 @@ static struct spi_driver gen_74x164_driver = {
 		.of_match_table	= of_match_ptr(gen_74x164_dt_ids),
 	},
 	.probe		= gen_74x164_probe,
-	.remove		= __devexit_p(gen_74x164_remove),
+	.remove		= gen_74x164_remove,
 };
 module_spi_driver(gen_74x164_driver);
 

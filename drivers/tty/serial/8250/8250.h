@@ -40,6 +40,7 @@ struct serial8250_config {
 #define UART_CAP_AFE	(1 << 11)	/* MCR-based hw flow control */
 #define UART_CAP_UUE	(1 << 12)	/* UART needs IER bit 6 set (Xscale) */
 #define UART_CAP_RTOIE	(1 << 13)	/* UART needs IER bit 4 set (Xscale, Tegra) */
+#define UART_CAP_HFIFO	(1 << 14)	/* UART has a "hidden" FIFO */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
@@ -106,3 +107,39 @@ static inline int serial8250_pnp_init(void) { return 0; }
 static inline void serial8250_pnp_exit(void) { }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP1
+static inline int is_omap1_8250(struct uart_8250_port *pt)
+{
+	int res;
+
+	switch (pt->port.mapbase) {
+	case OMAP1_UART1_BASE:
+	case OMAP1_UART2_BASE:
+	case OMAP1_UART3_BASE:
+		res = 1;
+		break;
+	default:
+		res = 0;
+		break;
+	}
+
+	return res;
+}
+
+static inline int is_omap1510_8250(struct uart_8250_port *pt)
+{
+	if (!cpu_is_omap1510())
+		return 0;
+
+	return is_omap1_8250(pt);
+}
+#else
+static inline int is_omap1_8250(struct uart_8250_port *pt)
+{
+	return 0;
+}
+static inline int is_omap1510_8250(struct uart_8250_port *pt)
+{
+	return 0;
+}
+#endif

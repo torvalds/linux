@@ -21,12 +21,12 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <mach/board.h>
 #include <mach/at91sam9261.h>
 #include <mach/at91sam9261_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
 
+#include "board.h"
 #include "generic.h"
 
 
@@ -72,7 +72,7 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data)
 
 	/* Enable overcurrent notification */
 	for (i = 0; i < data->ports; i++) {
-		if (data->overcurrent_pin[i])
+		if (gpio_is_valid(data->overcurrent_pin[i]))
 			at91_set_gpio_input(data->overcurrent_pin[i], 1);
 	}
 
@@ -285,7 +285,7 @@ static struct i2c_gpio_platform_data pdata = {
 
 static struct platform_device at91sam9261_twi_device = {
 	.name			= "i2c-gpio",
-	.id			= -1,
+	.id			= 0,
 	.dev.platform_data	= &pdata,
 };
 
@@ -317,7 +317,7 @@ static struct resource twi_resources[] = {
 };
 
 static struct platform_device at91sam9261_twi_device = {
-	.id		= -1,
+	.id		= 0,
 	.resource	= twi_resources,
 	.num_resources	= ARRAY_SIZE(twi_resources),
 };
@@ -706,7 +706,7 @@ static struct resource ssc0_resources[] = {
 };
 
 static struct platform_device at91sam9261_ssc0_device = {
-	.name	= "ssc",
+	.name	= "at91rm9200_ssc",
 	.id	= 0,
 	.dev	= {
 		.dma_mask		= &ssc0_dmamask,
@@ -748,7 +748,7 @@ static struct resource ssc1_resources[] = {
 };
 
 static struct platform_device at91sam9261_ssc1_device = {
-	.name	= "ssc",
+	.name	= "at91rm9200_ssc",
 	.id	= 1,
 	.dev	= {
 		.dma_mask		= &ssc1_dmamask,
@@ -790,7 +790,7 @@ static struct resource ssc2_resources[] = {
 };
 
 static struct platform_device at91sam9261_ssc2_device = {
-	.name	= "ssc",
+	.name	= "at91rm9200_ssc",
 	.id	= 2,
 	.dev	= {
 		.dma_mask		= &ssc2_dmamask,

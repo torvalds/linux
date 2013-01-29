@@ -261,7 +261,7 @@ static struct snd_pcm_ops snd_sh_dac_pcm_ops = {
 	.mmap		= snd_pcm_lib_mmap_iomem,
 };
 
-static int __devinit snd_sh_dac_pcm(struct snd_sh_dac *chip, int device)
+static int snd_sh_dac_pcm(struct snd_sh_dac *chip, int device)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -346,9 +346,9 @@ static enum hrtimer_restart sh_dac_audio_timer(struct hrtimer *handle)
 }
 
 /* create  --  chip-specific constructor for the cards components */
-static int __devinit snd_sh_dac_create(struct snd_card *card,
-				       struct platform_device *devptr,
-				       struct snd_sh_dac **rchip)
+static int snd_sh_dac_create(struct snd_card *card,
+			     struct platform_device *devptr,
+			     struct snd_sh_dac **rchip)
 {
 	struct snd_sh_dac *chip;
 	int err;
@@ -392,7 +392,7 @@ static int __devinit snd_sh_dac_create(struct snd_card *card,
 }
 
 /* driver .probe  --  constructor */
-static int __devinit snd_sh_dac_probe(struct platform_device *devptr)
+static int snd_sh_dac_probe(struct platform_device *devptr)
 {
 	struct snd_sh_dac *chip;
 	struct snd_card *card;

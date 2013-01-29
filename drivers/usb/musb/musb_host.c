@@ -740,7 +740,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		csr = musb_readw(epio, MUSB_TXCSR);
 
 		/* disable interrupt in case we flush */
-		int_txe = musb_readw(mbase, MUSB_INTRTXE);
+		int_txe = musb->intrtxe;
 		musb_writew(mbase, MUSB_INTRTXE, int_txe & ~(1 << epnum));
 
 		/* general endpoint setup */

@@ -19,7 +19,7 @@
  * because of the strncmp().
  */
 #if defined(CONFIG_ARCH_OMAP15XX) && !defined(__ASSEMBLER__)
-#include <plat/cpu.h>
+#include <mach/soc.h>
 
 /*
  * OMAP-1510 Local Bus address offset

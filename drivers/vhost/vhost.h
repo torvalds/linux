@@ -7,16 +7,10 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/skbuff.h>
 #include <linux/uio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/atomic.h>
-
-/* This is for zerocopy, used buffer len is set to 1 when lower device DMA
- * done */
-#define VHOST_DMA_DONE_LEN	1
-#define VHOST_DMA_CLEAR_LEN	0
 
 struct vhost_device;
 
@@ -69,6 +63,8 @@ struct vhost_ubuf_ref {
 struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *, bool zcopy);
 void vhost_ubuf_put(struct vhost_ubuf_ref *);
 void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *);
+
+struct ubuf_info;
 
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
@@ -167,7 +163,9 @@ long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
 long vhost_dev_check_owner(struct vhost_dev *);
 long vhost_dev_reset_owner(struct vhost_dev *);
 void vhost_dev_cleanup(struct vhost_dev *, bool locked);
-long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, unsigned long arg);
+void vhost_dev_stop(struct vhost_dev *);
+long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);
 int vhost_vq_access_ok(struct vhost_virtqueue *vq);
 int vhost_log_access_ok(struct vhost_dev *);
 
@@ -191,8 +189,6 @@ bool vhost_enable_notify(struct vhost_dev *, struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len);
-void vhost_zerocopy_callback(struct ubuf_info *);
-int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq);
 
 #define vq_err(vq, fmt, ...) do {                                  \
 		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);       \

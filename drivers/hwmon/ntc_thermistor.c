@@ -309,7 +309,7 @@ static const struct attribute_group ntc_attr_group = {
 	.attrs = ntc_attributes,
 };
 
-static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
+static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct ntc_data *data;
 	struct ntc_thermistor_platform_data *pdata = pdev->dev.platform_data;
@@ -393,7 +393,7 @@ err_after_sysfs:
 	return ret;
 }
 
-static int __devexit ntc_thermistor_remove(struct platform_device *pdev)
+static int ntc_thermistor_remove(struct platform_device *pdev)
 {
 	struct ntc_data *data = platform_get_drvdata(pdev);
 
@@ -419,7 +419,7 @@ static struct platform_driver ntc_thermistor_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ntc_thermistor_probe,
-	.remove = __devexit_p(ntc_thermistor_remove),
+	.remove = ntc_thermistor_remove,
 	.id_table = ntc_thermistor_id,
 };
 

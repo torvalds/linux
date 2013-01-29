@@ -90,7 +90,7 @@ static const struct pwm_ops ab8500_pwm_ops = {
 	.disable = ab8500_pwm_disable,
 };
 
-static int __devinit ab8500_pwm_probe(struct platform_device *pdev)
+static int ab8500_pwm_probe(struct platform_device *pdev)
 {
 	struct ab8500_pwm_chip *ab8500;
 	int err;
@@ -122,7 +122,7 @@ static int __devinit ab8500_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ab8500_pwm_remove(struct platform_device *pdev)
+static int ab8500_pwm_remove(struct platform_device *pdev)
 {
 	struct ab8500_pwm_chip *ab8500 = platform_get_drvdata(pdev);
 	int err;
@@ -143,7 +143,7 @@ static struct platform_driver ab8500_pwm_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_pwm_probe,
-	.remove = __devexit_p(ab8500_pwm_remove),
+	.remove = ab8500_pwm_remove,
 };
 module_platform_driver(ab8500_pwm_driver);
 

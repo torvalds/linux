@@ -730,6 +730,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	kfree(nv_crtc);
 }
@@ -1056,8 +1057,11 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
-		if (!ret)
+		if (!ret) {
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+			if (ret)
+				nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
 		if (ret)
 			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	}

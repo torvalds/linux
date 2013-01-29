@@ -17,6 +17,7 @@
 #include <linux/ptrace.h>
 #include <linux/prctl.h>
 #include <linux/ratelimit.h>
+#include <linux/workqueue.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -29,11 +30,36 @@ static int ptrace_scope = YAMA_SCOPE_RELATIONAL;
 struct ptrace_relation {
 	struct task_struct *tracer;
 	struct task_struct *tracee;
+	bool invalid;
 	struct list_head node;
+	struct rcu_head rcu;
 };
 
 static LIST_HEAD(ptracer_relations);
 static DEFINE_SPINLOCK(ptracer_relations_lock);
+
+static void yama_relation_cleanup(struct work_struct *work);
+static DECLARE_WORK(yama_relation_work, yama_relation_cleanup);
+
+/**
+ * yama_relation_cleanup - remove invalid entries from the relation list
+ *
+ */
+static void yama_relation_cleanup(struct work_struct *work)
+{
+	struct ptrace_relation *relation;
+
+	spin_lock(&ptracer_relations_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid) {
+			list_del_rcu(&relation->node);
+			kfree_rcu(relation, rcu);
+		}
+	}
+	rcu_read_unlock();
+	spin_unlock(&ptracer_relations_lock);
+}
 
 /**
  * yama_ptracer_add - add/replace an exception for this tracer/tracee pair
@@ -48,32 +74,34 @@ static DEFINE_SPINLOCK(ptracer_relations_lock);
 static int yama_ptracer_add(struct task_struct *tracer,
 			    struct task_struct *tracee)
 {
-	int rc = 0;
-	struct ptrace_relation *added;
-	struct ptrace_relation *entry, *relation = NULL;
+	struct ptrace_relation *relation, *added;
 
 	added = kmalloc(sizeof(*added), GFP_KERNEL);
 	if (!added)
 		return -ENOMEM;
 
-	spin_lock_bh(&ptracer_relations_lock);
-	list_for_each_entry(entry, &ptracer_relations, node)
-		if (entry->tracee == tracee) {
-			relation = entry;
-			break;
+	added->tracee = tracee;
+	added->tracer = tracer;
+	added->invalid = false;
+
+	spin_lock(&ptracer_relations_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
+		if (relation->tracee == tracee) {
+			list_replace_rcu(&relation->node, &added->node);
+			kfree_rcu(relation, rcu);
+			goto out;
 		}
-	if (!relation) {
-		relation = added;
-		relation->tracee = tracee;
-		list_add(&relation->node, &ptracer_relations);
 	}
-	relation->tracer = tracer;
 
-	spin_unlock_bh(&ptracer_relations_lock);
-	if (added != relation)
-		kfree(added);
+	list_add_rcu(&added->node, &ptracer_relations);
 
-	return rc;
+out:
+	rcu_read_unlock();
+	spin_unlock(&ptracer_relations_lock);
+	return 0;
 }
 
 /**
@@ -84,16 +112,23 @@ static int yama_ptracer_add(struct task_struct *tracer,
 static void yama_ptracer_del(struct task_struct *tracer,
 			     struct task_struct *tracee)
 {
-	struct ptrace_relation *relation, *safe;
+	struct ptrace_relation *relation;
+	bool marked = false;
 
-	spin_lock_bh(&ptracer_relations_lock);
-	list_for_each_entry_safe(relation, safe, &ptracer_relations, node)
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
 		if (relation->tracee == tracee ||
 		    (tracer && relation->tracer == tracer)) {
-			list_del(&relation->node);
-			kfree(relation);
+			relation->invalid = true;
+			marked = true;
 		}
-	spin_unlock_bh(&ptracer_relations_lock);
+	}
+	rcu_read_unlock();
+
+	if (marked)
+		schedule_work(&yama_relation_work);
 }
 
 /**
@@ -217,21 +252,22 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	struct task_struct *parent = NULL;
 	bool found = false;
 
-	spin_lock_bh(&ptracer_relations_lock);
 	rcu_read_lock();
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
-	list_for_each_entry(relation, &ptracer_relations, node)
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
 		if (relation->tracee == tracee) {
 			parent = relation->tracer;
 			found = true;
 			break;
 		}
+	}
 
 	if (found && (parent == NULL || task_is_descendant(parent, tracer)))
 		rc = 1;
 	rcu_read_unlock();
-	spin_unlock_bh(&ptracer_relations_lock);
 
 	return rc;
 }
@@ -262,14 +298,18 @@ int yama_ptrace_access_check(struct task_struct *child,
 			/* No additional restrictions. */
 			break;
 		case YAMA_SCOPE_RELATIONAL:
+			rcu_read_lock();
 			if (!task_is_descendant(current, child) &&
 			    !ptracer_exception_found(current, child) &&
-			    !ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
+			    !ns_capable(__task_cred(child)->user_ns, CAP_SYS_PTRACE))
 				rc = -EPERM;
+			rcu_read_unlock();
 			break;
 		case YAMA_SCOPE_CAPABILITY:
-			if (!ns_capable(task_user_ns(child), CAP_SYS_PTRACE))
+			rcu_read_lock();
+			if (!ns_capable(__task_cred(child)->user_ns, CAP_SYS_PTRACE))
 				rc = -EPERM;
+			rcu_read_unlock();
 			break;
 		case YAMA_SCOPE_NO_ATTACH:
 		default:
@@ -307,8 +347,10 @@ int yama_ptrace_traceme(struct task_struct *parent)
 	/* Only disallow PTRACE_TRACEME on more aggressive settings. */
 	switch (ptrace_scope) {
 	case YAMA_SCOPE_CAPABILITY:
-		if (!ns_capable(task_user_ns(parent), CAP_SYS_PTRACE))
+		rcu_read_lock();
+		if (!ns_capable(__task_cred(parent)->user_ns, CAP_SYS_PTRACE))
 			rc = -EPERM;
+		rcu_read_unlock();
 		break;
 	case YAMA_SCOPE_NO_ATTACH:
 		rc = -EPERM;

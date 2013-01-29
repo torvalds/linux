@@ -50,8 +50,6 @@ TODO:
 
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
-
 /* all the registers for the pci1723 board */
 #define PCI1723_DA(N)   ((N)<<1)	/* W: D/A register N (0 to 7) */
 
@@ -234,20 +232,20 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci1723_attach_pci(struct comedi_device *dev,
-			      struct pci_dev *pcidev)
+static int pci1723_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -319,17 +317,17 @@ static void pci1723_detach(struct comedi_device *dev)
 static struct comedi_driver adv_pci1723_driver = {
 	.driver_name	= "adv_pci1723",
 	.module		= THIS_MODULE,
-	.attach_pci	= pci1723_attach_pci,
+	.auto_attach	= pci1723_auto_attach,
 	.detach		= pci1723_detach,
 };
 
-static int __devinit adv_pci1723_pci_probe(struct pci_dev *dev,
+static int adv_pci1723_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adv_pci1723_driver);
 }
 
-static void __devexit adv_pci1723_pci_remove(struct pci_dev *dev)
+static void adv_pci1723_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -344,7 +342,7 @@ static struct pci_driver adv_pci1723_pci_driver = {
 	.name		= "adv_pci1723",
 	.id_table	= adv_pci1723_pci_table,
 	.probe		= adv_pci1723_pci_probe,
-	.remove		= __devexit_p(adv_pci1723_pci_remove),
+	.remove		= adv_pci1723_pci_remove,
 };
 module_comedi_pci_driver(adv_pci1723_driver, adv_pci1723_pci_driver);
 

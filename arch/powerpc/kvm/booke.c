@@ -36,9 +36,11 @@
 #include <asm/dbell.h>
 #include <asm/hw_irq.h>
 #include <asm/irq.h>
+#include <asm/time.h>
 
 #include "timing.h"
 #include "booke.h"
+#include "trace.h"
 
 unsigned long kvmppc_booke_handlers;
 
@@ -62,6 +64,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "doorbell", VCPU_STAT(dbell_exits) },
 	{ "guest doorbell", VCPU_STAT(gdbell_exits) },
+	{ "remote_tlb_flush", VM_STAT(remote_tlb_flush) },
 	{ NULL }
 };
 
@@ -120,6 +123,16 @@ static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
 }
 #endif
 
+static void kvmppc_vcpu_sync_fpu(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_PPC_FPU) && !defined(CONFIG_KVM_BOOKE_HV)
+	/* We always treat the FP bit as enabled from the host
+	   perspective, so only need to adjust the shadow MSR */
+	vcpu->arch.shadow_msr &= ~MSR_FP;
+	vcpu->arch.shadow_msr |= vcpu->arch.shared->msr & MSR_FP;
+#endif
+}
+
 /*
  * Helper function for "full" MSR writes.  No need to call this if only
  * EE/CE/ME/DE/RI are changing.
@@ -136,11 +149,13 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 
 	kvmppc_mmu_msr_notify(vcpu, old_msr);
 	kvmppc_vcpu_sync_spe(vcpu);
+	kvmppc_vcpu_sync_fpu(vcpu);
 }
 
 static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
                                        unsigned int priority)
 {
+	trace_kvm_booke_queue_irqprio(vcpu, priority);
 	set_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
@@ -204,6 +219,16 @@ void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
 {
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);
+}
+
+static void kvmppc_core_queue_watchdog(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_WATCHDOG);
+}
+
+static void kvmppc_core_dequeue_watchdog(struct kvm_vcpu *vcpu)
+{
+	clear_bit(BOOKE_IRQPRIO_WATCHDOG, &vcpu->arch.pending_exceptions);
 }
 
 static void set_guest_srr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
@@ -287,6 +312,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	bool crit;
 	bool keep_irq = false;
 	enum int_class int_class;
+	ulong new_msr = vcpu->arch.shared->msr;
 
 	/* Truncate crit indicators in 32 bit mode */
 	if (!(vcpu->arch.shared->msr & MSR_SF)) {
@@ -325,6 +351,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		msr_mask = MSR_CE | MSR_ME | MSR_DE;
 		int_class = INT_CLASS_NONCRIT;
 		break;
+	case BOOKE_IRQPRIO_WATCHDOG:
 	case BOOKE_IRQPRIO_CRITICAL:
 	case BOOKE_IRQPRIO_DBELL_CRIT:
 		allowed = vcpu->arch.shared->msr & MSR_CE;
@@ -381,7 +408,13 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
-		kvmppc_set_msr(vcpu, vcpu->arch.shared->msr & msr_mask);
+
+		new_msr &= msr_mask;
+#if defined(CONFIG_64BIT)
+		if (vcpu->arch.epcr & SPRN_EPCR_ICM)
+			new_msr |= MSR_CM;
+#endif
+		kvmppc_set_msr(vcpu, new_msr);
 
 		if (!keep_irq)
 			clear_bit(priority, &vcpu->arch.pending_exceptions);
@@ -404,25 +437,127 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	return allowed;
 }
 
+/*
+ * Return the number of jiffies until the next timeout.  If the timeout is
+ * longer than the NEXT_TIMER_MAX_DELTA, then return NEXT_TIMER_MAX_DELTA
+ * because the larger value can break the timer APIs.
+ */
+static unsigned long watchdog_next_timeout(struct kvm_vcpu *vcpu)
+{
+	u64 tb, wdt_tb, wdt_ticks = 0;
+	u64 nr_jiffies = 0;
+	u32 period = TCR_GET_WP(vcpu->arch.tcr);
+
+	wdt_tb = 1ULL << (63 - period);
+	tb = get_tb();
+	/*
+	 * The watchdog timeout will hapeen when TB bit corresponding
+	 * to watchdog will toggle from 0 to 1.
+	 */
+	if (tb & wdt_tb)
+		wdt_ticks = wdt_tb;
+
+	wdt_ticks += wdt_tb - (tb & (wdt_tb - 1));
+
+	/* Convert timebase ticks to jiffies */
+	nr_jiffies = wdt_ticks;
+
+	if (do_div(nr_jiffies, tb_ticks_per_jiffy))
+		nr_jiffies++;
+
+	return min_t(unsigned long long, nr_jiffies, NEXT_TIMER_MAX_DELTA);
+}
+
+static void arm_next_watchdog(struct kvm_vcpu *vcpu)
+{
+	unsigned long nr_jiffies;
+	unsigned long flags;
+
+	/*
+	 * If TSR_ENW and TSR_WIS are not set then no need to exit to
+	 * userspace, so clear the KVM_REQ_WATCHDOG request.
+	 */
+	if ((vcpu->arch.tsr & (TSR_ENW | TSR_WIS)) != (TSR_ENW | TSR_WIS))
+		clear_bit(KVM_REQ_WATCHDOG, &vcpu->requests);
+
+	spin_lock_irqsave(&vcpu->arch.wdt_lock, flags);
+	nr_jiffies = watchdog_next_timeout(vcpu);
+	/*
+	 * If the number of jiffies of watchdog timer >= NEXT_TIMER_MAX_DELTA
+	 * then do not run the watchdog timer as this can break timer APIs.
+	 */
+	if (nr_jiffies < NEXT_TIMER_MAX_DELTA)
+		mod_timer(&vcpu->arch.wdt_timer, jiffies + nr_jiffies);
+	else
+		del_timer(&vcpu->arch.wdt_timer);
+	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
+}
+
+void kvmppc_watchdog_func(unsigned long data)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+	u32 tsr, new_tsr;
+	int final;
+
+	do {
+		new_tsr = tsr = vcpu->arch.tsr;
+		final = 0;
+
+		/* Time out event */
+		if (tsr & TSR_ENW) {
+			if (tsr & TSR_WIS)
+				final = 1;
+			else
+				new_tsr = tsr | TSR_WIS;
+		} else {
+			new_tsr = tsr | TSR_ENW;
+		}
+	} while (cmpxchg(&vcpu->arch.tsr, tsr, new_tsr) != tsr);
+
+	if (new_tsr & TSR_WIS) {
+		smp_wmb();
+		kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+		kvm_vcpu_kick(vcpu);
+	}
+
+	/*
+	 * If this is final watchdog expiry and some action is required
+	 * then exit to userspace.
+	 */
+	if (final && (vcpu->arch.tcr & TCR_WRC_MASK) &&
+	    vcpu->arch.watchdog_enabled) {
+		smp_wmb();
+		kvm_make_request(KVM_REQ_WATCHDOG, vcpu);
+		kvm_vcpu_kick(vcpu);
+	}
+
+	/*
+	 * Stop running the watchdog timer after final expiration to
+	 * prevent the host from being flooded with timers if the
+	 * guest sets a short period.
+	 * Timers will resume when TSR/TCR is updated next time.
+	 */
+	if (!final)
+		arm_next_watchdog(vcpu);
+}
+
 static void update_timer_ints(struct kvm_vcpu *vcpu)
 {
 	if ((vcpu->arch.tcr & TCR_DIE) && (vcpu->arch.tsr & TSR_DIS))
 		kvmppc_core_queue_dec(vcpu);
 	else
 		kvmppc_core_dequeue_dec(vcpu);
+
+	if ((vcpu->arch.tcr & TCR_WIE) && (vcpu->arch.tsr & TSR_WIS))
+		kvmppc_core_queue_watchdog(vcpu);
+	else
+		kvmppc_core_dequeue_watchdog(vcpu);
 }
 
 static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned int priority;
-
-	if (vcpu->requests) {
-		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu)) {
-			smp_mb();
-			update_timer_ints(vcpu);
-		}
-	}
 
 	priority = __ffs(*pending);
 	while (priority < BOOKE_IRQPRIO_MAX) {
@@ -459,37 +594,20 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	return r;
 }
 
-/*
- * Common checks before entering the guest world.  Call with interrupts
- * disabled.
- *
- * returns !0 if a signal is pending and check_signal is true
- */
-static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
+int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
-	int r = 0;
+	int r = 1; /* Indicate we want to get back into the guest */
 
-	WARN_ON_ONCE(!irqs_disabled());
-	while (true) {
-		if (need_resched()) {
-			local_irq_enable();
-			cond_resched();
-			local_irq_disable();
-			continue;
-		}
+	if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
+		update_timer_ints(vcpu);
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
+		kvmppc_core_flush_tlb(vcpu);
+#endif
 
-		if (signal_pending(current)) {
-			r = 1;
-			break;
-		}
-
-		if (kvmppc_core_prepare_to_enter(vcpu)) {
-			/* interrupts got enabled in between, so we
-			   are back at square 1 */
-			continue;
-		}
-
-		break;
+	if (kvm_check_request(KVM_REQ_WATCHDOG, vcpu)) {
+		vcpu->run->exit_reason = KVM_EXIT_WATCHDOG;
+		r = 0;
 	}
 
 	return r;
@@ -497,7 +615,7 @@ static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	int ret;
+	int ret, s;
 #ifdef CONFIG_PPC_FPU
 	unsigned int fpscr;
 	int fpexc_mode;
@@ -510,11 +628,13 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
-	if (kvmppc_prepare_to_enter(vcpu)) {
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		ret = -EINTR;
+	s = kvmppc_prepare_to_enter(vcpu);
+	if (s <= 0) {
+		local_irq_enable();
+		ret = s;
 		goto out;
 	}
+	kvmppc_lazy_ee_enable();
 
 	kvm_guest_enter();
 
@@ -542,6 +662,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
+	/* No need for kvm_guest_exit. It's done in handle_exit.
+	   We also get here with interrupts enabled. */
+
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
 
@@ -557,10 +680,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	current->thread.fpexc_mode = fpexc_mode;
 #endif
 
-	kvm_guest_exit();
-
 out:
-	local_irq_enable();
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 	return ret;
 }
 
@@ -668,6 +789,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int exit_nr)
 {
 	int r = RESUME_HOST;
+	int s;
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -676,6 +798,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	kvmppc_restart_interrupt(vcpu, exit_nr);
 
 	local_irq_enable();
+
+	trace_kvm_exit(exit_nr, vcpu);
+	kvm_guest_exit();
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
@@ -971,10 +1096,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	if (!(r & RESUME_HOST)) {
 		local_irq_disable();
-		if (kvmppc_prepare_to_enter(vcpu)) {
-			run->exit_reason = KVM_EXIT_INTR;
-			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+		s = kvmppc_prepare_to_enter(vcpu);
+		if (s <= 0) {
+			local_irq_enable();
+			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
+		} else {
+			kvmppc_lazy_ee_enable();
 		}
 	}
 
@@ -1009,6 +1136,21 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	r = kvmppc_core_vcpu_setup(vcpu);
 	kvmppc_sanity_check(vcpu);
 	return r;
+}
+
+int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	/* setup watchdog timer once */
+	spin_lock_init(&vcpu->arch.wdt_lock);
+	setup_timer(&vcpu->arch.wdt_timer, kvmppc_watchdog_func,
+		    (unsigned long)vcpu);
+
+	return 0;
+}
+
+void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	del_timer_sync(&vcpu->arch.wdt_timer);
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
@@ -1106,7 +1248,13 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	}
 
 	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
+		u32 old_tsr = vcpu->arch.tsr;
+
 		vcpu->arch.tsr = sregs->u.e.tsr;
+
+		if ((old_tsr ^ vcpu->arch.tsr) & (TSR_ENW | TSR_WIS))
+			arm_next_watchdog(vcpu);
+
 		update_timer_ints(vcpu);
 	}
 
@@ -1221,12 +1369,70 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 {
-	return -EINVAL;
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_IAC1:
+	case KVM_REG_PPC_IAC2:
+	case KVM_REG_PPC_IAC3:
+	case KVM_REG_PPC_IAC4: {
+		int iac = reg->id - KVM_REG_PPC_IAC1;
+		r = copy_to_user((u64 __user *)(long)reg->addr,
+				 &vcpu->arch.dbg_reg.iac[iac], sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_DAC1:
+	case KVM_REG_PPC_DAC2: {
+		int dac = reg->id - KVM_REG_PPC_DAC1;
+		r = copy_to_user((u64 __user *)(long)reg->addr,
+				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
+		break;
+	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR:
+		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
+		break;
+#endif
+	default:
+		break;
+	}
+	return r;
 }
 
 int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 {
-	return -EINVAL;
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_IAC1:
+	case KVM_REG_PPC_IAC2:
+	case KVM_REG_PPC_IAC3:
+	case KVM_REG_PPC_IAC4: {
+		int iac = reg->id - KVM_REG_PPC_IAC1;
+		r = copy_from_user(&vcpu->arch.dbg_reg.iac[iac],
+			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_DAC1:
+	case KVM_REG_PPC_DAC2: {
+		int dac = reg->id - KVM_REG_PPC_DAC1;
+		r = copy_from_user(&vcpu->arch.dbg_reg.dac[dac],
+			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+#if defined(CONFIG_64BIT)
+	case KVM_REG_PPC_EPCR: {
+		u32 new_epcr;
+		r = get_user(new_epcr, (u32 __user *)(long)reg->addr);
+		if (r == 0)
+			kvmppc_set_epcr(vcpu, new_epcr);
+		break;
+	}
+#endif
+	default:
+		break;
+	}
+	return r;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
@@ -1253,20 +1459,50 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 	return -ENOTSUPP;
 }
 
+void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
+			      struct kvm_memory_slot *dont)
+{
+}
+
+int kvmppc_core_create_memslot(struct kvm_memory_slot *slot,
+			       unsigned long npages)
+{
+	return 0;
+}
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot,
 				      struct kvm_userspace_memory_region *mem)
 {
 	return 0;
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
+				struct kvm_userspace_memory_region *mem,
+				struct kvm_memory_slot old)
 {
+}
+
+void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
+{
+}
+
+void kvmppc_set_epcr(struct kvm_vcpu *vcpu, u32 new_epcr)
+{
+#if defined(CONFIG_64BIT)
+	vcpu->arch.epcr = new_epcr;
+#ifdef CONFIG_KVM_BOOKE_HV
+	vcpu->arch.shadow_epcr &= ~SPRN_EPCR_GICM;
+	if (vcpu->arch.epcr  & SPRN_EPCR_ICM)
+		vcpu->arch.shadow_epcr |= SPRN_EPCR_GICM;
+#endif
+#endif
 }
 
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)
 {
 	vcpu->arch.tcr = new_tcr;
+	arm_next_watchdog(vcpu);
 	update_timer_ints(vcpu);
 }
 
@@ -1281,6 +1517,14 @@ void kvmppc_set_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
 void kvmppc_clr_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
 {
 	clear_bits(tsr_bits, &vcpu->arch.tsr);
+
+	/*
+	 * We may have stopped the watchdog due to
+	 * being stuck on final expiration.
+	 */
+	if (tsr_bits & (TSR_ENW | TSR_WIS))
+		arm_next_watchdog(vcpu);
+
 	update_timer_ints(vcpu);
 }
 
@@ -1298,12 +1542,14 @@ void kvmppc_decrementer_func(unsigned long data)
 
 void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	vcpu->cpu = smp_processor_id();
 	current->thread.kvm_vcpu = vcpu;
 }
 
 void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	current->thread.kvm_vcpu = NULL;
+	vcpu->cpu = -1;
 }
 
 int __init kvmppc_booke_init(void)

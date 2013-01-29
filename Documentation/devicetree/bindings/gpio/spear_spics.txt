@@ -1,0 +1,50 @@
+=== ST Microelectronics SPEAr SPI CS Driver ===
+
+SPEAr platform provides a provision to control chipselects of ARM PL022 Prime
+Cell spi controller through its system registers, which otherwise remains under
+PL022 control. If chipselect remain under PL022 control then they would be
+released as soon as transfer is over and TxFIFO becomes empty. This is not
+desired by some of the device protocols above spi which expect (multiple)
+transfers without releasing their chipselects.
+
+Chipselects can be controlled by software by turning them as GPIOs. SPEAr
+provides another interface through system registers through which software can
+directly control each PL022 chipselect. Hence, it is natural for SPEAr to export
+the control of this interface as gpio.
+
+Required properties:
+
+  * compatible: should be defined as "st,spear-spics-gpio"
+  * reg: mentioning address range of spics controller
+  * st-spics,peripcfg-reg: peripheral configuration register offset
+  * st-spics,sw-enable-bit: bit offset to enable sw control
+  * st-spics,cs-value-bit: bit offset to drive chipselect low or high
+  * st-spics,cs-enable-mask: chip select number bit mask
+  * st-spics,cs-enable-shift: chip select number program offset
+  * gpio-controller: Marks the device node as gpio controller
+  * #gpio-cells: should be 1 and will mention chip select number
+
+All the above bit offsets are within peripcfg register.
+
+Example:
+-------
+spics: spics@e0700000{
+        compatible = "st,spear-spics-gpio";
+        reg = <0xe0700000 0x1000>;
+        st-spics,peripcfg-reg = <0x3b0>;
+        st-spics,sw-enable-bit = <12>;
+        st-spics,cs-value-bit = <11>;
+        st-spics,cs-enable-mask = <3>;
+        st-spics,cs-enable-shift = <8>;
+        gpio-controller;
+        #gpio-cells = <2>;
+};
+
+
+spi0: spi@e0100000 {
+        status = "okay";
+        num-cs = <3>;
+        cs-gpios = <&gpio1 7 0>, <&spics 0>,
+                   <&spics 1>;
+	...
+}

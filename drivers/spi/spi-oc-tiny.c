@@ -243,7 +243,7 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 
-static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
+static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
 	struct device_node *np = pdev->dev.of_node;
@@ -277,13 +277,13 @@ static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
 	return 0;
 }
 #else /* !CONFIG_OF */
-static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
+static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	return 0;
 }
 #endif /* CONFIG_OF */
 
-static int __devinit tiny_spi_probe(struct platform_device *pdev)
+static int tiny_spi_probe(struct platform_device *pdev)
 {
 	struct tiny_spi_platform_data *platp = pdev->dev.platform_data;
 	struct tiny_spi *hw;
@@ -373,7 +373,7 @@ exit:
 	return err;
 }
 
-static int __devexit tiny_spi_remove(struct platform_device *pdev)
+static int tiny_spi_remove(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
 	struct spi_master *master = hw->bitbang.master;
@@ -399,7 +399,7 @@ MODULE_DEVICE_TABLE(of, tiny_spi_match);
 
 static struct platform_driver tiny_spi_driver = {
 	.probe = tiny_spi_probe,
-	.remove = __devexit_p(tiny_spi_remove),
+	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

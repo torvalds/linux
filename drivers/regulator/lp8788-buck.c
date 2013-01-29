@@ -429,18 +429,6 @@ static struct regulator_desc lp8788_buck_desc[] = {
 	},
 };
 
-static int _gpio_request(struct lp8788_buck *buck, int gpio, char *name)
-{
-	struct device *dev = buck->lp->dev;
-
-	if (!gpio_is_valid(gpio)) {
-		dev_err(dev, "invalid gpio: %d\n", gpio);
-		return -EINVAL;
-	}
-
-	return devm_gpio_request_one(dev, gpio, DVS_LOW, name);
-}
-
 static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 				enum lp8788_buck_id id)
 {
@@ -452,7 +440,8 @@ static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 	switch (id) {
 	case BUCK1:
 		gpio = pdata->buck1_dvs->gpio;
-		ret = _gpio_request(buck, gpio, b1_name);
+		ret = devm_gpio_request_one(buck->lp->dev, gpio, DVS_LOW,
+					    b1_name);
 		if (ret)
 			return ret;
 
@@ -461,7 +450,8 @@ static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 	case BUCK2:
 		for (i = 0 ; i < LP8788_NUM_BUCK2_DVS ; i++) {
 			gpio = pdata->buck2_dvs->gpio[i];
-			ret = _gpio_request(buck, gpio, b2_name[i]);
+			ret = devm_gpio_request_one(buck->lp->dev, gpio,
+						    DVS_LOW, b2_name[i]);
 			if (ret)
 				return ret;
 		}
@@ -504,7 +494,7 @@ set_default_dvs_mode:
 				  default_dvs_mode[id]);
 }
 
-static __devinit int lp8788_buck_probe(struct platform_device *pdev)
+static int lp8788_buck_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	int id = pdev->id;
@@ -542,7 +532,7 @@ static __devinit int lp8788_buck_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_buck_remove(struct platform_device *pdev)
+static int lp8788_buck_remove(struct platform_device *pdev)
 {
 	struct lp8788_buck *buck = platform_get_drvdata(pdev);
 
@@ -554,7 +544,7 @@ static int __devexit lp8788_buck_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_buck_driver = {
 	.probe = lp8788_buck_probe,
-	.remove = __devexit_p(lp8788_buck_remove),
+	.remove = lp8788_buck_remove,
 	.driver = {
 		.name = LP8788_DEV_BUCK,
 		.owner = THIS_MODULE,

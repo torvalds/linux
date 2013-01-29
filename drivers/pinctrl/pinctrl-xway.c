@@ -522,7 +522,7 @@ static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-struct pinconf_ops xway_pinconf_ops = {
+static struct pinconf_ops xway_pinconf_ops = {
 	.pin_config_get	= xway_pinconf_get,
 	.pin_config_set	= xway_pinconf_set,
 };
@@ -674,7 +674,7 @@ static const struct of_device_id xway_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xway_match);
 
-static int __devinit pinmux_xway_probe(struct platform_device *pdev)
+static int pinmux_xway_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct pinctrl_xway_soc *xway_soc;

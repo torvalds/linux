@@ -155,7 +155,7 @@ static struct video_device pwc_template = {
 /***************************************************************************/
 /* Private functions */
 
-struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
+static struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
 {
 	unsigned long flags = 0;
 	struct pwc_frame_buf *buf = NULL;
@@ -1000,7 +1000,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->vb_queue.buf_struct_size = sizeof(struct pwc_frame_buf);
 	pdev->vb_queue.ops = &pwc_vb_queue_ops;
 	pdev->vb_queue.mem_ops = &vb2_vmalloc_memops;
-	vb2_queue_init(&pdev->vb_queue);
+	rc = vb2_queue_init(&pdev->vb_queue);
+	if (rc < 0) {
+		PWC_ERROR("Oops, could not initialize vb2 queue.\n");
+		goto err_free_mem;
+	}
 
 	/* Init video_device structure */
 	memcpy(&pdev->vdev, &pwc_template, sizeof(pwc_template));

@@ -764,7 +764,7 @@ int rpmsg_send_offchannel_raw(struct rpmsg_channel *rpdev, u32 src, u32 dst,
 
 	/* add message to the remote processor's virtqueue */
 	err = virtqueue_add_buf(vrp->svq, &sg, 1, 0, msg, GFP_KERNEL);
-	if (err < 0) {
+	if (err) {
 		/*
 		 * need to reclaim the buffer here, otherwise it's lost
 		 * (memory won't leak, but rpmsg won't use it again for TX).
@@ -776,8 +776,6 @@ int rpmsg_send_offchannel_raw(struct rpmsg_channel *rpdev, u32 src, u32 dst,
 
 	/* tell the remote processor it has a pending message to read */
 	virtqueue_kick(vrp->svq);
-
-	err = 0;
 out:
 	mutex_unlock(&vrp->tx_lock);
 	return err;
@@ -980,7 +978,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 
 		err = virtqueue_add_buf(vrp->rvq, &sg, 0, 1, cpu_addr,
 								GFP_KERNEL);
-		WARN_ON(err < 0); /* sanity check; this can't really happen */
+		WARN_ON(err); /* sanity check; this can't really happen */
 	}
 
 	/* suppress "tx-complete" interrupts */
@@ -1024,7 +1022,7 @@ static int rpmsg_remove_device(struct device *dev, void *data)
 	return 0;
 }
 
-static void __devexit rpmsg_remove(struct virtio_device *vdev)
+static void rpmsg_remove(struct virtio_device *vdev)
 {
 	struct virtproc_info *vrp = vdev->priv;
 	int ret;
@@ -1065,7 +1063,7 @@ static struct virtio_driver virtio_ipc_driver = {
 	.driver.owner	= THIS_MODULE,
 	.id_table	= id_table,
 	.probe		= rpmsg_probe,
-	.remove		= __devexit_p(rpmsg_remove),
+	.remove		= rpmsg_remove,
 };
 
 static int __init rpmsg_init(void)

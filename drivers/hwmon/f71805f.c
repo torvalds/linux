@@ -1343,7 +1343,7 @@ static struct attribute *f71805f_attr_pwm[] = {
  * Device registration and initialization
  */
 
-static void __devinit f71805f_init_device(struct f71805f_data *data)
+static void f71805f_init_device(struct f71805f_data *data)
 {
 	u8 reg;
 	int i;
@@ -1374,7 +1374,7 @@ static void __devinit f71805f_init_device(struct f71805f_data *data)
 	}
 }
 
-static int __devinit f71805f_probe(struct platform_device *pdev)
+static int f71805f_probe(struct platform_device *pdev)
 {
 	struct f71805f_sio_data *sio_data = pdev->dev.platform_data;
 	struct f71805f_data *data;
@@ -1490,7 +1490,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit f71805f_remove(struct platform_device *pdev)
+static int f71805f_remove(struct platform_device *pdev)
 {
 	struct f71805f_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -1510,7 +1510,7 @@ static struct platform_driver f71805f_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f71805f_probe,
-	.remove		= __devexit_p(f71805f_remove),
+	.remove		= f71805f_remove,
 };
 
 static int __init f71805f_device_add(unsigned short address,

@@ -6,24 +6,10 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -43,12 +29,14 @@
  * @manager: specific encoder has its own manager to control a hardware
  *	appropriately and we can access a hardware drawing on this manager.
  * @dpms: store the encoder dpms value.
+ * @updated: indicate whether overlay data updating is needed or not.
  */
 struct exynos_drm_encoder {
 	struct drm_crtc			*old_crtc;
 	struct drm_encoder		drm_encoder;
 	struct exynos_drm_manager	*manager;
-	int dpms;
+	int				dpms;
+	bool				updated;
 };
 
 static void exynos_drm_connector_power(struct drm_encoder *encoder, int mode)
@@ -85,7 +73,9 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		if (manager_ops && manager_ops->apply)
-			manager_ops->apply(manager->dev);
+			if (!exynos_encoder->updated)
+				manager_ops->apply(manager->dev);
+
 		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
 		break;
@@ -94,6 +84,7 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_OFF:
 		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
+		exynos_encoder->updated = false;
 		break;
 	default:
 		DRM_ERROR("unspecified mode %d\n", mode);
@@ -205,14 +196,55 @@ static void exynos_drm_encoder_prepare(struct drm_encoder *encoder)
 
 static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 {
-	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
+	struct exynos_drm_manager *manager = exynos_encoder->manager;
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (manager_ops && manager_ops->commit)
 		manager_ops->commit(manager->dev);
+
+	/*
+	 * this will avoid one issue that overlay data is updated to
+	 * real hardware two times.
+	 * And this variable will be used to check if the data was
+	 * already updated or not by exynos_drm_encoder_dpms function.
+	 */
+	exynos_encoder->updated = true;
+
+	/*
+	 * In case of setcrtc, there is no way to update encoder's dpms
+	 * so update it here.
+	 */
+	exynos_encoder->dpms = DRM_MODE_DPMS_ON;
 }
+
+void exynos_drm_encoder_complete_scanout(struct drm_framebuffer *fb)
+{
+	struct exynos_drm_encoder *exynos_encoder;
+	struct exynos_drm_manager_ops *ops;
+	struct drm_device *dev = fb->dev;
+	struct drm_encoder *encoder;
+
+	/*
+	 * make sure that overlay data are updated to real hardware
+	 * for all encoders.
+	 */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		exynos_encoder = to_exynos_encoder(encoder);
+		ops = exynos_encoder->manager->ops;
+
+		/*
+		 * wait for vblank interrupt
+		 * - this makes sure that overlay data are updated to
+		 *	real hardware.
+		 */
+		if (ops->wait_for_vblank)
+			ops->wait_for_vblank(exynos_encoder->manager->dev);
+	}
+}
+
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 {
@@ -401,19 +433,6 @@ void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
 		manager_ops->dpms(manager->dev, mode);
 
 	/*
-	 * set current mode to new one so that data aren't updated into
-	 * registers by drm_helper_connector_dpms two times.
-	 *
-	 * in case that drm_crtc_helper_set_mode() is called,
-	 * overlay_ops->commit() and manager_ops->commit() callbacks
-	 * can be called two times, first at drm_crtc_helper_set_mode()
-	 * and second at drm_helper_connector_dpms().
-	 * so with this setting, when drm_helper_connector_dpms() is called
-	 * encoder->funcs->dpms() will be ignored.
-	 */
-	exynos_encoder->dpms = mode;
-
-	/*
 	 * if this condition is ok then it means that the crtc is already
 	 * detached from encoder and last function for detaching is properly
 	 * done, so clear pipe from manager to prevent repeated call.
@@ -498,14 +517,4 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
-
-	/*
-	 * wait for vblank interrupt
-	 * - this makes sure that hardware overlay is disabled to avoid
-	 * for the dma accesses to memory after gem buffer was released
-	 * because the setting for disabling the overlay will be updated
-	 * at vsync.
-	 */
-	if (overlay_ops->wait_for_vblank)
-		overlay_ops->wait_for_vblank(manager->dev);
 }

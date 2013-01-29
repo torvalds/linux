@@ -19,7 +19,7 @@ static void __lockfunc tty_lock_nested(struct tty_struct *tty,
 				       unsigned int subclass)
 {
 	if (tty->magic != TTY_MAGIC) {
-		printk(KERN_ERR "L Bad %p\n", tty);
+		pr_err("L Bad %p\n", tty);
 		WARN_ON(1);
 		return;
 	}
@@ -36,7 +36,7 @@ EXPORT_SYMBOL(tty_lock);
 void __lockfunc tty_unlock(struct tty_struct *tty)
 {
 	if (tty->magic != TTY_MAGIC) {
-		printk(KERN_ERR "U Bad %p\n", tty);
+		pr_err("U Bad %p\n", tty);
 		WARN_ON(1);
 		return;
 	}

@@ -16,10 +16,11 @@
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>
 #include <asm/tlbflush.h>
-#include <mach/common.h>
-#include <mach/cpuidle.h>
-#include <mach/hardware.h>
+
+#include "common.h"
+#include "cpuidle.h"
 #include "crm-regs-imx5.h"
+#include "hardware.h"
 
 /*
  * The WAIT_UNCLOCKED_POWER_OFF state only requires <= 500ns to exit.

@@ -284,7 +284,6 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#ifdef CONFIG_HOTPLUG
 static DEFINE_MUTEX(pci_remove_rescan_mutex);
 static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 				size_t count)
@@ -377,8 +376,6 @@ dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#endif
-
 #if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
 static ssize_t d3cold_allowed_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -404,6 +401,89 @@ static ssize_t d3cold_allowed_show(struct device *dev,
 }
 #endif
 
+#ifdef CONFIG_PCI_IOV
+static ssize_t sriov_totalvfs_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pci_sriov_get_totalvfs(pdev));
+}
+
+
+static ssize_t sriov_numvfs_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pdev->sriov->num_VFs);
+}
+
+/*
+ * num_vfs > 0; number of VFs to enable
+ * num_vfs = 0; disable all VFs
+ *
+ * Note: SRIOV spec doesn't allow partial VF
+ *       disable, so it's all or none.
+ */
+static ssize_t sriov_numvfs_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int ret;
+	u16 num_vfs;
+
+	ret = kstrtou16(buf, 0, &num_vfs);
+	if (ret < 0)
+		return ret;
+
+	if (num_vfs > pci_sriov_get_totalvfs(pdev))
+		return -ERANGE;
+
+	if (num_vfs == pdev->sriov->num_VFs)
+		return count;		/* no change */
+
+	/* is PF driver loaded w/callback */
+	if (!pdev->driver || !pdev->driver->sriov_configure) {
+		dev_info(&pdev->dev, "Driver doesn't support SRIOV configuration via sysfs\n");
+		return -ENOSYS;
+	}
+
+	if (num_vfs == 0) {
+		/* disable VFs */
+		ret = pdev->driver->sriov_configure(pdev, 0);
+		if (ret < 0)
+			return ret;
+		return count;
+	}
+
+	/* enable VFs */
+	if (pdev->sriov->num_VFs) {
+		dev_warn(&pdev->dev, "%d VFs already enabled. Disable before enabling %d VFs\n",
+			 pdev->sriov->num_VFs, num_vfs);
+		return -EBUSY;
+	}
+
+	ret = pdev->driver->sriov_configure(pdev, num_vfs);
+	if (ret < 0)
+		return ret;
+
+	if (ret != num_vfs)
+		dev_warn(&pdev->dev, "%d VFs requested; only %d enabled\n",
+			 num_vfs, ret);
+
+	return count;
+}
+
+static struct device_attribute sriov_totalvfs_attr = __ATTR_RO(sriov_totalvfs);
+static struct device_attribute sriov_numvfs_attr =
+		__ATTR(sriov_numvfs, (S_IRUGO|S_IWUSR|S_IWGRP),
+		       sriov_numvfs_show, sriov_numvfs_store);
+#endif /* CONFIG_PCI_IOV */
+
 struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(resource),
 	__ATTR_RO(vendor),
@@ -424,10 +504,8 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
 		broken_parity_status_show,broken_parity_status_store),
 	__ATTR(msi_bus, 0644, msi_bus_show, msi_bus_store),
-#ifdef CONFIG_HOTPLUG
 	__ATTR(remove, (S_IWUSR|S_IWGRP), NULL, remove_store),
 	__ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_rescan_store),
-#endif
 #if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
 	__ATTR(d3cold_allowed, 0644, d3cold_allowed_show, d3cold_allowed_store),
 #endif
@@ -435,9 +513,7 @@ struct device_attribute pci_dev_attrs[] = {
 };
 
 struct device_attribute pcibus_dev_attrs[] = {
-#ifdef CONFIG_HOTPLUG
 	__ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store),
-#endif
 	__ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpumaskaffinity, NULL),
 	__ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL),
 	__ATTR_NULL,
@@ -457,40 +533,6 @@ boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
 		   IORESOURCE_ROM_SHADOW));
 }
 struct device_attribute vga_attr = __ATTR_RO(boot_vga);
-
-static void
-pci_config_pm_runtime_get(struct pci_dev *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device *parent = dev->parent;
-
-	if (parent)
-		pm_runtime_get_sync(parent);
-	pm_runtime_get_noresume(dev);
-	/*
-	 * pdev->current_state is set to PCI_D3cold during suspending,
-	 * so wait until suspending completes
-	 */
-	pm_runtime_barrier(dev);
-	/*
-	 * Only need to resume devices in D3cold, because config
-	 * registers are still accessible for devices suspended but
-	 * not in D3cold.
-	 */
-	if (pdev->current_state == PCI_D3cold)
-		pm_runtime_resume(dev);
-}
-
-static void
-pci_config_pm_runtime_put(struct pci_dev *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device *parent = dev->parent;
-
-	pm_runtime_put(dev);
-	if (parent)
-		pm_runtime_put_sync(parent);
-}
 
 static ssize_t
 pci_read_config(struct file *filp, struct kobject *kobj,
@@ -1303,29 +1345,20 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		pdev->rom_attr = attr;
 	}
 
-	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {
-		retval = device_create_file(&pdev->dev, &vga_attr);
-		if (retval)
-			goto err_rom_file;
-	}
-
 	/* add platform-specific attributes */
 	retval = pcibios_add_platform_entries(pdev);
 	if (retval)
-		goto err_vga_file;
+		goto err_rom_file;
 
 	/* add sysfs entries for various capabilities */
 	retval = pci_create_capabilities_sysfs(pdev);
 	if (retval)
-		goto err_vga_file;
+		goto err_rom_file;
 
 	pci_create_firmware_label_files(pdev);
 
 	return 0;
 
-err_vga_file:
-	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
-		device_remove_file(&pdev->dev, &vga_attr);
 err_rom_file:
 	if (rom_size) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
@@ -1411,3 +1444,62 @@ static int __init pci_sysfs_init(void)
 }
 
 late_initcall(pci_sysfs_init);
+
+static struct attribute *pci_dev_dev_attrs[] = {
+	&vga_attr.attr,
+	NULL,
+};
+
+static umode_t pci_dev_attrs_are_visible(struct kobject *kobj,
+						struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (a == &vga_attr.attr)
+		if ((pdev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+			return 0;
+
+	return a->mode;
+}
+
+#ifdef CONFIG_PCI_IOV
+static struct attribute *sriov_dev_attrs[] = {
+	&sriov_totalvfs_attr.attr,
+	&sriov_numvfs_attr.attr,
+	NULL,
+};
+
+static umode_t sriov_attrs_are_visible(struct kobject *kobj,
+					 struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+
+	if (!dev_is_pf(dev))
+		return 0;
+
+	return a->mode;
+}
+
+static struct attribute_group sriov_dev_attr_group = {
+	.attrs = sriov_dev_attrs,
+	.is_visible = sriov_attrs_are_visible,
+};
+#endif /* CONFIG_PCI_IOV */
+
+static struct attribute_group pci_dev_attr_group = {
+	.attrs = pci_dev_dev_attrs,
+	.is_visible = pci_dev_attrs_are_visible,
+};
+
+static const struct attribute_group *pci_dev_attr_groups[] = {
+	&pci_dev_attr_group,
+#ifdef CONFIG_PCI_IOV
+	&sriov_dev_attr_group,
+#endif
+	NULL,
+};
+
+struct device_type pci_dev_type = {
+	.groups = pci_dev_attr_groups,
+};

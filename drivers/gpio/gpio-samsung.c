@@ -32,7 +32,6 @@
 
 #include <mach/hardware.h>
 #include <mach/map.h>
-#include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
@@ -41,12 +40,6 @@
 #include <plat/gpio-cfg-helpers.h>
 #include <plat/gpio-fns.h>
 #include <plat/pm.h>
-
-#ifndef DEBUG_GPIO
-#define gpio_dbg(x...) do { } while (0)
-#else
-#define gpio_dbg(x...) printk(KERN_DEBUG x)
-#endif
 
 int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,
 				unsigned int off, samsung_gpio_pull_t pull)
@@ -452,7 +445,7 @@ static struct samsung_gpio_cfg s3c24xx_gpiocfg_banka = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_ARCH_EXYNOS5)
+#if defined(CONFIG_ARCH_EXYNOS4) || defined(CONFIG_SOC_EXYNOS5250)
 static struct samsung_gpio_cfg exynos_gpio_cfg = {
 	.set_pull	= exynos_gpio_setpull,
 	.get_pull	= exynos_gpio_getpull,
@@ -596,10 +589,13 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 	unsigned long con;
 
 	con = __raw_readl(base + GPIOCON_OFF);
-	con &= ~(0xf << con_4bit_shift(offset));
+	if (ourchip->bitmap_gpio_int & BIT(offset))
+		con |= 0xf << con_4bit_shift(offset);
+	else
+		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
-	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -627,7 +623,7 @@ static int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
 	__raw_writel(con, base + GPIOCON_OFF);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -671,7 +667,7 @@ static int samsung_gpiolib_4bit2_input(struct gpio_chip *chip,
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, regcon);
 
-	gpio_dbg("%s: %p: CON %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -706,7 +702,7 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	__raw_writel(con, regcon);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -926,10 +922,10 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 #ifdef CONFIG_PM
 	if (chip->pm != NULL) {
 		if (!chip->pm->save || !chip->pm->resume)
-			printk(KERN_ERR "gpio: %s has missing PM functions\n",
+			pr_err("gpio: %s has missing PM functions\n",
 			       gc->label);
 	} else
-		printk(KERN_ERR "gpio: %s has no PM function\n", gc->label);
+		pr_err("gpio: %s has no PM function\n", gc->label);
 #endif
 
 	/* gpiochip_add() prints own failure message on error. */
@@ -1080,6 +1076,8 @@ static void __init samsung_gpiolib_add_4bit_chips(struct samsung_gpio_chip *chip
 			chip->pm = __gpio_pm(&samsung_gpio_pm_4bit);
 		if ((base != NULL) && (chip->base == NULL))
 			chip->base = base + ((i) * 0x20);
+
+		chip->bitmap_gpio_int = 0;
 
 		samsung_gpiolib_add(chip);
 	}
@@ -2447,7 +2445,7 @@ static struct samsung_gpio_chip exynos4_gpios_3[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_1[] = {
 	{
 		.chip	= {
@@ -2615,7 +2613,7 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_2[] = {
 	{
 		.chip	= {
@@ -2676,7 +2674,7 @@ static struct samsung_gpio_chip exynos5_gpios_2[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_3[] = {
 	{
 		.chip	= {
@@ -2712,7 +2710,7 @@ static struct samsung_gpio_chip exynos5_gpios_3[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_EXYNOS5
+#ifdef CONFIG_SOC_EXYNOS5250
 static struct samsung_gpio_chip exynos5_gpios_4[] = {
 	{
 		.chip	= {
@@ -2796,27 +2794,6 @@ static __init void exynos4_gpiolib_init(void)
 	void __iomem *gpio_base1, *gpio_base2, *gpio_base3;
 	int group = 0;
 	void __iomem *gpx_base;
-
-#ifdef CONFIG_PINCTRL_SAMSUNG
-		/*
-		 * This gpio driver includes support for device tree support and
-		 * there are platforms using it. In order to maintain
-		 * compatibility with those platforms, and to allow non-dt
-		 * Exynos4210 platforms to use this gpiolib support, a check
-		 * is added to find out if there is a active pin-controller
-		 * driver support available. If it is available, this gpiolib
-		 * support is ignored and the gpiolib support available in
-		 * pin-controller driver is used. This is a temporary check and
-		 * will go away when all of the Exynos4210 platforms have
-		 * switched to using device tree and the pin-ctrl driver.
-		 */
-		struct device_node *pctrl_np;
-		const char *pctrl_compat = "samsung,pinctrl-exynos4210";
-		pctrl_np = of_find_compatible_node(NULL, NULL, pctrl_compat);
-		if (pctrl_np)
-			if (of_device_is_available(pctrl_np))
-				return;
-#endif
 
 	/* gpio part1 */
 	gpio_base1 = ioremap(EXYNOS4_PA_GPIO1, SZ_4K);
@@ -3031,6 +3008,29 @@ static __init int samsung_gpiolib_init(void)
 	struct samsung_gpio_chip *chip;
 	int i, nr_chips;
 	int group = 0;
+
+#if defined(CONFIG_PINCTRL_EXYNOS) || defined(CONFIG_PINCTRL_EXYNOS5440)
+	/*
+	* This gpio driver includes support for device tree support and there
+	* are platforms using it. In order to maintain compatibility with those
+	* platforms, and to allow non-dt Exynos4210 platforms to use this
+	* gpiolib support, a check is added to find out if there is a active
+	* pin-controller driver support available. If it is available, this
+	* gpiolib support is ignored and the gpiolib support available in
+	* pin-controller driver is used. This is a temporary check and will go
+	* away when all of the Exynos4210 platforms have switched to using
+	* device tree and the pin-ctrl driver.
+	*/
+	struct device_node *pctrl_np;
+	static const struct of_device_id exynos_pinctrl_ids[] = {
+		{ .compatible = "samsung,pinctrl-exynos4210", },
+		{ .compatible = "samsung,pinctrl-exynos4x12", },
+		{ .compatible = "samsung,pinctrl-exynos5440", },
+	};
+	for_each_matching_node(pctrl_np, exynos_pinctrl_ids)
+		if (pctrl_np && of_device_is_available(pctrl_np))
+			return -ENODEV;
+#endif
 
 	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
 

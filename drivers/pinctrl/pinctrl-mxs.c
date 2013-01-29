@@ -319,7 +319,7 @@ static void mxs_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "0x%lx", config);
 }
 
-struct pinconf_ops mxs_pinconf_ops = {
+static struct pinconf_ops mxs_pinconf_ops = {
 	.pin_config_get = mxs_pinconf_get,
 	.pin_config_set = mxs_pinconf_set,
 	.pin_config_group_get = mxs_pinconf_group_get,
@@ -335,9 +335,9 @@ static struct pinctrl_desc mxs_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
-					     struct device_node *np, int idx,
-					     const char **out_name)
+static int mxs_pinctrl_parse_group(struct platform_device *pdev,
+				   struct device_node *np, int idx,
+				   const char **out_name)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 	struct mxs_group *g = &d->soc->groups[idx];
@@ -384,8 +384,8 @@ static int __devinit mxs_pinctrl_parse_group(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
-					  struct mxs_pinctrl_data *d)
+static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
+				struct mxs_pinctrl_data *d)
 {
 	struct mxs_pinctrl_soc_data *soc = d->soc;
 	struct device_node *np = pdev->dev.of_node;
@@ -476,8 +476,8 @@ static int __devinit mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit mxs_pinctrl_probe(struct platform_device *pdev,
-				struct mxs_pinctrl_soc_data *soc)
+int mxs_pinctrl_probe(struct platform_device *pdev,
+		      struct mxs_pinctrl_soc_data *soc)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_pinctrl_data *d;
@@ -522,7 +522,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(mxs_pinctrl_probe);
 
-int __devexit mxs_pinctrl_remove(struct platform_device *pdev)
+int mxs_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 

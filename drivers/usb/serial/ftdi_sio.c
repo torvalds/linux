@@ -73,7 +73,6 @@ struct ftdi_private {
 	char prev_status;        /* Used for TIOCMIWAIT */
 	bool dev_gone;        /* Used to abort TIOCMIWAIT */
 	char transmit_empty;	/* If transmitter is empty or not */
-	struct usb_serial_port *port;
 	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
 				   (0 for FT232/245) */
 
@@ -192,6 +191,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_THROTTLE_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_GATEWAY_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_GBM_PID) },
+	{ USB_DEVICE(NEWPORT_VID, NEWPORT_AGILIS_PID) },
 	{ USB_DEVICE(INTERBIOMETRICS_VID, INTERBIOMETRICS_IOBOARD_PID) },
 	{ USB_DEVICE(INTERBIOMETRICS_VID, INTERBIOMETRICS_MINI_IOBOARD_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SPROG_II) },
@@ -875,6 +875,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_DISTORTEC_JTAG_LOCK_PICK_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_LUMEL_PD12_PID) },
+	/* Crucible Devices */
+	{ USB_DEVICE(FTDI_VID, FTDI_CT_COMET_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -923,6 +925,9 @@ static int ftdi_get_icount(struct tty_struct *tty,
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
+static int ftdi_chars_in_buffer(struct tty_struct *tty);
+static int ftdi_get_modem_status(struct tty_struct *tty,
+						unsigned char status[2]);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor(int baud);
@@ -957,6 +962,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.ioctl =		ftdi_ioctl,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
+	.chars_in_buffer =      ftdi_chars_in_buffer,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -1090,6 +1096,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 			__func__,
 			(set & TIOCM_DTR) ? "HIGH" : (clear & TIOCM_DTR) ? "LOW" : "unchanged",
 			(set & TIOCM_RTS) ? "HIGH" : (clear & TIOCM_RTS) ? "LOW" : "unchanged");
+		rv = usb_translate_errors(rv);
 	} else {
 		dev_dbg(dev, "%s - DTR %s, RTS %s\n", __func__,
 			(set & TIOCM_DTR) ? "HIGH" : (clear & TIOCM_DTR) ? "LOW" : "unchanged",
@@ -1682,7 +1689,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	kref_init(&priv->kref);
 	mutex_init(&priv->cfg_lock);
-	memset(&priv->icount, 0x00, sizeof(priv->icount));
 	init_waitqueue_head(&priv->delta_msr_wait);
 
 	priv->flags = ASYNC_LOW_LATENCY;
@@ -1691,7 +1697,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	if (quirk && quirk->port_probe)
 		quirk->port_probe(priv);
 
-	priv->port = port;
 	usb_set_serial_port_data(port, priv);
 
 	ftdi_determine_type(port);
@@ -1781,7 +1786,7 @@ static int ftdi_8u2232c_probe(struct usb_serial *serial)
 	struct usb_device *udev = serial->dev;
 
 	if ((udev->manufacturer && !strcmp(udev->manufacturer, "CALAO Systems")) ||
-	    (udev->product && !strcmp(udev->product, "BeagleBone/XDS100")))
+	    (udev->product && !strcmp(udev->product, "BeagleBone/XDS100V2")))
 		return ftdi_jtag_probe(serial);
 
 	return 0;
@@ -2089,6 +2094,29 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 
 }
 
+static int ftdi_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	int chars;
+	unsigned char buf[2];
+	int ret;
+
+	chars = usb_serial_generic_chars_in_buffer(tty);
+	if (chars)
+		goto out;
+
+	/* Check if hardware buffer is empty. */
+	ret = ftdi_get_modem_status(tty, buf);
+	if (ret == 2) {
+		if (!(buf[1] & FTDI_RS_TEMT))
+			chars = 1;
+	}
+out:
+	dev_dbg(&port->dev, "%s - %d\n", __func__, chars);
+
+	return chars;
+}
+
 /* old_termios contains the original termios settings and tty->termios contains
  * the new setting to be used
  * WARNING: set_termios calls this with old_termios in kernel space
@@ -2272,7 +2300,14 @@ no_c_cflag_changes:
 	}
 }
 
-static int ftdi_tiocmget(struct tty_struct *tty)
+/*
+ * Get modem-control status.
+ *
+ * Returns the number of status bytes retrieved (device dependant), or
+ * negative error code.
+ */
+static int ftdi_get_modem_status(struct tty_struct *tty,
+						unsigned char status[2])
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -2312,16 +2347,43 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 			FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
 			0, priv->interface,
 			buf, len, WDR_TIMEOUT);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
+		ret = usb_translate_errors(ret);
 		goto out;
+	}
 
-	ret = (buf[0] & FTDI_SIO_DSR_MASK ? TIOCM_DSR : 0) |
-		(buf[0] & FTDI_SIO_CTS_MASK ? TIOCM_CTS : 0) |
-		(buf[0]  & FTDI_SIO_RI_MASK  ? TIOCM_RI  : 0) |
-		(buf[0]  & FTDI_SIO_RLSD_MASK ? TIOCM_CD  : 0) |
-		priv->last_dtr_rts;
+	status[0] = buf[0];
+	if (ret > 1)
+		status[1] = buf[1];
+	else
+		status[1] = 0;
+
+	dev_dbg(&port->dev, "%s - 0x%02x%02x\n", __func__, status[0],
+								status[1]);
 out:
 	kfree(buf);
+
+	return ret;
+}
+
+static int ftdi_tiocmget(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	unsigned char buf[2];
+	int ret;
+
+	ret = ftdi_get_modem_status(tty, buf);
+	if (ret < 0)
+		return ret;
+
+	ret =	(buf[0] & FTDI_SIO_DSR_MASK  ? TIOCM_DSR : 0) |
+		(buf[0] & FTDI_SIO_CTS_MASK  ? TIOCM_CTS : 0) |
+		(buf[0] & FTDI_SIO_RI_MASK   ? TIOCM_RI  : 0) |
+		(buf[0] & FTDI_SIO_RLSD_MASK ? TIOCM_CD  : 0) |
+		priv->last_dtr_rts;
+
 	return ret;
 }
 

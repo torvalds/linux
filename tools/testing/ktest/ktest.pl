@@ -53,6 +53,9 @@ my %default = (
     "STOP_AFTER_FAILURE"	=> 60,
     "STOP_TEST_AFTER"		=> 600,
     "MAX_MONITOR_WAIT"		=> 1800,
+    "GRUB_REBOOT"		=> "grub2-reboot",
+    "SYSLINUX"			=> "extlinux",
+    "SYSLINUX_PATH"		=> "/boot/extlinux",
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
@@ -105,7 +108,12 @@ my $scp_to_target;
 my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
+my $grub_file;
 my $grub_number;
+my $grub_reboot;
+my $syslinux;
+my $syslinux_path;
+my $syslinux_label;
 my $target;
 my $make;
 my $pre_install;
@@ -232,6 +240,11 @@ my %option_map = (
     "ADD_CONFIG"		=> \$addconfig,
     "REBOOT_TYPE"		=> \$reboot_type,
     "GRUB_MENU"			=> \$grub_menu,
+    "GRUB_FILE"			=> \$grub_file,
+    "GRUB_REBOOT"		=> \$grub_reboot,
+    "SYSLINUX"			=> \$syslinux,
+    "SYSLINUX_PATH"		=> \$syslinux_path,
+    "SYSLINUX_LABEL"		=> \$syslinux_label,
     "PRE_INSTALL"		=> \$pre_install,
     "POST_INSTALL"		=> \$post_install,
     "NO_INSTALL"		=> \$no_install,
@@ -368,7 +381,7 @@ EOF
     ;
 $config_help{"REBOOT_TYPE"} = << "EOF"
  Way to reboot the box to the test kernel.
- Only valid options so far are "grub" and "script".
+ Only valid options so far are "grub", "grub2", "syslinux", and "script".
 
  If you specify grub, it will assume grub version 1
  and will search in /boot/grub/menu.lst for the title \$GRUB_MENU
@@ -378,11 +391,19 @@ $config_help{"REBOOT_TYPE"} = << "EOF"
 
  The entry in /boot/grub/menu.lst must be entered in manually.
  The test will not modify that file.
+
+ If you specify grub2, then you also need to specify both \$GRUB_MENU
+ and \$GRUB_FILE.
+
+ If you specify syslinux, then you may use SYSLINUX to define the syslinux
+ command (defaults to extlinux), and SYSLINUX_PATH to specify the path to
+ the syslinux install (defaults to /boot/extlinux). But you have to specify
+ SYSLINUX_LABEL to define the label to boot to for the test kernel.
 EOF
     ;
 $config_help{"GRUB_MENU"} = << "EOF"
  The grub title name for the test kernel to boot
- (Only mandatory if REBOOT_TYPE = grub)
+ (Only mandatory if REBOOT_TYPE = grub or grub2)
 
  Note, ktest.pl will not update the grub menu.lst, you need to
  manually add an option for the test. ktest.pl will search
@@ -393,6 +414,22 @@ $config_help{"GRUB_MENU"} = << "EOF"
  title Test Kernel
  kernel vmlinuz-test
  GRUB_MENU = Test Kernel
+
+ For grub2, a search of \$GRUB_FILE is performed for the lines
+ that begin with "menuentry". It will not detect submenus. The
+ menu must be a non-nested menu. Add the quotes used in the menu
+ to guarantee your selection, as the first menuentry with the content
+ of \$GRUB_MENU that is found will be used.
+EOF
+    ;
+$config_help{"GRUB_FILE"} = << "EOF"
+ If grub2 is used, the full path for the grub.cfg file is placed
+ here. Use something like /boot/grub2/grub.cfg to search.
+EOF
+    ;
+$config_help{"SYSLINUX_LABEL"} = << "EOF"
+ If syslinux is used, the label that boots the target kernel must
+ be specified with SYSLINUX_LABEL.
 EOF
     ;
 $config_help{"REBOOT_SCRIPT"} = << "EOF"
@@ -520,6 +557,15 @@ sub get_ktest_configs {
 
     if ($rtype eq "grub") {
 	get_ktest_config("GRUB_MENU");
+    }
+
+    if ($rtype eq "grub2") {
+	get_ktest_config("GRUB_MENU");
+	get_ktest_config("GRUB_FILE");
+    }
+
+    if ($rtype eq "syslinux") {
+	get_ktest_config("SYSLINUX_LABEL");
     }
 }
 
@@ -1123,6 +1169,9 @@ sub wait_for_monitor;
 sub reboot {
     my ($time) = @_;
 
+    # Make sure everything has been written to disk
+    run_ssh("sync");
+
     if (defined($time)) {
 	start_monitor;
 	# flush out current monitor
@@ -1452,7 +1501,43 @@ sub run_scp_mod {
     return run_scp($src, $dst, $cp_scp);
 }
 
+sub get_grub2_index {
+
+    return if (defined($grub_number));
+
+    doprint "Find grub2 menu ... ";
+    $grub_number = -1;
+
+    my $ssh_grub = $ssh_exec;
+    $ssh_grub =~ s,\$SSH_COMMAND,cat $grub_file,g;
+
+    open(IN, "$ssh_grub |")
+	or die "unable to get $grub_file";
+
+    my $found = 0;
+
+    while (<IN>) {
+	if (/^menuentry.*$grub_menu/) {
+	    $grub_number++;
+	    $found = 1;
+	    last;
+	} elsif (/^menuentry\s/) {
+	    $grub_number++;
+	}
+    }
+    close(IN);
+
+    die "Could not find '$grub_menu' in $grub_file on $machine"
+	if (!$found);
+    doprint "$grub_number\n";
+}
+
 sub get_grub_index {
+
+    if ($reboot_type eq "grub2") {
+	get_grub2_index;
+	return;
+    }
 
     if ($reboot_type ne "grub") {
 	return;
@@ -1524,6 +1609,10 @@ sub reboot_to {
 
     if ($reboot_type eq "grub") {
 	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch)'";
+    } elsif ($reboot_type eq "grub2") {
+	run_ssh "$grub_reboot $grub_number";
+    } elsif ($reboot_type eq "syslinux") {
+	run_ssh "$syslinux --once \\\"$syslinux_label\\\" $syslinux_path";
     } elsif (defined $reboot_script) {
 	run_command "$reboot_script";
     }
@@ -1718,6 +1807,14 @@ sub do_post_install {
 	dodie "Failed to run post install";
 }
 
+# Sometimes the reboot fails, and will hang. We try to ssh to the box
+# and if we fail, we force another reboot, that should powercycle it.
+sub test_booted {
+    if (!run_ssh "echo testing connection") {
+	reboot $sleep_time;
+    }
+}
+
 sub install {
 
     return if ($no_install);
@@ -1730,6 +1827,8 @@ sub install {
 
     my $cp_target = eval_kernel_version $target_image;
 
+    test_booted;
+
     run_scp_install "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
 
@@ -1740,8 +1839,10 @@ sub install {
     open(IN, "$output_config") or dodie("Can't read config file");
     while (<IN>) {
 	if (/CONFIG_MODULES(=y)?/) {
-	    $install_mods = 1 if (defined($1));
-	    last;
+	    if (defined($1)) {
+		$install_mods = 1;
+		last;
+	    }
 	}
     }
     close(IN);
@@ -1875,10 +1976,14 @@ sub make_oldconfig {
 
     if (!run_command "$make olddefconfig") {
 	# Perhaps olddefconfig doesn't exist in this version of the kernel
-	# try a yes '' | oldconfig
-	doprint "olddefconfig failed, trying yes '' | make oldconfig\n";
-	run_command "yes '' | $make oldconfig" or
-	    dodie "failed make config oldconfig";
+	# try oldnoconfig
+	doprint "olddefconfig failed, trying make oldnoconfig\n";
+	if (!run_command "$make oldnoconfig") {
+	    doprint "oldnoconfig failed, trying yes '' | make oldconfig\n";
+	    # try a yes '' | oldconfig
+	    run_command "yes '' | $make oldconfig" or
+		dodie "failed make config oldconfig";
+	}
     }
 }
 
@@ -3698,6 +3803,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$target = "$ssh_user\@$machine";
 	if ($reboot_type eq "grub") {
 	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
+	} elsif ($reboot_type eq "grub2") {
+	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
+	    dodie "GRUB_FILE not defined" if (!defined($grub_file));
+	} elsif ($reboot_type eq "syslinux") {
+	    dodie "SYSLINUX_LABEL not defined" if (!defined($syslinux_label));
 	}
     }
 

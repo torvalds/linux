@@ -25,7 +25,7 @@ struct gfb_info {
 	u32			pseudo_palette[16];
 };
 
-static int __devinit gfb_get_props(struct gfb_info *gp)
+static int gfb_get_props(struct gfb_info *gp)
 {
 	gp->width = of_getintprop_default(gp->of_node, "width", 0);
 	gp->height = of_getintprop_default(gp->of_node, "height", 0);
@@ -66,7 +66,7 @@ static struct fb_ops gfb_ops = {
 	.fb_imageblit		= cfb_imageblit,
 };
 
-static int __devinit gfb_set_fbinfo(struct gfb_info *gp)
+static int gfb_set_fbinfo(struct gfb_info *gp)
 {
 	struct fb_info *info = gp->info;
 	struct fb_var_screeninfo *var = &info->var;
@@ -111,7 +111,7 @@ static int __devinit gfb_set_fbinfo(struct gfb_info *gp)
         return 0;
 }
 
-static int __devinit gfb_probe(struct platform_device *op)
+static int gfb_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -173,7 +173,7 @@ err_out:
 	return err;
 }
 
-static int __devexit gfb_remove(struct platform_device *op)
+static int gfb_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct gfb_info *gp = info->par;
@@ -201,7 +201,7 @@ MODULE_DEVICE_TABLE(of, ffb_match);
 
 static struct platform_driver gfb_driver = {
 	.probe		= gfb_probe,
-	.remove		= __devexit_p(gfb_remove),
+	.remove		= gfb_remove,
 	.driver = {
 		.name		= "gfb",
 		.owner		= THIS_MODULE,

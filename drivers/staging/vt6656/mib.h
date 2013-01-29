@@ -68,7 +68,6 @@ typedef struct tagSDot11Counters {
     unsigned long long   TKIPLocalMICFailures;
     unsigned long long   TKIPRemoteMICFailures;
     unsigned long long   TKIPICVErrors;
-    unsigned long long   TKIPCounterMeasuresInvoked;
     unsigned long long   TKIPReplays;
     unsigned long long   CCMPFormatErrors;
     unsigned long long   CCMPReplays;

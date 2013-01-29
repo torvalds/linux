@@ -335,12 +335,12 @@ static struct snd_soc_platform_driver jz4740_soc_platform = {
 		.pcm_free	= jz4740_pcm_free,
 };
 
-static int __devinit jz4740_pcm_probe(struct platform_device *pdev)
+static int jz4740_pcm_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &jz4740_soc_platform);
 }
 
-static int __devexit jz4740_pcm_remove(struct platform_device *pdev)
+static int jz4740_pcm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -348,7 +348,7 @@ static int __devexit jz4740_pcm_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_pcm_driver = {
 	.probe = jz4740_pcm_probe,
-	.remove = __devexit_p(jz4740_pcm_remove),
+	.remove = jz4740_pcm_remove,
 	.driver = {
 		.name = "jz4740-pcm-audio",
 		.owner = THIS_MODULE,

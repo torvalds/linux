@@ -21,10 +21,6 @@
 #ifndef __TA_SAMPLING_H__
 #define __TA_SAMPLING_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_wifi_hip_unifi.h"
 
 typedef struct ta_l4stats
@@ -66,10 +62,5 @@ typedef struct ta_data
 
 
 void unifi_ta_sampling_init(card_t *card);
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __TA_SAMPLING_H__ */

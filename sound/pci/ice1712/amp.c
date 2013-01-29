@@ -21,7 +21,6 @@
  *
  */      
 
-#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -38,7 +37,7 @@ static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 	snd_vt1724_write_i2c(ice, WM_DEV, cval >> 8, cval & 0xff);
 }
 
-static int __devinit snd_vt1724_amp_init(struct snd_ice1712 *ice)
+static int snd_vt1724_amp_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits[] = {
 		WM_ATTEN_L,	0x0000,	/* 0 db */
@@ -66,7 +65,7 @@ static int __devinit snd_vt1724_amp_init(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static int __devinit snd_vt1724_amp_add_controls(struct snd_ice1712 *ice)
+static int snd_vt1724_amp_add_controls(struct snd_ice1712 *ice)
 {
 	if (ice->ac97)
 		/* we use pins 39 and 41 of the VT1616 for left and right
@@ -78,7 +77,7 @@ static int __devinit snd_vt1724_amp_add_controls(struct snd_ice1712 *ice)
 
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_amp_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_amp_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_AV710,
 		.name = "Chaintech AV-710",

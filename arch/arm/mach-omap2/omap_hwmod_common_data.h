@@ -13,7 +13,7 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_COMMON_DATA_H
 #define __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_COMMON_DATA_H
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 
 #include "common.h"
 #include "display.h"

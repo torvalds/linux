@@ -188,11 +188,6 @@ static void sja1000_start(struct net_device *dev)
 
 static int sja1000_set_mode(struct net_device *dev, enum can_mode mode)
 {
-	struct sja1000_priv *priv = netdev_priv(dev);
-
-	if (!priv->open_time)
-		return -EINVAL;
-
 	switch (mode) {
 	case CAN_MODE_START:
 		sja1000_start(dev);
@@ -579,7 +574,6 @@ static int sja1000_open(struct net_device *dev)
 
 	/* init and start chi */
 	sja1000_start(dev);
-	priv->open_time = jiffies;
 
 	netif_start_queue(dev);
 
@@ -597,8 +591,6 @@ static int sja1000_close(struct net_device *dev)
 		free_irq(dev->irq, (void *)dev);
 
 	close_candev(dev);
-
-	priv->open_time = 0;
 
 	return 0;
 }

@@ -142,7 +142,8 @@ static struct pcistub_device *pcistub_device_find(int domain, int bus,
 		if (psdev->dev != NULL
 		    && domain == pci_domain_nr(psdev->dev->bus)
 		    && bus == psdev->dev->bus->number
-		    && PCI_DEVFN(slot, func) == psdev->dev->devfn) {
+		    && slot == PCI_SLOT(psdev->dev->devfn)
+		    && func == PCI_FUNC(psdev->dev->devfn)) {
 			pcistub_device_get(psdev);
 			goto out;
 		}
@@ -191,7 +192,8 @@ struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 		if (psdev->dev != NULL
 		    && domain == pci_domain_nr(psdev->dev->bus)
 		    && bus == psdev->dev->bus->number
-		    && PCI_DEVFN(slot, func) == psdev->dev->devfn) {
+		    && slot == PCI_SLOT(psdev->dev->devfn)
+		    && func == PCI_FUNC(psdev->dev->devfn)) {
 			found_dev = pcistub_device_get_pci_dev(pdev, psdev);
 			break;
 		}
@@ -270,8 +272,8 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	up_write(&pcistub_sem);
 }
 
-static int __devinit pcistub_match_one(struct pci_dev *dev,
-				       struct pcistub_device_id *pdev_id)
+static int pcistub_match_one(struct pci_dev *dev,
+			     struct pcistub_device_id *pdev_id)
 {
 	/* Match the specified device by domain, bus, slot, func and also if
 	 * any of the device's parent bridges match.
@@ -290,7 +292,7 @@ static int __devinit pcistub_match_one(struct pci_dev *dev,
 	return 0;
 }
 
-static int __devinit pcistub_match(struct pci_dev *dev)
+static int pcistub_match(struct pci_dev *dev)
 {
 	struct pcistub_device_id *pdev_id;
 	unsigned long flags;
@@ -308,7 +310,7 @@ static int __devinit pcistub_match(struct pci_dev *dev)
 	return found;
 }
 
-static int __devinit pcistub_init_device(struct pci_dev *dev)
+static int pcistub_init_device(struct pci_dev *dev)
 {
 	struct xen_pcibk_dev_data *dev_data;
 	int err = 0;
@@ -426,7 +428,7 @@ static int __init pcistub_init_devices_late(void)
 	return 0;
 }
 
-static int __devinit pcistub_seize(struct pci_dev *dev)
+static int pcistub_seize(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
 	unsigned long flags;
@@ -461,8 +463,7 @@ static int __devinit pcistub_seize(struct pci_dev *dev)
 	return err;
 }
 
-static int __devinit pcistub_probe(struct pci_dev *dev,
-				   const struct pci_device_id *id)
+static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err = 0;
 
@@ -897,42 +898,35 @@ static struct pci_driver xen_pcibk_pci_driver = {
 static inline int str_to_slot(const char *buf, int *domain, int *bus,
 			      int *slot, int *func)
 {
-	int err;
-	char wc = '*';
+	int parsed = 0;
 
-	err = sscanf(buf, " %x:%x:%x.%x", domain, bus, slot, func);
-	switch (err) {
+	switch (sscanf(buf, " %x:%x:%x.%x %n", domain, bus, slot, func,
+		       &parsed)) {
 	case 3:
 		*func = -1;
-		err = sscanf(buf, " %x:%x:%x.%c", domain, bus, slot, &wc);
+		sscanf(buf, " %x:%x:%x.* %n", domain, bus, slot, &parsed);
 		break;
 	case 2:
 		*slot = *func = -1;
-		err = sscanf(buf, " %x:%x:*.%c", domain, bus, &wc);
-		if (err >= 2)
-			++err;
+		sscanf(buf, " %x:%x:*.* %n", domain, bus, &parsed);
 		break;
 	}
-	if (err == 4 && wc == '*')
+	if (parsed && !buf[parsed])
 		return 0;
-	else if (err < 0)
-		return -EINVAL;
 
 	/* try again without domain */
 	*domain = 0;
-	wc = '*';
-	err = sscanf(buf, " %x:%x.%x", bus, slot, func);
-	switch (err) {
+	switch (sscanf(buf, " %x:%x.%x %n", bus, slot, func, &parsed)) {
 	case 2:
 		*func = -1;
-		err = sscanf(buf, " %x:%x.%c", bus, slot, &wc);
+		sscanf(buf, " %x:%x.* %n", bus, slot, &parsed);
 		break;
 	case 1:
 		*slot = *func = -1;
-		err = sscanf(buf, " %x:*.%c", bus, &wc) + 1;
+		sscanf(buf, " %x:*.* %n", bus, &parsed);
 		break;
 	}
-	if (err == 3 && wc == '*')
+	if (parsed && !buf[parsed])
 		return 0;
 
 	return -EINVAL;
@@ -941,13 +935,20 @@ static inline int str_to_slot(const char *buf, int *domain, int *bus,
 static inline int str_to_quirk(const char *buf, int *domain, int *bus, int
 			       *slot, int *func, int *reg, int *size, int *mask)
 {
-	int err;
+	int parsed = 0;
 
-	err =
-	    sscanf(buf, " %04x:%02x:%02x.%d-%08x:%1x:%08x", domain, bus, slot,
-		   func, reg, size, mask);
-	if (err == 7)
+	sscanf(buf, " %x:%x:%x.%x-%x:%x:%x %n", domain, bus, slot, func,
+	       reg, size, mask, &parsed);
+	if (parsed && !buf[parsed])
 		return 0;
+
+	/* try again without domain */
+	*domain = 0;
+	sscanf(buf, " %x:%x.%x-%x:%x:%x %n", bus, slot, func, reg, size,
+	       mask, &parsed);
+	if (parsed && !buf[parsed])
+		return 0;
+
 	return -EINVAL;
 }
 
@@ -955,7 +956,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 {
 	struct pcistub_device_id *pci_dev_id;
 	unsigned long flags;
-	int rc = 0;
+	int rc = 0, devfn = PCI_DEVFN(slot, func);
 
 	if (slot < 0) {
 		for (slot = 0; !rc && slot < 32; ++slot)
@@ -969,13 +970,24 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 		return rc;
 	}
 
+	if ((
+#if !defined(MODULE) /* pci_domains_supported is not being exported */ \
+    || !defined(CONFIG_PCI_DOMAINS)
+	     !pci_domains_supported ? domain :
+#endif
+	     domain < 0 || domain > 0xffff)
+	    || bus < 0 || bus > 0xff
+	    || PCI_SLOT(devfn) != slot
+	    || PCI_FUNC(devfn) != func)
+		return -EINVAL;
+
 	pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_KERNEL);
 	if (!pci_dev_id)
 		return -ENOMEM;
 
 	pci_dev_id->domain = domain;
 	pci_dev_id->bus = bus;
-	pci_dev_id->devfn = PCI_DEVFN(slot, func);
+	pci_dev_id->devfn = devfn;
 
 	pr_debug(DRV_NAME ": wants to seize %04x:%02x:%02x.%d\n",
 		 domain, bus, slot, func);
@@ -1016,13 +1028,17 @@ static int pcistub_device_id_remove(int domain, int bus, int slot, int func)
 	return err;
 }
 
-static int pcistub_reg_add(int domain, int bus, int slot, int func, int reg,
-			   int size, int mask)
+static int pcistub_reg_add(int domain, int bus, int slot, int func,
+			   unsigned int reg, unsigned int size,
+			   unsigned int mask)
 {
 	int err = 0;
 	struct pcistub_device *psdev;
 	struct pci_dev *dev;
 	struct config_field *field;
+
+	if (reg > 0xfff || (size < 4 && (mask >> (size * 8))))
+		return -EINVAL;
 
 	psdev = pcistub_device_find(domain, bus, slot, func);
 	if (!psdev) {
@@ -1254,13 +1270,11 @@ static ssize_t permissive_add(struct device_driver *drv, const char *buf,
 	int err;
 	struct pcistub_device *psdev;
 	struct xen_pcibk_dev_data *dev_data;
+
 	err = str_to_slot(buf, &domain, &bus, &slot, &func);
 	if (err)
 		goto out;
-	if (slot < 0 || func < 0) {
-		err = -EINVAL;
-		goto out;
-	}
+
 	psdev = pcistub_device_find(domain, bus, slot, func);
 	if (!psdev) {
 		err = -ENODEV;
@@ -1339,8 +1353,6 @@ static int __init pcistub_init(void)
 
 	if (pci_devs_to_hide && *pci_devs_to_hide) {
 		do {
-			char wc = '*';
-
 			parsed = 0;
 
 			err = sscanf(pci_devs_to_hide + pos,
@@ -1349,51 +1361,48 @@ static int __init pcistub_init(void)
 			switch (err) {
 			case 3:
 				func = -1;
-				err = sscanf(pci_devs_to_hide + pos,
-					     " (%x:%x:%x.%c) %n",
-					     &domain, &bus, &slot, &wc,
-					     &parsed);
+				sscanf(pci_devs_to_hide + pos,
+				       " (%x:%x:%x.*) %n",
+				       &domain, &bus, &slot, &parsed);
 				break;
 			case 2:
 				slot = func = -1;
-				err = sscanf(pci_devs_to_hide + pos,
-					     " (%x:%x:*.%c) %n",
-					     &domain, &bus, &wc, &parsed) + 1;
+				sscanf(pci_devs_to_hide + pos,
+				       " (%x:%x:*.*) %n",
+				       &domain, &bus, &parsed);
 				break;
 			}
 
-			if (err != 4 || wc != '*') {
+			if (!parsed) {
 				domain = 0;
-				wc = '*';
 				err = sscanf(pci_devs_to_hide + pos,
 					     " (%x:%x.%x) %n",
 					     &bus, &slot, &func, &parsed);
 				switch (err) {
 				case 2:
 					func = -1;
-					err = sscanf(pci_devs_to_hide + pos,
-						     " (%x:%x.%c) %n",
-						     &bus, &slot, &wc,
-						     &parsed);
+					sscanf(pci_devs_to_hide + pos,
+					       " (%x:%x.*) %n",
+					       &bus, &slot, &parsed);
 					break;
 				case 1:
 					slot = func = -1;
-					err = sscanf(pci_devs_to_hide + pos,
-						     " (%x:*.%c) %n",
-						     &bus, &wc, &parsed) + 1;
+					sscanf(pci_devs_to_hide + pos,
+					       " (%x:*.*) %n",
+					       &bus, &parsed);
 					break;
 				}
-				if (err != 3 || wc != '*')
-					goto parse_error;
 			}
+
+			if (parsed <= 0)
+				goto parse_error;
 
 			err = pcistub_device_id_add(domain, bus, slot, func);
 			if (err)
 				goto out;
 
-			/* if parsed<=0, we've reached the end of the string */
 			pos += parsed;
-		} while (parsed > 0 && pci_devs_to_hide[pos]);
+		} while (pci_devs_to_hide[pos]);
 	}
 
 	/* If we're the first PCI Device Driver to register, we're the

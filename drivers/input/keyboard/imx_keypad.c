@@ -362,7 +362,8 @@ static void imx_keypad_inhibit(struct imx_keypad *keypad)
 	writew(reg_val, keypad->mmio_base + KPSR);
 
 	/* Colums as open drain and disable all rows */
-	writew(0xff00, keypad->mmio_base + KPCR);
+	reg_val = (keypad->cols_en_mask & 0xff) << 8;
+	writew(reg_val, keypad->mmio_base + KPCR);
 }
 
 static void imx_keypad_close(struct input_dev *dev)
@@ -413,7 +414,7 @@ open_err:
 	return -EIO;
 }
 
-static int __devinit imx_keypad_probe(struct platform_device *pdev)
+static int imx_keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keymap_data *keymap_data = pdev->dev.platform_data;
 	struct imx_keypad *keypad;
@@ -554,7 +555,7 @@ failed_rel_mem:
 	return error;
 }
 
-static int __devexit imx_keypad_remove(struct platform_device *pdev)
+static int imx_keypad_remove(struct platform_device *pdev)
 {
 	struct imx_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -632,7 +633,7 @@ static struct platform_driver imx_keypad_driver = {
 		.pm	= &imx_kbd_pm_ops,
 	},
 	.probe		= imx_keypad_probe,
-	.remove		= __devexit_p(imx_keypad_remove),
+	.remove		= imx_keypad_remove,
 };
 module_platform_driver(imx_keypad_driver);
 

@@ -10,7 +10,7 @@
 #define _ASM_ARC_TYPES_H
 
 
-#ifdef CONFIG_ARC32
+#ifdef CONFIG_FW_ARC32
 
 typedef char		CHAR;
 typedef short		SHORT;
@@ -33,9 +33,9 @@ typedef LONG		_PUSHORT;
 typedef LONG		_PULONG;
 typedef LONG		_PVOID;
 
-#endif /* CONFIG_ARC32 */
+#endif /* CONFIG_FW_ARC32 */
 
-#ifdef CONFIG_ARC64
+#ifdef CONFIG_FW_ARC64
 
 typedef char		CHAR;
 typedef short		SHORT;
@@ -57,7 +57,7 @@ typedef USHORT		*_PUSHORT;
 typedef ULONG		*_PULONG;
 typedef VOID		*_PVOID;
 
-#endif /* CONFIG_ARC64  */
+#endif /* CONFIG_FW_ARC64  */
 
 typedef CHAR		*PCHAR;
 typedef SHORT		*PSHORT;

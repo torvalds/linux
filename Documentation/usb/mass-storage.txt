@@ -20,9 +20,9 @@
 
   This document describes how to use the gadget from user space, its
   relation to mass storage function (or MSF) and different gadgets
-  using it, and how it differs from File Storage Gadget (or FSG).  It
-  will talk only briefly about how to use MSF within composite
-  gadgets.
+  using it, and how it differs from File Storage Gadget (or FSG)
+  (which is no longer included in Linux).  It will talk only briefly
+  about how to use MSF within composite gadgets.
 
 * Module parameters
 
@@ -198,16 +198,15 @@
   The Mass Storage Function and thus the Mass Storage Gadget has been
   based on the File Storage Gadget.  The difference between the two is
   that MSG is a composite gadget (ie. uses the composite framework)
-  while file storage gadget is a traditional gadget.  From userspace
+  while file storage gadget was a traditional gadget.  From userspace
   point of view this distinction does not really matter, but from
   kernel hacker's point of view, this means that (i) MSG does not
   duplicate code needed for handling basic USB protocol commands and
   (ii) MSF can be used in any other composite gadget.
 
-  Because of that, File Storage Gadget has been deprecated and
-  scheduled to be removed in Linux 3.8.  All users need to transition
-  to the Mass Storage Gadget by that time.  The two gadgets behave
-  mostly the same from the outside except:
+  Because of that, File Storage Gadget has been removed in Linux 3.8.
+  All users need to transition to the Mass Storage Gadget.  The two
+  gadgets behave mostly the same from the outside except:
 
   1. In FSG the “removable” and “cdrom” module parameters set the flag
      for all logical units whereas in MSG they accept a list of y/n

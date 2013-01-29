@@ -1,3 +1,5 @@
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -264,13 +266,13 @@ static int nand_ecc_test_run(const size_t size)
 						correct_data, size);
 
 		if (err) {
-			pr_err("mtd_nandecctest: not ok - %s-%zd\n",
+			pr_err("not ok - %s-%zd\n",
 				nand_ecc_test[i].name, size);
 			dump_data_ecc(error_data, error_ecc,
 				correct_data, correct_ecc, size);
 			break;
 		}
-		pr_info("mtd_nandecctest: ok - %s-%zd\n",
+		pr_info("ok - %s-%zd\n",
 			nand_ecc_test[i].name, size);
 	}
 error:

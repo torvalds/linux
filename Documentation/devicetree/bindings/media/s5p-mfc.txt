@@ -1,0 +1,23 @@
+* Samsung Multi Format Codec (MFC)
+
+Multi Format Codec (MFC) is the IP present in Samsung SoCs which
+supports high resolution decoding and encoding functionalities.
+The MFC device driver is a v4l2 driver which can encode/decode
+video raw/elementary streams and has support for all popular
+video codecs.
+
+Required properties:
+  - compatible : value should be either one among the following
+	(a) "samsung,mfc-v5" for MFC v5 present in Exynos4 SoCs
+	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
+
+  - reg : Physical base address of the IP registers and length of memory
+	  mapped region.
+
+  - interrupts : MFC interrupt number to the CPU.
+
+  - samsung,mfc-r : Base address of the first memory bank used by MFC
+		    for DMA contiguous memory allocation and its size.
+
+  - samsung,mfc-l : Base address of the second memory bank used by MFC
+		    for DMA contiguous memory allocation and its size.

@@ -390,7 +390,7 @@ static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 /*
  * OF Platform Bus Binding
  */
-static int __devinit mpc52xx_spi_probe(struct platform_device *op)
+static int mpc52xx_spi_probe(struct platform_device *op)
 {
 	struct spi_master *master;
 	struct mpc52xx_spi *ms;
@@ -527,7 +527,7 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 	return rc;
 }
 
-static int __devexit mpc52xx_spi_remove(struct platform_device *op)
+static int mpc52xx_spi_remove(struct platform_device *op)
 {
 	struct spi_master *master = spi_master_get(dev_get_drvdata(&op->dev));
 	struct mpc52xx_spi *ms = spi_master_get_devdata(master);
@@ -547,7 +547,7 @@ static int __devexit mpc52xx_spi_remove(struct platform_device *op)
 	return 0;
 }
 
-static const struct of_device_id mpc52xx_spi_match[] __devinitconst = {
+static const struct of_device_id mpc52xx_spi_match[] = {
 	{ .compatible = "fsl,mpc5200-spi", },
 	{}
 };
@@ -560,6 +560,6 @@ static struct platform_driver mpc52xx_spi_of_driver = {
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,
-	.remove = __devexit_p(mpc52xx_spi_remove),
+	.remove = mpc52xx_spi_remove,
 };
 module_platform_driver(mpc52xx_spi_of_driver);

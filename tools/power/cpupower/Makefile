@@ -253,7 +253,8 @@ clean:
 	 | xargs rm -f
 	-rm -f $(OUTPUT)cpupower
 	-rm -f $(OUTPUT)libcpupower.so*
-	-rm -rf $(OUTPUT)po/*.{gmo,pot}
+	-rm -rf $(OUTPUT)po/*.gmo
+	-rm -rf $(OUTPUT)po/*.pot
 	$(MAKE) -C bench O=$(OUTPUT) clean
 
 

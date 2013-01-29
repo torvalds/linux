@@ -10,6 +10,8 @@
  * This code is based on a driver written by SBE Inc.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -50,7 +52,7 @@ static void t3e3_remove_channel(struct channel *channel)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *pdev, struct card *card)
+static int t3e3_init_channel(struct channel *channel, struct pci_dev *pdev, struct card *card)
 {
 	struct net_device *dev;
 	unsigned int val;
@@ -66,7 +68,7 @@ static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *
 
 	dev = alloc_hdlcdev(channel);
 	if (!dev) {
-		printk(KERN_ERR "SBE 2T3E3" ": Out of memory\n");
+		pr_err("Out of memory\n");
 		err = -ENOMEM;
 		goto free_regions;
 	}
@@ -96,7 +98,8 @@ static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *
 
 	err = request_irq(dev->irq, &t3e3_intr, IRQF_SHARED, dev->name, dev);
 	if (err) {
-		printk(KERN_WARNING "%s: could not get irq: %d\n", dev->name, dev->irq);
+		netdev_warn(channel->dev, "%s: could not get irq: %d\n",
+			    dev->name, dev->irq);
 		goto unregister_dev;
 	}
 
@@ -114,7 +117,7 @@ disable:
 	return err;
 }
 
-static void __devexit t3e3_remove_card(struct pci_dev *pdev)
+static void t3e3_remove_card(struct pci_dev *pdev)
 {
 	struct channel *channel0 = pci_get_drvdata(pdev);
 	struct card *card = channel0->card;
@@ -128,7 +131,7 @@ static void __devexit t3e3_remove_card(struct pci_dev *pdev)
 	kfree(card);
 }
 
-static int __devinit t3e3_init_card(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int t3e3_init_card(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	/* pdev points to channel #0 */
 	struct pci_dev *pdev1 = NULL;
@@ -144,7 +147,7 @@ static int __devinit t3e3_init_card(struct pci_dev *pdev, const struct pci_devic
 				break; /* found the second channel */
 
 		if (!pdev1) {
-			printk(KERN_ERR "SBE 2T3E3" ": Can't find the second channel\n");
+			dev_err(&pdev->dev, "Can't find the second channel\n");
 			return -EFAULT;
 		}
 		channels = 2;
@@ -153,7 +156,7 @@ static int __devinit t3e3_init_card(struct pci_dev *pdev, const struct pci_devic
 
 	card = kzalloc(sizeof(struct card) + channels * sizeof(struct channel), GFP_KERNEL);
 	if (!card) {
-		printk(KERN_ERR "SBE 2T3E3" ": Out of memory\n");
+		dev_err(&pdev->dev, "Out of memory\n");
 		return -ENOBUFS;
 	}
 
@@ -185,7 +188,7 @@ free_card:
 	return err;
 }
 
-static struct pci_device_id t3e3_pci_tbl[] __devinitdata = {
+static struct pci_device_id t3e3_pci_tbl[] = {
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21142,
 	  PCI_VENDOR_ID_SBE, PCI_SUBDEVICE_ID_SBE_T3E3, 0, 0, 0 },
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21142,

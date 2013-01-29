@@ -99,7 +99,7 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.stream_name = "CPU",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm5100-aif1",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm5100.1-001a",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
@@ -180,7 +180,7 @@ static struct snd_soc_card lowland = {
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
 };
 
-static __devinit int lowland_probe(struct platform_device *pdev)
+static int lowland_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &lowland;
 	int ret;
@@ -197,7 +197,7 @@ static __devinit int lowland_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lowland_remove(struct platform_device *pdev)
+static int lowland_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -213,7 +213,7 @@ static struct platform_driver lowland_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = lowland_probe,
-	.remove = __devexit_p(lowland_remove),
+	.remove = lowland_remove,
 };
 
 module_platform_driver(lowland_driver);

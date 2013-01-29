@@ -18,6 +18,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 
@@ -203,7 +204,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * not touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
-		sock_release(ud->tcp_socket);
+		fput(ud->tcp_socket->file);
 		ud->tcp_socket = NULL;
 	}
 
@@ -432,6 +433,8 @@ static int stub_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "stub_add_files for %s\n", udev_busid);
 		usb_set_intfdata(interface, NULL);
 		usb_put_intf(interface);
+		usb_put_dev(udev);
+		kthread_stop_put(sdev->ud.eh);
 
 		busid_priv->interf_count = 0;
 		busid_priv->sdev = NULL;
@@ -477,19 +480,17 @@ static void stub_disconnect(struct usb_interface *interface)
 	/* get stub_device */
 	if (!sdev) {
 		dev_err(&interface->dev, "could not get device");
-		/* BUG(); */
 		return;
 	}
 
 	usb_set_intfdata(interface, NULL);
 
 	/*
-	 * NOTE:
-	 * rx/tx threads are invoked for each usb_device.
+	 * NOTE: rx/tx threads are invoked for each usb_device.
 	 */
 	stub_remove_files(&interface->dev);
 
-	/*If usb reset called from event handler*/
+	/* If usb reset is called from event handler */
 	if (busid_priv->sdev->ud.eh == current) {
 		busid_priv->interf_count--;
 		return;
@@ -504,13 +505,13 @@ static void stub_disconnect(struct usb_interface *interface)
 
 	busid_priv->interf_count = 0;
 
-	/* 1. shutdown the current connection */
+	/* shutdown the current connection */
 	shutdown_busid(busid_priv);
 
 	usb_put_dev(sdev->udev);
 	usb_put_intf(interface);
 
-	/* 3. free sdev */
+	/* free sdev */
 	busid_priv->sdev = NULL;
 	stub_device_free(sdev);
 

@@ -134,9 +134,9 @@ static int snd_vx222_dev_free(struct snd_device *device)
 }
 
 
-static int __devinit snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
-				      struct snd_vx_hardware *hw,
-				      struct snd_vx222 **rchip)
+static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
+			    struct snd_vx_hardware *hw,
+			    struct snd_vx222 **rchip)
 {
 	struct vx_core *chip;
 	struct snd_vx222 *vx;
@@ -188,8 +188,8 @@ static int __devinit snd_vx222_create(struct snd_card *card, struct pci_dev *pci
 }
 
 
-static int __devinit snd_vx222_probe(struct pci_dev *pci,
-				     const struct pci_device_id *pci_id)
+static int snd_vx222_probe(struct pci_dev *pci,
+			   const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -251,7 +251,7 @@ static int __devinit snd_vx222_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_vx222_remove(struct pci_dev *pci)
+static void snd_vx222_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -300,7 +300,7 @@ static struct pci_driver vx222_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
-	.remove = __devexit_p(snd_vx222_remove),
+	.remove = snd_vx222_remove,
 	.driver = {
 		.pm = SND_VX222_PM_OPS,
 	},

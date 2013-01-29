@@ -89,7 +89,7 @@ static int adt7316_spi_write(void *client, u8 reg, u8 val)
  * device probe and remove
  */
 
-static int __devinit adt7316_spi_probe(struct spi_device *spi_dev)
+static int adt7316_spi_probe(struct spi_device *spi_dev)
 {
 	struct adt7316_bus bus = {
 		.client = spi_dev,
@@ -116,7 +116,7 @@ static int __devinit adt7316_spi_probe(struct spi_device *spi_dev)
 	return adt7316_probe(&spi_dev->dev, &bus, spi_dev->modalias);
 }
 
-static int __devexit adt7316_spi_remove(struct spi_device *spi_dev)
+static int adt7316_spi_remove(struct spi_device *spi_dev)
 {
 	return adt7316_remove(&spi_dev->dev);
 }
@@ -140,7 +140,7 @@ static struct spi_driver adt7316_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7316_spi_probe,
-	.remove = __devexit_p(adt7316_spi_remove),
+	.remove = adt7316_spi_remove,
 	.id_table = adt7316_spi_id,
 };
 module_spi_driver(adt7316_driver);

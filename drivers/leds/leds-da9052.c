@@ -102,7 +102,7 @@ static int da9052_configure_leds(struct da9052 *da9052)
 	return error;
 }
 
-static int __devinit da9052_led_probe(struct platform_device *pdev)
+static int da9052_led_probe(struct platform_device *pdev)
 {
 	struct da9052_pdata *pdata;
 	struct da9052 *da9052;
@@ -176,7 +176,7 @@ err:
 	return error;
 }
 
-static int __devexit da9052_led_remove(struct platform_device *pdev)
+static int da9052_led_remove(struct platform_device *pdev)
 {
 	struct da9052_led *led = platform_get_drvdata(pdev);
 	struct da9052_pdata *pdata;
@@ -204,7 +204,7 @@ static struct platform_driver da9052_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da9052_led_probe,
-	.remove		= __devexit_p(da9052_led_remove),
+	.remove		= da9052_led_remove,
 };
 
 module_platform_driver(da9052_led_driver);

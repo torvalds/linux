@@ -112,22 +112,6 @@ void exit_thread(void)
 {
 }
 
-SYSCALL_DEFINE1(c6x_clone, struct pt_regs *, regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-
-	/* syscall puts clone_flags in A4 and usp in B4 */
-	clone_flags = regs->orig_a4;
-	if (regs->b4)
-		newsp = regs->b4;
-	else
-		newsp = regs->sp;
-
-	return do_fork(clone_flags, newsp, regs, 0, (int __user *)regs->a6,
-		       (int __user *)regs->b6);
-}
-
 /*
  * Do necessary setup to start up a newly executed thread.
  */
@@ -155,13 +139,13 @@ void start_thread(struct pt_regs *regs, unsigned int pc, unsigned long usp)
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long ustk_size,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p)
 {
 	struct pt_regs *childregs;
 
 	childregs = task_pt_regs(p);
 
-	if (!regs) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* case of  __kernel_thread: we return to supervisor space */
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->sp = (unsigned long)(childregs + 1);
@@ -170,8 +154,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		childregs->a1 = ustk_size;	/* argument */
 	} else {
 		/* Otherwise use the given stack */
-		*childregs = *regs;
-		childregs->sp = usp;
+		*childregs = *current_pt_regs();
+		if (usp)
+			childregs->sp = usp;
 		p->thread.pc = (unsigned long) ret_from_fork;
 	}
 

@@ -16,28 +16,70 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/stddef.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
+#include <linux/platform_data/i2c-cbus-gpio.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/mfd/menelaus.h>
 #include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include "common.h"
-#include <plat/menelaus.h>
-#include <plat/mmc.h>
+#include "mmc.h"
 
 #include "mux.h"
+#include "gpmc-onenand.h"
 
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4
 #define TUSB6010_GPIO_INT	58
 #define TUSB6010_GPIO_ENABLE	0
 #define TUSB6010_DMACHAN	0x3f
+
+#if defined(CONFIG_I2C_CBUS_GPIO) || defined(CONFIG_I2C_CBUS_GPIO_MODULE)
+static struct i2c_cbus_platform_data n8x0_cbus_data = {
+	.clk_gpio = 66,
+	.dat_gpio = 65,
+	.sel_gpio = 64,
+};
+
+static struct platform_device n8x0_cbus_device = {
+	.name	= "i2c-cbus-gpio",
+	.id	= 3,
+	.dev	= {
+		.platform_data = &n8x0_cbus_data,
+	},
+};
+
+static struct i2c_board_info n8x0_i2c_board_info_3[] __initdata = {
+	{
+		I2C_BOARD_INFO("retu-mfd", 0x01),
+	},
+};
+
+static void __init n8x0_cbus_init(void)
+{
+	const int retu_irq_gpio = 108;
+
+	if (gpio_request_one(retu_irq_gpio, GPIOF_IN, "Retu IRQ"))
+		return;
+	irq_set_irq_type(gpio_to_irq(retu_irq_gpio), IRQ_TYPE_EDGE_RISING);
+	n8x0_i2c_board_info_3[0].irq = gpio_to_irq(retu_irq_gpio);
+	i2c_register_board_info(3, n8x0_i2c_board_info_3,
+				ARRAY_SIZE(n8x0_i2c_board_info_3));
+	platform_device_register(&n8x0_cbus_device);
+}
+#else /* CONFIG_I2C_CBUS_GPIO */
+static void __init n8x0_cbus_init(void)
+{
+}
+#endif /* CONFIG_I2C_CBUS_GPIO */
 
 #if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
 /*
@@ -677,6 +719,7 @@ static void __init n8x0_init_machine(void)
 	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();
+	n8x0_cbus_init();
 }
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
@@ -689,7 +732,7 @@ MACHINE_START(NOKIA_N800, "Nokia N800")
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
 	.timer		= &omap2_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810, "Nokia N810")
@@ -702,7 +745,7 @@ MACHINE_START(NOKIA_N810, "Nokia N810")
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
 	.timer		= &omap2_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
@@ -715,5 +758,5 @@ MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
 	.timer		= &omap2_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END

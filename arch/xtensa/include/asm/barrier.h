@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2012 Tensilica Inc.
  */
 
 #ifndef _XTENSA_SYSTEM_H
@@ -12,8 +12,8 @@
 #define smp_read_barrier_depends() do { } while(0)
 #define read_barrier_depends() do { } while(0)
 
-#define mb()  barrier()
-#define rmb() mb()
+#define mb()  ({ __asm__ __volatile__("memw" : : : "memory"); })
+#define rmb() barrier()
 #define wmb() mb()
 
 #ifdef CONFIG_SMP

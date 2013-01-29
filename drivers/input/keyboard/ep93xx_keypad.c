@@ -232,7 +232,7 @@ static int ep93xx_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ep93xx_keypad_pm_ops,
 			 ep93xx_keypad_suspend, ep93xx_keypad_resume);
 
-static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
+static int ep93xx_keypad_probe(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad;
 	const struct matrix_keymap_data *keymap_data;
@@ -346,7 +346,7 @@ failed_free:
 	return err;
 }
 
-static int __devexit ep93xx_keypad_remove(struct platform_device *pdev)
+static int ep93xx_keypad_remove(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -380,7 +380,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.pm	= &ep93xx_keypad_pm_ops,
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove		= __devexit_p(ep93xx_keypad_remove),
+	.remove		= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

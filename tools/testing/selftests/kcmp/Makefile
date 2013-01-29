@@ -16,13 +16,13 @@ CFLAGS += -I../../../../arch/x86/include/
 
 all:
 ifeq ($(ARCH),X86)
-	gcc $(CFLAGS) kcmp_test.c -o run_test
+	gcc $(CFLAGS) kcmp_test.c -o kcmp_test
 else
 	echo "Not an x86 target, can't build kcmp selftest"
 endif
 
-run-tests: all
-	./kcmp_test
+run_tests: all
+	@./kcmp_test || echo "kcmp_test: [FAIL]"
 
 clean:
 	rm -fr ./run_test

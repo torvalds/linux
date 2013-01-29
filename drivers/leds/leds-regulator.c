@@ -140,7 +140,7 @@ static void regulator_led_brightness_set(struct led_classdev *led_cdev,
 	schedule_work(&led->work);
 }
 
-static int __devinit regulator_led_probe(struct platform_device *pdev)
+static int regulator_led_probe(struct platform_device *pdev)
 {
 	struct led_regulator_platform_data *pdata = pdev->dev.platform_data;
 	struct regulator_led *led;
@@ -206,7 +206,7 @@ err_vcc:
 	return ret;
 }
 
-static int __devexit regulator_led_remove(struct platform_device *pdev)
+static int regulator_led_remove(struct platform_device *pdev)
 {
 	struct regulator_led *led = platform_get_drvdata(pdev);
 
@@ -223,7 +223,7 @@ static struct platform_driver regulator_led_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe  = regulator_led_probe,
-	.remove = __devexit_p(regulator_led_remove),
+	.remove = regulator_led_remove,
 };
 
 module_platform_driver(regulator_led_driver);

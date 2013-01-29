@@ -242,8 +242,7 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 		return;
 
 	/* Training failed. Restore common clock configurations */
-	dev_printk(KERN_ERR, &parent->dev,
-		   "ASPM: Could not configure common clock\n");
+	dev_err(&parent->dev, "ASPM: Could not configure common clock\n");
 	list_for_each_entry(child, &linkbus->devices, bus_list)
 		pcie_capability_write_word(child, PCI_EXP_LNKCTL,
 					   child_reg[PCI_FUNC(child->devfn)]);
@@ -427,7 +426,8 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 static void pcie_config_aspm_dev(struct pci_dev *pdev, u32 val)
 {
-	pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL, 0x3, val);
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC, val);
 }
 
 static void pcie_config_aspm_link(struct pcie_link_state *link, u32 state)
@@ -442,12 +442,12 @@ static void pcie_config_aspm_link(struct pcie_link_state *link, u32 state)
 		return;
 	/* Convert ASPM state to upstream/downstream ASPM register state */
 	if (state & ASPM_STATE_L0S_UP)
-		dwstream |= PCIE_LINK_STATE_L0S;
+		dwstream |= PCI_EXP_LNKCTL_ASPM_L0S;
 	if (state & ASPM_STATE_L0S_DW)
-		upstream |= PCIE_LINK_STATE_L0S;
+		upstream |= PCI_EXP_LNKCTL_ASPM_L0S;
 	if (state & ASPM_STATE_L1) {
-		upstream |= PCIE_LINK_STATE_L1;
-		dwstream |= PCIE_LINK_STATE_L1;
+		upstream |= PCI_EXP_LNKCTL_ASPM_L1;
+		dwstream |= PCI_EXP_LNKCTL_ASPM_L1;
 	}
 	/*
 	 * Spec 2.0 suggests all functions should be configured the
@@ -507,9 +507,7 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 		 */
 		pcie_capability_read_dword(child, PCI_EXP_DEVCAP, &reg32);
 		if (!(reg32 & PCI_EXP_DEVCAP_RBER) && !aspm_force) {
-			dev_printk(KERN_INFO, &child->dev, "disabling ASPM"
-				" on pre-1.1 PCIe device.  You can enable it"
-				" with 'pcie_aspm=force'\n");
+			dev_info(&child->dev, "disabling ASPM on pre-1.1 PCIe device.  You can enable it with 'pcie_aspm=force'\n");
 			return -EINVAL;
 		}
 	}
@@ -772,6 +770,9 @@ EXPORT_SYMBOL(pci_disable_link_state);
 void pcie_clear_aspm(struct pci_bus *bus)
 {
 	struct pci_dev *child;
+
+	if (aspm_force)
+		return;
 
 	/*
 	 * Clear any ASPM setup that the firmware has carried out on this bus

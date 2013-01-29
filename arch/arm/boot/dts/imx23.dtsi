@@ -69,6 +69,7 @@
 				interrupts = <13>, <56>;
 				interrupt-names = "gpmi-dma", "bch";
 				clocks = <&clks 34>;
+				clock-names = "gpmi_io";
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -277,6 +278,19 @@
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
+				};
+
+				spi2_pins_a: spi2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0182 /* MX23_PAD_GPMI_WRN__SSP2_SCK */
+						0x0142 /* MX23_PAD_GPMI_RDY1__SSP2_CMD */
+						0x0002 /* MX23_PAD_GPMI_D00__SSP2_DATA0 */
+						0x0032 /* MX23_PAD_GPMI_D03__SSP2_DATA3 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
 				};
 			};
 

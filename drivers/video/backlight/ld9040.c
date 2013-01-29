@@ -788,7 +788,7 @@ out_free_regulator:
 	return ret;
 }
 
-static int __devexit ld9040_remove(struct spi_device *spi)
+static int ld9040_remove(struct spi_device *spi)
 {
 	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
 
@@ -847,7 +847,7 @@ static struct spi_driver ld9040_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ld9040_probe,
-	.remove		= __devexit_p(ld9040_remove),
+	.remove		= ld9040_remove,
 	.shutdown	= ld9040_shutdown,
 	.suspend	= ld9040_suspend,
 	.resume		= ld9040_resume,

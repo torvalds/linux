@@ -925,7 +925,6 @@ s_vMgrRxAssocResponse(
     WLAN_FR_ASSOCRESP   sFrame;
     PWLAN_IE_SSID   pItemSSID;
     PBYTE   pbyIEs;
-    viawget_wpa_header *wpahdr;
 
 
 
@@ -973,32 +972,7 @@ s_vMgrRxAssocResponse(
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Link with AP(SSID): %s\n", pItemSSID->abySSID);
             pDevice->bLinkPass = TRUE;
             ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
-            if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-	       if(skb_tailroom(pDevice->skb) <(sizeof(viawget_wpa_header)+pMgmt->sAssocInfo.AssocInfo.ResponseIELength+
-		   	                                                 pMgmt->sAssocInfo.AssocInfo.RequestIELength)) {    //data room not enough
-                     dev_kfree_skb(pDevice->skb);
-		   pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-	       	}
-                wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                wpahdr->type = VIAWGET_ASSOC_MSG;
-                wpahdr->resp_ie_len = pMgmt->sAssocInfo.AssocInfo.ResponseIELength;
-                wpahdr->req_ie_len = pMgmt->sAssocInfo.AssocInfo.RequestIELength;
-                memcpy(pDevice->skb->data + sizeof(viawget_wpa_header), pMgmt->sAssocInfo.abyIEs, wpahdr->req_ie_len);
-                memcpy(pDevice->skb->data + sizeof(viawget_wpa_header) + wpahdr->req_ie_len,
-                       pbyIEs,
-                       wpahdr->resp_ie_len
-                       );
-                skb_put(pDevice->skb, sizeof(viawget_wpa_header) + wpahdr->resp_ie_len + wpahdr->req_ie_len);
-                pDevice->skb->dev = pDevice->wpadev;
-		skb_reset_mac_header(pDevice->skb);
-                pDevice->skb->pkt_type = PACKET_HOST;
-                pDevice->skb->protocol = htons(ETH_P_802_2);
-                memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                netif_rx(pDevice->skb);
-                pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-            }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPASuppWextEnabled == TRUE)
 	   {
 		BYTE buf[512];
@@ -1037,7 +1011,6 @@ s_vMgrRxAssocResponse(
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 
 	}
-#endif //#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
         }
         else {
@@ -1053,14 +1026,12 @@ s_vMgrRxAssocResponse(
 
     }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //need clear flags related to Networkmanager
               pDevice->bwextstep0 = FALSE;
               pDevice->bwextstep1 = FALSE;
               pDevice->bwextstep2 = FALSE;
               pDevice->bwextstep3 = FALSE;
               pDevice->bWPASuppWextEnabled = FALSE;
-#endif
 
 if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
       timer_expire(pDevice->sTimerCommand, 0);
@@ -1587,7 +1558,6 @@ s_vMgrRxDisassociation(
     WLAN_FR_DISASSOC    sFrame;
     unsigned int        uNodeIndex = 0;
     CMD_STATUS          CmdStatus;
-    viawget_wpa_header *wpahdr;
 
     if ( pMgmt->eCurrMode == WMAC_MODE_ESS_AP ){
         // if is acting an AP..
@@ -1608,20 +1578,6 @@ s_vMgrRxDisassociation(
         DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "AP disassociated me, reason=%d.\n", cpu_to_le16(*(sFrame.pwReason)));
 
           pDevice->fWPA_Authened = FALSE;
-	if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-             wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-             wpahdr->type = VIAWGET_DISASSOC_MSG;
-             wpahdr->resp_ie_len = 0;
-             wpahdr->req_ie_len = 0;
-             skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-             pDevice->skb->dev = pDevice->wpadev;
-	     skb_reset_mac_header(pDevice->skb);
-             pDevice->skb->pkt_type = PACKET_HOST;
-             pDevice->skb->protocol = htons(ETH_P_802_2);
-             memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-             netif_rx(pDevice->skb);
-             pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-         }
 
         //TODO: do something let upper layer know or
         //try to send associate packet again because of inactivity timeout
@@ -1638,7 +1594,6 @@ s_vMgrRxDisassociation(
               }
         }
 
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
       {
 	union iwreq_data  wrqu;
@@ -1647,7 +1602,6 @@ s_vMgrRxDisassociation(
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
     }
     /* else, ignore it */
 
@@ -1676,7 +1630,6 @@ s_vMgrRxDeauthentication(
 {
     WLAN_FR_DEAUTHEN    sFrame;
     unsigned int        uNodeIndex = 0;
-    viawget_wpa_header *wpahdr;
 
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP ){
@@ -1712,22 +1665,6 @@ s_vMgrRxDeauthentication(
                 }
             }
 
-            if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-                 wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                 wpahdr->type = VIAWGET_DISASSOC_MSG;
-                 wpahdr->resp_ie_len = 0;
-                 wpahdr->req_ie_len = 0;
-                 skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-                 pDevice->skb->dev = pDevice->wpadev;
-		 skb_reset_mac_header(pDevice->skb);
-                 pDevice->skb->pkt_type = PACKET_HOST;
-                 pDevice->skb->protocol = htons(ETH_P_802_2);
-                 memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                 netif_rx(pDevice->skb);
-                 pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-           }
-
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
       {
 	union iwreq_data  wrqu;
@@ -1736,7 +1673,6 @@ s_vMgrRxDeauthentication(
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disauthen)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
 
         }
         /* else, ignore it.  TODO: IBSS authentication service
@@ -2645,10 +2581,8 @@ void vMgrJoinBSSBegin(void *hDeviceContext, PCMD_STATUS pStatus)
 */
         }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPASuppWextEnabled == TRUE)
             Encyption_Rebuild(pDevice, pCurr);
-#endif
 
         // Infrastructure BSS
         s_vMgrSynchBSS(pDevice,

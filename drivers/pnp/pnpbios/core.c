@@ -91,8 +91,6 @@ struct pnp_dev_node_info node_info;
  *
  */
 
-#ifdef CONFIG_HOTPLUG
-
 static struct completion unload_sem;
 
 /*
@@ -198,8 +196,6 @@ static int pnp_dock_thread(void *unused)
 	}
 	complete_and_exit(&unload_sem, 0);
 }
-
-#endif				/* CONFIG_HOTPLUG */
 
 static int pnpbios_get_resources(struct pnp_dev *dev)
 {
@@ -573,21 +569,19 @@ fs_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
+	struct task_struct *task;
 #if defined(CONFIG_PPC)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return 0;
 #endif
 	if (pnpbios_disabled)
 		return 0;
-#ifdef CONFIG_HOTPLUG
-	{
-		struct task_struct *task;
-		init_completion(&unload_sem);
-		task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
-		if (IS_ERR(task))
-			return PTR_ERR(task);
-	}
-#endif
+
+	init_completion(&unload_sem);
+	task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+
 	return 0;
 }
 

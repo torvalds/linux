@@ -62,7 +62,7 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
 					 struct page *page);
 extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 					   struct hugetlb_cgroup *h_cg);
-extern int hugetlb_cgroup_file_init(int idx) __init;
+extern void hugetlb_cgroup_file_init(void) __init;
 extern void hugetlb_cgroup_migrate(struct page *oldhpage,
 				   struct page *newhpage);
 
@@ -111,9 +111,8 @@ hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 	return;
 }
 
-static inline int __init hugetlb_cgroup_file_init(int idx)
+static inline void hugetlb_cgroup_file_init(void)
 {
-	return 0;
 }
 
 static inline void hugetlb_cgroup_migrate(struct page *oldhpage,

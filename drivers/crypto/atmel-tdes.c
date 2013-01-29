@@ -1053,7 +1053,7 @@ err_tdes_algs:
 	return err;
 }
 
-static int __devinit atmel_tdes_probe(struct platform_device *pdev)
+static int atmel_tdes_probe(struct platform_device *pdev)
 {
 	struct atmel_tdes_dev *tdes_dd;
 	struct device *dev = &pdev->dev;
@@ -1162,7 +1162,7 @@ tdes_dd_err:
 	return err;
 }
 
-static int __devexit atmel_tdes_remove(struct platform_device *pdev)
+static int atmel_tdes_remove(struct platform_device *pdev)
 {
 	static struct atmel_tdes_dev *tdes_dd;
 
@@ -1195,7 +1195,7 @@ static int __devexit atmel_tdes_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tdes_driver = {
 	.probe		= atmel_tdes_probe,
-	.remove		= __devexit_p(atmel_tdes_remove),
+	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
 		.owner	= THIS_MODULE,

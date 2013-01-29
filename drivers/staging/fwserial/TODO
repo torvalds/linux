@@ -1,0 +1,29 @@
+TODOs prior to this driver moving out of staging
+------------------------------------------------
+1. Implement retries for RCODE_BUSY, RCODE_NO_ACK and RCODE_SEND_ERROR
+   - I/O is handled asynchronously which presents some issues when error
+     conditions occur.
+2. Implement _robust_ console on top of this. The existing prototype console
+   driver is not ready for the big leagues yet.
+3. Expose means of controlling attach/detach of peers via sysfs. Include
+   GUID-to-port matching/whitelist/blacklist.
+
+-- Issues with firewire stack --
+1. This driver uses the same unregistered vendor id that the firewire core does
+     (0xd00d1e). Perhaps this could be exposed as a define in
+     firewire.h?
+3. Maybe device_max_receive() and link_speed_to_max_payload() should be
+     taken up by the firewire core?
+
+-- Issues with TTY core --
+  1. Hack for alternate device name scheme
+     - because udev no longer allows device renaming, devices should have
+       their proper names on creation. This is an issue for creating the
+       fwloop<n> device with the fwtty<n> devices because although duplicating
+       roughly the same operations as tty_port_register_device() isn't difficult,
+       access to the tty_class & tty_fops is restricted in scope.
+
+       This is currently being worked around in create_loop_device() by
+       extracting the tty_class ptr and tty_fops ptr from the previously created
+       tty devices. Perhaps an add'l api can be added -- eg.,
+       tty_{port_}register_named_device().

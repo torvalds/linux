@@ -742,7 +742,7 @@ static struct uart_driver max3100_uart_driver = {
 };
 static int uart_driver_registered;
 
-static int __devinit max3100_probe(struct spi_device *spi)
+static int max3100_probe(struct spi_device *spi)
 {
 	int i, retval;
 	struct plat_max3100 *pdata;
@@ -818,7 +818,7 @@ static int __devinit max3100_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit max3100_remove(struct spi_device *spi)
+static int max3100_remove(struct spi_device *spi)
 {
 	struct max3100_port *s = dev_get_drvdata(&spi->dev);
 	int i;
@@ -907,7 +907,7 @@ static struct spi_driver max3100_driver = {
 	},
 
 	.probe		= max3100_probe,
-	.remove		= __devexit_p(max3100_remove),
+	.remove		= max3100_remove,
 	.suspend	= max3100_suspend,
 	.resume		= max3100_resume,
 };

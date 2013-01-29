@@ -154,7 +154,7 @@ static void eeti_ts_close(struct input_dev *dev)
 	eeti_ts_stop(priv);
 }
 
-static int __devinit eeti_ts_probe(struct i2c_client *client,
+static int eeti_ts_probe(struct i2c_client *client,
 				   const struct i2c_device_id *idp)
 {
 	struct eeti_ts_platform_data *pdata = client->dev.platform_data;
@@ -248,7 +248,7 @@ err0:
 	return err;
 }
 
-static int __devexit eeti_ts_remove(struct i2c_client *client)
+static int eeti_ts_remove(struct i2c_client *client)
 {
 	struct eeti_ts_priv *priv = i2c_get_clientdata(client);
 
@@ -321,7 +321,7 @@ static struct i2c_driver eeti_ts_driver = {
 #endif
 	},
 	.probe = eeti_ts_probe,
-	.remove = __devexit_p(eeti_ts_remove),
+	.remove = eeti_ts_remove,
 	.id_table = eeti_ts_id,
 };
 

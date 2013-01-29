@@ -215,7 +215,7 @@ static struct miscdevice geodewdt_miscdev = {
 	.fops = &geodewdt_fops,
 };
 
-static int __devinit geodewdt_probe(struct platform_device *dev)
+static int geodewdt_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -243,7 +243,7 @@ static int __devinit geodewdt_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit geodewdt_remove(struct platform_device *dev)
+static int geodewdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&geodewdt_miscdev);
 	return 0;
@@ -256,7 +256,7 @@ static void geodewdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver geodewdt_driver = {
 	.probe		= geodewdt_probe,
-	.remove		= __devexit_p(geodewdt_remove),
+	.remove		= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

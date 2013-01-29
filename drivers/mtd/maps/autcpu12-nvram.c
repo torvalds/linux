@@ -33,7 +33,7 @@ struct autcpu12_nvram_priv {
 	struct map_info map;
 };
 
-static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
+static int autcpu12_nvram_probe(struct platform_device *pdev)
 {
 	map_word tmp, save0, save1;
 	struct resource *res;
@@ -105,7 +105,7 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 	return -ENOMEM;
 }
 
-static int __devexit autcpu12_nvram_remove(struct platform_device *pdev)
+static int autcpu12_nvram_remove(struct platform_device *pdev)
 {
 	struct autcpu12_nvram_priv *priv = platform_get_drvdata(pdev);
 
@@ -121,7 +121,7 @@ static struct platform_driver autcpu12_nvram_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= autcpu12_nvram_probe,
-	.remove		= __devexit_p(autcpu12_nvram_remove),
+	.remove		= autcpu12_nvram_remove,
 };
 module_platform_driver(autcpu12_nvram_driver);
 

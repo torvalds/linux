@@ -9,6 +9,7 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
+#include <linux/proc_fs.h>
 #include <linux/highuid.h>
 #include <linux/cred.h>
 #include <linux/securebits.h>
@@ -26,6 +27,24 @@ static struct kmem_cache *user_ns_cachep __read_mostly;
 static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *map);
 
+static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
+{
+	/* Start with the same capabilities as init but useless for doing
+	 * anything as the capabilities are bound to the new user namespace.
+	 */
+	cred->securebits = SECUREBITS_DEFAULT;
+	cred->cap_inheritable = CAP_EMPTY_SET;
+	cred->cap_permitted = CAP_FULL_SET;
+	cred->cap_effective = CAP_FULL_SET;
+	cred->cap_bset = CAP_FULL_SET;
+#ifdef CONFIG_KEYS
+	key_put(cred->request_key_auth);
+	cred->request_key_auth = NULL;
+#endif
+	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
+	cred->user_ns = user_ns;
+}
+
 /*
  * Create a new user namespace, deriving the creator from the user in the
  * passed credentials, and replacing that user with the new root user for the
@@ -39,6 +58,7 @@ int create_user_ns(struct cred *new)
 	struct user_namespace *ns, *parent_ns = new->user_ns;
 	kuid_t owner = new->euid;
 	kgid_t group = new->egid;
+	int ret;
 
 	/* The creator needs a mapping in the parent user namespace
 	 * or else we won't be able to reasonably tell userspace who
@@ -52,30 +72,36 @@ int create_user_ns(struct cred *new)
 	if (!ns)
 		return -ENOMEM;
 
+	ret = proc_alloc_inum(&ns->proc_inum);
+	if (ret) {
+		kmem_cache_free(user_ns_cachep, ns);
+		return ret;
+	}
+
 	kref_init(&ns->kref);
+	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
 	ns->owner = owner;
 	ns->group = group;
 
-	/* Start with the same capabilities as init but useless for doing
-	 * anything as the capabilities are bound to the new user namespace.
-	 */
-	new->securebits = SECUREBITS_DEFAULT;
-	new->cap_inheritable = CAP_EMPTY_SET;
-	new->cap_permitted = CAP_FULL_SET;
-	new->cap_effective = CAP_FULL_SET;
-	new->cap_bset = CAP_FULL_SET;
-#ifdef CONFIG_KEYS
-	key_put(new->request_key_auth);
-	new->request_key_auth = NULL;
-#endif
-	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
-
-	/* Leave the new->user_ns reference with the new user namespace. */
-	/* Leave the reference to our user_ns with the new cred. */
-	new->user_ns = ns;
+	set_cred_user_ns(new, ns);
 
 	return 0;
+}
+
+int unshare_userns(unsigned long unshare_flags, struct cred **new_cred)
+{
+	struct cred *cred;
+
+	if (!(unshare_flags & CLONE_NEWUSER))
+		return 0;
+
+	cred = prepare_creds();
+	if (!cred)
+		return -ENOMEM;
+
+	*new_cred = cred;
+	return create_user_ns(cred);
 }
 
 void free_user_ns(struct kref *kref)
@@ -84,6 +110,7 @@ void free_user_ns(struct kref *kref)
 		container_of(kref, struct user_namespace, kref);
 
 	parent = ns->parent;
+	proc_free_inum(ns->proc_inum);
 	kmem_cache_free(user_ns_cachep, ns);
 	put_user_ns(parent);
 }
@@ -372,7 +399,7 @@ static int uid_m_show(struct seq_file *seq, void *v)
 	struct user_namespace *lower_ns;
 	uid_t lower;
 
-	lower_ns = current_user_ns();
+	lower_ns = seq_user_ns(seq);
 	if ((lower_ns == ns) && lower_ns->parent)
 		lower_ns = lower_ns->parent;
 
@@ -393,7 +420,7 @@ static int gid_m_show(struct seq_file *seq, void *v)
 	struct user_namespace *lower_ns;
 	gid_t lower;
 
-	lower_ns = current_user_ns();
+	lower_ns = seq_user_ns(seq);
 	if ((lower_ns == ns) && lower_ns->parent)
 		lower_ns = lower_ns->parent;
 
@@ -669,8 +696,12 @@ ssize_t proc_uid_map_write(struct file *file, const char __user *buf, size_t siz
 {
 	struct seq_file *seq = file->private_data;
 	struct user_namespace *ns = seq->private;
+	struct user_namespace *seq_ns = seq_user_ns(seq);
 
 	if (!ns->parent)
+		return -EPERM;
+
+	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
 	return map_write(file, buf, size, ppos, CAP_SETUID,
@@ -681,8 +712,12 @@ ssize_t proc_gid_map_write(struct file *file, const char __user *buf, size_t siz
 {
 	struct seq_file *seq = file->private_data;
 	struct user_namespace *ns = seq->private;
+	struct user_namespace *seq_ns = seq_user_ns(seq);
 
 	if (!ns->parent)
+		return -EPERM;
+
+	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
 	return map_write(file, buf, size, ppos, CAP_SETGID,
@@ -709,6 +744,21 @@ ssize_t proc_projid_map_write(struct file *file, const char __user *buf, size_t 
 static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *new_map)
 {
+	/* Allow mapping to your own filesystem ids */
+	if ((new_map->nr_extents == 1) && (new_map->extent[0].count == 1)) {
+		u32 id = new_map->extent[0].lower_first;
+		if (cap_setid == CAP_SETUID) {
+			kuid_t uid = make_kuid(ns->parent, id);
+			if (uid_eq(uid, current_fsuid()))
+				return true;
+		}
+		else if (cap_setid == CAP_SETGID) {
+			kgid_t gid = make_kgid(ns->parent, id);
+			if (gid_eq(gid, current_fsgid()))
+				return true;
+		}
+	}
+
 	/* Allow anyone to set a mapping that doesn't require privilege */
 	if (!cap_valid(cap_setid))
 		return true;
@@ -721,6 +771,65 @@ static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
 
 	return false;
 }
+
+static void *userns_get(struct task_struct *task)
+{
+	struct user_namespace *user_ns;
+
+	rcu_read_lock();
+	user_ns = get_user_ns(__task_cred(task)->user_ns);
+	rcu_read_unlock();
+
+	return user_ns;
+}
+
+static void userns_put(void *ns)
+{
+	put_user_ns(ns);
+}
+
+static int userns_install(struct nsproxy *nsproxy, void *ns)
+{
+	struct user_namespace *user_ns = ns;
+	struct cred *cred;
+
+	/* Don't allow gaining capabilities by reentering
+	 * the same user namespace.
+	 */
+	if (user_ns == current_user_ns())
+		return -EINVAL;
+
+	/* Threaded processes may not enter a different user namespace */
+	if (atomic_read(&current->mm->mm_users) > 1)
+		return -EINVAL;
+
+	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	cred = prepare_creds();
+	if (!cred)
+		return -ENOMEM;
+
+	put_user_ns(cred->user_ns);
+	set_cred_user_ns(cred, get_user_ns(user_ns));
+
+	return commit_creds(cred);
+}
+
+static unsigned int userns_inum(void *ns)
+{
+	struct user_namespace *user_ns = ns;
+	return user_ns->proc_inum;
+}
+
+const struct proc_ns_operations userns_operations = {
+	.name		= "user",
+	.type		= CLONE_NEWUSER,
+	.get		= userns_get,
+	.put		= userns_put,
+	.install	= userns_install,
+	.inum		= userns_inum,
+};
 
 static __init int user_namespaces_init(void)
 {

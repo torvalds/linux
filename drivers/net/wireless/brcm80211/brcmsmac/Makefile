@@ -40,7 +40,8 @@ BRCMSMAC_OFILES := \
 	phy/phytbl_n.o \
 	phy/phy_qmath.o \
 	dma.o \
-	brcms_trace_events.o
+	brcms_trace_events.o \
+	debug.o
 
 MODULEPFX := brcmsmac
 

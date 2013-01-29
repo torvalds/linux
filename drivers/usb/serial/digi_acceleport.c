@@ -32,10 +32,6 @@
 
 /* Defines */
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.80.1.2"
 #define DRIVER_AUTHOR "Peter Berger <pberger@brimson.com>, Al Borchers <borchers@steinerpoint.com>"
 #define DRIVER_DESC "Digi AccelePort USB-2/USB-4 Serial Converter driver"
 

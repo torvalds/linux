@@ -65,4 +65,21 @@ extern long long timespec_diff_us(struct timespec start, struct timespec end);
 				"could be inaccurate\n"), mes, ov);		\
 }
 
+
+/* Taken over from x86info project sources  -> return 0 on success */
+#include <sched.h>
+#include <sys/types.h>
+#include <unistd.h>
+static inline int bind_cpu(int cpu)
+{
+	cpu_set_t set;
+
+	if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
+		CPU_ZERO(&set);
+		CPU_SET(cpu, &set);
+		return sched_setaffinity(getpid(), sizeof(set), &set);
+	}
+	return 1;
+}
+
 #endif /* __CPUIDLE_INFO_HW__ */

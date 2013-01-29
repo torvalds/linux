@@ -90,7 +90,6 @@ static int ehci_msp_setup(struct usb_hcd *hcd)
 		return retval;
 
 	usb_hcd_tdi_set_mode(ehci);
-	ehci_port_power(ehci, 0);
 
 	return retval;
 }

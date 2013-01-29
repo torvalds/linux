@@ -490,7 +490,7 @@ void exit_files(struct task_struct *tsk)
 	}
 }
 
-static void __devinit fdtable_defer_list_init(int cpu)
+static void fdtable_defer_list_init(int cpu)
 {
 	struct fdtable_defer *fddef = &per_cpu(fdtable_defer_list, cpu);
 	spin_lock_init(&fddef->lock);
@@ -518,12 +518,6 @@ struct files_struct init_files = {
 	},
 	.file_lock	= __SPIN_LOCK_UNLOCKED(init_task.file_lock),
 };
-
-void daemonize_descriptors(void)
-{
-	atomic_inc(&init_files.count);
-	reset_files_struct(&init_files);
-}
 
 /*
  * allocate a file descriptor, mark it busy.
@@ -685,7 +679,6 @@ void do_close_on_exec(struct files_struct *files)
 	struct fdtable *fdt;
 
 	/* exec unshares first */
-	BUG_ON(atomic_read(&files->count) != 1);
 	spin_lock(&files->file_lock);
 	for (i = 0; ; i++) {
 		unsigned long set;
@@ -900,7 +893,7 @@ int replace_fd(unsigned fd, struct file *file, unsigned flags)
 		return __close_fd(files, fd);
 
 	if (fd >= rlimit(RLIMIT_NOFILE))
-		return -EMFILE;
+		return -EBADF;
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, fd);
@@ -926,7 +919,7 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 		return -EINVAL;
 
 	if (newfd >= rlimit(RLIMIT_NOFILE))
-		return -EMFILE;
+		return -EBADF;
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, newfd);
@@ -995,16 +988,18 @@ int iterate_fd(struct files_struct *files, unsigned n,
 		const void *p)
 {
 	struct fdtable *fdt;
-	struct file *file;
 	int res = 0;
 	if (!files)
 		return 0;
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	while (!res && n < fdt->max_fds) {
-		file = rcu_dereference_check_fdtable(files, fdt->fd[n++]);
-		if (file)
-			res = f(p, file, n);
+	for (fdt = files_fdtable(files); n < fdt->max_fds; n++) {
+		struct file *file;
+		file = rcu_dereference_check_fdtable(files, fdt->fd[n]);
+		if (!file)
+			continue;
+		res = f(p, file, n);
+		if (res)
+			break;
 	}
 	spin_unlock(&files->file_lock);
 	return res;

@@ -47,9 +47,12 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	if (!x)
 		return;
 
-	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
+	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH) {
+		atomic_inc(&flow_cache_genid);
+		rt_genid_bump(net);
+
 		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_COMP, 0);
-	else
+	} else
 		ipv4_redirect(skb, net, 0, 0, IPPROTO_COMP, 0);
 	xfrm_state_put(x);
 }

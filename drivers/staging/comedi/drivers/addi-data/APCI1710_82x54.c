@@ -18,7 +18,19 @@
   | Description :   APCI-1710 82X54 timer module                          |
 */
 
-#include "APCI1710_82x54.h"
+#define APCI1710_PCI_BUS_CLOCK			0
+#define APCI1710_FRONT_CONNECTOR_INPUT		1
+#define APCI1710_TIMER_READVALUE		0
+#define APCI1710_TIMER_GETOUTPUTLEVEL		1
+#define APCI1710_TIMER_GETPROGRESSSTATUS	2
+#define APCI1710_TIMER_WRITEVALUE		3
+
+#define APCI1710_TIMER_READINTERRUPT		1
+#define APCI1710_TIMER_READALLTIMER		2
+
+#ifndef APCI1710_10MHZ
+#define APCI1710_10MHZ				10
+#endif
 
 /*
 +----------------------------------------------------------------------------+
@@ -218,11 +230,12 @@ int i_InsnConfig_InitTimer(struct comedi_device *dev,struct comedi_subdevice *s,
 |                    -9: Selection from hardware gate level is wrong         |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev, struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
-
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_TimerNbr;
@@ -447,11 +460,12 @@ i_ReturnValue=insn->n;
 |                        See function "i_APCI1710_SetBoardIntRoutineX"       |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_DummyRead;
 	unsigned char b_ModulNbr;
@@ -589,10 +603,12 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,struct comedi_sub
 |                        "i_APCI1710_InitTimer"                              |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_subdevice *s,
-				     struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev,
+					    struct comedi_subdevice *s,
+					    struct comedi_insn *insn,
+					    unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_ReadType;
 	unsigned int *pul_TimerValueArray;
@@ -668,70 +684,6 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     :INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
-struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)                   |
-+----------------------------------------------------------------------------+
-| Task              : Read write functions for Timer                                          |
-+----------------------------------------------------------------------------+
-| Input Parameters  :
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :
-+----------------------------------------------------------------------------+
-*/
-
-int i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned char b_BitsType;
-	int i_ReturnValue = 0;
-	b_BitsType = data[0];
-
-	printk("\n82X54");
-
-	switch (b_BitsType) {
-	case APCI1710_TIMER_READVALUE:
-		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
-							  (unsigned char)CR_AREF(insn->chanspec),
-							  (unsigned char)CR_CHAN(insn->chanspec),
-							  (unsigned int *) &data[0]);
-		break;
-
-	case APCI1710_TIMER_GETOUTPUTLEVEL:
-		i_ReturnValue = i_APCI1710_GetTimerOutputLevel(dev,
-							       (unsigned char)CR_AREF(insn->chanspec),
-							       (unsigned char)CR_CHAN(insn->chanspec),
-							       (unsigned char *) &data[0]);
-		break;
-
-	case APCI1710_TIMER_GETPROGRESSSTATUS:
-		i_ReturnValue = i_APCI1710_GetTimerProgressStatus(dev,
-								  (unsigned char)CR_AREF(insn->chanspec),
-								  (unsigned char)CR_CHAN(insn->chanspec),
-								  (unsigned char *)&data[0]);
-		break;
-
-	case APCI1710_TIMER_WRITEVALUE:
-		i_ReturnValue = i_APCI1710_WriteTimerValue(dev,
-							   (unsigned char)CR_AREF(insn->chanspec),
-							   (unsigned char)CR_CHAN(insn->chanspec),
-							   (unsigned int)data[1]);
-
-		break;
-
-	default:
-		printk("Bits Config Parameter Wrong\n");
-		i_ReturnValue = -1;
-	}
-
-	if (i_ReturnValue >= 0)
-		i_ReturnValue = insn->n;
-	return i_ReturnValue;
-}
-
-/*
-+----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_ReadTimerValue                    |
 |                                       (unsigned char_     b_BoardHandle,            |
 |                                        unsigned char_     b_ModulNbr,               |
@@ -759,11 +711,12 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice 
 |                        "i_APCI1710_InitTimer"                              |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
-			      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			      unsigned int *pul_TimerValue)
+static int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
+				     unsigned char b_ModulNbr,
+				     unsigned char b_TimerNbr,
+				     unsigned int *pul_TimerValue)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 
 	/* Test the module number */
@@ -847,11 +800,12 @@ int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
 	   |                        "i_APCI1710_InitTimer"                              |
 	   +----------------------------------------------------------------------------+
 	 */
-
-int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
-				   unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-				   unsigned char *pb_OutputLevel)
+static int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
+					  unsigned char b_ModulNbr,
+					  unsigned char b_TimerNbr,
+					  unsigned char *pb_OutputLevel)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_TimerStatus;
 
@@ -926,11 +880,12 @@ int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
 |                        "i_APCI1710_InitTimer"                              |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
-				      unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-				      unsigned char *pb_TimerStatus)
+static int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
+					     unsigned char b_ModulNbr,
+					     unsigned char b_TimerNbr,
+					     unsigned char *pb_TimerStatus)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_TimerStatus;
 
@@ -1005,11 +960,12 @@ int i_APCI1710_GetTimerProgressStatus(struct comedi_device *dev,
 |                        "i_APCI1710_InitTimer"                              |
 +----------------------------------------------------------------------------+
 */
-
-int i_APCI1710_WriteTimerValue(struct comedi_device *dev,
-			       unsigned char b_ModulNbr, unsigned char b_TimerNbr,
-			       unsigned int ul_WriteValue)
+static int i_APCI1710_WriteTimerValue(struct comedi_device *dev,
+				      unsigned char b_ModulNbr,
+				      unsigned char b_TimerNbr,
+				      unsigned int ul_WriteValue)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 
 	/* Test the module number */
@@ -1043,5 +999,70 @@ int i_APCI1710_WriteTimerValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
+	return i_ReturnValue;
+}
+
+/*
++----------------------------------------------------------------------------+
+| Function Name     :INT i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
+struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)                   |
++----------------------------------------------------------------------------+
+| Task              : Read write functions for Timer                                          |
++----------------------------------------------------------------------------+
+| Input Parameters  :
++----------------------------------------------------------------------------+
+| Output Parameters : -                                                      |
++----------------------------------------------------------------------------+
+| Return Value      :
++----------------------------------------------------------------------------+
+*/
+static int i_APCI1710_InsnBitsTimer(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	unsigned char b_BitsType;
+	int i_ReturnValue = 0;
+	b_BitsType = data[0];
+
+	printk("\n82X54");
+
+	switch (b_BitsType) {
+	case APCI1710_TIMER_READVALUE:
+		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
+							  (unsigned char)CR_AREF(insn->chanspec),
+							  (unsigned char)CR_CHAN(insn->chanspec),
+							  (unsigned int *) &data[0]);
+		break;
+
+	case APCI1710_TIMER_GETOUTPUTLEVEL:
+		i_ReturnValue = i_APCI1710_GetTimerOutputLevel(dev,
+							       (unsigned char)CR_AREF(insn->chanspec),
+							       (unsigned char)CR_CHAN(insn->chanspec),
+							       (unsigned char *) &data[0]);
+		break;
+
+	case APCI1710_TIMER_GETPROGRESSSTATUS:
+		i_ReturnValue = i_APCI1710_GetTimerProgressStatus(dev,
+								  (unsigned char)CR_AREF(insn->chanspec),
+								  (unsigned char)CR_CHAN(insn->chanspec),
+								  (unsigned char *)&data[0]);
+		break;
+
+	case APCI1710_TIMER_WRITEVALUE:
+		i_ReturnValue = i_APCI1710_WriteTimerValue(dev,
+							   (unsigned char)CR_AREF(insn->chanspec),
+							   (unsigned char)CR_CHAN(insn->chanspec),
+							   (unsigned int)data[1]);
+
+		break;
+
+	default:
+		printk("Bits Config Parameter Wrong\n");
+		i_ReturnValue = -1;
+	}
+
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return i_ReturnValue;
 }

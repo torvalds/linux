@@ -1,0 +1,28 @@
+/*
+ * at91sam9g25.dtsi - Device Tree Include file for AT91SAM9G25 SoC
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+/include/ "at91sam9x5.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G25 SoC";
+	compatible = "atmel, at91sam9g25, atmel,at91sam9x5";
+
+	ahb {
+		apb {
+			pinctrl@fffff400 {
+				atmel,mux-mask = <
+				      /*    A         B          C     */
+				       0xffffffff 0xffe0399f 0xc000001c  /* pioA */
+				       0x0007ffff 0x8000fe3f 0x00000000  /* pioB */
+				       0x80000000 0x07c0ffff 0xb83fffff  /* pioC */
+				       0x003fffff 0x003f8000 0x00000000  /* pioD */
+				      >;
+			};
+		};
+	};
+};

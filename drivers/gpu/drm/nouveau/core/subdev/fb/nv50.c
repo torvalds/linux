@@ -51,6 +51,101 @@ nv50_fb_memtype_valid(struct nouveau_fb *pfb, u32 memtype)
 	return types[(memtype & 0xff00) >> 8] != 0;
 }
 
+static u32
+nv50_fb_vram_rblock(struct nouveau_fb *pfb)
+{
+	int i, parts, colbits, rowbitsa, rowbitsb, banks;
+	u64 rowsize, predicted;
+	u32 r0, r4, rt, ru, rblock_size;
+
+	r0 = nv_rd32(pfb, 0x100200);
+	r4 = nv_rd32(pfb, 0x100204);
+	rt = nv_rd32(pfb, 0x100250);
+	ru = nv_rd32(pfb, 0x001540);
+	nv_debug(pfb, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n", r0, r4, rt, ru);
+
+	for (i = 0, parts = 0; i < 8; i++) {
+		if (ru & (0x00010000 << i))
+			parts++;
+	}
+
+	colbits  =  (r4 & 0x0000f000) >> 12;
+	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
+	rowbitsb = ((r4 & 0x00f00000) >> 20) + 8;
+	banks    = 1 << (((r4 & 0x03000000) >> 24) + 2);
+
+	rowsize = parts * banks * (1 << colbits) * 8;
+	predicted = rowsize << rowbitsa;
+	if (r0 & 0x00000004)
+		predicted += rowsize << rowbitsb;
+
+	if (predicted != pfb->ram.size) {
+		nv_warn(pfb, "memory controller reports %d MiB VRAM\n",
+			(u32)(pfb->ram.size >> 20));
+	}
+
+	rblock_size = rowsize;
+	if (rt & 1)
+		rblock_size *= 3;
+
+	nv_debug(pfb, "rblock %d bytes\n", rblock_size);
+	return rblock_size;
+}
+
+static int
+nv50_fb_vram_init(struct nouveau_fb *pfb)
+{
+	struct nouveau_device *device = nv_device(pfb);
+	struct nouveau_bios *bios = nouveau_bios(device);
+	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	u32 size;
+	int ret;
+
+	pfb->ram.size = nv_rd32(pfb, 0x10020c);
+	pfb->ram.size = (pfb->ram.size & 0xffffff00) |
+		       ((pfb->ram.size & 0x000000ff) << 32);
+
+	size = (pfb->ram.size >> 12) - rsvd_head - rsvd_tail;
+	switch (device->chipset) {
+	case 0xaa:
+	case 0xac:
+	case 0xaf: /* IGPs, no reordering, no real VRAM */
+		ret = nouveau_mm_init(&pfb->vram, rsvd_head, size, 1);
+		if (ret)
+			return ret;
+
+		pfb->ram.type   = NV_MEM_TYPE_STOLEN;
+		pfb->ram.stolen = (u64)nv_rd32(pfb, 0x100e10) << 12;
+		break;
+	default:
+		switch (nv_rd32(pfb, 0x100714) & 0x00000007) {
+		case 0: pfb->ram.type = NV_MEM_TYPE_DDR1; break;
+		case 1:
+			if (nouveau_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
+				pfb->ram.type = NV_MEM_TYPE_DDR3;
+			else
+				pfb->ram.type = NV_MEM_TYPE_DDR2;
+			break;
+		case 2: pfb->ram.type = NV_MEM_TYPE_GDDR3; break;
+		case 3: pfb->ram.type = NV_MEM_TYPE_GDDR4; break;
+		case 4: pfb->ram.type = NV_MEM_TYPE_GDDR5; break;
+		default:
+			break;
+		}
+
+		ret = nouveau_mm_init(&pfb->vram, rsvd_head, size,
+				      nv50_fb_vram_rblock(pfb) >> 12);
+		if (ret)
+			return ret;
+
+		pfb->ram.ranks = (nv_rd32(pfb, 0x100200) & 0x4) ? 2 : 1;
+		break;
+	}
+
+	return nv_rd32(pfb, 0x100320);
+}
+
 static int
 nv50_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		 u32 memtype, struct nouveau_mem **pmem)
@@ -139,197 +234,6 @@ nv50_fb_vram_del(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 
 	kfree(mem);
 }
-
-static u32
-nv50_vram_rblock(struct nv50_fb_priv *priv)
-{
-	int i, parts, colbits, rowbitsa, rowbitsb, banks;
-	u64 rowsize, predicted;
-	u32 r0, r4, rt, ru, rblock_size;
-
-	r0 = nv_rd32(priv, 0x100200);
-	r4 = nv_rd32(priv, 0x100204);
-	rt = nv_rd32(priv, 0x100250);
-	ru = nv_rd32(priv, 0x001540);
-	nv_debug(priv, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n", r0, r4, rt, ru);
-
-	for (i = 0, parts = 0; i < 8; i++) {
-		if (ru & (0x00010000 << i))
-			parts++;
-	}
-
-	colbits  =  (r4 & 0x0000f000) >> 12;
-	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
-	rowbitsb = ((r4 & 0x00f00000) >> 20) + 8;
-	banks    = 1 << (((r4 & 0x03000000) >> 24) + 2);
-
-	rowsize = parts * banks * (1 << colbits) * 8;
-	predicted = rowsize << rowbitsa;
-	if (r0 & 0x00000004)
-		predicted += rowsize << rowbitsb;
-
-	if (predicted != priv->base.ram.size) {
-		nv_warn(priv, "memory controller reports %d MiB VRAM\n",
-			(u32)(priv->base.ram.size >> 20));
-	}
-
-	rblock_size = rowsize;
-	if (rt & 1)
-		rblock_size *= 3;
-
-	nv_debug(priv, "rblock %d bytes\n", rblock_size);
-	return rblock_size;
-}
-
-static int
-nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_bios *bios = nouveau_bios(device);
-	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
-	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	struct nv50_fb_priv *priv;
-	u32 tags;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	switch (nv_rd32(priv, 0x100714) & 0x00000007) {
-	case 0: priv->base.ram.type = NV_MEM_TYPE_DDR1; break;
-	case 1:
-		if (nouveau_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
-			priv->base.ram.type = NV_MEM_TYPE_DDR3;
-		else
-			priv->base.ram.type = NV_MEM_TYPE_DDR2;
-		break;
-	case 2: priv->base.ram.type = NV_MEM_TYPE_GDDR3; break;
-	case 3: priv->base.ram.type = NV_MEM_TYPE_GDDR4; break;
-	case 4: priv->base.ram.type = NV_MEM_TYPE_GDDR5; break;
-	default:
-		break;
-	}
-
-	priv->base.ram.size = nv_rd32(priv, 0x10020c);
-	priv->base.ram.size = (priv->base.ram.size & 0xffffff00) |
-			     ((priv->base.ram.size & 0x000000ff) << 32);
-
-	tags = nv_rd32(priv, 0x100320);
-	if (tags) {
-		ret = nouveau_mm_init(&priv->base.tags, 0, tags, 1);
-		if (ret)
-			return ret;
-
-		nv_debug(priv, "%d compression tags\n", tags);
-	}
-
-	size = (priv->base.ram.size >> 12) - rsvd_head - rsvd_tail;
-	switch (device->chipset) {
-	case 0xaa:
-	case 0xac:
-	case 0xaf: /* IGPs, no reordering, no real VRAM */
-		ret = nouveau_mm_init(&priv->base.vram, rsvd_head, size, 1);
-		if (ret)
-			return ret;
-
-		priv->base.ram.stolen = (u64)nv_rd32(priv, 0x100e10) << 12;
-		priv->base.ram.type = NV_MEM_TYPE_STOLEN;
-		break;
-	default:
-		ret = nouveau_mm_init(&priv->base.vram, rsvd_head, size,
-				      nv50_vram_rblock(priv) >> 12);
-		if (ret)
-			return ret;
-
-		priv->base.ram.ranks = (nv_rd32(priv, 0x100200) & 0x4) ? 2 : 1;
-		break;
-	}
-
-	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (priv->r100c08_page) {
-		priv->r100c08 = pci_map_page(device->pdev, priv->r100c08_page,
-					     0, PAGE_SIZE,
-					     PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, priv->r100c08))
-			nv_warn(priv, "failed 0x100c08 page map\n");
-	} else {
-		nv_warn(priv, "failed 0x100c08 page alloc\n");
-	}
-
-	priv->base.memtype_valid = nv50_fb_memtype_valid;
-	priv->base.ram.get = nv50_fb_vram_new;
-	priv->base.ram.put = nv50_fb_vram_del;
-	return nouveau_fb_created(&priv->base);
-}
-
-static void
-nv50_fb_dtor(struct nouveau_object *object)
-{
-	struct nouveau_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
-
-	if (priv->r100c08_page) {
-		pci_unmap_page(device->pdev, priv->r100c08, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
-		__free_page(priv->r100c08_page);
-	}
-
-	nouveau_fb_destroy(&priv->base);
-}
-
-static int
-nv50_fb_init(struct nouveau_object *object)
-{
-	struct nouveau_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_fb_init(&priv->base);
-	if (ret)
-		return ret;
-
-	/* Not a clue what this is exactly.  Without pointing it at a
-	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
-	 * cause IOMMU "read from address 0" errors (rh#561267)
-	 */
-	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
-
-	/* This is needed to get meaningful information from 100c90
-	 * on traps. No idea what these values mean exactly. */
-	switch (device->chipset) {
-	case 0x50:
-		nv_wr32(priv, 0x100c90, 0x000707ff);
-		break;
-	case 0xa3:
-	case 0xa5:
-	case 0xa8:
-		nv_wr32(priv, 0x100c90, 0x000d0fff);
-		break;
-	case 0xaf:
-		nv_wr32(priv, 0x100c90, 0x089d1fff);
-		break;
-	default:
-		nv_wr32(priv, 0x100c90, 0x001d07ff);
-		break;
-	}
-
-	return 0;
-}
-
-struct nouveau_oclass
-nv50_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nouveau_fb_fini,
-	},
-};
 
 static const struct nouveau_enum vm_dispatch_subclients[] = {
 	{ 0x00000000, "GRCTX", NULL },
@@ -426,11 +330,11 @@ static const struct nouveau_enum vm_fault[] = {
 	{}
 };
 
-void
-nv50_fb_trap(struct nouveau_fb *pfb, int display)
+static void
+nv50_fb_intr(struct nouveau_subdev *subdev)
 {
-	struct nouveau_device *device = nv_device(pfb);
-	struct nv50_fb_priv *priv = (void *)pfb;
+	struct nouveau_device *device = nv_device(subdev);
+	struct nv50_fb_priv *priv = (void *)subdev;
 	const struct nouveau_enum *en, *cl;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
@@ -446,9 +350,6 @@ nv50_fb_trap(struct nouveau_fb *pfb, int display)
 		trap[i] = nv_rd32(priv, 0x100c94);
 	}
 	nv_wr32(priv, 0x100c90, idx | 0x80000000);
-
-	if (!display)
-		return;
 
 	/* decode status bits into something more useful */
 	if (device->chipset  < 0xa3 ||
@@ -496,3 +397,101 @@ nv50_fb_trap(struct nouveau_fb *pfb, int display)
 	else
 		printk("0x%08x\n", st1);
 }
+
+static int
+nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	     struct nouveau_oclass *oclass, void *data, u32 size,
+	     struct nouveau_object **pobject)
+{
+	struct nouveau_device *device = nv_device(parent);
+	struct nv50_fb_priv *priv;
+	int ret;
+
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (priv->r100c08_page) {
+		priv->r100c08 = pci_map_page(device->pdev, priv->r100c08_page,
+					     0, PAGE_SIZE,
+					     PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(device->pdev, priv->r100c08))
+			nv_warn(priv, "failed 0x100c08 page map\n");
+	} else {
+		nv_warn(priv, "failed 0x100c08 page alloc\n");
+	}
+
+	priv->base.memtype_valid = nv50_fb_memtype_valid;
+	priv->base.ram.init = nv50_fb_vram_init;
+	priv->base.ram.get = nv50_fb_vram_new;
+	priv->base.ram.put = nv50_fb_vram_del;
+	nv_subdev(priv)->intr = nv50_fb_intr;
+	return nouveau_fb_preinit(&priv->base);
+}
+
+static void
+nv50_fb_dtor(struct nouveau_object *object)
+{
+	struct nouveau_device *device = nv_device(object);
+	struct nv50_fb_priv *priv = (void *)object;
+
+	if (priv->r100c08_page) {
+		pci_unmap_page(device->pdev, priv->r100c08, PAGE_SIZE,
+			       PCI_DMA_BIDIRECTIONAL);
+		__free_page(priv->r100c08_page);
+	}
+
+	nouveau_fb_destroy(&priv->base);
+}
+
+static int
+nv50_fb_init(struct nouveau_object *object)
+{
+	struct nouveau_device *device = nv_device(object);
+	struct nv50_fb_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_fb_init(&priv->base);
+	if (ret)
+		return ret;
+
+	/* Not a clue what this is exactly.  Without pointing it at a
+	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
+	 * cause IOMMU "read from address 0" errors (rh#561267)
+	 */
+	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
+
+	/* This is needed to get meaningful information from 100c90
+	 * on traps. No idea what these values mean exactly. */
+	switch (device->chipset) {
+	case 0x50:
+		nv_wr32(priv, 0x100c90, 0x000707ff);
+		break;
+	case 0xa3:
+	case 0xa5:
+	case 0xa8:
+		nv_wr32(priv, 0x100c90, 0x000d0fff);
+		break;
+	case 0xaf:
+		nv_wr32(priv, 0x100c90, 0x089d1fff);
+		break;
+	default:
+		nv_wr32(priv, 0x100c90, 0x001d07ff);
+		break;
+	}
+
+	return 0;
+}
+
+struct nouveau_oclass
+nv50_fb_oclass = {
+	.handle = NV_SUBDEV(FB, 0x50),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_fb_ctor,
+		.dtor = nv50_fb_dtor,
+		.init = nv50_fb_init,
+		.fini = _nouveau_fb_fini,
+	},
+};

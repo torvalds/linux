@@ -713,8 +713,7 @@ static int dm644x_venc_setup_clock(enum vpbe_enc_timings_type type,
 		break;
 	case VPBE_ENC_CUSTOM_TIMINGS:
 		if (pclock <= 27000000) {
-			v |= DM644X_VPSS_MUXSEL_PLL2_MODE |
-			     DM644X_VPSS_DACCLKEN;
+			v |= DM644X_VPSS_DACCLKEN;
 			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
 		} else {
 			/*
@@ -785,12 +784,6 @@ static struct map_desc dm644x_io_desc[] = {
 		.pfn		= __phys_to_pfn(IO_PHYS),
 		.length		= IO_SIZE,
 		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= SRAM_VIRT,
-		.pfn		= __phys_to_pfn(0x00008000),
-		.length		= SZ_16K,
-		.type		= MT_MEMORY_NONCACHED,
 	},
 };
 

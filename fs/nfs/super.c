@@ -54,6 +54,7 @@
 #include <linux/parser.h>
 #include <linux/nsproxy.h>
 #include <linux/rcupdate.h>
+#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 
@@ -63,6 +64,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "nfs4session.h"
 #include "pnfs.h"
 #include "nfs.h"
 
@@ -306,6 +308,7 @@ const struct super_operations nfs_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
+	.drop_inode	= nfs_drop_inode,
 	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
 	.evict_inode	= nfs_evict_inode,
@@ -414,6 +417,54 @@ void nfs_sb_deactive(struct super_block *sb)
 		deactivate_super(sb);
 }
 EXPORT_SYMBOL_GPL(nfs_sb_deactive);
+
+static int nfs_deactivate_super_async_work(void *ptr)
+{
+	struct super_block *sb = ptr;
+
+	deactivate_super(sb);
+	module_put_and_exit(0);
+	return 0;
+}
+
+/*
+ * same effect as deactivate_super, but will do final unmount in kthread
+ * context
+ */
+static void nfs_deactivate_super_async(struct super_block *sb)
+{
+	struct task_struct *task;
+	char buf[INET6_ADDRSTRLEN + 1];
+	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_client *clp = server->nfs_client;
+
+	if (!atomic_add_unless(&sb->s_active, -1, 1)) {
+		rcu_read_lock();
+		snprintf(buf, sizeof(buf),
+			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+		rcu_read_unlock();
+
+		__module_get(THIS_MODULE);
+		task = kthread_run(nfs_deactivate_super_async_work, sb,
+				"%s-deactivate-super", buf);
+		if (IS_ERR(task)) {
+			pr_err("%s: kthread_run: %ld\n",
+				__func__, PTR_ERR(task));
+			/* make synchronous call and hope for the best */
+			deactivate_super(sb);
+			module_put(THIS_MODULE);
+		}
+	}
+}
+
+void nfs_sb_deactive_async(struct super_block *sb)
+{
+	struct nfs_server *server = NFS_SB(sb);
+
+	if (atomic_dec_and_test(&server->active))
+		nfs_deactivate_super_async(sb);
+}
+EXPORT_SYMBOL_GPL(nfs_sb_deactive_async);
 
 /*
  * Deliver file system statistics to userspace
@@ -771,7 +822,7 @@ int nfs_show_devname(struct seq_file *m, struct dentry *root)
 	int err = 0;
 	if (!page)
 		return -ENOMEM;
-	devname = nfs_path(&dummy, root, page, PAGE_SIZE);
+	devname = nfs_path(&dummy, root, page, PAGE_SIZE, 0);
 	if (IS_ERR(devname))
 		err = PTR_ERR(devname);
 	else
@@ -1101,7 +1152,7 @@ static int nfs_get_option_str(substring_t args[], char **option)
 {
 	kfree(*option);
 	*option = match_strdup(args);
-	return !option;
+	return !*option;
 }
 
 static int nfs_get_option_ul(substring_t args[], unsigned long *option)
@@ -2324,19 +2375,30 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 				 struct nfs_parsed_mount_data *parsed,
 				 struct nfs_clone_mount *cloned)
 {
+	struct nfs_server *nfss = NFS_SB(sb);
 	char *uniq = NULL;
 	int ulen = 0;
 
-	if (parsed && parsed->fscache_uniq) {
-		uniq = parsed->fscache_uniq;
-		ulen = strlen(parsed->fscache_uniq);
+	nfss->fscache_key = NULL;
+	nfss->fscache = NULL;
+
+	if (parsed) {
+		if (!(parsed->options & NFS_OPTION_FSCACHE))
+			return;
+		if (parsed->fscache_uniq) {
+			uniq = parsed->fscache_uniq;
+			ulen = strlen(parsed->fscache_uniq);
+		}
 	} else if (cloned) {
 		struct nfs_server *mnt_s = NFS_SB(cloned->sb);
+		if (!(mnt_s->options & NFS_OPTION_FSCACHE))
+			return;
 		if (mnt_s->fscache_key) {
 			uniq = mnt_s->fscache_key->key.uniquifier;
 			ulen = mnt_s->fscache_key->key.uniq_len;
 		};
-	}
+	} else
+		return;
 
 	nfs_fscache_get_super_cookie(sb, uniq, ulen);
 }

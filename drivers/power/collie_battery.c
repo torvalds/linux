@@ -305,7 +305,7 @@ static int collie_bat_resume(struct ucb1x00_dev *dev)
 #define collie_bat_resume NULL
 #endif
 
-static int __devinit collie_bat_probe(struct ucb1x00_dev *dev)
+static int collie_bat_probe(struct ucb1x00_dev *dev)
 {
 	int ret;
 
@@ -349,7 +349,7 @@ err_psy_reg_main:
 	return ret;
 }
 
-static void __devexit collie_bat_remove(struct ucb1x00_dev *dev)
+static void collie_bat_remove(struct ucb1x00_dev *dev)
 {
 	free_irq(gpio_to_irq(COLLIE_GPIO_CO), &collie_bat_main);
 
@@ -367,7 +367,7 @@ static void __devexit collie_bat_remove(struct ucb1x00_dev *dev)
 
 static struct ucb1x00_driver collie_bat_driver = {
 	.add		= collie_bat_probe,
-	.remove		= __devexit_p(collie_bat_remove),
+	.remove		= collie_bat_remove,
 	.suspend	= collie_bat_suspend,
 	.resume		= collie_bat_resume,
 };

@@ -79,8 +79,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_ymfpci_ids) = {
 MODULE_DEVICE_TABLE(pci, snd_ymfpci_ids);
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
-						int legacy_ctrl, int legacy_ctrl2)
+static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
+				      int legacy_ctrl, int legacy_ctrl2)
 {
 	struct gameport *gp;
 	struct resource *r = NULL;
@@ -167,8 +167,8 @@ static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, i
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
-static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
-					   const struct pci_device_id *pci_id)
+static int snd_card_ymfpci_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -344,7 +344,7 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_card_ymfpci_remove(struct pci_dev *pci)
+static void snd_card_ymfpci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -354,7 +354,7 @@ static struct pci_driver ymfpci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ymfpci_ids,
 	.probe = snd_card_ymfpci_probe,
-	.remove = __devexit_p(snd_card_ymfpci_remove),
+	.remove = snd_card_ymfpci_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &snd_ymfpci_pm,

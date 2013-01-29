@@ -183,6 +183,7 @@ static void __exit __ircomm_tty_cleanup(struct ircomm_tty_cb *self)
 	ircomm_tty_shutdown(self);
 
 	self->magic = 0;
+	tty_port_destroy(&self->port);
 	kfree(self);
 }
 

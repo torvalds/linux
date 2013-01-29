@@ -124,7 +124,7 @@ xfs_setfilesize_trans_alloc(
 	ioend->io_append_trans = tp;
 
 	/*
-	 * We will pass freeze protection with a transaction.  So tell lockdep
+	 * We may pass freeze protection with a transaction.  So tell lockdep
 	 * we released it.
 	 */
 	rwsem_release(&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
@@ -149,11 +149,13 @@ xfs_setfilesize(
 	xfs_fsize_t		isize;
 
 	/*
-	 * The transaction was allocated in the I/O submission thread,
-	 * thus we need to mark ourselves as beeing in a transaction
-	 * manually.
+	 * The transaction may have been allocated in the I/O submission thread,
+	 * thus we need to mark ourselves as beeing in a transaction manually.
+	 * Similarly for freeze protection.
 	 */
 	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	rwsem_acquire_read(&VFS_I(ip)->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+			   0, 1, _THIS_IP_);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	isize = xfs_new_eof(ip, ioend->io_offset + ioend->io_size);
@@ -187,7 +189,8 @@ xfs_finish_ioend(
 
 		if (ioend->io_type == XFS_IO_UNWRITTEN)
 			queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
-		else if (ioend->io_append_trans)
+		else if (ioend->io_append_trans ||
+			 (ioend->io_isdirect && xfs_ioend_is_append(ioend)))
 			queue_work(mp->m_data_workqueue, &ioend->io_work);
 		else
 			xfs_destroy_ioend(ioend);
@@ -205,15 +208,6 @@ xfs_end_io(
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
 	int		error = 0;
 
-	if (ioend->io_append_trans) {
-		/*
-		 * We've got freeze protection passed with the transaction.
-		 * Tell lockdep about it.
-		 */
-		rwsem_acquire_read(
-			&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
-			0, 1, _THIS_IP_);
-	}
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		ioend->io_error = -EIO;
 		goto done;
@@ -226,35 +220,31 @@ xfs_end_io(
 	 * range to normal written extens after the data I/O has finished.
 	 */
 	if (ioend->io_type == XFS_IO_UNWRITTEN) {
-		/*
-		 * For buffered I/O we never preallocate a transaction when
-		 * doing the unwritten extent conversion, but for direct I/O
-		 * we do not know if we are converting an unwritten extent
-		 * or not at the point where we preallocate the transaction.
-		 */
-		if (ioend->io_append_trans) {
-			ASSERT(ioend->io_isdirect);
-
-			current_set_flags_nested(
-				&ioend->io_append_trans->t_pflags, PF_FSTRANS);
-			xfs_trans_cancel(ioend->io_append_trans, 0);
-		}
-
 		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
-						 ioend->io_size);
-		if (error) {
-			ioend->io_error = -error;
+						  ioend->io_size);
+	} else if (ioend->io_isdirect && xfs_ioend_is_append(ioend)) {
+		/*
+		 * For direct I/O we do not know if we need to allocate blocks
+		 * or not so we can't preallocate an append transaction as that
+		 * results in nested reservations and log space deadlocks. Hence
+		 * allocate the transaction here. While this is sub-optimal and
+		 * can block IO completion for some time, we're stuck with doing
+		 * it this way until we can pass the ioend to the direct IO
+		 * allocation callbacks and avoid nesting that way.
+		 */
+		error = xfs_setfilesize_trans_alloc(ioend);
+		if (error)
 			goto done;
-		}
+		error = xfs_setfilesize(ioend);
 	} else if (ioend->io_append_trans) {
 		error = xfs_setfilesize(ioend);
-		if (error)
-			ioend->io_error = -error;
 	} else {
 		ASSERT(!xfs_ioend_is_append(ioend));
 	}
 
 done:
+	if (error)
+		ioend->io_error = -error;
 	xfs_destroy_ioend(ioend);
 }
 
@@ -481,11 +471,17 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  *
  * The fix is two passes across the ioend list - one to start writeback on the
  * buffer_heads, and then submit them for I/O on the second pass.
+ *
+ * If @fail is non-zero, it means that we have a situation where some part of
+ * the submission process has failed after we have marked paged for writeback
+ * and unlocked them. In this situation, we need to fail the ioend chain rather
+ * than submit it to IO. This typically only happens on a filesystem shutdown.
  */
 STATIC void
 xfs_submit_ioend(
 	struct writeback_control *wbc,
-	xfs_ioend_t		*ioend)
+	xfs_ioend_t		*ioend,
+	int			fail)
 {
 	xfs_ioend_t		*head = ioend;
 	xfs_ioend_t		*next;
@@ -505,6 +501,18 @@ xfs_submit_ioend(
 	do {
 		next = ioend->io_list;
 		bio = NULL;
+
+		/*
+		 * If we are failing the IO now, just mark the ioend with an
+		 * error and finish it. This will run IO completion immediately
+		 * as there is only one reference to the ioend at this point in
+		 * time.
+		 */
+		if (fail) {
+			ioend->io_error = -fail;
+			xfs_finish_ioend(ioend);
+			continue;
+		}
 
 		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
 
@@ -1060,7 +1068,18 @@ xfs_vm_writepage(
 
 	xfs_start_page_writeback(page, 1, count);
 
-	if (ioend && imap_valid) {
+	/* if there is no IO to be submitted for this page, we are done */
+	if (!ioend)
+		return 0;
+
+	ASSERT(iohead);
+
+	/*
+	 * Any errors from this point onwards need tobe reported through the IO
+	 * completion path as we have marked the initial page as under writeback
+	 * and unlocked it.
+	 */
+	if (imap_valid) {
 		xfs_off_t		end_index;
 
 		end_index = imap.br_startoff + imap.br_blockcount;
@@ -1079,20 +1098,15 @@ xfs_vm_writepage(
 				  wbc, end_index);
 	}
 
-	if (iohead) {
-		/*
-		 * Reserve log space if we might write beyond the on-disk
-		 * inode size.
-		 */
-		if (ioend->io_type != XFS_IO_UNWRITTEN &&
-		    xfs_ioend_is_append(ioend)) {
-			err = xfs_setfilesize_trans_alloc(ioend);
-			if (err)
-				goto error;
-		}
 
-		xfs_submit_ioend(wbc, iohead);
-	}
+	/*
+	 * Reserve log space if we might write beyond the on-disk inode size.
+	 */
+	err = 0;
+	if (ioend->io_type != XFS_IO_UNWRITTEN && xfs_ioend_is_append(ioend))
+		err = xfs_setfilesize_trans_alloc(ioend);
+
+	xfs_submit_ioend(wbc, iohead, err);
 
 	return 0;
 
@@ -1408,25 +1422,21 @@ xfs_vm_direct_IO(
 		size_t size = iov_length(iov, nr_segs);
 
 		/*
-		 * We need to preallocate a transaction for a size update
-		 * here.  In the case that this write both updates the size
-		 * and converts at least on unwritten extent we will cancel
-		 * the still clean transaction after the I/O has finished.
+		 * We cannot preallocate a size update transaction here as we
+		 * don't know whether allocation is necessary or not. Hence we
+		 * can only tell IO completion that one is necessary if we are
+		 * not doing unwritten extent conversion.
 		 */
 		iocb->private = ioend = xfs_alloc_ioend(inode, XFS_IO_DIRECT);
-		if (offset + size > XFS_I(inode)->i_d.di_size) {
-			ret = xfs_setfilesize_trans_alloc(ioend);
-			if (ret)
-				goto out_destroy_ioend;
+		if (offset + size > XFS_I(inode)->i_d.di_size)
 			ioend->io_isdirect = 1;
-		}
 
 		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
 					    offset, nr_segs,
 					    xfs_get_blocks_direct,
 					    xfs_end_io_direct_write, NULL, 0);
 		if (ret != -EIOCBQUEUED && iocb->private)
-			goto out_trans_cancel;
+			goto out_destroy_ioend;
 	} else {
 		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
 					    offset, nr_segs,
@@ -1436,15 +1446,6 @@ xfs_vm_direct_IO(
 
 	return ret;
 
-out_trans_cancel:
-	if (ioend->io_append_trans) {
-		current_set_flags_nested(&ioend->io_append_trans->t_pflags,
-					 PF_FSTRANS);
-		rwsem_acquire_read(
-			&inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
-			0, 1, _THIS_IP_);
-		xfs_trans_cancel(ioend->io_append_trans, 0);
-	}
 out_destroy_ioend:
 	xfs_destroy_ioend(ioend);
 	return ret;
@@ -1617,7 +1618,7 @@ xfs_vm_bmap(
 
 	trace_xfs_vm_bmap(XFS_I(inode));
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	xfs_flush_pages(ip, (xfs_off_t)0, -1, 0, FI_REMAPF);
+	filemap_write_and_wait(mapping);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }

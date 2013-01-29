@@ -814,10 +814,8 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 	if (max_sqnum > ai->max_sqnum)
 		ai->max_sqnum = max_sqnum;
 
-	list_for_each_entry_safe(tmp_aeb, _tmp_aeb, &free, u.list) {
-		list_del(&tmp_aeb->u.list);
-		list_add_tail(&tmp_aeb->u.list, &ai->free);
-	}
+	list_for_each_entry_safe(tmp_aeb, _tmp_aeb, &free, u.list)
+		list_move_tail(&tmp_aeb->u.list, &ai->free);
 
 	/*
 	 * If fastmap is leaking PEBs (must not happen), raise a

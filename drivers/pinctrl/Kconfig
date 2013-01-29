@@ -26,6 +26,15 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_AT91
+	bool "AT91 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select PINCONF
+	help
+	  Say Y here to enable the at91 pinctrl driver
+
 config PINCTRL_BCM2835
 	bool
 	select PINMUX
@@ -87,21 +96,18 @@ config PINCTRL_MMP2
 	bool "MMP2 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_MXS
 	bool
+	select PINMUX
+	select PINCONF
 
 config PINCTRL_IMX23
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_MXS
 
 config PINCTRL_IMX28
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_MXS
 
 config PINCTRL_NOMADIK
@@ -126,13 +132,11 @@ config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_PXA910
 	bool "PXA910 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
@@ -143,23 +147,21 @@ config PINCTRL_SINGLE
 	  This selects the device tree based generic pinctrl driver.
 
 config PINCTRL_SIRF
-	bool "CSR SiRFprimaII pin controller driver"
-	depends on ARCH_PRIMA2
+	bool "CSR SiRFprimaII/SiRFmarco pin controller driver"
+	depends on ARCH_SIRF
 	select PINMUX
 
 config PINCTRL_TEGRA
 	bool
+	select PINMUX
+	select PINCONF
 
 config PINCTRL_TEGRA20
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA30
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_TEGRA
 
 config PINCTRL_U300
@@ -178,35 +180,22 @@ config PINCTRL_COH901
 	  ports of 8 GPIO pins each.
 
 config PINCTRL_SAMSUNG
-	bool "Samsung pinctrl driver"
+	bool
+	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
 
 config PINCTRL_EXYNOS4
 	bool "Pinctrl driver data for Exynos4 SoC"
+	depends on OF && GPIOLIB
 	select PINCTRL_SAMSUNG
 
-config PINCTRL_MVEBU
-	bool
-	depends on ARCH_MVEBU
+config PINCTRL_EXYNOS5440
+	bool "Samsung EXYNOS5440 SoC pinctrl driver"
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_DOVE
-	bool
-	select PINCTRL_MVEBU
-
-config PINCTRL_KIRKWOOD
-	bool
-	select PINCTRL_MVEBU
-
-config PINCTRL_ARMADA_370
-	bool
-	select PINCTRL_MVEBU
-
-config PINCTRL_ARMADA_XP
-	bool
-	select PINCTRL_MVEBU
+source "drivers/pinctrl/mvebu/Kconfig"
 
 source "drivers/pinctrl/spear/Kconfig"
 

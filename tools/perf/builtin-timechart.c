@@ -965,7 +965,7 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static int __cmd_timechart(const char *input_name, const char *output_name)
+static int __cmd_timechart(const char *output_name)
 {
 	struct perf_tool perf_timechart = {
 		.comm		 = process_comm_event,
@@ -1061,7 +1061,6 @@ parse_process(const struct option *opt __maybe_unused, const char *arg,
 int cmd_timechart(int argc, const char **argv,
 		  const char *prefix __maybe_unused)
 {
-	const char *input_name;
 	const char *output_name = "output.svg";
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
@@ -1092,5 +1091,5 @@ int cmd_timechart(int argc, const char **argv,
 
 	setup_pager();
 
-	return __cmd_timechart(input_name, output_name);
+	return __cmd_timechart(output_name);
 }

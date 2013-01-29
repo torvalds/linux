@@ -32,7 +32,7 @@ do {								\
 #define D_USBO 0x00
 #define D_V4L2 0x0100
 #else
-#define PDEBUG(level, fmt, ...)
+#define PDEBUG(level, fmt, ...) do {} while(0)
 #endif
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */

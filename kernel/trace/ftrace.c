@@ -2437,7 +2437,7 @@ static void reset_iter_read(struct ftrace_iterator *iter)
 {
 	iter->pos = 0;
 	iter->func_pos = 0;
-	iter->flags &= ~(FTRACE_ITER_PRINTALL & FTRACE_ITER_HASH);
+	iter->flags &= ~(FTRACE_ITER_PRINTALL | FTRACE_ITER_HASH);
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
@@ -2675,12 +2675,12 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 }
 
 loff_t
-ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
+ftrace_regex_lseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t ret;
 
 	if (file->f_mode & FMODE_READ)
-		ret = seq_lseek(file, offset, origin);
+		ret = seq_lseek(file, offset, whence);
 	else
 		file->f_pos = ret = 1;
 
@@ -2868,7 +2868,7 @@ static int __init ftrace_mod_cmd_init(void)
 {
 	return register_ftrace_command(&ftrace_mod_cmd);
 }
-device_initcall(ftrace_mod_cmd_init);
+core_initcall(ftrace_mod_cmd_init);
 
 static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 				      struct ftrace_ops *op, struct pt_regs *pt_regs)
@@ -3998,7 +3998,7 @@ static int ftrace_module_notify(struct notifier_block *self,
 
 struct notifier_block ftrace_module_nb = {
 	.notifier_call = ftrace_module_notify,
-	.priority = 0,
+	.priority = INT_MAX,	/* Run before anything that can use kprobes */
 };
 
 extern unsigned long __start_mcount_loc[];
@@ -4055,7 +4055,7 @@ static int __init ftrace_nodyn_init(void)
 	ftrace_enabled = 1;
 	return 0;
 }
-device_initcall(ftrace_nodyn_init);
+core_initcall(ftrace_nodyn_init);
 
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
@@ -4381,7 +4381,7 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	if (strlen(tmp) == 0)
 		return 1;
 
-	ret = strict_strtol(tmp, 10, &val);
+	ret = kstrtol(tmp, 10, &val);
 	if (ret < 0)
 		return ret;
 

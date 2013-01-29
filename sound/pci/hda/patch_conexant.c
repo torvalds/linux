@@ -337,6 +337,8 @@ static const struct hda_pcm_stream cx5051_pcm_analog_capture = {
 	},
 };
 
+static bool is_2_1_speaker(struct conexant_spec *spec);
+
 static int conexant_build_pcms(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -351,6 +353,9 @@ static int conexant_build_pcms(struct hda_codec *codec)
 		spec->multiout.max_channels;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
 		spec->multiout.dac_nids[0];
+	if (is_2_1_speaker(spec))
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].chmap =
+			snd_pcm_2_1_chmaps;
 	if (spec->capture_stream)
 		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *spec->capture_stream;
 	else {
@@ -472,7 +477,7 @@ static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 #endif
 
 static const char * const slave_pfxs[] = {
-	"Headphone", "Speaker", "Front", "Surround", "CLFE",
+	"Headphone", "Speaker", "Bass Speaker", "Front", "Surround", "CLFE",
 	NULL
 };
 
@@ -553,24 +558,12 @@ static int conexant_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int conexant_suspend(struct hda_codec *codec)
-{
-	snd_hda_shutup_pins(codec);
-	return 0;
-}
-#endif
-
 static const struct hda_codec_ops conexant_patch_ops = {
 	.build_controls = conexant_build_controls,
 	.build_pcms = conexant_build_pcms,
 	.init = conexant_init,
 	.free = conexant_free,
 	.set_power_state = conexant_set_power,
-#ifdef CONFIG_PM
-	.suspend = conexant_suspend,
-#endif
-	.reboot_notify = snd_hda_shutup_pins,
 };
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
@@ -3430,28 +3423,13 @@ static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct conexant_spec *spec = codec->spec;
-	static const char * const texts2[] = {
-		"Disabled", "Enabled"
-	};
 	static const char * const texts3[] = {
 		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
-	const char * const *texts;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	if (spec->automute_hp_lo) {
-		uinfo->value.enumerated.items = 3;
-		texts = texts3;
-	} else {
-		uinfo->value.enumerated.items = 2;
-		texts = texts2;
-	}
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	if (spec->automute_hp_lo)
+		return snd_hda_enum_helper_info(kcontrol, uinfo, 3, texts3);
+	return snd_hda_enum_bool_helper_info(kcontrol, uinfo);
 }
 
 static int cx_automute_mode_get(struct snd_kcontrol *kcontrol,
@@ -4116,17 +4094,34 @@ static int try_add_pb_volume(struct hda_codec *codec, hda_nid_t dac,
 	return 0;
 }
 
+static bool is_2_1_speaker(struct conexant_spec *spec)
+{
+	int i, type, num_spk = 0;
+
+	for (i = 0; i < spec->dac_info_filled; i++) {
+		type = spec->dac_info[i].type;
+		if (type == AUTO_PIN_LINE_OUT)
+			type = spec->autocfg.line_out_type;
+		if (type == AUTO_PIN_SPEAKER_OUT)
+			num_spk++;
+	}
+	return (num_spk == 2 && spec->autocfg.line_out_type != AUTO_PIN_LINE_OUT);
+}
+
 static int cx_auto_build_output_controls(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	int i, err;
 	int num_line = 0, num_hp = 0, num_spk = 0;
+	bool speaker_2_1;
 	static const char * const texts[3] = { "Front", "Surround", "CLFE" };
 
 	if (spec->dac_info_filled == 1)
 		return try_add_pb_volume(codec, spec->dac_info[0].dac,
 					 spec->dac_info[0].pin,
 					 "Master", 0);
+
+	speaker_2_1 = is_2_1_speaker(spec);
 
 	for (i = 0; i < spec->dac_info_filled; i++) {
 		const char *label;
@@ -4146,8 +4141,13 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 			idx = num_hp++;
 			break;
 		case AUTO_PIN_SPEAKER_OUT:
-			label = "Speaker";
-			idx = num_spk++;
+			if (speaker_2_1) {
+				label = num_spk++ ? "Bass Speaker" : "Speaker";
+				idx = 0;
+			} else {
+				label = "Speaker";
+				idx = num_spk++;
+			}
 			break;
 		}
 		err = try_add_pb_volume(codec, dac,
@@ -4393,10 +4393,6 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.init = cx_auto_init,
 	.free = conexant_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
-	.suspend = conexant_suspend,
-#endif
-	.reboot_notify = snd_hda_shutup_pins,
 };
 
 /*
@@ -4405,7 +4401,10 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 enum {
 	CXT_PINCFG_LENOVO_X200,
 	CXT_PINCFG_LENOVO_TP410,
+	CXT_PINCFG_LEMOTE_A1004,
+	CXT_PINCFG_LEMOTE_A1205,
 	CXT_FIXUP_STEREO_DMIC,
+	CXT_FIXUP_INC_MIC_BOOST,
 };
 
 static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
@@ -4413,6 +4412,19 @@ static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
 {
 	struct conexant_spec *spec = codec->spec;
 	spec->fixup_stereo_dmic = 1;
+}
+
+static void cxt5066_increase_mic_boost(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+
+	snd_hda_override_amp_caps(codec, 0x17, HDA_OUTPUT,
+				  (0x3 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x4 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x27 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (0 << AC_AMPCAP_MUTE_SHIFT));
 }
 
 /* ThinkPad X200 & co with cxt5051 */
@@ -4432,6 +4444,18 @@ static const struct hda_pintbl cxt_pincfg_lenovo_tp410[] = {
 	{}
 };
 
+/* Lemote A1004/A1205 with cxt5066 */
+static const struct hda_pintbl cxt_pincfg_lemote[] = {
+	{ 0x1a, 0x90a10020 }, /* Internal mic */
+	{ 0x1b, 0x03a11020 }, /* External mic */
+	{ 0x1d, 0x400101f0 }, /* Not used */
+	{ 0x1e, 0x40a701f0 }, /* Not used */
+	{ 0x20, 0x404501f0 }, /* Not used */
+	{ 0x22, 0x404401f0 }, /* Not used */
+	{ 0x23, 0x40a701f0 }, /* Not used */
+	{}
+};
+
 static const struct hda_fixup cxt_fixups[] = {
 	[CXT_PINCFG_LENOVO_X200] = {
 		.type = HDA_FIXUP_PINS,
@@ -4441,9 +4465,23 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cxt_pincfg_lenovo_tp410,
 	},
+	[CXT_PINCFG_LEMOTE_A1004] = {
+		.type = HDA_FIXUP_PINS,
+		.chained = true,
+		.chain_id = CXT_FIXUP_INC_MIC_BOOST,
+		.v.pins = cxt_pincfg_lemote,
+	},
+	[CXT_PINCFG_LEMOTE_A1205] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cxt_pincfg_lemote,
+	},
 	[CXT_FIXUP_STEREO_DMIC] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_stereo_dmic,
+	},
+	[CXT_FIXUP_INC_MIC_BOOST] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt5066_increase_mic_boost,
 	},
 };
 
@@ -4453,6 +4491,7 @@ static const struct snd_pci_quirk cxt5051_fixups[] = {
 };
 
 static const struct snd_pci_quirk cxt5066_fixups[] = {
+	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x215f, "Lenovo T510", CXT_PINCFG_LENOVO_TP410),
@@ -4461,6 +4500,8 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
+	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
 	{}
 };
 
@@ -4595,6 +4636,12 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15111, .name = "CX20753/4",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f15113, .name = "CX20755",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f15114, .name = "CX20756",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f15115, .name = "CX20757",
+	  .patch = patch_conexant_auto },
 	{} /* terminator */
 };
 
@@ -4618,6 +4665,9 @@ MODULE_ALIAS("snd-hda-codec-id:14f150b9");
 MODULE_ALIAS("snd-hda-codec-id:14f1510f");
 MODULE_ALIAS("snd-hda-codec-id:14f15110");
 MODULE_ALIAS("snd-hda-codec-id:14f15111");
+MODULE_ALIAS("snd-hda-codec-id:14f15113");
+MODULE_ALIAS("snd-hda-codec-id:14f15114");
+MODULE_ALIAS("snd-hda-codec-id:14f15115");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");

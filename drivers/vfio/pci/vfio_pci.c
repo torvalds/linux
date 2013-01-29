@@ -43,6 +43,10 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
 	vdev->reset_works = (pci_reset_function(pdev) == 0);
 	pci_save_state(pdev);
 	vdev->pci_saved_state = pci_store_saved_state(pdev);
@@ -51,8 +55,11 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 			 __func__, dev_name(&pdev->dev));
 
 	ret = vfio_config_init(vdev);
-	if (ret)
-		goto out;
+	if (ret) {
+		pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state);
+		pci_disable_device(pdev);
+		return ret;
+	}
 
 	if (likely(!nointxmask))
 		vdev->pci_2_3 = pci_intx_mask_supported(pdev);
@@ -77,24 +84,15 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto out;
-
-	return ret;
-
-out:
-	kfree(vdev->pci_saved_state);
-	vdev->pci_saved_state = NULL;
-	vfio_config_free(vdev);
-	return ret;
+	return 0;
 }
 
 static void vfio_pci_disable(struct vfio_pci_device *vdev)
 {
+	struct pci_dev *pdev = vdev->pdev;
 	int bar;
 
-	pci_disable_device(vdev->pdev);
+	pci_disable_device(pdev);
 
 	vfio_pci_set_irqs_ioctl(vdev, VFIO_IRQ_SET_DATA_NONE |
 				VFIO_IRQ_SET_ACTION_TRIGGER,
@@ -104,22 +102,40 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 
 	vfio_config_free(vdev);
 
-	pci_reset_function(vdev->pdev);
-
-	if (pci_load_and_free_saved_state(vdev->pdev,
-					  &vdev->pci_saved_state) == 0)
-		pci_restore_state(vdev->pdev);
-	else
-		pr_info("%s: Couldn't reload %s saved state\n",
-			__func__, dev_name(&vdev->pdev->dev));
-
 	for (bar = PCI_STD_RESOURCES; bar <= PCI_STD_RESOURCE_END; bar++) {
 		if (!vdev->barmap[bar])
 			continue;
-		pci_iounmap(vdev->pdev, vdev->barmap[bar]);
-		pci_release_selected_regions(vdev->pdev, 1 << bar);
+		pci_iounmap(pdev, vdev->barmap[bar]);
+		pci_release_selected_regions(pdev, 1 << bar);
 		vdev->barmap[bar] = NULL;
 	}
+
+	/*
+	 * If we have saved state, restore it.  If we can reset the device,
+	 * even better.  Resetting with current state seems better than
+	 * nothing, but saving and restoring current state without reset
+	 * is just busy work.
+	 */
+	if (pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state)) {
+		pr_info("%s: Couldn't reload %s saved state\n",
+			__func__, dev_name(&pdev->dev));
+
+		if (!vdev->reset_works)
+			return;
+
+		pci_save_state(pdev);
+	}
+
+	/*
+	 * Disable INTx and MSI, presumably to avoid spurious interrupts
+	 * during reset.  Stolen from pci_reset_function()
+	 */
+	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
+
+	if (vdev->reset_works)
+		__pci_reset_function(pdev);
+
+	pci_restore_state(pdev);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -327,15 +343,10 @@ static long vfio_pci_ioctl(void *device_data,
 			    hdr.count > vfio_pci_get_irq_count(vdev, hdr.index))
 				return -EINVAL;
 
-			data = kmalloc(hdr.count * size, GFP_KERNEL);
-			if (!data)
-				return -ENOMEM;
-
-			if (copy_from_user(data, (void __user *)(arg + minsz),
-					   hdr.count * size)) {
-				kfree(data);
-				return -EFAULT;
-			}
+			data = memdup_user((void __user *)(arg + minsz),
+					   hdr.count * size);
+			if (IS_ERR(data))
+				return PTR_ERR(data);
 		}
 
 		mutex_lock(&vdev->igate);
@@ -562,9 +573,9 @@ static int __init vfio_pci_init(void)
 
 	return 0;
 
-out_virqfd:
-	vfio_pci_virqfd_exit();
 out_driver:
+	vfio_pci_virqfd_exit();
+out_virqfd:
 	vfio_pci_uninit_perm_bits();
 	return ret;
 }

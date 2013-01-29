@@ -812,7 +812,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return retval;
 
 	mutex_lock(&gofh->lock);
-	if (buf->index < 0 || buf->index >= gofh->buf_count)
+	if (buf->index >= gofh->buf_count)
 		goto unlock_and_return;
 
 	gobuf = &gofh->bufs[buf->index];

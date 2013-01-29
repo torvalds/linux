@@ -373,17 +373,13 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
-	REST_GPR(2,r1)
+	li	r3,0
+	std	r3,0(r1)
+	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15
 	blrl
 	li	r3,0
-	b	.do_exit	# no return
-
-_GLOBAL(__ret_from_kernel_execve)
-	addi	r1,r3,-STACK_FRAME_OVERHEAD
-	li	r10,1
-	std	r10,SOFTE(r1)
 	b	syscall_exit
 
 	.section	".toc","aw"
@@ -668,6 +664,19 @@ resume_kernel:
 	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	bne	1b
+
+	/*
+	 * arch_local_irq_restore() from preempt_schedule_irq above may
+	 * enable hard interrupt but we really should disable interrupts
+	 * when we return from the interrupt, and so that we don't get
+	 * interrupted after loading SRR0/1.
+	 */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	0
+#else
+	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
+	mtmsrd	r10,1		  /* Update machine state */
+#endif /* CONFIG_PPC_BOOK3E */
 #endif /* CONFIG_PREEMPT */
 
 	.globl	fast_exc_return_irq

@@ -62,7 +62,7 @@ static irqreturn_t max8925_onkey_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit max8925_onkey_probe(struct platform_device *pdev)
+static int max8925_onkey_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_onkey_info *info;
@@ -141,7 +141,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit max8925_onkey_remove(struct platform_device *pdev)
+static int max8925_onkey_remove(struct platform_device *pdev)
 {
 	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -195,7 +195,7 @@ static struct platform_driver max8925_onkey_driver = {
 		.pm	= &max8925_onkey_pm_ops,
 	},
 	.probe		= max8925_onkey_probe,
-	.remove		= __devexit_p(max8925_onkey_remove),
+	.remove		= max8925_onkey_remove,
 };
 module_platform_driver(max8925_onkey_driver);
 

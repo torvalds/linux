@@ -38,12 +38,12 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
-#define _(a,b) { (a), ((1 << (a)) | (b)) }
+#define _(a,b) { (a), ((1ULL << (a)) | (b)) }
 static const struct {
-	int subdev;
-	u32 mask;
+	u64 subdev;
+	u64 mask;
 } fifo_engine[] = {
-	_(NVDEV_ENGINE_GR      , (1 << NVDEV_ENGINE_SW)),
+	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW)),
 	_(NVDEV_ENGINE_VP      , 0),
 	_(NVDEV_ENGINE_PPP     , 0),
 	_(NVDEV_ENGINE_BSP     , 0),
@@ -138,6 +138,9 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_GR   :
 	case NVDEV_ENGINE_COPY0:
 	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -172,13 +175,12 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_GR   :
 	case NVDEV_ENGINE_COPY0:
 	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
-
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
-	bar->flush(bar);
 
 	nv_wr32(priv, 0x002634, chan->base.chid);
 	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
@@ -187,6 +189,9 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
+	nv_wo32(base, addr + 0x00, 0x00000000);
+	nv_wo32(base, addr + 0x04, 0x00000000);
+	bar->flush(bar);
 	return 0;
 }
 

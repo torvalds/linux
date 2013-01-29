@@ -65,9 +65,14 @@
  *   2.22.0 - r600 only: RESOLVE_BOX allowed
  *   2.23.0 - allow STRMOUT_BASE_UPDATE on RS780 and RS880
  *   2.24.0 - eg only: allow MIP_ADDRESS=0 for MSAA textures
+ *   2.25.0 - eg+: new info request for num SE and num SH
+ *   2.26.0 - r600-eg: fix htile size computation
+ *   2.27.0 - r600-SI: Add CS ioctl support for async DMA
+ *   2.28.0 - r600-eg: Add MEM_WRITE packet support
+ *   2.29.0 - R500 FP16 color clear registers
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	24
+#define KMS_DRIVER_MINOR	29
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -281,12 +286,15 @@ static struct drm_driver driver_old = {
 
 static struct drm_driver kms_driver;
 
-static void radeon_kick_out_firmware_fb(struct pci_dev *pdev)
+static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
 	bool primary = false;
 
 	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
@@ -295,13 +303,19 @@ static void radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 #endif
 	remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
 	kfree(ap);
+
+	return 0;
 }
 
-static int __devinit
-radeon_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int radeon_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
+	int ret;
+
 	/* Get rid of things like offb */
-	radeon_kick_out_firmware_fb(pdev);
+	ret = radeon_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
 
 	return drm_get_pci_dev(pdev, ent, &kms_driver);
 }

@@ -822,7 +822,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_m3_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_m3_ids);
 
-static struct snd_pci_quirk m3_amp_quirk_list[] __devinitdata = {
+static struct snd_pci_quirk m3_amp_quirk_list[] = {
 	SND_PCI_QUIRK(0x0E11, 0x0094, "Compaq Evo N600c", 0x0c),
 	SND_PCI_QUIRK(0x10f7, 0x833e, "Panasonic CF-28", 0x0d),
 	SND_PCI_QUIRK(0x10f7, 0x833d, "Panasonic CF-72", 0x0d),
@@ -831,7 +831,7 @@ static struct snd_pci_quirk m3_amp_quirk_list[] __devinitdata = {
 	{ } /* END */
 };
 
-static struct snd_pci_quirk m3_irda_quirk_list[] __devinitdata = {
+static struct snd_pci_quirk m3_irda_quirk_list[] = {
 	SND_PCI_QUIRK(0x1028, 0x00b0, "Dell Inspiron 4000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00a4, "Dell Inspiron 8000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00e6, "Dell Inspiron 8100", 1),
@@ -839,7 +839,7 @@ static struct snd_pci_quirk m3_irda_quirk_list[] __devinitdata = {
 };
 
 /* hardware volume quirks */
-static struct snd_pci_quirk m3_hv_quirk_list[] __devinitdata = {
+static struct snd_pci_quirk m3_hv_quirk_list[] = {
 	/* Allegro chips */
 	SND_PCI_QUIRK(0x0E11, 0x002E, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
 	SND_PCI_QUIRK(0x0E11, 0x0094, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
@@ -917,7 +917,7 @@ static struct snd_pci_quirk m3_hv_quirk_list[] __devinitdata = {
 };
 
 /* HP Omnibook quirks */
-static struct snd_pci_quirk m3_omnibook_quirk_list[] __devinitdata = {
+static struct snd_pci_quirk m3_omnibook_quirk_list[] = {
 	SND_PCI_QUIRK_ID(0x103c, 0x0010), /* HP OmniBook 6000 */
 	SND_PCI_QUIRK_ID(0x103c, 0x0011), /* HP OmniBook 500 */
 	{ } /* END */
@@ -1856,7 +1856,7 @@ static struct snd_pcm_ops snd_m3_capture_ops = {
 	.pointer =	snd_m3_pcm_pointer,
 };
 
-static int __devinit
+static int
 snd_m3_pcm(struct snd_m3 * chip, int device)
 {
 	struct snd_pcm *pcm;
@@ -2031,7 +2031,7 @@ static void snd_m3_ac97_reset(struct snd_m3 *chip)
 #endif
 }
 
-static int __devinit snd_m3_mixer(struct snd_m3 *chip)
+static int snd_m3_mixer(struct snd_m3 *chip)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
@@ -2173,7 +2173,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 }
 
 
-static int __devinit snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int index)
+static int snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int index)
 {
 	int data_bytes = 2 * ( MINISRC_TMP_BUFFER_SIZE / 2 + 
 			       MINISRC_IN_BUFFER_SIZE / 2 +
@@ -2488,7 +2488,7 @@ static SIMPLE_DEV_PM_OPS(m3_pm, m3_suspend, m3_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SND_MAESTRO3_INPUT
-static int __devinit snd_m3_input_register(struct snd_m3 *chip)
+static int snd_m3_input_register(struct snd_m3 *chip)
 {
 	struct input_dev *input_dev;
 	int err;
@@ -2532,7 +2532,7 @@ static int snd_m3_dev_free(struct snd_device *device)
 	return snd_m3_free(chip);
 }
 
-static int __devinit
+static int
 snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	      int enable_amp,
 	      int amp_gpio,
@@ -2700,7 +2700,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 /*
  */
-static int __devinit
+static int
 snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -2770,7 +2770,7 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	return 0;
 }
 
-static void __devexit snd_m3_remove(struct pci_dev *pci)
+static void snd_m3_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2780,7 +2780,7 @@ static struct pci_driver m3_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
-	.remove = __devexit_p(snd_m3_remove),
+	.remove = snd_m3_remove,
 	.driver = {
 		.pm = M3_PM_OPS,
 	},

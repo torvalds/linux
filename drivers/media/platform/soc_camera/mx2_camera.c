@@ -41,7 +41,6 @@
 #include <linux/videodev2.h>
 
 #include <linux/platform_data/camera-mx2.h>
-#include <mach/hardware.h>
 
 #include <asm/dma.h>
 
@@ -121,11 +120,13 @@
 
 #define CSICR1			0x00
 #define CSICR2			0x04
-#define CSISR			(cpu_is_mx27() ? 0x08 : 0x18)
+#define CSISR_IMX25		0x18
+#define CSISR_IMX27		0x08
 #define CSISTATFIFO		0x0c
 #define CSIRFIFO		0x10
 #define CSIRXCNT		0x14
-#define CSICR3			(cpu_is_mx27() ? 0x1C : 0x08)
+#define CSICR3_IMX25		0x08
+#define CSICR3_IMX27		0x1c
 #define CSIDMASA_STATFIFO	0x20
 #define CSIDMATA_STATFIFO	0x24
 #define CSIDMASA_FB1		0x28
@@ -268,11 +269,17 @@ struct mx2_buffer {
 	struct mx2_buf_internal		internal;
 };
 
+enum mx2_camera_type {
+	IMX25_CAMERA,
+	IMX27_CAMERA,
+};
+
 struct mx2_camera_dev {
 	struct device		*dev;
 	struct soc_camera_host	soc_host;
 	struct soc_camera_device *icd;
-	struct clk		*clk_csi, *clk_emma_ahb, *clk_emma_ipg;
+	struct clk		*clk_emma_ahb, *clk_emma_ipg;
+	struct clk		*clk_csi_ahb, *clk_csi_per;
 
 	void __iomem		*base_csi, *base_emma;
 
@@ -291,6 +298,9 @@ struct mx2_camera_dev {
 	struct mx2_buffer	*fb2_active;
 
 	u32			csicr1;
+	u32			reg_csisr;
+	u32			reg_csicr3;
+	enum mx2_camera_type	devtype;
 
 	struct mx2_buf_internal buf_discard[2];
 	void			*discard_buffer;
@@ -302,6 +312,29 @@ struct mx2_camera_dev {
 	u32			frame_count;
 	struct vb2_alloc_ctx	*alloc_ctx;
 };
+
+static struct platform_device_id mx2_camera_devtype[] = {
+	{
+		.name = "imx25-camera",
+		.driver_data = IMX25_CAMERA,
+	}, {
+		.name = "imx27-camera",
+		.driver_data = IMX27_CAMERA,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, mx2_camera_devtype);
+
+static inline int is_imx25_camera(struct mx2_camera_dev *pcdev)
+{
+	return pcdev->devtype == IMX25_CAMERA;
+}
+
+static inline int is_imx27_camera(struct mx2_camera_dev *pcdev)
+{
+	return pcdev->devtype == IMX27_CAMERA;
+}
 
 static struct mx2_buffer *mx2_ibuf_to_buf(struct mx2_buf_internal *int_buf)
 {
@@ -432,11 +465,12 @@ static void mx2_camera_deactivate(struct mx2_camera_dev *pcdev)
 {
 	unsigned long flags;
 
-	clk_disable_unprepare(pcdev->clk_csi);
+	clk_disable_unprepare(pcdev->clk_csi_ahb);
+	clk_disable_unprepare(pcdev->clk_csi_per);
 	writel(0, pcdev->base_csi + CSICR1);
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		writel(0, pcdev->base_emma + PRP_CNTL);
-	} else if (cpu_is_mx25()) {
+	} else if (is_imx25_camera(pcdev)) {
 		spin_lock_irqsave(&pcdev->lock, flags);
 		pcdev->fb1_active = NULL;
 		pcdev->fb2_active = NULL;
@@ -460,13 +494,17 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	if (pcdev->icd)
 		return -EBUSY;
 
-	ret = clk_prepare_enable(pcdev->clk_csi);
+	ret = clk_prepare_enable(pcdev->clk_csi_ahb);
 	if (ret < 0)
 		return ret;
 
+	ret = clk_prepare_enable(pcdev->clk_csi_per);
+	if (ret < 0)
+		goto exit_csi_ahb;
+
 	csicr1 = CSICR1_MCLKEN;
 
-	if (cpu_is_mx27())
+	if (is_imx27_camera(pcdev))
 		csicr1 |= CSICR1_PRP_IF_EN | CSICR1_FCC |
 			CSICR1_RXFF_LEVEL(0);
 
@@ -480,6 +518,11 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 		 icd->devnum);
 
 	return 0;
+
+exit_csi_ahb:
+	clk_disable_unprepare(pcdev->clk_csi_ahb);
+
+	return ret;
 }
 
 static void mx2_camera_remove_device(struct soc_camera_device *icd)
@@ -542,7 +585,7 @@ out:
 static irqreturn_t mx25_camera_irq(int irq_csi, void *data)
 {
 	struct mx2_camera_dev *pcdev = data;
-	u32 status = readl(pcdev->base_csi + CSISR);
+	u32 status = readl(pcdev->base_csi + pcdev->reg_csisr);
 
 	if (status & CSISR_DMA_TSF_FB1_INT)
 		mx25_camera_frame_done(pcdev, 1, MX2_STATE_DONE);
@@ -551,7 +594,7 @@ static irqreturn_t mx25_camera_irq(int irq_csi, void *data)
 
 	/* FIXME: handle CSISR_RFF_OR_INT */
 
-	writel(status, pcdev->base_csi + CSISR);
+	writel(status, pcdev->base_csi + pcdev->reg_csisr);
 
 	return IRQ_HANDLED;
 }
@@ -636,7 +679,7 @@ static void mx2_videobuf_queue(struct vb2_buffer *vb)
 	buf->state = MX2_STATE_QUEUED;
 	list_add_tail(&buf->internal.queue, &pcdev->capture);
 
-	if (cpu_is_mx25()) {
+	if (is_imx25_camera(pcdev)) {
 		u32 csicr3, dma_inten = 0;
 
 		if (pcdev->fb1_active == NULL) {
@@ -655,20 +698,20 @@ static void mx2_videobuf_queue(struct vb2_buffer *vb)
 			list_del(&buf->internal.queue);
 			buf->state = MX2_STATE_ACTIVE;
 
-			csicr3 = readl(pcdev->base_csi + CSICR3);
+			csicr3 = readl(pcdev->base_csi + pcdev->reg_csicr3);
 
 			/* Reflash DMA */
 			writel(csicr3 | CSICR3_DMA_REFLASH_RFF,
-					pcdev->base_csi + CSICR3);
+					pcdev->base_csi + pcdev->reg_csicr3);
 
 			/* clear & enable interrupts */
-			writel(dma_inten, pcdev->base_csi + CSISR);
+			writel(dma_inten, pcdev->base_csi + pcdev->reg_csisr);
 			pcdev->csicr1 |= dma_inten;
 			writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 
 			/* enable DMA */
 			csicr3 |= CSICR3_DMA_REQ_EN_RFF | CSICR3_RXFF_LEVEL(1);
-			writel(csicr3, pcdev->base_csi + CSICR3);
+			writel(csicr3, pcdev->base_csi + pcdev->reg_csicr3);
 		}
 	}
 
@@ -712,7 +755,7 @@ static void mx2_videobuf_release(struct vb2_buffer *vb)
 	 */
 
 	spin_lock_irqsave(&pcdev->lock, flags);
-	if (cpu_is_mx25() && buf->state == MX2_STATE_ACTIVE) {
+	if (is_imx25_camera(pcdev) && buf->state == MX2_STATE_ACTIVE) {
 		if (pcdev->fb1_active == buf) {
 			pcdev->csicr1 &= ~CSICR1_FB1_DMA_INTEN;
 			writel(0, pcdev->base_csi + CSIDMASA_FB1);
@@ -835,7 +878,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	unsigned long phys;
 	int bytesperline;
 
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		unsigned long flags;
 		if (count < 2)
 			return -EINVAL;
@@ -864,8 +907,10 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 
 		bytesperline = soc_mbus_bytes_per_line(icd->user_width,
 				icd->current_fmt->host_fmt);
-		if (bytesperline < 0)
+		if (bytesperline < 0) {
+			spin_unlock_irqrestore(&pcdev->lock, flags);
 			return bytesperline;
+		}
 
 		/*
 		 * I didn't manage to properly enable/disable the prp
@@ -878,8 +923,10 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 		pcdev->discard_buffer = dma_alloc_coherent(ici->v4l2_dev.dev,
 				pcdev->discard_size, &pcdev->discard_buffer_dma,
 				GFP_KERNEL);
-		if (!pcdev->discard_buffer)
+		if (!pcdev->discard_buffer) {
+			spin_unlock_irqrestore(&pcdev->lock, flags);
 			return -ENOMEM;
+		}
 
 		pcdev->buf_discard[0].discard = true;
 		list_add_tail(&pcdev->buf_discard[0].queue,
@@ -930,7 +977,7 @@ static int mx2_stop_streaming(struct vb2_queue *q)
 	void *b;
 	u32 cntl;
 
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		spin_lock_irqsave(&pcdev->lock, flags);
 
 		cntl = readl(pcdev->base_emma + PRP_CNTL);
@@ -1082,11 +1129,11 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 	if (bytesperline < 0)
 		return bytesperline;
 
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		ret = mx27_camera_emma_prp_reset(pcdev);
 		if (ret)
 			return ret;
-	} else if (cpu_is_mx25()) {
+	} else if (is_imx25_camera(pcdev)) {
 		writel((bytesperline * icd->user_height) >> 2,
 				pcdev->base_csi + CSIRXCNT);
 		writel((bytesperline << 16) | icd->user_height,
@@ -1099,9 +1146,10 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 }
 
 static int mx2_camera_set_crop(struct soc_camera_device *icd,
-				struct v4l2_crop *a)
+				const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_mbus_framefmt mf;
 	int ret;
@@ -1392,7 +1440,7 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	/* FIXME: implement MX27 limits */
 
 	/* limit to MX25 hardware capabilities */
-	if (cpu_is_mx25()) {
+	if (is_imx25_camera(pcdev)) {
 		if (xlate->host_fmt->bits_per_sample <= 8)
 			width_limit = 0xffff * 4;
 		else
@@ -1644,7 +1692,7 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mx27_camera_emma_init(struct platform_device *pdev)
+static int mx27_camera_emma_init(struct platform_device *pdev)
 {
 	struct mx2_camera_dev *pcdev = platform_get_drvdata(pdev);
 	struct resource *res_emma;
@@ -1702,7 +1750,7 @@ out:
 	return err;
 }
 
-static int __devinit mx2_camera_probe(struct platform_device *pdev)
+static int mx2_camera_probe(struct platform_device *pdev)
 {
 	struct mx2_camera_dev *pcdev;
 	struct resource *res_csi;
@@ -1726,10 +1774,31 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	pcdev->clk_csi = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(pcdev->clk_csi)) {
-		dev_err(&pdev->dev, "Could not get csi clock\n");
-		err = PTR_ERR(pcdev->clk_csi);
+	pcdev->devtype = pdev->id_entry->driver_data;
+	switch (pcdev->devtype) {
+	case IMX25_CAMERA:
+		pcdev->reg_csisr = CSISR_IMX25;
+		pcdev->reg_csicr3 = CSICR3_IMX25;
+		break;
+	case IMX27_CAMERA:
+		pcdev->reg_csisr = CSISR_IMX27;
+		pcdev->reg_csicr3 = CSICR3_IMX27;
+		break;
+	default:
+		break;
+	}
+
+	pcdev->clk_csi_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(pcdev->clk_csi_ahb)) {
+		dev_err(&pdev->dev, "Could not get csi ahb clock\n");
+		err = PTR_ERR(pcdev->clk_csi_ahb);
+		goto exit;
+	}
+
+	pcdev->clk_csi_per = devm_clk_get(&pdev->dev, "per");
+	if (IS_ERR(pcdev->clk_csi_per)) {
+		dev_err(&pdev->dev, "Could not get csi per clock\n");
+		err = PTR_ERR(pcdev->clk_csi_per);
 		goto exit;
 	}
 
@@ -1739,12 +1808,13 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 
 		pcdev->platform_flags = pcdev->pdata->flags;
 
-		rate = clk_round_rate(pcdev->clk_csi, pcdev->pdata->clk * 2);
+		rate = clk_round_rate(pcdev->clk_csi_per,
+						pcdev->pdata->clk * 2);
 		if (rate <= 0) {
 			err = -ENODEV;
 			goto exit;
 		}
-		err = clk_set_rate(pcdev->clk_csi, rate);
+		err = clk_set_rate(pcdev->clk_csi_per, rate);
 		if (err < 0)
 			goto exit;
 	}
@@ -1763,7 +1833,7 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 	pcdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pcdev);
 
-	if (cpu_is_mx25()) {
+	if (is_imx25_camera(pcdev)) {
 		err = devm_request_irq(&pdev->dev, irq_csi, mx25_camera_irq, 0,
 				       MX2_CAM_DRV_NAME, pcdev);
 		if (err) {
@@ -1772,7 +1842,7 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		err = mx27_camera_emma_init(pdev);
 		if (err)
 			goto exit;
@@ -1789,7 +1859,7 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.priv		= pcdev;
 	pcdev->soc_host.v4l2_dev.dev	= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
-	if (cpu_is_mx25())
+	if (is_imx25_camera(pcdev))
 		pcdev->soc_host.capabilities = SOCAM_HOST_CAP_STRIDE;
 
 	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
@@ -1802,14 +1872,14 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 		goto exit_free_emma;
 
 	dev_info(&pdev->dev, "MX2 Camera (CSI) driver probed, clock frequency: %ld\n",
-			clk_get_rate(pcdev->clk_csi));
+			clk_get_rate(pcdev->clk_csi_per));
 
 	return 0;
 
 exit_free_emma:
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 eallocctx:
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		clk_disable_unprepare(pcdev->clk_emma_ipg);
 		clk_disable_unprepare(pcdev->clk_emma_ahb);
 	}
@@ -1817,7 +1887,7 @@ exit:
 	return err;
 }
 
-static int __devexit mx2_camera_remove(struct platform_device *pdev)
+static int mx2_camera_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct mx2_camera_dev *pcdev = container_of(soc_host,
@@ -1827,7 +1897,7 @@ static int __devexit mx2_camera_remove(struct platform_device *pdev)
 
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 
-	if (cpu_is_mx27()) {
+	if (is_imx27_camera(pcdev)) {
 		clk_disable_unprepare(pcdev->clk_emma_ipg);
 		clk_disable_unprepare(pcdev->clk_emma_ahb);
 	}
@@ -1841,7 +1911,8 @@ static struct platform_driver mx2_camera_driver = {
 	.driver 	= {
 		.name	= MX2_CAM_DRV_NAME,
 	},
-	.remove		= __devexit_p(mx2_camera_remove),
+	.id_table	= mx2_camera_devtype,
+	.remove		= mx2_camera_remove,
 };
 
 

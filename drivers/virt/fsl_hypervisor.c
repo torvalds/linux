@@ -796,9 +796,6 @@ static int has_fsl_hypervisor(void)
 	struct device_node *node;
 	int ret;
 
-	if (!(mfmsr() & MSR_GS))
-		return 0;
-
 	node = of_find_node_by_path("/hypervisor");
 	if (!node)
 		return 0;

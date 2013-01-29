@@ -774,7 +774,7 @@ err_out:
 	return err;
 }
 
-static int __devexit
+static int
 ltq_etop_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
@@ -789,7 +789,7 @@ ltq_etop_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ltq_mii_driver = {
-	.remove = __devexit_p(ltq_etop_remove),
+	.remove = ltq_etop_remove,
 	.driver = {
 		.name = "ltq_etop",
 		.owner = THIS_MODULE,

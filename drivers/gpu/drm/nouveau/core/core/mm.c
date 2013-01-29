@@ -218,28 +218,34 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
-	node->offset = roundup(offset, mm->block_size);
-	node->length = rounddown(offset + length, mm->block_size) - node->offset;
+
+	if (length) {
+		node->offset  = roundup(offset, mm->block_size);
+		node->length  = rounddown(offset + length, mm->block_size);
+		node->length -= node->offset;
+	}
 
 	list_add_tail(&node->nl_entry, &mm->nodes);
 	list_add_tail(&node->fl_entry, &mm->free);
 	mm->heap_nodes++;
-	mm->heap_size += length;
 	return 0;
 }
 
 int
 nouveau_mm_fini(struct nouveau_mm *mm)
 {
-	struct nouveau_mm_node *node, *heap =
-		list_first_entry(&mm->nodes, struct nouveau_mm_node, nl_entry);
-	int nodes = 0;
+	if (nouveau_mm_initialised(mm)) {
+		struct nouveau_mm_node *node, *heap =
+			list_first_entry(&mm->nodes, typeof(*heap), nl_entry);
+		int nodes = 0;
 
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (WARN_ON(nodes++ == mm->heap_nodes))
-			return -EBUSY;
+		list_for_each_entry(node, &mm->nodes, nl_entry) {
+			if (WARN_ON(nodes++ == mm->heap_nodes))
+				return -EBUSY;
+		}
+
+		kfree(heap);
 	}
 
-	kfree(heap);
 	return 0;
 }

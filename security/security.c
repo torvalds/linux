@@ -820,6 +820,16 @@ int security_kernel_module_request(char *kmod_name)
 	return security_ops->kernel_module_request(kmod_name);
 }
 
+int security_kernel_module_from_file(struct file *file)
+{
+	int ret;
+
+	ret = security_ops->kernel_module_from_file(file);
+	if (ret)
+		return ret;
+	return ima_module_check(file);
+}
+
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
@@ -1244,23 +1254,41 @@ void security_secmark_refcount_dec(void)
 }
 EXPORT_SYMBOL(security_secmark_refcount_dec);
 
+int security_tun_dev_alloc_security(void **security)
+{
+	return security_ops->tun_dev_alloc_security(security);
+}
+EXPORT_SYMBOL(security_tun_dev_alloc_security);
+
+void security_tun_dev_free_security(void *security)
+{
+	security_ops->tun_dev_free_security(security);
+}
+EXPORT_SYMBOL(security_tun_dev_free_security);
+
 int security_tun_dev_create(void)
 {
 	return security_ops->tun_dev_create();
 }
 EXPORT_SYMBOL(security_tun_dev_create);
 
-void security_tun_dev_post_create(struct sock *sk)
+int security_tun_dev_attach_queue(void *security)
 {
-	return security_ops->tun_dev_post_create(sk);
+	return security_ops->tun_dev_attach_queue(security);
 }
-EXPORT_SYMBOL(security_tun_dev_post_create);
+EXPORT_SYMBOL(security_tun_dev_attach_queue);
 
-int security_tun_dev_attach(struct sock *sk)
+int security_tun_dev_attach(struct sock *sk, void *security)
 {
-	return security_ops->tun_dev_attach(sk);
+	return security_ops->tun_dev_attach(sk, security);
 }
 EXPORT_SYMBOL(security_tun_dev_attach);
+
+int security_tun_dev_open(void *security)
+{
+	return security_ops->tun_dev_open(security);
+}
+EXPORT_SYMBOL(security_tun_dev_open);
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

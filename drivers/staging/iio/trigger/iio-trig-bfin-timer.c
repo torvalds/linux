@@ -180,7 +180,7 @@ static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
 	.set_trigger_state = iio_bfin_tmr_set_state,
 };
 
-static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
+static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 {
 	struct iio_bfin_timer_trigger_pdata *pdata = pdev->dev.platform_data;
 	struct bfin_tmr_state *st;
@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-static int __devexit iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
+static int iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
 {
 	struct bfin_tmr_state *st = platform_get_drvdata(pdev);
 
@@ -296,7 +296,7 @@ static struct platform_driver iio_bfin_tmr_trigger_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = iio_bfin_tmr_trigger_probe,
-	.remove = __devexit_p(iio_bfin_tmr_trigger_remove),
+	.remove = iio_bfin_tmr_trigger_remove,
 };
 
 module_platform_driver(iio_bfin_tmr_trigger_driver);

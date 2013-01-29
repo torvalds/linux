@@ -163,7 +163,6 @@ struct sh_mobile_lcdc_bl_info {
 	const char *name;
 	int max_brightness;
 	int (*set_brightness)(int brightness);
-	int (*get_brightness)(void);
 };
 
 struct sh_mobile_lcdc_overlay_cfg {

@@ -612,47 +612,24 @@ ret_from_kernel_thread:
  * Special system calls.  Most of these are special in that they either
  * have to play switch_stack games or in some way use the pt_regs struct.
  */
-	.align	4
-	.globl	sys_fork
-	.ent	sys_fork
-sys_fork:
-	.prologue 0
-	mov	$sp, $21
-	bsr	$1, do_switch_stack
-	bis	$31, SIGCHLD, $16
-	mov	$31, $17
-	mov	$31, $18
-	mov	$31, $19
-	mov	$31, $20
-	jsr	$26, alpha_clone
-	bsr	$1, undo_switch_stack
-	ret
-.end sys_fork
 
+.macro	fork_like name
 	.align	4
-	.globl	sys_clone
-	.ent	sys_clone
-sys_clone:
+	.globl	alpha_\name
+	.ent	alpha_\name
+alpha_\name:
 	.prologue 0
-	mov	$sp, $21
 	bsr	$1, do_switch_stack
-	/* $16, $17, $18, $19, $20 come from the user.  */
-	jsr	$26, alpha_clone
-	bsr	$1, undo_switch_stack
+	jsr	$26, sys_\name
+	ldq	$26, 56($sp)
+	lda	$sp, SWITCH_STACK_SIZE($sp)
 	ret
-.end sys_clone
+.end	alpha_\name
+.endm
 
-	.align	4
-	.globl	sys_vfork
-	.ent	sys_vfork
-sys_vfork:
-	.prologue 0
-	mov	$sp, $16
-	bsr	$1, do_switch_stack
-	jsr	$26, alpha_vfork
-	bsr	$1, undo_switch_stack
-	ret
-.end sys_vfork
+fork_like fork
+fork_like vfork
+fork_like clone
 
 	.align	4
 	.globl	sys_sigreturn
@@ -661,8 +638,6 @@ sys_sigreturn:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
-	mov	$sp, $17
-	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_sigreturn
 	bne	$9, 1f
@@ -678,8 +653,6 @@ sys_rt_sigreturn:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
-	mov	$sp, $17
-	lda	$18, -SWITCH_STACK_SIZE($sp)
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
 	jsr	$26, do_rt_sigreturn
 	bne	$9, 1f
