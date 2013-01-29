@@ -123,9 +123,6 @@ static int read8_reg(struct i2c_client *client, u8 tpm_register,
 {
 	u8 status = 0;
 	u8 data;
-	struct st33zp24_platform_data *pin_infos;
-
-	pin_infos = client->dev.platform_data;
 
 	data = TPM_DUMMY_BYTE;
 	status = write8_reg(client, tpm_register, &data, 1);
@@ -203,10 +200,8 @@ static int wait_for_serirq_timeout(struct tpm_chip *chip, bool condition,
 {
 	int status = 2;
 	struct i2c_client *client;
-	struct st33zp24_platform_data *pin_infos;
 
 	client = (struct i2c_client *) TPM_VPRIV(chip);
-	pin_infos = client->dev.platform_data;
 
 	status = _wait_for_interrupt_serirq_timeout(chip, timeout);
 	if (!status) {
@@ -462,13 +457,11 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 static int tpm_stm_i2c_send(struct tpm_chip *chip, unsigned char *buf,
 			    size_t len)
 {
-	u32 ordinal,
-	    status,
+	u32 status,
 	    burstcnt = 0, i, size;
 	int ret;
 	u8 data;
 	struct i2c_client *client;
-	struct st33zp24_platform_data *pin_infos;
 
 	if (chip == NULL)
 		return -EBUSY;
@@ -476,9 +469,6 @@ static int tpm_stm_i2c_send(struct tpm_chip *chip, unsigned char *buf,
 		return -EBUSY;
 
 	client = (struct i2c_client *)TPM_VPRIV(chip);
-	pin_infos = client->dev.platform_data;
-
-	ordinal = be32_to_cpu(*((__be32 *) (buf + 6)));
 
 	client->flags = 0;
 
@@ -547,14 +537,8 @@ static int tpm_stm_i2c_recv(struct tpm_chip *chip, unsigned char *buf,
 	int size = 0;
 	int expected;
 
-	struct i2c_client *client;
-	struct st33zp24_platform_data *pin_infos;
-
 	if (chip == NULL)
 		return -EBUSY;
-
-	client = (struct i2c_client *)TPM_VPRIV(chip);
-	pin_infos = client->dev.platform_data;
 
 	if (count < TPM_HEADER_SIZE) {
 		size = -EIO;
