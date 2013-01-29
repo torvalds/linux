@@ -642,8 +642,6 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct tpm_chip *chip;
 	struct st33zp24_platform_data *platform_data;
 
-	err = 0;
-
 	if (client == NULL) {
 		pr_info("%s: i2c client is NULL. Device not accessible.\n",
 			__func__);
