@@ -18,6 +18,14 @@ enum {
         I2C_SCL_LOW,
         BOTH_LOW,
 };
+
+struct akm8963_platform_data { 
+                 int gpio_DRDY;
+                 int gpio_RST;
+                 char layout;
+                 char outbit;         
+}; 
+
 struct rk30_i2c_platform_data {
 	char *name;
 	int bus_num;

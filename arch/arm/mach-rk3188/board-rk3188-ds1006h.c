@@ -253,6 +253,17 @@ static struct sensor_platform_data lis3dh_info = {
 	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
 };
 #endif
+
+#if (defined(CONFIG_SENSORS_AK8963) || defined(CONFIG_SENSORS_AK8963_MODULE)) 
+static struct akm8963_platform_data akm_platform_data_8963 = { 
+                 .gpio_DRDY      = RK30_PIN3_PD7, 
+                 .gpio_RST        = 0, 
+                 .layout              = 3, 
+                 .outbit           = 1, 
+}; 
+#endif
+
+
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
 {
@@ -1151,6 +1162,17 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &lis3dh_info,
 	},
 #endif
+#if defined (CONFIG_SENSORS_AK8963)
+        {
+                .type             = "akm8963",
+                .addr           = 0x0d,
+                .flags           = I2C_CLIENT_WAKE,
+               .irq             = RK30_PIN3_PD7,
+              .platform_data = &akm_platform_data_8963,
+        },
+#endif
+
+
 #if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type          = "ak8975",
