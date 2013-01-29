@@ -1214,9 +1214,15 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	reg = PIPECONF(cpu_transcoder);
-	val = I915_READ(reg);
-	cur_state = !!(val & PIPECONF_ENABLE);
+	if (IS_HASWELL(dev_priv->dev) && cpu_transcoder != TRANSCODER_EDP &&
+	    !(I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_ENABLE)) {
+		cur_state = false;
+	} else {
+		reg = PIPECONF(cpu_transcoder);
+		val = I915_READ(reg);
+		cur_state = !!(val & PIPECONF_ENABLE);
+	}
+
 	WARN(cur_state != state,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
