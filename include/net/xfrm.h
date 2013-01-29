@@ -1032,7 +1032,7 @@ static inline int
 __xfrm6_state_addr_cmp(const struct xfrm_tmpl *tmpl, const struct xfrm_state *x)
 {
 	return	(!ipv6_addr_any((struct in6_addr*)&tmpl->saddr) &&
-		 ipv6_addr_cmp((struct in6_addr *)&tmpl->saddr, (struct in6_addr*)&x->props.saddr));
+		 !ipv6_addr_equal((struct in6_addr *)&tmpl->saddr, (struct in6_addr*)&x->props.saddr));
 }
 
 static inline int
@@ -1243,8 +1243,8 @@ static __inline__ int
 __xfrm6_state_addr_check(const struct xfrm_state *x,
 			 const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
-	if (!ipv6_addr_cmp((struct in6_addr *)daddr, (struct in6_addr *)&x->id.daddr) &&
-	    (!ipv6_addr_cmp((struct in6_addr *)saddr, (struct in6_addr *)&x->props.saddr)|| 
+	if (ipv6_addr_equal((struct in6_addr *)daddr, (struct in6_addr *)&x->id.daddr) &&
+	    (ipv6_addr_equal((struct in6_addr *)saddr, (struct in6_addr *)&x->props.saddr) ||
 	     ipv6_addr_any((struct in6_addr *)saddr) || 
 	     ipv6_addr_any((struct in6_addr *)&x->props.saddr)))
 		return 1;
@@ -1586,6 +1586,13 @@ static inline int xfrm_addr_cmp(const xfrm_address_t *a,
 		return ipv6_addr_cmp((const struct in6_addr *)a,
 				     (const struct in6_addr *)b);
 	}
+}
+
+static inline bool xfrm6_addr_equal(const xfrm_address_t *a,
+				    const xfrm_address_t *b)
+{
+	return ipv6_addr_equal((const struct in6_addr *)a,
+			       (const struct in6_addr *)b);
 }
 
 static inline int xfrm_policy_id2dir(u32 index)
