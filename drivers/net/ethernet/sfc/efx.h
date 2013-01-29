@@ -43,6 +43,13 @@ extern void __efx_rx_packet(struct efx_channel *channel,
 			    struct efx_rx_buffer *rx_buf);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			  unsigned int len, u16 flags);
+static inline void efx_rx_flush_packet(struct efx_channel *channel)
+{
+	if (channel->rx_pkt) {
+		__efx_rx_packet(channel, channel->rx_pkt);
+		channel->rx_pkt = NULL;
+	}
+}
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL

@@ -250,11 +250,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 		struct efx_rx_queue *rx_queue =
 			efx_channel_get_rx_queue(channel);
 
-		/* Deliver last RX packet. */
-		if (channel->rx_pkt) {
-			__efx_rx_packet(channel, channel->rx_pkt);
-			channel->rx_pkt = NULL;
-		}
+		efx_rx_flush_packet(channel);
 		if (rx_queue->enabled)
 			efx_fast_push_rx_descriptors(rx_queue);
 	}

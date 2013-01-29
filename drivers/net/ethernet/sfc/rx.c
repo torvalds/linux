@@ -465,8 +465,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	rx_buf->len = len - efx->type->rx_buffer_hash_size;
 out:
-	if (channel->rx_pkt)
-		__efx_rx_packet(channel, channel->rx_pkt);
+	efx_rx_flush_packet(channel);
 	channel->rx_pkt = rx_buf;
 }
 
