@@ -2868,10 +2868,12 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned long flags;
 	bool pending;
 
-	if (i915_reset_in_progress(&dev_priv->gpu_error))
+	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
+	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
 		return false;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -7250,6 +7252,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->enable_stall_check = true;
 
 	atomic_inc(&intel_crtc->unpin_work_count);
+	intel_crtc->reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 
 	ret = dev_priv->display.queue_flip(dev, crtc, fb, obj);
 	if (ret)
