@@ -231,6 +231,7 @@ struct ov7670_info {
 	u8 clkrc;			/* Clock divider value */
 	bool use_smbus;			/* Use smbus I/O instead of I2C */
 	bool pll_bypass;
+	bool pclk_hb_disable;
 	const struct ov7670_devtype *devtype; /* Device specifics */
 };
 
@@ -1712,6 +1713,9 @@ static int ov7670_probe(struct i2c_client *client,
 		 */
 		if (config->pll_bypass && id->driver_data != MODEL_OV7670)
 			info->pll_bypass = true;
+
+		if (config->pclk_hb_disable)
+			info->pclk_hb_disable = true;
 	}
 
 	/* Make sure it's an ov7670 */
@@ -1735,6 +1739,9 @@ static int ov7670_probe(struct i2c_client *client,
 	tpf.numerator = 1;
 	tpf.denominator = 30;
 	info->devtype->set_framerate(sd, &tpf);
+
+	if (info->pclk_hb_disable)
+		ov7670_write(sd, REG_COM10, COM10_PCLK_HB);
 
 	return 0;
 }

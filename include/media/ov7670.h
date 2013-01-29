@@ -16,6 +16,7 @@ struct ov7670_config {
 	int clock_speed;		/* External clock speed (MHz) */
 	bool use_smbus;			/* Use smbus I/O instead of I2C */
 	bool pll_bypass;		/* Choose whether to bypass the PLL */
+	bool pclk_hb_disable;		/* Disable toggling pixclk during horizontal blanking */
 };
 
 #endif
