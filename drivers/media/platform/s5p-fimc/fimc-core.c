@@ -808,11 +808,11 @@ static void fimc_clk_put(struct fimc_dev *fimc)
 {
 	int i;
 	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
-		if (IS_ERR_OR_NULL(fimc->clock[i]))
+		if (IS_ERR(fimc->clock[i]))
 			continue;
 		clk_unprepare(fimc->clock[i]);
 		clk_put(fimc->clock[i]);
-		fimc->clock[i] = NULL;
+		fimc->clock[i] = ERR_PTR(-EINVAL);
 	}
 }
 
@@ -820,14 +820,19 @@ static int fimc_clk_get(struct fimc_dev *fimc)
 {
 	int i, ret;
 
+	for (i = 0; i < MAX_FIMC_CLOCKS; i++)
+		fimc->clock[i] = ERR_PTR(-EINVAL);
+
 	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
 		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
-		if (IS_ERR(fimc->clock[i]))
+		if (IS_ERR(fimc->clock[i])) {
+			ret = PTR_ERR(fimc->clock[i]);
 			goto err;
+		}
 		ret = clk_prepare(fimc->clock[i]);
 		if (ret < 0) {
 			clk_put(fimc->clock[i]);
-			fimc->clock[i] = NULL;
+			fimc->clock[i] = ERR_PTR(-EINVAL);
 			goto err;
 		}
 	}
@@ -921,8 +926,14 @@ static int fimc_probe(struct platform_device *pdev)
 	ret = fimc_clk_get(fimc);
 	if (ret)
 		return ret;
-	clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
-	clk_enable(fimc->clock[CLK_BUS]);
+
+	ret = clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_enable(fimc->clock[CLK_BUS]);
+	if (ret < 0)
+		return ret;
 
 	ret = devm_request_irq(&pdev->dev, res->start, fimc_irq_handler,
 			       0, dev_name(&pdev->dev), fimc);
@@ -956,6 +967,7 @@ err_pm:
 err_sd:
 	fimc_unregister_capture_subdev(fimc);
 err_clk:
+	clk_disable(fimc->clock[CLK_BUS]);
 	fimc_clk_put(fimc);
 	return ret;
 }
