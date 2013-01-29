@@ -59,7 +59,7 @@
     
 #elif defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
     #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0                 
-    #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH                   
+    #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
 
     #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
@@ -116,5 +116,28 @@
     #define RK30SDK_WIFI_GPIO_GPS_LAN_ENABLE_VALUE      GPIO_HIGH    //use 6620 in CDT chip, High--work; Low--no work..
     #endif // #if COMBO_MODULE_MT6620_CDT--#endif
 #endif 
+
+double rk31sdk_get_sdio_wifi_voltage(void)
+{
+    double voltage;
+    
+    /******************************************************************************
+    **  Please tell me how much wifi-module uses voltage in your project.  
+    ******************************************************************************/
+#if defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
+    voltage = 1.8 ; //power 1.8V
+    
+#elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)||defined(CONFIG_MT6620)
+    voltage = 2.8 ; //power 2.8V
+#elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  
+    voltage = 3.3 ; //power 3.3V
+#else
+    //default, sdio use 3.0V
+    voltage = 3.0 ; //power 3.0V
+#endif
+
+    return voltage;
+}
+
 
    
