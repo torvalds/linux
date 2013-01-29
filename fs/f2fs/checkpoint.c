@@ -219,19 +219,11 @@ retry:
 	new->ino = ino;
 
 	/* add new_oentry into list which is sorted by inode number */
-	if (orphan) {
-		struct orphan_inode_entry *prev;
-
-		/* get previous entry */
-		prev = list_entry(orphan->list.prev, typeof(*prev), list);
-		if (&prev->list != head)
-			/* insert new orphan inode entry */
-			list_add(&new->list, &prev->list);
-		else
-			list_add(&new->list, head);
-	} else {
+	if (orphan)
+		list_add(&new->list, this->prev);
+	else
 		list_add_tail(&new->list, head);
-	}
+
 	sbi->n_orphans++;
 out:
 	mutex_unlock(&sbi->orphan_inode_mutex);
