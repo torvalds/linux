@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/syscore_ops.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
@@ -64,7 +65,7 @@ static unsigned long save_extint[3];
 static unsigned long save_eintflt[4];
 static unsigned long save_eintmask;
 
-int s3c24xx_irq_suspend(void)
+static int s3c24xx_irq_suspend(void)
 {
 	unsigned int i;
 
@@ -80,7 +81,7 @@ int s3c24xx_irq_suspend(void)
 	return 0;
 }
 
-void s3c24xx_irq_resume(void)
+static void s3c24xx_irq_resume(void)
 {
 	unsigned int i;
 
@@ -93,3 +94,8 @@ void s3c24xx_irq_resume(void)
 	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
 }
+
+struct syscore_ops s3c24xx_irq_syscore_ops = {
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
+};

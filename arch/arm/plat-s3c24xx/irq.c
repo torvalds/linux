@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
-#include <linux/syscore_ops.h>
 #include <linux/irqdomain.h>
 
 #include <asm/mach/irq.h>
@@ -627,8 +626,3 @@ void __init s3c24xx_init_irq(void)
 	s3c24xx_init_intc(NULL, &init_subint[0], main_intc, 0x4a000018);
 	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
 }
-
-struct syscore_ops s3c24xx_irq_syscore_ops = {
-	.suspend	= s3c24xx_irq_suspend,
-	.resume		= s3c24xx_irq_resume,
-};

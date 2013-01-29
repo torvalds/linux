@@ -40,6 +40,8 @@
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 
+#include "common.h"
+
 static struct device s3c2440_dev = {
 	.bus		= &s3c2440_subsys,
 };
@@ -57,9 +59,9 @@ int __init s3c2440_init(void)
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2410_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 #endif
 	register_syscore_ops(&s3c244x_pm_syscore_ops);
-	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	/* register our system device for everything else */
 
