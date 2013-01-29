@@ -1289,7 +1289,6 @@ struct cfg80211_bss_ies {
  * @beacon_ies: the information elements from the last Beacon frame
  * @proberesp_ies: the information elements from the last Probe Response frame
  * @signal: signal strength value (type depends on the wiphy's signal_type)
- * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -1300,8 +1299,6 @@ struct cfg80211_bss {
 	const struct cfg80211_bss_ies __rcu *ies;
 	const struct cfg80211_bss_ies __rcu *beacon_ies;
 	const struct cfg80211_bss_ies __rcu *proberesp_ies;
-
-	void (*free_priv)(struct cfg80211_bss *bss);
 
 	s32 signal;
 

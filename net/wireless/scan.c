@@ -31,9 +31,6 @@ static void bss_release(struct kref *ref)
 	if (WARN_ON(atomic_read(&bss->hold)))
 		return;
 
-	if (bss->pub.free_priv)
-		bss->pub.free_priv(&bss->pub);
-
 	ies = (void *)rcu_access_pointer(bss->pub.beacon_ies);
 	if (ies)
 		kfree_rcu(ies, rcu_head);
