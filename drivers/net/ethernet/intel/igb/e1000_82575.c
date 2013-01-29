@@ -1420,9 +1420,10 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	 */
 	wr32(E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 
-	/* power on the sfp cage if present */
+	/* power on the sfp cage if present and turn on I2C */
 	ctrl_ext = rd32(E1000_CTRL_EXT);
 	ctrl_ext &= ~E1000_CTRL_EXT_SDP3_DATA;
+	ctrl_ext |= E1000_CTRL_I2C_ENA;
 	wr32(E1000_CTRL_EXT, ctrl_ext);
 
 	ctrl_reg = rd32(E1000_CTRL);
