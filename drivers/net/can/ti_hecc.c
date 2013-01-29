@@ -978,7 +978,7 @@ probe_exit:
 	return err;
 }
 
-static int __devexit ti_hecc_remove(struct platform_device *pdev)
+static int ti_hecc_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -1045,7 +1045,7 @@ static struct platform_driver ti_hecc_driver = {
 		.owner   = THIS_MODULE,
 	},
 	.probe = ti_hecc_probe,
-	.remove = __devexit_p(ti_hecc_remove),
+	.remove = ti_hecc_remove,
 	.suspend = ti_hecc_suspend,
 	.resume = ti_hecc_resume,
 };
@@ -1055,3 +1055,4 @@ module_platform_driver(ti_hecc_driver);
 MODULE_AUTHOR("Anant Gole <anantgole@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION(DRV_DESC);
+MODULE_ALIAS("platform:" DRV_NAME);

@@ -169,8 +169,7 @@ static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	Zero on success, or -ERRNO value.
  */
 
-static int __devinit sch_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int sch_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct ata_port_info *ppi[] = { &sch_port_info, NULL };
 

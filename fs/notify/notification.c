@@ -18,7 +18,7 @@
 
 /*
  * Basic idea behind the notification queue: An fsnotify group (like inotify)
- * sends the userspace notification about events asyncronously some time after
+ * sends the userspace notification about events asynchronously some time after
  * the event happened.  When inotify gets an event it will need to add that
  * event to the group notify queue.  Since a single event might need to be on
  * multiple group's notification queues we can't add the event directly to each
@@ -225,6 +225,7 @@ alloc_holder:
 	mutex_unlock(&group->notification_mutex);
 
 	wake_up(&group->notification_waitq);
+	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
 	return return_event;
 }
 

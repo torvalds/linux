@@ -79,12 +79,6 @@
 #define SA_RESTORER	0x04000000
 
 /*
- * sigaltstack controls
- */
-#define SS_ONSTACK	1
-#define SS_DISABLE	2
-
-/*
  * The minimum stack size needs to be fairly large because we want to
  * be sure that an app compiled for today's CPUs will continue to run
  * on all future CPU models.  The CPU model matters because the signal

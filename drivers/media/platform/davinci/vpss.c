@@ -357,7 +357,7 @@ void dm365_vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
 }
 EXPORT_SYMBOL(dm365_vpss_set_pg_frame_size);
 
-static int __devinit vpss_probe(struct platform_device *pdev)
+static int vpss_probe(struct platform_device *pdev)
 {
 	struct resource		*r1, *r2;
 	char *platform_name;
@@ -445,7 +445,7 @@ fail1:
 	return status;
 }
 
-static int __devexit vpss_remove(struct platform_device *pdev)
+static int vpss_remove(struct platform_device *pdev)
 {
 	struct resource		*res;
 
@@ -465,7 +465,7 @@ static struct platform_driver vpss_driver = {
 		.name	= "vpss",
 		.owner = THIS_MODULE,
 	},
-	.remove = __devexit_p(vpss_remove),
+	.remove = vpss_remove,
 	.probe = vpss_probe,
 };
 

@@ -147,7 +147,7 @@ static struct iosapic_intr_info {
 	unsigned char	trigger	: 1;	/* trigger mode (see iosapic.h) */
 } iosapic_intr_info[NR_IRQS];
 
-static unsigned char pcat_compat __devinitdata;	/* 8259 compatibility flag */
+static unsigned char pcat_compat;	/* 8259 compatibility flag */
 
 static inline void
 iosapic_write(struct iosapic *iosapic, unsigned int reg, u32 val)
@@ -914,10 +914,8 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 /*
  * ACPI calls this when it finds an entry for a legacy ISA IRQ override.
  */
-void __devinit
-iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
-			  unsigned long polarity,
-			  unsigned long trigger)
+void iosapic_override_isa_irq(unsigned int isa_irq, unsigned int gsi,
+			      unsigned long polarity, unsigned long trigger)
 {
 	int vector, irq;
 	unsigned int dest = cpu_physical_id(smp_processor_id());
@@ -1012,8 +1010,7 @@ iosapic_check_gsi_range (unsigned int gsi_base, unsigned int ver)
 	return 0;
 }
 
-int __devinit
-iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
+int iosapic_init(unsigned long phys_addr, unsigned int gsi_base)
 {
 	int num_rte, err, index;
 	unsigned int isa_irq, ver;
@@ -1070,9 +1067,7 @@ iosapic_init (unsigned long phys_addr, unsigned int gsi_base)
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG
-int
-iosapic_remove (unsigned int gsi_base)
+int iosapic_remove(unsigned int gsi_base)
 {
 	int index, err = 0;
 	unsigned long flags;
@@ -1098,11 +1093,9 @@ iosapic_remove (unsigned int gsi_base)
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 	return err;
 }
-#endif /* CONFIG_HOTPLUG */
 
 #ifdef CONFIG_NUMA
-void __devinit
-map_iosapic_to_node(unsigned int gsi_base, int node)
+void map_iosapic_to_node(unsigned int gsi_base, int node)
 {
 	int index;
 

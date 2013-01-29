@@ -26,16 +26,14 @@
 #include <linux/clocksource.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
 
-#include <mach/iomap.h>
-#include <mach/irqs.h>
-
 #include "board.h"
-#include "clock.h"
 
 #define RTC_SECONDS            0x08
 #define RTC_SHADOW_SECONDS     0x0c
@@ -53,8 +51,8 @@
 #define TIMER_PTV 0x0
 #define TIMER_PCR 0x4
 
-static void __iomem *timer_reg_base = IO_ADDRESS(TEGRA_TMR1_BASE);
-static void __iomem *rtc_base = IO_ADDRESS(TEGRA_RTC_BASE);
+static void __iomem *timer_reg_base;
+static void __iomem *rtc_base;
 
 static struct timespec persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
@@ -158,38 +156,64 @@ static struct irqaction tegra_timer_irq = {
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_TRIGGER_HIGH,
 	.handler	= tegra_timer_interrupt,
 	.dev_id		= &tegra_clockevent,
-	.irq		= INT_TMR3,
 };
 
-#ifdef CONFIG_HAVE_ARM_TWD
-static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
-			      TEGRA_ARM_PERIF_BASE + 0x600,
-			      IRQ_LOCALTIMER);
+static const struct of_device_id timer_match[] __initconst = {
+	{ .compatible = "nvidia,tegra20-timer" },
+	{}
+};
 
-static void __init tegra_twd_init(void)
-{
-	int err = twd_local_timer_register(&twd_local_timer);
-	if (err)
-		pr_err("twd_local_timer_register failed %d\n", err);
-}
-#else
-#define tegra_twd_init()	do {} while(0)
-#endif
+static const struct of_device_id rtc_match[] __initconst = {
+	{ .compatible = "nvidia,tegra20-rtc" },
+	{}
+};
 
 static void __init tegra_init_timer(void)
 {
+	struct device_node *np;
 	struct clk *clk;
 	unsigned long rate;
 	int ret;
 
+	np = of_find_matching_node(NULL, timer_match);
+	if (!np) {
+		pr_err("Failed to find timer DT node\n");
+		BUG();
+	}
+
+	timer_reg_base = of_iomap(np, 0);
+	if (!timer_reg_base) {
+		pr_err("Can't map timer registers");
+		BUG();
+	}
+
+	tegra_timer_irq.irq = irq_of_parse_and_map(np, 2);
+	if (tegra_timer_irq.irq <= 0) {
+		pr_err("Failed to map timer IRQ\n");
+		BUG();
+	}
+
 	clk = clk_get_sys("timer", NULL);
 	if (IS_ERR(clk)) {
-		pr_warn("Unable to get timer clock."
-			" Assuming 12Mhz input clock.\n");
+		pr_warn("Unable to get timer clock. Assuming 12Mhz input clock.\n");
 		rate = 12000000;
 	} else {
 		clk_prepare_enable(clk);
 		rate = clk_get_rate(clk);
+	}
+
+	of_node_put(np);
+
+	np = of_find_matching_node(NULL, rtc_match);
+	if (!np) {
+		pr_err("Failed to find RTC DT node\n");
+		BUG();
+	}
+
+	rtc_base = of_iomap(np, 0);
+	if (!rtc_base) {
+		pr_err("Can't map RTC registers");
+		BUG();
 	}
 
 	/*
@@ -201,6 +225,8 @@ static void __init tegra_init_timer(void)
 		pr_warn("Unable to get rtc-tegra clock\n");
 	else
 		clk_prepare_enable(clk);
+
+	of_node_put(np);
 
 	switch (rate) {
 	case 12000000:
@@ -223,13 +249,13 @@ static void __init tegra_init_timer(void)
 
 	if (clocksource_mmio_init(timer_reg_base + TIMERUS_CNTR_1US,
 		"timer_us", 1000000, 300, 32, clocksource_mmio_readl_up)) {
-		printk(KERN_ERR "Failed to register clocksource\n");
+		pr_err("Failed to register clocksource\n");
 		BUG();
 	}
 
 	ret = setup_irq(tegra_timer_irq.irq, &tegra_timer_irq);
 	if (ret) {
-		printk(KERN_ERR "Failed to register timer IRQ: %d\n", ret);
+		pr_err("Failed to register timer IRQ: %d\n", ret);
 		BUG();
 	}
 
@@ -241,7 +267,9 @@ static void __init tegra_init_timer(void)
 	tegra_clockevent.cpumask = cpu_all_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_register_device(&tegra_clockevent);
-	tegra_twd_init();
+#ifdef CONFIG_HAVE_ARM_TWD
+	twd_local_timer_of_register();
+#endif
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
 

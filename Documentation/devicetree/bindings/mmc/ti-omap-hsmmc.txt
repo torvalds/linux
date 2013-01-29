@@ -19,6 +19,7 @@ ti,dual-volt: boolean, supports dual voltage cards
 "supply-name" examples are "vmmc", "vmmc_aux" etc
 ti,non-removable: non-removable slot (like eMMC)
 ti,needs-special-reset: Requires a special softreset sequence
+ti,needs-special-hs-handling: HSMMC IP needs special setting for handling High Speed
 
 Example:
 	mmc1: mmc@0x4809c000 {

@@ -87,7 +87,7 @@ struct tegra_kbc {
 	struct clk *clk;
 };
 
-static const u32 tegra_kbc_default_keymap[] __devinitdata = {
+static const u32 tegra_kbc_default_keymap[] = {
 	KEY(0, 2, KEY_W),
 	KEY(0, 3, KEY_S),
 	KEY(0, 4, KEY_A),
@@ -223,7 +223,7 @@ static const u32 tegra_kbc_default_keymap[] __devinitdata = {
 };
 
 static const
-struct matrix_keymap_data tegra_kbc_default_keymap_data __devinitdata = {
+struct matrix_keymap_data tegra_kbc_default_keymap_data = {
 	.keymap		= tegra_kbc_default_keymap,
 	.keymap_size	= ARRAY_SIZE(tegra_kbc_default_keymap),
 };
@@ -573,7 +573,7 @@ static void tegra_kbc_close(struct input_dev *dev)
 	return tegra_kbc_stop(kbc);
 }
 
-static bool __devinit
+static bool
 tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 			struct device *dev, unsigned int *num_rows)
 {
@@ -619,7 +619,7 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 }
 
 #ifdef CONFIG_OF
-static struct tegra_kbc_platform_data * __devinit tegra_kbc_dt_parse_pdata(
+static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	struct platform_device *pdev)
 {
 	struct tegra_kbc_platform_data *pdata;
@@ -670,7 +670,7 @@ static inline struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 }
 #endif
 
-static int __devinit tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
+static int tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
 {
 	const struct tegra_kbc_platform_data *pdata = kbc->pdata;
 	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
@@ -697,7 +697,7 @@ static int __devinit tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
 	return retval;
 }
 
-static int __devinit tegra_kbc_probe(struct platform_device *pdev)
+static int tegra_kbc_probe(struct platform_device *pdev)
 {
 	const struct tegra_kbc_platform_data *pdata = pdev->dev.platform_data;
 	struct tegra_kbc *kbc;
@@ -838,7 +838,7 @@ err_free_pdata:
 	return err;
 }
 
-static int __devexit tegra_kbc_remove(struct platform_device *pdev)
+static int tegra_kbc_remove(struct platform_device *pdev)
 {
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -954,7 +954,7 @@ MODULE_DEVICE_TABLE(of, tegra_kbc_of_match);
 
 static struct platform_driver tegra_kbc_driver = {
 	.probe		= tegra_kbc_probe,
-	.remove		= __devexit_p(tegra_kbc_remove),
+	.remove		= tegra_kbc_remove,
 	.driver	= {
 		.name	= "tegra-kbc",
 		.owner  = THIS_MODULE,

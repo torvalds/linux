@@ -1205,7 +1205,7 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 	rc->dev.parent = dev;
 	rc->priv = ir;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_TYPE_ALL;
+	rc->allowed_protos = RC_BIT_ALL;
 	rc->timeout = MS_TO_NS(100);
 	if (!ir->flags.no_tx) {
 		rc->s_tx_mask = mceusb_set_tx_mask;
@@ -1229,8 +1229,8 @@ out:
 	return NULL;
 }
 
-static int __devinit mceusb_dev_probe(struct usb_interface *intf,
-				      const struct usb_device_id *id)
+static int mceusb_dev_probe(struct usb_interface *intf,
+			    const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_host_interface *idesc;
@@ -1393,7 +1393,7 @@ mem_alloc_fail:
 }
 
 
-static void __devexit mceusb_dev_disconnect(struct usb_interface *intf)
+static void mceusb_dev_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct mceusb_dev *ir = usb_get_intfdata(intf);
@@ -1432,7 +1432,7 @@ static int mceusb_dev_resume(struct usb_interface *intf)
 static struct usb_driver mceusb_dev_driver = {
 	.name =		DRIVER_NAME,
 	.probe =	mceusb_dev_probe,
-	.disconnect =	__devexit_p(mceusb_dev_disconnect),
+	.disconnect =	mceusb_dev_disconnect,
 	.suspend =	mceusb_dev_suspend,
 	.resume =	mceusb_dev_resume,
 	.reset_resume =	mceusb_dev_resume,

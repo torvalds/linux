@@ -25,7 +25,6 @@
 
 
 
-#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -384,7 +383,7 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 /*
  * Control tabs
  */
-static struct snd_kcontrol_new stac9640_controls[] __devinitdata = {
+static struct snd_kcontrol_new stac9640_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -448,7 +447,7 @@ static struct snd_kcontrol_new stac9640_controls[] __devinitdata = {
 
 
 /*INIT*/
-static int __devinit wtm_add_controls(struct snd_ice1712 *ice)
+static int wtm_add_controls(struct snd_ice1712 *ice)
 {
 	unsigned int i;
 	int err;
@@ -462,7 +461,7 @@ static int __devinit wtm_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static int __devinit wtm_init(struct snd_ice1712 *ice)
+static int wtm_init(struct snd_ice1712 *ice)
 {
 	static unsigned short stac_inits_prodigy[] = {
 		STAC946X_RESET, 0,
@@ -485,7 +484,7 @@ static int __devinit wtm_init(struct snd_ice1712 *ice)
 }
 
 
-static unsigned char wtm_eeprom[] __devinitdata = {
+static unsigned char wtm_eeprom[] = {
 	0x47,	/*SYSCONF: clock 192KHz, 4ADC, 8DAC */
 	0x80,	/* ACLINK : I2S */
 	0xf8,	/* I2S: vol; 96k, 24bit, 192k */
@@ -503,7 +502,7 @@ static unsigned char wtm_eeprom[] __devinitdata = {
 
 
 /*entry point*/
-struct snd_ice1712_card_info snd_vt1724_wtm_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_wtm_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_WTM,
 		.name = "ESI Waveterminal 192M",

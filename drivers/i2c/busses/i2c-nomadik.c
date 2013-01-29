@@ -435,13 +435,6 @@ static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	timeout = wait_for_completion_timeout(
 		&dev->xfer_complete, dev->adap.timeout);
 
-	if (timeout < 0) {
-		dev_err(&dev->adev->dev,
-			"wait_for_completion_timeout "
-			"returned %d waiting for event\n", timeout);
-		status = timeout;
-	}
-
 	if (timeout == 0) {
 		/* Controller timed out */
 		dev_err(&dev->adev->dev, "read from slave 0x%x timed out\n",
@@ -522,13 +515,6 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 
 	timeout = wait_for_completion_timeout(
 		&dev->xfer_complete, dev->adap.timeout);
-
-	if (timeout < 0) {
-		dev_err(&dev->adev->dev,
-			"wait_for_completion_timeout "
-			"returned %d waiting for event\n", timeout);
-		status = timeout;
-	}
 
 	if (timeout == 0) {
 		/* Controller timed out */

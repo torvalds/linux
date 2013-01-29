@@ -491,8 +491,7 @@ static int fimc_lite_close(struct file *file)
 	struct fimc_lite *fimc = video_drvdata(file);
 	int ret;
 
-	if (mutex_lock_interruptible(&fimc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&fimc->lock);
 
 	if (--fimc->ref_count == 0 && fimc->out_path == FIMC_IO_DMA) {
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
@@ -1253,7 +1252,9 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	q->buf_struct_size = sizeof(struct flite_buffer);
 	q->drv_priv = fimc;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret < 0)
+		return ret;
 
 	fimc->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &fimc->vd_pad, 0);
@@ -1261,10 +1262,12 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 		return ret;
 
 	video_set_drvdata(vfd, fimc);
+	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		media_entity_cleanup(&vfd->entity);
+		fimc->pipeline_ops = NULL;
 		return ret;
 	}
 
@@ -1283,6 +1286,7 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->vfd)) {
 		video_unregister_device(&fimc->vfd);
 		media_entity_cleanup(&fimc->vfd.entity);
+		fimc->pipeline_ops = NULL;
 	}
 }
 
@@ -1402,7 +1406,7 @@ static int fimc_lite_clk_get(struct fimc_lite *fimc)
 	return ret;
 }
 
-static int __devinit fimc_lite_probe(struct platform_device *pdev)
+static int fimc_lite_probe(struct platform_device *pdev)
 {
 	struct flite_drvdata *drv_data = fimc_lite_get_drvdata(pdev);
 	struct fimc_lite *fimc;
@@ -1543,7 +1547,7 @@ static int fimc_lite_suspend(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static int __devexit fimc_lite_remove(struct platform_device *pdev)
+static int fimc_lite_remove(struct platform_device *pdev)
 {
 	struct fimc_lite *fimc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -1591,7 +1595,7 @@ static const struct dev_pm_ops fimc_lite_pm_ops = {
 
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
-	.remove		= __devexit_p(fimc_lite_remove),
+	.remove		= fimc_lite_remove,
 	.id_table	= fimc_lite_driver_ids,
 	.driver = {
 		.name		= FIMC_LITE_DRV_NAME,

@@ -243,6 +243,7 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_ICMPV6,    /* struct ovs_key_icmpv6 */
 	OVS_KEY_ATTR_ARP,       /* struct ovs_key_arp */
 	OVS_KEY_ATTR_ND,        /* struct ovs_key_nd */
+	OVS_KEY_ATTR_SKB_MARK,  /* u32 skb mark */
 	__OVS_KEY_ATTR_MAX
 };
 

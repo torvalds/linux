@@ -8,9 +8,12 @@
  * ----------------------------------------------------------------------- */
 
 #include <linux/efi.h>
+#include <linux/pci.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
+
+#undef memcpy			/* Use memcpy from misc.c */
 
 #include "eboot.h"
 
@@ -241,6 +244,121 @@ static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 
 	*pos = first;
 	*size = len;
+}
+
+static efi_status_t setup_efi_pci(struct boot_params *params)
+{
+	efi_pci_io_protocol *pci;
+	efi_status_t status;
+	void **pci_handle;
+	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
+	unsigned long nr_pci, size = 0;
+	int i;
+	struct setup_data *data;
+
+	data = (struct setup_data *)params->hdr.setup_data;
+
+	while (data && data->next)
+		data = (struct setup_data *)data->next;
+
+	status = efi_call_phys5(sys_table->boottime->locate_handle,
+				EFI_LOCATE_BY_PROTOCOL, &pci_proto,
+				NULL, &size, pci_handle);
+
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		status = efi_call_phys3(sys_table->boottime->allocate_pool,
+					EFI_LOADER_DATA, size, &pci_handle);
+
+		if (status != EFI_SUCCESS)
+			return status;
+
+		status = efi_call_phys5(sys_table->boottime->locate_handle,
+					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
+					NULL, &size, pci_handle);
+	}
+
+	if (status != EFI_SUCCESS)
+		goto free_handle;
+
+	nr_pci = size / sizeof(void *);
+	for (i = 0; i < nr_pci; i++) {
+		void *h = pci_handle[i];
+		uint64_t attributes;
+		struct pci_setup_rom *rom;
+
+		status = efi_call_phys3(sys_table->boottime->handle_protocol,
+					h, &pci_proto, &pci);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		if (!pci)
+			continue;
+
+		status = efi_call_phys4(pci->attributes, pci,
+					EfiPciIoAttributeOperationGet, 0,
+					&attributes);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		if (!(attributes & EFI_PCI_IO_ATTRIBUTE_EMBEDDED_ROM))
+			continue;
+
+		if (!pci->romimage || !pci->romsize)
+			continue;
+
+		size = pci->romsize + sizeof(*rom);
+
+		status = efi_call_phys3(sys_table->boottime->allocate_pool,
+				EFI_LOADER_DATA, size, &rom);
+
+		if (status != EFI_SUCCESS)
+			continue;
+
+		rom->data.type = SETUP_PCI;
+		rom->data.len = size - sizeof(struct setup_data);
+		rom->data.next = 0;
+		rom->pcilen = pci->romsize;
+
+		status = efi_call_phys5(pci->pci.read, pci,
+					EfiPciIoWidthUint16, PCI_VENDOR_ID,
+					1, &(rom->vendor));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		status = efi_call_phys5(pci->pci.read, pci,
+					EfiPciIoWidthUint16, PCI_DEVICE_ID,
+					1, &(rom->devid));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		status = efi_call_phys5(pci->get_location, pci,
+					&(rom->segment), &(rom->bus),
+					&(rom->device), &(rom->function));
+
+		if (status != EFI_SUCCESS)
+			goto free_struct;
+
+		memcpy(rom->romdata, pci->romimage, pci->romsize);
+
+		if (data)
+			data->next = (uint64_t)rom;
+		else
+			params->hdr.setup_data = (uint64_t)rom;
+
+		data = (struct setup_data *)rom;
+
+		continue;
+	free_struct:
+		efi_call_phys1(sys_table->boottime->free_pool, rom);
+	}
+
+free_handle:
+	efi_call_phys1(sys_table->boottime->free_pool, pci_handle);
+	return status;
 }
 
 /*
@@ -1025,6 +1143,8 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 		goto fail;
 
 	setup_graphics(boot_params);
+
+	setup_efi_pci(boot_params);
 
 	status = efi_call_phys3(sys_table->boottime->allocate_pool,
 				EFI_LOADER_DATA, sizeof(*gdt),

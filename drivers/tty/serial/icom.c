@@ -175,7 +175,7 @@ static void free_port_memory(struct icom_port *icom_port)
 	}
 }
 
-static int __devinit get_port_memory(struct icom_port *icom_port)
+static int get_port_memory(struct icom_port *icom_port)
 {
 	int index;
 	unsigned long stgAddr;
@@ -505,7 +505,7 @@ static void load_code(struct icom_port *icom_port)
 		/* Stop processor */
 		stop_processor(icom_port);
 
-		dev_err(&icom_port->adapter->pci_dev->dev,"Port not opertional\n");
+		dev_err(&icom_port->adapter->pci_dev->dev,"Port not operational\n");
 	}
 
 	if (new_page != NULL)
@@ -1314,7 +1314,7 @@ static struct uart_driver icom_uart_driver = {
 	.cons = ICOM_CONSOLE,
 };
 
-static int __devinit icom_init_ports(struct icom_adapter *icom_adapter)
+static int icom_init_ports(struct icom_adapter *icom_adapter)
 {
 	u32 subsystem_id = icom_adapter->subsystem_id;
 	int i;
@@ -1381,7 +1381,7 @@ static void icom_port_active(struct icom_port *icom_port, struct icom_adapter *i
 			    0x8024 + 2 - 2 * (icom_port->port - 2);
 	}
 }
-static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
+static int icom_load_ports(struct icom_adapter *icom_adapter)
 {
 	struct icom_port *icom_port;
 	int port_num;
@@ -1407,7 +1407,7 @@ static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
 	return 0;
 }
 
-static int __devinit icom_alloc_adapter(struct icom_adapter
+static int icom_alloc_adapter(struct icom_adapter
 					**icom_adapter_ref)
 {
 	int adapter_count = 0;
@@ -1487,7 +1487,7 @@ static void icom_kref_release(struct kref *kref)
 	icom_remove_adapter(icom_adapter);
 }
 
-static int __devinit icom_probe(struct pci_dev *dev,
+static int icom_probe(struct pci_dev *dev,
 				const struct pci_device_id *ent)
 {
 	int index;
@@ -1596,7 +1596,7 @@ probe_exit0:
 	return retval;
 }
 
-static void __devexit icom_remove(struct pci_dev *dev)
+static void icom_remove(struct pci_dev *dev)
 {
 	struct icom_adapter *icom_adapter;
 	struct list_head *tmp;
@@ -1617,7 +1617,7 @@ static struct pci_driver icom_pci_driver = {
 	.name = ICOM_DRIVER_NAME,
 	.id_table = icom_pci_table,
 	.probe = icom_probe,
-	.remove = __devexit_p(icom_remove),
+	.remove = icom_remove,
 };
 
 static int __init icom_init(void)

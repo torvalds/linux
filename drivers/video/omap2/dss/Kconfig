@@ -1,33 +1,30 @@
 menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
-        depends on ARCH_OMAP2PLUS
         help
 	  OMAP2+ Display Subsystem support.
 
 if OMAP2_DSS
 
-config OMAP2_VRAM_SIZE
-	int "VRAM size (MB)"
-	range 0 32
-	default 0
+config OMAP2_DSS_DEBUG
+	bool "Debug support"
+	default n
 	help
-	  The amount of SDRAM to reserve at boot time for video RAM use.
-	  This VRAM will be used by omapfb and other drivers that need
-	  large continuous RAM area for video use.
+	  This enables printing of debug messages. Alternatively, debug messages
+	  can also be enabled by setting CONFIG_DYNAMIC_DEBUG and then setting
+	  appropriate flags in <debugfs>/dynamic_debug/control.
 
-	  You can also set this with "vram=<bytes>" kernel argument, or
-	  in the board file.
-
-config OMAP2_DSS_DEBUG_SUPPORT
-        bool "Debug support"
-	default y
+config OMAP2_DSS_DEBUGFS
+	bool "Debugfs filesystem support"
+	depends on DEBUG_FS
+	default n
 	help
-	  This enables debug messages. You need to enable printing
-	  with 'debug' module parameter.
+	  This enables debugfs for OMAPDSS at <debugfs>/omapdss. This enables
+	  querying about clock configuration and register configuration of dss,
+	  dispc, dsi, hdmi and rfbi.
 
 config OMAP2_DSS_COLLECT_IRQ_STATS
 	bool "Collect DSS IRQ statistics"
-	depends on OMAP2_DSS_DEBUG_SUPPORT
+	depends on OMAP2_DSS_DEBUGFS
 	default n
 	help
 	  Collect DSS IRQ statistics, printable via debugfs.
@@ -62,7 +59,6 @@ config OMAP2_DSS_VENC
 
 config OMAP4_DSS_HDMI
 	bool "HDMI support"
-	depends on ARCH_OMAP4
         default y
 	help
 	  HDMI Interface. This adds the High Definition Multimedia Interface.
@@ -70,11 +66,9 @@ config OMAP4_DSS_HDMI
 
 config OMAP4_DSS_HDMI_AUDIO
 	bool
-	depends on OMAP4_DSS_HDMI
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
-	depends on ARCH_OMAP3
         default n
 	help
 	  SDI (Serial Display Interface) support.
@@ -84,7 +78,6 @@ config OMAP2_DSS_SDI
 
 config OMAP2_DSS_DSI
 	bool "DSI support"
-	depends on ARCH_OMAP3 || ARCH_OMAP4 || ARCH_OMAP5
         default n
 	help
 	  MIPI DSI (Display Serial Interface) support.

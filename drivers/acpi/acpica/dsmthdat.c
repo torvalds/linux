@@ -76,7 +76,7 @@ acpi_ds_method_data_get_type(u16 opcode,
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the data structures that hold the method's arguments
- *              and locals.  The data struct is an array of namespace nodes for
+ *              and locals. The data struct is an array of namespace nodes for
  *              each - this allows ref_of and de_ref_of to work properly for these
  *              special data types.
  *
@@ -129,7 +129,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Delete method locals and arguments.  Arguments are only
+ * DESCRIPTION: Delete method locals and arguments. Arguments are only
  *              deleted if this method was called from another method.
  *
  ******************************************************************************/
@@ -183,7 +183,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize arguments for a method.  The parameter list is a list
+ * DESCRIPTION: Initialize arguments for a method. The parameter list is a list
  *              of ACPI operand objects, either null terminated or whose length
  *              is defined by max_param_count.
  *
@@ -401,7 +401,7 @@ acpi_ds_method_data_get_value(u8 type,
 		 * This means that either 1) The expected argument was
 		 * not passed to the method, or 2) A local variable
 		 * was referenced by the method (via the ASL)
-		 * before it was initialized.  Either case is an error.
+		 * before it was initialized. Either case is an error.
 		 */
 
 		/* If slack enabled, init the local_x/arg_x to an Integer of value zero */
@@ -465,7 +465,7 @@ acpi_ds_method_data_get_value(u8 type,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Delete the entry at Opcode:Index.  Inserts
+ * DESCRIPTION: Delete the entry at Opcode:Index. Inserts
  *              a null into the stack slot after the object is deleted.
  *
  ******************************************************************************/
@@ -523,7 +523,7 @@ acpi_ds_method_data_delete_value(u8 type,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Store a value in an Arg or Local.  The obj_desc is installed
+ * DESCRIPTION: Store a value in an Arg or Local. The obj_desc is installed
  *              as the new value for the Arg or Local and the reference count
  *              for obj_desc is incremented.
  *
@@ -566,7 +566,7 @@ acpi_ds_store_object_to_local(u8 type,
 
 	/*
 	 * If the reference count on the object is more than one, we must
-	 * take a copy of the object before we store.  A reference count
+	 * take a copy of the object before we store. A reference count
 	 * of exactly 1 means that the object was just created during the
 	 * evaluation of an expression, and we can safely use it since it
 	 * is not used anywhere else.

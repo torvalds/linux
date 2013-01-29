@@ -37,7 +37,7 @@ static struct regulator_desc dummy_desc = {
 	.ops = &dummy_ops,
 };
 
-static int __devinit dummy_regulator_probe(struct platform_device *pdev)
+static int dummy_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { };
 	int ret;

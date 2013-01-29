@@ -34,7 +34,6 @@
 struct task_struct;
 
 /*  this is defined in arch/process.c  */
-extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);

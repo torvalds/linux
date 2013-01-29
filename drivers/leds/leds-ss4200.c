@@ -263,7 +263,7 @@ static int nasgpio_led_set_blink(struct led_classdev *led_cdev,
  * already taken care of this, but we will do so in a non destructive manner
  * so that we have what we need whether the BIOS did it or not.
  */
-static int __devinit ich7_gpio_init(struct device *dev)
+static int ich7_gpio_init(struct device *dev)
 {
 	int i;
 	u32 config_data = 0;
@@ -342,7 +342,7 @@ static void ich7_lpc_cleanup(struct device *dev)
  * so we can retrive the required operational information and prepare the GPIO.
  */
 static struct pci_dev *nas_gpio_pci_dev;
-static int __devinit ich7_lpc_probe(struct pci_dev *dev,
+static int ich7_lpc_probe(struct pci_dev *dev,
 				    const struct pci_device_id *id)
 {
 	int status;
@@ -459,7 +459,7 @@ static ssize_t nas_led_blink_store(struct device *dev,
 	struct led_classdev *led = dev_get_drvdata(dev);
 	unsigned long blink_state;
 
-	ret = strict_strtoul(buf, 10, &blink_state);
+	ret = kstrtoul(buf, 10, &blink_state);
 	if (ret)
 		return ret;
 

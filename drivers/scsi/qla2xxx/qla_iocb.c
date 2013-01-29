@@ -520,7 +520,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 
 	mrk24 = NULL;
 	req = ha->req_q_map[0];
-	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, 0);
+	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, NULL);
 	if (mrk == NULL) {
 		ql_log(ql_log_warn, base_vha, 0x3026,
 		    "Failed to allocate Marker IOCB.\n");
@@ -2551,7 +2551,7 @@ sufficient_dsds:
 			(unsigned long __iomem *)ha->nxdb_wr_ptr,
 			dbval);
 		wmb();
-		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
+		while (RD_REG_DWORD((void __iomem *)ha->nxdb_rd_ptr) != dbval) {
 			WRT_REG_DWORD(
 				(unsigned long __iomem *)ha->nxdb_wr_ptr,
 				dbval);
@@ -2748,7 +2748,6 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 	struct rsp_que *rsp;
 	struct req_que *req;
 	int rval = EXT_STATUS_OK;
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, vha->req->id);
 
 	rval = QLA_SUCCESS;
 
@@ -2786,15 +2785,7 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt + 2) {
-		if (ha->mqenable)
-			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
-		else if (IS_QLA82XX(ha))
-			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
-		else if (IS_FWI2_CAPABLE(ha))
-			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
-		else
-			cnt = qla2x00_debounce_register(
-					ISP_REQ_Q_OUT(ha, &reg->isp));
+		cnt = RD_REG_DWORD_RELAXED(req->req_q_out);
 
 		if  (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;

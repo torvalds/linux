@@ -114,12 +114,12 @@ static int twl4030_clear_set(u8 mod_no, u8 clear, u8 set, u8 reg)
 
 static int twl4030_bci_read(u8 reg, u8 *val)
 {
-	return twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE, val, reg);
+	return twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, val, reg);
 }
 
 static int twl4030_clear_set_boot_bci(u8 clear, u8 set)
 {
-	return twl4030_clear_set(TWL4030_MODULE_PM_MASTER, clear,
+	return twl4030_clear_set(TWL_MODULE_PM_MASTER, clear,
 			TWL4030_CONFIG_DONE | TWL4030_BCIAUTOWEN | set,
 			TWL4030_PM_MASTER_BOOT_BCI);
 }
@@ -152,7 +152,7 @@ static int twl4030_bci_have_vbus(struct twl4030_bci *bci)
 	int ret;
 	u8 hwsts;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &hwsts,
+	ret = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &hwsts,
 			      TWL4030_PM_MASTER_STS_HW_CONDITIONS);
 	if (ret < 0)
 		return 0;
@@ -199,7 +199,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 			return ret;
 
 		/* forcing USBFASTMCHG(BCIMFSTS4[2]) to 1 */
-		ret = twl4030_clear_set(TWL4030_MODULE_MAIN_CHARGE, 0,
+		ret = twl4030_clear_set(TWL_MODULE_MAIN_CHARGE, 0,
 			TWL4030_USBFASTMCHG, TWL4030_BCIMFSTS4);
 	} else {
 		ret = twl4030_clear_set_boot_bci(TWL4030_BCIAUTOUSB, 0);
@@ -238,7 +238,7 @@ static int twl4030_charger_enable_backup(int uvolt, int uamp)
 	if (uvolt < 2500000 ||
 	    uamp < 25) {
 		/* disable charging of backup battery */
-		ret = twl4030_clear_set(TWL4030_MODULE_PM_RECEIVER,
+		ret = twl4030_clear_set(TWL_MODULE_PM_RECEIVER,
 					TWL4030_BBCHEN, 0, TWL4030_BB_CFG);
 		return ret;
 	}
@@ -262,7 +262,7 @@ static int twl4030_charger_enable_backup(int uvolt, int uamp)
 	else
 		flags |= TWL4030_BBISEL_25uA;
 
-	ret = twl4030_clear_set(TWL4030_MODULE_PM_RECEIVER,
+	ret = twl4030_clear_set(TWL_MODULE_PM_RECEIVER,
 				TWL4030_BBSEL_MASK | TWL4030_BBISEL_MASK,
 				flags,
 				TWL4030_BB_CFG);

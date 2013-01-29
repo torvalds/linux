@@ -506,7 +506,7 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	}
 }
 
-static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
+static int s3c24xx_spi_probe(struct platform_device *pdev)
 {
 	struct s3c2410_spi_info *pdata;
 	struct s3c24xx_spi *hw;
@@ -663,7 +663,7 @@ static int __devinit s3c24xx_spi_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit s3c24xx_spi_remove(struct platform_device *dev)
+static int s3c24xx_spi_remove(struct platform_device *dev)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
 
@@ -722,7 +722,7 @@ static const struct dev_pm_ops s3c24xx_spi_pmops = {
 MODULE_ALIAS("platform:s3c2410-spi");
 static struct platform_driver s3c24xx_spi_driver = {
 	.probe		= s3c24xx_spi_probe,
-	.remove		= __devexit_p(s3c24xx_spi_remove),
+	.remove		= s3c24xx_spi_remove,
 	.driver		= {
 		.name	= "s3c2410-spi",
 		.owner	= THIS_MODULE,

@@ -120,18 +120,11 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	if (cpu_context(cpu, mm) != 0) {
 		unsigned long size, flags;
-		int huge = is_vm_hugetlb_page(vma);
 
 		ENTER_CRITICAL(flags);
-		if (huge) {
-			start = round_down(start, HPAGE_SIZE);
-			end = round_up(end, HPAGE_SIZE);
-			size = (end - start) >> HPAGE_SHIFT;
-		} else {
-			start = round_down(start, PAGE_SIZE << 1);
-			end = round_up(end, PAGE_SIZE << 1);
-			size = (end - start) >> (PAGE_SHIFT + 1);
-		}
+		start = round_down(start, PAGE_SIZE << 1);
+		end = round_up(end, PAGE_SIZE << 1);
+		size = (end - start) >> (PAGE_SHIFT + 1);
 		if (size <= current_cpu_data.tlbsize/2) {
 			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);
@@ -140,10 +133,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				int idx;
 
 				write_c0_entryhi(start | newpid);
-				if (huge)
-					start += HPAGE_SIZE;
-				else
-					start += (PAGE_SIZE << 1);
+				start += (PAGE_SIZE << 1);
 				mtc0_tlbw_hazard();
 				tlb_probe();
 				tlb_probe_hazard();
@@ -305,7 +295,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/* this could be a huge page  */
 	if (pmd_huge(*pmdp)) {
 		unsigned long lo;
@@ -376,6 +366,26 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	local_flush_tlb_all();
 	EXIT_CRITICAL(flags);
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+int __init has_transparent_hugepage(void)
+{
+	unsigned int mask;
+	unsigned long flags;
+
+	ENTER_CRITICAL(flags);
+	write_c0_pagemask(PM_HUGE_MASK);
+	back_to_back_c0_hazard();
+	mask = read_c0_pagemask();
+	write_c0_pagemask(PM_DEFAULT_MASK);
+
+	EXIT_CRITICAL(flags);
+
+	return mask == PM_HUGE_MASK;
+}
+
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
 
 static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)

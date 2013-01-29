@@ -273,7 +273,7 @@ static const struct iio_info ad5764_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad5764_probe(struct spi_device *spi)
+static int ad5764_probe(struct spi_device *spi)
 {
 	enum ad5764_type type = spi_get_device_id(spi)->driver_data;
 	struct iio_dev *indio_dev;
@@ -340,7 +340,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad5764_remove(struct spi_device *spi)
+static int ad5764_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5764_state *st = iio_priv(indio_dev);
@@ -372,7 +372,7 @@ static struct spi_driver ad5764_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad5764_probe,
-	.remove = __devexit_p(ad5764_remove),
+	.remove = ad5764_remove,
 	.id_table = ad5764_ids,
 };
 module_spi_driver(ad5764_driver);

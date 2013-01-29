@@ -23,67 +23,9 @@
 #include "csr_wifi_nme_task.h"
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_lib.h
 #endif
-
-/*----------------------------------------------------------------------------*
- *  CsrWifiNmeFreeUpstreamMessageContents
- *
- *  DESCRIPTION
- *      Free the allocated memory in a CSR_WIFI_NME upstream message. Does not
- *      free the message itself, and can only be used for upstream messages.
- *
- *  PARAMETERS
- *      Deallocates the resources in a CSR_WIFI_NME upstream message
- *----------------------------------------------------------------------------*/
-void CsrWifiNmeFreeUpstreamMessageContents(u16 eventClass, void *message);
-
-/*----------------------------------------------------------------------------*
- *  CsrWifiNmeFreeDownstreamMessageContents
- *
- *  DESCRIPTION
- *      Free the allocated memory in a CSR_WIFI_NME downstream message. Does not
- *      free the message itself, and can only be used for downstream messages.
- *
- *  PARAMETERS
- *      Deallocates the resources in a CSR_WIFI_NME downstream message
- *----------------------------------------------------------------------------*/
-void CsrWifiNmeFreeDownstreamMessageContents(u16 eventClass, void *message);
-
-/*----------------------------------------------------------------------------*
- * Enum to string functions
- *----------------------------------------------------------------------------*/
-const char* CsrWifiNmeAuthModeToString(CsrWifiNmeAuthMode value);
-const char* CsrWifiNmeBssTypeToString(CsrWifiNmeBssType value);
-const char* CsrWifiNmeCcxOptionsMaskToString(CsrWifiNmeCcxOptionsMask value);
-const char* CsrWifiNmeConfigActionToString(CsrWifiNmeConfigAction value);
-const char* CsrWifiNmeConnectionStatusToString(CsrWifiNmeConnectionStatus value);
-const char* CsrWifiNmeCredentialTypeToString(CsrWifiNmeCredentialType value);
-const char* CsrWifiNmeEapMethodToString(CsrWifiNmeEapMethod value);
-const char* CsrWifiNmeEncryptionToString(CsrWifiNmeEncryption value);
-const char* CsrWifiNmeIndicationsToString(CsrWifiNmeIndications value);
-const char* CsrWifiNmeSecErrorToString(CsrWifiNmeSecError value);
-const char* CsrWifiNmeSimCardTypeToString(CsrWifiNmeSimCardType value);
-const char* CsrWifiNmeUmtsAuthResultToString(CsrWifiNmeUmtsAuthResult value);
-const char* CsrWifiNmeWmmQosInfoToString(CsrWifiNmeWmmQosInfo value);
-
-
-/*----------------------------------------------------------------------------*
- * CsrPrim Type toString function.
- * Converts a message type to the String name of the Message
- *----------------------------------------------------------------------------*/
-const char* CsrWifiNmePrimTypeToString(CsrPrim msgType);
-
-/*----------------------------------------------------------------------------*
- * Lookup arrays for PrimType name Strings
- *----------------------------------------------------------------------------*/
-extern const char *CsrWifiNmeUpstreamPrimNames[CSR_WIFI_NME_PRIM_UPSTREAM_COUNT];
-extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 
@@ -1045,10 +987,5 @@ extern const char *CsrWifiNmeDownstreamPrimNames[CSR_WIFI_NME_PRIM_DOWNSTREAM_CO
 
 #define CsrWifiNmeWpsReqSend(src__, interfaceTag__, pin__, ssid__, bssid__) \
     CsrWifiNmeWpsReqSendTo(CSR_WIFI_NME_IFACEQUEUE, src__, interfaceTag__, pin__, ssid__, bssid__)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_NME_LIB_H__ */

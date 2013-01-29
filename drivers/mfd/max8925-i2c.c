@@ -135,7 +135,7 @@ static const struct i2c_device_id max8925_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max8925_id_table);
 
-static int __devinit max8925_probe(struct i2c_client *client,
+static int max8925_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max8925_platform_data *pdata = client->dev.platform_data;
@@ -168,7 +168,7 @@ static int __devinit max8925_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max8925_remove(struct i2c_client *client)
+static int max8925_remove(struct i2c_client *client)
 {
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
@@ -210,7 +210,7 @@ static struct i2c_driver max8925_driver = {
 		.pm     = &max8925_pm_ops,
 	},
 	.probe		= max8925_probe,
-	.remove		= __devexit_p(max8925_remove),
+	.remove		= max8925_remove,
 	.id_table	= max8925_id_table,
 };
 

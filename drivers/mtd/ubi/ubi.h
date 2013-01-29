@@ -85,6 +85,13 @@
 #define UBI_UNKNOWN -1
 
 /*
+ * The UBI debugfs directory name pattern and maximum name length (3 for "ubi"
+ * + 2 for the number plus 1 for the trailing zero byte.
+ */
+#define UBI_DFS_DIR_NAME "ubi%d"
+#define UBI_DFS_DIR_LEN  (3 + 2 + 1)
+
+/*
  * Error codes returned by the I/O sub-system.
  *
  * UBI_IO_FF: the read region of flash contains only 0xFFs
@@ -342,6 +349,37 @@ struct ubi_volume_desc {
 struct ubi_wl_entry;
 
 /**
+ * struct ubi_debug_info - debugging information for an UBI device.
+ *
+ * @chk_gen: if UBI general extra checks are enabled
+ * @chk_io: if UBI I/O extra checks are enabled
+ * @disable_bgt: disable the background task for testing purposes
+ * @emulate_bitflips: emulate bit-flips for testing purposes
+ * @emulate_io_failures: emulate write/erase failures for testing purposes
+ * @dfs_dir_name: name of debugfs directory containing files of this UBI device
+ * @dfs_dir: direntry object of the UBI device debugfs directory
+ * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
+ * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
+ * @dfs_disable_bgt: debugfs knob to disable the background task
+ * @dfs_emulate_bitflips: debugfs knob to emulate bit-flips
+ * @dfs_emulate_io_failures: debugfs knob to emulate write/erase failures
+ */
+struct ubi_debug_info {
+	unsigned int chk_gen:1;
+	unsigned int chk_io:1;
+	unsigned int disable_bgt:1;
+	unsigned int emulate_bitflips:1;
+	unsigned int emulate_io_failures:1;
+	char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
+	struct dentry *dfs_dir;
+	struct dentry *dfs_chk_gen;
+	struct dentry *dfs_chk_io;
+	struct dentry *dfs_disable_bgt;
+	struct dentry *dfs_emulate_bitflips;
+	struct dentry *dfs_emulate_io_failures;
+};
+
+/**
  * struct ubi_device - UBI device description structure
  * @dev: UBI device object to use the the Linux device model
  * @cdev: character device object to create character device
@@ -545,7 +583,7 @@ struct ubi_device {
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
 
-	struct ubi_debug_info *dbg;
+	struct ubi_debug_info dbg;
 };
 
 /**

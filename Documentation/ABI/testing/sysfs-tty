@@ -26,3 +26,115 @@ Description:
 		 UART port in serial_core, that is bound to TTY like ttyS0.
 		 uartclk = 16 * baud_base
 
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/type
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Shows the current tty type for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/line
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Shows the current tty line number for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/port
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Shows the current tty port I/O address for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/irq
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Shows the current primary interrupt for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/flags
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the tty port status flags for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/xmit_fifo_size
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the transmit FIFO size for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/close_delay
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the closing delay time for this port in ms.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/closing_wait
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the close wait time for this port in ms.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/custom_divisor
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the custom divisor if any that is set on this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/io_type
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the I/O type that is to be used with the iomem base
+		 address.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/iomem_base
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 The I/O memory base for this port.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.
+
+What:		/sys/class/tty/ttyS0/iomem_reg_shift
+Date:		October 2012
+Contact:	Alan Cox <alan@linux.intel.com>
+Description:
+		 Show the register shift indicating the spacing to be used
+		 for accesses on this iomem address.
+
+		 These sysfs values expose the TIOCGSERIAL interface via
+		 sysfs rather than via ioctls.

@@ -98,7 +98,7 @@ static struct snd_soc_card imx_mc13783 = {
 	.num_dapm_routes = ARRAY_SIZE(imx_mc13783_routes),
 };
 
-static int __devinit imx_mc13783_probe(struct platform_device *pdev)
+static int imx_mc13783_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -148,7 +148,7 @@ static int __devinit imx_mc13783_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit imx_mc13783_remove(struct platform_device *pdev)
+static int imx_mc13783_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&imx_mc13783);
 
@@ -161,7 +161,7 @@ static struct platform_driver imx_mc13783_audio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = imx_mc13783_probe,
-	.remove = __devexit_p(imx_mc13783_remove)
+	.remove = imx_mc13783_remove
 };
 
 module_platform_driver(imx_mc13783_audio_driver);

@@ -135,7 +135,7 @@ static struct pwm_ops pxa_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit pwm_probe(struct platform_device *pdev)
+static int pwm_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct pxa_pwm_chip *pwm;
@@ -179,7 +179,7 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pwm_remove(struct platform_device *pdev)
+static int pwm_remove(struct platform_device *pdev)
 {
 	struct pxa_pwm_chip *chip;
 
@@ -196,7 +196,7 @@ static struct platform_driver pwm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pwm_probe,
-	.remove		= __devexit_p(pwm_remove),
+	.remove		= pwm_remove,
 	.id_table	= pwm_id_table,
 };
 

@@ -402,8 +402,7 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 		f = 0;
 	}
 	spin_unlock_bh(&pd->tx_frame_lock);
-	if (f)
-		kfree(f);
+	kfree(f);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
@@ -737,8 +736,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
 		st = 0;
 	}
 	spin_unlock_bh(&pd->stream_lock);
-	if (st)
-		kfree(st);
+	kfree(st);
 	return 0;
 }
 /*------------------------------------------------------------------------------

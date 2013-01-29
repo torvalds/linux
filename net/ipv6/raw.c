@@ -50,7 +50,7 @@
 #include <net/udp.h>
 #include <net/inet_common.h>
 #include <net/tcp_states.h>
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/mip6.h>
 #endif
 #include <linux/mroute6.h>
@@ -123,7 +123,7 @@ static int icmpv6_filter(const struct sock *sk, const struct sk_buff *skb)
 	return 1;
 }
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 typedef int mh_filter_t(struct sock *sock, struct sk_buff *skb);
 
 static mh_filter_t __rcu *mh_filter __read_mostly;
@@ -184,7 +184,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 			filtered = icmpv6_filter(sk, skb);
 			break;
 
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 		case IPPROTO_MH:
 		{
 			/* XXX: To validate MH only once for each packet,

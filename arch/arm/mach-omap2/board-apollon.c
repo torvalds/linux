@@ -28,14 +28,14 @@
 #include <linux/clk.h>
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/leds-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <plat/led.h>
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
@@ -338,5 +338,5 @@ MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	.init_machine	= omap_apollon_init,
 	.init_late	= omap2420_init_late,
 	.timer		= &omap2_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END

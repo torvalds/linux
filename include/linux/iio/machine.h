@@ -19,11 +19,13 @@
  * @consumer_dev_name:	Name to uniquely identify the consumer device.
  * @consumer_channel:	Unique name used to identify the channel on the
  *			consumer side.
+ * @consumer_data:	Data about the channel for use by the consumer driver.
  */
 struct iio_map {
 	const char *adc_channel_label;
 	const char *consumer_dev_name;
 	const char *consumer_channel;
+	void *consumer_data;
 };
 
 #endif

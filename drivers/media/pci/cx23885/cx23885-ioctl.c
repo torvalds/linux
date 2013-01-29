@@ -22,6 +22,8 @@
  */
 
 #include "cx23885.h"
+#include "cx23885-ioctl.h"
+
 #include <media/v4l2-chip-ident.h>
 
 int cx23885_g_chip_ident(struct file *file, void *fh,

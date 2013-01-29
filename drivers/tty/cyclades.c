@@ -3099,7 +3099,7 @@ static const struct tty_port_operations cyz_port_ops = {
  * ---------------------------------------------------------------------
  */
 
-static int __devinit cy_init_card(struct cyclades_card *cinfo)
+static int cy_init_card(struct cyclades_card *cinfo)
 {
 	struct cyclades_port *info;
 	unsigned int channel, port;
@@ -3196,7 +3196,7 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 
 /* initialize chips on Cyclom-Y card -- return number of valid
    chips (which is number of ports/4) */
-static unsigned short __devinit cyy_init_card(void __iomem *true_base_addr,
+static unsigned short cyy_init_card(void __iomem *true_base_addr,
 		int index)
 {
 	unsigned int chip_number;
@@ -3405,7 +3405,7 @@ static int __init cy_detect_isa(void)
 }				/* cy_detect_isa */
 
 #ifdef CONFIG_PCI
-static inline int __devinit cyc_isfwstr(const char *str, unsigned int size)
+static inline int cyc_isfwstr(const char *str, unsigned int size)
 {
 	unsigned int a;
 
@@ -3420,7 +3420,7 @@ static inline int __devinit cyc_isfwstr(const char *str, unsigned int size)
 	return 0;
 }
 
-static inline void __devinit cyz_fpga_copy(void __iomem *fpga, const u8 *data,
+static inline void cyz_fpga_copy(void __iomem *fpga, const u8 *data,
 		unsigned int size)
 {
 	for (; size > 0; size--) {
@@ -3429,7 +3429,7 @@ static inline void __devinit cyz_fpga_copy(void __iomem *fpga, const u8 *data,
 	}
 }
 
-static void __devinit plx_init(struct pci_dev *pdev, int irq,
+static void plx_init(struct pci_dev *pdev, int irq,
 		struct RUNTIME_9060 __iomem *addr)
 {
 	/* Reset PLX */
@@ -3449,7 +3449,7 @@ static void __devinit plx_init(struct pci_dev *pdev, int irq,
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, irq);
 }
 
-static int __devinit __cyz_load_fw(const struct firmware *fw,
+static int __cyz_load_fw(const struct firmware *fw,
 		const char *name, const u32 mailbox, void __iomem *base,
 		void __iomem *fpga)
 {
@@ -3526,7 +3526,7 @@ static int __devinit __cyz_load_fw(const struct firmware *fw,
 	return 0;
 }
 
-static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
+static int cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 		struct RUNTIME_9060 __iomem *ctl_addr, int irq)
 {
 	const struct firmware *fw;
@@ -3692,7 +3692,7 @@ err:
 	return retval;
 }
 
-static int __devinit cy_pci_probe(struct pci_dev *pdev,
+static int cy_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	struct cyclades_card *card;
@@ -3931,10 +3931,10 @@ err:
 	return retval;
 }
 
-static void __devexit cy_pci_remove(struct pci_dev *pdev)
+static void cy_pci_remove(struct pci_dev *pdev)
 {
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
-	unsigned int i;
+	unsigned int i, channel;
 
 	/* non-Z with old PLX */
 	if (!cy_is_Z(cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
@@ -3960,9 +3960,11 @@ static void __devexit cy_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	cinfo->base_addr = NULL;
-	for (i = cinfo->first_line; i < cinfo->first_line +
-			cinfo->nports; i++)
+	for (channel = 0, i = cinfo->first_line; i < cinfo->first_line +
+			cinfo->nports; i++, channel++) {
 		tty_unregister_device(cy_serial_driver, i);
+		tty_port_destroy(&cinfo->ports[channel].port);
+	}
 	cinfo->nports = 0;
 	kfree(cinfo->ports);
 }
@@ -3971,7 +3973,7 @@ static struct pci_driver cy_pci_driver = {
 	.name = "cyclades",
 	.id_table = cy_pci_dev_id,
 	.probe = cy_pci_probe,
-	.remove = __devexit_p(cy_pci_remove)
+	.remove = cy_pci_remove
 };
 #endif
 

@@ -862,7 +862,7 @@ struct kobj_type ioat2_ktype = {
 	.default_attrs = ioat2_attrs,
 };
 
-int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
+int ioat2_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct dma_device *dma;

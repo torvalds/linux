@@ -129,16 +129,16 @@ static int da9052_dcdc_set_current_limit(struct regulator_dev *rdev, int min_uA,
 	else if (offset == 0)
 		row = 1;
 
-	if (min_uA > da9052_current_limits[row][DA9052_MAX_UA] ||
-	    max_uA < da9052_current_limits[row][DA9052_MIN_UA])
-		return -EINVAL;
-
 	for (i = DA9052_CURRENT_RANGE - 1; i >= 0; i--) {
-		if (da9052_current_limits[row][i] <= max_uA) {
+		if ((min_uA <= da9052_current_limits[row][i]) &&
+		    (da9052_current_limits[row][i] <= max_uA)) {
 			reg_val = i;
 			break;
 		}
 	}
+
+	if (i < 0)
+		return -EINVAL;
 
 	/* Determine the even or odd position of the buck current limit
 	 * register field
@@ -365,7 +365,7 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 	return NULL;
 }
 
-static int __devinit da9052_regulator_probe(struct platform_device *pdev)
+static int da9052_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { };
 	struct da9052_regulator *regulator;
@@ -430,7 +430,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit da9052_regulator_remove(struct platform_device *pdev)
+static int da9052_regulator_remove(struct platform_device *pdev)
 {
 	struct da9052_regulator *regulator = platform_get_drvdata(pdev);
 
@@ -440,7 +440,7 @@ static int __devexit da9052_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
-	.remove = __devexit_p(da9052_regulator_remove),
+	.remove = da9052_regulator_remove,
 	.driver = {
 		.name = "da9052-regulator",
 		.owner = THIS_MODULE,

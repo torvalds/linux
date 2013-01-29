@@ -42,6 +42,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_export.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -1601,6 +1602,26 @@ xfs_file_ioctl(
 
 		error = xfs_errortag_clearall(mp, 1);
 		return -error;
+
+	case XFS_IOC_FREE_EOFBLOCKS: {
+		struct xfs_eofblocks eofb;
+
+		if (copy_from_user(&eofb, arg, sizeof(eofb)))
+			return -XFS_ERROR(EFAULT);
+
+		if (eofb.eof_version != XFS_EOFBLOCKS_VERSION)
+			return -XFS_ERROR(EINVAL);
+
+		if (eofb.eof_flags & ~XFS_EOF_FLAGS_VALID)
+			return -XFS_ERROR(EINVAL);
+
+		if (memchr_inv(&eofb.pad32, 0, sizeof(eofb.pad32)) ||
+		    memchr_inv(eofb.pad64, 0, sizeof(eofb.pad64)))
+			return -XFS_ERROR(EINVAL);
+
+		error = xfs_icache_free_eofblocks(mp, &eofb);
+		return -error;
+	}
 
 	default:
 		return -ENOTTY;

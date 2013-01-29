@@ -422,7 +422,7 @@ static int init_chipset_pdcnew(struct pci_dev *dev)
 	return 0;
 }
 
-static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
+static struct pci_dev *pdc20270_get_dev2(struct pci_dev *dev)
 {
 	struct pci_dev *dev2;
 
@@ -465,7 +465,7 @@ static const struct ide_port_ops pdcnew_port_ops = {
 		.udma_mask	= udma, \
 	}
 
-static const struct ide_port_info pdcnew_chipsets[] __devinitconst = {
+static const struct ide_port_info pdcnew_chipsets[] = {
 	/* 0: PDC202{68,70} */		DECLARE_PDCNEW_DEV(ATA_UDMA5),
 	/* 1: PDC202{69,71,75,76,77} */	DECLARE_PDCNEW_DEV(ATA_UDMA6),
 };
@@ -479,7 +479,7 @@ static const struct ide_port_info pdcnew_chipsets[] __devinitconst = {
  *	finds a device matching our IDE device tables.
  */
  
-static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int pdc202new_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &pdcnew_chipsets[id->driver_data];
 	struct pci_dev *bridge = dev->bus->self;
@@ -514,7 +514,7 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 	return ide_pci_init_one(dev, d, NULL);
 }
 
-static void __devexit pdc202new_remove(struct pci_dev *dev)
+static void pdc202new_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
@@ -539,7 +539,7 @@ static struct pci_driver pdc202new_pci_driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
-	.remove		= __devexit_p(pdc202new_remove),
+	.remove		= pdc202new_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

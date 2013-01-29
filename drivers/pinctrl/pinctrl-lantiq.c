@@ -46,8 +46,8 @@ static int ltq_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-void ltq_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
-				struct pinctrl_map *map, unsigned num_maps)
+static void ltq_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
+				    struct pinctrl_map *map, unsigned num_maps)
 {
 	int i;
 
@@ -128,10 +128,10 @@ static int ltq_pinctrl_dt_subnode_size(struct device_node *np)
 	return ret;
 }
 
-int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np_config,
-				struct pinctrl_map **map,
-				unsigned *num_maps)
+static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+				      struct device_node *np_config,
+				      struct pinctrl_map **map,
+				      unsigned *num_maps)
 {
 	struct pinctrl_map *tmp;
 	struct device_node *np;
@@ -275,16 +275,6 @@ static int ltq_pmx_enable(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static void ltq_pmx_disable(struct pinctrl_dev *pctrldev,
-				unsigned func,
-				unsigned group)
-{
-	/*
-	 * Nothing to do here. However, pinconf_check_ops() requires this
-	 * callback to be defined.
-	 */
-}
-
 static int ltq_pmx_gpio_request_enable(struct pinctrl_dev *pctrldev,
 				struct pinctrl_gpio_range *range,
 				unsigned pin)
@@ -312,7 +302,6 @@ static struct pinmux_ops ltq_pmx_ops = {
 	.get_function_name	= ltq_pmx_func_name,
 	.get_function_groups	= ltq_pmx_get_groups,
 	.enable			= ltq_pmx_enable,
-	.disable		= ltq_pmx_disable,
 	.gpio_request_enable	= ltq_pmx_gpio_request_enable,
 };
 

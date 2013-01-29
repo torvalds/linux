@@ -443,7 +443,7 @@ static struct hpt_timings hpt37x_timings = {
 	}
 };
 
-static const struct hpt_info hpt36x __devinitconst = {
+static const struct hpt_info hpt36x = {
 	.chip_name	= "HPT36x",
 	.chip_type	= HPT36x,
 	.udma_mask	= HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ? ATA_UDMA4 : ATA_UDMA3) : ATA_UDMA2,
@@ -451,7 +451,7 @@ static const struct hpt_info hpt36x __devinitconst = {
 	.timings	= &hpt36x_timings
 };
 
-static const struct hpt_info hpt370 __devinitconst = {
+static const struct hpt_info hpt370 = {
 	.chip_name	= "HPT370",
 	.chip_type	= HPT370,
 	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
@@ -459,7 +459,7 @@ static const struct hpt_info hpt370 __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt370a __devinitconst = {
+static const struct hpt_info hpt370a = {
 	.chip_name	= "HPT370A",
 	.chip_type	= HPT370A,
 	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
@@ -467,7 +467,7 @@ static const struct hpt_info hpt370a __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt374 __devinitconst = {
+static const struct hpt_info hpt374 = {
 	.chip_name	= "HPT374",
 	.chip_type	= HPT374,
 	.udma_mask	= ATA_UDMA5,
@@ -475,7 +475,7 @@ static const struct hpt_info hpt374 __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt372 __devinitconst = {
+static const struct hpt_info hpt372 = {
 	.chip_name	= "HPT372",
 	.chip_type	= HPT372,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -483,7 +483,7 @@ static const struct hpt_info hpt372 __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt372a __devinitconst = {
+static const struct hpt_info hpt372a = {
 	.chip_name	= "HPT372A",
 	.chip_type	= HPT372A,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -491,7 +491,7 @@ static const struct hpt_info hpt372a __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt302 __devinitconst = {
+static const struct hpt_info hpt302 = {
 	.chip_name	= "HPT302",
 	.chip_type	= HPT302,
 	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -499,7 +499,7 @@ static const struct hpt_info hpt302 __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt371 __devinitconst = {
+static const struct hpt_info hpt371 = {
 	.chip_name	= "HPT371",
 	.chip_type	= HPT371,
 	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -507,7 +507,7 @@ static const struct hpt_info hpt371 __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt372n __devinitconst = {
+static const struct hpt_info hpt372n = {
 	.chip_name	= "HPT372N",
 	.chip_type	= HPT372N,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -515,7 +515,7 @@ static const struct hpt_info hpt372n __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt302n __devinitconst = {
+static const struct hpt_info hpt302n = {
 	.chip_name	= "HPT302N",
 	.chip_type	= HPT302N,
 	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -523,7 +523,7 @@ static const struct hpt_info hpt302n __devinitconst = {
 	.timings	= &hpt37x_timings
 };
 
-static const struct hpt_info hpt371n __devinitconst = {
+static const struct hpt_info hpt371n = {
 	.chip_name	= "HPT371N",
 	.chip_type	= HPT371N,
 	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -1197,7 +1197,7 @@ static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
 	return (scr1 & ata66) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
-static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
+static void init_hwif_hpt366(ide_hwif_t *hwif)
 {
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 	u8  chip_type		= info->chip_type;
@@ -1221,7 +1221,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	}
 }
 
-static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
+static int init_dma_hpt366(ide_hwif_t *hwif,
 				     const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -1265,7 +1265,7 @@ static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
 	return 0;
 }
 
-static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
+static void hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
 {
 	if (dev2->irq != dev->irq) {
 		/* FIXME: we need a core pci_set_interrupt() */
@@ -1275,7 +1275,7 @@ static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
 	}
 }
 
-static void __devinit hpt371_init(struct pci_dev *dev)
+static void hpt371_init(struct pci_dev *dev)
 {
 	u8 mcr1 = 0;
 
@@ -1290,7 +1290,7 @@ static void __devinit hpt371_init(struct pci_dev *dev)
 		pci_write_config_byte(dev, 0x50, mcr1 & ~0x04);
 }
 
-static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
+static int hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 {
 	u8 mcr1 = 0, pin1 = 0, pin2 = 0;
 
@@ -1361,7 +1361,7 @@ static const struct ide_dma_ops hpt36x_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info hpt366_chipsets[] __devinitconst = {
+static const struct ide_port_info hpt366_chipsets[] = {
 	{	/* 0: HPT36x */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_hpt366,
@@ -1402,7 +1402,7 @@ static const struct ide_port_info hpt366_chipsets[] __devinitconst = {
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
  */
-static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct hpt_info *info = NULL;
 	struct hpt_info *dyn_info;
@@ -1499,7 +1499,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 	return ret;
 }
 
-static void __devexit hpt366_remove(struct pci_dev *dev)
+static void hpt366_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct ide_info *info = host->host_priv;
@@ -1510,7 +1510,7 @@ static void __devexit hpt366_remove(struct pci_dev *dev)
 	kfree(info);
 }
 
-static const struct pci_device_id hpt366_pci_tbl[] __devinitconst = {
+static const struct pci_device_id hpt366_pci_tbl[] = {
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366),  0 },
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372),  1 },
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT302),  2 },
@@ -1525,7 +1525,7 @@ static struct pci_driver hpt366_pci_driver = {
 	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
-	.remove		= __devexit_p(hpt366_remove),
+	.remove		= hpt366_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

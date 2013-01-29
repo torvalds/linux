@@ -36,11 +36,9 @@
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
 
-#ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif /* CONFIG_IXGBE_PTP */
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
@@ -135,6 +133,7 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	unsigned int vf_api;
 };
 
 struct vf_macvlans {
@@ -482,8 +481,9 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
-#define IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED	(u32)(1 << 10)
+#define IXGBE_FLAG2_PTP_ENABLED			(u32)(1 << 10)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 11)
+#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 12)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -571,7 +571,6 @@ struct ixgbe_adapter {
 	u32 interrupt_event;
 	u32 led_reg;
 
-#ifdef CONFIG_IXGBE_PTP
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
@@ -580,8 +579,6 @@ struct ixgbe_adapter {
 	struct timecounter tc;
 	int rx_hwtstamp_filter;
 	u32 base_incval;
-	u32 cycle_speed;
-#endif /* CONFIG_IXGBE_PTP */
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
@@ -600,6 +597,8 @@ struct ixgbe_adapter {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *ixgbe_dbg_adapter;
 #endif /*CONFIG_DEBUG_FS*/
+
+	u8 default_up;
 };
 
 struct ixgbe_fdir_filter {
@@ -691,6 +690,7 @@ extern s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 						 u16 soft_id);
 extern void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 						 union ixgbe_atr_input *mask);
+extern bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_DCB
 extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
@@ -739,7 +739,6 @@ static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
 
-#ifdef CONFIG_IXGBE_PTP
 extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
@@ -751,7 +750,7 @@ extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
 extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 				    struct ifreq *ifr, int cmd);
 extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
-#endif /* CONFIG_IXGBE_PTP */
 
 #endif /* _IXGBE_H_ */

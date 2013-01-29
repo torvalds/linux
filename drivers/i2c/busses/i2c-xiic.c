@@ -689,7 +689,7 @@ static struct i2c_adapter xiic_adapter = {
 };
 
 
-static int __devinit xiic_i2c_probe(struct platform_device *pdev)
+static int xiic_i2c_probe(struct platform_device *pdev)
 {
 	struct xiic_i2c *i2c;
 	struct xiic_i2c_platform_data *pdata;
@@ -774,7 +774,7 @@ resource_missing:
 	return -ENOENT;
 }
 
-static int __devexit xiic_i2c_remove(struct platform_device* pdev)
+static int xiic_i2c_remove(struct platform_device *pdev)
 {
 	struct xiic_i2c *i2c = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -800,7 +800,7 @@ static int __devexit xiic_i2c_remove(struct platform_device* pdev)
 }
 
 #if defined(CONFIG_OF)
-static const struct of_device_id xiic_of_match[] __devinitconst = {
+static const struct of_device_id xiic_of_match[] = {
 	{ .compatible = "xlnx,xps-iic-2.00.a", },
 	{},
 };
@@ -809,7 +809,7 @@ MODULE_DEVICE_TABLE(of, xiic_of_match);
 
 static struct platform_driver xiic_i2c_driver = {
 	.probe   = xiic_i2c_probe,
-	.remove  = __devexit_p(xiic_i2c_remove),
+	.remove  = xiic_i2c_remove,
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,

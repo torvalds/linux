@@ -374,9 +374,8 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 				packet = list_first_entry(txq,
 							  struct htc_packet,
 							  list);
-				list_del(&packet->list);
-				/* insert into local queue */
-				list_add_tail(&packet->list, &send_queue);
+				/* move to local queue */
+				list_move_tail(&packet->list, &send_queue);
 			}
 
 			/*
@@ -399,11 +398,10 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 					 * for cleanup */
 				} else {
 					/* callback wants to keep this packet,
-					 * remove from caller's queue */
-					list_del(&packet->list);
-					/* put it in the send queue */
-					list_add_tail(&packet->list,
-						      &send_queue);
+					 * move from caller's queue to the send
+					 * queue */
+					list_move_tail(&packet->list,
+						       &send_queue);
 				}
 
 			}

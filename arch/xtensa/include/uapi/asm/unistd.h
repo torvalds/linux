@@ -260,7 +260,7 @@ __SYSCALL(115, sys_sendmmsg, 4)
 /* Process Operations */
 
 #define __NR_clone 				116
-__SYSCALL(116, xtensa_clone, 5)
+__SYSCALL(116, sys_clone, 5)
 #define __NR_execve 				117
 __SYSCALL(117, sys_execve, 3)
 #define __NR_exit 				118

@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include "ste_dma40_ll.h"
 

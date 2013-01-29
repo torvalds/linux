@@ -21,10 +21,6 @@
 #ifndef __CARD_H__
 #define __CARD_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "csr_wifi_hip_card_sdio.h"
 #include "csr_wifi_hip_signals.h"
 #include "csr_wifi_hip_unifi_udi.h"
@@ -113,11 +109,6 @@ CsrResult ConvertCsrSdioToCsrHipResult(card_t *card, CsrResult csrResult);
 void unifi_debug_log_to_buf(const char *fmt, ...);
 void unifi_debug_string_to_buf(const char *str);
 void unifi_debug_hex_to_buf(const char *buff, u16 length);
-#endif
-
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* __CARD_H__ */

@@ -250,7 +250,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 				rounddown_pow_of_two(max_t(int, MIN_RX_RINGS,
 							   min_t(int,
 								 dev->caps.num_comp_vectors,
-								 MAX_RX_RINGS)));
+								 DEF_RX_RINGS)));
 		} else {
 			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
 				min_t(int, dev->caps.comp_pool/

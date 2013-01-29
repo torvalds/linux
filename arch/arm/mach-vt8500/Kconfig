@@ -1,0 +1,12 @@
+config ARCH_VT8500
+	bool "VIA/WonderMedia 85xx" if ARCH_MULTI_V5
+	default ARCH_VT8500_SINGLE
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_CLK
+	help
+	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.

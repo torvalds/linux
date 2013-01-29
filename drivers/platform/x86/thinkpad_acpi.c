@@ -6732,7 +6732,7 @@ static int volume_alsa_mute_put(struct snd_kcontrol *kcontrol,
 	return volume_alsa_set_mute(!ucontrol->value.integer.value[0]);
 }
 
-static struct snd_kcontrol_new volume_alsa_control_vol __devinitdata = {
+static struct snd_kcontrol_new volume_alsa_control_vol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Console Playback Volume",
 	.index = 0,
@@ -6741,7 +6741,7 @@ static struct snd_kcontrol_new volume_alsa_control_vol __devinitdata = {
 	.get = volume_alsa_vol_get,
 };
 
-static struct snd_kcontrol_new volume_alsa_control_mute __devinitdata = {
+static struct snd_kcontrol_new volume_alsa_control_mute = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Console Playback Switch",
 	.index = 0,

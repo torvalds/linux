@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -201,8 +199,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				 */
 				acpi_gbl_owner_id_mask[j] |= (1 << k);
 
-				acpi_gbl_last_owner_id_index = (u8) j;
-				acpi_gbl_next_owner_id_offset = (u8) (k + 1);
+				acpi_gbl_last_owner_id_index = (u8)j;
+				acpi_gbl_next_owner_id_offset = (u8)(k + 1);
 
 				/*
 				 * Construct encoded ID from the index and bit position
@@ -252,7 +250,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
  *              control method or unloading a table. Either way, we would
  *              ignore any error anyway.
  *
- * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 255
+ * DESCRIPTION: Release a table or method owner ID. Valid IDs are 1 - 255
  *
  ******************************************************************************/
 
@@ -338,6 +336,73 @@ void acpi_ut_strupr(char *src_string)
 
 	return;
 }
+
+#ifdef ACPI_ASL_COMPILER
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_strlwr (strlwr)
+ *
+ * PARAMETERS:  src_string      - The source string to convert
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert string to lowercase
+ *
+ * NOTE: This is not a POSIX function, so it appears here, not in utclib.c
+ *
+ ******************************************************************************/
+
+void acpi_ut_strlwr(char *src_string)
+{
+	char *string;
+
+	ACPI_FUNCTION_ENTRY();
+
+	if (!src_string) {
+		return;
+	}
+
+	/* Walk entire string, lowercasing the letters */
+
+	for (string = src_string; *string; string++) {
+		*string = (char)ACPI_TOLOWER(*string);
+	}
+
+	return;
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_stricmp
+ *
+ * PARAMETERS:  string1             - first string to compare
+ *              string2             - second string to compare
+ *
+ * RETURN:      int that signifies string relationship. Zero means strings
+ *              are equal.
+ *
+ * DESCRIPTION: Implementation of the non-ANSI stricmp function (compare
+ *              strings with no case sensitivity)
+ *
+ ******************************************************************************/
+
+int acpi_ut_stricmp(char *string1, char *string2)
+{
+	int c1;
+	int c2;
+
+	do {
+		c1 = tolower((int)*string1);
+		c2 = tolower((int)*string2);
+
+		string1++;
+		string2++;
+	}
+	while ((c1 == c2) && (c1));
+
+	return (c1 - c2);
+}
+#endif
 
 /*******************************************************************************
  *
@@ -469,8 +534,8 @@ u32 acpi_ut_dword_byte_swap(u32 value)
  * RETURN:      None
  *
  * DESCRIPTION: Set the global integer bit width based upon the revision
- *              of the DSDT.  For Revision 1 and 0, Integers are 32 bits.
- *              For Revision 2 and above, Integers are 64 bits.  Yes, this
+ *              of the DSDT. For Revision 1 and 0, Integers are 32 bits.
+ *              For Revision 2 and above, Integers are 64 bits. Yes, this
  *              makes a difference.
  *
  ******************************************************************************/
@@ -606,7 +671,7 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
- * DESCRIPTION: Check for a valid ACPI name.  Each character must be one of:
+ * DESCRIPTION: Check for a valid ACPI name. Each character must be one of:
  *              1) Upper case alpha
  *              2) numeric
  *              3) underscore
@@ -638,29 +703,59 @@ u8 acpi_ut_valid_acpi_name(u32 name)
  * RETURN:      Repaired version of the name
  *
  * DESCRIPTION: Repair an ACPI name: Change invalid characters to '*' and
- *              return the new name.
+ *              return the new name. NOTE: the Name parameter must reside in
+ *              read/write memory, cannot be a const.
+ *
+ * An ACPI Name must consist of valid ACPI characters. We will repair the name
+ * if necessary because we don't want to abort because of this, but we want
+ * all namespace names to be printable. A warning message is appropriate.
+ *
+ * This issue came up because there are in fact machines that exhibit
+ * this problem, and we want to be able to enable ACPI support for them,
+ * even though there are a few bad names.
  *
  ******************************************************************************/
 
-acpi_name acpi_ut_repair_name(char *name)
+void acpi_ut_repair_name(char *name)
 {
-       u32 i;
-	char new_name[ACPI_NAME_SIZE];
+	u32 i;
+	u8 found_bad_char = FALSE;
+	u32 original_name;
+
+	ACPI_FUNCTION_NAME(ut_repair_name);
+
+	ACPI_MOVE_NAME(&original_name, name);
+
+	/* Check each character in the name */
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		new_name[i] = name[i];
+		if (acpi_ut_valid_acpi_char(name[i], i)) {
+			continue;
+		}
 
 		/*
 		 * Replace a bad character with something printable, yet technically
 		 * still invalid. This prevents any collisions with existing "good"
 		 * names in the namespace.
 		 */
-		if (!acpi_ut_valid_acpi_char(name[i], i)) {
-			new_name[i] = '*';
-		}
+		name[i] = '*';
+		found_bad_char = TRUE;
 	}
 
-	return (*(u32 *) new_name);
+	if (found_bad_char) {
+
+		/* Report warning only if in strict mode or debug mode */
+
+		if (!acpi_gbl_enable_interpreter_slack) {
+			ACPI_WARNING((AE_INFO,
+				      "Found bad character(s) in name, repaired: [%4.4s]\n",
+				      name));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Found bad character(s) in name, repaired: [%4.4s]\n",
+					  name));
+		}
+	}
 }
 
 /*******************************************************************************
@@ -681,7 +776,7 @@ acpi_name acpi_ut_repair_name(char *name)
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 {
 	u32 this_digit = 0;
 	u64 return_value = 0;
@@ -754,14 +849,14 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 
 			/* Convert ASCII 0-9 to Decimal value */
 
-			this_digit = ((u8) * string) - '0';
+			this_digit = ((u8)*string) - '0';
 		} else if (base == 10) {
 
 			/* Digit is out of range; possible in to_integer case only */
 
 			term = 1;
 		} else {
-			this_digit = (u8) ACPI_TOUPPER(*string);
+			this_digit = (u8)ACPI_TOUPPER(*string);
 			if (ACPI_IS_XDIGIT((char)this_digit)) {
 
 				/* Convert ASCII Hex char to value */
@@ -788,8 +883,9 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 
 		valid_digits++;
 
-		if (sign_of0x && ((valid_digits > 16)
-				  || ((valid_digits > 8) && mode32))) {
+		if (sign_of0x
+		    && ((valid_digits > 16)
+			|| ((valid_digits > 8) && mode32))) {
 			/*
 			 * This is to_integer operation case.
 			 * No any restrictions for string-to-integer conversion,
@@ -800,7 +896,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 
 		/* Divide the digit into the correct position */
 
-		(void)acpi_ut_short_divide((dividend - (u64) this_digit),
+		(void)acpi_ut_short_divide((dividend - (u64)this_digit),
 					   base, &quotient, NULL);
 
 		if (return_value > quotient) {
@@ -890,7 +986,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
  ******************************************************************************/
 
 acpi_status
-acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
+acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 			  void *target_object,
 			  acpi_pkg_callback walk_callback, void *context)
 {
@@ -917,10 +1013,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 
 		/*
 		 * Check for:
-		 * 1) An uninitialized package element.  It is completely
+		 * 1) An uninitialized package element. It is completely
 		 *    legal to declare a package and leave it uninitialized
 		 * 2) Not an internal object - can be a namespace node instead
-		 * 3) Any type other than a package.  Packages are handled in else
+		 * 3) Any type other than a package. Packages are handled in else
 		 *    case below.
 		 */
 		if ((!this_source_obj) ||
@@ -939,7 +1035,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 			       state->pkg.source_object->package.count) {
 				/*
 				 * We've handled all of the objects at this level,  This means
-				 * that we have just completed a package.  That package may
+				 * that we have just completed a package. That package may
 				 * have contained one or more packages itself.
 				 *
 				 * Delete this state and pop the previous state (package).

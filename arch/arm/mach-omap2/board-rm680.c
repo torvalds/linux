@@ -1,5 +1,5 @@
 /*
- * Board support file for Nokia RM-680/696.
+ * Board support file for Nokia N950 (RM-680) / N9 (RM-696).
  *
  * Copyright (C) 2010 Nokia
  *
@@ -22,17 +22,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <plat/i2c.h>
-#include <plat/mmc.h>
-#include <plat/usb.h>
-#include <plat/gpmc.h>
 #include "common.h"
-#include <plat/serial.h>
-
 #include "mux.h"
+#include "gpmc.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
+#include "gpmc-onenand.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
@@ -151,7 +148,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
@@ -164,5 +161,5 @@ MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END

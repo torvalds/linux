@@ -126,10 +126,19 @@ static void vcc_write_space(struct sock *sk)
 	rcu_read_unlock();
 }
 
+static void vcc_release_cb(struct sock *sk)
+{
+	struct atm_vcc *vcc = atm_sk(sk);
+
+	if (vcc->release_cb)
+		vcc->release_cb(vcc);
+}
+
 static struct proto vcc_proto = {
 	.name	  = "VCC",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct atm_vcc),
+	.release_cb = vcc_release_cb,
 };
 
 int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
@@ -156,7 +165,9 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
+	vcc->owner = NULL;
 	vcc->push_oam = NULL;
+	vcc->release_cb = NULL;
 	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
 	sk->sk_destruct = vcc_sock_destruct;
@@ -175,6 +186,7 @@ static void vcc_destroy_socket(struct sock *sk)
 			vcc->dev->ops->close(vcc);
 		if (vcc->push)
 			vcc->push(vcc, NULL); /* atmarpd has no push */
+		module_put(vcc->owner);
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 			atm_return(vcc, skb->truesize);

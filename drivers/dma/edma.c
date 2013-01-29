@@ -545,7 +545,7 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	INIT_LIST_HEAD(&dma->channels);
 }
 
-static int __devinit edma_probe(struct platform_device *pdev)
+static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_cc *ecc;
 	int ret;
@@ -585,7 +585,7 @@ err_reg1:
 	return ret;
 }
 
-static int __devexit edma_remove(struct platform_device *pdev)
+static int edma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct edma_cc *ecc = dev_get_drvdata(dev);
@@ -598,7 +598,7 @@ static int __devexit edma_remove(struct platform_device *pdev)
 
 static struct platform_driver edma_driver = {
 	.probe		= edma_probe,
-	.remove		= __devexit_p(edma_remove),
+	.remove		= edma_remove,
 	.driver = {
 		.name = "edma-dma-engine",
 		.owner = THIS_MODULE,

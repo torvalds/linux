@@ -25,4 +25,5 @@ generic-y += siginfo.h
 generic-y += statfs.h
 generic-y += termios.h
 generic-y += topology.h
+generic-y += trace_clock.h
 generic-y += xor.h

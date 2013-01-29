@@ -295,7 +295,7 @@ static void kxtj9_input_close(struct input_dev *dev)
 	kxtj9_disable(tj9);
 }
 
-static void __devinit kxtj9_init_input_device(struct kxtj9_data *tj9,
+static void kxtj9_init_input_device(struct kxtj9_data *tj9,
 					      struct input_dev *input_dev)
 {
 	__set_bit(EV_ABS, input_dev->evbit);
@@ -308,7 +308,7 @@ static void __devinit kxtj9_init_input_device(struct kxtj9_data *tj9,
 	input_dev->dev.parent = &tj9->client->dev;
 }
 
-static int __devinit kxtj9_setup_input_device(struct kxtj9_data *tj9)
+static int kxtj9_setup_input_device(struct kxtj9_data *tj9)
 {
 	struct input_dev *input_dev;
 	int err;
@@ -433,7 +433,7 @@ static void kxtj9_polled_input_close(struct input_polled_dev *dev)
 	kxtj9_disable(tj9);
 }
 
-static int __devinit kxtj9_setup_polled_device(struct kxtj9_data *tj9)
+static int kxtj9_setup_polled_device(struct kxtj9_data *tj9)
 {
 	int err;
 	struct input_polled_dev *poll_dev;
@@ -466,7 +466,7 @@ static int __devinit kxtj9_setup_polled_device(struct kxtj9_data *tj9)
 	return 0;
 }
 
-static void __devexit kxtj9_teardown_polled_device(struct kxtj9_data *tj9)
+static void kxtj9_teardown_polled_device(struct kxtj9_data *tj9)
 {
 	input_unregister_polled_device(tj9->poll_dev);
 	input_free_polled_device(tj9->poll_dev);
@@ -485,7 +485,7 @@ static inline void kxtj9_teardown_polled_device(struct kxtj9_data *tj9)
 
 #endif
 
-static int __devinit kxtj9_verify(struct kxtj9_data *tj9)
+static int kxtj9_verify(struct kxtj9_data *tj9)
 {
 	int retval;
 
@@ -506,7 +506,7 @@ out:
 	return retval;
 }
 
-static int __devinit kxtj9_probe(struct i2c_client *client,
+static int kxtj9_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
 	const struct kxtj9_platform_data *pdata = client->dev.platform_data;
@@ -594,7 +594,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit kxtj9_remove(struct i2c_client *client)
+static int kxtj9_remove(struct i2c_client *client)
 {
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
 
@@ -663,7 +663,7 @@ static struct i2c_driver kxtj9_driver = {
 		.pm	= &kxtj9_pm_ops,
 	},
 	.probe		= kxtj9_probe,
-	.remove		= __devexit_p(kxtj9_remove),
+	.remove		= kxtj9_remove,
 	.id_table	= kxtj9_id,
 };
 

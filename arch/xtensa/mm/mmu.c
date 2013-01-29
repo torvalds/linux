@@ -37,7 +37,7 @@ void __init init_mmu(void)
 
 	/* Set rasid register to a known value. */
 
-	set_rasid_register(ASID_USER_FIRST);
+	set_rasid_register(ASID_INSERT(ASID_USER_FIRST));
 
 	/* Set PTEVADDR special register to the start of the page
 	 * table, which is in kernel mappable space (ie. not

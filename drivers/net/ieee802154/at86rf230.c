@@ -778,7 +778,7 @@ static int at86rf230_fill_data(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit at86rf230_probe(struct spi_device *spi)
+static int at86rf230_probe(struct spi_device *spi)
 {
 	struct ieee802154_dev *dev;
 	struct at86rf230_local *lp;
@@ -920,7 +920,7 @@ err_fill:
 	return rc;
 }
 
-static int __devexit at86rf230_remove(struct spi_device *spi)
+static int at86rf230_remove(struct spi_device *spi)
 {
 	struct at86rf230_local *lp = spi_get_drvdata(spi);
 
@@ -947,7 +947,7 @@ static struct spi_driver at86rf230_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe      = at86rf230_probe,
-	.remove     = __devexit_p(at86rf230_remove),
+	.remove     = at86rf230_remove,
 	.suspend    = at86rf230_suspend,
 	.resume     = at86rf230_resume,
 };

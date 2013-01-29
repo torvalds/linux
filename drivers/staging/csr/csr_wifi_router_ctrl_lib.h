@@ -22,11 +22,6 @@
 #include "csr_wifi_router_ctrl_prim.h"
 #include "csr_wifi_router_task.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*----------------------------------------------------------------------------*
  *  CsrWifiRouterCtrlFreeUpstreamMessageContents
  *
@@ -2083,10 +2078,5 @@ extern const char *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER_CTRL_PRI
 
 #define CsrWifiRouterCtrlWifiOnCfmSend(dst__, clientData__, status__) \
     CsrWifiRouterCtrlWifiOnCfmSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, clientData__, status__)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_ROUTER_CTRL_LIB_H__ */

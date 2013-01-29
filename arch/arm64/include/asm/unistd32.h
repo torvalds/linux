@@ -23,7 +23,7 @@
 
 __SYSCALL(0,   sys_restart_syscall)
 __SYSCALL(1,   sys_exit)
-__SYSCALL(2,   compat_sys_fork_wrapper)
+__SYSCALL(2,   sys_fork)
 __SYSCALL(3,   sys_read)
 __SYSCALL(4,   sys_write)
 __SYSCALL(5,   compat_sys_open)
@@ -32,7 +32,7 @@ __SYSCALL(7,   sys_ni_syscall)			/* 7 was sys_waitpid */
 __SYSCALL(8,   sys_creat)
 __SYSCALL(9,   sys_link)
 __SYSCALL(10,  sys_unlink)
-__SYSCALL(11,  compat_sys_execve_wrapper)
+__SYSCALL(11,  compat_sys_execve)
 __SYSCALL(12,  sys_chdir)
 __SYSCALL(13,  sys_ni_syscall)			/* 13 was sys_time */
 __SYSCALL(14,  sys_mknod)
@@ -141,7 +141,7 @@ __SYSCALL(116, compat_sys_sysinfo)
 __SYSCALL(117, sys_ni_syscall)			/* 117 was sys_ipc */
 __SYSCALL(118, sys_fsync)
 __SYSCALL(119, compat_sys_sigreturn_wrapper)
-__SYSCALL(120, compat_sys_clone_wrapper)
+__SYSCALL(120, sys_clone)
 __SYSCALL(121, sys_setdomainname)
 __SYSCALL(122, sys_newuname)
 __SYSCALL(123, sys_ni_syscall)			/* 123 was sys_modify_ldt */
@@ -211,7 +211,7 @@ __SYSCALL(186, compat_sys_sigaltstack_wrapper)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */
-__SYSCALL(190, compat_sys_vfork_wrapper)
+__SYSCALL(190, sys_vfork)
 __SYSCALL(191, compat_sys_getrlimit)		/* SuS compliant getrlimit */
 __SYSCALL(192, sys_mmap_pgoff)
 __SYSCALL(193, compat_sys_truncate64_wrapper)
@@ -392,11 +392,16 @@ __SYSCALL(367, sys_fanotify_init)
 __SYSCALL(368, compat_sys_fanotify_mark_wrapper)
 __SYSCALL(369, sys_prlimit64)
 __SYSCALL(370, sys_name_to_handle_at)
-__SYSCALL(371, sys_open_by_handle_at)
-__SYSCALL(372, sys_clock_adjtime)
+__SYSCALL(371, compat_sys_open_by_handle_at)
+__SYSCALL(372, compat_sys_clock_adjtime)
 __SYSCALL(373, sys_syncfs)
+__SYSCALL(374, compat_sys_sendmmsg)
+__SYSCALL(375, sys_setns)
+__SYSCALL(376, compat_sys_process_vm_readv)
+__SYSCALL(377, compat_sys_process_vm_writev)
+__SYSCALL(378, sys_ni_syscall)			/* 378 for kcmp */
 
-#define __NR_compat_syscalls		374
+#define __NR_compat_syscalls		379
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.

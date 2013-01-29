@@ -217,7 +217,7 @@ static struct watchdog_device sh_wdt_dev = {
 	.ops	= &sh_wdt_ops,
 };
 
-static int __devinit sh_wdt_probe(struct platform_device *pdev)
+static int sh_wdt_probe(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt;
 	struct resource *res;
@@ -298,7 +298,7 @@ err:
 	return rc;
 }
 
-static int __devexit sh_wdt_remove(struct platform_device *pdev)
+static int sh_wdt_remove(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt = platform_get_drvdata(pdev);
 
@@ -324,7 +324,7 @@ static struct platform_driver sh_wdt_driver = {
 	},
 
 	.probe		= sh_wdt_probe,
-	.remove		= __devexit_p(sh_wdt_remove),
+	.remove		= sh_wdt_remove,
 	.shutdown	= sh_wdt_shutdown,
 };
 

@@ -166,7 +166,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		int ret;
 		struct urb *urb = priv->urb;
 		struct usbip_header pdu_header;
-		void *iso_buffer = NULL;
+		struct usbip_iso_packet_descriptor *iso_buffer = NULL;
 		struct kvec *iov = NULL;
 		int iovnum = 0;
 
@@ -192,7 +192,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		setup_ret_submit_pdu(&pdu_header, urb);
 		usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
 				  pdu_header.base.seqnum, urb);
-		/*usbip_dump_header(pdu_header);*/
 		usbip_header_correct_endian(&pdu_header, 1);
 
 		iov[iovnum].iov_base = &pdu_header;

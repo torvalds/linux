@@ -80,7 +80,6 @@ config PLATFORM_AT32AP
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_ALLOCATOR
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 
 #
 # CPU types
@@ -192,9 +191,6 @@ source "kernel/Kconfig.preempt"
 
 config QUICKLIST
 	def_bool y
-
-config HAVE_ARCH_BOOTMEM
-	def_bool n
 
 config ARCH_HAVE_MEMORY_PRESENT
 	def_bool n

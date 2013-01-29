@@ -45,7 +45,7 @@ static struct regmap_config max77686_regmap_config = {
 };
 
 #ifdef CONFIG_OF
-static struct of_device_id __devinitdata max77686_pmic_dt_match[] = {
+static struct of_device_id max77686_pmic_dt_match[] = {
 	{.compatible = "maxim,max77686",        .data = 0},
 	{},
 };

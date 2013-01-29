@@ -522,7 +522,7 @@ static void sdh_reset(void)
 	SSYNC();
 }
 
-static int __devinit sdh_probe(struct platform_device *pdev)
+static int sdh_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct sdh_host *host;
@@ -617,7 +617,7 @@ out1:
 	return ret;
 }
 
-static int __devexit sdh_remove(struct platform_device *pdev)
+static int sdh_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -680,7 +680,7 @@ static int sdh_resume(struct platform_device *dev)
 
 static struct platform_driver sdh_driver = {
 	.probe   = sdh_probe,
-	.remove  = __devexit_p(sdh_remove),
+	.remove  = sdh_remove,
 	.suspend = sdh_suspend,
 	.resume  = sdh_resume,
 	.driver  = {

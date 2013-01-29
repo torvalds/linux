@@ -70,6 +70,10 @@ snap_*
 
 	A directory per each snapshot
 
+parent
+
+	Information identifying the pool, image, and snapshot id for
+	the parent image in a layered rbd image (format 2 only).
 
 Entries under /sys/bus/rbd/devices/<dev-id>/snap_<snap-name>
 -------------------------------------------------------------

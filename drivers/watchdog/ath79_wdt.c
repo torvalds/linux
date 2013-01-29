@@ -224,7 +224,7 @@ static struct miscdevice ath79_wdt_miscdev = {
 	.fops = &ath79_wdt_fops,
 };
 
-static int __devinit ath79_wdt_probe(struct platform_device *pdev)
+static int ath79_wdt_probe(struct platform_device *pdev)
 {
 	u32 ctrl;
 	int err;
@@ -270,7 +270,7 @@ err_clk_put:
 	return err;
 }
 
-static int __devexit ath79_wdt_remove(struct platform_device *pdev)
+static int ath79_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ath79_wdt_miscdev);
 	clk_disable(wdt_clk);
@@ -284,7 +284,8 @@ static void ath97_wdt_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver ath79_wdt_driver = {
-	.remove		= __devexit_p(ath79_wdt_remove),
+	.probe		= ath79_wdt_probe,
+	.remove		= ath79_wdt_remove,
 	.shutdown	= ath97_wdt_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
@@ -292,17 +293,7 @@ static struct platform_driver ath79_wdt_driver = {
 	},
 };
 
-static int __init ath79_wdt_init(void)
-{
-	return platform_driver_probe(&ath79_wdt_driver, ath79_wdt_probe);
-}
-module_init(ath79_wdt_init);
-
-static void __exit ath79_wdt_exit(void)
-{
-	platform_driver_unregister(&ath79_wdt_driver);
-}
-module_exit(ath79_wdt_exit);
+module_platform_driver(ath79_wdt_driver);
 
 MODULE_DESCRIPTION("Atheros AR71XX/AR724X/AR913X hardware watchdog driver");
 MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org");

@@ -47,6 +47,7 @@
 
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/haldefs.h>
+#include <asm/netlogic/common.h>
 
 #include <asm/netlogic/xlr/msidef.h>
 #include <asm/netlogic/xlr/iomap.h>
@@ -174,22 +175,9 @@ static struct pci_dev *xls_get_pcie_link(const struct pci_dev *dev)
 	return p ? bus->self : NULL;
 }
 
-static int get_irq_vector(const struct pci_dev *dev)
+static int nlm_pci_link_to_irq(int link)
 {
-	struct pci_dev *lnk;
-
-	if (!nlm_chip_is_xls())
-		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ */
-
-	/*
-	 * For XLS PCIe, there is an IRQ per Link, find out which
-	 * link the device is on to assign interrupts
-	 */
-	lnk = xls_get_pcie_link(dev);
-	if (lnk == NULL)
-		return 0;
-
-	switch	(PCI_SLOT(lnk->devfn)) {
+	switch	(link) {
 	case 0:
 		return PIC_PCIE_LINK0_IRQ;
 	case 1:
@@ -205,8 +193,24 @@ static int get_irq_vector(const struct pci_dev *dev)
 		else
 			return PIC_PCIE_LINK3_IRQ;
 	}
-	WARN(1, "Unexpected devfn %d\n", lnk->devfn);
+	WARN(1, "Unexpected link %d\n", link);
 	return 0;
+}
+
+static int get_irq_vector(const struct pci_dev *dev)
+{
+	struct pci_dev *lnk;
+	int link;
+
+	if (!nlm_chip_is_xls())
+		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ */
+
+	lnk = xls_get_pcie_link(dev);
+	if (lnk == NULL)
+		return 0;
+
+	link = PCI_SLOT(lnk->devfn);
+	return nlm_pci_link_to_irq(link);
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -332,6 +336,9 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 
 static int __init pcibios_init(void)
 {
+	void (*extra_ack)(struct irq_data *);
+	int link, irq;
+
 	/* PSB assigns PCI resources */
 	pci_set_flags(PCI_PROBE_ONLY);
 	pci_config_base = ioremap(DEFAULT_PCI_CONFIG_BASE, 16 << 20);
@@ -350,27 +357,19 @@ static int __init pcibios_init(void)
 	 * For PCI interrupts, we need to ack the PCI controller too, overload
 	 * irq handler data to do this
 	 */
-	if (nlm_chip_is_xls()) {
-		if (nlm_chip_is_xls_b()) {
-			irq_set_handler_data(PIC_PCIE_LINK0_IRQ,
-							xls_pcie_ack_b);
-			irq_set_handler_data(PIC_PCIE_LINK1_IRQ,
-							xls_pcie_ack_b);
-			irq_set_handler_data(PIC_PCIE_XLSB0_LINK2_IRQ,
-							xls_pcie_ack_b);
-			irq_set_handler_data(PIC_PCIE_XLSB0_LINK3_IRQ,
-							xls_pcie_ack_b);
-		} else {
-			irq_set_handler_data(PIC_PCIE_LINK0_IRQ, xls_pcie_ack);
-			irq_set_handler_data(PIC_PCIE_LINK1_IRQ, xls_pcie_ack);
-			irq_set_handler_data(PIC_PCIE_LINK2_IRQ, xls_pcie_ack);
-			irq_set_handler_data(PIC_PCIE_LINK3_IRQ, xls_pcie_ack);
-		}
-	} else {
+	if (!nlm_chip_is_xls()) {
 		/* XLR PCI controller ACK */
-		irq_set_handler_data(PIC_PCIX_IRQ, xlr_pci_ack);
+		nlm_set_pic_extra_ack(0, PIC_PCIX_IRQ, xlr_pci_ack);
+	} else {
+		if  (nlm_chip_is_xls_b())
+			extra_ack = xls_pcie_ack_b;
+		else
+			extra_ack = xls_pcie_ack;
+		for (link = 0; link < 4; link++) {
+			irq = nlm_pci_link_to_irq(link);
+			nlm_set_pic_extra_ack(0, irq, extra_ack);
+		}
 	}
-
 	return 0;
 }
 

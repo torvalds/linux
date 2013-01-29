@@ -89,7 +89,8 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
 	/* Set the mask bit only if there are references to this GPE */
 
 	if (gpe_event_info->runtime_count) {
-		ACPI_SET_BIT(gpe_register_info->enable_for_run, (u8)register_bit);
+		ACPI_SET_BIT(gpe_register_info->enable_for_run,
+			     (u8)register_bit);
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -106,8 +107,7 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
  * DESCRIPTION: Clear a GPE of stale events and enable it.
  *
  ******************************************************************************/
-acpi_status
-acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
 
@@ -131,8 +131,8 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	}
 
 	/* Enable the requested GPE */
-	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
 
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
 	return_ACPI_STATUS(status);
 }
 
@@ -150,7 +150,8 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status
+acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status = AE_OK;
 
@@ -191,7 +192,8 @@ acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status
+acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status = AE_OK;
 
@@ -208,7 +210,8 @@ acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_i
 
 		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
 		if (ACPI_SUCCESS(status)) {
-			status = acpi_hw_low_set_gpe(gpe_event_info,
+			status =
+			    acpi_hw_low_set_gpe(gpe_event_info,
 						     ACPI_GPE_DISABLE);
 		}
 
@@ -306,7 +309,8 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 
 	/* A Non-NULL gpe_device means this is a GPE Block Device */
 
-	obj_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)
+	obj_desc =
+	    acpi_ns_get_attached_object((struct acpi_namespace_node *)
 					       gpe_device);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return (NULL);

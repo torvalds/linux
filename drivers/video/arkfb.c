@@ -100,7 +100,7 @@ static const struct svga_timing_regs ark_timing_regs     = {
 
 /* Module parameters */
 
-static char *mode_option __devinitdata = "640x480-8@60";
+static char *mode_option = "640x480-8@60";
 
 #ifdef CONFIG_MTRR
 static int mtrr = 1;
@@ -950,7 +950,7 @@ static struct fb_ops arkfb_ops = {
 
 
 /* PCI probe */
-static int __devinit ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct pci_bus_region bus_reg;
 	struct resource vga_res;
@@ -1086,7 +1086,7 @@ err_enable_device:
 
 /* PCI remove */
 
-static void __devexit ark_pci_remove(struct pci_dev *dev)
+static void ark_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -1184,7 +1184,7 @@ fail:
 
 /* List of boards that we are trying to support */
 
-static struct pci_device_id ark_devices[] __devinitdata = {
+static struct pci_device_id ark_devices[] = {
 	{PCI_DEVICE(0xEDD8, 0xA099)},
 	{0, 0, 0, 0, 0, 0, 0}
 };
@@ -1196,7 +1196,7 @@ static struct pci_driver arkfb_pci_driver = {
 	.name		= "arkfb",
 	.id_table	= ark_devices,
 	.probe		= ark_pci_probe,
-	.remove		= __devexit_p(ark_pci_remove),
+	.remove		= ark_pci_remove,
 	.suspend	= ark_pci_suspend,
 	.resume		= ark_pci_resume,
 };

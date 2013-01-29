@@ -205,7 +205,7 @@ err_exit:
 	return ret;
 }
 
-int ivtv_alsa_load(struct ivtv *itv)
+static int __init ivtv_alsa_load(struct ivtv *itv)
 {
 	struct v4l2_device *v4l2_dev = &itv->v4l2_dev;
 	struct ivtv_stream *s;

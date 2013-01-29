@@ -11,7 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <asm/bootinfo.h>
+
+#include <bcm63xx_reset.h>
 
 #include "pci-bcm63xx.h"
 
@@ -119,40 +122,35 @@ static void __init bcm63xx_reset_pcie(void)
 {
 	u32 val;
 
-	/* enable clock */
-	val = bcm_perf_readl(PERF_CKCTL_REG);
-	val |= CKCTL_6328_PCIE_EN;
-	bcm_perf_writel(val, PERF_CKCTL_REG);
-
 	/* enable SERDES */
 	val = bcm_misc_readl(MISC_SERDES_CTRL_REG);
 	val |= SERDES_PCIE_EN | SERDES_PCIE_EXD_EN;
 	bcm_misc_writel(val, MISC_SERDES_CTRL_REG);
 
 	/* reset the PCIe core */
-	val = bcm_perf_readl(PERF_SOFTRESET_6328_REG);
-
-	val &= ~SOFTRESET_6328_PCIE_MASK;
-	val &= ~SOFTRESET_6328_PCIE_CORE_MASK;
-	val &= ~SOFTRESET_6328_PCIE_HARD_MASK;
-	val &= ~SOFTRESET_6328_PCIE_EXT_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE, 1);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE_EXT, 1);
 	mdelay(10);
 
-	val |= SOFTRESET_6328_PCIE_MASK;
-	val |= SOFTRESET_6328_PCIE_CORE_MASK;
-	val |= SOFTRESET_6328_PCIE_HARD_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE, 0);
 	mdelay(10);
 
-	val |= SOFTRESET_6328_PCIE_EXT_MASK;
-	bcm_perf_writel(val, PERF_SOFTRESET_6328_REG);
+	bcm63xx_core_set_reset(BCM63XX_RESET_PCIE_EXT, 0);
 	mdelay(200);
 }
+
+static struct clk *pcie_clk;
 
 static int __init bcm63xx_register_pcie(void)
 {
 	u32 val;
+
+	/* enable clock */
+	pcie_clk = clk_get(NULL, "pcie");
+	if (IS_ERR_OR_NULL(pcie_clk))
+		return -ENODEV;
+
+	clk_prepare_enable(pcie_clk);
 
 	bcm63xx_reset_pcie();
 

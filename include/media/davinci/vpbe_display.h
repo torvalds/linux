@@ -16,7 +16,7 @@
 /* Header files */
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <media/videobuf-dma-contig.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/davinci/vpbe_types.h>
 #include <media/davinci/vpbe_osd.h>
 #include <media/davinci/vpbe.h>
@@ -62,6 +62,11 @@ struct display_layer_info {
 	enum osd_v_exp_ratio v_exp;
 };
 
+struct vpbe_disp_buffer {
+	struct vb2_buffer vb;
+	struct list_head list;
+};
+
 /* vpbe display object structure */
 struct vpbe_layer {
 	/* number of buffers in fbuffers */
@@ -69,13 +74,15 @@ struct vpbe_layer {
 	/* Pointer to the vpbe_display */
 	struct vpbe_display *disp_dev;
 	/* Pointer pointing to current v4l2_buffer */
-	struct videobuf_buffer *cur_frm;
+	struct vpbe_disp_buffer *cur_frm;
 	/* Pointer pointing to next v4l2_buffer */
-	struct videobuf_buffer *next_frm;
+	struct vpbe_disp_buffer *next_frm;
 	/* videobuf specific parameters
 	 * Buffer queue used in video-buf
 	 */
-	struct videobuf_queue buffer_queue;
+	struct vb2_queue buffer_queue;
+	/* allocator-specific contexts for each plane */
+	struct vb2_alloc_ctx *alloc_ctx;
 	/* Queue of filled frames */
 	struct list_head dma_queue;
 	/* Used in video-buf */

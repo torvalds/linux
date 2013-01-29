@@ -1935,7 +1935,7 @@ static const unsigned char filename_rev_map[256] = {
  * @src: Source location for the filename to encode
  * @src_size: Size of the source in bytes
  */
-void ecryptfs_encode_for_filename(unsigned char *dst, size_t *dst_size,
+static void ecryptfs_encode_for_filename(unsigned char *dst, size_t *dst_size,
 				  unsigned char *src, size_t src_size)
 {
 	size_t num_blocks;

@@ -327,12 +327,8 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
-	short enable_gpio0;
-	short hw_plcp_len;
 	short plcp_preamble_mode; // 0:auto 1:short 2:long
 
-	spinlock_t irq_lock;
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t ps_lock;
@@ -350,7 +346,6 @@ typedef struct r8180_priv
 	u8 channel_plan;  // it's the channel plan index
 	short up;
 	short crcmon; //if 1 allow bad crc frame reception in monitor mode
-	short prism_hdr;
 
 	struct timer_list scan_timer;
 	/*short scanpending;
@@ -359,14 +354,11 @@ typedef struct r8180_priv
 	u8 active_probe;
 	//u8 active_scan_num;
 	struct semaphore wx_sem;
-	struct semaphore rf_state;
 	short hw_wep;
 
 	short digphy;
 	short antb;
 	short diversity;
-	u8 cs_treshold;
-	short rcr_csense;
 	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	void (*rf_set_chan)(struct net_device *dev,short ch);
@@ -491,7 +483,6 @@ typedef struct r8180_priv
 	RT_RF_POWER_STATE eRFPowerState;
 	u32 RfOffReason;
 	bool RFChangeInProgress;
-	bool bInHctTest;
 	bool SetRFPowerStateInProgress;
 	u8   RFProgType;
 	bool bLeisurePs;
@@ -618,17 +609,11 @@ typedef struct r8180_priv
 //	struct workqueue_struct *workqueue;
 	struct work_struct reset_wq;
 	struct work_struct watch_dog_wq;
-	struct work_struct tx_irq_wq;
 	short ack_tx_to_ieee;
 
-	u8 PowerProfile;
-	u32 CSMethod;
-	u8 cck_txpwr_base;
-	u8 ofdm_txpwr_base;
 	u8 dma_poll_stop_mask;
 
 	//u8 RegThreeWireMode;
-	u8 MWIEnable;
 	u16 ShortRetryLimit;
 	u16 LongRetryLimit;
 	u16 EarlyRxThreshold;
@@ -667,35 +652,22 @@ void write_nic_dword(struct net_device *dev, int x,u32 y);
 void force_pci_posting(struct net_device *dev);
 
 void rtl8180_rtx_disable(struct net_device *);
-void rtl8180_rx_enable(struct net_device *);
-void rtl8180_tx_enable(struct net_device *);
-void rtl8180_start_scanning(struct net_device *dev);
-void rtl8180_start_scanning_s(struct net_device *dev);
-void rtl8180_stop_scanning(struct net_device *dev);
-void rtl8180_disassociate(struct net_device *dev);
-//void fix_rx_fifo(struct net_device *dev);
 void rtl8180_set_anaparam(struct net_device *dev,u32 a);
 void rtl8185_set_anaparam2(struct net_device *dev,u32 a);
 void rtl8180_set_hw_wep(struct net_device *dev);
 void rtl8180_no_hw_wep(struct net_device *dev);
 void rtl8180_update_msr(struct net_device *dev);
-//void rtl8180_BSS_create(struct net_device *dev);
 void rtl8180_beacon_tx_disable(struct net_device *dev);
 void rtl8180_beacon_rx_disable(struct net_device *dev);
-void rtl8180_conttx_enable(struct net_device *dev);
-void rtl8180_conttx_disable(struct net_device *dev);
 int rtl8180_down(struct net_device *dev);
 int rtl8180_up(struct net_device *dev);
 void rtl8180_commit(struct net_device *dev);
 void rtl8180_set_chan(struct net_device *dev,short ch);
-void rtl8180_set_master_essid(struct net_device *dev,char *essid);
-void rtl8180_update_beacon_security(struct net_device *dev);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8185_rf_pins_enable(struct net_device *dev);
-void IBSS_randomize_cell(struct net_device *dev);
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
 int get_curr_tx_free_desc(struct net_device *dev, int priority);

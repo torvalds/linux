@@ -154,6 +154,8 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 max;
 
+	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
+
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLE_BACKLIGHT_FAILED;
 

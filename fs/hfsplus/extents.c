@@ -329,6 +329,7 @@ static int hfsplus_free_extents(struct super_block *sb,
 {
 	u32 count, start;
 	int i;
+	int err = 0;
 
 	hfsplus_dump_extent(extent);
 	for (i = 0; i < 8; extent++, i++) {
@@ -345,18 +346,33 @@ found:
 	for (;;) {
 		start = be32_to_cpu(extent->start_block);
 		if (count <= block_nr) {
-			hfsplus_block_free(sb, start, count);
+			err = hfsplus_block_free(sb, start, count);
+			if (err) {
+				printk(KERN_ERR "hfs: can't free extent\n");
+				dprint(DBG_EXTENT, " start: %u count: %u\n",
+					start, count);
+			}
 			extent->block_count = 0;
 			extent->start_block = 0;
 			block_nr -= count;
 		} else {
 			count -= block_nr;
-			hfsplus_block_free(sb, start + count, block_nr);
+			err = hfsplus_block_free(sb, start + count, block_nr);
+			if (err) {
+				printk(KERN_ERR "hfs: can't free extent\n");
+				dprint(DBG_EXTENT, " start: %u count: %u\n",
+					start, count);
+			}
 			extent->block_count = cpu_to_be32(count);
 			block_nr = 0;
 		}
-		if (!block_nr || !i)
-			return 0;
+		if (!block_nr || !i) {
+			/*
+			 * Try to free all extents and
+			 * return only last error
+			 */
+			return err;
+		}
 		i--;
 		extent--;
 		count = be32_to_cpu(extent->block_count);

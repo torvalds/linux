@@ -214,7 +214,7 @@ out:
 }
 
 /***************************************************************************
- * Intel Advanced Management Technolgy ME Client
+ * Intel Advanced Management Technology ME Client
  ***************************************************************************/
 
 #define AMT_MAJOR_VERSION 1
@@ -256,7 +256,7 @@ struct amt_code_versions {
 } __attribute__((packed));
 
 /***************************************************************************
- * Intel Advanced Management Technolgy Host Interface
+ * Intel Advanced Management Technology Host Interface
  ***************************************************************************/
 
 struct amt_host_if_msg_header {

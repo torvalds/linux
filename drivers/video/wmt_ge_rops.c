@@ -124,7 +124,7 @@ int wmt_ge_sync(struct fb_info *p)
 }
 EXPORT_SYMBOL_GPL(wmt_ge_sync);
 
-static int __devinit wmt_ge_rops_probe(struct platform_device *pdev)
+static int wmt_ge_rops_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -152,7 +152,7 @@ static int __devinit wmt_ge_rops_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit wmt_ge_rops_remove(struct platform_device *pdev)
+static int wmt_ge_rops_remove(struct platform_device *pdev)
 {
 	iounmap(regbase);
 	return 0;
@@ -165,7 +165,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver wmt_ge_rops_driver = {
 	.probe		= wmt_ge_rops_probe,
-	.remove		= __devexit_p(wmt_ge_rops_remove),
+	.remove		= wmt_ge_rops_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "wmt_ge_rops",

@@ -24,6 +24,7 @@ struct rd_dev_sg_table {
 #define RDF_HAS_PAGE_COUNT	0x01
 
 struct rd_dev {
+	struct se_device dev;
 	u32		rd_flags;
 	/* Unique Ramdisk Device ID in Ramdisk HBA */
 	u32		rd_dev_id;

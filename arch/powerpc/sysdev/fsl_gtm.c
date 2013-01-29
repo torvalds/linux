@@ -1,7 +1,7 @@
 /*
  * Freescale General-purpose Timers Module
  *
- * Copyright (c) Freescale Semicondutor, Inc. 2006.
+ * Copyright (c) Freescale Semiconductor, Inc. 2006.
  *               Shlomi Gridish <gridish@freescale.com>
  *               Jerry Huang <Chang-Ming.Huang@freescale.com>
  * Copyright (c) MontaVista Software, Inc. 2008.

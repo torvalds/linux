@@ -47,8 +47,6 @@ struct s3c_rtc_drv_data {
 /* I have yet to find an S3C implementation with more than one
  * of these rtc blocks in */
 
-static struct resource *s3c_rtc_mem;
-
 static struct clk *rtc_clk;
 static void __iomem *s3c_rtc_base;
 static int s3c_rtc_alarmno = NO_IRQ;
@@ -186,7 +184,7 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = readb(base + S3C2410_RTCYEAR);
 	rtc_tm->tm_sec  = readb(base + S3C2410_RTCSEC);
 
-	/* the only way to work out wether the system was mid-update
+	/* the only way to work out whether the system was mid-update
 	 * when we read it is to check the second counter, and if it
 	 * is zero, then we re-try the entire read
 	 */
@@ -423,24 +421,16 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 	clk_disable(rtc_clk);
 }
 
-static int __devexit s3c_rtc_remove(struct platform_device *dev)
+static int s3c_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	free_irq(s3c_rtc_alarmno, rtc);
-	free_irq(s3c_rtc_tickno, rtc);
 
 	platform_set_drvdata(dev, NULL);
 	rtc_device_unregister(rtc);
 
 	s3c_rtc_setaie(&dev->dev, 0);
 
-	clk_put(rtc_clk);
 	rtc_clk = NULL;
-
-	iounmap(s3c_rtc_base);
-	release_resource(s3c_rtc_mem);
-	kfree(s3c_rtc_mem);
 
 	return 0;
 }
@@ -461,7 +451,7 @@ static inline int s3c_rtc_get_driver_data(struct platform_device *pdev)
 	return platform_get_device_id(pdev)->driver_data;
 }
 
-static int __devinit s3c_rtc_probe(struct platform_device *pdev)
+static int s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct rtc_time rtc_tm;
@@ -496,28 +486,18 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	s3c_rtc_mem = request_mem_region(res->start, resource_size(res),
-					 pdev->name);
-
-	if (s3c_rtc_mem == NULL) {
-		dev_err(&pdev->dev, "failed to reserve memory region\n");
-		ret = -ENOENT;
-		goto err_nores;
-	}
-
-	s3c_rtc_base = ioremap(res->start, resource_size(res));
+	s3c_rtc_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (s3c_rtc_base == NULL) {
-		dev_err(&pdev->dev, "failed ioremap()\n");
-		ret = -EINVAL;
-		goto err_nomap;
+		dev_err(&pdev->dev, "failed to ioremap memory region\n");
+		return -EINVAL;
 	}
 
-	rtc_clk = clk_get(&pdev->dev, "rtc");
+	rtc_clk = devm_clk_get(&pdev->dev, "rtc");
 	if (IS_ERR(rtc_clk)) {
 		dev_err(&pdev->dev, "failed to find rtc clock source\n");
 		ret = PTR_ERR(rtc_clk);
 		rtc_clk = NULL;
-		goto err_clk;
+		return ret;
 	}
 
 	clk_enable(rtc_clk);
@@ -576,27 +556,23 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_setfreq(&pdev->dev, 1);
 
-	ret = request_irq(s3c_rtc_alarmno, s3c_rtc_alarmirq,
+	ret = devm_request_irq(&pdev->dev, s3c_rtc_alarmno, s3c_rtc_alarmirq,
 			  0,  "s3c2410-rtc alarm", rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d error %d\n", s3c_rtc_alarmno, ret);
 		goto err_alarm_irq;
 	}
 
-	ret = request_irq(s3c_rtc_tickno, s3c_rtc_tickirq,
+	ret = devm_request_irq(&pdev->dev, s3c_rtc_tickno, s3c_rtc_tickirq,
 			  0,  "s3c2410-rtc tick", rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d error %d\n", s3c_rtc_tickno, ret);
-		free_irq(s3c_rtc_alarmno, rtc);
-		goto err_tick_irq;
+		goto err_alarm_irq;
 	}
 
 	clk_disable(rtc_clk);
 
 	return 0;
-
- err_tick_irq:
-	free_irq(s3c_rtc_alarmno, rtc);
 
  err_alarm_irq:
 	platform_set_drvdata(pdev, NULL);
@@ -605,15 +581,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
  err_nortc:
 	s3c_rtc_enable(pdev, 0);
 	clk_disable(rtc_clk);
-	clk_put(rtc_clk);
 
- err_clk:
-	iounmap(s3c_rtc_base);
-
- err_nomap:
-	release_resource(s3c_rtc_mem);
-
- err_nores:
 	return ret;
 }
 
@@ -695,8 +663,6 @@ static const struct of_device_id s3c_rtc_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c_rtc_dt_match);
-#else
-#define s3c_rtc_dt_match NULL
 #endif
 
 static struct platform_device_id s3c_rtc_driver_ids[] = {
@@ -720,14 +686,14 @@ MODULE_DEVICE_TABLE(platform, s3c_rtc_driver_ids);
 
 static struct platform_driver s3c_rtc_driver = {
 	.probe		= s3c_rtc_probe,
-	.remove		= __devexit_p(s3c_rtc_remove),
+	.remove		= s3c_rtc_remove,
 	.suspend	= s3c_rtc_suspend,
 	.resume		= s3c_rtc_resume,
 	.id_table	= s3c_rtc_driver_ids,
 	.driver		= {
 		.name	= "s3c-rtc",
 		.owner	= THIS_MODULE,
-		.of_match_table	= s3c_rtc_dt_match,
+		.of_match_table	= of_match_ptr(s3c_rtc_dt_match),
 	},
 };
 

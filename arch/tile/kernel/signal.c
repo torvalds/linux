@@ -37,10 +37,10 @@
 
 #define DEBUG_SIG 0
 
-SYSCALL_DEFINE3(sigaltstack, const stack_t __user *, uss,
-		stack_t __user *, uoss, struct pt_regs *, regs)
+SYSCALL_DEFINE2(sigaltstack, const stack_t __user *, uss,
+		stack_t __user *, uoss)
 {
-	return do_sigaltstack(uss, uoss, regs->sp);
+	return do_sigaltstack(uss, uoss, current_pt_regs()->sp);
 }
 
 
@@ -83,8 +83,9 @@ void signal_fault(const char *type, struct pt_regs *regs,
 }
 
 /* The assembly shim for this function arranges to ignore the return value. */
-SYSCALL_DEFINE1(rt_sigreturn, struct pt_regs *, regs)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame =
 		(struct rt_sigframe __user *)(regs->sp);
 	sigset_t set;

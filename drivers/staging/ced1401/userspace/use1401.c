@@ -145,7 +145,7 @@
 ** You should add a new one of these to keep things tidy for applications.
 **
 ** DRIVERET_MAX (below) specifies the maximum allowed type code from the
-** 1401 driver; I have set this high to accomodate as yet undesigned 1401
+** 1401 driver; I have set this high to accommodate as yet undesigned 1401
 ** types. Similarly, as long as the command file names follow the ARM,
 ** ARN, ARO sequence, these are calculated by the ExtForType function, so
 ** you don't need to do anything here either.
@@ -160,7 +160,7 @@
 ** have broken backwards compatibility. Minor number changes mean that we
 ** have added new functionality that does not break backwards compatibility.
 ** we starts at 0. Revision changes mean we have fixed something. Each index
-** returns to 0 when a higer one changes.
+** returns to 0 when a higher one changes.
 */
 #define U14LIB_MAJOR 4
 #define U14LIB_MINOR 0
@@ -211,7 +211,7 @@
 
 /*
 ** These are the 1401 type codes returned by the driver, they are a slightly
-** odd sequence & start for reasons of compatability with the DOS driver.
+** odd sequence & start for reasons of compatibility with the DOS driver.
 ** The maximum code value is the upper limit of 1401 device types.
 */
 #define DRIVRET_STD     4       // Codes for 1401 types matching driver values
@@ -2327,7 +2327,7 @@ U14API(short) U14SetTransArea(short hand, WORD wArea, void *pvBuff,
 
 /****************************************************************************
 ** U14SetTransferEvent  Sets an event for notification of application
-** wArea       The tranfer area index, from 0 to MAXAREAS-1
+** wArea       The transfer area index, from 0 to MAXAREAS-1
 **    bEvent      True to create an event, false to remove it
 **    bToHost     Set 0 for notification on to1401 tranfers, 1 for
 **                notification of transfers to the host PC

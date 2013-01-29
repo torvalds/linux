@@ -61,7 +61,7 @@ static void acpi_hed_notify(struct acpi_device *device, u32 event)
 	blocking_notifier_call_chain(&acpi_hed_notify_list, 0, NULL);
 }
 
-static int __devinit acpi_hed_add(struct acpi_device *device)
+static int acpi_hed_add(struct acpi_device *device)
 {
 	/* Only one hardware error device */
 	if (hed_handle)
@@ -70,7 +70,7 @@ static int __devinit acpi_hed_add(struct acpi_device *device)
 	return 0;
 }
 
-static int __devexit acpi_hed_remove(struct acpi_device *device, int type)
+static int acpi_hed_remove(struct acpi_device *device, int type)
 {
 	hed_handle = NULL;
 	return 0;

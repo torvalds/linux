@@ -186,7 +186,7 @@ Bibtex Entries
 
 @article{Kung80
 ,author="H. T. Kung and Q. Lehman"
-,title="Concurrent Maintenance of Binary Search Trees"
+,title="Concurrent Manipulation of Binary Search Trees"
 ,Year="1980"
 ,Month="September"
 ,journal="ACM Transactions on Database Systems"

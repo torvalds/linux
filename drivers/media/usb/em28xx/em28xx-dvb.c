@@ -331,7 +331,7 @@ static struct drxk_config hauppauge_930c_drxk = {
 	.load_firmware_sync = true,
 };
 
-struct drxk_config terratec_htc_stick_drxk = {
+static struct drxk_config terratec_htc_stick_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
@@ -520,7 +520,10 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 		{ -1,                   -1,     -1,     -1},
 	};
 
-	/* Init the analog decoder? */
+	/*
+	 * Init the analog decoder (not yet supported), but
+	 * it's probably still a good idea.
+	 */
 	struct {
 		unsigned char r[4];
 		int len;
@@ -545,6 +548,64 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
 
 	em28xx_gpio_set(dev, terratec_htc_stick_end);
+};
+
+static void terratec_htc_usb_xs_init(struct em28xx *dev)
+{
+	int i;
+
+	struct em28xx_reg_seq terratec_htc_usb_xs_init[] = {
+		{EM28XX_R08_GPIO,	0xff,	0xff,	10},
+		{EM2874_R80_GPIO,	0xb2,	0xff,	100},
+		{EM2874_R80_GPIO,	0xb2,	0xff,	50},
+		{EM2874_R80_GPIO,	0xb6,	0xff,	100},
+		{ -1,                   -1,     -1,     -1},
+	};
+	struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
+		{EM2874_R80_GPIO,	0xa6,	0xff,	100},
+		{EM2874_R80_GPIO,	0xa6,	0xff,	50},
+		{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+		{ -1,                   -1,     -1,     -1},
+	};
+
+	/*
+	 * Init the analog decoder (not yet supported), but
+	 * it's probably still a good idea.
+	 */
+	struct {
+		unsigned char r[4];
+		int len;
+	} regs[] = {
+		{{ 0x06, 0x02, 0x00, 0x31 }, 4},
+		{{ 0x01, 0x02 }, 2},
+		{{ 0x01, 0x02, 0x00, 0xc6 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0xff, 0xaf }, 4},
+		{{ 0x01, 0x00, 0x03, 0xa0 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0x73, 0xaf }, 4},
+		{{ 0x04, 0x00 }, 2},
+		{{ 0x00, 0x04 }, 2},
+		{{ 0x00, 0x04, 0x00, 0x0a }, 4},
+		{{ 0x04, 0x14 }, 2},
+		{{ 0x04, 0x14, 0x00, 0x00 }, 4},
+	};
+
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x40);
+
+	em28xx_gpio_set(dev, terratec_htc_usb_xs_init);
+
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x40);
+	msleep(10);
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x44);
+	msleep(10);
+
+	dev->i2c_client.addr = 0x82 >> 1;
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
+
+	em28xx_gpio_set(dev, terratec_htc_usb_xs_end);
 };
 
 static void pctv_520e_init(struct em28xx *dev)
@@ -1138,6 +1199,25 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2884_BOARD_CINERGY_HTC_STICK:
 		terratec_htc_stick_init(dev);
+
+		/* attach demodulator */
+		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_htc_stick_drxk,
+					&dev->i2c_adap);
+		if (!dvb->fe[0]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* Attach the demodulator. */
+		if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+				&dev->i2c_adap,
+				&em28xx_cxd2820r_tda18271_config)) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
+	case EM2884_BOARD_TERRATEC_HTC_USB_XS:
+		terratec_htc_usb_xs_init(dev);
 
 		/* attach demodulator */
 		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_htc_stick_drxk,

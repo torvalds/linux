@@ -25,7 +25,7 @@ void exynos_init_late(void);
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 int exynos_pm_late_initcall(void);
 #else
-static int exynos_pm_late_initcall(void) { return 0; }
+static inline int exynos_pm_late_initcall(void) { return 0; }
 #endif
 
 #ifdef CONFIG_ARCH_EXYNOS4

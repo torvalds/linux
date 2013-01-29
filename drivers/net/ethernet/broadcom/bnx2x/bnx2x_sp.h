@@ -40,6 +40,12 @@ enum {
 	 * pending commands list.
 	 */
 	RAMROD_CONT,
+	/* If there is another pending ramrod, wait until it finishes and
+	 * re-try to submit this one. This flag can be set only in sleepable
+	 * context, and should not be set from the context that completes the
+	 * ramrods as deadlock will occur.
+	 */
+	RAMROD_RETRY,
 };
 
 typedef enum {
@@ -1061,6 +1067,7 @@ enum bnx2x_func_cmd {
 	BNX2X_F_CMD_AFEX_VIFLISTS,
 	BNX2X_F_CMD_TX_STOP,
 	BNX2X_F_CMD_TX_START,
+	BNX2X_F_CMD_SWITCH_UPDATE,
 	BNX2X_F_CMD_MAX,
 };
 
@@ -1103,6 +1110,10 @@ struct bnx2x_func_start_params {
 	u8 network_cos_mode;
 };
 
+struct bnx2x_func_switch_update_params {
+	u8 suspend;
+};
+
 struct bnx2x_func_afex_update_params {
 	u16 vif_id;
 	u16 afex_default_vlan;
@@ -1136,6 +1147,7 @@ struct bnx2x_func_state_params {
 		struct bnx2x_func_hw_init_params hw_init;
 		struct bnx2x_func_hw_reset_params hw_reset;
 		struct bnx2x_func_start_params start;
+		struct bnx2x_func_switch_update_params switch_update;
 		struct bnx2x_func_afex_update_params afex_update;
 		struct bnx2x_func_afex_viflists_params afex_viflists;
 		struct bnx2x_func_tx_start_params tx_start;

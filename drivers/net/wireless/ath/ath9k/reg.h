@@ -907,10 +907,6 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
 	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
 
-#define AR_SREV_9462_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
-
 #define AR_SREV_9565(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
 
@@ -2315,6 +2311,8 @@ enum {
 #define AR_BTCOEX_MAX_TXPWR(_x)				(0x18c0 + ((_x) << 2))
 #define AR_BTCOEX_WL_LNA				0x1940
 #define AR_BTCOEX_RFGAIN_CTRL				0x1944
+#define AR_BTCOEX_WL_LNA_TIMEOUT			0x003FFFFF
+#define AR_BTCOEX_WL_LNA_TIMEOUT_S			0
 
 #define AR_BTCOEX_CTRL2					0x1948
 #define AR_BTCOEX_CTRL2_TXPWR_THRESH			0x0007F800
@@ -2359,5 +2357,12 @@ enum {
 
 #define AR_GLB_SWREG_DISCONT_MODE         0x2002c
 #define AR_GLB_SWREG_DISCONT_EN_BT_WLAN   0x3
+
+#define AR_MCI_MISC                    0x1a74
+#define AR_MCI_MISC_HW_FIX_EN          0x00000001
+#define AR_MCI_MISC_HW_FIX_EN_S        0
+#define AR_MCI_DBG_CNT_CTRL            0x1a78
+#define AR_MCI_DBG_CNT_CTRL_ENABLE     0x00000001
+#define AR_MCI_DBG_CNT_CTRL_ENABLE_S   0
 
 #endif

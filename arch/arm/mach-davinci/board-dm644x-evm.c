@@ -519,13 +519,11 @@ static int dm6444evm_msp430_get_pins(void)
 	char buf[4];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = 0,
 			.len = 2,
 			.buf = (void __force *)txbuf,
 		},
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = I2C_M_RD,
 			.len = 4,
 			.buf = buf,
@@ -535,6 +533,9 @@ static int dm6444evm_msp430_get_pins(void)
 
 	if (!dm6446evm_msp)
 		return -ENXIO;
+
+	msg[0].addr = dm6446evm_msp->addr;
+	msg[1].addr = dm6446evm_msp->addr;
 
 	/* Command 4 == get input state, returns port 2 and port3 data
 	 *   S Addr W [A] len=2 [A] cmd=4 [A]
@@ -776,7 +777,7 @@ static __init void davinci_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND || HAS_NOR)

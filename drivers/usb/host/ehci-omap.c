@@ -39,11 +39,12 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
-#include <plat/usb.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
+
+#include <linux/platform_data/usb-omap.h>
 
 /* EHCI Register Set */
 #define EHCI_INSNREG04					(0xA0)
@@ -145,9 +146,6 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 		if (gpio_is_valid(pdata->reset_gpio_port[1]))
 			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
 	}
-
-	/* root ports should always stay powered */
-	ehci_port_power(ehci, 1);
 
 	return rc;
 }

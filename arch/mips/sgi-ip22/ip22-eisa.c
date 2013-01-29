@@ -73,12 +73,10 @@ static char __init *decode_eisa_sig(unsigned long addr)
 
 static irqreturn_t ip22_eisa_intr(int irq, void *dev_id)
 {
-	u8 eisa_irq;
-	u8 dma1, dma2;
+	u8 eisa_irq = inb(EIU_INTRPT_ACK);
 
-	eisa_irq = inb(EIU_INTRPT_ACK);
-	dma1 = inb(EISA_DMA1_STATUS);
-	dma2 = inb(EISA_DMA2_STATUS);
+	inb(EISA_DMA1_STATUS);
+	inb(EISA_DMA2_STATUS);
 
 	if (eisa_irq < EISA_MAX_IRQ) {
 		do_IRQ(eisa_irq);

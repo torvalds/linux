@@ -294,7 +294,7 @@ exit_kfree:
 	return err;
 }
 
-static int __devexit pcf8583_remove(struct i2c_client *client)
+static int pcf8583_remove(struct i2c_client *client)
 {
 	struct pcf8583 *pcf8583 = i2c_get_clientdata(client);
 
@@ -316,7 +316,7 @@ static struct i2c_driver pcf8583_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8583_probe,
-	.remove		= __devexit_p(pcf8583_remove),
+	.remove		= pcf8583_remove,
 	.id_table	= pcf8583_id,
 };
 

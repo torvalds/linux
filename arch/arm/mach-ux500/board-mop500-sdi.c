@@ -11,9 +11,9 @@
 #include <linux/amba/mmci.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include <asm/mach-types.h>
-#include <plat/ste_dma40.h>
 #include <mach/devices.h>
 #include <mach/hardware.h>
 

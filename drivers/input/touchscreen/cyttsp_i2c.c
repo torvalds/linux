@@ -81,7 +81,7 @@ static const struct cyttsp_bus_ops cyttsp_i2c_bus_ops = {
 	.read           = cyttsp_i2c_read_block_data,
 };
 
-static int __devinit cyttsp_i2c_probe(struct i2c_client *client,
+static int cyttsp_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	struct cyttsp *ts;
@@ -102,7 +102,7 @@ static int __devinit cyttsp_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit cyttsp_i2c_remove(struct i2c_client *client)
+static int cyttsp_i2c_remove(struct i2c_client *client)
 {
 	struct cyttsp *ts = i2c_get_clientdata(client);
 
@@ -124,7 +124,7 @@ static struct i2c_driver cyttsp_i2c_driver = {
 		.pm	= &cyttsp_pm_ops,
 	},
 	.probe		= cyttsp_i2c_probe,
-	.remove		= __devexit_p(cyttsp_i2c_remove),
+	.remove		= cyttsp_i2c_remove,
 	.id_table	= cyttsp_i2c_id,
 };
 

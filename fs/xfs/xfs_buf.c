@@ -175,7 +175,7 @@ xfs_buf_get_maps(
 	bp->b_map_count = map_count;
 
 	if (map_count == 1) {
-		bp->b_maps = &bp->b_map;
+		bp->b_maps = &bp->__b_map;
 		return 0;
 	}
 
@@ -193,7 +193,7 @@ static void
 xfs_buf_free_maps(
 	struct xfs_buf	*bp)
 {
-	if (bp->b_maps != &bp->b_map) {
+	if (bp->b_maps != &bp->__b_map) {
 		kmem_free(bp->b_maps);
 		bp->b_maps = NULL;
 	}
@@ -377,8 +377,8 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	start = BBTOB(bp->b_map.bm_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_map.bm_bn + bp->b_length) + PAGE_SIZE - 1)
+	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
@@ -569,7 +569,9 @@ found:
 	 */
 	if (bp->b_flags & XBF_STALE) {
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
+		ASSERT(bp->b_iodone == NULL);
 		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
+		bp->b_ops = NULL;
 	}
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
@@ -638,7 +640,7 @@ _xfs_buf_read(
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
-	ASSERT(bp->b_map.bm_bn != XFS_BUF_DADDR_NULL);
+	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
@@ -654,7 +656,8 @@ xfs_buf_read_map(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
 	int			nmaps,
-	xfs_buf_flags_t		flags)
+	xfs_buf_flags_t		flags,
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 
@@ -666,6 +669,7 @@ xfs_buf_read_map(
 
 		if (!XFS_BUF_ISDONE(bp)) {
 			XFS_STATS_INC(xb_get_read);
+			bp->b_ops = ops;
 			_xfs_buf_read(bp, flags);
 		} else if (flags & XBF_ASYNC) {
 			/*
@@ -691,13 +695,14 @@ void
 xfs_buf_readahead_map(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
-	int			nmaps)
+	int			nmaps,
+	const struct xfs_buf_ops *ops)
 {
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
 	xfs_buf_read_map(target, map, nmaps,
-		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
+		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD, ops);
 }
 
 /*
@@ -709,10 +714,10 @@ xfs_buf_read_uncached(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
 	size_t			numblks,
-	int			flags)
+	int			flags,
+	const struct xfs_buf_ops *ops)
 {
-	xfs_buf_t		*bp;
-	int			error;
+	struct xfs_buf		*bp;
 
 	bp = xfs_buf_get_uncached(target, numblks, flags);
 	if (!bp)
@@ -723,13 +728,10 @@ xfs_buf_read_uncached(
 	bp->b_bn = daddr;
 	bp->b_maps[0].bm_bn = daddr;
 	bp->b_flags |= XBF_READ;
+	bp->b_ops = ops;
 
 	xfsbdstrat(target->bt_mount, bp);
-	error = xfs_buf_iowait(bp);
-	if (error) {
-		xfs_buf_relse(bp);
-		return NULL;
-	}
+	xfs_buf_iowait(bp);
 	return bp;
 }
 
@@ -999,27 +1001,37 @@ STATIC void
 xfs_buf_iodone_work(
 	struct work_struct	*work)
 {
-	xfs_buf_t		*bp =
+	struct xfs_buf		*bp =
 		container_of(work, xfs_buf_t, b_iodone_work);
+	bool			read = !!(bp->b_flags & XBF_READ);
+
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
+	if (read && bp->b_ops)
+		bp->b_ops->verify_read(bp);
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
 	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
+	else {
+		ASSERT(read && bp->b_ops);
+		complete(&bp->b_iowait);
+	}
 }
 
 void
 xfs_buf_ioend(
-	xfs_buf_t		*bp,
-	int			schedule)
+	struct xfs_buf	*bp,
+	int		schedule)
 {
+	bool		read = !!(bp->b_flags & XBF_READ);
+
 	trace_xfs_buf_iodone(bp, _RET_IP_);
 
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 	if (bp->b_error == 0)
 		bp->b_flags |= XBF_DONE;
 
-	if ((bp->b_iodone) || (bp->b_flags & XBF_ASYNC)) {
+	if (bp->b_iodone || (read && bp->b_ops) || (bp->b_flags & XBF_ASYNC)) {
 		if (schedule) {
 			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
 			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
@@ -1027,6 +1039,7 @@ xfs_buf_ioend(
 			xfs_buf_iodone_work(&bp->b_iodone_work);
 		}
 	} else {
+		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 		complete(&bp->b_iowait);
 	}
 }
@@ -1197,9 +1210,14 @@ xfs_buf_bio_end_io(
 {
 	xfs_buf_t		*bp = (xfs_buf_t *)bio->bi_private;
 
-	xfs_buf_ioerror(bp, -error);
+	/*
+	 * don't overwrite existing errors - otherwise we can lose errors on
+	 * buffers that require multiple bios to complete.
+	 */
+	if (!bp->b_error)
+		xfs_buf_ioerror(bp, -error);
 
-	if (!error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
+	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
 
 	_xfs_buf_ioend(bp, 1);
@@ -1279,6 +1297,11 @@ next_chunk:
 		if (size)
 			goto next_chunk;
 	} else {
+		/*
+		 * This is guaranteed not to be the last io reference count
+		 * because the caller (xfs_buf_iorequest) holds a count itself.
+		 */
+		atomic_dec(&bp->b_io_remaining);
 		xfs_buf_ioerror(bp, EIO);
 		bio_put(bio);
 	}
@@ -1304,6 +1327,20 @@ _xfs_buf_ioapply(
 			rw |= REQ_FUA;
 		if (bp->b_flags & XBF_FLUSH)
 			rw |= REQ_FLUSH;
+
+		/*
+		 * Run the write verifier callback function if it exists. If
+		 * this function fails it will mark the buffer with an error and
+		 * the IO should not be dispatched.
+		 */
+		if (bp->b_ops) {
+			bp->b_ops->verify_write(bp);
+			if (bp->b_error) {
+				xfs_force_shutdown(bp->b_target->bt_mount,
+						   SHUTDOWN_CORRUPT_INCORE);
+				return;
+			}
+		}
 	} else if (bp->b_flags & XBF_READ_AHEAD) {
 		rw = READA;
 	} else {
@@ -1672,7 +1709,7 @@ xfs_buf_cmp(
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
 	xfs_daddr_t		diff;
 
-	diff = ap->b_map.bm_bn - bp->b_map.bm_bn;
+	diff = ap->b_maps[0].bm_bn - bp->b_maps[0].bm_bn;
 	if (diff < 0)
 		return -1;
 	if (diff > 0)

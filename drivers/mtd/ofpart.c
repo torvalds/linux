@@ -71,7 +71,10 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		(*pparts)[i].name = (char *)partname;
 
 		if (of_get_property(pp, "read-only", &len))
-			(*pparts)[i].mask_flags = MTD_WRITEABLE;
+			(*pparts)[i].mask_flags |= MTD_WRITEABLE;
+
+		if (of_get_property(pp, "lock", &len))
+			(*pparts)[i].mask_flags |= MTD_POWERUP_LOCK;
 
 		i++;
 	}
@@ -121,7 +124,7 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	nr_parts = plen / sizeof(part[0]);
 
 	*pparts = kzalloc(nr_parts * sizeof(*(*pparts)), GFP_KERNEL);
-	if (!pparts)
+	if (!*pparts)
 		return -ENOMEM;
 
 	names = of_get_property(dp, "partition-names", &plen);

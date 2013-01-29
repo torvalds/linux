@@ -58,12 +58,6 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 void __init sh7372_map_io(void)
 {
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
-
-	/*
-	 * DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
-	 * enough to allocate the frame buffer memory.
-	 */
-	init_consistent_dma_size(12 << 20);
 }
 
 /* SCIFA0 */
@@ -407,6 +401,26 @@ static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
 		.addr		= 0xe6c30060,
 		.chcr		= CHCR_RX(XMIT_SZ_8BIT),
 		.mid_rid	= 0x3e,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_TX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_RX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_TX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_RX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
 	}, {
 		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
 		.addr		= 0xe6850030,

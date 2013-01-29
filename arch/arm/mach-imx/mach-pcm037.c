@@ -42,13 +42,13 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 #include "pcm037.h"
+#include "ulpi.h"
 
 static enum pcm037_board_variant pcm037_instance = PCM037_PCM970;
 

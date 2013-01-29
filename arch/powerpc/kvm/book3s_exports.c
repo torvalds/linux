@@ -28,8 +28,5 @@ EXPORT_SYMBOL_GPL(kvmppc_load_up_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL_GPL(kvmppc_load_up_altivec);
 #endif
-#ifdef CONFIG_VSX
-EXPORT_SYMBOL_GPL(kvmppc_load_up_vsx);
-#endif
 #endif
 

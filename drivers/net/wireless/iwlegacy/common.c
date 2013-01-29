@@ -1183,9 +1183,10 @@ EXPORT_SYMBOL(il_power_update_mode);
 void
 il_power_initialize(struct il_priv *il)
 {
-	u16 lctl = il_pcie_link_ctl(il);
+	u16 lctl;
 
-	il->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &lctl);
+	il->power_data.pci_pm = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 
 	il->power_data.debug_sleep_level_override = -1;
 
@@ -4233,9 +4234,8 @@ il_apm_init(struct il_priv *il)
 	 *    power savings, even without L1.
 	 */
 	if (il->cfg->set_l0s) {
-		lctl = il_pcie_link_ctl(il);
-		if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-		    PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+		pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &lctl);
+		if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
 			/* L1-ASPM enabled; disable(!) L0S  */
 			il_set_bit(il, CSR_GIO_REG,
 				   CSR_GIO_REG_VAL_L0S_ENABLED);

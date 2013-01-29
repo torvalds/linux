@@ -8,6 +8,7 @@ mac80211-y := \
 	wpa.o \
 	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
+	vht.o \
 	ibss.o \
 	iface.o \
 	rate.o \

@@ -27,8 +27,6 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 
-#include <mach/iomap.h>
-
 #include "clock.h"
 #include "fuse.h"
 #include "tegra2_emc.h"
@@ -248,10 +246,15 @@ static struct clk_pll_freq_table tegra_pll_d_freq_table[] = {
 	{ 19200000, 216000000, 135, 12, 1, 3},
 	{ 26000000, 216000000, 216, 26, 1, 4},
 
+	{ 12000000, 297000000,  99,  4, 1, 4 },
+	{ 12000000, 339000000, 113,  4, 1, 4 },
+
 	{ 12000000, 594000000, 594, 12, 1, 8},
 	{ 13000000, 594000000, 594, 13, 1, 8},
 	{ 19200000, 594000000, 495, 16, 1, 8},
 	{ 26000000, 594000000, 594, 26, 1, 8},
+
+	{ 12000000, 616000000, 616, 12, 1, 8},
 
 	{ 12000000, 1000000000, 1000, 12, 1, 12},
 	{ 13000000, 1000000000, 1000, 13, 1, 12},
@@ -1038,9 +1041,6 @@ static struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("usbd",	"utmip-pad",	NULL),
 	CLK_DUPLICATE("usbd",	"tegra-ehci.0",	NULL),
 	CLK_DUPLICATE("usbd",	"tegra-otg",	NULL),
-	CLK_DUPLICATE("hdmi",	"tegradc.0",	"hdmi"),
-	CLK_DUPLICATE("hdmi",	"tegradc.1",	"hdmi"),
-	CLK_DUPLICATE("host1x",	"tegra_grhost",	"host1x"),
 	CLK_DUPLICATE("2d",	"tegra_grhost",	"gr2d"),
 	CLK_DUPLICATE("3d",	"tegra_grhost",	"gr3d"),
 	CLK_DUPLICATE("epp",	"tegra_grhost",	"epp"),
@@ -1053,6 +1053,9 @@ static struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.1", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.2", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.3", "fast-clk"),
+	CLK_DUPLICATE("pll_p", "tegradc.0", "parent"),
+	CLK_DUPLICATE("pll_p", "tegradc.1", "parent"),
+	CLK_DUPLICATE("pll_d_out0", "hdmi", "parent"),
 };
 
 #define CLK(dev, con, ck)	\

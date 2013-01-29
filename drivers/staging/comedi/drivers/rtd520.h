@@ -26,163 +26,132 @@
 */
 
 /*
-  LAS0 Runtime Area
-  Local Address Space 0 Offset		Read Function	Write Function
-*/
-#define LAS0_SPARE_00    0x0000	/*  -                               - */
-#define LAS0_SPARE_04    0x0004	/*  -                               - */
-#define LAS0_USER_IO     0x0008	/*  Read User Inputs                Write User Outputs */
-#define LAS0_SPARE_0C    0x000C	/*  -                               - */
-#define LAS0_ADC         0x0010	/*  Read FIFO Status                Software A/D Start */
-#define LAS0_DAC1        0x0014	/*  -                               Software D/A1 Update */
-#define LAS0_DAC2        0x0018	/*  -                               Software D/A2 Update */
-#define LAS0_SPARE_1C    0x001C	/*  -                               - */
-#define LAS0_SPARE_20    0x0020	/*  -                               - */
-#define LAS0_DAC         0x0024	/*  -                               Software Simultaneous D/A1 and D/A2 Update */
-#define LAS0_PACER       0x0028	/*  Software Pacer Start            Software Pacer Stop */
-#define LAS0_TIMER       0x002C	/*  Read Timer Counters Status      HDIN Software Trigger */
-#define LAS0_IT          0x0030	/*  Read Interrupt Status           Write Interrupt Enable Mask Register */
-#define LAS0_CLEAR       0x0034	/*  Clear ITs set by Clear Mask     Set Interrupt Clear Mask */
-#define LAS0_OVERRUN     0x0038	/*  Read pending interrupts         Clear Overrun Register */
-#define LAS0_SPARE_3C    0x003C	/*  -                               - */
+ * Local Address Space 0 Offsets
+ */
+#define LAS0_USER_IO		0x0008	/* User I/O */
+#define LAS0_ADC		0x0010	/* FIFO Status/Software A/D Start */
+#define LAS0_DAC1		0x0014	/* Software D/A1 Update (w) */
+#define LAS0_DAC2		0x0018	/* Software D/A2 Update (w) */
+#define LAS0_DAC		0x0024	/* Software Simultaneous Update (w) */
+#define LAS0_PACER		0x0028	/* Software Pacer Start/Stop */
+#define LAS0_TIMER		0x002c	/* Timer Status/HDIN Software Trig. */
+#define LAS0_IT			0x0030	/* Interrupt Status/Enable */
+#define LAS0_CLEAR		0x0034	/* Clear/Set Interrupt Clear Mask */
+#define LAS0_OVERRUN		0x0038	/* Pending interrupts/Clear Overrun */
+#define LAS0_PCLK		0x0040	/* Pacer Clock (24bit) */
+#define LAS0_BCLK		0x0044	/* Burst Clock (10bit) */
+#define LAS0_ADC_SCNT		0x0048	/* A/D Sample counter (10bit) */
+#define LAS0_DAC1_UCNT		0x004c	/* D/A1 Update counter (10 bit) */
+#define LAS0_DAC2_UCNT		0x0050	/* D/A2 Update counter (10 bit) */
+#define LAS0_DCNT		0x0054	/* Delay counter (16 bit) */
+#define LAS0_ACNT		0x0058	/* About counter (16 bit) */
+#define LAS0_DAC_CLK		0x005c	/* DAC clock (16bit) */
+#define LAS0_UTC0		0x0060	/* 8254 TC Counter 0 */
+#define LAS0_UTC1		0x0064	/* 8254 TC Counter 1 */
+#define LAS0_UTC2		0x0068	/* 8254 TC Counter 2 */
+#define LAS0_UTC_CTRL		0x006c	/* 8254 TC Control */
+#define LAS0_DIO0		0x0070	/* Digital I/O Port 0 */
+#define LAS0_DIO1		0x0074	/* Digital I/O Port 1 */
+#define LAS0_DIO0_CTRL		0x0078	/* Digital I/O Control */
+#define LAS0_DIO_STATUS		0x007c	/* Digital I/O Status */
+#define LAS0_BOARD_RESET	0x0100	/* Board reset */
+#define LAS0_DMA0_SRC		0x0104	/* DMA 0 Sources select */
+#define LAS0_DMA1_SRC		0x0108	/* DMA 1 Sources select */
+#define LAS0_ADC_CONVERSION	0x010c	/* A/D Conversion Signal select */
+#define LAS0_BURST_START	0x0110	/* Burst Clock Start Trigger select */
+#define LAS0_PACER_START	0x0114	/* Pacer Clock Start Trigger select */
+#define LAS0_PACER_STOP		0x0118	/* Pacer Clock Stop Trigger select */
+#define LAS0_ACNT_STOP_ENABLE	0x011c	/* About Counter Stop Enable */
+#define LAS0_PACER_REPEAT	0x0120	/* Pacer Start Trigger Mode select */
+#define LAS0_DIN_START		0x0124	/* HiSpd DI Sampling Signal select */
+#define LAS0_DIN_FIFO_CLEAR	0x0128	/* Digital Input FIFO Clear */
+#define LAS0_ADC_FIFO_CLEAR	0x012c	/* A/D FIFO Clear */
+#define LAS0_CGT_WRITE		0x0130	/* Channel Gain Table Write */
+#define LAS0_CGL_WRITE		0x0134	/* Channel Gain Latch Write */
+#define LAS0_CG_DATA		0x0138	/* Digital Table Write */
+#define LAS0_CGT_ENABLE		0x013c	/* Channel Gain Table Enable */
+#define LAS0_CG_ENABLE		0x0140	/* Digital Table Enable */
+#define LAS0_CGT_PAUSE		0x0144	/* Table Pause Enable */
+#define LAS0_CGT_RESET		0x0148	/* Reset Channel Gain Table */
+#define LAS0_CGT_CLEAR		0x014c	/* Clear Channel Gain Table */
+#define LAS0_DAC1_CTRL		0x0150	/* D/A1 output type/range */
+#define LAS0_DAC1_SRC		0x0154	/* D/A1 update source */
+#define LAS0_DAC1_CYCLE		0x0158	/* D/A1 cycle mode */
+#define LAS0_DAC1_RESET		0x015c	/* D/A1 FIFO reset */
+#define LAS0_DAC1_FIFO_CLEAR	0x0160	/* D/A1 FIFO clear */
+#define LAS0_DAC2_CTRL		0x0164	/* D/A2 output type/range */
+#define LAS0_DAC2_SRC		0x0168	/* D/A2 update source */
+#define LAS0_DAC2_CYCLE		0x016c	/* D/A2 cycle mode */
+#define LAS0_DAC2_RESET		0x0170	/* D/A2 FIFO reset */
+#define LAS0_DAC2_FIFO_CLEAR	0x0174	/* D/A2 FIFO clear */
+#define LAS0_ADC_SCNT_SRC	0x0178	/* A/D Sample Counter Source select */
+#define LAS0_PACER_SELECT	0x0180	/* Pacer Clock select */
+#define LAS0_SBUS0_SRC		0x0184	/* SyncBus 0 Source select */
+#define LAS0_SBUS0_ENABLE	0x0188	/* SyncBus 0 enable */
+#define LAS0_SBUS1_SRC		0x018c	/* SyncBus 1 Source select */
+#define LAS0_SBUS1_ENABLE	0x0190	/* SyncBus 1 enable */
+#define LAS0_SBUS2_SRC		0x0198	/* SyncBus 2 Source select */
+#define LAS0_SBUS2_ENABLE	0x019c	/* SyncBus 2 enable */
+#define LAS0_ETRG_POLARITY	0x01a4	/* Ext. Trigger polarity select */
+#define LAS0_EINT_POLARITY	0x01a8	/* Ext. Interrupt polarity select */
+#define LAS0_UTC0_CLOCK		0x01ac	/* UTC0 Clock select */
+#define LAS0_UTC0_GATE		0x01b0	/* UTC0 Gate select */
+#define LAS0_UTC1_CLOCK		0x01b4	/* UTC1 Clock select */
+#define LAS0_UTC1_GATE		0x01b8	/* UTC1 Gate select */
+#define LAS0_UTC2_CLOCK		0x01bc	/* UTC2 Clock select */
+#define LAS0_UTC2_GATE		0x01c0	/* UTC2 Gate select */
+#define LAS0_UOUT0_SELECT	0x01c4	/* User Output 0 source select */
+#define LAS0_UOUT1_SELECT	0x01c8	/* User Output 1 source select */
+#define LAS0_DMA0_RESET		0x01cc	/* DMA0 Request state machine reset */
+#define LAS0_DMA1_RESET		0x01d0	/* DMA1 Request state machine reset */
 
 /*
-  LAS0 Runtime Area Timer/Counter,Dig.IO
-  Name			Local Address			Function
-*/
-#define LAS0_PCLK        0x0040	/*  Pacer Clock value (24bit)             Pacer Clock load (24bit) */
-#define LAS0_BCLK        0x0044	/*  Burst Clock value (10bit)             Burst Clock load (10bit) */
-#define LAS0_ADC_SCNT    0x0048	/*  A/D Sample counter value (10bit)      A/D Sample counter load (10bit) */
-#define LAS0_DAC1_UCNT   0x004C	/*  D/A1 Update counter value (10 bit)    D/A1 Update counter load (10bit) */
-#define LAS0_DAC2_UCNT   0x0050	/*  D/A2 Update counter value (10 bit)    D/A2 Update counter load (10bit) */
-#define LAS0_DCNT        0x0054	/*  Delay counter value (16 bit)          Delay counter load (16bit) */
-#define LAS0_ACNT        0x0058	/*  About counter value (16 bit)          About counter load (16bit) */
-#define LAS0_DAC_CLK     0x005C	/*  DAC clock value (16bit)               DAC clock load (16bit) */
-#define LAS0_UTC0        0x0060	/*  8254 TC Counter 0 User TC 0 value     Load count in TC Counter 0 */
-#define LAS0_UTC1        0x0064	/*  8254 TC Counter 1 User TC 1 value     Load count in TC Counter 1 */
-#define LAS0_UTC2        0x0068	/*  8254 TC Counter 2 User TC 2 value     Load count in TC Counter 2 */
-#define LAS0_UTC_CTRL    0x006C	/*  8254 TC Control Word                  Program counter mode for TC */
-#define LAS0_DIO0        0x0070	/*  Digital I/O Port 0 Read Port          Digital I/O Port 0 Write Port */
-#define LAS0_DIO1        0x0074	/*  Digital I/O Port 1 Read Port          Digital I/O Port 1 Write Port */
-#define LAS0_DIO0_CTRL   0x0078	/*  Clear digital IRQ status flag/read    Clear digital chip/program Port 0 */
-#define LAS0_DIO_STATUS  0x007C	/*  Read Digital I/O Status word          Program digital control register & */
+ * Local Address Space 1 Offsets
+ */
+#define LAS1_ADC_FIFO		0x0000	/* A/D FIFO (16bit) */
+#define LAS1_HDIO_FIFO		0x0004	/* HiSpd DI FIFO (16bit) */
+#define LAS1_DAC1_FIFO		0x0008	/* D/A1 FIFO (16bit) */
+#define LAS1_DAC2_FIFO		0x000c	/* D/A2 FIFO (16bit) */
 
 /*
-  LAS0 Setup Area
-  Name			Local Address			Function
-*/
-#define LAS0_BOARD_RESET        0x0100	/*  Board reset */
-#define LAS0_DMA0_SRC           0x0104	/*  DMA 0 Sources select */
-#define LAS0_DMA1_SRC           0x0108	/*  DMA 1 Sources select */
-#define LAS0_ADC_CONVERSION     0x010C	/*  A/D Conversion Signal select */
-#define LAS0_BURST_START        0x0110	/*  Burst Clock Start Trigger select */
-#define LAS0_PACER_START        0x0114	/*  Pacer Clock Start Trigger select */
-#define LAS0_PACER_STOP         0x0118	/*  Pacer Clock Stop Trigger select */
-#define LAS0_ACNT_STOP_ENABLE   0x011C	/*  About Counter Stop Enable */
-#define LAS0_PACER_REPEAT       0x0120	/*  Pacer Start Trigger Mode select */
-#define LAS0_DIN_START          0x0124	/*  High Speed Digital Input Sampling Signal select */
-#define LAS0_DIN_FIFO_CLEAR     0x0128	/*  Digital Input FIFO Clear */
-#define LAS0_ADC_FIFO_CLEAR     0x012C	/*  A/D FIFO Clear */
-#define LAS0_CGT_WRITE          0x0130	/*  Channel Gain Table Write */
-#define LAS0_CGL_WRITE          0x0134	/*  Channel Gain Latch Write */
-#define LAS0_CG_DATA            0x0138	/*  Digital Table Write */
-#define LAS0_CGT_ENABLE		0x013C	/*  Channel Gain Table Enable */
-#define LAS0_CG_ENABLE          0x0140	/*  Digital Table Enable */
-#define LAS0_CGT_PAUSE          0x0144	/*  Table Pause Enable */
-#define LAS0_CGT_RESET          0x0148	/*  Reset Channel Gain Table */
-#define LAS0_CGT_CLEAR          0x014C	/*  Clear Channel Gain Table */
-#define LAS0_DAC1_CTRL          0x0150	/*  D/A1 output type/range */
-#define LAS0_DAC1_SRC           0x0154	/*  D/A1 update source */
-#define LAS0_DAC1_CYCLE         0x0158	/*  D/A1 cycle mode */
-#define LAS0_DAC1_RESET         0x015C	/*  D/A1 FIFO reset */
-#define LAS0_DAC1_FIFO_CLEAR    0x0160	/*  D/A1 FIFO clear */
-#define LAS0_DAC2_CTRL          0x0164	/*  D/A2 output type/range */
-#define LAS0_DAC2_SRC           0x0168	/*  D/A2 update source */
-#define LAS0_DAC2_CYCLE         0x016C	/*  D/A2 cycle mode */
-#define LAS0_DAC2_RESET         0x0170	/*  D/A2 FIFO reset */
-#define LAS0_DAC2_FIFO_CLEAR    0x0174	/*  D/A2 FIFO clear */
-#define LAS0_ADC_SCNT_SRC       0x0178	/*  A/D Sample Counter Source select */
-#define LAS0_PACER_SELECT       0x0180	/*  Pacer Clock select */
-#define LAS0_SBUS0_SRC          0x0184	/*  SyncBus 0 Source select */
-#define LAS0_SBUS0_ENABLE       0x0188	/*  SyncBus 0 enable */
-#define LAS0_SBUS1_SRC          0x018C	/*  SyncBus 1 Source select */
-#define LAS0_SBUS1_ENABLE       0x0190	/*  SyncBus 1 enable */
-#define LAS0_SBUS2_SRC          0x0198	/*  SyncBus 2 Source select */
-#define LAS0_SBUS2_ENABLE       0x019C	/*  SyncBus 2 enable */
-#define LAS0_ETRG_POLARITY      0x01A4	/*  External Trigger polarity select */
-#define LAS0_EINT_POLARITY      0x01A8	/*  External Interrupt polarity select */
-#define LAS0_UTC0_CLOCK         0x01AC	/*  UTC0 Clock select */
-#define LAS0_UTC0_GATE          0x01B0	/*  UTC0 Gate select */
-#define LAS0_UTC1_CLOCK         0x01B4	/*  UTC1 Clock select */
-#define LAS0_UTC1_GATE          0x01B8	/*  UTC1 Gate select */
-#define LAS0_UTC2_CLOCK         0x01BC	/*  UTC2 Clock select */
-#define LAS0_UTC2_GATE          0x01C0	/*  UTC2 Gate select */
-#define LAS0_UOUT0_SELECT       0x01C4	/*  User Output 0 source select */
-#define LAS0_UOUT1_SELECT       0x01C8	/*  User Output 1 source select */
-#define LAS0_DMA0_RESET         0x01CC	/*  DMA0 Request state machine reset */
-#define LAS0_DMA1_RESET         0x01D0	/*  DMA1 Request state machine reset */
-
-/*
-  LAS1
-  Name			Local Address			Function
-*/
-#define LAS1_ADC_FIFO            0x0000	/*  Read A/D FIFO (16bit) - */
-#define LAS1_HDIO_FIFO           0x0004	/*  Read High Speed Digital Input FIFO (16bit) - */
-#define LAS1_DAC1_FIFO           0x0008	/*  - Write D/A1 FIFO (16bit) */
-#define LAS1_DAC2_FIFO           0x000C	/*  - Write D/A2 FIFO (16bit) */
-
-/*
-  LCFG: PLX 9080 local config & runtime registers
-  Name			Local Address			Function
-*/
-#define LCFG_ITCSR              0x0068	/*  INTCSR, Interrupt Control/Status Register */
-#define LCFG_DMAMODE0           0x0080	/*  DMA Channel 0 Mode Register */
-#define LCFG_DMAPADR0           0x0084	/*  DMA Channel 0 PCI Address Register */
-#define LCFG_DMALADR0           0x0088	/*  DMA Channel 0 Local Address Reg */
-#define LCFG_DMASIZ0            0x008C	/*  DMA Channel 0 Transfer Size (Bytes) Register */
-#define LCFG_DMADPR0            0x0090	/*  DMA Channel 0 Descriptor Pointer Register */
-#define LCFG_DMAMODE1           0x0094	/*  DMA Channel 1 Mode Register */
-#define LCFG_DMAPADR1           0x0098	/*  DMA Channel 1 PCI Address Register */
-#define LCFG_DMALADR1           0x009C	/*  DMA Channel 1 Local Address Register */
-#define LCFG_DMASIZ1            0x00A0	/*  DMA Channel 1 Transfer Size (Bytes) Register */
-#define LCFG_DMADPR1            0x00A4	/*  DMA Channel 1 Descriptor Pointer Register */
-#define LCFG_DMACSR0            0x00A8	/*  DMA Channel 0 Command/Status Register */
-#define LCFG_DMACSR1            0x00A9	/*  DMA Channel 0 Command/Status Register */
-#define LCFG_DMAARB             0x00AC	/*  DMA Arbitration Register */
-#define LCFG_DMATHR             0x00B0	/*  DMA Threshold Register */
-
-/*======================================================================
-  Resister bit definitions
-======================================================================*/
+ * PLX 9080 local config & runtime registers
+ */
+#define LCFG_ITCSR		0x0068	/* Interrupt Control/Status */
+#define LCFG_DMAMODE0		0x0080	/* DMA0 Mode */
+#define LCFG_DMAPADR0		0x0084	/* DMA0 PCI Address */
+#define LCFG_DMALADR0		0x0088	/* DMA0 Local Address */
+#define LCFG_DMASIZ0		0x008c	/* DMA0 Transfer Size (Bytes) */
+#define LCFG_DMADPR0		0x0090	/* DMA0 Descriptor Pointer */
+#define LCFG_DMAMODE1		0x0094	/* DMA1 Mode */
+#define LCFG_DMAPADR1		0x0098	/* DMA1 PCI Address */
+#define LCFG_DMALADR1		0x009c	/* DMA1 Local Address */
+#define LCFG_DMASIZ1		0x00a0	/* DMA1 Transfer Size (Bytes) */
+#define LCFG_DMADPR1		0x00a4	/* DMA1 Descriptor Pointer */
+#define LCFG_DMACSR0		0x00a8	/* DMA0 Command/Status */
+#define LCFG_DMACSR1		0x00a9	/* DMA0 Command/Status */
+#define LCFG_DMAARB		0x00ac	/* DMA Arbitration */
+#define LCFG_DMATHR		0x00b0	/* DMA Threshold */
 
 /*  FIFO Status Word Bits (RtdFifoStatus) */
-#define FS_DAC1_NOT_EMPTY    0x0001	/*  D0  - DAC1 FIFO not empty */
-#define FS_DAC1_HEMPTY   0x0002	/*  D1  - DAC1 FIFO half empty */
-#define FS_DAC1_NOT_FULL     0x0004	/*  D2  - DAC1 FIFO not full */
-#define FS_DAC2_NOT_EMPTY    0x0010	/*  D4  - DAC2 FIFO not empty */
-#define FS_DAC2_HEMPTY   0x0020	/*  D5  - DAC2 FIFO half empty */
-#define FS_DAC2_NOT_FULL     0x0040	/*  D6  - DAC2 FIFO not full */
-#define FS_ADC_NOT_EMPTY     0x0100	/*  D8  - ADC FIFO not empty */
-#define FS_ADC_HEMPTY    0x0200	/*  D9  - ADC FIFO half empty */
-#define FS_ADC_NOT_FULL      0x0400	/*  D10 - ADC FIFO not full */
-#define FS_DIN_NOT_EMPTY     0x1000	/*  D12 - DIN FIFO not empty */
-#define FS_DIN_HEMPTY    0x2000	/*  D13 - DIN FIFO half empty */
-#define FS_DIN_NOT_FULL      0x4000	/*  D14 - DIN FIFO not full */
+#define FS_DAC1_NOT_EMPTY	(1 << 0)  /* DAC1 FIFO not empty */
+#define FS_DAC1_HEMPTY		(1 << 1)  /* DAC1 FIFO half empty */
+#define FS_DAC1_NOT_FULL	(1 << 2)  /* DAC1 FIFO not full */
+#define FS_DAC2_NOT_EMPTY	(1 << 4)  /* DAC2 FIFO not empty */
+#define FS_DAC2_HEMPTY		(1 << 5)  /* DAC2 FIFO half empty */
+#define FS_DAC2_NOT_FULL	(1 << 6)  /* DAC2 FIFO not full */
+#define FS_ADC_NOT_EMPTY	(1 << 8)  /* ADC FIFO not empty */
+#define FS_ADC_HEMPTY		(1 << 9)  /* ADC FIFO half empty */
+#define FS_ADC_NOT_FULL		(1 << 10) /* ADC FIFO not full */
+#define FS_DIN_NOT_EMPTY	(1 << 12) /* DIN FIFO not empty */
+#define FS_DIN_HEMPTY		(1 << 13) /* DIN FIFO half empty */
+#define FS_DIN_NOT_FULL		(1 << 14) /* DIN FIFO not full */
 
 /*  Timer Status Word Bits (GetTimerStatus) */
-#define TS_PCLK_GATE   0x0001
-/*  D0 - Pacer Clock Gate [0 - gated, 1 - enabled] */
-#define TS_BCLK_GATE   0x0002
-/*  D1 - Burst Clock Gate [0 - disabled, 1 - running] */
-#define TS_DCNT_GATE   0x0004
-/*  D2 - Pacer Clock Delayed Start Trigger [0 - delay over, 1 - delay in */
-/*  progress] */
-#define TS_ACNT_GATE   0x0008
-/*  D3 - Pacer Clock About Trigger [0 - completed, 1 - in progress] */
-#define TS_PCLK_RUN    0x0010
-/*  D4 - Pacer Clock Shutdown Flag [0 - Pacer Clock cannot be start */
-/*  triggered only by Software Pacer Start Command, 1 - Pacer Clock can */
-/*  be start triggered] */
+#define TS_PCLK_GATE		(1 << 0)  /* Pacer Clock Gate enabled */
+#define TS_BCLK_GATE		(1 << 1)  /* Burst Clock Gate running */
+#define TS_DCNT_GATE		(1 << 2)  /* Pacer Clock Delayed Start Trig. */
+#define TS_ACNT_GATE		(1 << 3)  /* Pacer Clock About Trig. */
+#define TS_PCLK_RUN		(1 << 4)  /* Pacer Clock Shutdown Flag */
 
 /*  External Trigger polarity select */
 /*  External Interrupt polarity select */

@@ -1337,9 +1337,9 @@ static int pxa_camera_check_frame(u32 width, u32 height)
 }
 
 static int pxa_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+			       const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &a->c;
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct pxa_camera_dev *pcdev = ici->priv;
@@ -1651,7 +1651,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.set_bus_param	= pxa_camera_set_bus_param,
 };
 
-static int __devinit pxa_camera_probe(struct platform_device *pdev)
+static int pxa_camera_probe(struct platform_device *pdev)
 {
 	struct pxa_camera_dev *pcdev;
 	struct resource *res;
@@ -1801,7 +1801,7 @@ exit:
 	return err;
 }
 
-static int __devexit pxa_camera_remove(struct platform_device *pdev)
+static int pxa_camera_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct pxa_camera_dev *pcdev = container_of(soc_host,
@@ -1840,7 +1840,7 @@ static struct platform_driver pxa_camera_driver = {
 		.pm	= &pxa_camera_pm,
 	},
 	.probe		= pxa_camera_probe,
-	.remove		= __devexit_p(pxa_camera_remove),
+	.remove		= pxa_camera_remove,
 };
 
 module_platform_driver(pxa_camera_driver);

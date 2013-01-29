@@ -211,7 +211,7 @@ static acpi_status acpi_tb_load_namespace(void)
  * DESCRIPTION: Dynamically load an ACPI table from the caller's buffer. Must
  *              be a valid ACPI table with a valid ACPI table header.
  *              Note1: Mainly intended to support hotplug addition of SSDTs.
- *              Note2: Does not copy the incoming table. User is reponsible
+ *              Note2: Does not copy the incoming table. User is responsible
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/

@@ -30,6 +30,8 @@ extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
 				const unsigned char *name, int len);
 
 /* xfs_dir2_block.c */
+extern const struct xfs_buf_ops xfs_dir2_block_buf_ops;
+
 extern int xfs_dir2_block_addname(struct xfs_da_args *args);
 extern int xfs_dir2_block_getdents(struct xfs_inode *dp, void *dirent,
 		xfs_off_t *offset, filldir_t filldir);
@@ -41,10 +43,19 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 
 /* xfs_dir2_data.c */
 #ifdef DEBUG
-extern void xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+#define	xfs_dir2_data_check(dp,bp) __xfs_dir2_data_check(dp, bp);
 #else
 #define	xfs_dir2_data_check(dp,bp)
 #endif
+
+extern const struct xfs_buf_ops xfs_dir2_data_buf_ops;
+
+extern int __xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+extern int xfs_dir2_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
+		xfs_dablk_t bno, xfs_daddr_t mapped_bno, struct xfs_buf **bpp);
+extern int xfs_dir2_data_readahead(struct xfs_trans *tp, struct xfs_inode *dp,
+		xfs_dablk_t bno, xfs_daddr_t mapped_bno);
+
 extern struct xfs_dir2_data_free *
 xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,
 		struct xfs_dir2_data_unused *dup, int *loghead);
@@ -66,6 +77,10 @@ extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_buf *bp,
 		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
 
 /* xfs_dir2_leaf.c */
+extern const struct xfs_buf_ops xfs_dir2_leafn_buf_ops;
+
+extern int xfs_dir2_leafn_read(struct xfs_trans *tp, struct xfs_inode *dp,
+		xfs_dablk_t fbno, xfs_daddr_t mappedbno, struct xfs_buf **bpp);
 extern int xfs_dir2_block_to_leaf(struct xfs_da_args *args,
 		struct xfs_buf *dbp);
 extern int xfs_dir2_leaf_addname(struct xfs_da_args *args);
@@ -115,6 +130,8 @@ extern int xfs_dir2_node_removename(struct xfs_da_args *args);
 extern int xfs_dir2_node_replace(struct xfs_da_args *args);
 extern int xfs_dir2_node_trim_free(struct xfs_da_args *args, xfs_fileoff_t fo,
 		int *rvalp);
+extern int xfs_dir2_free_read(struct xfs_trans *tp, struct xfs_inode *dp,
+		xfs_dablk_t fbno, struct xfs_buf **bpp);
 
 /* xfs_dir2_sf.c */
 extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);

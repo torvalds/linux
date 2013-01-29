@@ -1,7 +1,7 @@
 #ifndef _LINUX_HASH_H
 #define _LINUX_HASH_H
 /* Fast hashing routine for ints,  longs and pointers.
-   (C) 2002 William Lee Irwin III, IBM */
+   (C) 2002 Nadia Yvette Chambers, IBM */
 
 /*
  * Knuth recommends primes in approximately golden ratio to the maximum

@@ -240,7 +240,7 @@ static void otg_clock_enable(struct mv_otg *mvotg)
 	unsigned int i;
 
 	for (i = 0; i < mvotg->clknum; i++)
-		clk_enable(mvotg->clk[i]);
+		clk_prepare_enable(mvotg->clk[i]);
 }
 
 static void otg_clock_disable(struct mv_otg *mvotg)
@@ -248,7 +248,7 @@ static void otg_clock_disable(struct mv_otg *mvotg)
 	unsigned int i;
 
 	for (i = 0; i < mvotg->clknum; i++)
-		clk_disable(mvotg->clk[i]);
+		clk_disable_unprepare(mvotg->clk[i]);
 }
 
 static int mv_otg_enable_internal(struct mv_otg *mvotg)
@@ -958,16 +958,4 @@ static struct platform_driver mv_otg_driver = {
 	.resume = mv_otg_resume,
 #endif
 };
-
-static int __init mv_otg_init(void)
-{
-	return platform_driver_register(&mv_otg_driver);
-}
-
-static void __exit mv_otg_exit(void)
-{
-	platform_driver_unregister(&mv_otg_driver);
-}
-
-module_init(mv_otg_init);
-module_exit(mv_otg_exit);
+module_platform_driver(mv_otg_driver);

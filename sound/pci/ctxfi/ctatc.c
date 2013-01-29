@@ -38,7 +38,7 @@
 			    | (0x10 << 16) \
 			    | ((IEC958_AES3_CON_FS_48000) << 24))
 
-static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
+static struct snd_pci_quirk subsys_20k1_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0022, "SB055x", CTSB055X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x002f, "SB055x", CTSB055X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0029, "SB073x", CTSB073X),
@@ -48,7 +48,7 @@ static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
 	{ } /* terminator */
 };
 
-static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
+static struct snd_pci_quirk subsys_20k2_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB0760,
 		      "SB0760", CTSB0760),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB1270,
@@ -1249,7 +1249,7 @@ static int atc_dev_free(struct snd_device *dev)
 	return ct_atc_destroy(atc);
 }
 
-static int __devinit atc_identify_card(struct ct_atc *atc, unsigned int ssid)
+static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 {
 	const struct snd_pci_quirk *p;
 	const struct snd_pci_quirk *list;
@@ -1296,7 +1296,7 @@ static int __devinit atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 	return 0;
 }
 
-int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
+int ct_atc_create_alsa_devs(struct ct_atc *atc)
 {
 	enum CTALSADEVS i;
 	int err;
@@ -1319,7 +1319,7 @@ int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
 	return 0;
 }
 
-static int __devinit atc_create_hw_devs(struct ct_atc *atc)
+static int atc_create_hw_devs(struct ct_atc *atc)
 {
 	struct hw *hw;
 	struct card_conf info = {0};
@@ -1614,7 +1614,7 @@ static int atc_resume(struct ct_atc *atc)
 }
 #endif
 
-static struct ct_atc atc_preset __devinitdata = {
+static struct ct_atc atc_preset = {
 	.map_audio_buffer = ct_map_audio_buffer,
 	.unmap_audio_buffer = ct_unmap_audio_buffer,
 	.pcm_playback_prepare = atc_pcm_playback_prepare,
@@ -1665,10 +1665,10 @@ static struct ct_atc atc_preset __devinitdata = {
  *  Returns 0 if succeeds, or negative error code if fails.
  */
 
-int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
-			    unsigned int rsr, unsigned int msr,
-			    int chip_type, unsigned int ssid,
-			    struct ct_atc **ratc)
+int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
+		  unsigned int rsr, unsigned int msr,
+		  int chip_type, unsigned int ssid,
+		  struct ct_atc **ratc)
 {
 	struct ct_atc *atc;
 	static struct snd_device_ops ops = {

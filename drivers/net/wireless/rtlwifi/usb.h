@@ -156,7 +156,7 @@ struct rtl_usb_priv {
 
 
 
-int __devinit rtl_usb_probe(struct usb_interface *intf,
+int rtl_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id);
 void rtl_usb_disconnect(struct usb_interface *intf);
 int rtl_usb_suspend(struct usb_interface *pusb_intf, pm_message_t message);

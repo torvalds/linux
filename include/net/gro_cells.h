@@ -17,7 +17,6 @@ struct gro_cells {
 
 static inline void gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 {
-	unsigned long flags;
 	struct gro_cell *cell = gcells->cells;
 	struct net_device *dev = skb->dev;
 
@@ -35,32 +34,37 @@ static inline void gro_cells_receive(struct gro_cells *gcells, struct sk_buff *s
 		return;
 	}
 
-	spin_lock_irqsave(&cell->napi_skbs.lock, flags);
+	/* We run in BH context */
+	spin_lock(&cell->napi_skbs.lock);
 
 	__skb_queue_tail(&cell->napi_skbs, skb);
 	if (skb_queue_len(&cell->napi_skbs) == 1)
 		napi_schedule(&cell->napi);
 
-	spin_unlock_irqrestore(&cell->napi_skbs.lock, flags);
+	spin_unlock(&cell->napi_skbs.lock);
 }
 
+/* called unser BH context */
 static inline int gro_cell_poll(struct napi_struct *napi, int budget)
 {
 	struct gro_cell *cell = container_of(napi, struct gro_cell, napi);
 	struct sk_buff *skb;
 	int work_done = 0;
 
+	spin_lock(&cell->napi_skbs.lock);
 	while (work_done < budget) {
-		skb = skb_dequeue(&cell->napi_skbs);
+		skb = __skb_dequeue(&cell->napi_skbs);
 		if (!skb)
 			break;
-
+		spin_unlock(&cell->napi_skbs.lock);
 		napi_gro_receive(napi, skb);
 		work_done++;
+		spin_lock(&cell->napi_skbs.lock);
 	}
 
 	if (work_done < budget)
 		napi_complete(napi);
+	spin_unlock(&cell->napi_skbs.lock);
 	return work_done;
 }
 

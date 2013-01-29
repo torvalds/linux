@@ -1,6 +1,7 @@
 #include "pd-common.h"
 #include <linux/kernel.h>
 #include <linux/usb.h>
+#include <linux/time.h>
 #include <linux/dvb/dmx.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>

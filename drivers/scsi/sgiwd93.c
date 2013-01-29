@@ -226,7 +226,7 @@ static struct scsi_host_template sgiwd93_template = {
 	.use_clustering		= DISABLE_CLUSTERING,
 };
 
-static int __devinit sgiwd93_probe(struct platform_device *pdev)
+static int sgiwd93_probe(struct platform_device *pdev)
 {
 	struct sgiwd93_platform_data *pd = pdev->dev.platform_data;
 	unsigned char *wdregs = pd->wdregs;
@@ -312,7 +312,7 @@ static int __exit sgiwd93_remove(struct platform_device *pdev)
 
 static struct platform_driver sgiwd93_driver = {
 	.probe  = sgiwd93_probe,
-	.remove = __devexit_p(sgiwd93_remove),
+	.remove = sgiwd93_remove,
 	.driver = {
 		.name   = "sgiwd93",
 		.owner	= THIS_MODULE,

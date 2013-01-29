@@ -41,6 +41,7 @@ enum ath_reset_type {
 	RESET_TYPE_PLL_HANG,
 	RESET_TYPE_MAC_HANG,
 	RESET_TYPE_BEACON_STUCK,
+	RESET_TYPE_MCI,
 	__RESET_TYPE_MAX
 };
 
@@ -178,6 +179,21 @@ struct ath_tx_stats {
 	u32 txfailed;
 };
 
+/*
+ * Various utility macros to print TX/Queue counters.
+ */
+#define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
+#define TXSTATS sc->debug.stats.txstats
+#define PR(str, elem)							\
+	do {								\
+		len += snprintf(buf + len, size - len,			\
+				"%s%13u%11u%10u%10u\n", str,		\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+	} while(0)
+
 #define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
 
 /**
@@ -291,7 +307,22 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
-
+int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif, int sset);
+void ath9k_get_et_stats(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ethtool_stats *stats, u64 *data);
+void ath9k_get_et_strings(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  u32 sset, u8 *data);
+void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct dentry *dir);
+void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct dentry *dir);
 #else
 
 #define RX_STAT_INC(c) /* NOP */

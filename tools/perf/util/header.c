@@ -23,6 +23,7 @@
 #include "pmu.h"
 #include "vdso.h"
 #include "strbuf.h"
+#include "build-id.h"
 
 static bool no_buildid_cache = false;
 
@@ -1378,6 +1379,8 @@ static void print_numa_topology(struct perf_header *ph, int fd __maybe_unused,
 
 		str = tmp + 1;
 		fprintf(fp, "# node%u cpu list : %s\n", c, str);
+
+		str += strlen(str) + 1;
 	}
 	return;
 error:
@@ -2338,6 +2341,16 @@ static int try_all_pipe_abis(uint64_t hdr_sz, struct perf_header *ph)
 		return 0;
 	}
 	return -1;
+}
+
+bool is_perf_magic(u64 magic)
+{
+	if (!memcmp(&magic, __perf_magic1, sizeof(magic))
+		|| magic == __perf_magic2
+		|| magic == __perf_magic2_sw)
+		return true;
+
+	return false;
 }
 
 static int check_magic_endian(u64 magic, uint64_t hdr_sz,

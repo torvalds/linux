@@ -56,7 +56,7 @@ static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at it for real ...
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16)))
@@ -76,7 +76,7 @@ static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 oh_my_gawd:
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48)) {
@@ -85,7 +85,7 @@ oh_my_gawd:
 	}
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't try to access
+	 * IOC3 is fucking fucked beyond belief ...  Don't try to access
 	 * anything but 32-bit words ...
 	 */
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].l[where >> 2];
@@ -118,7 +118,7 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at it for real ...
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16)))
@@ -139,7 +139,7 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 oh_my_gawd:
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48)) {
@@ -148,7 +148,7 @@ oh_my_gawd:
 	}
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't try to access
+	 * IOC3 is fucking fucked beyond belief ...  Don't try to access
 	 * anything but 32-bit words ...
 	 */
 	bridge->b_pci_cfg = (busno << 16) | (slot << 11);
@@ -189,7 +189,7 @@ static int pci_conf0_write_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at it for real ...
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16)))
@@ -213,14 +213,14 @@ static int pci_conf0_write_config(struct pci_bus *bus, unsigned int devfn,
 oh_my_gawd:
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to touch the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48))
 		return PCIBIOS_SUCCESSFUL;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't try to access
+	 * IOC3 is fucking fucked beyond belief ...  Don't try to access
 	 * anything but 32-bit words ...
 	 */
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].l[where >> 2];
@@ -257,7 +257,7 @@ static int pci_conf1_write_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to look at it for real ...
 	 */
 	if (cf == (PCI_VENDOR_ID_SGI | (PCI_DEVICE_ID_SGI_IOC3 << 16)))
@@ -281,14 +281,14 @@ static int pci_conf1_write_config(struct pci_bus *bus, unsigned int devfn,
 oh_my_gawd:
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't even give the
+	 * IOC3 is fucking fucked beyond belief ...  Don't even give the
 	 * generic PCI code a chance to touch the wrong register.
 	 */
 	if ((where >= 0x14 && where < 0x40) || (where >= 0x48))
 		return PCIBIOS_SUCCESSFUL;
 
 	/*
-	 * IOC3 is fucked fucked beyond believe ...  Don't try to access
+	 * IOC3 is fucking fucked beyond belief ...  Don't try to access
 	 * anything but 32-bit words ...
 	 */
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].l[where >> 2];

@@ -1702,7 +1702,7 @@ static int amd8111e_resume(struct pci_dev *pci_dev)
 }
 
 
-static void __devexit amd8111e_remove_one(struct pci_dev *pdev)
+static void amd8111e_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	if (dev) {
@@ -1774,7 +1774,7 @@ static void amd8111e_config_ipg(struct net_device* dev)
 
 }
 
-static void __devinit amd8111e_probe_ext_phy(struct net_device* dev)
+static void amd8111e_probe_ext_phy(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int i;
@@ -1810,7 +1810,7 @@ static const struct net_device_ops amd8111e_netdev_ops = {
 #endif
 };
 
-static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
+static int amd8111e_probe_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	int err,i,pm_cap;
@@ -1976,7 +1976,7 @@ static struct pci_driver amd8111e_driver = {
 	.name   	= MODULE_NAME,
 	.id_table	= amd8111e_pci_tbl,
 	.probe		= amd8111e_probe_one,
-	.remove		= __devexit_p(amd8111e_remove_one),
+	.remove		= amd8111e_remove_one,
 	.suspend	= amd8111e_suspend,
 	.resume		= amd8111e_resume
 };

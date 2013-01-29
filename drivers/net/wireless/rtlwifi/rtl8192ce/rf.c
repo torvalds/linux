@@ -97,15 +97,12 @@ void rtl92ce_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 		}
 
 		if (rtlefuse->eeprom_regulatory == 0) {
-			tmpval =
-			    (rtlphy->mcs_txpwrlevel_origoffset[0][6]) +
-			    (rtlphy->mcs_txpwrlevel_origoffset[0][7] <<
-			     8);
+			tmpval = (rtlphy->mcs_offset[0][6]) +
+			    (rtlphy->mcs_offset[0][7] << 8);
 			tx_agc[RF90_PATH_A] += tmpval;
 
-			tmpval = (rtlphy->mcs_txpwrlevel_origoffset[0][14]) +
-				 (rtlphy->mcs_txpwrlevel_origoffset[0][15] <<
-				 24);
+			tmpval = (rtlphy->mcs_offset[0][14]) +
+				 (rtlphy->mcs_offset[0][15] << 24);
 			tx_agc[RF90_PATH_B] += tmpval;
 		}
 	}
@@ -209,8 +206,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 		case 0:
 			chnlgroup = 0;
 
-			writeVal =
-			    rtlphy->mcs_txpwrlevel_origoffset[chnlgroup][index +
+			writeVal = rtlphy->mcs_offset[chnlgroup][index +
 			    (rf ? 8 : 0)]
 			    + ((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 
@@ -240,8 +236,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 						chnlgroup++;
 				}
 
-				writeVal =
-				    rtlphy->mcs_txpwrlevel_origoffset[chnlgroup]
+				writeVal = rtlphy->mcs_offset[chnlgroup]
 				    [index + (rf ? 8 : 0)] + ((index < 2) ?
 							      powerBase0[rf] :
 							      powerBase1[rf]);
@@ -276,8 +271,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 								    1]);
 			}
 			for (i = 0; i < 4; i++) {
-				pwr_diff_limit[i] =
-				    (u8) ((rtlphy->mcs_txpwrlevel_origoffset
+				pwr_diff_limit[i] = (u8) ((rtlphy->mcs_offset
 					  [chnlgroup][index +
 					  (rf ? 8 : 0)] & (0x7f << (i * 8))) >>
 					  (i * 8));
@@ -317,8 +311,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 			break;
 		default:
 			chnlgroup = 0;
-			writeVal =
-			    rtlphy->mcs_txpwrlevel_origoffset[chnlgroup]
+			writeVal = rtlphy->mcs_offset[chnlgroup]
 			    [index + (rf ? 8 : 0)]
 			    + ((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 

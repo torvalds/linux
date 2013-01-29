@@ -54,6 +54,7 @@ int nv04_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
 			int clk, struct nouveau_pll_vals *);
 int nv04_clock_pll_prog(struct nouveau_clock *, u32 reg1,
 			struct nouveau_pll_vals *);
-
+int nva3_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
+			int clk, struct nouveau_pll_vals *);
 
 #endif

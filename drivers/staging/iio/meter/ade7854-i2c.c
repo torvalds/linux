@@ -201,7 +201,7 @@ out:
 	return ret;
 }
 
-static int __devinit ade7854_i2c_probe(struct i2c_client *client,
+static int ade7854_i2c_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int ret;
@@ -231,7 +231,7 @@ static int __devinit ade7854_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int __devexit ade7854_i2c_remove(struct i2c_client *client)
+static int ade7854_i2c_remove(struct i2c_client *client)
 {
 	return ade7854_remove(i2c_get_clientdata(client));
 }
@@ -250,7 +250,7 @@ static struct i2c_driver ade7854_i2c_driver = {
 		.name = "ade7854",
 	},
 	.probe    = ade7854_i2c_probe,
-	.remove   = __devexit_p(ade7854_i2c_remove),
+	.remove   = ade7854_i2c_remove,
 	.id_table = ade7854_id,
 };
 module_i2c_driver(ade7854_i2c_driver);

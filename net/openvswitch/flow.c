@@ -604,6 +604,7 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 
 	key->phy.priority = skb->priority;
 	key->phy.in_port = in_port;
+	key->phy.skb_mark = skb->mark;
 
 	skb_reset_mac_header(skb);
 
@@ -689,7 +690,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 			}
 		}
 
-	} else if (key->eth.type == htons(ETH_P_ARP) && arphdr_ok(skb)) {
+	} else if ((key->eth.type == htons(ETH_P_ARP) ||
+		   key->eth.type == htons(ETH_P_RARP)) && arphdr_ok(skb)) {
 		struct arp_eth_header *arp;
 
 		arp = (struct arp_eth_header *)skb_network_header(skb);
@@ -702,15 +704,11 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 			/* We only match on the lower 8 bits of the opcode. */
 			if (ntohs(arp->ar_op) <= 0xff)
 				key->ip.proto = ntohs(arp->ar_op);
-
-			if (key->ip.proto == ARPOP_REQUEST
-					|| key->ip.proto == ARPOP_REPLY) {
-				memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
-				memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
-				memcpy(key->ipv4.arp.sha, arp->ar_sha, ETH_ALEN);
-				memcpy(key->ipv4.arp.tha, arp->ar_tha, ETH_ALEN);
-				key_len = SW_FLOW_KEY_OFFSET(ipv4.arp);
-			}
+			memcpy(&key->ipv4.addr.src, arp->ar_sip, sizeof(key->ipv4.addr.src));
+			memcpy(&key->ipv4.addr.dst, arp->ar_tip, sizeof(key->ipv4.addr.dst));
+			memcpy(key->ipv4.arp.sha, arp->ar_sha, ETH_ALEN);
+			memcpy(key->ipv4.arp.tha, arp->ar_tha, ETH_ALEN);
+			key_len = SW_FLOW_KEY_OFFSET(ipv4.arp);
 		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		int nh_len;             /* IPv6 Header + Extensions */
@@ -806,6 +804,7 @@ const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_ENCAP] = -1,
 	[OVS_KEY_ATTR_PRIORITY] = sizeof(u32),
 	[OVS_KEY_ATTR_IN_PORT] = sizeof(u32),
+	[OVS_KEY_ATTR_SKB_MARK] = sizeof(u32),
 	[OVS_KEY_ATTR_ETHERNET] = sizeof(struct ovs_key_ethernet),
 	[OVS_KEY_ATTR_VLAN] = sizeof(__be16),
 	[OVS_KEY_ATTR_ETHERTYPE] = sizeof(__be16),
@@ -991,6 +990,10 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 	} else {
 		swkey->phy.in_port = DP_MAX_PORTS;
 	}
+	if (attrs & (1 << OVS_KEY_ATTR_SKB_MARK)) {
+		swkey->phy.skb_mark = nla_get_u32(a[OVS_KEY_ATTR_SKB_MARK]);
+		attrs &= ~(1 << OVS_KEY_ATTR_SKB_MARK);
+	}
 
 	/* Data attributes. */
 	if (!(attrs & (1 << OVS_KEY_ATTR_ETHERNET)))
@@ -1090,7 +1093,8 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 			if (err)
 				return err;
 		}
-	} else if (swkey->eth.type == htons(ETH_P_ARP)) {
+	} else if (swkey->eth.type == htons(ETH_P_ARP) ||
+		   swkey->eth.type == htons(ETH_P_RARP)) {
 		const struct ovs_key_arp *arp_key;
 
 		if (!(attrs & (1 << OVS_KEY_ATTR_ARP)))
@@ -1117,6 +1121,8 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 
 /**
  * ovs_flow_metadata_from_nlattrs - parses Netlink attributes into a flow key.
+ * @priority: receives the skb priority
+ * @mark: receives the skb mark
  * @in_port: receives the extracted input port.
  * @key: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
  * sequence.
@@ -1126,7 +1132,7 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
  * get the metadata, that is, the parts of the flow key that cannot be
  * extracted from the packet itself.
  */
-int ovs_flow_metadata_from_nlattrs(u32 *priority, u16 *in_port,
+int ovs_flow_metadata_from_nlattrs(u32 *priority, u32 *mark, u16 *in_port,
 			       const struct nlattr *attr)
 {
 	const struct nlattr *nla;
@@ -1134,6 +1140,7 @@ int ovs_flow_metadata_from_nlattrs(u32 *priority, u16 *in_port,
 
 	*in_port = DP_MAX_PORTS;
 	*priority = 0;
+	*mark = 0;
 
 	nla_for_each_nested(nla, attr, rem) {
 		int type = nla_type(nla);
@@ -1151,6 +1158,10 @@ int ovs_flow_metadata_from_nlattrs(u32 *priority, u16 *in_port,
 				if (nla_get_u32(nla) >= DP_MAX_PORTS)
 					return -EINVAL;
 				*in_port = nla_get_u32(nla);
+				break;
+
+			case OVS_KEY_ATTR_SKB_MARK:
+				*mark = nla_get_u32(nla);
 				break;
 			}
 		}
@@ -1171,6 +1182,10 @@ int ovs_flow_to_nlattrs(const struct sw_flow_key *swkey, struct sk_buff *skb)
 
 	if (swkey->phy.in_port != DP_MAX_PORTS &&
 	    nla_put_u32(skb, OVS_KEY_ATTR_IN_PORT, swkey->phy.in_port))
+		goto nla_put_failure;
+
+	if (swkey->phy.skb_mark &&
+	    nla_put_u32(skb, OVS_KEY_ATTR_SKB_MARK, swkey->phy.skb_mark))
 		goto nla_put_failure;
 
 	nla = nla_reserve(skb, OVS_KEY_ATTR_ETHERNET, sizeof(*eth_key));
@@ -1226,7 +1241,8 @@ int ovs_flow_to_nlattrs(const struct sw_flow_key *swkey, struct sk_buff *skb)
 		ipv6_key->ipv6_tclass = swkey->ip.tos;
 		ipv6_key->ipv6_hlimit = swkey->ip.ttl;
 		ipv6_key->ipv6_frag = swkey->ip.frag;
-	} else if (swkey->eth.type == htons(ETH_P_ARP)) {
+	} else if (swkey->eth.type == htons(ETH_P_ARP) ||
+		   swkey->eth.type == htons(ETH_P_RARP)) {
 		struct ovs_key_arp *arp_key;
 
 		nla = nla_reserve(skb, OVS_KEY_ATTR_ARP, sizeof(*arp_key));

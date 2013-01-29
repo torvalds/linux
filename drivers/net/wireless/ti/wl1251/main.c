@@ -896,11 +896,13 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
-				     req->ie, req->ie_len);
+				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
 	}
+	if (req->ie_len)
+		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
 
 	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, skb->data,
 				      skb->len);

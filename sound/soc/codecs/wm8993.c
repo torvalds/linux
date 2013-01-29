@@ -1645,8 +1645,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
 	.set_bias_level = wm8993_set_bias_level,
 };
 
-static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8993_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8993_priv *wm8993;
 	unsigned int reg;
@@ -1660,7 +1660,7 @@ static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 	wm8993->dev = &i2c->dev;
 	init_completion(&wm8993->fll_lock);
 
-	wm8993->regmap = regmap_init_i2c(i2c, &wm8993_regmap);
+	wm8993->regmap = devm_regmap_init_i2c(i2c, &wm8993_regmap);
 	if (IS_ERR(wm8993->regmap)) {
 		ret = PTR_ERR(wm8993->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -1672,18 +1672,18 @@ static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm8993->supplies); i++)
 		wm8993->supplies[i].supply = wm8993_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8993->supplies),
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8993->supplies),
 				 wm8993->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
 				    wm8993->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		return ret;
 	}
 
 	ret = regmap_read(wm8993->regmap, WM8993_SOFTWARE_RESET, &reg);
@@ -1742,23 +1742,17 @@ err_irq:
 		free_irq(i2c->irq, wm8993);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-err:
-	regmap_exit(wm8993->regmap);
 	return ret;
 }
 
-static __devexit int wm8993_i2c_remove(struct i2c_client *i2c)
+static int wm8993_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8993_priv *wm8993 = i2c_get_clientdata(i2c);
 
 	snd_soc_unregister_codec(&i2c->dev);
 	if (i2c->irq)
 		free_irq(i2c->irq, wm8993);
-	regmap_exit(wm8993->regmap);
 	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
 
 	return 0;
 }
@@ -1775,7 +1769,7 @@ static struct i2c_driver wm8993_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8993_i2c_probe,
-	.remove =   __devexit_p(wm8993_i2c_remove),
+	.remove =   wm8993_i2c_remove,
 	.id_table = wm8993_i2c_id,
 };
 

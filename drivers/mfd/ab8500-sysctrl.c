@@ -49,13 +49,13 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 		(u8)(reg & 0xFF), mask, value);
 }
 
-static int __devinit ab8500_sysctrl_probe(struct platform_device *pdev)
+static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
 	sysctrl_dev = &pdev->dev;
 	return 0;
 }
 
-static int __devexit ab8500_sysctrl_remove(struct platform_device *pdev)
+static int ab8500_sysctrl_remove(struct platform_device *pdev)
 {
 	sysctrl_dev = NULL;
 	return 0;
@@ -67,7 +67,7 @@ static struct platform_driver ab8500_sysctrl_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_sysctrl_probe,
-	.remove = __devexit_p(ab8500_sysctrl_remove),
+	.remove = ab8500_sysctrl_remove,
 };
 
 static int __init ab8500_sysctrl_init(void)

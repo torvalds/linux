@@ -2286,7 +2286,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		mdp->mii_bus->irq[i] = PHY_POLL;
 
-	/* regist mdio bus */
+	/* register mdio bus */
 	ret = mdiobus_register(mdp->mii_bus);
 	if (ret)
 		goto out_free_irq;

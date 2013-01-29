@@ -79,7 +79,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 		/* Clear the USR and write the LCR again. */
 		(void)p->serial_in(p, UART_USR);
-		p->serial_out(p, d->last_lcr, UART_LCR);
+		p->serial_out(p, UART_LCR, d->last_lcr);
 
 		return 1;
 	}
@@ -87,7 +87,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 	return 0;
 }
 
-static int __devinit dw8250_probe(struct platform_device *pdev)
+static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -152,7 +152,7 @@ static int __devinit dw8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit dw8250_remove(struct platform_device *pdev)
+static int dw8250_remove(struct platform_device *pdev)
 {
 	struct dw8250_data *data = platform_get_drvdata(pdev);
 
@@ -160,6 +160,29 @@ static int __devexit dw8250_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int dw8250_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct dw8250_data *data = platform_get_drvdata(pdev);
+
+	serial8250_suspend_port(data->line);
+
+	return 0;
+}
+
+static int dw8250_resume(struct platform_device *pdev)
+{
+	struct dw8250_data *data = platform_get_drvdata(pdev);
+
+	serial8250_resume_port(data->line);
+
+	return 0;
+}
+#else
+#define dw8250_suspend NULL
+#define dw8250_resume NULL
+#endif /* CONFIG_PM */
 
 static const struct of_device_id dw8250_match[] = {
 	{ .compatible = "snps,dw-apb-uart" },
@@ -174,7 +197,9 @@ static struct platform_driver dw8250_platform_driver = {
 		.of_match_table	= dw8250_match,
 	},
 	.probe			= dw8250_probe,
-	.remove			= __devexit_p(dw8250_remove),
+	.remove			= dw8250_remove,
+	.suspend		= dw8250_suspend,
+	.resume			= dw8250_resume,
 };
 
 module_platform_driver(dw8250_platform_driver);

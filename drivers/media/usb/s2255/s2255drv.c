@@ -1651,7 +1651,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *priv,
 	int is_ntsc = 0;
 #define NUM_FRAME_ENUMS 4
 	int frm_dec[NUM_FRAME_ENUMS] = {1, 2, 3, 5};
-	if (fe->index < 0 || fe->index >= NUM_FRAME_ENUMS)
+	if (fe->index >= NUM_FRAME_ENUMS)
 		return -EINVAL;
 	switch (fe->width) {
 	case 640:

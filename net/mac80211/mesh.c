@@ -76,7 +76,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
-	enum nl80211_channel_type sta_channel_type = NL80211_CHAN_NO_HT;
+	struct cfg80211_chan_def sta_chan_def;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -97,23 +97,17 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		goto mismatch;
 
-	ieee80211_sta_get_rates(local, ie, local->oper_channel->band,
+	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		goto mismatch;
 
-	if (ie->ht_operation)
-		sta_channel_type =
-			ieee80211_ht_oper_to_channel_type(ie->ht_operation);
+	ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
+				     ie->ht_operation, &sta_chan_def);
 
-	/* Disallow HT40+/- mismatch */
-	if (ie->ht_operation &&
-	    (sdata->vif.bss_conf.channel_type == NL80211_CHAN_HT40MINUS ||
-	     sdata->vif.bss_conf.channel_type == NL80211_CHAN_HT40PLUS) &&
-	    (sta_channel_type == NL80211_CHAN_HT40MINUS ||
-	     sta_channel_type == NL80211_CHAN_HT40PLUS) &&
-	    sdata->vif.bss_conf.channel_type != sta_channel_type)
+	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
+					 &sta_chan_def))
 		goto mismatch;
 
 	return true;
@@ -129,7 +123,7 @@ mismatch:
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
 	return (ie->mesh_config->meshconf_cap &
-	    MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
+	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
 }
 
 /**
@@ -169,7 +163,7 @@ int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 		return -ENOMEM;
 	sdata->u.mesh.rmc->idx_mask = RMC_BUCKETS - 1;
 	for (i = 0; i < RMC_BUCKETS; i++)
-		INIT_LIST_HEAD(&sdata->u.mesh.rmc->bucket[i].list);
+		INIT_LIST_HEAD(&sdata->u.mesh.rmc->bucket[i]);
 	return 0;
 }
 
@@ -183,7 +177,7 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	for (i = 0; i < RMC_BUCKETS; i++)
-		list_for_each_entry_safe(p, n, &rmc->bucket[i].list, list) {
+		list_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
 			list_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 		}
@@ -216,7 +210,7 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	/* Don't care about endianness since only match matters */
 	memcpy(&seqnum, &mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
 	idx = le32_to_cpu(mesh_hdr->seqnum) & rmc->idx_mask;
-	list_for_each_entry_safe(p, n, &rmc->bucket[idx].list, list) {
+	list_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
 		++entries;
 		if (time_after(jiffies, p->exp_time) ||
 				(entries == RMC_QUEUE_MAX_LEN)) {
@@ -235,7 +229,7 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	p->seqnum = seqnum;
 	p->exp_time = jiffies + RMC_TIMEOUT;
 	memcpy(p->sa, sa, ETH_ALEN);
-	list_add(&p->list, &rmc->bucket[idx].list);
+	list_add(&p->list, &rmc->bucket[idx]);
 	return 0;
 }
 
@@ -264,16 +258,16 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	/* Authentication Protocol identifier */
 	*pos++ = ifmsh->mesh_auth_id;
 	/* Mesh Formation Info - number of neighbors */
-	neighbors = atomic_read(&ifmsh->mshstats.estab_plinks);
+	neighbors = atomic_read(&ifmsh->estab_plinks);
 	/* Number of neighbor mesh STAs or 15 whichever is smaller */
 	neighbors = (neighbors > 15) ? 15 : neighbors;
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = MESHCONF_CAPAB_FORWARDING;
+	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
 	*pos |= ifmsh->accepting_plinks ?
-	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ |= ifmsh->adjusting_tbtt ?
-	    MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
+	    IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
 	*pos++ = 0x00;
 
 	return 0;
@@ -355,11 +349,21 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *chan = local->oper_channel;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *chan;
 	u8 *pos;
 
 	if (skb_tailroom(skb) < 3)
 		return -ENOMEM;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	chan = chanctx_conf->def.chan;
+	rcu_read_unlock();
 
 	sband = local->hw.wiphy->bands[chan->band];
 	if (sband->band == IEEE80211_BAND_2GHZ) {
@@ -376,12 +380,13 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 		       struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 
-	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	sband = local->hw.wiphy->bands[band];
 	if (!sband->ht_cap.ht_supported ||
-	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_cap))
@@ -397,13 +402,25 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_channel *channel = local->oper_channel;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type =
-				sdata->vif.bss_conf.channel_type;
-	struct ieee80211_supported_band *sband =
-				local->hw.wiphy->bands[channel->band];
-	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
+		cfg80211_get_chandef_type(&sdata->vif.bss_conf.chandef);
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_sta_ht_cap *ht_cap;
 	u8 *pos;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	channel = chanctx_conf->def.chan;
+	rcu_read_unlock();
+
+	sband = local->hw.wiphy->bands[channel->band];
+	ht_cap = &sband->ht_cap;
 
 	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
 		return 0;
@@ -412,7 +429,7 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 		return -ENOMEM;
 
 	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type,
+	ieee80211_ie_build_ht_oper(pos, ht_cap, &sdata->vif.bss_conf.chandef,
 				   sdata->vif.bss_conf.ht_operation_mode);
 
 	return 0;
@@ -610,7 +627,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(sdata->local,
-					  sdata->local->oper_channel->band);
+					  ieee80211_get_sdata_band(sdata));
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_HT |
@@ -680,8 +697,10 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 			       &elems);
 
-	/* ignore beacons from secure mesh peers if our security is off */
-	if (elems.rsn_len && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE)
+	/* ignore non-mesh or secure / unsecure mismatch */
+	if ((!elems.mesh_id || !elems.mesh_config) ||
+	    (elems.rsn && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) ||
+	    (!elems.rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))
 		return;
 
 	if (elems.ds_params && elems.ds_params_len == 1)
@@ -694,8 +713,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(sdata, &elems))
+	if (mesh_matches_local(sdata, &elems))
 		mesh_neighbour_update(sdata, mgmt->sa, &elems);
 
 	if (ifmsh->sync_ops)

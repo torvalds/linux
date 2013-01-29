@@ -48,7 +48,7 @@
 #define AXIENET_REGS_N		32
 
 /* Match table for of_platform binding */
-static struct of_device_id axienet_of_match[] __devinitdata = {
+static struct of_device_id axienet_of_match[] = {
 	{ .compatible = "xlnx,axi-ethernet-1.00.a", },
 	{ .compatible = "xlnx,axi-ethernet-1.01.a", },
 	{ .compatible = "xlnx,axi-ethernet-2.01.a", },
@@ -894,6 +894,8 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void axienet_dma_err_handler(unsigned long data);
+
 /**
  * axienet_open - Driver open routine.
  * @ndev:	Pointer to net_device structure
@@ -1480,7 +1482,7 @@ static void axienet_dma_err_handler(unsigned long data)
  * device. Parses through device tree and populates fields of
  * axienet_local. It registers the Ethernet device.
  */
-static int __devinit axienet_of_probe(struct platform_device *op)
+static int axienet_of_probe(struct platform_device *op)
 {
 	__be32 *p;
 	int size, ret = 0;
@@ -1588,7 +1590,7 @@ static int __devinit axienet_of_probe(struct platform_device *op)
 	lp->rx_irq = irq_of_parse_and_map(np, 1);
 	lp->tx_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
+	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		ret = -ENOMEM;
 		goto err_iounmap_2;
@@ -1630,7 +1632,7 @@ nodev:
 	return ret;
 }
 
-static int __devexit axienet_of_remove(struct platform_device *op)
+static int axienet_of_remove(struct platform_device *op)
 {
 	struct net_device *ndev = dev_get_drvdata(&op->dev);
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -1654,7 +1656,7 @@ static int __devexit axienet_of_remove(struct platform_device *op)
 
 static struct platform_driver axienet_of_driver = {
 	.probe = axienet_of_probe,
-	.remove = __devexit_p(axienet_of_remove),
+	.remove = axienet_of_remove,
 	.driver = {
 		 .owner = THIS_MODULE,
 		 .name = "xilinx_axienet",

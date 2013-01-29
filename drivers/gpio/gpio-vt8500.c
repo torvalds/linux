@@ -96,6 +96,7 @@ static struct vt8500_gpio_data wm8505_data = {
 		VT8500_BANK(0x5C, 0x84, 0xAC, 0xD4, 12),
 		VT8500_BANK(0x60, 0x88, 0xB0, 0xD8, 16),
 		VT8500_BANK(0x64, 0x8C, 0xB4, 0xDC, 22),
+		VT8500_BANK(0x500, 0x504, 0x508, 0x50C, 6),
 	},
 };
 
@@ -115,6 +116,7 @@ static struct vt8500_gpio_data wm8650_data = {
 		VT8500_BANK(0x58, 0x98, 0xD8, 0x18, 32),
 		VT8500_BANK(0x5C, 0x9C, 0xDC, 0x1C, 32),
 		VT8500_BANK(0x7C, 0xBC, 0xFC, 0x3C, 32),
+		VT8500_BANK(0x500, 0x504, 0x508, 0x50C, 6),
 	},
 };
 
@@ -269,7 +271,7 @@ static struct of_device_id vt8500_gpio_dt_ids[] = {
 	{ /* Sentinel */ },
 };
 
-static int __devinit vt8500_gpio_probe(struct platform_device *pdev)
+static int vt8500_gpio_probe(struct platform_device *pdev)
 {
 	void __iomem *gpio_base;
 	struct device_node *np;

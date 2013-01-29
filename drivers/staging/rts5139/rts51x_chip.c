@@ -132,7 +132,7 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 	}
 #endif
 	if (chip->option.FT2_fast_mode) {
-		card_power_on(chip, SD_CARD | MS_CARD | XD_CARD);
+		rts51x_card_power_on(chip, SD_CARD | MS_CARD | XD_CARD);
 		wait_timeout(10);
 	}
 
@@ -212,8 +212,8 @@ int rts51x_init_chip(struct rts51x_chip *chip)
 
 int rts51x_release_chip(struct rts51x_chip *chip)
 {
-	xd_free_l2p_tbl(chip);
-	ms_free_l2p_tbl(chip);
+	rts51x_xd_free_l2p_tbl(chip);
+	rts51x_ms_free_l2p_tbl(chip);
 	chip->card_ready = 0;
 	return STATUS_SUCCESS;
 }
@@ -227,7 +227,7 @@ static inline void rts51x_blink_led(struct rts51x_chip *chip)
 			chip->led_toggle_counter++;
 		} else {
 			chip->led_toggle_counter = 0;
-			toggle_gpio(chip, LED_GPIO);
+			rts51x_toggle_gpio(chip, LED_GPIO);
 		}
 	}
 }
@@ -325,14 +325,14 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 			    && (chip->card_exist &
 				(SD_CARD | MS_CARD | XD_CARD))
 			    && (!chip->card_ejected)) {
-				turn_on_led(chip, LED_GPIO);
+				rts51x_turn_on_led(chip, LED_GPIO);
 			} else {
 				if (chip->rts5179) {
 					rts51x_ep0_write_register(chip,
 								  CARD_GPIO,
 								  0x03, 0x00);
 				} else {
-					turn_off_led(chip, LED_GPIO);
+					rts51x_turn_off_led(chip, LED_GPIO);
 				}
 
 			}
@@ -353,7 +353,7 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 	switch (RTS51X_GET_STAT(chip)) {
 	case STAT_RUN:
 		rts51x_blink_led(chip);
-		do_remaining_work(chip);
+		rts51x_do_remaining_work(chip);
 		break;
 
 	case STAT_IDLE:
@@ -707,7 +707,7 @@ void rts51x_do_before_power_down(struct rts51x_chip *chip)
 	if (chip->rts5179)
 		rts51x_ep0_write_register(chip, CARD_GPIO, 0x03, 0x00);
 	else
-		turn_off_led(chip, LED_GPIO);
+		rts51x_turn_off_led(chip, LED_GPIO);
 
 	chip->cur_clk = 0;
 	chip->card_exist = 0;
@@ -797,7 +797,7 @@ void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	struct ms_info *ms_card = &(chip->ms_card);
-	u8 card = get_lun_card(chip, lun);
+	u8 card = rts51x_get_lun_card(chip, lun);
 #ifdef SUPPORT_OC
 	u8 oc_now_mask = 0, oc_ever_mask = 0;
 #endif
@@ -958,9 +958,9 @@ void rts51x_read_status(struct rts51x_chip *chip, unsigned int lun,
 		rts51x_status[12] = 0;
 
 	/* Detailed Type */
-	if (get_lun_card(chip, lun) == XD_CARD) {
+	if (rts51x_get_lun_card(chip, lun) == XD_CARD) {
 		rts51x_status[13] = 0x40;
-	} else if (get_lun_card(chip, lun) == SD_CARD) {
+	} else if (rts51x_get_lun_card(chip, lun) == SD_CARD) {
 		struct sd_info *sd_card = &(chip->sd_card);
 
 		rts51x_status[13] = 0x20;
@@ -976,7 +976,7 @@ void rts51x_read_status(struct rts51x_chip *chip, unsigned int lun,
 			if (CHK_MMC_SECTOR_MODE(sd_card))
 				rts51x_status[13] |= 0x04; /* Hi capacity */
 		}
-	} else if (get_lun_card(chip, lun) == MS_CARD) {
+	} else if (rts51x_get_lun_card(chip, lun) == MS_CARD) {
 		struct ms_info *ms_card = &(chip->ms_card);
 
 		if (CHK_MSPRO(ms_card)) {

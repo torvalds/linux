@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
 
+#include <linux/mfd/wm8994/pdata.h>
+
 enum wm8994_type {
 	WM8994 = 0,
 	WM8958 = 1,
@@ -54,6 +56,8 @@ struct regulator_bulk_data;
 
 struct wm8994 {
 	struct mutex irq_lock;
+
+	struct wm8994_pdata pdata;
 
 	enum wm8994_type type;
 	int revision;

@@ -205,6 +205,24 @@ enum {
 
 #define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
 
+enum {
+	BRIDGE_MODE_UNSPEC,
+	BRIDGE_MODE_HAIRPIN,
+};
+
+enum {
+	IFLA_BRPORT_UNSPEC,
+	IFLA_BRPORT_STATE,	/* Spanning tree state     */
+	IFLA_BRPORT_PRIORITY,	/* "             priority  */
+	IFLA_BRPORT_COST,	/* "             cost      */
+	IFLA_BRPORT_MODE,	/* mode (hairpin)          */
+	IFLA_BRPORT_GUARD,	/* bpdu guard              */
+	IFLA_BRPORT_PROTECT,	/* root port protection    */
+	IFLA_BRPORT_FAST_LEAVE,	/* multicast fast leave    */
+	__IFLA_BRPORT_MAX
+};
+#define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
+
 struct ifla_cacheinfo {
 	__u32	max_reasm_len;
 	__u32	tstamp;		/* ipv6InterfaceTable updated timestamp */
@@ -285,6 +303,10 @@ enum {
 	IFLA_VXLAN_AGEING,
 	IFLA_VXLAN_LIMIT,
 	IFLA_VXLAN_PORT_RANGE,
+	IFLA_VXLAN_PROXY,
+	IFLA_VXLAN_RSC,
+	IFLA_VXLAN_L2MISS,
+	IFLA_VXLAN_L3MISS,
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)

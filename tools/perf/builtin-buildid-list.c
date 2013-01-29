@@ -44,8 +44,7 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 	return fprintf(fp, "%s\n", sbuild_id);
 }
 
-static int perf_session__list_build_ids(const char *input_name,
-					bool force, bool with_hits)
+static int perf_session__list_build_ids(bool force, bool with_hits)
 {
 	struct perf_session *session;
 
@@ -81,7 +80,6 @@ int cmd_buildid_list(int argc, const char **argv,
 	bool show_kernel = false;
 	bool with_hits = false;
 	bool force = false;
-	const char *input_name = NULL;
 	const struct option options[] = {
 	OPT_BOOLEAN('H', "with-hits", &with_hits, "Show only DSOs with hits"),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
@@ -101,5 +99,5 @@ int cmd_buildid_list(int argc, const char **argv,
 	if (show_kernel)
 		return sysfs__fprintf_build_id(stdout);
 
-	return perf_session__list_build_ids(input_name, force, with_hits);
+	return perf_session__list_build_ids(force, with_hits);
 }

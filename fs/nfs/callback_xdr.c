@@ -16,6 +16,7 @@
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "internal.h"
+#include "nfs4session.h"
 
 #define CB_OP_TAGLEN_MAXSZ	(512)
 #define CB_OP_HDR_RES_MAXSZ	(2 + CB_OP_TAGLEN_MAXSZ)
@@ -520,7 +521,7 @@ static __be32 decode_recallslot_args(struct svc_rqst *rqstp,
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_BADXDR);
-	args->crsa_target_max_slots = ntohl(*p++);
+	args->crsa_target_highest_slotid = ntohl(*p++);
 	return 0;
 }
 
@@ -762,7 +763,7 @@ static void nfs4_callback_free_slot(struct nfs4_session *session)
 	 * A single slot, so highest used slotid is either 0 or -1
 	 */
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
-	nfs4_check_drain_bc_complete(session);
+	nfs4_session_drain_complete(session, tbl);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 

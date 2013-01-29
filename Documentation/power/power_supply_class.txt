@@ -123,6 +123,9 @@ CONSTANT_CHARGE_VOLTAGE - constant charge voltage programmed by charger.
 CONSTANT_CHARGE_VOLTAGE_MAX - maximum charge voltage supported by the
 power supply object.
 
+CHARGE_CONTROL_LIMIT - current charge control limit setting
+CHARGE_CONTROL_LIMIT_MAX - maximum charge control limit setting
+
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.

@@ -49,8 +49,6 @@
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 
-#include "nouveau_ttm.h"
-
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
 module_param_named(config, nouveau_config, charp, 0400);
@@ -86,11 +84,16 @@ nouveau_cli_create(struct pci_dev *pdev, const char *name,
 	struct nouveau_cli *cli;
 	int ret;
 
+	*pcli = NULL;
 	ret = nouveau_client_create_(name, nouveau_name(pdev), nouveau_config,
 				     nouveau_debug, size, pcli);
 	cli = *pcli;
-	if (ret)
+	if (ret) {
+		if (cli)
+			nouveau_client_destroy(&cli->base);
+		*pcli = NULL;
 		return ret;
+	}
 
 	mutex_init(&cli->mutex);
 	return 0;
@@ -129,7 +132,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	/* initialise synchronisation routines */
 	if      (device->card_type < NV_10) ret = nv04_fence_create(drm);
-	else if (device->chipset   <  0x84) ret = nv10_fence_create(drm);
+	else if (device->card_type < NV_50) ret = nv10_fence_create(drm);
+	else if (device->chipset   <  0x84) ret = nv50_fence_create(drm);
 	else if (device->card_type < NV_C0) ret = nv84_fence_create(drm);
 	else                                ret = nvc0_fence_create(drm);
 	if (ret) {
@@ -148,7 +152,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
 		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
-		arg1 = 0;
+		arg1 = 1;
 	} else {
 		arg0 = NvDmaFB;
 		arg1 = NvDmaTT;
@@ -190,8 +194,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	nouveau_bo_move_init(drm);
 }
 
-static int __devinit
-nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
+static int nouveau_drm_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *pent)
 {
 	struct nouveau_device *device;
 	struct apertures_struct *aper;
@@ -223,6 +227,7 @@ nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
 	boot = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
 	remove_conflicting_framebuffers(aper, "nouveaufb", boot);
+	kfree(aper);
 
 	ret = nouveau_device_create(pdev, nouveau_name(pdev), pci_name(pdev),
 				    nouveau_config, nouveau_debug, &device);
@@ -394,16 +399,11 @@ nouveau_drm_remove(struct pci_dev *pdev)
 }
 
 int
-nouveau_drm_suspend(struct pci_dev *pdev, pm_message_t pm_state)
+nouveau_do_suspend(struct drm_device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
 	int ret;
-
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF ||
-	    pm_state.event == PM_EVENT_PRETHAW)
-		return 0;
 
 	if (dev->mode_config.num_crtc) {
 		NV_INFO(drm, "suspending fbcon...\n");
@@ -435,13 +435,6 @@ nouveau_drm_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		goto fail_client;
 
 	nouveau_agp_fini(drm);
-
-	pci_save_state(pdev);
-	if (pm_state.event == PM_EVENT_SUSPEND) {
-		pci_disable_device(pdev);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
-
 	return 0;
 
 fail_client:
@@ -456,24 +449,33 @@ fail_client:
 	return ret;
 }
 
-int
-nouveau_drm_resume(struct pci_dev *pdev)
+int nouveau_pmops_suspend(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_cli *cli;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	NV_INFO(drm, "re-enabling device...\n");
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
+	ret = nouveau_do_suspend(drm_dev);
 	if (ret)
 		return ret;
-	pci_set_master(pdev);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+
+int
+nouveau_do_resume(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_cli *cli;
+
+	NV_INFO(drm, "re-enabling device...\n");
 
 	nouveau_agp_reset(drm);
 
@@ -498,6 +500,42 @@ nouveau_drm_resume(struct pci_dev *pdev)
 	}
 	return 0;
 }
+
+int nouveau_pmops_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int ret;
+
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+	pci_set_master(pdev);
+
+	return nouveau_do_resume(drm_dev);
+}
+
+static int nouveau_pmops_freeze(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return nouveau_do_suspend(drm_dev);
+}
+
+static int nouveau_pmops_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return nouveau_do_resume(drm_dev);
+}
+
 
 static int
 nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
@@ -651,14 +689,22 @@ nouveau_drm_pci_table[] = {
 	{}
 };
 
+static const struct dev_pm_ops nouveau_pm_ops = {
+	.suspend = nouveau_pmops_suspend,
+	.resume = nouveau_pmops_resume,
+	.freeze = nouveau_pmops_freeze,
+	.thaw = nouveau_pmops_thaw,
+	.poweroff = nouveau_pmops_freeze,
+	.restore = nouveau_pmops_resume,
+};
+
 static struct pci_driver
 nouveau_drm_pci_driver = {
 	.name = "nouveau",
 	.id_table = nouveau_drm_pci_table,
 	.probe = nouveau_drm_probe,
 	.remove = nouveau_drm_remove,
-	.suspend = nouveau_drm_suspend,
-	.resume = nouveau_drm_resume,
+	.driver.pm = &nouveau_pm_ops,
 };
 
 static int __init

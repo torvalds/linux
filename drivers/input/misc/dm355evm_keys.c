@@ -173,7 +173,7 @@ static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
+static int dm355evm_keys_probe(struct platform_device *pdev)
 {
 	struct dm355evm_keys	*keys;
 	struct input_dev	*input;
@@ -239,7 +239,7 @@ fail1:
 	return status;
 }
 
-static int __devexit dm355evm_keys_remove(struct platform_device *pdev)
+static int dm355evm_keys_remove(struct platform_device *pdev)
 {
 	struct dm355evm_keys	*keys = platform_get_drvdata(pdev);
 
@@ -262,7 +262,7 @@ static int __devexit dm355evm_keys_remove(struct platform_device *pdev)
  */
 static struct platform_driver dm355evm_keys_driver = {
 	.probe		= dm355evm_keys_probe,
-	.remove		= __devexit_p(dm355evm_keys_remove),
+	.remove		= dm355evm_keys_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "dm355evm_keys",

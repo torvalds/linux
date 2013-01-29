@@ -47,7 +47,7 @@
  * read_main_config_table - read the configure table and save it.
  * @pm8001_ha: our hba card information
  */
-static void __devinit read_main_config_table(struct pm8001_hba_info *pm8001_ha)
+static void read_main_config_table(struct pm8001_hba_info *pm8001_ha)
 {
 	void __iomem *address = pm8001_ha->main_cfg_tbl_addr;
 	pm8001_ha->main_cfg_tbl.signature	= pm8001_mr32(address, 0x00);
@@ -83,8 +83,7 @@ static void __devinit read_main_config_table(struct pm8001_hba_info *pm8001_ha)
  * read_general_status_table - read the general status table and save it.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-read_general_status_table(struct pm8001_hba_info *pm8001_ha)
+static void read_general_status_table(struct pm8001_hba_info *pm8001_ha)
 {
 	void __iomem *address = pm8001_ha->general_stat_tbl_addr;
 	pm8001_ha->gs_tbl.gst_len_mpistate	= pm8001_mr32(address, 0x00);
@@ -118,8 +117,7 @@ read_general_status_table(struct pm8001_hba_info *pm8001_ha)
  * read_inbnd_queue_table - read the inbound queue table and save it.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
+static void read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
 	int inbQ_num = 1;
 	int i;
@@ -137,8 +135,7 @@ read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
  * read_outbnd_queue_table - read the outbound queue table and save it.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-read_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
+static void read_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
 	int outbQ_num = 1;
 	int i;
@@ -156,8 +153,7 @@ read_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
  * init_default_table_values - init the default table.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-init_default_table_values(struct pm8001_hba_info *pm8001_ha)
+static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 {
 	int qn = 1;
 	int i;
@@ -250,8 +246,7 @@ init_default_table_values(struct pm8001_hba_info *pm8001_ha)
  * update_main_config_table - update the main default table to the HBA.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-update_main_config_table(struct pm8001_hba_info *pm8001_ha)
+static void update_main_config_table(struct pm8001_hba_info *pm8001_ha)
 {
 	void __iomem *address = pm8001_ha->main_cfg_tbl_addr;
 	pm8001_mw32(address, 0x24,
@@ -297,8 +292,8 @@ update_main_config_table(struct pm8001_hba_info *pm8001_ha)
  * update_inbnd_queue_table - update the inbound queue table to the HBA.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-update_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
+static void update_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
+				     int number)
 {
 	void __iomem *address = pm8001_ha->inbnd_q_tbl_addr;
 	u16 offset = number * 0x20;
@@ -318,8 +313,8 @@ update_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
  * update_outbnd_queue_table - update the outbound queue table to the HBA.
  * @pm8001_ha: our hba card information
  */
-static void __devinit
-update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
+static void update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
+				      int number)
 {
 	void __iomem *address = pm8001_ha->outbnd_q_tbl_addr;
 	u16 offset = number * 0x24;
@@ -370,8 +365,8 @@ int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
  * @pm8001_ha: our hba card information
  * @SSCbit: set SSCbit to 0 to disable all phys ssc; 1 to enable all phys ssc.
  */
-static void __devinit
-mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
+static void mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha,
+				     u32 SSCbit)
 {
 	u32 value, offset, i;
 	unsigned long flags;
@@ -438,9 +433,8 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
  * @pm8001_ha: our hba card information
  * @interval - interval time for each OPEN_REJECT (RETRY). The units are in 1us.
  */
-static void __devinit
-mpi_set_open_retry_interval_reg(struct pm8001_hba_info *pm8001_ha,
-				u32 interval)
+static void mpi_set_open_retry_interval_reg(struct pm8001_hba_info *pm8001_ha,
+					    u32 interval)
 {
 	u32 offset;
 	u32 value;
@@ -601,7 +595,7 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
  * pm8001_chip_init - the main init function that initialize whole PM8001 chip.
  * @pm8001_ha: our hba card information
  */
-static int __devinit pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
+static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 {
 	/* check the firmware status */
 	if (-1 == check_fw_ready(pm8001_ha)) {

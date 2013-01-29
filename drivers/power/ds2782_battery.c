@@ -80,13 +80,13 @@ static inline int ds278x_read_reg16(struct ds278x_info *info, int reg_msb,
 {
 	int ret;
 
-	ret = swab16(i2c_smbus_read_word_data(info->client, reg_msb));
+	ret = i2c_smbus_read_word_data(info->client, reg_msb);
 	if (ret < 0) {
 		dev_err(&info->client->dev, "register read failed\n");
 		return ret;
 	}
 
-	*val = ret;
+	*val = swab16(ret);
 	return 0;
 }
 

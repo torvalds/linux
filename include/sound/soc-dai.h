@@ -242,7 +242,6 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 	struct snd_pcm_runtime *runtime;
 	unsigned int active;
-	unsigned char pop_wait:1;
 	unsigned char probed:1;
 
 	struct snd_soc_dapm_widget *playback_widget;

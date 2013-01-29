@@ -316,13 +316,18 @@ err:
 	return ret;
 }
 
-static inline void jz_nand_iounmap_resource(struct resource *res, void __iomem *base)
+static inline void jz_nand_iounmap_resource(struct resource *res,
+					    void __iomem *base)
 {
 	iounmap(base);
 	release_mem_region(res->start, resource_size(res));
 }
 
-static int __devinit jz_nand_detect_bank(struct platform_device *pdev, struct jz_nand *nand, unsigned char bank, size_t chipnr, uint8_t *nand_maf_id, uint8_t *nand_dev_id) {
+static int jz_nand_detect_bank(struct platform_device *pdev,
+			       struct jz_nand *nand, unsigned char bank,
+			       size_t chipnr, uint8_t *nand_maf_id,
+			       uint8_t *nand_dev_id)
+{
 	int ret;
 	int gpio;
 	char gpio_name[9];
@@ -400,7 +405,7 @@ notfound_gpio:
 	return ret;
 }
 
-static int __devinit jz_nand_probe(struct platform_device *pdev)
+static int jz_nand_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz_nand *nand;
@@ -541,7 +546,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz_nand_remove(struct platform_device *pdev)
+static int jz_nand_remove(struct platform_device *pdev)
 {
 	struct jz_nand *nand = platform_get_drvdata(pdev);
 	struct jz_nand_platform_data *pdata = pdev->dev.platform_data;
@@ -573,7 +578,7 @@ static int __devexit jz_nand_remove(struct platform_device *pdev)
 
 static struct platform_driver jz_nand_driver = {
 	.probe = jz_nand_probe,
-	.remove = __devexit_p(jz_nand_remove),
+	.remove = jz_nand_remove,
 	.driver = {
 		.name = "jz4740-nand",
 		.owner = THIS_MODULE,

@@ -123,6 +123,9 @@
 /* SLP_CNT */
 #define ADIS16400_SLP_CNT_POWER_OFF	(1<<8)
 
+#define ADIS16334_RATE_DIV_SHIFT 8
+#define ADIS16334_RATE_INT_CLK BIT(0)
+
 #define ADIS16400_MAX_TX 24
 #define ADIS16400_MAX_RX 24
 
@@ -130,18 +133,21 @@
 #define ADIS16400_SPI_BURST	(u32)(1000 * 1000)
 #define ADIS16400_SPI_FAST	(u32)(2000 * 1000)
 
-#define ADIS16400_HAS_PROD_ID 1
-#define ADIS16400_NO_BURST 2
+#define ADIS16400_HAS_PROD_ID		BIT(0)
+#define ADIS16400_NO_BURST		BIT(1)
+#define ADIS16400_HAS_SLOW_MODE		BIT(2)
+
 struct adis16400_chip_info {
 	const struct iio_chan_spec *channels;
 	const int num_channels;
-	const int product_id;
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
 	int temp_scale_nano;
 	int temp_offset;
 	unsigned long default_scan_mask;
+	int (*set_freq)(struct iio_dev *indio_dev, unsigned int freq);
+	int (*get_freq)(struct iio_dev *indio_dev);
 };
 
 /**

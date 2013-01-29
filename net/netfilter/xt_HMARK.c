@@ -167,7 +167,7 @@ hmark_pkt_set_htuple_ipv6(const struct sk_buff *skb, struct hmark_tuple *t,
 			  const struct xt_hmark_info *info)
 {
 	struct ipv6hdr *ip6, _ip6;
-	int flag = IP6T_FH_F_AUTH;
+	int flag = IP6_FH_F_AUTH;
 	unsigned int nhoff = 0;
 	u16 fragoff = 0;
 	int nexthdr;
@@ -177,7 +177,7 @@ hmark_pkt_set_htuple_ipv6(const struct sk_buff *skb, struct hmark_tuple *t,
 	if (nexthdr < 0)
 		return 0;
 	/* No need to check for icmp errors on fragments */
-	if ((flag & IP6T_FH_F_FRAG) || (nexthdr != IPPROTO_ICMPV6))
+	if ((flag & IP6_FH_F_FRAG) || (nexthdr != IPPROTO_ICMPV6))
 		goto noicmp;
 	/* Use inner header in case of ICMP errors */
 	if (get_inner6_hdr(skb, &nhoff)) {
@@ -185,7 +185,7 @@ hmark_pkt_set_htuple_ipv6(const struct sk_buff *skb, struct hmark_tuple *t,
 		if (ip6 == NULL)
 			return -1;
 		/* If AH present, use SPI like in ESP. */
-		flag = IP6T_FH_F_AUTH;
+		flag = IP6_FH_F_AUTH;
 		nexthdr = ipv6_find_hdr(skb, &nhoff, -1, &fragoff, &flag);
 		if (nexthdr < 0)
 			return -1;
@@ -201,7 +201,7 @@ noicmp:
 	if (t->proto == IPPROTO_ICMPV6)
 		return 0;
 
-	if (flag & IP6T_FH_F_FRAG)
+	if (flag & IP6_FH_F_FRAG)
 		return 0;
 
 	hmark_set_tuple_ports(skb, nhoff, t, info);

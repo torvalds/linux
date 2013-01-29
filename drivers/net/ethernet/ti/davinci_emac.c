@@ -1850,7 +1850,7 @@ static struct emac_platform_data
  * resource information from platform init and register a network device
  * and allocate resources necessary for driver to perform
  */
-static int __devinit davinci_emac_probe(struct platform_device *pdev)
+static int davinci_emac_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	struct resource *res;
@@ -2039,7 +2039,7 @@ no_ndev:
  * Called when removing the device driver. We disable clock usage and release
  * the resources taken up by the driver and unregister network device
  */
-static int __devexit davinci_emac_remove(struct platform_device *pdev)
+static int davinci_emac_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -2107,7 +2107,7 @@ static struct platform_driver davinci_emac_driver = {
 		.of_match_table = of_match_ptr(davinci_emac_of_match),
 	},
 	.probe = davinci_emac_probe,
-	.remove = __devexit_p(davinci_emac_remove),
+	.remove = davinci_emac_remove,
 };
 
 /**

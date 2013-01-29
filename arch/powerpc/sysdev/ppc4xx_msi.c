@@ -220,7 +220,7 @@ static int ppc4xx_of_msi_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit ppc4xx_msi_probe(struct platform_device *dev)
+static int ppc4xx_msi_probe(struct platform_device *dev)
 {
 	struct ppc4xx_msi *msi;
 	struct resource res;

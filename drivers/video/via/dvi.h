@@ -56,8 +56,8 @@
 int viafb_dvi_sense(void);
 void viafb_dvi_disable(void);
 void viafb_dvi_enable(void);
-bool __devinit viafb_tmds_trasmitter_identify(void);
-void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
+bool viafb_tmds_trasmitter_identify(void);
+void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
 	struct tmds_setting_information *tmds_setting);
 void viafb_dvi_set_mode(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres, int iga);

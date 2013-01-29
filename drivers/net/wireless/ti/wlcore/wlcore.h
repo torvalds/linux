@@ -414,8 +414,8 @@ struct wl1271 {
 	struct completion nvs_loading_complete;
 };
 
-int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
-int __devexit wlcore_remove(struct platform_device *pdev);
+int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
+int wlcore_remove(struct platform_device *pdev);
 struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size);
 int wlcore_free_hw(struct wl1271 *wl);
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,

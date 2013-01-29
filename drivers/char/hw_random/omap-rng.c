@@ -27,8 +27,6 @@
 
 #include <asm/io.h>
 
-#include <plat/cpu.h>
-
 #define RNG_OUT_REG		0x00		/* Output register */
 #define RNG_STAT_REG		0x04		/* Status register
 							[0] = STAT_BUSY */
@@ -106,7 +104,7 @@ static struct hwrng omap_rng_ops = {
 	.data_read	= omap_rng_data_read,
 };
 
-static int __devinit omap_rng_probe(struct platform_device *pdev)
+static int omap_rng_probe(struct platform_device *pdev)
 {
 	struct omap_rng_private_data *priv;
 	int ret;

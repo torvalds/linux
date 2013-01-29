@@ -272,6 +272,18 @@ struct sctp_mib {
         unsigned long   mibs[SCTP_MIB_MAX];
 };
 
+/* helper function to track stats about max rto and related transport */
+static inline void sctp_max_rto(struct sctp_association *asoc,
+				struct sctp_transport *trans)
+{
+	if (asoc->stats.max_obs_rto < (__u64)trans->rto) {
+		asoc->stats.max_obs_rto = trans->rto;
+		memset(&asoc->stats.obs_rto_ipaddr, 0,
+			sizeof(struct sockaddr_storage));
+		memcpy(&asoc->stats.obs_rto_ipaddr, &trans->ipaddr,
+			trans->af_specific->sockaddr_len);
+	}
+}
 
 /* Print debugging messages.  */
 #if SCTP_DEBUG

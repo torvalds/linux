@@ -153,6 +153,22 @@ static inline void nfs_readpage_to_fscache(struct inode *inode,
 }
 
 /*
+ * Invalidate the contents of fscache for this inode.  This will not sleep.
+ */
+static inline void nfs_fscache_invalidate(struct inode *inode)
+{
+	fscache_invalidate(NFS_I(inode)->fscache);
+}
+
+/*
+ * Wait for an object to finish being invalidated.
+ */
+static inline void nfs_fscache_wait_on_invalidate(struct inode *inode)
+{
+	fscache_wait_on_invalidate(NFS_I(inode)->fscache);
+}
+
+/*
  * indicate the client caching state as readable text
  */
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
@@ -161,7 +177,6 @@ static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 		return "yes";
 	return "no ";
 }
-
 
 #else /* CONFIG_NFS_FSCACHE */
 static inline int nfs_fscache_register(void) { return 0; }
@@ -204,6 +219,10 @@ static inline int nfs_readpages_from_fscache(struct nfs_open_context *ctx,
 }
 static inline void nfs_readpage_to_fscache(struct inode *inode,
 					   struct page *page, int sync) {}
+
+
+static inline void nfs_fscache_invalidate(struct inode *inode) {}
+static inline void nfs_fscache_wait_on_invalidate(struct inode *inode) {}
 
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 {

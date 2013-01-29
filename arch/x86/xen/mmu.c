@@ -2469,8 +2469,10 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       unsigned long mfn, int nr,
-			       pgprot_t prot, unsigned domid)
+			       xen_pfn_t mfn, int nr,
+			       pgprot_t prot, unsigned domid,
+			       struct page **pages)
+
 {
 	struct remap_data rmd;
 	struct mmu_update mmu_update[REMAP_BATCH_SIZE];
@@ -2514,3 +2516,14 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+
+/* Returns: 0 success */
+int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+			       int numpgs, struct page **pages)
+{
+	if (!pages || !xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);

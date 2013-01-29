@@ -89,7 +89,9 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 toggle;
 
-	if (!(dev->raw->enabled_protocols & RC_TYPE_RC6))
+	if (!(dev->raw->enabled_protocols &
+	      (RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 |
+	       RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE)))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -271,7 +273,9 @@ out:
 }
 
 static struct ir_raw_handler rc6_handler = {
-	.protocols	= RC_TYPE_RC6,
+	.protocols	= RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 |
+			  RC_BIT_RC6_6A_24 | RC_BIT_RC6_6A_32 |
+			  RC_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
 };
 

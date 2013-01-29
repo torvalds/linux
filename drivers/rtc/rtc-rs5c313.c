@@ -377,7 +377,7 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rs5c313_rtc_remove(struct platform_device *pdev)
+static int rs5c313_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata( pdev );
 
@@ -392,7 +392,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe 	= rs5c313_rtc_probe,
-	.remove = __devexit_p( rs5c313_rtc_remove ),
+	.remove = rs5c313_rtc_remove,
 };
 
 static int __init rs5c313_rtc_init(void)

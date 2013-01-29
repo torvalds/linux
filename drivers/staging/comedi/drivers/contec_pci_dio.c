@@ -68,13 +68,12 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int contec_attach_pci(struct comedi_device *dev,
-			     struct pci_dev *pcidev)
+static int contec_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	dev->board_name = dev->driver->driver_name;
 
@@ -121,17 +120,17 @@ static void contec_detach(struct comedi_device *dev)
 static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
-	.attach_pci	= contec_attach_pci,
+	.auto_attach	= contec_auto_attach,
 	.detach		= contec_detach,
 };
 
-static int __devinit contec_pci_dio_pci_probe(struct pci_dev *dev,
+static int contec_pci_dio_pci_probe(struct pci_dev *dev,
 					      const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &contec_pci_dio_driver);
 }
 
-static void __devexit contec_pci_dio_pci_remove(struct pci_dev *dev)
+static void contec_pci_dio_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -146,7 +145,7 @@ static struct pci_driver contec_pci_dio_pci_driver = {
 	.name		= "contec_pci_dio",
 	.id_table	= contec_pci_dio_pci_table,
 	.probe		= contec_pci_dio_pci_probe,
-	.remove		= __devexit_p(contec_pci_dio_pci_remove),
+	.remove		= contec_pci_dio_pci_remove,
 };
 module_comedi_pci_driver(contec_pci_dio_driver, contec_pci_dio_pci_driver);
 

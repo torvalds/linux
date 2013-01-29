@@ -86,7 +86,7 @@ static int lp3944_reg_read(struct i2c_client *client, u8 reg, u8 *value)
 
 	tmp = i2c_smbus_read_byte_data(client, reg);
 	if (tmp < 0)
-		return -EINVAL;
+		return tmp;
 
 	*value = tmp;
 
@@ -374,7 +374,7 @@ exit:
 	return err;
 }
 
-static int __devinit lp3944_probe(struct i2c_client *client,
+static int lp3944_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lp3944_platform_data *lp3944_pdata = client->dev.platform_data;
@@ -411,7 +411,7 @@ static int __devinit lp3944_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit lp3944_remove(struct i2c_client *client)
+static int lp3944_remove(struct i2c_client *client)
 {
 	struct lp3944_platform_data *pdata = client->dev.platform_data;
 	struct lp3944_data *data = i2c_get_clientdata(client);
@@ -446,7 +446,7 @@ static struct i2c_driver lp3944_driver = {
 		   .name = "lp3944",
 	},
 	.probe    = lp3944_probe,
-	.remove   = __devexit_p(lp3944_remove),
+	.remove   = lp3944_remove,
 	.id_table = lp3944_id,
 };
 

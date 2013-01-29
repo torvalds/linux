@@ -494,21 +494,21 @@ static int icp_multi_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int icp_multi_attach_pci(struct comedi_device *dev,
-				struct pci_dev *pcidev)
+static int icp_multi_auto_attach(struct comedi_device *dev,
+					   unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
 	resource_size_t iobase;
 	int ret;
 
-	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -613,17 +613,17 @@ static void icp_multi_detach(struct comedi_device *dev)
 static struct comedi_driver icp_multi_driver = {
 	.driver_name	= "icp_multi",
 	.module		= THIS_MODULE,
-	.attach_pci	= icp_multi_attach_pci,
+	.auto_attach	= icp_multi_auto_attach,
 	.detach		= icp_multi_detach,
 };
 
-static int __devinit icp_multi_pci_probe(struct pci_dev *dev,
+static int icp_multi_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &icp_multi_driver);
 }
 
-static void __devexit icp_multi_pci_remove(struct pci_dev *dev)
+static void icp_multi_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -638,7 +638,7 @@ static struct pci_driver icp_multi_pci_driver = {
 	.name		= "icp_multi",
 	.id_table	= icp_multi_pci_table,
 	.probe		= icp_multi_pci_probe,
-	.remove		= __devexit_p(icp_multi_pci_remove),
+	.remove		= icp_multi_pci_remove,
 };
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 

@@ -24,6 +24,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/gic.h>
@@ -32,6 +34,7 @@
 #include <asm/mach/time.h>
 #include <mach/cns3xxx.h>
 #include <mach/irqs.h>
+#include <mach/pm.h>
 #include "core.h"
 #include "devices.h"
 
@@ -125,13 +128,52 @@ static struct resource cns3xxx_usb_ehci_resources[] = {
 
 static u64 cns3xxx_usb_ehci_dma_mask = DMA_BIT_MASK(32);
 
+static int csn3xxx_usb_power_on(struct platform_device *pdev)
+{
+	/*
+	 * EHCI and OHCI share the same clock and power,
+	 * resetting twice would cause the 1st controller been reset.
+	 * Therefore only do power up  at the first up device, and
+	 * power down at the last down device.
+	 *
+	 * Set USB AHB INCR length to 16
+	 */
+	if (atomic_inc_return(&usb_pwr_ref) == 1) {
+		cns3xxx_pwr_power_up(1 << PM_PLL_HM_PD_CTRL_REG_OFFSET_PLL_USB);
+		cns3xxx_pwr_clk_en(1 << PM_CLK_GATE_REG_OFFSET_USB_HOST);
+		cns3xxx_pwr_soft_rst(1 << PM_SOFT_RST_REG_OFFST_USB_HOST);
+		__raw_writel((__raw_readl(MISC_CHIP_CONFIG_REG) | (0X2 << 24)),
+			MISC_CHIP_CONFIG_REG);
+	}
+
+	return 0;
+}
+
+static void csn3xxx_usb_power_off(struct platform_device *pdev)
+{
+	/*
+	 * EHCI and OHCI share the same clock and power,
+	 * resetting twice would cause the 1st controller been reset.
+	 * Therefore only do power up  at the first up device, and
+	 * power down at the last down device.
+	 */
+	if (atomic_dec_return(&usb_pwr_ref) == 0)
+		cns3xxx_pwr_clk_dis(1 << PM_CLK_GATE_REG_OFFSET_USB_HOST);
+}
+
+static struct usb_ehci_pdata cns3xxx_usb_ehci_pdata = {
+	.power_on	= csn3xxx_usb_power_on,
+	.power_off	= csn3xxx_usb_power_off,
+};
+
 static struct platform_device cns3xxx_usb_ehci_device = {
-	.name          = "cns3xxx-ehci",
+	.name          = "ehci-platform",
 	.num_resources = ARRAY_SIZE(cns3xxx_usb_ehci_resources),
 	.resource      = cns3xxx_usb_ehci_resources,
 	.dev           = {
 		.dma_mask          = &cns3xxx_usb_ehci_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data     = &cns3xxx_usb_ehci_pdata,
 	},
 };
 
@@ -149,13 +191,20 @@ static struct resource cns3xxx_usb_ohci_resources[] = {
 
 static u64 cns3xxx_usb_ohci_dma_mask = DMA_BIT_MASK(32);
 
+static struct usb_ohci_pdata cns3xxx_usb_ohci_pdata = {
+	.num_ports	= 1,
+	.power_on	= csn3xxx_usb_power_on,
+	.power_off	= csn3xxx_usb_power_off,
+};
+
 static struct platform_device cns3xxx_usb_ohci_device = {
-	.name          = "cns3xxx-ohci",
+	.name          = "ohci-platform",
 	.num_resources = ARRAY_SIZE(cns3xxx_usb_ohci_resources),
 	.resource      = cns3xxx_usb_ohci_resources,
 	.dev           = {
 		.dma_mask          = &cns3xxx_usb_ohci_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data	   = &cns3xxx_usb_ohci_pdata,
 	},
 };
 

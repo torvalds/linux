@@ -109,7 +109,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 	line6pcm->prev_fbuf = NULL;
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
-		/* We may be invoked multiple times in a row so allocate once only */
+		/* Invoked multiple times in a row so allocate once only */
 		if (!line6pcm->buffer_in) {
 			line6pcm->buffer_in =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
@@ -148,7 +148,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 	}
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_BUFFER)) {
-		/* We may be invoked multiple times in a row so allocate once only */
+		/* Invoked multiple times in a row so allocate once only */
 		if (!line6pcm->buffer_out) {
 			line6pcm->buffer_out =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *

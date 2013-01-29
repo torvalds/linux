@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/atmel.h>
 
 #include <pcmcia/ss.h>
 
@@ -24,7 +25,6 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 

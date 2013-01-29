@@ -572,6 +572,49 @@
 #define SPARE_SPARE_MASK				0xFF
 #define SPARE_SPARE_SHIFT				0
 
+#define TPS65910_INT_STS_RTC_PERIOD_IT_MASK			0x80
+#define TPS65910_INT_STS_RTC_PERIOD_IT_SHIFT			7
+#define TPS65910_INT_STS_RTC_ALARM_IT_MASK			0x40
+#define TPS65910_INT_STS_RTC_ALARM_IT_SHIFT			6
+#define TPS65910_INT_STS_HOTDIE_IT_MASK				0x20
+#define TPS65910_INT_STS_HOTDIE_IT_SHIFT			5
+#define TPS65910_INT_STS_PWRHOLD_F_IT_MASK			0x10
+#define TPS65910_INT_STS_PWRHOLD_F_IT_SHIFT			4
+#define TPS65910_INT_STS_PWRON_LP_IT_MASK			0x08
+#define TPS65910_INT_STS_PWRON_LP_IT_SHIFT			3
+#define TPS65910_INT_STS_PWRON_IT_MASK				0x04
+#define TPS65910_INT_STS_PWRON_IT_SHIFT				2
+#define TPS65910_INT_STS_VMBHI_IT_MASK				0x02
+#define TPS65910_INT_STS_VMBHI_IT_SHIFT				1
+#define TPS65910_INT_STS_VMBDCH_IT_MASK				0x01
+#define TPS65910_INT_STS_VMBDCH_IT_SHIFT			0
+
+#define TPS65910_INT_MSK_RTC_PERIOD_IT_MSK_MASK			0x80
+#define TPS65910_INT_MSK_RTC_PERIOD_IT_MSK_SHIFT		7
+#define TPS65910_INT_MSK_RTC_ALARM_IT_MSK_MASK			0x40
+#define TPS65910_INT_MSK_RTC_ALARM_IT_MSK_SHIFT			6
+#define TPS65910_INT_MSK_HOTDIE_IT_MSK_MASK			0x20
+#define TPS65910_INT_MSK_HOTDIE_IT_MSK_SHIFT			5
+#define TPS65910_INT_MSK_PWRHOLD_IT_MSK_MASK			0x10
+#define TPS65910_INT_MSK_PWRHOLD_IT_MSK_SHIFT			4
+#define TPS65910_INT_MSK_PWRON_LP_IT_MSK_MASK			0x08
+#define TPS65910_INT_MSK_PWRON_LP_IT_MSK_SHIFT			3
+#define TPS65910_INT_MSK_PWRON_IT_MSK_MASK			0x04
+#define TPS65910_INT_MSK_PWRON_IT_MSK_SHIFT			2
+#define TPS65910_INT_MSK_VMBHI_IT_MSK_MASK			0x02
+#define TPS65910_INT_MSK_VMBHI_IT_MSK_SHIFT			1
+#define TPS65910_INT_MSK_VMBDCH_IT_MSK_MASK			0x01
+#define TPS65910_INT_MSK_VMBDCH_IT_MSK_SHIFT			0
+
+#define TPS65910_INT_STS2_GPIO0_F_IT_SHIFT			2
+#define TPS65910_INT_STS2_GPIO0_F_IT_MASK			0x02
+#define TPS65910_INT_STS2_GPIO0_R_IT_SHIFT			1
+#define TPS65910_INT_STS2_GPIO0_R_IT_MASK			0x01
+
+#define TPS65910_INT_MSK2_GPIO0_F_IT_MSK_SHIFT			2
+#define TPS65910_INT_MSK2_GPIO0_F_IT_MSK_MASK			0x02
+#define TPS65910_INT_MSK2_GPIO0_R_IT_MSK_SHIFT			1
+#define TPS65910_INT_MSK2_GPIO0_R_IT_MSK_MASK			0x01
 
 /*Register INT_STS  (0x80) register.RegisterDescription */
 #define INT_STS_RTC_PERIOD_IT_MASK			0x80
@@ -580,16 +623,16 @@
 #define INT_STS_RTC_ALARM_IT_SHIFT			6
 #define INT_STS_HOTDIE_IT_MASK				0x20
 #define INT_STS_HOTDIE_IT_SHIFT				5
-#define INT_STS_PWRHOLD_IT_MASK				0x10
-#define INT_STS_PWRHOLD_IT_SHIFT			4
+#define INT_STS_PWRHOLD_R_IT_MASK			0x10
+#define INT_STS_PWRHOLD_R_IT_SHIFT			4
 #define INT_STS_PWRON_LP_IT_MASK			0x08
 #define INT_STS_PWRON_LP_IT_SHIFT			3
 #define INT_STS_PWRON_IT_MASK				0x04
 #define INT_STS_PWRON_IT_SHIFT				2
 #define INT_STS_VMBHI_IT_MASK				0x02
 #define INT_STS_VMBHI_IT_SHIFT				1
-#define INT_STS_VMBDCH_IT_MASK				0x01
-#define INT_STS_VMBDCH_IT_SHIFT				0
+#define INT_STS_PWRHOLD_F_IT_MASK			0x01
+#define INT_STS_PWRHOLD_F_IT_SHIFT			0
 
 
 /*Register INT_MSK  (0x80) register.RegisterDescription */
@@ -599,16 +642,16 @@
 #define INT_MSK_RTC_ALARM_IT_MSK_SHIFT			6
 #define INT_MSK_HOTDIE_IT_MSK_MASK			0x20
 #define INT_MSK_HOTDIE_IT_MSK_SHIFT			5
-#define INT_MSK_PWRHOLD_IT_MSK_MASK			0x10
-#define INT_MSK_PWRHOLD_IT_MSK_SHIFT			4
+#define INT_MSK_PWRHOLD_R_IT_MSK_MASK			0x10
+#define INT_MSK_PWRHOLD_R_IT_MSK_SHIFT			4
 #define INT_MSK_PWRON_LP_IT_MSK_MASK			0x08
 #define INT_MSK_PWRON_LP_IT_MSK_SHIFT			3
 #define INT_MSK_PWRON_IT_MSK_MASK			0x04
 #define INT_MSK_PWRON_IT_MSK_SHIFT			2
 #define INT_MSK_VMBHI_IT_MSK_MASK			0x02
 #define INT_MSK_VMBHI_IT_MSK_SHIFT			1
-#define INT_MSK_VMBDCH_IT_MSK_MASK			0x01
-#define INT_MSK_VMBDCH_IT_MSK_SHIFT			0
+#define INT_MSK_PWRHOLD_F_IT_MSK_MASK			0x01
+#define INT_MSK_PWRHOLD_F_IT_MSK_SHIFT			0
 
 
 /*Register INT_STS2  (0x80) register.RegisterDescription */
@@ -650,6 +693,14 @@
 
 
 /*Register INT_STS3  (0x80) register.RegisterDescription */
+#define INT_STS3_PWRDN_IT_MASK				0x80
+#define INT_STS3_PWRDN_IT_SHIFT				7
+#define INT_STS3_VMBCH2_L_IT_MASK			0x40
+#define INT_STS3_VMBCH2_L_IT_SHIFT			6
+#define INT_STS3_VMBCH2_H_IT_MASK			0x20
+#define INT_STS3_VMBCH2_H_IT_SHIFT			5
+#define INT_STS3_WTCHDG_IT_MASK				0x10
+#define INT_STS3_WTCHDG_IT_SHIFT			4
 #define INT_STS3_GPIO5_F_IT_MASK			0x08
 #define INT_STS3_GPIO5_F_IT_SHIFT			3
 #define INT_STS3_GPIO5_R_IT_MASK			0x04
@@ -661,6 +712,14 @@
 
 
 /*Register INT_MSK3  (0x80) register.RegisterDescription */
+#define INT_MSK3_PWRDN_IT_MSK_MASK			0x80
+#define INT_MSK3_PWRDN_IT_MSK_SHIFT			7
+#define INT_MSK3_VMBCH2_L_IT_MSK_MASK			0x40
+#define INT_MSK3_VMBCH2_L_IT_MSK_SHIFT			6
+#define INT_MSK3_VMBCH2_H_IT_MSK_MASK			0x20
+#define INT_MSK3_VMBCH2_H_IT_MSK_SHIFT			5
+#define INT_MSK3_WTCHDG_IT_MSK_MASK			0x10
+#define INT_MSK3_WTCHDG_IT_MSK_SHIFT			4
 #define INT_MSK3_GPIO5_F_IT_MSK_MASK			0x08
 #define INT_MSK3_GPIO5_F_IT_MSK_SHIFT			3
 #define INT_MSK3_GPIO5_R_IT_MSK_MASK			0x04
@@ -721,34 +780,32 @@
 #define TPS65910_IRQ_GPIO_F				9
 #define TPS65910_NUM_IRQ				10
 
-#define TPS65911_IRQ_VBAT_VMBDCH			0
-#define TPS65911_IRQ_VBAT_VMBDCH2L			1
-#define TPS65911_IRQ_VBAT_VMBDCH2H			2
-#define TPS65911_IRQ_VBAT_VMHI				3
-#define TPS65911_IRQ_PWRON				4
-#define TPS65911_IRQ_PWRON_LP				5
-#define TPS65911_IRQ_PWRHOLD_F				6
-#define TPS65911_IRQ_PWRHOLD_R				7
-#define TPS65911_IRQ_HOTDIE				8
-#define TPS65911_IRQ_RTC_ALARM				9
-#define TPS65911_IRQ_RTC_PERIOD				10
-#define TPS65911_IRQ_GPIO0_R				11
-#define TPS65911_IRQ_GPIO0_F				12
-#define TPS65911_IRQ_GPIO1_R				13
-#define TPS65911_IRQ_GPIO1_F				14
-#define TPS65911_IRQ_GPIO2_R				15
-#define TPS65911_IRQ_GPIO2_F				16
-#define TPS65911_IRQ_GPIO3_R				17
-#define TPS65911_IRQ_GPIO3_F				18
-#define TPS65911_IRQ_GPIO4_R				19
-#define TPS65911_IRQ_GPIO4_F				20
-#define TPS65911_IRQ_GPIO5_R				21
-#define TPS65911_IRQ_GPIO5_F				22
-#define TPS65911_IRQ_WTCHDG				23
-#define TPS65911_IRQ_PWRDN				24
+#define TPS65911_IRQ_PWRHOLD_F				0
+#define TPS65911_IRQ_VBAT_VMHI				1
+#define TPS65911_IRQ_PWRON				2
+#define TPS65911_IRQ_PWRON_LP				3
+#define TPS65911_IRQ_PWRHOLD_R				4
+#define TPS65911_IRQ_HOTDIE				5
+#define TPS65911_IRQ_RTC_ALARM				6
+#define TPS65911_IRQ_RTC_PERIOD				7
+#define TPS65911_IRQ_GPIO0_R				8
+#define TPS65911_IRQ_GPIO0_F				9
+#define TPS65911_IRQ_GPIO1_R				10
+#define TPS65911_IRQ_GPIO1_F				11
+#define TPS65911_IRQ_GPIO2_R				12
+#define TPS65911_IRQ_GPIO2_F				13
+#define TPS65911_IRQ_GPIO3_R				14
+#define TPS65911_IRQ_GPIO3_F				15
+#define TPS65911_IRQ_GPIO4_R				16
+#define TPS65911_IRQ_GPIO4_F				17
+#define TPS65911_IRQ_GPIO5_R				18
+#define TPS65911_IRQ_GPIO5_F				19
+#define TPS65911_IRQ_WTCHDG				20
+#define TPS65911_IRQ_VMBCH2_H				21
+#define TPS65911_IRQ_VMBCH2_L				22
+#define TPS65911_IRQ_PWRDN				23
 
-#define TPS65911_NUM_IRQ				25
-
+#define TPS65911_NUM_IRQ				24
 
 /* GPIO Register Definitions */
 #define TPS65910_GPIO_DEB				BIT(2)
@@ -836,7 +893,6 @@ struct tps65910 {
 	struct device *dev;
 	struct i2c_client *i2c_client;
 	struct regmap *regmap;
-	struct mutex io_mutex;
 	unsigned int id;
 
 	/* Client devices */
@@ -848,22 +904,14 @@ struct tps65910 {
 	struct tps65910_board *of_plat_data;
 
 	/* IRQ Handling */
-	struct mutex irq_lock;
 	int chip_irq;
-	int irq_base;
-	int irq_num;
-	u32 irq_mask;
-	struct irq_domain *domain;
+	struct regmap_irq_chip_data *irq_data;
 };
 
 struct tps65910_platform_data {
 	int irq;
 	int irq_base;
 };
-
-int tps65910_irq_init(struct tps65910 *tps65910, int irq,
-		struct tps65910_platform_data *pdata);
-int tps65910_irq_exit(struct tps65910 *tps65910);
 
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {
@@ -898,6 +946,11 @@ static inline int tps65910_reg_update_bits(struct tps65910 *tps65910, u8 reg,
 					   u8 mask, u8 val)
 {
 	return regmap_update_bits(tps65910->regmap, reg, mask, val);
+}
+
+static inline int tps65910_irq_get_virq(struct tps65910 *tps65910, int irq)
+{
+	return regmap_irq_get_virq(tps65910->irq_data, irq);
 }
 
 #endif /*  __LINUX_MFD_TPS65910_H */

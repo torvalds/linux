@@ -20,18 +20,9 @@ menuconfig TIPC
 
 	  If in doubt, say N.
 
-if TIPC
-
-config TIPC_ADVANCED
-	bool "Advanced TIPC configuration"
-	default n
-	help
-	  Saying Y here will open some advanced configuration for TIPC.
-	  Most users do not need to bother; if unsure, just say N.
-
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
-	depends on TIPC_ADVANCED
+	depends on TIPC
 	range 127 65535
 	default "8191"
 	help
@@ -40,5 +31,3 @@ config TIPC_PORTS
 
 	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
-
-endif # TIPC

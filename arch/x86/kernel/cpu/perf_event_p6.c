@@ -227,6 +227,8 @@ static __initconst const struct x86_pmu p6_pmu = {
 	.event_constraints	= p6_event_constraints,
 
 	.format_attrs		= intel_p6_formats_attr,
+	.events_sysfs_show	= intel_event_sysfs_show,
+
 };
 
 __init int p6_pmu_init(void)

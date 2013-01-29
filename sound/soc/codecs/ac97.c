@@ -118,13 +118,13 @@ static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
 	.resume =	ac97_soc_resume,
 };
 
-static __devinit int ac97_probe(struct platform_device *pdev)
+static int ac97_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_ac97, &ac97_dai, 1);
 }
 
-static int __devexit ac97_remove(struct platform_device *pdev)
+static int ac97_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -137,7 +137,7 @@ static struct platform_driver ac97_codec_driver = {
 	},
 
 	.probe = ac97_probe,
-	.remove = __devexit_p(ac97_remove),
+	.remove = ac97_remove,
 };
 
 module_platform_driver(ac97_codec_driver);

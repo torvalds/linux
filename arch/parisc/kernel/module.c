@@ -214,8 +214,6 @@ static inline int reassemble_22(int as22)
 
 void *module_alloc(unsigned long size)
 {
-	if (size == 0)
-		return NULL;
 	/* using RWX means less protection for modules, but it's
 	 * easier than trying to map the text, data, init_text and
 	 * init_data correctly */

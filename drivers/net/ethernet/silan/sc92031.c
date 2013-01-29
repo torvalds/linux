@@ -1395,8 +1395,7 @@ static const struct net_device_ops sc92031_netdev_ops = {
 #endif
 };
 
-static int __devinit sc92031_probe(struct pci_dev *pdev,
-		const struct pci_device_id *id)
+static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int err;
 	void __iomem* port_base;
@@ -1489,7 +1488,7 @@ out_enable_device:
 	return err;
 }
 
-static void __devexit sc92031_remove(struct pci_dev *pdev)
+static void sc92031_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct sc92031_priv *priv = netdev_priv(dev);
@@ -1574,7 +1573,7 @@ static struct pci_driver sc92031_pci_driver = {
 	.name		= SC92031_NAME,
 	.id_table	= sc92031_pci_device_id_table,
 	.probe		= sc92031_probe,
-	.remove		= __devexit_p(sc92031_remove),
+	.remove		= sc92031_remove,
 	.suspend	= sc92031_suspend,
 	.resume		= sc92031_resume,
 };

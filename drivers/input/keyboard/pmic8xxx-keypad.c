@@ -397,7 +397,7 @@ static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
+static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
 {
 	int bits, rc, cycles;
 	u8 scan_val = 0, ctrl_val = 0;
@@ -447,7 +447,7 @@ static int __devinit pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
 
 }
 
-static int  __devinit pmic8xxx_kp_config_gpio(int gpio_start, int num_gpios,
+static int  pmic8xxx_kp_config_gpio(int gpio_start, int num_gpios,
 			struct pmic8xxx_kp *kp, struct pm_gpio *gpio_config)
 {
 	int	rc, i;
@@ -518,7 +518,7 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  * - set irq edge type.
  * - enable the keypad controller.
  */
-static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
+static int pmic8xxx_kp_probe(struct platform_device *pdev)
 {
 	const struct pm8xxx_keypad_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
@@ -712,7 +712,7 @@ err_alloc_device:
 	return rc;
 }
 
-static int __devexit pmic8xxx_kp_remove(struct platform_device *pdev)
+static int pmic8xxx_kp_remove(struct platform_device *pdev)
 {
 	struct pmic8xxx_kp *kp = platform_get_drvdata(pdev);
 
@@ -773,7 +773,7 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_kp_pm_ops,
 
 static struct platform_driver pmic8xxx_kp_driver = {
 	.probe		= pmic8xxx_kp_probe,
-	.remove		= __devexit_p(pmic8xxx_kp_remove),
+	.remove		= pmic8xxx_kp_remove,
 	.driver		= {
 		.name = PM8XXX_KEYPAD_DEV_NAME,
 		.owner = THIS_MODULE,

@@ -252,7 +252,7 @@ struct reginit_item {
 };
 
 
-static struct reginit_item PHY_NTC_INIT[] __devinitdata = {
+static struct reginit_item PHY_NTC_INIT[] = {
 	{ PHY_CLEARALL, 0x40 }, 
 	{ 0x12,  0x0001 },
 	{ 0x13,  0x7605 },
@@ -1295,7 +1295,7 @@ static const struct atmdev_ops ops = {
 };
 
 
-static void __devinit undocumented_pci_fix (struct pci_dev *pdev)
+static void undocumented_pci_fix(struct pci_dev *pdev)
 {
 	u32 tint;
 
@@ -1319,13 +1319,13 @@ static void __devinit undocumented_pci_fix (struct pci_dev *pdev)
  *                              PHY routines                              *
  **************************************************************************/
 
-static void __devinit write_phy (struct fs_dev *dev, int regnum, int val)
+static void write_phy(struct fs_dev *dev, int regnum, int val)
 {
 	submit_command (dev,  &dev->hp_txq, QE_CMD_PRP_WR | QE_CMD_IMM_INQ,
 			regnum, val, 0);
 }
 
-static int __devinit init_phy (struct fs_dev *dev, struct reginit_item *reginit)
+static int init_phy(struct fs_dev *dev, struct reginit_item *reginit)
 {
 	int i;
 
@@ -1381,7 +1381,7 @@ static void reset_chip (struct fs_dev *dev)
 	}
 }
 
-static void __devinit *aligned_kmalloc (int size, gfp_t flags, int alignment)
+static void *aligned_kmalloc(int size, gfp_t flags, int alignment)
 {
 	void  *t;
 
@@ -1398,8 +1398,8 @@ static void __devinit *aligned_kmalloc (int size, gfp_t flags, int alignment)
 	return NULL;
 }
 
-static int __devinit init_q (struct fs_dev *dev, 
-			  struct queue *txq, int queue, int nentries, int is_rq)
+static int init_q(struct fs_dev *dev, struct queue *txq, int queue,
+		  int nentries, int is_rq)
 {
 	int sz = nentries * sizeof (struct FS_QENTRY);
 	struct FS_QENTRY *p;
@@ -1434,8 +1434,8 @@ static int __devinit init_q (struct fs_dev *dev,
 }
 
 
-static int __devinit init_fp (struct fs_dev *dev, 
-			   struct freepool *fp, int queue, int bufsize, int nr_buffers)
+static int init_fp(struct fs_dev *dev, struct freepool *fp, int queue,
+		   int bufsize, int nr_buffers)
 {
 	func_enter ();
 
@@ -1528,7 +1528,7 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 	fs_dprintk (FS_DEBUG_QUEUE, "Added %d entries. \n", n);
 }
 
-static void __devexit free_queue (struct fs_dev *dev, struct queue *txq)
+static void free_queue(struct fs_dev *dev, struct queue *txq)
 {
 	func_enter ();
 
@@ -1544,7 +1544,7 @@ static void __devexit free_queue (struct fs_dev *dev, struct queue *txq)
 	func_exit ();
 }
 
-static void __devexit free_freepool (struct fs_dev *dev, struct freepool *fp)
+static void free_freepool(struct fs_dev *dev, struct freepool *fp)
 {
 	func_enter ();
 
@@ -1662,7 +1662,7 @@ static void fs_poll (unsigned long data)
 }
 #endif
 
-static int __devinit fs_init (struct fs_dev *dev)
+static int fs_init(struct fs_dev *dev)
 {
 	struct pci_dev  *pci_dev;
 	int isr, to;
@@ -1897,8 +1897,8 @@ unmap:
 	return 1;
 }
 
-static int __devinit firestream_init_one (struct pci_dev *pci_dev,
-				       const struct pci_device_id *ent) 
+static int firestream_init_one(struct pci_dev *pci_dev,
+			       const struct pci_device_id *ent)
 {
 	struct atm_dev *atm_dev;
 	struct fs_dev *fs_dev;
@@ -1934,7 +1934,7 @@ static int __devinit firestream_init_one (struct pci_dev *pci_dev,
 	return -ENODEV;
 }
 
-static void __devexit firestream_remove_one (struct pci_dev *pdev)
+static void firestream_remove_one(struct pci_dev *pdev)
 {
 	int i;
 	struct fs_dev *dev, *nxtdev;
@@ -2038,7 +2038,7 @@ static struct pci_driver firestream_driver = {
 	.name		= "firestream",
 	.id_table	= firestream_pci_tbl,
 	.probe		= firestream_init_one,
-	.remove		= __devexit_p(firestream_remove_one),
+	.remove		= firestream_remove_one,
 };
 
 static int __init firestream_init_module (void)

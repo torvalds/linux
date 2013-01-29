@@ -134,7 +134,7 @@ config DEBUG_SECTION_MISMATCH
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
 	  In the code, functions and variables are annotated with
-	  __init, __devinit, etc. (see the full list in include/linux/init.h),
+	  __init, __cpuinit, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
@@ -972,7 +972,7 @@ config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
 	depends on TREE_RCU || TREE_PREEMPT_RCU
 	range 3 300
-	default 60
+	default 21
 	help
 	  If a given RCU grace period extends more than the specified
 	  number of seconds, a CPU stall warning is printed.  If the
@@ -1115,7 +1115,7 @@ config NOTIFIER_ERROR_INJECTION
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  specified notifier chain callbacks. It is useful to test the error
 	  handling of notifier call chain failures.
 
@@ -1126,7 +1126,7 @@ config CPU_NOTIFIER_ERROR_INJECT
 	depends on HOTPLUG_CPU && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides a kernel module that can be used to test
-	  the error handling of the cpu notifiers by injecting artifical
+	  the error handling of the cpu notifiers by injecting artificial
 	  errors to CPU notifier chain callbacks.  It is controlled through
 	  debugfs interface under /sys/kernel/debug/notifier-error-inject/cpu
 
@@ -1150,7 +1150,7 @@ config PM_NOTIFIER_ERROR_INJECT
 	depends on PM && NOTIFIER_ERROR_INJECTION
 	default m if PM_DEBUG
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  PM notifier chain callbacks.  It is controlled through debugfs
 	  interface /sys/kernel/debug/notifier-error-inject/pm
 
@@ -1173,7 +1173,7 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 	tristate "Memory hotplug notifier error injection module"
 	depends on MEMORY_HOTPLUG_SPARSE && NOTIFIER_ERROR_INJECTION
 	help
-	  This option provides the ability to inject artifical errors to
+	  This option provides the ability to inject artificial errors to
 	  memory hotplug notifier chain callbacks.  It is controlled through
 	  debugfs interface under /sys/kernel/debug/notifier-error-inject/memory
 
@@ -1192,14 +1192,14 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
-config PSERIES_RECONFIG_NOTIFIER_ERROR_INJECT
-	tristate "pSeries reconfig notifier error injection module"
-	depends on PPC_PSERIES && NOTIFIER_ERROR_INJECTION
+config OF_RECONFIG_NOTIFIER_ERROR_INJECT
+	tristate "OF reconfig notifier error injection module"
+	depends on OF_DYNAMIC && NOTIFIER_ERROR_INJECTION
 	help
-	  This option provides the ability to inject artifical errors to
-	  pSeries reconfig notifier chain callbacks.  It is controlled
+	  This option provides the ability to inject artificial errors to
+	  OF reconfig notifier chain callbacks.  It is controlled
 	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/pSeries-reconfig/
+	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".

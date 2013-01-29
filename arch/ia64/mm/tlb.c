@@ -337,8 +337,7 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
 }
 EXPORT_SYMBOL(flush_tlb_range);
 
-void __devinit
-ia64_tlb_init (void)
+void ia64_tlb_init(void)
 {
 	ia64_ptce_info_t uninitialized_var(ptce_info); /* GCC be quiet */
 	u64 tr_pgbits;

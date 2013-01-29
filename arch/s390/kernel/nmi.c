@@ -254,7 +254,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	nmi_enter();
-	kstat_cpu(smp_processor_id()).irqs[NMI_NMI]++;
+	inc_irq_stat(NMI_NMI);
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);

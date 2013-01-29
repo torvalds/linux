@@ -533,6 +533,7 @@ struct csrow_info {
 
 	u32 ue_count;		/* Uncorrectable Errors for this csrow */
 	u32 ce_count;		/* Correctable Errors for this csrow */
+	u32 nr_pages;		/* combined pages count of all channels */
 
 	struct mem_ctl_info *mci;	/* the parent */
 
@@ -667,6 +668,8 @@ struct mem_ctl_info {
 	u32 fake_inject_ue;
 	u16 fake_inject_count;
 #endif
+	__u8 csbased : 1,	/* csrow-based memory controller */
+	     __resv  : 7;
 };
 
 #endif

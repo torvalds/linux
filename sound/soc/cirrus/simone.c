@@ -41,7 +41,7 @@ static struct snd_soc_card snd_soc_simone = {
 
 static struct platform_device *simone_snd_ac97_device;
 
-static int __devinit simone_probe(struct platform_device *pdev)
+static int simone_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_simone;
 	int ret;
@@ -63,7 +63,7 @@ static int __devinit simone_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit simone_remove(struct platform_device *pdev)
+static int simone_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -79,7 +79,7 @@ static struct platform_driver simone_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= simone_probe,
-	.remove		= __devexit_p(simone_remove),
+	.remove		= simone_remove,
 };
 
 module_platform_driver(simone_driver);

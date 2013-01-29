@@ -311,6 +311,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		if (cq->ibcq.event_handler)
 			cq->ibcq.event_handler(&ib_event,
 					       cq->ibcq.cq_context);
+		break;
 	}
 
 	default:

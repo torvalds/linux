@@ -198,6 +198,11 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
+	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
+	if (HAS_PCH_LPT(dev) &&
+	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
@@ -221,14 +226,20 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 adpa;
 
-	adpa = ADPA_HOTPLUG_BITS;
+	if (HAS_PCH_SPLIT(dev))
+		adpa = ADPA_HOTPLUG_BITS;
+	else
+		adpa = 0;
+
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_LPT(dev))
+		; /* Those bits don't exist here */
+	else if (HAS_PCH_CPT(dev))
 		adpa |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
 	else if (intel_crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
@@ -401,12 +412,16 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 				struct i2c_adapter *adapter)
 {
 	struct edid *edid;
+	int ret;
 
 	edid = intel_crt_get_edid(connector, adapter);
 	if (!edid)
 		return 0;
 
-	return intel_connector_update_modes(connector, edid);
+	ret = intel_connector_update_modes(connector, edid);
+	kfree(edid);
+
+	return ret;
 }
 
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
@@ -644,10 +659,22 @@ static int intel_crt_set_property(struct drm_connector *connector,
 static void intel_crt_reset(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev)) {
+		u32 adpa;
+
+		adpa = I915_READ(PCH_ADPA);
+		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		adpa |= ADPA_HOTPLUG_BITS;
+		I915_WRITE(PCH_ADPA, adpa);
+		POSTING_READ(PCH_ADPA);
+
+		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = 1;
+	}
+
 }
 
 /*
@@ -729,7 +756,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = true;
-	if (IS_HASWELL(dev) || IS_I830(dev))
+	if (IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
@@ -749,7 +776,10 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
-	crt->base.get_hw_state = intel_crt_get_hw_state;
+	if (IS_HASWELL(dev))
+		crt->base.get_hw_state = intel_ddi_get_hw_state;
+	else
+		crt->base.get_hw_state = intel_crt_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	drm_encoder_helper_add(&crt->base.base, &crt_encoder_funcs);
@@ -766,18 +796,14 @@ void intel_crt_init(struct drm_device *dev)
 	 * Configure the automatic hotplug detection stuff
 	 */
 	crt->force_hotplug_required = 0;
-	if (HAS_PCH_SPLIT(dev)) {
-		u32 adpa;
-
-		adpa = I915_READ(PCH_ADPA);
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-		adpa |= ADPA_HOTPLUG_BITS;
-		I915_WRITE(PCH_ADPA, adpa);
-		POSTING_READ(PCH_ADPA);
-
-		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
-		crt->force_hotplug_required = 1;
-	}
 
 	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
+
+	/*
+	 * TODO: find a proper way to discover whether we need to set the
+	 * polarity reversal bit or not, instead of relying on the BIOS.
+	 */
+	if (HAS_PCH_LPT(dev))
+		dev_priv->fdi_rx_polarity_reversed =
+		     !!(I915_READ(_FDI_RXA_CTL) & FDI_RX_POLARITY_REVERSED_LPT);
 }

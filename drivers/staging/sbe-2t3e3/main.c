@@ -135,9 +135,10 @@ void t3e3_read_card_serial_number(struct channel *sc)
 	for (i = 0; i < 3; i++)
 		sc->ether.card_serial_number[i] = t3e3_eeprom_read_word(sc, 10 + i);
 
-	printk(KERN_INFO "SBE wanPMC-2T3E3 serial number: %04X%04X%04X\n",
-	       sc->ether.card_serial_number[0], sc->ether.card_serial_number[1],
-	       sc->ether.card_serial_number[2]);
+	netdev_info(sc->dev, "SBE wanPMC-2T3E3 serial number: %04X%04X%04X\n",
+		    sc->ether.card_serial_number[0],
+		    sc->ether.card_serial_number[1],
+		    sc->ether.card_serial_number[2]);
 }
 
 /*

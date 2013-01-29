@@ -354,6 +354,8 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 
+	ssize_t		(*events_sysfs_show)(char *page, u64 config);
+
 	/*
 	 * CPU Hotplug hooks
 	 */
@@ -535,6 +537,9 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
 		regs->flags ^= (PERF_EFLAGS_VM | X86_VM_MASK);
 	regs->ip = ip;
 }
+
+ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
+ssize_t intel_event_sysfs_show(char *page, u64 config);
 
 #ifdef CONFIG_CPU_SUP_AMD
 

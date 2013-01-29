@@ -265,7 +265,7 @@ static int rtl2832_rd_reg(struct rtl2832_priv *priv, u8 reg, u8 page, u8 *val)
 	return rtl2832_rd_regs(priv, reg, page, val, 1);
 }
 
-int rtl2832_rd_demod_reg(struct rtl2832_priv *priv, int reg, u32 *val)
+static int rtl2832_rd_demod_reg(struct rtl2832_priv *priv, int reg, u32 *val)
 {
 	int ret;
 
@@ -305,7 +305,7 @@ err:
 
 }
 
-int rtl2832_wr_demod_reg(struct rtl2832_priv *priv, int reg, u32 val)
+static int rtl2832_wr_demod_reg(struct rtl2832_priv *priv, int reg, u32 val)
 {
 	int ret, i;
 	u8 len;
@@ -510,7 +510,7 @@ static int rtl2832_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-int rtl2832_get_tune_settings(struct dvb_frontend *fe,
+static int rtl2832_get_tune_settings(struct dvb_frontend *fe,
 	struct dvb_frontend_tune_settings *s)
 {
 	struct rtl2832_priv *priv = fe->demodulator_priv;

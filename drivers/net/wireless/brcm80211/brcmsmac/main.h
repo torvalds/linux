@@ -101,9 +101,6 @@
 
 #define DATA_BLOCK_TX_SUPR	(1 << 4)
 
-/* 802.1D Priority to TX FIFO number for wme */
-extern const u8 prio2fifo[];
-
 /* Ucode MCTL_WAKE override bits */
 #define BRCMS_WAKE_OVERRIDE_CLKCTL	0x01
 #define BRCMS_WAKE_OVERRIDE_PHYREG	0x02
@@ -242,7 +239,6 @@ struct brcms_core {
 
 	/* fifo */
 	uint *txavail[NFIFO];	/* # tx descriptors available */
-	s16 txpktpend[NFIFO];	/* tx admission control */
 
 	struct macstat *macstat_snapshot;	/* mac hw prev read values */
 };
@@ -382,19 +378,6 @@ struct brcms_hardware {
 				 */
 };
 
-/* TX Queue information
- *
- * Each flow of traffic out of the device has a TX Queue with independent
- * flow control. Several interfaces may be associated with a single TX Queue
- * if they belong to the same flow of traffic from the device. For multi-channel
- * operation there are independent TX Queues for each channel.
- */
-struct brcms_txq_info {
-	struct brcms_txq_info *next;
-	struct pktq q;
-	uint stopped;		/* tx flow control bits */
-};
-
 /*
  * Principal common driver data structure.
  *
@@ -435,11 +418,8 @@ struct brcms_txq_info {
  * WDlast: last time wlc_watchdog() was called.
  * edcf_txop[IEEE80211_NUM_ACS]: current txop for each ac.
  * wme_retries: per-AC retry limits.
- * tx_prec_map: Precedence map based on HW FIFO space.
- * fifo2prec_map[NFIFO]: pointer to fifo2_prec map based on WME.
  * bsscfg: set of BSS configurations, idx 0 is default and always valid.
  * cfg: the primary bsscfg (can be AP or STA).
- * tx_queues: common TX Queue list.
  * modulecb:
  * mimoft: SIGN or 11N.
  * cck_40txbw: 11N, cck tx b/w override when in 40MHZ mode.
@@ -469,7 +449,6 @@ struct brcms_txq_info {
  * tempsense_lasttime;
  * tx_duty_cycle_ofdm: maximum allowed duty cycle for OFDM.
  * tx_duty_cycle_cck: maximum allowed duty cycle for CCK.
- * pkt_queue: txq for transmit packets.
  * wiphy:
  * pri_scb: primary Station Control Block
  */
@@ -533,13 +512,8 @@ struct brcms_c_info {
 	u16 edcf_txop[IEEE80211_NUM_ACS];
 
 	u16 wme_retries[IEEE80211_NUM_ACS];
-	u16 tx_prec_map;
-	u16 fifo2prec_map[NFIFO];
 
 	struct brcms_bss_cfg *bsscfg;
-
-	/* tx queue */
-	struct brcms_txq_info *tx_queues;
 
 	struct modulecb *modulecb;
 
@@ -585,7 +559,6 @@ struct brcms_c_info {
 	u16 tx_duty_cycle_ofdm;
 	u16 tx_duty_cycle_cck;
 
-	struct brcms_txq_info *pkt_queue;
 	struct wiphy *wiphy;
 	struct scb pri_scb;
 };
@@ -637,30 +610,13 @@ struct brcms_bss_cfg {
 	struct brcms_bss_info *current_bss;
 };
 
-extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
-			   struct sk_buff *p,
-			   bool commit, s8 txpktpend);
-extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo,
-				    s8 txpktpend);
-extern void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
-			    struct sk_buff *sdu, uint prec);
-extern void brcms_c_print_txstatus(struct tx_status *txs);
+extern int brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
+			   struct sk_buff *p);
 extern int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 		   uint *blocks);
 
-#if defined(DEBUG)
-extern void brcms_c_print_txdesc(struct d11txh *txh);
-#else
-static inline void brcms_c_print_txdesc(struct d11txh *txh)
-{
-}
-#endif
-
 extern int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config);
 extern void brcms_c_mac_promisc(struct brcms_c_info *wlc, uint filter_flags);
-extern void brcms_c_send_q(struct brcms_c_info *wlc);
-extern int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu,
-			    uint *fifo);
 extern u16 brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 				uint mac_len);
 extern u32 brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc,

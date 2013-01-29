@@ -157,7 +157,7 @@ static const struct attribute_group max1110_attr_group = {
 	.attrs	= max1110_attributes,
 };
 
-static int __devinit setup_transfer(struct max1111_data *data)
+static int setup_transfer(struct max1111_data *data)
 {
 	struct spi_message *m;
 	struct spi_transfer *x;
@@ -179,7 +179,7 @@ static int __devinit setup_transfer(struct max1111_data *data)
 	return 0;
 }
 
-static int __devinit max1111_probe(struct spi_device *spi)
+static int max1111_probe(struct spi_device *spi)
 {
 	enum chips chip = spi_get_device_id(spi)->driver_data;
 	struct max1111_data *data;
@@ -256,7 +256,7 @@ err_remove:
 	return err;
 }
 
-static int __devexit max1111_remove(struct spi_device *spi)
+static int max1111_remove(struct spi_device *spi)
 {
 	struct max1111_data *data = spi_get_drvdata(spi);
 
@@ -283,7 +283,7 @@ static struct spi_driver max1111_driver = {
 	},
 	.id_table	= max1111_ids,
 	.probe		= max1111_probe,
-	.remove		= __devexit_p(max1111_remove),
+	.remove		= max1111_remove,
 };
 
 module_spi_driver(max1111_driver);

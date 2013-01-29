@@ -882,7 +882,6 @@ void BSSvSecondCallBack(void *hDeviceContext)
     unsigned int            uSleepySTACnt = 0;
     unsigned int            uNonShortSlotSTACnt = 0;
     unsigned int            uLongPreambleSTACnt = 0;
-    viawget_wpa_header *wpahdr;
 
     spin_lock_irq(&pDevice->lock);
 
@@ -913,7 +912,6 @@ if(pDevice->byReAssocCount > 0) {
    if((pDevice->byReAssocCount > 10) && (pDevice->bLinkPass != TRUE)) {  //10 sec timeout
                      printk("Re-association timeout!!!\n");
 		   pDevice->byReAssocCount = 0;
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                     // if(pDevice->bWPASuppWextEnabled == TRUE)
                         {
                   	union iwreq_data  wrqu;
@@ -922,20 +920,11 @@ if(pDevice->byReAssocCount > 0) {
                   	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
                   	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
                        }
-                    #endif
      }
    else if(pDevice->bLinkPass == TRUE)
    	pDevice->byReAssocCount = 0;
 }
 
-if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
-     (pMgmt->eLastState==WMAC_STATE_ASSOC))
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_DISCONNECTED_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
  pMgmt->eLastState = pMgmt->eCurrState ;
 
    s_uCalculateLinkQual((void *)pDevice);
@@ -1102,21 +1091,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
 
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
 		/* let wpa supplicant know AP may disconnect */
-        if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-             wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-             wpahdr->type = VIAWGET_DISASSOC_MSG;
-             wpahdr->resp_ie_len = 0;
-             wpahdr->req_ie_len = 0;
-             skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-             pDevice->skb->dev = pDevice->wpadev;
-	     skb_reset_mac_header(pDevice->skb);
-             pDevice->skb->pkt_type = PACKET_HOST;
-             pDevice->skb->protocol = htons(ETH_P_802_2);
-             memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-             netif_rx(pDevice->skb);
-             pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-         }
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
@@ -1124,7 +1098,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
             }
         }
         else if (pItemSSID->len != 0) {
@@ -1144,20 +1117,6 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bIsRoaming %d, !\n", pDevice->bIsRoaming );
                 pDevice->uAutoReConnectTime = 0;
                 pDevice->uIsroamingTime = 0;
                 pDevice->bRoaming = FALSE;
-
-             wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-             wpahdr->type = VIAWGET_CCKM_ROAM_MSG;
-             wpahdr->resp_ie_len = 0;
-             wpahdr->req_ie_len = 0;
-             skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-             pDevice->skb->dev = pDevice->wpadev;
-	     skb_reset_mac_header(pDevice->skb);
-             pDevice->skb->pkt_type = PACKET_HOST;
-             pDevice->skb->protocol = htons(ETH_P_802_2);
-             memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-             netif_rx(pDevice->skb);
-            pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-
           }
       else if ((pDevice->bRoaming == FALSE)&&(pDevice->bIsRoaming == TRUE)) {
                             pDevice->uIsroamingTime++;
@@ -1169,11 +1128,9 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bIsRoaming %d, !\n", pDevice->bIsRoaming );
 else {
             if (pDevice->uAutoReConnectTime < 10) {
                 pDevice->uAutoReConnectTime++;
-               #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                 //network manager support need not do Roaming scan???
                 if(pDevice->bWPASuppWextEnabled ==TRUE)
 		 pDevice->uAutoReConnectTime = 0;
-	     #endif
             }
             else {
 	    //mike use old encryption status for wpa reauthen

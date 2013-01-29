@@ -563,15 +563,24 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_ucontext *context;
+	struct mlx4_ib_alloc_ucontext_resp_v3 resp_v3;
 	struct mlx4_ib_alloc_ucontext_resp resp;
 	int err;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	resp.qp_tab_size      = dev->dev->caps.num_qps;
-	resp.bf_reg_size      = dev->dev->caps.bf_reg_size;
-	resp.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
+	if (ibdev->uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION) {
+		resp_v3.qp_tab_size      = dev->dev->caps.num_qps;
+		resp_v3.bf_reg_size      = dev->dev->caps.bf_reg_size;
+		resp_v3.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
+	} else {
+		resp.dev_caps	      = dev->dev->caps.userspace_caps;
+		resp.qp_tab_size      = dev->dev->caps.num_qps;
+		resp.bf_reg_size      = dev->dev->caps.bf_reg_size;
+		resp.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
+		resp.cqe_size	      = dev->dev->caps.cqe_size;
+	}
 
 	context = kmalloc(sizeof *context, GFP_KERNEL);
 	if (!context)
@@ -586,7 +595,11 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&context->db_page_list);
 	mutex_init(&context->db_page_mutex);
 
-	err = ib_copy_to_udata(udata, &resp, sizeof resp);
+	if (ibdev->uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION)
+		err = ib_copy_to_udata(udata, &resp_v3, sizeof(resp_v3));
+	else
+		err = ib_copy_to_udata(udata, &resp, sizeof(resp));
+
 	if (err) {
 		mlx4_uar_free(to_mdev(ibdev)->dev, &context->uar);
 		kfree(context);
@@ -1342,7 +1355,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
 
-	ibdev->ib_dev.uverbs_abi_ver	= MLX4_IB_UVERBS_ABI_VERSION;
+	if (dev->caps.userspace_caps)
+		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION;
+	else
+		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION;
+
 	ibdev->ib_dev.uverbs_cmd_mask	=
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|

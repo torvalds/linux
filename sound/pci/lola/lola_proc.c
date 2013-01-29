@@ -206,7 +206,7 @@ static void lola_proc_regs_read(struct snd_info_entry *entry,
 	}
 }
 
-void __devinit lola_proc_debug_new(struct lola *chip)
+void lola_proc_debug_new(struct lola *chip)
 {
 	struct snd_info_entry *entry;
 

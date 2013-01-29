@@ -39,6 +39,8 @@ void efi_bgrt_init(void)
 	if (ACPI_FAILURE(status))
 		return;
 
+	if (bgrt_tab->header.length < sizeof(*bgrt_tab))
+		return;
 	if (bgrt_tab->version != 1)
 		return;
 	if (bgrt_tab->image_type != 0 || !bgrt_tab->image_address)

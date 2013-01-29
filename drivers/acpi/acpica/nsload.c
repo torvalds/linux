@@ -80,8 +80,8 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 
 	/*
 	 * Parse the table and load the namespace with all named
-	 * objects found within.  Control methods are NOT parsed
-	 * at this time.  In fact, the control methods cannot be
+	 * objects found within. Control methods are NOT parsed
+	 * at this time. In fact, the control methods cannot be
 	 * parsed until the entire namespace is loaded, because
 	 * if a control method makes a forward reference (call)
 	 * to another control method, we can't continue parsing
@@ -122,7 +122,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 	}
 
 	/*
-	 * Now we can parse the control methods.  We always parse
+	 * Now we can parse the control methods. We always parse
 	 * them here for a sanity check, and if configured for
 	 * just-in-time parsing, we delete the control method
 	 * parse trees.
@@ -166,7 +166,7 @@ acpi_status acpi_ns_load_namespace(void)
 	}
 
 	/*
-	 * Load the namespace.  The DSDT is required,
+	 * Load the namespace. The DSDT is required,
 	 * but the SSDT and PSDT tables are optional.
 	 */
 	status = acpi_ns_load_table_by_type(ACPI_TABLE_ID_DSDT);
@@ -283,7 +283,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
  *  RETURN:         Status
  *
  *  DESCRIPTION:    Shrinks the namespace, typically in response to an undocking
- *                  event.  Deletes an entire subtree starting from (and
+ *                  event. Deletes an entire subtree starting from (and
  *                  including) the given handle.
  *
  ******************************************************************************/

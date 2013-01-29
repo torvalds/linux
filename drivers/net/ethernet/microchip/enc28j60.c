@@ -1541,7 +1541,7 @@ static const struct net_device_ops enc28j60_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit enc28j60_probe(struct spi_device *spi)
+static int enc28j60_probe(struct spi_device *spi)
 {
 	struct net_device *dev;
 	struct enc28j60_net *priv;
@@ -1617,7 +1617,7 @@ error_alloc:
 	return ret;
 }
 
-static int __devexit enc28j60_remove(struct spi_device *spi)
+static int enc28j60_remove(struct spi_device *spi)
 {
 	struct enc28j60_net *priv = dev_get_drvdata(&spi->dev);
 
@@ -1637,7 +1637,7 @@ static struct spi_driver enc28j60_driver = {
 		   .owner = THIS_MODULE,
 	 },
 	.probe = enc28j60_probe,
-	.remove = __devexit_p(enc28j60_remove),
+	.remove = enc28j60_remove,
 };
 
 static int __init enc28j60_init(void)

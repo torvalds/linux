@@ -1,5 +1,5 @@
 /*
- *  arch/arm/mach-vt8500/timer_dt.c
+ *  arch/arm/mach-vt8500/timer.c
  *
  *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>

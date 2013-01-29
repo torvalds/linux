@@ -48,7 +48,7 @@ struct ci13xxx_platform_data penwell_pci_platdata = {
  * Allocates basic PCI resources for this USB device controller, and then
  * invokes the udc_probe() method to start the UDC associated with it
  */
-static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
+static int ci13xxx_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
 	struct ci13xxx_platform_data *platdata = (void *)id->driver_data;
@@ -107,7 +107,7 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
  * first invoking the udc_remove() and then releases
  * all PCI resources allocated for this USB device controller
  */
-static void __devexit ci13xxx_pci_remove(struct pci_dev *pdev)
+static void ci13xxx_pci_remove(struct pci_dev *pdev)
 {
 	struct platform_device *plat_ci = pci_get_drvdata(pdev);
 
@@ -147,7 +147,7 @@ static struct pci_driver ci13xxx_pci_driver = {
 	.name         =	UDC_DRIVER_NAME,
 	.id_table     =	ci13xxx_pci_id_table,
 	.probe        =	ci13xxx_pci_probe,
-	.remove       =	__devexit_p(ci13xxx_pci_remove),
+	.remove       =	ci13xxx_pci_remove,
 };
 
 module_pci_driver(ci13xxx_pci_driver);

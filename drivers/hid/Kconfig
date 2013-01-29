@@ -265,6 +265,15 @@ config HID_GYRATION
 	---help---
 	Support for Gyration remote control.
 
+config HID_ICADE
+	tristate "ION iCade arcade controller"
+	depends on BT_HIDP
+	---help---
+	Support for the ION iCade arcade controller to work as a joystick.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-icade.
+
 config HID_TWINHAN
 	tristate "Twinhan IR remote control"
 	depends on USB_HID
@@ -727,5 +736,7 @@ endmenu
 endif # HID
 
 source "drivers/hid/usbhid/Kconfig"
+
+source "drivers/hid/i2c-hid/Kconfig"
 
 endmenu

@@ -651,7 +651,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
 			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
-		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
+					  BTRFS_RESERVE_NO_FLUSH);
 		/*
 		 * Since we're under a transaction reserve_metadata_bytes could
 		 * try to commit the transaction which will make it return
@@ -686,7 +687,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 		 * reserve something strictly for us.  If not be a pain and try
 		 * to steal from the delalloc block rsv.
 		 */
-		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
+					  BTRFS_RESERVE_NO_FLUSH);
 		if (!ret)
 			goto out;
 
@@ -1255,7 +1257,6 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	struct btrfs_delayed_node *delayed_node = NULL;
 	struct btrfs_root *root;
 	struct btrfs_block_rsv *block_rsv;
-	unsigned long nr = 0;
 	int need_requeue = 0;
 	int ret;
 
@@ -1316,11 +1317,9 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 					   delayed_node);
 	mutex_unlock(&delayed_node->mutex);
 
-	nr = trans->blocks_used;
-
 	trans->block_rsv = block_rsv;
 	btrfs_end_transaction_dmeta(trans, root);
-	__btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty_nodelay(root);
 free_path:
 	btrfs_free_path(path);
 out:

@@ -35,7 +35,7 @@
 #include "dm.h"
 #include "fw.h"
 
-#define UNDEC_SM_PWDB	entry_min_undecoratedsmoothed_pwdb
+#define UNDEC_SM_PWDB	entry_min_undec_sm_pwdb
 
 static const u32 ofdmswing_table[OFDM_TABLE_SIZE_92D] = {
 	0x7f8001fe,		/* 0, +6.0dB */
@@ -164,18 +164,18 @@ static void rtl92d_dm_diginit(struct ieee80211_hw *hw)
 	de_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 	de_digtable->cur_igvalue = 0x20;
 	de_digtable->pre_igvalue = 0x0;
-	de_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
-	de_digtable->presta_connectstate = DIG_STA_DISCONNECT;
-	de_digtable->curmultista_connectstate = DIG_MULTISTA_DISCONNECT;
+	de_digtable->cursta_cstate = DIG_STA_DISCONNECT;
+	de_digtable->presta_cstate = DIG_STA_DISCONNECT;
+	de_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
 	de_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
 	de_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
 	de_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
 	de_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
 	de_digtable->rx_gain_range_max = DM_DIG_FA_UPPER;
 	de_digtable->rx_gain_range_min = DM_DIG_FA_LOWER;
-	de_digtable->backoff_val = DM_DIG_BACKOFF_DEFAULT;
-	de_digtable->backoff_val_range_max = DM_DIG_BACKOFF_MAX;
-	de_digtable->backoff_val_range_min = DM_DIG_BACKOFF_MIN;
+	de_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
+	de_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
+	de_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
 	de_digtable->pre_cck_pd_state = CCK_PD_STAGE_LOWRSSI;
 	de_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
 	de_digtable->large_fa_hit = 0;
@@ -273,35 +273,34 @@ static void rtl92d_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 	/* Determine the minimum RSSI  */
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.UNDEC_SM_PWDB == 0)) {
-		de_digtable->min_undecorated_pwdb_for_dm = 0;
+		de_digtable->min_undec_pwdb_for_dm = 0;
 		RT_TRACE(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
 			 "Not connected to any\n");
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
 		    mac->opmode == NL80211_IFTYPE_ADHOC) {
-			de_digtable->min_undecorated_pwdb_for_dm =
+			de_digtable->min_undec_pwdb_for_dm =
 			    rtlpriv->dm.UNDEC_SM_PWDB;
 			RT_TRACE(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
 				 "AP Client PWDB = 0x%lx\n",
 				 rtlpriv->dm.UNDEC_SM_PWDB);
 		} else {
-			de_digtable->min_undecorated_pwdb_for_dm =
-			    rtlpriv->dm.undecorated_smoothed_pwdb;
+			de_digtable->min_undec_pwdb_for_dm =
+			    rtlpriv->dm.undec_sm_pwdb;
 			RT_TRACE(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
 				 "STA Default Port PWDB = 0x%x\n",
-				 de_digtable->min_undecorated_pwdb_for_dm);
+				 de_digtable->min_undec_pwdb_for_dm);
 		}
 	} else {
-		de_digtable->min_undecorated_pwdb_for_dm =
-		    rtlpriv->dm.UNDEC_SM_PWDB;
+		de_digtable->min_undec_pwdb_for_dm = rtlpriv->dm.UNDEC_SM_PWDB;
 		RT_TRACE(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
 			 "AP Ext Port or disconnect PWDB = 0x%x\n",
-			 de_digtable->min_undecorated_pwdb_for_dm);
+			 de_digtable->min_undec_pwdb_for_dm);
 	}
 
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "MinUndecoratedPWDBForDM =%d\n",
-		 de_digtable->min_undecorated_pwdb_for_dm);
+		 de_digtable->min_undec_pwdb_for_dm);
 }
 
 static void rtl92d_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
@@ -310,16 +309,16 @@ static void rtl92d_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 	struct dig_t *de_digtable = &rtlpriv->dm_digtable;
 	unsigned long flag = 0;
 
-	if (de_digtable->cursta_connectstate == DIG_STA_CONNECT) {
+	if (de_digtable->cursta_cstate == DIG_STA_CONNECT) {
 		if (de_digtable->pre_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
-			if (de_digtable->min_undecorated_pwdb_for_dm <= 25)
+			if (de_digtable->min_undec_pwdb_for_dm <= 25)
 				de_digtable->cur_cck_pd_state =
 							 CCK_PD_STAGE_LOWRSSI;
 			else
 				de_digtable->cur_cck_pd_state =
 							 CCK_PD_STAGE_HIGHRSSI;
 		} else {
-			if (de_digtable->min_undecorated_pwdb_for_dm <= 20)
+			if (de_digtable->min_undec_pwdb_for_dm <= 20)
 				de_digtable->cur_cck_pd_state =
 							 CCK_PD_STAGE_LOWRSSI;
 			else
@@ -342,7 +341,7 @@ static void rtl92d_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 		de_digtable->pre_cck_pd_state = de_digtable->cur_cck_pd_state;
 	}
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "CurSTAConnectState=%s\n",
-		 de_digtable->cursta_connectstate == DIG_STA_CONNECT ?
+		 de_digtable->cursta_cstate == DIG_STA_CONNECT ?
 		 "DIG_STA_CONNECT " : "DIG_STA_DISCONNECT");
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "CCKPDStage=%s\n",
 		 de_digtable->cur_cck_pd_state == CCK_PD_STAGE_LOWRSSI ?
@@ -358,9 +357,9 @@ void rtl92d_dm_write_dig(struct ieee80211_hw *hw)
 	struct dig_t *de_digtable = &rtlpriv->dm_digtable;
 
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-		 "cur_igvalue = 0x%x, pre_igvalue = 0x%x, backoff_val = %d\n",
+		 "cur_igvalue = 0x%x, pre_igvalue = 0x%x, back_val = %d\n",
 		 de_digtable->cur_igvalue, de_digtable->pre_igvalue,
-		 de_digtable->backoff_val);
+		 de_digtable->back_val);
 	if (de_digtable->dig_enable_flag == false) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "DIG is disabled\n");
 		de_digtable->pre_igvalue = 0x17;
@@ -382,13 +381,13 @@ static void rtl92d_early_mode_enabled(struct rtl_priv *rtlpriv)
 	if ((rtlpriv->mac80211.link_state >= MAC80211_LINKED) &&
 	    (rtlpriv->mac80211.vendor == PEER_CISCO)) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "IOT_PEER = CISCO\n");
-		if (de_digtable->last_min_undecorated_pwdb_for_dm >= 50
-		    && de_digtable->min_undecorated_pwdb_for_dm < 50) {
+		if (de_digtable->last_min_undec_pwdb_for_dm >= 50
+		    && de_digtable->min_undec_pwdb_for_dm < 50) {
 			rtl_write_byte(rtlpriv, REG_EARLY_MODE_CONTROL, 0x00);
 			RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
 				 "Early Mode Off\n");
-		} else if (de_digtable->last_min_undecorated_pwdb_for_dm <= 55 &&
-			   de_digtable->min_undecorated_pwdb_for_dm > 55) {
+		} else if (de_digtable->last_min_undec_pwdb_for_dm <= 55 &&
+			   de_digtable->min_undec_pwdb_for_dm > 55) {
 			rtl_write_byte(rtlpriv, REG_EARLY_MODE_CONTROL, 0x0f);
 			RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
 				 "Early Mode On\n");
@@ -409,8 +408,8 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "==>\n");
 	if (rtlpriv->rtlhal.earlymode_enable) {
 		rtl92d_early_mode_enabled(rtlpriv);
-		de_digtable->last_min_undecorated_pwdb_for_dm =
-				 de_digtable->min_undecorated_pwdb_for_dm;
+		de_digtable->last_min_undec_pwdb_for_dm =
+				 de_digtable->min_undec_pwdb_for_dm;
 	}
 	if (!rtlpriv->dm.dm_initialgain_enable)
 		return;
@@ -428,9 +427,9 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "progress\n");
 	/* Decide the current status and if modify initial gain or not */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED)
-		de_digtable->cursta_connectstate = DIG_STA_CONNECT;
+		de_digtable->cursta_cstate = DIG_STA_CONNECT;
 	else
-		de_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
+		de_digtable->cursta_cstate = DIG_STA_DISCONNECT;
 
 	/* adjust initial gain according to false alarm counter */
 	if (falsealm_cnt->cnt_all < DM_DIG_FA_TH0)
@@ -522,7 +521,7 @@ static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	long undecorated_smoothed_pwdb;
+	long undec_sm_pwdb;
 
 	if ((!rtlpriv->dm.dynamic_txpower_enable)
 	    || rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
@@ -539,62 +538,62 @@ static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_ADHOC) {
-			undecorated_smoothed_pwdb =
+			undec_sm_pwdb =
 			    rtlpriv->dm.UNDEC_SM_PWDB;
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 				 "IBSS Client PWDB = 0x%lx\n",
-				 undecorated_smoothed_pwdb);
+				 undec_sm_pwdb);
 		} else {
-			undecorated_smoothed_pwdb =
-			    rtlpriv->dm.undecorated_smoothed_pwdb;
+			undec_sm_pwdb =
+			    rtlpriv->dm.undec_sm_pwdb;
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 				 "STA Default Port PWDB = 0x%lx\n",
-				 undecorated_smoothed_pwdb);
+				 undec_sm_pwdb);
 		}
 	} else {
-		undecorated_smoothed_pwdb =
+		undec_sm_pwdb =
 		    rtlpriv->dm.UNDEC_SM_PWDB;
 
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 			 "AP Ext Port PWDB = 0x%lx\n",
-			 undecorated_smoothed_pwdb);
+			 undec_sm_pwdb);
 	}
 	if (rtlhal->current_bandtype == BAND_ON_5G) {
-		if (undecorated_smoothed_pwdb >= 0x33) {
+		if (undec_sm_pwdb >= 0x33) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_LEVEL2;
 			RT_TRACE(rtlpriv, COMP_HIPWR, DBG_LOUD,
 				 "5G:TxHighPwrLevel_Level2 (TxPwr=0x0)\n");
-		} else if ((undecorated_smoothed_pwdb < 0x33)
-			   && (undecorated_smoothed_pwdb >= 0x2b)) {
+		} else if ((undec_sm_pwdb < 0x33)
+			   && (undec_sm_pwdb >= 0x2b)) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_LEVEL1;
 			RT_TRACE(rtlpriv, COMP_HIPWR, DBG_LOUD,
 				 "5G:TxHighPwrLevel_Level1 (TxPwr=0x10)\n");
-		} else if (undecorated_smoothed_pwdb < 0x2b) {
+		} else if (undec_sm_pwdb < 0x2b) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_NORMAL;
 			RT_TRACE(rtlpriv, COMP_HIPWR, DBG_LOUD,
 				 "5G:TxHighPwrLevel_Normal\n");
 		}
 	} else {
-		if (undecorated_smoothed_pwdb >=
+		if (undec_sm_pwdb >=
 		    TX_POWER_NEAR_FIELD_THRESH_LVL2) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_LEVEL2;
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 				 "TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x0)\n");
 		} else
-		    if ((undecorated_smoothed_pwdb <
+		    if ((undec_sm_pwdb <
 			 (TX_POWER_NEAR_FIELD_THRESH_LVL2 - 3))
-			&& (undecorated_smoothed_pwdb >=
+			&& (undec_sm_pwdb >=
 			    TX_POWER_NEAR_FIELD_THRESH_LVL1)) {
 
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_LEVEL1;
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 				 "TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
-		} else if (undecorated_smoothed_pwdb <
+		} else if (undec_sm_pwdb <
 			   (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
 						 TXHIGHPWRLEVEL_NORMAL;
@@ -620,7 +619,7 @@ static void rtl92d_dm_pwdb_monitor(struct ieee80211_hw *hw)
 		return;
 	/* Indicate Rx signal strength to FW. */
 	if (rtlpriv->dm.useramask) {
-		u32 temp = rtlpriv->dm.undecorated_smoothed_pwdb;
+		u32 temp = rtlpriv->dm.undec_sm_pwdb;
 
 		temp <<= 16;
 		temp |= 0x100;
@@ -629,7 +628,7 @@ static void rtl92d_dm_pwdb_monitor(struct ieee80211_hw *hw)
 		rtl92d_fill_h2c_cmd(hw, H2C_RSSI_REPORT, 3, (u8 *) (&temp));
 	} else {
 		rtl_write_byte(rtlpriv, 0x4fe,
-			       (u8) rtlpriv->dm.undecorated_smoothed_pwdb);
+			       (u8) rtlpriv->dm.undec_sm_pwdb);
 	}
 }
 

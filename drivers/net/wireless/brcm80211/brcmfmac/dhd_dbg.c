@@ -14,12 +14,9 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/debugfs.h>
-#include <linux/if_ether.h>
-#include <linux/if.h>
-#include <linux/ieee80211.h>
+#include <linux/netdevice.h>
 #include <linux/module.h>
 
-#include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "dhd.h"
@@ -46,10 +43,12 @@ void brcmf_debugfs_exit(void)
 
 int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 {
+	struct device *dev = drvr->bus_if->dev;
+
 	if (!root_folder)
 		return -ENODEV;
 
-	drvr->dbgfs_dir = debugfs_create_dir(dev_name(drvr->dev), root_folder);
+	drvr->dbgfs_dir = debugfs_create_dir(dev_name(dev), root_folder);
 	return PTR_RET(drvr->dbgfs_dir);
 }
 

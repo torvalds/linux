@@ -124,13 +124,10 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	 * it.
 	 */
 	spin_lock(&sbi->lookup_lock);
-	spin_lock(&dentry->d_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dentry->d_lock);
+	if (!d_mountpoint(dentry) && simple_empty(dentry)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOENT;
 	}
-	spin_unlock(&dentry->d_lock);
 	spin_unlock(&sbi->lookup_lock);
 
 out:
@@ -355,7 +352,6 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 		status = autofs4_mount_wait(dentry);
 		if (status)
 			return ERR_PTR(status);
-		spin_lock(&sbi->fs_lock);
 		goto done;
 	}
 
@@ -364,8 +360,11 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	 * having d_mountpoint() true, so there's no need to call back
 	 * to the daemon.
 	 */
-	if (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode))
+	if (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)) {
+		spin_unlock(&sbi->fs_lock);
 		goto done;
+	}
+
 	if (!d_mountpoint(dentry)) {
 		/*
 		 * It's possible that user space hasn't removed directories
@@ -379,15 +378,13 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 		 * require user space behave.
 		 */
 		if (sbi->version > 4) {
-			if (have_submounts(dentry))
-				goto done;
-		} else {
-			spin_lock(&dentry->d_lock);
-			if (!list_empty(&dentry->d_subdirs)) {
-				spin_unlock(&dentry->d_lock);
+			if (have_submounts(dentry)) {
+				spin_unlock(&sbi->fs_lock);
 				goto done;
 			}
-			spin_unlock(&dentry->d_lock);
+		} else {
+			if (!simple_empty(dentry))
+				goto done;
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
@@ -399,28 +396,8 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 			return ERR_PTR(status);
 		}
 	}
-done:
-	if (!(ino->flags & AUTOFS_INF_EXPIRING)) {
-		/*
-		 * Any needed mounting has been completed and the path
-		 * updated so clear DCACHE_NEED_AUTOMOUNT so we don't
-		 * call ->d_automount() on rootless multi-mounts since
-		 * it can lead to an incorrect ELOOP error return.
-		 *
-		 * Only clear DMANAGED_AUTOMOUNT for rootless multi-mounts and
-		 * symlinks as in all other cases the dentry will be covered by
-		 * an actual mount so ->d_automount() won't be called during
-		 * the follow.
-		 */
-		spin_lock(&dentry->d_lock);
-		if ((!d_mountpoint(dentry) &&
-		    !list_empty(&dentry->d_subdirs)) ||
-		    (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)))
-			__managed_dentry_clear_automount(dentry);
-		spin_unlock(&dentry->d_lock);
-	}
 	spin_unlock(&sbi->fs_lock);
-
+done:
 	/* Mount succeeded, check if we ended up with a new dentry */
 	dentry = autofs4_mountpoint_changed(path);
 	if (!dentry)
@@ -432,6 +409,8 @@ done:
 int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
+	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	int status;
 
 	DPRINTK("dentry=%p %.*s",
 		dentry, dentry->d_name.len, dentry->d_name.name);
@@ -456,7 +435,32 @@ int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 	 * This dentry may be under construction so wait on mount
 	 * completion.
 	 */
-	return autofs4_mount_wait(dentry);
+	status = autofs4_mount_wait(dentry);
+	if (status)
+		return status;
+
+	spin_lock(&sbi->fs_lock);
+	/*
+	 * If the dentry has been selected for expire while we slept
+	 * on the lock then it might go away. We'll deal with that in
+	 * ->d_automount() and wait on a new mount if the expire
+	 * succeeds or return here if it doesn't (since there's no
+	 * mount to follow with a rootless multi-mount).
+	 */
+	if (!(ino->flags & AUTOFS_INF_EXPIRING)) {
+		/*
+		 * Any needed mounting has been completed and the path
+		 * updated so check if this is a rootless multi-mount so
+		 * we can avoid needless calls ->d_automount() and avoid
+		 * an incorrect ELOOP error return.
+		 */
+		if ((!d_mountpoint(dentry) && !simple_empty(dentry)) ||
+		    (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)))
+			status = -EISDIR;
+	}
+	spin_unlock(&sbi->fs_lock);
+
+	return status;
 }
 
 /* Lookups in the root directory */
@@ -599,9 +603,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs4_add_expiring(dentry);
-	spin_lock(&dentry->d_lock);
-	__d_drop(dentry);
-	spin_unlock(&dentry->d_lock);
+	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
 
 	return 0;
@@ -672,15 +674,12 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		return -EACCES;
 
 	spin_lock(&sbi->lookup_lock);
-	spin_lock(&dentry->d_lock);
-	if (!list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dentry->d_lock);
+	if (!simple_empty(dentry)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOTEMPTY;
 	}
 	__autofs4_add_expiring(dentry);
-	__d_drop(dentry);
-	spin_unlock(&dentry->d_lock);
+	d_drop(dentry);
 	spin_unlock(&sbi->lookup_lock);
 
 	if (sbi->version < 5)

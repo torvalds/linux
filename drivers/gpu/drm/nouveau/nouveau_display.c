@@ -98,12 +98,12 @@ nouveau_framebuffer_init(struct drm_device *dev,
 			nv_fb->r_dma = NvEvoVRAM_LP;
 
 		switch (fb->depth) {
-		case  8: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_8; break;
-		case 15: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_15; break;
-		case 16: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_16; break;
+		case  8: nv_fb->r_format = 0x1e00; break;
+		case 15: nv_fb->r_format = 0xe900; break;
+		case 16: nv_fb->r_format = 0xe800; break;
 		case 24:
-		case 32: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_24; break;
-		case 30: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_30; break;
+		case 32: nv_fb->r_format = 0xcf00; break;
+		case 30: nv_fb->r_format = 0xd100; break;
 		default:
 			 NV_ERROR(drm, "unknown depth %d\n", fb->depth);
 			 return -EINVAL;
@@ -225,15 +225,6 @@ nouveau_display_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* power on internal panel if it's not already.  the init tables of
-	 * some vbios default this to off for some reason, causing the
-	 * panel to not work after resume
-	 */
-	if (gpio && gpio->get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff) == 0) {
-		gpio->set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
-		msleep(300);
-	}
-
 	/* enable polling for external displays */
 	drm_kms_helper_poll_enable(dev);
 
@@ -324,7 +315,7 @@ nouveau_display_create(struct drm_device *dev)
 	disp->underscan_vborder_property =
 		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
-	if (gen == 1) {
+	if (gen >= 1) {
 		disp->vibrant_hue_property =
 			drm_property_create(dev, DRM_MODE_PROP_RANGE,
 					    "vibrant hue", 2);
@@ -366,10 +357,7 @@ nouveau_display_create(struct drm_device *dev)
 		if (nv_device(drm->device)->card_type < NV_50)
 			ret = nv04_display_create(dev);
 		else
-		if (nv_device(drm->device)->card_type < NV_D0)
 			ret = nv50_display_create(dev);
-		else
-			ret = nvd0_display_create(dev);
 		if (ret)
 			goto disp_create_err;
 
@@ -400,11 +388,12 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_backlight_exit(dev);
 	drm_vblank_cleanup(dev);
 
+	drm_kms_helper_poll_fini(dev);
+	drm_mode_config_cleanup(dev);
+
 	if (disp->dtor)
 		disp->dtor(dev);
 
-	drm_kms_helper_poll_fini(dev);
-	drm_mode_config_cleanup(dev);
 	nouveau_drm(dev)->display = NULL;
 	kfree(disp);
 }
@@ -659,10 +648,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
-		if (nv_device(drm->device)->card_type >= NV_D0)
-			ret = nvd0_display_flip_next(crtc, fb, chan, 0);
-		else
-			ret = nv50_display_flip_next(crtc, fb, chan);
+		ret = nv50_display_flip_next(crtc, fb, chan, 0);
 		if (ret) {
 			mutex_unlock(&chan->cli->mutex);
 			goto fail_unreserve;

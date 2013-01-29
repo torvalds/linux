@@ -145,19 +145,6 @@ static int addr_to_vsyscall_nr(unsigned long addr)
 	return nr;
 }
 
-#ifdef CONFIG_SECCOMP
-static int vsyscall_seccomp(struct task_struct *tsk, int syscall_nr)
-{
-	if (!seccomp_mode(&tsk->seccomp))
-		return 0;
-	task_pt_regs(tsk)->orig_ax = syscall_nr;
-	task_pt_regs(tsk)->ax = syscall_nr;
-	return __secure_computing(syscall_nr);
-}
-#else
-#define vsyscall_seccomp(_tsk, _nr) 0
-#endif
-
 static bool write_ok_or_segv(unsigned long ptr, size_t size)
 {
 	/*
@@ -190,10 +177,9 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 {
 	struct task_struct *tsk;
 	unsigned long caller;
-	int vsyscall_nr;
+	int vsyscall_nr, syscall_nr, tmp;
 	int prev_sig_on_uaccess_error;
 	long ret;
-	int skip;
 
 	/*
 	 * No point in checking CS -- the only way to get here is a user mode
@@ -225,6 +211,64 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	}
 
 	tsk = current;
+
+	/*
+	 * Check for access_ok violations and find the syscall nr.
+	 *
+	 * NULL is a valid user pointer (in the access_ok sense) on 32-bit and
+	 * 64-bit, so we don't need to special-case it here.  For all the
+	 * vsyscalls, NULL means "don't write anything" not "write it at
+	 * address 0".
+	 */
+	switch (vsyscall_nr) {
+	case 0:
+		if (!write_ok_or_segv(regs->di, sizeof(struct timeval)) ||
+		    !write_ok_or_segv(regs->si, sizeof(struct timezone))) {
+			ret = -EFAULT;
+			goto check_fault;
+		}
+
+		syscall_nr = __NR_gettimeofday;
+		break;
+
+	case 1:
+		if (!write_ok_or_segv(regs->di, sizeof(time_t))) {
+			ret = -EFAULT;
+			goto check_fault;
+		}
+
+		syscall_nr = __NR_time;
+		break;
+
+	case 2:
+		if (!write_ok_or_segv(regs->di, sizeof(unsigned)) ||
+		    !write_ok_or_segv(regs->si, sizeof(unsigned))) {
+			ret = -EFAULT;
+			goto check_fault;
+		}
+
+		syscall_nr = __NR_getcpu;
+		break;
+	}
+
+	/*
+	 * Handle seccomp.  regs->ip must be the original value.
+	 * See seccomp_send_sigsys and Documentation/prctl/seccomp_filter.txt.
+	 *
+	 * We could optimize the seccomp disabled case, but performance
+	 * here doesn't matter.
+	 */
+	regs->orig_ax = syscall_nr;
+	regs->ax = -ENOSYS;
+	tmp = secure_computing(syscall_nr);
+	if ((!tmp && regs->orig_ax != syscall_nr) || regs->ip != address) {
+		warn_bad_vsyscall(KERN_DEBUG, regs,
+				  "seccomp tried to change syscall nr or ip");
+		do_exit(SIGSYS);
+	}
+	if (tmp)
+		goto do_ret;  /* skip requested */
+
 	/*
 	 * With a real vsyscall, page faults cause SIGSEGV.  We want to
 	 * preserve that behavior to make writing exploits harder.
@@ -232,49 +276,19 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	prev_sig_on_uaccess_error = current_thread_info()->sig_on_uaccess_error;
 	current_thread_info()->sig_on_uaccess_error = 1;
 
-	/*
-	 * NULL is a valid user pointer (in the access_ok sense) on 32-bit and
-	 * 64-bit, so we don't need to special-case it here.  For all the
-	 * vsyscalls, NULL means "don't write anything" not "write it at
-	 * address 0".
-	 */
 	ret = -EFAULT;
-	skip = 0;
 	switch (vsyscall_nr) {
 	case 0:
-		skip = vsyscall_seccomp(tsk, __NR_gettimeofday);
-		if (skip)
-			break;
-
-		if (!write_ok_or_segv(regs->di, sizeof(struct timeval)) ||
-		    !write_ok_or_segv(regs->si, sizeof(struct timezone)))
-			break;
-
 		ret = sys_gettimeofday(
 			(struct timeval __user *)regs->di,
 			(struct timezone __user *)regs->si);
 		break;
 
 	case 1:
-		skip = vsyscall_seccomp(tsk, __NR_time);
-		if (skip)
-			break;
-
-		if (!write_ok_or_segv(regs->di, sizeof(time_t)))
-			break;
-
 		ret = sys_time((time_t __user *)regs->di);
 		break;
 
 	case 2:
-		skip = vsyscall_seccomp(tsk, __NR_getcpu);
-		if (skip)
-			break;
-
-		if (!write_ok_or_segv(regs->di, sizeof(unsigned)) ||
-		    !write_ok_or_segv(regs->si, sizeof(unsigned)))
-			break;
-
 		ret = sys_getcpu((unsigned __user *)regs->di,
 				 (unsigned __user *)regs->si,
 				 NULL);
@@ -283,12 +297,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 	current_thread_info()->sig_on_uaccess_error = prev_sig_on_uaccess_error;
 
-	if (skip) {
-		if ((long)regs->ax <= 0L) /* seccomp errno emulation */
-			goto do_ret;
-		goto done; /* seccomp trace/trap */
-	}
-
+check_fault:
 	if (ret == -EFAULT) {
 		/* Bad news -- userspace fed a bad pointer to a vsyscall. */
 		warn_bad_vsyscall(KERN_INFO, regs,
@@ -311,7 +320,6 @@ do_ret:
 	/* Emulate a ret instruction. */
 	regs->ip = caller;
 	regs->sp += 8;
-done:
 	return true;
 
 sigsegv:

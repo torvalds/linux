@@ -36,13 +36,13 @@ static struct {
 
 static volatile int		running;
 
-static void __devinit enter_contest(u64 mark, long add)
+static void enter_contest(u64 mark, long add)
 {
 	while (get_tb() < mark)
 		tbsync->race_result = add;
 }
 
-void __devinit smp_generic_take_timebase(void)
+void smp_generic_take_timebase(void)
 {
 	int cmd;
 	u64 tb;
@@ -75,7 +75,7 @@ void __devinit smp_generic_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-static int __devinit start_contest(int cmd, long offset, int num)
+static int start_contest(int cmd, long offset, int num)
 {
 	int i, score=0;
 	u64 tb;
@@ -110,7 +110,7 @@ static int __devinit start_contest(int cmd, long offset, int num)
 	return score;
 }
 
-void __devinit smp_generic_give_timebase(void)
+void smp_generic_give_timebase(void)
 {
 	int i, score, score2, old, min=0, max=5000, offset=1000;
 

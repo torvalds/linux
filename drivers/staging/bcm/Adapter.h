@@ -151,7 +151,7 @@ struct bcm_packet_info {
 	UINT		NumOfPacketsSent;
 	UCHAR		ucDirection;
 	USHORT		usCID;
-	S_MIBS_EXTSERVICEFLOW_PARAMETERS	stMibsExtServiceFlowTable;
+	struct bcm_mibs_parameters stMibsExtServiceFlowTable;
 	UINT		uiCurrentRxRate;
 	UINT		uiThisPeriodRxBytes;
 	UINT		uiTotalRxBytes;
@@ -198,7 +198,7 @@ struct bcm_tarang_data {
 	int			AppCtrlQueueLen;
 	BOOLEAN			MacTracingEnabled;
 	BOOLEAN			bApplicationToExit;
-	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
+	struct bcm_mibs_dropped_cntrl_msg stDroppedAppCntrlMsgs;
 	ULONG			RxCntrlMsgBitMask;
 };
 
@@ -371,8 +371,8 @@ struct bcm_mini_adapter {
 	PFLASH2X_VENDORSPECIFIC_INFO psFlash2xVendorInfo;
 	UINT			uiFlashBaseAdd; /* Flash start address */
 	UINT			uiActiveISOOffset; /* Active ISO offset chosen before f/w download */
-	FLASH2X_SECTION_VAL	eActiveISO; /* Active ISO section val */
-	FLASH2X_SECTION_VAL	eActiveDSD;	/* Active DSD val chosen before f/w download */
+	enum bcm_flash2x_section_val eActiveISO; /* Active ISO section val */
+	enum bcm_flash2x_section_val eActiveDSD; /* Active DSD val chosen before f/w download */
 	UINT			uiActiveDSDOffsetAtFwDld;  /* For accessing Active DSD chosen before f/w download */
 	UINT			uiFlashLayoutMajorVersion;
 	UINT			uiFlashLayoutMinorVersion;

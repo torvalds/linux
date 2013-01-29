@@ -229,7 +229,7 @@ static ssize_t max8997_led_store_mode(struct device *dev,
 
 static DEVICE_ATTR(mode, 0644, max8997_led_show_mode, max8997_led_store_mode);
 
-static int __devinit max8997_led_probe(struct platform_device *pdev)
+static int max8997_led_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -292,7 +292,7 @@ static int __devinit max8997_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit max8997_led_remove(struct platform_device *pdev)
+static int max8997_led_remove(struct platform_device *pdev)
 {
 	struct max8997_led *led = platform_get_drvdata(pdev);
 
@@ -308,7 +308,7 @@ static struct platform_driver max8997_led_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = max8997_led_probe,
-	.remove = __devexit_p(max8997_led_remove),
+	.remove = max8997_led_remove,
 };
 
 module_platform_driver(max8997_led_driver);

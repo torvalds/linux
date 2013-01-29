@@ -139,7 +139,7 @@ static int cx22700_set_tps(struct cx22700_state *state,
 	if (p->code_rate_HP == FEC_4_5 || p->code_rate_LP == FEC_4_5)
 		return -EINVAL;
 
-	if (p->guard_interval < GUARD_INTERVAL_1_32 ||
+	if ((int)p->guard_interval < GUARD_INTERVAL_1_32 ||
 	    p->guard_interval > GUARD_INTERVAL_1_4)
 		return -EINVAL;
 
@@ -152,7 +152,7 @@ static int cx22700_set_tps(struct cx22700_state *state,
 	    p->modulation != QAM_64)
 		return -EINVAL;
 
-	if (p->hierarchy < HIERARCHY_NONE ||
+	if ((int)p->hierarchy < HIERARCHY_NONE ||
 	    p->hierarchy > HIERARCHY_4)
 		return -EINVAL;
 

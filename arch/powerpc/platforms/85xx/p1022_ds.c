@@ -249,7 +249,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 
-	iprop = of_get_property(law_node, "fsl,num-laws", 0);
+	iprop = of_get_property(law_node, "fsl,num-laws", NULL);
 	if (!iprop) {
 		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
 		goto exit;
@@ -539,7 +539,7 @@ static void __init p1022_ds_setup_arch(void)
 				};
 
 				/*
-				 * prom_update_property() is called before
+				 * of_update_property() is called before
 				 * kmalloc() is available, so the 'new' object
 				 * should be allocated in the global area.
 				 * The easiest way is to do that is to
@@ -548,7 +548,7 @@ static void __init p1022_ds_setup_arch(void)
 				 */
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nor_status);
+				of_update_property(np2, &nor_status);
 				of_node_put(np2);
 			}
 
@@ -564,7 +564,7 @@ static void __init p1022_ds_setup_arch(void)
 
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nand_status);
+				of_update_property(np2, &nand_status);
 				of_node_put(np2);
 			}
 

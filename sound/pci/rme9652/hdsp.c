@@ -28,6 +28,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/vmalloc.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -59,13 +60,11 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 	        "{RME HDSP-9652},"
 		"{RME HDSP-9632}}");
-#ifdef HDSP_FW_LOADER
 MODULE_FIRMWARE("rpm_firmware.bin");
 MODULE_FIRMWARE("multiface_firmware.bin");
 MODULE_FIRMWARE("multiface_firmware_rev11.bin");
 MODULE_FIRMWARE("digiface_firmware.bin");
 MODULE_FIRMWARE("digiface_firmware_rev11.bin");
-#endif
 
 #define HDSP_MAX_CHANNELS        26
 #define HDSP_MAX_DS_CHANNELS     14
@@ -423,12 +422,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_DMA_AREA_BYTES ((HDSP_MAX_CHANNELS+1) * HDSP_CHANNEL_BUFFER_BYTES)
 #define HDSP_DMA_AREA_KILOBYTES (HDSP_DMA_AREA_BYTES/1024)
 
-/* use hotplug firmware loader? */
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#if !defined(HDSP_USE_HWDEP_LOADER)
-#define HDSP_FW_LOADER
-#endif
-#endif
+#define HDSP_FIRMWARE_SIZE	(24413 * 4)
 
 struct hdsp_9632_meters {
     u32 input_peak[16];
@@ -475,7 +469,8 @@ struct hdsp {
 	enum HDSP_IO_Type     io_type;               /* ditto, but for code use */
         unsigned short        firmware_rev;
 	unsigned short	      state;		     /* stores state bits */
-	u32		      firmware_cache[24413]; /* this helps recover from accidental iobox power failure */
+	const struct firmware *firmware;
+	u32                  *fw_uploaded;
 	size_t                period_bytes; 	     /* guess what this is */
 	unsigned char	      max_channels;
 	unsigned char	      qs_in_channels;	     /* quad speed mode for H9632 */
@@ -712,6 +707,17 @@ static int snd_hdsp_load_firmware_from_cache(struct hdsp *hdsp) {
 
 	int i;
 	unsigned long flags;
+	const u32 *cache;
+
+	if (hdsp->fw_uploaded)
+		cache = hdsp->fw_uploaded;
+	else {
+		if (!hdsp->firmware)
+			return -ENODEV;
+		cache = (u32 *)hdsp->firmware->data;
+		if (!cache)
+			return -ENODEV;
+	}
 
 	if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 
@@ -727,8 +733,8 @@ static int snd_hdsp_load_firmware_from_cache(struct hdsp *hdsp) {
 
 		hdsp_write (hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 
-		for (i = 0; i < 24413; ++i) {
-			hdsp_write(hdsp, HDSP_fifoData, hdsp->firmware_cache[i]);
+		for (i = 0; i < HDSP_FIRMWARE_SIZE / 4; ++i) {
+			hdsp_write(hdsp, HDSP_fifoData, cache[i]);
 			if (hdsp_fifo_wait (hdsp, 127, HDSP_LONG_WAIT)) {
 				snd_printk ("Hammerfall-DSP: timeout during firmware loading\n");
 				return -EIO;
@@ -798,9 +804,7 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 }
 
 
-#ifdef HDSP_FW_LOADER
 static int hdsp_request_fw_loader(struct hdsp *hdsp);
-#endif
 
 static int hdsp_check_for_firmware (struct hdsp *hdsp, int load_on_demand)
 {
@@ -813,10 +817,8 @@ static int hdsp_check_for_firmware (struct hdsp *hdsp, int load_on_demand)
 		snd_printk(KERN_ERR "Hammerfall-DSP: firmware not present.\n");
 		/* try to load firmware */
 		if (! (hdsp->state & HDSP_FirmwareCached)) {
-#ifdef HDSP_FW_LOADER
 			if (! hdsp_request_fw_loader(hdsp))
 				return 0;
-#endif
 			snd_printk(KERN_ERR
 				   "Hammerfall-DSP: No firmware loaded nor "
 				   "cached, please upload firmware.\n");
@@ -3673,9 +3675,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 			}
 		} else {
 			int err = -EINVAL;
-#ifdef HDSP_FW_LOADER
 			err = hdsp_request_fw_loader(hdsp);
-#endif
 			if (err < 0) {
 				snd_iprintf(buffer,
 					    "No firmware loaded nor cached, "
@@ -4020,7 +4020,7 @@ static void snd_hdsp_free_buffers(struct hdsp *hdsp)
 	snd_hammerfall_free_buffer(&hdsp->playback_dma_buf, hdsp->pci);
 }
 
-static int __devinit snd_hdsp_initialize_memory(struct hdsp *hdsp)
+static int snd_hdsp_initialize_memory(struct hdsp *hdsp)
 {
 	unsigned long pb_bus, cb_bus;
 
@@ -5100,8 +5100,18 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		if (hdsp_check_for_iobox (hdsp))
 			return -EIO;
 
-		if (copy_from_user(hdsp->firmware_cache, firmware_data, sizeof(hdsp->firmware_cache)) != 0)
+		if (!hdsp->fw_uploaded) {
+			hdsp->fw_uploaded = vmalloc(HDSP_FIRMWARE_SIZE);
+			if (!hdsp->fw_uploaded)
+				return -ENOMEM;
+		}
+
+		if (copy_from_user(hdsp->fw_uploaded, firmware_data,
+				   HDSP_FIRMWARE_SIZE)) {
+			vfree(hdsp->fw_uploaded);
+			hdsp->fw_uploaded = NULL;
 			return -EFAULT;
+		}
 
 		hdsp->state |= HDSP_FirmwareCached;
 
@@ -5330,7 +5340,6 @@ static int snd_hdsp_create_alsa_devices(struct snd_card *card, struct hdsp *hdsp
 	return 0;
 }
 
-#ifdef HDSP_FW_LOADER
 /* load firmware via hotplug fw loader */
 static int hdsp_request_fw_loader(struct hdsp *hdsp)
 {
@@ -5373,16 +5382,13 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 		snd_printk(KERN_ERR "Hammerfall-DSP: cannot load firmware %s\n", fwfile);
 		return -ENOENT;
 	}
-	if (fw->size < sizeof(hdsp->firmware_cache)) {
+	if (fw->size < HDSP_FIRMWARE_SIZE) {
 		snd_printk(KERN_ERR "Hammerfall-DSP: too short firmware size %d (expected %d)\n",
-			   (int)fw->size, (int)sizeof(hdsp->firmware_cache));
-		release_firmware(fw);
+			   (int)fw->size, HDSP_FIRMWARE_SIZE);
 		return -EINVAL;
 	}
 
-	memcpy(hdsp->firmware_cache, fw->data, sizeof(hdsp->firmware_cache));
-
-	release_firmware(fw);
+	hdsp->firmware = fw;
 
 	hdsp->state |= HDSP_FirmwareCached;
 
@@ -5406,10 +5412,9 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 	}
 	return 0;
 }
-#endif
 
-static int __devinit snd_hdsp_create(struct snd_card *card,
-				     struct hdsp *hdsp)
+static int snd_hdsp_create(struct snd_card *card,
+			   struct hdsp *hdsp)
 {
 	struct pci_dev *pci = hdsp->pci;
 	int err;
@@ -5504,7 +5509,6 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 			return err;
 
 		if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
-#ifdef HDSP_FW_LOADER
 			if ((err = hdsp_request_fw_loader(hdsp)) < 0)
 				/* we don't fail as this can happen
 				   if userspace is not ready for
@@ -5514,7 +5518,6 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 			else
 				/* init is complete, we return */
 				return 0;
-#endif
 			/* we defer initialization */
 			snd_printk(KERN_INFO "Hammerfall-DSP: card initialization pending : waiting for firmware\n");
 			if ((err = snd_hdsp_create_hwdep(card, hdsp)) < 0)
@@ -5568,6 +5571,10 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 	snd_hdsp_free_buffers(hdsp);
 
+	if (hdsp->firmware)
+		release_firmware(hdsp->firmware);
+	vfree(hdsp->fw_uploaded);
+
 	if (hdsp->iobase)
 		iounmap(hdsp->iobase);
 
@@ -5586,8 +5593,8 @@ static void snd_hdsp_card_free(struct snd_card *card)
 		snd_hdsp_free(hdsp);
 }
 
-static int __devinit snd_hdsp_probe(struct pci_dev *pci,
-				    const struct pci_device_id *pci_id)
+static int snd_hdsp_probe(struct pci_dev *pci,
+			  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct hdsp *hdsp;
@@ -5630,7 +5637,7 @@ static int __devinit snd_hdsp_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_hdsp_remove(struct pci_dev *pci)
+static void snd_hdsp_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -5640,7 +5647,7 @@ static struct pci_driver hdsp_driver = {
 	.name =     KBUILD_MODNAME,
 	.id_table = snd_hdsp_ids,
 	.probe =    snd_hdsp_probe,
-	.remove = __devexit_p(snd_hdsp_remove),
+	.remove = snd_hdsp_remove,
 };
 
 module_pci_driver(hdsp_driver);

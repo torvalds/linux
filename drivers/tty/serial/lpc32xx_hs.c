@@ -686,7 +686,7 @@ static struct uart_ops serial_lpc32xx_pops = {
 /*
  * Register a set of serial devices attached to a platform device
  */
-static int __devinit serial_hs_lpc32xx_probe(struct platform_device *pdev)
+static int serial_hs_lpc32xx_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_hsuart_port *p = &lpc32xx_hs_ports[uarts_registered];
 	int ret = 0;
@@ -740,7 +740,7 @@ static int __devinit serial_hs_lpc32xx_probe(struct platform_device *pdev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __devexit serial_hs_lpc32xx_remove(struct platform_device *pdev)
+static int serial_hs_lpc32xx_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_hsuart_port *p = platform_get_drvdata(pdev);
 
@@ -783,7 +783,7 @@ MODULE_DEVICE_TABLE(of, serial_hs_lpc32xx_dt_ids);
 
 static struct platform_driver serial_hs_lpc32xx_driver = {
 	.probe		= serial_hs_lpc32xx_probe,
-	.remove		= __devexit_p(serial_hs_lpc32xx_remove),
+	.remove		= serial_hs_lpc32xx_remove,
 	.suspend	= serial_hs_lpc32xx_suspend,
 	.resume		= serial_hs_lpc32xx_resume,
 	.driver		= {

@@ -993,7 +993,7 @@ exit:
  * for the driver, FW version information, and the first mac address for
  * each vpath
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_hw_info_get(void __iomem *bar0,
 			   struct vxge_hw_device_hw_info *hw_info)
 {
@@ -1310,7 +1310,7 @@ __vxge_hw_device_config_check(struct vxge_hw_device_config *new_config)
  * When done, the driver allocates sizeof(struct __vxge_hw_device) bytes for HW
  * to enable the latter to perform Titan hardware initialization.
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_initialize(
 	struct __vxge_hw_device **devh,
 	struct vxge_hw_device_attr *attr,
@@ -2917,7 +2917,7 @@ exit:
  * vxge_hw_device_config_default_get - Initialize device config with defaults.
  * Initialize Titan device config with default values.
  */
-enum vxge_hw_status __devinit
+enum vxge_hw_status
 vxge_hw_device_config_default_get(struct vxge_hw_device_config *device_config)
 {
 	u32 i;

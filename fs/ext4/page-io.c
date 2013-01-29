@@ -27,7 +27,6 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
-#include "ext4_extents.h"
 
 static struct kmem_cache *io_page_cachep, *io_end_cachep;
 
@@ -111,7 +110,7 @@ static int ext4_end_io(ext4_io_end_t *io)
 		inode_dio_done(inode);
 	/* Wake up anyone waiting on unwritten extent conversion */
 	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-		wake_up_all(ext4_ioend_wq(io->inode));
+		wake_up_all(ext4_ioend_wq(inode));
 	return ret;
 }
 

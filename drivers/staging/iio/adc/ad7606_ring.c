@@ -83,7 +83,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	if (indio_dev->scan_timestamp)
 		*((s64 *)(buf + indio_dev->scan_bytes - sizeof(s64))) = time_ns;
 
-	iio_push_to_buffer(indio_dev->buffer, buf);
+	iio_push_to_buffers(indio_dev, buf);
 done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);

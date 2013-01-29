@@ -191,6 +191,7 @@
 #define DMA_CONTROL_ST		0x00002000	/* Start/Stop Transmission */
 #define DMA_CONTROL_SR		0x00000002	/* Start/Stop Receive */
 #define DMA_CONTROL_DFF		0x01000000	/* Disable flush of rx frames */
+#define DMA_CONTROL_OSF		0x00000004	/* Operate on 2nd tx frame */
 
 /* DMA Normal interrupt */
 #define DMA_INTR_ENA_NIE	0x00010000	/* Normal Summary */
@@ -210,7 +211,7 @@
 #define DMA_INTR_ENA_TIE	0x00000001	/* Transmit Interrupt */
 
 #define DMA_INTR_NORMAL		(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
-				 DMA_INTR_ENA_TUE)
+				 DMA_INTR_ENA_TUE | DMA_INTR_ENA_TIE)
 
 #define DMA_INTR_ABNORMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
 				 DMA_INTR_ENA_RWE | DMA_INTR_ENA_RSE | \
@@ -373,6 +374,7 @@ struct xgmac_priv {
 	struct sk_buff **tx_skbuff;
 	unsigned int tx_head;
 	unsigned int tx_tail;
+	int tx_irq_cnt;
 
 	void __iomem *base;
 	unsigned int dma_buf_sz;
@@ -663,6 +665,7 @@ static void xgmac_rx_refill(struct xgmac_priv *priv)
 {
 	struct xgmac_dma_desc *p;
 	dma_addr_t paddr;
+	int bufsz = priv->dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	while (dma_ring_space(priv->rx_head, priv->rx_tail, DMA_RX_RING_SZ) > 1) {
 		int entry = priv->rx_head;
@@ -671,13 +674,13 @@ static void xgmac_rx_refill(struct xgmac_priv *priv)
 		p = priv->dma_rx + entry;
 
 		if (priv->rx_skbuff[entry] == NULL) {
-			skb = netdev_alloc_skb(priv->dev, priv->dma_buf_sz);
+			skb = netdev_alloc_skb_ip_align(priv->dev, bufsz);
 			if (unlikely(skb == NULL))
 				break;
 
 			priv->rx_skbuff[entry] = skb;
 			paddr = dma_map_single(priv->device, skb->data,
-					       priv->dma_buf_sz, DMA_FROM_DEVICE);
+					       bufsz, DMA_FROM_DEVICE);
 			desc_set_buf_addr(p, paddr, priv->dma_buf_sz);
 		}
 
@@ -701,10 +704,10 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
 	unsigned int bfsize;
 
 	/* Set the Buffer size according to the MTU;
-	 * indeed, in case of jumbo we need to bump-up the buffer sizes.
+	 * The total buffer size including any IP offset must be a multiple
+	 * of 8 bytes.
 	 */
-	bfsize = ALIGN(dev->mtu + ETH_HLEN + ETH_FCS_LEN + NET_IP_ALIGN + 64,
-		       64);
+	bfsize = ALIGN(dev->mtu + ETH_HLEN + ETH_FCS_LEN + NET_IP_ALIGN, 8);
 
 	netdev_dbg(priv->dev, "mtu [%d] bfsize [%d]\n", dev->mtu, bfsize);
 
@@ -845,9 +848,6 @@ static void xgmac_free_dma_desc_rings(struct xgmac_priv *priv)
 static void xgmac_tx_complete(struct xgmac_priv *priv)
 {
 	int i;
-	void __iomem *ioaddr = priv->base;
-
-	writel(DMA_STATUS_TU | DMA_STATUS_NIS, ioaddr + XGMAC_DMA_STATUS);
 
 	while (dma_ring_cnt(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ)) {
 		unsigned int entry = priv->tx_tail;
@@ -888,7 +888,7 @@ static void xgmac_tx_complete(struct xgmac_priv *priv)
 	}
 
 	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) >
-	    TX_THRESH)
+	    MAX_SKB_FRAGS)
 		netif_wake_queue(priv->dev);
 }
 
@@ -965,8 +965,7 @@ static int xgmac_hw_init(struct net_device *dev)
 		ctrl |= XGMAC_CONTROL_IPC;
 	writel(ctrl, ioaddr + XGMAC_CONTROL);
 
-	value = DMA_CONTROL_DFF;
-	writel(value, ioaddr + XGMAC_DMA_CONTROL);
+	writel(DMA_CONTROL_OSF, ioaddr + XGMAC_DMA_CONTROL);
 
 	/* Set the HW DMA mode and the COE */
 	writel(XGMAC_OMR_TSF | XGMAC_OMR_RFD | XGMAC_OMR_RFA |
@@ -1060,19 +1059,15 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct xgmac_priv *priv = netdev_priv(dev);
 	unsigned int entry;
 	int i;
+	u32 irq_flag;
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	struct xgmac_dma_desc *desc, *first;
 	unsigned int desc_flags;
 	unsigned int len;
 	dma_addr_t paddr;
 
-	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) <
-	    (nfrags + 1)) {
-		writel(DMA_INTR_DEFAULT_MASK | DMA_INTR_ENA_TIE,
-			priv->base + XGMAC_DMA_INTR_ENA);
-		netif_stop_queue(dev);
-		return NETDEV_TX_BUSY;
-	}
+	priv->tx_irq_cnt = (priv->tx_irq_cnt + 1) & (DMA_TX_RING_SZ/4 - 1);
+	irq_flag = priv->tx_irq_cnt ? 0 : TXDESC_INTERRUPT;
 
 	desc_flags = (skb->ip_summed == CHECKSUM_PARTIAL) ?
 		TXDESC_CSUM_ALL : 0;
@@ -1113,9 +1108,9 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Interrupt on completition only for the latest segment */
 	if (desc != first)
 		desc_set_tx_owner(desc, desc_flags |
-			TXDESC_LAST_SEG | TXDESC_INTERRUPT);
+			TXDESC_LAST_SEG | irq_flag);
 	else
-		desc_flags |= TXDESC_LAST_SEG | TXDESC_INTERRUPT;
+		desc_flags |= TXDESC_LAST_SEG | irq_flag;
 
 	/* Set owner on first desc last to avoid race condition */
 	wmb();
@@ -1124,6 +1119,9 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->tx_head = dma_ring_incr(entry, DMA_TX_RING_SZ);
 
 	writel(1, priv->base + XGMAC_DMA_TX_POLL);
+	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) <
+	    MAX_SKB_FRAGS)
+		netif_stop_queue(dev);
 
 	return NETDEV_TX_OK;
 }
@@ -1138,9 +1136,6 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 		int ip_checksum;
 		struct sk_buff *skb;
 		int frame_len;
-
-		writel(DMA_STATUS_RI | DMA_STATUS_NIS,
-		       priv->base + XGMAC_DMA_STATUS);
 
 		entry = priv->rx_tail;
 		p = priv->dma_rx + entry;
@@ -1180,8 +1175,6 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 
 	xgmac_rx_refill(priv);
 
-	writel(1, priv->base + XGMAC_DMA_RX_POLL);
-
 	return count;
 }
 
@@ -1205,7 +1198,7 @@ static int xgmac_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		napi_complete(napi);
-		writel(DMA_INTR_DEFAULT_MASK, priv->base + XGMAC_DMA_INTR_ENA);
+		__raw_writel(DMA_INTR_DEFAULT_MASK, priv->base + XGMAC_DMA_INTR_ENA);
 	}
 	return work_done;
 }
@@ -1350,7 +1343,7 @@ static irqreturn_t xgmac_pmt_interrupt(int irq, void *dev_id)
 	struct xgmac_priv *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;
 
-	intr_status = readl(ioaddr + XGMAC_INT_STAT);
+	intr_status = __raw_readl(ioaddr + XGMAC_INT_STAT);
 	if (intr_status & XGMAC_INT_STAT_PMT) {
 		netdev_dbg(priv->dev, "received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT */
@@ -1368,9 +1361,9 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 	struct xgmac_extra_stats *x = &priv->xstats;
 
 	/* read the status register (CSR5) */
-	intr_status = readl(priv->base + XGMAC_DMA_STATUS);
-	intr_status &= readl(priv->base + XGMAC_DMA_INTR_ENA);
-	writel(intr_status, priv->base + XGMAC_DMA_STATUS);
+	intr_status = __raw_readl(priv->base + XGMAC_DMA_STATUS);
+	intr_status &= __raw_readl(priv->base + XGMAC_DMA_INTR_ENA);
+	__raw_writel(intr_status, priv->base + XGMAC_DMA_STATUS);
 
 	/* It displays the DMA process states (CSR5 register) */
 	/* ABNORMAL interrupts */
@@ -1405,8 +1398,8 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 	}
 
 	/* TX/RX NORMAL interrupts */
-	if (intr_status & (DMA_STATUS_RI | DMA_STATUS_TU)) {
-		writel(DMA_INTR_ABNORMAL, priv->base + XGMAC_DMA_INTR_ENA);
+	if (intr_status & (DMA_STATUS_RI | DMA_STATUS_TU | DMA_STATUS_TI)) {
+		__raw_writel(DMA_INTR_ABNORMAL, priv->base + XGMAC_DMA_INTR_ENA);
 		napi_schedule(&priv->napi);
 	}
 

@@ -422,7 +422,7 @@ fail:
 	return err;
 }
 
-static int __devexit ep93xx_i2s_remove(struct platform_device *pdev)
+static int ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
@@ -436,7 +436,7 @@ static int __devexit ep93xx_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver ep93xx_i2s_driver = {
 	.probe	= ep93xx_i2s_probe,
-	.remove	= __devexit_p(ep93xx_i2s_remove),
+	.remove	= ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
 		.owner	= THIS_MODULE,

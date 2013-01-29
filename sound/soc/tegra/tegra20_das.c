@@ -131,7 +131,7 @@ static const struct regmap_config tegra20_das_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit tegra20_das_probe(struct platform_device *pdev)
+static int tegra20_das_probe(struct platform_device *pdev)
 {
 	struct resource *res, *region;
 	void __iomem *regs;
@@ -200,7 +200,7 @@ err:
 	return ret;
 }
 
-static int __devexit tegra20_das_remove(struct platform_device *pdev)
+static int tegra20_das_remove(struct platform_device *pdev)
 {
 	if (!das)
 		return -ENODEV;
@@ -210,14 +210,14 @@ static int __devexit tegra20_das_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra20_das_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_das_of_match[] = {
 	{ .compatible = "nvidia,tegra20-das", },
 	{},
 };
 
 static struct platform_driver tegra20_das_driver = {
 	.probe = tegra20_das_probe,
-	.remove = __devexit_p(tegra20_das_remove),
+	.remove = tegra20_das_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

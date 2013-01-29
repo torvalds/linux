@@ -776,7 +776,7 @@ static int wf_pm72_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wf_pm72_remove(struct platform_device *dev)
+static int wf_pm72_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&pm72_events);
 

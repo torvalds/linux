@@ -209,7 +209,7 @@ void __init init_pci_config_tokens (void)
 	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 }
 
-unsigned long __devinit get_phb_buid (struct device_node *phb)
+unsigned long get_phb_buid (struct device_node *phb)
 {
 	struct resource r;
 
@@ -237,7 +237,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 	return 0;
 }
 
-int __devinit rtas_setup_phb(struct pci_controller *phb)
+int rtas_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
 

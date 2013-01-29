@@ -194,29 +194,12 @@ static void sharp_ls_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static int sharp_ls_panel_suspend(struct omap_dss_device *dssdev)
-{
-	sharp_ls_power_off(dssdev);
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	return 0;
-}
-
-static int sharp_ls_panel_resume(struct omap_dss_device *dssdev)
-{
-	int r;
-	r = sharp_ls_power_on(dssdev);
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-	return r;
-}
-
 static struct omap_dss_driver sharp_ls_driver = {
 	.probe		= sharp_ls_panel_probe,
 	.remove		= __exit_p(sharp_ls_panel_remove),
 
 	.enable		= sharp_ls_panel_enable,
 	.disable	= sharp_ls_panel_disable,
-	.suspend	= sharp_ls_panel_suspend,
-	.resume		= sharp_ls_panel_resume,
 
 	.driver         = {
 		.name   = "sharp_ls_panel",

@@ -12,6 +12,7 @@
 #include <linux/mv643xx_eth.h>
 
 struct dsa_platform_data;
+struct mv_sata_platform_data;
 
 void __init orion_uart0_init(void __iomem *membase,
 			     resource_size_t mapbase,

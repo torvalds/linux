@@ -87,7 +87,7 @@ static int tea5757_read(struct bttv *btv);
 static int tea5757_write(struct bttv *btv, int value);
 static void identify_by_eeprom(struct bttv *btv,
 			       unsigned char eeprom_data[256]);
-static int __devinit pvr_boot(struct bttv *btv);
+static int pvr_boot(struct bttv *btv);
 
 /* config variables */
 static unsigned int triton1;
@@ -151,7 +151,7 @@ static struct CARD {
 	unsigned id;
 	int cardnr;
 	char *name;
-} cards[] __devinitdata = {
+} cards[] = {
 	{ 0x13eb0070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV" },
 	{ 0x39000070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV-D" },
 	{ 0x45000070, BTTV_BOARD_HAUPPAUGEPVR,  "Hauppauge WinTV/PVR" },
@@ -2837,7 +2837,7 @@ static unsigned char eeprom_data[256];
 /*
  * identify card
  */
-void __devinit bttv_idcard(struct bttv *btv)
+void bttv_idcard(struct bttv *btv)
 {
 	unsigned int gpiobits;
 	int i,type;
@@ -3235,7 +3235,7 @@ static void bttv_reset_audio(struct bttv *btv)
 }
 
 /* initialization part one -- before registering i2c bus */
-void __devinit bttv_init_card1(struct bttv *btv)
+void bttv_init_card1(struct bttv *btv)
 {
 	switch (btv->c.type) {
 	case BTTV_BOARD_HAUPPAUGE:
@@ -3267,7 +3267,7 @@ void __devinit bttv_init_card1(struct bttv *btv)
 }
 
 /* initialization part two -- after registering i2c bus */
-void __devinit bttv_init_card2(struct bttv *btv)
+void bttv_init_card2(struct bttv *btv)
 {
 	btv->tuner_type = UNSET;
 
@@ -3571,7 +3571,7 @@ no_audio:
 
 
 /* initialize the tuner */
-void __devinit bttv_init_tuner(struct bttv *btv)
+void bttv_init_tuner(struct bttv *btv)
 {
 	int addr = ADDR_UNSET;
 
@@ -3635,7 +3635,7 @@ static void modtec_eeprom(struct bttv *btv)
 	}
 }
 
-static void __devinit hauppauge_eeprom(struct bttv *btv)
+static void hauppauge_eeprom(struct bttv *btv)
 {
 	struct tveeprom tv;
 
@@ -3709,8 +3709,7 @@ static int terratec_active_radio_upgrade(struct bttv *btv)
 #define BTTV_ALT_DCLK		0x100000
 #define BTTV_ALT_NCONFIG	0x800000
 
-static int __devinit pvr_altera_load(struct bttv *btv, const u8 *micro,
-				     u32 microlen)
+static int pvr_altera_load(struct bttv *btv, const u8 *micro, u32 microlen)
 {
 	u32 n;
 	u8 bits;
@@ -3747,7 +3746,7 @@ static int __devinit pvr_altera_load(struct bttv *btv, const u8 *micro,
 	return 0;
 }
 
-static int __devinit pvr_boot(struct bttv *btv)
+static int pvr_boot(struct bttv *btv)
 {
 	const struct firmware *fw_entry;
 	int rc;
@@ -3767,7 +3766,7 @@ static int __devinit pvr_boot(struct bttv *btv)
 /* ----------------------------------------------------------------------- */
 /* some osprey specific stuff                                              */
 
-static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
+static void osprey_eeprom(struct bttv *btv, const u8 ee[256])
 {
 	int i;
 	u32 serial = 0;
@@ -3898,7 +3897,7 @@ static int tuner_1_table[] = {
 	TUNER_TEMIC_4012FY5, TUNER_TEMIC_4012FY5, /* TUNER_TEMIC_SECAM */
 	TUNER_TEMIC_4012FY5, TUNER_TEMIC_PAL};
 
-static void __devinit avermedia_eeprom(struct bttv *btv)
+static void avermedia_eeprom(struct bttv *btv)
 {
 	int tuner_make, tuner_tv_fm, tuner_format, tuner_type = 0;
 
@@ -3960,7 +3959,7 @@ u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
  * Hauppauge:  pin  5
  * Voodoo:     pin 20
  */
-static void __devinit boot_msp34xx(struct bttv *btv, int pin)
+static void boot_msp34xx(struct bttv *btv, int pin)
 {
 	int mask = (1 << pin);
 
@@ -3983,11 +3982,10 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
  *  used by Alessandro Rubini in his pxc200
  *  driver, but using BTTV functions */
 
-static void __devinit init_PXC200(struct bttv *btv)
+static void init_PXC200(struct bttv *btv)
 {
-	static int vals[] __devinitdata = { 0x08, 0x09, 0x0a, 0x0b, 0x0d, 0x0d,
-					    0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-					    0x00 };
+	static int vals[] = { 0x08, 0x09, 0x0a, 0x0b, 0x0d, 0x0d, 0x01, 0x02,
+			      0x03, 0x04, 0x05, 0x06, 0x00 };
 	unsigned int i;
 	int tmp;
 	u32 val;
@@ -4851,7 +4849,7 @@ void __init bttv_check_chipset(void)
 	}
 }
 
-int __devinit bttv_handle_chipset(struct bttv *btv)
+int bttv_handle_chipset(struct bttv *btv)
 {
 	unsigned char command;
 

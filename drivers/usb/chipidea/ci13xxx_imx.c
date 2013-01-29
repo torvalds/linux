@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(usbmisc_get_init_data);
 
 /* End of common functions shared by usbmisc drivers*/
 
-static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
+static struct ci13xxx_platform_data ci13xxx_imx_platdata  = {
 	.name			= "ci13xxx_imx",
 	.flags			= CI13XXX_REQUIRE_TRANSCEIVER |
 				  CI13XXX_PULLUP_ON_VBUS |
@@ -93,7 +93,7 @@ static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
 	.capoffset		= DEF_CAPOFFSET,
 };
 
-static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
+static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
 	struct platform_device *plat_ci, *phy_pdev;
@@ -220,7 +220,7 @@ put_np:
 	return ret;
 }
 
-static int __devexit ci13xxx_imx_remove(struct platform_device *pdev)
+static int ci13xxx_imx_remove(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data = platform_get_drvdata(pdev);
 
@@ -252,7 +252,7 @@ MODULE_DEVICE_TABLE(of, ci13xxx_imx_dt_ids);
 
 static struct platform_driver ci13xxx_imx_driver = {
 	.probe = ci13xxx_imx_probe,
-	.remove = __devexit_p(ci13xxx_imx_remove),
+	.remove = ci13xxx_imx_remove,
 	.driver = {
 		.name = "imx_usb",
 		.owner = THIS_MODULE,

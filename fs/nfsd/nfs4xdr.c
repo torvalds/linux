@@ -53,6 +53,7 @@
 #include "vfs.h"
 #include "state.h"
 #include "cache.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
@@ -65,17 +66,17 @@
 #define NFS4_REFERRAL_FSID_MINOR	0x8000000ULL
 
 static __be32
-check_filename(char *str, int len, __be32 err)
+check_filename(char *str, int len)
 {
 	int i;
 
 	if (len == 0)
 		return nfserr_inval;
 	if (isdotent(str, len))
-		return err;
+		return nfserr_badname;
 	for (i = 0; i < len; i++)
 		if (str[i] == '/')
-			return err;
+			return nfserr_badname;
 	return 0;
 }
 
@@ -422,6 +423,86 @@ nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access
 	DECODE_TAIL;
 }
 
+static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_cb_sec *cbs)
+{
+	DECODE_HEAD;
+	u32 dummy, uid, gid;
+	char *machine_name;
+	int i;
+	int nr_secflavs;
+
+	/* callback_sec_params4 */
+	READ_BUF(4);
+	READ32(nr_secflavs);
+	cbs->flavor = (u32)(-1);
+	for (i = 0; i < nr_secflavs; ++i) {
+		READ_BUF(4);
+		READ32(dummy);
+		switch (dummy) {
+		case RPC_AUTH_NULL:
+			/* Nothing to read */
+			if (cbs->flavor == (u32)(-1))
+				cbs->flavor = RPC_AUTH_NULL;
+			break;
+		case RPC_AUTH_UNIX:
+			READ_BUF(8);
+			/* stamp */
+			READ32(dummy);
+
+			/* machine name */
+			READ32(dummy);
+			READ_BUF(dummy);
+			SAVEMEM(machine_name, dummy);
+
+			/* uid, gid */
+			READ_BUF(8);
+			READ32(uid);
+			READ32(gid);
+
+			/* more gids */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy * 4);
+			if (cbs->flavor == (u32)(-1)) {
+				cbs->uid = uid;
+				cbs->gid = gid;
+				cbs->flavor = RPC_AUTH_UNIX;
+			}
+			break;
+		case RPC_AUTH_GSS:
+			dprintk("RPC_AUTH_GSS callback secflavor "
+				"not supported!\n");
+			READ_BUF(8);
+			/* gcbp_service */
+			READ32(dummy);
+			/* gcbp_handle_from_server */
+			READ32(dummy);
+			READ_BUF(dummy);
+			p += XDR_QUADLEN(dummy);
+			/* gcbp_handle_from_client */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy);
+			break;
+		default:
+			dprintk("Illegal callback secflavor\n");
+			return nfserr_inval;
+		}
+	}
+	DECODE_TAIL;
+}
+
+static __be32 nfsd4_decode_backchannel_ctl(struct nfsd4_compoundargs *argp, struct nfsd4_backchannel_ctl *bc)
+{
+	DECODE_HEAD;
+
+	READ_BUF(4);
+	READ32(bc->bc_cb_program);
+	nfsd4_decode_cb_sec(argp, &bc->bc_cb_sec);
+
+	DECODE_TAIL;
+}
+
 static __be32 nfsd4_decode_bind_conn_to_session(struct nfsd4_compoundargs *argp, struct nfsd4_bind_conn_to_session *bcts)
 {
 	DECODE_HEAD;
@@ -490,7 +571,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 	READ32(create->cr_namelen);
 	READ_BUF(create->cr_namelen);
 	SAVEMEM(create->cr_name, create->cr_namelen);
-	if ((status = check_filename(create->cr_name, create->cr_namelen, nfserr_inval)))
+	if ((status = check_filename(create->cr_name, create->cr_namelen)))
 		return status;
 
 	status = nfsd4_decode_fattr(argp, create->cr_bmval, &create->cr_iattr,
@@ -522,7 +603,7 @@ nfsd4_decode_link(struct nfsd4_compoundargs *argp, struct nfsd4_link *link)
 	READ32(link->li_namelen);
 	READ_BUF(link->li_namelen);
 	SAVEMEM(link->li_name, link->li_namelen);
-	if ((status = check_filename(link->li_name, link->li_namelen, nfserr_inval)))
+	if ((status = check_filename(link->li_name, link->li_namelen)))
 		return status;
 
 	DECODE_TAIL;
@@ -616,7 +697,7 @@ nfsd4_decode_lookup(struct nfsd4_compoundargs *argp, struct nfsd4_lookup *lookup
 	READ32(lookup->lo_len);
 	READ_BUF(lookup->lo_len);
 	SAVEMEM(lookup->lo_name, lookup->lo_len);
-	if ((status = check_filename(lookup->lo_name, lookup->lo_len, nfserr_noent)))
+	if ((status = check_filename(lookup->lo_name, lookup->lo_len)))
 		return status;
 
 	DECODE_TAIL;
@@ -780,7 +861,7 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		READ32(open->op_fname.len);
 		READ_BUF(open->op_fname.len);
 		SAVEMEM(open->op_fname.data, open->op_fname.len);
-		if ((status = check_filename(open->op_fname.data, open->op_fname.len, nfserr_inval)))
+		if ((status = check_filename(open->op_fname.data, open->op_fname.len)))
 			return status;
 		break;
 	case NFS4_OPEN_CLAIM_PREVIOUS:
@@ -795,7 +876,7 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		READ32(open->op_fname.len);
 		READ_BUF(open->op_fname.len);
 		SAVEMEM(open->op_fname.data, open->op_fname.len);
-		if ((status = check_filename(open->op_fname.data, open->op_fname.len, nfserr_inval)))
+		if ((status = check_filename(open->op_fname.data, open->op_fname.len)))
 			return status;
 		break;
 	case NFS4_OPEN_CLAIM_FH:
@@ -907,7 +988,7 @@ nfsd4_decode_remove(struct nfsd4_compoundargs *argp, struct nfsd4_remove *remove
 	READ32(remove->rm_namelen);
 	READ_BUF(remove->rm_namelen);
 	SAVEMEM(remove->rm_name, remove->rm_namelen);
-	if ((status = check_filename(remove->rm_name, remove->rm_namelen, nfserr_noent)))
+	if ((status = check_filename(remove->rm_name, remove->rm_namelen)))
 		return status;
 
 	DECODE_TAIL;
@@ -925,9 +1006,9 @@ nfsd4_decode_rename(struct nfsd4_compoundargs *argp, struct nfsd4_rename *rename
 	READ32(rename->rn_tnamelen);
 	READ_BUF(rename->rn_tnamelen);
 	SAVEMEM(rename->rn_tname, rename->rn_tnamelen);
-	if ((status = check_filename(rename->rn_sname, rename->rn_snamelen, nfserr_noent)))
+	if ((status = check_filename(rename->rn_sname, rename->rn_snamelen)))
 		return status;
-	if ((status = check_filename(rename->rn_tname, rename->rn_tnamelen, nfserr_inval)))
+	if ((status = check_filename(rename->rn_tname, rename->rn_tnamelen)))
 		return status;
 
 	DECODE_TAIL;
@@ -954,8 +1035,7 @@ nfsd4_decode_secinfo(struct nfsd4_compoundargs *argp,
 	READ32(secinfo->si_namelen);
 	READ_BUF(secinfo->si_namelen);
 	SAVEMEM(secinfo->si_name, secinfo->si_namelen);
-	status = check_filename(secinfo->si_name, secinfo->si_namelen,
-								nfserr_noent);
+	status = check_filename(secinfo->si_name, secinfo->si_namelen);
 	if (status)
 		return status;
 	DECODE_TAIL;
@@ -1026,31 +1106,14 @@ nfsd4_decode_setclientid_confirm(struct nfsd4_compoundargs *argp, struct nfsd4_s
 static __be32
 nfsd4_decode_verify(struct nfsd4_compoundargs *argp, struct nfsd4_verify *verify)
 {
-#if 0
-	struct nfsd4_compoundargs save = {
-		.p = argp->p,
-		.end = argp->end,
-		.rqstp = argp->rqstp,
-	};
-	u32             ve_bmval[2];
-	struct iattr    ve_iattr;           /* request */
-	struct nfs4_acl *ve_acl;            /* request */
-#endif
 	DECODE_HEAD;
 
 	if ((status = nfsd4_decode_bitmap(argp, verify->ve_bmval)))
 		goto out;
 
 	/* For convenience's sake, we compare raw xdr'd attributes in
-	 * nfsd4_proc_verify; however we still decode here just to return
-	 * correct error in case of bad xdr. */
-#if 0
-	status = nfsd4_decode_fattr(ve_bmval, &ve_iattr, &ve_acl);
-	if (status == nfserr_inval) {
-		status = nfserrno(status);
-		goto out;
-	}
-#endif
+	 * nfsd4_proc_verify */
+
 	READ_BUF(4);
 	READ32(verify->ve_attrlen);
 	READ_BUF(verify->ve_attrlen);
@@ -1063,7 +1126,6 @@ static __be32
 nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 {
 	int avail;
-	int v;
 	int len;
 	DECODE_HEAD;
 
@@ -1087,27 +1149,26 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 				__FILE__, __LINE__);
 		goto xdr_error;
 	}
-	argp->rqstp->rq_vec[0].iov_base = p;
-	argp->rqstp->rq_vec[0].iov_len = avail;
-	v = 0;
-	len = write->wr_buflen;
-	while (len > argp->rqstp->rq_vec[v].iov_len) {
-		len -= argp->rqstp->rq_vec[v].iov_len;
-		v++;
-		argp->rqstp->rq_vec[v].iov_base = page_address(argp->pagelist[0]);
-		argp->pagelist++;
-		if (argp->pagelen >= PAGE_SIZE) {
-			argp->rqstp->rq_vec[v].iov_len = PAGE_SIZE;
-			argp->pagelen -= PAGE_SIZE;
-		} else {
-			argp->rqstp->rq_vec[v].iov_len = argp->pagelen;
-			argp->pagelen -= len;
-		}
+	write->wr_head.iov_base = p;
+	write->wr_head.iov_len = avail;
+	WARN_ON(avail != (XDR_QUADLEN(avail) << 2));
+	write->wr_pagelist = argp->pagelist;
+
+	len = XDR_QUADLEN(write->wr_buflen) << 2;
+	if (len >= avail) {
+		int pages;
+
+		len -= avail;
+
+		pages = len >> PAGE_SHIFT;
+		argp->pagelist += pages;
+		argp->pagelen -= pages * PAGE_SIZE;
+		len -= pages * PAGE_SIZE;
+
+		argp->p = (__be32 *)page_address(argp->pagelist[0]);
+		argp->end = argp->p + XDR_QUADLEN(PAGE_SIZE);
 	}
-	argp->end = (__be32*) (argp->rqstp->rq_vec[v].iov_base + argp->rqstp->rq_vec[v].iov_len);
-	argp->p = (__be32*)  (argp->rqstp->rq_vec[v].iov_base + (XDR_QUADLEN(len) << 2));
-	argp->rqstp->rq_vec[v].iov_len = len;
-	write->wr_vlen = v+1;
+	argp->p += XDR_QUADLEN(len);
 
 	DECODE_TAIL;
 }
@@ -1237,11 +1298,7 @@ nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_create_session *sess)
 {
 	DECODE_HEAD;
-
 	u32 dummy;
-	char *machine_name;
-	int i;
-	int nr_secflavs;
 
 	READ_BUF(16);
 	COPYMEM(&sess->clientid, 8);
@@ -1282,58 +1339,9 @@ nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 		goto xdr_error;
 	}
 
-	READ_BUF(8);
+	READ_BUF(4);
 	READ32(sess->callback_prog);
-
-	/* callback_sec_params4 */
-	READ32(nr_secflavs);
-	for (i = 0; i < nr_secflavs; ++i) {
-		READ_BUF(4);
-		READ32(dummy);
-		switch (dummy) {
-		case RPC_AUTH_NULL:
-			/* Nothing to read */
-			break;
-		case RPC_AUTH_UNIX:
-			READ_BUF(8);
-			/* stamp */
-			READ32(dummy);
-
-			/* machine name */
-			READ32(dummy);
-			READ_BUF(dummy);
-			SAVEMEM(machine_name, dummy);
-
-			/* uid, gid */
-			READ_BUF(8);
-			READ32(sess->uid);
-			READ32(sess->gid);
-
-			/* more gids */
-			READ_BUF(4);
-			READ32(dummy);
-			READ_BUF(dummy * 4);
-			break;
-		case RPC_AUTH_GSS:
-			dprintk("RPC_AUTH_GSS callback secflavor "
-				"not supported!\n");
-			READ_BUF(8);
-			/* gcbp_service */
-			READ32(dummy);
-			/* gcbp_handle_from_server */
-			READ32(dummy);
-			READ_BUF(dummy);
-			p += XDR_QUADLEN(dummy);
-			/* gcbp_handle_from_client */
-			READ_BUF(4);
-			READ32(dummy);
-			READ_BUF(dummy);
-			break;
-		default:
-			dprintk("Illegal callback secflavor\n");
-			return nfserr_inval;
-		}
-	}
+	nfsd4_decode_cb_sec(argp, &sess->cb_sec);
 	DECODE_TAIL;
 }
 
@@ -1528,7 +1536,7 @@ static nfsd4_dec nfsd41_dec_ops[] = {
 	[OP_RELEASE_LOCKOWNER]	= (nfsd4_dec)nfsd4_decode_notsupp,
 
 	/* new operations for NFSv4.1 */
-	[OP_BACKCHANNEL_CTL]	= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_BACKCHANNEL_CTL]	= (nfsd4_dec)nfsd4_decode_backchannel_ctl,
 	[OP_BIND_CONN_TO_SESSION]= (nfsd4_dec)nfsd4_decode_bind_conn_to_session,
 	[OP_EXCHANGE_ID]	= (nfsd4_dec)nfsd4_decode_exchange_id,
 	[OP_CREATE_SESSION]	= (nfsd4_dec)nfsd4_decode_create_session,
@@ -1568,12 +1576,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	bool cachethis = false;
 	int i;
 
-	/*
-	 * XXX: According to spec, we should check the tag
-	 * for UTF-8 compliance.  I'm postponing this for
-	 * now because it seems that some clients do use
-	 * binary tags.
-	 */
 	READ_BUF(4);
 	READ32(argp->taglen);
 	READ_BUF(argp->taglen + 8);
@@ -1603,38 +1605,8 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		op = &argp->ops[i];
 		op->replay = NULL;
 
-		/*
-		 * We can't use READ_BUF() here because we need to handle
-		 * a missing opcode as an OP_WRITE + 1. So we need to check
-		 * to see if we're truly at the end of our buffer or if there
-		 * is another page we need to flip to.
-		 */
-
-		if (argp->p == argp->end) {
-			if (argp->pagelen < 4) {
-				/* There isn't an opcode still on the wire */
-				op->opnum = OP_WRITE + 1;
-				op->status = nfserr_bad_xdr;
-				argp->opcnt = i+1;
-				break;
-			}
-
-			/*
-			 * False alarm. We just hit a page boundary, but there
-			 * is still data available.  Move pointer across page
-			 * boundary.  *snip from READ_BUF*
-			 */
-			argp->p = page_address(argp->pagelist[0]);
-			argp->pagelist++;
-			if (argp->pagelen < PAGE_SIZE) {
-				argp->end = argp->p + (argp->pagelen>>2);
-				argp->pagelen = 0;
-			} else {
-				argp->end = argp->p + (PAGE_SIZE>>2);
-				argp->pagelen -= PAGE_SIZE;
-			}
-		}
-		op->opnum = ntohl(*argp->p++);
+		READ_BUF(4);
+		READ32(op->opnum);
 
 		if (op->opnum >= FIRST_NFS4_OP && op->opnum <= LAST_NFS4_OP)
 			op->status = ops->decoders[op->opnum](argp, &op->u);
@@ -2014,6 +1986,22 @@ static __be32 fattr_handle_absent_fs(u32 *bmval0, u32 *bmval1, u32 *rdattr_err)
 	return 0;
 }
 
+
+static int get_parent_attributes(struct svc_export *exp, struct kstat *stat)
+{
+	struct path path = exp->ex_path;
+	int err;
+
+	path_get(&path);
+	while (follow_up(&path)) {
+		if (path.dentry != path.mnt->mnt_root)
+			break;
+	}
+	err = vfs_getattr(path.mnt, path.dentry, stat);
+	path_put(&path);
+	return err;
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -2048,6 +2036,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		.mnt	= exp->ex_path.mnt,
 		.dentry	= dentry,
 	};
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
 	BUG_ON(bmval0 & ~nfsd_suppattrs0(minorversion));
@@ -2208,7 +2197,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	if (bmval0 & FATTR4_WORD0_LEASE_TIME) {
 		if ((buflen -= 4) < 0)
 			goto out_resource;
-		WRITE32(nfsd4_lease);
+		WRITE32(nn->nfsd4_lease);
 	}
 	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
 		if ((buflen -= 4) < 0)
@@ -2430,18 +2419,8 @@ out_acl:
 		 * and this is the root of a cross-mounted filesystem.
 		 */
 		if (ignore_crossmnt == 0 &&
-		    dentry == exp->ex_path.mnt->mnt_root) {
-			struct path path = exp->ex_path;
-			path_get(&path);
-			while (follow_up(&path)) {
-				if (path.dentry != path.mnt->mnt_root)
-					break;
-			}
-			err = vfs_getattr(path.mnt, path.dentry, &stat);
-			path_put(&path);
-			if (err)
-				goto out_nfserr;
-		}
+		    dentry == exp->ex_path.mnt->mnt_root)
+			get_parent_attributes(exp, &stat);
 		WRITE64(stat.ino);
 	}
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
@@ -2927,7 +2906,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  struct nfsd4_read *read)
 {
 	u32 eof;
-	int v, pn;
+	int v;
+	struct page *page;
 	unsigned long maxcount; 
 	long len;
 	__be32 *p;
@@ -2946,11 +2926,15 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	len = maxcount;
 	v = 0;
 	while (len > 0) {
-		pn = resp->rqstp->rq_resused++;
-		resp->rqstp->rq_vec[v].iov_base =
-			page_address(resp->rqstp->rq_respages[pn]);
+		page = *(resp->rqstp->rq_next_page);
+		if (!page) { /* ran out of pages */
+			maxcount -= len;
+			break;
+		}
+		resp->rqstp->rq_vec[v].iov_base = page_address(page);
 		resp->rqstp->rq_vec[v].iov_len =
 			len < PAGE_SIZE ? len : PAGE_SIZE;
+		resp->rqstp->rq_next_page++;
 		v++;
 		len -= PAGE_SIZE;
 	}
@@ -2996,8 +2980,10 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 		return nfserr;
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
+	if (!*resp->rqstp->rq_next_page)
+		return nfserr_resource;
 
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
+	page = page_address(*(resp->rqstp->rq_next_page++));
 
 	maxcount = PAGE_SIZE;
 	RESERVE_SPACE(4);
@@ -3045,6 +3031,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		return nfserr;
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
+	if (!*resp->rqstp->rq_next_page)
+		return nfserr_resource;
 
 	RESERVE_SPACE(NFS4_VERIFIER_SIZE);
 	savep = p;
@@ -3071,7 +3059,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		goto err_no_verf;
 	}
 
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
+	page = page_address(*(resp->rqstp->rq_next_page++));
 	readdir->common.err = 0;
 	readdir->buflen = maxcount;
 	readdir->buffer = page;
@@ -3094,8 +3082,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	p = readdir->buffer;
 	*p++ = 0;	/* no more entries */
 	*p++ = htonl(readdir->common.err == nfserr_eof);
-	resp->xbuf->page_len = ((char*)p) - (char*)page_address(
-		resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
+	resp->xbuf->page_len = ((char*)p) -
+		(char*)page_address(*(resp->rqstp->rq_next_page-1));
 
 	/* Use rest of head for padding and remaining ops: */
 	resp->xbuf->tail[0].iov_base = tailbase;

@@ -257,7 +257,7 @@ static struct attribute_group lm3533_bl_attribute_group = {
 	.attrs		= lm3533_bl_attributes
 };
 
-static int __devinit lm3533_bl_setup(struct lm3533_bl *bl,
+static int lm3533_bl_setup(struct lm3533_bl *bl,
 					struct lm3533_bl_platform_data *pdata)
 {
 	int ret;
@@ -269,7 +269,7 @@ static int __devinit lm3533_bl_setup(struct lm3533_bl *bl,
 	return lm3533_ctrlbank_set_pwm(&bl->cb, pdata->pwm);
 }
 
-static int __devinit lm3533_bl_probe(struct platform_device *pdev)
+static int lm3533_bl_probe(struct platform_device *pdev)
 {
 	struct lm3533 *lm3533;
 	struct lm3533_bl_platform_data *pdata;
@@ -351,7 +351,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit lm3533_bl_remove(struct platform_device *pdev)
+static int lm3533_bl_remove(struct platform_device *pdev)
 {
 	struct lm3533_bl *bl = platform_get_drvdata(pdev);
 	struct backlight_device *bd = bl->bd;
@@ -406,7 +406,7 @@ static struct platform_driver lm3533_bl_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lm3533_bl_probe,
-	.remove		= __devexit_p(lm3533_bl_remove),
+	.remove		= lm3533_bl_remove,
 	.shutdown	= lm3533_bl_shutdown,
 	.suspend	= lm3533_bl_suspend,
 	.resume		= lm3533_bl_resume,

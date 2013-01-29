@@ -515,8 +515,7 @@ static struct scsi_host_template eesox_template = {
 	.proc_name			= "eesox",
 };
 
-static int __devinit
-eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
+static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct Scsi_Host *host;
 	struct eesoxscsi_info *info;
@@ -617,7 +616,7 @@ eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return ret;
 }
 
-static void __devexit eesoxscsi_remove(struct expansion_card *ec)
+static void eesoxscsi_remove(struct expansion_card *ec)
 {
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
 	struct eesoxscsi_info *info = (struct eesoxscsi_info *)host->hostdata;
@@ -643,7 +642,7 @@ static const struct ecard_id eesoxscsi_cids[] = {
 
 static struct ecard_driver eesoxscsi_driver = {
 	.probe		= eesoxscsi_probe,
-	.remove		= __devexit_p(eesoxscsi_remove),
+	.remove		= eesoxscsi_remove,
 	.id_table	= eesoxscsi_cids,
 	.drv = {
 		.name		= "eesoxscsi",

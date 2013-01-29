@@ -64,6 +64,8 @@ extern unsigned int kobjsize(const void *objp);
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
+#define	KMAP_START	0
+#define	KMAP_END	0xffffffff
 
 #include <asm-generic/pgtable.h>
 

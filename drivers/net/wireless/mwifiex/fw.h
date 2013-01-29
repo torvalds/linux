@@ -194,6 +194,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_TXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(25))
 #define ISSUPP_RXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(26))
 #define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
+#define ISENABLED_40MHZ_INTOLERANT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
+#define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
 
 /* httxcfg bitmap
  * 0		reserved

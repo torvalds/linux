@@ -350,7 +350,6 @@ struct inode_operations {
 	int (*readlink) (struct dentry *, char __user *,int);
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
-	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -430,16 +429,6 @@ otherwise noted.
   	(i.e. page that was installed when the symbolic link walk
   	started might not be in the page cache at the end of the
   	walk).
-
-  truncate: Deprecated. This will not be called if ->setsize is defined.
-	Called by the VFS to change the size of a file.  The
- 	i_size field of the inode is set to the desired size by the
- 	VFS before this method is called.  This method is called by
- 	the truncate(2) system call and related functionality.
-
-	Note: ->truncate and vmtruncate are deprecated. Do not add new
-	instances/calls of these. Filesystems should be converted to do their
-	truncate sequence via ->setattr().
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.

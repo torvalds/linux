@@ -1,6 +1,6 @@
 config SBP_TARGET
 	tristate "FireWire SBP-2 fabric module"
-	depends on FIREWIRE && EXPERIMENTAL
+	depends on FIREWIRE
 	help
 	  Say Y or M here to enable SCSI target functionality over FireWire.
 	  This enables you to expose SCSI devices to other nodes on the FireWire

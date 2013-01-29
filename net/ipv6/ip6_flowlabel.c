@@ -519,7 +519,8 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 		}
 		read_unlock_bh(&ip6_sk_fl_lock);
 
-		if (freq.flr_share == IPV6_FL_S_NONE && capable(CAP_NET_ADMIN)) {
+		if (freq.flr_share == IPV6_FL_S_NONE &&
+		    ns_capable(net->user_ns, CAP_NET_ADMIN)) {
 			fl = fl_lookup(net, freq.flr_label);
 			if (fl) {
 				err = fl6_renew(fl, freq.flr_linger, freq.flr_expires);

@@ -43,10 +43,6 @@
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.01"
 #define DRIVER_AUTHOR "Matthias Bruestle"
 #define DRIVER_DESC "REINER SCT cyberJack pinpad/e-com USB Chipcard Reader Driver"
 
@@ -441,5 +437,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

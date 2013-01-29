@@ -277,7 +277,6 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 		  u16 timebase, u8 *buf, int len)
 {
 	u8 *p;
-	int multi = 0;
 	u8 frame[len + 32];
 	struct socket *socket = NULL;
 
@@ -317,9 +316,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 		*p++ = hc->id >> 8;
 		*p++ = hc->id;
 	}
-	*p++ = (multi == 1) ? 0x80 : 0x00 + channel; /* m-flag, channel */
-	if (multi == 1)
-		*p++ = len; /* length */
+	*p++ =  0x00 + channel; /* m-flag, channel */
 	*p++ = timebase >> 8; /* time base */
 	*p++ = timebase;
 

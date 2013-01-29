@@ -430,7 +430,7 @@ static void dino_choose_irq(struct parisc_device *dev, void *ctrl)
  * Cirrus 6832 Cardbus reports wrong irq on RDI Tadpole PARISC Laptop (deller@gmx.de)
  * (the irqs are off-by-one, not sure yet if this is a cirrus, dino-hardware or dino-driver problem...)
  */
-static void __devinit quirk_cirrus_cardbus(struct pci_dev *dev)
+static void quirk_cirrus_cardbus(struct pci_dev *dev)
 {
 	u8 new_irq = dev->irq - 1;
 	printk(KERN_INFO "PCI: Cirrus Cardbus IRQ fixup for %s, from %d to %d\n",

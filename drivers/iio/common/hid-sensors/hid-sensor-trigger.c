@@ -36,10 +36,8 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	int state_val;
 
 	state_val = state ? 1 : 0;
-#if (defined CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS) || \
-	(defined CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS_MODULE)
-	++state_val;
-#endif
+	if (IS_ENABLED(CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS))
+		++state_val;
 	st->data_ready = state;
 	sensor_hub_set_feature(st->hsdev, st->power_state.report_id,
 					st->power_state.index,

@@ -150,6 +150,8 @@ subaction_create(uint32_t *data, size_t length)
 
 	/* we put the ack in the subaction struct for easy access. */
 	sa = malloc(sizeof *sa - sizeof sa->packet + length);
+	if (!sa)
+		exit(EXIT_FAILURE);
 	sa->ack = data[length / 4 - 1];
 	sa->length = length;
 	memcpy(&sa->packet, data, length);
@@ -180,6 +182,8 @@ link_transaction_lookup(int request_node, int response_node, int tlabel)
 	}
 
 	t = malloc(sizeof *t);
+	if (!t)
+		exit(EXIT_FAILURE);
 	t->request_node = request_node;
 	t->response_node = response_node;
 	t->tlabel = tlabel;

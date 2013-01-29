@@ -417,12 +417,12 @@ static struct snd_soc_platform_driver txx9aclc_soc_platform = {
 	.pcm_free	= txx9aclc_pcm_free_dma_buffers,
 };
 
-static int __devinit txx9aclc_soc_platform_probe(struct platform_device *pdev)
+static int txx9aclc_soc_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &txx9aclc_soc_platform);
 }
 
-static int __devexit txx9aclc_soc_platform_remove(struct platform_device *pdev)
+static int txx9aclc_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -435,7 +435,7 @@ static struct platform_driver txx9aclc_pcm_driver = {
 	},
 
 	.probe = txx9aclc_soc_platform_probe,
-	.remove = __devexit_p(txx9aclc_soc_platform_remove),
+	.remove = txx9aclc_soc_platform_remove,
 };
 
 module_platform_driver(txx9aclc_pcm_driver);

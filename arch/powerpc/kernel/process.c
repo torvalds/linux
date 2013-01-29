@@ -733,8 +733,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p,
-		struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
@@ -745,25 +744,25 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
-	if (!regs) {
-		/* for kernel thread, set `current' and stackptr in new task */
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		struct thread_info *ti = (void *)task_stack_page(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
-#ifdef CONFIG_PPC64
-		childregs->gpr[14] = *(unsigned long *)usp;
-		childregs->gpr[2] = ((unsigned long *)usp)[1],
-		clear_tsk_thread_flag(p, TIF_32BIT);
-#else
 		childregs->gpr[14] = usp;	/* function */
-		childregs->gpr[2] = (unsigned long) p;
+#ifdef CONFIG_PPC64
+		clear_tsk_thread_flag(p, TIF_32BIT);
+		childregs->softe = 1;
 #endif
 		childregs->gpr[15] = arg;
 		p->thread.regs = NULL;	/* no user register state */
+		ti->flags |= _TIF_RESTOREALL;
 		f = ret_from_kernel_thread;
 	} else {
+		struct pt_regs *regs = current_pt_regs();
 		CHECK_FULL_REGS(regs);
 		*childregs = *regs;
-		childregs->gpr[1] = usp;
+		if (usp)
+			childregs->gpr[1] = usp;
 		p->thread.regs = childregs;
 		childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
@@ -1025,51 +1024,6 @@ int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
 int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 {
 	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
-}
-
-#define TRUNC_PTR(x)	((typeof(x))(((unsigned long)(x)) & 0xffffffff))
-
-int sys_clone(unsigned long clone_flags, unsigned long usp,
-	      int __user *parent_tidp, void __user *child_threadptr,
-	      int __user *child_tidp, int p6,
-	      struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	if (usp == 0)
-		usp = regs->gpr[1];	/* stack pointer for child */
-#ifdef CONFIG_PPC64
-	if (is_32bit_task()) {
-		parent_tidp = TRUNC_PTR(parent_tidp);
-		child_tidp = TRUNC_PTR(child_tidp);
-	}
-#endif
- 	return do_fork(clone_flags, usp, regs, 0, parent_tidp, child_tidp);
-}
-
-int sys_fork(unsigned long p1, unsigned long p2, unsigned long p3,
-	     unsigned long p4, unsigned long p5, unsigned long p6,
-	     struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	return do_fork(SIGCHLD, regs->gpr[1], regs, 0, NULL, NULL);
-}
-
-int sys_vfork(unsigned long p1, unsigned long p2, unsigned long p3,
-	      unsigned long p4, unsigned long p5, unsigned long p6,
-	      struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gpr[1],
-			regs, 0, NULL, NULL);
-}
-
-void __ret_from_kernel_execve(struct pt_regs *normal)
-__noreturn;
-
-void ret_from_kernel_execve(struct pt_regs *normal)
-{
-	set_thread_flag(TIF_RESTOREALL);
-	__ret_from_kernel_execve(normal);
 }
 
 static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,

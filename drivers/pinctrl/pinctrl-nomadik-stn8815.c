@@ -350,8 +350,7 @@ static const struct nmk_pinctrl_soc_data nmk_stn8815_soc = {
 	.ngroups = ARRAY_SIZE(nmk_stn8815_groups),
 };
 
-void __devinit
-nmk_pinctrl_stn8815_init(const struct nmk_pinctrl_soc_data **soc)
+void nmk_pinctrl_stn8815_init(const struct nmk_pinctrl_soc_data **soc)
 {
 	*soc = &nmk_stn8815_soc;
 }

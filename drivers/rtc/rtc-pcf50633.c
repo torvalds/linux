@@ -248,7 +248,7 @@ static void pcf50633_rtc_irq(int irq, void *data)
 	rtc->alarm_pending = 1;
 }
 
-static int __devinit pcf50633_rtc_probe(struct platform_device *pdev)
+static int pcf50633_rtc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_rtc *rtc;
 
@@ -272,7 +272,7 @@ static int __devinit pcf50633_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_rtc_remove(struct platform_device *pdev)
+static int pcf50633_rtc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_rtc *rtc;
 
@@ -291,7 +291,7 @@ static struct platform_driver pcf50633_rtc_driver = {
 		.name = "pcf50633-rtc",
 	},
 	.probe = pcf50633_rtc_probe,
-	.remove = __devexit_p(pcf50633_rtc_remove),
+	.remove = pcf50633_rtc_remove,
 };
 
 module_platform_driver(pcf50633_rtc_driver);

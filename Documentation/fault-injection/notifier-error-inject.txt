@@ -1,7 +1,7 @@
 Notifier error injection
 ========================
 
-Notifier error injection provides the ability to inject artifical errors to
+Notifier error injection provides the ability to inject artificial errors to
 specified notifier chain callbacks. It is useful to test the error handling of
 notifier call chain failures which is rarely executed.  There are kernel
 modules that can be used to test the following notifiers.
@@ -14,7 +14,7 @@ modules that can be used to test the following notifiers.
 CPU notifier error injection module
 -----------------------------------
 This feature can be used to test the error handling of the CPU notifiers by
-injecting artifical errors to CPU notifier chain callbacks.
+injecting artificial errors to CPU notifier chain callbacks.
 
 If the notifier call chain should be failed with some events notified, write
 the error code to debugfs interface

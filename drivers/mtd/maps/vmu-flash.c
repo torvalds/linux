@@ -596,7 +596,7 @@ fail_name:
 }
 
 /* Handles very basic info about the flash, queries for details */
-static int __devinit vmu_connect(struct maple_device *mdev)
+static int vmu_connect(struct maple_device *mdev)
 {
 	unsigned long test_flash_data, basic_flash_data;
 	int c, error;
@@ -690,7 +690,7 @@ fail_nomem:
 	return error;
 }
 
-static void __devexit vmu_disconnect(struct maple_device *mdev)
+static void vmu_disconnect(struct maple_device *mdev)
 {
 	struct memcard *card;
 	struct mdev_part *mpart;
@@ -772,7 +772,7 @@ static void vmu_file_error(struct maple_device *mdev, void *recvbuf)
 }
 
 
-static int __devinit probe_maple_vmu(struct device *dev)
+static int probe_maple_vmu(struct device *dev)
 {
 	int error;
 	struct maple_device *mdev = to_maple_dev(dev);
@@ -789,7 +789,7 @@ static int __devinit probe_maple_vmu(struct device *dev)
 	return 0;
 }
 
-static int __devexit remove_maple_vmu(struct device *dev)
+static int remove_maple_vmu(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
 
@@ -802,7 +802,7 @@ static struct maple_driver vmu_flash_driver = {
 	.drv = {
 		.name =		"Dreamcast_visual_memory",
 		.probe =	probe_maple_vmu,
-		.remove = 	__devexit_p(remove_maple_vmu),
+		.remove =	remove_maple_vmu,
 	},
 };
 

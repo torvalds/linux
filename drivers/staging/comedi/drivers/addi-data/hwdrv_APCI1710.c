@@ -44,7 +44,35 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   |          |           |                                                |
   +----------+-----------+------------------------------------------------+
 */
-#include "hwdrv_APCI1710.h"
+
+#define COMEDI_SUBD_TTLIO		11	/* Digital Input Output But TTL */
+#define COMEDI_SUBD_PWM			12	/* Pulse width Measurement */
+#define COMEDI_SUBD_SSI			13	/* Synchronous serial interface */
+#define COMEDI_SUBD_TOR			14	/* Tor counter */
+#define COMEDI_SUBD_CHRONO		15	/* Chrono meter */
+#define COMEDI_SUBD_PULSEENCODER	16	/* Pulse Encoder INP CPT */
+#define COMEDI_SUBD_INCREMENTALCOUNTER	17	/* Incremental Counter */
+
+#define APCI1710_BOARD_NAME		"apci1710"
+#define APCI1710_BOARD_DEVICE_ID	0x818F
+#define APCI1710_ADDRESS_RANGE		256
+#define APCI1710_CONFIG_ADDRESS_RANGE	8
+#define APCI1710_INCREMENTAL_COUNTER	0x53430000UL
+#define APCI1710_SSI_COUNTER		0x53490000UL
+#define APCI1710_TTL_IO			0x544C0000UL
+#define APCI1710_DIGITAL_IO		0x44490000UL
+#define APCI1710_82X54_TIMER		0x49430000UL
+#define APCI1710_CHRONOMETER		0x43480000UL
+#define APCI1710_PULSE_ENCODER		0x495A0000UL
+#define APCI1710_TOR_COUNTER		0x544F0000UL
+#define APCI1710_PWM			0x50570000UL
+#define APCI1710_ETM			0x45540000UL
+#define APCI1710_CDA			0x43440000UL
+#define APCI1710_DISABLE		0
+#define APCI1710_ENABLE			1
+#define APCI1710_SYNCHRONOUS_MODE	1
+#define APCI1710_ASYNCHRONOUS_MODE	0
+
 #include "APCI1710_Inp_cpt.c"
 
 #include "APCI1710_Ssi.c"
@@ -56,7 +84,34 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include "APCI1710_Pwm.c"
 #include "APCI1710_INCCPT.c"
 
-void i_ADDI_AttachPCI1710(struct comedi_device *dev)
+static const struct comedi_lrange range_apci1710_ttl = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1)
+	}
+};
+
+static const struct comedi_lrange range_apci1710_ssi = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1)
+	}
+};
+
+static const struct comedi_lrange range_apci1710_inccpt = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1)
+	}
+};
+
+static void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	int ret = 0;
@@ -195,12 +250,9 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s->insn_bits = i_APCI1710_InsnBitsINCCPT;
 }
 
-int i_APCI1710_Reset(struct comedi_device *dev);
-void v_APCI1710_Interrupt(int irq, void *d);
-/* for 1710 */
-
-int i_APCI1710_Reset(struct comedi_device *dev)
+static int i_APCI1710_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
 	int ret;
 	unsigned int dw_Dummy;
 
@@ -247,9 +299,10 @@ int i_APCI1710_Reset(struct comedi_device *dev)
 +----------------------------------------------------------------------------+
 */
 
-void v_APCI1710_Interrupt(int irq, void *d)
+static void v_APCI1710_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned char b_ModuleCpt = 0;
 	unsigned char b_InterruptFlag = 0;
 	unsigned char b_PWMCpt = 0;

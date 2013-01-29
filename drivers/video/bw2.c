@@ -179,7 +179,7 @@ static int bw2_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  *  Initialisation
  */
 
-static void __devinit bw2_init_fix(struct fb_info *info, int linebytes)
+static void bw2_init_fix(struct fb_info *info, int linebytes)
 {
 	strlcpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
 
@@ -191,44 +191,43 @@ static void __devinit bw2_init_fix(struct fb_info *info, int linebytes)
 	info->fix.accel = FB_ACCEL_SUN_BWTWO;
 }
 
-static u8 bw2regs_1600[] __devinitdata = {
+static u8 bw2regs_1600[] = {
 	0x14, 0x8b,	0x15, 0x28,	0x16, 0x03,	0x17, 0x13,
 	0x18, 0x7b,	0x19, 0x05,	0x1a, 0x34,	0x1b, 0x2e,
 	0x1c, 0x00,	0x1d, 0x0a,	0x1e, 0xff,	0x1f, 0x01,
 	0x10, 0x21,	0
 };
 
-static u8 bw2regs_ecl[] __devinitdata = {
+static u8 bw2regs_ecl[] = {
 	0x14, 0x65,	0x15, 0x1e,	0x16, 0x04,	0x17, 0x0c,
 	0x18, 0x5e,	0x19, 0x03,	0x1a, 0xa7,	0x1b, 0x23,
 	0x1c, 0x00,	0x1d, 0x08,	0x1e, 0xff,	0x1f, 0x01,
 	0x10, 0x20,	0
 };
 
-static u8 bw2regs_analog[] __devinitdata = {
+static u8 bw2regs_analog[] = {
 	0x14, 0xbb,	0x15, 0x2b,	0x16, 0x03,	0x17, 0x13,
 	0x18, 0xb0,	0x19, 0x03,	0x1a, 0xa6,	0x1b, 0x22,
 	0x1c, 0x01,	0x1d, 0x05,	0x1e, 0xff,	0x1f, 0x01,
 	0x10, 0x20,	0
 };
 
-static u8 bw2regs_76hz[] __devinitdata = {
+static u8 bw2regs_76hz[] = {
 	0x14, 0xb7,	0x15, 0x27,	0x16, 0x03,	0x17, 0x0f,
 	0x18, 0xae,	0x19, 0x03,	0x1a, 0xae,	0x1b, 0x2a,
 	0x1c, 0x01,	0x1d, 0x09,	0x1e, 0xff,	0x1f, 0x01,
 	0x10, 0x24,	0
 };
 
-static u8 bw2regs_66hz[] __devinitdata = {
+static u8 bw2regs_66hz[] = {
 	0x14, 0xbb,	0x15, 0x2b,	0x16, 0x04,	0x17, 0x14,
 	0x18, 0xae,	0x19, 0x03,	0x1a, 0xa8,	0x1b, 0x24,
 	0x1c, 0x01,	0x1d, 0x05,	0x1e, 0xff,	0x1f, 0x01,
 	0x10, 0x20,	0
 };
 
-static int __devinit bw2_do_default_mode(struct bw2_par *par,
-					 struct fb_info *info,
-					 int *linebytes)
+static int bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
+			       int *linebytes)
 {
 	u8 status, mon;
 	u8 *p;
@@ -273,7 +272,7 @@ static int __devinit bw2_do_default_mode(struct bw2_par *par,
 	return 0;
 }
 
-static int __devinit bw2_probe(struct platform_device *op)
+static int bw2_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -352,7 +351,7 @@ out_err:
 	return err;
 }
 
-static int __devexit bw2_remove(struct platform_device *op)
+static int bw2_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct bw2_par *par = info->par;
@@ -384,7 +383,7 @@ static struct platform_driver bw2_driver = {
 		.of_match_table = bw2_match,
 	},
 	.probe		= bw2_probe,
-	.remove		= __devexit_p(bw2_remove),
+	.remove		= bw2_remove,
 };
 
 static int __init bw2_init(void)

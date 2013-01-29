@@ -329,7 +329,7 @@ static const struct rtc_class_ops ds1286_ops = {
 	.alarm_irq_enable = ds1286_alarm_irq_enable,
 };
 
-static int __devinit ds1286_probe(struct platform_device *pdev)
+static int ds1286_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
@@ -376,7 +376,7 @@ out:
 	return ret;
 }
 
-static int __devexit ds1286_remove(struct platform_device *pdev)
+static int ds1286_remove(struct platform_device *pdev)
 {
 	struct ds1286_priv *priv = platform_get_drvdata(pdev);
 
@@ -393,7 +393,7 @@ static struct platform_driver ds1286_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1286_probe,
-	.remove		= __devexit_p(ds1286_remove),
+	.remove		= ds1286_remove,
 };
 
 module_platform_driver(ds1286_platform_driver);

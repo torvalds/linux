@@ -46,7 +46,7 @@
  * returning a value other than all 1's).  Return an error if it doesn't
  * become ready ...
  */
-int __devinit t4vf_wait_dev_ready(struct adapter *adapter)
+int t4vf_wait_dev_ready(struct adapter *adapter)
 {
 	const u32 whoami = T4VF_PL_BASE_ADDR + PL_VF_WHOAMI;
 	const u32 notready1 = 0xffffffff;
@@ -253,8 +253,7 @@ static int hash_mac_addr(const u8 *addr)
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void __devinit init_link_config(struct link_config *lc,
-				       unsigned int caps)
+static void init_link_config(struct link_config *lc, unsigned int caps)
 {
 	lc->supported = caps;
 	lc->requested_speed = 0;
@@ -275,7 +274,7 @@ static void __devinit init_link_config(struct link_config *lc,
  *	@adapter: the adapter
  *	@pidx: the adapter port index
  */
-int __devinit t4vf_port_init(struct adapter *adapter, int pidx)
+int t4vf_port_init(struct adapter *adapter, int pidx)
 {
 	struct port_info *pi = adap2pinfo(adapter, pidx);
 	struct fw_vi_cmd vi_cmd, vi_rpl;

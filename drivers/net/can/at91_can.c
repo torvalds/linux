@@ -33,11 +33,10 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-
-#include <mach/board.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 
@@ -155,7 +154,7 @@ struct at91_priv {
 	canid_t mb0_id;
 };
 
-static const struct at91_devtype_data at91_devtype_data[] __devinitconst = {
+static const struct at91_devtype_data at91_devtype_data[] = {
 	[AT91_DEVTYPE_SAM9263] = {
 		.rx_first = 1,
 		.rx_split = 8,
@@ -1242,7 +1241,7 @@ static struct attribute_group at91_sysfs_attr_group = {
 	.attrs = at91_sysfs_attrs,
 };
 
-static int __devinit at91_can_probe(struct platform_device *pdev)
+static int at91_can_probe(struct platform_device *pdev)
 {
 	const struct at91_devtype_data *devtype_data;
 	enum at91_devtype devtype;
@@ -1339,7 +1338,7 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit at91_can_remove(struct platform_device *pdev)
+static int at91_can_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_priv *priv = netdev_priv(dev);
@@ -1372,10 +1371,11 @@ static const struct platform_device_id at91_can_id_table[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(platform, at91_can_id_table);
 
 static struct platform_driver at91_can_driver = {
 	.probe = at91_can_probe,
-	.remove = __devexit_p(at91_can_remove),
+	.remove = at91_can_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,

@@ -92,7 +92,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "\n";
 
 
@@ -150,7 +150,7 @@ struct chip_info {
 	int flags;
 };
 
-static const struct chip_info skel_netdrv_tbl[] __devinitconst = {
+static const struct chip_info skel_netdrv_tbl[] = {
  	{ "100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
 	{ "100/10M Ethernet PCI Adapter",	HAS_CHIP_XCVR },
 	{ "1000/100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
@@ -477,8 +477,8 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit fealnx_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int fealnx_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct netdev_private *np;
 	int i, option, err, irq;
@@ -684,7 +684,7 @@ err_out_res:
 }
 
 
-static void __devexit fealnx_remove_one(struct pci_dev *pdev)
+static void fealnx_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -1950,7 +1950,7 @@ static struct pci_driver fealnx_driver = {
 	.name		= "fealnx",
 	.id_table	= fealnx_pci_tbl,
 	.probe		= fealnx_init_one,
-	.remove		= __devexit_p(fealnx_remove_one),
+	.remove		= fealnx_remove_one,
 };
 
 static int __init fealnx_init(void)

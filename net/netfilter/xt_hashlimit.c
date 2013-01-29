@@ -157,11 +157,22 @@ dsthash_find(const struct xt_hashlimit_htable *ht,
 /* allocate dsthash_ent, initialize dst, put in htable and lock it */
 static struct dsthash_ent *
 dsthash_alloc_init(struct xt_hashlimit_htable *ht,
-		   const struct dsthash_dst *dst)
+		   const struct dsthash_dst *dst, bool *race)
 {
 	struct dsthash_ent *ent;
 
 	spin_lock(&ht->lock);
+
+	/* Two or more packets may race to create the same entry in the
+	 * hashtable, double check if this packet lost race.
+	 */
+	ent = dsthash_find(ht, dst);
+	if (ent != NULL) {
+		spin_unlock(&ht->lock);
+		*race = true;
+		return ent;
+	}
+
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
 	if (unlikely(!ht->rnd_initialized)) {
@@ -318,7 +329,10 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 		parent = hashlimit_net->ipt_hashlimit;
 	else
 		parent = hashlimit_net->ip6t_hashlimit;
-	remove_proc_entry(hinfo->pde->name, parent);
+
+	if(parent != NULL)
+		remove_proc_entry(hinfo->pde->name, parent);
+
 	htable_selective_cleanup(hinfo, select_all);
 	vfree(hinfo);
 }
@@ -585,6 +599,7 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
+	bool race = false;
 	u32 cost;
 
 	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
@@ -593,13 +608,18 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
-		dh = dsthash_alloc_init(hinfo, &dst);
+		dh = dsthash_alloc_init(hinfo, &dst, &race);
 		if (dh == NULL) {
 			rcu_read_unlock_bh();
 			goto hotdrop;
+		} else if (race) {
+			/* Already got an entry, update expiration timeout */
+			dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
+			rateinfo_recalc(dh, now, hinfo->cfg.mode);
+		} else {
+			dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
+			rateinfo_init(dh, hinfo);
 		}
-		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-		rateinfo_init(dh, hinfo);
 	} else {
 		/* update expiration timeout */
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
@@ -856,6 +876,27 @@ static int __net_init hashlimit_proc_net_init(struct net *net)
 
 static void __net_exit hashlimit_proc_net_exit(struct net *net)
 {
+	struct xt_hashlimit_htable *hinfo;
+	struct hlist_node *pos;
+	struct proc_dir_entry *pde;
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
+
+	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
+	 * that the parent xt_recent proc entry is is empty before trying to
+	 * remove it.
+	 */
+	mutex_lock(&hashlimit_mutex);
+	pde = hashlimit_net->ipt_hashlimit;
+	if (pde == NULL)
+		pde = hashlimit_net->ip6t_hashlimit;
+
+	hlist_for_each_entry(hinfo, pos, &hashlimit_net->htables, node)
+		remove_proc_entry(hinfo->pde->name, pde);
+
+	hashlimit_net->ipt_hashlimit = NULL;
+	hashlimit_net->ip6t_hashlimit = NULL;
+	mutex_unlock(&hashlimit_mutex);
+
 	proc_net_remove(net, "ipt_hashlimit");
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	proc_net_remove(net, "ip6t_hashlimit");
@@ -872,9 +913,6 @@ static int __net_init hashlimit_net_init(struct net *net)
 
 static void __net_exit hashlimit_net_exit(struct net *net)
 {
-	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
-
-	BUG_ON(!hlist_empty(&hashlimit_net->htables));
 	hashlimit_proc_net_exit(net);
 }
 

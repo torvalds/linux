@@ -284,7 +284,7 @@ static void tb0219_pci_irq_init(void)
 	vr41xx_set_irq_level(TB0219_PCI_SLOT3_PIN, IRQ_LEVEL_LOW);
 }
 
-static int __devinit tb0219_probe(struct platform_device *dev)
+static int tb0219_probe(struct platform_device *dev)
 {
 	int retval;
 
@@ -318,7 +318,7 @@ static int __devinit tb0219_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit tb0219_remove(struct platform_device *dev)
+static int tb0219_remove(struct platform_device *dev)
 {
 	_machine_restart = old_machine_restart;
 
@@ -334,7 +334,7 @@ static struct platform_device *tb0219_platform_device;
 
 static struct platform_driver tb0219_device_driver = {
 	.probe		= tb0219_probe,
-	.remove		= __devexit_p(tb0219_remove),
+	.remove		= tb0219_remove,
 	.driver		= {
 		.name	= "TB0219",
 		.owner	= THIS_MODULE,

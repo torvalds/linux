@@ -59,7 +59,7 @@
 			#gpio-cells = <2>;
 		};
 
-		psc@2000 { /* PSC1 in ac97 mode */
+		audioplatform: psc@2000 { /* PSC1 in ac97 mode */
 			compatible = "mpc5200b-psc-ac97","fsl,mpc5200b-psc-ac97";
 			cell-index = <0>;
 		};
@@ -133,5 +133,10 @@
 
 	localbus {
 		status = "disabled";
+	};
+
+	sound {
+		compatible = "phytec,pcm030-audio-fabric";
+		asoc-platform = <&audioplatform>;
 	};
 };

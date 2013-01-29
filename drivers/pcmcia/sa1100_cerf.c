@@ -81,7 +81,7 @@ static struct pcmcia_low_level cerf_pcmcia_ops = {
 	.configure_socket	= cerf_pcmcia_configure_socket,
 };
 
-int __devinit pcmcia_cerf_init(struct device *dev)
+int pcmcia_cerf_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

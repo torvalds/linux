@@ -23,7 +23,6 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/nsproxy.h>
 #include <net/ipv6.h>
 
 #include <linux/sunrpc/clnt.h>
@@ -884,7 +883,10 @@ static void encode_rpcb_string(struct xdr_stream *xdr, const char *string,
 	u32 len;
 
 	len = strlen(string);
-	BUG_ON(len > maxstrlen);
+	WARN_ON_ONCE(len > maxstrlen);
+	if (len > maxstrlen)
+		/* truncate and hope for the best */
+		len = maxstrlen;
 	p = xdr_reserve_space(xdr, 4 + len);
 	xdr_encode_opaque(p, string, len);
 }

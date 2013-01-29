@@ -445,7 +445,7 @@ static const struct agp_bridge_driver ati_generic_bridge = {
 };
 
 
-static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
+static struct agp_device_ids ati_agp_device_ids[] =
 {
 	{
 		.device_id	= PCI_DEVICE_ID_ATI_RS100,
@@ -490,8 +490,7 @@ static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
 	{ }, /* dummy final entry, always present */
 };
 
-static int __devinit agp_ati_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int agp_ati_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct agp_device_ids *devs = ati_agp_device_ids;
 	struct agp_bridge_data *bridge;
@@ -533,7 +532,7 @@ found:
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_ati_remove(struct pci_dev *pdev)
+static void agp_ati_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

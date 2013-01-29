@@ -39,13 +39,9 @@ MODULE_VERSION(DIGI_VERSION);
 struct list_head nd_struct_list;
 struct dgrp_poll_data dgrp_poll_data;
 
-int dgrp_rawreadok = 1;		/* Bypass flipbuf on input */
 int dgrp_register_cudevices = 1;/* Turn on/off registering legacy cu devices */
 int dgrp_register_prdevices = 1;/* Turn on/off registering transparent print */
 int dgrp_poll_tick = 20;	/* Poll interval - in ms */
-
-module_param_named(rawreadok, dgrp_rawreadok, int, 0644);
-MODULE_PARM_DESC(rawreadok, "Bypass flip buffers on input");
 
 module_param_named(register_cudevices, dgrp_register_cudevices, int, 0644);
 MODULE_PARM_DESC(register_cudevices, "Turn on/off registering legacy cu devices");

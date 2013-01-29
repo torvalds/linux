@@ -272,7 +272,6 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 	struct au0828_dev *dev = container_of(work, struct au0828_dev,
 					      restart_streaming);
 	struct au0828_dvb *dvb = &dev->dvb;
-	int ret;
 
 	if (dev->urb_streaming == 0)
 		return;
@@ -282,7 +281,7 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 	mutex_lock(&dvb->lock);
 
 	/* Stop transport */
-	ret = stop_urb_transfer(dev);
+	stop_urb_transfer(dev);
 	au0828_write(dev, 0x608, 0x00);
 	au0828_write(dev, 0x609, 0x00);
 	au0828_write(dev, 0x60a, 0x00);
@@ -293,7 +292,7 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 	au0828_write(dev, 0x609, 0x72);
 	au0828_write(dev, 0x60a, 0x71);
 	au0828_write(dev, 0x60b, 0x01);
-	ret = start_urb_transfer(dev);
+	start_urb_transfer(dev);
 
 	mutex_unlock(&dvb->lock);
 }

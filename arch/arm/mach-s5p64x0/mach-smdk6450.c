@@ -183,7 +183,6 @@ static struct platform_device *smdk6450_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_ts,
 	&s3c_device_wdt,
-	&samsung_asoc_dma,
 	&s5p6450_device_iis0,
 	&s3c_device_fb,
 	&smdk6450_lcd_lte480wv,

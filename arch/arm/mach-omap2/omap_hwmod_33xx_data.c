@@ -14,13 +14,11 @@
  * GNU General Public License for more details.
  */
 
-#include <plat/omap_hwmod.h>
-#include <plat/cpu.h>
+#include <linux/i2c-omap.h>
+
+#include "omap_hwmod.h"
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <plat/dma.h>
-#include <plat/mmc.h>
-#include <plat/i2c.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -28,6 +26,8 @@
 #include "cm33xx.h"
 #include "prm33xx.h"
 #include "prm-regbits-33xx.h"
+#include "i2c.h"
+#include "mmc.h"
 
 /*
  * IP blocks
@@ -674,6 +674,7 @@ static struct omap_hwmod am33xx_cpgmac0_hwmod = {
 	.name		= "cpgmac0",
 	.class		= &am33xx_cpgmac0_hwmod_class,
 	.clkdm_name	= "cpsw_125mhz_clkdm",
+	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
 	.mpu_irqs	= am33xx_cpgmac0_irqs,
 	.main_clk	= "cpsw_125mhz_gclk",
 	.prcm		= {
@@ -682,6 +683,20 @@ static struct omap_hwmod am33xx_cpgmac0_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
+};
+
+/*
+ * mdio class
+ */
+static struct omap_hwmod_class am33xx_mdio_hwmod_class = {
+	.name		= "davinci_mdio",
+};
+
+static struct omap_hwmod am33xx_mdio_hwmod = {
+	.name		= "davinci_mdio",
+	.class		= &am33xx_mdio_hwmod_class,
+	.clkdm_name	= "cpsw_125mhz_clkdm",
+	.main_clk	= "cpsw_125mhz_gclk",
 };
 
 /*
@@ -1103,8 +1118,7 @@ static struct omap_hwmod_class i2c_class = {
 };
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags = OMAP_I2C_FLAG_BUS_SHIFT_NONE |
-		  OMAP_I2C_FLAG_RESET_REGS_POSTIDLE,
+	.flags = OMAP_I2C_FLAG_BUS_SHIFT_NONE,
 };
 
 /* i2c1 */
@@ -2056,7 +2070,7 @@ static struct omap_hwmod_irq_info am33xx_usbss_mpu_irqs[] = {
 	{ .name = "usbss-irq", .irq = 17 + OMAP_INTC_START, },
 	{ .name = "musb0-irq", .irq = 18 + OMAP_INTC_START, },
 	{ .name = "musb1-irq", .irq = 19 + OMAP_INTC_START, },
-	{ .irq = -1 + OMAP_INTC_START, },
+	{ .irq = -1, },
 };
 
 static struct omap_hwmod am33xx_usbss_hwmod = {
@@ -2498,6 +2512,21 @@ static struct omap_hwmod_ocp_if am33xx_l4_hs__cpgmac0 = {
 	.slave		= &am33xx_cpgmac0_hwmod,
 	.clk		= "cpsw_125mhz_gclk",
 	.addr		= am33xx_cpgmac0_addr_space,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
+	{
+		.pa_start	= 0x4A101000,
+		.pa_end		= 0x4A101000 + SZ_256 - 1,
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
+	.master		= &am33xx_cpgmac0_hwmod,
+	.slave		= &am33xx_mdio_hwmod,
+	.addr		= am33xx_mdio_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -3371,6 +3400,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tptc2,
 	&am33xx_l3_s__usbss,
 	&am33xx_l4_hs__cpgmac0,
+	&am33xx_cpgmac0__mdio,
 	NULL,
 };
 

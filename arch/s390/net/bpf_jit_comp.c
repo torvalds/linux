@@ -341,6 +341,27 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		/* lr %r5,%r4 */
 		EMIT2(0x1854);
 		break;
+	case BPF_S_ALU_MOD_X: /* A %= X */
+		jit->seen |= SEEN_XREG | SEEN_RET0;
+		/* ltr %r12,%r12 */
+		EMIT2(0x12cc);
+		/* jz <ret0> */
+		EMIT4_PCREL(0xa7840000, (jit->ret0_ip - jit->prg));
+		/* lhi %r4,0 */
+		EMIT4(0xa7480000);
+		/* dr %r4,%r12 */
+		EMIT2(0x1d4c);
+		/* lr %r5,%r4 */
+		EMIT2(0x1854);
+		break;
+	case BPF_S_ALU_MOD_K: /* A %= K */
+		/* lhi %r4,0 */
+		EMIT4(0xa7480000);
+		/* d %r4,<d(K)>(%r13) */
+		EMIT4_DISP(0x5d40d000, EMIT_CONST(K));
+		/* lr %r5,%r4 */
+		EMIT2(0x1854);
+		break;
 	case BPF_S_ALU_AND_X: /* A &= X */
 		jit->seen |= SEEN_XREG;
 		/* nr %r5,%r12 */
@@ -368,9 +389,16 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 			EMIT4_DISP(0x5650d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+	case BPF_S_ALU_XOR_X:
 		jit->seen |= SEEN_XREG;
 		/* xr %r5,%r12 */
 		EMIT2(0x175c);
+		break;
+	case BPF_S_ALU_XOR_K: /* A ^= K */
+		if (!K)
+			break;
+		/* x %r5,<d(K)>(%r13) */
+		EMIT4_DISP(0x5750d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ALU_LSH_X: /* A <<= X; */
 		jit->seen |= SEEN_XREG;

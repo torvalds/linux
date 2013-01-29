@@ -1149,6 +1149,7 @@ static void bnx2x_drv_stats_update(struct bnx2x *bp)
 		UPDATE_ESTAT_QSTAT(rx_err_discard_pkt);
 		UPDATE_ESTAT_QSTAT(rx_skb_alloc_failed);
 		UPDATE_ESTAT_QSTAT(hw_csum_err);
+		UPDATE_ESTAT_QSTAT(driver_filtered_tx_pkt);
 	}
 }
 

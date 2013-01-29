@@ -795,8 +795,8 @@ static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int uda1380_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int uda1380_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct uda1380_priv *uda1380;
 	int ret;
@@ -814,7 +814,7 @@ static __devinit int uda1380_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit uda1380_i2c_remove(struct i2c_client *i2c)
+static int uda1380_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
@@ -832,7 +832,7 @@ static struct i2c_driver uda1380_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    uda1380_i2c_probe,
-	.remove =   __devexit_p(uda1380_i2c_remove),
+	.remove =   uda1380_i2c_remove,
 	.id_table = uda1380_i2c_id,
 };
 #endif

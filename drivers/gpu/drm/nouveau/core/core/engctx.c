@@ -189,6 +189,21 @@ nouveau_engctx_fini(struct nouveau_engctx *engctx, bool suspend)
 	return nouveau_gpuobj_fini(&engctx->base, suspend);
 }
 
+int
+_nouveau_engctx_ctor(struct nouveau_object *parent,
+		     struct nouveau_object *engine,
+		     struct nouveau_oclass *oclass, void *data, u32 size,
+		     struct nouveau_object **pobject)
+{
+	struct nouveau_engctx *engctx;
+	int ret;
+
+	ret = nouveau_engctx_create(parent, engine, oclass, NULL, 256, 256,
+				    NVOBJ_FLAG_ZERO_ALLOC, &engctx);
+	*pobject = nv_object(engctx);
+	return ret;
+}
+
 void
 _nouveau_engctx_dtor(struct nouveau_object *object)
 {

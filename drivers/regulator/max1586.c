@@ -44,6 +44,9 @@ struct max1586_data {
 	unsigned int min_uV;
 	unsigned int max_uV;
 
+	unsigned int v3_curr_sel;
+	unsigned int v6_curr_sel;
+
 	struct regulator_dev *rdev[0];
 };
 
@@ -63,31 +66,60 @@ static int v6_voltages_uv[] = { 1, 1800000, 2500000, 3000000 };
  * R24 and R25=100kOhm as described in the data sheet.
  * The gain is approximately: 1 + R24/R25 + R24/185.5kOhm
  */
+static int max1586_v3_get_voltage_sel(struct regulator_dev *rdev)
+{
+	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
+
+	return max1586->v3_curr_sel;
+}
+
 static int max1586_v3_set_voltage_sel(struct regulator_dev *rdev,
 				      unsigned selector)
 {
 	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
 	struct i2c_client *client = max1586->client;
+	int ret;
 	u8 v3_prog;
 
 	dev_dbg(&client->dev, "changing voltage v3 to %dmv\n",
 		regulator_list_voltage_linear(rdev, selector) / 1000);
 
 	v3_prog = I2C_V3_SELECT | (u8) selector;
-	return i2c_smbus_write_byte(client, v3_prog);
+	ret = i2c_smbus_write_byte(client, v3_prog);
+	if (ret)
+		return ret;
+
+	max1586->v3_curr_sel = selector;
+
+	return 0;
+}
+
+static int max1586_v6_get_voltage_sel(struct regulator_dev *rdev)
+{
+	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
+
+	return max1586->v6_curr_sel;
 }
 
 static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
 				      unsigned int selector)
 {
-	struct i2c_client *client = rdev_get_drvdata(rdev);
+	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
+	struct i2c_client *client = max1586->client;
 	u8 v6_prog;
+	int ret;
 
 	dev_dbg(&client->dev, "changing voltage v6 to %dmv\n",
 		rdev->desc->volt_table[selector] / 1000);
 
 	v6_prog = I2C_V6_SELECT | (u8) selector;
-	return i2c_smbus_write_byte(client, v6_prog);
+	ret = i2c_smbus_write_byte(client, v6_prog);
+	if (ret)
+		return ret;
+
+	max1586->v6_curr_sel = selector;
+
+	return 0;
 }
 
 /*
@@ -95,12 +127,14 @@ static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
  * the set up value.
  */
 static struct regulator_ops max1586_v3_ops = {
+	.get_voltage_sel = max1586_v3_get_voltage_sel,
 	.set_voltage_sel = max1586_v3_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 };
 
 static struct regulator_ops max1586_v6_ops = {
+	.get_voltage_sel = max1586_v6_get_voltage_sel,
 	.set_voltage_sel = max1586_v6_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
 };
@@ -125,7 +159,7 @@ static struct regulator_desc max1586_reg[] = {
 	},
 };
 
-static int __devinit max1586_pmic_probe(struct i2c_client *client,
+static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
@@ -147,6 +181,10 @@ static int __devinit max1586_pmic_probe(struct i2c_client *client,
 
 	max1586->min_uV = MAX1586_V3_MIN_UV / 1000 * pdata->v3_gain / 1000;
 	max1586->max_uV = MAX1586_V3_MAX_UV / 1000 * pdata->v3_gain / 1000;
+
+	/* Set curr_sel to default voltage on power-up */
+	max1586->v3_curr_sel = 24; /* 1.3V */
+	max1586->v6_curr_sel = 0;
 
 	rdev = max1586->rdev;
 	for (i = 0; i < pdata->num_subdevs && i <= MAX1586_V6; i++) {
@@ -188,7 +226,7 @@ err:
 	return ret;
 }
 
-static int __devexit max1586_pmic_remove(struct i2c_client *client)
+static int max1586_pmic_remove(struct i2c_client *client)
 {
 	struct max1586_data *max1586 = i2c_get_clientdata(client);
 	int i;
@@ -207,7 +245,7 @@ MODULE_DEVICE_TABLE(i2c, max1586_id);
 
 static struct i2c_driver max1586_pmic_driver = {
 	.probe = max1586_pmic_probe,
-	.remove = __devexit_p(max1586_pmic_remove),
+	.remove = max1586_pmic_remove,
 	.driver		= {
 		.name	= "max1586",
 		.owner	= THIS_MODULE,

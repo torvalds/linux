@@ -154,8 +154,6 @@ unifi_mlme_blocking_request(unifi_priv_t *priv, ul_client_t *pcli,
 {
     int r;
 
-    func_enter();
-
     if (sig->SignalPrimitiveHeader.SignalId == 0) {
         unifi_error(priv, "unifi_mlme_blocking_request: Invalid Signal Id (0x%x)\n",
                     sig->SignalPrimitiveHeader.SignalId);
@@ -199,7 +197,6 @@ unifi_mlme_blocking_request(unifi_priv_t *priv, ul_client_t *pcli,
         return r;
     }
 
-    func_exit();
     return 0;
 } /* unifi_mlme_blocking_request() */
 

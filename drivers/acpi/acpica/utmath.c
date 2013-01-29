@@ -81,7 +81,7 @@ typedef union uint64_overlay {
  * RETURN:      Status (Checks for divide-by-zero)
  *
  * DESCRIPTION: Perform a short (maximum 64 bits divided by 32 bits)
- *              divide and modulo.  The result is a 64-bit quotient and a
+ *              divide and modulo. The result is a 64-bit quotient and a
  *              32-bit remainder.
  *
  ******************************************************************************/

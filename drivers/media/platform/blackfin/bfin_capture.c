@@ -862,7 +862,7 @@ static struct v4l2_file_operations bcap_fops = {
 	.poll = bcap_poll
 };
 
-static int __devinit bcap_probe(struct platform_device *pdev)
+static int bcap_probe(struct platform_device *pdev)
 {
 	struct bcap_device *bcap_dev;
 	struct video_device *vfd;
@@ -1026,7 +1026,7 @@ err_free_dev:
 	return ret;
 }
 
-static int __devexit bcap_remove(struct platform_device *pdev)
+static int bcap_remove(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
 	struct bcap_device *bcap_dev = container_of(v4l2_dev,
@@ -1048,21 +1048,9 @@ static struct platform_driver bcap_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = bcap_probe,
-	.remove = __devexit_p(bcap_remove),
+	.remove = bcap_remove,
 };
-
-static __init int bcap_init(void)
-{
-	return platform_driver_register(&bcap_driver);
-}
-
-static __exit void bcap_exit(void)
-{
-	platform_driver_unregister(&bcap_driver);
-}
-
-module_init(bcap_init);
-module_exit(bcap_exit);
+module_platform_driver(bcap_driver);
 
 MODULE_DESCRIPTION("Analog Devices blackfin video capture driver");
 MODULE_AUTHOR("Scott Jiang <Scott.Jiang.Linux@gmail.com>");

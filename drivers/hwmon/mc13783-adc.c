@@ -233,7 +233,7 @@ out_err_create_16chans:
 	return ret;
 }
 
-static int __devexit mc13783_adc_remove(struct platform_device *pdev)
+static int mc13783_adc_remove(struct platform_device *pdev)
 {
 	struct mc13783_adc_priv *priv = platform_get_drvdata(pdev);
 	kernel_ulong_t driver_data = platform_get_device_id(pdev)->driver_data;
@@ -265,7 +265,7 @@ static const struct platform_device_id mc13783_adc_idtable[] = {
 MODULE_DEVICE_TABLE(platform, mc13783_adc_idtable);
 
 static struct platform_driver mc13783_adc_driver = {
-	.remove		= __devexit_p(mc13783_adc_remove),
+	.remove		= mc13783_adc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRIVER_NAME,

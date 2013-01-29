@@ -15,74 +15,31 @@
 #include <linux/types.h>
 
 enum {
+	ISKU_SIZE_CONTROL = 0x03,
+	ISKU_SIZE_INFO = 0x06,
+	ISKU_SIZE_KEY_MASK = 0x06,
+	ISKU_SIZE_KEYS_FUNCTION = 0x29,
+	ISKU_SIZE_KEYS_EASYZONE = 0x41,
+	ISKU_SIZE_KEYS_MEDIA = 0x1d,
+	ISKU_SIZE_KEYS_THUMBSTER = 0x17,
+	ISKU_SIZE_KEYS_MACRO = 0x23,
+	ISKU_SIZE_KEYS_CAPSLOCK = 0x06,
+	ISKU_SIZE_LAST_SET = 0x14,
+	ISKU_SIZE_LIGHT = 0x0a,
+	ISKU_SIZE_MACRO = 0x823,
+	ISKU_SIZE_RESET = 0x03,
+	ISKU_SIZE_TALK = 0x10,
+};
+
+enum {
 	ISKU_PROFILE_NUM = 5,
 	ISKU_USB_INTERFACE_PROTOCOL = 0,
 };
-
-struct isku_control {
-	uint8_t command; /* ISKU_COMMAND_CONTROL */
-	uint8_t value;
-	uint8_t request;
-} __packed;
 
 struct isku_actual_profile {
 	uint8_t command; /* ISKU_COMMAND_ACTUAL_PROFILE */
 	uint8_t size; /* always 3 */
 	uint8_t actual_profile;
-} __packed;
-
-struct isku_key_mask {
-	uint8_t command; /* ISKU_COMMAND_KEY_MASK */
-	uint8_t size; /* 6 */
-	uint8_t profile_number; /* 0-4 */
-	uint8_t mask;
-	uint16_t checksum;
-} __packed;
-
-struct isku_keys_function {
-	uint8_t data[0x29];
-} __packed;
-
-struct isku_keys_easyzone {
-	uint8_t data[0x41];
-} __packed;
-
-struct isku_keys_media {
-	uint8_t data[0x1d];
-} __packed;
-
-struct isku_keys_thumbster {
-	uint8_t data[0x17];
-} __packed;
-
-struct isku_keys_macro {
-	uint8_t data[0x23];
-} __packed;
-
-struct isku_keys_capslock {
-	uint8_t data[0x6];
-} __packed;
-
-struct isku_macro {
-	uint8_t data[0x823];
-} __packed;
-
-struct isku_light {
-	uint8_t data[0xa];
-} __packed;
-
-struct isku_info {
-	uint8_t data[2];
-	uint8_t firmware_version;
-	uint8_t unknown[3];
-} __packed;
-
-struct isku_talk {
-	uint8_t data[0x10];
-} __packed;
-
-struct isku_last_set {
-	uint8_t data[0x14];
 } __packed;
 
 enum isku_commands {
@@ -97,6 +54,7 @@ enum isku_commands {
 	ISKU_COMMAND_MACRO = 0xe,
 	ISKU_COMMAND_INFO = 0xf,
 	ISKU_COMMAND_LIGHT = 0x10,
+	ISKU_COMMAND_RESET = 0x11,
 	ISKU_COMMAND_KEYS_CAPSLOCK = 0x13,
 	ISKU_COMMAND_LAST_SET = 0x14,
 	ISKU_COMMAND_15 = 0x15,

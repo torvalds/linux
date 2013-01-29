@@ -240,17 +240,17 @@ ssize_t vfio_pci_mem_readwrite(struct vfio_pci_device *vdev, char __user *buf,
 			filled = 1;
 		} else {
 			/* Drop writes, fill reads with FF */
+			filled = min((size_t)(x_end - pos), count);
 			if (!iswrite) {
 				char val = 0xFF;
 				size_t i;
 
-				for (i = 0; i < x_end - pos; i++) {
+				for (i = 0; i < filled; i++) {
 					if (put_user(val, buf + i))
 						goto out;
 				}
 			}
 
-			filled = x_end - pos;
 		}
 
 		count -= filled;

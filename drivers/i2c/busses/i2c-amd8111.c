@@ -422,8 +422,7 @@ static DEFINE_PCI_DEVICE_TABLE(amd8111_ids) = {
 
 MODULE_DEVICE_TABLE (pci, amd8111_ids);
 
-static int __devinit amd8111_probe(struct pci_dev *dev,
-		const struct pci_device_id *id)
+static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct amd_smbus *smbus;
 	int error;
@@ -475,7 +474,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	return error;
 }
 
-static void __devexit amd8111_remove(struct pci_dev *dev)
+static void amd8111_remove(struct pci_dev *dev)
 {
 	struct amd_smbus *smbus = pci_get_drvdata(dev);
 
@@ -488,7 +487,7 @@ static struct pci_driver amd8111_driver = {
 	.name		= "amd8111_smbus2",
 	.id_table	= amd8111_ids,
 	.probe		= amd8111_probe,
-	.remove		= __devexit_p(amd8111_remove),
+	.remove		= amd8111_remove,
 };
 
 module_pci_driver(amd8111_driver);

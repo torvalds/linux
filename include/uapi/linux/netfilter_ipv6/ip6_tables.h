@@ -178,6 +178,9 @@ struct ip6t_error {
 #define IP6T_SO_GET_REVISION_TARGET	(IP6T_BASE_CTL + 5)
 #define IP6T_SO_GET_MAX			IP6T_SO_GET_REVISION_TARGET
 
+/* obtain original address if REDIRECT'd connection */
+#define IP6T_SO_ORIGINAL_DST            80
+
 /* ICMP matching stuff */
 struct ip6t_icmp {
 	__u8 type;				/* type to match */

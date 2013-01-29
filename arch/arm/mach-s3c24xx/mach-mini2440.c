@@ -519,7 +519,6 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_iis,
 	&uda1340_codec,
 	&mini2440_audio,
-	&samsung_asoc_dma,
 };
 
 static void __init mini2440_map_io(void)

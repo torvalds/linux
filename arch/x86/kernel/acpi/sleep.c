@@ -101,6 +101,8 @@ static int __init acpi_sleep_setup(char *str)
 #endif
 		if (strncmp(str, "nonvs", 5) == 0)
 			acpi_nvs_nosave();
+		if (strncmp(str, "nonvs_s3", 8) == 0)
+			acpi_nvs_nosave_s3();
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
 		str = strchr(str, ',');

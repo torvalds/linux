@@ -162,7 +162,6 @@ static struct clock_event_device sp804_clockevent = {
 	.set_mode	= sp804_set_mode,
 	.set_next_event	= sp804_set_next_event,
 	.rating		= 300,
-	.cpumask	= cpu_all_mask,
 };
 
 static struct irqaction sp804_timer_irq = {
@@ -185,6 +184,7 @@ void __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
 	clkevt_reload = DIV_ROUND_CLOSEST(rate, HZ);
 	evt->name = name;
 	evt->irq = irq;
+	evt->cpumask = cpu_possible_mask;
 
 	setup_irq(irq, &sp804_timer_irq);
 	clockevents_config_and_register(evt, rate, 0xf, 0xffffffff);

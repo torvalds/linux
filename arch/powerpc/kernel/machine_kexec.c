@@ -218,23 +218,23 @@ static void __init export_crashk_values(struct device_node *node)
 	 * be sure what's in them, so remove them. */
 	prop = of_find_property(node, "linux,crashkernel-base", NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 
 	prop = of_find_property(node, "linux,crashkernel-size", NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 
 	if (crashk_res.start != 0) {
-		prom_add_property(node, &crashk_base_prop);
+		of_add_property(node, &crashk_base_prop);
 		crashk_size = resource_size(&crashk_res);
-		prom_add_property(node, &crashk_size_prop);
+		of_add_property(node, &crashk_size_prop);
 	}
 
 	/*
 	 * memory_limit is required by the kexec-tools to limit the
 	 * crash regions to the actual memory used.
 	 */
-	prom_update_property(node, &memory_limit_prop);
+	of_update_property(node, &memory_limit_prop);
 }
 
 static int __init kexec_setup(void)
@@ -249,11 +249,11 @@ static int __init kexec_setup(void)
 	/* remove any stale properties so ours can be found */
 	prop = of_find_property(node, kernel_end_prop.name, NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 
 	/* information needed by userspace when using default_machine_kexec */
 	kernel_end = __pa(_end);
-	prom_add_property(node, &kernel_end_prop);
+	of_add_property(node, &kernel_end_prop);
 
 	export_crashk_values(node);
 

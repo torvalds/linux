@@ -118,7 +118,7 @@ static void w90p910_keypad_close(struct input_dev *dev)
 	clk_disable(keypad->clk);
 }
 
-static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
+static int w90p910_keypad_probe(struct platform_device *pdev)
 {
 	const struct w90p910_keypad_platform_data *pdata =
 						pdev->dev.platform_data;
@@ -234,7 +234,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
+static int w90p910_keypad_remove(struct platform_device *pdev)
 {
 	struct w90p910_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -257,7 +257,7 @@ static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver w90p910_keypad_driver = {
 	.probe		= w90p910_keypad_probe,
-	.remove		= __devexit_p(w90p910_keypad_remove),
+	.remove		= w90p910_keypad_remove,
 	.driver		= {
 		.name	= "nuc900-kpi",
 		.owner	= THIS_MODULE,

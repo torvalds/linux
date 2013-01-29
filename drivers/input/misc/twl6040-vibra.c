@@ -255,7 +255,7 @@ static int twl6040_vibra_suspend(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops, twl6040_vibra_suspend, NULL);
 
-static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
+static int twl6040_vibra_probe(struct platform_device *pdev)
 {
 	struct twl6040_vibra_data *pdata = pdev->dev.platform_data;
 	struct device *twl6040_core_dev = pdev->dev.parent;
@@ -418,7 +418,7 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit twl6040_vibra_remove(struct platform_device *pdev)
+static int twl6040_vibra_remove(struct platform_device *pdev)
 {
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
@@ -433,7 +433,7 @@ static int __devexit twl6040_vibra_remove(struct platform_device *pdev)
 
 static struct platform_driver twl6040_vibra_driver = {
 	.probe		= twl6040_vibra_probe,
-	.remove		= __devexit_p(twl6040_vibra_remove),
+	.remove		= twl6040_vibra_remove,
 	.driver		= {
 		.name	= "twl6040-vibra",
 		.owner	= THIS_MODULE,

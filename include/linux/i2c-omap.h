@@ -20,8 +20,6 @@
 #define OMAP_I2C_FLAG_NO_FIFO			BIT(0)
 #define OMAP_I2C_FLAG_SIMPLE_CLOCK		BIT(1)
 #define OMAP_I2C_FLAG_16BIT_DATA_REG		BIT(2)
-#define OMAP_I2C_FLAG_RESET_REGS_POSTIDLE	BIT(3)
-#define OMAP_I2C_FLAG_APPLY_ERRATA_I207	BIT(4)
 #define OMAP_I2C_FLAG_ALWAYS_ARMXOR_CLK	BIT(5)
 #define OMAP_I2C_FLAG_FORCE_19200_INT_CLK	BIT(6)
 /* how the CPU address bus must be translated for I2C unit access */
@@ -34,6 +32,7 @@ struct omap_i2c_bus_platform_data {
 	u32		clkrate;
 	u32		rev;
 	u32		flags;
+	void		(*set_mpu_wkup_lat)(struct device *dev, long set);
 };
 
 #endif

@@ -1194,12 +1194,15 @@ struct kvm_ppc_pvinfo {
 This ioctl fetches PV specific information that need to be passed to the guest
 using the device tree or other means from vm context.
 
-For now the only implemented piece of information distributed here is an array
-of 4 instructions that make up a hypercall.
+The hcall array defines 4 instructions that make up a hypercall.
 
 If any additional field gets added to this structure later on, a bit for that
 additional piece of information will be set in the flags bitmap.
 
+The flags bitmap is defined as:
+
+   /* the host supports the ePAPR idle hcall
+   #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
 4.48 KVM_ASSIGN_PCI_DEVICE
 
@@ -1731,7 +1734,46 @@ registers, find a list below:
   Arch  |       Register        | Width (bits)
         |                       |
   PPC   | KVM_REG_PPC_HIOR      | 64
-
+  PPC   | KVM_REG_PPC_IAC1      | 64
+  PPC   | KVM_REG_PPC_IAC2      | 64
+  PPC   | KVM_REG_PPC_IAC3      | 64
+  PPC   | KVM_REG_PPC_IAC4      | 64
+  PPC   | KVM_REG_PPC_DAC1      | 64
+  PPC   | KVM_REG_PPC_DAC2      | 64
+  PPC   | KVM_REG_PPC_DABR      | 64
+  PPC   | KVM_REG_PPC_DSCR      | 64
+  PPC   | KVM_REG_PPC_PURR      | 64
+  PPC   | KVM_REG_PPC_SPURR     | 64
+  PPC   | KVM_REG_PPC_DAR       | 64
+  PPC   | KVM_REG_PPC_DSISR     | 32
+  PPC   | KVM_REG_PPC_AMR       | 64
+  PPC   | KVM_REG_PPC_UAMOR     | 64
+  PPC   | KVM_REG_PPC_MMCR0     | 64
+  PPC   | KVM_REG_PPC_MMCR1     | 64
+  PPC   | KVM_REG_PPC_MMCRA     | 64
+  PPC   | KVM_REG_PPC_PMC1      | 32
+  PPC   | KVM_REG_PPC_PMC2      | 32
+  PPC   | KVM_REG_PPC_PMC3      | 32
+  PPC   | KVM_REG_PPC_PMC4      | 32
+  PPC   | KVM_REG_PPC_PMC5      | 32
+  PPC   | KVM_REG_PPC_PMC6      | 32
+  PPC   | KVM_REG_PPC_PMC7      | 32
+  PPC   | KVM_REG_PPC_PMC8      | 32
+  PPC   | KVM_REG_PPC_FPR0      | 64
+          ...
+  PPC   | KVM_REG_PPC_FPR31     | 64
+  PPC   | KVM_REG_PPC_VR0       | 128
+          ...
+  PPC   | KVM_REG_PPC_VR31      | 128
+  PPC   | KVM_REG_PPC_VSR0      | 128
+          ...
+  PPC   | KVM_REG_PPC_VSR31     | 128
+  PPC   | KVM_REG_PPC_FPSCR     | 64
+  PPC   | KVM_REG_PPC_VSCR      | 32
+  PPC   | KVM_REG_PPC_VPA_ADDR  | 64
+  PPC   | KVM_REG_PPC_VPA_SLB   | 128
+  PPC   | KVM_REG_PPC_VPA_DTL   | 128
+  PPC   | KVM_REG_PPC_EPCR	| 32
 
 4.69 KVM_GET_ONE_REG
 
@@ -1747,7 +1789,7 @@ kvm_one_reg struct passed in. On success, the register value can be found
 at the memory location pointed to by "addr".
 
 The list of registers accessible using this interface is identical to the
-list in 4.64.
+list in 4.68.
 
 
 4.70 KVM_KVMCLOCK_CTRL
@@ -1997,6 +2039,93 @@ return the hash table order in the parameter.  (If the guest is using
 the virtualized real-mode area (VRMA) facility, the kernel will
 re-create the VMRA HPTEs on the next KVM_RUN of any vcpu.)
 
+4.77 KVM_S390_INTERRUPT
+
+Capability: basic
+Architectures: s390
+Type: vm ioctl, vcpu ioctl
+Parameters: struct kvm_s390_interrupt (in)
+Returns: 0 on success, -1 on error
+
+Allows to inject an interrupt to the guest. Interrupts can be floating
+(vm ioctl) or per cpu (vcpu ioctl), depending on the interrupt type.
+
+Interrupt parameters are passed via kvm_s390_interrupt:
+
+struct kvm_s390_interrupt {
+	__u32 type;
+	__u32 parm;
+	__u64 parm64;
+};
+
+type can be one of the following:
+
+KVM_S390_SIGP_STOP (vcpu) - sigp restart
+KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
+KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
+KVM_S390_RESTART (vcpu) - restart
+KVM_S390_INT_VIRTIO (vm) - virtio external interrupt; external interrupt
+			   parameters in parm and parm64
+KVM_S390_INT_SERVICE (vm) - sclp external interrupt; sclp parameter in parm
+KVM_S390_INT_EMERGENCY (vcpu) - sigp emergency; source cpu in parm
+KVM_S390_INT_EXTERNAL_CALL (vcpu) - sigp external call; source cpu in parm
+
+Note that the vcpu ioctl is asynchronous to vcpu execution.
+
+4.78 KVM_PPC_GET_HTAB_FD
+
+Capability: KVM_CAP_PPC_HTAB_FD
+Architectures: powerpc
+Type: vm ioctl
+Parameters: Pointer to struct kvm_get_htab_fd (in)
+Returns: file descriptor number (>= 0) on success, -1 on error
+
+This returns a file descriptor that can be used either to read out the
+entries in the guest's hashed page table (HPT), or to write entries to
+initialize the HPT.  The returned fd can only be written to if the
+KVM_GET_HTAB_WRITE bit is set in the flags field of the argument, and
+can only be read if that bit is clear.  The argument struct looks like
+this:
+
+/* For KVM_PPC_GET_HTAB_FD */
+struct kvm_get_htab_fd {
+	__u64	flags;
+	__u64	start_index;
+	__u64	reserved[2];
+};
+
+/* Values for kvm_get_htab_fd.flags */
+#define KVM_GET_HTAB_BOLTED_ONLY	((__u64)0x1)
+#define KVM_GET_HTAB_WRITE		((__u64)0x2)
+
+The `start_index' field gives the index in the HPT of the entry at
+which to start reading.  It is ignored when writing.
+
+Reads on the fd will initially supply information about all
+"interesting" HPT entries.  Interesting entries are those with the
+bolted bit set, if the KVM_GET_HTAB_BOLTED_ONLY bit is set, otherwise
+all entries.  When the end of the HPT is reached, the read() will
+return.  If read() is called again on the fd, it will start again from
+the beginning of the HPT, but will only return HPT entries that have
+changed since they were last read.
+
+Data read or written is structured as a header (8 bytes) followed by a
+series of valid HPT entries (16 bytes) each.  The header indicates how
+many valid HPT entries there are and how many invalid entries follow
+the valid entries.  The invalid entries are not represented explicitly
+in the stream.  The header format is:
+
+struct kvm_get_htab_header {
+	__u32	index;
+	__u16	n_valid;
+	__u16	n_invalid;
+};
+
+Writes to the fd create HPT entries starting at the index given in the
+header; first `n_valid' valid entries with contents from the data
+written, then `n_invalid' invalid entries, invalidating any previously
+valid entries found.
+
 
 5. The kvm_run structure
 ------------------------
@@ -2109,7 +2238,8 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO and KVM_EXIT_OSI, the corresponding
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR
+      and KVM_EXIT_PAPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace

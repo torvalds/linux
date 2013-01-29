@@ -86,9 +86,9 @@ static int tps6507x_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct tps6507x_dev *tps6507x;
-	int ret = 0;
 
-	tps6507x = kzalloc(sizeof(struct tps6507x_dev), GFP_KERNEL);
+	tps6507x = devm_kzalloc(&i2c->dev, sizeof(struct tps6507x_dev),
+				GFP_KERNEL);
 	if (tps6507x == NULL)
 		return -ENOMEM;
 
@@ -98,19 +98,8 @@ static int tps6507x_i2c_probe(struct i2c_client *i2c,
 	tps6507x->read_dev = tps6507x_i2c_read_device;
 	tps6507x->write_dev = tps6507x_i2c_write_device;
 
-	ret = mfd_add_devices(tps6507x->dev, -1,
-			      tps6507x_devs, ARRAY_SIZE(tps6507x_devs),
-			      NULL, 0, NULL);
-
-	if (ret < 0)
-		goto err;
-
-	return ret;
-
-err:
-	mfd_remove_devices(tps6507x->dev);
-	kfree(tps6507x);
-	return ret;
+	return mfd_add_devices(tps6507x->dev, -1, tps6507x_devs,
+			       ARRAY_SIZE(tps6507x_devs), NULL, 0, NULL);
 }
 
 static int tps6507x_i2c_remove(struct i2c_client *i2c)
@@ -118,8 +107,6 @@ static int tps6507x_i2c_remove(struct i2c_client *i2c)
 	struct tps6507x_dev *tps6507x = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(tps6507x->dev);
-	kfree(tps6507x);
-
 	return 0;
 }
 

@@ -121,14 +121,12 @@ static int __init uart1_mpp_config(void)
 	kirkwood_mpp_conf(openrd_uart1_mpp_config);
 
 	if (gpio_request(34, "SD_UART1_SEL")) {
-		printk(KERN_ERR "GPIO request failed for SD/UART1 selection"
-				", gpio: 34\n");
+		pr_err("GPIO request 34 failed for SD/UART1 selection\n");
 		return -EIO;
 	}
 
 	if (gpio_request(28, "RS232_RS485_SEL")) {
-		printk(KERN_ERR "GPIO request failed for RS232/RS485 selection"
-				", gpio# 28\n");
+		pr_err("GPIO request 28 failed for RS232/RS485 selection\n");
 		gpio_free(34);
 		return -EIO;
 	}
@@ -185,15 +183,13 @@ static void __init openrd_init(void)
 
 	if (uart1 <= 0) {
 		if (uart1 < 0)
-			printk(KERN_ERR "Invalid kernel parameter to select "
-				"UART1. Defaulting to SD. ERROR CODE: %d\n",
-				uart1);
+			pr_err("Invalid kernel parameter to select UART1. Defaulting to SD. ERROR CODE: %d\n",
+			       uart1);
 
 		/* Select SD
 		 * Pin # 34: 0 => UART1, 1 => SD */
 		if (gpio_request(34, "SD_UART1_SEL")) {
-			printk(KERN_ERR "GPIO request failed for SD/UART1 "
-					"selection, gpio: 34\n");
+			pr_err("GPIO request 34 failed for SD/UART1 selection\n");
 		} else {
 
 			gpio_direction_output(34, 1);

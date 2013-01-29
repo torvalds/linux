@@ -737,24 +737,24 @@
 
 int monitor_card_cd(struct rts51x_chip *chip, u8 card);
 
-void do_remaining_work(struct rts51x_chip *chip);
-void do_reset_sd_card(struct rts51x_chip *chip);
+void rts51x_do_remaining_work(struct rts51x_chip *chip);
+void rts51x_do_rts51x_reset_sd_card(struct rts51x_chip *chip);
 void rts51x_init_cards(struct rts51x_chip *chip);
 void rts51x_release_cards(struct rts51x_chip *chip);
-int switch_ssc_clock(struct rts51x_chip *chip, int clk);
-int switch_normal_clock(struct rts51x_chip *chip, int clk);
-int card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 sec_addr,
+int rts51x_switch_ssc_clock(struct rts51x_chip *chip, int clk);
+int rts51x_switch_normal_clock(struct rts51x_chip *chip, int clk);
+int rts51x_card_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 sec_addr,
 	    u16 sec_cnt);
-u8 get_lun_card(struct rts51x_chip *chip, unsigned int lun);
+u8 rts51x_get_lun_card(struct rts51x_chip *chip, unsigned int lun);
 int rts51x_select_card(struct rts51x_chip *chip, int card);
-void eject_card(struct rts51x_chip *chip, unsigned int lun);
-void trans_dma_enable(enum dma_data_direction dir, struct rts51x_chip *chip,
+void rts51x_eject_card(struct rts51x_chip *chip, unsigned int lun);
+void rts51x_trans_dma_enable(enum dma_data_direction dir, struct rts51x_chip *chip,
 		      u32 byte_cnt, u8 pack_size);
-int enable_card_clock(struct rts51x_chip *chip, u8 card);
-int card_power_on(struct rts51x_chip *chip, u8 card);
-int toggle_gpio(struct rts51x_chip *chip, u8 gpio);
-int turn_on_led(struct rts51x_chip *chip, u8 gpio);
-int turn_off_led(struct rts51x_chip *chip, u8 gpio);
+int rts51x_enable_card_clock(struct rts51x_chip *chip, u8 card);
+int rts51x_card_power_on(struct rts51x_chip *chip, u8 card);
+int rts51x_toggle_gpio(struct rts51x_chip *chip, u8 gpio);
+int rts51x_turn_on_led(struct rts51x_chip *chip, u8 gpio);
+int rts51x_turn_off_led(struct rts51x_chip *chip, u8 gpio);
 
 static inline int check_card_ready(struct rts51x_chip *chip, unsigned int lun)
 {
@@ -830,9 +830,9 @@ static inline int switch_clock(struct rts51x_chip *chip, int clk)
 	int retval = 0;
 
 	if (chip->asic_code)
-		retval = switch_ssc_clock(chip, clk);
+		retval = rts51x_switch_ssc_clock(chip, clk);
 	else
-		retval = switch_normal_clock(chip, clk);
+		retval = rts51x_switch_normal_clock(chip, clk);
 
 	return retval;
 }

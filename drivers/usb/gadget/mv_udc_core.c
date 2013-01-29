@@ -1012,7 +1012,7 @@ static void udc_clock_enable(struct mv_udc *udc)
 	unsigned int i;
 
 	for (i = 0; i < udc->clknum; i++)
-		clk_enable(udc->clk[i]);
+		clk_prepare_enable(udc->clk[i]);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
@@ -1020,7 +1020,7 @@ static void udc_clock_disable(struct mv_udc *udc)
 	unsigned int i;
 
 	for (i = 0; i < udc->clknum; i++)
-		clk_disable(udc->clk[i]);
+		clk_disable_unprepare(udc->clk[i]);
 }
 
 static void udc_stop(struct mv_udc *udc)
@@ -2128,7 +2128,7 @@ static void gadget_release(struct device *_dev)
 	complete(udc->done);
 }
 
-static int __devexit mv_udc_remove(struct platform_device *dev)
+static int mv_udc_remove(struct platform_device *dev)
 {
 	struct mv_udc *udc = the_controller;
 	int clk_i;
@@ -2188,7 +2188,7 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit mv_udc_probe(struct platform_device *dev)
+static int mv_udc_probe(struct platform_device *dev)
 {
 	struct mv_usb_platform_data *pdata = dev->dev.platform_data;
 	struct mv_udc *udc;

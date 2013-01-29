@@ -226,6 +226,31 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
 
+static const char *arizona_vol_ramp_text[] = {
+	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
+	"15ms/6dB", "30ms/6dB",
+};
+
+const struct soc_enum arizona_in_vd_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_INPUT_VOLUME_RAMP,
+			ARIZONA_IN_VD_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_in_vd_ramp);
+
+const struct soc_enum arizona_in_vi_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_INPUT_VOLUME_RAMP,
+			ARIZONA_IN_VI_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_in_vi_ramp);
+
+const struct soc_enum arizona_out_vd_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_VOLUME_RAMP,
+			ARIZONA_OUT_VD_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_out_vd_ramp);
+
+const struct soc_enum arizona_out_vi_ramp =
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_VOLUME_RAMP,
+			ARIZONA_OUT_VI_RAMP_SHIFT, 7, arizona_vol_ramp_text);
+EXPORT_SYMBOL_GPL(arizona_out_vi_ramp);
+
 static const char *arizona_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
@@ -268,7 +293,7 @@ EXPORT_SYMBOL_GPL(arizona_out_ev);
 static unsigned int arizona_sysclk_48k_rates[] = {
 	6144000,
 	12288000,
-	22579200,
+	24576000,
 	49152000,
 	73728000,
 	98304000,
@@ -278,7 +303,7 @@ static unsigned int arizona_sysclk_48k_rates[] = {
 static unsigned int arizona_sysclk_44k1_rates[] = {
 	5644800,
 	11289600,
-	24576000,
+	22579200,
 	45158400,
 	67737600,
 	90316800,
@@ -380,6 +405,18 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	case 49152000:
 		val |= 3 << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
+	case 67737600:
+	case 73728000:
+		val |= 4 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
+	case 90316800:
+	case 98304000:
+		val |= 5 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
+	case 135475200:
+	case 147456000:
+		val |= 6 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -409,14 +446,8 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mode = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mode = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mode = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mode = 3;
 		break;
 	default:
 		arizona_aif_err(dai, "Unsupported DAI format %d\n",
@@ -677,7 +708,8 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, ARIZONA_ASYNC_SAMPLE_RATE_1,
 				    ARIZONA_ASYNC_SAMPLE_RATE_MASK, sr_val);
 		snd_soc_update_bits(codec, base + ARIZONA_AIF_RATE_CTRL,
-				    ARIZONA_AIF1_RATE_MASK, 8);
+				    ARIZONA_AIF1_RATE_MASK,
+				    8 << ARIZONA_AIF1_RATE_SHIFT);
 		break;
 	default:
 		arizona_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
@@ -737,6 +769,9 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 		return -EBUSY;
 	}
 
+	dev_dbg(codec->dev, "Setting AIF%d to %s\n", dai->id + 1,
+		arizona_dai_clk_str(clk_id));
+
 	memset(&routes, 0, sizeof(routes));
 	routes[0].sink = dai->driver->capture.stream_name;
 	routes[1].sink = dai->driver->playback.stream_name;
@@ -748,6 +783,8 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 	routes[0].source = arizona_dai_clk_str(clk_id);
 	routes[1].source = arizona_dai_clk_str(clk_id);
 	snd_soc_dapm_add_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+
+	dai_priv->clk = clk_id;
 
 	return snd_soc_dapm_sync(&codec->dapm);
 }
@@ -925,6 +962,9 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 	bool ena;
 	int ret;
 
+	if (fll->fref == Fref && fll->fout == Fout)
+		return 0;
+
 	ret = regmap_read(arizona->regmap, fll->base + 1, &reg);
 	if (ret != 0) {
 		arizona_fll_err(fll, "Failed to read current state: %d\n",
@@ -970,6 +1010,9 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		if (ena)
 			pm_runtime_put_autosuspend(arizona->dev);
 
+		fll->fref = Fref;
+		fll->fout = Fout;
+
 		return 0;
 	}
 
@@ -998,9 +1041,12 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 				   ARIZONA_FLL1_SYNC_ENA);
 
 	ret = wait_for_completion_timeout(&fll->ok,
-					  msecs_to_jiffies(25));
+					  msecs_to_jiffies(250));
 	if (ret == 0)
 		arizona_fll_warn(fll, "Timed out waiting for lock\n");
+
+	fll->fref = Fref;
+	fll->fout = Fout;
 
 	return 0;
 }

@@ -18,9 +18,29 @@
 #define EDAC_VERSION "Ver: 3.0.0"
 
 #ifdef CONFIG_EDAC_DEBUG
+
+static int edac_set_debug_level(const char *buf, struct kernel_param *kp)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 4)
+		return -EINVAL;
+
+	return param_set_int(buf, kp);
+}
+
 /* Values of 0 to 4 will generate output */
 int edac_debug_level = 2;
 EXPORT_SYMBOL_GPL(edac_debug_level);
+
+module_param_call(edac_debug_level, edac_set_debug_level, param_get_int,
+		  &edac_debug_level, 0644);
+MODULE_PARM_DESC(edac_debug_level, "EDAC debug level: [0-4], default: 2");
 #endif
 
 /* scope is to module level only */
@@ -132,10 +152,3 @@ module_exit(edac_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Doug Thompson www.softwarebitmaker.com, et al");
 MODULE_DESCRIPTION("Core library routines for EDAC reporting");
-
-/* refer to *_sysfs.c files for parameters that are exported via sysfs */
-
-#ifdef CONFIG_EDAC_DEBUG
-module_param(edac_debug_level, int, 0644);
-MODULE_PARM_DESC(edac_debug_level, "Debug level");
-#endif

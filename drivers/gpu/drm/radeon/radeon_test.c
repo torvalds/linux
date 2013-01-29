@@ -26,16 +26,31 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 
+#define RADEON_TEST_COPY_BLIT 1
+#define RADEON_TEST_COPY_DMA  0
+
 
 /* Test BO GTT->VRAM and VRAM->GTT GPU copies across the whole GTT aperture */
-void radeon_test_moves(struct radeon_device *rdev)
+static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
 {
 	struct radeon_bo *vram_obj = NULL;
 	struct radeon_bo **gtt_obj = NULL;
 	struct radeon_fence *fence = NULL;
 	uint64_t gtt_addr, vram_addr;
 	unsigned i, n, size;
-	int r;
+	int r, ring;
+
+	switch (flag) {
+	case RADEON_TEST_COPY_DMA:
+		ring = radeon_copy_dma_ring_index(rdev);
+		break;
+	case RADEON_TEST_COPY_BLIT:
+		ring = radeon_copy_blit_ring_index(rdev);
+		break;
+	default:
+		DRM_ERROR("Unknown copy method\n");
+		return;
+	}
 
 	size = 1024 * 1024;
 
@@ -106,7 +121,10 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(gtt_obj[i]);
 
-		r = radeon_copy(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
+		if (ring == R600_RING_TYPE_DMA_INDEX)
+			r = radeon_copy_dma(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
+		else
+			r = radeon_copy_blit(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
 			goto out_cleanup;
@@ -149,7 +167,10 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(vram_obj);
 
-		r = radeon_copy(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
+		if (ring == R600_RING_TYPE_DMA_INDEX)
+			r = radeon_copy_dma(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
+		else
+			r = radeon_copy_blit(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
 			goto out_cleanup;
@@ -221,6 +242,14 @@ out_cleanup:
 	if (r) {
 		printk(KERN_WARNING "Error while testing BO move.\n");
 	}
+}
+
+void radeon_test_moves(struct radeon_device *rdev)
+{
+	if (rdev->asic->copy.dma)
+		radeon_do_test_moves(rdev, RADEON_TEST_COPY_DMA);
+	if (rdev->asic->copy.blit)
+		radeon_do_test_moves(rdev, RADEON_TEST_COPY_BLIT);
 }
 
 void radeon_test_ring_sync(struct radeon_device *rdev,

@@ -783,7 +783,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 
 	err = ext4_journal_get_write_access(handle, gdb_bh);
 	if (unlikely(err))
-		goto exit_sbh;
+		goto exit_dind;
 
 	err = ext4_journal_get_write_access(handle, dind);
 	if (unlikely(err))
@@ -792,7 +792,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	/* ext4_reserve_inode_write() gets a reference on the iloc */
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
 	if (unlikely(err))
-		goto exit_dindj;
+		goto exit_dind;
 
 	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
 				     sizeof(struct buffer_head *),
@@ -846,12 +846,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 
 exit_inode:
 	ext4_kvfree(n_group_desc);
-	/* ext4_handle_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
-exit_dindj:
-	/* ext4_handle_release_buffer(handle, dind); */
-exit_sbh:
-	/* ext4_handle_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
 exit_dind:
 	brelse(dind);
 exit_bh:
@@ -969,14 +964,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	}
 
 	for (i = 0; i < reserved_gdb; i++) {
-		if ((err = ext4_journal_get_write_access(handle, primary[i]))) {
-			/*
-			int j;
-			for (j = 0; j < i; j++)
-				ext4_handle_release_buffer(handle, primary[j]);
-			 */
+		if ((err = ext4_journal_get_write_access(handle, primary[i])))
 			goto exit_bh;
-		}
 	}
 
 	if ((err = ext4_reserve_inode_write(handle, inode, &iloc)))

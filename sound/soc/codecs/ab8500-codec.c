@@ -2356,7 +2356,7 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-struct snd_soc_dai_driver ab8500_codec_dai[] = {
+static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	{
 		.name = "ab8500-codec-dai.0",
 		.id = 0,
@@ -2554,7 +2554,7 @@ static struct snd_soc_codec_driver ab8500_codec_driver = {
 	.num_dapm_routes =	ARRAY_SIZE(ab8500_dapm_routes),
 };
 
-static int __devinit ab8500_codec_driver_probe(struct platform_device *pdev)
+static int ab8500_codec_driver_probe(struct platform_device *pdev)
 {
 	int status;
 	struct ab8500_codec_drvdata *drvdata;
@@ -2580,7 +2580,7 @@ static int __devinit ab8500_codec_driver_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int __devexit ab8500_codec_driver_remove(struct platform_device *pdev)
+static int ab8500_codec_driver_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "%s Enter.\n", __func__);
 
@@ -2595,7 +2595,7 @@ static struct platform_driver ab8500_codec_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ab8500_codec_driver_probe,
-	.remove		= __devexit_p(ab8500_codec_driver_remove),
+	.remove		= ab8500_codec_driver_remove,
 	.suspend	= NULL,
 	.resume		= NULL,
 };

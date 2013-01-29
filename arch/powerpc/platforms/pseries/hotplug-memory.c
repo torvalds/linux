@@ -16,7 +16,6 @@
 
 #include <asm/firmware.h>
 #include <asm/machdep.h>
-#include <asm/pSeries_reconfig.h>
 #include <asm/sparsemem.h>
 
 static unsigned long get_memblock_size(void)
@@ -187,42 +186,69 @@ static int pseries_add_memory(struct device_node *np)
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int pseries_drconf_memory(unsigned long *base, unsigned int action)
+static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 {
+	struct of_drconf_cell *new_drmem, *old_drmem;
 	unsigned long memblock_size;
-	int rc;
+	u32 entries;
+	u32 *p;
+	int i, rc = -EINVAL;
 
 	memblock_size = get_memblock_size();
 	if (!memblock_size)
 		return -EINVAL;
 
-	if (action == PSERIES_DRCONF_MEM_ADD) {
-		rc = memblock_add(*base, memblock_size);
-		rc = (rc < 0) ? -EINVAL : 0;
-	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
-		rc = pseries_remove_memblock(*base, memblock_size);
-	} else {
-		rc = -EINVAL;
+	p = (u32 *)of_get_property(pr->dn, "ibm,dynamic-memory", NULL);
+	if (!p)
+		return -EINVAL;
+
+	/* The first int of the property is the number of lmb's described
+	 * by the property. This is followed by an array of of_drconf_cell
+	 * entries. Get the niumber of entries and skip to the array of
+	 * of_drconf_cell's.
+	 */
+	entries = *p++;
+	old_drmem = (struct of_drconf_cell *)p;
+
+	p = (u32 *)pr->prop->value;
+	p++;
+	new_drmem = (struct of_drconf_cell *)p;
+
+	for (i = 0; i < entries; i++) {
+		if ((old_drmem[i].flags & DRCONF_MEM_ASSIGNED) &&
+		    (!(new_drmem[i].flags & DRCONF_MEM_ASSIGNED))) {
+			rc = pseries_remove_memblock(old_drmem[i].base_addr,
+						     memblock_size);
+			break;
+		} else if ((!(old_drmem[i].flags & DRCONF_MEM_ASSIGNED)) &&
+			   (new_drmem[i].flags & DRCONF_MEM_ASSIGNED)) {
+			rc = memblock_add(old_drmem[i].base_addr,
+					  memblock_size);
+			rc = (rc < 0) ? -EINVAL : 0;
+			break;
+		}
 	}
 
 	return rc;
 }
 
 static int pseries_memory_notifier(struct notifier_block *nb,
-				unsigned long action, void *node)
+				   unsigned long action, void *node)
 {
+	struct of_prop_reconfig *pr;
 	int err = 0;
 
 	switch (action) {
-	case PSERIES_RECONFIG_ADD:
+	case OF_RECONFIG_ATTACH_NODE:
 		err = pseries_add_memory(node);
 		break;
-	case PSERIES_RECONFIG_REMOVE:
+	case OF_RECONFIG_DETACH_NODE:
 		err = pseries_remove_memory(node);
 		break;
-	case PSERIES_DRCONF_MEM_ADD:
-	case PSERIES_DRCONF_MEM_REMOVE:
-		err = pseries_drconf_memory(node, action);
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		pr = (struct of_prop_reconfig *)node;
+		if (!strcmp(pr->prop->name, "ibm,dynamic-memory"))
+			err = pseries_update_drconf_memory(pr);
 		break;
 	}
 	return notifier_from_errno(err);
@@ -235,7 +261,7 @@ static struct notifier_block pseries_mem_nb = {
 static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		pSeries_reconfig_notifier_register(&pseries_mem_nb);
+		of_reconfig_notifier_register(&pseries_mem_nb);
 
 	return 0;
 }

@@ -611,10 +611,6 @@ static void __cpuinit intel_tlb_lookup(const unsigned char desc)
 
 static void __cpuinit intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
 {
-	if (!cpu_has_invlpg) {
-		tlb_flushall_shift = -1;
-		return;
-	}
 	switch ((c->x86 << 8) + c->x86_model) {
 	case 0x60f: /* original 65 nm celeron/pentium/core2/xeon, "Merom"/"Conroe" */
 	case 0x616: /* single-core 65 nm celeron/core2solo "Merom-L"/"Conroe-L" */

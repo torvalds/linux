@@ -61,8 +61,8 @@ static void stmmac_default_data(void)
  * matches the device. The probe functions returns zero when the driver choose
  * to take "ownership" of the device or an error code(-ve no) otherwise.
  */
-static int __devinit stmmac_pci_probe(struct pci_dev *pdev,
-				      const struct pci_device_id *id)
+static int stmmac_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *id)
 {
 	int ret = 0;
 	void __iomem *addr = NULL;
@@ -130,7 +130,7 @@ err_out_req_reg_failed:
  * Description: this function calls the main to free the net resources
  * and releases the PCI resources.
  */
-static void __devexit stmmac_pci_remove(struct pci_dev *pdev)
+static void stmmac_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -182,7 +182,7 @@ struct pci_driver stmmac_pci_driver = {
 	.name = STMMAC_RESOURCE_NAME,
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
-	.remove = __devexit_p(stmmac_pci_remove),
+	.remove = stmmac_pci_remove,
 #ifdef CONFIG_PM
 	.suspend = stmmac_pci_suspend,
 	.resume = stmmac_pci_resume,

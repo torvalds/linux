@@ -70,12 +70,12 @@ static inline void __cpuinit arch_counter_enable_user_access(void)
 {
 	u32 cntkctl;
 
-	/* Disable user access to the timers and the virtual counter. */
+	/* Disable user access to the timers and the physical counter. */
 	asm volatile("mrs	%0, cntkctl_el1" : "=r" (cntkctl));
-	cntkctl &= ~((3 << 8) | (1 << 1));
+	cntkctl &= ~((3 << 8) | (1 << 0));
 
-	/* Enable user access to the physical counter and frequency. */
-	cntkctl |= 1;
+	/* Enable user access to the virtual counter and frequency. */
+	cntkctl |= (1 << 1);
 	asm volatile("msr	cntkctl_el1, %0" : : "r" (cntkctl));
 }
 

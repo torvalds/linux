@@ -860,8 +860,10 @@ static ssize_t show_infos(struct device *dev,
 	/*
 	 * The HWRS method return informations about the hardware.
 	 * 0x80 bit is for WLAN, 0x100 for Bluetooth.
+	 * 0x40 for WWAN, 0x10 for WIMAX.
 	 * The significance of others is yet to be found.
-	 * If we don't find the method, we assume the device are present.
+	 * We don't currently use this for device detection, and it
+	 * takes several seconds to run on some systems.
 	 */
 	rv = acpi_evaluate_integer(asus->handle, "HWRS", NULL, &temp);
 	if (!ACPI_FAILURE(rv))
@@ -1682,7 +1684,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
-	unsigned long long bsts_result, hwrs_result;
+	unsigned long long bsts_result;
 	char *string = NULL;
 	acpi_status status;
 
@@ -1741,19 +1743,8 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 		return -ENOMEM;
 	}
 
-	if (*string)
+	if (string)
 		pr_notice("  %s model detected\n", string);
-
-	/*
-	 * The HWRS method return informations about the hardware.
-	 * 0x80 bit is for WLAN, 0x100 for Bluetooth,
-	 * 0x40 for WWAN, 0x10 for WIMAX.
-	 * The significance of others is yet to be found.
-	 */
-	status =
-	    acpi_evaluate_integer(asus->handle, "HWRS", NULL, &hwrs_result);
-	if (!ACPI_FAILURE(status))
-		pr_notice("  HWRS returned %x", (int)hwrs_result);
 
 	if (!acpi_check_handle(asus->handle, METHOD_WL_STATUS, NULL))
 		asus->have_rsts = true;
@@ -1763,7 +1754,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	return AE_OK;
 }
 
-static int __devinit asus_acpi_init(struct asus_laptop *asus)
+static int asus_acpi_init(struct asus_laptop *asus)
 {
 	int result = 0;
 
@@ -1823,7 +1814,7 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	return result;
 }
 
-static void __devinit asus_dmi_check(void)
+static void asus_dmi_check(void)
 {
 	const char *model;
 
@@ -1839,7 +1830,7 @@ static void __devinit asus_dmi_check(void)
 
 static bool asus_device_present;
 
-static int __devinit asus_acpi_add(struct acpi_device *device)
+static int asus_acpi_add(struct acpi_device *device)
 {
 	struct asus_laptop *asus;
 	int result;

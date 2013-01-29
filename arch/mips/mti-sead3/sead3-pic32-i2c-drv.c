@@ -304,8 +304,7 @@ static void i2c_platform_disable(struct i2c_platform_data *priv)
 	pr_debug("i2c_platform_disable\n");
 }
 
-static int __devinit
-i2c_platform_probe(struct platform_device *pdev)
+static int i2c_platform_probe(struct platform_device *pdev)
 {
 	struct i2c_platform_data *priv;
 	struct resource *r;
@@ -362,8 +361,7 @@ out:
 	return ret;
 }
 
-static int __devexit
-i2c_platform_remove(struct platform_device *pdev)
+static int i2c_platform_remove(struct platform_device *pdev)
 {
 	struct i2c_platform_data *priv = platform_get_drvdata(pdev);
 
@@ -408,7 +406,7 @@ static struct platform_driver i2c_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= i2c_platform_probe,
-	.remove		= __devexit_p(i2c_platform_remove),
+	.remove		= i2c_platform_remove,
 	.suspend	= i2c_platform_suspend,
 	.resume		= i2c_platform_resume,
 };

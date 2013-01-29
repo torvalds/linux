@@ -146,4 +146,14 @@ void da9052_device_exit(struct da9052 *da9052);
 
 extern struct regmap_config da9052_regmap_config;
 
+int da9052_irq_init(struct da9052 *da9052);
+int da9052_irq_exit(struct da9052 *da9052);
+int da9052_request_irq(struct da9052 *da9052, int irq, char *name,
+			   irq_handler_t handler, void *data);
+void da9052_free_irq(struct da9052 *da9052, int irq, void *data);
+
+int da9052_enable_irq(struct da9052 *da9052, int irq);
+int da9052_disable_irq(struct da9052 *da9052, int irq);
+int da9052_disable_irq_nosync(struct da9052 *da9052, int irq);
+
 #endif /* __MFD_DA9052_DA9052_H */

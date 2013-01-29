@@ -32,8 +32,13 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 
-#include <plat/cpu.h>
 #include "omap-pcm.h"
+
+#ifdef CONFIG_ARCH_OMAP1
+#define pcm_omap1510()	cpu_is_omap1510()
+#else
+#define pcm_omap1510()	0
+#endif
 
 static const struct snd_pcm_hardware omap_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
@@ -159,7 +164,7 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	snd_pcm_uframes_t offset;
 
-	if (cpu_is_omap1510())
+	if (pcm_omap1510())
 		offset = snd_dmaengine_pcm_pointer_no_residue(substream);
 	else
 		offset = snd_dmaengine_pcm_pointer(substream);
@@ -297,13 +302,13 @@ static struct snd_soc_platform_driver omap_soc_platform = {
 	.pcm_free	= omap_pcm_free_dma_buffers,
 };
 
-static __devinit int omap_pcm_probe(struct platform_device *pdev)
+static int omap_pcm_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev,
 			&omap_soc_platform);
 }
 
-static int __devexit omap_pcm_remove(struct platform_device *pdev)
+static int omap_pcm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -316,7 +321,7 @@ static struct platform_driver omap_pcm_driver = {
 	},
 
 	.probe = omap_pcm_probe,
-	.remove = __devexit_p(omap_pcm_remove),
+	.remove = omap_pcm_remove,
 };
 
 module_platform_driver(omap_pcm_driver);

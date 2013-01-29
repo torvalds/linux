@@ -179,7 +179,6 @@ static int __init ttyprintk_init(void)
 {
 	int ret = -ENOMEM;
 
-	tty_port_init(&tpk_port.port);
 	tpk_port.port.ops = &null_ops;
 	mutex_init(&tpk_port.port_write_mutex);
 
@@ -189,6 +188,8 @@ static int __init ttyprintk_init(void)
 			TTY_DRIVER_UNNUMBERED_NODE);
 	if (IS_ERR(ttyprintk_driver))
 		return PTR_ERR(ttyprintk_driver);
+
+	tty_port_init(&tpk_port.port);
 
 	ttyprintk_driver->driver_name = "ttyprintk";
 	ttyprintk_driver->name = "ttyprintk";
@@ -211,6 +212,7 @@ static int __init ttyprintk_init(void)
 error:
 	tty_unregister_driver(ttyprintk_driver);
 	put_tty_driver(ttyprintk_driver);
+	tty_port_destroy(&tpk_port.port);
 	ttyprintk_driver = NULL;
 	return ret;
 }

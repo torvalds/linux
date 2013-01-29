@@ -435,8 +435,7 @@ void sn_generate_path(struct pci_bus *pci_bus, char *address)
 						geo_slot(geoid));
 }
 
-void __devinit
-sn_pci_fixup_bus(struct pci_bus *bus)
+void sn_pci_fixup_bus(struct pci_bus *bus)
 {
 
 	if (SN_ACPI_BASE_SUPPORT())

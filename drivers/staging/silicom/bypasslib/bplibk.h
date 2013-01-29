@@ -28,16 +28,7 @@
         ((pid==INTEL_PEG4BPII_PID)||   \
           (pid==INTEL_PEG4BPFII_PID)))
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-#define pci_get_class pci_find_class
-
-#define pci_get_device pci_find_device
-
-#endif
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
 #define EXPORT_SYMBOL_NOVERS EXPORT_SYMBOL
-#endif
 
 #ifdef BP_VENDOR_SUPPORT
 char *bp_desc_array[] =

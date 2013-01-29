@@ -24,6 +24,7 @@
  */
 
 #include "cx23885.h"
+#include "netup-init.h"
 
 static void i2c_av_write(struct i2c_adapter *i2c, u16 reg, u8 val)
 {

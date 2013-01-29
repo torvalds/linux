@@ -236,7 +236,7 @@ static irqreturn_t gab_charged(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit gab_probe(struct platform_device *pdev)
+static int gab_probe(struct platform_device *pdev)
 {
 	struct gab *adc_bat;
 	struct power_supply *psy;
@@ -279,7 +279,8 @@ static int __devinit gab_probe(struct platform_device *pdev)
 	}
 
 	memcpy(psy->properties, gab_props, sizeof(gab_props));
-	properties = psy->properties + sizeof(gab_props);
+	properties = (enum power_supply_property *)
+				((char *)psy->properties + sizeof(gab_props));
 
 	/*
 	 * getting channel from iio and copying the battery properties
@@ -327,7 +328,7 @@ static int __devinit gab_probe(struct platform_device *pdev)
 		ret = request_any_context_irq(irq, gab_charged,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"battery charged", adc_bat);
-		if (ret)
+		if (ret < 0)
 			goto err_gpio;
 	}
 
@@ -351,7 +352,7 @@ first_mem_fail:
 	return ret;
 }
 
-static int __devexit gab_remove(struct platform_device *pdev)
+static int gab_remove(struct platform_device *pdev)
 {
 	int chan;
 	struct gab *adc_bat = platform_get_drvdata(pdev);
@@ -413,7 +414,7 @@ static struct platform_driver gab_driver = {
 		.pm	= GAB_PM_OPS
 	},
 	.probe		= gab_probe,
-	.remove		= __devexit_p(gab_remove),
+	.remove		= gab_remove,
 };
 module_platform_driver(gab_driver);
 

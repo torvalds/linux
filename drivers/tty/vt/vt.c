@@ -539,25 +539,25 @@ static void insert_char(struct vc_data *vc, unsigned int nr)
 {
 	unsigned short *p = (unsigned short *) vc->vc_pos;
 
-	scr_memmovew(p + nr, p, vc->vc_cols - vc->vc_x);
+	scr_memmovew(p + nr, p, (vc->vc_cols - vc->vc_x) * 2);
 	scr_memsetw(p, vc->vc_video_erase_char, nr * 2);
 	vc->vc_need_wrap = 0;
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p,
-			(vc->vc_cols - vc->vc_x) / 2 + 1);
+			vc->vc_cols - vc->vc_x);
 }
 
 static void delete_char(struct vc_data *vc, unsigned int nr)
 {
 	unsigned short *p = (unsigned short *) vc->vc_pos;
 
-	scr_memcpyw(p, p + nr, vc->vc_cols - vc->vc_x - nr);
+	scr_memcpyw(p, p + nr, (vc->vc_cols - vc->vc_x - nr) * 2);
 	scr_memsetw(p + vc->vc_cols - vc->vc_x - nr, vc->vc_video_erase_char,
 			nr * 2);
 	vc->vc_need_wrap = 0;
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p,
-			(vc->vc_cols - vc->vc_x) / 2);
+			vc->vc_cols - vc->vc_x);
 }
 
 static int softcursor_original;
@@ -779,6 +779,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 		con_set_default_unimap(vc);
 	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
 	    if (!vc->vc_screenbuf) {
+		tty_port_destroy(&vc->port);
 		kfree(vc);
 		vc_cons[currcons].d = NULL;
 		return -ENOMEM;
@@ -999,8 +1000,10 @@ void vc_deallocate(unsigned int currcons)
 		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
 		kfree(vc->vc_screenbuf);
-		if (currcons >= MIN_NR_CONSOLES)
+		if (currcons >= MIN_NR_CONSOLES) {
+			tty_port_destroy(&vc->port);
 			kfree(vc);
+		}
 		vc_cons[currcons].d = NULL;
 	}
 }

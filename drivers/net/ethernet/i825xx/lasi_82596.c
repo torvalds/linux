@@ -150,7 +150,7 @@ static void mpu_port(struct net_device *dev, int c, dma_addr_t x)
 
 #define LAN_PROM_ADDR	0xF0810000
 
-static int __devinit
+static int
 lan_init_chip(struct parisc_device *dev)
 {
 	struct	net_device *netdevice;
@@ -195,7 +195,7 @@ lan_init_chip(struct parisc_device *dev)
 	return retval;
 }
 
-static int __devexit lan_remove_chip (struct parisc_device *pdev)
+static int lan_remove_chip(struct parisc_device *pdev)
 {
 	struct net_device *dev = parisc_get_drvdata(pdev);
 	struct i596_private *lp = netdev_priv(dev);
@@ -219,10 +219,10 @@ static struct parisc_driver lan_driver = {
 	.name		= "lasi_82596",
 	.id_table	= lan_tbl,
 	.probe		= lan_init_chip,
-	.remove         = __devexit_p(lan_remove_chip),
+	.remove         = lan_remove_chip,
 };
 
-static int __devinit lasi_82596_init(void)
+static int lasi_82596_init(void)
 {
 	printk(KERN_INFO LASI_82596_DRIVER_VERSION "\n");
 	return register_parisc_driver(&lan_driver);

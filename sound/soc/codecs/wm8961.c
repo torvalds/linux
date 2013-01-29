@@ -937,8 +937,8 @@ static const struct regmap_config wm8961_regmap = {
 	.readable_reg = wm8961_readable,
 };
 
-static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8961_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8961_priv *wm8961;
 	unsigned int val;
@@ -993,7 +993,7 @@ static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int wm8961_i2c_remove(struct i2c_client *client)
+static int wm8961_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -1012,7 +1012,7 @@ static struct i2c_driver wm8961_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8961_i2c_probe,
-	.remove =   __devexit_p(wm8961_i2c_remove),
+	.remove =   wm8961_i2c_remove,
 	.id_table = wm8961_i2c_id,
 };
 

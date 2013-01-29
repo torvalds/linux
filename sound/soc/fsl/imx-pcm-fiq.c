@@ -29,7 +29,6 @@
 
 #include <asm/fiq.h>
 
-#include <mach/irqs.h>
 #include <linux/platform_data/asoc-imx-ssi.h>
 
 #include "imx-ssi.h"
@@ -282,7 +281,7 @@ static struct snd_soc_platform_driver imx_soc_platform_fiq = {
 	.pcm_free	= imx_pcm_fiq_free,
 };
 
-static int __devinit imx_soc_platform_probe(struct platform_device *pdev)
+static int imx_soc_platform_probe(struct platform_device *pdev)
 {
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 	int ret;
@@ -316,7 +315,7 @@ failed_register:
 	return ret;
 }
 
-static int __devexit imx_soc_platform_remove(struct platform_device *pdev)
+static int imx_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -329,7 +328,7 @@ static struct platform_driver imx_pcm_driver = {
 	},
 
 	.probe = imx_soc_platform_probe,
-	.remove = __devexit_p(imx_soc_platform_remove),
+	.remove = imx_soc_platform_remove,
 };
 
 module_platform_driver(imx_pcm_driver);

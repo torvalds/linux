@@ -429,7 +429,7 @@ void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(omap_mcpdm_configure_dn_offsets);
 
-static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
+static int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
@@ -487,7 +487,7 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
 }
 
-static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
+static int asoc_mcpdm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&pdev->dev);
 	return 0;
@@ -507,7 +507,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 	},
 
 	.probe	= asoc_mcpdm_probe,
-	.remove	= __devexit_p(asoc_mcpdm_remove),
+	.remove	= asoc_mcpdm_remove,
 };
 
 module_platform_driver(asoc_mcpdm_driver);

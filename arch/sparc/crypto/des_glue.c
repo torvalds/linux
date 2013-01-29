@@ -100,6 +100,7 @@ static int __ecb_crypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (encrypt)
 		des_sparc64_load_keys(&ctx->encrypt_expkey[0]);
@@ -147,6 +148,7 @@ static int cbc_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	des_sparc64_load_keys(&ctx->encrypt_expkey[0]);
 	while ((nbytes = walk.nbytes)) {
@@ -177,6 +179,7 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	des_sparc64_load_keys(&ctx->decrypt_expkey[0]);
 	while ((nbytes = walk.nbytes)) {
@@ -266,6 +269,7 @@ static int __ecb3_crypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (encrypt)
 		K = &ctx->encrypt_expkey[0];
@@ -317,6 +321,7 @@ static int cbc3_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	K = &ctx->encrypt_expkey[0];
 	des3_ede_sparc64_load_keys(K);
@@ -352,6 +357,7 @@ static int cbc3_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	K = &ctx->decrypt_expkey[0];
 	des3_ede_sparc64_load_keys(K);

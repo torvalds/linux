@@ -141,8 +141,6 @@ struct ttm_tt;
  * struct ttm_buffer_object
  *
  * @bdev: Pointer to the buffer object device structure.
- * @buffer_start: The virtual user-space start address of ttm_bo_type_user
- * buffers.
  * @type: The bo type.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
@@ -172,7 +170,6 @@ struct ttm_tt;
  * @seq_valid: The value of @val_seq is valid. This value is protected by
  * the bo_device::lru_lock.
  * @reserved: Deadlock-free lock used for synchronization state transitions.
- * @sync_obj_arg: Opaque argument to synchronization object function.
  * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
  * @vm_rb: Rb node for the vm rb tree.
@@ -200,7 +197,6 @@ struct ttm_buffer_object {
 
 	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
-	unsigned long buffer_start;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
 	unsigned long num_pages;
@@ -255,7 +251,6 @@ struct ttm_buffer_object {
 	 * checking NULL while reserved but not holding the mentioned lock.
 	 */
 
-	void *sync_obj_arg;
 	void *sync_obj;
 	unsigned long priv_flags;
 
@@ -342,7 +337,6 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * @bo: The buffer object.
  * @placement: Proposed placement for the buffer object.
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Changes placement and caching policy of the buffer object
@@ -355,7 +349,7 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  */
 extern int ttm_bo_validate(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
-				bool interruptible, bool no_wait_reserve,
+				bool interruptible,
 				bool no_wait_gpu);
 
 /**
@@ -429,8 +423,9 @@ extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
  * @no_wait: Return immediately if buffer is busy.
  *
  * Synchronizes a buffer object for CPU RW access. This means
- * blocking command submission that affects the buffer and
- * waiting for buffer idle. This lock is recursive.
+ * command submission that affects the buffer will return -EBUSY
+ * until ttm_bo_synccpu_write_release is called.
+ *
  * Returns
  * -EBUSY if the buffer is busy and no_wait is true.
  * -ERESTARTSYS if interrupted by a signal.
@@ -472,8 +467,6 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * @type: Requested type of buffer object.
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
- * @buffer_start: Virtual address of user space data backing a
- * user buffer object.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
@@ -505,7 +498,6 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
 			enum ttm_bo_type type,
 			struct ttm_placement *placement,
 			uint32_t page_alignment,
-			unsigned long buffer_start,
 			bool interrubtible,
 			struct file *persistent_swap_storage,
 			size_t acc_size,
@@ -521,8 +513,6 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
  * @type: Requested type of buffer object.
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
- * @buffer_start: Virtual address of user space data backing a
- * user buffer object.
  * @interruptible: If needing to sleep while waiting for GPU resources,
  * sleep interruptible.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
@@ -545,7 +535,6 @@ extern int ttm_bo_create(struct ttm_bo_device *bdev,
 				enum ttm_bo_type type,
 				struct ttm_placement *placement,
 				uint32_t page_alignment,
-				unsigned long buffer_start,
 				bool interruptible,
 				struct file *persistent_swap_storage,
 				struct ttm_buffer_object **p_bo);
@@ -735,5 +724,19 @@ extern ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 			 size_t count, loff_t *f_pos, bool write);
 
 extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
+
+/**
+ * ttm_bo_is_reserved - return an indication if a ttm buffer object is reserved
+ *
+ * @bo:     The buffer object to check.
+ *
+ * This function returns an indication if a bo is reserved or not, and should
+ * only be used to print an error when it is not from incorrect api usage, since
+ * there's no guarantee that it is the caller that is holding the reservation.
+ */
+static inline bool ttm_bo_is_reserved(struct ttm_buffer_object *bo)
+{
+	return atomic_read(&bo->reserved);
+}
 
 #endif

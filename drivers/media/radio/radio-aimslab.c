@@ -82,7 +82,7 @@ static struct radio_isa_card *rtrack_alloc(void)
 #define AIMS_BIT_VOL_UP		(1 << 6)	/* active low */
 #define AIMS_BIT_VOL_DN		(1 << 7)	/* active low */
 
-void rtrack_set_pins(void *handle, u8 pins)
+static void rtrack_set_pins(void *handle, u8 pins)
 {
 	struct radio_isa_card *isa = handle;
 	struct rtrack *rt = container_of(isa, struct rtrack, isa);

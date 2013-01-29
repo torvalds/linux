@@ -40,14 +40,6 @@ enum adv7604_op_ch_sel {
 	ADV7604_OP_CH_SEL_RBG = 5,
 };
 
-/* Primary mode (IO register 0x01, [3:0]) */
-enum adv7604_prim_mode {
-	ADV7604_PRIM_MODE_COMP = 1,
-	ADV7604_PRIM_MODE_RGB = 2,
-	ADV7604_PRIM_MODE_HDMI_COMP = 5,
-	ADV7604_PRIM_MODE_HDMI_GR = 6,
-};
-
 /* Input Color Space (IO register 0x02, [7:4]) */
 enum adv7604_inp_color_space {
 	ADV7604_INP_COLOR_SPACE_LIM_RGB = 0,
@@ -103,9 +95,6 @@ struct adv7604_platform_data {
 	/* Bus rotation and reordering */
 	enum adv7604_op_ch_sel op_ch_sel;
 
-	/* Primary mode */
-	enum adv7604_prim_mode prim_mode;
-
 	/* Select output format */
 	enum adv7604_op_format_sel op_format_sel;
 
@@ -140,6 +129,16 @@ struct adv7604_platform_data {
 	u8 i2c_test;
 	u8 i2c_cp;
 	u8 i2c_vdp;
+};
+
+/*
+ * Mode of operation.
+ * This is used as the input argument of the s_routing video op.
+ */
+enum adv7604_mode {
+	ADV7604_MODE_COMP,
+	ADV7604_MODE_GR,
+	ADV7604_MODE_HDMI,
 };
 
 #define V4L2_CID_ADV_RX_ANALOG_SAMPLING_PHASE	(V4L2_CID_DV_CLASS_BASE + 0x1000)

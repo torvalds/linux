@@ -8,7 +8,7 @@
 
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 
-static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
+static void quirk_intel_irqbalance(struct pci_dev *dev)
 {
 	u8 config;
 	u16 word;
@@ -512,7 +512,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
 /* Set correct numa_node information for AMD NB functions */
-static void __devinit quirk_amd_nb_node(struct pci_dev *dev)
+static void quirk_amd_nb_node(struct pci_dev *dev)
 {
 	struct pci_dev *nb_ht;
 	unsigned int devfn;

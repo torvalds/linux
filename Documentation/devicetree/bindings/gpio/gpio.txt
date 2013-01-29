@@ -75,4 +75,40 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
+2.1) gpio-controller and pinctrl subsystem
+------------------------------------------
 
+gpio-controller on a SOC might be tightly coupled with the pinctrl
+subsystem, in the sense that the pins can be used by other functions
+together with optional gpio feature.
+
+While the pin allocation is totally managed by the pin ctrl subsystem,
+gpio (under gpiolib) is still maintained by gpio drivers. It may happen
+that different pin ranges in a SoC is managed by different gpio drivers.
+
+This makes it logical to let gpio drivers announce their pin ranges to
+the pin ctrl subsystem and call 'pinctrl_request_gpio' in order to
+request the corresponding pin before any gpio usage.
+
+For this, the gpio controller can use a pinctrl phandle and pins to
+announce the pinrange to the pin ctrl subsystem. For example,
+
+	qe_pio_e: gpio-controller@1460 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1460 0x18>;
+		gpio-controller;
+		gpio-ranges = <&pinctrl1 20 10>, <&pinctrl2 50 20>;
+
+    }
+
+where,
+   &pinctrl1 and &pinctrl2 is the phandle to the pinctrl DT node.
+
+   Next values specify the base pin and number of pins for the range
+   handled by 'qe_pio_e' gpio. In the given example from base pin 20 to
+   pin 29 under pinctrl1 and pin 50 to pin 69 under pinctrl2 is handled
+   by this gpio controller.
+
+The pinctrl node must have "#gpio-range-cells" property to show number of
+arguments to pass with phandle from gpio controllers node.

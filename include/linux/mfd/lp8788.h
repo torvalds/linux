@@ -211,16 +211,16 @@ struct lp8788_chg_param {
 
 /*
  * struct lp8788_charger_platform_data
- * @vbatt_adc         : adc selection id for battery voltage
- * @batt_temp_adc     : adc selection id for battery temperature
+ * @adc_vbatt         : adc channel name for battery voltage
+ * @adc_batt_temp     : adc channel name for battery temperature
  * @max_vbatt_mv      : used for calculating battery capacity
  * @chg_params        : initial charging parameters
  * @num_chg_params    : numbers of charging parameters
  * @charger_event     : the charger event can be reported to the platform side
  */
 struct lp8788_charger_platform_data {
-	enum lp8788_adc_id vbatt_adc;
-	enum lp8788_adc_id batt_temp_adc;
+	const char *adc_vbatt;
+	const char *adc_batt_temp;
 	unsigned int max_vbatt_mv;
 	struct lp8788_chg_param *chg_params;
 	int num_chg_params;

@@ -645,11 +645,17 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct soc_camera_device *icd = file->private_data;
-	int err = -EINVAL;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
+	dev_dbg(icd->pdev, "read called, buf %p\n", buf);
+
+	if (ici->ops->init_videobuf2 && icd->vb2_vidq.io_modes & VB2_READ)
+		return vb2_read(&icd->vb2_vidq, buf, count, ppos,
+				file->f_flags & O_NONBLOCK);
 
 	dev_err(icd->pdev, "camera device read not implemented\n");
 
-	return err;
+	return -EINVAL;
 }
 
 static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1048,10 +1054,8 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
-			int ret;
-
 			icd->parent = ici->v4l2_dev.dev;
-			ret = soc_camera_probe(icd);
+			soc_camera_probe(icd);
 		}
 	}
 
@@ -1526,7 +1530,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 	return 0;
 }
 
-static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
+static int soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_link *icl = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
@@ -1554,7 +1558,7 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
  * hot-pluggable. Now we know, that all our users - hosts and devices have
  * been unloaded already
  */
-static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
+static int soc_camera_pdrv_remove(struct platform_device *pdev)
 {
 	struct soc_camera_device *icd = platform_get_drvdata(pdev);
 
@@ -1568,7 +1572,7 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 
 static struct platform_driver __refdata soc_camera_pdrv = {
 	.probe = soc_camera_pdrv_probe,
-	.remove  = __devexit_p(soc_camera_pdrv_remove),
+	.remove  = soc_camera_pdrv_remove,
 	.driver  = {
 		.name	= "soc-camera-pdrv",
 		.owner	= THIS_MODULE,

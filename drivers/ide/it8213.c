@@ -156,7 +156,7 @@ static const struct ide_port_ops it8213_port_ops = {
 	.cable_detect		= it8213_cable_detect,
 };
 
-static const struct ide_port_info it8213_chipset __devinitconst = {
+static const struct ide_port_info it8213_chipset = {
 	.name		= DRV_NAME,
 	.enablebits	= { {0x41, 0x80, 0x80} },
 	.port_ops	= &it8213_port_ops,
@@ -177,7 +177,7 @@ static const struct ide_port_info it8213_chipset __devinitconst = {
  *	standard helper functions to do almost all the work for us.
  */
 
-static int __devinit it8213_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int it8213_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &it8213_chipset, NULL);
 }

@@ -16,10 +16,6 @@
 #ifndef CSR_WIFI_HIP_SIGS_H
 #define CSR_WIFI_HIP_SIGS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef s16 csr_place_holding_type;
 
 typedef u16 CSR_ASSOCIATION_ID;
@@ -1417,9 +1413,5 @@ typedef struct CSR_SIGNAL_PRIMITIVE
 #define SIG_FILTER_SIZE 6
 
 u32 SigGetFilterPos(u16 aSigID);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

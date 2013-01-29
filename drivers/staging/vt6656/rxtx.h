@@ -61,9 +61,9 @@ typedef struct tagSCTSDataF {
 // MICHDR data header
 //
 typedef struct tagSMICHDR {
-    DWORD   adwHDR0[4];
-    DWORD   adwHDR1[4];
-    DWORD   adwHDR2[4];
+	u32 adwHDR0[4];
+	u32 adwHDR1[4];
+	u32 adwHDR2[4];
 } SMICHDR, *PSMICHDR;
 
 
@@ -630,7 +630,7 @@ typedef struct tagSTX_BUFFER
     BYTE                            byPKTNO;
     WORD                            wTxByteCount;
 
-    DWORD                           adwTxKey[4];
+	u32 adwTxKey[4];
     WORD                            wFIFOCtl;
     WORD                            wTimeStamp;
     WORD                            wFragCtl;

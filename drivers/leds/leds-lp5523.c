@@ -171,7 +171,7 @@ static int lp5523_read(struct i2c_client *client, u8 reg, u8 *buf)
 	s32 ret = i2c_smbus_read_byte_data(client, reg);
 
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	*buf = ret;
 	return 0;
@@ -248,7 +248,10 @@ static int lp5523_configure(struct i2c_client *client)
 
 	/* Let the programs run for couple of ms and check the engine status */
 	usleep_range(3000, 6000);
-	lp5523_read(client, LP5523_REG_STATUS, &status);
+	ret = lp5523_read(client, LP5523_REG_STATUS, &status);
+	if (ret < 0)
+		return ret;
+
 	status &= LP5523_ENG_STATUS_MASK;
 
 	if (status == LP5523_ENG_STATUS_MASK) {
@@ -464,10 +467,16 @@ static ssize_t lp5523_selftest(struct device *dev,
 				    LP5523_EN_LEDTEST | 16);
 	usleep_range(3000, 6000); /* ADC conversion time is typically 2.7 ms */
 	ret = lp5523_read(chip->client, LP5523_REG_STATUS, &status);
+	if (ret < 0)
+		goto fail;
+
 	if (!(status & LP5523_LEDTEST_DONE))
 		usleep_range(3000, 6000); /* Was not ready. Wait little bit */
 
-	ret |= lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &vdd);
+	ret = lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &vdd);
+	if (ret < 0)
+		goto fail;
+
 	vdd--;	/* There may be some fluctuation in measurement */
 
 	for (i = 0; i < LP5523_LEDS; i++) {
@@ -489,9 +498,14 @@ static ssize_t lp5523_selftest(struct device *dev,
 		/* ADC conversion time is 2.7 ms typically */
 		usleep_range(3000, 6000);
 		ret = lp5523_read(chip->client, LP5523_REG_STATUS, &status);
+		if (ret < 0)
+			goto fail;
+
 		if (!(status & LP5523_LEDTEST_DONE))
 			usleep_range(3000, 6000);/* Was not ready. Wait. */
-		ret |= lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &adc);
+		ret = lp5523_read(chip->client, LP5523_REG_LED_TEST_ADC, &adc);
+		if (ret < 0)
+			goto fail;
 
 		if (adc >= vdd || adc < LP5523_ADC_SHORTCIRC_LIM)
 			pos += sprintf(buf + pos, "LED %d FAIL\n", i);
@@ -696,7 +710,7 @@ static ssize_t store_current(struct device *dev,
 	ssize_t ret;
 	unsigned long curr;
 
-	if (strict_strtoul(buf, 0, &curr))
+	if (kstrtoul(buf, 0, &curr))
 		return -EINVAL;
 
 	if (curr > led->max_current)
@@ -833,7 +847,7 @@ static int __init lp5523_init_engine(struct lp5523_engine *engine, int id)
 	return 0;
 }
 
-static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
+static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			   int chan, struct lp5523_platform_data *pdata,
 			   const char *chip_name)
 {
@@ -882,7 +896,7 @@ static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
 	return 0;
 }
 
-static int __devinit lp5523_probe(struct i2c_client *client,
+static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5523_chip		*chip;

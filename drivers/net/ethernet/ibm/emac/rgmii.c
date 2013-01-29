@@ -93,7 +93,7 @@ static inline u32 rgmii_mode_mask(int mode, int input)
 	}
 }
 
-int __devinit rgmii_attach(struct platform_device *ofdev, int input, int mode)
+int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct rgmii_regs __iomem *p = dev->base;
@@ -228,7 +228,7 @@ void *rgmii_dump_regs(struct platform_device *ofdev, void *buf)
 }
 
 
-static int __devinit rgmii_probe(struct platform_device *ofdev)
+static int rgmii_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct rgmii_instance *dev;
@@ -289,7 +289,7 @@ static int __devinit rgmii_probe(struct platform_device *ofdev)
 	return rc;
 }
 
-static int __devexit rgmii_remove(struct platform_device *ofdev)
+static int rgmii_remove(struct platform_device *ofdev)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 

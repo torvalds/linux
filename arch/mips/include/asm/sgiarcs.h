@@ -366,7 +366,7 @@ struct linux_smonblock {
  * Macros for calling a 32-bit ARC implementation from 64-bit code
  */
 
-#if defined(CONFIG_64BIT) && defined(CONFIG_ARC32)
+#if defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC32)
 
 #define __arc_clobbers							\
 	"$2", "$3" /* ... */, "$8", "$9", "$10", "$11", 			\
@@ -475,10 +475,10 @@ struct linux_smonblock {
 	__res;								\
 })
 
-#endif /* defined(CONFIG_64BIT) && defined(CONFIG_ARC32) */
+#endif /* defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC32) */
 
-#if (defined(CONFIG_32BIT) && defined(CONFIG_ARC32)) ||		\
-    (defined(CONFIG_64BIT) && defined(CONFIG_ARC64))
+#if (defined(CONFIG_32BIT) && defined(CONFIG_FW_ARC32)) ||		\
+    (defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC64))
 
 #define ARC_CALL0(dest)							\
 ({	long __res;							\

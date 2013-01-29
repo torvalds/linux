@@ -22,11 +22,6 @@
 #include "csr_wifi_nme_ap_prim.h"
 #include "csr_wifi_nme_task.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_ap_lib.h
 #endif
@@ -57,24 +52,6 @@ void CsrWifiNmeApFreeUpstreamMessageContents(u16 eventClass, void *message);
  *      Deallocates the resources in a CSR_WIFI_NME_AP downstream message
  *----------------------------------------------------------------------------*/
 void CsrWifiNmeApFreeDownstreamMessageContents(u16 eventClass, void *message);
-
-/*----------------------------------------------------------------------------*
- * Enum to string functions
- *----------------------------------------------------------------------------*/
-const char* CsrWifiNmeApPersCredentialTypeToString(CsrWifiNmeApPersCredentialType value);
-
-
-/*----------------------------------------------------------------------------*
- * CsrPrim Type toString function.
- * Converts a message type to the String name of the Message
- *----------------------------------------------------------------------------*/
-const char* CsrWifiNmeApPrimTypeToString(CsrPrim msgType);
-
-/*----------------------------------------------------------------------------*
- * Lookup arrays for PrimType name Strings
- *----------------------------------------------------------------------------*/
-extern const char *CsrWifiNmeApUpstreamPrimNames[CSR_WIFI_NME_AP_PRIM_UPSTREAM_COUNT];
-extern const char *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTREAM_COUNT];
 
 /*******************************************************************************
 
@@ -514,10 +491,5 @@ extern const char *CsrWifiNmeApDownstreamPrimNames[CSR_WIFI_NME_AP_PRIM_DOWNSTRE
 
 #define CsrWifiNmeApWpsRegisterCfmSend(dst__, interfaceTag__, status__) \
     CsrWifiNmeApWpsRegisterCfmSendTo(dst__, CSR_WIFI_NME_IFACEQUEUE, interfaceTag__, status__)
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_NME_AP_LIB_H__ */

@@ -44,8 +44,8 @@ MODULE_LICENSE("GPL");
 } while (0)
 
 #define RETURN(x...)     do { \
-	clear_bit(__LC_PARANOIA, &lc->flags); \
-	smp_mb__after_clear_bit(); return x ; } while (0)
+	clear_bit_unlock(__LC_PARANOIA, &lc->flags); \
+	return x ; } while (0)
 
 /* BUG() if e is not one of the elements tracked by lc */
 #define PARANOIA_LC_ELEMENT(lc, e) do {	\
@@ -55,9 +55,40 @@ MODULE_LICENSE("GPL");
 	BUG_ON(i >= lc_->nr_elements);	\
 	BUG_ON(lc_->lc_element[i] != e_); } while (0)
 
+
+/* We need to atomically
+ *  - try to grab the lock (set LC_LOCKED)
+ *  - only if there is no pending transaction
+ *    (neither LC_DIRTY nor LC_STARVING is set)
+ * Because of PARANOIA_ENTRY() above abusing lc->flags as well,
+ * it is not sufficient to just say
+ *	return 0 == cmpxchg(&lc->flags, 0, LC_LOCKED);
+ */
+int lc_try_lock(struct lru_cache *lc)
+{
+	unsigned long val;
+	do {
+		val = cmpxchg(&lc->flags, 0, LC_LOCKED);
+	} while (unlikely (val == LC_PARANOIA));
+	/* Spin until no-one is inside a PARANOIA_ENTRY()/RETURN() section. */
+	return 0 == val;
+#if 0
+	/* Alternative approach, spin in case someone enters or leaves a
+	 * PARANOIA_ENTRY()/RETURN() section. */
+	unsigned long old, new, val;
+	do {
+		old = lc->flags & LC_PARANOIA;
+		new = old | LC_LOCKED;
+		val = cmpxchg(&lc->flags, old, new);
+	} while (unlikely (val == (old ^ LC_PARANOIA)));
+	return old == val;
+#endif
+}
+
 /**
  * lc_create - prepares to track objects in an active set
  * @name: descriptive name only used in lc_seq_printf_stats and lc_seq_dump_details
+ * @max_pending_changes: maximum changes to accumulate until a transaction is required
  * @e_count: number of elements allowed to be active simultaneously
  * @e_size: size of the tracked objects
  * @e_off: offset to the &struct lc_element member in a tracked object
@@ -66,6 +97,7 @@ MODULE_LICENSE("GPL");
  * or NULL on (allocation) failure.
  */
 struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
+		unsigned max_pending_changes,
 		unsigned e_count, size_t e_size, size_t e_off)
 {
 	struct hlist_head *slot = NULL;
@@ -98,12 +130,13 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
 	INIT_LIST_HEAD(&lc->in_use);
 	INIT_LIST_HEAD(&lc->lru);
 	INIT_LIST_HEAD(&lc->free);
+	INIT_LIST_HEAD(&lc->to_be_changed);
 
 	lc->name = name;
 	lc->element_size = e_size;
 	lc->element_off = e_off;
 	lc->nr_elements = e_count;
-	lc->new_number = LC_FREE;
+	lc->max_pending_changes = max_pending_changes;
 	lc->lc_cache = cache;
 	lc->lc_element = element;
 	lc->lc_slot = slot;
@@ -117,6 +150,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
 		e = p + e_off;
 		e->lc_index = i;
 		e->lc_number = LC_FREE;
+		e->lc_new_number = LC_FREE;
 		list_add(&e->list, &lc->free);
 		element[i] = e;
 	}
@@ -175,15 +209,15 @@ void lc_reset(struct lru_cache *lc)
 	INIT_LIST_HEAD(&lc->in_use);
 	INIT_LIST_HEAD(&lc->lru);
 	INIT_LIST_HEAD(&lc->free);
+	INIT_LIST_HEAD(&lc->to_be_changed);
 	lc->used = 0;
 	lc->hits = 0;
 	lc->misses = 0;
 	lc->starving = 0;
-	lc->dirty = 0;
+	lc->locked = 0;
 	lc->changed = 0;
+	lc->pending_changes = 0;
 	lc->flags = 0;
-	lc->changing_element = NULL;
-	lc->new_number = LC_FREE;
 	memset(lc->lc_slot, 0, sizeof(struct hlist_head) * lc->nr_elements);
 
 	for (i = 0; i < lc->nr_elements; i++) {
@@ -194,6 +228,7 @@ void lc_reset(struct lru_cache *lc)
 		/* re-init it */
 		e->lc_index = i;
 		e->lc_number = LC_FREE;
+		e->lc_new_number = LC_FREE;
 		list_add(&e->list, &lc->free);
 	}
 }
@@ -208,14 +243,14 @@ size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
 	/* NOTE:
 	 * total calls to lc_get are
 	 * (starving + hits + misses)
-	 * misses include "dirty" count (update from an other thread in
+	 * misses include "locked" count (update from an other thread in
 	 * progress) and "changed", when this in fact lead to an successful
 	 * update of the cache.
 	 */
 	return seq_printf(seq, "\t%s: used:%u/%u "
-		"hits:%lu misses:%lu starving:%lu dirty:%lu changed:%lu\n",
+		"hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
 		lc->name, lc->used, lc->nr_elements,
-		lc->hits, lc->misses, lc->starving, lc->dirty, lc->changed);
+		lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
 }
 
 static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
@@ -223,6 +258,27 @@ static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
 	return  lc->lc_slot + (enr % lc->nr_elements);
 }
 
+
+static struct lc_element *__lc_find(struct lru_cache *lc, unsigned int enr,
+		bool include_changing)
+{
+	struct hlist_node *n;
+	struct lc_element *e;
+
+	BUG_ON(!lc);
+	BUG_ON(!lc->nr_elements);
+	hlist_for_each_entry(e, n, lc_hash_slot(lc, enr), colision) {
+		/* "about to be changed" elements, pending transaction commit,
+		 * are hashed by their "new number". "Normal" elements have
+		 * lc_number == lc_new_number. */
+		if (e->lc_new_number != enr)
+			continue;
+		if (e->lc_new_number == e->lc_number || include_changing)
+			return e;
+		break;
+	}
+	return NULL;
+}
 
 /**
  * lc_find - find element by label, if present in the hash table
@@ -232,38 +288,28 @@ static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
  * Returns the pointer to an element, if the element with the requested
  * "label" or element number is present in the hash table,
  * or NULL if not found. Does not change the refcnt.
+ * Ignores elements that are "about to be used", i.e. not yet in the active
+ * set, but still pending transaction commit.
  */
 struct lc_element *lc_find(struct lru_cache *lc, unsigned int enr)
 {
-	struct hlist_node *n;
-	struct lc_element *e;
-
-	BUG_ON(!lc);
-	BUG_ON(!lc->nr_elements);
-	hlist_for_each_entry(e, n, lc_hash_slot(lc, enr), colision) {
-		if (e->lc_number == enr)
-			return e;
-	}
-	return NULL;
+	return __lc_find(lc, enr, 0);
 }
 
-/* returned element will be "recycled" immediately */
-static struct lc_element *lc_evict(struct lru_cache *lc)
+/**
+ * lc_is_used - find element by label
+ * @lc: The lru_cache object
+ * @enr: element number
+ *
+ * Returns true, if the element with the requested "label" or element number is
+ * present in the hash table, and is used (refcnt > 0).
+ * Also finds elements that are not _currently_ used but only "about to be
+ * used", i.e. on the "to_be_changed" list, pending transaction commit.
+ */
+bool lc_is_used(struct lru_cache *lc, unsigned int enr)
 {
-	struct list_head  *n;
-	struct lc_element *e;
-
-	if (list_empty(&lc->lru))
-		return NULL;
-
-	n = lc->lru.prev;
-	e = list_entry(n, struct lc_element, list);
-
-	PARANOIA_LC_ELEMENT(lc, e);
-
-	list_del(&e->list);
-	hlist_del(&e->colision);
-	return e;
+	struct lc_element *e = __lc_find(lc, enr, 1);
+	return e && e->refcnt;
 }
 
 /**
@@ -280,22 +326,34 @@ void lc_del(struct lru_cache *lc, struct lc_element *e)
 	PARANOIA_LC_ELEMENT(lc, e);
 	BUG_ON(e->refcnt);
 
-	e->lc_number = LC_FREE;
+	e->lc_number = e->lc_new_number = LC_FREE;
 	hlist_del_init(&e->colision);
 	list_move(&e->list, &lc->free);
 	RETURN();
 }
 
-static struct lc_element *lc_get_unused_element(struct lru_cache *lc)
+static struct lc_element *lc_prepare_for_change(struct lru_cache *lc, unsigned new_number)
 {
 	struct list_head *n;
+	struct lc_element *e;
 
-	if (list_empty(&lc->free))
-		return lc_evict(lc);
+	if (!list_empty(&lc->free))
+		n = lc->free.next;
+	else if (!list_empty(&lc->lru))
+		n = lc->lru.prev;
+	else
+		return NULL;
 
-	n = lc->free.next;
-	list_del(n);
-	return list_entry(n, struct lc_element, list);
+	e = list_entry(n, struct lc_element, list);
+	PARANOIA_LC_ELEMENT(lc, e);
+
+	e->lc_new_number = new_number;
+	if (!hlist_unhashed(&e->colision))
+		__hlist_del(&e->colision);
+	hlist_add_head(&e->colision, lc_hash_slot(lc, new_number));
+	list_move(&e->list, &lc->to_be_changed);
+
+	return e;
 }
 
 static int lc_unused_element_available(struct lru_cache *lc)
@@ -308,6 +366,75 @@ static int lc_unused_element_available(struct lru_cache *lc)
 	return 0;
 }
 
+static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool may_change)
+{
+	struct lc_element *e;
+
+	PARANOIA_ENTRY();
+	if (lc->flags & LC_STARVING) {
+		++lc->starving;
+		RETURN(NULL);
+	}
+
+	e = __lc_find(lc, enr, 1);
+	/* if lc_new_number != lc_number,
+	 * this enr is currently being pulled in already,
+	 * and will be available once the pending transaction
+	 * has been committed. */
+	if (e && e->lc_new_number == e->lc_number) {
+		++lc->hits;
+		if (e->refcnt++ == 0)
+			lc->used++;
+		list_move(&e->list, &lc->in_use); /* Not evictable... */
+		RETURN(e);
+	}
+
+	++lc->misses;
+	if (!may_change)
+		RETURN(NULL);
+
+	/* It has been found above, but on the "to_be_changed" list, not yet
+	 * committed.  Don't pull it in twice, wait for the transaction, then
+	 * try again */
+	if (e)
+		RETURN(NULL);
+
+	/* To avoid races with lc_try_lock(), first, mark us dirty
+	 * (using test_and_set_bit, as it implies memory barriers), ... */
+	test_and_set_bit(__LC_DIRTY, &lc->flags);
+
+	/* ... only then check if it is locked anyways. If lc_unlock clears
+	 * the dirty bit again, that's not a problem, we will come here again.
+	 */
+	if (test_bit(__LC_LOCKED, &lc->flags)) {
+		++lc->locked;
+		RETURN(NULL);
+	}
+
+	/* In case there is nothing available and we can not kick out
+	 * the LRU element, we have to wait ...
+	 */
+	if (!lc_unused_element_available(lc)) {
+		__set_bit(__LC_STARVING, &lc->flags);
+		RETURN(NULL);
+	}
+
+	/* It was not present in the active set.  We are going to recycle an
+	 * unused (or even "free") element, but we won't accumulate more than
+	 * max_pending_changes changes.  */
+	if (lc->pending_changes >= lc->max_pending_changes)
+		RETURN(NULL);
+
+	e = lc_prepare_for_change(lc, enr);
+	BUG_ON(!e);
+
+	clear_bit(__LC_STARVING, &lc->flags);
+	BUG_ON(++e->refcnt != 1);
+	lc->used++;
+	lc->pending_changes++;
+
+	RETURN(e);
+}
 
 /**
  * lc_get - get element by label, maybe change the active set
@@ -336,110 +463,65 @@ static int lc_unused_element_available(struct lru_cache *lc)
  *  pointer to an UNUSED element with some different element number,
  *          where that different number may also be %LC_FREE.
  *
- *          In this case, the cache is marked %LC_DIRTY (blocking further changes),
- *          and the returned element pointer is removed from the lru list and
- *          hash collision chains.  The user now should do whatever housekeeping
- *          is necessary.
- *          Then he must call lc_changed(lc,element_pointer), to finish
- *          the change.
+ *          In this case, the cache is marked %LC_DIRTY,
+ *          so lc_try_lock() will no longer succeed.
+ *          The returned element pointer is moved to the "to_be_changed" list,
+ *          and registered with the new element number on the hash collision chains,
+ *          so it is possible to pick it up from lc_is_used().
+ *          Up to "max_pending_changes" (see lc_create()) can be accumulated.
+ *          The user now should do whatever housekeeping is necessary,
+ *          typically serialize on lc_try_lock_for_transaction(), then call
+ *          lc_committed(lc) and lc_unlock(), to finish the change.
  *
  * NOTE: The user needs to check the lc_number on EACH use, so he recognizes
  *       any cache set change.
  */
 struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr)
 {
-	struct lc_element *e;
-
-	PARANOIA_ENTRY();
-	if (lc->flags & LC_STARVING) {
-		++lc->starving;
-		RETURN(NULL);
-	}
-
-	e = lc_find(lc, enr);
-	if (e) {
-		++lc->hits;
-		if (e->refcnt++ == 0)
-			lc->used++;
-		list_move(&e->list, &lc->in_use); /* Not evictable... */
-		RETURN(e);
-	}
-
-	++lc->misses;
-
-	/* In case there is nothing available and we can not kick out
-	 * the LRU element, we have to wait ...
-	 */
-	if (!lc_unused_element_available(lc)) {
-		__set_bit(__LC_STARVING, &lc->flags);
-		RETURN(NULL);
-	}
-
-	/* it was not present in the active set.
-	 * we are going to recycle an unused (or even "free") element.
-	 * user may need to commit a transaction to record that change.
-	 * we serialize on flags & TF_DIRTY */
-	if (test_and_set_bit(__LC_DIRTY, &lc->flags)) {
-		++lc->dirty;
-		RETURN(NULL);
-	}
-
-	e = lc_get_unused_element(lc);
-	BUG_ON(!e);
-
-	clear_bit(__LC_STARVING, &lc->flags);
-	BUG_ON(++e->refcnt != 1);
-	lc->used++;
-
-	lc->changing_element = e;
-	lc->new_number = enr;
-
-	RETURN(e);
-}
-
-/* similar to lc_get,
- * but only gets a new reference on an existing element.
- * you either get the requested element, or NULL.
- * will be consolidated into one function.
- */
-struct lc_element *lc_try_get(struct lru_cache *lc, unsigned int enr)
-{
-	struct lc_element *e;
-
-	PARANOIA_ENTRY();
-	if (lc->flags & LC_STARVING) {
-		++lc->starving;
-		RETURN(NULL);
-	}
-
-	e = lc_find(lc, enr);
-	if (e) {
-		++lc->hits;
-		if (e->refcnt++ == 0)
-			lc->used++;
-		list_move(&e->list, &lc->in_use); /* Not evictable... */
-	}
-	RETURN(e);
+	return __lc_get(lc, enr, 1);
 }
 
 /**
- * lc_changed - tell @lc that the change has been recorded
+ * lc_try_get - get element by label, if present; do not change the active set
  * @lc: the lru cache to operate on
- * @e: the element pending label change
+ * @enr: the label to look up
+ *
+ * Finds an element in the cache, increases its usage count,
+ * "touches" and returns it.
+ *
+ * Return values:
+ *  NULL
+ *     The cache was marked %LC_STARVING,
+ *     or the requested label was not in the active set
+ *
+ *  pointer to the element with the REQUESTED element number.
+ *     In this case, it can be used right away
  */
-void lc_changed(struct lru_cache *lc, struct lc_element *e)
+struct lc_element *lc_try_get(struct lru_cache *lc, unsigned int enr)
 {
+	return __lc_get(lc, enr, 0);
+}
+
+/**
+ * lc_committed - tell @lc that pending changes have been recorded
+ * @lc: the lru cache to operate on
+ *
+ * User is expected to serialize on explicit lc_try_lock_for_transaction()
+ * before the transaction is started, and later needs to lc_unlock() explicitly
+ * as well.
+ */
+void lc_committed(struct lru_cache *lc)
+{
+	struct lc_element *e, *tmp;
+
 	PARANOIA_ENTRY();
-	BUG_ON(e != lc->changing_element);
-	PARANOIA_LC_ELEMENT(lc, e);
-	++lc->changed;
-	e->lc_number = lc->new_number;
-	list_add(&e->list, &lc->in_use);
-	hlist_add_head(&e->colision, lc_hash_slot(lc, lc->new_number));
-	lc->changing_element = NULL;
-	lc->new_number = LC_FREE;
-	clear_bit(__LC_DIRTY, &lc->flags);
-	smp_mb__after_clear_bit();
+	list_for_each_entry_safe(e, tmp, &lc->to_be_changed, list) {
+		/* count number of changes, not number of transactions */
+		++lc->changed;
+		e->lc_number = e->lc_new_number;
+		list_move(&e->list, &lc->in_use);
+	}
+	lc->pending_changes = 0;
 	RETURN();
 }
 
@@ -458,13 +540,12 @@ unsigned int lc_put(struct lru_cache *lc, struct lc_element *e)
 	PARANOIA_ENTRY();
 	PARANOIA_LC_ELEMENT(lc, e);
 	BUG_ON(e->refcnt == 0);
-	BUG_ON(e == lc->changing_element);
+	BUG_ON(e->lc_number != e->lc_new_number);
 	if (--e->refcnt == 0) {
 		/* move it to the front of LRU. */
 		list_move(&e->list, &lc->lru);
 		lc->used--;
-		clear_bit(__LC_STARVING, &lc->flags);
-		smp_mb__after_clear_bit();
+		clear_bit_unlock(__LC_STARVING, &lc->flags);
 	}
 	RETURN(e->refcnt);
 }
@@ -504,16 +585,24 @@ unsigned int lc_index_of(struct lru_cache *lc, struct lc_element *e)
 void lc_set(struct lru_cache *lc, unsigned int enr, int index)
 {
 	struct lc_element *e;
+	struct list_head *lh;
 
 	if (index < 0 || index >= lc->nr_elements)
 		return;
 
 	e = lc_element_by_index(lc, index);
-	e->lc_number = enr;
+	BUG_ON(e->lc_number != e->lc_new_number);
+	BUG_ON(e->refcnt != 0);
 
+	e->lc_number = e->lc_new_number = enr;
 	hlist_del_init(&e->colision);
-	hlist_add_head(&e->colision, lc_hash_slot(lc, enr));
-	list_move(&e->list, e->refcnt ? &lc->in_use : &lc->lru);
+	if (enr == LC_FREE)
+		lh = &lc->free;
+	else {
+		hlist_add_head(&e->colision, lc_hash_slot(lc, enr));
+		lh = &lc->lru;
+	}
+	list_move(&e->list, lh);
 }
 
 /**
@@ -553,8 +642,10 @@ EXPORT_SYMBOL(lc_try_get);
 EXPORT_SYMBOL(lc_find);
 EXPORT_SYMBOL(lc_get);
 EXPORT_SYMBOL(lc_put);
-EXPORT_SYMBOL(lc_changed);
+EXPORT_SYMBOL(lc_committed);
 EXPORT_SYMBOL(lc_element_by_index);
 EXPORT_SYMBOL(lc_index_of);
 EXPORT_SYMBOL(lc_seq_printf_stats);
 EXPORT_SYMBOL(lc_seq_dump_details);
+EXPORT_SYMBOL(lc_try_lock);
+EXPORT_SYMBOL(lc_is_used);

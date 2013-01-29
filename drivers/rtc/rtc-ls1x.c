@@ -143,7 +143,7 @@ static struct rtc_class_ops  ls1x_rtc_ops = {
 	.set_time	= ls1x_rtc_set_time,
 };
 
-static int __devinit ls1x_rtc_probe(struct platform_device *pdev)
+static int ls1x_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long v;
@@ -185,7 +185,7 @@ err:
 	return ret;
 }
 
-static int __devexit ls1x_rtc_remove(struct platform_device *pdev)
+static int ls1x_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev = platform_get_drvdata(pdev);
 
@@ -200,7 +200,7 @@ static struct platform_driver  ls1x_rtc_driver = {
 		.name	= "ls1x-rtc",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(ls1x_rtc_remove),
+	.remove		= ls1x_rtc_remove,
 	.probe		= ls1x_rtc_probe,
 };
 

@@ -36,7 +36,6 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
@@ -59,68 +58,70 @@
 #elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
+#include <asm/netlogic/xlr/fmn.h>
 #else
 #error "Unknown CPU"
 #endif
-/*
- * These are the routines that handle all the low level interrupt stuff.
- * Actions handled here are: initialization of the interrupt map, requesting of
- * interrupt lines by handlers, dispatching if interrupts to handlers, probing
- * for interrupt lines
- */
 
-/* Globals */
-static uint64_t nlm_irq_mask;
-static DEFINE_SPINLOCK(nlm_pic_lock);
+#ifdef CONFIG_SMP
+#define SMP_IRQ_MASK	((1ULL << IRQ_IPI_SMP_FUNCTION) | \
+				 (1ULL << IRQ_IPI_SMP_RESCHEDULE))
+#else
+#define SMP_IRQ_MASK	0
+#endif
+#define PERCPU_IRQ_MASK	(SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
+				(1ull << IRQ_FMN))
+
+struct nlm_pic_irq {
+	void	(*extra_ack)(struct irq_data *);
+	struct	nlm_soc_info *node;
+	int	picirq;
+	int	irt;
+	int	flags;
+};
 
 static void xlp_pic_enable(struct irq_data *d)
 {
 	unsigned long flags;
-	int irt;
+	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
 
-	irt = nlm_irq_to_irt(d->irq);
-	if (irt == -1)
-		return;
-	spin_lock_irqsave(&nlm_pic_lock, flags);
-	nlm_pic_enable_irt(nlm_pic_base, irt);
-	spin_unlock_irqrestore(&nlm_pic_lock, flags);
+	BUG_ON(!pd);
+	spin_lock_irqsave(&pd->node->piclock, flags);
+	nlm_pic_enable_irt(pd->node->picbase, pd->irt);
+	spin_unlock_irqrestore(&pd->node->piclock, flags);
 }
 
 static void xlp_pic_disable(struct irq_data *d)
 {
+	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
 	unsigned long flags;
-	int irt;
 
-	irt = nlm_irq_to_irt(d->irq);
-	if (irt == -1)
-		return;
-	spin_lock_irqsave(&nlm_pic_lock, flags);
-	nlm_pic_disable_irt(nlm_pic_base, irt);
-	spin_unlock_irqrestore(&nlm_pic_lock, flags);
+	BUG_ON(!pd);
+	spin_lock_irqsave(&pd->node->piclock, flags);
+	nlm_pic_disable_irt(pd->node->picbase, pd->irt);
+	spin_unlock_irqrestore(&pd->node->piclock, flags);
 }
 
 static void xlp_pic_mask_ack(struct irq_data *d)
 {
-	uint64_t mask = 1ull << d->irq;
+	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
+	uint64_t mask = 1ull << pd->picirq;
 
 	write_c0_eirr(mask);            /* ack by writing EIRR */
 }
 
 static void xlp_pic_unmask(struct irq_data *d)
 {
-	void *hd = irq_data_get_irq_handler_data(d);
-	int irt;
+	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
 
-	irt = nlm_irq_to_irt(d->irq);
-	if (irt == -1)
+	if (!pd)
 		return;
 
-	if (hd) {
-		void (*extra_ack)(void *) = hd;
-		extra_ack(d);
-	}
+	if (pd->extra_ack)
+		pd->extra_ack(d);
+
 	/* Ack is a single write, no need to lock */
-	nlm_pic_ack(nlm_pic_base, irt);
+	nlm_pic_ack(pd->node->picbase, pd->irt);
 }
 
 static struct irq_chip xlp_pic = {
@@ -174,64 +175,108 @@ struct irq_chip nlm_cpu_intr = {
 	.irq_eoi	= cpuintr_ack,
 };
 
-void __init init_nlm_common_irqs(void)
+static void __init nlm_init_percpu_irqs(void)
 {
-	int i, irq, irt;
+	int i;
 
 	for (i = 0; i < PIC_IRT_FIRST_IRQ; i++)
 		irq_set_chip_and_handler(i, &nlm_cpu_intr, handle_percpu_irq);
-
-	for (i = PIC_IRT_FIRST_IRQ; i <= PIC_IRT_LAST_IRQ ; i++)
-		irq_set_chip_and_handler(i, &xlp_pic, handle_level_irq);
-
 #ifdef CONFIG_SMP
 	irq_set_chip_and_handler(IRQ_IPI_SMP_FUNCTION, &nlm_cpu_intr,
 			 nlm_smp_function_ipi_handler);
 	irq_set_chip_and_handler(IRQ_IPI_SMP_RESCHEDULE, &nlm_cpu_intr,
 			 nlm_smp_resched_ipi_handler);
-	nlm_irq_mask |=
-	    ((1ULL << IRQ_IPI_SMP_FUNCTION) | (1ULL << IRQ_IPI_SMP_RESCHEDULE));
 #endif
+}
 
-	for (irq = PIC_IRT_FIRST_IRQ; irq <= PIC_IRT_LAST_IRQ; irq++) {
-		irt = nlm_irq_to_irt(irq);
+void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
+{
+	struct nlm_pic_irq *pic_data;
+	int xirq;
+
+	xirq = nlm_irq_to_xirq(node, irq);
+	pic_data = kzalloc(sizeof(*pic_data), GFP_KERNEL);
+	BUG_ON(pic_data == NULL);
+	pic_data->irt = irt;
+	pic_data->picirq = picirq;
+	pic_data->node = nlm_get_node(node);
+	irq_set_chip_and_handler(xirq, &xlp_pic, handle_level_irq);
+	irq_set_handler_data(xirq, pic_data);
+}
+
+void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
+{
+	struct nlm_pic_irq *pic_data;
+	int xirq;
+
+	xirq = nlm_irq_to_xirq(node, irq);
+	pic_data = irq_get_handler_data(xirq);
+	pic_data->extra_ack = xack;
+}
+
+static void nlm_init_node_irqs(int node)
+{
+	int i, irt;
+	uint64_t irqmask;
+	struct nlm_soc_info *nodep;
+
+	pr_info("Init IRQ for node %d\n", node);
+	nodep = nlm_get_node(node);
+	irqmask = PERCPU_IRQ_MASK;
+	for (i = PIC_IRT_FIRST_IRQ; i <= PIC_IRT_LAST_IRQ; i++) {
+		irt = nlm_irq_to_irt(i);
 		if (irt == -1)
 			continue;
-		nlm_irq_mask |= (1ULL << irq);
-		nlm_pic_init_irt(nlm_pic_base, irt, irq, 0);
+		nlm_setup_pic_irq(node, i, i, irt);
+		/* set interrupts to first cpu in node */
+		nlm_pic_init_irt(nodep->picbase, irt, i,
+					node * NLM_CPUS_PER_NODE);
+		irqmask |= (1ull << i);
 	}
-
-	nlm_irq_mask |= (1ULL << IRQ_TIMER);
+	nodep->irqmask = irqmask;
 }
 
 void __init arch_init_irq(void)
 {
 	/* Initialize the irq descriptors */
-	init_nlm_common_irqs();
-
-	write_c0_eimr(nlm_irq_mask);
+	nlm_init_percpu_irqs();
+	nlm_init_node_irqs(0);
+	write_c0_eimr(nlm_current_node()->irqmask);
+#if defined(CONFIG_CPU_XLR)
+	nlm_setup_fmn_irq();
+#endif
 }
 
-void __cpuinit nlm_smp_irq_init(void)
+void nlm_smp_irq_init(int hwcpuid)
 {
-	/* set interrupt mask for non-zero cpus */
-	write_c0_eimr(nlm_irq_mask);
+	int node, cpu;
+
+	node = hwcpuid / NLM_CPUS_PER_NODE;
+	cpu  = hwcpuid % NLM_CPUS_PER_NODE;
+
+	if (cpu == 0 && node != 0)
+		nlm_init_node_irqs(node);
+	write_c0_eimr(nlm_current_node()->irqmask);
 }
 
 asmlinkage void plat_irq_dispatch(void)
 {
 	uint64_t eirr;
-	int i;
+	int i, node;
 
+	node = nlm_nodeid();
 	eirr = read_c0_eirr() & read_c0_eimr();
-	if (eirr & (1 << IRQ_TIMER)) {
-		do_IRQ(IRQ_TIMER);
-		return;
-	}
 
 	i = __ilog2_u64(eirr);
 	if (i == -1)
 		return;
 
-	do_IRQ(i);
+	/* per-CPU IRQs don't need translation */
+	if (eirr & PERCPU_IRQ_MASK) {
+		do_IRQ(i);
+		return;
+	}
+
+	/* top level irq handling */
+	do_IRQ(nlm_irq_to_xirq(node, i));
 }

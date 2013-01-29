@@ -988,7 +988,7 @@ int smd_core_init(void)
 	return 0;
 }
 
-static int __devinit msm_smd_probe(struct platform_device *pdev)
+static int msm_smd_probe(struct platform_device *pdev)
 {
 	/*
 	 * If we haven't waited for the ARM9 to boot up till now,
