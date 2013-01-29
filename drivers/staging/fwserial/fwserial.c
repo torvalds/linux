@@ -174,7 +174,7 @@ static void dump_profile(struct seq_file *m, struct stats *stats)
 #define dump_profile(m, stats)
 #endif
 
-/* Returns the max receive packet size for the given card */
+/* Returns the max receive packet size for the given node */
 static inline int device_max_receive(struct fw_device *fw_device)
 {
 	return 1 <<  (clamp_t(int, fw_device->max_rec, 8U, 11U) + 1);
