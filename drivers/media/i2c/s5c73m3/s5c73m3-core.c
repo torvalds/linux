@@ -39,10 +39,10 @@
 int s5c73m3_dbg;
 module_param_named(debug, s5c73m3_dbg, int, 0644);
 
-int boot_from_rom = 1;
+static int boot_from_rom = 1;
 module_param(boot_from_rom, int, 0644);
 
-int update_fw;
+static int update_fw;
 module_param(update_fw, int, 0644);
 
 #define S5C73M3_EMBEDDED_DATA_MAXLEN	SZ_4K
@@ -295,7 +295,8 @@ int s5c73m3_isp_command(struct s5c73m3 *state, u16 command, u16 data)
 	return s5c73m3_write(state, REG_STATUS, 0x0001);
 }
 
-int s5c73m3_isp_comm_result(struct s5c73m3 *state, u16 command, u16 *data)
+static int s5c73m3_isp_comm_result(struct s5c73m3 *state, u16 command,
+				   u16 *data)
 {
 	return s5c73m3_read(state, COMM_RESULT_OFFSET + command, data);
 }
