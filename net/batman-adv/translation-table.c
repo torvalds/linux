@@ -517,8 +517,8 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 				    BATADV_TT_CLIENT_PENDING ? 'X' : '.'),
 				   (tt_common_entry->flags &
 				    BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-				   no_purge ? last_seen_secs : 0,
-				   no_purge ? last_seen_msecs : 0);
+				   no_purge ? 0 : last_seen_secs,
+				   no_purge ? 0 : last_seen_msecs);
 		}
 		rcu_read_unlock();
 	}
