@@ -4184,6 +4184,7 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 
 static void check_buffer_tree_ref(struct extent_buffer *eb)
 {
+	int refs;
 	/* the ref bit is tricky.  We have to make sure it is set
 	 * if we have the buffer dirty.   Otherwise the
 	 * code to free a buffer can end up dropping a dirty
@@ -4204,6 +4205,10 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 * So bump the ref count first, then set the bit.  If someone
 	 * beat us to it, drop the ref we added.
 	 */
+	refs = atomic_read(&eb->refs);
+	if (refs >= 2 && test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
+		return;
+
 	spin_lock(&eb->refs_lock);
 	if (!test_and_set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
 		atomic_inc(&eb->refs);
@@ -4405,8 +4410,19 @@ static int release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 
 void free_extent_buffer(struct extent_buffer *eb)
 {
+	int refs;
+	int old;
 	if (!eb)
 		return;
+
+	while (1) {
+		refs = atomic_read(&eb->refs);
+		if (refs <= 3)
+			break;
+		old = atomic_cmpxchg(&eb->refs, refs, refs - 1);
+		if (old == refs)
+			return;
+	}
 
 	spin_lock(&eb->refs_lock);
 	if (atomic_read(&eb->refs) == 2 &&
