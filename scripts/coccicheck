@@ -2,6 +2,15 @@
 
 SPATCH="`which ${SPATCH:=spatch}`"
 
+# The verbosity may be set by the environmental parameter V=
+# as for example with 'make V=1 coccicheck'
+
+if [ -n "$V" -a "$V" != "0" ]; then
+	VERBOSE=1
+else
+	VERBOSE=0
+fi
+
 if [ "$C" = "1" -o "$C" = "2" ]; then
     ONLINE=1
 
@@ -55,7 +64,7 @@ coccinelle () {
 #
 #    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
 
-    if [ "$ONLINE" = "0" ] ; then
+    if [ $VERBOSE -ne 0 ] ; then
 
 	FILE=`echo $COCCI | sed "s|$srctree/||"`
 
