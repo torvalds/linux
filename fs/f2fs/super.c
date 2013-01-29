@@ -143,6 +143,22 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	return 0;
 }
 
+static int f2fs_freeze(struct super_block *sb)
+{
+	int err;
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	err = f2fs_sync_fs(sb, 1);
+	return err;
+}
+
+static int f2fs_unfreeze(struct super_block *sb)
+{
+	return 0;
+}
+
 static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -213,6 +229,8 @@ static struct super_operations f2fs_sops = {
 	.evict_inode	= f2fs_evict_inode,
 	.put_super	= f2fs_put_super,
 	.sync_fs	= f2fs_sync_fs,
+	.freeze_fs	= f2fs_freeze,
+	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
 };
 

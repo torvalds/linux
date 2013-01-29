@@ -44,6 +44,11 @@ static int gc_thread_func(void *data)
 		if (kthread_should_stop())
 			break;
 
+		if (sbi->sb->s_writers.frozen >= SB_FREEZE_WRITE) {
+			wait_ms = GC_THREAD_MAX_SLEEP_TIME;
+			continue;
+		}
+
 		f2fs_balance_fs(sbi);
 
 		if (!test_opt(sbi, BG_GC))

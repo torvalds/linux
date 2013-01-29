@@ -278,6 +278,7 @@ void f2fs_evict_inode(struct inode *inode)
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
+	sb_start_intwrite(inode->i_sb);
 	set_inode_flag(F2FS_I(inode), FI_NO_ALLOC);
 	i_size_write(inode, 0);
 
@@ -285,6 +286,7 @@ void f2fs_evict_inode(struct inode *inode)
 		f2fs_truncate(inode);
 
 	remove_inode_page(inode);
+	sb_end_intwrite(inode->i_sb);
 no_delete:
 	clear_inode(inode);
 }
