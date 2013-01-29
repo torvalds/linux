@@ -174,10 +174,15 @@ static void dump_profile(struct seq_file *m, struct stats *stats)
 #define dump_profile(m, stats)
 #endif
 
-/* Returns the max receive packet size for the given node */
+/*
+ * Returns the max receive packet size for the given node
+ * Devices which are OHCI v1.0/ v1.1/ v1.2-draft or RFC 2734 compliant
+ * are required by specification to support max_rec of 8 (512 bytes) or more.
+ */
 static inline int device_max_receive(struct fw_device *fw_device)
 {
-	return 1 <<  (clamp_t(int, fw_device->max_rec, 8U, 11U) + 1);
+	/* see IEEE 1394-2008 table 8-8 */
+	return min(2 << fw_device->max_rec, 4096);
 }
 
 static void fwtty_log_tx_error(struct fwtty_port *port, int rcode)
