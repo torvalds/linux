@@ -112,10 +112,8 @@ static struct resource	*wdt_mem;
 static struct resource	*wdt_irq;
 static struct clk	*wdt_clock;
 static void __iomem	*wdt_base;
-static unsigned int	 wdt_count;
 static char		 expect_close;
 
-static DEFINE_SPINLOCK(wdt_lock);
 
 /* watchdog control routines */
 
@@ -126,39 +124,23 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 
 /* functions */
-static void rk29_wdt_keepalive(void)
+void rk29_wdt_keepalive(void)
 {
-	spin_lock(&wdt_lock);
 	writel(0x76, wdt_base + RK29_WDT_CRR);
-	spin_unlock(&wdt_lock);
 }
 
 static void __rk29_wdt_stop(void)
 {
-	unsigned long wtcon = 0;
-
-	wtcon = readl(wdt_base + RK29_WDT_CR);
-	wtcon &= 0xfffffffe;
-	writel(wtcon, wdt_base + RK29_WDT_CR);
+	rk29_wdt_keepalive();    //feed dog
+	writel(0x0a, wdt_base + RK29_WDT_CR);
 }
 
-static void rk29_wdt_stop(void)
+void rk29_wdt_stop(void)
 {
-	spin_lock(&wdt_lock);
 	__rk29_wdt_stop();
-	spin_unlock(&wdt_lock);
+	clk_disable(wdt_clock);
 }
 
-static void rk29_wdt_start(void)
-{
-	unsigned long wtcon = 0;
-
-	spin_lock(&wdt_lock);
-	__rk29_wdt_stop();
-	wtcon |= (RK29_WDT_EN << 0) | (RK29_RESPONSE_MODE << 1) | (RK29_RESET_PULSE << 2);
-	writel(wtcon, wdt_base + RK29_WDT_CR);
-	spin_unlock(&wdt_lock);
-}
 /* timeout unit us */
 static int rk29_wdt_set_heartbeat(int timeout)
 {
@@ -184,6 +166,15 @@ static int rk29_wdt_set_heartbeat(int timeout)
 	DBG("%s:%d\n", __func__, torr);
 	writel(torr, wdt_base + RK29_WDT_TORR);
 	return 0;
+}
+
+void rk29_wdt_start(void)
+{
+	unsigned long wtcon = 0;
+	clk_enable(wdt_clock);
+	rk29_wdt_set_heartbeat(tmr_margin);
+	wtcon |= (RK29_WDT_EN << 0) | (RK29_RESPONSE_MODE << 1) | (RK29_RESET_PULSE << 2);
+	writel(wtcon, wdt_base + RK29_WDT_CR);
 }
 
 /*
@@ -387,10 +378,6 @@ static int __devinit rk29_wdt_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	clk_enable(wdt_clock);
-
-	rk29_wdt_set_heartbeat(tmr_margin);
-
 	ret = misc_register(&rk29_wdt_miscdev);
 	if (ret) {
 		dev_err(dev, "cannot register miscdev on minor=%d (%d)\n",
@@ -462,7 +449,6 @@ static int rk29_wdt_suspend(struct platform_device *dev, pm_message_t state)
 
 static int rk29_wdt_resume(struct platform_device *dev)
 {
-	rk29_wdt_set_heartbeat(tmr_margin);
 	rk29_wdt_start();
 	return 0;
 }
