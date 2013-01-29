@@ -162,7 +162,7 @@ struct ts_hw_data     gslx680_info = {
 #endif
 
 
-#if defined (CONFIG_TOUCHSCREEN_GT811_IIC)
+#if defined (CONFIG_TOUCHSCREEN_86V_GT811_IIC)
 #define TOUCH_RESET_PIN  RK30_PIN0_PB6
 #define TOUCH_INT_PIN    RK30_PIN1_PB7
 int gt811_init_platform_hw(void)
@@ -1885,7 +1885,7 @@ static struct cpufreq_frequency_table dvfs_arm_table[] = {
 	{.frequency = 1008 * 1000,      .index = 1025 * 1000},
 	{.frequency = 1200 * 1000,      .index = 1100 * 1000},
 	{.frequency = 1416 * 1000,      .index = 1200 * 1000},
-	//{.frequency = 1608 * 1000,      .index = 1300 * 1000},
+	{.frequency = 1608 * 1000,      .index = 1300 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
@@ -1895,7 +1895,7 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 	{.frequency = 266 * 1000,	.index = 1000 * 1000},
 	{.frequency = 300 * 1000,	.index = 1050 * 1000},
 	{.frequency = 400 * 1000,	.index = 1100 * 1000},
-	//{.frequency = 600 * 1000,	.index = 1200 * 1000},
+	{.frequency = 600 * 1000,	.index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
