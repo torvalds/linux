@@ -988,7 +988,13 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
 		case PIPE_A:
-			temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+			/* Can only use the always-on power well for eDP when
+			 * not using the panel fitter, and when not using motion
+			  * blur mitigation (which we don't support). */
+			if (dev_priv->pch_pf_size)
+				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+			else
+				temp |= TRANS_DDI_EDP_INPUT_A_ON;
 			break;
 		case PIPE_B:
 			temp |= TRANS_DDI_EDP_INPUT_B_ONOFF;

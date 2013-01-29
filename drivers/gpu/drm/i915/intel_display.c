@@ -5607,6 +5607,35 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	return fdi_config_ok ? ret : -EINVAL;
 }
 
+static void haswell_modeset_global_resources(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool enable = false;
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		if (crtc->pipe != PIPE_A && crtc->base.enabled)
+			enable = true;
+		/* XXX: Should check for edp transcoder here, but thanks to init
+		 * sequence that's not yet available. Just in case desktop eDP
+		 * on PORT D is possible on haswell, too. */
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->type != INTEL_OUTPUT_EDP &&
+		    encoder->connectors_active)
+			enable = true;
+	}
+
+	/* Even the eDP panel fitter is outside the always-on well. */
+	if (dev_priv->pch_pf_size)
+		enable = true;
+
+	intel_set_power_well(dev, enable);
+}
+
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 				 struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode,
@@ -8480,6 +8509,8 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
+			dev_priv->display.modeset_global_resources =
+				haswell_modeset_global_resources;
 		}
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
