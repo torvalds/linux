@@ -1565,8 +1565,13 @@ static __init void da850_evm_init(void)
 
 	da850_vpif_init();
 
-	ret = da8xx_register_spi(1, da850evm_spi_info,
-				 ARRAY_SIZE(da850evm_spi_info));
+	ret = spi_register_board_info(da850evm_spi_info,
+				      ARRAY_SIZE(da850evm_spi_info));
+	if (ret)
+		pr_warn("%s: spi info registration failed: %d\n", __func__,
+			ret);
+
+	ret = da8xx_register_spi_bus(1, ARRAY_SIZE(da850evm_spi_info));
 	if (ret)
 		pr_warning("da850_evm_init: spi 1 registration failed: %d\n",
 				ret);
