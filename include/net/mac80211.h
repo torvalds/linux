@@ -3877,6 +3877,8 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  * When beacon filtering is enabled with %IEEE80211_VIF_BEACON_FILTER, and
  * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
  * needs to inform if the connection to the AP has been lost.
+ * The function may also be called if the connection needs to be terminated
+ * for some other reason, even if %IEEE80211_HW_CONNECTION_MONITOR isn't set.
  *
  * This function will cause immediate change to disassociated state,
  * without connection recovery attempts.

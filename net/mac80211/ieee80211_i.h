@@ -391,6 +391,7 @@ struct ieee80211_if_managed {
 	unsigned long probe_timeout;
 	int probe_send_count;
 	bool nullfunc_failed;
+	bool connection_loss;
 
 	struct mutex mtx;
 	struct cfg80211_bss *associated;
