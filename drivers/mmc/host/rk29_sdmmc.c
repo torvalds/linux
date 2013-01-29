@@ -95,7 +95,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.5.00 The last modify date is 2012-11-05"
+#define RK29_SDMMC_VERSION "Ver.5.02 The last modify date is 2013-01-29"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -2374,30 +2374,6 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
     rk29_sdmmc_enable_irq(host, false);
 
-    if(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDMMC_ID == host->pdev->id))
-    {
-        /*
-         * Waiting SDIO controller to be IDLE.
-        */
-        while (timeout-- > 0)
-    	{
-    		value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
-    		if ((value & SDMMC_STAUTS_DATA_BUSY) == 0 &&(value & SDMMC_CMD_FSM_MASK) == SDMMC_CMD_FSM_IDLE)
-    		{
-    			break;
-    		}
-    		
-    		mdelay(1);
-    	}
-    	if (timeout <= 0)
-    	{
-    		printk(KERN_WARNING "%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.[%s]\n", \
-    				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
-
-    		goto out;
-    	}
-	}
-
     //if(host->bus_mode != ios->power_mode)
     {
         switch (ios->power_mode) 
@@ -2424,9 +2400,10 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
               
                 if(RK29_CTRL_SDMMC_ID == host->pdev->id)
                 {
+                    mdelay(5);
                 	rk29_sdmmc_control_clock(host, FALSE);
                 	rk29_sdmmc_write(host->regs, SDMMC_PWREN, POWER_DISABLE);
-                	                
+                	mdelay(5);                
                 	if(5 == host->bus_mode)
                 	{
                         mdelay(5);
@@ -2448,6 +2425,31 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     	host->bus_mode = ios->power_mode;
     	
 	}
+
+    if(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDMMC_ID == host->pdev->id))
+    {
+        /*
+         * Waiting SDIO controller to be IDLE.
+        */
+        while (timeout-- > 0)
+    	{
+    		value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+    		if ((value & SDMMC_STAUTS_DATA_BUSY) == 0 &&(value & SDMMC_CMD_FSM_MASK) == SDMMC_CMD_FSM_IDLE)
+    		{
+    			break;
+    		}
+    		
+    		mdelay(1);
+    	}
+    	if (timeout <= 0)
+    	{
+    		printk(KERN_WARNING "%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.[%s]\n", \
+    				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
+
+    		goto out;
+    	}
+	}
+
 
     if(!(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDIO1_ID != host->pdev->id)))
         goto out; //exit the set_ios directly if the SDIO is not present. 

@@ -1,4 +1,4 @@
-/*****************************************************************************************
+/***************************************************************************************************
  * arch/arm/palt-rk/rk-sdmmc-ops.c
  *
  * Copyright (C) 2013 ROCKCHIP, Inc.
@@ -10,9 +10,9 @@
  *
  * History:
  *     ver1.0 Unified function interface for new imoux-API, created at 2013-01-15
+ *     ver1.1 add drive strength control and the setting of IO-voltage, created at 2013-01-29
  *
- ******************************************************************************************/
-
+ **************************************************************************************************/
 
 //use the new iomux-API
 #if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
@@ -21,15 +21,20 @@
 #define SDMMC_USE_NEW_IOMUX_API 0
 #endif
 
+//define IO volatga
+#if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
+#define SDMMC_SET_IO_VOLTAGE    1
+#else
+#define SDMMC_SET_IO_VOLTAGE    0
+#endif
 
-#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+#if SDMMC_SET_IO_VOLTAGE
 //GRF_IO_CON2                        0x0FC
 #define SDMMC0_DRIVER_STRENGTH_2MA            (0x00 << 6)
 #define SDMMC0_DRIVER_STRENGTH_4MA            (0x01 << 6)
 #define SDMMC0_DRIVER_STRENGTH_8MA            (0x02 << 6)
 #define SDMMC0_DRIVER_STRENGTH_12MA           (0x03 << 6)
 #define SDMMC0_DRIVER_STRENGTH_MASK           (0x03 << 22)
-
 
 //GRF_IO_CON3                        0x100
 #define SDMMC1_DRIVER_STRENGTH_2MA            (0x00 << 2)
@@ -38,6 +43,14 @@
 #define SDMMC1_DRIVER_STRENGTH_12MA           (0x03 << 2)
 #define SDMMC1_DRIVER_STRENGTH_MASK           (0x03 << 18)
 
+//GRF_IO_CON4       0x104
+#define SDMMC0_IO_VOLTAGE_33            (0x00 << 12)
+#define SDMMC0_IO_VOLTAGE_18            (0x01 << 12)
+#define SDMMC0_IO_VOLTAGE_MASK          (0x01 << 28)
+
+#define SDMMC1_IO_VOLTAGE_33            (0x00 << 8)
+#define SDMMC1_IO_VOLTAGE_18            (0x01 << 8)
+#define SDMMC1_IO_VOLTAGE_MASK          (0x01 << 24)
 
 #define SDMMC_write_grf_reg(addr, val)  __raw_writel(val, addr+RK30_GRF_BASE)
 #define SDMMC_read_grf_reg(addr) __raw_readl(addr+RK30_GRF_BASE)
@@ -48,6 +61,22 @@
 #define SDMMC_mask_grf_reg(addr, msk, val)	
 #endif
 
+int rk31sdk_wifi_voltage_select(void)
+{
+    double voltage;
+    int voltage_flag = 0;
+
+    voltage = rk31sdk_get_sdio_wifi_voltage();
+   
+     if(voltage >= 2.7)
+        voltage_flag = 0;
+     else if(voltage <= 2.0)
+        voltage_flag = 1;
+     else
+        voltage_flag = 1;
+
+    return voltage_flag;
+}
 
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
@@ -777,10 +806,10 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
         	#endif
 
             //IO voltage(vccio);sdcard must set the voltage to 3.3v
-            writel_relaxed(0x10000000, RK30_GRF_BASE + GRF_IO_CON4);
-            
+            SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC0_IO_VOLTAGE_MASK |SDMMC0_IO_VOLTAGE_33));
+    
             //sdmmc drive strength control
-            SDMMC_write_grf_reg(GRF_IO_CON2, (SDMMC0_DRIVER_STRENGTH_MASK |SDMMC0_DRIVER_STRENGTH_12MA));
+            SDMMC_write_grf_reg(GRF_IO_CON2, (SDMMC0_DRIVER_STRENGTH_MASK |SDMMC0_DRIVER_STRENGTH_8MA));
             
             #if !(!!SDMMC_USE_NEW_IOMUX_API)
             rk30_mux_api_set(rksdmmc0_gpio_init.data1_gpio.iomux.name, rksdmmc0_gpio_init.data1_gpio.iomux.fgpio);
@@ -822,14 +851,12 @@ static void rk29_sdmmc_set_iomux_mmc1(unsigned int bus_width)
     rk30_mux_api_set(rksdmmc1_gpio_init.data3_gpio.iomux.name, rksdmmc1_gpio_init.data3_gpio.iomux.fmux);
     #endif
 
-    //IO voltage(vcc-ap0)
- #if defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RK903) || defined(CONFIG_RK901)
-    writel_relaxed(0x01000100, RK30_GRF_BASE + GRF_IO_CON4);
-    
- #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)|| defined(CONFIG_MT6620)
-    writel_relaxed(0x01000000, RK30_GRF_BASE + GRF_IO_CON4);
-    
- #endif
+     //IO voltage(vcc-ap0)
+    if(rk31sdk_wifi_voltage_select())
+        SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC1_IO_VOLTAGE_MASK|SDMMC1_IO_VOLTAGE_18));       
+    else
+        SDMMC_write_grf_reg(GRF_IO_CON4, (SDMMC1_IO_VOLTAGE_MASK|SDMMC1_IO_VOLTAGE_33));
+
     //sdmmc1 drive strength control
     SDMMC_write_grf_reg(GRF_IO_CON3, (SDMMC1_DRIVER_STRENGTH_MASK|SDMMC1_DRIVER_STRENGTH_12MA));
     
