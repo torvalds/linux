@@ -315,6 +315,7 @@ static void svc_export_put(struct kref *ref)
 	path_put(&exp->ex_path);
 	auth_domain_put(exp->ex_client);
 	nfsd4_fslocs_free(&exp->ex_fslocs);
+	kfree(exp->ex_uuid);
 	kfree(exp);
 }
 
