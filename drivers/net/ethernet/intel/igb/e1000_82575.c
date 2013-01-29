@@ -111,6 +111,118 @@ static bool igb_sgmii_uses_mdio_82575(struct e1000_hw *hw)
 	return ext_mdio;
 }
 
+/**
+ *  igb_init_phy_params_82575 - Init PHY func ptrs.
+ *  @hw: pointer to the HW structure
+ **/
+static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u32 ctrl_ext;
+
+	if (hw->phy.media_type != e1000_media_type_copper) {
+		phy->type = e1000_phy_none;
+		goto out;
+	}
+
+	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT;
+	phy->reset_delay_us	= 100;
+
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+
+	if (igb_sgmii_active_82575(hw)) {
+		phy->ops.reset = igb_phy_hw_reset_sgmii_82575;
+		ctrl_ext |= E1000_CTRL_I2C_ENA;
+	} else {
+		phy->ops.reset = igb_phy_hw_reset;
+		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
+	}
+
+	wr32(E1000_CTRL_EXT, ctrl_ext);
+	igb_reset_mdicnfg_82580(hw);
+
+	if (igb_sgmii_active_82575(hw) && !igb_sgmii_uses_mdio_82575(hw)) {
+		phy->ops.read_reg = igb_read_phy_reg_sgmii_82575;
+		phy->ops.write_reg = igb_write_phy_reg_sgmii_82575;
+	} else {
+		switch (hw->mac.type) {
+		case e1000_82580:
+		case e1000_i350:
+			phy->ops.read_reg = igb_read_phy_reg_82580;
+			phy->ops.write_reg = igb_write_phy_reg_82580;
+			break;
+		case e1000_i210:
+		case e1000_i211:
+			phy->ops.read_reg = igb_read_phy_reg_gs40g;
+			phy->ops.write_reg = igb_write_phy_reg_gs40g;
+			break;
+		default:
+			phy->ops.read_reg = igb_read_phy_reg_igp;
+			phy->ops.write_reg = igb_write_phy_reg_igp;
+		}
+	}
+
+	/* set lan id */
+	hw->bus.func = (rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) >>
+			E1000_STATUS_FUNC_SHIFT;
+
+	/* Set phy->phy_addr and phy->id. */
+	ret_val = igb_get_phy_id_82575(hw);
+	if (ret_val)
+		return ret_val;
+
+	/* Verify phy id and set remaining function pointers */
+	switch (phy->id) {
+	case I347AT4_E_PHY_ID:
+	case M88E1112_E_PHY_ID:
+	case M88E1111_I_PHY_ID:
+		phy->type		= e1000_phy_m88;
+		phy->ops.get_phy_info	= igb_get_phy_info_m88;
+		if (phy->id == I347AT4_E_PHY_ID ||
+		    phy->id == M88E1112_E_PHY_ID)
+			phy->ops.get_cable_length =
+					 igb_get_cable_length_m88_gen2;
+		else
+			phy->ops.get_cable_length = igb_get_cable_length_m88;
+		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
+		break;
+	case IGP03E1000_E_PHY_ID:
+		phy->type = e1000_phy_igp_3;
+		phy->ops.get_phy_info = igb_get_phy_info_igp;
+		phy->ops.get_cable_length = igb_get_cable_length_igp_2;
+		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_igp;
+		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82575;
+		phy->ops.set_d3_lplu_state = igb_set_d3_lplu_state;
+		break;
+	case I82580_I_PHY_ID:
+	case I350_I_PHY_ID:
+		phy->type = e1000_phy_82580;
+		phy->ops.force_speed_duplex =
+					 igb_phy_force_speed_duplex_82580;
+		phy->ops.get_cable_length = igb_get_cable_length_82580;
+		phy->ops.get_phy_info = igb_get_phy_info_82580;
+		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82580;
+		phy->ops.set_d3_lplu_state = igb_set_d3_lplu_state_82580;
+		break;
+	case I210_I_PHY_ID:
+		phy->type		= e1000_phy_i210;
+		phy->ops.check_polarity	= igb_check_polarity_m88;
+		phy->ops.get_phy_info	= igb_get_phy_info_m88;
+		phy->ops.get_cable_length = igb_get_cable_length_m88_gen2;
+		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82580;
+		phy->ops.set_d3_lplu_state = igb_set_d3_lplu_state_82580;
+		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
+		break;
+	default:
+		ret_val = -E1000_ERR_PHY;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
