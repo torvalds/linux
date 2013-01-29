@@ -408,9 +408,8 @@ static int ttusbir_resume(struct usb_interface *intf)
 	struct ttusbir *tt = usb_get_intfdata(intf);
 	int i, rc;
 
-	led_classdev_resume(&tt->led);
 	tt->is_led_on = true;
-	ttusbir_set_led(tt);
+	led_classdev_resume(&tt->led);
 
 	for (i = 0; i < NUM_URBS; i++) {
 		rc = usb_submit_urb(tt->urb[i], GFP_KERNEL);
