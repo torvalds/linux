@@ -1683,8 +1683,7 @@ static void fwserial_virt_plug_complete(struct fwtty_peer *peer,
 
 	/* reconfigure tx_fifo optimally for this peer */
 	spin_lock_bh(&port->lock);
-	port->max_payload = min3(peer->max_payload, peer->fifo_len,
-				 MAX_ASYNC_PAYLOAD);
+	port->max_payload = min(peer->max_payload, peer->fifo_len);
 	dma_fifo_change_tx_limit(&port->tx_fifo, port->max_payload);
 	spin_unlock_bh(&peer->port->lock);
 
