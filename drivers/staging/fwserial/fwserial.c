@@ -40,12 +40,10 @@ static int num_ttys = 4;	    /* # of std ttys to create per fw_card    */
 				    /* - doubles as loopback port index       */
 static bool auto_connect = true;    /* try to VIRT_CABLE to every peer        */
 static bool create_loop_dev = true; /* create a loopback device for each card */
-bool limit_bw;			    /* limit async bandwidth to 20% of max    */
 
 module_param_named(ttys, num_ttys, int, S_IRUGO | S_IWUSR);
 module_param_named(auto, auto_connect, bool, S_IRUGO | S_IWUSR);
 module_param_named(loop, create_loop_dev, bool, S_IRUGO | S_IWUSR);
-module_param(limit_bw, bool, S_IRUGO | S_IWUSR);
 
 /*
  * Threshold below which the tty is woken for writing
@@ -2940,4 +2938,3 @@ MODULE_DEVICE_TABLE(ieee1394, fwserial_id_table);
 MODULE_PARM_DESC(ttys, "Number of ttys to create for each local firewire node");
 MODULE_PARM_DESC(auto, "Auto-connect a tty to each firewire node discovered");
 MODULE_PARM_DESC(loop, "Create a loopback device, fwloop<n>, with ttys");
-MODULE_PARM_DESC(limit_bw, "Limit bandwidth utilization to 20%.");
