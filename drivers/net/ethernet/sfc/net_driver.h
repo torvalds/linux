@@ -69,6 +69,12 @@
 #define EFX_TXQ_TYPES		4
 #define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CHANNELS)
 
+/* Maximum possible MTU the driver supports */
+#define EFX_MAX_MTU (9 * 1024)
+
+/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page. */
+#define EFX_RX_USR_BUF_SIZE 1824
+
 /* Forward declare Precision Time Protocol (PTP) support structure. */
 struct efx_ptp_data;
 
@@ -212,7 +218,8 @@ struct efx_tx_queue {
  *	If completed: offset in @page of Ethernet header.
  * @len: If pending: length for DMA descriptor.
  *	If completed: received length, excluding hash prefix.
- * @flags: Flags for buffer and packet state.
+ * @flags: Flags for buffer and packet state.  These are only set on the
+ *	first buffer of a scattered packet.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
@@ -256,6 +263,7 @@ struct efx_rx_page_state {
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
+ * @scatter_n: Number of buffers used by current packet
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
@@ -276,6 +284,7 @@ struct efx_rx_queue {
 	unsigned int added_count;
 	unsigned int notified_count;
 	unsigned int removed_count;
+	unsigned int scatter_n;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
 	unsigned int min_fill;
@@ -335,6 +344,12 @@ enum efx_rx_alloc_method {
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
+ * @n_rx_nodesc_trunc: Number of RX packets truncated and then dropped due to
+ *	lack of descriptors
+ * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
+ *	__efx_rx_packet(), or zero if there is none
+ * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
+ *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
  */
@@ -366,11 +381,10 @@ struct efx_channel {
 	unsigned n_rx_frm_trunc;
 	unsigned n_rx_overlength;
 	unsigned n_skbuff_leaks;
+	unsigned int n_rx_nodesc_trunc;
 
-	/* Used to pipeline received packets in order to optimise memory
-	 * access with prefetches.
-	 */
-	struct efx_rx_buffer *rx_pkt;
+	unsigned int rx_pkt_n_frags;
+	unsigned int rx_pkt_index;
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
@@ -672,8 +686,11 @@ struct vfdi_status;
  * @n_tx_channels: Number of channels used for TX
  * @rx_dma_len: Current maximum RX DMA length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
+ * @rx_buffer_truesize: Amortised allocation size of an RX buffer,
+ *	for use in sk_buff::truesize
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
+ * @rx_scatter: Scatter mode enabled for receives
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
@@ -788,8 +805,10 @@ struct efx_nic {
 	unsigned n_tx_channels;
 	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
+	unsigned int rx_buffer_truesize;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
+	bool rx_scatter;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;
@@ -920,8 +939,9 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @evq_ptr_tbl_base: Event queue pointer table base address
  * @evq_rptr_tbl_base: Event queue read-pointer table base address
  * @max_dma_mask: Maximum possible DMA mask
- * @rx_buffer_hash_size: Size of hash at start of RX buffer
- * @rx_buffer_padding: Size of padding at end of RX buffer
+ * @rx_buffer_hash_size: Size of hash at start of RX packet
+ * @rx_buffer_padding: Size of padding at end of RX packet
+ * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
  * @phys_addr_channels: Number of channels with physically addressed
@@ -969,6 +989,7 @@ struct efx_nic_type {
 	u64 max_dma_mask;
 	unsigned int rx_buffer_hash_size;
 	unsigned int rx_buffer_padding;
+	bool can_rx_scatter;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
 	unsigned int timer_period_max;

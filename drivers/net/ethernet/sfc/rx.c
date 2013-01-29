@@ -39,13 +39,17 @@
  */
 static unsigned int rx_refill_threshold;
 
+/* Each packet can consume up to ceil(max_frame_len / buffer_size) buffers */
+#define EFX_RX_MAX_FRAGS DIV_ROUND_UP(EFX_MAX_FRAME_LEN(EFX_MAX_MTU), \
+				      EFX_RX_USR_BUF_SIZE)
+
 /*
  * RX maximum head room required.
  *
- * This must be at least 1 to prevent overflow and at least 2 to allow
- * pipelined receives.
+ * This must be at least 1 to prevent overflow, plus one packet-worth
+ * to allow pipelined receives.
  */
-#define EFX_RXD_HEAD_ROOM 2
+#define EFX_RXD_HEAD_ROOM (1 + EFX_RX_MAX_FRAGS)
 
 static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 {
@@ -64,6 +68,15 @@ static inline u32 efx_rx_buf_hash(const u8 *eh)
 	       (u32)data[2] << 16 |
 	       (u32)data[3] << 24;
 #endif
+}
+
+static inline struct efx_rx_buffer *
+efx_rx_buf_next(struct efx_rx_queue *rx_queue, struct efx_rx_buffer *rx_buf)
+{
+	if (unlikely(rx_buf == efx_rx_buffer(rx_queue, rx_queue->ptr_mask)))
+		return efx_rx_buffer(rx_queue, 0);
+	else
+		return rx_buf + 1;
 }
 
 /**
@@ -199,28 +212,34 @@ static void efx_resurrect_rx_buffer(struct efx_rx_queue *rx_queue,
 	++rx_queue->added_count;
 }
 
-/* Recycle the given rx buffer directly back into the rx_queue. There is
- * always room to add this buffer, because we've just popped a buffer. */
-static void efx_recycle_rx_buffer(struct efx_channel *channel,
-				  struct efx_rx_buffer *rx_buf)
+/* Recycle buffers directly back into the rx_queue. There is always
+ * room to add these buffer, because we've just popped them.
+ */
+static void efx_recycle_rx_buffers(struct efx_channel *channel,
+				   struct efx_rx_buffer *rx_buf,
+				   unsigned int n_frags)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
 	struct efx_rx_buffer *new_buf;
 	unsigned index;
 
-	rx_buf->flags = 0;
+	do {
+		rx_buf->flags = 0;
 
-	if (efx->rx_dma_len <= EFX_RX_HALF_PAGE &&
-	    page_count(rx_buf->page) == 1)
-		efx_resurrect_rx_buffer(rx_queue, rx_buf);
+		if (efx->rx_dma_len <= EFX_RX_HALF_PAGE &&
+		    page_count(rx_buf->page) == 1)
+			efx_resurrect_rx_buffer(rx_queue, rx_buf);
 
-	index = rx_queue->added_count & rx_queue->ptr_mask;
-	new_buf = efx_rx_buffer(rx_queue, index);
+		index = rx_queue->added_count & rx_queue->ptr_mask;
+		new_buf = efx_rx_buffer(rx_queue, index);
 
-	memcpy(new_buf, rx_buf, sizeof(*new_buf));
-	rx_buf->page = NULL;
-	++rx_queue->added_count;
+		memcpy(new_buf, rx_buf, sizeof(*new_buf));
+		rx_buf->page = NULL;
+		++rx_queue->added_count;
+
+		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
+	} while (--n_frags);
 }
 
 /**
@@ -328,46 +347,56 @@ static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 /* Pass a received packet up through GRO.  GRO can handle pages
  * regardless of checksum state and skbs with a good checksum.
  */
-static void efx_rx_packet_gro(struct efx_channel *channel,
-			      struct efx_rx_buffer *rx_buf,
-			      const u8 *eh)
+static void
+efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
+		  unsigned int n_frags, u8 *eh)
 {
 	struct napi_struct *napi = &channel->napi_str;
 	gro_result_t gro_result;
 	struct efx_nic *efx = channel->efx;
-	struct page *page = rx_buf->page;
 	struct sk_buff *skb;
 
-	rx_buf->page = NULL;
-
 	skb = napi_get_frags(napi);
-	if (!skb) {
-		put_page(page);
+	if (unlikely(!skb)) {
+		while (n_frags--) {
+			put_page(rx_buf->page);
+			rx_buf->page = NULL;
+			rx_buf = efx_rx_buf_next(&channel->rx_queue, rx_buf);
+		}
 		return;
 	}
 
 	if (efx->net_dev->features & NETIF_F_RXHASH)
 		skb->rxhash = efx_rx_buf_hash(eh);
-
-	skb_fill_page_desc(skb, 0, page, rx_buf->page_offset, rx_buf->len);
-
-	skb->len = rx_buf->len;
-	skb->data_len = rx_buf->len;
-	skb->truesize += rx_buf->len;
 	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
+	for (;;) {
+		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+				   rx_buf->page, rx_buf->page_offset,
+				   rx_buf->len);
+		rx_buf->page = NULL;
+		skb->len += rx_buf->len;
+		if (skb_shinfo(skb)->nr_frags == n_frags)
+			break;
+
+		rx_buf = efx_rx_buf_next(&channel->rx_queue, rx_buf);
+	}
+
+	skb->data_len = skb->len;
+	skb->truesize += n_frags * efx->rx_buffer_truesize;
+
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
-		gro_result = napi_gro_frags(napi);
-
+	gro_result = napi_gro_frags(napi);
 	if (gro_result != GRO_DROP)
 		channel->irq_mod_score += 2;
 }
 
-/* Allocate and construct an SKB around a struct page.*/
+/* Allocate and construct an SKB around page fragments */
 static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 				     struct efx_rx_buffer *rx_buf,
+				     unsigned int n_frags,
 				     u8 *eh, int hdr_len)
 {
 	struct efx_nic *efx = channel->efx;
@@ -381,25 +410,32 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 	EFX_BUG_ON_PARANOID(rx_buf->len < hdr_len);
 
 	skb_reserve(skb, EFX_PAGE_SKB_ALIGN);
+	memcpy(__skb_put(skb, hdr_len), eh, hdr_len);
 
-	skb->len = rx_buf->len;
-	skb->truesize = rx_buf->len + sizeof(struct sk_buff);
-	memcpy(skb->data, eh, hdr_len);
-	skb->tail += hdr_len;
-
-	/* Append the remaining page onto the frag list */
+	/* Append the remaining page(s) onto the frag list */
 	if (rx_buf->len > hdr_len) {
-		skb->data_len = skb->len - hdr_len;
-		skb_fill_page_desc(skb, 0, rx_buf->page,
-				   rx_buf->page_offset + hdr_len,
-				   skb->data_len);
+		rx_buf->page_offset += hdr_len;
+		rx_buf->len -= hdr_len;
+
+		for (;;) {
+			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+					   rx_buf->page, rx_buf->page_offset,
+					   rx_buf->len);
+			rx_buf->page = NULL;
+			skb->len += rx_buf->len;
+			skb->data_len += rx_buf->len;
+			if (skb_shinfo(skb)->nr_frags == n_frags)
+				break;
+
+			rx_buf = efx_rx_buf_next(&channel->rx_queue, rx_buf);
+		}
 	} else {
 		__free_pages(rx_buf->page, efx->rx_buffer_order);
-		skb->data_len = 0;
+		rx_buf->page = NULL;
+		n_frags = 0;
 	}
 
-	/* Ownership has transferred from the rx_buf to skb */
-	rx_buf->page = NULL;
+	skb->truesize += n_frags * efx->rx_buffer_truesize;
 
 	/* Move past the ethernet header */
 	skb->protocol = eth_type_trans(skb, efx->net_dev);
@@ -408,7 +444,7 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 }
 
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-		   unsigned int len, u16 flags)
+		   unsigned int n_frags, unsigned int len, u16 flags)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
@@ -417,35 +453,43 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	rx_buf = efx_rx_buffer(rx_queue, index);
 	rx_buf->flags |= flags;
 
-	/* This allows the refill path to post another buffer.
-	 * EFX_RXD_HEAD_ROOM ensures that the slot we are using
-	 * isn't overwritten yet.
-	 */
-	rx_queue->removed_count++;
-
-	/* Validate the length encoded in the event vs the descriptor pushed */
-	efx_rx_packet__check_len(rx_queue, rx_buf, len);
+	/* Validate the number of fragments and completed length */
+	if (n_frags == 1) {
+		efx_rx_packet__check_len(rx_queue, rx_buf, len);
+	} else if (unlikely(n_frags > EFX_RX_MAX_FRAGS) ||
+		   unlikely(len <= (n_frags - 1) * EFX_RX_USR_BUF_SIZE) ||
+		   unlikely(len > n_frags * EFX_RX_USR_BUF_SIZE) ||
+		   unlikely(!efx->rx_scatter)) {
+		/* If this isn't an explicit discard request, either
+		 * the hardware or the driver is broken.
+		 */
+		WARN_ON(!(len == 0 && rx_buf->flags & EFX_RX_PKT_DISCARD));
+		rx_buf->flags |= EFX_RX_PKT_DISCARD;
+	}
 
 	netif_vdbg(efx, rx_status, efx->net_dev,
-		   "RX queue %d received id %x at %llx+%x %s%s\n",
+		   "RX queue %d received ids %x-%x len %d %s%s\n",
 		   efx_rx_queue_index(rx_queue), index,
-		   (unsigned long long)rx_buf->dma_addr, len,
+		   (index + n_frags - 1) & rx_queue->ptr_mask, len,
 		   (rx_buf->flags & EFX_RX_PKT_CSUMMED) ? " [SUMMED]" : "",
 		   (rx_buf->flags & EFX_RX_PKT_DISCARD) ? " [DISCARD]" : "");
 
-	/* Discard packet, if instructed to do so */
+	/* Discard packet, if instructed to do so.  Process the
+	 * previous receive first.
+	 */
 	if (unlikely(rx_buf->flags & EFX_RX_PKT_DISCARD)) {
-		efx_recycle_rx_buffer(channel, rx_buf);
-
-		/* Don't hold off the previous receive */
-		rx_buf = NULL;
-		goto out;
+		efx_rx_flush_packet(channel);
+		efx_recycle_rx_buffers(channel, rx_buf, n_frags);
+		return;
 	}
+
+	if (n_frags == 1)
+		rx_buf->len = len;
 
 	/* Release and/or sync DMA mapping - assumes all RX buffers
 	 * consumed in-order per RX queue
 	 */
-	efx_unmap_rx_buffer(efx, rx_buf, len);
+	efx_unmap_rx_buffer(efx, rx_buf, rx_buf->len);
 
 	/* Prefetch nice and early so data will (hopefully) be in cache by
 	 * the time we look at it.
@@ -453,23 +497,40 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	prefetch(efx_rx_buf_va(rx_buf));
 
 	rx_buf->page_offset += efx->type->rx_buffer_hash_size;
-	rx_buf->len = len - efx->type->rx_buffer_hash_size;
+	rx_buf->len -= efx->type->rx_buffer_hash_size;
+
+	if (n_frags > 1) {
+		/* Release/sync DMA mapping for additional fragments.
+		 * Fix length for last fragment.
+		 */
+		unsigned int tail_frags = n_frags - 1;
+
+		for (;;) {
+			rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
+			if (--tail_frags == 0)
+				break;
+			efx_unmap_rx_buffer(efx, rx_buf, EFX_RX_USR_BUF_SIZE);
+		}
+		rx_buf->len = len - (n_frags - 1) * EFX_RX_USR_BUF_SIZE;
+		efx_unmap_rx_buffer(efx, rx_buf, rx_buf->len);
+	}
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
 	 */
-out:
 	efx_rx_flush_packet(channel);
-	channel->rx_pkt = rx_buf;
+	channel->rx_pkt_n_frags = n_frags;
+	channel->rx_pkt_index = index;
 }
 
 static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
-			   struct efx_rx_buffer *rx_buf)
+			   struct efx_rx_buffer *rx_buf,
+			   unsigned int n_frags)
 {
 	struct sk_buff *skb;
 	u16 hdr_len = min_t(u16, rx_buf->len, EFX_SKB_HEADERS);
 
-	skb = efx_rx_mk_skb(channel, rx_buf, eh, hdr_len);
+	skb = efx_rx_mk_skb(channel, rx_buf, n_frags, eh, hdr_len);
 	if (unlikely(skb == NULL)) {
 		efx_free_rx_buffer(channel->efx, rx_buf);
 		return;
@@ -488,9 +549,11 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 }
 
 /* Handle a received packet.  Second half: Touches packet payload. */
-void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
+void __efx_rx_packet(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
+	struct efx_rx_buffer *rx_buf =
+		efx_rx_buffer(&channel->rx_queue, channel->rx_pkt_index);
 	u8 *eh = efx_rx_buf_va(rx_buf);
 
 	/* If we're in loopback test, then pass the packet directly to the
@@ -499,16 +562,18 @@ void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 	if (unlikely(efx->loopback_selftest)) {
 		efx_loopback_rx_packet(efx, eh, rx_buf->len);
 		efx_free_rx_buffer(efx, rx_buf);
-		return;
+		goto out;
 	}
 
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
 	if (!channel->type->receive_skb)
-		efx_rx_packet_gro(channel, rx_buf, eh);
+		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
 	else
-		efx_rx_deliver(channel, eh, rx_buf);
+		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
+out:
+	channel->rx_pkt_n_frags = 0;
 }
 
 int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)

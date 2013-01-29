@@ -88,8 +88,6 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
 };
 
-#define EFX_MAX_MTU (9 * 1024)
-
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
  * queued onto this work queue. This is not a per-nic work queue, because
  * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
@@ -627,9 +625,11 @@ fail:
  */
 static void efx_start_datapath(struct efx_nic *efx)
 {
+	bool old_rx_scatter = efx->rx_scatter;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
+	size_t rx_buf_len;
 
 	/* Calculate the rx buffer allocation parameters required to
 	 * support the current MTU, including padding for header
@@ -638,8 +638,32 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_dma_len = (efx->type->rx_buffer_hash_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
-	efx->rx_buffer_order = get_order(sizeof(struct efx_rx_page_state) +
-					 EFX_PAGE_IP_ALIGN + efx->rx_dma_len);
+	rx_buf_len = (sizeof(struct efx_rx_page_state) +
+		      EFX_PAGE_IP_ALIGN + efx->rx_dma_len);
+	if (rx_buf_len <= PAGE_SIZE) {
+		efx->rx_scatter = false;
+		efx->rx_buffer_order = 0;
+		if (rx_buf_len <= PAGE_SIZE / 2)
+			efx->rx_buffer_truesize = PAGE_SIZE / 2;
+		else
+			efx->rx_buffer_truesize = PAGE_SIZE;
+	} else if (efx->type->can_rx_scatter) {
+		BUILD_BUG_ON(sizeof(struct efx_rx_page_state) +
+			     EFX_PAGE_IP_ALIGN + EFX_RX_USR_BUF_SIZE >
+			     PAGE_SIZE / 2);
+		efx->rx_scatter = true;
+		efx->rx_dma_len = EFX_RX_USR_BUF_SIZE;
+		efx->rx_buffer_order = 0;
+		efx->rx_buffer_truesize = PAGE_SIZE / 2;
+	} else {
+		efx->rx_scatter = false;
+		efx->rx_buffer_order = get_order(rx_buf_len);
+		efx->rx_buffer_truesize = PAGE_SIZE << efx->rx_buffer_order;
+	}
+
+	/* RX filters also have scatter-enabled flags */
+	if (efx->rx_scatter != old_rx_scatter)
+		efx_filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
 	 * We could avoid this when the queue size does not exactly
@@ -661,7 +685,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 			efx_nic_generate_fill_event(rx_queue);
 		}
 
-		WARN_ON(channel->rx_pkt != NULL);
+		WARN_ON(channel->rx_pkt_n_frags);
 	}
 
 	if (netif_device_present(efx->net_dev))

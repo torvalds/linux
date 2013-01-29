@@ -172,6 +172,25 @@ static void efx_filter_push_rx_config(struct efx_nic *efx)
 			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_RSS_ENABLED,
 			!!(table->spec[EFX_FILTER_INDEX_MC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_RSS));
+
+		/* There is a single bit to enable RX scatter for all
+		 * unmatched packets.  Only set it if scatter is
+		 * enabled in both filter specs.
+		 */
+		EFX_SET_OWORD_FIELD(
+			filter_ctl, FRF_BZ_SCATTER_ENBL_NO_MATCH_Q,
+			!!(table->spec[EFX_FILTER_INDEX_UC_DEF].flags &
+			   table->spec[EFX_FILTER_INDEX_MC_DEF].flags &
+			   EFX_FILTER_FLAG_RX_SCATTER));
+	} else if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		/* We don't expose 'default' filters because unmatched
+		 * packets always go to the queue number found in the
+		 * RSS table.  But we still need to set the RX scatter
+		 * bit here.
+		 */
+		EFX_SET_OWORD_FIELD(
+			filter_ctl, FRF_BZ_SCATTER_ENBL_NO_MATCH_Q,
+			efx->rx_scatter);
 	}
 
 	efx_writeo(efx, &filter_ctl, FR_BZ_RX_FILTER_CTL);
@@ -413,13 +432,18 @@ static void efx_filter_reset_rx_def(struct efx_nic *efx, unsigned filter_idx)
 	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_table *table = &state->table[EFX_FILTER_TABLE_RX_DEF];
 	struct efx_filter_spec *spec = &table->spec[filter_idx];
+	enum efx_filter_flags flags = 0;
 
 	/* If there's only one channel then disable RSS for non VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
-	efx_filter_init_rx(spec, EFX_FILTER_PRI_MANUAL,
-			   efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0,
-			   0);
+	if (efx->n_rx_channels > 1)
+		flags |= EFX_FILTER_FLAG_RX_RSS;
+
+	if (efx->rx_scatter)
+		flags |= EFX_FILTER_FLAG_RX_SCATTER;
+
+	efx_filter_init_rx(spec, EFX_FILTER_PRI_MANUAL, flags, 0);
 	spec->type = EFX_FILTER_UC_DEF + filter_idx;
 	table->used_bitmap[0] |= 1 << filter_idx;
 }
@@ -1099,6 +1123,50 @@ void efx_remove_filters(struct efx_nic *efx)
 	kfree(state->rps_flow_id);
 #endif
 	kfree(state);
+}
+
+/* Update scatter enable flags for filters pointing to our own RX queues */
+void efx_filter_update_rx_scatter(struct efx_nic *efx)
+{
+	struct efx_filter_state *state = efx->filter_state;
+	enum efx_filter_table_id table_id;
+	struct efx_filter_table *table;
+	efx_oword_t filter;
+	unsigned int filter_idx;
+
+	spin_lock_bh(&state->lock);
+
+	for (table_id = EFX_FILTER_TABLE_RX_IP;
+	     table_id <= EFX_FILTER_TABLE_RX_DEF;
+	     table_id++) {
+		table = &state->table[table_id];
+
+		for (filter_idx = 0; filter_idx < table->size; filter_idx++) {
+			if (!test_bit(filter_idx, table->used_bitmap) ||
+			    table->spec[filter_idx].dmaq_id >=
+			    efx->n_rx_channels)
+				continue;
+
+			if (efx->rx_scatter)
+				table->spec[filter_idx].flags |=
+					EFX_FILTER_FLAG_RX_SCATTER;
+			else
+				table->spec[filter_idx].flags &=
+					~EFX_FILTER_FLAG_RX_SCATTER;
+
+			if (table_id == EFX_FILTER_TABLE_RX_DEF)
+				/* Pushed by efx_filter_push_rx_config() */
+				continue;
+
+			efx_filter_build(&filter, &table->spec[filter_idx]);
+			efx_writeo(efx, &filter,
+				   table->offset + table->step * filter_idx);
+		}
+	}
+
+	efx_filter_push_rx_config(efx);
+
+	spin_unlock_bh(&state->lock);
 }
 
 #ifdef CONFIG_RFS_ACCEL
