@@ -118,7 +118,6 @@ static void dump_completed_IO(struct inode *inode)
 #ifdef	EXT4FS_DEBUG
 	struct list_head *cur, *before, *after;
 	ext4_io_end_t *io, *io0, *io1;
-	unsigned long flags;
 
 	if (list_empty(&EXT4_I(inode)->i_completed_io_list)) {
 		ext4_debug("inode %lu completed_io list is empty\n",
