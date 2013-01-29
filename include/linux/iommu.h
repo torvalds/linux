@@ -101,6 +101,12 @@ struct iommu_ops {
 			       enum iommu_attr attr, void *data);
 	int (*domain_set_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
+
+	/* Window handling functions */
+	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,
+				    phys_addr_t paddr, u64 size);
+	void (*domain_window_disable)(struct iommu_domain *domain, u32 wnd_nr);
+
 	unsigned long pgsize_bitmap;
 };
 
@@ -158,6 +164,10 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 
+/* Window handling function prototypes */
+extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
+				      phys_addr_t offset, u64 size);
+extern void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr);
 /**
  * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
  * @domain: the iommu domain where the fault has happened
@@ -238,6 +248,18 @@ static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 			      int gfp_order)
 {
 	return -ENODEV;
+}
+
+static inline int iommu_domain_window_enable(struct iommu_domain *domain,
+					     u32 wnd_nr, phys_addr_t paddr,
+					     u64 size)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_domain_window_disable(struct iommu_domain *domain,
+					       u32 wnd_nr)
+{
 }
 
 static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
