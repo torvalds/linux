@@ -38,7 +38,7 @@ ENTRY(startup_32)
 	.balign	0x10
 	/*
 	 * We don't need the return address, so set up the stack so
-	 * efi_main() can find its arugments.
+	 * efi_main() can find its arguments.
 	 */
 	add	$0x4, %esp
 
