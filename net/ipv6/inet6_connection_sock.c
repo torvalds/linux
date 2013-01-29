@@ -34,7 +34,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 	const struct hlist_node *node;
 	int reuse = sk->sk_reuse;
 	int reuseport = sk->sk_reuseport;
-	int uid = sock_i_uid((struct sock *)sk);
+	kuid_t uid = sock_i_uid((struct sock *)sk);
 
 	/* We must walk the whole port owner list in this case. -DaveM */
 	/*
