@@ -577,8 +577,11 @@ static int fwtty_buffer_rx(struct fwtty_port *port, unsigned char *d, size_t n)
 	struct buffered_rx *buf;
 	size_t size = (n + sizeof(struct buffered_rx) + 0xFF) & ~0xFF;
 
-	if (port->buffered + n > HIGH_WATERMARK)
+	if (port->buffered + n > HIGH_WATERMARK) {
+		fwtty_err_ratelimited(port, "overflowed rx buffer: buffered: %d new: %ld wtrmk: %d",
+				      port->buffered, n, HIGH_WATERMARK);
 		return 0;
+	}
 	buf = kmalloc(size, GFP_ATOMIC);
 	if (!buf)
 		return 0;
