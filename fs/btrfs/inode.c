@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 #include <linux/mount.h>
+#include <linux/blkdev.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -6386,19 +6387,24 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int async_submit = 0;
 
 	map_length = orig_bio->bi_size;
-	ret = btrfs_map_block(root->fs_info, READ, start_sector << 9,
+	ret = btrfs_map_block(root->fs_info, rw, start_sector << 9,
 			      &map_length, NULL, 0);
 	if (ret) {
 		bio_put(orig_bio);
 		return -EIO;
 	}
-
 	if (map_length >= orig_bio->bi_size) {
 		bio = orig_bio;
 		goto submit;
 	}
 
-	async_submit = 1;
+	/* async crcs make it difficult to collect full stripe writes. */
+	if (btrfs_get_alloc_profile(root, 1) &
+	    (BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6))
+		async_submit = 0;
+	else
+		async_submit = 1;
+
 	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
 	if (!bio)
 		return -ENOMEM;
@@ -6440,7 +6446,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			bio->bi_end_io = btrfs_end_dio_bio;
 
 			map_length = orig_bio->bi_size;
-			ret = btrfs_map_block(root->fs_info, READ,
+			ret = btrfs_map_block(root->fs_info, rw,
 					      start_sector << 9,
 					      &map_length, NULL, 0);
 			if (ret) {
@@ -6583,15 +6589,17 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+	ssize_t ret;
 
 	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iov,
 			    offset, nr_segs))
 		return 0;
 
-	return __blockdev_direct_IO(rw, iocb, inode,
+	ret = __blockdev_direct_IO(rw, iocb, inode,
 		   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
 		   iov, offset, nr_segs, btrfs_get_blocks_direct, NULL,
 		   btrfs_submit_direct, 0);
+	return ret;
 }
 
 #define BTRFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC)

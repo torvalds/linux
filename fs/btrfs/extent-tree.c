@@ -31,6 +31,7 @@
 #include "print-tree.h"
 #include "transaction.h"
 #include "volumes.h"
+#include "raid56.h"
 #include "locking.h"
 #include "free-space-cache.h"
 #include "math.h"
@@ -1852,6 +1853,8 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 		*actual_bytes = discarded_bytes;
 
 
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
 	return ret;
 }
 
@@ -3276,6 +3279,7 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	u64 num_devices = root->fs_info->fs_devices->rw_devices +
 		root->fs_info->fs_devices->missing_devices;
 	u64 target;
+	u64 tmp;
 
 	/*
 	 * see if restripe for this chunk_type is in progress, if so
@@ -3292,30 +3296,32 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	}
 	spin_unlock(&root->fs_info->balance_lock);
 
+	/* First, mask out the RAID levels which aren't possible */
 	if (num_devices == 1)
-		flags &= ~(BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID0);
+		flags &= ~(BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID0 |
+			   BTRFS_BLOCK_GROUP_RAID5);
+	if (num_devices < 3)
+		flags &= ~BTRFS_BLOCK_GROUP_RAID6;
 	if (num_devices < 4)
 		flags &= ~BTRFS_BLOCK_GROUP_RAID10;
 
-	if ((flags & BTRFS_BLOCK_GROUP_DUP) &&
-	    (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-		      BTRFS_BLOCK_GROUP_RAID10))) {
-		flags &= ~BTRFS_BLOCK_GROUP_DUP;
-	}
+	tmp = flags & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID0 |
+		       BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID5 |
+		       BTRFS_BLOCK_GROUP_RAID6 | BTRFS_BLOCK_GROUP_RAID10);
+	flags &= ~tmp;
 
-	if ((flags & BTRFS_BLOCK_GROUP_RAID1) &&
-	    (flags & BTRFS_BLOCK_GROUP_RAID10)) {
-		flags &= ~BTRFS_BLOCK_GROUP_RAID1;
-	}
+	if (tmp & BTRFS_BLOCK_GROUP_RAID6)
+		tmp = BTRFS_BLOCK_GROUP_RAID6;
+	else if (tmp & BTRFS_BLOCK_GROUP_RAID5)
+		tmp = BTRFS_BLOCK_GROUP_RAID5;
+	else if (tmp & BTRFS_BLOCK_GROUP_RAID10)
+		tmp = BTRFS_BLOCK_GROUP_RAID10;
+	else if (tmp & BTRFS_BLOCK_GROUP_RAID1)
+		tmp = BTRFS_BLOCK_GROUP_RAID1;
+	else if (tmp & BTRFS_BLOCK_GROUP_RAID0)
+		tmp = BTRFS_BLOCK_GROUP_RAID0;
 
-	if ((flags & BTRFS_BLOCK_GROUP_RAID0) &&
-	    ((flags & BTRFS_BLOCK_GROUP_RAID1) |
-	     (flags & BTRFS_BLOCK_GROUP_RAID10) |
-	     (flags & BTRFS_BLOCK_GROUP_DUP))) {
-		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
-	}
-
-	return extended_to_chunk(flags);
+	return extended_to_chunk(flags | tmp);
 }
 
 static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
@@ -3333,6 +3339,7 @@ static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
 u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
 {
 	u64 flags;
+	u64 ret;
 
 	if (data)
 		flags = BTRFS_BLOCK_GROUP_DATA;
@@ -3341,7 +3348,8 @@ u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
 	else
 		flags = BTRFS_BLOCK_GROUP_METADATA;
 
-	return get_alloc_profile(root, flags);
+	ret = get_alloc_profile(root, flags);
+	return ret;
 }
 
 /*
@@ -3516,8 +3524,10 @@ static u64 get_system_chunk_thresh(struct btrfs_root *root, u64 type)
 {
 	u64 num_dev;
 
-	if (type & BTRFS_BLOCK_GROUP_RAID10 ||
-	    type & BTRFS_BLOCK_GROUP_RAID0)
+	if (type & (BTRFS_BLOCK_GROUP_RAID10 |
+		    BTRFS_BLOCK_GROUP_RAID0 |
+		    BTRFS_BLOCK_GROUP_RAID5 |
+		    BTRFS_BLOCK_GROUP_RAID6))
 		num_dev = root->fs_info->fs_devices->rw_devices;
 	else if (type & BTRFS_BLOCK_GROUP_RAID1)
 		num_dev = 2;
@@ -3667,7 +3677,9 @@ static int can_overcommit(struct btrfs_root *root,
 
 	/*
 	 * If we have dup, raid1 or raid10 then only half of the free
-	 * space is actually useable.
+	 * space is actually useable.  For raid56, the space info used
+	 * doesn't include the parity drive, so we don't have to
+	 * change the math
 	 */
 	if (profile & (BTRFS_BLOCK_GROUP_DUP |
 		       BTRFS_BLOCK_GROUP_RAID1 |
@@ -5455,10 +5467,14 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return ret;
 }
 
-static u64 stripe_align(struct btrfs_root *root, u64 val)
+static u64 stripe_align(struct btrfs_root *root,
+			struct btrfs_block_group_cache *cache,
+			u64 val, u64 num_bytes)
 {
-	u64 mask = ((u64)root->stripesize - 1);
-	u64 ret = (val + mask) & ~mask;
+	u64 mask;
+	u64 ret;
+	mask = ((u64)root->stripesize - 1);
+	ret = (val + mask) & ~mask;
 	return ret;
 }
 
@@ -5519,9 +5535,12 @@ int __get_raid_index(u64 flags)
 		index = 2;
 	else if (flags & BTRFS_BLOCK_GROUP_RAID0)
 		index = 3;
+	else if (flags & BTRFS_BLOCK_GROUP_RAID5)
+		index = 5;
+	else if (flags & BTRFS_BLOCK_GROUP_RAID6)
+		index = 6;
 	else
-		index = 4;
-
+		index = 4; /* BTRFS_BLOCK_GROUP_SINGLE */
 	return index;
 }
 
@@ -5665,6 +5684,8 @@ search:
 		if (!block_group_bits(block_group, data)) {
 		    u64 extra = BTRFS_BLOCK_GROUP_DUP |
 				BTRFS_BLOCK_GROUP_RAID1 |
+				BTRFS_BLOCK_GROUP_RAID5 |
+				BTRFS_BLOCK_GROUP_RAID6 |
 				BTRFS_BLOCK_GROUP_RAID10;
 
 			/*
@@ -5835,7 +5856,8 @@ unclustered_alloc:
 			goto loop;
 		}
 checks:
-		search_start = stripe_align(root, offset);
+		search_start = stripe_align(root, used_block_group,
+					    offset, num_bytes);
 
 		/* move on to the next group */
 		if (search_start + num_bytes >
@@ -7203,6 +7225,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 		root->fs_info->fs_devices->missing_devices;
 
 	stripped = BTRFS_BLOCK_GROUP_RAID0 |
+		BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6 |
 		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
 
 	if (num_devices == 1) {
@@ -7754,7 +7777,9 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		btrfs_release_path(path);
 		cache->flags = btrfs_block_group_flags(&cache->item);
 		cache->sectorsize = root->sectorsize;
-
+		cache->full_stripe_len = btrfs_full_stripe_len(root,
+					       &root->fs_info->mapping_tree,
+					       found_key.objectid);
 		btrfs_init_free_space_ctl(cache);
 
 		/*
@@ -7808,6 +7833,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		if (!(get_alloc_profile(root, space_info->flags) &
 		      (BTRFS_BLOCK_GROUP_RAID10 |
 		       BTRFS_BLOCK_GROUP_RAID1 |
+		       BTRFS_BLOCK_GROUP_RAID5 |
+		       BTRFS_BLOCK_GROUP_RAID6 |
 		       BTRFS_BLOCK_GROUP_DUP)))
 			continue;
 		/*
@@ -7883,6 +7910,9 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	cache->sectorsize = root->sectorsize;
 	cache->fs_info = root->fs_info;
+	cache->full_stripe_len = btrfs_full_stripe_len(root,
+					       &root->fs_info->mapping_tree,
+					       chunk_offset);
 
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);

@@ -1895,13 +1895,11 @@ static int free_io_failure(struct inode *inode, struct io_failure_record *rec,
 	if (ret)
 		err = ret;
 
-	if (did_repair) {
-		ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, rec->start,
-					rec->start + rec->len - 1,
-					EXTENT_DAMAGED, GFP_NOFS);
-		if (ret && !err)
-			err = ret;
-	}
+	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, rec->start,
+				rec->start + rec->len - 1,
+				EXTENT_DAMAGED, GFP_NOFS);
+	if (ret && !err)
+		err = ret;
 
 	kfree(rec);
 	return err;
@@ -1932,9 +1930,14 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
+	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
 	BUG_ON(!mirror_num);
+
+	/* we can't repair anything in raid56 yet */
+	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
+		return 0;
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	if (!bio)
@@ -2052,6 +2055,7 @@ static int clean_io_failure(u64 start, struct page *page)
 						failrec->failed_mirror);
 			did_repair = !ret;
 		}
+		ret = 0;
 	}
 
 out:

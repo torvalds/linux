@@ -502,6 +502,7 @@ struct btrfs_super_block {
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 
 #define BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF	(1ULL << 6)
+#define BTRFS_FEATURE_INCOMPAT_RAID56		(1ULL << 7)
 
 #define BTRFS_FEATURE_COMPAT_SUPP		0ULL
 #define BTRFS_FEATURE_COMPAT_RO_SUPP		0ULL
@@ -511,6 +512,7 @@ struct btrfs_super_block {
 	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
 	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
 	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
+	 BTRFS_FEATURE_INCOMPAT_RAID56 |		\
 	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF)
 
 /*
@@ -952,8 +954,10 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RAID1		(1ULL << 4)
 #define BTRFS_BLOCK_GROUP_DUP		(1ULL << 5)
 #define BTRFS_BLOCK_GROUP_RAID10	(1ULL << 6)
+#define BTRFS_BLOCK_GROUP_RAID5    (1 << 7)
+#define BTRFS_BLOCK_GROUP_RAID6    (1 << 8)
 #define BTRFS_BLOCK_GROUP_RESERVED	BTRFS_AVAIL_ALLOC_BIT_SINGLE
-#define BTRFS_NR_RAID_TYPES		5
+#define BTRFS_NR_RAID_TYPES		7
 
 #define BTRFS_BLOCK_GROUP_TYPE_MASK	(BTRFS_BLOCK_GROUP_DATA |    \
 					 BTRFS_BLOCK_GROUP_SYSTEM |  \
@@ -961,6 +965,8 @@ struct btrfs_dev_replace_item {
 
 #define BTRFS_BLOCK_GROUP_PROFILE_MASK	(BTRFS_BLOCK_GROUP_RAID0 |   \
 					 BTRFS_BLOCK_GROUP_RAID1 |   \
+					 BTRFS_BLOCK_GROUP_RAID5 |   \
+					 BTRFS_BLOCK_GROUP_RAID6 |   \
 					 BTRFS_BLOCK_GROUP_DUP |     \
 					 BTRFS_BLOCK_GROUP_RAID10)
 /*
@@ -1185,6 +1191,10 @@ struct btrfs_block_group_cache {
 	u64 flags;
 	u64 sectorsize;
 	u64 cache_generation;
+
+	/* for raid56, this is a full stripe, without parity */
+	unsigned long full_stripe_len;
+
 	unsigned int ro:1;
 	unsigned int dirty:1;
 	unsigned int iref:1;
@@ -1224,6 +1234,20 @@ struct seq_list {
 	struct list_head list;
 	u64 seq;
 };
+
+/* used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash {
+	struct list_head hash_list;
+	wait_queue_head_t wait;
+	spinlock_t lock;
+};
+
+/* used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash_table {
+	struct btrfs_stripe_hash *table;
+};
+
+#define BTRFS_STRIPE_HASH_TABLE_BITS 11
 
 /* fs_info */
 struct reloc_control;
@@ -1307,6 +1331,13 @@ struct btrfs_fs_info {
 	struct mutex cleaner_mutex;
 	struct mutex chunk_mutex;
 	struct mutex volume_mutex;
+
+	/* this is used during read/modify/write to make sure
+	 * no two ios are trying to mod the same stripe at the same
+	 * time
+	 */
+	struct btrfs_stripe_hash_table *stripe_hash_table;
+
 	/*
 	 * this protects the ordered operations list only while we are
 	 * processing all of the entries on it.  This way we make
@@ -1395,6 +1426,8 @@ struct btrfs_fs_info {
 	struct btrfs_workers flush_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_meta_workers;
+	struct btrfs_workers endio_raid56_workers;
+	struct btrfs_workers rmw_workers;
 	struct btrfs_workers endio_meta_write_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers endio_freespace_worker;

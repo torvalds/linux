@@ -28,6 +28,7 @@
 #include "dev-replace.h"
 #include "check-integrity.h"
 #include "rcu-string.h"
+#include "raid56.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -2245,6 +2246,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 extent_len;
 	struct btrfs_device *extent_dev;
 	int extent_mirror_num;
+
+	if (map->type & (BTRFS_BLOCK_GROUP_RAID5 |
+			 BTRFS_BLOCK_GROUP_RAID6)) {
+		if (num >= nr_data_stripes(map)) {
+			return 0;
+		}
+	}
 
 	nstripes = length;
 	offset = 0;

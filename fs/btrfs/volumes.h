@@ -321,7 +321,14 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
 int btrfs_scratch_superblock(struct btrfs_device *device);
-
+void btrfs_schedule_bio(struct btrfs_root *root,
+			struct btrfs_device *device,
+			int rw, struct bio *bio);
+int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
+			   u64 logical, u64 len, int mirror_num);
+unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
+				    struct btrfs_mapping_tree *map_tree,
+				    u64 logical);
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {
