@@ -129,7 +129,6 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 }
 
 static struct clock_event_device clockevent_gpt = {
-	.name		= "gp_timer",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.rating		= 300,
@@ -215,10 +214,11 @@ static u32 __init omap_dm_timer_get_errata(void)
 }
 
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
-						int gptimer_id,
-						const char *fck_source,
-						const char *property,
-						int posted)
+					 int gptimer_id,
+					 const char *fck_source,
+					 const char *property,
+					 const char **timer_name,
+					 int posted)
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
 	const char *oh_name;
@@ -254,6 +254,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh)
 		return -ENODEV;
+
+	*timer_name = oh->name;
 
 	if (!of_have_populated_dt()) {
 		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL,
@@ -328,7 +330,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	__omap_dm_timer_override_errata(&clkev, OMAP_TIMER_ERRATA_I103_I767);
 
 	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source, property,
-				     OMAP_TIMER_POSTED);
+				     &clockevent_gpt.name, OMAP_TIMER_POSTED);
 	BUG_ON(res);
 
 	omap2_gp_timer_irq.dev_id = &clkev;
@@ -348,8 +350,8 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	clockevent_gpt.irq = omap_dm_timer_get_irq(&clkev);
 	clockevents_register_device(&clockevent_gpt);
 
-	pr_info("OMAP clockevent source: GPTIMER%d at %lu Hz\n",
-		gptimer_id, clkev.rate);
+	pr_info("OMAP clockevent source: %s at %lu Hz\n", clockevent_gpt.name,
+		clkev.rate);
 }
 
 /* Clocksource code */
@@ -366,7 +368,6 @@ static cycle_t clocksource_read_cycles(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_gpt = {
-	.name		= "gp_timer",
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -456,6 +457,7 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	clksrc.errata = omap_dm_timer_get_errata();
 
 	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source, NULL,
+				     &clocksource_gpt.name,
 				     OMAP_TIMER_NONPOSTED);
 	BUG_ON(res);
 
@@ -468,8 +470,8 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 		pr_err("Could not register clocksource %s\n",
 			clocksource_gpt.name);
 	else
-		pr_info("OMAP clocksource: GPTIMER%d at %lu Hz\n",
-			gptimer_id, clksrc.rate);
+		pr_info("OMAP clocksource: %s at %lu Hz\n",
+			clocksource_gpt.name, clksrc.rate);
 }
 
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
