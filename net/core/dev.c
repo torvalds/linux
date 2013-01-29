@@ -6054,6 +6054,14 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
+	if (((dev->hw_features | dev->features) & NETIF_F_HW_VLAN_FILTER) &&
+	    (!dev->netdev_ops->ndo_vlan_rx_add_vid ||
+	     !dev->netdev_ops->ndo_vlan_rx_kill_vid)) {
+		netdev_WARN(dev, "Buggy VLAN acceleration in driver!\n");
+		ret = -EINVAL;
+		goto err_uninit;
+	}
+
 	ret = -EBUSY;
 	if (!dev->ifindex)
 		dev->ifindex = dev_new_index(net);
