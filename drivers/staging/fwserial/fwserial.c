@@ -2684,10 +2684,9 @@ static void fwserial_handle_unplug_req(struct work_struct *work)
 
 	spin_lock_bh(&peer->lock);
 	if (peer->state == FWPS_UNPLUG_RESPONDING) {
-		if (rcode == RCODE_COMPLETE)
-			port = peer_revert_state(peer);
-		else
+		if (rcode != RCODE_COMPLETE)
 			fwtty_err(&peer->unit, "UNPLUG_RSP error (%d)", rcode);
+		port = peer_revert_state(peer);
 	}
 cleanup:
 	spin_unlock_bh(&peer->lock);
