@@ -1091,7 +1091,7 @@ int oz_hcd_heartbeat(void *hport)
 	list_for_each(e, &port->isoc_in_ep) {
 		struct oz_endpoint *ep = ep_from_link(e);
 		if (ep->flags & OZ_F_EP_BUFFERING) {
-			if (ep->buffered_units * OZ_IN_BUFFERING_UNITS) {
+			if (ep->buffered_units >= OZ_IN_BUFFERING_UNITS) {
 				ep->flags &= ~OZ_F_EP_BUFFERING;
 				ep->credit = 0;
 				oz_event_log(OZ_EVT_EP_CREDIT,
