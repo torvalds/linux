@@ -1785,14 +1785,18 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
-			temp |= DP_TP_CTL_LINK_TRAIN_IDLE;
-			I915_WRITE(DP_TP_CTL(port), temp);
 
-			if (wait_for((I915_READ(DP_TP_STATUS(port)) &
-				      DP_TP_STATUS_IDLE_DONE), 1))
-				DRM_ERROR("Timed out waiting for DP idle patterns\n");
+			if (port != PORT_A) {
+				temp |= DP_TP_CTL_LINK_TRAIN_IDLE;
+				I915_WRITE(DP_TP_CTL(port), temp);
 
-			temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+				if (wait_for((I915_READ(DP_TP_STATUS(port)) &
+					      DP_TP_STATUS_IDLE_DONE), 1))
+					DRM_ERROR("Timed out waiting for DP idle patterns\n");
+
+				temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+			}
+
 			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
 
 			break;
