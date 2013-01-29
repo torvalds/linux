@@ -377,8 +377,8 @@ static inline void fwtty_bind_console(struct fwtty_port *port,
  */
 static inline int link_speed_to_max_payload(unsigned speed)
 {
-	speed = clamp(speed, (unsigned) SCODE_100, (unsigned) SCODE_800);
-	return 1 << (speed + 9);
+	/* Max async payload is 4096 - see IEEE 1394-2008 tables 6-4, 16-18 */
+	return min(512 << speed, 4096);
 }
 
 #endif /* _FIREWIRE_FWSERIAL_H */
