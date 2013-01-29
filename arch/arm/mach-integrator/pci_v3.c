@@ -35,6 +35,7 @@
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
+#include <asm/mach-types.h>
 
 #include <asm/hardware/pci_v3.h>
 
@@ -337,7 +338,7 @@ static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-struct pci_ops pci_v3_ops = {
+static struct pci_ops pci_v3_ops = {
 	.read	= v3_read_config,
 	.write	= v3_write_config,
 };
@@ -471,7 +472,7 @@ static irqreturn_t v3_irq(int dummy, void *devid)
 	return IRQ_HANDLED;
 }
 
-int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
+static int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
@@ -490,7 +491,7 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
  * V3_LB_BASE? - local bus address
  * V3_LB_MAP?  - pci bus address
  */
-void __init pci_v3_preinit(void)
+static void __init pci_v3_preinit(void)
 {
 	unsigned long flags;
 	unsigned int temp;
@@ -589,7 +590,7 @@ void __init pci_v3_preinit(void)
 	raw_spin_unlock_irqrestore(&v3_lock, flags);
 }
 
-void __init pci_v3_postinit(void)
+static void __init pci_v3_postinit(void)
 {
 	unsigned int pci_cmd;
 
@@ -610,3 +611,82 @@ void __init pci_v3_postinit(void)
 
 	register_isa_ports(PHYS_PCI_MEM_BASE, PHYS_PCI_IO_BASE, 0);
 }
+
+/*
+ * A small note about bridges and interrupts.  The DECchip 21050 (and
+ * later) adheres to the PCI-PCI bridge specification.  This says that
+ * the interrupts on the other side of a bridge are swizzled in the
+ * following manner:
+ *
+ * Dev    Interrupt   Interrupt
+ *        Pin on      Pin on
+ *        Device      Connector
+ *
+ *   4    A           A
+ *        B           B
+ *        C           C
+ *        D           D
+ *
+ *   5    A           B
+ *        B           C
+ *        C           D
+ *        D           A
+ *
+ *   6    A           C
+ *        B           D
+ *        C           A
+ *        D           B
+ *
+ *   7    A           D
+ *        B           A
+ *        C           B
+ *        D           C
+ *
+ * Where A = pin 1, B = pin 2 and so on and pin=0 = default = A.
+ * Thus, each swizzle is ((pin-1) + (device#-4)) % 4
+ */
+
+/*
+ * This routine handles multiple bridges.
+ */
+static u8 __init integrator_swizzle(struct pci_dev *dev, u8 *pinp)
+{
+	if (*pinp == 0)
+		*pinp = 1;
+
+	return pci_common_swizzle(dev, pinp);
+}
+
+static int irq_tab[4] __initdata = {
+	IRQ_AP_PCIINT0,	IRQ_AP_PCIINT1,	IRQ_AP_PCIINT2,	IRQ_AP_PCIINT3
+};
+
+/*
+ * map the specified device/slot/pin to an IRQ.  This works out such
+ * that slot 9 pin 1 is INT0, pin 2 is INT1, and slot 10 pin 1 is INT1.
+ */
+static int __init integrator_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	int intnr = ((slot - 9) + (pin - 1)) & 3;
+
+	return irq_tab[intnr];
+}
+
+static struct hw_pci integrator_pci __initdata = {
+	.swizzle		= integrator_swizzle,
+	.map_irq		= integrator_map_irq,
+	.setup			= pci_v3_setup,
+	.nr_controllers		= 1,
+	.ops			= &pci_v3_ops,
+	.preinit		= pci_v3_preinit,
+	.postinit		= pci_v3_postinit,
+};
+
+static int __init integrator_pci_init(void)
+{
+	if (machine_is_integrator())
+		pci_common_init(&integrator_pci);
+	return 0;
+}
+
+subsys_initcall(integrator_pci_init);
