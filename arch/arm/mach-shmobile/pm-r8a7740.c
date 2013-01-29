@@ -9,7 +9,9 @@
  * for more details.
  */
 #include <linux/console.h>
+#include <linux/suspend.h>
 #include <mach/pm-rmobile.h>
+#include <mach/common.h>
 
 #ifdef CONFIG_PM
 static int r8a7740_pd_a4s_suspend(void)
@@ -58,3 +60,23 @@ void __init r8a7740_init_pm_domains(void)
 }
 
 #endif /* CONFIG_PM */
+
+#ifdef CONFIG_SUSPEND
+static int r8a7740_enter_suspend(suspend_state_t suspend_state)
+{
+	cpu_do_idle();
+	return 0;
+}
+
+static void r8a7740_suspend_init(void)
+{
+	shmobile_suspend_ops.enter = r8a7740_enter_suspend;
+}
+#else
+static void r8a7740_suspend_init(void) {}
+#endif
+
+void __init r8a7740_pm_init(void)
+{
+	r8a7740_suspend_init();
+}

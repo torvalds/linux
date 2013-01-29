@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sh_intc.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
 #include <mach/intc.h>
 #include <mach/irqs.h>
@@ -315,11 +316,6 @@ static int intca_gic_set_type(struct irq_data *data, unsigned int type)
 	return irq_cbp(irq_set_type, to_intca_reloc_irq(data), type);
 }
 
-static int intca_gic_set_wake(struct irq_data *data, unsigned int on)
-{
-	return irq_cbp(irq_set_wake, to_intca_reloc_irq(data), on);
-}
-
 #ifdef CONFIG_SMP
 static int intca_gic_set_affinity(struct irq_data *data,
 				  const struct cpumask *cpumask,
@@ -339,7 +335,7 @@ struct irq_chip intca_gic_irq_chip = {
 	.irq_disable		= intca_gic_disable,
 	.irq_shutdown		= intca_gic_disable,
 	.irq_set_type		= intca_gic_set_type,
-	.irq_set_wake		= intca_gic_set_wake,
+	.irq_set_wake		= sh73a0_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= intca_gic_set_affinity,
 #endif
@@ -464,3 +460,11 @@ void __init sh73a0_init_irq(void)
 	sh73a0_pint1_cascade.handler = sh73a0_pint1_demux;
 	setup_irq(gic_spi(34), &sh73a0_pint1_cascade);
 }
+
+#ifdef CONFIG_OF
+void __init sh73a0_init_irq_dt(void)
+{
+	irqchip_init();
+	gic_arch_extn.irq_set_wake = sh73a0_set_wake;
+}
+#endif
