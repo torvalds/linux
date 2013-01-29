@@ -438,6 +438,7 @@ struct rk_hdmi_platform_data {
 #define BOOT_MODE_OFFMODE_CHARGING	5
 #define BOOT_MODE_REBOOT		6
 #define BOOT_MODE_PANIC			7
+#define BOOT_MODE_WATCHDOG		8
 int board_boot_mode(void);
 
 /* for USB detection */
