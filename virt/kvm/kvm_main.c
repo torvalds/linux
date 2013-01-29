@@ -719,6 +719,24 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 }
 
 /*
+ * KVM_SET_USER_MEMORY_REGION ioctl allows the following operations:
+ * - create a new memory slot
+ * - delete an existing memory slot
+ * - modify an existing memory slot
+ *   -- move it in the guest physical memory space
+ *   -- just change its flags
+ *
+ * Since flags can be changed by some of these operations, the following
+ * differentiation is the best we can do for __kvm_set_memory_region():
+ */
+enum kvm_mr_change {
+	KVM_MR_CREATE,
+	KVM_MR_DELETE,
+	KVM_MR_MOVE,
+	KVM_MR_FLAGS_ONLY,
+};
+
+/*
  * Allocate some memory and give it an address in the guest physical address
  * space.
  *
@@ -737,6 +755,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	struct kvm_memory_slot old, new;
 	struct kvm_memslots *slots = NULL, *old_memslots;
 	bool old_iommu_mapped;
+	enum kvm_mr_change change;
 
 	r = check_memory_region_flags(mem);
 	if (r)
@@ -780,17 +799,30 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	old_iommu_mapped = old.npages;
 
-	/*
-	 * Disallow changing a memory slot's size or changing anything about
-	 * zero sized slots that doesn't involve making them non-zero.
-	 */
 	r = -EINVAL;
-	if (npages && old.npages && npages != old.npages)
-		goto out;
-	if (!npages && !old.npages)
+	if (npages) {
+		if (!old.npages)
+			change = KVM_MR_CREATE;
+		else { /* Modify an existing slot. */
+			if ((mem->userspace_addr != old.userspace_addr) ||
+			    (npages != old.npages))
+				goto out;
+
+			if (base_gfn != old.base_gfn)
+				change = KVM_MR_MOVE;
+			else if (new.flags != old.flags)
+				change = KVM_MR_FLAGS_ONLY;
+			else { /* Nothing to change. */
+				r = 0;
+				goto out;
+			}
+		}
+	} else if (old.npages) {
+		change = KVM_MR_DELETE;
+	} else /* Modify a non-existent slot: disallowed. */
 		goto out;
 
-	if ((npages && !old.npages) || (base_gfn != old.base_gfn)) {
+	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
 		/* Check for overlaps */
 		r = -EEXIST;
 		kvm_for_each_memslot(slot, kvm->memslots) {
@@ -808,20 +840,12 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		new.dirty_bitmap = NULL;
 
 	r = -ENOMEM;
-
-	/*
-	 * Allocate if a slot is being created.  If modifying a slot,
-	 * the userspace_addr cannot change.
-	 */
-	if (!old.npages) {
+	if (change == KVM_MR_CREATE) {
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
 
 		if (kvm_arch_create_memslot(&new, npages))
 			goto out_free;
-	} else if (npages && mem->userspace_addr != old.userspace_addr) {
-		r = -EINVAL;
-		goto out_free;
 	}
 
 	/* Allocate page dirty bitmap if needed */
@@ -830,7 +854,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			goto out_free;
 	}
 
-	if (!npages || base_gfn != old.base_gfn) {
+	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
 		r = -ENOMEM;
 		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
 				GFP_KERNEL);
@@ -881,7 +905,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	 * slots (size changes, userspace addr changes) is disallowed above,
 	 * so any other attribute changes getting here can be skipped.
 	 */
-	if (npages) {
+	if (change != KVM_MR_DELETE) {
 		if (old_iommu_mapped &&
 		    ((new.flags ^ old.flags) & KVM_MEM_READONLY)) {
 			kvm_iommu_unmap_pages(kvm, &old);
@@ -896,7 +920,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	}
 
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
-	if (!npages) {
+	if (change == KVM_MR_DELETE) {
 		new.dirty_bitmap = NULL;
 		memset(&new.arch, 0, sizeof(new.arch));
 	}
