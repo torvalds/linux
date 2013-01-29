@@ -470,12 +470,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	switch (data_format)
 	{
 		case HAL_PIXEL_FORMAT_RGBX_8888: 
-		#if defined(CONFIG_ARCH_RK3188)
 			par->format = XBGR888;
 			fix->line_length = 4 * xvir;
 			par->y_offset = (yoffset*xvir + xoffset)*4;
 			break;
-		#endif
 		case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
 			par->format = ABGR888;
 			fix->line_length = 4 * xvir;
@@ -808,7 +806,6 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		dev_drv->screen1->ypos = 0;
 	}
 	ret = info->fbops->fb_open(info,1);
-	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
 	if(dev_drv->lcdc_hdmi_process)
 		dev_drv->lcdc_hdmi_process(dev_drv,enable);
@@ -1172,7 +1169,6 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     if(dev_drv->screen_ctr_info->prop == PRMRY) //show logo for primary display device
     {
 	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
-	    dev_drv->load_screen(dev_drv,1);
 	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
 
 #if  defined(CONFIG_LOGO_LINUX_BMP)
