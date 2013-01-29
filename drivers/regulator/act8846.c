@@ -719,6 +719,33 @@ int act8846_device_shutdown(void)
 }
 EXPORT_SYMBOL_GPL(act8846_device_shutdown);
 
+__weak void  act8846_device_suspend(void) {}
+__weak void  act8846_device_resume(void) {}
+#ifdef CONFIG_PM
+static int act8846_suspend(struct i2c_client *i2c, pm_message_t mesg)
+{		
+	act8846_device_suspend();
+	return 0;
+}
+
+static int act8846_resume(struct i2c_client *i2c)
+{
+	act8846_device_resume();
+	return 0;
+}
+#else
+static int act8846_suspend(struct i2c_client *i2c, pm_message_t mesg)
+{		
+	return 0;
+}
+
+static int act8846_resume(struct i2c_client *i2c)
+{
+	return 0;
+}
+#endif
+
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 __weak void act8846_early_suspend(struct early_suspend *h) {}
 __weak void act8846_late_resume(struct early_suspend *h) {}
@@ -805,6 +832,10 @@ static struct i2c_driver act8846_i2c_driver = {
 	.probe    = act8846_i2c_probe,
 	.remove   = __devexit_p(act8846_i2c_remove),
 	.id_table = act8846_i2c_id,
+	#ifdef CONFIG_PM
+	.suspend	= act8846_suspend,
+	.resume		= act8846_resume,
+	#endif
 };
 
 static int __init act8846_module_init(void)

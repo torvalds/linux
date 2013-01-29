@@ -442,6 +442,65 @@ void act8846_late_resume(struct early_suspend *h)
 {
 }
 #endif
+
+#ifdef CONFIG_PM
+int __sramdata vdd_cpu_vol ,vdd_core_vol;
+void act8846_device_suspend(void)
+{		
+	struct regulator *dcdc;
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	sram_gpio_set_value(pmic_vsel, GPIO_LOW);  
+	
+	dcdc =dvfs_get_regulator( "vdd_cpu");
+	vdd_cpu_vol = regulator_get_voltage(dcdc);
+	regulator_set_voltage(dcdc, 900000, 900000);
+	udelay(100);
+
+	dcdc =dvfs_get_regulator( "vdd_core");
+	vdd_core_vol = regulator_get_voltage(dcdc);
+	regulator_set_voltage(dcdc, 900000, 900000);
+	udelay(100);
+
+	dcdc =regulator_get(NULL, "act_dcdc4");
+	regulator_set_voltage(dcdc, 2800000, 2800000);
+	regulator_put(dcdc);
+	udelay(100);
+
+	#endif
+}
+
+void act8846_device_resume(void)
+{
+	struct regulator *dcdc;
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+
+	dcdc =dvfs_get_regulator( "vdd_cpu");
+	regulator_set_voltage(dcdc, vdd_cpu_vol, vdd_cpu_vol);
+	udelay(100);
+
+	dcdc =dvfs_get_regulator( "vdd_core");
+	regulator_set_voltage(dcdc, vdd_core_vol, vdd_core_vol);
+	udelay(100);
+
+	dcdc =regulator_get(NULL, "act_dcdc4");
+	regulator_set_voltage(dcdc, 3000000, 3000000);
+	regulator_put(dcdc);
+	udelay(100);
+	
+	sram_gpio_set_value(pmic_vsel, GPIO_HIGH);  
+	
+	#endif
+	
+}
+#else
+void act8846_device_suspend(void)
+{		
+}
+void act8846_device_resume(void)
+{
+}
+#endif
+
 void __sramfunc board_pmu_act8846_suspend(void)
 {	
 	#ifdef CONFIG_CLK_SWITCH_TO_32K
@@ -455,6 +514,19 @@ void __sramfunc board_pmu_act8846_resume(void)
 	sram_udelay(2000);
 	#endif
 }
+void __sramfunc board_act8846_set_suspend_vol(void)
+{	
+#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	sram_gpio_set_value(pmic_vsel, GPIO_HIGH); 
+#endif
+}
+void __sramfunc board_act8846_set_resume_vol(void)
+{
+#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	sram_gpio_set_value(pmic_vsel, GPIO_LOW);  
+#endif
+}
+
 
 #endif
 

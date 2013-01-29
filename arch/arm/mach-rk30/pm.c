@@ -328,6 +328,7 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK30_DDR_PUBL_BASE);
 	readl_relaxed(RK30_I2C1_BASE+SZ_4K);
 	readl_relaxed(RK30_GPIO0_BASE);
+	readl_relaxed(RK30_GPIO3_BASE);
 #if defined(RK30_GPIO6_BASE)
 	readl_relaxed(RK30_GPIO6_BASE);
 #endif
@@ -445,6 +446,8 @@ __weak void __sramfunc rk30_suspend_voltage_resume(unsigned int vol){}
 
 __weak void  rk30_pwm_suspend_voltage_set(void){}
 __weak void  rk30_pwm_resume_voltage_set(void){}
+__weak void board_act8846_set_suspend_vol(void){}
+__weak void board_act8846_set_resume_vol(void){}
 
 __weak void __sramfunc rk30_pwm_logic_suspend_voltage(void){}
 __weak void __sramfunc rk30_pwm_logic_resume_voltage(void){}
@@ -462,7 +465,9 @@ static void __sramfunc rk30_sram_suspend(void)
 	rk30_suspend_voltage_set(1000000);
 	rk30_pwm_logic_suspend_voltage();
 	sram_printch('7');
-	
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	board_act8846_set_suspend_vol();
+	#endif
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
@@ -498,7 +503,7 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_HCLK_IMEM1 % 16)
 			  | (1 << CLK_GATE_HCLK_IMEM0 % 16)
 #endif
-			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
+			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);		  
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
 			  | (1 << CLK_GATE_PCLK_PMU % 16)
@@ -546,7 +551,10 @@ static void __sramfunc rk30_sram_suspend(void)
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
-
+	
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+	board_act8846_set_resume_vol();
+	#endif
 	sram_printch('7');
 	rk30_pwm_logic_resume_voltage();
 	rk30_suspend_voltage_resume(1100000);
