@@ -10,12 +10,9 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/i2c.h>
 #include <linux/gpio.h>
-
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
+#include <linux/of.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -79,13 +76,9 @@ static void __init nsa310_gpio_init(void)
 
 void __init nsa310_init(void)
 {
-	u32 dev, rev;
-
 	kirkwood_mpp_conf(nsa310_mpp_config);
 
 	nsa310_gpio_init();
-
-	kirkwood_pcie_id(&dev, &rev);
 
 	i2c_register_board_info(0, ARRAY_AND_SIZE(nsa310_i2c_info));
 }
