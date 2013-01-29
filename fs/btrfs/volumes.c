@@ -3825,12 +3825,6 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto error;
 
-	ret = btrfs_make_block_group(trans, extent_root, 0, type,
-				     BTRFS_FIRST_CHUNK_TREE_OBJECTID,
-				     start, num_bytes);
-	if (ret)
-		goto error;
-
 	for (i = 0; i < map->num_stripes; ++i) {
 		struct btrfs_device *device;
 		u64 dev_offset;
@@ -3842,15 +3836,33 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 				info->chunk_root->root_key.objectid,
 				BTRFS_FIRST_CHUNK_TREE_OBJECTID,
 				start, dev_offset, stripe_size);
-		if (ret) {
-			btrfs_abort_transaction(trans, extent_root, ret);
-			goto error;
-		}
+		if (ret)
+			goto error_dev_extent;
+	}
+
+	ret = btrfs_make_block_group(trans, extent_root, 0, type,
+				     BTRFS_FIRST_CHUNK_TREE_OBJECTID,
+				     start, num_bytes);
+	if (ret) {
+		i = map->num_stripes - 1;
+		goto error_dev_extent;
 	}
 
 	kfree(devices_info);
 	return 0;
 
+error_dev_extent:
+	for (; i >= 0; i--) {
+		struct btrfs_device *device;
+		int err;
+
+		device = map->stripes[i].dev;
+		err = btrfs_free_dev_extent(trans, device, start);
+		if (err) {
+			btrfs_abort_transaction(trans, extent_root, err);
+			break;
+		}
+	}
 error:
 	kfree(map);
 	kfree(devices_info);
