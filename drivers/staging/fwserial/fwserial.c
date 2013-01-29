@@ -1509,17 +1509,26 @@ static void fwtty_proc_show_port(struct seq_file *m, struct fwtty_port *port)
 	if (port->port.console)
 		(*port->fwcon_ops->stats)(&stats, port->con_data);
 
-	seq_printf(m, " tx:%d rx:%d", port->icount.tx + stats.xchars,
-		   port->icount.rx);
+	seq_printf(m, " addr:%012llx tx:%d rx:%d", port->rx_handler.offset,
+		   port->icount.tx + stats.xchars, port->icount.rx);
 	seq_printf(m, " cts:%d dsr:%d rng:%d dcd:%d", port->icount.cts,
 		   port->icount.dsr, port->icount.rng, port->icount.dcd);
 	seq_printf(m, " fe:%d oe:%d pe:%d brk:%d", port->icount.frame,
 		   port->icount.overrun, port->icount.parity, port->icount.brk);
+}
+
+static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
+{
+	struct stats stats;
+
+	memcpy(&stats, &port->stats, sizeof(stats));
+	if (port->port.console)
+		(*port->fwcon_ops->stats)(&stats, port->con_data);
+
 	seq_printf(m, " dr:%d st:%d err:%d lost:%d", stats.dropped,
 		   stats.tx_stall, stats.fifo_errs, stats.lost);
 	seq_printf(m, " pkts:%d thr:%d wtrmk:%d", stats.sent, stats.throttled,
 		   stats.watermark);
-	seq_printf(m, " addr:%012llx", port->rx_handler.offset);
 
 	if (port->port.console) {
 		seq_printf(m, "\n    ");
@@ -1529,7 +1538,7 @@ static void fwtty_proc_show_port(struct seq_file *m, struct fwtty_port *port)
 	dump_profile(m, &port->stats);
 }
 
-static void fwtty_proc_show_peer(struct seq_file *m, struct fwtty_peer *peer)
+static void fwtty_debugfs_show_peer(struct seq_file *m, struct fwtty_peer *peer)
 {
 	int generation = peer->generation;
 
@@ -1538,21 +1547,14 @@ static void fwtty_proc_show_peer(struct seq_file *m, struct fwtty_peer *peer)
 	seq_printf(m, " node:%04x gen:%d", peer->node_id, generation);
 	seq_printf(m, " sp:%d max:%d guid:%016llx", peer->speed,
 		   peer->max_payload, (unsigned long long) peer->guid);
-
-	if (capable(CAP_SYS_ADMIN)) {
-		seq_printf(m, " mgmt:%012llx",
-			   (unsigned long long) peer->mgmt_addr);
-		seq_printf(m, " addr:%012llx",
-			   (unsigned long long) peer->status_addr);
-	}
+	seq_printf(m, " mgmt:%012llx", (unsigned long long) peer->mgmt_addr);
+	seq_printf(m, " addr:%012llx", (unsigned long long) peer->status_addr);
 	seq_putc(m, '\n');
 }
 
 static int fwtty_proc_show(struct seq_file *m, void *v)
 {
 	struct fwtty_port *port;
-	struct fw_serial *serial;
-	struct fwtty_peer *peer;
 	int i;
 
 	seq_puts(m, "fwserinfo: 1.0 driver: 1.0\n");
@@ -1563,17 +1565,6 @@ static int fwtty_proc_show(struct seq_file *m, void *v)
 		fwtty_port_put(port);
 		seq_printf(m, "\n");
 	}
-	seq_putc(m, '\n');
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(serial, &fwserial_list, list) {
-		seq_printf(m, "card: %s  guid: %016llx\n",
-			   dev_name(serial->card->device),
-			   (unsigned long long) serial->card->guid);
-		list_for_each_entry_rcu(peer, &serial->peer_list, list)
-			fwtty_proc_show_peer(m, peer);
-	}
-	rcu_read_unlock();
 	return 0;
 }
 
