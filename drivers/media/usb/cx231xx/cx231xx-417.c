@@ -1551,33 +1551,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	dprintk(3, "exit vidioc_s_std() i=0x%x\n", i);
 	return 0;
 }
-static int vidioc_g_audio(struct file *file, void *fh,
-					struct v4l2_audio *a)
-{
-		struct v4l2_audio *vin = a;
-
-		int ret = -EINVAL;
-		if (vin->index > 0)
-			return ret;
-		strncpy(vin->name, "VideoGrabber Audio", 14);
-		vin->capability = V4L2_AUDCAP_STEREO;
-return 0;
-}
-static int vidioc_enumaudio(struct file *file, void *fh,
-					struct v4l2_audio *a)
-{
-		struct v4l2_audio *vin = a;
-
-		int ret = -EINVAL;
-
-		if (vin->index > 0)
-			return ret;
-		strncpy(vin->name, "VideoGrabber Audio", 14);
-		vin->capability = V4L2_AUDCAP_STEREO;
-
-
-return 0;
-}
 static const char *iname[] = {
 	[CX231XX_VMUX_COMPOSITE1] = "Composite1",
 	[CX231XX_VMUX_SVIDEO]     = "S-Video",
@@ -1639,32 +1612,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		return -EINVAL;
 	dev->input = i;
 	dprintk(3, "exit vidioc_s_input()\n");
-	return 0;
-}
-
-static int vidioc_g_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
-{
-	return 0;
-}
-
-static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
-{
-	return 0;
-}
-
-static int vidioc_g_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
-{
-	return 0;
-}
-
-static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
-{
-
-
 	return 0;
 }
 
@@ -1745,13 +1692,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
 		dev->ts1.width, dev->ts1.height, fh->vidq.field);
 	dprintk(3, "exit vidioc_try_fmt_vid_cap()\n");
-	return 0;
-}
-
-static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-
 	return 0;
 }
 
@@ -2073,20 +2013,14 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
-	.vidioc_enumaudio	 = vidioc_enumaudio,
-	.vidioc_g_audio		 = vidioc_g_audio,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
-	.vidioc_g_tuner		 = vidioc_g_tuner,
-	.vidioc_s_tuner		 = vidioc_s_tuner,
-	.vidioc_g_frequency	 = vidioc_g_frequency,
-	.vidioc_s_frequency	 = vidioc_s_frequency,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
 	.vidioc_querycap	 = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap	 = vidioc_s_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
 	.vidioc_reqbufs		 = vidioc_reqbufs,
 	.vidioc_querybuf	 = vidioc_querybuf,
 	.vidioc_qbuf		 = vidioc_qbuf,
