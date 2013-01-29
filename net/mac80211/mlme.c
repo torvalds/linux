@@ -30,11 +30,13 @@
 #include "rate.h"
 #include "led.h"
 
-#define IEEE80211_AUTH_TIMEOUT (HZ / 5)
-#define IEEE80211_AUTH_MAX_TRIES 3
-#define IEEE80211_AUTH_WAIT_ASSOC (HZ * 5)
-#define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
-#define IEEE80211_ASSOC_MAX_TRIES 3
+#define IEEE80211_AUTH_TIMEOUT		(HZ / 5)
+#define IEEE80211_AUTH_TIMEOUT_SHORT	(HZ / 10)
+#define IEEE80211_AUTH_MAX_TRIES	3
+#define IEEE80211_AUTH_WAIT_ASSOC	(HZ * 5)
+#define IEEE80211_ASSOC_TIMEOUT		(HZ / 5)
+#define IEEE80211_ASSOC_TIMEOUT_SHORT	(HZ / 10)
+#define IEEE80211_ASSOC_MAX_TRIES	3
 
 static int max_nullfunc_tries = 2;
 module_param(max_nullfunc_tries, int, 0644);
@@ -644,6 +646,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	drv_mgd_prepare_tx(local, sdata);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS |
+						IEEE80211_TX_INTFL_MLME_CONN_TX;
 	ieee80211_tx_skb(sdata, skb);
 }
 
@@ -1707,7 +1712,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 			ssid_len = ssid[1];
 
 		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid_len, NULL,
-					 0, (u32) -1, true, false,
+					 0, (u32) -1, true, 0,
 					 ifmgd->associated->channel, false);
 		rcu_read_unlock();
 	}
@@ -1937,9 +1942,11 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_mgmt *mgmt, size_t len)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgd_auth_data *auth_data = sdata->u.mgd.auth_data;
 	u8 *pos;
 	struct ieee802_11_elems elems;
+	u32 tx_flags = 0;
 
 	pos = mgmt->u.auth.variable;
 	ieee802_11_parse_elems(pos, len - (pos - (u8 *) mgmt), &elems);
@@ -1947,11 +1954,14 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 		return;
 	auth_data->expected_transaction = 4;
 	drv_mgd_prepare_tx(sdata->local, sdata);
+	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
+			   IEEE80211_TX_INTFL_MLME_CONN_TX;
 	ieee80211_send_auth(sdata, 3, auth_data->algorithm, 0,
 			    elems.challenge - 2, elems.challenge_len + 2,
 			    auth_data->bss->bssid, auth_data->bss->bssid,
 			    auth_data->key, auth_data->key_len,
-			    auth_data->key_idx);
+			    auth_data->key_idx, tx_flags);
 }
 
 static enum rx_mgmt_action __must_check
@@ -2869,11 +2879,16 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_auth_data *auth_data = ifmgd->auth_data;
+	u32 tx_flags = 0;
 
 	lockdep_assert_held(&ifmgd->mtx);
 
 	if (WARN_ON_ONCE(!auth_data))
 		return -EINVAL;
+
+	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
+			   IEEE80211_TX_INTFL_MLME_CONN_TX;
 
 	auth_data->tries++;
 
@@ -2911,7 +2926,8 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		ieee80211_send_auth(sdata, trans, auth_data->algorithm, status,
 				    auth_data->data, auth_data->data_len,
 				    auth_data->bss->bssid,
-				    auth_data->bss->bssid, NULL, 0, 0);
+				    auth_data->bss->bssid, NULL, 0, 0,
+				    tx_flags);
 	} else {
 		const u8 *ssidie;
 
@@ -2930,13 +2946,15 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		 * will not answer to direct packet in unassociated state.
 		 */
 		ieee80211_send_probe_req(sdata, NULL, ssidie + 2, ssidie[1],
-					 NULL, 0, (u32) -1, true, false,
+					 NULL, 0, (u32) -1, true, tx_flags,
 					 auth_data->bss->channel, false);
 		rcu_read_unlock();
 	}
 
-	auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
-	run_again(ifmgd, auth_data->timeout);
+	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+		auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
+		run_again(ifmgd, auth_data->timeout);
+	}
 
 	return 0;
 }
@@ -2967,10 +2985,24 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 		   IEEE80211_ASSOC_MAX_TRIES);
 	ieee80211_send_assoc(sdata);
 
-	assoc_data->timeout = jiffies + IEEE80211_ASSOC_TIMEOUT;
-	run_again(&sdata->u.mgd, assoc_data->timeout);
+	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+		assoc_data->timeout = jiffies + IEEE80211_ASSOC_TIMEOUT;
+		run_again(&sdata->u.mgd, assoc_data->timeout);
+	}
 
 	return 0;
+}
+
+void ieee80211_mgd_conn_tx_status(struct ieee80211_sub_if_data *sdata,
+				  __le16 fc, bool acked)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	sdata->u.mgd.status_fc = fc;
+	sdata->u.mgd.status_acked = acked;
+	sdata->u.mgd.status_received = true;
+
+	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
@@ -2979,6 +3011,33 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	mutex_lock(&ifmgd->mtx);
+
+	if (ifmgd->status_received) {
+		__le16 fc = ifmgd->status_fc;
+		bool status_acked = ifmgd->status_acked;
+
+		ifmgd->status_received = false;
+		if (ifmgd->auth_data &&
+		    (ieee80211_is_probe_req(fc) || ieee80211_is_auth(fc))) {
+			if (status_acked) {
+				ifmgd->auth_data->timeout =
+					jiffies + IEEE80211_AUTH_TIMEOUT_SHORT;
+				run_again(ifmgd, ifmgd->auth_data->timeout);
+			} else {
+				ifmgd->auth_data->timeout = jiffies - 1;
+			}
+		} else if (ifmgd->assoc_data &&
+			   (ieee80211_is_assoc_req(fc) ||
+			    ieee80211_is_reassoc_req(fc))) {
+			if (status_acked) {
+				ifmgd->assoc_data->timeout =
+					jiffies + IEEE80211_ASSOC_TIMEOUT_SHORT;
+				run_again(ifmgd, ifmgd->assoc_data->timeout);
+			} else {
+				ifmgd->assoc_data->timeout = jiffies - 1;
+			}
+		}
+	}
 
 	if (ifmgd->auth_data &&
 	    time_after(jiffies, ifmgd->auth_data->timeout)) {

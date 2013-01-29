@@ -389,7 +389,8 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
 			local->scan_req->rates[band], false,
-			local->scan_req->no_cck,
+			local->scan_req->no_cck ?
+				IEEE80211_TX_CTL_NO_CCK_RATE : 0,
 			local->hw.conf.channel, true);
 
 	/*

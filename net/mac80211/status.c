@@ -335,7 +335,8 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	if (dropped)
 		acked = false;
 
-	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+	if (info->flags & (IEEE80211_TX_INTFL_NL80211_FRAME_TX |
+			   IEEE80211_TX_INTFL_MLME_CONN_TX)) {
 		struct ieee80211_sub_if_data *sdata = NULL;
 		struct ieee80211_sub_if_data *iter_sdata;
 		u64 cookie = (unsigned long)skb;
@@ -357,10 +358,13 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			sdata = rcu_dereference(local->p2p_sdata);
 		}
 
-		if (!sdata)
+		if (!sdata) {
 			skb->dev = NULL;
-		else if (ieee80211_is_nullfunc(hdr->frame_control) ||
-			 ieee80211_is_qos_nullfunc(hdr->frame_control)) {
+		} else if (info->flags & IEEE80211_TX_INTFL_MLME_CONN_TX) {
+			ieee80211_mgd_conn_tx_status(sdata, hdr->frame_control,
+						     acked);
+		} else if (ieee80211_is_nullfunc(hdr->frame_control) ||
+			   ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 			cfg80211_probe_status(sdata->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
 		} else {
