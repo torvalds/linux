@@ -432,6 +432,14 @@
 					};
 				};
 
+				owire {
+					pinctrl_owire_1: owiregrp-1 {
+						fsl,pins = <
+								1166 0x80000000 /* MX53_PAD_GPIO_18__OWIRE_LINE */
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
@@ -620,6 +628,13 @@
 				interrupts = <86>;
 				clocks = <&clks 67>, <&clks 68>;
 				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			owire: owire@63fa4000 {
+				compatible = "fsl,imx53-owire", "fsl,imx21-owire";
+				reg = <0x63fa4000 0x4000>;
+				clocks = <&clks 159>;
 				status = "disabled";
 			};
 
