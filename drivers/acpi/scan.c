@@ -1441,19 +1441,21 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	acpi_device_get_busid(device);
 	acpi_device_set_id(device);
 	acpi_bus_get_flags(device);
+	device->flags.match_driver = false;
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
 {
+	device->flags.match_driver = true;
 	dev_set_uevent_suppress(&device->dev, false);
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 }
 
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
-				  unsigned long long sta, bool match_driver)
+				  unsigned long long sta)
 {
 	int result;
 	struct acpi_device *device;
@@ -1469,7 +1471,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 	acpi_bus_get_power_flags(device);
 	acpi_bus_get_wakeup_device_flags(device);
 
-	device->flags.match_driver = match_driver;
 	result = acpi_device_add(device, acpi_device_release);
 	if (result) {
 		acpi_device_release(&device->dev);
@@ -1562,11 +1563,9 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 	}
 
-	acpi_add_single_object(&device, handle, type, sta, false);
+	acpi_add_single_object(&device, handle, type, sta);
 	if (!device)
 		return AE_CTRL_DEPTH;
-
-	device->flags.match_driver = true;
 
  out:
 	if (!*return_value)
@@ -1679,25 +1678,39 @@ EXPORT_SYMBOL_GPL(acpi_bus_trim);
 static int acpi_bus_scan_fixed(void)
 {
 	int result = 0;
-	struct acpi_device *device = NULL;
 
 	/*
 	 * Enumerate all fixed-feature devices.
 	 */
-	if ((acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON) == 0) {
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
+		struct acpi_device *device = NULL;
+
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON,
-						ACPI_STA_DEFAULT, true);
+						ACPI_STA_DEFAULT);
+		if (result)
+			return result;
+
+		result = device_attach(&device->dev);
+		if (result < 0)
+			return result;
+
 		device_init_wakeup(&device->dev, true);
 	}
 
-	if ((acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON)) {
+		struct acpi_device *device = NULL;
+
 		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON,
-						ACPI_STA_DEFAULT, true);
+						ACPI_STA_DEFAULT);
+		if (result)
+			return result;
+
+		result = device_attach(&device->dev);
 	}
 
-	return result;
+	return result < 0 ? result : 0;
 }
 
 int __init acpi_scan_init(void)
