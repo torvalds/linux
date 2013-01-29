@@ -57,7 +57,6 @@
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&gate_clk 7>;
-			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
 
@@ -67,7 +66,6 @@
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&gate_clk 7>;
-			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
 
