@@ -78,6 +78,7 @@ struct arizona_micbias {
 	unsigned int ext_cap:1;    /** External capacitor fitted */
 	unsigned int discharge:1;  /** Actively discharge */
 	unsigned int fast_start:1; /** Enable aggressive startup ramp rate */
+	unsigned int bypass:1;     /** Use bypass mode */
 };
 
 struct arizona_micd_config {

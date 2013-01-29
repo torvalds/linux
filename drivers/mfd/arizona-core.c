@@ -514,10 +514,16 @@ int arizona_dev_init(struct arizona *arizona)
 	}
 
 	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
-		if (!arizona->pdata.micbias[i].mV)
+		if (!arizona->pdata.micbias[i].mV &&
+		    !arizona->pdata.micbias[i].bypass)
 			continue;
 
+		/* Apply default for bypass mode */
+		if (!arizona->pdata.micbias[i].mV)
+			arizona->pdata.micbias[i].mV = 2800;
+
 		val = (arizona->pdata.micbias[i].mV - 1500) / 100;
+
 		val <<= ARIZONA_MICB1_LVL_SHIFT;
 
 		if (arizona->pdata.micbias[i].ext_cap)
@@ -529,10 +535,14 @@ int arizona_dev_init(struct arizona *arizona)
 		if (arizona->pdata.micbias[i].fast_start)
 			val |= ARIZONA_MICB1_RATE;
 
+		if (arizona->pdata.micbias[i].bypass)
+			val |= ARIZONA_MICB1_BYPASS;
+
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_MIC_BIAS_CTRL_1 + i,
 				   ARIZONA_MICB1_LVL_MASK |
 				   ARIZONA_MICB1_DISCH |
+				   ARIZONA_MICB1_BYPASS |
 				   ARIZONA_MICB1_RATE, val);
 	}
 
