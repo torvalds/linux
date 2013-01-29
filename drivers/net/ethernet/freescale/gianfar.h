@@ -996,18 +996,25 @@ struct gfar_priv_rx_q {
 	unsigned long rxic;
 };
 
+enum gfar_irqinfo_id {
+	GFAR_TX = 0,
+	GFAR_RX = 1,
+	GFAR_ER = 2,
+	GFAR_NUM_IRQS = 3
+};
+
+struct gfar_irqinfo {
+	unsigned int irq;
+	char name[GFAR_INT_NAME_MAX];
+};
+
 /**
  *	struct gfar_priv_grp - per group structure
  *	@napi: the napi poll function
  *	@priv: back pointer to the priv structure
  *	@regs: the ioremapped register space for this group
  *	@grp_id: group id for this group
- *	@interruptTransmit: The TX interrupt number for this group
- *	@interruptReceive: The RX interrupt number for this group
- *	@interruptError: The ERROR interrupt number for this group
- *	@int_name_tx: tx interrupt name for this group
- *	@int_name_rx: rx interrupt name for this group
- *	@int_name_er: er interrupt name for this group
+ *	@irqinfo: TX/RX/ER irq data for this group
  */
 
 struct gfar_priv_grp {
@@ -1016,22 +1023,19 @@ struct gfar_priv_grp {
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
 	unsigned int grp_id;
-	unsigned long rx_bit_map;
-	unsigned long tx_bit_map;
-	unsigned long num_tx_queues;
 	unsigned long num_rx_queues;
+	unsigned long rx_bit_map;
+	/* cacheline 3 */
 	unsigned int rstat;
 	unsigned int tstat;
-	unsigned int imask;
-	unsigned int ievent;
-	unsigned int interruptTransmit;
-	unsigned int interruptReceive;
-	unsigned int interruptError;
+	unsigned long num_tx_queues;
+	unsigned long tx_bit_map;
 
-	char int_name_tx[GFAR_INT_NAME_MAX];
-	char int_name_rx[GFAR_INT_NAME_MAX];
-	char int_name_er[GFAR_INT_NAME_MAX];
+	struct gfar_irqinfo *irqinfo[GFAR_NUM_IRQS];
 };
+
+#define gfar_irq(grp, ID) \
+	((grp)->irqinfo[GFAR_##ID])
 
 enum gfar_errata {
 	GFAR_ERRATA_74		= 0x01,
