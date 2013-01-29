@@ -30,18 +30,18 @@
  * set bit to 1 in allow bitfield to enable the wakeup settings on it
 */
 
-unsigned long s3c_irqwake_intallow	= 1L << (IRQ_RTC - IRQ_EINT0) | 0xfL;
+unsigned long s3c_irqwake_intallow	= 1L << 30 | 0xfL;
 unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
 
 int s3c_irq_wake(struct irq_data *data, unsigned int state)
 {
-	unsigned long irqbit = 1 << (data->irq - IRQ_EINT0);
+	unsigned long irqbit = 1 << data->hwirq;
 
 	if (!(s3c_irqwake_intallow & irqbit))
 		return -ENOENT;
 
-	printk(KERN_INFO "wake %s for irq %d\n",
-	       state ? "enabled" : "disabled", data->irq);
+	pr_info("wake %s for hwirq %lu\n",
+		state ? "enabled" : "disabled", data->hwirq);
 
 	if (!state)
 		s3c_irqwake_intmask |= irqbit;
