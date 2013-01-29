@@ -36,5 +36,5 @@ struct s5p_timer_source {
 
 extern void __init s5p_set_timer_source(enum s5p_timer_mode event,
 					enum s5p_timer_mode source);
-extern	struct sys_timer s5p_timer;
+extern	void s5p_timer_init(void);
 #endif /* __ASM_PLAT_S5P_TIME_H */

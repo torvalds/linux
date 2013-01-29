@@ -14,9 +14,9 @@
 #define pr_fmt(fmt) "SPEAr1310: " fmt
 
 #include <linux/amba/pl022.h>
+#include <linux/irqchip.h>
 #include <linux/of_platform.h>
 #include <linux/pata_arasan_cf_data.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/generic.h>
@@ -90,9 +90,8 @@ static void __init spear1310_map_io(void)
 DT_MACHINE_START(SPEAR1310_DT, "ST SPEAr1310 SoC with Flattened Device Tree")
 	.smp		=	smp_ops(spear13xx_smp_ops),
 	.map_io		=	spear1310_map_io,
-	.init_irq	=	spear13xx_dt_init_irq,
-	.handle_irq	=	gic_handle_irq,
-	.timer		=	&spear13xx_timer,
+	.init_irq	=	irqchip_init,
+	.init_time	=	spear13xx_timer_init,
 	.init_machine	=	spear1310_dt_init,
 	.restart	=	spear_restart,
 	.dt_compat	=	spear1310_dt_board_compat,

@@ -17,7 +17,6 @@
 
 #include <mach/hardware.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
@@ -39,8 +38,7 @@ MACHINE_START(ADSSPHERE, "ADS Sphere board")
 	.atag_offset	= 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
-	.handle_irq	= vic_handle_irq,
-	.timer		= &ep93xx_timer,
+	.init_time	= ep93xx_timer_init,
 	.init_machine	= adssphere_init_machine,
 	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,

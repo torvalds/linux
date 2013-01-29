@@ -762,6 +762,6 @@ MACHINE_START(MIOA701, "MIO A701")
 	.init_irq	= &pxa27x_init_irq,
 	.handle_irq	= &pxa27x_handle_irq,
 	.init_machine	= mioa701_machine_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= mioa701_restart,
 MACHINE_END

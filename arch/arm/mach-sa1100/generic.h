@@ -4,9 +4,7 @@
  * Author: Nicolas Pitre
  */
 
-struct sys_timer;
-
-extern struct sys_timer sa1100_timer;
+extern void sa1100_timer_init(void);
 extern void __init sa1100_map_io(void);
 extern void __init sa1100_init_irq(void);
 extern void __init sa1100_init_gpio(void);

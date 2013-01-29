@@ -95,7 +95,7 @@ static void amiga_sched_init(irq_handler_t handler);
 static void amiga_get_model(char *model);
 static void amiga_get_hardware_list(struct seq_file *m);
 /* amiga specific timer functions */
-static unsigned long amiga_gettimeoffset(void);
+static u32 amiga_gettimeoffset(void);
 extern void amiga_mksound(unsigned int count, unsigned int ticks);
 static void amiga_reset(void);
 extern void amiga_init_sound(void);
@@ -377,7 +377,7 @@ void __init config_amiga(void)
 	mach_init_IRQ        = amiga_init_IRQ;
 	mach_get_model       = amiga_get_model;
 	mach_get_hardware_list = amiga_get_hardware_list;
-	mach_gettimeoffset   = amiga_gettimeoffset;
+	arch_gettimeoffset   = amiga_gettimeoffset;
 
 	/*
 	 * default MAX_DMA=0xffffffff on all machines. If we don't do so, the SCSI
@@ -482,10 +482,10 @@ static void __init amiga_sched_init(irq_handler_t timer_routine)
 #define TICK_SIZE 10000
 
 /* This is always executed with interrupts disabled.  */
-static unsigned long amiga_gettimeoffset(void)
+static u32 amiga_gettimeoffset(void)
 {
 	unsigned short hi, lo, hi2;
-	unsigned long ticks, offset = 0;
+	u32 ticks, offset = 0;
 
 	/* read CIA B timer A current value */
 	hi  = ciab.tahi;
@@ -507,7 +507,7 @@ static unsigned long amiga_gettimeoffset(void)
 	ticks = jiffy_ticks - ticks;
 	ticks = (10000 * ticks) / jiffy_ticks;
 
-	return ticks + offset;
+	return (ticks + offset) * 1000;
 }
 
 static void amiga_reset(void)  __noreturn;

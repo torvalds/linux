@@ -121,7 +121,7 @@ MACHINE_START(FLINT, "Flint Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= FLINT_NR_IRQS,
 	.init_irq       = mmp2_init_irq,
-	.timer          = &mmp2_timer,
+	.init_time	= mmp2_timer_init,
 	.init_machine   = flint_init,
 	.restart	= mmp_restart,
 MACHINE_END

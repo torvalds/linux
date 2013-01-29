@@ -257,10 +257,6 @@ static void __init mx25pdk_timer_init(void)
 	mx25_clocks_init();
 }
 
-static struct sys_timer mx25pdk_timer = {
-	.init   = mx25pdk_timer_init,
-};
-
 MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
@@ -268,7 +264,7 @@ MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
 	.handle_irq = imx25_handle_irq,
-	.timer = &mx25pdk_timer,
+	.init_time	= mx25pdk_timer_init,
 	.init_machine = mx25pdk_init,
 	.restart	= mxc_restart,
 MACHINE_END

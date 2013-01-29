@@ -11,7 +11,7 @@
 #ifndef __CNS3XXX_CORE_H
 #define __CNS3XXX_CORE_H
 
-extern struct sys_timer cns3xxx_timer;
+extern void cns3xxx_timer_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
 void __init cns3xxx_l2x0_init(void);

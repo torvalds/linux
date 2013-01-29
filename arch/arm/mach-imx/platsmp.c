@@ -12,9 +12,9 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/irqchip/arm-gic.h>
 #include <asm/page.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
@@ -71,8 +71,6 @@ static void __init imx_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 void imx_smp_prepare(void)

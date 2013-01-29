@@ -53,7 +53,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
 };
 
-extern struct sys_timer msm_timer;
+void msm_timer_init(void);
 
 static void __init sapphire_init_irq(void)
 {
@@ -113,5 +113,5 @@ MACHINE_START(SAPPHIRE, "sapphire")
 	.init_irq       = sapphire_init_irq,
 	.init_machine   = sapphire_init,
 	.init_late      = sapphire_init_late,
-	.timer          = &msm_timer,
+	.init_time	= msm_timer_init,
 MACHINE_END

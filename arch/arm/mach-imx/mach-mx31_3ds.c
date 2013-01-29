@@ -762,10 +762,6 @@ static void __init mx31_3ds_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31_3ds_timer = {
-	.init	= mx31_3ds_timer_init,
-};
-
 static void __init mx31_3ds_reserve(void)
 {
 	/* reserve MX31_3DS_CAMERA_BUF_SIZE bytes for mx3-camera */
@@ -780,7 +776,7 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &mx31_3ds_timer,
+	.init_time	= mx31_3ds_timer_init,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,
 	.restart	= mxc_restart,

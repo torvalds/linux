@@ -3,6 +3,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/time.h>
 
 struct pt_regs;
 struct mktime;
@@ -16,7 +17,6 @@ extern void (*mach_init_IRQ) (void);
 extern void (*mach_get_model) (char *model);
 extern void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
-extern unsigned long (*mach_gettimeoffset)(void);
 extern int (*mach_hwclk)(int, struct rtc_time*);
 extern unsigned int (*mach_get_ss)(void);
 extern int (*mach_get_rtc_pll)(struct rtc_pll_info *);

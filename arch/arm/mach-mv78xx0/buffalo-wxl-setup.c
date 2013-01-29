@@ -150,6 +150,6 @@ MACHINE_START(TERASTATION_WXL, "Buffalo Nas WXL")
 	.map_io		= mv78xx0_map_io,
 	.init_early	= mv78xx0_init_early,
 	.init_irq	= mv78xx0_init_irq,
-	.timer		= &mv78xx0_timer,
+	.init_time	= mv78xx0_timer_init,
 	.restart	= mv78xx0_restart,
 MACHINE_END
