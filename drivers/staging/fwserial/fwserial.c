@@ -1783,10 +1783,11 @@ static struct fwtty_port *fwserial_find_port(struct fwtty_peer *peer)
 	return NULL;
 }
 
-static void fwserial_release_port(struct fwtty_port *port)
+static void fwserial_release_port(struct fwtty_port *port, bool reset)
 {
 	/* drop carrier (and all other line status) */
-	fwtty_update_port_status(port, 0);
+	if (reset)
+		fwtty_update_port_status(port, 0);
 
 	spin_lock_bh(&port->lock);
 
@@ -1816,7 +1817,7 @@ static void fwserial_plug_timeout(unsigned long data)
 	spin_unlock_bh(&peer->lock);
 
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, false);
 }
 
 /**
@@ -1879,7 +1880,7 @@ cancel_timer:
 	peer_revert_state(peer);
 release_port:
 	spin_unlock_bh(&peer->lock);
-	fwserial_release_port(port);
+	fwserial_release_port(port, false);
 free_pkt:
 	kfree(pkt);
 	return err;
@@ -2157,7 +2158,7 @@ static void fwserial_remove_peer(struct fwtty_peer *peer)
 	spin_unlock_bh(&peer->lock);
 
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, true);
 
 	synchronize_rcu();
 	kfree(peer);
@@ -2617,7 +2618,7 @@ static void fwserial_handle_plug_req(struct work_struct *work)
 
 	spin_unlock_bh(&peer->lock);
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, false);
 
 	rcode = fwserial_send_mgmt_sync(peer, pkt);
 
@@ -2639,7 +2640,7 @@ static void fwserial_handle_plug_req(struct work_struct *work)
 cleanup:
 	spin_unlock_bh(&peer->lock);
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, false);
 	kfree(pkt);
 	return;
 }
@@ -2691,7 +2692,7 @@ static void fwserial_handle_unplug_req(struct work_struct *work)
 cleanup:
 	spin_unlock_bh(&peer->lock);
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, true);
 	kfree(pkt);
 	return;
 }
@@ -2702,6 +2703,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 				     size_t len)
 {
 	struct fwtty_port *port = NULL;
+	bool reset = false;
 	int rcode;
 
 	if (addr != fwserial_mgmt_addr_handler.offset || len < sizeof(pkt->hdr))
@@ -2777,6 +2779,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 			if (be16_to_cpu(pkt->hdr.code) & FWSC_RSP_NACK)
 				fwtty_notice(&peer->unit, "NACK unplug?");
 			port = peer_revert_state(peer);
+			reset = true;
 		}
 		break;
 
@@ -2788,7 +2791,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 	spin_unlock_bh(&peer->lock);
 
 	if (port)
-		fwserial_release_port(port);
+		fwserial_release_port(port, reset);
 
 	return rcode;
 }
