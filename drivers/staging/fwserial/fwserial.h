@@ -194,7 +194,7 @@ struct buffered_rx {
  * @port: underlying tty_port
  * @device: tty device
  * @index: index into port_table for this particular port
- *    note: minor = index + FWSERIAL_TTY_START_MINOR
+ *    note: minor = index + minor_start assigned by tty_alloc_driver()
  * @serial: back pointer to the containing fw_serial
  * @rx_handler: bus address handler for unique addr region used by remotes
  *              to communicate with this port. Every port uses
