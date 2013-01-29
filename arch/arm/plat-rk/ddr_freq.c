@@ -134,77 +134,74 @@ static int ddrfreq_task(void *data)
 }
 
 #ifdef CONFIG_SMP
-static volatile bool __sramdata cpu1_pause;
-static inline bool is_cpu1_paused(void) { smp_rmb(); return cpu1_pause; }
-static inline void set_cpu1_pause(bool pause) { cpu1_pause = pause; smp_wmb(); }
+static volatile bool __sramdata cpu_pause[NR_CPUS];
+static inline bool is_cpu_paused(unsigned int cpu) { smp_rmb(); return cpu_pause[cpu]; }
+static inline void set_cpu_pause(unsigned int cpu, bool pause) { cpu_pause[cpu] = pause; smp_wmb(); }
+static inline void set_other_cpus_pause(bool pause)
+{
+	unsigned int cpu;
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
+		cpu_pause[cpu] = pause;
+	smp_wmb();
+}
 #define MAX_TIMEOUT (16000000UL << 6) //>0.64s
 
-static void __ddr_change_freq(void *info)
-{
-	uint32_t *value = info;
-	u32 timeout = MAX_TIMEOUT;
-
-	while (!is_cpu1_paused() && --timeout);
-	if (timeout == 0)
-		return;
-
-	*value = ddr_change_freq(*value);
-
-	set_cpu1_pause(false);
-}
-
 /* Do not use stack, safe on SMP */
-static void __sramfunc pause_cpu1(void *info)
+static void __sramfunc pause_cpu(void *info)
 {
 	u32 timeout = MAX_TIMEOUT;
 	unsigned long flags;
+	unsigned int cpu = raw_smp_processor_id();
+
 	local_irq_save(flags);
 
-	set_cpu1_pause(true);
-	while (is_cpu1_paused() && --timeout);
+	set_cpu_pause(cpu, true);
+	while (is_cpu_paused(cpu) && --timeout);
 
 	local_irq_restore(flags);
 }
 
-static uint32_t _ddr_change_freq(uint32_t nMHz)
+static void _ddr_change_freq(uint32_t nMHz)
 {
-	int this_cpu = get_cpu();
+	u32 timeout = MAX_TIMEOUT;
+	unsigned int cpu;
+	unsigned int this_cpu = get_cpu();
+	cpu_maps_update_begin();
 
-	set_cpu1_pause(false);
-	if (this_cpu == 0) {
-		if (smp_call_function_single(1, (smp_call_func_t)pause_cpu1, NULL, 0) == 0) {
-			u32 timeout = MAX_TIMEOUT;
-			while (!is_cpu1_paused() && --timeout);
-			if (timeout == 0)
-				goto out;
+	BUG_ON(this_cpu != 0);
+
+	set_other_cpus_pause(false);
+
+	smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
+	for_each_online_cpu(cpu) {
+		if (cpu == this_cpu)
+			continue;
+		while (!is_cpu_paused(cpu) && --timeout);
+		if (timeout == 0) {
+			pr_err("pause cpu %d timeout\n", cpu);
+			goto out;
 		}
-
-		nMHz = ddr_change_freq(nMHz);
-
-		set_cpu1_pause(false);
-	} else {
-		smp_call_function_single(0, __ddr_change_freq, &nMHz, 0);
-
-		pause_cpu1(NULL);
 	}
 
-out:
-	put_cpu();
+	ddr_change_freq(nMHz);
 
-	return nMHz;
+	set_other_cpus_pause(false);
+
+out:
+	cpu_maps_update_done();
+	put_cpu();
 }
 #else
-static uint32_t _ddr_change_freq(uint32_t nMHz)
+static void _ddr_change_freq(uint32_t nMHz)
 {
-	return ddr_change_freq(nMHz);
+	ddr_change_freq(nMHz);
 }
 #endif
 
-static uint32_t ddr_set_rate(uint32_t nMHz)
+static void ddr_set_rate(uint32_t nMHz)
 {
-	nMHz = _ddr_change_freq(nMHz);
+	_ddr_change_freq(nMHz);
 	clk_set_rate(ddr.pll, 0);
-	return nMHz;
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -311,7 +308,8 @@ CLK_NOTIFIER(pd_cif1, CIF1);
 static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
 {
         ddr_set_rate(rate/(1000*1000));
-        return 0;
+	/* return 0 when ok */
+	return !(clk_get_rate(clk) == rate);
 }
 
 static int ddrfreq_init(void)
@@ -420,7 +418,7 @@ static int ddrfreq_late_init(void)
 	kthread_bind(ddr.task, 0);
 	wake_up_process(ddr.task);
 
-	pr_info("verion 1.1\n");
+	pr_info("verion 2.0\n");
 	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ);
 
