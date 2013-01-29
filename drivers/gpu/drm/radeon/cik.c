@@ -163,6 +163,29 @@ static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =
 	{0x0000009f, 0x00b48000}
 };
 
+/**
+ * cik_srbm_select - select specific register instances
+ *
+ * @rdev: radeon_device pointer
+ * @me: selected ME (micro engine)
+ * @pipe: pipe
+ * @queue: queue
+ * @vmid: VMID
+ *
+ * Switches the currently active registers instances.  Some
+ * registers are instanced per VMID, others are instanced per
+ * me/pipe/queue combination.
+ */
+static void cik_srbm_select(struct radeon_device *rdev,
+			    u32 me, u32 pipe, u32 queue, u32 vmid)
+{
+	u32 srbm_gfx_cntl = (PIPEID(pipe & 0x3) |
+			     MEID(me & 0x3) |
+			     VMID(vmid & 0xf) |
+			     QUEUEID(queue & 0x7));
+	WREG32(SRBM_GFX_CNTL, srbm_gfx_cntl);
+}
+
 /* ucode loading */
 /**
  * ci_mc_load_microcode - load MC ucode into the hw
@@ -3351,7 +3374,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	for (i = 0; i < 16; i++) {
-		WREG32(SRBM_GFX_CNTL, VMID(i));
+		cik_srbm_select(rdev, 0, 0, 0, i);
 		/* CP and shaders */
 		WREG32(SH_MEM_CONFIG, 0);
 		WREG32(SH_MEM_APE1_BASE, 1);
@@ -3364,7 +3387,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 		WREG32(SDMA0_GFX_APE1_CNTL + SDMA1_REGISTER_OFFSET, 0);
 		/* XXX SDMA RLC - todo */
 	}
-	WREG32(SRBM_GFX_CNTL, 0);
+	cik_srbm_select(rdev, 0, 0, 0, 0);
 
 	cik_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
