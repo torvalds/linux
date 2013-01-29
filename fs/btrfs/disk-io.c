@@ -2201,7 +2201,8 @@ int open_ctree(struct super_block *sb,
 		goto fail_alloc;
 
 	/* check FS state, whether FS is broken. */
-	fs_info->fs_state |= btrfs_super_flags(disk_super);
+	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_ERROR)
+		set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
 
 	ret = btrfs_check_super_valid(fs_info, sb->s_flags & MS_RDONLY);
 	if (ret) {
@@ -3359,7 +3360,7 @@ int close_ctree(struct btrfs_root *root)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
 		btrfs_error_commit_super(root);
 
 	btrfs_put_block_group_cache(fs_info);

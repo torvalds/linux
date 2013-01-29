@@ -61,7 +61,7 @@ static noinline int join_transaction(struct btrfs_root *root, int type)
 	spin_lock(&fs_info->trans_lock);
 loop:
 	/* The file system has been taken offline. No new transactions. */
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		spin_unlock(&fs_info->trans_lock);
 		return -EROFS;
 	}
@@ -113,7 +113,7 @@ loop:
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
 		cur_trans = fs_info->running_transaction;
 		goto loop;
-	} else if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	} else if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		spin_unlock(&fs_info->trans_lock);
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
 		return -EROFS;
@@ -301,7 +301,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, int type,
 	int ret;
 	u64 qgroup_reserved = 0;
 
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return ERR_PTR(-EROFS);
 
 	if (current->journal_info) {
@@ -645,9 +645,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		btrfs_run_delayed_iputs(root);
 
 	if (trans->aborted ||
-	    root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	    test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		err = -EIO;
-	}
 	assert_qgroups_uptodate(trans);
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);

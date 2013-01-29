@@ -98,7 +98,7 @@ static void __save_error_info(struct btrfs_fs_info *fs_info)
 	 * today we only save the error info into ram.  Long term we'll
 	 * also send it down to the disk
 	 */
-	fs_info->fs_state = BTRFS_SUPER_FLAG_ERROR;
+	set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
 }
 
 static void save_error_info(struct btrfs_fs_info *fs_info)
@@ -114,7 +114,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	if (sb->s_flags & MS_RDONLY)
 		return;
 
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		sb->s_flags |= MS_RDONLY;
 		printk(KERN_INFO "btrfs is forced readonly\n");
 		/*

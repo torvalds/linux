@@ -1545,7 +1545,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	 * although we have opened a file as writable, we have
 	 * to stop this write operation to ensure FS consistency.
 	 */
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state)) {
 		mutex_unlock(&inode->i_mutex);
 		err = -EROFS;
 		goto out;

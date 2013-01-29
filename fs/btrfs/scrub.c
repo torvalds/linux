@@ -2708,7 +2708,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 	int	ret;
 	struct btrfs_root *root = sctx->dev_root;
 
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return -EIO;
 
 	gen = root->fs_info->last_trans_committed;
