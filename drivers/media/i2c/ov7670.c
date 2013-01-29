@@ -183,6 +183,27 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define REG_HAECC7	0xaa	/* Hist AEC/AGC control 7 */
 #define REG_BD60MAX	0xab	/* 60hz banding step limit */
 
+enum ov7670_model {
+	MODEL_OV7670 = 0,
+	MODEL_OV7675,
+};
+
+struct ov7670_win_size {
+	int	width;
+	int	height;
+	unsigned char com7_bit;
+	int	hstart;		/* Start/stop values for the camera.  Note */
+	int	hstop;		/* that they do not always make complete */
+	int	vstart;		/* sense to humans, but evidently the sensor */
+	int	vstop;		/* will do the right thing... */
+	struct regval_list *regs; /* Regs to tweak */
+};
+
+struct ov7670_devtype {
+	/* formats supported for each model */
+	struct ov7670_win_size *win_sizes;
+	unsigned int n_win_sizes;
+};
 
 /*
  * Information we maintain about a known sensor.
@@ -198,6 +219,7 @@ struct ov7670_info {
 	int clock_speed;		/* External clock speed (MHz) */
 	u8 clkrc;			/* Clock divider value */
 	bool use_smbus;			/* Use smbus I/O instead of I2C */
+	const struct ov7670_devtype *devtype; /* Device specifics */
 };
 
 static inline struct ov7670_info *to_state(struct v4l2_subdev *sd)
@@ -652,65 +674,70 @@ static struct regval_list ov7670_qcif_regs[] = {
 	{ 0xff, 0xff },
 };
 
-static struct ov7670_win_size {
-	int	width;
-	int	height;
-	unsigned char com7_bit;
-	int	hstart;		/* Start/stop values for the camera.  Note */
-	int	hstop;		/* that they do not always make complete */
-	int	vstart;		/* sense to humans, but evidently the sensor */
-	int	vstop;		/* will do the right thing... */
-	struct regval_list *regs; /* Regs to tweak */
-/* h/vref stuff */
-} ov7670_win_sizes[] = {
+static struct ov7670_win_size ov7670_win_sizes[] = {
 	/* VGA */
 	{
 		.width		= VGA_WIDTH,
 		.height		= VGA_HEIGHT,
 		.com7_bit	= COM7_FMT_VGA,
-		.hstart		= 158,		/* These values from */
-		.hstop		=  14,		/* Omnivision */
+		.hstart		= 158,	/* These values from */
+		.hstop		=  14,	/* Omnivision */
 		.vstart		=  10,
 		.vstop		= 490,
-		.regs 		= NULL,
+		.regs		= NULL,
 	},
 	/* CIF */
 	{
 		.width		= CIF_WIDTH,
 		.height		= CIF_HEIGHT,
 		.com7_bit	= COM7_FMT_CIF,
-		.hstart		= 170,		/* Empirically determined */
+		.hstart		= 170,	/* Empirically determined */
 		.hstop		=  90,
 		.vstart		=  14,
 		.vstop		= 494,
-		.regs 		= NULL,
+		.regs		= NULL,
 	},
 	/* QVGA */
 	{
 		.width		= QVGA_WIDTH,
 		.height		= QVGA_HEIGHT,
 		.com7_bit	= COM7_FMT_QVGA,
-		.hstart		= 168,		/* Empirically determined */
+		.hstart		= 168,	/* Empirically determined */
 		.hstop		=  24,
 		.vstart		=  12,
 		.vstop		= 492,
-		.regs 		= NULL,
+		.regs		= NULL,
 	},
 	/* QCIF */
 	{
 		.width		= QCIF_WIDTH,
 		.height		= QCIF_HEIGHT,
 		.com7_bit	= COM7_FMT_VGA, /* see comment above */
-		.hstart		= 456,		/* Empirically determined */
+		.hstart		= 456,	/* Empirically determined */
 		.hstop		=  24,
 		.vstart		=  14,
 		.vstop		= 494,
-		.regs 		= ov7670_qcif_regs,
-	},
+		.regs		= ov7670_qcif_regs,
+	}
 };
 
-#define N_WIN_SIZES (ARRAY_SIZE(ov7670_win_sizes))
-
+static struct ov7670_win_size ov7675_win_sizes[] = {
+	/*
+	 * Currently, only VGA is supported. Theoretically it could be possible
+	 * to support CIF, QVGA and QCIF too. Taking values for ov7670 as a
+	 * base and tweak them empirically could be required.
+	 */
+	{
+		.width		= VGA_WIDTH,
+		.height		= VGA_HEIGHT,
+		.com7_bit	= COM7_FMT_VGA,
+		.hstart		= 158,	/* These values from */
+		.hstop		=  14,	/* Omnivision */
+		.vstart		=  14,  /* Empirically determined */
+		.vstop		= 494,
+		.regs		= NULL,
+	}
+};
 
 /*
  * Store a set of start/stop values into the camera.
@@ -761,6 +788,8 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 {
 	int index;
 	struct ov7670_win_size *wsize;
+	struct ov7670_info *info = to_state(sd);
+	unsigned int n_win_sizes = info->devtype->n_win_sizes;
 
 	for (index = 0; index < N_OV7670_FMTS; index++)
 		if (ov7670_formats[index].mbus_code == fmt->code)
@@ -780,11 +809,11 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	 * Round requested image size down to the nearest
 	 * we support, but not below the smallest.
 	 */
-	for (wsize = ov7670_win_sizes; wsize < ov7670_win_sizes + N_WIN_SIZES;
-	     wsize++)
+	for (wsize = info->devtype->win_sizes;
+	     wsize < info->devtype->win_sizes + n_win_sizes; wsize++)
 		if (fmt->width >= wsize->width && fmt->height >= wsize->height)
 			break;
-	if (wsize >= ov7670_win_sizes + N_WIN_SIZES)
+	if (wsize >= info->devtype->win_sizes + n_win_sizes)
 		wsize--;   /* Take the smallest one */
 	if (ret_wsize != NULL)
 		*ret_wsize = wsize;
@@ -931,13 +960,14 @@ static int ov7670_enum_framesizes(struct v4l2_subdev *sd,
 	int i;
 	int num_valid = -1;
 	__u32 index = fsize->index;
+	unsigned int n_win_sizes = info->devtype->n_win_sizes;
 
 	/*
 	 * If a minimum width/height was requested, filter out the capture
 	 * windows that fall outside that.
 	 */
-	for (i = 0; i < N_WIN_SIZES; i++) {
-		struct ov7670_win_size *win = &ov7670_win_sizes[index];
+	for (i = 0; i < n_win_sizes; i++) {
+		struct ov7670_win_size *win = &info->devtype->win_sizes[index];
 		if (info->min_width && win->width < info->min_width)
 			continue;
 		if (info->min_height && win->height < info->min_height)
@@ -1510,6 +1540,17 @@ static const struct v4l2_subdev_ops ov7670_ops = {
 
 /* ----------------------------------------------------------------------- */
 
+static const struct ov7670_devtype ov7670_devdata[] = {
+	[MODEL_OV7670] = {
+		.win_sizes = ov7670_win_sizes,
+		.n_win_sizes = ARRAY_SIZE(ov7670_win_sizes),
+	},
+	[MODEL_OV7675] = {
+		.win_sizes = ov7675_win_sizes,
+		.n_win_sizes = ARRAY_SIZE(ov7675_win_sizes),
+	},
+};
+
 static int ov7670_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1551,6 +1592,7 @@ static int ov7670_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
+	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
 	info->sat = 128;	/* Review this */
 	info->clkrc = info->clock_speed / 30;
@@ -1568,7 +1610,8 @@ static int ov7670_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov7670_id[] = {
-	{ "ov7670", 0 },
+	{ "ov7670", MODEL_OV7670 },
+	{ "ov7675", MODEL_OV7675 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov7670_id);
