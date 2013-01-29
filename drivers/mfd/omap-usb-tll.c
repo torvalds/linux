@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/usb-omap.h>
+#include <linux/of.h>
 
 #define USBTLL_DRIVER_NAME	"usbhs_tll"
 
@@ -311,10 +312,18 @@ static int usbtll_omap_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id usbtll_omap_dt_ids[] = {
+	{ .compatible = "ti,usbhs-tll" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, usbtll_omap_dt_ids);
+
 static struct platform_driver usbtll_omap_driver = {
 	.driver = {
 		.name		= (char *)usbtll_driver_name,
 		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(usbtll_omap_dt_ids),
 	},
 	.probe		= usbtll_omap_probe,
 	.remove		= usbtll_omap_remove,
@@ -467,6 +476,7 @@ int omap_tll_disable(struct usbhs_omap_platform_data *pdata)
 EXPORT_SYMBOL_GPL(omap_tll_disable);
 
 MODULE_AUTHOR("Keshava Munegowda <keshava_mgowda@ti.com>");
+MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
 MODULE_ALIAS("platform:" USBHS_DRIVER_NAME);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("usb tll driver for TI OMAP EHCI and OHCI controllers");
