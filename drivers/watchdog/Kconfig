@@ -364,6 +364,18 @@ config IMX2_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx2_wdt.
 
+config UX500_WATCHDOG
+	tristate "ST-Ericsson Ux500 watchdog"
+	depends on MFD_DB8500_PRCMU
+	select WATCHDOG_CORE
+	default y
+	help
+	  Say Y here to include Watchdog timer support for the watchdog
+	  existing in the prcmu of ST-Ericsson Ux500 series platforms.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ux500_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
