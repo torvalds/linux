@@ -784,7 +784,7 @@ end:
 		clear_bit(0, &chip->is_open);
  * @return: 0 in case of success.
  */
-static __devexit int tpm_st33_i2c_remove(struct i2c_client *client)
+static int tpm_st33_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = (struct tpm_chip *)i2c_get_clientdata(client);
 	struct st33zp24_platform_data *pin_infos =
