@@ -458,7 +458,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	/* Prefetch nice and early so data will (hopefully) be in cache by
 	 * the time we look at it.
 	 */
-	prefetch(efx_rx_buf_va(rx_buf) + efx->type->rx_buffer_hash_size);
+	prefetch(efx_rx_buf_va(rx_buf));
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
