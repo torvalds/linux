@@ -64,6 +64,8 @@ struct rk29_bl_info {
 	int (*pwm_suspend)(void);
 	int (*pwm_resume)(void);
 	int min_brightness;	/* 0 ~ 255 */
+	int max_brightness;	/* 0 ~ 255 */
+	int brightness_mode;
 	unsigned int delay_ms;	/* in milliseconds */
 	int pre_div;
 };

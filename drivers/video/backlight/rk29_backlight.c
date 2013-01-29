@@ -30,7 +30,8 @@
 
 #define PWM_DIV              PWM_DIV2
 #define PWM_APB_PRE_DIV      1000
-#define BL_STEP              255
+#define BL_STEP              (255)
+#define MAX_BRIGHTNESS_CORRECT (50)
 
 /*
  * Debug
@@ -84,6 +85,64 @@ static DEVICE_ATTR(rk29backlight, 0660, backlight_read, backlight_write);
 
 static DEFINE_MUTEX(backlight_mutex);
 
+static inline void rk29_bl_min_brightness_check(struct rk29_bl_info *rk29_bl_info)
+{
+
+	if (rk29_bl_info->min_brightness < 0 || rk29_bl_info->min_brightness > BL_STEP)
+		rk29_bl_info->min_brightness = MAX_BRIGHTNESS_CORRECT;
+
+
+}	
+static inline void rk29_bl_max_brightness_check(struct rk29_bl_info *rk29_bl_info)
+{
+	if (rk29_bl_info->max_brightness <= 0 || rk29_bl_info->max_brightness > BL_STEP)
+		rk29_bl_info->max_brightness = BL_STEP;
+}	
+
+
+
+int rk29_bl_val_scalor_line(struct rk29_bl_info *rk29_bl_info,int brightness)
+{
+	//rk29_bl_min_brightness_check(rk29_bl_info);
+	//rk29_bl_max_brightness_check(rk29_bl_info);
+	if(rk29_bl_info->max_brightness<rk29_bl_info->min_brightness)
+		rk29_bl_info->max_brightness=rk29_bl_info->min_brightness;
+
+	if(brightness>rk29_bl_info->max_brightness)
+		brightness=rk29_bl_info->max_brightness;
+	else if(brightness<rk29_bl_info->min_brightness)
+		brightness=rk29_bl_info->min_brightness;
+	#if 0
+		brightness = brightness*(rk29_bl_info->max_brightness - rk29_bl_info->min_brightness);
+		brightness = (brightness/255) + rk29_bl_info->min_brightness;
+	#endif
+	return brightness;
+}
+int rk29_bl_val_scalor_conic(struct rk29_bl_info *rk29_bl_info,int brightness)
+{
+	
+	//rk29_bl_min_brightness_check(rk29_bl_info);
+	//rk29_bl_max_brightness_check(rk29_bl_info);
+	
+	if(rk29_bl_info->max_brightness<rk29_bl_info->min_brightness)
+		rk29_bl_info->max_brightness=rk29_bl_info->min_brightness;
+	#if 0
+	    	brightness = (brightness*brightness)*(rk29_bl_info->max_brightness - rk29_bl_info->min_brightness);
+		brightness = (brightness/(BL_STEP*BL_STEP)) + rk29_bl_info->min_brightness;
+	#else
+		if(brightness<rk29_bl_info->min_brightness)
+			brightness=rk29_bl_info->min_brightness;
+		brightness = (brightness-rk29_bl_info->min_brightness)*(brightness-rk29_bl_info->min_brightness);
+		brightness = (brightness/(rk29_bl_info->max_brightness - rk29_bl_info->min_brightness)) + rk29_bl_info->min_brightness;
+	#endif
+	
+	if(brightness > rk29_bl_info->max_brightness)
+		brightness = rk29_bl_info->max_brightness;
+	if(brightness < rk29_bl_info->min_brightness)	
+		brightness = rk29_bl_info->min_brightness;
+	
+	return brightness;
+}
 static int rk29_bl_update_status(struct backlight_device *bl)
 {
 	u32 divh,div_total;
@@ -93,19 +152,18 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	int brightness = 0;
 	
 	mutex_lock(&backlight_mutex);
-//BL_CORE_DRIVER2 is the flag if backlight is into early_suspend.
+	//BL_CORE_DRIVER2 is the flag if backlight is into early_suspend.
 	if (suspend_flag && (bl->props.state & BL_CORE_DRIVER2))
 	    goto out;
 
 	brightness = bl->props.brightness;
-	if(rk29_bl_info->min_brightness){
-	    if(brightness){
-	    	brightness = brightness*(256 - rk29_bl_info->min_brightness);
-		brightness = (brightness>>8) + rk29_bl_info->min_brightness;
-	    }
-	    if(brightness > 255)
-	    	brightness = 255;
-	}
+
+	
+	if(!rk29_bl_info->brightness_mode)
+		brightness=rk29_bl_val_scalor_line(rk29_bl_info,brightness);
+	else
+		brightness=rk29_bl_val_scalor_conic(rk29_bl_info,brightness);
+	//printk("%s,req brightness=%d,real is=%d\n",__FUNCTION__,bl->props.brightness,brightness);
 
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
@@ -260,10 +318,23 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 
 	if (!rk29_bl_info->delay_ms)
 		rk29_bl_info->delay_ms = 100;
-
-	if (rk29_bl_info->min_brightness < 0 || rk29_bl_info->min_brightness > BL_STEP)
-		rk29_bl_info->min_brightness = 52;
-
+	
+	rk29_bl_min_brightness_check(rk29_bl_info);
+	rk29_bl_max_brightness_check(rk29_bl_info);
+	#if 0
+	{
+		int temp,temp_val;
+		rk29_bl_info->max_brightness=180;
+		rk29_bl_info->min_brightness=20;
+		for(temp=0;temp<=255;temp++)
+		{	
+			temp_val=rk29_bl_val_scalor_conic(rk29_bl_info,temp);
+			//if(temp_val<=rk29_bl_info->max_brightness)
+			printk("conic req %d,get %d\n",temp,temp_val);
+		}	
+	}
+	#endif
+	
 	if (rk29_bl_info && rk29_bl_info->io_init) {
 		rk29_bl_info->io_init();
 	}
