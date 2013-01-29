@@ -352,7 +352,7 @@ struct fw_serial {
 static const char tty_dev_name[] =  TTY_DEV_NAME;
 static const char loop_dev_name[] = "fwloop";
 
-struct tty_driver *fwtty_driver;
+extern struct tty_driver *fwtty_driver;
 
 #define driver_err(s, v...)	pr_err(KBUILD_MODNAME ": " s, ##v)
 

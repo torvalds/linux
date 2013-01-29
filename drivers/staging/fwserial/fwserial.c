@@ -78,6 +78,8 @@ static int num_ports;
 /* slab used as pool for struct fwtty_transactions */
 static struct kmem_cache *fwtty_txn_cache;
 
+struct tty_driver *fwtty_driver;
+
 struct fwtty_transaction;
 typedef void (*fwtty_transaction_cb)(struct fw_card *card, int rcode,
 				     void *data, size_t length,
@@ -2552,7 +2554,7 @@ static struct fw_descriptor fwserial_unit_directory = {
  * The management address is in the unit space region but above other known
  * address users (to keep wild writes from causing havoc)
  */
-const struct fw_address_region fwserial_mgmt_addr_region = {
+static const struct fw_address_region fwserial_mgmt_addr_region = {
 	.start = CSR_REGISTER_BASE + 0x1e0000ULL,
 	.end = 0x1000000000000ULL,
 };
