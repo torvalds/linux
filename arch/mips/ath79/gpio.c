@@ -154,34 +154,6 @@ static void __iomem *ath79_gpio_get_function_reg(void)
 	return ath79_gpio_base + reg;
 }
 
-void ath79_gpio_function_enable(u32 mask)
-{
-	void __iomem *reg = ath79_gpio_get_function_reg();
-	unsigned long flags;
-
-	spin_lock_irqsave(&ath79_gpio_lock, flags);
-
-	__raw_writel(__raw_readl(reg) | mask, reg);
-	/* flush write */
-	__raw_readl(reg);
-
-	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
-}
-
-void ath79_gpio_function_disable(u32 mask)
-{
-	void __iomem *reg = ath79_gpio_get_function_reg();
-	unsigned long flags;
-
-	spin_lock_irqsave(&ath79_gpio_lock, flags);
-
-	__raw_writel(__raw_readl(reg) & ~mask, reg);
-	/* flush write */
-	__raw_readl(reg);
-
-	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
-}
-
 void ath79_gpio_function_setup(u32 set, u32 clear)
 {
 	void __iomem *reg = ath79_gpio_get_function_reg();
@@ -194,6 +166,16 @@ void ath79_gpio_function_setup(u32 set, u32 clear)
 	__raw_readl(reg);
 
 	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
+}
+
+void ath79_gpio_function_enable(u32 mask)
+{
+	ath79_gpio_function_setup(mask, 0);
+}
+
+void ath79_gpio_function_disable(u32 mask)
+{
+	ath79_gpio_function_setup(0, mask);
 }
 
 void __init ath79_gpio_init(void)
