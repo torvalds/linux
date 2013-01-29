@@ -2226,12 +2226,6 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
 
-	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
-
-	wait_event(dev_priv->pending_flip_queue,
-		   i915_reset_in_progress(&dev_priv->gpu_error) ||
-		   atomic_read(&obj->pending_flip) == 0);
-
 	/* Big Hammer, we also need to ensure that any pending
 	 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
 	 * current scanout is retired before unpinning the old

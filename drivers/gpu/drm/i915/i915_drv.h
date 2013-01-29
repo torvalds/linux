@@ -1215,13 +1215,6 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
-
-	/**
-	 * Number of crtcs where this object is currently the fb, but
-	 * will be page flipped away on the next vblank.  When it
-	 * reaches 0, dev_priv->pending_flip_queue will be woken up.
-	 */
-	atomic_t pending_flip;
 };
 #define to_gem_object(obj) (&((struct drm_i915_gem_object *)(obj))->base)
 
