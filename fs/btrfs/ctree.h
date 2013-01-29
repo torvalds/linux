@@ -31,10 +31,10 @@
 #include <trace/events/btrfs.h>
 #include <asm/kmap_types.h>
 #include <linux/pagemap.h>
+#include <linux/btrfs.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
-#include "ioctl.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;

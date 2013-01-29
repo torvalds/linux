@@ -21,8 +21,8 @@
 
 #include <linux/bio.h>
 #include <linux/sort.h>
+#include <linux/btrfs.h>
 #include "async-thread.h"
-#include "ioctl.h"
 
 #define BTRFS_STRIPE_LEN	(64 * 1024)
 

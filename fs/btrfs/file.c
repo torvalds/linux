@@ -30,11 +30,11 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
+#include <linux/btrfs.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
-#include "ioctl.h"
 #include "print-tree.h"
 #include "tree-log.h"
 #include "locking.h"

@@ -16,8 +16,9 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __IOCTL_
-#define __IOCTL_
+#ifndef _UAPI_LINUX_BTRFS_H
+#define _UAPI_LINUX_BTRFS_H
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 #define BTRFS_IOCTL_MAGIC 0x94
@@ -499,4 +500,4 @@ struct btrfs_ioctl_send_args {
 #define BTRFS_IOC_DEV_REPLACE _IOWR(BTRFS_IOCTL_MAGIC, 53, \
 				    struct btrfs_ioctl_dev_replace_args)
 
-#endif
+#endif /* _UAPI_LINUX_BTRFS_H */

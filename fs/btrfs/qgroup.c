@@ -23,13 +23,13 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/btrfs.h>
 
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "locking.h"
 #include "ulist.h"
-#include "ioctl.h"
 #include "backref.h"
 
 /* TODO XXX FIXME
