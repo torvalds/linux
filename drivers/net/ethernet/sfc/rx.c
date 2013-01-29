@@ -54,9 +54,9 @@ static inline unsigned int efx_rx_buf_offset(struct efx_nic *efx,
 	return buf->page_offset + efx->type->rx_buffer_hash_size;
 }
 
-static u8 *efx_rx_buf_eh(struct efx_nic *efx, struct efx_rx_buffer *buf)
+static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 {
-	return page_address(buf->page) + efx_rx_buf_offset(efx, buf);
+	return page_address(buf->page) + buf->page_offset;
 }
 
 static inline u32 efx_rx_buf_hash(const u8 *eh)
@@ -458,7 +458,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	/* Prefetch nice and early so data will (hopefully) be in cache by
 	 * the time we look at it.
 	 */
-	prefetch(efx_rx_buf_eh(efx, rx_buf));
+	prefetch(efx_rx_buf_va(rx_buf) + efx->type->rx_buffer_hash_size);
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
@@ -497,7 +497,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = channel->efx;
-	u8 *eh = efx_rx_buf_eh(efx, rx_buf);
+	u8 *eh = efx_rx_buf_va(rx_buf) + efx->type->rx_buffer_hash_size;
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
