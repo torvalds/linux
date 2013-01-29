@@ -943,8 +943,8 @@
 			compatible = "fsl,imx28-fec";
 			reg = <0x800f0000 0x4000>;
 			interrupts = <101>;
-			clocks = <&clks 57>, <&clks 57>;
-			clock-names = "ipg", "ahb";
+			clocks = <&clks 57>, <&clks 57>, <&clks 64>;
+			clock-names = "ipg", "ahb", "enet_out";
 			status = "disabled";
 		};
 
