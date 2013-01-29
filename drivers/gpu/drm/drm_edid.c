@@ -354,10 +354,14 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 				break;
 			}
 		}
-		if (i == 4)
+
+		if (i == 4 && print_bad_edid) {
 			dev_warn(connector->dev->dev,
 			 "%s: Ignoring invalid EDID block %d.\n",
 			 drm_get_connector_name(connector), j);
+
+			connector->bad_edid_counter++;
+		}
 	}
 
 	if (valid_extensions != block[0x7e]) {
