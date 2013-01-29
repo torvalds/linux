@@ -62,7 +62,7 @@ static int __init uart8250_init_bcma(void)
 
 		p->mapbase = (unsigned int) bcma_port->regs;
 		p->membase = (void *) bcma_port->regs;
-		p->irq = bcma_port->irq + 2;
+		p->irq = bcma_port->irq;
 		p->uartclk = bcma_port->baud_base;
 		p->regshift = bcma_port->reg_shift;
 		p->iotype = UPIO_MEM;

@@ -280,14 +280,19 @@ static int nfc_hci_delete_pipe(struct nfc_hci_dev *hdev, u8 pipe)
 static int nfc_hci_clear_all_pipes(struct nfc_hci_dev *hdev)
 {
 	u8 param[2];
+	size_t param_len = 2;
 
 	/* TODO: Find out what the identity reference data is
 	 * and fill param with it. HCI spec 6.1.3.5 */
 
 	pr_debug("\n");
 
+	if (test_bit(NFC_HCI_QUIRK_SHORT_CLEAR, &hdev->quirks))
+		param_len = 0;
+
 	return nfc_hci_execute_cmd(hdev, NFC_HCI_ADMIN_PIPE,
-				   NFC_HCI_ADM_CLEAR_ALL_PIPE, param, 2, NULL);
+				   NFC_HCI_ADM_CLEAR_ALL_PIPE, param, param_len,
+				   NULL);
 }
 
 int nfc_hci_disconnect_gate(struct nfc_hci_dev *hdev, u8 gate)

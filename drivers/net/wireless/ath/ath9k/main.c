@@ -182,7 +182,7 @@ static void ath_restart_work(struct ath_softc *sc)
 	ath_start_ani(sc);
 }
 
-static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
+static bool ath_prepare_reset(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	bool ret = true;
@@ -196,19 +196,11 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
+	if (!ath_drain_all_txq(sc))
+		ret = false;
+
 	if (!ath_stoprecv(sc))
 		ret = false;
-
-	if (!ath_drain_all_txq(sc, retry_tx))
-		ret = false;
-
-	if (!flush) {
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-			ath_rx_tasklet(sc, 1, true);
-		ath_rx_tasklet(sc, 1, false);
-	} else {
-		ath_flushrecv(sc);
-	}
 
 	return ret;
 }
@@ -255,18 +247,17 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	return true;
 }
 
-static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
-			      bool retry_tx)
+static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = NULL;
 	bool fastcc = true;
-	bool flush = false;
 	int r;
 
 	__ath_cancel_work(sc);
 
+	tasklet_disable(&sc->intr_tq);
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
@@ -276,11 +267,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 
 	if (!hchan) {
 		fastcc = false;
-		flush = true;
 		hchan = ah->curchan;
 	}
 
-	if (!ath_prepare_reset(sc, retry_tx, flush))
+	if (!ath_prepare_reset(sc))
 		fastcc = false;
 
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
@@ -302,6 +292,8 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 
 out:
 	spin_unlock_bh(&sc->sc_pcu_lock);
+	tasklet_enable(&sc->intr_tq);
+
 	return r;
 }
 
@@ -319,7 +311,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return -EIO;
 
-	r = ath_reset_internal(sc, hchan, false);
+	r = ath_reset_internal(sc, hchan);
 
 	return r;
 }
@@ -549,23 +541,21 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static int ath_reset(struct ath_softc *sc, bool retry_tx)
+static int ath_reset(struct ath_softc *sc)
 {
-	int r;
+	int i, r;
 
 	ath9k_ps_wakeup(sc);
 
-	r = ath_reset_internal(sc, NULL, retry_tx);
+	r = ath_reset_internal(sc, NULL);
 
-	if (retry_tx) {
-		int i;
-		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-			if (ATH_TXQ_SETUP(sc, i)) {
-				spin_lock_bh(&sc->tx.txq[i].axq_lock);
-				ath_txq_schedule(sc, &sc->tx.txq[i]);
-				spin_unlock_bh(&sc->tx.txq[i].axq_lock);
-			}
-		}
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		spin_lock_bh(&sc->tx.txq[i].axq_lock);
+		ath_txq_schedule(sc, &sc->tx.txq[i]);
+		spin_unlock_bh(&sc->tx.txq[i].axq_lock);
 	}
 
 	ath9k_ps_restore(sc);
@@ -586,7 +576,7 @@ void ath_reset_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, hw_reset_work);
 
-	ath_reset(sc, true);
+	ath_reset(sc);
 }
 
 /**********************/
@@ -804,7 +794,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 	}
 
-	ath_prepare_reset(sc, false, true);
+	ath_prepare_reset(sc);
 
 	if (sc->rx.frag) {
 		dev_kfree_skb_any(sc->rx.frag);
@@ -1075,6 +1065,86 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
+void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 rxfilter;
+
+	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
+		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		return;
+	}
+
+	ath9k_ps_wakeup(sc);
+	rxfilter = ath9k_hw_getrxfilter(ah);
+	ath9k_hw_setrxfilter(ah, rxfilter |
+				 ATH9K_RX_FILTER_PHYRADAR |
+				 ATH9K_RX_FILTER_PHYERR);
+
+	/* TODO: usually this should not be neccesary, but for some reason
+	 * (or in some mode?) the trigger must be called after the
+	 * configuration, otherwise the register will have its values reset
+	 * (on my ar9220 to value 0x01002310)
+	 */
+	ath9k_spectral_scan_config(hw, sc->spectral_mode);
+	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
+	ath9k_ps_restore(sc);
+}
+
+int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
+			       enum spectral_mode spectral_mode)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_spec_scan param;
+
+	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
+		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		return -1;
+	}
+
+	/* NOTE: this will generate a few samples ...
+	 *
+	 * TODO: review default parameters, and/or define an interface to set
+	 * them.
+	 */
+	param.enabled = 1;
+	param.short_repeat = true;
+	param.count = 8;
+	param.endless = false;
+	param.period = 0xFF;
+	param.fft_period = 0xF;
+
+	switch (spectral_mode) {
+	case SPECTRAL_DISABLED:
+		param.enabled = 0;
+		break;
+	case SPECTRAL_BACKGROUND:
+		/* send endless samples.
+		 * TODO: is this really useful for "background"?
+		 */
+		param.endless = 1;
+		break;
+	case SPECTRAL_CHANSCAN:
+		break;
+	case SPECTRAL_MANUAL:
+		break;
+	default:
+		return -1;
+	}
+
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_ops(ah)->spectral_scan_config(ah, &param);
+	ath9k_ps_restore(sc);
+
+	sc->spectral_mode = spectral_mode;
+
+	return 0;
+}
+
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1188,6 +1258,11 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		 */
 		if (old_pos >= 0)
 			ath_update_survey_nf(sc, old_pos);
+
+		/* perform spectral scan if requested. */
+		if (sc->scanning && sc->spectral_mode == SPECTRAL_CHANSCAN)
+			ath9k_spectral_scan_trigger(hw);
+
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -1731,11 +1806,11 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	if (drop) {
 		ath9k_ps_wakeup(sc);
 		spin_lock_bh(&sc->sc_pcu_lock);
-		drain_txq = ath_drain_all_txq(sc, false);
+		drain_txq = ath_drain_all_txq(sc);
 		spin_unlock_bh(&sc->sc_pcu_lock);
 
 		if (!drain_txq)
-			ath_reset(sc, false);
+			ath_reset(sc);
 
 		ath9k_ps_restore(sc);
 		ieee80211_wake_queues(hw);
@@ -1835,6 +1910,9 @@ static u32 fill_chainmask(u32 cap, u32 new)
 
 static bool validate_antenna_mask(struct ath_hw *ah, u32 val)
 {
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		return true;
+
 	switch (val & 0x7) {
 	case 0x1:
 	case 0x3:
@@ -2240,6 +2318,19 @@ static void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 }
 
 #endif
+static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	sc->scanning = 1;
+}
+
+static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	sc->scanning = 0;
+}
 
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
@@ -2286,4 +2377,6 @@ struct ieee80211_ops ath9k_ops = {
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
 	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
+	.sw_scan_start	    = ath9k_sw_scan_start,
+	.sw_scan_complete   = ath9k_sw_scan_complete,
 };

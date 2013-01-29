@@ -3695,7 +3695,7 @@ struct iwl_bt_uart_msg {
 	u8 frame5;
 	u8 frame6;
 	u8 frame7;
-} __attribute__((packed));
+} __packed;
 
 struct iwl_bt_coex_profile_notif {
 	struct iwl_bt_uart_msg last_bt_uart_msg;
@@ -3703,7 +3703,7 @@ struct iwl_bt_coex_profile_notif {
 	u8 bt_traffic_load; /* 0 .. 3? */
 	u8 bt_ci_compliance; /* 0 - not complied, 1 - complied */
 	u8 reserved;
-} __attribute__((packed));
+} __packed;
 
 #define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS	0
 #define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_MSK	0x1
@@ -3752,7 +3752,7 @@ enum bt_coex_prio_table_priorities {
 
 struct iwl_bt_coex_prio_table_cmd {
 	u8 prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX];
-} __attribute__((packed));
+} __packed;
 
 #define IWL_BT_COEX_ENV_CLOSE	0
 #define IWL_BT_COEX_ENV_OPEN	1
@@ -3764,7 +3764,7 @@ struct iwl_bt_coex_prot_env_cmd {
 	u8 action; /* 0 = closed, 1 = open */
 	u8 type; /* 0 .. 15 */
 	u8 reserved[2];
-} __attribute__((packed));
+} __packed;
 
 /*
  * REPLY_D3_CONFIG
