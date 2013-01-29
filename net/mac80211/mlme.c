@@ -1827,8 +1827,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_ap_probereq_get);
 
-static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata,
-				   bool transmit_frame)
+static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
@@ -1842,7 +1841,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 			       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-			       transmit_frame, frame_buf);
+			       true, frame_buf);
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
 	mutex_unlock(&ifmgd->mtx);
 
@@ -1876,7 +1875,7 @@ static void ieee80211_beacon_connection_loss_work(struct work_struct *work)
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR) {
 		sdata_info(sdata, "Connection to AP %pM lost\n",
 			   ifmgd->bssid);
-		__ieee80211_disconnect(sdata, false);
+		__ieee80211_disconnect(sdata);
 	} else {
 		ieee80211_mgd_probe_ap(sdata, true);
 	}
@@ -1890,7 +1889,7 @@ static void ieee80211_csa_connection_drop_work(struct work_struct *work)
 
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
-	__ieee80211_disconnect(sdata, true);
+	__ieee80211_disconnect(sdata);
 }
 
 void ieee80211_beacon_loss(struct ieee80211_vif *vif)
