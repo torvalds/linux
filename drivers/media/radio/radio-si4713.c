@@ -59,35 +59,6 @@ static const struct v4l2_file_operations radio_si4713_fops = {
 };
 
 /* Video4Linux Interface */
-static int radio_si4713_fill_audout(struct v4l2_audioout *vao)
-{
-	/* TODO: check presence of audio output */
-	strlcpy(vao->name, "FM Modulator Audio Out", 32);
-
-	return 0;
-}
-
-static int radio_si4713_enumaudout(struct file *file, void *priv,
-						struct v4l2_audioout *vao)
-{
-	return radio_si4713_fill_audout(vao);
-}
-
-static int radio_si4713_g_audout(struct file *file, void *priv,
-					struct v4l2_audioout *vao)
-{
-	int rval = radio_si4713_fill_audout(vao);
-
-	vao->index = 0;
-
-	return rval;
-}
-
-static int radio_si4713_s_audout(struct file *file, void *priv,
-					const struct v4l2_audioout *vao)
-{
-	return vao->index ? -EINVAL : 0;
-}
 
 /* radio_si4713_querycap - query device capabilities */
 static int radio_si4713_querycap(struct file *file, void *priv,
@@ -229,9 +200,6 @@ static long radio_si4713_default(struct file *file, void *p,
 }
 
 static struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
-	.vidioc_enumaudout	= radio_si4713_enumaudout,
-	.vidioc_g_audout	= radio_si4713_g_audout,
-	.vidioc_s_audout	= radio_si4713_s_audout,
 	.vidioc_querycap	= radio_si4713_querycap,
 	.vidioc_queryctrl	= radio_si4713_queryctrl,
 	.vidioc_g_ext_ctrls	= radio_si4713_g_ext_ctrls,
