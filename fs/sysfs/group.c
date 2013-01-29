@@ -205,6 +205,48 @@ void sysfs_unmerge_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_unmerge_group);
 
+/**
+ * sysfs_add_link_to_group - add a symlink to an attribute group.
+ * @kobj:	The kobject containing the group.
+ * @group_name:	The name of the group.
+ * @target:	The target kobject of the symlink to create.
+ * @link_name:	The name of the symlink to create.
+ */
+int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
+			    struct kobject *target, const char *link_name)
+{
+	struct sysfs_dirent *dir_sd;
+	int error = 0;
+
+	dir_sd = sysfs_get_dirent(kobj->sd, NULL, group_name);
+	if (!dir_sd)
+		return -ENOENT;
+
+	error = sysfs_create_link_sd(dir_sd, target, link_name);
+	sysfs_put(dir_sd);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_add_link_to_group);
+
+/**
+ * sysfs_remove_link_from_group - remove a symlink from an attribute group.
+ * @kobj:	The kobject containing the group.
+ * @group_name:	The name of the group.
+ * @link_name:	The name of the symlink to remove.
+ */
+void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
+				  const char *link_name)
+{
+	struct sysfs_dirent *dir_sd;
+
+	dir_sd = sysfs_get_dirent(kobj->sd, NULL, group_name);
+	if (dir_sd) {
+		sysfs_hash_and_remove(dir_sd, NULL, link_name);
+		sysfs_put(dir_sd);
+	}
+}
+EXPORT_SYMBOL_GPL(sysfs_remove_link_from_group);
 
 EXPORT_SYMBOL_GPL(sysfs_create_group);
 EXPORT_SYMBOL_GPL(sysfs_update_group);

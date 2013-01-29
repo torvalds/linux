@@ -35,15 +35,33 @@ static inline void acpi_debugfs_init(void) { return; }
 #endif
 
 /* --------------------------------------------------------------------------
+                     Device Node Initialization / Removal
+   -------------------------------------------------------------------------- */
+#define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
+			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
+
+int acpi_device_add(struct acpi_device *device,
+		    void (*release)(struct device *));
+void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
+			     int type, unsigned long long sta);
+void acpi_device_add_finalize(struct acpi_device *device);
+void acpi_free_ids(struct acpi_device *device);
+
+/* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
 int acpi_power_init(void);
+void acpi_power_resources_list_free(struct list_head *list);
+int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
+				 struct list_head *list);
+int acpi_add_power_resource(acpi_handle handle);
+void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
+int acpi_power_min_system_level(struct list_head *list);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
-int acpi_bus_init_power(struct acpi_device *device);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);
