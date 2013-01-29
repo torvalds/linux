@@ -1007,9 +1007,9 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * be asked to delay transmission of packets than asking
 		 * our link partner to pause transmission of frames.
 		 */
-		else if ((hw->fc.requested_mode == e1000_fc_none ||
-			  hw->fc.requested_mode == e1000_fc_tx_pause) ||
-			 hw->fc.strict_ieee) {
+		else if ((hw->fc.requested_mode == e1000_fc_none) ||
+			 (hw->fc.requested_mode == e1000_fc_tx_pause) ||
+			 (hw->fc.strict_ieee)) {
 			hw->fc.current_mode = e1000_fc_none;
 			hw_dbg("Flow Control = NONE.\r\n");
 		} else {

@@ -3859,9 +3859,8 @@ static bool igb_thermal_sensor_event(struct e1000_hw *hw, u32 event)
 		ctrl_ext = rd32(E1000_CTRL_EXT);
 
 		if ((hw->phy.media_type == e1000_media_type_copper) &&
-		    !(ctrl_ext & E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+		    !(ctrl_ext & E1000_CTRL_EXT_LINK_MODE_SGMII))
 			ret = !!(thstat & event);
-		}
 	}
 
 	return ret;

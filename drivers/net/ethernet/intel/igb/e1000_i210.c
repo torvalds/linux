@@ -326,7 +326,7 @@ s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 /**
  *  igb_read_nvm_i211 - Read NVM wrapper function for I211
  *  @hw: pointer to the HW structure
- *  @address: the word address (aka eeprom offset) to read
+ *  @words: number of words to read
  *  @data: pointer to the data read
  *
  *  Wrapper function to return data formerly found in the NVM.
