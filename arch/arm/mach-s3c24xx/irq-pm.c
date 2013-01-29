@@ -99,3 +99,26 @@ struct syscore_ops s3c24xx_irq_syscore_ops = {
 	.suspend	= s3c24xx_irq_suspend,
 	.resume		= s3c24xx_irq_resume,
 };
+
+#ifdef CONFIG_CPU_S3C2416
+static struct sleep_save s3c2416_irq_save[] = {
+	SAVE_ITEM(S3C2416_INTMSK2),
+};
+
+static int s3c2416_irq_suspend(void)
+{
+	s3c_pm_do_save(s3c2416_irq_save, ARRAY_SIZE(s3c2416_irq_save));
+
+	return 0;
+}
+
+static void s3c2416_irq_resume(void)
+{
+	s3c_pm_do_restore(s3c2416_irq_save, ARRAY_SIZE(s3c2416_irq_save));
+}
+
+struct syscore_ops s3c2416_irq_syscore_ops = {
+	.suspend	= s3c2416_irq_suspend,
+	.resume		= s3c2416_irq_resume,
+};
+#endif
