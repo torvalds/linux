@@ -55,7 +55,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <7>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -64,7 +64,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <8>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -73,7 +73,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <9>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -82,7 +82,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <10>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
