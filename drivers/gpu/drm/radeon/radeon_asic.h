@@ -47,6 +47,12 @@ u8 atombios_get_backlight_level(struct radeon_encoder *radeon_encoder);
 void radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
 u8 radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder);
 
+u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
+				 struct radeon_ring *ring);
+u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
+				 struct radeon_ring *ring);
+void radeon_ring_generic_set_wptr(struct radeon_device *rdev,
+				  struct radeon_ring *ring);
 
 /*
  * r100,rv100,rs100,rv200,rs200

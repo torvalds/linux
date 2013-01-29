@@ -1285,6 +1285,10 @@ struct radeon_asic {
 		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		bool (*is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 		void (*vm_flush)(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+
+		u32 (*get_rptr)(struct radeon_device *rdev, struct radeon_ring *ring);
+		u32 (*get_wptr)(struct radeon_device *rdev, struct radeon_ring *ring);
+		void (*set_wptr)(struct radeon_device *rdev, struct radeon_ring *ring);
 	} ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
@@ -1962,6 +1966,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_ring_is_lockup(rdev, r, cp) (rdev)->asic->ring[(r)].is_lockup((rdev), (cp))
 #define radeon_ring_vm_flush(rdev, r, vm) (rdev)->asic->ring[(r)].vm_flush((rdev), (r), (vm))
+#define radeon_ring_get_rptr(rdev, r) (rdev)->asic->ring[(r)->idx].get_rptr((rdev), (r))
+#define radeon_ring_get_wptr(rdev, r) (rdev)->asic->ring[(r)->idx].get_wptr((rdev), (r))
+#define radeon_ring_set_wptr(rdev, r) (rdev)->asic->ring[(r)->idx].set_wptr((rdev), (r))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))
