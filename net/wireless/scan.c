@@ -425,34 +425,13 @@ static int cmp_bss_core(struct cfg80211_bss *a, struct cfg80211_bss *b)
 }
 
 static int cmp_bss(struct cfg80211_bss *a,
-		   struct cfg80211_bss *b)
-{
-	const struct cfg80211_bss_ies *a_ies, *b_ies;
-	int r;
-
-	r = cmp_bss_core(a, b);
-	if (r)
-		return r;
-
-	a_ies = rcu_access_pointer(a->ies);
-	if (!a_ies)
-		return -1;
-	b_ies = rcu_access_pointer(b->ies);
-	if (!b_ies)
-		return 1;
-
-	return cmp_ies(WLAN_EID_SSID,
-		       a_ies->data, a_ies->len,
-		       b_ies->data, b_ies->len);
-}
-
-static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
+		   struct cfg80211_bss *b,
+		   bool hide_ssid)
 {
 	const struct cfg80211_bss_ies *a_ies, *b_ies;
 	const u8 *ie1;
 	const u8 *ie2;
-	int i;
-	int r;
+	int i, r;
 
 	r = cmp_bss_core(a, b);
 	if (r)
@@ -468,15 +447,13 @@ static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 	ie1 = cfg80211_find_ie(WLAN_EID_SSID, a_ies->data, a_ies->len);
 	ie2 = cfg80211_find_ie(WLAN_EID_SSID, b_ies->data, b_ies->len);
 
+	if (!ie1 && !ie2)
+		return 0;
+
 	/*
-	 * Key comparator must use same algorithm in any rb-tree
-	 * search function (order is important), otherwise ordering
-	 * of items in the tree is broken and search gives incorrect
-	 * results. This code uses same order as cmp_ies() does.
-	 *
-	 * Note that due to the differring behaviour with hidden SSIDs
-	 * this function only works when "b" is the tree element and
-	 * "a" is the key we're looking for.
+	 * Note that with "hide_ssid", the function returns a match if
+	 * the already-present BSS ("b") is a hidden SSID beacon for
+	 * the new BSS ("a").
 	 */
 
 	/* sort missing IE before (left of) present IE */
@@ -485,13 +462,16 @@ static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 	if (!ie2)
 		return 1;
 
-	/* zero-size SSID is used as an indication of the hidden bss */
-	if (!ie2[1])
+	/* zero-length SSID is used as an indication of the hidden bss */
+	if (hide_ssid && !ie2[1])
 		return 0;
 
 	/* sort by length first, then by contents */
 	if (ie1[1] != ie2[1])
 		return ie2[1] - ie1[1];
+
+	if (!hide_ssid)
+		return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
 
 	/*
 	 * zeroed SSID ie is another indication of a hidden bss;
@@ -584,7 +564,7 @@ static void rb_insert_bss(struct cfg80211_registered_device *dev,
 		parent = *p;
 		tbss = rb_entry(parent, struct cfg80211_internal_bss, rbn);
 
-		cmp = cmp_bss(&bss->pub, &tbss->pub);
+		cmp = cmp_bss(&bss->pub, &tbss->pub, false);
 
 		if (WARN_ON(!cmp)) {
 			/* will sort of leak this BSS */
@@ -603,7 +583,8 @@ static void rb_insert_bss(struct cfg80211_registered_device *dev,
 
 static struct cfg80211_internal_bss *
 rb_find_bss(struct cfg80211_registered_device *dev,
-	    struct cfg80211_internal_bss *res)
+	    struct cfg80211_internal_bss *res,
+	    bool hidden)
 {
 	struct rb_node *n = dev->bss_tree.rb_node;
 	struct cfg80211_internal_bss *bss;
@@ -611,30 +592,7 @@ rb_find_bss(struct cfg80211_registered_device *dev,
 
 	while (n) {
 		bss = rb_entry(n, struct cfg80211_internal_bss, rbn);
-		r = cmp_bss(&res->pub, &bss->pub);
-
-		if (r == 0)
-			return bss;
-		else if (r < 0)
-			n = n->rb_left;
-		else
-			n = n->rb_right;
-	}
-
-	return NULL;
-}
-
-static struct cfg80211_internal_bss *
-rb_find_hidden_bss(struct cfg80211_registered_device *dev,
-		   struct cfg80211_internal_bss *res)
-{
-	struct rb_node *n = dev->bss_tree.rb_node;
-	struct cfg80211_internal_bss *bss;
-	int r;
-
-	while (n) {
-		bss = rb_entry(n, struct cfg80211_internal_bss, rbn);
-		r = cmp_hidden_bss(&res->pub, &bss->pub);
+		r = cmp_bss(&res->pub, &bss->pub, hidden);
 
 		if (r == 0)
 			return bss;
@@ -684,7 +642,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		return NULL;
 	}
 
-	found = rb_find_bss(dev, tmp);
+	found = rb_find_bss(dev, tmp, false);
 
 	if (found) {
 		found->pub.beacon_interval = tmp->pub.beacon_interval;
@@ -739,7 +697,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		/* TODO: The code is not trying to update existing probe
 		 * response bss entries when beacon ies are
 		 * getting changed. */
-		hidden = rb_find_hidden_bss(dev, tmp);
+		hidden = rb_find_bss(dev, tmp, true);
 		if (hidden)
 			copy_hidden_ies(tmp, hidden);
 
