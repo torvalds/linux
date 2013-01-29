@@ -786,10 +786,11 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 		struct ov7670_format_struct **ret_fmt,
 		struct ov7670_win_size **ret_wsize)
 {
-	int index;
+	int index, i;
 	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
 	unsigned int n_win_sizes = info->devtype->n_win_sizes;
+	unsigned int win_sizes_limit = n_win_sizes;
 
 	for (index = 0; index < N_OV7670_FMTS; index++)
 		if (ov7670_formats[index].mbus_code == fmt->code)
@@ -805,15 +806,30 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	 * Fields: the OV devices claim to be progressive.
 	 */
 	fmt->field = V4L2_FIELD_NONE;
+
+	/*
+	 * Don't consider values that don't match min_height and min_width
+	 * constraints.
+	 */
+	if (info->min_width || info->min_height)
+		for (i = 0; i < n_win_sizes; i++) {
+			wsize = info->devtype->win_sizes + i;
+
+			if (wsize->width < info->min_width ||
+				wsize->height < info->min_height) {
+				win_sizes_limit = i;
+				break;
+			}
+		}
 	/*
 	 * Round requested image size down to the nearest
 	 * we support, but not below the smallest.
 	 */
 	for (wsize = info->devtype->win_sizes;
-	     wsize < info->devtype->win_sizes + n_win_sizes; wsize++)
+	     wsize < info->devtype->win_sizes + win_sizes_limit; wsize++)
 		if (fmt->width >= wsize->width && fmt->height >= wsize->height)
 			break;
-	if (wsize >= info->devtype->win_sizes + n_win_sizes)
+	if (wsize >= info->devtype->win_sizes + win_sizes_limit)
 		wsize--;   /* Take the smallest one */
 	if (ret_wsize != NULL)
 		*ret_wsize = wsize;
