@@ -327,7 +327,7 @@ found:
 	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
-	atomic_add(skb->truesize, &fq->q.net->mem);
+	add_frag_mem_limit(&fq->q, skb->truesize);
 
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
@@ -341,9 +341,7 @@ found:
 	    fq->q.meat == fq->q.len)
 		return ip6_frag_reasm(fq, prev, dev);
 
-	write_lock(&ip6_frags.lock);
-	list_move_tail(&fq->q.lru_list, &fq->q.net->lru_list);
-	write_unlock(&ip6_frags.lock);
+	inet_frag_lru_move(&fq->q);
 	return -1;
 
 discard_fq:
@@ -429,7 +427,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		head->len -= clone->len;
 		clone->csum = 0;
 		clone->ip_summed = head->ip_summed;
-		atomic_add(clone->truesize, &fq->q.net->mem);
+		add_frag_mem_limit(&fq->q, clone->truesize);
 	}
 
 	/* We have to remove fragment header from datagram and to relocate
@@ -467,7 +465,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		}
 		fp = next;
 	}
-	atomic_sub(sum_truesize, &fq->q.net->mem);
+	sub_frag_mem_limit(&fq->q, sum_truesize);
 
 	head->next = NULL;
 	head->dev = dev;

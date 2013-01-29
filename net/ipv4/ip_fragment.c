@@ -122,7 +122,7 @@ int ip_frag_nqueues(struct net *net)
 
 int ip_frag_mem(struct net *net)
 {
-	return atomic_read(&net->ipv4.frags.mem);
+	return sum_frag_mem_limit(&net->ipv4.frags);
 }
 
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
@@ -159,13 +159,6 @@ static bool ip4_frag_match(struct inet_frag_queue *q, void *a)
 		qp->daddr == arg->iph->daddr &&
 		qp->protocol == arg->iph->protocol &&
 		qp->user == arg->user;
-}
-
-/* Memory Tracking Functions. */
-static void frag_kfree_skb(struct netns_frags *nf, struct sk_buff *skb)
-{
-	atomic_sub(skb->truesize, &nf->mem);
-	kfree_skb(skb);
 }
 
 static void ip4_frag_init(struct inet_frag_queue *q, void *a)
@@ -340,6 +333,7 @@ static inline int ip_frag_too_far(struct ipq *qp)
 static int ip_frag_reinit(struct ipq *qp)
 {
 	struct sk_buff *fp;
+	unsigned int sum_truesize = 0;
 
 	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
 		atomic_inc(&qp->q.refcnt);
@@ -349,9 +343,12 @@ static int ip_frag_reinit(struct ipq *qp)
 	fp = qp->q.fragments;
 	do {
 		struct sk_buff *xp = fp->next;
-		frag_kfree_skb(qp->q.net, fp);
+
+		sum_truesize += fp->truesize;
+		kfree_skb(fp);
 		fp = xp;
 	} while (fp);
+	sub_frag_mem_limit(&qp->q, sum_truesize);
 
 	qp->q.last_in = 0;
 	qp->q.len = 0;
@@ -496,7 +493,8 @@ found:
 				qp->q.fragments = next;
 
 			qp->q.meat -= free_it->len;
-			frag_kfree_skb(qp->q.net, free_it);
+			sub_frag_mem_limit(&qp->q, free_it->truesize);
+			kfree_skb(free_it);
 		}
 	}
 
@@ -519,7 +517,7 @@ found:
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
-	atomic_add(skb->truesize, &qp->q.net->mem);
+	add_frag_mem_limit(&qp->q, skb->truesize);
 	if (offset == 0)
 		qp->q.last_in |= INET_FRAG_FIRST_IN;
 
@@ -531,9 +529,7 @@ found:
 	    qp->q.meat == qp->q.len)
 		return ip_frag_reasm(qp, prev, dev);
 
-	write_lock(&ip4_frags.lock);
-	list_move_tail(&qp->q.lru_list, &qp->q.net->lru_list);
-	write_unlock(&ip4_frags.lock);
+	inet_frag_lru_move(&qp->q);
 	return -EINPROGRESS;
 
 err:
@@ -617,7 +613,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		head->len -= clone->len;
 		clone->csum = 0;
 		clone->ip_summed = head->ip_summed;
-		atomic_add(clone->truesize, &qp->q.net->mem);
+		add_frag_mem_limit(&qp->q, clone->truesize);
 	}
 
 	skb_push(head, head->data - skb_network_header(head));
@@ -645,7 +641,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		}
 		fp = next;
 	}
-	atomic_sub(sum_truesize, &qp->q.net->mem);
+	sub_frag_mem_limit(&qp->q, sum_truesize);
 
 	head->next = NULL;
 	head->dev = dev;

@@ -288,7 +288,7 @@ static inline int ip6_frag_nqueues(struct net *net)
 
 static inline int ip6_frag_mem(struct net *net)
 {
-	return atomic_read(&net->ipv6.frags.mem);
+	return sum_frag_mem_limit(&net->ipv6.frags);
 }
 #endif
 
