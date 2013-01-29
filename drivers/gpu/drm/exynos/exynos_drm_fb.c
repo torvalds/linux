@@ -99,6 +99,10 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/* This fb should have only one gem object. */
+	if (WARN_ON(exynos_fb->buf_cnt != 1))
+		return -EINVAL;
+
 	return drm_gem_handle_create(file_priv,
 			&exynos_fb->exynos_gem_obj[0]->base, handle);
 }
