@@ -3760,7 +3760,8 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	space_info = block_rsv->space_info;
 
 	smp_mb();
-	delalloc_bytes = root->fs_info->delalloc_bytes;
+	delalloc_bytes = percpu_counter_sum_positive(
+						&root->fs_info->delalloc_bytes);
 	if (delalloc_bytes == 0) {
 		if (trans)
 			return;
@@ -3799,7 +3800,8 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 				break;
 		}
 		smp_mb();
-		delalloc_bytes = root->fs_info->delalloc_bytes;
+		delalloc_bytes = percpu_counter_sum_positive(
+						&root->fs_info->delalloc_bytes);
 	}
 }
 

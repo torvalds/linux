@@ -1392,6 +1392,7 @@ struct btrfs_fs_info {
 	 */
 	struct list_head ordered_extents;
 
+	spinlock_t delalloc_lock;
 	/*
 	 * all of the inodes that have delalloc bytes.  It is possible for
 	 * this list to be empty even when there is still dirty data=ordered
@@ -1452,7 +1453,10 @@ struct btrfs_fs_info {
 
 	/* used to keep from writing metadata until there is a nice batch */
 	struct percpu_counter dirty_metadata_bytes;
+	struct percpu_counter delalloc_bytes;
 	s32 dirty_metadata_batch;
+	s32 delalloc_batch;
+
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;
@@ -1467,9 +1471,6 @@ struct btrfs_fs_info {
 	struct btrfs_space_info *data_sinfo;
 
 	struct reloc_control *reloc_ctl;
-
-	spinlock_t delalloc_lock;
-	u64 delalloc_bytes;
 
 	/* data_alloc_cluster is only used in ssd mode */
 	struct btrfs_free_cluster data_alloc_cluster;

@@ -2010,10 +2010,16 @@ int open_ctree(struct super_block *sb,
 	fs_info->dirty_metadata_batch = PAGE_CACHE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
 
+	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0);
+	if (ret) {
+		err = ret;
+		goto fail_dirty_metadata_bytes;
+	}
+
 	fs_info->btree_inode = new_inode(sb);
 	if (!fs_info->btree_inode) {
 		err = -ENOMEM;
-		goto fail_dirty_metadata_bytes;
+		goto fail_delalloc_bytes;
 	}
 
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
@@ -2269,6 +2275,7 @@ int open_ctree(struct super_block *sb,
 	sectorsize = btrfs_super_sectorsize(disk_super);
 	stripesize = btrfs_super_stripesize(disk_super);
 	fs_info->dirty_metadata_batch = leafsize * (1 + ilog2(nr_cpu_ids));
+	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
 	/*
 	 * mixed block groups end up with duplicate but slightly offset
@@ -2731,6 +2738,8 @@ fail_iput:
 
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
+fail_delalloc_bytes:
+	percpu_counter_destroy(&fs_info->delalloc_bytes);
 fail_dirty_metadata_bytes:
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 fail_bdi:
@@ -3362,9 +3371,9 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_free_qgroup_config(root->fs_info);
 
-	if (fs_info->delalloc_bytes) {
-		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
-		       (unsigned long long)fs_info->delalloc_bytes);
+	if (percpu_counter_sum(&fs_info->delalloc_bytes)) {
+		printk(KERN_INFO "btrfs: at unmount delalloc count %lld\n",
+		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
 	free_extent_buffer(fs_info->extent_root->node);
@@ -3412,6 +3421,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
+	percpu_counter_destroy(&fs_info->delalloc_bytes);
 	bdi_destroy(&fs_info->bdi);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 

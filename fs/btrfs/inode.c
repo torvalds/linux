@@ -1516,7 +1516,8 @@ static void btrfs_set_bit_hook(struct inode *inode,
 
 		spin_lock(&root->fs_info->delalloc_lock);
 		BTRFS_I(inode)->delalloc_bytes += len;
-		root->fs_info->delalloc_bytes += len;
+		__percpu_counter_add(&root->fs_info->delalloc_bytes, len,
+				     root->fs_info->delalloc_batch);
 		if (do_list && list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
 			list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
 				      &root->fs_info->delalloc_inodes);
@@ -1557,7 +1558,8 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 			btrfs_free_reserved_data_space(inode, len);
 
 		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->delalloc_bytes -= len;
+		__percpu_counter_add(&root->fs_info->delalloc_bytes, -len,
+				     root->fs_info->delalloc_batch);
 		BTRFS_I(inode)->delalloc_bytes -= len;
 
 		if (do_list && BTRFS_I(inode)->delalloc_bytes == 0 &&
