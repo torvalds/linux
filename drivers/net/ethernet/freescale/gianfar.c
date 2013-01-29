@@ -563,40 +563,38 @@ static void enable_napi(struct gfar_private *priv)
 static int gfar_parse_group(struct device_node *np,
 			    struct gfar_private *priv, const char *model)
 {
+	struct gfar_priv_grp *grp = &priv->gfargrp[priv->num_grps];
 	u32 *queue_mask;
 
-	priv->gfargrp[priv->num_grps].regs = of_iomap(np, 0);
-	if (!priv->gfargrp[priv->num_grps].regs)
+	grp->regs = of_iomap(np, 0);
+	if (!grp->regs)
 		return -ENOMEM;
 
-	priv->gfargrp[priv->num_grps].interruptTransmit =
-			irq_of_parse_and_map(np, 0);
+	grp->interruptTransmit = irq_of_parse_and_map(np, 0);
 
 	/* If we aren't the FEC we have multiple interrupts */
 	if (model && strcasecmp(model, "FEC")) {
-		priv->gfargrp[priv->num_grps].interruptReceive =
-			irq_of_parse_and_map(np, 1);
-		priv->gfargrp[priv->num_grps].interruptError =
-			irq_of_parse_and_map(np,2);
-		if (priv->gfargrp[priv->num_grps].interruptTransmit == NO_IRQ ||
-		    priv->gfargrp[priv->num_grps].interruptReceive  == NO_IRQ ||
-		    priv->gfargrp[priv->num_grps].interruptError    == NO_IRQ)
+		grp->interruptReceive =	irq_of_parse_and_map(np, 1);
+		grp->interruptError =	irq_of_parse_and_map(np, 2);
+		if (grp->interruptTransmit == NO_IRQ ||
+		    grp->interruptReceive  == NO_IRQ ||
+		    grp->interruptError    == NO_IRQ)
 			return -EINVAL;
 	}
 
-	priv->gfargrp[priv->num_grps].grp_id = priv->num_grps;
-	priv->gfargrp[priv->num_grps].priv = priv;
-	spin_lock_init(&priv->gfargrp[priv->num_grps].grplock);
+	grp->grp_id = priv->num_grps;
+	grp->priv = priv;
+	spin_lock_init(&grp->grplock);
 	if (priv->mode == MQ_MG_MODE) {
 		queue_mask = (u32 *)of_get_property(np, "fsl,rx-bit-map", NULL);
-		priv->gfargrp[priv->num_grps].rx_bit_map = queue_mask ?
+		grp->rx_bit_map = queue_mask ?
 			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
 		queue_mask = (u32 *)of_get_property(np, "fsl,tx-bit-map", NULL);
-		priv->gfargrp[priv->num_grps].tx_bit_map = queue_mask ?
+		grp->tx_bit_map = queue_mask ?
 			*queue_mask : (DEFAULT_MAPPING >> priv->num_grps);
 	} else {
-		priv->gfargrp[priv->num_grps].rx_bit_map = 0xFF;
-		priv->gfargrp[priv->num_grps].tx_bit_map = 0xFF;
+		grp->rx_bit_map = 0xFF;
+		grp->tx_bit_map = 0xFF;
 	}
 	priv->num_grps++;
 
