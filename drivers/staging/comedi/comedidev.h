@@ -429,20 +429,19 @@ static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
 		return sizeof(short);
 }
 
-/* must be used in attach to set dev->hw_dev if you wish to dma directly
-into comedi's buffer */
+/*
+ * Must set dev->hw_dev if you wish to dma directly into comedi's buffer.
+ * Also useful for retrieving a previously configured hardware device of
+ * known bus type.  Set automatically for auto-configured devices.
+ * Automatically set to NULL when detaching hardware device.
+ */
 static inline void comedi_set_hw_dev(struct comedi_device *dev,
 				     struct device *hw_dev)
 {
-	if (dev->hw_dev == hw_dev)
-		return;
-	if (dev->hw_dev)
-		put_device(dev->hw_dev);
-	dev->hw_dev = hw_dev;
-	if (dev->hw_dev) {
-		dev->hw_dev = get_device(dev->hw_dev);
-		BUG_ON(dev->hw_dev == NULL);
-	}
+	struct device *old_hw_dev = dev->hw_dev;
+
+	dev->hw_dev = get_device(hw_dev);
+	put_device(old_hw_dev);
 }
 
 static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
