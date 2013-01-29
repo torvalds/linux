@@ -278,7 +278,7 @@ static int usbhs_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "usbhs_runtime_resume\n");
 
-	omap_tll_enable();
+	omap_tll_enable(pdata);
 
 	if (!IS_ERR(omap->ehci_logic_fck))
 		clk_enable(omap->ehci_logic_fck);
@@ -353,7 +353,7 @@ static int usbhs_runtime_suspend(struct device *dev)
 	if (!IS_ERR(omap->ehci_logic_fck))
 		clk_disable(omap->ehci_logic_fck);
 
-	omap_tll_disable();
+	omap_tll_disable(pdata);
 
 	return 0;
 }
@@ -526,6 +526,9 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	}
 
 	omap->pdata = pdata;
+
+	/* Initialize the TLL subsystem */
+	omap_tll_init(pdata);
 
 	pm_runtime_enable(dev);
 
