@@ -208,7 +208,8 @@ struct efx_tx_queue {
  * @dma_addr: DMA base address of the buffer
  * @page: The associated page buffer.
  *	Will be %NULL if the buffer slot is currently free.
- * @page_offset: Offset within page
+ * @page_offset: If pending: offset in @page of DMA base address.
+ *	If completed: offset in @page of Ethernet header.
  * @len: If pending: length for DMA descriptor.
  *	If completed: received length, excluding hash prefix.
  * @flags: Flags for buffer and packet state.

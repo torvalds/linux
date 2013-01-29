@@ -47,13 +47,6 @@ static unsigned int rx_refill_threshold;
  */
 #define EFX_RXD_HEAD_ROOM 2
 
-/* Offset of ethernet header within page */
-static inline unsigned int efx_rx_buf_offset(struct efx_nic *efx,
-					     struct efx_rx_buffer *buf)
-{
-	return buf->page_offset + efx->type->rx_buffer_hash_size;
-}
-
 static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 {
 	return page_address(buf->page) + buf->page_offset;
@@ -356,8 +349,7 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 	if (efx->net_dev->features & NETIF_F_RXHASH)
 		skb->rxhash = efx_rx_buf_hash(eh);
 
-	skb_fill_page_desc(skb, 0, page,
-			   efx_rx_buf_offset(efx, rx_buf), rx_buf->len);
+	skb_fill_page_desc(skb, 0, page, rx_buf->page_offset, rx_buf->len);
 
 	skb->len = rx_buf->len;
 	skb->data_len = rx_buf->len;
@@ -399,7 +391,7 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 	if (rx_buf->len > hdr_len) {
 		skb->data_len = skb->len - hdr_len;
 		skb_fill_page_desc(skb, 0, rx_buf->page,
-				   efx_rx_buf_offset(efx, rx_buf) + hdr_len,
+				   rx_buf->page_offset + hdr_len,
 				   skb->data_len);
 	} else {
 		__free_pages(rx_buf->page, efx->rx_buffer_order);
@@ -460,10 +452,12 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	prefetch(efx_rx_buf_va(rx_buf));
 
+	rx_buf->page_offset += efx->type->rx_buffer_hash_size;
+	rx_buf->len = len - efx->type->rx_buffer_hash_size;
+
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
 	 */
-	rx_buf->len = len - efx->type->rx_buffer_hash_size;
 out:
 	efx_rx_flush_packet(channel);
 	channel->rx_pkt = rx_buf;
@@ -497,7 +491,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 void __efx_rx_packet(struct efx_channel *channel, struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = channel->efx;
-	u8 *eh = efx_rx_buf_va(rx_buf) + efx->type->rx_buffer_hash_size;
+	u8 *eh = efx_rx_buf_va(rx_buf);
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
