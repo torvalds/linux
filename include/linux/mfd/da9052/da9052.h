@@ -99,6 +99,9 @@ struct da9052 {
 	u8 chip_id;
 
 	int chip_irq;
+
+	/* SOC I/O transfer related fixes for DA9052/53 */
+	int (*fix_io) (struct da9052 *da9052, unsigned char reg);
 };
 
 /* ADC API */
@@ -113,32 +116,87 @@ static inline int da9052_reg_read(struct da9052 *da9052, unsigned char reg)
 	ret = regmap_read(da9052->regmap, reg, &val);
 	if (ret < 0)
 		return ret;
+
+	if (da9052->fix_io) {
+		ret = da9052->fix_io(da9052, reg);
+		if (ret < 0)
+			return ret;
+	}
+
 	return val;
 }
 
 static inline int da9052_reg_write(struct da9052 *da9052, unsigned char reg,
 				    unsigned char val)
 {
-	return regmap_write(da9052->regmap, reg, val);
+	int ret;
+
+	ret = regmap_write(da9052->regmap, reg, val);
+	if (ret < 0)
+		return ret;
+
+	if (da9052->fix_io) {
+		ret = da9052->fix_io(da9052, reg);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 static inline int da9052_group_read(struct da9052 *da9052, unsigned char reg,
 				     unsigned reg_cnt, unsigned char *val)
 {
-	return regmap_bulk_read(da9052->regmap, reg, val, reg_cnt);
+	int ret;
+
+	ret = regmap_bulk_read(da9052->regmap, reg, val, reg_cnt);
+	if (ret < 0)
+		return ret;
+
+	if (da9052->fix_io) {
+		ret = da9052->fix_io(da9052, reg);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 static inline int da9052_group_write(struct da9052 *da9052, unsigned char reg,
 				      unsigned reg_cnt, unsigned char *val)
 {
-	return regmap_raw_write(da9052->regmap, reg, val, reg_cnt);
+	int ret;
+
+	ret = regmap_raw_write(da9052->regmap, reg, val, reg_cnt);
+	if (ret < 0)
+		return ret;
+
+	if (da9052->fix_io) {
+		ret = da9052->fix_io(da9052, reg);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 static inline int da9052_reg_update(struct da9052 *da9052, unsigned char reg,
 				     unsigned char bit_mask,
 				     unsigned char reg_val)
 {
-	return regmap_update_bits(da9052->regmap, reg, bit_mask, reg_val);
+	int ret;
+
+	ret = regmap_update_bits(da9052->regmap, reg, bit_mask, reg_val);
+	if (ret < 0)
+		return ret;
+
+	if (da9052->fix_io) {
+		ret = da9052->fix_io(da9052, reg);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 int da9052_device_init(struct da9052 *da9052, u8 chip_id);

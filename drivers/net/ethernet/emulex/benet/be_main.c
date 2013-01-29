@@ -2026,19 +2026,30 @@ static irqreturn_t be_intx(int irq, void *dev)
 	struct be_adapter *adapter = eqo->adapter;
 	int num_evts = 0;
 
-	/* On Lancer, clear-intr bit of the EQ DB does not work.
-	 * INTx is de-asserted only on notifying num evts.
+	/* IRQ is not expected when NAPI is scheduled as the EQ
+	 * will not be armed.
+	 * But, this can happen on Lancer INTx where it takes
+	 * a while to de-assert INTx or in BE2 where occasionaly
+	 * an interrupt may be raised even when EQ is unarmed.
+	 * If NAPI is already scheduled, then counting & notifying
+	 * events will orphan them.
 	 */
-	if (lancer_chip(adapter))
+	if (napi_schedule_prep(&eqo->napi)) {
 		num_evts = events_get(eqo);
-
-	/* The EQ-notify may not de-assert INTx rightaway, causing
-	 * the ISR to be invoked again. So, return HANDLED even when
-	 * num_evts is zero.
-	 */
+		__napi_schedule(&eqo->napi);
+		if (num_evts)
+			eqo->spurious_intr = 0;
+	}
 	be_eq_notify(adapter, eqo->q.id, false, true, num_evts);
-	napi_schedule(&eqo->napi);
-	return IRQ_HANDLED;
+
+	/* Return IRQ_HANDLED only for the the first spurious intr
+	 * after a valid intr to stop the kernel from branding
+	 * this irq as a bad one!
+	 */
+	if (num_evts || eqo->spurious_intr++ == 0)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
 }
 
 static irqreturn_t be_msix(int irq, void *dev)

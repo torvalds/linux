@@ -194,7 +194,7 @@ struct dma_buf_ops omap_dmabuf_ops = {
 struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags)
 {
-	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, 0600);
+	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, flags);
 }
 
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,

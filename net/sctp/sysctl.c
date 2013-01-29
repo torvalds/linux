@@ -366,7 +366,11 @@ int sctp_sysctl_net_register(struct net *net)
 
 void sctp_sysctl_net_unregister(struct net *net)
 {
+	struct ctl_table *table;
+
+	table = net->sctp.sysctl_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->sctp.sysctl_header);
+	kfree(table);
 }
 
 static struct ctl_table_header * sctp_sysctl_header;

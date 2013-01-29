@@ -541,9 +541,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
-	if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
-		transport_lun_remove_cmd(cmd);
-
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
 	if (remove)
@@ -1396,6 +1393,8 @@ static void target_complete_tmr_failure(struct work_struct *work)
 
 	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
 	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
+
+	transport_cmd_check_stop_to_fabric(se_cmd);
 }
 
 /**
@@ -1688,6 +1687,7 @@ void target_execute_cmd(struct se_cmd *cmd)
 	}
 
 	cmd->t_state = TRANSPORT_PROCESSING;
+	cmd->transport_state |= CMD_T_ACTIVE;
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	if (!target_handle_task_attr(cmd))
@@ -2597,6 +2597,16 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	 * SENSE KEY values from include/scsi/scsi.h
 	 */
 	switch (reason) {
+	case TCM_NO_SENSE:
+		/* CURRENT ERROR */
+		buffer[0] = 0x70;
+		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		/* Not Ready */
+		buffer[SPC_SENSE_KEY_OFFSET] = NOT_READY;
+		/* NO ADDITIONAL SENSE INFORMATION */
+		buffer[SPC_ASC_KEY_OFFSET] = 0;
+		buffer[SPC_ASCQ_KEY_OFFSET] = 0;
+		break;
 	case TCM_NON_EXISTENT_LUN:
 		/* CURRENT ERROR */
 		buffer[0] = 0x70;
@@ -2743,7 +2753,7 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* ILLEGAL REQUEST */
 		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
-		buffer[SPC_ASC_KEY_OFFSET] = 0x80;
+		buffer[SPC_ASC_KEY_OFFSET] = 0x08;
 		break;
 	}
 	/*
@@ -2803,6 +2813,8 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		}
 	}
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
+
+	transport_lun_remove_cmd(cmd);
 
 	pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x,"
 		" ITT: 0x%08x\n", cmd->t_task_cdb[0],

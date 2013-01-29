@@ -338,8 +338,10 @@ int __init s3c64xx_pm_init(void)
 	for (i = 0; i < ARRAY_SIZE(s3c64xx_pm_domains); i++)
 		pm_genpd_init(&s3c64xx_pm_domains[i]->pd, NULL, false);
 
+#ifdef CONFIG_S3C_DEV_FB
 	if (dev_get_platdata(&s3c_device_fb.dev))
 		pm_genpd_add_device(&s3c64xx_pm_f.pd, &s3c_device_fb.dev);
+#endif
 
 	return 0;
 }

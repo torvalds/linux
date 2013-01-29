@@ -100,6 +100,7 @@ struct driver_info {
 #define FLAG_LINK_INTR	0x0800		/* updates link (carrier) status */
 
 #define FLAG_POINTTOPOINT 0x1000	/* possibly use "usb%d" names */
+#define FLAG_NOARP	0x2000		/* device can't do ARP */
 
 /*
  * Indicates to usbnet, that USB driver accumulates multiple IP packets.

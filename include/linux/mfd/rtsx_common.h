@@ -38,6 +38,9 @@
 #define RTSX_SD_CARD			0
 #define RTSX_MS_CARD			1
 
+#define CLK_TO_DIV_N			0
+#define DIV_N_TO_CLK			1
+
 struct platform_device;
 
 struct rtsx_slot {
