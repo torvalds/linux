@@ -230,6 +230,7 @@ struct ov7670_info {
 	int clock_speed;		/* External clock speed (MHz) */
 	u8 clkrc;			/* Clock divider value */
 	bool use_smbus;			/* Use smbus I/O instead of I2C */
+	bool pll_bypass;
 	const struct ov7670_devtype *devtype; /* Device specifics */
 };
 
@@ -755,7 +756,12 @@ static void ov7675_get_framerate(struct v4l2_subdev *sd,
 {
 	struct ov7670_info *info = to_state(sd);
 	u32 clkrc = info->clkrc;
-	u32 pll_factor = PLL_FACTOR;
+	int pll_factor;
+
+	if (info->pll_bypass)
+		pll_factor = 1;
+	else
+		pll_factor = PLL_FACTOR;
 
 	clkrc++;
 	if (info->fmt->mbus_code == V4L2_MBUS_FMT_SBGGR8_1X8)
@@ -771,7 +777,7 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 {
 	struct ov7670_info *info = to_state(sd);
 	u32 clkrc;
-	u32 pll_factor = PLL_FACTOR;
+	int pll_factor;
 	int ret;
 
 	/*
@@ -781,6 +787,16 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	 * pixclk = clock_speed / (clkrc + 1) * PLLfactor
 	 *
 	 */
+	if (info->pll_bypass) {
+		pll_factor = 1;
+		ret = ov7670_write(sd, REG_DBLV, DBLV_BYPASS);
+	} else {
+		pll_factor = PLL_FACTOR;
+		ret = ov7670_write(sd, REG_DBLV, DBLV_X4);
+	}
+	if (ret < 0)
+		return ret;
+
 	if (tpf->numerator == 0 || tpf->denominator == 0) {
 		clkrc = 0;
 	} else {
@@ -808,6 +824,7 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
 	if (ret < 0)
 		return ret;
+
 	return ov7670_write(sd, REG_DBLV, DBLV_X4);
 }
 
@@ -1688,6 +1705,13 @@ static int ov7670_probe(struct i2c_client *client,
 
 		if (config->clock_speed)
 			info->clock_speed = config->clock_speed;
+
+		/*
+		 * It should be allowed for ov7670 too when it is migrated to
+		 * the new frame rate formula.
+		 */
+		if (config->pll_bypass && id->driver_data != MODEL_OV7670)
+			info->pll_bypass = true;
 	}
 
 	/* Make sure it's an ov7670 */

@@ -15,6 +15,7 @@ struct ov7670_config {
 	int min_height;			/* Filter out smaller sizes */
 	int clock_speed;		/* External clock speed (MHz) */
 	bool use_smbus;			/* Use smbus I/O instead of I2C */
+	bool pll_bypass;		/* Choose whether to bypass the PLL */
 };
 
 #endif
