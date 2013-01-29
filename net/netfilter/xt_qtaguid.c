@@ -268,24 +268,6 @@ static inline void dc_add_byte_packets(struct data_counters *counters, int set,
 	counters->bpc[set][direction][ifs_proto].packets += packets;
 }
 
-static inline uint64_t dc_sum_bytes(struct data_counters *counters,
-				    int set,
-				    enum ifs_tx_rx direction)
-{
-	return counters->bpc[set][direction][IFS_TCP].bytes
-		+ counters->bpc[set][direction][IFS_UDP].bytes
-		+ counters->bpc[set][direction][IFS_PROTO_OTHER].bytes;
-}
-
-static inline uint64_t dc_sum_packets(struct data_counters *counters,
-				      int set,
-				      enum ifs_tx_rx direction)
-{
-	return counters->bpc[set][direction][IFS_TCP].packets
-		+ counters->bpc[set][direction][IFS_UDP].packets
-		+ counters->bpc[set][direction][IFS_PROTO_OTHER].packets;
-}
-
 static struct tag_node *tag_node_tree_search(struct rb_root *root, tag_t tag)
 {
 	struct rb_node *node = root->rb_node;
@@ -787,6 +769,53 @@ done:
 	return iface_entry;
 }
 
+/* This is for fmt2 only */
+static int pp_iface_stat_line(bool header, char *outp,
+			      int char_count, struct iface_stat *iface_entry)
+{
+	int len;
+	if (header) {
+		len = snprintf(outp, char_count,
+			       "ifname "
+			       "total_skb_rx_bytes total_skb_rx_packets "
+			       "total_skb_tx_bytes total_skb_tx_packets "
+			       "rx_tcp_bytes rx_tcp_packets "
+			       "rx_udp_bytes rx_udp_packets "
+			       "rx_other_bytes rx_other_packets "
+			       "tx_tcp_bytes tx_tcp_packets "
+			       "tx_udp_bytes tx_udp_packets "
+			       "tx_other_bytes tx_other_packets\n"
+			);
+	} else {
+		struct data_counters *cnts;
+		int cnt_set = 0;   /* We only use one set for the device */
+		cnts = &iface_entry->totals_via_skb;
+		len = snprintf(
+			outp, char_count,
+			"%s "
+			"%llu %llu %llu %llu %llu %llu %llu %llu "
+			"%llu %llu %llu %llu %llu %llu %llu %llu\n",
+			iface_entry->ifname,
+			dc_sum_bytes(cnts, cnt_set, IFS_RX),
+			dc_sum_packets(cnts, cnt_set, IFS_RX),
+			dc_sum_bytes(cnts, cnt_set, IFS_TX),
+			dc_sum_packets(cnts, cnt_set, IFS_TX),
+			cnts->bpc[cnt_set][IFS_RX][IFS_TCP].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_TCP].packets,
+			cnts->bpc[cnt_set][IFS_RX][IFS_UDP].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_UDP].packets,
+			cnts->bpc[cnt_set][IFS_RX][IFS_PROTO_OTHER].bytes,
+			cnts->bpc[cnt_set][IFS_RX][IFS_PROTO_OTHER].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_TCP].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_TCP].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_UDP].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_UDP].packets,
+			cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].bytes,
+			cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].packets);
+	}
+	return len;
+}
+
 static int iface_stat_fmt_proc_read(char *page, char **num_items_returned,
 				    off_t items_to_skip, int char_count,
 				    int *eof, void *data)
@@ -816,11 +845,7 @@ static int iface_stat_fmt_proc_read(char *page, char **num_items_returned,
 		return 0;
 
 	if (fmt == 2 && item_index++ >= items_to_skip) {
-		len = snprintf(outp, char_count,
-			       "ifname "
-			       "total_skb_rx_bytes total_skb_rx_packets "
-			       "total_skb_tx_bytes total_skb_tx_packets\n"
-			);
+		len = pp_iface_stat_line(true, outp, char_count, NULL);
 		if (len >= char_count) {
 			*outp = '\0';
 			return outp - page;
@@ -865,16 +890,8 @@ static int iface_stat_fmt_proc_read(char *page, char **num_items_returned,
 				stats->tx_bytes, stats->tx_packets
 				);
 		} else {
-			len = snprintf(
-				outp, char_count,
-				"%s "
-				"%llu %llu %llu %llu\n",
-				iface_entry->ifname,
-				iface_entry->totals_via_skb[IFS_RX].bytes,
-				iface_entry->totals_via_skb[IFS_RX].packets,
-				iface_entry->totals_via_skb[IFS_TX].bytes,
-				iface_entry->totals_via_skb[IFS_TX].packets
-				);
+			len = pp_iface_stat_line(false, outp, char_count,
+						 iface_entry);
 		}
 		if (len >= char_count) {
 			spin_unlock_bh(&iface_stat_list_lock);
@@ -1304,6 +1321,7 @@ static void iface_stat_update_from_skb(const struct sk_buff *skb,
 	const struct net_device *el_dev;
 	enum ifs_tx_rx direction = par->in ? IFS_RX : IFS_TX;
 	int bytes = skb->len;
+	int proto;
 
 	if (!skb->dev) {
 		MT_DEBUG("qtaguid[%d]: no skb->dev\n", par->hooknum);
@@ -1329,7 +1347,7 @@ static void iface_stat_update_from_skb(const struct sk_buff *skb,
 		       par->hooknum, __func__);
 		BUG();
 	} else {
-		int proto = ipx_proto(skb, par);
+		proto = ipx_proto(skb, par);
 		MT_DEBUG("qtaguid[%d]: dev name=%s type=%d fam=%d proto=%d\n",
 			 par->hooknum, el_dev->name, el_dev->type,
 			 par->family, proto);
@@ -1347,8 +1365,8 @@ static void iface_stat_update_from_skb(const struct sk_buff *skb,
 	IF_DEBUG("qtaguid: %s(%s): entry=%p\n", __func__,
 		 el_dev->name, entry);
 
-	entry->totals_via_skb[direction].bytes += bytes;
-	entry->totals_via_skb[direction].packets++;
+	data_counters_update(&entry->totals_via_skb, 0, direction, proto,
+			     bytes);
 	spin_unlock_bh(&iface_stat_list_lock);
 }
 
