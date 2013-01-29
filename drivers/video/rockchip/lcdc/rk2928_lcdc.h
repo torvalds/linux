@@ -70,6 +70,8 @@ typedef volatile struct tagLCDC_REG
 #define  m_HWC_EN             (1<<2)
 #define  m_W0_FORMAT          (7<<3)
 #define  m_W1_FORMAT          (7<<6)
+#define  m_W0_RGB_RB_SWAP     (1<<10)
+#define  m_W1_RGB_RB_SWAP     (1<<14)
 
 #define m_W0_AXI_OUTSTANDING_DISABLE (1<<16) 
 #define m_W1_AXI_OUTSTANDING_DISABLE (1<<17)
@@ -84,8 +86,10 @@ typedef volatile struct tagLCDC_REG
 #define v_HWC_EN(x)         		(((x)&1)<<2)
 #define v_W0_FORMAT(x)      		(((x)&7)<<3)
 #define v_W1_FORMAT(x)      		(((x)&7)<<6)
-#define v_LCDC_STANDBY(x)		(((x)&1)<<22)
+#define v_W0_RGB_RB_SWAP(x)		(((x)&1)<<10)	
+#define v_W1_RGB_RB_SWAP(x)		(((x)&1)<<14)
 
+#define v_LCDC_STANDBY(x)		(((x)&1)<<22)
 #define v_LCDC_AXICLK_AUTO_ENABLE(x)    (((x)&1)<<24)
 #define v_DSP_OUT_ZERO(x)    		(((x)&1)<<25)
 

@@ -434,11 +434,15 @@ static  int win0_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	xpos = par->xpos+screen->left_margin + screen->hsync_len;
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
    
+	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 	
 	ScaleYrgbX = CalScale(xact, par->xsize); //both RGB and yuv need this two factor
 	ScaleYrgbY = CalScale(yact, par->ysize);
 	switch (par->format)
 	{
+		case XBGR888:
+		case ABGR888:
 		case ARGB888:
 			fmt_cfg = 0;
 			break;
@@ -461,11 +465,10 @@ static  int win0_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
 		default:
+			printk("%s:un supported format\n",__func__);
 		   break;
 	}
 
-	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
-		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -510,6 +513,8 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	{
 		switch (par->format)
 	 	{
+	 		case XBGR888:
+			case ABGR888:
 			case ARGB888:
 				fmt_cfg = 0;
 				break;
@@ -517,6 +522,7 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 				fmt_cfg = 1;
 				break;
 			default:
+				printk("%s:un supported format\n",__func__);
 				break;
 		}
 
@@ -536,6 +542,11 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 static int rk3066b_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
+
+	if(open)
+	{
+		rk3066b_load_screen(dev_drv,1);
+	}
 	if(layer_id == 0)
 	{
 		win0_open(lcdc_dev,open);	

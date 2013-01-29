@@ -493,6 +493,7 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
+	u8 fmt_cfg = 0;
 
 	xact = par->xact;			    //active (origin) picture window width/height		
 	yact = par->yact;
@@ -501,36 +502,51 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	xpos = par->xpos+screen->left_margin + screen->hsync_len;
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
    
+
+	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 	
 	ScaleYrgbX = CalScale(xact, par->xsize); //both RGB and yuv need this two factor
 	ScaleYrgbY = CalScale(yact, par->ysize);
 	switch (par->format)
 	{
+		case ARGB888:
+		case XBGR888:
+		case ABGR888:
+	     		fmt_cfg = 0;
+			break;
+		case RGB888:
+			fmt_cfg = 1;
+			break;
+		case RGB565:
+			fmt_cfg = 2;
+			break;
 		case YUV422:// yuv422
+			fmt_cfg = 5;
 			ScaleCbrX = CalScale((xact/2), par->xsize);
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
 		case YUV420: // yuv420
+			fmt_cfg = 4;
 			ScaleCbrX = CalScale(xact/2, par->xsize);
 		   	ScaleCbrY = CalScale(yact/2, par->ysize);
 		   	break;
 		case YUV444:// yuv444
+			fmt_cfg = 6;
 			ScaleCbrX = CalScale(xact, par->xsize);
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
 		default:
-		   break;
+			printk("%s un supported format\n",__func__);
+		   	break;
 	}
 
-	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
-		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
-	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
-		lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
+		lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
 		lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_CBR,v_X_SCL_FACTOR(ScaleCbrX)| v_Y_SCL_FACTOR(ScaleCbrY));
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(fmt_cfg));		//(inf->video_mode==0)
 		lcdc_writel(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
 		lcdc_writel(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		lcdc_writel(lcdc_dev, WIN0_DSP_INFO, v_DSP_WIDTH(par->xsize)| v_DSP_HEIGHT(par->ysize));
@@ -538,23 +554,33 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 			v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 		switch(par->format) 
 		{
+			case XBGR888:
+				lcdc_writel(lcdc_dev, WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
+				break;
 			case ARGB888:
 				lcdc_writel(lcdc_dev, WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
-				//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(0));
+				break;
+			case ABGR888:
+				lcdc_writel(lcdc_dev, WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
 				break;
 			case RGB888:  //rgb888
 				lcdc_writel(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
-				//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(0));
 				break;
 			case RGB565:  //rgb565
 				lcdc_writel(lcdc_dev, WIN0_VIR,v_RGB565_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(0));
 				break;
 			case YUV422:
 			case YUV420:   
 				lcdc_writel(lcdc_dev, WIN0_VIR,v_YUV_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(0));
 				break;
 			default:
-				lcdc_writel(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
+				printk("%s:un supported format\n",__func__);
 				break;
 		}
 
@@ -574,6 +600,7 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
+	u8 fmt_cfg = 0;
 	
 	xact = par->xact;			
 	yact = par->yact;
@@ -593,25 +620,40 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	{
 		switch (par->format)
 	 	{
+	 		case ARGB888:
+			case XBGR888:
+			case ABGR888:
+		     		fmt_cfg = 0;
+				break;
+			case RGB888:
+				fmt_cfg = 1;
+				break;
+			case RGB565:
+				fmt_cfg = 2;
+				break;
 			case YUV422:// yuv422
+				fmt_cfg = 5;
 				ScaleCbrX = CalScale((xact/2), par->xsize);
 				ScaleCbrY = CalScale(yact, par->ysize);
 				break;
 			case YUV420: // yuv420
+				fmt_cfg = 4;
 				ScaleCbrX = CalScale(xact/2, par->xsize);
 				ScaleCbrY = CalScale(yact/2, par->ysize);
 				break;
 			case YUV444:// yuv444
+				fmt_cfg = 6;
 				ScaleCbrX = CalScale(xact, par->xsize);
 				ScaleCbrY = CalScale(yact, par->ysize);
 				break;
 			default:
+				printk("%s:un supported format\n",__func__);
 				break;
 		}
 
 		lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
 		lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL1, m_W1_FORMAT, v_W1_FORMAT(par->format));
+		lcdc_msk_reg(lcdc_dev,SYS_CTRL1, m_W1_FORMAT, v_W1_FORMAT(fmt_cfg));
 		lcdc_writel(lcdc_dev, WIN1_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
 		lcdc_writel(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		lcdc_writel(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
@@ -619,23 +661,29 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 		lcdc_msk_reg(lcdc_dev, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 		switch(par->format)
 	    	{
+	    		case XBGR888:
+				lcdc_writel(lcdc_dev, WIN1_VIR,v_ARGB888_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
 		        case ARGB888:
 				lcdc_writel(lcdc_dev, WIN1_VIR,v_ARGB888_VIRWIDTH(xvir));
-				//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 		        case RGB888:  //rgb888
 				lcdc_writel(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
-				// lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 		        case RGB565:  //rgb565
 				lcdc_writel(lcdc_dev, WIN1_VIR,v_RGB565_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 		        case YUV422:
 		        case YUV420:   
 				lcdc_writel(lcdc_dev, WIN1_VIR,v_YUV_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 		        default:
-				lcdc_writel(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
+				printk("%s:un supported formate\n",__func__);
 				break;
 	    	}
 		
@@ -653,6 +701,7 @@ static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
+	u8 fmt_cfg = 0;
 	
 	xact = par->xact;			
 	yact = par->yact;
@@ -671,34 +720,43 @@ static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	if(likely(lcdc_dev->clk_on))
 	{
 
-		lcdc_msk_reg(lcdc_dev,SYS_CTRL1, m_W2_FORMAT, v_W2_FORMAT(par->format));
 		lcdc_writel(lcdc_dev, WIN2_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		lcdc_writel(lcdc_dev, WIN2_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
 		// enable win1 color key and set the color to black(rgb=0)
 		lcdc_msk_reg(lcdc_dev, WIN2_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 		switch(par->format)
 	    	{
-		        case ARGB888:
+	    		case XBGR888:
+				fmt_cfg = 0;
 				lcdc_writel(lcdc_dev, WIN2_VIR,v_ARGB888_VIRWIDTH(xvir));
-				//lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W2_RGB_RB_SWAP,v_W2_RGB_RB_SWAP(1));
+				break;
+		        case ARGB888:
+				fmt_cfg = 0;
+				lcdc_writel(lcdc_dev, WIN2_VIR,v_ARGB888_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W2_RGB_RB_SWAP,v_W2_RGB_RB_SWAP(0));
+				break;
+			case ABGR888:
+				fmt_cfg = 0;
+				lcdc_writel(lcdc_dev, WIN2_VIR,v_ARGB888_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W2_RGB_RB_SWAP,v_W2_RGB_RB_SWAP(1));
 				break;
 		        case RGB888:  //rgb888
+		        	fmt_cfg = 1;
 				lcdc_writel(lcdc_dev, WIN2_VIR,v_RGB888_VIRWIDTH(xvir));
-				// lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W2_RGB_RB_SWAP,v_W2_RGB_RB_SWAP(0));
 				break;
 		        case RGB565:  //rgb565
+		        	fmt_cfg = 2;
 				lcdc_writel(lcdc_dev, WIN2_VIR,v_RGB565_VIRWIDTH(xvir));
-				break;
-		        case YUV422:
-		        case YUV420:   
-				lcdc_writel(lcdc_dev, WIN2_VIR,v_YUV_VIRWIDTH(xvir));
+				lcdc_msk_reg(lcdc_dev,SYS_CTRL1,m_W2_RGB_RB_SWAP,v_W2_RGB_RB_SWAP(0));
 				break;
 		        default:
-				lcdc_writel(lcdc_dev, WIN2_VIR,v_RGB888_VIRWIDTH(xvir));
+				printk("%s:un supported format\n",__func__);
 				break;
 	    	}
 		
-		lcdc_writel(lcdc_dev, REG_CFG_DONE, 0x01); 
+		lcdc_msk_reg(lcdc_dev,SYS_CTRL1, m_W2_FORMAT, v_W2_FORMAT(fmt_cfg));
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
     return 0;
@@ -716,6 +774,7 @@ static int rk30_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,boo
 	{
 		rk30_lcdc_clk_enable(lcdc_dev);
 		memcpy((u8*)lcdc_dev->regs, (u8*)lcdc_dev->regsbak, 0xc4);  //resume reg
+		rk30_load_screen(dev_drv,1);
 		spin_lock(&lcdc_dev->reg_lock);
 		if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
 		{

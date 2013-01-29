@@ -42,6 +42,8 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 		printk(KERN_INFO x);} while (0)
 
 //#define WAIT_FOR_SYNC 1
+
+static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscreen);
 static int  rk3188_lcdc_clk_enable(struct rk3188_lcdc_device *lcdc_dev)
 {
 
@@ -188,6 +190,7 @@ static int rk3188_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,b
 	{
 		rk3188_lcdc_clk_enable(lcdc_dev);
 		rk3188_lcdc_reg_resume(lcdc_dev); //resume reg
+		rk3188_load_screen(dev_drv,1);
 		spin_lock(&lcdc_dev->reg_lock);
 		if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
 		{
