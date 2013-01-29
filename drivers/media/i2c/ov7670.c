@@ -1504,13 +1504,6 @@ static int ov7670_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.g_chip_ident = ov7670_g_chip_ident,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 	.reset = ov7670_reset,
 	.init = ov7670_init,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
