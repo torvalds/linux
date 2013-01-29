@@ -29,48 +29,50 @@
 
 #define ADIS16080_DIN_WRITE  (1 << 15)
 
+struct adis16080_chip_info {
+	int scale_val;
+	int scale_val2;
+};
+
 /**
  * struct adis16080_state - device instance specific data
  * @us:			actual spi_device to write data
+ * @info:		chip specific parameters
  * @buf:		transmit or receive buffer
- * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16080_state {
 	struct spi_device		*us;
-	struct mutex			buf_lock;
+	const struct adis16080_chip_info *info;
 
-	u8 buf[2] ____cacheline_aligned;
+	__be16 buf ____cacheline_aligned;
 };
 
-static int adis16080_spi_write(struct iio_dev *indio_dev,
-		u16 val)
+static int adis16080_read_sample(struct iio_dev *indio_dev,
+		u16 addr, int *val)
 {
-	int ret;
 	struct adis16080_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->buf_lock);
-	st->buf[0] = val >> 8;
-	st->buf[1] = val;
-
-	ret = spi_write(st->us, st->buf, 2);
-	mutex_unlock(&st->buf_lock);
-
-	return ret;
-}
-
-static int adis16080_spi_read(struct iio_dev *indio_dev,
-			      u16 *val)
-{
+	struct spi_message m;
 	int ret;
-	struct adis16080_state *st = iio_priv(indio_dev);
+	struct spi_transfer	t[] = {
+		{
+			.tx_buf		= &st->buf,
+			.len		= 2,
+			.cs_change	= 1,
+		}, {
+			.rx_buf		= &st->buf,
+			.len		= 2,
+		},
+	};
 
-	mutex_lock(&st->buf_lock);
+	st->buf = cpu_to_be16(addr | ADIS16080_DIN_WRITE);
 
-	ret = spi_read(st->us, st->buf, 2);
+	spi_message_init(&m);
+	spi_message_add_tail(&t[0], &m);
+	spi_message_add_tail(&t[1], &m);
 
+	ret = spi_sync(st->us, &m);
 	if (ret == 0)
-		*val = sign_extend32(((st->buf[0] & 0xF) << 8) | st->buf[1], 11);
-	mutex_unlock(&st->buf_lock);
+		*val = sign_extend32(be16_to_cpu(st->buf), 11);
 
 	return ret;
 }
@@ -81,28 +83,52 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 			     int *val2,
 			     long mask)
 {
-	int ret = -EINVAL;
-	u16 ut = 0;
-	/* Take the iio_dev status lock */
+	struct adis16080_state *st = iio_priv(indio_dev);
+	int ret;
 
-	mutex_lock(&indio_dev->mlock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adis16080_spi_write(indio_dev,
-					  chan->address |
-					  ADIS16080_DIN_WRITE);
-		if (ret < 0)
-			break;
-		ret = adis16080_spi_read(indio_dev, &ut);
-		if (ret < 0)
-			break;
-		*val = ut;
-		ret = IIO_VAL_INT;
+		mutex_lock(&indio_dev->mlock);
+		ret = adis16080_read_sample(indio_dev, chan->address, val);
+		mutex_unlock(&indio_dev->mlock);
+		return ret ? ret : IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			*val = st->info->scale_val;
+			*val2 = st->info->scale_val2;
+			return IIO_VAL_FRACTIONAL;
+		case IIO_VOLTAGE:
+			/* VREF = 5V, 12 bits */
+			*val = 5000;
+			*val2 = 12;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		case IIO_TEMP:
+			/* 85 C = 585, 25 C = 0 */
+			*val = 85000 - 25000;
+			*val2 = 585;
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_OFFSET:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			/* 2.5 V = 0 */
+			*val = 2048;
+			return IIO_VAL_INT;
+		case IIO_TEMP:
+			/* 85 C = 585, 25 C = 0 */
+			*val = DIV_ROUND_CLOSEST(25 * 585, 85 - 25);
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	default:
 		break;
 	}
-	mutex_unlock(&indio_dev->mlock);
 
-	return ret;
+	return -EINVAL;
 }
 
 static const struct iio_chan_spec adis16080_channels[] = {
@@ -110,25 +136,32 @@ static const struct iio_chan_spec adis16080_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = ADIS16080_DIN_GYRO,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = ADIS16080_DIN_AIN1,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = ADIS16080_DIN_AIN2,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = ADIS16080_DIN_TEMP,
 	}
 };
@@ -138,8 +171,27 @@ static const struct iio_info adis16080_info = {
 	.driver_module = THIS_MODULE,
 };
 
+enum {
+	ID_ADIS16080,
+	ID_ADIS16100,
+};
+
+static const struct adis16080_chip_info adis16080_chip_info[] = {
+	[ID_ADIS16080] = {
+		/* 80 degree = 819, 819 rad = 46925 degree */
+		.scale_val = 80,
+		.scale_val2 = 46925,
+	},
+	[ID_ADIS16100] = {
+		/* 300 degree = 1230, 1230 rad = 70474 degree */
+		.scale_val = 300,
+		.scale_val2 = 70474,
+	},
+};
+
 static int adis16080_probe(struct spi_device *spi)
 {
+	const struct spi_device_id *id = spi_get_device_id(spi);
 	int ret;
 	struct adis16080_state *st;
 	struct iio_dev *indio_dev;
@@ -156,7 +208,7 @@ static int adis16080_probe(struct spi_device *spi)
 
 	/* Allocate the comms buffers */
 	st->us = spi;
-	mutex_init(&st->buf_lock);
+	st->info = &adis16080_chip_info[id->driver_data];
 
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16080_channels;
@@ -176,7 +228,6 @@ error_ret:
 	return ret;
 }
 
-/* fixme, confirm ordering in this function */
 static int adis16080_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
@@ -185,6 +236,13 @@ static int adis16080_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id adis16080_ids[] = {
+	{ "adis16080", ID_ADIS16080 },
+	{ "adis16100", ID_ADIS16100 },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, adis16080_ids);
+
 static struct spi_driver adis16080_driver = {
 	.driver = {
 		.name = "adis16080",
@@ -192,10 +250,10 @@ static struct spi_driver adis16080_driver = {
 	},
 	.probe = adis16080_probe,
 	.remove = adis16080_remove,
+	.id_table = adis16080_ids,
 };
 module_spi_driver(adis16080_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16080/100 Yaw Rate Gyroscope Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:adis16080");

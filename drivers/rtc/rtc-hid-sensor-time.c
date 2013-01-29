@@ -225,6 +225,7 @@ static int hid_time_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, time_state);
 
+	spin_lock_init(&time_state->lock_last_time);
 	init_completion(&time_state->comp_last_time);
 	time_state->common_attributes.hsdev = hsdev;
 	time_state->common_attributes.pdev = pdev;

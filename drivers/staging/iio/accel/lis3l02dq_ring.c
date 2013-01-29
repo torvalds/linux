@@ -7,7 +7,6 @@
 #include <linux/export.h>
 
 #include <linux/iio/iio.h>
-#include "../ring_sw.h"
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
@@ -318,7 +317,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	lis3l02dq_free_buf(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 static int lis3l02dq_buffer_postenable(struct iio_dev *indio_dev)
@@ -401,7 +400,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	int ret;
 	struct iio_buffer *buffer;
 
-	buffer = lis3l02dq_alloc_buf(indio_dev);
+	buffer = iio_kfifo_allocate(indio_dev);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -427,6 +426,6 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	lis3l02dq_free_buf(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * drivers/i2c/chips/tsl2563.c
+ * drivers/iio/light/tsl2563.c
  *
  * Copyright (C) 2008 Nokia Corporation
  *
@@ -38,52 +38,52 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-#include "tsl2563.h"
+#include <linux/platform_data/tsl2563.h>
 
 /* Use this many bits for fraction part. */
-#define ADC_FRAC_BITS		(14)
+#define ADC_FRAC_BITS		14
 
 /* Given number of 1/10000's in ADC_FRAC_BITS precision. */
 #define FRAC10K(f)		(((f) * (1L << (ADC_FRAC_BITS))) / (10000))
 
 /* Bits used for fraction in calibration coefficients.*/
-#define CALIB_FRAC_BITS		(10)
+#define CALIB_FRAC_BITS		10
 /* 0.5 in CALIB_FRAC_BITS precision */
 #define CALIB_FRAC_HALF		(1 << (CALIB_FRAC_BITS - 1))
 /* Make a fraction from a number n that was multiplied with b. */
 #define CALIB_FRAC(n, b)	(((n) << CALIB_FRAC_BITS) / (b))
 /* Decimal 10^(digits in sysfs presentation) */
-#define CALIB_BASE_SYSFS	(1000)
+#define CALIB_BASE_SYSFS	1000
 
-#define TSL2563_CMD		(0x80)
-#define TSL2563_CLEARINT	(0x40)
+#define TSL2563_CMD		0x80
+#define TSL2563_CLEARINT	0x40
 
-#define TSL2563_REG_CTRL	(0x00)
-#define TSL2563_REG_TIMING	(0x01)
-#define TSL2563_REG_LOWLOW	(0x02) /* data0 low threshold, 2 bytes */
-#define TSL2563_REG_LOWHIGH	(0x03)
-#define TSL2563_REG_HIGHLOW	(0x04) /* data0 high threshold, 2 bytes */
-#define TSL2563_REG_HIGHHIGH	(0x05)
-#define TSL2563_REG_INT		(0x06)
-#define TSL2563_REG_ID		(0x0a)
-#define TSL2563_REG_DATA0LOW	(0x0c) /* broadband sensor value, 2 bytes */
-#define TSL2563_REG_DATA0HIGH	(0x0d)
-#define TSL2563_REG_DATA1LOW	(0x0e) /* infrared sensor value, 2 bytes */
-#define TSL2563_REG_DATA1HIGH	(0x0f)
+#define TSL2563_REG_CTRL	0x00
+#define TSL2563_REG_TIMING	0x01
+#define TSL2563_REG_LOWLOW	0x02 /* data0 low threshold, 2 bytes */
+#define TSL2563_REG_LOWHIGH	0x03
+#define TSL2563_REG_HIGHLOW	0x04 /* data0 high threshold, 2 bytes */
+#define TSL2563_REG_HIGHHIGH	0x05
+#define TSL2563_REG_INT		0x06
+#define TSL2563_REG_ID		0x0a
+#define TSL2563_REG_DATA0LOW	0x0c /* broadband sensor value, 2 bytes */
+#define TSL2563_REG_DATA0HIGH	0x0d
+#define TSL2563_REG_DATA1LOW	0x0e /* infrared sensor value, 2 bytes */
+#define TSL2563_REG_DATA1HIGH	0x0f
 
-#define TSL2563_CMD_POWER_ON	(0x03)
-#define TSL2563_CMD_POWER_OFF	(0x00)
-#define TSL2563_CTRL_POWER_MASK	(0x03)
+#define TSL2563_CMD_POWER_ON	0x03
+#define TSL2563_CMD_POWER_OFF	0x00
+#define TSL2563_CTRL_POWER_MASK	0x03
 
-#define TSL2563_TIMING_13MS	(0x00)
-#define TSL2563_TIMING_100MS	(0x01)
-#define TSL2563_TIMING_400MS	(0x02)
-#define TSL2563_TIMING_MASK	(0x03)
-#define TSL2563_TIMING_GAIN16	(0x10)
-#define TSL2563_TIMING_GAIN1	(0x00)
+#define TSL2563_TIMING_13MS	0x00
+#define TSL2563_TIMING_100MS	0x01
+#define TSL2563_TIMING_400MS	0x02
+#define TSL2563_TIMING_MASK	0x03
+#define TSL2563_TIMING_GAIN16	0x10
+#define TSL2563_TIMING_GAIN1	0x00
 
-#define TSL2563_INT_DISBLED	(0x00)
-#define TSL2563_INT_LEVEL	(0x10)
+#define TSL2563_INT_DISBLED	0x00
+#define TSL2563_INT_LEVEL	0x10
 #define TSL2563_INT_PERSIST(n)	((n) & 0x0F)
 
 struct tsl2563_gainlevel_coeff {
@@ -190,8 +190,10 @@ static int tsl2563_configure(struct tsl2563_chip *chip)
 	ret = i2c_smbus_write_byte_data(chip->client,
 			TSL2563_CMD | TSL2563_REG_LOWHIGH,
 			(chip->low_thres >> 8) & 0xFF);
-/* Interrupt register is automatically written anyway if it is relevant
-   so is not here */
+/*
+ * Interrupt register is automatically written anyway if it is relevant
+ * so is not here.
+ */
 error_ret:
 	return ret;
 }
@@ -423,9 +425,7 @@ static const struct tsl2563_lux_coeff lux_table[] = {
 	},
 };
 
-/*
- * Convert normalized, scaled ADC values to lux.
- */
+/* Convert normalized, scaled ADC values to lux. */
 static unsigned int adc_to_lux(u32 adc0, u32 adc1)
 {
 	const struct tsl2563_lux_coeff *lp = lux_table;
@@ -440,11 +440,6 @@ static unsigned int adc_to_lux(u32 adc0, u32 adc1)
 
 	return (unsigned int) (lux >> ADC_FRAC_BITS);
 }
-
-/*--------------------------------------------------------------*/
-/*                      Sysfs interface                         */
-/*--------------------------------------------------------------*/
-
 
 /* Apply calibration coefficient to ADC count. */
 static u32 calib_adc(u32 adc, u32 calib)
@@ -677,17 +672,10 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 				       TSL2563_CMD | TSL2563_REG_INT);
 	mutex_unlock(&chip->lock);
 	if (ret < 0)
-		goto error_ret;
-	ret = !!(ret & 0x30);
-error_ret:
+		return ret;
 
-	return ret;
+	return !!(ret & 0x30);
 }
-
-/*--------------------------------------------------------------*/
-/*                      Probe, Attach, Remove                   */
-/*--------------------------------------------------------------*/
-static struct i2c_driver tsl2563_i2c_driver;
 
 static const struct iio_info tsl2563_info_no_irq = {
 	.driver_module = THIS_MODULE,

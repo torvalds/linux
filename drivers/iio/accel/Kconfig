@@ -14,4 +14,11 @@ config HID_SENSOR_ACCEL_3D
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
 
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
+
 endmenu
