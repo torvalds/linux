@@ -728,7 +728,7 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 			}
 		}
 		rdev = regulator_register(&ri->rinfo->desc, &config);
-		if (IS_ERR_OR_NULL(rdev)) {
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"register regulator failed %s\n",
 					ri->rinfo->desc.name);
