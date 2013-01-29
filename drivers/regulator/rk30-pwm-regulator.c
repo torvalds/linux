@@ -47,9 +47,15 @@ struct rk_pwm_dcdc {
 	struct pwm_platform_data *pdata;
 };
 
+#if defined(CONFIG_SOC_RK3168) || defined(CONFIG_ARCH_RK3188)
+const static int pwm_voltage_map[] = {
+	800000,825000,850000, 875000,900000, 925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000
+};
+#else
 const static int pwm_voltage_map[] = {
 	950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
+#endif
 
 static struct rk_pwm_dcdc *g_dcdc;
 
@@ -291,7 +297,7 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dcdc);	
 	printk(KERN_INFO "pwm_regulator.%d: driver initialized\n",id);
 	pwm_regulator_set_voltage(dcdc->regulator,pdata->pwm_voltage,pdata->pwm_voltage,&selector);
-
+	
 	return 0;
 
 
