@@ -2110,8 +2110,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 journal_error:
 	ext4_std_error(dir->i_sb, err);
 cleanup:
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 	dx_release(frames);
 	return err;
 }
