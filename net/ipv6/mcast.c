@@ -376,8 +376,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 			goto done;	/* err = -EADDRNOTAVAIL */
 		rv = !0;
 		for (i=0; i<psl->sl_count; i++) {
-			rv = memcmp(&psl->sl_addr[i], source,
-				sizeof(struct in6_addr));
+			rv = !ipv6_addr_equal(&psl->sl_addr[i], source);
 			if (rv == 0)
 				break;
 		}
@@ -427,7 +426,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	}
 	rv = 1;	/* > 0 for insert logic below if sl_count is 0 */
 	for (i=0; i<psl->sl_count; i++) {
-		rv = memcmp(&psl->sl_addr[i], source, sizeof(struct in6_addr));
+		rv = !ipv6_addr_equal(&psl->sl_addr[i], source);
 		if (rv == 0)
 			break;
 	}
