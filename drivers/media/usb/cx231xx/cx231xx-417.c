@@ -35,6 +35,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
+#include <media/tuner.h>
 #include <linux/usb.h>
 
 #include "cx231xx.h"
@@ -1551,68 +1552,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static const char * const iname[] = {
-	[CX231XX_VMUX_COMPOSITE1] = "Composite1",
-	[CX231XX_VMUX_SVIDEO]     = "S-Video",
-	[CX231XX_VMUX_TELEVISION] = "Television",
-	[CX231XX_VMUX_CABLE]      = "Cable TV",
-	[CX231XX_VMUX_DVB]        = "DVB",
-	[CX231XX_VMUX_DEBUG]      = "for debug only",
-};
-
-static int vidioc_enum_input(struct file *file, void *priv,
-				struct v4l2_input *i)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
-	struct cx231xx_input *input;
-	int n;
-	dprintk(3, "enter vidioc_enum_input()i->index=%d\n", i->index);
-
-	if (i->index >= 4)
-		return -EINVAL;
-
-	input = &cx231xx_boards[dev->model].input[i->index];
-
-	if (input->type == 0)
-		return -EINVAL;
-
-	/* FIXME
-	 * strcpy(i->name, input->name); */
-
-	n = i->index;
-	strcpy(i->name, iname[INPUT(n)->type]);
-
-	if (input->type == CX231XX_VMUX_TELEVISION ||
-	    input->type == CX231XX_VMUX_CABLE)
-		i->type = V4L2_INPUT_TYPE_TUNER;
-	else
-		i->type  = V4L2_INPUT_TYPE_CAMERA;
-	return 0;
-}
-
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return  0;
-}
-
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
-
-	dprintk(3, "enter vidioc_s_input() i=%d\n", i);
-
-	video_mux(dev, i);
-
-	if (i >= 4)
-		return -EINVAL;
-	dev->input = i;
-	dprintk(3, "exit vidioc_s_input()\n");
-	return 0;
-}
-
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctl)
 {
@@ -1831,21 +1770,11 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 static int mpeg_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct cx231xx *h, *dev = NULL;
-	/*struct list_head *list;*/
+	struct video_device *vdev = video_devdata(file);
+	struct cx231xx *dev = video_drvdata(file);
 	struct cx231xx_fh *fh;
-	/*u32 value = 0;*/
 
 	dprintk(2, "%s()\n", __func__);
-
-	list_for_each_entry(h, &cx231xx_devlist, devlist) {
-		if (h->v4l_device->minor == minor)
-			dev = h;
-	}
-
-	if (dev == NULL)
-		return -ENODEV;
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
@@ -1858,7 +1787,8 @@ static int mpeg_open(struct file *file)
 	}
 
 	file->private_data = fh;
-	fh->dev      = dev;
+	v4l2_fh_init(&fh->fh, vdev);
+	fh->dev = dev;
 
 
 	videobuf_queue_vmalloc_init(&fh->vidq, &cx231xx_qops,
@@ -1880,6 +1810,7 @@ static int mpeg_open(struct file *file)
 	cx231xx_initialize_codec(dev);
 
 	mutex_unlock(&dev->lock);
+	v4l2_fh_add(&fh->fh);
 	cx231xx_start_TS1(dev);
 
 	return 0;
@@ -1891,11 +1822,6 @@ static int mpeg_release(struct file *file)
 	struct cx231xx *dev = fh->dev;
 
 	dprintk(3, "mpeg_release()! dev=0x%p\n", dev);
-
-	if (!dev) {
-		dprintk(3, "abort!!!\n");
-		return 0;
-	}
 
 	mutex_lock(&dev->lock);
 
@@ -1930,7 +1856,8 @@ static int mpeg_release(struct file *file)
 		videobuf_read_stop(&fh->vidq);
 
 	videobuf_mmap_free(&fh->vidq);
-	file->private_data = NULL;
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -1986,9 +1913,13 @@ static struct v4l2_file_operations mpeg_fops = {
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_g_std		 = vidioc_g_std,
-	.vidioc_enum_input	 = vidioc_enum_input,
-	.vidioc_g_input		 = vidioc_g_input,
-	.vidioc_s_input		 = vidioc_s_input,
+	.vidioc_g_tuner          = cx231xx_g_tuner,
+	.vidioc_s_tuner          = cx231xx_s_tuner,
+	.vidioc_g_frequency      = cx231xx_g_frequency,
+	.vidioc_s_frequency      = cx231xx_s_frequency,
+	.vidioc_enum_input	 = cx231xx_enum_input,
+	.vidioc_g_input		 = cx231xx_g_input,
+	.vidioc_s_input		 = cx231xx_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
 	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
@@ -2007,10 +1938,10 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_querymenu	 = vidioc_querymenu,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-/*	.vidioc_g_chip_ident	 = cx231xx_g_chip_ident,*/
+	.vidioc_g_chip_ident	 = cx231xx_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-/*	.vidioc_g_register	 = cx231xx_g_register,*/
-/*	.vidioc_s_register	 = cx231xx_s_register,*/
+	.vidioc_g_register	 = cx231xx_g_register,
+	.vidioc_s_register	 = cx231xx_s_register,
 #endif
 };
 
@@ -2055,6 +1986,14 @@ static struct video_device *cx231xx_video_dev_alloc(
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->lock = &dev->lock;
 	vfd->release = video_device_release;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
+	video_set_drvdata(vfd, dev);
+	if (dev->tuner_type == TUNER_ABSENT) {
+		v4l2_disable_ioctl(vfd, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
+	}
 
 	return vfd;
 

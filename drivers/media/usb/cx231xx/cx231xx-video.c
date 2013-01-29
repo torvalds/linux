@@ -1036,7 +1036,7 @@ static const char *iname[] = {
 	[CX231XX_VMUX_DEBUG]      = "for debug only",
 };
 
-static int vidioc_enum_input(struct file *file, void *priv,
+int cx231xx_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *i)
 {
 	struct cx231xx_fh *fh = priv;
@@ -1076,7 +1076,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+int cx231xx_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -1086,7 +1086,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+int cx231xx_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -1115,7 +1115,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
+int cx231xx_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -1139,7 +1139,7 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
+int cx231xx_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -1157,7 +1157,7 @@ static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	return 0;
 }
 
-static int vidioc_g_frequency(struct file *file, void *priv,
+int cx231xx_g_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f)
 {
 	struct cx231xx_fh *fh = priv;
@@ -1171,7 +1171,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *priv,
+int cx231xx_s_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f)
 {
 	struct cx231xx_fh *fh = priv;
@@ -1227,8 +1227,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return rc;
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *fh,
-				struct v4l2_dbg_chip_ident *chip)
+int vidioc_g_chip_ident(struct file *file, void *fh,
+			struct v4l2_dbg_chip_ident *chip)
 {
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
@@ -1255,7 +1255,7 @@ static int vidioc_g_chip_ident(struct file *file, void *fh,
   if type == i2caddr, then <chip> is the 7-bit I2C address
 */
 
-static int vidioc_g_register(struct file *file, void *priv,
+int cx231xx_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
 {
 	struct cx231xx_fh *fh = priv;
@@ -1402,7 +1402,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 	return ret;
 }
 
-static int vidioc_s_register(struct file *file, void *priv,
+int cx231xx_s_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
 {
 	struct cx231xx_fh *fh = priv;
@@ -1811,7 +1811,7 @@ static int radio_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx *dev = ((struct cx231xx_fh *)priv)->dev;
 
-	if (0 != t->index)
+	if (t->index)
 		return -EINVAL;
 
 	call_all(dev, tuner, s_tuner, t);
@@ -2201,19 +2201,19 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_dqbuf                  = vidioc_dqbuf,
 	.vidioc_s_std                  = vidioc_s_std,
 	.vidioc_g_std                  = vidioc_g_std,
-	.vidioc_enum_input             = vidioc_enum_input,
-	.vidioc_g_input                = vidioc_g_input,
-	.vidioc_s_input                = vidioc_s_input,
+	.vidioc_enum_input             = cx231xx_enum_input,
+	.vidioc_g_input                = cx231xx_g_input,
+	.vidioc_s_input                = cx231xx_s_input,
 	.vidioc_streamon               = vidioc_streamon,
 	.vidioc_streamoff              = vidioc_streamoff,
-	.vidioc_g_tuner                = vidioc_g_tuner,
-	.vidioc_s_tuner                = vidioc_s_tuner,
-	.vidioc_g_frequency            = vidioc_g_frequency,
-	.vidioc_s_frequency            = vidioc_s_frequency,
-	.vidioc_g_chip_ident           = vidioc_g_chip_ident,
+	.vidioc_g_tuner                = cx231xx_g_tuner,
+	.vidioc_s_tuner                = cx231xx_s_tuner,
+	.vidioc_g_frequency            = cx231xx_g_frequency,
+	.vidioc_s_frequency            = cx231xx_s_frequency,
+	.vidioc_g_chip_ident           = cx231xx_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register             = vidioc_g_register,
-	.vidioc_s_register             = vidioc_s_register,
+	.vidioc_g_register             = cx231xx_g_register,
+	.vidioc_s_register             = cx231xx_s_register,
 #endif
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
@@ -2240,12 +2240,12 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap    = cx231xx_querycap,
 	.vidioc_g_tuner     = radio_g_tuner,
 	.vidioc_s_tuner     = radio_s_tuner,
-	.vidioc_g_frequency = vidioc_g_frequency,
-	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_g_chip_ident = vidioc_g_chip_ident,
+	.vidioc_g_frequency = cx231xx_g_frequency,
+	.vidioc_s_frequency = cx231xx_s_frequency,
+	.vidioc_g_chip_ident = cx231xx_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register  = vidioc_g_register,
-	.vidioc_s_register  = vidioc_s_register,
+	.vidioc_g_register  = cx231xx_g_register,
+	.vidioc_s_register  = cx231xx_s_register,
 #endif
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
