@@ -291,7 +291,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* Philips/Spinel plus IR transceiver for ASUS */
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x2088) },
 	/* Philips IR transceiver (Dell branded) */
-	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093) },
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093),
+	  .driver_info = MCE_GEN2_TX_INV },
 	/* Realtek MCE IR Receiver and card reader */
 	{ USB_DEVICE(VENDOR_REALTEK, 0x0161),
 	  .driver_info = MULTIFUNCTION },
@@ -1121,15 +1122,12 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
 
 	kfree(data);
-};
+}
 
 static void mceusb_gen2_init(struct mceusb_dev *ir)
 {
 	/* device resume */
 	mce_async_out(ir, DEVICE_RESUME, sizeof(DEVICE_RESUME));
-
-	/* get hw/sw revision? */
-	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
 
 	/* get wake version (protocol, key, address) */
 	mce_async_out(ir, GET_WAKEVERSION, sizeof(GET_WAKEVERSION));
