@@ -63,5 +63,49 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		i2c0: i2c@20205000 {
+			compatible = "brcm,bcm2835-i2c";
+			reg = <0x7e205000 0x1000>;
+			interrupts = <2 21>;
+			clocks = <&clk_i2c>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@20804000 {
+			compatible = "brcm,bcm2835-i2c";
+			reg = <0x7e804000 0x1000>;
+			interrupts = <2 21>;
+			clocks = <&clk_i2c>;
+			status = "disabled";
+		};
+
+		sdhci: sdhci {
+			compatible = "brcm,bcm2835-sdhci";
+			reg = <0x7e300000 0x100>;
+			interrupts = <2 30>;
+			clocks = <&clk_mmc>;
+			status = "disabled";
+		};
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk_mmc: mmc {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+		};
+
+		clk_i2c: i2c {
+			compatible = "fixed-clock";
+			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <150000000>;
+		};
 	};
 };
