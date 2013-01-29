@@ -1976,21 +1976,27 @@ static int ext4_writepage(struct page *page,
 		len = PAGE_CACHE_SIZE;
 
 	page_bufs = page_buffers(page);
+	/*
+	 * We cannot do block allocation or other extent handling in this
+	 * function. If there are buffers needing that, we have to redirty
+	 * the page. But we may reach here when we do a journal commit via
+	 * journal_submit_inode_data_buffers() and in that case we must write
+	 * allocated buffers to achieve data=ordered mode guarantees.
+	 */
 	if (ext4_walk_page_buffers(NULL, page_bufs, 0, len, NULL,
 				   ext4_bh_delay_or_unwritten)) {
-		/*
-		 * We don't want to do block allocation, so redirty
-		 * the page and return.  We may reach here when we do
-		 * a journal commit via journal_submit_inode_data_buffers.
-		 * We can also reach here via shrink_page_list but it
-		 * should never be for direct reclaim so warn if that
-		 * happens
-		 */
-		WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
-								PF_MEMALLOC);
 		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
+		if (current->flags & PF_MEMALLOC) {
+			/*
+			 * For memory cleaning there's no point in writing only
+			 * some buffers. So just bail out. Warn if we came here
+			 * from direct reclaim.
+			 */
+			WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD))
+							== PF_MEMALLOC);
+			unlock_page(page);
+			return 0;
+		}
 	}
 
 	if (PageChecked(page) && ext4_should_journal_data(inode))
