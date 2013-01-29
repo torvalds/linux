@@ -96,16 +96,14 @@ enum tis_defaults {
 static int write8_reg(struct i2c_client *client, u8 tpm_register,
 		      u8 *tpm_data, u16 tpm_size)
 {
-	int value = 0;
 	struct st33zp24_platform_data *pin_infos;
 
 	pin_infos = client->dev.platform_data;
 
 	pin_infos->tpm_i2c_buffer[0][0] = tpm_register;
 	memcpy(&pin_infos->tpm_i2c_buffer[0][1], tpm_data, tpm_size);
-	value = i2c_master_send(client, pin_infos->tpm_i2c_buffer[0],
+	return i2c_master_send(client, pin_infos->tpm_i2c_buffer[0],
 				tpm_size + 1);
-	return value;
 } /* write8_reg() */
 
 /*
