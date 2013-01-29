@@ -25,6 +25,8 @@
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65090.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/err.h>
 
 #define NUM_INT_REG 2
@@ -148,17 +150,30 @@ static const struct regmap_config tps65090_regmap_config = {
 	.volatile_reg = is_volatile_reg,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id tps65090_of_match[] = {
+	{ .compatible = "ti,tps65090",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, tps65090_of_match);
+#endif
+
 static int tps65090_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps65090_platform_data *pdata = client->dev.platform_data;
+	int irq_base = 0;
 	struct tps65090 *tps65090;
 	int ret;
 
-	if (!pdata) {
-		dev_err(&client->dev, "tps65090 requires platform data\n");
+	if (!pdata && !client->dev.of_node) {
+		dev_err(&client->dev,
+			"tps65090 requires platform data or of_node\n");
 		return -EINVAL;
 	}
+
+	if (pdata)
+		irq_base = pdata->irq_base;
 
 	tps65090 = devm_kzalloc(&client->dev, sizeof(*tps65090), GFP_KERNEL);
 	if (!tps65090) {
@@ -178,7 +193,7 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = regmap_add_irq_chip(tps65090->rmap, client->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, pdata->irq_base,
+			IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
 			&tps65090_irq_chip, &tps65090->irq_data);
 			if (ret) {
 				dev_err(&client->dev,
@@ -247,6 +262,7 @@ static struct i2c_driver tps65090_driver = {
 	.driver	= {
 		.name	= "tps65090",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(tps65090_of_match),
 		.pm	= &tps65090_pm_ops,
 	},
 	.probe		= tps65090_i2c_probe,
