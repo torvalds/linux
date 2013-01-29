@@ -1130,8 +1130,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 					    req->r_request_started);
 		dout(" final dn %p\n", dn);
 		i++;
-	} else if (req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
-		   req->r_op == CEPH_MDS_OP_MKSNAP) {
+	} else if ((req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
+		   req->r_op == CEPH_MDS_OP_MKSNAP) && !req->r_aborted) {
 		struct dentry *dn = req->r_dentry;
 
 		/* fill out a snapdir LOOKUPSNAP dentry */
@@ -1195,6 +1195,39 @@ done:
 /*
  * Prepopulate our cache with readdir results, leases, etc.
  */
+static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
+					   struct ceph_mds_session *session)
+{
+	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
+	int i, err = 0;
+
+	for (i = 0; i < rinfo->dir_nr; i++) {
+		struct ceph_vino vino;
+		struct inode *in;
+		int rc;
+
+		vino.ino = le64_to_cpu(rinfo->dir_in[i].in->ino);
+		vino.snap = le64_to_cpu(rinfo->dir_in[i].in->snapid);
+
+		in = ceph_get_inode(req->r_dentry->d_sb, vino);
+		if (IS_ERR(in)) {
+			err = PTR_ERR(in);
+			dout("new_inode badness got %d\n", err);
+			continue;
+		}
+		rc = fill_inode(in, &rinfo->dir_in[i], NULL, session,
+				req->r_request_started, -1,
+				&req->r_caps_reservation);
+		if (rc < 0) {
+			pr_err("fill_inode badness on %p got %d\n", in, rc);
+			err = rc;
+			continue;
+		}
+	}
+
+	return err;
+}
+
 int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 			     struct ceph_mds_session *session)
 {
@@ -1208,6 +1241,9 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
 	u64 frag = le32_to_cpu(rhead->args.readdir.frag);
 	struct ceph_dentry_info *di;
+
+	if (req->r_aborted)
+		return readdir_prepopulate_inodes_only(req, session);
 
 	if (le32_to_cpu(rinfo->head->op) == CEPH_MDS_OP_LSSNAP) {
 		snapdir = ceph_get_snapdir(parent->d_inode);
