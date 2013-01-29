@@ -352,11 +352,11 @@ static void s5pcsis_clk_put(struct csis_state *state)
 	int i;
 
 	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
-		if (IS_ERR_OR_NULL(state->clock[i]))
+		if (IS_ERR(state->clock[i]))
 			continue;
 		clk_unprepare(state->clock[i]);
 		clk_put(state->clock[i]);
-		state->clock[i] = NULL;
+		state->clock[i] = ERR_PTR(-EINVAL);
 	}
 }
 
@@ -365,14 +365,19 @@ static int s5pcsis_clk_get(struct csis_state *state)
 	struct device *dev = &state->pdev->dev;
 	int i, ret;
 
+	for (i = 0; i < NUM_CSIS_CLOCKS; i++)
+		state->clock[i] = ERR_PTR(-EINVAL);
+
 	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
 		state->clock[i] = clk_get(dev, csi_clock_name[i]);
-		if (IS_ERR(state->clock[i]))
+		if (IS_ERR(state->clock[i])) {
+			ret = PTR_ERR(state->clock[i]);
 			goto err;
+		}
 		ret = clk_prepare(state->clock[i]);
 		if (ret < 0) {
 			clk_put(state->clock[i]);
-			state->clock[i] = NULL;
+			state->clock[i] = ERR_PTR(-EINVAL);
 			goto err;
 		}
 	}
@@ -380,7 +385,7 @@ static int s5pcsis_clk_get(struct csis_state *state)
 err:
 	s5pcsis_clk_put(state);
 	dev_err(dev, "failed to get clock: %s\n", csi_clock_name[i]);
-	return -ENXIO;
+	return ret;
 }
 
 static void dump_regs(struct csis_state *state, const char *label)
@@ -749,14 +754,20 @@ static int s5pcsis_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = s5pcsis_clk_get(state);
-	if (ret)
-		goto e_clkput;
+	if (ret < 0)
+		return ret;
 
-	clk_enable(state->clock[CSIS_CLK_MUX]);
 	if (pdata->clk_rate)
-		clk_set_rate(state->clock[CSIS_CLK_MUX], pdata->clk_rate);
+		ret = clk_set_rate(state->clock[CSIS_CLK_MUX],
+				   pdata->clk_rate);
 	else
 		dev_WARN(&pdev->dev, "No clock frequency specified!\n");
+	if (ret < 0)
+		goto e_clkput;
+
+	ret = clk_enable(state->clock[CSIS_CLK_MUX]);
+	if (ret < 0)
+		goto e_clkput;
 
 	ret = devm_request_irq(&pdev->dev, state->irq, s5pcsis_irq_handler,
 			       0, dev_name(&pdev->dev), state);
