@@ -27,8 +27,9 @@
 /* Number of RX descriptors pushed at once. */
 #define EFX_RX_BATCH  8
 
-/* Maximum size of a buffer sharing a page */
-#define EFX_RX_HALF_PAGE ((PAGE_SIZE >> 1) - sizeof(struct efx_rx_page_state))
+/* Maximum length for an RX descriptor sharing a page */
+#define EFX_RX_HALF_PAGE ((PAGE_SIZE >> 1) - sizeof(struct efx_rx_page_state) \
+			  - EFX_PAGE_IP_ALIGN)
 
 /* Size of buffer allocated for skb header area. */
 #define EFX_SKB_HEADERS  64u
@@ -51,10 +52,6 @@ static inline unsigned int efx_rx_buf_offset(struct efx_nic *efx,
 					     struct efx_rx_buffer *buf)
 {
 	return buf->page_offset + efx->type->rx_buffer_hash_size;
-}
-static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
-{
-	return PAGE_SIZE << efx->rx_buffer_order;
 }
 
 static u8 *efx_rx_buf_eh(struct efx_nic *efx, struct efx_rx_buffer *buf)
@@ -105,7 +102,7 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 		if (unlikely(page == NULL))
 			return -ENOMEM;
 		dma_addr = dma_map_page(&efx->pci_dev->dev, page, 0,
-					efx_rx_buf_size(efx),
+					PAGE_SIZE << efx->rx_buffer_order,
 					DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(&efx->pci_dev->dev, dma_addr))) {
 			__free_pages(page, efx->rx_buffer_order);
@@ -124,12 +121,12 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue)
 		rx_buf->dma_addr = dma_addr + EFX_PAGE_IP_ALIGN;
 		rx_buf->page = page;
 		rx_buf->page_offset = page_offset + EFX_PAGE_IP_ALIGN;
-		rx_buf->len = efx->rx_buffer_len - EFX_PAGE_IP_ALIGN;
+		rx_buf->len = efx->rx_dma_len;
 		rx_buf->flags = 0;
 		++rx_queue->added_count;
 		++state->refcnt;
 
-		if ((~count & 1) && (efx->rx_buffer_len <= EFX_RX_HALF_PAGE)) {
+		if ((~count & 1) && (efx->rx_dma_len <= EFX_RX_HALF_PAGE)) {
 			/* Use the second half of the page */
 			get_page(page);
 			dma_addr += (PAGE_SIZE >> 1);
@@ -153,7 +150,7 @@ static void efx_unmap_rx_buffer(struct efx_nic *efx,
 		if (--state->refcnt == 0) {
 			dma_unmap_page(&efx->pci_dev->dev,
 				       state->dma_addr,
-				       efx_rx_buf_size(efx),
+				       PAGE_SIZE << efx->rx_buffer_order,
 				       DMA_FROM_DEVICE);
 		} else if (used_len) {
 			dma_sync_single_for_cpu(&efx->pci_dev->dev,
@@ -221,7 +218,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
 
 	rx_buf->flags = 0;
 
-	if (efx->rx_buffer_len <= EFX_RX_HALF_PAGE &&
+	if (efx->rx_dma_len <= EFX_RX_HALF_PAGE &&
 	    page_count(rx_buf->page) == 1)
 		efx_resurrect_rx_buffer(rx_queue, rx_buf);
 

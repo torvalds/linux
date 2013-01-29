@@ -639,12 +639,11 @@ static void efx_start_datapath(struct efx_nic *efx)
 	 * support the current MTU, including padding for header
 	 * alignment and overruns.
 	 */
-	efx->rx_buffer_len = (max(EFX_PAGE_IP_ALIGN, NET_IP_ALIGN) +
-			      EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
-			      efx->type->rx_buffer_hash_size +
-			      efx->type->rx_buffer_padding);
-	efx->rx_buffer_order = get_order(efx->rx_buffer_len +
-					 sizeof(struct efx_rx_page_state));
+	efx->rx_dma_len = (efx->type->rx_buffer_hash_size +
+			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
+			   efx->type->rx_buffer_padding);
+	efx->rx_buffer_order = get_order(sizeof(struct efx_rx_page_state) +
+					 EFX_PAGE_IP_ALIGN + efx->rx_dma_len);
 
 	/* We must keep at least one descriptor in a TX ring empty.
 	 * We could avoid this when the queue size does not exactly

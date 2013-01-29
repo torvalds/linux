@@ -669,8 +669,7 @@ struct vfdi_status;
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
- * @rx_buffer_len: RX buffer length, including start alignment but excluding
- *	any metadata
+ * @rx_dma_len: Current maximum RX DMA length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
@@ -786,7 +785,7 @@ struct efx_nic {
 	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
-	unsigned int rx_buffer_len;
+	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
