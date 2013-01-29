@@ -2891,9 +2891,10 @@ static int __init fwserial_init(void)
 		num_ttys = MAX_CARD_PORTS - num_loops;
 	num_ports = num_ttys + num_loops;
 
-	fwtty_driver = alloc_tty_driver(MAX_TOTAL_PORTS);
-	if (!fwtty_driver) {
-		err = -ENOMEM;
+	fwtty_driver = tty_alloc_driver(MAX_TOTAL_PORTS, TTY_DRIVER_REAL_RAW
+					| TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(fwtty_driver)) {
+		err = PTR_ERR(fwtty_driver);
 		return err;
 	}
 
@@ -2903,9 +2904,6 @@ static int __init fwserial_init(void)
 	fwtty_driver->minor_start	= 0;
 	fwtty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	fwtty_driver->subtype		= SERIAL_TYPE_NORMAL;
-	fwtty_driver->flags		= TTY_DRIVER_REAL_RAW |
-						TTY_DRIVER_DYNAMIC_DEV;
-
 	fwtty_driver->init_termios	    = tty_std_termios;
 	fwtty_driver->init_termios.c_cflag  |= CLOCAL;
 	tty_set_operations(fwtty_driver, &fwtty_ops);
@@ -2917,9 +2915,11 @@ static int __init fwserial_init(void)
 	}
 
 	if (create_loop_dev) {
-		fwloop_driver = alloc_tty_driver(MAX_TOTAL_PORTS / num_ports);
-		if (!fwloop_driver) {
-			err = -ENOMEM;
+		fwloop_driver = tty_alloc_driver(MAX_TOTAL_PORTS / num_ports,
+						 TTY_DRIVER_REAL_RAW
+						 | TTY_DRIVER_DYNAMIC_DEV);
+		if (IS_ERR(fwloop_driver)) {
+			err = PTR_ERR(fwloop_driver);
 			goto unregister_driver;
 		}
 
@@ -2929,9 +2929,6 @@ static int __init fwserial_init(void)
 		fwloop_driver->minor_start	= 0;
 		fwloop_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 		fwloop_driver->subtype		= SERIAL_TYPE_NORMAL;
-		fwloop_driver->flags		= TTY_DRIVER_REAL_RAW |
-							TTY_DRIVER_DYNAMIC_DEV;
-
 		fwloop_driver->init_termios	    = tty_std_termios;
 		fwloop_driver->init_termios.c_cflag  |= CLOCAL;
 		tty_set_operations(fwloop_driver, &fwloop_ops);
