@@ -1703,7 +1703,6 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
 	unsigned int	blocksize = dir->i_sb->s_blocksize;
-	unsigned short	reclen;
 	int		csum_size = 0;
 	int		err;
 
@@ -1711,7 +1710,6 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
-	reclen = EXT4_DIR_REC_LEN(namelen);
 	if (!de) {
 		err = ext4_find_dest_de(dir, inode,
 					bh, bh->b_data, blocksize - csum_size,
