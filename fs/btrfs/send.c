@@ -1814,8 +1814,10 @@ static int name_cache_insert(struct send_ctx *sctx,
 			(unsigned long)nce->ino);
 	if (!nce_head) {
 		nce_head = kmalloc(sizeof(*nce_head), GFP_NOFS);
-		if (!nce_head)
+		if (!nce_head) {
+			kfree(nce);
 			return -ENOMEM;
+		}
 		INIT_LIST_HEAD(nce_head);
 
 		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);

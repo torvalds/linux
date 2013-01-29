@@ -18,14 +18,13 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
-
 static struct clk *mxc_ahb_clk;
 static struct clk *mxc_per_clk;
 static struct clk *mxc_ipg_clk;
 
 /* workaround ENGcm09152 for i.MX35 */
-#define USBPHYCTRL_OTGBASE_OFFSET	0x608
+#define MX35_USBPHYCTRL_OFFSET		0x600
+#define USBPHYCTRL_OTGBASE_OFFSET	0x8
 #define USBPHYCTRL_EVDO			(1 << 23)
 
 int fsl_udc_clk_init(struct platform_device *pdev)
@@ -59,7 +58,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	clk_prepare_enable(mxc_per_clk);
 
 	/* make sure USB_CLK is running at 60 MHz +/- 1000 Hz */
-	if (!cpu_is_mx51()) {
+	if (!strcmp(pdev->id_entry->name, "imx-udc-mx27")) {
 		freq = clk_get_rate(mxc_per_clk);
 		if (pdata->phy_mode != FSL_USB2_PHY_ULPI &&
 		    (freq < 59999000 || freq > 60001000)) {
@@ -79,27 +78,40 @@ eclkrate:
 	return ret;
 }
 
-void fsl_udc_clk_finalize(struct platform_device *pdev)
+int fsl_udc_clk_finalize(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-	if (cpu_is_mx35()) {
-		unsigned int v;
+	int ret = 0;
 
-		/* workaround ENGcm09152 for i.MX35 */
-		if (pdata->workaround & FLS_USB2_WORKAROUND_ENGCM09152) {
-			v = readl(MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
-					USBPHYCTRL_OTGBASE_OFFSET));
-			writel(v | USBPHYCTRL_EVDO,
-				MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
-					USBPHYCTRL_OTGBASE_OFFSET));
+	/* workaround ENGcm09152 for i.MX35 */
+	if (pdata->workaround & FLS_USB2_WORKAROUND_ENGCM09152) {
+		unsigned int v;
+		struct resource *res = platform_get_resource
+			(pdev, IORESOURCE_MEM, 0);
+		void __iomem *phy_regs = ioremap(res->start +
+						MX35_USBPHYCTRL_OFFSET, 512);
+		if (!phy_regs) {
+			dev_err(&pdev->dev, "ioremap for phy address fails\n");
+			ret = -EINVAL;
+			goto ioremap_err;
 		}
+
+		v = readl(phy_regs + USBPHYCTRL_OTGBASE_OFFSET);
+		writel(v | USBPHYCTRL_EVDO,
+			phy_regs + USBPHYCTRL_OTGBASE_OFFSET);
+
+		iounmap(phy_regs);
 	}
 
+
+ioremap_err:
 	/* ULPI transceivers don't need usbpll */
 	if (pdata->phy_mode == FSL_USB2_PHY_ULPI) {
 		clk_disable_unprepare(mxc_per_clk);
 		mxc_per_clk = NULL;
 	}
+
+	return ret;
 }
 
 void fsl_udc_clk_release(void)

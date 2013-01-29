@@ -1994,9 +1994,20 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	struct sge_rspq *q;
+	int i;
+	int r = 0;
 
-	return set_rxq_intr_params(adap, &adap->sge.ethrxq[pi->first_qset].rspq,
-			c->rx_coalesce_usecs, c->rx_max_coalesced_frames);
+	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++) {
+		q = &adap->sge.ethrxq[i].rspq;
+		r = set_rxq_intr_params(adap, q, c->rx_coalesce_usecs,
+			c->rx_max_coalesced_frames);
+		if (r) {
+			dev_err(&dev->dev, "failed to set coalesce %d\n", r);
+			break;
+		}
+	}
+	return r;
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)

@@ -395,8 +395,13 @@ __SYSCALL(370, sys_name_to_handle_at)
 __SYSCALL(371, compat_sys_open_by_handle_at)
 __SYSCALL(372, compat_sys_clock_adjtime)
 __SYSCALL(373, sys_syncfs)
+__SYSCALL(374, compat_sys_sendmmsg)
+__SYSCALL(375, sys_setns)
+__SYSCALL(376, compat_sys_process_vm_readv)
+__SYSCALL(377, compat_sys_process_vm_writev)
+__SYSCALL(378, sys_ni_syscall)			/* 378 for kcmp */
 
-#define __NR_compat_syscalls		374
+#define __NR_compat_syscalls		379
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.

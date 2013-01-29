@@ -78,7 +78,7 @@ static int gc_thread_func(void *data)
 
 		sbi->bg_gc++;
 
-		if (f2fs_gc(sbi, 1) == GC_NONE)
+		if (f2fs_gc(sbi) == GC_NONE)
 			wait_ms = GC_THREAD_NOGC_SLEEP_TIME;
 		else if (wait_ms == GC_THREAD_NOGC_SLEEP_TIME)
 			wait_ms = GC_THREAD_MAX_SLEEP_TIME;
@@ -424,7 +424,11 @@ next_step:
 }
 
 /*
- * Calculate start block index that this node page contains
+ * Calculate start block index indicating the given node offset.
+ * Be careful, caller should give this node offset only indicating direct node
+ * blocks. If any node offsets, which point the other types of node blocks such
+ * as indirect or double indirect node blocks, are given, it must be a caller's
+ * bug.
  */
 block_t start_bidx_of_node(unsigned int node_ofs)
 {
@@ -651,62 +655,44 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	return ret;
 }
 
-int f2fs_gc(struct f2fs_sb_info *sbi, int nGC)
+int f2fs_gc(struct f2fs_sb_info *sbi)
 {
-	unsigned int segno;
-	int old_free_secs, cur_free_secs;
-	int gc_status, nfree;
 	struct list_head ilist;
+	unsigned int segno, i;
 	int gc_type = BG_GC;
+	int gc_status = GC_NONE;
 
 	INIT_LIST_HEAD(&ilist);
 gc_more:
-	nfree = 0;
-	gc_status = GC_NONE;
+	if (!(sbi->sb->s_flags & MS_ACTIVE))
+		goto stop;
 
 	if (has_not_enough_free_secs(sbi))
-		old_free_secs = reserved_sections(sbi);
-	else
-		old_free_secs = free_sections(sbi);
+		gc_type = FG_GC;
 
-	while (sbi->sb->s_flags & MS_ACTIVE) {
-		int i;
-		if (has_not_enough_free_secs(sbi))
-			gc_type = FG_GC;
+	if (!__get_victim(sbi, &segno, gc_type, NO_CHECK_TYPE))
+		goto stop;
 
-		cur_free_secs = free_sections(sbi) + nfree;
-
-		/* We got free space successfully. */
-		if (nGC < cur_free_secs - old_free_secs)
+	for (i = 0; i < sbi->segs_per_sec; i++) {
+		/*
+		 * do_garbage_collect will give us three gc_status:
+		 * GC_ERROR, GC_DONE, and GC_BLOCKED.
+		 * If GC is finished uncleanly, we have to return
+		 * the victim to dirty segment list.
+		 */
+		gc_status = do_garbage_collect(sbi, segno + i, &ilist, gc_type);
+		if (gc_status != GC_DONE)
 			break;
-
-		if (!__get_victim(sbi, &segno, gc_type, NO_CHECK_TYPE))
-			break;
-
-		for (i = 0; i < sbi->segs_per_sec; i++) {
-			/*
-			 * do_garbage_collect will give us three gc_status:
-			 * GC_ERROR, GC_DONE, and GC_BLOCKED.
-			 * If GC is finished uncleanly, we have to return
-			 * the victim to dirty segment list.
-			 */
-			gc_status = do_garbage_collect(sbi, segno + i,
-					&ilist, gc_type);
-			if (gc_status != GC_DONE)
-				goto stop;
-			nfree++;
-		}
 	}
-stop:
-	if (has_not_enough_free_secs(sbi) || gc_status == GC_BLOCKED) {
+	if (has_not_enough_free_secs(sbi)) {
 		write_checkpoint(sbi, (gc_status == GC_BLOCKED), false);
-		if (nfree)
+		if (has_not_enough_free_secs(sbi))
 			goto gc_more;
 	}
+stop:
 	mutex_unlock(&sbi->gc_mutex);
 
 	put_gc_inode(&ilist);
-	BUG_ON(!list_empty(&ilist));
 	return gc_status;
 }
 
@@ -715,7 +701,7 @@ void build_gc_manager(struct f2fs_sb_info *sbi)
 	DIRTY_I(sbi)->v_ops = &default_v_ops;
 }
 
-int create_gc_caches(void)
+int __init create_gc_caches(void)
 {
 	winode_slab = f2fs_kmem_cache_create("f2fs_gc_inodes",
 			sizeof(struct inode_entry), NULL);

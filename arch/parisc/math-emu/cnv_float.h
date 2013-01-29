@@ -347,16 +347,15 @@
     Sgl_isinexact_to_fix(sgl_value,exponent)
 
 #define Duint_from_sgl_mantissa(sgl_value,exponent,dresultA,dresultB)	\
-  {Sall(sgl_value) <<= SGL_EXP_LENGTH;  /*  left-justify  */		\
+  {unsigned int val = Sall(sgl_value) << SGL_EXP_LENGTH;		\
     if (exponent <= 31) {						\
-    	Dintp1(dresultA) = 0;						\
-    	Dintp2(dresultB) = (unsigned)Sall(sgl_value) >> (31 - exponent); \
+	Dintp1(dresultA) = 0;						\
+	Dintp2(dresultB) = val >> (31 - exponent);			\
     }									\
     else {								\
-    	Dintp1(dresultA) = Sall(sgl_value) >> (63 - exponent);		\
-    	Dintp2(dresultB) = Sall(sgl_value) << (exponent - 31);		\
+	Dintp1(dresultA) = val >> (63 - exponent);			\
+	Dintp2(dresultB) = exponent <= 62 ? val << (exponent - 31) : 0;	\
     }									\
-    Sall(sgl_value) >>= SGL_EXP_LENGTH;  /* return to original */	\
   }
 
 #define Duint_setzero(dresultA,dresultB) 	\
