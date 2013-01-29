@@ -95,8 +95,6 @@ struct ieee80211_bss {
 	bool wmm_used;
 	bool uapsd_supported;
 
-	unsigned long last_probe_resp;
-
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;

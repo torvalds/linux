@@ -146,9 +146,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			bss->valid_data |= IEEE80211_BSS_VALID_WMM;
 	}
 
-	if (!beacon)
-		bss->last_probe_resp = jiffies;
-
 	return bss;
 }
 
