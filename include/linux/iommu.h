@@ -58,8 +58,8 @@ struct iommu_domain {
 #define IOMMU_CAP_INTR_REMAP		0x2	/* isolates device intrs */
 
 enum iommu_attr {
-	DOMAIN_ATTR_MAX,
 	DOMAIN_ATTR_GEOMETRY,
+	DOMAIN_ATTR_MAX,
 };
 
 #ifdef CONFIG_IOMMU_API
