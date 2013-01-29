@@ -59,6 +59,7 @@ extern void r8a7740_pinmux_init(void);
 extern void r8a7740_pm_init(void);
 
 extern void r8a7779_init_irq(void);
+extern void r8a7779_init_irq_dt(void);
 extern void r8a7779_map_io(void);
 extern void r8a7779_earlytimer_init(void);
 extern void r8a7779_add_early_devices(void);
