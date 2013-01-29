@@ -47,6 +47,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
  */
 #define OV7670_I2C_ADDR 0x42
 
+#define PLL_FACTOR	4
+
 /* Registers */
 #define REG_GAIN	0x00	/* Gain lower 8 bits (rest in vref) */
 #define REG_BLUE	0x01	/* blue gain */
@@ -164,6 +166,12 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define REG_GFIX	0x69	/* Fix gain control */
 
+#define REG_DBLV	0x6b	/* PLL control an debugging */
+#define   DBLV_BYPASS	  0x00	  /* Bypass PLL */
+#define   DBLV_X4	  0x01	  /* clock x4 */
+#define   DBLV_X6	  0x10	  /* clock x6 */
+#define   DBLV_X8	  0x11	  /* clock x8 */
+
 #define REG_REG76	0x76	/* OV's name */
 #define   R76_BLKPCOR	  0x80	  /* Black pixel correction enable */
 #define   R76_WHTPCOR	  0x40	  /* White pixel correction enable */
@@ -203,6 +211,9 @@ struct ov7670_devtype {
 	/* formats supported for each model */
 	struct ov7670_win_size *win_sizes;
 	unsigned int n_win_sizes;
+	/* callbacks for frame rate control */
+	int (*set_framerate)(struct v4l2_subdev *, struct v4l2_fract *);
+	void (*get_framerate)(struct v4l2_subdev *, struct v4l2_fract *);
 };
 
 /*
@@ -739,6 +750,98 @@ static struct ov7670_win_size ov7675_win_sizes[] = {
 	}
 };
 
+static void ov7675_get_framerate(struct v4l2_subdev *sd,
+				 struct v4l2_fract *tpf)
+{
+	struct ov7670_info *info = to_state(sd);
+	u32 clkrc = info->clkrc;
+	u32 pll_factor = PLL_FACTOR;
+
+	clkrc++;
+	if (info->fmt->mbus_code == V4L2_MBUS_FMT_SBGGR8_1X8)
+		clkrc = (clkrc >> 1);
+
+	tpf->numerator = 1;
+	tpf->denominator = (5 * pll_factor * info->clock_speed) /
+			(4 * clkrc);
+}
+
+static int ov7675_set_framerate(struct v4l2_subdev *sd,
+				 struct v4l2_fract *tpf)
+{
+	struct ov7670_info *info = to_state(sd);
+	u32 clkrc;
+	u32 pll_factor = PLL_FACTOR;
+	int ret;
+
+	/*
+	 * The formula is fps = 5/4*pixclk for YUV/RGB and
+	 * fps = 5/2*pixclk for RAW.
+	 *
+	 * pixclk = clock_speed / (clkrc + 1) * PLLfactor
+	 *
+	 */
+	if (tpf->numerator == 0 || tpf->denominator == 0) {
+		clkrc = 0;
+	} else {
+		clkrc = (5 * pll_factor * info->clock_speed * tpf->numerator) /
+			(4 * tpf->denominator);
+		if (info->fmt->mbus_code == V4L2_MBUS_FMT_SBGGR8_1X8)
+			clkrc = (clkrc << 1);
+		clkrc--;
+	}
+
+	/*
+	 * The datasheet claims that clkrc = 0 will divide the input clock by 1
+	 * but we've checked with an oscilloscope that it divides by 2 instead.
+	 * So, if clkrc = 0 just bypass the divider.
+	 */
+	if (clkrc <= 0)
+		clkrc = CLK_EXT;
+	else if (clkrc > CLK_SCALE)
+		clkrc = CLK_SCALE;
+	info->clkrc = clkrc;
+
+	/* Recalculate frame rate */
+	ov7675_get_framerate(sd, tpf);
+
+	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	if (ret < 0)
+		return ret;
+	return ov7670_write(sd, REG_DBLV, DBLV_X4);
+}
+
+static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
+				 struct v4l2_fract *tpf)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	tpf->numerator = 1;
+	tpf->denominator = info->clock_speed;
+	if ((info->clkrc & CLK_EXT) == 0 && (info->clkrc & CLK_SCALE) > 1)
+		tpf->denominator /= (info->clkrc & CLK_SCALE);
+}
+
+static int ov7670_set_framerate_legacy(struct v4l2_subdev *sd,
+					struct v4l2_fract *tpf)
+{
+	struct ov7670_info *info = to_state(sd);
+	int div;
+
+	if (tpf->numerator == 0 || tpf->denominator == 0)
+		div = 1;  /* Reset to full rate */
+	else
+		div = (tpf->numerator * info->clock_speed) / tpf->denominator;
+	if (div == 0)
+		div = 1;
+	else if (div > CLK_SCALE)
+		div = CLK_SCALE;
+	info->clkrc = (info->clkrc & 0x80) | div;
+	tpf->numerator = 1;
+	tpf->denominator = info->clock_speed / div;
+	return ov7670_write(sd, REG_CLKRC, info->clkrc);
+}
+
 /*
  * Store a set of start/stop values into the camera.
  */
@@ -913,10 +1016,8 @@ static int ov7670_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 
 	memset(cp, 0, sizeof(struct v4l2_captureparm));
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
-	cp->timeperframe.numerator = 1;
-	cp->timeperframe.denominator = info->clock_speed;
-	if ((info->clkrc & CLK_EXT) == 0 && (info->clkrc & CLK_SCALE) > 1)
-		cp->timeperframe.denominator /= (info->clkrc & CLK_SCALE);
+	info->devtype->get_framerate(sd, &cp->timeperframe);
+
 	return 0;
 }
 
@@ -925,25 +1026,13 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 	struct v4l2_captureparm *cp = &parms->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct ov7670_info *info = to_state(sd);
-	int div;
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (cp->extendedmode != 0)
 		return -EINVAL;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
-		div = 1;  /* Reset to full rate */
-	else
-		div = (tpf->numerator * info->clock_speed) / tpf->denominator;
-	if (div == 0)
-		div = 1;
-	else if (div > CLK_SCALE)
-		div = CLK_SCALE;
-	info->clkrc = (info->clkrc & 0x80) | div;
-	tpf->numerator = 1;
-	tpf->denominator = info->clock_speed / div;
-	return ov7670_write(sd, REG_CLKRC, info->clkrc);
+	return info->devtype->set_framerate(sd, tpf);
 }
 
 
@@ -1560,16 +1649,21 @@ static const struct ov7670_devtype ov7670_devdata[] = {
 	[MODEL_OV7670] = {
 		.win_sizes = ov7670_win_sizes,
 		.n_win_sizes = ARRAY_SIZE(ov7670_win_sizes),
+		.set_framerate = ov7670_set_framerate_legacy,
+		.get_framerate = ov7670_get_framerate_legacy,
 	},
 	[MODEL_OV7675] = {
 		.win_sizes = ov7675_win_sizes,
 		.n_win_sizes = ARRAY_SIZE(ov7675_win_sizes),
+		.set_framerate = ov7675_set_framerate,
+		.get_framerate = ov7675_get_framerate,
 	},
 };
 
 static int ov7670_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct v4l2_fract tpf;
 	struct v4l2_subdev *sd;
 	struct ov7670_info *info;
 	int ret;
@@ -1611,7 +1705,13 @@ static int ov7670_probe(struct i2c_client *client,
 	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
 	info->sat = 128;	/* Review this */
-	info->clkrc = info->clock_speed / 30;
+	info->clkrc = 0;
+
+	/* Set default frame rate to 30 fps */
+	tpf.numerator = 1;
+	tpf.denominator = 30;
+	info->devtype->set_framerate(sd, &tpf);
+
 	return 0;
 }
 
