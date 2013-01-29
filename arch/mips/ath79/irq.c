@@ -35,44 +35,17 @@ static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
 	pending = __raw_readl(base + AR71XX_RESET_REG_MISC_INT_STATUS) &
 		  __raw_readl(base + AR71XX_RESET_REG_MISC_INT_ENABLE);
 
-	if (pending & MISC_INT_UART)
-		generic_handle_irq(ATH79_MISC_IRQ_UART);
-
-	else if (pending & MISC_INT_DMA)
-		generic_handle_irq(ATH79_MISC_IRQ_DMA);
-
-	else if (pending & MISC_INT_PERFC)
-		generic_handle_irq(ATH79_MISC_IRQ_PERFC);
-
-	else if (pending & MISC_INT_TIMER)
-		generic_handle_irq(ATH79_MISC_IRQ_TIMER);
-
-	else if (pending & MISC_INT_TIMER2)
-		generic_handle_irq(ATH79_MISC_IRQ_TIMER2);
-
-	else if (pending & MISC_INT_TIMER3)
-		generic_handle_irq(ATH79_MISC_IRQ_TIMER3);
-
-	else if (pending & MISC_INT_TIMER4)
-		generic_handle_irq(ATH79_MISC_IRQ_TIMER4);
-
-	else if (pending & MISC_INT_OHCI)
-		generic_handle_irq(ATH79_MISC_IRQ_OHCI);
-
-	else if (pending & MISC_INT_ERROR)
-		generic_handle_irq(ATH79_MISC_IRQ_ERROR);
-
-	else if (pending & MISC_INT_GPIO)
-		generic_handle_irq(ATH79_MISC_IRQ_GPIO);
-
-	else if (pending & MISC_INT_WDOG)
-		generic_handle_irq(ATH79_MISC_IRQ_WDOG);
-
-	else if (pending & MISC_INT_ETHSW)
-		generic_handle_irq(ATH79_MISC_IRQ_ETHSW);
-
-	else
+	if (!pending) {
 		spurious_interrupt();
+		return;
+	}
+
+	while (pending) {
+		int bit = __ffs(pending);
+
+		generic_handle_irq(ATH79_MISC_IRQ(bit));
+		pending &= ~BIT(bit);
+	}
 }
 
 static void ar71xx_misc_irq_unmask(struct irq_data *d)
