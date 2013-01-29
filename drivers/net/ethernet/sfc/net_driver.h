@@ -272,9 +272,9 @@ struct efx_rx_queue {
 	bool enabled;
 	bool flush_pending;
 
-	int added_count;
-	int notified_count;
-	int removed_count;
+	unsigned int added_count;
+	unsigned int notified_count;
+	unsigned int removed_count;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
 	unsigned int min_fill;
