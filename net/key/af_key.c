@@ -762,7 +762,7 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 	}
 
 	/* identity & sensitivity */
-	if (xfrm_addr_cmp(&x->sel.saddr, &x->props.saddr, x->props.family))
+	if (!xfrm_addr_equal(&x->sel.saddr, &x->props.saddr, x->props.family))
 		size += sizeof(struct sadb_address) + sockaddr_size;
 
 	if (add_keys) {
@@ -909,8 +909,8 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 	if (!addr->sadb_address_prefixlen)
 		BUG();
 
-	if (xfrm_addr_cmp(&x->sel.saddr, &x->props.saddr,
-			  x->props.family)) {
+	if (!xfrm_addr_equal(&x->sel.saddr, &x->props.saddr,
+			     x->props.family)) {
 		addr = (struct sadb_address*) skb_put(skb,
 			sizeof(struct sadb_address)+sockaddr_size);
 		addr->sadb_address_len =
@@ -1321,7 +1321,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, const struct sadb_
 
 	if (hdr->sadb_msg_seq) {
 		x = xfrm_find_acq_byseq(net, DUMMY_MARK, hdr->sadb_msg_seq);
-		if (x && xfrm_addr_cmp(&x->id.daddr, xdaddr, family)) {
+		if (x && !xfrm_addr_equal(&x->id.daddr, xdaddr, family)) {
 			xfrm_state_put(x);
 			x = NULL;
 		}

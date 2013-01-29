@@ -1574,25 +1574,24 @@ extern struct xfrm_algo_desc *xfrm_calg_get_byname(const char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_aead_get_byname(const char *name, int icv_len,
 						   int probe);
 
-static inline int xfrm_addr_cmp(const xfrm_address_t *a,
-				const xfrm_address_t *b,
-				int family)
-{
-	switch (family) {
-	default:
-	case AF_INET:
-		return (__force u32)a->a4 - (__force u32)b->a4;
-	case AF_INET6:
-		return ipv6_addr_cmp((const struct in6_addr *)a,
-				     (const struct in6_addr *)b);
-	}
-}
-
 static inline bool xfrm6_addr_equal(const xfrm_address_t *a,
 				    const xfrm_address_t *b)
 {
 	return ipv6_addr_equal((const struct in6_addr *)a,
 			       (const struct in6_addr *)b);
+}
+
+static inline bool xfrm_addr_equal(const xfrm_address_t *a,
+				   const xfrm_address_t *b,
+				   sa_family_t family)
+{
+	switch (family) {
+	default:
+	case AF_INET:
+		return ((__force u32)a->a4 ^ (__force u32)b->a4) == 0;
+	case AF_INET6:
+		return xfrm6_addr_equal(a, b);
+	}
 }
 
 static inline int xfrm_policy_id2dir(u32 index)

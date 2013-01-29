@@ -691,7 +691,7 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||
 		    x->id.proto     != proto ||
-		    xfrm_addr_cmp(&x->id.daddr, daddr, family))
+		    !xfrm_addr_equal(&x->id.daddr, daddr, family))
 			continue;
 
 		if ((mark & x->mark.m) != x->mark.v)
@@ -715,8 +715,8 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 	hlist_for_each_entry(x, entry, net->xfrm.state_bysrc+h, bysrc) {
 		if (x->props.family != family ||
 		    x->id.proto     != proto ||
-		    xfrm_addr_cmp(&x->id.daddr, daddr, family) ||
-		    xfrm_addr_cmp(&x->props.saddr, saddr, family))
+		    !xfrm_addr_equal(&x->id.daddr, daddr, family) ||
+		    !xfrm_addr_equal(&x->props.saddr, saddr, family))
 			continue;
 
 		if ((mark & x->mark.m) != x->mark.v)
@@ -981,8 +981,8 @@ static void __xfrm_state_bump_genids(struct xfrm_state *xnew)
 		if (x->props.family	== family &&
 		    x->props.reqid	== reqid &&
 		    (mark & x->mark.m) == x->mark.v &&
-		    !xfrm_addr_cmp(&x->id.daddr, &xnew->id.daddr, family) &&
-		    !xfrm_addr_cmp(&x->props.saddr, &xnew->props.saddr, family))
+		    xfrm_addr_equal(&x->id.daddr, &xnew->id.daddr, family) &&
+		    xfrm_addr_equal(&x->props.saddr, &xnew->props.saddr, family))
 			x->genid++;
 	}
 }
@@ -1016,8 +1016,8 @@ static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m,
 		    x->id.spi       != 0 ||
 		    x->id.proto	    != proto ||
 		    (mark & x->mark.m) != x->mark.v ||
-		    xfrm_addr_cmp(&x->id.daddr, daddr, family) ||
-		    xfrm_addr_cmp(&x->props.saddr, saddr, family))
+		    !xfrm_addr_equal(&x->id.daddr, daddr, family) ||
+		    !xfrm_addr_equal(&x->props.saddr, saddr, family))
 			continue;
 
 		xfrm_state_hold(x);
@@ -1100,7 +1100,7 @@ int xfrm_state_add(struct xfrm_state *x)
 	if (use_spi && x->km.seq) {
 		x1 = __xfrm_find_acq_byseq(net, mark, x->km.seq);
 		if (x1 && ((x1->id.proto != x->id.proto) ||
-		    xfrm_addr_cmp(&x1->id.daddr, &x->id.daddr, family))) {
+		    !xfrm_addr_equal(&x1->id.daddr, &x->id.daddr, family))) {
 			to_put = x1;
 			x1 = NULL;
 		}
@@ -1226,10 +1226,10 @@ struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
 				continue;
 			if (m->reqid && x->props.reqid != m->reqid)
 				continue;
-			if (xfrm_addr_cmp(&x->id.daddr, &m->old_daddr,
-					  m->old_family) ||
-			    xfrm_addr_cmp(&x->props.saddr, &m->old_saddr,
-					  m->old_family))
+			if (!xfrm_addr_equal(&x->id.daddr, &m->old_daddr,
+					     m->old_family) ||
+			    !xfrm_addr_equal(&x->props.saddr, &m->old_saddr,
+					     m->old_family))
 				continue;
 			xfrm_state_hold(x);
 			return x;
@@ -1241,10 +1241,10 @@ struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
 			if (x->props.mode != m->mode ||
 			    x->id.proto != m->proto)
 				continue;
-			if (xfrm_addr_cmp(&x->id.daddr, &m->old_daddr,
-					  m->old_family) ||
-			    xfrm_addr_cmp(&x->props.saddr, &m->old_saddr,
-					  m->old_family))
+			if (!xfrm_addr_equal(&x->id.daddr, &m->old_daddr,
+					     m->old_family) ||
+			    !xfrm_addr_equal(&x->props.saddr, &m->old_saddr,
+					     m->old_family))
 				continue;
 			xfrm_state_hold(x);
 			return x;
@@ -1269,7 +1269,7 @@ struct xfrm_state * xfrm_state_migrate(struct xfrm_state *x,
 	memcpy(&xc->props.saddr, &m->new_saddr, sizeof(xc->props.saddr));
 
 	/* add state */
-	if (!xfrm_addr_cmp(&x->id.daddr, &m->new_daddr, m->new_family)) {
+	if (xfrm_addr_equal(&x->id.daddr, &m->new_daddr, m->new_family)) {
 		/* a care is needed when the destination address of the
 		   state is to be updated as it is a part of triplet */
 		xfrm_state_insert(xc);
