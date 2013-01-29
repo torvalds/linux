@@ -8,6 +8,7 @@
 
 #include <linux/list.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
@@ -112,6 +113,7 @@ struct mcam_camera {
 	 * should not be touched by the platform code.
 	 */
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
 	enum mcam_state state;
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
 	int users;			/* How many open FDs */
