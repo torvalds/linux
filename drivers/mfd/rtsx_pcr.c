@@ -590,8 +590,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk)
 {
 	int err, clk;
-	u8 n, min_n, max_n, clk_divider;
-	u8 mcu_cnt, div, max_div;
+	u8 n, clk_divider, mcu_cnt, div;
 	u8 depth[] = {
 		[RTSX_SSC_DEPTH_4M] = SSC_DEPTH_4M,
 		[RTSX_SSC_DEPTH_2M] = SSC_DEPTH_2M,
@@ -615,10 +614,6 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	card_clock /= 1000000;
 	dev_dbg(&(pcr->pci->dev), "Switch card clock to %dMHz\n", card_clock);
 
-	min_n = 80;
-	max_n = 208;
-	max_div = CLK_DIV_8;
-
 	clk = card_clock;
 	if (!initial_mode && double_clk)
 		clk = card_clock * 2;
@@ -633,16 +628,16 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		n = (u8)pcr->ops->conv_clk_and_div_n(clk, CLK_TO_DIV_N);
 	else
 		n = (u8)(clk - 2);
-	if ((clk <= 2) || (n > max_n))
+	if ((clk <= 2) || (n > MAX_DIV_N_PCR))
 		return -EINVAL;
 
 	mcu_cnt = (u8)(125/clk + 3);
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
-	/* Make sure that the SSC clock div_n is equal or greater than min_n */
+	/* Make sure that the SSC clock div_n is not less than MIN_DIV_N_PCR */
 	div = CLK_DIV_1;
-	while ((n < min_n) && (div < max_div)) {
+	while ((n < MIN_DIV_N_PCR) && (div < CLK_DIV_8)) {
 		if (pcr->ops->conv_clk_and_div_n) {
 			int dbl_clk = pcr->ops->conv_clk_and_div_n(n,
 					DIV_N_TO_CLK) * 2;
