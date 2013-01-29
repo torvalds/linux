@@ -714,7 +714,7 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 				*err = ERR_BAD_DX_DIR;
 			goto fail2;
 		}
-		at = entries = ((struct dx_node *) bh->b_data)->entries;
+		entries = ((struct dx_node *) bh->b_data)->entries;
 
 		if (!buffer_verified(bh) &&
 		    !ext4_dx_csum_verify(dir,
