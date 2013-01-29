@@ -137,47 +137,61 @@ static struct gpio_chip ath79_gpio_chip = {
 	.base			= 0,
 };
 
+static void __iomem *ath79_gpio_get_function_reg(void)
+{
+	u32 reg = 0;
+
+	if (soc_is_ar71xx() ||
+	    soc_is_ar724x() ||
+	    soc_is_ar913x() ||
+	    soc_is_ar933x())
+		reg = AR71XX_GPIO_REG_FUNC;
+	else if (soc_is_ar934x())
+		reg = AR934X_GPIO_REG_FUNC;
+	else
+		BUG();
+
+	return ath79_gpio_base + reg;
+}
+
 void ath79_gpio_function_enable(u32 mask)
 {
-	void __iomem *base = ath79_gpio_base;
+	void __iomem *reg = ath79_gpio_get_function_reg();
 	unsigned long flags;
 
 	spin_lock_irqsave(&ath79_gpio_lock, flags);
 
-	__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_FUNC) | mask,
-		     base + AR71XX_GPIO_REG_FUNC);
+	__raw_writel(__raw_readl(reg) | mask, reg);
 	/* flush write */
-	__raw_readl(base + AR71XX_GPIO_REG_FUNC);
+	__raw_readl(reg);
 
 	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
 }
 
 void ath79_gpio_function_disable(u32 mask)
 {
-	void __iomem *base = ath79_gpio_base;
+	void __iomem *reg = ath79_gpio_get_function_reg();
 	unsigned long flags;
 
 	spin_lock_irqsave(&ath79_gpio_lock, flags);
 
-	__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_FUNC) & ~mask,
-		     base + AR71XX_GPIO_REG_FUNC);
+	__raw_writel(__raw_readl(reg) & ~mask, reg);
 	/* flush write */
-	__raw_readl(base + AR71XX_GPIO_REG_FUNC);
+	__raw_readl(reg);
 
 	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
 }
 
 void ath79_gpio_function_setup(u32 set, u32 clear)
 {
-	void __iomem *base = ath79_gpio_base;
+	void __iomem *reg = ath79_gpio_get_function_reg();
 	unsigned long flags;
 
 	spin_lock_irqsave(&ath79_gpio_lock, flags);
 
-	__raw_writel((__raw_readl(base + AR71XX_GPIO_REG_FUNC) & ~clear) | set,
-		     base + AR71XX_GPIO_REG_FUNC);
+	__raw_writel((__raw_readl(reg) & ~clear) | set, reg);
 	/* flush write */
-	__raw_readl(base + AR71XX_GPIO_REG_FUNC);
+	__raw_readl(reg);
 
 	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
 }
