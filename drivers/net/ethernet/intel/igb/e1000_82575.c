@@ -223,6 +223,115 @@ out:
 	return ret_val;
 }
 
+/**
+ *  igb_init_nvm_params_82575 - Init NVM func ptrs.
+ *  @hw: pointer to the HW structure
+ **/
+s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
+{
+	struct e1000_nvm_info *nvm = &hw->nvm;
+	u32 eecd = rd32(E1000_EECD);
+	u16 size;
+
+	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
+		     E1000_EECD_SIZE_EX_SHIFT);
+	/* Added to a constant, "size" becomes the left-shift value
+	 * for setting word_size.
+	 */
+	size += NVM_WORD_SIZE_BASE_SHIFT;
+
+	/* Just in case size is out of range, cap it to the largest
+	 * EEPROM size supported
+	 */
+	if (size > 15)
+		size = 15;
+
+	nvm->word_size = 1 << size;
+	if (hw->mac.type < e1000_i210) {
+		nvm->opcode_bits = 8;
+		nvm->delay_usec = 1;
+
+		switch (nvm->override) {
+		case e1000_nvm_override_spi_large:
+			nvm->page_size = 32;
+			nvm->address_bits = 16;
+			break;
+		case e1000_nvm_override_spi_small:
+			nvm->page_size = 8;
+			nvm->address_bits = 8;
+			break;
+		default:
+			nvm->page_size = eecd & E1000_EECD_ADDR_BITS ? 32 : 8;
+			nvm->address_bits = eecd & E1000_EECD_ADDR_BITS ?
+					    16 : 8;
+			break;
+		}
+		if (nvm->word_size == (1 << 15))
+			nvm->page_size = 128;
+
+		nvm->type = e1000_nvm_eeprom_spi;
+	} else {
+		nvm->type = e1000_nvm_flash_hw;
+	}
+
+	/* NVM Function Pointers */
+	switch (hw->mac.type) {
+	case e1000_82580:
+		nvm->ops.validate = igb_validate_nvm_checksum_82580;
+		nvm->ops.update = igb_update_nvm_checksum_82580;
+		nvm->ops.acquire = igb_acquire_nvm_82575;
+		nvm->ops.release = igb_release_nvm_82575;
+		if (nvm->word_size < (1 << 15))
+			nvm->ops.read = igb_read_nvm_eerd;
+		else
+			nvm->ops.read = igb_read_nvm_spi;
+		nvm->ops.write = igb_write_nvm_spi;
+		break;
+	case e1000_i350:
+		nvm->ops.validate = igb_validate_nvm_checksum_i350;
+		nvm->ops.update = igb_update_nvm_checksum_i350;
+		nvm->ops.acquire = igb_acquire_nvm_82575;
+		nvm->ops.release = igb_release_nvm_82575;
+		if (nvm->word_size < (1 << 15))
+			nvm->ops.read = igb_read_nvm_eerd;
+		else
+			nvm->ops.read = igb_read_nvm_spi;
+		nvm->ops.write = igb_write_nvm_spi;
+		break;
+	case e1000_i210:
+		nvm->ops.validate = igb_validate_nvm_checksum_i210;
+		nvm->ops.update   = igb_update_nvm_checksum_i210;
+		nvm->ops.acquire = igb_acquire_nvm_i210;
+		nvm->ops.release = igb_release_nvm_i210;
+		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
+		nvm->ops.valid_led_default = igb_valid_led_default_i210;
+		break;
+	case e1000_i211:
+		nvm->ops.acquire  = igb_acquire_nvm_i210;
+		nvm->ops.release  = igb_release_nvm_i210;
+		nvm->ops.read     = igb_read_nvm_i211;
+		nvm->ops.valid_led_default = igb_valid_led_default_i210;
+		nvm->ops.validate = NULL;
+		nvm->ops.update   = NULL;
+		nvm->ops.write    = NULL;
+		break;
+	default:
+		nvm->ops.validate = igb_validate_nvm_checksum;
+		nvm->ops.update = igb_update_nvm_checksum;
+		nvm->ops.acquire = igb_acquire_nvm_82575;
+		nvm->ops.release = igb_release_nvm_82575;
+		if (nvm->word_size < (1 << 15))
+			nvm->ops.read = igb_read_nvm_eerd;
+		else
+			nvm->ops.read = igb_read_nvm_spi;
+		nvm->ops.write = igb_write_nvm_spi;
+		break;
+	}
+
+	return 0;
+}
+
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
