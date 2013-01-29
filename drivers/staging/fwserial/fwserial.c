@@ -2559,26 +2559,25 @@ static struct fw_driver fwserial_driver = {
 /* XXX: config ROM definitons could be improved with semi-automated offset
  * and length calculation
  */
+#define FW_ROM_LEN(quads)	((quads) << 16)
 #define FW_ROM_DESCRIPTOR(ofs)	(((CSR_LEAF | CSR_DESCRIPTOR) << 24) | (ofs))
 
 struct fwserial_unit_directory_data {
-	u16	crc;
-	u16	len;
+	u32	len_crc;
 	u32	unit_specifier;
 	u32	unit_sw_version;
 	u32	unit_addr_offset;
 	u32	desc1_ofs;
-	u16	desc1_crc;
-	u16	desc1_len;
+	u32	desc1_len_crc;
 	u32	desc1_data[5];
 } __packed;
 
 static struct fwserial_unit_directory_data fwserial_unit_directory_data = {
-	.len = 4,
+	.len_crc = FW_ROM_LEN(4),
 	.unit_specifier = FW_UNIT_SPECIFIER(LINUX_VENDOR_ID),
 	.unit_sw_version = FW_UNIT_VERSION(FWSERIAL_VERSION),
 	.desc1_ofs = FW_ROM_DESCRIPTOR(1),
-	.desc1_len = 5,
+	.desc1_len_crc = FW_ROM_LEN(5),
 	.desc1_data = {
 		0x00000000,			/*   type = text            */
 		0x00000000,			/*   enc = ASCII, lang EN   */
