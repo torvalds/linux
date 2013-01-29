@@ -440,7 +440,7 @@
 		interrupts = <0 77 0x04>;
 	};
 
-	smmu {
+	iommu {
 		compatible = "nvidia,tegra30-smmu";
 		reg = <0x7000f010 0x02c
 		       0x7000f1f0 0x010
