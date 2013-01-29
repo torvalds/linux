@@ -2358,8 +2358,10 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	if (!info)
 		return -ENOMEM;
 	info->device = dev;
-	info->read_subdevice = s;
-	info->write_subdevice = s;
+	if (s->subdev_flags & SDF_CMD_READ)
+		info->read_subdevice = s;
+	if (s->subdev_flags & SDF_CMD_WRITE)
+		info->write_subdevice = s;
 	spin_lock(&comedi_file_info_table_lock);
 	for (i = COMEDI_FIRST_SUBDEVICE_MINOR; i < COMEDI_NUM_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
