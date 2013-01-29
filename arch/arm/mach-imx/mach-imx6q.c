@@ -31,6 +31,7 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 
@@ -216,9 +217,8 @@ static void __init imx6q_init_late(void)
 
 static void __init imx6q_map_io(void)
 {
-	imx_lluart_map_io();
+	debug_ll_io_init();
 	imx_scu_map_io();
-	imx6q_clock_map_io();
 }
 
 static void __init imx6q_init_irq(void)
