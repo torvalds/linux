@@ -12,8 +12,6 @@ TODOs prior to this driver moving out of staging
 1. This driver uses the same unregistered vendor id that the firewire core does
      (0xd00d1e). Perhaps this could be exposed as a define in
      firewire.h?
-3. Maybe device_max_receive() and link_speed_to_max_payload() should be
-     taken up by the firewire core?
 
 -- Issues with TTY core --
   1. Hack for alternate device name scheme
