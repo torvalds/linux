@@ -2851,14 +2851,14 @@ static void ieee80211_sta_timer(unsigned long data)
 }
 
 static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
-					  u8 *bssid, u8 reason)
+					  u8 *bssid, u8 reason, bool tx)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH, reason,
-			       false, frame_buf);
+			       tx, frame_buf);
 	mutex_unlock(&ifmgd->mtx);
 
 	/*
@@ -3107,7 +3107,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 					 "No ack for nullfunc frame to AP %pM, disconnecting.\n",
 					 bssid);
 				ieee80211_sta_connection_lost(sdata, bssid,
-					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
+					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
+					false);
 			}
 		} else if (time_is_after_jiffies(ifmgd->probe_timeout))
 			run_again(ifmgd, ifmgd->probe_timeout);
@@ -3116,7 +3117,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				 "Failed to send nullfunc to AP %pM after %dms, disconnecting\n",
 				 bssid, probe_wait_ms);
 			ieee80211_sta_connection_lost(sdata, bssid,
-				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
+				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY, false);
 		} else if (ifmgd->probe_send_count < max_tries) {
 			mlme_dbg(sdata,
 				 "No probe response from AP %pM after %dms, try %d/%i\n",
@@ -3135,7 +3136,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				    bssid, probe_wait_ms);
 
 			ieee80211_sta_connection_lost(sdata, bssid,
-				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
+				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY, false);
 		}
 	}
 
@@ -3242,7 +3243,8 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 		mlme_dbg(sdata, "driver requested disconnect after resume\n");
 		ieee80211_sta_connection_lost(sdata,
 					      ifmgd->associated->bssid,
-					      WLAN_REASON_UNSPECIFIED);
+					      WLAN_REASON_UNSPECIFIED,
+					      true);
 		mutex_unlock(&ifmgd->mtx);
 		return;
 	}
