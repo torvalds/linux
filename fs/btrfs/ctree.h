@@ -191,6 +191,8 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 /* ioprio of readahead is set to idle */
 #define BTRFS_IOPRIO_READA (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0))
 
+#define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
+
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
  * block layout.
@@ -1448,10 +1450,9 @@ struct btrfs_fs_info {
 
 	u64 total_pinned;
 
-	/* protected by the delalloc lock, used to keep from writing
-	 * metadata until there is a nice batch
-	 */
-	u64 dirty_metadata_bytes;
+	/* used to keep from writing metadata until there is a nice batch */
+	struct percpu_counter dirty_metadata_bytes;
+	s32 dirty_metadata_batch;
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;
