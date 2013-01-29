@@ -1430,14 +1430,19 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	u64 devid;
 	u64 num_devices;
 	u8 *dev_uuid;
+	unsigned seq;
 	int ret = 0;
 	bool clear_super = false;
 
 	mutex_lock(&uuid_mutex);
 
-	all_avail = root->fs_info->avail_data_alloc_bits |
-		root->fs_info->avail_system_alloc_bits |
-		root->fs_info->avail_metadata_alloc_bits;
+	do {
+		seq = read_seqbegin(&root->fs_info->profiles_lock);
+
+		all_avail = root->fs_info->avail_data_alloc_bits |
+			    root->fs_info->avail_system_alloc_bits |
+			    root->fs_info->avail_metadata_alloc_bits;
+	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
 
 	num_devices = root->fs_info->fs_devices->num_devices;
 	btrfs_dev_replace_lock(&root->fs_info->dev_replace);
@@ -3043,6 +3048,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	int mixed = 0;
 	int ret;
 	u64 num_devices;
+	unsigned seq;
 
 	if (btrfs_fs_closing(fs_info) ||
 	    atomic_read(&fs_info->balance_pause_req) ||
@@ -3126,22 +3132,26 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	/* allow to reduce meta or sys integrity only if force set */
 	allowed = BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
 			BTRFS_BLOCK_GROUP_RAID10;
-	if (((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	     (fs_info->avail_system_alloc_bits & allowed) &&
-	     !(bctl->sys.target & allowed)) ||
-	    ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	     (fs_info->avail_metadata_alloc_bits & allowed) &&
-	     !(bctl->meta.target & allowed))) {
-		if (bctl->flags & BTRFS_BALANCE_FORCE) {
-			printk(KERN_INFO "btrfs: force reducing metadata "
-			       "integrity\n");
-		} else {
-			printk(KERN_ERR "btrfs: balance will reduce metadata "
-			       "integrity, use force if you want this\n");
-			ret = -EINVAL;
-			goto out;
+	do {
+		seq = read_seqbegin(&fs_info->profiles_lock);
+
+		if (((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+		     (fs_info->avail_system_alloc_bits & allowed) &&
+		     !(bctl->sys.target & allowed)) ||
+		    ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+		     (fs_info->avail_metadata_alloc_bits & allowed) &&
+		     !(bctl->meta.target & allowed))) {
+			if (bctl->flags & BTRFS_BALANCE_FORCE) {
+				printk(KERN_INFO "btrfs: force reducing metadata "
+				       "integrity\n");
+			} else {
+				printk(KERN_ERR "btrfs: balance will reduce metadata "
+				       "integrity, use force if you want this\n");
+				ret = -EINVAL;
+				goto out;
+			}
 		}
-	}
+	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
 	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
 		int num_tolerated_disk_barrier_failures;
@@ -3980,10 +3990,7 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	alloc_profile = BTRFS_BLOCK_GROUP_METADATA |
-				fs_info->avail_metadata_alloc_bits;
-	alloc_profile = btrfs_reduce_alloc_profile(root, alloc_profile);
-
+	alloc_profile = btrfs_get_alloc_profile(extent_root, 0);
 	ret = __btrfs_alloc_chunk(trans, extent_root, &map, &chunk_size,
 				  &stripe_size, chunk_offset, alloc_profile);
 	if (ret)
@@ -3991,10 +3998,7 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 
 	sys_chunk_offset = chunk_offset + chunk_size;
 
-	alloc_profile = BTRFS_BLOCK_GROUP_SYSTEM |
-				fs_info->avail_system_alloc_bits;
-	alloc_profile = btrfs_reduce_alloc_profile(root, alloc_profile);
-
+	alloc_profile = btrfs_get_alloc_profile(fs_info->chunk_root, 0);
 	ret = __btrfs_alloc_chunk(trans, extent_root, &sys_map,
 				  &sys_chunk_size, &sys_stripe_size,
 				  sys_chunk_offset, alloc_profile);

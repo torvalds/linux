@@ -1483,6 +1483,8 @@ struct btrfs_fs_info {
 	struct rb_root defrag_inodes;
 	atomic_t defrag_running;
 
+	/* Used to protect avail_{data, metadata, system}_alloc_bits */
+	seqlock_t profiles_lock;
 	/*
 	 * these three are in extended format (availability of single
 	 * chunks is denoted by BTRFS_AVAIL_ALLOC_BIT_SINGLE bit, other

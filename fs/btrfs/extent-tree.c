@@ -3227,12 +3227,14 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	u64 extra_flags = chunk_to_extended(flags) &
 				BTRFS_EXTENDED_PROFILE_MASK;
 
+	write_seqlock(&fs_info->profiles_lock);
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits |= extra_flags;
 	if (flags & BTRFS_BLOCK_GROUP_METADATA)
 		fs_info->avail_metadata_alloc_bits |= extra_flags;
 	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		fs_info->avail_system_alloc_bits |= extra_flags;
+	write_sequnlock(&fs_info->profiles_lock);
 }
 
 /*
@@ -3324,12 +3326,18 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 
 static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
 {
-	if (flags & BTRFS_BLOCK_GROUP_DATA)
-		flags |= root->fs_info->avail_data_alloc_bits;
-	else if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
-		flags |= root->fs_info->avail_system_alloc_bits;
-	else if (flags & BTRFS_BLOCK_GROUP_METADATA)
-		flags |= root->fs_info->avail_metadata_alloc_bits;
+	unsigned seq;
+
+	do {
+		seq = read_seqbegin(&root->fs_info->profiles_lock);
+
+		if (flags & BTRFS_BLOCK_GROUP_DATA)
+			flags |= root->fs_info->avail_data_alloc_bits;
+		else if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
+			flags |= root->fs_info->avail_system_alloc_bits;
+		else if (flags & BTRFS_BLOCK_GROUP_METADATA)
+			flags |= root->fs_info->avail_metadata_alloc_bits;
+	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
 
 	return btrfs_reduce_alloc_profile(root, flags);
 }
@@ -7967,12 +7975,14 @@ static void clear_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	u64 extra_flags = chunk_to_extended(flags) &
 				BTRFS_EXTENDED_PROFILE_MASK;
 
+	write_seqlock(&fs_info->profiles_lock);
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits &= ~extra_flags;
 	if (flags & BTRFS_BLOCK_GROUP_METADATA)
 		fs_info->avail_metadata_alloc_bits &= ~extra_flags;
 	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		fs_info->avail_system_alloc_bits &= ~extra_flags;
+	write_sequnlock(&fs_info->profiles_lock);
 }
 
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
