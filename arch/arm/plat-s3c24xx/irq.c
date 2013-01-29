@@ -935,10 +935,11 @@ static int s3c2443_add_sub(unsigned int base,
 	return 0;
 }
 
-static int s3c2443_irq_add(struct device *dev,
-				  struct subsys_interface *sif)
+void __init s3c2443_init_irq(void)
 {
-	printk("S3C2443: IRQ Support\n");
+	pr_info("S3C2443: IRQ Support\n");
+
+	s3c24xx_init_irq();
 
 	s3c2443_add_sub(IRQ_CAM, s3c2443_irq_demux_cam, &s3c2443_irq_cam,
 			IRQ_S3C2440_CAM_C, IRQ_S3C2440_CAM_P);
@@ -956,20 +957,5 @@ static int s3c2443_irq_add(struct device *dev,
 	s3c2443_add_sub(IRQ_WDT, s3c2443_irq_demux_wdtac97,
 			&s3c2443_irq_wdtac97,
 			IRQ_S3C2443_WDT, IRQ_S3C2443_AC97);
-
-	return 0;
 }
-
-static struct subsys_interface s3c2443_irq_interface = {
-	.name		= "s3c2443_irq",
-	.subsys		= &s3c2443_subsys,
-	.add_dev	= s3c2443_irq_add,
-};
-
-static int __init s3c2443_irq_init(void)
-{
-	return subsys_interface_register(&s3c2443_irq_interface);
-}
-
-arch_initcall(s3c2443_irq_init);
 #endif
