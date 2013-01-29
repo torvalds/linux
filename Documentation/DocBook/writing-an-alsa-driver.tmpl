@@ -871,9 +871,8 @@
       <para>
       This function itself doesn't allocate the data space. The data
       must be allocated manually beforehand, and its pointer is passed
-      as the argument. This pointer is used as the
-      (<parameter>chip</parameter> identifier in the above example)
-      for the instance. 
+      as the argument. This pointer (<parameter>chip</parameter> in the
+      above example) is used as the identifier for the instance.
       </para>
 
       <para>
@@ -2304,7 +2303,7 @@ struct _snd_pcm_runtime {
         <constant>SNDRV_PCM_INFO_XXX</constant>. Here, at least, you
         have to specify whether the mmap is supported and which
         interleaved format is supported.
-        When the is supported, add the
+        When the hardware supports mmap, add the
         <constant>SNDRV_PCM_INFO_MMAP</constant> flag here. When the
         hardware supports the interleaved or the non-interleaved
         formats, <constant>SNDRV_PCM_INFO_INTERLEAVED</constant> or
