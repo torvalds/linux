@@ -1223,6 +1223,7 @@ static int bb_buf_setup(struct videobuf_queue *q,
 
 	return 0;
 }
+
 static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 {
 	struct cx231xx_fh *fh = vq->priv_data;
@@ -1645,17 +1646,18 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx231xx_fh  *fh  = file->private_data;
 	struct cx231xx *dev = fh->dev;
+
 	dprintk(3, "enter vidioc_g_fmt_vid_cap()\n");
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		dev->ts1.ts_packet_size * dev->ts1.ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	f->fmt.pix.width        = dev->ts1.width;
-	f->fmt.pix.height       = dev->ts1.height;
-	f->fmt.pix.field        = fh->vidq.field;
-	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d, f: %d\n",
-		dev->ts1.width, dev->ts1.height, fh->vidq.field);
+	f->fmt.pix.sizeimage = mpeglines * mpeglinesize;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	f->fmt.pix.width = dev->ts1.width;
+	f->fmt.pix.height = dev->ts1.height;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	f->fmt.pix.priv = 0;
+	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d\n",
+		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_g_fmt_vid_cap()\n");
 	return 0;
 }
@@ -1665,14 +1667,16 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx231xx_fh  *fh  = file->private_data;
 	struct cx231xx *dev = fh->dev;
+
 	dprintk(3, "enter vidioc_try_fmt_vid_cap()\n");
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		dev->ts1.ts_packet_size * dev->ts1.ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
-		dev->ts1.width, dev->ts1.height, fh->vidq.field);
+	f->fmt.pix.sizeimage = mpeglines * mpeglinesize;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	f->fmt.pix.priv = 0;
+	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
+		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_try_fmt_vid_cap()\n");
 	return 0;
 }
