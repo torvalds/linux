@@ -1875,20 +1875,24 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
-	cap->device_caps =
-		V4L2_CAP_AUDIO		|
-		V4L2_CAP_READWRITE	|
-		V4L2_CAP_STREAMING;
-
-	if (vdev->vfl_type == VFL_TYPE_VBI)
-		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
-	else
-		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	if (vdev->vfl_type == VFL_TYPE_RADIO)
+		cap->device_caps = V4L2_CAP_RADIO;
+	else {
+		cap->device_caps = V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
+			V4L2_CAP_STREAMING;
+		if (vdev->vfl_type == VFL_TYPE_VBI)
+			cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
+		else
+			cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	}
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->device_caps |= V4L2_CAP_TUNER;
 	cap->capabilities = cap->device_caps |
 		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_DEVICE_CAPS;
+		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
+	if (dev->radio_dev)
+		cap->capabilities |= V4L2_CAP_RADIO;
 
 	return 0;
 }
@@ -2055,53 +2059,19 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 /* RADIO ESPECIFIC IOCTLS                                      */
 /* ----------------------------------------------------------- */
 
-static int radio_querycap(struct file *file, void *priv,
-			  struct v4l2_capability *cap)
-{
-	struct cx231xx *dev = ((struct cx231xx_fh *)priv)->dev;
-
-	strlcpy(cap->driver, "cx231xx", sizeof(cap->driver));
-	strlcpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
-	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-
-	cap->capabilities = V4L2_CAP_TUNER;
-	return 0;
-}
-
 static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx *dev = ((struct cx231xx_fh *)priv)->dev;
 
-	if (unlikely(t->index > 0))
+	if (t->index)
 		return -EINVAL;
 
 	strcpy(t->name, "Radio");
-	t->type = V4L2_TUNER_RADIO;
 
-	call_all(dev, tuner, s_tuner, t);
-
-	return 0;
-}
-
-static int radio_enum_input(struct file *file, void *priv, struct v4l2_input *i)
-{
-	if (i->index != 0)
-		return -EINVAL;
-	strcpy(i->name, "Radio");
-	i->type = V4L2_INPUT_TYPE_TUNER;
+	call_all(dev, tuner, g_tuner, t);
 
 	return 0;
 }
-
-static int radio_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	if (unlikely(a->index))
-		return -EINVAL;
-
-	strcpy(a->name, "Radio");
-	return 0;
-}
-
 static int radio_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx *dev = ((struct cx231xx_fh *)priv)->dev;
@@ -2111,16 +2081,6 @@ static int radio_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 
 	call_all(dev, tuner, s_tuner, t);
 
-	return 0;
-}
-
-static int radio_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
-{
-	return 0;
-}
-
-static int radio_s_input(struct file *file, void *fh, unsigned int i)
-{
 	return 0;
 }
 
@@ -2552,18 +2512,15 @@ static const struct v4l2_file_operations radio_fops = {
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
-	.vidioc_querycap    = radio_querycap,
+	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = radio_g_tuner,
-	.vidioc_enum_input  = radio_enum_input,
-	.vidioc_g_audio     = radio_g_audio,
 	.vidioc_s_tuner     = radio_s_tuner,
-	.vidioc_s_audio     = radio_s_audio,
-	.vidioc_s_input     = radio_s_input,
 	.vidioc_queryctrl   = radio_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_g_chip_ident = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register  = vidioc_g_register,
 	.vidioc_s_register  = vidioc_s_register,
