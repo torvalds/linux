@@ -3103,6 +3103,24 @@ ring_buffer_dropped_events_cpu(struct ring_buffer *buffer, int cpu)
 EXPORT_SYMBOL_GPL(ring_buffer_dropped_events_cpu);
 
 /**
+ * ring_buffer_read_events_cpu - get the number of events successfully read
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of events read
+ */
+unsigned long
+ring_buffer_read_events_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	return cpu_buffer->read;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_read_events_cpu);
+
+/**
  * ring_buffer_entries - get the number of entries in a buffer
  * @buffer: The ring buffer
  *
