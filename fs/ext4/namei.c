@@ -837,6 +837,7 @@ static int ext4_htree_next_block(struct inode *dir, __u32 hash,
 		    !ext4_dx_csum_verify(dir,
 					 (struct ext4_dir_entry *)bh->b_data)) {
 			ext4_warning(dir->i_sb, "Node failed checksum");
+			brelse(bh);
 			return -EIO;
 		}
 		set_buffer_verified(bh);
@@ -877,8 +878,11 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 	}
 
 	if (!buffer_verified(bh) &&
-	    !ext4_dirent_csum_verify(dir, (struct ext4_dir_entry *)bh->b_data))
+			!ext4_dirent_csum_verify(dir,
+				(struct ext4_dir_entry *)bh->b_data)) {
+		brelse(bh);
 		return -EIO;
+	}
 	set_buffer_verified(bh);
 
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
@@ -1929,8 +1933,10 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		}
 		if (!buffer_verified(bh) &&
 		    !ext4_dirent_csum_verify(dir,
-				(struct ext4_dir_entry *)bh->b_data))
+				(struct ext4_dir_entry *)bh->b_data)) {
+			brelse(bh);
 			return -EIO;
+		}
 		set_buffer_verified(bh);
 		retval = add_dirent_to_buf(handle, dentry, inode, NULL, bh);
 		if (retval != -ENOSPC) {
@@ -2492,6 +2498,7 @@ static int empty_dir(struct inode *inode)
 			(struct ext4_dir_entry *)bh->b_data)) {
 		EXT4_ERROR_INODE(inode, "checksum error reading directory "
 				 "lblock 0");
+		brelse(bh);
 		return -EIO;
 	}
 	set_buffer_verified(bh);
@@ -2536,6 +2543,7 @@ static int empty_dir(struct inode *inode)
 					(struct ext4_dir_entry *)bh->b_data)) {
 				EXT4_ERROR_INODE(inode, "checksum error "
 						 "reading directory lblock 0");
+				brelse(bh);
 				return -EIO;
 			}
 			set_buffer_verified(bh);

@@ -185,6 +185,7 @@ static int ext4_readdir(struct file *filp,
 					"at offset %llu",
 					(unsigned long long)filp->f_pos);
 			filp->f_pos += sb->s_blocksize - offset;
+			brelse(bh);
 			continue;
 		}
 		set_buffer_verified(bh);
