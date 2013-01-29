@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 331276 2012-05-04 08:05:57Z $
+ * $Id: dhd_common.c 380760 2013-01-23 21:59:27Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1767,14 +1767,11 @@ bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval)
 int
 dhd_get_dtim_skip(dhd_pub_t *dhd)
 {
-	int bcn_li_dtim;
+	int bcn_li_dtim = 1;
+	char buf[128];
 	int ret = -1;
 	int dtim_assoc = 0;
-
-	if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
-		bcn_li_dtim = 3;
-	else
-		bcn_li_dtim = dhd->dtim_skip;
+	int ap_beacon = 0;
 
 	/* Check if associated */
 	if (dhd_is_associated(dhd, NULL, NULL) == FALSE) {
@@ -1782,15 +1779,34 @@ dhd_get_dtim_skip(dhd_pub_t *dhd)
 		goto exit;
 	}
 
-	/* if assoc grab ap's dtim value */
-	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_DTIMPRD,
-		&dtim_assoc, sizeof(dtim_assoc), FALSE, 0)) < 0) {
+	/* read AP beacon if do nother if APs Beacon more  that 100msec */
+	bcm_mkiovar("bi_assoc", 0, 0, buf, sizeof(buf));
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0)) < 0) {
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 		goto exit;
 	}
 
-	DHD_ERROR(("%s bcn_li_dtim=%d DTIM=%d Listen=%d\n",
-		__FUNCTION__, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
+	ap_beacon = dtoh32(*(int *)buf);
+
+	/* if APs Beacon more  that 100msec do no dtim skip */
+	if (ap_beacon > 100) {
+		DHD_ERROR(("%s no dtim skip for AP with %d beacon\n", __FUNCTION__, ap_beacon));
+		goto exit;
+	}
+
+
+	/* Read DTIM value if associated */
+	memset(buf, 0, sizeof(buf));
+	bcm_mkiovar("dtim_assoc", 0, 0, buf, sizeof(buf));
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0)) < 0) {
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+		goto exit;
+	}
+
+	dtim_assoc = dtoh32(*(int *)buf);
+
+	DHD_ERROR(("%s beacom=%d msec bcn_li_dtim=%d DTIM=%d Listen=%d\n",
+		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
 
 	/* if not assocated just eixt */
 	if (dtim_assoc == 0) {
@@ -1800,11 +1816,15 @@ dhd_get_dtim_skip(dhd_pub_t *dhd)
 	/* check if sta listen interval fits into AP dtim */
 	if (dtim_assoc > LISTEN_INTERVAL) {
 		/* AP DTIM to big for our Listen Interval : no dtim skiping */
-		bcn_li_dtim = 1;
 		DHD_ERROR(("%s DTIM=%d > Listen=%d : too big ...\n",
 			__FUNCTION__, dtim_assoc, LISTEN_INTERVAL));
 		goto exit;
 	}
+
+	if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
+		bcn_li_dtim = 3;
+	else
+		bcn_li_dtim = dhd->dtim_skip;
 
 	if ((bcn_li_dtim * dtim_assoc) > LISTEN_INTERVAL) {
 		/* Round up dtim_skip to fit into STAs Listen Interval */
