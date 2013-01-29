@@ -108,7 +108,6 @@
 
 #include <acpi/platform/acgcc.h>
 
-
 #ifdef __KERNEL__
 #include <acpi/actypes.h>
 /*

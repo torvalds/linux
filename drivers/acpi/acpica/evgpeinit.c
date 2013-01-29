@@ -86,6 +86,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_initialize);
 
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			      "Initializing General Purpose Events (GPEs):\n"));
+
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
