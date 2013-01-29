@@ -59,6 +59,7 @@ struct iommu_domain {
 
 enum iommu_attr {
 	DOMAIN_ATTR_GEOMETRY,
+	DOMAIN_ATTR_PAGING,
 	DOMAIN_ATTR_MAX,
 };
 
