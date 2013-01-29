@@ -935,26 +935,25 @@ struct tx_q_stats {
  *	@txtime: coalescing value if based on time
  */
 struct gfar_priv_tx_q {
+	/* cacheline 1 */
 	spinlock_t txlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct sk_buff ** tx_skbuff;
-	/* Buffer descriptor pointers */
-	dma_addr_t tx_bd_dma_base;
 	struct	txbd8 *tx_bd_base;
 	struct	txbd8 *cur_tx;
-	struct	txbd8 *dirty_tx;
-	struct tx_q_stats stats;
-	struct	net_device *dev;
-	struct gfar_priv_grp *grp;
-	u16	skb_curtx;
-	u16	skb_dirtytx;
-	u16	qindex;
-	unsigned int tx_ring_size;
 	unsigned int num_txbdfree;
+	unsigned short skb_curtx;
+	unsigned short tx_ring_size;
+	struct tx_q_stats stats;
+	struct gfar_priv_grp *grp;
+	/* cacheline 2 */
+	struct net_device *dev;
+	struct sk_buff **tx_skbuff;
+	struct	txbd8 *dirty_tx;
+	unsigned short skb_dirtytx;
+	unsigned short qindex;
 	/* Configuration info for the coalescing features */
-	unsigned char txcoalescing;
+	unsigned int txcoalescing;
 	unsigned long txic;
-	unsigned short txcount;
-	unsigned short txtime;
+	dma_addr_t tx_bd_dma_base;
 };
 
 /*
