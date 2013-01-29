@@ -189,7 +189,6 @@ static int spear_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cur = spear_cpufreq_get(0);
 
 	cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
-	cpumask_copy(policy->related_cpus, policy->cpus);
 
 	return 0;
 }
