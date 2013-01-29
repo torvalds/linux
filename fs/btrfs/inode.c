@@ -1514,15 +1514,22 @@ static void btrfs_set_bit_hook(struct inode *inode,
 			spin_unlock(&BTRFS_I(inode)->lock);
 		}
 
-		spin_lock(&root->fs_info->delalloc_lock);
-		BTRFS_I(inode)->delalloc_bytes += len;
 		__percpu_counter_add(&root->fs_info->delalloc_bytes, len,
 				     root->fs_info->delalloc_batch);
-		if (do_list && list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
-			list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
-				      &root->fs_info->delalloc_inodes);
+		spin_lock(&BTRFS_I(inode)->lock);
+		BTRFS_I(inode)->delalloc_bytes += len;
+		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+					 &BTRFS_I(inode)->runtime_flags)) {
+			spin_lock(&root->fs_info->delalloc_lock);
+			if (list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+				list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
+					      &root->fs_info->delalloc_inodes);
+				set_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+					&BTRFS_I(inode)->runtime_flags);
+			}
+			spin_unlock(&root->fs_info->delalloc_lock);
 		}
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock(&BTRFS_I(inode)->lock);
 	}
 }
 
@@ -1557,16 +1564,22 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 		    && do_list)
 			btrfs_free_reserved_data_space(inode, len);
 
-		spin_lock(&root->fs_info->delalloc_lock);
 		__percpu_counter_add(&root->fs_info->delalloc_bytes, -len,
 				     root->fs_info->delalloc_batch);
+		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->delalloc_bytes -= len;
-
 		if (do_list && BTRFS_I(inode)->delalloc_bytes == 0 &&
-		    !list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
-			list_del_init(&BTRFS_I(inode)->delalloc_inodes);
+		    test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+			     &BTRFS_I(inode)->runtime_flags)) {
+			spin_lock(&root->fs_info->delalloc_lock);
+			if (!list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+				list_del_init(&BTRFS_I(inode)->delalloc_inodes);
+				clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+					  &BTRFS_I(inode)->runtime_flags);
+			}
+			spin_unlock(&root->fs_info->delalloc_lock);
 		}
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock(&BTRFS_I(inode)->lock);
 	}
 }
 
@@ -7326,14 +7339,19 @@ fail:
 static int btrfs_getattr(struct vfsmount *mnt,
 			 struct dentry *dentry, struct kstat *stat)
 {
+	u64 delalloc_bytes;
 	struct inode *inode = dentry->d_inode;
 	u32 blocksize = inode->i_sb->s_blocksize;
 
 	generic_fillattr(inode, stat);
 	stat->dev = BTRFS_I(inode)->root->anon_dev;
 	stat->blksize = PAGE_CACHE_SIZE;
+
+	spin_lock(&BTRFS_I(inode)->lock);
+	delalloc_bytes = BTRFS_I(inode)->delalloc_bytes;
+	spin_unlock(&BTRFS_I(inode)->lock);
 	stat->blocks = (ALIGN(inode_get_bytes(inode), blocksize) +
-		ALIGN(BTRFS_I(inode)->delalloc_bytes, blocksize)) >> 9;
+			ALIGN(delalloc_bytes, blocksize)) >> 9;
 	return 0;
 }
 
@@ -7620,8 +7638,11 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 		list_del_init(&binode->delalloc_inodes);
 
 		inode = igrab(&binode->vfs_inode);
-		if (!inode)
+		if (!inode) {
+			clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+				  &binode->runtime_flags);
 			continue;
+		}
 
 		list_add_tail(&binode->delalloc_inodes,
 			      &root->fs_info->delalloc_inodes);

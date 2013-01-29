@@ -3690,6 +3690,8 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 				    delalloc_inodes);
 
 		list_del_init(&btrfs_inode->delalloc_inodes);
+		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+			  &btrfs_inode->runtime_flags);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
 	}
