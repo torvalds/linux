@@ -612,6 +612,7 @@ struct cx231xx {
 	struct v4l2_subdev *sd_tuner;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl_handler radio_ctrl_handler;
+	struct cx2341x_handler mpeg_ctrl_handler;
 
 	struct work_struct wq_trigger;		/* Trigger to start/stop audio for alsa module */
 	atomic_t	   stream_started;	/* stream should be running if true */
@@ -715,7 +716,6 @@ struct cx231xx {
 	u8 USE_ISO;
 	struct cx231xx_tvnorm      encodernorm;
 	struct cx231xx_tsport      ts1, ts2;
-	struct cx2341x_mpeg_params mpeg_params;
 	struct video_device        *v4l_device;
 	atomic_t                   v4l_reader_count;
 	u32                        freq;
