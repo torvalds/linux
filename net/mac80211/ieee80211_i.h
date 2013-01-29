@@ -95,12 +95,6 @@ struct ieee80211_bss {
 	bool wmm_used;
 	bool uapsd_supported;
 
-#ifdef CONFIG_MAC80211_MESH
-	u8 *mesh_id;
-	size_t mesh_id_len;
-	u8 *mesh_cfg;
-#endif
-
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
@@ -150,31 +144,6 @@ enum ieee80211_bss_valid_data_flags {
 	IEEE80211_BSS_VALID_RATES		= BIT(2),
 	IEEE80211_BSS_VALID_ERP			= BIT(3)
 };
-
-static inline u8 *bss_mesh_cfg(struct ieee80211_bss *bss)
-{
-#ifdef CONFIG_MAC80211_MESH
-	return bss->mesh_cfg;
-#endif
-	return NULL;
-}
-
-static inline u8 *bss_mesh_id(struct ieee80211_bss *bss)
-{
-#ifdef CONFIG_MAC80211_MESH
-	return bss->mesh_id;
-#endif
-	return NULL;
-}
-
-static inline u8 bss_mesh_id_len(struct ieee80211_bss *bss)
-{
-#ifdef CONFIG_MAC80211_MESH
-	return bss->mesh_id_len;
-#endif
-	return 0;
-}
-
 
 typedef unsigned __bitwise__ ieee80211_tx_result;
 #define TX_CONTINUE	((__force ieee80211_tx_result) 0u)
