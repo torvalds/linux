@@ -56,6 +56,12 @@ struct rk29xx_spi_platform_data {
 	u16 num_chipselect;
 };
 
+enum {
+	BRIGHTNESS_MODE_LINE=0,
+	BRIGHTNESS_MODE_CONIC =1,
+};
+
+
 struct rk29_bl_info {
 	u32 pwm_id;
 	u32 bl_ref;
