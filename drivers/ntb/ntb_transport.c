@@ -58,7 +58,7 @@
 #include <linux/ntb.h>
 #include "ntb_hw.h"
 
-#define NTB_TRANSPORT_VERSION	2
+#define NTB_TRANSPORT_VERSION	3
 
 static unsigned int transport_mtu = 0x401E;
 module_param(transport_mtu, uint, 0644);
@@ -173,10 +173,13 @@ struct ntb_payload_header {
 
 enum {
 	VERSION = 0,
-	MW0_SZ,
-	MW1_SZ,
-	NUM_QPS,
 	QP_LINKS,
+	NUM_QPS,
+	NUM_MWS,
+	MW0_SZ_HIGH,
+	MW0_SZ_LOW,
+	MW1_SZ_HIGH,
+	MW1_SZ_LOW,
 	MAX_SPAD,
 };
 
@@ -526,6 +529,18 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 	return 0;
 }
 
+static void ntb_free_mw(struct ntb_transport *nt, int num_mw)
+{
+	struct ntb_transport_mw *mw = &nt->mw[num_mw];
+	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
+
+	if (!mw->virt_addr)
+		return;
+
+	dma_free_coherent(&pdev->dev, mw->size, mw->virt_addr, mw->dma_addr);
+	mw->virt_addr = NULL;
+}
+
 static void ntb_qp_link_cleanup(struct work_struct *work)
 {
 	struct ntb_transport_qp *qp = container_of(work,
@@ -604,25 +619,31 @@ static void ntb_transport_link_work(struct work_struct *work)
 	u32 val;
 	int rc, i;
 
-	/* send the local info */
-	rc = ntb_write_remote_spad(ndev, VERSION, NTB_TRANSPORT_VERSION);
-	if (rc) {
-		dev_err(&pdev->dev, "Error writing %x to remote spad %d\n",
-			0, VERSION);
-		goto out;
+	/* send the local info, in the opposite order of the way we read it */
+	for (i = 0; i < NTB_NUM_MW; i++) {
+		rc = ntb_write_remote_spad(ndev, MW0_SZ_HIGH + (i * 2),
+					   ntb_get_mw_size(ndev, i) >> 32);
+		if (rc) {
+			dev_err(&pdev->dev, "Error writing %u to remote spad %d\n",
+				(u32)(ntb_get_mw_size(ndev, i) >> 32),
+				MW0_SZ_HIGH + (i * 2));
+			goto out;
+		}
+
+		rc = ntb_write_remote_spad(ndev, MW0_SZ_LOW + (i * 2),
+					   (u32) ntb_get_mw_size(ndev, i));
+		if (rc) {
+			dev_err(&pdev->dev, "Error writing %u to remote spad %d\n",
+				(u32) ntb_get_mw_size(ndev, i),
+				MW0_SZ_LOW + (i * 2));
+			goto out;
+		}
 	}
 
-	rc = ntb_write_remote_spad(ndev, MW0_SZ, ntb_get_mw_size(ndev, 0));
+	rc = ntb_write_remote_spad(ndev, NUM_MWS, NTB_NUM_MW);
 	if (rc) {
 		dev_err(&pdev->dev, "Error writing %x to remote spad %d\n",
-			(u32) ntb_get_mw_size(ndev, 0), MW0_SZ);
-		goto out;
-	}
-
-	rc = ntb_write_remote_spad(ndev, MW1_SZ, ntb_get_mw_size(ndev, 1));
-	if (rc) {
-		dev_err(&pdev->dev, "Error writing %x to remote spad %d\n",
-			(u32) ntb_get_mw_size(ndev, 1), MW1_SZ);
+			NTB_NUM_MW, NUM_MWS);
 		goto out;
 	}
 
@@ -633,16 +654,10 @@ static void ntb_transport_link_work(struct work_struct *work)
 		goto out;
 	}
 
-	rc = ntb_read_local_spad(nt->ndev, QP_LINKS, &val);
-	if (rc) {
-		dev_err(&pdev->dev, "Error reading spad %d\n", QP_LINKS);
-		goto out;
-	}
-
-	rc = ntb_write_remote_spad(ndev, QP_LINKS, val);
+	rc = ntb_write_remote_spad(ndev, VERSION, NTB_TRANSPORT_VERSION);
 	if (rc) {
 		dev_err(&pdev->dev, "Error writing %x to remote spad %d\n",
-			val, QP_LINKS);
+			NTB_TRANSPORT_VERSION, VERSION);
 		goto out;
 	}
 
@@ -667,33 +682,43 @@ static void ntb_transport_link_work(struct work_struct *work)
 		goto out;
 	dev_dbg(&pdev->dev, "Remote max number of qps = %d\n", val);
 
-	rc = ntb_read_remote_spad(ndev, MW0_SZ, &val);
+	rc = ntb_read_remote_spad(ndev, NUM_MWS, &val);
 	if (rc) {
-		dev_err(&pdev->dev, "Error reading remote spad %d\n", MW0_SZ);
+		dev_err(&pdev->dev, "Error reading remote spad %d\n", NUM_MWS);
 		goto out;
 	}
 
-	if (!val)
+	if (val != NTB_NUM_MW)
 		goto out;
-	dev_dbg(&pdev->dev, "Remote MW0 size = %d\n", val);
+	dev_dbg(&pdev->dev, "Remote number of mws = %d\n", val);
 
-	rc = ntb_set_mw(nt, 0, val);
-	if (rc)
-		goto out;
+	for (i = 0; i < NTB_NUM_MW; i++) {
+		u64 val64;
 
-	rc = ntb_read_remote_spad(ndev, MW1_SZ, &val);
-	if (rc) {
-		dev_err(&pdev->dev, "Error reading remote spad %d\n", MW1_SZ);
-		goto out;
+		rc = ntb_read_remote_spad(ndev, MW0_SZ_HIGH + (i * 2), &val);
+		if (rc) {
+			dev_err(&pdev->dev, "Error reading remote spad %d\n",
+				MW0_SZ_HIGH + (i * 2));
+			goto out1;
+		}
+
+		val64 = (u64) val << 32;
+
+		rc = ntb_read_remote_spad(ndev, MW0_SZ_LOW + (i * 2), &val);
+		if (rc) {
+			dev_err(&pdev->dev, "Error reading remote spad %d\n",
+				MW0_SZ_LOW + (i * 2));
+			goto out1;
+		}
+
+		val64 |= val;
+
+		dev_dbg(&pdev->dev, "Remote MW%d size = %llu\n", i, val64);
+
+		rc = ntb_set_mw(nt, i, val64);
+		if (rc)
+			goto out1;
 	}
-
-	if (!val)
-		goto out;
-	dev_dbg(&pdev->dev, "Remote MW1 size = %d\n", val);
-
-	rc = ntb_set_mw(nt, 1, val);
-	if (rc)
-		goto out;
 
 	nt->transport_link = NTB_LINK_UP;
 
@@ -708,6 +733,9 @@ static void ntb_transport_link_work(struct work_struct *work)
 
 	return;
 
+out1:
+	for (i = 0; i < NTB_NUM_MW; i++)
+		ntb_free_mw(nt, i);
 out:
 	if (ntb_hw_link_status(ndev))
 		schedule_delayed_work(&nt->link_work,
@@ -897,10 +925,7 @@ void ntb_transport_free(void *transport)
 	pdev = ntb_query_pdev(nt->ndev);
 
 	for (i = 0; i < NTB_NUM_MW; i++)
-		if (nt->mw[i].virt_addr)
-			dma_free_coherent(&pdev->dev, nt->mw[i].size,
-					  nt->mw[i].virt_addr,
-					  nt->mw[i].dma_addr);
+		ntb_free_mw(nt, i);
 
 	kfree(nt->qps);
 	ntb_unregister_transport(nt->ndev);

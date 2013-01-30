@@ -1027,8 +1027,8 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ndev->mw[i].vbase =
 		    ioremap_wc(pci_resource_start(pdev, MW_TO_BAR(i)),
 			       ndev->mw[i].bar_sz);
-		dev_info(&pdev->dev, "MW %d size %d\n", i,
-			 (u32) pci_resource_len(pdev, MW_TO_BAR(i)));
+		dev_info(&pdev->dev, "MW %d size %llu\n", i,
+			 pci_resource_len(pdev, MW_TO_BAR(i)));
 		if (!ndev->mw[i].vbase) {
 			dev_warn(&pdev->dev, "Cannot remap BAR %d\n",
 				 MW_TO_BAR(i));
