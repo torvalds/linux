@@ -421,8 +421,6 @@ static void qc_set(struct qcam *q)
 	int val;
 	int val2;
 
-	qc_reset(q);
-
 	/* Set the brightness.  Yes, this is repetitive, but it works.
 	 * Shorter versions seem to fail subtly.  Feel free to try :-). */
 	/* I think the problem was in qc_command, not here -- bls */
@@ -879,10 +877,8 @@ static int qcam_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
-	if (ret == 0) {
-		qc_setscanmode(qcam);
+	if (ret == 0)
 		qcam->status |= QC_PARAM_CHANGE;
-	}
 	return ret;
 }
 
