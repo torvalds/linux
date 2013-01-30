@@ -839,6 +839,9 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	if (slot->flags & SLOT_ENABLED)
 		goto err_exit;
 
+	list_for_each_entry(func, &slot->funcs, sibling)
+		acpiphp_bus_add(func);
+
 	num = pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
 	if (num == 0) {
 		/* Maybe only part of funcs are added. */
@@ -861,9 +864,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 			}
 		}
 	}
-
-	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_add(func);
 
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
