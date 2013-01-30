@@ -193,6 +193,8 @@ static inline int calc_pages_for(u64 off, u64 len)
 }
 
 /* ceph_common.c */
+extern bool libceph_compatible(void *data);
+
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 extern struct kmem_cache *ceph_inode_cachep;

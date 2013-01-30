@@ -26,6 +26,22 @@
 #include "crypto.h"
 
 
+/*
+ * Module compatibility interface.  For now it doesn't do anything,
+ * but its existence signals a certain level of functionality.
+ *
+ * The data buffer is used to pass information both to and from
+ * libceph.  The return value indicates whether libceph determines
+ * it is compatible with the caller (from another kernel module),
+ * given the provided data.
+ *
+ * The data pointer can be null.
+ */
+bool libceph_compatible(void *data)
+{
+	return false;
+}
+EXPORT_SYMBOL(libceph_compatible);
 
 /*
  * find filename portion of a path (/foo/bar/baz -> baz)
