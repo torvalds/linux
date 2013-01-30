@@ -94,8 +94,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 		return;
 
 	/* restore the padding in iso packets */
-	if (usbip_pad_iso(ud, urb) < 0)
-		return;
+	usbip_pad_iso(ud, urb);
 
 	if (usbip_dbg_flag_vhci_rx)
 		usbip_dump_urb(urb);
