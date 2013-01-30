@@ -715,11 +715,8 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	 * Response frame, we need to pick one of the options and only use it
 	 * with the driver that does not provide the full Beacon/Probe Response
 	 * frame. Use Beacon frame pointer to avoid indicating that this should
-	 * override the iies pointer should we have received an earlier
+	 * override the IEs pointer should we have received an earlier
 	 * indication of Probe Response data.
-	 *
-	 * The initial buffer for the IEs is allocated with the BSS entry and
-	 * is located after the private area.
 	 */
 	ies = kmalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
