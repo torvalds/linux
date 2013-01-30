@@ -2399,7 +2399,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
 		if (ev->status && conn->state == BT_CONNECTED) {
-			hci_acl_disconn(conn, HCI_ERROR_AUTH_FAILURE);
+			hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
 			hci_conn_put(conn);
 			goto unlock;
 		}
@@ -3472,7 +3472,7 @@ static void hci_key_refresh_complete_evt(struct hci_dev *hdev,
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
 	if (ev->status && conn->state == BT_CONNECTED) {
-		hci_acl_disconn(conn, HCI_ERROR_AUTH_FAILURE);
+		hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
 		hci_conn_put(conn);
 		goto unlock;
 	}
