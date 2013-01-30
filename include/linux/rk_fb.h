@@ -238,7 +238,8 @@ struct rk_lcdc_device_driver{
 	struct completion  frame_done;		  //sync for pan_display,whe we set a new frame address to lcdc register,we must make sure the frame begain to display
 	spinlock_t  cpl_lock; 			 //lock for completion  frame done
 	int first_frame ;
-
+	struct rk_fb_vsync	 vsync_info;
+	
 	struct rk29fb_info *screen_ctr_info;
 	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
 	int (*init_lcdc)(struct rk_lcdc_device_driver *dev_drv);

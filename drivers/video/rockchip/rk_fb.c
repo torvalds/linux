@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/kthread.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -320,9 +321,14 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			dev_drv->num_buf = num_buf;
 			printk("rk fb use %d buffers\n",num_buf);
 			break;
+		case RK_FBIOSET_VSYNC_ENABLE:
+			if (copy_from_user(&enable, argp, sizeof(enable)))
+				return -EFAULT;
+			dev_drv->vsync_info.active = enable;
+			break;
         	default:
 			dev_drv->ioctl(dev_drv,cmd,arg,layer_id);
-            break;
+            		break;
     }
     return 0;
 }
@@ -634,6 +640,39 @@ static struct fb_fix_screeninfo def_fix = {
 	.visual 	 = FB_VISUAL_TRUECOLOR,
 		
 };
+
+
+static int rk_fb_wait_for_vsync_thread(void *data)
+{
+	struct rk_lcdc_device_driver  *dev_drv = data;
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct fb_info *fbi = inf->fb[0];
+
+	while (!kthread_should_stop()) {
+		ktime_t timestamp = dev_drv->vsync_info.timestamp;
+		int ret = wait_event_interruptible(dev_drv->vsync_info.wait,
+			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp) &&
+			dev_drv->vsync_info.active);
+
+		if (!ret) {
+			sysfs_notify(&fbi->dev->kobj, NULL, "vsync");
+		}
+	}
+
+	return 0;
+}
+
+static ssize_t rk_fb_vsync_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	return scnprintf(buf, PAGE_SIZE, "%llu\n",
+			ktime_to_ns(dev_drv->vsync_info.timestamp));
+}
+
+static DEVICE_ATTR(vsync, S_IRUGO, rk_fb_vsync_show, NULL);
 
 
 /*****************************************************************
@@ -1150,6 +1189,26 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 		    ret = -EINVAL;
 		}
 		rkfb_create_sysfs(fbi);
+
+		if(i == 0)
+		{
+			init_waitqueue_head(&dev_drv->vsync_info.wait);
+			ret = device_create_file(fbi->dev,&dev_attr_vsync);
+			if (ret) 
+			{
+				dev_err(fbi->dev, "failed to create vsync file\n");
+			}
+			dev_drv->vsync_info.thread = kthread_run(rk_fb_wait_for_vsync_thread,
+				dev_drv, "fb-vsync");
+
+			
+			if (dev_drv->vsync_info.thread == ERR_PTR(-ENOMEM)) 
+			{
+				dev_err(fbi->dev, "failed to run vsync thread\n");
+				dev_drv->vsync_info.thread = NULL;
+			}
+			dev_drv->vsync_info.active = 1;
+		}
 		fb_inf->fb[fb_inf->num_fb] = fbi;
 	        printk("%s>>>>>%s\n",__func__,fb_inf->fb[fb_inf->num_fb]->fix.id);
 	        fb_inf->num_fb++;	
