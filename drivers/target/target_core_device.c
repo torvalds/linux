@@ -772,6 +772,12 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("emulate_write_cache not supported for pSCSI\n");
 		return -EINVAL;
 	}
+	if (dev->transport->get_write_cache) {
+		pr_warn("emulate_write_cache cannot be changed when underlying"
+			" HW reports WriteCacheEnabled, ignoring request\n");
+		return 0;
+	}
+
 	dev->dev_attrib.emulate_write_cache = flag;
 	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
 			dev, dev->dev_attrib.emulate_write_cache);

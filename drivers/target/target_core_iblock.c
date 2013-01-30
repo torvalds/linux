@@ -154,6 +154,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
+
 	return 0;
 
 out_free_bioset:
@@ -654,20 +655,24 @@ iblock_execute_rw(struct se_cmd *cmd)
 	u32 sg_num = sgl_nents;
 	sector_t block_lba;
 	unsigned bio_cnt;
-	int rw;
+	int rw = 0;
 	int i;
 
 	if (data_direction == DMA_TO_DEVICE) {
+		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
-		 * Force data to disk if we pretend to not have a volatile
-		 * write cache, or the initiator set the Force Unit Access bit.
+		 * Force writethrough using WRITE_FUA if a volatile write cache
+		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
-		if (dev->dev_attrib.emulate_write_cache == 0 ||
-		    (dev->dev_attrib.emulate_fua_write > 0 &&
-		     (cmd->se_cmd_flags & SCF_FUA)))
-			rw = WRITE_FUA;
-		else
+		if (q->flush_flags & REQ_FUA) {
+			if (cmd->se_cmd_flags & SCF_FUA)
+				rw = WRITE_FUA;
+			else if (!(q->flush_flags & REQ_FLUSH))
+				rw = WRITE_FUA;
+		} else {
 			rw = WRITE;
+		}
 	} else {
 		rw = READ;
 	}
@@ -774,6 +779,15 @@ iblock_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
 }
 
+bool iblock_get_write_cache(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	struct request_queue *q = bdev_get_queue(bd);
+
+	return q->flush_flags & REQ_FLUSH;
+}
+
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
@@ -790,6 +804,7 @@ static struct se_subsystem_api iblock_template = {
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
+	.get_write_cache	= iblock_get_write_cache,
 };
 
 static int __init iblock_module_init(void)

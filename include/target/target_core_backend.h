@@ -35,6 +35,7 @@ struct se_subsystem_api {
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
+	bool (*get_write_cache)(struct se_device *);
 };
 
 struct sbc_ops {
