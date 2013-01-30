@@ -448,7 +448,8 @@ static bool __check_direct_spte_mmio_pf(u64 spte)
 
 static bool spte_is_locklessly_modifiable(u64 spte)
 {
-	return !(~spte & (SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE));
+	return (spte & (SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE)) ==
+		(SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE);
 }
 
 static bool spte_has_volatile_bits(u64 spte)
