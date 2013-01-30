@@ -37,17 +37,13 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
-#include <linux/interrupt.h>
-#include <linux/slab.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
-
-#include "8255.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
+
+#include "8255.h"
 
 static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				    void *priv_data)
