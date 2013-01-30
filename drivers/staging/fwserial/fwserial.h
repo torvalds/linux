@@ -280,7 +280,7 @@ struct fwtty_port {
 				   loopback:1;
 	unsigned long		   flags;
 
-	struct fwtty_peer	   *peer;
+	struct fwtty_peer __rcu	   *peer;
 
 	struct async_icount	   icount;
 	struct stats		   stats;
