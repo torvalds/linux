@@ -1261,7 +1261,7 @@ __sramfunc void ddr_move_to_Access_state(void)
     volatile uint32 value;
 
     //set auto self-refresh idle
-    pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|ddr_sr_idle;
+    pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|ddr_sr_idle | (1<<31);
     dsb();
 
     while(1)
@@ -1294,18 +1294,23 @@ __sramfunc void ddr_move_to_Access_state(void)
                 break;
         }
     }
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    pGRF_Reg_RK3066B->GRF_SOC_CON[2] = (1<<16 | 0);//de_hw_wakeup :enable auto sr if sr_idle != 0
+#else
+    pGRF_Reg->GRF_SOC_CON[2] = (1<<16 | 0);//de_hw_wakeup :enable auto sr if sr_idle != 0
+#endif
+
 }
 
 __sramfunc void ddr_move_to_Config_state(void)
 {
     volatile uint32 value;
-
-    //clear auto self-refresh idle
-    if(pDDR_Reg->MCFG1 & 0xFF)
-    {
-        pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|0x0;
-        dsb();
-    }
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+    pGRF_Reg_RK3066B->GRF_SOC_CON[2] = (1<<16 | 1); //hw_wakeup :disable auto sr
+#else
+    pGRF_Reg->GRF_SOC_CON[2] = (1<<16 | 1); //hw_wakeup :disable auto sr
+#endif
+	dsb();
 
     while(1)
     {
@@ -3475,7 +3480,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130125 \n");
+    ddr_print("version 1.00 20130130 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
