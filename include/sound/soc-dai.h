@@ -45,7 +45,7 @@ struct snd_compr_stream;
  * sending or receiving PCM data in a frame. This can be used to save power.
  */
 #define SND_SOC_DAIFMT_CONT		(1 << 4) /* continuous clock */
-#define SND_SOC_DAIFMT_GATED		(2 << 4) /* clock is gated */
+#define SND_SOC_DAIFMT_GATED		(0 << 4) /* clock is gated */
 
 /*
  * DAI hardware signal inversions.
