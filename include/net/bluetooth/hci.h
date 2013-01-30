@@ -943,6 +943,12 @@ struct hci_rp_le_read_buffer_size {
 	__u8     le_max_pkt;
 } __packed;
 
+#define HCI_OP_LE_READ_LOCAL_FEATURES	0x2003
+struct hci_rp_le_read_local_features {
+	__u8     status;
+	__u8     features[8];
+} __packed;
+
 #define HCI_OP_LE_READ_ADV_TX_POWER	0x2007
 struct hci_rp_le_read_adv_tx_power {
 	__u8	status;
@@ -995,6 +1001,12 @@ struct hci_cp_le_create_conn {
 
 #define HCI_OP_LE_CREATE_CONN_CANCEL	0x200e
 
+#define HCI_OP_LE_READ_WHITE_LIST_SIZE	0x200f
+struct hci_rp_le_read_white_list_size {
+	__u8	status;
+	__u8	size;
+} __packed;
+
 #define HCI_OP_LE_CONN_UPDATE		0x2013
 struct hci_cp_le_conn_update {
 	__le16   handle;
@@ -1031,6 +1043,12 @@ struct hci_cp_le_ltk_neg_reply {
 struct hci_rp_le_ltk_neg_reply {
 	__u8	status;
 	__le16	handle;
+} __packed;
+
+#define HCI_OP_LE_READ_SUPPORTED_STATES	0x201c
+struct hci_rp_le_read_supported_states {
+	__u8	status;
+	__u8	le_states[8];
 } __packed;
 
 /* ---- HCI Events ---- */

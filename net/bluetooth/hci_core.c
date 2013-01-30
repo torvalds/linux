@@ -1146,7 +1146,8 @@ static void hci_power_on(struct work_struct *work)
 		return;
 
 	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-		schedule_delayed_work(&hdev->power_off, HCI_AUTO_OFF_TIMEOUT);
+		queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
+				   HCI_AUTO_OFF_TIMEOUT);
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
 		mgmt_index_added(hdev);
@@ -1621,8 +1622,8 @@ static int hci_do_le_scan(struct hci_dev *hdev, u8 type, u16 interval,
 	if (err < 0)
 		return err;
 
-	schedule_delayed_work(&hdev->le_scan_disable,
-			      msecs_to_jiffies(timeout));
+	queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
+			   msecs_to_jiffies(timeout));
 
 	return 0;
 }
@@ -1799,6 +1800,15 @@ int hci_register_dev(struct hci_dev *hdev)
 		goto err;
 	}
 
+	hdev->req_workqueue = alloc_workqueue(hdev->name,
+					      WQ_HIGHPRI | WQ_UNBOUND |
+					      WQ_MEM_RECLAIM, 1);
+	if (!hdev->req_workqueue) {
+		destroy_workqueue(hdev->workqueue);
+		error = -ENOMEM;
+		goto err;
+	}
+
 	error = hci_add_sysfs(hdev);
 	if (error < 0)
 		goto err_wqueue;
@@ -1821,12 +1831,13 @@ int hci_register_dev(struct hci_dev *hdev)
 	hci_notify(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
-	schedule_work(&hdev->power_on);
+	queue_work(hdev->req_workqueue, &hdev->power_on);
 
 	return id;
 
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
+	destroy_workqueue(hdev->req_workqueue);
 err:
 	ida_simple_remove(&hci_index_ida, hdev->id);
 	write_lock(&hci_dev_list_lock);
@@ -1880,6 +1891,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_del_sysfs(hdev);
 
 	destroy_workqueue(hdev->workqueue);
+	destroy_workqueue(hdev->req_workqueue);
 
 	hci_dev_lock(hdev);
 	hci_blacklist_clear(hdev);
