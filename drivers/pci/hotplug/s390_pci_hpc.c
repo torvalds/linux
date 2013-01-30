@@ -231,7 +231,7 @@ static int __init pci_hotplug_s390_init(void)
 	 * right now.
 	 */
 
-	if (!pci_probe)
+	if (!s390_pci_probe)
 		return -EOPNOTSUPP;
 
 	/* register callbacks for slot handling from arch code */

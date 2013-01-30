@@ -1072,13 +1072,13 @@ static void zpci_mem_exit(void)
 	kmem_cache_destroy(zdev_fmb_cache);
 }
 
-unsigned int pci_probe = 1;
-EXPORT_SYMBOL_GPL(pci_probe);
+unsigned int s390_pci_probe = 1;
+EXPORT_SYMBOL_GPL(s390_pci_probe);
 
 char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
-		pci_probe = 0;
+		s390_pci_probe = 0;
 		return NULL;
 	}
 	return str;
@@ -1088,7 +1088,7 @@ static int __init pci_base_init(void)
 {
 	int rc;
 
-	if (!pci_probe)
+	if (!s390_pci_probe)
 		return 0;
 
 	if (!test_facility(2) || !test_facility(69)
