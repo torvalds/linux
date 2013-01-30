@@ -2894,6 +2894,8 @@ enum blk_eh_timer_return dasd_times_out(struct request *req)
 		return BLK_EH_NOT_HANDLED;
 
 	device = cqr->startdev ? cqr->startdev : block->base;
+	if (!device->blk_timeout)
+		return BLK_EH_RESET_TIMER;
 	DBF_DEV_EVENT(DBF_WARNING, device,
 		      " dasd_times_out cqr %p status %x",
 		      cqr, cqr->status);

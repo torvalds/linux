@@ -470,6 +470,8 @@ struct dasd_device {
 	unsigned long default_expires;
 	unsigned long default_retries;
 
+	unsigned long blk_timeout;
+
 	struct dentry *debugfs_dentry;
 	struct dasd_profile profile;
 };
@@ -662,6 +664,8 @@ void dasd_free_device(struct dasd_device *);
 
 struct dasd_block *dasd_alloc_block(void);
 void dasd_free_block(struct dasd_block *);
+
+enum blk_eh_timer_return dasd_times_out(struct request *req);
 
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
