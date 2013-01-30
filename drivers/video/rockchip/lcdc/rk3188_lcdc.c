@@ -779,6 +779,7 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int enable;
+	int zorder;
 	switch(cmd)
 	{
 		case FBIOGET_PANEL_SIZE:    //get panel size
@@ -795,6 +796,12 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 				return -EFAULT;
 			lcdc_dev->vsync_info.active = enable;
 			break;
+		case  RK_FBIOSET_W0W1_ZORDER_SWAP:
+			if (copy_from_user(&zorder, argp, sizeof(zorder)))
+				return -EFAULT;
+			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN0_TOP,v_WIN0_TOP(zorder));
+			break;
+			
 		default:
 			break;
 	}
