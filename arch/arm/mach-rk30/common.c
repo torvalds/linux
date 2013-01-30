@@ -160,6 +160,9 @@ static void __init rk30_boot_mode_init(void)
 	}
 	if (boot_mode || ((boot_flag & 0xff) && ((boot_flag & 0xffffff00) == SYS_KERNRL_REBOOT_FLAG)))
 		printk("Boot mode: %s (%d) flag: %s (0x%08x)\n", boot_mode_name(boot_mode), boot_mode, boot_flag_name(boot_flag), boot_flag);
+#ifdef CONFIG_RK29_WATCHDOG
+	writel_relaxed(BOOT_MODE_WATCHDOG, RK30_PMU_BASE + PMU_SYS_REG1);
+#endif
 }
 
 int board_boot_mode(void)
