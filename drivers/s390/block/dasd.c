@@ -2183,7 +2183,7 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 		    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
 		    (!dasd_eer_enabled(device))) {
 			cqr->status = DASD_CQR_FAILED;
-			cqr->intrc = -EAGAIN;
+			cqr->intrc = -ENOLINK;
 			continue;
 		}
 		/* Don't try to start requests if device is stopped */
@@ -2590,8 +2590,17 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 	req = (struct request *) cqr->callback_data;
 	dasd_profile_end(cqr->block, cqr, req);
 	status = cqr->block->base->discipline->free_cp(cqr, req);
-	if (status <= 0)
-		error = status ? status : -EIO;
+	if (status < 0)
+		error = status;
+	else if (status == 0) {
+		if (cqr->intrc == -EPERM)
+			error = -EBADE;
+		else if (cqr->intrc == -ENOLINK ||
+			 cqr->intrc == -ETIMEDOUT)
+			error = cqr->intrc;
+		else
+			error = -EIO;
+	}
 	__blk_end_request_all(req, error);
 }
 
@@ -2692,6 +2701,7 @@ static void __dasd_block_start_head(struct dasd_block *block)
 		    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
 		    (!dasd_eer_enabled(block->base))) {
 			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -ENOLINK;
 			dasd_schedule_block_bh(block);
 			continue;
 		}

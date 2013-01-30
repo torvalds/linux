@@ -2315,6 +2315,9 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		case -EBADE:
 			error_type = "critical nexus";
 			break;
+		case -ETIMEDOUT:
+			error_type = "timeout";
+			break;
 		case -EIO:
 		default:
 			error_type = "I/O";
