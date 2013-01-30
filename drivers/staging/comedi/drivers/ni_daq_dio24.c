@@ -83,24 +83,13 @@ static const struct dio24_board_struct dio24_boards[] = {
 	 },
 };
 
-struct dio24_private {
-
-	int data;		/* number of data points left to be taken */
-};
-
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio24_board_struct *thisboard = comedi_board(dev);
-	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 	struct pcmcia_device *link;
 	int ret;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
