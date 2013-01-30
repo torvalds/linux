@@ -23,8 +23,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
 #include <linux/errno.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
@@ -494,33 +492,3 @@ void comedi_auto_unconfig(struct device *hardware_device)
 	comedi_free_board_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
-
-#if IS_ENABLED(CONFIG_PCMCIA)
-int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,
-		struct pcmcia_driver *pcmcia_driver)
-{
-	int ret;
-
-	ret = comedi_driver_register(comedi_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(pcmcia_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(comedi_driver);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_register);
-
-void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
-		struct pcmcia_driver *pcmcia_driver)
-{
-	pcmcia_unregister_driver(pcmcia_driver);
-	comedi_driver_unregister(comedi_driver);
-}
-EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_unregister);
-
-#endif

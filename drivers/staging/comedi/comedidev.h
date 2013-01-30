@@ -278,27 +278,6 @@ int comedi_driver_unregister(struct comedi_driver *);
 	module_driver(__comedi_driver, comedi_driver_register, \
 			comedi_driver_unregister)
 
-struct pcmcia_driver;
-
-int comedi_pcmcia_driver_register(struct comedi_driver *,
-					struct pcmcia_driver *);
-void comedi_pcmcia_driver_unregister(struct comedi_driver *,
-					struct pcmcia_driver *);
-
-/**
- * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
- * @__comedi_driver: comedi_driver struct
- * @__pcmcia_driver: pcmcia_driver struct
- *
- * Helper macro for comedi PCMCIA drivers which do not do anything special
- * in module init/exit. This eliminates a lot of boilerplate. Each
- * module may only use this macro once, and calling it replaces
- * module_init() and module_exit()
- */
-#define module_comedi_pcmcia_driver(__comedi_driver, __pcmcia_driver) \
-	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
-			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
-
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(struct comedi_device *);
@@ -480,6 +459,33 @@ static inline void comedi_pci_disable(struct pci_dev *dev)
 }
 
 #endif /* CONFIG_COMEDI_PCI_DRIVERS */
+
+#ifdef CONFIG_COMEDI_PCMCIA_DRIVERS
+
+/* comedi_pcmcia.c - comedi PCMCIA driver specific functions */
+
+struct pcmcia_driver;
+
+int comedi_pcmcia_driver_register(struct comedi_driver *,
+					struct pcmcia_driver *);
+void comedi_pcmcia_driver_unregister(struct comedi_driver *,
+					struct pcmcia_driver *);
+
+/**
+ * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
+ * @__comedi_driver: comedi_driver struct
+ * @__pcmcia_driver: pcmcia_driver struct
+ *
+ * Helper macro for comedi PCMCIA drivers which do not do anything special
+ * in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces
+ * module_init() and module_exit()
+ */
+#define module_comedi_pcmcia_driver(__comedi_driver, __pcmcia_driver) \
+	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
+			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
+
+#endif /* CONFIG_COMEDI_PCMCIA_DRIVERS */
 
 #ifdef CONFIG_COMEDI_USB_DRIVERS
 
