@@ -16,7 +16,7 @@
 
 /* Timing */
 #define H_PW			5
-#define H_BP			600
+#define H_BP			400
 
 #if defined(CONFIG_ARCH_RK3066B)
 #define H_VD			2047
