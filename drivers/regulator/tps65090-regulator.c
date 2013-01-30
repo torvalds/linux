@@ -186,7 +186,7 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 		return ERR_PTR(-ENODEV);
 	}
 
-	ret = of_regulator_match(pdev->dev.parent, regulators, tps65090_matches,
+	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
 			ARRAY_SIZE(tps65090_matches));
 	if (ret < 0) {
 		dev_err(&pdev->dev,
