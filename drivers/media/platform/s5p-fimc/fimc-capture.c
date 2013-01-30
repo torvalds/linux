@@ -1688,16 +1688,6 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 	fimc_capture_try_selection(ctx, r, V4L2_SEL_TGT_CROP);
 
 	switch (sel->target) {
-	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
-		f = &ctx->d_frame;
-	case V4L2_SEL_TGT_CROP_BOUNDS:
-		r->width = f->o_width;
-		r->height = f->o_height;
-		r->left = 0;
-		r->top = 0;
-		mutex_unlock(&fimc->lock);
-		return 0;
-
 	case V4L2_SEL_TGT_CROP:
 		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
 		break;
@@ -1716,9 +1706,9 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		spin_lock_irqsave(&fimc->slock, flags);
 		set_frame_crop(f, r->left, r->top, r->width, r->height);
 		set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
-		spin_unlock_irqrestore(&fimc->slock, flags);
 		if (sel->target == V4L2_SEL_TGT_COMPOSE)
 			ctx->state |= FIMC_COMPOSE;
+		spin_unlock_irqrestore(&fimc->slock, flags);
 	}
 
 	dbg("target %#x: (%d,%d)/%dx%d", sel->target, r->left, r->top,
