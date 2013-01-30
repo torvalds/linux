@@ -28,9 +28,6 @@ static const unsigned max_num_devices = 32;
 
 /*-- Configurable parameters */
 
-/* Default zram disk size: 25% of total RAM */
-static const unsigned default_disksize_perc_ram = 25;
-
 /*
  * Pages that compress to size greater than this are stored
  * uncompressed in memory.
@@ -115,6 +112,6 @@ extern struct attribute_group zram_disk_attr_group;
 #endif
 
 extern int zram_init_device(struct zram *zram);
-extern void __zram_reset_device(struct zram *zram);
+extern void zram_reset_device(struct zram *zram);
 
 #endif
