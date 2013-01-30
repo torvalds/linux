@@ -229,8 +229,6 @@ static void reset_buffer_flags(struct tty_struct *tty)
 	ldata->canon_head = ldata->canon_data = ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 	n_tty_set_room(tty);
-
-	check_unthrottle(tty);
 }
 
 /**
