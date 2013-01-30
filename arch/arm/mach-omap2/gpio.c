@@ -131,8 +131,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	pwrdm = omap_hwmod_get_pwrdm(oh);
 	pdata->loses_context = pwrdm_can_ever_lose_context(pwrdm);
 
-	pdev = omap_device_build(name, id - 1, oh, pdata,
-				sizeof(*pdata),	NULL, 0, false);
+	pdev = omap_device_build(name, id - 1, oh, pdata, sizeof(*pdata));
 	kfree(pdata);
 
 	if (IS_ERR(pdev)) {

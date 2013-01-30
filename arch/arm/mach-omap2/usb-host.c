@@ -42,14 +42,6 @@ static struct usbtll_omap_platform_data		usbtll_data;
 static struct ehci_hcd_omap_platform_data	ehci_data;
 static struct ohci_hcd_omap_platform_data	ohci_data;
 
-static struct omap_device_pm_latency omap_uhhtll_latency[] = {
-	  {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func	 = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	  },
-};
-
 /* MUX settings for EHCI pins */
 /*
  * setup_ehci_io_mux - initialize IO pad mux for USBHOST
@@ -530,9 +522,7 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 	}
 
 	pdev = omap_device_build(OMAP_USBTLL_DEVICE, bus_id, tll_hwm,
-				&usbtll_data, sizeof(usbtll_data),
-				omap_uhhtll_latency,
-				ARRAY_SIZE(omap_uhhtll_latency), false);
+				 &usbtll_data, sizeof(usbtll_data));
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod device %s\n",
 		       USBHS_TLL_HWMODNAME);
@@ -540,9 +530,7 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 	}
 
 	pdev = omap_device_build(OMAP_USBHS_DEVICE, bus_id, uhh_hwm,
-				&usbhs_data, sizeof(usbhs_data),
-				omap_uhhtll_latency,
-				ARRAY_SIZE(omap_uhhtll_latency), false);
+				&usbhs_data, sizeof(usbhs_data));
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod devices %s\n",
 		       USBHS_UHH_HWMODNAME);
