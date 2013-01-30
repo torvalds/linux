@@ -1100,7 +1100,7 @@ void p9_client_begin_disconnect(struct p9_client *clnt)
 EXPORT_SYMBOL(p9_client_begin_disconnect);
 
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
-	char *uname, u32 n_uname, char *aname)
+	char *uname, kuid_t n_uname, char *aname)
 {
 	int err = 0;
 	struct p9_req_t *req;
@@ -1117,7 +1117,7 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 		goto error;
 	}
 
-	req = p9_client_rpc(clnt, P9_TATTACH, "ddss?d", fid->fid,
+	req = p9_client_rpc(clnt, P9_TATTACH, "ddss?u", fid->fid,
 			afid ? afid->fid : P9_NOFID, uname, aname, n_uname);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
@@ -1270,7 +1270,7 @@ error:
 EXPORT_SYMBOL(p9_client_open);
 
 int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
-		gid_t gid, struct p9_qid *qid)
+		kgid_t gid, struct p9_qid *qid)
 {
 	int err = 0;
 	struct p9_client *clnt;
@@ -1279,13 +1279,14 @@ int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
 
 	p9_debug(P9_DEBUG_9P,
 			">>> TLCREATE fid %d name %s flags %d mode %d gid %d\n",
-			ofid->fid, name, flags, mode, gid);
+			ofid->fid, name, flags, mode,
+		 	from_kgid(&init_user_ns, gid));
 	clnt = ofid->clnt;
 
 	if (ofid->mode != -1)
 		return -EINVAL;
 
-	req = p9_client_rpc(clnt, P9_TLCREATE, "dsddd", ofid->fid, name, flags,
+	req = p9_client_rpc(clnt, P9_TLCREATE, "dsddg", ofid->fid, name, flags,
 			mode, gid);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
@@ -1358,7 +1359,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fcreate);
 
-int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, gid_t gid,
+int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, kgid_t gid,
 		struct p9_qid *qid)
 {
 	int err = 0;
@@ -1369,7 +1370,7 @@ int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, gid_t gid,
 			dfid->fid, name, symtgt);
 	clnt = dfid->clnt;
 
-	req = p9_client_rpc(clnt, P9_TSYMLINK, "dssd", dfid->fid, name, symtgt,
+	req = p9_client_rpc(clnt, P9_TSYMLINK, "dssg", dfid->fid, name, symtgt,
 			gid);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
@@ -2106,7 +2107,7 @@ error:
 EXPORT_SYMBOL(p9_client_readdir);
 
 int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
-			dev_t rdev, gid_t gid, struct p9_qid *qid)
+			dev_t rdev, kgid_t gid, struct p9_qid *qid)
 {
 	int err;
 	struct p9_client *clnt;
@@ -2116,7 +2117,7 @@ int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
 	clnt = fid->clnt;
 	p9_debug(P9_DEBUG_9P, ">>> TMKNOD fid %d name %s mode %d major %d "
 		"minor %d\n", fid->fid, name, mode, MAJOR(rdev), MINOR(rdev));
-	req = p9_client_rpc(clnt, P9_TMKNOD, "dsdddd", fid->fid, name, mode,
+	req = p9_client_rpc(clnt, P9_TMKNOD, "dsdddg", fid->fid, name, mode,
 		MAJOR(rdev), MINOR(rdev), gid);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -2137,7 +2138,7 @@ error:
 EXPORT_SYMBOL(p9_client_mknod_dotl);
 
 int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
-				gid_t gid, struct p9_qid *qid)
+				kgid_t gid, struct p9_qid *qid)
 {
 	int err;
 	struct p9_client *clnt;
@@ -2146,8 +2147,8 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
 	err = 0;
 	clnt = fid->clnt;
 	p9_debug(P9_DEBUG_9P, ">>> TMKDIR fid %d name %s mode %d gid %d\n",
-		 fid->fid, name, mode, gid);
-	req = p9_client_rpc(clnt, P9_TMKDIR, "dsdd", fid->fid, name, mode,
+		 fid->fid, name, mode, from_kgid(&init_user_ns, gid));
+	req = p9_client_rpc(clnt, P9_TMKDIR, "dsdg", fid->fid, name, mode,
 		gid);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
