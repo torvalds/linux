@@ -25,6 +25,7 @@
 
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
+void acpi_pci_root_init(void);
 int acpi_sysfs_init(void);
 void acpi_csrt_init(void);
 
@@ -86,7 +87,6 @@ struct acpi_ec {
 
 extern struct acpi_ec *first_ec;
 
-int acpi_pci_root_init(void);
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
 int acpi_boot_ec_enable(void);

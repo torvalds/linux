@@ -45,8 +45,9 @@
 ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
-static int acpi_pci_root_add(struct acpi_device *device);
-static int acpi_pci_root_remove(struct acpi_device *device);
+static int acpi_pci_root_add(struct acpi_device *device,
+			     const struct acpi_device_id *not_used);
+static void acpi_pci_root_remove(struct acpi_device *device);
 
 #define ACPI_PCIE_REQ_SUPPORT (OSC_EXT_PCI_CONFIG_SUPPORT \
 				| OSC_ACTIVE_STATE_PWR_SUPPORT \
@@ -57,16 +58,11 @@ static const struct acpi_device_id root_device_ids[] = {
 	{"PNP0A03", 0},
 	{"", 0},
 };
-MODULE_DEVICE_TABLE(acpi, root_device_ids);
 
-static struct acpi_driver acpi_pci_root_driver = {
-	.name = "pci_root",
-	.class = ACPI_PCI_ROOT_CLASS,
+static struct acpi_scan_handler pci_root_handler = {
 	.ids = root_device_ids,
-	.ops = {
-		.add = acpi_pci_root_add,
-		.remove = acpi_pci_root_remove,
-		},
+	.attach = acpi_pci_root_add,
+	.detach = acpi_pci_root_remove,
 };
 
 /* Lock to protect both acpi_pci_roots and acpi_pci_drivers lists */
@@ -428,7 +424,8 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static int acpi_pci_root_add(struct acpi_device *device)
+static int acpi_pci_root_add(struct acpi_device *device,
+			     const struct acpi_device_id *not_used)
 {
 	unsigned long long segment, bus;
 	acpi_status status;
@@ -614,7 +611,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		pci_enable_bridges(root->bus);
 
 	pci_bus_add_devices(root->bus);
-	return 0;
+	return 1;
 
 out_del_root:
 	mutex_lock(&acpi_pci_root_lock);
@@ -627,7 +624,7 @@ end:
 	return result;
 }
 
-static int acpi_pci_root_remove(struct acpi_device *device)
+static void acpi_pci_root_remove(struct acpi_device *device)
 {
 	acpi_status status;
 	acpi_handle handle;
@@ -655,19 +652,14 @@ static int acpi_pci_root_remove(struct acpi_device *device)
 	list_del(&root->node);
 	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
-	return 0;
 }
 
-int __init acpi_pci_root_init(void)
+void __init acpi_pci_root_init(void)
 {
 	acpi_hest_init();
 
-	if (acpi_pci_disabled)
-		return 0;
-
-	pci_acpi_crs_quirks();
-	if (acpi_bus_register_driver(&acpi_pci_root_driver) < 0)
-		return -ENODEV;
-
-	return 0;
+	if (!acpi_pci_disabled) {
+		pci_acpi_crs_quirks();
+		acpi_scan_add_handler(&pci_root_handler);
+	}
 }
