@@ -513,6 +513,10 @@ int __jbd2_log_space_left(journal_t *journal)
  */
 int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 {
+	/* Return if the txn has already requested to be committed */
+	if (journal->j_commit_request == target)
+		return 0;
+
 	/*
 	 * The only transaction we can possibly wait upon is the
 	 * currently running transaction (if it exists).  Otherwise,
