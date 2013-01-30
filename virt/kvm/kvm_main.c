@@ -754,7 +754,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	struct kvm_memory_slot *slot;
 	struct kvm_memory_slot old, new;
 	struct kvm_memslots *slots = NULL, *old_memslots;
-	bool old_iommu_mapped;
 	enum kvm_mr_change change;
 
 	r = check_memory_region_flags(mem);
@@ -797,15 +796,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	new.npages = npages;
 	new.flags = mem->flags;
 
-	old_iommu_mapped = old.npages;
-
 	r = -EINVAL;
 	if (npages) {
 		if (!old.npages)
 			change = KVM_MR_CREATE;
 		else { /* Modify an existing slot. */
 			if ((mem->userspace_addr != old.userspace_addr) ||
-			    (npages != old.npages))
+			    (npages != old.npages) ||
+			    ((new.flags ^ old.flags) & KVM_MEM_READONLY))
 				goto out;
 
 			if (base_gfn != old.base_gfn)
@@ -867,7 +865,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		/* slot was deleted or moved, clear iommu mapping */
 		kvm_iommu_unmap_pages(kvm, &old);
-		old_iommu_mapped = false;
 		/* From this point no new shadow pages pointing to a deleted,
 		 * or moved, memslot will be created.
 		 *
@@ -898,25 +895,17 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	/*
 	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
-	 * un-mapped and re-mapped if their base changes or if flags that the
-	 * iommu cares about change (read-only).  Base change unmapping is
-	 * handled above with slot deletion, so we only unmap incompatible
-	 * flags here.  Anything else the iommu might care about for existing
-	 * slots (size changes, userspace addr changes) is disallowed above,
-	 * so any other attribute changes getting here can be skipped.
+	 * un-mapped and re-mapped if their base changes.  Since base change
+	 * unmapping is handled above with slot deletion, mapping alone is
+	 * needed here.  Anything else the iommu might care about for existing
+	 * slots (size changes, userspace addr changes and read-only flag
+	 * changes) is disallowed above, so any other attribute changes getting
+	 * here can be skipped.
 	 */
-	if (change != KVM_MR_DELETE) {
-		if (old_iommu_mapped &&
-		    ((new.flags ^ old.flags) & KVM_MEM_READONLY)) {
-			kvm_iommu_unmap_pages(kvm, &old);
-			old_iommu_mapped = false;
-		}
-
-		if (!old_iommu_mapped) {
-			r = kvm_iommu_map_pages(kvm, &new);
-			if (r)
-				goto out_slots;
-		}
+	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
+		r = kvm_iommu_map_pages(kvm, &new);
+		if (r)
+			goto out_slots;
 	}
 
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
