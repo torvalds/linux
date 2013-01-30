@@ -53,6 +53,7 @@
 #define FBIOGET_ENABLE			0x5020
 #define RK_FBIOSET_CONFIG_DONE		0x4628
 #define RK_FBIOSET_VSYNC_ENABLE		0x4629
+#define RK_FBIOSET_W0W1_ZORDER_SWAP	0x4630
 
 
 /********************************************************************
