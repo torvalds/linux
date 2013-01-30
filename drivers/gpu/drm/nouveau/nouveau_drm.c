@@ -34,6 +34,8 @@
 #include <subdev/device.h>
 #include <subdev/vm.h>
 
+#include <engine/disp.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_irq.h"
 #include "nouveau_dma.h"
@@ -67,6 +69,32 @@ int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
 static struct drm_driver driver;
+
+static int
+nouveau_drm_vblank_enable(struct drm_device *dev, int head)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
+	nouveau_event_get(pdisp->vblank, head, &drm->vblank);
+	return 0;
+}
+
+static void
+nouveau_drm_vblank_disable(struct drm_device *dev, int head)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
+	nouveau_event_put(pdisp->vblank, head, &drm->vblank);
+}
+
+static int
+nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
+{
+	struct nouveau_drm *drm =
+		container_of(event, struct nouveau_drm, vblank);
+	drm_handle_vblank(drm->dev, head);
+	return NVKM_EVENT_KEEP;
+}
 
 static u64
 nouveau_name(struct pci_dev *pdev)
@@ -259,6 +287,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
+	drm->vblank.func = nouveau_drm_vblank_handler;
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
@@ -643,8 +672,8 @@ driver = {
 	.irq_handler = nouveau_irq_handler,
 
 	.get_vblank_counter = drm_vblank_count,
-	.enable_vblank = nouveau_vblank_enable,
-	.disable_vblank = nouveau_vblank_disable,
+	.enable_vblank = nouveau_drm_vblank_enable,
+	.disable_vblank = nouveau_drm_vblank_disable,
 
 	.ioctls = nouveau_ioctls,
 	.fops = &nouveau_driver_fops,

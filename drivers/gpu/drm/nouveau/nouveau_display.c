@@ -41,6 +41,8 @@
 #include <subdev/gpio.h>
 #include <engine/disp.h>
 
+#include <core/class.h>
+
 static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 {
@@ -257,29 +259,10 @@ nouveau_display_fini(struct drm_device *dev)
 	disp->fini(dev);
 }
 
-static void
-nouveau_display_vblank_notify(void *data, int crtc)
-{
-	drm_handle_vblank(data, crtc);
-}
-
-static void
-nouveau_display_vblank_get(void *data, int crtc)
-{
-	drm_vblank_get(data, crtc);
-}
-
-static void
-nouveau_display_vblank_put(void *data, int crtc)
-{
-	drm_vblank_put(data, crtc);
-}
-
 int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 	struct nouveau_display *disp;
 	u32 pclass = dev->pdev->class >> 8;
 	int ret, gen;
@@ -287,11 +270,6 @@ nouveau_display_create(struct drm_device *dev)
 	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
-
-	pdisp->vblank.data = dev;
-	pdisp->vblank.notify = nouveau_display_vblank_notify;
-	pdisp->vblank.get = nouveau_display_vblank_get;
-	pdisp->vblank.put = nouveau_display_vblank_put;
 
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
@@ -472,39 +450,6 @@ nouveau_display_resume(struct drm_device *dev)
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}
-}
-
-int
-nouveau_vblank_enable(struct drm_device *dev, int crtc)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-
-	if (device->card_type >= NV_D0)
-		nv_mask(device, 0x6100c0 + (crtc * 0x800), 1, 1);
-	else
-	if (device->card_type >= NV_50)
-		nv_mask(device, NV50_PDISPLAY_INTR_EN_1, 0,
-			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc));
-	else
-		NVWriteCRTC(dev, crtc, NV_PCRTC_INTR_EN_0,
-			    NV_PCRTC_INTR_0_VBLANK);
-
-	return 0;
-}
-
-void
-nouveau_vblank_disable(struct drm_device *dev, int crtc)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-
-	if (device->card_type >= NV_D0)
-		nv_mask(device, 0x6100c0 + (crtc * 0x800), 1, 0);
-	else
-	if (device->card_type >= NV_50)
-		nv_mask(device, NV50_PDISPLAY_INTR_EN_1,
-			NV50_PDISPLAY_INTR_EN_1_VBLANK_CRTC_(crtc), 0);
-	else
-		NVWriteCRTC(dev, crtc, NV_PCRTC_INTR_EN_0, 0);
 }
 
 static int

@@ -25,6 +25,9 @@
 #include <core/os.h>
 #include <core/class.h>
 #include <core/engctx.h>
+#include <core/event.h>
+
+#include <subdev/bar.h>
 
 #include <engine/software.h>
 #include <engine/disp.h>
@@ -72,18 +75,12 @@ nvc0_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 {
 	struct nvc0_software_chan *chan = (void *)nv_engctx(object->parent);
 	struct nouveau_disp *disp = nouveau_disp(object);
-	unsigned long flags;
 	u32 crtc = *(u32 *)args;
 
 	if ((nv_device(object)->card_type < NV_E0 && crtc > 1) || crtc > 3)
 		return -EINVAL;
 
-	disp->vblank.get(disp->vblank.data, crtc);
-
-	spin_lock_irqsave(&disp->vblank.lock, flags);
-	list_add(&chan->base.vblank.head, &disp->vblank.list);
-	chan->base.vblank.crtc = crtc;
-	spin_unlock_irqrestore(&disp->vblank.lock, flags);
+	nouveau_event_get(disp->vblank, crtc, &chan->base.vblank.event);
 	return 0;
 }
 
@@ -118,6 +115,23 @@ nvc0_software_sclass[] = {
  ******************************************************************************/
 
 static int
+nvc0_software_vblsem_release(struct nouveau_eventh *event, int head)
+{
+	struct nouveau_software_chan *chan =
+		container_of(event, struct nouveau_software_chan, vblank.event);
+	struct nvc0_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nouveau_bar *bar = nouveau_bar(priv);
+
+	nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
+	bar->flush(bar);
+	nv_wr32(priv, 0x06000c, upper_32_bits(chan->vblank.offset));
+	nv_wr32(priv, 0x060010, lower_32_bits(chan->vblank.offset));
+	nv_wr32(priv, 0x060014, chan->vblank.value);
+
+	return NVKM_EVENT_DROP;
+}
+
+static int
 nvc0_software_context_ctor(struct nouveau_object *parent,
 			   struct nouveau_object *engine,
 			   struct nouveau_oclass *oclass, void *data, u32 size,
@@ -132,6 +146,7 @@ nvc0_software_context_ctor(struct nouveau_object *parent,
 		return ret;
 
 	chan->base.vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
+	chan->base.vblank.event.func = nvc0_software_vblsem_release;
 	return 0;
 }
 

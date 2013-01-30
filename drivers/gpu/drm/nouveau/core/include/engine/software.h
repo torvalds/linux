@@ -3,17 +3,17 @@
 
 #include <core/engine.h>
 #include <core/engctx.h>
+#include <core/event.h>
 
 struct nouveau_software_chan {
 	struct nouveau_engctx base;
 
 	struct {
-		struct list_head head;
+		struct nouveau_eventh event;
 		u32 channel;
 		u32 ctxdma;
 		u64 offset;
 		u32 value;
-		u32 crtc;
 	} vblank;
 
 	int (*flip)(void *);

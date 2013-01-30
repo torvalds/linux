@@ -53,7 +53,7 @@ nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, "PDISP",
+	ret = nouveau_disp_create(parent, engine, oclass, 2, "PDISP",
 				  "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -70,9 +70,6 @@ nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hdmi = nv84_hdmi_ctrl;
-
-	INIT_LIST_HEAD(&priv->base.vblank.list);
-	spin_lock_init(&priv->base.vblank.lock);
 	return 0;
 }
 

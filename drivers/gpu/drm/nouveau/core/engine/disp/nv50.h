@@ -3,7 +3,9 @@
 
 #include <core/parent.h>
 #include <core/namedb.h>
+#include <core/engctx.h>
 #include <core/ramht.h>
+#include <core/event.h>
 
 #include <engine/dmaobj.h>
 #include <engine/disp.h>

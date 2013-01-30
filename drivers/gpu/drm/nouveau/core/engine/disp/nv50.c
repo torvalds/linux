@@ -27,7 +27,6 @@
 #include <core/handle.h>
 #include <core/class.h>
 
-#include <engine/software.h>
 #include <engine/disp.h>
 
 #include <subdev/bios.h>
@@ -37,7 +36,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/bar.h>
 #include <subdev/clock.h>
 
 #include "nv50.h"
@@ -543,6 +541,18 @@ nv50_disp_curs_ofuncs = {
  * Base display object
  ******************************************************************************/
 
+static void
+nv50_disp_base_vblank_enable(struct nouveau_event *event, int head)
+{
+	nv_mask(event->priv, 0x61002c, (1 << head), (1 << head));
+}
+
+static void
+nv50_disp_base_vblank_disable(struct nouveau_event *event, int head)
+{
+	nv_mask(event->priv, 0x61002c, (1 << head), (0 << head));
+}
+
 static int
 nv50_disp_base_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
@@ -559,6 +569,9 @@ nv50_disp_base_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	priv->base.vblank->priv = priv;
+	priv->base.vblank->enable = nv50_disp_base_vblank_enable;
+	priv->base.vblank->disable = nv50_disp_base_vblank_disable;
 	return nouveau_ramht_new(parent, parent, 0x1000, 0, &base->ramht);
 }
 
@@ -754,50 +767,6 @@ nv50_disp_intr_error(struct nv50_disp_priv *priv)
 		nv_error(priv, "chid %d mthd 0x%04x data 0x%08x 0x%08x\n",
 			 chid, addr & 0xffc, data, addr);
 	}
-}
-
-static void
-nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
-{
-	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_disp *disp = &priv->base;
-	struct nouveau_software_chan *chan, *temp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&disp->vblank.lock, flags);
-	list_for_each_entry_safe(chan, temp, &disp->vblank.list, vblank.head) {
-		if (chan->vblank.crtc != crtc)
-			continue;
-
-		if (nv_device(priv)->chipset >= 0xc0) {
-			nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
-			bar->flush(bar);
-			nv_wr32(priv, 0x06000c,
-				upper_32_bits(chan->vblank.offset));
-			nv_wr32(priv, 0x060010,
-				lower_32_bits(chan->vblank.offset));
-			nv_wr32(priv, 0x060014, chan->vblank.value);
-		} else {
-			nv_wr32(priv, 0x001704, chan->vblank.channel);
-			nv_wr32(priv, 0x001710, 0x80000000 | chan->vblank.ctxdma);
-			bar->flush(bar);
-			if (nv_device(priv)->chipset == 0x50) {
-				nv_wr32(priv, 0x001570, chan->vblank.offset);
-				nv_wr32(priv, 0x001574, chan->vblank.value);
-			} else {
-				nv_wr32(priv, 0x060010, chan->vblank.offset);
-				nv_wr32(priv, 0x060014, chan->vblank.value);
-			}
-		}
-
-		list_del(&chan->vblank.head);
-		if (disp->vblank.put)
-			disp->vblank.put(disp->vblank.data, crtc);
-	}
-	spin_unlock_irqrestore(&disp->vblank.lock, flags);
-
-	if (disp->vblank.notify)
-		disp->vblank.notify(disp->vblank.data, crtc);
 }
 
 static u16
@@ -1201,13 +1170,13 @@ nv50_disp_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (intr1 & 0x00000004) {
-		nv50_disp_intr_vblank(priv, 0);
+		nouveau_event_trigger(priv->base.vblank, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
 		intr1 &= ~0x00000004;
 	}
 
 	if (intr1 & 0x00000008) {
-		nv50_disp_intr_vblank(priv, 1);
+		nouveau_event_trigger(priv->base.vblank, 1);
 		nv_wr32(priv, 0x610024, 0x00000008);
 		intr1 &= ~0x00000008;
 	}
@@ -1226,7 +1195,7 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, "PDISP",
+	ret = nouveau_disp_create(parent, engine, oclass, 2, "PDISP",
 				  "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -1242,9 +1211,6 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
-
-	INIT_LIST_HEAD(&priv->base.vblank.list);
-	spin_lock_init(&priv->base.vblank.lock);
 	return 0;
 }
 

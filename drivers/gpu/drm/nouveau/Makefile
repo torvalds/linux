@@ -143,6 +143,7 @@ nouveau-y += core/engine/copy/nvc0.o
 nouveau-y += core/engine/copy/nve0.o
 nouveau-y += core/engine/crypt/nv84.o
 nouveau-y += core/engine/crypt/nv98.o
+nouveau-y += core/engine/disp/base.o
 nouveau-y += core/engine/disp/nv04.o
 nouveau-y += core/engine/disp/nv50.o
 nouveau-y += core/engine/disp/nv84.o
