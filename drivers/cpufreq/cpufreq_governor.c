@@ -169,19 +169,19 @@ bool dbs_sw_coordinated_cpus(struct cpu_dbs_common_info *cdbs)
 }
 EXPORT_SYMBOL_GPL(dbs_sw_coordinated_cpus);
 
-static inline void dbs_timer_init(struct dbs_data *dbs_data,
-				  struct cpu_dbs_common_info *cdbs,
-				  unsigned int sampling_rate,
-				  int cpu)
+static inline void dbs_timer_init(struct dbs_data *dbs_data, int cpu,
+				  unsigned int sampling_rate)
 {
 	int delay = delay_for_sampling_rate(sampling_rate);
-	struct cpu_dbs_common_info *cdbs_local = dbs_data->get_cpu_cdbs(cpu);
+	struct cpu_dbs_common_info *cdbs = dbs_data->get_cpu_cdbs(cpu);
 
-	schedule_delayed_work_on(cpu, &cdbs_local->work, delay);
+	schedule_delayed_work_on(cpu, &cdbs->work, delay);
 }
 
-static inline void dbs_timer_exit(struct cpu_dbs_common_info *cdbs)
+static inline void dbs_timer_exit(struct dbs_data *dbs_data, int cpu)
 {
+	struct cpu_dbs_common_info *cdbs = dbs_data->get_cpu_cdbs(cpu);
+
 	cancel_delayed_work_sync(&cdbs->work);
 }
 
@@ -289,36 +289,19 @@ second_time:
 		}
 		mutex_unlock(&dbs_data->mutex);
 
-		if (dbs_sw_coordinated_cpus(cpu_cdbs)) {
-			/* Initiate timer time stamp */
-			cpu_cdbs->time_stamp = ktime_get();
+		/* Initiate timer time stamp */
+		cpu_cdbs->time_stamp = ktime_get();
 
-			for_each_cpu(j, policy->cpus) {
-				struct cpu_dbs_common_info *j_cdbs;
-
-				j_cdbs = dbs_data->get_cpu_cdbs(j);
-				dbs_timer_init(dbs_data, j_cdbs,
-					       *sampling_rate, j);
-			}
-		} else {
-			dbs_timer_init(dbs_data, cpu_cdbs, *sampling_rate, cpu);
-		}
+		for_each_cpu(j, policy->cpus)
+			dbs_timer_init(dbs_data, j, *sampling_rate);
 		break;
 
 	case CPUFREQ_GOV_STOP:
 		if (dbs_data->governor == GOV_CONSERVATIVE)
 			cs_dbs_info->enable = 0;
 
-		if (dbs_sw_coordinated_cpus(cpu_cdbs)) {
-			for_each_cpu(j, policy->cpus) {
-				struct cpu_dbs_common_info *j_cdbs;
-
-				j_cdbs = dbs_data->get_cpu_cdbs(j);
-				dbs_timer_exit(j_cdbs);
-			}
-		} else {
-			dbs_timer_exit(cpu_cdbs);
-		}
+		for_each_cpu(j, policy->cpus)
+			dbs_timer_exit(dbs_data, j);
 
 		mutex_lock(&dbs_data->mutex);
 		mutex_destroy(&cpu_cdbs->timer_mutex);
