@@ -13,26 +13,18 @@
 
 char *ceph_osdmap_state_str(char *str, int len, int state)
 {
-	int flag = 0;
-
 	if (!len)
-		goto done;
+		return str;
 
-	*str = '\0';
-	if (state) {
-		if (state & CEPH_OSD_EXISTS) {
-			snprintf(str, len, "exists");
-			flag = 1;
-		}
-		if (state & CEPH_OSD_UP) {
-			snprintf(str, len, "%s%s%s", str, (flag ? ", " : ""),
-				 "up");
-			flag = 1;
-		}
-	} else {
+	if ((state & CEPH_OSD_EXISTS) && (state & CEPH_OSD_UP))
+		snprintf(str, len, "exists, up");
+	else if (state & CEPH_OSD_EXISTS)
+		snprintf(str, len, "exists");
+	else if (state & CEPH_OSD_UP)
+		snprintf(str, len, "up");
+	else
 		snprintf(str, len, "doesn't exist");
-	}
-done:
+
 	return str;
 }
 
@@ -170,6 +162,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
         c->choose_local_tries = 2;
         c->choose_local_fallback_tries = 5;
         c->choose_total_tries = 19;
+	c->chooseleaf_descend_once = 0;
 
 	ceph_decode_need(p, end, 4*sizeof(u32), bad);
 	magic = ceph_decode_32(p);
@@ -335,6 +328,11 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
              c->choose_local_fallback_tries);
         dout("crush decode tunable choose_total_tries = %d",
              c->choose_total_tries);
+
+	ceph_decode_need(p, end, sizeof(u32), done);
+	c->chooseleaf_descend_once = ceph_decode_32(p);
+	dout("crush decode tunable chooseleaf_descend_once = %d",
+	     c->chooseleaf_descend_once);
 
 done:
 	dout("crush_decode success\n");
@@ -1010,7 +1008,7 @@ bad:
  * pass a stride back to the caller.
  */
 int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-				   u64 off, u64 *plen,
+				   u64 off, u64 len,
 				   u64 *ono,
 				   u64 *oxoff, u64 *oxlen)
 {
@@ -1021,7 +1019,7 @@ int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	u32 su_per_object;
 	u64 t, su_offset;
 
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
+	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
 	     osize, su);
 	if (su == 0 || sc == 0)
 		goto invalid;
@@ -1054,11 +1052,10 @@ int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	/*
 	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (plen) or
+	 * object. This is the minimum of the full length requested (len) or
 	 * the remainder of the current stripe being written to.
 	 */
-	*oxlen = min_t(u64, *plen, su - su_offset);
-	*plen = *oxlen;
+	*oxlen = min_t(u64, len, su - su_offset);
 
 	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
 	return 0;
