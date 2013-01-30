@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/mailbox.h>
+#include <linux/platform_device.h>
 
 #define HB_CPUFREQ_CHANGE_NOTE	0x80000001
 #define HB_CPUFREQ_IPC_LEN	7
@@ -65,6 +66,7 @@ static struct notifier_block hb_cpufreq_clk_nb = {
 
 static int hb_cpufreq_driver_init(void)
 {
+	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
 	struct device *cpu_dev;
 	struct clk *cpu_clk;
 	struct device_node *np;
@@ -103,6 +105,9 @@ static int hb_cpufreq_driver_init(void)
 		pr_err("failed to register clk notifier: %d\n", ret);
 		goto out_put_node;
 	}
+
+	/* Instantiate cpufreq-cpu0 */
+	platform_device_register_full(&devinfo);
 
 out_put_node:
 	of_node_put(np);

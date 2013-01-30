@@ -185,7 +185,7 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  If in doubt, say N.
 
 config GENERIC_CPUFREQ_CPU0
-	bool "Generic CPU0 cpufreq driver"
+	tristate "Generic CPU0 cpufreq driver"
 	depends on HAVE_CLK && REGULATOR && PM_OPP && OF
 	select CPU_FREQ_TABLE
 	help

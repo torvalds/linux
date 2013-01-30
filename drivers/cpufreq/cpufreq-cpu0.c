@@ -12,12 +12,12 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
-#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/opp.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -177,7 +177,7 @@ static struct cpufreq_driver cpu0_cpufreq_driver = {
 	.attr = cpu0_cpufreq_attr,
 };
 
-static int cpu0_cpufreq_driver_init(void)
+static int cpu0_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 	int ret;
@@ -192,23 +192,17 @@ static int cpu0_cpufreq_driver_init(void)
 		return -ENOENT;
 	}
 
-	cpu_dev = get_cpu_device(0);
-	if (!cpu_dev) {
-		pr_err("failed to get cpu0 device\n");
-		ret = -ENODEV;
-		goto out_put_node;
-	}
-
+	cpu_dev = &pdev->dev;
 	cpu_dev->of_node = np;
 
-	cpu_clk = clk_get(cpu_dev, NULL);
+	cpu_clk = devm_clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
 		ret = PTR_ERR(cpu_clk);
 		pr_err("failed to get cpu0 clock: %d\n", ret);
 		goto out_put_node;
 	}
 
-	cpu_reg = regulator_get(cpu_dev, "cpu0");
+	cpu_reg = devm_regulator_get(cpu_dev, "cpu0");
 	if (IS_ERR(cpu_reg)) {
 		pr_warn("failed to get cpu0 regulator\n");
 		cpu_reg = NULL;
@@ -271,7 +265,24 @@ out_put_node:
 	of_node_put(np);
 	return ret;
 }
-late_initcall(cpu0_cpufreq_driver_init);
+
+static int cpu0_cpufreq_remove(struct platform_device *pdev)
+{
+	cpufreq_unregister_driver(&cpu0_cpufreq_driver);
+	opp_free_cpufreq_table(cpu_dev, &freq_table);
+
+	return 0;
+}
+
+static struct platform_driver cpu0_cpufreq_platdrv = {
+	.driver = {
+		.name	= "cpufreq-cpu0",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= cpu0_cpufreq_probe,
+	.remove		= cpu0_cpufreq_remove,
+};
+module_platform_driver(cpu0_cpufreq_platdrv);
 
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
 MODULE_DESCRIPTION("Generic CPU0 cpufreq driver");
