@@ -1570,7 +1570,7 @@ static inline uint32_t qlt_make_handle(struct scsi_qla_host *vha)
 	/* always increment cmd handle */
 	do {
 		++h;
-		if (h > MAX_OUTSTANDING_COMMANDS)
+		if (h > DEFAULT_OUTSTANDING_COMMANDS)
 			h = 1; /* 0 is QLA_TGT_NULL_HANDLE */
 		if (h == ha->tgt.current_handle) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe04e,
@@ -2441,7 +2441,7 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 			return NULL;
 		}
 		/* handle-1 is actually used */
-		if (unlikely(handle > MAX_OUTSTANDING_COMMANDS)) {
+		if (unlikely(handle > DEFAULT_OUTSTANDING_COMMANDS)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe052,
 			    "qla_target(%d): Wrong handle %x received\n",
 			    vha->vp_idx, handle);

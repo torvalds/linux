@@ -84,6 +84,9 @@ extern int qla83xx_nic_core_reset(scsi_qla_host_t *);
 extern void qla83xx_reset_ownership(scsi_qla_host_t *);
 extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 
+extern int
+qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
+
 /*
  * Global Data in qla_os.c source file.
  */

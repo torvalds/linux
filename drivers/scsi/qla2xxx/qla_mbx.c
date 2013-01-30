@@ -900,13 +900,13 @@ qla2x00_abort_command(srb_t *sp)
 	    "Entered %s.\n", __func__);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
+	for (handle = 1; handle < req->num_outstanding_cmds; handle++) {
 		if (req->outstanding_cmds[handle] == sp)
 			break;
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	if (handle == MAX_OUTSTANDING_COMMANDS) {
+	if (handle == req->num_outstanding_cmds) {
 		/* command not found */
 		return QLA_FUNCTION_FAILED;
 	}
@@ -2535,12 +2535,12 @@ qla24xx_abort_command(srb_t *sp)
 	    "Entered %s.\n", __func__);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
+	for (handle = 1; handle < req->num_outstanding_cmds; handle++) {
 		if (req->outstanding_cmds[handle] == sp)
 			break;
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (handle == MAX_OUTSTANDING_COMMANDS) {
+	if (handle == req->num_outstanding_cmds) {
 		/* Command not found. */
 		return QLA_FUNCTION_FAILED;
 	}

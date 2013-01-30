@@ -3629,7 +3629,7 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 			req = ha->req_q_map[que];
 			if (!req)
 				continue;
-			for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+			for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 				sp = req->outstanding_cmds[cnt];
 				if (sp) {
 					if (!sp->u.scmd.ctx ||

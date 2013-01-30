@@ -360,6 +360,9 @@ static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 		(req->length + 1) * sizeof(request_t),
 		req->ring, req->dma);
 
+	if (req)
+		kfree(req->outstanding_cmds);
+
 	kfree(req);
 	req = NULL;
 }
@@ -1010,7 +1013,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	req = vha->req;
 	for (cnt = 1; status == QLA_SUCCESS &&
-		cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		cnt < req->num_outstanding_cmds; cnt++) {
 		sp = req->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
@@ -1337,7 +1340,9 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 		req = ha->req_q_map[que];
 		if (!req)
 			continue;
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		if (!req->outstanding_cmds)
+			continue;
+		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
@@ -4733,7 +4738,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 				    cpu_flags);
 				req = ha->req_q_map[0];
 				for (index = 1;
-				    index < MAX_OUTSTANDING_COMMANDS;
+				    index < req->num_outstanding_cmds;
 				    index++) {
 					fc_port_t *sfcp;
 
