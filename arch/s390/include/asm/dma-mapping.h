@@ -19,7 +19,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 }
 
 extern int dma_set_mask(struct device *dev, u64 mask);
-extern int dma_is_consistent(struct device *dev, dma_addr_t dma_handle);
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction direction)
