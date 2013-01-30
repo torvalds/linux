@@ -387,7 +387,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	if ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_SINGLE)
 		fid->uid = v9ses->uid;
 	else
-		fid->uid = ~0;
+		fid->uid = INVALID_UID;
 
 #ifdef CONFIG_9P_FSCACHE
 	/* register the session for caching */

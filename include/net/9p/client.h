@@ -187,7 +187,7 @@ struct p9_fid {
 	int mode;
 	struct p9_qid qid;
 	u32 iounit;
-	uid_t uid;
+	kuid_t uid;
 
 	void *rdir;
 

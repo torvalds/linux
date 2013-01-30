@@ -74,19 +74,20 @@ int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
  *
  */
 
-static struct p9_fid *v9fs_fid_find(struct dentry *dentry, u32 uid, int any)
+static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 {
 	struct v9fs_dentry *dent;
 	struct p9_fid *fid, *ret;
 
 	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p) uid %d any %d\n",
-		 dentry->d_name.name, dentry, uid, any);
+		 dentry->d_name.name, dentry, from_kuid(&init_user_ns, uid),
+		 any);
 	dent = (struct v9fs_dentry *) dentry->d_fsdata;
 	ret = NULL;
 	if (dent) {
 		spin_lock(&dent->lock);
 		list_for_each_entry(fid, &dent->fidlist, dlist) {
-			if (any || fid->uid == uid) {
+			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
 				break;
 			}
@@ -126,7 +127,7 @@ err_out:
 }
 
 static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
-					       uid_t uid, int any)
+					       kuid_t uid, int any)
 {
 	struct dentry *ds;
 	char **wnames, *uname;
@@ -233,7 +234,7 @@ err_out:
 
 struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 {
-	uid_t uid;
+	kuid_t uid;
 	int  any, access;
 	struct v9fs_session_info *v9ses;
 
@@ -253,7 +254,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 		break;
 
 	default:
-		uid = ~0;
+		uid = INVALID_UID;
 		any = 0;
 		break;
 	}
@@ -272,7 +273,7 @@ struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
 	return ret;
 }
 
-static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, uid_t uid)
+static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, kuid_t uid)
 {
 	struct p9_fid *fid, *ret;
 
@@ -289,7 +290,7 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	int err;
 	struct p9_fid *fid;
 
-	fid = v9fs_fid_clone_with_uid(dentry, 0);
+	fid = v9fs_fid_clone_with_uid(dentry, GLOBAL_ROOT_UID);
 	if (IS_ERR(fid))
 		goto error_out;
 	/*
