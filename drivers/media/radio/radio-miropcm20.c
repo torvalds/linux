@@ -17,6 +17,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <sound/aci.h>
 
 static int radio_nr = -1;
@@ -30,6 +31,7 @@ MODULE_PARM_DESC(mono, "Force tuner into mono mode.");
 struct pcm20 {
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
+	struct v4l2_ctrl_handler ctrl_handler;
 	unsigned long freq;
 	int muted;
 	struct snd_miro_aci *aci;
@@ -138,44 +140,16 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-				struct v4l2_queryctrl *qc)
+static int pcm20_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
+	struct pcm20 *dev = container_of(ctrl->handler, struct pcm20, ctrl_handler);
+
+	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+		pcm20_mute(dev, ctrl->val);
+		return 0;
 	}
 	return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct pcm20 *dev = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = dev->muted;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct pcm20 *dev = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		pcm20_mute(dev, ctrl->value);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
 }
 
 static const struct v4l2_ioctl_ops pcm20_ioctl_ops = {
@@ -184,15 +158,17 @@ static const struct v4l2_ioctl_ops pcm20_ioctl_ops = {
 	.vidioc_s_tuner     = vidioc_s_tuner,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_queryctrl   = vidioc_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static const struct v4l2_ctrl_ops pcm20_ctrl_ops = {
+	.s_ctrl = pcm20_s_ctrl,
 };
 
 static int __init pcm20_init(void)
 {
 	struct pcm20 *dev = &pcm20_card;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct v4l2_ctrl_handler *hdl;
 	int res;
 
 	dev->aci = snd_aci_get_aci();
@@ -210,6 +186,16 @@ static int __init pcm20_init(void)
 		return -EINVAL;
 	}
 
+	hdl = &dev->ctrl_handler;
+	v4l2_ctrl_handler_init(hdl, 1);
+	v4l2_ctrl_new_std(hdl, &pcm20_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	v4l2_dev->ctrl_handler = hdl;
+	if (hdl->error) {
+		res = hdl->error;
+		v4l2_err(v4l2_dev, "Could not register control\n");
+		goto err_hdl;
+	}
 	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
 	dev->vdev.v4l2_dev = v4l2_dev;
 	dev->vdev.fops = &pcm20_fops;
@@ -219,11 +205,12 @@ static int __init pcm20_init(void)
 	video_set_drvdata(&dev->vdev, dev);
 
 	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0)
-		goto fail;
+		goto err_hdl;
 
 	v4l2_info(v4l2_dev, "Mirosound PCM20 Radio tuner\n");
 	return 0;
-fail:
+err_hdl:
+	v4l2_ctrl_handler_free(hdl);
 	v4l2_device_unregister(v4l2_dev);
 	return -EINVAL;
 }
@@ -237,6 +224,7 @@ static void __exit pcm20_cleanup(void)
 	struct pcm20 *dev = &pcm20_card;
 
 	video_unregister_device(&dev->vdev);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(&dev->v4l2_dev);
 }
 
