@@ -51,9 +51,10 @@
  * driver.
  */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 
 #include "8255.h"
 #include "8253.h"

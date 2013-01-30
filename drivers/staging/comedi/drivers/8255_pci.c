@@ -54,6 +54,8 @@ Interrupt support for these boards is also not currently supported.
 Configuration Options: not applicable, uses PCI auto config
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #include "8255.h"

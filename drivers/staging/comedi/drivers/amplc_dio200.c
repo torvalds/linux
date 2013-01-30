@@ -258,6 +258,7 @@
  * order they appear in the channel list.
  */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 

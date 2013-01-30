@@ -55,9 +55,11 @@ AO commands are not supported.
 
 #define DEBUG 1
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 

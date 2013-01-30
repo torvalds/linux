@@ -101,8 +101,9 @@ Configuration options:
 
 */
 
-#include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "../comedidev.h"
 

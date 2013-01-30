@@ -29,6 +29,7 @@
  * source code.
  */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"

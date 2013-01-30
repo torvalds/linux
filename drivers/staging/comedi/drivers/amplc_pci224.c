@@ -103,6 +103,7 @@ Caveats:
      correctly.
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 

@@ -30,9 +30,11 @@ Updated: Mon, 14 Apr 2008 15:10:32 +0100
 Configuration Options: not applicable, uses PCI auto config
 */
 
-#include "../comedidev.h"
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 #include "comedi_fc.h"
 #include "8253.h"
 

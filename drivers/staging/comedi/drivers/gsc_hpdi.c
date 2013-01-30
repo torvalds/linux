@@ -47,9 +47,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "plx9080.h"
 #include "comedi_fc.h"

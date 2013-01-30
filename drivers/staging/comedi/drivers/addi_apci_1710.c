@@ -1,3 +1,5 @@
+#include <linux/pci.h>
+
 #include <asm/i387.h>
 
 #include "../comedidev.h"

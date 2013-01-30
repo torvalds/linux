@@ -34,6 +34,8 @@ This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #define CNT_CARD_DEVICE_ID      0x0014

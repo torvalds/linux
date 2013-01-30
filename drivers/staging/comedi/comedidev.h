@@ -40,7 +40,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/timer.h>
-#include <linux/pci.h>
 
 #include "comedi.h"
 
@@ -53,22 +52,6 @@
 #define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION, \
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
-
-/*
- * PCI Vendor IDs not in <linux/pci_ids.h>
- */
-#define PCI_VENDOR_ID_KOLTER		0x1001
-#define PCI_VENDOR_ID_ICP		0x104c
-#define PCI_VENDOR_ID_AMCC		0x10e8
-#define PCI_VENDOR_ID_DT		0x1116
-#define PCI_VENDOR_ID_IOTECH		0x1616
-#define PCI_VENDOR_ID_CONTEC		0x1221
-#define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
-#define PCI_VENDOR_ID_ADVANTECH		0x13fe
-#define PCI_VENDOR_ID_MEILHAUS		0x1402
-#define PCI_VENDOR_ID_RTD		0x1435
-#define PCI_VENDOR_ID_ADLINK		0x144a
-#define PCI_VENDOR_ID_AMPLICON		0x14dc
 
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_BOARD_MINORS 0x30
@@ -295,26 +278,6 @@ int comedi_driver_unregister(struct comedi_driver *);
 	module_driver(__comedi_driver, comedi_driver_register, \
 			comedi_driver_unregister)
 
-int comedi_pci_enable(struct pci_dev *, const char *);
-void comedi_pci_disable(struct pci_dev *);
-
-int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
-void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
-
-/**
- * module_comedi_pci_driver() - Helper macro for registering a comedi PCI driver
- * @__comedi_driver: comedi_driver struct
- * @__pci_driver: pci_driver struct
- *
- * Helper macro for comedi PCI drivers which do not do anything special
- * in module init/exit. This eliminates a lot of boilerplate. Each
- * module may only use this macro once, and calling it replaces
- * module_init() and module_exit()
- */
-#define module_comedi_pci_driver(__comedi_driver, __pci_driver) \
-	module_driver(__comedi_driver, comedi_pci_driver_register, \
-			comedi_pci_driver_unregister, &(__pci_driver))
-
 struct pcmcia_driver;
 
 int comedi_pcmcia_driver_register(struct comedi_driver *,
@@ -424,11 +387,6 @@ static inline void comedi_set_hw_dev(struct comedi_device *dev,
 	put_device(old_hw_dev);
 }
 
-static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
-{
-	return dev->hw_dev ? to_pci_dev(dev->hw_dev) : NULL;
-}
-
 unsigned int comedi_buf_write_alloc(struct comedi_async *, unsigned int);
 unsigned int comedi_buf_write_free(struct comedi_async *, unsigned int);
 
@@ -451,13 +409,77 @@ int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context);
 void comedi_auto_unconfig(struct device *hardware_device);
 
-static inline int comedi_pci_auto_config(struct pci_dev *pcidev,
-					 struct comedi_driver *driver)
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
+
+/* comedi_pci.c - comedi PCI driver specific functions */
+
+/*
+ * PCI Vendor IDs not in <linux/pci_ids.h>
+ */
+#define PCI_VENDOR_ID_KOLTER		0x1001
+#define PCI_VENDOR_ID_ICP		0x104c
+#define PCI_VENDOR_ID_AMCC		0x10e8
+#define PCI_VENDOR_ID_DT		0x1116
+#define PCI_VENDOR_ID_IOTECH		0x1616
+#define PCI_VENDOR_ID_CONTEC		0x1221
+#define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+#define PCI_VENDOR_ID_MEILHAUS		0x1402
+#define PCI_VENDOR_ID_RTD		0x1435
+#define PCI_VENDOR_ID_ADLINK		0x144a
+#define PCI_VENDOR_ID_AMPLICON		0x14dc
+
+struct pci_dev;
+struct pci_driver;
+
+struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
+
+int comedi_pci_enable(struct pci_dev *, const char *);
+void comedi_pci_disable(struct pci_dev *);
+
+int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *);
+void comedi_pci_auto_unconfig(struct pci_dev *);
+
+int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
+void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
+
+/**
+ * module_comedi_pci_driver() - Helper macro for registering a comedi PCI driver
+ * @__comedi_driver: comedi_driver struct
+ * @__pci_driver: pci_driver struct
+ *
+ * Helper macro for comedi PCI drivers which do not do anything special
+ * in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces
+ * module_init() and module_exit()
+ */
+#define module_comedi_pci_driver(__comedi_driver, __pci_driver) \
+	module_driver(__comedi_driver, comedi_pci_driver_register, \
+			comedi_pci_driver_unregister, &(__pci_driver))
+
+#else
+
+/*
+ * Some of the comedi mixed ISA/PCI drivers call the PCI specific
+ * functions. Provide some dummy functions if CONFIG_COMEDI_PCI_DRIVERS
+ * is not enabled.
+ */
+
+static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
 {
-	return comedi_auto_config(&pcidev->dev, driver, 0);
+	return NULL;
 }
 
-void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
+static inline int comedi_pci_enable(struct pci_dev *dev, const char *name)
+{
+	return -ENOSYS;
+}
+
+static inline void comedi_pci_disable(struct pci_dev *dev)
+{
+}
+
+#endif /* CONFIG_COMEDI_PCI_DRIVERS */
 
 #ifdef CONFIG_COMEDI_USB_DRIVERS
 

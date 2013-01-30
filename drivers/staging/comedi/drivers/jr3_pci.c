@@ -42,15 +42,17 @@
  * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
  */
 
-#include "../comedidev.h"
-
+#include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
-#include <linux/kernel.h>
+
+#include "../comedidev.h"
+
 #include "jr3_pci.h"
 
 #define PCI_VENDOR_ID_JR3 0x1762

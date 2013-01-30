@@ -40,10 +40,11 @@ No interrupts, multi channel or FIFO AI, although the card looks like it could s
 See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "plx9052.h"
 #include "8255.h"

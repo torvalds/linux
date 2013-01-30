@@ -68,10 +68,11 @@ TODO:
 
 */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "comedi_fc.h"

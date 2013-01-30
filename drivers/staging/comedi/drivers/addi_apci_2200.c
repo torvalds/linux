@@ -29,6 +29,8 @@
  * this source code.
  */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 #include "addi_watchdog.h"
 

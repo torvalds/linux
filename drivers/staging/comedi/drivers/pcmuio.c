@@ -77,9 +77,9 @@ Configuration Options:
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 
 #include "../comedidev.h"
+
 #include "comedi_fc.h"
 
 #define CHANS_PER_PORT   8

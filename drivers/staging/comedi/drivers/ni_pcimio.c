@@ -110,10 +110,12 @@ Bugs:
 
 */
 
+#include <linux/delay.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 #include <asm/byteorder.h>
-#include <linux/delay.h>
 
 #include "ni_stc.h"
 #include "mite.h"

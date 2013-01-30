@@ -53,8 +53,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-#include <linux/pci.h>		/* for PCI devices */
-
 #define CHANS 8
 #define IOSIZE 16
 #define LSB(x) ((unsigned char)((x) & 0xff))

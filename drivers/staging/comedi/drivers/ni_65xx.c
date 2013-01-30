@@ -50,8 +50,11 @@ except maybe the 6514.
 
 #define DEBUG 1
 #define DEBUG_FLAGS
+
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
 
 #include "comedi_fc.h"

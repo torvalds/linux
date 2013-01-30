@@ -73,12 +73,14 @@ NI manuals:
 
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
-#include <linux/delay.h>
 #include <asm/dma.h>
 
 #include "8253.h"

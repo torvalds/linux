@@ -54,6 +54,8 @@ driver.
 Configuration Options: not applicable
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 /*

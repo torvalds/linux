@@ -46,11 +46,10 @@ Options (for pcm-das08):
 Command support does not exist, but could be added for this board.
 */
 
-#include "../comedidev.h"
-
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/slab.h>
+
+#include "../comedidev.h"
 
 #include "das08.h"
 

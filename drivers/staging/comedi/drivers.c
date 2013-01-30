@@ -23,7 +23,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <linux/errno.h>
@@ -495,73 +494,6 @@ void comedi_auto_unconfig(struct device *hardware_device)
 	comedi_free_board_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
-
-/**
- * comedi_pci_enable() - Enable the PCI device and request the regions.
- * @pdev: pci_dev struct
- * @res_name: name for the requested reqource
- */
-int comedi_pci_enable(struct pci_dev *pdev, const char *res_name)
-{
-	int rc;
-
-	rc = pci_enable_device(pdev);
-	if (rc < 0)
-		return rc;
-
-	rc = pci_request_regions(pdev, res_name);
-	if (rc < 0)
-		pci_disable_device(pdev);
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(comedi_pci_enable);
-
-/**
- * comedi_pci_disable() - Release the regions and disable the PCI device.
- * @pdev: pci_dev struct
- *
- * This must be matched with a previous successful call to comedi_pci_enable().
- */
-void comedi_pci_disable(struct pci_dev *pdev)
-{
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-}
-EXPORT_SYMBOL_GPL(comedi_pci_disable);
-
-int comedi_pci_driver_register(struct comedi_driver *comedi_driver,
-		struct pci_driver *pci_driver)
-{
-	int ret;
-
-	ret = comedi_driver_register(comedi_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_register_driver(pci_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(comedi_driver);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(comedi_pci_driver_register);
-
-void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
-		struct pci_driver *pci_driver)
-{
-	pci_unregister_driver(pci_driver);
-	comedi_driver_unregister(comedi_driver);
-}
-EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
-
-void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
-{
-	comedi_auto_unconfig(&pcidev->dev);
-}
-EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
 #if IS_ENABLED(CONFIG_PCMCIA)
 int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,

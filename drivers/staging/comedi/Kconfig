@@ -542,11 +542,7 @@ menuconfig COMEDI_PCI_DRIVERS
 	bool "Comedi PCI drivers"
 	depends on PCI
 	---help---
-	  Enable comedi PCI drivers to be built
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about PCI comedi drivers.
+	  Enable support for comedi PCI drivers.
 
 if COMEDI_PCI_DRIVERS
 

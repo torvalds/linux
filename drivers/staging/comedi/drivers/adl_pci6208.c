@@ -42,6 +42,8 @@ References:
 	- adl_pci9118.c
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 /*

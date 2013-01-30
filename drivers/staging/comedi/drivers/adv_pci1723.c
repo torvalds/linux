@@ -48,6 +48,8 @@ TODO:
 3. Implement calibration.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 /* all the registers for the pci1723 board */

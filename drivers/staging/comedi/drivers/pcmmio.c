@@ -78,9 +78,9 @@ Configuration Options:
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 
 #include "../comedidev.h"
+
 #include "comedi_fc.h"
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */

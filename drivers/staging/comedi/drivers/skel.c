@@ -72,9 +72,9 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 
-#include <linux/pci.h>		/* for PCI devices */
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 

@@ -41,6 +41,8 @@
  * Only simple analog output writing is supported.
  */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #include "comedi_fc.h"

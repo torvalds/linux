@@ -47,11 +47,11 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 Configuration options: not applicable, uses PCI auto config
 */
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
-
-#include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 

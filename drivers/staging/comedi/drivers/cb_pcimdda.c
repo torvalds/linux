@@ -79,6 +79,8 @@ Configuration Options: not applicable, uses PCI auto config
     -Calin Culianu <calin@ajvar.org>
  */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #include "8255.h"

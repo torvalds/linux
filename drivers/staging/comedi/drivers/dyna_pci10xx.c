@@ -37,8 +37,10 @@
  their cards in their manuals.
 */
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/mutex.h>
+
+#include "../comedidev.h"
 
 #define READ_TIMEOUT 50
 

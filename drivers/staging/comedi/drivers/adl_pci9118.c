@@ -76,12 +76,14 @@ Configuration options:
  * attachment if necessary, and possibly to set other options supported by
  * manual attachment.
  */
-#include "../comedidev.h"
 
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+
+#include "../comedidev.h"
 
 #include "amcc_s5933.h"
 #include "8253.h"

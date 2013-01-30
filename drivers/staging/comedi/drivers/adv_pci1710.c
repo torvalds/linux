@@ -41,6 +41,7 @@ Configuration options:
 	device will be used.
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"

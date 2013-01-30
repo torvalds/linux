@@ -107,11 +107,12 @@ Configuration options: not applicable, uses PCI auto config
 
  */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
+
+#include "../comedidev.h"
 
 #include "8255.h"
 

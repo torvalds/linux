@@ -188,10 +188,11 @@ Support for PCI230+/260+, more triggered scan functionality, and workarounds
 for (or detection of) various hardware problems added by Ian Abbott.
 */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 #include "8253.h"

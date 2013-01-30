@@ -87,9 +87,11 @@ TODO:
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "8255.h"

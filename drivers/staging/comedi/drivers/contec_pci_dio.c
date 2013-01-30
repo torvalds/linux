@@ -30,6 +30,8 @@ Status: works
 Configuration Options: not applicable, uses comedi PCI auto config
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172

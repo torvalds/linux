@@ -34,9 +34,11 @@
  *    Analog Input, Analog Output, Digital I/O
  */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
+
 #include "../comedidev.h"
 
 #define ME2600_FIRMWARE		"me2600_firmware.bin"
