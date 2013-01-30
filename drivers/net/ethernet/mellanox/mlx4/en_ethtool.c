@@ -669,6 +669,10 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 		    !(cmd->fs.m_ext.vlan_tci == 0 ||
 		      cmd->fs.m_ext.vlan_tci == cpu_to_be16(0xfff)))
 			return -EINVAL;
+		if (cmd->fs.m_ext.vlan_tci) {
+			if (be16_to_cpu(cmd->fs.h_ext.vlan_tci) >= VLAN_N_VID)
+				return -EINVAL;
+		}
 	}
 
 	return 0;
