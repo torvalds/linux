@@ -569,7 +569,8 @@ static inline void drv_sta_rc_update(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	WARN_ON(changed & IEEE80211_RC_SUPP_RATES_CHANGED &&
-		sdata->vif.type != NL80211_IFTYPE_ADHOC);
+		(sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+		 sdata->vif.type != NL80211_IFTYPE_MESH_POINT));
 
 	trace_drv_sta_rc_update(local, sdata, sta, changed);
 	if (local->ops->sta_rc_update)
@@ -845,11 +846,12 @@ static inline void drv_set_rekey_data(struct ieee80211_local *local,
 }
 
 static inline void drv_rssi_callback(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
 				     const enum ieee80211_rssi_event event)
 {
-	trace_drv_rssi_callback(local, event);
+	trace_drv_rssi_callback(local, sdata, event);
 	if (local->ops->rssi_callback)
-		local->ops->rssi_callback(&local->hw, event);
+		local->ops->rssi_callback(&local->hw, &sdata->vif, event);
 	trace_drv_return_void(local);
 }
 
@@ -1019,5 +1021,33 @@ static inline void drv_restart_complete(struct ieee80211_local *local)
 		local->ops->restart_complete(&local->hw);
 	trace_drv_return_void(local);
 }
+
+static inline void
+drv_set_default_unicast_key(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata,
+			    int key_idx)
+{
+	check_sdata_in_driver(sdata);
+
+	WARN_ON_ONCE(key_idx < -1 || key_idx > 3);
+
+	trace_drv_set_default_unicast_key(local, sdata, key_idx);
+	if (local->ops->set_default_unicast_key)
+		local->ops->set_default_unicast_key(&local->hw, &sdata->vif,
+						    key_idx);
+	trace_drv_return_void(local);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static inline void drv_ipv6_addr_change(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata,
+					struct inet6_dev *idev)
+{
+	trace_drv_ipv6_addr_change(local, sdata);
+	if (local->ops->ipv6_addr_change)
+		local->ops->ipv6_addr_change(&local->hw, &sdata->vif, idev);
+	trace_drv_return_void(local);
+}
+#endif
 
 #endif /* __MAC80211_DRIVER_OPS */

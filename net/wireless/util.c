@@ -1212,7 +1212,8 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_WDS:
-		radar_required = !!(chan->flags & IEEE80211_CHAN_RADAR);
+		radar_required = !!(chan &&
+				    (chan->flags & IEEE80211_CHAN_RADAR));
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
