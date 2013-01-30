@@ -968,6 +968,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c13) },
 	{ USB_DEVICE(0x07d1, 0x3c15) },
 	{ USB_DEVICE(0x07d1, 0x3c16) },
+	{ USB_DEVICE(0x07d1, 0x3c17) },
 	{ USB_DEVICE(0x2001, 0x3c1b) },
 	/* Draytek */
 	{ USB_DEVICE(0x07fa, 0x7712) },
@@ -1115,6 +1116,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* Zyxel */
 	{ USB_DEVICE(0x0586, 0x3416) },
 	{ USB_DEVICE(0x0586, 0x3418) },
+	{ USB_DEVICE(0x0586, 0x341a) },
 	{ USB_DEVICE(0x0586, 0x341e) },
 	{ USB_DEVICE(0x0586, 0x343e) },
 #ifdef CONFIG_RT2800USB_RT33XX
@@ -1166,6 +1168,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 #ifdef CONFIG_RT2800USB_RT53XX
 	/* Arcadyan */
 	{ USB_DEVICE(0x043e, 0x7a12) },
+	{ USB_DEVICE(0x043e, 0x7a32) },
 	/* Azurewave */
 	{ USB_DEVICE(0x13d3, 0x3329) },
 	{ USB_DEVICE(0x13d3, 0x3365) },
@@ -1177,16 +1180,20 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x2001, 0x3c1e) },
 	/* LG innotek */
 	{ USB_DEVICE(0x043e, 0x7a22) },
+	{ USB_DEVICE(0x043e, 0x7a42) },
 	/* Panasonic */
 	{ USB_DEVICE(0x04da, 0x1801) },
 	{ USB_DEVICE(0x04da, 0x1800) },
+	{ USB_DEVICE(0x04da, 0x23f6) },
 	/* Philips */
 	{ USB_DEVICE(0x0471, 0x2104) },
+	{ USB_DEVICE(0x0471, 0x2126) },
+	{ USB_DEVICE(0x0471, 0x2180) },
+	{ USB_DEVICE(0x0471, 0x2181) },
+	{ USB_DEVICE(0x0471, 0x2182) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x5370) },
 	{ USB_DEVICE(0x148f, 0x5372) },
-	/* Unknown */
-	{ USB_DEVICE(0x04da, 0x23f6) },
 #endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
@@ -1223,7 +1230,6 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x18c5, 0x0008) },
 	/* D-Link */
 	{ USB_DEVICE(0x07d1, 0x3c0b) },
-	{ USB_DEVICE(0x07d1, 0x3c17) },
 	/* Encore */
 	{ USB_DEVICE(0x203d, 0x14a1) },
 	/* Gemtek */
@@ -1261,8 +1267,6 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x083a, 0xc522) },
 	{ USB_DEVICE(0x083a, 0xd522) },
 	{ USB_DEVICE(0x083a, 0xf511) },
-	/* Zyxel */
-	{ USB_DEVICE(0x0586, 0x341a) },
 #endif
 	{ 0, }
 };
