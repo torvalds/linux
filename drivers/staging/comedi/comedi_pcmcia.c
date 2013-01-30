@@ -28,6 +28,42 @@
 #include "comedidev.h"
 
 /**
+ * comedi_to_pcmcia_dev() - comedi_device pointer to pcmcia_device pointer.
+ * @dev: comedi_device struct
+ */
+struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev)
+{
+	return dev->hw_dev ? to_pcmcia_dev(dev->hw_dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(comedi_to_pcmcia_dev);
+
+/**
+ * comedi_pcmcia_auto_config() - Configure/probe a comedi PCMCIA driver.
+ * @link: pcmcia_device struct
+ * @driver: comedi_driver struct
+ *
+ * Typically called from the pcmcia_driver (*probe) function.
+ */
+int comedi_pcmcia_auto_config(struct pcmcia_device *link,
+			      struct comedi_driver *driver)
+{
+	return comedi_auto_config(&link->dev, driver, 0);
+}
+EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_config);
+
+/**
+ * comedi_pcmcia_auto_unconfig() - Unconfigure/remove a comedi PCMCIA driver.
+ * @link: pcmcia_device struct
+ *
+ * Typically called from the pcmcia_driver (*remove) function.
+ */
+void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link)
+{
+	comedi_auto_unconfig(&link->dev);
+}
+EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_unconfig);
+
+/**
  * comedi_pcmcia_driver_register() - Register a comedi PCMCIA driver.
  * @comedi_driver: comedi_driver struct
  * @pcmcia_driver: pcmcia_driver struct

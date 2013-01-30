@@ -465,6 +465,12 @@ static inline void comedi_pci_disable(struct pci_dev *dev)
 /* comedi_pcmcia.c - comedi PCMCIA driver specific functions */
 
 struct pcmcia_driver;
+struct pcmcia_device;
+
+struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *);
+
+int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);
+void comedi_pcmcia_auto_unconfig(struct pcmcia_device *);
 
 int comedi_pcmcia_driver_register(struct comedi_driver *,
 					struct pcmcia_driver *);
