@@ -1175,11 +1175,7 @@ menuconfig COMEDI_USB_DRIVERS
 	bool "Comedi USB drivers"
 	depends on USB
 	---help---
-	  Enable comedi USB drivers to be built
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about USB comedi drivers.
+	  Enable support for comedi USB drivers.
 
 if COMEDI_USB_DRIVERS
 

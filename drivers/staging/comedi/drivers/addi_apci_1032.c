@@ -29,6 +29,8 @@
  * source code.
  */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"

@@ -29,6 +29,8 @@
  * this source code.
  */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 #include "addi_watchdog.h"
 #include "comedi_fc.h"

@@ -41,7 +41,6 @@
 #include <linux/io.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
-#include <linux/usb.h>
 
 #include "comedi.h"
 
@@ -337,25 +336,6 @@ void comedi_pcmcia_driver_unregister(struct comedi_driver *,
 	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
 			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
 
-struct usb_driver;
-
-int comedi_usb_driver_register(struct comedi_driver *, struct usb_driver *);
-void comedi_usb_driver_unregister(struct comedi_driver *, struct usb_driver *);
-
-/**
- * module_comedi_usb_driver() - Helper macro for registering a comedi USB driver
- * @__comedi_driver: comedi_driver struct
- * @__usb_driver: usb_driver struct
- *
- * Helper macro for comedi USB drivers which do not do anything special
- * in module init/exit. This eliminates a lot of boilerplate. Each
- * module may only use this macro once, and calling it replaces
- * module_init() and module_exit()
- */
-#define module_comedi_usb_driver(__comedi_driver, __usb_driver) \
-	module_driver(__comedi_driver, comedi_usb_driver_register, \
-			comedi_usb_driver_unregister, &(__usb_driver))
-
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(struct comedi_device *);
@@ -449,12 +429,6 @@ static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
 	return dev->hw_dev ? to_pci_dev(dev->hw_dev) : NULL;
 }
 
-static inline struct usb_interface *
-comedi_to_usb_interface(struct comedi_device *dev)
-{
-	return dev->hw_dev ? to_usb_interface(dev->hw_dev) : NULL;
-}
-
 unsigned int comedi_buf_write_alloc(struct comedi_async *, unsigned int);
 unsigned int comedi_buf_write_free(struct comedi_async *, unsigned int);
 
@@ -485,15 +459,35 @@ static inline int comedi_pci_auto_config(struct pci_dev *pcidev,
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
-static inline int comedi_usb_auto_config(struct usb_interface *intf,
-					 struct comedi_driver *driver)
-{
-	return comedi_auto_config(&intf->dev, driver, 0);
-}
+#ifdef CONFIG_COMEDI_USB_DRIVERS
 
-static inline void comedi_usb_auto_unconfig(struct usb_interface *intf)
-{
-	comedi_auto_unconfig(&intf->dev);
-}
+/* comedi_usb.c - comedi USB driver specific functions */
+
+struct usb_driver;
+struct usb_interface;
+
+struct usb_interface *comedi_to_usb_interface(struct comedi_device *);
+
+int comedi_usb_auto_config(struct usb_interface *, struct comedi_driver *);
+void comedi_usb_auto_unconfig(struct usb_interface *);
+
+int comedi_usb_driver_register(struct comedi_driver *, struct usb_driver *);
+void comedi_usb_driver_unregister(struct comedi_driver *, struct usb_driver *);
+
+/**
+ * module_comedi_usb_driver() - Helper macro for registering a comedi USB driver
+ * @__comedi_driver: comedi_driver struct
+ * @__usb_driver: usb_driver struct
+ *
+ * Helper macro for comedi USB drivers which do not do anything special
+ * in module init/exit. This eliminates a lot of boilerplate. Each
+ * module may only use this macro once, and calling it replaces
+ * module_init() and module_exit()
+ */
+#define module_comedi_usb_driver(__comedi_driver, __usb_driver) \
+	module_driver(__comedi_driver, comedi_usb_driver_register, \
+			comedi_usb_driver_unregister, &(__usb_driver))
+
+#endif /* CONFIG_COMEDI_USB_DRIVERS */
 
 #endif /* _COMEDIDEV_H */
