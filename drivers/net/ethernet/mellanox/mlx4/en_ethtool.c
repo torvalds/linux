@@ -1006,7 +1006,8 @@ static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	if ((cmd->cmd == ETHTOOL_GRXCLSRLCNT ||
 	     cmd->cmd == ETHTOOL_GRXCLSRULE ||
 	     cmd->cmd == ETHTOOL_GRXCLSRLALL) &&
-	    mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+	    (mdev->dev->caps.steering_mode !=
+	     MLX4_STEERING_MODE_DEVICE_MANAGED || !priv->port_up))
 		return -EINVAL;
 
 	switch (cmd->cmd) {
@@ -1042,7 +1043,8 @@ static int mlx4_en_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	if (mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+	if (mdev->dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED || !priv->port_up)
 		return -EINVAL;
 
 	switch (cmd->cmd) {
