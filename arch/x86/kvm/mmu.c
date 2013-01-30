@@ -2328,9 +2328,8 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 		if (s->role.level != PT_PAGE_TABLE_LEVEL)
 			return 1;
 
-		if (!need_unsync && !s->unsync) {
+		if (!s->unsync)
 			need_unsync = true;
-		}
 	}
 	if (need_unsync)
 		kvm_unsync_pages(vcpu, gfn);
@@ -4008,7 +4007,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			      !((sp->role.word ^ vcpu->arch.mmu.base_role.word)
 			      & mask.word) && rmap_can_add(vcpu))
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
-			if (!remote_flush && need_remote_flush(entry, *spte))
+			if (need_remote_flush(entry, *spte))
 				remote_flush = true;
 			++spte;
 		}
