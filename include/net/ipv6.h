@@ -239,6 +239,7 @@ struct ip6_flowlabel {
 struct ipv6_fl_socklist {
 	struct ipv6_fl_socklist	*next;
 	struct ip6_flowlabel	*fl;
+	struct rcu_head		rcu;
 };
 
 extern struct ip6_flowlabel	*fl6_sock_lookup(struct sock *sk, __be32 label);
