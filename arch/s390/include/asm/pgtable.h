@@ -385,6 +385,7 @@ extern unsigned long MODULES_END;
 #define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
 
 #define PAGE_KERNEL	PAGE_RW
+#define PAGE_SHARED	PAGE_KERNEL
 #define PAGE_COPY	PAGE_RO
 
 /*
