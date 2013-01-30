@@ -258,26 +258,6 @@ static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
 struct comedi_device *comedi_dev_from_minor(unsigned minor);
 
-int comedi_alloc_subdevices(struct comedi_device *, int);
-
-void comedi_device_detach(struct comedi_device *dev);
-int comedi_device_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-int comedi_driver_register(struct comedi_driver *);
-int comedi_driver_unregister(struct comedi_driver *);
-
-/**
- * module_comedi_driver() - Helper macro for registering a comedi driver
- * @__comedi_driver: comedi_driver struct
- *
- * Helper macro for comedi drivers which do not do anything special in module
- * init/exit. This eliminates a lot of boilerplate. Each module may only use
- * this macro once, and calling it replaces module_init() and module_exit().
- */
-#define module_comedi_driver(__comedi_driver) \
-	module_driver(__comedi_driver, comedi_driver_register, \
-			comedi_driver_unregister)
-
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(struct comedi_device *);
@@ -384,9 +364,32 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);
-int comedi_auto_config(struct device *hardware_device,
-		       struct comedi_driver *driver, unsigned long context);
-void comedi_auto_unconfig(struct device *hardware_device);
+
+/* drivers.c - general comedi driver functions */
+
+int comedi_alloc_subdevices(struct comedi_device *, int);
+
+void comedi_device_detach(struct comedi_device *);
+int comedi_device_attach(struct comedi_device *, struct comedi_devconfig *);
+
+int comedi_auto_config(struct device *, struct comedi_driver *,
+		       unsigned long context);
+void comedi_auto_unconfig(struct device *);
+
+int comedi_driver_register(struct comedi_driver *);
+int comedi_driver_unregister(struct comedi_driver *);
+
+/**
+ * module_comedi_driver() - Helper macro for registering a comedi driver
+ * @__comedi_driver: comedi_driver struct
+ *
+ * Helper macro for comedi drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only use
+ * this macro once, and calling it replaces module_init() and module_exit().
+ */
+#define module_comedi_driver(__comedi_driver) \
+	module_driver(__comedi_driver, comedi_driver_register, \
+			comedi_driver_unregister)
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 

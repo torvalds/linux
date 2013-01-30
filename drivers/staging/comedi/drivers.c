@@ -386,53 +386,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return comedi_device_postconfig(dev);
 }
 
-int comedi_driver_register(struct comedi_driver *driver)
-{
-	driver->next = comedi_drivers;
-	comedi_drivers = driver;
-
-	return 0;
-}
-EXPORT_SYMBOL(comedi_driver_register);
-
-int comedi_driver_unregister(struct comedi_driver *driver)
-{
-	struct comedi_driver *prev;
-	int i;
-
-	/* check for devices using this driver */
-	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_from_minor(i);
-
-		if (!dev)
-			continue;
-
-		mutex_lock(&dev->mutex);
-		if (dev->attached && dev->driver == driver) {
-			if (dev->use_count)
-				dev_warn(dev->class_dev,
-					 "BUG! detaching device with use_count=%d\n",
-					 dev->use_count);
-			comedi_device_detach(dev);
-		}
-		mutex_unlock(&dev->mutex);
-	}
-
-	if (comedi_drivers == driver) {
-		comedi_drivers = driver->next;
-		return 0;
-	}
-
-	for (prev = comedi_drivers; prev->next; prev = prev->next) {
-		if (prev->next == driver) {
-			prev->next = driver->next;
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-EXPORT_SYMBOL(comedi_driver_unregister);
-
 int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context)
 {
@@ -492,3 +445,50 @@ void comedi_auto_unconfig(struct device *hardware_device)
 	comedi_free_board_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
+
+int comedi_driver_register(struct comedi_driver *driver)
+{
+	driver->next = comedi_drivers;
+	comedi_drivers = driver;
+
+	return 0;
+}
+EXPORT_SYMBOL(comedi_driver_register);
+
+int comedi_driver_unregister(struct comedi_driver *driver)
+{
+	struct comedi_driver *prev;
+	int i;
+
+	/* check for devices using this driver */
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device *dev = comedi_dev_from_minor(i);
+
+		if (!dev)
+			continue;
+
+		mutex_lock(&dev->mutex);
+		if (dev->attached && dev->driver == driver) {
+			if (dev->use_count)
+				dev_warn(dev->class_dev,
+					 "BUG! detaching device with use_count=%d\n",
+					 dev->use_count);
+			comedi_device_detach(dev);
+		}
+		mutex_unlock(&dev->mutex);
+	}
+
+	if (comedi_drivers == driver) {
+		comedi_drivers = driver->next;
+		return 0;
+	}
+
+	for (prev = comedi_drivers; prev->next; prev = prev->next) {
+		if (prev->next == driver) {
+			prev->next = driver->next;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(comedi_driver_unregister);
