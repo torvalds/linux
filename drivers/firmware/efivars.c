@@ -674,7 +674,7 @@ static int efi_status_to_err(efi_status_t status)
 		err = -EACCES;
 		break;
 	case EFI_NOT_FOUND:
-		err = -ENOENT;
+		err = -EIO;
 		break;
 	default:
 		err = -EINVAL;
@@ -793,6 +793,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 		spin_unlock(&efivars->lock);
 		efivar_unregister(var);
 		drop_nlink(inode);
+		d_delete(file->f_dentry);
 		dput(file->f_dentry);
 
 	} else {
@@ -994,7 +995,7 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 		list_del(&var->list);
 		spin_unlock(&efivars->lock);
 		efivar_unregister(var);
-		drop_nlink(dir);
+		drop_nlink(dentry->d_inode);
 		dput(dentry);
 		return 0;
 	}
