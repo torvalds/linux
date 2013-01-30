@@ -261,18 +261,6 @@ failed:
 	pcmcia_disable_device(link);
 }
 
-static int dio24_cs_suspend(struct pcmcia_device *link)
-{
-	return 0;
-}				/* dio24_cs_suspend */
-
-static int dio24_cs_resume(struct pcmcia_device *link)
-{
-	return 0;
-}				/* dio24_cs_resume */
-
-/*====================================================================*/
-
 static const struct pcmcia_device_id dio24_cs_ids[] = {
 	/* N.B. These IDs should match those in dio24_boards */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x475c),	/* daqcard-dio24 */
@@ -286,8 +274,6 @@ static struct pcmcia_driver dio24_cs_driver = {
 	.id_table	= dio24_cs_ids,
 	.probe		= dio24_cs_attach,
 	.remove		= dio24_cs_detach,
-	.suspend	= dio24_cs_suspend,
-	.resume		= dio24_cs_resume,
 };
 module_comedi_pcmcia_driver(driver_dio24, dio24_cs_driver);
 
