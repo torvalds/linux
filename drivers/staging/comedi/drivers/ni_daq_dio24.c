@@ -56,9 +56,6 @@ static struct pcmcia_device *pcmcia_cur_dev;
 
 #define DIO24_SIZE 4		/*  size of io region used by board */
 
-static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void dio24_detach(struct comedi_device *dev);
-
 enum dio24_bustype { pcmcia_bustype };
 
 struct dio24_board_struct {
@@ -94,16 +91,6 @@ static const struct dio24_board_struct dio24_boards[] = {
 struct dio24_private {
 
 	int data;		/* number of data points left to be taken */
-};
-
-static struct comedi_driver driver_dio24 = {
-	.driver_name = "ni_daq_dio24",
-	.module = THIS_MODULE,
-	.attach = dio24_attach,
-	.detach = dio24_detach,
-	.num_names = ARRAY_SIZE(dio24_boards),
-	.board_name = &dio24_boards[0].name,
-	.offset = sizeof(struct dio24_board_struct),
 };
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -182,6 +169,16 @@ static void dio24_detach(struct comedi_device *dev)
 		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+};
+
+static struct comedi_driver driver_dio24 = {
+	.driver_name	= "ni_daq_dio24",
+	.module		= THIS_MODULE,
+	.attach		= dio24_attach,
+	.detach		= dio24_detach,
+	.num_names	= ARRAY_SIZE(dio24_boards),
+	.board_name	= &dio24_boards[0].name,
+	.offset		= sizeof(struct dio24_board_struct),
 };
 
 static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
