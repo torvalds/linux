@@ -1342,7 +1342,6 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	case OBJ_REQUEST_BIO:
 		rbd_assert(obj_request->bio_list != NULL);
 		osd_req->r_bio = obj_request->bio_list;
-		bio_get(osd_req->r_bio);
 		/* osd client requires "num pages" even for bio */
 		osd_req->r_num_pages = calc_pages_for(offset, length);
 		break;
@@ -4149,6 +4148,11 @@ int __init rbd_init(void)
 {
 	int rc;
 
+	if (!libceph_compatible(NULL)) {
+		rbd_warn(NULL, "libceph incompatibility (quitting)");
+
+		return -EINVAL;
+	}
 	rc = rbd_sysfs_init();
 	if (rc)
 		return rc;

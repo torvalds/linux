@@ -147,10 +147,6 @@ void ceph_osdc_release_request(struct kref *kref)
 	if (req->r_own_pages)
 		ceph_release_page_vector(req->r_pages,
 					 req->r_num_pages);
-#ifdef CONFIG_BLOCK
-	if (req->r_bio)
-		bio_put(req->r_bio);
-#endif
 	ceph_put_snap_context(req->r_snapc);
 	ceph_pagelist_release(&req->r_trail);
 	if (req->r_mempool)

@@ -39,7 +39,7 @@
  */
 bool libceph_compatible(void *data)
 {
-	return false;
+	return true;
 }
 EXPORT_SYMBOL(libceph_compatible);
 
