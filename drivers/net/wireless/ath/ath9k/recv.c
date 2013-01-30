@@ -1123,6 +1123,24 @@ static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 #endif
 }
 
+static void ath9k_apply_ampdu_details(struct ath_softc *sc,
+	struct ath_rx_status *rs, struct ieee80211_rx_status *rxs)
+{
+	if (rs->rs_isaggr) {
+		rxs->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+
+		rxs->ampdu_reference = sc->rx.ampdu_ref;
+
+		if (!rs->rs_moreaggr) {
+			rxs->flag |= RX_FLAG_AMPDU_IS_LAST;
+			sc->rx.ampdu_ref++;
+		}
+
+		if (rs->rs_flags & ATH9K_RX_DELIM_CRC_PRE)
+			rxs->flag |= RX_FLAG_AMPDU_DELIM_CRC_ERROR;
+	}
+}
+
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_buf *bf;
@@ -1328,6 +1346,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx == 3)
 			ath_ant_comb_scan(sc, &rs);
+
+		ath9k_apply_ampdu_details(sc, &rs, rxs);
 
 		ieee80211_rx(hw, skb);
 

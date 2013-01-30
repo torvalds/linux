@@ -319,6 +319,8 @@ struct ath_rx {
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
 	struct sk_buff *frag;
+
+	u32 ampdu_ref;
 };
 
 int ath_startrecv(struct ath_softc *sc);
