@@ -79,11 +79,13 @@ static const struct v4l2_file_operations pcm20_fops = {
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *v)
 {
+	struct pcm20 *dev = video_drvdata(file);
+
 	strlcpy(v->driver, "Miro PCM20", sizeof(v->driver));
 	strlcpy(v->card, "Miro PCM20", sizeof(v->card));
-	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->version = 0x1;
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", dev->v4l2_dev.name);
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -229,7 +231,7 @@ static int __init pcm20_init(void)
 			 "you must load the snd-miro driver first!\n");
 		return -ENODEV;
 	}
-	strlcpy(v4l2_dev->name, "miropcm20", sizeof(v4l2_dev->name));
+	strlcpy(v4l2_dev->name, "radio-miropcm20", sizeof(v4l2_dev->name));
 	mutex_init(&dev->lock);
 
 	res = v4l2_device_register(NULL, v4l2_dev);
