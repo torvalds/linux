@@ -185,9 +185,6 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	struct nf_conn *ct;
 	int ret = -EOPNOTSUPP;
 
-	if (info->flags & ~XT_CT_NOTRACK)
-		return -EINVAL;
-
 	if (info->flags & XT_CT_NOTRACK) {
 		ct = nf_ct_untracked_get();
 		atomic_inc(&ct->ct_general.use);
@@ -256,6 +253,9 @@ static int xt_ct_tg_check_v0(const struct xt_tgchk_param *par)
 	};
 	int ret;
 
+	if (info->flags & ~XT_CT_NOTRACK)
+		return -EINVAL;
+
 	memcpy(info_v1.helper, info->helper, sizeof(info->helper));
 
 	ret = xt_ct_tg_check(par, &info_v1);
@@ -269,6 +269,21 @@ static int xt_ct_tg_check_v0(const struct xt_tgchk_param *par)
 
 static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 {
+	struct xt_ct_target_info_v1 *info = par->targinfo;
+
+	if (info->flags & ~XT_CT_NOTRACK)
+		return -EINVAL;
+
+	return xt_ct_tg_check(par, par->targinfo);
+}
+
+static int xt_ct_tg_check_v2(const struct xt_tgchk_param *par)
+{
+	struct xt_ct_target_info_v1 *info = par->targinfo;
+
+	if (info->flags & ~XT_CT_MASK)
+		return -EINVAL;
+
 	return xt_ct_tg_check(par, par->targinfo);
 }
 
@@ -345,6 +360,17 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 		.revision	= 1,
 		.targetsize	= sizeof(struct xt_ct_target_info_v1),
 		.checkentry	= xt_ct_tg_check_v1,
+		.destroy	= xt_ct_tg_destroy_v1,
+		.target		= xt_ct_target_v1,
+		.table		= "raw",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "CT",
+		.family		= NFPROTO_UNSPEC,
+		.revision	= 2,
+		.targetsize	= sizeof(struct xt_ct_target_info_v1),
+		.checkentry	= xt_ct_tg_check_v2,
 		.destroy	= xt_ct_tg_destroy_v1,
 		.target		= xt_ct_target_v1,
 		.table		= "raw",
