@@ -11,6 +11,7 @@ nouveau-y := core/core/client.o
 nouveau-y += core/core/engctx.o
 nouveau-y += core/core/engine.o
 nouveau-y += core/core/enum.o
+nouveau-y += core/core/event.o
 nouveau-y += core/core/falcon.o
 nouveau-y += core/core/gpuobj.o
 nouveau-y += core/core/handle.o
