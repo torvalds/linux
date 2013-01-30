@@ -958,8 +958,10 @@ int qlcnic_set_features(struct net_device *netdev, netdev_features_t features)
 	if (qlcnic_config_hw_lro(adapter, hw_lro))
 		return -EIO;
 
-	if ((hw_lro == 0) && qlcnic_send_lro_cleanup(adapter))
-		return -EIO;
+	if (!hw_lro && qlcnic_82xx_check(adapter)) {
+		if (qlcnic_send_lro_cleanup(adapter))
+			return -EIO;
+	}
 
 	return 0;
 }

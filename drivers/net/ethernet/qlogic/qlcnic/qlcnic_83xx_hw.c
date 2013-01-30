@@ -1399,7 +1399,7 @@ void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip,
 			       int mode)
 {
 	int err;
-	u32 temp;
+	u32 temp, temp_ip;
 	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_IP_ADDR);
@@ -1410,8 +1410,17 @@ void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip,
 		temp = adapter->recv_ctx->context_id << 16;
 		cmd.req.arg[1] = 2 | temp;
 	}
-	cmd.req.arg[2] = ntohl(ip);
 
+	/*
+	 * Adapter needs IP address in network byte order.
+	 * But hardware mailbox registers go through writel(), hence IP address
+	 * gets swapped on big endian architecture.
+	 * To negate swapping of writel() on big endian architecture
+	 * use swab32(value).
+	 */
+
+	temp_ip = swab32(ntohl(ip));
+	memcpy(&cmd.req.arg[2], &temp_ip, sizeof(u32));
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err != QLCNIC_RCODE_SUCCESS)
 		dev_err(&adapter->netdev->dev,
@@ -1425,13 +1434,16 @@ int qlcnic_83xx_config_hw_lro(struct qlcnic_adapter *adapter, int mode)
 	int err;
 	u32 temp, arg1;
 	struct qlcnic_cmd_args cmd;
+	int lro_bit_mask;
+
+	lro_bit_mask = (mode ? (BIT_0 | BIT_1 | BIT_2 | BIT_3) : 0);
 
 	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
 		return 0;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_HW_LRO);
 	temp = adapter->recv_ctx->context_id << 16;
-	arg1 = (mode ? (BIT_0 | BIT_1 | BIT_3) : 0) | temp;
+	arg1 = lro_bit_mask | temp;
 	cmd.req.arg[1] = arg1;
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
