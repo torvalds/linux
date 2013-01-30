@@ -43,6 +43,13 @@
 
 #include "fiq_debugger_ringbuf.h"
 
+#ifdef CONFIG_RK29_WATCHDOG
+extern void rk29_wdt_keepalive(void);
+#define wdt_keepalive() rk29_wdt_keepalive()
+#else
+#define wdt_keepalive() do {} while (0)
+#endif
+
 #define DEBUG_MAX 64
 #define CMD_COUNT 0x0f
 #define MAX_UNHANDLED_FIQ_COUNT 1000000
@@ -210,6 +217,7 @@ static void dump_kernel_log(struct fiq_debugger_state *state)
 	saved_oip = oops_in_progress;
 	oops_in_progress = 1;
 	for (;;) {
+		wdt_keepalive();
 		ret = log_buf_copy(buf, idx, 1023);
 		if (ret <= 0)
 			break;
@@ -229,6 +237,8 @@ static void dump_last_kernel_log(struct fiq_debugger_state *state)
 	char *s = last_log_get(&size);
 
 	for (i = 0; i < size; i++) {
+		if (i % 1024 == 0)
+			wdt_keepalive();
 		c = s[i];
 		if (c == '\n') {
 			state->pdata->uart_putc(state->pdev, '\r');
