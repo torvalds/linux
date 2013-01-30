@@ -16,7 +16,7 @@ obj-y += rk_timer.o
 obj-$(CONFIG_SMP) += ../mach-rk30/platsmp.o ../mach-rk30/headsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += ../mach-rk30/hotplug.o
 obj-$(CONFIG_CPU_IDLE) += ../mach-rk30/cpuidle.o
-obj-$(CONFIG_CPU_FREQ) += ../mach-rk30/cpufreq.o
+obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
 
 obj-$(CONFIG_MACH_RK3188_FPGA) += board-rk3188-fpga.o
