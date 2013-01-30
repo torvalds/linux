@@ -650,6 +650,7 @@ static int wm2000_speaker_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new wm2000_controls[] = {
+	SOC_SINGLE("ANC Volume", WM2000_REG_ANC_GAIN_CTRL, 0, 255, 0),
 	SOC_SINGLE_BOOL_EXT("WM2000 ANC Switch", 0,
 			    wm2000_anc_mode_get,
 			    wm2000_anc_mode_put),
@@ -754,6 +755,8 @@ static const struct regmap_config wm2000_regmap = {
 static int wm2000_probe(struct snd_soc_codec *codec)
 {
 	struct wm2000_priv *wm2000 = dev_get_drvdata(codec->dev);
+
+	snd_soc_codec_set_cache_io(codec, 16, 8, SND_SOC_REGMAP);
 
 	/* This will trigger a transition to standby mode by default */
 	wm2000_anc_set_mode(wm2000);
