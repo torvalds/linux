@@ -1711,7 +1711,9 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 		(unsigned long long)ret->qid.path, ret->qid.version, ret->mode,
 		ret->atime, ret->mtime, (unsigned long long)ret->length,
 		ret->name, ret->uid, ret->gid, ret->muid, ret->extension,
-		ret->n_uid, ret->n_gid, ret->n_muid);
+		from_kuid(&init_user_ns, ret->n_uid),
+		from_kgid(&init_user_ns, ret->n_gid),
+		from_kuid(&init_user_ns, ret->n_muid));
 
 	p9_free_req(clnt, req);
 	return ret;
@@ -1765,8 +1767,10 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 		"<<< st_btime_sec=%lld st_btime_nsec=%lld\n"
 		"<<< st_gen=%lld st_data_version=%lld",
 		ret->st_result_mask, ret->qid.type, ret->qid.path,
-		ret->qid.version, ret->st_mode, ret->st_nlink, ret->st_uid,
-		ret->st_gid, ret->st_rdev, ret->st_size, ret->st_blksize,
+		ret->qid.version, ret->st_mode, ret->st_nlink,
+		from_kuid(&init_user_ns, ret->st_uid),
+		from_kgid(&init_user_ns, ret->st_gid),
+		ret->st_rdev, ret->st_size, ret->st_blksize,
 		ret->st_blocks, ret->st_atime_sec, ret->st_atime_nsec,
 		ret->st_mtime_sec, ret->st_mtime_nsec, ret->st_ctime_sec,
 		ret->st_ctime_nsec, ret->st_btime_sec, ret->st_btime_nsec,
@@ -1829,7 +1833,9 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst)
 		(unsigned long long)wst->qid.path, wst->qid.version, wst->mode,
 		wst->atime, wst->mtime, (unsigned long long)wst->length,
 		wst->name, wst->uid, wst->gid, wst->muid, wst->extension,
-		wst->n_uid, wst->n_gid, wst->n_muid);
+		from_kuid(&init_user_ns, wst->n_uid),
+		from_kgid(&init_user_ns, wst->n_gid),
+		from_kuid(&init_user_ns, wst->n_muid));
 
 	req = p9_client_rpc(clnt, P9_TWSTAT, "dwS", fid->fid, wst->size+2, wst);
 	if (IS_ERR(req)) {
@@ -1858,7 +1864,9 @@ int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *p9attr)
 		"    valid=%x mode=%x uid=%d gid=%d size=%lld\n"
 		"    atime_sec=%lld atime_nsec=%lld\n"
 		"    mtime_sec=%lld mtime_nsec=%lld\n",
-		p9attr->valid, p9attr->mode, p9attr->uid, p9attr->gid,
+		p9attr->valid, p9attr->mode,
+		from_kuid(&init_user_ns, p9attr->uid),
+		from_kgid(&init_user_ns, p9attr->gid),
 		p9attr->size, p9attr->atime_sec, p9attr->atime_nsec,
 		p9attr->mtime_sec, p9attr->mtime_nsec);
 

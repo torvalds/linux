@@ -228,9 +228,9 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 	wstat->uid = NULL;
 	wstat->gid = NULL;
 	wstat->muid = NULL;
-	wstat->n_uid = ~0;
-	wstat->n_gid = ~0;
-	wstat->n_muid = ~0;
+	wstat->n_uid = INVALID_UID;
+	wstat->n_gid = INVALID_GID;
+	wstat->n_muid = INVALID_UID;
 	wstat->extension = NULL;
 }
 
