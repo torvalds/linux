@@ -301,19 +301,17 @@ static const struct pcmcia_device_id dio24_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x475c),	/* daqcard-dio24 */
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, dio24_cs_ids);
 
 static struct pcmcia_driver dio24_cs_driver = {
-	.probe = dio24_cs_attach,
-	.remove = dio24_cs_detach,
-	.suspend = dio24_cs_suspend,
-	.resume = dio24_cs_resume,
-	.id_table = dio24_cs_ids,
-	.owner = THIS_MODULE,
-	.name = "ni_daq_dio24",
+	.name		= "ni_daq_dio24",
+	.owner		= THIS_MODULE,
+	.id_table	= dio24_cs_ids,
+	.probe		= dio24_cs_attach,
+	.remove		= dio24_cs_detach,
+	.suspend	= dio24_cs_suspend,
+	.resume		= dio24_cs_resume,
 };
-
 module_comedi_pcmcia_driver(driver_dio24, dio24_cs_driver);
 
 MODULE_AUTHOR("Daniel Vecino Castel <dvecino@able.es>");
