@@ -524,7 +524,10 @@ struct dasd_block {
 #define DASD_FLAG_SUSPENDED	9	/* The device was suspended */
 #define DASD_FLAG_SAFE_OFFLINE	10	/* safe offline processing requested*/
 #define DASD_FLAG_SAFE_OFFLINE_RUNNING	11	/* safe offline running */
+#define DASD_FLAG_ABORTALL	12	/* Abort all noretry requests */
 
+#define DASD_SLEEPON_START_TAG	((void *) 1)
+#define DASD_SLEEPON_END_TAG	((void *) 2)
 
 void dasd_put_device_wake(struct dasd_device *);
 

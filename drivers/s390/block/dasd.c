@@ -38,9 +38,6 @@
  */
 #define DASD_CHANQ_MAX_SIZE 4
 
-#define DASD_SLEEPON_START_TAG	(void *) 1
-#define DASD_SLEEPON_END_TAG	(void *) 2
-
 /*
  * SECTION: exported variables of dasd.c
  */
@@ -2533,6 +2530,16 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      req);
 			blk_start_request(req);
 			__blk_end_request_all(req, -EIO);
+			continue;
+		}
+		if (test_bit(DASD_FLAG_ABORTALL, &basedev->flags) &&
+		    (basedev->features & DASD_FEATURE_FAILFAST ||
+		     blk_noretry_request(req))) {
+			DBF_DEV_EVENT(DBF_ERR, basedev,
+				      "Rejecting failfast request %p",
+				      req);
+			blk_start_request(req);
+			__blk_end_request_all(req, -ETIMEDOUT);
 			continue;
 		}
 		cqr = basedev->discipline->build_cp(basedev, block, req);
