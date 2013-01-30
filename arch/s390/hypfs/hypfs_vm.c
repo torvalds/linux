@@ -245,7 +245,7 @@ static int dbfs_diag2fc_create(void **data, void **data_free_ptr, size_t *size)
 	d2fc = diag2fc_store(guest_query, &count, sizeof(d2fc->hdr));
 	if (IS_ERR(d2fc))
 		return PTR_ERR(d2fc);
-	get_clock_ext(d2fc->hdr.tod_ext);
+	get_tod_clock_ext(d2fc->hdr.tod_ext);
 	d2fc->hdr.len = count * sizeof(struct diag2fc_data);
 	d2fc->hdr.version = DBFS_D2FC_HDR_VERSION;
 	d2fc->hdr.count = count;

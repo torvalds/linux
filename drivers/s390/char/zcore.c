@@ -637,7 +637,7 @@ static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 	hdr->rmem_size = memory;
 	hdr->mem_end = sys_info.mem_size;
 	hdr->num_pages = memory / PAGE_SIZE;
-	hdr->tod = get_clock();
+	hdr->tod = get_tod_clock();
 	get_cpu_id(&hdr->cpu_id);
 	for (i = 0; zfcpdump_save_areas[i]; i++) {
 		prefix = zfcpdump_save_areas[i]->pref_reg;

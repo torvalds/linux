@@ -111,7 +111,7 @@ static void appldata_get_net_sum_data(void *data)
 	net_data->tx_dropped = tx_dropped;
 	net_data->collisions = collisions;
 
-	net_data->timestamp = get_clock();
+	net_data->timestamp = get_tod_clock();
 	net_data->sync_count_2++;
 }
 

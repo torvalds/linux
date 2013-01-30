@@ -862,7 +862,7 @@ static void dasd_eckd_fill_rcd_cqr(struct dasd_device *device,
 	cqr->expires = 10*HZ;
 	cqr->lpm = lpm;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	set_bit(DASD_CQR_VERIFY_PATH, &cqr->flags);
 }
@@ -1449,7 +1449,7 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 	ccw->count = sizeof(struct dasd_rssd_features);
 	ccw->cda = (__u32)(addr_t) features;
 
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	rc = dasd_sleep_on(cqr);
 	if (rc == 0) {
@@ -1501,7 +1501,7 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
 	cqr->block = NULL;
 	cqr->retries = 256;
 	cqr->expires = 10*HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -1841,7 +1841,7 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->retries = 255;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -2241,7 +2241,7 @@ dasd_eckd_format_device(struct dasd_device * device,
 	fcp->startdev = device;
 	fcp->memdev = device;
 	fcp->retries = 256;
-	fcp->buildclk = get_clock();
+	fcp->buildclk = get_tod_clock();
 	fcp->status = DASD_CQR_FILLED;
 	return fcp;
 }
@@ -2530,7 +2530,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = startdev->path_data.ppm;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -2705,7 +2705,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = startdev->path_data.ppm;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -2998,7 +2998,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = startdev->path_data.ppm;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 out_error:
@@ -3201,7 +3201,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	cqr->expires = startdev->default_expires * HZ;
 	cqr->lpm = startdev->path_data.ppm;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	if (IS_ERR(cqr) && PTR_ERR(cqr) != -EAGAIN)
@@ -3402,7 +3402,7 @@ dasd_eckd_release(struct dasd_device *device)
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
@@ -3457,7 +3457,7 @@ dasd_eckd_reserve(struct dasd_device *device)
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
@@ -3511,7 +3511,7 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->retries = 2;	/* set retry counter to enable basic ERP */
 	cqr->expires = 2 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
@@ -3572,7 +3572,7 @@ static int dasd_eckd_snid(struct dasd_device *device,
 	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 	cqr->retries = 5;
 	cqr->expires = 10 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	cqr->lpm = usrparm.path_mask;
 
@@ -3642,7 +3642,7 @@ dasd_eckd_performance(struct dasd_device *device, void __user *argp)
 	ccw->count = sizeof(struct dasd_rssd_perf_stats_t);
 	ccw->cda = (__u32)(addr_t) stats;
 
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	rc = dasd_sleep_on(cqr);
 	if (rc == 0) {
@@ -3768,7 +3768,7 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	cqr->memdev = device;
 	cqr->retries = 3;
 	cqr->expires = 10 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	/* Build the ccws */
