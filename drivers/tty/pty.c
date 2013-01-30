@@ -256,7 +256,7 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 		goto out;
 	if (test_bit(TTY_PTY_LOCK, &tty->link->flags))
 		goto out;
-	if (tty->link->count != 1)
+	if (tty->driver->subtype == PTY_TYPE_SLAVE && tty->link->count != 1)
 		goto out;
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
