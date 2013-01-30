@@ -539,7 +539,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof);
 
 int mlx4_en_start_port(struct net_device *dev);
-void mlx4_en_stop_port(struct net_device *dev);
+void mlx4_en_stop_port(struct net_device *dev, int detach);
 
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
