@@ -1070,11 +1070,7 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# Networking
-	depends on NET_9P = n
-
 	# Filesystems
-	depends on 9P_FS = n
 	depends on AFS_FS = n
 	depends on CIFS = n
 	depends on CODA_FS = n
