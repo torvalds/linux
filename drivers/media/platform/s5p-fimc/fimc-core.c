@@ -525,7 +525,6 @@ static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	const struct fimc_variant *variant = fimc->variant;
-	unsigned int flags = FIMC_DST_FMT | FIMC_SRC_FMT;
 	int ret = 0;
 
 	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
@@ -541,8 +540,7 @@ static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_ROTATE:
-		if (fimc_capture_pending(fimc) ||
-		    (ctx->state & flags) == flags) {
+		if (fimc_capture_pending(fimc)) {
 			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
 					ctx->s_frame.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctrl->val);
@@ -707,22 +705,6 @@ void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
 		pixm->plane_fmt[i].bytesperline = frame->bytesperline[i];
 		pixm->plane_fmt[i].sizeimage = frame->payload[i];
 	}
-}
-
-void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f)
-{
-	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
-
-	frame->f_width  = pixm->plane_fmt[0].bytesperline;
-	if (frame->fmt->colplanes == 1)
-		frame->f_width = (frame->f_width * 8) / frame->fmt->depth[0];
-	frame->f_height	= pixm->height;
-	frame->width    = pixm->width;
-	frame->height   = pixm->height;
-	frame->o_width  = pixm->width;
-	frame->o_height = pixm->height;
-	frame->offs_h   = 0;
-	frame->offs_v   = 0;
 }
 
 /**
