@@ -932,7 +932,8 @@ netdev_features_t qlcnic_fix_features(struct net_device *netdev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
+	    qlcnic_82xx_check(adapter)) {
 		netdev_features_t changed = features ^ netdev->features;
 		features ^= changed & (NETIF_F_ALL_CSUM | NETIF_F_RXCSUM);
 	}
