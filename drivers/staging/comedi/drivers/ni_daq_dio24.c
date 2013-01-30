@@ -94,9 +94,6 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
-#ifdef incomplete
-	unsigned int irq = 0;
-#endif
 	struct pcmcia_device *link;
 	int ret;
 
@@ -112,9 +109,6 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (!link)
 			return -EIO;
 		iobase = link->resource[0]->start;
-#ifdef incomplete
-		irq = link->irq;
-#endif
 		break;
 	default:
 		pr_err("bug! couldn't determine board type\n");
@@ -123,10 +117,6 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	pr_debug("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor,
 		 thisboard->name, iobase);
-#ifdef incomplete
-	if (irq)
-		pr_debug("irq %u\n", irq);
-#endif
 
 	if (iobase == 0) {
 		pr_err("io base address is zero!\n");
@@ -134,11 +124,6 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	dev->iobase = iobase;
-
-#ifdef incomplete
-	/* grab our IRQ */
-	dev->irq = irq;
-#endif
 
 	dev->board_name = thisboard->name;
 
