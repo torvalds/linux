@@ -279,7 +279,6 @@ nv50_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
 	priv->base.base.temp_get = nv50_temp_get;
 	priv->base.sensor.program_alarms = nv50_therm_program_alarms;
-	spin_lock_init(&priv->base.sensor.alarm_program_lock);
 	nv_subdev(priv)->intr = nv50_therm_intr;
 
 	/* init the thresholds */

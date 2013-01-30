@@ -299,6 +299,7 @@ nouveau_therm_create_(struct nouveau_object *parent,
 
 	nouveau_alarm_init(&priv->alarm, nouveau_therm_alarm);
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->sensor.alarm_program_lock);
 
 	priv->base.fan_get = nouveau_therm_fan_user_get;
 	priv->base.fan_set = nouveau_therm_fan_user_set;
