@@ -2798,6 +2798,7 @@ struct qla_hw_data {
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
 #define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha))
+#define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
 
 	/* HBA serial number */
 	uint8_t		serial0;

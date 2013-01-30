@@ -38,7 +38,7 @@
  * | ISP82XX Specific             |       0xb084       | 0xb002,0xb024  |
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
- * | Target Mode		  |	  0xe06f       |		|
+ * | Target Mode		  |	  0xe070       |		|
  * | Target Mode Management	  |	  0xf072       |		|
  * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------

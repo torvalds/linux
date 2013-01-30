@@ -4306,6 +4306,12 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	if (!QLA_TGT_MODE_ENABLED())
 		return 0;
 
+	if (!IS_TGT_MODE_CAPABLE(ha)) {
+		ql_log(ql_log_warn, base_vha, 0xe070,
+		    "This adapter does not support target mode.\n");
+		return 0;
+	}
+
 	ql_dbg(ql_dbg_tgt, base_vha, 0xe03b,
 	    "Registering target for host %ld(%p)", base_vha->host_no, ha);
 
