@@ -1064,7 +1064,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 
 		/* Add our control */
 		v4l2_ctrl_new_std(&icd->ctrl_handler, &sh_mobile_ceu_ctrl_ops,
-				  V4L2_CID_SHARPNESS, 0, 1, 1, 0);
+				  V4L2_CID_SHARPNESS, 0, 1, 1, 1);
 		if (icd->ctrl_handler.error)
 			return icd->ctrl_handler.error;
 
