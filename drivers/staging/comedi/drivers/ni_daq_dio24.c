@@ -185,12 +185,6 @@ static void dio24_detach(struct comedi_device *dev)
 };
 
 static void dio24_config(struct pcmcia_device *link);
-static void dio24_release(struct pcmcia_device *link);
-static int dio24_cs_suspend(struct pcmcia_device *p_dev);
-static int dio24_cs_resume(struct pcmcia_device *p_dev);
-
-static int dio24_cs_attach(struct pcmcia_device *);
-static void dio24_cs_detach(struct pcmcia_device *);
 
 struct local_info_t {
 	struct pcmcia_device *link;
@@ -223,7 +217,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 static void dio24_cs_detach(struct pcmcia_device *link)
 {
 	((struct local_info_t *)link->priv)->stop = 1;
-	dio24_release(link);
+	pcmcia_disable_device(link);
 
 	/* This points to the parent local_info_t struct */
 	kfree(link->priv);
@@ -266,16 +260,8 @@ static void dio24_config(struct pcmcia_device *link)
 
 failed:
 	dev_info(&link->dev, "Fallo");
-	dio24_release(link);
-
-}				/* dio24_config */
-
-static void dio24_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "dio24_release\n");
-
 	pcmcia_disable_device(link);
-}				/* dio24_release */
+}
 
 static int dio24_cs_suspend(struct pcmcia_device *link)
 {
