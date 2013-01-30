@@ -891,7 +891,7 @@ static int rk3188_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bo
 		if(set)  //set overlay
 		{
 			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN0_TOP,v_WIN0_TOP(swap));
-			lcdc_cfg_done(lcdc_dev);
+			//lcdc_cfg_done(lcdc_dev);
 			ovl = swap;
 		}
 		else  //get overlay
