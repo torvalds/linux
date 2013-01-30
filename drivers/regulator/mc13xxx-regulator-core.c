@@ -181,12 +181,14 @@ EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
 
 struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
-	int num_regulators)
+	int num_regulators, int *num_parsed)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	struct mc13xxx_regulator_init_data *data, *p;
 	struct device_node *parent, *child;
-	int i;
+	int i, parsed = 0;
+
+	*num_parsed = 0;
 
 	of_node_get(pdev->dev.parent->of_node);
 	parent = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
@@ -203,16 +205,20 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 		for (i = 0; i < num_regulators; i++) {
 			if (!of_node_cmp(child->name,
 					 regulators[i].desc.name)) {
+
 				p->id = i;
 				p->init_data = of_get_regulator_init_data(
 							&pdev->dev, child);
 				p->node = child;
 				p++;
+
+				parsed++;
 				break;
 			}
 		}
 	}
 
+	*num_parsed = parsed;
 	return data;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_parse_regulators_dt);
