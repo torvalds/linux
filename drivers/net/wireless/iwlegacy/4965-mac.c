@@ -319,6 +319,7 @@ il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 	struct list_head *element;
 	struct il_rx_buf *rxb;
 	struct page *page;
+	dma_addr_t page_dma;
 	unsigned long flags;
 	gfp_t gfp_mask = priority;
 
@@ -356,33 +357,35 @@ il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 			return;
 		}
 
+		/* Get physical address of the RB */
+		page_dma =
+		    pci_map_page(il->pci_dev, page, 0,
+				 PAGE_SIZE << il->hw_params.rx_page_order,
+				 PCI_DMA_FROMDEVICE);
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, page_dma))) {
+			__free_pages(page, il->hw_params.rx_page_order);
+			break;
+		}
+
 		spin_lock_irqsave(&rxq->lock, flags);
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
+			pci_unmap_page(il->pci_dev, page_dma,
+				       PAGE_SIZE << il->hw_params.rx_page_order,
+				       PCI_DMA_FROMDEVICE);
 			__free_pages(page, il->hw_params.rx_page_order);
 			return;
 		}
+
 		element = rxq->rx_used.next;
 		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
-		spin_unlock_irqrestore(&rxq->lock, flags);
-
 		BUG_ON(rxb->page);
+
 		rxb->page = page;
-		/* Get physical address of the RB */
-		rxb->page_dma =
-		    pci_map_page(il->pci_dev, page, 0,
-				 PAGE_SIZE << il->hw_params.rx_page_order,
-				 PCI_DMA_FROMDEVICE);
-		/* dma address must be no more than 36 bits */
-		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
-		/* and also 256 byte aligned! */
-		BUG_ON(rxb->page_dma & DMA_BIT_MASK(8));
-
-		spin_lock_irqsave(&rxq->lock, flags);
-
+		rxb->page_dma = page_dma;
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 		il->alloc_rxb_page++;
@@ -4292,8 +4295,16 @@ il4965_rx_handle(struct il_priv *il)
 			    pci_map_page(il->pci_dev, rxb->page, 0,
 					 PAGE_SIZE << il->hw_params.
 					 rx_page_order, PCI_DMA_FROMDEVICE);
-			list_add_tail(&rxb->list, &rxq->rx_free);
-			rxq->free_count++;
+
+			if (unlikely(pci_dma_mapping_error(il->pci_dev,
+							   rxb->page_dma))) {
+				__il_free_pages(il, rxb->page);
+				rxb->page = NULL;
+				list_add_tail(&rxb->list, &rxq->rx_used);
+			} else {
+				list_add_tail(&rxb->list, &rxq->rx_free);
+				rxq->free_count++;
+			}
 		} else
 			list_add_tail(&rxb->list, &rxq->rx_used);
 
