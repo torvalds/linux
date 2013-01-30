@@ -188,7 +188,6 @@ static void dio24_config(struct pcmcia_device *link);
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	int stop;
 	struct bus_operations *bus;
 };
 
@@ -216,7 +215,6 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 
 static void dio24_cs_detach(struct pcmcia_device *link)
 {
-	((struct local_info_t *)link->priv)->stop = 1;
 	pcmcia_disable_device(link);
 
 	/* This points to the parent local_info_t struct */
@@ -265,18 +263,11 @@ failed:
 
 static int dio24_cs_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
 	return 0;
 }				/* dio24_cs_suspend */
 
 static int dio24_cs_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	local->stop = 0;
 	return 0;
 }				/* dio24_cs_resume */
 
