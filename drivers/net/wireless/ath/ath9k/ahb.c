@@ -86,29 +86,25 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data specified\n");
-		ret = -EINVAL;
-		goto err_out;
+		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no memory resource found\n");
-		ret = -ENXIO;
-		goto err_out;
+		return -ENXIO;
 	}
 
-	mem = ioremap_nocache(res->start, resource_size(res));
+	mem = devm_ioremap_nocache(&pdev->dev, res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err_out;
+		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ resource found\n");
-		ret = -ENXIO;
-		goto err_iounmap;
+		return -ENXIO;
 	}
 
 	irq = res->start;
@@ -116,8 +112,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
-		ret = -ENOMEM;
-		goto err_iounmap;
+		return -ENOMEM;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -156,9 +151,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
  err_free_hw:
 	ieee80211_free_hw(hw);
 	platform_set_drvdata(pdev, NULL);
- err_iounmap:
-	iounmap(mem);
- err_out:
 	return ret;
 }
 
@@ -168,12 +160,10 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	if (hw) {
 		struct ath_softc *sc = hw->priv;
-		void __iomem *mem = sc->mem;
 
 		ath9k_deinit_device(sc);
 		free_irq(sc->irq, sc);
 		ieee80211_free_hw(sc->hw);
-		iounmap(mem);
 		platform_set_drvdata(pdev, NULL);
 	}
 

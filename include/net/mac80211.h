@@ -173,7 +173,7 @@ struct ieee80211_chanctx_conf {
 
 	u8 rx_chains_static, rx_chains_dynamic;
 
-	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -297,11 +297,9 @@ enum ieee80211_rssi_event {
  *	may filter ARP queries targeted for other addresses than listed here.
  *	The driver must allow ARP queries targeted for all address listed here
  *	to pass through. An empty list implies no ARP queries need to pass.
- * @arp_addr_cnt: Number of addresses currently on the list.
- * @arp_filter_enabled: Enable ARP filtering - if enabled, the hardware may
- *	filter ARP queries based on the @arp_addr_list, if disabled, the
- *	hardware must not perform any ARP filtering. Note, that the filter will
- *	be enabled also in promiscuous mode.
+ * @arp_addr_cnt: Number of addresses currently on the list. Note that this
+ *	may be larger than %IEEE80211_BSS_ARP_ADDR_LIST_LEN (the arp_addr_list
+ *	array size), it's up to the driver what to do in that case.
  * @qos: This is a QoS-enabled BSS.
  * @idle: This interface is idle. There's also a global idle flag in the
  *	hardware config which may be more appropriate depending on what
@@ -338,8 +336,7 @@ struct ieee80211_bss_conf {
 	u32 cqm_rssi_hyst;
 	struct cfg80211_chan_def chandef;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
-	u8 arp_addr_cnt;
-	bool arp_filter_enabled;
+	int arp_addr_cnt;
 	bool qos;
 	bool idle;
 	bool ps;
@@ -1059,7 +1056,7 @@ struct ieee80211_vif {
 	u32 driver_flags;
 
 	/* must be last */
-	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
@@ -1209,7 +1206,7 @@ struct ieee80211_sta {
 	u8 max_sp;
 
 	/* must be last */
-	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -1522,6 +1519,8 @@ struct ieee80211_hw {
  * structure can then access it via hw->priv. Note that mac802111 drivers should
  * not use wiphy_priv() to try to get their private driver structure as this
  * is already used internally by mac80211.
+ *
+ * Return: The mac80211 driver hw struct of @wiphy.
  */
 struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy);
 
@@ -1628,6 +1627,10 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
  * handler is software decryption with wrap around of iv16.
+ *
+ * The set_default_unicast_key() call updates the default WEP key index
+ * configured to the hardware for WEP encryption type. This is required
+ * for devices that support offload of data packets (e.g. ARP responses).
  */
 
 /**
@@ -2033,17 +2036,29 @@ enum ieee80211_filter_flags {
  * calling ieee80211_start_tx_ba_cb_irqsafe, because the peer
  * might receive the addBA frame and send a delBA right away!
  *
- * @IEEE80211_AMPDU_RX_START: start Rx aggregation
- * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
- * @IEEE80211_AMPDU_TX_START: start Tx aggregation
- * @IEEE80211_AMPDU_TX_STOP: stop Tx aggregation
+ * @IEEE80211_AMPDU_RX_START: start RX aggregation
+ * @IEEE80211_AMPDU_RX_STOP: stop RX aggregation
+ * @IEEE80211_AMPDU_TX_START: start TX aggregation
  * @IEEE80211_AMPDU_TX_OPERATIONAL: TX aggregation has become operational
+ * @IEEE80211_AMPDU_TX_STOP_CONT: stop TX aggregation but continue transmitting
+ *	queued packets, now unaggregated. After all packets are transmitted the
+ *	driver has to call ieee80211_stop_tx_ba_cb_irqsafe().
+ * @IEEE80211_AMPDU_TX_STOP_FLUSH: stop TX aggregation and flush all packets,
+ *	called when the station is removed. There's no need or reason to call
+ *	ieee80211_stop_tx_ba_cb_irqsafe() in this case as mac80211 assumes the
+ *	session is gone and removes the station.
+ * @IEEE80211_AMPDU_TX_STOP_FLUSH_CONT: called when TX aggregation is stopped
+ *	but the driver hasn't called ieee80211_stop_tx_ba_cb_irqsafe() yet and
+ *	now the connection is dropped and the station will be removed. Drivers
+ *	should clean up and drop remaining packets when this is called.
  */
 enum ieee80211_ampdu_mlme_action {
 	IEEE80211_AMPDU_RX_START,
 	IEEE80211_AMPDU_RX_STOP,
 	IEEE80211_AMPDU_TX_START,
-	IEEE80211_AMPDU_TX_STOP,
+	IEEE80211_AMPDU_TX_STOP_CONT,
+	IEEE80211_AMPDU_TX_STOP_FLUSH,
+	IEEE80211_AMPDU_TX_STOP_FLUSH_CONT,
 	IEEE80211_AMPDU_TX_OPERATIONAL,
 };
 
@@ -2193,6 +2208,10 @@ enum ieee80211_rate_control_changed {
  *	necessary to do GTK rekeying, this is the KEK, KCK and replay counter.
  *	After rekeying was done it should (for example during resume) notify
  *	userspace of the new replay counter using ieee80211_gtk_rekey_notify().
+ *
+ * @set_default_unicast_key: Set the default (unicast) key index, useful for
+ *	WEP when the device sends data packets autonomously, e.g. for ARP
+ *	offloading. The index can be 0-3, or -1 for unsetting it.
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
@@ -2474,7 +2493,13 @@ enum ieee80211_rate_control_changed {
  *
  * @restart_complete: Called after a call to ieee80211_restart_hw(), when the
  *	reconfiguration has completed. This can help the driver implement the
- *	reconfiguration step. This callback may sleep.
+ *	reconfiguration step. Also called when reconfiguring because the
+ *	driver's resume function returned 1, as this is just like an "inline"
+ *	hardware restart. This callback may sleep.
+ *
+ * @ipv6_addr_change: IPv6 address assignment on the given interface changed.
+ *	Currently, this is only called for managed or P2P client interfaces.
+ *	This callback is optional; it must not sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2522,6 +2547,8 @@ struct ieee80211_ops {
 	void (*set_rekey_data)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct cfg80211_gtk_rekey_data *data);
+	void (*set_default_unicast_key)(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif, int idx);
 	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_scan_request *req);
 	void (*cancel_hw_scan)(struct ieee80211_hw *hw,
@@ -2606,6 +2633,7 @@ struct ieee80211_ops {
 	int (*set_bitrate_mask)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
 	void (*rssi_callback)(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
 			      enum ieee80211_rssi_event rssi_event);
 
 	void (*allow_buffered_frames)(struct ieee80211_hw *hw,
@@ -2648,6 +2676,12 @@ struct ieee80211_ops {
 				     struct ieee80211_chanctx_conf *ctx);
 
 	void (*restart_complete)(struct ieee80211_hw *hw);
+
+#if IS_ENABLED(CONFIG_IPV6)
+	void (*ipv6_addr_change)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct inet6_dev *idev);
+#endif
 };
 
 /**
@@ -2661,6 +2695,8 @@ struct ieee80211_ops {
  *
  * @priv_data_len: length of private data
  * @ops: callbacks for this device
+ *
+ * Return: A pointer to the new hardware device, or %NULL on error.
  */
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops);
@@ -2673,6 +2709,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
  * need to fill the contained wiphy's information.
  *
  * @hw: the device to register as returned by ieee80211_alloc_hw()
+ *
+ * Return: 0 on success. An error code otherwise.
  */
 int ieee80211_register_hw(struct ieee80211_hw *hw);
 
@@ -2719,6 +2757,8 @@ extern char *__ieee80211_create_tpt_led_trigger(
  * of the trigger so you can automatically link the LED device.
  *
  * @hw: the hardware to get the LED trigger name for
+ *
+ * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
 static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 {
@@ -2738,6 +2778,8 @@ static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
  * of the trigger so you can automatically link the LED device.
  *
  * @hw: the hardware to get the LED trigger name for
+ *
+ * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
 static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 {
@@ -2757,6 +2799,8 @@ static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
  * of the trigger so you can automatically link the LED device.
  *
  * @hw: the hardware to get the LED trigger name for
+ *
+ * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
 static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
@@ -2776,6 +2820,8 @@ static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
  * of the trigger so you can automatically link the LED device.
  *
  * @hw: the hardware to get the LED trigger name for
+ *
+ * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
 static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
@@ -2793,9 +2839,10 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
  * @blink_table: the blink table -- needs to be ordered by throughput
  * @blink_table_len: size of the blink table
  *
- * This function returns %NULL (in case of error, or if no LED
- * triggers are configured) or the name of the new trigger.
- * This function must be called before ieee80211_register_hw().
+ * Return: %NULL (in case of error, or if no LED triggers are
+ * configured) or the name of the new trigger.
+ *
+ * Note: This function must be called before ieee80211_register_hw().
  */
 static inline char *
 ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
@@ -2928,10 +2975,10 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
  * Calls to this function for a single hardware must be synchronized against
  * each other.
  *
- * The function returns -EINVAL when the requested PS mode is already set.
- *
  * @sta: currently connected sta
  * @start: start or stop PS
+ *
+ * Return: 0 on success. -EINVAL when the requested PS mode is already set.
  */
 int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
 
@@ -2945,6 +2992,8 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
  *
  * @sta: currently connected sta
  * @start: start or stop PS
+ *
+ * Return: Like ieee80211_sta_ps_transition().
  */
 static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
 						  bool start)
@@ -3082,6 +3131,8 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
  * according to the current DTIM parameters/TIM bitmap.
  *
  * The driver is responsible for freeing the returned skb.
+ *
+ * Return: The beacon template. %NULL on error.
  */
 struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
@@ -3093,6 +3144,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
  * See ieee80211_beacon_get_tim().
+ *
+ * Return: See ieee80211_beacon_get_tim().
  */
 static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 						   struct ieee80211_vif *vif)
@@ -3109,6 +3162,8 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
  * hardware. The destination address should be set by the caller.
  *
  * Can only be called in AP mode.
+ *
+ * Return: The Probe Response template. %NULL on error.
  */
 struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif);
@@ -3124,6 +3179,8 @@ struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
  *
  * Note: Caller (or hardware) is responsible for setting the
  * &IEEE80211_FCTL_PM bit.
+ *
+ * Return: The PS Poll template. %NULL on error.
  */
 struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif);
@@ -3139,6 +3196,8 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
  *
  * Note: Caller (or hardware) is responsible for setting the
  * &IEEE80211_FCTL_PM bit as well as Duration and Sequence Control fields.
+ *
+ * Return: The nullfunc template. %NULL on error.
  */
 struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif);
@@ -3153,6 +3212,8 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
  *
  * Creates a Probe Request template which can, for example, be uploaded to
  * hardware.
+ *
+ * Return: The Probe Request template. %NULL on error.
  */
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
@@ -3188,6 +3249,8 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  * If the RTS is generated in firmware, but the host system must provide
  * the duration field, the low-level driver uses this function to receive
  * the duration field value in little-endian byteorder.
+ *
+ * Return: The duration.
  */
 __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif, size_t frame_len,
@@ -3223,6 +3286,8 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
  * If the CTS-to-self is generated in firmware, but the host system must provide
  * the duration field, the low-level driver uses this function to receive
  * the duration field value in little-endian byteorder.
+ *
+ * Return: The duration.
  */
 __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
@@ -3239,6 +3304,8 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
  *
  * Calculate the duration field of some generic frame, given its
  * length and transmission rate (in 100kbps).
+ *
+ * Return: The duration.
  */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
@@ -3255,9 +3322,10 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
  * hardware/firmware does not implement buffering of broadcast/multicast
  * frames when power saving is used, 802.11 code buffers them in the host
  * memory. The low-level driver uses this function to fetch next buffered
- * frame. In most cases, this is used when generating beacon frame. This
- * function returns a pointer to the next buffered skb or NULL if no more
- * buffered frames are available.
+ * frame. In most cases, this is used when generating beacon frame.
+ *
+ * Return: A pointer to the next buffered skb or NULL if no more buffered
+ * frames are available.
  *
  * Note: buffered frames are returned only after DTIM beacon frame was
  * generated with ieee80211_beacon_get() and the low-level driver must thus
@@ -3437,6 +3505,8 @@ void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue);
  * @queue: queue number (counted from zero).
  *
  * Drivers should use this function instead of netif_stop_queue.
+ *
+ * Return: %true if the queue is stopped. %false otherwise.
  */
 
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue);
@@ -3634,7 +3704,9 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
  * @vif: virtual interface to look for station on
  * @addr: station's address
  *
- * This function must be called under RCU lock and the
+ * Return: The station, if found. %NULL otherwise.
+ *
+ * Note: This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
  */
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
@@ -3647,7 +3719,9 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
  * @addr: remote station's address
  * @localaddr: local address (vif->sdata->vif.addr). Use NULL for 'any'.
  *
- * This function must be called under RCU lock and the
+ * Return: The station, if found. %NULL otherwise.
+ *
+ * Note: This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
  *
  * NOTE: You may pass NULL for localaddr, but then you will just get
@@ -3754,6 +3828,11 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
  * The iterator will not find a context that's being added (during
  * the driver callback to add it) but will find it while it's being
  * removed.
+ *
+ * Note that during hardware restart, all contexts that existed
+ * before the restart are considered already present so will be
+ * found while iterating, whether they've been re-added already
+ * or not.
  */
 void ieee80211_iter_chan_contexts_atomic(
 	struct ieee80211_hw *hw,
@@ -3772,7 +3851,9 @@ void ieee80211_iter_chan_contexts_atomic(
  * information. This function must only be called from within the
  * .bss_info_changed callback function and only in managed mode. The function
  * is only useful when the interface is associated, otherwise it will return
- * NULL.
+ * %NULL.
+ *
+ * Return: The Probe Request template. %NULL on error.
  */
 struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif);
@@ -4119,12 +4200,14 @@ void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
 
 /**
- * ieee80211_ave_rssi - report the average rssi for the specified interface
+ * ieee80211_ave_rssi - report the average RSSI for the specified interface
  *
  * @vif: the specified virtual interface
  *
- * This function return the average rssi value for the requested interface.
- * It assumes that the given vif is valid.
+ * Note: This function assumes that the given vif is valid.
+ *
+ * Return: The average RSSI value for the requested interface, or 0 if not
+ * applicable.
  */
 int ieee80211_ave_rssi(struct ieee80211_vif *vif);
 

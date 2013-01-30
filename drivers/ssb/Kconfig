@@ -136,6 +136,11 @@ config SSB_DRIVER_MIPS
 
 	  If unsure, say N
 
+config SSB_SFLASH
+	bool "SSB serial flash support"
+	depends on SSB_DRIVER_MIPS && BROKEN
+	default y
+
 # Assumption: We are on embedded, if we compile the MIPS core.
 config SSB_EMBEDDED
 	bool
@@ -162,8 +167,7 @@ config SSB_DRIVER_GIGE
 
 config SSB_DRIVER_GPIO
 	bool "SSB GPIO driver"
-	depends on SSB
-	select GPIOLIB
+	depends on SSB && GPIOLIB
 	help
 	  Driver to provide access to the GPIO pins on the bus.
 

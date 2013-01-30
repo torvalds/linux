@@ -54,7 +54,6 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 
 	skb_queue_purge(&sock->tx_queue);
 	skb_queue_purge(&sock->tx_pending_queue);
-	skb_queue_purge(&sock->tx_backlog_queue);
 
 	if (local == NULL)
 		return;
@@ -668,6 +667,8 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 			if (ptype == LLCP_PDU_I)
 				copy_skb = skb_copy(skb, GFP_ATOMIC);
 
+			__net_timestamp(skb);
+
 			nfc_llcp_send_to_raw_sock(local, skb,
 						  NFC_LLCP_DIRECTION_TX);
 
@@ -781,9 +782,15 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 
 	/* There is no sequence with UI frames */
 	skb_pull(skb, LLCP_HEADER_SIZE);
-	if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
-		pr_err("receive queue is full\n");
-		skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+	if (!sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
+		/*
+		 * UI frames will be freed from the socket layer, so we
+		 * need to keep them alive until someone receives them.
+		 */
+		skb_get(skb);
+	} else {
+		pr_err("Receive queue is full\n");
+		kfree_skb(skb);
 	}
 
 	nfc_llcp_sock_put(llcp_sock);
@@ -976,9 +983,15 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 			pr_err("Received out of sequence I PDU\n");
 
 		skb_pull(skb, LLCP_HEADER_SIZE + LLCP_SEQUENCE_SIZE);
-		if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
-			pr_err("receive queue is full\n");
-			skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+		if (!sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
+			/*
+			 * I frames will be freed from the socket layer, so we
+			 * need to keep them alive until someone receives them.
+			 */
+			skb_get(skb);
+		} else {
+			pr_err("Receive queue is full\n");
+			kfree_skb(skb);
 		}
 	}
 
@@ -1245,6 +1258,8 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
 			       16, 1, skb->data, skb->len, true);
 
+	__net_timestamp(skb);
+
 	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
 
 	switch (ptype) {
@@ -1296,6 +1311,13 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	local->rx_pending = NULL;
 }
 
+static void __nfc_llcp_recv(struct nfc_llcp_local *local, struct sk_buff *skb)
+{
+	local->rx_pending = skb;
+	del_timer(&local->link_timer);
+	schedule_work(&local->rx_work);
+}
+
 void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
 {
 	struct nfc_llcp_local *local = (struct nfc_llcp_local *) data;
@@ -1306,9 +1328,7 @@ void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
 		return;
 	}
 
-	local->rx_pending = skb_get(skb);
-	del_timer(&local->link_timer);
-	schedule_work(&local->rx_work);
+	__nfc_llcp_recv(local, skb);
 }
 
 int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
@@ -1319,9 +1339,7 @@ int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
 	if (local == NULL)
 		return -ENODEV;
 
-	local->rx_pending = skb_get(skb);
-	del_timer(&local->link_timer);
-	schedule_work(&local->rx_work);
+	__nfc_llcp_recv(local, skb);
 
 	return 0;
 }

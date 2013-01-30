@@ -1028,7 +1028,7 @@
 #define AR_PHY_TPC_5_B2          (AR_SM2_BASE + 0x208)
 #define AR_PHY_TPC_6_B2          (AR_SM2_BASE + 0x20c)
 #define AR_PHY_TPC_11_B2         (AR_SM2_BASE + 0x220)
-#define AR_PHY_PDADC_TAB_2       (AR_SM2_BASE + 0x240)
+#define AR_PHY_TPC_19_B2         (AR_SM2_BASE + 0x240)
 #define AR_PHY_TX_IQCAL_STATUS_B2   (AR_SM2_BASE + 0x48c)
 #define AR_PHY_TX_IQCAL_CORR_COEFF_B2(_i)    (AR_SM2_BASE + 0x450 + ((_i) << 2))
 

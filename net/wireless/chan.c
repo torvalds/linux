@@ -76,6 +76,10 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 			return false;
 		if (!chandef->center_freq2)
 			return false;
+		/* adjacent is not allowed -- that's a 160 MHz channel */
+		if (chandef->center_freq1 - chandef->center_freq2 == 80 ||
+		    chandef->center_freq2 - chandef->center_freq1 == 80)
+			return false;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		if (chandef->center_freq1 != control_freq + 30 &&

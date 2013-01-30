@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
@@ -162,28 +160,31 @@ static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
 	schedule_work(&ifp->multicast_work);
 }
 
-static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
+					   struct net_device *ndev)
 {
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
+	struct ethhdr *eh;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	/* Reject if down */
-	if (!drvr->bus_if->drvr_up ||
-	    (drvr->bus_if->state != BRCMF_BUS_DATA)) {
-		brcmf_err("xmit rejected drvup=%d state=%d\n",
-			  drvr->bus_if->drvr_up,
-			  drvr->bus_if->state);
+	/* Can the device send data? */
+	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
+		brcmf_err("xmit rejected state=%d\n", drvr->bus_if->state);
 		netif_stop_queue(ndev);
-		return -ENODEV;
+		dev_kfree_skb(skb);
+		ret = -ENODEV;
+		goto done;
 	}
 
 	if (!drvr->iflist[ifp->idx]) {
 		brcmf_err("bad ifidx %d\n", ifp->idx);
 		netif_stop_queue(ndev);
-		return -ENODEV;
+		dev_kfree_skb(skb);
+		ret = -ENODEV;
+		goto done;
 	}
 
 	/* Make sure there's enough room for any header */
@@ -204,16 +205,19 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	}
 
-	/* Update multicast statistic */
-	if (skb->len >= ETH_ALEN) {
-		u8 *pktdata = (u8 *)(skb->data);
-		struct ethhdr *eh = (struct ethhdr *)pktdata;
-
-		if (is_multicast_ether_addr(eh->h_dest))
-			drvr->tx_multicast++;
-		if (ntohs(eh->h_proto) == ETH_P_PAE)
-			atomic_inc(&drvr->pend_8021x_cnt);
+	/* validate length for ether packet */
+	if (skb->len < sizeof(*eh)) {
+		ret = -EINVAL;
+		dev_kfree_skb(skb);
+		goto done;
 	}
+
+	/* handle ethernet header */
+	eh = (struct ethhdr *)(skb->data);
+	if (is_multicast_ether_addr(eh->h_dest))
+		drvr->tx_multicast++;
+	if (ntohs(eh->h_proto) == ETH_P_PAE)
+		atomic_inc(&drvr->pend_8021x_cnt);
 
 	/* If the protocol uses a data header, apply it */
 	brcmf_proto_hdrpush(drvr, ifp->idx, skb);
@@ -228,7 +232,7 @@ done:
 		drvr->bus_if->dstats.tx_packets++;
 
 	/* Return ok: we always eat the packet */
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 void brcmf_txflowblock(struct device *dev, bool state)
@@ -250,8 +254,7 @@ void brcmf_txflowblock(struct device *dev, bool state)
 		}
 }
 
-void brcmf_rx_frame(struct device *dev, u8 ifidx,
-		    struct sk_buff_head *skb_list)
+void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 {
 	unsigned char *eth;
 	uint len;
@@ -259,11 +262,23 @@ void brcmf_rx_frame(struct device *dev, u8 ifidx,
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
+	int ret;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	skb_queue_walk_safe(skb_list, skb, pnext) {
 		skb_unlink(skb, skb_list);
+
+		/* process and remove protocol-specific header
+		 */
+		ret = brcmf_proto_hdrpull(drvr, &ifidx, skb);
+		if (ret < 0) {
+			if (ret != -ENODATA)
+				bus_if->dstats.rx_errors++;
+			brcmu_pkt_buf_free_skb(skb);
+			continue;
+		}
 
 		/* Get the protocol, maintain skb around eth_type_trans()
 		 * The main reason for this hack is for the limitation of
@@ -328,13 +343,13 @@ void brcmf_rx_frame(struct device *dev, u8 ifidx,
 
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
-	uint ifidx;
+	u8 ifidx;
 	struct ethhdr *eh;
 	u16 type;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 
-	brcmf_proto_hdrpull(dev, &ifidx, txp);
+	brcmf_proto_hdrpull(drvr, &ifidx, txp);
 
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);
@@ -450,7 +465,7 @@ static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
 		sprintf(info.version, "%lu", drvr->drv_version);
 		if (copy_to_user(uaddr, &info, sizeof(info)))
 			return -EFAULT;
-		brcmf_dbg(CTL, "given %*s, returning %s\n",
+		brcmf_dbg(TRACE, "given %*s, returning %s\n",
 			  (int)sizeof(drvname), drvname, info.driver);
 		break;
 
@@ -570,14 +585,9 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	/* Get current TOE mode from dongle */
 	if (brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_ol) >= 0
 	    && (toe_ol & TOE_TX_CSUM_OL) != 0)
-		drvr->iflist[ifp->idx]->ndev->features |=
-			NETIF_F_IP_CSUM;
+		ndev->features |= NETIF_F_IP_CSUM;
 	else
-		drvr->iflist[ifp->idx]->ndev->features &=
-			~NETIF_F_IP_CSUM;
-
-	/* make sure RF is ready for work */
-	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
+		ndev->features &= ~NETIF_F_IP_CSUM;
 
 	/* Allow transmit calls */
 	netif_start_queue(ndev);
@@ -845,6 +855,17 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 	}
 }
 
+void brcmf_dev_reset(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	if (drvr == NULL)
+		return;
+
+	brcmf_fil_cmd_int_set(drvr->iflist[0], BRCMF_C_TERMINATED, 1);
+}
+
 void brcmf_detach(struct device *dev)
 {
 	int i;
@@ -866,9 +887,8 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot) {
+	if (drvr->prot)
 		brcmf_proto_detach(drvr);
-	}
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;

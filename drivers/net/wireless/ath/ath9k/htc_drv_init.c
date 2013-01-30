@@ -280,14 +280,14 @@ err:
 	return ret;
 }
 
-static int ath9k_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void ath9k_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath9k_htc_priv *priv = hw->priv;
 
-	return ath_reg_notifier_apply(wiphy, request,
-				      ath9k_hw_regulatory(priv->ah));
+	ath_reg_notifier_apply(wiphy, request,
+			       ath9k_hw_regulatory(priv->ah));
 }
 
 static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)

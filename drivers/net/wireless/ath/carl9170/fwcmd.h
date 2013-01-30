@@ -156,6 +156,14 @@ struct carl9170_psm {
 } __packed;
 #define CARL9170_PSM_SIZE		4
 
+/*
+ * Note: If a bit in rx_filter is set, then it
+ * means that the particular frames which matches
+ * the condition are FILTERED/REMOVED/DISCARDED!
+ * (This is can be a bit confusing, especially
+ * because someone people think it's the exact
+ * opposite way, so watch out!)
+ */
 struct carl9170_rx_filter_cmd {
 	__le32		rx_filter;
 } __packed;

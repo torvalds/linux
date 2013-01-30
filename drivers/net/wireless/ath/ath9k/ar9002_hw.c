@@ -23,13 +23,13 @@
 
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
 
-static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
+static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271);
 		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg);
-		return;
+		return 0;
 	}
 
 	if (ah->config.pcie_clock_req)
@@ -102,9 +102,9 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		u32 size = sizeof(u32) * addac->ia_rows * addac->ia_columns;
 		u32 *data;
 
-		data = kmalloc(size, GFP_KERNEL);
+		data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
 		if (!data)
-			return;
+			return -ENOMEM;
 
 		memcpy(data, addac->ia_array, size);
 		addac->ia_array = data;
@@ -120,6 +120,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1);
 	}
+	return 0;
 }
 
 static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
@@ -409,22 +410,30 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 }
 
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
-void ar9002_hw_attach_ops(struct ath_hw *ah)
+int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+	int ret;
 
-	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
+	ret = ar9002_hw_init_mode_regs(ah);
+	if (ret)
+		return ret;
+
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
-	ar5008_hw_attach_phy_ops(ah);
+	ret = ar5008_hw_attach_phy_ops(ah);
+	if (ret)
+		return ret;
+
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
+	return 0;
 }
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)

@@ -2132,6 +2132,21 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_CFG80211);
 }
 
+static void lbs_reg_notifier(struct wiphy *wiphy,
+			     struct regulatory_request *request)
+{
+	struct lbs_private *priv = wiphy_priv(wiphy);
+
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
+			"callback for domain %c%c\n", request->alpha2[0],
+			request->alpha2[1]);
+
+	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	if (lbs_iface_active(priv))
+		lbs_set_11d_domain_info(priv);
+
+	lbs_deb_leave(LBS_DEB_CFG80211);
+}
 
 /*
  * This function get's called after lbs_setup_firmware() determined the
@@ -2181,24 +2196,6 @@ int lbs_cfg_register(struct lbs_private *priv)
 	lbs_cfg_set_regulatory_hint(priv);
 
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
-	return ret;
-}
-
-int lbs_reg_notifier(struct wiphy *wiphy,
-		struct regulatory_request *request)
-{
-	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret = 0;
-
-	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
-			"callback for domain %c%c\n", request->alpha2[0],
-			request->alpha2[1]);
-
-	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
-	if (lbs_iface_active(priv))
-		ret = lbs_set_11d_domain_info(priv);
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
 	return ret;
 }
 

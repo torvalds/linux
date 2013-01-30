@@ -677,7 +677,9 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
 		if ((ret == 0) && (priv->agg_tids_count > 0)) {
@@ -1152,6 +1154,7 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 }
 
 static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);

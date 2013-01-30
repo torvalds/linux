@@ -931,7 +931,6 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 	struct host_cmd_ds_pcie_details *host_spec =
 					&cmd->params.pcie_host_spec;
 	struct pcie_service_card *card = priv->adapter->card;
-	phys_addr_t *buf_pa;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_PCIE_DESC_DETAILS);
 	cmd->size = cpu_to_le16(sizeof(struct
@@ -953,10 +952,11 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 	host_spec->evtbd_addr_lo = (u32)(card->evtbd_ring_pbase);
 	host_spec->evtbd_addr_hi = (u32)(((u64)card->evtbd_ring_pbase)>>32);
 	host_spec->evtbd_count = MWIFIEX_MAX_EVT_BD;
-	if (card->sleep_cookie) {
-		buf_pa = MWIFIEX_SKB_PACB(card->sleep_cookie);
-		host_spec->sleep_cookie_addr_lo = (u32) *buf_pa;
-		host_spec->sleep_cookie_addr_hi = (u32) (((u64)*buf_pa) >> 32);
+	if (card->sleep_cookie_vbase) {
+		host_spec->sleep_cookie_addr_lo =
+						(u32)(card->sleep_cookie_pbase);
+		host_spec->sleep_cookie_addr_hi =
+				 (u32)(((u64)(card->sleep_cookie_pbase)) >> 32);
 		dev_dbg(priv->adapter->dev, "sleep_cook_lo phy addr: 0x%x\n",
 			host_spec->sleep_cookie_addr_lo);
 	}

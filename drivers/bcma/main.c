@@ -81,8 +81,8 @@ struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 }
 EXPORT_SYMBOL_GPL(bcma_find_core);
 
-static struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
-					       u8 unit)
+struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					u8 unit)
 {
 	struct bcma_device *core;
 
@@ -148,6 +148,14 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		core->dev_registered = true;
 		dev_id++;
 	}
+
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+	if (bus->drv_cc.pflash.present) {
+		err = platform_device_register(&bcma_pflash_dev);
+		if (err)
+			bcma_err(bus, "Error registering parallel flash\n");
+	}
+#endif
 
 #ifdef CONFIG_BCMA_SFLASH
 	if (bus->drv_cc.sflash.present) {

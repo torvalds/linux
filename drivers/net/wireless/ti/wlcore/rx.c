@@ -92,11 +92,16 @@ static void wl1271_rx_status(struct wl1271 *wl,
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED |
 				RX_FLAG_DECRYPTED;
 
-		if (unlikely(desc_err_code == WL1271_RX_DESC_MIC_FAIL)) {
+		if (unlikely(desc_err_code & WL1271_RX_DESC_MIC_FAIL)) {
 			status->flag |= RX_FLAG_MMIC_ERROR;
-			wl1271_warning("Michael MIC error");
+			wl1271_warning("Michael MIC error. Desc: 0x%x",
+				       desc_err_code);
 		}
 	}
+
+	if (beacon)
+		wlcore_set_pending_regdomain_ch(wl, (u16)desc->channel,
+						status->band);
 }
 
 static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
@@ -108,7 +113,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	u8 *buf;
 	u8 beacon = 0;
 	u8 is_data = 0;
-	u8 reserved = 0;
+	u8 reserved = 0, offset_to_data = 0;
 	u16 seq_num;
 	u32 pkt_data_len;
 
@@ -128,6 +133,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 
 	if (rx_align == WLCORE_RX_BUF_UNALIGNED)
 		reserved = RX_BUF_ALIGN;
+	else if (rx_align == WLCORE_RX_BUF_PADDED)
+		offset_to_data = RX_BUF_ALIGN;
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) data;
@@ -139,19 +146,15 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		return 0;
 	}
 
-	switch (desc->status & WL1271_RX_DESC_STATUS_MASK) {
 	/* discard corrupted packets */
-	case WL1271_RX_DESC_DRIVER_RX_Q_FAIL:
-	case WL1271_RX_DESC_DECRYPT_FAIL:
-		wl1271_warning("corrupted packet in RX with status: 0x%x",
-			       desc->status & WL1271_RX_DESC_STATUS_MASK);
-		return -EINVAL;
-	case WL1271_RX_DESC_SUCCESS:
-	case WL1271_RX_DESC_MIC_FAIL:
-		break;
-	default:
-		wl1271_error("invalid RX descriptor status: 0x%x",
-			     desc->status & WL1271_RX_DESC_STATUS_MASK);
+	if (desc->status & WL1271_RX_DESC_DECRYPT_FAIL) {
+		hdr = (void *)(data + sizeof(*desc) + offset_to_data);
+		wl1271_warning("corrupted packet in RX: status: 0x%x len: %d",
+			       desc->status & WL1271_RX_DESC_STATUS_MASK,
+			       pkt_data_len);
+		wl1271_dump((DEBUG_RX|DEBUG_CMD), "PKT: ", data + sizeof(*desc),
+			    min(pkt_data_len,
+				ieee80211_hdrlen(hdr->frame_control)));
 		return -EINVAL;
 	}
 

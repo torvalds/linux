@@ -91,9 +91,8 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	return -ENOENT;
 }
 
-static void free_sta_work(struct work_struct *wk)
+static void cleanup_single_sta(struct sta_info *sta)
 {
-	struct sta_info *sta = container_of(wk, struct sta_info, free_sta_wk);
 	int ac, i;
 	struct tid_ampdu_tx *tid_tx;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -105,6 +104,16 @@ static void free_sta_work(struct work_struct *wk)
 	 * neither mac80211 nor the driver can reference this
 	 * sta struct any more except by still existing timers
 	 * associated with this station that we clean up below.
+	 *
+	 * Note though that this still uses the sdata and even
+	 * calls the driver in AP and mesh mode, so interfaces
+	 * of those types mush use call sta_info_flush_cleanup()
+	 * (typically via sta_info_flush()) before deconfiguring
+	 * the driver.
+	 *
+	 * In station mode, nothing happens here so it doesn't
+	 * have to (and doesn't) do that, this is intentional to
+	 * speed up roaming.
 	 */
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
@@ -153,11 +162,35 @@ static void free_sta_work(struct work_struct *wk)
 	sta_info_free(local, sta);
 }
 
+void ieee80211_cleanup_sdata_stas(struct ieee80211_sub_if_data *sdata)
+{
+	struct sta_info *sta;
+
+	spin_lock_bh(&sdata->cleanup_stations_lock);
+	while (!list_empty(&sdata->cleanup_stations)) {
+		sta = list_first_entry(&sdata->cleanup_stations,
+				       struct sta_info, list);
+		list_del(&sta->list);
+		spin_unlock_bh(&sdata->cleanup_stations_lock);
+
+		cleanup_single_sta(sta);
+
+		spin_lock_bh(&sdata->cleanup_stations_lock);
+	}
+
+	spin_unlock_bh(&sdata->cleanup_stations_lock);
+}
+
 static void free_sta_rcu(struct rcu_head *h)
 {
 	struct sta_info *sta = container_of(h, struct sta_info, rcu_head);
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
-	ieee80211_queue_work(&sta->local->hw, &sta->free_sta_wk);
+	spin_lock(&sdata->cleanup_stations_lock);
+	list_add_tail(&sta->list, &sdata->cleanup_stations);
+	spin_unlock(&sdata->cleanup_stations_lock);
+
+	ieee80211_queue_work(&sdata->local->hw, &sdata->cleanup_stations_wk);
 }
 
 /* protected by RCU */
@@ -310,7 +343,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_init(&sta->lock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
-	INIT_WORK(&sta->free_sta_wk, free_sta_work);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
 
@@ -347,11 +379,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
-
-#ifdef CONFIG_MAC80211_MESH
-	sta->plink_state = NL80211_PLINK_LISTEN;
-	init_timer(&sta->plink_timer);
-#endif
 
 	return sta;
 }
@@ -752,7 +779,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * will be sufficient.
 	 */
 	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-	ieee80211_sta_tear_down_BA_sessions(sta, false);
+	ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
 
 	ret = sta_info_hash_del(local, sta);
 	if (ret)
@@ -862,21 +889,13 @@ void sta_info_init(struct ieee80211_local *local)
 
 void sta_info_stop(struct ieee80211_local *local)
 {
-	del_timer(&local->sta_cleanup);
-	sta_info_flush(local, NULL);
+	del_timer_sync(&local->sta_cleanup);
 }
 
-/**
- * sta_info_flush - flush matching STA entries from the STA table
- *
- * Returns the number of removed STA entries.
- *
- * @local: local interface data
- * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
- */
-int sta_info_flush(struct ieee80211_local *local,
-		   struct ieee80211_sub_if_data *sdata)
+
+int sta_info_flush_defer(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
 	int ret = 0;
 
@@ -884,7 +903,7 @@ int sta_info_flush(struct ieee80211_local *local,
 
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		if (!sdata || sdata == sta->sdata) {
+		if (sdata == sta->sdata) {
 			WARN_ON(__sta_info_destroy(sta));
 			ret++;
 		}
@@ -892,6 +911,12 @@ int sta_info_flush(struct ieee80211_local *local,
 	mutex_unlock(&local->sta_mtx);
 
 	return ret;
+}
+
+void sta_info_flush_cleanup(struct ieee80211_sub_if_data *sdata)
+{
+	ieee80211_cleanup_sdata_stas(sdata);
+	cancel_work_sync(&sdata->cleanup_stations_wk);
 }
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,

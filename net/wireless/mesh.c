@@ -44,6 +44,10 @@
 
 #define MESH_SYNC_NEIGHBOR_OFFSET_MAX 50
 
+#define MESH_DEFAULT_BEACON_INTERVAL	1000	/* in 1024 us units (=TUs) */
+#define MESH_DEFAULT_DTIM_PERIOD	2
+#define MESH_DEFAULT_AWAKE_WINDOW	10	/* in 1024 us units (=TUs) */
+
 const struct mesh_config default_mesh_config = {
 	.dot11MeshRetryTimeout = MESH_RET_T,
 	.dot11MeshConfirmTimeout = MESH_CONF_T,
@@ -69,6 +73,8 @@ const struct mesh_config default_mesh_config = {
 	.dot11MeshHWMPactivePathToRootTimeout = MESH_PATH_TO_ROOT_TIMEOUT,
 	.dot11MeshHWMProotInterval = MESH_ROOT_INTERVAL,
 	.dot11MeshHWMPconfirmationInterval = MESH_ROOT_CONFIRMATION_INTERVAL,
+	.power_mode = NL80211_MESH_POWER_ACTIVE,
+	.dot11MeshAwakeWindowDuration = MESH_DEFAULT_AWAKE_WINDOW,
 };
 
 const struct mesh_setup default_mesh_setup = {
@@ -79,6 +85,8 @@ const struct mesh_setup default_mesh_setup = {
 	.ie = NULL,
 	.ie_len = 0,
 	.is_secure = false,
+	.beacon_interval = MESH_DEFAULT_BEACON_INTERVAL,
+	.dtim_period = MESH_DEFAULT_DTIM_PERIOD,
 };
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,

@@ -1343,13 +1343,13 @@ static bool wlc_lcnphy_rx_iq_cal_gain(struct brcms_phy *pi, u16 biq1_gain,
 
 	wlc_lcnphy_rx_gain_override_enable(pi, true);
 	wlc_lcnphy_start_tx_tone(pi, 2000, (40 >> 1), 0);
-	usleep_range(500, 500);
+	udelay(500);
 	write_radio_reg(pi, RADIO_2064_REG112, 0);
 	if (!wlc_lcnphy_rx_iq_est(pi, 1024, 32, &iq_est_l))
 		return false;
 
 	wlc_lcnphy_start_tx_tone(pi, 2000, 40, 0);
-	usleep_range(500, 500);
+	udelay(500);
 	write_radio_reg(pi, RADIO_2064_REG112, 0);
 	if (!wlc_lcnphy_rx_iq_est(pi, 1024, 32, &iq_est_h))
 		return false;

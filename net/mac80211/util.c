@@ -1358,6 +1358,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_chanctx *ctx;
 	struct sta_info *sta;
 	int res, i;
+	bool reconfig_due_to_wowlan = false;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1377,6 +1378,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 * res is 1, which means the driver requested
 		 * to go through a regular reset on wakeup.
 		 */
+		reconfig_due_to_wowlan = true;
 	}
 #endif
 	/* everything else happens only if HW was up & running */
@@ -1526,6 +1528,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_IDLE |
 			  BSS_CHANGED_TXPOWER;
 
+#ifdef CONFIG_PM
+		if (local->resuming && !reconfig_due_to_wowlan)
+			sdata->vif.bss_conf = sdata->suspend_bss_conf;
+#endif
+
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			changed |= BSS_CHANGED_ASSOC |
@@ -1550,9 +1557,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 			/* fall through */
 		case NL80211_IFTYPE_MESH_POINT:
-			changed |= BSS_CHANGED_BEACON |
-				   BSS_CHANGED_BEACON_ENABLED;
-			ieee80211_bss_info_change_notify(sdata, changed);
+			if (sdata->vif.bss_conf.enable_beacon) {
+				changed |= BSS_CHANGED_BEACON |
+					   BSS_CHANGED_BEACON_ENABLED;
+				ieee80211_bss_info_change_notify(sdata, changed);
+			}
 			break;
 		case NL80211_IFTYPE_WDS:
 			break;
@@ -1632,7 +1641,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		mutex_lock(&local->sta_mtx);
 
 		list_for_each_entry(sta, &local->sta_list, list) {
-			ieee80211_sta_tear_down_BA_sessions(sta, true);
+			ieee80211_sta_tear_down_BA_sessions(
+					sta, AGG_STOP_LOCAL_REQUEST);
 			clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		}
 
@@ -1646,10 +1656,11 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended) {
+	if (!local->suspended || reconfig_due_to_wowlan)
 		drv_restart_complete(local);
+
+	if (!local->suspended)
 		return 0;
-	}
 
 #ifdef CONFIG_PM
 	/* first set suspended false, then resuming */
@@ -1864,7 +1875,7 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 }
 
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
-							   u32 cap)
+			       u32 cap)
 {
 	__le32 tmp;
 

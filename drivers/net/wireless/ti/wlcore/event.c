@@ -29,34 +29,39 @@
 #include "scan.h"
 #include "wl12xx_80211.h"
 
-static void wl1271_event_rssi_trigger(struct wl1271 *wl,
-				      struct wl12xx_vif *wlvif,
-				      struct event_mailbox *mbox)
+void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 {
-	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+	struct wl12xx_vif *wlvif;
+	struct ieee80211_vif *vif;
 	enum nl80211_cqm_rssi_threshold_event event;
-	s8 metric = mbox->rssi_snr_trigger_metric[0];
+	s8 metric = metric_arr[0];
 
 	wl1271_debug(DEBUG_EVENT, "RSSI trigger metric: %d", metric);
 
-	if (metric <= wlvif->rssi_thold)
-		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
-	else
-		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+	/* TODO: check actual multi-role support */
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (metric <= wlvif->rssi_thold)
+			event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+		else
+			event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
 
-	if (event != wlvif->last_rssi_event)
-		ieee80211_cqm_rssi_notify(vif, event, GFP_KERNEL);
-	wlvif->last_rssi_event = event;
+		vif = wl12xx_wlvif_to_vif(wlvif);
+		if (event != wlvif->last_rssi_event)
+			ieee80211_cqm_rssi_notify(vif, event, GFP_KERNEL);
+		wlvif->last_rssi_event = event;
+	}
 }
+EXPORT_SYMBOL_GPL(wlcore_event_rssi_trigger);
 
 static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		if (!wlvif->sta.ba_rx_bitmap)
+		u8 hlid = wlvif->sta.hlid;
+		if (!wl->links[hlid].ba_bitmap)
 			return;
-		ieee80211_stop_rx_ba_session(vif, wlvif->sta.ba_rx_bitmap,
+		ieee80211_stop_rx_ba_session(vif, wl->links[hlid].ba_bitmap,
 					     vif->bss_conf.bssid);
 	} else {
 		u8 hlid;
@@ -74,8 +79,7 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 }
 
-static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
-					       u8 enable)
+void wlcore_event_soft_gemini_sense(struct wl1271 *wl, u8 enable)
 {
 	struct wl12xx_vif *wlvif;
 
@@ -87,201 +91,169 @@ static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
 			wl1271_recalc_rx_streaming(wl, wlvif);
 		}
 	}
-
 }
+EXPORT_SYMBOL_GPL(wlcore_event_soft_gemini_sense);
 
-static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
+void wlcore_event_sched_scan_completed(struct wl1271 *wl,
+				       u8 status)
 {
-	wl1271_debug(DEBUG_EVENT, "MBOX DUMP:");
-	wl1271_debug(DEBUG_EVENT, "\tvector: 0x%x", mbox->events_vector);
-	wl1271_debug(DEBUG_EVENT, "\tmask: 0x%x", mbox->events_mask);
+	wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT (status 0x%0x)",
+		     status);
+
+	if (wl->sched_vif) {
+		ieee80211_sched_scan_stopped(wl->hw);
+		wl->sched_vif = NULL;
+	}
 }
+EXPORT_SYMBOL_GPL(wlcore_event_sched_scan_completed);
 
-static int wl1271_event_process(struct wl1271 *wl)
+void wlcore_event_ba_rx_constraint(struct wl1271 *wl,
+				   unsigned long roles_bitmap,
+				   unsigned long allowed_bitmap)
 {
-	struct event_mailbox *mbox = wl->mbox;
-	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
-	u32 vector;
-	bool disconnect_sta = false;
-	unsigned long sta_bitmap = 0;
-	int ret;
 
-	wl1271_event_mbox_dump(mbox);
+	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx allowed=0x%lx",
+		     __func__, roles_bitmap, allowed_bitmap);
 
-	vector = le32_to_cpu(mbox->events_vector);
-	vector &= ~(le32_to_cpu(mbox->events_mask));
-	wl1271_debug(DEBUG_EVENT, "vector: 0x%x", vector);
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
+		    !test_bit(wlvif->role_id , &roles_bitmap))
+			continue;
 
-	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "status: 0x%x",
-			     mbox->scheduled_scan_status);
-
-		wl1271_scan_stm(wl, wl->scan_vif);
+		wlvif->ba_allowed = !!test_bit(wlvif->role_id,
+					       &allowed_bitmap);
+		if (!wlvif->ba_allowed)
+			wl1271_stop_ba_event(wl, wlvif);
 	}
+}
+EXPORT_SYMBOL_GPL(wlcore_event_ba_rx_constraint);
 
-	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT "
-			     "(status 0x%0x)", mbox->scheduled_scan_status);
+void wlcore_event_channel_switch(struct wl1271 *wl,
+				 unsigned long roles_bitmap,
+				 bool success)
+{
+	struct wl12xx_vif *wlvif;
+	struct ieee80211_vif *vif;
 
-		wl1271_scan_sched_scan_results(wl);
+	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx success=%d",
+		     __func__, roles_bitmap, success);
+
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
+		    !test_bit(wlvif->role_id , &roles_bitmap))
+			continue;
+
+		if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
+					&wlvif->flags))
+			continue;
+
+		vif = wl12xx_wlvif_to_vif(wlvif);
+
+		ieee80211_chswitch_done(vif, success);
+		cancel_delayed_work(&wlvif->channel_switch_work);
 	}
+}
+EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 
-	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT "
-			     "(status 0x%0x)", mbox->scheduled_scan_status);
-		if (wl->sched_scanning) {
-			ieee80211_sched_scan_stopped(wl->hw);
-			wl->sched_scanning = false;
+void wlcore_event_dummy_packet(struct wl1271 *wl)
+{
+	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
+	wl1271_tx_dummy_packet(wl);
+}
+EXPORT_SYMBOL_GPL(wlcore_event_dummy_packet);
+
+static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
+{
+	u32 num_packets = wl->conf.tx.max_tx_retries;
+	struct wl12xx_vif *wlvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
+	const u8 *addr;
+	int h;
+
+	for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
+		bool found = false;
+		/* find the ap vif connected to this sta */
+		wl12xx_for_each_wlvif_ap(wl, wlvif) {
+			if (!test_bit(h, wlvif->ap.sta_hlid_map))
+				continue;
+			found = true;
+			break;
 		}
+		if (!found)
+			continue;
+
+		vif = wl12xx_wlvif_to_vif(wlvif);
+		addr = wl->links[h].addr;
+
+		rcu_read_lock();
+		sta = ieee80211_find_sta(vif, addr);
+		if (sta) {
+			wl1271_debug(DEBUG_EVENT, "remove sta %d", h);
+			ieee80211_report_low_ack(sta, num_packets);
+		}
+		rcu_read_unlock();
 	}
+}
 
-	if (vector & SOFT_GEMINI_SENSE_EVENT_ID)
-		wl12xx_event_soft_gemini_sense(wl,
-					       mbox->soft_gemini_sense_info);
+void wlcore_event_max_tx_failure(struct wl1271 *wl, unsigned long sta_bitmap)
+{
+	wl1271_debug(DEBUG_EVENT, "MAX_TX_FAILURE_EVENT_ID");
+	wlcore_disconnect_sta(wl, sta_bitmap);
+}
+EXPORT_SYMBOL_GPL(wlcore_event_max_tx_failure);
 
+void wlcore_event_inactive_sta(struct wl1271 *wl, unsigned long sta_bitmap)
+{
+	wl1271_debug(DEBUG_EVENT, "INACTIVE_STA_EVENT_ID");
+	wlcore_disconnect_sta(wl, sta_bitmap);
+}
+EXPORT_SYMBOL_GPL(wlcore_event_inactive_sta);
+
+void wlcore_event_roc_complete(struct wl1271 *wl)
+{
+	wl1271_debug(DEBUG_EVENT, "REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID");
+	if (wl->roc_vif)
+		ieee80211_ready_on_channel(wl->hw);
+}
+EXPORT_SYMBOL_GPL(wlcore_event_roc_complete);
+
+void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
+{
 	/*
 	 * We are HW_MONITOR device. On beacon loss - queue
 	 * connection loss work. Cancel it on REGAINED event.
 	 */
-	if (vector & BSS_LOSE_EVENT_ID) {
-		/* TODO: check for multi-role */
-		int delay = wl->conf.conn.synch_fail_thold *
-					wl->conf.conn.bss_lose_timeout;
-		wl1271_info("Beacon loss detected.");
+	struct wl12xx_vif *wlvif;
+	struct ieee80211_vif *vif;
+	int delay = wl->conf.conn.synch_fail_thold *
+				wl->conf.conn.bss_lose_timeout;
+
+	wl1271_info("Beacon loss detected. roles:0x%lx", roles_bitmap);
+
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
+		    !test_bit(wlvif->role_id , &roles_bitmap))
+			continue;
 
 		/*
-		 * if the work is already queued, it should take place. We
-		 * don't want to delay the connection loss indication
-		 * any more.
+		 * if the work is already queued, it should take place.
+		 * We don't want to delay the connection loss
+		 * indication any more.
 		 */
-		ieee80211_queue_delayed_work(wl->hw, &wl->connection_loss_work,
+		ieee80211_queue_delayed_work(wl->hw,
+					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-
-			ieee80211_cqm_rssi_notify(
-					vif,
-					NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
-					GFP_KERNEL);
-		}
+		vif = wl12xx_wlvif_to_vif(wlvif);
+		ieee80211_cqm_rssi_notify(
+				vif,
+				NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
+				GFP_KERNEL);
 	}
-
-	if (vector & REGAINED_BSS_EVENT_ID) {
-		/* TODO: check for multi-role */
-		wl1271_info("Beacon regained.");
-		cancel_delayed_work(&wl->connection_loss_work);
-
-		/* sanity check - we can't lose and gain the beacon together */
-		WARN(vector & BSS_LOSE_EVENT_ID,
-		     "Concurrent beacon loss and gain from FW");
-	}
-
-	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
-		/* TODO: check actual multi-role support */
-		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			wl1271_event_rssi_trigger(wl, wlvif, mbox);
-		}
-	}
-
-	if (vector & BA_SESSION_RX_CONSTRAINT_EVENT_ID) {
-		u8 role_id = mbox->role_id;
-		wl1271_debug(DEBUG_EVENT, "BA_SESSION_RX_CONSTRAINT_EVENT_ID. "
-			     "ba_allowed = 0x%x, role_id=%d",
-			     mbox->rx_ba_allowed, role_id);
-
-		wl12xx_for_each_wlvif(wl, wlvif) {
-			if (role_id != 0xff && role_id != wlvif->role_id)
-				continue;
-
-			wlvif->ba_allowed = !!mbox->rx_ba_allowed;
-			if (!wlvif->ba_allowed)
-				wl1271_stop_ba_event(wl, wlvif);
-		}
-	}
-
-	if (vector & CHANNEL_SWITCH_COMPLETE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "CHANNEL_SWITCH_COMPLETE_EVENT_ID. "
-					  "status = 0x%x",
-					  mbox->channel_switch_status);
-		/*
-		 * That event uses for two cases:
-		 * 1) channel switch complete with status=0
-		 * 2) channel switch failed status=1
-		 */
-
-		/* TODO: configure only the relevant vif */
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			bool success;
-
-			if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
-						&wlvif->flags))
-				continue;
-
-			success = mbox->channel_switch_status ? false : true;
-			vif = wl12xx_wlvif_to_vif(wlvif);
-
-			ieee80211_chswitch_done(vif, success);
-		}
-	}
-
-	if ((vector & DUMMY_PACKET_EVENT_ID)) {
-		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
-		ret = wl1271_tx_dummy_packet(wl);
-		if (ret < 0)
-			return ret;
-	}
-
-	/*
-	 * "TX retries exceeded" has a different meaning according to mode.
-	 * In AP mode the offending station is disconnected.
-	 */
-	if (vector & MAX_TX_RETRY_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "MAX_TX_RETRY_EVENT_ID");
-		sta_bitmap |= le16_to_cpu(mbox->sta_tx_retry_exceeded);
-		disconnect_sta = true;
-	}
-
-	if (vector & INACTIVE_STA_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "INACTIVE_STA_EVENT_ID");
-		sta_bitmap |= le16_to_cpu(mbox->sta_aging_status);
-		disconnect_sta = true;
-	}
-
-	if (disconnect_sta) {
-		u32 num_packets = wl->conf.tx.max_tx_retries;
-		struct ieee80211_sta *sta;
-		const u8 *addr;
-		int h;
-
-		for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
-			bool found = false;
-			/* find the ap vif connected to this sta */
-			wl12xx_for_each_wlvif_ap(wl, wlvif) {
-				if (!test_bit(h, wlvif->ap.sta_hlid_map))
-					continue;
-				found = true;
-				break;
-			}
-			if (!found)
-				continue;
-
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			addr = wl->links[h].addr;
-
-			rcu_read_lock();
-			sta = ieee80211_find_sta(vif, addr);
-			if (sta) {
-				wl1271_debug(DEBUG_EVENT, "remove sta %d", h);
-				ieee80211_report_low_ack(sta, num_packets);
-			}
-			rcu_read_unlock();
-		}
-	}
-	return 0;
 }
+EXPORT_SYMBOL_GPL(wlcore_event_beacon_loss);
 
 int wl1271_event_unmask(struct wl1271 *wl)
 {
@@ -305,12 +277,12 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 
 	/* first we read the mbox descriptor */
 	ret = wlcore_read(wl, wl->mbox_ptr[mbox_num], wl->mbox,
-			  sizeof(*wl->mbox), false);
+			  wl->mbox_size, false);
 	if (ret < 0)
 		return ret;
 
 	/* process the descriptor */
-	ret = wl1271_event_process(wl);
+	ret = wl->ops->process_mailbox_events(wl);
 	if (ret < 0)
 		return ret;
 

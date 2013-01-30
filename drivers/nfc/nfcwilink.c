@@ -526,7 +526,7 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 	nfc_dev_dbg(&pdev->dev, "probe entry");
 
-	drv = kzalloc(sizeof(struct nfcwilink), GFP_KERNEL);
+	drv = devm_kzalloc(&pdev->dev, sizeof(struct nfcwilink), GFP_KERNEL);
 	if (!drv) {
 		rc = -ENOMEM;
 		goto exit;
@@ -542,12 +542,13 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 	drv->ndev = nci_allocate_device(&nfcwilink_ops,
 					protocols,
+					NFC_SE_NONE,
 					NFCWILINK_HDR_LEN,
 					0);
 	if (!drv->ndev) {
 		nfc_dev_err(&pdev->dev, "nci_allocate_device failed");
 		rc = -ENOMEM;
-		goto free_exit;
+		goto exit;
 	}
 
 	nci_set_parent_dev(drv->ndev, &pdev->dev);
@@ -565,9 +566,6 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 free_dev_exit:
 	nci_free_device(drv->ndev);
-
-free_exit:
-	kfree(drv);
 
 exit:
 	return rc;
@@ -587,8 +585,6 @@ static int nfcwilink_remove(struct platform_device *pdev)
 
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
-
-	kfree(drv);
 
 	dev_set_drvdata(&pdev->dev, NULL);
 

@@ -23,6 +23,7 @@ enum amp_mgr_state {
 	READ_LOC_AMP_INFO,
 	READ_LOC_AMP_ASSOC,
 	READ_LOC_AMP_ASSOC_FINAL,
+	WRITE_REMOTE_AMP_ASSOC,
 };
 
 struct amp_mgr {
@@ -33,7 +34,7 @@ struct amp_mgr {
 	struct kref		kref;
 	__u8			ident;
 	__u8			handle;
-	enum amp_mgr_state	state;
+	unsigned long		state;
 	unsigned long		flags;
 
 	struct list_head	amp_ctrls;
@@ -144,5 +145,6 @@ void a2mp_discover_amp(struct l2cap_chan *chan);
 void a2mp_send_getinfo_rsp(struct hci_dev *hdev);
 void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status);
 void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status);
+void a2mp_send_create_phy_link_rsp(struct hci_dev *hdev, u8 status);
 
 #endif /* __A2MP_H */

@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -1169,7 +1167,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 	int errcode;
 	u8 doff, sfdoff;
 
-	int ifidx = 0;
 	bool usechain = bus->use_rxchain;
 
 	struct brcmf_sdio_read rd_new;
@@ -1388,13 +1385,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
 				continue;
-			} else if (brcmf_proto_hdrpull(bus->sdiodev->dev,
-						       &ifidx, pfirst) != 0) {
-				brcmf_err("rx protocol error\n");
-				bus->sdiodev->bus_if->dstats.rx_errors++;
-				skb_unlink(pfirst, &bus->glom);
-				brcmu_pkt_buf_free_skb(pfirst);
-				continue;
 			}
 
 			brcmf_dbg_hex_dump(BRCMF_GLOM_ON(),
@@ -1407,7 +1397,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		}
 		/* sent any remaining packets up */
 		if (bus->glom.qlen)
-			brcmf_rx_frame(bus->sdiodev->dev, ifidx, &bus->glom);
+			brcmf_rx_frames(bus->sdiodev->dev, &bus->glom);
 
 		bus->sdcnt.rxglomframes++;
 		bus->sdcnt.rxglompkts += bus->glom.qlen;
@@ -1558,10 +1548,10 @@ static void brcmf_pad(struct brcmf_sdio *bus, u16 *pad, u16 *rdlen)
 static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 {
 	struct sk_buff *pkt;		/* Packet for event or data frames */
+	struct sk_buff_head pktlist;	/* needed for bus interface */
 	u16 pad;		/* Number of pad bytes to read */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
 	int sdret;		/* Return code from calls */
-	int ifidx = 0;
 	uint rxcount = 0;	/* Total frames read */
 	struct brcmf_sdio_read *rd = &bus->cur_read, rd_new;
 	u8 head_read = 0;
@@ -1760,15 +1750,11 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		if (pkt->len == 0) {
 			brcmu_pkt_buf_free_skb(pkt);
 			continue;
-		} else if (brcmf_proto_hdrpull(bus->sdiodev->dev, &ifidx,
-			   pkt) != 0) {
-			brcmf_err("rx protocol error\n");
-			brcmu_pkt_buf_free_skb(pkt);
-			bus->sdiodev->bus_if->dstats.rx_errors++;
-			continue;
 		}
 
-		brcmf_rx_packet(bus->sdiodev->dev, ifidx, pkt);
+		skb_queue_head_init(&pktlist);
+		skb_queue_tail(&pktlist, pkt);
+		brcmf_rx_frames(bus->sdiodev->dev, &pktlist);
 	}
 
 	rxcount = maxframes - rxleft;
