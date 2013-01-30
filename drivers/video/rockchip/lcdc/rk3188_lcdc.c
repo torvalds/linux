@@ -1059,7 +1059,14 @@ static ssize_t rk3188_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,c
 
 static int rk3188_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
 {
-	return 0;
+	struct rk3188_lcdc_device *lcdc_dev = 
+		container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	
+	u32 pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
+	
+	fps = rk_fb_calc_fps(lcdc_dev->screen,pixclock);
+
+	return fps;
 }
 
 
