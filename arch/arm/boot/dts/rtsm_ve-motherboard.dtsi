@@ -163,6 +163,9 @@
 				interrupts = <14>;
 				clocks = <&v2m_oscclk1>, <&smbclk>;
 				clock-names = "v2m:oscclk1", "apb_pclk";
+				mode = "VGA";
+				use_dma = <0>;
+				framebuffer = <0x18000000 0x00180000>;
 			};
 		};
 
