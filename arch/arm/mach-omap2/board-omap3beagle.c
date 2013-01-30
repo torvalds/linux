@@ -20,6 +20,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/leds.h>
+#include <linux/pwm.h>
+#include <linux/leds_pwm.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -54,6 +56,32 @@
 #include "common-board-devices.h"
 
 #define	NAND_CS	0
+
+static struct pwm_lookup pwm_lookup[] = {
+	/* LEDB -> PMU_STAT */
+	PWM_LOOKUP("twl-pwmled", 1, "leds_pwm", "beagleboard::pmu_stat"),
+};
+
+static struct led_pwm pwm_leds[] = {
+	{
+		.name		= "beagleboard::pmu_stat",
+		.max_brightness	= 127,
+		.pwm_period_ns	= 7812500,
+	},
+};
+
+static struct led_pwm_platform_data pwm_data = {
+	.num_leds	= ARRAY_SIZE(pwm_leds),
+	.leds		= pwm_leds,
+};
+
+static struct platform_device leds_pwm = {
+	.name	= "leds_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &pwm_data,
+	},
+};
 
 /*
  * OMAP3 Beagle revision
@@ -292,9 +320,6 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	gpio_request_one(gpio + TWL4030_GPIO_MAX, beagle_config.usb_pwr_level,
 			"nEN_USB_PWR");
 
-	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
-	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
-
 	return 0;
 }
 
@@ -376,11 +401,6 @@ static struct gpio_led gpio_leds[] = {
 		.default_trigger	= "mmc0",
 		.gpio			= 149,
 	},
-	{
-		.name			= "beagleboard::pmu_stat",
-		.gpio			= -EINVAL,	/* gets replaced */
-		.active_low		= true,
-	},
 };
 
 static struct gpio_led_platform_data gpio_led_info = {
@@ -428,6 +448,7 @@ static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
 	&madc_hwmon,
+	&leds_pwm,
 };
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -524,7 +545,7 @@ static void __init omap3_beagle_init(void)
 	board_nand_init(omap3beagle_nand_partitions,
 			ARRAY_SIZE(omap3beagle_nand_partitions), NAND_CS,
 			NAND_BUSWIDTH_16, NULL);
-	omap_twl4030_audio_init("omap3beagle");
+	omap_twl4030_audio_init("omap3beagle", NULL);
 
 	/* Ensure msecure is mux'd to be able to set the RTC. */
 	omap_mux_init_signal("sys_drm_msecure", OMAP_PIN_OFF_OUTPUT_HIGH);
@@ -532,6 +553,8 @@ static void __init omap3_beagle_init(void)
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
+
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 }
 
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
