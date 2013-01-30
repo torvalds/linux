@@ -1018,7 +1018,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	if (htons(skb->protocol) == ETH_P_IPV6) {
+	if (ntohs(skb->protocol) == ETH_P_IPV6) {
 		ipv6h = (struct ipv6hdr *)skb->data;
 		th = (struct tcphdr *)(skb->data + sizeof(struct ipv6hdr));
 		length = (th->doff << 2) + lro_length;
