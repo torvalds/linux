@@ -30,8 +30,6 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-#include <linux/kthread.h>
-
 #include "rk30_lcdc.h"
 
 
@@ -917,11 +915,6 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
             		if(copy_to_user(argp, panel_size, 8)) 
 				return -EFAULT;
 			break;
-		case RK_FBIOSET_VSYNC_ENABLE:
-			if (copy_from_user(&enable, argp, sizeof(enable)))
-				return -EFAULT;
-			lcdc_dev->vsync_info.active = enable;
-			break;
 		default:
 			break;
 	}
@@ -1396,33 +1389,6 @@ int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
     	return 0;
 }
 
-static int lcdc_wait_for_vsync_thread(void *data)
-{
-	struct rk30_lcdc_device  *lcdc_dev = data;
-
-	while (!kthread_should_stop()) {
-		ktime_t timestamp = lcdc_dev->vsync_info.timestamp;
-		int ret = wait_event_interruptible(lcdc_dev->vsync_info.wait,
-			!ktime_equal(timestamp, lcdc_dev->vsync_info.timestamp) &&
-			lcdc_dev->vsync_info.active);
-
-		if (!ret) {
-			sysfs_notify(&lcdc_dev->driver.dev->kobj, NULL, "vsync");
-		}
-	}
-
-	return 0;
-}
-
-static ssize_t rk30_lcdc_vsync_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct rk30_lcdc_device *lcdc_dev = dev_get_drvdata(dev);
-	return scnprintf(buf, PAGE_SIZE, "%llu\n",
-			ktime_to_ns(lcdc_dev->vsync_info.timestamp));
-}
-
-static DEVICE_ATTR(vsync, S_IRUGO, rk30_lcdc_vsync_show, NULL);
 
 static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 {
@@ -1440,8 +1406,8 @@ static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 		spin_unlock(&(lcdc_dev->driver.cpl_lock));
 	}
 
-	lcdc_dev->vsync_info.timestamp = timestamp;
-	wake_up_interruptible_all(&lcdc_dev->vsync_info.wait);
+	lcdc_dev->driver.vsync_info.timestamp = timestamp;
+	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 	
 	return IRQ_HANDLED;
 }
@@ -1599,21 +1565,6 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 		ret =  -ENODEV;
 		goto err4;
 	}
-
-	init_waitqueue_head(&lcdc_dev->vsync_info.wait);
-	ret = device_create_file(&pdev->dev, &dev_attr_vsync);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to create vsync file\n");
-	}
-	lcdc_dev->vsync_info.thread = kthread_run(lcdc_wait_for_vsync_thread,
-		lcdc_dev, "lcdc-vsync");
-
-	
-	if (lcdc_dev->vsync_info.thread == ERR_PTR(-ENOMEM)) {
-		dev_err(&pdev->dev, "failed to run vsync thread\n");
-		lcdc_dev->vsync_info.thread = NULL;
-	}
-	lcdc_dev->vsync_info.active = 1;
 	
 	ret = rk_fb_register(&(lcdc_dev->driver),&lcdc_driver,lcdc_dev->id);
 	if(ret < 0)

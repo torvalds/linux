@@ -589,8 +589,6 @@ struct rk30_lcdc_device{
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
 	bool clk_on;			//if aclk or hclk is closed ,acess to register is not allowed
 	u8 atv_layer_cnt;		//active layer counter,when  atv_layer_cnt = 0,disable lcdc
-
-	struct rk_fb_vsync	 vsync_info;
 	
 	unsigned int		irq;
 
