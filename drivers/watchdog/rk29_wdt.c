@@ -122,20 +122,22 @@ static char		 expect_close;
 		printk(KERN_INFO msg); \
 	} while (0)
 
+#define wdt_writel(v, offset) do { writel_relaxed(v, wdt_base + offset); dsb(); } while (0)
 
 /* functions */
 void rk29_wdt_keepalive(void)
 {
-	writel(0x76, wdt_base + RK29_WDT_CRR);
+	if (wdt_base)
+		wdt_writel(0x76, RK29_WDT_CRR);
 }
 
 static void __rk29_wdt_stop(void)
 {
 	rk29_wdt_keepalive();    //feed dog
-	writel(0x0a, wdt_base + RK29_WDT_CR);
+	wdt_writel(0x0a, RK29_WDT_CR);
 }
 
-void rk29_wdt_stop(void)
+static void rk29_wdt_stop(void)
 {
 	__rk29_wdt_stop();
 	clk_disable(wdt_clock);
@@ -164,17 +166,17 @@ static int rk29_wdt_set_heartbeat(int timeout)
 		torr = 15;
 	}
 	DBG("%s:%d\n", __func__, torr);
-	writel(torr, wdt_base + RK29_WDT_TORR);
+	wdt_writel(torr, RK29_WDT_TORR);
 	return 0;
 }
 
-void rk29_wdt_start(void)
+static void rk29_wdt_start(void)
 {
-	unsigned long wtcon = 0;
+	unsigned long wtcon;
 	clk_enable(wdt_clock);
 	rk29_wdt_set_heartbeat(tmr_margin);
-	wtcon |= (RK29_WDT_EN << 0) | (RK29_RESPONSE_MODE << 1) | (RK29_RESET_PULSE << 2);
-	writel(wtcon, wdt_base + RK29_WDT_CR);
+	wtcon = (RK29_WDT_EN << 0) | (RK29_RESPONSE_MODE << 1) | (RK29_RESET_PULSE << 2);
+	wdt_writel(wtcon, RK29_WDT_CR);
 }
 
 /*
@@ -384,7 +386,6 @@ static int __devinit rk29_wdt_probe(struct platform_device *pdev)
 			WATCHDOG_MINOR, ret);
 		goto err_clk;
 	}
-	printk("watchdog misc directory:%s\n", rk29_wdt_miscdev.nodename);
 	if (tmr_atboot && started == 0) {
 		dev_info(dev, "starting watchdog timer\n");
 		rk29_wdt_start();
