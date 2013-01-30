@@ -255,10 +255,19 @@ void fl6_free_socklist(struct sock *sk)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_fl_socklist *sfl;
 
-	while ((sfl = np->ipv6_fl_list) != NULL) {
-		np->ipv6_fl_list = sfl->next;
+	if (!np->ipv6_fl_list)
+		return;
+
+	write_lock_bh(&ipv6_sk_fl_lock);
+	sfl = np->ipv6_fl_list;
+	np->ipv6_fl_list = NULL;
+	write_unlock_bh(&ipv6_sk_fl_lock);
+
+	while (sfl) {
+		struct ipv6_fl_socklist *next = sfl->next;
 		fl_release(sfl->fl);
 		kfree(sfl);
+		sfl = next;
 	}
 }
 
