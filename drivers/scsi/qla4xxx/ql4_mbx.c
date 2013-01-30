@@ -1420,10 +1420,8 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 	dma_addr_t chap_dma;
 
 	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
-	if (chap_table == NULL) {
-		ret = -ENOMEM;
-		goto exit_get_chap;
-	}
+	if (chap_table == NULL)
+		return -ENOMEM;
 
 	chap_size = sizeof(struct ql4_chap_table);
 	memset(chap_table, 0, chap_size);
