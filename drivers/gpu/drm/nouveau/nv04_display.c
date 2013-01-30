@@ -22,6 +22,9 @@
  * Author: Ben Skeggs
  */
 
+#include <core/object.h>
+#include <core/class.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -70,6 +73,11 @@ nv04_display_create(struct drm_device *dev)
 	nouveau_display(dev)->fini = nv04_display_fini;
 
 	nouveau_hw_save_vga_fonts(dev, 1);
+
+	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, 0xd1500000,
+				 NV04_DISP_CLASS, NULL, 0, &disp->core);
+	if (ret)
+		return ret;
 
 	nv04_crtc_create(dev, 0);
 	if (nv_two_heads(dev))

@@ -154,6 +154,14 @@ struct nve0_channel_ind_class {
 	u32 engine;
 };
 
+/* 0046: NV04_DISP
+ */
+
+#define NV04_DISP_CLASS                                              0x00000046
+
+struct nv04_display_class {
+};
+
 /* 5070: NV50_DISP
  * 8270: NV84_DISP
  * 8370: NVA0_DISP

@@ -23,6 +23,7 @@
  */
 
 #include <engine/disp.h>
+#include <core/class.h>
 
 struct nv04_disp_priv {
 	struct nouveau_disp base;
@@ -30,6 +31,7 @@ struct nv04_disp_priv {
 
 static struct nouveau_oclass
 nv04_disp_sclass[] = {
+	{ NV04_DISP_CLASS, &nouveau_object_ofuncs },
 	{},
 };
 
