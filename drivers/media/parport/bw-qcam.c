@@ -693,6 +693,7 @@ static int qcam_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	pix->sizeimage = pix->width * pix->height;
 	/* Just a guess */
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
+	pix->priv = 0;
 	return 0;
 }
 
@@ -718,6 +719,7 @@ static int qcam_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	pix->sizeimage = pix->width * pix->height;
 	/* Just a guess */
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
+	pix->priv = 0;
 	return 0;
 }
 
