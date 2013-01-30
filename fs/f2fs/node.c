@@ -874,15 +874,11 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 		return;
 
 	if (read_node_page(apage, READA))
-		goto unlock_out;
+		unlock_page(apage);
 
-	page_cache_release(apage);
-	return;
-
-unlock_out:
-	unlock_page(apage);
 release_out:
 	page_cache_release(apage);
+	return;
 }
 
 struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
