@@ -168,8 +168,6 @@ static void _ddr_change_freq(uint32_t nMHz)
 	unsigned int this_cpu = get_cpu();
 	cpu_maps_update_begin();
 
-	BUG_ON(this_cpu != 0);
-
 	set_other_cpus_pause(false);
 
 	smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
