@@ -666,12 +666,16 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 
 	if ((cmd->fs.flow_type & FLOW_EXT)) {
 		if (cmd->fs.m_ext.vlan_etype ||
-		    !(cmd->fs.m_ext.vlan_tci == 0 ||
-		      cmd->fs.m_ext.vlan_tci == cpu_to_be16(0xfff)))
+		    !((cmd->fs.m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK)) ==
+		      0 ||
+		      (cmd->fs.m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK)) ==
+		      cpu_to_be16(VLAN_VID_MASK)))
 			return -EINVAL;
+
 		if (cmd->fs.m_ext.vlan_tci) {
 			if (be16_to_cpu(cmd->fs.h_ext.vlan_tci) >= VLAN_N_VID)
 				return -EINVAL;
+
 		}
 	}
 
@@ -690,9 +694,10 @@ static int mlx4_en_ethtool_add_mac_rule(struct ethtool_rxnfc *cmd,
 	memcpy(spec_l2->eth.dst_mac_msk, &mac_msk, ETH_ALEN);
 	memcpy(spec_l2->eth.dst_mac, mac, ETH_ALEN);
 
-	if ((cmd->fs.flow_type & FLOW_EXT) && cmd->fs.m_ext.vlan_tci) {
+	if ((cmd->fs.flow_type & FLOW_EXT) &&
+	    (cmd->fs.m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK))) {
 		spec_l2->eth.vlan_id = cmd->fs.h_ext.vlan_tci;
-		spec_l2->eth.vlan_id_msk = cpu_to_be16(0xfff);
+		spec_l2->eth.vlan_id_msk = cpu_to_be16(VLAN_VID_MASK);
 	}
 
 	list_add_tail(&spec_l2->list, rule_list_h);
