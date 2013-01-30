@@ -427,6 +427,7 @@ struct mlx4_en_frag_info {
 #endif
 
 struct ethtool_flow_id {
+	struct list_head list;
 	struct ethtool_rx_flow_spec flow_spec;
 	u64 id;
 };
@@ -441,6 +442,8 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
 	struct ethtool_flow_id ethtool_rules[MAX_NUM_OF_FS_RULES];
+	/* To allow rules removal while port is going down */
+	struct list_head ethtool_list;
 
 	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;

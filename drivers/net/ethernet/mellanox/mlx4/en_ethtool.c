@@ -915,6 +915,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 		loc_rule->id = 0;
 		memset(&loc_rule->flow_spec, 0,
 		       sizeof(struct ethtool_rx_flow_spec));
+		list_del(&loc_rule->list);
 	}
 	err = mlx4_flow_attach(priv->mdev->dev, &rule, &reg_id);
 	if (err) {
@@ -925,6 +926,7 @@ static int mlx4_en_flow_replace(struct net_device *dev,
 	loc_rule->id = reg_id;
 	memcpy(&loc_rule->flow_spec, &cmd->fs,
 	       sizeof(struct ethtool_rx_flow_spec));
+	list_add_tail(&loc_rule->list, &priv->ethtool_list);
 
 out_free_list:
 	list_for_each_entry_safe(spec, tmp_spec, &rule.list, list) {
@@ -958,6 +960,7 @@ static int mlx4_en_flow_detach(struct net_device *dev,
 	}
 	rule->id = 0;
 	memset(&rule->flow_spec, 0, sizeof(struct ethtool_rx_flow_spec));
+	list_del(&rule->list);
 out:
 	return err;
 

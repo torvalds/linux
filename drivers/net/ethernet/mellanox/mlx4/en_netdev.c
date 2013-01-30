@@ -1039,6 +1039,9 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	INIT_LIST_HEAD(&priv->mc_list);
 	INIT_LIST_HEAD(&priv->curr_list);
+	INIT_LIST_HEAD(&priv->ethtool_list);
+	memset(&priv->ethtool_rules[0], 0,
+	       sizeof(struct ethtool_flow_id) * MAX_NUM_OF_FS_RULES);
 
 	/* Calculate Rx buf size */
 	dev->mtu = min(dev->mtu, priv->max_mtu);
@@ -1202,6 +1205,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_mc_list *mclist, *tmp;
+	struct ethtool_flow_id *flow, *tmp_flow;
 	int i;
 	u8 mc_list[16] = {0};
 
@@ -1282,6 +1286,17 @@ void mlx4_en_stop_port(struct net_device *dev)
 	/* Unregister Mac address for the port */
 	mlx4_put_eth_qp(mdev->dev, priv->port, priv->mac, priv->base_qpn);
 	mdev->mac_removed[priv->port] = 1;
+
+	/* Remove flow steering rules for the port*/
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ASSERT_RTNL();
+		list_for_each_entry_safe(flow, tmp_flow,
+					 &priv->ethtool_list, list) {
+			mlx4_flow_detach(mdev->dev, flow->id);
+			list_del(&flow->list);
+		}
+	}
 
 	/* Free RX Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
