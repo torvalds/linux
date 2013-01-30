@@ -126,18 +126,9 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	const struct dio24_board_struct *thisboard = comedi_board(dev);
-	struct comedi_subdevice *s;
-
-	if (dev->subdevices) {
-		s = &dev->subdevices[0];
-		subdev_8255_cleanup(dev, s);
-	}
-	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
-		release_region(dev->iobase, DIO24_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-};
+	if (dev->subdevices)
+		subdev_8255_cleanup(dev, &dev->subdevices[0]);
+}
 
 static struct comedi_driver driver_dio24 = {
 	.driver_name	= "ni_daq_dio24",
