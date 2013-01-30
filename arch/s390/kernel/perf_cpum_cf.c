@@ -367,13 +367,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (ev >= PERF_CPUM_CF_MAX_CTR)
 		return -EINVAL;
 
-	/* The CPU measurement counter facility does not have any interrupts
-	 * to do sampling.  Sampling must be provided by external means,
-	 * for example, by timers.
-	 */
-	if (hwc->sample_period)
-		return -EINVAL;
-
 	/* Use the hardware perf event structure to store the counter number
 	 * in 'config' member and the counter set to which the counter belongs
 	 * in the 'config_base'.  The counter set (config_base) is then used
@@ -418,6 +411,12 @@ static int cpumf_pmu_event_init(struct perf_event *event)
 	case PERF_TYPE_HARDWARE:
 	case PERF_TYPE_HW_CACHE:
 	case PERF_TYPE_RAW:
+		/* The CPU measurement counter facility does not have overflow
+		 * interrupts to do sampling.  Sampling must be provided by
+		 * external means, for example, by timers.
+		 */
+		if (is_sampling_event(event))
+			return -ENOENT;
 		err = __hw_perf_event_init(event);
 		break;
 	default:
