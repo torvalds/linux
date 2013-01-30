@@ -487,6 +487,9 @@
 					anatop-reg-offset = <0x140>;
 					anatop-vol-bit-shift = <0>;
 					anatop-vol-bit-width = <5>;
+					anatop-delay-reg-offset = <0x170>;
+					anatop-delay-bit-shift = <24>;
+					anatop-delay-bit-width = <2>;
 					anatop-min-bit-val = <1>;
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
@@ -501,6 +504,9 @@
 					anatop-reg-offset = <0x140>;
 					anatop-vol-bit-shift = <9>;
 					anatop-vol-bit-width = <5>;
+					anatop-delay-reg-offset = <0x170>;
+					anatop-delay-bit-shift = <26>;
+					anatop-delay-bit-width = <2>;
 					anatop-min-bit-val = <1>;
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
@@ -515,6 +521,9 @@
 					anatop-reg-offset = <0x140>;
 					anatop-vol-bit-shift = <18>;
 					anatop-vol-bit-width = <5>;
+					anatop-delay-reg-offset = <0x170>;
+					anatop-delay-bit-shift = <28>;
+					anatop-delay-bit-width = <2>;
 					anatop-min-bit-val = <1>;
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
