@@ -83,11 +83,6 @@ static const struct dio24_board_struct dio24_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct dio24_board_struct *)dev->board_ptr)
-
 struct dio24_private {
 
 	int data;		/* number of data points left to be taken */
@@ -95,6 +90,7 @@ struct dio24_private {
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dio24_board_struct *thisboard = comedi_board(dev);
 	struct dio24_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -159,6 +155,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio24_detach(struct comedi_device *dev)
 {
+	const struct dio24_board_struct *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 
 	if (dev->subdevices) {
