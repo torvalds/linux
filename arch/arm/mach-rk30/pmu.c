@@ -37,6 +37,12 @@ static noinline void do_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 static DEFINE_SPINLOCK(pmu_pd_lock);
 static u32 lcdc0_qos[CPU_AXI_QOS_NUM_REGS];
 static u32 lcdc1_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 cif0_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 cif1_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 ipp_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 rga_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 gpu_qos[CPU_AXI_QOS_NUM_REGS];
+static u32 vpu_qos[CPU_AXI_QOS_NUM_REGS];
 
 void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
@@ -52,11 +58,18 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 		if (pd == PD_VIO) {
 			CPU_AXI_SAVE_QOS(lcdc0_qos, LCDC0);
 			CPU_AXI_SAVE_QOS(lcdc1_qos, LCDC1);
+			CPU_AXI_SAVE_QOS(cif0_qos, CIF0);
+			CPU_AXI_SAVE_QOS(cif1_qos, CIF1);
+			CPU_AXI_SAVE_QOS(ipp_qos, IPP);
+			CPU_AXI_SAVE_QOS(rga_qos, RGA);
 			pmu_set_idle_request(IDLE_REQ_VIO, true);
-		} else if (pd == PD_VIDEO)
+		} else if (pd == PD_VIDEO) {
+			CPU_AXI_SAVE_QOS(vpu_qos, VPU);
 			pmu_set_idle_request(IDLE_REQ_VIDEO, true);
-		else if (pd == PD_GPU)
+		} else if (pd == PD_GPU) {
+			CPU_AXI_SAVE_QOS(gpu_qos, GPU);
 			pmu_set_idle_request(IDLE_REQ_GPU, true);
+		}
 	}
 	do_pmu_set_power_domain(pd, on);
 	if (on) {
@@ -65,10 +78,17 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			pmu_set_idle_request(IDLE_REQ_VIO, false);
 			CPU_AXI_RESTORE_QOS(lcdc0_qos, LCDC0);
 			CPU_AXI_RESTORE_QOS(lcdc1_qos, LCDC1);
-		} else if (pd == PD_VIDEO)
+			CPU_AXI_RESTORE_QOS(cif0_qos, CIF0);
+			CPU_AXI_RESTORE_QOS(cif1_qos, CIF1);
+			CPU_AXI_RESTORE_QOS(ipp_qos, IPP);
+			CPU_AXI_RESTORE_QOS(rga_qos, RGA);
+		} else if (pd == PD_VIDEO) {
 			pmu_set_idle_request(IDLE_REQ_VIDEO, false);
-		else if (pd == PD_GPU)
+			CPU_AXI_RESTORE_QOS(vpu_qos, VPU);
+		} else if (pd == PD_GPU) {
 			pmu_set_idle_request(IDLE_REQ_GPU, false);
+			CPU_AXI_RESTORE_QOS(gpu_qos, GPU);
+		}
 	}
 	spin_unlock_irqrestore(&pmu_pd_lock, flags);
 }
