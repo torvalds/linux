@@ -369,9 +369,6 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s);
 
 int comedi_alloc_subdevices(struct comedi_device *, int);
 
-void comedi_device_detach(struct comedi_device *);
-int comedi_device_attach(struct comedi_device *, struct comedi_devconfig *);
-
 int comedi_auto_config(struct device *, struct comedi_driver *,
 		       unsigned long context);
 void comedi_auto_unconfig(struct device *);
