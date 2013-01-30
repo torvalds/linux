@@ -211,6 +211,7 @@ int pwm_set_chip_data(struct pwm_device *pwm, void *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pwm_set_chip_data);
 
 /**
  * pwm_get_chip_data() - get private chip data for a PWM
@@ -220,6 +221,7 @@ void *pwm_get_chip_data(struct pwm_device *pwm)
 {
 	return pwm ? pwm->chip_data : NULL;
 }
+EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
 /**
  * pwmchip_add() - register a new PWM chip
