@@ -38,9 +38,12 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
 		WARN_ON(tty->count > 1);
 	else {
+		if (test_bit(TTY_IO_ERROR, &tty->flags))
+			return;
 		if (tty->count > 2)
 			return;
 	}
+	set_bit(TTY_IO_ERROR, &tty->flags);
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
 	tty->packet = 0;
@@ -246,6 +249,8 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 	if (!tty || !tty->link)
 		goto out;
 
+	set_bit(TTY_IO_ERROR, &tty->flags);
+
 	retval = -EIO;
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		goto out;
@@ -254,6 +259,7 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 	if (tty->link->count != 1)
 		goto out;
 
+	clear_bit(TTY_IO_ERROR, &tty->flags);
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
 	retval = 0;
