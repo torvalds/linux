@@ -196,7 +196,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	if (adsp[e->shift_l].running)
 		return -EBUSY;
 
-	adsp->fw = ucontrol->value.integer.value[0];
+	adsp[e->shift_l].fw = ucontrol->value.integer.value[0];
 
 	return 0;
 }
