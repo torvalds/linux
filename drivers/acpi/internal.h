@@ -26,6 +26,7 @@
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
 void acpi_pci_root_init(void);
+void acpi_pci_link_init(void);
 int acpi_sysfs_init(void);
 void acpi_csrt_init(void);
 
