@@ -311,43 +311,6 @@ static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 	return memcmp(ssidie + 2, ssid, ssid_len) == 0;
 }
 
-static bool is_mesh(struct cfg80211_bss *a,
-		    const u8 *meshid, size_t meshidlen,
-		    const u8 *meshcfg)
-{
-	const struct cfg80211_bss_ies *ies;
-	const u8 *ie;
-
-	if (!WLAN_CAPABILITY_IS_STA_BSS(a->capability))
-		return false;
-
-	ies = rcu_access_pointer(a->ies);
-	if (!ies)
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_ID, ies->data, ies->len);
-	if (!ie)
-		return false;
-	if (ie[1] != meshidlen)
-		return false;
-	if (memcmp(ie + 2, meshid, meshidlen))
-		return false;
-
-	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG, ies->data, ies->len);
-	if (!ie)
-		return false;
-	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
-		return false;
-
-	/*
-	 * Ignore mesh capability (last two bytes of the IE) when
-	 * comparing since that may differ between stations taking
-	 * part in the same mesh.
-	 */
-	return memcmp(ie + 2, meshcfg,
-		      sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
-}
-
 /**
  * enum bss_compare_mode - BSS compare mode
  * @BSS_CMP_REGULAR: regular compare mode (for insertion and normal find)
@@ -502,34 +465,6 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	return &res->pub;
 }
 EXPORT_SYMBOL(cfg80211_get_bss);
-
-struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       const u8 *meshid, size_t meshidlen,
-				       const u8 *meshcfg)
-{
-	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
-	struct cfg80211_internal_bss *bss, *res = NULL;
-
-	spin_lock_bh(&dev->bss_lock);
-
-	list_for_each_entry(bss, &dev->bss_list, list) {
-		if (channel && bss->pub.channel != channel)
-			continue;
-		if (is_mesh(&bss->pub, meshid, meshidlen, meshcfg)) {
-			res = bss;
-			kref_get(&res->ref);
-			break;
-		}
-	}
-
-	spin_unlock_bh(&dev->bss_lock);
-	if (!res)
-		return NULL;
-	return &res->pub;
-}
-EXPORT_SYMBOL(cfg80211_get_mesh);
-
 
 static void rb_insert_bss(struct cfg80211_registered_device *dev,
 			  struct cfg80211_internal_bss *bss)

@@ -3164,10 +3164,6 @@ cfg80211_get_ibss(struct wiphy *wiphy,
 				WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
 }
 
-struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       const u8 *meshid, size_t meshidlen,
-				       const u8 *meshcfg);
 /**
  * cfg80211_ref_bss - reference BSS struct
  * @bss: the BSS struct to reference
