@@ -2536,6 +2536,7 @@ struct req_que {
 	srb_t **outstanding_cmds;
 	uint32_t current_outstanding_cmd;
 	uint16_t num_outstanding_cmds;
+#define	MAX_Q_DEPTH		32
 	int max_q_depth;
 };
 
@@ -3058,6 +3059,12 @@ struct qla_hw_data {
 	struct work_struct idc_state_handler;
 	struct work_struct nic_core_unrecoverable;
 
+#define HOST_QUEUE_RAMPDOWN_INTERVAL           (60 * HZ)
+#define HOST_QUEUE_RAMPUP_INTERVAL             (30 * HZ)
+	unsigned long   host_last_rampdown_time;
+	unsigned long   host_last_rampup_time;
+	int             cfg_lun_q_depth;
+
 	struct qlt_hw_data tgt;
 };
 
@@ -3117,6 +3124,8 @@ typedef struct scsi_qla_host {
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 #define SCR_PENDING		21	/* SCR in target mode */
+#define HOST_RAMP_DOWN_QUEUE_DEPTH     22
+#define HOST_RAMP_UP_QUEUE_DEPTH       23
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
