@@ -398,7 +398,7 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 	}
 
 	m->status = ret;
-	m->complete(m->context);
+	spi_finalize_current_message(master);
 
 	return 0;
 }
