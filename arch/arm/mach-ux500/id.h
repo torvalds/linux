@@ -61,9 +61,14 @@ static inline bool __attribute_const__ cpu_is_u8540(void)
 	return dbx500_partnumber() == 0x8540;
 }
 
+static inline bool __attribute_const__ cpu_is_u8580(void)
+{
+	return dbx500_partnumber() == 0x8580;
+}
+
 static inline bool cpu_is_ux540_family(void)
 {
-	return cpu_is_u9540() || cpu_is_u8540();
+	return cpu_is_u9540() || cpu_is_u8540() || cpu_is_u8580();
 }
 
 /*
@@ -113,6 +118,20 @@ static inline bool cpu_is_u8500v22(void)
 static inline bool cpu_is_u8500v20_or_later(void)
 {
 	return (cpu_is_u8500() && !cpu_is_u8500v10() && !cpu_is_u8500v11());
+}
+
+/*
+ * 8540 revisions
+ */
+
+static inline bool __attribute_const__ cpu_is_u8540v10(void)
+{
+	return cpu_is_u8540() && dbx500_revision() == 0xA0;
+}
+
+static inline bool __attribute_const__ cpu_is_u8580v10(void)
+{
+	return cpu_is_u8580() && dbx500_revision() == 0xA0;
 }
 
 static inline bool ux500_is_svp(void)

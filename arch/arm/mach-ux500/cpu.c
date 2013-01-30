@@ -28,6 +28,7 @@
 #include <mach/devices.h>
 
 #include "board-mop500.h"
+#include "id.h"
 
 void __iomem *_PRCMU_BASE;
 

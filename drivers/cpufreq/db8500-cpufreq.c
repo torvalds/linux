@@ -167,9 +167,6 @@ static struct platform_driver db8500_cpufreq_plat_driver = {
 
 static int __init db8500_cpufreq_register(void)
 {
-	if (!cpu_is_u8500_family())
-		return -ENODEV;
-
 	pr_info("cpufreq for DB8500 started\n");
 	return platform_driver_register(&db8500_cpufreq_plat_driver);
 }

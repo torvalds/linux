@@ -17,6 +17,8 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 
+#include "id.h"
+
 #ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(u8500_twd_local_timer,
 			      U8500_TWD_BASE, IRQ_LOCALTIMER);
