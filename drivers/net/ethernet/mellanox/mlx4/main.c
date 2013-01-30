@@ -1415,22 +1415,6 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		if (mlx4_is_master(dev))
 			mlx4_parav_master_pf_caps(dev);
 
-		priv->fs_hash_mode = MLX4_FS_L2_HASH;
-
-		switch (priv->fs_hash_mode) {
-		case MLX4_FS_L2_HASH:
-			init_hca.fs_hash_enable_bits = 0;
-			break;
-
-		case MLX4_FS_L2_L3_L4_HASH:
-			/* Enable flow steering with
-			 * udp unicast and tcp unicast
-			 */
-			init_hca.fs_hash_enable_bits =
-				MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN;
-			break;
-		}
-
 		profile = default_profile;
 		if (dev->caps.steering_mode ==
 		    MLX4_STEERING_MODE_DEVICE_MANAGED)
