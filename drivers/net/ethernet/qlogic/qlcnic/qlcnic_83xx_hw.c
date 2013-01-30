@@ -2374,7 +2374,7 @@ int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 		if (ret == -EIO)
 			return -EIO;
 		word = ret;
-		*p_data  = word;
+		*(u32 *)p_data  = word;
 		p_data = p_data + 4;
 		addr = addr + 4;
 	}
