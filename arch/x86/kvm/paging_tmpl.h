@@ -409,9 +409,6 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	unsigned direct_access, access = gw->pt_access;
 	int top_level, emulate = 0;
 
-	if (!is_present_gpte(gw->ptes[gw->level - 1]))
-		return 0;
-
 	direct_access = gw->pte_access;
 
 	top_level = vcpu->arch.mmu.root_level;
