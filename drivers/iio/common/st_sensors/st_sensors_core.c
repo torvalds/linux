@@ -38,46 +38,6 @@ st_sensors_write_data_with_mask_error:
 	return err;
 }
 
-int st_sensors_get_sampling_frequency_avl(struct iio_dev *indio_dev, char *buf)
-{
-	int i, len = 0;
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	mutex_lock(&indio_dev->mlock);
-	for (i = 0; i < ST_SENSORS_ODR_LIST_MAX; i++) {
-		if (sdata->sensor->odr.odr_avl[i].hz == 0)
-			break;
-
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
-					sdata->sensor->odr.odr_avl[i].hz);
-	}
-	mutex_unlock(&indio_dev->mlock);
-	buf[len - 1] = '\n';
-
-	return len;
-}
-EXPORT_SYMBOL(st_sensors_get_sampling_frequency_avl);
-
-int st_sensors_get_scale_avl(struct iio_dev *indio_dev, char *buf)
-{
-	int i, len = 0;
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	mutex_lock(&indio_dev->mlock);
-	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
-		if (sdata->sensor->fs.fs_avl[i].num == 0)
-			break;
-
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-					sdata->sensor->fs.fs_avl[i].gain);
-	}
-	mutex_unlock(&indio_dev->mlock);
-	buf[len - 1] = '\n';
-
-	return len;
-}
-EXPORT_SYMBOL(st_sensors_get_scale_avl);
-
 static int st_sensors_match_odr(struct st_sensors *sensor,
 			unsigned int odr, struct st_sensor_odr_avl *odr_out)
 {
@@ -440,18 +400,44 @@ EXPORT_SYMBOL(st_sensors_sysfs_set_sampling_frequency);
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	int i, len = 0;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	return st_sensors_get_sampling_frequency_avl(indio_dev, buf);
+	mutex_lock(&indio_dev->mlock);
+	for (i = 0; i < ST_SENSORS_ODR_LIST_MAX; i++) {
+		if (sdata->sensor->odr.odr_avl[i].hz == 0)
+			break;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
+					sdata->sensor->odr.odr_avl[i].hz);
+	}
+	mutex_unlock(&indio_dev->mlock);
+	buf[len - 1] = '\n';
+
+	return len;
 }
 EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
 
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	int i, len = 0;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	return st_sensors_get_scale_avl(indio_dev, buf);
+	mutex_lock(&indio_dev->mlock);
+	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
+		if (sdata->sensor->fs.fs_avl[i].num == 0)
+			break;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+					sdata->sensor->fs.fs_avl[i].gain);
+	}
+	mutex_unlock(&indio_dev->mlock);
+	buf[len - 1] = '\n';
+
+	return len;
 }
 EXPORT_SYMBOL(st_sensors_sysfs_scale_avail);
 

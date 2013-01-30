@@ -243,10 +243,6 @@ int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable);
 
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable);
 
-int st_sensors_get_sampling_frequency_avl(struct iio_dev *indio_dev, char *buf);
-
-int st_sensors_get_scale_avl(struct iio_dev *indio_dev, char *buf);
-
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr);
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable);
