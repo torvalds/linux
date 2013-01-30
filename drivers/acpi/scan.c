@@ -53,6 +53,7 @@ static const struct acpi_device_id acpi_platform_device_ids[] = {
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 static DEFINE_MUTEX(acpi_scan_lock);
+static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
@@ -61,6 +62,15 @@ struct acpi_device_bus_id{
 	unsigned int instance_no;
 	struct list_head node;
 };
+
+int acpi_scan_add_handler(struct acpi_scan_handler *handler)
+{
+	if (!handler || !handler->attach)
+		return -EINVAL;
+
+	list_add_tail(&handler->list_node, &acpi_scan_handlers_list);
+	return 0;
+}
 
 /*
  * Creates hid/cid(s) string needed for modalias and uevent
@@ -1570,20 +1580,42 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	return AE_OK;
 }
 
+static int acpi_scan_attach_handler(struct acpi_device *device)
+{
+	struct acpi_scan_handler *handler;
+	int ret = 0;
+
+	list_for_each_entry(handler, &acpi_scan_handlers_list, list_node) {
+		const struct acpi_device_id *id;
+
+		id = __acpi_match_device(device, handler->ids);
+		if (!id)
+			continue;
+
+		ret = handler->attach(device, id);
+		if (ret > 0) {
+			device->handler = handler;
+			break;
+		} else if (ret < 0) {
+			break;
+		}
+	}
+	return ret;
+}
+
 static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 					  void *not_used, void **ret_not_used)
 {
 	const struct acpi_device_id *id;
-	acpi_status status = AE_OK;
 	struct acpi_device *device;
 	unsigned long long sta_not_used;
-	int type_not_used;
+	int ret;
 
 	/*
 	 * Ignore errors ignored by acpi_bus_check_add() to avoid terminating
 	 * namespace walks prematurely.
 	 */
-	if (acpi_bus_type_and_status(handle, &type_not_used, &sta_not_used))
+	if (acpi_bus_type_and_status(handle, &ret, &sta_not_used))
 		return AE_OK;
 
 	if (acpi_bus_get_device(handle, &device))
@@ -1593,10 +1625,15 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	if (id) {
 		/* This is a known good platform device. */
 		acpi_create_platform_device(device, id->driver_data);
-	} else if (device_attach(&device->dev) < 0) {
-		status = AE_CTRL_DEPTH;
+		return AE_OK;
 	}
-	return status;
+
+	ret = acpi_scan_attach_handler(device);
+	if (ret)
+		return ret > 0 ? AE_OK : AE_CTRL_DEPTH;
+
+	ret = device_attach(&device->dev);
+	return ret >= 0 ? AE_OK : AE_CTRL_DEPTH;
 }
 
 /**
@@ -1639,8 +1676,17 @@ static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
 	struct acpi_device *device = NULL;
 
 	if (!acpi_bus_get_device(handle, &device)) {
+		struct acpi_scan_handler *dev_handler = device->handler;
+
 		device->removal_type = ACPI_BUS_REMOVAL_EJECT;
-		device_release_driver(&device->dev);
+		if (dev_handler) {
+			if (dev_handler->detach)
+				dev_handler->detach(device);
+
+			device->handler = NULL;
+		} else {
+			device_release_driver(&device->dev);
+		}
 	}
 	return AE_OK;
 }
