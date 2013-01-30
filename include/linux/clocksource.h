@@ -339,6 +339,8 @@ extern void clocksource_of_init(void);
 	static const struct of_device_id __clksrc_of_table_##name	\
 		__used __section(__clksrc_of_table)			\
 		 = { .compatible = compat, .data = fn };
+#else
+#define CLOCKSOURCE_OF_DECLARE(name, compat, fn)
 #endif
 
 #endif /* _LINUX_CLOCKSOURCE_H */
