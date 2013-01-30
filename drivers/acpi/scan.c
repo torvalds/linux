@@ -29,27 +29,6 @@ extern struct acpi_device *acpi_root;
 
 static const char *dummy_hid = "device";
 
-/*
- * The following ACPI IDs are known to be suitable for representing as
- * platform devices.
- */
-static const struct acpi_device_id acpi_platform_device_ids[] = {
-
-	{ "PNP0D40" },
-
-	/* Haswell LPSS devices */
-	{ "INT33C0", ACPI_PLATFORM_CLK },
-	{ "INT33C1", ACPI_PLATFORM_CLK },
-	{ "INT33C2", ACPI_PLATFORM_CLK },
-	{ "INT33C3", ACPI_PLATFORM_CLK },
-	{ "INT33C4", ACPI_PLATFORM_CLK },
-	{ "INT33C5", ACPI_PLATFORM_CLK },
-	{ "INT33C6", ACPI_PLATFORM_CLK },
-	{ "INT33C7", ACPI_PLATFORM_CLK },
-
-	{ }
-};
-
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 static DEFINE_MUTEX(acpi_scan_lock);
@@ -1606,7 +1585,6 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 					  void *not_used, void **ret_not_used)
 {
-	const struct acpi_device_id *id;
 	struct acpi_device *device;
 	unsigned long long sta_not_used;
 	int ret;
@@ -1620,13 +1598,6 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
-
-	id = __acpi_match_device(device, acpi_platform_device_ids);
-	if (id) {
-		/* This is a known good platform device. */
-		acpi_create_platform_device(device, id->driver_data);
-		return AE_OK;
-	}
 
 	ret = acpi_scan_attach_handler(device);
 	if (ret)
@@ -1775,6 +1746,7 @@ int __init acpi_scan_init(void)
 
 	acpi_pci_root_init();
 	acpi_pci_link_init();
+	acpi_platform_init();
 	acpi_csrt_init();
 
 	/*
