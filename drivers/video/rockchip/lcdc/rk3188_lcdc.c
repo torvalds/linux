@@ -662,8 +662,7 @@ static  int win0_display(struct rk3188_lcdc_device *lcdc_dev,struct layer_par *p
 	if(likely(lcdc_dev->clk_on))
 	{
 		lcdc_writel(lcdc_dev, WIN0_YRGB_MST0, y_addr);
-		lcdc_writel(lcdc_dev, WIN0_CBR_MST0, uv_addr);
-		//lcdc_cfg_done(lcdc_dev);
+		lcdc_writel(lcdc_dev, WIN0_CBR_MST0, uv_addr);		
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -683,7 +682,6 @@ static  int win1_display(struct rk3188_lcdc_device *lcdc_dev,struct layer_par *p
 	if(likely(lcdc_dev->clk_on))
 	{
 		lcdc_writel(lcdc_dev,WIN1_MST,y_addr);
-		//lcdc_cfg_done(lcdc_dev); 
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -892,7 +890,29 @@ static int rk3188_lcdc_get_layer_state(struct rk_lcdc_device_driver *dev_drv,int
 
 static int rk3188_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
 {
-	return 0;
+	struct rk3188_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	int ovl;
+	spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on)
+	{
+		if(set)  //set overlay
+		{
+			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_WIN0_TOP,v_WIN0_TOP(swap));
+			lcdc_cfg_done(lcdc_dev);
+			ovl = swap;
+		}
+		else  //get overlay
+		{
+			ovl = lcdc_read_bit(lcdc_dev,DSP_CTRL0,m_WIN0_TOP);
+		}
+	}
+	else
+	{
+		ovl = -EPERM;
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return ovl;
 }
 
 
