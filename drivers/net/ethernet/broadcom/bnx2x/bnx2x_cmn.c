@@ -80,10 +80,35 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 		new_txdata_index = new_max_eth_txqs + FCOE_TXQ_IDX_OFFSET;
 	}
 
-	memcpy(&bp->bnx2x_txq[old_txdata_index],
-	       &bp->bnx2x_txq[new_txdata_index],
+	memcpy(&bp->bnx2x_txq[new_txdata_index],
+	       &bp->bnx2x_txq[old_txdata_index],
 	       sizeof(struct bnx2x_fp_txdata));
 	to_fp->txdata_ptr[0] = &bp->bnx2x_txq[new_txdata_index];
+}
+
+/**
+ * bnx2x_shrink_eth_fp - guarantees fastpath structures stay intact
+ *
+ * @bp:	driver handle
+ * @delta:	number of eth queues which were not allocated
+ */
+static void bnx2x_shrink_eth_fp(struct bnx2x *bp, int delta)
+{
+	int i, cos, old_eth_num = BNX2X_NUM_ETH_QUEUES(bp);
+
+	/* Queue pointer cannot be re-set on an fp-basis, as moving pointer
+	 * backward along the array could cause memory to be overriden
+	 */
+	for (cos = 1; cos < bp->max_cos; cos++) {
+		for (i = 0; i < old_eth_num - delta; i++) {
+			struct bnx2x_fastpath *fp = &bp->fp[i];
+			int new_idx = cos * (old_eth_num - delta) + i;
+
+			memcpy(&bp->bnx2x_txq[new_idx], fp->txdata_ptr[cos],
+			       sizeof(struct bnx2x_fp_txdata));
+			fp->txdata_ptr[cos] = &bp->bnx2x_txq[new_idx];
+		}
+	}
 }
 
 int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
@@ -3863,6 +3888,7 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 		int delta = BNX2X_NUM_ETH_QUEUES(bp) - i;
 
 		WARN_ON(delta < 0);
+		bnx2x_shrink_eth_fp(bp, delta);
 		if (CNIC_SUPPORT(bp))
 			/* move non eth FPs next to last eth FP
 			 * must be done in that order

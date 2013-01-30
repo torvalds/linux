@@ -555,7 +555,7 @@ EXPORT_SYMBOL_GPL(rpc_clone_client);
  * rpc_clone_client_set_auth - Clone an RPC client structure and set its auth
  *
  * @clnt: RPC client whose parameters are copied
- * @auth: security flavor for new client
+ * @flavor: security flavor for new client
  *
  * Returns a fresh RPC client or an ERR_PTR.
  */

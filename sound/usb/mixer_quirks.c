@@ -1206,7 +1206,7 @@ static int snd_c400_create_mixer(struct usb_mixer_interface *mixer)
  * are valid they presents mono controls as L and R channels of
  * stereo. So we provide a good mixer here.
  */
-struct std_mono_table ebox44_table[] = {
+static struct std_mono_table ebox44_table[] = {
 	{
 		.unitid = 4,
 		.control = 1,

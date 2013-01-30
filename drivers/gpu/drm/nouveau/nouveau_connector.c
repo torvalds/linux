@@ -127,12 +127,26 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			     struct nouveau_encoder **pnv_encoder)
 {
 	struct drm_device *dev = connector->dev;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
 	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
-	int i;
+	struct nouveau_i2c_port *port = NULL;
+	int i, panel = -ENODEV;
+
+	/* eDP panels need powering on by us (if the VBIOS doesn't default it
+	 * to on) before doing any AUX channel transactions.  LVDS panel power
+	 * is handled by the SOR itself, and not required for LVDS DDC.
+	 */
+	if (nv_connector->type == DCB_CONNECTOR_eDP) {
+		panel = gpio->get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
+		if (panel == 0) {
+			gpio->set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
+			msleep(300);
+		}
+	}
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_port *port = NULL;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -150,11 +164,19 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			port = i2c->find(i2c, nv_encoder->dcb->i2c_index);
 		if (port && nv_probe_i2c(port, 0x50)) {
 			*pnv_encoder = nv_encoder;
-			return port;
+			break;
 		}
+
+		port = NULL;
 	}
 
-	return NULL;
+	/* eDP panel not detected, restore panel power GPIO to previous
+	 * state to avoid confusing the SOR for other output types.
+	 */
+	if (!port && panel == 0)
+		gpio->set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, panel);
+
+	return port;
 }
 
 static struct nouveau_encoder *

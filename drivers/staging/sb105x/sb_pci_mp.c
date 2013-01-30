@@ -3054,6 +3054,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 				sbdev->nr_ports = ((portnum_hex/16)*10) + (portnum_hex % 16);
 			}
 			break;
+#ifdef CONFIG_PARPORT_PC
 		case PCI_DEVICE_ID_MP2S1P :
 			sbdev->nr_ports = 2;
 
@@ -3073,6 +3074,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 			/* add PC compatible parallel port */
 			parport_pc_probe_port(pcidev->resource[2].start, pcidev->resource[3].start, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &pcidev->dev, 0);
 			break;
+#endif
 	}
 
 	ret = request_region(sbdev->uart_access_addr, (8*sbdev->nr_ports), sbdev->name);

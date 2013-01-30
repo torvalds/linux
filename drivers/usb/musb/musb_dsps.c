@@ -134,6 +134,11 @@ static const resource_size_t dsps_control_module_phys[] = {
 	DSPS_AM33XX_CONTROL_MODULE_PHYS_1,
 };
 
+#define USBPHY_CM_PWRDN		(1 << 0)
+#define USBPHY_OTG_PWRDN	(1 << 1)
+#define USBPHY_OTGVDET_EN	(1 << 19)
+#define USBPHY_OTGSESSEND_EN	(1 << 20)
+
 /**
  * musb_dsps_phy_control - phy on/off
  * @glue: struct dsps_glue *

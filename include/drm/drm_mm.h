@@ -70,7 +70,7 @@ struct drm_mm {
 	unsigned long scan_color;
 	unsigned long scan_size;
 	unsigned long scan_hit_start;
-	unsigned scan_hit_size;
+	unsigned long scan_hit_end;
 	unsigned scanned_blocks;
 	unsigned long scan_start;
 	unsigned long scan_end;

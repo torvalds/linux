@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include "i2c-designware-core.h"
 
 /*
@@ -725,3 +726,6 @@ u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
 	return dw_readl(dev, DW_IC_COMP_PARAM_1);
 }
 EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
+
+MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
+MODULE_LICENSE("GPL");

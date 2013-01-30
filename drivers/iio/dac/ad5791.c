@@ -365,7 +365,11 @@ static int ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_pos;
 
-		pos_voltage_uv = regulator_get_voltage(st->reg_vdd);
+		ret = regulator_get_voltage(st->reg_vdd);
+		if (ret < 0)
+			goto error_disable_reg_pos;
+
+		pos_voltage_uv = ret;
 	}
 
 	st->reg_vss = regulator_get(&spi->dev, "vss");
@@ -374,7 +378,11 @@ static int ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_neg;
 
-		neg_voltage_uv = regulator_get_voltage(st->reg_vss);
+		ret = regulator_get_voltage(st->reg_vss);
+		if (ret < 0)
+			goto error_disable_reg_neg;
+
+		neg_voltage_uv = ret;
 	}
 
 	st->pwr_down = true;
@@ -428,6 +436,7 @@ error_put_reg_neg:
 	if (!IS_ERR(st->reg_vss))
 		regulator_put(st->reg_vss);
 
+error_disable_reg_pos:
 	if (!IS_ERR(st->reg_vdd))
 		regulator_disable(st->reg_vdd);
 error_put_reg_pos:

@@ -145,8 +145,8 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 				u32 page_length = SSD1307FB_WIDTH * i;
 				u32 index = page_length + (SSD1307FB_WIDTH * k + j) / 8;
 				u8 byte = *(vmem + index);
-				u8 bit = byte & (1 << (7 - (j % 8)));
-				bit = bit >> (7 - (j % 8));
+				u8 bit = byte & (1 << (j % 8));
+				bit = bit >> (j % 8);
 				buf |= bit << k;
 			}
 			ssd1307fb_write_data(par->client, buf);

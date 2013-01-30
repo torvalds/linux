@@ -474,16 +474,16 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
 	int gpio_nreset = -EINVAL;
-	int amutec_eq_bmutec = 0;
+	bool amutec_eq_bmutec = false;
 
 #ifdef CONFIG_OF
 	if (of_match_device(cs4271_dt_ids, codec->dev)) {
 		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
 						"reset-gpio", 0);
 
-		if (!of_get_property(codec->dev->of_node,
+		if (of_get_property(codec->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
-			amutec_eq_bmutec = 1;
+			amutec_eq_bmutec = true;
 	}
 #endif
 

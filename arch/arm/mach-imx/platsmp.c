@@ -90,5 +90,6 @@ struct smp_operations  imx_smp_ops __initdata = {
 	.smp_boot_secondary	= imx_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= imx_cpu_die,
+	.cpu_kill		= imx_cpu_kill,
 #endif
 };

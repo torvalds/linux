@@ -187,13 +187,13 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		wait_ret = wait_event_interruptible(dev->iamthif_cl.wait,
 			(cb = mei_amthif_find_read_list_entry(dev, file)));
 
+		/* Locking again the Mutex */
+		mutex_lock(&dev->device_lock);
+
 		if (wait_ret)
 			return -ERESTARTSYS;
 
 		dev_dbg(&dev->pdev->dev, "woke up from sleep\n");
-
-		/* Locking again the Mutex */
-		mutex_lock(&dev->device_lock);
 	}
 
 
