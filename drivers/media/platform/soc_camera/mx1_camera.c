@@ -372,7 +372,7 @@ static void mx1_camera_init_videobuf(struct videobuf_queue *q,
 	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, icd->parent,
 				&pcdev->lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_NONE,
-				sizeof(struct mx1_buffer), icd, &icd->host_lock);
+				sizeof(struct mx1_buffer), icd, &ici->host_lock);
 }
 
 static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
