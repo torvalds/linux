@@ -1320,14 +1320,15 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 
 /*---------------------------------- IOCTL ----------------------------------*/
 
-static int bond_sethwaddr(struct net_device *bond_dev,
-			  struct net_device *slave_dev)
+static void bond_set_dev_addr(struct net_device *bond_dev,
+			      struct net_device *slave_dev)
 {
 	pr_debug("bond_dev=%p\n", bond_dev);
 	pr_debug("slave_dev=%p\n", slave_dev);
 	pr_debug("slave_dev->addr_len=%d\n", slave_dev->addr_len);
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
-	return 0;
+	bond_dev->addr_assign_type = NET_ADDR_SET;
+	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
 }
 
 static netdev_features_t bond_fix_features(struct net_device *dev,
@@ -1628,10 +1629,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (is_zero_ether_addr(bond->dev->dev_addr))
-		memcpy(bond->dev->dev_addr, slave_dev->dev_addr,
-		       slave_dev->addr_len);
-
+	if (bond->dev_addr_from_first)
+		bond_set_dev_addr(bond->dev, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
@@ -2048,12 +2047,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	if (bond->slave_cnt == 0) {
 		bond_set_carrier(bond);
-
-		/* if the last slave was removed, zero the mac address
-		 * of the master so it will be set by the application
-		 * to the mac address of the first slave
-		 */
-		memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
+		eth_hw_addr_random(bond_dev);
+		bond->dev_addr_from_first = true;
 
 		if (bond_vlan_used(bond)) {
 			pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
@@ -2234,11 +2229,8 @@ static int bond_release_all(struct net_device *bond_dev)
 		write_lock_bh(&bond->lock);
 	}
 
-	/* zero the mac address of the master so it will be
-	 * set by the application to the mac address of the
-	 * first slave
-	 */
-	memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
+	eth_hw_addr_random(bond_dev);
+	bond->dev_addr_from_first = true;
 
 	if (bond_vlan_used(bond)) {
 		pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
@@ -3708,7 +3700,8 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 			break;
 		case BOND_SETHWADDR_OLD:
 		case SIOCBONDSETHWADDR:
-			res = bond_sethwaddr(bond_dev, slave_dev);
+			bond_set_dev_addr(bond_dev, slave_dev);
+			res = 0;
 			break;
 		case BOND_CHANGE_ACTIVE_OLD:
 		case SIOCBONDCHANGEACTIVE:
@@ -4857,6 +4850,13 @@ static int bond_init(struct net_device *bond_dev)
 	bond_prepare_sysfs_group(bond);
 
 	bond_debug_register(bond);
+
+	/* Ensure valid dev_addr */
+	if (is_zero_ether_addr(bond_dev->dev_addr) &&
+	    bond_dev->addr_assign_type == NET_ADDR_PERM) {
+		eth_hw_addr_random(bond_dev);
+		bond->dev_addr_from_first = true;
+	}
 
 	__hw_addr_init(&bond->mc_list);
 	return 0;
