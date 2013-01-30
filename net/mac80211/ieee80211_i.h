@@ -590,6 +590,11 @@ struct ieee80211_if_mesh {
 	s64 sync_offset_clockdrift_max;
 	spinlock_t sync_offset_lock;
 	bool adjusting_tbtt;
+	/* mesh power save */
+	enum nl80211_mesh_power_mode nonpeer_pm;
+	int ps_peers_light_sleep;
+	int ps_peers_deep_sleep;
+	struct ps_data ps;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -1185,6 +1190,7 @@ struct ieee802_11_elems {
 	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peering;
+	__le16 *awake_window;
 	u8 *preq;
 	u8 *prep;
 	u8 *perr;

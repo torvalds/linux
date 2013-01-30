@@ -261,6 +261,9 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
 	*pos |= ifmsh->accepting_plinks ?
 	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
+	*pos |= ifmsh->ps_peers_deep_sleep ?
+	    IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL : 0x00;
 	*pos++ |= ifmsh->adjusting_tbtt ?
 	    IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
 	*pos++ = 0x00;
@@ -282,6 +285,29 @@ mesh_add_meshid_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	*pos++ = ifmsh->mesh_id_len;
 	if (ifmsh->mesh_id_len)
 		memcpy(pos, ifmsh->mesh_id, ifmsh->mesh_id_len);
+
+	return 0;
+}
+
+int mesh_add_awake_window_ie(struct sk_buff *skb,
+			     struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	u8 *pos;
+
+	/* see IEEE802.11-2012 13.14.6 */
+	if (ifmsh->ps_peers_light_sleep == 0 &&
+	    ifmsh->ps_peers_deep_sleep == 0 &&
+	    ifmsh->nonpeer_pm == NL80211_MESH_POWER_ACTIVE)
+		return 0;
+
+	if (skb_tailroom(skb) < 4)
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + 2);
+	*pos++ = WLAN_EID_MESH_AWAKE_WINDOW;
+	*pos++ = 2;
+	put_unaligned_le16(ifmsh->mshcfg.dot11MeshAwakeWindowDuration, pos);
 
 	return 0;
 }
@@ -629,6 +655,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(local, band);
 
+	ieee80211_mps_local_status_update(sdata);
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(sdata->dev);
@@ -650,6 +678,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
 	mesh_path_flush_by_iface(sdata);
+
+	/* free all potentially still buffered group-addressed frames */
+	local->total_ps_buffered -= skb_queue_len(&ifmsh->ps.bc_buf);
+	skb_queue_purge(&ifmsh->ps.bc_buf);
 
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
@@ -828,6 +860,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    ieee80211_mesh_path_root_timer,
 		    (unsigned long) sdata);
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
+	skb_queue_head_init(&ifmsh->ps.bc_buf);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
 	spin_lock_init(&ifmsh->sync_offset_lock);
 
