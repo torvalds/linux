@@ -2381,6 +2381,10 @@ sleep:
 
 static void dasd_eckd_handle_terminated_request(struct dasd_ccw_req *cqr)
 {
+	if (cqr->retries < 0) {
+		cqr->status = DASD_CQR_FAILED;
+		return;
+	}
 	cqr->status = DASD_CQR_FILLED;
 	if (cqr->block && (cqr->startdev != cqr->block->base)) {
 		dasd_eckd_reset_ccw_to_base_io(cqr);
