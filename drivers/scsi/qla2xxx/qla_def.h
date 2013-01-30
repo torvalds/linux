@@ -537,6 +537,8 @@ struct device_reg_25xxmq {
 	uint32_t req_q_out;
 	uint32_t rsp_q_in;
 	uint32_t rsp_q_out;
+	uint32_t atio_q_in;
+	uint32_t atio_q_out;
 };
 
 typedef union {
@@ -562,6 +564,9 @@ typedef union {
 	(IS_QLA2100(ha) || IS_QLA2200(ha) ? \
 	 &(reg)->u.isp2100.mailbox5 : \
 	 &(reg)->u.isp2300.rsp_q_out)
+
+#define ISP_ATIO_Q_IN(vha) (vha->hw->tgt.atio_q_in)
+#define ISP_ATIO_Q_OUT(vha) (vha->hw->tgt.atio_q_out)
 
 #define MAILBOX_REG(ha, reg, num) \
 	(IS_QLA2100(ha) || IS_QLA2200(ha) ? \
@@ -2559,6 +2564,8 @@ struct qlt_hw_data {
 	struct atio *atio_ring_ptr;	/* Current address. */
 	uint16_t atio_ring_index; /* Current index. */
 	uint16_t atio_q_length;
+	uint32_t __iomem *atio_q_in;
+	uint32_t __iomem *atio_q_out;
 
 	void *target_lport_ptr;
 	struct qla_tgt_func_tmpl *tgt_ops;
@@ -2790,6 +2797,7 @@ struct qla_hw_data {
 #define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha))
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
+#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;

@@ -39,7 +39,7 @@
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
  * | Target Mode		  |	  0xe06f       |		|
- * | Target Mode Management	  |	  0xf071       |		|
+ * | Target Mode Management	  |	  0xf072       |		|
  * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------
  */

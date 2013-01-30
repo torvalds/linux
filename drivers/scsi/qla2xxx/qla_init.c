@@ -1964,7 +1964,7 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		WRT_REG_DWORD(&reg->isp24.rsp_q_in, 0);
 		WRT_REG_DWORD(&reg->isp24.rsp_q_out, 0);
 	}
-	qlt_24xx_config_rings(vha, reg);
+	qlt_24xx_config_rings(vha);
 
 	/* PCI posting */
 	RD_REG_DWORD(&ioreg->hccr);
@@ -5579,6 +5579,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (IS_T10_PI_CAPABLE(ha))
 		nv->frame_payload_size &= ~7;
 
+	qlt_81xx_config_nvram_stage1(vha, nv);
+
 	/* Reset Initialization control block */
 	memset(icb, 0, ha->init_cb_size);
 
@@ -5618,6 +5620,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	 */
 	qla2x00_set_model_info(vha, nv->model_name, sizeof(nv->model_name),
 	    "QLE8XXX");
+
+	qlt_81xx_config_nvram_stage2(vha, icb);
 
 	/* Use alternate WWN? */
 	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {

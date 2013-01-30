@@ -13,6 +13,8 @@
 #include <scsi/scsi_bsg_fc.h>
 #include <scsi/scsi_eh.h>
 
+#include "qla_target.h"
+
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_process_completed_request(struct scsi_qla_host *,
 	struct req_que *, uint32_t);
@@ -2751,6 +2753,12 @@ static struct qla_init_msix_entry qla82xx_msix_entries[2] = {
 	{ "qla2xxx (rsp_q)", qla82xx_msix_rsp_q },
 };
 
+static struct qla_init_msix_entry qla83xx_msix_entries[3] = {
+	{ "qla2xxx (default)", qla24xx_msix_default },
+	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
+	{ "qla2xxx (atio_q)", qla83xx_msix_atio_q },
+};
+
 static void
 qla24xx_disable_msix(struct qla_hw_data *ha)
 {
@@ -2831,9 +2839,13 @@ msix_failed:
 	}
 
 	/* Enable MSI-X vectors for the base queue */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
-		if (IS_QLA82XX(ha)) {
+		if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+			ret = request_irq(qentry->vector,
+				qla83xx_msix_entries[i].handler,
+				0, qla83xx_msix_entries[i].name, rsp);
+		} else if (IS_QLA82XX(ha)) {
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
 				0, qla82xx_msix_entries[i].name, rsp);

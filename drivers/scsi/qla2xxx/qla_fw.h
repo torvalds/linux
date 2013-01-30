@@ -300,7 +300,8 @@ struct init_cb_24xx {
 	uint32_t prio_request_q_address[2];
 
 	uint16_t msix;
-	uint8_t reserved_2[6];
+	uint16_t msix_atio;
+	uint8_t reserved_2[4];
 
 	uint16_t atio_q_inpointer;
 	uint16_t atio_q_length;
