@@ -1461,28 +1461,14 @@ static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, int nr)
 	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
 }
 
-/*
- * Remove the sp from shadow page cache, after call it,
- * we can not find this sp from the cache, and the shadow
- * page table is still valid.
- * It should be under the protection of mmu lock.
- */
-static void kvm_mmu_isolate_page(struct kvm_mmu_page *sp)
+static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
 {
 	ASSERT(is_empty_shadow_page(sp->spt));
 	hlist_del(&sp->hash_link);
-	if (!sp->role.direct)
-		free_page((unsigned long)sp->gfns);
-}
-
-/*
- * Free the shadow page table and the sp, we can do it
- * out of the protection of mmu lock.
- */
-static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
-{
 	list_del(&sp->link);
 	free_page((unsigned long)sp->spt);
+	if (!sp->role.direct)
+		free_page((unsigned long)sp->gfns);
 	kmem_cache_free(mmu_page_header_cache, sp);
 }
 
@@ -2126,7 +2112,6 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	do {
 		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
 		WARN_ON(!sp->role.invalid || sp->root_count);
-		kvm_mmu_isolate_page(sp);
 		kvm_mmu_free_page(sp);
 	} while (!list_empty(invalid_list));
 }
