@@ -664,7 +664,7 @@ static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
 	dw |= ctrl->priority << 16;
 
 	hw->ctrl = cpu_to_be32(dw);
-	hw->vf_vep_port = cpu_to_be32(ctrl->port);
+	hw->port = ctrl->port;
 	hw->qpn = cpu_to_be32(ctrl->qpn);
 }
 

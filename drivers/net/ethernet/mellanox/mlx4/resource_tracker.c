@@ -3018,7 +3018,7 @@ static int add_eth_header(struct mlx4_dev *dev, int slave,
 	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
-	port = be32_to_cpu(ctrl->vf_vep_port) & 0xff;
+	port = ctrl->port;
 	eth_header = (struct mlx4_net_trans_rule_hw_eth *)(ctrl + 1);
 
 	/* Clear a space in the inbox for eth header */

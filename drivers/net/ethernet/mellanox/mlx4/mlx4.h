@@ -696,9 +696,12 @@ struct mlx4_steer {
 
 struct mlx4_net_trans_rule_hw_ctrl {
 	__be32 ctrl;
-	__be32 vf_vep_port;
+	u8 rsvd1;
+	u8 funcid;
+	u8 vep;
+	u8 port;
 	__be32 qpn;
-	__be32 reserved;
+	__be32 rsvd2;
 };
 
 struct mlx4_net_trans_rule_hw_ib {
