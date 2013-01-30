@@ -2044,9 +2044,20 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG, gb_addr_config);
 
-	tmp = gb_addr_config & NUM_PIPES_MASK;
-	tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.evergreen.max_backends,
-					EVERGREEN_MAX_BACKENDS, disabled_rb_mask);
+	if ((rdev->config.evergreen.max_backends == 1) &&
+	    (rdev->flags & RADEON_IS_IGP)) {
+		if ((disabled_rb_mask & 3) == 1) {
+			/* RB0 disabled, RB1 enabled */
+			tmp = 0x11111111;
+		} else {
+			/* RB1 disabled, RB0 enabled */
+			tmp = 0x00000000;
+		}
+	} else {
+		tmp = gb_addr_config & NUM_PIPES_MASK;
+		tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.evergreen.max_backends,
+						EVERGREEN_MAX_BACKENDS, disabled_rb_mask);
+	}
 	WREG32(GB_BACKEND_MAP, tmp);
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
