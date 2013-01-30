@@ -779,7 +779,7 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 	int enable;
 	switch(cmd)
 	{
-		case FBIOGET_PANEL_SIZE:    //get panel size
+		case RK_FBIOGET_PANEL_SIZE:    //get panel size
                 	panel_size[0] = lcdc_dev->screen->x_res;
                 	panel_size[1] = lcdc_dev->screen->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 

@@ -911,7 +911,7 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 	int enable;
 	switch(cmd)
 	{
-		case FBIOGET_PANEL_SIZE:    //get panel size
+		case RK_FBIOGET_PANEL_SIZE:    //get panel size
                 	panel_size[0] = dev_drv->screen0->x_res;
                 	panel_size[1] = dev_drv->screen0->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 
