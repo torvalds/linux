@@ -11,6 +11,7 @@
 
 / {
 	model = "RTSM_VE_CortexA15x2";
+	arm,vexpress,site = <0xf>;
 	compatible = "arm,rtsm_ve,cortex_a15x2", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -67,7 +68,43 @@
 			     <1 10 0xf08>;
 	};
 
-	motherboard {
+	dcc {
+		compatible = "arm,vexpress,config-bus";
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		osc@0 {
+			/* ACLK clock to the AXI master port on the test chip */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 0>;
+			freq-range = <30000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "extsaxiclk";
+		};
+
+		oscclk1: osc@1 {
+			/* Reference clock for the CLCD */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 1>;
+			freq-range = <10000000 80000000>;
+			#clock-cells = <0>;
+			clock-output-names = "clcdclk";
+		};
+
+		smbclk: oscclk2: osc@2 {
+			/* Reference clock for the test chip internal PLLs */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 2>;
+			freq-range = <33000000 100000000>;
+			#clock-cells = <0>;
+			clock-output-names = "tcrefclk";
+		};
+	};
+
+	smb {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
 		ranges = <0 0 0 0x08000000 0x04000000>,
 			 <1 0 0 0x14000000 0x04000000>,
 			 <2 0 0 0x18000000 0x04000000>,
@@ -75,6 +112,7 @@
 			 <4 0 0 0x0c000000 0x04000000>,
 			 <5 0 0 0x10000000 0x04000000>;
 
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic 0  0 4>,
 				<0 0  1 &gic 0  1 4>,
@@ -119,7 +157,9 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
+
+		/include/ "rtsm_ve-motherboard.dtsi"
 	};
 };
 
-/include/ "rtsm_ve-motherboard.dtsi"
+/include/ "clcd-panels.dtsi"
