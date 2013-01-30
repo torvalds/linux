@@ -877,7 +877,7 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 			break;
 		if (test->file_offset >= i_size)
 			break;
-		if (test->file_offset >= disk_i_size) {
+		if (entry_end(test) > disk_i_size) {
 			/*
 			 * we don't update disk_i_size now, so record this
 			 * undealt i_size. Or we will not know the real
