@@ -108,18 +108,17 @@ static bool drm_hdmi_is_connected(struct device *dev)
 	return false;
 }
 
-static int drm_hdmi_get_edid(struct device *dev,
-		struct drm_connector *connector, u8 *edid, int len)
+static struct edid *drm_hdmi_get_edid(struct device *dev,
+			struct drm_connector *connector)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (hdmi_ops && hdmi_ops->get_edid)
-		return hdmi_ops->get_edid(ctx->hdmi_ctx->ctx, connector, edid,
-					  len);
+		return hdmi_ops->get_edid(ctx->hdmi_ctx->ctx, connector);
 
-	return 0;
+	return NULL;
 }
 
 static int drm_hdmi_check_timing(struct device *dev, void *timing)
