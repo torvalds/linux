@@ -836,9 +836,16 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	 * if the disk i_size is already at the inode->i_size, or
 	 * this ordered extent is inside the disk i_size, we're done
 	 */
-	if (disk_i_size == i_size || offset <= disk_i_size) {
+	if (disk_i_size == i_size)
 		goto out;
-	}
+
+	/*
+	 * We still need to update disk_i_size if outstanding_isize is greater
+	 * than disk_i_size.
+	 */
+	if (offset <= disk_i_size &&
+	    (!ordered || ordered->outstanding_isize <= disk_i_size))
+		goto out;
 
 	/*
 	 * walk backward from this ordered extent to disk_i_size.
