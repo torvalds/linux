@@ -2212,11 +2212,11 @@ static void scan_isoc(struct ehci_hcd *ehci)
 	}
 	ehci->now_frame = now_frame;
 
+	frame = ehci->last_iso_frame;
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__hc32			type, *hw_p;
 
-		frame = ehci->last_iso_frame;
 restart:
 		/* scan each element in frame's queue for completions */
 		q_p = &ehci->pshadow [frame];
@@ -2321,6 +2321,9 @@ restart:
 		/* Stop when we have reached the current frame */
 		if (frame == now_frame)
 			break;
-		ehci->last_iso_frame = (frame + 1) & fmask;
+
+		/* The last frame may still have active siTDs */
+		ehci->last_iso_frame = frame;
+		frame = (frame + 1) & fmask;
 	}
 }
