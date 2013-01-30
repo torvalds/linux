@@ -284,7 +284,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	{
  		case FBIOPUT_FBPHYADD:
 			return info->fix.smem_start;
-		case FBIOSET_YUV_ADDR:   //when in video mode, buff alloc by android
+			break;
+		case RK_FBIOSET_YUV_ADDR:   //when in video mode, buff alloc by android
 			//if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
 			{
 				if (copy_from_user(yuv_phy, argp, 8))
@@ -293,44 +294,32 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 				info->fix.mmio_start = yuv_phy[1];  //four uv
 			}
 			break;
-		case FBIOSET_ENABLE:
+		case RK_FBIOSET_ENABLE:
 			if (copy_from_user(&enable, argp, sizeof(enable)))
 				return -EFAULT;
 			dev_drv->open(dev_drv,layer_id,enable);
 			break;
-		case FBIOGET_ENABLE:
+		case RK_FBIOGET_ENABLE:
 			enable = dev_drv->get_layer_state(dev_drv,layer_id);
 			if(copy_to_user(argp,&enable,sizeof(enable)))
 				return -EFAULT;
 			break;
-		case FBIOSET_OVERLAY_STATE:
+		case RK_FBIOSET_OVERLAY_STATE:
 			if (copy_from_user(&ovl, argp, sizeof(ovl)))
 				return -EFAULT;
 			dev_drv->ovl_mgr(dev_drv,ovl,1);
 			break;
-		case FBIOGET_OVERLAY_STATE:
+		case RK_FBIOGET_OVERLAY_STATE:
 			ovl = dev_drv->ovl_mgr(dev_drv,0,0);
 			if (copy_to_user(argp, &ovl, sizeof(ovl)))
 				return -EFAULT;
 			break;
-		case FBIOPUT_NUM_BUFFERS:
+		case RK_FBIOPUT_NUM_BUFFERS:
 			if (copy_from_user(&num_buf, argp, sizeof(num_buf)))
 				return -EFAULT;
 			dev_drv->num_buf = num_buf;
 			printk("rk fb use %d buffers\n",num_buf);
 			break;
-		case FBIOGET_SCREEN_STATE:
-		case FBIOPUT_SET_CURSOR_EN:
-		case FBIOPUT_SET_CURSOR_POS:
-		case FBIOPUT_SET_CURSOR_IMG:
-		case FBIOPUT_SET_CURSOR_CMAP:
-		case FBIOPUT_GET_CURSOR_RESOLUTION:
-		case FBIOPUT_GET_CURSOR_EN:
-		case FB0_IOCTL_STOP_TIMER_FLUSH:    //stop timer flush mcu panel after android is runing
-		case FBIOPUT_16OR32:
-		case FBIOGET_16OR32:
-		case FBIOGET_IDLEFBUff_16OR32:
-		case FBIOSET_COMPOSE_LAYER_COUNTS:
         	default:
 			dev_drv->ioctl(dev_drv,cmd,arg,layer_id);
             break;

@@ -27,7 +27,6 @@
 #define FBIOPUT_SET_CURSOR_CMAP    0x460c
 #define FBIOPUT_GET_CURSOR_RESOLUTION    0x460d
 #define FBIOPUT_GET_CURSOR_EN    0x460e
-#define FBIOPUT_NUM_BUFFERS 	0x4625
 
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
@@ -49,12 +48,8 @@
 #define FBIOPUT_MODEINFO        0x4617
 #define FBIOGET_DISPINFO        0x4618
 #define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
-#define FBIOGET_OVERLAY_STATE   0X4619
-#define FBIOGET_SCREEN_STATE    0X4620
-#define FBIOGET_16OR32    0X4621
-#define FBIOGET_IDLEFBUff_16OR32    0X4622
-#define FBIOSET_COMPOSE_LAYER_COUNTS    0X4623
-#define FBIOGET_COMPOSE_LAYER_COUNTS    0X4624
+
+
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */
