@@ -4748,6 +4748,12 @@ void bnx2x_link_status_update(struct link_params *params,
 	vars->link_status = REG_RD(bp, params->shmem_base +
 				   offsetof(struct shmem_region,
 					    port_mb[port].link_status));
+
+	/* Force link UP in non LOOPBACK_EXT loopback mode(s) */
+	if (bp->link_params.loopback_mode != LOOPBACK_NONE &&
+	    bp->link_params.loopback_mode != LOOPBACK_EXT)
+		vars->link_status |= LINK_STATUS_LINK_UP;
+
 	if (bnx2x_eee_has_cap(params))
 		vars->eee_status = REG_RD(bp, params->shmem2_base +
 					  offsetof(struct shmem2_region,
