@@ -31,4 +31,19 @@ int insn_inval(struct comedi_device *, struct comedi_subdevice *,
 void comedi_device_detach(struct comedi_device *);
 int comedi_device_attach(struct comedi_device *, struct comedi_devconfig *);
 
+#ifdef CONFIG_PROC_FS
+
+/* proc.c */
+
+void comedi_proc_init(void);
+void comedi_proc_cleanup(void);
+#else
+static inline void comedi_proc_init(void)
+{
+}
+static inline void comedi_proc_cleanup(void)
+{
+}
+#endif
+
 #endif /* _COMEDI_INTERNAL_H */

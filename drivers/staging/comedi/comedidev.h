@@ -263,19 +263,6 @@ void cleanup_polling(void);
 void start_polling(struct comedi_device *);
 void stop_polling(struct comedi_device *);
 
-#ifdef CONFIG_PROC_FS
-void comedi_proc_init(void);
-void comedi_proc_cleanup(void);
-#else
-static inline void comedi_proc_init(void)
-{
-}
-
-static inline void comedi_proc_cleanup(void)
-{
-}
-#endif
-
 /* subdevice runflags */
 enum subdevice_runflags {
 	SRF_USER = 0x00000001,
