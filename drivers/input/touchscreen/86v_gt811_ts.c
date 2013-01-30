@@ -1005,6 +1005,10 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	disable_irq(client->irq);
 	if (ts->power) 
 	{	
+		ret = ts->power(ts, 0);
+		printk("suspend >>>>>>>>>ret=%d",ret);
+		if (ret < 0)
+		printk(KERN_ERR "goodix_ts_suspend power on failed\n");
 	}
 }
 static int goodix_ts_resume(struct i2c_client *client)
