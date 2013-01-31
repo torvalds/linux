@@ -191,7 +191,7 @@
 
 		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
-			reg = <0x80157000 0x1000>;
+			reg = <0x80157000 0x2000>;
 			reg-names = "prcmu";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
