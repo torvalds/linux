@@ -272,6 +272,8 @@ static int abx500_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	/* The AB8500 GPIO numbers are off by one */
+	int gpio = offset + 1;
 	int base = pct->irq_base;
 	int i;
 
@@ -279,8 +281,8 @@ static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 		struct abx500_gpio_irq_cluster *cluster =
 			&pct->irq_cluster[i];
 
-		if (offset >= cluster->start && offset <= cluster->end)
-			return base + offset - cluster->start;
+		if (gpio >= cluster->start && gpio <= cluster->end)
+			return base + gpio - cluster->start;
 
 		/* Advance by the number of gpios in this cluster */
 		base += cluster->end + cluster->offset - cluster->start + 1;

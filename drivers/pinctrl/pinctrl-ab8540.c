@@ -377,8 +377,8 @@ static struct pullud ab8540_pullud = {
  *	GPIO51 to GPIO54
  */
 struct abx500_gpio_irq_cluster ab8540_gpio_irq_cluster[] = {
-	GPIO_IRQ_CLUSTER(42, 43, 2), /* GPIO numbers start from 1 */
-	GPIO_IRQ_CLUSTER(50, 53, 0),
+	GPIO_IRQ_CLUSTER(43, 44, 2),
+	GPIO_IRQ_CLUSTER(51, 54, 0),
 };
 
 static struct abx500_pinctrl_soc_data ab8540_soc = {
