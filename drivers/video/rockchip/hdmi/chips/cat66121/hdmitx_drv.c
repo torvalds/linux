@@ -374,6 +374,7 @@ void InitHDMITX()
     hdmitx_LoadRegSetting(HDMITX_DeaultAudioInfo_Table);
     hdmitx_LoadRegSetting(HDMITX_Aud_CHStatus_LPCM_20bit_48Khz);
     hdmitx_LoadRegSetting(HDMITX_AUD_SPDIF_2ch_24bit);
+    HDMITX_PowerDown();
 
     HDMITX_DEBUG_PRINTF((
         "-----------------------------------------------------\n"
