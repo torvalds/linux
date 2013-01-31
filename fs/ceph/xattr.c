@@ -777,6 +777,10 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	if (vxattr && vxattr->readonly)
 		return -EOPNOTSUPP;
 
+	/* pass any unhandled ceph.* xattrs through to the MDS */
+	if (!strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN))
+		goto do_sync_unlocked;
+
 	/* preallocate memory for xattr name, value, index node */
 	err = -ENOMEM;
 	newname = kmemdup(name, name_len + 1, GFP_NOFS);
@@ -833,6 +837,7 @@ retry:
 
 do_sync:
 	spin_unlock(&ci->i_ceph_lock);
+do_sync_unlocked:
 	err = ceph_sync_setxattr(dentry, name, value, size, flags);
 out:
 	kfree(newname);
