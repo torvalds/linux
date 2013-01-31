@@ -294,7 +294,6 @@ static void pciehp_remove(struct pcie_device *dev)
 #ifdef CONFIG_PM
 static int pciehp_suspend (struct pcie_device *dev)
 {
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	return 0;
 }
 
@@ -304,7 +303,6 @@ static int pciehp_resume (struct pcie_device *dev)
 	struct slot *slot;
 	u8 status;
 
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	ctrl = get_service_data(dev);
 
 	/* reinitialize the chipset's event detection logic */
