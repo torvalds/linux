@@ -476,9 +476,16 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id rcar_thermal_dt_ids[] __devinitconst = {
+	{ .compatible = "renesas,rcar-thermal", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
+
 static struct platform_driver rcar_thermal_driver = {
 	.driver	= {
 		.name	= "rcar_thermal",
+		.of_match_table = rcar_thermal_dt_ids,
 	},
 	.probe		= rcar_thermal_probe,
 	.remove		= rcar_thermal_remove,
