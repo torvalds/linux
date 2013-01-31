@@ -1923,7 +1923,7 @@ static int bttv_enum_input(struct file *file, void *priv,
 	}
 
 	i->type     = V4L2_INPUT_TYPE_CAMERA;
-	i->audioset = 1;
+	i->audioset = 0;
 
 	if (btv->tuner_type != TUNER_ABSENT && i->index == 0) {
 		sprintf(i->name, "Television");
@@ -1964,21 +1964,16 @@ static int bttv_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
-
 	int err;
 
 	err = v4l2_prio_check(&btv->prio, fh->prio);
-	if (unlikely(err))
-		goto err;
+	if (err)
+		return err;
 
-	if (i > bttv_tvcards[btv->c.type].video_inputs) {
-		err = -EINVAL;
-		goto err;
-	}
+	if (i >= bttv_tvcards[btv->c.type].video_inputs)
+		return -EINVAL;
 
 	set_input(btv, i, btv->tvnorm);
-
-err:
 	return 0;
 }
 
