@@ -1342,8 +1342,6 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	case OBJ_REQUEST_BIO:
 		rbd_assert(obj_request->bio_list != NULL);
 		osd_req->r_bio = obj_request->bio_list;
-		/* osd client requires "num pages" even for bio */
-		osd_req->r_num_pages = calc_pages_for(offset, length);
 		break;
 	case OBJ_REQUEST_PAGES:
 		osd_req->r_pages = obj_request->pages;

@@ -137,10 +137,11 @@ void ceph_osdc_release_request(struct kref *kref)
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
 	if (req->r_con_filling_msg) {
-		dout("%s revoking pages %p from con %p\n", __func__,
-		     req->r_pages, req->r_con_filling_msg);
+		dout("%s revoking msg %p from con %p\n", __func__,
+		     req->r_reply, req->r_con_filling_msg);
 		ceph_msg_revoke_incoming(req->r_reply);
 		req->r_con_filling_msg->ops->put(req->r_con_filling_msg);
+		req->r_con_filling_msg = NULL;
 	}
 	if (req->r_reply)
 		ceph_msg_put(req->r_reply);
@@ -1981,7 +1982,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	if (data_len > 0) {
 		int want = calc_pages_for(req->r_page_alignment, data_len);
 
-		if (unlikely(req->r_num_pages < want)) {
+		if (req->r_pages && unlikely(req->r_num_pages < want)) {
 			pr_warning("tid %lld reply has %d bytes %d pages, we"
 				   " had only %d pages ready\n", tid, data_len,
 				   want, req->r_num_pages);
