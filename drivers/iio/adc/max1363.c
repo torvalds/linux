@@ -1611,7 +1611,7 @@ error_disable_reg:
 error_put_reg:
 	regulator_put(st->reg);
 error_unregister_map:
-	iio_map_array_unregister(indio_dev, client->dev.platform_data);
+	iio_map_array_unregister(indio_dev);
 error_free_device:
 	iio_device_free(indio_dev);
 error_out:
@@ -1630,7 +1630,7 @@ static int max1363_remove(struct i2c_client *client)
 	kfree(indio_dev->available_scan_masks);
 	regulator_disable(st->reg);
 	regulator_put(st->reg);
-	iio_map_array_unregister(indio_dev, client->dev.platform_data);
+	iio_map_array_unregister(indio_dev);
 	iio_device_free(indio_dev);
 
 	return 0;

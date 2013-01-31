@@ -54,39 +54,25 @@ error_ret:
 EXPORT_SYMBOL_GPL(iio_map_array_register);
 
 
-/* Assumes the exact same array (e.g. memory locations)
- * used at unregistration as used at registration rather than
- * more complex checking of contents.
+/*
+ * Remove all map entries associated with the given iio device
  */
-int iio_map_array_unregister(struct iio_dev *indio_dev,
-			     struct iio_map *maps)
+int iio_map_array_unregister(struct iio_dev *indio_dev)
 {
-	int i = 0, ret = 0;
-	bool found_it;
+	int ret = -ENODEV;
 	struct iio_map_internal *mapi;
-
-	if (maps == NULL)
-		return 0;
+	struct list_head *pos, *tmp;
 
 	mutex_lock(&iio_map_list_lock);
-	while (maps[i].consumer_dev_name != NULL) {
-		found_it = false;
-		list_for_each_entry(mapi, &iio_map_list, l)
-			if (&maps[i] == mapi->map) {
-				list_del(&mapi->l);
-				kfree(mapi);
-				found_it = true;
-				break;
-			}
-		if (!found_it) {
-			ret = -ENODEV;
-			goto error_ret;
+	list_for_each_safe(pos, tmp, &iio_map_list) {
+		mapi = list_entry(pos, struct iio_map_internal, l);
+		if (indio_dev == mapi->indio_dev) {
+			list_del(&mapi->l);
+			kfree(mapi);
+			ret = 0;
 		}
-		i++;
 	}
-error_ret:
 	mutex_unlock(&iio_map_list_lock);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_map_array_unregister);
