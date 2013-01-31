@@ -1593,11 +1593,18 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 		if (err < 0)
 			goto err;
 	} else {
-		err = -EBADF;
 		sock = sockfd_lookup(fd, &err);
 		if (!sock) {
-			pr_err("tunl %hu: sockfd_lookup(fd=%d) returned %d\n",
+			pr_err("tunl %u: sockfd_lookup(fd=%d) returned %d\n",
 			       tunnel_id, fd, err);
+			err = -EBADF;
+			goto err;
+		}
+
+		/* Reject namespace mismatches */
+		if (!net_eq(sock_net(sock->sk), net)) {
+			pr_err("tunl %u: netns mismatch\n", tunnel_id);
+			err = -EINVAL;
 			goto err;
 		}
 	}
