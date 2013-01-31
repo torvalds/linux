@@ -33,6 +33,8 @@
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
+#include <engine/fifo.h>
+
 void
 nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 {
@@ -107,12 +109,86 @@ nouveau_fence_done(struct nouveau_fence *fence)
 	return !fence->channel;
 }
 
+struct nouveau_fence_uevent {
+	struct nouveau_eventh handler;
+	struct nouveau_fence_priv *priv;
+};
+
+static int
+nouveau_fence_wait_uevent_handler(struct nouveau_eventh *event, int index)
+{
+	struct nouveau_fence_uevent *uevent =
+		container_of(event, struct nouveau_fence_uevent, handler);
+	wake_up_all(&uevent->priv->waiting);
+	return NVKM_EVENT_KEEP;
+}
+
+static int
+nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
+
+{
+	struct nouveau_channel *chan = fence->channel;
+	struct nouveau_fifo *pfifo = nouveau_fifo(chan->drm->device);
+	struct nouveau_fence_priv *priv = chan->drm->fence;
+	struct nouveau_fence_uevent uevent = {
+		.handler.func = nouveau_fence_wait_uevent_handler,
+		.priv = priv,
+	};
+	int ret = 0;
+
+	nouveau_event_get(pfifo->uevent, 0, &uevent.handler);
+
+	if (fence->timeout) {
+		unsigned long timeout = fence->timeout - jiffies;
+
+		if (time_before(jiffies, fence->timeout)) {
+			if (intr) {
+				ret = wait_event_interruptible_timeout(
+						priv->waiting,
+						nouveau_fence_done(fence),
+						timeout);
+			} else {
+				ret = wait_event_timeout(priv->waiting,
+						nouveau_fence_done(fence),
+						timeout);
+			}
+		}
+
+		if (ret >= 0) {
+			fence->timeout = jiffies + ret;
+			if (time_after_eq(jiffies, fence->timeout))
+				ret = -EBUSY;
+		}
+	} else {
+		if (intr) {
+			ret = wait_event_interruptible(priv->waiting,
+					nouveau_fence_done(fence));
+		} else {
+			wait_event(priv->waiting, nouveau_fence_done(fence));
+		}
+	}
+
+	nouveau_event_put(pfifo->uevent, 0, &uevent.handler);
+	if (unlikely(ret < 0))
+		return ret;
+
+	return 0;
+}
+
 int
 nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 {
+	struct nouveau_channel *chan = fence->channel;
+	struct nouveau_fence_priv *priv = chan ? chan->drm->fence : NULL;
 	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
 	ktime_t t;
 	int ret = 0;
+
+	while (priv && priv->uevent && lazy && !nouveau_fence_done(fence)) {
+		ret = nouveau_fence_wait_uevent(fence, intr);
+		if (ret < 0)
+			return ret;
+	}
 
 	while (!nouveau_fence_done(fence)) {
 		if (fence->timeout && time_after_eq(jiffies, fence->timeout)) {

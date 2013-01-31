@@ -47,15 +47,16 @@ nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nouveau_fifo_chan *fifo = (void *)chan->object;
-	int ret = RING_SPACE(chan, 7);
+	int ret = RING_SPACE(chan, 8);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
 		OUT_RING  (chan, NvSema);
-		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
 		OUT_RING  (chan, upper_32_bits(fifo->chid * 16));
 		OUT_RING  (chan, lower_32_bits(fifo->chid * 16));
 		OUT_RING  (chan, fence->sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
+		OUT_RING  (chan, 0x00000000);
 		FIRE_RING (chan);
 	}
 	return ret;
@@ -173,6 +174,9 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.emit = nv84_fence_emit;
 	priv->base.sync = nv84_fence_sync;
 	priv->base.read = nv84_fence_read;
+
+	init_waitqueue_head(&priv->base.waiting);
+	priv->base.uevent = true;
 
 	ret = nouveau_gpuobj_new(drm->device, NULL, chan * 16, 0x1000, 0,
 				&priv->mem);

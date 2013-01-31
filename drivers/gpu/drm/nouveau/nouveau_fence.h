@@ -43,6 +43,9 @@ struct nouveau_fence_priv {
 	int  (*sync)(struct nouveau_fence *, struct nouveau_channel *,
 		     struct nouveau_channel *);
 	u32  (*read)(struct nouveau_channel *);
+
+	wait_queue_head_t waiting;
+	bool uevent;
 };
 
 #define nouveau_fence(drm) ((struct nouveau_fence_priv *)(drm)->fence)

@@ -62,13 +62,14 @@ nvc0_fence_emit(struct nouveau_fence *fence)
 	u64 addr = fctx->vma.offset + fifo->chid * 16;
 	int ret;
 
-	ret = RING_SPACE(chan, 5);
+	ret = RING_SPACE(chan, 6);
 	if (ret == 0) {
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
 		OUT_RING  (chan, upper_32_bits(addr));
 		OUT_RING  (chan, lower_32_bits(addr));
 		OUT_RING  (chan, fence->sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
+		OUT_RING  (chan, 0x00000000);
 		FIRE_RING (chan);
 	}
 
@@ -216,6 +217,9 @@ nvc0_fence_create(struct nouveau_drm *drm)
 	priv->base.emit = nvc0_fence_emit;
 	priv->base.sync = nvc0_fence_sync;
 	priv->base.read = nvc0_fence_read;
+
+	init_waitqueue_head(&priv->base.waiting);
+	priv->base.uevent = true;
 
 	ret = nouveau_bo_new(drm->dev, 16 * (pfifo->max + 1), 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, &priv->bo);
