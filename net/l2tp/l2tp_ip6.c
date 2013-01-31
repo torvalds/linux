@@ -646,7 +646,7 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len, int noblock,
 			    int flags, int *addr_len)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)msg->msg_name;
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -688,8 +688,8 @@ static int l2tp_ip6_recvmsg(struct kiocb *iocb, struct sock *sk,
 			lsa->l2tp_scope_id = IP6CB(skb)->iif;
 	}
 
-	if (inet->cmsg_flags)
-		ip_cmsg_recv(msg, skb);
+	if (np->rxopt.all)
+		ip6_datagram_recv_ctl(sk, msg, skb);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
