@@ -161,14 +161,6 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 }
 EXPORT_SYMBOL_GPL(dbs_check_cpu);
 
-bool dbs_sw_coordinated_cpus(struct cpu_dbs_common_info *cdbs)
-{
-	struct cpufreq_policy *policy = cdbs->cur_policy;
-
-	return cpumask_weight(policy->cpus) > 1;
-}
-EXPORT_SYMBOL_GPL(dbs_sw_coordinated_cpus);
-
 static inline void dbs_timer_init(struct dbs_data *dbs_data, int cpu,
 				  unsigned int sampling_rate)
 {

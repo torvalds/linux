@@ -277,7 +277,7 @@ static void od_dbs_timer(struct work_struct *work)
 	struct od_cpu_dbs_info_s *dbs_info =
 		container_of(work, struct od_cpu_dbs_info_s, cdbs.work.work);
 
-	if (dbs_sw_coordinated_cpus(&dbs_info->cdbs)) {
+	if (policy_is_shared(dbs_info->cdbs.cur_policy)) {
 		od_timer_coordinated(dbs_info, dw);
 	} else {
 		mutex_lock(&dbs_info->cdbs.timer_mutex);

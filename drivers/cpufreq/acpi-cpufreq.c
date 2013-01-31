@@ -734,7 +734,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);
-	if (bios_with_sw_any_bug && cpumask_weight(policy->cpus) == 1) {
+	if (bios_with_sw_any_bug && !policy_is_shared(policy)) {
 		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
 		cpumask_copy(policy->cpus, cpu_core_mask(cpu));
 	}
