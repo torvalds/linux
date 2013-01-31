@@ -3988,8 +3988,6 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	void *ptr = &skb->data[1];
 	s8 rssi;
 
-	hci_dev_lock(hdev);
-
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
 
@@ -3999,8 +3997,6 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
