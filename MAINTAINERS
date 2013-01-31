@@ -6748,6 +6748,13 @@ S:	Maintained
 F:	drivers/media/platform/s3c-camif/
 F:	include/media/s3c_camif.h
 
+SAMSUNG S5C73M3 CAMERA DRIVER
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Andrzej Hajda <a.hajda@samsung.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/i2c/s5c73m3/*
+
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
 L:	linux-serial@vger.kernel.org
