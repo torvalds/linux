@@ -3653,11 +3653,14 @@ __printf(5, 6)
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...);
 
+/*
+ * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic
+ * will panic().  Otherwise we BUG() here.
+ */
 #define btrfs_panic(fs_info, errno, fmt, args...)			\
 do {									\
-	struct btrfs_fs_info *_i = (fs_info);				\
-	__btrfs_panic(_i, __func__, __LINE__, errno, fmt, ##args);	\
-	BUG_ON(!(_i->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR));	\
+	__btrfs_panic(fs_info, __func__, __LINE__, errno, fmt, ##args);	\
+	BUG();								\
 } while (0)
 
 /* acl.c */
