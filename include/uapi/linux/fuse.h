@@ -60,6 +60,9 @@
  *
  * 7.20
  *  - add FUSE_AUTO_INVAL_DATA
+ *
+ * 7.21
+ *  - add FUSE_READDIRPLUS
  */
 
 #ifndef _LINUX_FUSE_H
@@ -91,7 +94,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 20
+#define FUSE_KERNEL_MINOR_VERSION 21
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
