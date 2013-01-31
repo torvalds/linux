@@ -268,7 +268,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	preempt_disable();
 
-	setup_txprivext();
+	setup_priv();
 
 	/*
 	 * Enable local interrupts.

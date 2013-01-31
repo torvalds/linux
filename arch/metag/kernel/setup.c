@@ -35,6 +35,7 @@
 #include <asm/hwthread.h>
 #include <asm/l2cache.h>
 #include <asm/mach/arch.h>
+#include <asm/metag_mem.h>
 #include <asm/metag_regs.h>
 #include <asm/mmu.h>
 #include <asm/mmzone.h>
@@ -74,6 +75,32 @@
 #define PRIV_BITS 	(DEFAULT_PRIV			| \
 			 META2_PRIV			| \
 			 UNALIGNED_PRIV)
+
+/*
+ * Protect access to:
+ * 0x06000000-0x07ffffff Direct mapped region
+ * 0x05000000-0x05ffffff MMU table region (Meta1)
+ * 0x04400000-0x047fffff Cache flush region
+ * 0x84000000-0x87ffffff Core cache memory region (Meta2)
+ *
+ * Allow access to:
+ * 0x80000000-0x81ffffff Core code memory region (Meta2)
+ */
+#ifdef CONFIG_METAG_META12
+#define PRIVSYSR_BITS	TXPRIVSYSR_ALL_BITS
+#else
+#define PRIVSYSR_BITS	(TXPRIVSYSR_ALL_BITS & ~TXPRIVSYSR_CORECODE_BIT)
+#endif
+
+/* Protect all 0x02xxxxxx and 0x048xxxxx. */
+#define PIOREG_BITS	0xffffffff
+
+/*
+ * Protect all 0x04000xx0 (system events)
+ * except write combiner flush and write fence (system events 4 and 5).
+ */
+#define PSYREG_BITS	0xfffffffb
+
 
 extern char _heap_start[];
 
@@ -371,7 +398,7 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init(heap_end);
 
-	setup_txprivext();
+	setup_priv();
 
 	/* Setup the boot cpu's mapping. The rest will be setup below. */
 	cpu_2_hwthread_id[smp_processor_id()] = hard_processor_id();
@@ -531,13 +558,21 @@ void __init metag_start_kernel(char *args)
 	start_kernel();
 }
 
-/*
- * Setup TXPRIVEXT register to be prevent userland from touching our
- * precious registers.
+/**
+ * setup_priv() - Set up privilege protection registers.
+ *
+ * Set up privilege protection registers such as TXPRIVEXT to prevent userland
+ * from touching our precious registers and sensitive memory areas.
  */
-void setup_txprivext(void)
+void setup_priv(void)
 {
+	unsigned int offset = hard_processor_id() << TXPRIVREG_STRIDE_S;
+
 	__core_reg_set(TXPRIVEXT, PRIV_BITS);
+
+	metag_out32(PRIVSYSR_BITS, T0PRIVSYSR + offset);
+	metag_out32(PIOREG_BITS,   T0PIOREG   + offset);
+	metag_out32(PSYREG_BITS,   T0PSYREG   + offset);
 }
 
 PTBI pTBI_get(unsigned int cpu)

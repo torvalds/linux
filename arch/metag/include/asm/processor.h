@@ -154,7 +154,7 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()     barrier()
 
-extern void setup_txprivext(void);
+extern void setup_priv(void);
 
 static inline unsigned int hard_processor_id(void)
 {
