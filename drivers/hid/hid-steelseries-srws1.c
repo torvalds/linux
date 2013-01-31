@@ -136,6 +136,42 @@ static void steelseries_srws1_set_leds(struct hid_device *hdev, __u16 leds)
 	/* Note: LED change does not show on device until the device is read/polled */
 }
 
+static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	struct device *dev = led_cdev->dev->parent;
+	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hid);
+
+	if (!drv_data) {
+		hid_err(hid, "Device data not found.");
+		return;
+	}
+
+	if (value == LED_OFF)
+		drv_data->led_state = 0;
+	else
+		drv_data->led_state = (1 << (SRWS1_NUMBER_LEDS + 1)) - 1;
+
+	steelseries_srws1_set_leds(hid, drv_data->led_state);
+}
+
+static enum led_brightness steelseries_srws1_led_all_get_brightness(struct led_classdev *led_cdev)
+{
+	struct device *dev = led_cdev->dev->parent;
+	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	struct steelseries_srws1_data *drv_data;
+
+	drv_data = hid_get_drvdata(hid);
+
+	if (!drv_data) {
+		hid_err(hid, "Device data not found.");
+		return LED_OFF;
+	}
+
+	return (drv_data->led_state >> SRWS1_NUMBER_LEDS) ? LED_FULL : LED_OFF;
+}
+
 static void steelseries_srws1_led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
@@ -219,13 +255,34 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 
 	/* register led subsystem */
 	drv_data->led_state = 0;
-	for (i = 0; i < SRWS1_NUMBER_LEDS; i++)
+	for (i = 0; i < SRWS1_NUMBER_LEDS + 1; i++)
 		drv_data->led[i] = NULL;
 
 	steelseries_srws1_set_leds(hdev, 0);
 
-	name_sz = strlen(hdev->uniq) + 15;
+	name_sz = strlen(hdev->uniq) + 16;
 
+	/* 'ALL', for setting all LEDs simultaneously */
+	led = kzalloc(sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
+	if (!led) {
+		hid_err(hdev, "can't allocate memory for LED ALL\n");
+		goto err_led;
+	}
+
+	name = (void *)(&led[1]);
+	snprintf(name, name_sz, "SRWS1::%s::RPMALL", hdev->uniq);
+	led->name = name;
+	led->brightness = 0;
+	led->max_brightness = 1;
+	led->brightness_get = steelseries_srws1_led_all_get_brightness;
+	led->brightness_set = steelseries_srws1_led_all_set_brightness;
+
+	drv_data->led[SRWS1_NUMBER_LEDS] = led;
+	ret = led_classdev_register(&hdev->dev, led);
+	if (ret)
+		goto err_led;
+
+	/* Each individual LED */
 	for (i = 0; i < SRWS1_NUMBER_LEDS; i++) {
 		led = kzalloc(sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
 		if (!led) {
@@ -248,7 +305,7 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 			hid_err(hdev, "failed to register LED %d. Aborting.\n", i);
 err_led:
 			/* Deregister all LEDs (if any) */
-			for (i = 0; i < SRWS1_NUMBER_LEDS; i++) {
+			for (i = 0; i < SRWS1_NUMBER_LEDS + 1; i++) {
 				led = drv_data->led[i];
 				drv_data->led[i] = NULL;
 				if (!led)
@@ -275,7 +332,7 @@ static void steelseries_srws1_remove(struct hid_device *hdev)
 
 	if (drv_data) {
 		/* Deregister LEDs (if any) */
-		for (i = 0; i < SRWS1_NUMBER_LEDS; i++) {
+		for (i = 0; i < SRWS1_NUMBER_LEDS + 1; i++) {
 			led = drv_data->led[i];
 			drv_data->led[i] = NULL;
 			if (!led)

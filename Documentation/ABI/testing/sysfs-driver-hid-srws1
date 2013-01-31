@@ -13,6 +13,7 @@ What:		/sys/class/leds/SRWS1::<serial>::RPM12
 What:		/sys/class/leds/SRWS1::<serial>::RPM13
 What:		/sys/class/leds/SRWS1::<serial>::RPM14
 What:		/sys/class/leds/SRWS1::<serial>::RPM15
+What:		/sys/class/leds/SRWS1::<serial>::RPMALL
 Date:		Jan 2013
 KernelVersion:	3.9
 Contact:	Simon Wood <simon@mungewell.org>
