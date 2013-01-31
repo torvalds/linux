@@ -266,26 +266,22 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 
 	if(lcdc_dev->id == 0)
 	{
-		v = readl_relaxed(RK30_GRF_BASE + GRF_IO_CON4);
 		#if defined(CONFIG_LCDC0_IO_18V)
-		v |= 0xffff4000;               //bit14: 1,1.8v;0,3.3v
+		v = 0x40004000;               //bit14: 1,1.8v;0,3.3v
 		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#else
-		v |= 0xffff0000;              
-		v &= 0xffffbfff;
+		v = 0x40000000;              
 		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#endif
 	}
 
 	if(lcdc_dev->id == 1) //iomux for lcdc1
 	{
-		v = readl_relaxed(RK30_GRF_BASE + GRF_IO_CON4);
 		#if defined(CONFIG_LCDC1_IO_18V)
-		v |= 0xffff8000;               //bit14: 1,1.8v;0,3.3v
+		v = 0x80008000;               //bit14: 1,1.8v;0,3.3v
 		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#else
-		v |= 0xffff0000;              
-		v &= 0xffff7fff;
+		v = 0x80000000;
 		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#endif
 		iomux_set(LCDC1_DCLK);
