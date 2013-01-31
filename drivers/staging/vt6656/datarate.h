@@ -32,16 +32,15 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-#define FALLBACK_PKT_COLLECT_TR_H  50   // pkts
-#define FALLBACK_PKT_COLLECT_TR_L  10   // pkts
-#define FALLBACK_POLL_SECOND       5    // 5 sec
-#define FALLBACK_RECOVER_SECOND    30   // 30 sec
-#define FALLBACK_THRESHOLD         15   // percent
-#define UPGRADE_THRESHOLD          5    // percent
-#define UPGRADE_CNT_THRD           3    // times
-#define RETRY_TIMES_THRD_H         2    // times
-#define RETRY_TIMES_THRD_L         1    // times
-
+#define FALLBACK_PKT_COLLECT_TR_H  50   /* pkts */
+#define FALLBACK_PKT_COLLECT_TR_L  10   /* pkts */
+#define FALLBACK_POLL_SECOND       5    /* 5 sec */
+#define FALLBACK_RECOVER_SECOND    30   /* 30 sec */
+#define FALLBACK_THRESHOLD         15   /* percent */
+#define UPGRADE_THRESHOLD          5    /* percent */
+#define UPGRADE_CNT_THRD           3    /* times */
+#define RETRY_TIMES_THRD_H         2    /* times */
+#define RETRY_TIMES_THRD_L         1    /* times */
 
 #define RATE_1M         0
 #define RATE_2M         1
