@@ -2058,9 +2058,6 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	u8 *addr;
 	int err;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
 	if (err < 0)
 		return err;
@@ -2126,9 +2123,6 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *dev;
 	int err = -EINVAL;
 	__u8 *addr;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*ndm))
 		return -EINVAL;
