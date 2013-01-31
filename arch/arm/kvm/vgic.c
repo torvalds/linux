@@ -883,8 +883,7 @@ static bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 			  lr, irq, vgic_cpu->vgic_lr[lr]);
 		BUG_ON(!test_bit(lr, vgic_cpu->lr_used));
 		vgic_cpu->vgic_lr[lr] |= GICH_LR_PENDING_BIT;
-
-		goto out;
+		return true;
 	}
 
 	/* Try to use another LR for this interrupt */
@@ -898,7 +897,6 @@ static bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 	vgic_cpu->vgic_irq_lr_map[irq] = lr;
 	set_bit(lr, vgic_cpu->lr_used);
 
-out:
 	if (!vgic_irq_is_edge(vcpu, irq))
 		vgic_cpu->vgic_lr[lr] |= GICH_LR_EOI;
 
@@ -1054,6 +1052,13 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 			} else {
 				vgic_cpu_irq_clear(vcpu, irq);
 			}
+
+			/*
+			 * Despite being EOIed, the LR may not have
+			 * been marked as empty.
+			 */
+			set_bit(lr, (unsigned long *)vgic_cpu->vgic_elrsr);
+			vgic_cpu->vgic_lr[lr] &= ~GICH_LR_ACTIVE_BIT;
 		}
 	}
 
