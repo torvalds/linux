@@ -476,8 +476,6 @@ static void uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tu->call;
 
-	tu->nhit++;
-
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
@@ -701,6 +699,7 @@ static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 	struct trace_uprobe *tu;
 
 	tu = container_of(con, struct trace_uprobe, consumer);
+	tu->nhit++;
 
 	if (tu->flags & TP_FLAG_TRACE)
 		uprobe_trace_func(tu, regs);
