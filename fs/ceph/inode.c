@@ -615,7 +615,8 @@ static int fill_inode(struct inode *inode,
 		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(info->uid));
 		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(info->gid));
 		dout("%p mode 0%o uid.gid %d.%d\n", inode, inode->i_mode,
-		     inode->i_uid, inode->i_gid);
+		     from_kuid(&init_user_ns, inode->i_uid),
+		     from_kgid(&init_user_ns, inode->i_gid));
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
@@ -1565,7 +1566,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (ia_valid & ATTR_UID) {
 		dout("setattr %p uid %d -> %d\n", inode,
-		     inode->i_uid, attr->ia_uid);
+		     from_kuid(&init_user_ns, inode->i_uid),
+		     from_kuid(&init_user_ns, attr->ia_uid));
 		if (issued & CEPH_CAP_AUTH_EXCL) {
 			inode->i_uid = attr->ia_uid;
 			dirtied |= CEPH_CAP_AUTH_EXCL;
@@ -1579,7 +1581,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 	if (ia_valid & ATTR_GID) {
 		dout("setattr %p gid %d -> %d\n", inode,
-		     inode->i_gid, attr->ia_gid);
+		     from_kgid(&init_user_ns, inode->i_gid),
+		     from_kgid(&init_user_ns, attr->ia_gid));
 		if (issued & CEPH_CAP_AUTH_EXCL) {
 			inode->i_gid = attr->ia_gid;
 			dirtied |= CEPH_CAP_AUTH_EXCL;
