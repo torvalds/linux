@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #include <linux/dvb/frontend.h>
 #include "dvb_demux.h"
@@ -222,6 +223,8 @@ struct tm6000_core {
 	struct video_device		*radio_dev;
 	struct tm6000_dmaqueue		vidq;
 	struct v4l2_device		v4l2_dev;
+	struct v4l2_ctrl_handler	ctrl_handler;
+	struct v4l2_ctrl_handler	radio_ctrl_handler;
 
 	int				input;
 	struct tm6000_input		vinput[3];	/* video input */
