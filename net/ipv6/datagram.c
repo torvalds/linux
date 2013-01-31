@@ -598,6 +598,7 @@ int ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ip6_datagram_recv_ctl);
 
 int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			  struct msghdr *msg, struct flowi6 *fl6,
