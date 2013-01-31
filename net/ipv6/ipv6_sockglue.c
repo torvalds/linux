@@ -476,8 +476,8 @@ sticky_done:
 		msg.msg_controllen = optlen;
 		msg.msg_control = (void*)(opt+1);
 
-		retv = datagram_send_ctl(net, sk, &msg, &fl6, opt, &junk, &junk,
-					 &junk);
+		retv = ip6_datagram_send_ctl(net, sk, &msg, &fl6, opt, &junk,
+					     &junk, &junk);
 		if (retv)
 			goto done;
 update:
@@ -1002,7 +1002,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		release_sock(sk);
 
 		if (skb) {
-			int err = datagram_recv_ctl(sk, &msg, skb);
+			int err = ip6_datagram_recv_ctl(sk, &msg, skb);
 			kfree_skb(skb);
 			if (err)
 				return err;
