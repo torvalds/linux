@@ -377,12 +377,7 @@ int comedi_driver_unregister(struct comedi_driver *);
 #define PCI_VENDOR_ID_DT		0x1116
 #define PCI_VENDOR_ID_IOTECH		0x1616
 #define PCI_VENDOR_ID_CONTEC		0x1221
-#define PCI_VENDOR_ID_CB		0x1307	/* Measurement Computing */
-#define PCI_VENDOR_ID_ADVANTECH		0x13fe
-#define PCI_VENDOR_ID_MEILHAUS		0x1402
 #define PCI_VENDOR_ID_RTD		0x1435
-#define PCI_VENDOR_ID_ADLINK		0x144a
-#define PCI_VENDOR_ID_AMPLICON		0x14dc
 
 struct pci_dev;
 struct pci_driver;
