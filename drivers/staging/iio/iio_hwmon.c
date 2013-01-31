@@ -71,14 +71,17 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	int ret, i;
 	int in_i = 1, temp_i = 1, curr_i = 1;
 	enum iio_chan_type type;
+	struct iio_channel *channels;
+
+	channels = iio_channel_get_all(dev);
+	if (IS_ERR(channels))
+		return PTR_ERR(channels);
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->channels = iio_channel_get_all(dev_name(dev));
-	if (IS_ERR(st->channels))
-		return PTR_ERR(st->channels);
+	st->channels = channels;
 
 	/* count how many attributes we have */
 	while (st->channels[st->num_channels].indio_dev)

@@ -167,16 +167,18 @@ void iio_channel_release(struct iio_channel *channel)
 }
 EXPORT_SYMBOL_GPL(iio_channel_release);
 
-struct iio_channel *iio_channel_get_all(const char *name)
+struct iio_channel *iio_channel_get_all(struct device *dev)
 {
+	const char *name;
 	struct iio_channel *chans;
 	struct iio_map_internal *c = NULL;
 	int nummaps = 0;
 	int mapind = 0;
 	int i, ret;
 
-	if (name == NULL)
+	if (dev == NULL)
 		return ERR_PTR(-EINVAL);
+	name = dev_name(dev);
 
 	mutex_lock(&iio_map_list_lock);
 	/* first count the matching maps */
