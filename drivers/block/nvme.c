@@ -1540,7 +1540,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 		res = nvme_get_features(dev, NVME_FEAT_LBA_RANGE, i,
 							dma_addr + 4096, NULL);
 		if (res)
-			continue;
+			memset(mem + 4096, 0, 4096);
 
 		ns = nvme_alloc_ns(dev, i, mem, mem + 4096);
 		if (ns)
