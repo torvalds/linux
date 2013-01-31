@@ -101,7 +101,7 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
 	if (ret)
 		dev_err(&st->us->dev, "problem while writing 16 bit register 0x%02x\n",
 			reg_address);
-	msleep(1); /* enforce sequential transfer delay 0.1ms */
+	usleep_range(100, 1000); /* enforce sequential transfer delay 0.1ms */
 	mutex_unlock(&st->buf_lock);
 	return ret;
 }
