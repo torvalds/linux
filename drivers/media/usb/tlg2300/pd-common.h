@@ -36,8 +36,8 @@
 #define V4L_PAL_VBI_FRAMESIZE	(V4L_PAL_VBI_LINES * 1440 * 2)
 #define V4L_NTSC_VBI_FRAMESIZE	(V4L_NTSC_VBI_LINES * 1440 * 2)
 
-#define TUNER_FREQ_MIN		(45000000)
-#define TUNER_FREQ_MAX		(862000000)
+#define TUNER_FREQ_MIN		(45000000U)
+#define TUNER_FREQ_MAX		(862000000U)
 
 struct vbi_data {
 	struct video_device	v_dev;

@@ -940,7 +940,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int i)
 	return 0;
 }
 
-static struct poseidon_control *check_control_id(__u32 id)
+static struct poseidon_control *check_control_id(u32 id)
 {
 	struct poseidon_control *control = &controls[0];
 	int array_size = ARRAY_SIZE(controls);
@@ -1134,21 +1134,21 @@ static int vidioc_g_frequency(struct file *file, void *fh,
 	return 0;
 }
 
-static int set_frequency(struct poseidon *pd, __u32 frequency)
+static int set_frequency(struct poseidon *pd, u32 *frequency)
 {
 	s32 ret = 0, param, cmd_status;
 	struct running_context *context = &pd->video_data.context;
 
-	param = frequency * 62500 / 1000;
-	if (param < TUNER_FREQ_MIN/1000 || param > TUNER_FREQ_MAX / 1000)
-		return -EINVAL;
+	*frequency = clamp(*frequency,
+			TUNER_FREQ_MIN / 62500, TUNER_FREQ_MAX / 62500);
+	param = (*frequency) * 62500 / 1000;
 
 	mutex_lock(&pd->lock);
 	ret = send_set_req(pd, TUNE_FREQ_SELECT, param, &cmd_status);
 	ret = send_set_req(pd, TAKE_REQUEST, 0, &cmd_status);
 
 	msleep(250); /* wait for a while until the hardware is ready. */
-	context->freq = frequency;
+	context->freq = *frequency;
 	mutex_unlock(&pd->lock);
 	return ret;
 }
@@ -1159,12 +1159,14 @@ static int vidioc_s_frequency(struct file *file, void *fh,
 	struct front_face *front = fh;
 	struct poseidon *pd = front->pd;
 
+	if (freq->tuner)
+		return -EINVAL;
 	logs(front);
 #ifdef CONFIG_PM
 	pd->pm_suspend = pm_video_suspend;
 	pd->pm_resume = pm_video_resume;
 #endif
-	return set_frequency(pd, freq->frequency);
+	return set_frequency(pd, &freq->frequency);
 }
 
 static int vidioc_reqbufs(struct file *file, void *fh,
@@ -1351,7 +1353,7 @@ static int restore_v4l2_context(struct poseidon *pd,
 	vidioc_s_input(NULL, front, context->sig_index);
 	pd_vidioc_s_tuner(pd, context->audio_idx);
 	pd_vidioc_s_fmt(pd, &context->pix);
-	set_frequency(pd, context->freq);
+	set_frequency(pd, &context->freq);
 	return 0;
 }
 
@@ -1615,8 +1617,10 @@ int pd_video_init(struct poseidon *pd)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi	= &pd->vbi_data;
+	u32 freq = TUNER_FREQ_MIN / 62500;
 	int ret = -ENOMEM;
 
+	set_frequency(pd, &freq);
 	video->v_dev = pd_video_template;
 	video->v_dev.v4l2_dev = &pd->v4l2_dev;
 	video_set_drvdata(&video->v_dev, pd);
