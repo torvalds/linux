@@ -84,6 +84,9 @@ static int is_itpm(struct pnp_dev *dev)
 	struct acpi_device *acpi = pnp_acpi_device(dev);
 	struct acpi_hardware_id *id;
 
+	if (!acpi)
+		return 0;
+
 	list_for_each_entry(id, &acpi->pnp.ids, list) {
 		if (!strcmp("INTC0102", id->id))
 			return 1;
