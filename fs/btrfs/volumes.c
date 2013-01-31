@@ -3734,12 +3734,16 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		if (max_avail < BTRFS_STRIPE_LEN * dev_stripes)
 			continue;
 
+		if (ndevs == fs_devices->rw_devices) {
+			WARN(1, "%s: found more than %llu devices\n",
+			     __func__, fs_devices->rw_devices);
+			break;
+		}
 		devices_info[ndevs].dev_offset = dev_offset;
 		devices_info[ndevs].max_avail = max_avail;
 		devices_info[ndevs].total_avail = total_avail;
 		devices_info[ndevs].dev = device;
 		++ndevs;
-		WARN_ON(ndevs > fs_devices->rw_devices);
 	}
 
 	/*
