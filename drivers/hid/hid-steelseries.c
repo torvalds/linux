@@ -23,7 +23,8 @@
 #define SRWS1_NUMBER_LEDS 15
 struct steelseries_srws1_data {
 	__u16 led_state;
-	struct led_classdev *led[SRWS1_NUMBER_LEDS];
+	/* the last element is used for setting all leds simultaneously */
+	struct led_classdev *led[SRWS1_NUMBER_LEDS + 1];
 };
 #endif
 
