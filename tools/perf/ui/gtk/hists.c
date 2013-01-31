@@ -91,7 +91,8 @@ static u64 he_get_##_field(struct hist_entry *he)				\
 	return he->stat._field;							\
 }										\
 										\
-static int perf_gtk__hpp_color_##_type(struct perf_hpp *hpp,			\
+static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
+				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
 	return __hpp__color_fmt(hpp, he, he_get_##_field);			\
@@ -244,7 +245,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	col_idx = 0;
 
 	perf_hpp__for_each_format(fmt) {
-		fmt->header(&hpp);
+		fmt->header(fmt, &hpp);
 
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 							    -1, ltrim(s),
@@ -296,9 +297,9 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 
 		perf_hpp__for_each_format(fmt) {
 			if (fmt->color)
-				fmt->color(&hpp, h);
+				fmt->color(fmt, &hpp, h);
 			else
-				fmt->entry(&hpp, h);
+				fmt->entry(fmt, &hpp, h);
 
 			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
 		}

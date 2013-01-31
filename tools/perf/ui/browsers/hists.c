@@ -685,8 +685,10 @@ static u64 __hpp_get_##_field(struct hist_entry *he)			\
 	return he->stat._field;						\
 }									\
 									\
-static int hist_browser__hpp_color_##_type(struct perf_hpp *hpp,	\
-					   struct hist_entry *he)	\
+static int								\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+				struct perf_hpp *hpp,			\
+				struct hist_entry *he)			\
 {									\
 	return __hpp__color_fmt(hpp, he, __hpp_get_##_field, _cb);	\
 }
@@ -762,9 +764,9 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			first = false;
 
 			if (fmt->color) {
-				width -= fmt->color(&hpp, entry);
+				width -= fmt->color(fmt, &hpp, entry);
 			} else {
-				width -= fmt->entry(&hpp, entry);
+				width -= fmt->entry(fmt, &hpp, entry);
 				slsmg_printf("%s", s);
 			}
 		}

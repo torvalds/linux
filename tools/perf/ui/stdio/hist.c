@@ -365,7 +365,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		else
 			first = false;
 
-		fmt->header(&dummy_hpp);
+		fmt->header(fmt, &dummy_hpp);
 		fprintf(fp, "%s", bf);
 	}
 
@@ -410,7 +410,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		else
 			first = false;
 
-		width = fmt->width(&dummy_hpp);
+		width = fmt->width(fmt, &dummy_hpp);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
