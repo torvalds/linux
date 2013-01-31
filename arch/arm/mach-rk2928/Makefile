@@ -11,7 +11,6 @@ obj-y += ddr.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_PM) += pm.o
-CFLAGS_pm.o += -Os -mthumb
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
 board-y := board-rk2928.o
