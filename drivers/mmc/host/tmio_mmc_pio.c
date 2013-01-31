@@ -1060,15 +1060,7 @@ EXPORT_SYMBOL(tmio_mmc_host_probe);
 void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
 	struct platform_device *pdev = host->pdev;
-	struct tmio_mmc_data *pdata = host->pdata;
 	struct mmc_host *mmc = host->mmc;
-
-	if (pdata->flags & TMIO_MMC_USE_GPIO_CD)
-		/*
-		 * This means we can miss a card-eject, but this is anyway
-		 * possible, because of delayed processing of hotplug events.
-		 */
-		mmc_gpio_free_cd(mmc);
 
 	if (!host->native_hotplug)
 		pm_runtime_get_sync(&pdev->dev);

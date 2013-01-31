@@ -311,12 +311,18 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
+	if (pdata->pm_caps & MMC_PM_KEEP_POWER) {
+		device_init_wakeup(&pdev->dev, 1);
+		host->mmc->pm_flags |= MMC_PM_WAKE_SDIO_IRQ;
+	} else {
+		device_init_wakeup(&pdev->dev, 0);
+	}
+
 	return 0;
 
 err_add_host:
 	clk_disable_unprepare(clk);
 	clk_put(clk);
-	mmc_gpio_free_cd(host->mmc);
 err_cd_req:
 err_clk_get:
 	sdhci_pltfm_free(pdev);
@@ -329,15 +335,11 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = pltfm_host->priv;
-	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
 
 	sdhci_remove_host(host, 1);
 
 	clk_disable_unprepare(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
-
-	if (gpio_is_valid(pdata->ext_cd_gpio))
-		mmc_gpio_free_cd(host->mmc);
 
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
