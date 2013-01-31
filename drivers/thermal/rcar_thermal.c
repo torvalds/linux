@@ -47,7 +47,7 @@ struct rcar_thermal_priv {
 };
 
 #define MCELSIUS(temp)			((temp) * 1000)
-#define rcar_zone_to_priv(zone)		(zone->devdata)
+#define rcar_zone_to_priv(zone)		((zone)->devdata)
 
 /*
  *		basic functions
