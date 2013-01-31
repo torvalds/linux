@@ -109,7 +109,7 @@ struct max8997_muic_info {
 	struct extcon_dev	*edev;
 };
 
-const char *max8997_extcon_cable[] = {
+static const char *max8997_extcon_cable[] = {
 	[0] = "USB",
 	[1] = "USB-Host",
 	[2] = "TA",
