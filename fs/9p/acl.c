@@ -147,17 +147,13 @@ err_free_out:
 	return retval;
 }
 
-int v9fs_acl_chmod(struct dentry *dentry)
+int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid)
 {
 	int retval = 0;
 	struct posix_acl *acl;
-	struct inode *inode = dentry->d_inode;
-	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
-	if (IS_ERR(fid))
-		return PTR_ERR(fid);
 	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
 		retval = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);

@@ -567,10 +567,11 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	struct p9_iattr_dotl p9attr;
+	struct inode *inode = dentry->d_inode;
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
-	retval = inode_change_ok(dentry->d_inode, iattr);
+	retval = inode_change_ok(inode, iattr);
 	if (retval)
 		return retval;
 
@@ -591,23 +592,23 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 		return PTR_ERR(fid);
 
 	/* Write all dirty data */
-	if (S_ISREG(dentry->d_inode->i_mode))
-		filemap_write_and_wait(dentry->d_inode->i_mapping);
+	if (S_ISREG(inode->i_mode))
+		filemap_write_and_wait(inode->i_mapping);
 
 	retval = p9_client_setattr(fid, &p9attr);
 	if (retval < 0)
 		return retval;
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(dentry->d_inode))
-		truncate_setsize(dentry->d_inode, iattr->ia_size);
+	    iattr->ia_size != i_size_read(inode))
+		truncate_setsize(inode, iattr->ia_size);
 
-	v9fs_invalidate_inode_attr(dentry->d_inode);
-	setattr_copy(dentry->d_inode, iattr);
-	mark_inode_dirty(dentry->d_inode);
+	v9fs_invalidate_inode_attr(inode);
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
 	if (iattr->ia_valid & ATTR_MODE) {
 		/* We also want to update ACL when we update mode bits */
-		retval = v9fs_acl_chmod(dentry);
+		retval = v9fs_acl_chmod(inode, fid);
 		if (retval < 0)
 			return retval;
 	}
