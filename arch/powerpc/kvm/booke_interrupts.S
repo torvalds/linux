@@ -45,12 +45,14 @@
                         (1<<BOOKE_INTERRUPT_DEBUG))
 
 #define NEED_DEAR_MASK ((1<<BOOKE_INTERRUPT_DATA_STORAGE) | \
-                        (1<<BOOKE_INTERRUPT_DTLB_MISS))
+                        (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
+                        (1<<BOOKE_INTERRUPT_ALIGNMENT))
 
 #define NEED_ESR_MASK ((1<<BOOKE_INTERRUPT_DATA_STORAGE) | \
                        (1<<BOOKE_INTERRUPT_INST_STORAGE) | \
                        (1<<BOOKE_INTERRUPT_PROGRAM) | \
-                       (1<<BOOKE_INTERRUPT_DTLB_MISS))
+                       (1<<BOOKE_INTERRUPT_DTLB_MISS) | \
+                       (1<<BOOKE_INTERRUPT_ALIGNMENT))
 
 .macro KVM_HANDLER ivor_nr scratch srr0
 _GLOBAL(kvmppc_handler_\ivor_nr)

@@ -182,6 +182,14 @@ static void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
 }
 
+static void kvmppc_core_queue_alignment(struct kvm_vcpu *vcpu, ulong dear_flags,
+					ulong esr_flags)
+{
+	vcpu->arch.queued_dear = dear_flags;
+	vcpu->arch.queued_esr = esr_flags;
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALIGNMENT);
+}
+
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong esr_flags)
 {
 	vcpu->arch.queued_esr = esr_flags;
@@ -345,6 +353,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	switch (priority) {
 	case BOOKE_IRQPRIO_DTLB_MISS:
 	case BOOKE_IRQPRIO_DATA_STORAGE:
+	case BOOKE_IRQPRIO_ALIGNMENT:
 		update_dear = true;
 		/* fall through */
 	case BOOKE_IRQPRIO_INST_STORAGE:
@@ -358,7 +367,6 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_SPE_FP_DATA:
 	case BOOKE_IRQPRIO_SPE_FP_ROUND:
 	case BOOKE_IRQPRIO_AP_UNAVAIL:
-	case BOOKE_IRQPRIO_ALIGNMENT:
 		allowed = 1;
 		msr_mask = MSR_CE | MSR_ME | MSR_DE;
 		int_class = INT_CLASS_NONCRIT;
@@ -968,6 +976,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_INST_STORAGE:
 		kvmppc_core_queue_inst_storage(vcpu, vcpu->arch.fault_esr);
 		kvmppc_account_exit(vcpu, ISI_EXITS);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_ALIGNMENT:
+		kvmppc_core_queue_alignment(vcpu, vcpu->arch.fault_dear,
+		                            vcpu->arch.fault_esr);
 		r = RESUME_GUEST;
 		break;
 
