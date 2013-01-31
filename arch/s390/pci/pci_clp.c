@@ -37,8 +37,7 @@ static inline u8 clp_instr(void *data)
 
 static void *clp_alloc_block(void)
 {
-	struct page *page = alloc_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
-	return (page) ? page_address(page) : NULL;
+	return (void *) __get_free_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
 }
 
 static void clp_free_block(void *ptr)
