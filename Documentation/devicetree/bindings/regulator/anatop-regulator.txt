@@ -9,6 +9,11 @@ Required properties:
 - anatop-min-voltage: Minimum voltage of this regulator
 - anatop-max-voltage: Maximum voltage of this regulator
 
+Optional properties:
+- anatop-delay-reg-offset: Anatop MFD step time register offset
+- anatop-delay-bit-shift: Bit shift for the step time register
+- anatop-delay-bit-width: Number of bits used in the step time register
+
 Any property defined as part of the core regulator
 binding, defined in regulator.txt, can also be used.
 
@@ -23,6 +28,9 @@ Example:
 		anatop-reg-offset = <0x140>;
 		anatop-vol-bit-shift = <9>;
 		anatop-vol-bit-width = <5>;
+		anatop-delay-reg-offset = <0x170>;
+		anatop-delay-bit-shift = <24>;
+		anatop-delay-bit-width = <2>;
 		anatop-min-bit-val = <1>;
 		anatop-min-voltage = <725000>;
 		anatop-max-voltage = <1300000>;
