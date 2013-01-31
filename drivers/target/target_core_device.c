@@ -713,6 +713,44 @@ int se_dev_set_max_write_same_len(
 	return 0;
 }
 
+static void dev_set_t10_wwn_model_alias(struct se_device *dev)
+{
+	const char *configname;
+
+	configname = config_item_name(&dev->dev_group.cg_item);
+	if (strlen(configname) >= 16) {
+		pr_warn("dev[%p]: Backstore name '%s' is too long for "
+			"INQUIRY_MODEL, truncating to 16 bytes\n", dev,
+			configname);
+	}
+	snprintf(&dev->t10_wwn.model[0], 16, "%s", configname);
+}
+
+int se_dev_set_emulate_model_alias(struct se_device *dev, int flag)
+{
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change model alias"
+			" while export_count is %d\n",
+			dev, dev->export_count);
+			return -EINVAL;
+	}
+
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	if (flag) {
+		dev_set_t10_wwn_model_alias(dev);
+	} else {
+		strncpy(&dev->t10_wwn.model[0],
+			dev->transport->inquiry_prod, 16);
+	}
+	dev->dev_attrib.emulate_model_alias = flag;
+
+	return 0;
+}
+
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
 	if (flag != 0 && flag != 1) {
@@ -1396,6 +1434,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->t10_alua.t10_dev = dev;
 
 	dev->dev_attrib.da_dev = dev;
+	dev->dev_attrib.emulate_model_alias = DA_EMULATE_MODEL_ALIAS;
 	dev->dev_attrib.emulate_dpo = DA_EMULATE_DPO;
 	dev->dev_attrib.emulate_fua_write = DA_EMULATE_FUA_WRITE;
 	dev->dev_attrib.emulate_fua_read = DA_EMULATE_FUA_READ;
