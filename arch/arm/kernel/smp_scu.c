@@ -75,7 +75,7 @@ void scu_enable(void __iomem *scu_base)
 int scu_power_mode(void __iomem *scu_base, unsigned int mode)
 {
 	unsigned int val;
-	int cpu = cpu_logical_map(smp_processor_id());
+	int cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(smp_processor_id()), 0);
 
 	if (mode > 3 || mode == 1 || cpu > 3)
 		return -EINVAL;
