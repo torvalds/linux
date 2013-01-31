@@ -575,10 +575,8 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
 
 	/* Must use ioctl VHOST_SCSI_SET_ENDPOINT */
 	tv_tpg = vs->vs_tpg;
-	if (unlikely(!tv_tpg)) {
-		pr_err("%s endpoint not set\n", __func__);
+	if (unlikely(!tv_tpg))
 		return;
-	}
 
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(&vs->dev, vq);
