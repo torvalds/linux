@@ -908,8 +908,7 @@ void print_verbose_header(void)
 
 	get_msr(0, MSR_NHM_PLATFORM_INFO, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency\n",
@@ -919,13 +918,16 @@ void print_verbose_header(void)
 	fprintf(stderr, "%d * %.0f = %.0f MHz TSC frequency\n",
 		ratio, bclk, ratio * bclk);
 
+	get_msr(0, MSR_IA32_POWER_CTL, &msr);
+	fprintf(stderr, "cpu0: MSR_IA32_POWER_CTL: 0x%08llx (C1E: %sabled)\n",
+		msr, msr & 0x2 ? "EN" : "DIS");
+
 	if (!do_ivt_turbo_ratio_limit)
 		goto print_nhm_turbo_ratio_limits;
 
 	get_msr(0, MSR_IVT_TURBO_RATIO_LIMIT, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_IVT_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_IVT_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
@@ -1016,8 +1018,7 @@ print_nhm_turbo_ratio_limits:
 
 	get_msr(0, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
 
-	if (verbose)
-		fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
+	fprintf(stderr, "cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x%08llx\n", msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
