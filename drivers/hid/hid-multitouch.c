@@ -114,7 +114,7 @@ struct mt_device {
 #define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0007
 #define MT_CLS_DUAL_NSMU_CONTACTID		0x0008
 #define MT_CLS_INRANGE_CONTACTNUMBER		0x0009
-#define MT_CLS_ALWAYS_TRUE			0x000a
+#define MT_CLS_NSMU				0x000a
 #define MT_CLS_DUAL_CONTACT_NUMBER		0x0010
 #define MT_CLS_DUAL_CONTACT_ID			0x0011
 
@@ -150,6 +150,9 @@ static int cypress_compute_slot(struct mt_device *td)
 
 static struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE },
+	{ .name = MT_CLS_NSMU,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP },
 	{ .name = MT_CLS_SERIAL,
 		.quirks = MT_QUIRK_ALWAYS_VALID},
@@ -176,9 +179,6 @@ static struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_INRANGE_CONTACTNUMBER,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTNUMBER },
-	{ .name = MT_CLS_ALWAYS_TRUE,
-		.quirks = MT_QUIRK_ALWAYS_VALID |
-			MT_QUIRK_CONTACT_CNT_ACCURATE },
 	{ .name = MT_CLS_DUAL_CONTACT_NUMBER,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
@@ -939,7 +939,7 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_3M3266) },
 
 	/* ActionStar panels */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_ACTIONSTAR,
 			USB_DEVICE_ID_ACTIONSTAR_1011) },
 
@@ -952,7 +952,7 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_ATMEL_MXT_DIGITIZER) },
 
 	/* Baanto multitouch devices */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_BAANTO,
 			USB_DEVICE_ID_BAANTO_MT_190W2) },
 	/* Cando panels */
@@ -970,12 +970,12 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_CANDO_MULTI_TOUCH_15_6) },
 
 	/* Chunghwa Telecom touch panels */
-	{  .driver_data = MT_CLS_DEFAULT,
+	{  .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_CHUNGHWAT,
 			USB_DEVICE_ID_CHUNGHWAT_MULTITOUCH) },
 
 	/* CVTouch panels */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_CVTOUCH,
 			USB_DEVICE_ID_CVTOUCH_SCREEN) },
 
@@ -1064,12 +1064,12 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_GENERAL_TOUCH_WIN8_PWT_TENFINGERS) },
 
 	/* Gametel game controller */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_BT_DEVICE(USB_VENDOR_ID_FRUCTEL,
 			USB_DEVICE_ID_GAMETEL_MT_MODE) },
 
 	/* GoodTouch panels */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_GOODTOUCH,
 			USB_DEVICE_ID_GOODTOUCH_000f) },
 
@@ -1087,7 +1087,7 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_IDEACOM_IDC6651) },
 
 	/* Ilitek dual touch panel */
-	{  .driver_data = MT_CLS_DEFAULT,
+	{  .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_ILITEK,
 			USB_DEVICE_ID_ILITEK_MULTITOUCH) },
 
@@ -1121,7 +1121,7 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_TURBOX_TOUCHSCREEN_MOSART) },
 
 	/* Nexio panels */
-	{ .driver_data = MT_CLS_ALWAYS_TRUE,
+	{ .driver_data = MT_CLS_DEFAULT,
 		MT_USB_DEVICE(USB_VENDOR_ID_NEXIO,
 			USB_DEVICE_ID_NEXIO_MULTITOUCH_420)},
 
@@ -1134,7 +1134,7 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_PANABOARD_UBT880) },
 
 	/* Novatek Panel */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_NOVATEK,
 			USB_DEVICE_ID_NOVATEK_PCT) },
 
@@ -1180,7 +1180,7 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE,
 		MT_USB_DEVICE(USB_VENDOR_ID_STANTUM_STM,
 			USB_DEVICE_ID_MTP_STM)},
-	{ .driver_data = MT_CLS_ALWAYS_TRUE,
+	{ .driver_data = MT_CLS_DEFAULT,
 		MT_USB_DEVICE(USB_VENDOR_ID_STANTUM_SITRONIX,
 			USB_DEVICE_ID_MTP_SITRONIX)},
 
@@ -1190,48 +1190,48 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_TOPSEED2_PERIPAD_701) },
 
 	/* Touch International panels */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_TOUCH_INTL,
 			USB_DEVICE_ID_TOUCH_INTL_MULTI_TOUCH) },
 
 	/* Unitec panels */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_UNITEC,
 			USB_DEVICE_ID_UNITEC_USB_TOUCH_0709) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_UNITEC,
 			USB_DEVICE_ID_UNITEC_USB_TOUCH_0A19) },
 	/* XAT */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XAT,
 			USB_DEVICE_ID_XAT_CSR) },
 
 	/* Xiroku */
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_SPX) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_MPX) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_CSR) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_SPX1) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_MPX1) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_CSR1) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_SPX2) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_MPX2) },
-	{ .driver_data = MT_CLS_DEFAULT,
+	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_CSR2) },
 
