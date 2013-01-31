@@ -706,6 +706,7 @@ nvc0_fifo_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(priv, 0x002100, 0xffffffff);
 	nv_wr32(priv, 0x002140, 0x3fffffff);
+	nv_wr32(priv, 0x002628, 0x00000001); /* makes mthd 0x20 work */
 	return 0;
 }
 
