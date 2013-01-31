@@ -161,6 +161,23 @@ config PREFETCH
 	def_bool y
 	depends on PA8X00 || PA7200
 
+config MLONGCALLS
+	bool "Enable the -mlong-calls compiler option for big kernels"
+	def_bool y if (!MODULES)
+	depends on PA8X00
+	help
+	  If you configure the kernel to include many drivers built-in instead
+	  as modules, the kernel executable may become too big, so that the
+	  linker will not be able to resolve some long branches and fails to link
+	  your vmlinux kernel. In that case enabling this option will help you
+	  to overcome this limit by using the -mlong-calls compiler option.
+
+	  Usually you want to say N here, unless you e.g. want to build
+	  a kernel which includes all necessary drivers built-in and which can
+	  be used for TFTP booting without the need to have an initrd ramdisk.
+
+	  Enabling this option will probably slow down your kernel.
+
 config 64BIT
 	bool "64-bit kernel"
 	depends on PA8X00

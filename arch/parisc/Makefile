@@ -64,6 +64,10 @@ ifndef CONFIG_FUNCTION_TRACER
   cflags-y	+= -ffunction-sections
 endif
 
+# Use long jumps instead of long branches (needed if your linker fails to
+# link a too big vmlinux executable)
+cflags-$(CONFIG_MLONGCALLS)	+= -mlong-calls
+
 # select which processor to optimise for
 cflags-$(CONFIG_PA7100)		+= -march=1.1 -mschedule=7100
 cflags-$(CONFIG_PA7200)		+= -march=1.1 -mschedule=7200
