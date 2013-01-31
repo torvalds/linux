@@ -42,7 +42,7 @@
 struct rcar_thermal_priv {
 	void __iomem *base;
 	struct device *dev;
-	spinlock_t lock;
+	struct mutex lock;
 };
 
 #define MCELSIUS(temp)			((temp) * 1000)
@@ -54,46 +54,26 @@ struct rcar_thermal_priv {
  */
 static u32 rcar_thermal_read(struct rcar_thermal_priv *priv, u32 reg)
 {
-	unsigned long flags;
-	u32 ret;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	ret = ioread32(priv->base + reg);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
+	return ioread32(priv->base + reg);
 }
 
 #if 0 /* no user at this point */
 static void rcar_thermal_write(struct rcar_thermal_priv *priv,
 			       u32 reg, u32 data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
 	iowrite32(data, priv->base + reg);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 #endif
 
 static void rcar_thermal_bset(struct rcar_thermal_priv *priv, u32 reg,
 			      u32 mask, u32 data)
 {
-	unsigned long flags;
 	u32 val;
-
-	spin_lock_irqsave(&priv->lock, flags);
 
 	val = ioread32(priv->base + reg);
 	val &= ~mask;
 	val |= (data & mask);
 	iowrite32(val, priv->base + reg);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /*
@@ -106,6 +86,8 @@ static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 	struct device *dev = rcar_priv_to_dev(priv);
 	int i;
 	int ctemp, old, new;
+
+	mutex_lock(&priv->lock);
 
 	/*
 	 * TSC decides a value of CPTAP automatically,
@@ -137,6 +119,8 @@ static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 	}
 
 	*temp = MCELSIUS((ctemp * 5) - 65);
+
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
@@ -225,7 +209,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	}
 
 	priv->dev = &pdev->dev;
-	spin_lock_init(&priv->lock);
+	mutex_init(&priv->lock);
 	priv->base = devm_ioremap_nocache(&pdev->dev,
 					  res->start, resource_size(res));
 	if (!priv->base) {
