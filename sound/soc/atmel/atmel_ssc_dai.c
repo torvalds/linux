@@ -778,8 +778,8 @@ void atmel_ssc_put_audio(int ssc_id)
 {
 	struct ssc_device *ssc = ssc_info[ssc_id].ssc;
 
-	ssc_free(ssc);
 	asoc_ssc_exit(&ssc->pdev->dev);
+	ssc_free(ssc);
 }
 EXPORT_SYMBOL_GPL(atmel_ssc_put_audio);
 
