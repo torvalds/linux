@@ -444,9 +444,9 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev)
 {
 	struct acpi_device *adev;
+	acpi_handle handle = ACPI_HANDLE(dev);
 
-	if (!ids || !ACPI_HANDLE(dev)
-	    || ACPI_FAILURE(acpi_bus_get_device(ACPI_HANDLE(dev), &adev)))
+	if (!ids || !handle || acpi_bus_get_device(handle, &adev))
 		return NULL;
 
 	return __acpi_match_device(adev, ids);
