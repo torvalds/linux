@@ -89,8 +89,10 @@ struct cpufreq_real_policy {
 };
 
 struct cpufreq_policy {
-	cpumask_var_t		cpus;	/* CPUs requiring sw coordination */
-	cpumask_var_t		related_cpus; /* CPUs with any coordination */
+	/* CPUs sharing clock, require sw coordination */
+	cpumask_var_t		cpus;	/* Online CPUs only */
+	cpumask_var_t		related_cpus; /* Online + Offline CPUs */
+
 	unsigned int		shared_type; /* ANY or ALL affected CPUs
 						should set cpufreq */
 	unsigned int		cpu;    /* cpu nr of CPU managing this policy */
