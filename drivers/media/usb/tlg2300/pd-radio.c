@@ -147,7 +147,12 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(v->driver, "tele-radio", sizeof(v->driver));
 	strlcpy(v->card, "Telegent Poseidon", sizeof(v->card));
 	usb_make_path(p->udev, v->bus_info, sizeof(v->bus_info));
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	/* Report all capabilities of the USB device */
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS |
+			V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+			V4L2_CAP_AUDIO | V4L2_CAP_STREAMING |
+			V4L2_CAP_READWRITE;
 	return 0;
 }
 
