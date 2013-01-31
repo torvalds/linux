@@ -219,19 +219,6 @@ allocation of vcpu ids.  For example, if userspace wants
 single-threaded guest vcpus, it should make all vcpu ids be a multiple
 of the number of vcpus per vcore.
 
-On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
-threads in one or more virtual CPU cores.  (This is because the
-hardware requires all the hardware threads in a CPU core to be in the
-same partition.)  The KVM_CAP_PPC_SMT capability indicates the number
-of vcpus per virtual core (vcore).  The vcore id is obtained by
-dividing the vcpu id by the number of vcpus per vcore.  The vcpus in a
-given vcore will always be in the same physical core as each other
-(though that might be a different physical core from time to time).
-Userspace can control the threading (SMT) mode of the guest by its
-allocation of vcpu ids.  For example, if userspace wants
-single-threaded guest vcpus, it should make all vcpu ids be a multiple
-of the number of vcpus per vcore.
-
 For virtual cpus that have been created with S390 user controlled virtual
 machines, the resulting vcpu fd can be memory mapped at page offset
 KVM_S390_SIE_PAGE_OFFSET in order to obtain a memory map of the virtual
