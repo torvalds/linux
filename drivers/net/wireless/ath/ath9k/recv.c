@@ -1016,12 +1016,14 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 		rxs->flag &= ~RX_FLAG_DECRYPTED;
 }
 
+#ifdef CONFIG_ATH9K_DEBUGFS
 static s8 fix_rssi_inv_only(u8 rssi_val)
 {
 	if (rssi_val == 128)
 		rssi_val = 0;
 	return (s8) rssi_val;
 }
+#endif
 
 /* returns 1 if this was a spectral frame, even if not handled. */
 static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
