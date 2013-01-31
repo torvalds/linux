@@ -1074,7 +1074,7 @@ sub read_config {
 }
 
 sub __eval_option {
-    my ($option, $i) = @_;
+    my ($name, $option, $i) = @_;
 
     # Add space to evaluate the character before $
     $option = " $option";
@@ -1106,7 +1106,11 @@ sub __eval_option {
 	my $o = "$var\[$i\]";
 	my $parento = "$var\[$parent\]";
 
-	if (defined($opt{$o})) {
+	# If a variable contains itself, use the default var
+	if (($var eq $name) && defined($opt{$var})) {
+	    $o = $opt{$var};
+	    $retval = "$retval$o";
+	} elsif (defined($opt{$o})) {
 	    $o = $opt{$o};
 	    $retval = "$retval$o";
 	} elsif ($repeated && defined($opt{$parento})) {
@@ -1130,7 +1134,7 @@ sub __eval_option {
 }
 
 sub eval_option {
-    my ($option, $i) = @_;
+    my ($name, $option, $i) = @_;
 
     my $prev = "";
 
@@ -1146,7 +1150,7 @@ sub eval_option {
 		"Check for recursive variables\n";
 	}
 	$prev = $option;
-	$option = __eval_option($option, $i);
+	$option = __eval_option($name, $option, $i);
     }
 
     return $option;
@@ -3683,7 +3687,7 @@ EOF
 read_config $ktest_config;
 
 if (defined($opt{"LOG_FILE"})) {
-    $opt{"LOG_FILE"} = eval_option($opt{"LOG_FILE"}, -1);
+    $opt{"LOG_FILE"} = eval_option("LOG_FILE", $opt{"LOG_FILE"}, -1);
 }
 
 # Append any configs entered in manually to the config file.
@@ -3760,7 +3764,7 @@ sub set_test_option {
     my $option = __set_test_option($name, $i);
     return $option if (!defined($option));
 
-    return eval_option($option, $i);
+    return eval_option($name, $option, $i);
 }
 
 # First we need to do is the builds
