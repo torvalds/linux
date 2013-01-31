@@ -293,7 +293,11 @@ struct smmu_debugfs_info {
  * Per SMMU device - IOMMU device
  */
 struct smmu_device {
-	void __iomem	*regs[NUM_SMMU_REG_BANKS];
+	void __iomem	*regbase;	/* register offset base */
+	void __iomem	**regs;		/* register block start address array */
+	void __iomem	**rege;		/* register block end address array */
+	int		nregs;		/* number of register blocks */
+
 	unsigned long	iovmm_base;	/* remappable base address */
 	unsigned long	page_count;	/* total remappable size */
 	spinlock_t	lock;
@@ -325,35 +329,33 @@ static struct smmu_device *smmu_handle; /* unique for a system */
  */
 static inline u32 smmu_read(struct smmu_device *smmu, size_t offs)
 {
-	BUG_ON(offs < 0x10);
-	if (offs < 0x3c)
-		return readl(smmu->regs[0] + offs - 0x10);
-	BUG_ON(offs < 0x1f0);
-	if (offs < 0x200)
-		return readl(smmu->regs[1] + offs - 0x1f0);
-	BUG_ON(offs < 0x228);
-	if (offs < 0x284)
-		return readl(smmu->regs[2] + offs - 0x228);
+	int i;
+
+	for (i = 0; i < smmu->nregs; i++) {
+		void __iomem *addr = smmu->regbase + offs;
+
+		BUG_ON(addr < smmu->regs[i]);
+		if (addr <= smmu->rege[i])
+			return readl(addr);
+	}
+
 	BUG();
 }
 
 static inline void smmu_write(struct smmu_device *smmu, u32 val, size_t offs)
 {
-	BUG_ON(offs < 0x10);
-	if (offs < 0x3c) {
-		writel(val, smmu->regs[0] + offs - 0x10);
-		return;
+	int i;
+
+	for (i = 0; i < smmu->nregs; i++) {
+		void __iomem *addr = smmu->regbase + offs;
+
+		BUG_ON(addr < smmu->regs[i]);
+		if (addr <= smmu->rege[i]) {
+			writel(val, addr);
+			return;
+		}
 	}
-	BUG_ON(offs < 0x1f0);
-	if (offs < 0x200) {
-		writel(val, smmu->regs[1] + offs - 0x1f0);
-		return;
-	}
-	BUG_ON(offs < 0x228);
-	if (offs < 0x284) {
-		writel(val, smmu->regs[2] + offs - 0x228);
-		return;
-	}
+
 	BUG();
 }
 
@@ -1170,7 +1172,13 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(smmu->regs); i++) {
+	smmu->nregs = pdev->num_resources;
+	smmu->regs = devm_kzalloc(dev, 2 * smmu->nregs * sizeof(*smmu->regs),
+				  GFP_KERNEL);
+	smmu->rege = smmu->regs + smmu->nregs;
+	if (!smmu->regs)
+		return -ENOMEM;
+	for (i = 0; i < smmu->nregs; i++) {
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
@@ -1179,7 +1187,10 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		smmu->regs[i] = devm_request_and_ioremap(&pdev->dev, res);
 		if (!smmu->regs[i])
 			return -EBUSY;
+		smmu->rege[i] = smmu->regs[i] + resource_size(res) - 1;
 	}
+	/* Same as "mc" 1st regiter block start address */
+	smmu->regbase = (void __iomem *)((u32)smmu->regs[0] & ~PAGE_MASK);
 
 	err = of_get_dma_window(dev->of_node, NULL, 0, NULL, &base, &size);
 	if (err)
