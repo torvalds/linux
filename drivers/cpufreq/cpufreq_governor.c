@@ -208,11 +208,11 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 		mutex_lock(&dbs_data->mutex);
 
 		dbs_data->enable++;
-		cpu_cdbs->cpu = cpu;
 		for_each_cpu(j, policy->cpus) {
 			struct cpu_dbs_common_info *j_cdbs;
 			j_cdbs = dbs_data->get_cpu_cdbs(j);
 
+			j_cdbs->cpu = j;
 			j_cdbs->cur_policy = policy;
 			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j,
 					&j_cdbs->prev_cpu_wall);

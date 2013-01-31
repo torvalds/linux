@@ -114,7 +114,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 static void cs_timer_update(struct cs_cpu_dbs_info_s *dbs_info, bool sample,
 			    struct delayed_work *dw)
 {
-	unsigned int cpu = dbs_info->cdbs.cpu;
+	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
 	int delay = delay_for_sampling_rate(cs_tuners.sampling_rate);
 
 	if (sample)
@@ -132,7 +132,8 @@ static void cs_timer_coordinated(struct cs_cpu_dbs_info_s *dbs_info_local,
 	bool sample = true;
 
 	/* use leader CPU's dbs_info */
-	dbs_info = &per_cpu(cs_cpu_dbs_info, dbs_info_local->cdbs.cpu);
+	dbs_info = &per_cpu(cs_cpu_dbs_info,
+			    dbs_info_local->cdbs.cur_policy->cpu);
 	mutex_lock(&dbs_info->cdbs.timer_mutex);
 
 	time_now = ktime_get();

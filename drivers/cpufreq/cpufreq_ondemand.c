@@ -219,7 +219,7 @@ static void od_check_cpu(int cpu, unsigned int load_freq)
 static void od_timer_update(struct od_cpu_dbs_info_s *dbs_info, bool sample,
 			    struct delayed_work *dw)
 {
-	unsigned int cpu = dbs_info->cdbs.cpu;
+	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
 	int delay, sample_type = dbs_info->sample_type;
 
 	/* Common NORMAL_SAMPLE setup */
@@ -255,7 +255,8 @@ static void od_timer_coordinated(struct od_cpu_dbs_info_s *dbs_info_local,
 	bool sample = true;
 
 	/* use leader CPU's dbs_info */
-	dbs_info = &per_cpu(od_cpu_dbs_info, dbs_info_local->cdbs.cpu);
+	dbs_info = &per_cpu(od_cpu_dbs_info,
+			    dbs_info_local->cdbs.cur_policy->cpu);
 	mutex_lock(&dbs_info->cdbs.timer_mutex);
 
 	time_now = ktime_get();
