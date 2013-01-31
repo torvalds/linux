@@ -54,6 +54,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_NO_AREA		(1 << 9)
 #define MT_QUIRK_IGNORE_DUPLICATES	(1 << 10)
 #define MT_QUIRK_HOVERING		(1 << 11)
+#define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
 
 struct mt_slot {
 	__s32 x, y, cx, cy, p, w, h;
@@ -83,6 +84,7 @@ struct mt_device {
 	struct mt_class mtclass;	/* our mt device class */
 	struct mt_fields *fields;	/* temporary placeholder for storing the
 					   multitouch fields */
+	__s32 *contactcount;		/* contact count value in the report */
 	unsigned last_field_index;	/* last field index of the report */
 	unsigned last_slot_field;	/* the last field of a slot */
 	unsigned mt_report_id;	/* the report ID of the multitouch device */
@@ -112,6 +114,7 @@ struct mt_device {
 #define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0007
 #define MT_CLS_DUAL_NSMU_CONTACTID		0x0008
 #define MT_CLS_INRANGE_CONTACTNUMBER		0x0009
+#define MT_CLS_ALWAYS_TRUE			0x000a
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -171,6 +174,9 @@ static struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_INRANGE_CONTACTNUMBER,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTNUMBER },
+	{ .name = MT_CLS_ALWAYS_TRUE,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE },
 
 	/*
 	 * vendor specific classes
@@ -250,6 +256,9 @@ static ssize_t mt_set_quirks(struct device *dev,
 		return -EINVAL;
 
 	td->mtclass.quirks = val;
+
+	if (!td->contactcount)
+		td->mtclass.quirks &= ~MT_QUIRK_CONTACT_CNT_ACCURATE;
 
 	return count;
 }
@@ -461,6 +470,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			td->last_field_index = field->index;
 			return 1;
 		case HID_DG_CONTACTCOUNT:
+			td->contactcount = field->value + usage->usage_index;
 			td->last_field_index = field->index;
 			return 1;
 		case HID_DG_CONTACTMAX:
@@ -525,6 +535,10 @@ static int mt_compute_slot(struct mt_device *td, struct input_dev *input)
  */
 static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 {
+	if ((td->mtclass.quirks & MT_QUIRK_CONTACT_CNT_ACCURATE) &&
+	    td->num_received >= td->num_expected)
+		return;
+
 	if (td->curvalid || (td->mtclass.quirks & MT_QUIRK_ALWAYS_VALID)) {
 		int slotnum = mt_compute_slot(td, input);
 		struct mt_slot *s = &td->curdata;
@@ -635,12 +649,6 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 			td->curdata.h = value;
 			break;
 		case HID_DG_CONTACTCOUNT:
-			/*
-			 * Includes multi-packet support where subsequent
-			 * packets are sent with zero contactcount.
-			 */
-			if (value)
-				td->num_expected = value;
 			break;
 		case HID_DG_TOUCH:
 			/* do nothing */
@@ -675,6 +683,13 @@ static void mt_report(struct hid_device *hid, struct hid_report *report)
 
 	if (!(hid->claimed & HID_CLAIMED_INPUT))
 		return;
+
+	/*
+	 * Includes multi-packet support where subsequent
+	 * packets are sent with zero contactcount.
+	 */
+	if (td->contactcount && *td->contactcount)
+		td->num_expected = *td->contactcount;
 
 	for (r = 0; r < report->maxfield; r++) {
 		field = report->field[r];
@@ -750,11 +765,15 @@ static void mt_post_parse_default_settings(struct mt_device *td)
 static void mt_post_parse(struct mt_device *td)
 {
 	struct mt_fields *f = td->fields;
+	struct mt_class *cls = &td->mtclass;
 
 	if (td->touches_by_report > 0) {
 		int field_count_per_touch = f->length / td->touches_by_report;
 		td->last_slot_field = f->usages[field_count_per_touch - 1];
 	}
+
+	if (!td->contactcount)
+		cls->quirks &= ~MT_QUIRK_CONTACT_CNT_ACCURATE;
 }
 
 static void mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
@@ -1086,6 +1105,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,
 		MT_USB_DEVICE(USB_VENDOR_ID_TURBOX,
 			USB_DEVICE_ID_TURBOX_TOUCHSCREEN_MOSART) },
+
+	/* Nexio panels */
+	{ .driver_data = MT_CLS_ALWAYS_TRUE,
+		MT_USB_DEVICE(USB_VENDOR_ID_NEXIO,
+			USB_DEVICE_ID_NEXIO_MULTITOUCH_420)},
 
 	/* Panasonic panels */
 	{ .driver_data = MT_CLS_PANASONIC,
