@@ -36,29 +36,28 @@ static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
 {
 	struct spi_message msg;
 	struct adxrs450_state *st = iio_priv(indio_dev);
+	u32 tx;
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
-			.tx_buf = st->tx,
+			.tx_buf = &st->tx,
 			.bits_per_word = 8,
-			.len = 4,
+			.len = sizeof(st->tx),
 			.cs_change = 1,
 		}, {
-			.rx_buf = st->rx,
+			.rx_buf = &st->rx,
 			.bits_per_word = 8,
-			.len = 4,
+			.len = sizeof(st->rx),
 		},
 	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_READ_DATA | (reg_address >> 7);
-	st->tx[1] = reg_address << 1;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	tx = ADXRS450_READ_DATA | (reg_address << 17);
 
-	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
-		st->tx[3]  |= ADXRS450_P;
+	if (!(hweight32(tx) & 1))
+		tx |= ADXRS450_P;
 
+	st->tx = cpu_to_be32(tx);
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
 	spi_message_add_tail(&xfers[1], &msg);
@@ -69,7 +68,7 @@ static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
 		goto error_ret;
 	}
 
-	*val = (be32_to_cpu(*(u32 *)st->rx) >> 5) & 0xFFFF;
+	*val = (be32_to_cpu(st->rx) >> 5) & 0xFFFF;
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -88,18 +87,17 @@ static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
 				     u16 val)
 {
 	struct adxrs450_state *st = iio_priv(indio_dev);
+	u32 tx;
 	int ret;
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_WRITE_DATA | reg_address >> 7;
-	st->tx[1] = reg_address << 1 | val >> 15;
-	st->tx[2] = val >> 7;
-	st->tx[3] = val << 1;
+	tx = ADXRS450_WRITE_DATA | (reg_address << 17) | (val << 1);
 
-	if (!(hweight32(be32_to_cpu(*(u32 *)st->tx)) & 1))
-		st->tx[3] |= ADXRS450_P;
+	if (!(hweight32(tx) & 1))
+		tx |= ADXRS450_P;
 
-	ret = spi_write(st->us, st->tx, 4);
+	st->tx = cpu_to_be32(tx);
+	ret = spi_write(st->us, &st->tx, sizeof(st->tx));
 	if (ret)
 		dev_err(&st->us->dev, "problem while writing 16 bit register 0x%02x\n",
 			reg_address);
@@ -120,22 +118,19 @@ static int adxrs450_spi_sensor_data(struct iio_dev *indio_dev, s16 *val)
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
-			.tx_buf = st->tx,
+			.tx_buf = &st->tx,
 			.bits_per_word = 8,
-			.len = 4,
+			.len = sizeof(st->tx),
 			.cs_change = 1,
 		}, {
-			.rx_buf = st->rx,
+			.rx_buf = &st->rx,
 			.bits_per_word = 8,
-			.len = 4,
+			.len = sizeof(st->rx),
 		},
 	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_SENSOR_DATA;
-	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	st->tx = cpu_to_be32(ADXRS450_SENSOR_DATA);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
@@ -146,7 +141,7 @@ static int adxrs450_spi_sensor_data(struct iio_dev *indio_dev, s16 *val)
 		goto error_ret;
 	}
 
-	*val = (be32_to_cpu(*(u32 *)st->rx) >> 10) & 0xFFFF;
+	*val = (be32_to_cpu(st->rx) >> 10) & 0xFFFF;
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -163,20 +158,19 @@ static int adxrs450_spi_initial(struct adxrs450_state *st,
 {
 	struct spi_message msg;
 	int ret;
+	u32 tx;
 	struct spi_transfer xfers = {
-		.tx_buf = st->tx,
-		.rx_buf = st->rx,
+		.tx_buf = &st->tx,
+		.rx_buf = &st->rx,
 		.bits_per_word = 8,
-		.len = 4,
+		.len = sizeof(st->tx),
 	};
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADXRS450_SENSOR_DATA;
-	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
+	tx = ADXRS450_SENSOR_DATA;
 	if (chk)
-		st->tx[3] |= (ADXRS450_CHK | ADXRS450_P);
+		tx |= (ADXRS450_CHK | ADXRS450_P);
+	st->tx = cpu_to_be32(tx);
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers, &msg);
 	ret = spi_sync(st->us, &msg);
@@ -185,7 +179,7 @@ static int adxrs450_spi_initial(struct adxrs450_state *st,
 		goto error_ret;
 	}
 
-	*val = be32_to_cpu(*(u32 *)st->rx);
+	*val = be32_to_cpu(st->rx);
 
 error_ret:
 	mutex_unlock(&st->buf_lock);

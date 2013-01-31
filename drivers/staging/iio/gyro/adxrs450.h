@@ -4,9 +4,9 @@
 #define ADXRS450_STARTUP_DELAY	50 /* ms */
 
 /* The MSB for the spi commands */
-#define ADXRS450_SENSOR_DATA    0x20
-#define ADXRS450_WRITE_DATA	0x40
-#define ADXRS450_READ_DATA	0x80
+#define ADXRS450_SENSOR_DATA    (0x20 << 24)
+#define ADXRS450_WRITE_DATA	(0x40 << 24)
+#define ADXRS450_READ_DATA	(0x80 << 24)
 
 #define ADXRS450_RATE1	0x00	/* Rate Registers */
 #define ADXRS450_TEMP1	0x02	/* Temperature Registers */
@@ -54,8 +54,8 @@ enum {
 struct adxrs450_state {
 	struct spi_device	*us;
 	struct mutex		buf_lock;
-	u8			tx[ADXRS450_MAX_RX] ____cacheline_aligned;
-	u8			rx[ADXRS450_MAX_TX];
+	__be32			tx ____cacheline_aligned;
+	__be32			rx;
 
 };
 
