@@ -270,6 +270,9 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 	if (task_active_pid_ns(current) != &init_pid_ns)
 		return -EINVAL;
 
+	if (current_user_ns() != &init_user_ns)
+		return -EINVAL;
+
 	idx = iminor(inode);
 	if (idx < 0 || idx >= MAX_CODADEVS)
 		return -ENODEV;
