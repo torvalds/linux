@@ -123,13 +123,6 @@ static size_t ceph_vxattrcb_file_layout(struct ceph_inode_info *ci, char *val,
 
 static struct ceph_vxattr ceph_file_vxattrs[] = {
 	XATTR_NAME_CEPH(file, layout),
-	/* The following extended attribute name is deprecated */
-	{
-		.name = XATTR_CEPH_PREFIX "layout",
-		.name_size = sizeof (XATTR_CEPH_PREFIX "layout"),
-		.getxattr_cb = ceph_vxattrcb_file_layout,
-		.readonly = true,
-	},
 	{ 0 }	/* Required table terminator */
 };
 static size_t ceph_file_vxattrs_name_size;	/* total size of all names */
