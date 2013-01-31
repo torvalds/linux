@@ -3821,9 +3821,10 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	write_unlock(&em_tree->lock);
-	free_extent_map(em);
-	if (ret)
+	if (ret) {
+		free_extent_map(em);
 		goto error;
+	}
 
 	for (i = 0; i < map->num_stripes; ++i) {
 		struct btrfs_device *device;
@@ -3848,6 +3849,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		goto error_dev_extent;
 	}
 
+	free_extent_map(em);
 	kfree(devices_info);
 	return 0;
 
@@ -3863,6 +3865,14 @@ error_dev_extent:
 			break;
 		}
 	}
+	write_lock(&em_tree->lock);
+	remove_extent_mapping(em_tree, em);
+	write_unlock(&em_tree->lock);
+
+	/* One for our allocation */
+	free_extent_map(em);
+	/* One for the tree reference */
+	free_extent_map(em);
 error:
 	kfree(map);
 	kfree(devices_info);
