@@ -815,18 +815,21 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 	sa->sadb_sa_auth = 0;
 	if (x->aalg) {
 		struct xfrm_algo_desc *a = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
-		sa->sadb_sa_auth = a ? a->desc.sadb_alg_id : 0;
+		sa->sadb_sa_auth = (a && a->pfkey_supported) ?
+					a->desc.sadb_alg_id : 0;
 	}
 	sa->sadb_sa_encrypt = 0;
 	BUG_ON(x->ealg && x->calg);
 	if (x->ealg) {
 		struct xfrm_algo_desc *a = xfrm_ealg_get_byname(x->ealg->alg_name, 0);
-		sa->sadb_sa_encrypt = a ? a->desc.sadb_alg_id : 0;
+		sa->sadb_sa_encrypt = (a && a->pfkey_supported) ?
+					a->desc.sadb_alg_id : 0;
 	}
 	/* KAME compatible: sadb_sa_encrypt is overloaded with calg id */
 	if (x->calg) {
 		struct xfrm_algo_desc *a = xfrm_calg_get_byname(x->calg->alg_name, 0);
-		sa->sadb_sa_encrypt = a ? a->desc.sadb_alg_id : 0;
+		sa->sadb_sa_encrypt = (a && a->pfkey_supported) ?
+					a->desc.sadb_alg_id : 0;
 	}
 
 	sa->sadb_sa_flags = 0;
@@ -1137,7 +1140,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	if (sa->sadb_sa_auth) {
 		int keysize = 0;
 		struct xfrm_algo_desc *a = xfrm_aalg_get_byid(sa->sadb_sa_auth);
-		if (!a) {
+		if (!a || !a->pfkey_supported) {
 			err = -ENOSYS;
 			goto out;
 		}
@@ -1159,7 +1162,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	if (sa->sadb_sa_encrypt) {
 		if (hdr->sadb_msg_satype == SADB_X_SATYPE_IPCOMP) {
 			struct xfrm_algo_desc *a = xfrm_calg_get_byid(sa->sadb_sa_encrypt);
-			if (!a) {
+			if (!a || !a->pfkey_supported) {
 				err = -ENOSYS;
 				goto out;
 			}
@@ -1171,7 +1174,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 		} else {
 			int keysize = 0;
 			struct xfrm_algo_desc *a = xfrm_ealg_get_byid(sa->sadb_sa_encrypt);
-			if (!a) {
+			if (!a || !a->pfkey_supported) {
 				err = -ENOSYS;
 				goto out;
 			}
@@ -1577,13 +1580,13 @@ static struct sk_buff *compose_sadb_supported(const struct sadb_msg *orig,
 	struct sadb_msg *hdr;
 	int len, auth_len, enc_len, i;
 
-	auth_len = xfrm_count_auth_supported();
+	auth_len = xfrm_count_pfkey_auth_supported();
 	if (auth_len) {
 		auth_len *= sizeof(struct sadb_alg);
 		auth_len += sizeof(struct sadb_supported);
 	}
 
-	enc_len = xfrm_count_enc_supported();
+	enc_len = xfrm_count_pfkey_enc_supported();
 	if (enc_len) {
 		enc_len *= sizeof(struct sadb_alg);
 		enc_len += sizeof(struct sadb_supported);
@@ -1614,6 +1617,8 @@ static struct sk_buff *compose_sadb_supported(const struct sadb_msg *orig,
 			struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(i);
 			if (!aalg)
 				break;
+			if (!aalg->pfkey_supported)
+				continue;
 			if (aalg->available)
 				*ap++ = aalg->desc;
 		}
@@ -1633,6 +1638,8 @@ static struct sk_buff *compose_sadb_supported(const struct sadb_msg *orig,
 			struct xfrm_algo_desc *ealg = xfrm_ealg_get_byidx(i);
 			if (!ealg)
 				break;
+			if (!ealg->pfkey_supported)
+				continue;
 			if (ealg->available)
 				*ap++ = ealg->desc;
 		}
@@ -2824,6 +2831,8 @@ static int count_ah_combs(const struct xfrm_tmpl *t)
 		const struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(i);
 		if (!aalg)
 			break;
+		if (!aalg->pfkey_supported)
+			continue;
 		if (aalg_tmpl_set(t, aalg) && aalg->available)
 			sz += sizeof(struct sadb_comb);
 	}
@@ -2839,6 +2848,9 @@ static int count_esp_combs(const struct xfrm_tmpl *t)
 		if (!ealg)
 			break;
 
+		if (!ealg->pfkey_supported)
+			continue;
+
 		if (!(ealg_tmpl_set(t, ealg) && ealg->available))
 			continue;
 
@@ -2846,6 +2858,9 @@ static int count_esp_combs(const struct xfrm_tmpl *t)
 			const struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(k);
 			if (!aalg)
 				break;
+
+			if (!aalg->pfkey_supported)
+				continue;
 
 			if (aalg_tmpl_set(t, aalg) && aalg->available)
 				sz += sizeof(struct sadb_comb);
@@ -2869,6 +2884,9 @@ static void dump_ah_combs(struct sk_buff *skb, const struct xfrm_tmpl *t)
 		const struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(i);
 		if (!aalg)
 			break;
+
+		if (!aalg->pfkey_supported)
+			continue;
 
 		if (aalg_tmpl_set(t, aalg) && aalg->available) {
 			struct sadb_comb *c;
@@ -2902,6 +2920,9 @@ static void dump_esp_combs(struct sk_buff *skb, const struct xfrm_tmpl *t)
 		if (!ealg)
 			break;
 
+		if (!ealg->pfkey_supported)
+			continue;
+
 		if (!(ealg_tmpl_set(t, ealg) && ealg->available))
 			continue;
 
@@ -2910,6 +2931,8 @@ static void dump_esp_combs(struct sk_buff *skb, const struct xfrm_tmpl *t)
 			const struct xfrm_algo_desc *aalg = xfrm_aalg_get_byidx(k);
 			if (!aalg)
 				break;
+			if (!aalg->pfkey_supported)
+				continue;
 			if (!(aalg_tmpl_set(t, aalg) && aalg->available))
 				continue;
 			c = (struct sadb_comb*)skb_put(skb, sizeof(struct sadb_comb));
