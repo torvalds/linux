@@ -97,9 +97,10 @@ struct btrfs_raid_bio {
 	struct bio_list bio_list;
 	spinlock_t bio_list_lock;
 
-	/*
-	 * also protected by the bio_list_lock, the
-	 * stripe locking code uses plug_list to hand off
+	/* also protected by the bio_list_lock, the
+	 * plug list is used by the plugging code
+	 * to collect partial bios while plugged.  The
+	 * stripe locking code also uses it to hand off
 	 * the stripe lock to the next pending IO
 	 */
 	struct list_head plug_list;
@@ -1558,6 +1559,103 @@ static int __raid56_parity_write(struct btrfs_raid_bio *rbio)
 }
 
 /*
+ * We use plugging call backs to collect full stripes.
+ * Any time we get a partial stripe write while plugged
+ * we collect it into a list.  When the unplug comes down,
+ * we sort the list by logical block number and merge
+ * everything we can into the same rbios
+ */
+struct btrfs_plug_cb {
+	struct blk_plug_cb cb;
+	struct btrfs_fs_info *info;
+	struct list_head rbio_list;
+	struct btrfs_work work;
+};
+
+/*
+ * rbios on the plug list are sorted for easier merging.
+ */
+static int plug_cmp(void *priv, struct list_head *a, struct list_head *b)
+{
+	struct btrfs_raid_bio *ra = container_of(a, struct btrfs_raid_bio,
+						 plug_list);
+	struct btrfs_raid_bio *rb = container_of(b, struct btrfs_raid_bio,
+						 plug_list);
+	u64 a_sector = ra->bio_list.head->bi_sector;
+	u64 b_sector = rb->bio_list.head->bi_sector;
+
+	if (a_sector < b_sector)
+		return -1;
+	if (a_sector > b_sector)
+		return 1;
+	return 0;
+}
+
+static void run_plug(struct btrfs_plug_cb *plug)
+{
+	struct btrfs_raid_bio *cur;
+	struct btrfs_raid_bio *last = NULL;
+
+	/*
+	 * sort our plug list then try to merge
+	 * everything we can in hopes of creating full
+	 * stripes.
+	 */
+	list_sort(NULL, &plug->rbio_list, plug_cmp);
+	while (!list_empty(&plug->rbio_list)) {
+		cur = list_entry(plug->rbio_list.next,
+				 struct btrfs_raid_bio, plug_list);
+		list_del_init(&cur->plug_list);
+
+		if (rbio_is_full(cur)) {
+			/* we have a full stripe, send it down */
+			full_stripe_write(cur);
+			continue;
+		}
+		if (last) {
+			if (rbio_can_merge(last, cur)) {
+				merge_rbio(last, cur);
+				__free_raid_bio(cur);
+				continue;
+
+			}
+			__raid56_parity_write(last);
+		}
+		last = cur;
+	}
+	if (last) {
+		__raid56_parity_write(last);
+	}
+	kfree(plug);
+}
+
+/*
+ * if the unplug comes from schedule, we have to push the
+ * work off to a helper thread
+ */
+static void unplug_work(struct btrfs_work *work)
+{
+	struct btrfs_plug_cb *plug;
+	plug = container_of(work, struct btrfs_plug_cb, work);
+	run_plug(plug);
+}
+
+static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
+{
+	struct btrfs_plug_cb *plug;
+	plug = container_of(cb, struct btrfs_plug_cb, cb);
+
+	if (from_schedule) {
+		plug->work.flags = 0;
+		plug->work.func = unplug_work;
+		btrfs_queue_worker(&plug->info->rmw_workers,
+				   &plug->work);
+		return;
+	}
+	run_plug(plug);
+}
+
+/*
  * our main entry point for writes from the rest of the FS.
  */
 int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
@@ -1565,6 +1663,8 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 			u64 stripe_len)
 {
 	struct btrfs_raid_bio *rbio;
+	struct btrfs_plug_cb *plug = NULL;
+	struct blk_plug_cb *cb;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
 	if (IS_ERR(rbio)) {
@@ -1574,7 +1674,27 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	}
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_size;
-	return __raid56_parity_write(rbio);
+
+	/*
+	 * don't plug on full rbios, just get them out the door
+	 * as quickly as we can
+	 */
+	if (rbio_is_full(rbio))
+		return full_stripe_write(rbio);
+
+	cb = blk_check_plugged(btrfs_raid_unplug, root->fs_info,
+			       sizeof(*plug));
+	if (cb) {
+		plug = container_of(cb, struct btrfs_plug_cb, cb);
+		if (!plug->info) {
+			plug->info = root->fs_info;
+			INIT_LIST_HEAD(&plug->rbio_list);
+		}
+		list_add_tail(&rbio->plug_list, &plug->rbio_list);
+	} else {
+		return __raid56_parity_write(rbio);
+	}
+	return 0;
 }
 
 /*
