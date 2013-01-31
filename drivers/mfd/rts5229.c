@@ -114,6 +114,25 @@ static int rts5229_card_power_off(struct rtsx_pcr *pcr, int card)
 	return rtsx_pci_send_cmd(pcr, 100);
 }
 
+static int rts5229_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	int err;
+
+	if (voltage == OUTPUT_3V3) {
+		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x4FC0 | 0x24);
+		if (err < 0)
+			return err;
+	} else if (voltage == OUTPUT_1V8) {
+		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x4C40 | 0x24);
+		if (err < 0)
+			return err;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct pcr_ops rts5229_pcr_ops = {
 	.extra_init_hw = rts5229_extra_init_hw,
 	.optimize_phy = rts5229_optimize_phy,
@@ -123,7 +142,9 @@ static const struct pcr_ops rts5229_pcr_ops = {
 	.disable_auto_blink = rts5229_disable_auto_blink,
 	.card_power_on = rts5229_card_power_on,
 	.card_power_off = rts5229_card_power_off,
+	.switch_output_voltage = rts5229_switch_output_voltage,
 	.cd_deglitch = NULL,
+	.conv_clk_and_div_n = NULL,
 };
 
 /* SD Pull Control Enable:
