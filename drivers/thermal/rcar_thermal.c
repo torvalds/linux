@@ -33,7 +33,7 @@
 #define THSSR	0x30
 
 /* THSCR */
-#define CPTAP	0xf
+#define CPCTL	(1 << 12)
 
 /* THSSR */
 #define CTEMP	0x3f
@@ -43,11 +43,11 @@ struct rcar_thermal_priv {
 	void __iomem *base;
 	struct device *dev;
 	spinlock_t lock;
-	u32 comp;
 };
 
 #define MCELSIUS(temp)			((temp) * 1000)
 #define rcar_zone_to_priv(zone)		((zone)->devdata)
+#define rcar_priv_to_dev(priv)		((priv)->dev)
 
 /*
  *		basic functions
@@ -103,79 +103,41 @@ static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 			   unsigned long *temp)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
-	int val, min, max, tmp;
+	struct device *dev = rcar_priv_to_dev(priv);
+	int i;
+	int ctemp, old, new;
 
-	tmp = -200; /* default */
-	while (1) {
-		if (priv->comp < 1 || priv->comp > 12) {
-			dev_err(priv->dev,
-				"THSSR invalid data (%d)\n", priv->comp);
-			priv->comp = 4; /* for next thermal */
-			return -EINVAL;
-		}
+	/*
+	 * TSC decides a value of CPTAP automatically,
+	 * and this is the conditions which validate interrupt.
+	 */
+	rcar_thermal_bset(priv, THSCR, CPCTL, CPCTL);
 
-		/*
-		 * THS comparator offset and the reference temperature
-		 *
-		 * Comparator	| reference	| Temperature field
-		 * offset	| temperature	| measurement
-		 *		| (degrees C)	| (degrees C)
-		 * -------------+---------------+-------------------
-		 *  1		|  -45		|  -45 to  -30
-		 *  2		|  -30		|  -30 to  -15
-		 *  3		|  -15		|  -15 to    0
-		 *  4		|    0		|    0 to  +15
-		 *  5		|  +15		|  +15 to  +30
-		 *  6		|  +30		|  +30 to  +45
-		 *  7		|  +45		|  +45 to  +60
-		 *  8		|  +60		|  +60 to  +75
-		 *  9		|  +75		|  +75 to  +90
-		 * 10		|  +90		|  +90 to +105
-		 * 11		| +105		| +105 to +120
-		 * 12		| +120		| +120 to +135
-		 */
-
-		/* calculate thermal limitation */
-		min = (priv->comp * 15) - 60;
-		max = min + 15;
-
+	ctemp = 0;
+	old = ~0;
+	for (i = 0; i < 128; i++) {
 		/*
 		 * we need to wait 300us after changing comparator offset
 		 * to get stable temperature.
 		 * see "Usage Notes" on datasheet
 		 */
-		rcar_thermal_bset(priv, THSCR, CPTAP, priv->comp);
 		udelay(300);
 
-		/* calculate current temperature */
-		val = rcar_thermal_read(priv, THSSR) & CTEMP;
-		val = (val * 5) - 65;
-
-		dev_dbg(priv->dev, "comp/min/max/val = %d/%d/%d/%d\n",
-			priv->comp, min, max, val);
-
-		/*
-		 * If val is same as min/max, then,
-		 * it should try again on next comparator.
-		 * But the val might be correct temperature.
-		 * Keep it on "tmp" and compare with next val.
-		 */
-		if (tmp == val)
-			break;
-
-		if (val <= min) {
-			tmp = min;
-			priv->comp--; /* try again */
-		} else if (val >= max) {
-			tmp = max;
-			priv->comp++; /* try again */
-		} else {
-			tmp = val;
+		new = rcar_thermal_read(priv, THSSR) & CTEMP;
+		if (new == old) {
+			ctemp = new;
 			break;
 		}
+		old = new;
 	}
 
-	*temp = MCELSIUS(tmp);
+	if (!ctemp) {
+		dev_err(dev, "thermal sensor was broken\n");
+		return -EINVAL;
+	}
+
+	*temp = MCELSIUS((ctemp * 5) - 65);
+
 	return 0;
 }
 
@@ -262,7 +224,6 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	priv->comp = 4; /* basic setup */
 	priv->dev = &pdev->dev;
 	spin_lock_init(&priv->lock);
 	priv->base = devm_ioremap_nocache(&pdev->dev,
