@@ -85,6 +85,9 @@ struct aic3x_priv {
 #define AIC3X_MODEL_33 1
 #define AIC3X_MODEL_3007 2
 	u16 model;
+
+	/* Selects the micbias voltage */
+	enum aic3x_micbias_voltage micbias_vg;
 };
 
 /*
@@ -193,6 +196,37 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 
 	mutex_unlock(&widget->codec->mutex);
 	return ret;
+}
+
+/*
+ * mic bias power on/off share the same register bits with
+ * output voltage of mic bias. when power on mic bias, we
+ * need reclaim it to voltage value.
+ * 0x0 = Powered off
+ * 0x1 = MICBIAS output is powered to 2.0V,
+ * 0x2 = MICBIAS output is powered to 2.5V
+ * 0x3 = MICBIAS output is connected to AVDD
+ */
+static int mic_bias_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* change mic bias voltage to user defined */
+		snd_soc_update_bits(codec, MICBIAS_CTRL,
+				MICBIAS_LEVEL_MASK,
+				aic3x->micbias_vg << MICBIAS_LEVEL_SHIFT);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, MICBIAS_CTRL,
+				MICBIAS_LEVEL_MASK, 0);
+		break;
+	}
+	return 0;
 }
 
 static const char *aic3x_left_dac_mux[] = { "DAC_L1", "DAC_L3", "DAC_L2" };
@@ -596,12 +630,9 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			 AIC3X_ASD_INTF_CTRLA, 0, 3, 3, 0),
 
 	/* Mic Bias */
-	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2V",
-			 MICBIAS_CTRL, 6, 3, 1, 0),
-	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2.5V",
-			 MICBIAS_CTRL, 6, 3, 2, 0),
-	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias AVDD",
-			 MICBIAS_CTRL, 6, 3, 3, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", MICBIAS_CTRL, 6, 0,
+			 mic_bias_event,
+			 SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* Output mixers */
 	SND_SOC_DAPM_MIXER("Left Line Mixer", SND_SOC_NOPM, 0, 0,
@@ -1386,6 +1417,24 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	if (aic3x->model == AIC3X_MODEL_3007)
 		snd_soc_add_codec_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
 
+	/* set mic bias voltage */
+	switch (aic3x->micbias_vg) {
+	case AIC3X_MICBIAS_2_0V:
+	case AIC3X_MICBIAS_2_5V:
+	case AIC3X_MICBIAS_AVDDV:
+		snd_soc_update_bits(codec, MICBIAS_CTRL,
+				    MICBIAS_LEVEL_MASK,
+				    (aic3x->micbias_vg) << MICBIAS_LEVEL_SHIFT);
+		break;
+	case AIC3X_MICBIAS_OFF:
+		/*
+		 * noting to do. target won't enter here. This is just to avoid
+		 * compile time warning "warning: enumeration value
+		 * 'AIC3X_MICBIAS_OFF' not handled in switch"
+		 */
+		break;
+	}
+
 	aic3x_add_widgets(codec);
 	list_add(&aic3x->list, &reset_list);
 
@@ -1461,6 +1510,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	struct aic3x_setup_data *ai3x_setup;
 	struct device_node *np = i2c->dev.of_node;
 	int ret;
+	u32 value;
 
 	aic3x = devm_kzalloc(&i2c->dev, sizeof(struct aic3x_priv), GFP_KERNEL);
 	if (aic3x == NULL) {
@@ -1474,6 +1524,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	if (pdata) {
 		aic3x->gpio_reset = pdata->gpio_reset;
 		aic3x->setup = pdata->setup;
+		aic3x->micbias_vg = pdata->micbias_vg;
 	} else if (np) {
 		ai3x_setup = devm_kzalloc(&i2c->dev, sizeof(*ai3x_setup),
 								GFP_KERNEL);
@@ -1491,6 +1542,26 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		if (of_property_read_u32_array(np, "ai3x-gpio-func",
 					ai3x_setup->gpio_func, 2) >= 0) {
 			aic3x->setup = ai3x_setup;
+		}
+
+		if (!of_property_read_u32(np, "ai3x-micbias-vg", &value)) {
+			switch (value) {
+			case 1 :
+				aic3x->micbias_vg = AIC3X_MICBIAS_2_0V;
+				break;
+			case 2 :
+				aic3x->micbias_vg = AIC3X_MICBIAS_2_5V;
+				break;
+			case 3 :
+				aic3x->micbias_vg = AIC3X_MICBIAS_AVDDV;
+				break;
+			default :
+				aic3x->micbias_vg = AIC3X_MICBIAS_OFF;
+				dev_err(&i2c->dev, "Unsuitable MicBias voltage "
+							"found in DT\n");
+			}
+		} else {
+			aic3x->micbias_vg = AIC3X_MICBIAS_OFF;
 		}
 
 	} else {
