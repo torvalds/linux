@@ -26,8 +26,8 @@
 /**
  * adxrs450_spi_read_reg_16() - read 2 bytes from a register pair
  * @dev: device associated with child of actual iio_dev
- * @reg_address: the address of the lower of the two registers,which should be an even address,
- * Second register's address is reg_address + 1.
+ * @reg_address: the address of the lower of the two registers, which should be
+ *	an even address, the second register's address is reg_address + 1.
  * @val: somewhere to pass back the value read
  **/
 static int adxrs450_spi_read_reg_16(struct iio_dev *indio_dev,
@@ -78,8 +78,8 @@ error_ret:
 /**
  * adxrs450_spi_write_reg_16() - write 2 bytes data to a register pair
  * @dev: device associated with child of actual actual iio_dev
- * @reg_address: the address of the lower of the two registers,which should be an even address,
- * Second register's address is reg_address + 1.
+ * @reg_address: the address of the lower of the two registers,which should be
+ *	an even address, the second register's address is reg_address + 1.
  * @val: value to be written.
  **/
 static int adxrs450_spi_write_reg_16(struct iio_dev *indio_dev,
