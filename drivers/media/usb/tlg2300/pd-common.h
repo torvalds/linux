@@ -268,13 +268,4 @@ void set_debug_mode(struct video_device *vfd, int debug_mode);
 				log();\
 		} while (0)
 
-#define logs(f) do { \
-			if ((debug_mode & 0x4) && \
-				(f)->type == V4L2_BUF_TYPE_VBI_CAPTURE) \
-					log("type : VBI");\
-								\
-			if ((debug_mode & 0x8) && \
-				(f)->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) \
-					log("type : VIDEO");\
-		} while (0)
 #endif
