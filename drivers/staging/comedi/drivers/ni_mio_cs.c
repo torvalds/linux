@@ -207,37 +207,62 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 
 #include "ni_mio_common.c"
 
-static struct pcmcia_device *cur_dev;
-
-static int ni_getboardtype(struct comedi_device *dev,
-			   struct pcmcia_device *link)
+static const void *ni_getboardtype(struct comedi_device *dev,
+				   struct pcmcia_device *link)
 {
+	static const struct ni_board_struct *board;
 	int i;
 
-	for (i = 0; i < n_ni_boards; i++) {
-		if (ni_boards[i].device_id == link->card_id)
-			return i;
+	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
+		board = &ni_boards[i];
+		if (board->device_id == link->card_id)
+			return board;
 	}
-
-	dev_err(dev->class_dev,
-		"unknown board 0x%04x -- pretend it is a ", link->card_id);
-
-	return 0;
+	return NULL;
 }
 
-static int mio_cs_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it)
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
+	int base, ret;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+
+	for (base = 0x000; base < 0x400; base += 0x20) {
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
+		if (!ret)
+			return 0;
+	}
+	return -ENODEV;
+}
+
+static int mio_cs_auto_attach(struct comedi_device *dev,
+			      unsigned long context)
+{
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	static const struct ni_board_struct *board;
 	struct ni_private *devpriv;
-	struct pcmcia_device *link;
 	int ret;
 
-	link = cur_dev;		/* XXX hack */
-	if (!link)
-		return -EIO;
+	board = ni_getboardtype(dev, link);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
-	dev->board_name = boardtype.name;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
+	if (ret)
+		return ret;
+
+	if (!link->irq)
+		return -EINVAL;
+
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
 
 	ret = request_irq(link->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
@@ -261,57 +286,25 @@ static int mio_cs_attach(struct comedi_device *dev,
 
 static void mio_cs_detach(struct comedi_device *dev)
 {
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+
 	mio_common_detach(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		pcmcia_disable_device(link);
 }
 
 static struct comedi_driver driver_ni_mio_cs = {
 	.driver_name	= "ni_mio_cs",
 	.module		= THIS_MODULE,
-	.attach		= mio_cs_attach,
+	.auto_attach	= mio_cs_auto_attach,
 	.detach		= mio_cs_detach,
 };
 
-static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
-{
-	int base, ret;
-
-	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-
-	for (base = 0x000; base < 0x400; base += 0x20) {
-		p_dev->resource[0]->start = base;
-		ret = pcmcia_request_io(p_dev);
-		if (!ret)
-			return 0;
-	}
-	return -ENODEV;
-}
-
 static int cs_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	cur_dev = link;
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		return ret;
-	}
-
-	if (!link->irq)
-		dev_info(&link->dev, "no IRQ available\n");
-
-	return pcmcia_enable_device(link);
-}
-
-static void cs_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
+	return comedi_pcmcia_auto_config(link, &driver_ni_mio_cs);
 }
 
 static const struct pcmcia_device_id ni_mio_cs_ids[] = {
@@ -329,7 +322,7 @@ static struct pcmcia_driver ni_mio_cs_driver = {
 	.owner		= THIS_MODULE,
 	.id_table	= ni_mio_cs_ids,
 	.probe		= cs_attach,
-	.remove		= cs_detach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
 module_comedi_pcmcia_driver(driver_ni_mio_cs, ni_mio_cs_driver);
 
