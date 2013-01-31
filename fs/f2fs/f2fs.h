@@ -847,7 +847,6 @@ long f2fs_ioctl(struct file *, unsigned int, unsigned long);
  * inode.c
  */
 void f2fs_set_inode_flags(struct inode *);
-struct inode *f2fs_iget_nowait(struct super_block *, unsigned long);
 struct inode *f2fs_iget(struct super_block *, unsigned long);
 void update_inode(struct inode *, struct page *);
 int f2fs_write_inode(struct inode *, struct writeback_control *);

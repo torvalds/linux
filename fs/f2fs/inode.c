@@ -16,11 +16,6 @@
 #include "f2fs.h"
 #include "node.h"
 
-struct f2fs_iget_args {
-	u64 ino;
-	int on_free;
-};
-
 void f2fs_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = F2FS_I(inode)->i_flags;
@@ -38,34 +33,6 @@ void f2fs_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
-}
-
-static int f2fs_iget_test(struct inode *inode, void *data)
-{
-	struct f2fs_iget_args *args = data;
-
-	if (inode->i_ino != args->ino)
-		return 0;
-	if (inode->i_state & (I_FREEING | I_WILL_FREE)) {
-		args->on_free = 1;
-		return 0;
-	}
-	return 1;
-}
-
-struct inode *f2fs_iget_nowait(struct super_block *sb, unsigned long ino)
-{
-	struct f2fs_iget_args args = {
-		.ino = ino,
-		.on_free = 0
-	};
-	struct inode *inode = ilookup5(sb, ino, f2fs_iget_test, &args);
-
-	if (inode)
-		return inode;
-	if (!args.on_free)
-		return f2fs_iget(sb, ino);
-	return ERR_PTR(-ENOENT);
 }
 
 static int do_read_inode(struct inode *inode)

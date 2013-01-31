@@ -298,8 +298,6 @@ void f2fs_truncate(struct inode *inode)
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
 	}
-
-	f2fs_balance_fs(F2FS_SB(inode->i_sb));
 }
 
 static int f2fs_getattr(struct vfsmount *mnt,
@@ -356,6 +354,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 			attr->ia_size != i_size_read(inode)) {
 		truncate_setsize(inode, attr->ia_size);
 		f2fs_truncate(inode);
+		f2fs_balance_fs(F2FS_SB(inode->i_sb));
 	}
 
 	__setattr_copy(inode, attr);

@@ -579,7 +579,7 @@ next_step:
 		ofs_in_node = le16_to_cpu(entry->ofs_in_node);
 
 		if (phase == 2) {
-			inode = f2fs_iget_nowait(sb, dni.ino);
+			inode = f2fs_iget(sb, dni.ino);
 			if (IS_ERR(inode))
 				continue;
 
