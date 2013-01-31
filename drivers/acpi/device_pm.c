@@ -497,7 +497,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
 	}
@@ -574,7 +574,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(phys_dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(phys_dev, "ACPI handle without context in %s!\n",
 			__func__);
 		return -ENODEV;
@@ -618,7 +618,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
 	}
