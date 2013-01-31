@@ -166,16 +166,13 @@ int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid)
 	return retval;
 }
 
-int v9fs_set_create_acl(struct dentry *dentry,
+int v9fs_set_create_acl(struct inode *inode, struct p9_fid *fid,
 			struct posix_acl *dacl, struct posix_acl *acl)
 {
-	struct p9_fid *fid = v9fs_fid_lookup(dentry);
-	set_cached_acl(dentry->d_inode, ACL_TYPE_DEFAULT, dacl);
-	set_cached_acl(dentry->d_inode, ACL_TYPE_ACCESS, acl);
-	if (!IS_ERR(fid)) {
-		v9fs_set_acl(fid, ACL_TYPE_DEFAULT, dacl);
-		v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
-	}
+	set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
+	set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+	v9fs_set_acl(fid, ACL_TYPE_DEFAULT, dacl);
+	v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
 	return 0;
 }
 
