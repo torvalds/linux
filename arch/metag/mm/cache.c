@@ -42,7 +42,7 @@ static unsigned char icache_sets_log2 = DEFAULT_CACHE_WAYS_LOG2;
  * Probe the L1 cache configuration to aid the L1 physical cache flushing
  * functions.
  */
-void metag_cache_probe(void)
+void __init metag_cache_probe(void)
 {
 #ifndef CONFIG_METAG_META12
 	int coreid = metag_in32(METAC_CORE_ID);
