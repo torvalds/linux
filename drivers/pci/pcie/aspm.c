@@ -634,10 +634,7 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	struct pci_dev *parent = pdev->bus->self;
 	struct pcie_link_state *link, *root, *parent_link;
 
-	if (!pci_is_pcie(pdev) || !parent || !parent->link_state)
-		return;
-	if ((pci_pcie_type(parent) != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (pci_pcie_type(parent) != PCI_EXP_TYPE_DOWNSTREAM))
+	if (!parent || !parent->link_state)
 		return;
 
 	down_read(&pci_bus_sem);
