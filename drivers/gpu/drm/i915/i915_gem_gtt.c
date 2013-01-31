@@ -773,7 +773,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	return ret;
 }
 
-void gen6_gmch_remove(struct drm_device *dev)
+static void gen6_gmch_remove(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	iounmap(dev_priv->gtt.gsm);
