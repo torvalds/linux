@@ -158,7 +158,7 @@ config TEGRA_IOMMU_GART
 
 config TEGRA_IOMMU_SMMU
 	bool "Tegra SMMU IOMMU Support"
-	depends on ARCH_TEGRA_3x_SOC && TEGRA_AHB
+	depends on ARCH_TEGRA && TEGRA_AHB
 	select IOMMU_API
 	help
 	  Enables support for remapping discontiguous physical memory
