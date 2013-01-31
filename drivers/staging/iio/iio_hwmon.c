@@ -55,6 +55,14 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 	return sprintf(buf, "%d\n", result);
 }
 
+static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	return sprintf(buf, "iio_hwmon\n");
+}
+
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
 static int iio_hwmon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -77,7 +85,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		st->num_channels++;
 
 	st->attrs = devm_kzalloc(dev,
-				 sizeof(*st->attrs) * (st->num_channels + 1),
+				 sizeof(*st->attrs) * (st->num_channels + 2),
 				 GFP_KERNEL);
 	if (st->attrs == NULL) {
 		ret = -ENOMEM;
@@ -125,7 +133,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		a->index = i;
 		st->attrs[i] = &a->dev_attr.attr;
 	}
-
+	st->attrs[st->num_channels] = &dev_attr_name.attr;
 	st->attr_group.attrs = st->attrs;
 	platform_set_drvdata(pdev, st);
 	ret = sysfs_create_group(&dev->kobj, &st->attr_group);
