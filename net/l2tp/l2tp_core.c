@@ -101,6 +101,7 @@ struct l2tp_skb_cb {
 
 static atomic_t l2tp_tunnel_count;
 static atomic_t l2tp_session_count;
+static struct workqueue_struct *l2tp_wq;
 
 /* per-net private data for this module */
 static unsigned int l2tp_net_id;
@@ -121,7 +122,6 @@ static inline struct l2tp_net *l2tp_pernet(struct net *net)
 
 	return net_generic(net, l2tp_net_id);
 }
-
 
 /* Tunnel reference counts. Incremented per session that is added to
  * the tunnel.
@@ -1277,6 +1277,7 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
 	struct l2tp_tunnel *tunnel;
+	struct l2tp_net *pn;
 
 	tunnel = sk->sk_user_data;
 	if (tunnel == NULL)
@@ -1284,9 +1285,8 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing...\n", tunnel->name);
 
-	/* Close all sessions */
-	l2tp_tunnel_closeall(tunnel);
 
+	/* Disable udp encapsulation */
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
 		/* No longer an encapsulation socket. See net/ipv4/udp.c */
@@ -1298,17 +1298,23 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	}
 
 	/* Remove hooks into tunnel socket */
-	tunnel->sock = NULL;
 	sk->sk_destruct = tunnel->old_sk_destruct;
 	sk->sk_user_data = NULL;
+	tunnel->sock = NULL;
+
+	/* Remove the tunnel struct from the tunnel list */
+	pn = l2tp_pernet(tunnel->l2tp_net);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_del_rcu(&tunnel->list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	atomic_dec(&l2tp_tunnel_count);
+
+	l2tp_tunnel_closeall(tunnel);
+	l2tp_tunnel_dec_refcount(tunnel);
 
 	/* Call the original destructor */
 	if (sk->sk_destruct)
 		(*sk->sk_destruct)(sk);
-
-	/* We're finished with the socket */
-	l2tp_tunnel_dec_refcount(tunnel);
-
 end:
 	return;
 }
@@ -1382,20 +1388,41 @@ again:
  */
 static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 {
-	struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-
 	BUG_ON(atomic_read(&tunnel->ref_count) != 0);
 	BUG_ON(tunnel->sock != NULL);
-
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: free...\n", tunnel->name);
-
-	/* Remove from tunnel list */
-	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_del_rcu(&tunnel->list);
 	kfree_rcu(tunnel, rcu);
-	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+}
 
-	atomic_dec(&l2tp_tunnel_count);
+/* Workqueue tunnel deletion function */
+static void l2tp_tunnel_del_work(struct work_struct *work)
+{
+	struct l2tp_tunnel *tunnel = NULL;
+	struct socket *sock = NULL;
+	struct sock *sk = NULL;
+
+	tunnel = container_of(work, struct l2tp_tunnel, del_work);
+	sk = l2tp_tunnel_sock_lookup(tunnel);
+	if (!sk)
+		return;
+
+	sock = sk->sk_socket;
+	BUG_ON(!sock);
+
+	/* Force the tunnel socket to close. This will eventually
+	 * cause the tunnel to be deleted via the normal socket close
+	 * mechanisms when userspace closes the tunnel socket.
+	 */
+	inet_shutdown(sock, 2);
+
+	/* If the tunnel's socket was created by the kernel,
+	 * close the socket here since the socket was not
+	 * created by userspace.
+	 */
+	if (sock->file == NULL)
+		inet_release(sock);
+
+	l2tp_tunnel_sock_put(sk);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by
@@ -1657,6 +1684,9 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	sk->sk_allocation = GFP_ATOMIC;
 
+	/* Init delete workqueue struct */
+	INIT_WORK(&tunnel->del_work, l2tp_tunnel_del_work);
+
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
 	atomic_inc(&l2tp_tunnel_count);
@@ -1688,33 +1718,7 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_create);
  */
 int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
-	int err = -EBADF;
-	struct socket *sock = NULL;
-	struct sock *sk = NULL;
-
-	sk = l2tp_tunnel_sock_lookup(tunnel);
-	if (!sk)
-		goto out;
-
-	sock = sk->sk_socket;
-	BUG_ON(!sock);
-
-	/* Force the tunnel socket to close. This will eventually
-	 * cause the tunnel to be deleted via the normal socket close
-	 * mechanisms when userspace closes the tunnel socket.
-	 */
-	err = inet_shutdown(sock, 2);
-
-	/* If the tunnel's socket was created by the kernel,
-	 * close the socket here since the socket was not
-	 * created by userspace.
-	 */
-	if (sock->file == NULL)
-		err = inet_release(sock);
-
-	l2tp_tunnel_sock_put(sk);
-out:
-	return err;
+	return (false == queue_work(l2tp_wq, &tunnel->del_work));
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
 
@@ -1912,6 +1916,13 @@ static int __init l2tp_init(void)
 	if (rc)
 		goto out;
 
+	l2tp_wq = alloc_workqueue("l2tp", WQ_NON_REENTRANT | WQ_UNBOUND, 0);
+	if (!l2tp_wq) {
+		pr_err("alloc_workqueue failed\n");
+		rc = -ENOMEM;
+		goto out;
+	}
+
 	pr_info("L2TP core driver, %s\n", L2TP_DRV_VERSION);
 
 out:
@@ -1921,6 +1932,10 @@ out:
 static void __exit l2tp_exit(void)
 {
 	unregister_pernet_device(&l2tp_net_ops);
+	if (l2tp_wq) {
+		destroy_workqueue(l2tp_wq);
+		l2tp_wq = NULL;
+	}
 }
 
 module_init(l2tp_init);
