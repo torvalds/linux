@@ -1027,7 +1027,7 @@ static s8 fix_rssi_inv_only(u8 rssi_val)
 static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 			   struct ath_rx_status *rs, u64 tsf)
 {
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath_hw *ah = sc->sc_ah;
 	u8 bins[SPECTRAL_HT20_NUM_BINS];
 	u8 *vdata = (u8 *)hdr;
