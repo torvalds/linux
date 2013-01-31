@@ -185,8 +185,10 @@ void zpci_dma_exit(void);
 /* Hotplug */
 extern struct mutex zpci_list_lock;
 extern struct list_head zpci_list;
-extern struct pci_hp_callback_ops hotplug_ops;
 extern unsigned int s390_pci_probe;
+
+void zpci_register_hp_ops(struct pci_hp_callback_ops *);
+void zpci_deregister_hp_ops(void);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);
