@@ -2253,7 +2253,7 @@ static int perf_header__adds_write(struct perf_header *header,
 	if (!nr_sections)
 		return 0;
 
-	feat_sec = p = calloc(sizeof(*feat_sec), nr_sections);
+	feat_sec = p = calloc(nr_sections, sizeof(*feat_sec));
 	if (feat_sec == NULL)
 		return -ENOMEM;
 
@@ -2425,7 +2425,7 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 	if (!nr_sections)
 		return 0;
 
-	feat_sec = sec = calloc(sizeof(*feat_sec), nr_sections);
+	feat_sec = sec = calloc(nr_sections, sizeof(*feat_sec));
 	if (!feat_sec)
 		return -1;
 
