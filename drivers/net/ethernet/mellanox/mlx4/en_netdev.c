@@ -1039,6 +1039,9 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	INIT_LIST_HEAD(&priv->mc_list);
 	INIT_LIST_HEAD(&priv->curr_list);
+	INIT_LIST_HEAD(&priv->ethtool_list);
+	memset(&priv->ethtool_rules[0], 0,
+	       sizeof(struct ethtool_flow_id) * MAX_NUM_OF_FS_RULES);
 
 	/* Calculate Rx buf size */
 	dev->mtu = min(dev->mtu, priv->max_mtu);
@@ -1175,6 +1178,8 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	priv->port_up = true;
 	netif_tx_start_all_queues(dev);
+	netif_device_attach(dev);
+
 	return 0;
 
 tx_err:
@@ -1197,11 +1202,12 @@ cq_err:
 }
 
 
-void mlx4_en_stop_port(struct net_device *dev)
+void mlx4_en_stop_port(struct net_device *dev, int detach)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_mc_list *mclist, *tmp;
+	struct ethtool_flow_id *flow, *tmp_flow;
 	int i;
 	u8 mc_list[16] = {0};
 
@@ -1212,8 +1218,12 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
+	if (detach)
+		netif_device_detach(dev);
 	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
+
+	netif_tx_disable(dev);
 
 	/* Set port as not active */
 	priv->port_up = false;
@@ -1281,7 +1291,19 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Unregister Mac address for the port */
 	mlx4_put_eth_qp(mdev->dev, priv->port, priv->mac, priv->base_qpn);
-	mdev->mac_removed[priv->port] = 1;
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN))
+		mdev->mac_removed[priv->port] = 1;
+
+	/* Remove flow steering rules for the port*/
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ASSERT_RTNL();
+		list_for_each_entry_safe(flow, tmp_flow,
+					 &priv->ethtool_list, list) {
+			mlx4_flow_detach(mdev->dev, flow->id);
+			list_del(&flow->list);
+		}
+	}
 
 	/* Free RX Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -1307,7 +1329,7 @@ static void mlx4_en_restart(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
-		mlx4_en_stop_port(dev);
+		mlx4_en_stop_port(dev, 1);
 		for (i = 0; i < priv->tx_ring_num; i++)
 			netdev_tx_reset_queue(priv->tx_ring[i].tx_queue);
 		if (mlx4_en_start_port(dev))
@@ -1379,7 +1401,7 @@ static int mlx4_en_close(struct net_device *dev)
 
 	mutex_lock(&mdev->state_lock);
 
-	mlx4_en_stop_port(dev);
+	mlx4_en_stop_port(dev, 0);
 	netif_carrier_off(dev);
 
 	mutex_unlock(&mdev->state_lock);
@@ -1517,7 +1539,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 			 * the port */
 			en_dbg(DRV, priv, "Change MTU called with card down!?\n");
 		} else {
-			mlx4_en_stop_port(dev);
+			mlx4_en_stop_port(dev, 1);
 			err = mlx4_en_start_port(dev);
 			if (err) {
 				en_err(priv, "Failed restarting port:%d\n",

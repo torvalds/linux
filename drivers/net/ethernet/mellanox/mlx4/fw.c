@@ -127,7 +127,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[0] = "RSS support",
 		[1] = "RSS Toeplitz Hash Function support",
 		[2] = "RSS XOR Hash Function support",
-		[3] = "Device manage flow steering support"
+		[3] = "Device manage flow steering support",
+		[4] = "Automatic mac reassignment support"
 	};
 	int i;
 
@@ -478,6 +479,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x94
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
+#define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
 
 	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -637,6 +639,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 	MLX4_GET(dev_cap->reserved_lkey, outbox,
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_FW_REASSIGN_MAC);
+	if (field & 1<<6)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN;
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
@@ -1287,14 +1292,14 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		/* Enable Ethernet flow steering
 		 * with udp unicast and tcp unicast
 		 */
-		MLX4_PUT(inbox, param->fs_hash_enable_bits,
+		MLX4_PUT(inbox, (u8) (MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN),
 			 INIT_HCA_FS_ETH_BITS_OFFSET);
 		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
 			 INIT_HCA_FS_ETH_NUM_ADDRS_OFFSET);
 		/* Enable IPoIB flow steering
 		 * with udp unicast and tcp unicast
 		 */
-		MLX4_PUT(inbox, param->fs_hash_enable_bits,
+		MLX4_PUT(inbox, (u8) (MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN),
 			 INIT_HCA_FS_IB_BITS_OFFSET);
 		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
 			 INIT_HCA_FS_IB_NUM_ADDRS_OFFSET);
