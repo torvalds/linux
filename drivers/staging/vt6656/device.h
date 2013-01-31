@@ -53,7 +53,7 @@
 #undef DEVICE_ETHTOOL_IOCTL_SUPPORT
 #endif
 
-//please copy below macro to driver_event.c for API
+/* please copy below macro to driver_event.c for API */
 #define RT_INSMOD_EVENT_FLAG                             0x0101
 #define RT_UPDEV_EVENT_FLAG                               0x0102
 #define RT_DISCONNECTED_EVENT_FLAG               0x0103
@@ -61,9 +61,9 @@
 #define RT_DOWNDEV_EVENT_FLAG                        0x0105
 #define RT_RMMOD_EVENT_FLAG                              0x0106
 
-//
-// device specific
-//
+/*
+ * device specific
+ */
 
 #include "device_cfg.h"
 #include "ttype.h"
@@ -110,7 +110,7 @@
 #define FB_RATE0                0
 #define FB_RATE1                1
 
-// Antenna Mode
+/* Antenna Mode */
 #define ANT_A                   0
 #define ANT_B                   1
 #define ANT_DIVERSITY           2
@@ -125,7 +125,7 @@
 
 #define MAXCHECKHANGCNT         4
 
-//Packet type
+/* Packet type */
 #define TX_PKT_UNI              0x00
 #define TX_PKT_MULTI            0x01
 #define TX_PKT_BROAD            0x02
@@ -137,7 +137,7 @@
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
 
-// DMA related
+/* DMA related */
 #define RESERV_AC0DMA                   4
 
 #define PRIVATE_Message                 0
@@ -161,17 +161,17 @@ typedef enum __device_init_type {
 	DEVICE_INIT_DXPL            /* Dx to D0 power lost init */
 } DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
 
-//USB
+/* USB */
 
-//
-// Enum of context types for SendPacket
-//
+/*
+ * Enum of context types for SendPacket
+ */
 typedef enum _CONTEXT_TYPE {
     CONTEXT_DATA_PACKET = 1,
     CONTEXT_MGMT_PACKET
 } CONTEXT_TYPE;
 
-// RCB (Receive Control Block)
+/* RCB (Receive Control Block) */
 typedef struct _RCB
 {
 	void *Next;
@@ -184,7 +184,7 @@ typedef struct _RCB
 
 } RCB, *PRCB;
 
-// used to track bulk out irps
+/* used to track bulk out irps */
 typedef struct _USB_SEND_CONTEXT {
     void *pDevice;
     struct sk_buff *pPacket;
@@ -207,17 +207,17 @@ typedef struct _DEFAULT_CONFIG {
 	signed int    eEncryptionStatus;
 } DEFAULT_CONFIG, *PDEFAULT_CONFIG;
 
-//
-// Structure to keep track of usb interrupt packets
-//
+/*
+ * Structure to keep track of USB interrupt packets
+ */
 typedef struct {
     unsigned int            uDataLen;
     PBYTE           pDataBuf;
-//    struct urb      *pUrb;
+  /* struct urb *pUrb; */
     BOOL            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
 
-//0:11A 1:11B 2:11G
+/* 0:11A 1:11B 2:11G */
 typedef enum _VIA_BB_TYPE
 {
     BB_TYPE_11A = 0,
@@ -225,7 +225,7 @@ typedef enum _VIA_BB_TYPE
     BB_TYPE_11G
 } VIA_BB_TYPE, *PVIA_BB_TYPE;
 
-//0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
+/* 0:11a, 1:11b, 2:11gb (only CCK in BasicRate), 3:11ga(OFDM in BasicRate) */
 typedef enum _VIA_PKT_TYPE
 {
     PK_TYPE_11A = 0,
@@ -234,7 +234,7 @@ typedef enum _VIA_PKT_TYPE
     PK_TYPE_11GA
 } VIA_PKT_TYPE, *PVIA_PKT_TYPE;
 
-//++ NDIS related
+/*++ NDIS related */
 
 typedef enum __DEVICE_NDIS_STATUS {
     STATUS_SUCCESS = 0,
@@ -245,10 +245,10 @@ typedef enum __DEVICE_NDIS_STATUS {
 
 #define MAX_BSSIDINFO_4_PMKID   16
 #define MAX_PMKIDLIST           5
-//Flags for PMKID Candidate list structure
+/* flags for PMKID Candidate list structure */
 #define NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED	0x01
 
-// PMKID Structures
+/* PMKID Structures */
 typedef unsigned char   NDIS_802_11_PMKID_VALUE[16];
 
 
@@ -272,13 +272,13 @@ typedef enum _NDIS_802_11_WEP_STATUS
 
 typedef enum _NDIS_802_11_STATUS_TYPE
 {
-    Ndis802_11StatusType_Authentication,
-    Ndis802_11StatusType_MediaStreamMode,
-    Ndis802_11StatusType_PMKID_CandidateList,
-    Ndis802_11StatusTypeMax    // not a real type, defined as an upper bound
+	Ndis802_11StatusType_Authentication,
+	Ndis802_11StatusType_MediaStreamMode,
+	Ndis802_11StatusType_PMKID_CandidateList,
+	Ndis802_11StatusTypeMax, /* not a real type, defined as upper bound */
 } NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
 
-//Added new types for PMKID Candidate lists.
+/* added new types for PMKID Candidate lists */
 typedef struct _PMKID_CANDIDATE {
     NDIS_802_11_MAC_ADDRESS BSSID;
     unsigned long Flags;
@@ -304,9 +304,7 @@ typedef struct tagSPMKIDCandidateEvent {
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
-//--
-
-//++ 802.11h related
+/*++ 802.11h related */
 #define MAX_QUIET_COUNT     8
 
 typedef struct tagSQuietControl {
@@ -316,10 +314,7 @@ typedef struct tagSQuietControl {
     WORD        wDuration;
 } SQuietControl, *PSQuietControl;
 
-//--
-
-
-// The receive duplicate detection cache entry
+/* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
     WORD        wFmSequence;
     BYTE        abyAddr2[ETH_ALEN];
@@ -329,13 +324,15 @@ typedef struct tagSCacheEntry{
 typedef struct tagSCache{
 /* The receive cache is updated circularly.  The next entry to be written is
  * indexed by the "InPtr".
-*/
+ */
 	unsigned int uInPtr; /* Place to use next */
     SCacheEntry     asCacheEntry[DUPLICATE_RX_CACHE_LENGTH];
 } SCache, *PSCache;
 
 #define CB_MAX_RX_FRAG                 64
-// DeFragment Control Block, used for collecting fragments prior to reassembly
+/*
+ * DeFragment Control Block, used for collecting fragments prior to reassembly
+ */
 typedef struct tagSDeFragControlBlock
 {
     WORD            wSequence;
@@ -348,24 +345,22 @@ typedef struct tagSDeFragControlBlock
     BOOL            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
 
-
-
-//flags for options
+/* flags for options */
 #define     DEVICE_FLAGS_UNPLUG          0x00000001UL
 #define     DEVICE_FLAGS_PREAMBLE_TYPE   0x00000002UL
 #define     DEVICE_FLAGS_OP_MODE         0x00000004UL
 #define     DEVICE_FLAGS_PS_MODE         0x00000008UL
 #define		DEVICE_FLAGS_80211h_MODE	 0x00000010UL
 
-//flags for driver status
+/* flags for driver status */
 #define     DEVICE_FLAGS_OPENED          0x00010000UL
 #define     DEVICE_FLAGS_WOL_ENABLED     0x00080000UL
-//flags for capbilities
+/* flags for capabilities */
 #define     DEVICE_FLAGS_TX_ALIGN        0x01000000UL
 #define     DEVICE_FLAGS_HAVE_CAM        0x02000000UL
 #define     DEVICE_FLAGS_FLOW_CTRL       0x04000000UL
 
-//flags for MII status
+/* flags for MII status */
 #define     DEVICE_LINK_FAIL             0x00000001UL
 #define     DEVICE_SPEED_10              0x00000002UL
 #define     DEVICE_SPEED_100             0x00000004UL
@@ -373,14 +368,14 @@ typedef struct tagSDeFragControlBlock
 #define     DEVICE_DUPLEX_FULL           0x00000010UL
 #define     DEVICE_AUTONEG_ENABLE        0x00000020UL
 #define     DEVICE_FORCED_BY_EEPROM      0x00000040UL
-//for device_set_media_duplex
+/* for device_set_media_duplex */
 #define     DEVICE_LINK_CHANGE           0x00000001UL
 
 
 typedef struct __device_opt {
-    int         nRxDescs0;    //Number of RX descriptors0
-    int         nTxDescs0;    //Number of TX descriptors 0, 1, 2, 3
-    int         rts_thresh;   //rts threshold
+	int nRxDescs0;  /* number of RX descriptors 0 */
+	int nTxDescs0;  /* number of TX descriptors 0, 1, 2, 3 */
+	int rts_thresh; /* RTS threshold */
     int         frag_thresh;
     int         OpMode;
     int         data_rate;
