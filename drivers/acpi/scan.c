@@ -871,29 +871,23 @@ EXPORT_SYMBOL(acpi_bus_unregister_driver);
    -------------------------------------------------------------------------- */
 static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
 {
+	struct acpi_device *device = NULL;
 	acpi_status status;
-	int ret;
-	struct acpi_device *device;
 
 	/*
 	 * Fixed hardware devices do not appear in the namespace and do not
 	 * have handles, but we fabricate acpi_devices for them, so we have
 	 * to deal with them specially.
 	 */
-	if (handle == NULL)
+	if (!handle)
 		return acpi_root;
 
 	do {
 		status = acpi_get_parent(handle, &handle);
-		if (status == AE_NULL_ENTRY)
-			return NULL;
 		if (ACPI_FAILURE(status))
-			return acpi_root;
-
-		ret = acpi_bus_get_device(handle, &device);
-		if (ret == 0)
-			return device;
-	} while (1);
+			return status == AE_NULL_ENTRY ? NULL : acpi_root;
+	} while (acpi_bus_get_device(handle, &device));
+	return device;
 }
 
 acpi_status
