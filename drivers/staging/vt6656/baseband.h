@@ -42,31 +42,30 @@
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
 
-//
-// Registers in the BASEBAND
-//
+/*
+ * Registers in the BASEBAND
+ */
 #define BB_MAX_CONTEXT_SIZE 256
 
-#define C_SIFS_A      16      // micro sec.
+#define C_SIFS_A      16      /* usec */
 #define C_SIFS_BG     10
 
-#define C_EIFS      80      // micro sec.
+#define C_EIFS      80      /* usec */
 
-
-#define C_SLOT_SHORT   9      // micro sec.
+#define C_SLOT_SHORT   9      /* usec */
 #define C_SLOT_LONG   20
 
-#define C_CWMIN_A     15       // slot time
+#define C_CWMIN_A     15       /* slot time */
 #define C_CWMIN_B     31
 
-#define C_CWMAX      1023     // slot time
+#define C_CWMAX      1023     /* slot time */
 
-//0:11A 1:11B 2:11G
+/* 0:11A 1:11B 2:11G */
 #define BB_TYPE_11A    0
 #define BB_TYPE_11B    1
 #define BB_TYPE_11G    2
 
-//0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
+/* 0:11a, 1:11b, 2:11gb (only CCK in BasicRate), 3:11ga (OFDM in BasicRate) */
 #define PK_TYPE_11A     0
 #define PK_TYPE_11B     1
 #define PK_TYPE_11GB    2
@@ -108,7 +107,7 @@ void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
 	u16 wRate, u8 byPacketType, u16 *pwPhyLen, u8 *pbyPhySrv,
 	u8 *pbyPhySgn);
 
-// timer for antenna diversity
+/* timer for antenna diversity */
 
 void TimerSQ3CallBack(struct vnt_private *);
 void TimerSQ3Tmax3CallBack(struct vnt_private *);
