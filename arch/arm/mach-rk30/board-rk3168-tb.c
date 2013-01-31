@@ -1576,19 +1576,34 @@ static struct pmu_info  act8846_dcdc_info[] = {
 		.name          = "vdd_core",    //logic
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  1000000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		.suspend_vol  =  1200000,
+		#else
+		.suspend_vol  =  900000,
+		#endif
+
 	},
 	{
 		.name          = "vdd_cpu",   //arm
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
-		.suspend_vol  =  1000000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		.suspend_vol  =  1200000,
+		#else
+		.suspend_vol  =  900000,
+		#endif
+
 	},
 	{
 		.name          = "act_dcdc4",   //vccio
 		.min_uv          = 3000000,
 		.max_uv         = 3000000,
+		#ifdef CONFIG_ACT8846_SUPPORT_RESET
 		.suspend_vol  =  3000000,
+		#else
+		.suspend_vol  =  2800000,
+		#endif
+
 	},
 	
 };
