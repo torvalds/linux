@@ -128,8 +128,11 @@ static int __init intc_of_init(struct device_node *node,
 {
 	struct resource res;
 	struct irq_domain *domain;
+	int irq;
 
-	mips_cpu_irq_init();
+	irq = irq_of_parse_and_map(node, 0);
+	if (!irq)
+		panic("Failed to get INTC IRQ");
 
 	if (of_address_to_resource(node, 0, &res))
 		panic("Failed to get intc memory range");
@@ -156,8 +159,8 @@ static int __init intc_of_init(struct device_node *node,
 
 	rt_intc_w32(INTC_INT_GLOBAL, INTC_REG_ENABLE);
 
-	irq_set_chained_handler(RALINK_CPU_IRQ_INTC, ralink_intc_irq_handler);
-	irq_set_handler_data(RALINK_CPU_IRQ_INTC, domain);
+	irq_set_chained_handler(irq, ralink_intc_irq_handler);
+	irq_set_handler_data(irq, domain);
 
 	cp0_perfcount_irq = irq_create_mapping(domain, 9);
 
@@ -165,6 +168,7 @@ static int __init intc_of_init(struct device_node *node,
 }
 
 static struct of_device_id __initdata of_irq_ids[] = {
+	{ .compatible = "mti,cpu-interrupt-controller", .data = mips_cpu_intc_init },
 	{ .compatible = "ralink,rt2880-intc", .data = intc_of_init },
 	{},
 };

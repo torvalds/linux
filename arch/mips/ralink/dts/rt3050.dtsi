@@ -13,6 +13,13 @@
 		bootargs = "console=ttyS0,57600 init=/init";
 	};
 
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
 	palmbus@10000000 {
 		compatible = "palmbus";
 		reg = <0x10000000 0x200000>;
@@ -37,6 +44,9 @@
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
 		};
 
 		memc@300 {
