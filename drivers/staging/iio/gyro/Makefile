@@ -11,5 +11,4 @@ obj-$(CONFIG_ADIS16130) += adis16130.o
 adis16260-y             := adis16260_core.o
 obj-$(CONFIG_ADIS16260) += adis16260.o
 
-adxrs450-y             := adxrs450_core.o
 obj-$(CONFIG_ADXRS450) += adxrs450.o
