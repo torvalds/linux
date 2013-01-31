@@ -45,6 +45,8 @@
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x2133 /* MX28_PAD_SSP2_D3__GPIO_2_19 */
+						0x3183 /* MX28_PAD_I2C0_SCL__GPIO_3_24 */
+						0x3193 /* MX28_PAD_I2C0_SDA__GPIO_3_25 */
 						0x31a3 /* MX28_PAD_SAIF_SDATA0__GPIO_3_26 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
 					>;
@@ -288,6 +290,13 @@
 			debounce-interval = <10>;
 			linux,code = <28>;
 		};
+	};
+
+	rotary {
+		compatible = "rotary-encoder";
+		gpios = <&gpio3 24 1>, <&gpio3 25 1>;
+		linux,axis = <1>; /* REL_Y */
+		rotary-encoder,relative-axis;
 	};
 
 	backlight {
