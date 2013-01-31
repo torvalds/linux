@@ -23,6 +23,7 @@
 #include "acl.h"
 #include "v9fs.h"
 #include "v9fs_vfs.h"
+#include "fid.h"
 
 static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 {
@@ -113,7 +114,7 @@ struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
 
 }
 
-static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)
+static int v9fs_set_acl(struct p9_fid *fid, int type, struct posix_acl *acl)
 {
 	int retval;
 	char *name;
@@ -140,7 +141,7 @@ static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)
 	default:
 		BUG();
 	}
-	retval = v9fs_xattr_set(dentry, name, buffer, size, 0);
+	retval = v9fs_fid_xattr_set(fid, name, buffer, size, 0);
 err_free_out:
 	kfree(buffer);
 	return retval;
@@ -151,16 +152,19 @@ int v9fs_acl_chmod(struct dentry *dentry)
 	int retval = 0;
 	struct posix_acl *acl;
 	struct inode *inode = dentry->d_inode;
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
 	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
 		retval = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 		if (retval)
 			return retval;
 		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
-		retval = v9fs_set_acl(dentry, ACL_TYPE_ACCESS, acl);
+		retval = v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
 	}
 	return retval;
@@ -170,10 +174,13 @@ int v9fs_set_create_acl(struct dentry *dentry,
 			struct posix_acl **dpacl, struct posix_acl **pacl)
 {
 	if (dentry) {
+		struct p9_fid *fid = v9fs_fid_lookup(dentry);
 		set_cached_acl(dentry->d_inode, ACL_TYPE_DEFAULT, *dpacl);
-		v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, *dpacl);
 		set_cached_acl(dentry->d_inode, ACL_TYPE_ACCESS, *pacl);
-		v9fs_set_acl(dentry, ACL_TYPE_ACCESS, *pacl);
+		if (!IS_ERR(fid)) {
+			v9fs_set_acl(fid, ACL_TYPE_DEFAULT, *dpacl);
+			v9fs_set_acl(fid, ACL_TYPE_ACCESS, *pacl);
+		}
 	}
 	posix_acl_release(*dpacl);
 	posix_acl_release(*pacl);
