@@ -3565,35 +3565,16 @@ static void btrfs_destroy_ordered_operations(struct btrfs_root *root)
 
 static void btrfs_destroy_ordered_extents(struct btrfs_root *root)
 {
-	struct list_head splice;
 	struct btrfs_ordered_extent *ordered;
-	struct inode *inode;
-
-	INIT_LIST_HEAD(&splice);
 
 	spin_lock(&root->fs_info->ordered_extent_lock);
-
-	list_splice_init(&root->fs_info->ordered_extents, &splice);
-	while (!list_empty(&splice)) {
-		ordered = list_entry(splice.next, struct btrfs_ordered_extent,
-				     root_extent_list);
-
-		list_del_init(&ordered->root_extent_list);
-		atomic_inc(&ordered->refs);
-
-		/* the inode may be getting freed (in sys_unlink path). */
-		inode = igrab(ordered->inode);
-
-		spin_unlock(&root->fs_info->ordered_extent_lock);
-		if (inode)
-			iput(inode);
-
-		atomic_set(&ordered->refs, 1);
-		btrfs_put_ordered_extent(ordered);
-
-		spin_lock(&root->fs_info->ordered_extent_lock);
-	}
-
+	/*
+	 * This will just short circuit the ordered completion stuff which will
+	 * make sure the ordered extent gets properly cleaned up.
+	 */
+	list_for_each_entry(ordered, &root->fs_info->ordered_extents,
+			    root_extent_list)
+		set_bit(BTRFS_ORDERED_IOERR, &ordered->flags);
 	spin_unlock(&root->fs_info->ordered_extent_lock);
 }
 
