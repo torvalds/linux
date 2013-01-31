@@ -130,7 +130,6 @@ struct dbs_data {
 	#define GOV_CONSERVATIVE	1
 	int governor;
 	unsigned int min_sampling_rate;
-	unsigned int enable; /* number of CPUs using this policy */
 	struct attribute_group *attr_group;
 	void *tuners;
 
