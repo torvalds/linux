@@ -331,7 +331,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	d_instantiate(dentry, inode);
 
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, &dacl, &pacl);
+	v9fs_set_create_acl(dentry, dacl, pacl);
 
 	v9inode = V9FS_I(inode);
 	mutex_lock(&v9inode->v_mutex);
@@ -364,6 +364,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 #endif
 	*opened |= FILE_CREATED;
 out:
+	v9fs_put_acl(dacl, pacl);
 	dput(res);
 	return err;
 
@@ -373,7 +374,6 @@ error:
 err_clunk_old_fid:
 	if (ofid)
 		p9_client_clunk(ofid);
-	v9fs_set_create_acl(NULL, &dacl, &pacl);
 	goto out;
 }
 
@@ -467,13 +467,13 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 		d_instantiate(dentry, inode);
 	}
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, &dacl, &pacl);
+	v9fs_set_create_acl(dentry, dacl, pacl);
 	inc_nlink(dir);
 	v9fs_invalidate_inode_attr(dir);
 error:
 	if (fid)
 		p9_client_clunk(fid);
-	v9fs_set_create_acl(NULL, &dacl, &pacl);
+	v9fs_put_acl(dacl, pacl);
 	return err;
 }
 
@@ -912,11 +912,11 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		d_instantiate(dentry, inode);
 	}
 	/* Now set the ACL based on the default value */
-	v9fs_set_create_acl(dentry, &dacl, &pacl);
+	v9fs_set_create_acl(dentry, dacl, pacl);
 error:
 	if (fid)
 		p9_client_clunk(fid);
-	v9fs_set_create_acl(NULL, &dacl, &pacl);
+	v9fs_put_acl(dacl, pacl);
 	return err;
 }
 

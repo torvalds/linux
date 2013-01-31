@@ -167,21 +167,23 @@ int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid)
 }
 
 int v9fs_set_create_acl(struct dentry *dentry,
-			struct posix_acl **dpacl, struct posix_acl **pacl)
+			struct posix_acl *dacl, struct posix_acl *acl)
 {
-	if (dentry) {
-		struct p9_fid *fid = v9fs_fid_lookup(dentry);
-		set_cached_acl(dentry->d_inode, ACL_TYPE_DEFAULT, *dpacl);
-		set_cached_acl(dentry->d_inode, ACL_TYPE_ACCESS, *pacl);
-		if (!IS_ERR(fid)) {
-			v9fs_set_acl(fid, ACL_TYPE_DEFAULT, *dpacl);
-			v9fs_set_acl(fid, ACL_TYPE_ACCESS, *pacl);
-		}
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
+	set_cached_acl(dentry->d_inode, ACL_TYPE_DEFAULT, dacl);
+	set_cached_acl(dentry->d_inode, ACL_TYPE_ACCESS, acl);
+	if (!IS_ERR(fid)) {
+		v9fs_set_acl(fid, ACL_TYPE_DEFAULT, dacl);
+		v9fs_set_acl(fid, ACL_TYPE_ACCESS, acl);
 	}
-	posix_acl_release(*dpacl);
-	posix_acl_release(*pacl);
-	*dpacl = *pacl = NULL;
 	return 0;
+}
+
+void v9fs_put_acl(struct posix_acl *dacl,
+		  struct posix_acl *acl)
+{
+	posix_acl_release(dacl);
+	posix_acl_release(acl);
 }
 
 int v9fs_acl_mode(struct inode *dir, umode_t *modep,
