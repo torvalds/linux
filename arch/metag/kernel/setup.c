@@ -5,43 +5,43 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/console.h>
-#include <linux/genhd.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/init.h>
 #include <linux/bootmem.h>
-#include <linux/root_dev.h>
-#include <linux/initrd.h>
-#include <linux/seq_file.h>
-#include <linux/pfn.h>
-#include <linux/start_kernel.h>
+#include <linux/console.h>
 #include <linux/cpu.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/genhd.h>
+#include <linux/init.h>
+#include <linux/initrd.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/memblock.h>
+#include <linux/mm.h>
 #include <linux/of_fdt.h>
+#include <linux/pfn.h>
+#include <linux/root_dev.h>
+#include <linux/sched.h>
+#include <linux/seq_file.h>
+#include <linux/start_kernel.h>
+#include <linux/string.h>
 
 #include <asm/cachepart.h>
 #include <asm/clock.h>
+#include <asm/core_reg.h>
+#include <asm/cpu.h>
+#include <asm/da.h>
+#include <asm/highmem.h>
+#include <asm/hwthread.h>
+#include <asm/l2cache.h>
+#include <asm/mach/arch.h>
+#include <asm/mmu.h>
+#include <asm/mmzone.h>
+#include <asm/processor.h>
+#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
-#include <asm/processor.h>
 #include <asm/traps.h>
-#include <asm/mmu.h>
-#include <asm/cpu.h>
-#include <asm/hwthread.h>
-#include <asm/mmzone.h>
-#include <asm/l2cache.h>
-#include <asm/da.h>
-#include <asm/prom.h>
-#include <asm/mach/arch.h>
-#include <asm/core_reg.h>
-#include <asm/highmem.h>
 
 /* PRIV protect as many registers as possible. */
 #define DEFAULT_PRIV	0xff0f7f00
