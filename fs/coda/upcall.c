@@ -50,8 +50,8 @@ static void *alloc_upcall(int opcode, int size)
 		return ERR_PTR(-ENOMEM);
 
         inp->ih.opcode = opcode;
-	inp->ih.pid = current->pid;
-	inp->ih.pgid = task_pgrp_nr(current);
+	inp->ih.pid = task_pid_nr_ns(current, &init_pid_ns);
+	inp->ih.pgid = task_pgrp_nr_ns(current, &init_pid_ns);
 	inp->ih.uid = current_fsuid();
 
 	return (void*)inp;

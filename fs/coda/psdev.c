@@ -37,6 +37,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/pid_namespace.h>
 #include <asm/io.h>
 #include <asm/poll.h>
 #include <asm/uaccess.h>
@@ -265,6 +266,9 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 {
 	struct venus_comm *vcp;
 	int idx, err;
+
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	idx = iminor(inode);
 	if (idx < 0 || idx >= MAX_CODADEVS)

@@ -20,6 +20,7 @@
 #include <linux/file.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/uaccess.h>
 
@@ -156,6 +157,9 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	struct CodaFid fid;
 	int error;
 	int idx;
+
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	idx = get_device_index((struct coda_mount_data *) data);
 
