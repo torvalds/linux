@@ -335,7 +335,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 {
 	int ret = 0;
 	s32 data;
-	char rxbuf[2];
+	u8 rxbuf[2];
 	struct max1363_state *st = iio_priv(indio_dev);
 	struct i2c_client *client = st->client;
 
@@ -367,7 +367,8 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 			ret = data;
 			goto error_ret;
 		}
-		data = (s32)(rxbuf[1]) | ((s32)(rxbuf[0] & 0x0F)) << 8;
+		data = (rxbuf[1] | rxbuf[0] << 8) &
+		  ((1 << st->chip_info->bits) - 1);
 	} else {
 		/* Get reading */
 		data = i2c_master_recv(client, rxbuf, 1);
