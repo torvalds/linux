@@ -825,7 +825,7 @@ static ssize_t show_docked(struct device *dev,
 
 	struct dock_station *dock_station = dev->platform_data;
 
-	if (ACPI_SUCCESS(acpi_bus_get_device(dock_station->handle, &tmp)))
+	if (!acpi_bus_get_device(dock_station->handle, &tmp))
 		return snprintf(buf, PAGE_SIZE, "1\n");
 	return snprintf(buf, PAGE_SIZE, "0\n");
 }
