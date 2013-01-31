@@ -635,6 +635,7 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
 		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
+		fp->protocol = protocol;
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 		fp->channels = num_channels;
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
@@ -676,7 +677,7 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		}
 
 		/* ok, let's parse further... */
-		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream, alts) < 0) {
+		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream) < 0) {
 			kfree(fp->rate_table);
 			kfree(fp->chmap);
 			kfree(fp);

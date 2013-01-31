@@ -202,13 +202,11 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 		       struct usb_host_interface *alts,
 		       struct audioformat *fmt)
 {
-	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
-
 	/* if endpoint doesn't have pitch control, bail out */
 	if (!(fmt->attributes & UAC_EP_CS_ATTR_PITCH_CONTROL))
 		return 0;
 
-	switch (altsd->bInterfaceProtocol) {
+	switch (fmt->protocol) {
 	case UAC_VERSION_1:
 	default:
 		return init_pitch_v1(chip, iface, alts, fmt);
