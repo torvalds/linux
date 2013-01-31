@@ -208,6 +208,7 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 	adc->lp = lp;
 	platform_set_drvdata(pdev, indio_dev);
 
+	indio_dev->dev.of_node = pdev->dev.of_node;
 	ret = lp8788_iio_map_register(indio_dev, lp->pdata, adc);
 	if (ret)
 		goto err_iio_map;
