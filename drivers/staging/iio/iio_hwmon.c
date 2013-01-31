@@ -165,10 +165,16 @@ static int iio_hwmon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id iio_hwmon_of_match[] = {
+	{ .compatible = "iio-hwmon", },
+	{ }
+};
+
 static struct platform_driver __refdata iio_hwmon_driver = {
 	.driver = {
 		.name = "iio_hwmon",
 		.owner = THIS_MODULE,
+		.of_match_table = iio_hwmon_of_match,
 	},
 	.probe = iio_hwmon_probe,
 	.remove = iio_hwmon_remove,
