@@ -177,15 +177,6 @@ config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
 	help
 	  PPA routine service ID for setting L2 auxiliary control register.
 
-config OMAP_32K_TIMER_HZ
-	int "Kernel internal timer frequency for 32KHz timer"
-	range 32 1024
-	depends on OMAP_32K_TIMER
-	default "128"
-	help
-	  Kernel internal timer frequency should be a divisor of 32768,
-	  such as 64 or 128.
-
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
 	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
