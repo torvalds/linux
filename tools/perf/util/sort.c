@@ -249,7 +249,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 					size_t size,
 					unsigned int width __maybe_unused)
 {
-	FILE *fp;
+	FILE *fp = NULL;
 	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
 	size_t line_len;
 
@@ -270,7 +270,6 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 
 	if (getline(&path, &line_len, fp) < 0 || !line_len)
 		goto out_ip;
-	fclose(fp);
 	self->srcline = strdup(path);
 	if (self->srcline == NULL)
 		goto out_ip;
@@ -280,8 +279,12 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 		*nl = '\0';
 	path = self->srcline;
 out_path:
+	if (fp)
+		pclose(fp);
 	return repsep_snprintf(bf, size, "%s", path);
 out_ip:
+	if (fp)
+		pclose(fp);
 	return repsep_snprintf(bf, size, "%-#*llx", BITS_PER_LONG / 4, self->ip);
 }
 

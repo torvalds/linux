@@ -313,7 +313,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	if (is_kallsyms) {
 		if (symbol_conf.kptr_restrict) {
 			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
-			return 0;
+			err = 0;
+			goto out_free;
 		}
 		realname = (char *) name;
 	} else
@@ -954,6 +955,7 @@ static int write_topo_node(int fd, int node)
 	}
 
 	fclose(fp);
+	fp = NULL;
 
 	ret = do_write(fd, &mem_total, sizeof(u64));
 	if (ret)
@@ -980,7 +982,8 @@ static int write_topo_node(int fd, int node)
 	ret = do_write_string(fd, buf);
 done:
 	free(buf);
-	fclose(fp);
+	if (fp)
+		fclose(fp);
 	return ret;
 }
 
@@ -2921,16 +2924,22 @@ int perf_event__process_tracing_data(union perf_event *event,
 				 session->repipe);
 	padding = PERF_ALIGN(size_read, sizeof(u64)) - size_read;
 
-	if (readn(session->fd, buf, padding) < 0)
-		die("reading input file");
+	if (readn(session->fd, buf, padding) < 0) {
+		pr_err("%s: reading input file", __func__);
+		return -1;
+	}
 	if (session->repipe) {
 		int retw = write(STDOUT_FILENO, buf, padding);
-		if (retw <= 0 || retw != padding)
-			die("repiping tracing data padding");
+		if (retw <= 0 || retw != padding) {
+			pr_err("%s: repiping tracing data padding", __func__);
+			return -1;
+		}
 	}
 
-	if (size_read + padding != size)
-		die("tracing data size mismatch");
+	if (size_read + padding != size) {
+		pr_err("%s: tracing data size mismatch", __func__);
+		return -1;
+	}
 
 	perf_evlist__prepare_tracepoint_events(session->evlist,
 					       session->pevent);

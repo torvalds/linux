@@ -98,6 +98,7 @@ int test__open_syscall_event_on_all_cpus(void)
 		}
 	}
 
+	perf_evsel__free_counts(evsel);
 out_close_fd:
 	perf_evsel__close_fd(evsel, 1, threads->nr);
 out_evsel_delete:
