@@ -274,7 +274,7 @@ config COMEDI_DAS08_ISA
 	  DAS08/JR-16-AO, PC104-DAS08, DAS08/JR/16.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called das08.
+	  called das08_isa.
 
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
@@ -802,7 +802,7 @@ config COMEDI_DAS08_PCI
 	  Enable support for PCI DAS-08 cards.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called das08.
+	  called das08_pci.
 
 config COMEDI_DT3000
 	tristate "Data Translation DT3000 series support"

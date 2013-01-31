@@ -60,7 +60,6 @@ static const struct das08_board_struct das08_cs_boards[] = {
 	{
 		.name		= "pcm-das08",
 		.id		= 0x0,	/*  XXX */
-		.bustype	= pcmcia,
 		.ai_nbits	= 12,
 		.ai_pg		= das08_bipolar5,
 		.ai_encoding	= das08_pcm_encode12,
