@@ -2022,10 +2022,22 @@ out:
 	if (trans)
 		btrfs_end_transaction(trans, root);
 
-	if (ret)
+	if (ret) {
 		clear_extent_uptodate(io_tree, ordered_extent->file_offset,
 				      ordered_extent->file_offset +
 				      ordered_extent->len - 1, NULL, GFP_NOFS);
+
+		/*
+		 * If the ordered extent had an IOERR or something else went
+		 * wrong we need to return the space for this ordered extent
+		 * back to the allocator.
+		 */
+		if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags) &&
+		    !test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags))
+			btrfs_free_reserved_extent(root, ordered_extent->start,
+						   ordered_extent->disk_len);
+	}
+
 
 	/*
 	 * This needs to be done to make sure anybody waiting knows we are done
