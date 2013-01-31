@@ -27,6 +27,7 @@
 #include <core/namedb.h>
 #include <core/gpuobj.h>
 #include <core/engctx.h>
+#include <core/event.h>
 #include <core/class.h>
 #include <core/math.h>
 #include <core/enum.h>
@@ -554,11 +555,31 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 		stat &= ~0x40000000;
 	}
 
+	if (stat & 0x80000000) {
+		nouveau_event_trigger(priv->base.uevent, 0);
+		nv_wr32(priv, 0x002100, 0x80000000);
+		stat &= ~0x80000000;
+	}
+
 	if (stat) {
 		nv_fatal(priv, "unhandled status 0x%08x\n", stat);
 		nv_wr32(priv, 0x002100, stat);
 		nv_wr32(priv, 0x002140, 0);
 	}
+}
+
+static void
+nve0_fifo_uevent_enable(struct nouveau_event *event, int index)
+{
+	struct nve0_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
+}
+
+static void
+nve0_fifo_uevent_disable(struct nouveau_event *event, int index)
+{
+	struct nve0_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);
 }
 
 static int
@@ -583,6 +604,10 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 				&priv->user.bar);
 	if (ret)
 		return ret;
+
+	priv->base.uevent->enable = nve0_fifo_uevent_enable;
+	priv->base.uevent->disable = nve0_fifo_uevent_disable;
+	priv->base.uevent->priv = priv;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nve0_fifo_intr;
@@ -634,7 +659,7 @@ nve0_fifo_init(struct nouveau_object *object)
 
 	nv_wr32(priv, 0x002a00, 0xffffffff);
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xbfffffff);
+	nv_wr32(priv, 0x002140, 0x3fffffff);
 	return 0;
 }
 

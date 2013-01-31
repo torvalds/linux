@@ -65,6 +65,8 @@ struct nouveau_fifo_base {
 struct nouveau_fifo {
 	struct nouveau_engine base;
 
+	struct nouveau_event *uevent;
+
 	struct nouveau_object **channel;
 	spinlock_t lock;
 	u16 min;

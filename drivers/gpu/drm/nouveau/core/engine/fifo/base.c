@@ -25,6 +25,7 @@
 #include <core/client.h>
 #include <core/object.h>
 #include <core/handle.h>
+#include <core/event.h>
 #include <core/class.h>
 
 #include <engine/dmaobj.h>
@@ -165,6 +166,7 @@ void
 nouveau_fifo_destroy(struct nouveau_fifo *priv)
 {
 	kfree(priv->channel);
+	nouveau_event_destroy(&priv->uevent);
 	nouveau_engine_destroy(&priv->base);
 }
 
@@ -188,6 +190,10 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	priv->channel = kzalloc(sizeof(*priv->channel) * (max + 1), GFP_KERNEL);
 	if (!priv->channel)
 		return -ENOMEM;
+
+	ret = nouveau_event_create(1, &priv->uevent);
+	if (ret)
+		return ret;
 
 	priv->chid = nouveau_fifo_chid;
 	spin_lock_init(&priv->lock);
