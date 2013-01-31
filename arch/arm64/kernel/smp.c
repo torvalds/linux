@@ -53,7 +53,7 @@
  * where to place its SVC stack
  */
 struct secondary_data secondary_data;
-volatile unsigned long secondary_holding_pen_release = -1;
+volatile unsigned long secondary_holding_pen_release = INVALID_HWID;
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
@@ -70,7 +70,7 @@ static DEFINE_RAW_SPINLOCK(boot_lock);
  * in coherency or not.  This is necessary for the hotplug code to work
  * reliably.
  */
-static void __cpuinit write_pen_release(int val)
+static void __cpuinit write_pen_release(u64 val)
 {
 	void *start = (void *)&secondary_holding_pen_release;
 	unsigned long size = sizeof(secondary_holding_pen_release);
@@ -105,7 +105,7 @@ static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
-		if (secondary_holding_pen_release == -1UL)
+		if (secondary_holding_pen_release == INVALID_HWID)
 			break;
 		udelay(10);
 	}
@@ -116,7 +116,7 @@ static int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	raw_spin_unlock(&boot_lock);
 
-	return secondary_holding_pen_release != -1 ? -ENOSYS : 0;
+	return secondary_holding_pen_release != INVALID_HWID ? -ENOSYS : 0;
 }
 
 static DECLARE_COMPLETION(cpu_running);
@@ -190,7 +190,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * Let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	write_pen_release(-1);
+	write_pen_release(INVALID_HWID);
 
 	/*
 	 * Synchronise with the boot thread.

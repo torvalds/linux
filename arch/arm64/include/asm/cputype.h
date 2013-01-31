@@ -26,6 +26,8 @@
 #define ID_AA64ISAR0_EL1	"id_aa64isar0_el1"
 #define ID_AA64MMFR0_EL1	"id_aa64mmfr0_el1"
 
+#define INVALID_HWID		ULONG_MAX
+
 #define read_cpuid(reg) ({						\
 	u64 __val;							\
 	asm("mrs	%0, " reg : "=r" (__val));			\
