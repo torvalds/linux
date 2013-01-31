@@ -454,6 +454,9 @@ static void fw_load_abort(struct firmware_priv *fw_priv)
 	complete_all(&buf->completion);
 }
 
+#define is_fw_load_aborted(buf)	\
+	test_bit(FW_STATUS_ABORT, &(buf)->status)
+
 static ssize_t firmware_timeout_show(struct class *class,
 				     struct class_attribute *attr,
 				     char *buf)
@@ -891,6 +894,10 @@ fw_load_from_user_helper(struct firmware *firmware, const char *name,
 {
 	return -ENOENT;
 }
+
+/* No abort during direct loading */
+#define is_fw_load_aborted(buf) false
+
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
 
@@ -901,7 +908,7 @@ static int sync_cached_firmware_buf(struct firmware_buf *buf)
 
 	mutex_lock(&fw_lock);
 	while (!test_bit(FW_STATUS_DONE, &buf->status)) {
-		if (test_bit(FW_STATUS_ABORT, &buf->status)) {
+		if (is_fw_load_aborted(buf)) {
 			ret = -ENOENT;
 			break;
 		}
@@ -963,7 +970,7 @@ static int assign_firmware_buf(struct firmware *fw, struct device *device)
 	struct firmware_buf *buf = fw->priv;
 
 	mutex_lock(&fw_lock);
-	if (!buf->size || test_bit(FW_STATUS_ABORT, &buf->status)) {
+	if (!buf->size || is_fw_load_aborted(buf)) {
 		mutex_unlock(&fw_lock);
 		return -ENOENT;
 	}
