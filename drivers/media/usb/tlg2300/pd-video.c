@@ -142,17 +142,23 @@ static int get_audio_std(v4l2_std_id v4l2_std)
 static int vidioc_querycap(struct file *file, void *fh,
 			struct v4l2_capability *cap)
 {
+	struct video_device *vdev = video_devdata(file);
+	struct poseidon *p = video_get_drvdata(vdev);
 	struct front_face *front = fh;
-	struct poseidon *p = front->pd;
 
 	logs(front);
 
 	strcpy(cap->driver, "tele-video");
 	strcpy(cap->card, "Telegent Poseidon");
 	usb_make_path(p->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
-				V4L2_CAP_AUDIO | V4L2_CAP_STREAMING |
-				V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
+	cap->device_caps = V4L2_CAP_TUNER | V4L2_CAP_AUDIO |
+			V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	if (vdev->vfl_type == VFL_TYPE_VBI)
+		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
+	else
+		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
+		V4L2_CAP_RADIO | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE;
 	return 0;
 }
 
