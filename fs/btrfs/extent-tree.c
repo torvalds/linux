@@ -5541,7 +5541,6 @@ wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
 				u64 num_bytes)
 {
 	struct btrfs_caching_control *caching_ctl;
-	DEFINE_WAIT(wait);
 
 	caching_ctl = get_caching_control(cache);
 	if (!caching_ctl)
@@ -5558,7 +5557,6 @@ static noinline int
 wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_caching_control *caching_ctl;
-	DEFINE_WAIT(wait);
 
 	caching_ctl = get_caching_control(cache);
 	if (!caching_ctl)
