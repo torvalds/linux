@@ -29,7 +29,7 @@ struct ceph_vxattr {
 	size_t name_size;	/* strlen(name) + 1 (for '\0') */
 	size_t (*getxattr_cb)(struct ceph_inode_info *ci, char *val,
 			      size_t size);
-	bool readonly;
+	bool readonly, hidden;
 };
 
 /* directories */
@@ -85,13 +85,14 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 
-#define XATTR_NAME_CEPH(_type, _name) \
-		{ \
-			.name = CEPH_XATTR_NAME(_type, _name), \
-			.name_size = sizeof (CEPH_XATTR_NAME(_type, _name)), \
-			.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
-			.readonly = true, \
-		}
+#define XATTR_NAME_CEPH(_type, _name)					\
+	{								\
+		.name = CEPH_XATTR_NAME(_type, _name),			\
+		.name_size = sizeof (CEPH_XATTR_NAME(_type, _name)), \
+		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
+		.readonly = true,				\
+		.hidden = false,				\
+	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_NAME_CEPH(dir, entries),
@@ -157,7 +158,8 @@ static size_t __init vxattrs_name_size(struct ceph_vxattr *vxattrs)
 	size_t size = 0;
 
 	for (vxattr = vxattrs; vxattr->name; vxattr++)
-		size += vxattr->name_size;
+		if (!vxattr->hidden)
+			size += vxattr->name_size;
 
 	return size;
 }
