@@ -3965,6 +3965,44 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	return 0;
 }
 
+static const hda_nid_t stac92hd95_pwr_nids[] = {
+	0x0a, 0x0b, 0x0c, 0x0d
+};
+
+static int patch_stac92hd95(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec;
+	int err;
+
+	err = alloc_stac_spec(codec);
+	if (err < 0)
+		return err;
+
+	codec->epss = 0; /* longer delay needed for D3 */
+
+	spec = codec->spec;
+	spec->linear_tone_beep = 0;
+	spec->gen.own_eapd_ctl = 1;
+	spec->gen.power_down_unused = 1;
+
+	spec->digbeep_nid = 0x19;
+	spec->pwr_nids = stac92hd95_pwr_nids;
+	spec->num_pwrs = ARRAY_SIZE(stac92hd95_pwr_nids);
+	spec->default_polarity = -1; /* no default cfg */
+
+	codec->patch_ops = stac_patch_ops;
+
+	err = stac_parse_auto_config(codec);
+	if (err < 0) {
+		stac_free(codec);
+		return err;
+	}
+
+	codec->proc_widget_hook = stac92hd_proc_hook;
+
+	return 0;
+}
+
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
@@ -4337,6 +4375,7 @@ static const struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7676, .name = "92HD73E1X5", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d7695, .name = "92HD95", .patch = patch_stac92hd95 },
 	{ .id = 0x111d76b0, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
 	{ .id = 0x111d76b1, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
 	{ .id = 0x111d76b2, .name = "92HD71B7X", .patch = patch_stac92hd71bxx },
