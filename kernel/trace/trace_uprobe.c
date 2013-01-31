@@ -31,17 +31,11 @@
 /*
  * uprobe event core functions
  */
-struct trace_uprobe;
-struct uprobe_trace_consumer {
-	struct uprobe_consumer		cons;
-	struct trace_uprobe		*tu;
-};
-
 struct trace_uprobe {
 	struct list_head		list;
 	struct ftrace_event_class	class;
 	struct ftrace_event_call	call;
-	struct uprobe_trace_consumer	*consumer;
+	struct uprobe_consumer		consumer;
 	struct inode			*inode;
 	char				*filename;
 	unsigned long			offset;
@@ -92,6 +86,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs)
 		goto error;
 
 	INIT_LIST_HEAD(&tu->list);
+	tu->consumer.handler = uprobe_dispatcher;
 	return tu;
 
 error:
@@ -546,27 +541,15 @@ static inline bool is_trace_uprobe_enabled(struct trace_uprobe *tu)
 
 static int probe_event_enable(struct trace_uprobe *tu, int flag)
 {
-	struct uprobe_trace_consumer *utc;
 	int ret = 0;
 
 	if (is_trace_uprobe_enabled(tu))
 		return -EINTR;
 
-	utc = kzalloc(sizeof(struct uprobe_trace_consumer), GFP_KERNEL);
-	if (!utc)
-		return -EINTR;
-
-	utc->cons.handler = uprobe_dispatcher;
-	utc->tu = tu;
-	tu->consumer = utc;
 	tu->flags |= flag;
-
-	ret = uprobe_register(tu->inode, tu->offset, &utc->cons);
-	if (ret) {
-		tu->consumer = NULL;
+	ret = uprobe_register(tu->inode, tu->offset, &tu->consumer);
+	if (ret)
 		tu->flags &= ~flag;
-		kfree(utc);
-	}
 
 	return ret;
 }
@@ -576,10 +559,8 @@ static void probe_event_disable(struct trace_uprobe *tu, int flag)
 	if (!is_trace_uprobe_enabled(tu))
 		return;
 
-	uprobe_unregister(tu->inode, tu->offset, &tu->consumer->cons);
+	uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
 	tu->flags &= ~flag;
-	kfree(tu->consumer);
-	tu->consumer = NULL;
 }
 
 static int uprobe_event_define_fields(struct ftrace_event_call *event_call)
@@ -717,13 +698,9 @@ int trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type, 
 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 {
-	struct uprobe_trace_consumer *utc;
 	struct trace_uprobe *tu;
 
-	utc = container_of(con, struct uprobe_trace_consumer, cons);
-	tu = utc->tu;
-	if (!tu || tu->consumer != utc)
-		return 0;
+	tu = container_of(con, struct trace_uprobe, consumer);
 
 	if (tu->flags & TP_FLAG_TRACE)
 		uprobe_trace_func(tu, regs);
