@@ -1125,13 +1125,11 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 	if (info->tx_fixup) {
 		skb = info->tx_fixup (dev, skb, GFP_ATOMIC);
 		if (!skb) {
-			if (netif_msg_tx_err(dev)) {
-				netif_dbg(dev, tx_err, dev->net, "can't tx_fixup skb\n");
-				goto drop;
-			} else {
-				/* cdc_ncm collected packet; waits for more */
+			/* packet collected; minidriver waiting for more */
+			if (info->flags & FLAG_MULTI_PACKET)
 				goto not_drop;
-			}
+			netif_dbg(dev, tx_err, dev->net, "can't tx_fixup skb\n");
+			goto drop;
 		}
 	}
 	length = skb->len;
