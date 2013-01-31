@@ -100,7 +100,6 @@ struct abx500_pinctrl {
 	struct gpio_chip chip;
 	struct ab8500 *parent;
 	struct mutex lock;
-	u32 irq_base;
 	struct abx500_gpio_irq_cluster *irq_cluster;
 	int irq_cluster_size;
 };
@@ -262,18 +261,24 @@ static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
 	/* The AB8500 GPIO numbers are off by one */
 	int gpio = offset + 1;
-	int base = pct->irq_base;
+	int hwirq;
 	int i;
 
 	for (i = 0; i < pct->irq_cluster_size; i++) {
 		struct abx500_gpio_irq_cluster *cluster =
 			&pct->irq_cluster[i];
 
-		if (gpio >= cluster->start && gpio <= cluster->end)
-			return base + gpio - cluster->start;
+		if (gpio >= cluster->start && gpio <= cluster->end) {
+			/*
+			 * The ABx500 GPIO's associated IRQs are clustered together
+			 * throughout the interrupt numbers at irregular intervals.
+			 * To solve this quandry, we have placed the read-in values
+			 * into the cluster information table.
+			 */
+			hwirq = gpio + cluster->to_irq;
 
-		/* Advance by the number of gpios in this cluster */
-		base += cluster->end + cluster->offset - cluster->start + 1;
+			return irq_create_mapping(pct->parent->domain, hwirq);
+		}
 	}
 
 	return -EINVAL;
@@ -876,7 +881,6 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->chip = abx500gpio_chip;
 	pct->chip.dev = &pdev->dev;
 	pct->chip.base = pdata->gpio_base;
-	pct->irq_base = pdata->irq_base;
 	pct->chip.base = (np) ? -1 : pdata->gpio_base;
 
 	/* initialize the lock */

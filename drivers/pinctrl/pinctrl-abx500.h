@@ -98,7 +98,7 @@ struct pullud {
 {					\
 	.start = a,			\
 	.end = b,			\
-	.offset = c,			\
+	.to_irq = c,			\
 }
 
 /**
@@ -106,14 +106,16 @@ struct pullud {
  *			capable
  * @start:		The pin number of the first pin interrupt capable
  * @end:		The pin number of the last pin interrupt capable
- * @offset:		offset used to compute specific setting strategy of
- *			the interrupt line
+ * @to_irq:		The ABx500 GPIO's associated IRQs are clustered
+ *                      together throughout the interrupt numbers at irregular
+ *                      intervals. To solve this quandary, we will place the
+ *                      read-in values into the cluster information table
  */
 
 struct abx500_gpio_irq_cluster {
 	int start;
 	int end;
-	int offset;
+	int to_irq;
 };
 
 /**
