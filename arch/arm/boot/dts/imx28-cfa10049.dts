@@ -45,6 +45,7 @@
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x2133 /* MX28_PAD_SSP2_D3__GPIO_2_19 */
+						0x31a3 /* MX28_PAD_SAIF_SDATA0__GPIO_3_26 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
 					>;
 					fsl,drive-strength = <0>;
@@ -273,6 +274,19 @@
 			compatible = "rohm,dh2228fv";
 			reg = <2>;
 			spi-max-frequency = <100000>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rotary_button {
+			label = "rotary_button";
+			gpios = <&gpio3 26 1>;
+			debounce-interval = <10>;
+			linux,code = <28>;
 		};
 	};
 
