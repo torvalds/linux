@@ -414,6 +414,10 @@
 #define TXPRIVEXT_REGNUM 29
 #define     TXPRIVEXT_COPRO_BITS    0xFF000000 /* Co-processor 0-7 */
 #define     TXPRIVEXT_COPRO_S       24
+#ifndef METAC_1_2
+#define     TXPRIVEXT_TXTIMER_BIT   0x00080000 /* TXTIMER   priv */
+#define     TXPRIVEXT_TRACE_BIT     0x00040000 /* TTEXEC|TTCTRL|GTEXEC */
+#endif
 #define     TXPRIVEXT_TXTRIGGER_BIT 0x00020000 /* TXSTAT|TXMASK|TXPOLL */
 #define     TXPRIVEXT_TXGBLCREG_BIT 0x00010000 /* Global common regs */
 #define     TXPRIVEXT_CBPRIV_BIT    0x00008000 /* Mem i/f dump priv */

@@ -35,6 +35,7 @@
 #include <asm/hwthread.h>
 #include <asm/l2cache.h>
 #include <asm/mach/arch.h>
+#include <asm/metag_regs.h>
 #include <asm/mmu.h>
 #include <asm/mmzone.h>
 #include <asm/processor.h>
@@ -43,17 +44,36 @@
 #include <asm/setup.h>
 #include <asm/traps.h>
 
-/* PRIV protect as many registers as possible. */
-#define DEFAULT_PRIV	0xff0f7f00
+/* Priv protect as many registers as possible. */
+#define DEFAULT_PRIV	(TXPRIVEXT_COPRO_BITS		| \
+			 TXPRIVEXT_TXTRIGGER_BIT	| \
+			 TXPRIVEXT_TXGBLCREG_BIT	| \
+			 TXPRIVEXT_ILOCK_BIT		| \
+			 TXPRIVEXT_TXITACCYC_BIT	| \
+			 TXPRIVEXT_TXDIVTIME_BIT	| \
+			 TXPRIVEXT_TXAMAREGX_BIT	| \
+			 TXPRIVEXT_TXTIMERI_BIT		| \
+			 TXPRIVEXT_TXSTATUS_BIT		| \
+			 TXPRIVEXT_TXDISABLE_BIT)
 
-/* Enable unaligned access checking. */
-#define UNALIGNED_PRIV	0x00000010
-
-#ifdef CONFIG_METAG_UNALIGNED
-#define PRIV_BITS (DEFAULT_PRIV | UNALIGNED_PRIV)
+/* Meta2 specific bits. */
+#ifdef CONFIG_METAG_META12
+#define META2_PRIV	0
 #else
-#define PRIV_BITS DEFAULT_PRIV
+#define META2_PRIV	(TXPRIVEXT_TXTIMER_BIT		| \
+			 TXPRIVEXT_TRACE_BIT)
 #endif
+
+/* Unaligned access checking bits. */
+#ifdef CONFIG_METAG_UNALIGNED
+#define UNALIGNED_PRIV	TXPRIVEXT_ALIGNREW_BIT
+#else
+#define UNALIGNED_PRIV	0
+#endif
+
+#define PRIV_BITS 	(DEFAULT_PRIV			| \
+			 META2_PRIV			| \
+			 UNALIGNED_PRIV)
 
 extern char _heap_start[];
 
