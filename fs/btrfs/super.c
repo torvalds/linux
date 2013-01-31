@@ -141,8 +141,6 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 	struct super_block *sb = fs_info->sb;
 	char nbuf[16];
 	const char *errstr;
-	va_list args;
-	va_start(args, fmt);
 
 	/*
 	 * Special case: if the error is EROFS, and we're already
@@ -153,13 +151,16 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 
   	errstr = btrfs_decode_error(errno, nbuf);
 	if (fmt) {
-		struct va_format vaf = {
-			.fmt = fmt,
-			.va = &args,
-		};
+		struct va_format vaf;
+		va_list args;
+
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
 
 		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s (%pV)\n",
 			sb->s_id, function, line, errstr, &vaf);
+		va_end(args);
 	} else {
 		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s\n",
 			sb->s_id, function, line, errstr);
@@ -170,7 +171,6 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		save_error_info(fs_info);
 		btrfs_handle_error(fs_info);
 	}
-	va_end(args);
 }
 
 static const char * const logtypes[] = {
