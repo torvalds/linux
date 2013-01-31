@@ -1111,7 +1111,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	struct abx500_gpio_platform_data *pdata;
 	struct abx500_pinctrl *pct;
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
-	int ret;
+	int ret, err;
 	int i;
 
 	pdata = abx500_pdata->gpio;
@@ -1189,6 +1189,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	if (!pct->pctldev) {
 		dev_err(&pdev->dev,
 			"could not register abx500 pinctrl driver\n");
+		ret = -EINVAL;
 		goto out_rem_chip;
 	}
 	dev_info(&pdev->dev, "registered pin controller\n");
@@ -1201,7 +1202,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev),
 					p->offset - 1, p->offset, p->npins);
 		if (ret < 0)
-			return ret;
+			goto out_rem_chip;
 	}
 
 	platform_set_drvdata(pdev, pct);
@@ -1210,8 +1211,8 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 out_rem_chip:
-	ret = gpiochip_remove(&pct->chip);
-	if (ret)
+	err = gpiochip_remove(&pct->chip);
+	if (err)
 		dev_info(&pdev->dev, "failed to remove gpiochip\n");
 out_rem_irq:
 	abx500_gpio_irq_remove(pct);
