@@ -119,10 +119,6 @@ static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)
 	char *name;
 	size_t size;
 	void *buffer;
-	struct inode *inode = dentry->d_inode;
-
-	set_cached_acl(inode, type, acl);
-
 	if (!acl)
 		return 0;
 
@@ -163,6 +159,7 @@ int v9fs_acl_chmod(struct dentry *dentry)
 		retval = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 		if (retval)
 			return retval;
+		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
 		retval = v9fs_set_acl(dentry, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
 	}
@@ -173,7 +170,9 @@ int v9fs_set_create_acl(struct dentry *dentry,
 			struct posix_acl **dpacl, struct posix_acl **pacl)
 {
 	if (dentry) {
+		set_cached_acl(dentry->d_inode, ACL_TYPE_DEFAULT, *dpacl);
 		v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, *dpacl);
+		set_cached_acl(dentry->d_inode, ACL_TYPE_ACCESS, *pacl);
 		v9fs_set_acl(dentry, ACL_TYPE_ACCESS, *pacl);
 	}
 	posix_acl_release(*dpacl);
