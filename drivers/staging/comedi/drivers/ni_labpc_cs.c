@@ -73,8 +73,6 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *pcmcia_cur_dev;
-
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
 		.name			= "daqcard-1200",
@@ -86,58 +84,7 @@ static const struct labpc_board_struct labpc_cs_boards[] = {
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
-	}, {
-		/* duplicate entry, to support using alternate name */
-		.name			= "ni_labpc_cs",
-		.device_id		= 0x103,
-		.ai_speed		= 10000,
-		.bustype		= pcmcia_bustype,
-		.register_layout	= labpc_1200_layout,
-		.has_ao			= 1,
-		.ai_range_table		= &range_labpc_1200_ai,
-		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 	},
-};
-
-static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct labpc_board_struct *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
-	struct pcmcia_device *link;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	/*  get base address, irq etc. based on bustype */
-	switch (thisboard->bustype) {
-	case pcmcia_bustype:
-		link = pcmcia_cur_dev;	/* XXX hack */
-		if (!link)
-			return -EIO;
-		iobase = link->resource[0]->start;
-		irq = link->irq;
-		break;
-	default:
-		pr_err("bug! couldn't determine board type\n");
-		return -EINVAL;
-		break;
-	}
-	return labpc_common_attach(dev, iobase, irq, 0);
-}
-
-static struct comedi_driver driver_labpc_cs = {
-	.driver_name	= "ni_labpc_cs",
-	.module		= THIS_MODULE,
-	.attach		= labpc_attach,
-	.detach		= labpc_common_detach,
-	.num_names	= ARRAY_SIZE(labpc_cs_boards),
-	.board_name	= &labpc_cs_boards[0].name,
-	.offset		= sizeof(struct labpc_board_struct),
 };
 
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
@@ -149,42 +96,61 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static int labpc_cs_attach(struct pcmcia_device *link)
+static int labpc_auto_attach(struct comedi_device *dev,
+			     unsigned long context)
 {
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	struct labpc_private *devpriv;
 	int ret;
 
+	/* The ni_labpc driver needs the board_ptr */
+	dev->board_ptr = &labpc_cs_boards[0];
+
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
-		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
+			      CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		goto failed;
-	}
+	if (ret)
+		return ret;
 
 	if (!link->irq)
-		goto failed;
+		return -EINVAL;
 
 	ret = pcmcia_enable_device(link);
 	if (ret)
-		goto failed;
+		return ret;
+	dev->iobase = link->resource[0]->start;
 
-	pcmcia_cur_dev = link;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
+	return labpc_common_attach(dev, dev->iobase, link->irq, 0);
 }
 
-static void labpc_cs_detach(struct pcmcia_device *link)
+static void labpc_detach(struct comedi_device *dev)
 {
-	pcmcia_disable_device(link);
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+
+	labpc_common_detach(dev);
+	if (dev->iobase)
+		pcmcia_disable_device(link);
+}
+
+static struct comedi_driver driver_labpc_cs = {
+	.driver_name	= "ni_labpc_cs",
+	.module		= THIS_MODULE,
+	.auto_attach	= labpc_auto_attach,
+	.detach		= labpc_detach,
+};
+
+static int labpc_cs_attach(struct pcmcia_device *link)
+{
+	return comedi_pcmcia_auto_config(link, &driver_labpc_cs);
 }
 
 static const struct pcmcia_device_id labpc_cs_ids[] = {
-	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103),	/* daqcard-1200 */
 	PCMCIA_DEVICE_NULL
 };
@@ -195,7 +161,7 @@ static struct pcmcia_driver labpc_cs_driver = {
 	.owner		= THIS_MODULE,
 	.id_table	= labpc_cs_ids,
 	.probe		= labpc_cs_attach,
-	.remove		= labpc_cs_detach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
 module_comedi_pcmcia_driver(driver_labpc_cs, labpc_cs_driver);
 
