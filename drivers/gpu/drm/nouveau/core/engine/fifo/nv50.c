@@ -481,7 +481,7 @@ nv50_fifo_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x002044, 0x01003fff);
 
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xffffffff);
+	nv_wr32(priv, 0x002140, 0xbfffffff);
 
 	for (i = 0; i < 128; i++)
 		nv_wr32(priv, 0x002600 + (i * 4), 0x00000000);

@@ -28,6 +28,7 @@
 #include <core/namedb.h>
 #include <core/handle.h>
 #include <core/ramht.h>
+#include <core/event.h>
 
 #include <subdev/instmem.h>
 #include <subdev/instmem/nv04.h>
@@ -535,6 +536,12 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 			if (status & 0x00000010) {
 				status &= ~0x00000010;
 				nv_wr32(priv, 0x002100, 0x00000010);
+			}
+
+			if (status & 0x40000000) {
+				nouveau_event_trigger(priv->base.uevent, 0);
+				nv_wr32(priv, 0x002100, 0x40000000);
+				status &= ~0x40000000;
 			}
 		}
 
