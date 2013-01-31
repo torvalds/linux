@@ -29,8 +29,8 @@
 
 #define IDLE_INTERVAL	5000
 
-#define THSCR	0x2c
-#define THSSR	0x30
+#define REG_THSCR	0x2c
+#define REG_THSSR	0x30
 
 /* THSCR */
 #define CPCTL	(1 << 12)
@@ -63,21 +63,55 @@ struct rcar_thermal_priv {
 /*
  *		basic functions
  */
-static u32 rcar_thermal_read(struct rcar_thermal_priv *priv, u32 reg)
+#if 0
+#define rcar_thermal_common_read(c, r) \
+	_rcar_thermal_common_read(c, COMMON_ ##r)
+static u32 _rcar_thermal_common_read(struct rcar_thermal_common *common,
+				     u32 reg)
+{
+	return ioread32(common->base + reg);
+}
+
+#define rcar_thermal_common_write(c, r, d) \
+	_rcar_thermal_common_write(c, COMMON_ ##r, d)
+static void _rcar_thermal_common_write(struct rcar_thermal_common *common,
+				       u32 reg, u32 data)
+{
+	iowrite32(data, common->base + reg);
+}
+
+#define rcar_thermal_common_bset(c, r, m, d) \
+	_rcar_thermal_common_bset(c, COMMON_ ##r, m, d)
+static void _rcar_thermal_common_bset(struct rcar_thermal_common *common,
+				      u32 reg, u32 mask, u32 data)
+{
+	u32 val;
+
+	val = ioread32(common->base + reg);
+	val &= ~mask;
+	val |= (data & mask);
+	iowrite32(val, common->base + reg);
+}
+#endif
+
+#define rcar_thermal_read(p, r) _rcar_thermal_read(p, REG_ ##r)
+static u32 _rcar_thermal_read(struct rcar_thermal_priv *priv, u32 reg)
 {
 	return ioread32(priv->base + reg);
 }
 
 #if 0 /* no user at this point */
-static void rcar_thermal_write(struct rcar_thermal_priv *priv,
-			       u32 reg, u32 data)
+#define rcar_thermal_write(p, r, d) _rcar_thermal_write(p, REG_ ##r, d)
+static void _rcar_thermal_write(struct rcar_thermal_priv *priv,
+				u32 reg, u32 data)
 {
 	iowrite32(data, priv->base + reg);
 }
 #endif
 
-static void rcar_thermal_bset(struct rcar_thermal_priv *priv, u32 reg,
-			      u32 mask, u32 data)
+#define rcar_thermal_bset(p, r, m, d) _rcar_thermal_bset(p, REG_ ##r, m, d)
+static void _rcar_thermal_bset(struct rcar_thermal_priv *priv, u32 reg,
+			       u32 mask, u32 data)
 {
 	u32 val;
 
