@@ -596,7 +596,7 @@ config HID_SPEEDLINK
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
-config HID_STEELSERIES_SRWS1
+config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
 	depends on USB_HID
 	---help---
