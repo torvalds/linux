@@ -38,16 +38,27 @@
 /* THSSR */
 #define CTEMP	0x3f
 
+struct rcar_thermal_common {
+	void __iomem *base;
+	struct device *dev;
+	struct list_head head;
+};
 
 struct rcar_thermal_priv {
 	void __iomem *base;
-	struct device *dev;
+	struct rcar_thermal_common *common;
+	struct thermal_zone_device *zone;
 	struct mutex lock;
+	struct list_head list;
 };
+
+#define rcar_thermal_for_each_priv(pos, common)	\
+	list_for_each_entry(pos, &common->head, list)
 
 #define MCELSIUS(temp)			((temp) * 1000)
 #define rcar_zone_to_priv(zone)		((zone)->devdata)
-#define rcar_priv_to_dev(priv)		((priv)->dev)
+#define rcar_priv_to_dev(priv)		((priv)->common->dev)
+#define rcar_has_irq_support(priv)	((priv)->common->base)
 
 /*
  *		basic functions
@@ -129,6 +140,7 @@ static int rcar_thermal_get_trip_type(struct thermal_zone_device *zone,
 				      int trip, enum thermal_trip_type *type)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+	struct device *dev = rcar_priv_to_dev(priv);
 
 	/* see rcar_thermal_get_temp() */
 	switch (trip) {
@@ -136,7 +148,7 @@ static int rcar_thermal_get_trip_type(struct thermal_zone_device *zone,
 		*type = THERMAL_TRIP_CRITICAL;
 		break;
 	default:
-		dev_err(priv->dev, "rcar driver trip error\n");
+		dev_err(dev, "rcar driver trip error\n");
 		return -EINVAL;
 	}
 
@@ -147,6 +159,7 @@ static int rcar_thermal_get_trip_temp(struct thermal_zone_device *zone,
 				      int trip, unsigned long *temp)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+	struct device *dev = rcar_priv_to_dev(priv);
 
 	/* see rcar_thermal_get_temp() */
 	switch (trip) {
@@ -154,7 +167,7 @@ static int rcar_thermal_get_trip_temp(struct thermal_zone_device *zone,
 		*temp = MCELSIUS(90);
 		break;
 	default:
-		dev_err(priv->dev, "rcar driver trip error\n");
+		dev_err(dev, "rcar driver trip error\n");
 		return -EINVAL;
 	}
 
@@ -165,12 +178,12 @@ static int rcar_thermal_notify(struct thermal_zone_device *zone,
 			       int trip, enum thermal_trip_type type)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
+	struct device *dev = rcar_priv_to_dev(priv);
 
 	switch (type) {
 	case THERMAL_TRIP_CRITICAL:
 		/* FIXME */
-		dev_warn(priv->dev,
-			 "Thermal reached to critical temperature\n");
+		dev_warn(dev, "Thermal reached to critical temperature\n");
 		machine_power_off();
 		break;
 	default:
@@ -192,51 +205,98 @@ static struct thermal_zone_device_ops rcar_thermal_zone_ops = {
  */
 static int rcar_thermal_probe(struct platform_device *pdev)
 {
-	struct thermal_zone_device *zone;
+	struct rcar_thermal_common *common;
 	struct rcar_thermal_priv *priv;
-	struct resource *res;
+	struct device *dev = &pdev->dev;
+	struct resource *res, *irq;
+	int mres = 0;
+	int i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Could not get platform resource\n");
-		return -ENODEV;
-	}
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "Could not allocate priv\n");
+	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
+	if (!common) {
+		dev_err(dev, "Could not allocate common\n");
 		return -ENOMEM;
 	}
 
-	priv->dev = &pdev->dev;
-	mutex_init(&priv->lock);
-	priv->base = devm_ioremap_nocache(&pdev->dev,
-					  res->start, resource_size(res));
-	if (!priv->base) {
-		dev_err(&pdev->dev, "Unable to ioremap thermal register\n");
-		return -ENOMEM;
+	INIT_LIST_HEAD(&common->head);
+	common->dev = dev;
+
+	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (irq) {
+		/*
+		 * platform has IRQ support.
+		 * Then, drier use common register
+		 */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, mres++);
+		if (!res) {
+			dev_err(dev, "Could not get platform resource\n");
+			return -ENODEV;
+		}
+
+		/*
+		 * rcar_has_irq_support() will be enabled
+		 */
+		common->base = devm_request_and_ioremap(dev, res);
+		if (!common->base) {
+			dev_err(dev, "Unable to ioremap thermal register\n");
+			return -ENOMEM;
+		}
 	}
 
-	zone = thermal_zone_device_register("rcar_thermal", 1, 0, priv,
-					    &rcar_thermal_zone_ops, NULL, 0,
-					    IDLE_INTERVAL);
-	if (IS_ERR(zone)) {
-		dev_err(&pdev->dev, "thermal zone device is NULL\n");
-		return PTR_ERR(zone);
+	for (i = 0;; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, mres++);
+		if (!res)
+			break;
+
+		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+		if (!priv) {
+			dev_err(dev, "Could not allocate priv\n");
+			return -ENOMEM;
+		}
+
+		priv->base = devm_request_and_ioremap(dev, res);
+		if (!priv->base) {
+			dev_err(dev, "Unable to ioremap priv register\n");
+			return -ENOMEM;
+		}
+
+		priv->common = common;
+		mutex_init(&priv->lock);
+		INIT_LIST_HEAD(&priv->list);
+
+		priv->zone = thermal_zone_device_register("rcar_thermal",
+						1, 0, priv,
+						&rcar_thermal_zone_ops, NULL, 0,
+						IDLE_INTERVAL);
+		if (IS_ERR(priv->zone)) {
+			dev_err(dev, "can't register thermal zone\n");
+			goto error_unregister;
+		}
+
+		list_move_tail(&priv->list, &common->head);
 	}
 
-	platform_set_drvdata(pdev, zone);
+	platform_set_drvdata(pdev, common);
 
-	dev_info(&pdev->dev, "proved\n");
+	dev_info(dev, "%d sensor proved\n", i);
 
 	return 0;
+
+error_unregister:
+	rcar_thermal_for_each_priv(priv, common)
+		thermal_zone_device_unregister(priv->zone);
+
+	return -ENODEV;
 }
 
 static int rcar_thermal_remove(struct platform_device *pdev)
 {
-	struct thermal_zone_device *zone = platform_get_drvdata(pdev);
+	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
+	struct rcar_thermal_priv *priv;
 
-	thermal_zone_device_unregister(zone);
+	rcar_thermal_for_each_priv(priv, common)
+		thermal_zone_device_unregister(priv->zone);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
