@@ -705,12 +705,6 @@ static int vidioc_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_try_fmt(struct file *file, void *fh,
-		struct v4l2_format *f)
-{
-	return 0;
-}
-
 /*
  * VLC calls VIDIOC_S_STD before VIDIOC_S_FMT, while
  * Mplayer calls them in the reverse order.
@@ -864,6 +858,14 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *norm)
 	struct front_face *front = fh;
 	logs(front);
 	return set_std(front->pd, norm);
+}
+
+static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct front_face *front = fh;
+	logs(front);
+	*norm = front->pd->video_data.context.tvnormid;
+	return 0;
 }
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *in)
@@ -1495,7 +1497,6 @@ static const struct v4l2_ioctl_ops pd_video_ioctl_ops = {
 	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt,
 	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt,
 	.vidioc_g_fmt_vbi_cap	= vidioc_g_fmt_vbi, /* VBI */
-	.vidioc_try_fmt_vid_cap = vidioc_try_fmt,
 
 	/* Input */
 	.vidioc_g_input		= vidioc_g_input,
@@ -1510,6 +1511,7 @@ static const struct v4l2_ioctl_ops pd_video_ioctl_ops = {
 	/* Tuner ioctls */
 	.vidioc_g_tuner		= vidioc_g_tuner,
 	.vidioc_s_tuner		= vidioc_s_tuner,
+	.vidioc_g_std		= vidioc_g_std,
 	.vidioc_s_std		= vidioc_s_std,
 	.vidioc_g_frequency	= vidioc_g_frequency,
 	.vidioc_s_frequency	= vidioc_s_frequency,
