@@ -326,7 +326,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_DNC1, &t);
 		if (ret)
 			break;
-		*val = t;
+		*val = sign_extend32(t, 9);
 		ret = IIO_VAL_INT;
 		break;
 	default:
