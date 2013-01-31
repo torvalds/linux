@@ -261,7 +261,6 @@ static int rcar_thermal_notify(struct thermal_zone_device *zone,
 	case THERMAL_TRIP_CRITICAL:
 		/* FIXME */
 		dev_warn(dev, "Thermal reached to critical temperature\n");
-		machine_power_off();
 		break;
 	default:
 		break;
