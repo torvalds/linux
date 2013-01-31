@@ -47,6 +47,20 @@
 /* set when additional merges to this rbio are not allowed */
 #define RBIO_RMW_LOCKED_BIT	1
 
+/*
+ * set when this rbio is sitting in the hash, but it is just a cache
+ * of past RMW
+ */
+#define RBIO_CACHE_BIT		2
+
+/*
+ * set when it is safe to trust the stripe_pages for caching
+ */
+#define RBIO_CACHE_READY_BIT	3
+
+
+#define RBIO_CACHE_SIZE 1024
+
 struct btrfs_raid_bio {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_bio *bbio;
@@ -64,6 +78,11 @@ struct btrfs_raid_bio {
 	 * into it.
 	 */
 	struct list_head hash_list;
+
+	/*
+	 * LRU list for the stripe cache
+	 */
+	struct list_head stripe_cache;
 
 	/*
 	 * for scheduling work in the helper threads
@@ -176,7 +195,9 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	if (!table)
 		return -ENOMEM;
 
-	table->table = (void *)(table + 1);
+	spin_lock_init(&table->cache_lock);
+	INIT_LIST_HEAD(&table->stripe_cache);
+
 	h = table->table;
 
 	for (i = 0; i < num_entries; i++) {
@@ -190,6 +211,42 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	if (x)
 		kfree(x);
 	return 0;
+}
+
+/*
+ * caching an rbio means to copy anything from the
+ * bio_pages array into the stripe_pages array.  We
+ * use the page uptodate bit in the stripe cache array
+ * to indicate if it has valid data
+ *
+ * once the caching is done, we set the cache ready
+ * bit.
+ */
+static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
+{
+	int i;
+	char *s;
+	char *d;
+	int ret;
+
+	ret = alloc_rbio_pages(rbio);
+	if (ret)
+		return;
+
+	for (i = 0; i < rbio->nr_pages; i++) {
+		if (!rbio->bio_pages[i])
+			continue;
+
+		s = kmap(rbio->bio_pages[i]);
+		d = kmap(rbio->stripe_pages[i]);
+
+		memcpy(d, s, PAGE_CACHE_SIZE);
+
+		kunmap(rbio->bio_pages[i]);
+		kunmap(rbio->stripe_pages[i]);
+		SetPageUptodate(rbio->stripe_pages[i]);
+	}
+	set_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 }
 
 /*
@@ -211,6 +268,34 @@ static int rbio_bucket(struct btrfs_raid_bio *rbio)
 }
 
 /*
+ * stealing an rbio means taking all the uptodate pages from the stripe
+ * array in the source rbio and putting them into the destination rbio
+ */
+static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
+{
+	int i;
+	struct page *s;
+	struct page *d;
+
+	if (!test_bit(RBIO_CACHE_READY_BIT, &src->flags))
+		return;
+
+	for (i = 0; i < dest->nr_pages; i++) {
+		s = src->stripe_pages[i];
+		if (!s || !PageUptodate(s)) {
+			continue;
+		}
+
+		d = dest->stripe_pages[i];
+		if (d)
+			__free_page(d);
+
+		dest->stripe_pages[i] = s;
+		src->stripe_pages[i] = NULL;
+	}
+}
+
+/*
  * merging means we take the bio_list from the victim and
  * splice it into the destination.  The victim should
  * be discarded afterwards.
@@ -226,14 +311,168 @@ static void merge_rbio(struct btrfs_raid_bio *dest,
 }
 
 /*
- * free the hash table used by unmount
+ * used to prune items that are in the cache.  The caller
+ * must hold the hash table lock.
+ */
+static void __remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
+{
+	int bucket = rbio_bucket(rbio);
+	struct btrfs_stripe_hash_table *table;
+	struct btrfs_stripe_hash *h;
+	int freeit = 0;
+
+	/*
+	 * check the bit again under the hash table lock.
+	 */
+	if (!test_bit(RBIO_CACHE_BIT, &rbio->flags))
+		return;
+
+	table = rbio->fs_info->stripe_hash_table;
+	h = table->table + bucket;
+
+	/* hold the lock for the bucket because we may be
+	 * removing it from the hash table
+	 */
+	spin_lock(&h->lock);
+
+	/*
+	 * hold the lock for the bio list because we need
+	 * to make sure the bio list is empty
+	 */
+	spin_lock(&rbio->bio_list_lock);
+
+	if (test_and_clear_bit(RBIO_CACHE_BIT, &rbio->flags)) {
+		list_del_init(&rbio->stripe_cache);
+		table->cache_size -= 1;
+		freeit = 1;
+
+		/* if the bio list isn't empty, this rbio is
+		 * still involved in an IO.  We take it out
+		 * of the cache list, and drop the ref that
+		 * was held for the list.
+		 *
+		 * If the bio_list was empty, we also remove
+		 * the rbio from the hash_table, and drop
+		 * the corresponding ref
+		 */
+		if (bio_list_empty(&rbio->bio_list)) {
+			if (!list_empty(&rbio->hash_list)) {
+				list_del_init(&rbio->hash_list);
+				atomic_dec(&rbio->refs);
+				BUG_ON(!list_empty(&rbio->plug_list));
+			}
+		}
+	}
+
+	spin_unlock(&rbio->bio_list_lock);
+	spin_unlock(&h->lock);
+
+	if (freeit)
+		__free_raid_bio(rbio);
+}
+
+/*
+ * prune a given rbio from the cache
+ */
+static void remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
+{
+	struct btrfs_stripe_hash_table *table;
+	unsigned long flags;
+
+	if (!test_bit(RBIO_CACHE_BIT, &rbio->flags))
+		return;
+
+	table = rbio->fs_info->stripe_hash_table;
+
+	spin_lock_irqsave(&table->cache_lock, flags);
+	__remove_rbio_from_cache(rbio);
+	spin_unlock_irqrestore(&table->cache_lock, flags);
+}
+
+/*
+ * remove everything in the cache
+ */
+void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
+{
+	struct btrfs_stripe_hash_table *table;
+	unsigned long flags;
+	struct btrfs_raid_bio *rbio;
+
+	table = info->stripe_hash_table;
+
+	spin_lock_irqsave(&table->cache_lock, flags);
+	while (!list_empty(&table->stripe_cache)) {
+		rbio = list_entry(table->stripe_cache.next,
+				  struct btrfs_raid_bio,
+				  stripe_cache);
+		__remove_rbio_from_cache(rbio);
+	}
+	spin_unlock_irqrestore(&table->cache_lock, flags);
+}
+
+/*
+ * remove all cached entries and free the hash table
+ * used by unmount
  */
 void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info)
 {
 	if (!info->stripe_hash_table)
 		return;
+	btrfs_clear_rbio_cache(info);
 	kfree(info->stripe_hash_table);
 	info->stripe_hash_table = NULL;
+}
+
+/*
+ * insert an rbio into the stripe cache.  It
+ * must have already been prepared by calling
+ * cache_rbio_pages
+ *
+ * If this rbio was already cached, it gets
+ * moved to the front of the lru.
+ *
+ * If the size of the rbio cache is too big, we
+ * prune an item.
+ */
+static void cache_rbio(struct btrfs_raid_bio *rbio)
+{
+	struct btrfs_stripe_hash_table *table;
+	unsigned long flags;
+
+	if (!test_bit(RBIO_CACHE_READY_BIT, &rbio->flags))
+		return;
+
+	table = rbio->fs_info->stripe_hash_table;
+
+	spin_lock_irqsave(&table->cache_lock, flags);
+	spin_lock(&rbio->bio_list_lock);
+
+	/* bump our ref if we were not in the list before */
+	if (!test_and_set_bit(RBIO_CACHE_BIT, &rbio->flags))
+		atomic_inc(&rbio->refs);
+
+	if (!list_empty(&rbio->stripe_cache)){
+		list_move(&rbio->stripe_cache, &table->stripe_cache);
+	} else {
+		list_add(&rbio->stripe_cache, &table->stripe_cache);
+		table->cache_size += 1;
+	}
+
+	spin_unlock(&rbio->bio_list_lock);
+
+	if (table->cache_size > RBIO_CACHE_SIZE) {
+		struct btrfs_raid_bio *found;
+
+		found = list_entry(table->stripe_cache.prev,
+				  struct btrfs_raid_bio,
+				  stripe_cache);
+
+		if (found != rbio)
+			__remove_rbio_from_cache(found);
+	}
+
+	spin_unlock_irqrestore(&table->cache_lock, flags);
+	return;
 }
 
 /*
@@ -303,6 +542,17 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	    test_bit(RBIO_RMW_LOCKED_BIT, &cur->flags))
 		return 0;
 
+	/*
+	 * we can't merge with cached rbios, since the
+	 * idea is that when we merge the destination
+	 * rbio is going to run our IO for us.  We can
+	 * steal from cached rbio's though, other functions
+	 * handle that.
+	 */
+	if (test_bit(RBIO_CACHE_BIT, &last->flags) ||
+	    test_bit(RBIO_CACHE_BIT, &cur->flags))
+		return 0;
+
 	if (last->raid_map[0] !=
 	    cur->raid_map[0])
 		return 0;
@@ -370,6 +620,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 	struct btrfs_raid_bio *freeit = NULL;
+	struct btrfs_raid_bio *cache_drop = NULL;
 	int ret = 0;
 	int walk = 0;
 
@@ -379,6 +630,21 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 		if (cur->raid_map[0] == rbio->raid_map[0]) {
 			spin_lock(&cur->bio_list_lock);
 
+			/* can we steal this cached rbio's pages? */
+			if (bio_list_empty(&cur->bio_list) &&
+			    list_empty(&cur->plug_list) &&
+			    test_bit(RBIO_CACHE_BIT, &cur->flags) &&
+			    !test_bit(RBIO_RMW_LOCKED_BIT, &cur->flags)) {
+				list_del_init(&cur->hash_list);
+				atomic_dec(&cur->refs);
+
+				steal_rbio(cur, rbio);
+				cache_drop = cur;
+				spin_unlock(&cur->bio_list_lock);
+
+				goto lockit;
+			}
+
 			/* can we merge into the lock owner? */
 			if (rbio_can_merge(cur, rbio)) {
 				merge_rbio(cur, rbio);
@@ -387,6 +653,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 				ret = 1;
 				goto out;
 			}
+
 
 			/*
 			 * we couldn't merge with the running
@@ -417,11 +684,13 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 			goto out;
 		}
 	}
-
+lockit:
 	atomic_inc(&rbio->refs);
 	list_add(&rbio->hash_list, &h->hash_list);
 out:
 	spin_unlock_irqrestore(&h->lock, flags);
+	if (cache_drop)
+		remove_rbio_from_cache(cache_drop);
 	if (freeit)
 		__free_raid_bio(freeit);
 	return ret;
@@ -436,14 +705,30 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 	int bucket;
 	struct btrfs_stripe_hash *h;
 	unsigned long flags;
+	int keep_cache = 0;
 
 	bucket = rbio_bucket(rbio);
 	h = rbio->fs_info->stripe_hash_table->table + bucket;
+
+	if (list_empty(&rbio->plug_list))
+		cache_rbio(rbio);
 
 	spin_lock_irqsave(&h->lock, flags);
 	spin_lock(&rbio->bio_list_lock);
 
 	if (!list_empty(&rbio->hash_list)) {
+		/*
+		 * if we're still cached and there is no other IO
+		 * to perform, just leave this rbio here for others
+		 * to steal from later
+		 */
+		if (list_empty(&rbio->plug_list) &&
+		    test_bit(RBIO_CACHE_BIT, &rbio->flags)) {
+			keep_cache = 1;
+			clear_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
+			BUG_ON(!bio_list_empty(&rbio->bio_list));
+			goto done;
+		}
 
 		list_del_init(&rbio->hash_list);
 		atomic_dec(&rbio->refs);
@@ -469,11 +754,12 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 
 			if (next->read_rebuild)
 				async_read_rebuild(next);
-			else
+			else {
+				steal_rbio(rbio, next);
 				async_rmw_stripe(next);
+			}
 
 			goto done_nolock;
-
 		} else  if (waitqueue_active(&h->wait)) {
 			spin_unlock(&rbio->bio_list_lock);
 			spin_unlock_irqrestore(&h->lock, flags);
@@ -481,11 +767,13 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			goto done_nolock;
 		}
 	}
+done:
 	spin_unlock(&rbio->bio_list_lock);
 	spin_unlock_irqrestore(&h->lock, flags);
 
 done_nolock:
-	return;
+	if (!keep_cache)
+		remove_rbio_from_cache(rbio);
 }
 
 static void __free_raid_bio(struct btrfs_raid_bio *rbio)
@@ -496,6 +784,7 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 	if (!atomic_dec_and_test(&rbio->refs))
 		return;
 
+	WARN_ON(!list_empty(&rbio->stripe_cache));
 	WARN_ON(!list_empty(&rbio->hash_list));
 	WARN_ON(!bio_list_empty(&rbio->bio_list));
 
@@ -630,6 +919,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	bio_list_init(&rbio->bio_list);
 	INIT_LIST_HEAD(&rbio->plug_list);
 	spin_lock_init(&rbio->bio_list_lock);
+	INIT_LIST_HEAD(&rbio->stripe_cache);
 	INIT_LIST_HEAD(&rbio->hash_list);
 	rbio->bbio = bbio;
 	rbio->raid_map = raid_map;
@@ -864,8 +1154,17 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	/*
 	 * now that we've set rmw_locked, run through the
 	 * bio list one last time and map the page pointers
+	 *
+	 * We don't cache full rbios because we're assuming
+	 * the higher layers are unlikely to use this area of
+	 * the disk again soon.  If they do use it again,
+	 * hopefully they will send another full bio.
 	 */
 	index_rbio_pages(rbio);
+	if (!rbio_is_full(rbio))
+		cache_rbio_pages(rbio);
+	else
+		clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
 	for (pagenr = 0; pagenr < pages_per_stripe; pagenr++) {
 		struct page *p;
@@ -1155,6 +1454,13 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 				continue;
 
 			page = rbio_stripe_page(rbio, stripe, pagenr);
+			/*
+			 * the bio cache may have handed us an uptodate
+			 * page.  If so, be happy and use it
+			 */
+			if (PageUptodate(page))
+				continue;
+
 			ret = rbio_add_io_page(rbio, &bio_list, page,
 				       stripe, pagenr, rbio->stripe_len);
 			if (ret)
@@ -1440,6 +1746,11 @@ cleanup:
 cleanup_io:
 
 	if (rbio->read_rebuild) {
+		if (err == 0)
+			cache_rbio_pages(rbio);
+		else
+			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
+
 		rbio_orig_end_io(rbio, err, err == 0);
 	} else if (err == 0) {
 		rbio->faila = -1;
@@ -1505,7 +1816,9 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	atomic_set(&rbio->bbio->error, 0);
 
 	/*
-	 * read everything that hasn't failed.
+	 * read everything that hasn't failed.  Thanks to the
+	 * stripe cache, it is possible that some or all of these
+	 * pages are going to be uptodate.
 	 */
 	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
 		if (rbio->faila == stripe ||

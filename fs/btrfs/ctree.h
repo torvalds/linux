@@ -1244,7 +1244,10 @@ struct btrfs_stripe_hash {
 
 /* used by the raid56 code to lock stripes for read/modify/write */
 struct btrfs_stripe_hash_table {
-	struct btrfs_stripe_hash *table;
+	struct list_head stripe_cache;
+	spinlock_t cache_lock;
+	int cache_size;
+	struct btrfs_stripe_hash table[];
 };
 
 #define BTRFS_STRIPE_HASH_TABLE_BITS 11
