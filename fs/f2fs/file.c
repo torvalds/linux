@@ -157,11 +157,11 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEED_CP))
+	else if (is_inode_flag_set(F2FS_I(inode), FI_NEED_CP))
 		need_cp = true;
-	if (!space_for_roll_forward(sbi))
+	else if (!space_for_roll_forward(sbi))
 		need_cp = true;
-	if (need_to_sync_dir(sbi, inode))
+	else if (need_to_sync_dir(sbi, inode))
 		need_cp = true;
 
 	if (need_cp) {
