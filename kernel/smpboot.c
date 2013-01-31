@@ -183,9 +183,10 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 		kfree(td);
 		return PTR_ERR(tsk);
 	}
-
 	get_task_struct(tsk);
 	*per_cpu_ptr(ht->store, cpu) = tsk;
+	if (ht->create)
+		ht->create(cpu);
 	return 0;
 }
 
@@ -225,7 +226,7 @@ static void smpboot_park_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 {
 	struct task_struct *tsk = *per_cpu_ptr(ht->store, cpu);
 
-	if (tsk)
+	if (tsk && !ht->selfparking)
 		kthread_park(tsk);
 }
 
