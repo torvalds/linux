@@ -311,6 +311,7 @@ static void mt_feature_mapping(struct hid_device *hdev,
 			*quirks |= MT_QUIRK_ALWAYS_VALID;
 			*quirks |= MT_QUIRK_IGNORE_DUPLICATES;
 			*quirks |= MT_QUIRK_HOVERING;
+			*quirks |= MT_QUIRK_CONTACT_CNT_ACCURATE;
 			*quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
 			*quirks &= ~MT_QUIRK_VALID_IS_INRANGE;
 			*quirks &= ~MT_QUIRK_VALID_IS_CONFIDENCE;
