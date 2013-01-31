@@ -85,6 +85,7 @@ struct mt_device {
 					   multitouch fields */
 	unsigned last_field_index;	/* last field index of the report */
 	unsigned last_slot_field;	/* the last field of a slot */
+	unsigned mt_report_id;	/* the report ID of the multitouch device */
 	__s8 inputmode;		/* InputMode HID feature, -1 if non-existent */
 	__s8 inputmode_index;	/* InputMode HID feature index in the report */
 	__s8 maxcontact_report_id;	/* Maximum Contact Number HID feature,
@@ -428,6 +429,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			mt_store_field(usage, td, hi);
 			td->last_field_index = field->index;
 			td->touches_by_report++;
+			td->mt_report_id = field->report->id;
 			return 1;
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
@@ -578,6 +580,16 @@ static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
 static int mt_event(struct hid_device *hid, struct hid_field *field,
 				struct hid_usage *usage, __s32 value)
 {
+	/* we will handle the hidinput part later, now remains hiddev */
+	if (hid->claimed & HID_CLAIMED_HIDDEV && hid->hiddev_hid_event)
+		hid->hiddev_hid_event(hid, field, usage, value);
+
+	return 1;
+}
+
+static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
+				struct hid_usage *usage, __s32 value)
+{
 	struct mt_device *td = hid_get_drvdata(hid);
 	__s32 quirks = td->mtclass.quirks;
 
@@ -635,8 +647,7 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			break;
 
 		default:
-			/* fallback to the generic hidinput handling */
-			return 0;
+			return;
 		}
 
 		if (usage->usage_index + 1 == field->report_count) {
@@ -650,12 +661,32 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 		}
 
 	}
+}
 
-	/* we have handled the hidinput part, now remains hiddev */
-	if (hid->claimed & HID_CLAIMED_HIDDEV && hid->hiddev_hid_event)
-		hid->hiddev_hid_event(hid, field, usage, value);
+static void mt_report(struct hid_device *hid, struct hid_report *report)
+{
+	struct mt_device *td = hid_get_drvdata(hid);
+	struct hid_field *field;
+	unsigned count;
+	int r, n;
 
-	return 1;
+	if (report->id != td->mt_report_id)
+		return;
+
+	if (!(hid->claimed & HID_CLAIMED_INPUT))
+		return;
+
+	for (r = 0; r < report->maxfield; r++) {
+		field = report->field[r];
+		count = field->report_count;
+
+		if (!(HID_MAIN_ITEM_VARIABLE & field->flags))
+			continue;
+
+		for (n = 0; n < count; n++)
+			mt_process_mt_event(hid, field, &field->usage[n],
+					field->value[n]);
+	}
 }
 
 static void mt_set_input_mode(struct hid_device *hdev)
@@ -1193,6 +1224,7 @@ static struct hid_driver mt_driver = {
 	.feature_mapping = mt_feature_mapping,
 	.usage_table = mt_grabbed_usages,
 	.event = mt_event,
+	.report = mt_report,
 #ifdef CONFIG_PM
 	.reset_resume = mt_reset_resume,
 	.resume = mt_resume,
