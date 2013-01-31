@@ -104,7 +104,7 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 			f2fs_put_page(page, 1);
 			continue;
 		}
-		page_cache_release(page);
+		f2fs_put_page(page, 0);
 	}
 }
 
@@ -877,7 +877,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 		unlock_page(apage);
 
 release_out:
-	page_cache_release(apage);
+	f2fs_put_page(apage, 0);
 	return;
 }
 
