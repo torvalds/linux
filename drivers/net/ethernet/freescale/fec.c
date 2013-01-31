@@ -1609,6 +1609,7 @@ static int fec_enet_init(struct net_device *ndev)
 	}
 
 	spin_lock_init(&fep->hw_lock);
+	spin_lock_init(&fep->tmreg_lock);
 
 	fep->netdev = ndev;
 
