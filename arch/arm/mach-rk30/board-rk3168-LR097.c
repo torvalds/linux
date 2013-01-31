@@ -180,13 +180,10 @@ static int rk29_backlight_io_init(void)
 
 	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
-	ret = gpio_request(BL_EN_PIN, NULL);
-	if (ret != 0) {
-		gpio_free(BL_EN_PIN);
+	ret = gpio_request(BL_EN_PIN, "bl_en");
+	if (ret == 0) {
+		gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 	}
-
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return ret;
 }
@@ -198,24 +195,23 @@ static int rk29_backlight_io_deinit(void)
 	gpio_free(BL_EN_PIN);
 #endif
 	pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
-	gpio_request(pwm_gpio, NULL);
+	gpio_request(pwm_gpio, "bl_pwm");
 	gpio_direction_output(pwm_gpio, GPIO_LOW);
 	return ret;
 }
 
 static int rk29_backlight_pwm_suspend(void)
 {
-	int ret = 0, pwm_gpio;
+	int ret, pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
 
-	pwm_gpio = iomux_mode_to_gpio(PWM_MODE);
-	if (gpio_request(pwm_gpio, NULL)) {
+	ret = gpio_request(pwm_gpio, "bl_pwm");
+	if (ret) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
+		return ret;
 	}
 	gpio_direction_output(pwm_gpio, GPIO_LOW);
 #ifdef  LCD_DISP_ON_PIN
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, !BL_EN_VALUE);
 #endif
 	return ret;
 }
@@ -228,8 +224,7 @@ static int rk29_backlight_pwm_resume(void)
 	iomux_set(PWM_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	msleep(30);
-	gpio_direction_output(BL_EN_PIN, 1);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+	gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return 0;
 }
@@ -237,6 +232,8 @@ static int rk29_backlight_pwm_resume(void)
 static struct rk29_bl_info rk29_bl_info = {
 	.pwm_id = PWM_ID,
 	.min_brightness = 50,
+	.max_brightness=255,
+	.brightness_mode =BRIGHTNESS_MODE_CONIC,
 	.bl_ref = PWM_EFFECT_VALUE,
 	.io_init = rk29_backlight_io_init,
 	.io_deinit = rk29_backlight_io_deinit,
@@ -675,9 +672,9 @@ static int rk610_power_on_init(void)
 		else 
 		{
 			gpio_direction_output(RK610_RST_PIN, GPIO_HIGH);
-			mdelay(100);
+			msleep(100);
 			gpio_direction_output(RK610_RST_PIN, GPIO_LOW);
-			mdelay(100);
+			msleep(100);
 	    		gpio_set_value(RK610_RST_PIN, GPIO_HIGH);
 		}
 		printk("%s........rst ok\n",__func__);
@@ -707,11 +704,36 @@ static struct rk610_codec_platform_data rk610_codec_pdata = {
 };
 #endif
 
+#ifdef CONFIG_RK_HDMI
+#define RK_HDMI_RST_PIN 			RK30_PIN3_PB2
+static int rk_hdmi_power_init(void)
+{
+	int ret;
+
+	if(RK_HDMI_RST_PIN != INVALID_GPIO)
+	{
+		if (gpio_request(RK_HDMI_RST_PIN, NULL)) {
+			printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+			return -1;
+		}
+		gpio_direction_output(RK_HDMI_RST_PIN, GPIO_LOW);
+		gpio_set_value(RK_HDMI_RST_PIN, GPIO_LOW);
+		msleep(100);
+		gpio_set_value(RK_HDMI_RST_PIN, GPIO_HIGH);
+		msleep(50);
+	}
+	return 0;
+}
+static struct rk_hdmi_platform_data rk_hdmi_pdata = {
+	.io_init = rk_hdmi_power_init,
+};
+#endif
+
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
-		.gpio = RK30_PIN0_PC7,  
+		.gpio = INVALID_GPIO,
 		.max_timeout = 1000,
 		.active_low = 0,
 		.adjust_time =20,      //adjust for diff product
@@ -738,7 +760,7 @@ static struct platform_device rk29_device_vibrator = {
 	#define DVDD33_EN_PIN 		RK30_PIN0_PB0
 	#define DVDD33_EN_VALUE 	GPIO_LOW
 	
-	#define DVDD18_EN_PIN 		RK30_PIN1_PB6//RK30_PIN4_PC7
+	#define DVDD18_EN_PIN 		RK30_PIN3_PD4//RK30_PIN3_PD4//RK30_PIN1_PB6//RK30_PIN4_PC7
 	#define DVDD18_EN_VALUE 	GPIO_HIGH
 
 	#define EDP_RST_PIN 		RK30_PIN0_PB4
@@ -1111,7 +1133,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 
 static int batt_table[2*11+6] =
 {
-	0x4B434F52,0x7461625F,0x79726574,1,300,82,
+	0x4B434F52,0x7461625F,0x79726574,1,470,100,
 	6800, 7242, 7332, 7404, 7470, 7520, 7610, 7744, 7848, 8016, 8284,//discharge
 	7630, 7754, 7852, 7908, 7956, 8024, 8112, 8220, 8306, 8318, 8458//charge
 };
@@ -1125,8 +1147,8 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .charge_ok_level = GPIO_HIGH,
 
 		.reference_voltage = 1800,
-		.pull_up_res = 300,     //divider resistance ,  pull-up resistor
-       .pull_down_res = 82, //divider resistance , pull-down resistor
+		.pull_up_res = 470,     //divider resistance ,  pull-up resistor
+       .pull_down_res = 100, //divider resistance , pull-down resistor
        .is_reboot_charging = 1,
         .save_capacity   = 1 ,
         .use_board_table = 1,
@@ -1142,13 +1164,12 @@ static struct platform_device rk30_device_adc_battery = {
 };
 #endif
 #ifdef CONFIG_RK30_PWM_REGULATOR
-const static int pwm_voltage_map[] = {
-	950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+static int pwm_voltage_map[] = {
+	800000,825000,850000, 875000,900000, 925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000
 };
-
 static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
 	{
-		.supply = "vdd_core",
+		.supply = "vdd_cpu",
 	}
 };
 
@@ -1174,10 +1195,10 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 		.pwm_iomux_pwm = PWM1,
 		.pwm_iomux_gpio = GPIO3_D4,
 		.pwm_voltage = 1100000,
-		.suspend_voltage = 1050000,
-		.min_uV = 950000,
-		.max_uV	= 1400000,
-		.coefficient = 455,	//45.5%
+		.suspend_voltage = 1000000,
+		.min_uV = 800000,
+		.max_uV	= 1375000,
+		.coefficient = 575,	//57.5%
 		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
 	},
@@ -1500,97 +1521,12 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_RT5631)
-        {
-                .type                   = "rt5631",
-                .addr                   = 0x1a,
-                .flags                  = 0,
-        },
-#endif
-
 
 };
 #endif
 
 int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
-
-#ifdef CONFIG_REGULATOR_ACT8846
-#define PMU_POWER_SLEEP RK30_PIN0_PA1
-#define ACT8846_HOST_IRQ                RK30_PIN0_PB3
-
-static struct pmu_info  act8846_dcdc_info[] = {
-	{
-		.name          = "act_dcdc1",   //ddr
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-		.suspend_vol  =  1200000,
-	},
-	{
-		.name          = "vdd_core",    //logic
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
-	},
-	{
-		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-		.suspend_vol  =  900000,
-	},
-	{
-		.name          = "act_dcdc4",   //vccio
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-		.suspend_vol  =  2800000,
-	},
-	
-};
-static  struct pmu_info  act8846_ldo_info[] = {
-	{
-		.name          = "act_ldo1",   //vdd11
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
-	},
-	{
-		.name          = "act_ldo2",    //vdd12
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	{
-		.name          = "act_ldo3",   //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "act_ldo4",   //vcca33
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo5",   //vcctp
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo6",   //vcc33
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_ldo7",   //vccio_wl
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "act_ldo8",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
-	},
- };
-
-#include "board-pmu-act8846.c"
-#endif
 
 #ifdef CONFIG_MFD_WM831X_I2C
 #define PMU_POWER_SLEEP 		RK30_PIN0_PA1 
@@ -1705,9 +1641,9 @@ static struct pmu_info  wm8326_ldo_info[] = {
 
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
-		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.name          = "vdd_core",   //logic
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
 		.name          = "vdd2",    //ddr
@@ -1716,16 +1652,16 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 	},
 	{
 		.name          = "vio",   //vcc_io
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
 	},
 	
 };
 static  struct pmu_info  tps65910_ldo_info[] = {
 	{
-		.name          = "vpll",   //vcc25
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.name          = "vpll",   //vdd10
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 	},
 	{
 		.name          = "vdig1",    //vcc18_cif
@@ -1733,14 +1669,14 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 1800000,
 	},
 	{
-		.name          = "vdig2",   //vdd11
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.name          = "vdig2",   //vdd_jetta
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
-		.name          = "vaux1",   //vcc25_hdmi
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
 	},
 	{
 		.name          = "vaux2",   //vcca33
@@ -1753,12 +1689,12 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 		.max_uv         = 3300000,
 	},
 	{
-		.name          = "vmmc",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
+		.name          = "vmmc",   //vcc30
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
 	},
 	{
-		.name          = "vdac",   //vccio_wl
+		.name          = "vdac",   //vcc18
 		.min_uv          = 1800000,
 		.max_uv         = 1800000,
 	},
@@ -1767,17 +1703,85 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 #include "board-pmu-tps65910.c"
 #endif
 
-static struct i2c_board_info __initdata i2c1_info[] = {
-#if defined (CONFIG_REGULATOR_ACT8846)
+#ifdef CONFIG_REGULATOR_ACT8846
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define ACT8846_HOST_IRQ                RK30_PIN0_PB3
+#define PMU_VSEL RK30_PIN3_PD3
+
+static struct pmu_info  act8846_dcdc_info[] = {
 	{
-		.type    		= "act8846",
-		.addr           = 0x5a, 
-		.flags			= 0,
-		.irq            = ACT8846_HOST_IRQ,
-		.platform_data=&act8846_data,
+		.name          = "act_dcdc1",   //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+		.suspend_vol  =  1200000,
 	},
+	{
+		.name          = "vdd_core",    //logic
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  1000000,
+	},
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  1000000,
+	},
+	{
+		.name          = "act_dcdc4",   //vccio
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  2800000,
+	},
+	
+};
+static  struct pmu_info  act8846_ldo_info[] = {
+	{
+		.name          = "act_ldo1",   //vdd11
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "act_ldo2",    //vdd12
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "act_ldo3",   //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo4",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo5",   //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo6",   //vcc33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "act_ldo7",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "act_ldo8",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+ };
+
+#include "board-pmu-act8846.c"
 #endif
 
+static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
 	{
 		.type          = "wm8326",
@@ -1796,6 +1800,15 @@ static struct i2c_board_info __initdata i2c1_info[] = {
     	.platform_data = &tps65910_data,
 	},
 #endif
+#if defined (CONFIG_REGULATOR_ACT8846)
+	{
+		.type    		= "act8846",
+		.addr           = 0x5a, 
+		.flags			= 0,
+		.irq            = ACT8846_HOST_IRQ,
+		.platform_data=&act8846_data,
+	},
+#endif
 #if defined (CONFIG_RTC_HYM8563)
     {    
         .type           = "rtc_hym8563",
@@ -1804,16 +1817,12 @@ static struct i2c_board_info __initdata i2c1_info[] = {
         .irq            = RK30_PIN0_PB5,
     },   
 #endif
+
 };
 #endif
 
 void __sramfunc board_pmu_suspend(void)
 {      
-#if defined (CONFIG_REGULATOR_ACT8846)
-		if(pmic_is_act8846())
-		board_pmu_act8846_suspend(); 
-#endif   
-
 #if defined (CONFIG_MFD_WM831X_I2C)
 	if(pmic_is_wm8326())
 	board_pmu_wm8326_suspend();
@@ -1822,16 +1831,14 @@ void __sramfunc board_pmu_suspend(void)
 	if(pmic_is_tps65910())
 	board_pmu_tps65910_suspend(); 
 #endif   
-
+#if defined (CONFIG_REGULATOR_ACT8846)
+		if(pmic_is_act8846())
+		board_pmu_act8846_suspend(); 
+#endif   
 }
 
 void __sramfunc board_pmu_resume(void)
 {    
-#if defined (CONFIG_REGULATOR_ACT8846)
-	if(pmic_is_act8846())
-	board_pmu_act8846_resume(); 
-#endif   
-
 #if defined (CONFIG_MFD_WM831X_I2C)
 	if(pmic_is_wm8326())
 	board_pmu_wm8326_resume();
@@ -1840,6 +1847,10 @@ void __sramfunc board_pmu_resume(void)
 	if(pmic_is_tps65910())
 	board_pmu_tps65910_resume(); 
 #endif
+#if defined (CONFIG_REGULATOR_ACT8846)
+	if(pmic_is_act8846())
+	board_pmu_act8846_resume(); 
+#endif   
 
 }
 
@@ -1854,7 +1865,7 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 
 //	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
 	sram_udelay(10000);
-	gpio3d6_iomux = readl_relaxed(GRF_GPIO3D_IOMUX);
+	gpio3d6_iomux = grf_readl(GRF_GPIO3D_IOMUX);
 	gpio3d6_do = grf_readl(GRF_GPIO3H_DO);
 	gpio3d6_dir = grf_readl(GRF_GPIO3H_DIR);
 	gpio3d6_en = grf_readl(GRF_GPIO3H_EN);
@@ -1931,7 +1942,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &ct36x_info,
 	},
 #endif
-
+#if defined(CONFIG_HDMI_CAT66121)
+	{
+		.type		= "cat66121_hdmi",
+		.addr		= 0x4c,
+		.flags		= 0,
+		.irq		= RK30_PIN2_PD6,
+		.platform_data 	= &rk_hdmi_pdata,
+	},
+#endif
 
 };
 #endif
@@ -1974,6 +1993,14 @@ static struct i2c_board_info __initdata i2c4_info[] = {
 		},
 #endif
 #endif
+#ifdef CONFIG_SND_SOC_RT5631
+        {
+                .type                   = "rt5631",
+                .addr                   = 0x1a,
+                .flags                  = 0,
+        },
+#endif
+
 };
 #endif
 
@@ -2116,7 +2143,7 @@ static void rk30_pm_power_off(void)
 				{
 					printk("without dc,shutdown system\n");
 					act8846_device_shutdown();
-					while(1);
+					//while(1);
 			   }
         }
 	#endif

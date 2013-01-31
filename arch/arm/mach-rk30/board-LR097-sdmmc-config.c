@@ -128,7 +128,7 @@ double rk31sdk_get_sdio_wifi_voltage(void)
     voltage = 1.8 ; //power 1.8V
     
 #elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)||defined(CONFIG_MT6620)
-    voltage = 2.8 ; //power 2.8V
+    voltage = 1.8 ; //power 2.8V
 #elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  
     voltage = 3.3 ; //power 3.3V
 #else
