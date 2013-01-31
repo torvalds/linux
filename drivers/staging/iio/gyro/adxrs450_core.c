@@ -231,20 +231,6 @@ static int adxrs450_initial_setup(struct iio_dev *indio_dev)
 		dev_err(&st->us->dev, "The device is not in normal status!\n");
 		return -EINVAL;
 	}
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_PID1, &data);
-	if (ret)
-		return ret;
-	dev_info(&st->us->dev, "The Part ID is 0x%x\n", data);
-
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_SNL, &data);
-	if (ret)
-		return ret;
-	t = data;
-	ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_SNH, &data);
-	if (ret)
-		return ret;
-	t |= data << 16;
-	dev_info(&st->us->dev, "The Serial Number is 0x%x\n", t);
 
 	return 0;
 }
