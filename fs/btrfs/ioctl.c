@@ -818,7 +818,7 @@ static int find_new_extents(struct btrfs_root *root,
 
 	while(1) {
 		ret = btrfs_search_forward(root, &min_key, &max_key,
-					   path, 0, newer_than);
+					   path, newer_than);
 		if (ret != 0)
 			goto none;
 		if (min_key.objectid != ino)
@@ -1864,7 +1864,7 @@ static noinline int search_ioctl(struct inode *inode,
 	path->keep_locks = 1;
 
 	while(1) {
-		ret = btrfs_search_forward(root, &key, &max_key, path, 0,
+		ret = btrfs_search_forward(root, &key, &max_key, path,
 					   sk->min_transid);
 		if (ret != 0) {
 			if (ret > 0)
@@ -2212,10 +2212,10 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			ret = -EPERM;
 			goto out;
 		}
-		ret = btrfs_defrag_root(root, 0);
+		ret = btrfs_defrag_root(root);
 		if (ret)
 			goto out;
-		ret = btrfs_defrag_root(root->fs_info->extent_root, 0);
+		ret = btrfs_defrag_root(root->fs_info->extent_root);
 		break;
 	case S_IFREG:
 		if (!(file->f_mode & FMODE_WRITE)) {

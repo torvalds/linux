@@ -959,10 +959,10 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 }
 
 /*
- * defrag a given btree.  If cacheonly == 1, this won't read from the disk,
- * otherwise every leaf in the btree is read and defragged.
+ * defrag a given btree.
+ * Every leaf in the btree is read and defragged.
  */
-int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
+int btrfs_defrag_root(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_trans_handle *trans;
@@ -976,7 +976,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
 
-		ret = btrfs_defrag_leaves(trans, root, cacheonly);
+		ret = btrfs_defrag_leaves(trans, root);
 
 		btrfs_end_transaction(trans, root);
 		btrfs_btree_balance_dirty(info->tree_root);

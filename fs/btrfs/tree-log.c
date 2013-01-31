@@ -2738,7 +2738,7 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	path->keep_locks = 1;
 
 	ret = btrfs_search_forward(root, &min_key, &max_key,
-				   path, 0, trans->transid);
+				   path, trans->transid);
 
 	/*
 	 * we didn't find anything from this transaction, see if there
@@ -3680,7 +3680,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	while (1) {
 		ins_nr = 0;
 		ret = btrfs_search_forward(root, &min_key, &max_key,
-					   path, 0, trans->transid);
+					   path, trans->transid);
 		if (ret != 0)
 			break;
 again:
