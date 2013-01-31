@@ -289,7 +289,6 @@ static int max8997_muic_handle_charger_type_detach(
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
