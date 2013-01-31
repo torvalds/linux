@@ -539,12 +539,17 @@ partial:
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
+static inline bool is_trace_uprobe_enabled(struct trace_uprobe *tu)
+{
+	return tu->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE);
+}
+
 static int probe_event_enable(struct trace_uprobe *tu, int flag)
 {
 	struct uprobe_trace_consumer *utc;
 	int ret = 0;
 
-	if (tu->consumer)
+	if (is_trace_uprobe_enabled(tu))
 		return -EINTR;
 
 	utc = kzalloc(sizeof(struct uprobe_trace_consumer), GFP_KERNEL);
@@ -568,7 +573,7 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 
 static void probe_event_disable(struct trace_uprobe *tu, int flag)
 {
-	if (!tu->consumer)
+	if (!is_trace_uprobe_enabled(tu))
 		return;
 
 	uprobe_unregister(tu->inode, tu->offset, &tu->consumer->cons);
