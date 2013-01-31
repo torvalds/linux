@@ -1538,6 +1538,7 @@ static int max1363_probe(struct i2c_client *client,
 		goto error_out;
 	}
 
+	indio_dev->dev.of_node = client->dev.of_node;
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
 		goto error_free_device;
