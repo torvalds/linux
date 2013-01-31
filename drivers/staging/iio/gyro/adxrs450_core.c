@@ -258,9 +258,10 @@ static int adxrs450_write_raw(struct iio_dev *indio_dev,
 	int ret;
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
+		if (val < -0x400 || val >= 0x400)
+			return -EINVAL;
 		ret = adxrs450_spi_write_reg_16(indio_dev,
-						ADXRS450_DNC1,
-						val & 0x3FF);
+						ADXRS450_DNC1, val);
 		break;
 	default:
 		ret = -EINVAL;
