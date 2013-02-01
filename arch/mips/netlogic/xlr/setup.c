@@ -193,8 +193,11 @@ static void nlm_init_node(void)
 
 void __init prom_init(void)
 {
-	int i, *argv, *envp;		/* passed as 32 bit ptrs */
+	int *argv, *envp;		/* passed as 32 bit ptrs */
 	struct psb_info *prom_infop;
+#ifdef CONFIG_SMP
+	int i;
+#endif
 
 	/* truncate to 32 bit and sign extend all args */
 	argv = (int *)(long)(int)fw_arg1;

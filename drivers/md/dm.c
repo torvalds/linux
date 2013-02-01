@@ -1188,6 +1188,7 @@ static int __clone_and_map_changing_extent_only(struct clone_info *ci,
 {
 	struct dm_target *ti;
 	sector_t len;
+	unsigned num_requests;
 
 	do {
 		ti = dm_table_find_target(ci->map, ci->sector);
@@ -1200,7 +1201,8 @@ static int __clone_and_map_changing_extent_only(struct clone_info *ci,
 		 * reconfiguration might also have changed that since the
 		 * check was performed.
 		 */
-		if (!get_num_requests || !get_num_requests(ti))
+		num_requests = get_num_requests ? get_num_requests(ti) : 0;
+		if (!num_requests)
 			return -EOPNOTSUPP;
 
 		if (is_split_required && !is_split_required(ti))
@@ -1208,7 +1210,7 @@ static int __clone_and_map_changing_extent_only(struct clone_info *ci,
 		else
 			len = min(ci->sector_count, max_io_len(ci->sector, ti));
 
-		__issue_target_requests(ci, ti, ti->num_discard_requests, len);
+		__issue_target_requests(ci, ti, num_requests, len);
 
 		ci->sector += len;
 	} while (ci->sector_count -= len);
