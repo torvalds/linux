@@ -1292,7 +1292,14 @@ struct cfg80211_bss_ies {
  *	either the beacon_ies or proberesp_ies depending on whether Probe
  *	Response frame has been received
  * @beacon_ies: the information elements from the last Beacon frame
+ *	(implementation note: if @hidden_beacon_bss is set this struct doesn't
+ *	own the beacon_ies, but they're just pointers to the ones from the
+ *	@hidden_beacon_bss struct)
  * @proberesp_ies: the information elements from the last Probe Response frame
+ * @hidden_beacon_bss: in case this BSS struct represents a probe response from
+ *	a BSS that hides the SSID in its beacon, this points to the BSS struct
+ *	that holds the beacon data. @beacon_ies is still valid, of course, and
+ *	points to the same data as hidden_beacon_bss->beacon_ies in that case.
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -1304,6 +1311,8 @@ struct cfg80211_bss {
 	const struct cfg80211_bss_ies __rcu *ies;
 	const struct cfg80211_bss_ies __rcu *beacon_ies;
 	const struct cfg80211_bss_ies __rcu *proberesp_ies;
+
+	struct cfg80211_bss *hidden_beacon_bss;
 
 	s32 signal;
 

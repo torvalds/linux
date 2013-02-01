@@ -8,7 +8,6 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <linux/kref.h>
 #include <linux/rbtree.h>
 #include <linux/debugfs.h>
 #include <linux/rfkill.h>
@@ -124,9 +123,10 @@ static inline void assert_cfg80211_lock(void)
 
 struct cfg80211_internal_bss {
 	struct list_head list;
+	struct list_head hidden_list;
 	struct rb_node rbn;
 	unsigned long ts;
-	struct kref ref;
+	unsigned long refcount;
 	atomic_t hold;
 
 	/* must be last because of priv member */
