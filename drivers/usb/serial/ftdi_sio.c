@@ -584,6 +584,7 @@ static struct usb_device_id id_table_combined [] = {
 	/*
 	 * ELV devices:
 	 */
+	{ USB_DEVICE(FTDI_ELV_VID, FTDI_ELV_WS300_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_USR_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_MSM1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_KL100_PID) },
