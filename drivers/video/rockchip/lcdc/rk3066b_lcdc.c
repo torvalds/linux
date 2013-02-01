@@ -1006,9 +1006,10 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = (struct rk3066b_lcdc_device *)dev_id;
+	ktime_t timestamp = ktime_get();
 	
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_FRM_STARTCLEAR(1));
-	LCDC_REG_CFG_DONE();
+	
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
  
 	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
@@ -1017,6 +1018,10 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 		complete(&(lcdc_dev->driver.frame_done));
 		spin_unlock(&(lcdc_dev->driver.cpl_lock));
 	}
+
+	lcdc_dev->driver.vsync_info.timestamp = timestamp;
+	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
+	
 	return IRQ_HANDLED;
 }
 
@@ -1228,8 +1233,10 @@ static void rk3066b_lcdc_shutdown(struct platform_device *pdev)
 		lcdc_dev->driver.screen_ctr_info->io_disable();
 	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
 		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
-	rk_fb_unregister(&(lcdc_dev->driver));
+
 	rk3066b_lcdc_deinit(lcdc_dev);
+	rk_fb_unregister(&(lcdc_dev->driver));
+	
 	/*iounmap(lcdc_dev->reg_vir_base);
 	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
 	kfree(lcdc_dev->screen);
