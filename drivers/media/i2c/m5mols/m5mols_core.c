@@ -556,7 +556,7 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	mutex_lock(&info->lock);
 
 	format = __find_format(info, fh, fmt->which, info->res_type);
-	if (!format)
+	if (format)
 		fmt->format = *format;
 	else
 		ret = -EINVAL;

@@ -2177,8 +2177,8 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	return ret;
 }
 
-long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
-			    loff_t length)
+static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
+				loff_t length)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
@@ -2213,7 +2213,6 @@ long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(fuse_file_fallocate);
 
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
