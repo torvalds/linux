@@ -70,9 +70,9 @@ void __init setup_real_mode(void)
 		__va(real_mode_header->trampoline_header);
 
 #ifdef CONFIG_X86_32
-	trampoline_header->start = __pa(startup_32_smp);
+	trampoline_header->start = __pa_symbol(startup_32_smp);
 	trampoline_header->gdt_limit = __BOOT_DS + 7;
-	trampoline_header->gdt_base = __pa(boot_gdt);
+	trampoline_header->gdt_base = __pa_symbol(boot_gdt);
 #else
 	/*
 	 * Some AMD processors will #GP(0) if EFER.LMA is set in WRMSR
