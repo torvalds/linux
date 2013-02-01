@@ -429,10 +429,21 @@ static void iommu_set_irq_remapping(struct intel_iommu *iommu, int mode)
 
 	/* Enable interrupt-remapping */
 	iommu->gcmd |= DMA_GCMD_IRE;
+	iommu->gcmd &= ~DMA_GCMD_CFI;  /* Block compatibility-format MSIs */
 	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRES), sts);
+
+	/*
+	 * With CFI clear in the Global Command register, we should be
+	 * protected from dangerous (i.e. compatibility) interrupts
+	 * regardless of x2apic status.  Check just to be sure.
+	 */
+	if (sts & DMA_GSTS_CFIS)
+		WARN(1, KERN_WARNING
+			"Compatibility-format IRQs enabled despite intr remapping;\n"
+			"you are vulnerable to IRQ injection.\n");
 
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
@@ -530,20 +541,24 @@ static int __init intel_irq_remapping_supported(void)
 static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
+	bool x2apic_present;
 	int setup = 0;
 	int eim = 0;
 
+	x2apic_present = x2apic_supported();
+
 	if (parse_ioapics_under_ir() != 1) {
 		printk(KERN_INFO "Not enable interrupt remapping\n");
-		return -1;
+		goto error;
 	}
 
-	if (x2apic_supported()) {
+	if (x2apic_present) {
 		eim = !dmar_x2apic_optout();
-		WARN(!eim, KERN_WARNING
-			   "Your BIOS is broken and requested that x2apic be disabled\n"
-			   "This will leave your machine vulnerable to irq-injection attacks\n"
-			   "Use 'intremap=no_x2apic_optout' to override BIOS request\n");
+		if (!eim)
+			printk(KERN_WARNING
+				"Your BIOS is broken and requested that x2apic be disabled.\n"
+				"This will slightly decrease performance.\n"
+				"Use 'intremap=no_x2apic_optout' to override BIOS request.\n");
 	}
 
 	for_each_drhd_unit(drhd) {
@@ -582,7 +597,7 @@ static int __init intel_enable_irq_remapping(void)
 		if (eim && !ecap_eim_support(iommu->ecap)) {
 			printk(KERN_INFO "DRHD %Lx: EIM not supported by DRHD, "
 			       " ecap %Lx\n", drhd->reg_base_addr, iommu->ecap);
-			return -1;
+			goto error;
 		}
 	}
 
@@ -598,7 +613,7 @@ static int __init intel_enable_irq_remapping(void)
 			printk(KERN_ERR "DRHD %Lx: failed to enable queued, "
 			       " invalidation, ecap %Lx, ret %d\n",
 			       drhd->reg_base_addr, iommu->ecap, ret);
-			return -1;
+			goto error;
 		}
 	}
 
@@ -637,6 +652,11 @@ error:
 	/*
 	 * handle error condition gracefully here!
 	 */
+
+	if (x2apic_present)
+		WARN(1, KERN_WARNING
+			"Failed to enable irq remapping.  You are vulnerable to irq-injection attacks.\n");
+
 	return -1;
 }
 
