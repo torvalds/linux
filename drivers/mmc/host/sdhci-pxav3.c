@@ -32,9 +32,13 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
+
+#define PXAV3_RPM_DELAY_MS     50
 
 #define SD_CLOCK_BURST_SIZE_SETUP		0x10A
 #define SDCLK_SEL	0x100
@@ -296,9 +300,18 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	sdhci_get_of_property(pdev);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_runtime_get_noresume(&pdev->dev);
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add host\n");
+		pm_runtime_forbid(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
 		goto err_add_host;
 	}
 
@@ -310,6 +323,8 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	} else {
 		device_init_wakeup(&pdev->dev, 0);
 	}
+
+	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
 
@@ -329,7 +344,9 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = pltfm_host->priv;
 
+	pm_runtime_get_sync(&pdev->dev);
 	sdhci_remove_host(host, 1);
+	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
@@ -342,6 +359,83 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sdhci_pxav3_suspend(struct device *dev)
+{
+	int ret;
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	pm_runtime_get_sync(dev);
+	ret = sdhci_suspend_host(host);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+
+static int sdhci_pxav3_resume(struct device *dev)
+{
+	int ret;
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	pm_runtime_get_sync(dev);
+	ret = sdhci_resume_host(host);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+static int sdhci_pxav3_runtime_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	unsigned long flags;
+
+	if (pltfm_host->clk) {
+		spin_lock_irqsave(&host->lock, flags);
+		host->runtime_suspended = true;
+		spin_unlock_irqrestore(&host->lock, flags);
+
+		clk_disable_unprepare(pltfm_host->clk);
+	}
+
+	return 0;
+}
+
+static int sdhci_pxav3_runtime_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	unsigned long flags;
+
+	if (pltfm_host->clk) {
+		clk_prepare_enable(pltfm_host->clk);
+
+		spin_lock_irqsave(&host->lock, flags);
+		host->runtime_suspended = false;
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops sdhci_pxav3_pmops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
+	SET_RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend,
+		sdhci_pxav3_runtime_resume, NULL)
+};
+
+#define SDHCI_PXAV3_PMOPS (&sdhci_pxav3_pmops)
+
+#else
+#define SDHCI_PXAV3_PMOPS NULL
+#endif
+
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
@@ -349,7 +443,7 @@ static struct platform_driver sdhci_pxav3_driver = {
 		.of_match_table = sdhci_pxav3_of_match,
 #endif
 		.owner	= THIS_MODULE,
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= SDHCI_PXAV3_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,
 	.remove		= sdhci_pxav3_remove,
