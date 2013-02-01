@@ -158,7 +158,7 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	struct dentry *ret, *parent;
 	struct inode *inode;
 	struct super_block *sb;
-	int err, npositive, lc_idx;
+	int err, npositive;
 
 	IMustLock(dir);
 
@@ -225,12 +225,16 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 out_unlock:
 	di_write_unlock(dentry);
 	if (inode) {
-		lc_idx = AuLcNonDir_DIINFO;
-		if (S_ISLNK(inode->i_mode))
-			lc_idx = AuLcSymlink_DIINFO;
-		else if (S_ISDIR(inode->i_mode))
-			lc_idx = AuLcDir_DIINFO;
-		au_rw_class(&au_di(dentry)->di_rwsem, au_lc_key + lc_idx);
+		/* verbose coding for lock class name */
+		if (unlikely(S_ISLNK(inode->i_mode)))
+			au_rw_class(&au_di(dentry)->di_rwsem,
+				    au_lc_key + AuLcSymlink_DIINFO);
+		else if (unlikely(S_ISDIR(inode->i_mode)))
+			au_rw_class(&au_di(dentry)->di_rwsem,
+				    au_lc_key + AuLcDir_DIINFO);
+		else /* likely */
+			au_rw_class(&au_di(dentry)->di_rwsem,
+				    au_lc_key + AuLcNonDir_DIINFO);
 	}
 out_si:
 	si_read_unlock(sb);
