@@ -1352,7 +1352,16 @@ static int __devexit rk_fb_remove(struct platform_device *pdev)
 
 static void rk_fb_shutdown(struct platform_device *pdev)
 {
-//	struct rk_fb_inf *fb_inf = platform_get_drvdata(pdev);
+	struct rk_fb_inf *inf = platform_get_drvdata(pdev);
+	int i;
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		if (!inf->lcdc_dev_drv[i])
+			continue;
+
+		if(inf->lcdc_dev_drv[i]->vsync_info.thread)
+			kthread_stop(inf->lcdc_dev_drv[i]->vsync_info.thread);
+	}
 //	kfree(fb_inf);
 //	platform_set_drvdata(pdev, NULL);
 #ifdef CONFIG_HAS_EARLYSUSPEND
