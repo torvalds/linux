@@ -176,6 +176,13 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 		},
 		.callback = setup_isl29018_als,
 	},
+	{
+		.ident = "Acer C7 Chromebook - Touchpad",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Parrot"),
+		},
+		.callback = setup_cyapa_smbus_tp,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(dmi, chromeos_laptop_dmi_table);
