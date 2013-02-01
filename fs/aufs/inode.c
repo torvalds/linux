@@ -336,7 +336,7 @@ struct inode *au_new_inode(struct dentry *dentry, int must_new)
 	struct super_block *sb;
 	struct mutex *mtx;
 	ino_t h_ino, ino;
-	int err, lc_idx;
+	int err;
 	aufs_bindex_t bstart;
 
 	sb = dentry->d_sb;
@@ -377,12 +377,16 @@ new_ino:
 
 	AuDbg("%lx, new %d\n", inode->i_state, !!(inode->i_state & I_NEW));
 	if (inode->i_state & I_NEW) {
-		lc_idx = AuLcNonDir_IIINFO;
-		if (S_ISLNK(h_inode->i_mode))
-			lc_idx = AuLcSymlink_IIINFO;
-		else if (S_ISDIR(h_inode->i_mode))
-			lc_idx = AuLcDir_IIINFO;
-		au_rw_class(&au_ii(inode)->ii_rwsem, au_lc_key + lc_idx);
+		/* verbose coding for lock class name */
+		if (unlikely(S_ISLNK(h_inode->i_mode)))
+			au_rw_class(&au_ii(inode)->ii_rwsem,
+				    au_lc_key + AuLcSymlink_IIINFO);
+		else if (unlikely(S_ISDIR(h_inode->i_mode)))
+			au_rw_class(&au_ii(inode)->ii_rwsem,
+				    au_lc_key + AuLcDir_IIINFO);
+		else /* likely */
+			au_rw_class(&au_ii(inode)->ii_rwsem,
+				    au_lc_key + AuLcNonDir_IIINFO);
 
 		ii_write_lock_new_child(inode);
 		err = set_inode(inode, dentry);
