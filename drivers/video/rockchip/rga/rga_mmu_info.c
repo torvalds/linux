@@ -297,7 +297,7 @@ static int rga_MapUserMemory(struct page **pages,
 
                 if (vma)//&& (vma->vm_flags & VM_PFNMAP) )
                 {
-                    #if 0
+                    #if 1
                     do
                     {
                         pte_t       * pte;
@@ -310,7 +310,7 @@ static int rga_MapUserMemory(struct page **pages,
 
                         if(pgd_val(*pgd) == 0)
                         {
-                            printk("rga pgd value is zero \n");
+                            //printk("rga pgd value is zero \n");
                             break;
                         }
                         

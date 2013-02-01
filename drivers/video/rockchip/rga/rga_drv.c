@@ -49,7 +49,7 @@
 #include "RGA_API.h"
 
 #define RGA_TEST 0
-#define RGA_TEST_TIME 0
+#define RGA_TEST_TIME 1
 #define RGA_TEST_FLUSH_TIME 0
 #define RGA_INFO_BUS_ERROR 1
 
@@ -1321,8 +1321,8 @@ EXPORT_SYMBOL(rk_direct_fb_show);
 
 #endif
 
-unsigned int src_buf[1280*720];
-unsigned int dst_buf[720*480];
+unsigned int src_buf[1920*1080];
+unsigned int dst_buf[1920*1080];
 
 void rga_test_0(void)
 {
@@ -1366,24 +1366,28 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
 
+    printk("\n********************************\n");
+    printk("************ RGA_TEST ************\n");
+    printk("********************************\n\n");
+
     req.src.act_w = 1280;
     req.src.act_h = 720;
 
     req.src.vir_w = 1280;
     req.src.vir_h = 720;
-    req.src.yrgb_addr = (uint32_t)src;
+    req.src.yrgb_addr = (uint32_t)virt_to_phys(src + 128) & 0xffffffc0;
     req.src.uv_addr = (uint32_t)virt_to_phys(src);
     req.src.v_addr = (uint32_t)virt_to_phys(src);
     req.src.format = 0;
 
-    req.dst.act_w = 720;
-    req.dst.act_h = 480;
+    req.dst.act_w = 1280;
+    req.dst.act_h = 720;
 
     req.dst.vir_w = 1280;
     req.dst.vir_h = 720;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
+    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst) + 8;
 
     //req.dst.format = RK_FORMAT_RGB_565;
 
@@ -1395,8 +1399,8 @@ void rga_test_0(void)
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
 
-    req.rotate_mode = 1;
-    req.scale_mode = 2;
+    //req.rotate_mode = 1;
+   // req.scale_mode = 2;
 
     //req.alpha_rop_flag = 1;
     //req.alpha_rop_mode = 0x19;
@@ -1405,12 +1409,15 @@ void rga_test_0(void)
     req.sina = 0;
     req.cosa = 65536;
 
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
+    //req.mmu_info.mmu_flag = 0x21;
+    //req.mmu_info.mmu_en = 1;
+
+    printk("src = %.8x\n", req.src.yrgb_addr);
+    printk("dst = %.8x\n", req.dst.yrgb_addr);
 
     rga_blit_sync(&session, &req);
     
-    #if 1
+    #if 0
     fb->var.bits_per_pixel = 32;
     
     fb->var.xres = 1280;
