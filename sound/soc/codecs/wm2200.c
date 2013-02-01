@@ -1112,6 +1112,16 @@ static int wm2200_mixer_values[] = {
 	static WM2200_MUX_CTL_DECL(name##_aux5); \
 	static WM2200_MUX_CTL_DECL(name##_aux6);
 
+static const char *wm2200_rxanc_input_sel_texts[] = {
+	"None", "IN1", "IN2", "IN3",
+};
+
+static const struct soc_enum wm2200_rxanc_input_sel =
+	SOC_ENUM_SINGLE(WM2200_RXANC_SRC,
+			WM2200_IN_RXANC_SEL_SHIFT,
+			ARRAY_SIZE(wm2200_rxanc_input_sel_texts),
+			wm2200_rxanc_input_sel_texts);
+
 static const struct snd_kcontrol_new wm2200_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM2200_IN1L_CONTROL,
 	   WM2200_IN1_OSR_SHIFT, 1, 0),
@@ -1171,6 +1181,7 @@ SOC_DOUBLE_R_TLV("OUT2 Digital Volume", WM2200_DAC_DIGITAL_VOLUME_2L,
 		 digital_tlv),
 SOC_DOUBLE("OUT2 Switch", WM2200_PDM_1, WM2200_SPK1L_MUTE_SHIFT,
 	   WM2200_SPK1R_MUTE_SHIFT, 1, 1),
+SOC_ENUM("RxANC Src", wm2200_rxanc_input_sel),
 };
 
 WM2200_MIXER_ENUMS(OUT1L, WM2200_OUT1LMIX_INPUT_1_SOURCE);
