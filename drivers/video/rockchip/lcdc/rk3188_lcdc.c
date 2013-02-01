@@ -339,6 +339,29 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 }
 
 
+static void rk3188_lcdc_deint(struct rk3188_lcdc_device * lcdc_dev)
+{
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		lcdc_dev->clk_on = 0;
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR, v_FS_INT_CLEAR(1));
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_HS_INT_EN | m_FS_INT_EN | 
+			m_LF_INT_EN | m_BUS_ERR_INT_EN,v_HS_INT_EN(0) | v_FS_INT_EN(0) | 
+			v_LF_INT_EN(0) | v_BUS_ERR_INT_EN(0));  //disable all lcdc interrupt
+		lcdc_set_bit(lcdc_dev,SYS_CTRL,m_LCDC_STANDBY);
+		lcdc_cfg_done(lcdc_dev);
+		spin_unlock(&lcdc_dev->reg_lock);
+	}
+	else   //clk already disabled 
+	{
+		spin_unlock(&lcdc_dev->reg_lock);
+		return 0;
+	}
+	mdelay(1);
+	
+}
+
 //set lcdc according the screen info
 static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscreen)
 {
@@ -1401,6 +1424,7 @@ static void rk3188_lcdc_shutdown(struct platform_device *pdev)
 		lcdc_dev->driver.screen_ctr_info->io_disable();
 	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
 		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
+	rk3188_lcdc_deint(lcdc_dev);
 	rk_fb_unregister(&(lcdc_dev->driver));	
 }
 static struct platform_driver rk3188_lcdc_driver = {
