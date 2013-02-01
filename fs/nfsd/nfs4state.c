@@ -4939,16 +4939,6 @@ nfs4_state_start_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
 
-	/*
-	 * FIXME: For now, we hang most of the pernet global stuff off of
-	 * init_net until nfsd is fully containerized. Eventually, we'll
-	 * need to pass a net pointer into this function, take a reference
-	 * to that instead and then do most of the rest of this on a per-net
-	 * basis.
-	 */
-	if (net != &init_net)
-		return -EINVAL;
-
 	ret = nfs4_state_create_net(net);
 	if (ret)
 		return ret;
