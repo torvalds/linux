@@ -1385,7 +1385,14 @@ static int __devexit rk3188_lcdc_remove(struct platform_device *pdev)
 
 static void rk3188_lcdc_shutdown(struct platform_device *pdev)
 {
-	
+	struct rk3188_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	if(lcdc_dev->driver.cur_screen->standby) //standby the screen if necessary
+		lcdc_dev->driver.cur_screen->standby(1);
+	if(lcdc_dev->driver.screen_ctr_info->io_disable) //power off the screen if necessary
+		lcdc_dev->driver.screen_ctr_info->io_disable();
+	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
+		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
+	rk_fb_unregister(&(lcdc_dev->driver));	
 }
 static struct platform_driver rk3188_lcdc_driver = {
 	.probe		= rk3188_lcdc_probe,
