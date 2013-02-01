@@ -443,7 +443,7 @@ static int xway_pinconf_get(struct pinctrl_dev *pctldev,
 		else
 			reg = GPIO_OD(pin);
 		*config = LTQ_PINCONF_PACK(param,
-			!!gpio_getbit(info->membase[0], reg, PORT_PIN(pin)));
+			!gpio_getbit(info->membase[0], reg, PORT_PIN(pin)));
 		break;
 
 	case LTQ_PINCONF_PARAM_PULL:
