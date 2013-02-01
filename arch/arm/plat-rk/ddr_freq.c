@@ -165,7 +165,8 @@ static void _ddr_change_freq(uint32_t nMHz)
 {
 	u32 timeout = MAX_TIMEOUT;
 	unsigned int cpu;
-	unsigned int this_cpu = get_cpu();
+	unsigned int this_cpu = smp_processor_id();
+
 	cpu_maps_update_begin();
 
 	set_other_cpus_pause(false);
@@ -187,7 +188,6 @@ static void _ddr_change_freq(uint32_t nMHz)
 
 out:
 	cpu_maps_update_done();
-	put_cpu();
 }
 #else
 static void _ddr_change_freq(uint32_t nMHz)
@@ -416,7 +416,7 @@ static int ddrfreq_late_init(void)
 	kthread_bind(ddr.task, 0);
 	wake_up_process(ddr.task);
 
-	pr_info("verion 2.0\n");
+	pr_info("verion 2.1\n");
 	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ);
 
