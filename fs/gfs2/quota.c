@@ -120,11 +120,17 @@ out:
 	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
 }
 
+static u64 qd2index(struct gfs2_quota_data *qd)
+{
+	return (2 * (u64)qd->qd_id) +
+		test_bit(QDF_USER, &qd->qd_flags) ? 0 : 1;
+}
+
 static u64 qd2offset(struct gfs2_quota_data *qd)
 {
 	u64 offset;
 
-	offset = 2 * (u64)qd->qd_id + !test_bit(QDF_USER, &qd->qd_flags);
+	offset = qd2index(qd);
 	offset *= sizeof(struct gfs2_quota);
 
 	return offset;
@@ -147,7 +153,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 	qd->qd_slot = -1;
 	INIT_LIST_HEAD(&qd->qd_reclaim);
 
-	error = gfs2_glock_get(sdp, 2 * (u64)id + !user,
+	error = gfs2_glock_get(sdp, qd2index(qd),
 			      &gfs2_quota_glops, CREATE, &qd->qd_gl);
 	if (error)
 		goto fail;
