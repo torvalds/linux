@@ -211,7 +211,6 @@ static u32 __init omap_dm_timer_get_errata(void)
 }
 
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
-					 int gptimer_id,
 					 const char *fck_source,
 					 const char *property,
 					 const char **timer_name,
@@ -242,10 +241,10 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 		of_node_put(np);
 	} else {
-		if (omap_dm_timer_reserve_systimer(gptimer_id))
+		if (omap_dm_timer_reserve_systimer(timer->id))
 			return -ENODEV;
 
-		sprintf(name, "timer%d", gptimer_id);
+		sprintf(name, "timer%d", timer->id);
 		oh_name = name;
 	}
 
@@ -318,6 +317,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 {
 	int res;
 
+	clkev.id = gptimer_id;
 	clkev.errata = omap_dm_timer_get_errata();
 
 	/*
@@ -327,7 +327,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	 */
 	__omap_dm_timer_override_errata(&clkev, OMAP_TIMER_ERRATA_I103_I767);
 
-	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source, property,
+	res = omap_dm_timer_init_one(&clkev, fck_source, property,
 				     &clockevent_gpt.name, OMAP_TIMER_POSTED);
 	BUG_ON(res);
 
@@ -453,9 +453,10 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 {
 	int res;
 
+	clksrc.id = gptimer_id;
 	clksrc.errata = omap_dm_timer_get_errata();
 
-	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source, property,
+	res = omap_dm_timer_init_one(&clksrc, fck_source, property,
 				     &clocksource_gpt.name,
 				     OMAP_TIMER_NONPOSTED);
 	BUG_ON(res);
