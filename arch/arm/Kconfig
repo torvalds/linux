@@ -904,7 +904,7 @@ config ARCH_NOMADIK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_CACHE_L2X0
-	select OF
+	select USE_OF
 	select PINCTRL
 	select PINCTRL_STN8815
 	select SPARSE_IRQ
