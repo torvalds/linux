@@ -17,15 +17,15 @@ struct shrink_control;
 #define NO_UID_QUOTA_CHANGE INVALID_UID
 #define NO_GID_QUOTA_CHANGE INVALID_GID
 
-extern int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid);
+extern int gfs2_quota_hold(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
 extern void gfs2_quota_unhold(struct gfs2_inode *ip);
 
-extern int gfs2_quota_lock(struct gfs2_inode *ip, u32 uid, u32 gid);
+extern int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
 extern void gfs2_quota_unlock(struct gfs2_inode *ip);
 
-extern int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid);
+extern int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
 extern void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
-			      u32 uid, u32 gid);
+			      kuid_t uid, kgid_t gid);
 
 extern int gfs2_quota_sync(struct super_block *sb, int type);
 extern int gfs2_quota_refresh(struct gfs2_sbd *sdp, struct kqid qid);

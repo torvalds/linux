@@ -1580,7 +1580,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	u32 ouid, ogid, nuid, ngid;
+	kuid_t ouid, nuid;
+	kgid_t ogid, ngid;
 	int error;
 
 	ouid = inode->i_uid;

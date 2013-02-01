@@ -492,7 +492,7 @@ static void qdsb_put(struct gfs2_quota_data *qd)
 	qd_put(qd);
 }
 
-int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
+int gfs2_quota_hold(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data **qd;
@@ -918,7 +918,7 @@ fail:
 	return error;
 }
 
-int gfs2_quota_lock(struct gfs2_inode *ip, u32 uid, u32 gid)
+int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
@@ -1039,7 +1039,7 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 	return 0;
 }
 
-int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
+int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
@@ -1088,7 +1088,7 @@ int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
 }
 
 void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
-		       u32 uid, u32 gid)
+		       kuid_t uid, kgid_t gid)
 {
 	struct gfs2_quota_data *qd;
 	unsigned int x;
