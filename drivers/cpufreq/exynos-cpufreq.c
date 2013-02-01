@@ -159,7 +159,7 @@ static int exynos_target(struct cpufreq_policy *policy,
 {
 	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
 	unsigned int index;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&cpufreq_lock);
 
