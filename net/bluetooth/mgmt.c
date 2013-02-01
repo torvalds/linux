@@ -760,13 +760,9 @@ static void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
 					    void *data),
 				 void *data)
 {
-	struct list_head *p, *n;
+	struct pending_cmd *cmd, *tmp;
 
-	list_for_each_safe(p, n, &hdev->mgmt_pending) {
-		struct pending_cmd *cmd;
-
-		cmd = list_entry(p, struct pending_cmd, list);
-
+	list_for_each_entry_safe(cmd, tmp, &hdev->mgmt_pending, list) {
 		if (opcode > 0 && cmd->opcode != opcode)
 			continue;
 
