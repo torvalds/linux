@@ -322,8 +322,8 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		break;
 	};
 
-	ip->i_inode.i_uid = be32_to_cpu(str->di_uid);
-	ip->i_inode.i_gid = be32_to_cpu(str->di_gid);
+	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));
+	i_gid_write(&ip->i_inode, be32_to_cpu(str->di_gid));
 	gfs2_set_nlink(&ip->i_inode, be32_to_cpu(str->di_nlink));
 	i_size_write(&ip->i_inode, be64_to_cpu(str->di_size));
 	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));

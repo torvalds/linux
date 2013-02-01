@@ -456,8 +456,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
 	di->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
 	di->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
 	di->di_mode = cpu_to_be32(ip->i_inode.i_mode);
-	di->di_uid = cpu_to_be32(ip->i_inode.i_uid);
-	di->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	di->di_uid = cpu_to_be32(i_uid_read(&ip->i_inode));
+	di->di_gid = cpu_to_be32(i_gid_read(&ip->i_inode));
 	di->di_nlink = 0;
 	di->di_size = cpu_to_be64(ip->i_inode.i_size);
 	di->di_blocks = cpu_to_be64(1);
