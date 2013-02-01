@@ -216,6 +216,8 @@ static int __init debugfs_tlb(void)
 	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
 	if (!d)
 		return -ENOMEM;
+
+	return 0;
 }
 device_initcall(debugfs_tlb);
 # endif
