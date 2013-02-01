@@ -146,7 +146,6 @@ static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 	 * share the clock and voltage and clock.  Use cpufreq affected_cpus
 	 * interface to have all CPUs scaled together.
 	 */
-	policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
 	cpumask_setall(policy->cpus);
 
 	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
