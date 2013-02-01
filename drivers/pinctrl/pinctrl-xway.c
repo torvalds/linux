@@ -466,6 +466,11 @@ static int xway_pinconf_get(struct pinctrl_dev *pctldev,
 			*config = LTQ_PINCONF_PACK(param, 1);
 		break;
 
+	case LTQ_PINCONF_PARAM_OUTPUT:
+		reg = GPIO_DIR(pin);
+		*config = LTQ_PINCONF_PACK(param,
+			gpio_getbit(info->membase[0], reg, PORT_PIN(pin)));
+		break;
 	default:
 		dev_err(pctldev->dev, "Invalid config param %04x\n", param);
 		return -ENOTSUPP;
@@ -513,6 +518,14 @@ static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
 		else
 			dev_err(pctldev->dev, "Invalid pull value %d\n", arg);
+		break;
+
+	case LTQ_PINCONF_PARAM_OUTPUT:
+		reg = GPIO_DIR(pin);
+		if (arg == 0)
+			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
+		else
+			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
 		break;
 
 	default:
@@ -573,6 +586,7 @@ static inline int xway_mux_apply(struct pinctrl_dev *pctrldev,
 static const struct ltq_cfg_param xway_cfg_params[] = {
 	{"lantiq,pull",		LTQ_PINCONF_PARAM_PULL},
 	{"lantiq,open-drain",	LTQ_PINCONF_PARAM_OPEN_DRAIN},
+	{"lantiq,output",	LTQ_PINCONF_PARAM_OUTPUT},
 };
 
 static struct ltq_pinmux_info xway_info = {
