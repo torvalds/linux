@@ -1449,8 +1449,8 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t * fb_para)
 	info->var.yres_virtual = yres * fb_para->buffer_num;
 	info->fix.line_length =
 		(fb_para->width * info->var.bits_per_pixel) >> 3;
-	info->fix.smem_len =
-		info->fix.line_length * fb_para->height * fb_para->buffer_num;
+	info->fix.smem_len = PAGE_ALIGN(
+		info->fix.line_length * fb_para->height * fb_para->buffer_num);
 	Fb_map_video_memory(fb_id, info);
 
 	for (sel = 0; sel < 2; sel++) {
@@ -1758,9 +1758,9 @@ __s32 Fb_Init(__u32 from)
 			g_fbi.fbinfo[i]->fix.accel = FB_ACCEL_NONE;
 			g_fbi.fbinfo[i]->fix.line_length =
 				g_fbi.fbinfo[i]->var.xres_virtual * 4;
-			g_fbi.fbinfo[i]->fix.smem_len =
+			g_fbi.fbinfo[i]->fix.smem_len = PAGE_ALIGN(
 				g_fbi.fbinfo[i]->fix.line_length *
-				g_fbi.fbinfo[i]->var.yres_virtual * 2;
+				g_fbi.fbinfo[i]->var.yres_virtual * 2);
 			g_fbi.fbinfo[i]->screen_base = NULL;
 			g_fbi.fbinfo[i]->pseudo_palette =
 				g_fbi.pseudo_palette[i];
