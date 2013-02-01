@@ -18,8 +18,8 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
-#define RPC_MACHINE_CRED_USERID		((uid_t)0)
-#define RPC_MACHINE_CRED_GROUPID	((gid_t)0)
+#define RPC_MACHINE_CRED_USERID		GLOBAL_ROOT_UID
+#define RPC_MACHINE_CRED_GROUPID	GLOBAL_ROOT_GID
 
 struct generic_cred {
 	struct rpc_cred gc_base;

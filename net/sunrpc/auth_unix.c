@@ -85,7 +85,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 		cred->uc_gids[i] = gid;
 	}
 	if (i < NFS_NGROUPS)
-		cred->uc_gids[i] = NOGROUP;
+		cred->uc_gids[i] = INVALID_GID;
 
 	return &cred->uc_base;
 }
@@ -137,7 +137,7 @@ unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 			return 0;
 	}
 	if (groups < NFS_NGROUPS &&
-	    cred->uc_gids[groups] != NOGROUP)
+	    cred->uc_gids[groups] != INVALID_GID)
 		return 0;
 	return 1;
 }
@@ -166,7 +166,7 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 	*p++ = htonl((u32) cred->uc_uid);
 	*p++ = htonl((u32) cred->uc_gid);
 	hold = p++;
-	for (i = 0; i < 16 && cred->uc_gids[i] != (gid_t) NOGROUP; i++)
+	for (i = 0; i < 16 && cred->uc_gids[i] != INVALID_GID; i++)
 		*p++ = htonl((u32) cred->uc_gids[i]);
 	*hold = htonl(p - hold - 1);		/* gid array length */
 	*base = htonl((p - base - 1) << 2);	/* cred length */

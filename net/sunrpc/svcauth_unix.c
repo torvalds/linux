@@ -750,8 +750,8 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	}
 
 	/* Signal that mapping to nobody uid/gid is required */
-	cred->cr_uid = (uid_t) -1;
-	cred->cr_gid = (gid_t) -1;
+	cred->cr_uid = INVALID_UID;
+	cred->cr_gid = INVALID_GID;
 	cred->cr_group_info = groups_alloc(0);
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE; /* kmalloc failure - client must retry */
