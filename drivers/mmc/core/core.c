@@ -516,17 +516,16 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		mmc_pre_req(host, areq->mrq, !host->areq);
 
 	if (host->areq) {
-			err = mmc_wait_for_data_req_done(host, host->areq->mrq,
-					areq);
-			if (err == MMC_BLK_NEW_REQUEST) {
-				if (error)
-					*error = err;
-				/*
-				 * The previous request was not completed,
-				 * nothing to return
-				 */
-				return NULL;
-			}
+		err = mmc_wait_for_data_req_done(host, host->areq->mrq,	areq);
+		if (err == MMC_BLK_NEW_REQUEST) {
+			if (error)
+				*error = err;
+			/*
+			 * The previous request was not completed,
+			 * nothing to return
+			 */
+			return NULL;
+		}
 		/*
 		 * Check BKOPS urgency for each R1 response
 		 */
@@ -545,7 +544,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 
 	 /* Cancel a prepared request if it was not started. */
 	if ((err || start_err) && areq)
-			mmc_post_req(host, areq->mrq, -EINVAL);
+		mmc_post_req(host, areq->mrq, -EINVAL);
 
 	if (err)
 		host->areq = NULL;
