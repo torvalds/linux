@@ -45,13 +45,20 @@ struct comedi_driver *comedi_drivers;
 
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev)
 {
-	struct device *old_hw_dev = dev->hw_dev;
-
+	if (hw_dev == dev->hw_dev)
+		return 0;
+	if (dev->hw_dev != NULL)
+		return -EEXIST;
 	dev->hw_dev = get_device(hw_dev);
-	put_device(old_hw_dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(comedi_set_hw_dev);
+
+static void comedi_clear_hw_dev(struct comedi_device *dev)
+{
+	put_device(dev->hw_dev);
+	dev->hw_dev = NULL;
+}
 
 int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 {
@@ -108,7 +115,7 @@ static void cleanup_device(struct comedi_device *dev)
 	dev->write_subdev = NULL;
 	dev->open = NULL;
 	dev->close = NULL;
-	comedi_set_hw_dev(dev, NULL);
+	comedi_clear_hw_dev(dev);
 }
 
 static void __comedi_device_detach(struct comedi_device *dev)
