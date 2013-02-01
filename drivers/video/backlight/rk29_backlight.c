@@ -158,11 +158,13 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 
 	brightness = bl->props.brightness;
 
-	
-	if(rk29_bl_info->brightness_mode==BRIGHTNESS_MODE_LINE)
-		brightness=rk29_bl_val_scalor_line(rk29_bl_info,brightness);
-	else
-		brightness=rk29_bl_val_scalor_conic(rk29_bl_info,brightness);
+	if(brightness)
+	{
+		if(rk29_bl_info->brightness_mode==BRIGHTNESS_MODE_LINE)
+			brightness=rk29_bl_val_scalor_line(rk29_bl_info,brightness);
+		else
+			brightness=rk29_bl_val_scalor_conic(rk29_bl_info,brightness);
+	}
 	//printk("%s,req brightness=%d,real is=%d\n",__FUNCTION__,bl->props.brightness,brightness);
 
 	if (bl->props.power != FB_BLANK_UNBLANK)
