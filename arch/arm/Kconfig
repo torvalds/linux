@@ -1622,6 +1622,16 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
+config ARM_PSCI
+	bool "Support for the ARM Power State Coordination Interface (PSCI)"
+	depends on CPU_V7
+	help
+	  Say Y here if you want Linux to communicate with system firmware
+	  implementing the PSCI specification for CPU-centric power
+	  management operations described in ARM document number ARM DEN
+	  0022A ("Power State Coordination Interface System Software on
+	  ARM processors").
+
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP
