@@ -145,7 +145,7 @@ static struct i2c_client __init *add_smbus_device(const char *name,
 				       addr_list);
 }
 
-static int __init setup_lumpy_tp(const struct dmi_system_id *id)
+static int __init setup_cyapa_smbus_tp(const struct dmi_system_id *id)
 {
 	/* add cyapa touchpad on smbus */
 	tp = add_smbus_device("trackpad", &cyapa_device);
@@ -166,7 +166,7 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lumpy"),
 		},
-		.callback = setup_lumpy_tp,
+		.callback = setup_cyapa_smbus_tp,
 	},
 	{
 		.ident = "Samsung Series 5 550 - Light Sensor",
