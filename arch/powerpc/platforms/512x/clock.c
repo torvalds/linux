@@ -26,6 +26,7 @@
 
 #include <linux/of_platform.h>
 #include <asm/mpc5xxx.h>
+#include <asm/mpc5121.h>
 #include <asm/clk_interface.h>
 
 #undef CLK_DEBUG
@@ -122,7 +123,7 @@ struct mpc512x_clockctl {
 	u32 dccr;		/* DIU Clk Cnfg Reg */
 };
 
-struct mpc512x_clockctl __iomem *clockctl;
+static struct mpc512x_clockctl __iomem *clockctl;
 
 static int mpc5121_clk_enable(struct clk *clk)
 {
@@ -551,7 +552,7 @@ static struct clk ac97_clk = {
 	.calc = ac97_clk_calc,
 };
 
-struct clk *rate_clks[] = {
+static struct clk *rate_clks[] = {
 	&ref_clk,
 	&sys_clk,
 	&diu_clk,
@@ -607,7 +608,7 @@ static void rate_clks_init(void)
  * There are two clk enable registers with 32 enable bits each
  * psc clocks and device clocks are all stored in dev_clks
  */
-struct clk dev_clks[2][32];
+static struct clk dev_clks[2][32];
 
 /*
  * Given a psc number return the dev_clk
