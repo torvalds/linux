@@ -1805,6 +1805,8 @@ static int saa7134_querycap(struct file *file, void  *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
+	struct video_device *vdev = video_devdata(file);
+	u32 radio_caps, video_caps, vbi_caps;
 
 	unsigned int tuner_type = dev->tuner_type;
 
@@ -1812,19 +1814,40 @@ static int saa7134_querycap(struct file *file, void  *priv,
 	strlcpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING |
-		V4L2_CAP_TUNER;
-	if (dev->has_rds)
-		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
-	if (saa7134_no_overlay <= 0)
-		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
-	if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
-		cap->capabilities &= ~V4L2_CAP_TUNER;
+	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	if ((tuner_type != TUNER_ABSENT) && (tuner_type != UNSET))
+		cap->device_caps |= V4L2_CAP_TUNER;
+
+	radio_caps = V4L2_CAP_RADIO;
+	if (dev->has_rds)
+		radio_caps |= V4L2_CAP_RDS_CAPTURE;
+
+	video_caps = V4L2_CAP_VIDEO_CAPTURE;
+	if (saa7134_no_overlay <= 0)
+		video_caps |= V4L2_CAP_VIDEO_OVERLAY;
+
+	vbi_caps = V4L2_CAP_VBI_CAPTURE;
+
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_RADIO:
+		cap->device_caps |= radio_caps;
+		break;
+	case VFL_TYPE_GRABBER:
+		cap->device_caps |= video_caps;
+		break;
+	case VFL_TYPE_VBI:
+		cap->device_caps |= vbi_caps;
+		break;
+	}
+	cap->capabilities = radio_caps | video_caps | vbi_caps |
+		cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+	if (vdev->vfl_type == VFL_TYPE_RADIO) {
+		cap->device_caps &= ~V4L2_CAP_STREAMING;
+		if (!dev->has_rds)
+			cap->device_caps &= ~V4L2_CAP_READWRITE;
+	}
+
 	return 0;
 }
 
@@ -2312,19 +2335,6 @@ static int vidioc_s_register (struct file *file, void *priv,
 }
 #endif
 
-static int radio_querycap(struct file *file, void *priv,
-					struct v4l2_capability *cap)
-{
-	struct saa7134_fh *fh = file->private_data;
-	struct saa7134_dev *dev = fh->dev;
-
-	strcpy(cap->driver, "saa7134");
-	strlcpy(cap->card, saa7134_boards[dev->board].name, sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities = V4L2_CAP_TUNER;
-	return 0;
-}
-
 static int radio_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
 {
@@ -2486,7 +2496,7 @@ static const struct v4l2_file_operations radio_fops = {
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
-	.vidioc_querycap	= radio_querycap,
+	.vidioc_querycap	= saa7134_querycap,
 	.vidioc_g_tuner		= radio_g_tuner,
 	.vidioc_enum_input	= radio_enum_input,
 	.vidioc_g_audio		= radio_g_audio,
