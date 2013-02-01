@@ -86,6 +86,7 @@ struct bdaddr_list {
 struct bt_uuid {
 	struct list_head list;
 	u8 uuid[16];
+	u8 size;
 	u8 svc_hint;
 };
 
