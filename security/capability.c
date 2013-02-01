@@ -709,16 +709,31 @@ static void cap_req_classify_flow(const struct request_sock *req,
 {
 }
 
+static int cap_tun_dev_alloc_security(void **security)
+{
+	return 0;
+}
+
+static void cap_tun_dev_free_security(void *security)
+{
+}
+
 static int cap_tun_dev_create(void)
 {
 	return 0;
 }
 
-static void cap_tun_dev_post_create(struct sock *sk)
+static int cap_tun_dev_attach_queue(void *security)
 {
+	return 0;
 }
 
-static int cap_tun_dev_attach(struct sock *sk)
+static int cap_tun_dev_attach(struct sock *sk, void *security)
+{
+	return 0;
+}
+
+static int cap_tun_dev_open(void *security)
 {
 	return 0;
 }
@@ -1050,8 +1065,11 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, secmark_refcount_inc);
 	set_to_cap_if_null(ops, secmark_refcount_dec);
 	set_to_cap_if_null(ops, req_classify_flow);
+	set_to_cap_if_null(ops, tun_dev_alloc_security);
+	set_to_cap_if_null(ops, tun_dev_free_security);
 	set_to_cap_if_null(ops, tun_dev_create);
-	set_to_cap_if_null(ops, tun_dev_post_create);
+	set_to_cap_if_null(ops, tun_dev_open);
+	set_to_cap_if_null(ops, tun_dev_attach_queue);
 	set_to_cap_if_null(ops, tun_dev_attach);
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM

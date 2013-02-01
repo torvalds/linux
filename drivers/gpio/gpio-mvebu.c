@@ -547,7 +547,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
 	if (! mvchip->membase) {
 		dev_err(&pdev->dev, "Cannot ioremap\n");
-		kfree(mvchip->chip.label);
 		return -ENOMEM;
 	}
 
@@ -557,14 +556,12 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (! res) {
 			dev_err(&pdev->dev, "Cannot get memory resource\n");
-			kfree(mvchip->chip.label);
 			return -ENODEV;
 		}
 
 		mvchip->percpu_membase = devm_request_and_ioremap(&pdev->dev, res);
 		if (! mvchip->percpu_membase) {
 			dev_err(&pdev->dev, "Cannot ioremap\n");
-			kfree(mvchip->chip.label);
 			return -ENOMEM;
 		}
 	}
@@ -625,7 +622,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
 	if (mvchip->irqbase < 0) {
 		dev_err(&pdev->dev, "no irqs\n");
-		kfree(mvchip->chip.label);
 		return -ENOMEM;
 	}
 
@@ -633,7 +629,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 				    mvchip->membase, handle_level_irq);
 	if (! gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
-		kfree(mvchip->chip.label);
 		return -ENOMEM;
 	}
 
@@ -668,7 +663,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
 					IRQ_LEVEL | IRQ_NOPROBE);
 		kfree(gc);
-		kfree(mvchip->chip.label);
 		return -ENODEV;
 	}
 

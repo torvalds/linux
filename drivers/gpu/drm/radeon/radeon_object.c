@@ -84,6 +84,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	rbo->placement.fpfn = 0;
 	rbo->placement.lpfn = 0;
 	rbo->placement.placement = rbo->placements;
+	rbo->placement.busy_placement = rbo->placements;
 	if (domain & RADEON_GEM_DOMAIN_VRAM)
 		rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 					TTM_PL_FLAG_VRAM;
@@ -104,14 +105,6 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	if (!c)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
-
-	c = 0;
-	rbo->placement.busy_placement = rbo->busy_placements;
-	if (rbo->rdev->flags & RADEON_IS_AGP) {
-		rbo->busy_placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT;
-	} else {
-		rbo->busy_placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
-	}
 	rbo->placement.num_busy_placement = c;
 }
 
@@ -357,6 +350,7 @@ int radeon_bo_list_validate(struct list_head *head)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
+	u32 domain;
 	int r;
 
 	r = ttm_eu_reserve_buffers(head);
@@ -366,9 +360,17 @@ int radeon_bo_list_validate(struct list_head *head)
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
+			domain = lobj->wdomain ? lobj->wdomain : lobj->rdomain;
+			
+		retry:
+			radeon_ttm_placement_from_domain(bo, domain);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r)) {
+				if (r != -ERESTARTSYS && domain == RADEON_GEM_DOMAIN_VRAM) {
+					domain |= RADEON_GEM_DOMAIN_GTT;
+					goto retry;
+				}
 				return r;
 			}
 		}

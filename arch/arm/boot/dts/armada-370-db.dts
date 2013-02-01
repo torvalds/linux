@@ -26,7 +26,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x20000000>; /* 512 MB */
+		reg = <0x00000000 0x40000000>; /* 1 GB */
 	};
 
 	soc {

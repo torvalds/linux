@@ -96,8 +96,9 @@ out:
 }
 
 static const struct vm_operations_struct f2fs_file_vm_ops = {
-	.fault        = filemap_fault,
-	.page_mkwrite = f2fs_vm_page_mkwrite,
+	.fault		= filemap_fault,
+	.page_mkwrite	= f2fs_vm_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 static int need_to_sync_dir(struct f2fs_sb_info *sbi, struct inode *inode)
@@ -136,6 +137,9 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (ret)
 		return ret;
+
+	/* guarantee free sections for fsync */
+	f2fs_balance_fs(sbi);
 
 	mutex_lock(&inode->i_mutex);
 
@@ -407,6 +411,8 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 		struct dnode_of_data dn;
 		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
+		f2fs_balance_fs(sbi);
+
 		mutex_lock_op(sbi, DATA_TRUNC);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, index, RDONLY_NODE);
@@ -534,7 +540,6 @@ static long f2fs_fallocate(struct file *file, int mode,
 				loff_t offset, loff_t len)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	long ret;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
@@ -545,7 +550,10 @@ static long f2fs_fallocate(struct file *file, int mode,
 	else
 		ret = expand_inode_data(inode, offset, len, mode);
 
-	f2fs_balance_fs(sbi);
+	if (!ret) {
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		mark_inode_dirty(inode);
+	}
 	return ret;
 }
 

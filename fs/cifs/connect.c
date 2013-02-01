@@ -1917,7 +1917,7 @@ srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
 	}
 	case AF_INET6: {
 		struct sockaddr_in6 *saddr6 = (struct sockaddr_in6 *)srcaddr;
-		struct sockaddr_in6 *vaddr6 = (struct sockaddr_in6 *)&rhs;
+		struct sockaddr_in6 *vaddr6 = (struct sockaddr_in6 *)rhs;
 		return ipv6_addr_equal(&saddr6->sin6_addr, &vaddr6->sin6_addr);
 	}
 	default:
