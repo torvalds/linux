@@ -57,5 +57,12 @@
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
+
+		mvsdio@d00d4000 {
+			pinctrl-0 = <&sdio_pins1>;
+			pinctrl-names = "default";
+			status = "okay";
+			/* No CD or WP GPIOs */
+		};
 	};
 };
