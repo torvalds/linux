@@ -369,19 +369,27 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		{
 		case OUT_P565:
 			face = OUT_P565;  //dither down to rgb565
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
+				 m_DITHER_DOWN_SEL,v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0) |
+				 v_DITHER_DOWN_SEL(1));
 			break;
 		case OUT_P666:
 			face = OUT_P666; //dither down to rgb666
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
+				m_DITHER_DOWN_SEL, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1) |
+				v_DITHER_DOWN_SEL(1));
 			break;
 		case OUT_D888_P565:
 			face = OUT_P888;
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
+				m_DITHER_DOWN_SEL, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0) |
+				v_DITHER_DOWN_SEL(1));
 			break;
 		case OUT_D888_P666:
 			face = OUT_P888;
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
+				m_DITHER_DOWN_SEL, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1) |
+				v_DITHER_DOWN_SEL(1));
 			break;
 		case OUT_P888:
 			face = OUT_P888;
