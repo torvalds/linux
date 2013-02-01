@@ -24,6 +24,7 @@ config TILE
 	select MODULES_USE_ELF_RELA
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_SYSCALL_TRACEPOINTS
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
