@@ -191,7 +191,7 @@ static int spear_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = spear_cpufreq.transition_latency;
 	policy->cur = spear_cpufreq_get(0);
 
-	cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
+	cpumask_setall(policy->cpus);
 
 	return 0;
 }
