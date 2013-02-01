@@ -505,6 +505,7 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 
 	qp->rx_pkts = 0;
 	qp->tx_pkts = 0;
+	qp->tx_index = 0;
 }
 
 static void ntb_free_mw(struct ntb_transport *nt, int num_mw)
@@ -819,7 +820,6 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->tx_mw = qp->rx_info + 1;
 	qp->tx_max_frame = min(transport_mtu, tx_size);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
-	qp->tx_index = 0;
 
 	if (nt->debugfs_dir) {
 		char debugfs_name[4];
