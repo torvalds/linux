@@ -41,21 +41,23 @@ static void bss_release(struct kref *ref)
 	kfree(bss);
 }
 
-/* must hold dev->bss_lock! */
 static void __cfg80211_unlink_bss(struct cfg80211_registered_device *dev,
 				  struct cfg80211_internal_bss *bss)
 {
+	lockdep_assert_held(&dev->bss_lock);
+
 	list_del_init(&bss->list);
 	rb_erase(&bss->rbn, &dev->bss_tree);
 	kref_put(&bss->ref, bss_release);
 }
 
-/* must hold dev->bss_lock! */
 static void __cfg80211_bss_expire(struct cfg80211_registered_device *dev,
 				  unsigned long expire_time)
 {
 	struct cfg80211_internal_bss *bss, *tmp;
 	bool expired = false;
+
+	lockdep_assert_held(&dev->bss_lock);
 
 	list_for_each_entry_safe(bss, tmp, &dev->bss_list, list) {
 		if (atomic_read(&bss->hold))
