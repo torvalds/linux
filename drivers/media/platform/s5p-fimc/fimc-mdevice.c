@@ -290,7 +290,7 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 	for (i = 0; i < num_clients; i++) {
 		struct v4l2_subdev *sd;
 
-		fmd->sensor[i].pdata = pdata->isp_info[i];
+		fmd->sensor[i].pdata = pdata->source_info[i];
 		ret = __fimc_md_set_camclk(fmd, &fmd->sensor[i], true);
 		if (ret)
 			break;
@@ -504,7 +504,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 					    struct v4l2_subdev *sensor,
 					    int pad, int link_mask)
 {
-	struct fimc_sensor_info *s_info;
+	struct fimc_sensor_info *s_info = NULL;
 	struct media_entity *sink;
 	unsigned int flags = 0;
 	int ret, i;
@@ -614,7 +614,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 {
 	struct v4l2_subdev *csi_sensors[CSIS_MAX_ENTITIES] = { NULL };
 	struct v4l2_subdev *sensor, *csis;
-	struct s5p_fimc_isp_info *pdata;
+	struct fimc_source_info *pdata;
 	struct fimc_sensor_info *s_info;
 	struct media_entity *source, *sink;
 	int i, pad, fimc_id = 0, ret = 0;
@@ -632,8 +632,8 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 		source = NULL;
 		pdata = &s_info->pdata;
 
-		switch (pdata->bus_type) {
-		case FIMC_MIPI_CSI2:
+		switch (pdata->sensor_bus_type) {
+		case FIMC_BUS_TYPE_MIPI_CSI2:
 			if (WARN(pdata->mux_id >= CSIS_MAX_ENTITIES,
 				"Wrong CSI channel id: %d\n", pdata->mux_id))
 				return -EINVAL;
@@ -659,14 +659,14 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			csi_sensors[pdata->mux_id] = sensor;
 			break;
 
-		case FIMC_ITU_601...FIMC_ITU_656:
+		case FIMC_BUS_TYPE_ITU_601...FIMC_BUS_TYPE_ITU_656:
 			source = &sensor->entity;
 			pad = 0;
 			break;
 
 		default:
 			v4l2_err(&fmd->v4l2_dev, "Wrong bus_type: %x\n",
-				 pdata->bus_type);
+				 pdata->sensor_bus_type);
 			return -EINVAL;
 		}
 		if (source == NULL)
@@ -762,7 +762,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 				struct fimc_sensor_info *s_info,
 				bool on)
 {
-	struct s5p_fimc_isp_info *pdata = &s_info->pdata;
+	struct fimc_source_info *pdata = &s_info->pdata;
 	struct fimc_camclk_info *camclk;
 	int ret = 0;
 

@@ -187,12 +187,12 @@ static void flite_hw_set_camera_port(struct fimc_lite *dev, int id)
 
 /* Select serial or parallel bus, camera port (A,B) and set signals polarity */
 void flite_hw_set_camera_bus(struct fimc_lite *dev,
-			     struct s5p_fimc_isp_info *s_info)
+			     struct fimc_source_info *si)
 {
 	u32 cfg = readl(dev->regs + FLITE_REG_CIGCTRL);
-	unsigned int flags = s_info->flags;
+	unsigned int flags = si->flags;
 
-	if (s_info->bus_type != FIMC_MIPI_CSI2) {
+	if (si->sensor_bus_type != FIMC_BUS_TYPE_MIPI_CSI2) {
 		cfg &= ~(FLITE_REG_CIGCTRL_SELCAM_MIPI |
 			 FLITE_REG_CIGCTRL_INVPOLPCLK |
 			 FLITE_REG_CIGCTRL_INVPOLVSYNC |
@@ -212,7 +212,7 @@ void flite_hw_set_camera_bus(struct fimc_lite *dev,
 
 	writel(cfg, dev->regs + FLITE_REG_CIGCTRL);
 
-	flite_hw_set_camera_port(dev, s_info->mux_id);
+	flite_hw_set_camera_port(dev, si->mux_id);
 }
 
 static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)

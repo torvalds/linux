@@ -554,7 +554,7 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 }
 
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s5p_fimc_isp_info *cam)
+				struct fimc_source_info *cam)
 {
 	u32 cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
@@ -596,14 +596,15 @@ static const struct mbus_pixfmt_desc pix_desc[] = {
 };
 
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s5p_fimc_isp_info *cam)
+			      struct fimc_source_info *source)
 {
 	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
-	u32 cfg = 0;
-	u32 bus_width;
+	u32 bus_width, cfg = 0;
 	int i;
 
-	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
+	switch (source->fimc_bus_type) {
+	case FIMC_BUS_TYPE_ITU_601:
+	case FIMC_BUS_TYPE_ITU_656:
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
 			if (fimc->vid_cap.mf.code == pix_desc[i].pixelcode) {
 				cfg = pix_desc[i].cisrcfmt;
@@ -619,15 +620,17 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			return -EINVAL;
 		}
 
-		if (cam->bus_type == FIMC_ITU_601) {
+		if (source->fimc_bus_type == FIMC_BUS_TYPE_ITU_601) {
 			if (bus_width == 8)
 				cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 			else if (bus_width == 16)
 				cfg |= FIMC_REG_CISRCFMT_ITU601_16BIT;
 		} /* else defaults to ITU-R BT.656 8-bit */
-	} else if (cam->bus_type == FIMC_MIPI_CSI2) {
+		break;
+	case FIMC_BUS_TYPE_MIPI_CSI2:
 		if (fimc_fmt_is_user_defined(f->fmt->color))
 			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
+		break;
 	}
 
 	cfg |= (f->o_width << 16) | f->o_height;
@@ -655,7 +658,7 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 }
 
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s5p_fimc_isp_info *cam)
+			    struct fimc_source_info *source)
 {
 	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
@@ -668,11 +671,11 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
 		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
 
-	switch (cam->bus_type) {
-	case FIMC_MIPI_CSI2:
+	switch (source->fimc_bus_type) {
+	case FIMC_BUS_TYPE_MIPI_CSI2:
 		cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI;
 
-		if (cam->mux_id == 0)
+		if (source->mux_id == 0)
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
@@ -695,15 +698,16 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 
 		writel(tmp, fimc->regs + FIMC_REG_CSIIMGFMT);
 		break;
-	case FIMC_ITU_601...FIMC_ITU_656:
-		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
+	case FIMC_BUS_TYPE_ITU_601...FIMC_BUS_TYPE_ITU_656:
+		if (source->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_ITU_A;
 		break;
-	case FIMC_LCD_WB:
+	case FIMC_BUS_TYPE_LCD_WRITEBACK_A:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 		break;
 	default:
-		v4l2_err(&vid_cap->vfd, "Invalid camera bus type selected\n");
+		v4l2_err(&vid_cap->vfd, "Invalid FIMC bus type selected: %d\n",
+			 source->fimc_bus_type);
 		return -EINVAL;
 	}
 	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);

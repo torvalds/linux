@@ -297,12 +297,12 @@ void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
 void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
 			     int index);
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s5p_fimc_isp_info *cam);
+			      struct fimc_source_info *cam);
 void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s5p_fimc_isp_info *cam);
+				struct fimc_source_info *cam);
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s5p_fimc_isp_info *cam);
+			    struct fimc_source_info *cam);
 void fimc_hw_clear_irq(struct fimc_dev *dev);
 void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on);
 void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on);

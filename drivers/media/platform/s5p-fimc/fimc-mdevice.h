@@ -53,7 +53,7 @@ struct fimc_camclk_info {
  * This data structure applies to image sensor and the writeback subdevs.
  */
 struct fimc_sensor_info {
-	struct s5p_fimc_isp_info pdata;
+	struct fimc_source_info pdata;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
 };
