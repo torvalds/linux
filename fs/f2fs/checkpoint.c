@@ -164,7 +164,6 @@ static int f2fs_set_meta_page_dirty(struct page *page)
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(sbi, F2FS_DIRTY_META);
-		F2FS_SET_SB_DIRT(sbi);
 		return 1;
 	}
 	return 0;
