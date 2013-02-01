@@ -197,7 +197,7 @@
 
 #define ALPHA_CTRL		(0x14)
 #define m_WIN0_ALPHA_EN		(1<<0)
-#define m_WIN1_ALPHA_EN		(1<<0)
+#define m_WIN1_ALPHA_EN		(1<<1)
 #define m_HWC_ALPAH_EN		(1<<2)
 #define m_WIN0_ALPHA_VAL	(0xff<<4)
 #define m_WIN1_ALPHA_VAL	(0xff<<12)
