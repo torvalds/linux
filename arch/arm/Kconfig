@@ -1573,9 +1573,10 @@ config HAVE_ARM_SCU
 	help
 	  This option enables support for the ARM system coherency unit
 
-config ARM_ARCH_TIMER
+config HAVE_ARM_ARCH_TIMER
 	bool "Architected timer support"
 	depends on CPU_V7
+	select ARM_ARCH_TIMER
 	help
 	  This option enables support for the ARM architected timer
 
