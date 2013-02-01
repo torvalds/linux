@@ -170,7 +170,7 @@ static const unsigned pins_ntr[] = {GPIO4};
 static const unsigned pins_ntr8k[] = {GPIO5};
 static const unsigned pins_hrst[] = {GPIO6};
 static const unsigned pins_mdio[] = {GPIO7, GPIO8};
-static const unsigned pins_bled[] = {GPIO7, GPIO10, GPIO11,
+static const unsigned pins_bled[] = {GPIO9, GPIO10, GPIO11,
 					GPIO12, GPIO13, GPIO14};
 static const unsigned pins_asc0[] = {GPIO32, GPIO33};
 static const unsigned pins_spi[] = {GPIO34, GPIO35, GPIO36};
