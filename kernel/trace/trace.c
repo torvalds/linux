@@ -249,7 +249,7 @@ static unsigned long		trace_buf_size = TRACE_BUF_SIZE_DEFAULT;
 static struct tracer		*trace_types __read_mostly;
 
 /* current_trace points to the tracer that is currently active */
-static struct tracer		*current_trace __read_mostly;
+static struct tracer		*current_trace __read_mostly = &nop_trace;
 
 /*
  * trace_types_lock is used to protect the trace_types list.
@@ -2100,8 +2100,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	unsigned long total;
 	const char *name = "preemption";
 
-	if (type)
-		name = type->name;
+	name = type->name;
 
 	get_total_entries(tr, &total, &entries);
 
@@ -2477,13 +2476,12 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	if (!iter->trace)
 		goto fail;
 
-	if (current_trace)
-		*iter->trace = *current_trace;
+	*iter->trace = *current_trace;
 
 	if (!zalloc_cpumask_var(&iter->started, GFP_KERNEL))
 		goto fail;
 
-	if ((current_trace && current_trace->print_max) || snapshot)
+	if (current_trace->print_max || snapshot)
 		iter->tr = &max_tr;
 	else
 		iter->tr = &global_trace;
@@ -3037,10 +3035,7 @@ tracing_set_trace_read(struct file *filp, char __user *ubuf,
 	int r;
 
 	mutex_lock(&trace_types_lock);
-	if (current_trace)
-		r = sprintf(buf, "%s\n", current_trace->name);
-	else
-		r = sprintf(buf, "\n");
+	r = sprintf(buf, "%s\n", current_trace->name);
 	mutex_unlock(&trace_types_lock);
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -3231,10 +3226,10 @@ static int tracing_set_tracer(const char *buf)
 		goto out;
 
 	trace_branch_disable();
-	if (current_trace && current_trace->reset)
+	if (current_trace->reset)
 		current_trace->reset(tr);
 
-	had_max_tr = current_trace && current_trace->allocated_snapshot;
+	had_max_tr = current_trace->allocated_snapshot;
 	current_trace = &nop_trace;
 
 	if (had_max_tr && !t->use_max_tr) {
@@ -3373,8 +3368,7 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	if (current_trace)
-		*iter->trace = *current_trace;
+	*iter->trace = *current_trace;
 
 	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL)) {
 		ret = -ENOMEM;
@@ -3525,7 +3519,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
-	if (unlikely(current_trace && iter->trace->name != current_trace->name))
+	if (unlikely(iter->trace->name != current_trace->name))
 		*iter->trace = *current_trace;
 	mutex_unlock(&trace_types_lock);
 
@@ -3691,7 +3685,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
-	if (unlikely(current_trace && iter->trace->name != current_trace->name))
+	if (unlikely(iter->trace->name != current_trace->name))
 		*iter->trace = *current_trace;
 	mutex_unlock(&trace_types_lock);
 
@@ -4115,7 +4109,7 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	mutex_lock(&trace_types_lock);
 
-	if (current_trace && current_trace->use_max_tr) {
+	if (current_trace->use_max_tr) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -5299,7 +5293,7 @@ __init static int tracer_alloc_buffers(void)
 	init_irq_work(&trace_work_wakeup, trace_wake_up);
 
 	register_tracer(&nop_trace);
-	current_trace = &nop_trace;
+
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 
