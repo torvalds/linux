@@ -77,6 +77,7 @@
 
 	__HEAD
 ENTRY(stext)
+ ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
  THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
@@ -352,6 +353,9 @@ ENTRY(secondary_startup)
 	 * the processor type - there is no need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
+
+ ARM_BE8(setend	be)				@ ensure we are in BE8 mode
+
 #ifdef CONFIG_ARM_VIRT_EXT
 	bl	__hyp_stub_install_secondary
 #endif

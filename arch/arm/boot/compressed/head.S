@@ -135,6 +135,7 @@ start:
 		.word	_edata			@ zImage end address
  THUMB(		.thumb			)
 1:
+ ARM_BE8(	setend	be )			@ go BE8 if compiled for BE8
 		mrs	r9, cpsr
 #ifdef CONFIG_ARM_VIRT_EXT
 		bl	__hyp_stub_install	@ get into SVC mode, reversibly
