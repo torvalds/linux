@@ -237,7 +237,7 @@ static int gfs2_xattr_system_set(struct dentry *dentry, const char *name,
 		return -EINVAL;
 	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
 		return value ? -EACCES : 0;
-	if ((current_fsuid() != inode->i_uid) && !capable(CAP_FOWNER))
+	if (!uid_eq(current_fsuid(), inode->i_uid) && !capable(CAP_FOWNER))
 		return -EPERM;
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
