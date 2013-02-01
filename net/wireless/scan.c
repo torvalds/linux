@@ -583,16 +583,15 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				kfree_rcu((struct cfg80211_bss_ies *)old,
 					  rcu_head);
 		} else if (rcu_access_pointer(tmp->pub.beacon_ies)) {
-			const struct cfg80211_bss_ies *old, *ies;
+			const struct cfg80211_bss_ies *old;
 
 			old = rcu_access_pointer(found->pub.beacon_ies);
-			ies = rcu_access_pointer(found->pub.ies);
 
 			rcu_assign_pointer(found->pub.beacon_ies,
 					   tmp->pub.beacon_ies);
 
 			/* Override IEs if they were from a beacon before */
-			if (old == ies)
+			if (old == rcu_access_pointer(found->pub.ies))
 				rcu_assign_pointer(found->pub.ies,
 						   tmp->pub.beacon_ies);
 
