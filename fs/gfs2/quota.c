@@ -464,12 +464,13 @@ static void qd_unlock(struct gfs2_quota_data *qd)
 	qd_put(qd);
 }
 
-static int qdsb_get(struct gfs2_sbd *sdp, int user, u32 id,
+static int qdsb_get(struct gfs2_sbd *sdp, struct kqid qid,
 		    struct gfs2_quota_data **qdp)
 {
 	int error;
 
-	error = qd_get(sdp, user, id, qdp);
+	error = qd_get(sdp, qid.type == USRQUOTA ? QUOTA_USER : QUOTA_GROUP,
+		       from_kqid(&init_user_ns, qid), qdp);
 	if (error)
 		return error;
 
@@ -518,20 +519,20 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 
-	error = qdsb_get(sdp, QUOTA_USER, ip->i_inode.i_uid, qd);
+	error = qdsb_get(sdp, make_kqid_uid(ip->i_inode.i_uid), qd);
 	if (error)
 		goto out;
 	ip->i_res->rs_qa_qd_num++;
 	qd++;
 
-	error = qdsb_get(sdp, QUOTA_GROUP, ip->i_inode.i_gid, qd);
+	error = qdsb_get(sdp, make_kqid_gid(ip->i_inode.i_gid), qd);
 	if (error)
 		goto out;
 	ip->i_res->rs_qa_qd_num++;
 	qd++;
 
 	if (uid != NO_UID_QUOTA_CHANGE && uid != ip->i_inode.i_uid) {
-		error = qdsb_get(sdp, QUOTA_USER, uid, qd);
+		error = qdsb_get(sdp, make_kqid_uid(uid), qd);
 		if (error)
 			goto out;
 		ip->i_res->rs_qa_qd_num++;
@@ -539,7 +540,7 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	}
 
 	if (gid != NO_GID_QUOTA_CHANGE && gid != ip->i_inode.i_gid) {
-		error = qdsb_get(sdp, QUOTA_GROUP, gid, qd);
+		error = qdsb_get(sdp, make_kqid_gid(gid), qd);
 		if (error)
 			goto out;
 		ip->i_res->rs_qa_qd_num++;
