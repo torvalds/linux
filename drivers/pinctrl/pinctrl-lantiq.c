@@ -294,7 +294,7 @@ static int ltq_pmx_gpio_request_enable(struct pinctrl_dev *pctrldev,
 				unsigned pin)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctrldev);
-	int mfp = match_mfp(info, pin + (range->id * 32));
+	int mfp = match_mfp(info, pin);
 	int pin_func;
 
 	if (mfp < 0) {
