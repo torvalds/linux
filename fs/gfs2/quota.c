@@ -1543,21 +1543,15 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 	switch(qid.type) {
 	case USRQUOTA:
 		type = QUOTA_USER;
-		if (fdq->d_flags != FS_USER_QUOTA)
-			return -EINVAL;
 		break;
 	case GRPQUOTA:
 		type = QUOTA_GROUP;
-		if (fdq->d_flags != FS_GROUP_QUOTA)
-			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	if (fdq->d_fieldmask & ~GFS2_FIELDMASK)
-		return -EINVAL;
-	if (fdq->d_id != from_kqid(&init_user_ns, qid))
 		return -EINVAL;
 
 	error = qd_get(sdp, type, from_kqid(&init_user_ns, qid), &qd);
