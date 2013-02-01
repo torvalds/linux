@@ -41,6 +41,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		cpu_suspend(0, imx6q_suspend_finish);
 		imx_smp_prepare();
 		imx_gpc_post_resume();
+		imx6q_set_lpm(WAIT_CLOCKED);
 		break;
 	default:
 		return -EINVAL;
