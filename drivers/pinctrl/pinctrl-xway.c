@@ -494,7 +494,10 @@ static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 			reg = GPIO3_OD;
 		else
 			reg = GPIO_OD(pin);
-		gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+		if (arg == 0)
+			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+		else
+			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
 		break;
 
 	case LTQ_PINCONF_PARAM_PULL:
