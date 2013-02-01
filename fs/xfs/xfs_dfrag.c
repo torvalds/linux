@@ -246,10 +246,10 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
-	error = -filemap_write_and_wait(VFS_I(ip)->i_mapping);
+	error = -filemap_write_and_wait(VFS_I(tip)->i_mapping);
 	if (error)
 		goto out_unlock;
-	truncate_pagecache_range(VFS_I(ip), 0, -1);
+	truncate_pagecache_range(VFS_I(tip), 0, -1);
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(VFS_I(tip)) != 0) {
