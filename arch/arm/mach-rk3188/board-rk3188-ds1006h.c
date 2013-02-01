@@ -316,7 +316,7 @@ static struct sensor_platform_data l3g4200d_info = {
 	.type = SENSOR_TYPE_GYROSCOPE,
 	.irq_enable = 1,
 	.poll_delay_ms = 0,
-	.orientation = {1, 0, 0 , -1, 0, 0, 0, 0, -1},
+	.orientation = {1, 0, 0 , 0 , -1, 0, 0, 0, -1},
 	.init_platform_hw = l3g4200d_init_platform_hw,
 	.x_min = 40,//x_min,y_min,z_min = (0-100) according to hardware
 	.y_min = 40,
