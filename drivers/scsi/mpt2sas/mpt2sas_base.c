@@ -2503,22 +2503,24 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	/* reply free queue sizing - taking into account for 64 FW events */
 	ioc->reply_free_queue_depth = ioc->hba_queue_depth + 64;
 
+	/* calculate reply descriptor post queue depth */
+	ioc->reply_post_queue_depth = ioc->hba_queue_depth +
+					ioc->reply_free_queue_depth +  1;
 	/* align the reply post queue on the next 16 count boundary */
-	if (!ioc->reply_free_queue_depth % 16)
-		ioc->reply_post_queue_depth = ioc->reply_free_queue_depth + 16;
-	else
-		ioc->reply_post_queue_depth = ioc->reply_free_queue_depth +
-				32 - (ioc->reply_free_queue_depth % 16);
+	if (ioc->reply_post_queue_depth % 16)
+		ioc->reply_post_queue_depth += 16 -
+			(ioc->reply_post_queue_depth % 16);
+
+
 	if (ioc->reply_post_queue_depth >
 	    facts->MaxReplyDescriptorPostQueueDepth) {
-		ioc->reply_post_queue_depth = min_t(u16,
-		    (facts->MaxReplyDescriptorPostQueueDepth -
-		    (facts->MaxReplyDescriptorPostQueueDepth % 16)),
-		    (ioc->hba_queue_depth - (ioc->hba_queue_depth % 16)));
-		ioc->reply_free_queue_depth = ioc->reply_post_queue_depth - 16;
-		ioc->hba_queue_depth = ioc->reply_free_queue_depth - 64;
+		ioc->reply_post_queue_depth =
+			facts->MaxReplyDescriptorPostQueueDepth -
+		    (facts->MaxReplyDescriptorPostQueueDepth % 16);
+		ioc->hba_queue_depth =
+			((ioc->reply_post_queue_depth - 64) / 2) - 1;
+		ioc->reply_free_queue_depth = ioc->hba_queue_depth + 64;
 	}
-
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "scatter gather: "
 	    "sge_in_main_msg(%d), sge_per_chain(%d), sge_per_io(%d), "
