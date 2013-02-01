@@ -771,7 +771,7 @@ int rk2928_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		 
 	}
 
-	//if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
+	if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
 	{
 		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
 		init_completion(&dev_drv->frame_done);
@@ -1149,17 +1149,22 @@ int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 static irqreturn_t rk2928_lcdc_isr(int irq, void *dev_id)
 {
 	struct rk2928_lcdc_device *lcdc_dev = (struct rk2928_lcdc_device *)dev_id;
+
+	ktime_t timestamp = ktime_get();
 	
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
-	LCDC_REG_CFG_DONE();
+	//LCDC_REG_CFG_DONE();
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
  
-	//if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
+	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
 	{
 		spin_lock(&(lcdc_dev->driver.cpl_lock));
 		complete(&(lcdc_dev->driver.frame_done));
 		spin_unlock(&(lcdc_dev->driver.cpl_lock));
 	}
+	
+	lcdc_dev->driver.vsync_info.timestamp = timestamp;
+	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 	return IRQ_HANDLED;
 }
 
