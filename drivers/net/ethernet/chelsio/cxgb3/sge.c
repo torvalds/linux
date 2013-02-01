@@ -2130,8 +2130,10 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
-	if (cpl->vlan_valid)
+	if (cpl->vlan_valid) {
+		qs->port_stats[SGE_PSTAT_VLANEX]++;
 		__vlan_hwaccel_put_tag(skb, ntohs(cpl->vlan));
+	}
 	napi_gro_frags(&qs->napi);
 }
 
