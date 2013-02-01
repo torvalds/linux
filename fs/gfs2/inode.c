@@ -548,7 +548,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	if (error)
 		return error;
 
-	error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	error = gfs2_quota_lock(dip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
 	if (error)
 		goto fail;
 
@@ -1589,15 +1589,15 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	ngid = attr->ia_gid;
 
 	if (!(attr->ia_valid & ATTR_UID) || ouid == nuid)
-		ouid = nuid = NO_QUOTA_CHANGE;
+		ouid = nuid = NO_UID_QUOTA_CHANGE;
 	if (!(attr->ia_valid & ATTR_GID) || ogid == ngid)
-		ogid = ngid = NO_QUOTA_CHANGE;
+		ogid = ngid = NO_GID_QUOTA_CHANGE;
 
 	error = gfs2_quota_lock(ip, nuid, ngid);
 	if (error)
 		return error;
 
-	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
+	if (ouid != NO_UID_QUOTA_CHANGE || ogid != NO_GID_QUOTA_CHANGE) {
 		error = gfs2_quota_check(ip, nuid, ngid);
 		if (error)
 			goto out_gunlock_q;
@@ -1611,7 +1611,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (error)
 		goto out_end_trans;
 
-	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
+	if (ouid != NO_UID_QUOTA_CHANGE || ogid != NO_GID_QUOTA_CHANGE) {
 		u64 blocks = gfs2_get_inode_blocks(&ip->i_inode);
 		gfs2_quota_change(ip, -blocks, ouid, ogid);
 		gfs2_quota_change(ip, blocks, nuid, ngid);

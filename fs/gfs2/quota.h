@@ -14,7 +14,8 @@ struct gfs2_inode;
 struct gfs2_sbd;
 struct shrink_control;
 
-#define NO_QUOTA_CHANGE ((u32)-1)
+#define NO_UID_QUOTA_CHANGE INVALID_UID
+#define NO_GID_QUOTA_CHANGE INVALID_GID
 
 extern int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid);
 extern void gfs2_quota_unhold(struct gfs2_inode *ip);
@@ -41,7 +42,7 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
 	int ret;
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
-	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	ret = gfs2_quota_lock(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
 	if (ret)
 		return ret;
 	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
