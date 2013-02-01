@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/clock-dclk.c
- *
+/*
  * Copyright (c) 2004-2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/

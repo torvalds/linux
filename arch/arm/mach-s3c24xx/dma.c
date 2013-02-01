@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/dma.c
- *
+/*
  * Copyright 2003-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *

@@ -14,7 +14,7 @@ obj-				:=
 
 # core
 
-obj-y				+= common.o
+obj-y				+= common.o irq.o
 
 obj-$(CONFIG_CPU_S3C2410)	+= s3c2410.o
 obj-$(CONFIG_S3C2410_CPUFREQ)	+= cpufreq-s3c2410.o
@@ -47,8 +47,20 @@ obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
 
 # common code
 
+obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
+obj-$(CONFIG_S3C24XX_DMA)	+= dma.o
+
+obj-$(CONFIG_S3C2410_CLOCK)	+= clock-s3c2410.o
+obj-$(CONFIG_S3C2410_CPUFREQ_UTILS) += cpufreq-utils.o
+
+obj-$(CONFIG_S3C2410_IOTIMING)	+= iotiming-s3c2410.o
+obj-$(CONFIG_S3C2412_IOTIMING)	+= iotiming-s3c2412.o
+
 obj-$(CONFIG_S3C2443_COMMON)	+= common-s3c2443.o
 obj-$(CONFIG_S3C2443_DMA)	+= dma-s3c2443.o
+
+obj-$(CONFIG_CPU_FREQ_S3C24XX)	+= cpufreq.o
+obj-$(CONFIG_CPU_FREQ_S3C24XX_DEBUGFS) += cpufreq-debugfs.o
 
 #
 # machine support
