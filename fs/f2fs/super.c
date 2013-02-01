@@ -384,14 +384,23 @@ static int sanity_check_raw_super(struct super_block *sb,
 		return 1;
 	}
 
+	/* Currently, support only 4KB page cache size */
+	if (F2FS_BLKSIZE != PAGE_CACHE_SIZE) {
+		f2fs_msg(sb, KERN_INFO,
+			"Invalid page_cache_size (%u), supports only 4KB\n",
+			PAGE_CACHE_SIZE);
+		return 1;
+	}
+
 	/* Currently, support only 4KB block size */
 	blocksize = 1 << le32_to_cpu(raw_super->log_blocksize);
-	if (blocksize != PAGE_CACHE_SIZE) {
+	if (blocksize != F2FS_BLKSIZE) {
 		f2fs_msg(sb, KERN_INFO,
 			"Invalid blocksize (%u), supports only 4KB\n",
 			blocksize);
 		return 1;
 	}
+
 	if (le32_to_cpu(raw_super->log_sectorsize) !=
 					F2FS_LOG_SECTOR_SIZE) {
 		f2fs_msg(sb, KERN_INFO, "Invalid log sectorsize");
