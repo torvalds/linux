@@ -1946,19 +1946,21 @@ uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
  * cayman_vm_set_page - update the page tables using the CP
  *
  * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
  * @flags: access flags
  *
- * Update the page tables using the CP (cayman-si).
+ * Update the page tables using the CP (cayman/TN).
  */
-void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+void cayman_vm_set_page(struct radeon_device *rdev,
+			struct radeon_ib *ib,
+			uint64_t pe,
 			uint64_t addr, unsigned count,
 			uint32_t incr, uint32_t flags)
 {
-	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
@@ -1969,9 +1971,9 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 			if (ndw > 0x3FFF)
 				ndw = 0x3FFF;
 
-			radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, ndw));
-			radeon_ring_write(ring, pe);
-			radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_ME_WRITE, ndw);
+			ib->ptr[ib->length_dw++] = pe;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
 			for (; ndw > 1; ndw -= 2, --count, pe += 8) {
 				if (flags & RADEON_VM_PAGE_SYSTEM) {
 					value = radeon_vm_map_gart(rdev, addr);
@@ -1983,8 +1985,8 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 				}
 				addr += incr;
 				value |= r600_flags;
-				radeon_ring_write(ring, value);
-				radeon_ring_write(ring, upper_32_bits(value));
+				ib->ptr[ib->length_dw++] = value;
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
 		}
 	} else {
@@ -1994,9 +1996,9 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 				ndw = 0xFFFFE;
 
 			/* for non-physically contiguous pages (system) */
-			radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw));
-			radeon_ring_write(ring, pe);
-			radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
+			ib->ptr[ib->length_dw++] = pe;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
 			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
 				if (flags & RADEON_VM_PAGE_SYSTEM) {
 					value = radeon_vm_map_gart(rdev, addr);
@@ -2008,10 +2010,12 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 				}
 				addr += incr;
 				value |= r600_flags;
-				radeon_ring_write(ring, value);
-				radeon_ring_write(ring, upper_32_bits(value));
+				ib->ptr[ib->length_dw++] = value;
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
 		}
+		while (ib->length_dw & 0x7)
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
 	}
 }
 

@@ -780,6 +780,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, struct radeon_vm *vm,
 		  unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
+void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
@@ -1188,7 +1189,9 @@ struct radeon_asic {
 		void (*fini)(struct radeon_device *rdev);
 
 		u32 pt_ring_index;
-		void (*set_page)(struct radeon_device *rdev, uint64_t pe,
+		void (*set_page)(struct radeon_device *rdev,
+				 struct radeon_ib *ib,
+				 uint64_t pe,
 				 uint64_t addr, unsigned count,
 				 uint32_t incr, uint32_t flags);
 	} vm;
@@ -1810,7 +1813,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
-#define radeon_asic_vm_set_page(rdev, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (pe), (addr), (count), (incr), (flags)))
+#define radeon_asic_vm_set_page(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (ib), (pe), (addr), (count), (incr), (flags)))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))

@@ -3043,19 +3043,21 @@ void si_vm_fini(struct radeon_device *rdev)
  * si_vm_set_page - update the page tables using the CP
  *
  * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
  * @flags: access flags
  *
- * Update the page tables using the CP (cayman-si).
+ * Update the page tables using the CP (SI).
  */
-void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+void si_vm_set_page(struct radeon_device *rdev,
+		    struct radeon_ib *ib,
+		    uint64_t pe,
 		    uint64_t addr, unsigned count,
 		    uint32_t incr, uint32_t flags)
 {
-	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
@@ -3066,11 +3068,11 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 			if (ndw > 0x3FFE)
 				ndw = 0x3FFE;
 
-			radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, ndw));
-			radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-						 WRITE_DATA_DST_SEL(1)));
-			radeon_ring_write(ring, pe);
-			radeon_ring_write(ring, upper_32_bits(pe));
+			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_WRITE_DATA, ndw);
+			ib->ptr[ib->length_dw++] = (WRITE_DATA_ENGINE_SEL(0) |
+					WRITE_DATA_DST_SEL(1));
+			ib->ptr[ib->length_dw++] = pe;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 			for (; ndw > 2; ndw -= 2, --count, pe += 8) {
 				if (flags & RADEON_VM_PAGE_SYSTEM) {
 					value = radeon_vm_map_gart(rdev, addr);
@@ -3082,8 +3084,8 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 				}
 				addr += incr;
 				value |= r600_flags;
-				radeon_ring_write(ring, value);
-				radeon_ring_write(ring, upper_32_bits(value));
+				ib->ptr[ib->length_dw++] = value;
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
 		}
 	} else {
@@ -3095,9 +3097,9 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 					ndw = 0xFFFFE;
 
 				/* for non-physically contiguous pages (system) */
-				radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw));
-				radeon_ring_write(ring, pe);
-				radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);
+				ib->ptr[ib->length_dw++] = pe;
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
 				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
 					if (flags & RADEON_VM_PAGE_SYSTEM) {
 						value = radeon_vm_map_gart(rdev, addr);
@@ -3109,8 +3111,8 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 					}
 					addr += incr;
 					value |= r600_flags;
-					radeon_ring_write(ring, value);
-					radeon_ring_write(ring, upper_32_bits(value));
+					ib->ptr[ib->length_dw++] = value;
+					ib->ptr[ib->length_dw++] = upper_32_bits(value);
 				}
 			}
 		} else {
@@ -3124,20 +3126,22 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 				else
 					value = 0;
 				/* for physically contiguous pages (vram) */
-				radeon_ring_write(ring, DMA_PTE_PDE_PACKET(ndw));
-				radeon_ring_write(ring, pe); /* dst addr */
-				radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
-				radeon_ring_write(ring, r600_flags); /* mask */
-				radeon_ring_write(ring, 0);
-				radeon_ring_write(ring, value); /* value */
-				radeon_ring_write(ring, upper_32_bits(value));
-				radeon_ring_write(ring, incr); /* increment size */
-				radeon_ring_write(ring, 0);
+				ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
+				ib->ptr[ib->length_dw++] = pe; /* dst addr */
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+				ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+				ib->ptr[ib->length_dw++] = 0;
+				ib->ptr[ib->length_dw++] = value; /* value */
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+				ib->ptr[ib->length_dw++] = incr; /* increment size */
+				ib->ptr[ib->length_dw++] = 0;
 				pe += ndw * 4;
 				addr += (ndw / 2) * incr;
 				count -= ndw / 2;
 			}
 		}
+		while (ib->length_dw & 0x7)
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0);
 	}
 }
 
