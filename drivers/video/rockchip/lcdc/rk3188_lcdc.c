@@ -844,6 +844,7 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		return 0;
 	}
 
+	mdelay(25);
 	rk3188_lcdc_clk_disable(lcdc_dev);
 	return 0;
 }
