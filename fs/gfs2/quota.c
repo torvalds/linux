@@ -1177,13 +1177,14 @@ static int gfs2_quota_sync_timeo(struct super_block *sb, int type)
 	return gfs2_quota_sync(sb, type);
 }
 
-int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id)
+int gfs2_quota_refresh(struct gfs2_sbd *sdp, struct kqid qid)
 {
 	struct gfs2_quota_data *qd;
 	struct gfs2_holder q_gh;
 	int error;
 
-	error = qd_get(sdp, user, id, &qd);
+	error = qd_get(sdp, qid.type == USRQUOTA ? QUOTA_USER : QUOTA_GROUP,
+		       from_kqid(&init_user_ns, qid), &qd);
 	if (error)
 		return error;
 
