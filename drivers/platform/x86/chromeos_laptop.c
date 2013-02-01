@@ -27,6 +27,7 @@
 
 #define CYAPA_TP_I2C_ADDR	0x67
 #define ISL_ALS_I2C_ADDR	0x44
+#define TAOS_ALS_I2C_ADDR	0x29
 
 static struct i2c_client *als;
 static struct i2c_client *tp;
@@ -47,6 +48,10 @@ static struct i2c_board_info __initdata cyapa_device = {
 
 static struct i2c_board_info __initdata isl_als_device = {
 	I2C_BOARD_INFO("isl29018", ISL_ALS_I2C_ADDR),
+};
+
+static struct i2c_board_info __initdata tsl2563_als_device = {
+	I2C_BOARD_INFO("tsl2563", TAOS_ALS_I2C_ADDR),
 };
 
 static struct i2c_client __init *__add_probed_i2c_device(
@@ -159,6 +164,13 @@ static int __init setup_isl29018_als(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init setup_tsl2563_als(const struct dmi_system_id *id)
+{
+	/* add tsl2563 light sensor on smbus */
+	als = add_smbus_device(NULL, &tsl2563_als_device);
+	return 0;
+}
+
 static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 	{
 		.ident = "Samsung Series 5 550 - Touchpad",
@@ -182,6 +194,20 @@ static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Parrot"),
 		},
 		.callback = setup_cyapa_smbus_tp,
+	},
+	{
+		.ident = "Cr-48 - Light Sensor",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mario"),
+		},
+		.callback = setup_tsl2563_als,
+	},
+	{
+		.ident = "Acer AC700 - Light Sensor",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
+		},
+		.callback = setup_tsl2563_als,
 	},
 	{ }
 };
