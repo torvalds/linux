@@ -1552,6 +1552,7 @@ static int saa7134_try_get_set_fmt_vbi_cap(struct file *file, void *priv,
 	struct saa7134_dev *dev = fh->dev;
 	struct saa7134_tvnorm *norm = dev->tvnorm;
 
+	memset(&f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
 	f->fmt.vbi.sampling_rate = 6750000 * 4;
 	f->fmt.vbi.samples_per_line = 2048 /* VBI_LINE_LENGTH */;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
