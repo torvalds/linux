@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2010 LSI Corporation.
+ *  Copyright (c) 2000-2012 LSI Corporation.
  *
  *
  *           Name:  mpi2_tool.h
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.07
+ *    mpi2_tool.h Version:  02.00.10
  *
  *  Version History
  *  ---------------
@@ -27,6 +27,8 @@
  *                      Post Request.
  *  05-25-11  02.00.07  Added Flags field and related defines to
  *                      MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST.
+ *  07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
+ *			it uses MPI Chain SGE as well as MPI Simple SGE.
  *  --------------------------------------------------------------------------
  */
 
@@ -270,7 +272,7 @@ typedef struct _MPI2_TOOLBOX_BEACON_REQUEST
 
 #define MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH    (0x5C)
 
-/* Toolbox Diagnostic CLI Tool request message */
+/* MPI v2.0 Toolbox Diagnostic CLI Tool request message */
 typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
     U8                      Tool;                       /* 0x00 */
     U8                      Reserved1;                  /* 0x01 */
@@ -288,7 +290,7 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
     U32                     DataLength;                 /* 0x10 */
     U8                      DiagnosticCliCommand
 		[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];     /* 0x14 */
-    MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x70 */
+	MPI2_MPI_SGE_IO_UNION   SGL;                        /* 0x70 */
 } MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
   MPI2_POINTER PTR_MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
   Mpi2ToolboxDiagnosticCliRequest_t,

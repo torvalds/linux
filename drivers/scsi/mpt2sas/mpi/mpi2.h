@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.25
+ *  mpi2.h Version:  02.00.27
  *
  *  Version History
  *  ---------------
@@ -75,6 +75,8 @@
  *  02-06-12  02.00.24  Bumped MPI2_HEADER_VERSION_UNIT.
  *  03-29-12  02.00.25  Bumped MPI2_HEADER_VERSION_UNIT.
  *                      Added Hard Reset delay timings.
+ *  07-10-12  02.00.26  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-26-12  02.00.27  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -100,7 +102,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x19)
+#define MPI2_HEADER_VERSION_UNIT            (0x1B)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)

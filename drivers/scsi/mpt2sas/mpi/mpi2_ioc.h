@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.21
+ *  mpi2_ioc.h Version:  02.00.22
  *
  *  Version History
  *  ---------------
@@ -118,6 +118,9 @@
  *                      MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE structure.
  *                      Marked MPI2_PM_CONTROL_FEATURE_PCIE_LINK as obsolete.
  *  03-29-12  02.00.21  Added a product specific range to event values.
+ *  07-26-12  02.00.22  Added MPI2_IOCFACTS_EXCEPT_PARTIAL_MEMORY_FAILURE.
+ *                      Added ElapsedSeconds field to
+ *                      MPI2_EVENT_DATA_IR_OPERATION_STATUS.
  *  --------------------------------------------------------------------------
  */
 
@@ -284,6 +287,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY
 #define MPI2_IOCFACTS_HDRVERSION_DEV_SHIFT              (0)
 
 /* IOCExceptions */
+#define MPI2_IOCFACTS_EXCEPT_PARTIAL_MEMORY_FAILURE     (0x0200)
 #define MPI2_IOCFACTS_EXCEPT_IR_FOREIGN_CONFIG_MAX      (0x0100)
 
 #define MPI2_IOCFACTS_EXCEPT_BOOTSTAT_MASK              (0x00E0)
@@ -624,7 +628,7 @@ typedef struct _MPI2_EVENT_DATA_IR_OPERATION_STATUS
     U8                      RAIDOperation;              /* 0x04 */
     U8                      PercentComplete;            /* 0x05 */
     U16                     Reserved2;                  /* 0x06 */
-    U32                     Resereved3;                 /* 0x08 */
+	U32                     ElapsedSeconds;             /* 0x08 */
 } MPI2_EVENT_DATA_IR_OPERATION_STATUS,
   MPI2_POINTER PTR_MPI2_EVENT_DATA_IR_OPERATION_STATUS,
   Mpi2EventDataIrOperationStatus_t,
