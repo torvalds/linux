@@ -360,6 +360,8 @@ static const struct ltq_cfg_param falcon_cfg_params[] = {
 static struct ltq_pinmux_info falcon_info = {
 	.desc		= &falcon_pctrl_desc,
 	.apply_mux	= falcon_mux_apply,
+	.params		= falcon_cfg_params,
+	.num_params	= ARRAY_SIZE(falcon_cfg_params),
 };
 
 
