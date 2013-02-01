@@ -2250,12 +2250,6 @@ static int saa7134_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_parm(struct file *file, void *fh,
-				struct v4l2_streamparm *parm)
-{
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,
 			      struct v4l2_dbg_register *reg)
@@ -2408,7 +2402,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fbuf			= saa7134_g_fbuf,
 	.vidioc_s_fbuf			= saa7134_s_fbuf,
 	.vidioc_overlay			= saa7134_overlay,
-	.vidioc_g_parm			= saa7134_g_parm,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
