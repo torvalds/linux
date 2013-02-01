@@ -517,10 +517,32 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 mask = nv_rd32(priv, 0x002140);
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
+	if (stat & 0x00000001) {
+		u32 intr = nv_rd32(priv, 0x00252c);
+		nv_warn(priv, "INTR 0x00000001: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x00000001);
+		stat &= ~0x00000001;
+	}
+
 	if (stat & 0x00000100) {
-		nv_warn(priv, "unknown status 0x00000100\n");
+		u32 intr = nv_rd32(priv, 0x00254c);
+		nv_warn(priv, "INTR 0x00000100: 0x%08x\n", intr);
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
+	}
+
+	if (stat & 0x00010000) {
+		u32 intr = nv_rd32(priv, 0x00256c);
+		nv_warn(priv, "INTR 0x00010000: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x00010000);
+		stat &= ~0x00010000;
+	}
+
+	if (stat & 0x01000000) {
+		u32 intr = nv_rd32(priv, 0x00258c);
+		nv_warn(priv, "INTR 0x01000000: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x01000000);
+		stat &= ~0x01000000;
 	}
 
 	if (stat & 0x10000000) {
@@ -552,9 +574,17 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x40000000) {
-		nv_warn(priv, "unknown status 0x40000000\n");
-		nv_mask(priv, 0x002a00, 0x00000000, 0x00000000);
+		u32 intr0 = nv_rd32(priv, 0x0025a4);
+		u32 intr1 = nv_mask(priv, 0x002a00, 0x00000000, 0x00000);
+		nv_debug(priv, "INTR 0x40000000: 0x%08x 0x%08x\n",
+			       intr0, intr1);
 		stat &= ~0x40000000;
+	}
+
+	if (stat & 0x80000000) {
+		u32 intr = nv_mask(priv, 0x0025a8, 0x00000000, 0x00000000);
+		nv_warn(priv, "INTR 0x80000000: 0x%08x\n", intr);
+		stat &= ~0x80000000;
 	}
 
 	if (stat) {
