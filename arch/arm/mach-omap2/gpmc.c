@@ -150,7 +150,8 @@ static unsigned gpmc_irq_start;
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
-static unsigned int gpmc_cs_map;	/* flag for cs which are initialized */
+/* Define chip-selects as reserved by default until probe completes */
+static unsigned int gpmc_cs_map = ((1 << GPMC_CS_NUM) - 1);
 static struct device *gpmc_dev;
 static int gpmc_irq;
 static resource_size_t phys_base, mem_size;
@@ -1122,6 +1123,9 @@ int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 
 	/* TODO: remove, see function definition */
 	gpmc_convert_ps_to_ns(gpmc_t);
+
+	/* Now the GPMC is initialised, unreserve the chip-selects */
+	gpmc_cs_map = 0;
 
 	return 0;
 }
