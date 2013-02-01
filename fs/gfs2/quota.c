@@ -71,7 +71,7 @@
 struct gfs2_quota_change_host {
 	u64 qc_change;
 	u32 qc_flags; /* GFS2_QCF_... */
-	u32 qc_id;
+	struct kqid qc_id;
 };
 
 static LIST_HEAD(qd_lru_list);
@@ -1200,7 +1200,9 @@ static void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *
 
 	qc->qc_change = be64_to_cpu(str->qc_change);
 	qc->qc_flags = be32_to_cpu(str->qc_flags);
-	qc->qc_id = be32_to_cpu(str->qc_id);
+	qc->qc_id = make_kqid(&init_user_ns,
+			      (qc->qc_flags & GFS2_QCF_USER)?USRQUOTA:GRPQUOTA,
+			      be32_to_cpu(str->qc_id));
 }
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)
@@ -1264,7 +1266,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 				continue;
 
 			error = qd_alloc(sdp, (qc.qc_flags & GFS2_QCF_USER),
-					 qc.qc_id, &qd);
+					 from_kqid(&init_user_ns, qc.qc_id), &qd);
 			if (error) {
 				brelse(bh);
 				goto fail;
