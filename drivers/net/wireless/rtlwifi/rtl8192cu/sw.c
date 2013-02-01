@@ -76,7 +76,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 				      GFP_KERNEL, hw, rtl_fw_cb);
 
 
-	return 0;
+	return err;
 }
 
 static void rtl92cu_deinit_sw_vars(struct ieee80211_hw *hw)
