@@ -37,7 +37,7 @@
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 
 #ifdef DEBUG
 #define FREQ_DBG(fmt, args...) pr_debug(fmt, ## args)
@@ -74,7 +74,8 @@ static DEFINE_MUTEX(cpufreq_mutex);
 
 static struct clk *gpu_clk;
 static struct clk *ddr_clk;
-#define GPU_MAX_RATE 350*1000*1000
+#define GPU_PERF_RATE 401*1000*1000
+static unsigned long gpu_perf_rate;
 
 static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate);
 
@@ -112,11 +113,11 @@ static const struct cpufreq_frequency_table temp_limits[] = {
 	{.frequency = 1008 * 1000, .index = 75},
 };
 
-static const struct cpufreq_frequency_table temp_limits_high[] = {
+static const struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
 	{.frequency = 1008 * 1000, .index = 100},
 };
 
-static const struct cpufreq_frequency_table temp_limits_high2[] = {
+static const struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
 	{.frequency = 1008 * 1000, .index = 0},
 };
 
@@ -130,7 +131,7 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy;
 	int temp, i;
-	unsigned int new = -1;
+	unsigned int new_freq = -1;
 	unsigned long delay = HZ;
 	const struct cpufreq_frequency_table *limits_table = temp_limits;
 	size_t limits_size = ARRAY_SIZE(temp_limits);
@@ -140,23 +141,25 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 	temp = rk3188_get_temp();
 	gpu_irqs[1] = kstat_irqs(IRQ_GPU_GP);
 
-	if (clk_get_rate(gpu_clk) > GPU_MAX_RATE) {
+	if (clk_get_rate(gpu_clk) >= gpu_perf_rate) {
 		delay = HZ / 20;
 		if ((gpu_irqs[1] - gpu_irqs[0]) < 3) {
-			limits_table = temp_limits_high;
-			limits_size = ARRAY_SIZE(temp_limits_high);
+			limits_table = temp_limits_cpu_perf;
+			limits_size = ARRAY_SIZE(temp_limits_cpu_perf);
 		} else {
-			limits_table = temp_limits_high2;
-			limits_size = ARRAY_SIZE(temp_limits_high2);
+			limits_table = temp_limits_gpu_perf;
+			limits_size = ARRAY_SIZE(temp_limits_gpu_perf);
 		}
 	}
+
 	for (i = 0; i < limits_size; i++) {
 		if (temp >= limits_table[i].index) {
-			new = limits_table[i].frequency;
+			new_freq = limits_table[i].frequency;
 		}
 	}
-	if (temp_limt_freq != new) {
-		temp_limt_freq = new;
+
+	if (temp_limt_freq != new_freq) {
+		temp_limt_freq = new_freq;
 		FREQ_DBG("temp_limit set rate %d kHz\n", temp_limt_freq);
 		policy = cpufreq_cpu_get(0);
 		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_PRIVATE);
@@ -243,11 +246,23 @@ static int rk3188_cpufreq_verify(struct cpufreq_policy *policy)
 
 static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 {
+	unsigned int i;
+
 	gpu_clk = clk_get(NULL, "gpu");
 	if (!IS_ERR(gpu_clk)) {
+		struct cpufreq_frequency_table *gpu_freq_table;
 		clk_enable_dvfs(gpu_clk);
 		if (cpu_is_rk3188())
 			dvfs_clk_enable_limit(gpu_clk, 133000000, 600000000);
+		gpu_freq_table = dvfs_get_freq_volt_table(gpu_clk);
+		for (i = 0; gpu_freq_table && gpu_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			unsigned long rate = clk_round_rate(gpu_clk, gpu_freq_table[i].frequency * 1000);
+			if (gpu_perf_rate < rate) {
+				gpu_perf_rate = rate;
+			}
+		}
+		if (gpu_perf_rate < GPU_PERF_RATE)
+			gpu_perf_rate = GPU_PERF_RATE;
 	}
 
 	ddr_clk = clk_get(NULL, "ddr");
@@ -263,7 +278,7 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	if (freq_table == NULL) {
 		freq_table = default_freq_table;
 	} else {
-		int v = INT_MAX, i;
+		int v = INT_MAX;
 		for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 			if (freq_table[i].index >= 1000000 && v > freq_table[i].index) {
 				suspend_freq = freq_table[i].frequency;
