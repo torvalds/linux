@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/mfd/tps65910.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -41,6 +42,7 @@
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -86,6 +88,24 @@ static struct mtd_partition crane_nand_partitions[] = {
 	},
 };
 
+static struct tps65910_board tps65910_pdata = {
+	.irq = 7 + OMAP_INTC_START,
+	.en_ck32k_xtal = true,
+};
+
+static struct i2c_board_info __initdata tps65910_board_info[] = {
+	{
+		I2C_BOARD_INFO("tps65910", 0x2d),
+		.platform_data = &tps65910_pdata,
+	},
+};
+
+static void __init am3517_crane_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 2600, tps65910_board_info,
+			ARRAY_SIZE(tps65910_board_info));
+}
+
 static void __init am3517_crane_init(void)
 {
 	int ret;
@@ -96,6 +116,7 @@ static void __init am3517_crane_init(void)
 	board_nand_init(crane_nand_partitions,
 			ARRAY_SIZE(crane_nand_partitions), 0,
 			NAND_BUSWIDTH_16, NULL);
+	am3517_crane_i2c_init();
 
 	/* Configure GPIO for EHCI port */
 	if (omap_mux_init_gpio(GPIO_USB_NRESET, OMAP_PIN_OUTPUT)) {
