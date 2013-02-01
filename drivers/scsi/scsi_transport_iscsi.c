@@ -183,10 +183,10 @@ static struct attribute_group iscsi_endpoint_group = {
 
 #define ISCSI_MAX_EPID -1
 
-static int iscsi_match_epid(struct device *dev, void *data)
+static int iscsi_match_epid(struct device *dev, const void *data)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	uint64_t *epid = (uint64_t *) data;
+	const uint64_t *epid = data;
 
 	return *epid == ep->id;
 }

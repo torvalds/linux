@@ -806,7 +806,7 @@ fail_unlock:
 }
 EXPORT_SYMBOL_GPL(gpio_export);
 
-static int match_export(struct device *dev, void *data)
+static int match_export(struct device *dev, const void *data)
 {
 	return dev_get_drvdata(dev) == data;
 }
