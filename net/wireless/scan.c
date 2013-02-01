@@ -231,15 +231,16 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-/* must hold dev->bss_lock! */
 void cfg80211_bss_age(struct cfg80211_registered_device *dev,
                       unsigned long age_secs)
 {
 	struct cfg80211_internal_bss *bss;
 	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
 
+	spin_lock_bh(&dev->bss_lock);
 	list_for_each_entry(bss, &dev->bss_list, list)
 		bss->ts -= age_jiffies;
+	spin_unlock_bh(&dev->bss_lock);
 }
 
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)

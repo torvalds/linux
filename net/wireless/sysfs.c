@@ -108,9 +108,7 @@ static int wiphy_resume(struct device *dev)
 	int ret = 0;
 
 	/* Age scan results with time spent in suspend */
-	spin_lock_bh(&rdev->bss_lock);
 	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
-	spin_unlock_bh(&rdev->bss_lock);
 
 	if (rdev->ops->resume) {
 		rtnl_lock();
