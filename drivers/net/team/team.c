@@ -1131,10 +1131,6 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 		return -ENOENT;
 	}
 
-	__team_option_inst_mark_removed_port(team, port);
-	__team_options_change_check(team);
-	__team_option_inst_del_port(team, port);
-	__team_port_change_port_removed(port);
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
 	netdev_rx_handler_unregister(port_dev);
@@ -1143,6 +1139,12 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	vlan_vids_del_by_dev(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
+
+	__team_option_inst_mark_removed_port(team, port);
+	__team_options_change_check(team);
+	__team_option_inst_del_port(team, port);
+	__team_port_change_port_removed(port);
+
 	team_port_set_orig_dev_addr(port);
 	dev_set_mtu(port_dev, port->orig.mtu);
 	synchronize_rcu();
