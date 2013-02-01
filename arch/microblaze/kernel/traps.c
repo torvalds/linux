@@ -8,9 +8,9 @@
  * for more details.
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/debug_locks.h>
 

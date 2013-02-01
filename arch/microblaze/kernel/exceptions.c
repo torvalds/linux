@@ -13,11 +13,11 @@
  * This file handles the architecture-dependent parts of hardware exceptions
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kallsyms.h>
-#include <linux/module.h>
 
 #include <asm/exceptions.h>
 #include <asm/entry.h>		/* For KM CPU var */
