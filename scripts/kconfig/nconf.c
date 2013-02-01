@@ -312,19 +312,19 @@ struct function_keys function_keys[] = {
 	},
 	{
 		.key_str = "F2",
-		.func = "Sym Info",
+		.func = "SymInfo",
 		.key = F_SYMBOL,
 		.handler = handle_f2,
 	},
 	{
 		.key_str = "F3",
-		.func = "Insts",
+		.func = "Help 2",
 		.key = F_INSTS,
 		.handler = handle_f3,
 	},
 	{
 		.key_str = "F4",
-		.func = "Config",
+		.func = "ShowAll",
 		.key = F_CONF,
 		.handler = handle_f4,
 	},
@@ -348,7 +348,7 @@ struct function_keys function_keys[] = {
 	},
 	{
 		.key_str = "F8",
-		.func = "Sym Search",
+		.func = "SymSearch",
 		.key = F_SEARCH,
 		.handler = handle_f8,
 	},
