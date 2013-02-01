@@ -254,11 +254,6 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 			return rc;
 		}
 
-		/* policy latency is in nS. Convert it to uS first */
-		latency = policy->cpuinfo.transition_latency / 1000;
-		if (latency == 0)
-			latency = 1;
-
 		/*
 		 * conservative does not implement micro like ondemand
 		 * governor, thus we are bound to jiffes/HZ
@@ -270,20 +265,33 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 			cpufreq_register_notifier(cs_ops->notifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
-			dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
-				jiffies_to_usecs(10);
+			if (!policy->governor->initialized)
+				dbs_data->min_sampling_rate =
+					MIN_SAMPLING_RATE_RATIO *
+					jiffies_to_usecs(10);
 		} else {
 			od_dbs_info->rate_mult = 1;
 			od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
 			od_ops->powersave_bias_init_cpu(cpu);
-			od_tuners->io_is_busy = od_ops->io_busy();
+
+			if (!policy->governor->initialized)
+				od_tuners->io_is_busy = od_ops->io_busy();
 		}
+
+		if (policy->governor->initialized)
+			goto unlock;
+
+		/* policy latency is in nS. Convert it to uS first */
+		latency = policy->cpuinfo.transition_latency / 1000;
+		if (latency == 0)
+			latency = 1;
 
 		/* Bring kernel and HW constraints together */
 		dbs_data->min_sampling_rate = max(dbs_data->min_sampling_rate,
 				MIN_LATENCY_MULTIPLIER * latency);
 		*sampling_rate = max(dbs_data->min_sampling_rate, latency *
 				LATENCY_MULTIPLIER);
+unlock:
 		mutex_unlock(&dbs_data->mutex);
 
 		/* Initiate timer time stamp */
