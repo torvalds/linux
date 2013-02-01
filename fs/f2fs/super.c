@@ -387,7 +387,7 @@ static int sanity_check_raw_super(struct super_block *sb,
 	/* Currently, support only 4KB page cache size */
 	if (F2FS_BLKSIZE != PAGE_CACHE_SIZE) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid page_cache_size (%u), supports only 4KB\n",
+			"Invalid page_cache_size (%lu), supports only 4KB\n",
 			PAGE_CACHE_SIZE);
 		return 1;
 	}
@@ -462,6 +462,32 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 		atomic_set(&sbi->nr_pages[i], 0);
 }
 
+static int validate_superblock(struct super_block *sb,
+		struct f2fs_super_block **raw_super,
+		struct buffer_head **raw_super_buf, sector_t block)
+{
+	const char *super = (block == 0 ? "first" : "second");
+
+	/* read f2fs raw super block */
+	*raw_super_buf = sb_bread(sb, block);
+	if (!*raw_super_buf) {
+		f2fs_msg(sb, KERN_ERR, "unable to read %s superblock",
+				super);
+		return 1;
+	}
+
+	*raw_super = (struct f2fs_super_block *)
+		((char *)(*raw_super_buf)->b_data + F2FS_SUPER_OFFSET);
+
+	/* sanity checking of raw super */
+	if (!sanity_check_raw_super(sb, *raw_super))
+		return 0;
+
+	f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
+				"in %s superblock", super);
+	return 1;
+}
+
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
@@ -482,16 +508,11 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	/* read f2fs raw super block */
-	raw_super_buf = sb_bread(sb, 0);
-	if (!raw_super_buf) {
-		err = -EIO;
-		f2fs_msg(sb, KERN_ERR, "unable to read superblock");
-		goto free_sbi;
+	if (validate_superblock(sb, &raw_super, &raw_super_buf, 0)) {
+		brelse(raw_super_buf);
+		if (validate_superblock(sb, &raw_super, &raw_super_buf, 1))
+			goto free_sb_buf;
 	}
-	raw_super = (struct f2fs_super_block *)
-			((char *)raw_super_buf->b_data + F2FS_SUPER_OFFSET);
-
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
 
@@ -506,12 +527,6 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	/* parse mount options */
 	if (parse_options(sb, sbi, (char *)data))
 		goto free_sb_buf;
-
-	/* sanity checking of raw super */
-	if (sanity_check_raw_super(sb, raw_super)) {
-		f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem");
-		goto free_sb_buf;
-	}
 
 	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
 	sb->s_max_links = F2FS_LINK_MAX;
