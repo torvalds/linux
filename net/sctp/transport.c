@@ -168,10 +168,6 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
 	struct sctp_transport *transport;
 
 	transport = container_of(head, struct sctp_transport, rcu);
-	if (transport->asoc)
-		sctp_association_put(transport->asoc);
-
-	sctp_packet_free(&transport->packet);
 
 	dst_release(transport->dst);
 	kfree(transport);
@@ -186,6 +182,11 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
 
 	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
+
+	sctp_packet_free(&transport->packet);
+
+	if (transport->asoc)
+		sctp_association_put(transport->asoc);
 }
 
 /* Start T3_rtx timer if it is not already running and update the heartbeat
