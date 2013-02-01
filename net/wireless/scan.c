@@ -818,7 +818,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_frame);
 
-void cfg80211_ref_bss(struct cfg80211_bss *pub)
+void cfg80211_ref_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 {
 	struct cfg80211_internal_bss *bss;
 
@@ -830,7 +830,7 @@ void cfg80211_ref_bss(struct cfg80211_bss *pub)
 }
 EXPORT_SYMBOL(cfg80211_ref_bss);
 
-void cfg80211_put_bss(struct cfg80211_bss *pub)
+void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 {
 	struct cfg80211_internal_bss *bss;
 

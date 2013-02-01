@@ -34,7 +34,8 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 {
 	if (!bss)
 		return;
-	cfg80211_put_bss(container_of((void *)bss, struct cfg80211_bss, priv));
+	cfg80211_put_bss(local->hw.wiphy,
+			 container_of((void *)bss, struct cfg80211_bss, priv));
 }
 
 static bool is_uapsd_supported(struct ieee802_11_elems *elems)

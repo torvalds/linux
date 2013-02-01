@@ -324,7 +324,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		}
 
 		if (bss)
-			cfg80211_put_bss(bss);
+			cfg80211_put_bss(priv->adapter->wiphy, bss);
 	} else {
 		/* Adhoc mode */
 		/* If the requested SSID matches current SSID, return */
@@ -354,7 +354,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 							" list. Joining...\n");
 			ret = mwifiex_adhoc_join(priv, bss_desc);
 			if (bss)
-				cfg80211_put_bss(bss);
+				cfg80211_put_bss(priv->adapter->wiphy, bss);
 		} else {
 			dev_dbg(adapter->dev, "info: Network not found in "
 				"the list, creating adhoc with ssid = %s\n",

@@ -3166,19 +3166,21 @@ cfg80211_get_ibss(struct wiphy *wiphy,
 
 /**
  * cfg80211_ref_bss - reference BSS struct
+ * @wiphy: the wiphy this BSS struct belongs to
  * @bss: the BSS struct to reference
  *
  * Increments the refcount of the given BSS struct.
  */
-void cfg80211_ref_bss(struct cfg80211_bss *bss);
+void cfg80211_ref_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 /**
  * cfg80211_put_bss - unref BSS struct
+ * @wiphy: the wiphy this BSS struct belongs to
  * @bss: the BSS struct
  *
  * Decrements the refcount of the given BSS struct.
  */
-void cfg80211_put_bss(struct cfg80211_bss *bss);
+void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 /**
  * cfg80211_unlink_bss - unlink BSS from internal data structures

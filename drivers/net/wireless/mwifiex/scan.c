@@ -1746,7 +1746,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					    .mac_address, ETH_ALEN))
 					mwifiex_update_curr_bss_params(priv,
 								       bss);
-				cfg80211_put_bss(bss);
+				cfg80211_put_bss(priv->wdev->wiphy, bss);
 			}
 		} else {
 			dev_dbg(adapter->dev, "missing BSS channel IE\n");

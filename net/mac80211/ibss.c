@@ -228,7 +228,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	bss = cfg80211_inform_bss_frame(local->hw.wiphy, chan,
 					mgmt, skb->len, 0, GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(local->hw.wiphy, bss);
 	netif_carrier_on(sdata->dev);
 	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, GFP_KERNEL);
 }
@@ -1159,7 +1159,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 
 		if (cbss) {
 			cfg80211_unlink_bss(local->hw.wiphy, cbss);
-			cfg80211_put_bss(cbss);
+			cfg80211_put_bss(local->hw.wiphy, cbss);
 		}
 	}
 

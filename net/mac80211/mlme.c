@@ -1934,7 +1934,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_vif_release_channel(sdata);
 	}
 
-	cfg80211_put_bss(auth_data->bss);
+	cfg80211_put_bss(sdata->local->hw.wiphy, auth_data->bss);
 	kfree(auth_data);
 	sdata->u.mgd.auth_data = NULL;
 }
@@ -2387,7 +2387,7 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_assoc_success(sdata, *bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
 			ieee80211_destroy_assoc_data(sdata, false);
-			cfg80211_put_bss(*bss);
+			cfg80211_put_bss(sdata->local->hw.wiphy, *bss);
 			return RX_MGMT_CFG80211_ASSOC_TIMEOUT;
 		}
 		sdata_info(sdata, "associated\n");
@@ -3831,7 +3831,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* hold our own reference */
-	cfg80211_ref_bss(auth_data->bss);
+	cfg80211_ref_bss(local->hw.wiphy, auth_data->bss);
 	err = 0;
 	goto out_unlock;
 
