@@ -195,11 +195,9 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 }
 
 /* Helper function for NFSv2 ACL code */
-__be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
+__be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp, struct kstat *stat)
 {
-	struct kstat stat;
-	fh_getattr(fhp, &stat);	/* BUG */
-	return encode_fattr(rqstp, p, fhp, &stat);
+	return encode_fattr(rqstp, p, fhp, stat);
 }
 
 /*
