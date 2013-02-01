@@ -193,7 +193,8 @@ static int nfs_idmap_init_keyring(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = keyring_alloc(".id_resolver", 0, 0, cred,
+	keyring = keyring_alloc(".id_resolver",
+				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
 				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				KEY_USR_VIEW | KEY_USR_READ,
 				KEY_ALLOC_NOT_IN_QUOTA, NULL);
