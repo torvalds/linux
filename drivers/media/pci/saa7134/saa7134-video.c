@@ -1750,7 +1750,6 @@ static int saa7134_enum_input(struct file *file, void *priv,
 	strcpy(i->name, card_in(dev, n).name);
 	if (card_in(dev, n).tv)
 		i->type = V4L2_INPUT_TYPE_TUNER;
-	i->audioset = 1;
 	if (n == dev->ctl_input) {
 		int v1 = saa_readb(SAA7134_STATUS_VIDEO1);
 		int v2 = saa_readb(SAA7134_STATUS_VIDEO2);
@@ -2084,17 +2083,6 @@ static int saa7134_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	strcpy(a->name, "audio");
-	return 0;
-}
-
-static int saa7134_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
-{
-	return 0;
-}
-
 static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
@@ -2348,20 +2336,6 @@ static int radio_g_input(struct file *filp, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int radio_g_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
-{
-	memset(a, 0, sizeof(*a));
-	strcpy(a->name, "Radio");
-	return 0;
-}
-
-static int radio_s_audio(struct file *file, void *priv,
-					const struct v4l2_audio *a)
-{
-	return 0;
-}
-
 static int radio_s_input(struct file *filp, void *priv, unsigned int i)
 {
 	return 0;
@@ -2412,8 +2386,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
-	.vidioc_g_audio			= saa7134_g_audio,
-	.vidioc_s_audio			= saa7134_s_audio,
 	.vidioc_cropcap			= saa7134_cropcap,
 	.vidioc_reqbufs			= saa7134_reqbufs,
 	.vidioc_querybuf		= saa7134_querybuf,
@@ -2458,9 +2430,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap	= saa7134_querycap,
 	.vidioc_g_tuner		= radio_g_tuner,
 	.vidioc_enum_input	= radio_enum_input,
-	.vidioc_g_audio		= radio_g_audio,
 	.vidioc_s_tuner		= radio_s_tuner,
-	.vidioc_s_audio		= radio_s_audio,
 	.vidioc_s_input		= radio_s_input,
 	.vidioc_s_std		= radio_s_std,
 	.vidioc_queryctrl	= radio_queryctrl,
