@@ -2351,7 +2351,7 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd)
 	return 0;
 
 liderror:
-	for (; i > 0; i--)
+	for (i--; i >= 0; i--)
 		device_remove_file(&pd->dev, &lid_ctl->attrs[i]);
 
 	kfree(lid_ctl);
