@@ -55,7 +55,7 @@ static void exynos_sata_parse_dt(struct device_node *np,
 	of_property_read_u32(np, "samsung,sata-freq", &sata->freq);
 }
 
-static int __init exynos_sata_probe(struct platform_device *pdev)
+static int exynos_sata_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info pi = ahci_port_info;

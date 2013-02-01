@@ -147,14 +147,14 @@ static int sataphy_shutdown(struct sata_phy *phy)
 	return 0;
 }
 
-static int __init sata_i2c_probe(struct i2c_client *client,
+static int sata_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
 	i2c_client = client;
 	return 0;
 }
 
-static int __init sata_phy_probe(struct platform_device *pdev)
+static int sata_phy_probe(struct platform_device *pdev)
 {
 	struct exynos_sata_phy *sataphy;
 	struct sata_phy *phy;
