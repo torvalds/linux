@@ -398,6 +398,9 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 		u32 avail;
 		int pins;
 
+		if (!of_device_is_available(np))
+			continue;
+
 		if (!ppdev) {
 			dev_err(&pdev->dev, "failed to find pad pdev\n");
 			continue;
