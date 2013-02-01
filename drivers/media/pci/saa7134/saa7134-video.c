@@ -2051,8 +2051,11 @@ static int saa7134_g_frequency(struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
+	if (0 != f->tuner)
+		return -EINVAL;
+
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-	f->frequency = dev->ctl_freq;
+	saa_call_all(dev, tuner, g_frequency, f);
 
 	return 0;
 }
@@ -2070,7 +2073,6 @@ static int saa7134_s_frequency(struct file *file, void *priv,
 	if (1 == fh->radio && V4L2_TUNER_RADIO != f->type)
 		return -EINVAL;
 	mutex_lock(&dev->lock);
-	dev->ctl_freq = f->frequency;
 
 	saa_call_all(dev, tuner, s_frequency, f);
 

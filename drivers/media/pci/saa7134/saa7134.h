@@ -607,7 +607,6 @@ struct saa7134_dev {
 	int                        ctl_contrast;
 	int                        ctl_hue;
 	int                        ctl_saturation;
-	int                        ctl_freq;
 	int                        ctl_mute;             /* audio */
 	int                        ctl_volume;
 	int                        ctl_invert;           /* private */
