@@ -65,9 +65,6 @@
 #include "inode.h"
 #include "util.h"
 
-#define QUOTA_USER 1
-#define QUOTA_GROUP 0
-
 struct gfs2_quota_change_host {
 	u64 qc_change;
 	u32 qc_flags; /* GFS2_QCF_... */
@@ -1476,18 +1473,14 @@ static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 	struct gfs2_quota_data *qd;
 	struct gfs2_holder q_gh;
 	int error;
-	int type;
 
 	memset(fdq, 0, sizeof(struct fs_disk_quota));
 
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return -ESRCH; /* Crazy XFS error code */
 
-	if (qid.type == USRQUOTA)
-		type = QUOTA_USER;
-	else if (qid.type == GRPQUOTA)
-		type = QUOTA_GROUP;
-	else
+	if ((qid.type != USRQUOTA) &&
+	    (qid.type != GRPQUOTA))
 		return -EINVAL;
 
 	error = qd_get(sdp, qid, &qd);
@@ -1499,7 +1492,7 @@ static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 
 	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
 	fdq->d_version = FS_DQUOT_VERSION;
-	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
+	fdq->d_flags = (qid.type == USRQUOTA) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
 	fdq->d_id = from_kqid_munged(current_user_ns(), qid);
 	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_fsb2bb_shift;
 	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_fsb2bb_shift;
@@ -1526,21 +1519,13 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 	int alloc_required;
 	loff_t offset;
 	int error;
-	int type;
 
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return -ESRCH; /* Crazy XFS error code */
 
-	switch(qid.type) {
-	case USRQUOTA:
-		type = QUOTA_USER;
-		break;
-	case GRPQUOTA:
-		type = QUOTA_GROUP;
-		break;
-	default:
+	if ((qid.type != USRQUOTA) &&
+	    (qid.type != GRPQUOTA))
 		return -EINVAL;
-	}
 
 	if (fdq->d_fieldmask & ~GFS2_FIELDMASK)
 		return -EINVAL;
