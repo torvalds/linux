@@ -507,28 +507,6 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 	qp->tx_pkts = 0;
 }
 
-static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
-{
-	struct ntb_transport_mw *mw = &nt->mw[num_mw];
-	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
-
-	/* Alloc memory for receiving data.  Must be 4k aligned */
-	mw->size = ALIGN(size, 4096);
-
-	mw->virt_addr = dma_alloc_coherent(&pdev->dev, mw->size, &mw->dma_addr,
-					   GFP_KERNEL);
-	if (!mw->virt_addr) {
-		dev_err(&pdev->dev, "Unable to allocate MW buffer of size %d\n",
-		       (int) mw->size);
-		return -ENOMEM;
-	}
-
-	/* Notify HW the memory location of the receive buffer */
-	ntb_set_mw_addr(nt->ndev, num_mw, mw->dma_addr);
-
-	return 0;
-}
-
 static void ntb_free_mw(struct ntb_transport *nt, int num_mw)
 {
 	struct ntb_transport_mw *mw = &nt->mw[num_mw];
@@ -539,6 +517,36 @@ static void ntb_free_mw(struct ntb_transport *nt, int num_mw)
 
 	dma_free_coherent(&pdev->dev, mw->size, mw->virt_addr, mw->dma_addr);
 	mw->virt_addr = NULL;
+}
+
+static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
+{
+	struct ntb_transport_mw *mw = &nt->mw[num_mw];
+	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
+
+	/* No need to re-setup */
+	if (mw->size == ALIGN(size, 4096))
+		return 0;
+
+	if (mw->size != 0)
+		ntb_free_mw(nt, num_mw);
+
+	/* Alloc memory for receiving data.  Must be 4k aligned */
+	mw->size = ALIGN(size, 4096);
+
+	mw->virt_addr = dma_alloc_coherent(&pdev->dev, mw->size, &mw->dma_addr,
+					   GFP_KERNEL);
+	if (!mw->virt_addr) {
+		mw->size = 0;
+		dev_err(&pdev->dev, "Unable to allocate MW buffer of size %d\n",
+		       (int) mw->size);
+		return -ENOMEM;
+	}
+
+	/* Notify HW the memory location of the receive buffer */
+	ntb_set_mw_addr(nt->ndev, num_mw, mw->dma_addr);
+
+	return 0;
 }
 
 static void ntb_qp_link_cleanup(struct work_struct *work)
