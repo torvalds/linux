@@ -2014,11 +2014,11 @@ static int saa7134_g_tuner(struct file *file, void *priv,
 	if (NULL != card_in(dev, n).name) {
 		strcpy(t->name, "Television");
 		t->type = V4L2_TUNER_ANALOG_TV;
+		saa_call_all(dev, tuner, g_tuner, t);
 		t->capability = V4L2_TUNER_CAP_NORM |
 			V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 |
 			V4L2_TUNER_CAP_LANG2;
-		t->rangehigh = 0xffffffffUL;
 		t->rxsubchans = saa7134_tvaudio_getstereo(dev);
 		t->audmode = saa7134_tvaudio_rx2mode(t->rxsubchans);
 	}
@@ -2033,6 +2033,9 @@ static int saa7134_s_tuner(struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 	int rx, mode;
+
+	if (0 != t->index)
+		return -EINVAL;
 
 	mode = dev->thread.mode;
 	if (UNSET == mode) {
