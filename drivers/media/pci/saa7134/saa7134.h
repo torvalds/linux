@@ -36,6 +36,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
@@ -468,11 +469,11 @@ struct saa7134_dmaqueue {
 
 /* video filehandle status */
 struct saa7134_fh {
+	struct v4l2_fh             fh;
 	struct saa7134_dev         *dev;
 	unsigned int               radio;
 	enum v4l2_buf_type         type;
 	unsigned int               resources;
-	enum v4l2_priority	   prio;
 	struct pm_qos_request	   qos_request;
 
 	/* video overlay */
@@ -544,7 +545,6 @@ struct saa7134_dev {
 	struct list_head           devlist;
 	struct mutex               lock;
 	spinlock_t                 slock;
-	struct v4l2_prio_state     prio;
 	struct v4l2_device         v4l2_dev;
 	/* workstruct for loading modules */
 	struct work_struct request_module_wk;

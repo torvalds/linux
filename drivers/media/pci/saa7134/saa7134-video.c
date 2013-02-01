@@ -1176,14 +1176,6 @@ int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, str
 	int restart_overlay = 0;
 	int err;
 
-	/* When called from the empress code fh == NULL.
-	   That needs to be fixed somehow, but for now this is
-	   good enough. */
-	if (fh) {
-		err = v4l2_prio_check(&dev->prio, fh->prio);
-		if (0 != err)
-			return err;
-	}
 	err = -EINVAL;
 
 	mutex_lock(&dev->lock);
@@ -1352,6 +1344,7 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
+	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1359,7 +1352,6 @@ static int video_open(struct file *file)
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	fh->width    = 720;
 	fh->height   = 576;
-	v4l2_prio_open(&dev->prio, &fh->prio);
 
 	videobuf_queue_sg_init(&fh->cap, &video_qops,
 			    &dev->pci->dev, &dev->slock,
@@ -1384,6 +1376,8 @@ static int video_open(struct file *file)
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
+	v4l2_fh_add(&fh->fh);
+
 	return 0;
 }
 
@@ -1504,7 +1498,8 @@ static int video_release(struct file *file)
 	saa7134_pgtable_free(dev->pci,&fh->pt_cap);
 	saa7134_pgtable_free(dev->pci,&fh->pt_vbi);
 
-	v4l2_prio_close(&dev->prio, fh->prio);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 	return 0;
@@ -1784,11 +1779,6 @@ static int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int err;
-
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
 
 	if (i >= SAA7134_INPUT_MAX)
 		return -EINVAL;
@@ -1856,16 +1846,8 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 	unsigned long flags;
 	unsigned int i;
 	v4l2_std_id fixup;
-	int err;
 
-	/* When called from the empress code fh == NULL.
-	   That needs to be fixed somehow, but for now this is
-	   good enough. */
-	if (fh) {
-		err = v4l2_prio_check(&dev->prio, fh->prio);
-		if (0 != err)
-			return err;
-	} else if (res_locked(dev, RESOURCE_OVERLAY)) {
+	if (!fh && res_locked(dev, RESOURCE_OVERLAY)) {
 		/* Don't change the std from the mpeg device
 		   if overlay is active. */
 		return -EBUSY;
@@ -2050,11 +2032,7 @@ static int saa7134_s_tuner(struct file *file, void *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int rx, mode, err;
-
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
+	int rx, mode;
 
 	mode = dev->thread.mode;
 	if (UNSET == mode) {
@@ -2084,11 +2062,6 @@ static int saa7134_s_frequency(struct file *file, void *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int err;
-
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
 
 	if (0 != f->tuner)
 		return -EINVAL;
@@ -2115,24 +2088,6 @@ static int saa7134_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 static int saa7134_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
 {
 	return 0;
-}
-
-static int saa7134_g_priority(struct file *file, void *f, enum v4l2_priority *p)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	*p = v4l2_prio_max(&dev->prio);
-	return 0;
-}
-
-static int saa7134_s_priority(struct file *file, void *f,
-					enum v4l2_priority prio)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	return v4l2_prio_change(&dev->prio, &fh->prio, prio);
 }
 
 static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
@@ -2476,8 +2431,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fbuf			= saa7134_g_fbuf,
 	.vidioc_s_fbuf			= saa7134_s_fbuf,
 	.vidioc_overlay			= saa7134_overlay,
-	.vidioc_g_priority		= saa7134_g_priority,
-	.vidioc_s_priority		= saa7134_s_priority,
 	.vidioc_g_parm			= saa7134_g_parm,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
