@@ -43,6 +43,16 @@
 
 struct comedi_driver *comedi_drivers;
 
+int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev)
+{
+	struct device *old_hw_dev = dev->hw_dev;
+
+	dev->hw_dev = get_device(hw_dev);
+	put_device(old_hw_dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_set_hw_dev);
+
 int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 {
 	struct comedi_subdevice *s;

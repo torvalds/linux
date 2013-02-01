@@ -324,14 +324,7 @@ static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
  * known bus type.  Set automatically for auto-configured devices.
  * Automatically set to NULL when detaching hardware device.
  */
-static inline void comedi_set_hw_dev(struct comedi_device *dev,
-				     struct device *hw_dev)
-{
-	struct device *old_hw_dev = dev->hw_dev;
-
-	dev->hw_dev = get_device(hw_dev);
-	put_device(old_hw_dev);
-}
+int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
 
 unsigned int comedi_buf_write_alloc(struct comedi_async *, unsigned int);
 unsigned int comedi_buf_write_free(struct comedi_async *, unsigned int);
