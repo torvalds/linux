@@ -209,7 +209,7 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 			return ret;
 	}
 
-	comedi_alloc_subdevice_minor(dev, s);
+	comedi_alloc_subdevice_minor(s);
 
 	return 0;
 }

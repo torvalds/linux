@@ -2352,9 +2352,9 @@ int comedi_find_board_minor(struct device *hardware_device)
 	return -ENODEV;
 }
 
-int comedi_alloc_subdevice_minor(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
+int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 {
+	struct comedi_device *dev = s->device;
 	struct comedi_file_info *info;
 	struct device *csdev;
 	unsigned i;
