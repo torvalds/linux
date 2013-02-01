@@ -78,6 +78,8 @@ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
 EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 #endif
 
+struct rw_semaphore page_alloc_slow_rwsem;
+
 /*
  * Array of node states.
  */
