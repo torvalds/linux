@@ -348,10 +348,6 @@ void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 			    void *destination, unsigned int num_bytes);
 
-int comedi_alloc_subdevice_minor(struct comedi_device *dev,
-				 struct comedi_subdevice *s);
-void comedi_free_subdevice_minor(struct comedi_subdevice *s);
-
 /* drivers.c - general comedi driver functions */
 
 int comedi_alloc_subdevices(struct comedi_device *, int);
