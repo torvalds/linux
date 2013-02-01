@@ -36,10 +36,14 @@ static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi,
 	int buf_len = info->fix.smem_len;
 	ump_secure_id secure_id;
 
-	if (info->var.yres * 2 == info->var.yres_virtual)
+	/* need exactly two buffers and page aligned second buffer */
+	if (info->var.yres * 2 == info->var.yres_virtual && !(buf_len & 8191))
 		buf_len = buf_len >> 1;	/* divide by two */
-	else
+	else {
 		__wrn("UMP: Double-buffering not enabled");
+		if (buf == 2) /* GET_UMP_SECURE_ID_BUF2 */
+			buf_len = 0;
+	}
 
 	if (!g_fbi->ump_wrapped_buffer[info->node][buf]) {
 		ump_dd_physical_block ump_memory_description;
