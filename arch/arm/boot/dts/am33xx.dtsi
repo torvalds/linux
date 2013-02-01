@@ -309,7 +309,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x48030000 0x400>;
-			interrupt = <65>;
+			interrupts = <65>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi0";
 			status = "disabled";
@@ -320,7 +320,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x481a0000 0x400>;
-			interrupt = <125>;
+			interrupts = <125>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi1";
 			status = "disabled";
