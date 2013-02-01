@@ -330,6 +330,12 @@ int acpi_bus_init_power(struct acpi_device *device)
 		result = acpi_dev_pm_explicit_set(device, state);
 		if (result)
 			return result;
+	} else if (state == ACPI_STATE_UNKNOWN) {
+		/* No power resources and missing _PSC? Try to force D0. */
+		state = ACPI_STATE_D0;
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			return result;
 	}
 	device->power.state = state;
 	return 0;

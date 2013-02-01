@@ -1180,7 +1180,10 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 			device->power.flags.power_resources)
 		device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible = 1;
 
-	acpi_bus_init_power(device);
+	if (acpi_bus_init_power(device)) {
+		acpi_free_power_resources_lists(device);
+		device->flags.power_manageable = 0;
+	}
 }
 
 static void acpi_bus_get_flags(struct acpi_device *device)
