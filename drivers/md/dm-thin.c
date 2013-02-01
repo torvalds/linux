@@ -2746,19 +2746,9 @@ static int thin_iterate_devices(struct dm_target *ti,
 	return 0;
 }
 
-/*
- * A thin device always inherits its queue limits from its pool.
- */
-static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
-{
-	struct thin_c *tc = ti->private;
-
-	*limits = bdev_get_queue(tc->pool_dev->bdev)->limits;
-}
-
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 6, 0},
+	.version = {1, 7, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
@@ -2767,7 +2757,6 @@ static struct target_type thin_target = {
 	.postsuspend = thin_postsuspend,
 	.status = thin_status,
 	.iterate_devices = thin_iterate_devices,
-	.io_hints = thin_io_hints,
 };
 
 /*----------------------------------------------------------------*/
