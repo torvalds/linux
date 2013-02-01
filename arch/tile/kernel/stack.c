@@ -112,7 +112,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 		       p->pc, p->sp, p->ex1);
 		p = NULL;
 	}
-	if (!kbt->profile || (INT_MASK(p->faultnum) & QUEUED_INTERRUPTS) == 0)
+	if (!kbt->profile || ((1ULL << p->faultnum) & QUEUED_INTERRUPTS) == 0)
 		return p;
 	return NULL;
 }
