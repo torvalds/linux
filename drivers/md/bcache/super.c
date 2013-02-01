@@ -661,6 +661,35 @@ void bcache_device_stop(struct bcache_device *d)
 		closure_queue(&d->cl);
 }
 
+static void bcache_device_unlink(struct bcache_device *d)
+{
+	unsigned i;
+	struct cache *ca;
+
+	sysfs_remove_link(&d->c->kobj, d->name);
+	sysfs_remove_link(&d->kobj, "cache");
+
+	for_each_cache(ca, d->c, i)
+		bd_unlink_disk_holder(ca->bdev, d->disk);
+}
+
+static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
+			       const char *name)
+{
+	unsigned i;
+	struct cache *ca;
+
+	for_each_cache(ca, d->c, i)
+		bd_link_disk_holder(ca->bdev, d->disk);
+
+	snprintf(d->name, BCACHEDEVNAME_SIZE,
+		 "%s%u", name, d->id);
+
+	WARN(sysfs_create_link(&d->kobj, &c->kobj, "cache") ||
+	     sysfs_create_link(&c->kobj, &d->kobj, d->name),
+	     "Couldn't create device <-> cache set symlinks");
+}
+
 static void bcache_device_detach(struct bcache_device *d)
 {
 	lockdep_assert_held(&bch_register_lock);
@@ -675,6 +704,8 @@ static void bcache_device_detach(struct bcache_device *d)
 
 		atomic_set(&d->detaching, 0);
 	}
+
+	bcache_device_unlink(d);
 
 	d->c->devices[d->id] = NULL;
 	closure_put(&d->c->caching);
@@ -691,17 +722,6 @@ static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 	c->devices[id] = d;
 
 	closure_get(&c->caching);
-}
-
-static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
-			       const char *name)
-{
-	snprintf(d->name, BCACHEDEVNAME_SIZE,
-		 "%s%u", name, d->id);
-
-	WARN(sysfs_create_link(&d->kobj, &c->kobj, "cache") ||
-	     sysfs_create_link(&c->kobj, &d->kobj, d->name),
-	     "Couldn't create device <-> cache set symlinks");
 }
 
 static void bcache_device_free(struct bcache_device *d)
@@ -804,6 +824,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	}
 
 	add_disk(d->disk);
+	bd_link_disk_holder(dc->bdev, dc->disk.disk);
 #if 0
 	char *env[] = { "SYMLINK=label" , NULL };
 	kobject_uevent_env(&disk_to_dev(d->disk)->kobj, KOBJ_CHANGE, env);
@@ -822,9 +843,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	BUG_ON(!atomic_read(&dc->disk.detaching));
 	BUG_ON(atomic_read(&dc->count));
-
-	sysfs_remove_link(&dc->disk.c->kobj, dc->disk.name);
-	sysfs_remove_link(&dc->disk.kobj, "cache");
 
 	mutex_lock(&bch_register_lock);
 
@@ -940,7 +958,6 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	}
 
 	bcache_device_attach(&dc->disk, c, u - c->uuids);
-	bcache_device_link(&dc->disk, c, "bdev");
 	list_move(&dc->list, &c->cached_devs);
 	calc_cached_dev_sectors(c);
 
@@ -958,6 +975,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	}
 
 	bch_cached_dev_run(dc);
+	bcache_device_link(&dc->disk, c, "bdev");
 
 	pr_info("Caching %s as %s on set %pU",
 		bdevname(dc->bdev, buf), dc->disk.disk->disk_name,
@@ -981,6 +999,7 @@ static void cached_dev_free(struct closure *cl)
 
 	mutex_lock(&bch_register_lock);
 
+	bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
 	bcache_device_free(&dc->disk);
 	list_del(&dc->list);
 
@@ -1123,8 +1142,7 @@ static void flash_dev_flush(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
 
-	sysfs_remove_link(&d->c->kobj, d->name);
-	sysfs_remove_link(&d->kobj, "cache");
+	bcache_device_unlink(d);
 	kobject_del(&d->kobj);
 	continue_at(cl, flash_dev_free, system_wq);
 }
