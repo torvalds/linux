@@ -1,0 +1,33 @@
+Altera GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "altr,pio-1.0"
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+- gpio-controller : Marks the device node as a GPIO controller.
+- #interrupt-cells : Should be 1.
+- interrupt-controller: Mark the device node as an interrupt controller
+  The first cell is the GPIO number.
+
+Altera GPIO specific properties:
+- width: Width of the GPIO bank, range from 1-32
+- level_trigger: Specifies whether the GPIO interrupt is level trigger.
+  This field is required if the Altera GPIO controller used has IRQ enabled.
+
+Note: If the Altera GPIO is set to be built as a module, peripherals that uses
+Altera GPIO as interrupt-parent should be a module so that the peripheral
+doesn't get initialized before Altera GPIO is initialized.
+
+Example:
+
+gpio_altr: gpio_altr {
+    compatible = "altr,pio-1.0";
+    width = <32>;
+    level_trigger = <0>;
+    #gpio-cells = <2>;
+    gpio-controller;
+    #interrupt-cells = <1>;
+    interrupt-controller;
+};

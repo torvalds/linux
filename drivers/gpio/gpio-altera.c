@@ -1,243 +1,329 @@
 /*
- * Altera GPIO driver
+ * Copyright (C) 2013 Altera Corporation
+ * Based on gpio-mpc8xxx.c
  *
- * Copyright (C) 2012 Tobias Klauser <tklauser@distanz.ch>
- * Copyright (C) 2011 Thomas Chou <thomas@wytron.com.tw>
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Based on Xilinx gpio driver, which is
- * Copyright 2008 Xilinx, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <linux/module.h>
 #include <linux/gpio.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/io.h>
-#include <linux/of_gpio.h>
+#include <linux/irq.h>
 #include <linux/of_irq.h>
+#include <linux/irqdomain.h>
+#include <linux/interrupt.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 
-#define DRV_NAME "altera_gpio"
-
-/* Register Offset Definitions */
-#define ALTERA_GPIO_DATA_OFFSET		0x0	/* Data register  */
-#define ALTERA_GPIO_DIR_OFFSET		0x4	/* I/O direction register  */
+#define ALTERA_GPIO_DATA		0x0
+#define ALTERA_GPIO_DIR			0x4
 #define ALTERA_GPIO_IRQ_MASK		0x8
 #define ALTERA_GPIO_EDGE_CAP		0xc
+#define ALTERA_GPIO_OUTSET		0x10
+#define ALTERA_GPIO_OUTCLEAR		0x14
 
-struct altera_gpio_instance {
+struct altera_gpio_chip {
 	struct of_mm_gpio_chip mmchip;
-	u32 gpio_state;		/* GPIO state shadow register */
-	u32 gpio_dir;		/* GPIO direction shadow register */
-	int irq;		/* GPIO controller IRQ number */
-	int irq_base;		/* base number for the "virtual" GPIO IRQs */
-	u32 irq_mask;		/* IRQ mask */
+	struct irq_domain *irq;	/* GPIO controller IRQ number */
 	spinlock_t gpio_lock;	/* Lock used for synchronization */
+	int level_trigger;
+	int hwirq;
 };
 
-static inline struct altera_gpio_instance *to_altera_gpio(
-	struct of_mm_gpio_chip *mm_gc)
+static void altera_gpio_irq_unmask(struct irq_data *d)
 {
-	return container_of(mm_gc, struct altera_gpio_instance, mmchip);
-}
-
-/*
- * altera_gpio_get - Read the specified signal of the GPIO device.
- * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- *
- * This function reads the specified signal of the GPIO device. It returns 0 if
- * the signal clear, 1 if signal is set or negative value on error.
- */
-static int altera_gpio_get(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct altera_gpio_instance *chip = to_altera_gpio(mm_gc);
-	void __iomem *edge_cap = mm_gc->regs + ALTERA_GPIO_EDGE_CAP;
-	unsigned long value;
-
-	if (chip->irq >= 0) {
-		if (__raw_readl(edge_cap) & (1 << gpio))
-			__raw_writel(1 << gpio, edge_cap);
-	}
-
-	value = __raw_readl(mm_gc->regs + ALTERA_GPIO_DATA_OFFSET);
-	return (value >> gpio) & 1;
-}
-
-/*
- * altera_gpio_set - Write the specified signal of the GPIO device.
- * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
- *
- * This function writes the specified value in to the specified signal of the
- * GPIO device.
- */
-static void altera_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
-{
+	struct altera_gpio_chip *altera_gc = irq_data_get_irq_chip_data(d);
+	struct of_mm_gpio_chip *mm_gc = &altera_gc->mmchip;
 	unsigned long flags;
+	unsigned int intmask;
+
+	spin_lock_irqsave(&altera_gc->gpio_lock, flags);
+	intmask = readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
+	/* Set ALTERA_GPIO_IRQ_MASK bit to unmask */
+	intmask |= (1 << irqd_to_hwirq(d));
+	writel(intmask, mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
+	spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
+}
+
+static void altera_gpio_irq_mask(struct irq_data *d)
+{
+	struct altera_gpio_chip *altera_gc = irq_data_get_irq_chip_data(d);
+	struct of_mm_gpio_chip *mm_gc = &altera_gc->mmchip;
+	unsigned long flags;
+	unsigned int intmask;
+
+	spin_lock_irqsave(&altera_gc->gpio_lock, flags);
+	intmask = readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
+	/* Clear ALTERA_GPIO_IRQ_MASK bit to mask */
+	intmask &= ~(1 << irqd_to_hwirq(d));
+	writel(intmask, mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
+	spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
+}
+
+static int altera_gpio_irq_set_type(struct irq_data *d,
+				unsigned int type)
+{
+	if (type == IRQ_TYPE_NONE)
+		return 0;
+	return -EINVAL;
+}
+
+static struct irq_chip altera_irq_chip = {
+	.name		= "altera-gpio",
+	.irq_mask	= altera_gpio_irq_mask,
+	.irq_unmask	= altera_gpio_irq_unmask,
+	.irq_set_type	= altera_gpio_irq_set_type,
+};
+
+static int altera_gpio_get(struct gpio_chip *gc, unsigned offset)
+{
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct altera_gpio_instance *chip = to_altera_gpio(mm_gc);
+
+	return (readl(mm_gc->regs + ALTERA_GPIO_DATA) >> offset) & 1;
+}
+
+static void altera_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
+{
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct altera_gpio_chip *chip = container_of(mm_gc,
+				struct altera_gpio_chip, mmchip);
+	unsigned long flags;
+	unsigned int data_reg;
 
 	spin_lock_irqsave(&chip->gpio_lock, flags);
-
-	/* Write to shadow register and output */
-	if (val)
-		chip->gpio_state |= 1 << gpio;
-	else
-		chip->gpio_state &= ~(1 << gpio);
-	__raw_writel(chip->gpio_state, mm_gc->regs + ALTERA_GPIO_DATA_OFFSET);
-
+	data_reg = readl(mm_gc->regs + ALTERA_GPIO_DATA);
+	data_reg = (data_reg & ~(1 << offset)) | (value << offset);
+	writel(data_reg, mm_gc->regs + ALTERA_GPIO_DATA);
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 }
 
-/*
- * altera_gpio_dir_in - Set the direction of the specified GPIO signal as input.
- * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- *
- * This function sets the direction of specified GPIO signal as input.
- * It returns 0 if direction of GPIO signals is set as input otherwise it
- * returns negative error value.
- */
-static int altera_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
+static int altera_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	unsigned long flags;
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct altera_gpio_instance *chip = to_altera_gpio(mm_gc);
+	struct altera_gpio_chip *chip = container_of(mm_gc,
+				struct altera_gpio_chip, mmchip);
+	unsigned long flags;
+	unsigned int gpio_ddr;
 
 	spin_lock_irqsave(&chip->gpio_lock, flags);
-
-	/* Clear the GPIO bit in shadow register and set direction as input */
-	chip->gpio_dir &= ~(1 << gpio);
-	__raw_writel(chip->gpio_dir, mm_gc->regs + ALTERA_GPIO_DIR_OFFSET);
-
-	spin_unlock_irqrestore(&chip->gpio_lock, flags);
-
-	return 0;
-}
-
-/*
- * altera_gpio_dir_out - Set the direction of the specified GPIO as output.
- * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
- *
- * This function sets the direction of specified GPIO signal as output. If all
- * GPIO signals of GPIO chip is configured as input then it returns
- * error otherwise it returns 0.
- */
-static int altera_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
-{
-	unsigned long flags;
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct altera_gpio_instance *chip = to_altera_gpio(mm_gc);
-
-	spin_lock_irqsave(&chip->gpio_lock, flags);
-
-	/* Write state of GPIO signal */
-	if (val)
-		chip->gpio_state |= 1 << gpio;
-	else
-		chip->gpio_state &= ~(1 << gpio);
-	__raw_writel(chip->gpio_state, mm_gc->regs + ALTERA_GPIO_DATA_OFFSET);
-
-	/* Set the GPIO bit in shadow register and set direction as output */
-	chip->gpio_dir |= (1 << gpio);
-	__raw_writel(chip->gpio_dir, mm_gc->regs + ALTERA_GPIO_DIR_OFFSET);
-
+	/* Set pin as input, assumes software controlled IP */
+	gpio_ddr = readl(mm_gc->regs + ALTERA_GPIO_DIR);
+	gpio_ddr &= ~(1 << offset);
+	writel(gpio_ddr, mm_gc->regs + ALTERA_GPIO_DIR);
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 
 	return 0;
 }
 
-/*
- * altera_gpio_save_regs - Set initial values of GPIO pins
- * @mm_gc: pointer to memory mapped GPIO chip structure
- */
-static void altera_gpio_save_regs(struct of_mm_gpio_chip *mm_gc)
+static int altera_gpio_direction_output(struct gpio_chip *gc,
+		unsigned offset, int value)
 {
-	struct altera_gpio_instance *chip = to_altera_gpio(mm_gc);
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct altera_gpio_chip *chip = container_of(mm_gc,
+				struct altera_gpio_chip, mmchip);
+	unsigned long flags;
+	unsigned int data_reg, gpio_ddr;
 
-	__raw_writel(chip->gpio_state, mm_gc->regs + ALTERA_GPIO_DATA_OFFSET);
-	__raw_writel(chip->gpio_dir, mm_gc->regs + ALTERA_GPIO_DIR_OFFSET);
+	spin_lock_irqsave(&chip->gpio_lock, flags);
+	/* Sets the GPIO value */
+	data_reg = readl(mm_gc->regs + ALTERA_GPIO_DATA);
+	data_reg = (data_reg & ~(1 << offset)) | (value << offset);
+	 writel(data_reg, mm_gc->regs + ALTERA_GPIO_DATA);
+
+	/* Set pin as output, assumes software controlled IP */
+	gpio_ddr = readl(mm_gc->regs + ALTERA_GPIO_DIR);
+	gpio_ddr |= (1 << offset);
+	writel(gpio_ddr, mm_gc->regs + ALTERA_GPIO_DIR);
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+
+	return 0;
 }
 
-
-
-/*
- * altera_gpio_of_probe - Probe method for the GPIO device.
- * @np: pointer to device tree node
- *
- * This function probes the GPIO device in the device tree. It initializes the
- * driver data structure. It returns 0, if the driver is bound to the GPIO
- * device, or a negative value if there is an error.
- */
-static int __devinit altera_gpio_probe(struct platform_device *pdev)
+static int altera_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct altera_gpio_instance *chip;
-	int status = 0;
-	u32 reg;
+	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
+	struct altera_gpio_chip *altera_gc = container_of(mm_gc,
+				struct altera_gpio_chip, mmchip);
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
-
-	/* Update GPIO state shadow register with default value */
-	if (of_property_read_u32(np, "resetvalue", &reg) == 0)
-		chip->gpio_state = reg;
-
-	/* Update GPIO direction shadow register with default value */
-	chip->gpio_dir = 0; /* By default, all pins are inputs */
-
-	/* Check device node for device width. Default to full width. */
-	if (of_property_read_u32(np, "width", &reg) == 0)
-		chip->mmchip.gc.ngpio = reg;
+	if (altera_gc->irq == 0)
+		return -ENXIO;
+	if ((altera_gc->irq && offset) < altera_gc->mmchip.gc.ngpio)
+		return irq_create_mapping(altera_gc->irq, offset);
 	else
-		chip->mmchip.gc.ngpio = 32;
+		return -ENXIO;
+}
 
-	spin_lock_init(&chip->gpio_lock);
+static void altera_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+{
+	struct altera_gpio_chip *altera_gc = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct of_mm_gpio_chip *mm_gc = &altera_gc->mmchip;
+	unsigned long status;
 
-	chip->mmchip.gc.direction_input = altera_gpio_dir_in;
-	chip->mmchip.gc.direction_output = altera_gpio_dir_out;
-	chip->mmchip.gc.get = altera_gpio_get;
-	chip->mmchip.gc.set = altera_gpio_set;
+	int base;
+	chip->irq_mask(&desc->irq_data);
 
-	chip->mmchip.save_regs = altera_gpio_save_regs;
-
-	/* Call the OF gpio helper to setup and register the GPIO device */
-	status = of_mm_gpiochip_add(np, &chip->mmchip);
-	if (status) {
-		kfree(chip);
-		pr_err("%s: error in probe function with status %d\n",
-		       np->full_name, status);
-		return status;
+	if (altera_gc->level_trigger)
+		status = readl(mm_gc->regs + ALTERA_GPIO_DATA);
+	else {
+		status = readl(mm_gc->regs + ALTERA_GPIO_EDGE_CAP);
+		writel(status, mm_gc->regs + ALTERA_GPIO_EDGE_CAP);
 	}
 
-	platform_set_drvdata(pdev, chip);
+	status &= readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
 
+	for (base = 0; base < mm_gc->gc.ngpio; base++) {
+		if ((1 << base) & status) {
+			generic_handle_irq(
+				irq_linear_revmap(altera_gc->irq, base));
+		}
+	}
+	chip->irq_eoi(irq_desc_get_irq_data(desc));
+	chip->irq_unmask(&desc->irq_data);
+}
+
+static int altera_gpio_irq_map(struct irq_domain *h, unsigned int virq,
+				irq_hw_number_t hw_irq_num)
+{
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_chip_and_handler(virq, &altera_irq_chip, handle_level_irq);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+
+	return 0;
+}
+
+static struct irq_domain_ops altera_gpio_irq_ops = {
+	.map	= altera_gpio_irq_map,
+	.xlate = irq_domain_xlate_twocell,
+};
+
+int __devinit altera_gpio_probe(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	int id, reg, ret;
+	struct altera_gpio_chip *altera_gc = devm_kzalloc(&pdev->dev,
+				sizeof(*altera_gc), GFP_KERNEL);
+	if (altera_gc == NULL) {
+		ret = -ENOMEM;
+		pr_err("%s: registration failed with status %d\n",
+			node->full_name, ret);
+		return ret;
+	}
+	altera_gc->irq = 0;
+
+	spin_lock_init(&altera_gc->gpio_lock);
+
+	id = pdev->id;
+
+	if (of_property_read_u32(node, "width", &reg))
+		/*By default assume full GPIO controller*/
+		altera_gc->mmchip.gc.ngpio = 32;
+	else
+		altera_gc->mmchip.gc.ngpio = reg;
+
+	if (altera_gc->mmchip.gc.ngpio > 32) {
+		pr_warn("%s: ngpio is greater than 32, defaulting to 32\n",
+			node->full_name);
+		altera_gc->mmchip.gc.ngpio = 32;
+	}
+
+	altera_gc->mmchip.gc.direction_input	= altera_gpio_direction_input;
+	altera_gc->mmchip.gc.direction_output	= altera_gpio_direction_output;
+	altera_gc->mmchip.gc.get		= altera_gpio_get;
+	altera_gc->mmchip.gc.set		= altera_gpio_set;
+	altera_gc->mmchip.gc.to_irq		= altera_gpio_to_irq;
+	altera_gc->mmchip.gc.owner		= THIS_MODULE;
+
+	ret = of_mm_gpiochip_add(node, &altera_gc->mmchip);
+	if (ret)
+		goto err;
+
+	platform_set_drvdata(pdev, altera_gc);
+
+	if (of_get_property(node, "interrupts", &reg) == NULL)
+		goto skip_irq;
+	altera_gc->hwirq = irq_of_parse_and_map(node, 0);
+
+	if (altera_gc->hwirq == NO_IRQ)
+		goto skip_irq;
+
+	altera_gc->irq = irq_domain_add_linear(node, altera_gc->mmchip.gc.ngpio,
+				&altera_gpio_irq_ops, altera_gc);
+
+	if (!altera_gc->irq) {
+		ret = -ENODEV;
+		goto dispose_irq;
+	}
+
+	if (of_property_read_u32(node, "level_trigger", &reg)) {
+		ret = -EINVAL;
+		pr_err("%s: level_trigger value not set in device tree\n",
+			node->full_name);
+		goto teardown;
+	}
+	altera_gc->level_trigger = reg;
+
+	irq_set_handler_data(altera_gc->hwirq, altera_gc);
+	irq_set_chained_handler(altera_gc->hwirq, altera_gpio_irq_handler);
+
+	return 0;
+
+teardown:
+	irq_domain_remove(altera_gc->irq);
+dispose_irq:
+	irq_dispose_mapping(altera_gc->hwirq);
+	WARN_ON(gpiochip_remove(&altera_gc->mmchip.gc) < 0);
+
+err:
+	pr_err("%s: registration failed with status %d\n",
+		node->full_name, ret);
+	devm_kfree(&pdev->dev, altera_gc);
+
+	return ret;
+skip_irq:
 	return 0;
 }
 
 static int altera_gpio_remove(struct platform_device *pdev)
 {
+	unsigned int irq, i;
 	int status;
+	struct altera_gpio_chip *altera_gc = platform_get_drvdata(pdev);
+
+	status = gpiochip_remove(&altera_gc->mmchip.gc);
 	
-	struct altera_gpio_instance *chip = platform_get_drvdata(pdev);
-	status = gpiochip_remove(&chip->mmchip.gc);
 	if (status < 0)
 		return status;
+
+	if (altera_gc->irq) {
+		irq_dispose_mapping(altera_gc->hwirq);
 	
-	kfree(chip);
+		for (i = 0; i < altera_gc->mmchip.gc.ngpio; i++) {
+			irq = irq_find_mapping(altera_gc->irq, i);
+			if (irq > 0)
+				irq_dispose_mapping(irq);
+		}
+
+		irq_domain_remove(altera_gc->irq);
+	}
+
+	irq_set_handler_data(altera_gc->hwirq, NULL);
+	irq_set_chained_handler(altera_gc->hwirq, NULL);
+	devm_kfree(&pdev->dev, altera_gc);
 	return -EIO;
 }
 
@@ -274,6 +360,4 @@ static void __exit altera_gpio_exit(void)
 module_exit(altera_gpio_exit);
 
 MODULE_DESCRIPTION("Altera GPIO driver");
-MODULE_AUTHOR("Thomas Chou <thomas@wytron.com.tw>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);
