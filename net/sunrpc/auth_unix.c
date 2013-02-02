@@ -18,8 +18,8 @@
 
 struct unx_cred {
 	struct rpc_cred		uc_base;
-	gid_t			uc_gid;
-	gid_t			uc_gids[NFS_NGROUPS];
+	kgid_t			uc_gid;
+	kgid_t			uc_gids[NFS_NGROUPS];
 };
 #define uc_uid			uc_base.cr_uid
 

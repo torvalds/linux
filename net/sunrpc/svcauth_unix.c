@@ -415,7 +415,7 @@ svcauth_unix_info_release(struct svc_xprt *xpt)
 
 struct unix_gid {
 	struct cache_head	h;
-	uid_t			uid;
+	kuid_t			uid;
 	struct group_info	*gi;
 };
 
@@ -475,7 +475,7 @@ static int unix_gid_upcall(struct cache_detail *cd, struct cache_head *h)
 	return sunrpc_cache_pipe_upcall(cd, h, unix_gid_request);
 }
 
-static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, uid_t uid);
+static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, kuid_t uid);
 
 static int unix_gid_parse(struct cache_detail *cd,
 			char *mesg, int mlen)
@@ -615,7 +615,7 @@ void unix_gid_cache_destroy(struct net *net)
 	cache_destroy_net(cd, net);
 }
 
-static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, uid_t uid)
+static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, kuid_t uid)
 {
 	struct unix_gid ug;
 	struct cache_head *ch;
@@ -628,7 +628,7 @@ static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, uid_t uid)
 		return NULL;
 }
 
-static struct group_info *unix_gid_find(uid_t uid, struct svc_rqst *rqstp)
+static struct group_info *unix_gid_find(kuid_t uid, struct svc_rqst *rqstp)
 {
 	struct unix_gid *ug;
 	struct group_info *gi;
