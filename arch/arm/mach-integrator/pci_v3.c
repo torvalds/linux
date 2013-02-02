@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -35,7 +36,6 @@
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
-#include <asm/mach-types.h>
 
 #include <asm/hardware/pci_v3.h>
 
@@ -649,7 +649,7 @@ static void __init pci_v3_postinit(void)
 /*
  * This routine handles multiple bridges.
  */
-static u8 __init integrator_swizzle(struct pci_dev *dev, u8 *pinp)
+static u8 __init pci_v3_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	if (*pinp == 0)
 		*pinp = 1;
@@ -665,16 +665,16 @@ static int irq_tab[4] __initdata = {
  * map the specified device/slot/pin to an IRQ.  This works out such
  * that slot 9 pin 1 is INT0, pin 2 is INT1, and slot 10 pin 1 is INT1.
  */
-static int __init integrator_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int __init pci_v3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int intnr = ((slot - 9) + (pin - 1)) & 3;
 
 	return irq_tab[intnr];
 }
 
-static struct hw_pci integrator_pci __initdata = {
-	.swizzle		= integrator_swizzle,
-	.map_irq		= integrator_map_irq,
+static struct hw_pci pci_v3 __initdata = {
+	.swizzle		= pci_v3_swizzle,
+	.map_irq		= pci_v3_map_irq,
 	.setup			= pci_v3_setup,
 	.nr_controllers		= 1,
 	.ops			= &pci_v3_ops,
@@ -682,11 +682,21 @@ static struct hw_pci integrator_pci __initdata = {
 	.postinit		= pci_v3_postinit,
 };
 
-static int __init integrator_pci_init(void)
+static int __init pci_v3_probe(struct platform_device *pdev)
 {
-	if (machine_is_integrator())
-		pci_common_init(&integrator_pci);
+	pci_common_init(&pci_v3);
 	return 0;
 }
 
-subsys_initcall(integrator_pci_init);
+static struct platform_driver pci_v3_driver = {
+	.driver = {
+		.name = "pci-v3",
+	},
+};
+
+static int __init pci_v3_init(void)
+{
+	return platform_driver_probe(&pci_v3_driver, pci_v3_probe);
+}
+
+subsys_initcall(pci_v3_init);
