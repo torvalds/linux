@@ -496,13 +496,6 @@ static void __init pci_v3_preinit(void)
 	unsigned long flags;
 	unsigned int temp;
 
-	/* Remap the Integrator system controller */
-	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
-	if (!ap_syscon_base) {
-		pr_err("unable to remap the AP syscon for PCIv3\n");
-		return;
-	}
-
 	pcibios_min_mem = 0x00100000;
 
 	/*
@@ -676,6 +669,13 @@ static struct hw_pci pci_v3 __initdata = {
 static int __init pci_v3_probe(struct platform_device *pdev)
 {
 	int ret;
+
+	/* Remap the Integrator system controller */
+	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
+	if (!ap_syscon_base) {
+		dev_err(&pdev->dev, "unable to remap the AP syscon for PCIv3\n");
+		return -ENODEV;
+	}
 
 	ret = devm_request_irq(&pdev->dev, IRQ_AP_V3INT, v3_irq, 0, "V3", NULL);
 	if (ret) {
