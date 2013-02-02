@@ -106,11 +106,7 @@ static inline int is_idle(struct f2fs_sb_info *sbi)
 
 static inline bool should_do_checkpoint(struct f2fs_sb_info *sbi)
 {
-	unsigned int pages_per_sec = sbi->segs_per_sec *
-					(1 << sbi->log_blocks_per_seg);
-	int node_secs = ((get_pages(sbi, F2FS_DIRTY_NODES) + pages_per_sec - 1)
-			>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-	int dent_secs = ((get_pages(sbi, F2FS_DIRTY_DENTS) + pages_per_sec - 1)
-			>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
+	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
+	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
 	return free_sections(sbi) <= (node_secs + 2 * dent_secs + 2);
 }
