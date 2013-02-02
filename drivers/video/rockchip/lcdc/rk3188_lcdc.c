@@ -825,6 +825,8 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int enable;
+	unsigned long flags;
+	int timeout;
 	switch(cmd)
 	{
 		case RK_FBIOGET_PANEL_SIZE:    //get panel size
@@ -834,7 +836,21 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 				return -EFAULT;
 			break;
 		case RK_FBIOSET_CONFIG_DONE:
+			if (copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs)))
+				return -EFAULT;
 			lcdc_cfg_done(lcdc_dev);
+			if(dev_drv->wait_fs)
+			{
+				spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+				init_completion(&dev_drv->frame_done);
+				spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+				timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
+				if(!timeout&&(!dev_drv->frame_done.done))
+				{
+					printk(KERN_ERR "wait for new frame start time out!\n");
+					return -ETIMEDOUT;
+				}
+			}
 			break;
 		default:
 			break;
@@ -1227,14 +1243,12 @@ static irqreturn_t rk3188_lcdc_isr(int irq, void *dev_id)
 	
 	lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR, v_FS_INT_CLEAR(1));
 
-#if defined(WAIT_FOR_SYNC)
-	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
+	if(lcdc_dev->driver.wait_fs)  //three buffer ,no need to wait for sync
 	{
 		spin_lock(&(lcdc_dev->driver.cpl_lock));
 		complete(&(lcdc_dev->driver.frame_done));
 		spin_unlock(&(lcdc_dev->driver.cpl_lock));
 	}
-#endif
 	lcdc_dev->driver.vsync_info.timestamp = timestamp;
 	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 	

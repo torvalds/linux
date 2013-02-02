@@ -239,6 +239,7 @@ struct rk_lcdc_device_driver{
 	spinlock_t  cpl_lock; 			 //lock for completion  frame done
 	int first_frame ;
 	struct rk_fb_vsync	 vsync_info;
+	int wait_fs;				//wait for new frame start in kernel
 	
 	struct rk29fb_info *screen_ctr_info;
 	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
