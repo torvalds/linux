@@ -11,6 +11,8 @@
 
 #include <linux/irq.h>
 #include <linux/pci.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/pci.h>
@@ -262,7 +264,7 @@ static struct irq_chip ar724x_pci_irq_chip = {
 	.irq_mask_ack	= ar724x_pci_irq_mask,
 };
 
-static void __init ar724x_pci_irq_init(int irq)
+static void ar724x_pci_irq_init(int irq)
 {
 	void __iomem *base;
 	int i;
@@ -282,7 +284,7 @@ static void __init ar724x_pci_irq_init(int irq)
 	irq_set_chained_handler(irq, ar724x_pci_irq_handler);
 }
 
-int __init ar724x_pcibios_init(int irq)
+int ar724x_pcibios_init(int irq)
 {
 	int ret;
 
@@ -312,3 +314,54 @@ err_unmap_devcfg:
 err:
 	return ret;
 }
+
+static int ar724x_pci_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	int irq;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl_base");
+	if (!res)
+		return -EINVAL;
+
+	ar724x_pci_ctrl_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (ar724x_pci_ctrl_base == NULL)
+		return -EBUSY;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
+	if (!res)
+		return -EINVAL;
+
+	ar724x_pci_devcfg_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!ar724x_pci_devcfg_base)
+		return -EBUSY;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -EINVAL;
+
+	ar724x_pci_link_up = ar724x_pci_check_link();
+	if (!ar724x_pci_link_up)
+		dev_warn(&pdev->dev, "PCIe link is down\n");
+
+	ar724x_pci_irq_init(irq);
+
+	register_pci_controller(&ar724x_pci_controller);
+
+	return 0;
+}
+
+static struct platform_driver ar724x_pci_driver = {
+	.probe = ar724x_pci_probe,
+	.driver = {
+		.name = "ar724x-pci",
+		.owner = THIS_MODULE,
+	},
+};
+
+static int __init ar724x_pci_init(void)
+{
+	return platform_driver_register(&ar724x_pci_driver);
+}
+
+postcore_initcall(ar724x_pci_init);
