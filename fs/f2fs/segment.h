@@ -464,10 +464,8 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi)
 	if (sbi->por_doing)
 		return false;
 
-	if (free_sections(sbi) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi)))
-		return true;
-	return false;
+	return (free_sections(sbi) <= (node_secs + 2 * dent_secs +
+						reserved_sections(sbi)));
 }
 
 static inline int utilization(struct f2fs_sb_info *sbi)
