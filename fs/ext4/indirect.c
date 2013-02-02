@@ -358,9 +358,8 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 			 * for the first direct block
 			 */
 			new_blocks[index] = current_block;
-			printk(KERN_INFO "%s returned more blocks than "
+			WARN(1, KERN_INFO "%s returned more blocks than "
 						"requested\n", __func__);
-			WARN_ON(1);
 			break;
 		}
 	}
