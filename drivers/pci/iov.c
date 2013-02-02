@@ -33,7 +33,6 @@ static inline u8 virtfn_devfn(struct pci_dev *dev, int id)
 
 static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 {
-	int rc;
 	struct pci_bus *child;
 
 	if (bus->number == busnr)
