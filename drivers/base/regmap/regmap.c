@@ -1615,6 +1615,7 @@ void regmap_async_complete_cb(struct regmap_async *async, int ret)
 	if (wake)
 		wake_up(&map->async_waitq);
 }
+EXPORT_SYMBOL_GPL(regmap_async_complete_cb);
 
 static int regmap_async_is_done(struct regmap *map)
 {
