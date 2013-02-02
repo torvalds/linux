@@ -26,13 +26,13 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-power.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/s3c2412.h>
 
 #include "regs-dsc.h"
+#include "s3c2412-power.h"
 
 extern void s3c2412_sleep_enter(void);
 

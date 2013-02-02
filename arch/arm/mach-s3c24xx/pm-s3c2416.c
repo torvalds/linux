@@ -16,11 +16,12 @@
 
 #include <asm/cacheflush.h>
 
-#include <mach/regs-power.h>
 #include <mach/regs-s3c2443-clock.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
+
+#include "s3c2412-power.h"
 
 extern void s3c2412_sleep_enter(void);
 
