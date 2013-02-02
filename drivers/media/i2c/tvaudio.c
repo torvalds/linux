@@ -39,6 +39,7 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 
 #include <media/i2c-addr.h>
 
@@ -91,13 +92,13 @@ struct CHIPDESC {
 	audiocmd   init;
 
 	/* which register has which value */
-	int    leftreg,rightreg,treblereg,bassreg;
+	int    leftreg, rightreg, treblereg, bassreg;
 
 	/* initialize with (defaults to 65535/32768/32768 */
 	int    volinit, trebleinit, bassinit;
 
 	/* functions to convert the values (v4l -> chip) */
-	getvalue volfunc,treblefunc,bassfunc;
+	getvalue volfunc, treblefunc, bassfunc;
 
 	/* get/set mode */
 	getrxsubchans	getrxsubchans;
@@ -113,6 +114,12 @@ struct CHIPDESC {
 /* current state of the chip */
 struct CHIPSTATE {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
+	struct {
+		/* volume/balance cluster */
+		struct v4l2_ctrl *volume;
+		struct v4l2_ctrl *balance;
+	};
 
 	/* chip-specific description - should point to
 	   an entry at CHIPDESC table */
@@ -122,7 +129,7 @@ struct CHIPSTATE {
 	audiocmd   shadow;
 
 	/* current settings */
-	u16 volume, balance, treble, bass, muted;
+	u16 muted;
 	int prevmode;
 	int radio;
 	int input;
@@ -136,6 +143,11 @@ struct CHIPSTATE {
 static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct CHIPSTATE, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct CHIPSTATE, hdl)->sd;
 }
 
 
@@ -1679,91 +1691,27 @@ static struct CHIPDESC chiplist[] = {
 
 /* ---------------------------------------------------------------------- */
 
-static int tvaudio_g_ctrl(struct v4l2_subdev *sd,
-			    struct v4l2_control *ctrl)
+static int tvaudio_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		if (!(desc->flags & CHIP_HAS_INPUTSEL))
-			break;
-		ctrl->value=chip->muted;
-		return 0;
-	case V4L2_CID_AUDIO_VOLUME:
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			break;
-		ctrl->value = chip->volume;
-		return 0;
-	case V4L2_CID_AUDIO_BALANCE:
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			break;
-		ctrl->value = chip->balance;
-		return 0;
-	case V4L2_CID_AUDIO_BASS:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			break;
-		ctrl->value = chip->bass;
-		return 0;
-	case V4L2_CID_AUDIO_TREBLE:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			break;
-		ctrl->value = chip->treble;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int tvaudio_s_ctrl(struct v4l2_subdev *sd,
-			    struct v4l2_control *ctrl)
-{
-	struct CHIPSTATE *chip = to_state(sd);
-	struct CHIPDESC *desc = chip->desc;
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (!(desc->flags & CHIP_HAS_INPUTSEL))
-			break;
-
-		if (ctrl->value < 0 || ctrl->value >= 2)
-			return -ERANGE;
-		chip->muted = ctrl->value;
+		chip->muted = ctrl->val;
 		if (chip->muted)
 			chip_write_masked(chip,desc->inputreg,desc->inputmute,desc->inputmask);
 		else
 			chip_write_masked(chip,desc->inputreg,
 					desc->inputmap[chip->input],desc->inputmask);
 		return 0;
-	case V4L2_CID_AUDIO_VOLUME:
-	{
+	case V4L2_CID_AUDIO_VOLUME: {
 		u32 volume, balance;
 		u32 left, right;
 
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			break;
-
-		volume = ctrl->value;
-		chip->volume = volume;
-		balance = chip->balance;
-		left = (min(65536U - balance, 32768U) * volume) / 32768U;
-		right = (min(balance, 32768U) * volume) / 32768U;
-
-		chip_write(chip, desc->leftreg, desc->volfunc(left));
-		chip_write(chip, desc->rightreg, desc->volfunc(right));
-		return 0;
-	}
-	case V4L2_CID_AUDIO_BALANCE:
-	{
-		u32 volume, balance;
-		u32 left, right;
-
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			break;
-
-		balance = ctrl->value;
-		chip->balance = balance;
-		volume = chip->volume;
+		volume = chip->volume->val;
+		balance = chip->balance->val;
 		left = (min(65536U - balance, 32768U) * volume) / 32768U;
 		right = (min(balance, 32768U) * volume) / 32768U;
 
@@ -1772,18 +1720,10 @@ static int tvaudio_s_ctrl(struct v4l2_subdev *sd,
 		return 0;
 	}
 	case V4L2_CID_AUDIO_BASS:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			break;
-		chip->bass = ctrl->value;
-		chip_write(chip,desc->bassreg,desc->bassfunc(chip->bass));
-
+		chip_write(chip, desc->bassreg, desc->bassfunc(ctrl->val));
 		return 0;
 	case V4L2_CID_AUDIO_TREBLE:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			break;
-		chip->treble = ctrl->value;
-		chip_write(chip,desc->treblereg,desc->treblefunc(chip->treble));
-
+		chip_write(chip, desc->treblereg, desc->treblefunc(ctrl->val));
 		return 0;
 	}
 	return -EINVAL;
@@ -1800,35 +1740,6 @@ static int tvaudio_s_radio(struct v4l2_subdev *sd)
 	chip->radio = 1;
 	/* del_timer(&chip->wt); */
 	return 0;
-}
-
-static int tvaudio_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	struct CHIPSTATE *chip = to_state(sd);
-	struct CHIPDESC *desc = chip->desc;
-
-	switch (qc->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (desc->flags & CHIP_HAS_INPUTSEL)
-			return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		if (desc->flags & CHIP_HAS_VOLUME)
-			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
-		break;
-	case V4L2_CID_AUDIO_BALANCE:
-		if (desc->flags & CHIP_HAS_VOLUME)
-			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
-		break;
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-		if (desc->flags & CHIP_HAS_BASSTREBLE)
-			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
-		break;
-	default:
-		break;
-	}
-	return -EINVAL;
 }
 
 static int tvaudio_s_routing(struct v4l2_subdev *sd,
@@ -1934,13 +1845,32 @@ static int tvaudio_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVAUDIO, 0);
 }
 
+static int tvaudio_log_status(struct v4l2_subdev *sd)
+{
+	struct CHIPSTATE *chip = to_state(sd);
+	struct CHIPDESC *desc = chip->desc;
+
+	v4l2_info(sd, "Chip: %s\n", desc->name);
+	v4l2_ctrl_handler_log_status(&chip->hdl, sd->name);
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
-static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
-	.g_chip_ident = tvaudio_g_chip_ident,
-	.queryctrl = tvaudio_queryctrl,
-	.g_ctrl = tvaudio_g_ctrl,
+static const struct v4l2_ctrl_ops tvaudio_ctrl_ops = {
 	.s_ctrl = tvaudio_s_ctrl,
+};
+
+static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
+	.log_status = tvaudio_log_status,
+	.g_chip_ident = tvaudio_g_chip_ident,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 	.s_std = tvaudio_s_std,
 };
 
@@ -2025,6 +1955,10 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	else
 		chip_cmd(chip, "init", &desc->init);
 
+	v4l2_ctrl_handler_init(&chip->hdl, 5);
+	if (desc->flags & CHIP_HAS_INPUTSEL)
+		v4l2_ctrl_new_std(&chip->hdl, &tvaudio_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 0);
 	if (desc->flags & CHIP_HAS_VOLUME) {
 		if (!desc->volfunc) {
 			/* This shouldn't be happen. Warn user, but keep working
@@ -2033,12 +1967,14 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			v4l2_info(sd, "volume callback undefined!\n");
 			desc->flags &= ~CHIP_HAS_VOLUME;
 		} else {
-			chip->volume = desc->volinit ? desc->volinit : 65535;
-			chip->balance = 32768;
-			chip_write(chip, desc->leftreg,
-				   desc->volfunc(chip->volume));
-			chip_write(chip, desc->rightreg,
-				   desc->volfunc(chip->volume));
+			chip->volume = v4l2_ctrl_new_std(&chip->hdl,
+				&tvaudio_ctrl_ops, V4L2_CID_AUDIO_VOLUME,
+				0, 65535, 65535 / 100,
+				desc->volinit ? desc->volinit : 65535);
+			chip->balance = v4l2_ctrl_new_std(&chip->hdl,
+				&tvaudio_ctrl_ops, V4L2_CID_AUDIO_BALANCE,
+				0, 65535, 65535 / 100, 32768);
+			v4l2_ctrl_cluster(2, &chip->volume);
 		}
 	}
 	if (desc->flags & CHIP_HAS_BASSTREBLE) {
@@ -2049,16 +1985,27 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			v4l2_info(sd, "bass/treble callbacks undefined!\n");
 			desc->flags &= ~CHIP_HAS_BASSTREBLE;
 		} else {
-			chip->treble = desc->trebleinit ?
-						desc->trebleinit : 32768;
-			chip->bass   = desc->bassinit   ?
-						desc->bassinit   : 32768;
-			chip_write(chip, desc->bassreg,
-				   desc->bassfunc(chip->bass));
-			chip_write(chip, desc->treblereg,
-				   desc->treblefunc(chip->treble));
+			v4l2_ctrl_new_std(&chip->hdl,
+				&tvaudio_ctrl_ops, V4L2_CID_AUDIO_BASS,
+				0, 65535, 65535 / 100,
+				desc->bassinit ? desc->bassinit : 32768);
+			v4l2_ctrl_new_std(&chip->hdl,
+				&tvaudio_ctrl_ops, V4L2_CID_AUDIO_TREBLE,
+				0, 65535, 65535 / 100,
+				desc->trebleinit ? desc->trebleinit : 32768);
 		}
 	}
+
+	sd->ctrl_handler = &chip->hdl;
+	if (chip->hdl.error) {
+		int err = chip->hdl.error;
+
+		v4l2_ctrl_handler_free(&chip->hdl);
+		kfree(chip);
+		return err;
+	}
+	/* set controls to the default values */
+	v4l2_ctrl_handler_setup(&chip->hdl);
 
 	chip->thread = NULL;
 	init_timer(&chip->wt);
@@ -2095,6 +2042,7 @@ static int tvaudio_remove(struct i2c_client *client)
 	}
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&chip->hdl);
 	kfree(chip);
 	return 0;
 }
