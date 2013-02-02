@@ -14,6 +14,8 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/resource.h>
+#include <linux/platform_device.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/irq.h>
@@ -110,21 +112,88 @@ void __init ath79_pci_set_plat_dev_init(int (*func)(struct pci_dev *dev))
 	ath79_pci_plat_dev_init = func;
 }
 
+static struct platform_device *
+ath79_register_pci_ar71xx(void)
+{
+	struct platform_device *pdev;
+	struct resource res[2];
+
+	memset(res, 0, sizeof(res));
+
+	res[0].name = "cfg_base";
+	res[0].flags = IORESOURCE_MEM;
+	res[0].start = AR71XX_PCI_CFG_BASE;
+	res[0].end = AR71XX_PCI_CFG_BASE + AR71XX_PCI_CFG_SIZE - 1;
+
+	res[1].flags = IORESOURCE_IRQ;
+	res[1].start = ATH79_CPU_IRQ_IP2;
+	res[1].end = ATH79_CPU_IRQ_IP2;
+
+	pdev = platform_device_register_simple("ar71xx-pci", -1,
+					       res, ARRAY_SIZE(res));
+	return pdev;
+}
+
+static struct platform_device *
+ath79_register_pci_ar724x(int id,
+			  unsigned long cfg_base,
+			  unsigned long ctrl_base,
+			  int irq)
+{
+	struct platform_device *pdev;
+	struct resource res[3];
+
+	memset(res, 0, sizeof(res));
+
+	res[0].name = "cfg_base";
+	res[0].flags = IORESOURCE_MEM;
+	res[0].start = cfg_base;
+	res[0].end = cfg_base + AR724X_PCI_CFG_SIZE - 1;
+
+	res[1].name = "ctrl_base";
+	res[1].flags = IORESOURCE_MEM;
+	res[1].start = ctrl_base;
+	res[1].end = ctrl_base + AR724X_PCI_CTRL_SIZE - 1;
+
+	res[2].flags = IORESOURCE_IRQ;
+	res[2].start = irq;
+	res[2].end = irq;
+
+	pdev = platform_device_register_simple("ar724x-pci", id,
+					       res, ARRAY_SIZE(res));
+	return pdev;
+}
+
 int __init ath79_register_pci(void)
 {
-	if (soc_is_ar71xx())
-		return ar71xx_pcibios_init();
+	struct platform_device *pdev = NULL;
 
-	if (soc_is_ar724x())
-		return ar724x_pcibios_init(ATH79_CPU_IRQ_IP2);
-
-	if (soc_is_ar9342() || soc_is_ar9344()) {
+	if (soc_is_ar71xx()) {
+		pdev = ath79_register_pci_ar71xx();
+	} else if (soc_is_ar724x()) {
+		pdev = ath79_register_pci_ar724x(-1,
+						 AR724X_PCI_CFG_BASE,
+						 AR724X_PCI_CTRL_BASE,
+						 ATH79_CPU_IRQ_IP2);
+	} else if (soc_is_ar9342() ||
+		   soc_is_ar9344()) {
 		u32 bootstrap;
 
 		bootstrap = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
-		if (bootstrap & AR934X_BOOTSTRAP_PCIE_RC)
-			return ar724x_pcibios_init(ATH79_IP2_IRQ(0));
+		if ((bootstrap & AR934X_BOOTSTRAP_PCIE_RC) == 0)
+			return -ENODEV;
+
+		pdev = ath79_register_pci_ar724x(-1,
+						 AR724X_PCI_CFG_BASE,
+						 AR724X_PCI_CTRL_BASE,
+						 ATH79_IP2_IRQ(0));
+	} else {
+		/* No PCI support */
+		return -ENODEV;
 	}
 
-	return -ENODEV;
+	if (!pdev)
+		pr_err("unable to register PCI controller device\n");
+
+	return pdev ? 0 : -ENODEV;
 }
