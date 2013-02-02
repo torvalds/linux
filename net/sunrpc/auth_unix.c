@@ -157,11 +157,11 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 	 */
 	p = xdr_encode_array(p, clnt->cl_nodename, clnt->cl_nodelen);
 
-	*p++ = htonl((u32) cred->uc_uid);
-	*p++ = htonl((u32) cred->uc_gid);
+	*p++ = htonl((u32) from_kuid(&init_user_ns, cred->uc_uid));
+	*p++ = htonl((u32) from_kgid(&init_user_ns, cred->uc_gid));
 	hold = p++;
 	for (i = 0; i < 16 && gid_valid(cred->uc_gids[i]); i++)
-		*p++ = htonl((u32) cred->uc_gids[i]);
+		*p++ = htonl((u32) from_kgid(&init_user_ns, cred->uc_gids[i]));
 	*hold = htonl(p - hold - 1);		/* gid array length */
 	*base = htonl((p - base - 1) << 2);	/* cred length */
 
