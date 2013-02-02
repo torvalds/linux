@@ -72,6 +72,8 @@ struct gpio_desc {
 };
 static struct gpio_desc gpio_desc[ARCH_NR_GPIOS];
 
+#define GPIO_OFFSET_VALID(chip, offset) (offset >= 0 && offset < chip->ngpio)
+
 static LIST_HEAD(gpio_chips);
 
 #ifdef CONFIG_GPIO_SYSFS
@@ -112,7 +114,7 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
  */
 static int gpio_chip_hwgpio(const struct gpio_desc *desc)
 {
-	return (desc - &gpio_desc[0]) - desc->chip->base;
+	return desc - &desc->chip->desc[0];
 }
 
 /**
@@ -133,7 +135,7 @@ static struct gpio_desc *gpio_to_desc(unsigned gpio)
  */
 static int desc_to_gpio(const struct gpio_desc *desc)
 {
-	return desc - &gpio_desc[0];
+	return desc->chip->base + gpio_chip_hwgpio(desc);
 }
 
 
@@ -1007,9 +1009,9 @@ static int gpiochip_export(struct gpio_chip *chip)
 		unsigned	gpio;
 
 		spin_lock_irqsave(&gpio_lock, flags);
-		gpio = chip->base;
-		while (gpio_desc[gpio].chip == chip)
-			gpio_desc[gpio++].chip = NULL;
+		gpio = 0;
+		while (gpio < chip->ngpio)
+			chip->desc[gpio++].chip = NULL;
 		spin_unlock_irqrestore(&gpio_lock, flags);
 
 		pr_debug("%s: chip %s status %d\n", __func__,
@@ -1186,8 +1188,11 @@ int gpiochip_add(struct gpio_chip *chip)
 	status = gpiochip_add_to_list(chip);
 
 	if (status == 0) {
-		for (id = base; id < base + chip->ngpio; id++) {
-			gpio_desc[id].chip = chip;
+		chip->desc = &gpio_desc[chip->base];
+
+		for (id = 0; id < chip->ngpio; id++) {
+			struct gpio_desc *desc = &chip->desc[id];
+			desc->chip = chip;
 
 			/* REVISIT:  most hardware initializes GPIOs as
 			 * inputs (often with pullups enabled) so power
@@ -1196,7 +1201,7 @@ int gpiochip_add(struct gpio_chip *chip)
 			 * and in case chip->get_direction is not set,
 			 * we may expose the wrong direction in sysfs.
 			 */
-			gpio_desc[id].flags = !chip->direction_input
+			desc->flags = !chip->direction_input
 				? (1 << FLAG_IS_OUT)
 				: 0;
 		}
@@ -1249,15 +1254,15 @@ int gpiochip_remove(struct gpio_chip *chip)
 	gpiochip_remove_pin_ranges(chip);
 	of_gpiochip_remove(chip);
 
-	for (id = chip->base; id < chip->base + chip->ngpio; id++) {
-		if (test_bit(FLAG_REQUESTED, &gpio_desc[id].flags)) {
+	for (id = 0; id < chip->ngpio; id++) {
+		if (test_bit(FLAG_REQUESTED, &chip->desc[id].flags)) {
 			status = -EBUSY;
 			break;
 		}
 	}
 	if (status == 0) {
-		for (id = chip->base; id < chip->base + chip->ngpio; id++)
-			gpio_desc[id].chip = NULL;
+		for (id = 0; id < chip->ngpio; id++)
+			chip->desc[id].chip = NULL;
 
 		list_del(&chip->list);
 	}
@@ -1582,11 +1587,13 @@ EXPORT_SYMBOL_GPL(gpio_free_array);
  */
 const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 {
-	unsigned gpio = chip->base + offset;
-	struct gpio_desc *desc = &gpio_desc[gpio];
+	struct gpio_desc *desc;
 
-	if (!gpio_is_valid(gpio) || desc->chip != chip)
+	if (!GPIO_OFFSET_VALID(chip, offset))
 		return NULL;
+
+	desc = &chip->desc[offset];
+
 	if (test_bit(FLAG_REQUESTED, &desc->flags) == 0)
 		return NULL;
 #ifdef CONFIG_DEBUG_FS
@@ -2025,7 +2032,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	unsigned		i;
 	unsigned		gpio = chip->base;
-	struct gpio_desc	*gdesc = &gpio_desc[gpio];
+	struct gpio_desc	*gdesc = &chip->desc[0];
 	int			is_out;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++, gdesc++) {
