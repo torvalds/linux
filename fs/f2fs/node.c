@@ -921,19 +921,17 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	if (!nid)
 		return ERR_PTR(-ENOENT);
 
-	page = find_get_page(mapping, nid);
-	if (page && PageUptodate(page))
-		goto page_hit;
-	f2fs_put_page(page, 0);
-
 repeat:
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
+	else if (PageUptodate(page))
+		goto page_hit;
 
 	err = read_node_page(page, READ_SYNC);
+	unlock_page(page);
 	if (err) {
-		f2fs_put_page(page, 1);
+		f2fs_put_page(page, 0);
 		return ERR_PTR(err);
 	}
 
@@ -947,8 +945,9 @@ repeat:
 		ra_node_page(sbi, nid);
 	}
 
-page_hit:
 	lock_page(page);
+
+page_hit:
 	if (PageError(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
