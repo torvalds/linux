@@ -1,9 +1,10 @@
 #ifndef _PARISC_MMZONE_H
 #define _PARISC_MMZONE_H
 
+#define MAX_PHYSMEM_RANGES 8 /* Fix the size for now (current known max is 3) */
+
 #ifdef CONFIG_DISCONTIGMEM
 
-#define MAX_PHYSMEM_RANGES 8 /* Fix the size for now (current known max is 3) */
 extern int npmem_ranges;
 
 struct node_map_data {
@@ -60,7 +61,5 @@ static inline int pfn_valid(int pfn)
 	return 0;
 }
 
-#else /* !CONFIG_DISCONTIGMEM */
-#define MAX_PHYSMEM_RANGES 	1 
 #endif
 #endif /* _PARISC_MMZONE_H */
