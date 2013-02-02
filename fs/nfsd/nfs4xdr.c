@@ -464,9 +464,16 @@ static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_
 			READ32(dummy);
 			READ_BUF(dummy * 4);
 			if (cbs->flavor == (u32)(-1)) {
-				cbs->uid = uid;
-				cbs->gid = gid;
-				cbs->flavor = RPC_AUTH_UNIX;
+				kuid_t kuid = make_kuid(&init_user_ns, uid);
+				kgid_t kgid = make_kgid(&init_user_ns, gid);
+				if (uid_valid(kuid) && gid_valid(kgid)) {
+					cbs->uid = kuid;
+					cbs->gid = kgid;
+					cbs->flavor = RPC_AUTH_UNIX;
+				} else {
+					dprintk("RPC_AUTH_UNIX with invalid"
+						"uid or gid ignoring!\n");
+				}
 			}
 			break;
 		case RPC_AUTH_GSS:
