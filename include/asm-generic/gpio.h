@@ -53,6 +53,7 @@ struct device_node;
  * @label: for diagnostics
  * @dev: optional device providing the GPIOs
  * @owner: helps prevent removal of modules exporting active GPIOs
+ * @list: links gpio_chips together for traversal
  * @request: optional hook for chip-specific activation, such as
  *	enabling module power and clock; may sleep
  * @free: optional hook for chip-specific deactivation, such as
@@ -98,6 +99,7 @@ struct gpio_chip {
 	const char		*label;
 	struct device		*dev;
 	struct module		*owner;
+	struct list_head        list;
 
 	int			(*request)(struct gpio_chip *chip,
 						unsigned offset);
