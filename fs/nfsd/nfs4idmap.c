@@ -625,26 +625,40 @@ do_id_to_name(struct svc_rqst *rqstp, int type, u32 id, char *name)
 
 __be32
 nfsd_map_name_to_uid(struct svc_rqst *rqstp, const char *name, size_t namelen,
-		__u32 *id)
+		kuid_t *uid)
 {
-	return do_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, id);
+	__be32 status;
+	u32 id = -1;
+	status = do_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, &id);
+	*uid = make_kuid(&init_user_ns, id);
+	if (!uid_valid(*uid))
+		status = nfserr_badowner;
+	return status;
 }
 
 __be32
 nfsd_map_name_to_gid(struct svc_rqst *rqstp, const char *name, size_t namelen,
-		__u32 *id)
+		kgid_t *gid)
 {
-	return do_name_to_id(rqstp, IDMAP_TYPE_GROUP, name, namelen, id);
+	__be32 status;
+	u32 id = -1;
+	status = do_name_to_id(rqstp, IDMAP_TYPE_GROUP, name, namelen, &id);
+	*gid = make_kgid(&init_user_ns, id);
+	if (!gid_valid(*gid))
+		status = nfserr_badowner;
+	return status;
 }
 
 int
-nfsd_map_uid_to_name(struct svc_rqst *rqstp, __u32 id, char *name)
+nfsd_map_uid_to_name(struct svc_rqst *rqstp, kuid_t uid, char *name)
 {
+	u32 id = from_kuid(&init_user_ns, uid);
 	return do_id_to_name(rqstp, IDMAP_TYPE_USER, id, name);
 }
 
 int
-nfsd_map_gid_to_name(struct svc_rqst *rqstp, __u32 id, char *name)
+nfsd_map_gid_to_name(struct svc_rqst *rqstp, kgid_t gid, char *name)
 {
+	u32 id = from_kgid(&init_user_ns, gid);
 	return do_id_to_name(rqstp, IDMAP_TYPE_GROUP, id, name);
 }
