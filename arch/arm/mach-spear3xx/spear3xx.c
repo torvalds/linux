@@ -15,11 +15,8 @@
 
 #include <linux/amba/pl022.h>
 #include <linux/amba/pl08x.h>
-#include <linux/irqchip/spear-shirq.h>
-#include <linux/of_irq.h>
 #include <linux/io.h>
 #include <asm/hardware/pl080.h>
-#include <asm/hardware/vic.h>
 #include <plat/pl080.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
@@ -119,16 +116,3 @@ static void __init spear3xx_timer_init(void)
 struct sys_timer spear3xx_timer = {
 	.init = spear3xx_timer_init,
 };
-
-static const struct of_device_id vic_of_match[] __initconst = {
-	{ .compatible = "arm,pl190-vic", .data = vic_of_init, },
-	{ .compatible = "st,spear300-shirq", .data = spear300_shirq_of_init, },
-	{ .compatible = "st,spear310-shirq", .data = spear310_shirq_of_init, },
-	{ .compatible = "st,spear320-shirq", .data = spear320_shirq_of_init, },
-	{ /* Sentinel */ }
-};
-
-void __init spear3xx_dt_init_irq(void)
-{
-	of_irq_init(vic_of_match);
-}

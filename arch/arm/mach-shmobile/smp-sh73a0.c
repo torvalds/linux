@@ -23,12 +23,12 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <asm/smp_plat.h>
 #include <mach/sh73a0.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
-#include <asm/hardware/gic.h>
 
 #define WUPCR		IOMEM(0xe6151010)
 #define SRESCR		IOMEM(0xe6151018)

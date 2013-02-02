@@ -23,9 +23,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-vic.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/vic.h>
 #include <mach/netx-regs.h>
 #include <asm/mach/irq.h>
 

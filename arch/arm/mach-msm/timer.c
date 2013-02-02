@@ -25,7 +25,6 @@
 #include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
-#include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
 #include <asm/sched_clock.h>
 

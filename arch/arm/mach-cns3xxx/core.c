@@ -12,10 +12,10 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/cns3xxx.h>
 #include "core.h"

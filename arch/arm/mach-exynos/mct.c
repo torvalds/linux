@@ -22,7 +22,6 @@
 #include <linux/of.h>
 
 #include <asm/arch_timer.h>
-#include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
 
 #include <plat/cpu.h>

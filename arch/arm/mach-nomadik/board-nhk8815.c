@@ -27,7 +27,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
-#include <asm/hardware/vic.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -352,7 +351,6 @@ MACHINE_START(NOMADIK, "NHK8815")
 	.atag_offset	= 0x100,
 	.map_io		= cpu8815_map_io,
 	.init_irq	= cpu8815_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.timer		= &nomadik_timer,
 	.init_machine	= nhk8815_platform_init,
 	.restart	= cpu8815_restart,

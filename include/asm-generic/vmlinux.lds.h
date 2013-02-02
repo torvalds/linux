@@ -149,6 +149,15 @@
 #define TRACE_SYSCALLS()
 #endif
 
+#ifdef CONFIG_IRQCHIP
+#define IRQCHIP_OF_MATCH_TABLE()					\
+	. = ALIGN(8);							\
+	VMLINUX_SYMBOL(__irqchip_begin) = .;				\
+	*(__irqchip_of_table)		  				\
+	*(__irqchip_of_end)
+#else
+#define IRQCHIP_OF_MATCH_TABLE()
+#endif
 
 #define KERNEL_DTB()							\
 	STRUCT_ALIGN();							\
@@ -493,7 +502,8 @@
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)					\
-	KERNEL_DTB()
+	KERNEL_DTB()							\
+	IRQCHIP_OF_MATCH_TABLE()
 
 #define INIT_TEXT							\
 	*(.init.text)							\

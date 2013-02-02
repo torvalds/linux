@@ -27,12 +27,12 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
-#include <asm/hardware/gic.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -309,7 +309,6 @@ MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pba8_timer,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_pba8_init,
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,
