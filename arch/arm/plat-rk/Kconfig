@@ -84,7 +84,9 @@ endchoice
 
 config DDR_INIT_CHANGE_FREQ
 	bool "Enable change DDR frequence when ddr_init"
-	default y
+	default y if ARCH_RK2928 || ARCH_RK30XX
+	default n if ARCH_RK3066B || ARCH_RK3188
+
 
 config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
@@ -93,6 +95,7 @@ config DDR_SDRAM_FREQ
 
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
+	default y if ARCH_RK3066B || ARCH_RK3188
 	select RK_SRAM_DMA if ARCH_RK30XX
 
 config DDR_TEST
