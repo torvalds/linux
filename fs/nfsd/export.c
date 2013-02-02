@@ -544,13 +544,17 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_uid= an_int;
+		exp.ex_anon_uid= make_kuid(&init_user_ns, an_int);
+		if (!uid_valid(exp.ex_anon_uid))
+			goto out3;
 
 		/* anon gid */
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_gid= an_int;
+		exp.ex_anon_gid= make_kgid(&init_user_ns, an_int);
+		if (!gid_valid(exp.ex_anon_gid))
+			goto out3;
 
 		/* fsid */
 		err = get_int(&mesg, &an_int);
@@ -613,7 +617,7 @@ out:
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
-		uid_t anonu, uid_t anong, struct nfsd4_fs_locations *fslocs);
+		kuid_t anonu, kgid_t anong, struct nfsd4_fs_locations *fslocs);
 static void show_secinfo(struct seq_file *m, struct svc_export *exp);
 
 static int svc_export_show(struct seq_file *m,
@@ -1179,15 +1183,17 @@ static void show_secinfo(struct seq_file *m, struct svc_export *exp)
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
-		uid_t anonu, uid_t anong, struct nfsd4_fs_locations *fsloc)
+		kuid_t anonu, kgid_t anong, struct nfsd4_fs_locations *fsloc)
 {
 	show_expflags(m, flag, NFSEXP_ALLFLAGS);
 	if (flag & NFSEXP_FSID)
 		seq_printf(m, ",fsid=%d", fsid);
-	if (anonu != (uid_t)-2 && anonu != (0x10000-2))
-		seq_printf(m, ",anonuid=%u", anonu);
-	if (anong != (gid_t)-2 && anong != (0x10000-2))
-		seq_printf(m, ",anongid=%u", anong);
+	if (!uid_eq(anonu, make_kuid(&init_user_ns, (uid_t)-2)) &&
+	    !uid_eq(anonu, make_kuid(&init_user_ns, 0x10000-2)))
+		seq_printf(m, ",anonuid=%u", from_kuid(&init_user_ns, anonu));
+	if (!gid_eq(anong, make_kgid(&init_user_ns, (gid_t)-2)) &&
+	    !gid_eq(anong, make_kgid(&init_user_ns, 0x10000-2)))
+		seq_printf(m, ",anongid=%u", from_kgid(&init_user_ns, anong));
 	if (fsloc && fsloc->locations_count > 0) {
 		char *loctype = (fsloc->migrated) ? "refer" : "replicas";
 		int i;

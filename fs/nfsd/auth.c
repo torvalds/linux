@@ -58,7 +58,7 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 
 		for (i = 0; i < rqgi->ngroups; i++) {
 			if (gid_eq(GLOBAL_ROOT_GID, GROUP_AT(rqgi, i)))
-				GROUP_AT(gi, i) = make_kgid(&init_user_ns, exp->ex_anon_gid);
+				GROUP_AT(gi, i) = exp->ex_anon_gid;
 			else
 				GROUP_AT(gi, i) = GROUP_AT(rqgi, i);
 		}
