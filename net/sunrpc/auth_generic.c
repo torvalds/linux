@@ -129,8 +129,8 @@ machine_cred_match(struct auth_cred *acred, struct generic_cred *gcred, int flag
 {
 	if (!gcred->acred.machine_cred ||
 	    gcred->acred.principal != acred->principal ||
-	    gcred->acred.uid != acred->uid ||
-	    gcred->acred.gid != acred->gid)
+	    !uid_eq(gcred->acred.uid, acred->uid) ||
+	    !gid_eq(gcred->acred.gid, acred->gid))
 		return 0;
 	return 1;
 }
@@ -147,8 +147,8 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	if (acred->machine_cred)
 		return machine_cred_match(acred, gcred, flags);
 
-	if (gcred->acred.uid != acred->uid ||
-	    gcred->acred.gid != acred->gid ||
+	if (!uid_eq(gcred->acred.uid, acred->uid) ||
+	    !gid_eq(gcred->acred.gid, acred->gid) ||
 	    gcred->acred.machine_cred != 0)
 		goto out_nomatch;
 
