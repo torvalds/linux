@@ -106,7 +106,7 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 	unsigned int limit;
 	int ret;
 
-	printk("Enter::%s----%d prtd->dma_period = %d prtd->dma_limit = %d\n",__FUNCTION__,__LINE__,prtd->dma_period,prtd->dma_limit);
+	DBG("Enter::%s----%d prtd->dma_period = %d prtd->dma_limit = %d\n",__FUNCTION__,__LINE__,prtd->dma_period,prtd->dma_limit);
 
 	if (rk29_dma_has_circular())
 		limit = (prtd->dma_end - prtd->dma_start) / prtd->dma_period;
