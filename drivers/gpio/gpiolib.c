@@ -1890,45 +1890,28 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct gpio_chip *chip = NULL;
-	unsigned int gpio;
-	void *ret = NULL;
-	loff_t index = 0;
+	loff_t index = *pos;
 
 	/* REVISIT this isn't locked against gpio_chip removal ... */
 
-	for (gpio = 0; gpio_is_valid(gpio); gpio++) {
-		if (gpio_desc[gpio].chip == chip)
-			continue;
-
-		chip = gpio_desc[gpio].chip;
-		if (!chip)
-			continue;
-
-		if (index++ >= *pos) {
-			ret = chip;
-			break;
-		}
-	}
-
 	s->private = "";
 
-	return ret;
+	list_for_each_entry(chip, &gpio_chips, list)
+		if (index-- == 0)
+			return chip;
+
+	return NULL;
 }
 
 static void *gpiolib_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	struct gpio_chip *chip = v;
-	unsigned int gpio;
 	void *ret = NULL;
 
-	/* skip GPIOs provided by the current chip */
-	for (gpio = chip->base + chip->ngpio; gpio_is_valid(gpio); gpio++) {
-		chip = gpio_desc[gpio].chip;
-		if (chip) {
-			ret = chip;
-			break;
-		}
-	}
+	if (list_is_last(&chip->list, &gpio_chips))
+		ret = NULL;
+	else
+		ret = list_entry(chip->list.next, struct gpio_chip, list);
 
 	s->private = "\n";
 	++*pos;
