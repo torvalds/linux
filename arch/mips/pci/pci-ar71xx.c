@@ -18,6 +18,8 @@
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79.h>
@@ -309,7 +311,7 @@ static struct irq_chip ar71xx_pci_irq_chip = {
 	.irq_mask_ack	= ar71xx_pci_irq_mask,
 };
 
-static __init void ar71xx_pci_irq_init(void)
+static void ar71xx_pci_irq_init(int irq)
 {
 	void __iomem *base = ath79_reset_base;
 	int i;
@@ -324,10 +326,10 @@ static __init void ar71xx_pci_irq_init(void)
 		irq_set_chip_and_handler(i, &ar71xx_pci_irq_chip,
 					 handle_level_irq);
 
-	irq_set_chained_handler(ATH79_CPU_IRQ_IP2, ar71xx_pci_irq_handler);
+	irq_set_chained_handler(irq, ar71xx_pci_irq_handler);
 }
 
-static __init void ar71xx_pci_reset(void)
+static void ar71xx_pci_reset(void)
 {
 	void __iomem *ddr_base = ath79_ddr_base;
 
@@ -367,9 +369,59 @@ __init int ar71xx_pcibios_init(void)
 	/* clear bus errors */
 	ar71xx_pci_check_error(1);
 
-	ar71xx_pci_irq_init();
+	ar71xx_pci_irq_init(ATH79_CPU_IRQ_IP2);
 
 	register_pci_controller(&ar71xx_pci_controller);
 
 	return 0;
 }
+
+static int ar71xx_pci_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	int irq;
+	u32 t;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
+	if (!res)
+		return -EINVAL;
+
+	ar71xx_pcicfg_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!ar71xx_pcicfg_base)
+		return -ENOMEM;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -EINVAL;
+
+	ar71xx_pci_reset();
+
+	/* setup COMMAND register */
+	t = PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
+	  | PCI_COMMAND_PARITY | PCI_COMMAND_SERR | PCI_COMMAND_FAST_BACK;
+	ar71xx_pci_local_write(PCI_COMMAND, 4, t);
+
+	/* clear bus errors */
+	ar71xx_pci_check_error(1);
+
+	ar71xx_pci_irq_init(irq);
+
+	register_pci_controller(&ar71xx_pci_controller);
+
+	return 0;
+}
+
+static struct platform_driver ar71xx_pci_driver = {
+	.probe = ar71xx_pci_probe,
+	.driver = {
+		.name = "ar71xx-pci",
+		.owner = THIS_MODULE,
+	},
+};
+
+static int __init ar71xx_pci_init(void)
+{
+	return platform_driver_register(&ar71xx_pci_driver);
+}
+
+postcore_initcall(ar71xx_pci_init);
