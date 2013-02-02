@@ -299,7 +299,7 @@ static int bq27x00_battery_read_energy(struct bq27x00_device_info *di)
 }
 
 /*
- * Return the battery temperature in tenths of degree Celsius
+ * Return the battery temperature in tenths of degree Kelvin
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_read_temperature(struct bq27x00_device_info *di)
@@ -312,10 +312,8 @@ static int bq27x00_battery_read_temperature(struct bq27x00_device_info *di)
 		return temp;
 	}
 
-	if (bq27xxx_is_chip_version_higher(di))
-		temp -= 2731;
-	else
-		temp = ((temp * 5) - 5463) / 2;
+	if (!bq27xxx_is_chip_version_higher(di))
+		temp = 5 * temp / 2;
 
 	return temp;
 }
@@ -641,6 +639,8 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = bq27x00_simple_value(di->cache.temperature, val);
+		if (ret == 0)
+			val->intval -= 2731;
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = bq27x00_simple_value(di->cache.time_to_empty, val);
