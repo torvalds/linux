@@ -126,30 +126,25 @@ struct gpio_chip *gpio_to_chip(unsigned gpio)
 /* dynamic allocation of GPIOs, e.g. on a hotplugged device */
 static int gpiochip_find_base(int ngpio)
 {
-	int i;
-	int spare = 0;
-	int base = -ENOSPC;
+	struct gpio_chip *chip;
+	int base = ARCH_NR_GPIOS - ngpio;
 
-	for (i = ARCH_NR_GPIOS - 1; i >= 0 ; i--) {
-		struct gpio_desc *desc = &gpio_desc[i];
-		struct gpio_chip *chip = desc->chip;
-
-		if (!chip) {
-			spare++;
-			if (spare == ngpio) {
-				base = i;
-				break;
-			}
-		} else {
-			spare = 0;
-			if (chip)
-				i -= chip->ngpio - 1;
-		}
+	list_for_each_entry_reverse(chip, &gpio_chips, list) {
+		/* found a free space? */
+		if (chip->base + chip->ngpio <= base)
+			break;
+		else
+			/* nope, check the space right before the chip */
+			base = chip->base - ngpio;
 	}
 
-	if (gpio_is_valid(base))
+	if (gpio_is_valid(base)) {
 		pr_debug("%s: found new base at %d\n", __func__, base);
-	return base;
+		return base;
+	} else {
+		pr_err("%s: cannot find free range\n", __func__);
+		return -ENOSPC;
+	}
 }
 
 /* caller ensures gpio is valid and requested, chip->get_direction may sleep  */
