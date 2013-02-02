@@ -470,7 +470,7 @@ static void unix_gid_request(struct cache_detail *cd,
 	char tuid[20];
 	struct unix_gid *ug = container_of(h, struct unix_gid, h);
 
-	snprintf(tuid, 20, "%u", ug->uid);
+	snprintf(tuid, 20, "%u", from_kuid(&init_user_ns, ug->uid));
 	qword_add(bpp, blen, tuid);
 	(*bpp)[-1] = '\n';
 }
@@ -486,7 +486,8 @@ static int unix_gid_parse(struct cache_detail *cd,
 			char *mesg, int mlen)
 {
 	/* uid expiry Ngid gid0 gid1 ... gidN-1 */
-	int uid;
+	int id;
+	kuid_t uid;
 	int gids;
 	int rv;
 	int i;
@@ -498,8 +499,11 @@ static int unix_gid_parse(struct cache_detail *cd,
 		return -EINVAL;
 	mesg[mlen-1] = 0;
 
-	rv = get_int(&mesg, &uid);
+	rv = get_int(&mesg, &id);
 	if (rv)
+		return -EINVAL;
+	uid = make_kuid(&init_user_ns, id);
+	if (!uid_valid(uid))
 		return -EINVAL;
 	ug.uid = uid;
 
@@ -554,7 +558,7 @@ static int unix_gid_show(struct seq_file *m,
 			 struct cache_detail *cd,
 			 struct cache_head *h)
 {
-	struct user_namespace *user_ns = current_user_ns();
+	struct user_namespace *user_ns = &init_user_ns;
 	struct unix_gid *ug;
 	int i;
 	int glen;
@@ -570,7 +574,7 @@ static int unix_gid_show(struct seq_file *m,
 	else
 		glen = 0;
 
-	seq_printf(m, "%u %d:", ug->uid, glen);
+	seq_printf(m, "%u %d:", from_kuid_munged(user_ns, ug->uid), glen);
 	for (i = 0; i < glen; i++)
 		seq_printf(m, " %d", from_kgid_munged(user_ns, GROUP_AT(ug->gi, i)));
 	seq_printf(m, "\n");
