@@ -681,6 +681,8 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 
 	depth = ext_depth(donor_inode);
 	dext = donor_path[depth].p_ext;
+	if (unlikely(!dext))
+		goto missing_donor_extent;
 	tmp_dext = *dext;
 
 	*err = mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
@@ -691,7 +693,8 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	/* Loop for the donor extents */
 	while (1) {
 		/* The extent for donor must be found. */
-		if (!dext) {
+		if (unlikely(!dext)) {
+		missing_donor_extent:
 			EXT4_ERROR_INODE(donor_inode,
 				   "The extent for donor must be found");
 			*err = -EIO;
