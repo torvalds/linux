@@ -90,6 +90,7 @@ static int gc_thread_func(void *data)
 int start_gc_thread(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_gc_kthread *gc_th;
+	dev_t dev = sbi->sb->s_bdev->bd_dev;
 
 	if (!test_opt(sbi, BG_GC))
 		return 0;
@@ -100,7 +101,7 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 	sbi->gc_thread = gc_th;
 	init_waitqueue_head(&sbi->gc_thread->gc_wait_queue_head);
 	sbi->gc_thread->f2fs_gc_task = kthread_run(gc_thread_func, sbi,
-				GC_THREAD_NAME);
+			"f2fs_gc-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(gc_th->f2fs_gc_task)) {
 		kfree(gc_th);
 		return -ENOMEM;
