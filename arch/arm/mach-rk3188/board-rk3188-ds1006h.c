@@ -265,6 +265,14 @@ static struct akm8963_platform_data akm_platform_data_8963 = {
 }; 
 #endif
 
+#if defined(CONFIG_LS_PHOTORESISTOR)
+static struct sensor_platform_data light_photoresistor_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 0,
+        .address = 2 ;
+	.poll_delay_ms = 200,
+};
+#endif
 
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
@@ -1155,6 +1163,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags          = 0, 
         },   
 #endif
+
 #if defined (CONFIG_GS_LIS3DH)
 	{
 		.type	        = "gs_lis3dh",
@@ -1173,7 +1182,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
               .platform_data = &akm_platform_data_8963,
         },
 #endif
-
+#if defined (CONFIG_LS_PHOTORESISTOR)
+	{
+		.type           = "ls_photoresistor",
+		.addr           = 0x5e,            
+		.flags          = 0,
+		.irq            = INVALID_GPIO,	
+		.platform_data = &light_photoresistor_info,
+	},
+#endif
 
 #if defined (CONFIG_COMPASS_AK8975)
 	{

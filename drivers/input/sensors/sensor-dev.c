@@ -1155,7 +1155,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	struct sensor_platform_data *pdata;
 	int result = 0;
 	int type = 0;
-	dev_info(&client->adapter->dev, "%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
+	dev_info(&client->adapter->dev, "-------------------------------------%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;
@@ -1416,6 +1416,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"ls_stk3171", LIGHT_ID_STK3171},
 	{"ls_isl29023", LIGHT_ID_ISL29023},
 	{"ls_ap321xx", LIGHT_ID_AP321XX},
+        {"ls_photoresistor", LIGHT_ID_PHOTORESISTOR},
 	/*proximity sensor*/
 	{"psensor", PROXIMITY_ID_ALL},
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	

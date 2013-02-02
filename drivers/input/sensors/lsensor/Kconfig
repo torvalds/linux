@@ -25,6 +25,11 @@ config LS_ISL29023
 	
 config LS_AP321XX
   bool "light sensor ap321xx"
-	default n	  
+	default n
+
+config LS_PHOTORESISTOR	
+  bool "light sensor photoresistor"
+	default n
+
 endif
 
