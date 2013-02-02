@@ -1023,6 +1023,9 @@ static bool intel_lvds_supported(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev))
 		return true;
 
+	if (IS_VALLEYVIEW(dev))
+		return false;
+
 	/* Otherwise LVDS was only attached to mobile products,
 	 * except for the inglorious 830gm */
 	return IS_MOBILE(dev) && !IS_I830(dev);
