@@ -175,9 +175,20 @@ static DEFINE_MUTEX(pci_scan_mutex);
 
 void register_pci_controller(struct pci_controller *hose)
 {
-	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
+	struct resource *parent;
+
+	parent = hose->mem_resource->parent;
+	if (!parent)
+		parent = &iomem_resource;
+
+	if (request_resource(parent, hose->mem_resource) < 0)
 		goto out;
-	if (request_resource(&ioport_resource, hose->io_resource) < 0) {
+
+	parent = hose->io_resource->parent;
+	if (!parent)
+		parent = &ioport_resource;
+
+	if (request_resource(parent, hose->io_resource) < 0) {
 		release_resource(hose->mem_resource);
 		goto out;
 	}
