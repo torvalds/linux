@@ -905,6 +905,7 @@ struct ubifs_budget_req {
  * @inum: inode number
  * @new: %1 => added since the last commit, otherwise %0
  * @cmt: %1 => commit pending, otherwise %0
+ * @del: %1 => delete pending, otherwise %0
  */
 struct ubifs_orphan {
 	struct rb_node rb;
@@ -915,6 +916,7 @@ struct ubifs_orphan {
 	ino_t inum;
 	unsigned new:1;
 	unsigned cmt:1;
+	unsigned del:1;
 };
 
 /**
