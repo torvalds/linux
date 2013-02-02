@@ -90,6 +90,7 @@ struct idle_cpu {
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
+	bool disable_promotion_to_c1e;
 };
 
 static const struct idle_cpu *icpu;
@@ -132,6 +133,13 @@ static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
 		.target_residency = 6,
 		.enter = &intel_idle },
 	{
+		.name = "C1E-NHM",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle },
+	{
 		.name = "C3-NHM",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
@@ -154,8 +162,15 @@ static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
 		.name = "C1-SNB",
 		.desc = "MWAIT 0x00",
 		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
-		.exit_latency = 1,
-		.target_residency = 1,
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle },
+	{
+		.name = "C1E-SNB",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 20,
 		.enter = &intel_idle },
 	{
 		.name = "C3-SNB",
@@ -191,6 +206,13 @@ static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
 		.target_residency = 1,
 		.enter = &intel_idle },
 	{
+		.name = "C1E-IVB",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle },
+	{
 		.name = "C3-IVB",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
@@ -224,6 +246,13 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 		.target_residency = 2,
 		.enter = &intel_idle },
 	{
+		.name = "C1E-HSW",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle },
+	{
 		.name = "C3-HSW",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
@@ -250,11 +279,11 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 
 static struct cpuidle_state atom_cstates[CPUIDLE_STATE_MAX] = {
 	{
-		.name = "C1-ATM",
+		.name = "C1E-ATM",
 		.desc = "MWAIT 0x00",
 		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
-		.exit_latency = 1,
-		.target_residency = 4,
+		.exit_latency = 10,
+		.target_residency = 20,
 		.enter = &intel_idle },
 	{
 		.name = "C2-ATM",
@@ -377,10 +406,19 @@ static void auto_demotion_disable(void *dummy)
 	msr_bits &= ~(icpu->auto_demotion_disable_flags);
 	wrmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr_bits);
 }
+static void c1e_promotion_disable(void *dummy)
+{
+	unsigned long long msr_bits;
+
+	rdmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	msr_bits &= ~0x2;
+	wrmsrl(MSR_IA32_POWER_CTL, msr_bits);
+}
 
 static const struct idle_cpu idle_cpu_nehalem = {
 	.state_table = nehalem_cstates,
 	.auto_demotion_disable_flags = NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE,
+	.disable_promotion_to_c1e = true,
 };
 
 static const struct idle_cpu idle_cpu_atom = {
@@ -394,14 +432,17 @@ static const struct idle_cpu idle_cpu_lincroft = {
 
 static const struct idle_cpu idle_cpu_snb = {
 	.state_table = snb_cstates,
+	.disable_promotion_to_c1e = true,
 };
 
 static const struct idle_cpu idle_cpu_ivb = {
 	.state_table = ivb_cstates,
+	.disable_promotion_to_c1e = true,
 };
 
 static const struct idle_cpu idle_cpu_hsw = {
 	.state_table = hsw_cstates,
+	.disable_promotion_to_c1e = true,
 };
 
 #define ICPU(model, cpu) \
@@ -543,6 +584,9 @@ static int intel_idle_cpuidle_driver_init(void)
 
 	if (icpu->auto_demotion_disable_flags)
 		on_each_cpu(auto_demotion_disable, NULL, 1);
+
+	if (icpu->disable_promotion_to_c1e)	/* each-cpu is redundant */
+		on_each_cpu(c1e_promotion_disable, NULL, 1);
 
 	return 0;
 }
