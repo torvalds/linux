@@ -1891,7 +1891,7 @@ static int igb_link_test(struct igb_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(&adapter->hw);
 		if (hw->mac.autoneg)
-			msleep(4000);
+			msleep(5000);
 
 		if (!(rd32(E1000_STATUS) & E1000_STATUS_LU))
 			*data = 1;
