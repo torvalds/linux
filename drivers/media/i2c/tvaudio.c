@@ -93,8 +93,8 @@ struct CHIPDESC {
 	/* which register has which value */
 	int    leftreg,rightreg,treblereg,bassreg;
 
-	/* initialize with (defaults to 65535/65535/32768/32768 */
-	int    leftinit,rightinit,trebleinit,bassinit;
+	/* initialize with (defaults to 65535/32768/32768 */
+	int    volinit, trebleinit, bassinit;
 
 	/* functions to convert the values (v4l -> chip) */
 	getvalue volfunc,treblefunc,bassfunc;
@@ -122,7 +122,7 @@ struct CHIPSTATE {
 	audiocmd   shadow;
 
 	/* current settings */
-	__u16 left, right, treble, bass, muted;
+	u16 volume, balance, treble, bass, muted;
 	int prevmode;
 	int radio;
 	int input;
@@ -1523,8 +1523,7 @@ static struct CHIPDESC chiplist[] = {
 		.rightreg   = TDA9875_MVR,
 		.bassreg    = TDA9875_MBA,
 		.treblereg  = TDA9875_MTR,
-		.leftinit   = 58880,
-		.rightinit  = 58880,
+		.volinit    = 58880,
 	},
 	{
 		.name       = "tda9850",
@@ -1694,20 +1693,13 @@ static int tvaudio_g_ctrl(struct v4l2_subdev *sd,
 	case V4L2_CID_AUDIO_VOLUME:
 		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
-		ctrl->value = max(chip->left,chip->right);
+		ctrl->value = chip->volume;
 		return 0;
 	case V4L2_CID_AUDIO_BALANCE:
-	{
-		int volume;
 		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
-		volume = max(chip->left,chip->right);
-		if (volume)
-			ctrl->value=(32768*min(chip->left,chip->right))/volume;
-		else
-			ctrl->value=32768;
+		ctrl->value = chip->balance;
 		return 0;
-	}
 	case V4L2_CID_AUDIO_BASS:
 		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
 			break;
@@ -1744,41 +1736,38 @@ static int tvaudio_s_ctrl(struct v4l2_subdev *sd,
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
 	{
-		int volume,balance;
+		u32 volume, balance;
+		u32 left, right;
 
 		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 
-		volume = max(chip->left,chip->right);
-		if (volume)
-			balance=(32768*min(chip->left,chip->right))/volume;
-		else
-			balance=32768;
+		volume = ctrl->value;
+		chip->volume = volume;
+		balance = chip->balance;
+		left = (min(65536U - balance, 32768U) * volume) / 32768U;
+		right = (min(balance, 32768U) * volume) / 32768U;
 
-		volume=ctrl->value;
-		chip->left = (min(65536 - balance,32768) * volume) / 32768;
-		chip->right = (min(balance,volume *(__u16)32768)) / 32768;
-
-		chip_write(chip,desc->leftreg,desc->volfunc(chip->left));
-		chip_write(chip,desc->rightreg,desc->volfunc(chip->right));
-
+		chip_write(chip, desc->leftreg, desc->volfunc(left));
+		chip_write(chip, desc->rightreg, desc->volfunc(right));
 		return 0;
 	}
 	case V4L2_CID_AUDIO_BALANCE:
 	{
-		int volume, balance;
+		u32 volume, balance;
+		u32 left, right;
 
 		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 
-		volume = max(chip->left, chip->right);
 		balance = ctrl->value;
-		chip->left = (min(65536 - balance, 32768) * volume) / 32768;
-		chip->right = (min(balance, volume * (__u16)32768)) / 32768;
+		chip->balance = balance;
+		volume = chip->volume;
+		left = (min(65536U - balance, 32768U) * volume) / 32768U;
+		right = (min(balance, 32768U) * volume) / 32768U;
 
-		chip_write(chip, desc->leftreg, desc->volfunc(chip->left));
-		chip_write(chip, desc->rightreg, desc->volfunc(chip->right));
-
+		chip_write(chip, desc->leftreg, desc->volfunc(left));
+		chip_write(chip, desc->rightreg, desc->volfunc(right));
 		return 0;
 	}
 	case V4L2_CID_AUDIO_BASS:
@@ -2043,12 +2032,12 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			v4l2_info(sd, "volume callback undefined!\n");
 			desc->flags &= ~CHIP_HAS_VOLUME;
 		} else {
-			chip->left  = desc->leftinit  ? desc->leftinit  : 65535;
-			chip->right = desc->rightinit ? desc->rightinit : 65535;
+			chip->volume = desc->volinit ? desc->volinit : 65535;
+			chip->balance = 32768;
 			chip_write(chip, desc->leftreg,
-				   desc->volfunc(chip->left));
+				   desc->volfunc(chip->volume));
 			chip_write(chip, desc->rightreg,
-				   desc->volfunc(chip->right));
+				   desc->volfunc(chip->volume));
 		}
 	}
 	if (desc->flags & CHIP_HAS_BASSTREBLE) {
