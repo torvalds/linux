@@ -395,8 +395,11 @@ gss_upcall_callback(struct rpc_task *task)
 
 static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 {
-	gss_msg->msg.data = &gss_msg->uid;
-	gss_msg->msg.len = sizeof(gss_msg->uid);
+	uid_t uid = from_kuid(&init_user_ns, gss_msg->uid);
+	memcpy(gss_msg->databuf, &uid, sizeof(uid));
+	gss_msg->msg.data = gss_msg->databuf;
+	gss_msg->msg.len = sizeof(uid);
+	BUG_ON(sizeof(uid) > UPCALL_BUF_LEN);
 }
 
 static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
@@ -409,7 +412,7 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 
 	gss_msg->msg.len = sprintf(gss_msg->databuf, "mech=%s uid=%d ",
 				   mech->gm_name,
-				   gss_msg->uid);
+				   from_kuid(&init_user_ns, gss_msg->uid));
 	p += gss_msg->msg.len;
 	if (clnt->cl_principal) {
 		len = sprintf(p, "target=%s ", clnt->cl_principal);
@@ -620,7 +623,8 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	struct gss_upcall_msg *gss_msg;
 	struct rpc_pipe *pipe = RPC_I(filp->f_dentry->d_inode)->pipe;
 	struct gss_cl_ctx *ctx;
-	uid_t uid;
+	uid_t id;
+	kuid_t uid;
 	ssize_t err = -EFBIG;
 
 	if (mlen > MSG_BUF_MAXSIZE)
@@ -635,9 +639,15 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		goto err;
 
 	end = (const void *)((char *)buf + mlen);
-	p = simple_get_bytes(buf, end, &uid, sizeof(uid));
+	p = simple_get_bytes(buf, end, &id, sizeof(id));
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
+		goto err;
+	}
+
+	uid = make_kuid(&init_user_ns, id);
+	if (!uid_valid(uid)) {
+		err = -EINVAL;
 		goto err;
 	}
 
