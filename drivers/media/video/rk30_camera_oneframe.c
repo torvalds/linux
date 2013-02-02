@@ -1084,8 +1084,8 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
     cropW = pcdev->zoominfo.a.c.width;
     cropH = pcdev->zoominfo.a.c.height;
 	
-    psY = psY + (srcW-cropW)/2;
-    psUV = psUV + (srcW-cropW)/2; 
+    psY = psY + pcdev->zoominfo.a.c.top*pcdev->zoominfo.vir_width+pcdev->zoominfo.a.c.left;
+    psUV = psUV + pcdev->zoominfo.a.c.top*pcdev->zoominfo.vir_width/2+pcdev->zoominfo.a.c.left; 
     
     vb_info = pcdev->vbinfo+vb->i; 
     dst_phy = vb_info->phy_addr;
@@ -1094,9 +1094,8 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
     dstW = pcdev->icd->user_width;
     dstH = pcdev->icd->user_height;
 
-    zoomindstxIntInv = ((unsigned long)cropW<<16)/dstW + 1;
-    zoomindstyIntInv = ((unsigned long)cropH<<16)/dstH + 1;
-
+    zoomindstxIntInv = ((unsigned long)(cropW)<<16)/dstW + 1;
+    zoomindstyIntInv = ((unsigned long)(cropH)<<16)/dstH + 1;
     //y
     //for(y = 0; y<dstH - 1 ; y++ ) {   
     for(y = 0; y<dstH; y++ ) {   
@@ -2090,6 +2089,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 		pcdev->host_width = usr_w;
 		pcdev->host_height = usr_h;
 		}
+
 	#else
 	//according to crop and scale capability to change , here just cropt to user needed
         if (unlikely((mf.width <16) || (mf.width > 8190) || (mf.height < 16) || (mf.height > 8190))) {
