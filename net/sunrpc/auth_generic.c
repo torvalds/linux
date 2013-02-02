@@ -96,7 +96,9 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 
 	dprintk("RPC:       allocated %s cred %p for uid %d gid %d\n",
 			gcred->acred.machine_cred ? "machine" : "generic",
-			gcred, acred->uid, acred->gid);
+			gcred,
+			from_kuid(&init_user_ns, acred->uid),
+			from_kgid(&init_user_ns, acred->gid));
 	return &gcred->gc_base;
 }
 

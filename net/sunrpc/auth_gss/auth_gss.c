@@ -517,7 +517,7 @@ gss_refresh_upcall(struct rpc_task *task)
 	int err = 0;
 
 	dprintk("RPC: %5u %s for uid %u\n",
-		task->tk_pid, __func__, cred->cr_uid);
+		task->tk_pid, __func__, from_kuid(&init_user_ns, cred->cr_uid));
 	gss_msg = gss_setup_upcall(task->tk_client, gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		/* XXX: warning on the first, under the assumption we
@@ -549,7 +549,8 @@ gss_refresh_upcall(struct rpc_task *task)
 	gss_release_msg(gss_msg);
 out:
 	dprintk("RPC: %5u %s for uid %u result %d\n",
-		task->tk_pid, __func__, cred->cr_uid, err);
+		task->tk_pid, __func__,
+		from_kuid(&init_user_ns, cred->cr_uid),	err);
 	return err;
 }
 
@@ -562,7 +563,8 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	DEFINE_WAIT(wait);
 	int err = 0;
 
-	dprintk("RPC:       %s for uid %u\n", __func__, cred->cr_uid);
+	dprintk("RPC:       %s for uid %u\n",
+		__func__, from_kuid(&init_user_ns, cred->cr_uid));
 retry:
 	gss_msg = gss_setup_upcall(gss_auth->client, gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
@@ -604,7 +606,7 @@ out_intr:
 	gss_release_msg(gss_msg);
 out:
 	dprintk("RPC:       %s for uid %u result %d\n",
-		__func__, cred->cr_uid, err);
+		__func__, from_kuid(&init_user_ns, cred->cr_uid), err);
 	return err;
 }
 
@@ -1059,7 +1061,8 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	int err = -ENOMEM;
 
 	dprintk("RPC:       %s for uid %d, flavor %d\n",
-		__func__, acred->uid, auth->au_flavor);
+		__func__, from_kuid(&init_user_ns, acred->uid),
+		auth->au_flavor);
 
 	if (!(cred = kzalloc(sizeof(*cred), GFP_NOFS)))
 		goto out_err;

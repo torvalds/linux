@@ -65,7 +65,8 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	unsigned int i;
 
 	dprintk("RPC:       allocating UNIX cred for uid %d gid %d\n",
-			acred->uid, acred->gid);
+			from_kuid(&init_user_ns, acred->uid),
+			from_kgid(&init_user_ns, acred->gid));
 
 	if (!(cred = kmalloc(sizeof(*cred), GFP_NOFS)))
 		return ERR_PTR(-ENOMEM);
