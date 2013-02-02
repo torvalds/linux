@@ -1096,15 +1096,11 @@ static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 	unsigned char *src=bmp_logo->data;
 	unsigned char *dst=info->screen_base;
 	int i;
-
-	if(bmp_logo->width>info->var.xres)
-		bmp_logo->width=info->var.xres;
-
-	if(bmp_logo->height>info->var.yres)
-		bmp_logo->height=info->var.yres;
-
-	for(i=0;i<bmp_logo->height;i++)
-		memcpy(dst+info->var.xres*i*4, src+bmp_logo->width*i*4, bmp_logo->width*4);
+	unsigned int Needwidth=(*(src-24)<<8)|(*(src-23));
+	unsigned int Needheight=(*(src-22)<<8)|(*(src-21));
+		
+	for(i=0;i<Needheight;i++)
+		memcpy(dst+info->var.xres*i*4, src+bmp_logo->width*i*4, Needwidth*4);
 	
 }
 #endif
