@@ -1202,7 +1202,7 @@ static bool groups_equal(struct group_info *g1, struct group_info *g2)
 	if (g1->ngroups != g2->ngroups)
 		return false;
 	for (i=0; i<g1->ngroups; i++)
-		if (GROUP_AT(g1, i) != GROUP_AT(g2, i))
+		if (!gid_eq(GROUP_AT(g1, i), GROUP_AT(g2, i)))
 			return false;
 	return true;
 }
@@ -1227,8 +1227,8 @@ static bool
 same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 {
 	if ((is_gss_cred(cr1) != is_gss_cred(cr2))
-		|| (cr1->cr_uid != cr2->cr_uid)
-		|| (cr1->cr_gid != cr2->cr_gid)
+		|| (!uid_eq(cr1->cr_uid, cr2->cr_uid))
+		|| (!gid_eq(cr1->cr_gid, cr2->cr_gid))
 		|| !groups_equal(cr1->cr_group_info, cr2->cr_group_info))
 		return false;
 	if (cr1->cr_principal == cr2->cr_principal)
