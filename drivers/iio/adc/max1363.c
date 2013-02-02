@@ -1483,48 +1483,6 @@ static const struct iio_buffer_setup_ops max1363_buffered_setup_ops = {
 	.predisable = &iio_triggered_buffer_predisable,
 };
 
-static int max1363_register_buffered_funcs_and_init(struct iio_dev *indio_dev)
-{
-	struct max1363_state *st = iio_priv(indio_dev);
-	int ret = 0;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
-						 &max1363_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 st->client->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
-	}
-	/* Buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &max1363_buffered_setup_ops;
-
-	/* Flag that polled buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-
-	return 0;
-
-error_deallocate_sw_rb:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
-}
-
-static void max1363_buffer_cleanup(struct iio_dev *indio_dev)
-{
-	/* ensure that the trigger has been detached */
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
-}
-
 static int max1363_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
