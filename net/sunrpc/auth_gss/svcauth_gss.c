@@ -418,6 +418,7 @@ static int rsc_parse(struct cache_detail *cd,
 {
 	/* contexthandle expiry [ uid gid N <n gids> mechname ...mechdata... ] */
 	char *buf = mesg;
+	int id;
 	int len, rv;
 	struct rsc rsci, *rscp = NULL;
 	time_t expiry;
@@ -444,7 +445,7 @@ static int rsc_parse(struct cache_detail *cd,
 		goto out;
 
 	/* uid, or NEGATIVE */
-	rv = get_int(&mesg, &rsci.cred.cr_uid);
+	rv = get_int(&mesg, &id);
 	if (rv == -EINVAL)
 		goto out;
 	if (rv == -ENOENT)
@@ -452,8 +453,16 @@ static int rsc_parse(struct cache_detail *cd,
 	else {
 		int N, i;
 
+		/* uid */
+		rsci.cred.cr_uid = make_kuid(&init_user_ns, id);
+		if (!uid_valid(rsci.cred.cr_uid))
+			goto out;
+
 		/* gid */
-		if (get_int(&mesg, &rsci.cred.cr_gid))
+		if (get_int(&mesg, &id))
+			goto out;
+		rsci.cred.cr_gid = make_kgid(&init_user_ns, id);
+		if (!gid_valid(rsci.cred.cr_gid))
 			goto out;
 
 		/* number of additional gid's */
@@ -467,11 +476,10 @@ static int rsc_parse(struct cache_detail *cd,
 		/* gid's */
 		status = -EINVAL;
 		for (i=0; i<N; i++) {
-			gid_t gid;
 			kgid_t kgid;
-			if (get_int(&mesg, &gid))
+			if (get_int(&mesg, &id))
 				goto out;
-			kgid = make_kgid(&init_user_ns, gid);
+			kgid = make_kgid(&init_user_ns, id);
 			if (!gid_valid(kgid))
 				goto out;
 			GROUP_AT(rsci.cred.cr_group_info, i) = kgid;
