@@ -1073,7 +1073,6 @@ config UIDGID_CONVERTED
 	# Filesystems
 	depends on CIFS = n
 	depends on NFSD = n
-	depends on NFS_FS = n
 	depends on XFS_FS = n
 
 config UIDGID_STRICT_TYPE_CHECKS
