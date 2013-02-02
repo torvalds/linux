@@ -821,8 +821,10 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	argv->iov_base = (void*)((__be32*)argv->iov_base + slen);	/* skip machname */
 	argv->iov_len -= slen*4;
 
-	cred->cr_uid = svc_getnl(argv);		/* uid */
-	cred->cr_gid = svc_getnl(argv);		/* gid */
+	cred->cr_uid = make_kuid(&init_user_ns, svc_getnl(argv)); /* uid */
+	cred->cr_gid = make_kgid(&init_user_ns, svc_getnl(argv)); /* gid */
+	if (!uid_valid(cred->cr_uid) || !gid_valid(cred->cr_gid))
+		goto badcred;
 	slen = svc_getnl(argv);			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
