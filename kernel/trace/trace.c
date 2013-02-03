@@ -249,7 +249,7 @@ static unsigned long		trace_buf_size = TRACE_BUF_SIZE_DEFAULT;
 static struct tracer		*trace_types __read_mostly;
 
 /* current_trace points to the tracer that is currently active */
-static struct tracer		*current_trace __read_mostly;
+static struct tracer		*current_trace __read_mostly = &nop_trace;
 
 /*
  * trace_types_lock is used to protect the trace_types list.
@@ -710,12 +710,11 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	/* If we disabled the tracer, stop now */
-	if (current_trace == &nop_trace)
+	if (!current_trace->allocated_snapshot) {
+		/* Only the nop tracer should hit this when disabling */
+		WARN_ON_ONCE(current_trace != &nop_trace);
 		return;
-
-	if (WARN_ON_ONCE(!current_trace->use_max_tr))
-		return;
+	}
 
 	arch_spin_lock(&ftrace_max_lock);
 
@@ -743,10 +742,8 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (!current_trace->use_max_tr) {
-		WARN_ON_ONCE(1);
+	if (WARN_ON_ONCE(!current_trace->allocated_snapshot))
 		return;
-	}
 
 	arch_spin_lock(&ftrace_max_lock);
 
@@ -866,10 +863,13 @@ int register_tracer(struct tracer *type)
 
 		current_trace = type;
 
-		/* If we expanded the buffers, make sure the max is expanded too */
-		if (ring_buffer_expanded && type->use_max_tr)
-			ring_buffer_resize(max_tr.buffer, trace_buf_size,
-						RING_BUFFER_ALL_CPUS);
+		if (type->use_max_tr) {
+			/* If we expanded the buffers, make sure the max is expanded too */
+			if (ring_buffer_expanded)
+				ring_buffer_resize(max_tr.buffer, trace_buf_size,
+						   RING_BUFFER_ALL_CPUS);
+			type->allocated_snapshot = true;
+		}
 
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
@@ -885,10 +885,14 @@ int register_tracer(struct tracer *type)
 		/* Only reset on passing, to avoid touching corrupted buffers */
 		tracing_reset_online_cpus(tr);
 
-		/* Shrink the max buffer again */
-		if (ring_buffer_expanded && type->use_max_tr)
-			ring_buffer_resize(max_tr.buffer, 1,
-						RING_BUFFER_ALL_CPUS);
+		if (type->use_max_tr) {
+			type->allocated_snapshot = false;
+
+			/* Shrink the max buffer again */
+			if (ring_buffer_expanded)
+				ring_buffer_resize(max_tr.buffer, 1,
+						   RING_BUFFER_ALL_CPUS);
+		}
 
 		printk(KERN_CONT "PASSED\n");
 	}
@@ -1344,7 +1348,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 	 */
 	preempt_disable_notrace();
 
-	use_stack = ++__get_cpu_var(ftrace_stack_reserve);
+	use_stack = __this_cpu_inc_return(ftrace_stack_reserve);
 	/*
 	 * We don't need any atomic variables, just a barrier.
 	 * If an interrupt comes in, we don't care, because it would
@@ -1398,7 +1402,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
  out:
 	/* Again, don't let gcc optimize things here */
 	barrier();
-	__get_cpu_var(ftrace_stack_reserve)--;
+	__this_cpu_dec(ftrace_stack_reserve);
 	preempt_enable_notrace();
 
 }
@@ -1948,21 +1952,27 @@ void tracing_iter_reset(struct trace_iterator *iter, int cpu)
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
 	struct trace_iterator *iter = m->private;
-	static struct tracer *old_tracer;
 	int cpu_file = iter->cpu_file;
 	void *p = NULL;
 	loff_t l = 0;
 	int cpu;
 
-	/* copy the tracer to avoid using a global lock all around */
+	/*
+	 * copy the tracer to avoid using a global lock all around.
+	 * iter->trace is a copy of current_trace, the pointer to the
+	 * name may be used instead of a strcmp(), as iter->trace->name
+	 * will point to the same string as current_trace->name.
+	 */
 	mutex_lock(&trace_types_lock);
-	if (unlikely(old_tracer != current_trace && current_trace)) {
-		old_tracer = current_trace;
+	if (unlikely(current_trace && iter->trace->name != current_trace->name))
 		*iter->trace = *current_trace;
-	}
 	mutex_unlock(&trace_types_lock);
 
-	atomic_inc(&trace_record_cmdline_disabled);
+	if (iter->snapshot && iter->trace->use_max_tr)
+		return ERR_PTR(-EBUSY);
+
+	if (!iter->snapshot)
+		atomic_inc(&trace_record_cmdline_disabled);
 
 	if (*pos != iter->pos) {
 		iter->ent = NULL;
@@ -2001,7 +2011,11 @@ static void s_stop(struct seq_file *m, void *p)
 {
 	struct trace_iterator *iter = m->private;
 
-	atomic_dec(&trace_record_cmdline_disabled);
+	if (iter->snapshot && iter->trace->use_max_tr)
+		return;
+
+	if (!iter->snapshot)
+		atomic_dec(&trace_record_cmdline_disabled);
 	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
 }
@@ -2086,8 +2100,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	unsigned long total;
 	const char *name = "preemption";
 
-	if (type)
-		name = type->name;
+	name = type->name;
 
 	get_total_entries(tr, &total, &entries);
 
@@ -2436,7 +2449,7 @@ static const struct seq_operations tracer_seq_ops = {
 };
 
 static struct trace_iterator *
-__tracing_open(struct inode *inode, struct file *file)
+__tracing_open(struct inode *inode, struct file *file, bool snapshot)
 {
 	long cpu_file = (long) inode->i_private;
 	struct trace_iterator *iter;
@@ -2463,16 +2476,16 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (!iter->trace)
 		goto fail;
 
-	if (current_trace)
-		*iter->trace = *current_trace;
+	*iter->trace = *current_trace;
 
 	if (!zalloc_cpumask_var(&iter->started, GFP_KERNEL))
 		goto fail;
 
-	if (current_trace && current_trace->print_max)
+	if (current_trace->print_max || snapshot)
 		iter->tr = &max_tr;
 	else
 		iter->tr = &global_trace;
+	iter->snapshot = snapshot;
 	iter->pos = -1;
 	mutex_init(&iter->mutex);
 	iter->cpu_file = cpu_file;
@@ -2489,8 +2502,9 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (trace_clocks[trace_clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
-	/* stop the trace while dumping */
-	tracing_stop();
+	/* stop the trace while dumping if we are not opening "snapshot" */
+	if (!iter->snapshot)
+		tracing_stop();
 
 	if (iter->cpu_file == TRACE_PIPE_ALL_CPU) {
 		for_each_tracing_cpu(cpu) {
@@ -2553,8 +2567,9 @@ static int tracing_release(struct inode *inode, struct file *file)
 	if (iter->trace && iter->trace->close)
 		iter->trace->close(iter);
 
-	/* reenable tracing if it was previously enabled */
-	tracing_start();
+	if (!iter->snapshot)
+		/* reenable tracing if it was previously enabled */
+		tracing_start();
 	mutex_unlock(&trace_types_lock);
 
 	mutex_destroy(&iter->mutex);
@@ -2582,7 +2597,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 	}
 
 	if (file->f_mode & FMODE_READ) {
-		iter = __tracing_open(inode, file);
+		iter = __tracing_open(inode, file, false);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
 		else if (trace_flags & TRACE_ITER_LATENCY_FMT)
@@ -3020,10 +3035,7 @@ tracing_set_trace_read(struct file *filp, char __user *ubuf,
 	int r;
 
 	mutex_lock(&trace_types_lock);
-	if (current_trace)
-		r = sprintf(buf, "%s\n", current_trace->name);
-	else
-		r = sprintf(buf, "\n");
+	r = sprintf(buf, "%s\n", current_trace->name);
 	mutex_unlock(&trace_types_lock);
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -3214,10 +3226,10 @@ static int tracing_set_tracer(const char *buf)
 		goto out;
 
 	trace_branch_disable();
-	if (current_trace && current_trace->reset)
+	if (current_trace->reset)
 		current_trace->reset(tr);
 
-	had_max_tr = current_trace && current_trace->use_max_tr;
+	had_max_tr = current_trace->allocated_snapshot;
 	current_trace = &nop_trace;
 
 	if (had_max_tr && !t->use_max_tr) {
@@ -3236,6 +3248,8 @@ static int tracing_set_tracer(const char *buf)
 		 */
 		ring_buffer_resize(max_tr.buffer, 1, RING_BUFFER_ALL_CPUS);
 		set_buffer_entries(&max_tr, 1);
+		tracing_reset_online_cpus(&max_tr);
+		current_trace->allocated_snapshot = false;
 	}
 	destroy_trace_option_files(topts);
 
@@ -3246,6 +3260,7 @@ static int tracing_set_tracer(const char *buf)
 						   RING_BUFFER_ALL_CPUS);
 		if (ret < 0)
 			goto out;
+		t->allocated_snapshot = true;
 	}
 
 	if (t->init) {
@@ -3353,8 +3368,7 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	if (current_trace)
-		*iter->trace = *current_trace;
+	*iter->trace = *current_trace;
 
 	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL)) {
 		ret = -ENOMEM;
@@ -3494,7 +3508,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
 	struct trace_iterator *iter = filp->private_data;
-	static struct tracer *old_tracer;
 	ssize_t sret;
 
 	/* return any leftover data */
@@ -3506,10 +3519,8 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
-	if (unlikely(old_tracer != current_trace && current_trace)) {
-		old_tracer = current_trace;
+	if (unlikely(iter->trace->name != current_trace->name))
 		*iter->trace = *current_trace;
-	}
 	mutex_unlock(&trace_types_lock);
 
 	/*
@@ -3665,7 +3676,6 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		.ops		= &tracing_pipe_buf_ops,
 		.spd_release	= tracing_spd_release_pipe,
 	};
-	static struct tracer *old_tracer;
 	ssize_t ret;
 	size_t rem;
 	unsigned int i;
@@ -3675,10 +3685,8 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
-	if (unlikely(old_tracer != current_trace && current_trace)) {
-		old_tracer = current_trace;
+	if (unlikely(iter->trace->name != current_trace->name))
 		*iter->trace = *current_trace;
-	}
 	mutex_unlock(&trace_types_lock);
 
 	mutex_lock(&iter->mutex);
@@ -4070,6 +4078,87 @@ static int tracing_clock_open(struct inode *inode, struct file *file)
 	return single_open(file, tracing_clock_show, NULL);
 }
 
+#ifdef CONFIG_TRACER_SNAPSHOT
+static int tracing_snapshot_open(struct inode *inode, struct file *file)
+{
+	struct trace_iterator *iter;
+	int ret = 0;
+
+	if (file->f_mode & FMODE_READ) {
+		iter = __tracing_open(inode, file, true);
+		if (IS_ERR(iter))
+			ret = PTR_ERR(iter);
+	}
+	return ret;
+}
+
+static ssize_t
+tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		       loff_t *ppos)
+{
+	unsigned long val;
+	int ret;
+
+	ret = tracing_update_buffers();
+	if (ret < 0)
+		return ret;
+
+	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
+	if (ret)
+		return ret;
+
+	mutex_lock(&trace_types_lock);
+
+	if (current_trace->use_max_tr) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	switch (val) {
+	case 0:
+		if (current_trace->allocated_snapshot) {
+			/* free spare buffer */
+			ring_buffer_resize(max_tr.buffer, 1,
+					   RING_BUFFER_ALL_CPUS);
+			set_buffer_entries(&max_tr, 1);
+			tracing_reset_online_cpus(&max_tr);
+			current_trace->allocated_snapshot = false;
+		}
+		break;
+	case 1:
+		if (!current_trace->allocated_snapshot) {
+			/* allocate spare buffer */
+			ret = resize_buffer_duplicate_size(&max_tr,
+					&global_trace, RING_BUFFER_ALL_CPUS);
+			if (ret < 0)
+				break;
+			current_trace->allocated_snapshot = true;
+		}
+
+		local_irq_disable();
+		/* Now, we're going to swap */
+		update_max_tr(&global_trace, current, smp_processor_id());
+		local_irq_enable();
+		break;
+	default:
+		if (current_trace->allocated_snapshot)
+			tracing_reset_online_cpus(&max_tr);
+		else
+			ret = -EINVAL;
+		break;
+	}
+
+	if (ret >= 0) {
+		*ppos += cnt;
+		ret = cnt;
+	}
+out:
+	mutex_unlock(&trace_types_lock);
+	return ret;
+}
+#endif /* CONFIG_TRACER_SNAPSHOT */
+
+
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
@@ -4125,6 +4214,16 @@ static const struct file_operations trace_clock_fops = {
 	.release	= single_release,
 	.write		= tracing_clock_write,
 };
+
+#ifdef CONFIG_TRACER_SNAPSHOT
+static const struct file_operations snapshot_fops = {
+	.open		= tracing_snapshot_open,
+	.read		= seq_read,
+	.write		= tracing_snapshot_write,
+	.llseek		= tracing_seek,
+	.release	= tracing_release,
+};
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 struct ftrace_buffer_info {
 	struct trace_array	*tr;
@@ -4430,6 +4529,9 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	cnt = ring_buffer_dropped_events_cpu(tr->buffer, cpu);
 	trace_seq_printf(s, "dropped events: %ld\n", cnt);
 
+	cnt = ring_buffer_read_events_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "read events: %ld\n", cnt);
+
 	count = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -4506,7 +4608,7 @@ struct dentry *tracing_init_dentry(void)
 
 static struct dentry *d_percpu;
 
-struct dentry *tracing_dentry_percpu(void)
+static struct dentry *tracing_dentry_percpu(void)
 {
 	static int once;
 	struct dentry *d_tracer;
@@ -4922,6 +5024,11 @@ static __init int tracer_init_debugfs(void)
 			&ftrace_update_tot_cnt, &tracing_dyn_info_fops);
 #endif
 
+#ifdef CONFIG_TRACER_SNAPSHOT
+	trace_create_file("snapshot", 0644, d_tracer,
+			  (void *) TRACE_PIPE_ALL_CPU, &snapshot_fops);
+#endif
+
 	create_trace_options_dir();
 
 	for_each_tracing_cpu(cpu)
@@ -5030,6 +5137,7 @@ __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 	if (disable_tracing)
 		ftrace_kill();
 
+	/* Simulate the iterator */
 	trace_init_global_iter(&iter);
 
 	for_each_tracing_cpu(cpu) {
@@ -5040,10 +5148,6 @@ __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 
 	/* don't look at user memory in panic mode */
 	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
-
-	/* Simulate the iterator */
-	iter.tr = &global_trace;
-	iter.trace = current_trace;
 
 	switch (oops_dump_mode) {
 	case DUMP_ALL:
@@ -5189,7 +5293,7 @@ __init static int tracer_alloc_buffers(void)
 	init_irq_work(&trace_work_wakeup, trace_wake_up);
 
 	register_tracer(&nop_trace);
-	current_trace = &nop_trace;
+
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 

@@ -287,6 +287,7 @@ struct tracer {
 	struct tracer_flags	*flags;
 	bool			print_max;
 	bool			use_max_tr;
+	bool			allocated_snapshot;
 };
 
 
