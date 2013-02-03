@@ -1802,7 +1802,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	if (!XGIInitNew(pdev))
 		dev_err(&pdev->dev, "XGIInitNew() failed!\n");
 
-	xgifb_info->mtrr = (unsigned int) 0;
+	xgifb_info->mtrr = -1;
 
 	xgifb_info->hasVB = HASVB_NONE;
 	if ((xgifb_info->chip == XG20) ||
