@@ -4684,43 +4684,21 @@ static unsigned char XGI_IsLCDON(struct vb_device_info *pVBInfo)
 }
 
 /* --------------------------------------------------------------------- */
-/* Function : XGI_DisableChISLCD */
-/* Input : */
-/* Output : 0 -> Not LCD Mode */
-/* Description : */
-/* --------------------------------------------------------------------- */
-static unsigned char XGI_DisableChISLCD(struct vb_device_info *pVBInfo)
-{
-	unsigned short tempbx, tempah;
-
-	tempbx = pVBInfo->SetFlag & (DisableChA | DisableChB);
-	tempah = ~((unsigned short) xgifb_reg_get(pVBInfo->Part1Port, 0x2E));
-
-	if (tempbx & (EnableChA | DisableChA)) {
-		if (!(tempah & 0x08)) /* Chk LCDA Mode */
-			return 0;
-	}
-
-	if (!(tempbx & (EnableChB | DisableChB)))
-		return 0;
-
-	if (tempah & 0x01) /* Chk LCDB Mode */
-		return 1;
-
-	return 0;
-}
-
-/* --------------------------------------------------------------------- */
 /* Function : XGI_EnableChISLCD */
 /* Input : */
 /* Output : 0 -> Not LCD mode */
-/* Description : */
+/* Description : if bool enable = true -> enable, else disable  */
 /* --------------------------------------------------------------------- */
-static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo)
+static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo,
+	bool enable)
 {
 	unsigned short tempbx, tempah;
 
-	tempbx = pVBInfo->SetFlag & (EnableChA | EnableChB);
+	if (enable)
+		tempbx = pVBInfo->SetFlag & (EnableChA | EnableChB);
+	else
+		tempbx = pVBInfo->SetFlag & (DisableChA | DisableChB);
+
 	tempah = ~((unsigned short) xgifb_reg_get(pVBInfo->Part1Port, 0x2E));
 
 	if (tempbx & (EnableChA | DisableChA)) {
@@ -4772,9 +4750,9 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 
 		if (pVBInfo->VBType & (VB_SIS302LV | VB_XGI301C)) {
 			if (((pVBInfo->VBInfo &
-			      (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)))
-			    || (XGI_DisableChISLCD(pVBInfo))
-			    || (XGI_IsLCDON(pVBInfo)))
+			      (SetCRT2ToLCD | XGI_SetCRT2ToLCDA))) ||
+				(XGI_EnableChISLCD(pVBInfo, false)) ||
+				(XGI_IsLCDON(pVBInfo)))
 				/* LVDS Driver power down */
 				xgifb_reg_or(pVBInfo->Part4Port, 0x30, 0x80);
 		}
@@ -5731,8 +5709,8 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 			xgifb_reg_and_or(pVBInfo->Part2Port, 0x00, ~0xE0,
 					0x20); /* shampoo 0129 */
 			if (pVBInfo->VBType & (VB_SIS302LV | VB_XGI301C)) {
-				if (!XGI_DisableChISLCD(pVBInfo)) {
-					if (XGI_EnableChISLCD(pVBInfo) ||
+				if (!XGI_EnableChISLCD(pVBInfo, false)) {
+					if (XGI_EnableChISLCD(pVBInfo, true) ||
 					    (pVBInfo->VBInfo &
 					    (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)))
 						/* LVDS PLL power on */
