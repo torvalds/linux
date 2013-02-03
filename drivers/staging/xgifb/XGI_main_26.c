@@ -1921,6 +1921,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 
 	if (xgifb_info->mode_idx < 0) {
 		dev_err(&pdev->dev, "No supported video mode found\n");
+		ret = -EINVAL;
 		goto error_1;
 	}
 
