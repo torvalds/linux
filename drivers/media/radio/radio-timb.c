@@ -44,7 +44,8 @@ static int timbradio_vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(v->driver, DRIVER_NAME, sizeof(v->driver));
 	strlcpy(v->card, "Timberdale Radio", sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "platform:"DRIVER_NAME);
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -60,34 +61,6 @@ static int timbradio_vidioc_s_tuner(struct file *file, void *priv,
 {
 	struct timbradio *tr = video_drvdata(file);
 	return v4l2_subdev_call(tr->sd_tuner, tuner, s_tuner, v);
-}
-
-static int timbradio_vidioc_g_input(struct file *filp, void *priv,
-	unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int timbradio_vidioc_s_input(struct file *filp, void *priv,
-	unsigned int i)
-{
-	return i ? -EINVAL : 0;
-}
-
-static int timbradio_vidioc_g_audio(struct file *file, void *priv,
-	struct v4l2_audio *a)
-{
-	a->index = 0;
-	strlcpy(a->name, "Radio", sizeof(a->name));
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
-}
-
-static int timbradio_vidioc_s_audio(struct file *file, void *priv,
-	const struct v4l2_audio *a)
-{
-	return a->index ? -EINVAL : 0;
 }
 
 static int timbradio_vidioc_s_frequency(struct file *file, void *priv,
@@ -131,10 +104,6 @@ static const struct v4l2_ioctl_ops timbradio_ioctl_ops = {
 	.vidioc_s_tuner		= timbradio_vidioc_s_tuner,
 	.vidioc_g_frequency	= timbradio_vidioc_g_frequency,
 	.vidioc_s_frequency	= timbradio_vidioc_s_frequency,
-	.vidioc_g_input		= timbradio_vidioc_g_input,
-	.vidioc_s_input		= timbradio_vidioc_s_input,
-	.vidioc_g_audio		= timbradio_vidioc_g_audio,
-	.vidioc_s_audio		= timbradio_vidioc_s_audio,
 	.vidioc_queryctrl	= timbradio_vidioc_queryctrl,
 	.vidioc_g_ctrl		= timbradio_vidioc_g_ctrl,
 	.vidioc_s_ctrl		= timbradio_vidioc_s_ctrl
