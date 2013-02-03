@@ -56,10 +56,11 @@ struct state {
 #define BUF_LEN 64
 	u8 buf[BUF_LEN];
 	u8 seq; /* packet sequence number */
-	bool dual_mode;
 	u8 prechip_version;
 	u8 chip_version;
 	u16 chip_type;
+	bool dual_mode;
+	u16 eeprom_addr;
 	struct af9033_config af9033_config[2];
 };
 
