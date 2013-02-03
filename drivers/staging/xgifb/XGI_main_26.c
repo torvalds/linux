@@ -91,11 +91,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned short ModeIdIndex, index = 0;
 	unsigned short RefreshRateTableIndex = 0;
 
-	unsigned short VRE, VBE, VRS, VBS, VDE, VT;
-	unsigned short HRE, HBE, HRS, HBS, HDE, HT;
+	unsigned short VRE, VBE, VRS, VDE;
+	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
-	unsigned long cr_data3;
-	int A, B, C, D, E, F, temp, j;
+	int B, C, D, E, F, temp, j;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
 		return 0;
@@ -105,12 +104,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[5];
 
-	cr_data = XGI_CRT1Table[index].CR[0];
-
-	/* Horizontal total */
-	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
-	A = HT + 5;
-
 	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
@@ -119,11 +112,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
 	F = HRS - E - 3;
-
-	cr_data = XGI_CRT1Table[index].CR[1];
-
-	/* Horizontal blank start */
-	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
 
 	sr_data = XGI_CRT1Table[index].CR[6];
 
@@ -152,15 +140,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_CRT1Table[index].CR[8];
-
 	cr_data2 = XGI_CRT1Table[index].CR[9];
-
-	/* Vertical total */
-	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
-			| ((unsigned short) (cr_data2 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x01) << 10);
-	A = VT + 2;
 
 	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
 	E = VDE + 1;
@@ -172,15 +152,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (cr_data2 & 0x80) << 2)
 			| ((unsigned short) (sr_data & 0x08) << 7);
 	F = VRS + 1 - E;
-
-	cr_data = XGI_CRT1Table[index].CR[12];
-
-	cr_data3 = (XGI_CRT1Table[index].CR[14] & 0x80) << 5;
-
-	/* Vertical blank start */
-	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
-			| ((unsigned short) (cr_data3 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x04) << 8);
 
 	cr_data = XGI_CRT1Table[index].CR[13];
 
