@@ -910,7 +910,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	cfg->n = target / (ratio * Fref);
 
-	if (target % Fref) {
+	if (target % (ratio * Fref)) {
 		gcd_fll = gcd(target, ratio * Fref);
 		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
 
@@ -920,6 +920,15 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	} else {
 		cfg->theta = 0;
 		cfg->lambda = 0;
+	}
+
+	/* Round down to 16bit range with cost of accuracy lost.
+	 * Denominator must be bigger than numerator so we only
+	 * take care of it.
+	 */
+	while (cfg->lambda >= (1 << 16)) {
+		cfg->theta >>= 1;
+		cfg->lambda >>= 1;
 	}
 
 	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
