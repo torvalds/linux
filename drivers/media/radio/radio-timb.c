@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -83,10 +85,16 @@ static const struct v4l2_ioctl_ops timbradio_ioctl_ops = {
 	.vidioc_s_tuner		= timbradio_vidioc_s_tuner,
 	.vidioc_g_frequency	= timbradio_vidioc_g_frequency,
 	.vidioc_s_frequency	= timbradio_vidioc_s_frequency,
+	.vidioc_log_status      = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_file_operations timbradio_fops = {
 	.owner		= THIS_MODULE,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl	= video_ioctl2,
 };
 
@@ -118,6 +126,7 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.release = video_device_release_empty;
 	tr->video_dev.minor = -1;
 	tr->video_dev.lock = &tr->lock;
+	set_bit(V4L2_FL_USE_FH_PRIO, &tr->video_dev.flags);
 
 	strlcpy(tr->v4l2_dev.name, DRIVER_NAME, sizeof(tr->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &tr->v4l2_dev);
