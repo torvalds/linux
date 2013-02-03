@@ -211,8 +211,6 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 		return -EINVAL;
 	}
 
-	pr_err("%s: Could not find signal %s\n", __func__, muxname);
-
 	return -ENODEV;
 }
 
@@ -233,6 +231,8 @@ int __init omap_mux_get_by_name(const char *muxname,
 
 		return mux_mode;
 	}
+
+	pr_err("%s: Could not find signal %s\n", __func__, muxname);
 
 	return -ENODEV;
 }
