@@ -2197,31 +2197,25 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short temp, tempbx = 0, resinfo = 0, modeflag, index1;
-
-	tempbx = 0;
-	resinfo = 0;
+	unsigned short tempbx = 0, resinfo = 0, modeflag, index1;
 
 	if (pVBInfo->VBInfo & SetCRT2ToTV) {
 		modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 		resinfo = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
 
-		if (pVBInfo->VBInfo & SetCRT2ToTV) {
-			temp = xgifb_reg_get(pVBInfo->P3d4, 0x35);
-			tempbx = temp;
-			if (tempbx & TVSetPAL) {
-				tempbx &= (SetCHTVOverScan |
-					   TVSetPALM |
-					   TVSetPALN |
-					   TVSetPAL);
-				if (tempbx & TVSetPALM)
-					/* set to NTSC if PAL-M */
-					tempbx &= ~TVSetPAL;
-			} else
-				tempbx &= (SetCHTVOverScan |
-					   TVSetNTSCJ |
-					   TVSetPAL);
-		}
+		tempbx = xgifb_reg_get(pVBInfo->P3d4, 0x35);
+		if (tempbx & TVSetPAL) {
+			tempbx &= (SetCHTVOverScan |
+				   TVSetPALM |
+				   TVSetPALN |
+				   TVSetPAL);
+			if (tempbx & TVSetPALM)
+				/* set to NTSC if PAL-M */
+				tempbx &= ~TVSetPAL;
+		} else
+			tempbx &= (SetCHTVOverScan |
+				   TVSetNTSCJ |
+				   TVSetPAL);
 
 		if (pVBInfo->IF_DEF_LVDS == 0) {
 			if (pVBInfo->VBInfo & SetCRT2ToSCART)
