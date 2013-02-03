@@ -163,6 +163,8 @@ struct max1363_chip_info {
  * @mask_low:		bitmask for enabled low thresholds
  * @thresh_high:	high threshold values
  * @thresh_low:		low threshold values
+ * @vref:		Reference voltage regulator
+ * @vref_uv:		Actual (external or internal) reference voltage
  */
 struct max1363_state {
 	struct i2c_client		*client;
@@ -182,6 +184,8 @@ struct max1363_state {
 	/* 4x unipolar first then the fours bipolar ones */
 	s16				thresh_high[8];
 	s16				thresh_low[8];
+	struct regulator		*vref;
+	u32				vref_uv;
 };
 
 #define MAX1363_MODE_SINGLE(_num, _mask) {				\
@@ -393,6 +397,8 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 	int ret;
+	unsigned long scale_uv;
+
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
 		ret = max1363_read_single_chan(indio_dev, chan, val, m);
@@ -400,16 +406,10 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		if ((1 << (st->chip_info->bits + 1)) >
-		    st->chip_info->int_vref_mv) {
-			*val = 0;
-			*val2 = 500000;
-			return IIO_VAL_INT_PLUS_MICRO;
-		} else {
-			*val = (st->chip_info->int_vref_mv)
-				>> st->chip_info->bits;
-			return IIO_VAL_INT;
-		}
+		scale_uv = st->vref_uv >> st->chip_info->bits;
+		*val = scale_uv / 1000;
+		*val2 = (scale_uv % 1000) * 1000;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -1390,11 +1390,15 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 
 static int max1363_initial_setup(struct max1363_state *st)
 {
-	st->setupbyte = MAX1363_SETUP_AIN3_IS_AIN3_REF_IS_VDD
-		| MAX1363_SETUP_POWER_UP_INT_REF
-		| MAX1363_SETUP_INT_CLOCK
+	st->setupbyte = MAX1363_SETUP_INT_CLOCK
 		| MAX1363_SETUP_UNIPOLAR
 		| MAX1363_SETUP_NORESET;
+
+	if (st->vref)
+		st->setupbyte |= MAX1363_SETUP_AIN3_IS_REF_EXT_TO_REF;
+	else
+		st->setupbyte |= MAX1363_SETUP_POWER_UP_INT_REF
+		  | MAX1363_SETUP_AIN3_IS_AIN3_REF_IS_INT;
 
 	/* Set scan mode writes the config anyway so wait until then */
 	st->setupbyte = MAX1363_SETUP_BYTE(st->setupbyte);
@@ -1491,6 +1495,7 @@ static int max1363_probe(struct i2c_client *client,
 	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
+	struct regulator *vref;
 
 	indio_dev = iio_device_alloc(sizeof(struct max1363_state));
 	if (indio_dev == NULL) {
@@ -1520,6 +1525,23 @@ static int max1363_probe(struct i2c_client *client,
 
 	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
+
+	st->vref_uv = st->chip_info->int_vref_mv * 1000;
+	vref = devm_regulator_get(&client->dev, "vref");
+	if (!IS_ERR(vref)) {
+		int vref_uv;
+
+		ret = regulator_enable(vref);
+		if (ret)
+			goto error_disable_reg;
+		st->vref = vref;
+		vref_uv = regulator_get_voltage(vref);
+		if (vref_uv <= 0) {
+			ret = -EINVAL;
+			goto error_disable_reg;
+		}
+		st->vref_uv = vref_uv;
+	}
 
 	ret = max1363_alloc_scan_masks(indio_dev);
 	if (ret)
@@ -1562,6 +1584,8 @@ static int max1363_probe(struct i2c_client *client,
 error_uninit_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
+	if (st->vref)
+		regulator_disable(st->vref);
 	regulator_disable(st->reg);
 error_unregister_map:
 	iio_map_array_unregister(indio_dev);
@@ -1578,6 +1602,8 @@ static int max1363_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
+	if (st->vref)
+		regulator_disable(st->vref);
 	regulator_disable(st->reg);
 	iio_map_array_unregister(indio_dev);
 	iio_device_free(indio_dev);
