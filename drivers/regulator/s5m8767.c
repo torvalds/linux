@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -21,6 +22,9 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s5m8767.h>
+#include <linux/regulator/of_regulator.h>
+
+#define S5M8767_OPMODE_NORMAL_MODE 0x1
 
 struct s5m8767_info {
 	struct device *dev;
@@ -474,14 +478,193 @@ static struct regulator_desc regulators[] = {
 	s5m8767_regulator_desc(BUCK9),
 };
 
+#ifdef CONFIG_OF
+static int s5m8767_pmic_dt_parse_dvs_gpio(struct sec_pmic_dev *iodev,
+			struct sec_platform_data *pdata,
+			struct device_node *pmic_np)
+{
+	int i, gpio;
+
+	for (i = 0; i < 3; i++) {
+		gpio = of_get_named_gpio(pmic_np,
+					"s5m8767,pmic-buck-dvs-gpios", i);
+		if (!gpio_is_valid(gpio)) {
+			dev_err(iodev->dev, "invalid gpio[%d]: %d\n", i, gpio);
+			return -EINVAL;
+		}
+		pdata->buck_gpios[i] = gpio;
+	}
+	return 0;
+}
+
+static int s5m8767_pmic_dt_parse_ds_gpio(struct sec_pmic_dev *iodev,
+			struct sec_platform_data *pdata,
+			struct device_node *pmic_np)
+{
+	int i, gpio;
+
+	for (i = 0; i < 3; i++) {
+		gpio = of_get_named_gpio(pmic_np,
+					"s5m8767,pmic-buck-ds-gpios", i);
+		if (!gpio_is_valid(gpio)) {
+			dev_err(iodev->dev, "invalid gpio[%d]: %d\n", i, gpio);
+			return -EINVAL;
+		}
+		pdata->buck_ds[i] = gpio;
+	}
+	return 0;
+}
+
+static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
+					struct sec_platform_data *pdata)
+{
+	struct device_node *pmic_np, *regulators_np, *reg_np;
+	struct sec_regulator_data *rdata;
+	struct sec_opmode_data *rmode;
+	unsigned int i, dvs_voltage_nr = 1, ret;
+
+	pmic_np = iodev->dev->of_node;
+	if (!pmic_np) {
+		dev_err(iodev->dev, "could not find pmic sub-node\n");
+		return -ENODEV;
+	}
+
+	regulators_np = of_find_node_by_name(pmic_np, "regulators");
+	if (!regulators_np) {
+		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		return -EINVAL;
+	}
+
+	/* count the number of regulators to be supported in pmic */
+	pdata->num_regulators = 0;
+	for_each_child_of_node(regulators_np, reg_np)
+		pdata->num_regulators++;
+
+	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+				pdata->num_regulators, GFP_KERNEL);
+	if (!rdata) {
+		dev_err(iodev->dev,
+			"could not allocate memory for regulator data\n");
+		return -ENOMEM;
+	}
+
+	rmode = devm_kzalloc(iodev->dev, sizeof(*rmode) *
+				pdata->num_regulators, GFP_KERNEL);
+	if (!rdata) {
+		dev_err(iodev->dev,
+			"could not allocate memory for regulator mode\n");
+		return -ENOMEM;
+	}
+
+	pdata->regulators = rdata;
+	pdata->opmode = rmode;
+	for_each_child_of_node(regulators_np, reg_np) {
+		for (i = 0; i < ARRAY_SIZE(regulators); i++)
+			if (!of_node_cmp(reg_np->name, regulators[i].name))
+				break;
+
+		if (i == ARRAY_SIZE(regulators)) {
+			dev_warn(iodev->dev,
+			"don't know how to configure regulator %s\n",
+			reg_np->name);
+			continue;
+		}
+
+		rdata->id = i;
+		rdata->initdata = of_get_regulator_init_data(
+						iodev->dev, reg_np);
+		rdata->reg_node = reg_np;
+		rdata++;
+		rmode->id = i;
+		if (of_property_read_u32(reg_np, "op_mode",
+				&rmode->mode)) {
+			dev_warn(iodev->dev,
+				"no op_mode property property at %s\n",
+				reg_np->full_name);
+
+			rmode->mode = S5M8767_OPMODE_NORMAL_MODE;
+		}
+		rmode++;
+	}
+
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck2-uses-gpio-dvs", NULL))
+		pdata->buck2_gpiodvs = true;
+
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck3-uses-gpio-dvs", NULL))
+		pdata->buck3_gpiodvs = true;
+
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck4-uses-gpio-dvs", NULL))
+		pdata->buck4_gpiodvs = true;
+
+	if (pdata->buck2_gpiodvs || pdata->buck3_gpiodvs ||
+						pdata->buck4_gpiodvs) {
+		ret = s5m8767_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
+		if (ret)
+			return -EINVAL;
+
+		if (of_property_read_u32(pmic_np,
+				"s5m8767,pmic-buck-default-dvs-idx",
+				&pdata->buck_default_idx)) {
+			pdata->buck_default_idx = 0;
+		} else {
+			if (pdata->buck_default_idx >= 8) {
+				pdata->buck_default_idx = 0;
+				dev_info(iodev->dev,
+				"invalid value for default dvs index, use 0\n");
+			}
+		}
+		dvs_voltage_nr = 8;
+	}
+
+	ret = s5m8767_pmic_dt_parse_ds_gpio(iodev, pdata, pmic_np);
+	if (ret)
+		return -EINVAL;
+
+	if (of_property_read_u32_array(pmic_np,
+				"s5m8767,pmic-buck2-dvs-voltage",
+				pdata->buck2_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck2 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32_array(pmic_np,
+				"s5m8767,pmic-buck3-dvs-voltage",
+				pdata->buck3_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck3 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32_array(pmic_np,
+				"s5m8767,pmic-buck4-dvs-voltage",
+				pdata->buck4_voltage, dvs_voltage_nr)) {
+		dev_err(iodev->dev, "buck4 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#else
+static int s5m8767_pmic_dt_parse_pdata(struct sec_pmic_dev *iodev,
+					struct sec_platform_data *pdata)
+{
+	return 0;
+}
+#endif /* CONFIG_OF */
+
 static int s5m8767_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct sec_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
 	struct regulator_dev **rdev;
 	struct s5m8767_info *s5m8767;
 	int i, ret, size, buck_init;
+
+	if (iodev->dev->of_node) {
+		ret = s5m8767_pmic_dt_parse_pdata(iodev, pdata);
+		if (ret)
+			return ret;
+	}
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "Platform data not supplied\n");
@@ -726,6 +909,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s5m8767;
 		config.regmap = iodev->regmap;
+		config.of_node = pdata->regulators[i].reg_node;
 
 		rdev[i] = regulator_register(&regulators[id], &config);
 		if (IS_ERR(rdev[i])) {
