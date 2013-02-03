@@ -796,8 +796,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	 */
 	if (likely(atomic_read(&cp->refcnt) == 1)) {
 		/* delete the timer if it is activated by other users */
-		if (timer_pending(&cp->timer))
-			del_timer(&cp->timer);
+		del_timer(&cp->timer);
 
 		/* does anybody control me? */
 		if (cp->control)
