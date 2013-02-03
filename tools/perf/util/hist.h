@@ -159,7 +159,7 @@ extern struct list_head perf_hpp__list;
 extern struct perf_hpp_fmt perf_hpp__format[];
 
 enum {
-	PERF_HPP__BASELINE,
+	/* Matches perf_hpp__format array. */
 	PERF_HPP__OVERHEAD,
 	PERF_HPP__OVERHEAD_SYS,
 	PERF_HPP__OVERHEAD_US,
@@ -167,11 +167,6 @@ enum {
 	PERF_HPP__OVERHEAD_GUEST_US,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
-	PERF_HPP__PERIOD_BASELINE,
-	PERF_HPP__DELTA,
-	PERF_HPP__RATIO,
-	PERF_HPP__WEIGHTED_DIFF,
-	PERF_HPP__FORMULA,
 
 	PERF_HPP__MAX_INDEX
 };
