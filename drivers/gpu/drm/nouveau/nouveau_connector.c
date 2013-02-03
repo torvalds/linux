@@ -111,8 +111,8 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	drm  = nouveau_drm(dev);
 	gpio = nouveau_gpio(drm->device);
 
-	if (gpio && nv_connector->hpd != DCB_GPIO_UNUSED) {
-		gpio->isr_del(gpio, 0, nv_connector->hpd, 0xff,
+	if (gpio && nv_connector->hpd.func != DCB_GPIO_UNUSED) {
+		gpio->isr_del(gpio, 0, nv_connector->hpd.func, 0xff,
 			      nouveau_connector_hotplug, connector);
 	}
 
@@ -976,8 +976,10 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		if (olddcb_conntab(dev)[3] >= 4)
 			entry |= (u32)ROM16(nv_connector->dcb[2]) << 16;
 
-		nv_connector->hpd = ffs((entry & 0x07033000) >> 12);
-		nv_connector->hpd = hpd[nv_connector->hpd];
+		ret = gpio->find(gpio, 0, hpd[ffs((entry & 0x07033000) >> 12)],
+				 DCB_GPIO_UNUSED, &nv_connector->hpd);
+		if (ret)
+			nv_connector->hpd.func = DCB_GPIO_UNUSED;
 
 		nv_connector->type = nv_connector->dcb[0];
 		if (drm_conntype_from_dcb(nv_connector->type) ==
@@ -1000,7 +1002,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		}
 	} else {
 		nv_connector->type = DCB_CONNECTOR_NONE;
-		nv_connector->hpd = DCB_GPIO_UNUSED;
+		nv_connector->hpd.func = DCB_GPIO_UNUSED;
 	}
 
 	/* no vbios data, or an unknown dcb connector type - attempt to
@@ -1127,8 +1129,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-	if (gpio && nv_connector->hpd != DCB_GPIO_UNUSED) {
-		ret = gpio->isr_add(gpio, 0, nv_connector->hpd, 0xff,
+	if (gpio && nv_connector->hpd.func != DCB_GPIO_UNUSED) {
+		ret = gpio->isr_add(gpio, 0, nv_connector->hpd.func, 0xff,
 				    nouveau_connector_hotplug, connector);
 		if (ret == 0)
 			connector->polled = DRM_CONNECTOR_POLL_HPD;

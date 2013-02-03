@@ -234,7 +234,7 @@ nouveau_display_init(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		if (gpio)
-			gpio->irq(gpio, 0, conn->hpd, 0xff, true);
+			gpio->irq(gpio, 0, conn->hpd.func, 0xff, true);
 	}
 
 	return ret;
@@ -252,7 +252,7 @@ nouveau_display_fini(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		if (gpio)
-			gpio->irq(gpio, 0, conn->hpd, 0xff, false);
+			gpio->irq(gpio, 0, conn->hpd.func, 0xff, false);
 	}
 
 	drm_kms_helper_poll_disable(dev);
