@@ -226,6 +226,8 @@
 /* BatCtrl Current Source Constants */
 #define BAT_CTRL_7U_ENA			0x01
 #define BAT_CTRL_20U_ENA		0x02
+#define BAT_CTRL_18U_ENA		0x01
+#define BAT_CTRL_16U_ENA		0x02
 #define BAT_CTRL_CMP_ENA		0x04
 #define FORCE_BAT_CTRL_CMP_HIGH		0x08
 #define BAT_CTRL_PULL_UP_ENA		0x10
@@ -402,26 +404,6 @@ struct ab8500_bm_data {
 	const struct ab8500_fg_parameters *fg_params;
 };
 
-struct ab8500_charger_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-	bool autopower_cfg;
-};
-
-struct ab8500_btemp_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_fg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_chargalg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
 struct ab8500_btemp;
 struct ab8500_gpadc;
 struct ab8500_fg;

@@ -346,4 +346,23 @@ static inline int is_ab8500_2p0(struct ab8500 *ab)
 	return (is_ab8500(ab) && (ab->chip_id == AB8500_CUT2P0));
 }
 
+static inline int is_ab8505_1p0_or_earlier(struct ab8500 *ab)
+{
+	return (is_ab8505(ab) && (ab->chip_id <= AB8500_CUT1P0));
+}
+
+static inline int is_ab8505_2p0(struct ab8500 *ab)
+{
+	return (is_ab8505(ab) && (ab->chip_id == AB8500_CUT2P0));
+}
+
+static inline int is_ab9540_1p0_or_earlier(struct ab8500 *ab)
+{
+	return (is_ab9540(ab) && (ab->chip_id <= AB8500_CUT1P0));
+}
+
+static inline int is_ab9540_2p0(struct ab8500 *ab)
+{
+	return (is_ab9540(ab) && (ab->chip_id == AB8500_CUT2P0));
+}
 #endif /* MFD_AB8500_H */

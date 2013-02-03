@@ -352,6 +352,13 @@ config BATTERY_GOLDFISH
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
 
+config CHARGER_PM2301
+	bool "PM2301 Battery Charger Driver"
+	depends on AB8500_BM
+	help
+	  Say Y to include support for PM2301 charger driver.
+	  Depends on AB8500 battery management core.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
