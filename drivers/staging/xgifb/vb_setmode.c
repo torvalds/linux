@@ -1083,10 +1083,8 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 			data = 0x0048;
 	}
 
-	data2 = data & 0x00FF;
-	xgifb_reg_and_or(pVBInfo->P3d4, 0x19, 0xFF, data2);
-	data2 = (data & 0xFF00) >> 8;
-	xgifb_reg_and_or(pVBInfo->P3d4, 0x19, 0xFC, data2);
+	xgifb_reg_and_or(pVBInfo->P3d4, 0x19, 0xFF, data);
+	xgifb_reg_and_or(pVBInfo->P3d4, 0x19, 0xFC, 0);
 
 	if (modeflag & HalfDCLK)
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x01, 0xF7, 0x08);
