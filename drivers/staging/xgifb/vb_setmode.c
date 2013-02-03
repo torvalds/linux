@@ -638,10 +638,7 @@ static void xgifb_set_lcd(int chip_id,
 			  unsigned short RefreshRateTableIndex,
 			  unsigned short ModeNo)
 {
-	unsigned short Data, Temp;
-	unsigned short XGI_P3cc;
-
-	XGI_P3cc = pVBInfo->P3cc;
+	unsigned short temp;
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x2E, 0x00);
 	xgifb_reg_set(pVBInfo->P3d4, 0x2F, 0x00);
@@ -649,8 +646,8 @@ static void xgifb_set_lcd(int chip_id,
 	xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x00);
 
 	if (chip_id == XG27) {
-		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
-		if ((Temp & 0x03) == 0) { /* dual 12 */
+		temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
+		if ((temp & 0x03) == 0) { /* dual 12 */
 			xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x13);
 			xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x13);
 		}
@@ -659,8 +656,8 @@ static void xgifb_set_lcd(int chip_id,
 	if (chip_id == XG27) {
 		XGI_SetXG27FPBits(pVBInfo);
 	} else {
-		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
-		if (Temp & 0x01) {
+		temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
+		if (temp & 0x01) {
 			/* 18 bits FP */
 			xgifb_reg_or(pVBInfo->P3c4, 0x06, 0x40);
 			xgifb_reg_or(pVBInfo->P3c4, 0x09, 0x40);
@@ -672,11 +669,11 @@ static void xgifb_set_lcd(int chip_id,
 	xgifb_reg_and(pVBInfo->P3c4, 0x30, ~0x20); /* Hsync polarity */
 	xgifb_reg_and(pVBInfo->P3c4, 0x35, ~0x80); /* Vsync polarity */
 
-	Data = XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag;
-	if (Data & 0x4000)
+	temp = XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag;
+	if (temp & 0x4000)
 		/* Hsync polarity */
 		xgifb_reg_or(pVBInfo->P3c4, 0x30, 0x20);
-	if (Data & 0x8000)
+	if (temp & 0x8000)
 		/* Vsync polarity */
 		xgifb_reg_or(pVBInfo->P3c4, 0x35, 0x80);
 }
