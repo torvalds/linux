@@ -173,13 +173,23 @@ nv40_therm_ctor(struct nouveau_object *parent,
 	return nouveau_therm_preinit(&priv->base.base);
 }
 
+static int
+nv40_therm_init(struct nouveau_object *object)
+{
+	struct nouveau_therm *therm = (void *)object;
+
+	nv40_sensor_setup(therm);
+
+	return _nouveau_therm_init(object);
+}
+
 struct nouveau_oclass
 nv40_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0x40),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv40_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
-		.init = _nouveau_therm_init,
+		.init = nv40_therm_init,
 		.fini = _nouveau_therm_fini,
 	},
 };
