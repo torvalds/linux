@@ -1131,22 +1131,10 @@ static int XGIfb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+/* similar to sisfb_get_cmap_len */
 static int XGIfb_get_cmap_len(const struct fb_var_screeninfo *var)
 {
-	int rc = 16;
-
-	switch (var->bits_per_pixel) {
-	case 8:
-		rc = 256;
-		break;
-	case 16:
-		rc = 16;
-		break;
-	case 32:
-		rc = 16;
-		break;
-	}
-	return rc;
+	return (var->bits_per_pixel == 8) ? 256 : 16;
 }
 
 static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
