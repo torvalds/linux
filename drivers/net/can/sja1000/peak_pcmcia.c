@@ -660,7 +660,6 @@ static int pcan_probe(struct pcmcia_device *pdev)
 
 	card = kzalloc(sizeof(struct pcan_pccard), GFP_KERNEL);
 	if (!card) {
-		dev_err(&pdev->dev, "couldn't allocate card memory\n");
 		err = -ENOMEM;
 		goto probe_err_2;
 	}

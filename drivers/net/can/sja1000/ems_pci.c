@@ -238,7 +238,6 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 	/* Allocating card structures to hold addresses, ... */
 	card = kzalloc(sizeof(struct ems_pci_card), GFP_KERNEL);
 	if (card == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate memory\n");
 		pci_disable_device(pdev);
 		return -ENOMEM;
 	}

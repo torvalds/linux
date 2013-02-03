@@ -508,7 +508,6 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 	/* Allocate card structures to hold addresses, ... */
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card) {
-		dev_err(&pdev->dev, "Unable to allocate memory\n");
 		pci_disable_device(pdev);
 		return -ENOMEM;
 	}

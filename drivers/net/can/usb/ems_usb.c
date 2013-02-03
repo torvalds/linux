@@ -1014,10 +1014,8 @@ static int ems_usb_probe(struct usb_interface *intf,
 	}
 
 	dev->intr_in_buffer = kzalloc(INTR_IN_BUFFER_SIZE, GFP_KERNEL);
-	if (!dev->intr_in_buffer) {
-		dev_err(&intf->dev, "Couldn't alloc Intr buffer\n");
+	if (!dev->intr_in_buffer)
 		goto cleanup_intr_urb;
-	}
 
 	dev->tx_msg_buffer = kzalloc(CPC_HEADER_SIZE +
 				     sizeof(struct ems_cpc_msg), GFP_KERNEL);

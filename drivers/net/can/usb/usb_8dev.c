@@ -958,10 +958,8 @@ static int usb_8dev_probe(struct usb_interface *intf,
 
 	priv->cmd_msg_buffer = kzalloc(sizeof(struct usb_8dev_cmd_msg),
 				      GFP_KERNEL);
-	if (!priv->cmd_msg_buffer) {
-		netdev_err(netdev, "Couldn't alloc Tx buffer\n");
+	if (!priv->cmd_msg_buffer)
 		goto cleanup_candev;
-	}
 
 	usb_set_intfdata(intf, priv);
 
