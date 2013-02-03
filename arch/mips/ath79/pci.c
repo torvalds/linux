@@ -75,7 +75,9 @@ int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 		const struct ath79_pci_irq *entry;
 
 		entry = &ath79_pci_irq_map[i];
-		if (entry->slot == slot && entry->pin == pin) {
+		if (entry->bus == dev->bus->number &&
+		    entry->slot == slot &&
+		    entry->pin == pin) {
 			irq = entry->irq;
 			break;
 		}
