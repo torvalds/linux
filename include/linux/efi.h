@@ -719,6 +719,23 @@ static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
 	*addr &= PAGE_MASK;
 }
 
+/* Return the number of unicode characters in data */
+static inline unsigned long
+utf16_strnlen(efi_char16_t *s, size_t maxlength)
+{
+	unsigned long length = 0;
+
+	while (*s++ != 0 && length < maxlength)
+		length++;
+	return length;
+}
+
+static inline unsigned long
+utf16_strlen(efi_char16_t *s)
+{
+	return utf16_strnlen(s, ~0UL);
+}
+
 #if defined(CONFIG_EFI_VARS) || defined(CONFIG_EFI_VARS_MODULE)
 /*
  * EFI Variable support.

@@ -288,17 +288,6 @@ static int gsmi_exec(u8 func, u8 sub)
 	return rc;
 }
 
-/* Return the number of unicode characters in data */
-static size_t
-utf16_strlen(efi_char16_t *data, unsigned long maxlength)
-{
-	unsigned long length = 0;
-
-	while (*data++ != 0 && length < maxlength)
-		length++;
-	return length;
-}
-
 static efi_status_t gsmi_get_variable(efi_char16_t *name,
 				      efi_guid_t *vendor, u32 *attr,
 				      unsigned long *data_size,
@@ -311,7 +300,7 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 	};
 	efi_status_t ret = EFI_SUCCESS;
 	unsigned long flags;
-	size_t name_len = utf16_strlen(name, GSMI_BUF_SIZE / 2);
+	size_t name_len = utf16_strnlen(name, GSMI_BUF_SIZE / 2);
 	int rc;
 
 	if (name_len >= GSMI_BUF_SIZE / 2)
@@ -380,7 +369,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 		return EFI_BAD_BUFFER_SIZE;
 
 	/* Let's make sure the thing is at least null-terminated */
-	if (utf16_strlen(name, GSMI_BUF_SIZE / 2) == GSMI_BUF_SIZE / 2)
+	if (utf16_strnlen(name, GSMI_BUF_SIZE / 2) == GSMI_BUF_SIZE / 2)
 		return EFI_INVALID_PARAMETER;
 
 	spin_lock_irqsave(&gsmi_dev.lock, flags);
@@ -408,7 +397,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 
 		/* Copy the name back */
 		memcpy(name, gsmi_dev.name_buf->start, GSMI_BUF_SIZE);
-		*name_size = utf16_strlen(name, GSMI_BUF_SIZE / 2) * 2;
+		*name_size = utf16_strnlen(name, GSMI_BUF_SIZE / 2) * 2;
 
 		/* copy guid to return buffer */
 		memcpy(vendor, &param.guid, sizeof(param.guid));
@@ -434,7 +423,7 @@ static efi_status_t gsmi_set_variable(efi_char16_t *name,
 			      EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			      EFI_VARIABLE_RUNTIME_ACCESS,
 	};
-	size_t name_len = utf16_strlen(name, GSMI_BUF_SIZE / 2);
+	size_t name_len = utf16_strnlen(name, GSMI_BUF_SIZE / 2);
 	efi_status_t ret = EFI_SUCCESS;
 	int rc;
 	unsigned long flags;
