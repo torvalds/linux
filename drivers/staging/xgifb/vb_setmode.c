@@ -5907,7 +5907,8 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		XGI_GetLCDInfo(ModeNo, ModeIdIndex, pVBInfo);
 		XGI_DisableBridge(xgifb_info, HwDeviceExtension, pVBInfo);
 
-		if (pVBInfo->VBInfo & (SetSimuScanMode | XGI_SetCRT2ToLCDA)) {
+		if (pVBInfo->VBInfo & (SetSimuScanMode | XGI_SetCRT2ToLCDA) ||
+			(!(pVBInfo->VBInfo & SwitchCRT2))) {
 			XGI_SetCRT1Group(xgifb_info, HwDeviceExtension, ModeNo,
 					ModeIdIndex, pVBInfo);
 
@@ -5915,24 +5916,11 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 				XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
 						HwDeviceExtension, pVBInfo);
 			}
-		} else if (!(pVBInfo->VBInfo & SwitchCRT2)) {
-			XGI_SetCRT1Group(xgifb_info,
-					HwDeviceExtension, ModeNo,
-					ModeIdIndex, pVBInfo);
-			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-				XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
-						HwDeviceExtension,
-						pVBInfo);
-			}
 		}
 
 		if (pVBInfo->VBInfo & (SetSimuScanMode | SwitchCRT2)) {
 			switch (HwDeviceExtension->ujVBChipID) {
-			case VB_CHIP_301:
-				XGI_SetCRT2Group301(ModeNo, HwDeviceExtension,
-						pVBInfo); /*add for CRT2 */
-				break;
-
+			case VB_CHIP_301: /* fall through */
 			case VB_CHIP_302:
 				XGI_SetCRT2Group301(ModeNo, HwDeviceExtension,
 						pVBInfo); /*add for CRT2 */
