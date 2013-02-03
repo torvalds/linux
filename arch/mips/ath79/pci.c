@@ -139,10 +139,13 @@ static struct platform_device *
 ath79_register_pci_ar724x(int id,
 			  unsigned long cfg_base,
 			  unsigned long ctrl_base,
+			  unsigned long mem_base,
+			  unsigned long mem_size,
+			  unsigned long io_base,
 			  int irq)
 {
 	struct platform_device *pdev;
-	struct resource res[3];
+	struct resource res[5];
 
 	memset(res, 0, sizeof(res));
 
@@ -160,6 +163,16 @@ ath79_register_pci_ar724x(int id,
 	res[2].start = irq;
 	res[2].end = irq;
 
+	res[3].name = "mem_base";
+	res[3].flags = IORESOURCE_MEM;
+	res[3].start = mem_base;
+	res[3].end = mem_base + mem_size - 1;
+
+	res[4].name = "io_base";
+	res[4].flags = IORESOURCE_IO;
+	res[4].start = io_base;
+	res[4].end = io_base;
+
 	pdev = platform_device_register_simple("ar724x-pci", id,
 					       res, ARRAY_SIZE(res));
 	return pdev;
@@ -175,6 +188,9 @@ int __init ath79_register_pci(void)
 		pdev = ath79_register_pci_ar724x(-1,
 						 AR724X_PCI_CFG_BASE,
 						 AR724X_PCI_CTRL_BASE,
+						 AR724X_PCI_MEM_BASE,
+						 AR724X_PCI_MEM_SIZE,
+						 0,
 						 ATH79_CPU_IRQ_IP2);
 	} else if (soc_is_ar9342() ||
 		   soc_is_ar9344()) {
@@ -187,6 +203,9 @@ int __init ath79_register_pci(void)
 		pdev = ath79_register_pci_ar724x(-1,
 						 AR724X_PCI_CFG_BASE,
 						 AR724X_PCI_CTRL_BASE,
+						 AR724X_PCI_MEM_BASE,
+						 AR724X_PCI_MEM_SIZE,
+						 0,
 						 ATH79_IP2_IRQ(0));
 	} else {
 		/* No PCI support */

@@ -42,6 +42,8 @@ struct ar724x_pci_controller {
 	spinlock_t lock;
 
 	struct pci_controller pci_controller;
+	struct resource io_res;
+	struct resource mem_res;
 };
 
 static inline bool ar724x_pci_check_link(struct ar724x_pci_controller *apc)
@@ -190,20 +192,6 @@ static struct pci_ops ar724x_pci_ops = {
 	.write	= ar724x_pci_write,
 };
 
-static struct resource ar724x_io_resource = {
-	.name   = "PCI IO space",
-	.start  = 0,
-	.end    = 0,
-	.flags  = IORESOURCE_IO,
-};
-
-static struct resource ar724x_mem_resource = {
-	.name   = "PCI memory space",
-	.start  = AR724X_PCI_MEM_BASE,
-	.end    = AR724X_PCI_MEM_BASE + AR724X_PCI_MEM_SIZE - 1,
-	.flags  = IORESOURCE_MEM,
-};
-
 static void ar724x_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct ar724x_pci_controller *apc;
@@ -331,9 +319,29 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 
 	spin_lock_init(&apc->lock);
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "io_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->io_res.parent = res;
+	apc->io_res.name = "PCI IO space";
+	apc->io_res.start = res->start;
+	apc->io_res.end = res->end;
+	apc->io_res.flags = IORESOURCE_IO;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mem_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->mem_res.parent = res;
+	apc->mem_res.name = "PCI memory space";
+	apc->mem_res.start = res->start;
+	apc->mem_res.end = res->end;
+	apc->mem_res.flags = IORESOURCE_MEM;
+
 	apc->pci_controller.pci_ops = &ar724x_pci_ops;
-	apc->pci_controller.io_resource = &ar724x_io_resource;
-	apc->pci_controller.mem_resource = &ar724x_mem_resource;
+	apc->pci_controller.io_resource = &apc->io_res;
+	apc->pci_controller.mem_resource = &apc->mem_res;
 
 	apc->link_up = ar724x_pci_check_link(apc);
 	if (!apc->link_up)
