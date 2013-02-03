@@ -443,6 +443,15 @@ static void ssb_devices_unregister(struct ssb_bus *bus)
 
 void ssb_bus_unregister(struct ssb_bus *bus)
 {
+	int err;
+
+	err = ssb_gpio_unregister(bus);
+	if (err == -EBUSY)
+		ssb_dprintk(KERN_ERR PFX "Some GPIOs are still in use.\n");
+	else if (err)
+		ssb_dprintk(KERN_ERR PFX
+			    "Can not unregister GPIO driver: %i\n", err);
+
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
 	list_del(&bus->list);
