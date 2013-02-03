@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/traps.h>
 
 #ifdef CONFIG_KGDB
 extern int gdb_enter;
@@ -411,26 +412,6 @@ static __always_inline unsigned long *stack_pointer(struct task_struct *task)
 		sp = (unsigned long *)task->thread.sp;
 
 	return sp;
-}
-
-static inline void spill_registers(void)
-{
-	unsigned int a0, ps;
-
-	__asm__ __volatile__ (
-		"movi	a14, " __stringify(PS_EXCM_BIT | LOCKLEVEL) "\n\t"
-		"mov	a12, a0\n\t"
-		"rsr	a13, sar\n\t"
-		"xsr	a14, ps\n\t"
-		"movi	a0, _spill_registers\n\t"
-		"rsync\n\t"
-		"callx0 a0\n\t"
-		"mov	a0, a12\n\t"
-		"wsr	a13, sar\n\t"
-		"wsr	a14, ps\n\t"
-		:: "a" (&a0), "a" (&ps)
-		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15",
-		  "memory");
 }
 
 void show_trace(struct task_struct *task, unsigned long *sp)
