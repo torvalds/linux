@@ -1217,10 +1217,10 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_MONITOR:
 		radar_required = false;
 		break;
-	case NL80211_IFTYPE_P2P_DEVICE:
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_UNSPECIFIED:
 	default:
