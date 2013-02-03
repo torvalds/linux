@@ -105,7 +105,7 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 		return;
 
 	if (dir == NOUVEAU_THERM_THRS_FALLING)
-		nv_info(therm, "temperature (%u C) went bellow the '%s' threshold\n",
+		nv_info(therm, "temperature (%u C) went below the '%s' threshold\n",
 			temperature, thresolds[thrs]);
 	else
 		nv_info(therm, "temperature (%u C) hit the '%s' threshold\n",
@@ -114,8 +114,10 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 	active = (dir == NOUVEAU_THERM_THRS_RISING);
 	switch (thrs) {
 	case NOUVEAU_THERM_THRS_FANBOOST:
-		nouveau_therm_fan_set(therm, true, 100);
-		nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
+		if (active) {
+			nouveau_therm_fan_set(therm, true, 100);
+			nouveau_therm_mode(therm, NOUVEAU_THERM_CTRL_AUTO);
+		}
 		break;
 	case NOUVEAU_THERM_THRS_DOWNCLOCK:
 		if (priv->emergency.downclock)
@@ -126,7 +128,8 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 			priv->emergency.pause(therm, active);
 		break;
 	case NOUVEAU_THERM_THRS_SHUTDOWN:
-		orderly_poweroff(true);
+		if (active)
+			orderly_poweroff(true);
 		break;
 	case NOUVEAU_THERM_THRS_NR:
 		break;
