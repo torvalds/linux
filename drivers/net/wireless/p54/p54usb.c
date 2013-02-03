@@ -510,11 +510,8 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		return err;
 
 	tmp = buf = kmalloc(P54U_FW_BLOCK, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) cannot allocate firmware"
-					  "upload buffer!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	left = block_size = min((size_t)P54U_FW_BLOCK, priv->fw->size);
 	strcpy(buf, p54u_firmware_upload_3887);
@@ -637,11 +634,8 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	const u8 *data;
 
 	buf = kmalloc(512, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) firmware buffer "
-					  "alloc failed!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 #define P54U_WRITE(type, addr, data) \
 	do {\

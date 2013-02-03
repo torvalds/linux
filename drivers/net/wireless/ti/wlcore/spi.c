@@ -87,11 +87,8 @@ static void wl12xx_spi_reset(struct device *child)
 	struct spi_message m;
 
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
-	if (!cmd) {
-		dev_err(child->parent,
-			"could not allocate cmd for spi reset\n");
+	if (!cmd)
 		return;
-	}
 
 	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
@@ -115,11 +112,8 @@ static void wl12xx_spi_init(struct device *child)
 	struct spi_message m;
 
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
-	if (!cmd) {
-		dev_err(child->parent,
-			"could not allocate cmd for spi init\n");
+	if (!cmd)
 		return;
-	}
 
 	memset(crc, 0, sizeof(crc));
 	memset(&t, 0, sizeof(t));
@@ -340,10 +334,8 @@ static int wl1271_probe(struct spi_device *spi)
 	pdata->ops = &spi_ops;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&spi->dev, "can't allocate glue\n");
+	if (!glue)
 		goto out;
-	}
 
 	glue->dev = &spi->dev;
 

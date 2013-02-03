@@ -39,11 +39,8 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
-	if (!bss_prio) {
-		dev_err(adapter->dev, "%s: failed to alloc bss_prio\n",
-			__func__);
+	if (!bss_prio)
 		return -ENOMEM;
-	}
 
 	bss_prio->priv = priv;
 	INIT_LIST_HEAD(&bss_prio->list);

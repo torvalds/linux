@@ -533,11 +533,8 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
 		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
-		if (!new_node) {
-			dev_err(priv->adapter->dev,
-				"%s: failed to alloc new_node\n", __func__);
+		if (!new_node)
 			return;
-		}
 
 		INIT_LIST_HEAD(&new_node->list);
 

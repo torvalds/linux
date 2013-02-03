@@ -266,11 +266,9 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		/* Allocate and fill new bss descriptor */
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
-				GFP_KERNEL);
-		if (!bss_desc) {
-			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+				   GFP_KERNEL);
+		if (!bss_desc)
 			return -ENOMEM;
-		}
 
 		ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 		if (ret)
@@ -636,11 +634,8 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 		}
 	}
 	buf = kzalloc(MWIFIEX_SIZE_OF_CMD_BUFFER, GFP_KERNEL);
-	if (!buf) {
-		dev_err(priv->adapter->dev, "%s: failed to alloc cmd buffer\n",
-			__func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	txp_cfg = (struct host_cmd_ds_txpwr_cfg *) buf;
 	txp_cfg->action = cpu_to_le16(HostCmd_ACT_GEN_SET);

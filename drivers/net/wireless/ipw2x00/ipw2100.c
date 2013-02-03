@@ -4478,13 +4478,10 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 		return err;
 	}
 
-	priv->tx_buffers =
-	    kmalloc(TX_PENDED_QUEUE_LENGTH * sizeof(struct ipw2100_tx_packet),
-		    GFP_ATOMIC);
+	priv->tx_buffers = kmalloc_array(TX_PENDED_QUEUE_LENGTH,
+					 sizeof(struct ipw2100_tx_packet),
+					 GFP_ATOMIC);
 	if (!priv->tx_buffers) {
-		printk(KERN_ERR DRV_NAME
-		       ": %s: alloc failed form tx buffers.\n",
-		       priv->net_dev->name);
 		bd_queue_free(priv, &priv->tx_queue);
 		return -ENOMEM;
 	}

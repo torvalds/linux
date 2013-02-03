@@ -334,20 +334,15 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_array;
-	u32 buf_size;
 	u32 i;
 
 	/* Allocate and initialize struct cmd_ctrl_node */
-	buf_size = sizeof(struct cmd_ctrl_node) * MWIFIEX_NUM_OF_CMD_BUFFER;
-	cmd_array = kzalloc(buf_size, GFP_KERNEL);
-	if (!cmd_array) {
-		dev_err(adapter->dev, "%s: failed to alloc cmd_array\n",
-			__func__);
+	cmd_array = kcalloc(MWIFIEX_NUM_OF_CMD_BUFFER,
+			    sizeof(struct cmd_ctrl_node), GFP_KERNEL);
+	if (!cmd_array)
 		return -ENOMEM;
-	}
 
 	adapter->cmd_pool = cmd_array;
-	memset(adapter->cmd_pool, 0, buf_size);
 
 	/* Allocate and initialize command buffers */
 	for (i = 0; i < MWIFIEX_NUM_OF_CMD_BUFFER; i++) {

@@ -229,10 +229,8 @@ static int wl1271_probe(struct sdio_func *func,
 		return -ENODEV;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&func->dev, "can't allocate glue\n");
+	if (!glue)
 		goto out;
-	}
 
 	glue->dev = &func->dev;
 

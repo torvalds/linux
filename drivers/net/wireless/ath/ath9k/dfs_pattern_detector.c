@@ -288,11 +288,11 @@ struct dfs_pattern_detector *
 dfs_pattern_detector_init(enum nl80211_dfs_regions region)
 {
 	struct dfs_pattern_detector *dpd;
+
 	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);
-	if (dpd == NULL) {
-		pr_err("allocation of dfs_pattern_detector failed\n");
+	if (dpd == NULL)
 		return NULL;
-	}
+
 	*dpd = default_dpd;
 	INIT_LIST_HEAD(&dpd->channel_detectors);
 

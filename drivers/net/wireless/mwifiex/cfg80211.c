@@ -1820,10 +1820,8 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
 				      GFP_KERNEL);
-	if (!priv->user_scan_cfg) {
-		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
+	if (!priv->user_scan_cfg)
 		return -ENOMEM;
-	}
 
 	priv->scan_request = request;
 
