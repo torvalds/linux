@@ -2591,13 +2591,11 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 	else
 		qdev->lrg_buf_q_alloc_size = qdev->lrg_buf_q_size * 2;
 
-	qdev->lrg_buf =
-		kmalloc(qdev->num_large_buffers * sizeof(struct ql_rcv_buf_cb),
-			GFP_KERNEL);
-	if (qdev->lrg_buf == NULL) {
-		netdev_err(qdev->ndev, "qdev->lrg_buf alloc failed\n");
+	qdev->lrg_buf = kmalloc_array(qdev->num_large_buffers,
+				      sizeof(struct ql_rcv_buf_cb),
+				      GFP_KERNEL);
+	if (qdev->lrg_buf == NULL)
 		return -ENOMEM;
-	}
 
 	qdev->lrg_buf_q_alloc_virt_addr =
 		pci_alloc_consistent(qdev->pdev,

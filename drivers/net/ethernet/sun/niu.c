@@ -4342,7 +4342,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 {
 	BUILD_BUG_ON(sizeof(struct rxdma_mailbox) != 64);
 
-	rp->rxhash = kzalloc(MAX_RBR_RING_SIZE * sizeof(struct page *),
+	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
 			     GFP_KERNEL);
 	if (!rp->rxhash)
 		return -ENOMEM;

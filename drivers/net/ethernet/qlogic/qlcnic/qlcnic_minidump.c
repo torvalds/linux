@@ -931,12 +931,9 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 		return -EIO;
 
 	fw_dump->data = vzalloc(dump_size);
-	if (!fw_dump->data) {
-		dev_info(&adapter->pdev->dev,
-			 "Unable to allocate (%d KB) for fw dump\n",
-			 dump_size / 1024);
+	if (!fw_dump->data)
 		return -ENOMEM;
-	}
+
 	buffer = fw_dump->data;
 	fw_dump->size = dump_size;
 	no_entries = tmpl_hdr->num_entries;

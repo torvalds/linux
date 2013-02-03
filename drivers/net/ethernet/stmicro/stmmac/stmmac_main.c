@@ -530,17 +530,18 @@ static void init_dma_desc_rings(struct net_device *dev)
 	DBG(probe, INFO, "stmmac: txsize %d, rxsize %d, bfsize %d\n",
 	    txsize, rxsize, bfsize);
 
-	priv->rx_skbuff_dma = kmalloc(rxsize * sizeof(dma_addr_t), GFP_KERNEL);
-	priv->rx_skbuff =
-	    kmalloc(sizeof(struct sk_buff *) * rxsize, GFP_KERNEL);
+	priv->rx_skbuff_dma = kmalloc_array(rxsize, sizeof(dma_addr_t),
+					    GFP_KERNEL);
+	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
+					GFP_KERNEL);
 	priv->dma_rx =
 	    (struct dma_desc *)dma_alloc_coherent(priv->device,
 						  rxsize *
 						  sizeof(struct dma_desc),
 						  &priv->dma_rx_phy,
 						  GFP_KERNEL);
-	priv->tx_skbuff = kmalloc(sizeof(struct sk_buff *) * txsize,
-				       GFP_KERNEL);
+	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
+					GFP_KERNEL);
 	priv->dma_tx =
 	    (struct dma_desc *)dma_alloc_coherent(priv->device,
 						  txsize *

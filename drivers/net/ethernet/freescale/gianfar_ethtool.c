@@ -716,12 +716,11 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	int j = MAX_FILER_IDX, l = 0x0;
 	int ret = 1;
 
-	local_rqfpr = kmalloc(sizeof(unsigned int) * (MAX_FILER_IDX + 1),
-			      GFP_KERNEL);
-	local_rqfcr = kmalloc(sizeof(unsigned int) * (MAX_FILER_IDX + 1),
-			      GFP_KERNEL);
+	local_rqfpr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
+				    GFP_KERNEL);
+	local_rqfcr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
+				    GFP_KERNEL);
 	if (!local_rqfpr || !local_rqfcr) {
-		pr_err("Out of memory\n");
 		ret = 0;
 		goto err;
 	}

@@ -670,11 +670,9 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 	}
 
 	cur = kzalloc(sizeof(nx_mac_list_t), GFP_ATOMIC);
-	if (cur == NULL) {
-		printk(KERN_ERR "%s: failed to add mac address filter\n",
-				adapter->netdev->name);
+	if (cur == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 	list_add_tail(&cur->list, &adapter->mac_list);
 	return nx_p3_sre_macaddr_change(adapter,
@@ -2568,16 +2566,10 @@ netxen_dump_fw(struct netxen_adapter *adapter)
 					adapter->mdump.md_capture_size;
 	if (!adapter->mdump.md_capture_buff) {
 		adapter->mdump.md_capture_buff =
-				vmalloc(adapter->mdump.md_dump_size);
-		if (!adapter->mdump.md_capture_buff) {
-			dev_info(&adapter->pdev->dev,
-				"Unable to allocate memory for minidump "
-				"capture_buffer(%d bytes).\n",
-					adapter->mdump.md_dump_size);
+				vzalloc(adapter->mdump.md_dump_size);
+		if (!adapter->mdump.md_capture_buff)
 			return;
-		}
-		memset(adapter->mdump.md_capture_buff, 0,
-				adapter->mdump.md_dump_size);
+
 		if (netxen_collect_minidump(adapter)) {
 			adapter->mdump.has_valid_dump = 0;
 			adapter->mdump.md_dump_size = 0;

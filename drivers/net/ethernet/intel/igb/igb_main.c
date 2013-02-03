@@ -2671,9 +2671,8 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	igb_init_queue_configuration(adapter);
 
 	/* Setup and initialize a copy of the hw vlan table array */
-	adapter->shadow_vfta = kzalloc(sizeof(u32) *
-				E1000_VLAN_FILTER_TBL_SIZE,
-				GFP_ATOMIC);
+	adapter->shadow_vfta = kcalloc(E1000_VLAN_FILTER_TBL_SIZE, sizeof(u32),
+				       GFP_ATOMIC);
 
 	/* This call may decrease the number of queues */
 	if (igb_init_interrupt_scheme(adapter, true)) {

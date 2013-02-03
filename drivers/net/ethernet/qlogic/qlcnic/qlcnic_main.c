@@ -414,10 +414,8 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 		adapter->msix_entries = kcalloc(num_msix,
 						sizeof(struct msix_entry),
 						GFP_KERNEL);
-		if (!adapter->msix_entries) {
-			dev_err(&pdev->dev, "failed allocating msix_entries\n");
+		if (!adapter->msix_entries)
 			return -ENOMEM;
-		}
 	}
 
 	adapter->max_sds_rings = 1;
@@ -1536,8 +1534,6 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 	adapter->recv_ctx = kzalloc(sizeof(struct qlcnic_recv_context),
 				GFP_KERNEL);
 	if (!adapter->recv_ctx) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to allocate recv ctx resources for adapter\n");
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1764,16 +1760,15 @@ void qlcnic_free_tx_rings(struct qlcnic_adapter *adapter)
 int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 			  struct net_device *netdev)
 {
-	int ring, size, vector, index;
+	int ring, vector, index;
 	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_cmd_buffer *cmd_buf_arr;
 
-	size = adapter->max_drv_tx_rings * sizeof(struct qlcnic_host_tx_ring);
-	tx_ring = kzalloc(size, GFP_KERNEL);
-	if (tx_ring == NULL) {
-		dev_err(&netdev->dev, "failed to allocate tx rings\n");
+	tx_ring = kcalloc(adapter->max_drv_tx_rings,
+			  sizeof(struct qlcnic_host_tx_ring), GFP_KERNEL);
+	if (tx_ring == NULL)
 		return -ENOMEM;
-	}
+
 	adapter->tx_ring = tx_ring;
 
 	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
@@ -1782,8 +1777,6 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 		tx_ring->txq = netdev_get_tx_queue(netdev, ring);
 		cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
 		if (cmd_buf_arr == NULL) {
-			dev_err(&netdev->dev,
-				"failed to allocate cmd buffer ring\n");
 			qlcnic_free_tx_rings(adapter);
 			return -ENOMEM;
 		}

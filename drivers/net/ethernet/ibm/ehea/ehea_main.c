@@ -1921,10 +1921,8 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 	u64 hret;
 
 	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
-	if (!ehea_mcl_entry) {
-		pr_err("no mem for mcl_entry\n");
+	if (!ehea_mcl_entry)
 		return;
-	}
 
 	INIT_LIST_HEAD(&ehea_mcl_entry->list);
 

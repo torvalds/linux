@@ -1061,12 +1061,10 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->cpts_clock_shift = prop;
 
-	data->slave_data = kzalloc(sizeof(struct cpsw_slave_data) *
-				   data->slaves, GFP_KERNEL);
-	if (!data->slave_data) {
-		pr_err("Could not allocate slave memory.\n");
+	data->slave_data = kcalloc(data->slaves, sizeof(struct cpsw_slave_data),
+				   GFP_KERNEL);
+	if (!data->slave_data)
 		return -EINVAL;
-	}
 
 	if (of_property_read_u32(node, "cpdma_channels", &prop)) {
 		pr_err("Missing cpdma_channels property in the DT.\n");

@@ -184,18 +184,15 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_rx_buffer *rx_buf;
-	int ring, i, size;
-
-	struct net_device *netdev = adapter->netdev;
+	int ring, i;
 
 	recv_ctx = adapter->recv_ctx;
 
-	size = adapter->max_rds_rings * sizeof(struct qlcnic_host_rds_ring);
-	rds_ring = kzalloc(size, GFP_KERNEL);
-	if (rds_ring == NULL) {
-		dev_err(&netdev->dev, "failed to allocate rds ring struct\n");
+	rds_ring = kcalloc(adapter->max_rds_rings,
+			   sizeof(struct qlcnic_host_rds_ring), GFP_KERNEL);
+	if (rds_ring == NULL)
 		goto err_out;
-	}
+
 	recv_ctx->rds_rings = rds_ring;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
@@ -221,11 +218,8 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 			break;
 		}
 		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
-		if (rds_ring->rx_buf_arr == NULL) {
-			dev_err(&netdev->dev,
-				"Failed to allocate rx buffer ring %d\n", ring);
+		if (rds_ring->rx_buf_arr == NULL)
 			goto err_out;
-		}
 
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
@@ -448,10 +442,8 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(&pdev->dev, "Unable to calloc memory for rom read.\n");
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < n; i++) {
 		if (qlcnic_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
@@ -657,10 +649,8 @@ static int qlcnic_get_flt_entry(struct qlcnic_adapter *adapter, u8 region,
 
 	entry_size = flt_hdr.len - sizeof(struct qlcnic_flt_header);
 	flt_entry = vzalloc(entry_size);
-	if (flt_entry == NULL) {
-		dev_warn(&adapter->pdev->dev, "error allocating memory\n");
+	if (flt_entry == NULL)
 		return -EIO;
-	}
 
 	ret = qlcnic_rom_fast_read_words(adapter, QLCNIC_FLT_LOCATION +
 					 sizeof(struct qlcnic_flt_header),

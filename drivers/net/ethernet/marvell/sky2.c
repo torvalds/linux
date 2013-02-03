@@ -4969,10 +4969,8 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:")
 		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
-	if (!hw) {
-		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
+	if (!hw)
 		goto err_out_free_regions;
-	}
 
 	hw->pdev = pdev;
 	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));

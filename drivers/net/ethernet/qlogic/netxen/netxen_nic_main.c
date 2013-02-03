@@ -3176,11 +3176,8 @@ netxen_list_config_vlan_ip(struct netxen_adapter *adapter,
 		}
 
 		cur = kzalloc(sizeof(struct nx_vlan_ip_list), GFP_ATOMIC);
-		if (cur == NULL) {
-			printk(KERN_ERR "%s: failed to add vlan ip to list\n",
-					adapter->netdev->name);
+		if (cur == NULL)
 			return;
-		}
 
 		cur->ip_addr = ifa->ifa_address;
 		list_add_tail(&cur->list, &adapter->vlan_ip_list);

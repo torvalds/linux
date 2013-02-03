@@ -5793,10 +5793,8 @@ static void tg3_dump_state(struct tg3 *tp)
 	u32 *regs;
 
 	regs = kzalloc(TG3_REG_BLK_SIZE, GFP_ATOMIC);
-	if (!regs) {
-		netdev_err(tp->dev, "Failed allocating register dump buffer\n");
+	if (!regs)
 		return;
-	}
 
 	if (tg3_flag(tp, PCI_EXPRESS)) {
 		/* Read up to but not including private PCI registers */

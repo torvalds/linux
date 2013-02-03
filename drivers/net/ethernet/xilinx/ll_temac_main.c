@@ -238,11 +238,9 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	int i;
 
 	lp->rx_skb = kcalloc(RX_BD_NUM, sizeof(*lp->rx_skb), GFP_KERNEL);
-	if (!lp->rx_skb) {
-		dev_err(&ndev->dev,
-				"can't allocate memory for DMA RX buffer\n");
+	if (!lp->rx_skb)
 		goto out;
-	}
+
 	/* allocate the tx and rx ring buffer descriptors. */
 	/* returns a virtual address and a physical address. */
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,

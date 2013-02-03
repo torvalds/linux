@@ -982,11 +982,9 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 	size = sizeof(struct atl1c_buffer) * (tpd_ring->count * 2 +
 		rfd_ring->count);
 	tpd_ring->buffer_info = kzalloc(size, GFP_KERNEL);
-	if (unlikely(!tpd_ring->buffer_info)) {
-		dev_err(&pdev->dev, "kzalloc failed, size = %d\n",
-			size);
+	if (unlikely(!tpd_ring->buffer_info))
 		goto err_nomem;
-	}
+
 	for (i = 0; i < AT_MAX_TRANSMIT_QUEUE; i++) {
 		tpd_ring[i].buffer_info =
 			(tpd_ring->buffer_info + count);

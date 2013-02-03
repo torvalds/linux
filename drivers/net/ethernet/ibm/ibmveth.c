@@ -637,7 +637,6 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->bounce_buffer =
 	    kmalloc(netdev->mtu + IBMVETH_BUFF_OH, GFP_KERNEL);
 	if (!adapter->bounce_buffer) {
-		netdev_err(netdev, "unable to allocate bounce buffer\n");
 		rc = -ENOMEM;
 		goto err_out_free_irq;
 	}

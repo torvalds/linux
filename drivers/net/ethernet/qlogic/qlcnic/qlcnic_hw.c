@@ -481,11 +481,9 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	}
 
 	cur = kzalloc(sizeof(struct qlcnic_mac_list_s), GFP_ATOMIC);
-	if (cur == NULL) {
-		dev_err(&adapter->netdev->dev,
-			"failed to add mac address filter\n");
+	if (cur == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 
 	if (qlcnic_sre_macaddr_change(adapter,

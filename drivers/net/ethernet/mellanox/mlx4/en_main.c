@@ -191,10 +191,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
 		err = -ENOMEM;
 		goto err_free_res;
 	}

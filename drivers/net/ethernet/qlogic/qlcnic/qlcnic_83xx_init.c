@@ -1171,12 +1171,9 @@ static int qlcnic_83xx_copy_bootloader(struct qlcnic_adapter *adapter)
 		size = (size + 16) & ~0xF;
 
 	p_cache = kzalloc(size, GFP_KERNEL);
-
-	if (p_cache == NULL) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to allocate memory for boot loader cache\n");
+	if (p_cache == NULL)
 		return -ENOMEM;
-	}
+
 	ret = qlcnic_83xx_lockless_flash_read32(adapter, src, p_cache,
 						size / sizeof(u32));
 	if (ret) {
@@ -1487,12 +1484,9 @@ int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
 
 	ahw->reset.seq_error = 0;
 	ahw->reset.buff = kzalloc(QLC_83XX_RESTART_TEMPLATE_SIZE, GFP_KERNEL);
-
-	if (p_dev->ahw->reset.buff == NULL) {
-		dev_err(&p_dev->pdev->dev,
-			"%s: resource allocation failed\n", __func__);
+	if (p_dev->ahw->reset.buff == NULL)
 		return -ENOMEM;
-	}
+
 	p_buff = p_dev->ahw->reset.buff;
 	addr = QLC_83XX_RESET_TEMPLATE_ADDR;
 	count = sizeof(struct qlc_83xx_reset_hdr) / sizeof(u32);

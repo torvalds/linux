@@ -1879,12 +1879,10 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 	memset(rxq->rx_desc_area, 0, size);
 
 	rxq->rx_desc_area_size = size;
-	rxq->rx_skb = kmalloc(rxq->rx_ring_size * sizeof(*rxq->rx_skb),
-								GFP_KERNEL);
-	if (rxq->rx_skb == NULL) {
-		netdev_err(mp->dev, "can't allocate rx skb ring\n");
+	rxq->rx_skb = kmalloc_array(rxq->rx_ring_size, sizeof(*rxq->rx_skb),
+				    GFP_KERNEL);
+	if (rxq->rx_skb == NULL)
 		goto out_free;
-	}
 
 	rx_desc = rxq->rx_desc_area;
 	for (i = 0; i < rxq->rx_ring_size; i++) {

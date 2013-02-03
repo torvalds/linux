@@ -819,8 +819,6 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	size = sizeof(struct atl1e_tx_buffer) * (tx_ring->count);
 	tx_ring->tx_buffer = kzalloc(size, GFP_KERNEL);
 	if (tx_ring->tx_buffer == NULL) {
-		netdev_err(adapter->netdev, "kzalloc failed, size = D%d\n",
-			   size);
 		err = -ENOMEM;
 		goto failed;
 	}

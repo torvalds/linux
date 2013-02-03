@@ -5425,11 +5425,9 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 
 	alloc_size = sizeof(struct cnic_dev) + sizeof(struct cnic_local);
 
-	cdev = kzalloc(alloc_size , GFP_KERNEL);
-	if (cdev == NULL) {
-		netdev_err(dev, "allocate dev struct failure\n");
+	cdev = kzalloc(alloc_size, GFP_KERNEL);
+	if (cdev == NULL)
 		return NULL;
-	}
 
 	cdev->netdev = dev;
 	cdev->cnic_priv = (char *)cdev + sizeof(struct cnic_dev);
