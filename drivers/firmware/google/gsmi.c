@@ -882,9 +882,16 @@ static __init int gsmi_init(void)
 		goto out_remove_bin_file;
 	}
 
-	ret = register_efivars(&efivars, &efivar_ops, gsmi_kobj);
+	ret = efivars_register(&efivars, &efivar_ops, gsmi_kobj);
 	if (ret) {
 		printk(KERN_INFO "gsmi: Failed to register efivars\n");
+		goto out_remove_sysfs_files;
+	}
+
+	ret = efivars_sysfs_init();
+	if (ret) {
+		printk(KERN_INFO "gsmi: Failed to create efivars files\n");
+		efivars_unregister(&efivars);
 		goto out_remove_sysfs_files;
 	}
 
@@ -919,7 +926,7 @@ static void __exit gsmi_exit(void)
 	unregister_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &gsmi_panic_notifier);
-	unregister_efivars(&efivars);
+	efivars_unregister(&efivars);
 
 	sysfs_remove_files(gsmi_kobj, gsmi_attrs);
 	sysfs_remove_bin_file(gsmi_kobj, &eventlog_bin_attr);
