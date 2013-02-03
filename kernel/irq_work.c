@@ -63,12 +63,20 @@ void __weak arch_irq_work_raise(void)
 }
 
 /*
- * Queue the entry and raise the IPI if needed.
+ * Enqueue the irq_work @entry unless it's already pending
+ * somewhere.
+ *
+ * Can be re-enqueued while the callback is still in progress.
  */
-static void __irq_work_queue(struct irq_work *work)
+void irq_work_queue(struct irq_work *work)
 {
 	bool empty;
 
+	/* Only queue if not already pending */
+	if (!irq_work_claim(work))
+		return;
+
+	/* Queue the entry and raise the IPI if needed. */
 	preempt_disable();
 
 	empty = llist_add(&work->llnode, &__get_cpu_var(irq_work_list));
@@ -77,25 +85,6 @@ static void __irq_work_queue(struct irq_work *work)
 		arch_irq_work_raise();
 
 	preempt_enable();
-}
-
-/*
- * Enqueue the irq_work @entry, returns true on success, failure when the
- * @entry was already enqueued by someone else.
- *
- * Can be re-enqueued while the callback is still in progress.
- */
-bool irq_work_queue(struct irq_work *work)
-{
-	if (!irq_work_claim(work)) {
-		/*
-		 * Already enqueued, can't do!
-		 */
-		return false;
-	}
-
-	__irq_work_queue(work);
-	return true;
 }
 EXPORT_SYMBOL_GPL(irq_work_queue);
 
