@@ -427,11 +427,9 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	rv = 1;	/* > 0 for insert logic below if sl_count is 0 */
 	for (i=0; i<psl->sl_count; i++) {
 		rv = !ipv6_addr_equal(&psl->sl_addr[i], source);
-		if (rv == 0)
-			break;
+		if (rv == 0) /* There is an error in the address. */
+			goto done;
 	}
-	if (rv == 0)		/* address already there is an error */
-		goto done;
 	for (j=psl->sl_count-1; j>=i; j--)
 		psl->sl_addr[j+1] = psl->sl_addr[j];
 	psl->sl_addr[i] = *source;
