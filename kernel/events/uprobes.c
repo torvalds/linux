@@ -733,8 +733,10 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 	return curr;
 }
 
-static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
+static int
+register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 {
+	bool is_register = !!new;
 	struct map_info *info;
 	int err = 0;
 
@@ -765,7 +767,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 
 		if (is_register) {
 			/* consult only the "caller", new consumer. */
-			if (consumer_filter(uprobe->consumers,
+			if (consumer_filter(new,
 					UPROBE_FILTER_REGISTER, mm))
 				err = install_breakpoint(uprobe, mm, vma, info->vaddr);
 		} else if (test_bit(MMF_HAS_UPROBES, &mm->flags)) {
@@ -788,7 +790,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 static int __uprobe_register(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
 	consumer_add(uprobe, uc);
-	return register_for_each_vma(uprobe, true);
+	return register_for_each_vma(uprobe, uc);
 }
 
 static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
@@ -798,7 +800,7 @@ static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *u
 	if (!consumer_del(uprobe, uc))	/* WARN? */
 		return;
 
-	err = register_for_each_vma(uprobe, false);
+	err = register_for_each_vma(uprobe, NULL);
 	/* TODO : cant unregister? schedule a worker thread */
 	if (!uprobe->consumers && !err)
 		delete_uprobe(uprobe);
@@ -853,6 +855,35 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	return ret;
 }
 EXPORT_SYMBOL_GPL(uprobe_register);
+
+/*
+ * uprobe_apply - unregister a already registered probe.
+ * @inode: the file in which the probe has to be removed.
+ * @offset: offset from the start of the file.
+ * @uc: consumer which wants to add more or remove some breakpoints
+ * @add: add or remove the breakpoints
+ */
+int uprobe_apply(struct inode *inode, loff_t offset,
+			struct uprobe_consumer *uc, bool add)
+{
+	struct uprobe *uprobe;
+	struct uprobe_consumer *con;
+	int ret = -ENOENT;
+
+	uprobe = find_uprobe(inode, offset);
+	if (!uprobe)
+		return ret;
+
+	down_write(&uprobe->register_rwsem);
+	for (con = uprobe->consumers; con && con != uc ; con = con->next)
+		;
+	if (con)
+		ret = register_for_each_vma(uprobe, add ? uc : NULL);
+	up_write(&uprobe->register_rwsem);
+	put_uprobe(uprobe);
+
+	return ret;
+}
 
 /*
  * uprobe_unregister - unregister a already registered probe.
