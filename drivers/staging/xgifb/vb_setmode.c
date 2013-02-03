@@ -64,26 +64,15 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 			   unsigned short ModeIdIndex,
 			   struct vb_device_info *pVBInfo)
 {
-	unsigned char tempah, SRdata;
-	unsigned short i;
+	unsigned char SRdata, i;
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x00, 0x03); /* Set SR0 */
-	tempah = XGI330_StandTable.SR[0];
 
-	if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-		tempah |= 0x01;
-	} else if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToLCD)) {
-		if (pVBInfo->VBInfo & SetInSlaveMode)
-			tempah |= 0x01;
-	}
-
-	tempah |= 0x20; /* screen off */
-	xgifb_reg_set(pVBInfo->P3c4, 0x01, tempah); /* Set SR1 */
-
-	for (i = 02; i <= 04; i++) {
-		/* Get SR2,3,4 from file */
-		SRdata = XGI330_StandTable.SR[i - 1];
-		xgifb_reg_set(pVBInfo->P3c4, i, SRdata); /* Set SR2 3 4 */
+	for (i = 0; i < 4; i++) {
+		/* Get SR1,2,3,4 from file */
+		/* SR1 is with screen off 0x20 */
+		SRdata = XGI330_StandTable.SR[i];
+		xgifb_reg_set(pVBInfo->P3c4, i+1, SRdata); /* Set SR 1 2 3 4 */
 	}
 }
 
