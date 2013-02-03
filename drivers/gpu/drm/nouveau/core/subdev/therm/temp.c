@@ -90,6 +90,13 @@ nouveau_therm_sensor_get_threshold_state(struct nouveau_therm *therm,
 	return priv->sensor.alarm_state[thrs];
 }
 
+static void
+nv_poweroff_work(struct work_struct *work)
+{
+	orderly_poweroff(true);
+	kfree(work);
+}
+
 void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 			        enum nouveau_therm_thrs thrs,
 			        enum nouveau_therm_thrs_direction dir)
@@ -128,8 +135,15 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 			priv->emergency.pause(therm, active);
 		break;
 	case NOUVEAU_THERM_THRS_SHUTDOWN:
-		if (active)
-			orderly_poweroff(true);
+		if (active) {
+			struct work_struct *work;
+
+			work = kmalloc(sizeof(*work), GFP_ATOMIC);
+			if (work) {
+				INIT_WORK(work, nv_poweroff_work);
+				schedule_work(work);
+			}
+		}
 		break;
 	case NOUVEAU_THERM_THRS_NR:
 		break;
