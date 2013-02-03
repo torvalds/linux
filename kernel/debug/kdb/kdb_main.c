@@ -683,32 +683,44 @@ static int kdb_defcmd(int argc, const char **argv)
 		return KDB_ARGCOUNT;
 	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
 			     GFP_KDB);
-	if (!defcmd_set) {
-		kdb_printf("Could not allocate new defcmd_set entry for %s\n",
-			   argv[1]);
-		defcmd_set = save_defcmd_set;
-		return KDB_NOTIMP;
-	}
+	if (!defcmd_set)
+		goto fail_defcmd;
 	memcpy(defcmd_set, save_defcmd_set,
 	       defcmd_set_count * sizeof(*defcmd_set));
-	kfree(save_defcmd_set);
 	s = defcmd_set + defcmd_set_count;
 	memset(s, 0, sizeof(*s));
 	s->usable = 1;
 	s->name = kdb_strdup(argv[1], GFP_KDB);
+	if (!s->name)
+		goto fail_name;
 	s->usage = kdb_strdup(argv[2], GFP_KDB);
+	if (!s->usage)
+		goto fail_usage;
 	s->help = kdb_strdup(argv[3], GFP_KDB);
+	if (!s->help)
+		goto fail_help;
 	if (s->usage[0] == '"') {
-		strcpy(s->usage, s->usage+1);
+		strcpy(s->usage, argv[2]+1);
 		s->usage[strlen(s->usage)-1] = '\0';
 	}
 	if (s->help[0] == '"') {
-		strcpy(s->help, s->help+1);
+		strcpy(s->help, argv[3]+1);
 		s->help[strlen(s->help)-1] = '\0';
 	}
 	++defcmd_set_count;
 	defcmd_in_progress = 1;
+	kfree(save_defcmd_set);
 	return 0;
+fail_help:
+	kfree(s->usage);
+fail_usage:
+	kfree(s->name);
+fail_name:
+	kfree(defcmd_set);
+fail_defcmd:
+	kdb_printf("Could not allocate new defcmd_set entry for %s\n", argv[1]);
+	defcmd_set = save_defcmd_set;
+	return KDB_NOTIMP;
 }
 
 /*
