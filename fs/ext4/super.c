@@ -1555,11 +1555,10 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 	} else if (token == Opt_min_batch_time) {
 		sbi->s_min_batch_time = arg;
 	} else if (token == Opt_inode_readahead_blks) {
-		if (arg > (1 << 30))
-			return -1;
-		if (arg && !is_power_of_2(arg)) {
-			ext4_msg(sb, KERN_ERR, "EXT4-fs: inode_readahead_blks"
-				 " must be a power of 2");
+		if (arg && (arg > (1 << 30) || !is_power_of_2(arg))) {
+			ext4_msg(sb, KERN_ERR,
+				 "EXT4-fs: inode_readahead_blks must be "
+				 "0 or a power of 2 smaller than 2^31");
 			return -1;
 		}
 		sbi->s_inode_readahead_blks = arg;
