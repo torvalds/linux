@@ -29,9 +29,17 @@
 
 #define AR7240_BAR0_WAR_VALUE	0xffff
 
+#define AR724X_PCI_CMD_INIT	(PCI_COMMAND_MEMORY |		\
+				 PCI_COMMAND_MASTER |		\
+				 PCI_COMMAND_INVALIDATE |	\
+				 PCI_COMMAND_PARITY |		\
+				 PCI_COMMAND_SERR |		\
+				 PCI_COMMAND_FAST_BACK)
+
 struct ar724x_pci_controller {
 	void __iomem *devcfg_base;
 	void __iomem *ctrl_base;
+	void __iomem *crp_base;
 
 	int irq;
 	int irq_base;
@@ -62,6 +70,51 @@ pci_bus_to_ar724x_controller(struct pci_bus *bus)
 
 	hose = (struct pci_controller *) bus->sysdata;
 	return container_of(hose, struct ar724x_pci_controller, pci_controller);
+}
+
+static int ar724x_pci_local_write(struct ar724x_pci_controller *apc,
+				  int where, int size, u32 value)
+{
+	unsigned long flags;
+	void __iomem *base;
+	u32 data;
+	int s;
+
+	WARN_ON(where & (size - 1));
+
+	if (!apc->link_up)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	base = apc->crp_base;
+
+	spin_lock_irqsave(&apc->lock, flags);
+	data = __raw_readl(base + (where & ~3));
+
+	switch (size) {
+	case 1:
+		s = ((where & 3) * 8);
+		data &= ~(0xff << s);
+		data |= ((value & 0xff) << s);
+		break;
+	case 2:
+		s = ((where & 2) * 8);
+		data &= ~(0xffff << s);
+		data |= ((value & 0xffff) << s);
+		break;
+	case 4:
+		data = value;
+		break;
+	default:
+		spin_unlock_irqrestore(&apc->lock, flags);
+		return PCIBIOS_BAD_REGISTER_NUMBER;
+	}
+
+	__raw_writel(data, base + (where & ~3));
+	/* flush write */
+	__raw_readl(base + (where & ~3));
+	spin_unlock_irqrestore(&apc->lock, flags);
+
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
@@ -324,6 +377,14 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	if (!apc->devcfg_base)
 		return -EBUSY;
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "crp_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->crp_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (apc->crp_base == NULL)
+		return -EBUSY;
+
 	apc->irq = platform_get_irq(pdev, 0);
 	if (apc->irq < 0)
 		return -EINVAL;
@@ -359,6 +420,8 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "PCIe link is down\n");
 
 	ar724x_pci_irq_init(apc, id);
+
+	ar724x_pci_local_write(apc, PCI_COMMAND, 4, AR724X_PCI_CMD_INIT);
 
 	register_pci_controller(&apc->pci_controller);
 

@@ -139,13 +139,14 @@ static struct platform_device *
 ath79_register_pci_ar724x(int id,
 			  unsigned long cfg_base,
 			  unsigned long ctrl_base,
+			  unsigned long crp_base,
 			  unsigned long mem_base,
 			  unsigned long mem_size,
 			  unsigned long io_base,
 			  int irq)
 {
 	struct platform_device *pdev;
-	struct resource res[5];
+	struct resource res[6];
 
 	memset(res, 0, sizeof(res));
 
@@ -173,6 +174,11 @@ ath79_register_pci_ar724x(int id,
 	res[4].start = io_base;
 	res[4].end = io_base;
 
+	res[5].name = "crp_base";
+	res[5].flags = IORESOURCE_MEM;
+	res[5].start = crp_base;
+	res[5].end = crp_base + AR724X_PCI_CRP_SIZE - 1;
+
 	pdev = platform_device_register_simple("ar724x-pci", id,
 					       res, ARRAY_SIZE(res));
 	return pdev;
@@ -188,6 +194,7 @@ int __init ath79_register_pci(void)
 		pdev = ath79_register_pci_ar724x(-1,
 						 AR724X_PCI_CFG_BASE,
 						 AR724X_PCI_CTRL_BASE,
+						 AR724X_PCI_CRP_BASE,
 						 AR724X_PCI_MEM_BASE,
 						 AR724X_PCI_MEM_SIZE,
 						 0,
@@ -203,6 +210,7 @@ int __init ath79_register_pci(void)
 		pdev = ath79_register_pci_ar724x(-1,
 						 AR724X_PCI_CFG_BASE,
 						 AR724X_PCI_CTRL_BASE,
+						 AR724X_PCI_CRP_BASE,
 						 AR724X_PCI_MEM_BASE,
 						 AR724X_PCI_MEM_SIZE,
 						 0,
