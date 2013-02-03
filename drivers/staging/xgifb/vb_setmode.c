@@ -1390,13 +1390,9 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned char index;
 	unsigned short i;
 	struct XGI_LVDSCRT1HDataStruct const *LCDPtr = NULL;
 	struct XGI_LVDSCRT1VDataStruct const *LCDPtr1 = NULL;
-
-	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
-	index = index & IndexMask;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
 		LCDPtr = XGI_GetLcdPtr(xgifb_epllcd_crt1_h, ModeNo, ModeIdIndex,
