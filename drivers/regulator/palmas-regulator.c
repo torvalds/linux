@@ -566,11 +566,6 @@ static void palmas_dt_to_pdata(struct device *dev,
 			pdata->reg_init[idx]->mode_sleep = prop;
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,warm_reset", &prop);
-		if (!ret)
-			pdata->reg_init[idx]->warm_reset = prop;
-
-		ret = of_property_read_u32(palmas_matches[idx].of_node,
 				"ti,tstep", &prop);
 		if (!ret)
 			pdata->reg_init[idx]->tstep = prop;
