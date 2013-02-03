@@ -389,39 +389,6 @@ static int tea5764_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
-{
-	if (i != 0)
-		return -EINVAL;
-	return 0;
-}
-
-static int vidioc_g_audio(struct file *file, void *priv,
-			   struct v4l2_audio *a)
-{
-	if (a->index > 1)
-		return -EINVAL;
-
-	strcpy(a->name, "Radio");
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
-}
-
-static int vidioc_s_audio(struct file *file, void *priv,
-			   const struct v4l2_audio *a)
-{
-	if (a->index != 0)
-		return -EINVAL;
-
-	return 0;
-}
-
 static const struct v4l2_ctrl_ops tea5764_ctrl_ops = {
 	.s_ctrl = tea5764_s_ctrl,
 };
@@ -436,10 +403,6 @@ static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
-	.vidioc_g_audio     = vidioc_g_audio,
-	.vidioc_s_audio     = vidioc_s_audio,
-	.vidioc_g_input     = vidioc_g_input,
-	.vidioc_s_input     = vidioc_s_input,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 };
