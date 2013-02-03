@@ -119,30 +119,6 @@ SYSCALL_DEFINE6(32_pwrite, unsigned int, fd, const char __user *, buf,
 	return sys_pwrite64(fd, buf, count, merge_64(a4, a5));
 }
 
-#ifdef CONFIG_MIPS32_N32
-SYSCALL_DEFINE4(n32_semctl, int, semid, int, semnum, int, cmd, u32, arg)
-{
-	/* compat_sys_semctl expects a pointer to union semun */
-	u32 __user *uptr = compat_alloc_user_space(sizeof(u32));
-	if (put_user(arg, uptr))
-		return -EFAULT;
-	return compat_sys_semctl(semid, semnum, cmd, uptr);
-}
-
-SYSCALL_DEFINE4(n32_msgsnd, int, msqid, u32, msgp, unsigned int, msgsz,
-	int, msgflg)
-{
-	return compat_sys_msgsnd(msqid, msgsz, msgflg, compat_ptr(msgp));
-}
-
-SYSCALL_DEFINE5(n32_msgrcv, int, msqid, u32, msgp, size_t, msgsz,
-	int, msgtyp, int, msgflg)
-{
-	return compat_sys_msgrcv(msqid, msgsz, msgtyp, msgflg, IPC_64,
-				 compat_ptr(msgp));
-}
-#endif
-
 SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 {
 	unsigned int p = personality & 0xffffffff;
