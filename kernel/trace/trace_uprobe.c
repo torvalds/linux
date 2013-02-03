@@ -28,6 +28,12 @@
 
 #define UPROBE_EVENT_SYSTEM	"uprobes"
 
+struct trace_uprobe_filter {
+	rwlock_t		rwlock;
+	int			nr_systemwide;
+	struct list_head	perf_events;
+};
+
 /*
  * uprobe event core functions
  */
@@ -35,6 +41,7 @@ struct trace_uprobe {
 	struct list_head		list;
 	struct ftrace_event_class	class;
 	struct ftrace_event_call	call;
+	struct trace_uprobe_filter	filter;
 	struct uprobe_consumer		consumer;
 	struct inode			*inode;
 	char				*filename;
@@ -57,6 +64,18 @@ static DEFINE_MUTEX(uprobe_lock);
 static LIST_HEAD(uprobe_list);
 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs);
+
+static inline void init_trace_uprobe_filter(struct trace_uprobe_filter *filter)
+{
+	rwlock_init(&filter->rwlock);
+	filter->nr_systemwide = 0;
+	INIT_LIST_HEAD(&filter->perf_events);
+}
+
+static inline bool uprobe_filter_is_empty(struct trace_uprobe_filter *filter)
+{
+	return !filter->nr_systemwide && list_empty(&filter->perf_events);
+}
 
 /*
  * Allocate new trace_uprobe and initialize it (including uprobes).
@@ -87,6 +106,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs)
 
 	INIT_LIST_HEAD(&tu->list);
 	tu->consumer.handler = uprobe_dispatcher;
+	init_trace_uprobe_filter(&tu->filter);
 	return tu;
 
 error:
@@ -544,6 +564,8 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 	if (is_trace_uprobe_enabled(tu))
 		return -EINTR;
 
+	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
+
 	tu->flags |= flag;
 	ret = uprobe_register(tu->inode, tu->offset, &tu->consumer);
 	if (ret)
@@ -556,6 +578,8 @@ static void probe_event_disable(struct trace_uprobe *tu, int flag)
 {
 	if (!is_trace_uprobe_enabled(tu))
 		return;
+
+	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
 
 	uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
 	tu->flags &= ~flag;
@@ -632,6 +656,30 @@ static int set_print_fmt(struct trace_uprobe *tu)
 }
 
 #ifdef CONFIG_PERF_EVENTS
+static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
+{
+	write_lock(&tu->filter.rwlock);
+	if (event->hw.tp_target)
+		list_add(&event->hw.tp_list, &tu->filter.perf_events);
+	else
+		tu->filter.nr_systemwide++;
+	write_unlock(&tu->filter.rwlock);
+
+	return 0;
+}
+
+static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
+{
+	write_lock(&tu->filter.rwlock);
+	if (event->hw.tp_target)
+		list_del(&event->hw.tp_list);
+	else
+		tu->filter.nr_systemwide--;
+	write_unlock(&tu->filter.rwlock);
+
+	return 0;
+}
+
 /* uprobe profile handler */
 static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 {
@@ -687,6 +735,13 @@ int trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type, 
 	case TRACE_REG_PERF_UNREGISTER:
 		probe_event_disable(tu, TP_FLAG_PROFILE);
 		return 0;
+
+	case TRACE_REG_PERF_OPEN:
+		return uprobe_perf_open(tu, data);
+
+	case TRACE_REG_PERF_CLOSE:
+		return uprobe_perf_close(tu, data);
+
 #endif
 	default:
 		return 0;
