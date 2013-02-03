@@ -239,13 +239,12 @@ static int timblogiw_querycap(struct file *file, void  *priv,
 	struct video_device *vdev = video_devdata(file);
 
 	dev_dbg(&vdev->dev, "%s: Entry\n",  __func__);
-	memset(cap, 0, sizeof(*cap));
 	strncpy(cap->card, TIMBLOGIWIN_NAME, sizeof(cap->card)-1);
 	strncpy(cap->driver, DRIVER_NAME, sizeof(cap->driver) - 1);
-	strlcpy(cap->bus_info, vdev->name, sizeof(cap->bus_info));
-	cap->version = TIMBLOGIW_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s", vdev->name);
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
