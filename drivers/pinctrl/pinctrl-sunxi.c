@@ -1261,6 +1261,24 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	writel((value & DATA_PINS_MASK) << index, pctl->membase + reg);
 }
 
+static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
+				const struct of_phandle_args *gpiospec,
+				u32 *flags)
+{
+	int pin, base;
+
+	base = PINS_PER_BANK * gpiospec->args[0];
+	pin = base + gpiospec->args[1];
+
+	if (pin > (gc->base + gc->ngpio))
+		return -EINVAL;
+
+	if (flags)
+		*flags = gpiospec->args[2];
+
+	return pin;
+}
+
 static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= sunxi_pinctrl_gpio_request,
@@ -1269,6 +1287,8 @@ static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.direction_output	= sunxi_pinctrl_gpio_direction_output,
 	.get			= sunxi_pinctrl_gpio_get,
 	.set			= sunxi_pinctrl_gpio_set,
+	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
+	.of_gpio_n_cells	= 3,
 	.can_sleep		= 0,
 };
 
