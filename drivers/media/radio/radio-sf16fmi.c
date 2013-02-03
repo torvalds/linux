@@ -121,7 +121,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(v->driver, "radio-sf16fmi", sizeof(v->driver));
 	strlcpy(v->card, "SF16-FMI/FMP/FMD radio", sizeof(v->card));
 	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
