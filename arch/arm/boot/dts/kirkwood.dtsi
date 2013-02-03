@@ -38,6 +38,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <35>, <36>, <37>, <38>;
+			clocks = <&gate_clk 7>;
 		};
 
 		gpio1: gpio@10140 {
@@ -49,6 +50,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <39>, <40>, <41>;
+			clocks = <&gate_clk 7>;
 		};
 
 		serial@12000 {
