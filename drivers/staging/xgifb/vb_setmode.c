@@ -4432,10 +4432,6 @@ static void XGINew_EnableCRT2(struct vb_device_info *pVBInfo)
 static void XGI_SetGroup5(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short Pindex, Pdata;
-
-	Pindex = pVBInfo->Part5Port;
-	Pdata = pVBInfo->Part5Port + 1;
 	if (pVBInfo->ModeType == ModeVGA) {
 		if (!(pVBInfo->VBInfo & (SetInSlaveMode | LoadDACFlag
 				| DisableCRT2Display))) {
@@ -5588,9 +5584,8 @@ static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbx, ModeIdIndex, RefreshRateTableIndex;
+	unsigned short ModeIdIndex, RefreshRateTableIndex;
 
-	tempbx = pVBInfo->VBInfo;
 	pVBInfo->SetFlag |= ProgrammingCRT2;
 	XGI_SearchModeID(ModeNo, &ModeIdIndex, pVBInfo);
 	pVBInfo->SelectCRT2Rate = 4;
