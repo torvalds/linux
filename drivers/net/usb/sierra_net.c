@@ -459,11 +459,9 @@ static void sierra_net_kevent(struct work_struct *work)
 
 		/* Query the modem for the LSI message */
 		buf = kzalloc(SIERRA_NET_USBCTL_BUF_LEN, GFP_KERNEL);
-		if (!buf) {
-			netdev_err(dev->net,
-				"failed to allocate buf for LS msg\n");
+		if (!buf)
 			return;
-		}
+
 		ifnum = priv->ifnum;
 		len = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 				USB_CDC_GET_ENCAPSULATED_RESPONSE,
@@ -686,10 +684,8 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 	/* Initialize sierra private data */
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
-	if (!priv) {
-		dev_err(&dev->udev->dev, "No memory");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->usbnet = dev;
 	priv->ifnum = ifacenum;

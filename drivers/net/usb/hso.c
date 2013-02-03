@@ -2317,10 +2317,8 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 		serial->rx_urb[i]->transfer_buffer_length = 0;
 		serial->rx_data[i] = kzalloc(serial->rx_data_length,
 					     GFP_KERNEL);
-		if (!serial->rx_data[i]) {
-			dev_err(dev, "%s - Out of memory\n", __func__);
+		if (!serial->rx_data[i])
 			goto exit;
-		}
 	}
 
 	/* TX, allocate urb and initialize */
@@ -2336,15 +2334,12 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->tx_buffer_count = 0;
 	serial->tx_data_length = tx_size;
 	serial->tx_data = kzalloc(serial->tx_data_length, GFP_KERNEL);
-	if (!serial->tx_data) {
-		dev_err(dev, "%s - Out of memory\n", __func__);
+	if (!serial->tx_data)
 		goto exit;
-	}
+
 	serial->tx_buffer = kzalloc(serial->tx_data_length, GFP_KERNEL);
-	if (!serial->tx_buffer) {
-		dev_err(dev, "%s - Out of memory\n", __func__);
+	if (!serial->tx_buffer)
 		goto exit;
-	}
 
 	return 0;
 exit:
@@ -2580,10 +2575,8 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 		}
 		hso_net->mux_bulk_rx_buf_pool[i] = kzalloc(MUX_BULK_RX_BUF_SIZE,
 							   GFP_KERNEL);
-		if (!hso_net->mux_bulk_rx_buf_pool[i]) {
-			dev_err(&interface->dev, "Could not allocate rx buf\n");
+		if (!hso_net->mux_bulk_rx_buf_pool[i])
 			goto exit;
-		}
 	}
 	hso_net->mux_bulk_tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hso_net->mux_bulk_tx_urb) {
@@ -2591,10 +2584,8 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 		goto exit;
 	}
 	hso_net->mux_bulk_tx_buf = kzalloc(MUX_BULK_TX_BUF_SIZE, GFP_KERNEL);
-	if (!hso_net->mux_bulk_tx_buf) {
-		dev_err(&interface->dev, "Could not allocate tx buf\n");
+	if (!hso_net->mux_bulk_tx_buf)
 		goto exit;
-	}
 
 	add_net_device(hso_dev);
 
@@ -2818,10 +2809,8 @@ struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 	mux->shared_intr_buf =
 		kzalloc(le16_to_cpu(mux->intr_endp->wMaxPacketSize),
 			GFP_KERNEL);
-	if (!mux->shared_intr_buf) {
-		dev_err(&interface->dev, "Could not allocate intr buf?\n");
+	if (!mux->shared_intr_buf)
 		goto exit;
-	}
 
 	mutex_init(&mux->shared_int_lock);
 

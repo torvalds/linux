@@ -117,7 +117,6 @@ static int ax88172a_init_mdio(struct usbnet *dev)
 
 	priv->mdio->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!priv->mdio->irq) {
-		netdev_err(dev->net, "Could not allocate mdio->irq\n");
 		ret = -ENOMEM;
 		goto mfree;
 	}
@@ -236,10 +235,9 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 	usbnet_get_endpoints(dev, intf);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		netdev_err(dev->net, "Could not allocate memory for private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
+
 	dev->driver_priv = priv;
 
 	/* Get the MAC address */

@@ -1790,11 +1790,8 @@ int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 	}
 
 	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
-	if (!req) {
-		netdev_err(dev->net, "Failed to allocate memory for %s\n",
-			   __func__);
+	if (!req)
 		goto fail_free_buf;
-	}
 
 	req->bRequestType = reqtype;
 	req->bRequest = cmd;

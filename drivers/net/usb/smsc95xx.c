@@ -1116,13 +1116,11 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	dev->data[0] = (unsigned long)kzalloc(sizeof(struct smsc95xx_priv),
-		GFP_KERNEL);
+					      GFP_KERNEL);
 
 	pdata = (struct smsc95xx_priv *)(dev->data[0]);
-	if (!pdata) {
-		netdev_warn(dev->net, "Unable to allocate struct smsc95xx_priv\n");
+	if (!pdata)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&pdata->mac_cr_lock);
 
