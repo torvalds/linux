@@ -233,8 +233,10 @@ nouveau_display_init(struct drm_device *dev)
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (gpio)
-			gpio->irq(gpio, 0, conn->hpd.func, 0xff, true);
+		if (gpio && conn->hpd.func != DCB_GPIO_UNUSED) {
+			nouveau_event_get(gpio->events, conn->hpd.line,
+					 &conn->hpd_func);
+		}
 	}
 
 	return ret;
@@ -251,8 +253,10 @@ nouveau_display_fini(struct drm_device *dev)
 	/* disable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		if (gpio)
-			gpio->irq(gpio, 0, conn->hpd.func, 0xff, false);
+		if (gpio && conn->hpd.func != DCB_GPIO_UNUSED) {
+			nouveau_event_put(gpio->events, conn->hpd.line,
+					 &conn->hpd_func);
+		}
 	}
 
 	drm_kms_helper_poll_disable(dev);

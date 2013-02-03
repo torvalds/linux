@@ -260,7 +260,8 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	 * we take during link training (DP_SET_POWER is one), we need
 	 * to ignore them for the moment to avoid races.
 	 */
-	gpio->irq(gpio, 0, nv_connector->hpd.func, 0xff, false);
+	nouveau_event_put(gpio->events, nv_connector->hpd.line,
+			 &nv_connector->hpd_func);
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
@@ -300,7 +301,8 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	dp_link_train_fini(dev, &dp);
 
 	/* re-enable hotplug detect */
-	gpio->irq(gpio, 0, nv_connector->hpd.func, 0xff, true);
+	nouveau_event_get(gpio->events, nv_connector->hpd.line,
+			 &nv_connector->hpd_func);
 	return true;
 }
 

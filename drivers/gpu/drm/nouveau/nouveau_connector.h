@@ -30,6 +30,8 @@
 #include <drm/drm_edid.h>
 #include "nouveau_crtc.h"
 
+#include <core/event.h>
+
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
 
@@ -62,9 +64,12 @@ enum nouveau_dithering_depth {
 struct nouveau_connector {
 	struct drm_connector base;
 	enum dcb_connector_type type;
-	struct dcb_gpio_func hpd;
 	u8 index;
 	u8 *dcb;
+
+	struct dcb_gpio_func hpd;
+	struct work_struct hpd_work;
+	struct nouveau_eventh hpd_func;
 
 	int dithering_mode;
 	int dithering_depth;
