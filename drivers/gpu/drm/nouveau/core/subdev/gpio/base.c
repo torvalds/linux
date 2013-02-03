@@ -230,7 +230,8 @@ nouveau_gpio_isr_del(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 int
 nouveau_gpio_create_(struct nouveau_object *parent,
 		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int length, void **pobject)
+		     struct nouveau_oclass *oclass, int lines,
+		     int length, void **pobject)
 {
 	struct nouveau_gpio *gpio;
 	int ret;

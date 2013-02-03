@@ -40,15 +40,15 @@ nouveau_gpio(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_GPIO];
 }
 
-#define nouveau_gpio_create(p,e,o,d)                                           \
-	nouveau_gpio_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nouveau_gpio_create(p,e,o,l,d)                                         \
+	nouveau_gpio_create_((p), (e), (o), (l), sizeof(**d), (void **)d)
 #define nouveau_gpio_destroy(p)                                                \
 	nouveau_subdev_destroy(&(p)->base)
 #define nouveau_gpio_fini(p,s)                                                 \
 	nouveau_subdev_fini(&(p)->base, (s))
 
 int nouveau_gpio_create_(struct nouveau_object *, struct nouveau_object *,
-			 struct nouveau_oclass *, int, void **);
+			 struct nouveau_oclass *, int, int, void **);
 int nouveau_gpio_init(struct nouveau_gpio *);
 
 extern struct nouveau_oclass nv10_gpio_oclass;

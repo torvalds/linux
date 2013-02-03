@@ -80,7 +80,7 @@ nvd0_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvd0_gpio_priv *priv;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
+	ret = nouveau_gpio_create(parent, engine, oclass, 32, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
