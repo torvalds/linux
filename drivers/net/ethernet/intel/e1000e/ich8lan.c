@@ -312,12 +312,12 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	u16 retry_count;
 
 	for (retry_count = 0; retry_count < 2; retry_count++) {
-		ret_val = e1e_rphy_locked(hw, PHY_ID1, &phy_reg);
+		ret_val = e1e_rphy_locked(hw, MII_PHYSID1, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF))
 			continue;
 		phy_id = (u32)(phy_reg << 16);
 
-		ret_val = e1e_rphy_locked(hw, PHY_ID2, &phy_reg);
+		ret_val = e1e_rphy_locked(hw, MII_PHYSID2, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF)) {
 			phy_id = 0;
 			continue;
@@ -882,8 +882,8 @@ static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 			lpi_ctrl |= I82579_LPI_CTRL_1000_ENABLE;
 
 		if (dev_spec->eee_lp_ability & I82579_EEE_100_SUPPORTED) {
-			e1e_rphy_locked(hw, PHY_LP_ABILITY, &data);
-			if (data & NWAY_LPAR_100TX_FD_CAPS)
+			e1e_rphy_locked(hw, MII_LPA, &data);
+			if (data & LPA_100FULL)
 				lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
 			else
 				/* EEE is not supported in 100Half, so ignore
@@ -1082,7 +1082,7 @@ static DEFINE_MUTEX(nvm_mutex);
  *
  *  Acquires the mutex for performing NVM operations.
  **/
-static s32 e1000_acquire_nvm_ich8lan(struct e1000_hw *hw)
+static s32 e1000_acquire_nvm_ich8lan(struct e1000_hw __always_unused *hw)
 {
 	mutex_lock(&nvm_mutex);
 
@@ -1095,7 +1095,7 @@ static s32 e1000_acquire_nvm_ich8lan(struct e1000_hw *hw)
  *
  *  Releases the mutex used while performing NVM operations.
  **/
-static void e1000_release_nvm_ich8lan(struct e1000_hw *hw)
+static void e1000_release_nvm_ich8lan(struct e1000_hw __always_unused *hw)
 {
 	mutex_unlock(&nvm_mutex);
 }
@@ -1792,7 +1792,7 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 		 */
 		if (hw->phy.revision < 2) {
 			e1000e_phy_sw_reset(hw);
-			ret_val = e1e_wphy(hw, PHY_CONTROL, 0x3140);
+			ret_val = e1e_wphy(hw, MII_BMCR, 0x3140);
 		}
 	}
 
@@ -4507,7 +4507,7 @@ static const struct e1000_mac_operations ich8_mac_ops = {
 	.reset_hw		= e1000_reset_hw_ich8lan,
 	.init_hw		= e1000_init_hw_ich8lan,
 	.setup_link		= e1000_setup_link_ich8lan,
-	.setup_physical_interface= e1000_setup_copper_link_ich8lan,
+	.setup_physical_interface = e1000_setup_copper_link_ich8lan,
 	/* id_led_init dependent on mac type */
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.rar_set		= e1000e_rar_set_generic,
@@ -4529,7 +4529,7 @@ static const struct e1000_phy_operations ich8_phy_ops = {
 
 static const struct e1000_nvm_operations ich8_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_ich8lan,
-	.read		 	= e1000_read_nvm_ich8lan,
+	.read			= e1000_read_nvm_ich8lan,
 	.release		= e1000_release_nvm_ich8lan,
 	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_ich8lan,

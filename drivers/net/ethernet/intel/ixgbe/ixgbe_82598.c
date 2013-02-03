@@ -41,7 +41,6 @@
 
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
-                                         bool autoneg,
                                          bool autoneg_wait_to_complete);
 static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
                                        u8 *eeprom_data);
@@ -633,15 +632,15 @@ out:
  *  ixgbe_setup_mac_link_82598 - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if auto-negotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
-                                           ixgbe_link_speed speed, bool autoneg,
-                                           bool autoneg_wait_to_complete)
+				      ixgbe_link_speed speed,
+				      bool autoneg_wait_to_complete)
 {
+	bool		 autoneg	   = false;
 	s32              status            = 0;
 	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 	u32              curr_autoc        = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -685,20 +684,18 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
  *  ixgbe_setup_copper_link_82598 - Set the PHY autoneg advertised field
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true if waiting is needed to complete
  *
  *  Sets the link speed in the AUTOC register in the MAC and restarts link.
  **/
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
                                                ixgbe_link_speed speed,
-                                               bool autoneg,
                                                bool autoneg_wait_to_complete)
 {
 	s32 status;
 
 	/* Setup the PHY according to input speed */
-	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
+	status = hw->phy.ops.setup_link_speed(hw, speed,
 	                                      autoneg_wait_to_complete);
 	/* Set up MAC */
 	ixgbe_start_mac_link_82598(hw, autoneg_wait_to_complete);
@@ -1311,4 +1308,3 @@ struct ixgbe_info ixgbe_82598_info = {
 	.eeprom_ops		= &eeprom_ops_82598,
 	.phy_ops		= &phy_ops_82598,
 };
-

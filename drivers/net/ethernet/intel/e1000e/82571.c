@@ -447,13 +447,13 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		ret_val = e1e_rphy(hw, PHY_ID1, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
 		if (ret_val)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
 		udelay(20);
-		ret_val = e1e_rphy(hw, PHY_ID2, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
 
@@ -1327,9 +1327,10 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 			 */
 			vfta_offset = (hw->mng_cookie.vlan_id >>
 				       E1000_VFTA_ENTRY_SHIFT) &
-				      E1000_VFTA_ENTRY_MASK;
-			vfta_bit_in_reg = 1 << (hw->mng_cookie.vlan_id &
-					       E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+			    E1000_VFTA_ENTRY_MASK;
+			vfta_bit_in_reg =
+			    1 << (hw->mng_cookie.vlan_id &
+				  E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
 		break;
 	default:
@@ -1931,7 +1932,7 @@ static const struct e1000_phy_operations e82_phy_ops_igp = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_igp,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_m88 = {
@@ -1949,7 +1950,7 @@ static const struct e1000_phy_operations e82_phy_ops_m88 = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_m88,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_bm = {
@@ -1967,7 +1968,7 @@ static const struct e1000_phy_operations e82_phy_ops_bm = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_reg		= e1000e_write_phy_reg_bm2,
-	.cfg_on_link_up      	= NULL,
+	.cfg_on_link_up		= NULL,
 };
 
 static const struct e1000_nvm_operations e82571_nvm_ops = {

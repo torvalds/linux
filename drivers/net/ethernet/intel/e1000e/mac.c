@@ -1053,14 +1053,14 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
-		ret_val = e1e_rphy(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = e1e_rphy(hw, MII_BMSR, &mii_status_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val = e1e_rphy(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = e1e_rphy(hw, MII_BMSR, &mii_status_reg);
 		if (ret_val)
 			return ret_val;
 
-		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
+		if (!(mii_status_reg & BMSR_ANEGCOMPLETE)) {
 			e_dbg("Copper PHY and Auto Neg has not completed.\n");
 			return ret_val;
 		}
@@ -1071,11 +1071,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * Page Ability Register (Address 5) to determine how
 		 * flow control was negotiated.
 		 */
-		ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_nway_adv_reg);
+		ret_val = e1e_rphy(hw, MII_ADVERTISE, &mii_nway_adv_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val =
-		    e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
+		ret_val = e1e_rphy(hw, MII_LPA, &mii_nway_lp_ability_reg);
 		if (ret_val)
 			return ret_val;
 
@@ -1112,8 +1111,8 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 *   1   |   DC    |   1   |   DC    | E1000_fc_full
 		 *
 		 */
-		if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-		    (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE)) {
+		if ((mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+		    (mii_nway_lp_ability_reg & LPA_PAUSE_CAP)) {
 			/* Now we need to check if the user selected Rx ONLY
 			 * of pause frames.  In this case, we had to advertise
 			 * FULL flow control because we could not advertise Rx
@@ -1135,10 +1134,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 *-------|---------|-------|---------|--------------------
 		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
 		 */
-		else if (!(mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
+		else if (!(mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+			 (mii_nway_adv_reg & ADVERTISE_PAUSE_ASYM) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_CAP) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_ASYM)) {
 			hw->fc.current_mode = e1000_fc_tx_pause;
 			e_dbg("Flow Control = Tx PAUSE frames only.\n");
 		}
@@ -1149,10 +1148,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 *-------|---------|-------|---------|--------------------
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
 		 */
-		else if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
-			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
+		else if ((mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+			 (mii_nway_adv_reg & ADVERTISE_PAUSE_ASYM) &&
+			 !(mii_nway_lp_ability_reg & LPA_PAUSE_CAP) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_ASYM)) {
 			hw->fc.current_mode = e1000_fc_rx_pause;
 			e_dbg("Flow Control = Rx PAUSE frames only.\n");
 		} else {
@@ -1356,8 +1355,8 @@ s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
  *  Sets the speed and duplex to gigabit full duplex (the only possible option)
  *  for fiber/serdes links.
  **/
-s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed,
-					     u16 *duplex)
+s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw __always_unused
+					     *hw, u16 *speed, u16 *duplex)
 {
 	*speed = SPEED_1000;
 	*duplex = FULL_DUPLEX;

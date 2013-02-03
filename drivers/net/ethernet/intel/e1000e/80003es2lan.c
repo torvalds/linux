@@ -624,16 +624,16 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 
 	e_dbg("GG82563 PSCR: %X\n", phy_data);
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
 	/* Reset the phy to commit changes. */
-	phy_data |= MII_CR_RESET;
+	phy_data |= BMCR_RESET;
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1438,18 +1438,18 @@ static const struct e1000_phy_operations es2_phy_ops = {
 	.acquire		= e1000_acquire_phy_80003es2lan,
 	.check_polarity		= e1000_check_polarity_m88,
 	.check_reset_block	= e1000e_check_reset_block_generic,
-	.commit		 	= e1000e_phy_sw_reset,
-	.force_speed_duplex 	= e1000_phy_force_speed_duplex_80003es2lan,
-	.get_cfg_done       	= e1000_get_cfg_done_80003es2lan,
-	.get_cable_length   	= e1000_get_cable_length_80003es2lan,
-	.get_info       	= e1000e_get_phy_info_m88,
-	.read_reg       	= e1000_read_phy_reg_gg82563_80003es2lan,
+	.commit			= e1000e_phy_sw_reset,
+	.force_speed_duplex	= e1000_phy_force_speed_duplex_80003es2lan,
+	.get_cfg_done		= e1000_get_cfg_done_80003es2lan,
+	.get_cable_length	= e1000_get_cable_length_80003es2lan,
+	.get_info		= e1000e_get_phy_info_m88,
+	.read_reg		= e1000_read_phy_reg_gg82563_80003es2lan,
 	.release		= e1000_release_phy_80003es2lan,
-	.reset		  	= e1000e_phy_hw_reset_generic,
-	.set_d0_lplu_state  	= NULL,
-	.set_d3_lplu_state  	= e1000e_set_d3_lplu_state,
-	.write_reg      	= e1000_write_phy_reg_gg82563_80003es2lan,
-	.cfg_on_link_up      	= e1000_cfg_on_link_up_80003es2lan,
+	.reset			= e1000e_phy_hw_reset_generic,
+	.set_d0_lplu_state	= NULL,
+	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
+	.write_reg		= e1000_write_phy_reg_gg82563_80003es2lan,
+	.cfg_on_link_up		= e1000_cfg_on_link_up_80003es2lan,
 };
 
 static const struct e1000_nvm_operations es2_nvm_ops = {

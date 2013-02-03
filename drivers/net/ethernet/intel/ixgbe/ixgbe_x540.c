@@ -72,14 +72,13 @@ static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
  *  ixgbe_setup_mac_link_X540 - Set the auto advertised capabilitires
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  **/
 static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
-                                     ixgbe_link_speed speed, bool autoneg,
-                                     bool autoneg_wait_to_complete)
+				     ixgbe_link_speed speed,
+				     bool autoneg_wait_to_complete)
 {
-	return hw->phy.ops.setup_link_speed(hw, speed, autoneg,
+	return hw->phy.ops.setup_link_speed(hw, speed,
 	                                    autoneg_wait_to_complete);
 }
 

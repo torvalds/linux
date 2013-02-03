@@ -156,7 +156,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 	ixgbe_link_speed supported_link;
 	u32 link_speed = 0;
-	bool autoneg;
+	bool autoneg = false;
 	bool link_up;
 
 	hw->mac.ops.get_link_capabilities(hw, &supported_link, &autoneg);
@@ -333,10 +333,10 @@ static int ixgbe_set_settings(struct net_device *netdev,
 			return err;
 		/* this sets the link speed and restarts auto-neg */
 		hw->mac.autotry_restart = true;
-		err = hw->mac.ops.setup_link(hw, advertised, true, true);
+		err = hw->mac.ops.setup_link(hw, advertised, true);
 		if (err) {
 			e_info(probe, "setup link failed with code %d\n", err);
-			hw->mac.ops.setup_link(hw, old, true, true);
+			hw->mac.ops.setup_link(hw, old, true);
 		}
 	} else {
 		/* in this case we currently only support 10Gb/FULL */

@@ -302,7 +302,6 @@ static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
 	*setting = adapter->dcb_cfg.tc_config[priority].dcb_pfc;
 }
 
-#ifdef IXGBE_FCOE
 static void ixgbe_dcbnl_devreset(struct net_device *dev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
@@ -321,7 +320,6 @@ static void ixgbe_dcbnl_devreset(struct net_device *dev)
 
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 }
-#endif
 
 static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 {
@@ -542,6 +540,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i, err = 0;
 	__u8 max_tc = 0;
+	__u8 map_chg = 0;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
@@ -551,14 +550,21 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 						  GFP_KERNEL);
 		if (!adapter->ixgbe_ieee_ets)
 			return -ENOMEM;
-	}
 
-	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
+		/* initialize UP2TC mappings to invalid value */
+		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+			adapter->ixgbe_ieee_ets->prio_tc[i] =
+				IEEE_8021QAZ_MAX_TCS;
+	}
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		if (ets->prio_tc[i] > max_tc)
 			max_tc = ets->prio_tc[i];
+		if (ets->prio_tc[i] != adapter->ixgbe_ieee_ets->prio_tc[i])
+			map_chg = 1;
 	}
+
+	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
 
 	if (max_tc)
 		max_tc++;
@@ -568,6 +574,8 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 
 	if (max_tc != netdev_get_num_tc(dev))
 		err = ixgbe_setup_tc(dev, max_tc);
+	else if (map_chg)
+		ixgbe_dcbnl_devreset(dev);
 
 	if (err)
 		goto err_out;

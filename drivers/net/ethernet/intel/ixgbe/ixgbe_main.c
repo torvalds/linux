@@ -2178,10 +2178,10 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 			return;
 
 		if (!(eicr & IXGBE_EICR_LSC) && hw->mac.ops.check_link) {
-			u32 autoneg;
+			u32 speed;
 			bool link_up = false;
 
-			hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
+			hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 			if (link_up)
 				return;
@@ -3994,25 +3994,25 @@ static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
  **/
 static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 {
-	u32 autoneg;
-	bool negotiation, link_up = false;
+	u32 speed;
+	bool autoneg, link_up = false;
 	u32 ret = IXGBE_ERR_LINK_SETUP;
 
 	if (hw->mac.ops.check_link)
-		ret = hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
+		ret = hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 	if (ret)
 		goto link_cfg_out;
 
-	autoneg = hw->phy.autoneg_advertised;
-	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
-		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
-							&negotiation);
+	speed = hw->phy.autoneg_advertised;
+	if ((!speed) && (hw->mac.ops.get_link_capabilities))
+		ret = hw->mac.ops.get_link_capabilities(hw, &speed,
+							&autoneg);
 	if (ret)
 		goto link_cfg_out;
 
 	if (hw->mac.ops.setup_link)
-		ret = hw->mac.ops.setup_link(hw, autoneg, negotiation, link_up);
+		ret = hw->mac.ops.setup_link(hw, speed, link_up);
 link_cfg_out:
 	return ret;
 }
@@ -5739,8 +5739,8 @@ sfp_out:
 static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 autoneg;
-	bool negotiation;
+	u32 speed;
+	bool autoneg = false;
 
 	if (!(adapter->flags & IXGBE_FLAG_NEED_LINK_CONFIG))
 		return;
@@ -5751,11 +5751,11 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 
 	adapter->flags &= ~IXGBE_FLAG_NEED_LINK_CONFIG;
 
-	autoneg = hw->phy.autoneg_advertised;
-	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
-		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	speed = hw->phy.autoneg_advertised;
+	if ((!speed) && (hw->mac.ops.get_link_capabilities))
+		hw->mac.ops.get_link_capabilities(hw, &speed, &autoneg);
 	if (hw->mac.ops.setup_link)
-		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
+		hw->mac.ops.setup_link(hw, speed, true);
 
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
 	adapter->link_check_timeout = jiffies;
@@ -7758,6 +7758,8 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 		if (vfdev) {
 			e_dev_err("Issuing VFLR to VF %d\n", vf);
 			pci_write_config_dword(vfdev, 0xA8, 0x00008000);
+			/* Free device reference count */
+			pci_dev_put(vfdev);
 		}
 
 		pci_cleanup_aer_uncorrect_error_status(pdev);

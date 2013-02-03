@@ -418,7 +418,7 @@ static void e1000_set_msglevel(struct net_device *netdev, u32 data)
 	adapter->msg_enable = data;
 }
 
-static int e1000_get_regs_len(struct net_device *netdev)
+static int e1000_get_regs_len(struct net_device __always_unused *netdev)
 {
 #define E1000_REGS_LEN 32 /* overestimate */
 	return E1000_REGS_LEN * sizeof(u32);
@@ -472,10 +472,10 @@ static void e1000_get_regs(struct net_device *netdev,
 		regs_buff[22] = adapter->phy_stats.receive_errors;
 		regs_buff[23] = regs_buff[13]; /* mdix mode */
 	}
-	regs_buff[21] = 0; /* was idle_errors */
-	e1e_rphy(hw, PHY_1000T_STATUS, &phy_data);
-	regs_buff[24] = (u32)phy_data;  /* phy local receiver status */
-	regs_buff[25] = regs_buff[24];  /* phy remote receiver status */
+	regs_buff[21] = 0;	/* was idle_errors */
+	e1e_rphy(hw, MII_STAT1000, &phy_data);
+	regs_buff[24] = (u32)phy_data;	/* phy local receiver status */
+	regs_buff[25] = regs_buff[24];	/* phy remote receiver status */
 }
 
 static int e1000_get_eeprom_len(struct net_device *netdev)
@@ -934,7 +934,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static irqreturn_t e1000_test_intr(int irq, void *data)
+static irqreturn_t e1000_test_intr(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1284,7 +1284,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	if (hw->phy.type == e1000_phy_ife) {
 		/* force 100, set loopback */
-		e1e_wphy(hw, PHY_CONTROL, 0x6100);
+		e1e_wphy(hw, MII_BMCR, 0x6100);
 
 		/* Now set up the MAC to the same speed/duplex as the PHY. */
 		ctrl_reg = er32(CTRL);
@@ -1307,9 +1307,9 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		/* Auto-MDI/MDIX Off */
 		e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
-		e1e_wphy(hw, PHY_CONTROL, 0x9140);
+		e1e_wphy(hw, MII_BMCR, 0x9140);
 		/* autoneg off */
-		e1e_wphy(hw, PHY_CONTROL, 0x8140);
+		e1e_wphy(hw, MII_BMCR, 0x8140);
 		break;
 	case e1000_phy_gg82563:
 		e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, 0x1CC);
@@ -1363,7 +1363,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	}
 
 	/* force 1000, set loopback */
-	e1e_wphy(hw, PHY_CONTROL, 0x4140);
+	e1e_wphy(hw, MII_BMCR, 0x4140);
 	mdelay(250);
 
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
@@ -1538,10 +1538,10 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		hw->mac.autoneg = 1;
 		if (hw->phy.type == e1000_phy_gg82563)
 			e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, 0x180);
-		e1e_rphy(hw, PHY_CONTROL, &phy_reg);
-		if (phy_reg & MII_CR_LOOPBACK) {
-			phy_reg &= ~MII_CR_LOOPBACK;
-			e1e_wphy(hw, PHY_CONTROL, phy_reg);
+		e1e_rphy(hw, MII_BMCR, &phy_reg);
+		if (phy_reg & BMCR_LOOPBACK) {
+			phy_reg &= ~BMCR_LOOPBACK;
+			e1e_wphy(hw, MII_BMCR, phy_reg);
 			if (hw->phy.ops.commit)
 				hw->phy.ops.commit(hw);
 		}
@@ -1705,7 +1705,8 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static int e1000e_get_sset_count(struct net_device *netdev, int sset)
+static int e1000e_get_sset_count(struct net_device __always_unused *netdev,
+				 int sset)
 {
 	switch (sset) {
 	case ETH_SS_TEST:
@@ -1968,7 +1969,7 @@ static int e1000_nway_reset(struct net_device *netdev)
 }
 
 static void e1000_get_ethtool_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats,
+				    struct ethtool_stats __always_unused *stats,
 				    u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1997,8 +1998,8 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-static void e1000_get_strings(struct net_device *netdev, u32 stringset,
-			      u8 *data)
+static void e1000_get_strings(struct net_device __always_unused *netdev,
+			      u32 stringset, u8 *data)
 {
 	u8 *p = data;
 	int i;
@@ -2018,7 +2019,8 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static int e1000_get_rxnfc(struct net_device *netdev,
-			   struct ethtool_rxnfc *info, u32 *rule_locs)
+			   struct ethtool_rxnfc *info,
+			   u32 __always_unused *rule_locs)
 {
 	info->data = 0;
 

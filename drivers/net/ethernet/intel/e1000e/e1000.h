@@ -45,6 +45,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
+#include <linux/mii.h>
 #include "hw.h"
 
 struct e1000_info;

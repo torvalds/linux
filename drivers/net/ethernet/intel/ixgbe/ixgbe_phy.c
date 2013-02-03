@@ -494,11 +494,9 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
  *  ixgbe_setup_phy_link_speed_generic - Sets the auto advertised capabilities
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  **/
 s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
                                        ixgbe_link_speed speed,
-                                       bool autoneg,
                                        bool autoneg_wait_to_complete)
 {
 

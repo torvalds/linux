@@ -165,8 +165,9 @@ static int e1000e_phc_settime(struct ptp_clock_info *ptp,
  * Enable (or disable) ancillary features of the PHC subsystem.
  * Currently, no ancillary features are supported.
  **/
-static int e1000e_phc_enable(struct ptp_clock_info *ptp,
-			     struct ptp_clock_request *request, int on)
+static int e1000e_phc_enable(struct ptp_clock_info __always_unused *ptp,
+			     struct ptp_clock_request __always_unused *request,
+			     int __always_unused on)
 {
 	return -EOPNOTSUPP;
 }
