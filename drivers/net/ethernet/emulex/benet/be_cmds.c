@@ -3138,6 +3138,39 @@ err:
 	return status;
 }
 
+int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
+		     int vf_num)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_iface_list *req;
+	struct be_cmd_resp_get_iface_list *resp;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_IFACE_LIST, sizeof(*resp),
+			       wrb, NULL);
+	req->hdr.domain = vf_num + 1;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		resp = (struct be_cmd_resp_get_iface_list *)req;
+		vf_cfg->if_handle = le32_to_cpu(resp->if_desc.if_id);
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 /* Uses sync mcc */
 int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
 {
