@@ -49,15 +49,9 @@ struct bcm63xx_spi {
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
 
-	/* Data buffers */
-	const unsigned char	*tx_ptr;
-	unsigned char		*rx_ptr;
-
 	/* data iomem */
 	u8 __iomem		*tx_io;
 	const u8 __iomem	*rx_io;
-
-	int			remaining_bytes;
 
 	struct clk		*clk;
 	struct platform_device	*pdev;
@@ -175,24 +169,13 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
-/* Fill the TX FIFO with as many bytes as possible */
-static void bcm63xx_spi_fill_tx_fifo(struct bcm63xx_spi *bs)
-{
-	u8 size;
-
-	/* Fill the Tx FIFO with as many bytes as possible */
-	size = bs->remaining_bytes < bs->fifo_size ? bs->remaining_bytes :
-		bs->fifo_size;
-	memcpy_toio(bs->tx_io, bs->tx_ptr, size);
-	bs->remaining_bytes -= size;
-}
-
-static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
-					struct spi_transfer *t)
+static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
 	u16 msg_ctl;
 	u16 cmd;
+	u8 rx_tail;
+	unsigned int timeout = 0;
 
 	/* Disable the CMD_DONE interrupt */
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
@@ -200,14 +183,8 @@ static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
 	dev_dbg(&spi->dev, "txrx: tx %p, rx %p, len %d\n",
 		t->tx_buf, t->rx_buf, t->len);
 
-	/* Transmitter is inhibited */
-	bs->tx_ptr = t->tx_buf;
-	bs->rx_ptr = t->rx_buf;
-
-	if (t->tx_buf) {
-		bs->remaining_bytes = t->len;
-		bcm63xx_spi_fill_tx_fifo(bs);
-	}
+	if (t->tx_buf)
+		memcpy_toio(bs->tx_io, t->tx_buf, t->len);
 
 	init_completion(&bs->done);
 
@@ -239,7 +216,18 @@ static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
 	/* Enable the CMD_DONE interrupt */
 	bcm_spi_writeb(bs, SPI_INTR_CMD_DONE, SPI_INT_MASK);
 
-	return t->len - bs->remaining_bytes;
+	timeout = wait_for_completion_timeout(&bs->done, HZ);
+	if (!timeout)
+		return -ETIMEDOUT;
+
+	/* read out all data */
+	rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
+
+	/* Read out all the data */
+	if (rx_tail)
+		memcpy_fromio(t->rx_ptr, bs->rx_io, rx_tail);
+
+	return 0;
 }
 
 static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
@@ -267,36 +255,41 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	struct spi_transfer *t;
 	struct spi_device *spi = m->spi;
 	int status = 0;
-	unsigned int timeout = 0;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		unsigned int len = t->len;
-		u8 rx_tail;
-
 		status = bcm63xx_spi_check_transfer(spi, t);
 		if (status < 0)
 			goto exit;
 
+		/* we can only transfer one fifo worth of data */
+		if (t->len > bs->fifo_size) {
+			dev_err(&spi->dev, "unable to do transfers larger than FIFO size (%i > %i)\n",
+				t->len, bs->fifo_size);
+			status = -EINVAL;
+			goto exit;
+		}
+
+		/* CS will be deasserted directly after transfer */
+		if (t->delay_usecs) {
+			dev_err(&spi->dev, "unable to keep CS asserted after transfer\n");
+			status = -EINVAL;
+			goto exit;
+		}
+
+		if (!t->cs_change &&
+		    !list_is_last(&t->transfer_list, &m->transfers)) {
+			dev_err(&spi->dev, "unable to keep CS asserted between transfers\n");
+			status = -EINVAL;
+			goto exit;
+		}
+
 		/* configure adapter for a new transfer */
 		bcm63xx_spi_setup_transfer(spi, t);
 
-		while (len) {
-			/* send the data */
-			len -= bcm63xx_txrx_bufs(spi, t);
-
-			timeout = wait_for_completion_timeout(&bs->done, HZ);
-			if (!timeout) {
-				status = -ETIMEDOUT;
-				goto exit;
-			}
-
-			/* read out all data */
-			rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
-
-			/* Read out all the data */
-			if (rx_tail)
-				memcpy_fromio(bs->rx_ptr, bs->rx_io, rx_tail);
-		}
+		/* send the data */
+		status = bcm63xx_txrx_bufs(spi, t);
+		if (status)
+			goto exit;
 
 		m->actual_length += t->len;
 	}
