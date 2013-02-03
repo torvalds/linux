@@ -5470,9 +5470,8 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
-	short LCDRefreshIndex[] = { 0x00, 0x00, 0x03, 0x01 },
-			LCDARefreshIndex[] = { 0x00, 0x00, 0x03, 0x01, 0x01,
-					0x01, 0x01 };
+	const u8 LCDARefreshIndex[] = {
+		0x00, 0x00, 0x03, 0x01, 0x01, 0x01, 0x01, 0x00 };
 
 	unsigned short RefreshRateTableIndex, i, index, temp;
 
@@ -5489,15 +5488,8 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 	if (pVBInfo->SetFlag & ProgrammingCRT2) {
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
 			if (pVBInfo->IF_DEF_LVDS == 0) {
-				if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B
-						| VB_SIS301LV | VB_SIS302LV
-						| VB_XGI301C))
-					/* 301b */
-					temp = LCDARefreshIndex[
-						pVBInfo->LCDResInfo & 0x0F];
-				else
-					temp = LCDRefreshIndex[
-						pVBInfo->LCDResInfo & 0x0F];
+				temp = LCDARefreshIndex[
+					pVBInfo->LCDResInfo & 0x07];
 
 				if (index > temp)
 					index = temp;
