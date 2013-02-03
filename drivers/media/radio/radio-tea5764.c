@@ -39,6 +39,7 @@
 #include <linux/i2c.h>			/* I2C				*/
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
 
 #define DRIVER_VERSION	"0.0.2"
 
@@ -138,6 +139,7 @@ static int radio_nr = -1;
 static int use_xtal = RADIO_TEA5764_XTAL;
 
 struct tea5764_device {
+	struct v4l2_device v4l2_dev;
 	struct i2c_client		*i2c_client;
 	struct video_device		*videodev;
 	struct tea5764_regs		regs;
@@ -497,6 +499,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
 	struct tea5764_device *radio;
+	struct v4l2_device *v4l2_dev;
 	struct tea5764_regs *r;
 	int ret;
 
@@ -505,31 +508,37 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	if (!radio)
 		return -ENOMEM;
 
+	v4l2_dev = &radio->v4l2_dev;
+	ret = v4l2_device_register(&client->dev, v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		goto errfr;
+	}
 	mutex_init(&radio->mutex);
 	radio->i2c_client = client;
 	ret = tea5764_i2c_read(radio);
 	if (ret)
-		goto errfr;
+		goto errunreg;
 	r = &radio->regs;
 	PDEBUG("chipid = %04X, manid = %04X", r->chipid, r->manid);
 	if (r->chipid != TEA5764_CHIPID ||
 		(r->manid & 0x0fff) != TEA5764_MANID) {
 		PWARN("This chip is not a TEA5764!");
 		ret = -EINVAL;
-		goto errfr;
+		goto errunreg;
 	}
 
 	radio->videodev = video_device_alloc();
 	if (!(radio->videodev)) {
 		ret = -ENOMEM;
-		goto errfr;
+		goto errunreg;
 	}
-	memcpy(radio->videodev, &tea5764_radio_template,
-		sizeof(tea5764_radio_template));
+	*radio->videodev = tea5764_radio_template;
 
 	i2c_set_clientdata(client, radio);
 	video_set_drvdata(radio->videodev, radio);
 	radio->videodev->lock = &radio->mutex;
+	radio->videodev->v4l2_dev = v4l2_dev;
 
 	/* initialize and power off the chip */
 	tea5764_i2c_read(radio);
@@ -547,6 +556,8 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	return 0;
 errrel:
 	video_device_release(radio->videodev);
+errunreg:
+	v4l2_device_unregister(v4l2_dev);
 errfr:
 	kfree(radio);
 	return ret;
@@ -560,6 +571,7 @@ static int tea5764_i2c_remove(struct i2c_client *client)
 	if (radio) {
 		tea5764_power_down(radio);
 		video_unregister_device(radio->videodev);
+		v4l2_device_unregister(&radio->v4l2_dev);
 		kfree(radio);
 	}
 	return 0;
