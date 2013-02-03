@@ -34,6 +34,7 @@ struct ar724x_pci_controller {
 	void __iomem *ctrl_base;
 
 	int irq;
+	int irq_base;
 
 	bool link_up;
 	bool bar0_is_cached;
@@ -205,7 +206,7 @@ static void ar724x_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 		  __raw_readl(base + AR724X_PCI_REG_INT_MASK);
 
 	if (pending & AR724X_PCI_INT_DEV0)
-		generic_handle_irq(ATH79_PCI_IRQ(0));
+		generic_handle_irq(apc->irq_base + 0);
 
 	else
 		spurious_interrupt();
@@ -215,13 +216,15 @@ static void ar724x_pci_irq_unmask(struct irq_data *d)
 {
 	struct ar724x_pci_controller *apc;
 	void __iomem *base;
+	int offset;
 	u32 t;
 
 	apc = irq_data_get_irq_chip_data(d);
 	base = apc->ctrl_base;
+	offset = apc->irq_base - d->irq;
 
-	switch (d->irq) {
-	case ATH79_PCI_IRQ(0):
+	switch (offset) {
+	case 0:
 		t = __raw_readl(base + AR724X_PCI_REG_INT_MASK);
 		__raw_writel(t | AR724X_PCI_INT_DEV0,
 			     base + AR724X_PCI_REG_INT_MASK);
@@ -234,13 +237,15 @@ static void ar724x_pci_irq_mask(struct irq_data *d)
 {
 	struct ar724x_pci_controller *apc;
 	void __iomem *base;
+	int offset;
 	u32 t;
 
 	apc = irq_data_get_irq_chip_data(d);
 	base = apc->ctrl_base;
+	offset = apc->irq_base - d->irq;
 
-	switch (d->irq) {
-	case ATH79_PCI_IRQ(0):
+	switch (offset) {
+	case 0:
 		t = __raw_readl(base + AR724X_PCI_REG_INT_MASK);
 		__raw_writel(t & ~AR724X_PCI_INT_DEV0,
 			     base + AR724X_PCI_REG_INT_MASK);
@@ -264,7 +269,8 @@ static struct irq_chip ar724x_pci_irq_chip = {
 	.irq_mask_ack	= ar724x_pci_irq_mask,
 };
 
-static void ar724x_pci_irq_init(struct ar724x_pci_controller *apc)
+static void ar724x_pci_irq_init(struct ar724x_pci_controller *apc,
+				int id)
 {
 	void __iomem *base;
 	int i;
@@ -274,10 +280,10 @@ static void ar724x_pci_irq_init(struct ar724x_pci_controller *apc)
 	__raw_writel(0, base + AR724X_PCI_REG_INT_MASK);
 	__raw_writel(0, base + AR724X_PCI_REG_INT_STATUS);
 
-	BUILD_BUG_ON(ATH79_PCI_IRQ_COUNT < AR724X_PCI_IRQ_COUNT);
+	apc->irq_base = ATH79_PCI_IRQ_BASE + (id * AR724X_PCI_IRQ_COUNT);
 
-	for (i = ATH79_PCI_IRQ_BASE;
-	     i < ATH79_PCI_IRQ_BASE + AR724X_PCI_IRQ_COUNT; i++) {
+	for (i = apc->irq_base;
+	     i < apc->irq_base + AR724X_PCI_IRQ_COUNT; i++) {
 		irq_set_chip_and_handler(i, &ar724x_pci_irq_chip,
 					 handle_level_irq);
 		irq_set_chip_data(i, apc);
@@ -291,6 +297,11 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 {
 	struct ar724x_pci_controller *apc;
 	struct resource *res;
+	int id;
+
+	id = pdev->id;
+	if (id == -1)
+		id = 0;
 
 	apc = devm_kzalloc(&pdev->dev, sizeof(struct ar724x_pci_controller),
 			    GFP_KERNEL);
@@ -347,7 +358,7 @@ static int ar724x_pci_probe(struct platform_device *pdev)
 	if (!apc->link_up)
 		dev_warn(&pdev->dev, "PCIe link is down\n");
 
-	ar724x_pci_irq_init(apc);
+	ar724x_pci_irq_init(apc, id);
 
 	register_pci_controller(&apc->pci_controller);
 
