@@ -1333,12 +1333,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Adapt RGB settings */
 	XGIfb_bpp_to_var(xgifb_info, var);
 
-	/* Sanity check for offsets */
-	if (var->xoffset < 0)
-		var->xoffset = 0;
-	if (var->yoffset < 0)
-		var->yoffset = 0;
-
 	if (!XGIfb_ypan) {
 		if (var->xres != var->xres_virtual)
 			var->xres_virtual = var->xres;
@@ -1373,8 +1367,7 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0 || var->yoffset >= info->var.yres_virtual
-				|| var->xoffset)
+		if (var->yoffset >= info->var.yres_virtual || var->xoffset)
 			return -EINVAL;
 	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
 				|| var->yoffset + info->var.yres
