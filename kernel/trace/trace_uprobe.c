@@ -680,30 +680,60 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 	return false;
 }
 
+static inline bool
+uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
+{
+	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
+}
+
 static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 {
+	bool done;
+
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target)
+	if (event->hw.tp_target) {
+		/*
+		 * event->parent != NULL means copy_process(), we can avoid
+		 * uprobe_apply(). current->mm must be probed and we can rely
+		 * on dup_mmap() which preserves the already installed bp's.
+		 *
+		 * attr.enable_on_exec means that exec/mmap will install the
+		 * breakpoints we need.
+		 */
+		done = tu->filter.nr_systemwide ||
+			event->parent || event->attr.enable_on_exec ||
+			uprobe_filter_event(tu, event);
 		list_add(&event->hw.tp_list, &tu->filter.perf_events);
-	else
+	} else {
+		done = tu->filter.nr_systemwide;
 		tu->filter.nr_systemwide++;
+	}
 	write_unlock(&tu->filter.rwlock);
 
-	uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+	if (!done)
+		uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
 
 	return 0;
 }
 
 static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 {
+	bool done;
+
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target)
+	if (event->hw.tp_target) {
 		list_del(&event->hw.tp_list);
-	else
+		done = tu->filter.nr_systemwide ||
+			(event->hw.tp_target->flags & PF_EXITING) ||
+			uprobe_filter_event(tu, event);
+	} else {
 		tu->filter.nr_systemwide--;
+		done = tu->filter.nr_systemwide;
+	}
 	write_unlock(&tu->filter.rwlock);
 
-	uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
+	if (!done)
+		uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
 
 	return 0;
 }
