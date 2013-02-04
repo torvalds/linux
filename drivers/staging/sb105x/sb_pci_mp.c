@@ -3054,7 +3054,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 				sbdev->nr_ports = ((portnum_hex/16)*10) + (portnum_hex % 16);
 			}
 			break;
-#ifdef CONFIG_PARPORT
+#ifdef CONFIG_PARPORT_PC
 		case PCI_DEVICE_ID_MP2S1P :
 			sbdev->nr_ports = 2;
 
