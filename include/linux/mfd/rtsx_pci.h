@@ -581,8 +581,11 @@
 #define CARD_GPIO_DIR			0xFD57
 #define CARD_GPIO			0xFD58
 #define CARD_DATA_SOURCE		0xFD5B
+#define SD30_CLK_DRIVE_SEL		0xFD5A
 #define CARD_SELECT			0xFD5C
 #define SD30_DRIVE_SEL			0xFD5E
+#define SD30_CMD_DRIVE_SEL		0xFD5E
+#define SD30_DAT_DRIVE_SEL		0xFD5F
 #define CARD_CLK_EN			0xFD69
 #define SDIO_CTRL			0xFD6B
 #define CD_PAD_CTL			0xFD73
@@ -655,6 +658,8 @@
 #define MSGTXDATA3			0xFE47
 #define MSGTXCTL			0xFE48
 #define PETXCFG				0xFE49
+#define LTR_CTL				0xFE4A
+#define OBFF_CFG			0xFE4C
 
 #define CDRESUMECTL			0xFE52
 #define WAKE_SEL_CTL			0xFE54
