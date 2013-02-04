@@ -61,7 +61,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
-struct local_info_t {
+struct daqp_private {
 	int stop;
 
 	enum { semaphore, buffer } interrupt_mode;
@@ -167,26 +167,25 @@ static const struct comedi_lrange range_daqp_ai = {
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_COMMAND);
 
 	/* flush any linguring data in FIFO - superfluous here */
 	/* outb(DAQP_COMMAND_RSTF, dev->iobase+DAQP_COMMAND); */
 
-	local->interrupt_mode = semaphore;
+	devpriv->interrupt_mode = semaphore;
 
 	return 0;
 }
 
 /* Interrupt handler
  *
- * Operates in one of two modes.  If local->interrupt_mode is
- * 'semaphore', just signal the local->eos completion and return
+ * Operates in one of two modes.  If devpriv->interrupt_mode is
+ * 'semaphore', just signal the devpriv->eos completion and return
  * (one-shot mode).  Otherwise (continuous mode), read data in from
  * the card, transfer it to the buffer provided by the higher-level
  * comedi kernel module, and signal various comedi callback routines,
@@ -195,7 +194,7 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
 	struct comedi_device *dev = dev_id;
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	int loop_limit = 10000;
 	int status;
@@ -203,15 +202,12 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	switch (local->interrupt_mode) {
-
+	switch (devpriv->interrupt_mode) {
 	case semaphore:
-
-		complete(&local->eos);
+		complete(&devpriv->eos);
 		break;
 
 	case buffer:
-
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
 			 & DAQP_STATUS_FIFO_EMPTY)) {
 
@@ -235,9 +231,9 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			 * and stop conversion if zero
 			 */
 
-			if (local->count > 0) {
-				local->count--;
-				if (local->count == 0) {
+			if (devpriv->count > 0) {
+				devpriv->count--;
+				if (devpriv->count == 0) {
 					daqp_ai_cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
 					break;
@@ -268,14 +264,13 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 	int i;
 	int v;
 	int counter = 10000;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
@@ -323,8 +318,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 		return -1;
 	}
 
-	init_completion(&local->eos);
-	local->interrupt_mode = semaphore;
+	init_completion(&devpriv->eos);
+	devpriv->interrupt_mode = semaphore;
 
 	for (i = 0; i < insn->n; i++) {
 
@@ -334,7 +329,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 		/* Wait for interrupt service routine to unblock completion */
 		/* Maybe could use a timeout here, but it's interruptible */
-		if (wait_for_completion_interruptible(&local->eos))
+		if (wait_for_completion_interruptible(&devpriv->eos))
 			return -EINTR;
 
 		data[i] = inb(dev->iobase + DAQP_FIFO);
@@ -459,7 +454,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter;
 	int scanlist_start_on_every_entry;
@@ -468,9 +463,8 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int i;
 	int v;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
@@ -593,16 +587,16 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Save away the number of conversions we should perform, and
 	 * compute the FIFO threshold (in bytes, not samples - that's
-	 * why we multiple local->count by 2 = sizeof(sample))
+	 * why we multiple devpriv->count by 2 = sizeof(sample))
 	 */
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		local->count = cmd->stop_arg * cmd->scan_end_arg;
-		threshold = 2 * local->count;
+		devpriv->count = cmd->stop_arg * cmd->scan_end_arg;
+		threshold = 2 * devpriv->count;
 		while (threshold > DAQP_FIFO_SIZE * 3 / 4)
 			threshold /= 2;
 	} else {
-		local->count = -1;
+		devpriv->count = -1;
 		threshold = DAQP_FIFO_SIZE / 2;
 	}
 
@@ -644,7 +638,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -1;
 	}
 
-	local->interrupt_mode = buffer;
+	devpriv->interrupt_mode = buffer;
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
@@ -659,11 +653,11 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 	int d;
 	unsigned int chan;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
 
 	chan = CR_CHAN(insn->chanspec);
@@ -686,9 +680,9 @@ static int daqp_di_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
 
 	data[0] = inb(dev->iobase + DAQP_DIGITAL_IO);
@@ -702,9 +696,9 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = dev->private;
+	struct daqp_private *devpriv = dev->private;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
 
 	outw(data[0] & 0xf, dev->iobase + DAQP_DIGITAL_IO);
@@ -716,17 +710,16 @@ static int daqp_auto_attach(struct comedi_device *dev,
 			    unsigned long context)
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-	struct local_info_t *local;
+	struct daqp_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = dev->driver->driver_name;
 
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(*local), GFP_KERNEL);
-	if (!local)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	dev->private = local;
+	dev->private = devpriv;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
 	ret = comedi_pcmcia_enable(dev);
@@ -790,11 +783,11 @@ static struct comedi_driver driver_daqp = {
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
 	struct comedi_device *dev = link->priv;
-	struct local_info_t *local = dev ? dev->private : NULL;
+	struct daqp_private *devpriv = dev ? dev->private : NULL;
 
 	/* Mark the device as stopped, to block IO until later */
-	if (local)
-		local->stop = 1;
+	if (devpriv)
+		devpriv->stop = 1;
 
 	return 0;
 }
@@ -802,10 +795,10 @@ static int daqp_cs_suspend(struct pcmcia_device *link)
 static int daqp_cs_resume(struct pcmcia_device *link)
 {
 	struct comedi_device *dev = link->priv;
-	struct local_info_t *local = dev ? dev->private : NULL;
+	struct daqp_private *devpriv = dev ? dev->private : NULL;
 
-	if (local)
-		local->stop = 0;
+	if (devpriv)
+		devpriv->stop = 0;
 
 	return 0;
 }
