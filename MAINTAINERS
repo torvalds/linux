@@ -4481,6 +4481,15 @@ F:	arch/s390/include/asm/kvm*
 F:	arch/s390/kvm/
 F:	drivers/s390/kvm/
 
+KERNEL VIRTUAL MACHINE (KVM) FOR ARM
+M:	Christoffer Dall <cdall@cs.columbia.edu>
+L:	kvmarm@lists.cs.columbia.edu
+W:	http://systems.cs.columbia.edu/projects/kvm-arm
+S:	Maintained
+F:	arch/arm/include/uapi/asm/kvm*
+F:	arch/arm/include/asm/kvm*
+F:	arch/arm/kvm/
+
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
 W:	http://kernel.org/pub/linux/utils/kernel/kexec/
