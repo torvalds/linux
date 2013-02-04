@@ -11,13 +11,13 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/irqchip/arm-gic.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
-#include <asm/hardware/gic.h>
 #include <mach/map.h>
 
 #include "common.h"
@@ -142,18 +142,12 @@ static int __cpuinit sirfsoc_boot_secondary(unsigned int cpu, struct task_struct
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 
-static void __init sirfsoc_smp_init_cpus(void)
-{
-	set_smp_cross_call(gic_raise_softirq);
-}
-
 static void __init sirfsoc_smp_prepare_cpus(unsigned int max_cpus)
 {
 	scu_enable(scu_base);
 }
 
 struct smp_operations sirfsoc_smp_ops __initdata = {
-        .smp_init_cpus          = sirfsoc_smp_init_cpus,
         .smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
         .smp_secondary_init     = sirfsoc_secondary_init,
         .smp_boot_secondary     = sirfsoc_boot_secondary,
