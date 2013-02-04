@@ -392,7 +392,7 @@ static void pci_device_shutdown(struct device *dev)
 	 * Turn off Bus Master bit on the device to tell it to not
 	 * continue to do DMA
 	 */
-	pci_disable_device(pci_dev);
+	pci_clear_master(pci_dev);
 }
 
 #ifdef CONFIG_PM
