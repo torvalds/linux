@@ -1470,18 +1470,11 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned short tempbx, tempax, tempcx, tempdx, push1, push2, modeflag;
 	unsigned long temp, temp1, temp2, temp3, push3;
-	struct XGI_LCDDesStruct const *LCDPtr = NULL;
 	struct XGI330_LCDDataDesStruct2 const *LCDPtr1 = NULL;
 
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		LCDPtr1 = XGI_GetLcdPtr(XGI_EPLLCDDesDataPtr, ModeNo,
-					ModeIdIndex, RefreshRateTableIndex,
-					pVBInfo);
-	else
-		LCDPtr = XGI_GetLcdPtr(XGI_EPLLCDDesDataPtr, ModeNo,
-				       ModeIdIndex, RefreshRateTableIndex,
-				       pVBInfo);
+	LCDPtr1 = XGI_GetLcdPtr(XGI_EPLLCDDesDataPtr, ModeNo, ModeIdIndex,
+					RefreshRateTableIndex, pVBInfo);
 
 	XGI_GetLCDSync(&tempax, &tempbx, pVBInfo);
 	push1 = tempbx;
@@ -1513,10 +1506,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	tempax = pVBInfo->HT;
 
-	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		tempbx = LCDPtr1->LCDHDES;
-	else
-		tempbx = LCDPtr->LCDHDES;
+	tempbx = LCDPtr1->LCDHDES;
 
 	tempcx = pVBInfo->HDE;
 	tempbx = tempbx & 0x0fff;
@@ -1537,10 +1527,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	tempax = pVBInfo->HT;
 
-	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		tempbx = LCDPtr1->LCDHRS;
-	else
-		tempbx = LCDPtr->LCDHRS;
+	tempbx = LCDPtr1->LCDHRS;
 
 	tempcx = push2;
 
@@ -1565,10 +1552,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 			(unsigned short) (tempbx & 0xff));
 
 	tempax = pVBInfo->VT;
-	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		tempbx = LCDPtr1->LCDVDES;
-	else
-		tempbx = LCDPtr->LCDVDES;
+	tempbx = LCDPtr1->LCDVDES;
 	tempcx = pVBInfo->VDE;
 
 	tempbx = tempbx & 0x0fff;
@@ -1589,10 +1573,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 					| tempbx));
 
 	tempax = pVBInfo->VT;
-	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		tempbx = LCDPtr1->LCDVRS;
-	else
-		tempbx = LCDPtr->LCDVRS;
+	tempbx = LCDPtr1->LCDVRS;
 
 	tempcx = push1;
 
