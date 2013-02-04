@@ -1309,7 +1309,7 @@ static int nvme_kthread(void *data)
 		}
 		spin_unlock(&dev_list_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		schedule_timeout(round_jiffies_relative(HZ));
 	}
 	return 0;
 }
