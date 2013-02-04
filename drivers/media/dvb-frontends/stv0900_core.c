@@ -524,11 +524,8 @@ void stv0900_set_tuner(struct dvb_frontend *fe, u32 frequency,
 	struct dvb_frontend_ops *frontend_ops = NULL;
 	struct dvb_tuner_ops *tuner_ops = NULL;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
+	frontend_ops = &fe->ops;
+	tuner_ops = &frontend_ops->tuner_ops;
 
 	if (tuner_ops->set_frequency) {
 		if ((tuner_ops->set_frequency(fe, frequency)) < 0)
@@ -552,11 +549,8 @@ void stv0900_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	struct dvb_frontend_ops *frontend_ops = NULL;
 	struct dvb_tuner_ops *tuner_ops = NULL;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
+	frontend_ops = &fe->ops;
+	tuner_ops = &frontend_ops->tuner_ops;
 
 	if (tuner_ops->set_bandwidth) {
 		if ((tuner_ops->set_bandwidth(fe, bandwidth)) < 0)
