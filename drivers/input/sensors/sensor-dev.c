@@ -1155,7 +1155,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	struct sensor_platform_data *pdata;
 	int result = 0;
 	int type = 0;
-	dev_info(&client->adapter->dev, "-------------------------------------%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
+	dev_info(&client->adapter->dev, "%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;

@@ -269,7 +269,7 @@ static struct akm8963_platform_data akm_platform_data_8963 = {
 static struct sensor_platform_data light_photoresistor_info = {
 	.type = SENSOR_TYPE_LIGHT,
 	.irq_enable = 0,
-        .address = 2 ;
+        .address = 2   ,
 	.poll_delay_ms = 200,
 };
 #endif

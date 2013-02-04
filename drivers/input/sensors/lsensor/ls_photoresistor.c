@@ -33,9 +33,16 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
+static int ls_photoresistor_dbg_level = 0;
+module_param_named(dbg_level, ls_photoresistor_dbg_level, int, 0644);
+#if 1
 #define SENSOR_DEBUG_TYPE SENSOR_TYPE_LIGHT
-#define DBG(x...)  printk(x)
+#define DBG( args...) \
+	do { \
+		if (ls_photoresistor_dbg_level) { \
+			pr_info(args); \
+		} \
+	} while (0)
 #else
 #define DBG(x...) printk(x)
 #endif
