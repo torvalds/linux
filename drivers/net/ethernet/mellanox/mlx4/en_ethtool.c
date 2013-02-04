@@ -711,6 +711,7 @@ static int mlx4_en_ethtool_add_mac_rule_by_ipv4(struct mlx4_en_priv *priv,
 						struct mlx4_spec_list *spec_l2,
 						__be32 ipv4_dst)
 {
+#ifdef CONFIG_INET
 	__be64 be_mac = 0;
 	unsigned char mac[ETH_ALEN];
 
@@ -726,6 +727,9 @@ static int mlx4_en_ethtool_add_mac_rule_by_ipv4(struct mlx4_en_priv *priv,
 	}
 
 	return mlx4_en_ethtool_add_mac_rule(cmd, rule_list_h, spec_l2, &mac[0]);
+#else
+	return -EINVAL;
+#endif
 }
 
 static int add_ip_rule(struct mlx4_en_priv *priv,
