@@ -501,6 +501,8 @@ struct fb_info {
 			resource_size_t size;
 		} ranges[0];
 	} *apertures;
+
+	bool skip_vt_switch; /* no VT switch on suspend/resume required */
 };
 
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
