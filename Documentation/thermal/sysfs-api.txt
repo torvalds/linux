@@ -55,6 +55,8 @@ temperature) and throttle appropriate devices.
 	.get_trip_type: get the type of certain trip point.
 	.get_trip_temp: get the temperature above which the certain trip point
 			will be fired.
+	.set_emul_temp: set the emulation temperature which helps in debugging
+			different threshold temperature points.
 
 1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
@@ -153,6 +155,7 @@ Thermal zone device sys I/F, created once it's registered:
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
+    |---emul_temp:		Emulated temperature set node
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -251,6 +254,16 @@ passive
 	Unit: millidegrees Celsius
 	Valid values: 0 (disabled) or greater than 1000
 	RW, Optional
+
+emul_temp
+	Interface to set the emulated temperature method in thermal zone
+	(sensor). After setting this temperature, the thermal zone may pass
+	this temperature to platform emulation function if registered or
+	cache it locally. This is useful in debugging different temperature
+	threshold and its associated cooling action. This is write only node
+	and writing 0 on this node should disable emulation.
+	Unit: millidegree Celsius
+	WO, Optional
 
 *****************************
 * Cooling device attributes *

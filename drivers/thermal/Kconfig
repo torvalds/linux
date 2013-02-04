@@ -78,6 +78,14 @@ config CPU_THERMAL
 	  and not the ACPI interface.
 	  If you want this support, you should say Y here.
 
+config THERMAL_EMULATION
+	bool "Thermal emulation mode support"
+	help
+	  Enable this option to make a emul_temp sysfs node in thermal zone
+	  directory to support temperature emulation. With emulation sysfs node,
+	  user can manually input temperature and test the different trip
+	  threshold behaviour for simulation purpose.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR
