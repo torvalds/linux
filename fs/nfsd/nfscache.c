@@ -36,6 +36,7 @@ static inline u32 request_hash(u32 xid)
 }
 
 static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
+static void	cache_cleaner_func(struct work_struct *unused);
 
 /*
  * locking for the reply cache:
@@ -43,6 +44,7 @@ static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
  * Otherwise, it when accessing _prev or _next, the lock must be held.
  */
 static DEFINE_SPINLOCK(cache_lock);
+static DECLARE_DELAYED_WORK(cache_cleaner, cache_cleaner_func);
 
 /*
  * Put a cap on the size of the DRC based on the amount of available
@@ -131,6 +133,8 @@ void nfsd_reply_cache_shutdown(void)
 {
 	struct svc_cacherep	*rp;
 
+	cancel_delayed_work_sync(&cache_cleaner);
+
 	while (!list_empty(&lru_head)) {
 		rp = list_entry(lru_head.next, struct svc_cacherep, c_lru);
 		nfsd_reply_cache_free_locked(rp);
@@ -146,13 +150,15 @@ void nfsd_reply_cache_shutdown(void)
 }
 
 /*
- * Move cache entry to end of LRU list
+ * Move cache entry to end of LRU list, and queue the cleaner to run if it's
+ * not already scheduled.
  */
 static void
 lru_put_end(struct svc_cacherep *rp)
 {
 	rp->c_timestamp = jiffies;
 	list_move_tail(&rp->c_lru, &lru_head);
+	schedule_delayed_work(&cache_cleaner, RC_EXPIRE);
 }
 
 /*
@@ -170,6 +176,42 @@ nfsd_cache_entry_expired(struct svc_cacherep *rp)
 {
 	return rp->c_state != RC_INPROG &&
 	       time_after(jiffies, rp->c_timestamp + RC_EXPIRE);
+}
+
+/*
+ * Walk the LRU list and prune off entries that are older than RC_EXPIRE.
+ * Also prune the oldest ones when the total exceeds the max number of entries.
+ */
+static void
+prune_cache_entries(void)
+{
+	struct svc_cacherep *rp, *tmp;
+
+	list_for_each_entry_safe(rp, tmp, &lru_head, c_lru) {
+		if (!nfsd_cache_entry_expired(rp) &&
+		    num_drc_entries <= max_drc_entries)
+			break;
+		nfsd_reply_cache_free_locked(rp);
+	}
+
+	/*
+	 * Conditionally rearm the job. If we cleaned out the list, then
+	 * cancel any pending run (since there won't be any work to do).
+	 * Otherwise, we rearm the job or modify the existing one to run in
+	 * RC_EXPIRE since we just ran the pruner.
+	 */
+	if (list_empty(&lru_head))
+		cancel_delayed_work(&cache_cleaner);
+	else
+		mod_delayed_work(system_wq, &cache_cleaner, RC_EXPIRE);
+}
+
+static void
+cache_cleaner_func(struct work_struct *unused)
+{
+	spin_lock(&cache_lock);
+	prune_cache_entries();
+	spin_unlock(&cache_lock);
 }
 
 /*
@@ -192,7 +234,6 @@ nfsd_cache_search(struct svc_rqst *rqstp)
 	hlist_for_each_entry(rp, hn, rh, c_hash) {
 		if (xid == rp->c_xid && proc == rp->c_proc &&
 		    proto == rp->c_prot && vers == rp->c_vers &&
-		    !nfsd_cache_entry_expired(rp) &&
 		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
 		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr))
 			return rp;
@@ -234,8 +275,11 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	if (!list_empty(&lru_head)) {
 		rp = list_first_entry(&lru_head, struct svc_cacherep, c_lru);
 		if (nfsd_cache_entry_expired(rp) ||
-		    num_drc_entries >= max_drc_entries)
+		    num_drc_entries >= max_drc_entries) {
+			lru_put_end(rp);
+			prune_cache_entries();
 			goto setup_entry;
+		}
 	}
 
 	spin_unlock(&cache_lock);
