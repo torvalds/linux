@@ -1233,7 +1233,7 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	 * in HT IBSS when a beacon with HT-info is received after the station
 	 * has already been added.
 	 */
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+	if (sta->ht_cap.ht_supported) {
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
 		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
@@ -1904,8 +1904,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 	struct ath_buf *bf;
 	u8 tidno;
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && txctl->an &&
-		ieee80211_is_data_qos(hdr->frame_control)) {
+	if (txctl->an && ieee80211_is_data_qos(hdr->frame_control)) {
 		tidno = ieee80211_get_qos_ctl(hdr)[0] &
 			IEEE80211_QOS_CTL_TID_MASK;
 		tid = ATH_AN_2_TID(txctl->an, tidno);
