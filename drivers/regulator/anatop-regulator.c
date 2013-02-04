@@ -80,8 +80,8 @@ static int anatop_regmap_set_voltage_time_sel(struct regulator_dev *reg,
 		regmap_read(anatop_reg->anatop, anatop_reg->delay_reg, &val);
 		val = (val >> anatop_reg->delay_bit_shift) &
 			((1 << anatop_reg->delay_bit_width) - 1);
-		ret = (new_sel - old_sel) * ((LDO_RAMP_UP_UNIT_IN_CYCLES <<
-			val) / LDO_RAMP_UP_FREQ_IN_MHZ + 1);
+		ret = (new_sel - old_sel) * (LDO_RAMP_UP_UNIT_IN_CYCLES <<
+			val) / LDO_RAMP_UP_FREQ_IN_MHZ + 1;
 	}
 
 	return ret;
