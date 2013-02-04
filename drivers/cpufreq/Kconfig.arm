@@ -77,6 +77,15 @@ config ARM_EXYNOS5250_CPUFREQ
 	  This adds the CPUFreq driver for Samsung EXYNOS5250
 	  SoC.
 
+config ARM_IMX6Q_CPUFREQ
+	tristate "Freescale i.MX6Q cpufreq support"
+	depends on SOC_IMX6Q
+	depends on REGULATOR_ANATOP
+	help
+	  This adds cpufreq driver support for Freescale i.MX6Q SOC.
+
+	  If in doubt, say N.
+
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"
 	depends on PLAT_SPEAR
