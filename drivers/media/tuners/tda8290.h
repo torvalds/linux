@@ -19,6 +19,7 @@
 
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
+#include "tda18271.h"
 
 struct tda829x_config {
 	unsigned int lna_cfg;
@@ -27,6 +28,7 @@ struct tda829x_config {
 #define TDA829X_PROBE_TUNER 0
 #define TDA829X_DONT_PROBE  1
 	unsigned int no_i2c_gate:1;
+	struct tda18271_std_map *tda18271_std_map;
 };
 
 #if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA8290)

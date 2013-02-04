@@ -54,6 +54,7 @@ struct tda8290_priv {
 #define TDA18271 16
 
 	struct tda827x_config cfg;
+	struct tda18271_std_map *tda18271_std_map;
 };
 
 /*---------------------------------------------------------------------*/
@@ -635,6 +636,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	if ((data == 0x83) || (data == 0x84)) {
 		priv->ver |= TDA18271;
 		tda829x_tda18271_config.config = priv->cfg.config;
+		tda829x_tda18271_config.std_map = priv->tda18271_std_map;
 		dvb_attach(tda18271_attach, fe, priv->tda827x_addr,
 			   priv->i2c_props.adap, &tda829x_tda18271_config);
 	} else {
@@ -746,8 +748,10 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	priv->i2c_props.addr     = i2c_addr;
 	priv->i2c_props.adap     = i2c_adap;
 	priv->i2c_props.name     = "tda829x";
-	if (cfg)
-		priv->cfg.config         = cfg->lna_cfg;
+	if (cfg) {
+		priv->cfg.config = cfg->lna_cfg;
+		priv->tda18271_std_map = cfg->tda18271_std_map;
+	}
 
 	if (tda8290_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8290;
