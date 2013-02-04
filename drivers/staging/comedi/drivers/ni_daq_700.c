@@ -245,16 +245,11 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void daq700_detach(struct comedi_device *dev)
-{
-	comedi_pcmcia_disable(dev);
-}
-
 static struct comedi_driver daq700_driver = {
 	.driver_name	= "ni_daq_700",
 	.module		= THIS_MODULE,
 	.auto_attach	= daq700_auto_attach,
-	.detach		= daq700_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int daq700_cs_attach(struct pcmcia_device *link)
