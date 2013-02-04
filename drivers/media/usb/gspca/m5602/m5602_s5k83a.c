@@ -51,6 +51,7 @@ int s5k83a_probe(struct sd *sd)
 {
 	u8 prod_id = 0, ver_id = 0;
 	int i, err = 0;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
 	if (force_sensor) {
 		if (force_sensor == S5K83A_SENSOR) {

@@ -255,7 +255,7 @@ static int hdcs_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 		if (err < 0)
 			return err;
 	}
-	PDEBUG(D_V4L2, "Writing exposure %d, rowexp %d, srowexp %d",
+	PDEBUG(D_CONF, "Writing exposure %d, rowexp %d, srowexp %d",
 	       val, rowexp, srowexp);
 	return err;
 }
@@ -280,7 +280,7 @@ static int hdcs_set_gains(struct sd *sd, u8 g)
 
 static int hdcs_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
-	PDEBUG(D_V4L2, "Writing gain %d", val);
+	PDEBUG(D_CONF, "Writing gain %d", val);
 	return hdcs_set_gains((struct sd *) gspca_dev,
 			       val & 0xff);
 }
@@ -467,6 +467,8 @@ static int hdcs_probe_1020(struct sd *sd)
 
 static int hdcs_start(struct sd *sd)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
+
 	PDEBUG(D_STREAM, "Starting stream");
 
 	return hdcs_set_state(sd, HDCS_STATE_RUN);
@@ -474,6 +476,8 @@ static int hdcs_start(struct sd *sd)
 
 static int hdcs_stop(struct sd *sd)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
+
 	PDEBUG(D_STREAM, "Halting stream");
 
 	return hdcs_set_state(sd, HDCS_STATE_SLEEP);

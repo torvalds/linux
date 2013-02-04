@@ -41,6 +41,7 @@ MODULE_DEVICE_TABLE(usb, m5602_table);
 int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 {
 	int err;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -62,6 +63,7 @@ int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 {
 	int err;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -98,6 +100,7 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len)
 {
 	int err, i;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 
 	if (!len || len > sd->sensor->i2c_regW)
 		return -EINVAL;
@@ -147,6 +150,7 @@ int m5602_write_sensor(struct sd *sd, const u8 address,
 {
 	int err, i;
 	u8 *p;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) sd;
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
@@ -378,7 +382,7 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	return 0;
 
 fail:
-	PDEBUG(D_ERR, "ALi m5602 webcam failed");
+	PERR("ALi m5602 webcam failed");
 	cam->cam_mode = NULL;
 	cam->nmodes = 0;
 

@@ -147,6 +147,7 @@ int ov9650_probe(struct sd *sd)
 {
 	int err = 0;
 	u8 prod_id = 0, ver_id = 0, i;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
 	if (force_sensor) {
 		if (force_sensor == OV9650_SENSOR) {
@@ -268,6 +269,7 @@ int ov9650_start(struct sd *sd)
 	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
 	int ver_offs = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 	int hor_offs = OV9650_LEFT_OFFSET;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
 	if ((!dmi_check_system(ov9650_flip_dmi_table) &&
 		sd->vflip->val) ||
@@ -351,7 +353,7 @@ int ov9650_start(struct sd *sd)
 
 	switch (width) {
 	case 640:
-		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+		PDEBUG(D_CONF, "Configuring camera for VGA mode");
 
 		data = OV9650_VGA_SELECT | OV9650_RGB_SELECT |
 		       OV9650_RAW_RGB_SELECT;
@@ -359,7 +361,7 @@ int ov9650_start(struct sd *sd)
 		break;
 
 	case 352:
-		PDEBUG(D_V4L2, "Configuring camera for CIF mode");
+		PDEBUG(D_CONF, "Configuring camera for CIF mode");
 
 		data = OV9650_CIF_SELECT | OV9650_RGB_SELECT |
 				OV9650_RAW_RGB_SELECT;
@@ -367,7 +369,7 @@ int ov9650_start(struct sd *sd)
 		break;
 
 	case 320:
-		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
+		PDEBUG(D_CONF, "Configuring camera for QVGA mode");
 
 		data = OV9650_QVGA_SELECT | OV9650_RGB_SELECT |
 				OV9650_RAW_RGB_SELECT;
@@ -375,7 +377,7 @@ int ov9650_start(struct sd *sd)
 		break;
 
 	case 176:
-		PDEBUG(D_V4L2, "Configuring camera for QCIF mode");
+		PDEBUG(D_CONF, "Configuring camera for QCIF mode");
 
 		data = OV9650_QCIF_SELECT | OV9650_RGB_SELECT |
 			OV9650_RAW_RGB_SELECT;
@@ -404,7 +406,7 @@ static int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	int err;
 
-	PDEBUG(D_V4L2, "Set exposure to %d", val);
+	PDEBUG(D_CONF, "Set exposure to %d", val);
 
 	/* The 6 MSBs */
 	i2c_data = (val >> 10) & 0x3f;
@@ -432,7 +434,7 @@ static int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Setting gain to %d", val);
+	PDEBUG(D_CONF, "Setting gain to %d", val);
 
 	/* The 2 MSB */
 	/* Read the OV9650_VREF register first to avoid
@@ -460,7 +462,7 @@ static int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set red gain to %d", val);
+	PDEBUG(D_CONF, "Set red gain to %d", val);
 
 	i2c_data = val & 0xff;
 	err = m5602_write_sensor(sd, OV9650_RED, &i2c_data, 1);
@@ -473,7 +475,7 @@ static int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set blue gain to %d", val);
+	PDEBUG(D_CONF, "Set blue gain to %d", val);
 
 	i2c_data = val & 0xff;
 	err = m5602_write_sensor(sd, OV9650_BLUE, &i2c_data, 1);
@@ -488,7 +490,7 @@ static int ov9650_set_hvflip(struct gspca_dev *gspca_dev)
 	int hflip = sd->hflip->val;
 	int vflip = sd->vflip->val;
 
-	PDEBUG(D_V4L2, "Set hvflip to %d %d", hflip, vflip);
+	PDEBUG(D_CONF, "Set hvflip to %d %d", hflip, vflip);
 
 	if (dmi_check_system(ov9650_flip_dmi_table))
 		vflip = !vflip;
@@ -512,7 +514,7 @@ static int ov9650_set_auto_exposure(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set auto exposure control to %d", val);
+	PDEBUG(D_CONF, "Set auto exposure control to %d", val);
 
 	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -531,7 +533,7 @@ static int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
+	PDEBUG(D_CONF, "Set auto white balance to %d", val);
 
 	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -549,7 +551,7 @@ static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_V4L2, "Set auto gain control to %d", val);
+	PDEBUG(D_CONF, "Set auto gain control to %d", val);
 
 	err = m5602_read_sensor(sd, OV9650_COM8, &i2c_data, 1);
 	if (err < 0)

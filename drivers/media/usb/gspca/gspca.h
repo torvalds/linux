@@ -10,30 +10,26 @@
 #include <media/v4l2-device.h>
 #include <linux/mutex.h>
 
-/* compilation option */
-/*#define GSPCA_DEBUG 1*/
 
-#ifdef GSPCA_DEBUG
-/* GSPCA our debug messages */
+
+/* GSPCA debug codes */
+
+#define D_PROBE  1
+#define D_CONF   2
+#define D_STREAM 3
+#define D_FRAM   4
+#define D_PACK   5
+#define D_USBI   6
+#define D_USBO   7
+
 extern int gspca_debug;
-#define PDEBUG(level, fmt, ...)					\
-do {								\
-	if (gspca_debug & (level))				\
-		pr_info(fmt, ##__VA_ARGS__);			\
-} while (0)
 
-#define D_ERR  0x01
-#define D_PROBE 0x02
-#define D_CONF 0x04
-#define D_STREAM 0x08
-#define D_FRAM 0x10
-#define D_PACK 0x20
-#define D_USBI 0x00
-#define D_USBO 0x00
-#define D_V4L2 0x0100
-#else
-#define PDEBUG(level, fmt, ...) do {} while(0)
-#endif
+
+#define PDEBUG(level, fmt, ...) \
+	v4l2_dbg(level, gspca_debug, &gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+
+#define PERR(fmt, ...) \
+	v4l2_err(&gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */

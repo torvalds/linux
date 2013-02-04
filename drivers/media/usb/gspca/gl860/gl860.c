@@ -582,7 +582,7 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 		pr_err("ctrl transfer failed %4d [p%02x r%d v%04x i%04x len%d]\n",
 		       r, pref, req, val, index, len);
 	else if (len > 1 && r < len)
-		PDEBUG(D_ERR, "short ctrl transfer %d/%d", r, len);
+		PERR("short ctrl transfer %d/%d", r, len);
 
 	msleep(1);
 

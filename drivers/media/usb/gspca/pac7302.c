@@ -344,13 +344,10 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			reg_w_page(gspca_dev, page3, page3_len);
 			break;
 		default:
-#ifdef GSPCA_DEBUG
 			if (len > USB_BUF_SZ) {
-				PDEBUG(D_ERR|D_STREAM,
-					"Incorrect variable sequence");
+				PERR("Incorrect variable sequence");
 				return;
 			}
-#endif
 			while (len > 0) {
 				if (len < 8) {
 					reg_w_buf(gspca_dev,
@@ -795,7 +792,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	u8 *image;
 	u8 *sof;
 
-	sof = pac_find_sof(&sd->sof_read, data, len);
+	sof = pac_find_sof(gspca_dev, &sd->sof_read, data, len);
 	if (sof) {
 		int n, lum_offset, footer_length;
 

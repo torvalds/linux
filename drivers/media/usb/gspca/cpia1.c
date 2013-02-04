@@ -421,8 +421,7 @@ static int cpia_usb_transferCmd(struct gspca_dev *gspca_dev, u8 *command)
 		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		requesttype = USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 	} else {
-		PDEBUG(D_ERR, "Unexpected first byte of command: %x",
-		       command[0]);
+		PERR("Unexpected first byte of command: %x", command[0]);
 		return -EINVAL;
 	}
 
@@ -701,7 +700,7 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 	params->qx3.cradled = 0;
 }
 
-static void printstatus(struct cam_params *params)
+static void printstatus(struct gspca_dev *gspca_dev, struct cam_params *params)
 {
 	PDEBUG(D_PROBE, "status: %02x %02x %02x %02x %02x %02x %02x %02x",
 	       params->status.systemState, params->status.grabState,
@@ -725,10 +724,9 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 
 	if (sd->params.status.systemState != LO_POWER_STATE) {
 		if (sd->params.status.systemState != WARM_BOOT_STATE) {
-			PDEBUG(D_ERR,
-			       "unexpected state after lo power cmd: %02x",
-			       sd->params.status.systemState);
-			printstatus(&sd->params);
+			PERR("unexpected state after lo power cmd: %02x",
+			     sd->params.status.systemState);
+			printstatus(gspca_dev, &sd->params);
 		}
 		return -EIO;
 	}
@@ -756,9 +754,9 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 		return ret;
 
 	if (sd->params.status.systemState != HI_POWER_STATE) {
-		PDEBUG(D_ERR, "unexpected state after hi power cmd: %02x",
-			       sd->params.status.systemState);
-		printstatus(&sd->params);
+		PERR("unexpected state after hi power cmd: %02x",
+		     sd->params.status.systemState);
+		printstatus(gspca_dev, &sd->params);
 		return -EIO;
 	}
 
@@ -1449,8 +1447,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->params.version.firmwareVersion = 0;
 	get_version_information(gspca_dev);
 	if (sd->params.version.firmwareVersion != 1) {
-		PDEBUG(D_ERR, "only firmware version 1 is supported (got: %d)",
-		       sd->params.version.firmwareVersion);
+		PERR("only firmware version 1 is supported (got: %d)",
+		     sd->params.version.firmwareVersion);
 		return -ENODEV;
 	}
 
@@ -1475,9 +1473,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* Start the camera in low power mode */
 	if (goto_low_power(gspca_dev)) {
 		if (sd->params.status.systemState != WARM_BOOT_STATE) {
-			PDEBUG(D_ERR, "unexpected systemstate: %02x",
-			       sd->params.status.systemState);
-			printstatus(&sd->params);
+			PERR("unexpected systemstate: %02x",
+			     sd->params.status.systemState);
+			printstatus(gspca_dev, &sd->params);
 			return -ENODEV;
 		}
 
@@ -1523,9 +1521,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 
 	if (sd->params.status.fatalError) {
-		PDEBUG(D_ERR, "fatal_error: %04x, vp_status: %04x",
-		       sd->params.status.fatalError,
-		       sd->params.status.vpStatus);
+		PERR("fatal_error: %04x, vp_status: %04x",
+		     sd->params.status.fatalError, sd->params.status.vpStatus);
 		return -EIO;
 	}
 

@@ -1159,12 +1159,11 @@ static void reg_r(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return;
-#ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_r: buffer overflow\n");
+		PERR("reg_r: buffer overflow\n");
 		return;
 	}
-#endif
+
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,
@@ -1213,12 +1212,12 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		return;
 	PDEBUG(D_USBO, "reg_w [%04x] = %02x %02x ..",
 		value, buffer[0], buffer[1]);
-#ifdef GSPCA_DEBUG
+
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_w: buffer overflow\n");
+		PERR("reg_w: buffer overflow\n");
 		return;
 	}
-#endif
+
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),

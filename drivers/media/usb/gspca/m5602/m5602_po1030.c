@@ -55,6 +55,7 @@ static const struct v4l2_ctrl_config po1030_greenbal_cfg = {
 int po1030_probe(struct sd *sd)
 {
 	u8 dev_id_h = 0, i;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
 	if (force_sensor) {
 		if (force_sensor == PO1030_SENSOR) {
@@ -305,10 +306,10 @@ static int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	int err;
 
-	PDEBUG(D_V4L2, "Set exposure to %d", val & 0xffff);
+	PDEBUG(D_CONF, "Set exposure to %d", val & 0xffff);
 
 	i2c_data = ((val & 0xff00) >> 8);
-	PDEBUG(D_V4L2, "Set exposure to high byte to 0x%x",
+	PDEBUG(D_CONF, "Set exposure to high byte to 0x%x",
 	       i2c_data);
 
 	err = m5602_write_sensor(sd, PO1030_INTEGLINES_H,
@@ -317,7 +318,7 @@ static int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 		return err;
 
 	i2c_data = (val & 0xff);
-	PDEBUG(D_V4L2, "Set exposure to low byte to 0x%x",
+	PDEBUG(D_CONF, "Set exposure to low byte to 0x%x",
 	       i2c_data);
 	err = m5602_write_sensor(sd, PO1030_INTEGLINES_M,
 				  &i2c_data, 1);
@@ -332,7 +333,7 @@ static int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(D_V4L2, "Set global gain to %d", i2c_data);
+	PDEBUG(D_CONF, "Set global gain to %d", i2c_data);
 	err = m5602_write_sensor(sd, PO1030_GLOBALGAIN,
 				 &i2c_data, 1);
 	return err;
@@ -344,7 +345,7 @@ static int po1030_set_hvflip(struct gspca_dev *gspca_dev)
 	u8 i2c_data;
 	int err;
 
-	PDEBUG(D_V4L2, "Set hvflip %d %d", sd->hflip->val, sd->vflip->val);
+	PDEBUG(D_CONF, "Set hvflip %d %d", sd->hflip->val, sd->vflip->val);
 	err = m5602_read_sensor(sd, PO1030_CONTROL2, &i2c_data, 1);
 	if (err < 0)
 		return err;
@@ -365,7 +366,7 @@ static int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(D_V4L2, "Set red gain to %d", i2c_data);
+	PDEBUG(D_CONF, "Set red gain to %d", i2c_data);
 	err = m5602_write_sensor(sd, PO1030_RED_GAIN,
 				  &i2c_data, 1);
 	return err;
@@ -378,7 +379,7 @@ static int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(D_V4L2, "Set blue gain to %d", i2c_data);
+	PDEBUG(D_CONF, "Set blue gain to %d", i2c_data);
 	err = m5602_write_sensor(sd, PO1030_BLUE_GAIN,
 				  &i2c_data, 1);
 
@@ -392,7 +393,7 @@ static int po1030_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(D_V4L2, "Set green gain to %d", i2c_data);
+	PDEBUG(D_CONF, "Set green gain to %d", i2c_data);
 
 	err = m5602_write_sensor(sd, PO1030_GREEN_1_GAIN,
 			   &i2c_data, 1);
@@ -414,7 +415,7 @@ static int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
+	PDEBUG(D_CONF, "Set auto white balance to %d", val);
 	i2c_data = (i2c_data & 0xfe) | (val & 0x01);
 	err = m5602_write_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);
 	return err;
@@ -431,7 +432,7 @@ static int po1030_set_auto_exposure(struct gspca_dev *gspca_dev,
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_V4L2, "Set auto exposure to %d", val);
+	PDEBUG(D_CONF, "Set auto exposure to %d", val);
 	val = (val == V4L2_EXPOSURE_AUTO);
 	i2c_data = (i2c_data & 0xfd) | ((val & 0x01) << 1);
 	return m5602_write_sensor(sd, PO1030_AUTOCTRL1, &i2c_data, 1);

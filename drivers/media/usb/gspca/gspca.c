@@ -60,14 +60,14 @@ MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(GSPCA_VERSION);
 
-#ifdef GSPCA_DEBUG
-int gspca_debug = D_ERR | D_PROBE;
+int gspca_debug;
 EXPORT_SYMBOL(gspca_debug);
 
-static void PDEBUG_MODE(char *txt, __u32 pixfmt, int w, int h)
+static void PDEBUG_MODE(struct gspca_dev *gspca_dev, int debug, char *txt,
+			__u32 pixfmt, int w, int h)
 {
 	if ((pixfmt >> 24) >= '0' && (pixfmt >> 24) <= 'z') {
-		PDEBUG(D_CONF|D_STREAM, "%s %c%c%c%c %dx%d",
+		PDEBUG(debug, "%s %c%c%c%c %dx%d",
 			txt,
 			pixfmt & 0xff,
 			(pixfmt >> 8) & 0xff,
@@ -75,15 +75,12 @@ static void PDEBUG_MODE(char *txt, __u32 pixfmt, int w, int h)
 			pixfmt >> 24,
 			w, h);
 	} else {
-		PDEBUG(D_CONF|D_STREAM, "%s 0x%08x %dx%d",
+		PDEBUG(debug, "%s 0x%08x %dx%d",
 			txt,
 			pixfmt,
 			w, h);
 	}
 }
-#else
-#define PDEBUG_MODE(txt, pixfmt, w, h)
-#endif
 
 /* specific memory types - !! should be different from V4L2_MEMORY_xxx */
 #define GSPCA_MEMORY_NO 0	/* V4L2_MEMORY_xxx starts from 1 */
@@ -129,7 +126,7 @@ static void int_irq(struct urb *urb)
 	case 0:
 		if (gspca_dev->sd_desc->int_pkt_scan(gspca_dev,
 		    urb->transfer_buffer, urb->actual_length) < 0) {
-			PDEBUG(D_ERR, "Unknown packet received");
+			PERR("Unknown packet received");
 		}
 		break;
 
@@ -143,7 +140,7 @@ static void int_irq(struct urb *urb)
 		break;
 
 	default:
-		PDEBUG(D_ERR, "URB error %i, resubmitting", urb->status);
+		PERR("URB error %i, resubmitting", urb->status);
 		urb->status = 0;
 		ret = 0;
 	}
@@ -229,7 +226,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "submit int URB failed with error %i", ret);
+		PERR("submit int URB failed with error %i", ret);
 		goto error_submit;
 	}
 	gspca_dev->int_urb = urb;
@@ -315,7 +312,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		PERR("urb status: %d", urb->status);
 		urb->status = 0;
 		goto resubmit;
 	}
@@ -388,7 +385,7 @@ static void bulk_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		PERR("urb status: %d", urb->status);
 		urb->status = 0;
 		goto resubmit;
 	}
@@ -460,7 +457,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	/* append the packet to the frame buffer */
 	if (len > 0) {
 		if (gspca_dev->image_len + len > gspca_dev->frsz) {
-			PDEBUG(D_ERR|D_PACK, "frame overflow %d > %d",
+			PERR("frame overflow %d > %d",
 				gspca_dev->image_len + len,
 				gspca_dev->frsz);
 			packet_type = DISCARD_PACKET;
@@ -960,9 +957,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* the bandwidth is not wide enough
 		 * negotiate or try a lower alternate setting */
 retry:
-		PDEBUG(D_ERR|D_STREAM,
-			"alt %d - bandwidth not wide enough - trying again",
-			alt);
+		PERR("alt %d - bandwidth not wide enough, trying again", alt);
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
 			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
@@ -1127,10 +1122,9 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-#ifdef GSPCA_DEBUG
-	if (gspca_debug & D_CONF)
-		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
-#endif
+	PDEBUG_MODE(gspca_dev, D_CONF, "try fmt cap",
+		    fmt->fmt.pix.pixelformat, w, h);
+
 	/* search the closest mode for width and height */
 	mode = wxh_to_mode(gspca_dev, w, h);
 
@@ -1143,8 +1137,6 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 					fmt->fmt.pix.pixelformat);
 		if (mode2 >= 0)
 			mode = mode2;
-/*		else
-			;		 * no chance, return this mode */
 	}
 	fmt->fmt.pix = gspca_dev->cam.cam_mode[mode];
 	/* some drivers use priv internally, zero it before giving it to
@@ -1280,15 +1272,6 @@ static int dev_open(struct file *file)
 	if (!try_module_get(gspca_dev->module))
 		return -ENODEV;
 
-#ifdef GSPCA_DEBUG
-	/* activate the v4l2 debug */
-	if (gspca_debug & D_V4L2)
-		gspca_dev->vdev.debug |= V4L2_DEBUG_IOCTL
-					| V4L2_DEBUG_IOCTL_ARG;
-	else
-		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
-					| V4L2_DEBUG_IOCTL_ARG);
-#endif
 	return v4l2_fh_open(file);
 }
 
@@ -1483,14 +1466,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (ret < 0)
 			goto out;
 	}
-#ifdef GSPCA_DEBUG
-	if (gspca_debug & D_STREAM) {
-		PDEBUG_MODE("stream on OK",
-			gspca_dev->pixfmt,
-			gspca_dev->width,
-			gspca_dev->height);
-	}
-#endif
+	PDEBUG_MODE(gspca_dev, D_STREAM, "stream on OK", gspca_dev->pixfmt,
+		    gspca_dev->width, gspca_dev->height);
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1741,8 +1718,7 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
 				 frame->v4l2_buf.bytesused)) {
-			PDEBUG(D_ERR|D_STREAM,
-				"dqbuf cp to user failed");
+			PERR("dqbuf cp to user failed");
 			ret = -EFAULT;
 		}
 	}
@@ -1954,8 +1930,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 		count = frame->v4l2_buf.bytesused;
 	ret = copy_to_user(data, frame->data, count);
 	if (ret != 0) {
-		PDEBUG(D_ERR|D_STREAM,
-			"read cp to user lack %d / %zd", ret, count);
+		PERR("read cp to user lack %d / %zd", ret, count);
 		ret = -EFAULT;
 		goto out;
 	}
@@ -2290,10 +2265,6 @@ static void __exit gspca_exit(void)
 module_init(gspca_init);
 module_exit(gspca_exit);
 
-#ifdef GSPCA_DEBUG
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
-		"Debug (bit) 0x01:error 0x02:probe 0x04:config"
-		" 0x08:stream 0x10:frame 0x20:packet"
-		" 0x0100: v4l2");
-#endif
+		"1:probe 2:config 3:stream 4:frame 5:packet 6:usbi 7:usbo");

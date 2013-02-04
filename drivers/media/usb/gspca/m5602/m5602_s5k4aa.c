@@ -145,6 +145,7 @@ int s5k4aa_probe(struct sd *sd)
 {
 	u8 prod_id[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	const u8 expected_prod_id[6] = {0x00, 0x10, 0x00, 0x4b, 0x33, 0x75};
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	int i, err = 0;
 
 	if (force_sensor) {
@@ -215,10 +216,11 @@ int s5k4aa_start(struct sd *sd)
 	int i, err = 0;
 	u8 data[2];
 	struct cam *cam = &sd->gspca_dev.cam;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 
 	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
 	case 1280:
-		PDEBUG(D_V4L2, "Configuring camera for SXGA mode");
+		PDEBUG(D_CONF, "Configuring camera for SXGA mode");
 
 		for (i = 0; i < ARRAY_SIZE(SXGA_s5k4aa); i++) {
 			switch (SXGA_s5k4aa[i][0]) {
@@ -251,7 +253,7 @@ int s5k4aa_start(struct sd *sd)
 		break;
 
 	case 640:
-		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+		PDEBUG(D_CONF, "Configuring camera for VGA mode");
 
 		for (i = 0; i < ARRAY_SIZE(VGA_s5k4aa); i++) {
 			switch (VGA_s5k4aa[i][0]) {
@@ -367,7 +369,7 @@ static int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_V4L2, "Set exposure to %d", val);
+	PDEBUG(D_CONF, "Set exposure to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -389,7 +391,7 @@ static int s5k4aa_set_hvflip(struct gspca_dev *gspca_dev)
 	int hflip = sd->hflip->val;
 	int vflip = sd->vflip->val;
 
-	PDEBUG(D_V4L2, "Set hvflip %d %d", hflip, vflip);
+	PDEBUG(D_CONF, "Set hvflip %d %d", hflip, vflip);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -439,7 +441,7 @@ static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_V4L2, "Set gain to %d", val);
+	PDEBUG(D_CONF, "Set gain to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -456,7 +458,7 @@ static int s5k4aa_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_V4L2, "Set brightness to %d", val);
+	PDEBUG(D_CONF, "Set brightness to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -471,7 +473,7 @@ static int s5k4aa_set_noise(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_V4L2, "Set noise to %d", val);
+	PDEBUG(D_CONF, "Set noise to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
