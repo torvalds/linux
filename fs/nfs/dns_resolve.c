@@ -377,14 +377,12 @@ int nfs_dns_resolver_cache_init(struct net *net)
 	if (IS_ERR(nn->nfs_dns_resolve))
 		return PTR_ERR(nn->nfs_dns_resolve);
 
-	nfs_cache_init(nn->nfs_dns_resolve);
 	err = nfs_cache_register_net(net, nn->nfs_dns_resolve);
 	if (err)
 		goto err_reg;
 	return 0;
 
 err_reg:
-	nfs_cache_destroy(nn->nfs_dns_resolve);
 	cache_destroy_net(nn->nfs_dns_resolve, net);
 	return err;
 }
@@ -392,10 +390,8 @@ err_reg:
 void nfs_dns_resolver_cache_destroy(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct cache_detail *cd = nn->nfs_dns_resolve;
 
-	nfs_cache_unregister_net(net, cd);
-	nfs_cache_destroy(cd);
+	nfs_cache_unregister_net(net, nn->nfs_dns_resolve);
 	cache_destroy_net(nn->nfs_dns_resolve, net);
 }
 
