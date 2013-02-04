@@ -928,13 +928,14 @@ struct cpuidle_driver acpi_idle_driver = {
  * device i.e. per-cpu data
  *
  * @pr: the ACPI processor
+ * @dev : the cpuidle device
  */
-static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
+static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
+					   struct cpuidle_device *dev)
 {
 	int i, count = CPUIDLE_DRIVER_STATE_START;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state_usage *state_usage;
-	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
 
 	if (!pr->flags.power_setup_done)
 		return -EINVAL;
@@ -1089,7 +1090,7 @@ int acpi_processor_hotplug(struct acpi_processor *pr)
 	cpuidle_disable_device(dev);
 	acpi_processor_get_power_info(pr);
 	if (pr->flags.power) {
-		acpi_processor_setup_cpuidle_cx(pr);
+		acpi_processor_setup_cpuidle_cx(pr, dev);
 		ret = cpuidle_enable_device(dev);
 	}
 	cpuidle_resume_and_unlock();
@@ -1147,8 +1148,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 				continue;
 			acpi_processor_get_power_info(_pr);
 			if (_pr->flags.power) {
-				acpi_processor_setup_cpuidle_cx(_pr);
 				dev = per_cpu(acpi_cpuidle_device, cpu);
+				acpi_processor_setup_cpuidle_cx(_pr, dev);
 				cpuidle_enable_device(dev);
 			}
 		}
@@ -1217,7 +1218,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
 			return -ENOMEM;
 		per_cpu(acpi_cpuidle_device, pr->id) = dev;
 
-		acpi_processor_setup_cpuidle_cx(pr);
+		acpi_processor_setup_cpuidle_cx(pr, dev);
 
 		/* Register per-cpu cpuidle_device. Cpuidle driver
 		 * must already be registered before registering device
