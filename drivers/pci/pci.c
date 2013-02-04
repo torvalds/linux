@@ -1401,6 +1401,9 @@ pci_disable_device(struct pci_dev *dev)
 	if (dr)
 		dr->enabled = 0;
 
+	dev_WARN_ONCE(&dev->dev, atomic_read(&dev->enable_cnt) <= 0,
+		      "disabling already-disabled device");
+
 	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
 		return;
 
