@@ -225,7 +225,7 @@ int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) || (!policy->cur))
+		if (!policy->cur)
 			return -EINVAL;
 
 		mutex_lock(&dbs_data->mutex);
