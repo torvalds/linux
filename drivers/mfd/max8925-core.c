@@ -859,7 +859,7 @@ int max8925_device_init(struct max8925_chip *chip,
 
 	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
 			      ARRAY_SIZE(rtc_devs),
-			      &rtc_resources[0], chip->irq_base, NULL);
+			      NULL, chip->irq_base, NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 		goto out;
@@ -867,7 +867,7 @@ int max8925_device_init(struct max8925_chip *chip,
 
 	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
 			      ARRAY_SIZE(onkey_devs),
-			      &onkey_resources[0], 0, NULL);
+			      NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 		goto out_dev;
@@ -886,21 +886,19 @@ int max8925_device_init(struct max8925_chip *chip,
 		goto out_dev;
 	}
 
-	if (pdata && pdata->power) {
-		ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
-				      ARRAY_SIZE(power_devs),
-				      &power_supply_resources[0], 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev,
-				"Failed to add power supply subdev\n");
-			goto out_dev;
-		}
+	ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
+			      ARRAY_SIZE(power_devs),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(chip->dev,
+			"Failed to add power supply subdev, err = %d\n", ret);
+		goto out_dev;
 	}
 
 	if (pdata && pdata->touch) {
 		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
 				      ARRAY_SIZE(touch_devs),
-				      &touch_resources[0], 0, NULL);
+				      NULL, chip->tsc_irq, NULL);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add touch subdev\n");
 			goto out_dev;
