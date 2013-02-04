@@ -75,7 +75,7 @@
  *
  * 0x050  W  QueueNotify      Queue notifier
  * 0x060  R  InterruptStatus  Interrupt status register
- * 0x060  W  InterruptACK     Interrupt acknowledge register
+ * 0x064  W  InterruptACK     Interrupt acknowledge register
  * 0x070  RW Status           Device status register
  *
  * 0x100+ RW                  Device-specific configuration space
