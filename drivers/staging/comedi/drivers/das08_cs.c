@@ -69,15 +69,6 @@ static const struct das08_board_struct das08_cs_boards[] = {
 	},
 };
 
-static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int das08_cs_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
@@ -89,16 +80,8 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_cs_boards[0];
 
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das08_pcmcia_config_loop, NULL);
-	if (ret)
-		return ret;
-
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = pcmcia_enable_device(link);
+	link->config_flags |= CONF_AUTO_SET_IO;
+	ret = comedi_pcmcia_enable(dev);
 	if (ret)
 		return ret;
 	iobase = link->resource[0]->start;
@@ -113,11 +96,8 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 
 static void das08_cs_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
 	das08_common_detach(dev);
-	if (dev->iobase)
-		pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_das08_cs = {
