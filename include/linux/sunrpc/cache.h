@@ -161,11 +161,7 @@ sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
 
 extern int
-sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
-		void (*cache_request)(struct cache_detail *,
-				      struct cache_head *,
-				      char **,
-				      int *));
+sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h);
 
 
 extern void cache_clean_deferred(void *owner);

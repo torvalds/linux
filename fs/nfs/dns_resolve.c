@@ -144,7 +144,7 @@ static int nfs_dns_upcall(struct cache_detail *cd,
 
 	ret = nfs_cache_upcall(cd, key->hostname);
 	if (ret)
-		ret = sunrpc_cache_pipe_upcall(cd, ch, cd->cache_request);
+		ret = sunrpc_cache_pipe_upcall(cd, ch);
 	return ret;
 }
 

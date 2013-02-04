@@ -198,7 +198,7 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 {
 	if (cd->cache_upcall)
 		return cd->cache_upcall(cd, h);
-	return sunrpc_cache_pipe_upcall(cd, h, cd->cache_request);
+	return sunrpc_cache_pipe_upcall(cd, h);
 }
 
 static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
@@ -1140,11 +1140,7 @@ static bool cache_listeners_exist(struct cache_detail *detail)
  *
  * Each request is at most one page long.
  */
-int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
-		void (*cache_request)(struct cache_detail *,
-				      struct cache_head *,
-				      char **,
-				      int *))
+int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 {
 
 	char *buf;
@@ -1172,7 +1168,7 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
 
 	bp = buf; len = PAGE_SIZE;
 
-	cache_request(detail, h, &bp, &len);
+	detail->cache_request(detail, h, &bp, &len);
 
 	if (len < 0) {
 		kfree(buf);
