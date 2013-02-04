@@ -196,9 +196,9 @@ EXPORT_SYMBOL_GPL(sunrpc_cache_update);
 
 static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 {
-	if (!cd->cache_upcall)
-		return -EINVAL;
-	return cd->cache_upcall(cd, h);
+	if (cd->cache_upcall)
+		return cd->cache_upcall(cd, h);
+	return sunrpc_cache_pipe_upcall(cd, h, cd->cache_request);
 }
 
 static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
@@ -1152,6 +1152,9 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
 	char *bp;
 	int len;
 
+	if (!detail->cache_request)
+		return -EINVAL;
+
 	if (!cache_listeners_exist(detail)) {
 		warn_no_listener(detail);
 		return -EINVAL;
@@ -1605,7 +1608,7 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 	if (p == NULL)
 		goto out_nomem;
 
-	if (cd->cache_upcall || cd->cache_parse) {
+	if (cd->cache_request || cd->cache_parse) {
 		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
 				     cd->u.procfs.proc_ent,
 				     &cache_file_operations_procfs, cd);
