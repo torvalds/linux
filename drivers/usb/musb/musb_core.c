@@ -2008,7 +2008,6 @@ static int musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	int		irq = platform_get_irq_byname(pdev, "mc");
-	int		status;
 	struct resource	*iomem;
 	void __iomem	*base;
 
@@ -2016,24 +2015,17 @@ static int musb_probe(struct platform_device *pdev)
 	if (!iomem || irq <= 0)
 		return -ENODEV;
 
-	base = ioremap(iomem->start, resource_size(iomem));
-	if (!base) {
-		dev_err(dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	base = devm_ioremap_resource(dev, iomem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
-	status = musb_init_controller(dev, irq, base);
-	if (status < 0)
-		iounmap(base);
-
-	return status;
+	return musb_init_controller(dev, irq, base);
 }
 
 static int musb_remove(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct musb	*musb = dev_to_musb(dev);
-	void __iomem	*ctrl_base = musb->ctrl_base;
 
 	/* this gets called on rmmod.
 	 *  - Host mode: host may still be active
@@ -2044,7 +2036,6 @@ static int musb_remove(struct platform_device *pdev)
 	musb_shutdown(pdev);
 
 	musb_free(musb);
-	iounmap(ctrl_base);
 	device_init_wakeup(dev, 0);
 #ifndef CONFIG_MUSB_PIO_ONLY
 	dma_set_mask(dev, *dev->parent->dma_mask);
