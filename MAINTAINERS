@@ -6598,7 +6598,7 @@ F:	drivers/dma/dw_dmac_regs.h
 F:	drivers/dma/dw_dmac.c
 
 TIMEKEEPING, NTP
-M:	John Stultz <johnstul@us.ibm.com>
+M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 S:	Supported

@@ -997,7 +997,7 @@ SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
 
 	err = kc->clock_adj(which_clock, &ktx);
 
-	if (!err && copy_to_user(utx, &ktx, sizeof(ktx)))
+	if (err >= 0 && copy_to_user(utx, &ktx, sizeof(ktx)))
 		return -EFAULT;
 
 	return err;
