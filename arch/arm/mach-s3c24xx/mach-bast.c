@@ -48,7 +48,6 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
-#include <mach/regs-mem.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>

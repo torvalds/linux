@@ -75,7 +75,6 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-irq.h>
-#include <mach/regs-mem.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>

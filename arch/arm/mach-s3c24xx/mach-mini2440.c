@@ -40,7 +40,6 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <mach/irqs.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>

@@ -16,10 +16,11 @@
 #include <linux/io.h>
 
 #include <mach/map.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu-freq-core.h>
+
+#include "regs-mem.h"
 
 /**
  * s3c2410_cpufreq_setrefresh - set SDRAM refresh value

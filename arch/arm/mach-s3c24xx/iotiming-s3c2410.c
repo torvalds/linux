@@ -19,10 +19,11 @@
 #include <linux/slab.h>
 
 #include <mach/map.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu-freq-core.h>
+
+#include "regs-mem.h"
 
 #define print_ns(x) ((x) / 10), ((x) % 10)
 
