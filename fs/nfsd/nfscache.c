@@ -21,7 +21,6 @@
 
 static struct hlist_head *	cache_hash;
 static struct list_head 	lru_head;
-static int			cache_disabled = 1;
 static struct kmem_cache	*drc_slab;
 static unsigned int		num_drc_entries;
 static unsigned int		max_drc_entries;
@@ -113,7 +112,6 @@ int nfsd_reply_cache_init(void)
 	INIT_LIST_HEAD(&lru_head);
 	max_drc_entries = nfsd_cache_size_limit();
 	num_drc_entries = 0;
-	cache_disabled = 0;
 	return 0;
 out_nomem:
 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
@@ -129,8 +127,6 @@ void nfsd_reply_cache_shutdown(void)
 		rp = list_entry(lru_head.next, struct svc_cacherep, c_lru);
 		nfsd_reply_cache_free_locked(rp);
 	}
-
-	cache_disabled = 1;
 
 	kfree (cache_hash);
 	cache_hash = NULL;
@@ -215,7 +211,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	int rtn;
 
 	rqstp->rq_cacherep = NULL;
-	if (cache_disabled || type == RC_NOCACHE) {
+	if (type == RC_NOCACHE) {
 		nfsdstats.rcnocache++;
 		return RC_DOIT;
 	}
@@ -345,11 +341,11 @@ found_entry:
 void
 nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 {
-	struct svc_cacherep *rp;
+	struct svc_cacherep *rp = rqstp->rq_cacherep;
 	struct kvec	*resv = &rqstp->rq_res.head[0], *cachv;
 	int		len;
 
-	if (!(rp = rqstp->rq_cacherep) || cache_disabled)
+	if (!rp)
 		return;
 
 	len = resv->iov_len - ((char*)statp - (char*)resv->iov_base);
