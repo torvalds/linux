@@ -63,6 +63,7 @@
  *
  * 7.21
  *  - add FUSE_READDIRPLUS
+ *  - send the requested events in POLL request
  */
 
 #ifndef _LINUX_FUSE_H
@@ -585,7 +586,7 @@ struct fuse_poll_in {
 	__u64	fh;
 	__u64	kh;
 	__u32	flags;
-	__u32   padding;
+	__u32   events;
 };
 
 struct fuse_poll_out {

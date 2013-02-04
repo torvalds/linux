@@ -2167,6 +2167,7 @@ unsigned fuse_file_poll(struct file *file, poll_table *wait)
 		return DEFAULT_POLLMASK;
 
 	poll_wait(file, &ff->poll_wait, wait);
+	inarg.events = (__u32)poll_requested_events(wait);
 
 	/*
 	 * Ask for notification iff there's someone waiting for it.
