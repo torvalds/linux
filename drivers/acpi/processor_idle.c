@@ -28,19 +28,12 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/cpufreq.h>
-#include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/moduleparam.h>
-#include <linux/sched.h>	/* need_resched() */
-#include <linux/pm_qos.h>
+#include <linux/sched.h>       /* need_resched() */
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
-#include <linux/irqflags.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -52,12 +45,8 @@
 #include <asm/apic.h>
 #endif
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
-
 #include <acpi/acpi_bus.h>
 #include <acpi/processor.h>
-#include <asm/processor.h>
 
 #define PREFIX "ACPI: "
 
