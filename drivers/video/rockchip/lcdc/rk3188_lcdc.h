@@ -287,7 +287,7 @@
 #define DSP_LUT_ADDR		(0x800)
 
 
-#define CalScale(x, y)	             ((((u32)x)*0x1000)/y)
+#define CalScale(x, y)	             ((((u32)(x-1))*0x1000)/(y-1))
 
 struct rk3188_lcdc_device{
 	int id;
