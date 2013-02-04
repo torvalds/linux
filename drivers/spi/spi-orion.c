@@ -513,20 +513,11 @@ static struct platform_driver orion_spi_driver = {
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
+	.probe		= orion_spi_probe,
 	.remove		= orion_spi_remove,
 };
 
-static int __init orion_spi_init(void)
-{
-	return platform_driver_probe(&orion_spi_driver, orion_spi_probe);
-}
-module_init(orion_spi_init);
-
-static void __exit orion_spi_exit(void)
-{
-	platform_driver_unregister(&orion_spi_driver);
-}
-module_exit(orion_spi_exit);
+module_platform_driver(orion_spi_driver);
 
 MODULE_DESCRIPTION("Orion SPI driver");
 MODULE_AUTHOR("Shadi Ammouri <shadi@marvell.com>");
