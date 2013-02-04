@@ -62,10 +62,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #define MAX_DEV         4
 
 struct local_info_t {
-	struct pcmcia_device *link;
 	int stop;
-	int table_index;
-	char board_name[32];
 
 	enum { semaphore, buffer } interrupt_mode;
 
@@ -75,10 +72,6 @@ struct local_info_t {
 	struct comedi_subdevice *s;
 	int count;
 };
-
-/* A list of "instances" of the device. */
-
-static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
 
@@ -725,43 +718,43 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-/* daqp_attach is called via comedi_config to attach a comedi device
- * to a /dev/comedi*.  Note that this is different from daqp_cs_attach()
- * which is called by the pcmcia subsystem to attach the PCMCIA card
- * when it is inserted.
- */
-
-static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
+	if (p_dev->config_index == 0)
+		return -EINVAL;
+
+	return pcmcia_request_io(p_dev);
+}
+
+static int daqp_auto_attach(struct comedi_device *dev,
+			    unsigned long context)
+{
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	struct local_info_t *local;
 	struct comedi_subdevice *s;
 	int ret;
 
-	if (it->options[0] < 0 || it->options[0] >= MAX_DEV)
-		return -ENODEV;
+	dev->board_name = dev->driver->driver_name;
 
-	local = dev_table[it->options[0]];
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(*local), GFP_KERNEL);
 	if (!local)
-		return -ENODEV;
+		return -ENOMEM;
 
-	/* Typically brittle code that I don't completely understand,
-	 * but "it works on my card".  The intent is to pull the model
-	 * number of the card out the PCMCIA CIS and stash it away as
-	 * the COMEDI board_name.  Looks like the third field in
-	 * CISTPL_VERS_1 (offset 2) holds what we're looking for.  If
-	 * it doesn't work, who cares, just leave it as "DAQP".
-	 */
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
+	if (ret)
+		return ret;
 
-	strcpy(local->board_name, "DAQP");
-	dev->board_name = local->board_name;
-	if (local->link->prod_id[2]) {
-		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
-			strncpy(local->board_name, local->link->prod_id[2],
-				sizeof(local->board_name));
-		}
-	}
+	link->priv = local;
+	ret = pcmcia_request_irq(link, daqp_interrupt);
+	if (ret)
+		return ret;
 
-	dev->iobase = local->link->resource[0]->start;
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		return ret;
+	dev->iobase = link->resource[0]->start;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -811,50 +804,17 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void daqp_detach(struct comedi_device *dev)
 {
-	/* Nothing to cleanup */
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+
+	pcmcia_disable_device(link);
 }
 
 static struct comedi_driver driver_daqp = {
 	.driver_name	= "quatech_daqp_cs",
 	.module		= THIS_MODULE,
-	.attach		= daqp_attach,
+	.auto_attach	= daqp_auto_attach,
 	.detach		= daqp_detach,
 };
-
-/*====================================================================
-
-    PCMCIA interface code
-
-    The rest of the code in this file is based on dummy_cs.c v1.24
-    from the Linux pcmcia_cs distribution v3.1.8 and is subject
-    to the following license agreement.
-
-    The remaining contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
-    except in compliance with the License. You may obtain a copy of
-    the License at http://www.mozilla.org/MPL/
-
-    Software distributed under the License is distributed on an "AS
-    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-    implied. See the License for the specific language governing
-    rights and limitations under the License.
-
-    The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-    Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
-    above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
-    your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
-    the provisions above, a recipient may use your version of this
-    file under either the MPL or the GPL.
-
-======================================================================*/
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
@@ -874,74 +834,11 @@ static int daqp_cs_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int daqp_cs_attach(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
-	int ret;
-	int i;
-
-	for (i = 0; i < MAX_DEV; i++)
-		if (dev_table[i] == NULL)
-			break;
-	if (i == MAX_DEV) {
-		dev_notice(&link->dev, "no devices available\n");
-		return -ENODEV;
-	}
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(*local), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-
-	local->table_index = i;
-	dev_table[i] = local;
-	local->link = link;
-	link->priv = local;
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		goto failed;
-	}
-
-	ret = pcmcia_request_irq(link, daqp_interrupt);
-	if (ret)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
+	return comedi_pcmcia_auto_config(link, &driver_daqp);
 }
 
-static void daqp_cs_detach(struct pcmcia_device *link)
-{
-	struct local_info_t *dev = link->priv;
-
-	dev->stop = 1;
-	pcmcia_disable_device(link);
-
-	/* Unlink device structure, and free it */
-	dev_table[dev->table_index] = NULL;
-	kfree(dev);
-}
-
-/*====================================================================*/
 static const struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
@@ -953,7 +850,7 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.owner		= THIS_MODULE,
 	.id_table	= daqp_cs_id_table,
 	.probe		= daqp_cs_attach,
-	.remove		= daqp_cs_detach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 	.suspend	= daqp_cs_suspend,
 	.resume		= daqp_cs_resume,
 };
