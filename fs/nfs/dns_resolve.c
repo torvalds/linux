@@ -353,48 +353,39 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name,
 }
 EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
+static struct cache_detail nfs_dns_resolve_template = {
+	.owner		= THIS_MODULE,
+	.hash_size	= NFS_DNS_HASHTBL_SIZE,
+	.name		= "dns_resolve",
+	.cache_put	= nfs_dns_ent_put,
+	.cache_upcall	= nfs_dns_upcall,
+	.cache_parse	= nfs_dns_parse,
+	.cache_show	= nfs_dns_show,
+	.match		= nfs_dns_match,
+	.init		= nfs_dns_ent_init,
+	.update		= nfs_dns_ent_update,
+	.alloc		= nfs_dns_ent_alloc,
+};
+
+
 int nfs_dns_resolver_cache_init(struct net *net)
 {
-	int err = -ENOMEM;
+	int err;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct cache_detail *cd;
-	struct cache_head **tbl;
 
-	cd = kzalloc(sizeof(struct cache_detail), GFP_KERNEL);
-	if (cd == NULL)
-		goto err_cd;
+	nn->nfs_dns_resolve = cache_create_net(&nfs_dns_resolve_template, net);
+	if (IS_ERR(nn->nfs_dns_resolve))
+		return PTR_ERR(nn->nfs_dns_resolve);
 
-	tbl = kzalloc(NFS_DNS_HASHTBL_SIZE * sizeof(struct cache_head *),
-			GFP_KERNEL);
-	if (tbl == NULL)
-		goto err_tbl;
-
-	cd->owner = THIS_MODULE,
-	cd->hash_size = NFS_DNS_HASHTBL_SIZE,
-	cd->hash_table = tbl,
-	cd->name = "dns_resolve",
-	cd->cache_put = nfs_dns_ent_put,
-	cd->cache_upcall = nfs_dns_upcall,
-	cd->cache_parse = nfs_dns_parse,
-	cd->cache_show = nfs_dns_show,
-	cd->match = nfs_dns_match,
-	cd->init = nfs_dns_ent_init,
-	cd->update = nfs_dns_ent_update,
-	cd->alloc = nfs_dns_ent_alloc,
-
-	nfs_cache_init(cd);
-	err = nfs_cache_register_net(net, cd);
+	nfs_cache_init(nn->nfs_dns_resolve);
+	err = nfs_cache_register_net(net, nn->nfs_dns_resolve);
 	if (err)
 		goto err_reg;
-	nn->nfs_dns_resolve = cd;
 	return 0;
 
 err_reg:
-	nfs_cache_destroy(cd);
-	kfree(cd->hash_table);
-err_tbl:
-	kfree(cd);
-err_cd:
+	nfs_cache_destroy(nn->nfs_dns_resolve);
+	cache_destroy_net(nn->nfs_dns_resolve, net);
 	return err;
 }
 
@@ -405,8 +396,7 @@ void nfs_dns_resolver_cache_destroy(struct net *net)
 
 	nfs_cache_unregister_net(net, cd);
 	nfs_cache_destroy(cd);
-	kfree(cd->hash_table);
-	kfree(cd);
+	cache_destroy_net(nn->nfs_dns_resolve, net);
 }
 
 static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
