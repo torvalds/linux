@@ -53,4 +53,20 @@ struct mpc512x_ccm {
 	u32	m4ccr;	/* MSCAN4 CCR */
 	u8	res[0x98]; /* Reserved */
 };
+
+/*
+ * LPC Module
+ */
+struct mpc512x_lpc {
+	u32	cs_cfg[8];	/* CS config */
+	u32	cs_ctrl;	/* CS Control Register */
+	u32	cs_status;	/* CS Status Register */
+	u32	burst_ctrl;	/* CS Burst Control Register */
+	u32	deadcycle_ctrl;	/* CS Deadcycle Control Register */
+	u32	holdcycle_ctrl;	/* CS Holdcycle Control Register */
+	u32	alt;		/* Address Latch Timing Register */
+};
+
+int mpc512x_cs_config(unsigned int cs, u32 val);
+
 #endif /* __ASM_POWERPC_MPC5121_H__ */
