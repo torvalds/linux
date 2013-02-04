@@ -604,11 +604,7 @@ static void stk_free_buffers(struct stk_camera *dev)
 static int v4l_stk_open(struct file *fp)
 {
 	static int first_init = 1; /* webcam LED management */
-	struct stk_camera *dev;
-	struct video_device *vdev;
-
-	vdev = video_devdata(fp);
-	dev = vdev_to_camera(vdev);
+	struct stk_camera *dev = video_drvdata(fp);
 
 	if (dev == NULL || !is_present(dev))
 		return -ENXIO;
@@ -618,7 +614,6 @@ static int v4l_stk_open(struct file *fp)
 	else
 		first_init = 0;
 
-	fp->private_data = dev;
 	usb_autopm_get_interface(dev->interface);
 
 	return 0;
@@ -626,7 +621,7 @@ static int v4l_stk_open(struct file *fp)
 
 static int v4l_stk_release(struct file *fp)
 {
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 
 	if (dev->owner == fp) {
 		stk_stop_stream(dev);
@@ -649,7 +644,7 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	int ret;
 	unsigned long flags;
 	struct stk_sio_buffer *sbuf;
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 
 	if (!is_present(dev))
 		return -EIO;
@@ -705,7 +700,7 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 
 static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 {
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 
 	poll_wait(fp, &dev->wait_frame, wait);
 
@@ -741,7 +736,7 @@ static int v4l_stk_mmap(struct file *fp, struct vm_area_struct *vma)
 	unsigned int i;
 	int ret;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	struct stk_camera *dev = fp->private_data;
+	struct stk_camera *dev = video_drvdata(fp);
 	struct stk_sio_buffer *sbuf = NULL;
 
 	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED))
@@ -879,7 +874,7 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix_format = &f->fmt.pix;
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(stk_sizes) &&
@@ -984,7 +979,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
 	int ret;
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1011,7 +1006,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 static int stk_vidioc_reqbufs(struct file *filp,
 		void *priv, struct v4l2_requestbuffers *rb)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1037,7 +1032,7 @@ static int stk_vidioc_reqbufs(struct file *filp,
 static int stk_vidioc_querybuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 
 	if (buf->index >= dev->n_sbufs)
@@ -1050,7 +1045,7 @@ static int stk_vidioc_querybuf(struct file *filp,
 static int stk_vidioc_qbuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 	unsigned long flags;
 
@@ -1074,7 +1069,7 @@ static int stk_vidioc_qbuf(struct file *filp,
 static int stk_vidioc_dqbuf(struct file *filp,
 		void *priv, struct v4l2_buffer *buf)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	struct stk_sio_buffer *sbuf;
 	unsigned long flags;
 	int ret;
@@ -1107,7 +1102,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 static int stk_vidioc_streamon(struct file *filp,
 		void *priv, enum v4l2_buf_type type)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	if (is_streaming(dev))
 		return 0;
 	if (dev->sio_bufs == NULL)
@@ -1119,7 +1114,7 @@ static int stk_vidioc_streamon(struct file *filp,
 static int stk_vidioc_streamoff(struct file *filp,
 		void *priv, enum v4l2_buf_type type)
 {
-	struct stk_camera *dev = priv;
+	struct stk_camera *dev = video_drvdata(filp);
 	unsigned long flags;
 	int i;
 	stk_stop_stream(dev);
@@ -1222,6 +1217,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 	dev->vdev = stk_v4l_data;
 	dev->vdev.debug = debug;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)
 		STK_ERROR("v4l registration failed\n");
