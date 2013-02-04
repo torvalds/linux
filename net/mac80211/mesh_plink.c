@@ -592,6 +592,9 @@ static void mesh_plink_timer(unsigned long data)
 #ifdef CONFIG_PM
 void mesh_plink_quiesce(struct sta_info *sta)
 {
+	if (!ieee80211_vif_is_mesh(&sta->sdata->vif))
+		return;
+
 	if (del_timer_sync(&sta->plink_timer))
 		sta->plink_timer_was_running = true;
 }
