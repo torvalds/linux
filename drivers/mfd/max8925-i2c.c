@@ -135,13 +135,37 @@ static const struct i2c_device_id max8925_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max8925_id_table);
 
+static int max8925_dt_init(struct device_node *np, struct device *dev,
+			   struct max8925_platform_data *pdata)
+{
+	int ret;
+
+	ret = of_property_read_u32(np, "maxim,tsc-irq", &pdata->tsc_irq);
+	if (ret) {
+		dev_err(dev, "Not found maxim,tsc-irq property\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int max8925_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max8925_platform_data *pdata = client->dev.platform_data;
 	static struct max8925_chip *chip;
+	struct device_node *node = client->dev.of_node;
 
-	if (!pdata) {
+	if (node && !pdata) {
+		/* parse DT to get platform data */
+		pdata = devm_kzalloc(&client->dev,
+				     sizeof(struct max8925_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		if (max8925_dt_init(node, &client->dev, pdata))
+			return -EINVAL;
+	} else if (!pdata) {
 		pr_info("%s: platform data is missing\n", __func__);
 		return -EINVAL;
 	}
@@ -203,11 +227,18 @@ static int max8925_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(max8925_pm_ops, max8925_suspend, max8925_resume);
 
+static const struct of_device_id max8925_dt_ids[] = {
+	{ .compatible = "maxim,max8925", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, max8925_dt_ids);
+
 static struct i2c_driver max8925_driver = {
 	.driver	= {
 		.name	= "max8925",
 		.owner	= THIS_MODULE,
 		.pm     = &max8925_pm_ops,
+		.of_match_table = of_match_ptr(max8925_dt_ids),
 	},
 	.probe		= max8925_probe,
 	.remove		= max8925_remove,
@@ -217,7 +248,6 @@ static struct i2c_driver max8925_driver = {
 static int __init max8925_i2c_init(void)
 {
 	int ret;
-
 	ret = i2c_add_driver(&max8925_driver);
 	if (ret != 0)
 		pr_err("Failed to register MAX8925 I2C driver: %d\n", ret);
