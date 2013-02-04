@@ -37,6 +37,52 @@ struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev)
 }
 EXPORT_SYMBOL_GPL(comedi_to_pcmcia_dev);
 
+static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
+				    void *priv_data)
+{
+	if (link->config_index == 0)
+		return -EINVAL;
+
+	return pcmcia_request_io(link);
+}
+
+/**
+ * comedi_pcmcia_enable() - Request the regions and enable the PCMCIA device.
+ * @dev: comedi_device struct
+ *
+ * The comedi PCMCIA driver needs to set the link->config_flags, as
+ * appropriate for that driver, before calling this function in order
+ * to allow pcmcia_loop_config() to do its internal autoconfiguration.
+ */
+int comedi_pcmcia_enable(struct comedi_device *dev)
+{
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	int ret;
+
+	if (!link)
+		return -ENODEV;
+
+	ret = pcmcia_loop_config(link, comedi_pcmcia_conf_check, NULL);
+	if (ret)
+		return ret;
+
+	return pcmcia_enable_device(link);
+}
+EXPORT_SYMBOL_GPL(comedi_pcmcia_enable);
+
+/**
+ * comedi_pcmcia_disable() - Disable the PCMCIA device and release the regions.
+ * @dev: comedi_device struct
+ */
+void comedi_pcmcia_disable(struct comedi_device *dev)
+{
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+
+	if (link)
+		pcmcia_disable_device(link);
+}
+EXPORT_SYMBOL_GPL(comedi_pcmcia_disable);
+
 /**
  * comedi_pcmcia_auto_config() - Configure/probe a comedi PCMCIA driver.
  * @link: pcmcia_device struct
