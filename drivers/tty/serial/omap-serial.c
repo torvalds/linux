@@ -59,6 +59,7 @@
 
 /* SCR register bitmasks */
 #define OMAP_UART_SCR_RX_TRIG_GRANU1_MASK		(1 << 7)
+#define OMAP_UART_SCR_TX_TRIG_GRANU1_MASK		(1 << 6)
 #define OMAP_UART_SCR_TX_EMPTY			(1 << 3)
 
 /* FCR register bitmasks */
@@ -319,9 +320,6 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
-
-	if (!(lsr & UART_LSR_THRE))
-		return;
 
 	if (up->port.x_char) {
 		serial_out(up, UART_TX, up->port.x_char);
@@ -864,7 +862,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial_out(up, UART_IER, up->ier);
 	serial_out(up, UART_LCR, cval);		/* reset DLAB */
 	up->lcr = cval;
-	up->scr = OMAP_UART_SCR_TX_EMPTY;
+	up->scr = 0;
 
 	/* FIFOs and DMA Settings */
 
@@ -887,8 +885,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	up->mcr = serial_in(up, UART_MCR) & ~UART_MCR_TCRTLR;
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 	/* FIFO ENABLE, DMA MODE */
-
-	up->scr |= OMAP_UART_SCR_RX_TRIG_GRANU1_MASK;
 
 	/* Set receive FIFO threshold to 16 characters and
 	 * transmit FIFO threshold to 16 spaces
