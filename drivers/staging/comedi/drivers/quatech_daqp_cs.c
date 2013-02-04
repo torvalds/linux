@@ -763,7 +763,6 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->cancel	= daqp_ai_cancel;
 
 	s = &dev->subdevices[1];
-	dev->write_subdev = s;
 	s->private	= local;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITEABLE;
