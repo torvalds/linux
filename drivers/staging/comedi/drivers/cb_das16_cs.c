@@ -397,15 +397,6 @@ static const void *das16cs_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				      void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int das16cs_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
@@ -421,20 +412,14 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	/* Do we need to allocate an interrupt? */
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
-	if (ret)
-		return ret;
-
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = pcmcia_enable_device(link);
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = link->resource[0]->start;
+
+	if (!link->irq)
+		return -EINVAL;
 
 	ret = request_irq(link->irq, das16cs_interrupt, IRQF_SHARED,
 			  dev->board_name, dev);
@@ -497,12 +482,9 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 static void das16cs_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_das16cs = {
