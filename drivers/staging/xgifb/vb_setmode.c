@@ -2299,9 +2299,7 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 				& VB_XGI301C)) && (tempax & XGI_LCDDualLink)) {
 			tempbx |= SetLCDDualLink;
 		}
-	}
 
-	if (pVBInfo->IF_DEF_LVDS == 0) {
 		if ((pVBInfo->LCDResInfo == Panel_1400x1050) && (pVBInfo->VBInfo
 				& SetCRT2ToLCD) && (resinfo == 9) &&
 				(!(tempbx & EnableScalingLCD)))
@@ -5024,12 +5022,8 @@ static void XGI_SetLCDCap(struct vb_device_info *pVBInfo)
 
 	tempcx = pVBInfo->LCDCapList[XGI_GetLCDCapPtr(pVBInfo)].LCD_Capability;
 
-	if (pVBInfo->VBType &
-	    (VB_SIS301B |
-	     VB_SIS302B |
-	     VB_SIS301LV |
-	     VB_SIS302LV |
-	     VB_XGI301C)) { /* 301LV/302LV only */
+	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV |
+		VB_SIS302LV | VB_XGI301C)) {
 		if (pVBInfo->VBType &
 		    (VB_SIS301LV | VB_SIS302LV | VB_XGI301C)) {
 			/* Set 301LV Capability */
@@ -5041,10 +5035,7 @@ static void XGI_SetLCDCap(struct vb_device_info *pVBInfo)
 				~((EnableVBCLKDRVLOW | EnablePLLSPLOW) >> 8),
 				(unsigned short) ((tempcx & (EnableVBCLKDRVLOW
 						| EnablePLLSPLOW)) >> 8));
-	}
 
-	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
-			| VB_SIS302LV | VB_XGI301C)) {
 		if (pVBInfo->VBInfo & SetCRT2ToLCD)
 			XGI_SetLCDCap_B(tempcx, pVBInfo);
 		else if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
