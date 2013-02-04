@@ -37,6 +37,13 @@ static inline u32 request_hash(u32 xid)
 
 static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
 static void	cache_cleaner_func(struct work_struct *unused);
+static int 	nfsd_reply_cache_shrink(struct shrinker *shrink,
+					struct shrink_control *sc);
+
+struct shrinker nfsd_reply_cache_shrinker = {
+	.shrink	= nfsd_reply_cache_shrink,
+	.seeks	= 1,
+};
 
 /*
  * locking for the reply cache:
@@ -110,6 +117,7 @@ nfsd_reply_cache_free(struct svc_cacherep *rp)
 
 int nfsd_reply_cache_init(void)
 {
+	register_shrinker(&nfsd_reply_cache_shrinker);
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
 					0, 0, NULL);
 	if (!drc_slab)
@@ -133,6 +141,7 @@ void nfsd_reply_cache_shutdown(void)
 {
 	struct svc_cacherep	*rp;
 
+	unregister_shrinker(&nfsd_reply_cache_shrinker);
 	cancel_delayed_work_sync(&cache_cleaner);
 
 	while (!list_empty(&lru_head)) {
@@ -212,6 +221,20 @@ cache_cleaner_func(struct work_struct *unused)
 	spin_lock(&cache_lock);
 	prune_cache_entries();
 	spin_unlock(&cache_lock);
+}
+
+static int
+nfsd_reply_cache_shrink(struct shrinker *shrink, struct shrink_control *sc)
+{
+	unsigned int num;
+
+	spin_lock(&cache_lock);
+	if (sc->nr_to_scan)
+		prune_cache_entries();
+	num = num_drc_entries;
+	spin_unlock(&cache_lock);
+
+	return num;
 }
 
 /*
