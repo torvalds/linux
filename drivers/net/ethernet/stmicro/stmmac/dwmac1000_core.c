@@ -41,6 +41,11 @@ static void dwmac1000_core_init(void __iomem *ioaddr)
 	/* Mask GMAC interrupts */
 	writel(0x207, ioaddr + GMAC_INT_MASK);
 
+	/* mask out interrupts because we don't handle them yet */
+	writel(~0UL, ioaddr + GMAC_MMC_INTR_MASK_RX);
+	writel(~0UL, ioaddr + GMAC_MMC_INTR_MASK_TX);
+	writel(~0UL, ioaddr + GMAC_MMC_IPC_INTR_MASK_RX);
+
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Tag detection without filtering */
 	writel(0x0, ioaddr + GMAC_VLAN_TAG);
@@ -201,6 +206,8 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 {
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
 	int ret = 0;
+	int status = 0;
+	u32 value;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq)) {
@@ -223,6 +230,11 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
+	}
+	if (unlikely(intr_status & rgmii_irq)) {
+		CHIP_DBG(KERN_INFO "GMAC: Interrupt Status\n");
+		/* clear this link change interrupt because we are not handling it yet. */
+		value = readl(ioaddr + GMAC_S_R_GMII);
 	}
 	/* MAC trx/rx EEE LPI entry/exit interrupts */
 	if (intr_status & lpiis_irq) {
