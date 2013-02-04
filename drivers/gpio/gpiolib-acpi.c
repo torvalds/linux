@@ -83,7 +83,8 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	struct acpi_resource *res;
 	acpi_handle handle, ev_handle;
 	acpi_status status;
-	unsigned int pin, irq;
+	unsigned int pin;
+	int irq, ret;
 	char ev_name[5];
 
 	if (!chip->dev || !chip->to_irq)
@@ -126,11 +127,15 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 			continue;
 
 		/* Assume BIOS sets the triggering, so no flags */
-		devm_request_threaded_irq(chip->dev, irq, NULL,
+		ret = devm_request_threaded_irq(chip->dev, irq, NULL,
 					  acpi_gpio_irq_handler,
 					  0,
 					  "GPIO-signaled-ACPI-event",
 					  ev_handle);
+		if (ret)
+			dev_err(chip->dev,
+				"Failed to request IRQ %d ACPI event handler\n",
+				irq);
 	}
 }
 EXPORT_SYMBOL(acpi_gpiochip_request_interrupts);
