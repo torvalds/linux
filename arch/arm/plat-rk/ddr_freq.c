@@ -9,6 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -37,6 +38,7 @@ enum SYS_STATUS {
 	SYS_STATUS_RGA,		// 0x08
 	SYS_STATUS_CIF0,	// 0x10
 	SYS_STATUS_CIF1,	// 0x20
+	SYS_STATUS_REBOOT,	// 0x40
 };
 
 struct ddr {
@@ -49,6 +51,7 @@ struct ddr {
 	unsigned long video_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
+	unsigned long reboot_rate;
         char video_state;
 	bool auto_self_refresh;
 	char *mode;
@@ -102,7 +105,9 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 	if (!gpu)
 		gpu = clk_get(NULL, "gpu");
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
-	if (ddr.suspend_rate && (s & (1 << SYS_STATUS_SUSPEND))) {
+	if (ddr.reboot_rate && (s & (1 << SYS_STATUS_REBOOT))) {
+		ddrfreq_mode(false, &ddr.reboot_rate, "shutdown/reboot");
+	} else if (ddr.suspend_rate && (s & (1 << SYS_STATUS_SUSPEND))) {
 		ddrfreq_mode(true, &ddr.suspend_rate, "suspend");
 	} else if (ddr.video_rate && (s & (1 << SYS_STATUS_VIDEO))) {
 		ddrfreq_mode(false, &ddr.video_rate, "video");
@@ -303,6 +308,23 @@ CLK_NOTIFIER(pd_rga, RGA);
 CLK_NOTIFIER(pd_cif0, CIF0);
 CLK_NOTIFIER(pd_cif1, CIF1);
 
+static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	u32 timeout = 1000; // 10s
+	ddrfreq_set_sys_status(SYS_STATUS_REBOOT);
+	while (clk_get_rate(ddr.clk) != ddr.reboot_rate && --timeout) {
+		msleep(10);
+	}
+	if (!timeout) {
+		pr_err("failed to set ddr clk from %luMHz to %luMHz when shutdown/reboot\n", clk_get_rate(ddr.clk) / MHZ, ddr.reboot_rate / MHZ);
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ddrfreq_reboot_notifier = {
+	.notifier_call = ddrfreq_reboot_notifier_event,
+};
+
 static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
 {
         ddr_set_rate(rate/(1000*1000));
@@ -328,9 +350,10 @@ static int ddrfreq_init(void)
 		pr_err("failed to get ddr clk, error %d\n", ret);
 		return ret;
 	}
-    dvfs_clk_register_set_rate_callback(ddr.clk, ddr_scale_rate_for_dvfs);
+	dvfs_clk_register_set_rate_callback(ddr.clk, ddr_scale_rate_for_dvfs);
 
 	ddr.normal_rate = clk_get_rate(ddr.clk);
+	ddr.reboot_rate = ddr.normal_rate;
 
 	table = dvfs_get_freq_volt_table(ddr.clk);
 	if (!table) {
@@ -416,9 +439,11 @@ static int ddrfreq_late_init(void)
 	kthread_bind(ddr.task, 0);
 	wake_up_process(ddr.task);
 
-	pr_info("verion 2.1\n");
-	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz\n",
-		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ);
+	register_reboot_notifier(&ddrfreq_reboot_notifier);
+
+	pr_info("verion 2.2\n");
+	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
+		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 
 	return 0;
 
