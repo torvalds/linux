@@ -43,6 +43,35 @@ struct ax88172_int_data {
 	__le16 res3;
 } __packed;
 
+static char asix_mac_addr[6];
+static int __init asix_setup_mac(char *macstr)
+{
+	int i, h, l;
+
+	if (!macstr)
+		return 0;
+
+	for (i = 0; i < 6; i++) {
+		if (i != 5 && *(macstr + 2) != ':')
+			return 0;
+
+		h = hex_to_bin(*macstr++);
+		if (h == -1)
+			return 0;
+
+		l = hex_to_bin(*macstr++);
+		if (l == -1)
+			return 0;
+
+		macstr++;
+		asix_mac_addr[i] = (h << 4) + l;
+	}
+
+	return 0;
+}
+
+__setup("mac=", asix_setup_mac);
+
 static void asix_status(struct usbnet *dev, struct urb *urb)
 {
 	struct ax88172_int_data *event;
@@ -61,6 +90,9 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 
 static void asix_set_netdev_dev_addr(struct usbnet *dev, u8 *addr)
 {
+	if (!is_valid_ether_addr(addr))
+		memcpy(addr, asix_mac_addr, ETH_ALEN);
+
 	if (is_valid_ether_addr(addr)) {
 		memcpy(dev->net->dev_addr, addr, ETH_ALEN);
 	} else {

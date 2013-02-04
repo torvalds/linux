@@ -1669,6 +1669,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ltpc=		[NET]
 			Format: <io>,<irq>,<dma>
 
+	mac=		[NET]
+			Used ASIX drivers.
+			Example: mac=12:34:56:78:ab:cd
+
 	machvec=	[IA-64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
