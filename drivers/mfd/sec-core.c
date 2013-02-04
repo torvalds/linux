@@ -136,7 +136,7 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 	return pd;
 }
 #else
-static struct sec_platform_data *sec_i2c_parse_dt_pdata(
+static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 					struct device *dev)
 {
 	return 0;
