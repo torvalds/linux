@@ -806,12 +806,6 @@ static int stk_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 		return 0;
 }
 
-/* from vivi.c */
-static int stk_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
-{
-	return 0;
-}
-
 /* List of all V4Lv2 controls supported by the driver */
 static struct v4l2_queryctrl stk_controls[] = {
 	{
@@ -1263,7 +1257,6 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_enum_input = stk_vidioc_enum_input,
 	.vidioc_s_input = stk_vidioc_s_input,
 	.vidioc_g_input = stk_vidioc_g_input,
-	.vidioc_s_std = stk_vidioc_s_std,
 	.vidioc_reqbufs = stk_vidioc_reqbufs,
 	.vidioc_querybuf = stk_vidioc_querybuf,
 	.vidioc_qbuf = stk_vidioc_qbuf,
@@ -1289,8 +1282,6 @@ static void stk_v4l_dev_release(struct video_device *vd)
 
 static struct video_device stk_v4l_data = {
 	.name = "stkwebcam",
-	.tvnorms = V4L2_STD_UNKNOWN,
-	.current_norm = V4L2_STD_UNKNOWN,
 	.fops = &v4l_stk_fops,
 	.ioctl_ops = &v4l_stk_ioctl_ops,
 	.release = stk_v4l_dev_release,
