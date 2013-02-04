@@ -75,7 +75,7 @@
 
 #define EFX_FILE   "ctefx.bin"
 
-#ifdef CONFIG_SND_HDA_DSP_LOADER
+#ifdef CONFIG_SND_HDA_CODEC_CA0132_DSP
 MODULE_FIRMWARE(EFX_FILE);
 #endif
 
@@ -4530,7 +4530,7 @@ static int ca0132_init(struct hda_codec *codec)
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
-#ifdef CONFIG_SND_HDA_DSP_LOADER
+#ifdef CONFIG_SND_HDA_CODEC_CA0132_DSP
 	ca0132_download_dsp(codec);
 #endif
 	ca0132_refresh_widget_caps(codec);

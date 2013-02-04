@@ -15,6 +15,9 @@ menuconfig SND_HDA_INTEL
 
 if SND_HDA_INTEL
 
+config SND_HDA_DSP_LOADER
+	bool
+
 config SND_HDA_PREALLOC_SIZE
 	int "Pre-allocated buffer size for HD-audio driver"
 	range 0 32768
@@ -197,6 +200,17 @@ config SND_HDA_CODEC_CA0132
 	  snd-hda-codec-ca0132.
 	  This module is automatically loaded at probing.
 
+config SND_HDA_CODEC_CA0132_DSP
+	bool "Support new DSP code for CA0132 codec"
+	depends on SND_HDA_CODEC_CA0132 && FW_LOADER
+	select SND_HDA_DSP_LOADER
+	help
+	  Say Y here to enable the DSP for Creative CA0132 for extended
+	  features like equalizer or echo cancellation.
+
+	  Note that this option requires the external firmware file
+	  (ctefx.bin).
+
 config SND_HDA_CODEC_CMEDIA
 	bool "Build C-Media HD-audio codec support"
 	default y
@@ -235,13 +249,5 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	help
 	  The default time-out value in seconds for HD-audio automatic
 	  power-save mode.  0 means to disable the power-save mode.
-
-config SND_HDA_DSP_LOADER
-	bool "Enable DSP firmware loader"
-	depends on FW_LOADER
-	default y
-	help
-	  Say Y here to enable the DSP firmware loader, used by certain
-	  codecs (e.g. CA0132) to transfer their DSP binaries to the hardware.
 
 endif
