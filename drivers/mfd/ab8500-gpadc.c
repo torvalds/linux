@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/completion.h>
 #include <linux/regulator/consumer.h>
@@ -81,6 +82,9 @@
 
 /* This is used to not lose precision when dividing to get gain and offset */
 #define CALIB_SCALE			1000
+
+/* Time in ms before disabling regulator */
+#define GPADC_AUDOSUSPEND_DELAY		1
 
 enum cal_channels {
 	ADC_INPUT_VMAIN = 0,
@@ -282,8 +286,9 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		return -ENODEV;
 
 	mutex_lock(&gpadc->ab8500_gpadc_lock);
+
 	/* Enable VTVout LDO this is required for GPADC */
-	regulator_enable(gpadc->regu);
+	pm_runtime_get_sync(gpadc->dev);
 
 	/* Check if ADC is not busy, lock and proceed */
 	do {
@@ -397,8 +402,10 @@ int ab8500_gpadc_read_raw(struct ab8500_gpadc *gpadc, u8 channel)
 		dev_err(gpadc->dev, "gpadc_conversion: disable gpadc failed\n");
 		goto out;
 	}
-	/* Disable VTVout LDO this is required for GPADC */
-	regulator_disable(gpadc->regu);
+
+	pm_runtime_mark_last_busy(gpadc->dev);
+	pm_runtime_put_autosuspend(gpadc->dev);
+
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
 
 	return (high_data << 8) | low_data;
@@ -412,7 +419,9 @@ out:
 	 */
 	(void) abx500_set_register_interruptible(gpadc->dev, AB8500_GPADC,
 		AB8500_GPADC_CTRL1_REG, DIS_GPADC);
-	regulator_disable(gpadc->regu);
+
+	pm_runtime_put(gpadc->dev);
+
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
 	dev_err(gpadc->dev,
 		"gpadc_conversion: Failed to AD convert channel %d\n", channel);
@@ -571,6 +580,30 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 		gpadc->cal_data[ADC_INPUT_VBAT].offset);
 }
 
+static int ab8500_gpadc_runtime_suspend(struct device *dev)
+{
+	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+
+	regulator_disable(gpadc->regu);
+	return 0;
+}
+
+static int ab8500_gpadc_runtime_resume(struct device *dev)
+{
+	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+
+	regulator_enable(gpadc->regu);
+	return 0;
+}
+
+static int ab8500_gpadc_runtime_idle(struct device *dev)
+{
+	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+
+	pm_runtime_suspend(dev);
+	return 0;
+}
+
 static int ab8500_gpadc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -615,6 +648,16 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		dev_err(gpadc->dev, "failed to get vtvout LDO\n");
 		goto fail_irq;
 	}
+
+	platform_set_drvdata(pdev, gpadc);
+
+	regulator_enable(gpadc->regu);
+
+	pm_runtime_set_autosuspend_delay(gpadc->dev, GPADC_AUDOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(gpadc->dev);
+	pm_runtime_set_active(gpadc->dev);
+	pm_runtime_enable(gpadc->dev);
+
 	ab8500_gpadc_read_calibration_data(gpadc);
 	list_add_tail(&gpadc->node, &ab8500_gpadc_list);
 	dev_dbg(gpadc->dev, "probe success\n");
@@ -635,12 +678,26 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	list_del(&gpadc->node);
 	/* remove interrupt  - completion of Sw ADC conversion */
 	free_irq(gpadc->irq, gpadc);
-	/* disable VTVout LDO that is being used by GPADC */
-	regulator_put(gpadc->regu);
+
+	pm_runtime_get_sync(gpadc->dev);
+	pm_runtime_disable(gpadc->dev);
+
+	regulator_disable(gpadc->regu);
+
+	pm_runtime_set_suspended(gpadc->dev);
+
+	pm_runtime_put_noidle(gpadc->dev);
+
 	kfree(gpadc);
 	gpadc = NULL;
 	return 0;
 }
+
+static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
+	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
+			   ab8500_gpadc_runtime_resume,
+			   ab8500_gpadc_runtime_idle)
+};
 
 static struct platform_driver ab8500_gpadc_driver = {
 	.probe = ab8500_gpadc_probe,
@@ -648,6 +705,7 @@ static struct platform_driver ab8500_gpadc_driver = {
 	.driver = {
 		.name = "ab8500-gpadc",
 		.owner = THIS_MODULE,
+		.pm = &ab8500_gpadc_pm_ops,
 	},
 };
 
