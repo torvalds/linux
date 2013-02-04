@@ -806,99 +806,25 @@ static int stk_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 		return 0;
 }
 
-/* List of all V4Lv2 controls supported by the driver */
-static struct v4l2_queryctrl stk_controls[] = {
-	{
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 0xffff,
-		.step    = 0x0100,
-		.default_value = 0x6000,
-	},
-	{
-		.id      = V4L2_CID_HFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Horizontal Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1,
-	},
-	{
-		.id      = V4L2_CID_VFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Vertical Flip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1,
-	},
-};
-
-static int stk_vidioc_queryctrl(struct file *filp,
-		void *priv, struct v4l2_queryctrl *c)
+static int stk_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	int i;
-	int nbr;
-	nbr = ARRAY_SIZE(stk_controls);
+	struct stk_camera *dev =
+		container_of(ctrl->handler, struct stk_camera, hdl);
 
-	for (i = 0; i < nbr; i++) {
-		if (stk_controls[i].id == c->id) {
-			memcpy(c, &stk_controls[i],
-				sizeof(struct v4l2_queryctrl));
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
-static int stk_vidioc_g_ctrl(struct file *filp,
-		void *priv, struct v4l2_control *c)
-{
-	struct stk_camera *dev = priv;
-	switch (c->id) {
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		c->value = dev->vsettings.brightness;
-		break;
+		return stk_sensor_set_brightness(dev, ctrl->val);
 	case V4L2_CID_HFLIP:
 		if (dmi_check_system(stk_upside_down_dmi_table))
-			c->value = !dev->vsettings.hflip;
+			dev->vsettings.hflip = !ctrl->val;
 		else
-			c->value = dev->vsettings.hflip;
-		break;
-	case V4L2_CID_VFLIP:
-		if (dmi_check_system(stk_upside_down_dmi_table))
-			c->value = !dev->vsettings.vflip;
-		else
-			c->value = dev->vsettings.vflip;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int stk_vidioc_s_ctrl(struct file *filp,
-		void *priv, struct v4l2_control *c)
-{
-	struct stk_camera *dev = priv;
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		dev->vsettings.brightness = c->value;
-		return stk_sensor_set_brightness(dev, c->value >> 8);
-	case V4L2_CID_HFLIP:
-		if (dmi_check_system(stk_upside_down_dmi_table))
-			dev->vsettings.hflip = !c->value;
-		else
-			dev->vsettings.hflip = c->value;
+			dev->vsettings.hflip = ctrl->val;
 		return 0;
 	case V4L2_CID_VFLIP:
 		if (dmi_check_system(stk_upside_down_dmi_table))
-			dev->vsettings.vflip = !c->value;
+			dev->vsettings.vflip = !ctrl->val;
 		else
-			dev->vsettings.vflip = c->value;
+			dev->vsettings.vflip = ctrl->val;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1238,6 +1164,10 @@ static int stk_vidioc_enum_framesizes(struct file *filp,
 	}
 }
 
+static const struct v4l2_ctrl_ops stk_ctrl_ops = {
+	.s_ctrl = stk_s_ctrl,
+};
+
 static struct v4l2_file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
@@ -1263,9 +1193,6 @@ static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_dqbuf = stk_vidioc_dqbuf,
 	.vidioc_streamon = stk_vidioc_streamon,
 	.vidioc_streamoff = stk_vidioc_streamoff,
-	.vidioc_queryctrl = stk_vidioc_queryctrl,
-	.vidioc_g_ctrl = stk_vidioc_g_ctrl,
-	.vidioc_s_ctrl = stk_vidioc_s_ctrl,
 	.vidioc_g_parm = stk_vidioc_g_parm,
 	.vidioc_enum_framesizes = stk_vidioc_enum_framesizes,
 };
@@ -1310,8 +1237,9 @@ static int stk_register_video_device(struct stk_camera *dev)
 static int stk_camera_probe(struct usb_interface *interface,
 		const struct usb_device_id *id)
 {
-	int i;
+	struct v4l2_ctrl_handler *hdl;
 	int err = 0;
+	int i;
 
 	struct stk_camera *dev = NULL;
 	struct usb_device *udev = interface_to_usbdev(interface);
@@ -1329,6 +1257,20 @@ static int stk_camera_probe(struct usb_interface *interface,
 		kfree(dev);
 		return err;
 	}
+	hdl = &dev->hdl;
+	v4l2_ctrl_handler_init(hdl, 3);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 0xff, 0x1, 0x60);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+	v4l2_ctrl_new_std(hdl, &stk_ctrl_ops,
+			  V4L2_CID_VFLIP, 0, 1, 1, 1);
+	if (hdl->error) {
+		err = hdl->error;
+		dev_err(&udev->dev, "couldn't register control\n");
+		goto error;
+	}
+	dev->v4l2_dev.ctrl_handler = hdl;
 
 	spin_lock_init(&dev->spinlock);
 	init_waitqueue_head(&dev->wait_frame);
@@ -1372,7 +1314,6 @@ static int stk_camera_probe(struct usb_interface *interface,
 		err = -ENODEV;
 		goto error;
 	}
-	dev->vsettings.brightness = 0x7fff;
 	dev->vsettings.palette = V4L2_PIX_FMT_RGB565;
 	dev->vsettings.mode = MODE_VGA;
 	dev->frame_size = 640 * 480 * 2;
@@ -1389,6 +1330,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	return 0;
 
 error:
+	v4l2_ctrl_handler_free(hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
@@ -1407,6 +1349,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 		 video_device_node_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
+	v4l2_ctrl_handler_free(&dev->hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
 }
 
