@@ -17,14 +17,6 @@
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/pci.h>
 
-#define AR724X_PCI_CFG_BASE	0x14000000
-#define AR724X_PCI_CFG_SIZE	0x1000
-#define AR724X_PCI_CTRL_BASE	(AR71XX_APB_BASE + 0x000f0000)
-#define AR724X_PCI_CTRL_SIZE	0x100
-
-#define AR724X_PCI_MEM_BASE	0x10000000
-#define AR724X_PCI_MEM_SIZE	0x04000000
-
 #define AR724X_PCI_REG_RESET		0x18
 #define AR724X_PCI_REG_INT_STATUS	0x4c
 #define AR724X_PCI_REG_INT_MASK		0x50
