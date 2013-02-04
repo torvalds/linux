@@ -60,6 +60,7 @@ struct iommu_domain {
 enum iommu_attr {
 	DOMAIN_ATTR_GEOMETRY,
 	DOMAIN_ATTR_PAGING,
+	DOMAIN_ATTR_WINDOWS,
 	DOMAIN_ATTR_MAX,
 };
 
@@ -106,6 +107,10 @@ struct iommu_ops {
 	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,
 				    phys_addr_t paddr, u64 size);
 	void (*domain_window_disable)(struct iommu_domain *domain, u32 wnd_nr);
+	/* Set the numer of window per domain */
+	int (*domain_set_windows)(struct iommu_domain *domain, u32 w_count);
+	/* Get the numer of window per domain */
+	u32 (*domain_get_windows)(struct iommu_domain *domain);
 
 	unsigned long pgsize_bitmap;
 };
