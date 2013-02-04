@@ -610,6 +610,8 @@ static int v4l_stk_open(struct file *fp)
 	if (dev == NULL || !is_present(dev))
 		return -ENXIO;
 
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
 	if (!dev->first_init)
 		stk_camera_write_reg(dev, 0x0, 0x24);
 	else
@@ -618,6 +620,7 @@ static int v4l_stk_open(struct file *fp)
 	err = v4l2_fh_open(fp);
 	if (!err)
 		usb_autopm_get_interface(dev->interface);
+	mutex_unlock(&dev->lock);
 	return err;
 }
 
@@ -625,6 +628,7 @@ static int v4l_stk_release(struct file *fp)
 {
 	struct stk_camera *dev = video_drvdata(fp);
 
+	mutex_lock(&dev->lock);
 	if (dev->owner == fp) {
 		stk_stop_stream(dev);
 		stk_free_buffers(dev);
@@ -635,10 +639,11 @@ static int v4l_stk_release(struct file *fp)
 
 	if (is_present(dev))
 		usb_autopm_put_interface(dev->interface);
+	mutex_unlock(&dev->lock);
 	return v4l2_fh_release(fp);
 }
 
-static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
+static ssize_t stk_read(struct file *fp, char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	int i;
@@ -697,6 +702,19 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	return count;
+}
+
+static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct stk_camera *dev = video_drvdata(fp);
+	int ret;
+
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
+	ret = stk_read(fp, buf, count, f_pos);
+	mutex_unlock(&dev->lock);
+	return ret;
 }
 
 static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
@@ -1183,7 +1201,7 @@ static struct v4l2_file_operations v4l_stk_fops = {
 	.read = v4l_stk_read,
 	.poll = v4l_stk_poll,
 	.mmap = v4l_stk_mmap,
-	.ioctl = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
@@ -1231,6 +1249,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 	int err;
 
 	dev->vdev = stk_v4l_data;
+	dev->vdev.lock = &dev->lock;
 	dev->vdev.debug = debug;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
 	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
@@ -1286,6 +1305,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	dev->v4l2_dev.ctrl_handler = hdl;
 
 	spin_lock_init(&dev->spinlock);
+	mutex_init(&dev->lock);
 	init_waitqueue_head(&dev->wait_frame);
 	dev->first_init = 1; /* webcam LED management */
 
