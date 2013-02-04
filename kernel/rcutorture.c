@@ -208,6 +208,20 @@ MODULE_PARM_DESC(rcutorture_runnable, "Start rcutorture at boot");
 #define rcu_can_boost() 0
 #endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 
+#ifdef CONFIG_RCU_TRACE
+static u64 notrace rcu_trace_clock_local(void)
+{
+	u64 ts = trace_clock_local();
+	unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
+	return ts;
+}
+#else /* #ifdef CONFIG_RCU_TRACE */
+static u64 notrace rcu_trace_clock_local(void)
+{
+	return 0ULL;
+}
+#endif /* #else #ifdef CONFIG_RCU_TRACE */
+
 static unsigned long shutdown_time;	/* jiffies to system shutdown. */
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
@@ -1051,7 +1065,7 @@ static void rcu_torture_timer(unsigned long unused)
 
 	idx = cur_ops->readlock();
 	completed = cur_ops->completed();
-	ts = trace_clock_local();
+	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
@@ -1075,8 +1089,6 @@ static void rcu_torture_timer(unsigned long unused)
 	}
 	completed_end = cur_ops->completed();
 	if (pipe_count > 1) {
-		unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
-
 		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu, ts,
 					  completed, completed_end);
 		rcutorture_trace_dump();
@@ -1122,7 +1134,7 @@ rcu_torture_reader(void *arg)
 		}
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
-		ts = trace_clock_local();
+		ts = rcu_trace_clock_local();
 		p = rcu_dereference_check(rcu_torture_current,
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
@@ -1144,9 +1156,6 @@ rcu_torture_reader(void *arg)
 		}
 		completed_end = cur_ops->completed();
 		if (pipe_count > 1) {
-			unsigned long __maybe_unused ts_rem =
-					do_div(ts, NSEC_PER_USEC);
-
 			do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu,
 						  ts, completed, completed_end);
 			rcutorture_trace_dump();
