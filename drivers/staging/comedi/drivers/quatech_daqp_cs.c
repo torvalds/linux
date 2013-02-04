@@ -718,14 +718,6 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
 static int daqp_auto_attach(struct comedi_device *dev,
 			    unsigned long context)
 {
@@ -742,19 +734,15 @@ static int daqp_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
-	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
+	ret = comedi_pcmcia_enable(dev);
 	if (ret)
 		return ret;
+	dev->iobase = link->resource[0]->start;
 
 	link->priv = local;
 	ret = pcmcia_request_irq(link, daqp_interrupt);
 	if (ret)
 		return ret;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		return ret;
-	dev->iobase = link->resource[0]->start;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -804,9 +792,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 static void daqp_detach(struct comedi_device *dev)
 {
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
-	pcmcia_disable_device(link);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_daqp = {
