@@ -834,6 +834,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		dev_drv->screen1->ypos = 0;
 	}
 	ret = info->fbops->fb_open(info,1);
+	dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
 	if(dev_drv->lcdc_hdmi_process)
 		dev_drv->lcdc_hdmi_process(dev_drv,enable);
