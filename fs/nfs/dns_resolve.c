@@ -144,7 +144,7 @@ static int nfs_dns_upcall(struct cache_detail *cd,
 
 	ret = nfs_cache_upcall(cd, key->hostname);
 	if (ret)
-		ret = sunrpc_cache_pipe_upcall(cd, ch, nfs_dns_request);
+		ret = sunrpc_cache_pipe_upcall(cd, ch, cd->cache_request);
 	return ret;
 }
 
@@ -359,6 +359,7 @@ static struct cache_detail nfs_dns_resolve_template = {
 	.name		= "dns_resolve",
 	.cache_put	= nfs_dns_ent_put,
 	.cache_upcall	= nfs_dns_upcall,
+	.cache_request	= nfs_dns_request,
 	.cache_parse	= nfs_dns_parse,
 	.cache_show	= nfs_dns_show,
 	.match		= nfs_dns_match,

@@ -142,7 +142,7 @@ idtoname_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 static int
 idtoname_upcall(struct cache_detail *cd, struct cache_head *ch)
 {
-	return sunrpc_cache_pipe_upcall(cd, ch, idtoname_request);
+	return sunrpc_cache_pipe_upcall(cd, ch, cd->cache_request);
 }
 
 static int
@@ -193,6 +193,7 @@ static struct cache_detail idtoname_cache_template = {
 	.name		= "nfs4.idtoname",
 	.cache_put	= ent_put,
 	.cache_upcall	= idtoname_upcall,
+	.cache_request	= idtoname_request,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
 	.warn_no_listener = warn_no_idmapd,
@@ -323,7 +324,7 @@ nametoid_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 static int
 nametoid_upcall(struct cache_detail *cd, struct cache_head *ch)
 {
-	return sunrpc_cache_pipe_upcall(cd, ch, nametoid_request);
+	return sunrpc_cache_pipe_upcall(cd, ch, cd->cache_request);
 }
 
 static int
@@ -366,6 +367,7 @@ static struct cache_detail nametoid_cache_template = {
 	.name		= "nfs4.nametoid",
 	.cache_put	= ent_put,
 	.cache_upcall	= nametoid_upcall,
+	.cache_request	= nametoid_request,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
 	.warn_no_listener = warn_no_idmapd,

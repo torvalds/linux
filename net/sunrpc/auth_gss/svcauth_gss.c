@@ -184,7 +184,7 @@ static void rsi_request(struct cache_detail *cd,
 
 static int rsi_upcall(struct cache_detail *cd, struct cache_head *h)
 {
-	return sunrpc_cache_pipe_upcall(cd, h, rsi_request);
+	return sunrpc_cache_pipe_upcall(cd, h, cd->cache_request);
 }
 
 
@@ -276,6 +276,7 @@ static struct cache_detail rsi_cache_template = {
 	.name           = "auth.rpcsec.init",
 	.cache_put      = rsi_put,
 	.cache_upcall   = rsi_upcall,
+	.cache_request  = rsi_request,
 	.cache_parse    = rsi_parse,
 	.match		= rsi_match,
 	.init		= rsi_init,

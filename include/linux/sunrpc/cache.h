@@ -83,6 +83,10 @@ struct cache_detail {
 	int			(*cache_upcall)(struct cache_detail *,
 						struct cache_head *);
 
+	void			(*cache_request)(struct cache_detail *cd,
+						 struct cache_head *ch,
+						 char **bpp, int *blen);
+
 	int			(*cache_parse)(struct cache_detail *,
 					       char *buf, int len);
 
