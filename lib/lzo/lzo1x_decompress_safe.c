@@ -72,9 +72,11 @@ copy_literal_run:
 						COPY8(op, ip);
 						op += 8;
 						ip += 8;
+#  if !defined(__arm__)
 						COPY8(op, ip);
 						op += 8;
 						ip += 8;
+#  endif
 					} while (ip < ie);
 					ip = ie;
 					op = oe;
@@ -159,9 +161,11 @@ copy_literal_run:
 					COPY8(op, m_pos);
 					op += 8;
 					m_pos += 8;
+#  if !defined(__arm__)
 					COPY8(op, m_pos);
 					op += 8;
 					m_pos += 8;
+#  endif
 				} while (op < oe);
 				op = oe;
 				if (HAVE_IP(6)) {
