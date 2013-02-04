@@ -790,16 +790,11 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void daqp_detach(struct comedi_device *dev)
-{
-	comedi_pcmcia_disable(dev);
-}
-
 static struct comedi_driver driver_daqp = {
 	.driver_name	= "quatech_daqp_cs",
 	.module		= THIS_MODULE,
 	.auto_attach	= daqp_auto_attach,
-	.detach		= daqp_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
