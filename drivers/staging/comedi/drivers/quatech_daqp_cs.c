@@ -68,8 +68,6 @@ struct local_info_t {
 
 	struct completion eos;
 
-	struct comedi_device *dev;
-	struct comedi_subdevice *s;
 	int count;
 };
 
@@ -169,7 +167,7 @@ static const struct comedi_lrange range_daqp_ai = {
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 
 	if (local->stop)
 		return -EIO;
@@ -196,13 +194,13 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
  */
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
-	struct local_info_t *local = dev_id;
-	struct comedi_device *dev = local ? local->dev : NULL;
-	struct comedi_subdevice *s = local ? local->s : NULL;
+	struct comedi_device *dev = dev_id;
+	struct local_info_t *local = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int loop_limit = 10000;
 	int status;
 
-	if (!dev || !dev->attached || !s || s->private != local)
+	if (!dev->attached)
 		return IRQ_NONE;
 
 	switch (local->interrupt_mode) {
@@ -270,7 +268,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 	int i;
 	int v;
 	int counter = 10000;
@@ -327,8 +325,6 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 	init_completion(&local->eos);
 	local->interrupt_mode = semaphore;
-	local->dev = dev;
-	local->s = s;
 
 	for (i = 0; i < insn->n; i++) {
 
@@ -463,7 +459,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter;
 	int scanlist_start_on_every_entry;
@@ -649,8 +645,6 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	local->interrupt_mode = buffer;
-	local->dev = dev;
-	local->s = s;
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
@@ -665,7 +659,7 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 	int d;
 	unsigned int chan;
 
@@ -692,7 +686,7 @@ static int daqp_di_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 
 	if (local->stop)
 		return -EIO;
@@ -708,7 +702,7 @@ static int daqp_do_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = s->private;
+	struct local_info_t *local = dev->private;
 
 	if (local->stop)
 		return -EIO;
@@ -732,6 +726,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	local = kzalloc(sizeof(*local), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
+	dev->private = local;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
 	ret = comedi_pcmcia_enable(dev);
@@ -739,7 +734,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	link->priv = local;
+	link->priv = dev;
 	ret = pcmcia_request_irq(link, daqp_interrupt);
 	if (ret)
 		return ret;
@@ -750,7 +745,6 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-	s->private	= local;
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan	= 8;
@@ -763,7 +757,6 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->cancel	= daqp_ai_cancel;
 
 	s = &dev->subdevices[1];
-	s->private	= local;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 2;
@@ -772,14 +765,12 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->insn_write	= daqp_ao_insn_write;
 
 	s = &dev->subdevices[2];
-	s->private	= local;
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 1;
 	s->insn_read	= daqp_di_insn_read;
 
 	s = &dev->subdevices[3];
-	s->private	= local;
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITEABLE;
 	s->n_chan	= 1;
@@ -798,18 +789,23 @@ static struct comedi_driver driver_daqp = {
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
+	struct comedi_device *dev = link->priv;
+	struct local_info_t *local = dev ? dev->private : NULL;
 
 	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
+	if (local)
+		local->stop = 1;
+
 	return 0;
 }
 
 static int daqp_cs_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
+	struct comedi_device *dev = link->priv;
+	struct local_info_t *local = dev ? dev->private : NULL;
 
-	local->stop = 0;
+	if (local)
+		local->stop = 0;
 
 	return 0;
 }
