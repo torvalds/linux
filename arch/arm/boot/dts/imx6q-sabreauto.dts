@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx6q.dtsi"
+/include/ "imx6qdl.dtsi"
 
 / {
 	model = "Freescale i.MX6 Quad SABRE Automotive Board";
