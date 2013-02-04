@@ -897,11 +897,12 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		pix_format->bytesperline = 2 * pix_format->width;
 	pix_format->sizeimage = pix_format->bytesperline
 				* pix_format->height;
+	pix_format->priv = 0;
 	return 0;
 }
 
-static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
-		void *priv, struct v4l2_format *fmtd)
+static int stk_try_fmt_vid_cap(struct file *filp,
+		struct v4l2_format *fmtd, int *idx)
 {
 	int i;
 	switch (fmtd->fmt.pix.pixelformat) {
@@ -923,11 +924,13 @@ static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
 			< abs(fmtd->fmt.pix.width - stk_sizes[i].w))) {
 		fmtd->fmt.pix.height = stk_sizes[i-1].h;
 		fmtd->fmt.pix.width = stk_sizes[i-1].w;
-		fmtd->fmt.pix.priv = i - 1;
+		if (idx)
+			*idx = i - 1;
 	} else {
 		fmtd->fmt.pix.height = stk_sizes[i].h;
 		fmtd->fmt.pix.width = stk_sizes[i].w;
-		fmtd->fmt.pix.priv = i;
+		if (idx)
+			*idx = i;
 	}
 
 	fmtd->fmt.pix.field = V4L2_FIELD_NONE;
@@ -938,7 +941,14 @@ static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
 		fmtd->fmt.pix.bytesperline = 2 * fmtd->fmt.pix.width;
 	fmtd->fmt.pix.sizeimage = fmtd->fmt.pix.bytesperline
 		* fmtd->fmt.pix.height;
+	fmtd->fmt.pix.priv = 0;
 	return 0;
+}
+
+static int stk_vidioc_try_fmt_vid_cap(struct file *filp,
+		void *priv, struct v4l2_format *fmtd)
+{
+	return stk_try_fmt_vid_cap(filp, fmtd, NULL);
 }
 
 static int stk_setup_format(struct stk_camera *dev)
@@ -981,6 +991,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
 	int ret;
+	int idx;
 	struct stk_camera *dev = video_drvdata(filp);
 
 	if (dev == NULL)
@@ -991,7 +1002,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 		return -EBUSY;
 	if (dev->owner && dev->owner != filp)
 		return -EBUSY;
-	ret = stk_vidioc_try_fmt_vid_cap(filp, priv, fmtd);
+	ret = stk_try_fmt_vid_cap(filp, fmtd, &idx);
 	if (ret)
 		return ret;
 	dev->owner = filp;
@@ -999,7 +1010,7 @@ static int stk_vidioc_s_fmt_vid_cap(struct file *filp,
 	dev->vsettings.palette = fmtd->fmt.pix.pixelformat;
 	stk_free_buffers(dev);
 	dev->frame_size = fmtd->fmt.pix.sizeimage;
-	dev->vsettings.mode = stk_sizes[fmtd->fmt.pix.priv].m;
+	dev->vsettings.mode = stk_sizes[idx].m;
 
 	stk_initialise(dev);
 	return stk_setup_format(dev);
