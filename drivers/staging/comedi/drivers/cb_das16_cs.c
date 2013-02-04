@@ -418,12 +418,9 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	if (!link->irq)
-		return -EINVAL;
-
-	ret = request_irq(link->irq, das16cs_interrupt, IRQF_SHARED,
-			  dev->board_name, dev);
-	if (ret < 0)
+	link->priv = dev;
+	ret = pcmcia_request_irq(link, das16cs_interrupt);
+	if (ret)
 		return ret;
 	dev->irq = link->irq;
 
@@ -482,8 +479,6 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 static void das16cs_detach(struct comedi_device *dev)
 {
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	comedi_pcmcia_disable(dev);
 }
 
