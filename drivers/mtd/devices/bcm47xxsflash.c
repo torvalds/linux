@@ -44,7 +44,11 @@ static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
 	mtd->writebufsize = mtd->writesize = 1;
 }
 
-static int bcm47xxsflash_probe(struct platform_device *pdev)
+/**************************************************
+ * BCMA
+ **************************************************/
+
+static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
 	struct bcm47xxsflash *b47s;
@@ -77,7 +81,7 @@ out:
 	return err;
 }
 
-static int bcm47xxsflash_remove(struct platform_device *pdev)
+static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
 	struct bcm47xxsflash *b47s = sflash->priv;
@@ -89,13 +93,17 @@ static int bcm47xxsflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bcma_sflash_driver = {
-	.probe	= bcm47xxsflash_probe,
-	.remove = bcm47xxsflash_remove,
+	.probe	= bcm47xxsflash_bcma_probe,
+	.remove = bcm47xxsflash_bcma_remove,
 	.driver = {
 		.name = "bcma_sflash",
 		.owner = THIS_MODULE,
 	},
 };
+
+/**************************************************
+ * Init
+ **************************************************/
 
 static int __init bcm47xxsflash_init(void)
 {
