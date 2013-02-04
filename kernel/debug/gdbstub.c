@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
+#include <linux/serial_core.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>

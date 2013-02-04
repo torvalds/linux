@@ -27,6 +27,7 @@
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>

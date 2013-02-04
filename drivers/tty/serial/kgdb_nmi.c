@@ -23,6 +23,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial_core.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
